@@ -15,7 +15,10 @@ class SyncTrack
     public SyncTrack__Event[] SyncEvents { get; private set; }
     public int StartEventOffset { get; private set; }
 
-    public int NumEvents => SyncEvents.Length;
+    private int numEventsOverride = -1;
+
+    /// <summary>The logical event count; the scratch backing array may be larger.</summary>
+    public int NumEvents => numEventsOverride >= 0 ? numEventsOverride : SyncEvents.Length;
 
     public SyncTrack(KVObject data)
     {
@@ -64,10 +67,14 @@ class SyncTrack
         var durationScale0 = (float)numEvents0 / lcm;
         var durationScale1 = (float)numEvents1 / lcm;
 
-        if (SyncEvents.Length != lcm)
+        // Grow-only scratch reuse: fluctuating blended event counts (LCM changes) must not
+        // reallocate every frame
+        if (SyncEvents.Length < lcm)
         {
             SyncEvents = new SyncTrack__Event[lcm];
         }
+
+        numEventsOverride = lcm;
 
         var blendedStartPercent = 0f;
 
@@ -91,8 +98,8 @@ class SyncTrack
             SyncEvents[i] = new SyncTrack__Event(e.ID, e.StartTime.Value * normalizedScalingFactor, e.Duration.Value * normalizedScalingFactor);
         }
 
-        var last = SyncEvents[^1];
-        SyncEvents[^1] = new SyncTrack__Event(last.ID, last.StartTime.Value, 1f - last.StartTime.Value);
+        var last = SyncEvents[lcm - 1];
+        SyncEvents[lcm - 1] = new SyncTrack__Event(last.ID, last.StartTime.Value, 1f - last.StartTime.Value);
 
         StartEventOffset = 0;
     }
@@ -135,9 +142,9 @@ class SyncTrack
 
     public bool HasEventWithID(GlobalSymbol id)
     {
-        foreach (var syncEvent in SyncEvents)
+        for (var i = 0; i < NumEvents; i++)
         {
-            if (syncEvent.ID == id)
+            if (SyncEvents[i].ID == id)
             {
                 return true;
             }
@@ -149,7 +156,7 @@ class SyncTrack
     /// <summary>Gets the first event matching the ID; when nothing matches, the first event including offset.</summary>
     public int GetEventIndexForID(GlobalSymbol id)
     {
-        for (var i = 0; i < SyncEvents.Length; i++)
+        for (var i = 0; i < NumEvents; i++)
         {
             if (SyncEvents[i].ID == id)
             {
@@ -186,7 +193,7 @@ class SyncTrack
         // Search events higher than us
         var upperFoundIdx = -1;
         var upperDistance = 0;
-        for (var i = specifiedIdx + 1; i < SyncEvents.Length; i++)
+        for (var i = specifiedIdx + 1; i < NumEvents; i++)
         {
             if (SyncEvents[i].ID == id)
             {
@@ -251,7 +258,7 @@ class SyncTrack
         {
             // A looping sequence, so this position lies within the last event
             eventIdx = numSyncEvents - 1;
-            var lastEvent = SyncEvents[^1];
+            var lastEvent = SyncEvents[NumEvents - 1];
             Debug.Assert(lastEvent.Duration.Value > float.Epsilon);
 
             var eventDelta = SyncEvents[0].StartTime.Value - percentageThrough;

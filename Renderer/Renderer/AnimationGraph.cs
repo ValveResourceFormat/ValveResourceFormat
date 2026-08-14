@@ -266,10 +266,10 @@ namespace ValveResourceFormat.Renderer
             idOptions[parameterName].UnionWith(ids);
         }
 
-        /// <summary>Restarts the graph's node tree as if freshly activated.</summary>
-        internal void RestartRoot()
+        /// <summary>(Re)initializes the graph's node tree at the given time.</summary>
+        internal void ResetGraphState(AnimLib.SyncTrackTime initTime = default)
         {
-            graphContext.RootNode.Restart(graphContext);
+            graphContext.ResetGraphState(initTime);
         }
     }
 

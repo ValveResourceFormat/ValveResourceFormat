@@ -33,7 +33,11 @@ namespace ValveResourceFormat.Renderer.AnimLib
 
     abstract partial class GraphNode
     {
-        public abstract void Initialize(GraphContext context);
+        /// <summary>
+        /// Wires child node references and definition-derived state. Runs once for every node in
+        /// array order at graph construction (Esoterica InstantiateNode).
+        /// </summary>
+        public abstract void Instantiate(GraphContext context);
 
         private uint lastUpdateID = uint.MaxValue;
 
@@ -42,11 +46,51 @@ namespace ValveResourceFormat.Renderer.AnimLib
 
         /// <summary>Marks this node as active/evaluated for the current graph update.</summary>
         public void MarkNodeActive(GraphContext ctx) => lastUpdateID = ctx.UpdateID;
+
+        // Activation lifecycle (Esoterica GraphNode::Initialize/Shutdown): nodes are initialized
+        // when their subtree becomes active and shut down when it deactivates, reference-counted
+        // because value nodes can be shared by multiple active parents. Instances persist; the
+        // lifecycle only resets internal state, so activation allocates nothing.
+        private protected int initializationCount;
+
+        public bool IsInitialized => initializationCount > 0;
+
+        public virtual void Initialize(GraphContext ctx)
+        {
+            if (IsInitialized)
+            {
+                initializationCount++;
+            }
+            else
+            {
+                InitializeInternal(ctx);
+            }
+        }
+
+        public void Shutdown(GraphContext ctx)
+        {
+            Debug.Assert(IsInitialized);
+            if (initializationCount > 0 && --initializationCount == 0)
+            {
+                ShutdownInternal(ctx);
+            }
+        }
+
+        protected virtual void InitializeInternal(GraphContext ctx)
+        {
+            Debug.Assert(!IsInitialized);
+            initializationCount++;
+        }
+
+        protected virtual void ShutdownInternal(GraphContext ctx)
+        {
+            lastUpdateID = uint.MaxValue;
+        }
     }
 
     abstract partial class ValueNode
     {
-        public override void Initialize(GraphContext ctx) { }
+        public override void Instantiate(GraphContext ctx) { }
     }
 
     static class KVObjectExtensions2
@@ -130,13 +174,38 @@ namespace ValveResourceFormat.Renderer.AnimLib
                 Nodes[i] = CreateNode(nodeArray[i]);
             }
 
-            // Initialize nodes, populate strong references
+            // Instantiate nodes: wire strong references and definition-derived state
             foreach (var node in Nodes)
             {
-                node.Initialize(this);
+                node.Instantiate(this);
             }
 
             RootNode = (PoseNode)Nodes[graphDefinition.RootNodeIdx];
+
+            // Initialize persistent graph nodes (control and virtual parameters); they stay
+            // initialized for the instance's whole life (Esoterica GraphInstance::Initialize).
+            // The root node initializes lazily on the first update.
+            foreach (var nodeIdx in graphDefinition.PersistentNodeIndices)
+            {
+                Nodes[nodeIdx].Initialize(this);
+            }
+        }
+
+        /// <summary>
+        /// (Re)initializes the root node tree at the given time (Esoterica
+        /// GraphInstance::ResetGraphState).
+        /// </summary>
+        public void ResetGraphState(SyncTrackTime initTime = default)
+        {
+            if (RootNode.IsInitialized)
+            {
+                RootNode.Shutdown(this);
+            }
+
+            // Bump the update ID to ensure that any initialization code that relies on it is
+            // dirtied (value nodes evaluated during initialization must recompute).
+            UpdateID++;
+            RootNode.Initialize(this, initTime);
         }
 
         // Maps schema class names (minus the CNm prefix and ::CDefinition suffix) to AnimLib node types.
@@ -247,9 +316,16 @@ namespace ValveResourceFormat.Renderer.AnimLib
             }
         }
 
+        private readonly HashSet<(short, string)> loggedWarnings = [];
+
         public void LogWarning(short nodeIdx, string message)
         {
-            Console.WriteLine($"[AnimGraph][Node {nodeIdx}] Warning: {message}");
+            // Lifecycle warnings (invalid selections, missing clips) can repeat on every state
+            // entry; log each distinct warning once per node.
+            if (loggedWarnings.Add((nodeIdx, message)))
+            {
+                Console.WriteLine($"[AnimGraph][Node {nodeIdx}] Warning: {message}");
+            }
         }
 
         private readonly HashSet<string> warnedNotImplemented = [];
@@ -271,6 +347,12 @@ namespace ValveResourceFormat.Renderer.AnimLib
             UpdateID++;
             DeltaTime = timeStep;
             SampledEvents.Clear();
+
+            if (!RootNode.IsInitialized)
+            {
+                ResetGraphState();
+            }
+
             var poseResult = RootNode.Update(this, updateRange);
             Pose.SetParentSpaceTransforms(poseResult.Pose);
             return poseResult;

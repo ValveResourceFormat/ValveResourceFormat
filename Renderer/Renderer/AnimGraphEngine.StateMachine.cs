@@ -42,9 +42,9 @@ namespace ValveResourceFormat.Renderer.AnimLib
             ? ActiveTransition.SyncTrack
             : ActiveStateIndex >= 0 && ActiveStateIndex < States.Length ? ActiveStateNode.SyncTrack : SyncTrack.Default;
 
-        public override void Initialize(GraphContext ctx)
+        public override void Instantiate(GraphContext ctx)
         {
-            base.Initialize(ctx);
+            base.Instantiate(ctx);
 
             States = new StateInfo[StateDefinitions.Length];
 
@@ -71,14 +71,9 @@ namespace ValveResourceFormat.Renderer.AnimLib
                 s++;
             }
 
-            ActiveStateIndex = DefaultStateIndex;
-            Debug.Assert(ActiveStateIndex != -1);
-
-            var activeState = ActiveState.StateNode;
-
-            Duration = activeState.Duration;
-            PreviousTime = activeState.PreviousTime;
-            CurrentTime = activeState.CurrentTime;
+            // The active state is picked at initialization (entry conditions), not here.
+            ActiveStateIndex = -1;
+            Debug.Assert(DefaultStateIndex != -1);
         }
 
         /// <summary>
@@ -97,65 +92,86 @@ namespace ValveResourceFormat.Renderer.AnimLib
             return DefaultStateIndex;
         }
 
-        public override void Restart(GraphContext ctx)
+        /// <summary>
+        /// Picks the state to start in and initializes it (Esoterica SelectDefaultState): all entry
+        /// conditions are initialized in advance (so value caching works), evaluated in order, and
+        /// shut down again.
+        /// </summary>
+        private StateIndex SelectDefaultState(GraphContext ctx)
         {
-            base.Restart(ctx);
-
-            // At graph construction time the containing state restarts us before our own Initialize ran.
-            if (States == null)
+            for (StateIndex i = 0; i < States.Length; i++)
             {
-                return;
+                States[i].EntryConditionNode?.Initialize(ctx);
             }
 
-            // Shut down any in-flight transition and the active state before re-selecting (Esoterica
-            // StateMachineNode::ShutdownInternal). Abandoning the transition would leak its cached
-            // pose buffer and leave stale source/transitioning state on its nodes.
-            if (ActiveTransition != null)
+            var selectedStateIndex = SelectStartingState(ctx);
+
+            for (StateIndex i = 0; i < States.Length; i++)
             {
-                ActiveTransition.Stop(ctx);
-                ActiveTransition = null;
+                States[i].EntryConditionNode?.Shutdown(ctx);
             }
 
-            if (ActiveStateIndex >= 0 && ActiveStateIndex < States.Length)
+            return selectedStateIndex;
+        }
+
+        private void InitializeTransitionConditions(GraphContext ctx)
+        {
+            foreach (var transition in States[ActiveStateIndex].Transitions)
             {
-                ActiveStateNode.Stop(ctx);
+                transition.ConditionNode.Initialize(ctx);
             }
+        }
 
-            ActiveStateIndex = SelectStartingState(ctx);
+        private void ShutdownTransitionConditions(GraphContext ctx)
+        {
+            foreach (var transition in States[ActiveStateIndex].Transitions)
+            {
+                transition.ConditionNode.Shutdown(ctx);
+            }
+        }
 
+        protected override void InitializeInternal(GraphContext ctx, SyncTrackTime initialTime)
+        {
+            Debug.Assert(ActiveTransition == null);
+            base.InitializeInternal(ctx, initialTime);
+
+            // Determine the default state and initialize it
+            ActiveStateIndex = SelectDefaultState(ctx);
             var activeState = ActiveState.StateNode;
-            activeState.Restart(ctx);
+            activeState.Initialize(ctx, initialTime);
 
             Duration = activeState.Duration;
             PreviousTime = activeState.PreviousTime;
             CurrentTime = activeState.CurrentTime;
+
+            InitializeTransitionConditions(ctx);
         }
 
-        private bool hasSelectedStartingState;
+        protected override void ShutdownInternal(GraphContext ctx)
+        {
+            if (ActiveTransition != null)
+            {
+                ActiveTransition.Shutdown(ctx);
+            }
+
+            ShutdownTransitionConditions(ctx);
+
+            ActiveStateNode.Shutdown(ctx);
+            ActiveStateIndex = -1;
+            ActiveTransition = null;
+
+            base.ShutdownInternal(ctx);
+        }
 
         public override GraphPoseNodeResult Update(GraphContext ctx, SyncTrackTimeRange? updateRange = null)
         {
-            // The starting state honors entry conditions, evaluated lazily on the first update —
-            // at construction time the condition nodes are not initialized yet (node array order).
-            if (!hasSelectedStartingState)
-            {
-                hasSelectedStartingState = true;
-                var startingState = SelectStartingState(ctx);
-
-                if (startingState != ActiveStateIndex)
-                {
-                    ActiveStateIndex = startingState;
-                    ActiveStateNode.Restart(ctx);
-                }
-            }
-
             var result = base.Update(ctx);
 
             // Check active transition
             if (ActiveTransition != null && ActiveTransition.IsComplete(ctx))
             {
                 // Clear transition flags from target
-                ActiveTransition.Stop(ctx);
+                ActiveTransition.Shutdown(ctx);
                 ActiveTransition = null;
             }
 
@@ -246,6 +262,9 @@ namespace ValveResourceFormat.Renderer.AnimLib
             // Notify the current transition of the new transition about to start
             ActiveTransition?.NotifyNewTransitionStarting(ctx, targetStateInfo.StateNode, forceableTargetStatesUsingCachedPoses);
 
+            // Start the new transition (the transition will initialize the target state)
+            selectedTransition.TransitionNode.Initialize(ctx, default);
+
             // Initialize target state based on transition settings and what the source is (state or transition)
             TransitionNode.StartOptions startOptions = new(currentResult)
             {
@@ -260,7 +279,9 @@ namespace ValveResourceFormat.Renderer.AnimLib
             ActiveTransition = selectedTransition.TransitionNode;
 
             // Update state data to that of the new active state
+            ShutdownTransitionConditions(ctx);
             ActiveStateIndex = selectedTransition.TargetStateIndex;
+            InitializeTransitionConditions(ctx);
 
             Duration = ActiveState.StateNode.Duration;
             PreviousTime = ActiveState.StateNode.PreviousTime;

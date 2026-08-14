@@ -30,57 +30,55 @@ namespace ValveResourceFormat.Renderer.AnimLib
 
         public void SetTransitioningState(TransitionState s) => Transition = s;
 
-        public override void Initialize(GraphContext ctx)
+        public override void Instantiate(GraphContext ctx)
         {
             // Sizes the pose buffer; an off state without a child returns it directly.
-            base.Initialize(ctx);
+            base.Instantiate(ctx);
 
             ctx.SetOptionalNodeFromIndex(ChildNodeIdx, ref ChildNode);
             ctx.SetOptionalNodeFromIndex(LayerBoneMaskNodeIdx, ref BoneMaskValueNode);
             ctx.SetOptionalNodeFromIndex(LayerWeightNodeIdx, ref LayerWeightNode);
             ctx.SetOptionalNodeFromIndex(LayerRootMotionWeightNodeIdx, ref LayerRootMotionWeightNode);
-
-            Start(ctx);
         }
 
-        public void Start(GraphContext ctx)
+        protected override void InitializeInternal(GraphContext ctx, SyncTrackTime initialTime)
         {
-            ElapsedTimeInState = TimeSpan.Zero;
+            base.InitializeInternal(ctx, initialTime);
             Transition = TransitionState.None;
+            SampledEventRange = default;
+            ElapsedTimeInState = TimeSpan.Zero;
+            PreviousTime = CurrentTime = 0f;
+            Duration = 0f;
 
-            // Entering a state restarts its subtree, standing in for Esoterica's node re-initialization:
-            // clip times, selections and nested state machines start fresh instead of resuming stale state.
-            ChildNode?.Restart(ctx);
-
-            if (ChildNode is not null)
+            if (ChildNode != null)
             {
-                Duration = ChildNode.Duration;
-                PreviousTime = ChildNode.PreviousTime;
-                CurrentTime = ChildNode.CurrentTime;
+                ChildNode.Initialize(ctx, initialTime);
+
+                if (ChildNode.IsValid)
+                {
+                    Duration = ChildNode.Duration;
+                    PreviousTime = ChildNode.PreviousTime;
+                    CurrentTime = ChildNode.CurrentTime;
+                }
             }
+
+            BoneMaskValueNode?.Initialize(ctx);
+            LayerWeightNode?.Initialize(ctx);
+            // Note: the layer root-motion weight node is not part of the lifecycle upstream either
 
             // Flag this as the first update for this state, this will cause state entry events to be sampled for at least one update
             IsFirstStateUpdate = true;
         }
 
-        public override void Restart(GraphContext ctx)
+        protected override void ShutdownInternal(GraphContext ctx)
         {
-            base.Restart(ctx);
-            Start(ctx);
-        }
+            BoneMaskValueNode?.Shutdown(ctx);
+            LayerWeightNode?.Shutdown(ctx);
+            ChildNode?.Shutdown(ctx);
 
-        public void Stop(GraphContext ctx)
-        {
             Transition = TransitionState.None;
-            CurrentTime = 1f;
-
-            if (ChildNode != null)
-            {
-                //ChildNode.Stop();
-                //ChildNode = null;
-            }
+            base.ShutdownInternal(ctx);
         }
-
 
         public void StartTransitionIn(GraphContext ctx)
         {
@@ -331,46 +329,39 @@ namespace ValveResourceFormat.Renderer.AnimLib
             return (TransitionNode)SourceNode!;
         }
 
-        public override void Initialize(GraphContext ctx)
+        public override void Instantiate(GraphContext ctx)
         {
-            base.Initialize(ctx);
+            base.Instantiate(ctx);
 
             ctx.SetNodeFromIndex(TargetStateNodeIdx, ref TargetStateNode);
             ctx.SetOptionalNodeFromIndex(DurationOverrideNodeIdx, ref DurationOverrideNode);
             ctx.SetOptionalNodeFromIndex(TimeOffsetOverrideNodeIdx, ref EventOffsetOverrideNode);
             ctx.SetOptionalNodeFromIndex(StartBoneMaskNodeIdx, ref StartBoneMaskNode);
             ctx.SetOptionalNodeFromIndex(TargetSyncIDNodeIdx, ref TargetSyncIDNode);
-
-            // Defaults only. The real Start() runs when the transition is actually taken — evaluating the
-            // duration-override value node here is both premature (its inputs aren't initialized yet at
-            // graph-construction time, as nodes initialize in array order) and stale (it would never be
-            // re-evaluated when the transition fires).
-            TransitionProgress = 0f;
-            BlendWeight = 0f;
-            SyncEventOffset = 0f;
-            TransitionDuration = DurationSeconds;
         }
 
-        public void Start(GraphContext ctx)
+        protected override void InitializeInternal(GraphContext ctx, SyncTrackTime initialTime)
         {
-            // Reset transition state
-            TransitionProgress = 0f;
-            BlendWeight = 0f;
+            base.InitializeInternal(ctx, initialTime);
             SyncEventOffset = 0f;
 
-            // Get transition duration from override or definition
+            // Reset transition duration and progress; the override value node is only alive for the read
             if (DurationOverrideNode != null)
             {
+                DurationOverrideNode.Initialize(ctx);
                 TransitionDuration = Math.Clamp(DurationOverrideNode.GetValue(ctx), 0f, 10f);
+                DurationOverrideNode.Shutdown(ctx);
             }
             else
             {
                 TransitionDuration = DurationSeconds; // From definition (parsed from file)
             }
+
+            TransitionProgress = 0f;
+            BlendWeight = 0f;
         }
 
-        // Shutdown
-        public void Stop(GraphContext ctx)
+        protected override void ShutdownInternal(GraphContext ctx)
         {
             // Release cached pose buffers
             if (cachedPoseBufferID != -1)
@@ -379,6 +370,7 @@ namespace ValveResourceFormat.Renderer.AnimLib
                 cachedPoseBufferID = -1;
             }
 
+            // Clear transition flags from target
             TargetStateNode.SetTransitioningState(StateNode.TransitionState.None);
             CurrentTime = 1f;
 
@@ -390,8 +382,7 @@ namespace ValveResourceFormat.Renderer.AnimLib
                     EndSourceTransition(ctx);
                 }
 
-                (SourceNode as StateNode)?.Stop(ctx);
-                (SourceNode as TransitionNode)?.Stop(ctx);
+                SourceNode.Shutdown(ctx);
                 SourceNode = null;
             }
             else
@@ -401,6 +392,8 @@ namespace ValveResourceFormat.Renderer.AnimLib
                     Debug.Assert(IsSourceACachedPoseOrOffState);
                 }
             }
+
+            base.ShutdownInternal(ctx);
         }
 
         void StartCachingSourcePose(GraphContext ctx)
@@ -428,10 +421,10 @@ namespace ValveResourceFormat.Renderer.AnimLib
                     Type = cachedPoseBufferID != -1 ? SourceType.CachedPose : SourceType.OffState;
 
                     // We also need to explicitly shutdown the source transition target state as by default we dont shutdown target states when shutting down a transition
-                    sourceTransitionTargetState.Stop(ctx);
+                    sourceTransitionTargetState.Shutdown(ctx);
 
                     // Shutdown the source transition
-                    sourceTransitionNode.Stop(ctx);
+                    sourceTransitionNode.Shutdown(ctx);
                     SourceNode = null;
                 }
                 // If the source transition is to a future forceable state, we need to cache the result
@@ -447,7 +440,7 @@ namespace ValveResourceFormat.Renderer.AnimLib
                     var sourceState = GetSourceStateNode();
                     Type = cachedPoseBufferID != -1 ? SourceType.CachedPose : SourceType.OffState;
 
-                    sourceState.Stop(ctx);
+                    sourceState.Shutdown(ctx);
                     SourceNode = null;
                 }
                 else if (cachedPoseBufferID == -1 && forceableFutureTargetStatesUsingCachedPoses.Contains(GetSourceStateNode()))
@@ -518,14 +511,10 @@ namespace ValveResourceFormat.Renderer.AnimLib
         public GraphPoseNodeResult InitializeTargetStateAndUpdateTransition(GraphContext ctx, StartOptions options)
         {
             Debug.Assert(options.SourceNode != null);
-            Debug.Assert(SourceNode == null);
+            Debug.Assert(SourceNode == null && IsInitialized);
 
             SourceNode = options.SourceNode;
             Type = options.IsSourceTransition ? SourceType.Transition : SourceType.State;
-
-            // The transition is being taken now (all value nodes are initialized): evaluate the duration
-            // override and reset transition state before TransitionDuration is used below.
-            Start(ctx);
 
             if (options.StartCachingSourcePose)
             {
@@ -570,6 +559,8 @@ namespace ValveResourceFormat.Renderer.AnimLib
                         EndSourceTransition(ctx);
                     }
 
+                    // Shutdown the source node
+                    SourceNode!.Shutdown(ctx);
                     SourceNode = null;
                 }
             }
@@ -611,18 +602,32 @@ namespace ValveResourceFormat.Renderer.AnimLib
                 }
 
                 // Only apply the transition's sync offset when we are not part of a synced update
-                SyncEventOffset = options.UpdateRange == null
-                    ? MathF.Floor(EventOffsetOverrideNode?.GetValue(ctx) ?? TimeOffset)
-                    : 0f;
+                if (options.UpdateRange == null)
+                {
+                    if (EventOffsetOverrideNode != null)
+                    {
+                        EventOffsetOverrideNode.Initialize(ctx);
+                        SyncEventOffset = MathF.Floor(EventOffsetOverrideNode.GetValue(ctx));
+                        EventOffsetOverrideNode.Shutdown(ctx);
+                    }
+                    else
+                    {
+                        SyncEventOffset = MathF.Floor(TimeOffset);
+                    }
+                }
+                else
+                {
+                    SyncEventOffset = 0f;
+                }
 
                 var offset = (int)SyncEventOffset;
                 targetUpdateRange = new SyncTrackTimeRange(
                     new SyncTrackTime(sourceUpdateRange.StartTime.EventIdx + offset, sourceUpdateRange.StartTime.PercentageThrough.Value),
                     new SyncTrackTime(sourceUpdateRange.EndTime.EventIdx + offset, sourceUpdateRange.EndTime.PercentageThrough.Value));
 
-                // Transition out, then start and synchronize the target
+                // Transition out, then initialize and synchronize the target
                 StartTransitionOutForSource();
-                TargetStateNode.Start(ctx);
+                TargetStateNode.Initialize(ctx, targetUpdateRange.Value.StartTime);
                 TargetStateNode.StartTransitionIn(ctx);
                 targetNodeResult = TargetStateNode.Update(ctx, targetUpdateRange);
             }
@@ -632,8 +637,17 @@ namespace ValveResourceFormat.Renderer.AnimLib
 
             else
             {
-                // The sync event offset may be in seconds based on the flags
-                SyncEventOffset = EventOffsetOverrideNode?.GetValue(ctx) ?? TimeOffset;
+                // Try get the sync event offset (note this may be in seconds based on the flags)
+                if (EventOffsetOverrideNode != null)
+                {
+                    EventOffsetOverrideNode.Initialize(ctx);
+                    SyncEventOffset = EventOffsetOverrideNode.GetValue(ctx);
+                    EventOffsetOverrideNode.Shutdown(ctx);
+                }
+                else
+                {
+                    SyncEventOffset = TimeOffset;
+                }
 
                 // Should we clamp how long the transition is active for?
                 var sourceDuration = SourceNode!.Duration;
@@ -651,10 +665,6 @@ namespace ValveResourceFormat.Renderer.AnimLib
                     var sourceSyncTrack = SourceNode.SyncTrack;
                     var sourceFromSyncTime = sourceSyncTrack.GetTime(sourceCurrentTimeForMatch);
 
-                    StartTransitionOutForSource();
-                    TargetStateNode.Start(ctx);
-                    TargetStateNode.StartTransitionIn(ctx);
-
                     var targetStartEventSyncTime = new SyncTrackTime(0, 0f);
 
                     var shouldMatchInSeconds = GetOption(TransitionOptions_t.MatchTimeInSeconds);
@@ -664,9 +674,12 @@ namespace ValveResourceFormat.Renderer.AnimLib
                         var targetDesiredTimeSeconds = sourceCurrentTimeSeconds + SyncEventOffset;
                         SyncEventOffset = 0f;
 
+                        // Transiently initialize the target to read its duration and sync track
+                        TargetStateNode.Initialize(ctx, default);
                         var targetDuration = TargetStateNode.Duration;
                         var targetDesiredTime = targetDuration > 0f ? MathUtils.Saturate(targetDesiredTimeSeconds / targetDuration) : 0f;
                         targetStartEventSyncTime = TargetStateNode.SyncTrack.GetTime(targetDesiredTime);
+                        TargetStateNode.Shutdown(ctx);
                     }
                     else // Match using sync time
                     {
@@ -681,13 +694,28 @@ namespace ValveResourceFormat.Renderer.AnimLib
                             }
                             else if (GetOption(TransitionOptions_t.MatchSyncEventID))
                             {
-                                var eventIDToMatch = TargetSyncIDNode?.GetValue(ctx) ?? sourceSyncTrack.GetEventID(sourceFromSyncTime.EventIdx);
+                                // Get the sync event ID to match; the value node is only alive for the read
+                                GlobalSymbol eventIDToMatch;
+                                if (TargetSyncIDNode != null)
+                                {
+                                    TargetSyncIDNode.Initialize(ctx);
+                                    eventIDToMatch = TargetSyncIDNode.GetValue(ctx);
+                                    TargetSyncIDNode.Shutdown(ctx);
+                                }
+                                else
+                                {
+                                    eventIDToMatch = sourceSyncTrack.GetEventID(sourceFromSyncTime.EventIdx);
+                                }
+
                                 if (eventIDToMatch.IsValid)
                                 {
+                                    // Transiently initialize the target to read its sync track
+                                    TargetStateNode.Initialize(ctx, targetStartEventSyncTime);
                                     var targetSyncTrack = TargetStateNode.SyncTrack;
                                     eventIdx = GetOption(TransitionOptions_t.PreferClosestSyncEventID)
                                         ? targetSyncTrack.GetClosestEventIndexForID(sourceFromSyncTime, eventIDToMatch)
                                         : targetSyncTrack.GetEventIndexForID(eventIDToMatch);
+                                    TargetStateNode.Shutdown(ctx);
                                 }
                             }
 
@@ -705,17 +733,22 @@ namespace ValveResourceFormat.Renderer.AnimLib
                         targetStartEventSyncTime = new SyncTrackTime(eventIdx, percentageThrough);
                     }
 
-                    // Seed the target at the computed sync time without advancing it
-                    var seedRange = new SyncTrackTimeRange(targetStartEventSyncTime, targetStartEventSyncTime);
+                    // Transition out, then initialize the target at the computed sync time and update
+                    // it with a zero time-step: we dont want to advance the target on this update but
+                    // we do want the target pose to be created
+                    StartTransitionOutForSource();
+                    TargetStateNode.Initialize(ctx, targetStartEventSyncTime);
+                    TargetStateNode.StartTransitionIn(ctx);
+
                     var oldDeltaTime = ctx.DeltaTime;
                     ctx.DeltaTime = 0f;
-                    targetNodeResult = TargetStateNode.Update(ctx, seedRange);
+                    targetNodeResult = TargetStateNode.Update(ctx);
                     ctx.DeltaTime = oldDeltaTime;
                 }
                 else // Regular start at the beginning of the target
                 {
                     StartTransitionOutForSource();
-                    TargetStateNode.Start(ctx);
+                    TargetStateNode.Initialize(ctx, default);
                     TargetStateNode.StartTransitionIn(ctx);
                     targetNodeResult = TargetStateNode.Update(ctx);
                 }
@@ -1013,7 +1046,7 @@ namespace ValveResourceFormat.Renderer.AnimLib
 
             // Shut down the completed source transition (this also releases its cached pose buffer
             // and clears its own source chain), then take over its target state as our source.
-            sourceTransition.Stop(ctx);
+            sourceTransition.Shutdown(ctx);
             SourceNode = sourceTransitionTargetState;
             Type = SourceType.State;
 

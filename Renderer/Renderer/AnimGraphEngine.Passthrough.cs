@@ -8,9 +8,9 @@ namespace ValveResourceFormat.Renderer.AnimLib
     {
         public PoseNode? ChildNode;
 
-        public override void Initialize(GraphContext ctx)
+        public override void Instantiate(GraphContext ctx)
         {
-            base.Initialize(ctx);
+            base.Instantiate(ctx);
             ctx.SetOptionalNodeFromIndex(ChildNodeIdx, ref ChildNode);
         }
 
@@ -18,10 +18,29 @@ namespace ValveResourceFormat.Renderer.AnimLib
 
         public override SyncTrack SyncTrack => ChildNode?.SyncTrack ?? SyncTrack.Default;
 
-        public override void Restart(GraphContext ctx)
+        protected override void InitializeInternal(GraphContext ctx, SyncTrackTime initialTime)
         {
-            base.Restart(ctx);
-            ChildNode?.Restart(ctx);
+            base.InitializeInternal(ctx, initialTime);
+
+            ChildNode?.Initialize(ctx, initialTime);
+
+            if (ChildNode is { IsValid: true })
+            {
+                Duration = ChildNode.Duration;
+                PreviousTime = ChildNode.PreviousTime;
+                CurrentTime = ChildNode.CurrentTime;
+            }
+            else
+            {
+                PreviousTime = CurrentTime = 0f;
+                Duration = 0f;
+            }
+        }
+
+        protected override void ShutdownInternal(GraphContext ctx)
+        {
+            ChildNode?.Shutdown(ctx);
+            base.ShutdownInternal(ctx);
         }
 
         public override GraphPoseNodeResult Update(GraphContext ctx, SyncTrackTimeRange? updateRange = null)
@@ -47,10 +66,22 @@ namespace ValveResourceFormat.Renderer.AnimLib
 
         const float NearZero = 1e-5f;
 
-        public override void Initialize(GraphContext ctx)
+        public override void Instantiate(GraphContext ctx)
         {
-            base.Initialize(ctx);
+            base.Instantiate(ctx);
             ctx.SetOptionalNodeFromIndex(InputValueNodeIdx, ref InputValueNode);
+        }
+
+        protected override void InitializeInternal(GraphContext ctx, SyncTrackTime initialTime)
+        {
+            base.InitializeInternal(ctx, initialTime);
+            InputValueNode?.Initialize(ctx);
+        }
+
+        protected override void ShutdownInternal(GraphContext ctx)
+        {
+            InputValueNode?.Shutdown(ctx);
+            base.ShutdownInternal(ctx);
         }
 
         protected virtual float CalculateSpeedScaleMultiplier(GraphContext ctx) => 1f;
@@ -175,39 +206,53 @@ namespace ValveResourceFormat.Renderer.AnimLib
         public PoseNode[] OptionNodes;
         public BoolValueNode[] ConditionNodes;
         public PoseNode? SelectedNode;
-        bool hasSelected;
 
-        public override void Initialize(GraphContext ctx)
+        public override void Instantiate(GraphContext ctx)
         {
-            base.Initialize(ctx);
+            base.Instantiate(ctx);
             ctx.SetNodesFromIndexArray(OptionNodeIndices, ref OptionNodes);
             ctx.SetNodesFromIndexArray(ConditionNodeIndices, ref ConditionNodes);
-
-            // Selection happens lazily on the first Update — condition value nodes may not be initialized
-            // yet here (nodes initialize in array order). Selection is then fixed, matching Esoterica's
-            // select-once-per-activation behaviour.
-            hasSelected = false;
-            SelectedNode = null;
         }
 
-        void EnsureSelected(GraphContext ctx)
+        protected override void InitializeInternal(GraphContext ctx, SyncTrackTime initialTime)
         {
-            if (hasSelected)
-            {
-                return;
-            }
+            base.InitializeInternal(ctx, initialTime);
 
-            hasSelected = true;
-
+            // Select an option and initialize it; an invalid selection is shut down and discarded
             var selectedIndex = SelectOption(ctx);
-            if (selectedIndex >= 0 && OptionNodes[selectedIndex].IsValid)
+            if (selectedIndex != -1)
             {
                 SelectedNode = OptionNodes[selectedIndex];
+                SelectedNode.Initialize(ctx, initialTime);
+
+                if (SelectedNode.IsValid)
+                {
+                    Duration = SelectedNode.Duration;
+                    PreviousTime = SelectedNode.PreviousTime;
+                    CurrentTime = SelectedNode.CurrentTime;
+                }
+                else
+                {
+                    SelectedNode.Shutdown(ctx);
+                    SelectedNode = null;
+                }
             }
-            else
+
+            if (SelectedNode == null)
             {
-                ctx.LogWarning(NodeIdx, "Failed to select a valid option!");
+                ctx.LogWarning(NodeIdx, "Selector: Failed to select a valid option!");
             }
+        }
+
+        protected override void ShutdownInternal(GraphContext ctx)
+        {
+            if (SelectedNode != null)
+            {
+                SelectedNode.Shutdown(ctx);
+                SelectedNode = null;
+            }
+
+            base.ShutdownInternal(ctx);
         }
 
         int SelectOption(GraphContext ctx)
@@ -228,20 +273,8 @@ namespace ValveResourceFormat.Renderer.AnimLib
 
         public override SyncTrack SyncTrack => SelectedNode?.SyncTrack ?? SyncTrack.Default;
 
-        public override void Restart(GraphContext ctx)
-        {
-            base.Restart(ctx);
-            SelectedNode?.Restart(ctx);
-
-            // Re-select on the next update: the driving conditions/IDs may have changed since.
-            hasSelected = false;
-            SelectedNode = null;
-        }
-
         public override GraphPoseNodeResult Update(GraphContext ctx, SyncTrackTimeRange? updateRange = null)
         {
-            EnsureSelected(ctx);
-
             if (SelectedNode == null)
             {
                 return base.Update(ctx);
@@ -263,30 +296,17 @@ namespace ValveResourceFormat.Renderer.AnimLib
         public IDValueNode ParameterNode;
         public PoseNode? FallbackNode;
         public PoseNode? SelectedNode;
-        bool hasSelected;
 
-        public override void Initialize(GraphContext ctx)
+        public override void Instantiate(GraphContext ctx)
         {
-            base.Initialize(ctx);
+            base.Instantiate(ctx);
             ctx.SetNodesFromIndexArray(OptionNodeIndices, ref OptionNodes);
             ctx.SetNodeFromIndex(ParameterNodeIdx, ref ParameterNode);
             ctx.SetOptionalNodeFromIndex(FallbackNodeIdx, ref FallbackNode);
-
-            // Selection happens lazily on the first Update, like SelectorNode.
-            hasSelected = false;
-            SelectedNode = null;
         }
 
-        void EnsureSelected(GraphContext ctx)
+        int SelectOption(GraphContext ctx)
         {
-            if (hasSelected)
-            {
-                return;
-            }
-
-            hasSelected = true;
-            SelectedNode = FallbackNode;
-
             var id = ParameterNode.GetValue(ctx);
             var optionCount = Math.Min(OptionIDs.Length, OptionNodes.Length);
 
@@ -299,36 +319,79 @@ namespace ValveResourceFormat.Renderer.AnimLib
                         continue;
                     }
 
-                    SelectedNode = OptionNodes[i];
-                    break;
+                    return i;
                 }
             }
-            // An invalid selection falls back (Esoterica)
-            if (SelectedNode is { IsValid: false })
+
+            return -1;
+        }
+
+        // Initializes the selection and validates it; on failure the fallback is retried
+        // (Esoterica IDBasedSelectorNode::InitializeInternal).
+        protected override void InitializeInternal(GraphContext ctx, SyncTrackTime initialTime)
+        {
+            Debug.Assert(SelectedNode == null);
+            base.InitializeInternal(ctx, initialTime);
+
+            var selectedIndex = SelectOption(ctx);
+            if (selectedIndex != -1)
+            {
+                SelectedNode = OptionNodes[selectedIndex];
+            }
+            else if (FallbackNode != null)
             {
                 SelectedNode = FallbackNode;
             }
 
+            bool TryInitializeSelectedNode()
+            {
+                SelectedNode!.Initialize(ctx, initialTime);
+
+                if (SelectedNode.IsValid)
+                {
+                    Duration = SelectedNode.Duration;
+                    PreviousTime = SelectedNode.PreviousTime;
+                    CurrentTime = SelectedNode.CurrentTime;
+                    return true;
+                }
+
+                SelectedNode.Shutdown(ctx);
+                SelectedNode = null;
+                return false;
+            }
+
+            if (SelectedNode != null)
+            {
+                if (!TryInitializeSelectedNode() && FallbackNode != null)
+                {
+                    SelectedNode = FallbackNode;
+                    TryInitializeSelectedNode();
+                }
+            }
+
+            if (SelectedNode is not { IsValid: true })
+            {
+                ctx.LogWarning(NodeIdx, "ID Selector: Failed to select a valid option!");
+            }
+        }
+
+        protected override void ShutdownInternal(GraphContext ctx)
+        {
+            if (SelectedNode != null)
+            {
+                SelectedNode.Shutdown(ctx);
+                SelectedNode = null;
+            }
+
+            base.ShutdownInternal(ctx);
         }
 
         public override bool IsValid => SelectedNode?.IsValid ?? false;
 
         public override SyncTrack SyncTrack => SelectedNode?.SyncTrack ?? SyncTrack.Default;
 
-        public override void Restart(GraphContext ctx)
-        {
-            base.Restart(ctx);
-            SelectedNode?.Restart(ctx);
-
-            // Re-select on the next update: the driving conditions/IDs may have changed since.
-            hasSelected = false;
-            SelectedNode = null;
-        }
-
         public override GraphPoseNodeResult Update(GraphContext ctx, SyncTrackTimeRange? updateRange = null)
         {
-            EnsureSelected(ctx);
-
             if (SelectedNode == null)
             {
                 return base.Update(ctx);
@@ -348,37 +411,53 @@ namespace ValveResourceFormat.Renderer.AnimLib
         public PoseNode[] OptionNodes;
         public FloatValueNode ParameterNode;
         public PoseNode? SelectedNode;
-        bool hasSelected;
 
-        public override void Initialize(GraphContext ctx)
+        public override void Instantiate(GraphContext ctx)
         {
-            base.Initialize(ctx);
+            base.Instantiate(ctx);
             ctx.SetNodesFromIndexArray(OptionNodeIndices, ref OptionNodes);
             ctx.SetNodeFromIndex(ParameterNodeIdx, ref ParameterNode);
-
-            // Selection happens lazily on the first Update (parameter node may not be initialized yet here).
-            hasSelected = false;
-            SelectedNode = null;
         }
 
-        void EnsureSelected(GraphContext ctx)
+        protected override void InitializeInternal(GraphContext ctx, SyncTrackTime initialTime)
         {
-            if (hasSelected)
-            {
-                return;
-            }
+            base.InitializeInternal(ctx, initialTime);
 
-            hasSelected = true;
-
+            // Select an option and initialize it; an invalid selection is shut down and discarded
             var selectedIndex = SelectOption(ctx);
-            if (selectedIndex >= 0 && OptionNodes[selectedIndex].IsValid)
+            if (selectedIndex != -1)
             {
                 SelectedNode = OptionNodes[selectedIndex];
+                SelectedNode.Initialize(ctx, initialTime);
+
+                if (SelectedNode.IsValid)
+                {
+                    Duration = SelectedNode.Duration;
+                    PreviousTime = SelectedNode.PreviousTime;
+                    CurrentTime = SelectedNode.CurrentTime;
+                }
+                else
+                {
+                    SelectedNode.Shutdown(ctx);
+                    SelectedNode = null;
+                }
             }
-            else
+
+            if (SelectedNode == null)
             {
-                ctx.LogWarning(NodeIdx, "Failed to select a valid option!");
+                ctx.LogWarning(NodeIdx, "Parameterized Selector: Failed to select a valid option!");
             }
+        }
+
+        protected override void ShutdownInternal(GraphContext ctx)
+        {
+            if (SelectedNode != null)
+            {
+                SelectedNode.Shutdown(ctx);
+                SelectedNode = null;
+            }
+
+            base.ShutdownInternal(ctx);
         }
 
         int SelectOption(GraphContext ctx)
@@ -400,11 +479,11 @@ namespace ValveResourceFormat.Renderer.AnimLib
             Debug.Assert(OptionWeights.Length == numOptions);
 
             // Build cumulative bucket boundaries from the byte weights (matches ParameterizedClipSelectorNode).
+            // Zero-weight options exist in shipped data; they are simply never picked.
             Span<int> boundaries = stackalloc int[numOptions];
             var totalWeightedOptions = 0;
             for (var i = 0; i < numOptions; i++)
             {
-                Debug.Assert(OptionWeights[i] > 0);
                 totalWeightedOptions += OptionWeights[i];
                 boundaries[i] = totalWeightedOptions;
             }
@@ -430,20 +509,8 @@ namespace ValveResourceFormat.Renderer.AnimLib
 
         public override SyncTrack SyncTrack => SelectedNode?.SyncTrack ?? SyncTrack.Default;
 
-        public override void Restart(GraphContext ctx)
-        {
-            base.Restart(ctx);
-            SelectedNode?.Restart(ctx);
-
-            // Re-select on the next update: the driving conditions/IDs may have changed since.
-            hasSelected = false;
-            SelectedNode = null;
-        }
-
         public override GraphPoseNodeResult Update(GraphContext ctx, SyncTrackTimeRange? updateRange = null)
         {
-            EnsureSelected(ctx);
-
             if (SelectedNode == null)
             {
                 return base.Update(ctx);

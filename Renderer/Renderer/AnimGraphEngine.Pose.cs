@@ -200,11 +200,12 @@ namespace ValveResourceFormat.Renderer.AnimLib
         /// <summary>This node's output pose buffer, in parent (local bone) space.</summary>
         public FrameBone[] PoseTransforms = [];
 
-        public override void Initialize(GraphContext ctx)
+        public override void Instantiate(GraphContext ctx)
         {
             LoopCount = 0;
             Duration = 0f;
-            RestartTime();
+            CurrentTime = 0f;
+            PreviousTime = 0f;
 
             // Start from the reference pose so a node that never writes its buffer (not implemented
             // yet, invalid clip) produces the bind pose rather than zero-scale garbage.
@@ -212,21 +213,32 @@ namespace ValveResourceFormat.Renderer.AnimLib
             ctx.Graph.ParentSpaceReferencePose.CopyTo(PoseTransforms, 0);
         }
 
-        public void RestartTime()
+        /// <summary>Initializes an animation node with a specific start time.</summary>
+        public void Initialize(GraphContext ctx, SyncTrackTime initialTime)
         {
-            CurrentTime = 0f;
-            PreviousTime = 0f;
+            if (IsInitialized)
+            {
+                initializationCount++;
+            }
+            else
+            {
+                InitializeInternal(ctx, initialTime);
+            }
         }
 
-        /// <summary>
-        /// Restarts this node's playback (and its children's) as if freshly activated. This stands in
-        /// for Esoterica's node activation lifecycle: states call it on their subtree when (re)entered,
-        /// so clip times, selections and nested state machines don't resume from stale state.
-        /// </summary>
-        public virtual void Restart(GraphContext ctx)
+        public sealed override void Initialize(GraphContext ctx) => Initialize(ctx, default);
+
+        protected sealed override void InitializeInternal(GraphContext ctx) => InitializeInternal(ctx, default);
+
+        protected virtual void InitializeInternal(GraphContext ctx, SyncTrackTime initialTime)
         {
+            base.InitializeInternal(ctx);
+
+            // Reset node state; nodes are expected to set the duration at initialization time
             LoopCount = 0;
-            RestartTime();
+            PreviousTime = 0f;
+            CurrentTime = 0f;
+            Duration = 0f;
         }
 
         public virtual bool IsValid => true;
@@ -247,16 +259,11 @@ namespace ValveResourceFormat.Renderer.AnimLib
 
     partial class ReferencePoseNode
     {
-        public override void Initialize(GraphContext ctx)
+        protected override void InitializeInternal(GraphContext ctx, SyncTrackTime initialTime)
         {
-            base.Initialize(ctx);
+            base.InitializeInternal(ctx, initialTime);
             PreviousTime = CurrentTime = 1f;
-        }
-
-        public override void Restart(GraphContext ctx)
-        {
-            base.Restart(ctx);
-            PreviousTime = CurrentTime = 1f;
+            Duration = 0f;
         }
 
         public override GraphPoseNodeResult Update(GraphContext ctx, SyncTrackTimeRange? updateRange = null)
@@ -269,16 +276,11 @@ namespace ValveResourceFormat.Renderer.AnimLib
 
     partial class ZeroPoseNode
     {
-        public override void Initialize(GraphContext ctx)
+        protected override void InitializeInternal(GraphContext ctx, SyncTrackTime initialTime)
         {
-            base.Initialize(ctx);
+            base.InitializeInternal(ctx, initialTime);
             PreviousTime = CurrentTime = 1f;
-        }
-
-        public override void Restart(GraphContext ctx)
-        {
-            base.Restart(ctx);
-            PreviousTime = CurrentTime = 1f;
+            Duration = 0f;
         }
 
         public override GraphPoseNodeResult Update(GraphContext ctx, SyncTrackTimeRange? updateRange = null)
@@ -307,9 +309,9 @@ namespace ValveResourceFormat.Renderer.AnimLib
 
         public override bool IsValid => Clip != null;
 
-        public override void Initialize(GraphContext ctx)
+        public override void Instantiate(GraphContext ctx)
         {
-            base.Initialize(ctx);
+            base.Instantiate(ctx);
 
             ctx.SetOptionalNodeFromIndex(ResetTimeValueNodeIdx, ref ResetTimeValueNode);
             ctx.SetOptionalNodeFromIndex(PlayInReverseValueNodeIdx, ref PlayInReverseValueNode);
@@ -318,14 +320,10 @@ namespace ValveResourceFormat.Renderer.AnimLib
             if (DataSlotIdx < 0 || DataSlotIdx >= ctx.Graph.DataSlots.Length)
             {
                 Clip = null;
-                Duration = 0f;
                 return;
             }
 
             Clip = ctx.Graph.DataSlots[DataSlotIdx];
-
-            // The exposed duration folds in the speed multiplier (Esoterica) so parents see scaled time
-            Duration = SpeedMultiplier != 0f ? (Clip?.Duration ?? 0f) / SpeedMultiplier : 0f;
 
             // Apply the authored start offset to this node's view of the clip's sync track
             syncTrackWithOffset = Clip != null && StartSyncEventOffset != 0
@@ -340,10 +338,32 @@ namespace ValveResourceFormat.Renderer.AnimLib
         bool shouldPlayInReverse;
         bool warnedReverseDuringSync;
 
-        public override void Restart(GraphContext ctx)
+        protected override void InitializeInternal(GraphContext ctx, SyncTrackTime initialTime)
         {
-            base.Restart(ctx);
+            base.InitializeInternal(ctx, initialTime);
+
+            PlayInReverseValueNode?.Initialize(ctx);
+
+            // Initialize state data
+            if (Clip != null)
+            {
+                // The exposed duration folds in the speed multiplier so parents see scaled time
+                Duration = SpeedMultiplier != 0f ? Clip.Duration / SpeedMultiplier : 0f;
+                CurrentTime = PreviousTime = SyncTrack.GetPercentageThrough(initialTime);
+                Debug.Assert(CurrentTime >= 0f && CurrentTime <= 1f);
+            }
+            // C++ warns about a missing animation here; unbound variant slots are routine in CS2
+            // graphs, so we stay quiet.
+
             shouldPlayInReverse = false;
+        }
+
+        protected override void ShutdownInternal(GraphContext ctx)
+        {
+            PlayInReverseValueNode?.Shutdown(ctx);
+
+            CurrentTime = PreviousTime = 0f;
+            base.ShutdownInternal(ctx);
         }
 
         public override void UpdateSelection(GraphContext ctx)
@@ -539,22 +559,36 @@ namespace ValveResourceFormat.Renderer.AnimLib
 
         public override bool IsValid => Clip != null;
 
-        public override void Initialize(GraphContext ctx)
+        public override void Instantiate(GraphContext ctx)
         {
-            base.Initialize(ctx);
+            base.Instantiate(ctx);
             ctx.SetOptionalNodeFromIndex(PoseTimeValueNodeIdx, ref PoseTimeValueNode);
 
             // DataSlotIdx can be -1 (no clip bound) — leave the node invalid in that case.
             if (DataSlotIdx < 0 || DataSlotIdx >= ctx.Graph.DataSlots.Length)
             {
                 Clip = null;
-                Duration = 0f;
                 return;
             }
 
             Clip = ctx.Graph.DataSlots[DataSlotIdx];
-            Duration = Clip?.Duration ?? 0f;
             // set to null if skeletons don't match
+        }
+
+        protected override void InitializeInternal(GraphContext ctx, SyncTrackTime initialTime)
+        {
+            base.InitializeInternal(ctx, initialTime);
+
+            PoseTimeValueNode?.Initialize(ctx);
+
+            PreviousTime = CurrentTime = 1f;
+            Duration = 0f;
+        }
+
+        protected override void ShutdownInternal(GraphContext ctx)
+        {
+            PoseTimeValueNode?.Shutdown(ctx);
+            base.ShutdownInternal(ctx);
         }
 
         public override GraphPoseNodeResult Update(GraphContext ctx, SyncTrackTimeRange? updateRange = null)
@@ -610,9 +644,9 @@ namespace ValveResourceFormat.Renderer.AnimLib
         string[] sharedVectorParameters = [];
         string[] sharedTargetParameters = [];
 
-        public override void Initialize(GraphContext ctx)
+        public override void Instantiate(GraphContext ctx)
         {
-            base.Initialize(ctx);
+            base.Instantiate(ctx);
             ctx.SetOptionalNodeFromIndex(FallbackNodeIdx, ref FallbackNode);
 
             childGraph = ctx.GetReferencedGraph(ReferencedGraphIdx);
@@ -634,11 +668,47 @@ namespace ValveResourceFormat.Renderer.AnimLib
             ?? FallbackNode?.SyncTrack
             ?? SyncTrack.Default;
 
-        public override void Restart(GraphContext ctx)
+        protected override void InitializeInternal(GraphContext ctx, SyncTrackTime initialTime)
         {
-            base.Restart(ctx);
-            childGraph?.RestartRoot();
-            FallbackNode?.Restart(ctx);
+            base.InitializeInternal(ctx, initialTime);
+
+            if (childGraph != null)
+            {
+                // Reset the referenced instance at the initial time
+                childGraph.ResetGraphState(initialTime);
+
+                var childRoot = childGraph.Context.RootNode;
+                Debug.Assert(childRoot.IsInitialized);
+                PreviousTime = childRoot.CurrentTime;
+                CurrentTime = childRoot.CurrentTime;
+                Duration = childRoot.Duration;
+            }
+            else
+            {
+                PreviousTime = CurrentTime = 0f;
+                Duration = 0f;
+
+                // Initialize the fallback node if set
+                if (FallbackNode != null)
+                {
+                    FallbackNode.Initialize(ctx, initialTime);
+                    Duration = FallbackNode.Duration;
+                    PreviousTime = FallbackNode.PreviousTime;
+                    CurrentTime = FallbackNode.CurrentTime;
+                }
+            }
+        }
+
+        protected override void ShutdownInternal(GraphContext ctx)
+        {
+            // The referenced instance itself stays initialized (Esoterica leaves it alive until the
+            // owning instance is destroyed); only the fallback participates.
+            if (childGraph == null && FallbackNode != null)
+            {
+                FallbackNode.Shutdown(ctx);
+            }
+
+            base.ShutdownInternal(ctx);
         }
 
         public override GraphPoseNodeResult Update(GraphContext ctx, SyncTrackTimeRange? updateRange = null)
@@ -720,28 +790,51 @@ namespace ValveResourceFormat.Renderer.AnimLib
         public virtual bool DisableRootMotionSampling => SelectedOption?.DisableRootMotionSampling ?? false;
         public ClipReferenceNode? SelectedOption;
 
-        bool hasSelectedOption;
+        public abstract void UpdateSelection(GraphContext ctx);
 
-        public override void Restart(GraphContext ctx)
+        /// <summary>
+        /// Selects an option and initializes it; an invalid selection is shut down and discarded
+        /// (Esoterica AnimationClipSelectorNode::InitializeInternal). Called by the concrete
+        /// selector nodes from their initialization — a plain ClipNode does not select.
+        /// </summary>
+        protected void InitializeSelection(GraphContext ctx, SyncTrackTime initialTime)
         {
-            base.Restart(ctx);
-            SelectedOption?.Restart(ctx);
+            UpdateSelection(ctx);
 
-            // Re-select on the next update; selection is otherwise fixed per activation (Esoterica)
-            hasSelectedOption = false;
-            SelectedOption = null;
+            if (SelectedOption != null)
+            {
+                SelectedOption.Initialize(ctx, initialTime);
+
+                if (SelectedOption.IsValid)
+                {
+                    Duration = SelectedOption.Duration;
+                    PreviousTime = SelectedOption.PreviousTime;
+                    CurrentTime = SelectedOption.CurrentTime;
+                }
+                else
+                {
+                    SelectedOption.Shutdown(ctx);
+                    SelectedOption = null;
+                }
+            }
+
+            if (SelectedOption == null)
+            {
+                ctx.LogWarning(NodeIdx, "Clip Selector: Failed to select a valid option!");
+            }
         }
 
-        public abstract void UpdateSelection(GraphContext ctx);
+        protected void ShutdownSelection(GraphContext ctx)
+        {
+            if (SelectedOption != null)
+            {
+                SelectedOption.Shutdown(ctx);
+                SelectedOption = null;
+            }
+        }
 
         public override GraphPoseNodeResult Update(GraphContext ctx, SyncTrackTimeRange? updateRange = null)
         {
-            if (!hasSelectedOption)
-            {
-                hasSelectedOption = true;
-                UpdateSelection(ctx);
-            }
-
             if (SelectedOption != null)
             {
                 var result = SelectedOption.Update(ctx, updateRange);
@@ -760,11 +853,25 @@ namespace ValveResourceFormat.Renderer.AnimLib
         public ClipReferenceNode[] OptionNodes;
         public BoolValueNode[] ConditionNodes;
 
-        public override void Initialize(GraphContext ctx)
+        public override void Instantiate(GraphContext ctx)
         {
-            base.Initialize(ctx);
+            base.Instantiate(ctx);
             ctx.SetNodesFromIndexArray(OptionNodeIndices, ref OptionNodes);
             ctx.SetNodesFromIndexArray(ConditionNodeIndices, ref ConditionNodes);
+        }
+
+        // Note: condition nodes are not part of the selector lifecycle upstream; they are read
+        // transiently during selection.
+        protected override void InitializeInternal(GraphContext ctx, SyncTrackTime initialTime)
+        {
+            base.InitializeInternal(ctx, initialTime);
+            InitializeSelection(ctx, initialTime);
+        }
+
+        protected override void ShutdownInternal(GraphContext ctx)
+        {
+            ShutdownSelection(ctx);
+            base.ShutdownInternal(ctx);
         }
 
         public int PickOption(GraphContext ctx)
@@ -803,12 +910,24 @@ namespace ValveResourceFormat.Renderer.AnimLib
         public IDValueNode ParameterNode;
         public ClipReferenceNode? FallbackNode;
 
-        public override void Initialize(GraphContext ctx)
+        public override void Instantiate(GraphContext ctx)
         {
-            base.Initialize(ctx);
+            base.Instantiate(ctx);
             ctx.SetNodesFromIndexArray(OptionNodeIndices, ref OptionNodes);
             ctx.SetNodeFromIndex(ParameterNodeIdx, ref ParameterNode);
             ctx.SetOptionalNodeFromIndex(FallbackNodeIdx, ref FallbackNode);
+        }
+
+        protected override void InitializeInternal(GraphContext ctx, SyncTrackTime initialTime)
+        {
+            base.InitializeInternal(ctx, initialTime);
+            InitializeSelection(ctx, initialTime);
+        }
+
+        protected override void ShutdownInternal(GraphContext ctx)
+        {
+            ShutdownSelection(ctx);
+            base.ShutdownInternal(ctx);
         }
 
         public override void UpdateSelection(GraphContext ctx)
@@ -839,11 +958,23 @@ namespace ValveResourceFormat.Renderer.AnimLib
         public ClipReferenceNode[] OptionNodes;
         public FloatValueNode ParameterNode;
 
-        public override void Initialize(GraphContext ctx)
+        public override void Instantiate(GraphContext ctx)
         {
-            base.Initialize(ctx);
+            base.Instantiate(ctx);
             ctx.SetNodesFromIndexArray(OptionNodeIndices, ref OptionNodes);
             ctx.SetNodeFromIndex(ParameterNodeIdx, ref ParameterNode);
+        }
+
+        protected override void InitializeInternal(GraphContext ctx, SyncTrackTime initialTime)
+        {
+            base.InitializeInternal(ctx, initialTime);
+            InitializeSelection(ctx, initialTime);
+        }
+
+        protected override void ShutdownInternal(GraphContext ctx)
+        {
+            ShutdownSelection(ctx);
+            base.ShutdownInternal(ctx);
         }
 
         public int PickOption(GraphContext ctx)

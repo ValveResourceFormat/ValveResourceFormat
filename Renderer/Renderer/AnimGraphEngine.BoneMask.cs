@@ -317,7 +317,7 @@ namespace ValveResourceFormat.Renderer.AnimLib
 
     partial class BoneMaskNode
     {
-        public override void Initialize(GraphContext ctx)
+        public override void Instantiate(GraphContext ctx)
         {
             // ctx.Skeleton (AnimLib.Skeleton, holding the mask definitions) is not wired up yet, so it can
             // be null — fall back to a uniform-weight mask rather than crashing at graph load.
@@ -337,7 +337,7 @@ namespace ValveResourceFormat.Renderer.AnimLib
 
     partial class FixedWeightBoneMaskNode
     {
-        public override void Initialize(GraphContext ctx)
+        public override void Instantiate(GraphContext ctx)
         {
             TaskList.EmplaceTask(BoneWeight);
         }
@@ -349,11 +349,27 @@ namespace ValveResourceFormat.Renderer.AnimLib
         BoneMaskValueNode TargetBoneMask;
         FloatValueNode BlendWeightValueNode;
 
-        public override void Initialize(GraphContext ctx)
+        public override void Instantiate(GraphContext ctx)
         {
             ctx.SetNodeFromIndex(SourceMaskNodeIdx, ref SourceBoneMask);
             ctx.SetNodeFromIndex(TargetMaskNodeIdx, ref TargetBoneMask);
             ctx.SetNodeFromIndex(BlendWeightValueNodeIdx, ref BlendWeightValueNode);
+        }
+
+        protected override void InitializeInternal(GraphContext ctx)
+        {
+            base.InitializeInternal(ctx);
+            SourceBoneMask.Initialize(ctx);
+            TargetBoneMask.Initialize(ctx);
+            BlendWeightValueNode.Initialize(ctx);
+        }
+
+        protected override void ShutdownInternal(GraphContext ctx)
+        {
+            SourceBoneMask.Shutdown(ctx);
+            TargetBoneMask.Shutdown(ctx);
+            BlendWeightValueNode.Shutdown(ctx);
+            base.ShutdownInternal(ctx);
         }
 
         protected override BoneMaskTaskList GetValueInternal(GraphContext ctx)
@@ -388,29 +404,47 @@ namespace ValveResourceFormat.Renderer.AnimLib
         float CurrentTimeInBlend;
         bool Blending;
 
-        bool hasSelectedInitialMask;
-
-        public override void Initialize(GraphContext ctx)
+        public override void Instantiate(GraphContext ctx)
         {
             ctx.SetNodeFromIndex(ParameterValueNodeIdx, ref ParameterValueNode);
             ctx.SetOptionalNodeFromIndex(DefaultMaskNodeIdx, ref DefaultMaskValueNode);
             ctx.SetNodesFromIndexArray(MaskNodeIndices, ref MaskOptions);
+        }
 
+        protected override void InitializeInternal(GraphContext ctx)
+        {
+            base.InitializeInternal(ctx);
+            ParameterValueNode.Initialize(ctx);
+            DefaultMaskValueNode?.Initialize(ctx);
+
+            foreach (var option in MaskOptions)
+            {
+                option.Initialize(ctx);
+            }
+
+            SelectedMaskIndex = TrySelectMask(ctx);
             NewMaskIndex = -1;
             Blending = false;
         }
 
-        protected override BoneMaskTaskList GetValueInternal(GraphContext ctx)
+        protected override void ShutdownInternal(GraphContext ctx)
         {
-            // The initial selection happens lazily on first evaluation - at graph construction time
-            // the parameter node's own child references are not wired up yet (nodes initialize in
-            // array order; C++ separates instantiation from initialization).
-            if (!hasSelectedInitialMask)
+            SelectedMaskIndex = -1;
+            NewMaskIndex = -1;
+            Blending = false;
+
+            foreach (var option in MaskOptions)
             {
-                hasSelectedInitialMask = true;
-                SelectedMaskIndex = TrySelectMask(ctx);
+                option.Shutdown(ctx);
             }
 
+            DefaultMaskValueNode?.Shutdown(ctx);
+            ParameterValueNode.Shutdown(ctx);
+            base.ShutdownInternal(ctx);
+        }
+
+        protected override BoneMaskTaskList GetValueInternal(GraphContext ctx)
+        {
             // Perform selection
             //-------------------------------------------------------------------------
             if (SwitchDynamically)
@@ -496,28 +530,36 @@ namespace ValveResourceFormat.Renderer.AnimLib
         float CurrentTimeInBlend;
         bool Blending;
 
-        bool hasSelectedInitialMask;
-
-        public override void Initialize(GraphContext ctx)
+        public override void Instantiate(GraphContext ctx)
         {
             ctx.SetNodeFromIndex(SwitchValueNodeIdx, ref SwitchValueNode);
             ctx.SetNodeFromIndex(TrueValueNodeIdx, ref TrueValueNode);
             ctx.SetNodeFromIndex(FalseValueNodeIdx, ref FalseValueNode);
+        }
 
+        protected override void InitializeInternal(GraphContext ctx)
+        {
+            base.InitializeInternal(ctx);
+
+            SwitchValueNode.Initialize(ctx);
+            TrueValueNode.Initialize(ctx);
+            FalseValueNode.Initialize(ctx);
+
+            SelectedMaskIndex = SwitchValueNode.GetValue(ctx) ? 1 : 0;
             Blending = false;
+        }
+
+        protected override void ShutdownInternal(GraphContext ctx)
+        {
+            Blending = false;
+            FalseValueNode.Shutdown(ctx);
+            TrueValueNode.Shutdown(ctx);
+            SwitchValueNode.Shutdown(ctx);
+            base.ShutdownInternal(ctx);
         }
 
         protected override BoneMaskTaskList GetValueInternal(GraphContext ctx)
         {
-            // The initial selection happens lazily on first evaluation - at graph construction time
-            // the switch value node's own child references are not wired up yet (nodes initialize
-            // in array order; C++ separates instantiation from initialization).
-            if (!hasSelectedInitialMask)
-            {
-                hasSelectedInitialMask = true;
-                SelectedMaskIndex = SwitchValueNode.GetValue(ctx) ? 1 : 0;
-            }
-
             // Perform selection
             //-------------------------------------------------------------------------
             if (SwitchDynamically)
@@ -578,9 +620,21 @@ namespace ValveResourceFormat.Renderer.AnimLib
     {
         BoneMaskValueNode ChildNode;
 
-        public override void Initialize(GraphContext ctx)
+        public override void Instantiate(GraphContext ctx)
         {
             ctx.SetNodeFromIndex(ChildNodeIdx, ref ChildNode);
+        }
+
+        protected override void InitializeInternal(GraphContext ctx)
+        {
+            base.InitializeInternal(ctx);
+            ChildNode.Initialize(ctx);
+        }
+
+        protected override void ShutdownInternal(GraphContext ctx)
+        {
+            ChildNode.Shutdown(ctx);
+            base.ShutdownInternal(ctx);
         }
 
         // Caching is handled once-per-update by the BoneMaskValueNode base.

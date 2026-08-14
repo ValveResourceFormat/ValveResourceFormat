@@ -7,12 +7,17 @@ verbatim wherever possible. Deliberate architecture deviations:
   (forced transitions) are pooled `Transform[]` buffers on the graph context instead of task-system
   buffers, and bone mask task lists evaluate into pooled per-bone weight arrays instead of
   registering tasks.
-- No runtime node create/destroy: `PoseNode.Restart(ctx)` stands in for the initialize/shutdown
-  lifecycle; states restart their subtree on entry. Nodes that C++ initializes eagerly (bone mask
-  selection, state machine starting state, blend spaces) select lazily on first evaluation instead,
-  because child node references are wired in array order at construction.
 - No root motion debugger.
 - `Transform` is a project alias of `FrameBone` (uniform scale).
+
+The node activation lifecycle is ported faithfully: `Instantiate` wires references once at graph
+construction (Esoterica InstantiateNode), and the refcounted `Initialize`/`Shutdown` pair runs on
+persistent instances as subtrees activate/deactivate — nothing is created or destroyed at runtime,
+and activation allocates nothing. Persistent nodes (`m_persistentNodeIndices` = control + virtual
+parameters) initialize at instance creation; the root initializes lazily on the first update with
+an update-ID bump so init-time value reads recompute (GraphInstance::ResetGraphState). The
+state-machine transition-condition swap uses the immediate shutdown form (Esoterica HEAD defers
+the old state's condition shutdown by one update for debug visualization only).
 
 ## Known remaining divergences (from the 2026-07 fidelity audit)
 
@@ -25,8 +30,6 @@ Behavioral, not yet ported:
 - `SnapToFrameEvent` pose-time snapping.
 - Transition start bone mask (`m_startBoneMaskNodeIdx` / `m_boneMaskBlendInTimePercentage`
   pose-weight remap during the blend-in).
-- `Cached*Node` `CachedValueMode.OnEntry` behaves as `OnExit`; cached values and
-  `FloatEaseNode`/`FloatSelectorNode` easing state survive `Restart` (no value-node lifecycle).
 - `Blend2DNode` single-source case self-blends the sync track (re-basing event start times)
   instead of copying it with `ClearStartOffset`.
 - Sampled event tracking (`m_newEvents` / continuous / ended buffers) is not ported; the buffer is

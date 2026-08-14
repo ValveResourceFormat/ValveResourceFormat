@@ -8,22 +8,42 @@ namespace ValveResourceFormat.Renderer.AnimLib
     partial class ParameterizedBlendNode
     {
         public PoseNode[] SourceNodes;
+        public FloatValueNode InputParameterValueNode;
 
-        public override void Restart(GraphContext ctx)
+        protected override void InitializeInternal(GraphContext ctx, SyncTrackTime initialTime)
         {
-            base.Restart(ctx);
+            base.InitializeInternal(ctx, initialTime);
 
-            if (SourceNodes == null)
-            {
-                return;
-            }
+            InputParameterValueNode.Initialize(ctx);
 
             foreach (var sourceNode in SourceNodes)
             {
-                sourceNode.Restart(ctx);
+                sourceNode.Initialize(ctx, initialTime);
+            }
+
+            if (IsValid)
+            {
+                EvaluateBlendSpace(ctx);
+                PreviousTime = CurrentTime = blendedSyncTrack?.GetPercentageThrough(initialTime) ?? 0f;
             }
         }
-        public FloatValueNode InputParameterValueNode;
+
+        protected override void ShutdownInternal(GraphContext ctx)
+        {
+            foreach (var sourceNode in SourceNodes)
+            {
+                sourceNode.Shutdown(ctx);
+            }
+
+            InputParameterValueNode.Shutdown(ctx);
+
+            blendSource0 = null;
+            blendSource1 = null;
+            blendWeight = 0f;
+            blendSpaceUpdateID = uint.MaxValue;
+
+            base.ShutdownInternal(ctx);
+        }
 
         protected ParameterizedBlendNode__Parameterization ActiveParameterization;
 
@@ -32,9 +52,9 @@ namespace ValveResourceFormat.Renderer.AnimLib
         float blendWeight;
         uint blendSpaceUpdateID = uint.MaxValue;
 
-        public override void Initialize(GraphContext ctx)
+        public override void Instantiate(GraphContext ctx)
         {
-            base.Initialize(ctx);
+            base.Instantiate(ctx);
             ctx.SetNodesFromIndexArray(SourceNodeIndices, ref SourceNodes);
             ctx.SetNodeFromIndex(InputParameterValueNodeIdx, ref InputParameterValueNode);
         }
@@ -171,9 +191,9 @@ namespace ValveResourceFormat.Renderer.AnimLib
 
     partial class Blend1DNode
     {
-        public override void Initialize(GraphContext ctx)
+        public override void Instantiate(GraphContext ctx)
         {
-            base.Initialize(ctx);
+            base.Instantiate(ctx);
 
             // Blend space is evaluated lazily on the first Update — the input parameter node may not be
             // initialized yet at this point (nodes initialize in array order).
@@ -183,9 +203,9 @@ namespace ValveResourceFormat.Renderer.AnimLib
 
     partial class VelocityBlendNode
     {
-        public override void Initialize(GraphContext ctx)
+        public override void Instantiate(GraphContext ctx)
         {
-            base.Initialize(ctx);
+            base.Instantiate(ctx);
 
             // TODO: parameterization should be built from each source clip's average linear velocity, which
             // comes from decoded root motion (not yet available). Fall back to even index spacing so the
@@ -222,30 +242,50 @@ namespace ValveResourceFormat.Renderer.AnimLib
         }
 
         public PoseNode[] SourceNodes;
+        public FloatValueNode InputParameterNode0;
+        public FloatValueNode InputParameterNode1;
 
-        public override void Restart(GraphContext ctx)
+        protected override void InitializeInternal(GraphContext ctx, SyncTrackTime initialTime)
         {
-            base.Restart(ctx);
+            base.InitializeInternal(ctx, initialTime);
 
-            if (SourceNodes == null)
-            {
-                return;
-            }
+            InputParameterNode0.Initialize(ctx);
+            InputParameterNode1.Initialize(ctx);
 
             foreach (var sourceNode in SourceNodes)
             {
-                sourceNode.Restart(ctx);
+                sourceNode.Initialize(ctx, initialTime);
+            }
+
+            if (IsValid)
+            {
+                EvaluateBlendSpace(ctx);
+                PreviousTime = CurrentTime = blendedSyncTrack?.GetPercentageThrough(initialTime) ?? 0f;
             }
         }
-        public FloatValueNode InputParameterNode0;
-        public FloatValueNode InputParameterNode1;
+
+        protected override void ShutdownInternal(GraphContext ctx)
+        {
+            foreach (var sourceNode in SourceNodes)
+            {
+                sourceNode.Shutdown(ctx);
+            }
+
+            InputParameterNode1.Shutdown(ctx);
+            InputParameterNode0.Shutdown(ctx);
+
+            bsr.Reset();
+            blendSpaceUpdateID = uint.MaxValue;
+
+            base.ShutdownInternal(ctx);
+        }
 
         BlendSpaceResult bsr;
         uint blendSpaceUpdateID = uint.MaxValue;
 
-        public override void Initialize(GraphContext ctx)
+        public override void Instantiate(GraphContext ctx)
         {
-            base.Initialize(ctx);
+            base.Instantiate(ctx);
             ctx.SetNodesFromIndexArray(SourceNodeIndices, ref SourceNodes);
             ctx.SetNodeFromIndex(InputParameterNodeIdx0, ref InputParameterNode0);
             ctx.SetNodeFromIndex(InputParameterNodeIdx1, ref InputParameterNode1);
@@ -408,14 +448,28 @@ namespace ValveResourceFormat.Renderer.AnimLib
 
                 if (CalculateBarycentricCoordinates(point, points[i0], points[i1], points[i2], out var bcc))
                 {
-                    // Sort the three contributions ascending by weight
-                    var iw = new (int Idx, float Weight)[]
-                    {
+                    // Sort the three contributions ascending by weight (allocation-free)
+                    Span<(int Idx, float Weight)> iw =
+                    [
                         (i0, bcc.X),
                         (i1, bcc.Y),
                         (i2, bcc.Z),
-                    };
-                    Array.Sort(iw, (a, b) => a.Weight.CompareTo(b.Weight));
+                    ];
+
+                    if (iw[0].Weight > iw[1].Weight)
+                    {
+                        (iw[0], iw[1]) = (iw[1], iw[0]);
+                    }
+
+                    if (iw[1].Weight > iw[2].Weight)
+                    {
+                        (iw[1], iw[2]) = (iw[2], iw[1]);
+                    }
+
+                    if (iw[0].Weight > iw[1].Weight)
+                    {
+                        (iw[0], iw[1]) = (iw[1], iw[0]);
+                    }
 
                     if (IsNearEqual(iw[2].Weight, 1f, 1e-4f))
                     {
@@ -551,9 +605,9 @@ namespace ValveResourceFormat.Renderer.AnimLib
         FrameBone[] maskedLayerResult = [];
         float[] layerMaskWeights = [];
 
-        public override void Initialize(GraphContext ctx)
+        public override void Instantiate(GraphContext ctx)
         {
-            base.Initialize(ctx);
+            base.Instantiate(ctx);
             ctx.SetNodeFromIndex(BaseNodeIdx, ref BaseNode);
 
             LayerInputs = new PoseNode?[LayerDefinition.Length];
@@ -578,15 +632,43 @@ namespace ValveResourceFormat.Renderer.AnimLib
 
         public override SyncTrack SyncTrack => BaseNode?.SyncTrack ?? SyncTrack.Default;
 
-        public override void Restart(GraphContext ctx)
+        protected override void InitializeInternal(GraphContext ctx, SyncTrackTime initialTime)
         {
-            base.Restart(ctx);
-            BaseNode?.Restart(ctx);
+            base.InitializeInternal(ctx, initialTime);
 
-            foreach (var layerInput in LayerInputs)
+            BaseNode.Initialize(ctx, initialTime);
+
+            if (BaseNode.IsValid)
             {
-                layerInput?.Restart(ctx);
+                CurrentTime = BaseNode.CurrentTime;
+                Duration = BaseNode.Duration;
             }
+            else
+            {
+                PreviousTime = CurrentTime = 0f;
+                Duration = 0f;
+            }
+
+            for (var i = 0; i < LayerDefinition.Length; i++)
+            {
+                // Only initialize the start time for synchronized layers
+                LayerInputs[i]?.Initialize(ctx, LayerDefinition[i].IsSynchronized ? initialTime : default);
+                LayerWeights[i]?.Initialize(ctx);
+                LayerMasks[i]?.Initialize(ctx);
+            }
+        }
+
+        protected override void ShutdownInternal(GraphContext ctx)
+        {
+            for (var i = 0; i < LayerDefinition.Length; i++)
+            {
+                LayerWeights[i]?.Shutdown(ctx);
+                LayerMasks[i]?.Shutdown(ctx);
+                LayerInputs[i]?.Shutdown(ctx);
+            }
+
+            BaseNode.Shutdown(ctx);
+            base.ShutdownInternal(ctx);
         }
 
         public override GraphPoseNodeResult Update(GraphContext ctx, SyncTrackTimeRange? updateRange = null)

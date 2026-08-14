@@ -33,23 +33,42 @@ namespace ValveResourceFormat.Renderer.AnimLib
         float CachedValue;
         bool HasCachedValue;
 
-        public override void Initialize(GraphContext ctx)
+        public override void Instantiate(GraphContext ctx)
         {
             ctx.SetNodeFromIndex(InputValueNodeIdx, ref InputValueNode);
+        }
+
+        protected override void InitializeInternal(GraphContext ctx)
+        {
+            base.InitializeInternal(ctx);
+
+            InputValueNode.Initialize(ctx);
+
+            // Cache on entry
+            if (Mode == CachedValueMode.OnEntry)
+            {
+                CachedValue = InputValueNode.GetValue(ctx);
+                HasCachedValue = true;
+            }
+            else
+            {
+                HasCachedValue = false;
+            }
+        }
+
+        protected override void ShutdownInternal(GraphContext ctx)
+        {
+            InputValueNode.Shutdown(ctx);
+            base.ShutdownInternal(ctx);
         }
 
         protected override float GetValueInternal(GraphContext ctx)
         {
             if (!HasCachedValue)
             {
-                // OnEntry captures on first evaluation and holds (Esoterica captures at node
-                // initialization; per-state-entry recapture needs the activation lifecycle).
-                if (Mode == CachedValueMode.OnEntry)
-                {
-                    CachedValue = InputValueNode.GetValue(ctx);
-                    HasCachedValue = true;
-                }
-                else if (ctx.BranchState == BranchState.Inactive)
+                Debug.Assert(Mode == CachedValueMode.OnExit);
+
+                if (ctx.BranchState == BranchState.Inactive)
                 {
                     HasCachedValue = true;
                 }
@@ -72,7 +91,7 @@ namespace ValveResourceFormat.Renderer.AnimLib
     {
         string parameterName;
 
-        public override void Initialize(GraphContext ctx)
+        public override void Instantiate(GraphContext ctx)
         {
             Debug.Assert(NodeIdx >= 0 && NodeIdx < ctx.Graph.ParameterNames.Length);
             parameterName = ctx.Graph.ParameterNames[NodeIdx];
@@ -89,7 +108,7 @@ namespace ValveResourceFormat.Renderer.AnimLib
     {
         StateNode SourceStateNode;
 
-        public override void Initialize(GraphContext ctx)
+        public override void Instantiate(GraphContext ctx)
         {
             ctx.SetNodeFromIndex(SourceStateNodeIdx, ref SourceStateNode);
         }
@@ -113,9 +132,21 @@ namespace ValveResourceFormat.Renderer.AnimLib
     {
         FloatValueNode InputValueNode;
 
-        public override void Initialize(GraphContext ctx)
+        public override void Instantiate(GraphContext ctx)
         {
             ctx.SetNodeFromIndex(InputValueNodeIdx, ref InputValueNode);
+        }
+
+        protected override void InitializeInternal(GraphContext ctx)
+        {
+            base.InitializeInternal(ctx);
+            InputValueNode.Initialize(ctx);
+        }
+
+        protected override void ShutdownInternal(GraphContext ctx)
+        {
+            InputValueNode.Shutdown(ctx);
+            base.ShutdownInternal(ctx);
         }
 
         protected override float GetValueInternal(GraphContext ctx)
@@ -163,9 +194,21 @@ namespace ValveResourceFormat.Renderer.AnimLib
     {
         FloatValueNode InputValueNode;
 
-        public override void Initialize(GraphContext ctx)
+        public override void Instantiate(GraphContext ctx)
         {
             ctx.SetNodeFromIndex(InputValueNodeIdx, ref InputValueNode);
+        }
+
+        protected override void InitializeInternal(GraphContext ctx)
+        {
+            base.InitializeInternal(ctx);
+            InputValueNode.Initialize(ctx);
+        }
+
+        protected override void ShutdownInternal(GraphContext ctx)
+        {
+            InputValueNode.Shutdown(ctx);
+            base.ShutdownInternal(ctx);
         }
 
         protected override float GetValueInternal(GraphContext ctx)
@@ -182,9 +225,21 @@ namespace ValveResourceFormat.Renderer.AnimLib
     {
         FloatValueNode? DefaultNode;
 
-        public override void Initialize(GraphContext ctx)
+        public override void Instantiate(GraphContext ctx)
         {
             ctx.SetOptionalNodeFromIndex(DefaultNodeIdx, ref DefaultNode);
+        }
+
+        protected override void InitializeInternal(GraphContext ctx)
+        {
+            base.InitializeInternal(ctx);
+            DefaultNode?.Initialize(ctx);
+        }
+
+        protected override void ShutdownInternal(GraphContext ctx)
+        {
+            DefaultNode?.Shutdown(ctx);
+            base.ShutdownInternal(ctx);
         }
 
         protected override float GetValueInternal(GraphContext ctx)
@@ -245,9 +300,21 @@ namespace ValveResourceFormat.Renderer.AnimLib
     {
         FloatValueNode InputValueNode;
 
-        public override void Initialize(GraphContext ctx)
+        public override void Instantiate(GraphContext ctx)
         {
             ctx.SetNodeFromIndex(InputValueNodeIdx, ref InputValueNode);
+        }
+
+        protected override void InitializeInternal(GraphContext ctx)
+        {
+            base.InitializeInternal(ctx);
+            InputValueNode.Initialize(ctx);
+        }
+
+        protected override void ShutdownInternal(GraphContext ctx)
+        {
+            InputValueNode.Shutdown(ctx);
+            base.ShutdownInternal(ctx);
         }
 
         protected override float GetValueInternal(GraphContext ctx)
@@ -264,9 +331,16 @@ namespace ValveResourceFormat.Renderer.AnimLib
         float CurrentValue;
         float CurrentEaseTime;
 
-        public override void Initialize(GraphContext ctx)
+        public override void Instantiate(GraphContext ctx)
         {
             ctx.SetNodeFromIndex(InputValueNodeIdx, ref InputValueNode);
+        }
+
+        protected override void InitializeInternal(GraphContext ctx)
+        {
+            base.InitializeInternal(ctx);
+            InputValueNode.Initialize(ctx);
+
             if (UseStartValue)
             {
                 EaseRange = new(StartValue);
@@ -275,8 +349,15 @@ namespace ValveResourceFormat.Renderer.AnimLib
             {
                 EaseRange = new(InputValueNode.GetValue(ctx));
             }
+
             CurrentValue = EaseRange.Min;
             CurrentEaseTime = 0;
+        }
+
+        protected override void ShutdownInternal(GraphContext ctx)
+        {
+            InputValueNode.Shutdown(ctx);
+            base.ShutdownInternal(ctx);
         }
 
         protected override float GetValueInternal(GraphContext ctx)
@@ -325,10 +406,24 @@ namespace ValveResourceFormat.Renderer.AnimLib
         FloatValueNode InputValueNodeA;
         FloatValueNode? InputValueNodeB;
 
-        public override void Initialize(GraphContext ctx)
+        public override void Instantiate(GraphContext ctx)
         {
             ctx.SetNodeFromIndex(InputValueNodeIdxA, ref InputValueNodeA);
             ctx.SetOptionalNodeFromIndex(InputValueNodeIdxB, ref InputValueNodeB);
+        }
+
+        protected override void InitializeInternal(GraphContext ctx)
+        {
+            base.InitializeInternal(ctx);
+            InputValueNodeA.Initialize(ctx);
+            InputValueNodeB?.Initialize(ctx);
+        }
+
+        protected override void ShutdownInternal(GraphContext ctx)
+        {
+            InputValueNodeA.Shutdown(ctx);
+            InputValueNodeB?.Shutdown(ctx);
+            base.ShutdownInternal(ctx);
         }
 
         protected override float GetValueInternal(GraphContext ctx)
@@ -376,9 +471,21 @@ namespace ValveResourceFormat.Renderer.AnimLib
     {
         FloatValueNode InputValueNode;
 
-        public override void Initialize(GraphContext ctx)
+        public override void Instantiate(GraphContext ctx)
         {
             ctx.SetNodeFromIndex(InputValueNodeIdx, ref InputValueNode);
+        }
+
+        protected override void InitializeInternal(GraphContext ctx)
+        {
+            base.InitializeInternal(ctx);
+            InputValueNode.Initialize(ctx);
+        }
+
+        protected override void ShutdownInternal(GraphContext ctx)
+        {
+            InputValueNode.Shutdown(ctx);
+            base.ShutdownInternal(ctx);
         }
 
         protected override float GetValueInternal(GraphContext ctx)
@@ -395,9 +502,29 @@ namespace ValveResourceFormat.Renderer.AnimLib
         float CurrentValue;
         float CurrentEaseTime;
 
-        public override void Initialize(GraphContext ctx)
+        public override void Instantiate(GraphContext ctx)
         {
             ctx.SetNodesFromIndexArray(ConditionNodeIndices, ref ConditionNodes);
+        }
+
+        protected override void InitializeInternal(GraphContext ctx)
+        {
+            base.InitializeInternal(ctx);
+
+            foreach (var node in ConditionNodes)
+            {
+                node.Initialize(ctx);
+            }
+        }
+
+        protected override void ShutdownInternal(GraphContext ctx)
+        {
+            foreach (var node in ConditionNodes)
+            {
+                node.Shutdown(ctx);
+            }
+
+            base.ShutdownInternal(ctx);
         }
 
         protected override float GetValueInternal(GraphContext ctx)
@@ -439,11 +566,24 @@ namespace ValveResourceFormat.Renderer.AnimLib
         float CurrentValue;
         float CurrentVelocity;
 
-        public override void Initialize(GraphContext ctx)
+        public override void Instantiate(GraphContext ctx)
         {
             ctx.SetNodeFromIndex(InputValueNodeIdx, ref InputValueNode);
+        }
+
+        protected override void InitializeInternal(GraphContext ctx)
+        {
+            base.InitializeInternal(ctx);
+            InputValueNode.Initialize(ctx);
+
             CurrentValue = UseStartValue ? StartValue : InputValueNode.GetValue(ctx);
             CurrentVelocity = 0f;
+        }
+
+        protected override void ShutdownInternal(GraphContext ctx)
+        {
+            InputValueNode.Shutdown(ctx);
+            base.ShutdownInternal(ctx);
         }
 
         protected override float GetValueInternal(GraphContext ctx)
@@ -469,13 +609,29 @@ namespace ValveResourceFormat.Renderer.AnimLib
         FloatValueNode? TrueValueNode;
         FloatValueNode? FalseValueNode;
 
-        public override void Initialize(GraphContext ctx)
+        public override void Instantiate(GraphContext ctx)
         {
             ctx.SetNodeFromIndex(SwitchValueNodeIdx, ref SwitchValueNode);
 
             // The value inputs are optional; unbound inputs use the inline constants instead.
             ctx.SetOptionalNodeFromIndex(TrueValueNodeIdx, ref TrueValueNode);
             ctx.SetOptionalNodeFromIndex(FalseValueNodeIdx, ref FalseValueNode);
+        }
+
+        protected override void InitializeInternal(GraphContext ctx)
+        {
+            base.InitializeInternal(ctx);
+            SwitchValueNode.Initialize(ctx);
+            TrueValueNode?.Initialize(ctx);
+            FalseValueNode?.Initialize(ctx);
+        }
+
+        protected override void ShutdownInternal(GraphContext ctx)
+        {
+            SwitchValueNode.Shutdown(ctx);
+            TrueValueNode?.Shutdown(ctx);
+            FalseValueNode?.Shutdown(ctx);
+            base.ShutdownInternal(ctx);
         }
 
         protected override float GetValueInternal(GraphContext ctx)
@@ -493,7 +649,7 @@ namespace ValveResourceFormat.Renderer.AnimLib
     {
         StateNode? SourceStateNode;
 
-        public override void Initialize(GraphContext ctx)
+        public override void Instantiate(GraphContext ctx)
         {
             ctx.SetOptionalNodeFromIndex(SourceStateNodeIdx, ref SourceStateNode);
         }
@@ -567,7 +723,7 @@ namespace ValveResourceFormat.Renderer.AnimLib
     {
         StateNode? SourceStateNode;
 
-        public override void Initialize(GraphContext ctx)
+        public override void Instantiate(GraphContext ctx)
         {
             ctx.SetOptionalNodeFromIndex(SourceStateNodeIdx, ref SourceStateNode);
         }
@@ -621,10 +777,22 @@ namespace ValveResourceFormat.Renderer.AnimLib
     {
         IDValueNode InputValueNode;
 
-        public override void Initialize(GraphContext ctx)
+        public override void Instantiate(GraphContext ctx)
         {
             ctx.SetNodeFromIndex(InputValueNodeIdx, ref InputValueNode);
             Debug.Assert(IDs.Length == Values.Length);
+        }
+
+        protected override void InitializeInternal(GraphContext ctx)
+        {
+            base.InitializeInternal(ctx);
+            InputValueNode.Initialize(ctx);
+        }
+
+        protected override void ShutdownInternal(GraphContext ctx)
+        {
+            InputValueNode.Shutdown(ctx);
+            base.ShutdownInternal(ctx);
         }
 
         protected override float GetValueInternal(GraphContext ctx)
@@ -645,9 +813,21 @@ namespace ValveResourceFormat.Renderer.AnimLib
     {
         TargetValueNode TargetNode;
 
-        public override void Initialize(GraphContext ctx)
+        public override void Instantiate(GraphContext ctx)
         {
             ctx.SetNodeFromIndex(InputValueNodeIdx, ref TargetNode);
+        }
+
+        protected override void InitializeInternal(GraphContext ctx)
+        {
+            base.InitializeInternal(ctx);
+            TargetNode.Initialize(ctx);
+        }
+
+        protected override void ShutdownInternal(GraphContext ctx)
+        {
+            TargetNode.Shutdown(ctx);
+            base.ShutdownInternal(ctx);
         }
 
         protected override float GetValueInternal(GraphContext ctx)
@@ -742,9 +922,21 @@ namespace ValveResourceFormat.Renderer.AnimLib
     {
         FloatValueNode ChildNode;
 
-        public override void Initialize(GraphContext ctx)
+        public override void Instantiate(GraphContext ctx)
         {
             ctx.SetNodeFromIndex(ChildNodeIdx, ref ChildNode);
+        }
+
+        protected override void InitializeInternal(GraphContext ctx)
+        {
+            base.InitializeInternal(ctx);
+            ChildNode.Initialize(ctx);
+        }
+
+        protected override void ShutdownInternal(GraphContext ctx)
+        {
+            ChildNode.Shutdown(ctx);
+            base.ShutdownInternal(ctx);
         }
 
         // Caching is handled once-per-update by the FloatValueNode base.
