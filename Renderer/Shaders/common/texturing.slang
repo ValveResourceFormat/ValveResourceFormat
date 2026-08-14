@@ -9,13 +9,12 @@
 #include "utils.slang"
 #include "fullbright.slang"
 
-#if defined(NEED_CURVATURE) && (F_USE_PER_VERTEX_CURVATURE == 0)
-    // Expensive, only used in skin shaders
-    float GetCurvature(vec3 vNormal, vec3 vPositionWS)
-    {
-        return length(fwidth(vNormal)) / length(fwidth(vPositionWS));
-    }
-#endif
+// How fast the geometric normal turns per world unit. Two derivatives, so not free, but it is what
+// both the skin falloff and the lightmap directionality tip key off, and neither can be hoisted.
+float GetCurvature(vec3 vNormal, vec3 vPositionWS)
+{
+    return length(fwidth(vNormal)) / length(fwidth(vPositionWS));
+}
 
 // Geometric roughness. Essentially just Specular Anti-Aliasing
 float CalculateGeometricRoughnessFactor(vec3 geometricNormal)

@@ -81,7 +81,7 @@ uniform int F_DECAL_BLEND_MODE; // csgo_character, csgo_complex, csgo_vertexlitg
 #define F_TRANSMISSIVE_BACKFACE_NDOTL 0 // csgo_complex, csgo_foliage, csgo_simple_3layer_parallax, vr_complex
 uniform int F_NO_SPECULAR_AT_FULL_ROUGHNESS; // csgo_lightmappedgeneric, pbr
 // SKIN
-//#define F_SUBSURFACE_SCATTERING 0 // todo: same preintegrated method as vr_skin in HLA; csgo_character
+// F_SUBSURFACE_SCATTERING is a uniform int in pbr.slang, not a define - do not declare it here.
 //#define F_USE_FACE_OCCLUSION_TEXTURE 0 // todo: weird; vr_skin, vr_xen_foliage
 //#define F_USE_PER_VERTEX_CURVATURE 0 // todo; vr_skin, vr_skin_blended
 //#define F_SSS_MASK 0 // todo; vr_skin
@@ -102,6 +102,7 @@ uniform sampler2D g_tBlueNoise; // reserved
 uniform sampler2D g_tColor; // SrgbRead(true) Sampler(UserConfig)
 uniform sampler2D g_tNormal; // Sampler(UserConfig)
 uniform sampler2D g_tTintMask;
+uniform sampler2D g_tSssMask;
 
 #if defined(foliage_vfx_common)
     in vec4 vFoliageParamsOut;
@@ -428,9 +429,10 @@ MaterialProperties_t GetMaterial(vec2 texCoord, vec3 vertexNormals)
     #endif
 
 #if (GameVfx_csgo_character != 0)
-    #if (F_SUBSURFACE_SCATTERING == 1)
-        //mat.SSSMask = texture(g_tSSSMask, texCoord).g;
-    #endif
+    if (F_SUBSURFACE_SCATTERING == 1)
+    {
+        mat.SSSMask = texture(g_tSssMask, texCoord).g;
+    }
 #endif
 #endif
 

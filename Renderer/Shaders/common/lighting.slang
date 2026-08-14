@@ -273,7 +273,7 @@ vec3 ComputeLightmapShading(vec3 irradianceColor, vec4 irradianceDirection, Mate
         // overhead and pushed up where it grazes, which spreads an otherwise flat lightmap texel
         // across the normal map. Curvature is how fast the geometric normal turns per world unit,
         // so the tipping fades out over anything visibly curved and leaves silhouettes alone.
-        float flCurvature = length(fwidth(mat.GeometricNormal)) / length(fwidth(mat.PositionWS));
+        float flCurvature = GetCurvature(mat.GeometricNormal, mat.PositionWS);
         float flFlatness = smoothstep(0.1, 0.01, flCurvature) * 0.8;
         float flZScale = mix(1.0, mix(0.1, 2.0, saturate((1.0 - cosTheta) * 1.5)), flFlatness);
 

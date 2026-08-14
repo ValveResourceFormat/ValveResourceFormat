@@ -103,6 +103,14 @@ vec3 GetRetroReflectiveNormal(float retroReflectivity, vec3 L, vec3 V, vec3 N, v
 }
 
 uniform int F_CLOTH_SHADING; // csgo_character, csgo_complex, csgo_customglove, csgo_textile_layer, vr_complex
+uniform int F_SUBSURFACE_SCATTERING; // csgo_character, vr_skin
+
+// Preintegrated skin. Indexed by NdotL across and curvature down, storing a signed correction to the
+// diffuse term rather than the term itself. Authored per material (TextureDiffuseFalloff, suffix
+// "diffusewarp"), not engine supplied - CS2 ships one for skin and others for fleece and cake icing.
+uniform sampler2D g_tDiffuseFalloff; // SrgbRead(true)
+uniform vec3 g_vNormalSoftness = vec3(0.0);
+uniform float g_flCurvatureScale = 1.0;
 
 // BRDF. Layer 1 is the GGX split sum, layer 2 the sheen directional albedo; layer 0 is unused.
 uniform sampler2DArray g_tBRDFLookup; // reserved
@@ -233,14 +241,57 @@ vec3 GetSpecularEnergyCompensation(MaterialProperties_t mat)
     return vCompensation;
 }
 
+// Preintegrated skin, evaluated per light. Light that enters the surface and leaves somewhere else is
+// approximated two ways at once: the shading normal is softened per channel, so red - which scatters
+// furthest - is lit by the flattest normal, and the falloff table adds back the light that wraps past
+// the terminator. Both the scatter amount and the table's NdotL axis are read against the soft
+// normal, not the shading normal.
+vec3 GetSubsurfaceDiffuse(MaterialProperties_t mat, vec3 lightVector, vec3 diffuseLight)
+{
+    // Onto the table's V axis. Both constants are read straight out of csgo_character; they work out
+    // to a curvature range of roughly [0.025, 2.54], and are not a half texel inset of the 512 tall
+    // table, so do not "correct" them to one.
+    float flCurvature = (GetCurvature(mat.GeometricNormal, mat.PositionWS) * g_flCurvatureScale) * 0.3976777493953704833984375 - 0.0101010091602802276611328125;
+
+    // The soft end of the blend is the same normal map with its bitangent term negated, so raising
+    // softness flattens the normal along the bitangent rather than fading toward the geometric
+    // normal. That is what csgo_character blends toward - it builds the vector from the one
+    // g_tNormal sample twice, differing only in the sign of tangent space Y.
+    vec3 vSoftNormal = normalize(mat.Tangent * mat.NormalMap.x - mat.Bitangent * mat.NormalMap.y + mat.GeometricNormal * mat.NormalMap.z);
+
+    float flSoftNoL = dot(vSoftNormal, lightVector);
+
+    // Facing away from the light the shading normal is given up entirely, which is what rounds off
+    // the terminator; facing into it, each channel keeps whatever softness the material asked for.
+    vec3 vScatter = saturate(vec3(1.0) - vec3(flSoftNoL));
+    vScatter *= vScatter;
+
+    vec3 vChannelNoL;
+
+    for (int i = 0; i < 3; i++)
+    {
+        vec3 vChannelNormal = normalize(mix(mat.Normal, vSoftNormal, mix(g_vNormalSoftness[i], 1.0, vScatter[i])));
+        vChannelNoL[i] = saturate(dot(vChannelNormal, lightVector));
+    }
+
+    vec3 vFalloff = textureLod(g_tDiffuseFalloff, vec2(flSoftNoL * 0.5 + 0.5, flCurvature), 0.0).rgb * 0.5 - 0.25;
+
+    return mix(diffuseLight, saturate(vChannelNoL + vFalloff), mat.SSSMask);
+}
+
 // Calculate PBR shading for a light
 void CalculateShading(inout LightingTerms_t lighting, vec3 lightVector, vec3 lightColor, MaterialProperties_t mat)
 {
 #if defined(S_DIFFUSE_WRAP)
     vec3 diffuseLight = diffuseWrapped(mat.Normal, lightVector);
 #else
-    float diffuseLight = ClampToPositive(dot(mat.Normal, lightVector));
+    vec3 diffuseLight = vec3(ClampToPositive(dot(mat.Normal, lightVector)));
 #endif
+
+    if (F_SUBSURFACE_SCATTERING == 1)
+    {
+        diffuseLight = GetSubsurfaceDiffuse(mat, lightVector, diffuseLight);
+    }
 
     float sheenAlbedoScaling = GetSheenAlbedoScaling(mat, lightVector);
     diffuseLight *= sheenAlbedoScaling;
