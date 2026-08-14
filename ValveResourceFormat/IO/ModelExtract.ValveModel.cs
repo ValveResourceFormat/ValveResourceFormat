@@ -333,19 +333,17 @@ partial class ModelExtract
 
     // Global cloth solver parameters, populated from the FeModel scalars. Field names match the compiled
     // ClothParams source node (e.g. siren_legs.vmdl); the compiler re-derives everything not emitted here.
-    static KVObject MakeClothParams(FeModel fe)
+    static KVObject MakeClothParams(FeModel fe, bool generatesBendRods = false)
     {
         var flags = fe.DynamicNodeFlags;
         bool Flag(uint bits) => (flags & bits) != 0;
 
         return MakeNode("ClothParams",
             ("default_stretch", fe.DefaultSurfaceStretch),
-            // Mirrors default_stretch's own recovery (fe.DefaultSurfaceStretch <- m_flDefaultSurfaceStretch):
-            // additional_shear_stretch reads the already-parsed-but-previously-unused m_flDefaultThreadStretch
-            // instead of a hardcoded 0 - both dark_willow and meepo_naruto_set ship 0.0 for this field so
-            // there's no live signal to verify a nonzero case against yet, but the old hardcoded 0 silently
-            // discarded a real value on any model that DOES ship a nonzero m_flDefaultThreadStretch.
-            ("additional_shear_stretch", fe.DefaultThreadStretch),
+            // Recovered from the rod relaxation factors, NOT from m_flDefaultThreadStretch: that field
+            // tracks m_flDefaultSurfaceStretch whatever the shear is (measured across a 0..0.5 sweep), so
+            // reading it emitted the surface stretch a second time and slackened every face diagonal.
+            ("additional_shear_stretch", fe.AdditionalShearStretch),
             ("extra_iterations", fe.ExtraIterations),
             ("extra_goal_iterations", fe.ExtraGoalIterations),
             ("extra_pressure_iterations", fe.ExtraPressureIterations),
@@ -376,7 +374,11 @@ partial class ModelExtract
             ("can_collide_with_world_hulls", Flag(ClothFlagCollideWorldHulls)),
             ("can_collide_with_world_meshes", Flag(ClothFlagCollideWorldMeshes)),
             ("can_collide_with_world_capsule_and_spheres", Flag(ClothFlagCollideWorldCapsulesAndSpheres)),
-            ("add_stiffness_rods", false),
+            // A sheet whose compiled rods reach beyond its own face edges and diagonals was authored with
+            // the extra bend network switched on. Recovering it lets the compiler regenerate those rods
+            // from the surface, where declaring them as explicit springs would instead add a source
+            // element per pair and leave the sheet heavier than the original.
+            ("add_stiffness_rods", generatesBendRods),
             ("rigid_edge_hinges", false),
             ("add_bend_only_rods", false),
             ("immovable", Flag(ClothFlagImmovable)));
@@ -423,8 +425,65 @@ partial class ModelExtract
     // referenced nodes ascending), so the original's local index would compile fine but silently resolve to
     // the wrong vertex in our export - rods crossing to unrelated points. Real bone names need no
     // translation (skeleton bone names are not proxy-mesh-local).
+    /// <summary>
+    /// The rods the compiler rebuilds from the exported surface on its own, which must therefore not also
+    /// be declared as explicit springs. Every face edge and diagonal is one. When the sheet's compiled rods
+    /// reach further than that, the extra bend network was authored on (see <c>add_stiffness_rods</c> in
+    /// <see cref="MakeClothParams"/>) and regenerates the remaining pairs of that sheet too.
+    /// </summary>
+    static HashSet<(int, int)> ClothRodsFromSurface(FeModel feModel,
+        List<(string FileName, string Name, FeModel.ProxyMesh Proxy)> proxies, out bool generatesBendRods)
+    {
+        var surfaceNodes = new HashSet<int>();
+        var derived = new HashSet<(int, int)>();
+        foreach (var (_, _, proxyMesh) in proxies)
+        {
+            if (!proxyMesh.UsesAuthoredFaces)
+            {
+                continue;
+            }
+
+            var nodeOf = proxyMesh.NodeIndices;
+            surfaceNodes.UnionWith(nodeOf);
+            derived.UnionWith(FeModel.DeriveRodsFromFaces(
+                proxyMesh.Faces.Select(face => face.Select(local => nodeOf[local]).ToArray())));
+        }
+
+        var beyondSurface = new HashSet<(int, int)>();
+        foreach (var rod in feModel.Rods)
+        {
+            var edge = rod.NodeA < rod.NodeB ? (rod.NodeA, rod.NodeB) : (rod.NodeB, rod.NodeA);
+            if (surfaceNodes.Contains(edge.Item1) && surfaceNodes.Contains(edge.Item2) && !derived.Contains(edge))
+            {
+                beyondSurface.Add(edge);
+            }
+        }
+
+        // The bend network spans the pairs two steps apart across the surface. Only when every rod
+        // reaching past the faces has that shape is the switch able to account for all of them - otherwise
+        // enabling it would drop the rods it cannot reproduce, so those keep their explicit springs.
+        var neighbours = new Dictionary<int, HashSet<int>>();
+        foreach (var (a, b) in derived)
+        {
+            (neighbours.TryGetValue(a, out var na) ? na : neighbours[a] = []).Add(b);
+            (neighbours.TryGetValue(b, out var nb) ? nb : neighbours[b] = []).Add(a);
+        }
+
+        generatesBendRods = beyondSurface.Count > 0 && beyondSurface.All(edge =>
+            neighbours.TryGetValue(edge.Item1, out var near)
+            && near.Any(step => neighbours.TryGetValue(step, out var beyond) && beyond.Contains(edge.Item2)));
+
+        if (generatesBendRods)
+        {
+            derived.UnionWith(beyondSurface);
+        }
+
+        return derived;
+    }
+
     static void AddClothProxySprings(KVObject softbodyChildren, FeModel feModel,
-        List<(string FileName, string Name, FeModel.ProxyMesh Proxy)> proxies, HashSet<int> chainJointNodes)
+        List<(string FileName, string Name, FeModel.ProxyMesh Proxy)> proxies, HashSet<int> chainJointNodes,
+        HashSet<int> authoredClothNodes, HashSet<(int, int)> derivedRods)
     {
         // Islands the cloth importer is expected to prune vertices from (see FeModel.ComputeDropRisk):
         // emitting explicit rods into them would orphan a ClothSpring on a vertex the compiler never creates
@@ -432,6 +491,7 @@ partial class ModelExtract
         // importer auto-derive the network from the surface instead - guaranteed to compile, at the cost of
         // exact rod topology for that one island. Clean islands keep their exact reconstructed rods.
         var riskyNodes = new HashSet<int>();
+
         foreach (var (_, _, proxyMesh) in proxies)
         {
             if (proxyMesh.IsDropRisk)
@@ -442,6 +502,7 @@ partial class ModelExtract
                 }
             }
         }
+
 
         var proxyNodeNames = new Dictionary<int, string>();
         for (var proxyIndex = 0; proxyIndex < proxies.Count; proxyIndex++)
@@ -475,10 +536,13 @@ partial class ModelExtract
             }
         }
 
+        // A real bone anchors a spring only when this export also declares it as a ClothNode. A bone the
+        // compile knows solely through a chain's joint list or a proxy back-solve is not a valid endpoint,
+        // and naming one fails the whole compile with "Cannot find Fx Bone"/"Cannot find node".
         string? ResolveName(int node)
             => FeModel.IsProxyNodeName(feModel.CtrlNames[node])
                 ? proxyNodeNames.GetValueOrDefault(node)
-                : feModel.CtrlNames[node];
+                : authoredClothNodes.Contains(node) ? feModel.CtrlNames[node] : null;
 
         var seen = new HashSet<(int, int)>();
         foreach (var rod in feModel.Rods)
@@ -492,6 +556,11 @@ partial class ModelExtract
             // A rod inside a drop-risk island is skipped (the whole island falls back to compiler-derived
             // rods) - see the riskyNodes remarks above.
             if (riskyNodes.Contains(edge.Item1) || riskyNodes.Contains(edge.Item2))
+            {
+                continue;
+            }
+
+            if (derivedRods.Contains(edge))
             {
                 continue;
             }
@@ -534,10 +603,23 @@ partial class ModelExtract
     {
         var controlNames = feModel.CtrlNames;
 
+        // Only a bone some emitted chain actually claims as a joint is registered as a cloth node, and so
+        // only such a bone can anchor a spring. A cloth-flagged bone that no chain covers (a chain's own
+        // parent one hop above its root, say) resolves to nothing and fails the whole compile with
+        // "Cannot find Fx Bone".
+        var chainJoints = chains.SelectMany(static chain => chain.Joints)
+            .Select(static joint => joint.Node)
+            .ToHashSet();
+
         foreach (var rod in feModel.GetUngeneratedRods(chains))
         {
             if (rod.NodeA < 0 || rod.NodeA >= controlNames.Length
             || rod.NodeB < 0 || rod.NodeB >= controlNames.Length)
+            {
+                continue;
+            }
+
+            if (!chainJoints.Contains(rod.NodeA) || !chainJoints.Contains(rod.NodeB))
             {
                 continue;
             }
@@ -1959,7 +2041,8 @@ partial class ModelExtract
                 // The proxy mesh ships the global solver scalars + any collision shapes via a Softbody.
                 // Independent (non-back-solved) chains, if any, are emitted alongside it - see above.
                 var (softbody, softbodyChildren) = MakeListNode("Softbody");
-                softbodyChildren.Add(MakeClothParams(feModel));
+                var surfaceRods = ClothRodsFromSurface(feModel, ClothProxyMeshesToExtract, out var generatesBendRods);
+                softbodyChildren.Add(MakeClothParams(feModel, generatesBendRods));
 
                 // Simulated real bones that are NEITHER back-solved NOR part of any multi-joint BoneChain -
                 // standalone goal-attraction points wired together only by ClothSpring (see MakeClothNode
@@ -2034,7 +2117,11 @@ partial class ModelExtract
                     .SelectMany(static chain => chain.Joints)
                     .Select(static joint => joint.Node)
                     .ToHashSet();
-                AddClothProxySprings(softbodyChildren, feModel, ClothProxyMeshesToExtract, independentChainNodes);
+                var authoredClothNodes = loneClothNodes.Concat(leftoverStaticNodes)
+                    .Select(static entry => entry.Node)
+                    .ToHashSet();
+                AddClothProxySprings(softbodyChildren, feModel, ClothProxyMeshesToExtract, independentChainNodes,
+                    authoredClothNodes, surfaceRods);
                 AddClothCollisionShapes(softbodyChildren, feModel);
 
                 root.Children.Add(softbody);

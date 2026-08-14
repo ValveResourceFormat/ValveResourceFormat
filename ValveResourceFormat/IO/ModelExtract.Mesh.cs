@@ -739,9 +739,16 @@ partial class ModelExtract
         // than AddClothProxySprings' own exact m_Rods reconstruction (a Delaunay cover has more adjacency
         // edges than a real hand-designed mesh), inflating m_Rods well past the original. Correct rod
         // topology matters more for simulated behaviour than the compiled quad/tri surface count.
-        vertexData.AddIndexedStream("cloth_use_rods$0", Enumerable.Repeat(1f, vertexCount).ToArray(), identity);
-        vertexData.AddIndexedStream("cloth_make_rods$0", Enumerable.Repeat(0.4f, vertexCount).ToArray(), identity);
-        vertexData.AddIndexedStream("cloth_bend_stiffness$0", Enumerable.Repeat(0.2f, vertexCount).ToArray(), identity);
+        //
+        // A sheet exported with its AUTHORED faces skips all three. Hand-authored proxies carry only
+        // cloth_enable (and sometimes cloth_friction), and the compiler rebuilds the shipped rod network
+        // from that surface itself, so suppressing rod generation there would leave the sheet with none.
+        if (!proxy.UsesAuthoredFaces)
+        {
+            vertexData.AddIndexedStream("cloth_use_rods$0", Enumerable.Repeat(1f, vertexCount).ToArray(), identity);
+            vertexData.AddIndexedStream("cloth_make_rods$0", Enumerable.Repeat(0.4f, vertexCount).ToArray(), identity);
+            vertexData.AddIndexedStream("cloth_bend_stiffness$0", Enumerable.Repeat(0.2f, vertexCount).ToArray(), identity);
+        }
 
         // Skin the proxy vertices. Pinned (cloth_enable 0) vertices follow their anchor bone with weight 1;
         // simulated vertices carry smooth two-joint chain weights (see FeModel.ProxyMesh.SkinInfluences) so
@@ -762,29 +769,35 @@ partial class ModelExtract
             boneIndexByName.TryAdd(GetExportBoneName(bone), bone.Index);
         }
 
-        const int JointCount = 4;
-        var blendIndices = new int[vertexCount * JointCount];
-        var blendWeights = new float[vertexCount * JointCount];
-        for (var v = 0; v < vertexCount; v++)
+        // A sheet no real bone drives ships UNSKINNED, like its hand-authored counterpart: the compiler
+        // then anchors the whole sheet to a static root node it generates itself and records every vertex
+        // as an m_CtrlOffsets entry hanging off that root. Skinning it to the synthetic per-vertex bones
+        // binds each node directly instead, which costs both the root node and the entire offsets array.
+        if (!proxy.IsFreeFloating)
         {
-            var slot = 0;
-            foreach (var (boneName, weight) in proxy.SkinInfluences[v])
+            const int JointCount = 4;
+            var blendIndices = new int[vertexCount * JointCount];
+            var blendWeights = new float[vertexCount * JointCount];
+            for (var v = 0; v < vertexCount; v++)
             {
-                if (slot >= JointCount || !boneIndexByName.TryGetValue(boneName, out var bi))
+                var slot = 0;
+                foreach (var (boneName, weight) in proxy.SkinInfluences[v])
                 {
-                    continue;
-                }
+                    if (slot >= JointCount || !boneIndexByName.TryGetValue(boneName, out var bi))
+                    {
+                        continue;
+                    }
 
-                blendIndices[v * JointCount + slot] = bi;
-                blendWeights[v * JointCount + slot] = weight;
-                slot++;
+                    blendIndices[v * JointCount + slot] = bi;
+                    blendWeights[v * JointCount + slot] = weight;
+                    slot++;
+                }
             }
 
+            vertexData.JointCount = JointCount;
+            vertexData.AddStream("blendindices$0", blendIndices);
+            vertexData.AddStream("blendweights$0", blendWeights);
         }
-
-        vertexData.JointCount = JointCount;
-        vertexData.AddStream("blendindices$0", blendIndices);
-        vertexData.AddStream("blendweights$0", blendWeights);
 
         var faceSet = new DmeFaceSet { Name = "cloth" };
         faceSet.Material.MaterialName = "cloth";

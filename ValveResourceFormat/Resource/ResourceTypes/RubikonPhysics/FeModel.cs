@@ -445,6 +445,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics
 
             Quads = ReadNodeIndexArray(data, "m_Quads", 4);
             Tris = ReadNodeIndexArray(data, "m_Tris", 3);
+            SourceFaces = ReadSourceFaces(data);
 
             var rods = data.GetArray("m_Rods");
             Rods = rods is null
@@ -459,7 +460,9 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics
                         o.GetFloatProperty("flMaxDist"),
                         o.GetFloatProperty("flWeight0"),
                         o.GetFloatProperty("flRelaxationFactor"));
-                }).Where(static r => r.NodeA >= 0 && r.NodeB >= 0).ToArray();
+                    // A rod joining a node to itself constrains nothing and cannot be re-authored - the
+                    // compiler rejects such a ClothSpring outright ("Cannot connect node to itself").
+                }).Where(static r => r.NodeA >= 0 && r.NodeB >= 0 && r.NodeA != r.NodeB).ToArray();
 
             var integrators = data.GetArray("m_NodeIntegrator");
             NodeIntegrators = integrators is null
@@ -765,6 +768,109 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics
             }
 
             return [.. faces];
+        }
+
+        // m_SourceElems is the authored proxy mesh's own face list: flat groups of four control-node
+        // indices in cyclic winding order, a repeated index marking a triangle. The leading group is a
+        // degenerate placeholder. Unlike m_Quads/m_Tris it survives even when the compiler collapses the
+        // whole surface into rods, which is the only record of the authored topology for such models.
+        static int[][] ReadSourceFaces(KVObject data)
+        {
+            if (!data.ContainsKey("m_SourceElems") || !data.IsNotBlobType("m_SourceElems"))
+            {
+                return [];
+            }
+
+            var elems = data.GetIntegerArray("m_SourceElems");
+
+            var faces = new List<int[]>(elems.Length / SourceElemStride);
+            for (var i = 0; i + SourceElemStride <= elems.Length; i += SourceElemStride)
+            {
+                var corners = new List<int>(SourceElemStride);
+                for (var c = 0; c < SourceElemStride; c++)
+                {
+                    var node = (int)elems[i + c];
+                    if (!corners.Contains(node))
+                    {
+                        corners.Add(node);
+                    }
+                }
+
+                if (corners.Count >= 3)
+                {
+                    faces.Add([.. corners]);
+                }
+            }
+
+            return [.. faces];
+        }
+
+        const int SourceElemStride = 4;
+
+        /// <summary>
+        /// Gets the authored proxy-mesh faces recovered from <c>m_SourceElems</c>, as control-node index
+        /// lists in winding order (four corners for a quad, three for a triangle).
+        /// </summary>
+        public int[][] SourceFaces { get; } = [];
+
+        /// <summary>
+        /// Gets whether the compiler anchored this cloth to a static root node of its own making, which is
+        /// what it does for a proxy mesh that arrives with no skinning. Its absence means every sheet was
+        /// skinned, so exporting one unskinned would add a node the original never had.
+        /// </summary>
+        public bool HasGeneratedClothRoot => Array.Exists(CtrlNames, static n => n == ClothRootNodeName);
+
+        const string ClothRootNodeName = "$cloth_root";
+
+        /// <summary>
+        /// Returns the node pairs the compiler regenerates as <c>m_Rods</c> from <paramref name="faces"/>:
+        /// every face edge plus every face diagonal, deduplicated. Verified set-equal to the shipped
+        /// <c>m_Rods</c> of a pure proxy-mesh cloth (a 256-quad sheet yields 544 edges + 512 diagonals).
+        /// </summary>
+        public static HashSet<(int, int)> DeriveRodsFromFaces(IEnumerable<int[]> faces)
+        {
+            var derived = new HashSet<(int, int)>();
+            foreach (var face in faces)
+            {
+                for (var a = 0; a < face.Length; a++)
+                {
+                    for (var b = a + 1; b < face.Length; b++)
+                    {
+                        var (x, y) = face[a] < face[b] ? (face[a], face[b]) : (face[b], face[a]);
+                        derived.Add((x, y));
+                    }
+                }
+            }
+
+            return derived;
+        }
+
+        /// <summary>
+        /// Gets the authored <c>additional_shear_stretch</c>. A rod's <c>flRelaxationFactor</c> is
+        /// <c>exp(-stretch)</c>, where a face edge uses the surface stretch and a face diagonal uses the
+        /// surface stretch plus this value, so the slackest rod recovers it. The compiler clamps the
+        /// authored value at zero, which is why a negative original is indistinguishable from zero.
+        /// </summary>
+        public float AdditionalShearStretch
+        {
+            get
+            {
+                var slackest = float.MaxValue;
+                foreach (var rod in Rods)
+                {
+                    if (rod.RelaxationFactor > 0f && rod.RelaxationFactor < slackest)
+                    {
+                        slackest = rod.RelaxationFactor;
+                    }
+                }
+
+                if (slackest is float.MaxValue or >= 1f)
+                {
+                    return 0f;
+                }
+
+                return Math.Max(0f, -MathF.Log(slackest) - DefaultSurfaceStretch);
+            }
         }
 
         /// <summary>
@@ -1089,6 +1195,19 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics
             /// for cleanly-triangulated islands, which keep their exact reconstructed rods.
             /// </summary>
             public bool IsDropRisk { get; init; }
+            /// <summary>
+            /// Gets whether <see cref="Faces"/> came from the authored <c>m_SourceElems</c> topology rather
+            /// than a synthesised triangulation. The compiler rebuilds the shipped rods from such a sheet on
+            /// its own, so it is exported without rod-suppressing paints and without explicit springs.
+            /// </summary>
+            public bool UsesAuthoredFaces { get; init; }
+            /// <summary>
+            /// Gets whether no vertex of this sheet is driven by a real skeleton bone. Hand-authored
+            /// proxies of this kind ship unskinned, and the compiler answers by generating its own static
+            /// root node plus one <c>m_CtrlOffsets</c> entry per vertex. Skinning such a sheet to the
+            /// synthetic per-vertex bones instead binds each node directly and loses both.
+            /// </summary>
+            public bool IsFreeFloating { get; init; }
         }
 
         /// <summary>
@@ -1656,6 +1775,38 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics
                 }
             }
 
+            // The corners of an authored face are one surface by definition. Splitting them across islands
+            // would drop that face from both (a face is only kept where all of its corners are), leaving
+            // its vertices unfaced - and an unfaced vertex is never registered as a control node at all.
+            // Only faces confined to a single compiled mesh count: a face spanning two of them describes
+            // authored geometry the compiler itself chose to split, and merging on it would fuse two
+            // separate sheets into one.
+            foreach (var face in SourceFaces)
+            {
+                if (SpansProxyMeshes(face))
+                {
+                    continue;
+                }
+
+                var first = -1;
+                foreach (var corner in face)
+                {
+                    if (corner < 0 || corner >= n || !isProxy[corner])
+                    {
+                        continue;
+                    }
+
+                    if (first < 0)
+                    {
+                        first = corner;
+                    }
+                    else
+                    {
+                        parent[Find(corner)] = Find(first);
+                    }
+                }
+            }
+
             // Also union nodes the compiler already assigned to the same "$cloth_m{N}" mesh: that index is
             // an authoritative grouping the name encodes, and a single panel can contain a vertex with no
             // rod to the rest (meepo_naruto_set's jaket has one such isolated "$cloth_m0" node - grouping
@@ -1765,14 +1916,28 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics
                 vertexAttraction[i] = vertex.VertexAttraction;
             }
 
-            var faces = TriangulateDominantPlane(positions);
-            EnsureAllVerticesFaced(positions, faces);
+            var localOf = new Dictionary<int, int>(count);
+            for (var i = 0; i < count; i++)
+            {
+                localOf[nodeIndices[i]] = i;
+            }
+
+            var faces = TakeAuthoredFaces(localOf, nodeIndices);
+            var usesAuthoredFaces = faces.Count > 0;
+            if (!usesAuthoredFaces)
+            {
+                faces = TriangulateDominantPlane(positions);
+                EnsureAllVerticesFaced(positions, faces);
+            }
+
             if (faces.Count == 0)
             {
                 return null;
             }
 
-            var isDropRisk = ComputeDropRisk(positions, clothEnable, faces);
+            // Authored faces are the original topology, so the compiler's own rod derivation from them
+            // reproduces the shipped m_Rods - the island needs no drop-risk fallback and no explicit rods.
+            var isDropRisk = !usesAuthoredFaces && ComputeDropRisk(positions, clothEnable, faces);
 
             return new ProxyMesh
             {
@@ -1792,7 +1957,228 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics
                 SimulatedCount = simulated,
                 PinnedCount = pinned,
                 IsDropRisk = isDropRisk,
+                UsesAuthoredFaces = usesAuthoredFaces,
+                IsFreeFloating = usesAuthoredFaces && HasGeneratedClothRoot
+                    && skinInfluences.All(static v => v.All(static i => IsProxyNodeName(i.Bone))),
             };
+        }
+
+        // The authored faces wholly contained in one island, remapped to that island's local vertex
+        // indices. A face straddling islands belongs to neither.
+        //
+        // The set is kept only when every rod the compiler would derive from it is a rod the model
+        // actually ships. A surface that would invent constraints is rejected outright and the island
+        // falls back to a synthesised triangulation with its rods declared explicitly, which is exact even
+        // though the compiled quad/tri surface then differs (the mixed chain-plus-proxy heroes land here).
+        List<int[]> TakeAuthoredFaces(Dictionary<int, int> localOf, List<int> nodeIndices)
+        {
+            var faces = new List<int[]>();
+            foreach (var face in SourceFaces)
+            {
+                if (SpansProxyMeshes(face))
+                {
+                    continue;
+                }
+
+                var complete = true;
+                foreach (var corner in face)
+                {
+                    if (!localOf.ContainsKey(corner))
+                    {
+                        complete = false;
+                        break;
+                    }
+                }
+
+                if (complete)
+                {
+                    faces.Add(face);
+                }
+            }
+
+            if (faces.Count == 0)
+            {
+                return [];
+            }
+
+            var shipped = new HashSet<(int, int)>();
+            foreach (var rod in Rods)
+            {
+                shipped.Add(rod.NodeA < rod.NodeB ? (rod.NodeA, rod.NodeB) : (rod.NodeB, rod.NodeA));
+            }
+
+            // A rod between two pinned nodes constrains nothing, and the compiler leaves it out - so an
+            // authored edge joining two of them is absent from m_Rods without the surface being wrong.
+            foreach (var (a, b) in DeriveRodsFromFaces(faces))
+            {
+                if (!shipped.Contains((a, b)) && !(a < StaticNodeCount && b < StaticNodeCount))
+                {
+                    return [];
+                }
+            }
+
+            // Every vertex has to land on a face: an unfaced one is never registered as a control node, so
+            // a partial cover would silently lose nodes that the synthesised triangulation keeps.
+            var covered = new HashSet<int>();
+            foreach (var face in faces)
+            {
+                covered.UnionWith(face);
+            }
+
+            if (!nodeIndices.All(covered.Contains))
+            {
+                return [];
+            }
+
+            return [.. OrderFacesByAllocation(faces, nodeIndices).Select(face => face.Select(corner => localOf[corner]).ToArray())];
+        }
+
+        // Whether a face's corners come from more than one compiled proxy mesh. Such a face cannot have
+        // been authored in any single proxy DMX, and the rods it would imply are not the ones the model
+        // ships, so it is left out of the surface entirely.
+        bool SpansProxyMeshes(int[] face)
+        {
+            var meshIndex = int.MinValue;
+            foreach (var corner in face)
+            {
+                if (corner < 0 || corner >= CtrlNames.Length || !IsProxyNodeName(CtrlNames[corner]))
+                {
+                    continue;
+                }
+
+                var cornerMesh = ParseProxyMeshIndex(CtrlNames[corner]);
+                if (meshIndex == int.MinValue)
+                {
+                    meshIndex = cornerMesh;
+                }
+                else if (cornerMesh != meshIndex)
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        /// <summary>
+        /// Reorders faces so that walking them corner by corner meets the control nodes in the model's own
+        /// index order. The compiler numbers a proxy's nodes by first encounter over the imported face list,
+        /// so exporting the faces in this order reproduces the original numbering instead of a permutation
+        /// of it. Faces are only rotated, never reversed, so the authored winding survives.
+        /// </summary>
+        static List<int[]> OrderFacesByAllocation(List<int[]> faces, List<int> nodeIndices)
+        {
+            var facesAt = new Dictionary<int, List<int>>();
+            for (var f = 0; f < faces.Count; f++)
+            {
+                foreach (var corner in faces[f])
+                {
+                    if (!facesAt.TryGetValue(corner, out var list))
+                    {
+                        facesAt[corner] = list = [];
+                    }
+
+                    list.Add(f);
+                }
+            }
+
+            var ordered = new List<int[]>(faces.Count);
+            var used = new bool[faces.Count];
+            var seen = new HashSet<int>();
+
+            foreach (var node in nodeIndices.Order())
+            {
+                if (seen.Contains(node) || !facesAt.TryGetValue(node, out var candidates))
+                {
+                    continue;
+                }
+
+                int[]? bestRotation = null;
+                var bestFace = -1;
+                List<int>? bestFresh = null;
+
+                foreach (var f in candidates)
+                {
+                    if (used[f])
+                    {
+                        continue;
+                    }
+
+                    var face = faces[f];
+                    for (var start = 0; start < face.Length; start++)
+                    {
+                        var rotation = new int[face.Length];
+                        for (var i = 0; i < face.Length; i++)
+                        {
+                            rotation[i] = face[(start + i) % face.Length];
+                        }
+
+                        var fresh = rotation.Where(c => !seen.Contains(c)).ToList();
+                        if (fresh.Count == 0 || !IsAscending(fresh))
+                        {
+                            continue;
+                        }
+
+                        if (bestFresh is null || IsLexicographicallySmaller(fresh, bestFresh))
+                        {
+                            bestFresh = fresh;
+                            bestRotation = rotation;
+                            bestFace = f;
+                        }
+                    }
+                }
+
+                if (bestRotation is null || bestFresh is null)
+                {
+                    continue;
+                }
+
+                used[bestFace] = true;
+                ordered.Add(bestRotation);
+                foreach (var corner in bestFresh)
+                {
+                    seen.Add(corner);
+                }
+            }
+
+            // Faces that introduce no node of their own play no part in the numbering; they keep their
+            // original relative order behind the ones that do.
+            for (var f = 0; f < faces.Count; f++)
+            {
+                if (!used[f])
+                {
+                    ordered.Add(faces[f]);
+                }
+            }
+
+            return ordered;
+        }
+
+        static bool IsAscending(List<int> values)
+        {
+            for (var i = 1; i < values.Count; i++)
+            {
+                if (values[i] < values[i - 1])
+                {
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
+        static bool IsLexicographicallySmaller(List<int> candidate, List<int> current)
+        {
+            var shared = Math.Min(candidate.Count, current.Count);
+            for (var i = 0; i < shared; i++)
+            {
+                if (candidate[i] != current[i])
+                {
+                    return candidate[i] < current[i];
+                }
+            }
+
+            return candidate.Count < current.Count;
         }
 
         // Projects a 3D point set onto its two dominant-extent axes (the same "biggest bounding-box
