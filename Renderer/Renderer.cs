@@ -424,13 +424,12 @@ public class Renderer
             if (t > 5000f || t2 > 0.5f)
             {
                 scene.DepthPyramidValid = false;
+                SkyboxScene?.DepthPyramidValid = false;
             }
             else
             {
                 ViewBuffer.Data.WorldToProjectionPrev = scene.DepthPyramidViewProjection;
             }
-
-            scene.UpdateIndirectRenderingState();
         }
 
         camera.SetViewConstants(ViewBuffer.Data);
@@ -454,14 +453,30 @@ public class Renderer
 
         if (gpuCullFrustum.HasValue)
         {
-            if (scene.DrawMeshletsIndirect)
+            using (new GLDebugGroup("Cull Meshlet Draws"))
             {
-                scene.MeshletCullGpu(gpuCullFrustum.Value);
+                if (scene.DrawMeshletsIndirect)
+                {
+                    scene.MeshletCullGpu(gpuCullFrustum.Value);
+                }
+
+                if (SkyboxScene is { DrawMeshletsIndirect: true })
+                {
+                    SkyboxScene.MeshletCullGpu(gpuCullFrustum.Value);
+                }
             }
 
-            if (scene.CompactMeshletDraws)
+            using (new GLDebugGroup("Compact Meshlet Draws"))
             {
-                scene.CompactIndirectDraws();
+                if (scene.CompactMeshletDraws)
+                {
+                    scene.CompactIndirectDraws();
+                }
+
+                if (SkyboxScene is { CompactMeshletDraws: true })
+                {
+                    SkyboxScene.CompactIndirectDraws();
+                }
             }
 
             using (new GLDebugGroup("Cull Tiles and Depth Bins"))
@@ -683,6 +698,7 @@ public class Renderer
 
                 copyDepth |= generateDepthPyramid;
                 Scene.DepthPyramidValid = !DisableAllCulling && (generateDepthPyramid || LockedCullFrustum != null);
+                SkyboxScene?.DepthPyramidValid = Scene.DepthPyramidValid;
 
                 GrabFramebufferCopy(renderContext.Framebuffer, copyColor, copyDepth);
 
@@ -693,6 +709,13 @@ public class Renderer
                     Scene.GenerateDepthPyramid(ResolvedSceneDepth);
                     Scene.DepthPyramidViewProjection = Camera.ViewProjectionMatrix;
                     Scene.DepthPyramidValid = true;
+
+                    if (SkyboxScene != null)
+                    {
+                        SkyboxScene.DepthPyramid = Scene.DepthPyramid;
+                        SkyboxScene.DepthPyramidViewProjection = Scene.DepthPyramidViewProjection;
+                        SkyboxScene.DepthPyramidValid = true;
+                    }
                 }
             }
 
@@ -1081,6 +1104,9 @@ public class Renderer
         {
             Scene.CurrentFramePvs = null;
         }
+
+        Scene.UpdateIndirectRenderingState();
+        SkyboxScene?.UpdateIndirectRenderingState();
 
         var cullFrustum = CullFrustum;
         Scene.CollectSceneDrawCalls(updateContext.Camera, cullFrustum);

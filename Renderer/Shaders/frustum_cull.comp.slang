@@ -50,6 +50,7 @@ uniform int g_nDepthPyramidHeight;
 uniform float g_flDepthRangeMin;
 uniform float g_flDepthRangeMax;
 uniform bool g_bOcclusionCullEnabled;
+uniform bool g_bSkyOcclusion;
 
 // Project AABB to screen space and test occlusion
 bool testAABBOcclusion(vec3 bmin, vec3 bmax)
@@ -159,6 +160,12 @@ bool testAABBOcclusion(vec3 bmin, vec3 bmax)
 
     // Find minimum depth (furthest in reverse Z)
     float occluderDepth = min(min(depth0, depth1), min(depth2, depth3));
+
+    if (g_bSkyOcclusion)
+    {
+        // 3d sky tests the main scene depth
+        return occluderDepth >= g_flDepthRangeMin;
+    }
 
     // Less popping in when crossing geometry
     if (occluderDepth > 0.5)

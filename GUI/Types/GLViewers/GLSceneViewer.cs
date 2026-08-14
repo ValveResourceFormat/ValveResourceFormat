@@ -1006,6 +1006,7 @@ namespace GUI.Types.GLViewers
             Renderer.Postprocess.Enabled = Renderer.ViewBuffer.Data.RenderMode == 0;
 
             Scene.EnableCompaction = renderMode != "Meshlets";
+            SkyboxScene?.EnableCompaction = Scene.EnableCompaction;
 
             Picker.SetRenderMode(renderMode);
             QuadOverdrawRenderer?.SetRenderMode(renderMode);

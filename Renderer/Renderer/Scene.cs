@@ -173,6 +173,9 @@ namespace ValveResourceFormat.Renderer
         /// <summary>Gets or sets whether GPU indirect drawing is used for eligible aggregate scene nodes.</summary>
         public bool EnableIndirectDraws { get; set; } = true;
 
+        /// <summary>Whether this is the 3d sky scene, which draws behind everything the main scene draws.</summary>
+        internal bool IsSkybox => LightingInfo.LightingData.IsSkybox != 0u;
+
         /// <summary>Gets or sets whether GPU draw compaction is applied after frustum culling to remove empty indirect draw commands.</summary>
         public bool EnableCompaction { get; set; } = true;
 
@@ -230,8 +233,6 @@ namespace ValveResourceFormat.Renderer
             DepthPyramidShader = RendererContext.ShaderLoader.LoadShader("depth_pyramid");
             DepthPyramidNpotShader = RendererContext.ShaderLoader.LoadShader("depth_pyramid", ("D_NPOT_DOWNSAMPLE", 1));
             LightBinner.LoadShaders();
-
-            EnableIndirectDraws = LightingInfo.LightingData.IsSkybox == 0u;
 
             // set render lists to their max capacity
             CollectSceneDrawCalls(new Camera(), Frustum.CreateEmpty());
@@ -576,8 +577,12 @@ namespace ValveResourceFormat.Renderer
                     {
                         var drawCall = fragment.DrawCall;
                         Debug.Assert(drawCall.DrawBounds != null);
-                        drawBounds[index].Min = drawCall.DrawBounds.Value.Min;
-                        drawBounds[index].Max = drawCall.DrawBounds.Value.Max;
+
+                        // need to transform bounds for the 3d skybox
+                        var bounds = drawCall.DrawBounds.Value.Transform(fragment.Transform);
+
+                        drawBounds[index].Min = bounds.Min;
+                        drawBounds[index].Max = bounds.Max;
                         index++;
                     }
                 }
@@ -677,7 +682,15 @@ namespace ValveResourceFormat.Renderer
                 CompactedDrawsGpu = new StorageBuffer(ReservedBufferSlots.CompactedDraws);
                 CompactedDrawsGpu.Create(indirectDrawsGpu, BufferUsageHint.DynamicDraw);
 
-                CompactedCountsGpu = StorageBuffer.Allocate<uint>(ReservedBufferSlots.CompactedCounts, compactionRequestList.Count / 2, BufferUsageHint.DynamicDraw);
+                var compactedCounts = new uint[compactionRequestList.Count / 2];
+
+                for (var request = 0; request < compactedCounts.Length; request++)
+                {
+                    compactedCounts[request] = compactionRequestList[request * 2];
+                }
+
+                CompactedCountsGpu = new StorageBuffer(ReservedBufferSlots.CompactedCounts);
+                CompactedCountsGpu.Create(compactedCounts, BufferUsageHint.DynamicDraw);
 
                 CompactionRequestsGpu = new StorageBuffer(ReservedBufferSlots.CompactionRequests);
                 CompactionRequestsGpu.Create(compactionRequestList);
@@ -1169,19 +1182,29 @@ namespace ValveResourceFormat.Renderer
 
             if (DrawMeshletsIndirect)
             {
-                Debug.Assert(IndirectDrawsGpu is not null);
-                Debug.Assert(CompactedDrawsGpu is not null);
-
                 CompactMeshletDraws = GLEnvironment.IndirectCountSupported && EnableCompaction;
-                GL.BindBuffer(BufferTarget.DrawIndirectBuffer, CompactMeshletDraws
-                    ? CompactedDrawsGpu.Handle
-                    : IndirectDrawsGpu.Handle);
+            }
+        }
 
-                if (CompactMeshletDraws)
-                {
-                    Debug.Assert(CompactedCountsGpu is not null);
-                    GL.BindBuffer(BufferTarget.ParameterBuffer, CompactedCountsGpu.Handle);
-                }
+        /// <summary>Binds the indirect draw buffers chosen by <see cref="UpdateIndirectRenderingState"/>.</summary>
+        internal void BindIndirectDrawBuffers()
+        {
+            if (!DrawMeshletsIndirect)
+            {
+                return;
+            }
+
+            Debug.Assert(IndirectDrawsGpu is not null);
+            Debug.Assert(CompactedDrawsGpu is not null);
+
+            GL.BindBuffer(BufferTarget.DrawIndirectBuffer, CompactMeshletDraws
+                ? CompactedDrawsGpu.Handle
+                : IndirectDrawsGpu.Handle);
+
+            if (CompactMeshletDraws)
+            {
+                Debug.Assert(CompactedCountsGpu is not null);
+                GL.BindBuffer(BufferTarget.ParameterBuffer, CompactedCountsGpu.Handle);
             }
         }
 
@@ -1197,6 +1220,7 @@ namespace ValveResourceFormat.Renderer
             var enabled = DepthPyramidValid && pyramid != null;
 
             shader.SetUniform("g_bOcclusionCullEnabled", enabled ? 1 : 0);
+            shader.SetUniform("g_bSkyOcclusion", IsSkybox ? 1 : 0);
 
             if (!enabled)
             {
@@ -1227,8 +1251,6 @@ namespace ValveResourceFormat.Renderer
             Debug.Assert(DrawBoundsGpu is not null);
             Debug.Assert(MeshletDataGpu is not null);
             Debug.Assert(IndirectDrawsGpu is not null);
-
-            using var _ = new GLDebugGroup("Cull Meshlet Draws");
 
             frustumBuffer.BindBufferBase();
             frustumBuffer.Data = new(frustum);
@@ -1275,8 +1297,6 @@ namespace ValveResourceFormat.Renderer
             {
                 return;
             }
-
-            using var _ = new GLDebugGroup("Compact Meshlet Draws");
 
             CompactionShader.Use();
 
@@ -1390,8 +1410,11 @@ namespace ValveResourceFormat.Renderer
 
             if (DrawMeshletsIndirect)
             {
-                // Memory barrier to ensure compute shader writes are visible to indirect draw commands
-                GL.MemoryBarrier(MemoryBarrierFlags.CommandBarrierBit | MemoryBarrierFlags.ShaderStorageBarrierBit);
+                BindIndirectDrawBuffers();
+
+                // CommandBarrierBit is defined over the indirect buffer only, not the compacted count buffer
+                GL.MemoryBarrier(MemoryBarrierFlags.CommandBarrierBit | MemoryBarrierFlags.ShaderStorageBarrierBit
+                    | MemoryBarrierFlags.BufferUpdateBarrierBit);
             }
 
             if (depthPrepass)

@@ -510,11 +510,14 @@ namespace GUI.Types.GLViewers
                     if (GLEnvironment.SlowMultiDrawIndirect)
                     {
                         Scene.EnableIndirectDraws = false;
+                        SkyboxScene?.EnableIndirectDraws = false;
                     }
 
                     UiControl.AddCheckBox("GPU Culling", Scene.EnableIndirectDraws, v =>
                     {
                         Scene.EnableIndirectDraws = v;
+                        SkyboxScene?.EnableIndirectDraws = v;
+
                         if (occlusionCullingCheckBox != null)
                         {
                             occlusionCullingCheckBox.Enabled = v;
