@@ -40,9 +40,14 @@ namespace ValveResourceFormat.Renderer.AnimLib
         {
             if (!HasCachedValue)
             {
-                Debug.Assert(Mode == CachedValueMode.OnExit);
-
-                if (ctx.BranchState == BranchState.Inactive)
+                // OnEntry captures on first evaluation and holds (Esoterica captures at node
+                // initialization; per-state-entry recapture needs the activation lifecycle).
+                if (Mode == CachedValueMode.OnEntry)
+                {
+                    CachedValue = InputValueNode.GetValue(ctx);
+                    HasCachedValue = true;
+                }
+                else if (ctx.BranchState == BranchState.Inactive)
                 {
                     HasCachedValue = true;
                 }

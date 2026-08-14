@@ -107,7 +107,20 @@ namespace ValveResourceFormat.Renderer.AnimLib
                 return;
             }
 
-            ActiveTransition = null;
+            // Shut down any in-flight transition and the active state before re-selecting (Esoterica
+            // StateMachineNode::ShutdownInternal). Abandoning the transition would leak its cached
+            // pose buffer and leave stale source/transitioning state on its nodes.
+            if (ActiveTransition != null)
+            {
+                ActiveTransition.Stop(ctx);
+                ActiveTransition = null;
+            }
+
+            if (ActiveStateIndex >= 0 && ActiveStateIndex < States.Length)
+            {
+                ActiveStateNode.Stop(ctx);
+            }
+
             ActiveStateIndex = SelectStartingState(ctx);
 
             var activeState = ActiveState.StateNode;
