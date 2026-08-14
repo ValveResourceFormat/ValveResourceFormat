@@ -728,6 +728,13 @@ partial class ModelExtract
         // re-emit it.
         vertexData.AddIndexedStream("cloth_gravity$0", proxy.Gravity, identity);
 
+        // Named vertex selections are painted per vertex, one stream per selection. A cloth effect or a
+        // chain joint then names the selection, and the compiler collects every vertex the paint reaches.
+        foreach (var (mapName, weights) in proxy.VertexMaps)
+        {
+            vertexData.AddIndexedStream("cloth_vertex_set_" + mapName + "$0", weights, identity);
+        }
+
         // cloth_drag_v2 and cloth_mass have no measurable effect on the compiled flPointDamping/
         // m_NodeInvMasses - cloth_drag (no suffix, unlike goal_strength) is already the attribute the
         // compiler reads, so they are intentionally omitted.

@@ -463,16 +463,261 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics
         public IReadOnlyDictionary<int, (float Weight, float Center, float Range)> HingeLimits { get; } =
             new Dictionary<int, (float, float, float)>();
 
+        /// <summary>
+        /// Gets whether the cloth carries axial bend edges, which is what the source's rigid-edge-hinge
+        /// switch produces (verified on a plain sheet: the switch alone turns an empty array into one entry
+        /// per interior edge).
+        /// </summary>
+        public bool HasAxialEdges => Data.GetArray("m_AxialEdges") is { Count: > 0 };
+
+        /// <summary>
+        /// Gets the three-node bend constraints (<c>m_KelagerBends</c>) the compiler builds for a chain
+        /// joint authored with a stiff hinge.
+        /// </summary>
+        public IReadOnlyList<KelagerBend> KelagerBends { get; } = [];
+
+        /// <summary>A three-node bend constraint (from <c>m_KelagerBends</c>).</summary>
+        /// <param name="MidNode">The bent node, whose joint carries the authored stiff hinge.</param>
+        /// <param name="End0">The first node the bend measures against.</param>
+        /// <param name="End1">The second node the bend measures against.</param>
+        /// <param name="MidWeight">Solver share of <paramref name="MidNode"/>.</param>
+        /// <param name="End0Weight">Solver share of <paramref name="End0"/>.</param>
+        /// <param name="End1Weight">Solver share of <paramref name="End1"/>.</param>
+        /// <param name="Height">Distance from the bent node to the triple's centroid the bend allows.</param>
+        public readonly record struct KelagerBend(int MidNode, int End0, int End1,
+            float MidWeight, float End0Weight, float End1Weight, float Height);
+
+        /// <summary>
+        /// Recovers the <c>stiff_hinge</c> stiffness and its <c>stiff_hinge_angle</c> in degrees authored on
+        /// the joint at <paramref name="jointNode"/>, or null when it carries no bend. A joint's stiff hinge
+        /// bends its PARENT: the joint (or a proxy extruded from it) is the bend's first end, its parent the
+        /// bent node and its grandparent the other end. The stiffness is spread over the bend weights
+        /// as <c>stiffness * 3 * [-2*mMid, mEnd0, mEnd1] / (4*mMid + mEnd0 + mEnd1)</c>; the angle becomes
+        /// the distance the bent node may reach from the triple's centroid,
+        /// <c>sqrt(l0^2 + l1^2 - 2*l0*l1*cos(angle)) / 3</c>, floored at the rest distance - an angle the
+        /// rest pose already exceeds leaves no trace and recovers as zero, which recompiles to the same
+        /// floor.
+        /// </summary>
+        public (float Stiffness, float Angle)? GetStiffHinge(int jointNode)
+        {
+            foreach (var bend in KelagerBends)
+            {
+                var owner = bend.End0 >= 0 && bend.End0 < CtrlNames.Length && IsProxyNodeName(CtrlNames[bend.End0])
+                    && bend.End0 < SkelParents.Length
+                        ? SkelParents[bend.End0]
+                        : -1;
+                if (bend.End0 != jointNode && owner != jointNode)
+                {
+                    continue;
+                }
+
+                var midMass = InverseMassOf(bend.MidNode);
+                var end0Mass = InverseMassOf(bend.End0);
+                var end1Mass = InverseMassOf(bend.End1);
+                var total = (4f * midMass) + end0Mass + end1Mass;
+                if (total <= 0f)
+                {
+                    continue;
+                }
+
+                // Read the stiffness off the largest weight: a share whose node is pinned carries none of it.
+                var shares = new[] { (-2f * midMass, bend.MidWeight), (end0Mass, bend.End0Weight), (end1Mass, bend.End1Weight) };
+                var stiffness = 0f;
+                var strongest = 0f;
+                foreach (var (share, weight) in shares)
+                {
+                    if (MathF.Abs(share) > 1e-9f && MathF.Abs(weight) > strongest)
+                    {
+                        strongest = MathF.Abs(weight);
+                        stiffness = weight * total / (3f * share);
+                    }
+                }
+
+                if (stiffness <= 0f)
+                {
+                    continue;
+                }
+
+                return (Math.Clamp(stiffness, 0f, 1f), BendAngle(bend));
+            }
+
+            return null;
+        }
+
+        float InverseMassOf(int node)
+            => node >= 0 && node < NodeInvMasses.Length ? NodeInvMasses[node] : 0f;
+
+        // Inverts the bend height back into the authored maximum bend angle, in degrees.
+        float BendAngle(KelagerBend bend)
+        {
+            if (bend.MidNode >= InitPosePositions.Length || bend.End0 >= InitPosePositions.Length
+                || bend.End1 >= InitPosePositions.Length || bend.MidNode < 0 || bend.End0 < 0 || bend.End1 < 0)
+            {
+                return 0f;
+            }
+
+            var toEnd0 = InitPosePositions[bend.MidNode] - InitPosePositions[bend.End0];
+            var toEnd1 = InitPosePositions[bend.MidNode] - InitPosePositions[bend.End1];
+            var restHeight = (toEnd0 + toEnd1).Length() / 3f;
+            var l0 = toEnd0.Length();
+            var l1 = toEnd1.Length();
+            if (bend.Height <= restHeight * 1.0001f || l0 <= 0f || l1 <= 0f)
+            {
+                return 0f;
+            }
+
+            var cosine = ((l0 * l0) + (l1 * l1) - (9f * bend.Height * bend.Height)) / (2f * l0 * l1);
+            return float.RadiansToDegrees(MathF.Acos(Math.Clamp(cosine, -1f, 1f)));
+        }
+
+        // A hinged chain joint is anchored on a static node the compiler names after the joint's bone.
+        const string HingeAnchorPrefix = "$ha_";
+
+        /// <summary>
+        /// The hinge constraint a chain joint was authored with. <see cref="Vector"/> spans the joint to
+        /// one side of its proxy ring, so its LENGTH is the ring's half-width and overrides the joint's
+        /// own extrude radius; the limits are in degrees.
+        /// </summary>
+        /// <param name="Vector">World-space hinge axis, its length the ring half-width.</param>
+        /// <param name="LimitCw">Clockwise angular limit.</param>
+        /// <param name="LimitCcw">Counter-clockwise angular limit.</param>
+        public readonly record struct ChainHinge(Vector3 Vector, float LimitCw, float LimitCcw);
+
+        /// <summary>
+        /// Gets the hinge authored on the joint named <paramref name="boneName"/>, or null when it carries
+        /// none. The compiler anchors a hinge on a static node of its own making named after the joint it
+        /// constrains, and builds exactly one such anchor per hinge, so that node's presence is what marks
+        /// the constrained joint. The axis is recovered from where the joint's own proxy ring ended up (the
+        /// hinge is what orients that ring), and the limits from the angular extents of the hinge limit
+        /// built over it.
+        /// </summary>
+        public ChainHinge? GetChainHinge(string boneName, int jointNode)
+        {
+            if (Array.IndexOf(CtrlNames, HingeAnchorPrefix + boneName) < 0)
+            {
+                return null;
+            }
+
+            var ring = ProxyRingOf(jointNode);
+            if (ring.Count < 2 || ring[0] >= InitPosePositions.Length || ring[1] >= InitPosePositions.Length)
+            {
+                return null;
+            }
+
+            // Half the span across the ring: the compiler lays the pair out at +/- this vector from the
+            // joint, so both the direction and the width come back from it.
+            var axis = (InitPosePositions[ring[1]] - InitPosePositions[ring[0]]) * 0.5f;
+            if (axis.LengthSquared() <= 0f)
+            {
+                return null;
+            }
+
+            // The extents cover half of the counter-clockwise limit; the clockwise one leaves no trace, so
+            // it recovers as the mirror of what did.
+            var extents = 0f;
+            foreach (var hinge in Data.GetArray("m_HingeLimits") ?? [])
+            {
+                var nodes = hinge.GetIntegerArray("nNode");
+                if (nodes.Length >= 2 && (int)nodes[0] == ring[0] && (int)nodes[1] == ring[1])
+                {
+                    extents = float.RadiansToDegrees(hinge.GetFloatProperty("flAngleExtents")) * 2f;
+                    break;
+                }
+            }
+
+            return new ChainHinge(axis, -extents, extents);
+        }
+
+        /// <summary>Gets how many auto-generated proxy nodes the compiler extruded from a joint.</summary>
+        public int ProxyCountOf(int jointNode) => ProxyRingOf(jointNode).Count;
+
+        // The auto-generated proxy nodes extruded from a joint, in the order their names number them.
+        List<int> ProxyRingOf(int jointNode)
+        {
+            var ring = new List<int>();
+            for (var node = 0; node < CtrlNames.Length; node++)
+            {
+                if (node < SkelParents.Length && SkelParents[node] == jointNode
+                    && CtrlNames[node].StartsWith("$cc", StringComparison.Ordinal))
+                {
+                    ring.Add(node);
+                }
+            }
+
+            ring.Sort((a, b) => string.CompareOrdinal(CtrlNames[a], CtrlNames[b]));
+            return ring;
+        }
+
+        /// <summary>
+        /// Returns whether any rod still joins <paramref name="chain"/>'s own nodes. A rigid hinge replaces
+        /// the chain's rod network with the hinge itself, so a hinged chain that kept its rods was authored
+        /// with a soft hinge link instead.
+        /// </summary>
+        public bool HasChainRods(BoneChain chain)
+        {
+            var nodes = new HashSet<int>();
+            foreach (var joint in chain.Joints)
+            {
+                nodes.Add(joint.Node);
+                nodes.UnionWith(ProxyRingOf(joint.Node));
+            }
+
+            foreach (var rod in Rods)
+            {
+                if (nodes.Contains(rod.NodeA) && nodes.Contains(rod.NodeB))
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
         /// <summary>Gets the named vertex selections the cloth carries, empty when it has none.</summary>
         public IReadOnlyList<VertexMap> VertexMaps { get; } = [];
 
         /// <summary>A named vertex selection, used to target cloth effects and joint vertex maps.</summary>
         /// <param name="Name">The authored selection name.</param>
         /// <param name="NameHash">The hash the compiler keys the selection by.</param>
-        /// <param name="VertexBase">The first vertex the selection covers.</param>
-        /// <param name="VertexCount">How many vertices it covers.</param>
+        /// <param name="VertexBase">The first control node the selection covers.</param>
+        /// <param name="VertexCount">How many consecutive control nodes it covers.</param>
         /// <param name="CenterOfMass">The selection's centre of mass.</param>
-        public readonly record struct VertexMap(string Name, uint NameHash, int VertexBase, int VertexCount, Vector3 CenterOfMass);
+        /// <param name="Weights">
+        /// How strongly each covered node belongs to the selection, 0..1, indexed from
+        /// <paramref name="VertexBase"/>.
+        /// </param>
+        public readonly record struct VertexMap(string Name, uint NameHash, int VertexBase, int VertexCount,
+            Vector3 CenterOfMass, float[] Weights)
+        {
+            /// <summary>Gets how strongly <paramref name="node"/> belongs to this selection, 0 when it does not.</summary>
+            public float WeightOf(int node)
+            {
+                var index = node - VertexBase;
+                return index >= 0 && index < Weights.Length ? Weights[index] : 0f;
+            }
+        }
+
+        /// <summary>
+        /// Gets the name of the vertex selection <paramref name="node"/> belongs to most strongly, or null
+        /// when it belongs to none. A joint names only one selection, so overlapping ones cannot all be
+        /// recovered.
+        /// </summary>
+        public string? GetVertexMapName(int node)
+        {
+            string? best = null;
+            var bestWeight = 0f;
+            foreach (var map in VertexMaps)
+            {
+                var weight = map.WeightOf(node);
+                if (weight > bestWeight)
+                {
+                    bestWeight = weight;
+                    best = map.Name;
+                }
+            }
+
+            return best;
+        }
 
 #pragma warning disable CS1591
 #pragma warning restore CS1591
@@ -513,21 +758,47 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics
                 if (nodes.Length > 0)
                 {
                     hingeLimits[(int)nodes[0]] = (hinge.GetFloatProperty("flWeight5"),
-                        hinge.GetFloatProperty("flAngleCenter"), hinge.GetFloatProperty("flAngleSpan"));
+                        hinge.GetFloatProperty("flAngleCenter"), hinge.GetFloatProperty("flAngleExtents"));
                 }
             }
 
             HingeLimits = hingeLimits;
 
+            var kelagerBends = new List<KelagerBend>();
+            foreach (var bend in data.GetArray("m_KelagerBends") ?? [])
+            {
+                var nodes = bend.GetIntegerArray("nNode");
+                var weights = bend.GetFloatArray("flWeight");
+                if (nodes.Length >= 3 && weights.Length >= 3)
+                {
+                    kelagerBends.Add(new KelagerBend((int)nodes[0], (int)nodes[1], (int)nodes[2],
+                        weights[0], weights[1], weights[2], bend.GetFloatProperty("flHeight0")));
+                }
+            }
+
+            KelagerBends = kelagerBends;
+
+            // Each selection's per-node membership is a run of bytes in the shared value array, starting at
+            // its own map offset and covering its node range.
+            var mapValues = data.GetIntegerArray("m_VertexMapValues");
             var vertexMaps = new List<VertexMap>();
             foreach (var map in data.GetArray("m_VertexMaps") ?? [])
             {
+                var count = map.GetInt32Property("nVertexCount");
+                var offset = map.GetInt32Property("nMapOffset");
+                var weights = new float[count];
+                for (var i = 0; i < count && offset + i < mapValues.Length; i++)
+                {
+                    weights[i] = mapValues[offset + i] / 255f;
+                }
+
                 vertexMaps.Add(new VertexMap(
                     map.GetStringProperty("sName") ?? string.Empty,
                     map.GetUInt32Property("nNameHash"),
                     map.GetInt32Property("nVertexBase"),
-                    map.GetInt32Property("nVertexCount"),
-                    map.GetSubCollection("vCenterOfMass") is { } c ? c.ToVector3() : default));
+                    count,
+                    map.GetSubCollection("vCenterOfMass") is { } c ? c.ToVector3() : default,
+                    weights));
             }
 
             VertexMaps = vertexMaps;
@@ -1279,6 +1550,12 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics
             /// recompiled cloth turns rigid.
             /// </summary>
             public required List<int[]> Faces { get; init; }
+            /// <summary>
+            /// Gets the named vertex selections covering this sheet, as a per-vertex membership weight
+            /// each. Painted back onto the sheet as one <c>cloth_vertex_set_&lt;name&gt;</c> stream per
+            /// selection, which is how a proxy vertex joins one.
+            /// </summary>
+            public (string Name, float[] Weights)[] VertexMaps { get; init; } = [];
             /// <summary>Gets the number of simulated (cloth_enable == 1) vertices.</summary>
             public int SimulatedCount { get; init; }
             /// <summary>Gets the number of pinned (cloth_enable == 0) vertices.</summary>
@@ -1380,6 +1657,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics
                             Gravity = Take(merged.Gravity),
                             VertexAttraction = Take(merged.VertexAttraction),
                             SkinInfluences = Take(merged.SkinInfluences),
+                            VertexMaps = [.. merged.VertexMaps.Select(m => (m.Name, Take(m.Weights)))],
                             Faces = [.. merged.Faces.Where(f => remap.ContainsKey(f[0])).Select(f => f.Select(v => remap[v]).ToArray())],
                             SimulatedCount = vertices.Count(v => merged.ClothEnable[v] != 0f),
                             PinnedCount = vertices.Count(v => merged.ClothEnable[v] == 0f),
@@ -1544,10 +1822,34 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics
                 Gravity = gravity,
                 VertexAttraction = vertexAttraction,
                 SkinInfluences = skinInfluences,
+                VertexMaps = BuildVertexMapWeights(nodeIndices),
                 Faces = faces,
                 SimulatedCount = simulated,
                 PinnedCount = pinned,
             };
+        }
+
+        // The vertex selections that reach any of the given nodes, as a membership weight per node.
+        (string Name, float[] Weights)[] BuildVertexMapWeights(IReadOnlyList<int> nodeIndices)
+        {
+            var maps = new List<(string, float[])>();
+            foreach (var map in VertexMaps)
+            {
+                var weights = new float[nodeIndices.Count];
+                var covers = false;
+                for (var i = 0; i < nodeIndices.Count; i++)
+                {
+                    weights[i] = map.WeightOf(nodeIndices[i]);
+                    covers |= weights[i] > 0f;
+                }
+
+                if (covers)
+                {
+                    maps.Add((map.Name, weights));
+                }
+            }
+
+            return [.. maps];
         }
 
         // Per-node cloth paint values recovered from the FeModel solver data (goal attraction, damping,
@@ -2054,6 +2356,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics
                 Gravity = gravity,
                 VertexAttraction = vertexAttraction,
                 SkinInfluences = skinInfluences,
+                VertexMaps = BuildVertexMapWeights(nodeIndices),
                 Faces = faces,
                 SimulatedCount = simulated,
                 PinnedCount = pinned,

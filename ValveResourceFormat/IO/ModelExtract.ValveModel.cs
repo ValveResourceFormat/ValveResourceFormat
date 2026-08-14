@@ -333,7 +333,7 @@ partial class ModelExtract
 
     // Global cloth solver parameters, populated from the FeModel scalars. Field names match the compiled
     // ClothParams source node (e.g. siren_legs.vmdl); the compiler re-derives everything not emitted here.
-    static KVObject MakeClothParams(FeModel fe, bool generatesBendRods = false)
+    static KVObject MakeClothParams(FeModel fe, bool generatesBendRods = false, bool generatesBendOnlyRods = false)
     {
         var flags = fe.DynamicNodeFlags;
         bool Flag(uint bits) => (flags & bits) != 0;
@@ -379,8 +379,8 @@ partial class ModelExtract
             // from the surface, where declaring them as explicit springs would instead add a source
             // element per pair and leave the sheet heavier than the original.
             ("add_stiffness_rods", generatesBendRods),
-            ("rigid_edge_hinges", false),
-            ("add_bend_only_rods", false),
+            ("rigid_edge_hinges", fe.HasAxialEdges),
+            ("add_bend_only_rods", generatesBendOnlyRods),
             ("immovable", Flag(ClothFlagImmovable)));
     }
 
@@ -432,7 +432,8 @@ partial class ModelExtract
     /// <see cref="MakeClothParams"/>) and regenerates the remaining pairs of that sheet too.
     /// </summary>
     static HashSet<(int, int)> ClothRodsFromSurface(FeModel feModel,
-        List<(string FileName, string Name, FeModel.ProxyMesh Proxy)> proxies, out bool generatesBendRods)
+        List<(string FileName, string Name, FeModel.ProxyMesh Proxy)> proxies, out bool generatesBendRods,
+        out bool generatesBendOnlyRods)
     {
         var surfaceNodes = new HashSet<int>();
         var derived = new HashSet<(int, int)>();
@@ -450,12 +451,14 @@ partial class ModelExtract
         }
 
         var beyondSurface = new HashSet<(int, int)>();
+        var boundedBeyondSurface = false;
         foreach (var rod in feModel.Rods)
         {
             var edge = rod.NodeA < rod.NodeB ? (rod.NodeA, rod.NodeB) : (rod.NodeB, rod.NodeA);
             if (surfaceNodes.Contains(edge.Item1) && surfaceNodes.Contains(edge.Item2) && !derived.Contains(edge))
             {
                 beyondSurface.Add(edge);
+                boundedBeyondSurface |= rod.MaxDist < ClothBendOnlyRodMaxDistance;
             }
         }
 
@@ -469,17 +472,25 @@ partial class ModelExtract
             (neighbours.TryGetValue(b, out var nb) ? nb : neighbours[b] = []).Add(a);
         }
 
-        generatesBendRods = beyondSurface.Count > 0 && beyondSurface.All(edge =>
+        var regenerable = beyondSurface.Count > 0 && beyondSurface.All(edge =>
             neighbours.TryGetValue(edge.Item1, out var near)
             && near.Any(step => neighbours.TryGetValue(step, out var beyond) && beyond.Contains(edge.Item2)));
 
-        if (generatesBendRods)
+        // Both switches span the same pairs; only the bend-only network leaves their maximum length
+        // unbounded, so the lengths are what tells the two apart.
+        generatesBendOnlyRods = regenerable && !boundedBeyondSurface;
+        generatesBendRods = regenerable && boundedBeyondSurface;
+
+        if (regenerable)
         {
             derived.UnionWith(beyondSurface);
         }
 
         return derived;
     }
+
+    // The maximum length a bend-only rod is given, which is no limit at all.
+    const float ClothBendOnlyRodMaxDistance = 16384f;
 
     static void AddClothProxySprings(KVObject softbodyChildren, FeModel feModel,
         List<(string FileName, string Name, FeModel.ProxyMesh Proxy)> proxies, HashSet<int> chainJointNodes,
@@ -720,10 +731,14 @@ partial class ModelExtract
 
     static KVObject MakeClothChainNode(FeModel feModel, FeModel.BoneChain chain)
     {
+        // A rigid hinge takes the chain's rod network over, so a hinged chain that still carries rods was
+        // authored with a soft link instead.
+        var softHinge = feModel.HasChainRods(chain);
+
         var joints = KVObject.Array();
         foreach (var joint in chain.Joints)
         {
-            joints.Add(MakeClothJoint(feModel, joint, chainExtrudes: chain.ExtrudeSides >= 1));
+            joints.Add(MakeClothJoint(feModel, joint, chainExtrudes: chain.ExtrudeSides >= 1, softHinge));
         }
 
         var chainData = KVObject.Collection();
@@ -740,7 +755,8 @@ partial class ModelExtract
             ("chain", chainData));
     }
 
-    static KVObject MakeClothJoint(FeModel feModel, FeModel.BoneChainJoint joint, bool chainExtrudes = false)
+    static KVObject MakeClothJoint(FeModel feModel, FeModel.BoneChainJoint joint, bool chainExtrudes = false,
+        bool softHinge = false)
     {
         var kv = KVObject.Collection();
         kv.Add("joint_name", joint.Name);
@@ -798,6 +814,18 @@ partial class ModelExtract
         kv.Add("stray_radius_stretchiness", feModel.GetStrayRelaxation(joint.Node));
         kv.Add("friction", feModel.GetNodeFriction(joint.Node));
 
+        // The named vertex selection this joint belongs to. Naming it here is what puts the joint and the
+        // proxies extruded from it back into the selection cloth effects target.
+        if (feModel.GetVertexMapName(joint.Node) is { } vertexMap)
+        {
+            kv.Add("vertex_map", vertexMap);
+        }
+
+        // The hinge constraint the ClothChainHinge node writes onto the joint it constrains. It both
+        // orients that joint's proxy ring and adds the compiler's own static anchor node, so a joint that
+        // shipped one loses a control node without it - and a joint that did not gains one.
+        var hinge = feModel.GetChainHinge(joint.Name, joint.Node);
+
         // Per-joint extrude width. The chain-level extrude_sides (MakeClothChainAttrs) is one uniform value,
         // so it cannot reproduce a ribbon whose END-CAP joint fans wider than its body (primal_beast
         // back_chain body 2 / tip 4, hoodwink ear/tail/cape_front tips). Overriding extrude_sides PER JOINT
@@ -819,8 +847,10 @@ partial class ModelExtract
             }
 
             // A tip that fans into two rows is a second ring this far along the joint's forward axis, not
-            // one ring of twice the width - the wider ring puts every proxy somewhere else entirely.
-            if (joint.EndEffector > 0f)
+            // one ring of twice the width - the wider ring puts every proxy somewhere else entirely. A
+            // hinged joint that carries only the hinge's own two proxies has no second ring to recover:
+            // that pair straddles the hinge axis, which reads as two rings a ring apart.
+            if (joint.EndEffector > 0f && (hinge is null || feModel.ProxyCountOf(joint.Node) > 2))
             {
                 kv.Add("end_effector", joint.EndEffector);
             }
@@ -829,6 +859,23 @@ partial class ModelExtract
         kv.Add("bend_spring", joint.BendSpring ? 1.0f : 0.0f);
         kv.Add("torsion_spring", joint.TorsionSpring ? 1.0f : 0.0f);
         kv.Add("extra_iterations", 0);
+
+        // A stiff hinge compiles to a three-node bend rather than a rod, so it is recovered from the bend
+        // centred on this joint (see FeModel.GetStiffHinge).
+        if (feModel.GetStiffHinge(joint.Node) is { } stiffHinge)
+        {
+            kv.Add("stiff_hinge", stiffHinge.Stiffness);
+            kv.Add("stiff_hinge_angle", stiffHinge.Angle);
+        }
+
+        if (hinge is { } chainHinge)
+        {
+            kv.Add("hinge_constraint_vector_worldspace", ToKVArray(chainHinge.Vector));
+            kv.Add("hinge_constraint_soft", softHinge);
+            kv.Add("hinge_constraint_limit_cw", chainHinge.LimitCw);
+            kv.Add("hinge_constraint_limit_ccw", chainHinge.LimitCcw);
+        }
+
         return kv;
     }
 
@@ -2049,8 +2096,9 @@ partial class ModelExtract
                 // Independent (non-back-solved) chains, if any, are emitted alongside it - see above.
                 var (softbody, softbodyChildren) = MakeListNode("Softbody");
                 softbody.Add("motion_smooth_cdt", feModel.MotionSmoothCdt);
-                var surfaceRods = ClothRodsFromSurface(feModel, ClothProxyMeshesToExtract, out var generatesBendRods);
-                softbodyChildren.Add(MakeClothParams(feModel, generatesBendRods));
+                var surfaceRods = ClothRodsFromSurface(feModel, ClothProxyMeshesToExtract,
+                    out var generatesBendRods, out var generatesBendOnlyRods);
+                softbodyChildren.Add(MakeClothParams(feModel, generatesBendRods, generatesBendOnlyRods));
 
                 // Simulated real bones that are NEITHER back-solved NOR part of any multi-joint BoneChain -
                 // standalone goal-attraction points wired together only by ClothSpring (see MakeClothNode
