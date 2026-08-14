@@ -594,7 +594,7 @@ namespace Tests
             // parsing a shader registers its variable names, which is what resolves this one
             StringToken.Store("g_flReflectionsTintByBaseBlendToNone");
 
-            var expectedResult = "(FEAT[19] && exists(ATTRIBUTE[7090a628])) ? ATTRIBUTE[1e52d0a1] : g_flReflectionsTintByBaseBlendToNone";
+            var expectedResult = "(FEAT[19] && exists($reflectionstintbybaseblendtonone)) ? ATTRIBUTE[1e52d0a1] : g_flReflectionsTintByBaseBlendToNone";
             var vfxEval = new VfxEval(testInput, omitReturnStatement: true);
             Assert.That(vfxEval.DynamicExpressionResult, Is.EqualTo(expectedResult));
         }
