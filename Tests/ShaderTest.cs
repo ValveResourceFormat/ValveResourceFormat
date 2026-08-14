@@ -386,6 +386,20 @@ namespace Tests
         }
 
         [Test]
+        public void VfxShaderExtract_ReplacesWholeIdentifiersOnly()
+        {
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(ShaderExtract.ReplaceIdentifier("g_flCubeMapBlur*g_flCubeMapBlurAmount", "g_flCubeMapBlur", "this"),
+                    Is.EqualTo("this*g_flCubeMapBlurAmount"));
+                Assert.That(ShaderExtract.ReplaceIdentifier("float2(g_vScale.x,g_vScale.y)", "g_vScale", "this"),
+                    Is.EqualTo("float2(this.x,this.y)"));
+                Assert.That(ShaderExtract.ReplaceIdentifier("g_flAmount", "g_flAmountExtra", "this"),
+                    Is.EqualTo("g_flAmount"));
+            }
+        }
+
+        [Test]
         public void VfxShaderExtract_RenderStateEnumNames()
         {
             var colorWriteEnable = typeof(VfxRenderStateInfoPixelShader.RsBlendStateDesc.RsColorWriteEnableBits);

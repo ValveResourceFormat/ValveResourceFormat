@@ -1501,9 +1501,41 @@ public sealed class ShaderExtract
     private static string GetDynamicExpressionStringShared(byte[] bytecode, VfxVariableDescription param, IndentedTextWriter writer, string[] features, string[] globals)
     {
         var dynEx = new VfxEval(bytecode, globals, omitReturnStatement: true, features).DynamicExpressionResult;
-        dynEx = dynEx.Replace(param.Name, "this", StringComparison.Ordinal);
+        dynEx = ReplaceIdentifier(dynEx, param.Name, "this");
         dynEx = dynEx.Replace("\n", "\n" + new string('\t', writer.Indent + 1), StringComparison.Ordinal);
         return dynEx;
+    }
+
+    // The name of a variable can be the start of the name of another one
+    internal static string ReplaceIdentifier(string expression, string identifier, string replacement)
+    {
+        var index = expression.IndexOf(identifier, StringComparison.Ordinal);
+
+        if (index < 0)
+        {
+            return expression;
+        }
+
+        static bool IsIdentifierChar(char c) => char.IsAsciiLetterOrDigit(c) || c is '_' or '$';
+
+        var result = new StringBuilder(expression.Length);
+        var copied = 0;
+
+        while (index >= 0)
+        {
+            var end = index + identifier.Length;
+
+            if ((index == 0 || !IsIdentifierChar(expression[index - 1]))
+                && (end == expression.Length || !IsIdentifierChar(expression[end])))
+            {
+                result.Append(expression, copied, index - copied).Append(replacement);
+                copied = end;
+            }
+
+            index = expression.IndexOf(identifier, end, StringComparison.Ordinal);
+        }
+
+        return result.Append(expression, copied, expression.Length - copied).ToString();
     }
 
     private static string GetChannelFromChannelBlock(VfxTextureChannelProcessor channelBlock, VfxVariableDescription[] paramBlocks)
