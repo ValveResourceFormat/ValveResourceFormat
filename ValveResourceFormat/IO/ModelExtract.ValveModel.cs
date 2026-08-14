@@ -365,7 +365,7 @@ partial class ModelExtract
             ("quad_bend_tolerance", 0.05f),
             ("local_drag1", fe.LocalDrag1),
             ("follow_the_lead", Flag(ClothFlagFollowTheLead)),
-            ("use_per_node_local_force_and_rotation", false),
+            ("use_per_node_local_force_and_rotation", fe.HasPerNodeLocalForce),
             ("uninertial_rods", Flag(ClothFlagUninertialRods)),
             ("explicit_masses", false),
             ("unitless_damping", true),
@@ -816,6 +816,13 @@ partial class ModelExtract
             {
                 kv.Add("extrude_radius", joint.ExtrudeRadius);
                 kv.Add("extrude_twist", ClothExtrudeTwistBase - joint.ExtrudeTwist);
+            }
+
+            // A tip that fans into two rows is a second ring this far along the joint's forward axis, not
+            // one ring of twice the width - the wider ring puts every proxy somewhere else entirely.
+            if (joint.EndEffector > 0f)
+            {
+                kv.Add("end_effector", joint.EndEffector);
             }
         }
 
@@ -2041,6 +2048,7 @@ partial class ModelExtract
                 // The proxy mesh ships the global solver scalars + any collision shapes via a Softbody.
                 // Independent (non-back-solved) chains, if any, are emitted alongside it - see above.
                 var (softbody, softbodyChildren) = MakeListNode("Softbody");
+                softbody.Add("motion_smooth_cdt", feModel.MotionSmoothCdt);
                 var surfaceRods = ClothRodsFromSurface(feModel, ClothProxyMeshesToExtract, out var generatesBendRods);
                 softbodyChildren.Add(MakeClothParams(feModel, generatesBendRods));
 
@@ -2135,6 +2143,7 @@ partial class ModelExtract
                 // item proxies: with back_solve_joints=false the chains keep simulating the bones while
                 // the sheet simulates the surface between them and drives the render mesh directly.
                 var (softbody, softbodyChildren) = MakeListNode("Softbody");
+                softbody.Add("motion_smooth_cdt", feModel.MotionSmoothCdt);
                 var (clothFolder, clothFolderChildren) = MakeListNode("Folder");
                 clothFolder.Add("name", "cloth");
                 softbodyChildren.Add(clothFolder);

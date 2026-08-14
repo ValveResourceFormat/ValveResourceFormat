@@ -180,6 +180,10 @@ partial class ModelExtract
             return;
         }
 
+        feModel.SkeletonBoneNames = model.Skeleton.Bones
+            .Select(static bone => bone.Name)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
         var proxyIndex = 0;
         foreach (var proxyMesh in feModel.BuildProxyMeshes())
         {
