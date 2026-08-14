@@ -1,7 +1,6 @@
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.IO;
-using System.Text;
 
 namespace ValveResourceFormat.Serialization.VfxEval
 {
@@ -20,11 +19,11 @@ namespace ValveResourceFormat.Serialization.VfxEval
         /// </summary>
         public byte[] DynamicExpressionBlob { get; private set; }
 
-        // parse the input one line at a time
+        // the decompiled expression, one statement per line
         private readonly List<string> DynamicExpressionList = [];
 
         // function reference, name and number of arguments
-        private readonly (string Name, int ArgumentCount)[] FUNCTION_REF = [
+        private static readonly (string Name, int ArgumentCount)[] FUNCTION_REF = [
 #pragma warning disable format
             ("sin",        1),     // 00
             ("cos",        1),     // 01
@@ -125,29 +124,70 @@ namespace ValveResourceFormat.Serialization.VfxEval
             FLOAT4,             // 21
         };
 
-        private static readonly Dictionary<OPCODE, string> OpCodeToSymbol = new()
+        // How tightly an expression binds, listed loosest first. An operand is bracketed only where
+        // it binds looser than the operator using it, which keeps the output free of brackets that
+        // the reader would put back in the same place anyway.
+        private enum Precedence
         {
-            { OPCODE.EQUALS, "==" },
-            { OPCODE.NEQUALS, "!=" },
-            { OPCODE.GT, ">" },
-            { OPCODE.GTE, ">=" },
-            { OPCODE.LT, "<" },
-            { OPCODE.LTE, "<=" },
-            { OPCODE.ADD, "+" },
-            { OPCODE.SUB, "-" },
-            { OPCODE.MUL, "*" },
-            { OPCODE.DIV, "/" },
-            { OPCODE.MODULO, "%" },
+            Conditional,    // a ? b : c
+            Or,             // a || b
+            And,            // a && b
+            Equality,       // a == b
+            Relational,     // a < b
+            Additive,       // a + b
+            Multiplicative, // a * b
+            Unary,          // -a
+            Atom,           // literals, names, calls, swizzles
+        }
+
+        // Comparisons, &&, || and ?: are the operators producing a boolean, and they all bind looser
+        // than this. Where one of them is nested in an operator taking numbers, or in the condition or
+        // true result of a conditional, it keeps the brackets precedence would let us drop:
+        // (a==b) ? x : y reads better than a==b ? x : y, and (a==b)!=(c>=d) better than a==b!=c>=d.
+        private const Precedence AboveBoolean = Precedence.Additive;
+
+        private static (string Symbol, Precedence Precedence) GetOperator(OPCODE op) => op switch
+        {
+            OPCODE.EQUALS => ("==", Precedence.Equality),
+            OPCODE.NEQUALS => ("!=", Precedence.Equality),
+            OPCODE.GT => (">", Precedence.Relational),
+            OPCODE.GTE => (">=", Precedence.Relational),
+            OPCODE.LT => ("<", Precedence.Relational),
+            OPCODE.LTE => ("<=", Precedence.Relational),
+            OPCODE.ADD => ("+", Precedence.Additive),
+            OPCODE.SUB => ("-", Precedence.Additive),
+            OPCODE.MUL => ("*", Precedence.Multiplicative),
+            OPCODE.DIV => ("/", Precedence.Multiplicative),
+            OPCODE.MODULO => ("%", Precedence.Multiplicative),
+            OPCODE.NOT => ("!", Precedence.Unary),
+            OPCODE.NEGATE => ("-", Precedence.Unary),
+            _ => throw new ArgumentOutOfRangeException(nameof(op)),
         };
 
-        private const uint IFELSE_BRANCH = 0;     //    <cond> : <e1> ? <e2>
-        private const uint AND_BRANCH = 1;        //    <e1> && <e2>            (these expressions are encoded as branches on the bytestream!)
-        private const uint OR_BRANCH = 2;         //    <e1> || <e2>
+        // A branch writes both of its blocks inline, one of them directly following the branch.
+        // Which one that is tells the two conditional forms apart: <cond> ? <e1> : <e2> always
+        // writes the block taken when the condition holds first, <e1> && <e2> writes the other one first.
+        private const uint TRUE_BLOCK_FIRST = 0;
+        private const uint FALSE_BLOCK_FIRST = 1;
 
-        private readonly Stack<string> Expressions = new();
+        // An expression carries two renderings, because at the point it is built it is not yet known
+        // how it is consumed. Text is what it reads as anywhere in the expression tree, ResultText is
+        // what it reads as where its value becomes the value of the whole expression, which is the
+        // only place where literals name a render state value.
+        private readonly struct Expression(string text, string resultText, Precedence precedence)
+        {
+            public string Text { get; } = text;
+            public string ResultText { get; } = resultText;
+            public Precedence Precedence { get; } = precedence;
 
-        // check on each OPS if we are exiting a branch,
-        // when we do we should combine expressions on the stack
+            public string Operand(Precedence required) => Precedence < required ? $"({Text})" : Text;
+            public string ResultOperand(Precedence required) => Precedence < required ? $"({ResultText})" : ResultText;
+        }
+
+        private readonly Stack<Expression> Expressions = new();
+
+        // pairs of (exit offset, block order) for open branches, pushed by BRANCH and JUMP
+        // and combined into a conditional once the exit offset is reached
         private readonly Stack<uint> OffsetAtBranchExits = new();
         private readonly Dictionary<uint, string> LocalVariableNames = [];
 
@@ -161,7 +201,6 @@ namespace ValveResourceFormat.Serialization.VfxEval
         /// </summary>
         public Func<int, string>? EnumMapper { get; }
 
-
         // The 'return' keyword in the last line of a dynamic expression is optional (it is implied where absent)
         // OmitReturnStatement controls whether it is shown
         private readonly bool OmitReturnStatement;
@@ -174,12 +213,10 @@ namespace ValveResourceFormat.Serialization.VfxEval
         /// <param name="binaryBlob">The binary blob to parse.</param>
         /// <param name="omitReturnStatement">Whether to omit the return statement in the output.</param>
         /// <param name="features">The list of features.</param>
-        public VfxEval(byte[] binaryBlob, bool omitReturnStatement = false, IReadOnlyList<string>? features = null)
+        /// <param name="enumMapper">The enum mapper function.</param>
+        public VfxEval(byte[] binaryBlob, bool omitReturnStatement = false, IReadOnlyList<string>? features = null, Func<int, string>? enumMapper = null)
+            : this(binaryBlob, [], omitReturnStatement, features, enumMapper)
         {
-            OmitReturnStatement = omitReturnStatement;
-            Features = features;
-            RenderAttributesUsed = [];
-            ParseExpression(binaryBlob);
         }
 
         /// <summary>
@@ -221,284 +258,219 @@ namespace ValveResourceFormat.Serialization.VfxEval
 
         private void ProcessOps(OPCODE op, BinaryReader dataReader)
         {
-            // when exiting a branch, combine the conditional expressions on the stack into one
+            CombineFinishedBranches(dataReader);
+
+            switch (op)
+            {
+                case OPCODE.JUMP:
+                    // the jump terminating the first block of a branch reveals where the branch exits
+                    OffsetAtBranchExits.Push(dataReader.ReadUInt16() + 1u);
+                    return;
+
+                case OPCODE.BRANCH:
+                    {
+                        var pointerWhenTrue = dataReader.ReadUInt16();
+                        dataReader.ReadUInt16(); // pointer taken when the condition fails
+
+                        OffsetAtBranchExits.Push(pointerWhenTrue == dataReader.BaseStream.Position ? TRUE_BLOCK_FIRST : FALSE_BLOCK_FIRST);
+                        return;
+                    }
+
+                case OPCODE.FUNC:
+                    {
+                        var funcId = dataReader.ReadByte();
+                        var funcCheckByte = dataReader.ReadByte();
+
+                        if (funcId >= FUNCTION_REF.Length)
+                        {
+                            throw new InvalidDataException($"Error parsing dynamic expression, invalid function Id = 0x{funcId:x} (position: {dataReader.BaseStream.Position})");
+                        }
+
+                        if (funcCheckByte != 0)
+                        {
+                            throw new InvalidDataException($"Error parsing dynamic expression, malformed function signature (position: {dataReader.BaseStream.Position})");
+                        }
+
+                        var (funcName, nrArguments) = FUNCTION_REF[funcId];
+                        var arguments = new string[nrArguments];
+
+                        for (var i = nrArguments - 1; i >= 0; i--)
+                        {
+                            arguments[i] = PopExpression(dataReader).Text;
+                        }
+
+                        Push($"{funcName}({string.Join(',', arguments)})");
+                        return;
+                    }
+
+                case OPCODE.FLOAT:
+                    {
+                        var floatLiteral = dataReader.ReadSingle().ToString("g", CultureInfo.InvariantCulture);
+
+                        // if a float leads with "0." remove the 0 (as how Valve likes it)
+                        var literal = floatLiteral.StartsWith("0.", StringComparison.Ordinal) ? floatLiteral[1..] : floatLiteral;
+                        Expressions.Push(new Expression(literal, TryGetValueName(literal, out var name) ? name : literal, Precedence.Atom));
+                        return;
+                    }
+
+                // assignment is always to a local variable, and it terminates the line
+                case OPCODE.STORE:
+                    {
+                        var locVarname = GetLocalVarName(dataReader.ReadByte());
+                        DynamicExpressionList.Add($"{locVarname} = {PopExpression(dataReader).Text};");
+                        return;
+                    }
+
+                case OPCODE.LOAD:
+                    Push(GetLocalVarName(dataReader.ReadByte()));
+                    return;
+
+                case OPCODE.NOT:
+                case OPCODE.NEGATE:
+                    Push($"{GetOperator(op).Symbol}{PopExpression(dataReader).Operand(Precedence.Unary)}", Precedence.Unary);
+                    return;
+
+                case >= OPCODE.EQUALS and <= OPCODE.MODULO:
+                    {
+                        var (symbol, precedence) = GetOperator(op);
+                        var exp2 = PopExpression(dataReader);
+                        var exp1 = PopExpression(dataReader);
+
+                        // the bytecode is left nested, so an operand of the same precedence on the right
+                        // was bracketed in the source and stays bracketed: 1-(2-3) is not 1-2-3
+                        var (left, right) = precedence < AboveBoolean
+                            ? (AboveBoolean, AboveBoolean) // a comparison, both of its operands are numbers
+                            : (precedence, precedence + 1);
+
+                        Push($"{exp1.Operand(left)}{symbol}{exp2.Operand(right)}", precedence);
+                        return;
+                    }
+
+                case OPCODE.ATTRIBUTE:
+                    Push(ReadTokenName(dataReader, "ATTRIBUTE"));
+                    return;
+
+                case OPCODE.MATERIAL_PARAM:
+                    Push(ReadTokenName(dataReader, "MATERIAL_PARAM"));
+                    return;
+
+                case OPCODE.EXISTS:
+                    Push($"exists({ReadTokenName(dataReader, "ATTRIBUTE")})");
+                    return;
+
+                case OPCODE.FEATURE:
+                    {
+                        uint featureId = dataReader.ReadByte();
+                        Push(Features is not null && featureId < Features.Count
+                            ? Features[(int)featureId]
+                            : $"FEAT[{featureId}]");
+                        return;
+                    }
+
+                case OPCODE.SWIZZLE:
+                    {
+                        var exp = PopExpression(dataReader).Operand(Precedence.Atom);
+                        Push($"{exp}.{GetSwizzle(dataReader.ReadByte())}");
+                        return;
+                    }
+
+                // parser terminates here
+                case OPCODE.RETURN:
+                    {
+                        if (dataReader.BaseStream.Position < dataReader.BaseStream.Length)
+                        {
+                            throw new InvalidDataException($"Looks like we did not read the data correctly (position: {dataReader.BaseStream.Position})");
+                        }
+
+                        var finalExp = PopExpression(dataReader).ResultText;
+                        DynamicExpressionList.Add(OmitReturnStatement ? finalExp : $"return {finalExp};");
+                        return;
+                    }
+
+                default:
+                    throw new InvalidDataException($"Error parsing dynamic expression, unknown opcode = 0x{(int)op:x2} (position: {dataReader.BaseStream.Position})");
+            }
+        }
+
+        // when exiting a branch, combine the conditional expressions on the stack into one
+        private void CombineFinishedBranches(BinaryReader dataReader)
+        {
             while (OffsetAtBranchExits.Count > 0
                 && OffsetAtBranchExits.Peek() == dataReader.BaseStream.Position)
             {
                 OffsetAtBranchExits.Pop();
-                var branchType = OffsetAtBranchExits.Pop();
+                var trueBlockFirst = OffsetAtBranchExits.Pop() == TRUE_BLOCK_FIRST;
 
-                switch (branchType)
-                {
-                    case IFELSE_BRANCH:
-                        if (Expressions.Count < 3)
-                        {
-                            throw new InvalidDataException($"Error parsing dynamic expression, insufficient expressions evaluating IFELSE_BRANCH (position: {dataReader.BaseStream.Position})");
-                        }
-                        {
-                            var exp3 = Expressions.Pop();
-                            var exp2 = Expressions.Pop();
-                            var exp1 = Expressions.Pop();
-                            // it's not safe to trim here
-                            // string expConditional = $"({Trimbrackets(exp1)} ? {Trimbrackets(exp2)} : {Trimbrackets(exp3)})";
-                            var expConditional = $"({exp1} ? {exp2} : {exp3})";
-                            Expressions.Push(expConditional);
-                        }
-                        break;
+                var expSecondBlock = PopExpression(dataReader);
+                var expFirstBlock = PopExpression(dataReader);
+                var expCondition = PopExpression(dataReader);
 
-                    case AND_BRANCH:
-                        if (Expressions.Count < 2)
-                        {
-                            throw new InvalidDataException($"Error parsing dynamic expression, insufficient expressions evaluating AND_BRANCH (position: {dataReader.BaseStream.Position})");
-                        }
-                        {
-                            var exp2 = Expressions.Pop();
-                            var exp1 = Expressions.Pop();
-                            var expAndConditional = $"({exp1} && {exp2})";
-                            Expressions.Push(expAndConditional);
-                        }
-                        break;
+                var (whenTrue, whenFalse) = trueBlockFirst
+                    ? (expFirstBlock, expSecondBlock)
+                    : (expSecondBlock, expFirstBlock);
 
-                    case OR_BRANCH:
-                        if (Expressions.Count < 2)
-                        {
-                            throw new InvalidDataException($"Error parsing dynamic expression, insufficient expressions evaluating OR_BRANCH (position: {dataReader.BaseStream.Position})");
-                        }
-                        {
-                            var exp2 = Expressions.Pop();
-                            var exp1 = Expressions.Pop();
-                            var expOrConditional = $"({exp1} || {exp2})";
-                            Expressions.Push(expOrConditional);
-                        }
-                        break;
+                // && and || evaluate to a constant when they short circuit, restore their source form.
+                // Which one it was is decided by the shape alone. Results of exactly 1 and 0 are the one
+                // shape the two forms share, and there the conditional is what the source read as.
+                string Fold(string symbol, Precedence precedence, in Expression other)
+                    => $"{expCondition.Operand(precedence)} {symbol} {other.Operand(precedence + 1)}";
 
-                    default:
-                        throw new InvalidDataException($"Error parsing dynamic expression, unknown branch switch ({branchType}) (position: {dataReader.BaseStream.Position})");
-                }
+                var shortCircuit = whenTrue.Text == "1" && whenFalse.Text == "0" ? null
+                    : !trueBlockFirst && whenFalse.Text == "0" ? Fold("&&", Precedence.And, whenTrue)
+                    : trueBlockFirst && whenTrue.Text == "1" ? Fold("||", Precedence.Or, whenFalse)
+                    : null;
+
+                // A conditional picking between two values is written as the same bytes, so where both
+                // results are constants that name a value, the conditional is what the expression reads
+                // as in result position, and the fold is only how it reads everywhere else.
+                var namedResults = TryGetValueName(whenTrue.Text, out _) && TryGetValueName(whenFalse.Text, out _);
+
+                // A conditional nested in the false result chains into a readable series of cases; the
+                // true result sits between the '?' and the ':' and brackets like a condition does.
+                var conditional = $"{expCondition.Operand(AboveBoolean)} ? {whenTrue.Operand(AboveBoolean)} : {whenFalse.Text}";
+
+                Expressions.Push(shortCircuit is not null && !namedResults
+                    ? new Expression(shortCircuit, shortCircuit, trueBlockFirst ? Precedence.Or : Precedence.And)
+                    : new Expression(shortCircuit ?? conditional,
+                        $"{expCondition.Operand(AboveBoolean)} ? {whenTrue.ResultOperand(AboveBoolean)} : {whenFalse.ResultText}",
+                        Precedence.Conditional));
             }
-
-            if (op == OPCODE.JUMP)
-            {
-                var branchExit = (uint)dataReader.ReadUInt16();
-                OffsetAtBranchExits.Push(branchExit + 1);
-                return;
-            }
-
-            // we will need the branch exit, it becomes available when we get to the branch separator
-            // (in the middle of the conditional structure)
-            if (op == OPCODE.BRANCH)
-            {
-                var pointer1 = dataReader.ReadUInt16();
-                var pointer2 = dataReader.ReadUInt16();
-
-                // Skip AND or OR branch detection as they might hide enum values that are 0 or 1
-                if (EnumMapper != null)
-                {
-                    OffsetAtBranchExits.Push(IFELSE_BRANCH);
-                    return;
-                }
-
-                var b = dataReader.ReadBytes(5);
-
-                // for <e1>&&<e2> expressions we are looking for the pattern
-                // 04 12 00 0A 00    07 00 00 00 00
-                if (pointer1 - pointer2 == 8 && b[0] == 7 && b[1] == 0 && b[2] == 0 && b[3] == 0 && b[4] == 0)
-                {
-                    OffsetAtBranchExits.Push(AND_BRANCH);
-                    return;
-                }
-
-                // for <e1>||<e2> expressions we are looking for the pattern
-                // 04 17 00 1F 00     07 00 00 80 3F
-                if (pointer2 - pointer1 == 8 && b[0] == 7 && b[1] == 0 && b[2] == 0 && b[3] == 0x80 && b[4] == 0x3F)
-                {
-                    OffsetAtBranchExits.Push(OR_BRANCH);
-                    return;
-                }
-
-                // rewind the 5 bytes read above
-                dataReader.BaseStream.Position -= 5;
-                OffsetAtBranchExits.Push(IFELSE_BRANCH);
-                return;
-            }
-
-            if (op == OPCODE.FUNC)
-            {
-                var funcId = dataReader.ReadByte();
-                var funcCheckByte = dataReader.ReadByte();
-                if (funcId >= FUNCTION_REF.Length)
-                {
-                    throw new InvalidDataException($"Error parsing dynamic expression, invalid function Id = 0x{funcId:x} (position: {dataReader.BaseStream.Position})");
-                }
-                if (funcCheckByte != 0)
-                {
-                    throw new InvalidDataException($"Error parsing dynamic expression, malformed function signature (position: {dataReader.BaseStream.Position})");
-                }
-
-                var (funcName, nrArguments) = FUNCTION_REF[funcId];
-
-                if (nrArguments > Expressions.Count)
-                {
-                    throw new InvalidDataException($"Error parsing dynamic expression, insufficient expressions evaluating function {funcName} (position: {dataReader.BaseStream.Position})");
-                }
-
-                ApplyFunction(funcName, nrArguments);
-                return;
-            }
-
-            if (op == OPCODE.FLOAT)
-            {
-                var floatVal = dataReader.ReadSingle();
-
-                if (EnumMapper != null && floatVal == MathF.Floor(floatVal))
-                {
-
-                    Expressions.Push(EnumMapper((int)floatVal));
-                    return;
-                }
-
-                var floatLiteral = floatVal.ToString("g", CultureInfo.InvariantCulture);
-
-                // if a float leads with "0." remove the 0 (as how Valve likes it)
-                if (floatLiteral.Length > 1 && floatLiteral[..2] == "0.")
-                {
-                    floatLiteral = floatLiteral[1..];
-                }
-
-                Expressions.Push(floatLiteral);
-                return;
-            }
-
-            // assignment is always to a local variable, and it terminates the line
-            if (op == OPCODE.STORE)
-            {
-                var varId = dataReader.ReadByte();
-                var locVarname = GetLocalVarName(varId);
-                var exp = Expressions.Pop();
-                var assignExpression = $"{locVarname} = {Trimbrackets(exp)};";
-                DynamicExpressionList.Add(assignExpression);
-                return;
-            }
-
-            if (op == OPCODE.LOAD)
-            {
-                var varId = dataReader.ReadByte();
-                var locVarname = GetLocalVarName(varId);
-                Expressions.Push(locVarname);
-                return;
-            }
-
-            if (op == OPCODE.NOT)
-            {
-                var exp = Expressions.Pop();
-                Expressions.Push($"!{exp}");
-                return;
-            }
-
-            if (op >= OPCODE.EQUALS && op <= OPCODE.MODULO)
-            {
-                if (Expressions.Count < 2)
-                {
-                    throw new InvalidDataException($"Error parsing dynamic expression, insufficient expressions for operation {op} (position: {dataReader.BaseStream.Position})");
-                }
-                var exp2 = Expressions.Pop();
-                var exp1 = Expressions.Pop();
-                Expressions.Push($"({exp1}{OpCodeToSymbol[op]}{exp2})");
-                return;
-            }
-
-            if (op == OPCODE.NEGATE)
-            {
-                var exp = Expressions.Pop();
-                Expressions.Push($"-{exp}");
-                return;
-            }
-
-            if (op == OPCODE.ATTRIBUTE)
-            {
-                var token = dataReader.ReadUInt32();
-                Expressions.Push(StringToken.InvertedTable.GetValueOrDefault(token, $"ATTRIBUTE[{token:x08}]"));
-                return;
-            }
-
-            if (op == OPCODE.FEATURE)
-            {
-                uint featureId = dataReader.ReadByte();
-                Expressions.Push((Features is null) ? $"FEAT[{featureId}]" : Features[(int)featureId]);
-                return;
-            }
-
-            if (op == OPCODE.MATERIAL_PARAM)
-            {
-                var token = dataReader.ReadUInt32();
-                Expressions.Push(StringToken.InvertedTable.GetValueOrDefault(token, $"MATERIAL_PARAM[{token:x08}]"));
-                return;
-            }
-
-            if (op == OPCODE.SWIZZLE)
-            {
-                var exp = Expressions.Pop();
-                var swizzle = GetSwizzle(dataReader.ReadByte());
-                Expressions.Push($"{exp}.{swizzle}");
-                return;
-            }
-
-            if (op == OPCODE.EXISTS)
-            {
-                var token = dataReader.ReadUInt32();
-                var extVarname = StringToken.InvertedTable.GetValueOrDefault(token, $"ATTRIBUTE[{token:x08}]");
-                Expressions.Push($"exists({extVarname})");
-                return;
-            }
-
-            // parser terminates here
-            if (op == OPCODE.RETURN)
-            {
-                if (dataReader.PeekChar() != -1)
-                {
-                    throw new InvalidDataException($"Looks like we did not read the data correctly (position: {dataReader.BaseStream.Position})");
-                }
-                var finalExp = Expressions.Pop();
-                finalExp = Trimbrackets(finalExp);
-                if (OmitReturnStatement)
-                {
-                    DynamicExpressionList.Add(finalExp);
-                }
-                else
-                {
-                    DynamicExpressionList.Add($"return {finalExp};");
-                }
-                return;
-            }
-
-            throw new InvalidDataException($"Error parsing dynamic expression, unknown opcode = 0x{(int)op:x2} (position: {dataReader.BaseStream.Position})");
         }
 
-        private void ApplyFunction(string funcName, int nrArguments)
+        private void Push(string expression, Precedence precedence = Precedence.Atom)
         {
-            var arguments = new Stack<string>(nrArguments);
-            for (var i = 0; i < nrArguments; i++)
+            Expressions.Push(new Expression(expression, expression, precedence));
+        }
+
+        private Expression PopExpression(BinaryReader dataReader)
+        {
+            if (!Expressions.TryPop(out var exp))
             {
-                arguments.Push(Expressions.Pop());
+                throw new InvalidDataException($"Error parsing dynamic expression, expression stack is empty (position: {dataReader.BaseStream.Position})");
             }
 
-            var expression = new StringBuilder();
-            expression.Append(funcName);
-            expression.Append('(');
+            return exp;
+        }
 
-            for (var i = 0; i < nrArguments; i++)
+        private static string ReadTokenName(BinaryReader dataReader, string unknownPrefix)
+        {
+            var token = dataReader.ReadUInt32();
+            return StringToken.InvertedTable.GetValueOrDefault(token, $"{unknownPrefix}[{token:x08}]");
+        }
+
+        // A literal only names a value where an expression's value becomes the value of the whole
+        // expression: the returned expression, and the two results of a conditional. Everywhere else
+        // (conditions, comparisons, arithmetic, function arguments) it is a plain number.
+        private bool TryGetValueName(string exp, [NotNullWhen(true)] out string? name)
+        {
+            if (EnumMapper != null && int.TryParse(exp, NumberStyles.AllowLeadingSign, CultureInfo.InvariantCulture, out var value))
             {
-                if (i > 0)
-                {
-                    expression.Append(',');
-                }
-
-                expression.Append(Trimbrackets(arguments.Pop()));
+                name = EnumMapper(value);
+                return name != exp;
             }
 
-            expression.Append(')');
-
-            Expressions.Push(expression.ToString());
+            name = null;
+            return false;
         }
 
         private static string GetSwizzle(byte packedSwizzle, bool trimmed = true)
@@ -521,25 +493,15 @@ namespace ValveResourceFormat.Serialization.VfxEval
             return chars[..length].ToString();
         }
 
-        // The decompiler has a tendency to accumulate brackets so we trim them in places where
-        // it is safe (which is just done for readability).
-        // The approach to removing brackets is not optimised in any way, arithmetic expressions
-        // will accumulate brackets and it's not trivial to know when it's safe to remove them
-        // For example 1+2+3+4 will decompile as ((1+2)+3)+4
-        private static string Trimbrackets(string exp)
-        {
-            return exp[0] == '(' && exp[^1] == ')' ? exp[1..^1] : exp;
-        }
-
         // naming local variables v0,v1,v2,..
         private string GetLocalVarName(uint varId)
         {
-            LocalVariableNames.TryGetValue(varId, out var varName);
-            if (varName == null)
+            if (!LocalVariableNames.TryGetValue(varId, out var varName))
             {
                 varName = $"v{LocalVariableNames.Count}";
                 LocalVariableNames.Add(varId, varName);
             }
+
             return varName;
         }
     }
