@@ -241,6 +241,9 @@ void main()
 
     uint nBits = 0u;
 
+    vec2 vTilePixelMin = vTileCenter - g_vTileToCenterOffset;
+    vec2 vTilePixelMax = vTileCenter + g_vTileToCenterOffset;
+
     for (uint nMask = nGroupMask; nMask != 0u; nMask &= nMask - 1u)
     {
         uint nBit = uint(findLSB(nMask));
@@ -249,6 +252,14 @@ void main()
         bool bVisible = TestConic(vTileCenter, item)
                      && TestHull(vTileCenter, item.nFirstPlane, item.nNumPlanes0)
                      && TestHull(vTileCenter, item.nFirstPlane + item.nNumPlanes0, item.nNumPlanes1);
+
+        if (bVisible && OCCLUSION_CULL && g_bOcclusionCullEnabled)
+        {
+            bVisible = !IsItemOccluded(
+                max(item.vBoundsMin, vTilePixelMin),
+                min(item.vBoundsMax, vTilePixelMax),
+                item.vNdcDepthNear.x);
+        }
 
         if (bVisible)
         {

@@ -438,7 +438,7 @@ public class Renderer
         var cullWidth = (int)ViewBuffer.Data.ViewportSize.X;
         var cullHeight = (int)ViewBuffer.Data.ViewportSize.Y;
 
-        var tileCullEnabled = LockedCullFrustum == null && scene.EnableTiledLightCulling;
+        var tileCullEnabled = scene.EnableTiledLightCulling;
         scene.LightBinner.Update(ViewBuffer.Data, cullWidth, cullHeight, tileCullEnabled);
         SkyboxScene?.LightBinner.Update(ViewBuffer.Data, cullWidth, cullHeight, tileCullEnabled);
 
@@ -478,12 +478,13 @@ public class Renderer
                     SkyboxScene.CompactIndirectDraws();
                 }
             }
+        }
 
-            using (new GLDebugGroup("Cull Tiles and Depth Bins"))
-            {
-                scene.LightBinner.Dispatch();
-                SkyboxScene?.LightBinner.Dispatch();
-            }
+        // Also writes the all visible mask when tile culling is off, so it runs even with the cull frozen
+        using (new GLDebugGroup("Cull Tiles and Depth Bins"))
+        {
+            scene.LightBinner.Dispatch();
+            SkyboxScene?.LightBinner.Dispatch();
         }
 
         if (Postprocess != null)
@@ -1168,24 +1169,30 @@ public class Renderer
         }
     }
 
+    /// <summary>Largest width of the depth pyramid; height follows the viewport's aspect.</summary>
+    private const int DepthPyramidMaxDimension = 512;
+
     void EnsureDepthPyramidSize(int width, int height)
     {
-        // Get the target pyramid size
-        var maxDim = Math.Max(width, height);
-        var cappedDim = Math.Min(maxDim, 256);
-        var targetSize = 1 << (int)Math.Floor(Math.Log2(cappedDim));
+        var scale = Math.Min(1f, DepthPyramidMaxDimension / (float)Math.Max(width, height));
 
-        if (Scene.DepthPyramid != null && Scene.DepthPyramid.Width == targetSize && Scene.DepthPyramid.Height == targetSize)
+        static int NearestPowerOfTwo(float value)
+            => 1 << Math.Max(0, (int)MathF.Round(MathF.Log2(MathF.Max(value, 1f))));
+
+        var targetWidth = NearestPowerOfTwo(width * scale);
+        var targetHeight = NearestPowerOfTwo(height * scale);
+
+        if (Scene.DepthPyramid != null && Scene.DepthPyramid.Width == targetWidth && Scene.DepthPyramid.Height == targetHeight)
         {
             return;
         }
 
         Scene.DepthPyramid?.Delete();
 
-        // Calculate mips needed to go from targetSize down to 1x1
-        var maxMipLevel = (int)Math.Log2(targetSize);
+        // Mips needed to take the larger axis down to 1
+        var maxMipLevel = (int)Math.Log2(Math.Max(targetWidth, targetHeight));
 
-        Scene.DepthPyramid = RenderTexture.Create(targetSize, targetSize, SizedInternalFormat.R32f, maxMipLevel + 1);
+        Scene.DepthPyramid = RenderTexture.Create(targetWidth, targetHeight, SizedInternalFormat.R32f, maxMipLevel + 1);
         Scene.DepthPyramid.SetLabel("DepthPyramid");
 
         Scene.DepthPyramid.SetBaseMaxLevel(0, maxMipLevel);
