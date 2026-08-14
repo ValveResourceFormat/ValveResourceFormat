@@ -135,7 +135,17 @@ struct EnvBRDF_t
     vec3 MultiScatter;  // FmsEms, lit by the irradiance rather than the cube map
 };
 
-EnvBRDF_t EnvBRDF(vec3 specColor, float perceptualRoughness, vec3 N, vec3 V)
+// The NDF takes NoH and the visibility takes (NoL, NoV); the ambient case fixes NoL at 1.
+// csgo_character's pixel shader evaluates pow(1 - NoH*NoH, 0.5/alpha) over the half vector and
+// leaves the Neubelt denominator as (1 + NoV) - NoV, which is that substitution written out.
+float EnvBRDFCloth(float perceptualRoughness, vec3 N, vec3 V)
+{
+    float NoV = dot(N, V);
+    float NoH = dot(normalize(N + V), N);
+    return D_Charlie(pow2(perceptualRoughness), NoH) * V_Neubelt(1.0, NoV) * CLOTH_ENERGY_SCALE;
+}
+
+EnvBRDF_t EnvBRDF(vec3 specColor, float perceptualRoughness, vec3 N, vec3 V, float clothMask)
 {
     float NdotV = ClampToPositive(dot(N, V));
     vec4 lut = SampleBrdfLut(perceptualRoughness, NdotV, BRDF_LUT_GGX);
@@ -143,19 +153,26 @@ EnvBRDF_t EnvBRDF(vec3 specColor, float perceptualRoughness, vec3 N, vec3 V)
     EnvBRDF_t brdf;
     brdf.SingleScatter = mix(vec3(lut.x), vec3(lut.y), specColor);
 
+    if (F_CLOTH_SHADING == 1)
+    {
+        // Cloth replaces the split sum lobe before the multiple scattering term feeds off it, and
+        // takes the specular colour the same way the GGX lobe does.
+        brdf.SingleScatter = mix(brdf.SingleScatter, specColor * EnvBRDFCloth(perceptualRoughness, N, V), clothMask);
+    }
+
     // What a single bounce misses, fed back through the average Fresnel of a Schlick lobe.
     float energyMissing = 1.0 - lut.y;
     vec3 averageFresnel = specColor + (vec3(1.0) - specColor) * (1.0 / 21.0);
 
     brdf.MultiScatter = ((brdf.SingleScatter * averageFresnel) / (vec3(1.0) - averageFresnel * energyMissing)) * energyMissing;
-    return brdf;
-}
 
-float EnvBRDFCloth(float perceptualRoughness, vec3 N, vec3 V)
-{
-    float NoV = dot(N, V);
-    float NoH = dot(normalize(N + V), N);
-    return D_Charlie(pow2(perceptualRoughness), NoV) * V_Neubelt(NoH, NoH);
+    if (F_CLOTH_SHADING == 1)
+    {
+        // Cloth takes no multiple scattering.
+        brdf.MultiScatter *= 1.0 - clothMask;
+    }
+
+    return brdf;
 }
 
 // In CS2, anisotropic cubemaps are default enabled with aniso gloss
@@ -195,13 +212,9 @@ vec3 GetEnvironmentNoBRDF(MaterialProperties_t mat, float reflectionCorrectionAm
         mat.IsometricRoughness = 0.0;
     }
 
+    // No cloth remap here: csgo_character's cloth mask never reaches the roughness or the env map
+    // LOD, only the BRDF lobes.
     float perceptualRoughness = saturate(mat.IsometricRoughness);
-
-    
-    if (F_CLOTH_SHADING == 1)
-    {
-        perceptualRoughness = mix(perceptualRoughness, sqrt(perceptualRoughness), mat.ClothMask);
-    }
 
     // Reflection Vector
     vec3 R = normalize(reflect(-mat.ViewDir, reflectionNormal));
@@ -323,12 +336,7 @@ vec3 GetEnvironment(MaterialProperties_t mat, float reflectionCorrectionAmount)
         return envMap;
     }
 
-    vec3 brdf = EnvBRDF(mat.SpecularColor, mat.IsometricRoughness, mat.AmbientNormal, mat.ViewDir).SingleScatter;
-    if (F_CLOTH_SHADING == 1)
-    {
-        vec3 clothBrdf = vec3(EnvBRDFCloth(mat.IsometricRoughness, mat.AmbientNormal, mat.ViewDir));
-        brdf = mix(brdf, clothBrdf, mat.ClothMask);
-    }
+    vec3 brdf = EnvBRDF(mat.SpecularColor, mat.IsometricRoughness, mat.AmbientNormal, mat.ViewDir, mat.ClothMask).SingleScatter;
 
     return brdf * envMap;
 }

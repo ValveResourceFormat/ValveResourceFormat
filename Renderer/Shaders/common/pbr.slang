@@ -121,15 +121,24 @@ vec4 SampleBrdfLut(float roughness, float NdotV, float layer)
 float D_Charlie(float roughness, float NoH)
 {
     float invRough = 1.0 / roughness;
+    // csgo_character leaves the base unclamped. The 2^-7 floor is kept: it stops the pow running at
+    // exactly zero with an exponent that reaches into the thousands as roughness approaches its own
+    // minimum, and only moves the result where the lobe has already fallen to nothing.
     return (invRough + 2.0) * pow(max(1.0 - pow2(NoH), 0.0078125), invRough * 0.5) / TAU;
 }
 
 // Clamped to 1 (Filament, Deadlock). Unclamped it runs away to ~65000
-// where NoL and NoV both approach zero.
+// where NoL and NoV both approach zero. csgo_character instead biases NoV by +0.001; this guard is
+// kept because it bounds the same blow-up without pushing NoV off its true value.
 float V_Neubelt(float NoL, float NoV)
 {
     return saturate(1.0 / max(4.0 * (NoL + NoV - NoL * NoV), 0.00001532));
 }
+
+// csgo_character folds D_Charlie * V_Neubelt down to a single 1/8. D_Charlie's 1/TAU and
+// V_Neubelt's 1/4 above come to 1/(8*PI) against that, so the cloth lobe scales by PI to land on
+// Valve's constant. The sheen lobe keeps Filament's normalisation and is not scaled.
+#define CLOTH_ENERGY_SCALE PI
 
 // Still pass normal due to some effects modifying normal per light
 vec3 specularLighting(vec3 lightVector, vec3 normal, MaterialProperties_t mat, float sheenAlbedoScaling)
@@ -164,7 +173,9 @@ vec3 specularLighting(vec3 lightVector, vec3 normal, MaterialProperties_t mat, f
     {
         float ClothNDF = D_Charlie(roughness, NoH);
         float ClothVis = V_Neubelt(NoL, NoV);
-        ndfVis = mix(ndfVis, ClothNDF * ClothVis, mat.ClothMask);
+        // NoL twice on purpose: the cloth lobe carries one inside the blend and the shared multiply
+        // below applies another. Both of csgo_character's light loops emit it that way.
+        ndfVis = mix(ndfVis, ClothNDF * ClothVis * CLOTH_ENERGY_SCALE * NoL, mat.ClothMask);
     }
 
     // Sheen is a second lobe over the top, with its own colour and roughness, rather than a
@@ -201,6 +212,25 @@ float GetSheenAlbedoScaling(MaterialProperties_t mat, vec3 lightVector)
 
     float sheenMax = max(mat.SheenColor.x, max(mat.SheenColor.y, mat.SheenColor.z));
     return ClampToPositive(1.0 - sheenMax * directionalAlbedo);
+}
+
+// What a single GGX bounce loses to multiple scattering, put back on the direct specular. Estimated
+// from roughness and NoV rather than read out of the table, so it costs nothing to evaluate; it runs
+// once over the accumulated direct specular rather than per light. Cloth has no GGX lobe to
+// compensate, so the mask takes it back to 1.
+vec3 GetSpecularEnergyCompensation(MaterialProperties_t mat)
+{
+    float flRoughnessSum = mat.Roughness.x + mat.Roughness.y;
+    float flBoost = 0.125 * pow2(pow2(flRoughnessSum)) * saturate(dot(mat.AmbientNormal, mat.ViewDir));
+
+    vec3 vCompensation = vec3(1.0) + mat.SpecularColor * flBoost;
+
+    if (F_CLOTH_SHADING == 1)
+    {
+        vCompensation = mix(vCompensation, vec3(1.0), mat.ClothMask);
+    }
+
+    return vCompensation;
 }
 
 // Calculate PBR shading for a light
