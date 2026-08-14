@@ -665,7 +665,10 @@ public sealed class ShaderExtract
         ConfigMappingParams staticConfig = new(program);
 
         // Attributes
-        var attributesDisect = new Dictionary<int[], HashSet<string>>(2 ^ Math.Max(0, program.StaticComboArray.Length - 1), new ConfigKeyComparer());
+        var attributeCapacity = Options.StaticComboReadingCap < 0
+            ? program.StaticComboEntries.Count
+            : Math.Min(program.StaticComboEntries.Count, Options.StaticComboReadingCap);
+        var attributesDisect = new Dictionary<int[], HashSet<string>>(attributeCapacity, new ConfigKeyComparer());
         var perConditionAttributes = new Dictionary<(int Index, int State), HashSet<string>>(staticConfig.SumStates);
 
         // Parameters
