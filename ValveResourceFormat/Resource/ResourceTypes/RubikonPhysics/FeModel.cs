@@ -3309,7 +3309,20 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics
                 // above miss these chains entirely (legion_commander's earrings, tinker's cosmic back).
                 var hingedRoot = Array.IndexOf(CtrlNames, HingeAnchorPrefix + CtrlNames[p]) >= 0;
 
-                if (rodLinked || bothDrivenSim || proxyRibbon || hingedRoot)
+                // A joint whose parent carries a stiff hinge is joined to it by the bend rather than by a
+                // rod, so the rod test alone drops it and the chain ends one joint short (snotty_survivors'
+                // snot_L_02, whose only rod reaches its grandparent).
+                var bendLinked = false;
+                foreach (var bend in KelagerBends)
+                {
+                    if (bend.MidNode == p && (bend.End0 == i || bend.End1 == i))
+                    {
+                        bendLinked = true;
+                        break;
+                    }
+                }
+
+                if (rodLinked || bothDrivenSim || proxyRibbon || hingedRoot || bendLinked)
                 {
                     realParent[i] = p;
                 }

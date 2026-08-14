@@ -2163,14 +2163,39 @@ partial class ModelExtract
                         clothFolderChildren.Add(MakeClothChainNode(feModel, boneChain));
                     }
 
+                    // A ClothNode carries no vertex_map of its own, so the selections covering one are
+                    // restored by parenting it under a ClothVertexMap instead - the same grouping the
+                    // "Add Cloth Vertex Map" wizard builds. Only a node belonging to exactly one
+                    // selection can be grouped this way, a node being a child of one parent.
+                    var vertexMapGroups = new Dictionary<string, KVObject>(StringComparer.Ordinal);
+
+                    KVObject FolderFor(int node)
+                    {
+                        var maps = feModel.GetVertexMapNames(node);
+                        if (maps is null || maps.Contains(',', StringComparison.Ordinal))
+                        {
+                            return clothFolderChildren;
+                        }
+
+                        if (!vertexMapGroups.TryGetValue(maps, out var group))
+                        {
+                            var (mapNode, mapChildren) = MakeListNode("ClothVertexMap");
+                            mapNode.Add("name", maps);
+                            clothFolderChildren.Add(mapNode);
+                            vertexMapGroups[maps] = group = mapChildren;
+                        }
+
+                        return group;
+                    }
+
                     foreach (var (name, node) in loneClothNodes)
                     {
-                        clothFolderChildren.Add(MakeClothNode(feModel, name, node));
+                        FolderFor(node).Add(MakeClothNode(feModel, name, node));
                     }
 
                     foreach (var (name, node) in leftoverStaticNodes)
                     {
-                        clothFolderChildren.Add(MakeClothNode(feModel, name, node, isStaticNode: true));
+                        FolderFor(node).Add(MakeClothNode(feModel, name, node, isStaticNode: true));
                     }
                 }
 
