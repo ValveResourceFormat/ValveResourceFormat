@@ -270,10 +270,10 @@ namespace ValveResourceFormat.Renderer.Shaders
         /// </summary>
         private void ReportBadAttribute(string message)
         {
+            Logger.LogError("{Message}", message);
+
 #if DEBUG
             throw new ShaderLoader.ShaderCompilerException(message);
-#else
-            Logger.LogError("{Message}", message);
 #endif
         }
 
