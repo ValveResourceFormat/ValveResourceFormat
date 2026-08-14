@@ -602,8 +602,9 @@ public static partial class ShaderSpirvReflection
             else
             {
                 var intValue = param.IntDefs[0];
-                value = SamplerStateEnumSource.GetValueOrDefault(param.Name)?.GetEnumName(intValue)
-                    ?? intValue.ToString(CultureInfo.InvariantCulture);
+                value = SamplerStateEnumSource.GetValueOrDefault(param.Name) is { } enumSource
+                    ? ShaderUtilHelpers.GetEnumName(enumSource, intValue)
+                    : intValue.ToString(CultureInfo.InvariantCulture);
                 definition.SetStatic(param.Name, intValue);
             }
 

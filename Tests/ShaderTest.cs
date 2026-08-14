@@ -386,6 +386,24 @@ namespace Tests
         }
 
         [Test]
+        public void VfxShaderExtract_RenderStateEnumNames()
+        {
+            var colorWriteEnable = typeof(VfxRenderStateInfoPixelShader.RsBlendStateDesc.RsColorWriteEnableBits);
+            var cullMode = typeof(VfxRenderStateInfoPixelShader.RsRasterizerStateDesc.RsCullMode);
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(ShaderUtilHelpers.GetEnumName(colorWriteEnable, 3), Is.EqualTo("R|G"));
+                Assert.That(ShaderUtilHelpers.GetEnumName(colorWriteEnable, 5), Is.EqualTo("R|B"));
+                Assert.That(ShaderUtilHelpers.GetEnumName(colorWriteEnable, 7), Is.EqualTo("R|G|B"));
+                Assert.That(ShaderUtilHelpers.GetEnumName(colorWriteEnable, 14), Is.EqualTo("G|B|A"));
+                Assert.That(ShaderUtilHelpers.GetEnumName(colorWriteEnable, 15), Is.EqualTo("All"));
+                Assert.That(ShaderUtilHelpers.GetEnumName(colorWriteEnable, 0), Is.EqualTo("None"));
+                Assert.That(ShaderUtilHelpers.GetEnumName(cullMode, 42), Is.EqualTo("42"));
+            }
+        }
+
+        [Test]
         public void VfxShaderExtract_Invalid()
         {
             var path = Path.Combine(ShadersDir, "vcs64_error_pcgl_40_ps.vcs");

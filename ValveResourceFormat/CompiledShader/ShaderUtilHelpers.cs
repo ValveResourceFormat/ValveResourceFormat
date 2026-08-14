@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.IO;
 using System.Runtime.InteropServices;
 using ValveResourceFormat.Serialization.VfxEval;
@@ -9,6 +10,30 @@ namespace ValveResourceFormat.CompiledShader
     /// </summary>
     public static class ShaderUtilHelpers
     {
+        /// <summary>
+        /// Gets the name of an enum value, decomposing combined flags values, or the plain number when it has no name.
+        /// </summary>
+        public static string GetEnumName(Type enumSource, int value)
+        {
+            if (enumSource.GetEnumName(value) is string name)
+            {
+                return name;
+            }
+
+            if (enumSource.IsDefined(typeof(FlagsAttribute), inherit: false))
+            {
+                // a value whose bits do not fully decompose into members renders as a plain number
+                var flags = Enum.ToObject(enumSource, value).ToString()!;
+
+                if (!char.IsAsciiDigit(flags[0]) && flags[0] != '-')
+                {
+                    return flags.Replace(", ", "|", StringComparison.Ordinal);
+                }
+            }
+
+            return value.ToString(CultureInfo.InvariantCulture);
+        }
+
         /// <summary>
         /// Parses a VCS filename to extract shader information.
         /// </summary>
