@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Linq;
 using System.Numerics;
 using ValveKeyValue;
@@ -496,9 +497,10 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics
         /// the distance the bent node may reach from the triple's centroid,
         /// <c>sqrt(l0^2 + l1^2 - 2*l0*l1*cos(angle)) / 3</c>, floored at the rest distance - an angle the
         /// rest pose already exceeds leaves no trace and recovers as zero, which recompiles to the same
-        /// floor.
+        /// floor. The joint's <c>motion_bias</c> comes back with it: a fully biased joint replaces the
+        /// mass shares with the whole stiffness on one end, leaving the bent node weightless.
         /// </summary>
-        public (float Stiffness, float Angle)? GetStiffHinge(int jointNode)
+        public (float Stiffness, float Angle, float MotionBias)? GetStiffHinge(int jointNode)
         {
             foreach (var bend in KelagerBends)
             {
@@ -520,6 +522,14 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics
                     continue;
                 }
 
+                // A fully biased joint drops the mass share entirely and puts the whole stiffness on one
+                // end, which is the only way a bend leaves a simulated node weightless.
+                if (midMass > 0f && MathF.Abs(bend.MidWeight) < FullMotionBiasEpsilon
+                    && MathF.Abs(bend.End0Weight) > FullMotionBiasEpsilon)
+                {
+                    return (Math.Clamp(bend.End0Weight / 3f, 0f, 1f), BendAngle(bend), 1f);
+                }
+
                 // Read the stiffness off the largest weight: a share whose node is pinned carries none of it.
                 var shares = new[] { (-2f * midMass, bend.MidWeight), (end0Mass, bend.End0Weight), (end1Mass, bend.End1Weight) };
                 var stiffness = 0f;
@@ -538,11 +548,14 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics
                     continue;
                 }
 
-                return (Math.Clamp(stiffness, 0f, 1f), BendAngle(bend));
+                return (Math.Clamp(stiffness, 0f, 1f), BendAngle(bend), 0f);
             }
 
             return null;
         }
+
+        // Below this a bend weight is the compiler's own signed zero rather than a small real share.
+        const float FullMotionBiasEpsilon = 1e-6f;
 
         float InverseMassOf(int node)
             => node >= 0 && node < NodeInvMasses.Length ? NodeInvMasses[node] : 0f;
@@ -713,25 +726,30 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics
         }
 
         /// <summary>
-        /// Gets the name of the vertex selection <paramref name="node"/> belongs to most strongly, or null
-        /// when it belongs to none. A joint names only one selection, so overlapping ones cannot all be
-        /// recovered.
+        /// Gets the vertex selections <paramref name="node"/> belongs to, in the
+        /// <c>name[=weight],name[=weight]</c> form a joint's <c>vertex_map</c> takes, or null when it
+        /// belongs to none. Selections overlap freely - a skirt node is typically in both
+        /// <c>skirt_vm</c> and <c>skirt_l_vm</c> - so the list form is what lets a joint join all of them
+        /// rather than only the strongest. A membership weight is only written out when it is not the
+        /// full 1.0 the bare name already means.
         /// </summary>
-        public string? GetVertexMapName(int node)
+        public string? GetVertexMapNames(int node)
         {
-            string? best = null;
-            var bestWeight = 0f;
+            var names = new List<string>();
             foreach (var map in VertexMaps)
             {
                 var weight = map.WeightOf(node);
-                if (weight > bestWeight)
+                if (weight <= 0f)
                 {
-                    bestWeight = weight;
-                    best = map.Name;
+                    continue;
                 }
+
+                names.Add(weight >= 1f
+                    ? map.Name
+                    : string.Create(CultureInfo.InvariantCulture, $"{map.Name}={weight}"));
             }
 
-            return best;
+            return names.Count > 0 ? string.Join(',', names) : null;
         }
 
 #pragma warning disable CS1591

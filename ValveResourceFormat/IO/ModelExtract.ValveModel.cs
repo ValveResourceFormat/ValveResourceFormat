@@ -814,11 +814,11 @@ partial class ModelExtract
         kv.Add("stray_radius_stretchiness", feModel.GetStrayRelaxation(joint.Node));
         kv.Add("friction", feModel.GetNodeFriction(joint.Node));
 
-        // The named vertex selection this joint belongs to. Naming it here is what puts the joint and the
-        // proxies extruded from it back into the selection cloth effects target.
-        if (feModel.GetVertexMapName(joint.Node) is { } vertexMap)
+        // The named vertex selections this joint belongs to, comma separated. Naming them here is what
+        // puts the joint and the proxies extruded from it back into the selections cloth effects target.
+        if (feModel.GetVertexMapNames(joint.Node) is { } vertexMaps)
         {
-            kv.Add("vertex_map", vertexMap);
+            kv.Add("vertex_map", vertexMaps);
         }
 
         // The hinge constraint the ClothChainHinge node writes onto the joint it constrains. It both
@@ -866,6 +866,11 @@ partial class ModelExtract
         {
             kv.Add("stiff_hinge", stiffHinge.Stiffness);
             kv.Add("stiff_hinge_angle", stiffHinge.Angle);
+
+            if (stiffHinge.MotionBias != 0f)
+            {
+                kv.Add("motion_bias", stiffHinge.MotionBias);
+            }
         }
 
         if (hinge is { } chainHinge)
