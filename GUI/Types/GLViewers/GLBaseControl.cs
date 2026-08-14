@@ -646,9 +646,7 @@ internal abstract class GLBaseControl : IDisposable, IMessageFilter
 
     protected virtual void OnFirstPaint()
     {
-        var current = Stopwatch.GetTimestamp();
-        var elapsed = Stopwatch.GetElapsedTime(LastUpdate, current);
-        LastUpdate = current;
+        var elapsed = Stopwatch.GetElapsedTime(LastUpdate, Stopwatch.GetTimestamp());
 
         Log.Debug(nameof(GLBaseControl), $"First paint: {elapsed}");
     }
@@ -877,7 +875,9 @@ internal abstract class GLBaseControl : IDisposable, IMessageFilter
             ShouldResize = false;
         }
 
-        if (FirstPaint)
+        var firstDraw = FirstPaint;
+
+        if (firstDraw)
         {
             OnFirstPaint();
             FirstPaint = false;
@@ -902,6 +902,11 @@ internal abstract class GLBaseControl : IDisposable, IMessageFilter
         GLNativeWindow.Context.SwapBuffers();
 
         GLNativeWindow.Context.MakeNoneCurrent();
+
+        if (firstDraw)
+        {
+            LastUpdate = Stopwatch.GetTimestamp();
+        }
     }
 
     protected virtual void BlitFramebufferToScreen()

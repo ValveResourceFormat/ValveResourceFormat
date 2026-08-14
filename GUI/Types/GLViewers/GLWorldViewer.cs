@@ -260,11 +260,12 @@ namespace GUI.Types.GLViewers
 
         protected override void OnFirstPaint()
         {
+            Input.MoveCamera(new Vector3(0, -150f, 0));
+
             base.OnFirstPaint();
 
             StartMapSoundEvents();
 
-            Input.MoveCamera(new Vector3(0, -150f, 0));
             Input.MoveCamera(new Vector3(0, 150f, 0), transition: true);
         }
 

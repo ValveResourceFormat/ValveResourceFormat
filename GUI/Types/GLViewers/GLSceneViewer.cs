@@ -412,9 +412,12 @@ namespace GUI.Types.GLViewers
             Scene.RendererContext.ShaderLoader.LinkLoadedShaders();
             Renderer.DisableAllCulling = true;
 
+            Renderer.Camera.CopyFrom(Input.Camera);
+
             try
             {
-                OnPaint(0f);
+                // A non-zero delta so that particles actually simulate
+                OnPaint(1f / 60f);
 
                 foreach (var particleNode in Scene.AllNodes.OfType<ParticleSceneNode>())
                 {
@@ -424,6 +427,10 @@ namespace GUI.Types.GLViewers
             finally
             {
                 Renderer.DisableAllCulling = false;
+
+                // TODO: Normally reset by RenderTranslucentLayer, bug in RenderSprites
+                GL.DepthMask(true);
+                GL.Disable(EnableCap.Blend);
             }
         }
 
