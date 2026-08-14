@@ -245,13 +245,11 @@ namespace ValveResourceFormat.Renderer.SceneNodes
                 var floatBufferSizeMeshBones = meshBoneCount * 12;
                 var floatBufferSizeModelBones = boneCount * 16;
 
-                var floatBuffer = ArrayPool<float>.Shared.Rent(floatBufferSizeMeshBones + floatBufferSizeModelBones);
-
-                var meshBones = MemoryMarshal.Cast<float, OpenTK.Mathematics.Matrix3x4>(floatBuffer.AsSpan(0, floatBufferSizeMeshBones));
-                var modelBones = MemoryMarshal.Cast<float, Matrix4x4>(floatBuffer.AsSpan(floatBufferSizeMeshBones));
-
-                try
+                using (var floatBuffer = new RentedFloatBuffer<float>(floatBufferSizeMeshBones + floatBufferSizeModelBones))
                 {
+                    var meshBones = MemoryMarshal.Cast<float, OpenTK.Mathematics.Matrix3x4>(floatBuffer.Span[..floatBufferSizeMeshBones]);
+                    var modelBones = MemoryMarshal.Cast<float, Matrix4x4>(floatBuffer.Span[floatBufferSizeMeshBones..]);
+
                     AnimationController.GetSkinningMatrices(modelBones);
 
                     for (var i = 0; i < meshBoneCount; i++)
@@ -265,13 +263,9 @@ namespace ValveResourceFormat.Renderer.SceneNodes
                         }
                     }
 
-                    boneMatricesGpu.Update(floatBuffer, 0, floatBufferSizeMeshBones * sizeof(float));
+                    boneMatricesGpu.Update(floatBuffer.FloatArray, 0, floatBufferSizeMeshBones * sizeof(float));
 
                     UpdateAnimatedBoundingBox();
-                }
-                finally
-                {
-                    ArrayPool<float>.Shared.Return(floatBuffer);
                 }
             }
 

@@ -1,4 +1,3 @@
-using System.Buffers;
 using System.Runtime.InteropServices;
 using OpenTK.Graphics.OpenGL;
 using ValveResourceFormat.Renderer.Particles.Utils;
@@ -423,12 +422,10 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                     or ParticleOrientation.PARTICLE_ORIENTATION_SCREENALIGN_TO_PARTICLE_NORMAL;
 
             // Update vertex buffer
-            // Rented from the shared float pool so the memory is reused across renderers, and viewed as vertices.
-            var rawVertices = ArrayPool<float>.Shared.Rent(particles.Count * 4 * (Vertex.InputLayout.Stride / sizeof(float)));
-            var vertices = MemoryMarshal.Cast<float, Vertex>(rawVertices.AsSpan());
-
-            try
+            // Rented from the shared float pool so the memory is reused across renderers.
+            using (var vertexBuffer = new RentedFloatBuffer<Vertex>(particles.Count * 4))
             {
+                var vertices = vertexBuffer.Span;
                 var i = 0;
                 foreach (ref var particle in particles.Current)
                 {
@@ -569,13 +566,9 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                     i++;
                 }
 
-                GL.NamedBufferData(vertexBufferHandle, i * 4 * Vertex.InputLayout.Stride, rawVertices, BufferUsageHint.DynamicDraw);
+                GL.NamedBufferData(vertexBufferHandle, i * 4 * Vertex.InputLayout.Stride, vertexBuffer.FloatArray, BufferUsageHint.DynamicDraw);
 
                 return i;
-            }
-            finally
-            {
-                ArrayPool<float>.Shared.Return(rawVertices);
             }
         }
 

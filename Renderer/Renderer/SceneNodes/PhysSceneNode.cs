@@ -1,5 +1,3 @@
-using System.Buffers;
-using System.Runtime.InteropServices;
 using ValveResourceFormat.IO;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization.KeyValues;
@@ -154,11 +152,9 @@ namespace ValveResourceFormat.Renderer.SceneNodes
 
                         var pose = bindPose.Length == 0 ? Matrix4x4.Identity : bindPose[p];
 
-                        var positionsBuffer = ArrayPool<float>.Shared.Rent(vertexPositions.Length * 3);
-
-                        try
+                        using (var positionsBuffer = new RentedFloatBuffer<Vector3>(vertexPositions.Length))
                         {
-                            var positions = MemoryMarshal.Cast<float, Vector3>(positionsBuffer.AsSpan());
+                            var positions = positionsBuffer.Span;
                             for (var i = 0; i < vertexPositions.Length; i++)
                             {
                                 positions[i] = Vector3.Transform(vertexPositions[i], pose);
@@ -200,10 +196,6 @@ namespace ValveResourceFormat.Renderer.SceneNodes
                                     edge = nextEdge;
                                 }
                             }
-                        }
-                        finally
-                        {
-                            ArrayPool<float>.Shared.Return(positionsBuffer);
                         }
 
                         var bbox = new AABB(hull.Shape.Min, hull.Shape.Max);

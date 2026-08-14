@@ -1,4 +1,3 @@
-using System.Buffers;
 using System.Diagnostics;
 using System.Reflection;
 using System.Runtime.CompilerServices;
@@ -367,12 +366,11 @@ namespace ValveResourceFormat.Renderer
 
             PerfStats.Active.SuspendTriangleCounter();
 
-            verticesSize *= Vertex.Size * 4;
-            var vertexBuffer = ArrayPool<float>.Shared.Rent(verticesSize);
+            verticesSize *= 4;
 
-            try
+            using (var vertexBuffer = new RentedFloatBuffer<Vertex>(verticesSize))
             {
-                var vertices = MemoryMarshal.Cast<float, Vertex>(vertexBuffer.AsSpan());
+                var vertices = vertexBuffer.Span;
                 var i = 0;
 
                 foreach (var textRenderRequest in TextRenderRequests)
@@ -468,11 +466,7 @@ namespace ValveResourceFormat.Renderer
                 }
 
                 verticesSize = i * Vertex.Size * sizeof(float);
-                GL.NamedBufferData(bufferHandle, verticesSize, vertexBuffer, BufferUsageHint.DynamicDraw);
-            }
-            finally
-            {
-                ArrayPool<float>.Shared.Return(vertexBuffer);
+                GL.NamedBufferData(bufferHandle, verticesSize, vertexBuffer.FloatArray, BufferUsageHint.DynamicDraw);
             }
 
             GL.Disable(EnableCap.DepthTest);

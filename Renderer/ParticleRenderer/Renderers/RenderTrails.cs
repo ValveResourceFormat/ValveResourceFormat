@@ -1,4 +1,3 @@
-using System.Buffers;
 using System.Runtime.InteropServices;
 using OpenTK.Graphics.OpenGL;
 using ValveResourceFormat.Renderer.Particles.Utils;
@@ -198,13 +197,13 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             // defaults of (1, 2) put the smoothstep past its own range, which is what makes it inert.
             var viewAngleFadeActive = startFadeDot < 1f && endFadeDot > startFadeDot;
 
-            // Rented from the shared float pool so the memory is reused across renderers, and viewed as vertices.
-            var rawVertices = ArrayPool<float>.Shared.Rent(particleBag.Count * 4 * (Vertex.InputLayout.Stride / sizeof(float)));
-            var vertices = MemoryMarshal.Cast<float, Vertex>(rawVertices.AsSpan());
             var quadCount = 0;
 
-            try
+            // Rented from the shared float pool so the memory is reused across renderers.
+            using (var vertexBuffer = new RentedFloatBuffer<Vertex>(particleBag.Count * 4))
             {
+                var vertices = vertexBuffer.Span;
+
                 foreach (ref var particle in particleBag.Current)
                 {
                     var position = particle.Position;
@@ -377,12 +376,8 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
 
                 if (quadCount > 0)
                 {
-                    GL.NamedBufferData(vertexBufferHandle, quadCount * 4 * Vertex.InputLayout.Stride, rawVertices, BufferUsageHint.DynamicDraw);
+                    GL.NamedBufferData(vertexBufferHandle, quadCount * 4 * Vertex.InputLayout.Stride, vertexBuffer.FloatArray, BufferUsageHint.DynamicDraw);
                 }
-            }
-            finally
-            {
-                ArrayPool<float>.Shared.Return(rawVertices);
             }
 
             return quadCount;
