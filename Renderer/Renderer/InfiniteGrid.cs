@@ -43,12 +43,14 @@ namespace ValveResourceFormat.Renderer
         {
             GL.Enable(EnableCap.Blend);
             GL.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.OneMinusSrcAlpha);
+            GL.DepthMask(false);
 
             shader.Use();
             VertexArray.Bind(vao, shader);
 
             GL.DrawArrays(PrimitiveType.Triangles, 0, 6);
 
+            GL.DepthMask(true);
             GL.Disable(EnableCap.Blend);
         }
     }

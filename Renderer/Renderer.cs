@@ -102,6 +102,11 @@ public class Renderer
     public SceneBackground? BaseBackground { get; protected set; }
 
     /// <summary>
+    /// Optional reference grid drawn after the opaque passes so translucent geometry composites over it.
+    /// </summary>
+    public InfiniteGrid? BaseGrid { get; set; }
+
+    /// <summary>
     /// GPU uniform buffer containing per-view constants such as view-projection matrices.
     /// </summary>
     public UniformBuffer<ViewConstants>? ViewBuffer { get; set; }
@@ -736,6 +741,12 @@ public class Renderer
 
             renderContext.ReplacementShader?.SetUniform1AllVariants("isSkybox", 0u);
             DepthRange.Scene.Apply();
+        }
+
+        if (isStandardPass && BaseGrid != null)
+        {
+            using var _ = new GLDebugGroup("Base Grid Render");
+            BaseGrid.Render();
         }
 
         using (new GLDebugGroup("Main Scene Translucent Render"))
