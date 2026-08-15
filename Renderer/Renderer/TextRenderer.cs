@@ -462,19 +462,16 @@ namespace ValveResourceFormat.Renderer
 
                         x += metrics.Advance * textRenderRequest.Scale;
                     }
-
                 }
 
                 verticesSize = i * Vertex.Size * sizeof(float);
                 GL.NamedBufferData(bufferHandle, verticesSize, vertexBuffer.FloatArray, BufferUsageHint.DynamicDraw);
             }
 
-            GL.Disable(EnableCap.DepthTest);
-            GL.Enable(EnableCap.Blend);
-            GL.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.OneMinusSrcAlpha);
-
             Debug.Assert(shader != null);
             Debug.Assert(fontTexture != null);
+
+            using var textState = RendererContext.RenderState.Scope(depthTest: false, blend: true);
 
             shader.Use();
             shader.SetUniform4x4("transform", Matrix4x4.CreateOrthographicOffCenter(0f, camera.WindowSize.X, camera.WindowSize.Y, 0f, -100f, 100f));
@@ -489,9 +486,6 @@ namespace ValveResourceFormat.Renderer
 
             VertexArray.Bind(vao, shader);
             GL.DrawElements(PrimitiveType.Triangles, letters * 6, DrawElementsType.UnsignedShort, 0);
-
-            GL.Disable(EnableCap.Blend);
-            GL.Enable(EnableCap.DepthTest);
 
             PerfStats.Active.ResumeTriangleCounter();
 

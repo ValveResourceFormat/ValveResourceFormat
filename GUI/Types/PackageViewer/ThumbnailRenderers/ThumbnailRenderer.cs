@@ -62,7 +62,7 @@ internal abstract class ThumbnailRenderer : IDisposable
         NativeWindow.MakeCurrent();
 
         GLEnvironment.Initialize(RendererContext.Logger);
-        GLEnvironment.SetDefaultRenderState();
+        GLEnvironment.SetDefaultRenderState(RendererContext);
 
         SceneRenderer = new Renderer(RendererContext);
 

@@ -23,6 +23,7 @@ namespace ValveResourceFormat.Renderer
 
         private readonly int frameBuffer;
         private readonly Shader shader;
+        private readonly RenderStateTracker renderState;
         private int vao;
         private int bufferHandle;
         private MorphRectVertex[] allVertices;
@@ -63,6 +64,7 @@ namespace ValveResourceFormat.Renderer
             morphAtlas.SetFiltering(TextureMinFilter.Nearest, TextureMagFilter.Nearest);
 
             shader = renderContext.ShaderLoader.LoadShader("morph_composite");
+            renderState = renderContext.RenderState;
 
             var width = morph.Data.GetInt32Property("m_nWidth");
             var height = morph.Data.GetInt32Property("m_nHeight");
@@ -114,14 +116,9 @@ namespace ValveResourceFormat.Renderer
 
             GL.NamedBufferSubData(bufferHandle, IntPtr.Zero, usedVertexCount * MorphRectVertex.InputLayout.Stride, usedVertices);
 
-            GL.Disable(EnableCap.CullFace);
-            GL.Disable(EnableCap.DepthTest);
-            GL.DepthMask(false);
-
             // Every rect adds its weighted deltas on top of the ones already accumulated, alpha included.
-            GL.Enable(EnableCap.Blend);
-            GL.BlendEquation(BlendEquationMode.FuncAdd);
-            GL.BlendFunc(BlendingFactor.One, BlendingFactor.One);
+            using var _ = renderState.Scope(cullMode: RsCullMode.None, depthTest: false, depthWrite: false,
+                blend: true, srcBlend: RsBlendMode.One, dstBlend: RsBlendMode.One);
 
             GL.BindFramebuffer(FramebufferTarget.Framebuffer, frameBuffer);
             GL.Viewport(0, 0, CompositeTexture.Width, CompositeTexture.Height);
@@ -144,11 +141,6 @@ namespace ValveResourceFormat.Renderer
                 shader.SetUniform1("bCompositeNormals", 1);
                 GL.DrawElements(PrimitiveType.Triangles, indexCount, DrawElementsType.UnsignedShort, 0);
             }
-
-            GL.Disable(EnableCap.Blend);
-            GL.DepthMask(true);
-            GL.Enable(EnableCap.DepthTest);
-            GL.Enable(EnableCap.CullFace);
         }
 
         // Mutable because SetVertexMorphValue pokes the current weight into PositionWeights in place.

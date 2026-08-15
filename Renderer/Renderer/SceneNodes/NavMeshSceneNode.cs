@@ -116,19 +116,12 @@ namespace ValveResourceFormat.Renderer.SceneNodes
 
             VertexArray.Bind(vao, renderShader);
 
-            GL.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.OneMinusSrcAlpha);
-
-            GL.Enable(EnableCap.PolygonOffsetLine);
-            GL.Enable(EnableCap.PolygonOffsetFill);
-            GL.PolygonOffsetClamp(0, 96, 0.0005f);
+            using var _ = Scene.RendererContext.RenderState.Scope(depthBias: 96, depthBiasClamp: 0.0005f);
 
             GL.DrawElements(PrimitiveType.Lines, indexCount - triangleIndexCount, DrawElementsType.UnsignedInt, triangleIndexCount * sizeof(int));
 
             GL.DrawElementsInstancedBaseInstance(PrimitiveType.Triangles, triangleIndexCount, DrawElementsType.UnsignedInt, 0, 1, Id);
 
-            GL.Disable(EnableCap.PolygonOffsetLine);
-            GL.Disable(EnableCap.PolygonOffsetFill);
-            GL.PolygonOffsetClamp(0, 0, 0);
         }
 
         /// <inheritdoc/>

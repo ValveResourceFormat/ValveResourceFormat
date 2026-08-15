@@ -73,8 +73,8 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             renderShader.SetUniform3x4("transform", Transform);
             renderShader.SetBoneAnimationData(false);
 
-            GL.DepthMask(false);
-            GL.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.OneMinusSrcAlpha);
+            using var _ = Scene.RendererContext.RenderState.Scope(depthWrite: false);
+
             VertexArray.Bind(vao, renderShader);
 
             if (Scene.CurrentFramePvs == null)
@@ -91,8 +91,6 @@ namespace ValveResourceFormat.Renderer.SceneNodes
                     }
                 }
             }
-
-            GL.DepthMask(true);
         }
 
         private static Color32 GetClusterColor(ushort clusterId)

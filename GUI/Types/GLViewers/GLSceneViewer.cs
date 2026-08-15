@@ -427,10 +427,6 @@ namespace GUI.Types.GLViewers
             finally
             {
                 Renderer.DisableAllCulling = false;
-
-                // TODO: Normally reset by RenderTranslucentLayer, bug in RenderSprites
-                GL.DepthMask(true);
-                GL.Disable(EnableCap.Blend);
             }
         }
 

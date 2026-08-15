@@ -23,6 +23,7 @@ public class QuadOverdraw(RendererContext rendererContext)
     // Two uints per quad: a scoreboard lock and the count, zeroed each frame
     private StorageBuffer? quadBuffer;
     private ClearBufferMask savedClearMask;
+    private RenderState savedPassState;
 
     /// <summary>Gets the replacement shader that counts quad overdraw while the scene renders.</summary>
     public Shader SceneShader => sceneShader ??= rendererContext.ShaderLoader.LoadShader("quad_overdraw");
@@ -79,7 +80,11 @@ public class QuadOverdraw(RendererContext rendererContext)
         savedClearMask = framebuffer.ClearMask;
         framebuffer.ClearMask &= ~ClearBufferMask.DepthBufferBit;
 
-        GL.DepthFunc(DepthFunction.Gequal);
+        savedPassState = rendererContext.RenderState.CurrentPass;
+        var countingState = savedPassState;
+        countingState.DepthStencil.DepthFunc = RsComparison.CloserEqual;
+        rendererContext.RenderState.SetPassBaseline(in countingState);
+
         SceneShader.SetUniform1AllVariants("bCountQuads", 1u);
     }
 
@@ -88,7 +93,7 @@ public class QuadOverdraw(RendererContext rendererContext)
     public void EndCountingPass(Framebuffer framebuffer)
     {
         framebuffer.ClearMask = savedClearMask;
-        GL.DepthFunc(DepthFunction.Greater);
+        rendererContext.RenderState.SetPassBaseline(in savedPassState);
     }
 
     /// <summary>
@@ -108,14 +113,10 @@ public class QuadOverdraw(RendererContext rendererContext)
 
         visualizeShader.Use();
 
-        GL.Disable(EnableCap.DepthTest);
-        GL.DepthMask(false);
+        using var overdrawState = rendererContext.RenderState.Scope(depthTest: false, depthWrite: false);
 
         GL.BindVertexArray(rendererContext.MeshBufferCache.EmptyVAO);
         GL.DrawArrays(PrimitiveType.Triangles, 0, 3);
-
-        GL.DepthMask(true);
-        GL.Enable(EnableCap.DepthTest);
     }
 
     /// <summary>Releases the GPU buffer owned by this visualization.</summary>

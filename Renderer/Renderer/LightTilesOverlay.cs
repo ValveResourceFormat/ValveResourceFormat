@@ -81,16 +81,9 @@ public class LightTilesOverlay(RendererContext rendererContext)
 
         cullBits.BindBufferBase();
 
-        GL.Disable(EnableCap.DepthTest);
-        GL.DepthMask(false);
-        GL.Enable(EnableCap.Blend);
-        GL.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.OneMinusSrcAlpha);
+        using var overlayState = rendererContext.RenderState.Scope(depthTest: false, depthWrite: false, blend: true);
 
         GL.BindVertexArray(rendererContext.MeshBufferCache.EmptyVAO);
         GL.DrawArrays(PrimitiveType.Triangles, 0, 3);
-
-        GL.Disable(EnableCap.Blend);
-        GL.DepthMask(true);
-        GL.Enable(EnableCap.DepthTest);
     }
 }
