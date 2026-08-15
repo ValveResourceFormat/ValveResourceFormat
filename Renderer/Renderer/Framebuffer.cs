@@ -389,18 +389,15 @@ public class Framebuffer
     /// <summary>
     /// Configures depth comparison sampling on the depth attachment for shadow map reads.
     /// </summary>
-    /// <param name="lEqualCompare">When <see langword="true"/>, sets a less-or-equal compare function; otherwise keeps the default.</param>
+    /// <param name="lEqualCompare">Set when the shadow map is rendered with conventional z. The default
+    /// matches a reversed-z shadow map: the comparison passes where the reference is at least as close
+    /// to the light as the stored depth.</param>
     public void SetShadowDepthSamplerState(bool lEqualCompare = false)
     {
         if (Depth != null)
         {
             Depth.SetParameter(TextureParameterName.TextureCompareMode, (int)TextureCompareMode.CompareRToTexture);
-
-            if (lEqualCompare)
-            {
-                Depth.SetParameter(TextureParameterName.TextureCompareFunc, (int)DepthFunction.Lequal);
-            }
-
+            Depth.SetParameter(TextureParameterName.TextureCompareFunc, (int)(lEqualCompare ? DepthFunction.Lequal : DepthFunction.Gequal));
             Depth.SetFiltering(TextureMinFilter.Linear, TextureMagFilter.Linear);
             Depth.SetWrapMode(TextureWrapMode.ClampToEdge);
         }

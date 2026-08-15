@@ -874,7 +874,7 @@ public class Renderer
         GL.ClearDepth(1.0);
 
         GL.Enable(EnableCap.PolygonOffsetFill);
-        GL.PolygonOffset(2f, 0f);
+        GL.PolygonOffsetClamp(2f, 0f, 0f);
 
         BarnLightShadowBuffer.Bind(FramebufferTarget.Framebuffer);
 
@@ -920,6 +920,7 @@ public class Renderer
 
         GL.Disable(EnableCap.ScissorTest);
         GL.Disable(EnableCap.PolygonOffsetFill);
+        GL.PolygonOffsetClamp(0f, 0f, 0f);
 
         GL.DepthFunc(DepthFunction.Greater);
         GL.ClearDepth(0.0);
