@@ -344,29 +344,26 @@ namespace ValveResourceFormat.CompiledShader
                 }
                 else if (endBlock is VfxRenderStateInfoPixelShader psEndBlock)
                 {
-                    if (psEndBlock.RasterizerStateDesc != null)
+                    if (psEndBlock.RasterizerStateDesc is { } rs)
                     {
                         OutputWriter.WriteLine("// Rasterizer State");
-                        var rs = psEndBlock.RasterizerStateDesc;
                         OutputWriter.WriteLine($"{nameof(rs.FillMode)}: {rs.FillMode}, {nameof(rs.CullMode)}: {rs.CullMode}");
                         OutputWriter.WriteLine($"{nameof(rs.DepthClipEnable)}: {rs.DepthClipEnable}, {nameof(rs.MultisampleEnable)}: {rs.MultisampleEnable}");
                         OutputWriter.WriteLine($"{nameof(rs.DepthBias)}: {rs.DepthBias}, {nameof(rs.DepthBiasClamp)}: {rs.DepthBiasClamp}, {nameof(rs.SlopeScaledDepthBias)}: {rs.SlopeScaledDepthBias}");
                     }
-                    if (psEndBlock.DepthStencilStateDesc != null)
+                    if (psEndBlock.DepthStencilStateDesc is { } ds)
                     {
                         OutputWriter.WriteLine("// Depth Stencil State");
-                        var ds = psEndBlock.DepthStencilStateDesc;
-                        OutputWriter.WriteLine($"{nameof(ds.DepthTestEnable)}: {ds.DepthTestEnable}, {nameof(ds.DepthWriteEnable)}: {ds.DepthWriteEnable}, {nameof(ds.DepthFunc)}: {ds.DepthFunc}, {nameof(ds.HiZEnable360)}: {ds.HiZEnable360}, {nameof(ds.HiZWriteEnable360)}: {ds.HiZWriteEnable360}");
+                        OutputWriter.WriteLine($"{nameof(ds.DepthTestEnable)}: {ds.DepthTestEnable}, {nameof(ds.DepthWriteEnable)}: {ds.DepthWriteEnable}, {nameof(ds.DepthFunc)}: {ds.DepthFunc}");
                         OutputWriter.WriteLine($"{nameof(ds.StencilEnable)}: {ds.StencilEnable}, {nameof(ds.StencilReadMask)}: {ds.StencilReadMask}, {nameof(ds.StencilWriteMask)}: {ds.StencilWriteMask}, {nameof(ds.FrontStencilFailOp)}: {ds.FrontStencilFailOp}, {nameof(ds.FrontStencilDepthFailOp)}: {ds.FrontStencilDepthFailOp}");
                         OutputWriter.WriteLine($"{nameof(ds.FrontStencilPassOp)}: {ds.FrontStencilPassOp}, {nameof(ds.FrontStencilFunc)}: {ds.FrontStencilFunc}, {nameof(ds.BackStencilFailOp)}: {ds.BackStencilFailOp}, {nameof(ds.BackStencilDepthFailOp)}: {ds.BackStencilDepthFailOp}, {nameof(ds.BackStencilPassOp)}: {ds.BackStencilPassOp}");
-                        OutputWriter.WriteLine($"{nameof(ds.BackStencilFunc)}: {ds.BackStencilFunc}, {nameof(ds.HiStencilEnable360)}: {ds.HiStencilEnable360}, {nameof(ds.HiStencilWriteEnable360)}: {ds.HiStencilWriteEnable360}, {nameof(ds.HiStencilFunc360)}: {ds.HiStencilFunc360}, {nameof(ds.HiStencilRef360)}: {ds.HiStencilRef360}");
+                        OutputWriter.WriteLine($"{nameof(ds.BackStencilFunc)}: {ds.BackStencilFunc}");
                     }
-                    if (psEndBlock.BlendStateDesc != null)
+                    if (psEndBlock.BlendStateDesc is { } bs)
                     {
                         OutputWriter.WriteLine("// Blend State");
-                        var bs = psEndBlock.BlendStateDesc;
-                        OutputWriter.WriteLine($"{nameof(bs.AlphaToCoverageEnable)}: {bs.AlphaToCoverageEnable}, {nameof(bs.IndependentBlendEnable)}: {bs.IndependentBlendEnable}, {nameof(bs.HighPrecisionBlendEnable360)}: {bs.HighPrecisionBlendEnable360}");
-                        for (var i = 0; i < 8; i++)
+                        OutputWriter.WriteLine($"{nameof(bs.AlphaToCoverageEnable)}: {bs.AlphaToCoverageEnable}, {nameof(bs.IndependentBlendEnable)}: {bs.IndependentBlendEnable}");
+                        for (var i = 0; i < RsBlendStateDesc.MaxRenderTargets; i++)
                         {
                             OutputWriter.WriteLine($"RT{i}: Enabled={bs.BlendEnable[i]}, SRGB={bs.SrgbWriteEnable[i]}, WriteMask={bs.RenderTargetWriteMask[i]}");
                             OutputWriter.WriteLine($"  RGB: Src={bs.SrcBlend[i]}, Dst={bs.DestBlend[i]}, Op={bs.BlendOp[i]}");

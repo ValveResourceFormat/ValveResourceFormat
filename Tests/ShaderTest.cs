@@ -190,8 +190,8 @@ namespace Tests
                     var psRenderState1 = dyn1 as VfxRenderStateInfoPixelShader;
                     var psRenderState2 = dyn2 as VfxRenderStateInfoPixelShader;
 
-                    var depth1 = psRenderState1!.DepthStencilStateDesc!;
-                    var depth2 = psRenderState2!.DepthStencilStateDesc!;
+                    var depth1 = psRenderState1!.DepthStencilStateDesc!.Value;
+                    var depth2 = psRenderState2!.DepthStencilStateDesc!.Value;
 
 
                     Assert.That(depth2.DepthWriteEnable, Is.EqualTo(depth1.DepthWriteEnable));
@@ -209,16 +209,9 @@ namespace Tests
                     Assert.That(depth2.BackStencilFailOp, Is.EqualTo(depth1.BackStencilFailOp));
                     Assert.That(depth2.BackStencilDepthFailOp, Is.EqualTo(depth1.BackStencilDepthFailOp));
 
-                    // These are no longer stored in KV3
-                    Assert.That(depth2.HiZEnable360, Is.EqualTo(depth1.HiZEnable360));
-                    Assert.That(depth2.HiZWriteEnable360, Is.EqualTo(depth1.HiZWriteEnable360));
-                    Assert.That(depth2.HiStencilEnable360, Is.EqualTo(depth1.HiStencilEnable360));
-                    Assert.That(depth2.HiStencilWriteEnable360, Is.EqualTo(depth1.HiStencilWriteEnable360));
-                    Assert.That(depth2.HiStencilFunc360, Is.EqualTo(depth1.HiStencilFunc360));
-                    Assert.That(depth2.HiStencilRef360, Is.EqualTo(depth1.HiStencilRef360));
 
-                    var raster1 = psRenderState1.RasterizerStateDesc!;
-                    var raster2 = psRenderState2.RasterizerStateDesc!;
+                    var raster1 = psRenderState1.RasterizerStateDesc!.Value;
+                    var raster2 = psRenderState2.RasterizerStateDesc!.Value;
                     Assert.That(raster2.FillMode, Is.EqualTo(raster1.FillMode));
                     Assert.That(raster2.CullMode, Is.EqualTo(raster1.CullMode));
                     Assert.That(raster2.DepthClipEnable, Is.EqualTo(raster1.DepthClipEnable));
@@ -227,13 +220,13 @@ namespace Tests
                     Assert.That(raster2.DepthBiasClamp, Is.EqualTo(raster1.DepthBiasClamp));
                     Assert.That(raster2.SlopeScaledDepthBias, Is.EqualTo(raster1.SlopeScaledDepthBias));
 
-                    var blend1 = psRenderState1.BlendStateDesc!;
-                    var blend2 = psRenderState2.BlendStateDesc!;
+                    var blend1 = psRenderState1.BlendStateDesc!.Value;
+                    var blend2 = psRenderState2.BlendStateDesc!.Value;
 
                     Assert.That(blend2.AlphaToCoverageEnable, Is.EqualTo(blend1.AlphaToCoverageEnable));
                     Assert.That(blend2.IndependentBlendEnable, Is.EqualTo(blend1.IndependentBlendEnable));
 
-                    for (var t = 0; t < VfxRenderStateInfoPixelShader.RsBlendStateDesc.MaxRenderTargets; t++)
+                    for (var t = 0; t < RsBlendStateDesc.MaxRenderTargets; t++)
                     {
                         Assert.That(blend2.BlendEnable[t], Is.EqualTo(blend1.BlendEnable[t]));
                         Assert.That(blend2.SrcBlend[t], Is.EqualTo(blend1.SrcBlend[t]));
@@ -402,8 +395,8 @@ namespace Tests
         [Test]
         public void VfxShaderExtract_RenderStateEnumNames()
         {
-            var colorWriteEnable = typeof(VfxRenderStateInfoPixelShader.RsBlendStateDesc.RsColorWriteEnableBits);
-            var cullMode = typeof(VfxRenderStateInfoPixelShader.RsRasterizerStateDesc.RsCullMode);
+            var colorWriteEnable = typeof(RsColorWriteEnableBits);
+            var cullMode = typeof(RsCullMode);
 
             using (Assert.EnterMultipleScope())
             {
@@ -539,7 +532,7 @@ namespace Tests
         public void TestDepthStencilStateBitLayouts()
         {
             // Depth test+write with LessEqual, stencil disabled with Always funcs and full masks. The bit layout changed in version 71.
-            var v71 = new VfxRenderStateInfoPixelShader.RsDepthStencilStateDesc(0xFFFF00000077000FUL, 71);
+            var v71 = new RsDepthStencilStateDesc(0xFFFF00000077000FUL, 71);
 
             using (Assert.EnterMultipleScope())
             {
@@ -554,7 +547,7 @@ namespace Tests
             }
 
             // Value from vcs70 and older: depth disabled, LessEqual, Always funcs.
-            var v70 = new VfxRenderStateInfoPixelShader.RsDepthStencilStateDesc(0xFFFF01C01C000300UL, 70);
+            var v70 = new RsDepthStencilStateDesc(0xFFFF01C01C000300UL, 70);
 
             using (Assert.EnterMultipleScope())
             {

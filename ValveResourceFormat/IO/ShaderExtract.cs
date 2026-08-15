@@ -1228,8 +1228,8 @@ public sealed class ShaderExtract
     static readonly Dictionary<string, Type> RenderStateEnumSource = new()
     {
         // RsRasterizerStateDesc
-        ["FillMode"] = typeof(VfxRenderStateInfoPixelShader.RsRasterizerStateDesc.RsFillMode),
-        ["CullMode"] = typeof(VfxRenderStateInfoPixelShader.RsRasterizerStateDesc.RsCullMode),
+        ["FillMode"] = typeof(RsFillMode),
+        ["CullMode"] = typeof(RsCullMode),
         ["DepthClipEnable"] = typeof(VfxBool),
         ["MultisampleEnable"] = typeof(VfxBool),
 
@@ -1239,26 +1239,26 @@ public sealed class ShaderExtract
         ["DepthWriteEnable"] = typeof(VfxBool),
         ["StencilEnable"] = typeof(VfxBool),
         ["StencilFunc"] = typeof(RsComparison),
-        ["StencilFailOp"] = typeof(VfxRenderStateInfoPixelShader.RsDepthStencilStateDesc.RsStencilOp),
-        ["StencilDepthFailOp"] = typeof(VfxRenderStateInfoPixelShader.RsDepthStencilStateDesc.RsStencilOp),
-        ["StencilPassOp"] = typeof(VfxRenderStateInfoPixelShader.RsDepthStencilStateDesc.RsStencilOp),
+        ["StencilFailOp"] = typeof(RsStencilOp),
+        ["StencilDepthFailOp"] = typeof(RsStencilOp),
+        ["StencilPassOp"] = typeof(RsStencilOp),
         ["BackStencilFunc"] = typeof(RsComparison),
-        ["BackStencilFailOp"] = typeof(VfxRenderStateInfoPixelShader.RsDepthStencilStateDesc.RsStencilOp),
-        ["BackStencilDepthFailOp"] = typeof(VfxRenderStateInfoPixelShader.RsDepthStencilStateDesc.RsStencilOp),
-        ["BackStencilPassOp"] = typeof(VfxRenderStateInfoPixelShader.RsDepthStencilStateDesc.RsStencilOp),
+        ["BackStencilFailOp"] = typeof(RsStencilOp),
+        ["BackStencilDepthFailOp"] = typeof(RsStencilOp),
+        ["BackStencilPassOp"] = typeof(RsStencilOp),
 
         // RsBlendStateDesc
         ["AlphaToCoverageEnable"] = typeof(VfxBool),
         ["IndependentBlendEnable"] = typeof(VfxBool),
         ["SrgbWriteEnable"] = typeof(VfxBool),
         ["BlendEnable"] = typeof(VfxBool),
-        ["SrcBlend"] = typeof(VfxRenderStateInfoPixelShader.RsBlendStateDesc.RsBlendMode),
-        ["BlendOp"] = typeof(VfxRenderStateInfoPixelShader.RsBlendStateDesc.RsBlendOp),
-        ["SrcBlendAlpha"] = typeof(VfxRenderStateInfoPixelShader.RsBlendStateDesc.RsBlendMode),
-        ["BlendOpAlpha"] = typeof(VfxRenderStateInfoPixelShader.RsBlendStateDesc.RsBlendOp),
-        ["DstBlendAlpha"] = typeof(VfxRenderStateInfoPixelShader.RsBlendStateDesc.RsBlendMode),
-        ["DstBlend"] = typeof(VfxRenderStateInfoPixelShader.RsBlendStateDesc.RsBlendMode),
-        ["ColorWriteEnable"] = typeof(VfxRenderStateInfoPixelShader.RsBlendStateDesc.RsColorWriteEnableBits),
+        ["SrcBlend"] = typeof(RsBlendMode),
+        ["BlendOp"] = typeof(RsBlendOp),
+        ["SrcBlendAlpha"] = typeof(RsBlendMode),
+        ["BlendOpAlpha"] = typeof(RsBlendOp),
+        ["DstBlendAlpha"] = typeof(RsBlendMode),
+        ["DstBlend"] = typeof(RsBlendMode),
+        ["ColorWriteEnable"] = typeof(RsColorWriteEnableBits),
 
         // Alpha test states are not part of the render state descriptors
         ["AlphaTestEnable"] = typeof(VfxBool),
