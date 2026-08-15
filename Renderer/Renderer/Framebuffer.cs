@@ -382,7 +382,7 @@ public class Framebuffer
     /// <summary>
     /// Changes the attachment formats and recreates the GPU attachments at the current dimensions.
     /// </summary>
-    public void ChangeFormat(AttachmentFormat? colorFormat, DepthAttachmentFormat? depthFormat, FramebufferAttachment? framebufferAttachment = null)
+    public void ChangeFormat(AttachmentFormat? colorFormat, DepthAttachmentFormat? depthFormat)
     {
         ColorFormat = colorFormat;
         DepthFormat = depthFormat;
