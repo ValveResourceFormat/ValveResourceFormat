@@ -171,7 +171,7 @@ public class GLTextureDecoder : IHardwareTextureDecoder, IDisposable
 
         var framebufferFormat = request.Bitmap.ColorType switch
         {
-            HdrBitmapColorType => HDRFormat,
+            HdrBitmapColorType => (ImageFormat?)HDRFormat,
             DefaultBitmapColorType => LDRFormat,
             _ => null,
         };
@@ -229,7 +229,9 @@ public class GLTextureDecoder : IHardwareTextureDecoder, IDisposable
         inputTexture.Delete();
 
         var pixels = request.Bitmap.GetPixels(out var outputLength);
-        var fbBytesPerPixel = Framebuffer.ColorFormat.PixelType == PixelType.Float ? 16 : 4;
+        var isHdr = Framebuffer.ColorFormat == ImageFormat.RGBA32323232F;
+        var readFormat = MaterialLoader.GetImageExportFormat(isHdr);
+        var fbBytesPerPixel = isHdr ? 16 : 4;
         var fbRegionLength = request.Bitmap.Width * request.Bitmap.Height * fbBytesPerPixel;
 
         if (fbRegionLength > outputLength)
@@ -244,7 +246,7 @@ public class GLTextureDecoder : IHardwareTextureDecoder, IDisposable
         GL.ReadPixels(
             0, 0,
             request.Bitmap.Width, request.Bitmap.Height,
-            Framebuffer.ColorFormat.PixelFormat, Framebuffer.ColorFormat.PixelType,
+            readFormat.ToGLPixelFormat(), readFormat.ToGLPixelType(),
             pixels
         );
 
@@ -290,15 +292,11 @@ public class GLTextureDecoder : IHardwareTextureDecoder, IDisposable
         }
     }
 
-    public static readonly Framebuffer.AttachmentFormat LDRFormat = CreateFramebufferFormat(hdr: false);
-    public static readonly Framebuffer.AttachmentFormat HDRFormat = CreateFramebufferFormat(hdr: true);
+    public static ImageFormat LDRFormat => GetPreferredFramebufferFormat(hdr: false);
+    public static ImageFormat HDRFormat => GetPreferredFramebufferFormat(hdr: true);
 
-    private static Framebuffer.AttachmentFormat CreateFramebufferFormat(bool hdr)
-    {
-        var (internalFormat, pixelFormat, pixelType) = MaterialLoader.GetImageExportFormat(hdr);
-
-        return new((PixelInternalFormat)internalFormat, pixelFormat, pixelType);
-    }
+    public static ImageFormat GetPreferredFramebufferFormat(bool hdr)
+        => hdr ? ImageFormat.RGBA32323232F : ImageFormat.RGBA8888;
 
     public static string GetTextureTypeDefine(TextureTarget target) => target switch
     {

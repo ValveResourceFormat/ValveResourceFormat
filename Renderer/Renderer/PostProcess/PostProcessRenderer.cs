@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using OpenTK.Graphics.OpenGL;
+using ValveResourceFormat.CompiledShader;
 using ValveResourceFormat.Renderer.SceneEnvironment;
 using ValveResourceFormat.Renderer.World;
 
@@ -75,7 +76,7 @@ namespace ValveResourceFormat.Renderer.PostProcess
         public DOFRenderer DOF { get; private set; }
 
         /// <summary>Gets the HDR color attachment format used by post-process framebuffers.</summary>
-        public static Framebuffer.AttachmentFormat DefaultColorFormat => new(PixelInternalFormat.Rgba16f, PixelFormat.Rgba, PixelType.Float);
+        public static ImageFormat DefaultColorFormat => ImageFormat.RGBA16161616F;
 
         /// <summary>
         /// Initializes a new <see cref="PostProcessRenderer"/> using the given renderer context.

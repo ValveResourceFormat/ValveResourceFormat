@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using OpenTK.Graphics.OpenGL;
 using OpenTK.Mathematics;
+using ValveResourceFormat.CompiledShader;
 
 namespace ValveResourceFormat.Renderer;
 
@@ -56,14 +57,14 @@ public class Framebuffer
 
     // Maybe these can be in texture
     /// <summary>
-    /// Pixel format specification for the color attachment.
+    /// Pixel format of the color attachment.
     /// </summary>
-    public AttachmentFormat? ColorFormat { get; protected set; }
+    public ImageFormat? ColorFormat { get; protected set; }
 
     /// <summary>
-    /// Pixel format specification for the depth attachment.
+    /// Pixel format of the depth attachment.
     /// </summary>
-    public DepthAttachmentFormat? DepthFormat { get; protected set; }
+    public ImageFormat? DepthFormat { get; protected set; }
 
     /// <summary>
     /// Framebuffer completeness status set after <see cref="Initialize"/> is called.
@@ -167,40 +168,6 @@ public class Framebuffer
     #endregion
 
     /// <summary>
-    /// Color attachment pixel format and type specification.
-    /// </summary>
-    public record class AttachmentFormat(PixelInternalFormat InternalFormat, PixelFormat PixelFormat, PixelType PixelType);
-
-    /// <summary>
-    /// Depth attachment pixel format and type specification.
-    /// </summary>
-    public record class DepthAttachmentFormat(PixelInternalFormat InternalFormat, PixelType PixelType)
-    {
-        /// <summary>
-        /// 16-bit unsigned integer depth format.
-        /// </summary>
-        public static readonly DepthAttachmentFormat Depth16 = new(PixelInternalFormat.DepthComponent16, PixelType.UnsignedShort);
-
-        /// <summary>
-        /// 32-bit floating-point depth format.
-        /// </summary>
-        public static readonly DepthAttachmentFormat Depth32F = new(PixelInternalFormat.DepthComponent32f, PixelType.Float);
-
-        /// <summary>
-        /// Implicitly converts this depth format to a generic <see cref="AttachmentFormat"/>.
-        /// </summary>
-        public static implicit operator AttachmentFormat(DepthAttachmentFormat depthFormat) => depthFormat.ToAttachmentFormat();
-
-        /// <summary>
-        /// Converts this depth format to a generic <see cref="AttachmentFormat"/>.
-        /// </summary>
-        public AttachmentFormat ToAttachmentFormat()
-        {
-            return new(InternalFormat, PixelFormat.DepthComponent, PixelType);
-        }
-    }
-
-    /// <summary>
     /// Creates and configures a framebuffer without allocating GPU attachments; call <see cref="Initialize"/> to allocate.
     /// </summary>
     /// <param name="name">Debug label for the framebuffer.</param>
@@ -209,7 +176,7 @@ public class Framebuffer
     /// <param name="msaa">Number of MSAA samples; 0 disables multisampling.</param>
     /// <param name="colorFormat">Color attachment format, or <see langword="null"/> for depth-only.</param>
     /// <param name="depthFormat">Depth attachment format, or <see langword="null"/> for color-only.</param>
-    public static Framebuffer Prepare(string name, int width, int height, int msaa, AttachmentFormat? colorFormat, DepthAttachmentFormat? depthFormat)
+    public static Framebuffer Prepare(string name, int width, int height, int msaa, ImageFormat? colorFormat, ImageFormat? depthFormat)
     {
         var fbo = new Framebuffer(name)
         {
@@ -312,18 +279,18 @@ public class Framebuffer
 
         var (width, height) = (Width, Height);
 
-        if (ColorFormat != null)
+        if (ColorFormat is { } colorFormat)
         {
-            Color = CreateAttachment(ColorFormat, width, height, NumMips);
+            Color = CreateAttachment(colorFormat, width, height, NumMips);
             Color.SetLabel("FramebufferColor");
             Color.AttachToFramebuffer(this, FramebufferAttachment.ColorAttachment0, 0);
 
             ApplyColorSamplerState();
         }
 
-        if (DepthFormat != null)
+        if (DepthFormat is { } depthFormat)
         {
-            Depth = CreateAttachment(DepthFormat, width, height);
+            Depth = CreateAttachment(depthFormat, width, height);
             Depth.SetLabel("FramebufferDepth");
             Depth.AttachToFramebuffer(this, FramebufferAttachment.DepthAttachment, 0);
 
@@ -338,7 +305,7 @@ public class Framebuffer
         }
     }
 
-    private RenderTexture CreateAttachment(AttachmentFormat format, int width, int height, int numMips = 1)
+    private RenderTexture CreateAttachment(ImageFormat format, int width, int height, int numMips = 1)
     {
         var attachment = new RenderTexture(Target, width, height, 1, numMips);
         var mipCount = Math.Min(RenderTexture.MaxMipCount(width, height), attachment.NumMipLevels);
@@ -350,16 +317,16 @@ public class Framebuffer
                 throw new InvalidOperationException("Multisample textures do not support mipmaps");
             }
 
-            GL.TextureStorage2DMultisample(attachment.Handle, NumSamples, (SizedInternalFormat)format.InternalFormat, width, height, fixedsamplelocations: true);
+            GL.TextureStorage2DMultisample(attachment.Handle, NumSamples, format.ToGLSizedInternalFormat(), width, height, fixedsamplelocations: true);
         }
         else
         {
-            GL.TextureStorage2D(attachment.Handle, mipCount, (SizedInternalFormat)format.InternalFormat, width, height);
+            GL.TextureStorage2D(attachment.Handle, mipCount, format.ToGLSizedInternalFormat(), width, height);
         }
 
         attachment.SetBaseMaxLevel(0, mipCount - 1);
 
-        if (Target != TextureTarget.Texture2DMultisample && IsIntegerFormat(format.PixelFormat))
+        if (Target != TextureTarget.Texture2DMultisample && !format.IsBlockCompressed() && IsIntegerFormat(format.ToGLPixelFormat()))
         {
             // Sampling an integer texture with the default linear filtering is undefined.
             attachment.SetFiltering(TextureMinFilter.Nearest, TextureMagFilter.Nearest);
@@ -382,7 +349,7 @@ public class Framebuffer
     /// <summary>
     /// Changes the attachment formats and recreates the GPU attachments at the current dimensions.
     /// </summary>
-    public void ChangeFormat(AttachmentFormat? colorFormat, DepthAttachmentFormat? depthFormat)
+    public void ChangeFormat(ImageFormat? colorFormat, ImageFormat? depthFormat)
     {
         ColorFormat = colorFormat;
         DepthFormat = depthFormat;

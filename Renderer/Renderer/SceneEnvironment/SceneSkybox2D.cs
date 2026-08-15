@@ -1,4 +1,5 @@
 using OpenTK.Graphics.OpenGL;
+using ValveResourceFormat.CompiledShader;
 
 namespace ValveResourceFormat.Renderer.SceneEnvironment
 {

@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using OpenTK.Graphics.OpenGL;
+using ValveResourceFormat.CompiledShader;
 using ValveResourceFormat.ResourceTypes;
 
 namespace ValveResourceFormat.Renderer
@@ -93,14 +94,14 @@ namespace ValveResourceFormat.Renderer
         /// <param name="format">Internal pixel format.</param>
         /// <param name="mips">When <see langword="true"/>, allocates a reduced mip chain (see <see cref="MaxMipCount"/>) rather than a single level.</param>
         /// <returns>The newly created render texture.</returns>
-        public static RenderTexture Create(int width, int height, SizedInternalFormat format = SizedInternalFormat.Rgba8, bool mips = false)
+        public static RenderTexture Create(int width, int height, ImageFormat format = ImageFormat.RGBA8888, bool mips = false)
         {
             var mipCount = mips
                 ? MaxMipCount(width, height)
                 : 1;
 
             var texture = new RenderTexture(TextureTarget.Texture2D, width, height, 1, mipCount);
-            GL.TextureStorage2D(texture.Handle, mipCount, format, width, height);
+            GL.TextureStorage2D(texture.Handle, mipCount, format.ToGLSizedInternalFormat(), width, height);
             return texture;
         }
 
@@ -110,11 +111,25 @@ namespace ValveResourceFormat.Renderer
         /// <param name="format">Internal pixel format.</param>
         /// <param name="mipCount">Number of mip levels to allocate.</param>
         /// <returns>The newly created render texture.</returns>
-        public static RenderTexture Create(int width, int height, SizedInternalFormat format, int mipCount)
+        public static RenderTexture Create(int width, int height, ImageFormat format, int mipCount)
         {
             var texture = new RenderTexture(TextureTarget.Texture2D, width, height, 1, mipCount);
-            GL.TextureStorage2D(texture.Handle, mipCount, format, width, height);
+            GL.TextureStorage2D(texture.Handle, mipCount, format.ToGLSizedInternalFormat(), width, height);
             return texture;
+        }
+
+        /// <summary>Creates a texture view that reinterprets a subrange of this texture's storage.</summary>
+        /// <param name="format">The reinterpreted pixel format for the view.</param>
+        /// <param name="minLevel">First mip level visible through the view.</param>
+        /// <param name="numLevels">Number of mip levels visible through the view.</param>
+        /// <param name="minLayer">First array layer visible through the view.</param>
+        /// <param name="numLayers">Number of array layers visible through the view.</param>
+        /// <returns>A new <see cref="RenderTexture"/> wrapping the view.</returns>
+        public RenderTexture CreateView(ImageFormat format, int minLevel = 0, int numLevels = 1, int minLayer = 0, int numLayers = 1)
+        {
+            var view = new RenderTexture(GL.GenTexture(), Target);
+            GL.TextureView(view.Handle, Target, Handle, (PixelInternalFormat)format.ToGLSizedInternalFormat(), minLevel, numLevels, minLayer, numLayers);
+            return view;
         }
 
         /// <summary>Sets the wrap mode for all relevant texture dimensions.</summary>

@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.Runtime.InteropServices;
 using OpenTK.Graphics.OpenGL;
 using OpenTK.Mathematics;
+using ValveResourceFormat.CompiledShader;
 
 namespace ValveResourceFormat.Renderer;
 
@@ -91,8 +92,8 @@ public class PickingTexture : Framebuffer
         DebugShader = rendererContext.ShaderLoader.LoadShader("picking", ("F_DEBUG_PICKER", 1));
         OnPicked += onPicked;
 
-        ColorFormat = new(PixelInternalFormat.Rgba32ui, PixelFormat.RgbaInteger, PixelType.UnsignedInt);
-        DepthFormat = DepthAttachmentFormat.Depth32F;
+        ColorFormat = ImageFormat.RGBA32323232_UINT;
+        DepthFormat = ImageFormat.D32;
         Target = TextureTarget.Texture2D;
         ClearColor = Color4.Black;
 
@@ -150,7 +151,7 @@ public class PickingTexture : Framebuffer
         Debug.Assert(ColorFormat is not null);
 
         GL.NamedFramebufferReadBuffer(FboHandle, ReadBufferMode.ColorAttachment0);
-        GL.ReadPixels(width, height, 1, 1, ColorFormat.PixelFormat, ColorFormat.PixelType, ref pixelInfo);
+        GL.ReadPixels(width, height, 1, 1, ColorFormat!.Value.ToGLPixelFormat(), ColorFormat.Value.ToGLPixelType(), ref pixelInfo);
         GL.NamedFramebufferReadBuffer(FboHandle, ReadBufferMode.None);
 
         return pixelInfo;
