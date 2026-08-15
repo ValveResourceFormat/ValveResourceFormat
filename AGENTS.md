@@ -7,6 +7,7 @@ ValveResourceFormat (VRF) is a C# library and toolset for parsing Valve's Source
 - **Renderer/** - OpenGL rendering engine for Source 2 assets.
   - Shaders use `.slang` extension (`.frag.slang`, `.vert.slang`) with GLSL syntax.
   - Shader files must only contain ASCII characters.
+  - After changing shaders, run `dotnet run --project Misc/ShaderValidator -- <name filter>` to compile them (and their combos) on a real GL context.
 - **Tests/** - NUnit test suite for the ValveResourceFormat library.
   - Only run tests when changing code in `ValveResourceFormat/`. Other projects are not covered.
   - Run with `dotnet test` - tests are fast, no need to filter.

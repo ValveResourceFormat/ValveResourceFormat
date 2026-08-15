@@ -177,7 +177,6 @@ internal static class AnimGraphHues
 
         "CBlendUpdateNode" or "CDirectionalBlendUpdateNode"
             or "CBlend2DUpdateNode" => AnimGraphCategory.Blend,
-        
 
         "CAddUpdateNode" or "CSubtractUpdateNode" => AnimGraphCategory.Additive,
         "CBoneMaskUpdateNode" => AnimGraphCategory.BoneMask,
@@ -267,7 +266,6 @@ internal static class AnimGraphHues
 
             "Blend1D" or "Blend2D" or "ParameterizedBlend" or "VelocityBlend"
                 or "BoneMaskBlend" => AnimGraphCategory.Blend,
-            
 
             "LayerBlend" or "_LayerDefinition_" => AnimGraphCategory.Additive,
 
