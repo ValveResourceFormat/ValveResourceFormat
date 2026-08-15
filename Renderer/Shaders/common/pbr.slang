@@ -103,6 +103,11 @@ vec3 GetRetroReflectiveNormal(float retroReflectivity, vec3 L, vec3 V, vec3 N, v
 }
 
 uniform int F_CLOTH_SHADING; // csgo_character, csgo_complex, csgo_customglove, csgo_textile_layer, vr_complex
+
+#if (GameVfx_vr_skin != 0)
+    uniform float g_flSecondSpecularLobeGlossiness = 0.423;
+    uniform float g_flSecondSpecularLobeRatio = 0.021;
+#endif
 #if (subsurface)
     uniform sampler2D g_tDiffuseFalloff; // SrgbRead(true)
     uniform float g_flCurvatureScale = 1.0;
@@ -154,7 +159,7 @@ vec3 specularLighting(vec3 lightVector, vec3 normal, MaterialProperties_t mat, f
 
     if (F_RETRO_REFLECTIVE == 1)
     {
-        normal = GetRetroReflectiveNormal(mat.ExtraParams.r, lightVector, mat.ViewDir, normal, halfVector);
+        normal = GetRetroReflectiveNormal(mat.RetroReflectivity, lightVector, mat.ViewDir, normal, halfVector);
     }
 
 	float NoH = saturate(dot(normal, halfVector));
@@ -173,6 +178,14 @@ vec3 specularLighting(vec3 lightVector, vec3 normal, MaterialProperties_t mat, f
 #endif
 	vec3 F = F_Schlick(VoH, mat.SpecularColor);
     float ndfVis = NDF * Vis;
+
+#if (GameVfx_vr_skin != 0)
+    float flSecondPerceptualRoughness = mat.IsometricRoughness * g_flSecondSpecularLobeGlossiness;
+    float flSecondRoughness = max(pow2(flSecondPerceptualRoughness), MIN_GGX_ALPHA);
+    float flSecondNdfVis = D_GGX(NoH, flSecondRoughness) * G_SchlickSmithGGX(NoL, NoV, flSecondPerceptualRoughness);
+
+    ndfVis = mix(ndfVis, flSecondNdfVis, g_flSecondSpecularLobeRatio);
+#endif
 
     if (F_CLOTH_SHADING == 1)
     {
@@ -249,7 +262,11 @@ vec3 GetSubsurfaceDiffuse(MaterialProperties_t mat, vec3 lightVector, vec3 diffu
 
     flCurvature = RemapValClamped(flCurvature, SSS_CURVATURE_MIN, SSS_CURVATURE_MAX, 0.0, 1.0);
 
-    vec3 vSoftNormal = normalize(mat.Tangent * mat.NormalMap.x - mat.Bitangent * mat.NormalMap.y + mat.GeometricNormal * mat.NormalMap.z);
+    #if (GameVfx_vr_skin != 0)
+        vec3 vSoftNormal = mat.SoftNormal;
+    #else
+        vec3 vSoftNormal = normalize(mat.Tangent * mat.NormalMap.x - mat.Bitangent * mat.NormalMap.y + mat.GeometricNormal * mat.NormalMap.z);
+    #endif
 
     float flSoftNoL = dot(vSoftNormal, lightVector);
 

@@ -46,6 +46,7 @@ struct MaterialProperties_t
     float Metalness;
     vec3 Normal;
     vec3 NormalMap;
+    vec3 SoftNormal;
     vec2 Roughness;
     float IsometricRoughness;
     vec2 RoughnessTex;
@@ -53,9 +54,12 @@ struct MaterialProperties_t
     float Height;
     vec3 DiffuseAO; // vec3 because Diffuse AO can be tinted
     float SpecularAO;
-    vec4 ExtraParams;
-    float ClothMask;
+    float RetroReflectivity;
     float SSSMask;
+    float MouthMask;
+    float WaterEdgeBlend;
+    float WaterColumnDepth;
+    float ClothMask;
 
     // Sheen lobe, layered over the specular. Zero roughness disables it.
     vec3 SheenColor;
@@ -94,6 +98,7 @@ void InitProperties(out MaterialProperties_t mat, vec3 GeometricNormal, vec3 Pos
     mat.Metalness = 0.0;
     mat.Normal = vec3(0.0);
     mat.NormalMap = vec3(0, 0, 1);
+    mat.SoftNormal = vec3(0, 0, 1);
 
     mat.Roughness = vec2(0.0);
     mat.IsometricRoughness = 0.0;
@@ -103,9 +108,12 @@ void InitProperties(out MaterialProperties_t mat, vec3 GeometricNormal, vec3 Pos
     mat.DiffuseAO = vec3(1.0);
     mat.SpecularAO = 1.0;
     // r = retro reflectivity, g = misc, b = misc, a = misc/rimmask?
-    mat.ExtraParams = vec4(0.0);
-    mat.ClothMask = 0.0;
+    mat.RetroReflectivity = 0.0;
     mat.SSSMask = 0.0;
+    mat.MouthMask = 0.0;
+    mat.WaterEdgeBlend = 0.0;
+    mat.WaterColumnDepth = 0.0;
+    mat.ClothMask = 0.0;
     mat.SheenColor = vec3(0.0);
     mat.SheenRoughness = 0.0;
 
@@ -450,7 +458,7 @@ bool HandleMaterialRenderModes(inout vec4 outputColor, MaterialProperties_t mat)
             outputColor.rgb = mat.Height.xxx;
             return true;
         case renderMode_ExtraParams:
-            outputColor.rgb = mat.ExtraParams.rgb;
+            outputColor.rgb = vec3(max(mat.RetroReflectivity, mat.WaterEdgeBlend), mat.WaterColumnDepth, mat.SSSMask);
             return true;
         default:
             return false;

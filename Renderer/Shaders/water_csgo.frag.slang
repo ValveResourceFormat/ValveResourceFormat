@@ -898,8 +898,8 @@ void main()
     if (g_iRenderMode != 0)
     {
         // for debug vis
-        mat.ExtraParams.r = 1.0 - flEdgeBlend;
-        mat.ExtraParams.g = adjustedWaterColumnDepth;
+        mat.WaterEdgeBlend = 1.0 - flEdgeBlend;
+        mat.WaterColumnDepth = adjustedWaterColumnDepth;
         lighting.SpecularIndirect = finalReflectionColor * returnColorMixFac;
 
         if (!HandleMaterialRenderModes(outputColor, mat)
