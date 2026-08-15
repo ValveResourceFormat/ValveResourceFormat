@@ -253,8 +253,6 @@ void CalculateDirectLighting(inout LightingTerms_t lighting, inout MaterialPrope
 uniform float g_flDirectionalLightmapStrength = 1.0;
 uniform float g_flDirectionalLightmapMinZ = 0.05;
 
-// Read out of csgo_character's pixel shader. Deliberately not 254/255, which is the value the
-// expression here used to be written as.
 const float colorSpaceMul = 0.996190845966339111328125;
 
 // I don't actually understand much of this, but it's Valve's code.
@@ -269,10 +267,6 @@ vec3 ComputeLightmapShading(vec3 irradianceColor, vec4 irradianceDirection, Mate
         float sinTheta = dot(vTangentSpaceXY, vTangentSpaceXY);
         float cosTheta = sqrt(1.0 - sinTheta);
 
-        // Flat surfaces get the light vector tipped: Z is pulled down where the light already sits
-        // overhead and pushed up where it grazes, which spreads an otherwise flat lightmap texel
-        // across the normal map. Curvature is how fast the geometric normal turns per world unit,
-        // so the tipping fades out over anything visibly curved and leaves silhouettes alone.
         float flCurvature = GetCurvature(mat.GeometricNormal, mat.PositionWS);
         float flFlatness = smoothstep(0.1, 0.01, flCurvature) * 0.8;
         float flZScale = mix(1.0, mix(0.1, 2.0, saturate((1.0 - cosTheta) * 1.5)), flFlatness);

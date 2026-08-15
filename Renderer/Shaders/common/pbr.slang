@@ -105,9 +105,6 @@ vec3 GetRetroReflectiveNormal(float retroReflectivity, vec3 L, vec3 V, vec3 N, v
 uniform int F_CLOTH_SHADING; // csgo_character, csgo_complex, csgo_customglove, csgo_textile_layer, vr_complex
 uniform int F_SUBSURFACE_SCATTERING; // csgo_character, vr_skin
 
-// Preintegrated skin. Indexed by NdotL across and curvature down, storing a signed correction to the
-// diffuse term rather than the term itself. Authored per material (TextureDiffuseFalloff, suffix
-// "diffusewarp"), not engine supplied - CS2 ships one for skin and others for fleece and cake icing.
 uniform sampler2D g_tDiffuseFalloff; // SrgbRead(true)
 uniform vec3 g_vNormalSoftness = vec3(0.0);
 uniform float g_flCurvatureScale = 1.0;
@@ -129,23 +126,16 @@ vec4 SampleBrdfLut(float roughness, float NdotV, float layer)
 float D_Charlie(float roughness, float NoH)
 {
     float invRough = 1.0 / roughness;
-    // csgo_character leaves the base unclamped. The 2^-7 floor is kept: it stops the pow running at
-    // exactly zero with an exponent that reaches into the thousands as roughness approaches its own
-    // minimum, and only moves the result where the lobe has already fallen to nothing.
     return (invRough + 2.0) * pow(max(1.0 - pow2(NoH), 0.0078125), invRough * 0.5) / TAU;
 }
 
 // Clamped to 1 (Filament, Deadlock). Unclamped it runs away to ~65000
-// where NoL and NoV both approach zero. csgo_character instead biases NoV by +0.001; this guard is
-// kept because it bounds the same blow-up without pushing NoV off its true value.
+// where NoL and NoV both approach zero.
 float V_Neubelt(float NoL, float NoV)
 {
     return saturate(1.0 / max(4.0 * (NoL + NoV - NoL * NoV), 0.00001532));
 }
 
-// csgo_character folds D_Charlie * V_Neubelt down to a single 1/8. D_Charlie's 1/TAU and
-// V_Neubelt's 1/4 above come to 1/(8*PI) against that, so the cloth lobe scales by PI to land on
-// Valve's constant. The sheen lobe keeps Filament's normalisation and is not scaled.
 #define CLOTH_ENERGY_SCALE PI
 
 // Still pass normal due to some effects modifying normal per light
@@ -181,8 +171,6 @@ vec3 specularLighting(vec3 lightVector, vec3 normal, MaterialProperties_t mat, f
     {
         float ClothNDF = D_Charlie(roughness, NoH);
         float ClothVis = V_Neubelt(NoL, NoV);
-        // NoL twice on purpose: the cloth lobe carries one inside the blend and the shared multiply
-        // below applies another. Both of csgo_character's light loops emit it that way.
         ndfVis = mix(ndfVis, ClothNDF * ClothVis * CLOTH_ENERGY_SCALE * NoL, mat.ClothMask);
     }
 
@@ -222,10 +210,6 @@ float GetSheenAlbedoScaling(MaterialProperties_t mat, vec3 lightVector)
     return ClampToPositive(1.0 - sheenMax * directionalAlbedo);
 }
 
-// What a single GGX bounce loses to multiple scattering, put back on the direct specular. Estimated
-// from roughness and NoV rather than read out of the table, so it costs nothing to evaluate; it runs
-// once over the accumulated direct specular rather than per light. Cloth has no GGX lobe to
-// compensate, so the mask takes it back to 1.
 vec3 GetSpecularEnergyCompensation(MaterialProperties_t mat)
 {
     float flRoughnessSum = mat.Roughness.x + mat.Roughness.y;
@@ -241,28 +225,14 @@ vec3 GetSpecularEnergyCompensation(MaterialProperties_t mat)
     return vCompensation;
 }
 
-// Preintegrated skin, evaluated per light. Light that enters the surface and leaves somewhere else is
-// approximated two ways at once: the shading normal is softened per channel, so red - which scatters
-// furthest - is lit by the flattest normal, and the falloff table adds back the light that wraps past
-// the terminator. Both the scatter amount and the table's NdotL axis are read against the soft
-// normal, not the shading normal.
 vec3 GetSubsurfaceDiffuse(MaterialProperties_t mat, vec3 lightVector, vec3 diffuseLight)
 {
-    // Onto the table's V axis. Both constants are read straight out of csgo_character; they work out
-    // to a curvature range of roughly [0.025, 2.54], and are not a half texel inset of the 512 tall
-    // table, so do not "correct" them to one.
     float flCurvature = (GetCurvature(mat.GeometricNormal, mat.PositionWS) * g_flCurvatureScale) * 0.3976777493953704833984375 - 0.0101010091602802276611328125;
 
-    // The soft end of the blend is the same normal map with its bitangent term negated, so raising
-    // softness flattens the normal along the bitangent rather than fading toward the geometric
-    // normal. That is what csgo_character blends toward - it builds the vector from the one
-    // g_tNormal sample twice, differing only in the sign of tangent space Y.
     vec3 vSoftNormal = normalize(mat.Tangent * mat.NormalMap.x - mat.Bitangent * mat.NormalMap.y + mat.GeometricNormal * mat.NormalMap.z);
 
     float flSoftNoL = dot(vSoftNormal, lightVector);
 
-    // Facing away from the light the shading normal is given up entirely, which is what rounds off
-    // the terminator; facing into it, each channel keeps whatever softness the material asked for.
     vec3 vScatter = saturate(vec3(1.0) - vec3(flSoftNoL));
     vScatter *= vScatter;
 

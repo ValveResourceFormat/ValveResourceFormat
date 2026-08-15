@@ -135,9 +135,6 @@ struct EnvBRDF_t
     vec3 MultiScatter;  // FmsEms, lit by the irradiance rather than the cube map
 };
 
-// The NDF takes NoH and the visibility takes (NoL, NoV); the ambient case fixes NoL at 1.
-// csgo_character's pixel shader evaluates pow(1 - NoH*NoH, 0.5/alpha) over the half vector and
-// leaves the Neubelt denominator as (1 + NoV) - NoV, which is that substitution written out.
 float EnvBRDFCloth(float perceptualRoughness, vec3 N, vec3 V)
 {
     float NoV = dot(N, V);
@@ -155,8 +152,6 @@ EnvBRDF_t EnvBRDF(vec3 specColor, float perceptualRoughness, vec3 N, vec3 V, flo
 
     if (F_CLOTH_SHADING == 1)
     {
-        // Cloth replaces the split sum lobe before the multiple scattering term feeds off it, and
-        // takes the specular colour the same way the GGX lobe does.
         brdf.SingleScatter = mix(brdf.SingleScatter, specColor * EnvBRDFCloth(perceptualRoughness, N, V), clothMask);
     }
 
@@ -168,7 +163,6 @@ EnvBRDF_t EnvBRDF(vec3 specColor, float perceptualRoughness, vec3 N, vec3 V, flo
 
     if (F_CLOTH_SHADING == 1)
     {
-        // Cloth takes no multiple scattering.
         brdf.MultiScatter *= 1.0 - clothMask;
     }
 
@@ -212,8 +206,6 @@ vec3 GetEnvironmentNoBRDF(MaterialProperties_t mat, float reflectionCorrectionAm
         mat.IsometricRoughness = 0.0;
     }
 
-    // No cloth remap here: csgo_character's cloth mask never reaches the roughness or the env map
-    // LOD, only the BRDF lobes.
     float perceptualRoughness = saturate(mat.IsometricRoughness);
 
     // Reflection Vector
