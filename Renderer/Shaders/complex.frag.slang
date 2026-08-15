@@ -154,6 +154,7 @@ uniform sampler2D g_tTintMask;
     uniform sampler2D g_tCombinedMasks;
     uniform vec3 g_vTransmissionColor = vec3(0.74902, 0.231373, 0.011765); // SrgbRead(true)
     uniform float g_flMouthInteriorBrightnessScale = 1.0;
+    uniform float g_flTransmissionFalloff = 1.8;
     uniform float g_flDiffuseNormalBlur = 0.5;
 #endif
 
@@ -162,6 +163,8 @@ uniform sampler2D g_tTintMask;
 #define _colorAlphaMetalness ((defined(simple_vfx_common) || defined(complex_vfx_common)) && (F_METALNESS_TEXTURE == 1))
 #define _colorAlphaAO ((GameVfx_vr_simple != 0) && (F_AMBIENT_OCCLUSION_TEXTURE == 1) && (F_METALNESS_TEXTURE == 0)) || (defined(simple_blend_common) && (F_ENABLE_AMBIENT_OCCLUSION == 1))
 #define subsurface ((F_SUBSURFACE_SCATTERING == 1) || (GameVfx_vr_skin != 0))
+#define subsurfaceSkin (GameVfx_vr_skin != 0)
+#define secondSpecularLobe (GameVfx_vr_skin != 0)
 #define _metalnessTexture (defined(complex_vfx_common) && (F_METALNESS_TEXTURE == 1) && ((F_ALPHA_TEST == 1) || (F_TRANSLUCENT == 1))) || (GameVfx_csgo_weapon != 0) || (GameVfx_csgo_character != 0) || (GameVfx_csgo_vertexlitgeneric != 0)
 #define _ambientOcclusionTexture (((GameVfx_vr_simple != 0) && (F_AMBIENT_OCCLUSION_TEXTURE == 1) && (F_METALNESS_TEXTURE == 1)) || defined(complex_vfx_common) || (GameVfx_csgo_foliage != 0) || (GameVfx_csgo_weapon != 0) || (GameVfx_csgo_character != 0) || defined(csgo_generic_vfx_common) || (GameVfx_csgo_simple_3layer_parallax != 0))
 
@@ -418,7 +421,7 @@ MaterialProperties_t GetMaterial(vec2 texCoord, vec3 vertexNormals)
         // r=MouthMask, g=AO, b=selfillum/tint mask, a=SSS/opacity
         vec4 combinedMasks = texture(g_tCombinedMasks, texCoord);
 
-        mat.MouthMask = combinedMasks.x; // Mouth Mask
+        mat.MouthMask = combinedMasks.x;
         mat.AmbientOcclusion = combinedMasks.y;
 
         #if (F_SELF_ILLUM == 1)

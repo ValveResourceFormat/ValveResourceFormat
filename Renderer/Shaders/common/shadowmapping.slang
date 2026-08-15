@@ -68,4 +68,28 @@ float CalculateSunShadowMapVisibility(vec3 vPosition)
     return 1.0;
 }
 
+// Should be a NoCmp depth read; the comparison sampler only answers "is the occluder nearer than this?".
+float CalculateSunShadowThickness(vec3 vPosition)
+{
+    vec4 projCoordsW = g_matWorldToShadow[0] * vec4(vPosition, 1.0);
+    vec3 projCoords = projCoordsW.xyz / projCoordsW.w;
+
+    vec2 shadowCoords = clamp(projCoords.xy * 0.5 + 0.5, vec2(-1), vec2(2));
+    float currentDepth = saturate(projCoords.z) + g_flSunShadowBias;
+
+    const int nThicknessSteps = 4;
+    const float flThicknessStep = 0.002;
+
+    float flThickness = 0.0;
+
+    for (int i = 1; i <= nThicknessSteps; ++i)
+    {
+        float flReference = currentDepth - flThicknessStep * float(i);
+        flThickness += textureGrad(g_tShadowDepthBufferDepth,
+            vec4(shadowCoords, 0.0, flReference), vec2(0.0), vec2(0.0));
+    }
+
+    return flThickness / float(nThicknessSteps);
+}
+
 #endif

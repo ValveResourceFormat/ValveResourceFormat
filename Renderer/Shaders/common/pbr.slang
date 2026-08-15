@@ -7,6 +7,7 @@
 #include "utils.slang"
 #include "texturing.slang"
 #include "lighting_common.slang"
+#include "shadowmapping.slang"
 
 // DIFFUSE LIGHTING
 
@@ -104,7 +105,7 @@ vec3 GetRetroReflectiveNormal(float retroReflectivity, vec3 L, vec3 V, vec3 N, v
 
 uniform int F_CLOTH_SHADING; // csgo_character, csgo_complex, csgo_customglove, csgo_textile_layer, vr_complex
 
-#if (GameVfx_vr_skin != 0)
+#if (secondSpecularLobe)
     uniform float g_flSecondSpecularLobeGlossiness = 0.423;
     uniform float g_flSecondSpecularLobeRatio = 0.021;
 #endif
@@ -112,7 +113,7 @@ uniform int F_CLOTH_SHADING; // csgo_character, csgo_complex, csgo_customglove, 
     uniform sampler2D g_tDiffuseFalloff; // SrgbRead(true)
     uniform float g_flCurvatureScale = 1.0;
 
-    #if (GameVfx_vr_skin != 0)
+    #if (subsurfaceSkin)
         uniform vec3 g_vAmbientNormalSoftness = vec3(0.0);
         #define NORMAL_SOFTNESS g_vAmbientNormalSoftness
     #else
@@ -179,7 +180,7 @@ vec3 specularLighting(vec3 lightVector, vec3 normal, MaterialProperties_t mat, f
 	vec3 F = F_Schlick(VoH, mat.SpecularColor);
     float ndfVis = NDF * Vis;
 
-#if (GameVfx_vr_skin != 0)
+#if (secondSpecularLobe)
     float flSecondPerceptualRoughness = mat.IsometricRoughness * g_flSecondSpecularLobeGlossiness;
     float flSecondRoughness = max(pow2(flSecondPerceptualRoughness), MIN_GGX_ALPHA);
     float flSecondNdfVis = D_GGX(NoH, flSecondRoughness) * G_SchlickSmithGGX(NoL, NoV, flSecondPerceptualRoughness);
@@ -246,11 +247,11 @@ vec3 GetSpecularEnergyCompensation(MaterialProperties_t mat)
 }
 
 #if (subsurface)
-const float SSS_CURVATURE_RADIUS_MAX = 39.37; // 1m
-const float SSS_CURVATURE_RADIUS_MIN = 0.3937; // 1cm
+const float SSS_CURVATURE_RADIUS_MIN_METRES = 0.01;
+const float SSS_CURVATURE_RADIUS_MAX_METRES = 1.0;
 
-const float SSS_CURVATURE_MIN = 1.0 / SSS_CURVATURE_RADIUS_MAX;
-const float SSS_CURVATURE_MAX = 1.0 / SSS_CURVATURE_RADIUS_MIN;
+const float SSS_CURVATURE_MIN = INCH_TO_M / SSS_CURVATURE_RADIUS_MAX_METRES;
+const float SSS_CURVATURE_MAX = INCH_TO_M / SSS_CURVATURE_RADIUS_MIN_METRES;
 
 vec3 GetSubsurfaceDiffuse(MaterialProperties_t mat, vec3 lightVector, vec3 diffuseLight)
 {
@@ -262,7 +263,7 @@ vec3 GetSubsurfaceDiffuse(MaterialProperties_t mat, vec3 lightVector, vec3 diffu
 
     flCurvature = RemapValClamped(flCurvature, SSS_CURVATURE_MIN, SSS_CURVATURE_MAX, 0.0, 1.0);
 
-    #if (GameVfx_vr_skin != 0)
+    #if (subsurfaceSkin)
         vec3 vSoftNormal = mat.SoftNormal;
     #else
         vec3 vSoftNormal = normalize(mat.Tangent * mat.NormalMap.x - mat.Bitangent * mat.NormalMap.y + mat.GeometricNormal * mat.NormalMap.z);
@@ -311,6 +312,13 @@ void CalculateShading(inout LightingTerms_t lighting, vec3 lightVector, vec3 lig
     #if (F_TRANSMISSIVE_BACKFACE_NDOTL == 1)
         float transmissiveLight = ClampToPositive(-dot(mat.Normal, lightVector)); // Light passing through the back face
         lighting.TransmissiveDirect += transmissiveLight * lightColor * mat.TransmissiveColor;
+    #endif
+
+    #if (subsurfaceSkin)
+        float flTransmissionWrap = saturate(0.5 - 0.5 * dot(mat.GeometricNormal, lightVector));
+        float flTransmissionDepth = CalculateSunShadowThickness(mat.PositionWS) * g_flTransmissionFalloff;
+
+        lighting.TransmissiveDirect += exp(-pow2(flTransmissionDepth)) * flTransmissionWrap * lightColor * mat.TransmissiveColor;
     #endif
 }
 
