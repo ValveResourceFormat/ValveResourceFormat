@@ -59,7 +59,11 @@ public class BloomRenderer
         var framebuffer = Framebuffer.Prepare(name, 4, 4, 0, PostProcessRenderer.DefaultColorFormat, null);
         framebuffer.NumMips = mips;
         framebuffer.Initialize();
-        framebuffer.CheckStatus_ThrowIfIncomplete();
+        framebuffer.SetColorSamplerState(
+            mips > 1 ? TextureMinFilter.LinearMipmapLinear : TextureMinFilter.Linear,
+            TextureMagFilter.Linear,
+            TextureWrapMode.ClampToEdge
+        );
         return framebuffer;
     }
 
@@ -96,23 +100,9 @@ public class BloomRenderer
         var settings = PostProcessRenderer.State.BloomSettings;
         var tonemapScalar = PostProcessRenderer.TonemapScalar;
 
-        if (Accumulation.Resize(maxBloomRes.X, maxBloomRes.Y))
-        {
-            Accumulation.Color.SetFiltering(TextureMinFilter.LinearMipmapLinear, TextureMagFilter.Linear);
-            Accumulation.Color.SetWrapMode(TextureWrapMode.ClampToEdge);
-        }
-
-        if (Ping.Resize(maxBloomRes.X, maxBloomRes.Y))
-        {
-            Ping.Color.SetFiltering(TextureMinFilter.Linear, TextureMagFilter.Linear);
-            Ping.Color.SetWrapMode(TextureWrapMode.ClampToEdge);
-        }
-
-        if (Pong.Resize(maxBloomRes.X, maxBloomRes.Y))
-        {
-            Pong.Color.SetFiltering(TextureMinFilter.Linear, TextureMagFilter.Linear);
-            Pong.Color.SetWrapMode(TextureWrapMode.ClampToEdge);
-        }
+        Accumulation.Resize(maxBloomRes.X, maxBloomRes.Y);
+        Ping.Resize(maxBloomRes.X, maxBloomRes.Y);
+        Pong.Resize(maxBloomRes.X, maxBloomRes.Y);
 
         using (new GLDebugGroup("Bloom Downsample Threshold Pass"))
         {

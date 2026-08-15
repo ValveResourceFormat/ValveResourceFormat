@@ -132,7 +132,7 @@ public class Renderer
     /// </summary>
     public Framebuffer? OutlineMaskBuffer { get; private set; }
 
-    private static Framebuffer.AttachmentFormat OutlineMaskFormat => new(PixelInternalFormat.R8, PixelFormat.Red, PixelType.UnsignedByte);
+    private static readonly Framebuffer.AttachmentFormat OutlineMaskFormat = new(PixelInternalFormat.R8, PixelFormat.Red, PixelType.UnsignedByte);
 
     /// <summary>
     /// Resolved (non-MSAA) scene color in rgba16f format, used for refraction, bloom input, and luminance computation.
@@ -266,8 +266,6 @@ public class Renderer
         ShadowDepthBuffer.ClearMask = ClearBufferMask.DepthBufferBit;
         Debug.Assert(ShadowDepthBuffer.Depth != null);
 
-        GL.DrawBuffer(DrawBufferMode.None);
-        GL.ReadBuffer(ReadBufferMode.None);
         ShadowDepthBuffer.SetShadowDepthSamplerState();
         Textures.Add(new(ReservedTextureSlots.ShadowDepthBufferDepth, "g_tShadowDepthBufferDepth", ShadowDepthBuffer.Depth));
 
@@ -277,8 +275,6 @@ public class Renderer
         BarnLightShadowBuffer.ClearMask = ClearBufferMask.DepthBufferBit;
         Debug.Assert(BarnLightShadowBuffer.Depth != null);
 
-        GL.DrawBuffer(DrawBufferMode.None);
-        GL.ReadBuffer(ReadBufferMode.None);
         BarnLightShadowBuffer.SetShadowDepthSamplerState(true);
         Textures.Add(new(ReservedTextureSlots.BarnLightShadowDepth, "g_tBarnLightShadowDepth", BarnLightShadowBuffer.Depth));
 
@@ -882,7 +878,6 @@ public class Renderer
 
         if (BarnLightShadowBuffer.Resize(atlasSize, atlasSize))
         {
-            BarnLightShadowBuffer.SetShadowDepthSamplerState(true);
             Textures.RemoveAll(t => t.Slot == ReservedTextureSlots.BarnLightShadowDepth);
             Textures.Add(new(ReservedTextureSlots.BarnLightShadowDepth, "g_tBarnLightShadowDepth", BarnLightShadowBuffer.Depth!));
         }
@@ -1010,24 +1005,15 @@ public class Renderer
         // The edge detection pass reads the mask per sample, so the mask has to be multisampled the same way.
         Debug.Assert(msaa > 0);
 
-        // Framebuffer.Resize only recreates attachments when the dimensions change, so a sample count
-        // change has to recreate the framebuffer from scratch.
-        if (OutlineMaskBuffer != null && OutlineMaskBuffer.NumSamples != msaa)
-        {
-            OutlineMaskBuffer.Delete();
-            OutlineMaskBuffer = null;
-        }
-
         if (OutlineMaskBuffer == null)
         {
             OutlineMaskBuffer = Framebuffer.Prepare(nameof(OutlineMaskBuffer), width, height, msaa, OutlineMaskFormat, null);
             OutlineMaskBuffer.ClearMask = ClearBufferMask.ColorBufferBit;
             OutlineMaskBuffer.Initialize();
-            OutlineMaskBuffer.CheckStatus_ThrowIfIncomplete(nameof(OutlineMaskBuffer));
         }
         else
         {
-            OutlineMaskBuffer.Resize(width, height);
+            OutlineMaskBuffer.Resize(width, height, msaa);
         }
 
         return OutlineMaskBuffer;

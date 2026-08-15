@@ -70,6 +70,11 @@ public class Framebuffer
     /// </summary>
     public FramebufferErrorCode InitialStatus { get; private set; } = FramebufferErrorCode.FramebufferUndefined;
 
+    // Sampler state requested by callers, remembered so that it survives attachment recreation.
+    private bool? shadowDepthSamplerLEqualCompare;
+    private (TextureMinFilter Min, TextureMagFilter Mag)? colorFiltering;
+    private TextureWrapMode? colorWrapMode;
+
     /// <summary>
     /// The framebuffer target this object was last bound to.
     /// </summary>
@@ -202,7 +207,7 @@ public class Framebuffer
         var fbo = new Framebuffer(name)
         {
             NumSamples = msaa,
-            Target = msaa > 0 ? TextureTarget.Texture2DMultisample : TextureTarget.Texture2D,
+            Target = TargetForSampleCount(msaa),
             ColorFormat = colorFormat,
             DepthFormat = depthFormat,
             Width = width,
@@ -248,17 +253,24 @@ public class Framebuffer
     }
 
     /// <summary>
-    /// Updates the MSAA sample count and resizes the framebuffer; attachments are recreated only when the width or height changes.
+    /// Updates the MSAA sample count and resizes the framebuffer, recreating attachments if the dimensions or the sample count changed.
     /// </summary>
     public void Resize(int width, int height, int msaa)
     {
-        if (width == Width && height == Height && msaa == NumSamples)
+        var samplesChanged = msaa != NumSamples;
+
+        if (width == Width && height == Height && !samplesChanged)
         {
             return;
         }
 
         NumSamples = msaa;
-        Resize(width, height);
+
+        // Resize only recreates attachments when the dimensions change, a sample count change has to do it here.
+        if (!Resize(width, height) && samplesChanged)
+        {
+            CreateAttachments();
+        }
     }
 
     /// <summary>
@@ -278,10 +290,15 @@ public class Framebuffer
         return true;
     }
 
+    private static TextureTarget TargetForSampleCount(int numSamples)
+        => numSamples > 0 ? TextureTarget.Texture2DMultisample : TextureTarget.Texture2D;
+
     private void CreateAttachments()
     {
         Color?.Delete();
         Depth?.Delete();
+
+        Target = TargetForSampleCount(NumSamples);
 
         var (width, height) = (Width, Height);
 
@@ -290,6 +307,8 @@ public class Framebuffer
             Color = CreateAttachment(ColorFormat, width, height, NumMips);
             Color.SetLabel("FramebufferColor");
             Color.AttachToFramebuffer(this, FramebufferAttachment.ColorAttachment0, 0);
+
+            ApplyColorSamplerState();
         }
 
         if (DepthFormat != null)
@@ -297,6 +316,15 @@ public class Framebuffer
             Depth = CreateAttachment(DepthFormat, width, height);
             Depth.SetLabel("FramebufferDepth");
             Depth.AttachToFramebuffer(this, FramebufferAttachment.DepthAttachment, 0);
+
+            ApplyShadowDepthSamplerState();
+
+            if (ColorFormat == null)
+            {
+                // A depth only framebuffer is incomplete unless its color buffers are explicitly disabled.
+                GL.NamedFramebufferDrawBuffer(FboHandle, DrawBufferMode.None);
+                GL.NamedFramebufferReadBuffer(FboHandle, ReadBufferMode.None);
+            }
         }
     }
 
@@ -320,8 +348,26 @@ public class Framebuffer
         }
 
         attachment.SetBaseMaxLevel(0, mipCount - 1);
+
+        if (Target != TextureTarget.Texture2DMultisample && IsIntegerFormat(format.PixelFormat))
+        {
+            // Sampling an integer texture with the default linear filtering is undefined.
+            attachment.SetFiltering(TextureMinFilter.Nearest, TextureMagFilter.Nearest);
+        }
+
         return attachment;
     }
+
+    private static bool IsIntegerFormat(PixelFormat pixelFormat) => pixelFormat
+        is PixelFormat.RedInteger
+        or PixelFormat.GreenInteger
+        or PixelFormat.BlueInteger
+        or PixelFormat.AlphaInteger
+        or PixelFormat.RgInteger
+        or PixelFormat.RgbInteger
+        or PixelFormat.RgbaInteger
+        or PixelFormat.BgrInteger
+        or PixelFormat.BgraInteger;
 
     /// <summary>
     /// Changes the attachment formats and recreates the GPU attachments at the current dimensions.
@@ -394,12 +440,49 @@ public class Framebuffer
     /// to the light as the stored depth.</param>
     public void SetShadowDepthSamplerState(bool lEqualCompare = false)
     {
-        if (Depth != null)
+        shadowDepthSamplerLEqualCompare = lEqualCompare;
+        ApplyShadowDepthSamplerState();
+    }
+
+    private void ApplyShadowDepthSamplerState()
+    {
+        if (Depth == null || shadowDepthSamplerLEqualCompare is not bool lEqualCompare)
         {
-            Depth.SetParameter(TextureParameterName.TextureCompareMode, (int)TextureCompareMode.CompareRToTexture);
-            Depth.SetParameter(TextureParameterName.TextureCompareFunc, (int)(lEqualCompare ? DepthFunction.Lequal : DepthFunction.Gequal));
-            Depth.SetFiltering(TextureMinFilter.Linear, TextureMagFilter.Linear);
-            Depth.SetWrapMode(TextureWrapMode.ClampToEdge);
+            return;
+        }
+
+        Depth.SetParameter(TextureParameterName.TextureCompareMode, (int)TextureCompareMode.CompareRToTexture);
+        Depth.SetParameter(TextureParameterName.TextureCompareFunc, (int)(lEqualCompare ? DepthFunction.Lequal : DepthFunction.Gequal));
+        Depth.SetFiltering(TextureMinFilter.Linear, TextureMagFilter.Linear);
+        Depth.SetWrapMode(TextureWrapMode.ClampToEdge);
+    }
+
+    /// <summary>
+    /// Sets the filtering and wrap mode of the color attachment. The state is remembered and re-applied
+    /// whenever the attachment is recreated by a resize or a format change.
+    /// </summary>
+    public void SetColorSamplerState(TextureMinFilter minFilter, TextureMagFilter magFilter, TextureWrapMode wrapMode)
+    {
+        colorFiltering = (minFilter, magFilter);
+        colorWrapMode = wrapMode;
+        ApplyColorSamplerState();
+    }
+
+    private void ApplyColorSamplerState()
+    {
+        if (Color == null || Target == TextureTarget.Texture2DMultisample)
+        {
+            return;
+        }
+
+        if (colorFiltering.HasValue)
+        {
+            Color.SetFiltering(colorFiltering.Value.Min, colorFiltering.Value.Mag);
+        }
+
+        if (colorWrapMode is TextureWrapMode wrapMode)
+        {
+            Color.SetWrapMode(wrapMode);
         }
     }
 }
