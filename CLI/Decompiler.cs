@@ -1026,7 +1026,7 @@ namespace CLI
                             return RecursiveSearchArchives;
                         }
 
-                        return SupportedFileNamesRegex().IsMatch(x.Key);
+                        return SupportedFileNamesRegex().IsMatch($".{x.Key}");
                     }).ToList();
                 }
 
