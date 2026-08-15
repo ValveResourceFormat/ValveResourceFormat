@@ -108,6 +108,9 @@ namespace ValveResourceFormat.Renderer.Shaders
         /// <summary>Gets the logger for messages about this shader.</summary>
         internal ILogger Logger { get; init; }
 
+        /// <summary>Gets the renderer context this shader was loaded for.</summary>
+        internal RendererContext RendererContext { get; }
+
         /// <summary>Gets a value indicating whether material data (textures and params) should be skipped during rendering.</summary>
         public bool IgnoreMaterialData { get; }
 
@@ -176,6 +179,7 @@ namespace ValveResourceFormat.Renderer.Shaders
         {
             Name = name;
             NameHash = MurmurHash2.Hash(Name, StringToken.MURMUR2SEED);
+            RendererContext = rendererContext;
             Default = new RenderMaterial(this);
             MaterialLoader = rendererContext.MaterialLoader;
             Logger = rendererContext.Logger;

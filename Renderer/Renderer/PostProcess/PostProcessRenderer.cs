@@ -249,8 +249,7 @@ namespace ValveResourceFormat.Renderer.PostProcess
 
             Debug.Assert(BlueNoise != null);
 
-            GL.DepthMask(false);
-            GL.Disable(EnableCap.DepthTest);
+            using var _ = RendererContext.RenderState.Scope(depthTest: false, depthWrite: false);
 
             using (new GLDebugGroup("MSAA Resolve"))
             {
@@ -330,13 +329,10 @@ namespace ValveResourceFormat.Renderer.PostProcess
 
             if (HasOutlineObjects)
             {
-                using var _ = new GLDebugGroup("Outline Edge");
+                using var outlineGroup = new GLDebugGroup("Outline Edge");
                 Debug.Assert(OutlineMask != null);
                 Outline.Render(OutlineMask, colorBufferRead.NumSamples, flipY);
             }
-
-            GL.DepthMask(true);
-            GL.Enable(EnableCap.DepthTest);
         }
 
         /// <summary>

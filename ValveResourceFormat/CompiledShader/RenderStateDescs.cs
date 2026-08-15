@@ -80,8 +80,6 @@ public record struct RsDepthStencilStateDesc
     // 34-36 back fail | 37-39 back depth fail | 40-42 back pass | 48-55 read mask | 56-63 write mask
     private ulong bits;
 
-    // Each field is defined by its mask, so the properties and any diff of two descriptors read
-    // the same single source of truth.
 #pragma warning disable CS1591 // The properties below name what each mask covers
     public const ulong DepthTestEnableBits = 1UL << 0;
     public const ulong DepthWriteEnableBits = 1UL << 1;

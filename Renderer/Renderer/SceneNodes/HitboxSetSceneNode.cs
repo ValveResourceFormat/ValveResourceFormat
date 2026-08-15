@@ -129,12 +129,12 @@ namespace ValveResourceFormat.Renderer.SceneNodes
                 return;
             }
 
-            GL.Disable(EnableCap.DepthTest);
+            using var _ = Scene.RendererContext.RenderState.Scope(depthTest: false);
+
             foreach (var node in currentSet.SceneNodes)
             {
                 node.Render(context);
             }
-            GL.Enable(EnableCap.DepthTest);
         }
     }
 }

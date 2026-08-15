@@ -15,6 +15,9 @@ internal enum Counter
     MeshletDispatch,
     MaterialChange,
     VaoChange,
+    RenderStateApply,
+    RenderStateGroupEmit,
+    RenderStateDriverCall,
     DirectionalShadowMap,
     BarnShadowMap,
     ShadowFaceSubmitted,
@@ -412,6 +415,7 @@ public class PerfStats
         AddLine($"Scene objects:    drawn {counts[(int)Counter.SceneObjectInView]:N0} of {totalSceneObjects:N0} scene objects in {counts[(int)Counter.DrawCall]:N0} draw calls and {counts[(int)Counter.MeshletDispatch]:N0} meshlet dispatches ({totalDrawCalls:N0} total draw calls)", valueColor);
         AddLine($"Materials:        {counts[(int)Counter.MaterialChange]:N0} changes between drawcalls, {totalMaterials:N0} total materials in scene", valueColor);
         AddLine($"VAOs:             {counts[(int)Counter.VaoChange]:N0} binds this frame, {scene.RendererContext.MeshBufferCache.VertexArrayObjectCount:N0} cached", valueColor);
+        AddLine($"Render state:     {counts[(int)Counter.RenderStateApply]:N0} applies, {counts[(int)Counter.RenderStateGroupEmit]:N0} actual changes, {counts[(int)Counter.RenderStateDriverCall]:N0} driver calls this frame", valueColor);
 
         for (var cost = 0; cost < LightCostLabels.Length; cost++)
         {

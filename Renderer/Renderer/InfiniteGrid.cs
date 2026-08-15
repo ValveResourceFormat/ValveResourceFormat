@@ -9,6 +9,7 @@ namespace ValveResourceFormat.Renderer
     {
         private readonly int vao;
         private readonly Shader shader;
+        private readonly RenderStateTracker renderState;
 
         /// <summary>Initializes the grid geometry and loads the grid shader.</summary>
         /// <param name="scene">Scene providing the renderer context.</param>
@@ -25,6 +26,7 @@ namespace ValveResourceFormat.Renderer
             };
 
             shader = scene.RendererContext.ShaderLoader.LoadShader("grid");
+            renderState = scene.RendererContext.RenderState;
 
             GL.CreateBuffers(1, out int buffer);
             GL.NamedBufferData(buffer, vertices.Length * sizeof(float), vertices, BufferUsageHint.StaticDraw);
@@ -41,15 +43,12 @@ namespace ValveResourceFormat.Renderer
         /// <summary>Renders the infinite grid for the current frame.</summary>
         public void Render()
         {
-            GL.Enable(EnableCap.Blend);
-            GL.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.OneMinusSrcAlpha);
+            using var _ = renderState.Scope(blend: true);
 
             shader.Use();
             VertexArray.Bind(vao, shader);
 
             GL.DrawArrays(PrimitiveType.Triangles, 0, 6);
-
-            GL.Disable(EnableCap.Blend);
         }
     }
 }

@@ -367,38 +367,40 @@ namespace ValveResourceFormat.Renderer.SceneNodes
 
             VertexArray.Bind(vao, renderShader);
 
-            GL.DepthFunc(DepthFunction.Gequal);
+            var renderState = Scene.RendererContext.RenderState;
+            var state = renderState.CurrentPass;
+            state.DepthStencil.DepthFunc = RsComparison.CloserEqual;
 
             if (isTranslucent)
             {
-                GL.Disable(EnableCap.CullFace);
+                state.Rasterizer.CullMode = RsCullMode.None;
+            }
 
+            using var _ = renderState.Scope(in state);
+
+            if (isTranslucent)
+            {
                 // Lines
-                GL.PolygonMode(TriangleFace.FrontAndBack, PolygonMode.Line);
-                GL.Disable(EnableCap.Blend);
+                var lineState = state;
+                lineState.Rasterizer.FillMode = RsFillMode.Wireframe;
+                lineState.BlendEnable = false;
+                renderState.Apply(in lineState);
                 GL.DrawElements(PrimitiveType.Triangles, indexCount, DrawElementsType.UnsignedInt, 0);
 
                 // Triangles
-                GL.PolygonMode(TriangleFace.FrontAndBack, PolygonMode.Fill);
-                GL.Enable(EnableCap.Blend);
-                GL.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.OneMinusSrcAlpha);
-                GL.Enable(EnableCap.PolygonOffsetLine);
-                GL.Enable(EnableCap.PolygonOffsetFill);
-                GL.PolygonOffsetClamp(2, 100, 0.05f);
-
+                var fillState = state;
+                fillState.BlendEnable = true;
+                fillState.SetBlend(RsBlendMode.SrcAlpha, RsBlendMode.InvSrcAlpha);
+                fillState.Rasterizer.SlopeScaledDepthBias = 2f;
+                fillState.Rasterizer.DepthBias = 100;
+                fillState.Rasterizer.DepthBiasClamp = 0.05f;
+                renderState.Apply(in fillState);
                 GL.DrawElementsInstancedBaseInstance(PrimitiveType.Triangles, indexCount, DrawElementsType.UnsignedInt, 0, 1, Id);
-
-                GL.Disable(EnableCap.PolygonOffsetLine);
-                GL.Disable(EnableCap.PolygonOffsetFill);
-                GL.PolygonOffsetClamp(0, 0, 0);
-                GL.Enable(EnableCap.CullFace);
             }
             else
             {
                 GL.DrawElementsInstancedBaseInstance(PrimitiveType.Triangles, indexCount, DrawElementsType.UnsignedInt, 0, 1, Id);
             }
-
-            GL.DepthFunc(DepthFunction.Greater);
         }
 
         /// <inheritdoc/>

@@ -43,7 +43,7 @@ namespace ValveResourceFormat.Renderer.SceneEnvironment
         /// <summary>Renders the skybox using a fullscreen 36-vertex cube draw call.</summary>
         public void Render()
         {
-            GL.DepthFunc(DepthFunction.Equal);
+            using var _ = Material.Shader.RendererContext.RenderState.Scope(depthFunc: RsComparison.Equal);
 
             Material.Shader.Use();
             Material.Render();
@@ -53,8 +53,6 @@ namespace ValveResourceFormat.Renderer.SceneEnvironment
             GL.BindVertexArray(vao);
             GL.DrawArrays(PrimitiveType.Triangles, 0, 36);
             Material.PostRender();
-
-            GL.DepthFunc(DepthFunction.Greater);
         }
     }
 }

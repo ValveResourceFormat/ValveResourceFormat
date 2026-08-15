@@ -397,23 +397,14 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                 return;
             }
 
-            // The translucent pass leaves blend/depth state to each custom draw; enable blending and stop depth
-            // writes here or trails render opaque (matching the sprite renderer; cables draw opaque with depth writes instead).
-            GL.Enable(EnableCap.Blend);
-            GL.DepthMask(false);
-
-            // Modulate-2x scales what is behind it, so it needs its own state; see RenderSprites
-            if (blendMode == ParticleBlendMode.PARTICLE_OUTPUT_BLEND_MODE_MOD2X)
-            {
-                GL.BlendFunc(BlendingFactor.DstColor, BlendingFactor.SrcColor);
-            }
-            else
-            {
-                GL.BlendFunc(BlendingFactor.One, BlendingFactor.OneMinusSrcAlpha);
-            }
-
-            // Trail quads are oriented by motion direction, so either side can face the camera
-            GL.Disable(EnableCap.CullFace);
+            // The translucent pass leaves blend/depth state to each draw. Enable blending and stop
+            // depth writes, or trails render opaque. Cables instead draw opaque with depth writes.
+            // Modulate-2x scales what is behind it, so it needs its own factors; see RenderSprites.
+            // Trail quads are oriented by motion direction, so either side can face the camera.
+            var mod2x = blendMode == ParticleBlendMode.PARTICLE_OUTPUT_BLEND_MODE_MOD2X;
+            using var _ = rendererContext.RenderState.Scope(blend: true, depthWrite: false, cullMode: RsCullMode.None,
+                srcBlend: mod2x ? RsBlendMode.DestColor : RsBlendMode.One,
+                dstBlend: mod2x ? RsBlendMode.SrcColor : RsBlendMode.InvSrcAlpha);
 
             shader.Use();
 
@@ -431,8 +422,6 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
 
             PerfStats.Active.Count(Counter.ParticleDraw);
             GL.DrawElements(PrimitiveType.Triangles, quadCount * 6, DrawElementsType.UnsignedShort, 0);
-
-            GL.Enable(EnableCap.CullFace);
         }
 
         public override IEnumerable<string> GetSupportedRenderModes() => shader.RenderModes;

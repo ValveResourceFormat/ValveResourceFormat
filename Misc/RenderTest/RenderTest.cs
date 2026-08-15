@@ -91,7 +91,7 @@ internal class RenderTestWindow : GameWindow
         base.OnLoad();
 
         GLEnvironment.Initialize(rendererContext.Logger);
-        GLEnvironment.SetDefaultRenderState();
+        GLEnvironment.SetDefaultRenderState(rendererContext);
 
         SceneRenderer = new Renderer(rendererContext);
         Input = new UserInput(SceneRenderer);

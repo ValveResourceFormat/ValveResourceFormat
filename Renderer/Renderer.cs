@@ -27,11 +27,8 @@ public class Renderer
         /// <summary>The window-space far value.</summary>
         public float Far { get; } = Start;
 
-        /// <summary>Applies the depth range to the current render state.</summary>
-        public void Apply()
-        {
-            GL.DepthRange(Near, Far);
-        }
+        /// <summary>The whole window range, for render targets that are not part of the scene.</summary>
+        public static readonly DepthRange Full = new(1f, 0f);
 
         /// <summary>The main scene.</summary>
         public static readonly DepthRange Scene = new(0.95f, 0.05f);
@@ -383,7 +380,6 @@ public class Renderer
         var defaultCubeTexture = Scene.RendererContext.MaterialLoader.LoadTexture(cubeFogResource);
         Textures.Add(new(ReservedTextureSlots.FogCubeTexture, "g_tFogCubeTexture", defaultCubeTexture));
 
-
         const string blueNoiseName = "blue_noise_256.vtex_c";
         var blueNoiseResource = RendererContext.FileLoader.LoadFile("textures/dev/" + blueNoiseName);
 
@@ -505,13 +501,9 @@ public class Renderer
         scene.RenderOpaqueRefractLayer(renderContext);
         scene.RenderWaterLayer(renderContext);
 
-        GL.DepthMask(false);
-        GL.Enable(EnableCap.Blend);
+        using var _ = scene.RendererContext.RenderState.Scope(depthWrite: false, blend: true);
 
         scene.RenderTranslucentLayer(renderContext);
-
-        GL.Disable(EnableCap.Blend);
-        GL.DepthMask(true);
     }
 
     /// <summary>
@@ -557,7 +549,6 @@ public class Renderer
         Render(renderContext);
     }
 
-
     /// <summary>
     /// Renders shadows and then the full scene using the provided render context.
     /// </summary>
@@ -592,6 +583,7 @@ public class Renderer
         ViewBuffer.Data.ViewportSize = new Vector2(w, h);
         ViewBuffer.Data.InvViewportSize = Vector2.One / ViewBuffer.Data.ViewportSize;
 
+        using var frameScope = RendererContext.RenderState.Scope();
         renderContext.Framebuffer.BindAndClear();
 
         var isMainFramebuffer = ReferenceEquals(renderContext.Framebuffer, MainFramebuffer);
@@ -605,13 +597,11 @@ public class Renderer
         var isWireframe = IsWireframe && isStandardPass; // To avoid toggling it mid frame
         var computeFramebufferLuminance = Postprocess.State.ExposureSettings.AutoExposureEnabled;
 
-
         // TODO: check if renderpass allows wireframe mode
         // TODO+: replace wireframe shaders with solid color
-        if (isWireframe)
-        {
-            GL.PolygonMode(TriangleFace.FrontAndBack, PolygonMode.Line);
-        }
+        var wireframeScope = isWireframe
+            ? RendererContext.RenderState.Scope(fillMode: RsFillMode.Wireframe)
+            : default;
 
         UpdatePerViewGpuBuffers(Scene, renderContext.Camera, DeltaTime);
 
@@ -624,7 +614,7 @@ public class Renderer
             ViewmodelCamera.CreateProjectionMatrix();
             ViewmodelCamera.RecalculateMatrices();
 
-            DepthRange.Viewmodel.Apply();
+            RendererContext.RenderState.SetDepthRange(DepthRange.Viewmodel);
 
             ViewmodelCamera.SetViewConstants(ViewBuffer.Data);
             Scene.SetFogConstants(ViewBuffer.Data);
@@ -641,7 +631,7 @@ public class Renderer
             Scene.RenderViewmodelOpaqueLayer(renderContext);
             renderContext.Camera = mainCamera;
 
-            DepthRange.Scene.Apply();
+            RendererContext.RenderState.SetDepthRange(DepthRange.Scene);
 
             mainCamera.SetViewConstants(ViewBuffer.Data);
             Scene.SetFogConstants(ViewBuffer.Data);
@@ -660,7 +650,7 @@ public class Renderer
 
         //using (new GLDebugGroup("Sky Render"))
         {
-            DepthRange.Sky.Apply();
+            RendererContext.RenderState.SetDepthRange(DepthRange.Sky);
 
             renderContext.ReplacementShader?.SetUniform1AllVariants("isSkybox", 1u);
             var skyboxScene = SkyboxScene;
@@ -740,7 +730,7 @@ public class Renderer
             }
 
             renderContext.ReplacementShader?.SetUniform1AllVariants("isSkybox", 0u);
-            DepthRange.Scene.Apply();
+            RendererContext.RenderState.SetDepthRange(DepthRange.Scene);
         }
 
         using (new GLDebugGroup("Main Scene Translucent Render"))
@@ -752,7 +742,7 @@ public class Renderer
         {
             var mainCamera = renderContext.Camera;
 
-            DepthRange.Viewmodel.Apply();
+            RendererContext.RenderState.SetDepthRange(DepthRange.Viewmodel);
 
             ViewmodelCamera.SetViewConstants(ViewBuffer.Data);
             Scene.SetFogConstants(ViewBuffer.Data);
@@ -765,7 +755,7 @@ public class Renderer
             Scene.RenderViewmodelTranslucentLayer(renderContext);
             renderContext.Camera = mainCamera;
 
-            DepthRange.Scene.Apply();
+            RendererContext.RenderState.SetDepthRange(DepthRange.Scene);
 
             mainCamera.SetViewConstants(ViewBuffer.Data);
             Scene.SetFogConstants(ViewBuffer.Data);
@@ -774,10 +764,7 @@ public class Renderer
             ViewBuffer.Update();
         }
 
-        if (isWireframe)
-        {
-            GL.PolygonMode(TriangleFace.FrontAndBack, PolygonMode.Fill);
-        }
+        wireframeScope.Dispose();
 
         if (isStandardPass)
         {
@@ -827,9 +814,12 @@ public class Renderer
             throw new InvalidOperationException("Initialize() must be called before rendering");
         }
 
+        using var _ = RendererContext.RenderState.Scope();
+
+        using var shadowDepth = RendererContext.RenderState.ScopeDynamic(DepthRange.Full);
+
         GL.Viewport(0, 0, ShadowDepthBuffer.Width, ShadowDepthBuffer.Height);
         ShadowDepthBuffer.Bind(FramebufferTarget.Framebuffer);
-        GL.DepthRange(0, 1);
         GL.Clear(ClearBufferMask.DepthBufferBit);
 
         renderContext.Framebuffer = ShadowDepthBuffer;
@@ -865,12 +855,10 @@ public class Renderer
         using var _ = new GLDebugGroup("Barn Light Shadows");
         Debug.Assert(BarnLightShadowBuffer != null);
 
-        GL.DepthFunc(DepthFunction.Lequal);
-        GL.DepthRange(0.0, 1.0);
-        GL.ClearDepth(1.0);
+        // The barn shadow atlas uses forward depth, unlike the reverse-Z main view.
+        using var forwardDepth = RendererContext.RenderState.Scope(depthFunc: RsComparison.FartherEqual, slopeScaledDepthBias: 2f);
 
-        GL.Enable(EnableCap.PolygonOffsetFill);
-        GL.PolygonOffsetClamp(2f, 0f, 0f);
+        using var atlasDepth = RendererContext.RenderState.ScopeDynamic(DepthRange.Full, clearDepth: 1f, scissorTest: true);
 
         BarnLightShadowBuffer.Bind(FramebufferTarget.Framebuffer);
 
@@ -882,7 +870,6 @@ public class Renderer
             Textures.Add(new(ReservedTextureSlots.BarnLightShadowDepth, "g_tBarnLightShadowDepth", BarnLightShadowBuffer.Depth!));
         }
 
-        GL.Enable(EnableCap.ScissorTest);
         GL.Viewport(0, 0, BarnLightShadowBuffer.Width, BarnLightShadowBuffer.Height);
         GL.Scissor(0, 0, BarnLightShadowBuffer.Width, BarnLightShadowBuffer.Height);
         GL.Clear(ClearBufferMask.DepthBufferBit);
@@ -913,12 +900,6 @@ public class Renderer
             Scene.RenderOpaqueShadows(renderContext, depthOnlyShader, caster.Light.FaceShadowCache[caster.FaceIndex].DrawCalls!);
         }
 
-        GL.Disable(EnableCap.ScissorTest);
-        GL.Disable(EnableCap.PolygonOffsetFill);
-        GL.PolygonOffsetClamp(0f, 0f, 0f);
-
-        GL.DepthFunc(DepthFunction.Greater);
-        GL.ClearDepth(0.0);
     }
 
     private void ComputeAverageLuminance(Scene.RenderContext renderContext)
@@ -974,22 +955,15 @@ public class Renderer
 
         Postprocess.OutlineMask = maskBuffer.Color;
 
-        GL.DepthMask(false);
-        GL.Disable(EnableCap.DepthTest);
-        GL.Disable(EnableCap.CullFace);
-        GL.Disable(EnableCap.Blend);
+        // Custom scene nodes may leave state changed, and the outline layer is drawn mid frame.
+        using var maskState = RendererContext.RenderState.Scope(
+            cullMode: RsCullMode.None, depthTest: false, depthWrite: false, blend: false);
 
         GL.Viewport(0, 0, maskBuffer.Width, maskBuffer.Height);
         maskBuffer.BindAndClear();
 
         SkyboxScene?.RenderOutlineLayer(renderContext);
         Scene.RenderOutlineLayer(renderContext);
-
-        // Custom scene nodes may leave blending on, and the outline layer is drawn mid frame.
-        GL.Disable(EnableCap.Blend);
-        GL.Enable(EnableCap.CullFace);
-        GL.Enable(EnableCap.DepthTest);
-        GL.DepthMask(true);
 
         sceneFramebuffer.Bind(FramebufferTarget.Framebuffer);
         GL.Viewport(0, 0, sceneFramebuffer.Width, sceneFramebuffer.Height);

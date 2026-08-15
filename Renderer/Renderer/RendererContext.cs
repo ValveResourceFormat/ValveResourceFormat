@@ -34,6 +34,11 @@ public class RendererContext : IDisposable
     public GPUMeshBufferCache MeshBufferCache { get; }
 
     /// <summary>
+    /// Render state tracker for the GL context this renderer context renders with.
+    /// </summary>
+    public RenderStateTracker RenderState { get; } = new();
+
+    /// <summary>
     /// Maximum texture mip size to load in <see cref="MaterialLoader"/>.
     /// </summary>
     public int MaxTextureSize { get; set; } = 1024;

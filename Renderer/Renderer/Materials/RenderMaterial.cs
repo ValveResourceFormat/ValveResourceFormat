@@ -236,9 +236,7 @@ namespace ValveResourceFormat.Renderer.Materials
                 }
             }
 
-            SetRenderState();
             Shader = rendererContext.ShaderLoader.LoadShader(ShaderName, combinedShaderParameters, blocking: false);
-            ResetRenderState();
 
             SortId = GetSortId();
         }
@@ -599,7 +597,8 @@ namespace ValveResourceFormat.Renderer.Materials
                 $"'{shader.Name}' needs {textureUnit} texture units ({textureUnit - TextureUnitStart} of its own on top of {TextureUnitStart} reserved) but the driver only has {maxCombinedTextureImageUnits}.");
 #endif
 
-            SetRenderState();
+            var renderState = Shader.RendererContext.RenderState;
+            renderState.Apply(ComposeRenderState(renderState.CurrentPass));
         }
 
         private static void SetMatrix(Shader shader, Globals buffer, string name, Matrix4x4 value)
@@ -795,104 +794,66 @@ namespace ValveResourceFormat.Renderer.Materials
             SetMatrix(shader, buffer, "g_mTextureColorAdjust", Matrix4x4.Multiply(tintMatrix, ccMatrix));
         }
 
-        /// <summary>Restores render state after the draw call for this material has completed.</summary>
+        /// <summary>Unbinds the samplers that were bound for this material's draw call.</summary>
         public void PostRender()
         {
-            ResetRenderState();
-
             foreach (var unit in boundSamplerUnits)
             {
                 GL.BindSampler(unit, 0);
             }
         }
 
-        private void SetRenderState()
+        /// <summary>Composes this material's render state over the given pass baseline.</summary>
+        /// <param name="passState">The baseline state of the enclosing pass.</param>
+        /// <returns>The state this material draws with.</returns>
+        public RenderState ComposeRenderState(in RenderState passState)
         {
+            var state = passState;
+
             if (IsOverlay)
             {
-                GL.DepthMask(false);
+                state.DepthStencil.DepthWriteEnable = false;
             }
 
             if (blendMode == BlendMode.AlphaTest)
             {
-                GL.Enable(EnableCap.SampleAlphaToCoverage); // todo: only if msaa samples > 1
+                state.Blend.AlphaToCoverageEnable = true; // todo: only if msaa samples > 1
             }
             else if (blendMode >= BlendMode.Translucent)
             {
                 if (IsOverlay)
                 {
-                    GL.Enable(EnableCap.Blend);
+                    state.BlendEnable = true;
                 }
 
-                switch (blendMode)
+                var (srcBlend, dstBlend) = blendMode switch
                 {
-                    case BlendMode.Additive:
-                        GL.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.One);
-                        break;
-                    case BlendMode.Multiply:
-                        GL.BlendFunc(BlendingFactor.Zero, BlendingFactor.SrcColor);
-                        break;
-                    case BlendMode.Mod2x:
-                        GL.BlendFunc(BlendingFactor.DstColor, BlendingFactor.SrcColor);
-                        break;
-                    case BlendMode.ModThenAdd:
-                        GL.BlendFunc(BlendingFactor.DstColor, BlendingFactor.OneMinusSrcAlpha);
-                        break;
-                    default:
-                        GL.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.OneMinusSrcAlpha);
-                        break;
-                }
+                    BlendMode.Additive => (RsBlendMode.SrcAlpha, RsBlendMode.One),
+                    BlendMode.Multiply => (RsBlendMode.Zero, RsBlendMode.SrcColor),
+                    BlendMode.Mod2x => (RsBlendMode.DestColor, RsBlendMode.SrcColor),
+                    BlendMode.ModThenAdd => (RsBlendMode.DestColor, RsBlendMode.InvSrcAlpha),
+                    _ => (RsBlendMode.SrcAlpha, RsBlendMode.InvSrcAlpha),
+                };
+                state.SetBlend(srcBlend, dstBlend);
             }
 
             if (hasDepthBias || IsOverlay)
             {
-                GL.Enable(EnableCap.PolygonOffsetFill);
-                GL.PolygonOffsetClamp(0, 64, 0.0005f);
+                state.Rasterizer.DepthBias = 64;
+                state.Rasterizer.DepthBiasClamp = 0.0005f;
             }
 
             if (isRenderBackfaces)
             {
-                GL.Disable(EnableCap.CullFace);
+                state.Rasterizer.CullMode = RsCullMode.None;
             }
 
             if (disableDepthTest)
             {
-                GL.Disable(EnableCap.DepthTest);
-            }
-        }
-
-        private void ResetRenderState()
-        {
-            if (IsOverlay)
-            {
-                GL.DepthMask(true);
-
-                if (blendMode >= BlendMode.Translucent)
-                {
-                    GL.Disable(EnableCap.Blend);
-                }
+                state.DepthStencil.DepthTestEnable = false;
             }
 
-            if (blendMode == BlendMode.AlphaTest)
-            {
-                GL.Disable(EnableCap.SampleAlphaToCoverage);
-            }
-
-            if (hasDepthBias || IsOverlay)
-            {
-                GL.Disable(EnableCap.PolygonOffsetFill);
-                GL.PolygonOffsetClamp(0, 0, 0);
-            }
-
-            if (isRenderBackfaces)
-            {
-                GL.Enable(EnableCap.CullFace);
-            }
-
-            if (disableDepthTest)
-            {
-                GL.Enable(EnableCap.DepthTest);
-            }
+            return state;
         }
     }
 }

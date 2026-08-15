@@ -30,12 +30,9 @@ public class OutlineRenderer(RendererContext rendererContext)
 
         outlineEdge.SetTexture(0, "g_tOutlineMask", outlineMask);
 
-        GL.Enable(EnableCap.Blend);
-        GL.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.OneMinusSrcAlpha);
+        using var _ = rendererContext.RenderState.Scope(blend: true);
 
         GL.BindVertexArray(rendererContext.MeshBufferCache.EmptyVAO);
         GL.DrawArrays(PrimitiveType.Triangles, 0, 3);
-
-        GL.Disable(EnableCap.Blend);
     }
 }

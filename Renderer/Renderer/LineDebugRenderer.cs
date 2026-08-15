@@ -8,11 +8,13 @@ namespace ValveResourceFormat.Renderer
     public abstract class LineDebugRenderer
     {
         private readonly LineBuffer lineBuffer;
+        private readonly RenderStateTracker renderState;
 
         /// <summary>Creates the GPU line buffer.</summary>
         protected LineDebugRenderer(RendererContext rendererContext, string label)
         {
             lineBuffer = new LineBuffer(rendererContext, label);
+            renderState = rendererContext.RenderState;
         }
 
         /// <summary>Drops the uploaded vertices.</summary>
@@ -30,28 +32,12 @@ namespace ValveResourceFormat.Renderer
                 return;
             }
 
-            GL.Enable(EnableCap.Blend);
-
-            if (disableDepthTest)
-            {
-                GL.Disable(EnableCap.DepthTest);
-            }
-
-            GL.DepthMask(false);
-            GL.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.OneMinusSrcAlpha);
+            using var _ = renderState.Scope(depthTest: disableDepthTest ? false : null, depthWrite: false, blend: true);
 
             lineBuffer.Shader.Use();
             lineBuffer.Shader.SetUniform3x4("transform", Matrix4x4.Identity);
 
             lineBuffer.Draw();
-
-            GL.DepthMask(true);
-            GL.Disable(EnableCap.Blend);
-
-            if (disableDepthTest)
-            {
-                GL.Enable(EnableCap.DepthTest);
-            }
         }
 
         /// <summary>Deletes the GL objects.</summary>
