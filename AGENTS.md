@@ -1,17 +1,18 @@
 ## Project Overview
 
-ValveResourceFormat (VRF) is a C# library and toolset for parsing Valve's Source 2 resource formats. The project folders are:
-- **ValveResourceFormat/** - Core parsing library published to NuGet
-- **GUI/** - WinForms-based viewer application
-- **CLI/** - Command-line decompiler and file viewer
-- **Renderer/** - OpenGL rendering engine for Source 2 assets.
-  - Shaders use `.slang` extension (`.frag.slang`, `.vert.slang`) with GLSL syntax.
-  - Shader files must only contain ASCII characters.
-  - After changing shaders, run `dotnet run --project Misc/ShaderValidator -- <name filter>` to compile them (and their combos) on a real GL context.
-- **Tests/** - NUnit test suite for the ValveResourceFormat library.
-  - Only run tests when changing code in `ValveResourceFormat/`. Other projects are not covered.
-  - Run with `dotnet test` - tests are fast, no need to filter.
-  - Test files use NUnit with `[TestFixture]` and `[Test]` attributes.
+ValveResourceFormat (VRF) is a C# library and toolset for parsing Valve's Source 2 resource formats. The solution file is `ValveResourceFormat.slnx`.
+
+The project folders are:
+- **ValveResourceFormat/**: Core parsing library published to NuGet
+- **GUI/**: WinForms viewer application
+- **CLI/**: Command-line decompiler and file viewer
+- **Renderer/**: OpenGL rendering engine for Source 2 assets.
+  - Shaders use the `.slang` extension (`.frag.slang`, `.vert.slang`) with GLSL syntax, and must only contain ASCII characters.
+  - After changing shaders, run `dotnet run --project Misc/ShaderValidator -- <name filter>` to compile them and their combos on a real GL context. `complex` has combinatorially many combos and is far too slow to validate interactively, so iterate against a smaller shader.
+- **Tests/**: NUnit test suite for the ValveResourceFormat library, plus some headless Renderer logic tests in `Tests/Renderer/`.
+  - Run tests when changing code in `ValveResourceFormat/` or `Renderer/`. GUI and CLI are not covered.
+  - Tests are fast, run the whole suite with `dotnet test`. If it reports `Zero tests ran` (exit code 5), do a full `dotnet build` and retry.
+- **Misc/**: Auxiliary tools (ShaderValidator, RenderTest, etc.) in their own solution `Misc/MiscVrfProjects.slnx`.
 
 **Target:** Latest released .NET. Use modern C# features. Nullable reference types enabled.
 
@@ -23,7 +24,7 @@ ValveResourceFormat (VRF) is a C# library and toolset for parsing Valve's Source
 - Render mode defines (e.g. `renderMode_Illumination`) default to 0 and are overridden via static combos at compile time.
 
 ### Transforms and Angles
-All angle, quaternion and direction conversions live in `EntityTransformHelper` - use it instead of hand-rolling trig, and read its class remarks before touching this area.
+All angle, quaternion and direction conversions live in `EntityTransformHelper`. Use it instead of hand-rolling trig, and read its class remarks before touching this area.
 - Source 2 is Z-up and right-handed: +X forward, +Y left, +Z up.
 - An entity's `angles` is a QAngle: (pitch, yaw, roll) in degrees, pitch positive **downwards**.
 - Matrices are row-vector, so a rotation's first row is forward. Frames built from a direction must put it on +X.
@@ -33,56 +34,41 @@ All angle, quaternion and direction conversions live in `EntityTransformHelper` 
 Follow standard Microsoft C# conventions. Key rules:
 
 ### Formatting
-- **Indentation:** 4 spaces (never tabs, no trailing spaces)
-- **Line endings:** LF (Unix-style) for C# files
-- **Braces:** Opening braces on new lines (Allman style)
-- **Final newline:** Required in all files
+- 4 space indentation, no tabs, no trailing spaces
+- LF line endings for C# files, final newline required
+- Allman braces (opening brace on a new line)
 
-### Naming Conventions
-- Types: PascalCase (`ResourceData`, `ClosedCaption`)
-- Methods/Properties: PascalCase (`GetResourceType()`, `FileName`)
-- Private fields: PascalCase
-- Parameters/Variables: camelCase (`resourceType`, `blockIndex`)
-- Interfaces: IPascalCase (`IDisposable`)
-- Namespaces: Match folder structure loosely (not strictly enforced)
+### Naming
+- PascalCase for types, methods, properties, and private fields
+- camelCase for parameters and locals, IPascalCase for interfaces
+- Namespaces loosely match folder structure
 
-### Types and Variables
-- **Always use `var`** for local variables (built-in types, apparent types, everywhere)
-- **Use collection expressions:** `[]` instead of `new List<>()`
-- **Nullable types:** Use `?` appropriately (`string?`, `Resource?`)
-- **No `this.` qualification** unless disambiguating
-
-### Expression Bodies
-- **Prefer expression bodies** for properties, indexers, accessors
-- **Block bodies** for methods, constructors, operators
-
-### Modern C# Features
-- Use modern patterns
-- Switch expressions over switch statements
-- Pattern matching (`is` with type checks)
-- Null coalescing (`??`, `??=`)
-- Throw expressions
-- String interpolation
-- Using declarations (not statements when possible)
+### Language Use
+- Always use `var` for locals
+- Collection expressions: `[]` instead of `new List<>()`
+- Nullable annotations where appropriate (`string?`, `Resource?`)
+- No `this.` qualification unless disambiguating
+- Expression bodies for properties, indexers, and accessors; block bodies for methods and constructors
+- Switch expressions, pattern matching, null coalescing, throw expressions, string interpolation
+- Using declarations rather than using statements when possible
 - `MathF` operations over `(float)Math` casts
-- Prefer early returns in methods
-
-### Imports and Usings
-- **Sort usings:** System namespaces first, then others alphabetically
-- **No unnecessary imports:** Remove unused
-- **Global usings:** `System`, `System.Numerics`, `System.Collections.Generic` are global (defined in Directory.Build.props)
+- Prefer early returns
+- Sort usings with System namespaces first, then others alphabetically, and remove unused ones
+- `System`, `System.Numerics`, `System.Collections.Generic` are global usings (defined in Directory.Build.props)
 
 ### Comments and Documentation
-- **Use `//` comments** instead of `/* */` block comments
-- **Avoid obvious/redundant comments** - Code should be self-documenting
-- **Only write comments for:** Non-obvious logic, workarounds, TODOs, or explaining "why" not "what"
-- **XML docs required** for public APIs in ValveResourceFormat and Renderer library
-  - Keep XML docs concise and to the point
-  - For overridden methods, use `<inheritdoc/>` if no new information is needed
+- Use `//` comments, and only for non-obvious logic, workarounds, and TODOs; explain "why", not "what"
+- Plain ASCII only: no em-dashes, curly quotes, ellipsis, or Unicode math symbols
+- Never mention where format knowledge came from (other codebases, tools, games' internals) in comments or commit messages
+- Comments must not narrate the change, this conversation, or session codenames; no decorative dividers
+- Leave existing comments alone if they are clear and correct
+- XML docs are required for public APIs in ValveResourceFormat and Renderer; keep them concise and use `<inheritdoc/>` on overrides that add nothing new
 
 ## Before Committing Checklist
 
-1. Run `dotnet build` and fix warnings and notices
+Run these once when the work is done, not after every edit. While iterating, build only the project you changed.
+
+1. Run `dotnet build` and fix warnings and notices. CI builds Release, which enables `TreatWarningsAsErrors` and `AnalysisMode=All`, so build with `-c Release` to catch what Debug misses.
 2. Run `dotnet format` to fix formatting
-3. If modifying `ValveResourceFormat/` library: Run `dotnet test` to ensure all tests pass
-4. Remove any debug code, console logs, commented code
+3. Run `dotnet test` to ensure all tests pass
+4. Remove any debug code, console logs, and commented code you added
