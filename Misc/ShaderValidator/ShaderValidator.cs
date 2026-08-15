@@ -4,16 +4,19 @@ using ValveResourceFormat.Renderer.Shaders;
 
 internal class ShaderValidator
 {
-    private class LogProgress(ILogger logger) : IProgress<string>
+    private sealed class ConsoleProgress : IProgress<string>
     {
-        public void Report(string str) => logger.LogInformation("{Message}", str);
+        public void Report(string str) => Console.WriteLine(str);
     }
 
     public static int Main(string[] args)
     {
-        using var loggerFactory = LoggerFactory.Create(builder => builder.AddConsole());
+        // Warning level hides the per-variant "compiled successfully" spam, progress is reported directly instead
+        using var loggerFactory = LoggerFactory.Create(builder => builder
+            .SetMinimumLevel(LogLevel.Warning)
+            .AddSimpleConsole(options => options.SingleLine = true));
         var logger = loggerFactory.CreateLogger<ShaderValidator>();
-        var progressReporter = new LogProgress(logger);
+        var progressReporter = new ConsoleProgress();
 
         var shaderFilter = args.Length > 0 ? args[0] : null;
 
@@ -27,7 +30,15 @@ internal class ShaderValidator
 
         window.MakeCurrent();
 
-        ShaderLoader.ValidateShaders(progressReporter, logger, shaderFilter);
+        try
+        {
+            ShaderLoader.ValidateShaders(progressReporter, logger, shaderFilter);
+        }
+        catch (Exception e)
+        {
+            Console.Error.WriteLine(e.Message);
+            return 1;
+        }
 
         return 0;
     }

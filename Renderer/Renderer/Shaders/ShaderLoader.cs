@@ -711,6 +711,11 @@ namespace ValveResourceFormat.Renderer.Shaders
                 allShaders = [.. allShaders.Where(s => Path.GetFileName(s).Contains(filter, StringComparison.OrdinalIgnoreCase))];
             }
 
+            if (allShaders.Length == 0)
+            {
+                throw new InvalidOperationException($"No shaders matched filter '{filter}'.");
+            }
+
             GLEnvironment.Initialize(renderContext.Logger);
             GLEnvironment.EnableParallelShaderCompile();
 
