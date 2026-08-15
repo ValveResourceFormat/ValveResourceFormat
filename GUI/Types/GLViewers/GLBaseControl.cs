@@ -773,7 +773,7 @@ internal abstract class GLBaseControl : IDisposable, IMessageFilter
             4, 4,
             NumSamples,
             new(PixelInternalFormat.Rgba16f, PixelFormat.Rgba, PixelType.HalfFloat),
-            Framebuffer.DepthAttachmentFormat.Depth32FStencil8
+            Framebuffer.DepthAttachmentFormat.Depth32F
         );
 
         var status = MainFramebuffer.Initialize();
@@ -787,8 +787,6 @@ internal abstract class GLBaseControl : IDisposable, IMessageFilter
             MainFramebuffer = GLDefaultFramebuffer;
             GL.Enable(EnableCap.FramebufferSrgb);
         }
-
-        MainFramebuffer.ClearMask |= ClearBufferMask.StencilBufferBit;
 
         OnGLLoad();
     }

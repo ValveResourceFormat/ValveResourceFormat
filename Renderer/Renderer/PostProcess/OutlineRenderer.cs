@@ -4,7 +4,7 @@ using OpenTK.Graphics.OpenGL;
 namespace ValveResourceFormat.Renderer.PostProcess;
 
 /// <summary>
-/// Fullscreen pass that draws an outline using stencil edge detection.
+/// Fullscreen pass that draws an outline by running edge detection over the outline coverage mask.
 /// </summary>
 public class OutlineRenderer(RendererContext rendererContext)
 {
@@ -19,7 +19,7 @@ public class OutlineRenderer(RendererContext rendererContext)
     /// <summary>
     /// Execute the outline post-pass. Caller must ensure the destination framebuffer is bound.
     /// </summary>
-    public void Render(RenderTexture stencil, int numSamples, bool flipY)
+    public void Render(RenderTexture outlineMask, int numSamples, bool flipY)
     {
         Debug.Assert(outlineEdge != null);
 
@@ -28,7 +28,7 @@ public class OutlineRenderer(RendererContext rendererContext)
         outlineEdge.SetUniform("g_bFlipY", flipY);
         outlineEdge.SetUniform("g_nNumSamplesMSAA", numSamples);
 
-        outlineEdge.SetTexture(0, "g_tStencilBuffer", stencil);
+        outlineEdge.SetTexture(0, "g_tOutlineMask", outlineMask);
 
         GL.Enable(EnableCap.Blend);
         GL.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.OneMinusSrcAlpha);

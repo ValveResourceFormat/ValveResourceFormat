@@ -8,14 +8,14 @@ uniform float g_flOutlineSize = 1;
 uniform float g_flOutlineSoftness = 0.8;
 uniform float g_flOutlineIntensity = 2.25;
 
-layout (binding = 0) uniform usampler2DMS g_tStencilBuffer;
+layout (binding = 0) uniform sampler2DMS g_tOutlineMask;
 
-void SampleStencilMSAA(ivec2 pixelCoords, inout uint insideCount, inout int totalSamples)
+void SampleOutlineMaskMSAA(ivec2 pixelCoords, inout float insideCount, inout int totalSamples)
 {
     for (int i = 0; i < g_nNumSamplesMSAA; i++)
     {
-        uint stencilValue = texelFetch(g_tStencilBuffer, pixelCoords, i).r;
-        insideCount += stencilValue;
+        float maskValue = texelFetch(g_tOutlineMask, pixelCoords, i).r;
+        insideCount += maskValue;
     }
 
     totalSamples += g_nNumSamplesMSAA;
@@ -30,18 +30,18 @@ vec4 DrawOutline()
     ivec2 pixelCoords = ivec2(gl_FragCoord.xy);
 
     int totalSamples = 0;
-    uint insideCountCenter = 0;
+    float insideCountCenter = 0.0;
 
-    SampleStencilMSAA(pixelCoords, insideCountCenter, totalSamples);
+    SampleOutlineMaskMSAA(pixelCoords, insideCountCenter, totalSamples);
 
-    if (insideCountCenter == g_nNumSamplesMSAA)
+    if (insideCountCenter >= float(g_nNumSamplesMSAA))
     {
         // do not draw outline inside the object
         discard;
     }
 
-    uint insideCount = insideCountCenter;
-    uvec2 stencilTextureSize = textureSize(g_tStencilBuffer);
+    float insideCount = insideCountCenter;
+    ivec2 maskTextureSize = textureSize(g_tOutlineMask);
 
     // Accumulate samples in a neighborhood and also collect positional info for inside-samples
     int insideSamplePixels = 0;
@@ -54,22 +54,22 @@ vec4 DrawOutline()
         {
             ivec2 sampleCoords = pixelCoords + ivec2(x, y);
 
-            if (sampleCoords.x < 0 || sampleCoords.x >= stencilTextureSize.x ||
-                sampleCoords.y < 0 || sampleCoords.y >= stencilTextureSize.y)
+            if (sampleCoords.x < 0 || sampleCoords.x >= maskTextureSize.x ||
+                sampleCoords.y < 0 || sampleCoords.y >= maskTextureSize.y)
             {
                 continue;
             }
 
             // Update global inside/total accumulators used for edge strength
-            uint beforeInside = insideCount;
-            SampleStencilMSAA(sampleCoords, insideCount, totalSamples);
+            float beforeInside = insideCount;
+            SampleOutlineMaskMSAA(sampleCoords, insideCount, totalSamples);
 
             // Derive per-pixel coverage from the accumulator
-            uint localInside = insideCount - beforeInside;
-            if (localInside > 0u)
+            float localInside = insideCount - beforeInside;
+            if (localInside > 0.0)
             {
                 // weight by how many MSAA samples at this pixel are inside
-                float w = float(localInside);
+                float w = localInside;
                 insideSamplePixels += int(w);
                 insidePosSum += vec2(sampleCoords) * w;
 

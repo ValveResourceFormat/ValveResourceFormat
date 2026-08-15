@@ -36,6 +36,9 @@ namespace ValveResourceFormat.Renderer.PostProcess
         /// <summary>Gets or sets a value indicating whether any scene objects require outline rendering this frame.</summary>
         public bool HasOutlineObjects { get; set; }
 
+        /// <summary>Gets or sets the multisampled coverage mask produced by the outline geometry pass.</summary>
+        public RenderTexture? OutlineMask { get; set; }
+
         /// <summary>Gets the per-frame raw exposure scalar history used for temporal smoothing.</summary>
         public List<float> ExposureHistory { get; } = new(10);
 
@@ -328,8 +331,8 @@ namespace ValveResourceFormat.Renderer.PostProcess
             if (HasOutlineObjects)
             {
                 using var _ = new GLDebugGroup("Outline Edge");
-                Debug.Assert(colorBufferRead.Stencil != null);
-                Outline.Render(colorBufferRead.Stencil, colorBufferRead.NumSamples, flipY);
+                Debug.Assert(OutlineMask != null);
+                Outline.Render(OutlineMask, colorBufferRead.NumSamples, flipY);
             }
 
             GL.DepthMask(true);

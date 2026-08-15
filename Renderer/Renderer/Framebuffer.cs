@@ -54,11 +54,6 @@ public class Framebuffer
     /// </summary>
     public RenderTexture? Depth { get; protected set; }
 
-    /// <summary>
-    /// Stencil view texture, or <see langword="null"/> if none.
-    /// </summary>
-    public RenderTexture? Stencil { get; protected set; }
-
     // Maybe these can be in texture
     /// <summary>
     /// Pixel format specification for the color attachment.
@@ -180,11 +175,6 @@ public class Framebuffer
         public static readonly DepthAttachmentFormat Depth32F = new(PixelInternalFormat.DepthComponent32f, PixelType.Float);
 
         /// <summary>
-        /// 32-bit floating-point depth with 8-bit stencil format.
-        /// </summary>
-        public static readonly DepthAttachmentFormat Depth32FStencil8 = new(PixelInternalFormat.Depth32fStencil8, PixelType.Float32UnsignedInt248Rev);
-
-        /// <summary>
         /// Implicitly converts this depth format to a generic <see cref="AttachmentFormat"/>.
         /// </summary>
         public static implicit operator AttachmentFormat(DepthAttachmentFormat depthFormat) => depthFormat.ToAttachmentFormat();
@@ -292,7 +282,6 @@ public class Framebuffer
     {
         Color?.Delete();
         Depth?.Delete();
-        Stencil?.Delete();
 
         var (width, height) = (Width, Height);
 
@@ -308,17 +297,6 @@ public class Framebuffer
             Depth = CreateAttachment(DepthFormat, width, height);
             Depth.SetLabel("FramebufferDepth");
             Depth.AttachToFramebuffer(this, FramebufferAttachment.DepthAttachment, 0);
-
-            if (DepthFormat == DepthAttachmentFormat.Depth32FStencil8)
-            {
-                Depth.AttachToFramebuffer(this, FramebufferAttachment.DepthStencilAttachment, 0);
-
-                Stencil = Depth.CreateView(DepthFormat.InternalFormat);
-
-                Stencil.SetLabel("FramebufferStencil");
-                Stencil.SetBaseMaxLevel(0, 0);
-                GL.TextureParameter(Stencil.Handle, TextureParameterName.DepthStencilTextureMode, (int)DepthStencilTextureMode.StencilIndex);
-            }
         }
     }
 
@@ -405,11 +383,6 @@ public class Framebuffer
         if (Depth != null)
         {
             GL.DeleteTexture(Depth.Handle);
-        }
-
-        if (Stencil != null)
-        {
-            GL.DeleteTexture(Stencil.Handle);
         }
     }
 

@@ -275,7 +275,7 @@ internal class RenderTestWindow : GameWindow
         // Create framebuffer for rendering
         framebuffer = Framebuffer.Prepare("MainFramebuffer", 4, 4, 4,
             new(PixelInternalFormat.Rgba16f, PixelFormat.Rgba, PixelType.HalfFloat),
-            Framebuffer.DepthAttachmentFormat.Depth32FStencil8);
+            Framebuffer.DepthAttachmentFormat.Depth32F);
         framebuffer.Initialize();
 
         SceneRenderer.Initialize();

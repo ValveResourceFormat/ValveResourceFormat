@@ -125,6 +125,15 @@ public class Renderer
     /// Depth-only framebuffer atlas used for barn light shadow mapping.
     /// </summary>
     public Framebuffer? BarnLightShadowBuffer { get; private set; }
+
+    /// <summary>
+    /// Single channel coverage mask written by the outline geometry pass and read by the outline edge post pass.
+    /// Lazily created to match <see cref="MainFramebuffer"/>'s dimensions and sample count.
+    /// </summary>
+    public Framebuffer? OutlineMaskBuffer { get; private set; }
+
+    private static Framebuffer.AttachmentFormat OutlineMaskFormat => new(PixelInternalFormat.R8, PixelFormat.Red, PixelType.UnsignedByte);
+
     /// <summary>
     /// Resolved (non-MSAA) scene color in rgba16f format, used for refraction, bloom input, and luminance computation.
     /// Filled by <see cref="GrabFramebufferCopy"/>.
@@ -962,24 +971,65 @@ public class Renderer
 
     private void RenderOutlineLayer(Scene.RenderContext renderContext)
     {
-        using var _ = new GLDebugGroup("Outline Stencil Write");
+        using var _ = new GLDebugGroup("Outline Mask Write");
+
+        var sceneFramebuffer = renderContext.Framebuffer;
+        var maskBuffer = GetOutlineMaskBuffer(sceneFramebuffer);
+
+        Postprocess.OutlineMask = maskBuffer.Color;
 
         GL.DepthMask(false);
         GL.Disable(EnableCap.DepthTest);
         GL.Disable(EnableCap.CullFace);
+        GL.Disable(EnableCap.Blend);
 
-        GL.Enable(EnableCap.StencilTest);
-        GL.StencilOp(StencilOp.Keep, StencilOp.Keep, StencilOp.Replace);
-        GL.StencilFunc(StencilFunction.Always, 1, 0xFF);
-        GL.StencilMask(0xFF);
+        GL.Viewport(0, 0, maskBuffer.Width, maskBuffer.Height);
+        maskBuffer.BindAndClear();
 
         SkyboxScene?.RenderOutlineLayer(renderContext);
         Scene.RenderOutlineLayer(renderContext);
 
-        GL.Disable(EnableCap.StencilTest);
+        // Custom scene nodes may leave blending on, and the outline layer is drawn mid frame.
+        GL.Disable(EnableCap.Blend);
         GL.Enable(EnableCap.CullFace);
         GL.Enable(EnableCap.DepthTest);
         GL.DepthMask(true);
+
+        sceneFramebuffer.Bind(FramebufferTarget.Framebuffer);
+        GL.Viewport(0, 0, sceneFramebuffer.Width, sceneFramebuffer.Height);
+    }
+
+    /// <summary>
+    /// Returns the outline mask framebuffer, creating or resizing it to match the scene framebuffer.
+    /// </summary>
+    private Framebuffer GetOutlineMaskBuffer(Framebuffer sceneFramebuffer)
+    {
+        var (width, height, msaa) = (sceneFramebuffer.Width, sceneFramebuffer.Height, sceneFramebuffer.NumSamples);
+
+        // The edge detection pass reads the mask per sample, so the mask has to be multisampled the same way.
+        Debug.Assert(msaa > 0);
+
+        // Framebuffer.Resize only recreates attachments when the dimensions change, so a sample count
+        // change has to recreate the framebuffer from scratch.
+        if (OutlineMaskBuffer != null && OutlineMaskBuffer.NumSamples != msaa)
+        {
+            OutlineMaskBuffer.Delete();
+            OutlineMaskBuffer = null;
+        }
+
+        if (OutlineMaskBuffer == null)
+        {
+            OutlineMaskBuffer = Framebuffer.Prepare(nameof(OutlineMaskBuffer), width, height, msaa, OutlineMaskFormat, null);
+            OutlineMaskBuffer.ClearMask = ClearBufferMask.ColorBufferBit;
+            OutlineMaskBuffer.Initialize();
+            OutlineMaskBuffer.CheckStatus_ThrowIfIncomplete(nameof(OutlineMaskBuffer));
+        }
+        else
+        {
+            OutlineMaskBuffer.Resize(width, height);
+        }
+
+        return OutlineMaskBuffer;
     }
 
     private void EnsureResolvedTextureSize(int width, int height)
@@ -1058,6 +1108,7 @@ public class Renderer
         PerfStats?.Dispose();
         ResolvedSceneColor?.Delete();
         ResolvedSceneDepth?.Delete();
+        OutlineMaskBuffer?.Delete();
         Skybox2D?.Delete();
 
         if (BaseBackground != Skybox2D && BaseBackground != null)

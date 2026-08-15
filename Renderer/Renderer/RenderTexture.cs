@@ -117,20 +117,6 @@ namespace ValveResourceFormat.Renderer
             return texture;
         }
 
-        /// <summary>Creates a texture view that reinterprets a subrange of this texture's storage.</summary>
-        /// <param name="internalFormat">The reinterpreted pixel format for the view.</param>
-        /// <param name="minLevel">First mip level visible through the view.</param>
-        /// <param name="numLevels">Number of mip levels visible through the view.</param>
-        /// <param name="minLayer">First array layer visible through the view.</param>
-        /// <param name="numLayers">Number of array layers visible through the view.</param>
-        /// <returns>A new <see cref="RenderTexture"/> wrapping the view.</returns>
-        public RenderTexture CreateView(PixelInternalFormat internalFormat, int minLevel = 0, int numLevels = 1, int minLayer = 0, int numLayers = 1)
-        {
-            var view = new RenderTexture(GL.GenTexture(), Target);
-            GL.TextureView(view.Handle, Target, Handle, internalFormat, minLevel, numLevels, minLayer, numLayers);
-            return view;
-        }
-
         /// <summary>Sets the wrap mode for all relevant texture dimensions.</summary>
         /// <param name="wrap">The wrap mode to apply.</param>
         public void SetWrapMode(TextureWrapMode wrap)
