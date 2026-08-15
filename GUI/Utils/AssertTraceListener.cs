@@ -9,7 +9,12 @@ namespace GUI.Utils
     /// </summary>
     internal sealed class AssertTraceListener : DefaultTraceListener
     {
-        internal sealed class AssertFailedException(string message) : Exception(message);
+        internal sealed class AssertFailedException : Exception
+        {
+            public AssertFailedException() { }
+            public AssertFailedException(string message) : base(message) { }
+            public AssertFailedException(string message, Exception innerException) : base(message, innerException) { }
+        }
 
         public override void Fail(string? message, string? detailMessage)
         {
