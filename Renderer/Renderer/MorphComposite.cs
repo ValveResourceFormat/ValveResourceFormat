@@ -117,7 +117,8 @@ namespace ValveResourceFormat.Renderer
             GL.NamedBufferSubData(bufferHandle, IntPtr.Zero, usedVertexCount * MorphRectVertex.InputLayout.Stride, usedVertices);
 
             // Every rect adds its weighted deltas on top of the ones already accumulated, alpha included.
-            using var _ = renderState.Scope(cullMode: RsCullMode.None, depthTest: false, depthWrite: false,
+            using var _ = renderState.Scope(cullMode: RsCullMode.None, multisampleEnable: false,
+                depthTest: false, depthWrite: false,
                 blend: true, srcBlend: RsBlendMode.One, dstBlend: RsBlendMode.One);
 
             GL.BindFramebuffer(FramebufferTarget.Framebuffer, frameBuffer);

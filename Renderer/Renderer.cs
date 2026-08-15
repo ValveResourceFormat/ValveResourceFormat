@@ -583,7 +583,7 @@ public class Renderer
         ViewBuffer.Data.ViewportSize = new Vector2(w, h);
         ViewBuffer.Data.InvViewportSize = Vector2.One / ViewBuffer.Data.ViewportSize;
 
-        using var frameScope = RendererContext.RenderState.Scope();
+        using var frameScope = RendererContext.RenderState.Scope(multisampleEnable: renderContext.Framebuffer.NumSamples > 1);
         renderContext.Framebuffer.BindAndClear();
 
         var isMainFramebuffer = ReferenceEquals(renderContext.Framebuffer, MainFramebuffer);
@@ -814,7 +814,7 @@ public class Renderer
             throw new InvalidOperationException("Initialize() must be called before rendering");
         }
 
-        using var _ = RendererContext.RenderState.Scope();
+        using var _ = RendererContext.RenderState.Scope(multisampleEnable: ShadowDepthBuffer.NumSamples > 1);
 
         using var shadowDepth = RendererContext.RenderState.ScopeDynamic(DepthRange.Full);
 
@@ -856,7 +856,8 @@ public class Renderer
         Debug.Assert(BarnLightShadowBuffer != null);
 
         // The barn shadow atlas uses forward depth, unlike the reverse-Z main view.
-        using var forwardDepth = RendererContext.RenderState.Scope(depthFunc: RsComparison.FartherEqual, slopeScaledDepthBias: 2f);
+        using var forwardDepth = RendererContext.RenderState.Scope(depthFunc: RsComparison.FartherEqual,
+            slopeScaledDepthBias: 2f, multisampleEnable: BarnLightShadowBuffer.NumSamples > 1);
 
         using var atlasDepth = RendererContext.RenderState.ScopeDynamic(DepthRange.Full, clearDepth: 1f, scissorTest: true);
 
@@ -956,8 +957,8 @@ public class Renderer
         Postprocess.OutlineMask = maskBuffer.Color;
 
         // Custom scene nodes may leave state changed, and the outline layer is drawn mid frame.
-        using var maskState = RendererContext.RenderState.Scope(
-            cullMode: RsCullMode.None, depthTest: false, depthWrite: false, blend: false);
+        using var maskState = RendererContext.RenderState.Scope(cullMode: RsCullMode.None,
+            multisampleEnable: maskBuffer.NumSamples > 1, depthTest: false, depthWrite: false, blend: false);
 
         GL.Viewport(0, 0, maskBuffer.Width, maskBuffer.Height);
         maskBuffer.BindAndClear();
