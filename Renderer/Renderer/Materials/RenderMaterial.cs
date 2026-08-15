@@ -817,7 +817,9 @@ namespace ValveResourceFormat.Renderer.Materials
 
             if (blendMode == BlendMode.AlphaTest)
             {
-                state.Blend.AlphaToCoverageEnable = true; // todo: only if msaa samples > 1
+                // Coverage is a single bit without multisampling, which turns this into a second,
+                // harder alpha cutout on top of the one the shader already does.
+                state.Blend.AlphaToCoverageEnable = state.Rasterizer.MultisampleEnable;
             }
             else if (blendMode >= BlendMode.Translucent)
             {
