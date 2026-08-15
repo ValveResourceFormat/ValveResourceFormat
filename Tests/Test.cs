@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Text.RegularExpressions;
 using NUnit.Framework;
 using ValveResourceFormat;
@@ -219,6 +220,12 @@ namespace Tests
             Assert.That(dataBlock, Is.Not.TypeOf<UnknownDataBlock>(), file);
         }
 
+        // Set VRF_REGEN_FIXTURES=1 to rewrite mismatching ValidOutput dumps in the source tree
+        private static readonly bool RegenerateFixtures = Environment.GetEnvironmentVariable("VRF_REGEN_FIXTURES") == "1";
+
+        private static string GetSourceValidOutputPath([CallerFilePath] string sourceFile = "")
+            => Path.Combine(Path.GetDirectoryName(sourceFile)!, "Files", "ValidOutput");
+
         static void VerifyResources(Dictionary<string, Resource> resources, bool validateMissingResources = true)
         {
             var path = Path.Combine(TestContext.CurrentContext.TestDirectory, "Files", "ValidOutput");
@@ -267,11 +274,11 @@ namespace Tests
                     continue;
                 }
 
-                var actualOutput = blockData.ToString();
+                var rawOutput = blockData.ToString();
                 var expectedOutput = File.ReadAllText(file);
 
                 // We don't care about Valve's messy whitespace, so just strip it.
-                actualOutput = SpaceRegex().Replace(actualOutput, string.Empty);
+                var actualOutput = SpaceRegex().Replace(rawOutput, string.Empty);
 
                 expectedOutput = expectedOutput.Replace("Source 2 Viewer - https://valveresourceformat.github.io", StringToken.VRF_GENERATOR, StringComparison.Ordinal);
                 expectedOutput = SpaceRegex().Replace(expectedOutput, string.Empty);
@@ -279,7 +286,17 @@ namespace Tests
                 //Assert.That(actualOutput, Is.EqualTo(expectedOutput));
                 if (expectedOutput != actualOutput)
                 {
-                    TestContext.Error.WriteLine($"File '{file}' has mismatching ToString() in {blockType}");
+                    if (RegenerateFixtures)
+                    {
+                        // Fixtures are stored with the version-free generator string
+                        var sourceFile = Path.Combine(GetSourceValidOutputPath(), Path.GetRelativePath(path, file));
+                        File.WriteAllText(sourceFile, rawOutput.Replace(StringToken.VRF_GENERATOR, "Source 2 Viewer - https://valveresourceformat.github.io", StringComparison.Ordinal));
+                        TestContext.Error.WriteLine($"Regenerated '{sourceFile}'");
+                    }
+                    else
+                    {
+                        TestContext.Error.WriteLine($"File '{file}' has mismatching ToString() in {blockType}");
+                    }
                 }
             }
 

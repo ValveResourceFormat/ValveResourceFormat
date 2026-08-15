@@ -12,6 +12,7 @@ The project folders are:
 - **Tests/**: NUnit test suite for the ValveResourceFormat library, plus some headless Renderer logic tests in `Tests/Renderer/`.
   - Run tests when changing code in `ValveResourceFormat/` or `Renderer/`. GUI and CLI are not covered.
   - Tests are fast, run the whole suite with `dotnet test`. If it reports `Zero tests ran` (exit code 5), do a full `dotnet build` and retry.
+  - When a parsing change legitimately alters text output, run tests with `VRF_REGEN_FIXTURES=1` to rewrite the mismatching `Tests/Files/ValidOutput` dumps in the source tree.
 - **Misc/**: Auxiliary tools (ShaderValidator, RenderTest, etc.) in their own solution `Misc/MiscVrfProjects.slnx`.
 
 **Target:** Latest released .NET. Use modern C# features. Nullable reference types enabled.
