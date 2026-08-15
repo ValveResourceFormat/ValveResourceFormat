@@ -1096,6 +1096,10 @@ public class Renderer
         ResolvedSceneColor?.Delete();
         ResolvedSceneDepth?.Delete();
         OutlineMaskBuffer?.Delete();
+        ShadowDepthBuffer?.Delete();
+        BarnLightShadowBuffer?.Delete();
+        histogramBuffers[0]?.Delete();
+        histogramBuffers[1]?.Delete();
         Skybox2D?.Delete();
 
         if (BaseBackground != Skybox2D && BaseBackground != null)
