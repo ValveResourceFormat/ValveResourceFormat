@@ -1,8 +1,6 @@
 #version 460
 
-#include "common/ViewConstants.slang"
-
-uniform usampler2D g_tQuadOverdraw;
+#include "common/quad_overdraw.slang"
 
 layout(location = 0) out vec4 outputColor;
 
@@ -27,7 +25,8 @@ vec4 OverdrawColor(uint count)
 
 void main()
 {
-    outputColor = OverdrawColor(texelFetch(g_tQuadOverdraw, ivec2(gl_FragCoord.xy * 0.5), 0).r);
+    ivec2 quad = ivec2(gl_FragCoord.xy * 0.5);
+    outputColor = OverdrawColor(g_quadOverdraw[QuadOverdrawCountIndex(quad)]);
 
     // heat map legend near the bottom of the screen, flipped on y compared to Source 2 because gl_FragCoord is y-up
     vec2 uv = gl_FragCoord.xy * g_vInvViewportSize;

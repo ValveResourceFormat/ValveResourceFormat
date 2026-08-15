@@ -60,6 +60,8 @@ public enum ReservedBufferSlots
     CullItems = 14,
     /// <summary>Convex hull vertices referenced by <see cref="CullItems"/>.</summary>
     CullPlanes = 15,
+    /// <summary>Quad overdraw debug lock and count pairs SSBO slot.</summary>
+    QuadOverdraw = 16,
 
     /// <summary>Guaranteed minimum binding point count in OpenGL 4.6.</summary>
     Max = 8,

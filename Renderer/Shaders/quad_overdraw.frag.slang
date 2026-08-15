@@ -2,12 +2,10 @@
 
 #define renderMode_QuadOverdraw 0
 
+#include "common/quad_overdraw.slang"
+
 // Count with the depth test the scene actually rendered with, and without the UAV writes disabling early z.
 layout(early_fragment_tests) in;
-
-// Image units 1 and 2 are taken by the MSAA resolve and depth pyramid compute passes
-layout(binding = 3, r32ui) uniform uimage2D g_tQuadLock;
-layout(binding = 4, r32ui) uniform uimage2D g_tQuadOverdraw;
 
 layout(location = 0) out vec4 outputColor;
 
@@ -15,7 +13,7 @@ layout(location = 0) out vec4 outputColor;
 // counting pass only shades (and counts) the surfaces that end up visible.
 uniform bool bCountQuads = true;
 
-const uint QUAD_UNLOCKED = 0xFFFFFFFFu;
+const uint QUAD_UNLOCKED = 0u;
 
 void main()
 {
@@ -27,11 +25,14 @@ void main()
     }
 
     ivec2 quad = ivec2(gl_FragCoord.xy * 0.5);
-    uint primitiveId = uint(gl_PrimitiveID);
+    int lockIndex = QuadOverdrawLockIndex(quad);
+
+    // Zero means unlocked (so the buffer clears to all zeroes), quads are claimed with the primitive id offset by one.
+    uint claimValue = uint(gl_PrimitiveID) + 1u;
 
     // A primitive that touches a 2x2 quad shades it once per covered pixel, but must count only once.
 
-    // The quad lock image serves as a scoreboard: each fragment tries to claim the quad with its primitive id, and only a claim
+    // The quad lock serves as a scoreboard: each fragment tries to claim the quad with its primitive id, and only a claim
     // that observed the quad unlocked counts.
 
     // Fragments that see their primitive id lost the race to a sibling fragment and bail.
@@ -46,7 +47,7 @@ void main()
     {
         if (!done)
         {
-            lockValue = imageAtomicCompSwap(g_tQuadLock, quad, QUAD_UNLOCKED, primitiveId);
+            lockValue = atomicCompSwap(g_quadOverdraw[lockIndex], QUAD_UNLOCKED, claimValue);
         }
 
         if (lockValue == QUAD_UNLOCKED)
@@ -56,17 +57,17 @@ void main()
 
             if (claimed == 2)
             {
-                lockValue = imageAtomicExchange(g_tQuadLock, quad, QUAD_UNLOCKED);
+                lockValue = atomicExchange(g_quadOverdraw[lockIndex], QUAD_UNLOCKED);
             }
 
             done = true;
         }
 
-        done = done || lockValue == primitiveId;
+        done = done || lockValue == claimValue;
     }
 
     if (claimed != 0)
     {
-        imageAtomicAdd(g_tQuadOverdraw, quad, 1u);
+        atomicAdd(g_quadOverdraw[lockIndex + 1], 1u);
     }
 }
