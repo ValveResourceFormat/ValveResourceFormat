@@ -8,15 +8,26 @@
 
 #if (F_MORPH_SUPPORTED == 1)
     uniform sampler2D morphCompositeTexture; // reserved
-    uniform vec2 morphCompositeTextureSize;
     uniform int morphVertexIdOffset;
 
-    vec2 getMorphUV()
+    #define MORPH_FIELD_POSITION_SPEED 0
+    #define MORPH_FIELD_NORMAL_WRINKLE 1
+
+    // The composite holds two fields of the same size side by side: position/speed on the left,
+    // normal/wrinkle on the right. A field is therefore half of the composite wide, and that is
+    // also the row stride the morph set was laid out with.
+    vec2 getMorphUV(int field)
     {
-        int vertexId = gl_VertexID + morphVertexIdOffset;
+        vec2 compositeSize = vec2(textureSize(morphCompositeTexture, 0));
+        float fieldWidth = compositeSize.x * 0.5;
+
+        float vertexId = float(gl_VertexID + morphVertexIdOffset);
+        float column = mod(vertexId, fieldWidth);
+        float row = floor(vertexId / fieldWidth);
+
         return vec2(
-            (1.5 + mod(vertexId, morphCompositeTextureSize.x)) / 2048.0,
-            1 - (1.5 + floor(vertexId / morphCompositeTextureSize.x)) / 2048.0
+            (0.5 + column) / compositeSize.x + 0.5 * float(field),
+            1.0 - ((0.5 + row) / compositeSize.y)
         );
     }
 #endif
@@ -26,11 +37,25 @@ vec3 getMorphOffset()
     #if (F_MORPH_SUPPORTED == 1)
         if (bMorphed)
         {
-            return textureLod(morphCompositeTexture, getMorphUV(), 0).xyz;
+            return textureLod(morphCompositeTexture, getMorphUV(MORPH_FIELD_POSITION_SPEED), 0).xyz;
         }
     #endif
 
     return vec3(0, 0, 0);
+}
+
+// The normal/wrinkle field carries the normal delta in rgb and the wrinkle weight in a.
+// Nothing consumes wrinkle yet, it is only composited.
+vec3 applyMorphNormal(vec3 normal)
+{
+    #if (F_MORPH_SUPPORTED == 1)
+        if (bMorphed)
+        {
+            return normalize(normal + textureLod(morphCompositeTexture, getMorphUV(MORPH_FIELD_NORMAL_WRINKLE), 0).xyz);
+        }
+    #endif
+
+    return normal;
 }
 
 #endif

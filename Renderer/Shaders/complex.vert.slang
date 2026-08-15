@@ -282,6 +282,7 @@ void main()
     vec3 normal;
     vec4 tangent;
     GetOptionallyCompressedNormalTangent(normal, tangent);
+    normal = applyMorphNormal(normal);
 
     vNormalOut = TransformDirectionToWorld(skinTransform, normal);
     vTangentOut = TransformDirectionToWorld(skinTransform, tangent.xyz);

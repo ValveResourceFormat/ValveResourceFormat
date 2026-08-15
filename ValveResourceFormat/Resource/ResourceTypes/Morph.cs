@@ -93,7 +93,7 @@ namespace ValveResourceFormat.ResourceTypes
                 return flexData;
             }
 
-            var bundleTypes = GetMorphKeyValueCollection(Data, "m_bundleTypes").Select(kv => ParseBundleType(kv)).ToArray();
+            var bundleTypes = GetBundleTypes();
             flexData.EnsureCapacity(morphDatas.Count);
 
             foreach (var morphData in morphDatas)
@@ -254,6 +254,15 @@ namespace ValveResourceFormat.ResourceTypes
         private static IReadOnlyList<KVObject> GetMorphKeyValueCollection(KVObject data, string name)
         {
             return data.GetArray(name) ?? [];
+        }
+
+        /// <summary>
+        /// Gets what each bundle of a morph rect holds. The bundle types are shared by every rect, so this
+        /// indexes into a rect's <c>m_bundleDatas</c>.
+        /// </summary>
+        public MorphBundleType[] GetBundleTypes()
+        {
+            return [.. GetMorphKeyValueCollection(Data, "m_bundleTypes").Select(ParseBundleType)];
         }
 
         /// <summary>
