@@ -112,6 +112,11 @@ public class Framebuffer
     }
 
     /// <summary>
+    /// Debug name of the framebuffer, also applied as its object label.
+    /// </summary>
+    public string Name { get; }
+
+    /// <summary>
     /// Creates a new named OpenGL framebuffer object.
     /// </summary>
     /// <param name="name">Debug label applied to the framebuffer object.</param>
@@ -120,6 +125,7 @@ public class Framebuffer
         GL.CreateFramebuffers(1, out int handle);
         GL.ObjectLabel(ObjectLabelIdentifier.Framebuffer, handle, name.Length, name);
         FboHandle = handle;
+        Name = name;
     }
 
     #region Default OpenGL Framebuffer instance, and equality checks
@@ -127,6 +133,7 @@ public class Framebuffer
     {
         FboHandle = fboHandle;
         InitialStatus = FramebufferErrorCode.FramebufferComplete;
+        Name = "GLDefaultFramebuffer";
     }
     /// <summary>
     /// Creates a <see cref="Framebuffer"/> instance wrapping the default OpenGL framebuffer (handle 0).
@@ -218,10 +225,9 @@ public class Framebuffer
     }
 
     /// <summary>
-    /// Allocates GPU textures for all attachments and checks framebuffer completeness.
+    /// Allocates GPU textures for all attachments and throws if the framebuffer is not complete.
     /// </summary>
-    /// <returns>The OpenGL framebuffer completeness status code.</returns>
-    public FramebufferErrorCode Initialize()
+    public void Initialize()
     {
         if (Target == 0)
         {
@@ -249,7 +255,11 @@ public class Framebuffer
         Bind(fboTarget);
 
         InitialStatus = GL.CheckFramebufferStatus(fboTarget);
-        return InitialStatus;
+
+        if (InitialStatus != FramebufferErrorCode.FramebufferComplete)
+        {
+            throw new InvalidOperationException($"Fbo '{Name}' failed to initialize with error: {InitialStatus}");
+        }
     }
 
     /// <summary>
@@ -378,17 +388,6 @@ public class Framebuffer
         DepthFormat = depthFormat;
 
         CreateAttachments();
-    }
-
-    /// <summary>
-    /// Throws an <see cref="InvalidOperationException"/> if the framebuffer is not complete.
-    /// </summary>
-    public void CheckStatus_ThrowIfIncomplete(string name = "")
-    {
-        if (InitialStatus != FramebufferErrorCode.FramebufferComplete)
-        {
-            throw new InvalidOperationException($"Fbo '{name}' failed to initialize with error: {InitialStatus}");
-        }
     }
 
     /// <summary>

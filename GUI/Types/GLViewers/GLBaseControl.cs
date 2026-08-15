@@ -777,7 +777,6 @@ internal abstract class GLBaseControl : IDisposable, IMessageFilter
         );
 
         MainFramebuffer.Initialize();
-        MainFramebuffer.CheckStatus_ThrowIfIncomplete(nameof(MainFramebuffer));
 
         OnGLLoad();
     }

@@ -144,7 +144,6 @@ public class GLTextureDecoder : IHardwareTextureDecoder, IDisposable
         GLEnvironment.Initialize(RendererContext.Logger);
         Framebuffer = Framebuffer.Prepare(nameof(GLTextureDecoder), 4, 4, 0, LDRFormat, null);
         Framebuffer.Initialize();
-        Framebuffer.CheckStatus_ThrowIfIncomplete(nameof(GLTextureDecoder));
         Framebuffer.ClearMask = ClearBufferMask.ColorBufferBit;
         Framebuffer.ClearColor = new OpenTK.Mathematics.Color4(0, 0, 255, 255);
 
@@ -291,10 +290,10 @@ public class GLTextureDecoder : IHardwareTextureDecoder, IDisposable
         }
     }
 
-    public static readonly Framebuffer.AttachmentFormat LDRFormat = GetFramebufferFormat(hdr: false);
-    public static readonly Framebuffer.AttachmentFormat HDRFormat = GetFramebufferFormat(hdr: true);
+    public static readonly Framebuffer.AttachmentFormat LDRFormat = CreateFramebufferFormat(hdr: false);
+    public static readonly Framebuffer.AttachmentFormat HDRFormat = CreateFramebufferFormat(hdr: true);
 
-    public static Framebuffer.AttachmentFormat GetFramebufferFormat(bool hdr)
+    private static Framebuffer.AttachmentFormat CreateFramebufferFormat(bool hdr)
     {
         var (internalFormat, pixelFormat, pixelType) = MaterialLoader.GetImageExportFormat(hdr);
 
