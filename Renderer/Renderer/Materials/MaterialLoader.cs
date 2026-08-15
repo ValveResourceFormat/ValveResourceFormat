@@ -604,7 +604,7 @@ namespace ValveResourceFormat.Renderer.Materials
                 DefaultVolume.SetFiltering(TextureMinFilter.Nearest, TextureMagFilter.Nearest);
                 DefaultVolume.SetWrapMode(TextureWrapMode.ClampToEdge);
 
-                GL.TextureStorage3D(DefaultVolume.Handle, 1, SizedInternalFormat.Rgb8, 1, 1, 1);
+                GL.TextureStorage3D(DefaultVolume.Handle, 1, SizedInternalFormat.Rgba8, 1, 1, 1);
                 GL.TextureSubImage3D(DefaultVolume.Handle, 0, 0, 0, 0, 1, 1, 1, PixelFormat.Rgb, PixelType.UnsignedByte, WhiteTexel);
 
 #if DEBUG
@@ -638,7 +638,7 @@ namespace ValveResourceFormat.Renderer.Materials
             {
                 SKColorType.Rgba8888 => new TextureFormatMapping(SizedInternalFormat.Rgba8, PixelFormat.Rgba, PixelType.UnsignedByte),
                 SKColorType.Bgra8888 => new TextureFormatMapping(SizedInternalFormat.Rgba8, PixelFormat.Bgra, PixelType.UnsignedByte),
-                SKColorType.Rgb888x => new TextureFormatMapping(SizedInternalFormat.Rgb8, PixelFormat.Rgba, PixelType.UnsignedByte),
+                SKColorType.Rgb888x => new TextureFormatMapping(SizedInternalFormat.Rgba8, PixelFormat.Rgba, PixelType.UnsignedByte),
                 SKColorType.Gray8 => new TextureFormatMapping(SizedInternalFormat.R8, PixelFormat.Red, PixelType.UnsignedByte),
                 SKColorType.RgbaF16 => new TextureFormatMapping(SizedInternalFormat.Rgba16f, PixelFormat.Rgba, PixelType.HalfFloat),
                 SKColorType.RgbaF32 => new TextureFormatMapping(SizedInternalFormat.Rgba32f, PixelFormat.Rgba, PixelType.Float),
@@ -647,6 +647,12 @@ namespace ValveResourceFormat.Renderer.Materials
 
             GL.TextureStorage2D(texture.Handle, 1, store.InternalFormat, texture.Width, texture.Height);
             GL.TextureSubImage2D(texture.Handle, 0, 0, 0, texture.Width, texture.Height, store.PixelFormat!.Value, store.PixelType!.Value, bitmap.GetPixels());
+
+            if (bitmap.ColorType == SKColorType.Rgb888x)
+            {
+                // The uploaded fourth byte is undefined, the format is opaque by definition
+                GL.TextureParameter(texture.Handle, TextureParameterName.TextureSwizzleA, (int)All.One);
+            }
 
             return texture;
         }
@@ -747,7 +753,7 @@ namespace ValveResourceFormat.Renderer.Materials
             var color32 = new Color32(color[0], color[1], color[2]);
             texture.Reflectivity = color32.ToLinearColor();
 
-            GL.TextureStorage2D(texture.Handle, 1, SizedInternalFormat.Rgb8, width, height);
+            GL.TextureStorage2D(texture.Handle, 1, SizedInternalFormat.Rgba8, width, height);
             GL.TextureSubImage2D(texture.Handle, 0, 0, 0, width, height, PixelFormat.Rgb, PixelType.UnsignedByte, color);
 
 #if DEBUG
