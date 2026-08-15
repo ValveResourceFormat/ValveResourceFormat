@@ -31,7 +31,13 @@ in vec2 vTEXCOORD;
 #define F_TEXTURE_ANIMATION 0 // csgo_complex, csgo_static_overlay, csgo_unlitgeneric, vr_complex, vr_monitor, vr_panorama_hint_ui, vr_simple, vr_standard
 uniform int F_TEXTURE_ANIMATION_MODE; // csgo_complex, csgo_static_overlay, csgo_unlitgeneric, vr_complex, vr_monitor
 #define F_SPHERICAL_PROJECTED_ANISOTROPIC_TANGENTS 0 // csgo_character
+#define F_USE_PER_VERTEX_CURVATURE 0 // vr_skin, vr_skin_blended
 //End of parameter defines
+
+#if (F_USE_PER_VERTEX_CURVATURE == 1)
+    in float flSSSCurvature;
+    out float vCurvatureOut;
+#endif
 
 #if (GameVfx_vr_simple_2way_blend != 0) || (GameVfx_vr_simple_2way_parallax != 0) || (GameVfx_vr_simple_3way_parallax != 0) || (GameVfx_vr_simple_blend_to_triplanar != 0) || (GameVfx_vr_simple_blend_to_xen_membrane != 0)
     #define vr_blend_vfx_common
@@ -334,6 +340,10 @@ void main()
 #endif
 
     vTexCoordOut = GetAnimatedUVs(vTEXCOORD.xy);
+
+#if (F_USE_PER_VERTEX_CURVATURE == 1)
+    vCurvatureOut = flSSSCurvature;
+#endif
 
 #if (D_BAKED_LIGHTING_FROM_LIGHTMAP == 1)
     vLightmapUVScaled = vec3(vLightmapUV * g_vLightmapUvScale.xy, 0);

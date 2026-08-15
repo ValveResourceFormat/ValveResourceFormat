@@ -70,8 +70,8 @@ namespace ValveResourceFormat.Renderer
         [VertexAttributeName("vTEXCOORD1", Semantic = "TEXCOORD", SemanticIndex = 1)]
         TexCoord1,
 
-        /// <summary>Layer blend weights.</summary>
-        [VertexAttributeName("vTEXCOORD2", Semantic = "TEXCOORD", SemanticIndex = 2)]
+        /// <summary>Layer blend weights, or per vertex subsurface curvature on skin.</summary>
+        [VertexAttributeName("vTEXCOORD2", "flSSSCurvature", Semantic = "TEXCOORD", SemanticIndex = 2)]
         TexCoord2,
 
         /// <summary>Layer parameters, or foliage sway parameters.</summary>

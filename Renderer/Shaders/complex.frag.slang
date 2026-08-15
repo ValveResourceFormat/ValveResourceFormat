@@ -81,8 +81,9 @@ uniform int F_DECAL_BLEND_MODE; // csgo_character, csgo_complex, csgo_vertexlitg
 #define F_TRANSMISSIVE_BACKFACE_NDOTL 0 // csgo_complex, csgo_foliage, csgo_simple_3layer_parallax, vr_complex
 uniform int F_NO_SPECULAR_AT_FULL_ROUGHNESS; // csgo_lightmappedgeneric, pbr
 // SKIN
+#define F_SUBSURFACE_SCATTERING 0 // csgo_character, vr_skin
 //#define F_USE_FACE_OCCLUSION_TEXTURE 0 // todo: weird; vr_skin, vr_xen_foliage
-//#define F_USE_PER_VERTEX_CURVATURE 0 // todo; vr_skin, vr_skin_blended
+#define F_USE_PER_VERTEX_CURVATURE 0 // vr_skin, vr_skin_blended
 //#define F_SSS_MASK 0 // todo; vr_skin
 
 //End of feature defines
@@ -95,13 +96,19 @@ in vec3 vBitangentOut;
 in vec2 vTexCoordOut;
 centroid in vec4 vVertexColorOut;
 
+#if (F_USE_PER_VERTEX_CURVATURE == 1)
+    in float vCurvatureOut;
+#endif
+
 out vec4 outputColor;
 
 uniform sampler2D g_tBlueNoise; // reserved
 uniform sampler2D g_tColor; // SrgbRead(true) Sampler(UserConfig)
 uniform sampler2D g_tNormal; // Sampler(UserConfig)
 uniform sampler2D g_tTintMask;
-uniform sampler2D g_tSssMask;
+#if (F_SUBSURFACE_SCATTERING == 1)
+    uniform sampler2D g_tSssMask;
+#endif
 
 #if defined(foliage_vfx_common)
     in vec4 vFoliageParamsOut;
@@ -153,6 +160,7 @@ uniform sampler2D g_tSssMask;
 #define _uniformMetalness (defined(simple_vfx_common) || defined(complex_vfx_common)) && (F_METALNESS_TEXTURE == 0)
 #define _colorAlphaMetalness ((defined(simple_vfx_common) || defined(complex_vfx_common)) && (F_METALNESS_TEXTURE == 1))
 #define _colorAlphaAO ((GameVfx_vr_simple != 0) && (F_AMBIENT_OCCLUSION_TEXTURE == 1) && (F_METALNESS_TEXTURE == 0)) || (defined(simple_blend_common) && (F_ENABLE_AMBIENT_OCCLUSION == 1))
+#define subsurface ((F_SUBSURFACE_SCATTERING == 1) || (GameVfx_vr_skin != 0))
 #define _metalnessTexture (defined(complex_vfx_common) && (F_METALNESS_TEXTURE == 1) && ((F_ALPHA_TEST == 1) || (F_TRANSLUCENT == 1))) || (GameVfx_csgo_weapon != 0) || (GameVfx_csgo_character != 0) || (GameVfx_csgo_vertexlitgeneric != 0)
 #define _ambientOcclusionTexture (((GameVfx_vr_simple != 0) && (F_AMBIENT_OCCLUSION_TEXTURE == 1) && (F_METALNESS_TEXTURE == 1)) || defined(complex_vfx_common) || (GameVfx_csgo_foliage != 0) || (GameVfx_csgo_weapon != 0) || (GameVfx_csgo_character != 0) || defined(csgo_generic_vfx_common) || (GameVfx_csgo_simple_3layer_parallax != 0))
 
@@ -418,20 +426,15 @@ MaterialProperties_t GetMaterial(vec2 texCoord, vec3 vertexNormals)
             //float flTintMask = combinedMasks.z;
         #endif
 
-        #if (F_SSS_MASK == 1)
-            mat.SSSMask = combinedMasks.a;
-        #endif
+        mat.SSSMask = combinedMasks.a;
 
         #if (translucent) || (alphatest)
             mat.Opacity = combinedMasks.a;
         #endif
     #endif
 
-#if (GameVfx_csgo_character != 0)
-    if (F_SUBSURFACE_SCATTERING == 1)
-    {
-        mat.SSSMask = texture(g_tSssMask, texCoord).g;
-    }
+#if (GameVfx_csgo_character != 0) && (F_SUBSURFACE_SCATTERING == 1)
+    mat.SSSMask = texture(g_tSssMask, texCoord).g;
 #endif
 #endif
 

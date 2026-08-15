@@ -103,11 +103,18 @@ vec3 GetRetroReflectiveNormal(float retroReflectivity, vec3 L, vec3 V, vec3 N, v
 }
 
 uniform int F_CLOTH_SHADING; // csgo_character, csgo_complex, csgo_customglove, csgo_textile_layer, vr_complex
-uniform int F_SUBSURFACE_SCATTERING; // csgo_character, vr_skin
+#if (subsurface)
+    uniform sampler2D g_tDiffuseFalloff; // SrgbRead(true)
+    uniform float g_flCurvatureScale = 1.0;
 
-uniform sampler2D g_tDiffuseFalloff; // SrgbRead(true)
-uniform vec3 g_vNormalSoftness = vec3(0.0);
-uniform float g_flCurvatureScale = 1.0;
+    #if (GameVfx_vr_skin != 0)
+        uniform vec3 g_vAmbientNormalSoftness = vec3(0.0);
+        #define NORMAL_SOFTNESS g_vAmbientNormalSoftness
+    #else
+        uniform vec3 g_vNormalSoftness = vec3(0.0);
+        #define NORMAL_SOFTNESS g_vNormalSoftness
+    #endif
+#endif
 
 // BRDF. Layer 1 is the GGX split sum, layer 2 the sheen directional albedo; layer 0 is unused.
 uniform sampler2DArray g_tBRDFLookup; // reserved
@@ -225,9 +232,22 @@ vec3 GetSpecularEnergyCompensation(MaterialProperties_t mat)
     return vCompensation;
 }
 
+#if (subsurface)
+const float SSS_CURVATURE_RADIUS_MAX = 39.37; // 1m
+const float SSS_CURVATURE_RADIUS_MIN = 0.3937; // 1cm
+
+const float SSS_CURVATURE_MIN = 1.0 / SSS_CURVATURE_RADIUS_MAX;
+const float SSS_CURVATURE_MAX = 1.0 / SSS_CURVATURE_RADIUS_MIN;
+
 vec3 GetSubsurfaceDiffuse(MaterialProperties_t mat, vec3 lightVector, vec3 diffuseLight)
 {
-    float flCurvature = (GetCurvature(mat.GeometricNormal, mat.PositionWS) * g_flCurvatureScale) * 0.3976777493953704833984375 - 0.0101010091602802276611328125;
+    #if (F_USE_PER_VERTEX_CURVATURE == 1)
+        float flCurvature = vCurvatureOut * g_flCurvatureScale;
+    #else
+        float flCurvature = GetCurvature(mat.GeometricNormal, mat.PositionWS) * g_flCurvatureScale;
+    #endif
+
+    flCurvature = RemapValClamped(flCurvature, SSS_CURVATURE_MIN, SSS_CURVATURE_MAX, 0.0, 1.0);
 
     vec3 vSoftNormal = normalize(mat.Tangent * mat.NormalMap.x - mat.Bitangent * mat.NormalMap.y + mat.GeometricNormal * mat.NormalMap.z);
 
@@ -240,7 +260,7 @@ vec3 GetSubsurfaceDiffuse(MaterialProperties_t mat, vec3 lightVector, vec3 diffu
 
     for (int i = 0; i < 3; i++)
     {
-        vec3 vChannelNormal = normalize(mix(mat.Normal, vSoftNormal, mix(g_vNormalSoftness[i], 1.0, vScatter[i])));
+        vec3 vChannelNormal = normalize(mix(mat.Normal, vSoftNormal, mix(NORMAL_SOFTNESS[i], 1.0, vScatter[i])));
         vChannelNoL[i] = saturate(dot(vChannelNormal, lightVector));
     }
 
@@ -248,6 +268,7 @@ vec3 GetSubsurfaceDiffuse(MaterialProperties_t mat, vec3 lightVector, vec3 diffu
 
     return mix(diffuseLight, saturate(vChannelNoL + vFalloff), mat.SSSMask);
 }
+#endif
 
 // Calculate PBR shading for a light
 void CalculateShading(inout LightingTerms_t lighting, vec3 lightVector, vec3 lightColor, MaterialProperties_t mat)
@@ -258,10 +279,9 @@ void CalculateShading(inout LightingTerms_t lighting, vec3 lightVector, vec3 lig
     vec3 diffuseLight = vec3(ClampToPositive(dot(mat.Normal, lightVector)));
 #endif
 
-    if (F_SUBSURFACE_SCATTERING == 1)
-    {
+    #if (subsurface)
         diffuseLight = GetSubsurfaceDiffuse(mat, lightVector, diffuseLight);
-    }
+    #endif
 
     float sheenAlbedoScaling = GetSheenAlbedoScaling(mat, lightVector);
     diffuseLight *= sheenAlbedoScaling;
