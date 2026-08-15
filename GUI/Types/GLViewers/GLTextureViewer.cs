@@ -773,7 +773,7 @@ namespace GUI.Types.GLViewers
                 // extract pixels from framebuffer
                 GL.Viewport(0, 0, bitmap.Width, bitmap.Height);
 
-                var fboFormat = GLTextureDecoder.GetPreferredFramebufferFormat(hdr);
+                var fboFormat = hdr ? GLTextureDecoder.HDRFormat : GLTextureDecoder.LDRFormat;
 
                 if (SaveAsFbo is not null)
                 {

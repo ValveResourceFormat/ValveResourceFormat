@@ -142,7 +142,7 @@ public class GLTextureDecoder : IHardwareTextureDecoder, IDisposable
         GLWindowContext.MakeCurrent();
 
         GLEnvironment.Initialize(RendererContext.Logger);
-        Framebuffer = Framebuffer.Prepare(nameof(GLTextureDecoder), 4, 4, 0, LDRFormat.Value, null);
+        Framebuffer = Framebuffer.Prepare(nameof(GLTextureDecoder), 4, 4, 0, LDRFormat, null);
         Framebuffer.Initialize();
         Framebuffer.CheckStatus_ThrowIfIncomplete(nameof(GLTextureDecoder));
         Framebuffer.ClearMask = ClearBufferMask.ColorBufferBit;
@@ -170,19 +170,10 @@ public class GLTextureDecoder : IHardwareTextureDecoder, IDisposable
 
         inputTexture.SetFiltering(TextureMinFilter.NearestMipmapNearest, TextureMagFilter.Nearest);
 
-        /*
-        if (request.Channels == ChannelMapping.RGBA && request.DecodeFlags == TextureCodec.None)
-        {
-            var texturePixels = request.Bitmap.GetPixels(out var texturePixelLength);
-            GL.GetTextureImage(inputTexture.Handle, 0, PixelFormat.Bgra, PixelType.UnsignedByte, (int)texturePixelLength, texturePixels);
-            request.DecodeTime = sw.Elapsed;
-            return true;
-        }
-        */
         var framebufferFormat = request.Bitmap.ColorType switch
         {
-            HdrBitmapColorType => HDRFormat.Value,
-            DefaultBitmapColorType => LDRFormat.Value,
+            HdrBitmapColorType => HDRFormat,
+            DefaultBitmapColorType => LDRFormat,
             _ => null,
         };
 
@@ -251,11 +242,11 @@ public class GLTextureDecoder : IHardwareTextureDecoder, IDisposable
         Framebuffer.Bind(FramebufferTarget.ReadFramebuffer);
         GL.ReadBuffer(ReadBufferMode.ColorAttachment0);
 
-        GL.ReadnPixels(
+        GL.ReadPixels(
             0, 0,
             request.Bitmap.Width, request.Bitmap.Height,
             Framebuffer.ColorFormat.PixelFormat, Framebuffer.ColorFormat.PixelType,
-            (int)outputLength, pixels
+            pixels
         );
 
         request.DecodeTime = sw.Elapsed;
@@ -300,15 +291,14 @@ public class GLTextureDecoder : IHardwareTextureDecoder, IDisposable
         }
     }
 
-    public Lazy<Framebuffer.AttachmentFormat> LDRFormat { get; } = new(() => GetPreferredFramebufferFormat(hdr: false));
-    public Lazy<Framebuffer.AttachmentFormat> HDRFormat { get; } = new(() => GetPreferredFramebufferFormat(hdr: true));
+    public static readonly Framebuffer.AttachmentFormat LDRFormat = GetFramebufferFormat(hdr: false);
+    public static readonly Framebuffer.AttachmentFormat HDRFormat = GetFramebufferFormat(hdr: true);
 
-    public static Framebuffer.AttachmentFormat GetPreferredFramebufferFormat(bool hdr)
+    public static Framebuffer.AttachmentFormat GetFramebufferFormat(bool hdr)
     {
         var (internalFormat, pixelFormat, pixelType) = MaterialLoader.GetImageExportFormat(hdr);
 
-        GL.GetInternalformat(ImageTarget.Texture2D, internalFormat, InternalFormatParameter.InternalformatPreferred, 1, out int internalFormatPreferred);
-        return new((PixelInternalFormat)internalFormatPreferred, pixelFormat, pixelType);
+        return new((PixelInternalFormat)internalFormat, pixelFormat, pixelType);
     }
 
     public static string GetTextureTypeDefine(TextureTarget target) => target switch
