@@ -776,17 +776,8 @@ internal abstract class GLBaseControl : IDisposable, IMessageFilter
             Framebuffer.DepthAttachmentFormat.Depth32F
         );
 
-        var status = MainFramebuffer.Initialize();
-
-        if (status != FramebufferErrorCode.FramebufferComplete)
-        {
-            Log.Error(nameof(GLBaseControl), $"Framebuffer failed to initialize with error: {status}");
-            Log.Info(nameof(GLBaseControl), "Falling back to default framebuffer.");
-
-            MainFramebuffer.Delete();
-            MainFramebuffer = GLDefaultFramebuffer;
-            GL.Enable(EnableCap.FramebufferSrgb);
-        }
+        MainFramebuffer.Initialize();
+        MainFramebuffer.CheckStatus_ThrowIfIncomplete(nameof(MainFramebuffer));
 
         OnGLLoad();
     }

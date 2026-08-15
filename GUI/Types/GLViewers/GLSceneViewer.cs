@@ -611,11 +611,6 @@ namespace GUI.Types.GLViewers
 
         protected override void BlitFramebufferToScreen()
         {
-            if (MainFramebuffer == GLDefaultFramebuffer)
-            {
-                return; // not required
-            }
-
             Debug.Assert(MainFramebuffer != null);
             Debug.Assert(GLDefaultFramebuffer != null);
 
