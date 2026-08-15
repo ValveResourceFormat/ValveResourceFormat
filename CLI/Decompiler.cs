@@ -246,6 +246,12 @@ namespace CLI
                 return 1;
             }
 
+            if (ListResources && OutputFile != null)
+            {
+                Console.Error.WriteLine("Do not use --vpk_list with --output.");
+                return 1;
+            }
+
             if (StatsWithLoader)
             {
                 if (!CollectStats)
