@@ -28,6 +28,13 @@ namespace GUI
             AppDomain.CurrentDomain.UnhandledException += UnhandledException;
             Application.ThreadException += ThreadException;
 
+#if DEBUG
+            // Touching Trace.Listeners reroutes Debug.Assert through the listeners,
+            // which prevents the default behavior of Environment.FailFast when no debugger is attached
+            Trace.Listeners.Clear();
+            Trace.Listeners.Add(new AssertTraceListener());
+#endif
+
             // Set invariant culture so we have consistent localization (e.g. dots do not get encoded as commas)
             CultureInfo.DefaultThreadCurrentCulture = CultureInfo.InvariantCulture;
             CultureInfo.DefaultThreadCurrentUICulture = CultureInfo.InvariantCulture;
