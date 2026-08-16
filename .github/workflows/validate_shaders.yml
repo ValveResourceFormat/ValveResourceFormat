@@ -5,11 +5,13 @@ on:
   push:
     paths:
       - Renderer/Shaders/**
+      - Renderer/Renderer/ShaderLoader.Validator.cs
       - Renderer/Renderer/ShaderLoader.cs
       - Renderer/Renderer/ShaderParser.cs
   pull_request:
     paths:
       - Renderer/Shaders/**
+      - Renderer/Renderer/ShaderLoader.Validator.cs
       - Renderer/Renderer/ShaderLoader.cs
       - Renderer/Renderer/ShaderParser.cs
 

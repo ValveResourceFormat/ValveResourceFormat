@@ -205,11 +205,7 @@ namespace ValveResourceFormat.Renderer.Shaders
                 GL.GetProgram(Program, GetProgramParameterName.LinkStatus, out var linkStatus);
                 IsValid = linkStatus == 1;
 
-                foreach (var obj in ShaderObjects)
-                {
-                    GL.DetachShader(Program, obj);
-                    GL.DeleteShader(obj);
-                }
+                DetachAndDeleteShaderObjects();
 
                 if (IsValid)
                 {
@@ -224,6 +220,40 @@ namespace ValveResourceFormat.Renderer.Shaders
             }
 
             return IsValid;
+        }
+
+        private void DetachAndDeleteShaderObjects()
+        {
+            foreach (var obj in ShaderObjects)
+            {
+                GL.DetachShader(Program, obj);
+                GL.DeleteShader(obj);
+            }
+        }
+
+        /// <summary>
+        /// Deletes the program and the buffer holding its default globals. Any stage objects that
+        /// <see cref="EnsureLoaded"/> did not get to clean up are deleted with it.
+        /// </summary>
+        public void Delete()
+        {
+            if (Program == 0)
+            {
+                return;
+            }
+
+            if (!IsLoaded)
+            {
+                DetachAndDeleteShaderObjects();
+            }
+
+            GL.DeleteProgram(Program);
+
+            Program = 0;
+            IsLoaded = true;
+            IsValid = false;
+
+            Default.Delete();
         }
 
         /// <summary>
@@ -763,7 +793,7 @@ namespace ValveResourceFormat.Renderer.Shaders
         /// <param name="shader">The newly compiled shader to replace this instance with.</param>
         public void ReplaceWith(Shader shader)
         {
-            GL.DeleteProgram(Program);
+            Delete();
 
             IsLoaded = false;
             Program = shader.Program;
