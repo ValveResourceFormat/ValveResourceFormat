@@ -1,6 +1,7 @@
 using System.IO;
 using System.Linq;
-using NUnit.Framework;
+using System.Threading.Tasks;
+using TUnit.Assertions.Enums;
 using ValveResourceFormat;
 using ValveResourceFormat.Renderer;
 using ValveResourceFormat.ResourceTypes;
@@ -12,7 +13,7 @@ namespace Tests.Renderer
     public class SampledAnimationEventsTest
     {
         private static string FilePath(string name)
-            => Path.Combine(TestContext.CurrentContext.TestDirectory, "Files", name);
+            => Path.Combine(TestContext.TestDirectory!, "Files", name);
 
         private static ClipAnimation LoadNovaShootAnimation(Resource resource)
         {
@@ -30,7 +31,7 @@ namespace Tests.Renderer
         private static readonly float[] ShellCasingEvent = [0.3333333f];
 
         [Test]
-        public void EventsAreCrossedInPlaybackRange()
+        public async Task EventsAreCrossedInPlaybackRange()
         {
             using var resource = new Resource();
             var animation = LoadNovaShootAnimation(resource);
@@ -47,23 +48,22 @@ namespace Tests.Renderer
                 return [.. times];
             }
 
-            using (Assert.EnterMultipleScope())
+            using (Assert.Multiple())
             {
-                Assert.That(Sampled(Sample(animation, 0f, 0.1f)), Is.EqualTo(ClipStartEvents), "events at the very start fire on the first update");
-                Assert.That(Sampled(Sample(animation, 0.1f, 0.2f)), Is.Empty);
-                Assert.That(Sampled(Sample(animation, 0.2f, 0.3f)), Is.EqualTo(PumpSoundEvent));
-                Assert.That(Sampled(Sample(animation, 0.7f, 0.9f)), Is.EqualTo(ClipStartEvents), "looping playback wraps around the end of the clip");
-                Assert.That(Sampled(Sample(animation, 0f, 1.5f)), Has.Length.EqualTo(4), "a range longer than the clip fires everything once");
-                Assert.That(Sampled(Sample(animation, 0.4f, 0.2f)), Is.Empty, "a restart does not re-fire events");
-                Assert.That(Sampled(Sample(animation, 1f, 1f)), Is.Empty, "a paused clip does not re-fire the events it is sitting on");
-                Assert.That(Sampled(Sample(animation, 0f, 0f)), Is.Empty);
-                Assert.That(Sampled(Sample(animation, 0.3f, 0.35f, finished: true)), Is.EqualTo(ShellCasingEvent),
-                    "the last update of a non looping clip fires the events up to its end");
+                await Assert.That(Sampled(Sample(animation, 0f, 0.1f))).IsEquivalentTo(ClipStartEvents, CollectionOrdering.Matching).Because("events at the very start fire on the first update");
+                await Assert.That(Sampled(Sample(animation, 0.1f, 0.2f))).IsEmpty();
+                await Assert.That(Sampled(Sample(animation, 0.2f, 0.3f))).IsEquivalentTo(PumpSoundEvent, CollectionOrdering.Matching);
+                await Assert.That(Sampled(Sample(animation, 0.7f, 0.9f))).IsEquivalentTo(ClipStartEvents, CollectionOrdering.Matching).Because("looping playback wraps around the end of the clip");
+                await Assert.That(Sampled(Sample(animation, 0f, 1.5f))).Count().IsEqualTo(4).Because("a range longer than the clip fires everything once");
+                await Assert.That(Sampled(Sample(animation, 0.4f, 0.2f))).IsEmpty().Because("a restart does not re-fire events");
+                await Assert.That(Sampled(Sample(animation, 1f, 1f))).IsEmpty().Because("a paused clip does not re-fire the events it is sitting on");
+                await Assert.That(Sampled(Sample(animation, 0f, 0f))).IsEmpty();
+                await Assert.That(Sampled(Sample(animation, 0.3f, 0.35f, finished: true))).IsEquivalentTo(ShellCasingEvent, CollectionOrdering.Matching).Because("the last update of a non looping clip fires the events up to its end");
             }
         }
 
         [Test]
-        public void EventsFireOncePerLoop()
+        public async Task EventsFireOncePerLoop()
         {
             using var resource = new Resource();
             var animation = LoadNovaShootAnimation(resource);
@@ -84,15 +84,15 @@ namespace Tests.Renderer
                 }
             }
 
-            using (Assert.EnterMultipleScope())
+            using (Assert.Multiple())
             {
-                Assert.That(fireCounts, Has.Count.EqualTo(animation.Events.Length), "every event fires");
-                Assert.That(fireCounts.Values, Is.All.EqualTo(Loops), "no event is skipped or fired twice on the loop point");
+                await Assert.That(fireCounts).Count().IsEqualTo(animation.Events.Length).Because("every event fires");
+                await Assert.That(fireCounts.Values).All(count => count == Loops).Because("no event is skipped or fired twice on the loop point");
             }
         }
 
         [Test]
-        public void PlayerFiresClipEvents()
+        public async Task PlayerFiresClipEvents()
         {
             using var resource = new Resource();
             var animation = LoadNovaShootAnimation(resource);
@@ -109,12 +109,13 @@ namespace Tests.Renderer
             player.SetAnimation(animation, blendTime: 0f, looping: true);
 
             player.Update(0.1f, Matrix4x4.Identity);
-            Assert.That(fired, Has.Count.EqualTo(2), "the events at the start of the clip fire on the first update");
+            await Assert.That(fired).Count().IsEqualTo(2).Because("the events at the start of the clip fire on the first update");
 
             fired.Clear();
             player.Update(0.15f, Matrix4x4.Identity);
 
-            Assert.That(fired.Select(e => e.StartTime), Is.EqualTo(PumpSoundEvent).Within(0.0001f));
+            await Assert.That(fired.Select(e => e.StartTime)).IsEquivalentTo(PumpSoundEvent, CollectionOrdering.Matching)
+                .Using((a, b) => MathF.Abs(a - b) <= 0.0001f);
         }
     }
 }

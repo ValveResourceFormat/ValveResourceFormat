@@ -1,4 +1,5 @@
-using NUnit.Framework;
+using System.Threading.Tasks;
+using TUnit.Assertions.Enums;
 using ValveResourceFormat.Utils;
 
 namespace Tests
@@ -21,77 +22,77 @@ namespace Tests
 ]";
 
         [Test]
-        public void ParsesNodesIntoPositionAndTangents()
+        public async Task ParsesNodesIntoPositionAndTangents()
         {
             var nodes = PathParticleRope.ParseNodes(RealPathNodes);
 
-            Assert.That(nodes, Has.Count.EqualTo(2));
+            await Assert.That(nodes).Count().IsEqualTo(2);
 
-            Assert.That(nodes[0].Position, Is.EqualTo(Vector3.Zero));
-            Assert.That(nodes[0].InTangent, Is.EqualTo(Vector3.Zero));
-            Assert.That(nodes[0].OutTangent.X, Is.EqualTo(92.189651f).Within(1e-3));
-            Assert.That(nodes[0].OutTangent.Z, Is.EqualTo(60.658333f).Within(1e-3));
+            await Assert.That(nodes[0].Position).IsEqualTo(Vector3.Zero);
+            await Assert.That(nodes[0].InTangent).IsEqualTo(Vector3.Zero);
+            await Assert.That(nodes[0].OutTangent.X).IsEqualTo(92.189651f).Within(1e-3f);
+            await Assert.That(nodes[0].OutTangent.Z).IsEqualTo(60.658333f).Within(1e-3f);
 
-            Assert.That(nodes[1].Position.X, Is.EqualTo(276.56897f).Within(1e-3));
+            await Assert.That(nodes[1].Position.X).IsEqualTo(276.56897f).Within(1e-3f);
 
             // Authoritative invariant: inTangent[i] == -outTangent[i-1] (C1 continuity).
-            Assert.That(nodes[1].InTangent, Is.EqualTo(-nodes[0].OutTangent));
+            await Assert.That(nodes[1].InTangent).IsEqualTo(-nodes[0].OutTangent);
         }
 
         [Test]
-        public void EmptyAndDegenerateBlobsParseToEmpty()
+        public async Task EmptyAndDegenerateBlobsParseToEmpty()
         {
-            Assert.That(PathParticleRope.ParseNodes("[  ]"), Is.Empty);
-            Assert.That(PathParticleRope.ParseNodes(""), Is.Empty);
-            Assert.That(PathParticleRope.ParseNodes(null), Is.Empty);
-            Assert.That(PathParticleRope.ParseFloatBlob("[ ]"), Is.Empty);
+            await Assert.That(PathParticleRope.ParseNodes("[  ]")).IsEmpty();
+            await Assert.That(PathParticleRope.ParseNodes("")).IsEmpty();
+            await Assert.That(PathParticleRope.ParseNodes(null)).IsEmpty();
+            await Assert.That(PathParticleRope.ParseFloatBlob("[ ]")).IsEmpty();
         }
 
         [Test]
-        public void IncompleteTrailingNodeIsDropped()
+        public async Task IncompleteTrailingNodeIsDropped()
         {
             // 11 floats = one full 9-float node plus 2 stragglers, which must be ignored.
             var nodes = PathParticleRope.ParseNodes("[ 0,0,0, 0,0,0, 1,2,3, 4,5 ]");
-            Assert.That(nodes, Has.Count.EqualTo(1));
+            await Assert.That(nodes).Count().IsEqualTo(1);
         }
 
         [Test]
-        public void ParsesRadiusScalesWithTrailingCommas()
+        public async Task ParsesRadiusScalesWithTrailingCommas()
         {
             var scales = PathParticleRope.ParseRadiusScales("[ 1.4, 1.0, 2.0, ]");
             float[] expected = [1.4f, 1.0f, 2.0f];
-            Assert.That(scales, Is.EqualTo(expected));
+            await Assert.That(scales).IsEquivalentTo(expected, CollectionOrdering.Matching);
         }
 
         [Test]
-        public void ParsesNestedPerNodeColors()
+        public async Task ParsesNestedPerNodeColors()
         {
             var colors = PathParticleRope.ParseColors("[ [ 0.109804, 0.109804, 0.117647 ], [ 1.0, 1.0, 1.0 ] ]");
-            Assert.That(colors, Has.Length.EqualTo(2));
-            Assert.That(colors[0].X, Is.EqualTo(0.109804f).Within(1e-5));
-            Assert.That(colors[1], Is.EqualTo(Vector3.One));
+            await Assert.That(colors).Count().IsEqualTo(2);
+            await Assert.That(colors[0].X).IsEqualTo(0.109804f).Within(1e-5f);
+            await Assert.That(colors[1]).IsEqualTo(Vector3.One);
         }
 
         [Test]
-        public void ParsesPins()
+        public async Task ParsesPins()
         {
             bool[] expectedWords = [true, false];
             bool[] expectedDigits = [true, false, true];
-            Assert.That(PathParticleRope.ParsePins("[ true, false ]"), Is.EqualTo(expectedWords));
-            Assert.That(PathParticleRope.ParsePins("[ 1, 0, 1 ]"), Is.EqualTo(expectedDigits));
+            await Assert.That(PathParticleRope.ParsePins("[ true, false ]")).IsEquivalentTo(expectedWords, CollectionOrdering.Matching);
+            await Assert.That(PathParticleRope.ParsePins("[ 1, 0, 1 ]")).IsEquivalentTo(expectedDigits, CollectionOrdering.Matching);
         }
 
         [Test]
-        public void ParsePinsAcceptsFloatTokensAndKeepsAlignment()
+        public async Task ParsePinsAcceptsFloatTokensAndKeepsAlignment()
         {
             // Float-encoded pins (1.0 / 0.0) must map to pinned / unpinned, not be dropped.
             bool[] expectedFloats = [true, false, true];
-            Assert.That(PathParticleRope.ParsePins("[ 1.0, 0.0, 1.0 ]"), Is.EqualTo(expectedFloats));
+            await Assert.That(PathParticleRope.ParsePins("[ 1.0, 0.0, 1.0 ]")).IsEquivalentTo(expectedFloats, CollectionOrdering.Matching);
 
             // An unrecognized token must keep the array aligned with the node list (default pinned)
             // instead of silently shortening it and misaligning every later node.
             bool[] expectedAligned = [true, true, false];
-            Assert.That(PathParticleRope.ParsePins("[ true, nonsense, false ]"), Is.EqualTo(expectedAligned));
+            await Assert.That(PathParticleRope.ParsePins("[ true, nonsense, false ]")).IsEquivalentTo(expectedAligned, CollectionOrdering.Matching);
         }
     }
 }

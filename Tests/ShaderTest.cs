@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.IO;
-using NUnit.Framework;
+using System.Threading.Tasks;
+using TUnit.Assertions.Enums;
 using ValveResourceFormat;
 using ValveResourceFormat.CompiledShader;
 using ValveResourceFormat.IO;
@@ -12,10 +13,10 @@ namespace Tests
     public class ShaderTest
     {
         public static string ShadersDir
-            => Path.Combine(TestContext.CurrentContext.TestDirectory, "Files", "Shaders");
+            => Path.Combine(TestContext.TestDirectory!, "Files", "Shaders");
 
         [Test]
-        public void ParseShaders()
+        public async Task ParseShaders()
         {
             var files = Directory.GetFiles(ShadersDir, "*.vcs");
 
@@ -27,19 +28,19 @@ namespace Tests
                 using var sw = new IndentedTextWriter();
 
                 shader.PrintSummary(sw);
-                Assert.That(sw.ToString(), Has.Length.AtLeast(100));
+                await Assert.That(sw.ToString().Length).IsGreaterThanOrEqualTo(100);
 
                 foreach (var zframe in shader.StaticComboEntries)
                 {
                     var value = zframe.Value.Unserialize();
-                    Assert.That(value, Is.Not.Null);
+                    await Assert.That(value).IsNotNull();
                     var zframeSummary = new PrintZFrameSummary(value, sw);
                 }
             }
         }
 
         [Test]
-        public void ShaderResourceDataMatchesBinary()
+        public async Task ShaderResourceDataMatchesBinary()
         {
             using var shader1 = new VfxProgramData();
             using var shader2 = new VfxProgramData();
@@ -47,100 +48,99 @@ namespace Tests
             shader1.Read(Path.Combine(ShadersDir, "vcs69_bloom_vulkan_40_ps.vcs"));
             shader2.Read(Path.Combine(ShadersDir, "vcs70_resource_bloom_vulkan_40_ps.vcs"));
 
-            using (Assert.EnterMultipleScope())
+            using (Assert.Multiple())
             {
-                Assert.That(shader2.VcsProgramType, Is.EqualTo(shader1.VcsProgramType));
-                Assert.That(shader2.VcsPlatformType, Is.EqualTo(shader1.VcsPlatformType));
-                Assert.That(shader2.VcsShaderModelType, Is.EqualTo(shader1.VcsShaderModelType));
-                Assert.That(shader2.FileHash, Is.EqualTo(shader1.FileHash));
-                Assert.That(shader2.VariableSourceMax, Is.EqualTo(shader1.VariableSourceMax));
+                await Assert.That(shader2.VcsProgramType).IsEqualTo(shader1.VcsProgramType);
+                await Assert.That(shader2.VcsPlatformType).IsEqualTo(shader1.VcsPlatformType);
+                await Assert.That(shader2.VcsShaderModelType).IsEqualTo(shader1.VcsShaderModelType);
+                await Assert.That(shader2.FileHash).IsEqualTo(shader1.FileHash);
+                await Assert.That(shader2.VariableSourceMax).IsEqualTo(shader1.VariableSourceMax);
 
                 // Binary stores one hash, KV3 stores all hashes
                 // Assert.That(shader1.HashesMD5, Is.EqualTo(shader2.HashesMD5));
             }
 
-            using (Assert.EnterMultipleScope())
+            using (Assert.Multiple())
             {
-                Assert.That(shader2.DynamicComboArray, Has.Length.EqualTo(shader1.DynamicComboArray.Length));
+                await Assert.That(shader2.DynamicComboArray).Count().IsEqualTo(shader1.DynamicComboArray.Length);
                 for (var i = 0; i < shader1.DynamicComboArray.Length; i++)
                 {
                     var combo1 = shader1.DynamicComboArray[i];
                     var combo2 = shader2.DynamicComboArray[i];
 
-                    Assert.That(combo2.Name, Is.EqualTo(combo1.Name));
-                    Assert.That(combo2.CalculatedComboId, Is.EqualTo(combo1.CalculatedComboId));
-                    Assert.That(combo2.AliasName, Is.EqualTo(combo1.AliasName));
-                    Assert.That(combo2.ComboType, Is.EqualTo(combo1.ComboType));
-                    Assert.That(combo2.ComboSourceType, Is.EqualTo(combo1.ComboSourceType));
-                    Assert.That(combo2.FeatureComparisonValue, Is.EqualTo(combo1.FeatureComparisonValue));
-                    Assert.That(combo2.RangeMin, Is.EqualTo(combo1.RangeMin));
-                    Assert.That(combo2.RangeMax, Is.EqualTo(combo1.RangeMax));
-                    Assert.That(combo2.Strings, Is.EquivalentTo(combo1.Strings));
+                    await Assert.That(combo2.Name).IsEqualTo(combo1.Name);
+                    await Assert.That(combo2.CalculatedComboId).IsEqualTo(combo1.CalculatedComboId);
+                    await Assert.That(combo2.AliasName).IsEqualTo(combo1.AliasName);
+                    await Assert.That(combo2.ComboType).IsEqualTo(combo1.ComboType);
+                    await Assert.That(combo2.ComboSourceType).IsEqualTo(combo1.ComboSourceType);
+                    await Assert.That(combo2.FeatureComparisonValue).IsEqualTo(combo1.FeatureComparisonValue);
+                    await Assert.That(combo2.RangeMin).IsEqualTo(combo1.RangeMin);
+                    await Assert.That(combo2.RangeMax).IsEqualTo(combo1.RangeMax);
+                    await Assert.That(combo2.Strings).IsEquivalentTo(combo1.Strings);
                 }
             }
 
-            using (Assert.EnterMultipleScope())
+            using (Assert.Multiple())
             {
-                Assert.That(shader2.DynamicComboRules, Has.Length.EqualTo(shader1.DynamicComboRules.Length));
+                await Assert.That(shader2.DynamicComboRules).Count().IsEqualTo(shader1.DynamicComboRules.Length);
                 for (var i = 0; i < shader1.DynamicComboRules.Length; i++)
                 {
                     var rule1 = shader1.DynamicComboRules[i];
                     var rule2 = shader2.DynamicComboRules[i];
 
-                    Assert.That(rule2.Rule, Is.EqualTo(rule1.Rule));
-                    Assert.That(rule2.RuleType, Is.EqualTo(rule1.RuleType));
-                    Assert.That(rule2.ConditionalTypes, Is.EquivalentTo(rule1.ConditionalTypes));
-                    Assert.That(rule2.Indices, Is.EquivalentTo(rule1.Indices));
-                    Assert.That(rule2.Values, Is.EquivalentTo(rule1.Values));
-                    Assert.That(rule2.ExtraRuleData, Is.EquivalentTo(rule1.ExtraRuleData));
-                    Assert.That(rule2.Description, Is.EqualTo(rule1.Description));
+                    await Assert.That(rule2.Rule).IsEqualTo(rule1.Rule);
+                    await Assert.That(rule2.RuleType).IsEqualTo(rule1.RuleType);
+                    await Assert.That(rule2.ConditionalTypes).IsEquivalentTo(rule1.ConditionalTypes);
+                    await Assert.That(rule2.Indices).IsEquivalentTo(rule1.Indices);
+                    await Assert.That(rule2.Values).IsEquivalentTo(rule1.Values);
+                    await Assert.That(rule2.ExtraRuleData).IsEquivalentTo(rule1.ExtraRuleData);
+                    await Assert.That(rule2.Description).IsEqualTo(rule1.Description);
                 }
-
-                Assert.That(shader2.VariableDescriptions, Has.Length.EqualTo(shader1.VariableDescriptions.Length));
+                await Assert.That(shader2.VariableDescriptions).Count().IsEqualTo(shader1.VariableDescriptions.Length);
                 for (var i = 0; i < shader1.VariableDescriptions.Length; i++)
                 {
                     var var1 = shader1.VariableDescriptions[i];
                     var var2 = shader2.VariableDescriptions[i];
 
-                    Assert.That(var2.Name, Is.EqualTo(var1.Name));
-                    Assert.That(var2.UiGroup, Is.EqualTo(var1.UiGroup));
-                    Assert.That(var2.StringData, Is.EqualTo(var1.StringData));
-                    Assert.That(var2.UiType, Is.EqualTo(var1.UiType));
-                    Assert.That(var2.UiStep, Is.EqualTo(var1.UiStep));
-                    Assert.That(var2.VariableSource, Is.EqualTo(var1.VariableSource));
-                    Assert.That(var2.DynExp, Is.EquivalentTo(var1.DynExp));
-                    Assert.That(var2.UiVisibilityExp, Is.EquivalentTo(var1.UiVisibilityExp));
-                    Assert.That(var2.SourceIndex, Is.EqualTo(var1.SourceIndex));
-                    Assert.That(var2.VfxType, Is.EqualTo(var1.VfxType));
-                    Assert.That(var2.RegisterType, Is.EqualTo(var1.RegisterType));
-                    Assert.That(var2.ContextStateAffectedByVariable, Is.EqualTo(var1.ContextStateAffectedByVariable));
-                    Assert.That(var2.RegisterElements, Is.EqualTo(var1.RegisterElements));
-                    Assert.That(var2.ExtConstantBufferId, Is.EqualTo(var1.ExtConstantBufferId));
-                    Assert.That(var2.DefaultInputTexture, Is.EqualTo(var1.DefaultInputTexture));
-                    Assert.That(var2.IntDefs, Is.EquivalentTo(var1.IntDefs), var2.Name);
-                    Assert.That(var2.IntMins, Is.EquivalentTo(var1.IntMins), var2.Name);
-                    Assert.That(var2.IntMaxs, Is.EquivalentTo(var1.IntMaxs), var2.Name);
-                    Assert.That(var2.FloatDefs, Is.EquivalentTo(var1.FloatDefs), var2.Name);
-                    Assert.That(var2.FloatMins, Is.EquivalentTo(var1.FloatMins), var2.Name);
-                    Assert.That(var2.FloatMaxs, Is.EquivalentTo(var1.FloatMaxs), var2.Name);
-                    Assert.That(var2.ImageFormat, Is.EqualTo(var1.ImageFormat));
-                    Assert.That(var2.ChannelCount, Is.EqualTo(var1.ChannelCount));
-                    Assert.That(var2.ChannelIndices, Is.EquivalentTo(var1.ChannelIndices));
-                    Assert.That(var2.ColorMode, Is.EqualTo(var1.ColorMode));
-                    Assert.That(var2.ImageSuffix, Is.EqualTo(var1.ImageSuffix));
-                    Assert.That(var2.ImageProcessor, Is.EqualTo(var1.ImageProcessor));
+                    await Assert.That(var2.Name).IsEqualTo(var1.Name);
+                    await Assert.That(var2.UiGroup).IsEqualTo(var1.UiGroup);
+                    await Assert.That(var2.StringData).IsEqualTo(var1.StringData);
+                    await Assert.That(var2.UiType).IsEqualTo(var1.UiType);
+                    await Assert.That(var2.UiStep).IsEqualTo(var1.UiStep);
+                    await Assert.That(var2.VariableSource).IsEqualTo(var1.VariableSource);
+                    await Assert.That(var2.DynExp).IsEquivalentTo(var1.DynExp);
+                    await Assert.That(var2.UiVisibilityExp).IsEquivalentTo(var1.UiVisibilityExp);
+                    await Assert.That(var2.SourceIndex).IsEqualTo(var1.SourceIndex);
+                    await Assert.That(var2.VfxType).IsEqualTo(var1.VfxType);
+                    await Assert.That(var2.RegisterType).IsEqualTo(var1.RegisterType);
+                    await Assert.That(var2.ContextStateAffectedByVariable).IsEqualTo(var1.ContextStateAffectedByVariable);
+                    await Assert.That(var2.RegisterElements).IsEqualTo(var1.RegisterElements);
+                    await Assert.That(var2.ExtConstantBufferId).IsEqualTo(var1.ExtConstantBufferId);
+                    await Assert.That(var2.DefaultInputTexture).IsEqualTo(var1.DefaultInputTexture);
+                    await Assert.That(var2.IntDefs).IsEquivalentTo(var1.IntDefs).Because(var2.Name);
+                    await Assert.That(var2.IntMins).IsEquivalentTo(var1.IntMins).Because(var2.Name);
+                    await Assert.That(var2.IntMaxs).IsEquivalentTo(var1.IntMaxs).Because(var2.Name);
+                    await Assert.That(var2.FloatDefs).IsEquivalentTo(var1.FloatDefs).Because(var2.Name);
+                    await Assert.That(var2.FloatMins).IsEquivalentTo(var1.FloatMins).Because(var2.Name);
+                    await Assert.That(var2.FloatMaxs).IsEquivalentTo(var1.FloatMaxs).Because(var2.Name);
+                    await Assert.That(var2.ImageFormat).IsEqualTo(var1.ImageFormat);
+                    await Assert.That(var2.ChannelCount).IsEqualTo(var1.ChannelCount);
+                    await Assert.That(var2.ChannelIndices).IsEquivalentTo(var1.ChannelIndices);
+                    await Assert.That(var2.ColorMode).IsEqualTo(var1.ColorMode);
+                    await Assert.That(var2.ImageSuffix).IsEqualTo(var1.ImageSuffix);
+                    await Assert.That(var2.ImageProcessor).IsEqualTo(var1.ImageProcessor);
 
-                    Assert.That(var2.MinPrecisionBits, Is.EqualTo(var1.MinPrecisionBits));
-                    Assert.That(var2.LayerId, Is.EqualTo(var1.LayerId));
-                    Assert.That(var2.AllowLayerOverride, Is.EqualTo(var1.AllowLayerOverride));
-                    Assert.That(var2.MaxRes, Is.EqualTo(var1.MaxRes));
-                    Assert.That(var2.IsLayerConstant, Is.EqualTo(var1.IsLayerConstant));
+                    await Assert.That(var2.MinPrecisionBits).IsEqualTo(var1.MinPrecisionBits);
+                    await Assert.That(var2.LayerId).IsEqualTo(var1.LayerId);
+                    await Assert.That(var2.AllowLayerOverride).IsEqualTo(var1.AllowLayerOverride);
+                    await Assert.That(var2.MaxRes).IsEqualTo(var1.MaxRes);
+                    await Assert.That(var2.IsLayerConstant).IsEqualTo(var1.IsLayerConstant);
                 }
             }
 
-            using (Assert.EnterMultipleScope())
+            using (Assert.Multiple())
             {
-                Assert.That(shader2.StaticComboEntries, Has.Count.EqualTo(shader1.StaticComboEntries.Count));
+                await Assert.That(shader2.StaticComboEntries).Count().IsEqualTo(shader1.StaticComboEntries.Count);
 
                 var combo1 = shader1.GetStaticCombo(0);
                 var combo2 = shader2.GetStaticCombo(0);
@@ -148,41 +148,39 @@ namespace Tests
                 // KV3 has one less item in some arrays
                 const int OneLessItemKV3 = 1;
 
-                Assert.That(combo2.StaticComboId, Is.EqualTo(combo1.StaticComboId));
-                Assert.That(combo2.VShaderInputs, Is.EqualTo(combo1.VShaderInputs));
-                Assert.That(combo2.ConstantBufferBindInfoFlags, Is.EqualTo(combo1.ConstantBufferBindInfoFlags[..^OneLessItemKV3]));
-                Assert.That(combo2.ConstantBufferBindInfoSlots, Is.EqualTo(combo1.ConstantBufferBindInfoSlots[..^OneLessItemKV3]));
-                Assert.That(combo2.ConstantBufferSize, Is.EqualTo(combo1.ConstantBufferSize));
-                Assert.That(combo2.Flagbyte0, Is.EqualTo(combo1.Flagbyte0));
-                Assert.That(combo2.Flagbyte1, Is.EqualTo(combo1.Flagbyte1));
-                Assert.That(combo2.Flagbyte2, Is.EqualTo(combo1.Flagbyte2));
+                await Assert.That(combo2.StaticComboId).IsEqualTo(combo1.StaticComboId);
+                await Assert.That(combo2.VShaderInputs).IsEquivalentTo(combo1.VShaderInputs, CollectionOrdering.Matching);
+                await Assert.That(combo2.ConstantBufferBindInfoFlags).IsEquivalentTo(combo1.ConstantBufferBindInfoFlags[..^OneLessItemKV3], CollectionOrdering.Matching);
+                await Assert.That(combo2.ConstantBufferBindInfoSlots).IsEquivalentTo(combo1.ConstantBufferBindInfoSlots[..^OneLessItemKV3], CollectionOrdering.Matching);
+                await Assert.That(combo2.ConstantBufferSize).IsEqualTo(combo1.ConstantBufferSize);
+                await Assert.That(combo2.Flagbyte0).IsEqualTo(combo1.Flagbyte0);
+                await Assert.That(combo2.Flagbyte1).IsEqualTo(combo1.Flagbyte1);
+                await Assert.That(combo2.Flagbyte2).IsEqualTo(combo1.Flagbyte2);
 
-                static void TestVfxVariableIndexArray(VfxVariableIndexArray binary, VfxVariableIndexArray kv3)
+                static async Task TestVfxVariableIndexArray(VfxVariableIndexArray binary, VfxVariableIndexArray kv3)
                 {
-                    using var _ = Assert.EnterMultipleScope();
-                    Assert.That(kv3.BlockId, Is.EqualTo(binary.BlockId));
-                    Assert.That(kv3.FirstRenderStateElement, Is.EqualTo(binary.FirstRenderStateElement));
-                    Assert.That(kv3.FirstConstantElement, Is.EqualTo(binary.FirstConstantElement));
-                    Assert.That(kv3.Fields, Is.EqualTo(binary.Fields));
+                    using var _ = Assert.Multiple();
+                    await Assert.That(kv3.BlockId).IsEqualTo(binary.BlockId);
+                    await Assert.That(kv3.FirstRenderStateElement).IsEqualTo(binary.FirstRenderStateElement);
+                    await Assert.That(kv3.FirstConstantElement).IsEqualTo(binary.FirstConstantElement);
+                    await Assert.That(kv3.Fields).IsEquivalentTo(binary.Fields, CollectionOrdering.Matching);
                 }
 
-                TestVfxVariableIndexArray(combo1.VariablesFromStaticCombo, combo2.VariablesFromStaticCombo);
-
+                await TestVfxVariableIndexArray(combo1.VariablesFromStaticCombo, combo2.VariablesFromStaticCombo);
                 // one less
-                Assert.That(combo2.DynamicComboVariables, Has.Length.EqualTo(combo1.DynamicComboVariables.Length - OneLessItemKV3));
+                await Assert.That(combo2.DynamicComboVariables).Count().IsEqualTo(combo1.DynamicComboVariables.Length - OneLessItemKV3);
                 for (var i = 0; i < combo2.DynamicComboVariables.Length; i++)
                 {
-                    TestVfxVariableIndexArray(combo1.DynamicComboVariables[i], combo2.DynamicComboVariables[i]);
+                    await TestVfxVariableIndexArray(combo1.DynamicComboVariables[i], combo2.DynamicComboVariables[i]);
                 }
-
-                Assert.That(combo2.DynamicCombos, Has.Length.EqualTo(combo1.DynamicCombos.Length));
+                await Assert.That(combo2.DynamicCombos).Count().IsEqualTo(combo1.DynamicCombos.Length);
                 for (var i = 0; i < combo1.DynamicCombos.Length; i++)
                 {
                     var dyn1 = combo1.DynamicCombos[i];
                     var dyn2 = combo2.DynamicCombos[i];
 
-                    Assert.That(dyn2.ShaderFileId, Is.EqualTo(dyn1.ShaderFileId));
-                    Assert.That(dyn2.DynamicComboId, Is.EqualTo(dyn1.DynamicComboId));
+                    await Assert.That(dyn2.ShaderFileId).IsEqualTo(dyn1.ShaderFileId);
+                    await Assert.That(dyn2.DynamicComboId).IsEqualTo(dyn1.DynamicComboId);
 
                     // Source pointer is binary only
                     // Assert.That(dyn2.SourcePointer, Is.EqualTo(dyn1.SourcePointer));
@@ -194,59 +192,59 @@ namespace Tests
                     var depth2 = psRenderState2!.DepthStencilStateDesc!.Value;
 
 
-                    Assert.That(depth2.DepthWriteEnable, Is.EqualTo(depth1.DepthWriteEnable));
-                    Assert.That(depth2.DepthFunc, Is.EqualTo(depth1.DepthFunc));
-                    Assert.That(depth2.DepthTestEnable, Is.EqualTo(depth1.DepthTestEnable));
-                    Assert.That(depth2.StencilEnable, Is.EqualTo(depth1.StencilEnable));
-                    Assert.That(depth2.StencilReadMask, Is.EqualTo(depth1.StencilReadMask));
-                    Assert.That(depth2.StencilWriteMask, Is.EqualTo(depth1.StencilWriteMask));
-                    Assert.That(depth2.FrontStencilFunc, Is.EqualTo(depth1.FrontStencilFunc));
-                    Assert.That(depth2.FrontStencilPassOp, Is.EqualTo(depth1.FrontStencilPassOp));
-                    Assert.That(depth2.FrontStencilFailOp, Is.EqualTo(depth1.FrontStencilFailOp));
-                    Assert.That(depth2.FrontStencilDepthFailOp, Is.EqualTo(depth1.FrontStencilDepthFailOp));
-                    Assert.That(depth2.BackStencilFunc, Is.EqualTo(depth1.BackStencilFunc));
-                    Assert.That(depth2.BackStencilPassOp, Is.EqualTo(depth1.BackStencilPassOp));
-                    Assert.That(depth2.BackStencilFailOp, Is.EqualTo(depth1.BackStencilFailOp));
-                    Assert.That(depth2.BackStencilDepthFailOp, Is.EqualTo(depth1.BackStencilDepthFailOp));
+                    await Assert.That(depth2.DepthWriteEnable).IsEqualTo(depth1.DepthWriteEnable);
+                    await Assert.That(depth2.DepthFunc).IsEqualTo(depth1.DepthFunc);
+                    await Assert.That(depth2.DepthTestEnable).IsEqualTo(depth1.DepthTestEnable);
+                    await Assert.That(depth2.StencilEnable).IsEqualTo(depth1.StencilEnable);
+                    await Assert.That(depth2.StencilReadMask).IsEqualTo(depth1.StencilReadMask);
+                    await Assert.That(depth2.StencilWriteMask).IsEqualTo(depth1.StencilWriteMask);
+                    await Assert.That(depth2.FrontStencilFunc).IsEqualTo(depth1.FrontStencilFunc);
+                    await Assert.That(depth2.FrontStencilPassOp).IsEqualTo(depth1.FrontStencilPassOp);
+                    await Assert.That(depth2.FrontStencilFailOp).IsEqualTo(depth1.FrontStencilFailOp);
+                    await Assert.That(depth2.FrontStencilDepthFailOp).IsEqualTo(depth1.FrontStencilDepthFailOp);
+                    await Assert.That(depth2.BackStencilFunc).IsEqualTo(depth1.BackStencilFunc);
+                    await Assert.That(depth2.BackStencilPassOp).IsEqualTo(depth1.BackStencilPassOp);
+                    await Assert.That(depth2.BackStencilFailOp).IsEqualTo(depth1.BackStencilFailOp);
+                    await Assert.That(depth2.BackStencilDepthFailOp).IsEqualTo(depth1.BackStencilDepthFailOp);
 
 
                     var raster1 = psRenderState1.RasterizerStateDesc!.Value;
                     var raster2 = psRenderState2.RasterizerStateDesc!.Value;
-                    Assert.That(raster2.FillMode, Is.EqualTo(raster1.FillMode));
-                    Assert.That(raster2.CullMode, Is.EqualTo(raster1.CullMode));
-                    Assert.That(raster2.DepthClipEnable, Is.EqualTo(raster1.DepthClipEnable));
-                    Assert.That(raster2.MultisampleEnable, Is.EqualTo(raster1.MultisampleEnable));
-                    Assert.That(raster2.DepthBias, Is.EqualTo(raster1.DepthBias));
-                    Assert.That(raster2.DepthBiasClamp, Is.EqualTo(raster1.DepthBiasClamp));
-                    Assert.That(raster2.SlopeScaledDepthBias, Is.EqualTo(raster1.SlopeScaledDepthBias));
+                    await Assert.That(raster2.FillMode).IsEqualTo(raster1.FillMode);
+                    await Assert.That(raster2.CullMode).IsEqualTo(raster1.CullMode);
+                    await Assert.That(raster2.DepthClipEnable).IsEqualTo(raster1.DepthClipEnable);
+                    await Assert.That(raster2.MultisampleEnable).IsEqualTo(raster1.MultisampleEnable);
+                    await Assert.That(raster2.DepthBias).IsEqualTo(raster1.DepthBias);
+                    await Assert.That(raster2.DepthBiasClamp).IsEqualTo(raster1.DepthBiasClamp);
+                    await Assert.That(raster2.SlopeScaledDepthBias).IsEqualTo(raster1.SlopeScaledDepthBias);
 
                     var blend1 = psRenderState1.BlendStateDesc!.Value;
                     var blend2 = psRenderState2.BlendStateDesc!.Value;
 
-                    Assert.That(blend2.AlphaToCoverageEnable, Is.EqualTo(blend1.AlphaToCoverageEnable));
-                    Assert.That(blend2.IndependentBlendEnable, Is.EqualTo(blend1.IndependentBlendEnable));
+                    await Assert.That(blend2.AlphaToCoverageEnable).IsEqualTo(blend1.AlphaToCoverageEnable);
+                    await Assert.That(blend2.IndependentBlendEnable).IsEqualTo(blend1.IndependentBlendEnable);
 
                     for (var t = 0; t < RsBlendStateDesc.MaxRenderTargets; t++)
                     {
-                        Assert.That(blend2.BlendEnable[t], Is.EqualTo(blend1.BlendEnable[t]));
-                        Assert.That(blend2.SrcBlend[t], Is.EqualTo(blend1.SrcBlend[t]));
-                        Assert.That(blend2.DestBlend[t], Is.EqualTo(blend1.DestBlend[t]));
-                        Assert.That(blend2.BlendOp[t], Is.EqualTo(blend1.BlendOp[t]));
-                        Assert.That(blend2.SrcBlendAlpha[t], Is.EqualTo(blend1.SrcBlendAlpha[t]));
-                        Assert.That(blend2.DestBlendAlpha[t], Is.EqualTo(blend1.DestBlendAlpha[t]));
-                        Assert.That(blend2.BlendOpAlpha[t], Is.EqualTo(blend1.BlendOpAlpha[t]));
-                        Assert.That(blend2.RenderTargetWriteMask[t], Is.EqualTo(blend1.RenderTargetWriteMask[t]));
-                        Assert.That(blend2.SrgbWriteEnable[t], Is.EqualTo(blend1.SrgbWriteEnable[t]));
+                        await Assert.That(blend2.BlendEnable[t]).IsEqualTo(blend1.BlendEnable[t]);
+                        await Assert.That(blend2.SrcBlend[t]).IsEqualTo(blend1.SrcBlend[t]);
+                        await Assert.That(blend2.DestBlend[t]).IsEqualTo(blend1.DestBlend[t]);
+                        await Assert.That(blend2.BlendOp[t]).IsEqualTo(blend1.BlendOp[t]);
+                        await Assert.That(blend2.SrcBlendAlpha[t]).IsEqualTo(blend1.SrcBlendAlpha[t]);
+                        await Assert.That(blend2.DestBlendAlpha[t]).IsEqualTo(blend1.DestBlendAlpha[t]);
+                        await Assert.That(blend2.BlendOpAlpha[t]).IsEqualTo(blend1.BlendOpAlpha[t]);
+                        await Assert.That(blend2.RenderTargetWriteMask[t]).IsEqualTo(blend1.RenderTargetWriteMask[t]);
+                        await Assert.That(blend2.SrgbWriteEnable[t]).IsEqualTo(blend1.SrgbWriteEnable[t]);
                     }
                 }
 
-                Assert.That(combo2.Attributes, Is.EqualTo(combo1.Attributes));
-                Assert.That(combo2.ShaderFiles, Has.Length.EqualTo(combo1.ShaderFiles.Length));
+                await Assert.That(combo2.Attributes).IsEquivalentTo(combo1.Attributes, CollectionOrdering.Matching);
+                await Assert.That(combo2.ShaderFiles).Count().IsEqualTo(combo1.ShaderFiles.Length);
             }
         }
 
         [Test]
-        public void TestVcsFileName()
+        public async Task TestVcsFileName()
         {
             var testCases = new (string FileName, string ShaderName, VcsPlatformType Platform, VcsShaderModelType ShaderModel, VcsProgramType ProgramType)[]
             {
@@ -266,29 +264,29 @@ namespace Tests
                 var result = ComputeVCSFileName(testCase.FileName);
                 var opposite = ComputeVCSFileName(testCase.ShaderName, testCase.ProgramType, testCase.Platform, testCase.ShaderModel);
 
-                using (Assert.EnterMultipleScope())
+                using (Assert.Multiple())
                 {
-                    Assert.That(result.ShaderName, Is.EqualTo(testCase.ShaderName));
-                    Assert.That(result.PlatformType, Is.EqualTo(testCase.Platform));
-                    Assert.That(result.ShaderModelType, Is.EqualTo(testCase.ShaderModel));
-                    Assert.That(result.ProgramType, Is.EqualTo(testCase.ProgramType));
-                    Assert.That(opposite, Is.EqualTo(Path.GetFileName(testCase.FileName)));
+                    await Assert.That(result.ShaderName).IsEqualTo(testCase.ShaderName);
+                    await Assert.That(result.PlatformType).IsEqualTo(testCase.Platform);
+                    await Assert.That(result.ShaderModelType).IsEqualTo(testCase.ShaderModel);
+                    await Assert.That(result.ProgramType).IsEqualTo(testCase.ProgramType);
+                    await Assert.That(opposite).IsEqualTo(Path.GetFileName(testCase.FileName));
                 }
             }
         }
 
         [Test]
-        public void CompiledShaderInResourceThrows()
+        public async Task CompiledShaderInResourceThrows()
         {
             var path = Path.Combine(ShadersDir, "vcs64_error_pcgl_40_ps.vcs");
             using var resource = new Resource();
 
-            var ex = Assert.Throws<InvalidDataException>(() => resource.Read(path));
-            Assert.That(ex, Is.Not.Null);
+            var ex = Assert.ThrowsExactly<InvalidDataException>(() => resource.Read(path));
+            await Assert.That(ex).IsNotNull();
         }
 
         [Test]
-        public void TestZFrameWriteSequences()
+        public async Task TestZFrameWriteSequences()
         {
             var path = Path.Combine(ShadersDir, "vcs64_error_pcgl_40_ps.vcs");
             using var shader = new VfxProgramData();
@@ -299,7 +297,7 @@ namespace Tests
             var zframeSummary = new PrintZFrameSummary(zFrameFile, sw);
 
             var wsCount = zframeSummary.GetUniqueWriteSequences().Count;
-            Assert.That(wsCount, Is.EqualTo(1));
+            await Assert.That(wsCount).IsEqualTo(1);
 
             var zBlockToWS = zframeSummary.GetBlockToUniqueSequenceMap();
             var expected = new Dictionary<int, int>
@@ -308,124 +306,122 @@ namespace Tests
                 {0, 0},
             };
 
-            Assert.That(zBlockToWS, Is.EqualTo(expected));
+            // Only the block to sequence mapping matters, not the order the entries come out in.
+            await Assert.That(zBlockToWS).IsEquivalentTo(expected);
         }
 
         [Test]
-        public void TestChannelMapping()
+        public async Task TestChannelMapping()
         {
-            using (Assert.EnterMultipleScope())
+            using (Assert.Multiple())
             {
-                Assert.That(ChannelMapping.R.PackedValue, Is.EqualTo(0xFFFFFF00));
-                Assert.That(ChannelMapping.G.PackedValue, Is.EqualTo(0xFFFFFF01));
-                Assert.That(ChannelMapping.B.PackedValue, Is.EqualTo(0xFFFFFF02));
-                Assert.That(ChannelMapping.A.PackedValue, Is.EqualTo(0xFFFFFF03));
-                Assert.That(ChannelMapping.RGB.PackedValue, Is.EqualTo(0xFF020100));
-                Assert.That(ChannelMapping.RGBA.PackedValue, Is.EqualTo(0x03020100));
+                await Assert.That(ChannelMapping.R.PackedValue).IsEqualTo((uint)0xFFFFFF00);
+                await Assert.That(ChannelMapping.G.PackedValue).IsEqualTo((uint)0xFFFFFF01);
+                await Assert.That(ChannelMapping.B.PackedValue).IsEqualTo((uint)0xFFFFFF02);
+                await Assert.That(ChannelMapping.A.PackedValue).IsEqualTo((uint)0xFFFFFF03);
+                await Assert.That(ChannelMapping.RGB.PackedValue).IsEqualTo((uint)0xFF020100);
+                await Assert.That(ChannelMapping.RGBA.PackedValue).IsEqualTo((uint)0x03020100);
 
-                Assert.That(ChannelMapping.RGBA.Channels[0], Is.EqualTo(ChannelMapping.Channel.R));
-                Assert.That(ChannelMapping.RGBA.Channels[1], Is.EqualTo(ChannelMapping.Channel.G));
-                Assert.That(ChannelMapping.AG.Channels[1], Is.EqualTo(ChannelMapping.Channel.G));
+                await Assert.That(ChannelMapping.RGBA.Channels[0]).IsEqualTo(ChannelMapping.Channel.R);
+                await Assert.That(ChannelMapping.RGBA.Channels[1]).IsEqualTo(ChannelMapping.Channel.G);
+                await Assert.That(ChannelMapping.AG.Channels[1]).IsEqualTo(ChannelMapping.Channel.G);
 
-                Assert.That(ChannelMapping.RGBA.Count, Is.EqualTo(4));
-                Assert.That(ChannelMapping.RGB.Count, Is.EqualTo(3));
-                Assert.That(ChannelMapping.RG.Count, Is.EqualTo(2));
-                Assert.That(ChannelMapping.G.Count, Is.EqualTo(1));
-                Assert.That(ChannelMapping.NULL.Count, Is.Zero);
-                Assert.That(ChannelMapping.RGBA.ValidChannels, Is.EqualTo(new[] { ChannelMapping.Channel.R, ChannelMapping.Channel.G, ChannelMapping.Channel.B, ChannelMapping.Channel.A }));
-                Assert.That(ChannelMapping.RGB.ValidChannels, Is.EqualTo(new[] { ChannelMapping.Channel.R, ChannelMapping.Channel.G, ChannelMapping.Channel.B }));
-                Assert.That(ChannelMapping.RG.ValidChannels, Is.EqualTo(new[] { ChannelMapping.Channel.R, ChannelMapping.Channel.G }));
-                Assert.That(ChannelMapping.AG.ValidChannels, Is.EqualTo(new[] { ChannelMapping.Channel.A, ChannelMapping.Channel.G }));
-                Assert.That(ChannelMapping.A.ValidChannels, Is.EqualTo(new[] { ChannelMapping.Channel.A }));
-                Assert.That(ChannelMapping.R.ValidChannels, Is.EqualTo(new[] { ChannelMapping.Channel.R }));
+                await Assert.That(ChannelMapping.RGBA.Count).IsEqualTo(4);
+                await Assert.That(ChannelMapping.RGB.Count).IsEqualTo(3);
+                await Assert.That(ChannelMapping.RG.Count).IsEqualTo(2);
+                await Assert.That(ChannelMapping.G.Count).IsEqualTo(1);
+                await Assert.That(ChannelMapping.NULL.Count).IsZero();
+                await Assert.That(ChannelMapping.RGBA.ValidChannels).IsEquivalentTo(new[] { ChannelMapping.Channel.R, ChannelMapping.Channel.G, ChannelMapping.Channel.B, ChannelMapping.Channel.A }, CollectionOrdering.Matching);
+                await Assert.That(ChannelMapping.RGB.ValidChannels).IsEquivalentTo(new[] { ChannelMapping.Channel.R, ChannelMapping.Channel.G, ChannelMapping.Channel.B }, CollectionOrdering.Matching);
+                await Assert.That(ChannelMapping.RG.ValidChannels).IsEquivalentTo(new[] { ChannelMapping.Channel.R, ChannelMapping.Channel.G }, CollectionOrdering.Matching);
+                await Assert.That(ChannelMapping.AG.ValidChannels).IsEquivalentTo(new[] { ChannelMapping.Channel.A, ChannelMapping.Channel.G }, CollectionOrdering.Matching);
+                await Assert.That(ChannelMapping.A.ValidChannels).IsEquivalentTo(new[] { ChannelMapping.Channel.A }, CollectionOrdering.Matching);
+                await Assert.That(ChannelMapping.R.ValidChannels).IsEquivalentTo(new[] { ChannelMapping.Channel.R }, CollectionOrdering.Matching);
 
-                Assert.That((byte)ChannelMapping.R, Is.Zero);
-                Assert.That((byte)ChannelMapping.G, Is.EqualTo(0x01));
-                Assert.That((byte)ChannelMapping.B, Is.EqualTo(0x02));
-                Assert.That((byte)ChannelMapping.A, Is.EqualTo(0x03));
+                await Assert.That((byte)ChannelMapping.R).IsZero();
+                await Assert.That((byte)ChannelMapping.G).IsEqualTo((byte)0x01);
+                await Assert.That((byte)ChannelMapping.B).IsEqualTo((byte)0x02);
+                await Assert.That((byte)ChannelMapping.A).IsEqualTo((byte)0x03);
 
-                Assert.That(ChannelMapping.R, Is.EqualTo(ChannelMapping.FromUInt32(0xFFFFFF00)));
-                Assert.That(ChannelMapping.G, Is.EqualTo(ChannelMapping.FromUInt32(0xFFFFFF01)));
-                Assert.That(ChannelMapping.AG, Is.EqualTo(ChannelMapping.FromUInt32(0xFFFF0103)));
+                await Assert.That(ChannelMapping.R).IsEqualTo(ChannelMapping.FromUInt32(0xFFFFFF00));
+                await Assert.That(ChannelMapping.G).IsEqualTo(ChannelMapping.FromUInt32(0xFFFFFF01));
+                await Assert.That(ChannelMapping.AG).IsEqualTo(ChannelMapping.FromUInt32(0xFFFF0103));
 
                 // Version 67 and newer pack the destination channel into the low nibble of each byte
-                Assert.That(ChannelMapping.RGBA, Is.EqualTo(ChannelMapping.FromUInt32(0x33221100, packedDestinations: true)));
-                Assert.That(ChannelMapping.AG, Is.EqualTo(ChannelMapping.FromUInt32(0xFFFF1130, packedDestinations: true)));
+                await Assert.That(ChannelMapping.RGBA).IsEqualTo(ChannelMapping.FromUInt32(0x33221100, packedDestinations: true));
+                await Assert.That(ChannelMapping.AG).IsEqualTo(ChannelMapping.FromUInt32(0xFFFF1130, packedDestinations: true));
 
-                Assert.That(ChannelMapping.RGBA.Destinations, Is.EqualTo(new byte[] { 0, 1, 2, 3 }));
-                Assert.That(ChannelMapping.AG.Destinations, Is.EqualTo(new byte[] { 0, 1 }));
+                await Assert.That(ChannelMapping.RGBA.Destinations).IsEquivalentTo(new byte[] { 0, 1, 2, 3 }, CollectionOrdering.Matching);
+                await Assert.That(ChannelMapping.AG.Destinations).IsEquivalentTo(new byte[] { 0, 1 }, CollectionOrdering.Matching);
 
                 var rotated = ChannelMapping.FromUInt32(0x23120130, packedDestinations: true);
-                Assert.That(rotated.ValidChannels, Is.EqualTo(new[] { ChannelMapping.Channel.A, ChannelMapping.Channel.R, ChannelMapping.Channel.G, ChannelMapping.Channel.B }));
-                Assert.That(rotated.Destinations, Is.EqualTo(new byte[] { 0, 1, 2, 3 }));
+                await Assert.That(rotated.ValidChannels).IsEquivalentTo(new[] { ChannelMapping.Channel.A, ChannelMapping.Channel.R, ChannelMapping.Channel.G, ChannelMapping.Channel.B }, CollectionOrdering.Matching);
+                await Assert.That(rotated.Destinations).IsEquivalentTo(new byte[] { 0, 1, 2, 3 }, CollectionOrdering.Matching);
 
                 var offset = ChannelMapping.FromUInt32(0xFFFF1201, packedDestinations: true);
-                Assert.That(offset.ValidChannels, Is.EqualTo(new[] { ChannelMapping.Channel.R, ChannelMapping.Channel.G }));
-                Assert.That(offset.Destinations, Is.EqualTo(new byte[] { 1, 2 }));
+                await Assert.That(offset.ValidChannels).IsEquivalentTo(new[] { ChannelMapping.Channel.R, ChannelMapping.Channel.G }, CollectionOrdering.Matching);
+                await Assert.That(offset.Destinations).IsEquivalentTo(new byte[] { 1, 2 }, CollectionOrdering.Matching);
 
-                Assert.That(ChannelMapping.R.ToString(), Is.EqualTo("R"));
-                Assert.That(ChannelMapping.G.ToString(), Is.EqualTo("G"));
-                Assert.That(ChannelMapping.B.ToString(), Is.EqualTo("B"));
-                Assert.That(ChannelMapping.A.ToString(), Is.EqualTo("A"));
-                Assert.That(ChannelMapping.AG.ToString(), Is.EqualTo("AG"));
-                Assert.That(ChannelMapping.RGB.ToString(), Is.EqualTo("RGB"));
-                Assert.That(ChannelMapping.NULL.ToString(), Is.EqualTo("0xFFFFFFFF"));
+                await Assert.That(ChannelMapping.R.ToString()).IsEqualTo("R");
+                await Assert.That(ChannelMapping.G.ToString()).IsEqualTo("G");
+                await Assert.That(ChannelMapping.B.ToString()).IsEqualTo("B");
+                await Assert.That(ChannelMapping.A.ToString()).IsEqualTo("A");
+                await Assert.That(ChannelMapping.AG.ToString()).IsEqualTo("AG");
+                await Assert.That(ChannelMapping.RGB.ToString()).IsEqualTo("RGB");
+                await Assert.That(ChannelMapping.NULL.ToString()).IsEqualTo("0xFFFFFFFF");
 
-                Assert.Throws<ArgumentOutOfRangeException>(() => ChannelMapping.FromChannels(0x04));
-                Assert.Throws<ArgumentOutOfRangeException>(() => ChannelMapping.FromChannels(0x05));
+                Assert.ThrowsExactly<ArgumentOutOfRangeException>(() => ChannelMapping.FromChannels(0x04));
+                Assert.ThrowsExactly<ArgumentOutOfRangeException>(() => ChannelMapping.FromChannels(0x05));
 
-                Assert.That(ChannelMapping.FromChannels(0xFF), Is.EqualTo(ChannelMapping.NULL));
+                await Assert.That(ChannelMapping.FromChannels(0xFF)).IsEqualTo(ChannelMapping.NULL);
             }
         }
 
         [Test]
-        public void VfxShaderExtract_ReplacesWholeIdentifiersOnly()
+        public async Task VfxShaderExtract_ReplacesWholeIdentifiersOnly()
         {
-            using (Assert.EnterMultipleScope())
+            using (Assert.Multiple())
             {
-                Assert.That(ShaderExtract.ReplaceIdentifier("g_flCubeMapBlur*g_flCubeMapBlurAmount", "g_flCubeMapBlur", "this"),
-                    Is.EqualTo("this*g_flCubeMapBlurAmount"));
-                Assert.That(ShaderExtract.ReplaceIdentifier("float2(g_vScale.x,g_vScale.y)", "g_vScale", "this"),
-                    Is.EqualTo("float2(this.x,this.y)"));
-                Assert.That(ShaderExtract.ReplaceIdentifier("g_flAmount", "g_flAmountExtra", "this"),
-                    Is.EqualTo("g_flAmount"));
+                await Assert.That(ShaderExtract.ReplaceIdentifier("g_flCubeMapBlur*g_flCubeMapBlurAmount", "g_flCubeMapBlur", "this")).IsEqualTo("this*g_flCubeMapBlurAmount");
+                await Assert.That(ShaderExtract.ReplaceIdentifier("float2(g_vScale.x,g_vScale.y)", "g_vScale", "this")).IsEqualTo("float2(this.x,this.y)");
+                await Assert.That(ShaderExtract.ReplaceIdentifier("g_flAmount", "g_flAmountExtra", "this")).IsEqualTo("g_flAmount");
             }
         }
 
         [Test]
-        public void VfxShaderExtract_RenderStateEnumNames()
+        public async Task VfxShaderExtract_RenderStateEnumNames()
         {
             var colorWriteEnable = typeof(RsColorWriteEnableBits);
             var cullMode = typeof(RsCullMode);
 
-            using (Assert.EnterMultipleScope())
+            using (Assert.Multiple())
             {
-                Assert.That(ShaderUtilHelpers.GetEnumName(colorWriteEnable, 3), Is.EqualTo("R|G"));
-                Assert.That(ShaderUtilHelpers.GetEnumName(colorWriteEnable, 5), Is.EqualTo("R|B"));
-                Assert.That(ShaderUtilHelpers.GetEnumName(colorWriteEnable, 7), Is.EqualTo("R|G|B"));
-                Assert.That(ShaderUtilHelpers.GetEnumName(colorWriteEnable, 14), Is.EqualTo("G|B|A"));
-                Assert.That(ShaderUtilHelpers.GetEnumName(colorWriteEnable, 15), Is.EqualTo("All"));
-                Assert.That(ShaderUtilHelpers.GetEnumName(colorWriteEnable, 0), Is.EqualTo("None"));
-                Assert.That(ShaderUtilHelpers.GetEnumName(cullMode, 42), Is.EqualTo("42"));
+                await Assert.That(ShaderUtilHelpers.GetEnumName(colorWriteEnable, 3)).IsEqualTo("R|G");
+                await Assert.That(ShaderUtilHelpers.GetEnumName(colorWriteEnable, 5)).IsEqualTo("R|B");
+                await Assert.That(ShaderUtilHelpers.GetEnumName(colorWriteEnable, 7)).IsEqualTo("R|G|B");
+                await Assert.That(ShaderUtilHelpers.GetEnumName(colorWriteEnable, 14)).IsEqualTo("G|B|A");
+                await Assert.That(ShaderUtilHelpers.GetEnumName(colorWriteEnable, 15)).IsEqualTo("All");
+                await Assert.That(ShaderUtilHelpers.GetEnumName(colorWriteEnable, 0)).IsEqualTo("None");
+                await Assert.That(ShaderUtilHelpers.GetEnumName(cullMode, 42)).IsEqualTo("42");
             }
         }
 
         [Test]
-        public void VfxShaderExtract_Invalid()
+        public async Task VfxShaderExtract_Invalid()
         {
             var path = Path.Combine(ShadersDir, "vcs64_error_pcgl_40_ps.vcs");
             using var shader = new VfxProgramData();
             shader.Read(path);
 
-            var ex = Assert.Throws<InvalidOperationException>(() => new ShaderExtract(ShaderCollection.FromEnumerable([shader])));
+            var ex = Assert.ThrowsExactly<InvalidOperationException>(() => _ = new ShaderExtract(ShaderCollection.FromEnumerable([shader])));
 
             Debug.Assert(ex != null);
-            Assert.That(ex, Is.Not.Null);
-            Assert.That(ex.Message, Does.Contain("cannot continue without at least a features file"));
+            await Assert.That(ex).IsNotNull();
+            await Assert.That(ex.Message).Contains("cannot continue without at least a features file");
         }
 
         [Test]
-        public void VfxShaderExtract_Minimal()
+        public async Task VfxShaderExtract_Minimal()
         {
             var path = Path.Combine(ShadersDir, "vcs64_error_pc_40_features.vcs");
             using var shader = new VfxProgramData();
@@ -436,12 +432,12 @@ namespace Tests
             var vfx = extract.ToVFX(ShaderExtract.ShaderExtractParams.Inspect);
             vfx = extract.ToVFX(ShaderExtract.ShaderExtractParams.Export);
 
-            Assert.That(vfx.VfxContent, Does.Contain("Description = \"Error shader\""));
-            Assert.That(vfx.VfxContent, Does.Contain("DevShader = true"));
+            await Assert.That(vfx.VfxContent).Contains("Description = \"Error shader\"");
+            await Assert.That(vfx.VfxContent).Contains("DevShader = true");
         }
 
         [Test]
-        public void VfxShaderExtract_OptionsTest()
+        public async Task VfxShaderExtract_OptionsTest()
         {
             using var collection = new ShaderCollection();
             foreach (var file in Directory.GetFiles(ShadersDir, "vcs64_error_pc_40_*.vcs"))
@@ -478,30 +474,30 @@ namespace Tests
             foreach (var options in optionsToTest)
             {
                 var vfx = extract.ToVFX(options);
-                Assert.That(vfx.VfxContent, Does.Contain("Description = \"Error shader\""));
-                Assert.That(vfx.VfxContent, Does.Contain("DevShader = true"));
+                await Assert.That(vfx.VfxContent).Contains("Description = \"Error shader\"");
+                await Assert.That(vfx.VfxContent).Contains("DevShader = true");
             }
         }
 
-        private static IEnumerable<TestCaseData> SpirvReflectionTestCases()
+        public static IEnumerable<(string, int, int)> SpirvReflectionTestCases()
         {
-            yield return new TestCaseData("vcs65_compute_depthbin_cullbits_vulkan_50_cs.vcs", 0, 0);
-            yield return new TestCaseData("vcs68_tower_force_field_vulkan_40_vs.vcs", 0, 9);
-            yield return new TestCaseData("vcs68_tower_force_field_vulkan_40_ps.vcs", 1, 1);
-            yield return new TestCaseData("vcs68_csgo_simple_2way_blend_vulkan_60_rtx.vcs", 0x6, 0);
-            yield return new TestCaseData("vcs68_test_vulkan_60_ms.vcs", 0, 1);
-            yield return new TestCaseData("vcs69_downsample_depth_cs_vulkan_50_cs.vcs", 0, 0x20);
-            yield return new TestCaseData("vcs69_zstd5_npr_dummy_vulkan_50_vs.vcs", 0, 0);
-            yield return new TestCaseData("vcs69_bloom_vulkan_40_ps.vcs", 0, 0);
-            yield return new TestCaseData("vcs70_resource_bloom_vulkan_40_ps.vcs", 0, 0);
+            yield return ("vcs65_compute_depthbin_cullbits_vulkan_50_cs.vcs", 0, 0);
+            yield return ("vcs68_tower_force_field_vulkan_40_vs.vcs", 0, 9);
+            yield return ("vcs68_tower_force_field_vulkan_40_ps.vcs", 1, 1);
+            yield return ("vcs68_csgo_simple_2way_blend_vulkan_60_rtx.vcs", 0x6, 0);
+            yield return ("vcs68_test_vulkan_60_ms.vcs", 0, 1);
+            yield return ("vcs69_downsample_depth_cs_vulkan_50_cs.vcs", 0, 0x20);
+            yield return ("vcs69_zstd5_npr_dummy_vulkan_50_vs.vcs", 0, 0);
+            yield return ("vcs69_bloom_vulkan_40_ps.vcs", 0, 0);
+            yield return ("vcs70_resource_bloom_vulkan_40_ps.vcs", 0, 0);
         }
 
-        [Test, TestCaseSource(nameof(SpirvReflectionTestCases))]
-        public void TestSpirvReflection(string shaderFile, int staticCombo, int dynamicCombo)
+        [Test, MethodDataSource(nameof(SpirvReflectionTestCases))]
+        public async Task TestSpirvReflection(string shaderFile, int staticCombo, int dynamicCombo)
         {
             if (!IsSpirvCrossAvailable())
             {
-                Assert.Ignore("There are no native binaries for SPIR-V on arm linux yet.");
+                Skip.Test("There are no native binaries for SPIR-V on arm linux yet.");
                 return;
             }
 
@@ -517,53 +513,52 @@ namespace Tests
             var referencePath = Path.Combine(ShadersDir, "SpirvOutput", $"{shaderFile}.glsl");
 
             /*{
-                var shadersDirRepo = Path.Combine(TestContext.CurrentContext.TestDirectory, "../../", "Files", "Shaders");
+                var shadersDirRepo = Path.Combine(TestContext.TestDirectory!, "../../", "Files", "Shaders");
                 var referencePathRepo = Path.Combine(shadersDirRepo, "SpirvOutput", $"{shaderFile}.glsl");
                 File.WriteAllText(referencePathRepo, code);
                 return;
             }*/
 
-            var reference = File.ReadAllText(referencePath);
-
-            Assert.That(code, Is.EqualTo(reference).IgnoreWhiteSpace, $"Spirv reflection output does not match reference.");
+            var reference = await File.ReadAllTextAsync(referencePath);
+            await Assert.That(code).IsEqualTo(reference).IgnoringWhitespace().Because("Spirv reflection output does not match reference.");
         }
 
         [Test]
-        public void TestDepthStencilStateBitLayouts()
+        public async Task TestDepthStencilStateBitLayouts()
         {
             // Depth test+write with LessEqual, stencil disabled with Always funcs and full masks. The bit layout changed in version 71.
             var v71 = new RsDepthStencilStateDesc(0xFFFF00000077000FUL, 71);
 
-            using (Assert.EnterMultipleScope())
+            using (Assert.Multiple())
             {
-                Assert.That(v71.DepthTestEnable, Is.True);
-                Assert.That(v71.DepthWriteEnable, Is.True);
-                Assert.That(v71.DepthFunc, Is.EqualTo(RsComparison.LessEqual));
-                Assert.That(v71.StencilEnable, Is.False);
-                Assert.That(v71.FrontStencilFunc, Is.EqualTo(RsComparison.Always));
-                Assert.That(v71.BackStencilFunc, Is.EqualTo(RsComparison.Always));
-                Assert.That(v71.StencilReadMask, Is.EqualTo(0xFF));
-                Assert.That(v71.StencilWriteMask, Is.EqualTo(0xFF));
+                await Assert.That(v71.DepthTestEnable).IsTrue();
+                await Assert.That(v71.DepthWriteEnable).IsTrue();
+                await Assert.That(v71.DepthFunc).IsEqualTo(RsComparison.LessEqual);
+                await Assert.That(v71.StencilEnable).IsFalse();
+                await Assert.That(v71.FrontStencilFunc).IsEqualTo(RsComparison.Always);
+                await Assert.That(v71.BackStencilFunc).IsEqualTo(RsComparison.Always);
+                await Assert.That(v71.StencilReadMask).IsEqualTo((byte)0xFF);
+                await Assert.That(v71.StencilWriteMask).IsEqualTo((byte)0xFF);
             }
 
             // Value from vcs70 and older: depth disabled, LessEqual, Always funcs.
             var v70 = new RsDepthStencilStateDesc(0xFFFF01C01C000300UL, 70);
 
-            using (Assert.EnterMultipleScope())
+            using (Assert.Multiple())
             {
-                Assert.That(v70.DepthTestEnable, Is.False);
-                Assert.That(v70.DepthWriteEnable, Is.False);
-                Assert.That(v70.DepthFunc, Is.EqualTo(RsComparison.LessEqual));
-                Assert.That(v70.StencilEnable, Is.False);
-                Assert.That(v70.FrontStencilFunc, Is.EqualTo(RsComparison.Always));
-                Assert.That(v70.BackStencilFunc, Is.EqualTo(RsComparison.Always));
-                Assert.That(v70.StencilReadMask, Is.EqualTo(0xFF));
-                Assert.That(v70.StencilWriteMask, Is.EqualTo(0xFF));
+                await Assert.That(v70.DepthTestEnable).IsFalse();
+                await Assert.That(v70.DepthWriteEnable).IsFalse();
+                await Assert.That(v70.DepthFunc).IsEqualTo(RsComparison.LessEqual);
+                await Assert.That(v70.StencilEnable).IsFalse();
+                await Assert.That(v70.FrontStencilFunc).IsEqualTo(RsComparison.Always);
+                await Assert.That(v70.BackStencilFunc).IsEqualTo(RsComparison.Always);
+                await Assert.That(v70.StencilReadMask).IsEqualTo((byte)0xFF);
+                await Assert.That(v70.StencilWriteMask).IsEqualTo((byte)0xFF);
             }
         }
 
         [Test]
-        public void TestUiGroup()
+        public async Task TestUiGroup()
         {
             var testCases = new Dictionary<string, UiGroup>
             {
@@ -584,13 +579,13 @@ namespace Tests
             foreach (var (compactString, expected) in testCases)
             {
                 var parsed = UiGroup.FromCompactString(compactString);
-                using (Assert.EnterMultipleScope())
+                using (Assert.Multiple())
                 {
-                    Assert.That(parsed.Heading, Is.EqualTo(expected.Heading));
-                    Assert.That(parsed.HeadingOrder, Is.EqualTo(expected.HeadingOrder));
-                    Assert.That(parsed.Group, Is.EqualTo(expected.Group));
-                    Assert.That(parsed.GroupOrder, Is.EqualTo(expected.GroupOrder));
-                    Assert.That(parsed.VariableOrder, Is.EqualTo(expected.VariableOrder));
+                    await Assert.That(parsed.Heading).IsEqualTo(expected.Heading);
+                    await Assert.That(parsed.HeadingOrder).IsEqualTo(expected.HeadingOrder);
+                    await Assert.That(parsed.Group).IsEqualTo(expected.Group);
+                    await Assert.That(parsed.GroupOrder).IsEqualTo(expected.GroupOrder);
+                    await Assert.That(parsed.VariableOrder).IsEqualTo(expected.VariableOrder);
                 }
             }
         }

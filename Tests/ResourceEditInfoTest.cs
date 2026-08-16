@@ -1,11 +1,11 @@
 using System.IO;
-using NUnit.Framework;
+using System.Threading.Tasks;
+using TUnit.Assertions.Enums;
 using ValveResourceFormat;
 using ValveResourceFormat.Blocks;
 
 namespace Tests
 {
-    [TestFixture]
     public class ResourceEditInfoTest
     {
         private static readonly string[] AlchemistChildResources =
@@ -16,31 +16,31 @@ namespace Tests
         ];
 
         [Test]
-        public void ReadsChildResourceIds()
+        public async Task ReadsChildResourceIds()
         {
             using var resource = new Resource();
-            resource.Read(Path.Combine(TestContext.CurrentContext.TestDirectory, "Files", "alchemist.vmdl_c"));
+            resource.Read(Path.Combine(TestContext.TestDirectory!, "Files", "alchemist.vmdl_c"));
 
             var editInfo = (ResourceEditInfo)resource.GetBlockByType(BlockType.REDI)!;
 
-            using (Assert.EnterMultipleScope())
+            using (Assert.Multiple())
             {
-                Assert.That(editInfo.ChildResourceList, Is.EqualTo(AlchemistChildResources));
+                await Assert.That(editInfo.ChildResourceList).IsEquivalentTo(AlchemistChildResources, CollectionOrdering.Matching);
 
-                Assert.That(editInfo.ChildResourceIds, Has.Count.EqualTo(editInfo.ChildResourceList.Count));
-                Assert.That(editInfo.ChildResourceIds, Is.All.Not.Zero);
+                await Assert.That(editInfo.ChildResourceIds).Count().IsEqualTo(editInfo.ChildResourceList.Count);
+                await Assert.That(editInfo.ChildResourceIds).All(x => x != 0);
             }
         }
 
         [Test]
-        public void ChildResourceIdsAreEmptyForKeyValuesEditInfo()
+        public async Task ChildResourceIdsAreEmptyForKeyValuesEditInfo()
         {
             using var resource = new Resource();
-            resource.Read(Path.Combine(TestContext.CurrentContext.TestDirectory, "Files", "dynamic_images_ui_misc.vpdi_c"));
+            resource.Read(Path.Combine(TestContext.TestDirectory!, "Files", "dynamic_images_ui_misc.vpdi_c"));
 
             var editInfo = (ResourceEditInfo2)resource.GetBlockByType(BlockType.RED2)!;
 
-            Assert.That(editInfo.ChildResourceIds, Is.Empty);
+            await Assert.That(editInfo.ChildResourceIds).IsEmpty();
         }
     }
 }

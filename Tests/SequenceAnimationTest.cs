@@ -1,7 +1,7 @@
 using System.IO;
 using System.Linq;
 using System.Numerics;
-using NUnit.Framework;
+using System.Threading.Tasks;
 using ValveResourceFormat;
 using ValveResourceFormat.IO;
 using ValveResourceFormat.ResourceTypes;
@@ -9,7 +9,6 @@ using ValveResourceFormat.ResourceTypes.ModelAnimation;
 
 namespace Tests
 {
-    [TestFixture]
     public class SequenceAnimationTest
     {
         // box_creature_leggy_walk travels ~47.92 source units forward (+X) over its 25-frame cycle,
@@ -17,9 +16,9 @@ namespace Tests
         private const float FullDisplacementX = 47.92f;
 
         [Test]
-        public void TestEmbeddedAnimations()
+        public async Task TestEmbeddedAnimations()
         {
-            var file = Path.Combine(TestContext.CurrentContext.TestDirectory, "Files", "box_creature_ik_model.vmdl_c");
+            var file = Path.Combine(TestContext.TestDirectory!, "Files", "box_creature_ik_model.vmdl_c");
             using var resource = new Resource
             {
                 FileName = file,
@@ -31,45 +30,45 @@ namespace Tests
             var animGroupPaths = model.GetReferencedAnimationGroupNames();
             var animations = model.GetEmbeddedAnimations().ToList();
 
-            using (Assert.EnterMultipleScope())
+            using (Assert.Multiple())
             {
-                Assert.That(animGroupPaths.Count(), Is.Zero);
-                Assert.That(animations, Has.Count.EqualTo(3));
-                Assert.That(animations, Is.All.InstanceOf<SequenceAnimation>());
+                await Assert.That(animGroupPaths.Count()).IsZero();
+                await Assert.That(animations).Count().IsEqualTo(3);
+                await Assert.That(animations).All(animation => animation is SequenceAnimation);
 
-                Assert.That(animations[0].Name, Is.EqualTo("ref_pose"));
-                Assert.That(animations[0].Fps, Is.EqualTo(30));
-                Assert.That(animations[0].FrameCount, Is.EqualTo(1));
+                await Assert.That(animations[0].Name).IsEqualTo("ref_pose");
+                await Assert.That(animations[0].Fps).IsEqualTo(30);
+                await Assert.That(animations[0].FrameCount).IsEqualTo(1);
 
-                Assert.That(animations[1].Name, Is.EqualTo("box_creature_leggy_idle"));
-                Assert.That(animations[1].Fps, Is.EqualTo(30));
-                Assert.That(animations[1].FrameCount, Is.EqualTo(49));
+                await Assert.That(animations[1].Name).IsEqualTo("box_creature_leggy_idle");
+                await Assert.That(animations[1].Fps).IsEqualTo(30);
+                await Assert.That(animations[1].FrameCount).IsEqualTo(49);
 
-                Assert.That(animations[2].Name, Is.EqualTo("box_creature_leggy_walk"));
-                Assert.That(animations[2].Fps, Is.EqualTo(30));
-                Assert.That(animations[2].FrameCount, Is.EqualTo(25));
+                await Assert.That(animations[2].Name).IsEqualTo("box_creature_leggy_walk");
+                await Assert.That(animations[2].Fps).IsEqualTo(30);
+                await Assert.That(animations[2].FrameCount).IsEqualTo(25);
             }
         }
 
         [Test]
-        public void MovementOffsetReachesFullDisplacement()
+        public async Task MovementOffsetReachesFullDisplacement()
         {
             using var resource = new Resource();
-            resource.Read(Path.Combine(TestContext.CurrentContext.TestDirectory, "Files", "box_creature_ik_model.vmdl_c"));
+            resource.Read(Path.Combine(TestContext.TestDirectory!, "Files", "box_creature_ik_model.vmdl_c"));
             var model = (Model)resource.DataBlock!;
             var anim = model.GetAllAnimations(new NullFileLoader()).First(a => a.Name == "box_creature_leggy_walk");
 
-            Assert.That(anim.HasMovementData(), Is.True);
+            await Assert.That(anim.HasMovementData()).IsTrue();
 
             var lastFrame = anim.FrameCount - 1;
             var byFrame = anim.GetMovementOffsetData(lastFrame);
             var byTime = anim.GetMovementOffsetData(lastFrame / anim.Fps);
 
-            using (Assert.EnterMultipleScope())
+            using (Assert.Multiple())
             {
                 // Both overloads must reach the full displacement; the time-based one previously under-shot.
-                Assert.That(byFrame.Position.X, Is.EqualTo(FullDisplacementX).Within(0.05f));
-                Assert.That(byTime.Position.X, Is.EqualTo(FullDisplacementX).Within(0.05f));
+                await Assert.That(byFrame.Position.X).IsEqualTo(FullDisplacementX).Within(0.05f);
+                await Assert.That(byTime.Position.X).IsEqualTo(FullDisplacementX).Within(0.05f);
             }
         }
     }

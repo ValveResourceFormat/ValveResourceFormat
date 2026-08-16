@@ -1,5 +1,6 @@
 using System.Runtime.InteropServices;
-using NUnit.Framework;
+using System.Threading.Tasks;
+using TUnit.Assertions.Enums;
 using ValveResourceFormat.Compression;
 
 // Copied from https://github.com/zeux/meshoptimizer/blob/master/demo/tests.cpp
@@ -120,160 +121,160 @@ namespace Tests
 
         [Test]
         [Category("Index Decoder")]
-        public void DecodeIndexV0()
+        public async Task DecodeIndexV0()
         {
             var decoded = MeshOptimizerIndexDecoder.DecodeIndexBuffer(kIndexBuffer.Length, sizeof(int), kIndexDataV0);
-            Assert.That(MemoryMarshal.Cast<byte, int>(decoded).ToArray(), Is.EqualTo(kIndexBuffer));
+            await Assert.That(MemoryMarshal.Cast<byte, int>(decoded).ToArray()).IsEquivalentTo(kIndexBuffer, CollectionOrdering.Matching);
         }
 
         [Test]
         [Category("Index Decoder")]
-        public void DecodeIndexV1()
+        public async Task DecodeIndexV1()
         {
             var decoded = MeshOptimizerIndexDecoder.DecodeIndexBuffer(kIndexBufferTricky.Length, sizeof(int), kIndexDataV1);
-            Assert.That(MemoryMarshal.Cast<byte, int>(decoded).ToArray(), Is.EqualTo(kIndexBufferTricky));
+            await Assert.That(MemoryMarshal.Cast<byte, int>(decoded).ToArray()).IsEquivalentTo(kIndexBufferTricky, CollectionOrdering.Matching);
         }
 
         [Test]
         [Category("Index Decoder")]
-        public void DecodeIndexV1More()
+        public async Task DecodeIndexV1More()
         {
             var decoded = MeshOptimizerIndexDecoder.DecodeIndexBuffer(kIndexBuffer.Length, sizeof(int), kIndexBufferV1MoreData);
-            Assert.That(MemoryMarshal.Cast<byte, int>(decoded).ToArray(), Is.EqualTo(kIndexBuffer));
+            await Assert.That(MemoryMarshal.Cast<byte, int>(decoded).ToArray()).IsEquivalentTo(kIndexBuffer, CollectionOrdering.Matching);
         }
 
         [Test]
         [Category("Index Decoder")]
-        public void DecodeIndexV1ThreeEdges()
+        public async Task DecodeIndexV1ThreeEdges()
         {
             var decoded = MeshOptimizerIndexDecoder.DecodeIndexBuffer(kIndexBufferV1ThreeEdgesExpected.Length, sizeof(int), kIndexBufferV1ThreeEdgesData);
-            Assert.That(MemoryMarshal.Cast<byte, int>(decoded).ToArray(), Is.EqualTo(kIndexBufferV1ThreeEdgesExpected));
+            await Assert.That(MemoryMarshal.Cast<byte, int>(decoded).ToArray()).IsEquivalentTo(kIndexBufferV1ThreeEdgesExpected, CollectionOrdering.Matching);
         }
 
         [Test]
         [Category("Vertex Decoder")]
-        public void DecodeVertexV0()
+        public async Task DecodeVertexV0()
         {
             var decoded = MeshOptimizerVertexDecoder.DecodeVertexBuffer(kVertexBuffer.Length, Marshal.SizeOf<PV>(), kVertexDataV0, useSimd: false);
-            Assert.That(MemoryMarshal.Cast<byte, PV>(decoded).ToArray(), Is.EqualTo(kVertexBuffer));
+            await Assert.That(MemoryMarshal.Cast<byte, PV>(decoded).ToArray()).IsEquivalentTo(kVertexBuffer, CollectionOrdering.Matching);
         }
 
         [Test]
         [Category("Vertex Decoder SIMD")]
-        public void DecodeVertexV0Simd()
+        public async Task DecodeVertexV0Simd()
         {
             if (!MeshOptimizerVertexDecoder.IsHardwareAccelerated)
             {
-                Assert.Ignore("Vector128 is not hardware accelerated.");
+                Skip.Test("Vector128 is not hardware accelerated.");
             }
 
             var decoded = MeshOptimizerVertexDecoder.DecodeVertexBuffer(kVertexBuffer.Length, Marshal.SizeOf<PV>(), kVertexDataV0, useSimd: true);
-            Assert.That(MemoryMarshal.Cast<byte, PV>(decoded).ToArray(), Is.EqualTo(kVertexBuffer));
+            await Assert.That(MemoryMarshal.Cast<byte, PV>(decoded).ToArray()).IsEquivalentTo(kVertexBuffer, CollectionOrdering.Matching);
         }
 
         [Test]
         [Category("Vertex Decoder")]
-        public void DecodeVertexV1()
+        public async Task DecodeVertexV1()
         {
             var decoded = MeshOptimizerVertexDecoder.DecodeVertexBuffer(kVertexBuffer.Length, Marshal.SizeOf<PV>(), kVertexDataV1, useSimd: false);
-            Assert.That(MemoryMarshal.Cast<byte, PV>(decoded).ToArray(), Is.EqualTo(kVertexBuffer));
+            await Assert.That(MemoryMarshal.Cast<byte, PV>(decoded).ToArray()).IsEquivalentTo(kVertexBuffer, CollectionOrdering.Matching);
         }
 
         [Test]
         [Category("Vertex Decoder SIMD")]
-        public void DecodeVertexV1Simd()
+        public async Task DecodeVertexV1Simd()
         {
             if (!MeshOptimizerVertexDecoder.IsHardwareAccelerated)
             {
-                Assert.Ignore("Vector128 is not hardware accelerated.");
+                Skip.Test("Vector128 is not hardware accelerated.");
             }
 
             var decoded = MeshOptimizerVertexDecoder.DecodeVertexBuffer(kVertexBuffer.Length, Marshal.SizeOf<PV>(), kVertexDataV1, useSimd: true);
-            Assert.That(MemoryMarshal.Cast<byte, PV>(decoded).ToArray(), Is.EqualTo(kVertexBuffer));
+            await Assert.That(MemoryMarshal.Cast<byte, PV>(decoded).ToArray()).IsEquivalentTo(kVertexBuffer, CollectionOrdering.Matching);
         }
 
         [Test]
         [Category("Vertex Decoder")]
-        public void DecodeVertexV1Custom()
+        public async Task DecodeVertexV1Custom()
         {
             var decoded = MeshOptimizerVertexDecoder.DecodeVertexBuffer(kVertexBuffer.Length, Marshal.SizeOf<PV>(), kVertexDataV1Custom, useSimd: false);
-            Assert.That(MemoryMarshal.Cast<byte, PV>(decoded).ToArray(), Is.EqualTo(kVertexBuffer));
+            await Assert.That(MemoryMarshal.Cast<byte, PV>(decoded).ToArray()).IsEquivalentTo(kVertexBuffer, CollectionOrdering.Matching);
         }
 
         [Test]
         [Category("Vertex Decoder SIMD")]
-        public void DecodeVertexV1CustomSimd()
+        public async Task DecodeVertexV1CustomSimd()
         {
             if (!MeshOptimizerVertexDecoder.IsHardwareAccelerated)
             {
-                Assert.Ignore("Vector128 is not hardware accelerated.");
+                Skip.Test("Vector128 is not hardware accelerated.");
             }
 
             var decoded = MeshOptimizerVertexDecoder.DecodeVertexBuffer(kVertexBuffer.Length, Marshal.SizeOf<PV>(), kVertexDataV1Custom, useSimd: true);
-            Assert.That(MemoryMarshal.Cast<byte, PV>(decoded).ToArray(), Is.EqualTo(kVertexBuffer));
+            await Assert.That(MemoryMarshal.Cast<byte, PV>(decoded).ToArray()).IsEquivalentTo(kVertexBuffer, CollectionOrdering.Matching);
         }
 
         [Test]
         [Category("Vertex Decoder")]
-        public void DecodeVertexMore()
+        public async Task DecodeVertexMore()
         {
             var decoded = MeshOptimizerVertexDecoder.DecodeVertexBuffer(16, 4, kVertexMoreData, useSimd: false);
-            Assert.That(decoded, Is.EqualTo(kVertexMoreExpected));
+            await Assert.That(decoded).IsEquivalentTo(kVertexMoreExpected, CollectionOrdering.Matching);
         }
 
         [Test]
         [Category("Vertex Decoder SIMD")]
-        public void DecodeVertexMoreSimd()
+        public async Task DecodeVertexMoreSimd()
         {
             if (!MeshOptimizerVertexDecoder.IsHardwareAccelerated)
             {
-                Assert.Ignore("Vector128 is not hardware accelerated.");
+                Skip.Test("Vector128 is not hardware accelerated.");
             }
 
             var decoded = MeshOptimizerVertexDecoder.DecodeVertexBuffer(16, 4, kVertexMoreData, useSimd: true);
-            Assert.That(decoded, Is.EqualTo(kVertexMoreExpected));
+            await Assert.That(decoded).IsEquivalentTo(kVertexMoreExpected, CollectionOrdering.Matching);
         }
 
         [Test]
         [Category("Vertex Decoder")]
-        public void DecodeVertexMode2()
+        public async Task DecodeVertexMode2()
         {
             var decoded = MeshOptimizerVertexDecoder.DecodeVertexBuffer(16, 4, kVertexMode2Data, useSimd: false);
-            Assert.That(decoded, Is.EqualTo(kVertexMode2Expected));
+            await Assert.That(decoded).IsEquivalentTo(kVertexMode2Expected, CollectionOrdering.Matching);
         }
 
         [Test]
         [Category("Vertex Decoder SIMD")]
-        public void DecodeVertexMode2Simd()
+        public async Task DecodeVertexMode2Simd()
         {
             if (!MeshOptimizerVertexDecoder.IsHardwareAccelerated)
             {
-                Assert.Ignore("Vector128 is not hardware accelerated.");
+                Skip.Test("Vector128 is not hardware accelerated.");
             }
 
             var decoded = MeshOptimizerVertexDecoder.DecodeVertexBuffer(16, 4, kVertexMode2Data, useSimd: true);
-            Assert.That(decoded, Is.EqualTo(kVertexMode2Expected));
+            await Assert.That(decoded).IsEquivalentTo(kVertexMode2Expected, CollectionOrdering.Matching);
         }
 
         [Test]
         [Category("Vertex Decoder")]
-        public void DecodeVertexV1Deltas()
+        public async Task DecodeVertexV1Deltas()
         {
             var decoded = MeshOptimizerVertexDecoder.DecodeVertexBuffer(16, 8, kVertexV1Deltas, useSimd: false);
-            Assert.That(MemoryMarshal.Cast<byte, short>(decoded).ToArray(), Is.EqualTo(kVertexV1DeltasExpected));
+            await Assert.That(MemoryMarshal.Cast<byte, short>(decoded).ToArray()).IsEquivalentTo(kVertexV1DeltasExpected, CollectionOrdering.Matching);
         }
 
         [Test]
         [Category("Vertex Decoder SIMD")]
-        public void DecodeVertexV1DeltasSimd()
+        public async Task DecodeVertexV1DeltasSimd()
         {
             if (!MeshOptimizerVertexDecoder.IsHardwareAccelerated)
             {
-                Assert.Ignore("Vector128 is not hardware accelerated.");
+                Skip.Test("Vector128 is not hardware accelerated.");
             }
 
             var decoded = MeshOptimizerVertexDecoder.DecodeVertexBuffer(16, 8, kVertexV1Deltas, useSimd: true);
-            Assert.That(MemoryMarshal.Cast<byte, short>(decoded).ToArray(), Is.EqualTo(kVertexV1DeltasExpected));
+            await Assert.That(MemoryMarshal.Cast<byte, short>(decoded).ToArray()).IsEquivalentTo(kVertexV1DeltasExpected, CollectionOrdering.Matching);
         }
     }
 }

@@ -1,12 +1,12 @@
 using System.IO;
-using NUnit.Framework;
+using System.Threading.Tasks;
+using TUnit.Assertions.Enums;
 using ValveResourceFormat;
 using ValveResourceFormat.IO;
 using ValveResourceFormat.ResourceTypes;
 
 namespace Tests
 {
-    [TestFixture]
     public class ModelLodTest
     {
         // Truck-like: one mesh per level, switch values per level.
@@ -33,193 +33,202 @@ namespace Tests
         private static readonly float[] FixtureSwitches = [0f, 5f, 10f, 15f, 20f];
 
         [Test]
-        public void ContiguousLods()
+        public async Task ContiguousLods()
         {
             var lod = new ModelLodInfo(TruckMasks, TruckSwitches);
 
-            Assert.Multiple(() =>
+            using (Assert.Multiple())
             {
-                Assert.That(lod.LowestLevel, Is.EqualTo(0));
-                Assert.That(lod.AvailableLevels, Is.EqualTo(TruckLevels));
-                Assert.That(lod.LevelCount, Is.EqualTo(3));
+                await Assert.That(lod.LowestLevel).IsEqualTo(0);
+                await Assert.That(lod.AvailableLevels).IsEquivalentTo(TruckLevels, CollectionOrdering.Matching);
+                await Assert.That(lod.LevelCount).IsEqualTo(3);
 
-                Assert.That(lod.IsMeshInLevel(0, 0), Is.True);
-                Assert.That(lod.IsMeshInLevel(1, 1), Is.True);
-                Assert.That(lod.IsMeshInLevel(2, 2), Is.True);
-                Assert.That(lod.IsMeshInLevel(0, 1), Is.False);
-                Assert.That(lod.IsMeshInLevel(1, 0), Is.False);
-            });
+                await Assert.That(lod.IsMeshInLevel(0, 0)).IsTrue();
+                await Assert.That(lod.IsMeshInLevel(1, 1)).IsTrue();
+                await Assert.That(lod.IsMeshInLevel(2, 2)).IsTrue();
+                await Assert.That(lod.IsMeshInLevel(0, 1)).IsFalse();
+                await Assert.That(lod.IsMeshInLevel(1, 0)).IsFalse();
+
+            }
         }
 
         [Test]
-        public void SelectLevelFollowsMetric()
+        public async Task SelectLevelFollowsMetric()
         {
             var lod = new ModelLodInfo(TruckMasks, TruckSwitches);
 
-            Assert.Multiple(() =>
+            using (Assert.Multiple())
             {
                 // Metric grows as the model gets smaller on screen, so higher metric => higher (lower-detail) level.
-                Assert.That(lod.SelectLevel(0f), Is.EqualTo(0));
-                Assert.That(lod.SelectLevel(34f), Is.EqualTo(0));
-                Assert.That(lod.SelectLevel(35f), Is.EqualTo(1));
-                Assert.That(lod.SelectLevel(49f), Is.EqualTo(1));
-                Assert.That(lod.SelectLevel(50f), Is.EqualTo(2));
-                Assert.That(lod.SelectLevel(1000f), Is.EqualTo(2));
-            });
+                await Assert.That(lod.SelectLevel(0f)).IsEqualTo(0);
+                await Assert.That(lod.SelectLevel(34f)).IsEqualTo(0);
+                await Assert.That(lod.SelectLevel(35f)).IsEqualTo(1);
+                await Assert.That(lod.SelectLevel(49f)).IsEqualTo(1);
+                await Assert.That(lod.SelectLevel(50f)).IsEqualTo(2);
+                await Assert.That(lod.SelectLevel(1000f)).IsEqualTo(2);
+
+            }
         }
 
         [Test]
-        public void HasDistinctLevelsDetectsRealLods()
+        public async Task HasDistinctLevelsDetectsRealLods()
         {
-            Assert.Multiple(() =>
+            using (Assert.Multiple())
             {
                 // No LOD data, or a single level: nothing to switch between.
-                Assert.That(new ModelLodInfo([], []).HasDistinctLevels, Is.False);
-                Assert.That(new ModelLodInfo([0x01], []).HasDistinctLevels, Is.False);
+                await Assert.That(new ModelLodInfo([], []).HasDistinctLevels).IsFalse();
+                await Assert.That(new ModelLodInfo([0x01], []).HasDistinctLevels).IsFalse();
 
                 // A mesh present in every level (mask 0xFF, no switch distances) is "always shown", not a
                 // LOD. This is the chess king: m_refLODGroupMasks [255], no switch distances.
-                Assert.That(new ModelLodInfo([0xFF], []).HasDistinctLevels, Is.False);
+                await Assert.That(new ModelLodInfo([0xFF], []).HasDistinctLevels).IsFalse();
                 // Multiple meshes that share the same all-levels mask also render identically everywhere.
-                Assert.That(new ModelLodInfo([0x03, 0x03], []).HasDistinctLevels, Is.False);
+                await Assert.That(new ModelLodInfo([0x03, 0x03], []).HasDistinctLevels).IsFalse();
 
                 // Distinct geometry per level: real LODs.
-                Assert.That(new ModelLodInfo(TruckMasks, TruckSwitches).HasDistinctLevels, Is.True);
-                Assert.That(new ModelLodInfo(AlchemistMasks, AlchemistSwitches).HasDistinctLevels, Is.True);
+                await Assert.That(new ModelLodInfo(TruckMasks, TruckSwitches).HasDistinctLevels).IsTrue();
+                await Assert.That(new ModelLodInfo(AlchemistMasks, AlchemistSwitches).HasDistinctLevels).IsTrue();
 
                 // Empty LOD0 with meshes only in LOD1 (ctm_sas): the empty level is a distinct state, so the
                 // model has a real LOD. m_refLODGroupMasks [2,2,2,2,2], switch distances [0, 2].
-                Assert.That(new ModelLodInfo([2, 2, 2, 2, 2], [0f, 2f]).HasDistinctLevels, Is.True);
-            });
+                await Assert.That(new ModelLodInfo([2, 2, 2, 2, 2], [0f, 2f]).HasDistinctLevels).IsTrue();
+            }
         }
 
         [Test]
-        public void MetricRangePerLevel()
+        public async Task MetricRangePerLevel()
         {
             var lod = new ModelLodInfo(TruckMasks, TruckSwitches);
             var noSwitches = new ModelLodInfo(TruckMasks, []);
 
-            Assert.Multiple(() =>
+            using (Assert.Multiple())
             {
                 // Each level is active from its own switch value up to the next level's. The top one is open-ended.
-                Assert.That(lod.GetMetricRange(0), Is.EqualTo((0f, (float?)35f)));
-                Assert.That(lod.GetMetricRange(1), Is.EqualTo((35f, (float?)50f)));
-                Assert.That(lod.GetMetricRange(2), Is.EqualTo((50f, (float?)null)));
+                await Assert.That(lod.GetMetricRange(0)).IsEqualTo((0f, (float?)35f));
+                await Assert.That(lod.GetMetricRange(1)).IsEqualTo((35f, (float?)50f));
+                await Assert.That(lod.GetMetricRange(2)).IsEqualTo((50f, (float?)null));
 
                 // No switch data: everything collapses to an open range from 0.
-                Assert.That(noSwitches.GetMetricRange(0), Is.EqualTo((0f, (float?)null)));
-            });
+                await Assert.That(noSwitches.GetMetricRange(0)).IsEqualTo((0f, (float?)null));
+
+            }
         }
 
         [Test]
-        public void MultipleLevelsPerMesh()
+        public async Task MultipleLevelsPerMesh()
         {
             var lod = new ModelLodInfo(AlchemistMasks, AlchemistSwitches);
 
-            Assert.Multiple(() =>
+            using (Assert.Multiple())
             {
-                Assert.That(lod.CombinedMask, Is.EqualTo(0xFF));
-                Assert.That(lod.LowestLevel, Is.EqualTo(0));
-                Assert.That(lod.AvailableLevels, Is.EqualTo(AlchemistLevels));
-                Assert.That(lod.LevelCount, Is.EqualTo(8));
+                await Assert.That(lod.CombinedMask).IsEqualTo(0xFF);
+                await Assert.That(lod.LowestLevel).IsEqualTo(0);
+                await Assert.That(lod.AvailableLevels).IsEquivalentTo(AlchemistLevels, CollectionOrdering.Matching);
+                await Assert.That(lod.LevelCount).IsEqualTo(8);
 
-                Assert.That(lod.IsMeshInLevel(0, 0), Is.True);
-                Assert.That(lod.IsMeshInLevel(0, 1), Is.False);
-                Assert.That(lod.IsMeshInLevel(1, 0), Is.False);
-                Assert.That(lod.IsMeshInLevel(1, 1), Is.True);
-                Assert.That(lod.IsMeshInLevel(1, 7), Is.True);
-            });
+                await Assert.That(lod.IsMeshInLevel(0, 0)).IsTrue();
+                await Assert.That(lod.IsMeshInLevel(0, 1)).IsFalse();
+                await Assert.That(lod.IsMeshInLevel(1, 0)).IsFalse();
+                await Assert.That(lod.IsMeshInLevel(1, 1)).IsTrue();
+                await Assert.That(lod.IsMeshInLevel(1, 7)).IsTrue();
+
+            }
         }
 
         [Test]
-        public void MeshInAllLevelsIsLodGroupAll()
+        public async Task MeshInAllLevelsIsLodGroupAll()
         {
             var lod = new ModelLodInfo(AllGroupMasks, AllGroupSwitches);
 
-            Assert.Multiple(() =>
+            using (Assert.Multiple())
             {
                 // Only the mask-7 mesh spans every level, so only it is a LODGroupAll member.
-                Assert.That(lod.IsMeshInAllLevels(4), Is.True);
-                Assert.That(lod.IsMeshInAllLevels(0), Is.False);
-                Assert.That(lod.IsMeshInAllLevels(1), Is.False);
-                Assert.That(lod.IsMeshInAllLevels(2), Is.False);
-                Assert.That(lod.IsMeshInAllLevels(3), Is.False);
+                await Assert.That(lod.IsMeshInAllLevels(4)).IsTrue();
+                await Assert.That(lod.IsMeshInAllLevels(0)).IsFalse();
+                await Assert.That(lod.IsMeshInAllLevels(1)).IsFalse();
+                await Assert.That(lod.IsMeshInAllLevels(2)).IsFalse();
+                await Assert.That(lod.IsMeshInAllLevels(3)).IsFalse();
 
                 // A single populated level is not treated as "all levels", so nothing is pulled out.
-                Assert.That(new ModelLodInfo([1, 1], [0f]).IsMeshInAllLevels(0), Is.False);
-            });
+                await Assert.That(new ModelLodInfo([1, 1], [0f]).IsMeshInAllLevels(0)).IsFalse();
+
+            }
         }
 
         [Test]
-        public void EmptyLod0FallsBackToLowestPopulated()
+        public async Task EmptyLod0FallsBackToLowestPopulated()
         {
             var lod = new ModelLodInfo(EmptyLod0Masks, []);
 
-            Assert.Multiple(() =>
+            using (Assert.Multiple())
             {
-                Assert.That(lod.LowestLevel, Is.EqualTo(1));
-                Assert.That(lod.AvailableLevels, Is.EqualTo(EmptyLod0Levels));
-                Assert.That(lod.LevelCount, Is.EqualTo(3));
+                await Assert.That(lod.LowestLevel).IsEqualTo(1);
+                await Assert.That(lod.AvailableLevels).IsEquivalentTo(EmptyLod0Levels, CollectionOrdering.Matching);
+                await Assert.That(lod.LevelCount).IsEqualTo(3);
                 // With no switch values, automatic selection stays at the lowest populated level.
-                Assert.That(lod.SelectLevel(1000f), Is.EqualTo(1));
-            });
+                await Assert.That(lod.SelectLevel(1000f)).IsEqualTo(1);
+
+            }
         }
 
         [Test]
-        public void NoLodData()
+        public async Task NoLodData()
         {
             var lod = new ModelLodInfo([], []);
 
-            Assert.Multiple(() =>
+            using (Assert.Multiple())
             {
-                Assert.That(lod.CombinedMask, Is.EqualTo(0));
-                Assert.That(lod.LowestLevel, Is.EqualTo(0));
-                Assert.That(lod.AvailableLevels, Is.Empty);
-                Assert.That(lod.LevelCount, Is.EqualTo(0));
+                await Assert.That(lod.CombinedMask).IsEqualTo(0);
+                await Assert.That(lod.LowestLevel).IsEqualTo(0);
+                await Assert.That(lod.AvailableLevels).IsEmpty();
+                await Assert.That(lod.LevelCount).IsEqualTo(0);
                 // A mesh with no mask entry is treated as always present.
-                Assert.That(lod.IsMeshInLevel(0, 0), Is.True);
-            });
+                await Assert.That(lod.IsMeshInLevel(0, 0)).IsTrue();
+
+            }
         }
 
         // The lod_test fixture is a synthetic 5-LOD model with embedded meshes (no external
         // references), m_refLODGroupMasks [1,2,4,8,16] and m_lodGroupSwitchDistances [0,5,10,15,20].
         [Test]
-        public void FixtureLodInfoMatchesData()
+        public async Task FixtureLodInfoMatchesData()
         {
             using var resource = new Resource();
-            resource.Read(Path.Combine(TestContext.CurrentContext.TestDirectory, "Files", "lod_test.vmdl_c"));
+            resource.Read(Path.Combine(TestContext.TestDirectory!, "Files", "lod_test.vmdl_c"));
 
             var lod = ((Model)resource.DataBlock!).LodInfo;
 
-            Assert.Multiple(() =>
+            using (Assert.Multiple())
             {
-                Assert.That(lod.LowestLevel, Is.EqualTo(0));
-                Assert.That(lod.AvailableLevels, Is.EqualTo(FixtureLevels));
-                Assert.That(lod.LevelCount, Is.EqualTo(5));
-                Assert.That(lod.SwitchDistances, Is.EqualTo(FixtureSwitches));
-            });
+                await Assert.That(lod.LowestLevel).IsEqualTo(0);
+                await Assert.That(lod.AvailableLevels).IsEquivalentTo(FixtureLevels, CollectionOrdering.Matching);
+                await Assert.That(lod.LevelCount).IsEqualTo(5);
+                await Assert.That(lod.SwitchDistances).IsEquivalentTo(FixtureSwitches, CollectionOrdering.Matching);
+
+            }
         }
 
         // Decompiler round-trip: the extracted .vmdl must carry the LOD structure back as a
         // LODGroupList, one LODGroup per level with the right switch_threshold. Recompiling this
         // reproduces the original masks/distances (verified separately with resourcecompiler).
         [Test]
-        public void DecompiledModelEmitsLodGroupList()
+        public async Task DecompiledModelEmitsLodGroupList()
         {
             using var resource = new Resource();
-            resource.Read(Path.Combine(TestContext.CurrentContext.TestDirectory, "Files", "lod_test.vmdl_c"));
+            resource.Read(Path.Combine(TestContext.TestDirectory!, "Files", "lod_test.vmdl_c"));
 
             var vmdl = new ModelExtract(resource, new NullFileLoader()).ToValveModel();
 
-            Assert.Multiple(() =>
+            using (Assert.Multiple())
             {
-                Assert.That(vmdl, Does.Contain("LODGroupList"));
-                Assert.That(vmdl, Does.Contain("_class = \"LODGroup\""));
-                Assert.That(vmdl, Does.Contain("mesh_references"));
-                Assert.That(vmdl, Does.Contain("switch_threshold = 0"));
-                Assert.That(vmdl, Does.Contain("switch_threshold = 5"));
-                Assert.That(vmdl, Does.Contain("switch_threshold = 20"));
-            });
+                await Assert.That(vmdl).Contains("LODGroupList");
+                await Assert.That(vmdl).Contains("_class = \"LODGroup\"");
+                await Assert.That(vmdl).Contains("mesh_references");
+                await Assert.That(vmdl).Contains("switch_threshold = 0");
+                await Assert.That(vmdl).Contains("switch_threshold = 5");
+                await Assert.That(vmdl).Contains("switch_threshold = 20");
+
+            }
         }
     }
 }

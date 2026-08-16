@@ -2,7 +2,9 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Text;
-using NUnit.Framework;
+using System.Threading.Tasks;
+using TUnit.Assertions.Enums;
+using TUnit.Assertions.Exceptions;
 using ValveKeyValue;
 using ValveResourceFormat;
 using ValveResourceFormat.ResourceTypes;
@@ -10,21 +12,20 @@ using ValveResourceFormat.Serialization.KeyValues;
 
 namespace Tests
 {
-    [TestFixture]
     public class KeyValuesTest
     {
         [Test]
-        public void TestKeyValues3_LF()
+        public async Task TestKeyValues3_LF()
         {
-            var file = KVDocumentExtensions.ParseKV3(Path.Combine(TestContext.CurrentContext.TestDirectory, "Files", "KeyValues", "KeyValues3_LF.kv3"));
-            Assert.That(file.Header!.Encoding.ToString(), Is.EqualTo("text:version{e21c7f3c-8a33-41c5-9977-a76d3a32aa0d}"));
-            AssertKV3Properties(file);
+            var file = KVDocumentExtensions.ParseKV3(Path.Combine(TestContext.TestDirectory!, "Files", "KeyValues", "KeyValues3_LF.kv3"));
+            await Assert.That(file.Header!.Encoding.ToString()).IsEqualTo("text:version{e21c7f3c-8a33-41c5-9977-a76d3a32aa0d}");
+            await AssertKV3Properties(file);
         }
 
         [Test]
-        public void TestBinaryKV3_Serialization()
+        public async Task TestBinaryKV3_Serialization()
         {
-            var originalFile = KVDocumentExtensions.ParseKV3(Path.Combine(TestContext.CurrentContext.TestDirectory, "Files", "KeyValues", "KeyValues3_LF.kv3"));
+            var originalFile = KVDocumentExtensions.ParseKV3(Path.Combine(TestContext.TestDirectory!, "Files", "KeyValues", "KeyValues3_LF.kv3"));
 
             var binaryKV3 = new BinaryKV3(originalFile.Root, KV3IDLookup.Get("generic"))
             {
@@ -33,15 +34,16 @@ namespace Tests
             };
 
             var deserializedFile = RoundTrip(binaryKV3).Data;
-            AssertKV3Properties(deserializedFile);
+            await AssertKV3Properties(deserializedFile);
         }
 
         [Test]
-        public void TestBinaryKV3Serialization(
-            [Values(4, 5)] int version,
-            [Values] KV3BinaryCompressionMethod compressionMethod)
+        [MatrixDataSource]
+        public async Task TestBinaryKV3Serialization(
+            [Matrix(4, 5)] int version,
+            [Matrix] KV3BinaryCompressionMethod compressionMethod)
         {
-            var originalFile = KVDocumentExtensions.ParseKV3(Path.Combine(TestContext.CurrentContext.TestDirectory, "Files", "KeyValues", "KeyValues3_LF.kv3"));
+            var originalFile = KVDocumentExtensions.ParseKV3(Path.Combine(TestContext.TestDirectory!, "Files", "KeyValues", "KeyValues3_LF.kv3"));
             var smallBlob = new byte[100];
             var largeBlob = new byte[32769];
 
@@ -77,31 +79,32 @@ namespace Tests
 
             var deserializedBinaryKV3 = RoundTrip(binaryKV3);
 
-            using (Assert.EnterMultipleScope())
+            using (Assert.Multiple())
             {
-                Assert.That(deserializedBinaryKV3.SerializationVersion, Is.EqualTo(version));
-                Assert.That(deserializedBinaryKV3.SerializationCompressionMethod, Is.EqualTo(compressionMethod));
-                Assert.That(deserializedBinaryKV3.Data.Root["smallBlob"].AsBlob(), Is.EqualTo(smallBlob));
-                Assert.That(deserializedBinaryKV3.Data.Root["largeBlob"].AsBlob(), Is.EqualTo(largeBlob));
-                Assert.That(deserializedBinaryKV3.Data.Root["emptyBlob"].AsBlob(), Is.Empty);
-                Assert.That((string)deserializedBinaryKV3.Data.Root["stringValue"], Is.EqualTo("hello world"));
-                Assert.That(deserializedBinaryKV3.Data.Root["stringThatIsAResourceReference"].Flag, Is.EqualTo(KVFlag.Resource));
-                Assert.That(deserializedBinaryKV3.Data.Root["null"].ValueType, Is.EqualTo(KVValueType.Null));
-                Assert.That((short)deserializedBinaryKV3.Data.Root["int16"], Is.EqualTo(-123));
-                Assert.That((ushort)deserializedBinaryKV3.Data.Root["uint16"], Is.EqualTo(456));
-                Assert.That((int)deserializedBinaryKV3.Data.Root["int32"], Is.EqualTo(-789));
-                Assert.That((uint)deserializedBinaryKV3.Data.Root["uint32"], Is.EqualTo(987));
-                Assert.That((float)deserializedBinaryKV3.Data.Root["float"], Is.EqualTo(1.25F));
-                Assert.That(BitConverter.DoubleToInt64Bits((double)deserializedBinaryKV3.Data.Root["negativeZero"]), Is.EqualTo(long.MinValue));
-                Assert.That((string)deserializedBinaryKV3.Data.Root["emptyString"], Is.Empty);
-                Assert.That(deserializedBinaryKV3.Data.Root["emptyArray"], Is.Empty);
-                Assert.That(deserializedBinaryKV3.Data.Root["emptyObject"], Is.Empty);
-                Assert.That(deserializedBinaryKV3.Data.ToKV3String(), Is.EqualTo(originalFile.ToKV3String()));
+                await Assert.That(deserializedBinaryKV3.SerializationVersion).IsEqualTo(version);
+                await Assert.That(deserializedBinaryKV3.SerializationCompressionMethod).IsEqualTo(compressionMethod);
+                await Assert.That(deserializedBinaryKV3.Data.Root["smallBlob"].AsBlob()).IsEquivalentTo(smallBlob, CollectionOrdering.Matching);
+                await Assert.That(deserializedBinaryKV3.Data.Root["largeBlob"].AsBlob()).IsEquivalentTo(largeBlob, CollectionOrdering.Matching);
+                await Assert.That(deserializedBinaryKV3.Data.Root["emptyBlob"].AsBlob()).IsEmpty();
+                await Assert.That((string)deserializedBinaryKV3.Data.Root["stringValue"]).IsEqualTo("hello world");
+                await Assert.That(deserializedBinaryKV3.Data.Root["stringThatIsAResourceReference"].Flag).IsEqualTo(KVFlag.Resource);
+                await Assert.That(deserializedBinaryKV3.Data.Root["null"].ValueType).IsEqualTo(KVValueType.Null);
+                await Assert.That((short)deserializedBinaryKV3.Data.Root["int16"]).IsEqualTo((short)-123);
+                await Assert.That((ushort)deserializedBinaryKV3.Data.Root["uint16"]).IsEqualTo((ushort)456);
+                await Assert.That((int)deserializedBinaryKV3.Data.Root["int32"]).IsEqualTo(-789);
+                await Assert.That((uint)deserializedBinaryKV3.Data.Root["uint32"]).IsEqualTo((uint)987);
+                await Assert.That((float)deserializedBinaryKV3.Data.Root["float"]).IsEqualTo(1.25F);
+                await Assert.That(BitConverter.DoubleToInt64Bits((double)deserializedBinaryKV3.Data.Root["negativeZero"])).IsEqualTo(long.MinValue);
+                await Assert.That((string)deserializedBinaryKV3.Data.Root["emptyString"]).IsEmpty();
+                await Assert.That(deserializedBinaryKV3.Data.Root["emptyArray"]).IsEmpty();
+                await Assert.That(deserializedBinaryKV3.Data.Root["emptyObject"]).IsEmpty();
+                await Assert.That(deserializedBinaryKV3.Data.ToKV3String()).IsEqualTo(originalFile.ToKV3String());
             }
         }
 
-        [TestCaseSource(nameof(BinaryKV3FixtureSerializationCases))]
-        public void TestBinaryKV3FixtureSerialization(
+        [Test]
+        [MethodDataSource(nameof(BinaryKV3FixtureSerializationCases))]
+        public async Task TestBinaryKV3FixtureSerialization(
             string fileName,
             BlockType blockType,
             int expectedBlobCount,
@@ -109,7 +112,7 @@ namespace Tests
             int version,
             KV3BinaryCompressionMethod compressionMethod)
         {
-            var file = Path.Combine(TestContext.CurrentContext.TestDirectory, "Files", fileName);
+            var file = Path.Combine(TestContext.TestDirectory!, "Files", fileName);
             using var resource = new Resource();
             resource.Read(file);
 
@@ -118,10 +121,10 @@ namespace Tests
             var binaryKV3 = ReadBinaryKV3Block(sourceStream, block);
             var expectedBlobs = CollectBinaryBlobs(binaryKV3.Data.Root);
 
-            using (Assert.EnterMultipleScope())
+            using (Assert.Multiple())
             {
-                Assert.That(expectedBlobs, Has.Count.EqualTo(expectedBlobCount));
-                Assert.That(expectedBlobs.Sum(blob => blob.Length), Is.EqualTo(expectedBlobBytes));
+                await Assert.That(expectedBlobs).Count().IsEqualTo(expectedBlobCount);
+                await Assert.That(expectedBlobs.Sum(blob => blob.Length)).IsEqualTo(expectedBlobBytes);
             }
 
             binaryKV3.SerializationVersion = version;
@@ -133,24 +136,25 @@ namespace Tests
             var deserializedBinaryKV3 = ReadBinaryKV3(stream);
             var actualBlobs = CollectBinaryBlobs(deserializedBinaryKV3.Data.Root);
 
-            using (Assert.EnterMultipleScope())
+            using (Assert.Multiple())
             {
-                Assert.That(deserializedBinaryKV3.SerializationVersion, Is.EqualTo(version));
-                Assert.That(deserializedBinaryKV3.SerializationCompressionMethod, Is.EqualTo(compressionMethod));
-                Assert.That(actualBlobs, Has.Count.EqualTo(expectedBlobs.Count));
-                Assert.That(deserializedBinaryKV3.Data.ToKV3String(), Is.EqualTo(binaryKV3.Data.ToKV3String()));
+                await Assert.That(deserializedBinaryKV3.SerializationVersion).IsEqualTo(version);
+                await Assert.That(deserializedBinaryKV3.SerializationCompressionMethod).IsEqualTo(compressionMethod);
+                await Assert.That(actualBlobs).Count().IsEqualTo(expectedBlobs.Count);
+                await Assert.That(deserializedBinaryKV3.Data.ToKV3String()).IsEqualTo(binaryKV3.Data.ToKV3String());
 
                 for (var i = 0; i < expectedBlobs.Count; i++)
                 {
-                    Assert.That(actualBlobs[i], Is.EqualTo(expectedBlobs[i]), $"Blob {i}");
+                    await Assert.That(actualBlobs[i]).IsEquivalentTo(expectedBlobs[i], CollectionOrdering.Matching).Because($"Blob {i}");
                 }
             }
         }
 
-        [TestCase(KV3BinaryCompressionMethod.Uncompressed)]
-        [TestCase(KV3BinaryCompressionMethod.Lz4)]
-        [TestCase(KV3BinaryCompressionMethod.Zstd)]
-        public void TestBinaryKV3Version5EmptyBlob(KV3BinaryCompressionMethod compressionMethod)
+        [Test]
+        [Arguments(KV3BinaryCompressionMethod.Uncompressed)]
+        [Arguments(KV3BinaryCompressionMethod.Lz4)]
+        [Arguments(KV3BinaryCompressionMethod.Zstd)]
+        public async Task TestBinaryKV3Version5EmptyBlob(KV3BinaryCompressionMethod compressionMethod)
         {
             var child = KVObject.Collection();
             child["duplicate"] = "same";
@@ -169,16 +173,17 @@ namespace Tests
 
             var deserializedBinaryKV3 = RoundTrip(binaryKV3);
 
-            using (Assert.EnterMultipleScope())
+            using (Assert.Multiple())
             {
-                Assert.That(deserializedBinaryKV3.Data.Root["emptyBlob"].AsBlob(), Is.Empty);
-                Assert.That((string)deserializedBinaryKV3.Data.Root["duplicate"], Is.EqualTo("same"));
-                Assert.That((string)deserializedBinaryKV3.Data.Root["child"]["emptyValue"], Is.Empty);
+                await Assert.That(deserializedBinaryKV3.Data.Root["emptyBlob"].AsBlob()).IsEmpty();
+                await Assert.That((string)deserializedBinaryKV3.Data.Root["duplicate"]).IsEqualTo("same");
+                await Assert.That((string)deserializedBinaryKV3.Data.Root["child"]["emptyValue"]).IsEmpty();
             }
         }
 
         [Test]
-        public void TestBinaryKV3NonObjectRoot([Values(4, 5)] int version)
+        [MatrixDataSource]
+        public async Task TestBinaryKV3NonObjectRoot([Matrix(4, 5)] int version)
         {
             var root = KVObject.Array();
             root.Add(42);
@@ -192,14 +197,14 @@ namespace Tests
 
             var deserializedBinaryKV3 = RoundTrip(binaryKV3);
 
-            Assert.That(deserializedBinaryKV3.Data.Root.IsArray, Is.True);
-            Assert.That((int)deserializedBinaryKV3.Data.Root[0]!, Is.EqualTo(42));
-            Assert.That((string)deserializedBinaryKV3.Data.Root[1]!, Is.EqualTo("root array"));
-            Assert.That(deserializedBinaryKV3.Data.Root[2], Is.Empty);
+            await Assert.That(deserializedBinaryKV3.Data.Root.IsArray).IsTrue();
+            await Assert.That((int)deserializedBinaryKV3.Data.Root[0]!).IsEqualTo(42);
+            await Assert.That((string)deserializedBinaryKV3.Data.Root[1]!).IsEqualTo("root array");
+            await Assert.That(deserializedBinaryKV3.Data.Root[2]).IsEmpty();
         }
 
         [Test]
-        public void TestBinaryKV3Version5Lz4BlobFramesRespectBlobBoundaries()
+        public async Task TestBinaryKV3Version5Lz4BlobFramesRespectBlobBoundaries()
         {
             var firstBlob = new byte[] { 1 };
             var secondBlob = new byte[16385];
@@ -225,77 +230,78 @@ namespace Tests
 
             var deserializedBinaryKV3 = RoundTrip(binaryKV3);
 
-            using (Assert.EnterMultipleScope())
+            using (Assert.Multiple())
             {
-                Assert.That(deserializedBinaryKV3.Data.Root[0]!.AsBlob(), Is.EqualTo(firstBlob));
-                Assert.That(deserializedBinaryKV3.Data.Root[1]!.AsBlob(), Is.EqualTo(secondBlob));
-                Assert.That(deserializedBinaryKV3.Data.Root[2]!.AsBlob(), Is.EqualTo(thirdBlob));
+                await Assert.That(deserializedBinaryKV3.Data.Root[0]!.AsBlob()).IsEquivalentTo(firstBlob, CollectionOrdering.Matching);
+                await Assert.That(deserializedBinaryKV3.Data.Root[1]!.AsBlob()).IsEquivalentTo(secondBlob, CollectionOrdering.Matching);
+                await Assert.That(deserializedBinaryKV3.Data.Root[2]!.AsBlob()).IsEquivalentTo(thirdBlob, CollectionOrdering.Matching);
             }
         }
 
         [Test]
-        public void TestBinaryKV3SerializationValidation()
+        public async Task TestBinaryKV3SerializationValidation()
         {
             var root = KVObject.Collection();
             var binaryKV3 = new BinaryKV3(root, KV3IDLookup.Get("generic")) { Resource = null! };
 
-            Assert.That(binaryKV3.SerializationCompressionMethod, Is.EqualTo(KV3BinaryCompressionMethod.Uncompressed));
+            await Assert.That(binaryKV3.SerializationCompressionMethod).IsEqualTo(KV3BinaryCompressionMethod.Uncompressed);
 
             binaryKV3.SerializationVersion = 99;
-            Assert.That(() => binaryKV3.Serialize(new MemoryStream()), Throws.TypeOf<NotSupportedException>());
+            await Assert.That(() => binaryKV3.Serialize(new MemoryStream())).ThrowsExactly<NotSupportedException>();
 
             binaryKV3.SerializationVersion = 5;
             binaryKV3.SerializationCompressionMethod = (KV3BinaryCompressionMethod)99;
-            Assert.That(() => binaryKV3.Serialize(new MemoryStream()), Throws.TypeOf<NotSupportedException>());
+            await Assert.That(() => binaryKV3.Serialize(new MemoryStream())).ThrowsExactly<NotSupportedException>();
         }
 
-        [TestCase("ar_dizzy_kv3_v3_uncompressed.vpost_c", BlockType.DATA, KV3BinaryCompressionMethod.Uncompressed)]
-        [TestCase("aw_ti9_gargoyle_collision_kv3_v3_zstd.vmdl_c", BlockType.ANIM, KV3BinaryCompressionMethod.Zstd)]
-        [TestCase("compute_reactive_mask_kv3_v3_lz4.vmat_c", BlockType.DATA, KV3BinaryCompressionMethod.Lz4)]
-        [TestCase("panorama_world_panel_default_kv3_v3_lz4.vmat_c", BlockType.DATA, KV3BinaryCompressionMethod.Lz4)]
-        [TestCase("piece_kv3_v4.vmdl_c", BlockType.PHYS, KV3BinaryCompressionMethod.Lz4)]
-        [TestCase("default_ents_kv3_v4_zstd.vents_c", BlockType.DATA, KV3BinaryCompressionMethod.Zstd)]
-        public void TestBinaryKV3SourceCompressionIsPreserved(
+        [Test]
+        [Arguments("ar_dizzy_kv3_v3_uncompressed.vpost_c", BlockType.DATA, KV3BinaryCompressionMethod.Uncompressed)]
+        [Arguments("aw_ti9_gargoyle_collision_kv3_v3_zstd.vmdl_c", BlockType.ANIM, KV3BinaryCompressionMethod.Zstd)]
+        [Arguments("compute_reactive_mask_kv3_v3_lz4.vmat_c", BlockType.DATA, KV3BinaryCompressionMethod.Lz4)]
+        [Arguments("panorama_world_panel_default_kv3_v3_lz4.vmat_c", BlockType.DATA, KV3BinaryCompressionMethod.Lz4)]
+        [Arguments("piece_kv3_v4.vmdl_c", BlockType.PHYS, KV3BinaryCompressionMethod.Lz4)]
+        [Arguments("default_ents_kv3_v4_zstd.vents_c", BlockType.DATA, KV3BinaryCompressionMethod.Zstd)]
+        public async Task TestBinaryKV3SourceCompressionIsPreserved(
             string fileName,
             BlockType blockType,
             KV3BinaryCompressionMethod expectedCompressionMethod)
         {
-            var file = Path.Combine(TestContext.CurrentContext.TestDirectory, "Files", fileName);
+            var file = Path.Combine(TestContext.TestDirectory!, "Files", fileName);
             using var resource = new Resource();
             resource.Read(file);
 
             var block = resource.Blocks.Single(block => block.Type == blockType);
             using var sourceStream = File.OpenRead(file);
             var binaryKV3 = ReadBinaryKV3Block(sourceStream, block);
-            Assert.That(binaryKV3.SerializationCompressionMethod, Is.EqualTo(expectedCompressionMethod));
+            await Assert.That(binaryKV3.SerializationCompressionMethod).IsEqualTo(expectedCompressionMethod);
 
             var deserializedBinaryKV3 = RoundTrip(binaryKV3);
-            Assert.That(deserializedBinaryKV3.SerializationCompressionMethod, Is.EqualTo(expectedCompressionMethod));
+            await Assert.That(deserializedBinaryKV3.SerializationCompressionMethod).IsEqualTo(expectedCompressionMethod);
         }
 
         [Test]
-        public void TestBinaryKV3Version5ZstdSourceSettingsArePreserved()
+        public async Task TestBinaryKV3Version5ZstdSourceSettingsArePreserved()
         {
-            var file = Path.Combine(TestContext.CurrentContext.TestDirectory, "Files", "abilities_kv3_v5_zstd.vdata_c");
+            var file = Path.Combine(TestContext.TestDirectory!, "Files", "abilities_kv3_v5_zstd.vdata_c");
             using var resource = new Resource();
             resource.Read(file);
 
             var blocks = resource.Blocks.OfType<BinaryKV3>().Where(block => block.SerializationVersion == 5).ToList();
-            Assert.That(blocks, Is.Not.Empty);
+            await Assert.That(blocks).IsNotEmpty();
 
             foreach (var binaryKV3 in blocks)
             {
-                Assert.That(binaryKV3.SerializationCompressionMethod, Is.EqualTo(KV3BinaryCompressionMethod.Zstd));
+                await Assert.That(binaryKV3.SerializationCompressionMethod).IsEqualTo(KV3BinaryCompressionMethod.Zstd);
                 var reparsed = RoundTrip(binaryKV3);
-                Assert.That(reparsed.SerializationCompressionMethod, Is.EqualTo(KV3BinaryCompressionMethod.Zstd));
-                Assert.That(reparsed.SerializationVersion, Is.EqualTo(5));
+                await Assert.That(reparsed.SerializationCompressionMethod).IsEqualTo(KV3BinaryCompressionMethod.Zstd);
+                await Assert.That(reparsed.SerializationVersion).IsEqualTo(5);
             }
         }
 
         [Test]
-        public void TestDeadlockBinaryKV3Version5SourceSettingsArePreserved()
+        public async Task TestDeadlockBinaryKV3Version5SourceSettingsArePreserved()
         {
-            var file = Path.Combine(TestContext.CurrentContext.TestDirectory, "Files", "deadlock_tracked_stats_player_staging_kv3_v5.vdata_c");
+            var file = Path.Combine(TestContext.TestDirectory!, "Files", "deadlock_tracked_stats_player_staging_kv3_v5.vdata_c");
             using var resource = new Resource();
             resource.Read(file);
             var expectedCompressions = new Dictionary<BlockType, KV3BinaryCompressionMethod>
@@ -323,8 +329,8 @@ namespace Tests
 
                 if (block is BinaryKV3 sourceBinaryKV3)
                 {
-                    Assert.That(sourceBinaryKV3.SerializationVersion, Is.EqualTo(5), block.Type.ToString());
-                    Assert.That(sourceBinaryKV3.SerializationCompressionMethod, Is.EqualTo(expectedCompression), block.Type.ToString());
+                    await Assert.That(sourceBinaryKV3.SerializationVersion).IsEqualTo(5).Because(block.Type.ToString());
+                    await Assert.That(sourceBinaryKV3.SerializationCompressionMethod).IsEqualTo(expectedCompression).Because(block.Type.ToString());
                 }
             }
 
@@ -345,15 +351,15 @@ namespace Tests
                 found++;
                 var binaryKV3 = block as BinaryKV3 ?? ReadBinaryKV3Block(stream, block);
 
-                using (Assert.EnterMultipleScope())
+                using (Assert.Multiple())
                 {
-                    Assert.That(binaryKV3.SerializationVersion, Is.EqualTo(5), block.Type.ToString());
-                    Assert.That(binaryKV3.SerializationCompressionMethod, Is.EqualTo(expectedCompression), block.Type.ToString());
-                    Assert.That(binaryKV3.Data.ToKV3String(), Is.EqualTo(expectedText[block.Type]), block.Type.ToString());
+                    await Assert.That(binaryKV3.SerializationVersion).IsEqualTo(5).Because(block.Type.ToString());
+                    await Assert.That(binaryKV3.SerializationCompressionMethod).IsEqualTo(expectedCompression).Because(block.Type.ToString());
+                    await Assert.That(binaryKV3.Data.ToKV3String()).IsEqualTo(expectedText[block.Type]).Because(block.Type.ToString());
                 }
             }
 
-            Assert.That(found, Is.EqualTo(expectedCompressions.Count));
+            await Assert.That(found).IsEqualTo(expectedCompressions.Count);
         }
 
         private static BinaryKV3 ReadBinaryKV3Block(Stream stream, Block block)
@@ -392,7 +398,7 @@ namespace Tests
             return deserializedBinaryKV3;
         }
 
-        private static IEnumerable<TestCaseData> BinaryKV3FixtureSerializationCases()
+        public static IEnumerable<(string, BlockType, int, int, int, KV3BinaryCompressionMethod)> BinaryKV3FixtureSerializationCases()
         {
             var fixtures = new[]
             {
@@ -406,8 +412,7 @@ namespace Tests
                 {
                     foreach (var compressionMethod in Enum.GetValues<KV3BinaryCompressionMethod>())
                     {
-                        yield return new TestCaseData(fileName, blockType, blobCount, blobBytes, version, compressionMethod)
-                            .SetName($"{{m}}({Path.GetFileNameWithoutExtension(fileName)}, v{version}, {compressionMethod})");
+                        yield return (fileName, blockType, blobCount, blobBytes, version, compressionMethod);
                     }
                 }
             }
@@ -439,95 +444,95 @@ namespace Tests
             }
         }
 
-        private static void AssertKV3Properties(KVDocument file)
+        private static async Task AssertKV3Properties(KVDocument file)
         {
-            using (Assert.EnterMultipleScope())
+            using (Assert.Multiple())
             {
                 //Not sure what KVType is better for this
-                Assert.That((string)file.Root["multiLineStringValue"], Is.EqualTo("First line of a multi-line string literal.\nSecond line of a multi-line string literal."));
+                await Assert.That((string)file.Root["multiLineStringValue"]).IsEqualTo("First line of a multi-line string literal.\nSecond line of a multi-line string literal.");
 
-                Assert.That(file.Header!.Format.ToString(), Is.EqualTo("generic:version{7412167c-06e9-4698-aff2-e63eb59037e7}"));
+                await Assert.That(file.Header!.Format.ToString()).IsEqualTo("generic:version{7412167c-06e9-4698-aff2-e63eb59037e7}");
 
-                Assert.That(file.Root, Has.Count.EqualTo(14));
+                await Assert.That(file.Root).Count().IsEqualTo(14);
 
-                Assert.That(file.Root["boolValue"].ValueType, Is.EqualTo(KVValueType.Boolean));
-                Assert.That((bool)file.Root["boolValue"], Is.False);
-                Assert.That(file.Root["intValue"].ValueType, Is.EqualTo(KVValueType.UInt64));
-                Assert.That((ulong)file.Root["intValue"], Is.EqualTo((ulong)128));
-                Assert.That(file.Root["doubleValue"].ValueType, Is.EqualTo(KVValueType.FloatingPoint64));
-                Assert.That((double)file.Root["doubleValue"], Is.EqualTo(64.000000));
-                Assert.That(file.Root["negativeIntValue"].ValueType, Is.EqualTo(KVValueType.Int64));
-                Assert.That((long)file.Root["negativeIntValue"], Is.EqualTo((long)-1337));
-                Assert.That(file.Root["negativeDoubleValue"].ValueType, Is.EqualTo(KVValueType.FloatingPoint64));
-                Assert.That((double)file.Root["negativeDoubleValue"], Is.EqualTo(-0.133700));
-                Assert.That(file.Root["stringValue"].ValueType, Is.EqualTo(KVValueType.String));
-                Assert.That((string)file.Root["stringValue"], Is.EqualTo("hello world"));
+                await Assert.That(file.Root["boolValue"].ValueType).IsEqualTo(KVValueType.Boolean);
+                await Assert.That((bool)file.Root["boolValue"]).IsFalse();
+                await Assert.That(file.Root["intValue"].ValueType).IsEqualTo(KVValueType.UInt64);
+                await Assert.That((ulong)file.Root["intValue"]).IsEqualTo((ulong)128);
+                await Assert.That(file.Root["doubleValue"].ValueType).IsEqualTo(KVValueType.FloatingPoint64);
+                await Assert.That((double)file.Root["doubleValue"]).IsEqualTo(64.000000);
+                await Assert.That(file.Root["negativeIntValue"].ValueType).IsEqualTo(KVValueType.Int64);
+                await Assert.That((long)file.Root["negativeIntValue"]).IsEqualTo((long)-1337);
+                await Assert.That(file.Root["negativeDoubleValue"].ValueType).IsEqualTo(KVValueType.FloatingPoint64);
+                await Assert.That((double)file.Root["negativeDoubleValue"]).IsEqualTo(-0.133700);
+                await Assert.That(file.Root["stringValue"].ValueType).IsEqualTo(KVValueType.String);
+                await Assert.That((string)file.Root["stringValue"]).IsEqualTo("hello world");
 
                 //Do special test for flagged value
                 var flagValue = file.Root["stringThatIsAResourceReference"];
-                Assert.That((string)flagValue, Is.EqualTo("particles/items3_fx/star_emblem.vpcf"));
-                Assert.That(flagValue.Flag, Is.EqualTo(KVFlag.Resource));
+                await Assert.That((string)flagValue).IsEqualTo("particles/items3_fx/star_emblem.vpcf");
+                await Assert.That(flagValue.Flag).IsEqualTo(KVFlag.Resource);
 
-                Assert.That(file.Root["arrayValue"].ValueType, Is.EqualTo(KVValueType.Array));
+                await Assert.That(file.Root["arrayValue"].ValueType).IsEqualTo(KVValueType.Array);
                 var arrayValue = file.Root["arrayValue"];
                 Debug.Assert(arrayValue != null);
-                Assert.That((ulong)arrayValue[0]!, Is.EqualTo((ulong)1));
-                Assert.That((ulong)arrayValue[1]!, Is.EqualTo((ulong)2));
-                Assert.That((string)arrayValue[2]!, Is.EqualTo("characters/models/shared/animsets/animset_ct.vmdl"));
-                Assert.That(arrayValue[2]!.Flag, Is.EqualTo(KVFlag.Resource));
-                Assert.That((string)arrayValue[3]!, Is.EqualTo("hud/abilities/haze/haze_sleep_dagger.psd"));
-                Assert.That(arrayValue[3]!.Flag, Is.EqualTo(KVFlag.Panorama));
-                Assert.That((string)arrayValue[4]!, Is.EqualTo("hello world"));
-                Assert.That(arrayValue[5]!.Flag, Is.EqualTo(KVFlag.SoundEvent));
-                Assert.That(arrayValue[6]!.Flag, Is.EqualTo(KVFlag.SubClass));
-                Assert.That(arrayValue[7]!.Flag, Is.EqualTo(KVFlag.EntityName));
+                await Assert.That((ulong)arrayValue[0]!).IsEqualTo((ulong)1);
+                await Assert.That((ulong)arrayValue[1]!).IsEqualTo((ulong)2);
+                await Assert.That((string)arrayValue[2]!).IsEqualTo("characters/models/shared/animsets/animset_ct.vmdl");
+                await Assert.That(arrayValue[2]!.Flag).IsEqualTo(KVFlag.Resource);
+                await Assert.That((string)arrayValue[3]!).IsEqualTo("hud/abilities/haze/haze_sleep_dagger.psd");
+                await Assert.That(arrayValue[3]!.Flag).IsEqualTo(KVFlag.Panorama);
+                await Assert.That((string)arrayValue[4]!).IsEqualTo("hello world");
+                await Assert.That(arrayValue[5]!.Flag).IsEqualTo(KVFlag.SoundEvent);
+                await Assert.That(arrayValue[6]!.Flag).IsEqualTo(KVFlag.SubClass);
+                await Assert.That(arrayValue[7]!.Flag).IsEqualTo(KVFlag.EntityName);
 
-                Assert.That(file.Root["objectValue"].ValueType, Is.EqualTo(KVValueType.Collection));
+                await Assert.That(file.Root["objectValue"].ValueType).IsEqualTo(KVValueType.Collection);
                 var objectValue = file.Root["objectValue"];
                 Debug.Assert(objectValue != null);
-                Assert.That((ulong)objectValue["n"], Is.EqualTo((ulong)5));
-                Assert.That((string)objectValue["s"], Is.EqualTo("foo"));
+                await Assert.That((ulong)objectValue["n"]).IsEqualTo((ulong)5);
+                await Assert.That((string)objectValue["s"]).IsEqualTo("foo");
 
                 var binaryBlobValue = file.Root["binaryBlobValue"];
-                Assert.That(binaryBlobValue.ValueType, Is.EqualTo(KVValueType.BinaryBlob));
-                Assert.That(binaryBlobValue.AsBlob(), Has.Length.EqualTo(40));
-                Assert.That(Encoding.UTF8.GetString(binaryBlobValue.AsBlob()), Is.EqualTo("Hello, this is a test binary blob value!"));
+                await Assert.That(binaryBlobValue.ValueType).IsEqualTo(KVValueType.BinaryBlob);
+                await Assert.That(binaryBlobValue.AsBlob()).Count().IsEqualTo(40);
+                await Assert.That(Encoding.UTF8.GetString(binaryBlobValue.AsBlob())).IsEqualTo("Hello, this is a test binary blob value!");
 
-                Assert.That(file.Root["arrayOnSingleLine"].ValueType, Is.EqualTo(KVValueType.Array));
+                await Assert.That(file.Root["arrayOnSingleLine"].ValueType).IsEqualTo(KVValueType.Array);
 
-                Assert.That((string)file.Root["quoted.key"], Is.EqualTo("hello"));
-                Assert.That((string)file.Root["a quoted key with spaces"], Is.EqualTo("some cool value"));
+                await Assert.That((string)file.Root["quoted.key"]).IsEqualTo("hello");
+                await Assert.That((string)file.Root["a quoted key with spaces"]).IsEqualTo("some cool value");
             }
         }
 
         [Test]
-        public void TestKV3Guids()
+        public async Task TestKV3Guids()
         {
-            using (Assert.EnterMultipleScope())
+            using (Assert.Multiple())
             {
                 foreach (var (name, guid) in KV3IDLookup.Table)
                 {
                     if (name == "vpcf38") // Classic valve
                     {
-                        Assert.That(guid.Version, Is.EqualTo(1), name);
+                        await Assert.That(guid.Version).IsEqualTo(1).Because(name);
                         continue;
                     }
 
-                    Assert.That(guid.Version, Is.EqualTo(4), name);
+                    await Assert.That(guid.Version).IsEqualTo(4).Because(name);
                 }
             }
         }
 
         [Test]
-        public void TestKV3StringEscaping()
+        public async Task TestKV3StringEscaping()
         {
-            var expectedFilePath = Path.Combine(TestContext.CurrentContext.TestDirectory, "Files", "KeyValues", "StringEscaping.kv3");
+            var expectedFilePath = Path.Combine(TestContext.TestDirectory!, "Files", "KeyValues", "StringEscaping.kv3");
 
             var parsedFile = KVDocumentExtensions.ParseKV3(expectedFilePath);
             var serializedOutput = parsedFile.ToKV3String().Trim().ReplaceLineEndings();
-            var expectedOutput = File.ReadAllText(expectedFilePath).Trim().ReplaceLineEndings();
+            var expectedOutput = (await File.ReadAllTextAsync(expectedFilePath)).Trim().ReplaceLineEndings();
 
-            Assert.That(serializedOutput, Is.EqualTo(expectedOutput));
+            await Assert.That(serializedOutput).IsEqualTo(expectedOutput);
         }
 
     }

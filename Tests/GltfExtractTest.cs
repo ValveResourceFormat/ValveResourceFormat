@@ -1,6 +1,6 @@
 using System.IO;
 using System.Linq;
-using NUnit.Framework;
+using System.Threading.Tasks;
 using SharpGLTF.Schema2;
 using ValveResourceFormat;
 using ValveResourceFormat.IO;
@@ -9,14 +9,13 @@ using ValveResourceFormat.ResourceTypes;
 
 namespace Tests
 {
-    [TestFixture]
     public class GltfExtractTest
     {
         [Test]
         public void TestModel()
         {
             using var resource = new Resource();
-            var worldPath = Path.Combine(TestContext.CurrentContext.TestDirectory, "Files", "box_creature_ik_model.vmdl_c");
+            var worldPath = Path.Combine(TestContext.TestDirectory!, "Files", "box_creature_ik_model.vmdl_c");
             resource.Read(worldPath);
 
             var gltf = new GltfModelExporter(new NullFileLoader())
@@ -28,10 +27,10 @@ namespace Tests
         }
 
         [Test]
-        public void TestSkinnedAnimatedExport()
+        public async Task TestSkinnedAnimatedExport()
         {
             using var resource = new Resource();
-            var modelPath = Path.Combine(TestContext.CurrentContext.TestDirectory, "Files", "box_creature_ik_model.vmdl_c");
+            var modelPath = Path.Combine(TestContext.TestDirectory!, "Files", "box_creature_ik_model.vmdl_c");
             resource.Read(modelPath);
 
             var dir = Path.Combine(Path.GetTempPath(), "vrf_skinned_" + Guid.NewGuid().ToString("N"));
@@ -55,11 +54,11 @@ namespace Tests
                 var anim = root.LogicalAnimations.Single(a => a.Name == "box_creature_leggy_walk");
                 var rootMotionNode = root.LogicalNodes.Single(n => n.Name == "root_motion");
                 var sampler = anim.FindTranslationChannel(rootMotionNode)?.GetTranslationSampler();
-                Assert.That(sampler, Is.Not.Null, "root_motion bone should have a translation channel");
+                await Assert.That(sampler).IsNotNull().Because("root_motion bone should have a translation channel");
 
                 var keys = sampler.GetLinearKeys().ToArray();
                 var displacement = keys[^1].Value - keys[0].Value;
-                Assert.That(displacement.Length(), Is.GreaterThan(1f), "root motion should travel the skeleton forward");
+                await Assert.That(displacement.Length()).IsGreaterThan(1f).Because("root motion should travel the skeleton forward");
 
                 // Each joint's world transform times its inverse-bind matrix is unit-scaled: the conversion is
                 // baked into the geometry, so the armature is identity.
@@ -69,11 +68,11 @@ namespace Tests
                     var (joint, inverseBind) = skin.GetJoint(i);
                     var bind = joint.WorldMatrix * inverseBind;
 
-                    using (Assert.EnterMultipleScope())
+                    using (Assert.Multiple())
                     {
-                        Assert.That(new Vector3(bind.M11, bind.M12, bind.M13).Length(), Is.EqualTo(1f).Within(0.01f), $"joint {joint.Name}");
-                        Assert.That(new Vector3(bind.M21, bind.M22, bind.M23).Length(), Is.EqualTo(1f).Within(0.01f), $"joint {joint.Name}");
-                        Assert.That(new Vector3(bind.M31, bind.M32, bind.M33).Length(), Is.EqualTo(1f).Within(0.01f), $"joint {joint.Name}");
+                        await Assert.That(new Vector3(bind.M11, bind.M12, bind.M13).Length()).IsEqualTo(1f).Within(0.01f).Because($"joint {joint.Name}");
+                        await Assert.That(new Vector3(bind.M21, bind.M22, bind.M23).Length()).IsEqualTo(1f).Within(0.01f).Because($"joint {joint.Name}");
+                        await Assert.That(new Vector3(bind.M31, bind.M32, bind.M33).Length()).IsEqualTo(1f).Within(0.01f).Because($"joint {joint.Name}");
                     }
                 }
             }
@@ -87,23 +86,23 @@ namespace Tests
         // transforms instead of living on a node, so the armature carries no scale. If a 0.0254 scale leaked
         // back onto the skeleton or mesh nodes, applying transforms in Blender would blow the skinned mesh up.
         [Test]
-        public void TestSkinnedArmatureHasUnitScale()
+        public async Task TestSkinnedArmatureHasUnitScale()
         {
-            WithExportedGlb("box_creature_ik_model.vmdl_c", root =>
+            await WithExportedGlb("box_creature_ik_model.vmdl_c", async root =>
             {
                 var skin = root.LogicalSkins[0];
 
-                using (Assert.EnterMultipleScope())
+                using (Assert.Multiple())
                 {
                     for (var i = 0; i < skin.JointsCount; i++)
                     {
                         var (joint, _) = skin.GetJoint(i);
-                        Assert.That(WorldScale(joint), Is.LessThan(0.02f), $"joint {joint.Name} should be unit-scaled");
+                        await Assert.That(WorldScale(joint)).IsLessThan(0.02f).Because($"joint {joint.Name} should be unit-scaled");
                     }
 
                     foreach (var node in root.LogicalNodes.Where(n => n.Mesh != null))
                     {
-                        Assert.That(WorldScale(node), Is.LessThan(0.02f), $"mesh node {node.Name} should be unit-scaled");
+                        await Assert.That(WorldScale(node)).IsLessThan(0.02f).Because($"mesh node {node.Name} should be unit-scaled");
                     }
                 }
             });
@@ -113,9 +112,9 @@ namespace Tests
         // the unit-scaled armature), not left in source inches. In-inches channels under a 0.0254 armature
         // scale are exactly what made bones stretch ~39x once transforms were applied.
         [Test]
-        public void TestSkinnedAnimationStaysMeterScaled()
+        public async Task TestSkinnedAnimationStaysMeterScaled()
         {
-            WithExportedGlb("box_creature_ik_model.vmdl_c", root =>
+            await WithExportedGlb("box_creature_ik_model.vmdl_c", async root =>
             {
                 var anim = root.LogicalAnimations.Single(a => a.Name == "box_creature_leggy_walk");
 
@@ -136,10 +135,10 @@ namespace Tests
                     }
                 }
 
-                using (Assert.EnterMultipleScope())
+                using (Assert.Multiple())
                 {
-                    Assert.That(maxTranslation, Is.GreaterThan(0.5f), "expected meter-scale motion (baked root motion ~1.2 m)");
-                    Assert.That(maxTranslation, Is.LessThan(3f), "translations must be in meters, not source inches (~39x larger)");
+                    await Assert.That(maxTranslation).IsGreaterThan(0.5f).Because("expected meter-scale motion (baked root motion ~1.2 m)");
+                    await Assert.That(maxTranslation).IsLessThan(3f).Because("translations must be in meters, not source inches (~39x larger)");
                 }
             });
         }
@@ -148,21 +147,21 @@ namespace Tests
         // identity (it used to live on the node transform). Verify the geometry is in meters with no residual
         // node scale or placement.
         [Test]
-        public void TestStaticMeshConversionBakedIntoGeometry()
+        public async Task TestStaticMeshConversionBakedIntoGeometry()
         {
-            WithExportedGlb("chen_weapon.vmesh_c", root =>
+            await WithExportedGlb("chen_weapon.vmesh_c", async root =>
             {
                 var meshNodes = root.LogicalNodes.Where(n => n.Mesh != null).ToList();
-                Assert.That(meshNodes, Is.Not.Empty);
+                await Assert.That(meshNodes).IsNotEmpty();
 
                 var min = new Vector3(float.MaxValue);
                 var max = new Vector3(float.MinValue);
 
-                using (Assert.EnterMultipleScope())
+                using (Assert.Multiple())
                 {
                     foreach (var node in meshNodes)
                     {
-                        Assert.That(node.WorldMatrix.IsIdentity, Is.True, $"node {node.Name} should be identity; the conversion is baked into the geometry");
+                        await Assert.That(node.WorldMatrix.IsIdentity).IsTrue().Because($"node {node.Name} should be identity; the conversion is baked into the geometry");
 
                         foreach (var primitive in node.Mesh.Primitives)
                         {
@@ -175,8 +174,8 @@ namespace Tests
                     }
 
                     var extent = (max - min).Length();
-                    Assert.That(extent, Is.GreaterThan(1f), "expected real geometry");
-                    Assert.That(extent, Is.LessThan(20f), "geometry must be in meters, not source inches (~39x larger)");
+                    await Assert.That(extent).IsGreaterThan(1f).Because("expected real geometry");
+                    await Assert.That(extent).IsLessThan(20f).Because("geometry must be in meters, not source inches (~39x larger)");
                 }
             });
         }
@@ -187,10 +186,10 @@ namespace Tests
             return (scale - Vector3.One).Length();
         }
 
-        private static void WithExportedGlb(string fileName, Action<ModelRoot> assert)
+        private static async Task WithExportedGlb(string fileName, Func<ModelRoot, Task> assert)
         {
             using var resource = new Resource();
-            resource.Read(Path.Combine(TestContext.CurrentContext.TestDirectory, "Files", fileName));
+            resource.Read(Path.Combine(TestContext.TestDirectory!, "Files", fileName));
 
             var dir = Path.Combine(Path.GetTempPath(), "vrf_gltf_" + Guid.NewGuid().ToString("N"));
             Directory.CreateDirectory(dir);
@@ -204,7 +203,7 @@ namespace Tests
                     ProgressReporter = new Progress<string>(_ => { }),
                 }.Export(resource, outPath);
 
-                assert(ModelRoot.Load(outPath));
+                await assert(ModelRoot.Load(outPath));
             }
             finally
             {
@@ -213,28 +212,28 @@ namespace Tests
         }
 
         [Test]
-        public void TestExportSucceedsWithoutClothAnchor()
+        public async Task TestExportSucceedsWithoutClothAnchor()
         {
             using var resource = new Resource();
-            resource.Read(Path.Combine(TestContext.CurrentContext.TestDirectory, "Files", "box_creature_ik_model.vmdl_c"));
+            resource.Read(Path.Combine(TestContext.TestDirectory!, "Files", "box_creature_ik_model.vmdl_c"));
 
             // This fixture has no procedural cloth, so the cloth-follow path is a no-op and export is unaffected.
             var model = (Model)resource.DataBlock!;
-            Assert.That(model.Skeleton.ClothSimulationRoot, Is.Null);
+            await Assert.That(model.Skeleton.ClothSimulationRoot).IsNull();
 
             var gltf = new GltfModelExporter(new NullFileLoader())
             {
                 ExportMaterials = false,
                 ProgressReporter = new Progress<string>(progress => { }),
             };
-            Assert.DoesNotThrow(() => gltf.Export(resource, null));
+            await Assert.That(() => gltf.Export(resource, null)).ThrowsNothing();
         }
 
         [Test]
         public void TestMesh()
         {
             using var resource = new Resource();
-            var worldPath = Path.Combine(TestContext.CurrentContext.TestDirectory, "Files", "chen_weapon.vmesh_c");
+            var worldPath = Path.Combine(TestContext.TestDirectory!, "Files", "chen_weapon.vmesh_c");
             resource.Read(worldPath);
 
             var gltf = new GltfModelExporter(new NullFileLoader())
@@ -249,7 +248,7 @@ namespace Tests
         public void TestWorld()
         {
             using var resource = new Resource();
-            var worldPath = Path.Combine(TestContext.CurrentContext.TestDirectory, "Files", "world.vwrld_c");
+            var worldPath = Path.Combine(TestContext.TestDirectory!, "Files", "world.vwrld_c");
             resource.Read(worldPath);
 
             var gltf = new GltfModelExporter(new NullFileLoader())
@@ -263,7 +262,7 @@ namespace Tests
         [Test]
         public void TestNavMesh()
         {
-            var navPath = Path.Combine(TestContext.CurrentContext.TestDirectory, "Files", "workshop_example_tilemesh.nav");
+            var navPath = Path.Combine(TestContext.TestDirectory!, "Files", "workshop_example_tilemesh.nav");
             var navMeshFile = new NavMeshFile();
             navMeshFile.Read(navPath);
 
@@ -279,7 +278,7 @@ namespace Tests
         public void TestPhysicsCollisionMesh()
         {
             using var resource = new Resource();
-            var physPath = Path.Combine(TestContext.CurrentContext.TestDirectory, "Files", "juggernaut.vphys_c");
+            var physPath = Path.Combine(TestContext.TestDirectory!, "Files", "juggernaut.vphys_c");
             resource.Read(physPath);
 
             var gltf = new GltfModelExporter(new NullFileLoader())

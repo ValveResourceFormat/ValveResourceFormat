@@ -1,7 +1,7 @@
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
-using NUnit.Framework;
+using System.Threading.Tasks;
 using SkiaSharp;
 using ValveResourceFormat;
 using ValveResourceFormat.IO;
@@ -13,12 +13,12 @@ namespace Tests
     public class TextureTests
     {
         private static string TexturesDir
-            => Path.Combine(TestContext.CurrentContext.TestDirectory, "Files", "Textures");
+            => Path.Combine(TestContext.TestDirectory!, "Files", "Textures");
 
-        private static IEnumerable<string> GetTextureFiles()
+        public static IEnumerable<string> GetTextureFiles()
             => Directory.EnumerateFiles(TexturesDir, "*.vtex_c").Select(Path.GetFileName)!;
 
-        [Test, TestCaseSource(nameof(GetTextureFiles))]
+        [Test, MethodDataSource(nameof(GetTextureFiles))]
         public void ExportTexture(string fileName)
         {
             using var resource = new Resource();
@@ -36,7 +36,7 @@ namespace Tests
         }
 
         [Test]
-        public void SpriteSheetRectsCoverTheInclusiveTexelRange()
+        public async Task SpriteSheetRectsCoverTheInclusiveTexelRange()
         {
             using var resource = new Resource();
             resource.Read(Path.Combine(TexturesDir, "DXT5_lava_drops_sheet.vtex_c"));
@@ -46,58 +46,57 @@ namespace Tests
 
             var spriteSheet = texture.GetSpriteSheetData();
             Debug.Assert(spriteSheet != null);
-
-            Assert.That(spriteSheet.Sequences, Has.Length.EqualTo(4));
+            await Assert.That(spriteSheet.Sequences).Count().IsEqualTo(4);
 
             // This sheet is a 2x2 grid of 16x16 cells in a 32x32 texture, authored at 64x64.
             // The uncropped UVs of the first cell are 0.25 and 15.75 texels, which is texel 0 up to and including texel 15.
             var firstImage = spriteSheet.Sequences[0].Frames[0].Images[0];
             var lastImage = spriteSheet.Sequences[3].Frames[0].Images[0];
 
-            using (Assert.EnterMultipleScope())
+            using (Assert.Multiple())
             {
-                Assert.That(firstImage.GetUncroppedRect(texture.ActualWidth, texture.ActualHeight), Is.EqualTo(new SKRectI(0, 0, 16, 16)));
-                Assert.That(firstImage.GetCroppedRect(texture.ActualWidth, texture.ActualHeight), Is.EqualTo(new SKRectI(0, 4, 16, 12)));
-                Assert.That(lastImage.GetUncroppedRect(texture.ActualWidth, texture.ActualHeight), Is.EqualTo(new SKRectI(16, 16, 32, 32)));
-                Assert.That(lastImage.GetCroppedRect(texture.ActualWidth, texture.ActualHeight), Is.EqualTo(new SKRectI(16, 18, 32, 30)));
+                await Assert.That(firstImage.GetUncroppedRect(texture.ActualWidth, texture.ActualHeight)).IsEqualTo(new SKRectI(0, 0, 16, 16));
+                await Assert.That(firstImage.GetCroppedRect(texture.ActualWidth, texture.ActualHeight)).IsEqualTo(new SKRectI(0, 4, 16, 12));
+                await Assert.That(lastImage.GetUncroppedRect(texture.ActualWidth, texture.ActualHeight)).IsEqualTo(new SKRectI(16, 16, 32, 32));
+                await Assert.That(lastImage.GetCroppedRect(texture.ActualWidth, texture.ActualHeight)).IsEqualTo(new SKRectI(16, 18, 32, 30));
             }
         }
 
         [Test]
-        public void SpriteSheetExtractsOneSpritePerSequence()
+        public async Task SpriteSheetExtractsOneSpritePerSequence()
         {
             using var resource = new Resource();
             resource.Read(Path.Combine(TexturesDir, "DXT5_lava_drops_sheet.vtex_c"));
 
             var extract = new TextureExtract(resource);
 
-            Assert.That(extract.TryGetMksData(out var sprites, out var mks), Is.True);
+            await Assert.That(extract.TryGetMksData(out var sprites, out var mks)).IsTrue();
 
-            using (Assert.EnterMultipleScope())
+            using (Assert.Multiple())
             {
-                Assert.That(sprites, Has.Count.EqualTo(4));
-                Assert.That(sprites.Keys, Is.All.Matches<SKRectI>(rect => rect.Width == 16));
-                Assert.That(mks, Does.Contain("frame DXT5_lava_drops_sheet_seq0.png 1"));
+                await Assert.That(sprites).Count().IsEqualTo(4);
+                await Assert.That(sprites.Keys).All(rect => rect.Width == 16);
+                await Assert.That(mks).Contains("frame DXT5_lava_drops_sheet_seq0.png 1");
             }
         }
 
         [Test]
-        public void Undo_YCoCg_TransformsColorCorrectly()
+        public async Task Undo_YCoCg_TransformsColorCorrectly()
         {
             // Pure matrix: neutral chroma (Co == Cg == 128) reconstructs to neutral grey. The sRGB
             // linearization of the inputs is the caller's job (ApplyTextureConversions), see issue #1127.
             var rgb = Common.Decode_YCoCg(new Vector4(128, 128, 8, 128) / 255f);
 
-            using (Assert.EnterMultipleScope())
+            using (Assert.Multiple())
             {
-                Assert.That(Common.ToClampedLdrColor(rgb.X), Is.EqualTo(128));
-                Assert.That(Common.ToClampedLdrColor(rgb.Y), Is.EqualTo(128));
-                Assert.That(Common.ToClampedLdrColor(rgb.Z), Is.EqualTo(128));
+                await Assert.That(Common.ToClampedLdrColor(rgb.X)).IsEqualTo((byte)128);
+                await Assert.That(Common.ToClampedLdrColor(rgb.Y)).IsEqualTo((byte)128);
+                await Assert.That(Common.ToClampedLdrColor(rgb.Z)).IsEqualTo((byte)128);
             }
         }
 
         [Test]
-        public void ApplyTextureConversions_YCoCg_WithColorSpaceSrgb_LinearizesInputsBeforeMatrix()
+        public async Task ApplyTextureConversions_YCoCg_WithColorSpaceSrgb_LinearizesInputsBeforeMatrix()
         {
             using var bitmap = new SKBitmap(1, 1, SKColorType.Bgra8888, SKAlphaType.Unpremul);
             bitmap.SetPixel(0, 0, new SKColor(red: 128, green: 128, blue: 8, alpha: 128)); // Co, Cg, scale, Y
@@ -105,17 +104,17 @@ namespace Tests
             Common.ApplyTextureConversions(bitmap, TextureCodec.YCoCg | TextureCodec.ColorSpaceSrgb);
 
             var result = bitmap.GetPixel(0, 0);
-            using (Assert.EnterMultipleScope())
+            using (Assert.Multiple())
             {
-                Assert.That(result.Red, Is.EqualTo(128));
-                Assert.That(result.Green, Is.EqualTo(60));
-                Assert.That(result.Blue, Is.EqualTo(255));
-                Assert.That(result.Alpha, Is.EqualTo(255));
+                await Assert.That(result.Red).IsEqualTo((byte)128);
+                await Assert.That(result.Green).IsEqualTo((byte)60);
+                await Assert.That(result.Blue).IsEqualTo((byte)255);
+                await Assert.That(result.Alpha).IsEqualTo((byte)255);
             }
         }
 
         [Test]
-        public void ApplyTextureConversions_YCoCg_AppliesRawMatrixWithoutSrgbFlag()
+        public async Task ApplyTextureConversions_YCoCg_AppliesRawMatrixWithoutSrgbFlag()
         {
             using var bitmap = new SKBitmap(1, 1, SKColorType.Bgra8888, SKAlphaType.Unpremul);
             bitmap.SetPixel(0, 0, new SKColor(red: 128, green: 128, blue: 8, alpha: 128)); // Co, Cg, scale, Y
@@ -123,87 +122,87 @@ namespace Tests
             Common.ApplyTextureConversions(bitmap, TextureCodec.YCoCg);
 
             var result = bitmap.GetPixel(0, 0);
-            using (Assert.EnterMultipleScope())
+            using (Assert.Multiple())
             {
-                Assert.That(result.Red, Is.EqualTo(128));
-                Assert.That(result.Green, Is.EqualTo(128));
-                Assert.That(result.Blue, Is.EqualTo(128));
-                Assert.That(result.Alpha, Is.EqualTo(255));
+                await Assert.That(result.Red).IsEqualTo((byte)128);
+                await Assert.That(result.Green).IsEqualTo((byte)128);
+                await Assert.That(result.Blue).IsEqualTo((byte)128);
+                await Assert.That(result.Alpha).IsEqualTo((byte)255);
             }
         }
 
         [Test]
-        public void Undo_NormalizeNormals_TransformsColorCorrectly()
+        public async Task Undo_NormalizeNormals_TransformsColorCorrectly()
         {
             var color = new Color { r = 128, g = 128, b = 0, a = 255 };
 
             Common.ReconstructNormals(ref color);
 
-            using (Assert.EnterMultipleScope())
+            using (Assert.Multiple())
             {
-                Assert.That(color.r, Is.EqualTo(128));
-                Assert.That(color.g, Is.EqualTo(128));
-                Assert.That(color.b, Is.EqualTo(255));
-                Assert.That(color.a, Is.EqualTo(255));
+                await Assert.That(color.r).IsEqualTo((byte)128);
+                await Assert.That(color.g).IsEqualTo((byte)128);
+                await Assert.That(color.b).IsEqualTo((byte)255);
+                await Assert.That(color.a).IsEqualTo((byte)255);
             }
         }
 
         [Test]
-        public void ClampColor_ReturnsValueWhenInRange()
+        public async Task ClampColor_ReturnsValueWhenInRange()
         {
-            using (Assert.EnterMultipleScope())
+            using (Assert.Multiple())
             {
-                Assert.That(Common.ClampColor(0), Is.Zero);
-                Assert.That(Common.ClampColor(128), Is.EqualTo(128));
-                Assert.That(Common.ClampColor(255), Is.EqualTo(255));
+                await Assert.That(Common.ClampColor(0)).IsZero();
+                await Assert.That(Common.ClampColor(128)).IsEqualTo((byte)128);
+                await Assert.That(Common.ClampColor(255)).IsEqualTo((byte)255);
             }
         }
 
         [Test]
-        public void ClampColor_ClampsOutOfRangeValues()
+        public async Task ClampColor_ClampsOutOfRangeValues()
         {
-            using (Assert.EnterMultipleScope())
+            using (Assert.Multiple())
             {
-                Assert.That(Common.ClampColor(-10), Is.Zero);
-                Assert.That(Common.ClampColor(300), Is.EqualTo(255));
+                await Assert.That(Common.ClampColor(-10)).IsZero();
+                await Assert.That(Common.ClampColor(300)).IsEqualTo((byte)255);
             }
         }
 
         [Test]
-        public void ClampHighRangeColor_ReturnsValueWhenInRange()
+        public async Task ClampHighRangeColor_ReturnsValueWhenInRange()
         {
-            using (Assert.EnterMultipleScope())
+            using (Assert.Multiple())
             {
-                Assert.That(Common.ClampHighRangeColor(0f), Is.Zero);
-                Assert.That(Common.ClampHighRangeColor(0.5f), Is.EqualTo(0.5f));
-                Assert.That(Common.ClampHighRangeColor(1f), Is.EqualTo(1f));
+                await Assert.That(Common.ClampHighRangeColor(0f)).IsZero();
+                await Assert.That(Common.ClampHighRangeColor(0.5f)).IsEqualTo(0.5f);
+                await Assert.That(Common.ClampHighRangeColor(1f)).IsEqualTo(1f);
             }
         }
 
         [Test]
-        public void ClampHighRangeColor_ClampsOutOfRangeValues()
+        public async Task ClampHighRangeColor_ClampsOutOfRangeValues()
         {
-            using (Assert.EnterMultipleScope())
+            using (Assert.Multiple())
             {
-                Assert.That(Common.ClampHighRangeColor(-0.5f), Is.Zero);
-                Assert.That(Common.ClampHighRangeColor(1.5f), Is.EqualTo(1f));
+                await Assert.That(Common.ClampHighRangeColor(-0.5f)).IsZero();
+                await Assert.That(Common.ClampHighRangeColor(1.5f)).IsEqualTo(1f);
             }
         }
 
         [Test]
-        public void ToClampedLdrColor_ConvertsFloatToByte()
+        public async Task ToClampedLdrColor_ConvertsFloatToByte()
         {
-            using (Assert.EnterMultipleScope())
+            using (Assert.Multiple())
             {
-                Assert.That(Common.ToClampedLdrColor(0f), Is.Zero);
-                Assert.That(Common.ToClampedLdrColor(0.5f), Is.EqualTo(128));
-                Assert.That(Common.ToClampedLdrColor(1f), Is.EqualTo(255));
-                Assert.That(Common.ToClampedLdrColor(2f), Is.EqualTo(255));
+                await Assert.That(Common.ToClampedLdrColor(0f)).IsZero();
+                await Assert.That(Common.ToClampedLdrColor(0.5f)).IsEqualTo((byte)128);
+                await Assert.That(Common.ToClampedLdrColor(1f)).IsEqualTo((byte)255);
+                await Assert.That(Common.ToClampedLdrColor(2f)).IsEqualTo((byte)255);
             }
         }
 
         [Test]
-        public void SwapRB_SwapsRedAndBlueChannels()
+        public async Task SwapRB_SwapsRedAndBlueChannels()
         {
             var pixels = new byte[] {
                 1, 2, 3, 4,
@@ -212,22 +211,22 @@ namespace Tests
 
             Common.SwapRB(pixels);
 
-            using (Assert.EnterMultipleScope())
+            using (Assert.Multiple())
             {
-                Assert.That(pixels[0], Is.EqualTo(3));
-                Assert.That(pixels[1], Is.EqualTo(2));
-                Assert.That(pixels[2], Is.EqualTo(1));
-                Assert.That(pixels[3], Is.EqualTo(4));
+                await Assert.That(pixels[0]).IsEqualTo((byte)3);
+                await Assert.That(pixels[1]).IsEqualTo((byte)2);
+                await Assert.That(pixels[2]).IsEqualTo((byte)1);
+                await Assert.That(pixels[3]).IsEqualTo((byte)4);
 
-                Assert.That(pixels[4], Is.EqualTo(7));
-                Assert.That(pixels[5], Is.EqualTo(6));
-                Assert.That(pixels[6], Is.EqualTo(5));
-                Assert.That(pixels[7], Is.EqualTo(8));
+                await Assert.That(pixels[4]).IsEqualTo((byte)7);
+                await Assert.That(pixels[5]).IsEqualTo((byte)6);
+                await Assert.That(pixels[6]).IsEqualTo((byte)5);
+                await Assert.That(pixels[7]).IsEqualTo((byte)8);
             }
         }
 
         [Test]
-        public void SwapRB_HandlesLargeArrays()
+        public async Task SwapRB_HandlesLargeArrays()
         {
             const int pixelCount = 1101;
             var pixels = new byte[pixelCount * 4];
@@ -244,18 +243,18 @@ namespace Tests
 
             for (var i = 0; i < pixelCount; i++)
             {
-                using (Assert.EnterMultipleScope())
+                using (Assert.Multiple())
                 {
-                    Assert.That(pixels[i * 4], Is.EqualTo((byte)((i >> 8) & 0xFF)));
-                    Assert.That(pixels[i * 4 + 1], Is.Zero);
-                    Assert.That(pixels[i * 4 + 2], Is.EqualTo((byte)(i & 0xFF)));
-                    Assert.That(pixels[i * 4 + 3], Is.EqualTo(255));
+                    await Assert.That(pixels[i * 4]).IsEqualTo((byte)((i >> 8) & 0xFF));
+                    await Assert.That(pixels[i * 4 + 1]).IsZero();
+                    await Assert.That(pixels[i * 4 + 2]).IsEqualTo((byte)(i & 0xFF));
+                    await Assert.That(pixels[i * 4 + 3]).IsEqualTo((byte)255);
                 }
             }
         }
 
         [Test]
-        public void SwapRedAlpha_SwapsColorsSimdAndScalar()
+        public async Task SwapRedAlpha_SwapsColorsSimdAndScalar()
         {
             const int pixelCount = 1101;
             var pixels = new byte[pixelCount * 4];
@@ -275,12 +274,12 @@ namespace Tests
 
             for (var i = 0; i < pixelCount; i++)
             {
-                using (Assert.EnterMultipleScope())
+                using (Assert.Multiple())
                 {
-                    Assert.That(pixels[i * 4 + 0], Is.EqualTo(2));
-                    Assert.That(pixels[i * 4 + 1], Is.EqualTo(3));
-                    Assert.That(pixels[i * 4 + 2], Is.EqualTo(AlphaColor(i)));
-                    Assert.That(pixels[i * 4 + 3], Is.EqualTo(RedColor(i)));
+                    await Assert.That(pixels[i * 4 + 0]).IsEqualTo((byte)2);
+                    await Assert.That(pixels[i * 4 + 1]).IsEqualTo((byte)3);
+                    await Assert.That(pixels[i * 4 + 2]).IsEqualTo(AlphaColor(i));
+                    await Assert.That(pixels[i * 4 + 3]).IsEqualTo(RedColor(i));
                 }
             }
         }

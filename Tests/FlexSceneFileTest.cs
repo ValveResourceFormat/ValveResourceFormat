@@ -1,5 +1,5 @@
 using System.IO;
-using NUnit.Framework;
+using System.Threading.Tasks;
 using ValveResourceFormat.FlexSceneFile;
 
 namespace Tests
@@ -7,34 +7,34 @@ namespace Tests
     public class FlexSceneFileTest
     {
         [Test]
-        public void TestFlexSceneFile()
+        public async Task TestFlexSceneFile()
         {
-            var vfeFilePath = Path.Combine(TestContext.CurrentContext.TestDirectory, "Files", "phonemes.vfe");
+            var vfeFilePath = Path.Combine(TestContext.TestDirectory!, "Files", "phonemes.vfe");
             var vfe = new FlexSceneFile();
             vfe.Read(vfeFilePath);
 
-            using (Assert.EnterMultipleScope())
+            using (Assert.Multiple())
             {
-                Assert.That(vfe.Version, Is.Zero);
-                Assert.That(vfe.FlexSettings, Has.Length.EqualTo(48));
-                Assert.That(vfe.KeyNames, Has.Length.EqualTo(62));
+                await Assert.That(vfe.Version).IsZero();
+                await Assert.That(vfe.FlexSettings).Count().IsEqualTo(48);
+                await Assert.That(vfe.KeyNames).Count().IsEqualTo(62);
             }
         }
 
         [Test]
-        public void TestFlexSceneFileDecompile()
+        public async Task TestFlexSceneFileDecompile()
         {
-            var vfeFilePath = Path.Combine(TestContext.CurrentContext.TestDirectory, "Files", "phonemes.vfe");
-            var vfeOutputFilePath = Path.Combine(TestContext.CurrentContext.TestDirectory, "Files", "phonemes.txt");
+            var vfeFilePath = Path.Combine(TestContext.TestDirectory!, "Files", "phonemes.vfe");
+            var vfeOutputFilePath = Path.Combine(TestContext.TestDirectory!, "Files", "phonemes.txt");
 
-            var expectedOutput = File.ReadAllText(vfeOutputFilePath).ReplaceLineEndings();
+            var expectedOutput = (await File.ReadAllTextAsync(vfeOutputFilePath)).ReplaceLineEndings();
 
             var vfe = new FlexSceneFile();
             vfe.Read(vfeFilePath);
 
             var actualOutput = vfe.ToString().ReplaceLineEndings();
 
-            Assert.That(actualOutput, Is.EqualTo(expectedOutput));
+            await Assert.That(actualOutput).IsEqualTo(expectedOutput);
         }
     }
 }

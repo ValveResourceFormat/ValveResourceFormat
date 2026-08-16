@@ -1,6 +1,6 @@
 using System.IO;
 using System.Linq;
-using NUnit.Framework;
+using System.Threading.Tasks;
 using ValveResourceFormat;
 using ValveResourceFormat.IO;
 using ValveResourceFormat.ResourceTypes;
@@ -8,11 +8,10 @@ using ValveResourceFormat.ResourceTypes.ModelAnimation;
 
 namespace Tests
 {
-    [TestFixture]
     public class ModelExtractDmxTest
     {
         [Test]
-        public void DmxAnimationWritesRootMotionToModelChannel()
+        public async Task DmxAnimationWritesRootMotionToModelChannel()
         {
             var channels = ExtractChannels("box_creature_leggy_walk", out _);
 
@@ -21,28 +20,28 @@ namespace Tests
             // source-unit displacement.
             var modelRoot = RootChannelValues(channels, "");
             var displacement = modelRoot[^1] - modelRoot[0];
-            Assert.That(displacement.X, Is.EqualTo(47.92f).Within(0.1f));
+            await Assert.That(displacement.X).IsEqualTo(47.92f).Within(0.1f);
 
             // The root_motion bone itself carries no baked travel - only its raw per-frame data.
             var rootMotionBone = RootChannelValues(channels, "root_motion");
             var boneDisplacement = rootMotionBone[^1] - rootMotionBone[0];
-            Assert.That(boneDisplacement.X, Is.LessThan(1.0f));
+            await Assert.That(boneDisplacement.X).IsLessThan(1.0f);
         }
 
         [Test]
-        public void DmxAnimationWithoutMovementHasNoRootMotionChannel()
+        public async Task DmxAnimationWithoutMovementHasNoRootMotionChannel()
         {
             var channels = ExtractChannels("box_creature_leggy_idle", out var anim);
-            Assert.That(anim.HasMovementData(), Is.False);
+            await Assert.That(anim.HasMovementData()).IsFalse();
 
             // With no movement data, no model-level root motion channel is emitted.
-            Assert.That(channels.Cast<Datamodel.Element>().Any(c => c.Name is "_p" or "_o"), Is.False);
+            await Assert.That(channels.Cast<Datamodel.Element>().Any(c => c.Name is "_p" or "_o")).IsFalse();
         }
 
         private static Datamodel.ElementArray ExtractChannels(string animationName, out Animation anim)
         {
             using var resource = new Resource();
-            resource.Read(Path.Combine(TestContext.CurrentContext.TestDirectory, "Files", "box_creature_ik_model.vmdl_c"));
+            resource.Read(Path.Combine(TestContext.TestDirectory!, "Files", "box_creature_ik_model.vmdl_c"));
             var model = (Model)resource.DataBlock!;
             anim = model.GetAllAnimations(new NullFileLoader()).First(a => a.Name == animationName);
 

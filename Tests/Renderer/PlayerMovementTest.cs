@@ -1,5 +1,5 @@
+using System.Threading.Tasks;
 using Microsoft.Extensions.Logging.Abstractions;
-using NUnit.Framework;
 using ValveResourceFormat.IO;
 using ValveResourceFormat.Renderer;
 using ValveResourceFormat.Renderer.Input;
@@ -28,7 +28,7 @@ namespace Tests.Renderer
         // what the tests use, so the disposables are tracked here rather than at call sites.
         private readonly List<IDisposable> HarnessContexts = [];
 
-        [TearDown]
+        [After(HookType.Test)]
         public void DisposeHarnessContexts()
         {
             for (var i = HarnessContexts.Count - 1; i >= 0; i--)
@@ -39,7 +39,7 @@ namespace Tests.Renderer
             HarnessContexts.Clear();
         }
 
-        private (UserInput Input, Camera RenderCamera) CreateHeadlessFpsInput(float spawnHeight)
+        private async Task<(UserInput Input, Camera RenderCamera)> CreateHeadlessFpsInput(float spawnHeight)
         {
             var fileLoader = new GameFileLoader(null, null);
             HarnessContexts.Add(fileLoader);
@@ -57,7 +57,7 @@ namespace Tests.Renderer
             input.Camera.Pitch = 0f;
             input.Tick(1f / 128f, TrackedKeys.X, Vector2.Zero, renderCamera);
 
-            Assert.That(input.NoClip, Is.False);
+            await Assert.That(input.NoClip).IsFalse();
             return (input, renderCamera);
         }
 
@@ -77,7 +77,7 @@ namespace Tests.Renderer
         }
 
         /// <summary>Settles the player onto the ground with no input held.</summary>
-        private static void SettleOntoGround(UserInput input, Camera renderCamera, float fps)
+        private static async Task SettleOntoGround(UserInput input, Camera renderCamera, float fps)
         {
             var dt = 1f / fps;
 
@@ -86,7 +86,7 @@ namespace Tests.Renderer
                 input.Tick(dt, TrackedKeys.None, Vector2.Zero, renderCamera);
             }
 
-            Assert.That(input.PlayerMovement.OnGround, Is.True, "player did not land during settling");
+            await Assert.That(input.PlayerMovement.OnGround).IsTrue().Because("player did not land during settling");
         }
 
         /// <summary>
@@ -133,7 +133,7 @@ namespace Tests.Renderer
         }
 
         [Test]
-        public void AirStrafeMatchesContinuousOracle()
+        public async Task AirStrafeMatchesContinuousOracle()
         {
             // Regression locks: best measured maxima are 9.8e-4 (machine, 4000-substep
             // oracle) and 1.0e-2 (guard-zone discrete). Lower these when precision improves.
@@ -156,7 +156,7 @@ namespace Tests.Renderer
 
             for (var trial = 0; trial < 30; trial++)
             {
-                var (input, renderCamera) = CreateHeadlessFpsInput(spawnHeight: 6000f);
+                var (input, renderCamera) = await CreateHeadlessFpsInput(spawnHeight: 6000f);
                 var movement = input.PlayerMovement;
 
                 var fps = 60f + (float)rng.NextDouble() * 500f;
@@ -204,18 +204,18 @@ namespace Tests.Renderer
                 }
             }
 
-            TestContext.Out.WriteLine("Air strafe vs continuous oracle (random WASD + mouse, 30 trials, 60-560 fps):");
-            TestContext.Out.WriteLine($"  {"frames",-10} {"max err (u/s)",-16} {"lock",-10}");
-            TestContext.Out.WriteLine($"  machine    {machineFrames,-10} {maxMachineError,-16:E3} {MachineErrorLock:E1}");
-            TestContext.Out.WriteLine($"  guard-zone {guardFrames,-10} {maxGuardZoneError,-16:E3} {GuardZoneErrorLock:E1}");
+            await Console.Out.WriteLineAsync("Air strafe vs continuous oracle (random WASD + mouse, 30 trials, 60-560 fps):");
+            await Console.Out.WriteLineAsync($"  {"frames",-10} {"max err (u/s)",-16} {"lock",-10}");
+            await Console.Out.WriteLineAsync($"  machine    {machineFrames,-10} {maxMachineError,-16:E3} {MachineErrorLock:E1}");
+            await Console.Out.WriteLineAsync($"  guard-zone {guardFrames,-10} {maxGuardZoneError,-16:E3} {GuardZoneErrorLock:E1}");
 
-            Assert.That(machineFrames, Is.GreaterThan(5000));
-            Assert.That(maxMachineError, Is.LessThan(MachineErrorLock), "tickless machine precision regressed");
-            Assert.That(maxGuardZoneError, Is.LessThan(GuardZoneErrorLock), "sub-guard discrete frames deviate beyond their design bound");
+            await Assert.That(machineFrames).IsGreaterThan(5000);
+            await Assert.That(maxMachineError).IsLessThan(MachineErrorLock).Because("tickless machine precision regressed");
+            await Assert.That(maxGuardZoneError).IsLessThan(GuardZoneErrorLock).Because("sub-guard discrete frames deviate beyond their design bound");
         }
 
         [Test]
-        public void AirStrafeGainIsFramerateInvariant()
+        public async Task AirStrafeGainIsFramerateInvariant()
         {
             // Regression lock on the cross-fps end-speed spread per turn rate
             const double SpreadLock = 6.5e-3; // best measured: 5.6e-3 at 360°/s
@@ -224,8 +224,8 @@ namespace Tests.Renderer
             float[] turnRatesDegPerSec = [90f, 180f, 360f];
             var worstSpread = 0.0;
 
-            TestContext.Out.WriteLine("Air strafe end speed after 2s of hold-W turning (u/s):");
-            TestContext.Out.WriteLine($"  {"turn °/s",-10} {"64 fps",-12} {"128 fps",-12} {"250 fps",-12} {"1000 fps",-12} spread");
+            await Console.Out.WriteLineAsync("Air strafe end speed after 2s of hold-W turning (u/s):");
+            await Console.Out.WriteLineAsync($"  {"turn °/s",-10} {"64 fps",-12} {"128 fps",-12} {"250 fps",-12} {"1000 fps",-12} spread");
 
             foreach (var turnRateDeg in turnRatesDegPerSec)
             {
@@ -233,7 +233,7 @@ namespace Tests.Renderer
 
                 for (var run = 0; run < framerates.Length; run++)
                 {
-                    var (input, renderCamera) = CreateHeadlessFpsInput(spawnHeight: 6000f);
+                    var (input, renderCamera) = await CreateHeadlessFpsInput(spawnHeight: 6000f);
                     var dt = 1f / framerates[run];
                     var turnRate = float.DegreesToRadians(turnRateDeg);
                     var frames = (int)(2f * framerates[run]);
@@ -254,12 +254,12 @@ namespace Tests.Renderer
                 }
 
                 worstSpread = Math.Max(worstSpread, spread);
-                TestContext.Out.WriteLine($"  {turnRateDeg,-10:F0} {speeds[0],-12:F4} {speeds[1],-12:F4} {speeds[2],-12:F4} {speeds[3],-12:F4} {spread:E2}");
+                await Console.Out.WriteLineAsync($"  {turnRateDeg,-10:F0} {speeds[0],-12:F4} {speeds[1],-12:F4} {speeds[2],-12:F4} {speeds[3],-12:F4} {spread:E2}");
 
-                Assert.That(speeds[0], Is.GreaterThan(90), "strafe produced no speed; the scenario is broken");
+                await Assert.That(speeds[0]).IsGreaterThan(90).Because("strafe produced no speed; the scenario is broken");
             }
 
-            Assert.That(worstSpread, Is.LessThan(SpreadLock), "air strafe framerate invariance regressed");
+            await Assert.That(worstSpread).IsLessThan(SpreadLock).Because("air strafe framerate invariance regressed");
         }
 
         /// <summary>
@@ -267,14 +267,14 @@ namespace Tests.Renderer
         /// hold W for <paramref name="accelSeconds"/>, then release and coast until
         /// stopped. Returns the acceleration distance/end speed and the stop distance.
         /// </summary>
-        private (double AccelDistance, double AccelEndSpeed, double StopDistance) RunGroundScenario(float fps, float accelSeconds)
+        private async Task<(double AccelDistance, double AccelEndSpeed, double StopDistance)> RunGroundScenario(float fps, float accelSeconds)
         {
-            var (input, renderCamera) = CreateHeadlessFpsInput(spawnHeight: 100f);
+            var (input, renderCamera) = await CreateHeadlessFpsInput(spawnHeight: 100f);
             var movement = input.PlayerMovement;
             var dt = 1f / fps;
 
-            SettleOntoGround(input, renderCamera, fps);
-            Assert.That(HorizontalSpeed(movement.Velocity), Is.LessThan(0.001), "player did not come to rest");
+            await SettleOntoGround(input, renderCamera, fps);
+            await Assert.That(HorizontalSpeed(movement.Velocity)).IsLessThan(0.001).Because("player did not come to rest");
 
             var accelStart = movement.Position;
 
@@ -292,7 +292,7 @@ namespace Tests.Renderer
                 input.Tick(dt, TrackedKeys.None, Vector2.Zero, renderCamera);
             }
 
-            Assert.That(HorizontalSpeed(movement.Velocity), Is.Zero, "player did not stop under friction");
+            await Assert.That(HorizontalSpeed(movement.Velocity)).IsZero().Because("player did not stop under friction");
 
             var stopPoint = movement.Position;
 
@@ -303,7 +303,7 @@ namespace Tests.Renderer
         }
 
         [Test]
-        public void GroundMovementIsFramerateInvariant()
+        public async Task GroundMovementIsFramerateInvariant()
         {
             // Regression locks on cross-fps spreads. Best measured: distance 3.24e-2,
             // speed 0.0 (bit-exact), stop distance 4.0e-4. Lower when precision improves.
@@ -331,26 +331,26 @@ namespace Tests.Renderer
 
             for (var run = 0; run < ComparisonFramerates.Length; run++)
             {
-                (accelDistances[run], accelSpeeds[run], stopDistances[run]) = RunGroundScenario(ComparisonFramerates[run], AccelSeconds);
+                (accelDistances[run], accelSpeeds[run], stopDistances[run]) = await RunGroundScenario(ComparisonFramerates[run], AccelSeconds);
             }
 
-            TestContext.Out.WriteLine($"Ground movement: {AccelSeconds}s W from rest, then friction-only stop:");
-            TestContext.Out.WriteLine($"  {"fps",-8} {"accel dist",-14} {"end speed",-14} {"stop dist",-14}");
+            await Console.Out.WriteLineAsync($"Ground movement: {AccelSeconds}s W from rest, then friction-only stop:");
+            await Console.Out.WriteLineAsync($"  {"fps",-8} {"accel dist",-14} {"end speed",-14} {"stop dist",-14}");
 
             for (var run = 0; run < ComparisonFramerates.Length; run++)
             {
-                TestContext.Out.WriteLine($"  {ComparisonFramerates[run],-8:F0} {accelDistances[run],-14:F5} {accelSpeeds[run],-14:F5} {stopDistances[run],-14:F5}");
+                await Console.Out.WriteLineAsync($"  {ComparisonFramerates[run],-8:F0} {accelDistances[run],-14:F5} {accelSpeeds[run],-14:F5} {stopDistances[run],-14:F5}");
             }
 
-            TestContext.Out.WriteLine($"  spreads: dist={Spread(accelDistances):E2} speed={Spread(accelSpeeds):E2} stop={Spread(stopDistances):E2}");
+            await Console.Out.WriteLineAsync($"  spreads: dist={Spread(accelDistances):E2} speed={Spread(accelSpeeds):E2} stop={Spread(stopDistances):E2}");
 
             // Sanity anchors: analytic values for the continuous model
-            Assert.That(accelSpeeds[0], Is.EqualTo(250.0).Within(0.01), "did not reach the run speed cap");
-            Assert.That(stopDistances[0], Is.EqualTo(40.38).Within(0.2), "stop distance far from the analytic 40.38");
+            await Assert.That(accelSpeeds[0]).IsEqualTo(250.0).Within(0.01).Because("did not reach the run speed cap");
+            await Assert.That(stopDistances[0]).IsEqualTo(40.38).Within(0.2).Because("stop distance far from the analytic 40.38");
 
-            Assert.That(Spread(accelDistances), Is.LessThan(AccelDistanceSpreadLock), "ground acceleration distance invariance regressed");
-            Assert.That(Spread(accelSpeeds), Is.LessThan(AccelSpeedSpreadLock), "ground speed invariance regressed");
-            Assert.That(Spread(stopDistances), Is.LessThan(StopDistanceSpreadLock), "friction stop distance invariance regressed");
+            await Assert.That(Spread(accelDistances)).IsLessThan(AccelDistanceSpreadLock).Because("ground acceleration distance invariance regressed");
+            await Assert.That(Spread(accelSpeeds)).IsLessThan(AccelSpeedSpreadLock).Because("ground speed invariance regressed");
+            await Assert.That(Spread(stopDistances)).IsLessThan(StopDistanceSpreadLock).Because("friction stop distance invariance regressed");
         }
 
         // A single wall turned 45° in XY, so its normal is on neither axis. The player walks
@@ -371,15 +371,15 @@ namespace Tests.Renderer
         /// One wall-slide run: settle, then walk straight down +X into the 45° wall for 3s.
         /// Returns the slide displacement on each axis, the resting gap and the end speed.
         /// </summary>
-        private (double SlideX, double SlideY, double Gap, double EndSpeed) RunWallSlide(float fps)
+        private async Task<(double SlideX, double SlideY, double Gap, double EndSpeed)> RunWallSlide(float fps)
         {
-            var (input, renderCamera) = CreateHeadlessFpsInput(spawnHeight: 100f);
+            var (input, renderCamera) = await CreateHeadlessFpsInput(spawnHeight: 100f);
             var movement = input.PlayerMovement;
             var dt = 1f / fps;
 
             movement.DebugCollisionPlanes.Add(new Vector4(WallNormal.X, WallNormal.Y, WallNormal.Z, WallOffset));
 
-            SettleOntoGround(input, renderCamera, fps);
+            await SettleOntoGround(input, renderCamera, fps);
 
             var start = movement.Position;
 
@@ -404,7 +404,7 @@ namespace Tests.Renderer
         /// cross-fps spread per axis is the invariance signal.
         /// </summary>
         [Test]
-        public void WallSlideComparison()
+        public async Task WallSlideComparison()
         {
             var slideX = new double[ComparisonFramerates.Length];
             var slideY = new double[ComparisonFramerates.Length];
@@ -413,45 +413,45 @@ namespace Tests.Renderer
 
             for (var run = 0; run < ComparisonFramerates.Length; run++)
             {
-                (slideX[run], slideY[run], gap[run], endSpeed[run]) = RunWallSlide(ComparisonFramerates[run]);
+                (slideX[run], slideY[run], gap[run], endSpeed[run]) = await RunWallSlide(ComparisonFramerates[run]);
             }
 
-            TestContext.Out.WriteLine($"Straight +X into a 45° wall (contact at x={WallContactX}, 3s hold W):");
-            TestContext.Out.WriteLine($"  {"fps",-8} {"slide X",-16} {"slide Y",-16} {"gap",-14} {"end speed",-14}");
+            await Console.Out.WriteLineAsync($"Straight +X into a 45° wall (contact at x={WallContactX}, 3s hold W):");
+            await Console.Out.WriteLineAsync($"  {"fps",-8} {"slide X",-16} {"slide Y",-16} {"gap",-14} {"end speed",-14}");
 
             for (var run = 0; run < ComparisonFramerates.Length; run++)
             {
-                TestContext.Out.WriteLine(
+                await Console.Out.WriteLineAsync(
                     $"  {ComparisonFramerates[run],-8:F0} {slideX[run],-16:F5} {slideY[run],-16:F5}"
                     + $" {gap[run],-14:F8} {endSpeed[run],-14:F5}");
             }
 
-            TestContext.Out.WriteLine(
+            await Console.Out.WriteLineAsync(
                 $"  spreads: slideX={Spread(slideX):E2} slideY={Spread(slideY):E2}"
                 + $" gap={Spread(gap):E2} endSpeed={Spread(endSpeed):E2}");
-            TestContext.Out.WriteLine($"  gap should rest at SurfaceEpsilon = {SurfaceEpsilon}");
-            TestContext.Out.WriteLine();
-            TestContext.Out.WriteLine("  NOTE: the slide outlier at the highest framerate is expected. In a steady slide the");
-            TestContext.Out.WriteLine("  sweep runs at a very shallow angle to the wall, so even with TraceBBox's 4-unit");
-            TestContext.Out.WriteLine("  MarginLookahead it no longer closes SurfaceEpsilon of perpendicular distance and the");
-            TestContext.Out.WriteLine("  wall stops being seen. The shallower the angle, the less of the gap the lookahead");
-            TestContext.Out.WriteLine("  covers, and the angle gets shallower as the frame time shrinks.");
+            await Console.Out.WriteLineAsync($"  gap should rest at SurfaceEpsilon = {SurfaceEpsilon}");
+            await Console.Out.WriteLineAsync();
+            await Console.Out.WriteLineAsync("  NOTE: the slide outlier at the highest framerate is expected. In a steady slide the");
+            await Console.Out.WriteLineAsync("  sweep runs at a very shallow angle to the wall, so even with TraceBBox's 4-unit");
+            await Console.Out.WriteLineAsync("  MarginLookahead it no longer closes SurfaceEpsilon of perpendicular distance and the");
+            await Console.Out.WriteLineAsync("  wall stops being seen. The shallower the angle, the less of the gap the lookahead");
+            await Console.Out.WriteLineAsync("  covers, and the angle gets shallower as the frame time shrinks.");
 
             foreach (var g in gap)
             {
-                Assert.That(g, Is.GreaterThan(-SurfaceEpsilon), "player passed through the wall");
+                await Assert.That(g).IsGreaterThan(-SurfaceEpsilon).Because("player passed through the wall");
             }
 
-            Assert.That(slideX[0], Is.GreaterThan(1f), "player did not slide along the wall");
-            Assert.That(slideY[0], Is.GreaterThan(1f), "wall did not deflect the run onto its diagonal");
+            await Assert.That(slideX[0]).IsGreaterThan(1f).Because("player did not slide along the wall");
+            await Assert.That(slideY[0]).IsGreaterThan(1f).Because("wall did not deflect the run onto its diagonal");
 
             // Locks: slide distance carries the documented high-fps lookahead outlier (measured
             // 4.1e-1), so its lock only catches something qualitatively worse; the resting gap
             // and end speed are tight (measured 3.1e-5 and 0.0)
-            Assert.That(Spread(slideX), Is.LessThan(8e-1), "wall slide X distance invariance regressed");
-            Assert.That(Spread(slideY), Is.LessThan(8e-1), "wall slide Y distance invariance regressed");
-            Assert.That(Spread(gap), Is.LessThan(1e-4), "wall resting gap invariance regressed");
-            Assert.That(Spread(endSpeed), Is.LessThan(1e-3), "wall slide end speed invariance regressed");
+            await Assert.That(Spread(slideX)).IsLessThan(8e-1).Because("wall slide X distance invariance regressed");
+            await Assert.That(Spread(slideY)).IsLessThan(8e-1).Because("wall slide Y distance invariance regressed");
+            await Assert.That(Spread(gap)).IsLessThan(1e-4).Because("wall resting gap invariance regressed");
+            await Assert.That(Spread(endSpeed)).IsLessThan(1e-3).Because("wall slide end speed invariance regressed");
         }
 
         // Headless traces always include the infinite z=0 ground plane, so the ramp has to be
@@ -467,9 +467,9 @@ namespace Tests.Renderer
         /// Returns the horizontal travel, the end speed, how far the player descended and whether
         /// the mover ever considered the surface walkable ground.
         /// </summary>
-        private (double Travel, double EndSpeed, double Descent, bool Grounded, double WishDot) RunSurf(float fps)
+        private async Task<(double Travel, double EndSpeed, double Descent, bool Grounded, double WishDot)> RunSurf(float fps)
         {
-            var (input, renderCamera) = CreateHeadlessFpsInput(spawnHeight: SurfSpawnHeight);
+            var (input, renderCamera) = await CreateHeadlessFpsInput(spawnHeight: SurfSpawnHeight);
             var movement = input.PlayerMovement;
             var dt = 1f / fps;
 
@@ -521,7 +521,7 @@ namespace Tests.Renderer
         private const float SurfSlopeDegrees = 50f;
 
         [Test]
-        public void SurfIsFramerateInvariant()
+        public async Task SurfIsFramerateInvariant()
         {
             // Regression locks, ~20% above the measured spreads (travel 2.0, endSpeed 4.3,
             // descent 3.2, wishDot 1.4 over a ~1796u run). When precision improves, LOWER them.
@@ -544,40 +544,40 @@ namespace Tests.Renderer
 
             for (var run = 0; run < ComparisonFramerates.Length; run++)
             {
-                (travel[run], endSpeed[run], descent[run], grounded[run], wishDot[run]) = RunSurf(ComparisonFramerates[run]);
+                (travel[run], endSpeed[run], descent[run], grounded[run], wishDot[run]) = await RunSurf(ComparisonFramerates[run]);
             }
 
-            TestContext.Out.WriteLine($"{SurfSlopeDegrees}° ramp, dropped {SurfDropHeight}u above it, 3s holding A with the view 10° right:");
-            TestContext.Out.WriteLine($"  {"fps",-8} {"travel",-16} {"end speed",-14} {"descent",-14} {"v·wishdir",-12} {"grounded",-9}");
+            await Console.Out.WriteLineAsync($"{SurfSlopeDegrees}° ramp, dropped {SurfDropHeight}u above it, 3s holding A with the view 10° right:");
+            await Console.Out.WriteLineAsync($"  {"fps",-8} {"travel",-16} {"end speed",-14} {"descent",-14} {"v·wishdir",-12} {"grounded",-9}");
 
             for (var run = 0; run < ComparisonFramerates.Length; run++)
             {
-                TestContext.Out.WriteLine(
+                await Console.Out.WriteLineAsync(
                     $"  {ComparisonFramerates[run],-8:F0} {travel[run],-16:F5} {endSpeed[run],-14:F5}"
                     + $" {descent[run],-14:F5} {wishDot[run],-12:F5} {grounded[run],-9}");
             }
 
-            TestContext.Out.WriteLine(
+            await Console.Out.WriteLineAsync(
                 $"  spreads: travel={Spread(travel):E2} endSpeed={Spread(endSpeed):E2}"
                 + $" descent={Spread(descent):E2} wishDot={Spread(wishDot):E2}");
-            TestContext.Out.WriteLine($"  (AirMaxWishSpeed is {AirCap}; the addspeed gate stops adding once v·wishdir reaches it)");
+            await Console.Out.WriteLineAsync($"  (AirMaxWishSpeed is {AirCap}; the addspeed gate stops adding once v·wishdir reaches it)");
 
-            Assert.That(travel[0], Is.GreaterThan(1f), "player did not move along the ramp; the scenario is broken");
+            await Assert.That(travel[0]).IsGreaterThan(1f).Because("player did not move along the ramp; the scenario is broken");
 
             foreach (var g in grounded)
             {
-                Assert.That(g, Is.False, "ramp was treated as walkable ground; this is no longer a surf test");
+                await Assert.That(g).IsFalse().Because("ramp was treated as walkable ground; this is no longer a surf test");
             }
 
             foreach (var w in wishDot)
             {
-                Assert.That(w, Is.GreaterThan(WishDotFloor), "strafe input lost against the ramp; surfing is broken at this framerate");
+                await Assert.That(w).IsGreaterThan(WishDotFloor).Because("strafe input lost against the ramp; surfing is broken at this framerate");
             }
 
-            Assert.That(Spread(travel), Is.LessThan(TravelSpreadLock), "surf travel framerate invariance regressed");
-            Assert.That(Spread(endSpeed), Is.LessThan(EndSpeedSpreadLock), "surf end speed framerate invariance regressed");
-            Assert.That(Spread(descent), Is.LessThan(DescentSpreadLock), "surf descent framerate invariance regressed");
-            Assert.That(Spread(wishDot), Is.LessThan(WishDotSpreadLock), "surf wish gate framerate invariance regressed");
+            await Assert.That(Spread(travel)).IsLessThan(TravelSpreadLock).Because("surf travel framerate invariance regressed");
+            await Assert.That(Spread(endSpeed)).IsLessThan(EndSpeedSpreadLock).Because("surf end speed framerate invariance regressed");
+            await Assert.That(Spread(descent)).IsLessThan(DescentSpreadLock).Because("surf descent framerate invariance regressed");
+            await Assert.That(Spread(wishDot)).IsLessThan(WishDotSpreadLock).Because("surf wish gate framerate invariance regressed");
         }
 
         /// <summary>
@@ -585,9 +585,9 @@ namespace Tests.Renderer
         /// landing and slide out the remaining speed. Returns the total horizontal distance from
         /// launch to the resting position, and the apex height reached.
         /// </summary>
-        private (double Horizontal, double Apex, bool Landed) RunOverhangBounce(float fps)
+        private async Task<(double Horizontal, double Apex, bool Landed)> RunOverhangBounce(float fps)
         {
-            var (input, renderCamera) = CreateHeadlessFpsInput(spawnHeight: 100f);
+            var (input, renderCamera) = await CreateHeadlessFpsInput(spawnHeight: 100f);
             var movement = input.PlayerMovement;
             var dt = 1f / fps;
 
@@ -597,13 +597,13 @@ namespace Tests.Renderer
             var n = Vector3.Normalize(new Vector3(1, 0, -1));
             movement.DebugCollisionPlanes.Add(new Vector4(n.X, n.Y, n.Z, -95f));
 
-            SettleOntoGround(input, renderCamera, fps);
+            await SettleOntoGround(input, renderCamera, fps);
 
             var launch = movement.Position;
 
             // One grounded frame with jump held (AutoBunnyHop) launches straight up
             input.Tick(dt, TrackedKeys.Space, Vector2.Zero, renderCamera);
-            Assert.That(movement.OnGround, Is.False, "jump did not leave the ground");
+            await Assert.That(movement.OnGround).IsFalse().Because("jump did not leave the ground");
 
             var apexZ = movement.Position.Z;
             var frames = (int)(4f * fps);
@@ -652,34 +652,34 @@ namespace Tests.Renderer
         /// signal for the bounce in the air mover.
         /// </summary>
         [Test]
-        public void OverhangJumpBounceComparison()
+        public async Task OverhangJumpBounceComparison()
         {
             var horizontal = new double[ComparisonFramerates.Length];
             var apex = new double[ComparisonFramerates.Length];
 
             for (var run = 0; run < ComparisonFramerates.Length; run++)
             {
-                var (h, a, landed) = RunOverhangBounce(ComparisonFramerates[run]);
+                var (h, a, landed) = await RunOverhangBounce(ComparisonFramerates[run]);
                 horizontal[run] = h;
                 apex[run] = a;
-                Assert.That(landed, Is.True, "player never landed");
+                await Assert.That(landed).IsTrue().Because("player never landed");
             }
 
-            TestContext.Out.WriteLine("45° overhang jump bounce (jump into normal (1,0,-1)):");
-            TestContext.Out.WriteLine($"  {"fps",-8} {"horizontal",-16} {"apex",-14}");
+            await Console.Out.WriteLineAsync("45° overhang jump bounce (jump into normal (1,0,-1)):");
+            await Console.Out.WriteLineAsync($"  {"fps",-8} {"horizontal",-16} {"apex",-14}");
 
             for (var run = 0; run < ComparisonFramerates.Length; run++)
             {
-                TestContext.Out.WriteLine($"  {ComparisonFramerates[run],-8:F0} {horizontal[run],-16:F5} {apex[run],-14:F5}");
+                await Console.Out.WriteLineAsync($"  {ComparisonFramerates[run],-8:F0} {horizontal[run],-16:F5} {apex[run],-14:F5}");
             }
 
-            TestContext.Out.WriteLine($"  spreads: horizontal={Spread(horizontal):E2} apex={Spread(apex):E2}");
+            await Console.Out.WriteLineAsync($"  spreads: horizontal={Spread(horizontal):E2} apex={Spread(apex):E2}");
 
-            Assert.That(horizontal[0], Is.GreaterThan(1.0), "overhang did not deflect the jump horizontally");
+            await Assert.That(horizontal[0]).IsGreaterThan(1.0).Because("overhang did not deflect the jump horizontally");
 
             // Locks, ~2x the measured spreads (horizontal 2.8e-3, apex 7.6e-3)
-            Assert.That(Spread(horizontal), Is.LessThan(6e-3), "overhang bounce invariance regressed");
-            Assert.That(Spread(apex), Is.LessThan(1.5e-2), "overhang apex invariance regressed");
+            await Assert.That(Spread(horizontal)).IsLessThan(6e-3).Because("overhang bounce invariance regressed");
+            await Assert.That(Spread(apex)).IsLessThan(1.5e-2).Because("overhang apex invariance regressed");
         }
     }
 }

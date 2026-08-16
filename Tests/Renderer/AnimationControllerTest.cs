@@ -1,6 +1,7 @@
 using System.IO;
 using System.Linq;
-using NUnit.Framework;
+using System.Threading.Tasks;
+using TUnit.Assertions.Enums;
 using ValveResourceFormat;
 using ValveResourceFormat.Renderer;
 using ValveResourceFormat.ResourceTypes;
@@ -12,10 +13,10 @@ namespace Tests.Renderer
     public class AnimationControllerTest
     {
         private static string FilePath(string name)
-            => Path.Combine(TestContext.CurrentContext.TestDirectory, "Files", name);
+            => Path.Combine(TestContext.TestDirectory!, "Files", name);
 
         [Test]
-        public void PlayerOwnsPauseStateWhenTheClipFinishes()
+        public async Task PlayerOwnsPauseStateWhenTheClipFinishes()
         {
             using var resource = new Resource();
             resource.Read(FilePath("box_creature_ik_model.vmdl_c"));
@@ -30,20 +31,20 @@ namespace Tests.Renderer
             controller.SetAnimation(walk);
 
             // The clip runs 25 frames at 30fps, so a full second overshoots its end and pauses it.
-            Assert.That(controller.Update(1f), Is.True);
+            await Assert.That(controller.Update(1f)).IsTrue();
 
-            using (Assert.EnterMultipleScope())
+            using (Assert.Multiple())
             {
-                Assert.That(controller.IsPaused, Is.True, "finishing the clip pauses the player on the same tick");
-                Assert.That(controller.ActiveClipFinished, Is.True);
-                Assert.That(controller.Frame, Is.EqualTo(walk.FrameCount - 1));
+                await Assert.That(controller.IsPaused).IsTrue().Because("finishing the clip pauses the player on the same tick");
+                await Assert.That(controller.ActiveClipFinished).IsTrue();
+                await Assert.That(controller.Frame).IsEqualTo(walk.FrameCount - 1);
             }
 
-            Assert.That(controller.Update(0f), Is.False, "a paused controller reports no pose change");
+            await Assert.That(controller.Update(0f)).IsFalse().Because("a paused controller reports no pose change");
         }
 
         [Test]
-        public void SwitchingPlayersCarriesPauseAndRemapsTheExternalPose()
+        public async Task SwitchingPlayersCarriesPauseAndRemapsTheExternalPose()
         {
             using var modelResource = new Resource();
             modelResource.Read(FilePath("box_creature_ik_model.vmdl_c"));
@@ -64,18 +65,18 @@ namespace Tests.Renderer
             controller.SetAnimation(idle);
             controller.Update(0.1f);
 
-            Assert.That(controller.CurrentPlayer, Is.Null, "a model animation plays on the model player");
+            await Assert.That(controller.CurrentPlayer).IsNull().Because("a model animation plays on the model player");
 
             controller.IsPaused = true;
             controller.SetAnimation(new ClipAnimation(clip));
 
             var external = controller.CurrentPlayer;
 
-            using (Assert.EnterMultipleScope())
+            using (Assert.Multiple())
             {
-                Assert.That(external, Is.Not.Null, "an NM clip plays on the player owning its skeleton");
-                Assert.That(controller.IsPaused, Is.True, "pause carries onto the player taking over");
-                Assert.That(controller.ActiveAnimation, Is.InstanceOf<ClipAnimation>());
+                await Assert.That(external).IsNotNull().Because("an NM clip plays on the player owning its skeleton");
+                await Assert.That(controller.IsPaused).IsTrue().Because("pause carries onto the player taking over");
+                await Assert.That(controller.ActiveAnimation).IsAssignableTo<ClipAnimation>();
             }
 
             controller.Update(0f);
@@ -91,23 +92,23 @@ namespace Tests.Renderer
                 }
 
                 mapped++;
-                Assert.That(controller.Pose[i], Is.EqualTo(external!.Pose[sourceBone.Index]), $"bone {model.Skeleton.Bones[i].Name}");
+                await Assert.That(controller.Pose[i]).IsEqualTo(external!.Pose[sourceBone.Index]).Because($"bone {model.Skeleton.Bones[i].Name}");
             }
 
             if (mapped == 0)
             {
                 // No bone name is shared between the two skeletons, so every bone falls back to bind pose.
-                Assert.That(controller.Pose, Is.EqualTo(controller.BindPose));
+                await Assert.That(controller.Pose).IsEquivalentTo(controller.BindPose, CollectionOrdering.Matching);
             }
 
             controller.SetAnimation(idle);
 
-            using (Assert.EnterMultipleScope())
+            using (Assert.Multiple())
             {
-                Assert.That(controller.CurrentPlayer, Is.Null, "switching back returns to the model player");
-                Assert.That(controller.IsPaused, Is.True, "pause carries back off the external player");
-                Assert.That(controller.ActiveAnimation!.Name, Is.EqualTo("box_creature_leggy_idle"));
-                Assert.That(external!.Clips, Is.Empty, "the outgoing player's mixer is cleared");
+                await Assert.That(controller.CurrentPlayer).IsNull().Because("switching back returns to the model player");
+                await Assert.That(controller.IsPaused).IsTrue().Because("pause carries back off the external player");
+                await Assert.That(controller.ActiveAnimation!.Name).IsEqualTo("box_creature_leggy_idle");
+                await Assert.That(external!.Clips).IsEmpty().Because("the outgoing player's mixer is cleared");
             }
         }
 

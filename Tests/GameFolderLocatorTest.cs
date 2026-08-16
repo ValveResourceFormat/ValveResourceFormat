@@ -1,21 +1,20 @@
-using NUnit.Framework;
+using System.Threading.Tasks;
 using ValveResourceFormat.IO;
 
 namespace Tests
 {
-    [TestFixture]
     public class GameFolderLocatorTest
     {
         [Test]
-        public void Test()
+        public async Task Test()
         {
             // This test is essentially just verifying that none of these paths crash on the CI because it has no Steam
             var steamPath = GameFolderLocator.SteamPath;
             GameFolderLocator.FindSteamGameByAppId(10);
-            using (Assert.EnterMultipleScope())
+            using (Assert.Multiple())
             {
-                Assert.That(GameFolderLocator.FindSteamLibraryFolderPaths(), Is.Not.Null);
-                Assert.That(GameFolderLocator.FindAllSteamGames(), Is.Not.Null);
+                await Assert.That(GameFolderLocator.FindSteamLibraryFolderPaths()).IsNotNull();
+                await Assert.That(GameFolderLocator.FindAllSteamGames()).IsNotNull();
             }
         }
     }

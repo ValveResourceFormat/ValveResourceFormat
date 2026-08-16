@@ -2,7 +2,7 @@ using System;
 using System.IO;
 using System.Numerics;
 using System.Runtime.InteropServices;
-using NUnit.Framework;
+using System.Threading.Tasks;
 using ValveResourceFormat;
 using ValveResourceFormat.Blocks;
 using ValveResourceFormat.Renderer;
@@ -11,28 +11,27 @@ using ValveResourceFormat.Renderer.Utils;
 
 namespace Tests.Renderer
 {
+    [NotInParallel(nameof(ShaderRegistryTest))]
     public class ShaderRegistryTest
     {
-        private string customShaderDirectory;
+        private string customShaderDirectory = null!;
 
-        [SetUp]
+        [Before(HookType.Test)]
         public void SetUp()
         {
             customShaderDirectory = Path.Combine(Path.GetTempPath(), "VrfCustomShaders_" + Guid.NewGuid().ToString("N"));
             Directory.CreateDirectory(Path.Combine(customShaderDirectory, "common"));
         }
 
-        [TearDown]
+        [After(HookType.Test)]
         public void TearDown()
         {
             ShaderRegistry.Reset();
             Directory.Delete(customShaderDirectory, recursive: true);
         }
 
-        private void WriteShader(string relativePath, string source)
-        {
-            File.WriteAllText(Path.Combine(customShaderDirectory, relativePath.Replace('/', Path.DirectorySeparatorChar)), source);
-        }
+        private Task WriteShader(string relativePath, string source)
+            => File.WriteAllTextAsync(Path.Combine(customShaderDirectory, relativePath.Replace('/', Path.DirectorySeparatorChar)), source);
 
         private static string Preprocess(string shaderFile, ShaderLoader.ParsedShaderData? parsedData = null)
         {
@@ -40,15 +39,15 @@ namespace Tests.Renderer
         }
 
         [Test]
-        public void CustomShaderResolvesItsOwnInclude()
+        public async Task CustomShaderResolvesItsOwnInclude()
         {
-            WriteShader("custom_test.vert.slang", """
+            await WriteShader("custom_test.vert.slang", """
                 #version 460
                 #include "common/custom_include.slang"
                 void main() { CustomHelper(); }
                 """);
 
-            WriteShader("common/custom_include.slang", """
+            await WriteShader("common/custom_include.slang", """
                 #version 460
                 void CustomHelper() {}
                 """);
@@ -58,46 +57,46 @@ namespace Tests.Renderer
             var parsedData = new ShaderLoader.ParsedShaderData();
             var source = Preprocess("custom_test.vert.slang", parsedData);
 
-            using (Assert.EnterMultipleScope())
+            using (Assert.Multiple())
             {
-                Assert.That(new ShaderParser().AvailableShaders, Contains.Key("custom_test"));
-                Assert.That(source, Does.Contain("void CustomHelper() {}"));
-                Assert.That(source, Does.Contain("void main() { CustomHelper(); }"));
-                Assert.That(parsedData.SourceFiles, Does.Contain("common/custom_include.slang"));
+                await Assert.That(new ShaderParser().AvailableShaders).ContainsKey("custom_test");
+                await Assert.That(source).Contains("void CustomHelper() {}");
+                await Assert.That(source).Contains("void main() { CustomHelper(); }");
+                await Assert.That(parsedData.SourceFiles).Contains("common/custom_include.slang");
             }
         }
 
         [Test]
-        public void MountedIncludeOverridesBuiltinOne()
+        public async Task MountedIncludeOverridesBuiltinOne()
         {
-            Assert.That(Preprocess("complex.vert.slang"), Does.Not.Contain("CustomUtilsMarker"));
+            await Assert.That(Preprocess("complex.vert.slang")).DoesNotContain("CustomUtilsMarker");
 
             // complex.vert.slang includes common/utils.slang
-            WriteShader("common/utils.slang", """
+            await WriteShader("common/utils.slang", """
                 #version 460
                 void CustomUtilsMarker() {}
                 """);
 
             ShaderRegistry.AddShaderDirectory(customShaderDirectory);
 
-            Assert.That(Preprocess("complex.vert.slang"), Does.Contain("void CustomUtilsMarker() {}"));
+            await Assert.That(Preprocess("complex.vert.slang")).Contains("void CustomUtilsMarker() {}");
         }
 
         [Test]
-        public void LastAddedShaderDirectoryHasPriority()
+        public async Task LastAddedShaderDirectoryHasPriority()
         {
             var secondDirectory = customShaderDirectory + "_second";
             Directory.CreateDirectory(secondDirectory);
 
             try
             {
-                WriteShader("complex.vert.slang", "#version 460\nvoid main() { First(); }");
-                File.WriteAllText(Path.Combine(secondDirectory, "complex.vert.slang"), "#version 460\nvoid main() { Second(); }");
+                await WriteShader("complex.vert.slang", "#version 460\nvoid main() { First(); }");
+                await File.WriteAllTextAsync(Path.Combine(secondDirectory, "complex.vert.slang"), "#version 460\nvoid main() { Second(); }");
 
                 ShaderRegistry.AddShaderDirectory(customShaderDirectory);
                 ShaderRegistry.AddShaderDirectory(secondDirectory);
 
-                Assert.That(Preprocess("complex.vert.slang"), Does.Contain("void main() { Second(); }"));
+                await Assert.That(Preprocess("complex.vert.slang")).Contains("void main() { Second(); }");
             }
             finally
             {
@@ -106,7 +105,7 @@ namespace Tests.Renderer
         }
 
         [Test]
-        public void PreprocessedSourceCanBePatched()
+        public async Task PreprocessedSourceCanBePatched()
         {
             // Shaders can also be customized by patching the preprocessed source instead of overriding whole files.
             // Note the result cannot be written back out as a shader file, as it is already fully inlined.
@@ -114,11 +113,11 @@ namespace Tests.Renderer
             var patched = Preprocess("complex.vert.slang", parsedData)
                 .Replace("void main()", "void PatchedMain()", StringComparison.Ordinal);
 
-            using (Assert.EnterMultipleScope())
+            using (Assert.Multiple())
             {
-                Assert.That(patched, Does.Contain("void PatchedMain()"));
-                Assert.That(patched, Does.Not.Contain("void main()"));
-                Assert.That(parsedData.Sources, Is.Empty, "Sources are only filled in by ShaderLoader when it compiles a shader");
+                await Assert.That(patched).Contains("void PatchedMain()");
+                await Assert.That(patched).DoesNotContain("void main()");
+                await Assert.That(parsedData.Sources).IsEmpty().Because("Sources are only filled in by ShaderLoader when it compiles a shader");
             }
         }
 
@@ -141,9 +140,9 @@ namespace Tests.Renderer
         }
 
         [Test]
-        public void CustomShaderAndVertexStructAgreeOnLocations()
+        public async Task CustomShaderAndVertexStructAgreeOnLocations()
         {
-            WriteShader("custom_vertex.vert.slang", """
+            await WriteShader("custom_vertex.vert.slang", """
                 #version 460
                 in vec3 vPOSITION;
                 in float vAttr1;
@@ -158,56 +157,56 @@ namespace Tests.Renderer
             var source = Preprocess("custom_vertex.vert.slang");
             var fields = VertexInputLayout.FromStruct<TestVertex>().Fields();
 
-            using (Assert.EnterMultipleScope())
+            using (Assert.Multiple())
             {
                 // Mesh attributes keep their canonical slot
-                Assert.That(source, Does.Contain($"layout (location = {(int)VertexSlot.Position}) in vec3 vPOSITION;"));
-                Assert.That(source, Does.Contain($"layout (location = {(int)VertexSlot.TexCoord}) in vec2 vTEXCOORD;"));
+                await Assert.That(source).Contains($"layout (location = {(int)VertexSlot.Position}) in vec3 vPOSITION;");
+                await Assert.That(source).Contains($"layout (location = {(int)VertexSlot.TexCoord}) in vec2 vTEXCOORD;");
 
                 // A declaration that places itself is left alone, not stamped a second time
-                Assert.That(source, Does.Contain("layout (location = 12) in float vAttr2;"));
-                Assert.That(source, Does.Not.Contain(") layout ("));
+                await Assert.That(source).Contains("layout (location = 12) in float vAttr2;");
+                await Assert.That(source).DoesNotContain(") layout (");
 
                 // The custom ones fill the slots left free, in name order rather than declaration order, and
                 // the pinned slot is out of that pool even though it is declared between them
-                Assert.That(source, Does.Contain($"layout (location = {(int)VertexSlot.BlendIndices}) in float vAttr1;"));
-                Assert.That(source, Does.Contain($"layout (location = {(int)VertexSlot.BlendWeight}) in float vAttr3;"));
+                await Assert.That(source).Contains($"layout (location = {(int)VertexSlot.BlendIndices}) in float vAttr1;");
+                await Assert.That(source).Contains($"layout (location = {(int)VertexSlot.BlendWeight}) in float vAttr3;");
 
                 // The struct declares the same names and reaches the same locations, which is what lets its
                 // vertex array object feed this shader. A custom attribute carries the semantic of the slot it
                 // landed on, which is how the mesh path resolves it back.
-                Assert.That(SemanticOf(fields, "vAttr1"), Is.EqualTo(VertexAttributeLocations.GetSemantic((int)VertexSlot.BlendIndices)));
-                Assert.That(SemanticOf(fields, "vAttr3"), Is.EqualTo(VertexAttributeLocations.GetSemantic((int)VertexSlot.BlendWeight)));
-                Assert.That(SemanticOf(fields, "vAttr2"), Is.EqualTo(VertexAttributeLocations.GetSemantic(12)));
+                await Assert.That(SemanticOf(fields, "vAttr1")).IsEqualTo(VertexAttributeLocations.GetSemantic((int)VertexSlot.BlendIndices));
+                await Assert.That(SemanticOf(fields, "vAttr3")).IsEqualTo(VertexAttributeLocations.GetSemantic((int)VertexSlot.BlendWeight));
+                await Assert.That(SemanticOf(fields, "vAttr2")).IsEqualTo(VertexAttributeLocations.GetSemantic(12));
             }
         }
 
         [Test]
-        public void OnlyVfxShaderNamesFallBackToComplex()
+        public async Task OnlyVfxShaderNamesFallBackToComplex()
         {
-            using (Assert.EnterMultipleScope())
+            using (Assert.Multiple())
             {
-                Assert.That(ShaderLoader.GetShaderFileByName("mygame_glass.vfx"), Is.EqualTo("complex"));
-                Assert.That(ShaderLoader.GetShaderFileByName("sky.vfx"), Is.EqualTo("sky"));
+                await Assert.That(ShaderLoader.GetShaderFileByName("mygame_glass.vfx")).IsEqualTo("complex");
+                await Assert.That(ShaderLoader.GetShaderFileByName("sky.vfx")).IsEqualTo("sky");
 
                 // Renderer shader files are loaded as themselves, and throw when they do not exist
-                Assert.That(ShaderLoader.GetShaderFileByName("mygame_glass"), Is.EqualTo("mygame_glass"));
-                Assert.That(ShaderLoader.GetShaderFileByName("vrf.grid"), Is.EqualTo("grid"));
+                await Assert.That(ShaderLoader.GetShaderFileByName("mygame_glass")).IsEqualTo("mygame_glass");
+                await Assert.That(ShaderLoader.GetShaderFileByName("vrf.grid")).IsEqualTo("grid");
             }
         }
 
         [Test]
-        public void ShaderMappingsOverrideBuiltinOnes()
+        public async Task ShaderMappingsOverrideBuiltinOnes()
         {
-            Assert.That(ShaderLoader.GetShaderFileByName("mygame_glass.vfx"), Is.EqualTo("complex"));
+            await Assert.That(ShaderLoader.GetShaderFileByName("mygame_glass.vfx")).IsEqualTo("complex");
 
             ShaderRegistry.AddShaderMapping("mygame_glass.vfx", "mygame_glass");
             ShaderRegistry.AddShaderMapping("sky.vfx", "mygame_sky");
 
-            using (Assert.EnterMultipleScope())
+            using (Assert.Multiple())
             {
-                Assert.That(ShaderLoader.GetShaderFileByName("mygame_glass.vfx"), Is.EqualTo("mygame_glass"));
-                Assert.That(ShaderLoader.GetShaderFileByName("sky.vfx"), Is.EqualTo("mygame_sky"));
+                await Assert.That(ShaderLoader.GetShaderFileByName("mygame_glass.vfx")).IsEqualTo("mygame_glass");
+                await Assert.That(ShaderLoader.GetShaderFileByName("sky.vfx")).IsEqualTo("mygame_sky");
             }
         }
     }

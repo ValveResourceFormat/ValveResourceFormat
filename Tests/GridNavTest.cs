@@ -1,5 +1,5 @@
 using System.IO;
-using NUnit.Framework;
+using System.Threading.Tasks;
 using ValveResourceFormat.MapFormats;
 
 namespace Tests
@@ -7,19 +7,19 @@ namespace Tests
     public class GridNavTest
     {
         [Test]
-        public void ParsesGridNavFile()
+        public async Task ParsesGridNavFile()
         {
-            var path = Path.Combine(TestContext.CurrentContext.TestDirectory, "Files", "test_basic.gnv");
+            var path = Path.Combine(TestContext.TestDirectory!, "Files", "test_basic.gnv");
             var nav = new GridNavFile();
             nav.Read(path);
 
-            using (Assert.EnterMultipleScope())
+            using (Assert.Multiple())
             {
-                Assert.That(nav.EdgeSize, Is.EqualTo(64));
-                Assert.That(nav.Height, Is.EqualTo(64));
-                Assert.That(nav.OffsetX, Is.EqualTo(32));
-                Assert.That(nav.OffsetY, Is.EqualTo(32));
-                Assert.That(nav.Grid, Has.Length.EqualTo(4096));
+                await Assert.That(nav.EdgeSize).IsEqualTo(64);
+                await Assert.That(nav.Height).IsEqualTo(64);
+                await Assert.That(nav.OffsetX).IsEqualTo(32);
+                await Assert.That(nav.OffsetY).IsEqualTo(32);
+                await Assert.That(nav.Grid).Count().IsEqualTo(4096);
             }
         }
     }

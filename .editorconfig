@@ -286,3 +286,7 @@ dotnet_style_parentheses_in_other_operators = never_if_unnecessary
 # Disable very slow analyzers - https://github.com/dotnet/roslyn-analyzers/issues/6737
 dotnet_diagnostic.CA5403.severity = none # Do not hard-code certificate
 dotnet_diagnostic.CA5390.severity = none # Do not hard-code encryption key
+
+# Test assemblies have no synchronization context to capture.
+[Tests/**.cs]
+dotnet_diagnostic.CA2007.severity = none # Consider calling ConfigureAwait on the awaited task

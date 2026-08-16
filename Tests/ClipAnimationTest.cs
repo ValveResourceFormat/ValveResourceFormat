@@ -1,6 +1,7 @@
 using System.IO;
 using System.Linq;
-using NUnit.Framework;
+using System.Threading.Tasks;
+using TUnit.Assertions.Enums;
 using ValveResourceFormat;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.ResourceTypes.ModelAnimation;
@@ -8,11 +9,10 @@ using ValveResourceFormat.ResourceTypes.ModelAnimation2;
 
 namespace Tests
 {
-    [TestFixture]
     public class ClipAnimationTest
     {
         private static string FilePath(string name)
-            => Path.Combine(TestContext.CurrentContext.TestDirectory, "Files", name);
+            => Path.Combine(TestContext.TestDirectory!, "Files", name);
 
         private static AnimationClip LoadAkClip(Resource resource)
         {
@@ -25,24 +25,24 @@ namespace Tests
         }
 
         [Test]
-        public void ConstructionMapsClipProperties()
+        public async Task ConstructionMapsClipProperties()
         {
             using var resource = new Resource();
             var clip = LoadAkClip(resource);
 
             var animation = new ClipAnimation(clip);
 
-            using (Assert.EnterMultipleScope())
+            using (Assert.Multiple())
             {
-                Assert.That(animation.Name, Is.EqualTo(clip.Name));
-                Assert.That(animation.FrameCount, Is.EqualTo(1));
-                Assert.That(animation.Fps, Is.EqualTo(1), "a zero-duration clip falls back to 1 fps");
-                Assert.That(animation.IsAdditive, Is.False);
+                await Assert.That(animation.Name).IsEqualTo(clip.Name);
+                await Assert.That(animation.FrameCount).IsEqualTo(1);
+                await Assert.That(animation.Fps).IsEqualTo(1).Because("a zero-duration clip falls back to 1 fps");
+                await Assert.That(animation.IsAdditive).IsFalse();
             }
         }
 
         [Test]
-        public void DecodeFrameReadsClipPose()
+        public async Task DecodeFrameReadsClipPose()
         {
             using var resource = new Resource();
             var clip = LoadAkClip(resource);
@@ -56,11 +56,11 @@ namespace Tests
 
             var frame = frameCache.GetFrame(animation, 0);
 
-            using (Assert.EnterMultipleScope())
+            using (Assert.Multiple())
             {
-                Assert.That(frame.Bones, Has.Length.EqualTo(skeleton.Bones.Length));
-                Assert.That(frame.Bones.Select(b => b.Angle.Length()), Is.All.EqualTo(1f).Within(0.001f), "decoded rotations are unit quaternions");
-                Assert.That(frame.Movement, Is.EqualTo(default(AnimationMovement.MovementData)));
+                await Assert.That(frame.Bones).Count().IsEqualTo(skeleton.Bones.Length);
+                await Assert.That(frame.Bones.Select(b => b.Angle.Length())).All(length => MathF.Abs(length - 1f) <= 0.001f).Because("decoded rotations are unit quaternions");
+                await Assert.That(frame.Movement).IsEqualTo(default(AnimationMovement.MovementData));
             }
         }
 
@@ -74,7 +74,7 @@ namespace Tests
         private static readonly string[] ClipEventClasses = ["CNmIDEvent", "CNmParticleEvent", "CNmSoundEvent", "CNmParticleEvent"];
 
         [Test]
-        public void EventsAreReadFromClip()
+        public async Task EventsAreReadFromClip()
         {
             using var resource = new Resource();
             var animation = LoadNovaShootAnimation(resource);
@@ -82,37 +82,36 @@ namespace Tests
             var soundEvent = animation.Events.OfType<NmSoundEvent>().Single();
             var idEvent = animation.Events.OfType<NmIDEvent>().Single();
 
-            using (Assert.EnterMultipleScope())
+            using (Assert.Multiple())
             {
-                Assert.That(animation.Duration, Is.EqualTo(0.8f).Within(0.0001f));
-                Assert.That(animation.Events.Select(e => e.ClassName), Is.EqualTo(ClipEventClasses));
+                await Assert.That(animation.Duration).IsEqualTo(0.8f).Within(0.0001f);
+                await Assert.That(animation.Events.Select(e => e.ClassName)).IsEquivalentTo(ClipEventClasses, CollectionOrdering.Matching);
 
                 // Times are stored normalized in the resource, they are exposed in seconds
-                Assert.That(soundEvent.Name, Is.EqualTo("Weapon_Nova.Pump_Q"));
-                Assert.That(soundEvent.StartTime, Is.EqualTo(0.233333f).Within(0.0001f));
-                Assert.That(soundEvent.DurationInterruptionThreshold, Is.EqualTo(0.9f), "unset properties fall back to their engine default");
+                await Assert.That(soundEvent.Name).IsEqualTo("Weapon_Nova.Pump_Q");
+                await Assert.That(soundEvent.StartTime).IsEqualTo(0.233333f).Within(0.0001f);
+                await Assert.That(soundEvent.DurationInterruptionThreshold).IsEqualTo(0.9f).Because("unset properties fall back to their engine default");
 
-                Assert.That(idEvent.ID, Is.EqualTo("WPN_BLOCK_INSPECT"));
-                Assert.That(idEvent.Duration, Is.EqualTo(0.7f).Within(0.0001f));
+                await Assert.That(idEvent.ID).IsEqualTo("WPN_BLOCK_INSPECT");
+                await Assert.That(idEvent.Duration).IsEqualTo(0.7f).Within(0.0001f);
 
-                Assert.That(animation.Events.OfType<NmParticleEvent>().Last().ParticleSystemName,
-                    Is.EqualTo("particles/weapons/cs_weapon_fx/weapon_shell_casing_shotgun_nova.vpcf"));
+                await Assert.That(animation.Events.OfType<NmParticleEvent>().Last().ParticleSystemName).IsEqualTo("particles/weapons/cs_weapon_fx/weapon_shell_casing_shotgun_nova.vpcf");
             }
         }
 
         [Test]
-        public void StaticClipHasNoMovementData()
+        public async Task StaticClipHasNoMovementData()
         {
             using var resource = new Resource();
             var clip = LoadAkClip(resource);
 
             var animation = new ClipAnimation(clip);
 
-            using (Assert.EnterMultipleScope())
+            using (Assert.Multiple())
             {
-                Assert.That(animation.HasMovementData(), Is.False);
-                Assert.That(animation.GetMovementOffsetData(0), Is.EqualTo(default(AnimationMovement.MovementData)));
-                Assert.That(animation.GetMovementOffsetData(0f), Is.EqualTo(default(AnimationMovement.MovementData)));
+                await Assert.That(animation.HasMovementData()).IsFalse();
+                await Assert.That(animation.GetMovementOffsetData(0)).IsEqualTo(default(AnimationMovement.MovementData));
+                await Assert.That(animation.GetMovementOffsetData(0f)).IsEqualTo(default(AnimationMovement.MovementData));
             }
         }
     }

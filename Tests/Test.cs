@@ -3,7 +3,7 @@ using System.IO;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Text.RegularExpressions;
-using NUnit.Framework;
+using System.Threading.Tasks;
 using ValveResourceFormat;
 using ValveResourceFormat.IO;
 using ValveResourceFormat.ResourceTypes;
@@ -11,16 +11,14 @@ using ValveResourceFormat.Utils;
 
 namespace Tests
 {
-    [TestFixture]
     public partial class Test
     {
         // TODO: Add asserts for blocks/resources that were skipped
-
         [Test]
-        public void ReadBlocks()
+        public async Task ReadBlocks()
         {
             var resources = new Dictionary<string, Resource>();
-            var path = Path.Combine(TestContext.CurrentContext.TestDirectory, "Files");
+            var path = Path.Combine(TestContext.TestDirectory!, "Files");
             var files = Directory.GetFiles(path, "*.*_c", new EnumerationOptions
             {
                 RecurseSubdirectories = true,
@@ -28,7 +26,7 @@ namespace Tests
 
             if (files.Length == 0)
             {
-                Assert.Fail("There are no files to test.");
+                Fail.Test("There are no files to test.");
             }
 
             foreach (var file in files)
@@ -41,8 +39,8 @@ namespace Tests
 
                 resources.Add(Path.GetFileName(file), resource);
 
-                Assert.That(resource.ResourceType, Is.Not.EqualTo(ResourceType.Unknown));
-                Assert.That(resource.ResourceType, Is.EqualTo(ResourceTypeExtensions.DetermineByFileExtension(Path.GetExtension(file.AsSpan()))));
+                await Assert.That(resource.ResourceType).IsNotEqualTo(ResourceType.Unknown);
+                await Assert.That(resource.ResourceType).IsEqualTo(ResourceTypeExtensions.DetermineByFileExtension(Path.GetExtension(file.AsSpan())));
 
                 // Verify extension
                 var extension = Path.GetExtension(file);
@@ -53,7 +51,7 @@ namespace Tests
                 }
 
                 var attribute = "." + resource.ResourceType.GetExtension();
-                Assert.That(attribute, Is.EqualTo(extension), file);
+                await Assert.That(attribute).IsEqualTo(extension).Because(file);
 
                 if (resource.ResourceType != ResourceType.Map) /// Tested by <see cref="MapExtractTest"/>
                 {
@@ -61,14 +59,14 @@ namespace Tests
                 }
             }
 
-            VerifyResources(resources);
+            await VerifyResources(resources);
         }
 
         [Test]
-        public void RoundtripSerialization()
+        public async Task RoundtripSerialization()
         {
             var resources = new Dictionary<string, Resource>();
-            var path = Path.Combine(TestContext.CurrentContext.TestDirectory, "Files");
+            var path = Path.Combine(TestContext.TestDirectory!, "Files");
             var files = Directory.GetFiles(path, "*.*_c", new EnumerationOptions
             {
                 RecurseSubdirectories = true,
@@ -78,7 +76,7 @@ namespace Tests
 
             if (files.Length == 0)
             {
-                Assert.Fail("There are no files to test.");
+                Fail.Test("There are no files to test.");
             }
 
             foreach (var file in files)
@@ -123,7 +121,7 @@ namespace Tests
 
                 resources.Add(Path.GetFileName(file), resource);
 
-                Assert.That(resource.ResourceType, Is.Not.EqualTo(ResourceType.Unknown));
+                await Assert.That(resource.ResourceType).IsNotEqualTo(ResourceType.Unknown);
 
                 // Verify extension
                 var extension = Path.GetExtension(file);
@@ -134,7 +132,7 @@ namespace Tests
                 }
 
                 var attribute = "." + resource.ResourceType.GetExtension();
-                Assert.That(attribute, Is.EqualTo(extension), file);
+                await Assert.That(attribute).IsEqualTo(extension).Because(file);
 
                 if (resource.ResourceType != ResourceType.Map) /// Tested by <see cref="MapExtractTest"/>
                 {
@@ -142,21 +140,21 @@ namespace Tests
                 }
             }
 
-            VerifyResources(resources, validateMissingResources: false);
+            await VerifyResources(resources, validateMissingResources: false);
 
-            Console.WriteLine($"{notImplemented} out of {total} files are not yet serializable.");
+            await Console.Out.WriteLineAsync($"{notImplemented} out of {total} files are not yet serializable.");
         }
 
         [Test]
-        public void ReadBlocksWithMemoryStream()
+        public async Task ReadBlocksWithMemoryStream()
         {
             var resources = new Dictionary<string, Resource>();
-            var path = Path.Combine(TestContext.CurrentContext.TestDirectory, "Files");
+            var path = Path.Combine(TestContext.TestDirectory!, "Files");
             var files = Directory.GetFiles(path, "*.*_c");
 
             if (files.Length == 0)
             {
-                Assert.Fail("There are no files to test.");
+                Fail.Test("There are no files to test.");
             }
 
             foreach (var file in files)
@@ -166,27 +164,27 @@ namespace Tests
                     FileName = file,
                 };
 
-                using var fs = new FileStream(file, FileMode.Open, FileAccess.Read);
+                await using var fs = new FileStream(file, FileMode.Open, FileAccess.Read, FileShare.Read, 4096, FileOptions.Asynchronous);
                 var ms = new MemoryStream();
-                fs.CopyTo(ms);
+                await fs.CopyToAsync(ms);
                 ms.Seek(0, SeekOrigin.Begin);
 
                 resource.Read(ms);
 
-                VerifyDataBlock(resource, file);
+                await VerifyDataBlock(resource, file);
             }
         }
 
         [Test]
-        public void ReadBlocksNoFileName()
+        public async Task ReadBlocksNoFileName()
         {
             var resources = new Dictionary<string, Resource>();
-            var path = Path.Combine(TestContext.CurrentContext.TestDirectory, "Files");
+            var path = Path.Combine(TestContext.TestDirectory!, "Files");
             var files = Directory.GetFiles(path, "*.*_c");
 
             if (files.Length == 0)
             {
-                Assert.Fail("There are no files to test.");
+                Fail.Test("There are no files to test.");
             }
 
             foreach (var file in files)
@@ -195,7 +193,7 @@ namespace Tests
                 using var fs = new FileStream(file, FileMode.Open, FileAccess.Read);
                 resource.Read(fs);
 
-                VerifyDataBlock(resource, file);
+                await VerifyDataBlock(resource, file);
             }
         }
 
@@ -206,18 +204,18 @@ namespace Tests
             "sbox_visualize_quad_overdraw.shader_c",
         ];
 
-        static void VerifyDataBlock(Resource resource, string file)
+        static async Task VerifyDataBlock(Resource resource, string file)
         {
             var dataBlock = resource.DataBlock;
 
             if (FilesWithEmptyDataBlocks.Contains(Path.GetFileName(file)))
             {
-                Assert.That(dataBlock, Is.Null, file);
+                await Assert.That(dataBlock).IsNull().Because(file);
                 return;
             }
 
-            Assert.That(dataBlock, Is.Not.Null, file);
-            Assert.That(dataBlock, Is.Not.TypeOf<UnknownDataBlock>(), file);
+            await Assert.That(dataBlock).IsNotNull().Because(file);
+            await Assert.That(dataBlock).IsNotTypeOf<UnknownDataBlock>().Because(file);
         }
 
         // Set VRF_REGEN_FIXTURES=1 to rewrite mismatching ValidOutput dumps in the source tree
@@ -226,9 +224,9 @@ namespace Tests
         private static string GetSourceValidOutputPath([CallerFilePath] string sourceFile = "")
             => Path.Combine(Path.GetDirectoryName(sourceFile)!, "Files", "ValidOutput");
 
-        static void VerifyResources(Dictionary<string, Resource> resources, bool validateMissingResources = true)
+        static async Task VerifyResources(Dictionary<string, Resource> resources, bool validateMissingResources = true)
         {
-            var path = Path.Combine(TestContext.CurrentContext.TestDirectory, "Files", "ValidOutput");
+            var path = Path.Combine(TestContext.TestDirectory!, "Files", "ValidOutput");
             var files = Directory.GetFiles(path, "*.*txt", SearchOption.AllDirectories);
             var seenResources = new Dictionary<Resource, HashSet<BlockType>>(resources.Count);
 
@@ -240,7 +238,7 @@ namespace Tests
                 {
                     if (validateMissingResources)
                     {
-                        Assert.Fail($"{name}: no such resource");
+                        Fail.Test($"{name}: no such resource");
                     }
 
                     continue;
@@ -258,7 +256,7 @@ namespace Tests
 
                 if (!resource.ContainsBlockType(blockType))
                 {
-                    Assert.Fail($"{name}: no such block: {blockType}");
+                    Fail.Test($"{name}: no such block: {blockType}");
 
                     continue;
                 }
@@ -269,13 +267,13 @@ namespace Tests
 
                 if (blockData == null)
                 {
-                    Assert.Fail($"{name}: block is null: {blockType}");
+                    Fail.Test($"{name}: block is null: {blockType}");
 
                     continue;
                 }
 
                 var rawOutput = blockData.ToString();
-                var expectedOutput = File.ReadAllText(file);
+                var expectedOutput = await File.ReadAllTextAsync(file);
 
                 // We don't care about Valve's messy whitespace, so just strip it.
                 var actualOutput = SpaceRegex().Replace(rawOutput, string.Empty);
@@ -290,12 +288,12 @@ namespace Tests
                     {
                         // Fixtures are stored with the version-free generator string
                         var sourceFile = Path.Combine(GetSourceValidOutputPath(), Path.GetRelativePath(path, file));
-                        File.WriteAllText(sourceFile, rawOutput.Replace(StringToken.VRF_GENERATOR, "Source 2 Viewer - https://valveresourceformat.github.io", StringComparison.Ordinal));
-                        TestContext.Error.WriteLine($"Regenerated '{sourceFile}'");
+                        await File.WriteAllTextAsync(sourceFile, rawOutput.Replace(StringToken.VRF_GENERATOR, "Source 2 Viewer - https://valveresourceformat.github.io", StringComparison.Ordinal));
+                        await Console.Error.WriteLineAsync($"Regenerated '{sourceFile}'");
                     }
                     else
                     {
-                        TestContext.Error.WriteLine($"File '{file}' has mismatching ToString() in {blockType}");
+                        await Console.Error.WriteLineAsync($"File '{file}' has mismatching ToString() in {blockType}");
                     }
                 }
             }
@@ -310,7 +308,7 @@ namespace Tests
                         {
                             if (!seenBlockTypes.Contains(block.Type))
                             {
-                                Assert.That(block.ToString(), Is.Not.Null);
+                                await Assert.That(block.ToString()).IsNotNull();
                                 //Assert.Fail($"{resource.FileName}: block {block.Type} does not have a corresponding text file");
                             }
                         }
@@ -320,7 +318,7 @@ namespace Tests
 
                     foreach (var block in resource.Blocks)
                     {
-                        Assert.That(block.ToString(), Is.Not.Null);
+                        await Assert.That(block.ToString()).IsNotNull();
                     }
                 }
             }
@@ -332,76 +330,76 @@ namespace Tests
             using var resource = new Resource();
             using var ms = new MemoryStream(Enumerable.Repeat<byte>(1, 12).ToArray());
 
-            Assert.Throws<UnexpectedMagicException>(() => resource.Read(ms));
+            Assert.ThrowsExactly<UnexpectedMagicException>(() => resource.Read(ms));
         }
 
         [Test]
-        public void PackageInResourceThrows()
+        public async Task PackageInResourceThrows()
         {
             var data = new byte[] { 0x34, 0x12, 0xAA, 0x55, 0x00, 0x00 };
 
             using var resource = new Resource();
             using var ms = new MemoryStream(data);
 
-            var ex = Assert.Throws<InvalidDataException>(() => resource.Read(ms));
+            var ex = Assert.ThrowsExactly<InvalidDataException>(() => resource.Read(ms));
 
             Debug.Assert(ex != null);
-            Assert.That(ex, Is.Not.Null);
-            Assert.That(ex.Message, Does.Contain("Use ValvePak"));
+            await Assert.That(ex).IsNotNull();
+            await Assert.That(ex.Message).Contains("Use ValvePak");
         }
 
         [Test]
-        public void ResourceDisposesStreamWhenLeaveOpenFalse()
+        public async Task ResourceDisposesStreamWhenLeaveOpenFalse()
         {
-            var testFile = Path.Combine(TestContext.CurrentContext.TestDirectory, "Files", "empty_data.vjs_c");
-            var testData = File.ReadAllBytes(testFile);
+            var testFile = Path.Combine(TestContext.TestDirectory!, "Files", "empty_data.vjs_c");
+            var testData = await File.ReadAllBytesAsync(testFile);
             var resource = new Resource();
             using var testStream = new TestableMemoryStream(testData);
 
             resource.Read(testStream, leaveOpen: false);
-            using (Assert.EnterMultipleScope())
+            using (Assert.Multiple())
             {
-                Assert.That(testStream.IsDisposed, Is.False);
-                Assert.That(resource.Reader, Is.Not.Null);
+                await Assert.That(testStream.IsDisposed).IsFalse();
+                await Assert.That(resource.Reader).IsNotNull();
             }
             resource.Dispose();
-            using (Assert.EnterMultipleScope())
+            using (Assert.Multiple())
             {
-                Assert.That(testStream.IsDisposed, Is.True);
-                Assert.That(resource.Reader, Is.Null);
+                await Assert.That(testStream.IsDisposed).IsTrue();
+                await Assert.That(resource.Reader).IsNull();
             }
         }
 
         [Test]
-        public void ResourceDoesNotDisposeStreamWhenLeaveOpenTrue()
+        public async Task ResourceDoesNotDisposeStreamWhenLeaveOpenTrue()
         {
-            var testFile = Path.Combine(TestContext.CurrentContext.TestDirectory, "Files", "empty_data.vjs_c");
-            var testData = File.ReadAllBytes(testFile);
+            var testFile = Path.Combine(TestContext.TestDirectory!, "Files", "empty_data.vjs_c");
+            var testData = await File.ReadAllBytesAsync(testFile);
             var resource = new Resource();
             using var testStream = new TestableMemoryStream(testData);
 
             resource.Read(testStream, leaveOpen: true);
-            Assert.That(resource.Reader, Is.Not.Null);
+            await Assert.That(resource.Reader).IsNotNull();
             resource.Dispose();
-            using (Assert.EnterMultipleScope())
+            using (Assert.Multiple())
             {
-                Assert.That(testStream.IsDisposed, Is.False);
-                Assert.That(resource.Reader, Is.Null);
+                await Assert.That(testStream.IsDisposed).IsFalse();
+                await Assert.That(resource.Reader).IsNull();
             }
-            testStream.Dispose();
-            Assert.That(testStream.IsDisposed, Is.True);
+            await testStream.DisposeAsync();
+            await Assert.That(testStream.IsDisposed).IsTrue();
         }
 
         [Test]
-        public void ResourceDisposesFileStreamFromFilename()
+        public async Task ResourceDisposesFileStreamFromFilename()
         {
-            var testFile = Path.Combine(TestContext.CurrentContext.TestDirectory, "Files", "empty_data.vjs_c");
+            var testFile = Path.Combine(TestContext.TestDirectory!, "Files", "empty_data.vjs_c");
 
             var resource = new Resource();
             resource.Read(testFile);
-            Assert.That(resource.Reader, Is.Not.Null);
+            await Assert.That(resource.Reader).IsNotNull();
             resource.Dispose();
-            Assert.That(resource.Reader, Is.Null);
+            await Assert.That(resource.Reader).IsNull();
         }
 
         private class TestableMemoryStream : MemoryStream

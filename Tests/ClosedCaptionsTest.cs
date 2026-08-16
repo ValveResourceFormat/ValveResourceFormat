@@ -1,5 +1,5 @@
 using System.IO;
-using NUnit.Framework;
+using System.Threading.Tasks;
 using ValveResourceFormat.ClosedCaptions;
 
 namespace Tests
@@ -7,28 +7,28 @@ namespace Tests
     public class ClosedCaptionsTest
     {
         [Test]
-        public void ParseClosedCaptions()
+        public async Task ParseClosedCaptions()
         {
-            var file = Path.Combine(TestContext.CurrentContext.TestDirectory, "Files", "subtitles_announcer_killing_spree_english.dat");
+            var file = Path.Combine(TestContext.TestDirectory!, "Files", "subtitles_announcer_killing_spree_english.dat");
 
             var captions = new ClosedCaptions();
             captions.Read(file);
 
-            using (Assert.EnterMultipleScope())
+            using (Assert.Multiple())
             {
-                Assert.That(captions.Captions, Has.Count.EqualTo(840));
-                Assert.That(captions.ToString(), Has.Length.GreaterThan(1000));
+                await Assert.That(captions.Captions).Count().IsEqualTo(840);
+                await Assert.That(captions.ToString().Length).IsGreaterThan(1000);
 
                 var caption = captions.Captions[839];
-                Assert.That(caption.Blocknum, Is.EqualTo(4));
-                Assert.That(caption.Hash, Is.EqualTo(3873743860));
-                Assert.That(caption.HashText, Is.EqualTo(3502107501));
-                Assert.That(caption.Length, Is.EqualTo(16));
-                Assert.That(caption.Offset, Is.EqualTo(2086));
-                Assert.That(caption.Text, Is.EqualTo("Ownage!"));
+                await Assert.That(caption.Blocknum).IsEqualTo(4);
+                await Assert.That(caption.Hash).IsEqualTo(3873743860);
+                await Assert.That(caption.HashText).IsEqualTo(3502107501);
+                await Assert.That(caption.Length).IsEqualTo((ushort)16);
+                await Assert.That(caption.Offset).IsEqualTo((ushort)2086);
+                await Assert.That(caption.Text).IsEqualTo("Ownage!");
 
                 var captionByCrc = captions["announcer_killing_spree_announcer_ownage_01"];
-                Assert.That(captionByCrc, Is.EqualTo(caption));
+                await Assert.That(captionByCrc).IsEqualTo(caption);
 
                 var i = 0;
                 var found = false;
@@ -44,8 +44,8 @@ namespace Tests
                     }
                 }
 
-                Assert.That(found, Is.True);
-                Assert.That(i, Is.EqualTo(840));
+                await Assert.That(found).IsTrue();
+                await Assert.That(i).IsEqualTo(840);
             }
         }
     }

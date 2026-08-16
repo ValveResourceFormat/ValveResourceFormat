@@ -1,17 +1,16 @@
 using System.IO;
-using NUnit.Framework;
+using System.Threading.Tasks;
 using ValveResourceFormat;
 using ValveResourceFormat.IO;
 
 namespace Tests
 {
-    [TestFixture]
     public class SnapshotTest
     {
         [Test]
-        public void TestVsnapExtract()
+        public async Task TestVsnapExtract()
         {
-            var file = Path.Combine(TestContext.CurrentContext.TestDirectory, "Files", "test.vsnap_c");
+            var file = Path.Combine(TestContext.TestDirectory!, "Files", "test.vsnap_c");
             using var resource = new Resource
             {
                 FileName = file,
@@ -20,7 +19,7 @@ namespace Tests
 
             var vsnapExtract = new SnapshotExtract(resource);
 
-            Assert.That(vsnapExtract.ToValveSnap(), Is.Not.Empty);
+            await Assert.That(vsnapExtract.ToValveSnap()).IsNotEmpty();
         }
     }
 }

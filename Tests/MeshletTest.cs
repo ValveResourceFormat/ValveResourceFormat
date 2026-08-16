@@ -1,7 +1,8 @@
 using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
-using NUnit.Framework;
+using System.Threading.Tasks;
+using TUnit.Assertions.Enums;
 using ValveResourceFormat;
 using ValveResourceFormat.Blocks;
 using ValveResourceFormat.IO;
@@ -14,7 +15,7 @@ namespace Tests
     {
         private readonly record struct MeshletDesc(int VertexOffset, int TriangleOffset, int VertexCount, int TriangleCount);
 
-        private static List<MeshletDesc> LoadMeshlets(Resource resource, out byte[] mslt)
+        private static async Task<(List<MeshletDesc> Meshlets, byte[] Mslt)> LoadMeshlets(Resource resource)
         {
             var mesh = (Mesh)resource.GetBlockByType(BlockType.MDAT)!;
             var meshlets = new List<MeshletDesc>();
@@ -38,83 +39,86 @@ namespace Tests
             }
 
             var block = resource.GetBlockByType(BlockType.MSLT);
-            Assert.That(block, Is.InstanceOf<MeshletBuffer>());
+            await Assert.That(block).IsAssignableTo<MeshletBuffer>();
 
             using var ms = new MemoryStream();
             block!.Serialize(ms);
-            mslt = ms.ToArray();
-            Assert.That(mslt, Has.Length.EqualTo((int)block.Size));
+            var mslt = ms.ToArray();
+            await Assert.That(mslt).Count().IsEqualTo((int)block.Size);
 
-            return meshlets;
+            return (meshlets, mslt);
         }
 
-        private static Resource Read(out List<MeshletDesc> meshlets, out byte[] mslt)
+        private static async Task<(Resource Resource, List<MeshletDesc> Meshlets, byte[] Mslt)> Read()
         {
-            var file = Path.Combine(TestContext.CurrentContext.TestDirectory, "Files", "n0_lr0_agg_prop_plants001_0.vmdl_c");
+            var file = Path.Combine(TestContext.TestDirectory!, "Files", "n0_lr0_agg_prop_plants001_0.vmdl_c");
             var resource = new Resource
             {
                 FileName = file,
             };
             resource.Read(file);
-            meshlets = LoadMeshlets(resource, out mslt);
-            return resource;
+            var (meshlets, mslt) = await LoadMeshlets(resource);
+            return (resource, meshlets, mslt);
         }
 
         [Test]
-        public void ParsesMeshletsAndBuffer()
+        public async Task ParsesMeshletsAndBuffer()
         {
-            using var resource = Read(out var meshlets, out var mslt);
+            var (loaded, meshlets, mslt) = await Read();
+            using var resource = loaded;
 
-            using (Assert.EnterMultipleScope())
+            using (Assert.Multiple())
             {
-                Assert.That(meshlets, Is.Not.Empty);
-                Assert.That(meshlets[0], Is.EqualTo(new MeshletDesc(0, 0, 66, 48)));
-                Assert.That(mslt, Has.Length.EqualTo(1736));
+                await Assert.That(meshlets).IsNotEmpty();
+                await Assert.That(meshlets[0]).IsEqualTo(new MeshletDesc(0, 0, 66, 48));
+                await Assert.That(mslt).Count().IsEqualTo(1736);
             }
         }
 
         // The MSLT buffer is pre-decoded packed indices: per-meshlet vertexCount uint32 entries,
         // each = (vertexListValue << 18) | triangle, triangle = three 6-bit references.
         [Test]
-        public void ValidatesPackedIndexLayout()
+        public async Task ValidatesPackedIndexLayout()
         {
-            using var resource = Read(out var meshlets, out var mslt);
+            var (loaded, meshlets, mslt) = await Read();
+            using var resource = loaded;
 
-            Assert.That(mslt.Length % 4, Is.Zero);
-            var words = MemoryMarshal.Cast<byte, uint>(mslt);
+            await Assert.That(mslt.Length % 4).IsZero();
+            var words = MemoryMarshal.Cast<byte, uint>(mslt).ToArray();
 
             var cursor = 0;
 
             for (var i = 0; i < meshlets.Count; i++)
             {
                 var m = meshlets[i];
-                Assert.That(cursor + m.VertexCount, Is.LessThanOrEqualTo(words.Length), $"meshlet {i} overruns the buffer");
+                await Assert.That(cursor + m.VertexCount).IsLessThanOrEqualTo(words.Length).Because($"meshlet {i} overruns the buffer");
 
-                var seg = words.Slice(cursor, m.VertexCount);
+                var seg = words.AsMemory(cursor, m.VertexCount);
 
                 // First entry is the canonical (0,1,2) first triangle => packed low-18 == 0x2040.
-                Assert.That(seg[0] & 0x3FFFFu, Is.EqualTo(0x2040u), $"meshlet {i} does not start with the (0,1,2) marker");
+                await Assert.That(seg.Span[0] & 0x3FFFFu).IsEqualTo(0x2040u).Because($"meshlet {i} does not start with the (0,1,2) marker");
 
                 for (var j = 0; j < m.TriangleCount; j++)
                 {
-                    Assert.That(seg[j] & 0x3FFFFu, Is.Not.Zero, $"meshlet {i} triangle {j} is unexpectedly zero");
+                    await Assert.That(seg.Span[j] & 0x3FFFFu).IsNotZero().Because($"meshlet {i} triangle {j} is unexpectedly zero");
                 }
 
                 for (var j = m.TriangleCount; j < m.VertexCount; j++)
                 {
-                    Assert.That(seg[j] & 0x3FFFFu, Is.Zero, $"meshlet {i} padding entry {j} is non-zero");
+                    await Assert.That(seg.Span[j] & 0x3FFFFu).IsZero().Because($"meshlet {i} padding entry {j} is non-zero");
                 }
 
                 cursor += m.VertexCount;
             }
 
-            Assert.That(cursor, Is.EqualTo(words.Length), "meshlet segments do not cover the MSLT buffer exactly");
+            await Assert.That(cursor).IsEqualTo(words.Length).Because("meshlet segments do not cover the MSLT buffer exactly");
         }
 
         [Test]
-        public void DecodesMeshlets()
+        public async Task DecodesMeshlets()
         {
-            using var resource = Read(out var meshlets, out _);
+            var (loaded, meshlets, _) = await Read();
+            using var resource = loaded;
             var block = (MeshletBuffer)resource.GetBlockByType(BlockType.MSLT)!;
 
             var totalIndices = 0;
@@ -130,20 +134,20 @@ namespace Tests
                 // Vertex list is a 14-bit per-entry field.
                 foreach (var v in vertices)
                 {
-                    Assert.That(v, Is.InRange(0, 0x3FFF), $"meshlet {i} vertex out of 14-bit range");
+                    await Assert.That(v).IsBetween(0, 0x3FFF).Because($"meshlet {i} vertex out of 14-bit range");
                 }
 
                 // Interop: every index addresses the vertex list, so vertices[index] is in bounds.
                 foreach (var index in indices)
                 {
-                    Assert.That(index, Is.InRange(0, vertices.Length - 1), $"meshlet {i} index does not address the vertex list");
+                    await Assert.That(index).IsBetween(0, vertices.Length - 1).Because($"meshlet {i} index does not address the vertex list");
                 }
 
                 totalIndices += indices.Length;
                 entryOffset += m.VertexCount;
             }
 
-            Assert.That(totalIndices, Is.EqualTo(meshlets.Sum(m => m.TriangleCount) * 3));
+            await Assert.That(totalIndices).IsEqualTo(meshlets.Sum(m => m.TriangleCount) * 3);
 
             // The first meshlet has the identity vertex list, so its first triangle resolves to (0,1,2).
             var firstVertices = new int[meshlets[0].VertexCount];
@@ -151,23 +155,24 @@ namespace Tests
             block.DecodeMeshlet(0, meshlets[0].VertexCount, meshlets[0].TriangleCount, firstVertices, firstIndices);
             for (var j = 0; j < firstVertices.Length; j++)
             {
-                Assert.That(firstVertices[j], Is.EqualTo(j), $"vertex {j}");
+                await Assert.That(firstVertices[j]).IsEqualTo(j).Because($"vertex {j}");
             }
 
-            using (Assert.EnterMultipleScope())
+            using (Assert.Multiple())
             {
-                Assert.That(firstVertices[firstIndices[0]], Is.Zero);
-                Assert.That(firstVertices[firstIndices[1]], Is.EqualTo(1));
-                Assert.That(firstVertices[firstIndices[2]], Is.EqualTo(2));
+                await Assert.That(firstVertices[firstIndices[0]]).IsZero();
+                await Assert.That(firstVertices[firstIndices[1]]).IsEqualTo(1);
+                await Assert.That(firstVertices[firstIndices[2]]).IsEqualTo(2);
             }
         }
 
         // Ground truth: meshlet 0 has an identity vertex list, so resolving its local indices through the
         // vertex list must reproduce the real index buffer (MIDX). Validates the window/wrap and the interop.
         [Test]
-        public void DecodesMeshlet0AgainstIndexBuffer()
+        public async Task DecodesMeshlet0AgainstIndexBuffer()
         {
-            using var resource = Read(out var meshlets, out _);
+            var (loaded, meshlets, _) = await Read();
+            using var resource = loaded;
             var block = (MeshletBuffer)resource.GetBlockByType(BlockType.MSLT)!;
             var indexBuffer = ((Model)resource.DataBlock!).GetEmbeddedMeshes().First().Mesh.VBIB.IndexBuffers[0];
 
@@ -184,7 +189,7 @@ namespace Tests
                 var e = new[] { expected[t * 3], expected[t * 3 + 1], expected[t * 3 + 2] };
                 Array.Sort(d);
                 Array.Sort(e);
-                Assert.That(d, Is.EqualTo(e), $"triangle {t}");
+                await Assert.That(d).IsEquivalentTo(e, CollectionOrdering.Matching).Because($"triangle {t}");
             }
         }
     }
