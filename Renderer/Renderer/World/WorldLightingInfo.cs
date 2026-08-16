@@ -34,6 +34,12 @@ namespace ValveResourceFormat.Renderer.World
         ProbeAtlas,
     }
 
+    /// <summary>Which light face a binned barn light slot holds, so a cull bit read back later traces to
+    /// the light it was about. Rebuilt every frame, so it only holds against the frame that produced it.</summary>
+    /// <param name="Light">Light owning the slot.</param>
+    /// <param name="FaceIndex">Index into that light's <see cref="SceneLight.BarnFaces"/>.</param>
+    public readonly record struct BarnLightFaceSlot(SceneLight Light, int FaceIndex);
+
     /// <summary>
     /// Scene lighting data including lightmaps, reflection probes, and shadow maps.
     /// </summary>
@@ -105,6 +111,7 @@ namespace ValveResourceFormat.Renderer.World
 
         private readonly BarnLightConstants[] BinnedBarnLightGpuData = new BarnLightConstants[BarnLightConstants.MAX_BARN_LIGHTS];
         private readonly BarnLightCullVolume[] BinnedBarnLightCullVolumes = new BarnLightCullVolume[BarnLightConstants.MAX_BARN_LIGHTS];
+        private readonly BarnLightFaceSlot[] BinnedBarnLightFaceSlots = new BarnLightFaceSlot[BarnLightConstants.MAX_BARN_LIGHTS];
 
         private Dictionary<string, int> BarnLightCookiePaths { get; } = new(StringComparer.OrdinalIgnoreCase);
         private StorageBuffer? BarnLightStorageBuffer;
@@ -473,7 +480,10 @@ namespace ValveResourceFormat.Renderer.World
             BarnLightShadowAtlasSize = atlasSize;
             LightingData.NumBarnLights = 0;
 
-            ShadowMapper.Bin(BarnLights, camera, atlasSize, BarnLightCookiePaths);
+            scene.LightBinner.PollBarnLightVisibility();
+
+            ShadowMapper.Bin(BarnLights, camera, atlasSize, BarnLightCookiePaths,
+                scene.LightBinner.VisibilitySequence);
 
             foreach (ref readonly var binned in ShadowMapper.BinnedLights)
             {
@@ -510,7 +520,7 @@ namespace ValveResourceFormat.Renderer.World
                 {
                     var data = light.BarnFaces[faceIndex].GpuData;
 
-                    if (binned.HasShadows)
+                    if (binned.HasShadows && (binned.MaskCulledFaces & (1u << faceIndex)) == 0u)
                     {
                         var placement = ShadowMapper.GetFacePlacement(binned.FirstFaceIndex + faceIndex);
 
@@ -532,6 +542,8 @@ namespace ValveResourceFormat.Renderer.World
                     }
 
                     var hasRangeCutoff = light.Entity == SceneLight.EntityType.Omni2 && light.FallOff > 0f;
+
+                    BinnedBarnLightFaceSlots[LightingData.NumBarnLights] = new BarnLightFaceSlot(light, faceIndex);
 
                     BinnedBarnLightCullVolumes[LightingData.NumBarnLights] = new BarnLightCullVolume
                     {
@@ -673,6 +685,11 @@ namespace ValveResourceFormat.Renderer.World
         /// </summary>
         public ReadOnlySpan<BarnLightCullVolume> BinnedBarnLightVolumes
             => BinnedBarnLightCullVolumes.AsSpan(0, (int)LightingData.NumBarnLights);
+
+        /// <summary>Gets which light face each binned slot holds, in the same order as
+        /// <see cref="BinnedBarnLightVolumes"/>, so a cull bit traces back to the face it culled.</summary>
+        public ReadOnlySpan<BarnLightFaceSlot> BinnedBarnLightFaces
+            => BinnedBarnLightFaceSlots.AsSpan(0, (int)LightingData.NumBarnLights);
 
         /// <summary>Releases the barn light GPU buffer, cookie atlas texture, and sampler objects.</summary>
         public void DisposeBarnLights()

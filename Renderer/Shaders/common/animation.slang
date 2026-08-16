@@ -21,7 +21,7 @@
 
 uniform uvec3 uAnimationData;
 
-layout(std430, binding = 11) readonly buffer g_boneTransformBuffer
+layout(std430, binding = 10) readonly buffer g_boneTransformBuffer
 {
     mat3x4 boneTransforms[];
 };

@@ -693,7 +693,7 @@ namespace ValveResourceFormat.Renderer
                 CompactedCountsGpu = new StorageBuffer(ReservedBufferSlots.CompactedCounts);
                 CompactedCountsGpu.Create(compactedCounts, BufferUsageHint.DynamicDraw);
 
-                CompactionRequestsGpu = new StorageBuffer(ReservedBufferSlots.CompactionRequests);
+                CompactionRequestsGpu = new StorageBuffer(ReservedBufferSlots.BufferSlot2);
                 CompactionRequestsGpu.Create(compactionRequestList);
             }
 

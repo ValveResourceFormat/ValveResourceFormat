@@ -29,7 +29,7 @@ layout(std430, binding = 9) buffer DrawCommandCounts
 };
 
 // Each request is a pair of uints: [drawCount, startIndex]
-layout(std430, binding = 10) readonly buffer CompactionRequests
+layout(std430, binding = 2) readonly buffer CompactionRequests
 {
     uint compactRequests[];
 };

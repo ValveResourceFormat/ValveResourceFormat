@@ -489,6 +489,9 @@ public class SceneLight(Scene scene) : SceneNode(scene)
     /// <param name="cookiePaths">Map from cookie material path to cookie atlas index.</param>
     public void ComputeBarnFaces(Dictionary<string, int> cookiePaths)
     {
+        // Face indices shift under the readbacks still in flight, so their countdowns describe nothing.
+        faceVisibilityTtl = ulong.MaxValue;
+
         if (Range <= 0.0001f)
         {
             BarnFaces = [];
@@ -987,4 +990,53 @@ public class SceneLight(Scene scene) : SceneNode(scene)
             _ => 6
         };
     }
+
+    #region Gpu face visibility
+
+    // Per face verdicts from LightBinner's cull mask readback, kept here because the light reference is
+    // the only identity that survives between frames: the binned slot order is rebuilt every one.
+
+    /// <summary>Disagreeing readbacks before a face loses its shadow. One agreeing readback restores it.</summary>
+    private const int GpuVisibilityTtl = 4;
+
+    /// <summary>Faces the countdowns pack into, one byte each. Above the 6 an omni light has.</summary>
+    private const int GpuVisibilityFaces = 8;
+
+    /// <summary>Starts saturated, so a face nothing has measured is lit.</summary>
+    private ulong faceVisibilityTtl = ulong.MaxValue;
+
+    /// <summary>Gets the readback sequence <see cref="faceVisibilityTtl"/> was last stamped with.</summary>
+    internal int GpuVisibilitySequence { get; private set; }
+
+    /// <summary>Folds one readback's verdict into the per face countdowns.</summary>
+    /// <param name="visibleFaces">Bit per face the readback found reaching a visible tile.</param>
+    /// <param name="sequence">Sequence number of that readback.</param>
+    internal void ApplyGpuFaceVisibility(uint visibleFaces, int sequence)
+    {
+        var next = 0ul;
+
+        for (var face = 0; face < GpuVisibilityFaces; face++)
+        {
+            var shift = face * 8;
+            var ttl = (int)((faceVisibilityTtl >> shift) & 0xFFul);
+
+            ttl = (visibleFaces & (1u << face)) != 0u ? GpuVisibilityTtl : Math.Max(ttl - 1, 0);
+
+            next |= (ulong)ttl << shift;
+        }
+
+        faceVisibilityTtl = next;
+        GpuVisibilitySequence = sequence;
+    }
+
+    /// <summary>Whether a face still wants a shadow map. A sequence this light was not stamped for is no
+    /// verdict at all, which reads as lit.</summary>
+    /// <param name="faceIndex">Face to test.</param>
+    /// <param name="sequence">Sequence number of the readback the caller is asking about.</param>
+    internal bool IsFaceGpuVisible(int faceIndex, int sequence)
+        => GpuVisibilitySequence != sequence
+            || faceIndex >= GpuVisibilityFaces
+            || ((faceVisibilityTtl >> (faceIndex * 8)) & 0xFFul) != 0ul;
+
+    #endregion
 }

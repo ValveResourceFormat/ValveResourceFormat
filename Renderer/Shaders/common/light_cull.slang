@@ -32,7 +32,7 @@ layout(binding = 6, std140) uniform LightCullConstants
     float _lightCullPadding2;
 };
 
-layout(std430, binding = 13) readonly buffer LightCullBitsBuffer
+layout(std430, binding = 12) readonly buffer LightCullBitsBuffer
 {
     uint g_CullBits[];
 };

@@ -3,6 +3,7 @@ using System.Runtime.CompilerServices;
 using OpenTK.Graphics.OpenGL;
 using ValveResourceFormat.Renderer.Buffers;
 using ValveResourceFormat.Renderer.Shaders;
+using ValveResourceFormat.Renderer.World;
 
 namespace ValveResourceFormat.Renderer;
 
@@ -34,15 +35,26 @@ public sealed class LightBinner(Scene scene) : IDisposable
     /// <summary>Ceiling for the fitted slice far, in world units.</summary>
     private const float MaxSliceFar = 32768f;
 
+    /// <summary>Words one batch's mask spans, which is also the reduce pass's dispatch width.</summary>
+    private const int MaxBatchWords = BarnLightConstants.MAX_BARN_LIGHTS / TiledCullFeeder.ItemsPerMask;
+
     private readonly TiledCullFeeder Feeder = new();
 
     private Shader? TileCullBitsShader;
     private Shader? DepthBinCullBitsShader;
+    private Shader? ReduceCullBitsShader;
 
     private StorageBuffer? CullItemsGpu;
     private StorageBuffer? CullPlanesGpu;
+    private StorageBuffer? VisibleBitsGpu;
     private UniformBuffer<CullParams>? CullParamsGpu;
     private UniformBuffer<LightCullConstants>? ConstantsGpu;
+
+    private ReadbackRing? VisibilityReadback;
+
+    /// <summary>What each mask bit meant, per readback slot, since the slot order is rebuilt every frame.</summary>
+    private readonly BarnLightFaceSlot[][] VisibilitySnapshots = new BarnLightFaceSlot[ReadbackRing.Depth][];
+    private readonly int[] VisibilitySnapshotCounts = new int[ReadbackRing.Depth];
 
     private readonly LightCullConstants Constants = new();
 
@@ -51,6 +63,10 @@ public sealed class LightBinner(Scene scene) : IDisposable
     private int CullBitsWords;
     private bool CullBitsAllVisible;
     private bool Active;
+
+    /// <summary>Gets the sequence of the last readback folded into the lights, which they carry a stamp of
+    /// so one it missed can be told apart from one it found dark.</summary>
+    public int VisibilitySequence { get; private set; }
 
     /// <summary>Gets the buffer holding this scene's per tile and per depth bin masks.</summary>
     public StorageBuffer? CullBits { get; private set; }
@@ -64,6 +80,7 @@ public sealed class LightBinner(Scene scene) : IDisposable
     {
         TileCullBitsShader = scene.RendererContext.ShaderLoader.LoadShader("compute_tile_cullbits");
         DepthBinCullBitsShader = scene.RendererContext.ShaderLoader.LoadShader("compute_depthbin_cullbits");
+        ReduceCullBitsShader = scene.RendererContext.ShaderLoader.LoadShader("reduce_cullbits");
     }
 
     /// <summary>
@@ -218,6 +235,8 @@ public sealed class LightBinner(Scene scene) : IDisposable
                 CullBitsAllVisible = true;
             }
 
+            VisibilitySequence++;
+
             return;
         }
 
@@ -245,6 +264,92 @@ public sealed class LightBinner(Scene scene) : IDisposable
         GL.DispatchCompute(binX, binY, binZ);
 
         GL.MemoryBarrier(MemoryBarrierFlags.ShaderStorageBarrierBit);
+
+        SubmitVisibilityReadback();
+    }
+
+    /// <summary>Reduces this frame's barn light tile masks to one screen wide mask and queues it for
+    /// readback. Skipped while every ring slot is in flight, so a stalled reader queues nothing.</summary>
+    private void SubmitVisibilityReadback()
+    {
+        var faces = scene.LightingInfo.BinnedBarnLightFaces;
+        var words = (int)Constants.LightCullWords;
+
+        if (ReduceCullBitsShader == null || faces.Length == 0 || words == 0)
+        {
+            return;
+        }
+
+        VisibilityReadback ??= new ReadbackRing(MaxBatchWords);
+        VisibleBitsGpu ??= StorageBuffer.Allocate<uint>(
+            ReservedBufferSlots.BufferSlot2, MaxBatchWords, BufferUsageHint.DynamicDraw);
+
+        if (VisibilityReadback.InFlight == ReadbackRing.Depth)
+        {
+            return;
+        }
+
+        Debug.Assert(words <= MaxBatchWords);
+
+        VisibleBitsGpu.BindBufferBase();
+
+        ReduceCullBitsShader.Use();
+        ReduceCullBitsShader.SetUniform("g_nReduceTileBase", Constants.LightTileBase);
+        ReduceCullBitsShader.SetUniform("g_nReduceTileCount", (uint)(TileCols * TileRows));
+        ReduceCullBitsShader.SetUniform("g_nReduceWords", Constants.LightCullWords);
+
+        GL.DispatchCompute(words, 1, 1);
+
+        if (!VisibilityReadback.TrySubmit(VisibleBitsGpu.Handle, words, out var slot))
+        {
+            return;
+        }
+
+        // The slot order this mask is against only exists this frame, so what each bit meant travels with
+        // the copy, per ring slot because three are in flight at once.
+        ref var snapshot = ref VisibilitySnapshots[slot];
+        snapshot ??= new BarnLightFaceSlot[BarnLightConstants.MAX_BARN_LIGHTS];
+
+        faces.CopyTo(snapshot);
+        VisibilitySnapshotCounts[slot] = faces.Length;
+    }
+
+    /// <summary>Folds the oldest finished readback into the lights it was measured against, or does
+    /// nothing when none has. What it applies is a ring depth behind, the price of never waiting.</summary>
+    public void PollBarnLightVisibility()
+    {
+        if (VisibilityReadback == null || !VisibilityReadback.TryConsume(out var slot, out var words))
+        {
+            return;
+        }
+
+        var snapshot = VisibilitySnapshots[slot];
+        var count = VisibilitySnapshotCounts[slot];
+
+        Debug.Assert(snapshot != null && count <= words.Length * 32);
+
+        VisibilitySequence++;
+
+        // A light's faces occupy consecutive slots, so one pass over them collects a whole light's mask.
+        var i = 0;
+
+        while (i < count)
+        {
+            var light = snapshot[i].Light;
+            var visibleFaces = 0u;
+
+            while (i < count && ReferenceEquals(snapshot[i].Light, light))
+            {
+                if ((words[i >> 5] & (1u << (i & 31))) != 0u)
+                {
+                    visibleFaces |= 1u << snapshot[i].FaceIndex;
+                }
+
+                i++;
+            }
+
+            light.ApplyGpuFaceVisibility(visibleFaces, VisibilitySequence);
+        }
     }
 
     /// <summary>
@@ -257,10 +362,10 @@ public sealed class LightBinner(Scene scene) : IDisposable
         ConstantsGpu ??= new UniformBuffer<LightCullConstants>(ReservedBufferSlots.LightCull);
 
         CullItemsGpu ??= StorageBuffer.Allocate<CullItem>(
-            ReservedBufferSlots.CullItems, Feeder.ItemArray.Length, BufferUsageHint.DynamicDraw);
+            ReservedBufferSlots.BufferSlot2, Feeder.ItemArray.Length, BufferUsageHint.DynamicDraw);
 
         CullPlanesGpu ??= StorageBuffer.Allocate<Vector2>(
-            ReservedBufferSlots.CullPlanes, Feeder.PlaneArray.Length, BufferUsageHint.DynamicDraw);
+            ReservedBufferSlots.BufferSlot3, Feeder.PlaneArray.Length, BufferUsageHint.DynamicDraw);
 
         if (CullBits == null || CullBitsWords < Feeder.TotalWords)
         {
@@ -303,13 +408,17 @@ public sealed class LightBinner(Scene scene) : IDisposable
         CullBits?.Delete();
         CullItemsGpu?.Delete();
         CullPlanesGpu?.Delete();
+        VisibleBitsGpu?.Delete();
         CullParamsGpu?.Dispose();
         ConstantsGpu?.Dispose();
+        VisibilityReadback?.Dispose();
 
         CullBits = null;
         CullItemsGpu = null;
         CullPlanesGpu = null;
+        VisibleBitsGpu = null;
         CullParamsGpu = null;
         ConstantsGpu = null;
+        VisibilityReadback = null;
     }
 }

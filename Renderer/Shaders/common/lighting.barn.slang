@@ -23,7 +23,7 @@ struct BarnLightConstants
     mat3x4 m_mBarnIlluminationFromWorld;
 };
 
-layout(std430, binding = 12) readonly buffer BarnLightBuffer {
+layout(std430, binding = 11) readonly buffer BarnLightBuffer {
     BarnLightConstants g_BarnLights[];
 };
 

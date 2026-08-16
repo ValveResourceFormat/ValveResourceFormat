@@ -15,6 +15,9 @@ public struct BinnedLight
     /// <summary>Gets or sets the first index into the shadow mapper's face placements, or -1 when none were assigned.</summary>
     public int FirstFaceIndex { get; set; }
 
+    /// <summary>Gets or sets the bit per face the read back cull mask found reaching no visible tile.</summary>
+    public uint MaskCulledFaces { get; set; }
+
     /// <summary>Gets whether this light requested shadow map space.</summary>
     public readonly bool WantsShadows => FaceWidth > 0;
     /// <summary>Gets whether this light was assigned face placements.</summary>
@@ -66,7 +69,10 @@ public class ShadowMapper
     /// <param name="camera">The camera used for culling and shadow resolution selection.</param>
     /// <param name="atlasSize">Pixel size of the shadow atlas texture.</param>
     /// <param name="cookiePaths">Map from cookie material path to cookie atlas index, used when recomputing dirty faces.</param>
-    public void Bin(List<SceneLight> lights, Camera camera, int atlasSize, Dictionary<string, int> cookiePaths)
+    /// <param name="visibilitySequence">Readback the per face cull mask is taken from. A light not stamped
+    /// with it is treated as lit, so a sequence no light carries shadows every face.</param>
+    public void Bin(List<SceneLight> lights, Camera camera, int atlasSize, Dictionary<string, int> cookiePaths,
+        int visibilitySequence)
     {
         candidateCount = 0;
         ShadowCasters.Clear();
@@ -101,12 +107,25 @@ public class ShadowMapper
             }
 
             var importance = ComputeImportance(light, camera.Location, pixelsPerUnit);
-            var candidate = new BinnedLight { Light = light, FirstFaceIndex = -1 };
+            var maskCulledFaces = ComputeMaskCulledFaces(light, visibilitySequence);
 
+            var candidate = new BinnedLight
+            {
+                Light = light,
+                FirstFaceIndex = -1,
+                MaskCulledFaces = maskCulledFaces,
+            };
+
+            // A light the mask culled every face of asks for no atlas space. This is also what demotes
+            // the omni faces pointing away from the camera: they reach no tile either.
             if (light.CastShadows == 1)
             {
-                // TODO: demote omni faces that don't face the camera.
-                ComputeShadowFaceSize(ref candidate, importance, atlasSize);
+                PerfStats.Active.Count(Counter.ShadowFaceMaskCulled, BitOperations.PopCount(maskCulledFaces));
+
+                if (ShadowFaceCount(candidate) > 0)
+                {
+                    ComputeShadowFaceSize(ref candidate, importance, atlasSize);
+                }
             }
 
             sortKeys[candidateCount] = (ComputeDistance(light, camera.Location), sceneIndex);
@@ -123,6 +142,27 @@ public class ShadowMapper
         ApplyHysteresis(candidateSpan, atlasSize);
         AssignRegions(candidateSpan, atlasSize);
     }
+
+    /// <summary>Bit per face of the light the given readback found reaching no visible tile.</summary>
+    private static uint ComputeMaskCulledFaces(SceneLight light, int visibilitySequence)
+    {
+        var culled = 0u;
+
+        for (var face = 0; face < light.BarnFaces.Length; face++)
+        {
+            if (!light.IsFaceGpuVisible(face, visibilitySequence))
+            {
+                culled |= 1u << face;
+            }
+        }
+
+        return culled;
+    }
+
+    /// <summary>Faces of a light that still want a shadow map, which is what the atlas is budgeted over.</summary>
+    private static int ShadowFaceCount(in BinnedLight candidate)
+        => candidate.Light.BarnFaces.Length
+            - BitOperations.PopCount(candidate.MaskCulledFaces & ((1u << candidate.Light.BarnFaces.Length) - 1u));
 
     private static Vector4 ComputeShadowOffsetScale(ShadowAtlasRegion region, int atlasSize, ref Matrix4x4 shadowMatrix)
     {
@@ -244,7 +284,7 @@ public class ShadowMapper
         {
             if (candidate.WantsShadows)
             {
-                total += (long)candidate.FaceWidth * candidate.FaceHeight * candidate.Light.BarnFaces.Length;
+                total += (long)candidate.FaceWidth * candidate.FaceHeight * ShadowFaceCount(candidate);
             }
         }
 
@@ -265,7 +305,7 @@ public class ShadowMapper
 
             var size = (int)(Math.Max(candidate.FaceWidth, candidate.FaceHeight) * scale);
             SetFaceDimensions(ref candidate, Math.Max(size, MinShadowFaceSize), atlasSize);
-            total += (long)candidate.FaceWidth * candidate.FaceHeight * candidate.Light.BarnFaces.Length;
+            total += (long)candidate.FaceWidth * candidate.FaceHeight * ShadowFaceCount(candidate);
         }
 
         if (total <= budget)
@@ -283,7 +323,7 @@ public class ShadowMapper
                 continue;
             }
 
-            var faceCount = candidate.Light.BarnFaces.Length;
+            var faceCount = ShadowFaceCount(candidate);
 
             while (total > budget && Math.Max(candidate.FaceWidth, candidate.FaceHeight) > MinShadowFaceSize)
             {
@@ -334,6 +374,13 @@ public class ShadowMapper
 
             for (var face = 0; face < faceCount; face++)
             {
+                // The placement slot is still claimed, so the face indices the light data reads stay put.
+                if ((candidate.MaskCulledFaces & (1u << face)) != 0u)
+                {
+                    facePlacements[assignedFaces++] = default;
+                    continue;
+                }
+
                 var width = candidate.FaceWidth;
                 var height = candidate.FaceHeight;
 

@@ -21,6 +21,7 @@ internal enum Counter
     DirectionalShadowMap,
     BarnShadowMap,
     ShadowFaceSubmitted,
+    ShadowFaceMaskCulled,
     ParticleSystem,
     ParticleDraw,
     SoundCacheMegabytes,
@@ -422,7 +423,7 @@ public class PerfStats
             AddLine($"{LightCostLabels[cost]} in view {FormatLightCounts(lightsInView[cost], totalLights[cost])} out of total {FormatLightCounts(totalLights[cost], totalLights[cost])}", valueColor);
         }
 
-        AddLine($"Shadow maps:      {counts[(int)Counter.DirectionalShadowMap]:N0} directional, {counts[(int)Counter.BarnShadowMap]:N0} barn, {counts[(int)Counter.ShadowFaceSubmitted]:N0} faces binned, {floatMetrics[(int)Metric.ShadowAtlasUsage]:0%} atlas utilization", valueColor);
+        AddLine($"Shadow maps:      {counts[(int)Counter.DirectionalShadowMap]:N0} directional, {counts[(int)Counter.BarnShadowMap]:N0} barn, {counts[(int)Counter.ShadowFaceSubmitted]:N0} faces binned, {counts[(int)Counter.ShadowFaceMaskCulled]:N0} gpu culled, {floatMetrics[(int)Metric.ShadowAtlasUsage]:0%} atlas utilization", valueColor);
         AddLine($"Particle Systems: {counts[(int)Counter.ParticleSystem]:N0} particle systems rendered in {counts[(int)Counter.ParticleDraw]:N0} draw calls out of {totalParticleSystems:N0} total particle systems", valueColor);
         AddLine($"Light binning:    {FormatBinnerStats(scene.LightBinner.Stats)}", valueColor);
 

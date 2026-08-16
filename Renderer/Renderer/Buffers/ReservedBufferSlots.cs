@@ -32,10 +32,12 @@ public enum ReservedBufferSlots
     Objects = 0,
     /// <summary>Transform matrices SSBO slot.</summary>
     Transforms = 1,
-    /// <summary>Histogram SSBO slot.</summary>
-    Histogram = 2,
-    /// <summary>Average luminance SSBO slot.</summary>
-    AverageLuminance = 3,
+
+    /// <summary>Scratch slot for buffers.</summary>
+    BufferSlot2 = 2,
+    /// <summary>Scratch slot for buffers.</summary>
+    BufferSlot3 = 3,
+
     /// <summary>Aggregate indirect draw commands SSBO slot.</summary>
     AggregateDraws = 4,
     /// <summary>Aggregate draw bounding boxes SSBO slot.</summary>
@@ -48,20 +50,14 @@ public enum ReservedBufferSlots
     CompactedDraws = 8,
     /// <summary>Compacted draw counts SSBO slot.</summary>
     CompactedCounts = 9,
-    /// <summary>Compaction request descriptors SSBO slot.</summary>
-    CompactionRequests = 10,
     /// <summary>Bone transform matrices SSBO slot.</summary>
-    BoneTransforms = 11,
+    BoneTransforms = 10,
     /// <summary>Barn light constants SSBO slot.</summary>
-    BarnLights = 12,
+    BarnLights = 11,
     /// <summary>Tile and depth slice bit masks the cull passes produce.</summary>
-    CullBits = 13,
-    /// <summary>Screen space cull items: barn light faces, env map probes and light probe volumes.</summary>
-    CullItems = 14,
-    /// <summary>Convex hull vertices referenced by <see cref="CullItems"/>.</summary>
-    CullPlanes = 15,
+    CullBits = 12,
     /// <summary>Quad overdraw debug lock and count pairs SSBO slot.</summary>
-    QuadOverdraw = 16,
+    QuadOverdraw = 13,
 
     /// <summary>Guaranteed minimum binding point count in OpenGL 4.6.</summary>
     Max = 8,
