@@ -25,7 +25,16 @@ namespace ValveResourceFormat.Renderer
         public string ScreenDebugText { get; set; } = string.Empty;
 
         /// <summary>Gets a value indicating whether any node is currently selected.</summary>
-        public bool HasSelectedNodes => selectedNodes.Count > 0;
+        public bool HasSelectedNodes
+        {
+            get
+            {
+                lock (selectedNodes)
+                {
+                    return selectedNodes.Count > 0;
+                }
+            }
+        }
 
         /// <summary>Initializes the selected node renderer and creates GPU resources.</summary>
         /// <param name="rendererContext">Renderer context for loading shaders.</param>
@@ -38,27 +47,30 @@ namespace ValveResourceFormat.Renderer
         /// <param name="node">The scene node to toggle.</param>
         public void ToggleNode(SceneNode node)
         {
-            var selectedNode = selectedNodes.IndexOf(node);
-
-            if (selectedNode >= 0)
+            lock (selectedNodes)
             {
-                selectedNodes.RemoveAt(selectedNode);
-                node.IsSelected = false;
+                var selectedNode = selectedNodes.IndexOf(node);
 
-                if (node.LightProbeBinding is { } probe)
+                if (selectedNode >= 0)
                 {
-                    var probeStillInUse = selectedNodes.Any(n => n.LightProbeBinding == probe);
+                    selectedNodes.RemoveAt(selectedNode);
+                    node.IsSelected = false;
 
-                    if (!probeStillInUse)
+                    if (node.LightProbeBinding is { } probe)
                     {
-                        probe.RemoveDebugGridSpheres();
+                        var probeStillInUse = selectedNodes.Any(n => n.LightProbeBinding == probe);
+
+                        if (!probeStillInUse)
+                        {
+                            probe.RemoveDebugGridSpheres();
+                        }
                     }
                 }
-            }
-            else
-            {
-                selectedNodes.Add(node);
-                node.IsSelected = true;
+                else
+                {
+                    selectedNodes.Add(node);
+                    node.IsSelected = true;
+                }
             }
         }
 
@@ -67,32 +79,38 @@ namespace ValveResourceFormat.Renderer
         /// <param name="forceDisableDepth">When <see langword="true"/>, the selection overlay is drawn without depth testing.</param>
         public void SelectNode(SceneNode? node, bool forceDisableDepth = false)
         {
-            RemoveAllLightProbeDebugGrid();
-
-            selectedNodes.ForEach(static n => n.IsSelected = false);
-            selectedNodes.Clear();
-
-            if (node == null)
+            lock (selectedNodes)
             {
-                Clear();
-                return;
-            }
+                RemoveAllLightProbeDebugGrid();
 
-            selectedNodes.Add(node);
-            node.IsSelected = true;
+                selectedNodes.ForEach(static n => n.IsSelected = false);
+                selectedNodes.Clear();
 
-            if (forceDisableDepth)
-            {
-                disableDepth = true;
+                if (node == null)
+                {
+                    Clear();
+                    return;
+                }
+
+                selectedNodes.Add(node);
+                node.IsSelected = true;
+
+                if (forceDisableDepth)
+                {
+                    disableDepth = true;
+                }
             }
         }
 
         /// <summary>Toggles the layer-enabled state of all currently selected nodes.</summary>
         public void DisableSelectedNodes()
         {
-            foreach (var node in selectedNodes)
+            lock (selectedNodes)
             {
-                node.LayerEnabled = !node.LayerEnabled;
+                foreach (var node in selectedNodes)
+                {
+                    node.LayerEnabled = !node.LayerEnabled;
+                }
             }
         }
 
@@ -184,7 +202,20 @@ namespace ValveResourceFormat.Renderer
         /// <param name="updateContext">Update context providing the text renderer.</param>
         public void Update(Scene.RenderContext renderContext, Scene.UpdateContext updateContext)
         {
-            disableDepth = selectedNodes.Count > 1;
+            SceneNode[] currentSelectedNodes;
+            lock (selectedNodes)
+            {
+                disableDepth = selectedNodes.Count > 1;
+
+                if (selectedNodes.Count == 0)
+                {
+                    // We don't need to reupload an empty array
+                    Clear();
+                    return;
+                }
+
+                currentSelectedNodes = selectedNodes.ToArray();
+            }
 
             // Draw the debug text even when nothing is selected
             if (ScreenDebugText.Length > 0)
@@ -198,20 +229,13 @@ namespace ValveResourceFormat.Renderer
                 }, renderContext.Camera);
             }
 
-            if (selectedNodes.Count == 0)
-            {
-                // We don't need to reupload an empty array
-                Clear();
-                return;
-            }
-
-            foreach (var node in selectedNodes)
+            foreach (var node in currentSelectedNodes)
             {
                 var nodeName = node.Name ?? node.GetType().Name;
 
                 if (node is not SimpleBoxSceneNode and not SpriteSceneNode)
                 {
-                    AddBox(renderContext.Camera, updateContext.TextRenderer, vertices, node.Transform, node.LocalBoundingBox, Color32.White, showSize: true);
+                    AddBox(renderContext.Camera, updateContext.TextRenderer, vertices, node.Transform, node.LocalBoundingBox, new Color32(1f, 0.92f, 0.25f, 1f), showSize: true);
                 }
 
                 if (debugCubeMaps)
@@ -335,9 +359,12 @@ namespace ValveResourceFormat.Renderer
 
         private void RemoveAllLightProbeDebugGrid()
         {
-            foreach (var node in selectedNodes)
+            lock (selectedNodes)
             {
-                node.LightProbeBinding?.RemoveDebugGridSpheres();
+                foreach (var node in selectedNodes)
+                {
+                    node.LightProbeBinding?.RemoveDebugGridSpheres();
+                }
             }
         }
 
