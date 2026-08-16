@@ -1,13 +1,11 @@
-global using DepthOnlyDrawBuckets = System.Collections.Generic.Dictionary<ValveResourceFormat.Renderer.DepthOnlyBucket, System.Collections.Generic.List<ValveResourceFormat.Renderer.MeshBatchRenderer.Request>>;
-
 using System.Diagnostics;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using Microsoft.Extensions.Logging;
 using OpenTK.Graphics.OpenGL;
-using ValveResourceFormat.CompiledShader;
 using ValveResourceFormat.Blocks;
+using ValveResourceFormat.CompiledShader;
 using ValveResourceFormat.Renderer.Buffers;
 using ValveResourceFormat.Renderer.Entities;
 using ValveResourceFormat.Renderer.SceneEnvironment;
@@ -787,7 +785,7 @@ namespace ValveResourceFormat.Renderer
             [RenderPass.Translucent] = [],
         };
 
-        private DepthOnlyDrawBuckets depthOnlyDraws { get; } = CreateDepthOnlyDrawCallCollection();
+        private Dictionary<DepthOnlyBucket, List<MeshBatchRenderer.Request>> depthOnlyDraws { get; } = CreateDepthOnlyDrawCallCollection();
 
         private void Add(MeshBatchRenderer.Request request, RenderPass renderPass)
         {
@@ -1001,13 +999,13 @@ namespace ValveResourceFormat.Renderer
 
         private List<SceneNode> CulledShadowNodes { get; } = [];
         private readonly List<RenderableMesh> listWithSingleMesh = [null!];
-        internal DepthOnlyDrawBuckets[] CulledShadowDrawCallsCascades { get; } = CreateSunCascadeDrawCallCollections();
-        internal static DepthOnlyDrawBuckets CreateDepthOnlyDrawCallCollection()
+        internal Dictionary<DepthOnlyBucket, List<MeshBatchRenderer.Request>>[] CulledShadowDrawCallsCascades { get; } = CreateSunCascadeDrawCallCollections();
+        internal static Dictionary<DepthOnlyBucket, List<MeshBatchRenderer.Request>> CreateDepthOnlyDrawCallCollection()
             => Enum.GetValues<DepthOnlyBucket>().ToDictionary(static bucket => bucket, static _ => new List<MeshBatchRenderer.Request>());
 
-        private static DepthOnlyDrawBuckets[] CreateSunCascadeDrawCallCollections()
+        private static Dictionary<DepthOnlyBucket, List<MeshBatchRenderer.Request>>[] CreateSunCascadeDrawCallCollections()
         {
-            var buckets = new DepthOnlyDrawBuckets[WorldLightingInfo.SunCascadeCount];
+            var buckets = new Dictionary<DepthOnlyBucket, List<MeshBatchRenderer.Request>>[WorldLightingInfo.SunCascadeCount];
 
             for (var i = 0; i < buckets.Length; i++)
             {
@@ -1091,10 +1089,10 @@ namespace ValveResourceFormat.Renderer
             entry.FrustumHash = barnLightFrustumHash;
         }
 
-        private void CollectShadowDrawCalls(Frustum frustum, bool includeStatic, bool includeDynamic, DepthOnlyDrawBuckets drawBuckets)
+        private void CollectShadowDrawCalls(Frustum frustum, bool includeStatic, bool includeDynamic, Dictionary<DepthOnlyBucket, List<MeshBatchRenderer.Request>> drawBuckets)
             => CollectShadowDrawCalls(frustum, includeStatic, includeDynamic, drawBuckets, Vector3.Zero, out _, out _);
 
-        private void CollectShadowDrawCalls(Frustum frustum, bool includeStatic, bool includeDynamic, DepthOnlyDrawBuckets drawBuckets,
+        private void CollectShadowDrawCalls(Frustum frustum, bool includeStatic, bool includeDynamic, Dictionary<DepthOnlyBucket, List<MeshBatchRenderer.Request>> drawBuckets,
             Vector3 depthFitAxis, out float casterDepthMin, out float casterDepthMax)
         {
             // Extent of the accepted casters along the fit axis, for tightening the light's depth range
@@ -1447,7 +1445,7 @@ namespace ValveResourceFormat.Renderer
         /// <param name="renderContext">The render context for this shadow pass.</param>
         /// <param name="depthOnlyShader">The depth-only shader, which the pass takes skinning variants of.</param>
         /// <param name="drawCalls">The bucketed draw calls to render.</param>
-        public static void RenderOpaqueShadows(RenderContext renderContext, Shader depthOnlyShader, DepthOnlyDrawBuckets drawCalls)
+        public static void RenderOpaqueShadows(RenderContext renderContext, Shader depthOnlyShader, Dictionary<DepthOnlyBucket, List<MeshBatchRenderer.Request>> drawCalls)
         {
             renderContext.RenderPass = RenderPass.DepthOnly;
 
