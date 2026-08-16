@@ -42,6 +42,9 @@ public class RendererContext : IDisposable
     /// </summary>
     public SceneTextures SceneTextures => sceneTextures ??= new SceneTextures(MaterialLoader);
 
+    /// <summary>Resets <see cref="SceneTextures"/> if it exists, without creating it just to reset it.</summary>
+    internal void ResetSceneTextures() => sceneTextures?.Reset();
+
     /// <summary>
     /// Render state tracker for the GL context this renderer context renders with.
     /// </summary>

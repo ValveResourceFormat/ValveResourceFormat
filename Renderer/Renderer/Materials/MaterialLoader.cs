@@ -100,6 +100,10 @@ namespace ValveResourceFormat.Renderer.Materials
             }
 
             Samplers.Clear();
+
+            // The scene textures buffer outlives the scene and holds handles to what was just deleted. The
+            // next scene only overwrites the members it has a texture for.
+            RendererContext.ResetSceneTextures();
         }
 
         /// <summary>Returns a cached <see cref="RenderMaterial"/> for the given resource path and shader arguments, loading and caching it on first access.</summary>
@@ -265,12 +269,24 @@ namespace ValveResourceFormat.Renderer.Materials
             return sampler;
         }
 
-        private static TextureWrapMode MapAddressMode(int mode) => mode switch
+        /// <summary>Values of the <c>g_nTextureAddressModeU</c> and <c>g_nTextureAddressModeV</c> material params.</summary>
+        public enum TextureAddressMode
         {
-            0 => TextureWrapMode.Repeat,
-            1 => TextureWrapMode.MirroredRepeat,
-            2 => TextureWrapMode.ClampToEdge,
-            3 => TextureWrapMode.ClampToBorder,
+            /// <summary>Tile the texture.</summary>
+            Repeat = 0,
+            /// <summary>Tile the texture, mirroring every other repeat.</summary>
+            MirroredRepeat = 1,
+            /// <summary>Hold the edge texel.</summary>
+            ClampToEdge = 2,
+            /// <summary>Sample the border colour outside the texture.</summary>
+            ClampToBorder = 3,
+        }
+
+        private static TextureWrapMode MapAddressMode(int mode) => (TextureAddressMode)mode switch
+        {
+            TextureAddressMode.MirroredRepeat => TextureWrapMode.MirroredRepeat,
+            TextureAddressMode.ClampToEdge => TextureWrapMode.ClampToEdge,
+            TextureAddressMode.ClampToBorder => TextureWrapMode.ClampToBorder,
             _ => TextureWrapMode.Repeat,
         };
 

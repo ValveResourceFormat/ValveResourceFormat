@@ -46,11 +46,11 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         {
             material = renderContext.MaterialLoader.LoadMaterial(resource);
 
-            // Forcefully clamp sprites so they don't render extra pixels on edges
-            foreach (var texture in material.Textures.Values)
-            {
-                texture.SetWrapMode(TextureWrapMode.ClampToEdge);
-            }
+            // Forcefully clamp sprites so they don't render extra pixels on edges. Through the material's
+            // address modes rather than the texture's own, which the texture cache shares with every other
+            // material using the same file, and which a bindless handle freezes.
+            material.IntParams["g_nTextureAddressModeU"] = (long)MaterialLoader.TextureAddressMode.ClampToEdge;
+            material.IntParams["g_nTextureAddressModeV"] = (long)MaterialLoader.TextureAddressMode.ClampToEdge;
 
             GL.CreateBuffers(1, out int vboHandle);
             GL.NamedBufferData(vboHandle, Vertices.Length * Vertex.InputLayout.Stride, Vertices, BufferUsageHint.StaticDraw);

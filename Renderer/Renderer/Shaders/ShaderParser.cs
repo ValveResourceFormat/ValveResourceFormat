@@ -302,6 +302,16 @@ namespace ValveResourceFormat.Renderer.Shaders
 
                             parsedData.Uniforms.Add(uniformName);
 
+                            // Before any of the branches that stop looking at this declaration.
+                            if (match.Groups["SrgbRead"].Success)
+                            {
+                                parsedData.SrgbUniforms.Add(uniformName);
+                            }
+                            if (match.Groups["SamplerUserConfig"].Success)
+                            {
+                                parsedData.SamplerUserConfigUniforms.Add(uniformName);
+                            }
+
                             if (uniformType.StartsWith("sampler", StringComparison.Ordinal) && MaterialLoader.IsReservedTexture(uniformName))
                             {
                                 parsedData.ReservedTextures.Add(uniformName);
@@ -317,15 +327,6 @@ namespace ValveResourceFormat.Renderer.Shaders
                                     AppendBindlessAlternative(line, lineNum, currentSourceFileNumber);
                                     continue;
                                 }
-                            }
-
-                            if (match.Groups["SrgbRead"].Success)
-                            {
-                                parsedData.SrgbUniforms.Add(uniformName);
-                            }
-                            if (match.Groups["SamplerUserConfig"].Success)
-                            {
-                                parsedData.SamplerUserConfigUniforms.Add(uniformName);
                             }
 
                             if (!match.Groups["Array"].Success

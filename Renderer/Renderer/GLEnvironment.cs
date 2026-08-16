@@ -65,7 +65,18 @@ public static class GLEnvironment
     /// Latched on first read: shader source, buffer layouts and binding paths all have to agree, and
     /// preprocessing runs on a background thread that can beat <see cref="Initialize"/> to it.
     /// </remarks>
-    public static bool BindlessTextures => bindlessTextures ??= bindlessTexturesSupported;
+    public static bool BindlessTextures
+    {
+        get
+        {
+            // Reading before the context has been queried would latch false and silently drop to the slot
+            // bound path for the rest of the session, on a driver that supports the extension.
+            System.Diagnostics.Debug.Assert(bindlessTextures != null || GpuRendererAndDriver != null,
+                $"{nameof(BindlessTextures)} was read before {nameof(Initialize)} queried the driver.");
+
+            return bindlessTextures ??= bindlessTexturesSupported;
+        }
+    }
 
     /// <summary>
     /// Initializes the OpenGL environment and queries capabilities.

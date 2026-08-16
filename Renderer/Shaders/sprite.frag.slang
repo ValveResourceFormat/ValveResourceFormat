@@ -7,7 +7,7 @@
 in vec2 vTexCoordOut;
 in vec4 vTintOut;
 
-uniform sampler2D g_tColor; // SrgbRead(true)
+uniform sampler2D g_tColor; // SrgbRead(true) Sampler(UserConfig)
 
 out vec4 outputColor;
 

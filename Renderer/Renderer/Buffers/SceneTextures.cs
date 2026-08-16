@@ -30,10 +30,7 @@ public sealed class SceneTextures : Buffer
 
         // A scene sets only the textures it has, and there is no handle meaning "nothing", so a shader
         // reading one the scene never set has to find a null texture there.
-        foreach (var member in SceneTexturesLayout.Members.Values)
-        {
-            Reset(member);
-        }
+        Reset();
     }
 
     /// <summary>
@@ -65,6 +62,18 @@ public sealed class SceneTextures : Buffer
 
         Reset(member);
         return true;
+    }
+
+    /// <summary>
+    /// Points every member back at its null texture. Called when the textures a scene loaded are deleted,
+    /// since a member the next scene does not set again would otherwise keep naming freed memory.
+    /// </summary>
+    public void Reset()
+    {
+        foreach (var member in SceneTexturesLayout.Members.Values)
+        {
+            Reset(member);
+        }
     }
 
     /// <summary>Binds this buffer. Called by <see cref="Shader.Use"/>, since the slot is context state.</summary>
