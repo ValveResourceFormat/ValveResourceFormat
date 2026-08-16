@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Threading.Tasks;
 using TUnit.Assertions.Enums;
 using ValveResourceFormat;
@@ -15,27 +16,35 @@ namespace Tests
         public static string ShadersDir
             => Path.Combine(TestContext.TestDirectory!, "Files", "Shaders");
 
-        [Test]
-        public async Task ParseShaders()
+        public static IEnumerable<string> ShaderFiles()
         {
             var files = Directory.GetFiles(ShadersDir, "*.vcs");
 
-            foreach (var file in files)
+            if (files.Length == 0)
             {
-                using var shader = new VfxProgramData();
-                shader.Read(file);
+                throw new InvalidOperationException($"There are no shaders to test in {ShadersDir}.");
+            }
 
-                using var sw = new IndentedTextWriter();
+            return [.. files.Select(file => Path.GetFileName(file))];
+        }
 
-                shader.PrintSummary(sw);
-                await Assert.That(sw.ToString().Length).IsGreaterThanOrEqualTo(100);
+        [Test]
+        [MethodDataSource(nameof(ShaderFiles))]
+        public async Task ParseShaders(string shaderFile)
+        {
+            using var shader = new VfxProgramData();
+            shader.Read(Path.Combine(ShadersDir, shaderFile));
 
-                foreach (var zframe in shader.StaticComboEntries)
-                {
-                    var value = zframe.Value.Unserialize();
-                    await Assert.That(value).IsNotNull();
-                    var zframeSummary = new PrintZFrameSummary(value, sw);
-                }
+            using var sw = new IndentedTextWriter();
+
+            shader.PrintSummary(sw);
+            await Assert.That(sw.ToString().Length).IsGreaterThanOrEqualTo(100);
+
+            foreach (var zframe in shader.StaticComboEntries)
+            {
+                var value = zframe.Value.Unserialize();
+                await Assert.That(value).IsNotNull();
+                var zframeSummary = new PrintZFrameSummary(value, sw);
             }
         }
 

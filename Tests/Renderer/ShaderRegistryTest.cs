@@ -12,6 +12,7 @@ using ValveResourceFormat.Renderer.Utils;
 namespace Tests.Renderer
 {
     [NotInParallel(nameof(ShaderRegistryTest))]
+    [ExecutionPriority(TUnit.Core.Enums.Priority.AboveNormal)]
     public class ShaderRegistryTest
     {
         private string customShaderDirectory = null!;

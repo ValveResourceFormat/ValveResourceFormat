@@ -11,190 +11,164 @@ using ValveResourceFormat.Utils;
 
 namespace Tests
 {
+    [ExecutionPriority(TUnit.Core.Enums.Priority.High)]
     public partial class Test
     {
+        private static string FilesDirectory => Path.Combine(TestContext.TestDirectory!, "Files");
+
+        public static IEnumerable<string> CompiledFiles() => EnumerateCompiledFiles(recursive: true);
+
+        public static IEnumerable<string> TopLevelCompiledFiles() => EnumerateCompiledFiles(recursive: false);
+
+        private static List<string> EnumerateCompiledFiles(bool recursive)
+        {
+            var files = Directory.GetFiles(FilesDirectory, "*.*_c", new EnumerationOptions
+            {
+                RecurseSubdirectories = recursive,
+            });
+
+            if (files.Length == 0)
+            {
+                throw new InvalidOperationException($"There are no files to test in {FilesDirectory}.");
+            }
+
+            return [.. files.Select(file => Path.GetRelativePath(FilesDirectory, file))];
+        }
+
         // TODO: Add asserts for blocks/resources that were skipped
         [Test]
-        public async Task ReadBlocks()
+        [MethodDataSource(nameof(CompiledFiles))]
+        public async Task ReadBlocks(string relativePath)
         {
-            var resources = new Dictionary<string, Resource>();
-            var path = Path.Combine(TestContext.TestDirectory!, "Files");
-            var files = Directory.GetFiles(path, "*.*_c", new EnumerationOptions
+            var file = Path.Combine(FilesDirectory, relativePath);
+            using var resource = new Resource
             {
-                RecurseSubdirectories = true,
-            });
+                FileName = file,
+            };
+            resource.Read(file);
 
-            if (files.Length == 0)
+            await Assert.That(resource.ResourceType).IsNotEqualTo(ResourceType.Unknown);
+            await Assert.That(resource.ResourceType).IsEqualTo(ResourceTypeExtensions.DetermineByFileExtension(Path.GetExtension(file.AsSpan())));
+
+            await VerifyExtension(resource, file);
+
+            if (resource.ResourceType != ResourceType.Map) /// Tested by <see cref="MapExtractTest"/>
             {
-                Fail.Test("There are no files to test.");
+                InternalTestExtraction.Test(resource);
             }
 
-            foreach (var file in files)
-            {
-                var resource = new Resource
-                {
-                    FileName = file,
-                };
-                resource.Read(file);
-
-                resources.Add(Path.GetFileName(file), resource);
-
-                await Assert.That(resource.ResourceType).IsNotEqualTo(ResourceType.Unknown);
-                await Assert.That(resource.ResourceType).IsEqualTo(ResourceTypeExtensions.DetermineByFileExtension(Path.GetExtension(file.AsSpan())));
-
-                // Verify extension
-                var extension = Path.GetExtension(file);
-
-                if (extension.EndsWith(GameFileLoader.CompiledFileSuffix, StringComparison.Ordinal))
-                {
-                    extension = extension[..^2];
-                }
-
-                var attribute = "." + resource.ResourceType.GetExtension();
-                await Assert.That(attribute).IsEqualTo(extension).Because(file);
-
-                if (resource.ResourceType != ResourceType.Map) /// Tested by <see cref="MapExtractTest"/>
-                {
-                    InternalTestExtraction.Test(resource);
-                }
-            }
-
-            await VerifyResources(resources);
+            await VerifyResourceOutput(resource, Path.GetFileName(file));
         }
 
         [Test]
-        public async Task RoundtripSerialization()
+        [MethodDataSource(nameof(CompiledFiles))]
+        public async Task RoundtripSerialization(string relativePath)
         {
-            var resources = new Dictionary<string, Resource>();
-            var path = Path.Combine(TestContext.TestDirectory!, "Files");
-            var files = Directory.GetFiles(path, "*.*_c", new EnumerationOptions
-            {
-                RecurseSubdirectories = true,
-            });
-            var total = 0;
-            var notImplemented = 0;
+            var file = Path.Combine(FilesDirectory, relativePath);
+            var ms = new MemoryStream();
 
-            if (files.Length == 0)
+            using (var resourceOnDisk = new Resource
             {
-                Fail.Test("There are no files to test.");
-            }
-
-            foreach (var file in files)
+                FileName = file,
+            })
             {
-                var ms = new MemoryStream();
-
-                using (var resourceOnDisk = new Resource
+                try
                 {
-                    FileName = file,
-                })
+                    resourceOnDisk.Read(file);
+                }
+                catch (NotImplementedException)
                 {
-                    try
-                    {
-                        resourceOnDisk.Read(file);
-                    }
-                    catch (NotImplementedException)
-                    {
-                        continue;
-                    }
-
-                    total++;
-
-                    try
-                    {
-                        resourceOnDisk.Serialize(ms);
-                    }
-                    catch (NotImplementedException)
-                    {
-                        notImplemented++;
-                        continue;
-                    }
+                    return;
                 }
 
-                ms.Position = 0;
-
-                // Now try to parse what we just wrote
-                var resource = new Resource
+                try
                 {
-                    FileName = file,
-                };
-                resource.Read(ms);
-
-                resources.Add(Path.GetFileName(file), resource);
-
-                await Assert.That(resource.ResourceType).IsNotEqualTo(ResourceType.Unknown);
-
-                // Verify extension
-                var extension = Path.GetExtension(file);
-
-                if (extension.EndsWith(GameFileLoader.CompiledFileSuffix, StringComparison.Ordinal))
-                {
-                    extension = extension[..^2];
+                    resourceOnDisk.Serialize(ms);
                 }
-
-                var attribute = "." + resource.ResourceType.GetExtension();
-                await Assert.That(attribute).IsEqualTo(extension).Because(file);
-
-                if (resource.ResourceType != ResourceType.Map) /// Tested by <see cref="MapExtractTest"/>
+                catch (NotImplementedException)
                 {
-                    InternalTestExtraction.Test(resource);
+                    return;
                 }
             }
 
-            await VerifyResources(resources, validateMissingResources: false);
+            ms.Position = 0;
 
-            await Console.Out.WriteLineAsync($"{notImplemented} out of {total} files are not yet serializable.");
+            // Now try to parse what we just wrote
+            using var resource = new Resource
+            {
+                FileName = file,
+            };
+            resource.Read(ms);
+
+            await Assert.That(resource.ResourceType).IsNotEqualTo(ResourceType.Unknown);
+
+            await VerifyExtension(resource, file);
+
+            if (resource.ResourceType != ResourceType.Map) /// Tested by <see cref="MapExtractTest"/>
+            {
+                InternalTestExtraction.Test(resource);
+            }
+
+            await VerifyResourceOutput(resource, Path.GetFileName(file));
         }
 
         [Test]
-        public async Task ReadBlocksWithMemoryStream()
+        [MethodDataSource(nameof(TopLevelCompiledFiles))]
+        public async Task ReadBlocksWithMemoryStream(string relativePath)
         {
-            var resources = new Dictionary<string, Resource>();
-            var path = Path.Combine(TestContext.TestDirectory!, "Files");
-            var files = Directory.GetFiles(path, "*.*_c");
-
-            if (files.Length == 0)
+            var file = Path.Combine(FilesDirectory, relativePath);
+            using var resource = new Resource
             {
-                Fail.Test("There are no files to test.");
-            }
+                FileName = file,
+            };
 
-            foreach (var file in files)
-            {
-                using var resource = new Resource
-                {
-                    FileName = file,
-                };
+            await using var fs = new FileStream(file, FileMode.Open, FileAccess.Read, FileShare.Read, 4096, FileOptions.Asynchronous);
+            var ms = new MemoryStream();
+            await fs.CopyToAsync(ms);
+            ms.Seek(0, SeekOrigin.Begin);
 
-                await using var fs = new FileStream(file, FileMode.Open, FileAccess.Read, FileShare.Read, 4096, FileOptions.Asynchronous);
-                var ms = new MemoryStream();
-                await fs.CopyToAsync(ms);
-                ms.Seek(0, SeekOrigin.Begin);
+            resource.Read(ms);
 
-                resource.Read(ms);
-
-                await VerifyDataBlock(resource, file);
-            }
+            await VerifyDataBlock(resource, file);
         }
 
         [Test]
-        public async Task ReadBlocksNoFileName()
+        [MethodDataSource(nameof(TopLevelCompiledFiles))]
+        public async Task ReadBlocksNoFileName(string relativePath)
         {
-            var resources = new Dictionary<string, Resource>();
-            var path = Path.Combine(TestContext.TestDirectory!, "Files");
-            var files = Directory.GetFiles(path, "*.*_c");
+            var file = Path.Combine(FilesDirectory, relativePath);
+            using var resource = new Resource();
+            await using var fs = new FileStream(file, FileMode.Open, FileAccess.Read, FileShare.Read, 4096, FileOptions.Asynchronous);
+            resource.Read(fs);
 
-            if (files.Length == 0)
+            await VerifyDataBlock(resource, file);
+        }
+
+        [Test]
+        public async Task ValidOutputHasNoOrphanedFolders()
+        {
+            var fixtures = CompiledFiles().Select(Path.GetFileName).ToHashSet(StringComparer.Ordinal);
+
+            using (Assert.Multiple())
             {
-                Fail.Test("There are no files to test.");
+                foreach (var directory in Directory.GetDirectories(ValidOutputDirectory))
+                {
+                    await Assert.That(fixtures).Contains(Path.GetFileName(directory)).Because($"{Path.GetFileName(directory)}: no such resource");
+                }
+            }
+        }
+
+        private static async Task VerifyExtension(Resource resource, string file)
+        {
+            var extension = Path.GetExtension(file);
+
+            if (extension.EndsWith(GameFileLoader.CompiledFileSuffix, StringComparison.Ordinal))
+            {
+                extension = extension[..^2];
             }
 
-            foreach (var file in files)
-            {
-                using var resource = new Resource();
-                using var fs = new FileStream(file, FileMode.Open, FileAccess.Read);
-                resource.Read(fs);
-
-                await VerifyDataBlock(resource, file);
-            }
+            var attribute = "." + resource.ResourceType.GetExtension();
+            await Assert.That(attribute).IsEqualTo(extension).Because(file);
         }
 
         private static readonly HashSet<string> FilesWithEmptyDataBlocks =
@@ -224,102 +198,72 @@ namespace Tests
         private static string GetSourceValidOutputPath([CallerFilePath] string sourceFile = "")
             => Path.Combine(Path.GetDirectoryName(sourceFile)!, "Files", "ValidOutput");
 
-        static async Task VerifyResources(Dictionary<string, Resource> resources, bool validateMissingResources = true)
+        private static string ValidOutputDirectory => Path.Combine(FilesDirectory, "ValidOutput");
+
+        static async Task VerifyResourceOutput(Resource resource, string name)
         {
-            var path = Path.Combine(TestContext.TestDirectory!, "Files", "ValidOutput");
-            var files = Directory.GetFiles(path, "*.*txt", SearchOption.AllDirectories);
-            var seenResources = new Dictionary<Resource, HashSet<BlockType>>(resources.Count);
+            var directory = Path.Combine(ValidOutputDirectory, name);
+            var seenBlockTypes = new HashSet<BlockType>(resource.Blocks.Count);
 
-            foreach (var file in files)
+            if (Directory.Exists(directory))
             {
-                var name = Path.GetFileName(Path.GetDirectoryName(file));
-
-                if (name == null || !resources.TryGetValue(name, out var resource))
+                foreach (var file in Directory.GetFiles(directory, "*.*txt"))
                 {
-                    if (validateMissingResources)
+                    var blockName = Path.GetFileNameWithoutExtension(file);
+
+                    Enum.TryParse(blockName, false, out BlockType blockType);
+
+                    if (!resource.ContainsBlockType(blockType))
                     {
-                        Fail.Test($"{name}: no such resource");
-                    }
-
-                    continue;
-                }
-
-                if (!seenResources.TryGetValue(resource, out var seenBlockTypes))
-                {
-                    seenBlockTypes = new(resource.Blocks.Count);
-                    seenResources[resource] = seenBlockTypes;
-                }
-
-                var blockName = Path.GetFileNameWithoutExtension(file);
-
-                Enum.TryParse(blockName, false, out BlockType blockType);
-
-                if (!resource.ContainsBlockType(blockType))
-                {
-                    Fail.Test($"{name}: no such block: {blockType}");
-
-                    continue;
-                }
-
-                seenBlockTypes.Add(blockType);
-
-                var blockData = resource.GetBlockByType(blockType);
-
-                if (blockData == null)
-                {
-                    Fail.Test($"{name}: block is null: {blockType}");
-
-                    continue;
-                }
-
-                var rawOutput = blockData.ToString();
-                var expectedOutput = await File.ReadAllTextAsync(file);
-
-                // We don't care about Valve's messy whitespace, so just strip it.
-                var actualOutput = SpaceRegex().Replace(rawOutput, string.Empty);
-
-                expectedOutput = expectedOutput.Replace("Source 2 Viewer - https://valveresourceformat.github.io", StringToken.VRF_GENERATOR, StringComparison.Ordinal);
-                expectedOutput = SpaceRegex().Replace(expectedOutput, string.Empty);
-
-                //Assert.That(actualOutput, Is.EqualTo(expectedOutput));
-                if (expectedOutput != actualOutput)
-                {
-                    if (RegenerateFixtures)
-                    {
-                        // Fixtures are stored with the version-free generator string
-                        var sourceFile = Path.Combine(GetSourceValidOutputPath(), Path.GetRelativePath(path, file));
-                        await File.WriteAllTextAsync(sourceFile, rawOutput.Replace(StringToken.VRF_GENERATOR, "Source 2 Viewer - https://valveresourceformat.github.io", StringComparison.Ordinal));
-                        await Console.Error.WriteLineAsync($"Regenerated '{sourceFile}'");
-                    }
-                    else
-                    {
-                        await Console.Error.WriteLineAsync($"File '{file}' has mismatching ToString() in {blockType}");
-                    }
-                }
-            }
-
-            foreach (var resource in resources.Values)
-            {
-                using (resource)
-                {
-                    if (seenResources.TryGetValue(resource, out var seenBlockTypes))
-                    {
-                        foreach (var block in resource.Blocks)
-                        {
-                            if (!seenBlockTypes.Contains(block.Type))
-                            {
-                                await Assert.That(block.ToString()).IsNotNull();
-                                //Assert.Fail($"{resource.FileName}: block {block.Type} does not have a corresponding text file");
-                            }
-                        }
+                        Fail.Test($"{name}: no such block: {blockType}");
 
                         continue;
                     }
 
-                    foreach (var block in resource.Blocks)
+                    seenBlockTypes.Add(blockType);
+
+                    var blockData = resource.GetBlockByType(blockType);
+
+                    if (blockData == null)
                     {
-                        await Assert.That(block.ToString()).IsNotNull();
+                        Fail.Test($"{name}: block is null: {blockType}");
+
+                        continue;
                     }
+
+                    var rawOutput = blockData.ToString();
+                    var expectedOutput = await File.ReadAllTextAsync(file);
+
+                    // We don't care about Valve's messy whitespace, so just strip it.
+                    var actualOutput = SpaceRegex().Replace(rawOutput, string.Empty);
+
+                    expectedOutput = expectedOutput.Replace("Source 2 Viewer - https://valveresourceformat.github.io", StringToken.VRF_GENERATOR, StringComparison.Ordinal);
+                    expectedOutput = SpaceRegex().Replace(expectedOutput, string.Empty);
+
+                    //await Assert.That(actualOutput).IsEqualTo(expectedOutput);
+                    if (expectedOutput != actualOutput)
+                    {
+                        if (RegenerateFixtures)
+                        {
+                            // Fixtures are stored with the version-free generator string
+                            var sourceFile = Path.Combine(GetSourceValidOutputPath(), Path.GetRelativePath(ValidOutputDirectory, file));
+                            await File.WriteAllTextAsync(sourceFile, rawOutput.Replace(StringToken.VRF_GENERATOR, "Source 2 Viewer - https://valveresourceformat.github.io", StringComparison.Ordinal));
+                            await Console.Error.WriteLineAsync($"Regenerated '{sourceFile}'");
+                        }
+                        else
+                        {
+                            await Console.Error.WriteLineAsync($"File '{file}' has mismatching ToString() in {blockType}");
+                        }
+                    }
+                }
+            }
+
+            foreach (var block in resource.Blocks)
+            {
+                if (!seenBlockTypes.Contains(block.Type))
+                {
+                    await Assert.That(block.ToString()).IsNotNull();
+                    //Fail.Test($"{resource.FileName}: block {block.Type} does not have a corresponding text file");
                 }
             }
         }
