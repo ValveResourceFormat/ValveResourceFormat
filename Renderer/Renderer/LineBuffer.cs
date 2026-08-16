@@ -51,8 +51,14 @@ namespace ValveResourceFormat.Renderer
         /// <summary>Draws the lines, with the object id as instancing base for picking.</summary>
         /// <param name="objectId">Object id used as instancing base for picking.</param>
         public void Draw(uint objectId = 0)
+            => Draw(Shader, objectId);
+
+        /// <summary>Draws the lines with a specific shader and object id.</summary>
+        /// <param name="shader">Shader whose vertex input layout is bound.</param>
+        /// <param name="objectId">Object id used as instancing base for picking.</param>
+        public void Draw(Shader shader, uint objectId = 0)
         {
-            VertexArray.Bind(vao, Shader);
+            VertexArray.Bind(vao, shader);
             GL.DrawArraysInstancedBaseInstance(PrimitiveType.Lines, 0, VertexCount, 1, objectId);
         }
 

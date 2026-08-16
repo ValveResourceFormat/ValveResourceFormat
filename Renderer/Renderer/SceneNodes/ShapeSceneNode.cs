@@ -40,8 +40,20 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         /// <summary>Gets the vertex array state for this shape.</summary>
         protected int vao { get; private set; }
 
+        private int vboHandle;
+        private int iboHandle;
+
         /// <summary>Gets whether this shape uses normal-based shading.</summary>
         protected virtual bool Shaded { get; } = true;
+
+        /// <summary>Gets whether translucent shapes also draw their triangle mesh as wireframe.</summary>
+        protected virtual bool DrawWireframeWhenTranslucent { get; } = true;
+
+        /// <summary>Gets whether this shape is tested against the scene depth buffer.</summary>
+        protected virtual bool DepthTested { get; } = true;
+
+        /// <summary>Gets whether translucent geometry writes to the scene depth buffer.</summary>
+        protected virtual bool WriteDepthWhenTranslucent { get; } = true;
 
         /// <summary>Gets or sets an optional tool texture overlay rendered on top of the shape.</summary>
         protected RenderTexture? ToolTexture { get; set; }
@@ -110,11 +122,45 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         {
             indexCount = inds.Count;
 
+            if (indexCount == 0)
+            {
+                return;
+            }
+
+            if (verts.Count == 0)
+            {
+                throw new ArgumentException("Indexed shape geometry must contain vertices.", nameof(verts));
+            }
+
             var label = GetType().Name;
-            var vboHandle = GraphicsDevice.CreateBuffer<SimpleVertexNormal>(label, CollectionsMarshal.AsSpan(verts), BufferUsage.Static);
-            var iboHandle = GraphicsDevice.CreateBuffer<int>(label, CollectionsMarshal.AsSpan(inds), BufferUsage.Static);
+            vboHandle = GraphicsDevice.CreateBuffer<SimpleVertexNormal>(label, CollectionsMarshal.AsSpan(verts), BufferUsage.Static);
+            iboHandle = GraphicsDevice.CreateBuffer<int>(label, CollectionsMarshal.AsSpan(inds), BufferUsage.Static);
 
             vao = SimpleVertexNormal.InputLayout.CreateVertexArray(nameof(ShapeSceneNode), vboHandle, iboHandle);
+        }
+
+        /// <inheritdoc/>
+        public override void Delete()
+        {
+            if (vao != 0)
+            {
+                VertexArray.Delete(vao);
+                vao = 0;
+            }
+
+            if (vboHandle != 0)
+            {
+                GL.DeleteBuffer(vboHandle);
+                vboHandle = 0;
+            }
+
+            if (iboHandle != 0)
+            {
+                GL.DeleteBuffer(iboHandle);
+                iboHandle = 0;
+            }
+
+            base.Delete();
         }
 
         /// <summary>Appends two triangles forming a quad face from four vertex indices.</summary>
@@ -337,6 +383,11 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         /// <inheritdoc/>
         public override void Render(Scene.RenderContext context)
         {
+            if (indexCount == 0)
+            {
+                return;
+            }
+
             var isTranslucent = IsTranslucent && IsTranslucentRenderMode && context.ReplacementShader == null;
             var renderPass = isTranslucent ? RenderPass.Translucent : RenderPass.Opaque;
 
@@ -359,6 +410,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
 
             var renderState = GraphicsContext.RenderState;
             var state = renderState.CurrentPass;
+            state.DepthStencil.DepthTestEnable = DepthTested;
             state.DepthStencil.DepthFunc = RsComparison.CloserEqual;
 
             if (isTranslucent)
@@ -370,16 +422,18 @@ namespace ValveResourceFormat.Renderer.SceneNodes
 
             if (isTranslucent)
             {
-                // Lines
-                var lineState = state;
-                lineState.Rasterizer.FillMode = RsFillMode.Wireframe;
-                lineState.BlendEnable = false;
-                renderState.Apply(in lineState);
-                GL.DrawElements(PrimitiveType.Triangles, indexCount, DrawElementsType.UnsignedInt, 0);
+                if (DrawWireframeWhenTranslucent)
+                {
+                    var lineState = state;
+                    lineState.Rasterizer.FillMode = RsFillMode.Wireframe;
+                    lineState.BlendEnable = false;
+                    renderState.Apply(in lineState);
+                    GL.DrawElements(PrimitiveType.Triangles, indexCount, DrawElementsType.UnsignedInt, 0);
+                }
 
-                // Triangles
                 var fillState = state;
                 fillState.BlendEnable = true;
+                fillState.DepthStencil.DepthWriteEnable = WriteDepthWhenTranslucent;
                 fillState.SetBlend(RsBlendMode.SrcAlpha, RsBlendMode.InvSrcAlpha);
                 fillState.Rasterizer.SlopeScaledDepthBias = 2f;
                 fillState.Rasterizer.DepthBias = 100;
