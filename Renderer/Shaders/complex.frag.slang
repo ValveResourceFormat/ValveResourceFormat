@@ -339,6 +339,10 @@ MaterialProperties_t GetMaterial(vec2 texCoord, vec3 vertexNormals)
     vec4 color = texture(g_tColor, texCoord);
     vec4 normalTexture = texture(g_tNormal, texCoord);
 
+#if defined(static_overlay_vfx_common) && (F_BLEND_MODE == 3)
+    color.rgb = SrgbLinearToGamma(color.rgb);
+#endif
+
 #if defined(static_overlay_vfx_common)
     color.rgb = (vec4(color.rgb, 1.0) * g_mTextureColorAdjust).rgb;
 #endif
