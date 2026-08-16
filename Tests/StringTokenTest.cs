@@ -3,7 +3,6 @@ using ValveResourceFormat.Utils;
 
 namespace Tests
 {
-    [NotInParallel(nameof(StringTokenTest))]
     public class StringTokenTest
     {
         [Test]
@@ -41,7 +40,7 @@ namespace Tests
         [Test]
         public async Task EnsurePreservesStringCase()
         {
-            var key = "MyUppercaseKey";
+            var key = "MyPreservedCaseKey";
 
             var addedHash = StringToken.Store(key);
             var inverseLookupKey = StringToken.GetKnownString(addedHash);
