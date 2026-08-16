@@ -8,7 +8,7 @@ layout (local_size_x = 8, local_size_y = 8) in;
 #define D_NPOT_DOWNSAMPLE 0
 
 #if D_NPOT_DOWNSAMPLE == 1
-    layout(binding = 0) uniform sampler2D g_tSourceDepthNpot;
+    uniform sampler2D g_tSourceDepthNpot;
     uniform int g_nSourceDepthWidth;
     uniform int g_nSourceDepthHeight;
 #else

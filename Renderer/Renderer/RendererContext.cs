@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Logging;
 using ValveResourceFormat.IO;
+using ValveResourceFormat.Renderer.Buffers;
 
 namespace ValveResourceFormat.Renderer;
 
@@ -37,6 +38,17 @@ public class RendererContext : IDisposable
     /// Render state tracker for the GL context this renderer context renders with.
     /// </summary>
     public RenderStateTracker RenderState { get; } = new();
+
+    private SceneTextures? sceneTextures;
+
+    /// <summary>
+    /// Bindless handles of the scene-wide textures, read by every shader out of one shared buffer.
+    /// </summary>
+    /// <remarks>
+    /// Created on first use rather than with the context, which is constructed before there is a GL context
+    /// current to allocate its buffer and null textures on.
+    /// </remarks>
+    public SceneTextures SceneTextures => sceneTextures ??= new SceneTextures(MaterialLoader);
 
     /// <summary>
     /// Maximum texture mip size to load in <see cref="MaterialLoader"/>.

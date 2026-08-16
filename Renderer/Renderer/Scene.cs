@@ -60,8 +60,6 @@ namespace ValveResourceFormat.Renderer
             /// <summary>Gets or sets an optional shader that overrides per-material shaders for this pass.</summary>
             public Shader? ReplacementShader { get; set; }
 
-            /// <summary>Gets the list of scene-level textures bound to reserved texture slots.</summary>
-            public required List<(ReservedTextureSlots Slot, string Name, RenderTexture Texture)> Textures { get; init; }
         }
 
         /// <summary>Gets the render attribute overrides applied to all draw calls in this scene.</summary>
@@ -1299,7 +1297,7 @@ namespace ValveResourceFormat.Renderer
             shader.SetUniform("g_nDepthPyramidHeight", pyramid.Height);
             shader.SetUniform("g_flDepthRangeMin", Renderer.DepthRange.Scene.Near);
             shader.SetUniform("g_flDepthRangeMax", Renderer.DepthRange.Scene.Far);
-            shader.SetTexture(RenderMaterial.TextureUnitStart, "g_tDepthPyramid", pyramid);
+            shader.SetTexture("g_tDepthPyramid", pyramid);
 
             return true;
         }
@@ -1396,7 +1394,7 @@ namespace ValveResourceFormat.Renderer
             {
                 Debug.Assert(DepthPyramidNpotShader != null);
                 DepthPyramidNpotShader.Use();
-                DepthPyramidNpotShader.SetTexture(0, "g_tSourceDepthNpot", depthSource);
+                DepthPyramidNpotShader.SetTexture("g_tSourceDepthNpot", depthSource);
                 DepthPyramidNpotShader.SetUniform("g_nSourceDepthWidth", depthSource.Width);
                 DepthPyramidNpotShader.SetUniform("g_nSourceDepthHeight", depthSource.Height);
 

@@ -44,13 +44,19 @@ public enum GlobalsType
     BVec4,
     /// <summary>Four by four column major float matrix.</summary>
     Mat4,
+    /// <summary>
+    /// A texture, held as a 64 bit bindless handle. Takes 8 bytes at 8 byte alignment, the same as the
+    /// <c>uvec2</c> the handle is defined to be interchangeable with.
+    /// </summary>
+    Sampler,
 }
 
 /// <summary>A single uniform packed into the globals constant buffer.</summary>
 /// <param name="Name">The uniform name as declared in the shader source.</param>
 /// <param name="Type">The declared GLSL type.</param>
 /// <param name="Offset">The byte offset of this member within the constant buffer.</param>
-public readonly record struct GlobalsMember(string Name, GlobalsType Type, int Offset)
+/// <param name="Sampler">The sampler type when <paramref name="Type"/> is <see cref="GlobalsType.Sampler"/>.</param>
+public readonly record struct GlobalsMember(string Name, GlobalsType Type, int Offset, SamplerKind Sampler = default)
 {
     /// <summary>Gets the number of scalar components, 16 for <see cref="GlobalsType.Mat4"/>.</summary>
     public int ComponentCount => GlobalsLayout.GetComponentCount(Type);
@@ -67,7 +73,8 @@ public readonly record struct GlobalsMember(string Name, GlobalsType Type, int O
 /// <param name="Type">The declared GLSL type.</param>
 /// <param name="Initializer">The default value expression, or <see langword="null"/> when the declaration has none.</param>
 /// <param name="SrgbRead">Whether the declaration is annotated with <c>// SrgbRead(true)</c>.</param>
-public readonly record struct GlobalsDeclaration(string Name, GlobalsType Type, string? Initializer, bool SrgbRead);
+/// <param name="Sampler">The sampler type when <paramref name="Type"/> is <see cref="GlobalsType.Sampler"/>.</param>
+public readonly record struct GlobalsDeclaration(string Name, GlobalsType Type, string? Initializer, bool SrgbRead, SamplerKind Sampler = default);
 
 /// <summary>
 /// The std140 layout of a shader's loose global uniforms after they have been packed into a single
@@ -133,10 +140,10 @@ public sealed class GlobalsLayout
                 continue;
             }
 
-            if (existing.Type != declaration.Type)
+            if (existing.Type != declaration.Type || existing.Sampler != declaration.Sampler)
             {
                 throw new ShaderLoader.ShaderCompilerException(
-                    $"Uniform '{declaration.Name}' is declared as both '{GetGlslName(existing.Type)}' and '{GetGlslName(declaration.Type)}'");
+                    $"Uniform '{declaration.Name}' is declared as both '{GetDeclaredName(existing)}' and '{GetDeclaredName(declaration)}'");
             }
 
             var srgbRead = existing.SrgbRead || declaration.SrgbRead;
@@ -200,12 +207,12 @@ public sealed class GlobalsLayout
         {
             offset = Align(offset, GetBaseAlignment(declaration.Type));
 
-            members.Add(declaration.Name, new GlobalsMember(declaration.Name, declaration.Type, offset));
+            members.Add(declaration.Name, new GlobalsMember(declaration.Name, declaration.Type, offset, declaration.Sampler));
 
             offset += GetComponentCount(declaration.Type) * sizeof(float);
 
             builder.Append("    ");
-            builder.Append(GetGlslName(declaration.Type));
+            builder.Append(GetDeclaredName(declaration));
             builder.Append(' ');
             builder.Append(declaration.Name);
             builder.Append(";\n");
@@ -280,6 +287,10 @@ public sealed class GlobalsLayout
 
             case GlobalsType.Mat4:
                 break;
+
+            // A sampler has no source default. It stays a zero handle until a material fills it in.
+            case GlobalsType.Sampler:
+                return;
 
             default:
                 vectorDefaults[constant.Name] = new Vector4((float)values[0], (float)values[1], (float)values[2], (float)values[3]);
@@ -430,6 +441,8 @@ public sealed class GlobalsLayout
     internal static int GetComponentCount(GlobalsType type) => type switch
     {
         GlobalsType.Mat4 => 16,
+        // Two 32 bit words, which gives it the 8 byte size and alignment a handle is laid out with.
+        GlobalsType.Sampler => 2,
         GlobalsType.Vec4 or GlobalsType.IVec4 or GlobalsType.UVec4 or GlobalsType.BVec4 => 4,
         GlobalsType.Vec3 or GlobalsType.IVec3 or GlobalsType.UVec3 or GlobalsType.BVec3 => 3,
         GlobalsType.Vec2 or GlobalsType.IVec2 or GlobalsType.UVec2 or GlobalsType.BVec2 => 2,
@@ -449,6 +462,25 @@ public sealed class GlobalsLayout
         1 => 4,
         2 => 8,
         _ => 16,
+    };
+
+    /// <summary>Returns the GLSL keyword a declaration is emitted with.</summary>
+    internal static string GetDeclaredName(GlobalsDeclaration declaration)
+        => declaration.Type == GlobalsType.Sampler
+            ? GetSamplerName(declaration.Sampler)
+            : GetGlslName(declaration.Type);
+
+    /// <summary>Returns the GLSL keyword for the given sampler type.</summary>
+    internal static string GetSamplerName(SamplerKind kind) => kind switch
+    {
+        SamplerKind.Texture2D => "sampler2D",
+        SamplerKind.Texture3D => "sampler3D",
+        SamplerKind.TextureCube => "samplerCube",
+        SamplerKind.Texture2DArray => "sampler2DArray",
+        SamplerKind.TextureCubeArray => "samplerCubeArray",
+        SamplerKind.Texture2DShadow => "sampler2DShadow",
+        SamplerKind.Texture2DArrayShadow => "sampler2DArrayShadow",
+        _ => throw new ArgumentOutOfRangeException(nameof(kind), kind, null),
     };
 
     /// <summary>Returns the GLSL keyword for the given type.</summary>

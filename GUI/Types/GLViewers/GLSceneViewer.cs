@@ -232,8 +232,7 @@ namespace GUI.Types.GLViewers
                 var cubemapTexture = Scene.FogInfo.CubemapFog?.CubemapFogTexture;
                 if (cubemapTexture != null)
                 {
-                    Renderer.Textures.RemoveAll(t => t.Slot == ReservedTextureSlots.FogCubeTexture);
-                    Renderer.Textures.Add(new(ReservedTextureSlots.FogCubeTexture, "g_tFogCubeTexture", cubemapTexture));
+                    Scene.RendererContext.SceneTextures.SetTexture("g_tFogCubeTexture", cubemapTexture);
                 }
             }
 
@@ -630,7 +629,6 @@ namespace GUI.Types.GLViewers
             {
                 Camera = Renderer.Camera,
                 Framebuffer = MainFramebuffer,
-                Textures = Renderer.Textures,
                 Scene = Scene,
             };
 

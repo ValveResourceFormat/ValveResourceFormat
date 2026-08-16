@@ -606,7 +606,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             for (var layer = 0; layer < MaxTextureLayers; layer++)
             {
                 var source = layer < layers.Length ? layers[layer] : layers[0];
-                shader.SetTexture(RenderMaterial.TextureUnitStart + layer, LayerTextureUniforms[layer], source.Texture);
+                shader.SetTexture(LayerTextureUniforms[layer], source.Texture);
             }
 
             shader.SetUniform1("uLayerCount", layers.Length);

@@ -25,6 +25,8 @@ public enum ReservedBufferSlots
     LightCull = 6,
     /// <summary>Packed material properties.</summary>
     Globals = 7,
+    /// <summary>Bindless handles of the textures the renderer supplies for the whole scene.</summary>
+    SceneTextures = 8,
 
     // ssbo
 
@@ -59,8 +61,8 @@ public enum ReservedBufferSlots
     /// <summary>Quad overdraw debug lock and count pairs SSBO slot.</summary>
     QuadOverdraw = 13,
 
-    /// <summary>Guaranteed minimum binding point count in OpenGL 4.6.</summary>
-    Max = 8,
+    /// <summary>One past the last uniform block slot. OpenGL 4.6 guarantees at least 14 per stage.</summary>
+    Max = 9,
 }
 
 #pragma warning restore CA1069 // Enum values should not be duplicated

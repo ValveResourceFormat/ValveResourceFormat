@@ -11,7 +11,7 @@ layout (local_size_x = 8, local_size_y = 8) in;
 
 uniform bool g_bFlipY = false;
 
-layout(binding = 0) uniform sampler2DMS g_tSourceMsaa;
+uniform sampler2DMS g_tSourceMsaa;
 layout(binding = 1, rgba16f) uniform writeonly image2D g_tDest;
 
 #if D_DOF == 1

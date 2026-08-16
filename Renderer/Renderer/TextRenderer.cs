@@ -476,11 +476,11 @@ namespace ValveResourceFormat.Renderer
 
             shader.Use();
             shader.SetUniform4x4("transform", Matrix4x4.CreateOrthographicOffCenter(0f, camera.WindowSize.X, camera.WindowSize.Y, 0f, -100f, 100f));
-            shader.SetTexture(0, "msdf", fontTexture);
+            shader.SetTexture("msdf", fontTexture);
 
             if (sceneDepth != null)
             {
-                shader.SetTexture((int)ReservedTextureSlots.SceneDepth, "g_tSceneDepth", sceneDepth);
+                shader.SetTexture("g_tSceneDepth", sceneDepth);
             }
 
             shader.SetUniform("g_fRange", TextureRange);

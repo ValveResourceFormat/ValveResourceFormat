@@ -53,7 +53,6 @@ namespace ValveResourceFormat.Renderer.SceneEnvironment
 
             GL.BindVertexArray(vao);
             GL.DrawArrays(PrimitiveType.Triangles, 0, 36);
-            Material.PostRender();
         }
     }
 }

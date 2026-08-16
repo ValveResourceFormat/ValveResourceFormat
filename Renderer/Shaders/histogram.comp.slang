@@ -2,7 +2,7 @@
 
 #include "common/utils.slang"
 
-layout(binding = 0) uniform sampler2D inputImage;
+uniform sampler2D inputImage;
 
 // Global histogram buffer (256 bins)
 layout(binding = 2, std430) buffer HistogramBuffer

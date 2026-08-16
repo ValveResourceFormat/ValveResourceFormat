@@ -411,7 +411,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
 
             VertexArray.Bind(vaoHandle, shader);
 
-            shader.SetTexture(RenderMaterial.TextureUnitStart, "uTexture", texture);
+            shader.SetTexture("uTexture", texture);
 
             // TODO: This formula is a guess but still seems too bright compared to valve particles
             SetSharedUniforms(shader, systemRenderState);

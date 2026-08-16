@@ -108,10 +108,6 @@ public class Renderer
     /// <summary>Gets the fullscreen tile mask overlay drawn in the tile debug render modes.</summary>
     public LightTilesOverlay LightTilesOverlay { get; }
 
-    /// <summary>
-    /// Named textures bound to reserved slots for all render passes.
-    /// </summary>
-    public List<(ReservedTextureSlots Slot, string Name, RenderTexture Texture)> Textures { get; } = [];
 
     internal Shader depthOnlyShader = null!;
     private readonly Frustum barnLightShadowFrustum = new();
@@ -267,7 +263,7 @@ public class Renderer
         Debug.Assert(ShadowDepthBuffer.Depth != null);
 
         ShadowDepthBuffer.SetShadowDepthSamplerState();
-        Textures.Add(new(ReservedTextureSlots.ShadowDepthBufferDepth, "g_tShadowDepthBufferDepth", ShadowDepthBuffer.Depth));
+        RendererContext.SceneTextures.SetTexture("g_tShadowDepthBufferDepth", ShadowDepthBuffer.Depth);
 
         // Barn light shadow atlas
         BarnLightShadowBuffer = Framebuffer.Prepare(nameof(BarnLightShadowBuffer), 4, 4, 0, null, ImageFormat.D16);
@@ -276,7 +272,7 @@ public class Renderer
         Debug.Assert(BarnLightShadowBuffer.Depth != null);
 
         BarnLightShadowBuffer.SetShadowDepthSamplerState(true);
-        Textures.Add(new(ReservedTextureSlots.BarnLightShadowDepth, "g_tBarnLightShadowDepth", BarnLightShadowBuffer.Depth));
+        RendererContext.SceneTextures.SetTexture("g_tBarnLightShadowDepth", BarnLightShadowBuffer.Depth);
 
         depthOnlyShader = Scene.RendererContext.ShaderLoader.LoadShader("depth_only");
 
@@ -292,14 +288,14 @@ public class Renderer
 
         ResolvedSceneDepth = RenderTexture.Create(4, 4, ImageFormat.R32F);
 
-        Textures.Add(new(ReservedTextureSlots.SceneColor, "g_tSceneColor", ResolvedSceneColor));
-        Textures.Add(new(ReservedTextureSlots.SceneDepth, "g_tSceneDepth", ResolvedSceneDepth));
+        RendererContext.SceneTextures.SetTexture("g_tSceneColor", ResolvedSceneColor);
+        RendererContext.SceneTextures.SetTexture("g_tSceneDepth", ResolvedSceneDepth);
 
         EnsureDepthPyramidSize(256, 256);
     }
 
     /// <summary>Slots out of <see cref="MaterialLoader.ShaderTextures"/> that have been resolved.</summary>
-    private readonly HashSet<ReservedTextureSlots> loadedShaderTextures = [];
+    private readonly HashSet<string> loadedShaderTextures = [];
 
     /// <summary>
     /// Loads any used texture from the <see cref="MaterialLoader.ShaderTextures"/> list.
@@ -313,9 +309,9 @@ public class Renderer
 
         var declared = RendererContext.ShaderLoader.DeclaredReservedTextures;
 
-        foreach (var (slot, name, path) in MaterialLoader.ShaderTextures)
+        foreach (var (name, path) in MaterialLoader.ShaderTextures)
         {
-            if (!declared.Contains(name) || !loadedShaderTextures.Add(slot))
+            if (!declared.Contains(name) || !loadedShaderTextures.Add(name))
             {
                 continue;
             }
@@ -326,12 +322,12 @@ public class Renderer
                 ? RendererContext.MaterialLoader.LoadTexture(resource)
                 : RendererContext.MaterialLoader.GetDefaultColor();
 
-            Textures.Add(new(slot, name, texture));
+            RendererContext.SceneTextures.SetTexture(name, texture);
         }
     }
 
     /// <summary>
-    /// Loads embedded or game-provided BRDF LUT, cube fog, and blue noise textures into <see cref="Textures"/>.
+    /// Loads embedded or game-provided BRDF LUT, cube fog, and blue noise textures into <see cref="RendererContext.SceneTextures"/>.
     /// </summary>
     public void LoadRendererResources()
     {
@@ -368,7 +364,7 @@ public class Renderer
 
             var brdfLutTexture = Scene.RendererContext.MaterialLoader.LoadTexture(brdfLutResource);
             brdfLutTexture.SetWrapMode(TextureWrapMode.ClampToEdge);
-            Textures.Add(new(ReservedTextureSlots.BRDFLookup, "g_tBRDFLookup", brdfLutTexture));
+            RendererContext.SceneTextures.SetTexture("g_tBRDFLookup", brdfLutTexture);
         }
         finally
         {
@@ -381,7 +377,7 @@ public class Renderer
         cubeFogResource.Read(cubeFogStream);
 
         var defaultCubeTexture = Scene.RendererContext.MaterialLoader.LoadTexture(cubeFogResource);
-        Textures.Add(new(ReservedTextureSlots.FogCubeTexture, "g_tFogCubeTexture", defaultCubeTexture));
+        RendererContext.SceneTextures.SetTexture("g_tFogCubeTexture", defaultCubeTexture);
 
         const string blueNoiseName = "blue_noise_256.vtex_c";
         var blueNoiseResource = RendererContext.FileLoader.LoadFile("textures/dev/" + blueNoiseName);
@@ -405,7 +401,7 @@ public class Renderer
 
             var blueNoise = Scene.RendererContext.MaterialLoader.LoadTexture(blueNoiseResource);
             Postprocess.BlueNoise = blueNoise;
-            Textures.Add(new(ReservedTextureSlots.BlueNoise, "g_tBlueNoise", blueNoise));
+            RendererContext.SceneTextures.SetTexture("g_tBlueNoise", blueNoise);
         }
         finally
         {
@@ -524,7 +520,6 @@ public class Renderer
             Camera = Camera,
             Framebuffer = MainFramebuffer,
             Scene = Scene,
-            Textures = Textures,
         };
 
         LoadShaderTextures();
@@ -546,7 +541,6 @@ public class Renderer
             Camera = Camera,
             Framebuffer = framebuffer,
             Scene = Scene,
-            Textures = Textures,
         };
 
         Render(renderContext);
@@ -882,8 +876,7 @@ public class Renderer
 
         if (BarnLightShadowBuffer.Resize(atlasSize, atlasSize))
         {
-            Textures.RemoveAll(t => t.Slot == ReservedTextureSlots.BarnLightShadowDepth);
-            Textures.Add(new(ReservedTextureSlots.BarnLightShadowDepth, "g_tBarnLightShadowDepth", BarnLightShadowBuffer.Depth!));
+            RendererContext.SceneTextures.SetTexture("g_tBarnLightShadowDepth", BarnLightShadowBuffer.Depth!);
         }
 
         GL.Viewport(0, 0, BarnLightShadowBuffer.Width, BarnLightShadowBuffer.Height);
@@ -933,7 +926,7 @@ public class Renderer
             var logRange = 13f;
 
             shader.Use();
-            shader.SetTexture(0, "inputImage", texture);
+            shader.SetTexture("inputImage", texture);
             shader.SetUniform1("logMinLuminance", logMin);
             shader.SetUniform1("logLuminanceRange", logRange);
 
@@ -1022,9 +1015,8 @@ public class Renderer
             ResolvedSceneDepth!.Delete();
             ResolvedSceneDepth = RenderTexture.Create(width, height, ImageFormat.R32F);
 
-            Textures.RemoveAll(static t => t.Slot == ReservedTextureSlots.SceneColor || t.Slot == ReservedTextureSlots.SceneDepth);
-            Textures.Add(new(ReservedTextureSlots.SceneColor, "g_tSceneColor", ResolvedSceneColor));
-            Textures.Add(new(ReservedTextureSlots.SceneDepth, "g_tSceneDepth", ResolvedSceneDepth));
+            RendererContext.SceneTextures.SetTexture("g_tSceneColor", ResolvedSceneColor);
+            RendererContext.SceneTextures.SetTexture("g_tSceneDepth", ResolvedSceneDepth);
         }
     }
 

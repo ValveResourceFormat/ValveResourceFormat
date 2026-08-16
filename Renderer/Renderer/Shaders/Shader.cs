@@ -99,6 +99,7 @@ namespace ValveResourceFormat.Renderer.Shaders
 
         private readonly Dictionary<string, (ActiveUniformType Type, int Location, bool SrgbRead)> Uniforms = [];
 
+
         /// <summary>Gets the default <see cref="RenderMaterial"/> whose values serve as fallbacks when a material omits a uniform.</summary>
         public RenderMaterial Default { get; init; }
 
@@ -214,7 +215,6 @@ namespace ValveResourceFormat.Renderer.Shaders
                 if (IsValid)
                 {
                     StoreUniformLocations();
-                    BindReservedTextureSlots();
                     StoreRequiredAttributes();
 
 #if DEBUG
@@ -341,29 +341,15 @@ namespace ValveResourceFormat.Renderer.Shaders
                     continue;
                 }
 
-                var isTexture = type is >= ActiveUniformType.Sampler2D and <= ActiveUniformType.SamplerCube;
+                // Samplers are not reflected for: a packed one takes its fallback from the layout, and a loose
+                // one is set by whichever renderer draws with it.
                 var isVector = type is >= ActiveUniformType.FloatVec2 and <= ActiveUniformType.IntVec4;
                 var isScalar = type == ActiveUniformType.Float;
                 var isBoolean = type == ActiveUniformType.Bool;
                 var isInteger = type is ActiveUniformType.Int or ActiveUniformType.UnsignedInt;
                 var isMatrix = type is ActiveUniformType.FloatMat4;
 
-                if (isTexture && !Default.Textures.ContainsKey(name))
-                {
-                    if (MaterialLoader.IsReservedTexture(name))
-                    {
-                        continue;
-                    }
-
-                    Default.Textures[name] = name switch
-                    {
-                        _ when name.Contains("color", StringComparison.OrdinalIgnoreCase) => MaterialLoader.GetErrorTexture(),
-                        _ when name.Contains("normal", StringComparison.OrdinalIgnoreCase) => MaterialLoader.GetDefaultNormal(),
-                        _ when name.Contains("mask", StringComparison.OrdinalIgnoreCase) => MaterialLoader.GetDefaultMask(),
-                        _ => MaterialLoader.GetErrorTexture(),
-                    };
-                }
-                else if (isVector && !Default.VectorParams.ContainsKey(name))
+                if (isVector && !Default.VectorParams.ContainsKey(name))
                 {
                     floatVal.Clear();
                     fixed (float* ptr = floatVal)
@@ -399,22 +385,36 @@ namespace ValveResourceFormat.Renderer.Shaders
             }
 
             // Seeded from the source, where a sampler behind a combo the linker dropped still looks used.
-            ReservedTexturesUsed.RemoveWhere(reserved => GL.GetUniformLocation(Program, reserved) == -1);
+            // These live in the SceneTextures block, so they have an index rather than a location.
+            ReservedTexturesUsed.RemoveWhere(reserved => !IsActiveUniform(reserved));
         }
 
-        /// <summary>Points every reserved texture sampler this program declares at its global texture unit.</summary>
-        private void BindReservedTextureSlots()
+        /// <summary>Returns whether the linked program kept a uniform, including the members of a block.</summary>
+        private bool IsActiveUniform(string name)
         {
-            // Table driven: StoreUniformLocations does not classify array and shadow samplers.
-            foreach (var (name, slot) in MaterialLoader.ReservedTextureSlotByName)
-            {
-                var uniformLocation = GetUniformLocation(name);
+            var indices = new int[1];
+            GL.GetUniformIndices(Program, 1, [name], indices);
 
-                if (uniformLocation > -1)
-                {
-                    GL.ProgramUniform1(Program, uniformLocation, (int)slot);
-                }
+            return indices[0] != -1;
+        }
+
+        /// <summary>Returns the texture a sampler falls back to when the material bound supplies none.</summary>
+        /// <param name="name">The sampler uniform name, which hints at what a 2D stand-in should look like.</param>
+        /// <param name="kind">The sampler type the texture has to match.</param>
+        internal RenderTexture GetDefaultTexture(string name, SamplerKind kind)
+        {
+            // Only a 2D sampler can read these stand-ins; the rest need one of their own target.
+            if (kind != SamplerKind.Texture2D)
+            {
+                return MaterialLoader.GetNullTexture(kind);
             }
+
+            return name switch
+            {
+                _ when name.Contains("normal", StringComparison.OrdinalIgnoreCase) => MaterialLoader.GetDefaultNormal(),
+                _ when name.Contains("mask", StringComparison.OrdinalIgnoreCase) => MaterialLoader.GetDefaultMask(),
+                _ => MaterialLoader.GetErrorTexture(),
+            };
         }
 
         /// <summary>
@@ -427,6 +427,8 @@ namespace ValveResourceFormat.Renderer.Shaders
         {
             EnsureLoaded();
             GL.UseProgram(Program);
+
+            RendererContext.SceneTextures.BindBufferBase();
 
             Default.BindGlobals(this);
         }
@@ -722,16 +724,28 @@ namespace ValveResourceFormat.Renderer.Shaders
             }
         }
 
-        /// <summary>Binds a texture to the given texture unit and sets the named sampler uniform, returning <see langword="false"/> if the texture or uniform is absent.</summary>
-        /// <param name="slot">The texture unit index.</param>
+        /// <summary>Sets the named sampler uniform to a texture's bindless handle, returning <see langword="false"/> if the texture or uniform is absent.</summary>
         /// <param name="name">The sampler uniform name.</param>
-        /// <param name="texture">The texture to bind.</param>
-        /// <returns><see langword="true"/> if the texture was successfully bound; otherwise <see langword="false"/>.</returns>
-        public bool SetTexture(int slot, string name, RenderTexture? texture)
+        /// <param name="texture">The texture to sample.</param>
+        /// <param name="sampler">Sampler object supplying the filtering and wrapping, or zero to use the texture's own.</param>
+        /// <returns><see langword="true"/> if the uniform was set; otherwise <see langword="false"/>.</returns>
+        public bool SetTexture(string name, RenderTexture? texture, int sampler = 0)
         {
             if (texture == null)
             {
                 return false;
+            }
+
+            // A sampler lives in one of three places, decided by who owns the texture: this shader's own
+            // constant buffer, the renderer's shared one, or a loose uniform for the per-draw ones.
+            if (Default.SetTexture(name, texture, sampler))
+            {
+                return true;
+            }
+
+            if (RendererContext.SceneTextures.SetTexture(name, texture, sampler))
+            {
+                return true;
             }
 
             var uniformLocation = GetUniformLocation(name);
@@ -740,22 +754,22 @@ namespace ValveResourceFormat.Renderer.Shaders
                 return false;
             }
 
-            SetTexture(slot, uniformLocation, texture);
+            SetTexture(uniformLocation, texture, sampler);
             return true;
         }
 
-        /// <summary>Binds a texture to the given texture unit and sets the sampler uniform by location.</summary>
-        /// <param name="slot">The texture unit index.</param>
+        /// <summary>Sets the sampler uniform at the given location to a texture's bindless handle.</summary>
         /// <param name="uniformLocation">The pre-resolved sampler uniform location.</param>
-        /// <param name="texture">The texture to bind.</param>
-        public void SetTexture(int slot, int uniformLocation, RenderTexture? texture)
+        /// <param name="texture">The texture to sample.</param>
+        /// <param name="sampler">Sampler object supplying the filtering and wrapping, or zero to use the texture's own.</param>
+        public void SetTexture(int uniformLocation, RenderTexture? texture, int sampler = 0)
         {
             if (texture == null)
             {
                 return;
             }
-            GL.BindTextureUnit(slot, texture.Handle);
-            GL.ProgramUniform1(Program, uniformLocation, slot);
+
+            GL.Arb.ProgramUniformHandle(Program, uniformLocation, texture.GetHandle(sampler));
         }
 
 #if DEBUG
@@ -784,6 +798,7 @@ namespace ValveResourceFormat.Renderer.Shaders
             ReservedTexturesUsed.UnionWith(shader.ReservedTexturesUsed);
 
             Uniforms.Clear();
+
         }
 #endif
     }

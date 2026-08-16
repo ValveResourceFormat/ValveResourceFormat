@@ -285,7 +285,7 @@ namespace ValveResourceFormat.Renderer.Shaders
 
                             parsedData.Uniforms.Add(uniformName);
 
-                            if (uniformType.StartsWith("sampler", StringComparison.Ordinal) && MaterialLoader.IsReservedTexture(uniformName))
+                            if (ReservedSamplers.Contains(uniformName))
                             {
                                 parsedData.ReservedTextures.Add(uniformName);
                             }
@@ -299,14 +299,34 @@ namespace ValveResourceFormat.Renderer.Shaders
                                 parsedData.SamplerUserConfigUniforms.Add(uniformName);
                             }
 
+                            // The shared SceneTextures block declares these, so the source declaration would
+                            // be a duplicate. The per-instance reserved samplers are not in it and stay loose.
+                            if (SceneTexturesLayout.Members.ContainsKey(uniformName))
+                            {
+                                builder.Append("// :VrfSceneTexture ");
+                                builder.Append(line);
+                                builder.Append('\n');
+                                continue;
+                            }
+
+                            var constantType = GlobalsType.Float;
+
+                            // A multisample sampler resolves to no kind and stays loose, as do the reserved
+                            // per-instance ones. The rest are per-material and come free with the buffer a
+                            // draw already binds.
+                            var isSampler = ReservedSamplers.TryGetKind(uniformType, out var samplerKind);
+                            var packAsSampler = isSampler && !ReservedSamplers.Contains(uniformName);
+
                             if (!match.Groups["Array"].Success
                             && IsPackableUniformName(uniformName)
-                            && GlobalsLayout.TryGetType(uniformType, out var constantType))
+                            && (packAsSampler || GlobalsLayout.TryGetType(uniformType, out constantType)))
                             {
                                 var defaultGroup = match.Groups["Default"];
 
-                                parsedData.GlobalsDeclarations.Add(new GlobalsDeclaration(uniformName, constantType,
-                                    defaultGroup.Success ? defaultGroup.Value : null, match.Groups["SrgbRead"].Success));
+                                parsedData.GlobalsDeclarations.Add(packAsSampler
+                                    ? new GlobalsDeclaration(uniformName, GlobalsType.Sampler, null, false, samplerKind)
+                                    : new GlobalsDeclaration(uniformName, constantType,
+                                        defaultGroup.Success ? defaultGroup.Value : null, match.Groups["SrgbRead"].Success));
 
                                 builder.Append("// :VrfPacked ");
                                 builder.Append(line);

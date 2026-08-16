@@ -109,7 +109,7 @@ public class BloomRenderer
             Debug.Assert(input.Target == TextureTarget.Texture2D);
 
             firstDownsampleBloomThreshold.Use();
-            firstDownsampleBloomThreshold.SetTexture(0, "inputTexture", input);
+            firstDownsampleBloomThreshold.SetTexture("inputTexture", input);
 
             Ping.Bind(FramebufferTarget.DrawFramebuffer);
             GL.Viewport(0, 0, Ping.Width, Ping.Height);
@@ -182,7 +182,7 @@ public class BloomRenderer
                 : upsample;
 
             upsampleShader.Use();
-            upsampleShader.SetTexture(0, "g_tSource", Accumulation.Color);
+            upsampleShader.SetTexture("g_tSource", Accumulation.Color);
             upsampleShader.SetUniform("g_vTexelSize", invTexSize);
             upsampleShader.SetUniform("g_nCurrentMip", (float)i);
 
@@ -230,7 +230,7 @@ public class BloomRenderer
         shader.SetUniform("g_vTexelSize", invTexSize);
         shader.SetUniform("g_vTextureSize", texSize);
         shader.SetUniform("g_nCurrentMip", (float)mip);
-        shader.SetTexture(0, "g_tSource", ping.Color);
+        shader.SetTexture("g_tSource", ping.Color);
 
         GL.BindVertexArray(RendererContext.MeshBufferCache.EmptyVAO);
         GL.DrawArrays(PrimitiveType.Triangles, 0, 3);

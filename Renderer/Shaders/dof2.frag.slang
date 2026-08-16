@@ -4,7 +4,7 @@ uniform float g_flMaxBlurSize;
 uniform vec4[256] g_vSampleOffsetsRadMinMax;
 uniform int g_nSamples;
 
-layout(binding = 0) uniform sampler2D g_tInputColor_CoC;
+uniform sampler2D g_tInputColor_CoC;
 layout(location = 0) out vec4 outputColor;
 
 void main()

@@ -10,78 +10,6 @@ using ValveResourceFormat.Serialization.VfxEval;
 
 namespace ValveResourceFormat.Renderer.Materials
 {
-    /// <summary>Names the sampler uniforms bound to a <see cref="ReservedTextureSlots"/> member. Names may share a slot when their texture targets differ, since a unit holds one binding per target, or when no shader variant declares both.</summary>
-    /// <param name="names">The sampler uniform names bound to this slot.</param>
-    [AttributeUsage(AttributeTargets.Field)]
-    public sealed class SamplerNameAttribute(params string[] names) : Attribute
-    {
-        /// <summary>Gets the sampler uniform names bound to this slot.</summary>
-        public IReadOnlyList<string> Names { get; } = names;
-    }
-
-    /// <summary>
-    /// Reserved GPU texture unit slots for global textures.
-    /// </summary>
-    public enum ReservedTextureSlots
-    {
-        /// <summary>BRDF lookup texture for PBR shading.</summary>
-        [SamplerName("g_tBRDFLookup")]
-        BRDFLookup = 0,
-        /// <summary>Blue noise texture for dithering and randomization.</summary>
-        [SamplerName("g_tBlueNoise")]
-        BlueNoise,
-        /// <summary>Fog cube texture for atmospheric fog rendering.</summary>
-        [SamplerName("g_tFogCubeTexture")]
-        FogCubeTexture,
-        /// <summary>Baked irradiance, from the lightmap or the light probe volume.</summary>
-        [SamplerName("g_tIrradiance", "g_tLPV_Irradiance")]
-        Lightmap1,
-        /// <summary>Baked directional irradiance, whole or red split.</summary>
-        [SamplerName("g_tDirectionalIrradiance", "g_tDirectionalIrradianceR")]
-        Lightmap2,
-        /// <summary>Baked direct light indices, or green split directional irradiance.</summary>
-        [SamplerName("g_tDirectLightIndices", "g_tLPV_Indices", "g_tDirectionalIrradianceG")]
-        Lightmap3,
-        /// <summary>Baked direct light strengths, or blue split directional irradiance.</summary>
-        [SamplerName("g_tDirectLightStrengths", "g_tLPV_Scalars", "g_tDirectionalIrradianceB")]
-        Lightmap4,
-        /// <summary>Baked direct light shadows.</summary>
-        [SamplerName("g_tDirectLightShadows", "g_tLPV_Shadows")]
-        Lightmap5,
-        /// <summary>Lightmap irradiance debug chart.</summary>
-        [SamplerName("g_tIrradianceDebugChart")]
-        Lightmap6,
-        /// <summary>Environment cubemap for reflections.</summary>
-        [SamplerName("g_tEnvironmentMap")]
-        EnvironmentMap,
-        /// <summary>Shadow depth buffer for primary shadow pass.</summary>
-        [SamplerName("g_tShadowDepthBufferDepth")]
-        ShadowDepthBufferDepth,
-        /// <summary>Shadow depth buffer for barn lights.</summary>
-        [SamplerName("g_tBarnLightShadowDepth")]
-        BarnLightShadowDepth,
-        /// <summary>Light cookie texture (clamped wrap mode).</summary>
-        [SamplerName("g_tLightCookieTexture")]
-        LightCookieTexture,
-        /// <summary>Light cookie texture (repeat wrap mode).</summary>
-        [SamplerName("g_tLightCookieTextureWrap")]
-        LightCookieTextureWrap,
-        /// <summary>Scrolling wave normals and blotch mask.</summary>
-        [SamplerName("g_tWetnessWaves")]
-        WetnessWaves,
-        /// <summary>Resolved opaque scene color for refraction.</summary>
-        [SamplerName("g_tSceneColor")]
-        SceneColor,
-        /// <summary>Resolved scene depth buffer.</summary>
-        [SamplerName("g_tSceneDepth")]
-        SceneDepth,
-        /// <summary>Morph composite texture for vertex animation.</summary>
-        [SamplerName("morphCompositeTexture")]
-        MorphCompositeTexture,
-        /// <summary>Last reserved slot; equal to <see cref="MorphCompositeTexture"/>.</summary>
-        Last = MorphCompositeTexture,
-    }
-
     enum BlendMode
     {
         Opaque,
@@ -99,12 +27,6 @@ namespace ValveResourceFormat.Renderer.Materials
     [DebuggerDisplay("{Material.Name} ({Shader.Name})")]
     public class RenderMaterial
     {
-        /// <summary>
-        /// First non-reserved texture unit. Material (per-draw) textures bind here and above so the
-        /// globally bound <see cref="ReservedTextureSlots"/> textures stay intact.
-        /// </summary>
-        public const int TextureUnitStart = (int)ReservedTextureSlots.Last + 1;
-
         /// <summary>Gets a value used to bucket this material into draw-call sort bins; derived from the shader program handle and a random offset.</summary>
         public int SortId { get; }
 
@@ -171,12 +93,6 @@ namespace ValveResourceFormat.Renderer.Materials
         private bool isRenderBackfaces;
         private bool hasDepthBias;
         private bool disableDepthTest;
-        private int textureUnit;
-        private readonly List<int> boundSamplerUnits = [];
-
-#if DEBUG
-        private static int maxCombinedTextureImageUnits;
-#endif
 
         /// <summary>Initializes a new instance of the <see cref="RenderMaterial"/> class from a parsed material resource, loading its shader and applying render state.</summary>
         /// <param name="material">The parsed Source 2 material data.</param>
@@ -420,6 +336,8 @@ namespace ValveResourceFormat.Renderer.Materials
 
             var members = layout.Members;
 
+            FillTextureHandles(shader, members, buffer);
+
             foreach (var (name, value) in IntParams)
             {
                 if (members.TryGetValue(name, out var constant))
@@ -470,6 +388,49 @@ namespace ValveResourceFormat.Renderer.Materials
             }
 
             buffer.EndFill();
+        }
+
+        /// <summary>
+        /// Writes a handle into every packed sampler, taking this material's texture where it has one and the
+        /// shader's default otherwise. Every one is written: a sampler left at a zero handle, or holding a
+        /// texture of the wrong target, is undefined to sample and hangs the GPU.
+        /// </summary>
+        private void FillTextureHandles(Shader shader, IReadOnlyDictionary<string, GlobalsMember> members, Globals buffer)
+        {
+            // Address modes are a material input, so their sampler is baked into the handles written here.
+            var userConfigSampler = 0;
+
+            if (shader.SamplerUserConfigUniforms.Count > 0 && Loader != null)
+            {
+                var addressModeU = (int)IntParams.GetValueOrDefault("g_nTextureAddressModeU");
+                var addressModeV = (int)IntParams.GetValueOrDefault("g_nTextureAddressModeV");
+                userConfigSampler = Loader.GetOrCreateSampler(addressModeU, addressModeV);
+            }
+
+            foreach (var (name, member) in members)
+            {
+                if (member.Type != GlobalsType.Sampler)
+                {
+                    continue;
+                }
+
+                var texture = Textures.GetValueOrDefault(name);
+
+                if (texture != null && texture.Target != ReservedSamplers.GetTextureTarget(member.Sampler))
+                {
+                    Debug.Assert(false, $"'{Material.Name}' set a {texture.Target} texture on '{name}', which is a {member.Sampler} sampler.");
+
+                    texture = null;
+                }
+
+                texture ??= shader.GetDefaultTexture(name, member.Sampler);
+
+                var sampler = userConfigSampler != 0 && shader.SamplerUserConfigUniforms.Contains(name)
+                    ? userConfigSampler
+                    : 0;
+
+                buffer.SetHandle(member, texture.GetHandle(sampler));
+            }
         }
 
         [Conditional("DEBUG")]
@@ -536,6 +497,25 @@ namespace ValveResourceFormat.Renderer.Materials
             }
         }
 
+        /// <summary>Points a packed sampler in this material's constant buffer at a texture.</summary>
+        /// <param name="name">The sampler uniform name.</param>
+        /// <param name="texture">The texture to sample.</param>
+        /// <param name="sampler">Sampler object supplying the filtering and wrapping, or zero to use the texture's own.</param>
+        /// <returns><see langword="true"/> when this material's buffer holds that sampler.</returns>
+        /// <inheritdoc cref="SetUniform(string, float)" path="/remarks"/>
+        public bool SetTexture(string name, RenderTexture texture, int sampler = 0)
+        {
+            AssertGlobalsAreForThisShader();
+
+            if (!Shader.GlobalsLayout.Members.TryGetValue(name, out var constant))
+            {
+                return false;
+            }
+
+            EnsureGlobals(Shader).SetHandle(constant, texture.GetHandle(sampler));
+            return true;
+        }
+
         /// <summary>Releases the GPU resources this material owns. Safe to call more than once.</summary>
         public void Delete()
         {
@@ -548,8 +528,6 @@ namespace ValveResourceFormat.Renderer.Materials
         /// <param name="shader">The shader to use for this draw call, or <see langword="null"/> to use <see cref="Shader"/>.</param>
         public void Render(Shader? shader = default)
         {
-            textureUnit = TextureUnitStart;
-
             shader ??= Shader;
 
             if (shader.IgnoreMaterialData)
@@ -561,52 +539,15 @@ namespace ValveResourceFormat.Renderer.Materials
                     var colorTexture = Textures.GetValueOrDefault("g_tColor");
                     if (colorTexture != null)
                     {
-                        shader.SetTexture(textureUnit, "g_tColor", colorTexture);
+                        shader.SetTexture("g_tColor", colorTexture);
                     }
                 }
 
                 return;
             }
 
+            // Textures ride along in the constant buffer, so binding it is all a draw needs.
             BindGlobals(shader);
-
-            boundSamplerUnits.Clear();
-
-            var userConfigSampler = 0;
-            if (shader.SamplerUserConfigUniforms.Count > 0 && Loader != null)
-            {
-                var addressModeU = (int)IntParams.GetValueOrDefault("g_nTextureAddressModeU");
-                var addressModeV = (int)IntParams.GetValueOrDefault("g_nTextureAddressModeV");
-                userConfigSampler = Loader.GetOrCreateSampler(addressModeU, addressModeV);
-            }
-
-            foreach (var (name, defaultTexture) in shader.Default.Textures)
-            {
-                var texture = Textures.GetValueOrDefault(name, defaultTexture);
-
-                if (!shader.SetTexture(textureUnit, name, texture))
-                {
-                    continue;
-                }
-
-                if (userConfigSampler != 0 && shader.SamplerUserConfigUniforms.Contains(name))
-                {
-                    GL.BindSampler(textureUnit, userConfigSampler);
-                    boundSamplerUnits.Add(textureUnit);
-                }
-
-                textureUnit++;
-            }
-
-#if DEBUG
-            if (maxCombinedTextureImageUnits == 0)
-            {
-                GL.GetInteger(GetPName.MaxCombinedTextureImageUnits, out maxCombinedTextureImageUnits);
-            }
-
-            Debug.Assert(textureUnit <= maxCombinedTextureImageUnits,
-                $"'{shader.Name}' needs {textureUnit} texture units ({textureUnit - TextureUnitStart} of its own on top of {TextureUnitStart} reserved) but the driver only has {maxCombinedTextureImageUnits}.");
-#endif
 
             var renderState = Shader.RendererContext.RenderState;
             renderState.Apply(ComposeRenderState(renderState.CurrentPass));
@@ -803,15 +744,6 @@ namespace ValveResourceFormat.Renderer.Materials
             var tintMatrix = VfxEvalFunctions.MatrixColorTint2(tint.AsVector3(), 1f);
 
             SetMatrix(shader, buffer, "g_mTextureColorAdjust", Matrix4x4.Multiply(tintMatrix, ccMatrix));
-        }
-
-        /// <summary>Unbinds the samplers that were bound for this material's draw call.</summary>
-        public void PostRender()
-        {
-            foreach (var unit in boundSamplerUnits)
-            {
-                GL.BindSampler(unit, 0);
-            }
         }
 
         /// <summary>Composes this material's render state over the given pass baseline.</summary>

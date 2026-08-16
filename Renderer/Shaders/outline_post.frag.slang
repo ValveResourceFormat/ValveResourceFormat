@@ -8,7 +8,7 @@ uniform float g_flOutlineSize = 1;
 uniform float g_flOutlineSoftness = 0.8;
 uniform float g_flOutlineIntensity = 2.25;
 
-layout (binding = 0) uniform sampler2DMS g_tOutlineMask;
+uniform sampler2DMS g_tOutlineMask;
 
 void SampleOutlineMaskMSAA(ivec2 pixelCoords, inout float insideCount, inout int totalSamples)
 {

@@ -364,6 +364,7 @@ namespace ValveResourceFormat.Renderer.Shaders
             header.Append(ShaderParser.ExpectedShaderVersion);
             header.Append('\n');
 
+            header.Append("#extension GL_ARB_bindless_texture : require\n");
             header.Append("#extension GL_KHR_shader_subgroup_arithmetic : enable\n");
             header.Append("#extension GL_KHR_shader_subgroup_vote : enable\n");
 
@@ -372,6 +373,10 @@ namespace ValveResourceFormat.Renderer.Shaders
                 header.Append(extension);
                 header.Append('\n');
             }
+
+            // Every loose sampler holds a handle, so make that the default rather than qualifying each one.
+            // Has to follow the last #extension, which may not be preceded by a declaration.
+            header.Append("layout(bindless_sampler) uniform;\n");
 
             // Only Valve shader names activate a shader variant, renderer shader files are loaded as themselves
             var variantName = IsVfxShaderName(originalShaderName)
@@ -399,6 +404,8 @@ namespace ValveResourceFormat.Renderer.Shaders
                 header.Append('\n');
             }
 
+            // Declared by every shader, since the buffer behind it is the renderer's rather than a material's.
+            header.Append(SceneTexturesLayout.BlockSource);
             header.Append(parsedData.GlobalsLayout.BlockSource);
 
             var headerText = header.ToString();

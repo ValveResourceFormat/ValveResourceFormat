@@ -129,7 +129,7 @@ namespace ValveResourceFormat.Renderer
             GL.Clear(ClearBufferMask.ColorBufferBit);
 
             shader.Use();
-            shader.SetTexture(0, "morphAtlas", morphAtlas);
+            shader.SetTexture("morphAtlas", morphAtlas);
 
             VertexArray.Bind(vao, shader);
 

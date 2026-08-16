@@ -1,9 +1,7 @@
 using System.Buffers;
-using System.Collections.Frozen;
 using System.Diagnostics;
 using System.IO.Hashing;
 using System.Linq;
-using System.Reflection;
 using System.Runtime.InteropServices;
 using OpenTK.Graphics.OpenGL;
 using SkiaSharp;
@@ -500,43 +498,12 @@ namespace ValveResourceFormat.Renderer.Materials
             _ => throw new NotImplementedException($"Unsupported texture format {vformat}")
         };
 
-        /// <summary>Gets the texture unit each reserved sampler uniform is bound to.</summary>
-        public static readonly FrozenDictionary<string, ReservedTextureSlots> ReservedTextureSlotByName = BuildReservedTextureSlotByName();
-
-        private static FrozenDictionary<string, ReservedTextureSlots> BuildReservedTextureSlotByName()
-        {
-            var slotByName = new Dictionary<string, ReservedTextureSlots>(StringComparer.Ordinal);
-
-            foreach (var field in typeof(ReservedTextureSlots).GetFields(BindingFlags.Public | BindingFlags.Static))
-            {
-                var attribute = field.GetCustomAttribute<SamplerNameAttribute>();
-
-                if (attribute == null)
-                {
-                    continue; // Aliases such as Last carry no names of their own.
-                }
-
-                var slot = (ReservedTextureSlots)field.GetRawConstantValue()!;
-
-                foreach (var name in attribute.Names)
-                {
-                    // Add, not assign: two slots claiming one sampler name is a mistake worth failing on.
-                    slotByName.Add(name, slot);
-                }
-            }
-
-            return slotByName.ToFrozenDictionary(StringComparer.Ordinal);
-        }
-
-        /// <summary>Returns whether a uniform name is bound to one of the <see cref="ReservedTextureSlots"/>.</summary>
-        public static bool IsReservedTexture(string uniformName) => ReservedTextureSlotByName.ContainsKey(uniformName);
-
         /// <summary>
         /// Material invariant textures, requested by shaders. They become scene-wide textures.
         /// </summary>
-        public static readonly List<(ReservedTextureSlots Slot, string Name, string Path)> ShaderTextures =
+        public static readonly List<(string Name, string Path)> ShaderTextures =
         [
-            (ReservedTextureSlots.WetnessWaves, "g_tWetnessWaves", "materials/dev/water_waves.vtex"),
+            ("g_tWetnessWaves", "materials/dev/water_waves.vtex"),
         ];
 
         private RenderMaterial GetErrorMaterial()
@@ -603,6 +570,117 @@ namespace ValveResourceFormat.Renderer.Materials
         }
 
         private static readonly byte[] WhiteTexel = [255, 255, 255];
+
+        private readonly Dictionary<SamplerKind, RenderTexture> NullTextures = [];
+
+        /// <summary>
+        /// Returns the texture a sampler of the given type reads when nothing has filled it in. Sampling a
+        /// handle whose target does not match the sampler is undefined and hangs the GPU, so every packed
+        /// sampler gets one of these rather than being left at a zero handle.
+        /// </summary>
+        /// <param name="kind">The sampler type the texture has to match.</param>
+        public RenderTexture GetNullTexture(SamplerKind kind)
+        {
+            if (kind == SamplerKind.Texture2D)
+            {
+                return GetErrorTexture();
+            }
+
+            if (kind == SamplerKind.Texture3D)
+            {
+                return GetDefaultVolume();
+            }
+
+            if (NullTextures.TryGetValue(kind, out var texture))
+            {
+                return texture;
+            }
+
+            texture = CreateNullTexture(kind);
+            NullTextures.Add(kind, texture);
+
+            return texture;
+        }
+
+        private static RenderTexture CreateNullTexture(SamplerKind kind)
+        {
+            if (kind is SamplerKind.Texture2DShadow or SamplerKind.Texture2DArrayShadow)
+            {
+                return CreateNullShadowTexture(kind == SamplerKind.Texture2DArrayShadow);
+            }
+
+            var (target, layers) = kind switch
+            {
+                SamplerKind.TextureCube => (TextureTarget.TextureCubeMap, 6),
+                SamplerKind.Texture2DArray => (TextureTarget.Texture2DArray, 1),
+                SamplerKind.TextureCubeArray => (TextureTarget.TextureCubeMapArray, 6),
+                _ => throw new ArgumentOutOfRangeException(nameof(kind), kind, null),
+            };
+
+            var texture = new RenderTexture(target, 1, 1, layers, 1);
+            texture.SetFiltering(TextureMinFilter.Nearest, TextureMagFilter.Nearest);
+            texture.SetWrapMode(TextureWrapMode.ClampToEdge);
+
+            var texels = new byte[layers * 3];
+
+            for (var i = 0; i < texels.Length; i++)
+            {
+                texels[i] = 255;
+            }
+
+            // A cube map allocates as one 2D level per face, but uploads through the layered entry point.
+            if (target == TextureTarget.TextureCubeMap)
+            {
+                GL.TextureStorage2D(texture.Handle, 1, SizedInternalFormat.Rgb8, 1, 1);
+            }
+            else
+            {
+                GL.TextureStorage3D(texture.Handle, 1, SizedInternalFormat.Rgb8, 1, 1, layers);
+            }
+
+            GL.TextureSubImage3D(texture.Handle, 0, 0, 0, 0, 1, 1, layers, PixelFormat.Rgb, PixelType.UnsignedByte, texels);
+
+#if DEBUG
+            texture.SetLabel($"NullTexture{kind}");
+#endif
+
+            return texture;
+        }
+
+        /// <summary>
+        /// Builds the stand-in a shadow sampler reads when the scene has no shadow map. One texel of the
+        /// furthest depth, so the comparison passes and nothing comes out shadowed.
+        /// </summary>
+        /// <param name="layered">Whether the sampler reading it is a <c>sampler2DArrayShadow</c>.</param>
+        private static RenderTexture CreateNullShadowTexture(bool layered)
+        {
+            var target = layered ? TextureTarget.Texture2DArray : TextureTarget.Texture2D;
+
+            var texture = new RenderTexture(target, 1, 1, 1, 1);
+            texture.SetFiltering(TextureMinFilter.Nearest, TextureMagFilter.Nearest);
+            texture.SetWrapMode(TextureWrapMode.ClampToEdge);
+            texture.SetParameter(TextureParameterName.TextureCompareMode, (int)TextureCompareMode.CompareRToTexture);
+            texture.SetParameter(TextureParameterName.TextureCompareFunc, (int)DepthFunction.Lequal);
+
+            float[] farDepth = [1f];
+
+            if (layered)
+            {
+                GL.TextureStorage3D(texture.Handle, 1, SizedInternalFormat.DepthComponent32f, 1, 1, 1);
+                GL.TextureSubImage3D(texture.Handle, 0, 0, 0, 0, 1, 1, 1, PixelFormat.DepthComponent, PixelType.Float, farDepth);
+            }
+            else
+            {
+                GL.TextureStorage2D(texture.Handle, 1, SizedInternalFormat.DepthComponent32f, 1, 1);
+                GL.TextureSubImage2D(texture.Handle, 0, 0, 0, 1, 1, PixelFormat.DepthComponent, PixelType.Float, farDepth);
+            }
+
+#if DEBUG
+            texture.SetLabel(layered ? "NullTextureShadowArray" : "NullTextureShadow");
+#endif
+
+            return texture;
+        }
 
         /// <summary>Returns the readback format appropriate for exporting a rendered image: 8-bit BGRA, or 32-bit float RGBA for HDR.</summary>
         /// <param name="hdr">Whether to use the HDR (32-bit float) format.</param>

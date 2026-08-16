@@ -125,7 +125,7 @@ public class DOFRenderer
 
             SetShaderParams();
 
-            DOF.SetTexture(0, "g_tInputColor_CoC", input);
+            DOF.SetTexture("g_tInputColor_CoC", input);
 
             GL.BindVertexArray(RendererContext.MeshBufferCache.EmptyVAO);
             GL.DrawArrays(PrimitiveType.Triangles, 0, 3);
@@ -143,7 +143,7 @@ public class DOFRenderer
     public void SetDofResolveShaderUniforms(Shader shader, Camera camera, RenderTexture msaaDepth)
     {
         // Not the scene's resolved depth, so it goes above the reserved slots like any other per draw texture.
-        shader.SetTexture(RenderMaterial.TextureUnitStart, "g_tSceneDepthMsaa", msaaDepth);
+        shader.SetTexture("g_tSceneDepthMsaa", msaaDepth);
 
         if (!Matrix4x4.Invert(camera.ViewProjectionMatrix, out var invViewProjMatrix))
         {

@@ -70,6 +70,9 @@ namespace GUI.Types.GLViewers
         private bool VisualizeTiling;
         private ChannelMapping SelectedChannels = ChannelMapping.RGB;
         private Filtering SelectedFiltering = Filtering.Point;
+
+        private readonly Dictionary<(Filtering Filtering, bool Tiling), int> samplers = [];
+        private int textureSampler;
         private ChannelSplitting ChannelSplitMode;
         private CubemapProjection CubemapProjectionType;
         private TextureCodec decodeFlags;
@@ -524,9 +527,18 @@ namespace GUI.Types.GLViewers
             samplingComboBox.SelectedIndex = (int)SelectedFiltering;
         }
 
+        /// <summary>
+        /// Picks the sampler the texture is drawn through, creating it on first use.
+        /// </summary>
+        /// <remarks>
+        /// The filtering lives in a sampler object rather than on the texture because these controls change it
+        /// while the texture is on screen, and a texture's own parameters freeze once it has a bindless handle.
+        /// </remarks>
         private void SetTextureFiltering()
         {
-            if (texture != null)
+            var key = (SelectedFiltering, VisualizeTiling);
+
+            if (!samplers.TryGetValue(key, out textureSampler))
             {
                 var (min, mag) = SelectedFiltering switch
                 {
@@ -535,8 +547,16 @@ namespace GUI.Types.GLViewers
                     _ => throw new UnreachableException(),
                 };
 
-                texture.SetFiltering(min, mag);
-                texture.SetWrapMode(VisualizeTiling ? TextureWrapMode.Repeat : TextureWrapMode.ClampToEdge);
+                var wrap = (int)(VisualizeTiling ? TextureWrapMode.Repeat : TextureWrapMode.ClampToEdge);
+
+                GL.CreateSamplers(1, out textureSampler);
+                GL.SamplerParameter(textureSampler, SamplerParameterName.TextureMinFilter, (int)min);
+                GL.SamplerParameter(textureSampler, SamplerParameterName.TextureMagFilter, (int)mag);
+                GL.SamplerParameter(textureSampler, SamplerParameterName.TextureWrapS, wrap);
+                GL.SamplerParameter(textureSampler, SamplerParameterName.TextureWrapT, wrap);
+                GL.SamplerParameter(textureSampler, SamplerParameterName.TextureWrapR, wrap);
+
+                samplers.Add(key, textureSampler);
             }
         }
 
@@ -1468,7 +1488,7 @@ namespace GUI.Types.GLViewers
             shader.SetUniform("g_vViewportPosition", position);
             shader.SetUniform("g_flScale", scale);
 
-            shader.SetTexture(0, "g_tInputTexture", texture);
+            shader.SetTexture("g_tInputTexture", texture, textureSampler);
             shader.SetUniform("g_vInputTextureSize", new Vector4(OriginalWidth, OriginalHeight, texture.Depth, texture.NumMipLevels));
             shader.SetUniform("g_nSelectedMip", SelectedMip);
             shader.SetUniform("g_nSelectedDepth", SelectedDepth);

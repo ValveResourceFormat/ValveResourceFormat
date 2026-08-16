@@ -55,7 +55,7 @@ public static class GLEnvironment
     /// Initializes the OpenGL environment and queries capabilities.
     /// </summary>
     /// <param name="logger">Logger for diagnostic output.</param>
-    /// <exception cref="NotSupportedException">Thrown if the OpenGL version is too old.</exception>
+    /// <exception cref="NotSupportedException">Thrown if the OpenGL version is too old, or the driver does not expose <c>GL_ARB_bindless_texture</c>.</exception>
     public static void Initialize(ILogger logger)
     {
         if (GpuRendererAndDriver != null)
@@ -93,6 +93,11 @@ public static class GLEnvironment
         IndirectCountSupported = vendor != "Intel";
         SlowMultiDrawIndirect = vendor == "Intel"
             && (renderer.Contains("Intel(R) HD", StringComparison.Ordinal) || renderer.Contains("Intel(R) UHD", StringComparison.Ordinal));
+
+        if (!extensions.Contains("GL_ARB_bindless_texture"))
+        {
+            throw new NotSupportedException($"Source 2 Viewer requires the GL_ARB_bindless_texture extension, which your driver does not expose. {gpu}");
+        }
 
         if (extensions.Contains("GL_KHR_parallel_shader_compile"))
         {

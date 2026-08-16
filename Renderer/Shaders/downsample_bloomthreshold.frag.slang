@@ -4,7 +4,7 @@ uniform float g_flBloomScale;
 uniform float g_flToneMapScalarLinear;
 uniform vec2 g_flThresholdParams;
 
-layout(binding = 0) uniform sampler2D inputTexture;
+uniform sampler2D inputTexture;
 layout(location = 0) out vec4 outputColor;
 
 const vec3 LUMINANCE_WEIGHTS = vec3(0.3, 0.59, 0.11);

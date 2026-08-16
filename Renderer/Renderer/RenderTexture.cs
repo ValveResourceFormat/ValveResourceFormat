@@ -36,6 +36,63 @@ namespace ValveResourceFormat.Renderer
         /// <summary>Gets the average color reflectivity used for environment lighting calculations.</summary>
         public Vector4 Reflectivity { get; internal set; }
 
+        private long bindlessHandle;
+        private Dictionary<int, long>? samplerHandles;
+
+        /// <summary>
+        /// Gets this texture's bindless handle, creating it and making it resident on first use.
+        /// </summary>
+        /// <remarks>
+        /// A handle freezes the texture's sampler parameters for the rest of its life, so any later
+        /// <see cref="SetParameter"/> is a GL error. To vary them afterwards, sample through
+        /// <see cref="GetHandle(int)"/> instead.
+        /// </remarks>
+        public long BindlessHandle
+        {
+            get
+            {
+                if (bindlessHandle == 0)
+                {
+                    bindlessHandle = GL.Arb.GetTextureHandle(Handle);
+                    Debug.Assert(bindlessHandle != 0, "Failed to create a bindless handle for this texture.");
+
+                    GL.Arb.MakeTextureHandleResident(bindlessHandle);
+                }
+
+                return bindlessHandle;
+            }
+        }
+
+        /// <summary>
+        /// Gets the bindless handle pairing this texture with a sampler object, creating it and making it
+        /// resident on first use. Handles are cached per sampler.
+        /// </summary>
+        /// <param name="sampler">The sampler object to sample this texture through.</param>
+        /// <remarks>
+        /// The sampler supplies the filtering and wrapping in place of the texture's own, which is how one
+        /// texture is read more than one way. It must not be modified after being paired here.
+        /// </remarks>
+        public long GetHandle(int sampler)
+        {
+            if (sampler == 0)
+            {
+                return BindlessHandle;
+            }
+
+            samplerHandles ??= [];
+
+            if (!samplerHandles.TryGetValue(sampler, out var handle))
+            {
+                handle = GL.Arb.GetTextureSamplerHandle(Handle, sampler);
+                Debug.Assert(handle != 0, "Failed to create a bindless sampler handle for this texture.");
+
+                GL.Arb.MakeTextureHandleResident(handle);
+                samplerHandles.Add(sampler, handle);
+            }
+
+            return handle;
+        }
+
         /// <summary>
         /// Gets the baked radiance of each cube map in this array as an L2 spherical harmonic,
         /// 9 coefficients per channel stored planar, 27 per cube map. Null unless the source
@@ -170,9 +227,14 @@ namespace ValveResourceFormat.Renderer
         /// <summary>Sets a single integer texture parameter.</summary>
         /// <param name="parameter">The parameter name to set.</param>
         /// <param name="value">The integer value to assign.</param>
+        /// <remarks>Only valid until <see cref="BindlessHandle"/> freezes this texture's parameters.</remarks>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void SetParameter(TextureParameterName parameter, int value)
-            => GL.TextureParameter(Handle, parameter, value);
+        {
+            Debug.Assert(bindlessHandle == 0, $"Setting {parameter} on a texture that already has a bindless handle is a GL error, its parameters are frozen. Set it before first use, or sample through {nameof(GetHandle)} instead.");
+
+            GL.TextureParameter(Handle, parameter, value);
+        }
 
         /// <summary>Assigns a debug label to the OpenGL texture object.</summary>
         /// <param name="label">Label string visible in graphics debuggers.</param>
@@ -182,8 +244,28 @@ namespace ValveResourceFormat.Renderer
         }
 
         /// <summary>Deletes the underlying OpenGL texture object.</summary>
+        /// <remarks>
+        /// Every handle taken from this texture is made non-resident first. A texture deleted while one of its
+        /// handles is still resident keeps its storage alive, so skipping this leaks the whole texture.
+        /// </remarks>
         public void Delete()
         {
+            if (bindlessHandle != 0)
+            {
+                GL.Arb.MakeTextureHandleNonResident(bindlessHandle);
+                bindlessHandle = 0;
+            }
+
+            if (samplerHandles != null)
+            {
+                foreach (var handle in samplerHandles.Values)
+                {
+                    GL.Arb.MakeTextureHandleNonResident(handle);
+                }
+
+                samplerHandles = null;
+            }
+
             GL.DeleteTexture(Handle);
             Handle = 0;
         }

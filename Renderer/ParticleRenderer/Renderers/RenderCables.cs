@@ -397,23 +397,21 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                 return;
             }
 
+            // todo: batch tube draws and call this less often
+            scene.LightingInfo.SetLightmapTextures(scene.RendererContext.SceneTextures);
+
             shader.Use();
             VertexArray.Bind(vaoHandle, shader);
             material.Render(shader);
 
-            // todo: batch tube draws and call this less often
-            scene.LightingInfo.BindLightmapTextures();
-
             if (lightProbe is not null)
             {
                 shader.SetUniform1("uLightProbeIndex", (uint)lightProbe.ShaderIndex);
-                scene.LightingInfo.BindInstanceLightProbeTextures(lightProbe);
+                scene.LightingInfo.SetLightProbeTextures(shader, WorldLightingInfo.LightProbeUniforms.For(shader), lightProbe);
             }
 
             PerfStats.Active.Count(Counter.ParticleDraw);
             GL.DrawElements(PrimitiveType.Triangles, indexCount, DrawElementsType.UnsignedInt, 0);
-
-            material.PostRender();
         }
 
         public override IEnumerable<string> GetSupportedRenderModes() => shader.RenderModes;

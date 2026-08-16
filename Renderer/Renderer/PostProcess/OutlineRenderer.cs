@@ -29,7 +29,7 @@ public class OutlineRenderer(RendererContext rendererContext)
         outlineEdge.SetUniform("g_bFlipY", flipY);
         outlineEdge.SetUniform("g_nNumSamplesMSAA", numSamples);
 
-        outlineEdge.SetTexture(0, "g_tOutlineMask", outlineMask);
+        outlineEdge.SetTexture("g_tOutlineMask", outlineMask);
 
         using var _ = rendererContext.RenderState.Scope(blend: true);
 

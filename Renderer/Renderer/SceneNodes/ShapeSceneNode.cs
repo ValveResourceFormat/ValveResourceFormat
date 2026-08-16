@@ -363,7 +363,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
 
             if (ToolTexture != null)
             {
-                renderShader.SetTexture(0, "g_tColor", ToolTexture);
+                renderShader.SetTexture("g_tColor", ToolTexture);
             }
 
             VertexArray.Bind(vao, renderShader);

@@ -11,7 +11,7 @@ uniform vec2 g_vTexelSize;
 uniform vec2 g_vTextureSize;
 uniform float g_nCurrentMip;
 
-layout(binding = 0) uniform sampler2D g_tSource;
+uniform sampler2D g_tSource;
 layout(location = 0) out vec4 outputColor;
 
 #if D_BLUR_PASS == 1

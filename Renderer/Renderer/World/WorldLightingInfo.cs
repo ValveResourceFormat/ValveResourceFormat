@@ -140,28 +140,19 @@ namespace ValveResourceFormat.Renderer.World
         private int CookieSamplerClampBorder;
         private int CookieSamplerWrap;
 
-        /// <summary>Binds the scene's lightmap, light probe atlas, and barn light cookie textures to their reserved units.</summary>
-        public void BindLightmapTextures()
+        /// <summary>Publishes the scene's lightmap and barn light cookie textures to the shared buffer.</summary>
+        /// <param name="sceneTextures">The buffer every shader reads its scene-wide texture handles from.</param>
+        public void SetLightmapTextures(SceneTextures sceneTextures)
         {
             foreach (var (name, texture) in Lightmaps)
             {
-                if (!MaterialLoader.ReservedTextureSlotByName.TryGetValue(name, out var lightmapSlot))
-                {
-                    Debug.Assert(false, $"Lightmap texture '{name}' has no reserved slot. Add it to {nameof(MaterialLoader.ReservedTextureSlotByName)}.");
-                    continue;
-                }
+                var held = sceneTextures.SetTexture(name, texture);
 
-                GL.BindTextureUnit((int)lightmapSlot, texture.Handle);
+                Debug.Assert(held, $"Lightmap texture '{name}' is not a scene texture. Add it to {nameof(ReservedSamplers)}.");
             }
 
-            if (LightProbeType == LightProbeType.ProbeAtlas && LightProbes.Count > 0)
-            {
-                BindProbeTexture("g_tLPV_Irradiance", LightProbes[0].Irradiance);
-                BindProbeTexture("g_tLPV_Shadows", LightProbes[0].DirectLightShadows);
-            }
-
-            // Always bind something, even when the scene has no cookies: the cookie samplers are 2D arrays,
-            // and leaving their reserved units empty makes shaders sample an incomplete texture.
+            // Always publish something, even when the scene has no cookies: the cookie samplers are 2D arrays,
+            // and leaving them unset makes shaders sample an incomplete texture.
             var cookieAtlas = BarnLightCookieAtlas ?? (DefaultCookieAtlas ??= CreateDefaultCookieAtlas());
 
             if (CookieSamplerClampBorder == 0)
@@ -169,44 +160,58 @@ namespace ValveResourceFormat.Renderer.World
                 CreateCookieSamplers();
             }
 
-            GL.BindTextureUnit((int)ReservedTextureSlots.LightCookieTexture, cookieAtlas.Handle);
-            GL.BindSampler((int)ReservedTextureSlots.LightCookieTexture, CookieSamplerClampBorder);
-
-            GL.BindTextureUnit((int)ReservedTextureSlots.LightCookieTextureWrap, cookieAtlas.Handle);
-            GL.BindSampler((int)ReservedTextureSlots.LightCookieTextureWrap, CookieSamplerWrap);
+            // One atlas read two ways, so each wrap mode needs its own handle.
+            sceneTextures.SetTexture("g_tLightCookieTexture", cookieAtlas, CookieSamplerClampBorder);
+            sceneTextures.SetTexture("g_tLightCookieTextureWrap", cookieAtlas, CookieSamplerWrap);
         }
 
-        /// <summary>Binds the per-draw light probe volume textures. Individual-probe scenes only.</summary>
-        public void BindInstanceLightProbeTextures(SceneLightProbe lightProbe)
+        /// <summary>
+        /// Sets the light probe volume textures on the drawing shader. These stay loose uniforms in both probe
+        /// modes: an individual-probe scene picks them per draw, and writing that into the shared buffer would
+        /// upload to a buffer the pass is still reading.
+        /// </summary>
+        /// <param name="shader">The shader about to draw.</param>
+        /// <param name="locations">The probe sampler locations, resolved once per shader by the caller.</param>
+        /// <param name="lightProbe">The probe bound to the node being drawn, for an individual-probe scene.</param>
+        public void SetLightProbeTextures(Shader shader, in LightProbeUniforms locations, SceneLightProbe? lightProbe)
         {
-            if (LightProbeType != LightProbeType.IndividualProbes)
+            var probe = LightProbeType switch
+            {
+                LightProbeType.IndividualProbes => lightProbe,
+                LightProbeType.ProbeAtlas => LightProbes.Count > 0 ? LightProbes[0] : null,
+                _ => null,
+            };
+
+            if (probe == null)
             {
                 return;
             }
 
-            BindProbeTexture("g_tLPV_Irradiance", lightProbe.Irradiance);
+            shader.SetTexture(locations.Irradiance, probe.Irradiance);
 
-            if (LightmapGameVersionNumber == 1)
+            if (LightProbeType != LightProbeType.ProbeAtlas && LightmapGameVersionNumber == 1)
             {
-                BindProbeTexture("g_tLPV_Indices", lightProbe.DirectLightIndices);
-                BindProbeTexture("g_tLPV_Scalars", lightProbe.DirectLightScalars);
-            }
-            else if (LightmapGameVersionNumber >= 2)
-            {
-                BindProbeTexture("g_tLPV_Shadows", lightProbe.DirectLightShadows);
-            }
-        }
-
-        /// <summary>Binds a light probe volume texture to the unit its sampler reads.</summary>
-        private static void BindProbeTexture(string samplerName, RenderTexture? texture)
-        {
-            if (texture == null)
-            {
+                shader.SetTexture(locations.Indices, probe.DirectLightIndices);
+                shader.SetTexture(locations.Scalars, probe.DirectLightScalars);
                 return;
             }
 
-            var slot = MaterialLoader.ReservedTextureSlotByName[samplerName];
-            GL.BindTextureUnit((int)slot, texture.Handle);
+            shader.SetTexture(locations.Shadows, probe.DirectLightShadows);
+        }
+
+        /// <summary>
+        /// The probe sampler locations of one program. Resolved when the drawing shader changes, since these
+        /// are set per draw and a name lookup there costs more than the uniform write it precedes.
+        /// </summary>
+        public readonly record struct LightProbeUniforms(int Irradiance, int Indices, int Scalars, int Shadows)
+        {
+            /// <summary>Resolves the locations for a program.</summary>
+            /// <param name="shader">The shader about to be drawn with.</param>
+            public static LightProbeUniforms For(Shader shader) => new(
+                shader.GetUniformLocation("g_tLPV_Irradiance"),
+                shader.GetUniformLocation("g_tLPV_Indices"),
+                shader.GetUniformLocation("g_tLPV_Scalars"),
+                shader.GetUniformLocation("g_tLPV_Shadows"));
         }
 
         /// <summary>

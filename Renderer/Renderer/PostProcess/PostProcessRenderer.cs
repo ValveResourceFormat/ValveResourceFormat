@@ -124,7 +124,7 @@ namespace ValveResourceFormat.Renderer.PostProcess
             if (resolveColor)
             {
                 shaderMsaaResolve.Use();
-                shaderMsaaResolve.SetTexture(0, "g_tSourceMsaa", source.Color);
+                shaderMsaaResolve.SetTexture("g_tSourceMsaa", source.Color);
                 GL.BindImageTexture(1, destColor.Handle, 0, false, 0,
                     TextureAccess.WriteOnly, SizedInternalFormat.Rgba16f);
                 GL.DispatchCompute(groupsX, groupsY, 1);
@@ -133,7 +133,7 @@ namespace ValveResourceFormat.Renderer.PostProcess
             if (resolveDepth)
             {
                 shaderDepthResolve.Use();
-                shaderDepthResolve.SetTexture(0, "g_tSourceDepthMsaa", source.Depth);
+                shaderDepthResolve.SetTexture("g_tSourceDepthMsaa", source.Depth);
                 GL.BindImageTexture(1, destDepth.Handle, 0, false, 0,
                     TextureAccess.WriteOnly, SizedInternalFormat.R32f);
                 GL.DispatchCompute(groupsX, groupsY, 1);
@@ -196,7 +196,7 @@ namespace ValveResourceFormat.Renderer.PostProcess
 
                 weights[i] = weight;
                 totalWeight += weight;
-                shaderCombineLuts.SetTexture(i, LutSamplerNames[i], entry.Lut);
+                shaderCombineLuts.SetTexture(LutSamplerNames[i], entry.Lut);
             }
 
             shaderCombineLuts.SetUniform("g_vColorCorrectionWeights0", weights);
@@ -257,7 +257,7 @@ namespace ValveResourceFormat.Renderer.PostProcess
                 var msaaResolveShader = DOF.Enabled ? DOF.MsaaResolveDof : shaderMsaaResolve;
 
                 msaaResolveShader.Use();
-                msaaResolveShader.SetTexture(0, "g_tSourceMsaa", colorBufferRead.Color);
+                msaaResolveShader.SetTexture("g_tSourceMsaa", colorBufferRead.Color);
                 GL.BindImageTexture(1, resolveTarget.Handle, 0, false, 0,
                     TextureAccess.WriteOnly, SizedInternalFormat.Rgba16f);
                 msaaResolveShader.SetUniform("g_bFlipY", flipY);
@@ -295,16 +295,16 @@ namespace ValveResourceFormat.Renderer.PostProcess
                 postProcessShader.Use();
                 GL.Viewport(0, 0, colorBufferRead.Width, colorBufferRead.Height);
 
-                postProcessShader.SetTexture(0, "g_tColorBuffer", resolvedScene);
-                postProcessShader.SetTexture(2, "g_tColorCorrectionLUT",
+                postProcessShader.SetTexture("g_tColorBuffer", resolvedScene);
+                postProcessShader.SetTexture("g_tColorCorrectionLUT",
                     State.ColorCorrectionLUT ?? RendererContext.MaterialLoader.GetDefaultVolume());
 
                 // Bound here too, in case post processing runs before the scene binds it.
-                postProcessShader.SetTexture((int)ReservedTextureSlots.BlueNoise, "g_tBlueNoise", BlueNoise);
+                postProcessShader.SetTexture("g_tBlueNoise", BlueNoise);
 
                 if (State.HasBloom)
                 {
-                    postProcessShader.SetTexture(4, "g_tBloom", Bloom.AccumulationResult);
+                    postProcessShader.SetTexture("g_tBloom", Bloom.AccumulationResult);
                     // these seem to all be needed at once due to transitions between post process volumes, we don't do that yet
                     // NormalizedBloomStrengths seems to act as a blending factor "how much of each bloom mode do we have right now"
                     var bloomStrengths = new Vector3(State.BloomSettings.AddBloomStrength, State.BloomSettings.ScreenBloomStrength, State.BloomSettings.BlurBloomStrength);

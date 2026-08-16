@@ -4,7 +4,7 @@ layout (local_size_x = 8, local_size_y = 8) in;
 
 #define D_MSAA_SAMPLES 0
 
-layout(binding = 0) uniform sampler2DMS g_tSourceDepthMsaa;
+uniform sampler2DMS g_tSourceDepthMsaa;
 layout(binding = 1, r32f) uniform writeonly image2D g_tDestDepth;
 
 void main()
