@@ -1,0 +1,19 @@
+name: Setup .NET and cache NuGet
+description: Install .NET and restore the NuGet package cache. Run actions/checkout before this.
+
+runs:
+  using: composite
+  steps:
+  - name: Setup .NET Core
+    uses: actions/setup-dotnet@v6
+    with:
+      dotnet-version: 10.0.x
+
+  - name: Cache NuGet
+    uses: actions/cache@v6
+    with:
+      path: ${{ github.workspace }}/.nuget/packages
+      key: nuget-${{ runner.os }}-${{ hashFiles('**/*.csproj') }}
+      restore-keys: |
+        nuget-${{ runner.os }}-
+        nuget-

@@ -33,23 +33,11 @@ jobs:
 
     env:
       NUGET_PACKAGES: ${{ github.workspace }}/.nuget/packages
+      CI_SKIP_ANALYSIS: true
 
     steps:
     - uses: actions/checkout@v7
-
-    - name: Setup .NET Core
-      uses: actions/setup-dotnet@v6
-      with:
-        dotnet-version: 10.0.x
-
-    - name: Cache NuGet
-      uses: actions/cache@v6
-      with:
-        path: ${{ env.NUGET_PACKAGES }}
-        key: nuget-${{ runner.os }}-${{ hashFiles('**/*.csproj') }}
-        restore-keys: |
-          nuget-${{ runner.os }}-
-          nuget-
+    - uses: ./.github/actions/setup-dotnet-cache
 
     - name: Run tests
       run: dotnet test --project ./Tests/Tests.csproj --configuration Release --coverage --coverage-output-format cobertura --coverage-output coverage.cobertura.xml
@@ -196,10 +184,24 @@ jobs:
         fail_ci_if_error: true
         verbose: true
 
+  analyze:
+    name: Analyze (Release)
+    runs-on: windows-latest
+
+    env:
+      NUGET_PACKAGES: ${{ github.workspace }}/.nuget/packages
+
+    steps:
+    - uses: actions/checkout@v7
+    - uses: ./.github/actions/setup-dotnet-cache
+
+    - name: Run analyzers
+      run: dotnet build --configuration Release ValveResourceFormat.slnx
+
   release:
     name: Create release
     if: startsWith(github.ref, 'refs/tags/')
-    needs: build
+    needs: [build, analyze]
     runs-on: ubuntu-latest
 
     steps:
