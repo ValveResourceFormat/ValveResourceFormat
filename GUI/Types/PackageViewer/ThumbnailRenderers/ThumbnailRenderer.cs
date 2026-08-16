@@ -8,6 +8,7 @@ using OpenTK.Windowing.Common;
 using OpenTK.Windowing.Desktop;
 using SteamDatabase.ValvePak;
 using ValveResourceFormat;
+using ValveResourceFormat.CompiledShader;
 using ValveResourceFormat.IO;
 using ValveResourceFormat.Renderer;
 using ValveResourceFormat.Renderer.SceneEnvironment;
@@ -77,8 +78,8 @@ internal abstract class ThumbnailRenderer : IDisposable
         SceneRenderer.Postprocess.Load(4);
 
         framebuffer = Framebuffer.Prepare("MainFramebuffer", 4, 4, 4,
-            new(PixelInternalFormat.Rgba16f, PixelFormat.Rgba, PixelType.HalfFloat),
-            Framebuffer.DepthAttachmentFormat.Depth16);
+            ImageFormat.RGBA16161616F,
+            ImageFormat.D16);
         framebuffer.Initialize();
 
         SceneRenderer.Initialize();

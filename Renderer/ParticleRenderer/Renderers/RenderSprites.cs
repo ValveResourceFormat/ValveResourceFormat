@@ -1,5 +1,6 @@
 using System.Runtime.InteropServices;
 using OpenTK.Graphics.OpenGL;
+using ValveResourceFormat.CompiledShader;
 using ValveResourceFormat.Renderer.Particles.Utils;
 using ValveResourceFormat.Serialization.KeyValues;
 

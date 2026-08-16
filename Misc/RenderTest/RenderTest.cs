@@ -5,6 +5,8 @@ using OpenTK.Windowing.Common;
 using OpenTK.Windowing.Desktop;
 using OpenTK.Windowing.GraphicsLibraryFramework;
 using SteamDatabase.ValvePak;
+using ValveResourceFormat;
+using ValveResourceFormat.CompiledShader;
 using ValveResourceFormat.IO;
 using ValveResourceFormat.Renderer;
 using ValveResourceFormat.Renderer.Input;
@@ -274,8 +276,8 @@ internal class RenderTestWindow : GameWindow
 
         // Create framebuffer for rendering
         framebuffer = Framebuffer.Prepare("MainFramebuffer", 4, 4, 4,
-            new(PixelInternalFormat.Rgba16f, PixelFormat.Rgba, PixelType.HalfFloat),
-            Framebuffer.DepthAttachmentFormat.Depth32F);
+            ImageFormat.RGBA16161616F,
+            ImageFormat.D32);
         framebuffer.Initialize();
 
         SceneRenderer.Initialize();

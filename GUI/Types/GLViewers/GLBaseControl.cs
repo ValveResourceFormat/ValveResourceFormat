@@ -8,6 +8,8 @@ using GUI.Utils;
 using OpenTK.Graphics.OpenGL;
 using OpenTK.Windowing.Common;
 using OpenTK.Windowing.Desktop;
+using ValveResourceFormat;
+using ValveResourceFormat.CompiledShader;
 using ValveResourceFormat.Renderer;
 using ValveResourceFormat.Renderer.Input;
 using Windows.Win32;
@@ -772,8 +774,8 @@ internal abstract class GLBaseControl : IDisposable, IMessageFilter
         MainFramebuffer = Framebuffer.Prepare(nameof(MainFramebuffer),
             4, 4,
             NumSamples,
-            new(PixelInternalFormat.Rgba16f, PixelFormat.Rgba, PixelType.HalfFloat),
-            Framebuffer.DepthAttachmentFormat.Depth32F
+            ImageFormat.RGBA16161616F,
+            ImageFormat.D32
         );
 
         MainFramebuffer.Initialize();

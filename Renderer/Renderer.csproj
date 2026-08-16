@@ -24,12 +24,6 @@
     <Using Include="ValveResourceFormat.Renderer.Utils" />
     <Using Include="ValveResourceFormat.Renderer.Shaders" />
     <Using Include="ValveResourceFormat.Renderer.Materials" />
-    <Using Include="ValveResourceFormat.CompiledShader.RsBlendMode" Alias="RsBlendMode" />
-    <Using Include="ValveResourceFormat.CompiledShader.RsColorWriteEnableBits" Alias="RsColorWriteEnableBits" />
-    <Using Include="ValveResourceFormat.CompiledShader.RsComparison" Alias="RsComparison" />
-    <Using Include="ValveResourceFormat.CompiledShader.RsCullMode" Alias="RsCullMode" />
-    <Using Include="ValveResourceFormat.CompiledShader.RsFillMode" Alias="RsFillMode" />
-    <Using Include="ValveResourceFormat.CompiledShader.RsStencilOp" Alias="RsStencilOp" />
   </ItemGroup>
 
   <ItemGroup>

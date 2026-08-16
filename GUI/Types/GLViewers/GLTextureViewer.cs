@@ -803,7 +803,8 @@ namespace GUI.Types.GLViewers
 
                 SaveAsFbo.Bind(FramebufferTarget.ReadFramebuffer);
                 GL.ReadBuffer(ReadBufferMode.ColorAttachment0);
-                GL.ReadPixels(0, 0, bitmap.Width, bitmap.Height, SaveAsFbo.ColorFormat!.PixelFormat, SaveAsFbo.ColorFormat.PixelType, pixels);
+                var readFormat = MaterialLoader.GetImageExportFormat(hdr);
+                GL.ReadPixels(0, 0, bitmap.Width, bitmap.Height, readFormat.ToGLPixelFormat(), readFormat.ToGLPixelType(), pixels);
 
                 Debug.Assert(MainFramebuffer is not null);
                 MainFramebuffer.Bind(FramebufferTarget.Framebuffer);
