@@ -204,14 +204,14 @@ jobs:
         compression-level: 0
 
   analyze:
-    name: Analyze (Release)
+    name: Run all analyzers
     runs-on: windows-latest
 
     steps:
     - uses: actions/checkout@v7
     - uses: ./.github/actions/setup-dotnet-cache
 
-    - name: Run analyzers
+    - name: Build
       run: dotnet build --configuration Release ValveResourceFormat.slnx
 
   release:
