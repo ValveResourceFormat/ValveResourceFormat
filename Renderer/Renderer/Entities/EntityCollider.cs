@@ -21,6 +21,12 @@ public sealed class EntityCollider
     /// <summary>Gets the collision shape, in the entity's local space.</summary>
     public Rubikon Shape { get; }
 
+    /// <summary>
+    /// Gets the compiled physics the shape was built from. <see cref="Rubikon"/> only traces hulls
+    /// and meshes; the rigid body world reads this to also pick up sphere and capsule shapes.
+    /// </summary>
+    public ResourceTypes.PhysAggregateData PhysicsData { get; }
+
     /// <summary>Gets the shape's bounds in local space.</summary>
     public AABB LocalBounds { get; }
 
@@ -53,6 +59,7 @@ public sealed class EntityCollider
     /// <param name="physics">The entity model's physics aggregate.</param>
     public EntityCollider(PhysAggregateData physics)
     {
+        PhysicsData = physics;
         Shape = new Rubikon(physics);
         LocalBounds = ComputeBounds(Shape, out var isEmpty);
         IsEmpty = isEmpty;
