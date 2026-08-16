@@ -347,11 +347,8 @@ namespace ValveResourceFormat.Renderer.World
             var right = Vector3.Normalize(Vector3.Cross(sunDir, upReference));
             var up = Vector3.Cross(right, sunDir);
 
-            // Scenes without baked static shadows render all static geometry into every cascade
-            // each frame, which two full-scene passes make too expensive; they get a single
-            // cascade at the outermost coverage instead. Baked scenes only render the few
-            // dynamic casters, so the extra cascade is cheap there.
-            var singleCascade = sceneBoundsMode || !HasBakedShadowsFromLightmap;
+            // When the whole scene already fits into the first cascade, the wider ones add nothing
+            var singleCascade = sceneBoundsMode;
 
             ActiveSunCascadeCount = singleCascade ? 1 : SunCascadeCount;
 
@@ -380,10 +377,7 @@ namespace ValveResourceFormat.Renderer.World
                 }
                 else
                 {
-                    var extentFraction = singleCascade
-                        ? SunCascadeExtentFractions[SunCascadeCount - 1]
-                        : SunCascadeExtentFractions[cascade];
-                    bbox = MathF.Max(baseHalfExtent * extentFraction, MinSunCascadeHalfExtent);
+                    bbox = MathF.Max(baseHalfExtent * SunCascadeExtentFractions[cascade], MinSunCascadeHalfExtent);
                     farPlane = SunShadowCullDepthRange;
                     nearPlaneExtend = SunShadowCullDepthRange;
                     eye = camera.Location + forwardOnLightPlane * (bbox * SunShadowForwardShiftFraction);
