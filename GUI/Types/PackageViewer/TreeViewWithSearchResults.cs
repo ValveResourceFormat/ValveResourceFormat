@@ -479,6 +479,7 @@ namespace GUI.Types.PackageViewer
             {"vsvg_c", new ThumbnailSVGRenderer() },
             {"vpcf_c", new ThumbnailParticleRenderer() },
             {"vsnap_c", new ThumbnailSnapshotRenderer() },
+            {"vsmart_c", new ThumbnailSmartPropRenderer() },
         };
 
         /// <summary>
