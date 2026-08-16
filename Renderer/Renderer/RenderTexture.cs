@@ -43,6 +43,9 @@ namespace ValveResourceFormat.Renderer
         /// </summary>
         public float[]? RadianceCoefficients { get; }
 
+        private long bindlessHandle;
+        private Dictionary<int, long>? samplerHandles;
+
         RenderTexture(TextureTarget target)
         {
             Target = target;
@@ -179,52 +182,42 @@ namespace ValveResourceFormat.Renderer
             GL.TextureParameter(Handle, parameter, value);
         }
 
-        private long bindlessHandle;
-        private Dictionary<int, long>? samplerHandles;
-
         /// <summary>
         /// Returns this texture's bindless handle, creating it and making it resident on first use.
         /// </summary>
         /// <remarks>
         /// A handle is permanent: it cannot be freed, and the texture's parameters are frozen from here on,
-        /// so this is only called for textures that are about to be sampled through a packed sampler.
+        /// so this is only called for a texture that is about to be sampled through one.
         /// </remarks>
-        public long GetBindlessHandle()
-        {
-            if (bindlessHandle == 0)
-            {
-                bindlessHandle = GL.Arb.GetTextureHandle(Handle);
-                Debug.Assert(bindlessHandle != 0);
-
-                GL.Arb.MakeTextureHandleResident(bindlessHandle);
-            }
-
-            return bindlessHandle;
-        }
-
-        /// <summary>
-        /// Returns the bindless handle pairing this texture with a sampler object, for the material address
-        /// modes a <c>// Sampler(UserConfig)</c> sampler takes from its material.
-        /// </summary>
-        /// <param name="sampler">The sampler object, or 0 for the texture's own parameters.</param>
-        public long GetBindlessHandle(int sampler)
+        /// <param name="sampler">
+        /// A sampler object to read the texture through, for the address modes a <c>// Sampler(UserConfig)</c>
+        /// sampler takes from its material, or 0 for the texture's own parameters.
+        /// </param>
+        public long GetBindlessHandle(int sampler = 0)
         {
             if (sampler == 0)
             {
-                return GetBindlessHandle();
+                return bindlessHandle != 0
+                    ? bindlessHandle
+                    : bindlessHandle = MakeResident(GL.Arb.GetTextureHandle(Handle));
             }
 
             samplerHandles ??= [];
 
             if (!samplerHandles.TryGetValue(sampler, out var handle))
             {
-                handle = GL.Arb.GetTextureSamplerHandle(Handle, sampler);
-                Debug.Assert(handle != 0);
-
-                GL.Arb.MakeTextureHandleResident(handle);
+                handle = MakeResident(GL.Arb.GetTextureSamplerHandle(Handle, sampler));
                 samplerHandles.Add(sampler, handle);
             }
 
+            return handle;
+        }
+
+        private static long MakeResident(long handle)
+        {
+            Debug.Assert(handle != 0);
+
+            GL.Arb.MakeTextureHandleResident(handle);
             return handle;
         }
 
@@ -236,15 +229,17 @@ namespace ValveResourceFormat.Renderer
                 bindlessHandle = 0;
             }
 
-            if (samplerHandles != null)
+            if (samplerHandles == null)
             {
-                foreach (var handle in samplerHandles.Values)
-                {
-                    GL.Arb.MakeTextureHandleNonResident(handle);
-                }
-
-                samplerHandles = null;
+                return;
             }
+
+            foreach (var handle in samplerHandles.Values)
+            {
+                GL.Arb.MakeTextureHandleNonResident(handle);
+            }
+
+            samplerHandles = null;
         }
 
         /// <summary>Assigns a debug label to the OpenGL texture object.</summary>

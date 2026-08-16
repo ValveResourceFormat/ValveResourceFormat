@@ -618,32 +618,30 @@ namespace ValveResourceFormat.Renderer.Materials
         /// <param name="kind">The sampler type the texture has to match.</param>
         public RenderTexture GetNullTexture(SamplerKind kind)
         {
-            if (kind == SamplerKind.Texture2D)
+            switch (kind)
             {
-                return GetErrorTexture();
+                case SamplerKind.Texture2D:
+                    return GetErrorTexture();
+
+                case SamplerKind.Texture3D:
+                    return GetDefaultVolume();
+
+                default:
+                    if (!NullTextures.TryGetValue(kind, out var texture))
+                    {
+                        texture = CreateNullTexture(kind);
+                        NullTextures.Add(kind, texture);
+                    }
+
+                    return texture;
             }
-
-            if (kind == SamplerKind.Texture3D)
-            {
-                return GetDefaultVolume();
-            }
-
-            if (NullTextures.TryGetValue(kind, out var texture))
-            {
-                return texture;
-            }
-
-            texture = CreateNullTexture(kind);
-            NullTextures.Add(kind, texture);
-
-            return texture;
         }
 
         private static RenderTexture CreateNullTexture(SamplerKind kind)
         {
             if (kind is SamplerKind.Texture2DShadow or SamplerKind.Texture2DArrayShadow)
             {
-                return CreateNullShadowTexture(kind == SamplerKind.Texture2DArrayShadow);
+                return CreateNullShadowTexture(layered: kind == SamplerKind.Texture2DArrayShadow);
             }
 
             var (target, depth) = kind switch

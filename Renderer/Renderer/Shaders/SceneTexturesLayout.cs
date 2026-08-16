@@ -1,7 +1,5 @@
 using System.Collections.Frozen;
-using System.Collections.Immutable;
 using System.Globalization;
-using System.Linq;
 using System.Text;
 using ValveResourceFormat.Renderer.Buffers;
 
@@ -9,8 +7,8 @@ namespace ValveResourceFormat.Renderer.Shaders;
 
 /// <summary>
 /// The std140 layout of the scene-wide reserved samplers, held as bindless handles in one buffer the whole
-/// renderer shares. Unlike <see cref="GlobalsLayout"/> this is the same for every shader, so the block can be
-/// declared in every one of them and the buffer bound once a frame.
+/// renderer shares. Unlike <see cref="GlobalsLayout"/> this is the same for every shader, so the block is
+/// declared in all of them and the buffer is bound once rather than per material.
 /// </summary>
 /// <remarks>
 /// Only the samplers the renderer sets once for a pass are in here. The ones it picks per draw, such as the
@@ -22,11 +20,8 @@ public static class SceneTexturesLayout
     /// <summary>The name of the generated GLSL uniform block.</summary>
     public const string BlockName = "SceneTextures";
 
-    /// <summary>Gets the members by sampler uniform name.</summary>
+    /// <summary>Gets the members by sampler uniform name. Every one of them is a handle, so 8 bytes.</summary>
     public static FrozenDictionary<string, GlobalsMember> Members { get; }
-
-    /// <summary>Gets the members in the order they are laid out.</summary>
-    public static ImmutableArray<GlobalsMember> OrderedMembers { get; }
 
     /// <summary>Gets the size of the buffer in bytes.</summary>
     public static int Size { get; }
@@ -36,11 +31,10 @@ public static class SceneTexturesLayout
 
     static SceneTexturesLayout()
     {
+        var members = new Dictionary<string, GlobalsMember>(StringComparer.Ordinal);
         var builder = new StringBuilder(1024);
-        builder.Append(CultureInfo.InvariantCulture, $"layout(std140, binding = {(int)ReservedBufferSlots.SceneTextures}) uniform {BlockName}\n{{\n");
 
-        var members = ImmutableArray.CreateBuilder<GlobalsMember>();
-        var offset = 0;
+        builder.Append(CultureInfo.InvariantCulture, $"layout(std140, binding = {(int)ReservedBufferSlots.SceneTextures}) uniform {BlockName}\n{{\n");
 
         foreach (var sampler in MaterialLoader.ReservedSamplers)
         {
@@ -49,21 +43,15 @@ public static class SceneTexturesLayout
                 continue;
             }
 
-            members.Add(new GlobalsMember(sampler.Name, GlobalsType.Sampler, offset, sampler.Kind));
-            offset += sizeof(long);
+            members.Add(sampler.Name, new GlobalsMember(sampler.Name, GlobalsType.Sampler, Size, sampler.Kind));
+            Size += sizeof(long);
 
-            builder.Append("    ");
-            builder.Append(GlobalsLayout.GetGlslName(sampler.Kind));
-            builder.Append(' ');
-            builder.Append(sampler.Name);
-            builder.Append(";\n");
+            builder.Append(CultureInfo.InvariantCulture, $"    {GlobalsLayout.GetGlslName(sampler.Kind)} {sampler.Name};\n");
         }
 
         builder.Append("};\n");
 
-        OrderedMembers = members.DrainToImmutable();
-        Members = OrderedMembers.ToFrozenDictionary(static member => member.Name, StringComparer.Ordinal);
-        Size = offset;
+        Members = members.ToFrozenDictionary(StringComparer.Ordinal);
         BlockSource = builder.ToString();
     }
 

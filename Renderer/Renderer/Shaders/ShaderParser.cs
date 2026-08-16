@@ -22,7 +22,7 @@ namespace ValveResourceFormat.Renderer.Shaders
 
         /// <summary>
         /// The define naming whether material sampler handles are packed into the globals block. Emitted by
-        /// <see cref="ShaderLoader"/> from <see cref="GLEnvironment.BindlessTexturesSupported"/>, and read by
+        /// <see cref="ShaderLoader"/> from <see cref="GLEnvironment.BindlessTextures"/>, and read by
         /// the sampler declarations this parser guards with it.
         /// </summary>
         public const string BindlessTexturesDefine = "VRF_BINDLESS_TEXTURES";
@@ -311,11 +311,10 @@ namespace ValveResourceFormat.Renderer.Shaders
                             {
                                 parsedData.ReservedTextures.Add(uniformName);
 
+                                // The block declaration and the null texture standing in for a scene without
+                                // one are both built from ReservedTextureSlots rather than from here.
                                 var reserved = MaterialLoader.ReservedSamplerByName[uniformName];
 
-                                // The block the header emits declares these, and the null texture standing in
-                                // for a scene that has none is created from the same description, so a sampler
-                                // whose type changed here has to be changed there too.
                                 Debug.Assert(reserved.PerInstance || uniformType == GlobalsLayout.GetGlslName(reserved.Kind),
                                     $"'{uniformName}' is declared '{uniformType}' in '{shaderFileToLoad}', but {nameof(ReservedTextureSlots)} says '{GlobalsLayout.GetGlslName(reserved.Kind)}'.");
 

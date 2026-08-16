@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Runtime.InteropServices;
 using OpenTK.Graphics.OpenGL;
 
@@ -5,8 +6,8 @@ namespace ValveResourceFormat.Renderer.Buffers;
 
 /// <summary>
 /// Holds the bindless handles of the textures the renderer supplies for the whole scene, laid out by
-/// <see cref="SceneTexturesLayout"/>. One per renderer, bound once a frame in place of the texture unit each
-/// of these used to occupy.
+/// <see cref="SceneTexturesLayout"/>. One per renderer, bound in place of the texture unit each of these
+/// used to occupy.
 /// </summary>
 public sealed class SceneTextures : Buffer
 {
@@ -30,15 +31,16 @@ public sealed class SceneTextures : Buffer
 
         // A scene sets only the textures it has, and a shader reading one it did not set still has to read
         // something the GPU can sample. There is no handle that means "nothing", so they all start out here.
-        foreach (var member in SceneTexturesLayout.OrderedMembers)
+        foreach (var member in SceneTexturesLayout.Members.Values)
         {
-            Reset(member.Name);
+            Reset(member);
         }
     }
 
     /// <summary>
-    /// Points a sampler at a texture. Does nothing when the name is not one this buffer holds, which is how
-    /// the callers that also feed per draw samplers tell the two apart.
+    /// Points a sampler at a texture, substituting the null texture of the sampler's own type for one of the
+    /// wrong target or one already deleted. Does nothing when the name is not one this buffer holds, which is
+    /// how the callers that also feed per draw samplers tell the two apart.
     /// </summary>
     /// <param name="samplerName">The sampler uniform name.</param>
     /// <param name="texture">The texture to sample.</param>
@@ -53,38 +55,18 @@ public sealed class SceneTextures : Buffer
 
         var member = SceneTexturesLayout.Members[samplerName];
 
-        if (texture.Target != MaterialLoader.GetTextureTarget(member.Sampler))
+        // A deleted texture is one the scene teardown order let outlive the buffer naming it.
+        if (texture.Handle != 0 && texture.Target == MaterialLoader.GetTextureTarget(member.Sampler))
         {
-            System.Diagnostics.Debug.Assert(false,
-                $"'{samplerName}' is a {member.Sampler} sampler, but a {texture.Target} texture was set on it.");
-
-            Reset(samplerName);
+            Write(member, texture.GetBindlessHandle(sampler));
             return true;
         }
 
-        if (texture.Handle == 0)
-        {
-            // Deleted out from under the scene, which the teardown order allows.
-            Reset(samplerName);
-            return true;
-        }
+        Debug.Assert(texture.Handle == 0,
+            $"'{samplerName}' is a {member.Sampler} sampler, but a {texture.Target} texture was set on it.");
 
-        Write(member, texture.GetBindlessHandle(sampler));
+        Reset(member);
         return true;
-    }
-
-    /// <summary>Points a sampler back at the null texture of its type, for a scene that has none of its own.</summary>
-    /// <param name="samplerName">The sampler uniform name.</param>
-    public void Reset(string samplerName)
-    {
-        if (!SceneTexturesLayout.Contains(samplerName))
-        {
-            return;
-        }
-
-        var member = SceneTexturesLayout.Members[samplerName];
-
-        Write(member, materialLoader.GetNullTexture(member.Sampler).GetBindlessHandle());
     }
 
     /// <summary>
@@ -93,13 +75,14 @@ public sealed class SceneTextures : Buffer
     /// </summary>
     public void Bind()
     {
-        if (Size == 0)
+        if (Size > 0)
         {
-            return;
+            BindBufferBase();
         }
-
-        BindBufferBase();
     }
+
+    private void Reset(in GlobalsMember member)
+        => Write(member, materialLoader.GetNullTexture(member.Sampler).GetBindlessHandle());
 
     private void Write(in GlobalsMember member, long handle)
     {

@@ -179,17 +179,18 @@ namespace ValveResourceFormat.Renderer.World
             }
 
             // The two names read one atlas through different address modes, which a handle carries with it.
-            if (!sceneTextures.SetTexture("g_tLightCookieTexture", cookieAtlas, CookieSamplerClampBorder))
+            if (sceneTextures.SetTexture("g_tLightCookieTexture", cookieAtlas, CookieSamplerClampBorder))
+            {
+                sceneTextures.SetTexture("g_tLightCookieTextureWrap", cookieAtlas, CookieSamplerWrap);
+            }
+            else
             {
                 GL.BindTextureUnit((int)ReservedTextureSlots.LightCookieTexture, cookieAtlas.Handle);
                 GL.BindSampler((int)ReservedTextureSlots.LightCookieTexture, CookieSamplerClampBorder);
 
                 GL.BindTextureUnit((int)ReservedTextureSlots.LightCookieTextureWrap, cookieAtlas.Handle);
                 GL.BindSampler((int)ReservedTextureSlots.LightCookieTextureWrap, CookieSamplerWrap);
-                return;
             }
-
-            sceneTextures.SetTexture("g_tLightCookieTextureWrap", cookieAtlas, CookieSamplerWrap);
         }
 
         /// <summary>Binds the per-draw light probe volume textures. Individual-probe scenes only.</summary>

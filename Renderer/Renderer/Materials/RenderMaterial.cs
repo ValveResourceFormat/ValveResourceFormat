@@ -498,43 +498,50 @@ namespace ValveResourceFormat.Renderer.Materials
         /// </summary>
         private void FillSamplerHandles(Shader shader, GlobalsLayout layout, Globals buffer)
         {
-            var samplers = layout.Samplers;
-
-            if (samplers.Count == 0)
+            if (layout.Samplers.Count == 0)
             {
                 return;
             }
 
-            var loader = shader.MaterialLoader;
             var userConfigSampler = GetUserConfigSampler(shader);
 
-            foreach (var member in samplers)
+            foreach (var member in layout.Samplers)
             {
-                if (!Textures.TryGetValue(member.Name, out var texture)
-                && !shader.Default.Textures.TryGetValue(member.Name, out texture))
+                if (!Textures.TryGetValue(member.Name, out var texture))
                 {
-                    texture = loader.GetNullTexture(member.Sampler);
-                }
-
-                if (texture.Target != MaterialLoader.GetTextureTarget(member.Sampler))
-                {
-                    Debug.Assert(false,
-                        $"'{member.Name}' in '{shader.Name}' is a {member.Sampler} sampler, but '{Material.Name}' put a {texture.Target} texture in it.");
-
-                    texture = loader.GetNullTexture(member.Sampler);
-                }
-                else if (texture.Handle == 0)
-                {
-                    // Deleted out from under the material, which the scene teardown order allows.
-                    texture = loader.GetNullTexture(member.Sampler);
+                    shader.Default.Textures.TryGetValue(member.Name, out texture);
                 }
 
                 var sampler = userConfigSampler != 0 && shader.SamplerUserConfigUniforms.Contains(member.Name)
                     ? userConfigSampler
                     : 0;
 
-                buffer.SetHandle(member, texture.GetBindlessHandle(sampler));
+                buffer.SetHandle(member, ResolveSampler(shader, member, texture).GetBindlessHandle(sampler));
             }
+        }
+
+        /// <summary>
+        /// Returns the texture to sample a packed sampler through, substituting the null texture of the
+        /// sampler's own type for one that is missing, of the wrong target, or already deleted. Reading a
+        /// handle that names none of the three is undefined and takes the GPU down with it.
+        /// </summary>
+        private static RenderTexture ResolveSampler(Shader shader, in GlobalsMember member, RenderTexture? texture)
+        {
+            if (texture == null)
+            {
+                return shader.MaterialLoader.GetNullTexture(member.Sampler);
+            }
+
+            // A deleted texture is one the scene teardown order let outlive the material naming it.
+            if (texture.Handle != 0 && texture.Target == MaterialLoader.GetTextureTarget(member.Sampler))
+            {
+                return texture;
+            }
+
+            Debug.Assert(texture.Handle == 0,
+                $"'{member.Name}' in '{shader.Name}' is a {member.Sampler} sampler, but a {texture.Target} texture was set on it.");
+
+            return shader.MaterialLoader.GetNullTexture(member.Sampler);
         }
 
         /// <summary>
@@ -635,15 +642,7 @@ namespace ValveResourceFormat.Renderer.Materials
                 return false;
             }
 
-            if (texture.Target != MaterialLoader.GetTextureTarget(constant.Sampler))
-            {
-                Debug.Assert(false,
-                    $"'{name}' in '{Shader.Name}' is a {constant.Sampler} sampler, but a {texture.Target} texture was set on it.");
-
-                texture = Shader.MaterialLoader.GetNullTexture(constant.Sampler);
-            }
-
-            EnsureGlobals(Shader).SetHandle(constant, texture.GetBindlessHandle());
+            EnsureGlobals(Shader).SetHandle(constant, ResolveSampler(Shader, constant, texture).GetBindlessHandle());
             return true;
         }
 

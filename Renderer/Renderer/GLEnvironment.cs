@@ -51,29 +51,27 @@ public static class GLEnvironment
     /// </summary>
     public static string? GpuRendererAndDriver { get; private set; }
 
-    /// <summary>
-    /// Indicates whether material textures are passed to shaders as bindless handles packed into the
-    /// globals constant buffer rather than bound to texture units. Requires <c>GL_ARB_bindless_texture</c>,
-    /// which Intel does not implement on Windows; the slot bound path is kept for those drivers.
-    /// </summary>
-    /// <remarks>
-    /// Set <c>VRF_NO_BINDLESS</c> in the environment to force the slot bound path on a driver that does
-    /// support the extension. Read <see cref="BindlessTextures"/> rather than this to decide anything.
-    /// </remarks>
-    public static bool BindlessTexturesSupported { get; private set; }
-
+    private static bool bindlessTexturesSupported;
     private static bool? bindlessTextures;
 
     /// <summary>
-    /// Gets whether textures are read through bindless handles, latched the first time it is read.
+    /// Gets or sets a value indicating whether the slot bound texture path is taken even on a driver that
+    /// supports bindless textures. Read by <see cref="Initialize"/>, so it has to be set before the first
+    /// GL context is created and changing it later does nothing.
+    /// </summary>
+    public static bool DisableBindlessTextures { get; set; }
+
+    /// <summary>
+    /// Indicates whether textures are passed to shaders as bindless handles packed into a constant buffer
+    /// rather than bound to texture units. Requires <c>GL_ARB_bindless_texture</c>, which Intel does not
+    /// implement on Windows; the slot bound path is kept for those drivers.
     /// </summary>
     /// <remarks>
-    /// Shader source, the layouts packed into buffers and the renderer's binding paths all have to agree on
-    /// this, and shaders start being preprocessed on a background thread that can get there before
-    /// <see cref="Initialize"/> has queried the context. Latching means everything downstream of the first
-    /// answer sees the same one rather than a mix.
+    /// Latched on first read. Shader source, the buffer layouts and the renderer's binding paths all have to
+    /// agree on this, and shaders start being preprocessed on a background thread that can get there before
+    /// <see cref="Initialize"/> has queried the context.
     /// </remarks>
-    public static bool BindlessTextures => bindlessTextures ??= BindlessTexturesSupported;
+    public static bool BindlessTextures => bindlessTextures ??= bindlessTexturesSupported;
 
     /// <summary>
     /// Initializes the OpenGL environment and queries capabilities.
@@ -118,12 +116,11 @@ public static class GLEnvironment
         SlowMultiDrawIndirect = vendor == "Intel"
             && (renderer.Contains("Intel(R) HD", StringComparison.Ordinal) || renderer.Contains("Intel(R) UHD", StringComparison.Ordinal));
 
-        BindlessTexturesSupported = extensions.Contains("GL_ARB_bindless_texture")
-            && Environment.GetEnvironmentVariable("VRF_NO_BINDLESS") == null;
+        bindlessTexturesSupported = extensions.Contains("GL_ARB_bindless_texture") && !DisableBindlessTextures;
 
-        if (!BindlessTexturesSupported)
+        if (!bindlessTexturesSupported)
         {
-            logger.LogWarning("Bindless textures are not available, material textures will be bound to texture units");
+            logger.LogWarning("Bindless textures are off, textures will be bound to texture units");
         }
 
         if (extensions.Contains("GL_KHR_parallel_shader_compile"))

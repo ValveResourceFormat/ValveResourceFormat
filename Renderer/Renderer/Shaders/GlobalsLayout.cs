@@ -46,7 +46,7 @@ public enum GlobalsType
     Mat4,
     /// <summary>
     /// Opaque texture sampler, stored as a 64 bit bindless handle. Only packed when the driver
-    /// supports <c>GL_ARB_bindless_texture</c>; see <see cref="GLEnvironment.BindlessTexturesSupported"/>.
+    /// supports <c>GL_ARB_bindless_texture</c>; see <see cref="GLEnvironment.BindlessTextures"/>.
     /// </summary>
     Sampler,
 }
@@ -130,7 +130,7 @@ public sealed class GlobalsLayout
 
     /// <summary>
     /// Gets the sampler members, which hold a bindless texture handle each. Empty unless
-    /// <see cref="GLEnvironment.BindlessTexturesSupported"/>, in which case the samplers stay loose
+    /// <see cref="GLEnvironment.BindlessTextures"/>, in which case the samplers stay loose
     /// uniforms bound to a texture unit.
     /// </summary>
     /// <remarks>

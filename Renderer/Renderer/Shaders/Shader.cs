@@ -413,25 +413,21 @@ namespace ValveResourceFormat.Renderer.Shaders
             // A sampler the scene textures block declares has no uniform location of its own. The linker
             // instead leaves it out of the block's active members, which is the invalid index here.
             string[] blockNames = [.. ReservedTexturesUsed.Where(SceneTexturesLayout.Contains)];
-            var unusedInBlock = new HashSet<string>(StringComparer.Ordinal);
+            var blockIndices = new int[blockNames.Length];
 
             if (blockNames.Length > 0)
             {
-                var indices = new int[blockNames.Length];
-                GL.GetUniformIndices(Program, blockNames.Length, blockNames, indices);
-
-                for (var i = 0; i < blockNames.Length; i++)
-                {
-                    if (indices[i] == -1)
-                    {
-                        unusedInBlock.Add(blockNames[i]);
-                    }
-                }
+                GL.GetUniformIndices(Program, blockNames.Length, blockNames, blockIndices);
             }
 
-            ReservedTexturesUsed.RemoveWhere(reserved => SceneTexturesLayout.Contains(reserved)
-                ? unusedInBlock.Contains(reserved)
-                : GL.GetUniformLocation(Program, reserved) == -1);
+            ReservedTexturesUsed.RemoveWhere(reserved =>
+            {
+                var block = Array.IndexOf(blockNames, reserved);
+
+                return block > -1
+                    ? blockIndices[block] == -1
+                    : GL.GetUniformLocation(Program, reserved) == -1;
+            });
         }
 
         /// <summary>Points every reserved texture sampler this program declares at its global texture unit.</summary>
@@ -775,12 +771,10 @@ namespace ValveResourceFormat.Renderer.Shaders
         /// sampler is absent.
         /// </summary>
         /// <remarks>
-        /// When the sampler is packed into <see cref="GlobalsLayout"/> the handle is written into this shader's
-        /// own constant buffer and <paramref name="slot"/> goes unused, in the same way that
-        /// <see cref="SetUniform(string, float)"/> writes there. That buffer is the one a draw reads only while
-        /// no material is bound, so as with the other uniforms, a material's textures are set on the material.
-        /// A scene-wide reserved sampler instead goes into the buffer every shader shares, which the caller
-        /// still has to bind.
+        /// A packed sampler's handle goes into a constant buffer and <paramref name="slot"/> goes unused. For
+        /// one of this shader's own that is the buffer <see cref="SetUniform(string, float)"/> writes to, which
+        /// a draw reads only while no material is bound; set a material's textures on the material. A
+        /// scene-wide reserved sampler instead goes into the buffer every shader shares.
         /// </remarks>
         /// <param name="slot">The texture unit to bind to, when the sampler is not packed.</param>
         /// <param name="name">The sampler uniform name.</param>

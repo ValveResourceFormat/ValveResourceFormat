@@ -55,6 +55,7 @@ namespace GUI.Controls
             groupBox1 = new ThemedGroupBox();
             groupBox2 = new ThemedGroupBox();
             smoothCamCheckbox = new System.Windows.Forms.CheckBox();
+            bindlessTexturesCheckBox = new System.Windows.Forms.CheckBox();
             shadowQualityComboBox = new ThemedComboBox();
             shadowResolutionLabel = new System.Windows.Forms.Label();
             groupBox3 = new ThemedGroupBox();
@@ -323,6 +324,7 @@ namespace GUI.Controls
             groupBox2.BorderWidth = 2;
             groupBox2.Controls.Add(displayFpsCheckBox);
             groupBox2.Controls.Add(smoothCamCheckbox);
+            groupBox2.Controls.Add(bindlessTexturesCheckBox);
             groupBox2.Controls.Add(viewmodelFovInput);
             groupBox2.Controls.Add(viewmodelFovLabel);
             groupBox2.Controls.Add(vsyncCheckBox);
@@ -360,6 +362,19 @@ namespace GUI.Controls
             smoothCamCheckbox.Text = "Smooth camera";
             smoothCamCheckbox.UseVisualStyleBackColor = true;
             smoothCamCheckbox.CheckedChanged += OnSmoothCameraChanged;
+            //
+            // bindlessTexturesCheckBox
+            //
+            bindlessTexturesCheckBox.AutoSize = true;
+            bindlessTexturesCheckBox.Checked = true;
+            bindlessTexturesCheckBox.CheckState = System.Windows.Forms.CheckState.Checked;
+            bindlessTexturesCheckBox.Location = new System.Drawing.Point(15, 429);
+            bindlessTexturesCheckBox.Name = "bindlessTexturesCheckBox";
+            bindlessTexturesCheckBox.Size = new System.Drawing.Size(128, 23);
+            bindlessTexturesCheckBox.TabIndex = 14;
+            bindlessTexturesCheckBox.Text = "Bindless textures (requires restart)";
+            bindlessTexturesCheckBox.UseVisualStyleBackColor = true;
+            bindlessTexturesCheckBox.CheckedChanged += OnBindlessTexturesChanged;
             //
             // shadowQualityComboBox
             // 
@@ -651,6 +666,7 @@ namespace GUI.Controls
         private ThemedGroupBox groupBox3;
         private ThemedGroupBox groupBox4;
         private System.Windows.Forms.CheckBox smoothCamCheckbox;
+        private System.Windows.Forms.CheckBox bindlessTexturesCheckBox;
         private ThemedGroupBox groupBoxAudio;
         private System.Windows.Forms.Label volumeLabel;
         private System.Windows.Forms.TrackBar volumeSlider;
