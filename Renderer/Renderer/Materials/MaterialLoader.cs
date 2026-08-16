@@ -504,14 +504,14 @@ namespace ValveResourceFormat.Renderer.Materials
         /// <summary>A sampler uniform the renderer supplies, as declared on <see cref="ReservedTextureSlots"/>.</summary>
         /// <param name="Name">The sampler uniform name.</param>
         /// <param name="Kind">The sampler type the shaders declare it as.</param>
-        /// <param name="Slot">The texture unit it is bound to when it is not read through a handle.</param>
-        /// <param name="PerInstance">Whether it is rebound per draw, which keeps it on its texture unit.</param>
+        /// <param name="Slot">The texture unit it takes when it is not read through a handle.</param>
+        /// <param name="PerInstance">Rebound per draw, which keeps it on its texture unit.</param>
         public readonly record struct ReservedSampler(string Name, SamplerKind Kind, ReservedTextureSlots Slot, bool PerInstance);
 
-        /// <summary>Gets the reserved samplers in slot order.</summary>
+        /// <summary>The reserved samplers in slot order.</summary>
         public static readonly ImmutableArray<ReservedSampler> ReservedSamplers = BuildReservedSamplers();
 
-        /// <summary>Gets the reserved samplers by uniform name.</summary>
+        /// <summary>The reserved samplers by uniform name.</summary>
         public static readonly FrozenDictionary<string, ReservedSampler> ReservedSamplerByName =
             ReservedSamplers.ToFrozenDictionary(static sampler => sampler.Name, StringComparer.Ordinal);
 
@@ -539,12 +539,10 @@ namespace ValveResourceFormat.Renderer.Materials
             return samplers.DrainToImmutable();
         }
 
-        /// <summary>Returns the texture unit the named reserved sampler is bound to.</summary>
-        /// <param name="uniformName">The sampler uniform name.</param>
+        /// <summary>The texture unit the named reserved sampler is bound to.</summary>
         public static ReservedTextureSlots GetReservedSlot(string uniformName) => ReservedSamplerByName[uniformName].Slot;
 
-        /// <summary>Returns the texture target a sampler of the given type reads from.</summary>
-        /// <param name="kind">The sampler type.</param>
+        /// <summary>The texture target a sampler of the given type reads from.</summary>
         public static TextureTarget GetTextureTarget(SamplerKind kind) => kind switch
         {
             SamplerKind.Texture2D or SamplerKind.Texture2DShadow => TextureTarget.Texture2D,
@@ -611,11 +609,10 @@ namespace ValveResourceFormat.Renderer.Materials
         private readonly Dictionary<SamplerKind, RenderTexture> NullTextures = [];
 
         /// <summary>
-        /// Returns the texture a sampler of the given type falls back to when a material has nothing to put
-        /// there. Sampling through a handle of the wrong texture target is undefined and takes the GPU with
-        /// it, so every packed sampler gets one of these rather than being left unwritten.
+        /// The texture a sampler of the given type falls back to when there is nothing to put there. Every
+        /// packed sampler gets one rather than being left unwritten, since sampling a handle of the wrong
+        /// target is undefined.
         /// </summary>
-        /// <param name="kind">The sampler type the texture has to match.</param>
         public RenderTexture GetNullTexture(SamplerKind kind)
         {
             switch (kind)
@@ -656,7 +653,7 @@ namespace ValveResourceFormat.Renderer.Materials
             texture.SetFiltering(TextureMinFilter.Nearest, TextureMagFilter.Nearest);
             texture.SetWrapMode(TextureWrapMode.ClampToEdge);
 
-            // Cube maps take their six faces through the layered entry points, same as an array does.
+            // Cube faces go through the layered entry points, same as array slices.
             var texels = new byte[depth * 3];
 
             for (var i = 0; i < depth; i++)
@@ -684,11 +681,7 @@ namespace ValveResourceFormat.Renderer.Materials
             return texture;
         }
 
-        /// <summary>
-        /// Builds the stand-in a shadow sampler reads when the scene has no shadow map of that kind. One texel
-        /// of maximum depth, so the comparison passes and nothing ends up shadowed.
-        /// </summary>
-        /// <param name="layered">Whether the sampler reading it is a <c>sampler2DArrayShadow</c>.</param>
+        /// <summary>One texel at maximum depth, so the comparison passes and nothing ends up shadowed.</summary>
         private static RenderTexture CreateNullShadowTexture(bool layered)
         {
             var target = layered ? TextureTarget.Texture2DArray : TextureTarget.Texture2D;
@@ -720,12 +713,9 @@ namespace ValveResourceFormat.Renderer.Materials
         }
 
         /// <summary>
-        /// Returns the texture a shader's sampler starts out with, before any material has assigned one.
-        /// Two dimensional samplers get a stand-in picked from the name, everything else the null texture
-        /// of its type.
+        /// The texture a shader's sampler starts out with. Two dimensional samplers get a stand-in picked
+        /// from the name, everything else the null texture of its type.
         /// </summary>
-        /// <param name="uniformName">The sampler uniform name.</param>
-        /// <param name="kind">The sampler type, or <see cref="SamplerKind.None"/> for a two dimensional one.</param>
         public RenderTexture GetDefaultTexture(string uniformName, SamplerKind kind = SamplerKind.None)
         {
             if (kind is not SamplerKind.None and not SamplerKind.Texture2D)

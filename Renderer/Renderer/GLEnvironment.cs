@@ -54,22 +54,16 @@ public static class GLEnvironment
     private static bool bindlessTexturesSupported;
     private static bool? bindlessTextures;
 
-    /// <summary>
-    /// Gets or sets a value indicating whether the slot bound texture path is taken even on a driver that
-    /// supports bindless textures. Read by <see cref="Initialize"/>, so it has to be set before the first
-    /// GL context is created and changing it later does nothing.
-    /// </summary>
+    /// <summary>Forces the slot bound path on a driver that does support bindless textures. Set it before the first GL context.</summary>
     public static bool DisableBindlessTextures { get; set; }
 
     /// <summary>
-    /// Indicates whether textures are passed to shaders as bindless handles packed into a constant buffer
-    /// rather than bound to texture units. Requires <c>GL_ARB_bindless_texture</c>, which Intel does not
-    /// implement on Windows; the slot bound path is kept for those drivers.
+    /// Whether textures reach shaders as handles in a constant buffer rather than bound to texture units.
+    /// Needs GL_ARB_bindless_texture.
     /// </summary>
     /// <remarks>
-    /// Latched on first read. Shader source, the buffer layouts and the renderer's binding paths all have to
-    /// agree on this, and shaders start being preprocessed on a background thread that can get there before
-    /// <see cref="Initialize"/> has queried the context.
+    /// Latched on first read: shader source, buffer layouts and binding paths all have to agree, and
+    /// preprocessing runs on a background thread that can beat <see cref="Initialize"/> to it.
     /// </remarks>
     public static bool BindlessTextures => bindlessTextures ??= bindlessTexturesSupported;
 

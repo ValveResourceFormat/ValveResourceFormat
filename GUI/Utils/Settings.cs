@@ -71,7 +71,7 @@ namespace GUI.Utils
             public float MouseSensitivity { get; set; }
             /// <summary>Gets or sets whether the viewport camera should have acceleration/deceleration when starting or stopping to move</summary>
             public bool SmoothCameraEnabled { get; set; }
-            /// <summary>Gets or sets whether textures are passed to shaders as bindless handles. Read once at startup; see <see cref="GLEnvironment.BindlessTextures"/>.</summary>
+            /// <summary>Gets or sets whether textures reach shaders as bindless handles. Read once at startup.</summary>
             public bool BindlessTexturesEnabled { get; set; }
             /// <summary>Gets or sets the number of MSAA samples used for anti-aliasing.</summary>
             public int AntiAliasingSamples { get; set; }
@@ -310,7 +310,6 @@ namespace GUI.Utils
 
             Config._VERSION_DO_NOT_MODIFY = SettingsFileCurrentVersion;
 
-            // Read once when the first GL context is created, so changing it takes a restart.
             ValveResourceFormat.Renderer.GLEnvironment.DisableBindlessTextures = !Config.BindlessTexturesEnabled;
         }
 

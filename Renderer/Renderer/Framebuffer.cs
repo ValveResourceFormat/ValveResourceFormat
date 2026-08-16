@@ -415,8 +415,7 @@ public class Framebuffer
     {
         GL.DeleteFramebuffer(FboHandle);
 
-        // Through RenderTexture, so that any bindless handle referring to an attachment stops being resident
-        // before the texture it names goes away.
+        // Through RenderTexture, so an attachment's handle stops being resident before the texture goes.
         Color?.Delete();
         Depth?.Delete();
     }

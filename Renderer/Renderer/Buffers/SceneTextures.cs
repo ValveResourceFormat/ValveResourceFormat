@@ -5,16 +5,15 @@ using OpenTK.Graphics.OpenGL;
 namespace ValveResourceFormat.Renderer.Buffers;
 
 /// <summary>
-/// Holds the bindless handles of the textures the renderer supplies for the whole scene, laid out by
-/// <see cref="SceneTexturesLayout"/>. One per renderer, bound in place of the texture unit each of these
-/// used to occupy.
+/// Handles of the textures the renderer supplies for the whole scene, laid out by
+/// <see cref="SceneTexturesLayout"/>. One per renderer, in place of the texture unit each of these held.
 /// </summary>
 public sealed class SceneTextures : Buffer
 {
     private readonly byte[] bytes = new byte[SceneTexturesLayout.Size];
     private readonly MaterialLoader materialLoader;
 
-    /// <summary>Initializes the buffer with every member pointing at a null texture of its own sampler type.</summary>
+    /// <summary>Starts every member off at a null texture of its own sampler type.</summary>
     /// <param name="materialLoader">The loader the null textures are created by.</param>
     public SceneTextures(MaterialLoader materialLoader)
         : base(BufferTarget.UniformBuffer, (int)ReservedBufferSlots.SceneTextures, nameof(SceneTextures))
@@ -23,14 +22,14 @@ public sealed class SceneTextures : Buffer
 
         if (!GLEnvironment.BindlessTextures)
         {
-            return; // Inert: the shaders declare these as loose samplers and read them off a texture unit.
+            return; // Inert: the shaders declare these as loose samplers on a texture unit instead.
         }
 
         Size = SceneTexturesLayout.Size;
         GL.NamedBufferData(Handle, Size, IntPtr.Zero, BufferUsageHint.DynamicDraw);
 
-        // A scene sets only the textures it has, and a shader reading one it did not set still has to read
-        // something the GPU can sample. There is no handle that means "nothing", so they all start out here.
+        // A scene sets only the textures it has, and there is no handle meaning "nothing", so a shader
+        // reading one the scene never set has to find a null texture there.
         foreach (var member in SceneTexturesLayout.Members.Values)
         {
             Reset(member);
@@ -38,14 +37,13 @@ public sealed class SceneTextures : Buffer
     }
 
     /// <summary>
-    /// Points a sampler at a texture, substituting the null texture of the sampler's own type for one of the
-    /// wrong target or one already deleted. Does nothing when the name is not one this buffer holds, which is
-    /// how the callers that also feed per draw samplers tell the two apart.
+    /// Points a sampler at a texture, falling back to the null texture of its type for a wrong target or a
+    /// deleted texture. Returns false when the name is not one this buffer holds, which is how the callers
+    /// that also feed per draw samplers tell the two apart.
     /// </summary>
     /// <param name="samplerName">The sampler uniform name.</param>
     /// <param name="texture">The texture to sample.</param>
     /// <param name="sampler">A sampler object to read the texture through, or 0 for its own parameters.</param>
-    /// <returns><see langword="true"/> when the sampler is held here.</returns>
     public bool SetTexture(string samplerName, RenderTexture texture, int sampler = 0)
     {
         if (!SceneTexturesLayout.Contains(samplerName))
@@ -55,7 +53,7 @@ public sealed class SceneTextures : Buffer
 
         var member = SceneTexturesLayout.Members[samplerName];
 
-        // A deleted texture is one the scene teardown order let outlive the buffer naming it.
+        // A zero handle is a texture the teardown order let the buffer outlive.
         if (texture.Handle != 0 && texture.Target == MaterialLoader.GetTextureTarget(member.Sampler))
         {
             Write(member, texture.GetBindlessHandle(sampler));
@@ -69,10 +67,7 @@ public sealed class SceneTextures : Buffer
         return true;
     }
 
-    /// <summary>
-    /// Binds this buffer to <see cref="ReservedBufferSlots.SceneTextures"/>. Called by <see cref="Shader.Use"/>,
-    /// since which buffer occupies the slot is state of the GL context rather than of this object.
-    /// </summary>
+    /// <summary>Binds this buffer. Called by <see cref="Shader.Use"/>, since the slot is context state.</summary>
     public void Bind()
     {
         if (Size > 0)
@@ -91,8 +86,7 @@ public sealed class SceneTextures : Buffer
 
         var target = bytes.AsSpan(member.Offset, staged.Length);
 
-        // Written far more often than it changes: a pass sets the same scene textures it set last time, and
-        // only a resize or a scene load puts a different handle in one of them.
+        // Written every pass, changed only by a resize or a scene load.
         if (target.SequenceEqual(staged))
         {
             return;

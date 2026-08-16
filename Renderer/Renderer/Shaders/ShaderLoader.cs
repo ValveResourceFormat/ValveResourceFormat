@@ -89,13 +89,9 @@ namespace ValveResourceFormat.Renderer.Shaders
 
             /// <summary>
             /// Gets the packed layout of <see cref="GlobalsDeclarations"/>, shared by every static combo
-            /// variant compiled from this source.
+            /// variant compiled from this source. Built on the first compile rather than at preprocess time,
+            /// because whether handles are packed into it depends on the driver.
             /// </summary>
-            /// <remarks>
-            /// Built on the first compile rather than as soon as the source has been preprocessed, because
-            /// whether texture handles are packed into it depends on the driver, and preprocessing runs on a
-            /// background thread that can get there before the GL context has been queried.
-            /// </remarks>
             public GlobalsLayout GlobalsLayout
             {
                 get
@@ -388,7 +384,7 @@ namespace ValveResourceFormat.Renderer.Shaders
             var bindless = GLEnvironment.BindlessTextures;
 
             System.Diagnostics.Debug.Assert(globalsLayout.Size == 0 || globalsLayout.PacksSamplers == bindless,
-                "The layout was built before the driver was queried, and disagrees with the source it is about to be compiled into.");
+                "The layout disagrees with the source it is about to be compiled into.");
 
             if (bindless)
             {

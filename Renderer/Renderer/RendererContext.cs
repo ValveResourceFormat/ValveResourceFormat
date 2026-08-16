@@ -37,8 +37,8 @@ public class RendererContext : IDisposable
     private SceneTextures? sceneTextures;
 
     /// <summary>
-    /// Bindless handles of the textures the renderer supplies for the whole scene, bound in place of the
-    /// texture unit each of them used to occupy. Created on first use, which needs a current GL context.
+    /// Handles of the textures the renderer supplies for the whole scene. Created on first use, which needs
+    /// a current GL context.
     /// </summary>
     public SceneTextures SceneTextures => sceneTextures ??= new SceneTextures(MaterialLoader);
 

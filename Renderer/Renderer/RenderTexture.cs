@@ -177,22 +177,16 @@ namespace ValveResourceFormat.Renderer
         public void SetParameter(TextureParameterName parameter, int value)
         {
             Debug.Assert(bindlessHandle == 0,
-                "A texture's parameters are frozen once a bindless handle refers to it, set them before it is first sampled.");
+                "A bindless handle freezes the texture's parameters, set them before it is first sampled.");
 
             GL.TextureParameter(Handle, parameter, value);
         }
 
         /// <summary>
-        /// Returns this texture's bindless handle, creating it and making it resident on first use.
+        /// This texture's bindless handle, created and made resident on first use. A handle cannot be freed
+        /// and freezes the texture's parameters, so only ask for one you are about to sample through.
         /// </summary>
-        /// <remarks>
-        /// A handle is permanent: it cannot be freed, and the texture's parameters are frozen from here on,
-        /// so this is only called for a texture that is about to be sampled through one.
-        /// </remarks>
-        /// <param name="sampler">
-        /// A sampler object to read the texture through, for the address modes a <c>// Sampler(UserConfig)</c>
-        /// sampler takes from its material, or 0 for the texture's own parameters.
-        /// </param>
+        /// <param name="sampler">A sampler object to read the texture through, or 0 for its own parameters.</param>
         public long GetBindlessHandle(int sampler = 0)
         {
             if (sampler == 0)

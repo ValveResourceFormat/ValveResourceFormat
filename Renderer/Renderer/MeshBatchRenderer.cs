@@ -107,10 +107,7 @@ namespace ValveResourceFormat.Renderer
             DrawBatch(requests, context);
         }
 
-        /// <summary>
-        /// Makes the scene-wide textures readable for this pass, either by writing their handles into the
-        /// buffer every shader shares or by binding each to its reserved texture unit.
-        /// </summary>
+        /// <summary>Makes the scene-wide textures readable for this pass, by handle or by texture unit.</summary>
         private static void BindReservedTextures(Scene.RenderContext context)
         {
             var sceneTextures = context.Scene.RendererContext.SceneTextures;

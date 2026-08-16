@@ -44,17 +44,13 @@ public enum GlobalsType
     BVec4,
     /// <summary>Four by four column major float matrix.</summary>
     Mat4,
-    /// <summary>
-    /// Opaque texture sampler, stored as a 64 bit bindless handle. Only packed when the driver
-    /// supports <c>GL_ARB_bindless_texture</c>; see <see cref="GLEnvironment.BindlessTextures"/>.
-    /// </summary>
+    /// <summary>Texture sampler, stored as a 64 bit handle. Only packed when bindless textures are on.</summary>
     Sampler,
 }
 
 /// <summary>
-/// The sampler types whose handles can be packed into a constant buffer. Integer and multisample samplers
-/// are left out: they are bound by the renderer itself rather than by a material, and each would need a null
-/// texture of its own to stay crash safe.
+/// Sampler types whose handle can be packed. Integer and multisample samplers are left out: the renderer
+/// binds those itself, and each would need a null texture of its own to stay crash safe.
 /// </summary>
 public enum SamplerKind
 {
@@ -70,9 +66,9 @@ public enum SamplerKind
     Texture2DArray,
     /// <summary><c>samplerCubeArray</c>.</summary>
     TextureCubeArray,
-    /// <summary><c>sampler2DShadow</c>, a depth texture read through its comparison function.</summary>
+    /// <summary><c>sampler2DShadow</c>.</summary>
     Texture2DShadow,
-    /// <summary><c>sampler2DArrayShadow</c>, a layered depth texture read through its comparison function.</summary>
+    /// <summary><c>sampler2DArrayShadow</c>.</summary>
     Texture2DArrayShadow,
 }
 
@@ -129,24 +125,16 @@ public sealed class GlobalsLayout
     public IReadOnlyDictionary<string, GlobalsMember> Members => members;
 
     /// <summary>
-    /// Gets the sampler members, which hold a bindless texture handle each. Empty unless
-    /// <see cref="GLEnvironment.BindlessTextures"/>, in which case the samplers stay loose
-    /// uniforms bound to a texture unit.
+    /// Sampler members, one handle each. Empty without bindless textures, where the samplers stay loose
+    /// uniforms on a texture unit. Every one has to be written on each fill: they start out zeroed, and a
+    /// zero handle is not something the GPU can sample.
     /// </summary>
-    /// <remarks>
-    /// Every one of these has to be written on each fill: the buffer starts out zeroed for them, and a
-    /// zero handle is not a texture the GPU can sample from.
-    /// </remarks>
     public IReadOnlyList<GlobalsMember> Samplers => samplers;
 
     /// <summary>Gets the size of the constant buffer in bytes, zero when there is nothing to pack.</summary>
     public int Size { get; }
 
-    /// <summary>
-    /// Gets a value indicating whether sampler handles were packed into this layout. The shader source
-    /// is compiled against this rather than against the driver capability directly, so that a layout built
-    /// before the GL context was queried cannot disagree with the source it is compiled into.
-    /// </summary>
+    /// <summary>Whether sampler handles were packed into this layout.</summary>
     public bool PacksSamplers { get; }
 
     /// <summary>Gets the GLSL declaration of the uniform block, prepended to every stage of the shader.</summary>
@@ -171,10 +159,7 @@ public sealed class GlobalsLayout
     /// Merges the declarations collected from every stage of one shader and computes the packed layout.
     /// </summary>
     /// <param name="declarations">Declarations in source order; duplicates across stages are merged.</param>
-    /// <param name="packSamplers">
-    /// Whether sampler declarations are packed as bindless handles. When they are not, they are left out
-    /// of the block entirely and the shader source keeps its loose <c>uniform sampler</c> declarations.
-    /// </param>
+    /// <param name="packSamplers">Whether sampler declarations become handles here, or stay loose uniforms in the source.</param>
     /// <exception cref="ShaderLoader.ShaderCompilerException">A uniform is declared with conflicting types or defaults.</exception>
     public static GlobalsLayout Build(IEnumerable<GlobalsDeclaration> declarations, bool packSamplers)
     {
@@ -335,8 +320,7 @@ public sealed class GlobalsLayout
 
         if (constant.Type == GlobalsType.Sampler)
         {
-            // There is no handle that can stand in for "no texture", so the zeroes stay and every fill
-            // writes a real one over them. See <see cref="Samplers"/>.
+            // No handle stands in for "no texture", so the zeroes stay and every fill writes over them.
             return;
         }
 
@@ -502,9 +486,8 @@ public sealed class GlobalsLayout
     private static int Align(int offset, int alignment) => (offset + alignment - 1) & ~(alignment - 1);
 
     /// <summary>
-    /// Returns the number of scalar components in the given type, 16 for <see cref="GlobalsType.Mat4"/>
-    /// and 2 for <see cref="GlobalsType.Sampler"/>, whose handle is a 64 bit value laid out like a
-    /// <c>uvec2</c> would be.
+    /// Returns the number of scalar components in the given type, 16 for a mat4 and 2 for a sampler, whose
+    /// 64 bit handle is laid out like a uvec2.
     /// </summary>
     internal static int GetComponentCount(GlobalsType type) => type switch
     {
@@ -549,9 +532,6 @@ public sealed class GlobalsLayout
     };
 
     /// <summary>Maps a GLSL sampler keyword onto the sampler type it names, when its handle can be packed.</summary>
-    /// <param name="glslType">The type keyword as it appears in the shader source.</param>
-    /// <param name="kind">The matching sampler type when the keyword names one that can be packed.</param>
-    /// <returns><see langword="true"/> when the keyword names a sampler whose handle can be packed.</returns>
     internal static bool TryGetSamplerKind(ReadOnlySpan<char> glslType, out SamplerKind kind)
     {
         switch (glslType)

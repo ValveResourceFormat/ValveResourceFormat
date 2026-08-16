@@ -141,10 +141,9 @@ namespace ValveResourceFormat.Renderer.World
         private int CookieSamplerWrap;
 
         /// <summary>
-        /// Makes the scene's lightmap, light probe atlas and barn light cookie textures readable, through
-        /// <paramref name="sceneTextures"/> for the samplers it holds and a reserved texture unit for the rest.
+        /// Makes the scene's lightmap, light probe atlas and barn light cookie textures readable, by handle
+        /// for the samplers <paramref name="sceneTextures"/> holds and by texture unit for the rest.
         /// </summary>
-        /// <param name="sceneTextures">The buffer of scene-wide texture handles. The caller binds it.</param>
         public void BindLightmapTextures(SceneTextures sceneTextures)
         {
             foreach (var (name, texture) in Lightmaps)

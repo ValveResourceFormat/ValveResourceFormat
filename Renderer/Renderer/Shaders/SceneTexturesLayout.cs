@@ -6,27 +6,25 @@ using ValveResourceFormat.Renderer.Buffers;
 namespace ValveResourceFormat.Renderer.Shaders;
 
 /// <summary>
-/// The std140 layout of the scene-wide reserved samplers, held as bindless handles in one buffer the whole
-/// renderer shares. Unlike <see cref="GlobalsLayout"/> this is the same for every shader, so the block is
-/// declared in all of them and the buffer is bound once rather than per material.
+/// std140 layout of the scene-wide reserved samplers. The same for every shader, unlike
+/// <see cref="GlobalsLayout"/>, so one buffer serves all of them.
 /// </summary>
 /// <remarks>
-/// Only the samplers the renderer sets once for a pass are in here. The ones it picks per draw, such as the
-/// environment map and the light probe volumes, stay on their texture units: their handle would have to be
-/// written and uploaded per draw, which costs more than the bind it replaces.
+/// Only the samplers set once per pass. The environment map, light probe volumes and morph composite are
+/// picked per draw, where writing and uploading a handle costs more than the bind it would replace.
 /// </remarks>
 public static class SceneTexturesLayout
 {
-    /// <summary>The name of the generated GLSL uniform block.</summary>
+    /// <summary>Name of the generated GLSL uniform block.</summary>
     public const string BlockName = "SceneTextures";
 
-    /// <summary>Gets the members by sampler uniform name. Every one of them is a handle, so 8 bytes.</summary>
+    /// <summary>Members by sampler uniform name. Every one is a 64 bit handle.</summary>
     public static FrozenDictionary<string, GlobalsMember> Members { get; }
 
-    /// <summary>Gets the size of the buffer in bytes.</summary>
+    /// <summary>Size of the buffer in bytes.</summary>
     public static int Size { get; }
 
-    /// <summary>Gets the GLSL declaration of the uniform block, prepended to every stage of every shader.</summary>
+    /// <summary>GLSL declaration of the block, prepended to every stage of every shader.</summary>
     public static string BlockSource { get; }
 
     static SceneTexturesLayout()
@@ -55,7 +53,6 @@ public static class SceneTexturesLayout
         BlockSource = builder.ToString();
     }
 
-    /// <summary>Returns whether the named sampler is read through this buffer rather than a texture unit.</summary>
-    /// <param name="samplerName">The sampler uniform name.</param>
+    /// <summary>Whether the named sampler is read through this buffer rather than a texture unit.</summary>
     public static bool Contains(string samplerName) => GLEnvironment.BindlessTextures && Members.ContainsKey(samplerName);
 }

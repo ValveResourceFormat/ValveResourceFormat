@@ -64,8 +64,8 @@ namespace ValveResourceFormat.Renderer.Shaders
                 Default.Matrices.Clear();
                 Default.Textures.Clear();
 
-                // Packed samplers are block members, which the linker does not report as uniforms, so unlike
-                // the loose ones StoreUniformLocations picks up these have to be seeded from the layout.
+                // Block members are not reported as uniforms, so unlike the loose samplers
+                // StoreUniformLocations picks up, these are seeded from the layout.
                 foreach (var sampler in value.Samplers)
                 {
                     Default.Textures[sampler.Name] = MaterialLoader.GetDefaultTexture(sampler.Name, sampler.Sampler);
@@ -405,13 +405,13 @@ namespace ValveResourceFormat.Renderer.Shaders
         }
 
         /// <summary>
-        /// Narrows <see cref="ReservedTexturesUsed"/>, which is seeded from the source where a sampler behind a
-        /// combo the linker dropped still looks used, down to what this variant kept.
+        /// Narrows <see cref="ReservedTexturesUsed"/> down to what this variant kept. It is seeded from the
+        /// source, where a sampler behind a dropped combo still looks used.
         /// </summary>
         private void TrimReservedTextures()
         {
-            // A sampler the scene textures block declares has no uniform location of its own. The linker
-            // instead leaves it out of the block's active members, which is the invalid index here.
+            // A sampler in the scene textures block has no uniform location; the linker instead leaves it
+            // out of the block's active members, which is the invalid index here.
             string[] blockNames = [.. ReservedTexturesUsed.Where(SceneTexturesLayout.Contains)];
             var blockIndices = new int[blockNames.Length];
 
@@ -438,7 +438,7 @@ namespace ValveResourceFormat.Renderer.Shaders
             {
                 if (SceneTexturesLayout.Contains(sampler.Name))
                 {
-                    continue; // Read out of the scene textures buffer, not off a unit.
+                    continue; // Read out of the scene textures buffer.
                 }
 
                 var uniformLocation = GetUniformLocation(sampler.Name);
@@ -535,7 +535,7 @@ namespace ValveResourceFormat.Renderer.Shaders
         }
 
 #if DEBUG
-        /// <summary>Checks every uniform block this program reads against the layout it was built from (debug builds only).</summary>
+        /// <summary>Checks every uniform block this program reads against the layout it was built from.</summary>
         private void VerifyGlobalsLayout()
         {
             VerifyBlockLayout(GlobalsLayout.Members);
@@ -547,8 +547,8 @@ namespace ValveResourceFormat.Renderer.Shaders
         }
 
         /// <summary>
-        /// Checks the offsets a layout computed against the ones the driver laid the block out at. They are
-        /// both std140 so they have to agree, but getting this wrong would corrupt every material silently.
+        /// Both sides are std140 so the offsets have to agree, but getting it wrong corrupts every material
+        /// silently.
         /// </summary>
         private void VerifyBlockLayout(IReadOnlyDictionary<string, GlobalsMember> members)
         {
@@ -767,19 +767,16 @@ namespace ValveResourceFormat.Renderer.Shaders
         }
 
         /// <summary>
-        /// Points the named sampler at a texture, and returns <see langword="false"/> if the texture or the
-        /// sampler is absent.
+        /// Points the named sampler at a texture, returning false if the texture or the sampler is absent.
         /// </summary>
         /// <remarks>
-        /// A packed sampler's handle goes into a constant buffer and <paramref name="slot"/> goes unused. For
-        /// one of this shader's own that is the buffer <see cref="SetUniform(string, float)"/> writes to, which
-        /// a draw reads only while no material is bound; set a material's textures on the material. A
-        /// scene-wide reserved sampler instead goes into the buffer every shader shares.
+        /// A packed sampler's handle goes into a constant buffer and <paramref name="slot"/> goes unused. One
+        /// of this shader's own goes where SetUniform writes, which a draw reads only while no material is
+        /// bound; set a material's textures on the material. A reserved one goes into the shared buffer.
         /// </remarks>
         /// <param name="slot">The texture unit to bind to, when the sampler is not packed.</param>
         /// <param name="name">The sampler uniform name.</param>
         /// <param name="texture">The texture to sample.</param>
-        /// <returns><see langword="true"/> if the sampler was set; otherwise <see langword="false"/>.</returns>
         public bool SetTexture(int slot, string name, RenderTexture? texture)
         {
             if (texture == null)

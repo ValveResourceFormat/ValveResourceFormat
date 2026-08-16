@@ -11,25 +11,22 @@ using ValveResourceFormat.Serialization.VfxEval;
 namespace ValveResourceFormat.Renderer.Materials
 {
     /// <summary>
-    /// Names a sampler uniform the renderer supplies rather than a material, and the slot it is bound to when
-    /// bindless textures are unavailable. Names may share a slot when their texture targets differ, since a
-    /// unit holds one binding per target, or when no shader variant declares both.
+    /// Names a sampler uniform the renderer supplies rather than a material. Names may share a slot when
+    /// their texture targets differ, since a unit holds one binding per target, or when no shader variant
+    /// declares both.
     /// </summary>
     /// <param name="name">The sampler uniform name.</param>
     /// <param name="kind">The sampler type the shaders declare it as.</param>
     [AttributeUsage(AttributeTargets.Field, AllowMultiple = true)]
     public sealed class SamplerNameAttribute(string name, SamplerKind kind) : Attribute
     {
-        /// <summary>Gets the sampler uniform name.</summary>
+        /// <summary>The sampler uniform name.</summary>
         public string Name { get; } = name;
 
-        /// <summary>Gets the sampler type the shaders declare this name as.</summary>
+        /// <summary>The sampler type the shaders declare this name as.</summary>
         public SamplerKind Kind { get; } = kind;
 
-        /// <summary>
-        /// Gets or sets a value indicating whether this sampler is rebound per draw rather than once for the
-        /// scene, which keeps it on a texture unit instead of moving into <see cref="SceneTexturesLayout"/>.
-        /// </summary>
+        /// <summary>Rebound per draw, which keeps it on a texture unit instead of in the scene textures buffer.</summary>
         public bool PerInstance { get; set; }
     }
 
@@ -492,9 +489,8 @@ namespace ValveResourceFormat.Renderer.Materials
         }
 
         /// <summary>
-        /// Writes a bindless texture handle for every sampler the layout packs. All of them, not just the ones
-        /// this material has a texture for: the buffer holds no handle at all for the rest, and sampling one of
-        /// those is not something the GPU recovers from.
+        /// Writes a handle for every sampler the layout packs, not just the ones this material has a texture
+        /// for: the rest hold no handle at all, and sampling one of those is not survivable.
         /// </summary>
         private void FillSamplerHandles(Shader shader, GlobalsLayout layout, Globals buffer)
         {
@@ -521,9 +517,8 @@ namespace ValveResourceFormat.Renderer.Materials
         }
 
         /// <summary>
-        /// Returns the texture to sample a packed sampler through, substituting the null texture of the
-        /// sampler's own type for one that is missing, of the wrong target, or already deleted. Reading a
-        /// handle that names none of the three is undefined and takes the GPU down with it.
+        /// The texture to sample through a packed sampler, substituting the null texture of its type for a
+        /// missing, wrong target or deleted one. Sampling any of those three is undefined.
         /// </summary>
         private static RenderTexture ResolveSampler(Shader shader, in GlobalsMember member, RenderTexture? texture)
         {
@@ -532,7 +527,7 @@ namespace ValveResourceFormat.Renderer.Materials
                 return shader.MaterialLoader.GetNullTexture(member.Sampler);
             }
 
-            // A deleted texture is one the scene teardown order let outlive the material naming it.
+            // A zero handle is a texture the teardown order let the material outlive.
             if (texture.Handle != 0 && texture.Target == MaterialLoader.GetTextureTarget(member.Sampler))
             {
                 return texture;
@@ -545,8 +540,8 @@ namespace ValveResourceFormat.Renderer.Materials
         }
 
         /// <summary>
-        /// Returns the sampler object holding this material's own texture address modes, which the samplers
-        /// annotated <c>// Sampler(UserConfig)</c> are read through, or 0 when the defaults will do.
+        /// The sampler object holding this material's address modes, which the <c>Sampler(UserConfig)</c>
+        /// samplers are read through, or 0 when the defaults will do.
         /// </summary>
         private int GetUserConfigSampler(Shader shader)
         {
@@ -626,13 +621,10 @@ namespace ValveResourceFormat.Renderer.Materials
         }
 
         /// <summary>
-        /// Points a packed sampler at a texture by writing its bindless handle into this material's constant
-        /// buffer. Returns <see langword="false"/> when the sampler is not one this shader packs, which is when
-        /// the caller has to fall back to binding a texture unit.
+        /// Writes a packed sampler's handle into this material's buffer, lasting as long as any other
+        /// SetUniform write. Returns false when the shader does not pack that sampler, leaving the caller to
+        /// bind a texture unit.
         /// </summary>
-        /// <remarks>The write lasts as long as any other <see cref="SetUniform(string, float)"/> does.</remarks>
-        /// <param name="name">The sampler uniform name.</param>
-        /// <param name="texture">The texture to sample.</param>
         internal bool SetTexture(string name, RenderTexture texture)
         {
             AssertGlobalsAreForThisShader();
@@ -687,8 +679,8 @@ namespace ValveResourceFormat.Renderer.Materials
 
             foreach (var (name, defaultTexture) in shader.Default.Textures)
             {
-                // The handle for a packed sampler went into the buffer that was just bound. What is left here
-                // are the samplers no handle can be packed for, such as the multisample and integer ones.
+                // Packed samplers went into the buffer just bound; what is left are the multisample and
+                // integer ones, which have no packable handle.
                 if (members.ContainsKey(name))
                 {
                     continue;

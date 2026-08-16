@@ -125,7 +125,7 @@ public sealed class Globals : Buffer
         Commit(constant, staged);
     }
 
-    /// <summary>Writes a <see cref="GlobalsType.Sampler"/> member, whose value is a bindless texture handle.</summary>
+    /// <summary>Writes a sampler member, whose value is a 64 bit bindless texture handle.</summary>
     public void SetHandle(in GlobalsMember constant, long handle)
     {
         Span<byte> staged = stackalloc byte[sizeof(long)];
