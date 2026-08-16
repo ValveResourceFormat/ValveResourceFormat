@@ -55,6 +55,9 @@ public class Framebuffer
     /// </summary>
     public RenderTexture? Depth { get; protected set; }
 
+    /// <summary>Number of layers of the depth attachment. More than one allocates it as a texture array; use <see cref="AttachDepthLayer"/> to select the layer rendering writes to.</summary>
+    public int DepthLayers { get; set; } = 1;
+
     // Maybe these can be in texture
     /// <summary>
     /// Pixel format of the color attachment.
@@ -290,9 +293,24 @@ public class Framebuffer
 
         if (DepthFormat is { } depthFormat)
         {
-            Depth = CreateAttachment(depthFormat, width, height);
-            Depth.SetLabel("FramebufferDepth");
-            Depth.AttachToFramebuffer(this, FramebufferAttachment.DepthAttachment, 0);
+            if (DepthLayers > 1)
+            {
+                if (Target != TextureTarget.Texture2D)
+                {
+                    throw new InvalidOperationException("Layered depth attachments do not support multisampling");
+                }
+
+                Depth = new RenderTexture(TextureTarget.Texture2DArray, width, height, DepthLayers, 1);
+                GL.TextureStorage3D(Depth.Handle, 1, depthFormat.ToGLSizedInternalFormat(), width, height, DepthLayers);
+                Depth.SetLabel("FramebufferDepth");
+                AttachDepthLayer(0);
+            }
+            else
+            {
+                Depth = CreateAttachment(depthFormat, width, height);
+                Depth.SetLabel("FramebufferDepth");
+                Depth.AttachToFramebuffer(this, FramebufferAttachment.DepthAttachment, 0);
+            }
 
             ApplyShadowDepthSamplerState();
 
@@ -355,6 +373,16 @@ public class Framebuffer
         DepthFormat = depthFormat;
 
         CreateAttachments();
+    }
+
+    /// <summary>Attaches a specific layer of the layered depth texture to the depth attachment point.</summary>
+    /// <param name="layer">Zero-based layer to attach.</param>
+    public void AttachDepthLayer(int layer)
+    {
+        Debug.Assert(Depth != null, "Depth attachment is null");
+        Debug.Assert(layer >= 0 && layer < DepthLayers, "Depth layer out of range");
+
+        GL.NamedFramebufferTextureLayer(FboHandle, FramebufferAttachment.DepthAttachment, Depth.Handle, 0, layer);
     }
 
     /// <summary>

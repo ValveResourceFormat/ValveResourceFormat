@@ -18,7 +18,7 @@ layout(std140, binding = 0) uniform ViewConstants
     float g_flViewportMaxZ;
     vec3 g_vCameraUpDirWs;
     float g_flTime;
-    mat4 g_matWorldToShadow;
+    mat4 g_matWorldToShadow[2]; // one per sun shadow cascade
     vec2 _viewPadding1;
     float g_flSunShadowBias;
     bool g_bExperimentalLightsEnabled;

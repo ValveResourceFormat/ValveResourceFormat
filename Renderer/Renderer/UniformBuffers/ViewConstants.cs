@@ -53,8 +53,10 @@ namespace ValveResourceFormat.Renderer.Buffers
         public Vector3 CameraUpDirWs;
         /// <summary>Current scene time in seconds, used for animated effects.</summary>
         public float Time;
-        /// <summary>Transform matrix from world space into shadow map texture space.</summary>
+        /// <summary>Transform matrix from world space into shadow map texture space, for the first sun cascade. Forms <c>g_matWorldToShadow[0]</c> in the shader.</summary>
         public Matrix4x4 WorldToShadow = Matrix4x4.Identity;
+        /// <summary>Transform into the second, wider sun shadow cascade. Forms <c>g_matWorldToShadow[1]</c>.</summary>
+        public Matrix4x4 WorldToShadowCascade1 = Matrix4x4.Identity;
         /// <summary>Padding to maintain 16-byte struct alignment.</summary>
         public Vector2 _ViewPadding1;
         /// <summary>Depth bias applied when sampling the sun light shadow map.</summary>

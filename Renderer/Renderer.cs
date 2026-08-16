@@ -6,6 +6,7 @@ using ValveResourceFormat.CompiledShader;
 using ValveResourceFormat.Renderer.Buffers;
 using ValveResourceFormat.Renderer.PostProcess;
 using ValveResourceFormat.Renderer.SceneEnvironment;
+using ValveResourceFormat.Renderer.World;
 using ValveResourceFormat.ResourceTypes;
 
 namespace ValveResourceFormat.Renderer;
@@ -259,7 +260,8 @@ public class Renderer
         ViewBuffer = new UniformBuffer<ViewConstants>(ReservedBufferSlots.View);
         Skybox2D = BaseBackground = new SceneBackground(Scene);
 
-        ShadowDepthBuffer = Framebuffer.Prepare(nameof(ShadowDepthBuffer), ShadowTextureSize, ShadowTextureSize, 0, null, ImageFormat.D32);
+        ShadowDepthBuffer = Framebuffer.Prepare(nameof(ShadowDepthBuffer), ShadowTextureSize, ShadowTextureSize, 0, null, ImageFormat.D16);
+        ShadowDepthBuffer.DepthLayers = WorldLightingInfo.SunCascadeCount;
         ShadowDepthBuffer.Initialize();
         ShadowDepthBuffer.ClearMask = ClearBufferMask.DepthBufferBit;
         Debug.Assert(ShadowDepthBuffer.Depth != null);
@@ -815,27 +817,39 @@ public class Renderer
             throw new InvalidOperationException("Initialize() must be called before rendering");
         }
 
-        using var _ = RendererContext.RenderState.Scope(multisampleEnable: ShadowDepthBuffer.NumSamples > 1);
+        using var _ = RendererContext.RenderState.Scope(multisampleEnable: ShadowDepthBuffer.NumSamples > 1,
+            cullMode: RsCullMode.None, slopeScaledDepthBias: -2f);
 
         using var shadowDepth = RendererContext.RenderState.ScopeDynamic(DepthRange.Full);
 
         GL.Viewport(0, 0, ShadowDepthBuffer.Width, ShadowDepthBuffer.Height);
         ShadowDepthBuffer.Bind(FramebufferTarget.Framebuffer);
-        GL.Clear(ClearBufferMask.DepthBufferBit);
 
         renderContext.Framebuffer = ShadowDepthBuffer;
         renderContext.Scene = Scene;
 
-        ViewBuffer.Data.WorldToProjection = Scene.LightingInfo.SunViewProjection;
-        var worldToShadow = Scene.LightingInfo.SunViewProjection;
-        ViewBuffer.Data.WorldToShadow = worldToShadow;
+        ViewBuffer.Data.WorldToShadow = Scene.LightingInfo.SunViewProjections[0];
+        ViewBuffer.Data.WorldToShadowCascade1 = Scene.LightingInfo.SunViewProjections[1];
         ViewBuffer.Data.SunLightShadowBias = Scene.LightingInfo.SunLightShadowBias;
-        ViewBuffer.Update();
 
         using (new GLDebugGroup("Direct Light Shadows"))
         {
-            PerfStats.Active.Count(Counter.DirectionalShadowMap);
-            Scene.RenderOpaqueShadows(renderContext, depthOnlyShader, Scene.CulledShadowDrawCalls);
+            for (var cascade = 0; cascade < WorldLightingInfo.SunCascadeCount; cascade++)
+            {
+                ShadowDepthBuffer.AttachDepthLayer(cascade);
+                GL.Clear(ClearBufferMask.DepthBufferBit);
+
+                if (cascade >= Scene.LightingInfo.ActiveSunCascadeCount)
+                {
+                    continue;
+                }
+
+                ViewBuffer.Data.WorldToProjection = Scene.LightingInfo.SunViewProjections[cascade];
+                ViewBuffer.Update();
+
+                PerfStats.Active.Count(Counter.DirectionalShadowMap);
+                Scene.RenderOpaqueShadows(renderContext, depthOnlyShader, Scene.CulledShadowDrawCallsCascades[cascade]);
+            }
         }
     }
 

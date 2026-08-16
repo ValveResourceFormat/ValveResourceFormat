@@ -147,6 +147,7 @@ namespace ValveResourceFormat.Renderer
             RsFillMode? fillMode = null,
             RsCullMode? cullMode = null,
             bool? multisampleEnable = null,
+            bool? depthClipEnable = null,
             int? depthBias = null,
             float? depthBiasClamp = null,
             float? slopeScaledDepthBias = null,
@@ -163,6 +164,7 @@ namespace ValveResourceFormat.Renderer
             state.Rasterizer.FillMode = fillMode ?? state.Rasterizer.FillMode;
             state.Rasterizer.CullMode = cullMode ?? state.Rasterizer.CullMode;
             state.Rasterizer.MultisampleEnable = multisampleEnable ?? state.Rasterizer.MultisampleEnable;
+            state.Rasterizer.DepthClipEnable = depthClipEnable ?? state.Rasterizer.DepthClipEnable;
             state.Rasterizer.DepthBias = depthBias ?? state.Rasterizer.DepthBias;
             state.Rasterizer.DepthBiasClamp = depthBiasClamp ?? state.Rasterizer.DepthBiasClamp;
             state.Rasterizer.SlopeScaledDepthBias = slopeScaledDepthBias ?? state.Rasterizer.SlopeScaledDepthBias;

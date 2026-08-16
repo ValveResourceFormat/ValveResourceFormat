@@ -1001,15 +1001,25 @@ namespace ValveResourceFormat.Renderer
 
         private List<SceneNode> CulledShadowNodes { get; } = [];
         private readonly List<RenderableMesh> listWithSingleMesh = [null!];
-        internal DepthOnlyDrawBuckets CulledShadowDrawCalls { get; } = CreateDepthOnlyDrawCallCollection();
+        internal DepthOnlyDrawBuckets[] CulledShadowDrawCallsCascades { get; } = CreateSunCascadeDrawCallCollections();
         internal static DepthOnlyDrawBuckets CreateDepthOnlyDrawCallCollection()
             => Enum.GetValues<DepthOnlyBucket>().ToDictionary(static bucket => bucket, static _ => new List<MeshBatchRenderer.Request>());
 
-        /// <summary>
-        /// Updates the sun light shadow frustum and collects shadow draw calls for the directional light, if dynamic shadows are enabled.
-        /// </summary>
-        /// <param name="camera">The main camera used to fit the shadow frustum.</param>
-        /// <param name="shadowMapSize">The shadow map resolution; pass -1 to produce an empty frustum (pre-warm pass).</param>
+        private static DepthOnlyDrawBuckets[] CreateSunCascadeDrawCallCollections()
+        {
+            var buckets = new DepthOnlyDrawBuckets[WorldLightingInfo.SunCascadeCount];
+
+            for (var i = 0; i < buckets.Length; i++)
+            {
+                buckets[i] = CreateDepthOnlyDrawCallCollection();
+            }
+
+            return buckets;
+        }
+
+        /// <summary>Updates the sun light shadow cascades and collects shadow draw calls for each of them, if dynamic shadows are enabled.</summary>
+        /// <param name="camera">The main camera used to fit the shadow cascades.</param>
+        /// <param name="shadowMapSize">The shadow map resolution; pass -1 to produce empty frustums (pre-warm pass).</param>
         public void SetupSceneShadows(Camera camera, int shadowMapSize)
         {
             if (!LightingInfo.EnableDynamicShadows)
@@ -1019,14 +1029,30 @@ namespace ValveResourceFormat.Renderer
 
             LightingInfo.UpdateSunLightFrustum(camera, shadowMapSize);
 
-            if (shadowMapSize == -1)
+            for (var cascade = 0; cascade < WorldLightingInfo.SunCascadeCount; cascade++)
             {
-                LightingInfo.SunLightFrustum.SetEmpty();
-            }
+                if (cascade >= LightingInfo.ActiveSunCascadeCount)
+                {
+                    foreach (var bucket in CulledShadowDrawCallsCascades[cascade].Values)
+                    {
+                        bucket.Clear();
+                    }
 
-            CollectShadowDrawCalls(LightingInfo.SunLightFrustum,
-                includeStatic: !LightingInfo.HasBakedShadowsFromLightmap,
-                includeDynamic: true, CulledShadowDrawCalls);
+                    continue;
+                }
+
+                if (shadowMapSize == -1)
+                {
+                    LightingInfo.SunLightFrustums[cascade].SetEmpty();
+                }
+
+                CollectShadowDrawCalls(LightingInfo.SunLightFrustums[cascade],
+                    includeStatic: !LightingInfo.HasBakedShadowsFromLightmap,
+                    includeDynamic: true, CulledShadowDrawCallsCascades[cascade],
+                    LightingInfo.SunCastDirection, out var casterDepthMin, out var casterDepthMax);
+
+                LightingInfo.FitSunLightDepthRange(cascade, casterDepthMin, casterDepthMax);
+            }
         }
 
         /// <summary>Invalidates the cached shadow draw calls for all faces of the given barn light, forcing a rebuild next frame.</summary>
@@ -1066,7 +1092,30 @@ namespace ValveResourceFormat.Renderer
         }
 
         private void CollectShadowDrawCalls(Frustum frustum, bool includeStatic, bool includeDynamic, DepthOnlyDrawBuckets drawBuckets)
+            => CollectShadowDrawCalls(frustum, includeStatic, includeDynamic, drawBuckets, Vector3.Zero, out _, out _);
+
+        private void CollectShadowDrawCalls(Frustum frustum, bool includeStatic, bool includeDynamic, DepthOnlyDrawBuckets drawBuckets,
+            Vector3 depthFitAxis, out float casterDepthMin, out float casterDepthMax)
         {
+            // Extent of the accepted casters along the fit axis, for tightening the light's depth range
+            var depthMin = float.MaxValue;
+            var depthMax = float.MinValue;
+
+            void AccumulateDepthFit(SceneNode casterNode)
+            {
+                if (depthFitAxis == Vector3.Zero)
+                {
+                    return;
+                }
+
+                var bounds = casterNode.BoundingBox;
+                var center = Vector3.Dot(bounds.Center, depthFitAxis);
+                var extent = Vector3.Dot(bounds.Size, Vector3.Abs(depthFitAxis)) * 0.5f;
+
+                depthMin = Math.Min(depthMin, center - extent);
+                depthMax = Math.Max(depthMax, center + extent);
+            }
+
             foreach (var bucket in drawBuckets.Values)
             {
                 bucket.Clear();
@@ -1130,6 +1179,8 @@ namespace ValveResourceFormat.Renderer
                     // with their own shaders, which is what this bucket is for.
                     if ((node.Flags & skipFlags) == 0 && (node.RenderPasses & CustomRenderPasses.Opaque) != 0)
                     {
+                        AccumulateDepthFit(node);
+
                         drawBuckets[DepthOnlyBucket.MaterialShader].Add(new MeshBatchRenderer.Request
                         {
                             Node = node,
@@ -1138,6 +1189,8 @@ namespace ValveResourceFormat.Renderer
 
                     continue;
                 }
+
+                AccumulateDepthFit(node);
 
                 foreach (var mesh in meshes)
                 {
@@ -1166,15 +1219,26 @@ namespace ValveResourceFormat.Renderer
             }
 
             CulledShadowNodes.Clear();
+
+            casterDepthMin = depthMin;
+            casterDepthMax = depthMax;
         }
 
         // The skinning variant is picked per draw, so the bucket only says which shader draws it
         private static DepthOnlyBucket GetDepthOnlyBucket(DrawCall opaqueCall)
         {
-            return opaqueCall.Material.VertexAnimation || opaqueCall.Material.IsAlphaTest
-                ? DepthOnlyBucket.MaterialShader
+            return opaqueCall.Material.VertexAnimation ? DepthOnlyBucket.MaterialShader
+                : opaqueCall.Material.IsAlphaTest ? DepthOnlyBucket.AlphaTest
                 : DepthOnlyBucket.Specialized;
         }
+
+        /// <summary>Picks the shader that replaces material shaders for a depth-only bucket, or <see langword="null"/> for the bucket that keeps the material's own shader.</summary>
+        private static Shader? GetDepthOnlyReplacementShader(DepthOnlyBucket bucket, Shader depthOnlyShader) => bucket switch
+        {
+            DepthOnlyBucket.AlphaTest => depthOnlyShader.WithCombo("F_ALPHA_TEST", 1),
+            DepthOnlyBucket.MaterialShader => null,
+            _ => depthOnlyShader,
+        };
 
         internal void UpdateIndirectRenderingState()
         {
@@ -1391,7 +1455,12 @@ namespace ValveResourceFormat.Renderer
 
             foreach (var (bucket, calls) in drawCalls)
             {
-                renderContext.ReplacementShader = bucket == DepthOnlyBucket.MaterialShader ? null : depthOnlyShader;
+                if (calls.Count == 0)
+                {
+                    continue;
+                }
+
+                renderContext.ReplacementShader = GetDepthOnlyReplacementShader(bucket, depthOnlyShader);
                 MeshBatchRenderer.Render(calls, renderContext);
             }
 
@@ -1430,7 +1499,7 @@ namespace ValveResourceFormat.Renderer
                     renderContext.RenderPass = RenderPass.DepthOnly;
                     foreach (var (bucket, calls) in depthOnlyDraws)
                     {
-                        renderContext.ReplacementShader = bucket == DepthOnlyBucket.MaterialShader ? null : depthOnlyShader;
+                        renderContext.ReplacementShader = bucket == DepthOnlyBucket.Specialized ? depthOnlyShader : null;
                         MeshBatchRenderer.Render(calls, renderContext);
                     }
 

@@ -554,6 +554,17 @@ namespace ValveResourceFormat.Renderer.Materials
 
             if (shader.IgnoreMaterialData)
             {
+                if (shader.IsDepthOnlyAlphaTest)
+                {
+                    shader.Default.BindGlobals(shader);
+
+                    var colorTexture = Textures.GetValueOrDefault("g_tColor");
+                    if (colorTexture != null)
+                    {
+                        shader.SetTexture(textureUnit, "g_tColor", colorTexture);
+                    }
+                }
+
                 return;
             }
 

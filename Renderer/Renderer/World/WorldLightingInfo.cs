@@ -92,10 +92,30 @@ namespace ValveResourceFormat.Renderer.World
         /// <summary>Gets or sets a value indicating whether dynamic shadow rendering is enabled.</summary>
         public bool EnableDynamicShadows { get; set; } = true;
 
-        /// <summary>Gets the combined view-projection matrix used for sun shadow rendering.</summary>
-        public Matrix4x4 SunViewProjection { get; internal set; }
-        /// <summary>Gets the frustum used for sun light shadow culling.</summary>
-        public Frustum SunLightFrustum { get; } = new();
+        /// <summary>Number of sun shadow cascades rendered and sampled. Cascade 0 is the tightest.</summary>
+        public const int SunCascadeCount = 2;
+
+        /// <summary>Gets the combined view-projection matrices used for sun shadow rendering, one per cascade.</summary>
+        public Matrix4x4[] SunViewProjections { get; } = new Matrix4x4[SunCascadeCount];
+        /// <summary>Gets the frustums used for sun light shadow caster culling, one per cascade.</summary>
+        public Frustum[] SunLightFrustums { get; } = CreateSunLightFrustums();
+        /// <summary>Gets the normalized direction sun light travels, away from the sun.</summary>
+        public Vector3 SunCastDirection { get; private set; } = Vector3.UnitX;
+
+        /// <summary>Gets the number of cascades in use after the last <see cref="UpdateSunLightFrustum"/> call. Cascades beyond it only keep their layer cleared, which samples as fully lit.</summary>
+        public int ActiveSunCascadeCount { get; private set; } = SunCascadeCount;
+
+        private static Frustum[] CreateSunLightFrustums()
+        {
+            var frustums = new Frustum[SunCascadeCount];
+
+            for (var i = 0; i < frustums.Length; i++)
+            {
+                frustums[i] = new Frustum();
+            }
+
+            return frustums;
+        }
         /// <summary>Gets or sets the depth bias applied to sun light shadows to reduce self-shadowing artifacts.</summary>
         public float SunLightShadowBias { get; set; } = 0.001f;
         /// <summary>Gets or sets a scale factor applied to the sun light shadow coverage area.</summary>
@@ -255,9 +275,30 @@ namespace ValveResourceFormat.Renderer.World
             }
         }
 
-        /// <summary>
-        /// Recalculates <see cref="SunViewProjection"/> and <see cref="SunLightFrustum"/> to fit the current camera view.
-        /// </summary>
+        // Depth extent, on each side of the eye, that sun shadow casters are culled within. The
+        // rendered depth range is tightened to the collected casters by FitSunLightDepthRange.
+        private const float SunShadowCullDepthRange = 8192f;
+
+        // How far each cascade's coverage square is shifted toward the view, as a fraction of its
+        // half-extent. Keeps the camera comfortably inside the square while spending most of the
+        // area on what is in front of it.
+        private const float SunShadowForwardShiftFraction = 0.5f;
+
+        // Cascade half-extents as fractions of the base coverage size, innermost first. The
+        // outermost stays near the legacy single-map coverage, which was always generous; the
+        // inner cascade spends its equal resolution on close-up density instead of area.
+        private static readonly float[] SunCascadeExtentFractions = [1f / 8f, 1f / 1.2f];
+
+        // Keeps the innermost cascade usable at low resolution settings, where the base
+        // coverage is small enough that an eighth of it would hug the camera.
+        private const float MinSunCascadeHalfExtent = 128f;
+
+        private readonly Matrix4x4[] sunShadowView = new Matrix4x4[SunCascadeCount];
+        private readonly Vector3[] sunShadowEye = new Vector3[SunCascadeCount];
+        private readonly float[] sunShadowHalfExtent = new float[SunCascadeCount];
+        private bool sunShadowFitsDepthToCasters;
+
+        /// <summary>Recalculates <see cref="SunViewProjections"/> and <see cref="SunLightFrustums"/> to fit the current camera view. Cascade extents follow <see cref="SunCascadeExtentFractions"/>. The frustums get a generous depth range for caster culling; once a cascade's casters are collected, <see cref="FitSunLightDepthRange"/> tightens its rendered range around them.</summary>
         /// <param name="camera">The active camera used to position the sun shadow frustum.</param>
         /// <param name="shadowMapSize">The shadow map resolution used to compute coverage and texel snapping.</param>
         public void UpdateSunLightFrustum(Camera camera, float shadowMapSize = 512f)
@@ -266,14 +307,21 @@ namespace ValveResourceFormat.Renderer.World
             var toSun = new Vector3(LightingData.SunDirection.X, LightingData.SunDirection.Y, LightingData.SunDirection.Z);
             var sunDir = toSun.LengthSquared() > 0.0001f ? Vector3.Normalize(-toSun) : Vector3.UnitX;
 
-            var bbox = Math.Max(shadowMapSize / 2.5f, 512f) * SunLightShadowCoverageScale;
-            var farPlane = 8096f;
-            var nearPlaneExtend = 1000f;
+            var baseHalfExtent = Math.Max(shadowMapSize / 2.5f, 512f) * SunLightShadowCoverageScale;
             var bias = 0.001f;
 
-            // Move near plane away from camera, in light direction, to capture shadow casters.
-            // This could be improved using scene bounds.
-            var eye = camera.Location - sunDir * nearPlaneExtend;
+            // Shift each coverage square toward the view. A caster shares its light-space footprint
+            // with the shadow it casts, so area behind the view catches nothing the visible region
+            // needs; casters toward the sun are captured along depth, not by the square.
+            var forwardOnLightPlane = camera.Forward - sunDir * Vector3.Dot(camera.Forward, sunDir);
+
+            sunShadowFitsDepthToCasters = true;
+
+            // When the whole scene fits into the first cascade, fit it directly and skip the rest
+            var sceneBoundsMode = false;
+            var sceneEye = Vector3.Zero;
+            var sceneHalfExtent = 0f;
+            var sceneNearPlaneExtend = 0f;
 
             if (UseSceneBoundsForSunLightFrustum)
             {
@@ -284,16 +332,14 @@ namespace ValveResourceFormat.Renderer.World
 
                 if (max > 0 && max < shadowMapSize)
                 {
-                    nearPlaneExtend = max / 2f;
-                    eye = staticBounds.Center - sunDir * nearPlaneExtend;
-                    bbox = max * 1.6f;
-                    farPlane = bbox;
+                    sceneNearPlaneExtend = max / 2f;
+                    sceneEye = staticBounds.Center - sunDir * sceneNearPlaneExtend;
+                    sceneHalfExtent = max * 1.6f;
                     bias = 0.01f;
+                    sceneBoundsMode = true;
+                    sunShadowFitsDepthToCasters = false;
                 }
             }
-
-            // Stabilize shadow map by snapping eye position to texel-sized increments in world space
-            var texelWorldSize = (4.0f * bbox) / shadowMapSize;
 
             // A sun pointing straight down leaves no horizontal axis to snap against, and world up is
             // no use as a reference either, so the frame is completed against forward instead
@@ -301,22 +347,98 @@ namespace ValveResourceFormat.Renderer.World
             var right = Vector3.Normalize(Vector3.Cross(sunDir, upReference));
             var up = Vector3.Cross(right, sunDir);
 
-            // Project eye onto shadow camera's right/up axes and snap
-            var eyeOffsetX = Vector3.Dot(eye, right);
-            var eyeOffsetY = Vector3.Dot(eye, up);
-            var eyeOffsetZ = Vector3.Dot(eye, sunDir);
+            // Scenes without baked static shadows render all static geometry into every cascade
+            // each frame, which two full-scene passes make too expensive; they get a single
+            // cascade at the outermost coverage instead. Baked scenes only render the few
+            // dynamic casters, so the extra cascade is cheap there.
+            var singleCascade = sceneBoundsMode || !HasBakedShadowsFromLightmap;
 
-            eyeOffsetX = MathF.Round(eyeOffsetX / texelWorldSize) * texelWorldSize;
-            eyeOffsetY = MathF.Round(eyeOffsetY / texelWorldSize) * texelWorldSize;
+            ActiveSunCascadeCount = singleCascade ? 1 : SunCascadeCount;
 
-            eye = right * eyeOffsetX + up * eyeOffsetY + sunDir * eyeOffsetZ;
+            for (var cascade = 0; cascade < SunCascadeCount; cascade++)
+            {
+                if (singleCascade && cascade > 0)
+                {
+                    // The shader falls through identical coordinates into the cleared outer layer,
+                    // which reads fully lit, matching the single-frustum edge fade.
+                    SunViewProjections[cascade] = SunViewProjections[0];
+                    SunLightFrustums[cascade].SetEmpty();
+                    continue;
+                }
 
-            var sunCameraView = Matrix4x4.CreateLookAt(eye, eye + sunDir, upReference);
-            var sunCameraProjection = Matrix4x4.CreateOrthographicOffCenter(-bbox, bbox, -bbox, bbox, farPlane, -nearPlaneExtend);
+                float bbox;
+                float farPlane;
+                float nearPlaneExtend;
+                Vector3 eye;
 
-            SunViewProjection = sunCameraView * sunCameraProjection;
+                if (sceneBoundsMode)
+                {
+                    bbox = sceneHalfExtent;
+                    farPlane = bbox;
+                    nearPlaneExtend = sceneNearPlaneExtend;
+                    eye = sceneEye;
+                }
+                else
+                {
+                    var extentFraction = singleCascade
+                        ? SunCascadeExtentFractions[SunCascadeCount - 1]
+                        : SunCascadeExtentFractions[cascade];
+                    bbox = MathF.Max(baseHalfExtent * extentFraction, MinSunCascadeHalfExtent);
+                    farPlane = SunShadowCullDepthRange;
+                    nearPlaneExtend = SunShadowCullDepthRange;
+                    eye = camera.Location + forwardOnLightPlane * (bbox * SunShadowForwardShiftFraction);
+                }
+
+                // Stabilize shadow map by snapping eye position to texel-sized increments in world space
+                var texelWorldSize = (4.0f * bbox) / shadowMapSize;
+
+                // Project eye onto shadow camera's right/up axes and snap
+                var eyeOffsetX = Vector3.Dot(eye, right);
+                var eyeOffsetY = Vector3.Dot(eye, up);
+                var eyeOffsetZ = Vector3.Dot(eye, sunDir);
+
+                eyeOffsetX = MathF.Round(eyeOffsetX / texelWorldSize) * texelWorldSize;
+                eyeOffsetY = MathF.Round(eyeOffsetY / texelWorldSize) * texelWorldSize;
+
+                eye = right * eyeOffsetX + up * eyeOffsetY + sunDir * eyeOffsetZ;
+
+                var sunCameraView = Matrix4x4.CreateLookAt(eye, eye + sunDir, upReference);
+                var sunCameraProjection = Matrix4x4.CreateOrthographicOffCenter(-bbox, bbox, -bbox, bbox, farPlane, -nearPlaneExtend);
+
+                SunViewProjections[cascade] = sunCameraView * sunCameraProjection;
+                SunLightFrustums[cascade].Update(SunViewProjections[cascade]);
+
+                sunShadowView[cascade] = sunCameraView;
+                sunShadowEye[cascade] = eye;
+                sunShadowHalfExtent[cascade] = bbox;
+            }
+
             SunLightShadowBias = bias;
-            SunLightFrustum.Update(SunViewProjection);
+            SunCastDirection = sunDir;
+        }
+
+        /// <summary>Tightens the depth range of a cascade's <see cref="SunViewProjections"/> entry around the collected shadow casters, given their extent along <see cref="SunCastDirection"/> in world units. A tight range shrinks the world-space size of the normalized shadow bias. Receivers outside the range clamp in the shader and still compare correctly against every caster, and since the fit derives from the same culled set that renders, it covers every rendered caster by construction. <see cref="SunLightFrustums"/> keeps the generous culling range.</summary>
+        /// <param name="cascade">The cascade index to tighten.</param>
+        /// <param name="casterMin">Smallest caster projection onto the cast direction, or <see cref="float.MaxValue"/> when no casters were collected.</param>
+        /// <param name="casterMax">Largest caster projection onto the cast direction.</param>
+        public void FitSunLightDepthRange(int cascade, float casterMin, float casterMax)
+        {
+            if (!sunShadowFitsDepthToCasters || casterMin > casterMax)
+            {
+                return;
+            }
+
+            var eyeDepth = Vector3.Dot(sunShadowEye[cascade], SunCastDirection);
+
+            // Quantized so the range holds still while casters move within it
+            const float quantize = 64f;
+            var depthMin = Math.Clamp(MathF.Floor((casterMin - eyeDepth) / quantize) * quantize, -SunShadowCullDepthRange, SunShadowCullDepthRange - quantize);
+            var depthMax = Math.Clamp(MathF.Ceiling((casterMax - eyeDepth) / quantize) * quantize, depthMin + quantize, SunShadowCullDepthRange);
+
+            var bbox = sunShadowHalfExtent[cascade];
+            var projection = Matrix4x4.CreateOrthographicOffCenter(-bbox, bbox, -bbox, bbox, depthMax, depthMin);
+
+            SunViewProjections[cascade] = sunShadowView[cascade] * projection;
         }
 
         /// <summary>

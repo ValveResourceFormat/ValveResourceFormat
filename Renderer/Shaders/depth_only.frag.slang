@@ -1,8 +1,10 @@
 #version 460
 
-layout (early_fragment_tests) in;
-
 #define F_ALPHA_TEST 0 // most shaders
+
+#if (F_ALPHA_TEST == 0)
+    layout (early_fragment_tests) in;
+#endif
 
 #if (F_ALPHA_TEST == 1)
     layout (location = 0) in vec2 texCoord;

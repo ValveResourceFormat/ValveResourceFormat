@@ -114,6 +114,9 @@ namespace ValveResourceFormat.Renderer.Shaders
         /// <summary>Gets a value indicating whether material data (textures and params) should be skipped during rendering.</summary>
         public bool IgnoreMaterialData { get; }
 
+        /// <summary>Replacement shader that reads the material's color texture.</summary>
+        public bool IsDepthOnlyAlphaTest => Name == "depth_only" && Parameters.GetValueOrDefault("F_ALPHA_TEST") == 1;
+
         private readonly ShaderLoader shaderLoader;
         private Dictionary<(string Combo, byte Value), Shader>? variants;
 
