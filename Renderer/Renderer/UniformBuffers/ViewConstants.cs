@@ -61,8 +61,8 @@ namespace ValveResourceFormat.Renderer.Buffers
         public Vector2 _ViewPadding1;
         /// <summary>Depth bias applied when sampling the sun light shadow map.</summary>
         public float SunLightShadowBias = 0.001f;
-        /// <summary>When <see langword="true"/>, experimental dynamic lighting is evaluated for this frame.</summary>
-        public bool ExperimentalLightsEnabled;
+        /// <summary>Padding to maintain 16-byte struct alignment.</summary>
+        public float _ViewPadding2;
 
         /// <summary>When <see langword="true"/>, volumetric fog is active and evaluated in the shader.</summary>
         public bool VolumetricFogActive;

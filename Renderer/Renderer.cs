@@ -205,6 +205,11 @@ public class Renderer
     public bool ShowSkybox { get; set; } = true;
 
     /// <summary>
+    /// Enable barn light types in shaders.
+    /// </summary>
+    public bool EnableBarnLights { get; set; } = true;
+
+    /// <summary>
     /// Initializes a new renderer with the given context.
     /// </summary>
     /// <param name="rendererContext">Shared context providing loaders and caches.</param>
@@ -857,11 +862,6 @@ public class Renderer
     {
         Debug.Assert(ViewBuffer != null);
 
-        if (!ViewBuffer.Data!.ExperimentalLightsEnabled)
-        {
-            return;
-        }
-
         if (Scene.LightingInfo.ShadowMapper.ShadowCasters.Count == 0)
         {
             return;
@@ -1123,9 +1123,13 @@ public class Renderer
 
         Scene.SetupSceneShadows(updateContext.Camera, DisableAllCulling ? -1 : ShadowDepthBuffer.Width);
 
-        if (ViewBuffer.Data.ExperimentalLightsEnabled)
+        if (EnableBarnLights)
         {
             Scene.LightingInfo.BinBarnLights(Camera, ShadowTextureSize);
+        }
+        else
+        {
+            Scene.LightingInfo.ClearBarnLights();
         }
 
         if (!DisableAllCulling && Scene is { EnablePvsCulling: true, VoxelVisibility: not null })

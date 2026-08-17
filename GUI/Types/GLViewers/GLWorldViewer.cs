@@ -530,9 +530,7 @@ namespace GUI.Types.GLViewers
 
                     UiControl.AddCheckBox("Depth Prepass", Scene.EnableDepthPrepass, (v) => Scene.EnableDepthPrepass = v);
 
-                    Renderer.ViewBuffer!.Data!.ExperimentalLightsEnabled = true;
-
-                    UiControl.AddCheckBox("Barn Lights", true, v => Renderer.ViewBuffer!.Data!.ExperimentalLightsEnabled = v);
+                    UiControl.AddCheckBox("Barn Lights", Renderer.EnableBarnLights, v => Renderer.EnableBarnLights = v);
                     UiControl.AddCheckBox("Tiled Light Culling", Scene.EnableTiledLightCulling, v => Scene.EnableTiledLightCulling = v);
 
                     AddSceneExposureSlider();

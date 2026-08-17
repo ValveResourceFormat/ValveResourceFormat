@@ -27,9 +27,7 @@ layout(std430, binding = 11) readonly buffer BarnLightBuffer {
     BarnLightConstants g_BarnLights[];
 };
 
-const int MAX_BARN_LIGHTS = 320;
-
-int g_nBarnLightsIterated = 0;
+uint g_nBarnLightsIterated = 0u;
 
 // Game uses Texture3D
 uniform sampler2DArray g_tLightCookieTexture; // ClampToBorder, reserved
@@ -76,7 +74,7 @@ void CalculateBarnLighting(inout LightingTerms_t lighting, in MaterialProperties
     uint word = 0u;
     uint mask = 0u;
 
-    while (g_nBarnLightsIterated < MAX_BARN_LIGHTS)
+    while (g_nBarnLightsIterated < g_nNumBarnLights)
     {
         while (mask == 0u)
         {
@@ -270,7 +268,7 @@ bool GetBarnLightTileHeatmap(out vec3 color)
 {
     const float kBusyTile = 12.0;
 
-    if (g_nBarnLightsIterated == 0)
+    if (g_nBarnLightsIterated == 0u)
     {
         color = vec3(0.0);
         return false;
