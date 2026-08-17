@@ -133,6 +133,8 @@ public class UserInput
     /// </summary>
     public bool Released(TrackedKeys key) => (PreviousKeys & ~Keys & key) != 0;
 
+    private bool EscapeFreedMouse;
+
     private readonly Dictionary<TrackedKeys, float> lastKeyPressTimes = [];
 
     /// <summary>
@@ -227,11 +229,28 @@ public class UserInput
             }
         }
 
+        if (Pressed(TrackedKeys.MouseLeftOrRight))
+        {
+            EscapeFreedMouse = false;
+        }
+
         var wasClipping = !NoClip;
         if (Pressed(TrackedKeys.X))
         {
             NoClip = !NoClip;
             PlayerMovement.Initialize = !NoClip;
+        }
+        else if (!NoClip && Pressed(TrackedKeys.Escape))
+        {
+            if (EscapeFreedMouse)
+            {
+                NoClip = true;
+                PlayerMovement.Initialize = !NoClip;
+            }
+            else
+            {
+                EscapeFreedMouse = true;
+            }
         }
 
         if (wasClipping && NoClip)
