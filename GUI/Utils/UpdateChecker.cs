@@ -128,8 +128,10 @@ static partial class UpdateChecker
             }
 
             var releaseVersion = new Version(newVersion);
+            var currentReleaseVersion = new Version(currentVersion.Major, currentVersion.Minor);
+
             IsNewVersionStableBuild = true;
-            IsNewVersionAvailable = releaseVersion.Major > currentVersion.Major || releaseVersion.Minor > currentVersion.Minor;
+            IsNewVersionAvailable = releaseVersion > currentReleaseVersion;
             ReleaseNotesUrl = stableReleaseData?.html_url;
             ReleaseNotesVersion = newVersion;
             NewVersion = newVersion;
