@@ -102,7 +102,7 @@ namespace ValveResourceFormat.Renderer.Shaders
             }
 
             // simulate first time compile
-            builder.Append($"// {Guid.CreateVersion7()}");
+            // builder.Append($"// {Guid.CreateVersion7()}");
 
             void LoadShaderString(string shaderFileToLoad, string? parentFile, bool isInclude)
             {
