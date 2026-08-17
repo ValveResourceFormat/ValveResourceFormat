@@ -251,7 +251,6 @@ void CalculateDirectLighting(inout LightingTerms_t lighting, inout MaterialPrope
 
 #define UseLightmapDirectionality true
 uniform float g_flDirectionalLightmapStrength = 1.0;
-uniform float g_flDirectionalLightmapMinZ = 0.05;
 
 const float LIGHTMAP_DIRECTION_MIN_Z = 0.0872; // sin(5 degrees)
 const float LIGHTMAP_DIRECTION_MAX_XY = sqrt(1.0 - LIGHTMAP_DIRECTION_MIN_Z * LIGHTMAP_DIRECTION_MIN_Z);
@@ -278,7 +277,7 @@ vec3 ComputeLightmapShading(vec3 irradianceColor, vec4 irradianceDirection, Mate
         vec3 vNonDirectionalLightmap = irradianceColor * saturate(flDirectionality);
 
         float NoL = ClampToPositive(dot(vTangentSpaceLightVector, mat.NormalMap));
-        float LightmapZ = max(vTangentSpaceLightVector.z, g_flDirectionalLightmapMinZ);
+        float LightmapZ = vTangentSpaceLightVector.z;
 
         irradianceColor = (NoL * (irradianceColor - vNonDirectionalLightmap) / LightmapZ) + vNonDirectionalLightmap;
     }
