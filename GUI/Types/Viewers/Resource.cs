@@ -3,6 +3,7 @@ using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.IO;
+using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
@@ -349,6 +350,7 @@ namespace GUI.Types.Viewers
             resTabs.Disposed += OnTabDisposed;
 
             List<RawBinary>? binaryBuffers = null;
+            var addedReferencesTab = false;
 
             foreach (var block in resource.Blocks)
             {
@@ -362,11 +364,18 @@ namespace GUI.Types.Viewers
 
                 if (block.Type == BlockType.RERL && block is ResourceExtRefList externalReferences)
                 {
-                    var externalRefsTree = BuildExternalRefTree(vrfGuiContext, externalReferences.ResourceRefInfoList);
+                    var references = externalReferences.ResourceRefInfoList;
+                    if (resource.DataBlock is SmartProp smartProp)
+                    {
+                        references = MergeSmartPropReferences(references, smartProp.Data.Root);
+                    }
+
+                    var externalRefsTree = BuildExternalRefTree(vrfGuiContext, references);
 
                     var externalRefsTab = new ThemedTabPage("References");
                     externalRefsTab.Controls.Add(externalRefsTree);
                     resTabs.TabPages.Add(externalRefsTab);
+                    addedReferencesTab = true;
 
                     continue;
                 }
@@ -432,6 +441,17 @@ namespace GUI.Types.Viewers
                 if (block.Type == BlockType.DATA && selectData)
                 {
                     resTabs.SelectTab(blockTab);
+                }
+            }
+
+            if (!addedReferencesTab && resource.DataBlock is SmartProp smartPropWithoutRerl)
+            {
+                var references = MergeSmartPropReferences([], smartPropWithoutRerl.Data.Root);
+                if (references.Count > 0)
+                {
+                    var externalRefsTab = new ThemedTabPage("References");
+                    externalRefsTab.Controls.Add(BuildExternalRefTree(vrfGuiContext, references));
+                    resTabs.TabPages.Add(externalRefsTab);
                 }
             }
 
@@ -877,6 +897,87 @@ namespace GUI.Types.Viewers
 
             return treeView;
         }
+
+        private static List<ResourceExtRefList.ResourceReferenceInfo> MergeSmartPropReferences(
+            List<ResourceExtRefList.ResourceReferenceInfo> references,
+            KVObject root)
+        {
+            var merged = references
+                .Select(static reference => new ResourceExtRefList.ResourceReferenceInfo
+                {
+                    Id = reference.Id,
+                    Name = reference.Name,
+                })
+                .ToList();
+            var knownNames = merged
+                .Select(static reference => reference.Name)
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+            AddAssetStrings(root);
+            return merged;
+
+            void AddAssetStrings(KVObject value)
+            {
+                if (value.ValueType == KVValueType.String)
+                {
+                    AddAssetPath((string)value);
+                    return;
+                }
+
+                if (value.IsArray)
+                {
+                    foreach (var item in value.AsArraySpan())
+                    {
+                        AddAssetStrings(item);
+                    }
+
+                    return;
+                }
+
+                if (value.ValueType != KVValueType.Collection)
+                {
+                    return;
+                }
+
+                foreach (var (_, item) in value)
+                {
+                    AddAssetStrings(item);
+                }
+            }
+
+            void AddAssetPath(string value)
+            {
+                var extension = Path.GetExtension(value);
+                if (extension.Length == 0 || !AssetExtensions.Contains(extension))
+                {
+                    return;
+                }
+
+                if (knownNames.Add(value))
+                {
+                    merged.Add(new ResourceExtRefList.ResourceReferenceInfo { Name = value });
+                }
+            }
+        }
+
+        private static readonly HashSet<string> AssetExtensions = new(StringComparer.OrdinalIgnoreCase)
+        {
+            ".vagrp",
+            ".vanmgrph",
+            ".vcd",
+            ".vdata",
+            ".vmat",
+            ".vmap",
+            ".vmdl",
+            ".vphys",
+            ".vpost",
+            ".vpcf",
+            ".vseq",
+            ".vsnd",
+            ".vsmart",
+            ".vtex",
+            ".vxml",
+        };
 
         private static void AddByteViewControl(ValveResourceFormat.Resource resource, Block block, TabPage blockTab)
         {
