@@ -11,7 +11,7 @@
 
 // DIFFUSE LIGHTING
 
-#if (F_DIFFUSE_WRAP == 1) || (GameVfx_vr_xen_foliage != 0)
+#if (diffuseWrap)
 // idea: what if we included individual features in tiny files per feature. they would all be used in #includes
 #define S_DIFFUSE_WRAP
 

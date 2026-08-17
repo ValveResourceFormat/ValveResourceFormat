@@ -165,6 +165,14 @@ uniform sampler2D g_tTintMask;
 #define subsurface ((F_SUBSURFACE_SCATTERING == 1) || (GameVfx_vr_skin != 0))
 #define subsurfaceSkin (GameVfx_vr_skin != 0)
 #define secondSpecularLobe (GameVfx_vr_skin != 0)
+#define clothSheen (GameVfx_csgo_character != 0)
+#define detailAlwaysColorAndNormal (GameVfx_vr_xen_foliage != 0)
+#define diffuseWrap ((F_DIFFUSE_WRAP == 1) || (GameVfx_vr_xen_foliage != 0))
+#define anisoCubemapWarpOptional (GameVfx_vr_complex != 0)
+
+#if (GameVfx_vr_skin != 0) || (GameVfx_vr_xen_foliage != 0)
+#define DIFFUSE_AO_COLOR_BLEED
+#endif
 #define _metalnessTexture (defined(complex_vfx_common) && (F_METALNESS_TEXTURE == 1) && ((F_ALPHA_TEST == 1) || (F_TRANSLUCENT == 1))) || (GameVfx_csgo_weapon != 0) || (GameVfx_csgo_character != 0) || (GameVfx_csgo_vertexlitgeneric != 0)
 #define _ambientOcclusionTexture (((GameVfx_vr_simple != 0) && (F_AMBIENT_OCCLUSION_TEXTURE == 1) && (F_METALNESS_TEXTURE == 1)) || defined(complex_vfx_common) || (GameVfx_csgo_foliage != 0) || (GameVfx_csgo_weapon != 0) || (GameVfx_csgo_character != 0) || defined(csgo_generic_vfx_common) || (GameVfx_csgo_simple_3layer_parallax != 0))
 

@@ -253,7 +253,8 @@ void CalculateDirectLighting(inout LightingTerms_t lighting, inout MaterialPrope
 uniform float g_flDirectionalLightmapStrength = 1.0;
 uniform float g_flDirectionalLightmapMinZ = 0.05;
 
-const float colorSpaceMul = 0.996190845966339111328125;
+const float LIGHTMAP_DIRECTION_MIN_Z = 0.0872; // sin(5 degrees)
+const float LIGHTMAP_DIRECTION_MAX_XY = sqrt(1.0 - LIGHTMAP_DIRECTION_MIN_Z * LIGHTMAP_DIRECTION_MIN_Z);
 
 // I don't actually understand much of this, but it's Valve's code.
 vec3 ComputeLightmapShading(vec3 irradianceColor, vec4 irradianceDirection, MaterialProperties_t mat)
@@ -262,7 +263,7 @@ vec3 ComputeLightmapShading(vec3 irradianceColor, vec4 irradianceDirection, Mate
     {
         vec2 vTangentSpaceXY = UnpackFromColor(irradianceDirection.xy);
 
-        vTangentSpaceXY *= (colorSpaceMul / max(colorSpaceMul, length(vTangentSpaceXY)));
+        vTangentSpaceXY *= (LIGHTMAP_DIRECTION_MAX_XY / max(LIGHTMAP_DIRECTION_MAX_XY, length(vTangentSpaceXY)));
 
         float sinTheta = dot(vTangentSpaceXY, vTangentSpaceXY);
         float cosTheta = sqrt(1.0 - sinTheta);

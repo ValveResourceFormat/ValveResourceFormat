@@ -179,9 +179,6 @@ vec3 calculateIridescence(float hueAngle, float intensity)
     }
 }
 
-#if (GameVfx_vr_skin != 0) || (GameVfx_vr_xen_foliage != 0)
-#define DIFFUSE_AO_COLOR_BLEED
-#endif
 
 #if defined(DIFFUSE_AO_COLOR_BLEED)
 
@@ -278,10 +275,9 @@ vec3 calculateWorldNormal(vec3 normalMap, vec3 normal, vec3 tangent, vec3 bitang
 
 #if (F_DETAIL_TEXTURE > 0)
 
-// Xen foliage detail textures always have both color and normal
-#define DETAIL_COLOR_MOD2X (F_DETAIL_TEXTURE == 1) && (GameVfx_vr_xen_foliage == 0)
-#define DETAIL_COLOR_OVERLAY ((F_DETAIL_TEXTURE == 2) || (F_DETAIL_TEXTURE == 4)) || (GameVfx_vr_xen_foliage != 0)
-#define DETAIL_NORMALS ((F_DETAIL_TEXTURE == 3) || (F_DETAIL_TEXTURE == 4)) || (GameVfx_vr_xen_foliage != 0)
+#define DETAIL_COLOR_MOD2X (F_DETAIL_TEXTURE == 1) && !detailAlwaysColorAndNormal
+#define DETAIL_COLOR_OVERLAY ((F_DETAIL_TEXTURE == 2) || (F_DETAIL_TEXTURE == 4)) || detailAlwaysColorAndNormal
+#define DETAIL_NORMALS ((F_DETAIL_TEXTURE == 3) || (F_DETAIL_TEXTURE == 4)) || detailAlwaysColorAndNormal
 
 uniform float g_flDetailBlendFactor = 1.0;
 uniform float g_flDetailBlendToFull = 0.0;
@@ -363,7 +359,7 @@ void applyDetailTexture(inout vec3 Albedo, inout vec3 NormalMap, vec2 detailMask
 #endif
 
 // Cloth Sheen
-#if (GameVfx_csgo_character != 0)
+#if (clothSheen)
 
     uniform float g_flSheenScale = 0.667;
     uniform vec3 g_flSheenTintColor = vec3(1.0);  // SrgbRead(true)
