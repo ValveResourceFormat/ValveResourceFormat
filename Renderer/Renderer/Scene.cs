@@ -1287,6 +1287,7 @@ namespace ValveResourceFormat.Renderer
 
             if (!enabled)
             {
+                shader.SetTexture(RenderMaterial.TextureUnitStart, "g_tDepthPyramid", RendererContext.MaterialLoader.GetDefaultMask());
                 return false;
             }
 

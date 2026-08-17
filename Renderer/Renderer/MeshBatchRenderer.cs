@@ -354,10 +354,9 @@ namespace ValveResourceFormat.Renderer
             if (uniforms.MorphVertexIdOffset != -1)
             {
                 var morphComposite = request.Mesh.FlexStateManager?.MorphComposite;
-                if (morphComposite != null)
-                {
-                    BindInstanceTexture(ReservedTextureSlots.MorphCompositeTexture, morphComposite.CompositeTexture);
-                }
+
+                BindInstanceTexture(ReservedTextureSlots.MorphCompositeTexture,
+                    morphComposite?.CompositeTexture ?? request.Node.Scene.RendererContext.MaterialLoader.GetDefaultColor());
 
                 GL.ProgramUniform1(shader.Program, uniforms.MorphVertexIdOffset, morphComposite != null ? request.Call.VertexIdOffset : -1);
             }

@@ -723,15 +723,24 @@ namespace ValveResourceFormat.Renderer.Materials
 
         private static RenderTexture GenerateColorTexture(int width, int height, byte[] color)
         {
-            var texture = new RenderTexture(TextureTarget.Texture2D, width, height, 1, 1, width > 1 ? "ErrorTexture" : "ColorTexture");
+            // Full mip chain, because materials may bind a mipmap filtering sampler over this
+            // texture, and an incomplete mip chain would then sample as if nothing was bound
+            var levels = 1 + BitOperations.Log2((uint)Math.Max(width, height));
+
+            var texture = new RenderTexture(TextureTarget.Texture2D, width, height, 1, levels, width > 1 ? "ErrorTexture" : "ColorTexture");
             texture.SetFiltering(TextureMinFilter.Nearest, TextureMagFilter.Nearest);
             texture.SetWrapMode(TextureWrapMode.Repeat);
 
             var color32 = new Color32(color[0], color[1], color[2]);
             texture.Reflectivity = color32.ToLinearColor();
 
-            GL.TextureStorage2D(texture.Handle, 1, SizedInternalFormat.Rgba8, width, height);
+            GL.TextureStorage2D(texture.Handle, levels, SizedInternalFormat.Rgba8, width, height);
             GL.TextureSubImage2D(texture.Handle, 0, 0, 0, width, height, PixelFormat.Rgb, PixelType.UnsignedByte, color);
+
+            if (levels > 1)
+            {
+                GL.GenerateTextureMipmap(texture.Handle);
+            }
 
             return texture;
         }
