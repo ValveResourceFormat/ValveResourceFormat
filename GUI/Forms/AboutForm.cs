@@ -32,7 +32,7 @@ namespace GUI.Forms
                 decoder.StartThread();
             }
 
-            currentVersionLabel.Text = Program.ProductVersion[..16].Replace('+', ' ');
+            currentVersionLabel.Text = Program.DisplayVersion;
             newVersionLabel.Text = "Checking for updates…";
 
             checkForUpdatesCheckbox.Checked = Settings.Config.Update.CheckAutomatically;
@@ -122,20 +122,7 @@ namespace GUI.Forms
         private void OnCopyVersionClick(object sender, EventArgs e)
         {
             var output = new StringBuilder(192);
-            var version = Program.ProductVersion;
-            var versionPlus = version.IndexOf('+', StringComparison.Ordinal);
-
-            if (versionPlus > 0)
-            {
-                output.Append(version[..versionPlus]);
-                output.Append(' ');
-                output.Append(version[(versionPlus + 1)..(versionPlus + 10)]);
-            }
-            else
-            {
-                output.Append(version);
-            }
-
+            output.Append(Program.DisplayVersion);
             output.Append(CultureInfo.InvariantCulture, $" on {RuntimeInformation.OSDescription} ({RuntimeInformation.OSArchitecture})");
 
             if (GLEnvironment.GpuRendererAndDriver != null)

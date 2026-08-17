@@ -17,6 +17,7 @@ namespace GUI
         public static MainForm MainForm { get; private set; }
         public static Assembly Assembly { get; private set; }
         public static string ProductVersion { get; private set; }
+        public static string DisplayVersion { get; private set; }
 #nullable enable
 
         /// <summary>
@@ -67,9 +68,30 @@ namespace GUI
                 throw new InvalidDataException("Failed to find version number");
             }
 
+            DisplayVersion = FormatDisplayVersion(ProductVersion);
+
             MainForm = new MainForm(args);
 
             Application.Run(MainForm);
+        }
+
+        private static string FormatDisplayVersion(string version)
+        {
+            var versionPlus = version.IndexOf('+', StringComparison.Ordinal);
+
+            if (versionPlus < 0)
+            {
+                return version;
+            }
+
+            var commit = version.AsSpan(versionPlus + 1);
+
+            if (commit.Length > 9)
+            {
+                commit = commit[..9];
+            }
+
+            return string.Concat(version.AsSpan(0, versionPlus), " ", commit);
         }
 
         private static void ThreadException(object sender, ThreadExceptionEventArgs e)
@@ -149,7 +171,7 @@ namespace GUI
                 },
                 Footnote = new TaskDialogFootnote
                 {
-                    Text = $"S2V {Program.ProductVersion[..16].Replace('+', ' ')}{Environment.NewLine}Try using latest dev build to see if the issue persists.",
+                    Text = $"S2V {Program.DisplayVersion}{Environment.NewLine}Try using latest dev build to see if the issue persists.",
                     Icon = TaskDialogIcon.Information
                 }
             };

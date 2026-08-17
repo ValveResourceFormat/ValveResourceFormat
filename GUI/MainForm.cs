@@ -93,12 +93,12 @@ namespace GUI
                 var versionPlus = version.IndexOf('+', StringComparison.InvariantCulture);
                 string versionDisplay;
 
-                if (versionPlus > 0)
+                if (versionPlus > 1)
                 {
                     // If version ends with ".0", display part of the commit hash, otherwise the zero is replaced with CI build number
                     if (version[versionPlus - 2] == '.' && version[versionPlus - 1] == '0')
                     {
-                        versionPlus += 8;
+                        versionPlus = Math.Min(versionPlus + 8, version.Length);
                     }
 
                     versionDisplay = string.Concat("v", version.AsSpan(0, versionPlus));
