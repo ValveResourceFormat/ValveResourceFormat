@@ -23,6 +23,9 @@ namespace ValveResourceFormat.Renderer
         /// <summary>Gets or sets optional debug text rendered in the top-left corner of the viewport.</summary>
         public string ScreenDebugText { get; set; } = string.Empty;
 
+        /// <summary>Gets a value indicating whether any node is currently selected.</summary>
+        public bool HasSelectedNodes => selectedNodes.Count > 0;
+
         /// <summary>Initializes the selected node renderer and creates GPU resources.</summary>
         /// <param name="rendererContext">Renderer context for loading shaders.</param>
         public SelectedNodeRenderer(RendererContext rendererContext)

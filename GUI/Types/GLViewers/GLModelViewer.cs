@@ -36,8 +36,8 @@ namespace GUI.Types.GLViewers
         public ComboBox? materialGroupListBox { get; private set; }
         private ComboBox? lodComboBox;
         private bool hasSelectableLods;
-        private bool modelStatsShown;
         private bool modelStatsDirty;
+        private bool modelStatsPosted;
         private int statsLod = -1;
         private ModelSceneNode? modelSceneNode;
         protected AnimationController? animationController;
@@ -805,18 +805,31 @@ namespace GUI.Types.GLViewers
         {
             // The stats overlay reflects whatever meshes are currently drawn, so it only needs rebuilding
             // when that set changes (a LoD switch, or a mesh/material group change), not every frame.
-            if (modelStatsShown && modelSceneNode != null && SelectedNodeRenderer != null)
+            if (modelSceneNode != null && SelectedNodeRenderer != null)
             {
-                if (modelSceneNode.ActiveLod != statsLod)
+                if (!SelectedNodeRenderer.HasSelectedNodes)
                 {
-                    statsLod = modelSceneNode.ActiveLod;
-                    modelStatsDirty = true;
+                    if (modelStatsPosted)
+                    {
+                        SelectedNodeRenderer.ScreenDebugText = string.Empty;
+                        modelStatsPosted = false;
+                        modelStatsDirty = true;
+                    }
                 }
-
-                if (modelStatsDirty)
+                else
                 {
-                    SelectedNodeRenderer.ScreenDebugText = GetModelStatsText();
-                    modelStatsDirty = false;
+                    if (modelSceneNode.ActiveLod != statsLod)
+                    {
+                        statsLod = modelSceneNode.ActiveLod;
+                        modelStatsDirty = true;
+                    }
+
+                    if (modelStatsDirty)
+                    {
+                        SelectedNodeRenderer.ScreenDebugText = GetModelStatsText();
+                        modelStatsDirty = false;
+                        modelStatsPosted = true;
+                    }
                 }
             }
 
@@ -853,8 +866,6 @@ namespace GUI.Types.GLViewers
             if (pickingResponse.PixelInfo.ObjectId == 0)
             {
                 SelectedNodeRenderer.SelectNode(null);
-                SelectedNodeRenderer.ScreenDebugText = string.Empty;
-                modelStatsShown = false;
                 return;
             }
 
@@ -862,7 +873,6 @@ namespace GUI.Types.GLViewers
             {
                 var sceneNode = Scene.Find(pickingResponse.PixelInfo.ObjectId);
                 SelectedNodeRenderer.SelectNode(sceneNode);
-                modelStatsShown = true;
                 modelStatsDirty = true;
                 return;
             }
