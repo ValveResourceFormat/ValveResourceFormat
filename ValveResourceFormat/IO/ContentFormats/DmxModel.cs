@@ -196,6 +196,7 @@ public class DmeVertexData : DMElement
     /// <summary>
     /// Gets the vertex format specification.
     /// </summary>
+    [DMProperty(name: "vertexFormat")]
     public Datamodel.StringArray VertexInputLayout { get; } = [];
 
     /// <summary>
