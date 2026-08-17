@@ -24,7 +24,7 @@ uniform vec3 g_vLowEndReflectionColor;
 
 uniform float g_flFlowTimeScale;
 
-uniform vec2 TextureFlow;
+uniform vec2 g_vTextureFlow;
 
 uniform float g_flNormalUvScale = 1.0;
 uniform float g_flNormalFlowUvScrollDistance = 1.0;
@@ -35,7 +35,7 @@ uniform float g_flLowEndSurfaceMinimumColor;
 vec3 calculateWorldNormal()
 {
     // If this is a flowmap, this is wrong
-    vec2 offset = TextureFlow.xy * g_flTime * g_flFlowTimeScale;
+    vec2 offset = g_vTextureFlow.xy * g_flTime * g_flFlowTimeScale;
     vec4 textureNormal = texture(g_tNormal, (vFragPosition.xy / g_flNormalUvScale) + offset);
 
     //Reconstruct the bump vector from the map

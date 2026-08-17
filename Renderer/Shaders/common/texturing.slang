@@ -9,13 +9,10 @@
 #include "utils.slang"
 #include "fullbright.slang"
 
-#if defined(NEED_CURVATURE) && (F_USE_PER_VERTEX_CURVATURE == 0)
-    // Expensive, only used in skin shaders
-    float GetCurvature(vec3 vNormal, vec3 vPositionWS)
-    {
-        return length(fwidth(vNormal)) / length(fwidth(vPositionWS));
-    }
-#endif
+float GetCurvature(vec3 vNormal, vec3 vPositionWS)
+{
+    return length(fwidth(vNormal)) / length(fwidth(vPositionWS));
+}
 
 // Geometric roughness. Essentially just Specular Anti-Aliasing
 float CalculateGeometricRoughnessFactor(vec3 geometricNormal)
@@ -49,6 +46,7 @@ struct MaterialProperties_t
     float Metalness;
     vec3 Normal;
     vec3 NormalMap;
+    vec3 SoftNormal;
     vec2 Roughness;
     float IsometricRoughness;
     vec2 RoughnessTex;
@@ -56,9 +54,12 @@ struct MaterialProperties_t
     float Height;
     vec3 DiffuseAO; // vec3 because Diffuse AO can be tinted
     float SpecularAO;
-    vec4 ExtraParams;
-    float ClothMask;
+    float RetroReflectivity;
     float SSSMask;
+    float MouthMask;
+    float WaterEdgeBlend;
+    float WaterColumnDepth;
+    float ClothMask;
 
     // Sheen lobe, layered over the specular. Zero roughness disables it.
     vec3 SheenColor;
@@ -97,6 +98,7 @@ void InitProperties(out MaterialProperties_t mat, vec3 GeometricNormal, vec3 Pos
     mat.Metalness = 0.0;
     mat.Normal = vec3(0.0);
     mat.NormalMap = vec3(0, 0, 1);
+    mat.SoftNormal = vec3(0, 0, 1);
 
     mat.Roughness = vec2(0.0);
     mat.IsometricRoughness = 0.0;
@@ -106,9 +108,12 @@ void InitProperties(out MaterialProperties_t mat, vec3 GeometricNormal, vec3 Pos
     mat.DiffuseAO = vec3(1.0);
     mat.SpecularAO = 1.0;
     // r = retro reflectivity, g = misc, b = misc, a = misc/rimmask?
-    mat.ExtraParams = vec4(0.0);
-    mat.ClothMask = 0.0;
+    mat.RetroReflectivity = 0.0;
     mat.SSSMask = 0.0;
+    mat.MouthMask = 0.0;
+    mat.WaterEdgeBlend = 0.0;
+    mat.WaterColumnDepth = 0.0;
+    mat.ClothMask = 0.0;
     mat.SheenColor = vec3(0.0);
     mat.SheenRoughness = 0.0;
 
@@ -174,9 +179,6 @@ vec3 calculateIridescence(float hueAngle, float intensity)
     }
 }
 
-#if (GameVfx_vr_skin != 0) || (GameVfx_vr_xen_foliage != 0)
-#define DIFFUSE_AO_COLOR_BLEED
-#endif
 
 #if defined(DIFFUSE_AO_COLOR_BLEED)
 
@@ -273,10 +275,9 @@ vec3 calculateWorldNormal(vec3 normalMap, vec3 normal, vec3 tangent, vec3 bitang
 
 #if (F_DETAIL_TEXTURE > 0)
 
-// Xen foliage detail textures always have both color and normal
-#define DETAIL_COLOR_MOD2X (F_DETAIL_TEXTURE == 1) && (GameVfx_vr_xen_foliage == 0)
-#define DETAIL_COLOR_OVERLAY ((F_DETAIL_TEXTURE == 2) || (F_DETAIL_TEXTURE == 4)) || (GameVfx_vr_xen_foliage != 0)
-#define DETAIL_NORMALS ((F_DETAIL_TEXTURE == 3) || (F_DETAIL_TEXTURE == 4)) || (GameVfx_vr_xen_foliage != 0)
+#define DETAIL_COLOR_MOD2X (F_DETAIL_TEXTURE == 1) && !detailAlwaysColorAndNormal
+#define DETAIL_COLOR_OVERLAY ((F_DETAIL_TEXTURE == 2) || (F_DETAIL_TEXTURE == 4)) || detailAlwaysColorAndNormal
+#define DETAIL_NORMALS ((F_DETAIL_TEXTURE == 3) || (F_DETAIL_TEXTURE == 4)) || detailAlwaysColorAndNormal
 
 uniform float g_flDetailBlendFactor = 1.0;
 uniform float g_flDetailBlendToFull = 0.0;
@@ -358,7 +359,7 @@ void applyDetailTexture(inout vec3 Albedo, inout vec3 NormalMap, vec2 detailMask
 #endif
 
 // Cloth Sheen
-#if (GameVfx_csgo_character != 0)
+#if (clothSheen)
 
     uniform float g_flSheenScale = 0.667;
     uniform vec3 g_flSheenTintColor = vec3(1.0);  // SrgbRead(true)
@@ -453,7 +454,7 @@ bool HandleMaterialRenderModes(inout vec4 outputColor, MaterialProperties_t mat)
             outputColor.rgb = mat.Height.xxx;
             return true;
         case renderMode_ExtraParams:
-            outputColor.rgb = mat.ExtraParams.rgb;
+            outputColor.rgb = vec3(max(mat.RetroReflectivity, mat.WaterEdgeBlend), mat.WaterColumnDepth, mat.SSSMask);
             return true;
         default:
             return false;

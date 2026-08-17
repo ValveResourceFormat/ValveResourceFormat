@@ -253,27 +253,31 @@ void CalculateDirectLighting(inout LightingTerms_t lighting, inout MaterialPrope
 uniform float g_flDirectionalLightmapStrength = 1.0;
 uniform float g_flDirectionalLightmapMinZ = 0.05;
 
-const float colorSpaceMul = 254 / 255;
+const float LIGHTMAP_DIRECTION_MIN_Z = 0.0872; // sin(5 degrees)
+const float LIGHTMAP_DIRECTION_MAX_XY = sqrt(1.0 - LIGHTMAP_DIRECTION_MIN_Z * LIGHTMAP_DIRECTION_MIN_Z);
 
 // I don't actually understand much of this, but it's Valve's code.
-vec3 ComputeLightmapShading(vec3 irradianceColor, vec4 irradianceDirection, vec3 normalMap)
+vec3 ComputeLightmapShading(vec3 irradianceColor, vec4 irradianceDirection, MaterialProperties_t mat)
 {
     if (UseLightmapDirectionality)
     {
-        vec3 vTangentSpaceLightVector = vec3(0.0);
+        vec2 vTangentSpaceXY = UnpackFromColor(irradianceDirection.xy);
 
-        vTangentSpaceLightVector.xy = UnpackFromColor(irradianceDirection.xy);
+        vTangentSpaceXY *= (LIGHTMAP_DIRECTION_MAX_XY / max(LIGHTMAP_DIRECTION_MAX_XY, length(vTangentSpaceXY)));
 
-        float sinTheta = dot(vTangentSpaceLightVector.xy, vTangentSpaceLightVector.xy);
+        float sinTheta = dot(vTangentSpaceXY, vTangentSpaceXY);
         float cosTheta = sqrt(1.0 - sinTheta);
 
-        vTangentSpaceLightVector *= (colorSpaceMul / max(colorSpaceMul, length(vTangentSpaceLightVector.xy)));
-        vTangentSpaceLightVector.z = cosTheta;
+        float flCurvature = GetCurvature(mat.GeometricNormal, mat.PositionWS);
+        float flFlatness = smoothstep(0.1, 0.01, flCurvature) * 0.8;
+        float flZScale = mix(1.0, mix(0.1, 2.0, saturate((1.0 - cosTheta) * 1.5)), flFlatness);
 
-        float flDirectionality = mix(0, irradianceDirection.z, g_flDirectionalLightmapStrength);
+        vec3 vTangentSpaceLightVector = normalize(vec3(vTangentSpaceXY, cosTheta * flZScale));
+
+        float flDirectionality = mix(0.0, irradianceDirection.z, g_flDirectionalLightmapStrength);
         vec3 vNonDirectionalLightmap = irradianceColor * saturate(flDirectionality);
 
-        float NoL = ClampToPositive(dot(vTangentSpaceLightVector, normalMap));
+        float NoL = ClampToPositive(dot(vTangentSpaceLightVector, mat.NormalMap));
         float LightmapZ = max(vTangentSpaceLightVector.z, g_flDirectionalLightmapMinZ);
 
         irradianceColor = (NoL * (irradianceColor - vNonDirectionalLightmap) / LightmapZ) + vNonDirectionalLightmap;
@@ -302,7 +306,7 @@ void CalculateIndirectLighting(inout LightingTerms_t lighting, inout MaterialPro
             vec4 vAHDData = texture(g_tDirectionalIrradiance, mat.LightmapUv);
         #endif
 
-        lighting.DiffuseIndirect = ComputeLightmapShading(irradiance, vAHDData, mat.NormalMap);
+        lighting.DiffuseIndirect = ComputeLightmapShading(irradiance, vAHDData, mat);
 
         lighting.SpecularOcclusion = vAHDData.a;
     }
@@ -337,10 +341,18 @@ void CalculateIndirectLighting(inout LightingTerms_t lighting, inout MaterialPro
         mat.Roughness = oldRoughness;
     #endif
 
-    EnvBRDF_t envBrdf = EnvBRDF(mat.SpecularColor, mat.IsometricRoughness, mat.AmbientNormal, mat.ViewDir);
+    EnvBRDF_t envBrdf = EnvBRDF(mat.SpecularColor, mat.IsometricRoughness, mat.AmbientNormal, mat.ViewDir, mat.ClothMask);
 
     lighting.SpecularIndirect += envBrdf.MultiScatter * lighting.DiffuseIndirect;
-    lighting.DiffuseIndirect *= ClampToPositive(vec3(1.0) - (envBrdf.SingleScatter + envBrdf.MultiScatter));
+
+    vec3 diffuseEnergy = ClampToPositive(vec3(1.0) - (envBrdf.SingleScatter + envBrdf.MultiScatter));
+
+    if (F_CLOTH_SHADING == 1)
+    {
+        diffuseEnergy = mix(diffuseEnergy, vec3(1.0), mat.ClothMask);
+    }
+
+    lighting.DiffuseIndirect *= diffuseEnergy;
 #endif
 }
 
@@ -384,6 +396,9 @@ LightingTerms_t CalculateLighting(inout MaterialProperties_t mat)
     #endif
 
     CalculateDirectLighting(lighting, mat);
+
+    lighting.SpecularDirect *= GetSpecularEnergyCompensation(mat);
+
     CalculateIndirectLighting(lighting, mat);
 
     return lighting;

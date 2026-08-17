@@ -81,10 +81,10 @@ uniform int F_DECAL_BLEND_MODE; // csgo_character, csgo_complex, csgo_vertexlitg
 #define F_TRANSMISSIVE_BACKFACE_NDOTL 0 // csgo_complex, csgo_foliage, csgo_simple_3layer_parallax, vr_complex
 uniform int F_NO_SPECULAR_AT_FULL_ROUGHNESS; // csgo_lightmappedgeneric, pbr
 // SKIN
-//#define F_SUBSURFACE_SCATTERING 0 // todo: same preintegrated method as vr_skin in HLA; csgo_character
+#define F_SUBSURFACE_SCATTERING 0 // csgo_character, vr_skin
 //#define F_USE_FACE_OCCLUSION_TEXTURE 0 // todo: weird; vr_skin, vr_xen_foliage
-//#define F_USE_PER_VERTEX_CURVATURE 0 // todo; vr_skin, vr_skin_blended
-//#define F_SSS_MASK 0 // todo; vr_skin
+#define F_USE_PER_VERTEX_CURVATURE 0 // vr_skin, vr_skin_blended
+#define F_SSS_MASK 0 // vr_skin
 
 //End of feature defines
 
@@ -96,12 +96,19 @@ in vec3 vBitangentOut;
 in vec2 vTexCoordOut;
 centroid in vec4 vVertexColorOut;
 
+#if (F_USE_PER_VERTEX_CURVATURE == 1)
+    in float vCurvatureOut;
+#endif
+
 out vec4 outputColor;
 
 uniform sampler2D g_tBlueNoise; // reserved
 uniform sampler2D g_tColor; // SrgbRead(true) Sampler(UserConfig)
 uniform sampler2D g_tNormal; // Sampler(UserConfig)
 uniform sampler2D g_tTintMask;
+#if (F_SUBSURFACE_SCATTERING == 1)
+    uniform sampler2D g_tSssMask;
+#endif
 
 #if defined(foliage_vfx_common)
     in vec4 vFoliageParamsOut;
@@ -147,12 +154,25 @@ uniform sampler2D g_tTintMask;
     uniform sampler2D g_tCombinedMasks;
     uniform vec3 g_vTransmissionColor = vec3(0.74902, 0.231373, 0.011765); // SrgbRead(true)
     uniform float g_flMouthInteriorBrightnessScale = 1.0;
+    uniform float g_flTransmissionFalloff = 1.8;
+    uniform float g_flDiffuseNormalBlur = 0.5;
 #endif
 
 
 #define _uniformMetalness (defined(simple_vfx_common) || defined(complex_vfx_common)) && (F_METALNESS_TEXTURE == 0)
 #define _colorAlphaMetalness ((defined(simple_vfx_common) || defined(complex_vfx_common)) && (F_METALNESS_TEXTURE == 1))
 #define _colorAlphaAO ((GameVfx_vr_simple != 0) && (F_AMBIENT_OCCLUSION_TEXTURE == 1) && (F_METALNESS_TEXTURE == 0)) || (defined(simple_blend_common) && (F_ENABLE_AMBIENT_OCCLUSION == 1))
+#define subsurface ((F_SUBSURFACE_SCATTERING == 1) || (GameVfx_vr_skin != 0))
+#define subsurfaceSkin (GameVfx_vr_skin != 0)
+#define secondSpecularLobe (GameVfx_vr_skin != 0)
+#define clothSheen (GameVfx_csgo_character != 0)
+#define detailAlwaysColorAndNormal (GameVfx_vr_xen_foliage != 0)
+#define diffuseWrap ((F_DIFFUSE_WRAP == 1) || (GameVfx_vr_xen_foliage != 0))
+#define anisoCubemapWarpOptional (GameVfx_vr_complex != 0)
+
+#if (GameVfx_vr_skin != 0) || (GameVfx_vr_xen_foliage != 0)
+#define DIFFUSE_AO_COLOR_BLEED
+#endif
 #define _metalnessTexture (defined(complex_vfx_common) && (F_METALNESS_TEXTURE == 1) && ((F_ALPHA_TEST == 1) || (F_TRANSLUCENT == 1))) || (GameVfx_csgo_weapon != 0) || (GameVfx_csgo_character != 0) || (GameVfx_csgo_vertexlitgeneric != 0)
 #define _ambientOcclusionTexture (((GameVfx_vr_simple != 0) && (F_AMBIENT_OCCLUSION_TEXTURE == 1) && (F_METALNESS_TEXTURE == 1)) || defined(complex_vfx_common) || (GameVfx_csgo_foliage != 0) || (GameVfx_csgo_weapon != 0) || (GameVfx_csgo_character != 0) || defined(csgo_generic_vfx_common) || (GameVfx_csgo_simple_3layer_parallax != 0))
 
@@ -409,7 +429,7 @@ MaterialProperties_t GetMaterial(vec2 texCoord, vec3 vertexNormals)
         // r=MouthMask, g=AO, b=selfillum/tint mask, a=SSS/opacity
         vec4 combinedMasks = texture(g_tCombinedMasks, texCoord);
 
-        mat.ExtraParams.a = combinedMasks.x; // Mouth Mask
+        mat.MouthMask = combinedMasks.x;
         mat.AmbientOcclusion = combinedMasks.y;
 
         #if (F_SELF_ILLUM == 1)
@@ -420,6 +440,8 @@ MaterialProperties_t GetMaterial(vec2 texCoord, vec3 vertexNormals)
 
         #if (F_SSS_MASK == 1)
             mat.SSSMask = combinedMasks.a;
+        #else
+            mat.SSSMask = 1.0;
         #endif
 
         #if (translucent) || (alphatest)
@@ -427,10 +449,8 @@ MaterialProperties_t GetMaterial(vec2 texCoord, vec3 vertexNormals)
         #endif
     #endif
 
-#if (GameVfx_csgo_character != 0)
-    #if (F_SUBSURFACE_SCATTERING == 1)
-        //mat.SSSMask = texture(g_tSSSMask, texCoord).g;
-    #endif
+#if (GameVfx_csgo_character != 0) && (F_SUBSURFACE_SCATTERING == 1)
+    mat.SSSMask = texture(g_tSssMask, texCoord).g;
 #endif
 #endif
 
@@ -539,6 +559,18 @@ MaterialProperties_t GetMaterial(vec2 texCoord, vec3 vertexNormals)
 
     mat.Normal = calculateWorldNormal(mat.NormalMap, mat.GeometricNormal, mat.Tangent, mat.Bitangent);
 
+#if (GameVfx_vr_skin != 0)
+    vec2 vNormalTexels = texCoord * vec2(textureSize(g_tNormal, 0));
+    vec2 vNormalDdx = dFdx(vNormalTexels);
+    vec2 vNormalDdy = dFdy(vNormalTexels);
+    float flBlurLod = max(0.5 * log2(max(dot(vNormalDdx, vNormalDdx), dot(vNormalDdy, vNormalDdy))), g_flDiffuseNormalBlur);
+
+    vec3 vBlurredNormalMap = DecodeHemiOctahedronNormal(textureLod(g_tNormal, texCoord, flBlurLod).rg);
+    vec3 vBlurredNormal = calculateWorldNormal(vBlurredNormalMap, mat.GeometricNormal, mat.Tangent, mat.Bitangent);
+
+    mat.SoftNormal = normalize(mix(mat.Normal, vBlurredNormal, mat.SSSMask));
+#endif
+
     // Metalness
 #if (_metalnessTexture)
     // a = rimmask
@@ -547,7 +579,7 @@ MaterialProperties_t GetMaterial(vec2 texCoord, vec3 vertexNormals)
     mat.Metalness = metalnessTexture.g;
 
     if (F_RETRO_REFLECTIVE == 1)
-        mat.ExtraParams.x = metalnessTexture.r;
+        mat.RetroReflectivity = metalnessTexture.r;
 
     #if (GameVfx_csgo_character != 0)
         mat.ClothMask = metalnessTexture.b * (1.0 - metalnessTexture.g);
@@ -588,7 +620,7 @@ MaterialProperties_t GetMaterial(vec2 texCoord, vec3 vertexNormals)
     #endif
 
 #if (GameVfx_vr_complex != 0) && (F_METALNESS_TEXTURE == 0)
-    mat.ExtraParams.x = F_RETRO_REFLECTIVE == 1 ? g_flRetroReflectivity : 0.0;
+    mat.RetroReflectivity = F_RETRO_REFLECTIVE == 1 ? g_flRetroReflectivity : 0.0;
 #endif
 
 #if (GameVfx_vr_complex != 0)
@@ -638,7 +670,7 @@ MaterialProperties_t GetMaterial(vec2 texCoord, vec3 vertexNormals)
     #if (GameVfx_vr_skin != 0)
         mat.TransmissiveColor = g_vTransmissionColor.rgb * color.a;
 
-        float mouthOcclusion = mix(1.0, g_flMouthInteriorBrightnessScale, mat.ExtraParams.a);
+        float mouthOcclusion = mix(1.0, g_flMouthInteriorBrightnessScale, mat.MouthMask);
         mat.TransmissiveColor *= mouthOcclusion;
         mat.AmbientOcclusion *= mouthOcclusion;
     #endif

@@ -7,6 +7,7 @@
 // tau = PI*2
 #define TAU 6.2831853071795864769252867665590
 
+#define INCH_TO_M 0.0254
 
 // clamp(value, 0.0, 1.0)
 float saturate(float val) {

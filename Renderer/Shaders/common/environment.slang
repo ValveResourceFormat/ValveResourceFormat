@@ -135,7 +135,14 @@ struct EnvBRDF_t
     vec3 MultiScatter;  // FmsEms, lit by the irradiance rather than the cube map
 };
 
-EnvBRDF_t EnvBRDF(vec3 specColor, float perceptualRoughness, vec3 N, vec3 V)
+float EnvBRDFCloth(float perceptualRoughness, vec3 N, vec3 V)
+{
+    float NoV = dot(N, V);
+    float NoH = dot(normalize(N + V), N);
+    return D_Charlie(pow2(perceptualRoughness), NoH) * V_Neubelt(1.0, NoV) * CLOTH_ENERGY_SCALE;
+}
+
+EnvBRDF_t EnvBRDF(vec3 specColor, float perceptualRoughness, vec3 N, vec3 V, float clothMask)
 {
     float NdotV = ClampToPositive(dot(N, V));
     vec4 lut = SampleBrdfLut(perceptualRoughness, NdotV, BRDF_LUT_GGX);
@@ -143,23 +150,27 @@ EnvBRDF_t EnvBRDF(vec3 specColor, float perceptualRoughness, vec3 N, vec3 V)
     EnvBRDF_t brdf;
     brdf.SingleScatter = mix(vec3(lut.x), vec3(lut.y), specColor);
 
+    if (F_CLOTH_SHADING == 1)
+    {
+        brdf.SingleScatter = mix(brdf.SingleScatter, specColor * EnvBRDFCloth(perceptualRoughness, N, V), clothMask);
+    }
+
     // What a single bounce misses, fed back through the average Fresnel of a Schlick lobe.
     float energyMissing = 1.0 - lut.y;
     vec3 averageFresnel = specColor + (vec3(1.0) - specColor) * (1.0 / 21.0);
 
     brdf.MultiScatter = ((brdf.SingleScatter * averageFresnel) / (vec3(1.0) - averageFresnel * energyMissing)) * energyMissing;
+
+    if (F_CLOTH_SHADING == 1)
+    {
+        brdf.MultiScatter *= 1.0 - clothMask;
+    }
+
     return brdf;
 }
 
-float EnvBRDFCloth(float perceptualRoughness, vec3 N, vec3 V)
-{
-    float NoV = dot(N, V);
-    float NoH = dot(normalize(N + V), N);
-    return D_Charlie(pow2(perceptualRoughness), NoV) * V_Neubelt(NoH, NoH);
-}
-
 // In CS2, anisotropic cubemaps are default enabled with aniso gloss
-#if (defined(ANISO_ROUGHNESS) && ((F_SPECULAR_CUBE_MAP_ANISOTROPIC_WARP == 1) || (GameVfx_vr_complex == 0)))
+#if (defined(ANISO_ROUGHNESS) && ((F_SPECULAR_CUBE_MAP_ANISOTROPIC_WARP == 1) || !anisoCubemapWarpOptional))
     vec3 CalculateAnisoCubemapWarpVector(MaterialProperties_t mat)
     {
         // is this like part of the material struct in the og code? it's calculated at the start
@@ -183,7 +194,7 @@ vec3 GetCorrectedSampleCoords(vec3 R, mat4x3 envMapWorldToLocal, vec3 envMapLoca
 
 vec3 GetEnvironmentNoBRDF(MaterialProperties_t mat, float reflectionCorrectionAmount)
 {
-    #if (defined(ANISO_ROUGHNESS) && ((F_SPECULAR_CUBE_MAP_ANISOTROPIC_WARP == 1) || (GameVfx_vr_complex == 0)))
+    #if (defined(ANISO_ROUGHNESS) && ((F_SPECULAR_CUBE_MAP_ANISOTROPIC_WARP == 1) || !anisoCubemapWarpOptional))
         vec3 reflectionNormal = CalculateAnisoCubemapWarpVector(mat);
     #else
         vec3 reflectionNormal = mat.AmbientNormal;
@@ -196,12 +207,6 @@ vec3 GetEnvironmentNoBRDF(MaterialProperties_t mat, float reflectionCorrectionAm
     }
 
     float perceptualRoughness = saturate(mat.IsometricRoughness);
-
-    
-    if (F_CLOTH_SHADING == 1)
-    {
-        perceptualRoughness = mix(perceptualRoughness, sqrt(perceptualRoughness), mat.ClothMask);
-    }
 
     // Reflection Vector
     vec3 R = normalize(reflect(-mat.ViewDir, reflectionNormal));
@@ -323,12 +328,7 @@ vec3 GetEnvironment(MaterialProperties_t mat, float reflectionCorrectionAmount)
         return envMap;
     }
 
-    vec3 brdf = EnvBRDF(mat.SpecularColor, mat.IsometricRoughness, mat.AmbientNormal, mat.ViewDir).SingleScatter;
-    if (F_CLOTH_SHADING == 1)
-    {
-        vec3 clothBrdf = vec3(EnvBRDFCloth(mat.IsometricRoughness, mat.AmbientNormal, mat.ViewDir));
-        brdf = mix(brdf, clothBrdf, mat.ClothMask);
-    }
+    vec3 brdf = EnvBRDF(mat.SpecularColor, mat.IsometricRoughness, mat.AmbientNormal, mat.ViewDir, mat.ClothMask).SingleScatter;
 
     return brdf * envMap;
 }
