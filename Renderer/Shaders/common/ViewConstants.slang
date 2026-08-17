@@ -21,7 +21,7 @@ layout(std140, binding = 0) uniform ViewConstants
     mat4 g_matWorldToShadow[2]; // one per sun shadow cascade
     vec2 _viewPadding1;
     float g_flSunShadowBias;
-    bool g_bExperimentalLightsEnabled;
+    float _viewPadding2;
 
     bvec3 g_bFogTypeEnabled;
     int g_iRenderMode;

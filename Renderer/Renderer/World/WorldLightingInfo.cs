@@ -592,6 +592,13 @@ namespace ValveResourceFormat.Renderer.World
             RebuildCookieAtlas();
         }
 
+        /// <summary>Clear renderable barn light lists.</summary>
+        public void ClearBarnLights()
+        {
+            LightingData.NumBarnLights = 0;
+            ShadowMapper.ShadowCasters.Clear();
+        }
+
         /// <summary>
         /// Culls and bins visible barn lights for the current frame, packing their shadow faces into the atlas.
         /// </summary>

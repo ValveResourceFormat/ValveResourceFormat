@@ -49,7 +49,6 @@ namespace GUI.Types.GLViewers
             InitializeSoundPlayer();
             LoadDefaultLighting();
             Scene.LightingInfo.UseSceneBoundsForSunLightFrustum = false;
-            Renderer.ViewBuffer!.Data!.ExperimentalLightsEnabled = true;
 
             particleSceneNode = new ParticleSceneNode(Scene, particleSystem, particleSnapshot, true)
             {

@@ -240,7 +240,7 @@ void CalculateDirectLighting(inout LightingTerms_t lighting, inout MaterialPrope
 #endif
 
     // 0 (dynamic scene) or lightmapped 2+ 
-    if (S_LIGHTMAP_VERSION_MINOR != 1 && g_bExperimentalLightsEnabled)
+    if (S_LIGHTMAP_VERSION_MINOR != 1)
     {
         CalculateBarnLighting(lighting, mat, dlsh);
     }
