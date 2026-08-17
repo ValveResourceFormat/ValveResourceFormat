@@ -63,6 +63,7 @@ namespace GUI
 
             Themer.ApplyTheme(this);
 
+#if !SCREENSHOT_MODE
             if (Settings.Config.WindowWidth > 0 && Settings.Config.WindowHeight > 0)
             {
                 StartPosition = FormStartPosition.Manual;
@@ -72,6 +73,7 @@ namespace GUI
                     WindowState = FormWindowState.Maximized;
                 }
             }
+#endif
 
             mainTabs.ImageList = AppIcons.ImageList;
             mainTabs.SelectedIndexChanged += OnMainSelectedTabChanged;
@@ -381,19 +383,15 @@ namespace GUI
 
         private void OnMainSelectedTabChanged(object? sender, EventArgs e)
         {
-#if !SCREENSHOT_MODE
             UpdateWindowTitle(mainTabs.SelectedTab?.ToolTipText);
             UpdateBottomPanelKeybindings();
-#endif
         }
 
         private void UpdateWindowTitle(string? toolTipText)
         {
-#if !SCREENSHOT_MODE
             Text = string.IsNullOrEmpty(toolTipText)
                 ? "Source 2 Viewer"
                 : $"Source 2 Viewer - {toolTipText}";
-#endif
         }
 
         /// <summary>
