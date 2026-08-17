@@ -42,6 +42,7 @@ namespace ValveResourceFormat.Renderer.Shaders
             GLEnvironment.EnableParallelShaderCompile();
 
             var validatedCount = 0;
+            HashSet<string> reportedLinkLogs = [];
 
             foreach (var shader in allShaders)
             {
@@ -83,14 +84,24 @@ namespace ValveResourceFormat.Renderer.Shaders
                         continue;
                     }
 
-                    if (!compiledShader.EnsureLoaded())
-                    {
-                        GL.GetProgramInfoLog(compiledShader.Program, out var log);
+                    var linked = compiledShader.EnsureLoaded();
 
+                    GL.GetProgramInfoLog(compiledShader.Program, out var log);
+
+                    if (!linked)
+                    {
                         var failedParsed = GetOrParseShader(compiledShader.FileName);
                         var argsDescription = GetArgumentDescription(SortAndFilterArguments(failedParsed.Defines, compiledShader.Parameters));
 
                         ThrowShaderError(log, string.Concat(compiledShader.FileName, argsDescription), compiledShader.Name, "Failed to link shader", failedParsed);
+                    }
+
+                    if (!string.IsNullOrWhiteSpace(log) && reportedLinkLogs.Add(log))
+                    {
+                        var parsed = GetOrParseShader(compiledShader.FileName);
+                        var argsDescription = GetArgumentDescription(SortAndFilterArguments(parsed.Defines, compiledShader.Parameters));
+
+                        logger.LogWarning("Link log for {FileName}{Arguments}:\n{Log}", compiledShader.FileName, argsDescription, log.Trim());
                     }
                 }
 

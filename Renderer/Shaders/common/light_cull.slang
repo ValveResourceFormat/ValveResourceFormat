@@ -87,7 +87,7 @@ CullLookup_t GetCullLookup(vec3 positionWs)
     return lookup;
 }
 
-CullLookup_t g_CullLookup;
+CullLookup_t g_CullLookup = CullLookup_t(0u, uvec2(0u), 0u);
 bool g_bCullLookupReady = false;
 
 CullLookup_t GetCullLookupCached(vec3 positionWs)

@@ -791,13 +791,13 @@ void main()
 
         vec3 prevSamplePos = viewSpacePos;
         vec2 SsrUVCoords = baseSsrUV;
-        vec2 finalSsrUVCoords;
+        vec2 finalSsrUVCoords = baseSsrUV;
         float currStepSize;
         float currSampleWorldDepth;
         float prevWorldDepth = 0.0;
         vec3 currSamplePos;
         float prevStepSize = baseStepSize;
-        float fractionalSampleCount;
+        float fractionalSampleCount = 0.0;
         float finalPrevCurrFrac = 0.0;
         float prevPrevCurrFrac = 0.0;
         float prevCurrFrac;
@@ -893,7 +893,7 @@ void main()
         returnColor = vec3(mix((refractionColorSample.xyz * mix(1.0, 0.6, saturate(refractedVerticalFactor * 60.0) / fma(distanceToFrag, 0.002, 1.0))).xyz, returnColor.xyz, vec3(flEdgeBlend)));
     }
 
-    outputColor.rgb = returnColor;
+    outputColor = vec4(returnColor, 1.0);
 
     if (g_iRenderMode != 0)
     {
