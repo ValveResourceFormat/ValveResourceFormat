@@ -1219,7 +1219,7 @@ namespace GUI.Types.GLViewers
                 var resolution = postProcessingData.GetColorCorrectionLUTDimension();
                 var data = postProcessingData.GetColorCorrectionLUT();
 
-                texture = new RenderTexture(TextureTarget.Texture3D, resolution, resolution, resolution, 1);
+                texture = new RenderTexture(TextureTarget.Texture3D, resolution, resolution, resolution, 1, "ColorCorrectionLUT");
 
                 GL.TextureStorage3D(texture.Handle, 1, SizedInternalFormat.Rgba8, resolution, resolution, resolution);
                 GL.TextureSubImage3D(texture.Handle, 0, 0, 0, 0, resolution, resolution, resolution, PixelFormat.Rgba, PixelType.UnsignedByte, data);

@@ -113,16 +113,16 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             GL.CreateBuffers(1, out int vboHandle);
             GL.CreateBuffers(1, out int iboHandle);
 
+#if DEBUG
+            var vaoLabel = GetType().Name;
+            GL.ObjectLabel(ObjectLabelIdentifier.Buffer, vboHandle, vaoLabel.Length, vaoLabel);
+            GL.ObjectLabel(ObjectLabelIdentifier.Buffer, iboHandle, vaoLabel.Length, vaoLabel);
+#endif
+
             GL.NamedBufferData(vboHandle, verts.Count * SimpleVertexNormal.InputLayout.Stride, ListAccessors<SimpleVertexNormal>.GetBackingArray(verts), BufferUsageHint.StaticDraw);
             GL.NamedBufferData(iboHandle, inds.Count * sizeof(int), ListAccessors<int>.GetBackingArray(inds), BufferUsageHint.StaticDraw);
 
             vao = SimpleVertexNormal.InputLayout.CreateVertexArray(nameof(ShapeSceneNode), vboHandle, iboHandle);
-
-#if DEBUG
-            var vaoLabel = nameof(PhysSceneNode);
-            GL.ObjectLabel(ObjectLabelIdentifier.Buffer, vboHandle, vaoLabel.Length, vaoLabel);
-            GL.ObjectLabel(ObjectLabelIdentifier.Buffer, iboHandle, vaoLabel.Length, vaoLabel);
-#endif
         }
 
         /// <summary>Appends two triangles forming a quad face from four vertex indices.</summary>

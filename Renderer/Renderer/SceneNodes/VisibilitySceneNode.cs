@@ -48,15 +48,15 @@ namespace ValveResourceFormat.Renderer.SceneNodes
 
             GL.CreateBuffers(1, out int vboHandle);
 
-            GL.NamedBufferData(vboHandle, totalVertexCount * SimpleVertex.InputLayout.Stride,
-                ListAccessors<SimpleVertex>.GetBackingArray(vertices), BufferUsageHint.StaticDraw);
-
-            vao = SimpleVertex.InputLayout.CreateVertexArray(nameof(VisibilitySceneNode), vboHandle);
-
 #if DEBUG
             var label = nameof(VisibilitySceneNode);
             GL.ObjectLabel(ObjectLabelIdentifier.Buffer, vboHandle, label.Length, label);
 #endif
+
+            GL.NamedBufferData(vboHandle, totalVertexCount * SimpleVertex.InputLayout.Stride,
+                ListAccessors<SimpleVertex>.GetBackingArray(vertices), BufferUsageHint.StaticDraw);
+
+            vao = SimpleVertex.InputLayout.CreateVertexArray(nameof(VisibilitySceneNode), vboHandle);
 
             LocalBoundingBox = new AABB(voxelVisibility.MinBounds, voxelVisibility.MaxBounds);
         }

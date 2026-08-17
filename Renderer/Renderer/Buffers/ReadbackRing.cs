@@ -45,6 +45,11 @@ internal sealed class ReadbackRing : IDisposable
         {
             GL.CreateBuffers(1, out int handle);
 
+#if DEBUG
+            var label = $"ReadbackRing{i}";
+            GL.ObjectLabel(ObjectLabelIdentifier.Buffer, handle, label.Length, label);
+#endif
+
             const BufferStorageFlags storage = BufferStorageFlags.MapReadBit
                 | BufferStorageFlags.MapPersistentBit
                 | BufferStorageFlags.MapCoherentBit;
@@ -60,11 +65,6 @@ internal sealed class ReadbackRing : IDisposable
                 Handle = handle,
                 Mapped = GL.MapNamedBufferRange(handle, IntPtr.Zero, size, access),
             };
-
-#if DEBUG
-            var label = $"ReadbackRing{i}";
-            GL.ObjectLabel(ObjectLabelIdentifier.Buffer, handle, label.Length, label);
-#endif
         }
     }
 

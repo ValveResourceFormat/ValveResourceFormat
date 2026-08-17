@@ -250,6 +250,12 @@ namespace ValveResourceFormat.Renderer.Materials
             }
 
             GL.CreateSamplers(1, out sampler);
+
+#if DEBUG
+            var samplerLabel = $"Sampler{addressModeU}{addressModeV}";
+            GL.ObjectLabel(ObjectLabelIdentifier.Sampler, sampler, samplerLabel.Length, samplerLabel);
+#endif
+
             GL.SamplerParameter(sampler, SamplerParameterName.TextureWrapS, (int)MapAddressMode(addressModeU));
             GL.SamplerParameter(sampler, SamplerParameterName.TextureWrapT, (int)MapAddressMode(addressModeV));
             GL.SamplerParameter(sampler, SamplerParameterName.TextureMinFilter, (int)(mipmaps ? TextureMinFilter.LinearMipmapLinear : TextureMinFilter.Linear));
@@ -322,7 +328,7 @@ namespace ValveResourceFormat.Renderer.Materials
                 target = (data.Flags & VTexFlags.VOLUME_TEXTURE) != 0 ? TextureTarget.Texture3D : TextureTarget.Texture2DArray;
             }
 
-            var tex = new RenderTexture(target, data);
+            var tex = new RenderTexture(target, data, System.IO.Path.GetFileName(textureResource.FileName) ?? "UnnamedTexture");
             var format = GetTextureFormat(data.Format);
             var srgb = srgbRead && format.HasSrgbVariant();
 
@@ -336,15 +342,6 @@ namespace ValveResourceFormat.Renderer.Materials
             }
 
             var sizedInternalFormat = format.ToGLSizedInternalFormat(srgb);
-
-#if DEBUG
-            var textureName = System.IO.Path.GetFileName(textureResource.FileName);
-
-            if (textureName != null)
-            {
-                tex.SetLabel(textureName);
-            }
-#endif
 
             var texDepth = data.Depth;
 
@@ -587,16 +584,12 @@ namespace ValveResourceFormat.Renderer.Materials
         {
             if (DefaultVolume == null)
             {
-                DefaultVolume = new RenderTexture(TextureTarget.Texture3D, 1, 1, 1, 1);
+                DefaultVolume = new RenderTexture(TextureTarget.Texture3D, 1, 1, 1, 1, "DefaultVolume");
                 DefaultVolume.SetFiltering(TextureMinFilter.Nearest, TextureMagFilter.Nearest);
                 DefaultVolume.SetWrapMode(TextureWrapMode.ClampToEdge);
 
                 GL.TextureStorage3D(DefaultVolume.Handle, 1, SizedInternalFormat.Rgba8, 1, 1, 1);
                 GL.TextureSubImage3D(DefaultVolume.Handle, 0, 0, 0, 0, 1, 1, 1, PixelFormat.Rgb, PixelType.UnsignedByte, WhiteTexel);
-
-#if DEBUG
-                DefaultVolume.SetLabel("DefaultVolume");
-#endif
             }
 
             return DefaultVolume;
@@ -613,7 +606,7 @@ namespace ValveResourceFormat.Renderer.Materials
         /// <param name="bitmap">The bitmap whose pixels are uploaded to the GPU.</param>
         public static RenderTexture LoadBitmapTexture(SKBitmap bitmap)
         {
-            var texture = new RenderTexture(TextureTarget.Texture2D, bitmap.Width, bitmap.Height, 1, 1);
+            var texture = new RenderTexture(TextureTarget.Texture2D, bitmap.Width, bitmap.Height, 1, 1, "BitmapTexture");
 
             var format = bitmap.ColorType switch
             {
@@ -665,7 +658,8 @@ namespace ValveResourceFormat.Renderer.Materials
                 texels[(x * 4) + 3] = color.A;
             }
 
-            var texture = new RenderTexture(TextureTarget.Texture2D, Width, 1, 1, 1);
+            var texture = new RenderTexture(TextureTarget.Texture2D, Width, 1, 1, 1, "GeneratedGradient");
+
             // Clamped and filtered: the ramp is addressed by a luminance, so the ends have to hold rather
             // than wrap, and the steps between stops should not be visible.
             texture.SetFiltering(TextureMinFilter.Linear, TextureMagFilter.Linear);
@@ -674,10 +668,6 @@ namespace ValveResourceFormat.Renderer.Materials
             // sRGB storage, so a sample lands in linear space like every other layer's texture.
             GL.TextureStorage2D(texture.Handle, 1, SizedInternalFormat.Srgb8Alpha8, Width, 1);
             GL.TextureSubImage2D(texture.Handle, 0, 0, 0, Width, 1, PixelFormat.Rgba, PixelType.UnsignedByte, texels);
-
-#if DEBUG
-            texture.SetLabel("GeneratedGradient");
-#endif
 
             return texture;
         }
@@ -733,7 +723,7 @@ namespace ValveResourceFormat.Renderer.Materials
 
         private static RenderTexture GenerateColorTexture(int width, int height, byte[] color)
         {
-            var texture = new RenderTexture(TextureTarget.Texture2D, width, height, 1, 1);
+            var texture = new RenderTexture(TextureTarget.Texture2D, width, height, 1, 1, width > 1 ? "ErrorTexture" : "ColorTexture");
             texture.SetFiltering(TextureMinFilter.Nearest, TextureMagFilter.Nearest);
             texture.SetWrapMode(TextureWrapMode.Repeat);
 
@@ -742,10 +732,6 @@ namespace ValveResourceFormat.Renderer.Materials
 
             GL.TextureStorage2D(texture.Handle, 1, SizedInternalFormat.Rgba8, width, height);
             GL.TextureSubImage2D(texture.Handle, 0, 0, 0, width, height, PixelFormat.Rgb, PixelType.UnsignedByte, color);
-
-#if DEBUG
-            texture.SetLabel(width > 1 ? "ErrorTexture" : "ColorTexture");
-#endif
 
             return texture;
         }

@@ -78,6 +78,13 @@ public class Timings
             gpuEndQueries[currentIndex] = endQueryId;
 
             Debug.Assert(startQueryId != 0 && endQueryId != 0, "Failed to generate GPU query objects.");
+
+#if DEBUG
+            const string startLabel = "GpuTimingStart";
+            const string endLabel = "GpuTimingEnd";
+            GL.ObjectLabel(ObjectLabelIdentifier.Query, startQueryId, startLabel.Length, startLabel);
+            GL.ObjectLabel(ObjectLabelIdentifier.Query, endQueryId, endLabel.Length, endLabel);
+#endif
         }
 
         if (activeQueries.TryGetValue(currentIndex, out var activeQuery))

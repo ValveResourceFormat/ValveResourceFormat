@@ -13,8 +13,13 @@ namespace ValveResourceFormat.Renderer.Buffers
         private IntPtr PersistentPtr;
 
         /// <summary>Initializes a new storage buffer bound to the given reserved slot.</summary>
-        public StorageBuffer(ReservedBufferSlots bindingPoint)
-            : base(BufferTarget.ShaderStorageBuffer, (int)bindingPoint, bindingPoint.ToString())
+        /// <param name="bindingPoint">The reserved slot to bind the buffer to.</param>
+        /// <param name="name">Debug name for the buffer. Named explicitly because <see cref="ReservedBufferSlots"/>
+        /// reuses its values between the uniform and storage namespaces, so a slot cannot name itself: the
+        /// scratch slots have no meaningful name of their own, and the rest would report the uniform slot sharing
+        /// their value.</param>
+        public StorageBuffer(ReservedBufferSlots bindingPoint, string name)
+            : base(BufferTarget.ShaderStorageBuffer, (int)bindingPoint, name)
         {
         }
 
@@ -24,12 +29,13 @@ namespace ValveResourceFormat.Renderer.Buffers
         ///  </remarks>
         /// <typeparam name="T">The element type used to compute the total byte size.</typeparam>
         /// <param name="bindingPoint">The reserved slot to bind the buffer to.</param>
+        /// <param name="name">Debug name for the buffer, see <see cref="StorageBuffer(ReservedBufferSlots, string)"/>.</param>
         /// <param name="elements">Number of elements to allocate space for.</param>
         /// <param name="usage">The intended usage hint for the buffer.</param>
         /// <returns>The newly allocated <see cref="StorageBuffer"/>.</returns>
-        public static StorageBuffer Allocate<T>(ReservedBufferSlots bindingPoint, int elements, BufferUsageHint usage)
+        public static StorageBuffer Allocate<T>(ReservedBufferSlots bindingPoint, string name, int elements, BufferUsageHint usage)
         {
-            var buffer = new StorageBuffer(bindingPoint) { Size = elements * Unsafe.SizeOf<T>() };
+            var buffer = new StorageBuffer(bindingPoint, name) { Size = elements * Unsafe.SizeOf<T>() };
             if (usage == BufferUsageHint.DynamicRead)
             {
                 GL.NamedBufferStorage(buffer.Handle, buffer.Size, IntPtr.Zero, BufferStorageFlags.MapPersistentBit | BufferStorageFlags.MapReadBit | BufferStorageFlags.MapCoherentBit);

@@ -494,7 +494,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
                 return;
             }
 
-            boneMatricesGpu = new StorageBuffer(ReservedBufferSlots.BoneTransforms);
+            boneMatricesGpu = new StorageBuffer(ReservedBufferSlots.BoneTransforms, nameof(ReservedBufferSlots.BoneTransforms));
         }
 
         /// <summary>Activates the animation with the given name, or stops animation if not found.</summary>

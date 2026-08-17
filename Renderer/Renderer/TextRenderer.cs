@@ -245,7 +245,7 @@ namespace ValveResourceFormat.Renderer
 
             shader = RendererContext.ShaderLoader.LoadShader("font_msdf");
 
-            fontTexture = new RenderTexture(TextureTarget.Texture2D, (int)AtlasSize, (int)AtlasSize, 1, 1);
+            fontTexture = new RenderTexture(TextureTarget.Texture2D, (int)AtlasSize, (int)AtlasSize, 1, 1, nameof(TextRenderer));
             fontTexture.SetWrapMode(TextureWrapMode.ClampToEdge);
             fontTexture.SetFiltering(TextureMinFilter.Linear, TextureMagFilter.Linear);
             GL.TextureStorage2D(fontTexture.Handle, 1, SizedInternalFormat.Rgba8, bitmap.Width, bitmap.Height);
@@ -253,13 +253,12 @@ namespace ValveResourceFormat.Renderer
 
             GL.CreateBuffers(1, out bufferHandle);
 
-            vao = Vertex.InputLayout.CreateVertexArray(nameof(TextRenderer), bufferHandle, RendererContext.MeshBufferCache.QuadIndices.GLHandle);
-
 #if DEBUG
             var objectLabel = nameof(TextRenderer);
             GL.ObjectLabel(ObjectLabelIdentifier.Buffer, bufferHandle, objectLabel.Length, objectLabel);
-            GL.ObjectLabel(ObjectLabelIdentifier.Texture, fontTexture.Handle, objectLabel.Length, objectLabel);
 #endif
+
+            vao = Vertex.InputLayout.CreateVertexArray(nameof(TextRenderer), bufferHandle, RendererContext.MeshBufferCache.QuadIndices.GLHandle);
         }
 
         /// <summary>Projects a 3D world position to screen space and queues the text for rendering.</summary>

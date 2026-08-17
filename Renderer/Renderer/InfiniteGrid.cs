@@ -30,15 +30,16 @@ namespace ValveResourceFormat.Renderer
             renderState = scene.RendererContext.RenderState;
 
             GL.CreateBuffers(1, out int buffer);
-            GL.NamedBufferData(buffer, vertices.Length * sizeof(float), vertices, BufferUsageHint.StaticDraw);
-
-            var format = new VertexInputLayout(sizeof(float) * 2, new VertexAttribute(VertexSlot.Position, DXGI_FORMAT.R32G32_FLOAT));
-            vao = format.CreateVertexArray(nameof(InfiniteGrid), buffer);
 
 #if DEBUG
             var vaoLabel = nameof(InfiniteGrid);
             GL.ObjectLabel(ObjectLabelIdentifier.Buffer, buffer, vaoLabel.Length, vaoLabel);
 #endif
+
+            GL.NamedBufferData(buffer, vertices.Length * sizeof(float), vertices, BufferUsageHint.StaticDraw);
+
+            var format = new VertexInputLayout(sizeof(float) * 2, new VertexAttribute(VertexSlot.Position, DXGI_FORMAT.R32G32_FLOAT));
+            vao = format.CreateVertexArray(nameof(InfiniteGrid), buffer);
         }
 
         /// <summary>Renders the infinite grid for the current frame.</summary>

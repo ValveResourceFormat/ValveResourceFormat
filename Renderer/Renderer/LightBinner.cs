@@ -282,7 +282,7 @@ public sealed class LightBinner(Scene scene) : IDisposable
 
         VisibilityReadback ??= new ReadbackRing(MaxBatchWords);
         VisibleBitsGpu ??= StorageBuffer.Allocate<uint>(
-            ReservedBufferSlots.BufferSlot2, MaxBatchWords, BufferUsageHint.DynamicDraw);
+            ReservedBufferSlots.BufferSlot2, "VisibleCullBits", MaxBatchWords, BufferUsageHint.DynamicDraw);
 
         if (VisibilityReadback.InFlight == ReadbackRing.Depth)
         {
@@ -362,17 +362,17 @@ public sealed class LightBinner(Scene scene) : IDisposable
         ConstantsGpu ??= new UniformBuffer<LightCullConstants>(ReservedBufferSlots.LightCull);
 
         CullItemsGpu ??= StorageBuffer.Allocate<CullItem>(
-            ReservedBufferSlots.BufferSlot2, Feeder.ItemArray.Length, BufferUsageHint.DynamicDraw);
+            ReservedBufferSlots.BufferSlot2, "CullItems", Feeder.ItemArray.Length, BufferUsageHint.DynamicDraw);
 
         CullPlanesGpu ??= StorageBuffer.Allocate<Vector2>(
-            ReservedBufferSlots.BufferSlot3, Feeder.PlaneArray.Length, BufferUsageHint.DynamicDraw);
+            ReservedBufferSlots.BufferSlot3, "CullPlanes", Feeder.PlaneArray.Length, BufferUsageHint.DynamicDraw);
 
         if (CullBits == null || CullBitsWords < Feeder.TotalWords)
         {
             CullBits?.Delete();
             CullBitsWords = Feeder.TotalWords;
             CullBits = StorageBuffer.Allocate<uint>(
-                ReservedBufferSlots.CullBits, CullBitsWords, BufferUsageHint.DynamicDraw);
+                ReservedBufferSlots.CullBits, nameof(ReservedBufferSlots.CullBits), CullBitsWords, BufferUsageHint.DynamicDraw);
 
             // A fresh allocation holds nothing in particular, and every zero bit reads as an item culled.
             // Start visible instead: a pass that never reaches Dispatch - a viewer holding a locked cull

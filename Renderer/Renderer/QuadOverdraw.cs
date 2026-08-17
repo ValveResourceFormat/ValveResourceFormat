@@ -64,7 +64,7 @@ public class QuadOverdraw(RendererContext rendererContext)
         if (quadBuffer == null || quadBuffer.Size != elementCount * sizeof(uint))
         {
             quadBuffer?.Delete();
-            quadBuffer = StorageBuffer.Allocate<uint>(ReservedBufferSlots.QuadOverdraw, elementCount, BufferUsageHint.StaticDraw);
+            quadBuffer = StorageBuffer.Allocate<uint>(ReservedBufferSlots.QuadOverdraw, nameof(ReservedBufferSlots.QuadOverdraw), elementCount, BufferUsageHint.StaticDraw);
         }
 
         // zero is both the unlocked lock value and the starting count

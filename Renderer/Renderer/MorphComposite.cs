@@ -69,23 +69,23 @@ namespace ValveResourceFormat.Renderer
 
             var width = morph.Data.GetInt32Property("m_nWidth");
             var height = morph.Data.GetInt32Property("m_nHeight");
-            CompositeTexture = new(TextureTarget.Texture2D, width * 2, height, 1, 1);
+            var label = $"{nameof(MorphComposite)}: {System.IO.Path.GetFileName(morph.TextureResource.FileName)}";
+
+            CompositeTexture = new(TextureTarget.Texture2D, width * 2, height, 1, 1, label);
 
             GL.CreateFramebuffers(1, out frameBuffer);
 
             InitVertexBuffer(renderContext);
 
+#if DEBUG
+            GL.ObjectLabel(ObjectLabelIdentifier.VertexArray, vao, Math.Min(GLEnvironment.MaxLabelLength, label.Length), label);
+            GL.ObjectLabel(ObjectLabelIdentifier.Buffer, bufferHandle, Math.Min(GLEnvironment.MaxLabelLength, label.Length), label);
+            GL.ObjectLabel(ObjectLabelIdentifier.Framebuffer, frameBuffer, Math.Min(GLEnvironment.MaxLabelLength, label.Length), label);
+#endif
+
             FillVertices(morph);
 
             GL.NamedBufferData(bufferHandle, allVertices.Length * MorphRectVertex.InputLayout.Stride, IntPtr.Zero, BufferUsageHint.DynamicDraw);
-
-#if DEBUG
-            var label = $"{nameof(MorphComposite)}: {System.IO.Path.GetFileName(morph.TextureResource.FileName)}";
-            GL.ObjectLabel(ObjectLabelIdentifier.VertexArray, vao, Math.Min(GLEnvironment.MaxLabelLength, label.Length), label);
-            GL.ObjectLabel(ObjectLabelIdentifier.Buffer, bufferHandle, Math.Min(GLEnvironment.MaxLabelLength, label.Length), label);
-            GL.ObjectLabel(ObjectLabelIdentifier.Texture, CompositeTexture.Handle, Math.Min(GLEnvironment.MaxLabelLength, label.Length), label);
-            GL.ObjectLabel(ObjectLabelIdentifier.Framebuffer, frameBuffer, Math.Min(GLEnvironment.MaxLabelLength, label.Length), label);
-#endif
         }
 
         private static int GetMorphDataBundleCount(KVObject morphData)

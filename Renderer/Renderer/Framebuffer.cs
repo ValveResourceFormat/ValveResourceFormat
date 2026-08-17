@@ -284,8 +284,7 @@ public class Framebuffer
 
         if (ColorFormat is { } colorFormat)
         {
-            Color = CreateAttachment(colorFormat, width, height, NumMips);
-            Color.SetLabel("FramebufferColor");
+            Color = CreateAttachment(colorFormat, width, height, $"{Name}Color", NumMips);
             Color.AttachToFramebuffer(this, FramebufferAttachment.ColorAttachment0, 0);
 
             ApplyColorSamplerState();
@@ -300,15 +299,13 @@ public class Framebuffer
                     throw new InvalidOperationException("Layered depth attachments do not support multisampling");
                 }
 
-                Depth = new RenderTexture(TextureTarget.Texture2DArray, width, height, DepthLayers, 1);
+                Depth = new RenderTexture(TextureTarget.Texture2DArray, width, height, DepthLayers, 1, $"{Name}Depth");
                 GL.TextureStorage3D(Depth.Handle, 1, depthFormat.ToGLSizedInternalFormat(), width, height, DepthLayers);
-                Depth.SetLabel("FramebufferDepth");
                 AttachDepthLayer(0);
             }
             else
             {
-                Depth = CreateAttachment(depthFormat, width, height);
-                Depth.SetLabel("FramebufferDepth");
+                Depth = CreateAttachment(depthFormat, width, height, $"{Name}Depth");
                 Depth.AttachToFramebuffer(this, FramebufferAttachment.DepthAttachment, 0);
             }
 
@@ -323,9 +320,9 @@ public class Framebuffer
         }
     }
 
-    private RenderTexture CreateAttachment(ImageFormat format, int width, int height, int numMips = 1)
+    private RenderTexture CreateAttachment(ImageFormat format, int width, int height, string label, int numMips = 1)
     {
-        var attachment = new RenderTexture(Target, width, height, 1, numMips);
+        var attachment = new RenderTexture(Target, width, height, 1, numMips, label);
         var mipCount = Math.Min(RenderTexture.MaxMipCount(width, height), attachment.NumMipLevels);
 
         if (Target == TextureTarget.Texture2DMultisample)

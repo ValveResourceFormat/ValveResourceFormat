@@ -51,12 +51,13 @@ public partial class GPUMeshBufferCache
             if (vectorOneVertexBuffer == -1)
             {
                 GL.CreateBuffers(1, out vectorOneVertexBuffer);
-                GL.NamedBufferData(vectorOneVertexBuffer, 4 * sizeof(float), [1f, 1f, 1f, 1f], BufferUsageHint.StaticDraw);
 
 #if DEBUG
                 var bufferLabel = nameof(VectorOneVertexBuffer);
                 GL.ObjectLabel(ObjectLabelIdentifier.Buffer, vectorOneVertexBuffer, bufferLabel.Length, bufferLabel);
 #endif
+
+                GL.NamedBufferData(vectorOneVertexBuffer, 4 * sizeof(float), [1f, 1f, 1f, 1f], BufferUsageHint.StaticDraw);
             }
 
             return vectorOneVertexBuffer;
