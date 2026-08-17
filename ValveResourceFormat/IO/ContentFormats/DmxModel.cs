@@ -196,8 +196,7 @@ public class DmeVertexData : DMElement
     /// <summary>
     /// Gets the vertex format specification.
     /// </summary>
-    [DMProperty(name: "vertexFormat")]
-    public Datamodel.StringArray VertexInputLayout { get; } = [];
+    public Datamodel.StringArray VertexFormat { get; } = [];
 
     /// <summary>
     /// Gets or sets the number of joints for skinning.
@@ -214,7 +213,7 @@ public class DmeVertexData : DMElement
     /// </summary>
     public void AddStream<T>(string name, T[] data)
     {
-        VertexInputLayout.Add(name);
+        VertexFormat.Add(name);
         this[name] = data;
     }
 
@@ -223,7 +222,7 @@ public class DmeVertexData : DMElement
     /// </summary>
     public void AddIndexedStream<T>(string name, T[] data, int[] indices)
     {
-        VertexInputLayout.Add(name);
+        VertexFormat.Add(name);
         this[name] = data;
         this[name + "Indices"] = indices;
     }
