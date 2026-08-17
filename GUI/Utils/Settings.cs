@@ -219,6 +219,11 @@ namespace GUI.Utils
                 Config.FieldOfView = float.RadiansToDegrees(horizontalAt4By3Radians);
             }
 
+            if (Config.FieldOfView <= 0)
+            {
+                Config.FieldOfView = 90;
+            }
+
             Config.FieldOfView = Math.Clamp(Config.FieldOfView, 1, 170);
             Config.ViewmodelFieldOfView = Math.Clamp(Config.ViewmodelFieldOfView, 40, 80);
 
