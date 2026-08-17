@@ -64,7 +64,7 @@ namespace ValveResourceFormat.Renderer.Buffers
         private void Initialize()
         {
             WriteToCpuBuffer();
-            GL.NamedBufferData(Handle, Size, cpuBuffer, BufferUsageHint.StaticDraw);
+            GL.NamedBufferData(Handle, Size, cpuBuffer, BufferUsageHint.DynamicDraw);
             BindBufferBase();
         }
 

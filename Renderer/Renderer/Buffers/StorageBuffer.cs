@@ -49,18 +49,21 @@ namespace ValveResourceFormat.Renderer.Buffers
         }
 
         /// <summary>Uploads the contents of a list to this buffer, replacing any existing data.</summary>
-        public void Create<T>(List<T> data) where T : struct
+        /// <param name="data">The source list to upload.</param>
+        /// <param name="usageHint">The intended usage pattern for the buffer.</param>
+        public void Create<T>(List<T> data, BufferUsageHint usageHint) where T : struct
         {
-            Create(ListAccessors<T>.GetBackingArray(data), data.Count * Unsafe.SizeOf<T>());
+            Create(ListAccessors<T>.GetBackingArray(data), data.Count * Unsafe.SizeOf<T>(), usageHint);
         }
 
         /// <summary>Uploads a typed array to this buffer with the given total byte size.</summary>
         /// <param name="data">The source array to upload.</param>
         /// <param name="totalSizeInBytes">Total number of bytes to upload from <paramref name="data"/>.</param>
-        public void Create<T>(T[] data, int totalSizeInBytes) where T : struct
+        /// <param name="usageHint">The intended usage pattern for the buffer.</param>
+        public void Create<T>(T[] data, int totalSizeInBytes, BufferUsageHint usageHint) where T : struct
         {
             Size = totalSizeInBytes;
-            GL.NamedBufferData(Handle, totalSizeInBytes, data, BufferUsageHint.StreamDraw);
+            GL.NamedBufferData(Handle, totalSizeInBytes, data, usageHint);
         }
 
         /// <summary>Uploads a read-only span to this buffer using the specified usage hint.</summary>
@@ -82,7 +85,7 @@ namespace ValveResourceFormat.Renderer.Buffers
             {
                 if (offset == 0)
                 {
-                    Create(data, size);
+                    Create(data, size, BufferUsageHint.DynamicDraw);
                     return;
                 }
 

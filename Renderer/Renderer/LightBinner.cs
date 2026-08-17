@@ -282,7 +282,7 @@ public sealed class LightBinner(Scene scene) : IDisposable
 
         VisibilityReadback ??= new ReadbackRing(MaxBatchWords);
         VisibleBitsGpu ??= StorageBuffer.Allocate<uint>(
-            ReservedBufferSlots.BufferSlot2, "VisibleCullBits", MaxBatchWords, BufferUsageHint.DynamicDraw);
+            ReservedBufferSlots.BufferSlot2, "VisibleCullBits", MaxBatchWords, BufferUsageHint.DynamicCopy);
 
         if (VisibilityReadback.InFlight == ReadbackRing.Depth)
         {
@@ -372,7 +372,7 @@ public sealed class LightBinner(Scene scene) : IDisposable
             CullBits?.Delete();
             CullBitsWords = Feeder.TotalWords;
             CullBits = StorageBuffer.Allocate<uint>(
-                ReservedBufferSlots.CullBits, nameof(ReservedBufferSlots.CullBits), CullBitsWords, BufferUsageHint.DynamicDraw);
+                ReservedBufferSlots.CullBits, nameof(ReservedBufferSlots.CullBits), CullBitsWords, BufferUsageHint.DynamicCopy);
 
             // A fresh allocation holds nothing in particular, and every zero bit reads as an item culled.
             // Start visible instead: a pass that never reaches Dispatch - a viewer holding a locked cull
