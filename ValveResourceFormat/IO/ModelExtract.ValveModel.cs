@@ -895,9 +895,11 @@ partial class ModelExtract
         chainData.Add("joints", joints);
         chainData.Add("attrs", MakeClothChainAttrs(chain.ExtrudeSides, chain.ExtrudeRadius, chain.ExtrudeTwist));
         chainData.Add("selection", KVObject.Array());
-        // Version 2 is the current ModelDoc chain format (v1 shows an "Update version 1->2" banner);
-        // the compiled FeModel is identical for both (verified byte-level on the PHYS block).
-        chainData.Add("version", 2);
+
+        // The two chain formats are not interchangeable: format 1 registers a non-simulated joint that has
+        // no parent to be offset from into m_LockToGoal, format 2 leaves it out. Both are in live use, so
+        // the original's own m_LockToGoal membership is what says which one a chain was authored in.
+        chainData.Add("version", chain.Joints.Exists(joint => feModel.IsLockedToGoal(joint.Node)) ? 1 : 2);
 
         return MakeNode("ClothChain",
             ("name", chain.RootBone),

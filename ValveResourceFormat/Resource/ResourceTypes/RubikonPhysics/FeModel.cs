@@ -441,6 +441,12 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics
         /// </summary>
         public bool IsLockedToParent(int node) => Array.Exists(LockToParent, link => link.CtrlChild == node);
 
+        /// <summary>
+        /// Gets whether <paramref name="node"/> is held at its animated goal (<c>m_LockToGoal</c>), the
+        /// lock a non-simulated node takes when it has no parent to be offset from.
+        /// </summary>
+        public bool IsLockedToGoal(int node) => Array.IndexOf(LockToGoal, node) >= 0;
+
         /// <summary>Gets the friction painted on <paramref name="node"/>, or 0 when it has none.</summary>
         public float GetNodeFriction(int node)
         {
