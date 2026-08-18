@@ -403,7 +403,7 @@ namespace ValveResourceFormat.Renderer.PostProcess
             // Sequential min-then-max clamp: authored data contains locked (min == max) and even
             // inverted ranges
             var (min, max) = (settings.ExposureMin, settings.ExposureMax);
-            var clampedScalar = MathF.Min(MathF.Max(rawScalar, min), max);
+            var clampedScalar = MathF.Max(MathF.Min(rawScalar, max), min);
             if (ExposureHistory.Count == 10)
             {
                 var weightedSum = 0.0f;
@@ -416,7 +416,7 @@ namespace ValveResourceFormat.Renderer.PostProcess
                     weightedSum += weight * ExposureHistory[i];
                 }
 
-                clampedScalar = MathF.Min(MathF.Max(weightedSum * (1.0f / weightTotal), min), max);
+                clampedScalar = MathF.Max(MathF.Min(weightedSum * (1.0f / weightTotal), max), min);
             }
 
             if (!float.IsFinite(clampedScalar))
