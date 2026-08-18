@@ -738,23 +738,6 @@ partial class ModelExtract
         // re-emit it.
         vertexData.AddIndexedStream("cloth_gravity$0", proxy.Gravity, identity);
 
-        // Per-rod flWeight0 is the softmax of its two endpoints' painted mass, so an unpainted sheet
-        // compiles every rod to a flat 0.5 and loses the original's mass distribution along the network.
-        if (physAggregateData?.FeModel is { } massModel && massModel.RecoverNodeMassPaint() is { Length: > 0 } nodeMasses)
-        {
-            var mass = new float[vertexCount];
-            for (var v = 0; v < vertexCount; v++)
-            {
-                var node = proxy.NodeIndices[v];
-                mass[v] = node >= 0 && node < nodeMasses.Length ? nodeMasses[node] : 0f;
-            }
-
-            if (Array.Exists(mass, value => value != mass[0]))
-            {
-                vertexData.AddIndexedStream("cloth_mass$0", mass, identity);
-            }
-        }
-
         // Named vertex selections are painted per vertex, one stream per selection. A cloth effect or a
         // chain joint then names the selection, and the compiler collects every vertex the paint reaches.
         foreach (var (mapName, weights) in proxy.VertexMaps)
