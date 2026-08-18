@@ -2277,6 +2277,26 @@ partial class ModelExtract
             {
                 AddBonesRecursive(model.Skeleton.Roots, skeleton.Value);
             }
+
+            // Bones the compiled skeleton culled (unskinned cloth-only joints) but the cloth still
+            // references. Re-declared WITHOUT do_not_discard so the compiler culls them again; the cloth
+            // build resolves against the document skeleton, which is all these need to exist in.
+            var culledSource = physAggregateData?.FeModel;
+            foreach (var (node, name) in CulledClothBones)
+            {
+                if (culledSource is null || node >= culledSource.InitPosePositions.Length)
+                {
+                    continue;
+                }
+
+                var boneAngles = node < culledSource.InitPoseRotations.Length
+                    ? EntityTransformHelper.ToEulerAngles(culledSource.InitPoseRotations[node])
+                    : Vector3.Zero;
+                skeleton.Value.Add(MakeNode("Bone",
+                    ("name", name),
+                    ("origin", ToKVArray(culledSource.InitPosePositions[node])),
+                    ("angles", ToKVArray(boneAngles))));
+            }
         }
 
         if (physAggregateData is not null)

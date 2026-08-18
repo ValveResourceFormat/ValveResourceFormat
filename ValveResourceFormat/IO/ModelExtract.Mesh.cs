@@ -46,6 +46,12 @@ partial class ModelExtract
     public List<(string FileName, string Name, FeModel.ChainGrid Grid)> ClothChainGridsToExtract { get; } = [];
 
     /// <summary>
+    /// Gets the cloth control nodes that were authored as skeleton bones but culled from the compiled
+    /// skeleton; re-declared as Bone nodes so cloth constructs can reference them.
+    /// </summary>
+    public List<(int Node, string Name)> CulledClothBones { get; } = [];
+
+    /// <summary>
     /// Gets the material input signatures for mapping DirectX semantic names.
     /// </summary>
     public Dictionary<string, Material.VsInputSignature> MaterialInputSignatures { get; } = [];
@@ -180,9 +186,18 @@ partial class ModelExtract
             return;
         }
 
-        feModel.SkeletonBoneNames = model.Skeleton.Bones
+        var skeletonBoneNames = model.Skeleton.Bones
             .Select(static bone => bone.Name)
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        feModel.SkeletonBoneNames = skeletonBoneNames;
+
+        // Culled cloth-only bones get re-declared in the exported skeleton, so the cloth pipeline
+        // treats their names as real from here on.
+        CulledClothBones.AddRange(feModel.GetCulledBoneCtrls());
+        foreach (var (_, culledName) in CulledClothBones)
+        {
+            skeletonBoneNames.Add(culledName);
+        }
 
         var boneParents = model.Skeleton.Bones
             .GroupBy(static bone => bone.Name, StringComparer.OrdinalIgnoreCase)

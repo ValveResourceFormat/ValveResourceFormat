@@ -1781,6 +1781,48 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics
                 || (SkeletonBoneNames is not null && !SkeletonBoneNames.Contains(name!));
 
         /// <summary>
+        /// Gets the control nodes that were authored as skeleton bones but culled from the compiled
+        /// skeleton (unskinned cloth-only bones - watchmen's cape joints, es_cosmic's loincloth roots).
+        /// A cloth construct can only reference a bone the document skeleton contains, so the export has
+        /// to re-declare these as Bone nodes. Generated ring/strip members are excluded: they are the
+        /// compiler's own extrude output (a CtrlOffsets child) or a strip's paired second column (a
+        /// CtrlOsOffsets child), and re-declaring one collides with its regeneration.
+        /// </summary>
+        public List<(int Node, string Name)> GetCulledBoneCtrls()
+        {
+            var result = new List<(int Node, string Name)>();
+            if (SkeletonBoneNames is null)
+            {
+                return result;
+            }
+
+            var generatedChildren = new HashSet<int>();
+            foreach (var offset in CtrlOffsets)
+            {
+                generatedChildren.Add(offset.CtrlChild);
+            }
+
+            foreach (var pair in CtrlOsOffsets)
+            {
+                generatedChildren.Add(pair.CtrlChild);
+            }
+
+            for (var node = 0; node < CtrlNames.Length; node++)
+            {
+                var name = CtrlNames[node];
+                if (IsProxyNodeName(name) || SkeletonBoneNames.Contains(name)
+                    || generatedChildren.Contains(node) || node >= InitPosePositions.Length)
+                {
+                    continue;
+                }
+
+                result.Add((node, name));
+            }
+
+            return result;
+        }
+
+        /// <summary>
         /// Whether the cloth drives any REAL (non auto-generated proxy) skeleton bone: at least one
         /// position-driven control node (index &gt;= <see cref="FirstPositionDrivenNode"/>) carries a real
         /// bone name. Those bones are back-solved from the simulated proxy nodes - whether the mechanism is
