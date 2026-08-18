@@ -3844,7 +3844,32 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics
                     }
                 }
 
-                if (rodLinked || bothDrivenSim || proxyRibbon || hingedRoot || bendLinked)
+                // A joint can reach its chain by the BEND rod to its grandparent rather than by one to its
+                // own parent, which leaves the direct pair the rod test looks for absent and ends the chain
+                // a joint short (gigawatt's sleeve_cloth_R_3 rods to sleeve_cloth_R_1, ribPipe_R_7 to
+                // ribPipe_R_5). A grandparent needs a real parent of its own, so the static-root false chain
+                // the rod test guards against cannot reach this: its resolved parent is a root.
+                var grandParent = p < SkelParents.Length ? SkelParents[p] : -1;
+                var bendRodLinked = grandParent >= 0 && grandParent < n && isReal[grandParent]
+                    && rodPairs.Contains(grandParent < i ? (grandParent, i) : (i, grandParent));
+
+                // Where the parent extrudes, the joint's rod lands on the parent's ring instead of on the
+                // parent itself (gigawatt's joint51, whose only rods reach $ccjoint50_0/1).
+                var ringLinked = false;
+                if (proxyChildrenOf.TryGetValue(p, out var parentRing))
+                {
+                    foreach (var ring in parentRing)
+                    {
+                        if (rodPairs.Contains(ring < i ? (ring, i) : (i, ring)))
+                        {
+                            ringLinked = true;
+                            break;
+                        }
+                    }
+                }
+
+                if (rodLinked || bothDrivenSim || proxyRibbon || hingedRoot || bendLinked
+                    || bendRodLinked || ringLinked)
                 {
                     realParent[i] = p;
                 }
