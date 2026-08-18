@@ -1698,6 +1698,17 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics
                 return;
             }
 
+            // Only for cloth built purely out of real bones. Once the compiler has generated nodes of its
+            // own, they carry the hierarchy the skeleton cannot express, and imposing the bone tree on top
+            // re-parents the surrounding network instead of completing it.
+            foreach (var name in CtrlNames)
+            {
+                if (IsProxyNodeName(name))
+                {
+                    return;
+                }
+            }
+
             var nodeByName = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
             for (var node = 0; node < CtrlNames.Length && node < NodeCount; node++)
             {
