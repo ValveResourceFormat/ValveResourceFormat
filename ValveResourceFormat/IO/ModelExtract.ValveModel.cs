@@ -689,6 +689,101 @@ partial class ModelExtract
         }
     }
 
+    // Wind speeds are authored in mph and compiled to units per second.
+    const float ClothWindSpeedToUnits = 17.6f;
+
+    const int ClothEffectTypeWind = 1;
+    const int ClothEffectTypeStiffen = 3;
+    const int ClothEffectTypeDampenVelocity = 6;
+
+    static void AddClothEffects(KVObject softbodyChildren, FeModel feModel)
+    {
+        foreach (var effect in feModel.Effects)
+        {
+            if (MakeClothEffect(feModel, effect) is { } node)
+            {
+                softbodyChildren.Add(node);
+            }
+        }
+    }
+
+    static KVObject? MakeClothEffect(FeModel feModel, FeModel.Effect effect)
+    {
+        var className = effect.Type switch
+        {
+            ClothEffectTypeWind => "ClothEffectWind",
+            ClothEffectTypeStiffen => "ClothEffectStiffen",
+            ClothEffectTypeDampenVelocity => "ClothEffectDampenVelocity",
+            _ => null,
+        };
+
+        if (className is null || effect.Params is null)
+        {
+            return null;
+        }
+
+        var node = MakeNode(className, ("name", effect.Name));
+
+        var mapHash = unchecked((uint)effect.Params.GetInt32Property("VertexMap"));
+        foreach (var map in feModel.VertexMaps)
+        {
+            if (map.NameHash == mapHash)
+            {
+                node.Add("vertex_map", map.Name);
+                break;
+            }
+        }
+
+        switch (effect.Type)
+        {
+            case ClothEffectTypeWind:
+                AddClothWindParams(node, effect.Params);
+                break;
+
+            case ClothEffectTypeStiffen:
+                node.Add("Stiffness", effect.Params.GetFloatProperty("Stiffness"));
+                break;
+
+            default:
+                node.Add("drag", effect.Params.GetFloatProperty("Drag"));
+                break;
+        }
+
+        return node;
+    }
+
+    static void AddClothWindParams(KVObject node, KVObject parameters)
+    {
+        // Strength is the authored speed scaled into units and rotated by the authored angles.
+        var strength = parameters.GetSubCollection("Strength") is { } s ? s.ToVector3() : default;
+        node.Add("wind_speed_mph", strength.Length() / ClothWindSpeedToUnits);
+        node.Add("time_multiplier", 1.0f);
+
+        if (strength != Vector3.Zero)
+        {
+            var pitch = MathF.Atan2(-strength.Z, MathF.Sqrt((strength.X * strength.X) + (strength.Y * strength.Y)));
+            var yaw = MathF.Atan2(strength.Y, strength.X);
+            node.Add("angles", ToKVArray(Vector3.RadiansToDegrees(new Vector3(pitch, yaw, 0f))));
+        }
+
+        var airToCloth = parameters.GetFloatProperty("AirToCloth");
+        if (airToCloth > 0f)
+        {
+            node.Add("cloth_air_density", 1f / airToCloth);
+        }
+
+        node.Add("vortex_choppiness", parameters.GetFloatProperty("Choppiness"));
+
+        var vortices = parameters.GetArray("Vortices") ?? [];
+        node.Add("vortex_count", vortices.Count);
+
+        if (vortices.Count > 0)
+        {
+            node.Add("vortex_max_speed_mph", vortices[0].GetFloatProperty("MaxSpeed") / ClothWindSpeedToUnits);
+            node.Add("vortex_cell_size", vortices[0].GetFloatProperty("MaxCell"));
+        }
+    }
+
     static KVObject MakeClothShapeBox(FeModel.CollisionBox box)
     {
         var node = MakeNode("ClothShapeBox",
@@ -2254,6 +2349,7 @@ partial class ModelExtract
                 AddClothProxySprings(softbodyChildren, feModel, ClothProxyMeshesToExtract, independentChainNodes,
                     authoredClothNodes, surfaceRods);
                 AddClothCollisionShapes(softbodyChildren, feModel);
+                AddClothEffects(softbodyChildren, feModel);
 
                 root.Children.Add(softbody);
 
@@ -2290,6 +2386,7 @@ partial class ModelExtract
 
                 AddClothChainSurplusRods(softbodyChildren, feModel, boneChains);
                 AddClothCollisionShapes(softbodyChildren, feModel);
+                AddClothEffects(softbodyChildren, feModel);
                 root.Children.Add(softbody);
                 clothEmitted = true;
             }
