@@ -4,7 +4,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Text;
-using NUnit.Framework;
+using System.Threading.Tasks;
 using SteamDatabase.ValvePak;
 using ValveResourceFormat;
 using ValveResourceFormat.IO;
@@ -20,7 +20,9 @@ namespace Tests;
 /// These tests detect local Source 2 Workshop Tools installations through Steam and are
 /// skipped when no usable installation is present (e.g. on the CI).
 /// </summary>
-public class ResourceCompilerTest
+[ClassDataSource<ResourceCompilerTest.GameInstallations>(Shared = SharedType.PerClass)]
+[NotInParallel(nameof(ResourceCompilerTest))]
+public class ResourceCompilerTest(ResourceCompilerTest.GameInstallations installations)
 {
     private const string TestAddonName = "vrf_recompile_test";
     private const int CompileTimeoutMs = 10 * 60 * 1000;
@@ -45,15 +47,7 @@ public class ResourceCompilerTest
         (CounterStrike2, "weapons/models/knife/knife_bayonet/weapon_knife_bayonet.vmdl_c"),
     ];
 
-    public static IEnumerable<TestCaseData> RecompileModelCases()
-    {
-        foreach (var (game, assetPath) in ModelCases)
-        {
-            yield return new TestCaseData(game, assetPath).SetArgDisplayNames(game.Name, assetPath);
-        }
-    }
-
-    private sealed class GameInstallation : IDisposable
+    public sealed class GameInstallation : IDisposable
     {
         public required string ResourceCompilerPath { get; init; }
         public required Package Package { get; init; }
@@ -72,38 +66,94 @@ public class ResourceCompilerTest
         }
     }
 
-    private readonly Dictionary<int, GameInstallation> installations = [];
-
-    [OneTimeTearDown]
-    public void DisposeInstallationsAndDeleteTestAddons()
+    /// <summary>
+    /// Lazily opens and shares each game's Workshop Tools installation across this fixture's test
+    /// cases, disposing them and their staged test addons once every test has finished.
+    /// </summary>
+    public sealed class GameInstallations : IAsyncDisposable
     {
-        foreach (var installation in installations.Values)
+        private readonly Dictionary<int, GameInstallation> installations = [];
+
+        public GameInstallation Get(WorkshopToolsGame game)
         {
-            installation.Dispose();
-
-            if (Directory.Exists(installation.ContentAddonPath))
+            if (installations.TryGetValue(game.AppId, out var cached))
             {
-                Directory.Delete(installation.ContentAddonPath, recursive: true);
+                return cached;
             }
 
-            if (Directory.Exists(installation.GameAddonPath))
+            if (!OperatingSystem.IsWindows())
             {
-                Directory.Delete(installation.GameAddonPath, recursive: true);
+                Skip.Test("Source 2 Workshop Tools are only available on Windows.");
             }
+
+            var steamGame = GameFolderLocator.FindSteamGameByAppId(game.AppId);
+            if (!steamGame.HasValue)
+            {
+                Skip.Test($"{game.Name} (appid {game.AppId}) is not installed.");
+            }
+
+            var gamePath = steamGame.Value.GamePath;
+            var resourceCompiler = Path.Combine(gamePath, "game", "bin", "win64", "resourcecompiler.exe");
+            if (!File.Exists(resourceCompiler))
+            {
+                Skip.Test($"{game.Name} is installed without its Workshop Tools ({resourceCompiler} does not exist).");
+            }
+
+            var pakPath = Path.Combine(gamePath, "game", game.ModFolder, "pak01_dir.vpk");
+            if (!File.Exists(pakPath))
+            {
+                Skip.Test($"{pakPath} does not exist.");
+            }
+
+            var package = new Package();
+            package.Read(pakPath);
+
+            var installation = new GameInstallation
+            {
+                ResourceCompilerPath = resourceCompiler,
+                Package = package,
+                FileLoader = new GameFileLoader(package, pakPath),
+                ContentAddonPath = Path.Combine(gamePath, "content", game.ModFolder + "_addons", TestAddonName),
+                GameAddonPath = Path.Combine(gamePath, "game", game.ModFolder + "_addons", TestAddonName),
+            };
+
+            installations[game.AppId] = installation;
+            return installation;
         }
 
-        installations.Clear();
+        public ValueTask DisposeAsync()
+        {
+            foreach (var installation in installations.Values)
+            {
+                installation.Dispose();
+
+                if (Directory.Exists(installation.ContentAddonPath))
+                {
+                    Directory.Delete(installation.ContentAddonPath, recursive: true);
+                }
+
+                if (Directory.Exists(installation.GameAddonPath))
+                {
+                    Directory.Delete(installation.GameAddonPath, recursive: true);
+                }
+            }
+
+            installations.Clear();
+
+            return ValueTask.CompletedTask;
+        }
     }
 
-    [Test, TestCaseSource(nameof(RecompileModelCases))]
-    public void RecompileDecompiledModel(WorkshopToolsGame game, string assetPath)
+    [Test, MethodDataSource(nameof(ModelCases))]
+    public async Task RecompileDecompiledModel((WorkshopToolsGame Game, string AssetPath) testCase)
     {
-        var installation = GetInstallation(game);
+        var (game, assetPath) = testCase;
+        var installation = installations.Get(game);
 
         var entry = installation.Package.FindEntry(assetPath);
         if (entry == null)
         {
-            Assert.Ignore($"{assetPath} no longer exists in {game.Name}'s pak01_dir.vpk.");
+            Skip.Test($"{assetPath} no longer exists in {game.Name}'s pak01_dir.vpk.");
         }
 
         installation.Package.ReadEntry(entry, out var rawFileData);
@@ -111,10 +161,10 @@ public class ResourceCompilerTest
         using var resource = new Resource { FileName = assetPath };
         resource.Read(new MemoryStream(rawFileData));
 
-        Assert.That(resource.DataBlock, Is.InstanceOf<Model>(), $"{assetPath} is not a model resource.");
+        await Assert.That(resource.DataBlock).IsAssignableTo<Model>().Because($"{assetPath} is not a model resource.");
 
         using var contentFile = FileExtract.Extract(resource, installation.FileLoader);
-        Assert.That(contentFile.Data, Is.Not.Empty, $"Decompiling {assetPath} produced no vmdl data.");
+        await Assert.That(contentFile.Data).IsNotEmpty().Because($"Decompiling {assetPath} produced no vmdl data.");
 
         // Stage the decompiled source into the test addon at the original relative path,
         // so the compiled output lands at the same relative path on the game side.
@@ -124,18 +174,18 @@ public class ResourceCompilerTest
         var (exitCode, compilerOutput) = RunResourceCompiler(installation.ResourceCompilerPath, vmdlPath);
         var compiledPath = Path.Combine(installation.GameAddonPath, assetPath);
 
-        using (Assert.EnterMultipleScope())
+        using (Assert.Multiple())
         {
-            Assert.That(exitCode, Is.Zero, $"resourcecompiler failed for {assetPath}.\n{Tail(compilerOutput)}");
-            Assert.That(compiledPath, Does.Exist, $"resourcecompiler produced no output for {assetPath}.\n{Tail(compilerOutput)}");
+            await Assert.That(exitCode).IsZero().Because($"resourcecompiler failed for {assetPath}.\n{Tail(compilerOutput)}");
+            await Assert.That(File.Exists(compiledPath)).IsTrue().Because($"resourcecompiler produced no output for {assetPath}.\n{Tail(compilerOutput)}");
         }
 
         // The compiled output must load back as a valid model resource.
         using var recompiled = new Resource { FileName = compiledPath };
         recompiled.Read(compiledPath);
-        Assert.That(recompiled.DataBlock, Is.InstanceOf<Model>(), $"Recompiled {assetPath} is not a valid model resource.");
+        await Assert.That(recompiled.DataBlock).IsAssignableTo<Model>().Because($"Recompiled {assetPath} is not a valid model resource.");
 
-        CompareRecompiledModel(resource, recompiled, assetPath);
+        await CompareRecompiledModel(resource, recompiled, assetPath);
     }
 
     /// <summary>
@@ -143,12 +193,12 @@ public class ResourceCompilerTest
     /// expected to carry through the round-trip. Deliberately coarse (nothing may be lost) rather
     /// than byte-exact: compiled output differs across compiler versions.
     /// </summary>
-    private static void CompareRecompiledModel(Resource original, Resource recompiled, string assetPath)
+    private static async Task CompareRecompiledModel(Resource original, Resource recompiled, string assetPath)
     {
         var originalModel = (Model)original.DataBlock!;
         var recompiledModel = (Model)recompiled.DataBlock!;
 
-        using (Assert.EnterMultipleScope())
+        using (Assert.Multiple())
         {
             // Morphs may not be lost wholesale. The exact controller set is deliberately not
             // compared: the compiler derives an implicit controller from every raw delta state,
@@ -157,20 +207,18 @@ public class ResourceCompilerTest
             // with no ModelDoc expression equivalent cannot be reconstructed.
             if (GetFlexControllerNames(original).Count > 0)
             {
-                Assert.That(
-                    GetFlexControllerNames(recompiled),
-                    Is.Not.Empty,
-                    $"{assetPath}: flex controllers lost after recompile.");
+                await Assert.That(GetFlexControllerNames(recompiled))
+                    .IsNotEmpty()
+                    .Because($"{assetPath}: flex controllers lost after recompile.");
             }
 
             // Material groups (skins) may not be lost.
             var originalMaterialGroups = GetMaterialGroupNames(originalModel);
             if (originalMaterialGroups.Count > 0)
             {
-                Assert.That(
-                    GetMaterialGroupNames(recompiledModel),
-                    Is.SupersetOf(originalMaterialGroups),
-                    $"{assetPath}: material groups lost after recompile.");
+                await Assert.That(GetMaterialGroupNames(recompiledModel).ToHashSet())
+                    .IsSupersetOf(originalMaterialGroups)
+                    .Because($"{assetPath}: material groups lost after recompile.");
             }
 
             // No sequence may be lost. Implicit '@'-prefixed sequences are compiler-generated
@@ -178,19 +226,17 @@ public class ResourceCompilerTest
             var originalSequences = GetSequenceNames(original);
             if (originalSequences.Count > 0)
             {
-                Assert.That(
-                    GetSequenceNames(recompiled),
-                    Is.SupersetOf(originalSequences),
-                    $"{assetPath}: sequences lost after recompile.");
+                await Assert.That(GetSequenceNames(recompiled).ToHashSet())
+                    .IsSupersetOf(originalSequences)
+                    .Because($"{assetPath}: sequences lost after recompile.");
             }
 
             // Cloth: the soft-body data must survive.
             if (originalModel.GetEmbeddedPhys()?.FeModel != null)
             {
-                Assert.That(
-                    recompiledModel.GetEmbeddedPhys()?.FeModel,
-                    Is.Not.Null,
-                    $"{assetPath}: cloth (FeModel) lost after recompile.");
+                await Assert.That(recompiledModel.GetEmbeddedPhys()?.FeModel)
+                    .IsNotNull()
+                    .Because($"{assetPath}: cloth (FeModel) lost after recompile.");
             }
         }
     }
@@ -217,53 +263,6 @@ public class ResourceCompilerTest
             .Select(static sequence => sequence.GetStringProperty("m_sName"))
             .Where(static name => !string.IsNullOrEmpty(name) && !name.StartsWith('@'))
             .ToList();
-    }
-
-    private GameInstallation GetInstallation(WorkshopToolsGame game)
-    {
-        if (installations.TryGetValue(game.AppId, out var cached))
-        {
-            return cached;
-        }
-
-        if (!OperatingSystem.IsWindows())
-        {
-            Assert.Ignore("Source 2 Workshop Tools are only available on Windows.");
-        }
-
-        var steamGame = GameFolderLocator.FindSteamGameByAppId(game.AppId);
-        if (!steamGame.HasValue)
-        {
-            Assert.Ignore($"{game.Name} (appid {game.AppId}) is not installed.");
-        }
-
-        var gamePath = steamGame.Value.GamePath;
-        var resourceCompiler = Path.Combine(gamePath, "game", "bin", "win64", "resourcecompiler.exe");
-        if (!File.Exists(resourceCompiler))
-        {
-            Assert.Ignore($"{game.Name} is installed without its Workshop Tools ({resourceCompiler} does not exist).");
-        }
-
-        var pakPath = Path.Combine(gamePath, "game", game.ModFolder, "pak01_dir.vpk");
-        if (!File.Exists(pakPath))
-        {
-            Assert.Ignore($"{pakPath} does not exist.");
-        }
-
-        var package = new Package();
-        package.Read(pakPath);
-
-        var installation = new GameInstallation
-        {
-            ResourceCompilerPath = resourceCompiler,
-            Package = package,
-            FileLoader = new GameFileLoader(package, pakPath),
-            ContentAddonPath = Path.Combine(gamePath, "content", game.ModFolder + "_addons", TestAddonName),
-            GameAddonPath = Path.Combine(gamePath, "game", game.ModFolder + "_addons", TestAddonName),
-        };
-
-        installations[game.AppId] = installation;
-        return installation;
     }
 
     private static void WriteContentFile(ContentFile contentFile, string outFilePath)
