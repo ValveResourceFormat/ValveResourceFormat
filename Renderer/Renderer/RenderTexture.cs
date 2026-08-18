@@ -137,12 +137,12 @@ namespace ValveResourceFormat.Renderer
         public RenderTexture CreateView(ImageFormat format, string label, int minLevel = 0, int numLevels = 1, int minLayer = 0, int numLayers = 1)
         {
             var view = new RenderTexture(GL.GenTexture(), Target);
+            GL.TextureView(view.Handle, Target, Handle, (PixelInternalFormat)format.ToGLSizedInternalFormat(), minLevel, numLevels, minLayer, numLayers);
 
 #if DEBUG
             GL.ObjectLabel(ObjectLabelIdentifier.Texture, view.Handle, Math.Min(GLEnvironment.MaxLabelLength, label.Length), label);
 #endif
 
-            GL.TextureView(view.Handle, Target, Handle, (PixelInternalFormat)format.ToGLSizedInternalFormat(), minLevel, numLevels, minLayer, numLayers);
             return view;
         }
 

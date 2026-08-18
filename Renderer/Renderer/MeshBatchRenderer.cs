@@ -89,7 +89,6 @@ namespace ValveResourceFormat.Renderer
             }
             else if (context.RenderPass == RenderPass.OpaqueAggregate)
             {
-                using var _ = new GLDebugGroup("Sort Indirect Draws");
                 var removed = requests.RemoveAll(IsAggregateWithNoVisibleChildren);
                 requests.Sort(CompareAlphaTestThenProgram);
             }

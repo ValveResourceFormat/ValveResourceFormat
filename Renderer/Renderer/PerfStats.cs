@@ -186,7 +186,7 @@ public class PerfStats
 
         if (frame.SegmentsUsed == frame.Segments.Count)
         {
-            var segmentQuery = GL.GenQuery();
+            GL.CreateQueries(QueryTarget.PrimitivesGenerated, 1, out int segmentQuery);
 
 #if DEBUG
             const string segmentLabel = "TriangleSegment";

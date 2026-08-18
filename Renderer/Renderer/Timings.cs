@@ -15,6 +15,8 @@ public class Timings
     private readonly Dictionary<QueryId, TimingQuery> activeQueries = [];
     private readonly Dictionary<QueryId, int> gpuStartQueries = [];
     private readonly Dictionary<QueryId, int> gpuEndQueries = [];
+
+    private readonly HashSet<QueryId> staleResults = [];
     private readonly Dictionary<QueryId, double> gpuTimingsCache = [];
     private readonly Dictionary<QueryId, double> previousMax = [];
     private readonly Dictionary<QueryId, double> currentMax = [];
@@ -71,10 +73,10 @@ public class Timings
         var endQueryId = 0;
         if (!gpuStartQueries.TryGetValue(currentIndex, out var startQueryId))
         {
-            startQueryId = GL.GenQuery();
+            GL.CreateQueries(QueryTarget.Timestamp, 1, out startQueryId);
             gpuStartQueries[currentIndex] = startQueryId;
 
-            endQueryId = GL.GenQuery();
+            GL.CreateQueries(QueryTarget.Timestamp, 1, out endQueryId);
             gpuEndQueries[currentIndex] = endQueryId;
 
             Debug.Assert(startQueryId != 0 && endQueryId != 0, "Failed to generate GPU query objects.");
@@ -97,6 +99,7 @@ public class Timings
                     gpuTimingsCache.Remove(i);
                     previousMax.Remove(i);
                     currentMax.Remove(i);
+                    staleResults.Add(i);
                 }
             }
 
@@ -160,9 +163,16 @@ public class Timings
                 {
                     if (endTimestampGpu != 0)
                     {
-                        elapsedGpuMs = (endTimestampGpu - startTimestampGpu) / 1_000_000.0; // convert nanoseconds to milliseconds
-                        gpuTimingsCache[query.Id] = elapsedGpuMs;
-                        resubmitQueries = true;
+                        if (staleResults.Remove(query.Id))
+                        {
+                            resubmitQueries = true;
+                        }
+                        else
+                        {
+                            elapsedGpuMs = (endTimestampGpu - startTimestampGpu) / 1_000_000.0; // convert nanoseconds to milliseconds
+                            gpuTimingsCache[query.Id] = elapsedGpuMs;
+                            resubmitQueries = true;
+                        }
                     }
                 }
             }
