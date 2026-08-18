@@ -287,5 +287,132 @@ namespace Tests.SmartProp
             await Assert.That(map["NoDefault"]).IsEqualTo(0f);
         }
 
+        [Test]
+        public async Task VariableLookupThroughContextIsCaseInsensitive()
+        {
+            var root = KVObject.Collection();
+            var variables = KVObject.Array();
+            variables.Add(Variable("Float", "Width", new KVObject(4f)));
+            root["m_Variables"] = variables;
+
+            var context = new SmartPropEvaluationContext(SmartPropVariableMap.Build(root));
+            await Assert.That(context.GetVariable("width")).IsEqualTo(4f);
+            await Assert.That(SmartPropExpressionEvaluator.Evaluate("Width * 2", context)).IsEqualTo(8f);
+        }
+
+        [Test]
+        public async Task BuildResolvesVariableReferenceBindings()
+        {
+            var root = KVObject.Collection();
+            var variables = KVObject.Array();
+            variables.Add(Variable("Float", "Base", new KVObject(5f)));
+            variables.Add(Variable("Float", "Derived", Binding("m_SourceName", "Base")));
+            variables.Add(Variable("Float", "Chained", Binding("m_SourceName", "Derived")));
+            root["m_Variables"] = variables;
+
+            var map = SmartPropVariableMap.Build(root);
+            await Assert.That(map["Derived"]).IsEqualTo(5f);
+            await Assert.That(map["Chained"]).IsEqualTo(5f);
+        }
+
+        [Test]
+        public async Task BuildResolvesExpressionBindings()
+        {
+            var root = KVObject.Collection();
+            var variables = KVObject.Array();
+            variables.Add(Variable("Float", "Base", new KVObject(4f)));
+            variables.Add(Variable("Float", "Computed", Binding("m_Expression", new KVObject("Base * 3 + 1"))));
+            root["m_Variables"] = variables;
+
+            var map = SmartPropVariableMap.Build(root);
+            await Assert.That(map["Computed"]).IsEqualTo(13f);
+        }
+
+        [Test]
+        public async Task BuildResolvesVectorBindingsWithPerTypeArity()
+        {
+            var root = KVObject.Collection();
+            var variables = KVObject.Array();
+            variables.Add(Variable("Vector3D", "Source", Vec3(7f, 8f, 9f)));
+            variables.Add(Variable("Vector3D", "Bound", Binding("m_SourceName", "Source")));
+            variables.Add(Variable("Color", "ColorBound", Binding("m_SourceName", "SomeColor")));
+            variables.Add(Variable("Color", "SomeColor", Vec4(0.1f, 0.2f, 0.3f, 0.4f)));
+            root["m_Variables"] = variables;
+
+            var map = SmartPropVariableMap.Build(root);
+            await Assert.That((float[])map["Bound"]!).IsEquivalentTo(ExpectedBound, CollectionOrdering.Matching);
+            await Assert.That((float[])map["ColorBound"]!).IsEquivalentTo(ExpectedColor, CollectionOrdering.Matching);
+        }
+
+        [Test]
+        public async Task CircularBindingsTerminateOnZeroValues()
+        {
+            var root = KVObject.Collection();
+            var variables = KVObject.Array();
+            variables.Add(Variable("Float", "A", Binding("m_SourceName", "B")));
+            variables.Add(Variable("Float", "B", Binding("m_SourceName", "A")));
+            root["m_Variables"] = variables;
+
+            var map = SmartPropVariableMap.Build(root);
+            await Assert.That(map["A"]).IsEqualTo(0f);
+            await Assert.That(map["B"]).IsEqualTo(0f);
+        }
+
+        [Test]
+        public async Task EntriesWithoutNamesAreSkipped()
+        {
+            var root = KVObject.Collection();
+            var variables = KVObject.Array();
+            variables.Add(Variable("Float", null, new KVObject(1f)));
+            var entry = KVObject.Collection();
+            entry["generic_data_type"] = new KVObject("CSmartPropVariable_Float");
+            variables.Add(entry);
+            root["m_Variables"] = variables;
+
+            await Assert.That(SmartPropVariableMap.Build(root)).IsEmpty();
+        }
+
+        private static KVObject Variable(string className, string? name, KVObject? defaultValue)
+        {
+            var entry = KVObject.Collection();
+            entry["generic_data_type"] = new KVObject($"CSmartPropVariable_{className}");
+            if (name != null)
+            {
+                entry["m_VariableName"] = new KVObject(name);
+            }
+
+            if (defaultValue != null)
+            {
+                entry["m_DefaultValue"] = defaultValue;
+            }
+
+            return entry;
+        }
+
+        private static KVObject Binding(string key, KVObject value)
+        {
+            var binding = KVObject.Collection();
+            binding[key] = value;
+            return binding;
+        }
+
+        private static KVObject Vec3(float x, float y, float z)
+        {
+            var array = KVObject.Array();
+            array.Add(new KVObject(x));
+            array.Add(new KVObject(y));
+            array.Add(new KVObject(z));
+            return array;
+        }
+
+        private static KVObject Vec4(float x, float y, float z, float w)
+        {
+            var array = KVObject.Array();
+            array.Add(new KVObject(x));
+            array.Add(new KVObject(y));
+            array.Add(new KVObject(z));
+            array.Add(new KVObject(w));
+            return array;
+        }
     }
 }
