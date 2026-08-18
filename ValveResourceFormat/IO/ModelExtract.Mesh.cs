@@ -775,9 +775,25 @@ partial class ModelExtract
 
         // Named vertex selections are painted per vertex, one stream per selection. A cloth effect or a
         // chain joint then names the selection, and the compiler collects every vertex the paint reaches.
+        // The one selection this sheet is parented under as a ClothVertexMap is left unpainted: the
+        // container recreates the same m_VertexMaps entry without the dynamic vertex set the paint also
+        // registers (and which then gives back_solve a sheet-sized set to fit against). Every other
+        // selection keeps its paint - an effect naming one the compile cannot find is a hard failure
+        // ("refers to non-existent vertex map/set").
+        var containerMap = physAggregateData?.FeModel?.GetProxyVertexMapName(proxy);
         foreach (var (mapName, weights) in proxy.VertexMaps)
         {
-            vertexData.AddIndexedStream("cloth_vertex_set_" + mapName + "$0", weights, identity);
+            if (mapName != containerMap)
+            {
+                vertexData.AddIndexedStream("cloth_vertex_set_" + mapName + "$0", weights, identity);
+            }
+        }
+
+        // Per-vertex stray radius: how far a simulated vertex may leave its animated position
+        // (m_AnimStrayRadii). Without the stream the whole array compiles away.
+        if (physAggregateData?.FeModel?.RecoverStrayRadiusPaint(proxy) is { } strayRadius)
+        {
+            vertexData.AddIndexedStream("cloth_stray_radius$0", strayRadius, identity);
         }
 
         // cloth_drag_v2 and cloth_mass have no measurable effect on the compiled flPointDamping/

@@ -528,6 +528,33 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics
             return painted > clamped ? paint : null;
         }
 
+        /// <summary>
+        /// Recovers the <c>cloth_stray_radius</c> paint of a proxy sheet from <c>m_AnimStrayRadii</c>, or
+        /// null when no vertex of the sheet is stray-constrained. The compiled <c>flMaxDist</c> is the
+        /// painted distance itself, the same value a ClothChain joint's <c>stray_radius</c> carries, so a
+        /// sheet that ships no stream compiles with the whole array empty.
+        /// </summary>
+        public float[]? RecoverStrayRadiusPaint(ProxyMesh proxy)
+        {
+            if (AnimStrayRadii.Count == 0)
+            {
+                return null;
+            }
+
+            var paint = new float[proxy.NodeIndices.Length];
+            var painted = 0;
+            for (var v = 0; v < paint.Length; v++)
+            {
+                if (AnimStrayRadii.TryGetValue(proxy.NodeIndices[v], out var stray))
+                {
+                    paint[v] = stray.MaxDistance;
+                    painted++;
+                }
+            }
+
+            return painted > 0 ? paint : null;
+        }
+
         // Mass the compiler credits a node with per unit of incident surface-rod rest length.
         const float SurfaceRodMassPerUnitLength = 8f;
 
@@ -1057,6 +1084,70 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics
             }
 
             return names.Count > 0 ? string.Join(',', names) : null;
+        }
+
+        /// <summary>
+        /// Gets the selection a <c>ClothVertexMap</c> around <paramref name="proxy"/> should carry: one
+        /// covering exactly the sheet's SIMULATED nodes and not registered as a vertex set of its own, or
+        /// null when no selection qualifies. The container restores the same <c>m_VertexMaps</c> entry the
+        /// sheet's <c>cloth_vertex_set</c> paint would, without also registering the dynamic vertex set
+        /// (<c>m_VertexSetNames</c>/<c>m_DynNodeVertexSet</c>) that the paint brings with it - so the caller
+        /// paints every OTHER selection and lets this one come from the container.
+        /// <para>
+        /// A selection the original registered as a vertex set is never a candidate: that registration
+        /// exists only because the sheet painted it.
+        /// </para>
+        /// </summary>
+        public string? GetProxyVertexMapName(ProxyMesh proxy)
+        {
+            var simulated = new HashSet<int>();
+            for (var v = 0; v < proxy.NodeIndices.Length; v++)
+            {
+                if (v < proxy.ClothEnable.Length && proxy.ClothEnable[v] != 0f)
+                {
+                    simulated.Add(proxy.NodeIndices[v]);
+                }
+            }
+
+            if (simulated.Count == 0)
+            {
+                return null;
+            }
+
+            string? found = null;
+            foreach (var map in VertexMaps)
+            {
+                if (Array.IndexOf(VertexSetNames, map.NameHash) >= 0)
+                {
+                    continue;
+                }
+
+                var members = 0;
+                var outside = false;
+                for (var i = 0; i < map.Weights.Length && !outside; i++)
+                {
+                    if (map.Weights[i] <= 0f)
+                    {
+                        continue;
+                    }
+
+                    outside = !simulated.Contains(map.VertexBase + i);
+                    members++;
+                }
+
+                if (!outside && members == simulated.Count)
+                {
+                    // Two selections over the same nodes cannot both be the sheet's parent.
+                    if (found is not null)
+                    {
+                        return null;
+                    }
+
+                    found = map.Name;
+                }
+            }
+
+            return found;
         }
 
 #pragma warning disable CS1591

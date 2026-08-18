@@ -2546,8 +2546,23 @@ partial class ModelExtract
                     // Per-vertex gravity rides the cloth_gravity$0 paint in the proxy DMX instead of any
                     // KV field here (the cloth_gravity_scale KV was tested and does not reach flGravity).
                     var proxyBackSolve = backSolveJoints && ProxyDrivesUnchainedBone(proxyFile.Proxy);
-                    clothProxyChildren.Add(MakeClothProxyMeshFile(proxyFile.Name, proxyFile.FileName, proxyBackSolve, driveMeshes: proxyBackSolve, addBonesToRenderMesh,
-                        backSolveInfluenceThreshold: feModel.RecoveredBackSolveThreshold ?? 0.0f));
+                    var proxyNode = MakeClothProxyMeshFile(proxyFile.Name, proxyFile.FileName, proxyBackSolve, driveMeshes: proxyBackSolve, addBonesToRenderMesh,
+                        backSolveInfluenceThreshold: feModel.RecoveredBackSolveThreshold ?? 0.0f);
+
+                    // A selection covering exactly the sheet's simulated nodes is the m_VertexMaps entry a
+                    // ClothVertexMap around the sheet compiles to - the grouping the "Add Cloth Vertex Map"
+                    // wizard builds. Only a PROXY MESH may be wrapped this way: the same container around
+                    // free ClothNodes that a ClothSpring references makes the compiler access-violate.
+                    if (feModel.GetProxyVertexMapName(proxyFile.Proxy) is { } proxyVertexMap)
+                    {
+                        var (mapNode, mapChildren) = MakeListNode("ClothVertexMap");
+                        mapNode.Add("name", proxyVertexMap);
+                        mapChildren.Add(proxyNode);
+                        clothProxyChildren.Add(mapNode);
+                        continue;
+                    }
+
+                    clothProxyChildren.Add(proxyNode);
                 }
 
                 // Clean regular grids generated over the bone chains, shipped DISABLED next to the
