@@ -97,5 +97,80 @@ namespace Tests.SmartProp
             return opt;
         }
 
+        [Test]
+        public async Task ReadChoicesParsesOptionsAndDefaults()
+        {
+            var opt1 = MakeChoiceOption("wood", "Wood Material", ("material", "wood.vmat"), ("roughness", 0.8f));
+            var opt2 = MakeChoiceOption("metal", "Metal Material", ("material", "metal.vmat"), ("roughness", 0.2f));
+            var choice = MakeChoice("MaterialStyle", "metal", opt1, opt2);
+
+            var root = MakeRootWithChoices([], [choice]);
+            var choices = SmartPropChoiceMap.ReadChoices(root);
+
+            await Assert.That(choices).HasSingleItem();
+            var parsed = choices[0];
+            await Assert.That(parsed.Name).IsEqualTo("MaterialStyle");
+            await Assert.That(parsed.DefaultOption).IsEqualTo("metal");
+            await Assert.That(parsed.Options.Count).IsEqualTo(2);
+
+            await Assert.That(parsed.Options[0].Name).IsEqualTo("wood");
+            await Assert.That(parsed.Options[0].DisplayName).IsEqualTo("Wood Material");
+            await Assert.That(parsed.Options[0].VariableValues["material"]).IsEqualTo("wood.vmat");
+            await Assert.That(parsed.Options[0].VariableValues["roughness"]).IsEqualTo(0.8f);
+
+            await Assert.That(parsed.Options[1].Name).IsEqualTo("metal");
+            await Assert.That(parsed.Options[1].DisplayName).IsEqualTo("Metal Material");
+            await Assert.That(parsed.Options[1].VariableValues["material"]).IsEqualTo("metal.vmat");
+        }
+
+        [Test]
+        public async Task BuildAppliesDefaultChoiceOverrides()
+        {
+            var varMat = MakeVariable("material", "String", "default.vmat");
+            var varRough = MakeVariable("roughness", "Float", 0.5f);
+
+            var opt1 = MakeChoiceOption("wood", "Wood Material", ("material", "wood.vmat"), ("roughness", 0.8f));
+            var opt2 = MakeChoiceOption("metal", "Metal Material", ("material", "metal.vmat"), ("roughness", 0.2f));
+            var choice = MakeChoice("MaterialStyle", "metal", opt1, opt2);
+
+            var root = MakeRootWithChoices([varMat, varRough], [choice]);
+            var variables = SmartPropVariableMap.Build(root);
+
+            // Default choice is "metal", which overrides material and roughness
+            await Assert.That(variables["material"]).IsEqualTo("metal.vmat");
+            await Assert.That(variables["roughness"]).IsEqualTo(0.2f);
+        }
+
+        [Test]
+        public async Task BuildAppliesExplicitChoiceSelection()
+        {
+            var varMat = MakeVariable("material", "String", "default.vmat");
+            var varRough = MakeVariable("roughness", "Float", 0.5f);
+
+            var opt1 = MakeChoiceOption("wood", "Wood Material", ("material", "wood.vmat"), ("roughness", 0.8f));
+            var opt2 = MakeChoiceOption("metal", "Metal Material", ("material", "metal.vmat"), ("roughness", 0.2f));
+            var choice = MakeChoice("MaterialStyle", "metal", opt1, opt2);
+
+            var root = MakeRootWithChoices([varMat, varRough], [choice]);
+
+            var selected = new Dictionary<string, string>
+            {
+                ["MaterialStyle"] = "wood",
+            };
+
+            var variables = SmartPropVariableMap.Build(root, selected);
+
+            await Assert.That(variables["material"]).IsEqualTo("wood.vmat");
+            await Assert.That(variables["roughness"]).IsEqualTo(0.8f);
+        }
+
+        [Test]
+        public async Task ReadChoicesWithNullOrMissingReturnsEmpty()
+        {
+            await Assert.That(SmartPropChoiceMap.ReadChoices(null)).IsEmpty();
+
+            var empty = KVObject.Collection();
+            await Assert.That(SmartPropChoiceMap.ReadChoices(empty)).IsEmpty();
+        }
     }
 }
