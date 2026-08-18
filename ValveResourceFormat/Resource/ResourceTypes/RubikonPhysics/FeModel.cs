@@ -532,7 +532,12 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics
         /// Recovers the <c>cloth_stray_radius</c> paint of a proxy sheet from <c>m_AnimStrayRadii</c>, or
         /// null when no vertex of the sheet is stray-constrained. The compiled <c>flMaxDist</c> is the
         /// painted distance itself, the same value a ClothChain joint's <c>stray_radius</c> carries, so a
-        /// sheet that ships no stream compiles with the whole array empty.
+        /// sheet that ships no stream compiles with the whole array empty. A vertex whose node is covered
+        /// by an <see cref="IndependentBoneChains"/> chain (the chain's own joints, or the "$cc" ring
+        /// proxies the compiler auto-generates from them) is skipped: that chain's <c>MakeClothJoint</c>
+        /// KV already carries the value, and the surface reconstruction can still reference the same node
+        /// as a quad corner (mh_dragon_knight_back's skirt ring), which would otherwise double-paint it
+        /// onto a second, compiler-synthesised copy of the node.
         /// </summary>
         public float[]? RecoverStrayRadiusPaint(ProxyMesh proxy)
         {
@@ -541,11 +546,19 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics
                 return null;
             }
 
+            var chainNodes = IndependentChainCoveredNodes();
+
             var paint = new float[proxy.NodeIndices.Length];
             var painted = 0;
             for (var v = 0; v < paint.Length; v++)
             {
-                if (AnimStrayRadii.TryGetValue(proxy.NodeIndices[v], out var stray))
+                var node = proxy.NodeIndices[v];
+                if (chainNodes.Contains(node))
+                {
+                    continue;
+                }
+
+                if (AnimStrayRadii.TryGetValue(node, out var stray))
                 {
                     paint[v] = stray.MaxDistance;
                     painted++;
@@ -553,6 +566,49 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics
             }
 
             return painted > 0 ? paint : null;
+        }
+
+        /// <summary>
+        /// Gets the nodes an independent <see cref="IndependentBoneChains"/> chain already owns: its own
+        /// joints, plus any <c>$cc&lt;bone&gt;_&lt;n&gt;</c> ring proxy the compiler auto-generates from
+        /// one of them (see <see cref="BuildProxyMeshes"/> for how those names arise).
+        /// </summary>
+        HashSet<int> IndependentChainCoveredNodes()
+        {
+            var chainBoneNodes = IndependentBoneChains().SelectMany(static c => c.Joints).Select(static j => j.Node).ToHashSet();
+            if (chainBoneNodes.Count == 0)
+            {
+                return chainBoneNodes;
+            }
+
+            Dictionary<int, int>? offsetParents = null;
+            if (!HasCompiledSkelParents && CtrlOffsets.Length > 0)
+            {
+                offsetParents = new Dictionary<int, int>(CtrlOffsets.Length);
+                foreach (var off in CtrlOffsets)
+                {
+                    offsetParents[off.CtrlChild] = off.CtrlParent;
+                }
+            }
+
+            int ParentOf(int node)
+            {
+                var parent = node < SkelParents.Length ? SkelParents[node] : -1;
+                return parent < 0 && offsetParents is not null
+                    ? offsetParents.GetValueOrDefault(node, -1)
+                    : parent;
+            }
+
+            var covered = new HashSet<int>(chainBoneNodes);
+            for (var node = 0; node < CtrlNames.Length; node++)
+            {
+                if (CtrlNames[node].StartsWith("$cc", StringComparison.Ordinal) && chainBoneNodes.Contains(ParentOf(node)))
+                {
+                    covered.Add(node);
+                }
+            }
+
+            return covered;
         }
 
         // Mass the compiler credits a node with per unit of incident surface-rod rest length.
@@ -2717,10 +2773,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics
             // Banner) is NOT emitted as a ClothChain - it is driven THROUGH its proxy mesh - so suppressing
             // that proxy would delete the cloth entirely (regressed legion_commander: "cloth lost after
             // recompile"). Same fit-matrix exclusion ModelExtract uses to pick independentChains.
-            var independentChains = BuildBoneChains()
-                .Where(chain => !HasProxyMeshNodes
-                    || !chain.Joints.Any(joint => FitMatrixNodes.Contains(joint.Node)))
-                .ToList();
+            var independentChains = IndependentBoneChains();
             var chainBoneNodes = independentChains.SelectMany(static c => c.Joints).Select(static j => j.Node).ToHashSet();
             if (chainBoneNodes.Count > 0)
             {
@@ -2785,6 +2838,16 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics
 
             return result;
         }
+
+        /// <summary>
+        /// Gets the bone chains that compile to a standalone <c>ClothChain</c> rather than being driven
+        /// through a proxy mesh - the ones whose joints already get their own <c>stray_radius</c> (and the
+        /// rest of <c>MakeClothJoint</c>'s KVs) from the model extractor, so no other recovery path should
+        /// also claim their nodes.
+        /// </summary>
+        List<BoneChain> IndependentBoneChains()
+            => [.. BuildBoneChains()
+                .Where(chain => !HasProxyMeshNodes || !chain.Joints.Any(joint => FitMatrixNodes.Contains(joint.Node)))];
 
         /// <summary>
         /// Reconstructs the cloth proxy mesh (sheet) from the FeModel surface arrays as ONE merged mesh.
