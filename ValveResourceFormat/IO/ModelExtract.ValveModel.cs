@@ -836,7 +836,7 @@ partial class ModelExtract
 
         // Stray radius (m_AnimStrayRadii): the max distance the node may stray from its animated position.
         kv.Add("stray_radius", feModel.GetStrayRadius(joint.Node));
-        kv.Add("stray_radius_stretchiness", feModel.GetStrayRelaxation(joint.Node));
+        kv.Add("stray_radius_stretchiness", feModel.GetStrayStretchiness(joint.Node));
         kv.Add("friction", feModel.GetNodeFriction(joint.Node));
 
         // The named vertex selections this joint belongs to, comma separated. Naming them here is what

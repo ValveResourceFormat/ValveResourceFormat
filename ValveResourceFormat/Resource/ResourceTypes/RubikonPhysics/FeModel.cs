@@ -419,6 +419,15 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics
         /// <summary>Gets how far <paramref name="node"/> may stretch past its stray radius, or 0.</summary>
         public float GetStrayRelaxation(int node) => AnimStrayRadii.GetValueOrDefault(node).RelaxationFactor;
 
+        /// <summary>
+        /// Gets the authored stray-radius stretchiness of <paramref name="node"/>: the complement of the
+        /// compiled relaxation factor, 0 for a node with no stray radius. A fully stretchy constraint
+        /// relaxes to nothing and the compiler drops it, so the two are not interchangeable - writing the
+        /// relaxation factor into the authored key deletes the constraint it was recovered from.
+        /// </summary>
+        public float GetStrayStretchiness(int node)
+            => AnimStrayRadii.TryGetValue(node, out var stray) ? 1f - stray.RelaxationFactor : 0f;
+
         /// <summary>Gets the friction painted on <paramref name="node"/>, or 0 when it has none.</summary>
         public float GetNodeFriction(int node)
         {
