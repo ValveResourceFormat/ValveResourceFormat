@@ -65,7 +65,7 @@ void main() {
 
     vec4 downsampledColor = DownsampleJimenez(uv);
     vec3 thresholdedColor = ApplyThreshold(downsampledColor.rgb);
-    vec3 bloomColor = thresholdedColor * g_flBloomScale * g_flToneMapScalarLinear;
+    vec3 bloomColor = thresholdedColor * g_flBloomScale;
 
     outputColor = vec4(bloomColor, 1.0);
 }
