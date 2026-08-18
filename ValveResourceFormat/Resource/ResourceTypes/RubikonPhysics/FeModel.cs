@@ -3969,18 +3969,54 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics
                 }
 
                 // A joint's bend/torsion springs are what make the compiler span a rod to its grandparent
-                // and great-grandparent, so the presence of those rods is what the source authored.
+                // and great-grandparent, so the presence of those rods is what the source authored. On an
+                // extruding chain that span lands between the two joints' extruded RINGS and never between
+                // the joint nodes, so both have to be looked at or the spring reads as off on every joint
+                // of every such chain.
                 var jointByNode = chain.Joints.ToDictionary(static j => j.Node);
+
+                bool SpannedByRod(int node, int other)
+                {
+                    if (other < 0)
+                    {
+                        return false;
+                    }
+
+                    if (rodPairs.Contains(node < other ? (node, other) : (other, node)))
+                    {
+                        return true;
+                    }
+
+                    // A joint that extrudes carries the span on its ring instead of on itself, so the ring
+                    // stands in for the joint wherever it has one. The spring then spans the two sides in
+                    // FULL: anything short of that is some other construct passing between them - a surface
+                    // the sheet rebuilds, say - and turning the spring on to claim it would add every pair
+                    // it does not have.
+                    List<int> Side(int end)
+                        => proxyChildrenOf.TryGetValue(end, out var ring) && ring.Count > 0 ? ring : [end];
+
+                    foreach (var a in Side(node))
+                    {
+                        foreach (var b in Side(other))
+                        {
+                            if (!rodPairs.Contains(a < b ? (a, b) : (b, a)))
+                            {
+                                return false;
+                            }
+                        }
+                    }
+
+                    return true;
+                }
+
                 foreach (var joint in chain.Joints)
                 {
                     var parent = joint.ParentNode;
                     var grandParent = parent >= 0 && jointByNode.TryGetValue(parent, out var p1) ? p1.ParentNode : -1;
                     var greatGrandParent = grandParent >= 0 && jointByNode.TryGetValue(grandParent, out var p2) ? p2.ParentNode : -1;
 
-                    joint.BendSpring = grandParent >= 0 && rodPairs.Contains(
-                        grandParent < joint.Node ? (grandParent, joint.Node) : (joint.Node, grandParent));
-                    joint.TorsionSpring = greatGrandParent >= 0 && rodPairs.Contains(
-                        greatGrandParent < joint.Node ? (greatGrandParent, joint.Node) : (joint.Node, greatGrandParent));
+                    joint.BendSpring = SpannedByRod(joint.Node, grandParent);
+                    joint.TorsionSpring = SpannedByRod(joint.Node, greatGrandParent);
                 }
 
                 chains.Add(chain);
