@@ -441,6 +441,85 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics
         /// </summary>
         public bool IsLockedToParent(int node) => Array.Exists(LockToParent, link => link.CtrlChild == node);
 
+        /// <summary>
+        /// Recovers the per-node <c>cloth_mass</c> paint from the rod weights. A rod stores
+        /// <c>flWeight0 = e^a / (e^a + e^b)</c> over its two endpoints' painted masses, so each rod fixes
+        /// the DIFFERENCE <c>a - b = ln(w / (1 - w))</c> and the absolute level is free. Each connected
+        /// component is anchored at zero, its own smallest mass, since the paint has no negative range.
+        /// Returns an empty array when no rod carries a weight other than the unpainted 0.5.
+        /// </summary>
+        public float[] RecoverNodeMassPaint()
+        {
+            var adjacency = new Dictionary<int, List<(int Node, float Delta)>>();
+            var varies = false;
+
+            foreach (var rod in Rods)
+            {
+                // A pinned endpoint stores 0 or 1 and carries no recoverable ratio.
+                if (rod.Weight0 <= 0f || rod.Weight0 >= 1f
+                    || rod.NodeA < 0 || rod.NodeA >= NodeCount || rod.NodeB < 0 || rod.NodeB >= NodeCount)
+                {
+                    continue;
+                }
+
+                var delta = MathF.Log(rod.Weight0 / (1f - rod.Weight0));
+                if (MathF.Abs(delta) > 1e-4f)
+                {
+                    varies = true;
+                }
+
+                (adjacency.TryGetValue(rod.NodeA, out var a) ? a : adjacency[rod.NodeA] = []).Add((rod.NodeB, -delta));
+                (adjacency.TryGetValue(rod.NodeB, out var b) ? b : adjacency[rod.NodeB] = []).Add((rod.NodeA, delta));
+            }
+
+            if (!varies)
+            {
+                return [];
+            }
+
+            var masses = new float[NodeCount];
+            var known = new bool[NodeCount];
+            var queue = new Queue<int>();
+
+            foreach (var start in adjacency.Keys.Order())
+            {
+                if (known[start])
+                {
+                    continue;
+                }
+
+                known[start] = true;
+                queue.Enqueue(start);
+                var component = new List<int> { start };
+                var lowest = 0f;
+
+                while (queue.Count > 0)
+                {
+                    var node = queue.Dequeue();
+                    foreach (var (next, delta) in adjacency[node])
+                    {
+                        if (known[next])
+                        {
+                            continue;
+                        }
+
+                        known[next] = true;
+                        masses[next] = masses[node] + delta;
+                        lowest = MathF.Min(lowest, masses[next]);
+                        component.Add(next);
+                        queue.Enqueue(next);
+                    }
+                }
+
+                foreach (var node in component)
+                {
+                    masses[node] -= lowest;
+                }
+            }
+
+            return masses;
+        }
+
         /// <summary>Gets the friction painted on <paramref name="node"/>, or 0 when it has none.</summary>
         public float GetNodeFriction(int node)
         {
