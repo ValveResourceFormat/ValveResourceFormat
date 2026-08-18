@@ -80,6 +80,13 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics
         public int[][] Tris { get; }
 
         /// <summary>
+        /// Gets whether the cloth is built from a quad/tri surface rather than a pure rod network. A sheet
+        /// exported without a surface is rebuilt into rods by the compiler; one exported with a surface
+        /// keeps its faces as solve elements.
+        /// </summary>
+        public bool HasSurfaceElements => Quads.Length > 0 || Tris.Length > 0;
+
+        /// <summary>
         /// Gets the structural distance constraints (<c>m_Rods</c>) between pairs of control nodes.
         /// Verified NOT derivable from <see cref="Quads"/>/<see cref="Tris"/> edges or diagonals on
         /// dark_willow (61/61 rods matched neither) - re-declare these directly via explicit ClothSpring

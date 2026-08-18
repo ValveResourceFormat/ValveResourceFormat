@@ -498,6 +498,19 @@ partial class ModelExtract
             derived.UnionWith(beyondSurface);
         }
 
+        // Cloth that ships no surface of its own exports its synthesised sheets without the rod-suppressing
+        // paint (see BuildClothProxyMeshDmx), so the compiler rebuilds rods from that triangulation as
+        // well - declaring those same edges as explicit springs would ship each of them twice.
+        if (!feModel.HasSurfaceElements)
+        {
+            foreach (var (_, _, proxyMesh) in proxies)
+            {
+                var nodeOf = proxyMesh.NodeIndices;
+                derived.UnionWith(FeModel.DeriveRodsFromFaces(
+                    proxyMesh.Faces.Select(face => face.Select(local => nodeOf[local]).ToArray())));
+            }
+        }
+
         return derived;
     }
 

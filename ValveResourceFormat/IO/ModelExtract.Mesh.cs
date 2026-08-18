@@ -715,8 +715,14 @@ partial class ModelExtract
         vertexData.AddIndexedStream("cloth_goal_damping$0", proxy.GoalDamping, identity);
         vertexData.AddIndexedStream("cloth_collision_radius$0", proxy.CollisionRadius, identity);
         vertexData.AddIndexedStream("cloth_ground_collision$0", proxy.GroundCollision, identity);
-        vertexData.AddIndexedStream("cloth_friction$0", proxy.Friction, identity);
         vertexData.AddIndexedStream("cloth_drag$0", proxy.Drag, identity);
+
+        // Friction is painted only where the cloth carries any: no authored proxy in the reference corpus
+        // ships the stream, and an all-zero stream is not the same input as no stream at all.
+        if (Array.Exists(proxy.Friction, static value => value != 0f))
+        {
+            vertexData.AddIndexedStream("cloth_friction$0", proxy.Friction, identity);
+        }
 
         // Per-vertex gravity, painted VERBATIM: cloth_gravity$0 compiles into flGravity with no scaling
         // (measured: 0.002778 lands 0.002778, 1.0 lands 1). Without this stream the compiler defaults
@@ -739,22 +745,15 @@ partial class ModelExtract
         // m_NodeInvMasses - cloth_drag (no suffix, unlike goal_strength) is already the attribute the
         // compiler reads, so they are intentionally omitted.
 
-        // cloth_make_rods / cloth_bend_stiffness are compile-time-only per-face paint (no trace survives in
-        // the compiled FeModel, so nothing is recoverable) that gates whether the mesh importer adds its
-        // extra auto-derived bend/shear rods on top of the structural ones. The face-survival decision is
-        // made PER FACE from that face's vertices' values relative to a ~0.5 threshold (meepo's authored
-        // jaket paints them in a narrow band straddling 0.5, and its 52 quads compile to 1 quad + 1 tri), so
-        // exact m_Tris/m_Quads are not recoverable from compiled data - the same class of gap as
-        // DmeCombinationDominationRule. Kept UNDER the threshold (uniform 0.4): any value high enough to
-        // discard a synthesized island's placeholder Delaunay faces also auto-derives a denser rod network
-        // than AddClothProxySprings' own exact m_Rods reconstruction (a Delaunay cover has more adjacency
-        // edges than a real hand-designed mesh), inflating m_Rods well past the original. Correct rod
-        // topology matters more for simulated behaviour than the compiled quad/tri surface count.
+        // cloth_make_rods / cloth_use_rods are per-face paint gating whether the mesh importer turns a face
+        // into rods or keeps it as a solve element. Painted under the ~0.5 threshold the whole sheet stays
+        // faces, which is only ever right for cloth that ships a surface of its own: a rod-network cloth
+        // then compiles to invented m_Tris and loses every rod (measured on a synthesized sheet: 669 rods
+        // and 0 tris become 0 rods and 172 tris). So they are painted only when the original itself carries
+        // faces, and the sheet is otherwise left for the compiler to rebuild rods from.
         //
-        // A sheet exported with its AUTHORED faces skips all three. Hand-authored proxies carry only
-        // cloth_enable (and sometimes cloth_friction), and the compiler rebuilds the shipped rod network
-        // from that surface itself, so suppressing rod generation there would leave the sheet with none.
-        if (!proxy.UsesAuthoredFaces)
+        // A sheet exported with its AUTHORED faces skips them entirely, as hand-authored proxies do.
+        if (!proxy.UsesAuthoredFaces && physAggregateData?.FeModel is { HasSurfaceElements: true })
         {
             vertexData.AddIndexedStream("cloth_use_rods$0", Enumerable.Repeat(1f, vertexCount).ToArray(), identity);
             vertexData.AddIndexedStream("cloth_make_rods$0", Enumerable.Repeat(0.4f, vertexCount).ToArray(), identity);
@@ -867,11 +866,20 @@ partial class ModelExtract
         vertexData.AddIndexedStream("cloth_goal_damping$0", grid.GoalDamping, identity);
         vertexData.AddIndexedStream("cloth_collision_radius$0", grid.CollisionRadius, identity);
         vertexData.AddIndexedStream("cloth_ground_collision$0", Enumerable.Repeat(0f, vertexCount).ToArray(), identity);
-        vertexData.AddIndexedStream("cloth_friction$0", grid.Friction, identity);
         vertexData.AddIndexedStream("cloth_drag$0", grid.Drag, identity);
-        vertexData.AddIndexedStream("cloth_use_rods$0", Enumerable.Repeat(1f, vertexCount).ToArray(), identity);
-        vertexData.AddIndexedStream("cloth_make_rods$0", Enumerable.Repeat(0.4f, vertexCount).ToArray(), identity);
-        vertexData.AddIndexedStream("cloth_bend_stiffness$0", Enumerable.Repeat(0.2f, vertexCount).ToArray(), identity);
+
+        if (Array.Exists(grid.Friction, static value => value != 0f))
+        {
+            vertexData.AddIndexedStream("cloth_friction$0", grid.Friction, identity);
+        }
+
+        // See BuildClothProxyMeshDmx: keeping the sheet as faces is only right for cloth that ships faces.
+        if (physAggregateData?.FeModel is { HasSurfaceElements: true })
+        {
+            vertexData.AddIndexedStream("cloth_use_rods$0", Enumerable.Repeat(1f, vertexCount).ToArray(), identity);
+            vertexData.AddIndexedStream("cloth_make_rods$0", Enumerable.Repeat(0.4f, vertexCount).ToArray(), identity);
+            vertexData.AddIndexedStream("cloth_bend_stiffness$0", Enumerable.Repeat(0.2f, vertexCount).ToArray(), identity);
+        }
 
         // Case-insensitive bone-name resolution - see BuildClothProxyMeshDmx for why (compiled cloth control
         // node names do not always agree in case with the skeleton; an Ordinal miss silently drops the skin).
