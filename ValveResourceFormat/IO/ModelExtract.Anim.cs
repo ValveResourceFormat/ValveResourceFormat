@@ -1,4 +1,5 @@
 using System.IO;
+using System.Linq;
 using Datamodel;
 using ValveResourceFormat.IO.ContentFormats.DmxModel;
 using ValveResourceFormat.ResourceTypes;
@@ -65,13 +66,26 @@ partial class ModelExtract
     string GetDmxFileName_ForAnimation(string animationName)
     {
         var fileName = ModelName;
-        return (Path.GetDirectoryName(fileName)
+        var candidate = (Path.GetDirectoryName(fileName)
             + Path.DirectorySeparatorChar
             + Path.GetFileNameWithoutExtension(fileName) // so models in the same directory do not override each other's anims
             + "_"
             + animationName
             + ".dmx")
             .Replace('\\', '/');
+
+        // An animation named exactly like a render mesh maps to the mesh's own file and overwrites it
+        // (zeus_thunder_warhawk_belt ships an animation named after the model; the clobbered mesh DMX
+        // then fails every LODGroup reference - 10 corpus models). Meshes enqueue first, so collide the
+        // animation aside instead.
+        if (RenderMeshesToExtract.Any(mesh => mesh.FileName == candidate)
+            || ClothProxyMeshesToExtract.Any(proxy => proxy.FileName == candidate)
+            || ClothChainGridsToExtract.Any(grid => grid.FileName == candidate))
+        {
+            candidate = candidate[..^".dmx".Length] + "_anim.dmx";
+        }
+
+        return candidate;
     }
 
     /// <summary>
