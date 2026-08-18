@@ -734,21 +734,21 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics
 
         /// <summary>
         /// Gets the hinge authored on the joint named <paramref name="boneName"/>, or null when it carries
-        /// none. The compiler anchors a hinge on a static node of its own making named after the joint it
-        /// constrains, and builds exactly one such anchor per hinge, so that node's presence is what marks
-        /// the constrained joint. The axis is recovered from where the joint's own proxy ring ended up (the
-        /// hinge is what orients that ring), and the limits from the angular extents of the hinge limit
-        /// built over it.
+        /// none. The axis is recovered from where the joint's own proxy ring ended up (the hinge is what
+        /// orients that ring), and the limits from the angular extents of the hinge limit built over it.
         /// </summary>
         public ChainHinge? GetChainHinge(string boneName, int jointNode)
         {
-            if (Array.IndexOf(CtrlNames, HingeAnchorPrefix + boneName) < 0)
+            var ring = ProxyRingOf(jointNode);
+            if (ring.Count < 2 || ring[0] >= InitPosePositions.Length || ring[1] >= InitPosePositions.Length)
             {
                 return null;
             }
 
-            var ring = ProxyRingOf(jointNode);
-            if (ring.Count < 2 || ring[0] >= InitPosePositions.Length || ring[1] >= InitPosePositions.Length)
+            // The extents cover half of the counter-clockwise limit; the clockwise one leaves no trace, so
+            // it recovers as the mirror of what did.
+            var extents = HingeExtentsOverRing(ring);
+            if (extents is null && Array.IndexOf(CtrlNames, HingeAnchorPrefix + boneName) < 0)
             {
                 return null;
             }
@@ -761,24 +761,35 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics
                 return null;
             }
 
-            // The extents cover half of the counter-clockwise limit; the clockwise one leaves no trace, so
-            // it recovers as the mirror of what did.
-            var extents = 0f;
+            return new ChainHinge(axis, -(extents ?? 0f), extents ?? 0f);
+        }
+
+        // The hinge limit built over a joint's own ring, in degrees, or null when the joint carries none.
+        // Only the CHAIN ROOT gets a "$ha_" anchor node of its own - every joint further down the chain
+        // hinges against the ring above it - so the limit over the ring is what marks a hinged joint.
+        float? HingeExtentsOverRing(List<int> ring)
+        {
             foreach (var hinge in Data.GetArray("m_HingeLimits") ?? [])
             {
                 var nodes = hinge.GetIntegerArray("nNode");
                 if (nodes.Length >= 2 && (int)nodes[0] == ring[0] && (int)nodes[1] == ring[1])
                 {
-                    extents = float.RadiansToDegrees(hinge.GetFloatProperty("flAngleExtents")) * 2f;
-                    break;
+                    return float.RadiansToDegrees(hinge.GetFloatProperty("flAngleExtents")) * 2f;
                 }
             }
 
-            return new ChainHinge(axis, -extents, extents);
+            return null;
         }
 
         /// <summary>Gets how many auto-generated proxy nodes the compiler extruded from a joint.</summary>
         public int ProxyCountOf(int jointNode) => ProxyRingOf(jointNode).Count;
+
+        /// <summary>Gets whether a chain joint carries a hinge constraint.</summary>
+        public bool IsHingedJoint(int jointNode)
+        {
+            var ring = ProxyRingOf(jointNode);
+            return ring.Count >= 2 && HingeExtentsOverRing(ring) is not null;
+        }
 
         // A generated node hanging off a hinged joint - its ring and its hinge anchor alike - is rebuilt by
         // the ClothChain that carries the hinge, so a proxy sheet must leave it alone or the two drive it
@@ -791,8 +802,17 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics
             }
 
             var parent = node < SkelParents.Length ? SkelParents[node] : -1;
-            return parent >= 0 && parent < CtrlNames.Length
-                && Array.IndexOf(CtrlNames, HingeAnchorPrefix + CtrlNames[parent]) >= 0;
+            if (parent < 0 || parent >= CtrlNames.Length)
+            {
+                return false;
+            }
+
+            if (Array.IndexOf(CtrlNames, HingeAnchorPrefix + CtrlNames[parent]) >= 0)
+            {
+                return true;
+            }
+
+            return IsHingedJoint(parent);
         }
 
         // The auto-generated proxy nodes extruded from a joint, in the order their names number them.
@@ -813,22 +833,34 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics
         }
 
         /// <summary>
-        /// Returns whether any rod still joins <paramref name="chain"/>'s own nodes. A rigid hinge replaces
-        /// the chain's rod network with the hinge itself, so a hinged chain that kept its rods was authored
-        /// with a soft hinge link instead.
+        /// Returns whether a FIXED-LENGTH rod still spans a parent-child LINK of <paramref name="chain"/>.
+        /// A rigid hinge replaces that link with a quad, so a hinged chain that kept the link's rods was
+        /// authored with a soft hinge link instead. Both conditions are needed to tell the two apart: the
+        /// stiffness network a chain carries on top of a rigid hinge either reaches further along the chain
+        /// (a joint to its grandparent) or leaves its maximum at <see cref="UnboundedRodDistance"/>.
         /// </summary>
         public bool HasChainRods(BoneChain chain)
         {
-            var nodes = new HashSet<int>();
+            var groupOf = new Dictionary<int, int>();
             foreach (var joint in chain.Joints)
             {
-                nodes.Add(joint.Node);
-                nodes.UnionWith(ProxyRingOf(joint.Node));
+                groupOf[joint.Node] = joint.Node;
+                foreach (var proxy in ProxyRingOf(joint.Node))
+                {
+                    groupOf[proxy] = joint.Node;
+                }
             }
+
+            var links = chain.Joints
+                .Where(static joint => !joint.IsRoot)
+                .Select(static joint => (joint.ParentNode, joint.Node))
+                .ToHashSet();
 
             foreach (var rod in Rods)
             {
-                if (nodes.Contains(rod.NodeA) && nodes.Contains(rod.NodeB))
+                if (rod.MaxDist < UnboundedRodDistance
+                    && groupOf.TryGetValue(rod.NodeA, out var a) && groupOf.TryGetValue(rod.NodeB, out var b)
+                    && (links.Contains((a, b)) || links.Contains((b, a))))
                 {
                     return true;
                 }
@@ -836,6 +868,9 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics
 
             return false;
         }
+
+        /// <summary>The maximum length a rod that is not length-limited at all is given.</summary>
+        public const float UnboundedRodDistance = 16384f;
 
         /// <summary>Gets the named vertex selections the cloth carries, empty when it has none.</summary>
         public IReadOnlyList<VertexMap> VertexMaps { get; } = [];
@@ -4391,6 +4426,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics
                     // proxies are ALL centre nodes has no side ring: recover end_effector as the centre's
                     // forward displacement and leave the ring empty (fv_cosmic_weapon's weapon_ball).
                     var ring = proxies;
+                    List<int>? endEffectorRing = null;
                     if (proxies.TrueForAll(p => CtrlNames[p].EndsWith("_Ctr", StringComparison.Ordinal))
                         && joint.Node < InitPoseRotations.Length && joint.Node < InitPosePositions.Length
                         && proxies[0] < InitPosePositions.Length)
@@ -4444,10 +4480,12 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics
                                     // far ring's own largest-magnitude member, which is exactly what the old
                                     // global Min()/Max() picked out on the already-correct (positive
                                     // displacement) case - so that case stays byte-identical.
+                                    var farRing = proxies.Except(nearRing).ToList();
                                     var nearValue = forwardOf[nearRing.MinBy(p => MathF.Abs(forwardOf[p]))];
-                                    var farValue = forwardOf[proxies.Except(nearRing).MaxBy(p => MathF.Abs(forwardOf[p]))];
+                                    var farValue = forwardOf[farRing.MaxBy(p => MathF.Abs(forwardOf[p]))];
                                     joint.EndEffector = farValue - nearValue;
                                     ring = nearRing;
+                                    endEffectorRing = farRing;
                                 }
                             }
                         }
@@ -4469,11 +4507,19 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics
                         // used shows up as the angle of the first proxy in the RING's own frame - the
                         // joint's rest rotation composed with the forward-axis selector, not the joint's
                         // rest rotation alone (the two coincide only when the axis is the default 'x').
-                        if (joint.Node < InitPoseRotations.Length && proxies[0] < InitPosePositions.Length)
+                        // A hinge re-lays the joint's own ring along its hinge vector, overriding the
+                        // authored width and roll on that ring alone. The end-effector ring the same joint
+                        // extrudes is left where the authored extrude put it, so it is the only place the
+                        // authored values still survive on a hinged joint.
+                        var measured = endEffectorRing is { Count: > 0 } && IsHingedJoint(joint.Node)
+                            ? endEffectorRing
+                            : proxies;
+
+                        if (joint.Node < InitPoseRotations.Length && measured[0] < InitPosePositions.Length)
                         {
                             var ringFrame = InitPoseRotations[joint.Node] * ExtrudeAxisSelectQuaternion(joint.ForwardAxis);
                             var offset = Vector3.Transform(
-                                InitPosePositions[proxies[0]] - InitPosePositions[joint.Node],
+                                InitPosePositions[measured[0]] - InitPosePositions[joint.Node],
                                 Quaternion.Conjugate(ringFrame));
                             if (new Vector2(offset.Y, offset.Z).LengthSquared() > 1e-6f)
                             {
@@ -4482,8 +4528,9 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics
                                 twists.Add(twist);
                             }
 
-                            joint.ExtrudeRadius = Vector3.Distance(
-                                InitPosePositions[joint.Node], InitPosePositions[proxies[0]]);
+                            joint.ExtrudeRadius = measured == proxies
+                                ? Vector3.Distance(InitPosePositions[joint.Node], InitPosePositions[measured[0]])
+                                : new Vector2(offset.Y, offset.Z).Length();
                         }
 
                         foreach (var proxy in proxies)

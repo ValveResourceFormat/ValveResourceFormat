@@ -515,7 +515,7 @@ partial class ModelExtract
     }
 
     // The maximum length a bend-only rod is given, which is no limit at all.
-    const float ClothBendOnlyRodMaxDistance = 16384f;
+    const float ClothBendOnlyRodMaxDistance = FeModel.UnboundedRodDistance;
 
     // Maps each global control-node index covered by an exported proxy mesh to the "$cloth_m{N}p{local}"
     // name the compiler will create for it in OUR export (declaration order; kept aligned with the
@@ -1271,7 +1271,7 @@ partial class ModelExtract
             ("goal_strength", goalStrength),
             ("goal_damping", goalDamping),
             ("mass", 1.0f),
-            ("friction", 0.0f),
+            ("friction", feModel.GetNodeFriction(node)),
             ("stray_radius", strayRadius),
             ("stray_radius_relaxation_factor", 1.0f),
             ("collision_radius", feModel.GetCollisionRadius(node)),
