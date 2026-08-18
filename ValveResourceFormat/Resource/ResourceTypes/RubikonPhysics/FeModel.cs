@@ -1721,7 +1721,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics
             var elems = data.GetIntegerArray("m_SourceElems");
 
             var faces = new List<int[]>(elems.Length / SourceElemStride);
-            for (var i = 0; i + SourceElemStride <= elems.Length; i += SourceElemStride)
+            for (var i = SourceElemStride; i + SourceElemStride <= elems.Length; i += SourceElemStride)
             {
                 var corners = new List<int>(SourceElemStride);
                 for (var c = 0; c < SourceElemStride; c++)
