@@ -2477,17 +2477,24 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics
             // double-drive the bones and - for a curved 2-wide ribbon - collapse in the compiler's 2D
             // cloth-mesh import (later rungs weld onto earlier ones, verts get pruned, every explicit
             // ClothSpring to a pruned vert becomes a fatal "Cannot find node $cloth_mXpY" orphan). Mark them
-            // covered so the rod-only pass leaves them to the ClothChain. A genuine sheet ($cloth_m panels,
-            // or a $cc panel with no real chain bones) has no such parent link and is untouched.
+            // covered so the rod-only pass leaves them to the ClothChain. A $cc panel with no real chain
+            // bones has no such parent link and is untouched.
+            // A "$cloth_m<N>p<S>" vertex hanging off a chain that ALREADY carries "$cc" nodes of its own is
+            // not part of that ring: the ClothChain regenerates the $cc nodes, and the sheet the vertex
+            // belongs to is separate authored geometry that merely skins onto the same joints (prof_dynamo's
+            // 854-vertex coat panel rides the coat chain's joints, which carry their own 104 $cc nodes).
+            // Suppressing it deletes the panel. A chain with no $cc node anywhere along it IS ringed by its
+            // $cloth_m vertices - Dota's arcana ribbons name their ring that way - and those stay covered.
             // Only chains emitted as an INDEPENDENT ClothChain get their proxies suppressed. A chain any of
             // whose joints is back-solved by a fit matrix (dark_willow's Coattail/HairStrand, legion's
             // Banner) is NOT emitted as a ClothChain - it is driven THROUGH its proxy mesh - so suppressing
             // that proxy would delete the cloth entirely (regressed legion_commander: "cloth lost after
             // recompile"). Same fit-matrix exclusion ModelExtract uses to pick independentChains.
-            var chainBoneNodes = BuildBoneChains()
+            var independentChains = BuildBoneChains()
                 .Where(chain => !HasProxyMeshNodes
                     || !chain.Joints.Any(joint => FitMatrixNodes.Contains(joint.Node)))
-                .SelectMany(static c => c.Joints).Select(static j => j.Node).ToHashSet();
+                .ToList();
+            var chainBoneNodes = independentChains.SelectMany(static c => c.Joints).Select(static j => j.Node).ToHashSet();
             if (chainBoneNodes.Count > 0)
             {
                 // Old-era compiles ship m_SkelParents empty; a ring vertex's anchor bone then comes from
@@ -2502,6 +2509,31 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics
                     }
                 }
 
+                int ParentOf(int node)
+                {
+                    var parent = node < SkelParents.Length ? SkelParents[node] : -1;
+                    return parent < 0 && offsetParents is not null
+                        ? offsetParents.GetValueOrDefault(node, -1)
+                        : parent;
+                }
+
+                var ringOwners = new HashSet<int>();
+                for (var node = 0; node < CtrlNames.Length; node++)
+                {
+                    if (CtrlNames[node].StartsWith("$cc", StringComparison.Ordinal))
+                    {
+                        var owner = ParentOf(node);
+                        if (owner >= 0)
+                        {
+                            ringOwners.Add(owner);
+                        }
+                    }
+                }
+
+                var ringedJoints = independentChains
+                    .Where(chain => chain.Joints.Any(joint => ringOwners.Contains(joint.Node)))
+                    .SelectMany(static c => c.Joints).Select(static j => j.Node).ToHashSet();
+
                 for (var node = 0; node < CtrlNames.Length; node++)
                 {
                     if (!IsProxyNodeName(CtrlNames[node]))
@@ -2509,13 +2541,9 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics
                         continue;
                     }
 
-                    var parent = node < SkelParents.Length ? SkelParents[node] : -1;
-                    if (parent < 0 && offsetParents is not null)
-                    {
-                        parent = offsetParents.GetValueOrDefault(node, -1);
-                    }
-
-                    if (parent >= 0 && chainBoneNodes.Contains(parent))
+                    var parent = ParentOf(node);
+                    if (parent >= 0 && chainBoneNodes.Contains(parent)
+                        && !(ParseProxyMeshIndex(CtrlNames[node]) >= 0 && ringedJoints.Contains(parent)))
                     {
                         coveredNodes.Add(node);
                     }
