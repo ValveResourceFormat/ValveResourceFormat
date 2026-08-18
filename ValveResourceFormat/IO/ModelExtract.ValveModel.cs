@@ -813,6 +813,11 @@ partial class ModelExtract
             kv.Add("allow_rotation", feModel.AllowsRotation(joint.Node));
         }
 
+        if (feModel.IsLockedToParent(joint.Node))
+        {
+            kv.Add("lock_translation", true);
+        }
+
         kv.Add("goal_strength", goalStrength);
         kv.Add("goal_damping", FeModel.GoalDampingFromAttraction(integrator.ForceAttraction, integrator.VertexAttraction));
         // A joint's own node is position-driven and compiles with flGravity 0; the authored gravity_z
@@ -968,7 +973,7 @@ partial class ModelExtract
             ("node_base_x1", BasisName(basis.NodeX1)),
             ("node_base_y0", BasisName(basis.NodeY0)),
             ("node_base_x0", BasisName(basis.NodeX0)),
-            ("lock_translation", false),
+            ("lock_translation", feModel.IsLockedToParent(node)),
             ("gravity_z", integrator.Gravity / ClothSourceBaseGravity),
             ("goal_strength", goalStrength),
             ("goal_damping", goalDamping),

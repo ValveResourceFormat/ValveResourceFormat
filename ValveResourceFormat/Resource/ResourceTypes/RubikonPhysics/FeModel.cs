@@ -435,6 +435,12 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics
         /// </summary>
         public bool AllowsRotation(int node) => node >= RotationLockedStaticNodeCount;
 
+        /// <summary>
+        /// Gets whether <paramref name="node"/> is held at a fixed offset from its parent
+        /// (<c>m_LockToParent</c>) rather than simulated.
+        /// </summary>
+        public bool IsLockedToParent(int node) => Array.Exists(LockToParent, link => link.CtrlChild == node);
+
         /// <summary>Gets the friction painted on <paramref name="node"/>, or 0 when it has none.</summary>
         public float GetNodeFriction(int node)
         {
