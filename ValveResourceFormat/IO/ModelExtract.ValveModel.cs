@@ -2482,6 +2482,19 @@ partial class ModelExtract
                     independentChains.SelectMany(static chain => chain.Joints).Select(joint => feModel.CtrlNames[joint.Node]),
                     StringComparer.OrdinalIgnoreCase);
 
+                // A sheet is also skinned to the body bones it merely hangs off (warden's skirt to
+                // pelvis/leg_upper_*, which the cloth uses only as collision anchors). The bones a proxy
+                // back-solves are the ones the original compile left position-driven, so only those count
+                // as evidence below.
+                var positionDrivenBones = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                for (var i = feModel.FirstPositionDrivenNode; i < feModel.CtrlNames.Length; i++)
+                {
+                    if (!FeModel.IsProxyNodeName(feModel.CtrlNames[i]))
+                    {
+                        positionDrivenBones.Add(feModel.CtrlNames[i]);
+                    }
+                }
+
                 bool ProxyDrivesUnchainedBone(FeModel.ProxyMesh proxy)
                 {
                     for (var v = 0; v < proxy.ClothEnable.Length; v++)
@@ -2494,7 +2507,7 @@ partial class ModelExtract
 
                         foreach (var (bone, _) in proxy.SkinInfluences[v])
                         {
-                            if (!chainDrivenBones.Contains(bone))
+                            if (positionDrivenBones.Contains(bone) && !chainDrivenBones.Contains(bone))
                             {
                                 return true;
                             }
