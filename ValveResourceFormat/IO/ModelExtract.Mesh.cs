@@ -184,9 +184,11 @@ partial class ModelExtract
             .Select(static bone => bone.Name)
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
-        feModel.SetSkeletonParents(model.Skeleton.Bones
+        var boneParents = model.Skeleton.Bones
             .GroupBy(static bone => bone.Name, StringComparer.OrdinalIgnoreCase)
-            .ToDictionary(static g => g.Key, static g => g.First().Parent?.Name, StringComparer.OrdinalIgnoreCase));
+            .ToDictionary(static g => g.Key, static g => g.First().Parent?.Name, StringComparer.OrdinalIgnoreCase);
+        feModel.SkeletonBoneParents = boneParents;
+        feModel.SetSkeletonParents(boneParents);
 
         var proxyIndex = 0;
         foreach (var proxyMesh in feModel.BuildProxyMeshes())

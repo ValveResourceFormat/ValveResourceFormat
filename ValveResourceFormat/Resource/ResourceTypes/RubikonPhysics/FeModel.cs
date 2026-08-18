@@ -936,6 +936,12 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics
         /// <summary>Gets the strip column pairings (<c>m_CtrlOsOffsets</c>).</summary>
         public CtrlOsOffset[] CtrlOsOffsets { get; }
 
+        /// <summary>A generated node's bone-local anchor offset (from <c>m_CtrlOffsets</c>).</summary>
+        public readonly record struct CtrlOffset(Vector3 Offset, int CtrlParent, int CtrlChild);
+
+        /// <summary>Gets the generated-node anchor offsets (<c>m_CtrlOffsets</c>).</summary>
+        public CtrlOffset[] CtrlOffsets { get; }
+
         /// <summary>
         /// Gets the named vertex sets' name hashes (<c>m_VertexSetNames</c>), paired with
         /// <see cref="DynNodeVertexSet"/>.
@@ -1043,6 +1049,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics
             Data = data;
             CtrlNames = data.GetArray<string>("m_CtrlName") ?? [];
             SkelParents = (data.GetIntegerArray("m_SkelParents")).Select(static v => (int)v).ToArray();
+            HasCompiledSkelParents = SkelParents.Length > 0;
             if (SkelParents.Length == 0)
             {
                 SkelParents = BuildRopeParents(data);
@@ -1338,6 +1345,10 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics
             LockToGoal = data.GetIntegerArray("m_LockToGoal").Select(static v => (int)v).ToArray();
 
             CtrlOsOffsets = ReadArray(data, "m_CtrlOsOffsets", static o => new CtrlOsOffset(
+                o.GetInt32Property("nCtrlParent"), o.GetInt32Property("nCtrlChild")));
+
+            CtrlOffsets = ReadArray(data, "m_CtrlOffsets", static o => new CtrlOffset(
+                o.GetSubCollection("vOffset") is { } ctrlOffset ? ctrlOffset.ToVector3() : default,
                 o.GetInt32Property("nCtrlParent"), o.GetInt32Property("nCtrlChild")));
 
             VertexSetNames = data.GetArray<uint>("m_VertexSetNames") ?? [];
@@ -1678,6 +1689,13 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics
         public bool HasData => CtrlNames.Length > 0;
 
         /// <summary>
+        /// Gets a value indicating whether <c>m_SkelParents</c> was present in the compiled data. False on
+        /// old-era compiles (and rope cloth), where <see cref="SkelParents"/> is synthesized from
+        /// <c>m_Ropes</c>/<c>m_FollowNodes</c> or the skeleton instead.
+        /// </summary>
+        public bool HasCompiledSkelParents { get; }
+
+        /// <summary>
         /// Returns whether a control-node name is an auto-generated cloth proxy node (not a real skeleton bone).
         /// </summary>
         public static bool IsProxyNodeName(string? name)
@@ -1690,6 +1708,13 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics
         /// real one and gets authored as a chain joint the compiler then cannot resolve.
         /// </summary>
         public IReadOnlySet<string>? SkeletonBoneNames { get; set; }
+
+        /// <summary>
+        /// Gets or sets each skeleton bone's parent bone name. Used to orient chain links recovered from
+        /// the rod mesh on compiles that ship no <c>m_SkelParents</c>: the rod evidence alone cannot tell
+        /// parent from child on a strap anchored at both ends.
+        /// </summary>
+        public IReadOnlyDictionary<string, string?>? SkeletonBoneParents { get; set; }
 
         /// <summary>
         /// Rebuilds <see cref="SkelParents"/> from the model's own bone hierarchy, for cloth that ships
@@ -2186,6 +2211,18 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics
                 .SelectMany(static c => c.Joints).Select(static j => j.Node).ToHashSet();
             if (chainBoneNodes.Count > 0)
             {
+                // Old-era compiles ship m_SkelParents empty; a ring vertex's anchor bone then comes from
+                // its m_CtrlOffsets entry instead (the same fallback BuildBoneChains uses).
+                Dictionary<int, int>? offsetParents = null;
+                if (!HasCompiledSkelParents && CtrlOffsets.Length > 0)
+                {
+                    offsetParents = new Dictionary<int, int>(CtrlOffsets.Length);
+                    foreach (var off in CtrlOffsets)
+                    {
+                        offsetParents[off.CtrlChild] = off.CtrlParent;
+                    }
+                }
+
                 for (var node = 0; node < CtrlNames.Length; node++)
                 {
                     if (!IsProxyNodeName(CtrlNames[node]))
@@ -2194,6 +2231,11 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics
                     }
 
                     var parent = node < SkelParents.Length ? SkelParents[node] : -1;
+                    if (parent < 0 && offsetParents is not null)
+                    {
+                        parent = offsetParents.GetValueOrDefault(node, -1);
+                    }
+
                     if (parent >= 0 && chainBoneNodes.Contains(parent))
                     {
                         coveredNodes.Add(node);
@@ -3785,6 +3827,19 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics
             // meepo's jaket). Used below to keep a ribbon's position-driven TIP joint in the chain, and
             // later to recover each chain's extrude width.
             var proxyChildrenOf = new Dictionary<int, List<int>>();
+
+            // Old-era compiles ship m_SkelParents empty; there the ring's anchor bone still survives in
+            // m_CtrlOffsets (each generated ring vertex carries its bone-local anchor offset).
+            Dictionary<int, int>? ctrlOffsetParents = null;
+            if (!HasCompiledSkelParents && CtrlOffsets.Length > 0)
+            {
+                ctrlOffsetParents = new Dictionary<int, int>(CtrlOffsets.Length);
+                foreach (var off in CtrlOffsets)
+                {
+                    ctrlOffsetParents[off.CtrlChild] = off.CtrlParent;
+                }
+            }
+
             for (var node = 0; node < n; node++)
             {
                 // A strip's second column is generated too, but named after the bone it widens instead of
@@ -3796,6 +3851,10 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics
                 }
 
                 var pp = node < SkelParents.Length ? SkelParents[node] : -1;
+                if (pp < 0 && ctrlOffsetParents is not null)
+                {
+                    pp = ctrlOffsetParents.GetValueOrDefault(node, -1);
+                }
                 if (pp >= 0)
                 {
                     if (!proxyChildrenOf.TryGetValue(pp, out var list))
@@ -3900,6 +3959,112 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics
                 }
             }
 
+            // With m_SkelParents empty the link rules above never fire, so the chain's own compiled rod
+            // mesh is the remaining parent evidence: consecutive joints are joined by rods between the
+            // joints and their rings, and joints are emitted root-first, so the lower-indexed side of the
+            // rod evidence is the parent. Restricted to ring-bearing bones - a rod network among bare real
+            // bones is ClothNode/ClothSpring authoring, not a chain.
+            if (!HasCompiledSkelParents && Rods.Length > 0)
+            {
+                var ringOwner = new Dictionary<int, int>();
+                foreach (var (owner, ring) in proxyChildrenOf)
+                {
+                    foreach (var vertex in ring)
+                    {
+                        ringOwner[vertex] = owner;
+                    }
+                }
+
+                int OwnerOf(int node) => ringOwner.TryGetValue(node, out var owner)
+                    ? owner
+                    : node < n && isReal[node] ? node : -1;
+
+                var linkCounts = new Dictionary<(int, int), int>();
+                foreach (var rod in Rods)
+                {
+                    if (rod.NodeA == rod.NodeB)
+                    {
+                        continue;
+                    }
+
+                    var a = OwnerOf(rod.NodeA);
+                    var b = OwnerOf(rod.NodeB);
+                    if (a < 0 || b < 0 || a == b)
+                    {
+                        continue;
+                    }
+
+                    if (!proxyChildrenOf.ContainsKey(a) && !proxyChildrenOf.ContainsKey(b))
+                    {
+                        continue;
+                    }
+
+                    var key = a > b ? (b, a) : (a, b);
+                    linkCounts[key] = linkCounts.GetValueOrDefault(key) + 1;
+                }
+
+                // The skeleton orients a link where it can: rod evidence alone cannot tell parent from
+                // child on a strap anchored at both ends (sniper_calavera's strap_front, pinned at joints
+                // 01 AND 07 - picking the wrong end hangs joints backwards off the far anchor and the
+                // compiler access-violates on the resulting chain). Only a rod-evidenced pair is linked.
+                var nodeByName = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+                for (var i = 0; i < n; i++)
+                {
+                    if (isReal[i])
+                    {
+                        nodeByName.TryAdd(CtrlNames[i], i);
+                    }
+                }
+
+                if (SkeletonBoneParents is not null)
+                {
+                    for (var i = 0; i < n; i++)
+                    {
+                        if (!isReal[i] || realParent[i] >= 0)
+                        {
+                            continue;
+                        }
+
+                        var ancestor = SkeletonBoneParents.GetValueOrDefault(CtrlNames[i]);
+                        while (ancestor is not null)
+                        {
+                            if (nodeByName.TryGetValue(ancestor, out var p) && p != i)
+                            {
+                                var key = p > i ? (i, p) : (p, i);
+                                if (linkCounts.ContainsKey(key))
+                                {
+                                    realParent[i] = p;
+                                }
+
+                                break;
+                            }
+
+                            ancestor = SkeletonBoneParents.GetValueOrDefault(ancestor);
+                        }
+                    }
+                }
+
+                // Remaining unoriented pairs: joints are emitted root-first, so the lower-indexed side is
+                // the parent.
+                var bestParent = new Dictionary<int, (int Parent, int Count)>();
+                foreach (var ((low, high), count) in linkCounts)
+                {
+                    if (!bestParent.TryGetValue(high, out var current) || count > current.Count
+                        || (count == current.Count && low < current.Parent))
+                    {
+                        bestParent[high] = (low, count);
+                    }
+                }
+
+                foreach (var (child, link) in bestParent)
+                {
+                    if (realParent[child] < 0 && realParent[link.Parent] != child)
+                    {
+                        realParent[child] = link.Parent;
+                    }
+                }
+            }
+
             for (var i = 0; i < n; i++)
             {
                 if (!isReal[i])
@@ -3920,8 +4085,10 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics
 
             foreach (var rootNode in roots)
             {
-                // A real bone with no real descendants is not a cloth chain - skip it.
-                if (children[rootNode] is null)
+                // A real bone with no real descendants is not a cloth chain, unless it carries its own
+                // extrude ring - a lone ring-bearing bone is a single-joint chain (fv_cosmic_weapon's
+                // weapon_ball with its $cc..._Ctr node, flagbearer's collar).
+                if (children[rootNode] is null && !proxyChildrenOf.ContainsKey(rootNode))
                 {
                     continue;
                 }
@@ -3975,11 +4142,32 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics
                         continue;
                     }
 
+                    // A "$cc<bone>_Ctr" proxy is the single centre node the compiler emits for an
+                    // end_effector with extrude_sides < 2 - it is not a ring member at all. A joint whose
+                    // proxies are ALL centre nodes has no side ring: recover end_effector as the centre's
+                    // forward displacement and leave the ring empty (fv_cosmic_weapon's weapon_ball).
+                    var ring = proxies;
+                    if (proxies.TrueForAll(p => CtrlNames[p].EndsWith("_Ctr", StringComparison.Ordinal))
+                        && joint.Node < InitPoseRotations.Length && joint.Node < InitPosePositions.Length
+                        && proxies[0] < InitPosePositions.Length)
+                    {
+                        var centreOffset = Vector3.Transform(
+                            InitPosePositions[proxies[0]] - InitPosePositions[joint.Node],
+                            Quaternion.Conjugate(InitPoseRotations[joint.Node]));
+                        if (MathF.Abs(centreOffset.X) >= EndEffectorRingTolerance)
+                        {
+                            joint.EndEffector = centreOffset.X;
+                            joint.ExtrudeSides = 0;
+                            joint.ProxyNode = proxies[0];
+                            sideFrequency[0] = sideFrequency.GetValueOrDefault(0) + 1;
+                            continue;
+                        }
+                    }
+
                     // A joint whose proxies sit at two different distances along its forward axis carries a
                     // second ring, which is what end_effector produces. Its ring width is half the proxy
                     // count, not the whole of it - taking the whole count instead lays them out as one
                     // wider ring and every proxy lands somewhere the original never put it.
-                    var ring = proxies;
                     if (joint.Node < InitPoseRotations.Length && joint.Node < InitPosePositions.Length)
                     {
                         var forwardOf = new Dictionary<int, float>(proxies.Count);
