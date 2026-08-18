@@ -696,18 +696,48 @@ partial class ModelExtract
     const int ClothEffectTypeStiffen = 3;
     const int ClothEffectTypeDampenVelocity = 6;
 
-    static void AddClothEffects(KVObject softbodyChildren, FeModel feModel)
+    static void AddClothEffects(KVObject softbodyChildren, FeModel feModel, IReadOnlySet<string> availableMaps)
     {
         foreach (var effect in feModel.Effects)
         {
-            if (MakeClothEffect(feModel, effect) is { } node)
+            if (MakeClothEffect(feModel, effect, availableMaps) is { } node)
             {
                 softbodyChildren.Add(node);
             }
         }
     }
 
-    static KVObject? MakeClothEffect(FeModel feModel, FeModel.Effect effect)
+    /// <summary>
+    /// The named vertex selections the export actually recreates: those painted into a proxy mesh, plus
+    /// those named by a chain joint. An effect that references any other selection fails the whole compile.
+    /// </summary>
+    HashSet<string> AvailableVertexMaps(FeModel feModel, List<FeModel.BoneChain> chains)
+    {
+        var maps = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var (_, _, proxy) in ClothProxyMeshesToExtract)
+        {
+            foreach (var (mapName, _) in proxy.VertexMaps)
+            {
+                maps.Add(mapName);
+            }
+        }
+
+        foreach (var joint in chains.SelectMany(static chain => chain.Joints))
+        {
+            if (feModel.GetVertexMapNames(joint.Node) is { } names)
+            {
+                foreach (var name in names.Split(','))
+                {
+                    maps.Add(name.Trim());
+                }
+            }
+        }
+
+        return maps;
+    }
+
+    static KVObject? MakeClothEffect(FeModel feModel, FeModel.Effect effect, IReadOnlySet<string> availableMaps)
     {
         var className = effect.Type switch
         {
@@ -727,7 +757,7 @@ partial class ModelExtract
         var mapHash = unchecked((uint)effect.Params.GetInt32Property("VertexMap"));
         foreach (var map in feModel.VertexMaps)
         {
-            if (map.NameHash == mapHash)
+            if (map.NameHash == mapHash && availableMaps.Contains(map.Name))
             {
                 node.Add("vertex_map", map.Name);
                 break;
@@ -2349,7 +2379,7 @@ partial class ModelExtract
                 AddClothProxySprings(softbodyChildren, feModel, ClothProxyMeshesToExtract, independentChainNodes,
                     authoredClothNodes, surfaceRods);
                 AddClothCollisionShapes(softbodyChildren, feModel);
-                AddClothEffects(softbodyChildren, feModel);
+                AddClothEffects(softbodyChildren, feModel, AvailableVertexMaps(feModel, independentChains));
 
                 root.Children.Add(softbody);
 
@@ -2386,7 +2416,7 @@ partial class ModelExtract
 
                 AddClothChainSurplusRods(softbodyChildren, feModel, boneChains);
                 AddClothCollisionShapes(softbodyChildren, feModel);
-                AddClothEffects(softbodyChildren, feModel);
+                AddClothEffects(softbodyChildren, feModel, AvailableVertexMaps(feModel, boneChains));
                 root.Children.Add(softbody);
                 clothEmitted = true;
             }
