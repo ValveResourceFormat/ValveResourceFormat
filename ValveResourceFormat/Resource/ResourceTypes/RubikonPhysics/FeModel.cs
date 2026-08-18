@@ -2175,7 +2175,8 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics
             // that proxy would delete the cloth entirely (regressed legion_commander: "cloth lost after
             // recompile"). Same fit-matrix exclusion ModelExtract uses to pick independentChains.
             var chainBoneNodes = BuildBoneChains()
-                .Where(chain => !chain.Joints.Any(joint => FitMatrixNodes.Contains(joint.Node)))
+                .Where(chain => !HasProxyMeshNodes
+                    || !chain.Joints.Any(joint => FitMatrixNodes.Contains(joint.Node)))
                 .SelectMany(static c => c.Joints).Select(static j => j.Node).ToHashSet();
             if (chainBoneNodes.Count > 0)
             {
@@ -2451,6 +2452,13 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics
         }
 
         // Extracts the mesh index the compiler already encodes in an auto-generated proxy control-node
+        /// <summary>
+        /// Whether the compiler named any control node as a proxy-mesh vertex, i.e. whether the original
+        /// carries a cloth SHEET at all. Without one there is nothing for a fit matrix to drive a bone
+        /// THROUGH, so a chain keeps its own ClothChain however many of its joints are back-solved.
+        /// </summary>
+        public bool HasProxyMeshNodes => Array.Exists(CtrlNames, static name => ParseProxyMeshIndex(name) >= 0);
+
         // name ("$cloth_m3p12" -> 3), or -1 if the name does not follow that convention.
         static int ParseProxyMeshIndex(string name)
         {
