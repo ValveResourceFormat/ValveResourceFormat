@@ -834,6 +834,95 @@ partial class ModelExtract
         }
     }
 
+    // A ClothAntiTunnelProbe's source_node/target names resolve through the same control-node namespace
+    // as a ClothSpring endpoint: a proxy vertex needs OUR re-numbered "$cloth_m{N}p{L}" name, a free
+    // ClothNode is referenced by its element name (the ctrl name with "$cloth_node_" stripped), and every
+    // other ctrl (a real bone or ClothChain joint) is referenced by its plain ctrl name.
+    static string? ResolveAntiTunnelNodeName(FeModel feModel, int node, IReadOnlyDictionary<int, string>? proxyNodeNames)
+    {
+        if (node < 0 || node >= feModel.CtrlNames.Length)
+        {
+            return null;
+        }
+
+        // IsProxyNodeName is too broad here (true for every generated "$..." name, not just proxy
+        // vertices) - the proxy convention itself is "$cloth_m{N}p{L}", the same check MakeClothNode's
+        // own BasisName uses to tell a proxy vertex apart from any other generated ctrl name.
+        var name = feModel.CtrlNames[node];
+        if (name.StartsWith("$cloth_m", StringComparison.Ordinal))
+        {
+            return proxyNodeNames?.GetValueOrDefault(node);
+        }
+
+        const string ClothNodePrefix = "$cloth_node_";
+        return name.StartsWith(ClothNodePrefix, StringComparison.Ordinal) ? name[ClothNodePrefix.Length..] : name;
+    }
+
+    // ClothAntiTunnelProbe is a top-level sibling of Softbody, not a child: its class registers "Softbody"
+    // as its only allowed parent and declares no allowed children of its own. The target list is not a
+    // "children" array either - CModelDocClothNodeList's custom save/load stores it as a raw KV3 table at
+    // data.nodes, keyed BY TARGET NAME (values unused). Target order must match
+    // feModel.AntiTunnelTargetNodes exactly: the compiler round-trips a KV3 table's member order verbatim,
+    // and the shipped originals do not always list targets in ascending node order.
+    static void AddClothAntiTunnelProbes(KVObject rootChildren, FeModel feModel, IReadOnlyDictionary<int, string>? proxyNodeNames)
+    {
+        for (var i = 0; i < feModel.AntiTunnelProbes.Length; i++)
+        {
+            var probe = feModel.AntiTunnelProbes[i];
+            var sourceName = ResolveAntiTunnelNodeName(feModel, probe.ProbeNode, proxyNodeNames);
+            if (sourceName is null)
+            {
+                continue;
+            }
+
+            var targetNames = new List<string>();
+            for (var t = probe.Begin; t < probe.Begin + probe.Count && t < feModel.AntiTunnelTargetNodes.Length; t++)
+            {
+                if (ResolveAntiTunnelNodeName(feModel, feModel.AntiTunnelTargetNodes[t], proxyNodeNames) is { } targetName)
+                {
+                    targetNames.Add(targetName);
+                }
+            }
+
+            if (targetNames.Count == 0)
+            {
+                continue;
+            }
+
+            rootChildren.Add(MakeClothAntiTunnelProbe($"cloth_antitunnel_probe{i}", sourceName,
+                animSource: probe.Flags != 0, probe.Weight, probe.ActivationDistance, targetNames));
+        }
+    }
+
+    // flCurvatureRadius/flBias are 0.0 on every known compiled model (see FeModel.AntiTunnelProbes), so
+    // use_curvature_drop/curvature/curvature_drop_distance/curvature_drop_amount always re-author to their
+    // compiler defaults; there is no compiled signal to recover a nonzero curvature-drop setup from.
+    static KVObject MakeClothAntiTunnelProbe(string name, string sourceNode, bool animSource, float weight,
+        float activationDistance, IReadOnlyList<string> targetNames)
+    {
+        var nodes = KVObject.Collection();
+        foreach (var targetName in targetNames)
+        {
+            nodes.Add(targetName, true);
+        }
+
+        var data = KVObject.Collection();
+        data.Add("nodes", nodes);
+
+        return MakeNode("ClothAntiTunnelProbe",
+            ("name", name),
+            ("source_node", sourceNode),
+            ("anim_source", animSource),
+            ("ignore_missing_target_nodes", false),
+            ("weight", weight),
+            ("use_curvature_drop", false),
+            ("curvature", 0.0f),
+            ("curvature_drop_distance", 0.0f),
+            ("curvature_drop_amount", 0.0f),
+            ("activation_distance", activationDistance),
+            ("data", data));
+    }
+
     // Wind speeds are authored in mph and compiled to units per second.
     const float ClothWindSpeedToUnits = 17.6f;
 
@@ -2577,6 +2666,7 @@ partial class ModelExtract
                 AddClothEffects(softbodyChildren, feModel, AvailableVertexMaps(feModel, independentChains));
 
                 root.Children.Add(softbody);
+                AddClothAntiTunnelProbes(root.Children, feModel, proxyNodeNameMap);
 
                 clothEmitted = true;
             }
@@ -2622,6 +2712,7 @@ partial class ModelExtract
                 availableMaps.UnionWith(freeNodeMaps);
                 AddClothEffects(softbodyChildren, feModel, availableMaps);
                 root.Children.Add(softbody);
+                AddClothAntiTunnelProbes(root.Children, feModel, proxyNodeNames: null);
                 clothEmitted = true;
             }
             else if (feModel.HasData)
@@ -2645,6 +2736,7 @@ partial class ModelExtract
                     availableMaps.UnionWith(freeNodeMaps);
                     AddClothEffects(softbodyChildren, feModel, availableMaps);
                     root.Children.Add(softbody);
+                    AddClothAntiTunnelProbes(root.Children, feModel, proxyNodeNames: null);
                     clothEmitted = true;
                 }
             }
