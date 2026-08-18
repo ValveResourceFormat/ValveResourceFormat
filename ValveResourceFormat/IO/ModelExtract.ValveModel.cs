@@ -2691,7 +2691,8 @@ partial class ModelExtract
                 // the sheet simulates the surface between them and drives the render mesh directly.
                 var (softbody, softbodyChildren) = MakeListNode("Softbody");
                 softbody.Add("motion_smooth_cdt", feModel.MotionSmoothCdt);
-                softbodyChildren.Add(MakeClothParams(feModel));
+                softbodyChildren.Add(MakeClothParams(feModel,
+                    generatesBendOnlyRods: feModel.HasChainBendOnlyRods(boneChains)));
                 var (clothFolder, clothFolderChildren) = MakeListNode("Folder");
                 clothFolder.Add("name", "cloth");
                 softbodyChildren.Add(clothFolder);
