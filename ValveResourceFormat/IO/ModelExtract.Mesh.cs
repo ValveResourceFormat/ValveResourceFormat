@@ -764,6 +764,15 @@ partial class ModelExtract
         // re-emit it.
         vertexData.AddIndexedStream("cloth_gravity$0", proxy.Gravity, identity);
 
+        // Per-vertex mass paint. The compiler adds expf(cloth_mass * cloth_mass_scale) on top of the mass
+        // it derives from the sheet's own geometry, and only when the mesh ships this stream - so a sheet
+        // exported without it comes back lighter than the original wherever the mass was painted, while an
+        // all-zero stream is a real authoring choice (e^0 = 1) and not the same as no stream at all.
+        if (physAggregateData?.FeModel?.RecoverMassPaint(proxy) is { } mass)
+        {
+            vertexData.AddIndexedStream("cloth_mass$0", mass, identity);
+        }
+
         // Named vertex selections are painted per vertex, one stream per selection. A cloth effect or a
         // chain joint then names the selection, and the compiler collects every vertex the paint reaches.
         foreach (var (mapName, weights) in proxy.VertexMaps)

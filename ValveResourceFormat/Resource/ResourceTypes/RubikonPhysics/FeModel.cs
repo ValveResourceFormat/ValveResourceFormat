@@ -447,6 +447,98 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics
         /// </summary>
         public bool IsLockedToGoal(int node) => Array.IndexOf(LockToGoal, node) >= 0;
 
+        /// <summary>
+        /// Recovers the <c>cloth_mass</c> paint of an authored-face proxy sheet, or null when the sheet
+        /// carries none (or none can be recovered).
+        /// <para>
+        /// The compiler gives a proxy-mesh node the mass
+        /// <c>8 * sum over its incident surface rods of the rest length + expf(paint * cloth_mass_scale)</c>,
+        /// the exponential term only when the mesh ships a <c>cloth_mass</c> stream at all. Those surface
+        /// rods are the DISTINCT corner pairs (edges and diagonals) of the sheet's own faces, each pair
+        /// counted once however many faces share it, and only those - the rods <c>add_stiffness_rods</c>
+        /// derives join the network after the mass pass and weigh nothing, so the compiled
+        /// <c>m_Rods</c> array is not the set to sum. The geometric term is therefore predictable from the
+        /// very faces this sheet exports, and whatever the shipped mass carries beyond it is the
+        /// exponential.
+        /// </para>
+        /// <para>
+        /// Only a sheet exported with its AUTHORED faces qualifies. A synthesised triangulation compiles to
+        /// a rod network of its own, so the shipped mass and the geometric term describe different surfaces
+        /// and their difference measures that gap rather than any paint.
+        /// </para>
+        /// </summary>
+        public float[]? RecoverMassPaint(ProxyMesh proxy)
+        {
+            if (!proxy.UsesAuthoredFaces)
+            {
+                return null;
+            }
+
+            var count = proxy.Positions.Length;
+            var pairs = new Dictionary<(int A, int B), float>();
+            foreach (var face in proxy.Faces)
+            {
+                for (var i = 0; i < face.Length; i++)
+                {
+                    for (var j = i + 1; j < face.Length; j++)
+                    {
+                        var (a, b) = face[i] < face[j] ? (face[i], face[j]) : (face[j], face[i]);
+                        pairs[(a, b)] = Vector3.Distance(proxy.Positions[a], proxy.Positions[b]);
+                    }
+                }
+            }
+
+            var geometric = new float[count];
+            foreach (var ((a, b), length) in pairs)
+            {
+                geometric[a] += SurfaceRodMassPerUnitLength * length;
+                geometric[b] += SurfaceRodMassPerUnitLength * length;
+            }
+
+            var paint = new float[count];
+            var painted = 0;
+            var clamped = 0;
+
+            for (var v = 0; v < count; v++)
+            {
+                var node = proxy.NodeIndices[v];
+                var invMass = node >= 0 && node < NodeInvMasses.Length ? NodeInvMasses[node] : 0f;
+                if (invMass <= 0f || invMass >= 1f)
+                {
+                    continue;
+                }
+
+                var residual = 1f / invMass - geometric[v];
+
+                // Outside the band the node's mass is not this surface's mass plus an exponential, so it
+                // has no paint to read: below it the faces already account for more than the node weighs,
+                // above it the term is past anything expf of a painted value reaches.
+                if (residual <= MinRecoverableMassPaintTerm || residual > MaxRecoverableMassPaintTerm)
+                {
+                    clamped++;
+                    continue;
+                }
+
+                paint[v] = MathF.Log(residual);
+                painted++;
+            }
+
+            // The exponential is present or absent for the whole mesh, so a handful of nodes claiming it
+            // against a majority that cannot is a mis-predicted geometric term, not a paint layer.
+            return painted > clamped ? paint : null;
+        }
+
+        // Mass the compiler credits a node with per unit of incident surface-rod rest length.
+        const float SurfaceRodMassPerUnitLength = 8f;
+
+        // The band a node's exponential mass term, expf(paint * scale), has to fall in to be read back as
+        // paint. A mesh that ships no stream leaves a residual of a float32 ulp of its own mass - 6e-5 on a
+        // node weighing 1000 - so the lower bound separates "no term at all" from the smallest term a
+        // stream can carry, e^0 = 1. Shipped sheets paint 0 to 10, so the upper bound sits far above the
+        // largest term in the corpus and only rejects a mass no exponential explains.
+        const float MinRecoverableMassPaintTerm = 0.05f;
+        const float MaxRecoverableMassPaintTerm = 1e6f;
+
         /// <summary>Gets the friction painted on <paramref name="node"/>, or 0 when it has none.</summary>
         public float GetNodeFriction(int node)
         {
