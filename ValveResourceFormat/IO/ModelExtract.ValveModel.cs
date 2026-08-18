@@ -2606,13 +2606,23 @@ partial class ModelExtract
             foreach (var genericDataClass in genericDataClassesList)
             {
                 var dataKey = genericDataClass.ListKey;
-                if (keyvalues.ContainsKey(dataKey))
+                if (!keyvalues.ContainsKey(dataKey))
                 {
-                    var genericDataList = keyvalues.GetArray(dataKey);
-                    foreach (var genericData in genericDataList!)
+                    continue;
+                }
+
+                var genericDataList = keyvalues.GetArray(dataKey);
+                if (genericDataList != null)
+                {
+                    foreach (var genericData in genericDataList)
                     {
                         AddGenericGameData(gameDataList.Value, genericDataClass.Class, genericData);
                     }
+                }
+                else if (keyvalues.GetSubCollection(dataKey) is { } singleGenericData)
+                {
+                    // Some models author this as a single KV object instead of a one-element list.
+                    AddGenericGameData(gameDataList.Value, genericDataClass.Class, singleGenericData);
                 }
             }
 
