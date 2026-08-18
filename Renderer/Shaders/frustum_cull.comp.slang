@@ -58,18 +58,22 @@ bool testAABBOcclusion(vec3 bmin, vec3 bmax)
     // Offset camera forward to reduce false occlusions
     //vec3 cameraOffset = g_vCameraDirWs * g_flDepthPyramidCameraOffset;
 
-    // Project all 8 corners to clip space
-    vec4 corners[8];
-    for (int i = 0; i < 8; i++)
-    {
-        vec3 corner = vec3(
-            (i & 1) != 0 ? bmax.x : bmin.x,
-            (i & 2) != 0 ? bmax.y : bmin.y,
-            (i & 4) != 0 ? bmax.z : bmin.z
-        );
+    // Projection is linear before the divide, so project the min corner and the three
+    // axis extents once, then derive the other corners by adds
+    vec3 ext = bmax - bmin;
+    vec4 dx = g_matPrevWorldToProjection[0] * ext.x;
+    vec4 dy = g_matPrevWorldToProjection[1] * ext.y;
+    vec4 dz = g_matPrevWorldToProjection[2] * ext.z;
 
-        corners[i] = g_matPrevWorldToProjection * vec4(corner, 1.0);
-    }
+    vec4 corners[8];
+    corners[0] = g_matPrevWorldToProjection * vec4(bmin, 1.0);
+    corners[1] = corners[0] + dx;
+    corners[2] = corners[0] + dy;
+    corners[3] = corners[1] + dy;
+    corners[4] = corners[0] + dz;
+    corners[5] = corners[1] + dz;
+    corners[6] = corners[2] + dz;
+    corners[7] = corners[3] + dz;
 
     float minW = min(min(min(corners[0].w, corners[1].w), min(corners[2].w, corners[3].w)),
                      min(min(corners[4].w, corners[5].w), min(corners[6].w, corners[7].w)));

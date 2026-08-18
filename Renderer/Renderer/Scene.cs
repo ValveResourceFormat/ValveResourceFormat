@@ -886,6 +886,14 @@ namespace ValveResourceFormat.Renderer
 
             PerfStats.Active.Count(Counter.SceneObjectInView, cullResults.Count);
 
+            foreach (var node in cullResults)
+            {
+                if (node is SceneAggregate resetAggregate)
+                {
+                    resetAggregate.AnyChildrenVisible = false;
+                }
+            }
+
             // Collect mesh calls
             foreach (var node in cullResults)
             {
@@ -949,7 +957,6 @@ namespace ValveResourceFormat.Renderer
                     }
                     else if (DrawMeshletsIndirect && aggregate.CanDrawIndirect)
                     {
-                        aggregate.AnyChildrenVisible = false;
                         Add(new MeshBatchRenderer.Request
                         {
                             Mesh = aggregate.RenderMesh,
