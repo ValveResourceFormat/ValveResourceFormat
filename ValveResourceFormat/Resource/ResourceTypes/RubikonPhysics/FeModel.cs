@@ -428,6 +428,13 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics
         public float GetStrayStretchiness(int node)
             => AnimStrayRadii.TryGetValue(node, out var stray) ? 1f - stray.RelaxationFactor : 0f;
 
+        /// <summary>
+        /// Gets whether <paramref name="node"/> keeps its rotation free. Static nodes are ordered
+        /// rotation-locked first, so the lock is exactly the nodes below
+        /// <see cref="RotationLockedStaticNodeCount"/>.
+        /// </summary>
+        public bool AllowsRotation(int node) => node >= RotationLockedStaticNodeCount;
+
         /// <summary>Gets the friction painted on <paramref name="node"/>, or 0 when it has none.</summary>
         public float GetNodeFriction(int node)
         {

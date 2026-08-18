@@ -806,6 +806,13 @@ partial class ModelExtract
         var goalStrength = MathF.Cbrt(Math.Clamp(integrator.ForceAttraction, 0f, 1f));
 
         kv.Add("simulate", joint.Simulated);
+
+        // Only a static node carries a rotation lock.
+        if (joint.Node < feModel.StaticNodeCount)
+        {
+            kv.Add("allow_rotation", feModel.AllowsRotation(joint.Node));
+        }
+
         kv.Add("goal_strength", goalStrength);
         kv.Add("goal_damping", FeModel.GoalDampingFromAttraction(integrator.ForceAttraction, integrator.VertexAttraction));
         // A joint's own node is position-driven and compiles with flGravity 0; the authored gravity_z
@@ -971,7 +978,7 @@ partial class ModelExtract
             ("stray_radius_relaxation_factor", 1.0f),
             ("collision_radius", feModel.GetCollisionRadius(node)),
             ("is_static_node", isStaticNode),
-            ("allow_rotation", false),
+            ("allow_rotation", feModel.AllowsRotation(node)),
             ("super_damping", 0.0f));
     }
 
