@@ -517,9 +517,45 @@ partial class ModelExtract
     // The maximum length a bend-only rod is given, which is no limit at all.
     const float ClothBendOnlyRodMaxDistance = 16384f;
 
+    // Maps each global control-node index covered by an exported proxy mesh to the "$cloth_m{N}p{local}"
+    // name the compiler will create for it in OUR export (declaration order; kept aligned with the
+    // compiler's own name-sorted numbering by the padded proxy names, see EnqueueClothProxyMesh). Only
+    // faced vertices are mapped: an unfaced vertex is silently dropped by the importer, so a reference to
+    // it is a hard compile failure ("Cannot find node") - see TriangulateDominantPlane remarks.
+    static Dictionary<int, string> BuildProxyNodeNameMap(
+        List<(string FileName, string Name, FeModel.ProxyMesh Proxy)> proxies)
+    {
+        var proxyNodeNames = new Dictionary<int, string>();
+        for (var proxyIndex = 0; proxyIndex < proxies.Count; proxyIndex++)
+        {
+            var proxy = proxies[proxyIndex].Proxy;
+            var nodeIndices = proxy.NodeIndices;
+
+            var faced = new HashSet<int>();
+            foreach (var face in proxy.Faces)
+            {
+                foreach (var localIndex in face)
+                {
+                    faced.Add(localIndex);
+                }
+            }
+
+            for (var localIndex = 0; localIndex < nodeIndices.Length; localIndex++)
+            {
+                if (faced.Contains(localIndex))
+                {
+                    proxyNodeNames[nodeIndices[localIndex]] = $"$cloth_m{proxyIndex}p{localIndex}";
+                }
+            }
+        }
+
+        return proxyNodeNames;
+    }
+
     static void AddClothProxySprings(KVObject softbodyChildren, FeModel feModel,
         List<(string FileName, string Name, FeModel.ProxyMesh Proxy)> proxies, HashSet<int> chainJointNodes,
-        HashSet<int> authoredClothNodes, HashSet<(int, int)> derivedRods)
+        HashSet<int> authoredClothNodes, HashSet<(int, int)> derivedRods,
+        Dictionary<int, string> proxyNodeNames)
     {
         // Islands the cloth importer is expected to prune vertices from (see FeModel.ComputeDropRisk):
         // emitting explicit rods into them would orphan a ClothSpring on a vertex the compiler never creates
@@ -539,38 +575,6 @@ partial class ModelExtract
             }
         }
 
-
-        var proxyNodeNames = new Dictionary<int, string>();
-        for (var proxyIndex = 0; proxyIndex < proxies.Count; proxyIndex++)
-        {
-            var proxy = proxies[proxyIndex].Proxy;
-            var nodeIndices = proxy.NodeIndices;
-
-            // Only proxy vertices actually referenced by at least one face are registered as FeModel
-            // control nodes by the compiler - an unfaced vertex is silently dropped (see
-            // TriangulateDominantPlane remarks: "a vertex not referenced by ANY face is NOT registered as
-            // a valid FeModel control node"). A rod-only island whose triangulation leaves some vertices
-            // unfaced (e.g. snapfire's two proxy panels) would otherwise get ClothSprings pointing at
-            // "$cloth_mXpY" bones the compile never creates ("Cannot find node") - a HARD compile failure.
-            // Map only the faced vertices; the null-guard in the rod loop then drops any rod touching an
-            // unfaced one. dark_willow/meepo/legion fully triangulate, so none of their rods are affected.
-            var faced = new HashSet<int>();
-            foreach (var face in proxy.Faces)
-            {
-                foreach (var localIndex in face)
-                {
-                    faced.Add(localIndex);
-                }
-            }
-
-            for (var localIndex = 0; localIndex < nodeIndices.Length; localIndex++)
-            {
-                if (faced.Contains(localIndex))
-                {
-                    proxyNodeNames[nodeIndices[localIndex]] = $"$cloth_m{proxyIndex}p{localIndex}";
-                }
-            }
-        }
 
         // A real bone anchors a spring only when this export also declares it as a ClothNode. A bone the
         // compile knows solely through a chain's joint list or a proxy back-solve is not a valid endpoint,
@@ -669,6 +673,147 @@ partial class ModelExtract
 
             softbodyChildren.Add(MakeClothSpring($"rod_{name0}_{name1}", name0, name1, rod.MinDist, rod.MaxDist));
         }
+    }
+
+    // A "$cloth_node_<name>" control node is an authored free-standing ClothNode: the compiler names the
+    // ctrl "$cloth_node_" + the element name, anchors it to cloth_node_root_bone via an m_CtrlOffsets
+    // entry holding the authored bone-local origin, and registers the root bone as a second ctrl of its
+    // own. A ClothNode whose name equals its root bone merges into ONE ctrl carrying the plain bone name
+    // (static when is_static_node), which is how a plain cloth bone that no chain, proxy or shape claims
+    // was authored. The rods among these nodes come from explicit ClothSprings, whose endpoints resolve
+    // by ClothNode element name (or plain bone name for a merged/root ClothNode); a bone with no cloth
+    // declaration of its own is not a valid endpoint ("Cannot find Fx Bone").
+    static int AddFreeClothNodesAndSprings(KVObject clothChildren, KVObject softbodyChildren,
+        FeModel feModel, HashSet<int> coveredNodes, bool emitBareStatics,
+        out HashSet<string> recreatedVertexMaps)
+    {
+        const string ClothNodePrefix = "$cloth_node_";
+        var names = feModel.CtrlNames;
+
+        var anchorOf = new Dictionary<int, FeModel.CtrlOffset>();
+        foreach (var offset in feModel.CtrlOffsets)
+        {
+            anchorOf[offset.CtrlChild] = offset;
+        }
+
+        var nodeByName = new Dictionary<string, int>(StringComparer.Ordinal);
+        for (var node = 0; node < names.Length; node++)
+        {
+            nodeByName.TryAdd(names[node], node);
+        }
+
+        var jiggleNodes = feModel.JiggleBones.Select(static j => j.Node).ToHashSet();
+        var shapeParentBones = feModel.BuildCollisionCapsules().Select(static c => c.ParentBone)
+            .Concat(feModel.BuildCollisionSpheres().Select(static s => s.ParentBone))
+            .Where(static n => n is not null)
+            .ToHashSet();
+
+        var rodTouched = new HashSet<int>();
+        foreach (var rod in feModel.Rods)
+        {
+            if (rod.NodeA != rod.NodeB)
+            {
+                rodTouched.Add(rod.NodeA);
+                rodTouched.Add(rod.NodeB);
+            }
+        }
+
+        // node -> the name a ClothSpring endpoint references it by.
+        var springName = new Dictionary<int, string>();
+        var emitted = 0;
+
+        recreatedVertexMaps = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        for (var node = 0; node < names.Length; node++)
+        {
+            var name = names[node];
+            if (coveredNodes.Contains(node) || jiggleNodes.Contains(node) || shapeParentBones.Contains(name))
+            {
+                continue;
+            }
+
+            if (name.StartsWith(ClothNodePrefix, StringComparison.Ordinal))
+            {
+                var elementName = name[ClothNodePrefix.Length..];
+                string? rootBone = null;
+                Vector3 origin = default;
+                if (anchorOf.TryGetValue(node, out var anchor)
+                    && anchor.CtrlParent >= 0 && anchor.CtrlParent < names.Length)
+                {
+                    rootBone = names[anchor.CtrlParent];
+                    origin = anchor.Offset;
+                }
+                else if (node < feModel.SkelParents.Length
+                    && feModel.SkelParents[node] >= 0 && feModel.SkelParents[node] < names.Length)
+                {
+                    var parent = feModel.SkelParents[node];
+                    rootBone = names[parent];
+                    if (node < feModel.InitPosePositions.Length && parent < feModel.InitPosePositions.Length
+                        && parent < feModel.InitPoseRotations.Length)
+                    {
+                        origin = Vector3.Transform(
+                            feModel.InitPosePositions[node] - feModel.InitPosePositions[parent],
+                            Quaternion.Conjugate(feModel.InitPoseRotations[parent]));
+                    }
+                }
+
+                if (rootBone is null || FeModel.IsProxyNodeName(rootBone))
+                {
+                    continue;
+                }
+
+                clothChildren.Add(MakeClothNode(feModel, rootBone, node,
+                    isStaticNode: feModel.IsStatic(node), elementName: elementName, origin: origin));
+                springName[node] = elementName;
+                emitted++;
+
+                // The root bone compiles into a registered ctrl of its own, referencable by plain name.
+                if (nodeByName.TryGetValue(rootBone, out var rootNode))
+                {
+                    springName.TryAdd(rootNode, rootBone);
+                }
+            }
+            else if (!feModel.IsGeneratedNodeName(name))
+            {
+                var isStatic = feModel.IsStatic(node);
+                if (!isStatic || rodTouched.Contains(node) || emitBareStatics)
+                {
+                    clothChildren.Add(MakeClothNode(feModel, name, node, isStaticNode: isStatic));
+                    springName[node] = name;
+                    emitted++;
+                }
+            }
+        }
+
+        if (springName.Count == 0)
+        {
+            return emitted;
+        }
+
+        // One spring per rod OCCURRENCE, not per distinct pair: node mass accumulates per rod, and models
+        // ship genuine duplicate rods (am_debut_temple_lantern2 carries the same span three times).
+        var occurrence = new Dictionary<(int, int), int>();
+        foreach (var rod in feModel.Rods)
+        {
+            if (rod.NodeA == rod.NodeB)
+            {
+                continue;
+            }
+
+            var edge = rod.NodeA < rod.NodeB ? (rod.NodeA, rod.NodeB) : (rod.NodeB, rod.NodeA);
+            if (!springName.TryGetValue(edge.Item1, out var name0)
+                || !springName.TryGetValue(edge.Item2, out var name1))
+            {
+                continue;
+            }
+
+            var copy = occurrence.GetValueOrDefault(edge);
+            occurrence[edge] = copy + 1;
+            var springLabel = copy == 0 ? $"rod_{edge.Item1}_{edge.Item2}" : $"rod_{edge.Item1}_{edge.Item2}_{copy}";
+            softbodyChildren.Add(MakeClothSpring(springLabel, name0, name1, rod.MinDist, rod.MaxDist));
+        }
+
+        return emitted;
     }
 
     static void AddClothCollisionShapes(KVObject softbodyChildren, FeModel feModel)
@@ -1018,14 +1163,17 @@ partial class ModelExtract
                 }
             }
 
-            // A tip that fans into two rows is a second ring this far along the joint's forward axis, not
-            // one ring of twice the width - the wider ring puts every proxy somewhere else entirely. A
-            // hinged joint that carries only the hinge's own two proxies has no second ring to recover:
-            // that pair straddles the hinge axis, which reads as two rings a ring apart.
-            if (joint.EndEffector != 0f && (hinge is null || feModel.ProxyCountOf(joint.Node) > 2))
-            {
-                kv.Add("end_effector", joint.EndEffector);
-            }
+        }
+
+        // A tip that fans into two rows is a second ring this far along the joint's forward axis, not
+        // one ring of twice the width - the wider ring puts every proxy somewhere else entirely. A
+        // hinged joint that carries only the hinge's own two proxies has no second ring to recover:
+        // that pair straddles the hinge axis, which reads as two rings a ring apart. Emitted outside the
+        // extrude block: a joint whose only generated node is the "$cc<bone>_Ctr" centre has an
+        // end_effector but no ring at all, so its chain never extrudes.
+        if (joint.EndEffector != 0f && (hinge is null || feModel.ProxyCountOf(joint.Node) > 2))
+        {
+            kv.Add("end_effector", joint.EndEffector);
         }
 
         kv.Add("bend_spring", joint.BendSpring ? 1.0f : 0.0f);
@@ -1074,19 +1222,37 @@ partial class ModelExtract
     // from 106/none in the original to 101, exactly this bone's block of 5) driven via a synthesized
     // m_Ropes fallback (12 ropes vs the original's 0) instead of a normal simulated node - i.e. a real
     // dynamical difference, not just a missing cosmetic orientation hint.
-    static KVObject MakeClothNode(FeModel feModel, string boneName, int node, bool isStaticNode = false)
+    static KVObject MakeClothNode(FeModel feModel, string boneName, int node, bool isStaticNode = false,
+        string? elementName = null, Vector3 origin = default,
+        IReadOnlyDictionary<int, string>? proxyNodeNames = null)
     {
         var integrator = feModel.GetIntegrator(node);
         var goalStrength = MathF.Cbrt(Math.Clamp(integrator.ForceAttraction, 0f, 1f));
         var goalDamping = FeModel.GoalDampingFromAttraction(integrator.ForceAttraction, integrator.VertexAttraction);
         var strayRadius = feModel.GetStrayRadius(node);
 
+        // A "$cloth_m{N}p{Y}" basis node must be referenced by the name OUR export's proxy split gives it,
+        // not the original's own numbering (the two proxy layouts have no defined relationship); an
+        // unresolvable one is omitted rather than echoed as a name the compile may reject or mis-bind.
+        // Every other generated name ("$cc..." rings, "$cloth_node_..." elements) is regenerated verbatim
+        // by our own chains/nodes, so the original's name stays correct as-is.
         var hasBasis = feModel.NodeBases.TryGetValue(node, out var basis);
-        string BasisName(int basisNode) => hasBasis ? feModel.CtrlNames[basisNode] : string.Empty;
+        string BasisName(int basisNode)
+        {
+            if (!hasBasis || basisNode < 0 || basisNode >= feModel.CtrlNames.Length)
+            {
+                return string.Empty;
+            }
+
+            var basisName = feModel.CtrlNames[basisNode];
+            return basisName.StartsWith("$cloth_m", StringComparison.Ordinal)
+                ? proxyNodeNames?.GetValueOrDefault(basisNode) ?? string.Empty
+                : basisName;
+        }
 
         return MakeNode("ClothNode",
-            ("name", boneName),
-            ("origin", ToKVArray(Vector3.Zero)),
+            ("name", elementName ?? boneName),
+            ("origin", ToKVArray(origin)),
             ("angles", ToKVArray(Vector3.Zero)),
             ("cloth_node_root_bone", boneName),
             ("has_stray_radius", strayRadius > 0f),
@@ -2328,6 +2494,8 @@ partial class ModelExtract
                     }
                 }
 
+                var proxyNodeNameMap = BuildProxyNodeNameMap(ClothProxyMeshesToExtract);
+
                 if (independentChains.Count > 0 || loneClothNodes.Count > 0 || leftoverStaticNodes.Count > 0)
                 {
                     var (clothFolder, clothFolderChildren) = MakeListNode("Folder");
@@ -2366,12 +2534,13 @@ partial class ModelExtract
 
                     foreach (var (name, node) in loneClothNodes)
                     {
-                        FolderFor(node).Add(MakeClothNode(feModel, name, node));
+                        FolderFor(node).Add(MakeClothNode(feModel, name, node, proxyNodeNames: proxyNodeNameMap));
                     }
 
                     foreach (var (name, node) in leftoverStaticNodes)
                     {
-                        FolderFor(node).Add(MakeClothNode(feModel, name, node, isStaticNode: true));
+                        FolderFor(node).Add(MakeClothNode(feModel, name, node, isStaticNode: true,
+                            proxyNodeNames: proxyNodeNameMap));
                     }
                 }
 
@@ -2383,7 +2552,7 @@ partial class ModelExtract
                     .Select(static entry => entry.Node)
                     .ToHashSet();
                 AddClothProxySprings(softbodyChildren, feModel, ClothProxyMeshesToExtract, independentChainNodes,
-                    authoredClothNodes, surfaceRods);
+                    authoredClothNodes, surfaceRods, proxyNodeNameMap);
                 AddClothCollisionShapes(softbodyChildren, feModel);
                 AddClothEffects(softbodyChildren, feModel, AvailableVertexMaps(feModel, independentChains));
 
@@ -2421,10 +2590,43 @@ partial class ModelExtract
                 }
 
                 AddClothChainSurplusRods(softbodyChildren, feModel, boneChains);
+
+                var chainCoveredNodes = boneChains.SelectMany(static chain => chain.Joints)
+                    .Select(static joint => joint.Node)
+                    .ToHashSet();
+                AddFreeClothNodesAndSprings(clothFolderChildren, softbodyChildren, feModel,
+                    chainCoveredNodes, emitBareStatics: false, out var freeNodeMaps);
+
                 AddClothCollisionShapes(softbodyChildren, feModel);
-                AddClothEffects(softbodyChildren, feModel, AvailableVertexMaps(feModel, boneChains));
+                var availableMaps = AvailableVertexMaps(feModel, boneChains);
+                availableMaps.UnionWith(freeNodeMaps);
+                AddClothEffects(softbodyChildren, feModel, availableMaps);
                 root.Children.Add(softbody);
                 clothEmitted = true;
+            }
+            else if (feModel.HasData)
+            {
+                // No sheet and no chains: cloth built purely from free-standing ClothNodes (and the
+                // ClothSprings wiring them), e.g. the "$cloth_node_*" minimal rigs and lone goal-driven
+                // bones. A FeModel that yields no authorable node here (jiggle-bone users, weapon-offset
+                // rigs) emits nothing and falls through to the PHYS transplant placeholder below.
+                var (softbody, softbodyChildren) = MakeListNode("Softbody");
+                softbody.Add("motion_smooth_cdt", feModel.MotionSmoothCdt);
+                softbodyChildren.Add(MakeClothParams(feModel));
+                var (clothFolder, clothFolderChildren) = MakeListNode("Folder");
+                clothFolder.Add("name", "cloth");
+                softbodyChildren.Add(clothFolder);
+
+                if (AddFreeClothNodesAndSprings(clothFolderChildren, softbodyChildren, feModel,
+                    [], emitBareStatics: true, out var freeNodeMaps) > 0)
+                {
+                    AddClothCollisionShapes(softbodyChildren, feModel);
+                    var availableMaps = AvailableVertexMaps(feModel, boneChains);
+                    availableMaps.UnionWith(freeNodeMaps);
+                    AddClothEffects(softbodyChildren, feModel, availableMaps);
+                    root.Children.Add(softbody);
+                    clothEmitted = true;
+                }
             }
         }
 

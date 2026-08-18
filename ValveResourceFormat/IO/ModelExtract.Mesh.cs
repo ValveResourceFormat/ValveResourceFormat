@@ -190,11 +190,20 @@ partial class ModelExtract
         feModel.SkeletonBoneParents = boneParents;
         feModel.SetSkeletonParents(boneParents);
 
+        // The compiler assigns the $cloth_m<N> mesh index by ORDINAL STRING SORT of the proxy names, not
+        // declaration order, so an unpadded suffix breaks every spring/basis reference on models with 11+
+        // proxies ("cloth_proxy10" sorts before "cloth_proxy2" - spectre's 13 islands). Zero-padding the
+        // suffix to the model's own digit count keeps declaration order and sort order identical; models
+        // with up to 10 proxies keep their old single-digit names.
+        var proxyMeshes = feModel.BuildProxyMeshes().ToList();
+        var suffixWidth = Math.Max(1, (proxyMeshes.Count - 1).ToString(CultureInfo.InvariantCulture).Length);
         var proxyIndex = 0;
-        foreach (var proxyMesh in feModel.BuildProxyMeshes())
+        foreach (var proxyMesh in proxyMeshes)
         {
             // One proxy per island, like the originals (node names $cloth_mXpY encode the mesh index).
-            var proxyName = "cloth_proxy" + (proxyIndex > 0 ? proxyIndex.ToString(CultureInfo.InvariantCulture) : string.Empty);
+            var proxyName = proxyIndex > 0
+                ? "cloth_proxy" + proxyIndex.ToString(CultureInfo.InvariantCulture).PadLeft(suffixWidth, '0')
+                : "cloth_proxy";
             ClothProxyMeshesToExtract.Add((GetDmxFileName_ForEmbeddedMesh(proxyName), proxyName, proxyMesh));
             proxyIndex++;
         }
