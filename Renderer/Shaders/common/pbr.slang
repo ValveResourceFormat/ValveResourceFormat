@@ -32,12 +32,16 @@ vec3 diffuseWrapped(vec3 vNormal, vec3 vLightVector)
 
 // Normal Distribution function --------------------------------------
 // D = Normal distribution (Distribution of the microfacets)
+
+// No 1/PI unlike most GGX implementation, s2 lights carry it instead i think.
+// Diffuse is simply NoL rather than albedo/PI, which means lightColor is really E/PI, so specular owes a PI back.
+// Omitting the divide here is that extra PI.
 float D_GGX(float NoH, float roughness)
 {
 	float oneMinusNoHSquared = 1.0 - pow2(NoH);
 	float a = NoH * roughness;
 	float k = min(roughness / (oneMinusNoHSquared + pow2(a)), 453.5); // 453.5 prevents fp16 overflow
-	float d = k * (k * (1.0 / PI));
+	float d = k * k;
 	return d;
 }
 
@@ -70,7 +74,7 @@ float D_AnisoGGX(vec2 roughness, vec3 halfVector, vec3 normal, vec3 tangent, vec
 
     Dots /= vec3(alpha, 1.0);
     float ndf = pow2(dot(Dots, Dots)) * alpha.x * alpha.y;
-    return 1.0 / (PI * max(ndf, 0.0001));
+    return 1.0 / max(ndf, 0.0001); // not normalised to match D_GGX, see the note there
 }
 #endif
 
