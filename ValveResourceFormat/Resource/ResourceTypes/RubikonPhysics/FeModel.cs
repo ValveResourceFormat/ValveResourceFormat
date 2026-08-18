@@ -2113,6 +2113,116 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics
         }
 
         /// <summary>
+        /// Restores a proxy's original vertex NUMBERING when it has gaps. The compiler names control nodes
+        /// "$cloth_m{N}p{SLOT}" by DMX vertex slot BEFORE dropping unfaced vertices, so an original whose
+        /// source mesh had culled vertices ships non-contiguous p numbers (135 corpus models - mars,
+        /// death_prophet, undying, warlock). Re-exporting only the survivors contiguously shifts every name
+        /// after each gap, and the whole node set mis-pairs against the original. A pinned, unfaced dummy
+        /// copy of the nearest real vertex fills each gap slot: the compiler drops it again (unfaced), and
+        /// every real vertex keeps its original number.
+        /// </summary>
+        ProxyMesh PadToAuthoredSlots(ProxyMesh mesh)
+        {
+            var n = mesh.NodeIndices.Length;
+            if (n == 0)
+            {
+                return mesh;
+            }
+
+            var slots = new int[n];
+            var meshIndex = -1;
+            for (var i = 0; i < n; i++)
+            {
+                var node = mesh.NodeIndices[i];
+                if (node < 0 || node >= CtrlNames.Length)
+                {
+                    return mesh;
+                }
+
+                var m = ParseProxyMeshIndex(CtrlNames[node]);
+                var p = ParseProxyVertexIndex(CtrlNames[node]);
+                if (m < 0 || p < 0 || (i > 0 && (m != meshIndex || p <= slots[i - 1])))
+                {
+                    return mesh;
+                }
+
+                meshIndex = m;
+                slots[i] = p;
+            }
+
+            var total = slots[n - 1] + 1;
+            if (total == n && slots[0] == 0)
+            {
+                return mesh;
+            }
+
+            // Padded slot -> source vertex; a gap copies the nearest real vertex at or before it (a gap
+            // below the first real slot copies the first).
+            var srcOf = new int[total];
+            var dummy = new bool[total];
+            var src = 0;
+            for (var slot = 0; slot < total; slot++)
+            {
+                if (src < n && slots[src] == slot)
+                {
+                    srcOf[slot] = src;
+                    src++;
+                }
+                else
+                {
+                    srcOf[slot] = src > 0 ? src - 1 : 0;
+                    dummy[slot] = true;
+                }
+            }
+
+            T[] Pad<T>(T[] source) => [.. Enumerable.Range(0, total).Select(slot => source[srcOf[slot]])];
+
+            var clothEnable = Pad(mesh.ClothEnable);
+            for (var slot = 0; slot < total; slot++)
+            {
+                if (dummy[slot])
+                {
+                    clothEnable[slot] = 0f;
+                }
+            }
+
+            var localToSlot = new int[n];
+            for (var slot = 0; slot < total; slot++)
+            {
+                if (!dummy[slot])
+                {
+                    localToSlot[srcOf[slot]] = slot;
+                }
+            }
+
+            // A dummy carries its copied neighbour's control-node index: every consumer that walks
+            // NodeIndices stays valid, and the name map only covers faced vertices so the duplicate
+            // never claims the real vertex's name.
+            return new ProxyMesh
+            {
+                NodeIndices = Pad(mesh.NodeIndices),
+                Positions = Pad(mesh.Positions),
+                ClothEnable = clothEnable,
+                GoalStrength = Pad(mesh.GoalStrength),
+                GoalDamping = Pad(mesh.GoalDamping),
+                CollisionRadius = Pad(mesh.CollisionRadius),
+                Friction = Pad(mesh.Friction),
+                Drag = Pad(mesh.Drag),
+                GroundCollision = Pad(mesh.GroundCollision),
+                Gravity = Pad(mesh.Gravity),
+                VertexAttraction = Pad(mesh.VertexAttraction),
+                SkinInfluences = Pad(mesh.SkinInfluences),
+                VertexMaps = [.. mesh.VertexMaps.Select(m => (m.Name, Pad(m.Weights)))],
+                Faces = [.. mesh.Faces.Select(f => f.Select(v => localToSlot[v]).ToArray())],
+                SimulatedCount = mesh.SimulatedCount,
+                PinnedCount = mesh.PinnedCount + (total - n),
+                IsDropRisk = mesh.IsDropRisk,
+                UsesAuthoredFaces = mesh.UsesAuthoredFaces,
+                IsFreeFloating = mesh.IsFreeFloating,
+            };
+        }
+
+        /// <summary>
         /// Reconstructs the cloth proxy sheets from the FeModel surface arrays, one per connected island.
         /// Original models ship each cloth piece as its OWN proxy mesh (the compiled node names encode it:
         /// <c>$cloth_m0p3</c> = mesh 0, point 3; dark_willow has m0/m1/m2), so a merged single sheet
@@ -2149,7 +2259,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics
 
                 if (islands.Count == 1)
                 {
-                    result.Add(merged);
+                    result.Add(PadToAuthoredSlots(merged));
                 }
                 else
                 {
@@ -2167,7 +2277,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics
 
                         T[] Take<T>(T[] source) => [.. vertices.Select(v => source[v])];
 
-                        result.Add(new ProxyMesh
+                        result.Add(PadToAuthoredSlots(new ProxyMesh
                         {
                             NodeIndices = Take(merged.NodeIndices),
                             Positions = Take(merged.Positions),
@@ -2185,7 +2295,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics
                             Faces = [.. merged.Faces.Where(f => remap.ContainsKey(f[0])).Select(f => f.Select(v => remap[v]).ToArray())],
                             SimulatedCount = vertices.Count(v => merged.ClothEnable[v] != 0f),
                             PinnedCount = vertices.Count(v => merged.ClothEnable[v] == 0f),
-                        });
+                        }));
                     }
                 }
             }
@@ -2829,7 +2939,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics
                 var mesh = BuildProxyMeshFromNodeSet(nodeIndices, nodeFriction);
                 if (mesh is not null)
                 {
-                    result.Add(mesh);
+                    result.Add(PadToAuthoredSlots(mesh));
                 }
             }
 
