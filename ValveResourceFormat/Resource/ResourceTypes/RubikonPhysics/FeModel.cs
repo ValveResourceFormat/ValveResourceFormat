@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Globalization;
 using System.Linq;
 using System.Numerics;
@@ -441,6 +442,14 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics
         public uint StaticNodeFlags => Data.GetUInt32Property("m_nStaticNodeFlags");
         public int RotationLockedStaticNodeCount => Data.GetInt32Property("m_nRotLockStaticNodes");
         public float MotionSmoothCdt => Data.GetFloatProperty("m_flMotionSmoothCDT");
+        public float DefaultTimeDilation => Data.GetFloatProperty("m_flDefaultTimeDilation");
+        public float DefaultVolumetricSolveAmount => Data.GetFloatProperty("m_flDefaultVolumetricSolveAmount");
+        public float DefaultVelQuadAirDrag => Data.GetFloatProperty("m_flDefaultVelQuadAirDrag");
+        public float DefaultExpQuadAirDrag => Data.GetFloatProperty("m_flDefaultExpQuadAirDrag");
+        public float DefaultVelRodAirDrag => Data.GetFloatProperty("m_flDefaultVelRodAirDrag");
+        public float DefaultExpRodAirDrag => Data.GetFloatProperty("m_flDefaultExpRodAirDrag");
+        public float QuadVelocitySmoothRate => Data.GetFloatProperty("m_flQuadVelocitySmoothRate");
+        public int QuadVelocitySmoothIterations => Data.GetInt32Property("m_nQuadVelocitySmoothIterations");
 #pragma warning restore CS1591
 
         /// <summary>
@@ -755,6 +764,242 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics
 #pragma warning disable CS1591
 #pragma warning restore CS1591
 
+        /// <summary>An anti-tunnelling probe (from <c>m_AntiTunnelProbes</c>).</summary>
+        public readonly record struct AntiTunnelProbe(float Weight, uint Flags, int ProbeNode, int Count, int Begin,
+            float ActivationDistance, float CurvatureRadius, float Bias);
+
+        /// <summary>Gets the anti-tunnelling probes (<c>m_AntiTunnelProbes</c>).</summary>
+        public AntiTunnelProbe[] AntiTunnelProbes { get; }
+
+        /// <summary>Gets the control nodes targeted by <see cref="AntiTunnelProbes"/> (<c>m_AntiTunnelTargetNodes</c>).</summary>
+        public int[] AntiTunnelTargetNodes { get; }
+
+        /// <summary>Gets the anti-tunnelling probe bytecode (<c>m_AntiTunnelBytecode</c>). Empty in every known model.</summary>
+        public uint[] AntiTunnelBytecode { get; }
+
+        /// <summary>A dynamic-to-kinematic node link (from <c>m_DynKinLinks</c>).</summary>
+        public readonly record struct DynKinLink(int Parent, int Child);
+
+        /// <summary>Gets the dynamic-to-kinematic node links (<c>m_DynKinLinks</c>).</summary>
+        public DynKinLink[] DynKinLinks { get; }
+
+        /// <summary>A collision plane (from <c>m_CollisionPlanes</c>).</summary>
+        public readonly record struct CollisionPlane(int CtrlParent, int ChildNode, Vector3 PlaneNormal,
+            float PlaneOffset, float Stickiness, float Strength);
+
+        /// <summary>Gets the collision planes (<c>m_CollisionPlanes</c>).</summary>
+        public CollisionPlane[] CollisionPlanes { get; }
+
+        /// <summary>A signed-distance-field collision volume (from <c>m_SDFRigids</c>).</summary>
+        public readonly record struct SDFRigid(Vector3 LocalMin, Vector3 LocalMax, float Bounciness, int Node,
+            int CollisionMask, int VertexMapIndex, uint Flags, float[] Distances, int Width, int Height, int Depth);
+
+        /// <summary>Gets the signed-distance-field collision volumes (<c>m_SDFRigids</c>).</summary>
+        public SDFRigid[] SDFRigids { get; }
+
+        /// <summary>Gets the goal-damped spring integrator indices (<c>m_GoalDampedSpringIntegrators</c>).</summary>
+        public uint[] GoalDampedSpringIntegrators { get; }
+
+        /// <summary>
+        /// A named cloth effect (wind, stiffen, ...) from <c>m_Effects</c>. <see cref="Params"/> is the raw
+        /// per-effect-type parameter block (e.g. a wind effect carries <c>Strength</c>, <c>Choppiness</c>,
+        /// <c>Vortices</c> and <c>VertexMap</c>); its schema varies with <see cref="Type"/> and is kept
+        /// unparsed.
+        /// </summary>
+        public readonly record struct Effect(string Name, uint NameHash, int Type, KVObject Params);
+
+        /// <summary>Gets the named cloth effects (<c>m_Effects</c>).</summary>
+        public Effect[] Effects { get; }
+
+        /// <summary>A deprecated morph layer (from <c>m_MorphLayers</c>).</summary>
+        public readonly record struct MorphLayer(string Name, uint NameHash, int[] Nodes, Vector3[] InitPos,
+            float[] Gravity, float[] GoalStrength, float[] GoalDamping, uint Flags);
+
+        /// <summary>Gets the deprecated morph layers (<c>m_MorphLayers</c>). Empty in every known model.</summary>
+        public MorphLayer[] MorphLayers { get; }
+
+        /// <summary>Gets the raw morph-set data (<c>m_MorphSetData</c>). Empty in every known model.</summary>
+        public byte[] MorphSetData { get; }
+
+        /// <summary>A self-collision layer (from <c>m_SelfCollisionLayers</c>).</summary>
+        public readonly record struct SelfCollisionLayer(string Name, int[] Nodes, float ParentReaction,
+            uint Flags, uint[] EndIndices);
+
+        /// <summary>Gets the self-collision layers (<c>m_SelfCollisionLayers</c>). Empty in every known model.</summary>
+        public SelfCollisionLayer[] SelfCollisionLayers { get; }
+
+        /// <summary>A node stray-box constraint (from <c>m_NodeStrayBoxes</c>).</summary>
+        public readonly record struct NodeStrayBox(Vector3 Min, Vector3 Max, uint Flags, int NodeA, int NodeB);
+
+        /// <summary>Gets the node stray-box constraints (<c>m_NodeStrayBoxes</c>). Empty in every known model.</summary>
+        public NodeStrayBox[] NodeStrayBoxes { get; }
+
+        /// <summary>A tapered-capsule stretch constraint (from <c>m_TaperedCapsuleStretches</c>).</summary>
+        public readonly record struct TaperedCapsuleStretch(int NodeA, int NodeB, int CollisionMask,
+            float RadiusA, float RadiusB);
+
+        /// <summary>
+        /// Gets the tapered-capsule stretch constraints (<c>m_TaperedCapsuleStretches</c>). Empty in every
+        /// known model.
+        /// </summary>
+        public TaperedCapsuleStretch[] TaperedCapsuleStretches { get; }
+
+        /// <summary>A per-pair spring constraint (from <c>m_SpringIntegrator</c>).</summary>
+        public readonly record struct SpringIntegrator(int NodeA, int NodeB, float RestLength,
+            float SpringConstant, float SpringDamping, float NodeWeight0);
+
+        /// <summary>Gets the spring constraints (<c>m_SpringIntegrator</c>). Empty in every known model.</summary>
+        public SpringIntegrator[] SpringIntegrators { get; }
+
+        /// <summary>Per-node priority order into the four rigid-collider arrays (from <c>m_RigidColliderPriorities</c>).</summary>
+        public readonly record struct RigidColliderIndices(int TaperedCapsuleRigidIndex, int SphereRigidIndex,
+            int BoxRigidIndex, int SDFRigidIndex, int CollisionPlaneIndex);
+
+        /// <summary>
+        /// Gets the rigid-collider priority indices (<c>m_RigidColliderPriorities</c>). Empty in every known
+        /// model.
+        /// </summary>
+        public RigidColliderIndices[] RigidColliderPriorities { get; }
+
+        /// <summary>A jiggle bone's physical parameters (from <c>CFeJiggleBone</c>).</summary>
+        public readonly record struct JiggleBone(
+            uint Flags, float Length, float TipMass,
+            float YawStiffness, float YawDamping, float PitchStiffness, float PitchDamping,
+            float AlongStiffness, float AlongDamping, float AngleLimit,
+            float MinYaw, float MaxYaw, float YawFriction, float YawBounce,
+            float MinPitch, float MaxPitch, float PitchFriction, float PitchBounce,
+            float BaseMass, float BaseStiffness, float BaseDamping,
+            float BaseMinLeft, float BaseMaxLeft, float BaseLeftFriction,
+            float BaseMinUp, float BaseMaxUp, float BaseUpFriction,
+            float BaseMinForward, float BaseMaxForward, float BaseForwardFriction,
+            float Radius0, float Radius1, Vector3 Point0, Vector3 Point1, int CollisionMask);
+
+        /// <summary>A jiggle bone keyed to its control node (from <c>m_JiggleBones</c>).</summary>
+        public readonly record struct IndexedJiggleBone(int Node, int JiggleParent, JiggleBone Bone);
+
+        /// <summary>Gets the jiggle bones (<c>m_JiggleBones</c>).</summary>
+        public IndexedJiggleBone[] JiggleBones { get; }
+
+        /// <summary>A Dota-only bone-merge link (from <c>m_BoneMergeLinks</c>, absent from CS2/Deadlock).</summary>
+        public readonly record struct BoneMergeLink(uint ParentHash, int ChildNode);
+
+        /// <summary>Gets the bone-merge links (<c>m_BoneMergeLinks</c>). Empty in every known model.</summary>
+        public BoneMergeLink[] BoneMergeLinks { get; }
+
+        /// <summary>A node locked to its parent's offset transform (from <c>m_LockToParent</c>).</summary>
+        public readonly record struct LockToParentLink(Vector3 Offset, int CtrlParent, int CtrlChild);
+
+        /// <summary>Gets the parent-locked node links (<c>m_LockToParent</c>).</summary>
+        public LockToParentLink[] LockToParent { get; }
+
+        /// <summary>Gets the control nodes locked to their animated goal (<c>m_LockToGoal</c>).</summary>
+        public int[] LockToGoal { get; }
+
+        /// <summary>A strip's column pairing (from <c>m_CtrlOsOffsets</c>).</summary>
+        public readonly record struct CtrlOsOffset(int CtrlParent, int CtrlChild);
+
+        /// <summary>Gets the strip column pairings (<c>m_CtrlOsOffsets</c>).</summary>
+        public CtrlOsOffset[] CtrlOsOffsets { get; }
+
+        /// <summary>
+        /// Gets the named vertex sets' name hashes (<c>m_VertexSetNames</c>), paired with
+        /// <see cref="DynNodeVertexSet"/>.
+        /// </summary>
+        public uint[] VertexSetNames { get; }
+
+        /// <summary>
+        /// Gets each dynamic node's vertex-set index into <see cref="VertexSetNames"/>
+        /// (<c>m_DynNodeVertexSet</c>).
+        /// </summary>
+        public byte[] DynNodeVertexSet { get; }
+
+        /// <summary>Gets the legacy per-node stretch force (<c>m_LegacyStretchForce</c>).</summary>
+        public float[] LegacyStretchForce { get; }
+
+        /// <summary>
+        /// Gets the raw <c>m_CollisionSpheres</c> entries. Not in the reference schema snapshot (a newer
+        /// compiler build than either static extraction it was taken from) and empty in every known model,
+        /// so its element shape is unknown - kept as uninterpreted sub-objects rather than guessed.
+        /// </summary>
+        public IReadOnlyList<KVObject> CollisionSpheres { get; }
+
+        // Keys the compiler regenerates from other data at compile time (the BVH tree, SIMD repacks,
+        // free-node lists, and reserved/derived counts) - not parsed for authoring since a recompile
+        // rebuilds them regardless of what an exported source declares. m_SimdQuads/m_SimdTris are the one
+        // exception still read directly (see OrderFacesBySimdLanes), for face ordering rather than authoring.
+        static readonly HashSet<string> DerivedKeys =
+        [
+            "m_CtrlHash",
+            "m_TreeParents", "m_TreeChildren", "m_TreeCollisionMasks", "m_nTreeDepth",
+            "m_SimdRods", "m_SimdNodeBases", "m_SimdAnimStrayRadii", "m_SimdRodsAnim", "m_SimdSpringIntegrator",
+            "m_SimdQuads", "m_SimdTris",
+            "m_FreeNodes",
+            "m_nQuadCount1", "m_nQuadCount2", "m_nTriCount1", "m_nTriCount2",
+            "m_nSimdQuadCount1", "m_nSimdQuadCount2", "m_nSimdTriCount1", "m_nSimdTriCount2",
+            "m_nReservedUint8", "m_nNodeBaseJiggleboneDependsCount",
+            // Not in the reference schema snapshot (a newer compiler build than either static extraction it
+            // was taken from) - found via AssertAllKeysAccountedFor against real corpus data, always 0/empty,
+            // sitting in the same partition-count/SIMD-repack clusters as their m_nQuadCount1/2 and
+            // m_SimdNodeBases siblings.
+            "m_nCollisionSphereInclusiveCount",
+            "m_SimdFitMatrices", "m_nFitMatrixCount1", "m_nFitMatrixCount2",
+            "m_nSimdFitMatrixCount1", "m_nSimdFitMatrixCount2",
+            "m_DynNodeWindBases",
+            "m_ReverseOffsets",
+        ];
+
+        // Every top-level m_pFeModel key this class reads, parsed or lazily surfaced via Data.
+        static readonly HashSet<string> ParsedKeys =
+        [
+            "m_CtrlName", "m_SkelParents", "m_NodeInvMasses", "m_nNodeCount", "m_nStaticNodes",
+            "m_nFirstPositionDrivenNode", "m_InitPose", "m_Quads", "m_Tris", "m_SourceElems",
+            "m_HingeLimits", "m_KelagerBends", "m_VertexMapValues", "m_VertexMaps", "m_Rods",
+            "m_NodeIntegrator", "m_NodeCollisionRadii", "m_WorldCollisionNodes", "m_WorldCollisionParams",
+            "m_DynNodeFriction", "m_AnimStrayRadii", "m_FitMatrices", "m_Twists", "m_NodeBases",
+            "m_CtrlOffsets", "m_CtrlSoftOffsets", "m_FitWeights", "m_TaperedCapsuleRigids", "m_BoxRigids",
+            "m_SphereRigids", "m_AxialEdges", "m_Ropes", "m_nRopeCount", "m_FollowNodes",
+            "m_LocalForce", "m_LocalRotation",
+            "m_flInternalPressure", "m_flWindage", "m_flWindDrag", "m_flLocalForce", "m_flLocalRotation",
+            "m_flAddWorldCollisionRadius", "m_flDefaultGravityScale", "m_flDefaultVelAirDrag",
+            "m_flDefaultExpAirDrag", "m_flDefaultThreadStretch", "m_flDefaultSurfaceStretch", "m_flLocalDrag1",
+            "m_nExtraIterations", "m_nExtraGoalIterations", "m_nExtraPressureIterations",
+            "m_flRodVelocitySmoothRate", "m_nRodVelocitySmoothIterations", "m_nDynamicNodeFlags",
+            "m_nStaticNodeFlags", "m_nRotLockStaticNodes", "m_flMotionSmoothCDT",
+
+            // Parsed this session.
+            "m_VertexSetNames", "m_DynNodeVertexSet", "m_LockToGoal", "m_LockToParent", "m_LegacyStretchForce",
+            "m_CtrlOsOffsets", "m_AntiTunnelProbes", "m_AntiTunnelTargetNodes", "m_AntiTunnelBytecode",
+            "m_SDFRigids", "m_GoalDampedSpringIntegrators", "m_DynKinLinks", "m_CollisionPlanes", "m_Effects",
+            "m_MorphLayers", "m_MorphSetData", "m_SelfCollisionLayers", "m_NodeStrayBoxes",
+            "m_TaperedCapsuleStretches", "m_SpringIntegrator", "m_RigidColliderPriorities", "m_JiggleBones",
+            "m_BoneMergeLinks", "m_CollisionSpheres",
+            "m_flDefaultTimeDilation", "m_flDefaultVolumetricSolveAmount", "m_flDefaultVelQuadAirDrag",
+            "m_flDefaultExpQuadAirDrag", "m_flQuadVelocitySmoothRate", "m_nQuadVelocitySmoothIterations",
+            "m_flDefaultVelRodAirDrag", "m_flDefaultExpRodAirDrag",
+        ];
+
+        /// <summary>
+        /// Verifies every top-level <c>m_pFeModel</c> key is either parsed (<see cref="ParsedKeys"/>) or
+        /// known-derived (<see cref="DerivedKeys"/>), so a compiler adding a new key is caught here instead
+        /// of silently dropped. Debug-only.
+        /// </summary>
+        [Conditional("DEBUG")]
+        static void AssertAllKeysAccountedFor(KVObject data)
+        {
+            foreach (var key in data.Keys)
+            {
+                Debug.Assert(ParsedKeys.Contains(key) || DerivedKeys.Contains(key),
+                    $"FeModel key '{key}' is neither parsed nor in the derived-key list.");
+            }
+        }
+
+        // Reads an array-of-struct key, or [] when the key is absent.
+        static T[] ReadArray<T>(KVObject data, string key, Func<KVObject, T> map)
+        {
+            var arr = data.GetArray(key);
+            return arr is null ? [] : arr.Select(map).ToArray();
+        }
+
         /// <summary>
         /// Initializes a new instance of the <see cref="FeModel"/> class from a parsed <c>m_pFeModel</c> sub-object.
         /// </summary>
@@ -937,7 +1182,137 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics
 
             NodeBases = nodeBases;
 
+            AntiTunnelProbes = ReadArray(data, "m_AntiTunnelProbes", static o => new AntiTunnelProbe(
+                o.GetFloatProperty("flWeight"), o.GetUInt32Property("nFlags"), o.GetInt32Property("nProbeNode"),
+                o.GetInt32Property("nCount"), o.GetInt32Property("nBegin"),
+                o.GetFloatProperty("flActivationDistance"), o.GetFloatProperty("flCurvatureRadius"),
+                o.GetFloatProperty("flBias")));
+            AntiTunnelTargetNodes = data.GetIntegerArray("m_AntiTunnelTargetNodes").Select(static v => (int)v).ToArray();
+            AntiTunnelBytecode = data.GetArray<uint>("m_AntiTunnelBytecode") ?? [];
+
+            DynKinLinks = ReadArray(data, "m_DynKinLinks", static o => new DynKinLink(
+                o.GetInt32Property("m_nParent"), o.GetInt32Property("m_nChild")));
+
+            CollisionPlanes = ReadArray(data, "m_CollisionPlanes", static o =>
+            {
+                var plane = o.GetSubCollection("m_Plane");
+                return new CollisionPlane(
+                    o.GetInt32Property("nCtrlParent"), o.GetInt32Property("nChildNode"),
+                    plane?.GetSubCollection("m_vNormal") is { } normal ? normal.ToVector3() : default,
+                    plane?.GetFloatProperty("m_flOffset") ?? 0f,
+                    o.GetFloatProperty("flStickiness"), o.GetFloatProperty("flStrength"));
+            });
+
+            SDFRigids = ReadArray(data, "m_SDFRigids", static o => new SDFRigid(
+                o.GetSubCollection("vLocalMin") is { } lmin ? lmin.ToVector3() : default,
+                o.GetSubCollection("vLocalMax") is { } lmax ? lmax.ToVector3() : default,
+                o.GetFloatProperty("flBounciness"), o.GetInt32Property("nNode"),
+                o.GetInt32Property("nCollisionMask"), o.GetInt32Property("nVertexMapIndex"),
+                o.GetUInt32Property("nFlags"), o.GetFloatArray("m_Distances"),
+                o.GetInt32Property("m_nWidth"), o.GetInt32Property("m_nHeight"), o.GetInt32Property("m_nDepth")));
+
+            GoalDampedSpringIntegrators = data.GetArray<uint>("m_GoalDampedSpringIntegrators") ?? [];
+
+            Effects = ReadArray(data, "m_Effects", static o => new Effect(
+                o.GetStringProperty("sName") ?? string.Empty, o.GetUInt32Property("nNameHash"),
+                o.GetInt32Property("nType"), o.GetSubCollection("m_Params")));
+
+            MorphLayers = ReadArray(data, "m_MorphLayers", static o => new MorphLayer(
+                o.GetStringProperty("m_Name") ?? string.Empty, o.GetUInt32Property("m_nNameHash"),
+                o.GetIntegerArray("m_Nodes").Select(static v => (int)v).ToArray(),
+                (o.GetArray("m_InitPos") ?? []).Select(static p => p.ToVector3()).ToArray(),
+                o.GetFloatArray("m_Gravity"), o.GetFloatArray("m_GoalStrength"), o.GetFloatArray("m_GoalDamping"),
+                o.GetUInt32Property("m_nFlags")));
+            MorphSetData = data.GetArray<byte>("m_MorphSetData") ?? [];
+
+            SelfCollisionLayers = ReadArray(data, "m_SelfCollisionLayers", static o => new SelfCollisionLayer(
+                o.GetStringProperty("m_Name") ?? string.Empty,
+                o.GetIntegerArray("m_Nodes").Select(static v => (int)v).ToArray(),
+                o.GetFloatProperty("m_flParentReaction"), o.GetUInt32Property("m_nFlags"),
+                o.GetArray<uint>("m_nEndIdx") ?? []));
+
+            NodeStrayBoxes = ReadArray(data, "m_NodeStrayBoxes", static o =>
+            {
+                var nodes = o.GetIntegerArray("nNode");
+                return new NodeStrayBox(
+                    o.GetSubCollection("vMin") is { } smin ? smin.ToVector3() : default,
+                    o.GetSubCollection("vMax") is { } smax ? smax.ToVector3() : default,
+                    o.GetUInt32Property("nFlags"),
+                    nodes.Length > 0 ? (int)nodes[0] : -1, nodes.Length > 1 ? (int)nodes[1] : -1);
+            });
+
+            TaperedCapsuleStretches = ReadArray(data, "m_TaperedCapsuleStretches", static o =>
+            {
+                var nodes = o.GetIntegerArray("nNode");
+                var radii = o.GetFloatArray("flRadius");
+                return new TaperedCapsuleStretch(
+                    nodes.Length > 0 ? (int)nodes[0] : -1, nodes.Length > 1 ? (int)nodes[1] : -1,
+                    o.GetInt32Property("nCollisionMask"),
+                    radii.Length > 0 ? radii[0] : 0f, radii.Length > 1 ? radii[1] : 0f);
+            });
+
+            SpringIntegrators = ReadArray(data, "m_SpringIntegrator", static o =>
+            {
+                var nodes = o.GetIntegerArray("nNode");
+                return new SpringIntegrator(
+                    nodes.Length > 0 ? (int)nodes[0] : -1, nodes.Length > 1 ? (int)nodes[1] : -1,
+                    o.GetFloatProperty("flSpringRestLength"), o.GetFloatProperty("flSpringConstant"),
+                    o.GetFloatProperty("flSpringDamping"), o.GetFloatProperty("flNodeWeight0"));
+            });
+
+            RigidColliderPriorities = ReadArray(data, "m_RigidColliderPriorities", static o => new RigidColliderIndices(
+                o.GetInt32Property("m_nTaperedCapsuleRigidIndex"), o.GetInt32Property("m_nSphereRigidIndex"),
+                o.GetInt32Property("m_nBoxRigidIndex"), o.GetInt32Property("m_nSDFRigidIndex"),
+                o.GetInt32Property("m_nCollisionPlaneIndex")));
+
+            JiggleBones = ReadArray(data, "m_JiggleBones", static o =>
+            {
+                var bone = o.GetSubCollection("m_jiggleBone");
+                return new IndexedJiggleBone(o.GetInt32Property("m_nNode"), unchecked((int)o.GetUInt32Property("m_nJiggleParent")),
+                    bone is null ? default : new JiggleBone(
+                        bone.GetUInt32Property("m_nFlags"), bone.GetFloatProperty("m_flLength"),
+                        bone.GetFloatProperty("m_flTipMass"),
+                        bone.GetFloatProperty("m_flYawStiffness"), bone.GetFloatProperty("m_flYawDamping"),
+                        bone.GetFloatProperty("m_flPitchStiffness"), bone.GetFloatProperty("m_flPitchDamping"),
+                        bone.GetFloatProperty("m_flAlongStiffness"), bone.GetFloatProperty("m_flAlongDamping"),
+                        bone.GetFloatProperty("m_flAngleLimit"),
+                        bone.GetFloatProperty("m_flMinYaw"), bone.GetFloatProperty("m_flMaxYaw"),
+                        bone.GetFloatProperty("m_flYawFriction"), bone.GetFloatProperty("m_flYawBounce"),
+                        bone.GetFloatProperty("m_flMinPitch"), bone.GetFloatProperty("m_flMaxPitch"),
+                        bone.GetFloatProperty("m_flPitchFriction"), bone.GetFloatProperty("m_flPitchBounce"),
+                        bone.GetFloatProperty("m_flBaseMass"), bone.GetFloatProperty("m_flBaseStiffness"),
+                        bone.GetFloatProperty("m_flBaseDamping"),
+                        bone.GetFloatProperty("m_flBaseMinLeft"), bone.GetFloatProperty("m_flBaseMaxLeft"),
+                        bone.GetFloatProperty("m_flBaseLeftFriction"),
+                        bone.GetFloatProperty("m_flBaseMinUp"), bone.GetFloatProperty("m_flBaseMaxUp"),
+                        bone.GetFloatProperty("m_flBaseUpFriction"),
+                        bone.GetFloatProperty("m_flBaseMinForward"), bone.GetFloatProperty("m_flBaseMaxForward"),
+                        bone.GetFloatProperty("m_flBaseForwardFriction"),
+                        bone.GetFloatProperty("m_flRadius0"), bone.GetFloatProperty("m_flRadius1"),
+                        bone.GetSubCollection("m_vPoint0") is { } pt0 ? pt0.ToVector3() : default,
+                        bone.GetSubCollection("m_vPoint1") is { } pt1 ? pt1.ToVector3() : default,
+                        bone.GetInt32Property("m_nCollisionMask")));
+            });
+
+            BoneMergeLinks = ReadArray(data, "m_BoneMergeLinks", static o => new BoneMergeLink(
+                o.GetUInt32Property("m_nParentHash"), o.GetInt32Property("m_nChildNode")));
+
+            LockToParent = ReadArray(data, "m_LockToParent", static o => new LockToParentLink(
+                o.GetSubCollection("vOffset") is { } offset ? offset.ToVector3() : default,
+                o.GetInt32Property("nCtrlParent"), o.GetInt32Property("nCtrlChild")));
+            LockToGoal = data.GetIntegerArray("m_LockToGoal").Select(static v => (int)v).ToArray();
+
+            CtrlOsOffsets = ReadArray(data, "m_CtrlOsOffsets", static o => new CtrlOsOffset(
+                o.GetInt32Property("nCtrlParent"), o.GetInt32Property("nCtrlChild")));
+
+            VertexSetNames = data.GetArray<uint>("m_VertexSetNames") ?? [];
+            DynNodeVertexSet = data.GetArray<byte>("m_DynNodeVertexSet") ?? [];
+            LegacyStretchForce = data.GetFloatArray("m_LegacyStretchForce");
+            CollisionSpheres = data.GetArray("m_CollisionSpheres") ?? [];
+
             (RecoveredSkinWeights, RecoveredBackSolveThreshold) = RecoverAuthoredSkinWeights(data);
+
+            AssertAllKeysAccountedFor(data);
         }
 
         // Recovers the authored per-vertex skin weights from the compiled back-solve bookkeeping - see
