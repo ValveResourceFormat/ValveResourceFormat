@@ -856,13 +856,21 @@ partial class ModelExtract
             {
                 kv.Add("extrude_radius", joint.ExtrudeRadius);
                 kv.Add("extrude_twist", ClothExtrudeTwistBase - joint.ExtrudeTwist);
+
+                // 'x' is the compiler's own default and needs no explicit key; only 5 of 120 models in
+                // the reference corpus author anything else (roshan, gyro_sidegunner, hoodwink,
+                // baron_of_the_minotaur_head_refit, ancient_exile_back_arcana).
+                if (joint.ForwardAxis != 'x')
+                {
+                    kv.Add("extrude_forward_axis", joint.ForwardAxis.ToString());
+                }
             }
 
             // A tip that fans into two rows is a second ring this far along the joint's forward axis, not
             // one ring of twice the width - the wider ring puts every proxy somewhere else entirely. A
             // hinged joint that carries only the hinge's own two proxies has no second ring to recover:
             // that pair straddles the hinge axis, which reads as two rings a ring apart.
-            if (joint.EndEffector > 0f && (hinge is null || feModel.ProxyCountOf(joint.Node) > 2))
+            if (joint.EndEffector != 0f && (hinge is null || feModel.ProxyCountOf(joint.Node) > 2))
             {
                 kv.Add("end_effector", joint.EndEffector);
             }

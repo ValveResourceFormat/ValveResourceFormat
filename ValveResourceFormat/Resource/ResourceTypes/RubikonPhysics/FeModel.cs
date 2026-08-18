@@ -3530,6 +3530,13 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics
             /// ring). Zero when the joint carries a single ring.
             /// </summary>
             public float EndEffector { get; set; }
+            /// <summary>
+            /// Gets the forward axis the compiler used to orient this joint's proxy ring (<c>'x'</c>,
+            /// <c>'y'</c> or <c>'z'</c>), detected from the ring's own plane normal expressed in the
+            /// joint's rest frame. <c>'x'</c> is the default and needs no explicit
+            /// <c>extrude_forward_axis</c> authoring.
+            /// </summary>
+            public char ForwardAxis { get; set; } = 'x';
             /// <summary>Gets a value indicating whether this joint is simulated (invMass &gt; 0).</summary>
             public bool Simulated => InvMass > 0f;
             /// <summary>Gets a value indicating whether this joint is the chain root.</summary>
@@ -3565,6 +3572,72 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics
         // How far apart two proxies must sit along a joint's forward axis to count as separate rings. The
         // compiler ignores an end_effector below 0.05, so anything closer than that is one ring.
         const float EndEffectorRingTolerance = 0.05f;
+
+        // extrude_forward_axis selector quaternions, byte-verified against the compiler's own compiled
+        // ring frames: a +90-degree rotation about local Z for 'y' (maps +X to +Y), a -90-degree rotation
+        // about local Y for 'z' (maps +X to +Z). 'x' uses Quaternion.Identity. Composed with a joint's own
+        // rest rotation (ringFrame = jointRot * axisSelect), this re-labels which local axis is "forward".
+        static readonly Quaternion ExtrudeAxisSelectY = new(0f, 0f, 0.70710677f, 0.70710677f);
+        static readonly Quaternion ExtrudeAxisSelectZ = new(0f, -0.70710677f, 0f, 0.70710677f);
+
+        static Quaternion ExtrudeAxisSelectQuaternion(char axis) => axis switch
+        {
+            'y' => ExtrudeAxisSelectY,
+            'z' => ExtrudeAxisSelectZ,
+            _ => Quaternion.Identity,
+        };
+
+        // Detects which forward axis the compiler used to orient a joint's proxy ring. Every ring point
+        // lies in the plane perpendicular to the selected forward axis, so - expressed in the joint's own
+        // rest frame - that axis' component is ~0 for every point while the other two carry the actual
+        // ring geometry. 'x' is preferred whenever it qualifies (not just whichever axis is smallest):
+        // a ring reproducible via the default axis needs no explicit authoring, and for a ring whose twist
+        // happens to fall on a multiple of 90 degrees, two axes can tie at exactly 0 - genuine positional
+        // ambiguity that authoring the non-default axis would not resolve any better, since the same
+        // ring is exactly reproducible via 'x' with an adjusted twist. Only a ring that does NOT lie in the
+        // default axis' plane at all needs 'y' or 'z'. Tolerance is relative to the ring's own scale so it
+        // does not depend on model units.
+        //
+        // Deliberately NOT extended to look past a single ring at any end_effector second ring: a lone
+        // ring's own centroid sits at the joint only when it has 2+ points that cancel out symmetrically
+        // (sides>=2); a single-point ring's "centroid" is just that one point, off-center by construction
+        // whether or not an end_effector exists, so using centroid displacement as an axis signal false-
+        // positives on every plain sides=1 ring (measured: 30+ false positives across hoodwink/kez_base
+        // alone). For the genuinely unrecoverable case - a sides=2 ring with no usable second-ring signal -
+        // 'x' with a fitted twist reproduces the exact same compiled ring, so defaulting to it here is
+        // correct, not merely a fallback.
+        const float ExtrudeForwardAxisTolerance = 0.02f;
+
+        static char DetectExtrudeForwardAxis(Vector3 jointPos, Quaternion jointRot, List<int> ring, Vector3[] positions)
+        {
+            float sumX = 0f, sumY = 0f, sumZ = 0f;
+            foreach (var proxy in ring)
+            {
+                var local = Vector3.Transform(positions[proxy] - jointPos, Quaternion.Conjugate(jointRot));
+                sumX += MathF.Abs(local.X);
+                sumY += MathF.Abs(local.Y);
+                sumZ += MathF.Abs(local.Z);
+            }
+
+            var scale = MathF.Max(sumX, MathF.Max(sumY, sumZ));
+            if (scale <= 1e-6f)
+            {
+                return 'x';
+            }
+
+            var threshold = scale * ExtrudeForwardAxisTolerance;
+            if (sumX <= threshold)
+            {
+                return 'x';
+            }
+
+            if (sumY <= threshold)
+            {
+                return 'y';
+            }
+
+            return sumZ <= threshold ? 'z' : 'x';
+        }
 
         /// <summary>
         /// Reconstructs bone chains from the control-node topology, ignoring auto-generated cloth proxy nodes.
@@ -3798,14 +3871,26 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics
 
                         if (forwardOf.Count == proxies.Count)
                         {
-                            var near = forwardOf.Values.Min();
-                            var far = forwardOf.Values.Max();
-                            if (far - near > EndEffectorRingTolerance)
+                            // The joint's OWN ring sits at forward ~= 0 (it is centred on the joint); an
+                            // end_effector ring is displaced away from that by a signed amount that can go
+                            // either way along forward, so the near ring is whichever cluster sits closest
+                            // to 0, not whichever has the smaller raw (signed) value - comparing raw
+                            // Min()/Max() mislabels the two when the displacement is negative.
+                            var minAbs = forwardOf.Values.Min(MathF.Abs);
+                            var maxAbs = forwardOf.Values.Max(MathF.Abs);
+                            if (maxAbs - minAbs > EndEffectorRingTolerance)
                             {
-                                var nearRing = proxies.Where(p => forwardOf[p] - near <= EndEffectorRingTolerance).ToList();
+                                var nearRing = proxies.Where(p => MathF.Abs(forwardOf[p]) - minAbs <= EndEffectorRingTolerance).ToList();
                                 if (nearRing.Count > 0 && nearRing.Count < proxies.Count)
                                 {
-                                    joint.EndEffector = far - near;
+                                    // Same single-reference-value shape as before (not an average across
+                                    // the cluster): the near ring's own smallest-magnitude member and the
+                                    // far ring's own largest-magnitude member, which is exactly what the old
+                                    // global Min()/Max() picked out on the already-correct (positive
+                                    // displacement) case - so that case stays byte-identical.
+                                    var nearValue = forwardOf[nearRing.MinBy(p => MathF.Abs(forwardOf[p]))];
+                                    var farValue = forwardOf[proxies.Except(nearRing).MaxBy(p => MathF.Abs(forwardOf[p]))];
+                                    joint.EndEffector = farValue - nearValue;
                                     ring = nearRing;
                                 }
                             }
@@ -3818,13 +3903,22 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics
                     proxies = ring;
                     if (joint.Node < InitPosePositions.Length)
                     {
+                        if (joint.Node < InitPoseRotations.Length)
+                        {
+                            joint.ForwardAxis = DetectExtrudeForwardAxis(
+                                InitPosePositions[joint.Node], InitPoseRotations[joint.Node], proxies, InitPosePositions);
+                        }
+
                         // The ring is laid out around the joint's forward axis, so the roll the compiler
-                        // used shows up as the angle of the first proxy in the joint's own rest frame.
+                        // used shows up as the angle of the first proxy in the RING's own frame - the
+                        // joint's rest rotation composed with the forward-axis selector, not the joint's
+                        // rest rotation alone (the two coincide only when the axis is the default 'x').
                         if (joint.Node < InitPoseRotations.Length && proxies[0] < InitPosePositions.Length)
                         {
+                            var ringFrame = InitPoseRotations[joint.Node] * ExtrudeAxisSelectQuaternion(joint.ForwardAxis);
                             var offset = Vector3.Transform(
                                 InitPosePositions[proxies[0]] - InitPosePositions[joint.Node],
-                                Quaternion.Conjugate(InitPoseRotations[joint.Node]));
+                                Quaternion.Conjugate(ringFrame));
                             if (new Vector2(offset.Y, offset.Z).LengthSquared() > 1e-6f)
                             {
                                 var twist = float.RadiansToDegrees(MathF.Atan2(offset.Y, offset.Z));
