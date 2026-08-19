@@ -2660,12 +2660,13 @@ partial class ModelExtract
                 // proxy sim moves. DrivesRealBones is a superset of FitMatrixNodes; verified it leaves
                 // willow/meepo/legion/snapfire's flag unchanged and only flips primal_beast on.
                 var backSolveJoints = feModel.FitMatrixNodes.Count > 0 || feModel.DrivesRealBones;
-                // A fit matrix only drives a bone THROUGH a proxy sheet, so the exclusion needs a sheet to
-                // exist at all. Cloth whose generated nodes are all chain extrude rings ships none, and
-                // dropping those chains deleted them outright (ivy's tail, wraith's coat, inferno's muddler).
+                // A fit matrix only drives a bone THROUGH a proxy sheet when the fit is taken over that
+                // sheet's vertices (see FeModel.ProxyFitMatrixNodes). A chain whose fit matrices are taken
+                // over its own $cc extrude ring is the compiler's chain-internal orientation solve, so the
+                // chain still has to be emitted or its whole ring goes with it (hornet's hat, dynamo's
+                // coat_e, ivy's tail, wraith's coat, inferno's muddler).
                 var independentChains = boneChains
-                    .Where(chain => !feModel.HasProxyMeshNodes
-                        || !chain.Joints.Any(joint => feModel.FitMatrixNodes.Contains(joint.Node)))
+                    .Where(chain => !chain.Joints.Any(joint => feModel.ProxyFitMatrixNodes.Contains(joint.Node)))
                     .ToList();
 
                 // The bones an independent ClothChain already simulates and drives on its own. The compiler

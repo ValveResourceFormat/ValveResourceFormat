@@ -203,6 +203,24 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics
         public IReadOnlySet<int> FitMatrixNodes { get; }
 
         /// <summary>
+        /// Gets the subset of <see cref="FitMatrixNodes"/> that a PROXY SHEET back-solves, i.e. whose
+        /// <c>m_FitWeights</c> range covers a <c>$cloth_m&lt;N&gt;p&lt;S&gt;</c> vertex. A fit matrix is
+        /// the compiler's orientation solve for a bone whose rotation it cannot read off a child joint,
+        /// and which construct asked for it shows in what the fit is taken over: a proxy-driven bone fits
+        /// over the sheet's own vertices (dark_willow's Coattail/HairStrand), while a <c>ClothChain</c>
+        /// joint fits over the chain's own <c>$cc</c> extrude ring and sibling joints (hornet's
+        /// <c>hat_flap_*</c>, dynamo's <c>coat_e_3</c>/<c>coat_e_end</c>). Only the former is driven
+        /// THROUGH the proxy and must not also be emitted as a ClothChain.
+        /// </summary>
+        public IReadOnlySet<int> ProxyFitMatrixNodes { get; }
+
+        /// <summary>
+        /// Gets the control nodes each <c>m_FitMatrices</c> entry is fit over, from its own
+        /// <c>m_FitWeights</c> range, keyed by the bone the fit drives.
+        /// </summary>
+        public IReadOnlyDictionary<int, int[]> FitMatrixTargets { get; }
+
+        /// <summary>
         /// Gets the authored per-vertex skin weights of back-solved proxy-mesh vertices, recovered
         /// VERBATIM from the compiled data (no geometric synthesis), keyed by control node. The original
         /// author's painted weights survive compilation spread across three arrays:
@@ -1649,9 +1667,39 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics
 
             AnimStrayRadii = strayRadii;
 
-            FitMatrixNodes = data.GetArray("m_FitMatrices") is { } fitMatrices
+            var fitMatrices = data.GetArray("m_FitMatrices");
+            FitMatrixNodes = fitMatrices is not null
                 ? fitMatrices.Select(static o => o.GetInt32Property("nNode")).ToHashSet()
                 : new HashSet<int>();
+
+            var proxyFitNodes = new HashSet<int>();
+            var fitTargets = new Dictionary<int, int[]>();
+            if (fitMatrices is not null)
+            {
+                var fitRangeWeights = data.GetArray("m_FitWeights") ?? [];
+                var fitRangeBegin = 0;
+                foreach (var fit in fitMatrices)
+                {
+                    var fitRangeEnd = fit.GetInt32Property("nEnd");
+                    var bone = fit.GetInt32Property("nNode");
+                    var targets = new List<int>();
+                    for (var i = fitRangeBegin; i < fitRangeEnd && i < fitRangeWeights.Count; i++)
+                    {
+                        var target = fitRangeWeights[i].GetInt32Property("nNode");
+                        targets.Add(target);
+                        if (target >= 0 && target < CtrlNames.Length && ParseProxyMeshIndex(CtrlNames[target]) >= 0)
+                        {
+                            proxyFitNodes.Add(bone);
+                        }
+                    }
+
+                    fitTargets[bone] = [.. targets];
+                    fitRangeBegin = fitRangeEnd;
+                }
+            }
+
+            ProxyFitMatrixNodes = proxyFitNodes;
+            FitMatrixTargets = fitTargets;
 
             var twistNodes = new Dictionary<int, float>();
             if (data.GetArray("m_Twists") is { } twistsArray)
@@ -3067,7 +3115,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics
         /// </summary>
         List<BoneChain> IndependentBoneChains()
             => [.. BuildBoneChains()
-                .Where(chain => !HasProxyMeshNodes || !chain.Joints.Any(joint => FitMatrixNodes.Contains(joint.Node)))];
+                .Where(chain => !chain.Joints.Any(joint => ProxyFitMatrixNodes.Contains(joint.Node)))];
 
         /// <summary>
         /// Reconstructs the cloth proxy mesh (sheet) from the FeModel surface arrays as ONE merged mesh.
@@ -4915,16 +4963,140 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics
                 }
             }
 
+            // A joint the compiler extruded carries its children's rods on its RING; one authored with
+            // extrude_sides 0 carries them on the BONE. A reconstructed root that shows BOTH patterns
+            // across its own children was authored as SEPARATE chains sharing that root, only one of
+            // which extruded it - hornet's hat_base rods to the feather joints through $cchat_base_*
+            // and to the hat_top/hat_flap joints directly. Merging them gives every child the ring
+            // anchor and widens the compiler's own fit matrices over the merged sibling set.
+            bool AnyRod(IEnumerable<int> a, IEnumerable<int> b)
+            {
+                foreach (var x in a)
+                {
+                    foreach (var y in b)
+                    {
+                        if (rodPairs.Contains(x < y ? (x, y) : (y, x)))
+                        {
+                            return true;
+                        }
+                    }
+                }
+
+                return false;
+            }
+
+            // The compiler fits an orientation-locked joint over its own chain neighbourhood: its parent
+            // plus the rings of the parent's children WITHIN THE SAME ClothChain. A fit that names the
+            // parent therefore enumerates that joint's real siblings, and a sibling our chain has but the
+            // fit does not was authored elsewhere (hornet's hat_top_0 is absent from every hat_flap fit).
+            // A fit that does NOT name the parent is taken over some other neighbourhood and says nothing
+            // about siblings, so it never splits.
+            var ringOwnerOf = new Dictionary<int, int>();
+            foreach (var (owner, ring) in proxyChildrenOf)
+            {
+                foreach (var vertex in ring)
+                {
+                    ringOwnerOf[vertex] = owner;
+                }
+            }
+
+            void SplitGroupsByFitSet(int rootNode, List<(List<int> Kids, bool RinglessRoot)> groups)
+            {
+                for (var g = 0; g < groups.Count; g++)
+                {
+                    var (kids, ringless) = groups[g];
+                    foreach (var kid in kids)
+                    {
+                        if (!FitMatrixTargets.TryGetValue(kid, out var targets) || targets.Length == 0
+                            || ProxyFitMatrixNodes.Contains(kid))
+                        {
+                            continue;
+                        }
+
+                        var owners = targets.Select(t => ringOwnerOf.GetValueOrDefault(t, t)).ToHashSet();
+                        if (!owners.Contains(rootNode) || !owners.Contains(kid))
+                        {
+                            continue;
+                        }
+
+                        var outsiders = kids.FindAll(k => !owners.Contains(k));
+                        if (outsiders.Count == 0 || outsiders.Count == kids.Count)
+                        {
+                            continue;
+                        }
+
+                        groups[g] = (kids.FindAll(k => owners.Contains(k)), ringless);
+                        groups.Add((outsiders, ringless));
+                        g--;
+                        break;
+                    }
+                }
+            }
+
+            var chainSpecs = new List<(int Root, HashSet<int>? RootChildren, bool RinglessRoot)>();
             foreach (var rootNode in roots)
             {
                 // A real bone with no real descendants is not a cloth chain, unless it carries its own
                 // extrude ring - a lone ring-bearing bone is a single-joint chain (fv_cosmic_weapon's
                 // weapon_ball with its $cc..._Ctr node, flagbearer's collar).
-                if (children[rootNode] is null && !proxyChildrenOf.ContainsKey(rootNode))
+                if (children[rootNode] is not { } rootKids)
                 {
+                    if (!proxyChildrenOf.ContainsKey(rootNode))
+                    {
+                        continue;
+                    }
+
+                    chainSpecs.Add((rootNode, null, false));
                     continue;
                 }
 
+                List<int> ringAnchored = [];
+                List<int> boneAnchored = [];
+                if (rootKids.Count > 1 && proxyChildrenOf.TryGetValue(rootNode, out var rootRing) && rootRing.Count > 0)
+                {
+                    foreach (var kid in rootKids)
+                    {
+                        var kidSide = proxyChildrenOf.TryGetValue(kid, out var kr) && kr.Count > 0 ? kr : [kid];
+                        if (AnyRod(rootRing, kidSide))
+                        {
+                            ringAnchored.Add(kid);
+                        }
+                        else if (AnyRod([rootNode], kidSide))
+                        {
+                            boneAnchored.Add(kid);
+                        }
+                        else
+                        {
+                            // No rod either way says nothing about which chain the child was in, so the
+                            // split has no evidence for it and the whole root stays merged.
+                            ringAnchored.Clear();
+                            boneAnchored.Clear();
+                            break;
+                        }
+                    }
+                }
+
+                var groups = ringAnchored.Count > 0 && boneAnchored.Count > 0
+                    ? [(ringAnchored, false), (boneAnchored, true)]
+                    : new List<(List<int> Kids, bool RinglessRoot)> { (rootKids, false) };
+
+                SplitGroupsByFitSet(rootNode, groups);
+
+                if (groups.Count == 1 && groups[0].Kids.Count == rootKids.Count)
+                {
+                    chainSpecs.Add((rootNode, null, false));
+                }
+                else
+                {
+                    foreach (var (kids, ringless) in groups)
+                    {
+                        chainSpecs.Add((rootNode, [.. kids], ringless));
+                    }
+                }
+            }
+
+            foreach (var (rootNode, rootChildren, ringlessRoot) in chainSpecs)
+            {
                 var chain = new BoneChain { RootBone = CtrlNames[rootNode] };
 
                 void Visit(int node)
@@ -4944,6 +5116,11 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics
                         kids.Sort();
                         foreach (var child in kids)
                         {
+                            if (node == rootNode && rootChildren is not null && !rootChildren.Contains(child))
+                            {
+                                continue;
+                            }
+
                             Visit(child);
                         }
                     }
@@ -4969,6 +5146,11 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics
                 var twists = new List<float>();
                 foreach (var joint in chain.Joints)
                 {
+                    if (ringlessRoot && joint.Node == rootNode)
+                    {
+                        continue;
+                    }
+
                     if (!proxyChildrenOf.TryGetValue(joint.Node, out var proxies) || proxies.Count == 0)
                     {
                         continue;
@@ -5142,7 +5324,14 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics
                     // the sheet rebuilds, say - and turning the spring on to claim it would add every pair
                     // it does not have.
                     List<int> Side(int end)
-                        => proxyChildrenOf.TryGetValue(end, out var ring) && ring.Count > 0 ? ring : [end];
+                    {
+                        if (ringlessRoot && end == rootNode)
+                        {
+                            return [end];
+                        }
+
+                        return proxyChildrenOf.TryGetValue(end, out var ring) && ring.Count > 0 ? ring : [end];
+                    }
 
                     foreach (var a in Side(node))
                     {
