@@ -2009,10 +2009,12 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics
             return [.. faces];
         }
 
-        // m_SourceElems is the authored proxy mesh's own face list: flat groups of four control-node
-        // indices in cyclic winding order, a repeated index marking a triangle. The leading group is a
-        // degenerate placeholder. Unlike m_Quads/m_Tris it survives even when the compiler collapses the
-        // whole surface into rods, which is the only record of the authored topology for such models.
+        // m_SourceElems is the authored proxy mesh's own element list: four counts lead, one per element
+        // arity, and the elements themselves follow grouped by arity - first the single corners, then the
+        // pairs, the triangles and the quads, each a run of control-node indices in cyclic winding order.
+        // Only arity three and up describe a face. Unlike m_Quads/m_Tris it survives even when the compiler
+        // collapses the whole surface into rods, which is the only record of the authored topology for such
+        // models.
         static int[][] ReadSourceFaces(KVObject data)
         {
             if (!data.ContainsKey("m_SourceElems") || !data.IsNotBlobType("m_SourceElems"))
@@ -2021,30 +2023,61 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics
             }
 
             var elems = data.GetIntegerArray("m_SourceElems");
-
-            var faces = new List<int[]>(elems.Length / SourceElemStride);
-            for (var i = SourceElemStride; i + SourceElemStride <= elems.Length; i += SourceElemStride)
+            if (elems.Length < SourceElemArities)
             {
-                var corners = new List<int>(SourceElemStride);
-                for (var c = 0; c < SourceElemStride; c++)
+                return [];
+            }
+
+            var counted = SourceElemArities;
+            for (var arity = 1; arity <= SourceElemArities; arity++)
+            {
+                var count = elems[arity - 1];
+                if (count < 0 || count > elems.Length)
                 {
-                    var node = (int)elems[i + c];
-                    if (!corners.Contains(node))
-                    {
-                        corners.Add(node);
-                    }
+                    return [];
                 }
 
-                if (corners.Count >= 3)
+                counted += arity * (int)count;
+            }
+
+            // The counts have to account for the array exactly, or this is not the layout being read.
+            if (counted != elems.Length)
+            {
+                return [];
+            }
+
+            var faces = new List<int[]>();
+            var read = SourceElemArities;
+            for (var arity = 1; arity <= SourceElemArities; arity++)
+            {
+                for (var remaining = (int)elems[arity - 1]; remaining > 0; remaining--, read += arity)
                 {
-                    faces.Add([.. corners]);
+                    if (arity < 3)
+                    {
+                        continue;
+                    }
+
+                    var corners = new List<int>(arity);
+                    for (var c = 0; c < arity; c++)
+                    {
+                        var node = (int)elems[read + c];
+                        if (!corners.Contains(node))
+                        {
+                            corners.Add(node);
+                        }
+                    }
+
+                    if (corners.Count >= 3)
+                    {
+                        faces.Add([.. corners]);
+                    }
                 }
             }
 
             return [.. faces];
         }
 
-        const int SourceElemStride = 4;
+        const int SourceElemArities = 4;
 
         /// <summary>
         /// Gets the authored proxy-mesh faces recovered from <c>m_SourceElems</c>, as control-node index
