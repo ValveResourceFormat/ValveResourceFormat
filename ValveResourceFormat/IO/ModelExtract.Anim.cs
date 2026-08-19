@@ -248,11 +248,12 @@ partial class ModelExtract
             ? $"_{bone.Name[1..]}"
             : bone.Name;
 
-    private static DmeModel BuildDmeDagSkeleton(Skeleton skeleton, out DmeTransform[] transforms, bool nmSkelAxisFixup = false)
+    private static DmeModel BuildDmeDagSkeleton(Skeleton skeleton, out DmeTransform[] transforms,
+        bool nmSkelAxisFixup = false, IReadOnlyDictionary<string, Vector3>? bonePositions = null)
     {
         var dmeSkeleton = new DmeModel();
 
-        transforms = AppendDmeSkeletonJoints(dmeSkeleton, skeleton);
+        transforms = AppendDmeSkeletonJoints(dmeSkeleton, skeleton, bonePositions);
 
         var rootMotionBone = skeleton["root_motion"];
 
@@ -278,7 +279,8 @@ partial class ModelExtract
     /// Adds one skeleton's joints to a DmeModel, its roots as children of the model, and returns the
     /// joint transforms indexed by bone index.
     /// </summary>
-    private static DmeTransform[] AppendDmeSkeletonJoints(DmeModel dmeSkeleton, Skeleton skeleton)
+    private static DmeTransform[] AppendDmeSkeletonJoints(DmeModel dmeSkeleton, Skeleton skeleton,
+        IReadOnlyDictionary<string, Vector3>? bonePositions = null)
     {
         var transforms = new DmeTransform[skeleton.Bones.Length];
         var boneDags = new DmeJoint[skeleton.Bones.Length];
@@ -292,7 +294,7 @@ partial class ModelExtract
             };
 
             dag.Transform.Name = boneName;
-            dag.Transform.Position = bone.Position;
+            dag.Transform.Position = BonePosition(bone, bonePositions);
             dag.Transform.Orientation = bone.Angle;
 
             boneDags[bone.Index] = dag;

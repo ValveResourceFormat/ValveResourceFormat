@@ -52,6 +52,22 @@ partial class ModelExtract
     public List<(int Node, string Name)> CulledClothBones { get; } = [];
 
     /// <summary>
+    /// Gets the parent-space bone positions that put every cloth control node back on the rest position
+    /// the FeModel records for it, keyed by bone name. Empty where the model has no cloth or the two
+    /// already agree.
+    /// </summary>
+    /// <remarks>
+    /// <c>m_modelSkeleton</c> is a lossy re-expression of the authored bone transforms - re-composing it
+    /// walks away from the authored world pose as the hierarchy deepens (prof_dynamo's coat chain ends
+    /// 4.8e-3 units out, archer's fingers 1.3e-2, and the error grows strictly with depth) - while
+    /// <c>m_InitPose</c> keeps the authored world position of every control node to float32.
+    /// Emitting the skeleton straight from the compiled bone data therefore hands the compiler a rest
+    /// pose the original was never built from, and every ctrl offset measured against those bones, plus
+    /// every chain ring extruded off them, inherits the error.
+    /// </remarks>
+    public Dictionary<string, Vector3> ClothRestBonePositions { get; } = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>
     /// Gets the material input signatures for mapping DirectX semantic names.
     /// </summary>
     public Dictionary<string, Material.VsInputSignature> MaterialInputSignatures { get; } = [];
@@ -106,6 +122,12 @@ partial class ModelExtract
         /// When provided, bones are emitted into the DMX <c>jointList</c> so ModelDoc can resolve indices.
         /// </summary>
         public Skeleton? Skeleton { get; init; }
+
+        /// <summary>
+        /// Parent-space bone positions to emit in place of the skeleton's own, keyed by bone name
+        /// (see <see cref="ClothRestBonePositions"/>).
+        /// </summary>
+        public IReadOnlyDictionary<string, Vector3>? BonePositions { get; init; }
     }
 
     /// <summary>
@@ -205,6 +227,8 @@ partial class ModelExtract
         feModel.SkeletonBoneParents = boneParents;
         feModel.SetSkeletonParents(boneParents);
 
+        BuildClothRestBonePositions(feModel);
+
         // The compiler assigns the $cloth_m<N> mesh index by ORDINAL STRING SORT of the proxy names, not
         // declaration order, so an unpadded suffix breaks every spring/basis reference on models with 11+
         // proxies ("cloth_proxy10" sorts before "cloth_proxy2" - spectre's 13 islands). Zero-padding the
@@ -234,6 +258,123 @@ partial class ModelExtract
             gridIndex++;
         }
     }
+
+    // How far a control node's recorded rest position may sit from the same bone's compiled bind pose and
+    // still be read as the same pose at better precision. The widest disagreement measured across the
+    // Deadlock and Dota corpora is 0.087 units (invoker_wings_of_knowledge_shoulder_alt2, on a 227-unit
+    // model) and the next value up is 269; anything past a whole unit is a node the compiler placed
+    // somewhere else entirely, and that bone keeps its compiled transform.
+    const float ClothRestBoneTolerance = 1.0f;
+
+    // And how far it has to sit before the disagreement is worth acting on. Below the absolute floor the
+    // round trip holds two floats equal at, the two poses ARE the same pose, and re-deriving the bone from
+    // the cloth data buys nothing measurable while still re-rolling every tie the compiler breaks off that
+    // bone's geometry - measured on digger_default, whose node-base scan turns on a 1e-6 margin.
+    const float ClothRestBoneFloor = 1e-3f;
+
+    // The correction runs per MODEL only when some bone disagrees by more than twice the floor. A model
+    // whose disagreements all end inside the floor's own noise band gains nothing measurable but the
+    // correction can push offsets measured against those bones just past the floor the other way
+    // (snapfire_customgame, three bones at 1.0-1.6e-3). Once enabled, every bone past the per-bone floor
+    // moves together - derived rest shapes span bones on both sides of any per-bone cut, so a partial
+    // correction leaves them mixed (mh_palico's quads).
+    const float ClothRestBoneModelGate = 2e-3f;
+
+    // Re-derives each bone's parent-space position from the cloth rest pose, root first: a bone the
+    // FeModel registers as a control node is put back on its recorded world position, and every bone under
+    // it keeps its compiled offset from that corrected parent, so a correction propagates down the
+    // hierarchy exactly as the authored transform chain would. Whether a bone qualifies is judged on the
+    // COMPILED pose, not the corrected one - the disagreement accumulates down a chain, and measuring
+    // against an already-corrected parent would only ever see one link's worth of it.
+    private void BuildClothRestBonePositions(FeModel feModel)
+    {
+        Debug.Assert(model is not null, "model required for cloth rest bones");
+
+        var targets = new Dictionary<string, Vector3>(StringComparer.OrdinalIgnoreCase);
+        for (var node = 0; node < feModel.CtrlNames.Length && node < feModel.InitPosePositions.Length; node++)
+        {
+            var name = feModel.CtrlNames[node];
+            if (!string.IsNullOrEmpty(name) && !feModel.IsGeneratedNodeName(name))
+            {
+                targets.TryAdd(name, feModel.InitPosePositions[node]);
+            }
+        }
+
+        if (targets.Count == 0)
+        {
+            return;
+        }
+
+        var maxApart = 0f;
+        void Measure(Bone bone, Vector3 compiledParent, Quaternion parentRotation)
+        {
+            var compiled = compiledParent + Vector3.Transform(bone.Position, parentRotation);
+            var rotation = parentRotation * bone.Angle;
+
+            if (targets.TryGetValue(bone.Name, out var target))
+            {
+                var apart = Vector3.Distance(compiled, target);
+                if (apart <= ClothRestBoneTolerance)
+                {
+                    maxApart = Math.Max(maxApart, apart);
+                }
+            }
+
+            foreach (var child in bone.Children)
+            {
+                Measure(child, compiled, rotation);
+            }
+        }
+
+        foreach (var root in model.Skeleton.Roots)
+        {
+            Measure(root, Vector3.Zero, Quaternion.Identity);
+        }
+
+        if (maxApart <= ClothRestBoneModelGate)
+        {
+            return;
+        }
+
+        void Walk(Bone bone, Vector3 parentPosition, Quaternion parentRotation, Vector3 compiledParent)
+        {
+            var world = parentPosition + Vector3.Transform(bone.Position, parentRotation);
+            var compiled = compiledParent + Vector3.Transform(bone.Position, parentRotation);
+            var rotation = parentRotation * bone.Angle;
+
+            if (targets.TryGetValue(bone.Name, out var target))
+            {
+                var apart = Vector3.Distance(compiled, target);
+                if (apart > ClothRestBoneFloor && apart <= ClothRestBoneTolerance)
+                {
+                    world = target;
+                }
+            }
+
+            var local = Vector3.Transform(world - parentPosition, Quaternion.Conjugate(parentRotation));
+            if (local != bone.Position)
+            {
+                ClothRestBonePositions[bone.Name] = local;
+            }
+
+            foreach (var child in bone.Children)
+            {
+                Walk(child, world, rotation, compiled);
+            }
+        }
+
+        foreach (var root in model.Skeleton.Roots)
+        {
+            Walk(root, Vector3.Zero, Quaternion.Identity, Vector3.Zero);
+        }
+    }
+
+    /// <summary>
+    /// The parent-space position to emit for a bone: its cloth rest correction where there is one, and
+    /// its compiled transform otherwise.
+    /// </summary>
+    internal static Vector3 BonePosition(Bone bone, IReadOnlyDictionary<string, Vector3>? overrides)
+        => overrides is not null && overrides.TryGetValue(bone.Name, out var position) ? position : bone.Position;
 
     private void EnqueueRenderMeshes()
     {
@@ -386,6 +527,7 @@ partial class ModelExtract
             SplitDrawCallsIntoSeparateSubmeshes = true,
             BoneRemapTable = boneRemapTable,
             Skeleton = skeleton,
+            BonePositions = extract.ClothRestBonePositions,
         };
 
         byte[] sharedDmxExtractMethod() => ToDmxMesh(
@@ -566,7 +708,7 @@ partial class ModelExtract
         // ModelDoc resolves mesh skinning indices through this list; without it the mesh is bound to "no skeleton".
         if (options.Skeleton is { Bones.Length: > 0 } skeleton)
         {
-            dmeModel = BuildDmeDagSkeleton(skeleton, out _);
+            dmeModel = BuildDmeDagSkeleton(skeleton, out _, bonePositions: options.BonePositions);
             dmeModel.Name = name;
         }
 
@@ -733,7 +875,7 @@ partial class ModelExtract
         using var dmx = new Datamodel.Datamodel("model", 22);
 
         // Joint list = the full skeleton, so BLENDINDICES resolve (mirrors ConvertMeshToDatamodelMesh).
-        var dmeModel = BuildDmeDagSkeleton(skeleton, out _);
+        var dmeModel = BuildDmeDagSkeleton(skeleton, out _, bonePositions: ClothRestBonePositions);
         dmeModel.Name = name;
         RespellJointsAsClothControlNodes(dmeModel, physAggregateData?.FeModel);
 
@@ -1036,7 +1178,7 @@ partial class ModelExtract
 
         using var dmx = new Datamodel.Datamodel("model", 22);
 
-        var dmeModel = BuildDmeDagSkeleton(skeleton, out _);
+        var dmeModel = BuildDmeDagSkeleton(skeleton, out _, bonePositions: ClothRestBonePositions);
         dmeModel.Name = name;
 
         var (dag, vertexData) = CreateDmxDagVertexData(dmeModel, name);
