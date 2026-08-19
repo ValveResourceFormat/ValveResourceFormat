@@ -6025,43 +6025,56 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics
                     return true;
                 }
 
-                // How many copies of one span the model carries. An extruding joint carries it on its ring
-                // instead of on itself, where every ring pair repeats alike - so the ring pairs must agree
-                // unanimously before their count means anything.
-                int SpanCopies(int node, int other)
+                // An extra solver iteration repeats the rods a joint generates upward - the span to its
+                // parent plus its bend and torsion spans - and repeats them ALL, uniformly. Each span is
+                // read across both ends in full (an extruding joint carries it on its ring), and the whole
+                // ring-to-ring set has to be present: an end cap that fans wider than its parent reaches
+                // only part of the tip ring, so its crossing pairs are doubled by geometry while the set
+                // stays incomplete (baron_of_the_minotaur_belt: 4 of 8). Disagreement or a gap means no
+                // iteration.
+                //
+                // Two things are deliberately NOT evidence. A joint's own ring edge tracks the ring's
+                // shape, not the iteration count (wandering_poet_mount repeats its spans twice while that
+                // edge stays single). And a span running DOWN to a deeper joint belongs to that joint's
+                // count, not this one's (inferno_v4's flame_hair_2 sits at x2 while the span it shares
+                // with its child flame_hair_4 is x1).
+                int JointCopies(BoneChainJoint joint)
                 {
-                    if (other < 0)
-                    {
-                        return 0;
-                    }
+                    var copies = 0;
 
-                    var direct = rodMultiplicity.GetValueOrDefault(node < other ? (node, other) : (other, node));
-                    if (direct > 0)
+                    bool Repeats(int other)
                     {
-                        return direct;
-                    }
-
-                    var ringCopies = 0;
-                    foreach (var a in Side(node))
-                    {
-                        foreach (var b in Side(other))
+                        if (other < 0)
                         {
-                            var copies = rodMultiplicity.GetValueOrDefault(a < b ? (a, b) : (b, a));
-                            if (copies == 0)
-                            {
-                                continue;
-                            }
-
-                            if (ringCopies != 0 && copies != ringCopies)
-                            {
-                                return 0;
-                            }
-
-                            ringCopies = copies;
+                            return true;
                         }
+
+                        foreach (var a in Side(joint.Node))
+                        {
+                            foreach (var b in Side(other))
+                            {
+                                var count = rodMultiplicity.GetValueOrDefault(a < b ? (a, b) : (b, a));
+                                if (count == 0 || (copies != 0 && count != copies))
+                                {
+                                    return false;
+                                }
+
+                                copies = count;
+                            }
+                        }
+
+                        return true;
                     }
 
-                    return ringCopies;
+                    var parentNode = joint.ParentNode;
+                    var grand = parentNode >= 0 && jointByNode.TryGetValue(parentNode, out var g1) ? g1.ParentNode : -1;
+                    var greatGrand = grand >= 0 && jointByNode.TryGetValue(grand, out var g2) ? g2.ParentNode : -1;
+
+                    return Repeats(parentNode)
+                        && (!joint.BendSpring || Repeats(grand))
+                        && (!joint.TorsionSpring || Repeats(greatGrand))
+                        ? Math.Max(copies, 1)
+                        : 1;
                 }
 
                 foreach (var joint in chain.Joints)
@@ -6072,24 +6085,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics
 
                     joint.BendSpring = SpannedByRod(joint.Node, grandParent);
                     joint.TorsionSpring = SpannedByRod(joint.Node, greatGrandParent);
-
-                    // An extra solver iteration repeats EVERY span the joint generates, so a doubling is
-                    // only an iteration when the joint's parent, bend and torsion spans all carry the same
-                    // count. Reading the parent span alone mistakes a locally duplicated rod for one
-                    // (pudge_hungry_clown_back doubles only its tip's parent span, leaving the bend span
-                    // single) and then duplicates every other span of that joint on top.
-                    var copies = SpanCopies(joint.Node, parent);
-                    if (joint.BendSpring && SpanCopies(joint.Node, grandParent) != copies)
-                    {
-                        copies = 1;
-                    }
-
-                    if (joint.TorsionSpring && SpanCopies(joint.Node, greatGrandParent) != copies)
-                    {
-                        copies = 1;
-                    }
-
-                    joint.ExtraIterations = Math.Max(copies, 1) - 1;
+                    joint.ExtraIterations = JointCopies(joint) - 1;
                 }
 
                 SteerNodeBaseTies(chain);
