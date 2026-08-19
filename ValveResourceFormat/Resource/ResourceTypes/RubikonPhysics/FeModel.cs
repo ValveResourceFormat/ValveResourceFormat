@@ -1188,6 +1188,33 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics
         }
 
         /// <summary>
+        /// The ring ($cc) nodes <see cref="ProxyRingOf"/> cannot find a joint for on a compile that carries
+        /// no <c>m_SkelParents</c> entry linking them to it: a rope-parented chain synthesizes
+        /// <see cref="SkelParents"/> from <c>m_Ropes</c>/<c>m_FollowNodes</c> (<see cref="BuildRopeParents"/>),
+        /// which walks the joints' own bone-to-bone links but never extends to each joint's own extruded
+        /// ring, so every ring on such a compile reads back empty. Recovered instead from the source's own
+        /// authored topology: <see cref="SourceFaces"/> still records a face (edge or diagonal) between two
+        /// ring nodes even when nothing in the compiled file ties either one to its joint.
+        /// </summary>
+        HashSet<int> SourceFaceRingNodes()
+        {
+            bool IsChainRing(int node) => node >= 0 && node < CtrlNames.Length
+                && CtrlNames[node].StartsWith("$cc", StringComparison.Ordinal);
+
+            var nodes = new HashSet<int>();
+            foreach (var (a, b) in DeriveRodsFromFaces(SourceFaces))
+            {
+                if (IsChainRing(a) && IsChainRing(b))
+                {
+                    nodes.Add(a);
+                    nodes.Add(b);
+                }
+            }
+
+            return nodes;
+        }
+
+        /// <summary>
         /// Returns whether a FIXED-LENGTH rod still spans a parent-child LINK of <paramref name="chain"/>.
         /// A rigid hinge replaces that link with a quad, so a hinged chain that kept the link's rods was
         /// authored with a soft hinge link instead. Both conditions are needed to tell the two apart: the
@@ -1237,6 +1264,11 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics
                 .SelectMany(joint => ProxyRingOf(joint.Node))
                 .ToHashSet();
 
+            if (generated.Count == 0)
+            {
+                generated = SourceFaceRingNodes();
+            }
+
             return Rods.Any(rod => rod.MaxDist >= UnboundedRodDistance
                 && generated.Contains(rod.NodeA) && generated.Contains(rod.NodeB));
         }
@@ -1254,6 +1286,11 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics
                 .SelectMany(static chain => chain.Joints)
                 .SelectMany(joint => ProxyRingOf(joint.Node))
                 .ToHashSet();
+
+            if (generated.Count == 0)
+            {
+                generated = SourceFaceRingNodes();
+            }
 
             return Rods.Any(rod => rod.MaxDist < UnboundedRodDistance && rod.MinDist < rod.MaxDist
                 && rod.NodeA != rod.NodeB
