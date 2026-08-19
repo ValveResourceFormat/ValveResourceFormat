@@ -702,10 +702,39 @@ partial class ModelExtract
         return proxyNodeNames;
     }
 
+    // The vertices of an exported proxy mesh that survive into the compiled node set. Two importer rules
+    // remove the rest, and a removed vertex registers neither itself nor the bones it is skinned to:
+    // an unfaced vertex is dropped outright (the same rule BuildProxyNodeNameMap maps around), and a
+    // pinned vertex whose face-neighbours are all pinned belongs to a fully-static region the solver
+    // discards (the first of the two conditions behind FeModel.ProxyMesh.IsDropRisk).
+    static HashSet<int> SurvivingProxyVertices(FeModel.ProxyMesh proxy)
+    {
+        var hasSimulatedNeighbour = new bool[proxy.Positions.Length];
+        var surviving = new HashSet<int>();
+
+        foreach (var face in proxy.Faces)
+        {
+            foreach (var a in face)
+            {
+                surviving.Add(a);
+                foreach (var b in face)
+                {
+                    if (a != b && proxy.ClothEnable[b] != 0f)
+                    {
+                        hasSimulatedNeighbour[a] = true;
+                    }
+                }
+            }
+        }
+
+        surviving.RemoveWhere(v => proxy.ClothEnable[v] == 0f && !hasSimulatedNeighbour[v]);
+        return surviving;
+    }
+
     static void AddClothProxySprings(KVObject softbodyChildren, FeModel feModel,
         List<(string FileName, string Name, FeModel.ProxyMesh Proxy)> proxies, HashSet<int> chainJointNodes,
-        HashSet<int> authoredClothNodes, HashSet<(int, int)> derivedRods,
-        Dictionary<int, string> proxyNodeNames)
+        HashSet<int> authoredClothNodes, Dictionary<int, string> freeClothNodeNames,
+        HashSet<(int, int)> derivedRods, Dictionary<int, string> proxyNodeNames)
     {
         // Islands the cloth importer is expected to prune vertices from (see FeModel.ComputeDropRisk):
         // emitting explicit rods into them would orphan a ClothSpring on a vertex the compiler never creates
@@ -728,10 +757,11 @@ partial class ModelExtract
 
         // A real bone anchors a spring only when this export also declares it as a ClothNode. A bone the
         // compile knows solely through a chain's joint list or a proxy back-solve is not a valid endpoint,
-        // and naming one fails the whole compile with "Cannot find Fx Bone"/"Cannot find node".
+        // and naming one fails the whole compile with "Cannot find Fx Bone"/"Cannot find node". A
+        // "$cloth_node_" ctrl re-authored as a free ClothNode is named by its element name instead.
         string? ResolveName(int node)
             => FeModel.IsProxyNodeName(feModel.CtrlNames[node])
-                ? proxyNodeNames.GetValueOrDefault(node)
+                ? proxyNodeNames.GetValueOrDefault(node) ?? freeClothNodeNames.GetValueOrDefault(node)
                 : authoredClothNodes.Contains(node) ? feModel.CtrlNames[node] : null;
 
         var seen = new HashSet<(int, int)>();
@@ -825,6 +855,50 @@ partial class ModelExtract
         }
     }
 
+    static Dictionary<int, FeModel.CtrlOffset> BuildCtrlAnchorMap(FeModel feModel)
+    {
+        var anchorOf = new Dictionary<int, FeModel.CtrlOffset>();
+        foreach (var offset in feModel.CtrlOffsets)
+        {
+            anchorOf[offset.CtrlChild] = offset;
+        }
+
+        return anchorOf;
+    }
+
+    // The bone a "$cloth_node_<name>" ctrl hangs off, plus the bone-local origin to re-author it at: the
+    // m_CtrlOffsets entry the compiler wrote for it, or the skeleton parent when the model carries no such
+    // entry. A node anchored to another generated node has no authorable root bone.
+    static bool TryResolveClothNodeAnchor(FeModel feModel, Dictionary<int, FeModel.CtrlOffset> anchorOf,
+        int node, [System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out string? rootBone, out Vector3 origin)
+    {
+        var names = feModel.CtrlNames;
+        rootBone = null;
+        origin = default;
+
+        if (anchorOf.TryGetValue(node, out var anchor)
+            && anchor.CtrlParent >= 0 && anchor.CtrlParent < names.Length)
+        {
+            rootBone = names[anchor.CtrlParent];
+            origin = anchor.Offset;
+        }
+        else if (node < feModel.SkelParents.Length
+            && feModel.SkelParents[node] >= 0 && feModel.SkelParents[node] < names.Length)
+        {
+            var parent = feModel.SkelParents[node];
+            rootBone = names[parent];
+            if (node < feModel.InitPosePositions.Length && parent < feModel.InitPosePositions.Length
+                && parent < feModel.InitPoseRotations.Length)
+            {
+                origin = Vector3.Transform(
+                    feModel.InitPosePositions[node] - feModel.InitPosePositions[parent],
+                    Quaternion.Conjugate(feModel.InitPoseRotations[parent]));
+            }
+        }
+
+        return rootBone is not null && !FeModel.IsProxyNodeName(rootBone);
+    }
+
     // A "$cloth_node_<name>" control node is an authored free-standing ClothNode: the compiler names the
     // ctrl "$cloth_node_" + the element name, anchors it to cloth_node_root_bone via an m_CtrlOffsets
     // entry holding the authored bone-local origin, and registers the root bone as a second ctrl of its
@@ -840,11 +914,7 @@ partial class ModelExtract
         const string ClothNodePrefix = "$cloth_node_";
         var names = feModel.CtrlNames;
 
-        var anchorOf = new Dictionary<int, FeModel.CtrlOffset>();
-        foreach (var offset in feModel.CtrlOffsets)
-        {
-            anchorOf[offset.CtrlChild] = offset;
-        }
+        var anchorOf = BuildCtrlAnchorMap(feModel);
 
         var nodeByName = new Dictionary<string, int>(StringComparer.Ordinal);
         for (var node = 0; node < names.Length; node++)
@@ -885,29 +955,7 @@ partial class ModelExtract
             if (name.StartsWith(ClothNodePrefix, StringComparison.Ordinal))
             {
                 var elementName = name[ClothNodePrefix.Length..];
-                string? rootBone = null;
-                Vector3 origin = default;
-                if (anchorOf.TryGetValue(node, out var anchor)
-                    && anchor.CtrlParent >= 0 && anchor.CtrlParent < names.Length)
-                {
-                    rootBone = names[anchor.CtrlParent];
-                    origin = anchor.Offset;
-                }
-                else if (node < feModel.SkelParents.Length
-                    && feModel.SkelParents[node] >= 0 && feModel.SkelParents[node] < names.Length)
-                {
-                    var parent = feModel.SkelParents[node];
-                    rootBone = names[parent];
-                    if (node < feModel.InitPosePositions.Length && parent < feModel.InitPosePositions.Length
-                        && parent < feModel.InitPoseRotations.Length)
-                    {
-                        origin = Vector3.Transform(
-                            feModel.InitPosePositions[node] - feModel.InitPosePositions[parent],
-                            Quaternion.Conjugate(feModel.InitPoseRotations[parent]));
-                    }
-                }
-
-                if (rootBone is null || FeModel.IsProxyNodeName(rootBone))
+                if (!TryResolveClothNodeAnchor(feModel, anchorOf, node, out var rootBone, out var origin))
                 {
                     continue;
                 }
@@ -2747,6 +2795,10 @@ partial class ModelExtract
                 // (a plain bone name is a valid ClothSpring endpoint) but compiler-default paint instead
                 // of the recovered original goal_strength/damping/gravity/stray_radius.
                 var chainNodes = boneChains.SelectMany(static chain => chain.Joints).Select(static joint => joint.Node).ToHashSet();
+                var independentChainNodes = independentChains
+                    .SelectMany(static chain => chain.Joints)
+                    .Select(static joint => joint.Node)
+                    .ToHashSet();
                 var loneClothNodes = new List<(string Name, int Node)>();
 
                 // Real, STATIC (invMass == 0) bones the compiler still registers as FeModel control nodes
@@ -2768,11 +2820,67 @@ partial class ModelExtract
                     .ToHashSet();
                 var leftoverStaticNodes = new List<(string Name, int Node)>();
 
+                // The three constructs skipped above each rely on something else recreating the node:
+                // a generated name on the proxy sheet or chain that regenerates it, a fit-matrix or
+                // back-solved chain joint on the sheet that drives it. What actually registers a bone as a
+                // control node is a proxy VERTEX skinned to it - so a fit-matrix/chain bone no emitted
+                // proxy is skinned to, and a generated node no emitted proxy contains, is recreated by
+                // nothing and vanishes from the compiled node set along with its rods and its share of
+                // every neighbour's mass. Reconstructed sheets are smaller than the originals whenever a
+                // vertex ends up unfaced (BuildProxyMeshesFromRodsOnly's 3-member minimum drops the rest),
+                // which is exactly when this bites.
+                var anchorOf = BuildCtrlAnchorMap(feModel);
+                var jiggleNodes = feModel.JiggleBones.Select(static j => j.Node).ToHashSet();
+                var proxyRegisteredNodes = new HashSet<int>();
+                var proxySkinnedBones = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                foreach (var (_, _, proxy) in ClothProxyMeshesToExtract)
+                {
+                    foreach (var vertex in SurvivingProxyVertices(proxy))
+                    {
+                        proxyRegisteredNodes.Add(proxy.NodeIndices[vertex]);
+                        foreach (var (bone, _) in proxy.SkinInfluences[vertex])
+                        {
+                            proxySkinnedBones.Add(bone);
+                        }
+                    }
+                }
+
+                bool IsRecreated(int node, string name)
+                    => proxyRegisteredNodes.Contains(node) || proxySkinnedBones.Contains(name)
+                        || independentChainNodes.Contains(node) || jiggleNodes.Contains(node)
+                        || shapeParentBones.Contains(name);
+
+                // Emitted flat, never under a ClothVertexMap: that container around a free ClothNode a
+                // ClothSpring names makes the compiler access-violate.
+                var unregisteredNodes = new List<(string Name, int Node)>();
+                var unregisteredFreeNodes = new List<(string RootBone, int Node, string ElementName, Vector3 Origin)>();
+                var freeClothNodeNames = new Dictionary<int, string>();
+
                 for (var node = 0; node < feModel.CtrlNames.Length; node++)
                 {
                     var name = feModel.CtrlNames[node];
                     if (FeModel.IsProxyNodeName(name) || feModel.FitMatrixNodes.Contains(node) || chainNodes.Contains(node))
                     {
+                        if (IsRecreated(node, name))
+                        {
+                            continue;
+                        }
+
+                        const string ClothNodePrefix = "$cloth_node_";
+                        if (name.StartsWith(ClothNodePrefix, StringComparison.Ordinal))
+                        {
+                            if (TryResolveClothNodeAnchor(feModel, anchorOf, node, out var rootBone, out var origin))
+                            {
+                                var elementName = name[ClothNodePrefix.Length..];
+                                unregisteredFreeNodes.Add((rootBone, node, elementName, origin));
+                                freeClothNodeNames[node] = elementName;
+                            }
+                        }
+                        else if (!FeModel.IsProxyNodeName(name))
+                        {
+                            unregisteredNodes.Add((name, node));
+                        }
+
                         continue;
                     }
 
@@ -2789,7 +2897,8 @@ partial class ModelExtract
 
                 var proxyNodeNameMap = BuildProxyNodeNameMap(ClothProxyMeshesToExtract);
 
-                if (independentChains.Count > 0 || loneClothNodes.Count > 0 || leftoverStaticNodes.Count > 0)
+                if (independentChains.Count > 0 || loneClothNodes.Count > 0 || leftoverStaticNodes.Count > 0
+                    || unregisteredNodes.Count > 0 || unregisteredFreeNodes.Count > 0)
                 {
                     var (clothFolder, clothFolderChildren) = MakeListNode("Folder");
                     clothFolder.Add("name", "cloth");
@@ -2835,17 +2944,28 @@ partial class ModelExtract
                         FolderFor(node).Add(MakeClothNode(feModel, name, node, isStaticNode: true,
                             proxyNodeNames: proxyNodeNameMap));
                     }
+
+                    // is_static_node reproduces the node's own compiled class: a free node with no
+                    // coverage left compiles to invMass exactly 1.0 when dynamic and 0.0 when static.
+                    foreach (var (name, node) in unregisteredNodes)
+                    {
+                        clothFolderChildren.Add(MakeClothNode(feModel, name, node,
+                            isStaticNode: feModel.IsStatic(node), proxyNodeNames: proxyNodeNameMap));
+                    }
+
+                    foreach (var (rootBone, node, elementName, origin) in unregisteredFreeNodes)
+                    {
+                        clothFolderChildren.Add(MakeClothNode(feModel, rootBone, node,
+                            isStaticNode: feModel.IsStatic(node), elementName: elementName, origin: origin,
+                            proxyNodeNames: proxyNodeNameMap));
+                    }
                 }
 
-                var independentChainNodes = independentChains
-                    .SelectMany(static chain => chain.Joints)
-                    .Select(static joint => joint.Node)
-                    .ToHashSet();
-                var authoredClothNodes = loneClothNodes.Concat(leftoverStaticNodes)
+                var authoredClothNodes = loneClothNodes.Concat(leftoverStaticNodes).Concat(unregisteredNodes)
                     .Select(static entry => entry.Node)
                     .ToHashSet();
                 AddClothProxySprings(softbodyChildren, feModel, ClothProxyMeshesToExtract, independentChainNodes,
-                    authoredClothNodes, surfaceRods, proxyNodeNameMap);
+                    authoredClothNodes, freeClothNodeNames, surfaceRods, proxyNodeNameMap);
                 AddClothCollisionShapes(softbodyChildren, feModel);
                 AddClothEffects(softbodyChildren, feModel, AvailableVertexMaps(feModel, independentChains));
 
