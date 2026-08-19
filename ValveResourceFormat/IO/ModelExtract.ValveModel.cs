@@ -345,7 +345,8 @@ partial class ModelExtract
 
     // Global cloth solver parameters, populated from the FeModel scalars. Field names match the compiled
     // ClothParams source node (e.g. siren_legs.vmdl); the compiler re-derives everything not emitted here.
-    static KVObject MakeClothParams(FeModel fe, bool generatesBendRods = false, bool generatesBendOnlyRods = false)
+    static KVObject MakeClothParams(FeModel fe, bool generatesBendRods = false, bool generatesBendOnlyRods = false,
+        float addCurvature = 0f)
     {
         var flags = fe.DynamicNodeFlags;
         bool Flag(uint bits) => (flags & bits) != 0;
@@ -373,7 +374,7 @@ partial class ModelExtract
             ("add_world_collision_radius", fe.AddWorldCollisionRadius),
             ("local_force", fe.LocalForce),
             ("local_rotation", fe.LocalRotation),
-            ("add_curvature", 0.0f),
+            ("add_curvature", addCurvature),
             ("quad_bend_tolerance", 0.05f),
             ("local_drag1", fe.LocalDrag1),
             ("follow_the_lead", Flag(ClothFlagFollowTheLead)),
@@ -445,10 +446,11 @@ partial class ModelExtract
     /// </summary>
     static HashSet<(int, int)> ClothRodsFromSurface(FeModel feModel,
         List<(string FileName, string Name, FeModel.ProxyMesh Proxy)> proxies, out bool generatesBendRods,
-        out bool generatesBendOnlyRods)
+        out bool generatesBendOnlyRods, out float addCurvature)
     {
         var surfaceNodes = new HashSet<int>();
         var derived = new HashSet<(int, int)>();
+        var surfaceFaces = new List<int[]>();
         foreach (var (_, _, proxyMesh) in proxies)
         {
             if (!proxyMesh.UsesAuthoredFaces)
@@ -458,8 +460,9 @@ partial class ModelExtract
 
             var nodeOf = proxyMesh.NodeIndices;
             surfaceNodes.UnionWith(nodeOf);
-            derived.UnionWith(FeModel.DeriveRodsFromFaces(
-                proxyMesh.Faces.Select(face => face.Select(local => nodeOf[local]).ToArray())));
+            var globalFaces = proxyMesh.Faces.Select(face => face.Select(local => nodeOf[local]).ToArray()).ToList();
+            surfaceFaces.AddRange(globalFaces);
+            derived.UnionWith(FeModel.DeriveRodsFromFaces(globalFaces));
         }
 
         var beyondSurface = new HashSet<(int, int)>();
@@ -493,6 +496,10 @@ partial class ModelExtract
         generatesBendOnlyRods = regenerable && !boundedBeyondSurface;
         generatesBendRods = regenerable && boundedBeyondSurface;
 
+        // Only a regenerated network carries the curvature: where the rods are re-declared as explicit
+        // springs instead they already ship their own minimum, and the compiler builds nothing to bend.
+        addCurvature = regenerable ? ClothCurvatureFromSurface(feModel, surfaceFaces, beyondSurface) : 0f;
+
         if (regenerable)
         {
             derived.UnionWith(beyondSurface);
@@ -516,6 +523,149 @@ partial class ModelExtract
 
     // The maximum length a bend-only rod is given, which is no limit at all.
     const float ClothBendOnlyRodMaxDistance = FeModel.UnboundedRodDistance;
+
+    /// <summary>
+    /// The <c>add_curvature</c> the sheet was authored with, read back out of the bend network it
+    /// generates. Such a rod joins the far corners of two faces that share an edge; the compiler gives it
+    /// the span those corners have with the two faces coplanar as <c>flMaxDist</c>, and the span they have
+    /// folded about that shared edge through a dihedral angle of <c>add_curvature * pi</c> as
+    /// <c>flMinDist</c> - capped at the rod's own rest span, which a curved sheet reaches before the fold
+    /// opens all the way. One uncapped rod plus the rest positions therefore pin the value down, and every
+    /// rod of the network agrees on it to the print quantum, so the answer is the value the largest set of
+    /// them shares - which also discards the pairs some other rule shaped. A capped rod only says the
+    /// value is at least enough to have reached its rest span, so a network that is capped throughout
+    /// yields the greatest of those bounds. Values at or above 1.0 all open the fold fully and compile
+    /// identically, which is the one distinction the compiled data cannot make.
+    /// </summary>
+    static float ClothCurvatureFromSurface(FeModel feModel, List<int[]> faces, HashSet<(int, int)> beyondSurface)
+    {
+        var positions = feModel.InitPosePositions;
+        var hinges = new Dictionary<(int, int), List<int[]>>();
+        var touching = new Dictionary<int, List<int[]>>();
+        foreach (var face in faces)
+        {
+            for (var i = 0; i < face.Length; i++)
+            {
+                var a = face[i];
+                var b = face[(i + 1) % face.Length];
+                var hinge = a < b ? (a, b) : (b, a);
+                (hinges.TryGetValue(hinge, out var sharing) ? sharing : hinges[hinge] = []).Add(face);
+                (touching.TryGetValue(a, out var around) ? around : touching[a] = []).Add(face);
+            }
+        }
+
+        var opened = new List<float>();
+        var capped = new List<float>();
+        foreach (var rod in feModel.Rods)
+        {
+            var edge = rod.NodeA < rod.NodeB ? (rod.NodeA, rod.NodeB) : (rod.NodeB, rod.NodeA);
+            if (!beyondSurface.Contains(edge) || edge.Item2 >= positions.Length)
+            {
+                continue;
+            }
+
+            // A bend-only rod has no length of its own to identify its hinge by, so its rest span stands in.
+            var rest = Vector3.Distance(positions[rod.NodeA], positions[rod.NodeB]);
+            var coplanar = rod.MaxDist < ClothBendOnlyRodMaxDistance ? rod.MaxDist : rest;
+            var closest = float.MaxValue;
+            var flat = 0f;
+            var folded = 0f;
+            foreach (var hinge in HingesAround(touching, rod.NodeA))
+            {
+                if (hinge.Item1 == edge.Item1 || hinge.Item1 == edge.Item2
+                    || hinge.Item2 == edge.Item1 || hinge.Item2 == edge.Item2
+                    || !hinges[hinge].Any(face => face.Contains(rod.NodeB)))
+                {
+                    continue;
+                }
+
+                var axis = positions[hinge.Item2] - positions[hinge.Item1];
+                var axisLength = axis.Length();
+                if (axisLength < 1e-6f)
+                {
+                    continue;
+                }
+
+                axis /= axisLength;
+                var toA = positions[rod.NodeA] - positions[hinge.Item1];
+                var toB = positions[rod.NodeB] - positions[hinge.Item1];
+                var alongA = Vector3.Dot(toA, axis);
+                var alongB = Vector3.Dot(toB, axis);
+                var riseA = (toA - alongA * axis).Length();
+                var riseB = (toB - alongB * axis).Length();
+                var slide = (alongA - alongB) * (alongA - alongB);
+                var open = MathF.Sqrt(slide + ((riseA + riseB) * (riseA + riseB)));
+                var shut = MathF.Sqrt(slide + ((riseA - riseB) * (riseA - riseB)));
+                var error = MathF.Abs(open - coplanar);
+                if (error < closest && open - shut >= 0.02f * open)
+                {
+                    closest = error;
+                    flat = open;
+                    folded = shut;
+                }
+            }
+
+            if (closest > 0.005f * MathF.Max(1f, coplanar))
+            {
+                continue;
+            }
+
+            var reach = (flat * flat) - (folded * folded);
+            var span = rod.MinDist >= rest - (2e-4f * MathF.Max(1f, rest)) ? rest : rod.MinDist;
+            var fraction = Math.Clamp(((span * span) - (folded * folded)) / reach, 0f, 1f);
+            (span == rest ? capped : opened).Add(fraction);
+        }
+
+        // The half-angle sine squared is what the minimum length is linear in, so the rods are clustered
+        // in that before the value is read off - the angle itself is arbitrarily sensitive near either end.
+        opened.Sort();
+        var agreed = 0;
+        var consensus = 0f;
+        for (var i = 0; i < opened.Count; i++)
+        {
+            var j = i;
+            while (j < opened.Count && opened[j] <= opened[i] + 1e-3f)
+            {
+                j++;
+            }
+
+            if (j - i > agreed)
+            {
+                agreed = j - i;
+                consensus = opened[(i + j - 1) / 2];
+            }
+        }
+
+        if (agreed < 3 || agreed * 4 < opened.Count)
+        {
+            if (capped.Count == 0)
+            {
+                return 0f;
+            }
+
+            consensus = capped.Max();
+        }
+
+        return 2f / MathF.PI * MathF.Asin(MathF.Sqrt(consensus));
+    }
+
+    static IEnumerable<(int, int)> HingesAround(Dictionary<int, List<int[]>> touching, int node)
+    {
+        if (!touching.TryGetValue(node, out var around))
+        {
+            yield break;
+        }
+
+        foreach (var face in around)
+        {
+            for (var i = 0; i < face.Length; i++)
+            {
+                var a = face[i];
+                var b = face[(i + 1) % face.Length];
+                yield return a < b ? (a, b) : (b, a);
+            }
+        }
+    }
 
     // Maps each global control-node index covered by an exported proxy mesh to the "$cloth_m{N}p{local}"
     // name the compiler will create for it in OUR export (declaration order; kept aligned with the
@@ -2586,8 +2736,9 @@ partial class ModelExtract
                 var (softbody, softbodyChildren) = MakeListNode("Softbody");
                 softbody.Add("motion_smooth_cdt", feModel.MotionSmoothCdt);
                 var surfaceRods = ClothRodsFromSurface(feModel, ClothProxyMeshesToExtract,
-                    out var generatesBendRods, out var generatesBendOnlyRods);
-                softbodyChildren.Add(MakeClothParams(feModel, generatesBendRods, generatesBendOnlyRods));
+                    out var generatesBendRods, out var generatesBendOnlyRods, out var addCurvature);
+                softbodyChildren.Add(MakeClothParams(feModel, generatesBendRods, generatesBendOnlyRods,
+                    addCurvature));
 
                 // Simulated real bones that are NEITHER back-solved NOR part of any multi-joint BoneChain -
                 // standalone goal-attraction points wired together only by ClothSpring (see MakeClothNode
