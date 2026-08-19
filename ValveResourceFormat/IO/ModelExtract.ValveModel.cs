@@ -2705,10 +2705,11 @@ partial class ModelExtract
                 // of a vertex is not the sheet driving it - reading the wider list turns back_solve_joints
                 // on for sheets the original never back-solved, which then compile fit matrices the
                 // original has none of (frostivus2018_dp_mistress_of_the_blizzard_armor: 4 against 0).
-                // Only the models this recovery feeds read the anchor; everywhere else the influence list
-                // stands, because that is the set the kez/meepo/primal_beast tuning was measured against
-                // and a blanket rule over ProxyFitMatrixNodes takes back_solve away from models that
-                // legitimately have it (ancient_apparition, dark_seer, spacefrog_hunter_armor).
+                // Only a model with no fit matrix at all reads the anchor; everywhere else the influence
+                // list stands, because that is the set the kez/meepo/primal_beast tuning was measured
+                // against. Widening the test to ProxyFitMatrixNodes looks like the matching scope but is
+                // not: it takes back_solve away from a chain-fit model that legitimately has it
+                // (spacefrog_hunter_armor 10 -> 12, gaining m_NodeInvMasses and m_nStaticNodes).
                 IEnumerable<string> DrivingBones(FeModel.ProxyMesh proxy, int vertex)
                     => feModel.FitMatrixNodes.Count == 0
                         ? [feModel.ResolveSkinBone(proxy.NodeIndices[vertex]) ?? string.Empty]

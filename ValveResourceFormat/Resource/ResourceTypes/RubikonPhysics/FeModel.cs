@@ -234,6 +234,17 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics
         /// all 39 back-solved simulated vertices reconstruct with error ~1e-7, and every fit matrix's
         /// vCenter equals the weighted centroid of exactly these weights (~1e-5), so re-painting them
         /// reproduces the original fit transforms rather than approximating them.
+        /// <para>
+        /// A vertex no fit matrix covers is recovered from <c>m_CtrlOffsets</c>/<c>m_CtrlSoftOffsets</c>
+        /// alone, at scale 1. The compiler drops every authored influence below a fixed keep threshold
+        /// and renormalizes the survivors before building the network, so the network's expansion is
+        /// exactly the authored set the compiler itself acted on. Measured against the authored proxy
+        /// DMX that abrams, hornet, dynamo and bebop compile from - 3035 vertices, every kept
+        /// influence's authored-to-network ratio constant per vertex to 3e-5, and the keep/drop split a
+        /// single global threshold bracketed to (0.02480, 0.02504). Re-painting the expansion therefore
+        /// re-derives the same network: renormalizing only scales weights up, so nothing that cleared
+        /// the threshold can fall back under it.
+        /// </para>
         /// </summary>
         public IReadOnlyDictionary<int, (string Bone, float Weight)[]> RecoveredSkinWeights { get; }
 
@@ -1871,7 +1882,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics
         // same "read the compiled array directly instead of guessing a geometric rule" approach that
         // already made m_Rods/m_Twists/m_NodeBases exact; it supersedes BuildChainSkinInfluences'
         // inverse-square-distance synthesis for every vertex the compiled data still carries weights for
-        // (the synthesis remains the fallback for vertices without fit entries on a back-solved model).
+        // (the synthesis remains the fallback only for a vertex with no m_CtrlOffsets entry at all).
         (IReadOnlyDictionary<int, (string Bone, float Weight)[]>, float?) RecoverAuthoredSkinWeights(KVObject data)
         {
             var recovered = new Dictionary<int, (string Bone, float Weight)[]>();
@@ -1881,15 +1892,6 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics
             {
                 return (recovered, null);
             }
-
-            // With no fit matrix anywhere the model back-solves no bone at all, so nothing can have
-            // consumed authored weight outside the offset network and its nested lerp is the complete
-            // weight set at scale 1 - measured on synth/chrono/familiar/ghost/nano_shadow_form: every
-            // vertex's expansion sums to exactly 1.0 and its largest component is the m_CtrlOffsets
-            // primary. On a back-solved model the network is renormalised over the driven bones only
-            // and the absolute scale has to come from a fit weight, which is what the rest of this
-            // method does.
-            var backSolved = fitMatrices is { Count: > 0 };
 
             var fitWeights = data.GetArray("m_FitWeights") ?? [];
 
@@ -1983,7 +1985,18 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics
                     continue;
                 }
 
-                if (!backSolved)
+                // The offset network alone recovers the weights whenever nothing else consumed the
+                // vertex's authored weight outside it: every vertex of a model with no fit matrix, and
+                // every vertex no fit covers on a model whose fits are taken over CHAIN rings rather
+                // than over the sheet. The compiler drops each authored influence below its keep
+                // threshold and renormalizes the rest, so the network's own expansion IS the authored
+                // set as the compiler sees it, and re-painting it re-derives the same network:
+                // renormalizing only scales weights up, so nothing that cleared the threshold can fall
+                // back under it. Where the SHEET back-solves bones its weights are also inputs to the
+                // compiler's own fit solve, so a vertex the fits leave out keeps the rigid fallback -
+                // re-painting its network there perturbs fits the original has (marci_base gains six
+                // node-count and mass keys, cm_ti9_immortal_weapon two fit keys).
+                if (ProxyFitMatrixNodes.Count == 0)
                 {
                     // Left in the compiled array's own order (primary, then each soft offset as
                     // serialized) rather than sorted by weight: that order is the authored influence
@@ -2014,8 +2027,8 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics
                 // entry: no soft offsets either means the compiled data itself says the vertex is
                 // anchored 100% to its primary bone (dark_willow's lantern/waist-seam vertices - the
                 // geometric fallback used to smear these across nearby chain joints, producing extra
-                // m_CtrlSoftOffsets entries absent from the original); with soft offsets but no fit
-                // anchor the scale is unknowable, so leave those to the fallback.
+                // m_CtrlSoftOffsets entries absent from the original); with soft offsets the fit solve
+                // this sheet feeds is what decides the rest, so leave those to the fallback.
                 if (!fitPerVertex.TryGetValue(node, out var fits))
                 {
                     if (!softPerVertex.ContainsKey(node))

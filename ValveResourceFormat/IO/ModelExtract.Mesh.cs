@@ -900,17 +900,21 @@ partial class ModelExtract
         if (!proxy.IsFreeFloating)
         {
             // Four slots cover everything BuildChainSkinInfluences synthesises, but weights recovered
-            // verbatim from a model's own offset network run to six (familiar_wip_default), and a
-            // truncated influence takes its m_CtrlSoftOffsets entry with it - familiar lost exactly the
-            // 25 tail entries of its 17 five-influence and 4 six-influence vertices. Widened only where
-            // those recovered weights exist (a model with no fit matrix): giving a back-solved sheet more
-            // than its four slots re-classifies its nodes (mars gains five node-count/mass keys).
+            // verbatim from a model's own offset network run to eight (abrams), and a truncated
+            // influence takes its m_CtrlSoftOffsets entry with it - familiar lost exactly the 25 tail
+            // entries of its 17 five-influence and 4 six-influence vertices. Widened only for the
+            // vertices those recovered weights cover, and only where no fit is taken over the sheet:
+            // giving a back-solving sheet more slots than its own fits need re-classifies its nodes
+            // (mars gains five node-count/mass keys).
             var jointCount = 4;
-            if (physAggregateData?.FeModel is { FitMatrixNodes.Count: 0 })
+            if (physAggregateData?.FeModel is { ProxyFitMatrixNodes.Count: 0 } feModel)
             {
                 for (var v = 0; v < vertexCount; v++)
                 {
-                    jointCount = Math.Max(jointCount, proxy.SkinInfluences[v].Count(i => boneIndexByName.ContainsKey(i.Bone)));
+                    if (v < proxy.NodeIndices.Length && feModel.RecoveredSkinWeights.ContainsKey(proxy.NodeIndices[v]))
+                    {
+                        jointCount = Math.Max(jointCount, proxy.SkinInfluences[v].Count(i => boneIndexByName.ContainsKey(i.Bone)));
+                    }
                 }
             }
 
