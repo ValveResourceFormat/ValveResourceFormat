@@ -3947,7 +3947,14 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics
                 return [];
             }
 
-            return [.. OrderFacesByAllocation(faces, nodeIndices).Select(face => face.Select(corner => localOf[corner]).ToArray())];
+            // The compiler records the imported faces back to front, so the authored order is the reverse
+            // of the one m_SourceElems lists them in. Restoring it matters because a rod's endpoints are
+            // kept in the order the face that first claimed them names them (m_Rods carries the two nodes
+            // in that order, with flWeight0 measured from the first), and two faces sharing an edge name
+            // it in opposite directions. Faces of unequal corner counts are grouped by count on the way
+            // out, so their order relative to each other does not survive.
+            faces.Reverse();
+            return [.. faces.Select(face => face.Select(corner => localOf[corner]).ToArray())];
         }
 
         // Whether a face's corners come from more than one compiled proxy mesh. Such a face cannot have
@@ -3975,127 +3982,6 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics
             }
 
             return false;
-        }
-
-        /// <summary>
-        /// Reorders faces so that walking them corner by corner meets the control nodes in the model's own
-        /// index order. The compiler numbers a proxy's nodes by first encounter over the imported face list,
-        /// so exporting the faces in this order reproduces the original numbering instead of a permutation
-        /// of it. Faces are only rotated, never reversed, so the authored winding survives.
-        /// </summary>
-        static List<int[]> OrderFacesByAllocation(List<int[]> faces, List<int> nodeIndices)
-        {
-            var facesAt = new Dictionary<int, List<int>>();
-            for (var f = 0; f < faces.Count; f++)
-            {
-                foreach (var corner in faces[f])
-                {
-                    if (!facesAt.TryGetValue(corner, out var list))
-                    {
-                        facesAt[corner] = list = [];
-                    }
-
-                    list.Add(f);
-                }
-            }
-
-            var ordered = new List<int[]>(faces.Count);
-            var used = new bool[faces.Count];
-            var seen = new HashSet<int>();
-
-            foreach (var node in nodeIndices.Order())
-            {
-                if (seen.Contains(node) || !facesAt.TryGetValue(node, out var candidates))
-                {
-                    continue;
-                }
-
-                int[]? bestRotation = null;
-                var bestFace = -1;
-                List<int>? bestFresh = null;
-
-                foreach (var f in candidates)
-                {
-                    if (used[f])
-                    {
-                        continue;
-                    }
-
-                    var face = faces[f];
-                    for (var start = 0; start < face.Length; start++)
-                    {
-                        var rotation = new int[face.Length];
-                        for (var i = 0; i < face.Length; i++)
-                        {
-                            rotation[i] = face[(start + i) % face.Length];
-                        }
-
-                        var fresh = rotation.Where(c => !seen.Contains(c)).ToList();
-                        if (fresh.Count == 0 || !IsAscending(fresh))
-                        {
-                            continue;
-                        }
-
-                        if (bestFresh is null || IsLexicographicallySmaller(fresh, bestFresh))
-                        {
-                            bestFresh = fresh;
-                            bestRotation = rotation;
-                            bestFace = f;
-                        }
-                    }
-                }
-
-                if (bestRotation is null || bestFresh is null)
-                {
-                    continue;
-                }
-
-                used[bestFace] = true;
-                ordered.Add(bestRotation);
-                foreach (var corner in bestFresh)
-                {
-                    seen.Add(corner);
-                }
-            }
-
-            // Faces that introduce no node of their own play no part in the numbering; they keep their
-            // original relative order behind the ones that do.
-            for (var f = 0; f < faces.Count; f++)
-            {
-                if (!used[f])
-                {
-                    ordered.Add(faces[f]);
-                }
-            }
-
-            return ordered;
-        }
-
-        static bool IsAscending(List<int> values)
-        {
-            for (var i = 1; i < values.Count; i++)
-            {
-                if (values[i] < values[i - 1])
-                {
-                    return false;
-                }
-            }
-
-            return true;
-        }
-
-        static bool IsLexicographicallySmaller(List<int> candidate, List<int> current)
-        {
-            var shared = Math.Min(candidate.Count, current.Count);
-            for (var i = 0; i < shared; i++)
-            {
-                if (candidate[i] != current[i])
-                {
-                    return candidate[i] < current[i];
-                }
-            }
-
-            return candidate.Count < current.Count;
         }
 
         // Projects a 3D point set onto its two dominant-extent axes (the same "biggest bounding-box
