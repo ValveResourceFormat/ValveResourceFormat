@@ -414,5 +414,111 @@ namespace Tests.SmartProp
             await Assert.That(result.Paths).IsEmpty();
         }
 
+        [Test]
+        public async Task EvaluatesMaterialGroupAndTintColor()
+        {
+            var root = Root();
+            var variables = KVObject.Array();
+
+            var varMat = KVObject.Collection();
+            varMat["_class"] = new KVObject("CSmartPropVariable_MaterialGroup");
+            varMat["m_VariableName"] = new KVObject("Glow_Amount");
+            varMat["m_DefaultValue"] = new KVObject("on");
+            variables.Add(varMat);
+
+            var varColor = KVObject.Collection();
+            varColor["_class"] = new KVObject("CSmartPropVariable_Color");
+            varColor["m_VariableName"] = new KVObject("Tint_Color");
+            var colArr = KVObject.Array();
+            colArr.Add(new KVObject(159));
+            colArr.Add(new KVObject(135));
+            colArr.Add(new KVObject(43));
+            varColor["m_DefaultValue"] = colArr;
+            variables.Add(varColor);
+
+            root["m_Variables"] = variables;
+
+            var model = ModelElement(10, "models/floodlight.vmdl");
+            var matBinding = KVObject.Collection();
+            matBinding["m_SourceName"] = new KVObject("Glow_Amount");
+            model["m_MaterialGroupName"] = matBinding;
+
+            var tintOp = KVObject.Collection();
+            tintOp["_class"] = new KVObject("CSmartPropOperation_SetTintColor");
+            var choices = KVObject.Array();
+            var choice = KVObject.Collection();
+            var cBind = KVObject.Collection();
+            cBind["m_SourceName"] = new KVObject("Tint_Color");
+            choice["m_Color"] = cBind;
+            choices.Add(choice);
+            tintOp["m_ColorChoices"] = choices;
+
+            var modArray = KVObject.Array();
+            modArray.Add(tintOp);
+            model["m_Modifiers"] = modArray;
+
+            root["m_Children"] = ArrayOf(model);
+
+            var result = SmartPropEvaluator.Evaluate(root);
+            await Assert.That(result.Models.Count).IsEqualTo(1);
+            var evalModel = result.Models[0];
+            await Assert.That(evalModel.MaterialGroup).IsEqualTo("on");
+            await Assert.That(evalModel.TintColor).IsNotNull();
+            await Assert.That(evalModel.TintColor!.Value.X).IsEqualTo(159f / 255f).Within(Tolerance);
+            await Assert.That(evalModel.TintColor!.Value.Y).IsEqualTo(135f / 255f).Within(Tolerance);
+            await Assert.That(evalModel.TintColor!.Value.Z).IsEqualTo(43f / 255f).Within(Tolerance);
+        }
+
+        [Test]
+        public async Task EvaluatesFloodlightSmartPropWithFiltersAndVariables()
+        {
+            var root = Root();
+            var vars = KVObject.Array();
+
+            var varStyle = KVObject.Collection();
+            varStyle["_class"] = new KVObject("CSmartPropVariable_Int");
+            varStyle["m_VariableName"] = new KVObject("Floodlight_Style");
+            varStyle["m_DefaultValue"] = new KVObject(1);
+            vars.Add(varStyle);
+            root["m_Variables"] = vars;
+
+            // Group 1 active when Floodlight_Style == 1
+            var filter1 = KVObject.Collection();
+            filter1["_class"] = new KVObject("CSmartPropFilter_VariableValue");
+            var comp1 = KVObject.Collection();
+            comp1["m_Name"] = new KVObject("Floodlight_Style");
+            comp1["m_Value"] = new KVObject(1);
+            comp1["m_Comparison"] = new KVObject("EQUAL");
+            filter1["m_VariableComparison"] = comp1;
+
+            var group1 = Element("Group", 20, ModelElement(21, "models/floodlight_style1.vmdl"));
+            group1["m_Modifiers"] = ArrayOf(filter1);
+
+            // Group 2 active when Floodlight_Style == 2
+            var filter2 = KVObject.Collection();
+            filter2["_class"] = new KVObject("CSmartPropFilter_VariableValue");
+            var comp2 = KVObject.Collection();
+            comp2["m_Name"] = new KVObject("Floodlight_Style");
+            comp2["m_Value"] = new KVObject(2);
+            comp2["m_Comparison"] = new KVObject("EQUAL");
+            filter2["m_VariableComparison"] = comp2;
+
+            var group2 = Element("Group", 30, ModelElement(31, "models/floodlight_style2.vmdl"));
+            group2["m_Modifiers"] = ArrayOf(filter2);
+
+            root["m_Children"] = ArrayOf(group1, group2);
+
+            // Evaluate with style 1
+            var ctx1 = new SmartPropEvaluationContext(new Dictionary<string, object?> { ["Floodlight_Style"] = 1 });
+            var result1 = SmartPropEvaluator.Evaluate(root, ctx1);
+            await Assert.That(result1.Models.Count).IsEqualTo(1);
+            await Assert.That(result1.Models[0].ModelName).IsEqualTo("models/floodlight_style1.vmdl");
+
+            // Evaluate with style 2
+            var ctx2 = new SmartPropEvaluationContext(new Dictionary<string, object?> { ["Floodlight_Style"] = 2 });
+            var result2 = SmartPropEvaluator.Evaluate(root, ctx2);
+            await Assert.That(result2.Models.Count).IsEqualTo(1);
+            await Assert.That(result2.Models[0].ModelName).IsEqualTo("models/floodlight_style2.vmdl");
+        }
     }
 }
