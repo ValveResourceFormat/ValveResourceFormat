@@ -210,8 +210,8 @@ void CalculateBarnLighting(inout LightingTerms_t lighting, in MaterialProperties
                 float p = 2.0 / roundness;
                 float np = -0.5 * roundness;
                 float innerDist = (barnLight.m_vBarnLightCookieParameters.x * barnLight.m_vBarnLightCookieParameters.y)
-                    * pow(max(pow(barnLight.m_vBarnLightCookieParameters.y * absNdc.x, p) + pow(barnLight.m_vBarnLightCookieParameters.x * absNdc.y, p), 1.175e-38), np);
-                float outerDist = pow(max(pow(absNdc.x, p) + pow(absNdc.y, p), 1.175e-38), np);
+                    * pow(max(SafePow(barnLight.m_vBarnLightCookieParameters.y * absNdc.x, p) + SafePow(barnLight.m_vBarnLightCookieParameters.x * absNdc.y, p), 1.175e-38), np);
+                float outerDist = pow(max(SafePow(absNdc.x, p) + SafePow(absNdc.y, p), 1.175e-38), np);
 
                 softEdge = innerDist < outerDist ? smoothstep(outerDist, innerDist, 1.0) : float(outerDist > 1.0);
             }
