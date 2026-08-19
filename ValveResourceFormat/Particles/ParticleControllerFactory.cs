@@ -31,6 +31,7 @@ namespace ValveResourceFormat.Particles
                 ["C_OP_RemapSpeedtoCP"] = preEmissionOperatorInfo => new RemapSpeedtoCP(preEmissionOperatorInfo),
                 ["C_OP_SetControlPointPositions"] = preEmissionOperatorInfo => new SetControlPointPositions(preEmissionOperatorInfo),
                 ["C_OP_SetControlPointRotation"] = preEmissionOperatorInfo => new SetControlPointRotation(preEmissionOperatorInfo),
+                ["C_OP_SetControlPointToCenter"] = preEmissionOperatorInfo => new SetControlPointToCenter(preEmissionOperatorInfo),
                 ["C_OP_SetControlPointToVectorExpression"] = preEmissionOperatorInfo => new SetControlPointToVectorExpression(preEmissionOperatorInfo),
                 ["C_OP_SetControlPointOrientation"] = preEmissionOperatorInfo => new SetControlPointOrientation(preEmissionOperatorInfo),
                 ["C_OP_PlayEndCapWhenFinished"] = preEmissionOperatorInfo => new PlayEndCapWhenFinished(preEmissionOperatorInfo),
