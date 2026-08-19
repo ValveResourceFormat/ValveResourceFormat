@@ -5,7 +5,6 @@
     <OutputType>Exe</OutputType>
     <Description>Source 2 resource decompiler and extractor</Description>
     <ApplicationIcon>..\Misc\Icons\source2viewer.ico</ApplicationIcon>
-    <RuntimeIdentifiers>win-x64;linux-x64</RuntimeIdentifiers>
     <AssemblyName>Source2Viewer-CLI</AssemblyName>
     <PublishSingleFile Condition="'$(Configuration)' != 'Debug'">true</PublishSingleFile>
   </PropertyGroup>

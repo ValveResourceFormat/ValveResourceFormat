@@ -78,17 +78,9 @@ jobs:
       if: matrix.os == 'ubuntu-latest'
       run: dotnet publish --configuration Release --self-contained --runtime linux-x64 ${{ env.SKIP_ANALYSIS }} ${{ env.PUBLISH_ARGS }} CLI/CLI.csproj
 
-    - name: Publish CLI (Linux arm)
-      if: matrix.os == 'ubuntu-24.04-arm'
-      run: dotnet publish --configuration Release --self-contained --runtime linux-arm ${{ env.SKIP_ANALYSIS }} ${{ env.PUBLISH_ARGS }} CLI/CLI.csproj
-
     - name: Publish CLI (Linux arm64)
       if: matrix.os == 'ubuntu-24.04-arm'
       run: dotnet publish --configuration Release --self-contained --runtime linux-arm64 ${{ env.SKIP_ANALYSIS }} ${{ env.PUBLISH_ARGS }} CLI/CLI.csproj
-
-    - name: Publish CLI (macOS x64)
-      if: matrix.os == 'macos-latest'
-      run: dotnet publish --configuration Release --self-contained --runtime osx-x64 ${{ env.SKIP_ANALYSIS }} ${{ env.PUBLISH_ARGS }} CLI/CLI.csproj
 
     - name: Publish CLI (macOS arm64)
       if: matrix.os == 'macos-latest'
@@ -139,15 +131,6 @@ jobs:
           CLI/bin/Release/linux-x64/publish
           !**/*.pdb
 
-    - name: Upload CLI (Linux arm)
-      uses: actions/upload-artifact@v7
-      if: matrix.os == 'ubuntu-24.04-arm'
-      with:
-        name: cli-linux-arm
-        path: |
-          CLI/bin/Release/linux-arm/publish
-          !**/*.pdb
-
     - name: Upload CLI (Linux arm64)
       uses: actions/upload-artifact@v7
       if: matrix.os == 'ubuntu-24.04-arm'
@@ -155,15 +138,6 @@ jobs:
         name: cli-linux-arm64
         path: |
           CLI/bin/Release/linux-arm64/publish
-          !**/*.pdb
-
-    - name: Upload CLI (macOS x64)
-      uses: actions/upload-artifact@v7
-      if: matrix.os == 'macos-latest'
-      with:
-        name: cli-macos-x64
-        path: |
-          CLI/bin/Release/osx-x64/publish
           !**/*.pdb
 
     - name: Upload CLI (macOS arm64)
@@ -263,16 +237,12 @@ jobs:
        set -eux
        mkdir release
        chmod +x artifacts/cli-linux-x64/Source2Viewer-CLI
-       chmod +x artifacts/cli-linux-arm/Source2Viewer-CLI
        chmod +x artifacts/cli-linux-arm64/Source2Viewer-CLI
-       chmod +x artifacts/cli-macos-x64/Source2Viewer-CLI
        chmod +x artifacts/cli-macos-arm64/Source2Viewer-CLI
        zip -9j release/cli-windows-x64.zip signed/cli-windows-x64/*
        zip -9j release/cli-windows-arm64.zip signed/cli-windows-arm64/*
        zip -9j release/cli-linux-x64.zip artifacts/cli-linux-x64/*
-       zip -9j release/cli-linux-arm.zip artifacts/cli-linux-arm/*
        zip -9j release/cli-linux-arm64.zip artifacts/cli-linux-arm64/*
-       zip -9j release/cli-macos-x64.zip artifacts/cli-macos-x64/*
        zip -9j release/cli-macos-arm64.zip artifacts/cli-macos-arm64/*
        mv signed/Source2Viewer/Source2Viewer.exe release/
        mv artifacts/nupkg/ValveResourceFormat.*.nupkg release/ValveResourceFormat.nupkg
