@@ -959,10 +959,59 @@ partial class ModelExtract
             faceSet.Faces.Add(-1);
         }
 
+        if (dag.Shape is DmeMesh morphTarget)
+        {
+            AddClothProxyMorphLayers(morphTarget, proxy, physAggregateData?.FeModel);
+        }
+
         TieElementRoot(dmx, dmeModel);
         using var stream = new MemoryStream();
         dmx.Save(stream, "binary", 9);
         return stream.ToArray();
+    }
+
+    /// <summary>
+    /// Re-emits a sheet's cloth morph layers (<c>m_MorphLayers</c>) as DMX delta states, sparse per
+    /// vertex like any flex. The compiler reads them off the proxy mesh itself - no vmdl node carries
+    /// the deltas, so a sheet exported without them loses the layer entirely.
+    /// </summary>
+    static void AddClothProxyMorphLayers(DmeMesh dmeMesh, FeModel.ProxyMesh proxy, FeModel? feModel)
+    {
+        if (feModel is null || feModel.MorphLayers.Length == 0)
+        {
+            return;
+        }
+
+        var localOfNode = new Dictionary<int, int>(proxy.NodeIndices.Length);
+        for (var v = 0; v < proxy.NodeIndices.Length; v++)
+        {
+            localOfNode.TryAdd(proxy.NodeIndices[v], v);
+        }
+
+        foreach (var layer in feModel.MorphLayers)
+        {
+            var indices = new List<int>(layer.Nodes.Length);
+            var values = new List<Vector3>(layer.Nodes.Length);
+            for (var i = 0; i < layer.Nodes.Length && i < layer.InitPos.Length; i++)
+            {
+                if (localOfNode.TryGetValue(layer.Nodes[i], out var local))
+                {
+                    indices.Add(local);
+                    values.Add(layer.InitPos[i]);
+                }
+            }
+
+            if (values.Count == 0)
+            {
+                continue;
+            }
+
+            var deltaState = new DmeVertexDeltaData { Name = layer.Name };
+            deltaState.AddIndexedStream("position$0", values.ToArray(), indices.ToArray());
+            dmeMesh.DeltaStates.Add(deltaState);
+            dmeMesh.DeltaStateWeights.Add(Vector2.Zero);
+            dmeMesh.DeltaStateWeightsLagged.Add(Vector2.Zero);
+        }
     }
 
     /// <summary>

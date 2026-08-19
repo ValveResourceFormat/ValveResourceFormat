@@ -415,12 +415,13 @@ partial class ModelExtract
     // m_Color - no m_flWeight0/m_flRelaxationFactor. An authored weight0 compiles clean but the resulting
     // m_Rods entry reads back the compiler's default (0.5), while min_length/max_length on the same rod stay
     // exact. See FeModel.Rod.Weight0.
-    static KVObject MakeClothSpring(string name, string n0, string n1, float minLength, float maxLength)
+    static KVObject MakeClothSpring(string name, string n0, string n1, float minLength, float maxLength,
+        float stiffness = 1.0f)
         => MakeNode("ClothSpring",
             ("name", name),
             ("cloth_node_0", n0),
             ("cloth_node_1", n1),
-            ("stiffness", 1.0f),
+            ("stiffness", stiffness),
             ("enable_advanced_parameters", true),
             ("is_length_explicit", true),
             ("min_length", minLength),
@@ -855,6 +856,39 @@ partial class ModelExtract
         }
     }
 
+    /// <summary>
+    /// Re-declares the authored two-corner source elements (<see cref="FeModel.SourceSprings"/>) as
+    /// explicit springs. Neither the surface nor a chain regenerates these, and the compiler records one
+    /// source element per spring, so a model exported without them comes back short both a rod and a
+    /// source element per pair. Endpoints are named verbatim, <c>$cc</c> proxies included - those are
+    /// valid ClothSpring endpoints even though they are not chain joints.
+    /// </summary>
+    static void AddClothSourceSprings(KVObject softbodyChildren, FeModel feModel, List<FeModel.BoneChain> chains)
+    {
+        var names = feModel.CtrlNames;
+        var rodByEdge = new Dictionary<(int, int), FeModel.Rod>();
+        foreach (var rod in feModel.Rods)
+        {
+            rodByEdge.TryAdd(rod.NodeA < rod.NodeB ? (rod.NodeA, rod.NodeB) : (rod.NodeB, rod.NodeA), rod);
+        }
+
+        foreach (var (a, b) in feModel.GetAuthoredSourceSprings(chains))
+        {
+            if (a < 0 || a >= names.Length || b < 0 || b >= names.Length)
+            {
+                continue;
+            }
+
+            if (!rodByEdge.TryGetValue(a < b ? (a, b) : (b, a), out var rod))
+            {
+                continue;
+            }
+
+            softbodyChildren.Add(MakeClothSpring($"spring_{a}_{b}", names[a], names[b], rod.MinDist, rod.MaxDist,
+                rod.RelaxationFactor));
+        }
+    }
+
     static Dictionary<int, FeModel.CtrlOffset> BuildCtrlAnchorMap(FeModel feModel)
     {
         var anchorOf = new Dictionary<int, FeModel.CtrlOffset>();
@@ -924,6 +958,7 @@ partial class ModelExtract
 
         var jiggleNodes = feModel.JiggleBones.Select(static j => j.Node).ToHashSet();
         var shapeParentBones = feModel.BuildCollisionCapsules().Select(static c => c.ParentBone)
+            .Concat(feModel.BuildPlanarizeCapsules().Select(static c => c.ParentBone))
             .Concat(feModel.BuildCollisionSpheres().Select(static s => s.ParentBone))
             .Where(static n => n is not null)
             .ToHashSet();
@@ -1029,6 +1064,13 @@ partial class ModelExtract
         foreach (var box in feModel.BuildCollisionBoxes())
         {
             softbodyChildren.Add(MakeClothShapeBox(box));
+        }
+
+        // Last: a planarized capsule is excluded from m_TaperedCapsuleRigids, but declaring it ahead of the
+        // real ones still rotates their order in that array.
+        foreach (var capsule in feModel.BuildPlanarizeCapsules())
+        {
+            softbodyChildren.Add(MakeClothShapeCapsule(capsule));
         }
     }
 
@@ -1273,9 +1315,9 @@ partial class ModelExtract
             ("parent_bone", capsule.ParentBone ?? string.Empty));
         AddClothCollisionLayers(node, capsule.CollisionMask);
         node.Add("cloth_collision_priority", 0);
-        node.Add("vertex_map", "");
+        node.Add("vertex_map", capsule.VertexMap ?? "");
         node.Add("inverted_collision", false);
-        node.Add("planarize", false);
+        node.Add("planarize", capsule.Planarize);
         node.Add("bounciness", 0.0f);
         node.Add("radius0", capsule.Radius0);
         node.Add("radius1", capsule.Radius1);
@@ -1406,8 +1448,10 @@ partial class ModelExtract
         // compiled FeModel has a real m_Twists network (24 entries, 0 ropes) to match - hardcoding 0 there
         // instead produces a bogus 4-node "Rope" fallback constraint per chain (m_Ropes, entirely absent
         // from the original). Recover per-joint from the ORIGINAL's own m_Twists participation
-        // (FeModel.TwistNodes) rather than guessing a single constant for every model.
-        kv.Add("twist_relax", feModel.TwistNodes.ContainsKey(joint.Node) ? 1.0f : 0.0f);
+        // (FeModel.HasTwistToParent) rather than guessing a single constant for every model. The pair is
+        // owned by the CHILD of the link, so a joint whose node merely appears in some other joint's pair
+        // must stay at 0 or the compiler builds a second twist on the link above it as well.
+        kv.Add("twist_relax", feModel.HasAuthoredTwist(joint.Node, joint.ParentNode) ? 1.0f : 0.0f);
 
 
         // World collision membership + radius (m_WorldCollisionNodes / m_NodeCollisionRadii); without
@@ -1479,7 +1523,7 @@ partial class ModelExtract
 
         kv.Add("bend_spring", joint.BendSpring ? 1.0f : 0.0f);
         kv.Add("torsion_spring", joint.TorsionSpring ? 1.0f : 0.0f);
-        kv.Add("extra_iterations", 0);
+        kv.Add("extra_iterations", joint.ExtraIterations);
 
         // A stiff hinge compiles to a three-node bend rather than a rod, so it is recovered from the bend
         // centred on this joint (see FeModel.GetStiffHinge).
@@ -2841,6 +2885,7 @@ partial class ModelExtract
                 // is redundant.
                 var boneByName = model?.Skeleton.Bones.ToDictionary(static b => b.Name, StringComparer.Ordinal);
                 var shapeParentBones = feModel.BuildCollisionCapsules().Select(static c => c.ParentBone)
+                    .Concat(feModel.BuildPlanarizeCapsules().Select(static c => c.ParentBone))
                     .Concat(feModel.BuildCollisionSpheres().Select(static s => s.ParentBone))
                     .Where(static n => n is not null)
                     .ToHashSet();
@@ -3031,6 +3076,7 @@ partial class ModelExtract
                     clothFolderChildren.Add(gridNode);
                 }
 
+                AddClothSourceSprings(softbodyChildren, feModel, boneChains);
                 AddClothChainSurplusRods(softbodyChildren, feModel, boneChains);
 
                 var chainCoveredNodes = boneChains.SelectMany(static chain => chain.Joints)
