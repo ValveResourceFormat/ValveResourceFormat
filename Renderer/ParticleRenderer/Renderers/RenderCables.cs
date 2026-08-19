@@ -355,32 +355,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                 return;
             }
 
-            lightProbe = FindContainingProbe(cablePosition) ?? systemRenderState.OwnerNode?.LightProbeBinding;
-        }
-
-        // Highest-priority (then smallest) complete probe volume containing the given position,
-        // matching the ordering the scene uses when binding probes to nodes.
-        private SceneLightProbe? FindContainingProbe(Vector3 position)
-        {
-            var isAtlas = scene.LightingInfo.LightProbeType == LightProbeType.ProbeAtlas;
-            SceneLightProbe? best = null;
-
-            foreach (var probe in scene.LightingInfo.LightProbes)
-            {
-                if (probe.Irradiance == null || (isAtlas && probe.DirectLightShadows == null) || !probe.BoundingBox.Contains(position))
-                {
-                    continue;
-                }
-
-                if (best == null
-                    || probe.IndoorOutdoorLevel > best.IndoorOutdoorLevel
-                    || (probe.IndoorOutdoorLevel == best.IndoorOutdoorLevel && probe.AtlasSize.LengthSquared() < best.AtlasSize.LengthSquared()))
-                {
-                    best = probe;
-                }
-            }
-
-            return best;
+            lightProbe = scene.FindLightProbe(cablePosition) ?? systemRenderState.OwnerNode?.LightProbeBinding;
         }
 
         private bool GeometryChanged(ReadOnlySpan<Vector3> positions, ReadOnlySpan<int> levels, ReadOnlySpan<float> radii, ReadOnlySpan<Vector3> colors)

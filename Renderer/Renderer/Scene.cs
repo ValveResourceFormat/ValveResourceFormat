@@ -447,6 +447,8 @@ namespace ValveResourceFormat.Renderer
                 DynamicOctree.Update(node);
             }
 
+            UpdateDynamicInstanceData();
+
             if (StaticOctree.Dirty || DynamicOctree.Dirty)
             {
                 // Indirect draw commands bake node ids, so recreate them only after reindexing
@@ -548,7 +550,11 @@ namespace ValveResourceFormat.Renderer
 
             InstanceBufferGpu.Create(instanceData, BufferUsageHint.StaticDraw);
             TransformBufferGpu.Create(CollectionsMarshal.AsSpan(transformData), BufferUsageHint.StaticDraw);
+
+            instanceDataCpu = instanceData;
         }
+
+        private ObjectDataStandard[]? instanceDataCpu;
 
         private void CreateIndirectDrawBuffers(bool deletePrevious = false)
         {
@@ -1833,33 +1839,18 @@ namespace ValveResourceFormat.Renderer
                 .Where(probe => IsValid(probe, isAtlas))
                 .OrderByDescending(static lpv => lpv.IndoorOutdoorLevel)
                 .ThenBy(static lpv => lpv.AtlasSize.LengthSquared())
+                .Take(LightProbeVolumeArray.MAX_PROBES)
                 .ToList();
-
-            var nodes = new List<SceneNode>();
 
             var i = 0;
             foreach (var probe in sortedLightProbes)
             {
-                StaticOctree.Root.Query(probe.BoundingBox, nodes);
-                DynamicOctree.Query(probe.BoundingBox, nodes); // TODO: This should actually be done dynamically
-
-                foreach (var node in nodes)
-                {
-                    node.LightProbeBinding ??= probe;
-                }
-
                 probe.ShaderIndex = i;
-                var data = probe.CalculateGpuProbeData(isAtlas);
-                lpvBuffer.Data.Probes[i] = data;
-
-                nodes.Clear();
+                lpvBuffer.Data.Probes[i] = probe.CalculateGpuProbeData(isAtlas);
                 i++;
-
-                if (i == LightProbeVolumeArray.MAX_PROBES)
-                {
-                    break;
-                }
             }
+
+            boundLightProbes = sortedLightProbes;
 
             if (sortedLightProbes.Count == 0)
             {
@@ -1878,7 +1869,88 @@ namespace ValveResourceFormat.Renderer
                     continue;
                 }
 
-                node.LightProbeBinding ??= globalProbe;
+                node.LightProbeBinding ??= FindLightProbe(node.BoundingBox.Center) ?? globalProbe;
+            }
+        }
+
+        // Bound probes in precedence order: most indoor first, then smallest, so the first volume
+        // containing a point is the best one
+        private List<SceneLightProbe>? boundLightProbes;
+
+        /// <summary>
+        /// Returns the best probe volume containing the given position, or <see langword="null"/> when
+        /// none does.
+        /// </summary>
+        public SceneLightProbe? FindLightProbe(Vector3 position)
+        {
+            if (boundLightProbes == null)
+            {
+                return null;
+            }
+
+            foreach (var probe in boundLightProbes)
+            {
+                if (probe.BoundingBox.Contains(position))
+                {
+                    return probe;
+                }
+            }
+
+            return null;
+        }
+
+        /// <summary>
+        /// Refreshes the instance buffer entries of the dynamic nodes: the probe volume they are
+        /// currently inside, their envmap visibility and their tint.
+        /// </summary>
+        private void UpdateDynamicInstanceData()
+        {
+            if (boundLightProbes is not { Count: > 0 })
+            {
+                return;
+            }
+
+            var globalProbe = boundLightProbes[^1];
+
+            if (instanceDataCpu == null || InstanceBufferGpu == null)
+            {
+                return;
+            }
+
+            // Dynamic node ids are assigned after the statics, so the touched entries form one span
+            var minId = uint.MaxValue;
+            var maxId = 0u;
+
+            foreach (var node in dynamicNodes)
+            {
+                if (node.LightProbeVolumePrecomputedHandshake != 0
+                    || node.Id == 0
+                    || node.Id >= instanceDataCpu.Length)
+                {
+                    continue;
+                }
+
+                node.LightProbeBinding = FindLightProbe(node.BoundingBox.Center) ?? globalProbe;
+
+                ref var entry = ref instanceDataCpu[node.Id];
+                entry.VisibleLPV = (uint)node.LightProbeBinding.ShaderIndex
+                    | (node.ShaderEnvMapVisibility.GetFirstShaderIndex() << 16);
+                entry.EnvMapVisibility = node.ShaderEnvMapVisibility;
+
+                if (node is MeshCollectionNode meshNode)
+                {
+                    entry.TintAlpha = Color32.FromVector4Clamped(meshNode.Tint).PackedValue;
+                }
+
+                minId = Math.Min(minId, node.Id);
+                maxId = Math.Max(maxId, node.Id);
+            }
+
+            if (minId <= maxId)
+            {
+                var stride = Unsafe.SizeOf<ObjectDataStandard>();
+                InstanceBufferGpu.Update<ObjectDataStandard>(
+                    instanceDataCpu.AsSpan((int)minId, (int)(maxId - minId + 1)), (int)minId * stride);
             }
         }
 
@@ -1896,8 +1968,13 @@ namespace ValveResourceFormat.Renderer
 
             LightingInfo.LightingData.EnvMapSizeConstants = new Vector4(firstTexture.NumMipLevels - 1, firstTexture.Depth, 0, 0);
 
-            int IndoorPriorityCompare(SceneEnvMap a, SceneEnvMap b) => b.IndoorOutdoorLevel.CompareTo(a.IndoorOutdoorLevel);
-            int HandShakeCompare(SceneEnvMap a, SceneEnvMap b) => a.HandShake.CompareTo(b.HandShake);
+            static int IndoorPriorityCompare(SceneEnvMap a, SceneEnvMap b)
+            {
+                var indoor = b.IndoorOutdoorLevel.CompareTo(a.IndoorOutdoorLevel);
+                return indoor != 0 ? indoor : a.ArrayIndex.CompareTo(b.ArrayIndex);
+            }
+
+            static int HandShakeCompare(SceneEnvMap a, SceneEnvMap b) => a.HandShake.CompareTo(b.HandShake);
 
             LightingInfo.EnvMaps.Sort(LightingInfo.CubemapType switch
             {

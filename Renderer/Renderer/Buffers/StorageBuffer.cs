@@ -75,6 +75,17 @@ namespace ValveResourceFormat.Renderer.Buffers
             GL.NamedBufferData(Handle, Size, ref Unsafe.As<T, byte>(ref MemoryMarshal.GetReference(data)), usageHint);
         }
 
+        /// <summary>Updates a region of this buffer from a span.</summary>
+        /// <param name="data">The source span to upload.</param>
+        /// <param name="offset">Byte offset into the buffer at which to begin writing.</param>
+        public void Update<T>(ReadOnlySpan<T> data, int offset) where T : struct
+        {
+            Debug.Assert(PersistentPtr == IntPtr.Zero);
+            Debug.Assert(offset + data.Length * Unsafe.SizeOf<T>() <= Size);
+
+            GL.NamedBufferSubData(Handle, offset, data.Length * Unsafe.SizeOf<T>(), ref Unsafe.As<T, byte>(ref MemoryMarshal.GetReference(data)));
+        }
+
         /// <summary>Updates a region of this buffer with new data, allocating it first if empty.</summary>
         /// <param name="data">The source array containing new data.</param>
         /// <param name="offset">Byte offset into the buffer at which to begin writing.</param>
