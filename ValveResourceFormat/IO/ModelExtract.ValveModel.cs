@@ -2699,6 +2699,21 @@ partial class ModelExtract
                     }
                 }
 
+                // The bone a vertex hangs off in the compiled hierarchy, which is what its exported
+                // influences were derived from before the authored weights were recovered. Recovering them
+                // widens the list to every bone the author painted, and a body bone carrying a few percent
+                // of a vertex is not the sheet driving it - reading the wider list turns back_solve_joints
+                // on for sheets the original never back-solved, which then compile fit matrices the
+                // original has none of (frostivus2018_dp_mistress_of_the_blizzard_armor: 4 against 0).
+                // Only the models this recovery feeds read the anchor; everywhere else the influence list
+                // stands, because that is the set the kez/meepo/primal_beast tuning was measured against
+                // and a blanket rule over ProxyFitMatrixNodes takes back_solve away from models that
+                // legitimately have it (ancient_apparition, dark_seer, spacefrog_hunter_armor).
+                IEnumerable<string> DrivingBones(FeModel.ProxyMesh proxy, int vertex)
+                    => feModel.FitMatrixNodes.Count == 0
+                        ? [feModel.ResolveSkinBone(proxy.NodeIndices[vertex]) ?? string.Empty]
+                        : proxy.SkinInfluences[vertex].Select(static i => i.Bone);
+
                 bool ProxyDrivesUnchainedBone(FeModel.ProxyMesh proxy)
                 {
                     for (var v = 0; v < proxy.ClothEnable.Length; v++)
@@ -2709,7 +2724,7 @@ partial class ModelExtract
                             continue;
                         }
 
-                        foreach (var (bone, _) in proxy.SkinInfluences[v])
+                        foreach (var bone in DrivingBones(proxy, v))
                         {
                             if (positionDrivenBones.Contains(bone) && !chainDrivenBones.Contains(bone))
                             {

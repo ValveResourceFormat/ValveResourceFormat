@@ -899,26 +899,40 @@ partial class ModelExtract
         // binds each node directly instead, which costs both the root node and the entire offsets array.
         if (!proxy.IsFreeFloating)
         {
-            const int JointCount = 4;
-            var blendIndices = new int[vertexCount * JointCount];
-            var blendWeights = new float[vertexCount * JointCount];
+            // Four slots cover everything BuildChainSkinInfluences synthesises, but weights recovered
+            // verbatim from a model's own offset network run to six (familiar_wip_default), and a
+            // truncated influence takes its m_CtrlSoftOffsets entry with it - familiar lost exactly the
+            // 25 tail entries of its 17 five-influence and 4 six-influence vertices. Widened only where
+            // those recovered weights exist (a model with no fit matrix): giving a back-solved sheet more
+            // than its four slots re-classifies its nodes (mars gains five node-count/mass keys).
+            var jointCount = 4;
+            if (physAggregateData?.FeModel is { FitMatrixNodes.Count: 0 })
+            {
+                for (var v = 0; v < vertexCount; v++)
+                {
+                    jointCount = Math.Max(jointCount, proxy.SkinInfluences[v].Count(i => boneIndexByName.ContainsKey(i.Bone)));
+                }
+            }
+
+            var blendIndices = new int[vertexCount * jointCount];
+            var blendWeights = new float[vertexCount * jointCount];
             for (var v = 0; v < vertexCount; v++)
             {
                 var slot = 0;
                 foreach (var (boneName, weight) in proxy.SkinInfluences[v])
                 {
-                    if (slot >= JointCount || !boneIndexByName.TryGetValue(boneName, out var bi))
+                    if (slot >= jointCount || !boneIndexByName.TryGetValue(boneName, out var bi))
                     {
                         continue;
                     }
 
-                    blendIndices[v * JointCount + slot] = bi;
-                    blendWeights[v * JointCount + slot] = weight;
+                    blendIndices[v * jointCount + slot] = bi;
+                    blendWeights[v * jointCount + slot] = weight;
                     slot++;
                 }
             }
 
-            vertexData.JointCount = JointCount;
+            vertexData.JointCount = jointCount;
             vertexData.AddStream("blendindices$0", blendIndices);
             vertexData.AddStream("blendweights$0", blendWeights);
         }

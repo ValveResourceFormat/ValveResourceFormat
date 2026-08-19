@@ -1871,17 +1871,25 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics
         // same "read the compiled array directly instead of guessing a geometric rule" approach that
         // already made m_Rods/m_Twists/m_NodeBases exact; it supersedes BuildChainSkinInfluences'
         // inverse-square-distance synthesis for every vertex the compiled data still carries weights for
-        // (the synthesis remains the fallback for vertices without fit entries, and for models with no
-        // fit matrices at all, where this recovery is a structural no-op by construction).
+        // (the synthesis remains the fallback for vertices without fit entries on a back-solved model).
         (IReadOnlyDictionary<int, (string Bone, float Weight)[]>, float?) RecoverAuthoredSkinWeights(KVObject data)
         {
             var recovered = new Dictionary<int, (string Bone, float Weight)[]>();
             var fitMatrices = data.GetArray("m_FitMatrices");
             var ctrlOffsets = data.GetArray("m_CtrlOffsets");
-            if (fitMatrices is null || fitMatrices.Count == 0 || ctrlOffsets is null)
+            if (ctrlOffsets is null)
             {
                 return (recovered, null);
             }
+
+            // With no fit matrix anywhere the model back-solves no bone at all, so nothing can have
+            // consumed authored weight outside the offset network and its nested lerp is the complete
+            // weight set at scale 1 - measured on synth/chrono/familiar/ghost/nano_shadow_form: every
+            // vertex's expansion sums to exactly 1.0 and its largest component is the m_CtrlOffsets
+            // primary. On a back-solved model the network is renormalised over the driven bones only
+            // and the absolute scale has to come from a fit weight, which is what the rest of this
+            // method does.
+            var backSolved = fitMatrices is { Count: > 0 };
 
             var fitWeights = data.GetArray("m_FitWeights") ?? [];
 
@@ -1889,7 +1897,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics
             var fitPerVertex = new Dictionary<int, Dictionary<int, float>>();
             var minIncludedWeight = float.MaxValue;
             var begin = 0;
-            foreach (var fm in fitMatrices)
+            foreach (var fm in fitMatrices ?? [])
             {
                 var end = fm.GetInt32Property("nEnd");
                 var bone = fm.GetInt32Property("nNode");
@@ -1936,11 +1944,61 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics
                 }
             }
 
+            // Expands the nested lerps: start at weight 1 on the primary; each soft offset scales
+            // everything accumulated so far by flAlpha and gives (1 - flAlpha) to its own parent.
+            List<(int Bone, float Weight)> ExpandSoftOffsets(int node, int primary)
+            {
+                var weights = new List<(int Bone, float Weight)> { (primary, 1f) };
+                if (!softPerVertex.TryGetValue(node, out var softs))
+                {
+                    return weights;
+                }
+
+                foreach (var (parent, alpha) in softs)
+                {
+                    for (var i = 0; i < weights.Count; i++)
+                    {
+                        weights[i] = (weights[i].Bone, weights[i].Weight * alpha);
+                    }
+
+                    var existing = weights.FindIndex(w => w.Bone == parent);
+                    if (existing >= 0)
+                    {
+                        weights[existing] = (parent, weights[existing].Weight + (1f - alpha));
+                    }
+                    else
+                    {
+                        weights.Add((parent, 1f - alpha));
+                    }
+                }
+
+                return weights;
+            }
+
             var maxOmittedWeight = 0f;
             foreach (var (node, primary) in rigidParents)
             {
                 if (primary < 0 || primary >= CtrlNames.Length)
                 {
+                    continue;
+                }
+
+                if (!backSolved)
+                {
+                    // Left in the compiled array's own order (primary, then each soft offset as
+                    // serialized) rather than sorted by weight: that order is the authored influence
+                    // slot order, which the importer keeps for influences of equal weight.
+                    var painted = new List<(string Bone, float Weight)>();
+                    foreach (var (bone, weight) in ExpandSoftOffsets(node, primary))
+                    {
+                        if (weight > 0f && bone < CtrlNames.Length)
+                        {
+                            painted.Add((CtrlNames[bone], weight));
+                        }
+                    }
+
+                    SnapToBytePartition(painted);
+                    recovered[node] = [.. painted];
                     continue;
                 }
 
@@ -1968,29 +2026,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics
                     continue;
                 }
 
-                // Expand the nested lerps: start at weight 1 on the primary; each soft offset scales
-                // everything accumulated so far by flAlpha and gives (1 - flAlpha) to its own parent.
-                var dynamicWeights = new List<(int Bone, float Weight)> { (primary, 1f) };
-                if (softPerVertex.TryGetValue(node, out var softs))
-                {
-                    foreach (var (parent, alpha) in softs)
-                    {
-                        for (var i = 0; i < dynamicWeights.Count; i++)
-                        {
-                            dynamicWeights[i] = (dynamicWeights[i].Bone, dynamicWeights[i].Weight * alpha);
-                        }
-
-                        var existing = dynamicWeights.FindIndex(w => w.Bone == parent);
-                        if (existing >= 0)
-                        {
-                            dynamicWeights[existing] = (parent, dynamicWeights[existing].Weight + (1f - alpha));
-                        }
-                        else
-                        {
-                            dynamicWeights.Add((parent, 1f - alpha));
-                        }
-                    }
-                }
+                var dynamicWeights = ExpandSoftOffsets(node, primary);
 
                 // Absolute scale from the largest fit-covered component (numerically safest anchor).
                 var scale = 1f;
@@ -2061,6 +2097,41 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics
             }
 
             return -1;
+        }
+
+        // Restores a vertex's authored 1/255 weight quantum where the expansion lands on a whole-byte
+        // partition of 255 and only the float32 alpha chain moved it off (synth paints $cloth_m0p329 as
+        // 89/77/77/12, which comes back as .34901939/.30196129/.30196032/.047059 - two influences the
+        // author painted equal, no longer equal, and the importer's weight sort then swaps them). A set
+        // that resolves to no such partition is left exactly as recovered: chrono's two-influence
+        // 127.5/127.5 vertex is not byte-painted, and collapsing its halves together would destroy the
+        // ordering the importer's own primary pick reads.
+        static void SnapToBytePartition(List<(string Bone, float Weight)> influences)
+        {
+            var bytes = new int[influences.Count];
+            var total = 0;
+            for (var i = 0; i < influences.Count; i++)
+            {
+                var scaled = influences[i].Weight * 255f;
+                var rounded = MathF.Round(scaled);
+                if (MathF.Abs(scaled - rounded) > 0.01f)
+                {
+                    return;
+                }
+
+                bytes[i] = (int)rounded;
+                total += bytes[i];
+            }
+
+            if (total != 255)
+            {
+                return;
+            }
+
+            for (var i = 0; i < influences.Count; i++)
+            {
+                influences[i] = (influences[i].Bone, bytes[i] / 255f);
+            }
         }
 
         // Reads an array of cloth faces (m_Quads/m_Tris), returning each face's nNode index list.
