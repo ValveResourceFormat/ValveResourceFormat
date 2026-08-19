@@ -1,4 +1,4 @@
-namespace ValveResourceFormat
+namespace ValveResourceFormat.Particles
 {
     /// <summary>
     /// Vector expression types used for particles.

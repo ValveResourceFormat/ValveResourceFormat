@@ -11,7 +11,7 @@ namespace ValveResourceFormat.Particles
         /// <summary>
         /// Input handling modes for attribute mapping operations.
         /// </summary>
-        public enum PfInputMode
+        internal enum PfInputMode
         {
             /// <summary>Invalid input mode.</summary>
             Invalid = -1,
@@ -24,7 +24,7 @@ namespace ValveResourceFormat.Particles
         /// <summary>
         /// Attribute mapping transformation types.
         /// </summary>
-        public enum PfMapType
+        internal enum PfMapType
         {
             /// <summary>Invalid mapping type.</summary>
             Invalid = -1,
@@ -47,7 +47,7 @@ namespace ValveResourceFormat.Particles
         /// <summary>
         /// Rounding modes for <see cref="PfMapType.Round"/>.
         /// </summary>
-        public enum PfRoundType
+        internal enum PfRoundType
         {
             /// <summary>Invalid rounding mode.</summary>
             Invalid = -1,

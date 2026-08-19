@@ -191,7 +191,7 @@ namespace ValveResourceFormat.Particles
 
         /// <summary>Gets or sets a value indicating whether this particle has been marked for removal.</summary>
         public bool MarkedAsKilled { get; set; } = false;
-        /// <summary>Gets or sets the index of this particle within its collection.s arrays.</summary>
+        /// <summary>Gets or sets the index of this particle within its collection's arrays.</summary>
         public int Index { get; set; } = 0;
 
         /// <summary>

@@ -120,9 +120,9 @@ namespace ValveResourceFormat.Particles
         /// <summary>
         /// Sets the on-screen size of the quads drawn by a system built by <see cref="Create"/>.
         /// </summary>
-        /// <param name="controlPoint">The system.s <see cref="ScreenSizeControlPoint"/>.</param>
+        /// <param name="controlPoint">The system's <see cref="ScreenSizeControlPoint"/>.</param>
         /// <param name="screenFraction">Quad height as a fraction of the viewport height.</param>
-        /// <param name="verticalFieldOfView">The camera.s vertical field of view, in radians.</param>
+        /// <param name="verticalFieldOfView">The camera's vertical field of view, in radians.</param>
         public static void SetScreenSize(ControlPoint controlPoint, float screenFraction, float verticalFieldOfView)
         {
             // The renderer reads the control point as a half-width per unit of camera distance.

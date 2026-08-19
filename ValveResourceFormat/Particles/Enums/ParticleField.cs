@@ -1,4 +1,4 @@
-namespace ValveResourceFormat
+namespace ValveResourceFormat.Particles
 {
     /// <summary>
     /// Particle field identifiers.

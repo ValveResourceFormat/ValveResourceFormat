@@ -188,7 +188,6 @@ namespace ValveResourceFormat.Particles
         }
 
         /// <summary>Highest control point index this system has touched; some emitters scale their rate by it.</summary>
-        /// <summary>The highest control point index the system has touched.</summary>
         public int HighestControlPoint { get; private set; }
 
         /// <summary>Replaces a control point, on the root system so every child sees it.</summary>
