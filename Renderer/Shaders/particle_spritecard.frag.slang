@@ -3,6 +3,7 @@
 #include "common/utils.slang"
 #include "common/ViewConstants.slang"
 #include "common/fog.slang"
+#include "common/spritecard_channels.slang"
 
 // Render modes -- Switched on/off by code
 #define renderMode_Color 0
@@ -12,12 +13,22 @@
 uniform int uBlendMode = 0; // PARTICLE_OUTPUT_BLEND_MODE_ALPHA
 
 // One sampler per texture layer. Layer 0 is the base texture and keeps the plain name.
-#define MAX_TEXTURE_LAYERS 5
+// One more colour layer than the combo's value, matching the engine's Base + Layer1..Layer4.
+#define S_TEXTURE_LAYERS 0
+#define MAX_TEXTURE_LAYERS (S_TEXTURE_LAYERS + 1)
 uniform sampler2D uTexture;
+#if S_TEXTURE_LAYERS > 0
 uniform sampler2D uTextureLayer1;
+#endif
+#if S_TEXTURE_LAYERS > 1
 uniform sampler2D uTextureLayer2;
+#endif
+#if S_TEXTURE_LAYERS > 2
 uniform sampler2D uTextureLayer3;
+#endif
+#if S_TEXTURE_LAYERS > 3
 uniform sampler2D uTextureLayer4;
+#endif
 
 uniform float uOverbrightFactor;
 uniform float uAddSelfAmount = 1.0; // 1 + m_flAddSelfAmount
@@ -39,22 +50,6 @@ uniform bool uOutline = false;
 uniform vec4 uOutlineColor = vec4(1.0);
 uniform vec4 uOutlineRanges = vec4(0.5, 0.7, 0.6, 0.8);
 
-#define SPRITECARD_TEXTURE_CHANNEL_MIX_RGB            0
-#define SPRITECARD_TEXTURE_CHANNEL_MIX_RGBA           1
-#define SPRITECARD_TEXTURE_CHANNEL_MIX_A              2
-#define SPRITECARD_TEXTURE_CHANNEL_MIX_RGB_A          3
-#define SPRITECARD_TEXTURE_CHANNEL_MIX_RGB_ALPHAMASK  4
-#define SPRITECARD_TEXTURE_CHANNEL_MIX_RGB_RGBMASK    5
-#define SPRITECARD_TEXTURE_CHANNEL_MIX_RGBA_RGBALPHA  6
-#define SPRITECARD_TEXTURE_CHANNEL_MIX_A_RGBALPHA     7
-#define SPRITECARD_TEXTURE_CHANNEL_MIX_RGB_A_RGBALPHA 8
-#define SPRITECARD_TEXTURE_CHANNEL_MIX_R              9
-#define SPRITECARD_TEXTURE_CHANNEL_MIX_G              10
-#define SPRITECARD_TEXTURE_CHANNEL_MIX_B              11
-#define SPRITECARD_TEXTURE_CHANNEL_MIX_RALPHA         12
-#define SPRITECARD_TEXTURE_CHANNEL_MIX_GALPHA         13
-#define SPRITECARD_TEXTURE_CHANNEL_MIX_BALPHA         14
-
 // Per-layer mask mode, blend mode and strength (m_nTextureChannels, m_nTextureBlendMode,
 // m_flTextureBlend). Every entry below uLayerCount is written by the renderer each draw.
 uniform int uLayerCount = 1;
@@ -62,20 +57,18 @@ uniform int uLayerChannels[MAX_TEXTURE_LAYERS];
 uniform int uLayerBlendMode[MAX_TEXTURE_LAYERS];
 uniform float uLayerBlend[MAX_TEXTURE_LAYERS];
 
-#define SPRITECARD_TEXTURE_BLEND_MULTIPLY  0
-#define SPRITECARD_TEXTURE_BLEND_MOD2X     1
-#define SPRITECARD_TEXTURE_BLEND_REPLACE   2
-#define SPRITECARD_TEXTURE_BLEND_ADD       3
-#define SPRITECARD_TEXTURE_BLEND_SUBTRACT  4
-#define SPRITECARD_TEXTURE_BLEND_AVERAGE   5
-#define SPRITECARD_TEXTURE_BLEND_LUMINANCE 6
-
 // SpriteCardTextureType_t, for the values that are effect modes. NORMALMAP and ANIMMOTIONVEC never reach
 // the shader: the renderer keeps them out of the colour chain entirely.
-#define SPRITECARD_TEXTURE_1D_COLOR_LOOKUP 2
+#define SPRITECARD_TEXTURE_ZOOM             1
+#define SPRITECARD_TEXTURE_1D_COLOR_LOOKUP  2
+#define SPRITECARD_TEXTURE_UVDISTORTION      3
+#define SPRITECARD_TEXTURE_UVDISTORTION_ZOOM 4
 uniform int uLayerEffectMode[MAX_TEXTURE_LAYERS];
 
-const vec3 LUMA_601 = vec3(0.299, 0.587, 0.114);
+// m_flDistortion and m_flZoomScale from each layer's m_TextureControls.
+uniform float uLayerDistortion[MAX_TEXTURE_LAYERS];
+uniform float uLayerZoomScale[MAX_TEXTURE_LAYERS];
+
 
 // A constant table from the reference, indexed by mask mode: .x premultiplies the ramp's source colour by
 // its alpha, .y switches the lookup to read alpha as the luma.
@@ -86,72 +79,60 @@ const vec2 MASK_RAMP_FLAGS[15] = vec2[](
 
 in vec2 vTexCoordOut;
 in vec2 vTexCoordNextFrameOut;
-in vec4 vLayerUvOut[4];
+#if S_TEXTURE_LAYERS > 0
+in vec4 vLayerUvOut[S_TEXTURE_LAYERS];
+#endif
 in float vFrameBlendOut;
 in vec4 vColor;
 in vec3 vFragPosition;
 
 out vec4 fragColor;
 
-// Reduce (accumulator, layer) to a single colour/alpha pair. SUBTRACT zeroes the accumulator's
-// contribution in the modes that would otherwise pass it straight through, so that subtracting a
-// colour-only layer does not also subtract the alpha it never supplied.
-vec4 ApplyChannelMask(vec4 accum, vec4 layer, int maskMode, float sub)
-{
-    switch (maskMode)
-    {
-        case SPRITECARD_TEXTURE_CHANNEL_MIX_RGB:
-            return vec4(layer.rgb, mix(accum.a, 0.0, sub));
-        case SPRITECARD_TEXTURE_CHANNEL_MIX_A:
-            return vec4(mix(accum.rgb, vec3(0.0), sub), layer.a);
-        case SPRITECARD_TEXTURE_CHANNEL_MIX_RGB_A:
-            return vec4(layer.rgb, accum.a * layer.a);
-        case SPRITECARD_TEXTURE_CHANNEL_MIX_RGB_ALPHAMASK:
-            return vec4(mix(accum.rgb, layer.rgb, layer.a), accum.a);
-        case SPRITECARD_TEXTURE_CHANNEL_MIX_RGB_RGBMASK:
-            return vec4(mix(accum.rgb, layer.rgb, dot(layer.rgb, LUMA_601)), accum.a);
-        case SPRITECARD_TEXTURE_CHANNEL_MIX_RGBA_RGBALPHA:
-            return vec4(layer.rgb, dot(layer.rgb, LUMA_601));
-        case SPRITECARD_TEXTURE_CHANNEL_MIX_A_RGBALPHA:
-            return vec4(mix(accum.rgb, vec3(0.0), sub), dot(layer.rgb, LUMA_601));
-        // The accumulator keeps its colour here and only lends its alpha to the layer's luminance, unlike
-        // the RGB_A and RGBA_RGBALPHA modes above which take the layer's colour.
-        case SPRITECARD_TEXTURE_CHANNEL_MIX_RGB_A_RGBALPHA:
-            return vec4(accum.rgb, accum.a * dot(layer.rgb, LUMA_601));
-
-        // The single-channel modes keep their own channel and drop the rest under SUBTRACT.
-        case SPRITECARD_TEXTURE_CHANNEL_MIX_R:
-            return vec4(layer.r, mix(vec3(layer.r, layer.r, accum.a), vec3(0.0), sub));
-        case SPRITECARD_TEXTURE_CHANNEL_MIX_G:
-            return vec4(mix(layer.g, 0.0, sub), layer.g, mix(vec2(layer.g, accum.a), vec2(0.0), sub));
-        case SPRITECARD_TEXTURE_CHANNEL_MIX_B:
-            return vec4(mix(vec2(layer.b), vec2(0.0), sub), layer.b, mix(accum.a, 0.0, sub));
-
-        // ...and the *ALPHA variants broadcast their channel into the alpha as well.
-        case SPRITECARD_TEXTURE_CHANNEL_MIX_RALPHA:
-            return vec4(layer.r, mix(vec2(layer.r), vec2(0.0), sub), layer.r);
-        case SPRITECARD_TEXTURE_CHANNEL_MIX_GALPHA:
-            return vec4(mix(layer.g, 0.0, sub), layer.g, mix(layer.g, 0.0, sub), layer.g);
-        case SPRITECARD_TEXTURE_CHANNEL_MIX_BALPHA:
-            return vec4(mix(vec2(layer.b), vec2(0.0), sub), layer.b, layer.b);
-    }
-
-    return layer; // MIX_RGBA, and anything unrecognised
-}
-
 // GLSL cannot return an opaque texture, so the per-layer choice happens at the fetch itself.
 vec4 SampleLayer(int layer, vec2 uv)
 {
     switch (layer)
     {
+#if S_TEXTURE_LAYERS > 0
         case 1: return texture(uTextureLayer1, uv);
+#endif
+#if S_TEXTURE_LAYERS > 1
         case 2: return texture(uTextureLayer2, uv);
+#endif
+#if S_TEXTURE_LAYERS > 2
         case 3: return texture(uTextureLayer3, uv);
+#endif
+#if S_TEXTURE_LAYERS > 3
         case 4: return texture(uTextureLayer4, uv);
+#endif
     }
 
     return texture(uTexture, uv);
 }
+
+// Two taps of a layer's own texture, at opposite ends of a zoom sweep about the card centre, eased and
+// cross-faded. The sweep is what animates; a single tap would only ever be a fixed magnification.
+vec4 ZoomSample(int layer, vec2 uv, float rate)
+{
+    float phase = fract(rate);
+    float eased = phase / ((-0.4 * (1.0 - phase)) + 1.0);
+
+    vec2 centred = uv - vec2(0.5);
+    vec4 wide = SampleLayer(layer, (centred * mix(4.0, 1.0, eased)) + vec2(0.5));
+    vec4 tight = SampleLayer(layer, (centred * mix(1.0, 0.0625, eased)) + vec2(0.5));
+
+    return mix(tight, wide, eased * eased);
+}
+
+// A distortion layer never shows its own texture: its red and green drive an offset that the layer
+// beneath it is re-sampled through, so what reaches the accumulator is the layer below, warped.
+vec4 DistortPrevious(int layer, vec4 source, vec2 previousUv, float strength)
+{
+    vec2 offset = (SrgbLinearToGamma(source.rgb).xy - vec2(0.5)) * 2.0;
+
+    return SampleLayer(max(layer - 1, 0), previousUv - (offset * (strength * 0.125 * source.a)));
+}
+
 
 // A 1D ramp, looked up by the luminance of whatever is beneath this layer. The lookup runs in gamma
 // space, and the ramp is a one-texel-tall gradient the renderer synthesized from m_Gradient.
@@ -169,21 +150,6 @@ vec4 SampleGradientRamp(int layer, vec4 previous, int maskMode)
 }
 
 // Combine the masked layer into the accumulator.
-vec4 ApplyLayerBlend(vec4 accum, vec4 masked, int blendMode)
-{
-    switch (blendMode)
-    {
-        case SPRITECARD_TEXTURE_BLEND_MOD2X:      return accum * masked * 2.0;
-        case SPRITECARD_TEXTURE_BLEND_REPLACE:    return masked;
-        case SPRITECARD_TEXTURE_BLEND_ADD:        return accum + masked;
-        case SPRITECARD_TEXTURE_BLEND_SUBTRACT:   return accum - masked;
-        case SPRITECARD_TEXTURE_BLEND_AVERAGE:    return (accum + masked) * 0.5;
-        case SPRITECARD_TEXTURE_BLEND_LUMINANCE:  return vec4(accum.rgb * GetLuma(masked.rgb), masked.a);
-    }
-
-    return accum * masked; // MULTIPLY, and anything unrecognised
-}
-
 // Shifts the hue and scales saturation and value, going through HSV and back. Ported from the spritecard
 // pixel shader, which rolls its own conversion rather than using a library one.
 vec3 ApplyHsvShift(vec3 sourceColor)
@@ -240,13 +206,21 @@ void main(void) {
     // Each layer is folded into an accumulator seeded to white. Layer 0 is the base texture, so with one
     // layer and the default MULTIPLY this collapses to a straight sample.
     vec4 accum = vec4(1.0);
+    vec2 previousUv = vTexCoordOut;
 
     for (int i = 0; i < uLayerCount; ++i)
     {
         // Each layer cross-fades between its own sheet's current and next frame rects; layers whose
         // rects are constant (one-frame sequences, plain textures) mix two identical samples.
-        vec2 layerUv = i == 0 ? vTexCoordOut : vLayerUvOut[i - 1].xy;
-        vec2 layerUvNext = i == 0 ? vTexCoordNextFrameOut : vLayerUvOut[i - 1].zw;
+        vec2 layerUv = vTexCoordOut;
+        vec2 layerUvNext = vTexCoordNextFrameOut;
+#if S_TEXTURE_LAYERS > 0
+        if (i > 0)
+        {
+            layerUv = vLayerUvOut[i - 1].xy;
+            layerUvNext = vLayerUvOut[i - 1].zw;
+        }
+#endif
 
         vec4 layer = SampleLayer(i, layerUv);
 
@@ -268,9 +242,23 @@ void main(void) {
             }
         }
 
+        int effectMode = uLayerEffectMode[i];
+
+        if (effectMode == SPRITECARD_TEXTURE_ZOOM || effectMode == SPRITECARD_TEXTURE_UVDISTORTION_ZOOM)
+        {
+            layer = ZoomSample(i, layerUv, uLayerZoomScale[i]);
+        }
+
+        if (effectMode == SPRITECARD_TEXTURE_UVDISTORTION || effectMode == SPRITECARD_TEXTURE_UVDISTORTION_ZOOM)
+        {
+            layer = DistortPrevious(i, layer, previousUv, uLayerDistortion[i]);
+        }
+
+        previousUv = layerUv;
+
         int maskMode = uLayerChannels[i];
 
-        if (uLayerEffectMode[i] == SPRITECARD_TEXTURE_1D_COLOR_LOOKUP)
+        if (effectMode == SPRITECARD_TEXTURE_1D_COLOR_LOOKUP)
         {
             // The colour an effect reads is the layer's own sample on layer 0, but the accumulator
             // afterwards -- a special case in the reference rather than something that folds away.

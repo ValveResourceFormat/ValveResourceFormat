@@ -1,8 +1,8 @@
-using ValveResourceFormat.Particles;
-using System.Buffers;
 using OpenTK.Graphics.OpenGL;
-using ValveResourceFormat.Serialization.KeyValues;
+using ValveResourceFormat.CompiledShader;
+using ValveResourceFormat.Particles;
 using ValveResourceFormat.Particles.Utils;
+using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.Renderer.Particles.Renderers
 {
@@ -19,10 +19,8 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
     /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_OP_RenderRopes">C_OP_RenderRopes</seealso>
     internal class RenderRopes : ParticleFunctionRenderer
     {
-        private const string ShaderName = "particle_trail";
+        private const string ShaderName = "particle_spritecard";
 
-        /// <summary>Floats per vertex: position 3, colour 4, uv 2, next frame uv 2, frame blend 1.</summary>
-        private const int VertexSize = 12;
         private const string DefaultTextureName = "materials/particle/base_trail.vtex";
 
         /// <summary>The shared quad index buffer covers 65532 indices, six per quad.</summary>
@@ -33,9 +31,9 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         private readonly RendererContext rendererContext;
         private readonly int vaoHandle;
         private readonly int vertexBufferHandle;
-        private RenderTexture texture;
 
         private readonly ParticleBlendMode blendMode = ParticleBlendMode.PARTICLE_OUTPUT_BLEND_MODE_ALPHA;
+        private readonly ParticleTextureLayer[] layers;
         private readonly ParticleOrientation orientationType = ParticleOrientation.PARTICLE_ORIENTATION_SCREEN_ALIGNED;
         private readonly ParticleField orientationField = ParticleField.Normal;
 
@@ -102,25 +100,11 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             this.rendererContext = rendererContext;
 
             blendMode = parse.Enum("m_nOutputBlendMode", blendMode);
-            shader = rendererContext.ShaderLoader.LoadShader(ShaderName);
+
+            (layers, var textureName) = ParticleTextureLayer.Build(parse, rendererContext, DefaultTextureName);
+
+            shader = rendererContext.ShaderLoader.LoadShader(ShaderName, ("S_TEXTURE_LAYERS", (byte)(layers.Length - 1)));
             (vaoHandle, vertexBufferHandle) = SetupQuadBuffer();
-
-            string? textureName = null;
-
-            if (parse.Data.ContainsKey("m_hTexture"))
-            {
-                textureName = parse.Data.GetStringProperty("m_hTexture");
-            }
-            else
-            {
-                var textures = parse.Array("m_vecTexturesInput");
-                if (textures.Length > 0)
-                {
-                    textureName = textures[0].Data.GetStringProperty("m_hTexture");
-                }
-            }
-
-            texture = rendererContext.MaterialLoader.GetTexture(textureName ?? DefaultTextureName, srgbRead: true);
 
 #if DEBUG
             var vaoLabel = $"{nameof(RenderRopes)}: {System.IO.Path.GetFileName(textureName)}";
@@ -186,37 +170,15 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         /// <inheritdoc/>
         public override void SetTextureOverride(RenderTexture texture)
         {
-            this.texture = texture;
+            // The override stands in for the base texture; layers composited over it keep their own.
+            layers[0].Texture = texture;
         }
 
         private (int Vao, int Buffer) SetupQuadBuffer()
         {
-            const int stride = sizeof(float) * VertexSize;
-
-            GL.CreateVertexArrays(1, out int vao);
             GL.CreateBuffers(1, out int buffer);
-            GL.VertexArrayVertexBuffer(vao, 0, buffer, 0, stride);
-            GL.VertexArrayElementBuffer(vao, rendererContext.MeshBufferCache.QuadIndices.GLHandle);
 
-            void SetupAttribute(string name, int components, int offsetInFloats)
-            {
-                var location = GL.GetAttribLocation(shader.Program, name);
-
-                if (location < 0)
-                {
-                    return;
-                }
-
-                GL.EnableVertexArrayAttrib(vao, location);
-                GL.VertexArrayAttribFormat(vao, location, components, VertexAttribType.Float, false, sizeof(float) * offsetInFloats);
-                GL.VertexArrayAttribBinding(vao, location, 0);
-            }
-
-            SetupAttribute("aVertexPosition", 3, 0);
-            SetupAttribute("aVertexColor", 4, 3);
-            SetupAttribute("aTexCoords", 2, 7);
-            SetupAttribute("aTexCoordsNextFrame", 2, 9);
-            SetupAttribute("aFrameBlend", 1, 11);
+            var vao = SpritecardVertex.InputLayout.CreateVertexArray(nameof(RenderRopes), buffer, rendererContext.MeshBufferCache.QuadIndices.GLHandle);
 
             return (vao, buffer);
         }
@@ -442,15 +404,23 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
 
             var (scrollRate, vOffset, oneOverWorldSize) = ResolveTextureV(systemState);
             var viewAngleFadeActive = startFadeDot < 1f && endFadeDot > startFadeDot;
-            var sheet = ResolveSheetFrame(particleBag);
+            Span<SheetFrame> sheets = stackalloc SheetFrame[ParticleTextureLayer.MaxLayers];
+            Span<ParticleTextureLayer.UvTransform> uvTransforms = stackalloc ParticleTextureLayer.UvTransform[ParticleTextureLayer.MaxLayers];
+
+            ParticleTextureLayer.ResolveUvTransforms(layers, systemState, uvTransforms);
+
+            for (var layer = 0; layer < layers.Length; layer++)
+            {
+                sheets[layer] = ResolveSheetFrame(particleBag, layers[layer].Texture);
+            }
 
             var maxQuads = Math.Min(MaxQuads, segmentCount * subdivisions);
-            var rawVertices = ArrayPool<float>.Shared.Rent(maxQuads * VertexSize * 4);
             var quadCount = 0;
             var arcLength = scrollRate * systemState.Age;
 
-            try
+            using (var vertexBuffer = new RentedFloatBuffer<SpritecardVertex>(maxQuads * 4))
             {
+                var vertices = vertexBuffer.Span;
                 var stripAxis = Vector3.Zero;
 
                 for (var segment = 0; segment < segmentCount && quadCount < maxQuads; segment++)
@@ -479,10 +449,10 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                         var current = EvaluateSample(n0, n1, n2, n3, t, camera);
                         AlignWidthAxis(ref current, ref stripAxis);
 
-                        WriteQuad(rawVertices, quadCount, previous, current,
+                        WriteQuad(vertices, quadCount, previous, current,
                             MapV(float.Lerp(vStart, vEnd, (step - 1) / (float)subdivisions), oneOverWorldSize, vOffset),
                             MapV(float.Lerp(vStart, vEnd, t), oneOverWorldSize, vOffset),
-                            sheet, viewAngleFadeActive, camera);
+                            sheets, uvTransforms, viewAngleFadeActive, camera);
 
                         quadCount++;
                         previous = current;
@@ -491,12 +461,8 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
 
                 if (quadCount > 0)
                 {
-                    GL.NamedBufferData(vertexBufferHandle, quadCount * VertexSize * 4 * sizeof(float), rawVertices, BufferUsageHint.DynamicDraw);
+                    GL.NamedBufferData(vertexBufferHandle, quadCount * 4 * SpritecardVertex.InputLayout.Stride, vertexBuffer.FloatArray, BufferUsageHint.DynamicDraw);
                 }
-            }
-            finally
-            {
-                ArrayPool<float>.Shared.Return(rawVertices);
             }
 
             return quadCount;
@@ -545,8 +511,9 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             };
         }
 
-        private void WriteQuad(float[] rawVertices, int quadIndex, in RopeSample start, in RopeSample end,
-            float vStart, float vEnd, in SheetFrame sheet, bool viewAngleFadeActive, Camera camera)
+        private void WriteQuad(Span<SpritecardVertex> vertices, int quadIndex, in RopeSample start, in RopeSample end,
+            float vStart, float vEnd, ReadOnlySpan<SheetFrame> sheets, ReadOnlySpan<ParticleTextureLayer.UvTransform> uvTransforms,
+            bool viewAngleFadeActive, Camera camera)
         {
             var startColor = start.Color;
             var endColor = end.Color;
@@ -573,27 +540,26 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                 new Vector2(1f, vStart),
             ];
 
-            var quadStart = quadIndex * VertexSize * 4;
+            var quadStart = quadIndex * 4;
 
             for (var j = 0; j < 4; j++)
             {
                 var color = j is 0 or 3 ? startColor : endColor;
-                var uv = sheet.Offset + (coordinates[j] * sheet.Scale);
-                var uvNext = sheet.NextOffset + (coordinates[j] * sheet.NextScale);
+                ref var vertex = ref vertices[quadStart + j];
+                vertex = default;
+                vertex.Position = positions[j];
+                vertex.Color = color;
+                vertex.FrameBlend = sheets[0].Blend;
+                vertex.UV = ParticleTextureLayer.PlaceCorner(coordinates[j], uvTransforms[0], sheets[0].Offset, sheets[0].Offset + sheets[0].Scale);
+                vertex.UVNextFrame = ParticleTextureLayer.PlaceCorner(coordinates[j], uvTransforms[0], sheets[0].NextOffset, sheets[0].NextOffset + sheets[0].NextScale);
 
-                var vertexStart = quadStart + (VertexSize * j);
-                rawVertices[vertexStart + 0] = positions[j].X;
-                rawVertices[vertexStart + 1] = positions[j].Y;
-                rawVertices[vertexStart + 2] = positions[j].Z;
-                rawVertices[vertexStart + 3] = color.X;
-                rawVertices[vertexStart + 4] = color.Y;
-                rawVertices[vertexStart + 5] = color.Z;
-                rawVertices[vertexStart + 6] = color.W;
-                rawVertices[vertexStart + 7] = uv.X;
-                rawVertices[vertexStart + 8] = uv.Y;
-                rawVertices[vertexStart + 9] = uvNext.X;
-                rawVertices[vertexStart + 10] = uvNext.Y;
-                rawVertices[vertexStart + 11] = sheet.Blend;
+                for (var layer = 1; layer < layers.Length; layer++)
+                {
+                    ref readonly var sheet = ref sheets[layer];
+                    var layerUv = ParticleTextureLayer.PlaceCorner(coordinates[j], uvTransforms[layer], sheet.Offset, sheet.Offset + sheet.Scale);
+                    var layerUvNext = ParticleTextureLayer.PlaceCorner(coordinates[j], uvTransforms[layer], sheet.NextOffset, sheet.NextOffset + sheet.NextScale);
+                    vertex.SetLayerUv(layer - 1, new Vector4(layerUv.X, layerUv.Y, layerUvNext.X, layerUvNext.Y));
+                }
             }
         }
 
@@ -639,11 +605,11 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         /// Picks the sheet frame for the whole ribbon. Every node is its own particle with its own
         /// age, but the ribbon carries one texture, so it takes the head node's frame.
         /// </summary>
-        private SheetFrame ResolveSheetFrame(ParticleCollection particleBag)
+        private SheetFrame ResolveSheetFrame(ParticleCollection particleBag, RenderTexture layerTexture)
         {
             var identity = new SheetFrame { Offset = Vector2.Zero, Scale = Vector2.One, NextOffset = Vector2.Zero, NextScale = Vector2.One };
 
-            var spriteSheetData = texture.SpriteSheetData;
+            var spriteSheetData = layerTexture.SpriteSheetData;
 
             if (spriteSheetData == null || spriteSheetData.Sequences.Length == 0 || spriteSheetData.Sequences[0].Frames.Length == 0)
             {
@@ -682,40 +648,18 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                 return;
             }
 
-            if (!drawAsOpaque)
-            {
-                GL.Enable(EnableCap.Blend);
-                GL.DepthMask(false);
-
-                if (blendMode == ParticleBlendMode.PARTICLE_OUTPUT_BLEND_MODE_MOD2X)
-                {
-                    GL.BlendFunc(BlendingFactor.DstColor, BlendingFactor.SrcColor);
-                }
-                else
-                {
-                    GL.BlendFunc(BlendingFactor.One, BlendingFactor.OneMinusSrcAlpha);
-                }
-            }
-
-            GL.Disable(EnableCap.CullFace);
+            using var _ = SpritecardStateScope(rendererContext.RenderState, blendMode, drawAsOpaque);
 
             shader.Use();
-            GL.BindVertexArray(vaoHandle);
+            VertexArray.Bind(vaoHandle, shader);
 
-            shader.SetTexture(RenderMaterial.TextureUnitStart, "uTexture", texture);
+            ParticleTextureLayer.Bind(shader, layers, systemState);
             SetSharedUniforms(shader, systemState);
             shader.SetUniform1("uBlendFrames", blendFrames);
             shader.SetUniform1("uBlendMode", (int)blendMode);
 
             PerfStats.Active.Count(Counter.ParticleDraw);
             GL.DrawElements(PrimitiveType.Triangles, quadCount * 6, DrawElementsType.UnsignedShort, 0);
-
-            GL.Enable(EnableCap.CullFace);
-
-            if (!drawAsOpaque)
-            {
-                GL.DepthMask(true);
-            }
         }
 
         /// <inheritdoc/>
@@ -729,7 +673,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         /// <inheritdoc/>
         public override void Delete()
         {
-            GL.DeleteVertexArray(vaoHandle);
+            VertexArray.Delete(vaoHandle);
             GL.DeleteBuffer(vertexBufferHandle);
         }
     }
