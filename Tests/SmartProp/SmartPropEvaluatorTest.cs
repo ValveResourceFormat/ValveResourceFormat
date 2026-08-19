@@ -105,5 +105,100 @@ namespace Tests.SmartProp
             return node;
         }
 
+        [Test]
+        public async Task ModelElementsProduceEvaluatedModels()
+        {
+            var root = Root(ModelElement(1, "models/a.vmdl"));
+            var result = SmartPropEvaluator.Evaluate(root);
+
+            await Assert.That(result.Models).HasSingleItem();
+            var model = result.Models[0];
+            await Assert.That(model.ElementId).IsEqualTo(1);
+            await Assert.That(model.ModelName).IsEqualTo("models/a.vmdl");
+            await Assert.That(model.WorldMatrix).IsEqualTo(Matrix4x4.Identity);
+            await Assert.That(model.Position).IsEqualTo(Vector3.Zero);
+        }
+
+        [Test]
+        public async Task RootAndParentModifiersCascadeToChildren()
+        {
+            var root = WithModifiers(Root(ModelElement(1, "models/a.vmdl")),
+                Modifier("Translate", ("m_vPosition", Vec(100f, 0f, 0f))));
+            var result = SmartPropEvaluator.Evaluate(root);
+
+            await Assert.That(result.Models[0].Position.X).IsEqualTo(100f).Within(Tolerance);
+
+            var group = WithModifiers(Element("Group", 2, ModelElement(1, "models/a.vmdl")),
+                Modifier("Translate", ("m_vPosition", Vec(0f, 50f, 0f))));
+            var nested = SmartPropEvaluator.Evaluate(Root(group));
+            await Assert.That(nested.Models[0].Position.Y).IsEqualTo(50f).Within(Tolerance);
+        }
+
+        [Test]
+        public async Task DisabledElementsAreSkipped()
+        {
+            var disabled = ModelElement(1, "models/a.vmdl");
+            disabled["m_bEnabled"] = new KVObject(false);
+            var enabled = ModelElement(2, "models/b.vmdl");
+
+            var result = SmartPropEvaluator.Evaluate(Root(disabled, enabled));
+            await Assert.That(result.Models).HasSingleItem();
+            await Assert.That(result.Models[0].ElementId).IsEqualTo(2);
+        }
+
+        [Test]
+        public async Task ElementsWithoutIdsProduceNoModelEntries()
+        {
+            var noId = KVObject.Collection();
+            noId["generic_data_type"] = new KVObject("CSmartPropElement_Model");
+            noId["m_sModelName"] = new KVObject("models/x.vmdl");
+            noId["m_Modifiers"] = KVObject.Array();
+
+            var result = SmartPropEvaluator.Evaluate(Root(noId));
+            await Assert.That(result.Models).IsEmpty();
+        }
+
+        [Test]
+        public async Task ModelScaleShowsInDecomposedTransform()
+        {
+            var model = ModelElement(1, "models/a.vmdl");
+            model["m_flUniformModelScale"] = new KVObject(3f);
+
+            var result = SmartPropEvaluator.Evaluate(Root(model));
+            await Assert.That(result.Models[0].Scale.X).IsEqualTo(3f).Within(Tolerance);
+        }
+
+        [Test]
+        public async Task PickOneSpecificSelectsTheChosenChild()
+        {
+            var pickOne = Element("PickOne", 10,
+                ModelElement(1, "models/a.vmdl"),
+                ModelElement(2, "models/b.vmdl"),
+                ModelElement(3, "models/c.vmdl"));
+            pickOne["m_SelectionMode"] = new KVObject("SPECIFIC");
+            pickOne["m_SpecificChildIndex"] = new KVObject(2);
+
+            var result = SmartPropEvaluator.Evaluate(Root(pickOne));
+            await Assert.That(result.Models).HasSingleItem();
+            await Assert.That(result.Models[0].ModelName).IsEqualTo("models/c.vmdl");
+        }
+
+        [Test]
+        public async Task PickOneRandomTakesFirstChildAndClampsSpecificIndex()
+        {
+            var random = Element("PickOne", 10,
+                ModelElement(1, "models/a.vmdl"),
+                ModelElement(2, "models/b.vmdl"));
+
+            var randomResult = SmartPropEvaluator.Evaluate(Root(random));
+            await Assert.That(randomResult.Models).HasSingleItem();
+            await Assert.That(randomResult.Models[0].ModelName).IsEqualTo("models/a.vmdl");
+
+            random["m_SelectionMode"] = new KVObject("SPECIFIC");
+            random["m_SpecificChildIndex"] = new KVObject(99);
+            var clamped = SmartPropEvaluator.Evaluate(Root(random));
+            await Assert.That(clamped.Models[0].ModelName).IsEqualTo("models/b.vmdl");
+        }
+
     }
 }
