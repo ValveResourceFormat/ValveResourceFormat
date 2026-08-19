@@ -1453,7 +1453,7 @@ partial class ModelExtract
             if (joint.ExtrudeSides > 0)
             {
                 kv.Add("extrude_radius", joint.ExtrudeRadius);
-                kv.Add("extrude_twist", ClothExtrudeTwistBase - joint.ExtrudeTwist);
+                kv.Add("extrude_twist", ClothExtrudeTwistBase - joint.ExtrudeTwist + joint.ExtrudeTwistTieNudge);
 
                 // 'x' is the compiler's own default and needs no explicit key; only 5 of 120 models in
                 // the reference corpus author anything else (roshan, gyro_sidegunner, hoodwink,
