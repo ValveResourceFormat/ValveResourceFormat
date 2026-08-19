@@ -957,11 +957,7 @@ partial class ModelExtract
         }
 
         var jiggleNodes = feModel.JiggleBones.Select(static j => j.Node).ToHashSet();
-        var shapeParentBones = feModel.BuildCollisionCapsules().Select(static c => c.ParentBone)
-            .Concat(feModel.BuildPlanarizeCapsules().Select(static c => c.ParentBone))
-            .Concat(feModel.BuildCollisionSpheres().Select(static s => s.ParentBone))
-            .Where(static n => n is not null)
-            .ToHashSet();
+        var shapeParentBones = CollisionShapeParentBones(feModel);
 
         var rodTouched = new HashSet<int>();
         foreach (var rod in feModel.Rods)
@@ -1048,6 +1044,19 @@ partial class ModelExtract
 
         return emitted;
     }
+
+    // Every bone a cloth collision shape hangs off. The compiler walks such a bone's ancestor chain and
+    // registers them itself, so an explicit ClothNode on one is redundant - and not merely redundant:
+    // the node it declares is parented onto its nearest control-node ancestor, which the shape's own
+    // registration does not do (hornet's weapon_bone, a BOX rigid, is a root in the original and a child
+    // of hand_R with the extra node).
+    static HashSet<string?> CollisionShapeParentBones(FeModel feModel)
+        => feModel.BuildCollisionCapsules().Select(static c => c.ParentBone)
+            .Concat(feModel.BuildPlanarizeCapsules().Select(static c => c.ParentBone))
+            .Concat(feModel.BuildCollisionSpheres().Select(static s => s.ParentBone))
+            .Concat(feModel.BuildCollisionBoxes().Select(static b => b.ParentBone))
+            .Where(static n => n is not null)
+            .ToHashSet();
 
     static void AddClothCollisionShapes(KVObject softbodyChildren, FeModel feModel)
     {
@@ -2884,11 +2893,7 @@ partial class ModelExtract
                 // collision bone's ancestor chain and registers them itself, so an explicit ClothNode there
                 // is redundant.
                 var boneByName = model?.Skeleton.Bones.ToDictionary(static b => b.Name, StringComparer.Ordinal);
-                var shapeParentBones = feModel.BuildCollisionCapsules().Select(static c => c.ParentBone)
-                    .Concat(feModel.BuildPlanarizeCapsules().Select(static c => c.ParentBone))
-                    .Concat(feModel.BuildCollisionSpheres().Select(static s => s.ParentBone))
-                    .Where(static n => n is not null)
-                    .ToHashSet();
+                var shapeParentBones = CollisionShapeParentBones(feModel);
                 var leftoverStaticNodes = new List<(string Name, int Node)>();
 
                 // The three constructs skipped above each rely on something else recreating the node:
@@ -2959,7 +2964,19 @@ partial class ModelExtract
                     {
                         loneClothNodes.Add((name, node));
                     }
+                    // A bone an emitted proxy vertex is skinned to is registered by the sheet, whose
+                    // hierarchy spans only the skinned bones; an extra ClothNode on it instead parents it
+                    // onto its nearest control-node ancestor whatever registered that (familiar's and
+                    // magician's spine_0 are roots in the original and children of the collision bone
+                    // pelvis with the extra node). Skipped only where the original records the bone as a
+                    // hierarchy ROOT, which is the whole of the damage the extra declaration does, and
+                    // only on a model with no fit matrix at all: elsewhere the exported influences are
+                    // synthesised rather than recovered, so they are no evidence that the compiler
+                    // registers the same bone the same way (abaddon and monkey_king_arcana keep their
+                    // node counts but lose the static split without the declaration).
                     else if (!shapeParentBones.Contains(name)
+                        && !(feModel.FitMatrixNodes.Count == 0 && proxySkinnedBones.Contains(name)
+                            && node < feModel.SkelParents.Length && feModel.SkelParents[node] < 0)
                         && boneByName is not null && boneByName.TryGetValue(name, out var bone) && bone.IsClothControlNode)
                     {
                         leftoverStaticNodes.Add((name, node));

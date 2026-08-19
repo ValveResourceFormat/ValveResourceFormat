@@ -5246,6 +5246,34 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics
             return sumZ <= threshold ? 'z' : 'x';
         }
 
+        // The control nodes a compiled cloth SHEET vertex hangs off: its m_CtrlOffsets primary plus every
+        // m_CtrlSoftOffsets bone behind it. A chain's own extrude ring carries the same two arrays, so the
+        // child is required to be a sheet vertex rather than any generated node.
+        HashSet<int> SheetSkinnedNodes()
+        {
+            var result = new HashSet<int>();
+            foreach (var offset in CtrlOffsets)
+            {
+                if (IsProxyMeshNode(offset.CtrlChild))
+                {
+                    result.Add(offset.CtrlParent);
+                }
+            }
+
+            if (Data.GetArray("m_CtrlSoftOffsets") is { } softOffsets)
+            {
+                foreach (var entry in softOffsets)
+                {
+                    if (IsProxyMeshNode(entry.GetInt32Property("nCtrlChild")))
+                    {
+                        result.Add(entry.GetInt32Property("nCtrlParent"));
+                    }
+                }
+            }
+
+            return result;
+        }
+
         /// <summary>
         /// Reconstructs bone chains from the control-node topology, ignoring auto-generated cloth proxy nodes.
         /// Each chain is rooted at a real bone with no real-bone parent and contains all of its real descendants.
@@ -5425,6 +5453,67 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics
                     || bendRodLinked || ringLinked)
                 {
                     realParent[i] = p;
+                }
+            }
+
+            // A rod between two pinned nodes constrains nothing and the compiler leaves it out, so a chain
+            // whose top two joints are both static loses the one link every rule above reads and the chain
+            // reconstructs rooted a joint too low - the parent joint keeps only its own compiled
+            // m_SkelParents entry (abrams' chain_0 under cuff_attach, inferno's dishcloth_front_0 under
+            // dishcloth_center_0, both a joint_parent in the authored source). Take that entry, but only
+            // where it names the node's DIRECT skeleton parent: the control-space collapse invents distant
+            // ancestors (meepo_naruto_set's neck_nodes on root_0), which is what the rod test guards
+            // against. A bone the SHEET skins to is excluded on both ends - its compiled parent comes from
+            // the skin hierarchy rather than from a chain, and reading it as a link merges every one of
+            // abrams' coat chains into a single chain under coat_main.
+            if (SkeletonBoneParents is not null)
+            {
+                var sheetSkinned = SheetSkinnedNodes();
+                var linkedChildren = new int[n];
+                foreach (var parent in realParent)
+                {
+                    if (parent >= 0)
+                    {
+                        linkedChildren[parent]++;
+                    }
+                }
+
+                // Only a link one end of which the rules above already placed in a chain, so a pair of
+                // pinned bones no chain reaches stays the pair of ClothNodes it reconstructs as today.
+                bool InChain(int node) => realParent[node] >= 0 || linkedChildren[node] > 0
+                    || proxyChildrenOf.ContainsKey(node);
+
+                for (var linked = true; linked;)
+                {
+                    linked = false;
+                    for (var i = 0; i < n; i++)
+                    {
+                        if (!isReal[i] || realParent[i] >= 0)
+                        {
+                            continue;
+                        }
+
+                        var p = i < SkelParents.Length ? SkelParents[i] : -1;
+                        if (p < 0 || p >= n || !isReal[p] || (!InChain(i) && !InChain(p))
+                            || sheetSkinned.Contains(i) || sheetSkinned.Contains(p))
+                        {
+                            continue;
+                        }
+
+                        if ((i < NodeInvMasses.Length && NodeInvMasses[i] != 0f)
+                            || (p < NodeInvMasses.Length && NodeInvMasses[p] != 0f))
+                        {
+                            continue;
+                        }
+
+                        if (string.Equals(SkeletonBoneParents.GetValueOrDefault(CtrlNames[i]), CtrlNames[p],
+                            StringComparison.OrdinalIgnoreCase))
+                        {
+                            realParent[i] = p;
+                            linkedChildren[p]++;
+                            linked = true;
+                        }
+                    }
                 }
             }
 
