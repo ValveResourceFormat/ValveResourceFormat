@@ -1,9 +1,7 @@
 name: CI
 
 permissions:
-  actions: write
-  contents: write
-  id-token: write
+  contents: read
 
 on:
   push:
@@ -193,6 +191,11 @@ jobs:
     if: startsWith(github.ref, 'refs/tags/')
     needs: [build, analyze, source2viewer-rel]
     runs-on: ubuntu-latest
+
+    permissions:
+      contents: write # create the draft release
+      actions: read # signpath reads the artifact to be signed
+      id-token: write # oidc for signpath and nuget login
 
     steps:
     - name: Download artifacts

@@ -16,7 +16,7 @@ on:
       - Renderer/Renderer/ShaderParser.cs
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   validate:
