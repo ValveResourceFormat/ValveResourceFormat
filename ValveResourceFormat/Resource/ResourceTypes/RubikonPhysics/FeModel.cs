@@ -2876,6 +2876,16 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics
             /// selection, which is how a proxy vertex joins one.
             /// </summary>
             public (string Name, float[] Weights)[] VertexMaps { get; init; } = [];
+            /// <summary>
+            /// Gets, per vertex, whether the compiled sheet drives it through distance constraints alone -
+            /// the importer turned every authored element it belongs to into rods (<c>m_SourceElems</c>)
+            /// instead of keeping it as a solve element (<c>m_Quads</c>/<c>m_Tris</c>). Empty on a sheet
+            /// with no such region. Painted back as <c>cloth_make_rods</c>, which is what makes the compiler
+            /// split the same sheet the same way (verified against yamato's authored proxy: a 0/1 paint over
+            /// this exact vertex set reproduces its compile on every key, while the sheet's own gradient
+            /// paint is not recoverable and does not need to be).
+            /// </summary>
+            public float[] RodsDriven { get; init; } = [];
             /// <summary>Gets the number of simulated (cloth_enable == 1) vertices.</summary>
             public int SimulatedCount { get; init; }
             /// <summary>Gets the number of pinned (cloth_enable == 0) vertices.</summary>
@@ -3011,6 +3021,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics
                 SkinInfluences = Pad(mesh.SkinInfluences),
                 VertexMaps = [.. mesh.VertexMaps.Select(m => (m.Name, Pad(m.Weights)))],
                 Faces = [.. mesh.Faces.Select(f => f.Select(v => localToSlot[v]).ToArray())],
+                RodsDriven = mesh.RodsDriven.Length == 0 ? [] : Pad(mesh.RodsDriven),
                 SimulatedCount = mesh.SimulatedCount,
                 PinnedCount = mesh.PinnedCount + (total - n),
                 IsDropRisk = mesh.IsDropRisk,
@@ -3117,8 +3128,10 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics
                             SkinInfluences = Take(merged.SkinInfluences),
                             VertexMaps = [.. merged.VertexMaps.Select(m => (m.Name, Take(m.Weights)))],
                             Faces = [.. merged.Faces.Where(f => remap.ContainsKey(f[0])).Select(f => f.Select(v => remap[v]).ToArray())],
+                            RodsDriven = merged.RodsDriven.Length == 0 ? [] : Take(merged.RodsDriven),
                             SimulatedCount = vertices.Count(v => merged.ClothEnable[v] != 0f),
                             PinnedCount = vertices.Count(v => merged.ClothEnable[v] == 0f),
+                            UsesAuthoredFaces = merged.UsesAuthoredFaces,
                         });
                     }
                 }
@@ -3313,6 +3326,10 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics
                 SkinInfluences = Combine(a.SkinInfluences, b.SkinInfluences),
                 VertexMaps = vertexMaps,
                 Faces = faces,
+                RodsDriven = a.RodsDriven.Length == 0 && b.RodsDriven.Length == 0
+                    ? []
+                    : Combine(a.RodsDriven.Length == 0 ? new float[an] : a.RodsDriven,
+                              b.RodsDriven.Length == 0 ? new float[bn] : b.RodsDriven),
                 SimulatedCount = a.SimulatedCount + b.SimulatedCount,
                 PinnedCount = a.PinnedCount + b.PinnedCount,
                 IsDropRisk = a.IsDropRisk || b.IsDropRisk,
@@ -3366,6 +3383,73 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics
             if (referenced.Count == 0)
             {
                 return null;
+            }
+
+            // The same sheet's ROD region. m_SourceElems keeps the authored elements the importer turned
+            // into distance constraints; m_Quads/m_Tris keep the ones that stayed solve elements. A sheet
+            // painted "cloth_make_rods" over part of itself compiles to both at once (yamato: 350 of its 512
+            // vertices carry a face, the other 162 only rods), and the rod region's vertices then belong to
+            // no face of their own. Taking those elements back into this mesh is what lets the export hand
+            // the compiler one sheet with the same split instead of a face-covered island plus a separately
+            // triangulated remainder.
+            var surfaceNodes = new HashSet<int>(referenced);
+            var surfaceMeshes = surfaceNodes.Select(node => ParseProxyMeshIndex(CtrlNames[node]))
+                .Where(static mesh => mesh >= 0).ToHashSet();
+            var rodsFaces = new List<int[]>();
+            foreach (var face in SourceFaces)
+            {
+                if (face.Length < 3 || SpansProxyMeshes(face))
+                {
+                    continue;
+                }
+
+                var rodsRegion = false;
+                var sheet = true;
+                foreach (var corner in face)
+                {
+                    // Only a "$cloth_m<N>" vertex of a mesh this surface already covers: a chain's own "$cc"
+                    // ring elements, and a mesh with no surface at all, are the rod-only path's to rebuild.
+                    if (corner < 0 || corner >= InitPosePositions.Length || IsHingeRegeneratedProxy(corner)
+                        || !surfaceMeshes.Contains(ParseProxyMeshIndex(CtrlNames[corner])))
+                    {
+                        sheet = false;
+                        break;
+                    }
+
+                    rodsRegion |= !surfaceNodes.Contains(corner);
+                }
+
+                if (sheet && rodsRegion)
+                {
+                    rodsFaces.Add(face);
+                    referenced.UnionWith(face);
+                }
+            }
+
+            // A sheet vertex the compile registers that neither kind of element covers and no rod reaches:
+            // its authored face was trimmed to the corners that stayed a surface - a quad with a single rod
+            // corner compiles to the triangle of the other three and leaves no m_SourceElems entry behind.
+            // Putting it back as that triangle's fourth corner (below) is the only way an export gets the
+            // compiler to register it. One a rod does reach is a rod-only island's, whatever else covers it.
+            var strays = new List<int>();
+            if (rodsFaces.Count > 0)
+            {
+                var covered = new HashSet<int>(referenced);
+                foreach (var rod in Rods)
+                {
+                    covered.Add(rod.NodeA);
+                    covered.Add(rod.NodeB);
+                }
+
+                for (var node = 0; node < CtrlNames.Length; node++)
+                {
+                    if (!covered.Contains(node) && !IsHingeRegeneratedProxy(node)
+                        && surfaceMeshes.Contains(ParseProxyMeshIndex(CtrlNames[node])))
+                    {
+                        strays.Add(node);
+                        referenced.Add(node);
+                    }
+                }
             }
 
             var nodeIndices = referenced.ToArray();
@@ -3441,6 +3525,23 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics
                 }
             }
 
+            var rodsDriven = new float[nodeIndices.Length];
+            rodsFaces.Reverse();
+            foreach (var face in rodsFaces)
+            {
+                faces.Add([.. face.Select(corner => remap[corner])]);
+            }
+
+            foreach (var stray in strays)
+            {
+                AttachStrayToTriangle(remap[stray], positions, faces);
+            }
+
+            for (var i = 0; i < nodeIndices.Length; i++)
+            {
+                rodsDriven[i] = surfaceNodes.Contains(nodeIndices[i]) ? 0f : 1f;
+            }
+
             return new ProxyMesh
             {
                 NodeIndices = nodeIndices,
@@ -3460,7 +3561,54 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics
                 Faces = faces,
                 SimulatedCount = simulated,
                 PinnedCount = pinned,
+                RodsDriven = rodsFaces.Count > 0 ? rodsDriven : [],
+                UsesAuthoredFaces = rodsFaces.Count > 0,
             };
+        }
+
+        // Puts an uncovered sheet vertex back as the fourth corner of the triangle its authored quad was
+        // trimmed to: the nearest one, with the corner it sits farthest from taken as the quad's diagonal,
+        // which is the only arrangement a convex quad admits. The triangle is replaced rather than added to,
+        // so the compiler still emits exactly one face there - it re-trims the quad to the same triangle
+        // once the vertex is painted into the rod region.
+        static void AttachStrayToTriangle(int stray, Vector3[] positions, List<int[]> faces)
+        {
+            var best = -1;
+            var bestSpan = float.MaxValue;
+            for (var i = 0; i < faces.Count; i++)
+            {
+                if (faces[i].Length != 3)
+                {
+                    continue;
+                }
+
+                var span = faces[i].Max(corner => Vector3.Distance(positions[stray], positions[corner]));
+                if (span < bestSpan)
+                {
+                    (best, bestSpan) = (i, span);
+                }
+            }
+
+            if (best < 0)
+            {
+                return;
+            }
+
+            var triangle = faces[best];
+            var diagonal = 0;
+            for (var i = 1; i < 3; i++)
+            {
+                if (Vector3.Distance(positions[stray], positions[triangle[i]])
+                    > Vector3.Distance(positions[stray], positions[triangle[diagonal]]))
+                {
+                    diagonal = i;
+                }
+            }
+
+            // Rotated so the diagonal corner sits between the two the stray shares an edge with, keeping the
+            // triangle's own winding.
+            var start = (diagonal + 2) % 3;
+            faces[best] = [triangle[start], triangle[(start + 1) % 3], triangle[(start + 2) % 3], stray];
         }
 
         // The vertex selections that reach any of the given nodes, as a membership weight per node.

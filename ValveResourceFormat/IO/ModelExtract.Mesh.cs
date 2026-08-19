@@ -859,15 +859,24 @@ partial class ModelExtract
         // m_NodeInvMasses - cloth_drag (no suffix, unlike goal_strength) is already the attribute the
         // compiler reads, so they are intentionally omitted.
 
-        // cloth_make_rods / cloth_use_rods are per-face paint gating whether the mesh importer turns a face
-        // into rods or keeps it as a solve element. Painted under the ~0.5 threshold the whole sheet stays
-        // faces, which is only ever right for cloth that ships a surface of its own: a rod-network cloth
-        // then compiles to invented m_Tris and loses every rod (measured on a synthesized sheet: 669 rods
-        // and 0 tris become 0 rods and 172 tris). So they are painted only when the original itself carries
-        // faces, and the sheet is otherwise left for the compiler to rebuild rods from.
+        // cloth_make_rods is the per-face paint gating whether the mesh importer turns a face into rods or
+        // keeps it as a solve element (cloth_use_rods does not: probed on yamato's authored proxy, every
+        // combination of the two, only make_rods moves the split). Painted under the ~0.5 threshold the
+        // whole sheet stays faces, which is only ever right for cloth that ships a surface of its own: a
+        // rod-network cloth then compiles to invented m_Tris and loses every rod (measured on a synthesized
+        // sheet: 669 rods and 0 tris become 0 rods and 172 tris). So the paints go on only when the original
+        // itself carries faces, and the sheet is otherwise left for the compiler to rebuild rods from.
         //
-        // A sheet exported with its AUTHORED faces skips them entirely, as hand-authored proxies do.
-        if (!proxy.UsesAuthoredFaces && physAggregateData?.FeModel is { HasSurfaceElements: true })
+        // A sheet that ships BOTH kinds paints the split itself: 1 over the rod region, 0 over the surface,
+        // which is how the original's own gradient paint compiled (see ProxyMesh.RodsDriven).
+        //
+        // A sheet exported with its AUTHORED faces and no rod region skips them entirely, as hand-authored
+        // proxies do.
+        if (proxy.RodsDriven.Length == vertexCount)
+        {
+            vertexData.AddIndexedStream("cloth_make_rods$0", proxy.RodsDriven, vertexIndices);
+        }
+        else if (!proxy.UsesAuthoredFaces && physAggregateData?.FeModel is { HasSurfaceElements: true })
         {
             vertexData.AddIndexedStream("cloth_use_rods$0", Enumerable.Repeat(1f, vertexCount).ToArray(), vertexIndices);
             vertexData.AddIndexedStream("cloth_make_rods$0", Enumerable.Repeat(0.4f, vertexCount).ToArray(), vertexIndices);
