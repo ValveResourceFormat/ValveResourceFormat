@@ -2479,6 +2479,13 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics
             => string.IsNullOrEmpty(name) || name.StartsWith('$');
 
         /// <summary>
+        /// The prefix the compiler gives a control node it created for an authored free-standing
+        /// <c>ClothNode</c> element (the element name follows). Distinct from the sheet-vertex
+        /// (<c>$cloth_m&lt;N&gt;p&lt;M&gt;</c>) and chain-extrude (<c>$cc&lt;joint&gt;_&lt;n&gt;</c>) families.
+        /// </summary>
+        public const string FreeClothNodePrefix = "$cloth_node_";
+
+        /// <summary>
         /// Gets or sets the names of the skeleton's real bones. Cloth extrusion does not always mark what it
         /// generates with the <c>$</c> prefix - a two-column strip names its second column after the bone it
         /// widens - so without the skeleton to compare against, a generated node is indistinguishable from a
@@ -4194,11 +4201,16 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics
 
             // A still-uncovered "$..." control node is a rod-only proxy vertex (real skeleton bones are
             // handled by BuildBoneChains / the driven-bone path, not here).
+            // A "$cloth_node_" ctrl is the exception: the compiler writes that prefix for an authored
+            // free-standing ClothNode element, not for a sheet vertex, and AddFreeClothNodesAndSprings
+            // re-authors it as one. Sweeping it into a synthesised sheet renames it "$cloth_m<N>p<M>" and
+            // regenerates its rods from that sheet's faces instead of its own ClothSprings.
             var n = CtrlNames.Length;
             var isProxy = new bool[n];
             for (var node = 0; node < n && node < InitPosePositions.Length; node++)
             {
                 isProxy[node] = IsProxyNodeName(CtrlNames[node]) && !string.IsNullOrEmpty(CtrlNames[node])
+                    && !CtrlNames[node].StartsWith(FreeClothNodePrefix, StringComparison.Ordinal)
                     && !coveredNodes.Contains(node) && !IsHingeRegeneratedProxy(node);
             }
 

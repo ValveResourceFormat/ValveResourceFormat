@@ -930,8 +930,22 @@ partial class ModelExtract
             }
         }
 
+        if (rootBone is not null && origin.Length() < ClothNodeMergeRadius)
+        {
+            // The compiler folds a free ClothNode into its root bone's own ctrl when the authored origin
+            // is within ClothNodeMergeRadius of the bone, which loses the node the original still carries
+            // its "$cloth_node_" ctrl for. Push it just outside, keeping its direction where it has one.
+            var direction = origin == Vector3.Zero ? Vector3.One : origin;
+            origin = Vector3.Normalize(direction) * (ClothNodeMergeRadius * 1.25f);
+        }
+
         return rootBone is not null && !FeModel.IsProxyNodeName(rootBone);
     }
+
+    // Bone-local distance under which the compiler merges a free ClothNode into its root bone's control
+    // node instead of giving it one of its own. Measured by bisection against the Dota resourcecompiler:
+    // euclidean, merging below 0.001 and keeping both nodes at exactly 0.001.
+    const float ClothNodeMergeRadius = 1e-3f;
 
     // A "$cloth_node_<name>" control node is an authored free-standing ClothNode: the compiler names the
     // ctrl "$cloth_node_" + the element name, anchors it to cloth_node_root_bone via an m_CtrlOffsets
