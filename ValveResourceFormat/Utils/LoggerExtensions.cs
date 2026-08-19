@@ -4,7 +4,7 @@ using Microsoft.Extensions.Logging;
 namespace ValveResourceFormat.Utils;
 
 /// <summary>
-/// Logging helpers shared across the renderer.
+/// Logging helpers for warnings raised from per-frame code.
 /// </summary>
 public static class LoggerExtensions
 {
