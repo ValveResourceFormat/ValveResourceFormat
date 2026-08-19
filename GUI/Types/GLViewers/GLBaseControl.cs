@@ -771,7 +771,7 @@ internal abstract class GLBaseControl : IDisposable, IMessageFilter
         GLDefaultFramebuffer = Framebuffer.GLDefaultFramebuffer;
 
         // Framebuffer used to draw geometry
-        MainFramebuffer = Framebuffer.Prepare(RendererContext.Device, nameof(MainFramebuffer),
+        MainFramebuffer = Framebuffer.Prepare(nameof(MainFramebuffer),
             4, 4,
             NumSamples,
             ImageFormat.RGBA16161616F,

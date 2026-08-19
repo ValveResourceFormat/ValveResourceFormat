@@ -790,7 +790,7 @@ namespace GUI.Types.GLViewers
 
                 if (SaveAsFbo is null)
                 {
-                    SaveAsFbo = Framebuffer.Prepare(RendererContext.Device, nameof(SaveAsFbo), bitmap.Width, bitmap.Height, 0, fboFormat, null);
+                    SaveAsFbo = Framebuffer.Prepare(nameof(SaveAsFbo), bitmap.Width, bitmap.Height, 0, fboFormat, null);
                     SaveAsFbo.Initialize();
                 }
 
@@ -1219,7 +1219,7 @@ namespace GUI.Types.GLViewers
                 var resolution = postProcessingData.GetColorCorrectionLUTDimension();
                 var data = postProcessingData.GetColorCorrectionLUT();
 
-                texture = new RenderTexture(RendererContext.Device, TextureTarget.Texture3D, resolution, resolution, resolution, 1, "ColorCorrectionLUT");
+                texture = new RenderTexture(TextureTarget.Texture3D, resolution, resolution, resolution, 1, "ColorCorrectionLUT");
 
                 GL.TextureStorage3D(texture.Handle, 1, SizedInternalFormat.Rgba8, resolution, resolution, resolution);
                 GL.TextureSubImage3D(texture.Handle, 0, 0, 0, 0, resolution, resolution, resolution, PixelFormat.Rgba, PixelType.UnsignedByte, data);
@@ -1267,7 +1267,7 @@ namespace GUI.Types.GLViewers
         private void UploadBitmap(SKBitmap bitmap)
         {
             Debug.Assert(bitmap != null);
-            texture = RendererContext.MaterialLoader.LoadBitmapTexture(bitmap);
+            texture = MaterialLoader.LoadBitmapTexture(bitmap);
             InvalidateRender();
         }
 

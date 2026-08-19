@@ -21,16 +21,17 @@ namespace ValveResourceFormat.Renderer.Buffers
 
 
         /// <summary>Initializes a new buffer with the given target, binding point, and debug name.</summary>
-        /// <param name="device">Device that creates the buffer object.</param>
-        /// <param name="target">The OpenGL buffer target type.</param>
-        /// <param name="bindingPoint">The shader binding point index.</param>
-        /// <param name="name">Debug name for the buffer.</param>
-        protected Buffer(GraphicsDevice device, BufferTarget target, int bindingPoint, string name)
+        protected Buffer(BufferTarget target, int bindingPoint, string name)
         {
             Target = target;
-            Handle = device.CreateBuffer(name);
+            GL.CreateBuffers(1, out int handle);
+            Handle = handle;
             BindingPoint = bindingPoint;
             Name = name;
+
+#if DEBUG
+            GL.ObjectLabel(ObjectLabelIdentifier.Buffer, Handle, Name.Length, Name);
+#endif
         }
 
         /// <summary>Binds this buffer to its binding point using <c>glBindBufferBase</c>.</summary>

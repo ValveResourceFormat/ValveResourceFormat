@@ -120,6 +120,9 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
 
             shader = rendererContext.ShaderLoader.LoadShader(ShaderName);
 
+            // The same quad is reused for all particles
+            vaoHandle = SetupQuadBuffer();
+
             string? textureName = null;
 
             if (parse.Data.ContainsKey("m_hTexture"))
@@ -162,7 +165,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
 
                     if (replaceWithGradient)
                     {
-                        layerTexture = rendererContext.MaterialLoader.GenerateGradientTexture(ParseGradientStops(textureInput));
+                        layerTexture = MaterialLoader.GenerateGradientTexture(ParseGradientStops(textureInput));
                     }
                     else
                     {
@@ -193,8 +196,11 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                     : [new TextureLayer(rendererContext.MaterialLoader.GetTexture(DefaultTextureName, srgbRead: true))];
             }
 
-            // The same quad is reused for all particles
-            vaoHandle = SetupQuadBuffer($"{nameof(RenderSprites)}: {System.IO.Path.GetFileName(textureName)}");
+#if DEBUG
+            var vaoLabel = $"{nameof(RenderSprites)}: {System.IO.Path.GetFileName(textureName)}";
+            GL.ObjectLabel(ObjectLabelIdentifier.VertexArray, vaoHandle, Math.Min(GLEnvironment.MaxLabelLength, vaoLabel.Length), vaoLabel);
+            GL.ObjectLabel(ObjectLabelIdentifier.Buffer, vertexBufferHandle, Math.Min(GLEnvironment.MaxLabelLength, vaoLabel.Length), vaoLabel);
+#endif
 
             animateInFps = parse.Boolean("m_bAnimateInFPS", animateInFps);
             orientationType = parse.Enum("m_nOrientationType", orientationType);
@@ -238,11 +244,11 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         }
 
 
-        private int SetupQuadBuffer(string label)
+        private int SetupQuadBuffer()
         {
-            vertexBufferHandle = rendererContext.Device.CreateBuffer(label);
+            GL.CreateBuffers(1, out vertexBufferHandle);
 
-            return Vertex.InputLayout.CreateVertexArray(rendererContext.Device, label, vertexBufferHandle, rendererContext.MeshBufferCache.QuadIndices.GLHandle);
+            return Vertex.InputLayout.CreateVertexArray(nameof(RenderSprites), vertexBufferHandle, rendererContext.MeshBufferCache.QuadIndices.GLHandle);
         }
 
         // m_Gradient's stops, as the ramp generator wants them. A stop's colour is authored as a byte

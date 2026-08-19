@@ -44,7 +44,7 @@ namespace ValveResourceFormat.Renderer
             if (OccludedBoundsDebugGpu == null)
             {
                 var totalSize = HeaderSizeBytes + (scene.SceneMeshletCount * Marshal.SizeOf<OccludedBoundDebug>());
-                OccludedBoundsDebugGpu = StorageBuffer.Allocate<byte>(renderContext.Device, ReservedBufferSlots.OccludedBoundsDebug, nameof(ReservedBufferSlots.OccludedBoundsDebug), totalSize, BufferUsageHint.DynamicCopy);
+                OccludedBoundsDebugGpu = StorageBuffer.Allocate<byte>(ReservedBufferSlots.OccludedBoundsDebug, nameof(ReservedBufferSlots.OccludedBoundsDebug), totalSize, BufferUsageHint.DynamicCopy);
             }
 
             // Clear the atomic counter before dispatching

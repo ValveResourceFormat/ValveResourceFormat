@@ -77,7 +77,7 @@ internal abstract class ThumbnailRenderer : IDisposable
 
         SceneRenderer.Postprocess.Load(4);
 
-        framebuffer = Framebuffer.Prepare(RendererContext.Device, "MainFramebuffer", 4, 4, 4,
+        framebuffer = Framebuffer.Prepare("MainFramebuffer", 4, 4, 4,
             ImageFormat.RGBA16161616F,
             ImageFormat.D16);
         framebuffer.Initialize();

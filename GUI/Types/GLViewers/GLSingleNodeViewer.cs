@@ -89,7 +89,7 @@ namespace GUI.Types.GLViewers
 
             if (SaveAsFbo is null)
             {
-                SaveAsFbo = Framebuffer.Prepare(RendererContext.Device, nameof(SaveAsFbo), w, h, 0, ImageFormat.RGBA8888, null);
+                SaveAsFbo = Framebuffer.Prepare(nameof(SaveAsFbo), w, h, 0, ImageFormat.RGBA8888, null);
                 SaveAsFbo.ClearMask = ClearBufferMask.ColorBufferBit;
                 SaveAsFbo.ClearColor = new OpenTK.Mathematics.Color4(0, 0, 0, 0);
                 SaveAsFbo.Initialize();

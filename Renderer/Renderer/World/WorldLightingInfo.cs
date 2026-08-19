@@ -715,16 +715,16 @@ namespace ValveResourceFormat.Renderer.World
         /// Single white layer, used to keep the cookie texture units complete in scenes without cookies.
         /// Matches layer 0 of a real atlas, which barn lights without a cookie index into.
         /// </summary>
-        private RenderTexture CreateDefaultCookieAtlas()
+        private static RenderTexture CreateDefaultCookieAtlas()
         {
-            var atlas = new RenderTexture(scene.RendererContext.Device, TextureTarget.Texture2DArray, 1, 1, 1, 1, "EmptyCookieAtlas");
+            var atlas = new RenderTexture(TextureTarget.Texture2DArray, 1, 1, 1, 1, "EmptyCookieAtlas");
             GL.TextureStorage3D(atlas.Handle, 1, SizedInternalFormat.Srgb8Alpha8, 1, 1, 1);
             GL.TextureSubImage3D(atlas.Handle, 0, 0, 0, 0, 1, 1, 1, PixelFormat.Rgba, PixelType.UnsignedByte, new byte[] { 255, 255, 255, 255 });
 
             return atlas;
         }
 
-        private RenderTexture BuildCookieAtlas(List<RenderTexture> textures)
+        private static RenderTexture BuildCookieAtlas(List<RenderTexture> textures)
         {
             var atlasSize = 512;
             foreach (var tex in textures)
@@ -734,11 +734,16 @@ namespace ValveResourceFormat.Renderer.World
 
             var numLayers = textures.Count + 1;
 
-            var atlas = new RenderTexture(scene.RendererContext.Device, TextureTarget.Texture2DArray, atlasSize, atlasSize, numLayers, 1, "CookieAtlas");
+            var atlas = new RenderTexture(TextureTarget.Texture2DArray, atlasSize, atlasSize, numLayers, 1, "CookieAtlas");
             GL.TextureStorage3D(atlas.Handle, 1, SizedInternalFormat.Srgb8Alpha8, atlasSize, atlasSize, numLayers);
 
-            var readFbo = scene.RendererContext.Device.CreateFramebuffer("CookieAtlasBlitSrc");
-            var drawFbo = scene.RendererContext.Device.CreateFramebuffer("CookieAtlasBlitDst");
+            GL.CreateFramebuffers(1, out int readFbo);
+            GL.CreateFramebuffers(1, out int drawFbo);
+
+#if DEBUG
+            GL.ObjectLabel(ObjectLabelIdentifier.Framebuffer, readFbo, 18, "CookieAtlasBlitSrc");
+            GL.ObjectLabel(ObjectLabelIdentifier.Framebuffer, drawFbo, 18, "CookieAtlasBlitDst");
+#endif
 
             // First layer is full white
             GL.NamedFramebufferTextureLayer(drawFbo, FramebufferAttachment.ColorAttachment0, atlas.Handle, 0, 0);
@@ -765,13 +770,21 @@ namespace ValveResourceFormat.Renderer.World
 
         private void CreateCookieSamplers()
         {
-            CookieSamplerClampBorder = scene.RendererContext.Device.CreateSampler(nameof(CookieSamplerClampBorder));
+            GL.CreateSamplers(1, out CookieSamplerClampBorder);
+
+#if DEBUG
+            GL.ObjectLabel(ObjectLabelIdentifier.Sampler, CookieSamplerClampBorder, nameof(CookieSamplerClampBorder).Length, nameof(CookieSamplerClampBorder));
+#endif
 
             GL.SamplerParameter(CookieSamplerClampBorder, SamplerParameterName.TextureWrapS, (int)TextureWrapMode.ClampToBorder);
             GL.SamplerParameter(CookieSamplerClampBorder, SamplerParameterName.TextureWrapT, (int)TextureWrapMode.ClampToBorder);
             GL.SamplerParameter(CookieSamplerClampBorder, SamplerParameterName.TextureMinFilter, (int)TextureMinFilter.Linear);
 
-            CookieSamplerWrap = scene.RendererContext.Device.CreateSampler(nameof(CookieSamplerWrap));
+            GL.CreateSamplers(1, out CookieSamplerWrap);
+
+#if DEBUG
+            GL.ObjectLabel(ObjectLabelIdentifier.Sampler, CookieSamplerWrap, nameof(CookieSamplerWrap).Length, nameof(CookieSamplerWrap));
+#endif
 
             GL.SamplerParameter(CookieSamplerWrap, SamplerParameterName.TextureWrapS, (int)TextureWrapMode.Repeat);
             GL.SamplerParameter(CookieSamplerWrap, SamplerParameterName.TextureWrapT, (int)TextureWrapMode.Repeat);
@@ -781,7 +794,7 @@ namespace ValveResourceFormat.Renderer.World
         /// <summary>Allocates the GPU storage buffer used to pass barn light data to shaders.</summary>
         public void CreateBarnLightBuffer()
         {
-            BarnLightStorageBuffer ??= StorageBuffer.Allocate<BarnLightConstants>(scene.RendererContext.Device,
+            BarnLightStorageBuffer ??= StorageBuffer.Allocate<BarnLightConstants>(
                 ReservedBufferSlots.BarnLights, nameof(ReservedBufferSlots.BarnLights), BarnLightConstants.MAX_BARN_LIGHTS, BufferUsageHint.DynamicDraw);
         }
 

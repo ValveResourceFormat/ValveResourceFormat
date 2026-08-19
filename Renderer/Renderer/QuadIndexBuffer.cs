@@ -13,14 +13,18 @@ namespace ValveResourceFormat.Renderer
         public int GLHandle { get; }
 
         /// <summary>Allocates the buffer and fills it with quad-to-triangle index patterns.</summary>
-        /// <param name="device">Device that creates the buffer object.</param>
         /// <param name="size">Total number of indices to generate (must be a multiple of 6).</param>
-        public QuadIndexBuffer(GraphicsDevice device, int size)
+        public QuadIndexBuffer(int size)
         {
-            System.Diagnostics.Debug.Assert(size % 6 == 0);
-
-            var handle = device.CreateBuffer(nameof(QuadIndexBuffer));
+            GL.CreateBuffers(1, out int handle);
             GLHandle = handle;
+
+#if DEBUG
+            var bufferLabel = nameof(QuadIndexBuffer);
+            GL.ObjectLabel(ObjectLabelIdentifier.Buffer, handle, bufferLabel.Length, bufferLabel);
+
+            System.Diagnostics.Debug.Assert(size % 6 == 0);
+#endif
 
             var sizeInBytes = size * sizeof(ushort);
             var indicesBytes = ArrayPool<byte>.Shared.Rent(sizeInBytes);

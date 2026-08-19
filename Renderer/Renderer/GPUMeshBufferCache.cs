@@ -67,7 +67,7 @@ namespace ValveResourceFormat.Renderer
         {
             if (!gpuBuffers.TryGetValue(meshName, out var gpuVbib))
             {
-                gpuVbib = new GPUMeshBuffers(RendererContext.Device, vbib, meshName);
+                gpuVbib = new GPUMeshBuffers(vbib, meshName);
                 gpuBuffers.Add(meshName, gpuVbib);
             }
 
@@ -195,7 +195,7 @@ namespace ValveResourceFormat.Renderer
         {
             Debug.Assert(vertexBuffers != null && vertexBuffers.Length > 0);
 
-            var newVaoHandle = RendererContext.Device.CreateVertexArray(debugLabel ?? string.Empty);
+            GL.CreateVertexArrays(1, out int newVaoHandle);
             VertexArray.StartRecording(newVaoHandle);
 
             // Check for non-indexed geometry
@@ -242,6 +242,13 @@ namespace ValveResourceFormat.Renderer
 
                 bindingIndex++;
             }
+
+#if DEBUG
+            if (debugLabel != null)
+            {
+                GL.ObjectLabel(ObjectLabelIdentifier.VertexArray, newVaoHandle, Math.Min(GLEnvironment.MaxLabelLength, debugLabel.Length), debugLabel);
+            }
+#endif
 
             return newVaoHandle;
         }

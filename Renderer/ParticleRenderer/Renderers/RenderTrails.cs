@@ -91,6 +91,9 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
 
             shader = rendererContext.ShaderLoader.LoadShader(ShaderName);
 
+            // All trails of this renderer are batched into a single dynamic vertex buffer
+            (vaoHandle, vertexBufferHandle) = SetupQuadBuffer();
+
             string? textureName = null;
 
             if (parse.Data.ContainsKey("m_hTexture"))
@@ -109,8 +112,11 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
 
             texture = rendererContext.MaterialLoader.GetTexture(textureName ?? DefaultTextureName, srgbRead: true);
 
-            // All trails of this renderer are batched into a single dynamic vertex buffer
-            (vaoHandle, vertexBufferHandle) = SetupQuadBuffer($"{nameof(RenderTrails)}: {System.IO.Path.GetFileName(textureName)}");
+#if DEBUG
+            var vaoLabel = $"{nameof(RenderTrails)}: {System.IO.Path.GetFileName(textureName)}";
+            GL.ObjectLabel(ObjectLabelIdentifier.VertexArray, vaoHandle, Math.Min(GLEnvironment.MaxLabelLength, vaoLabel.Length), vaoLabel);
+            GL.ObjectLabel(ObjectLabelIdentifier.Buffer, vertexBufferHandle, Math.Min(GLEnvironment.MaxLabelLength, vaoLabel.Length), vaoLabel);
+#endif
 
             orientationType = parse.Enum("m_nOrientationType", orientationType);
             animationRate = parse.Float("m_flAnimationRate", animationRate);
@@ -159,10 +165,11 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             this.texture = texture;
         }
 
-        private (int Vao, int Buffer) SetupQuadBuffer(string label)
+        private (int Vao, int Buffer) SetupQuadBuffer()
         {
-            var buffer = rendererContext.Device.CreateBuffer(label);
-            var vao = Vertex.InputLayout.CreateVertexArray(rendererContext.Device, label, buffer, rendererContext.MeshBufferCache.QuadIndices.GLHandle);
+            GL.CreateBuffers(1, out int buffer);
+
+            var vao = Vertex.InputLayout.CreateVertexArray(nameof(RenderTrails), buffer, rendererContext.MeshBufferCache.QuadIndices.GLHandle);
 
             return (vao, buffer);
         }

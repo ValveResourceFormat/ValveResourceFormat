@@ -43,18 +43,22 @@ namespace ValveResourceFormat.Renderer
         /// </summary>
         public float[]? RadianceCoefficients { get; }
 
-        RenderTexture(GraphicsDevice device, TextureTarget target, string label)
+        RenderTexture(TextureTarget target, string label)
         {
             Target = target;
-            Handle = device.CreateTexture(target, label);
+            GL.CreateTextures(target, 1, out int handle);
+            Handle = handle;
+
+#if DEBUG
+            GL.ObjectLabel(ObjectLabelIdentifier.Texture, handle, Math.Min(GLEnvironment.MaxLabelLength, label.Length), label);
+#endif
         }
 
         /// <summary>Creates a render texture and populates metadata from the given source texture resource.</summary>
-        /// <param name="device">Device that creates the texture object.</param>
         /// <param name="target">OpenGL texture target.</param>
         /// <param name="data">Source texture resource providing dimensions, mip count, spritesheet data and radiance harmonics.</param>
         /// <param name="label">Label string visible in graphics debuggers.</param>
-        public RenderTexture(GraphicsDevice device, TextureTarget target, Texture data, string label) : this(device, target, label)
+        public RenderTexture(TextureTarget target, Texture data, string label) : this(target, label)
         {
             Width = data.Width;
             Height = data.Height;
@@ -66,15 +70,14 @@ namespace ValveResourceFormat.Renderer
         }
 
         /// <summary>Creates a render texture with explicit dimension and mip level metadata.</summary>
-        /// <param name="device">Device that creates the texture object.</param>
         /// <param name="target">OpenGL texture target.</param>
         /// <param name="width">Width in texels.</param>
         /// <param name="height">Height in texels.</param>
         /// <param name="depth">Depth or array layer count.</param>
         /// <param name="mipcount">Number of mip levels.</param>
         /// <param name="label">Label string visible in graphics debuggers.</param>
-        public RenderTexture(GraphicsDevice device, TextureTarget target, int width, int height, int depth, int mipcount, string label)
-            : this(device, target, label)
+        public RenderTexture(TextureTarget target, int width, int height, int depth, int mipcount, string label)
+            : this(target, label)
         {
             Width = width;
             Height = height;
@@ -92,39 +95,38 @@ namespace ValveResourceFormat.Renderer
         }
 
         /// <summary>Creates a 2D texture with immutable storage, optionally allocating a reduced mip chain sized by <see cref="MaxMipCount"/>.</summary>
-        /// <param name="device">Device that creates the texture object.</param>
         /// <param name="width">Texture width in texels.</param>
         /// <param name="height">Texture height in texels.</param>
         /// <param name="format">Internal pixel format.</param>
         /// <param name="label">Label string visible in graphics debuggers.</param>
         /// <param name="mips">When <see langword="true"/>, allocates a reduced mip chain (see <see cref="MaxMipCount"/>) rather than a single level.</param>
         /// <returns>The newly created render texture.</returns>
-        public static RenderTexture Create(GraphicsDevice device, int width, int height, ImageFormat format, string label, bool mips = false)
+        public static RenderTexture Create(int width, int height, ImageFormat format, string label, bool mips = false)
         {
             var mipCount = mips
                 ? MaxMipCount(width, height)
                 : 1;
 
-            return Create(device, width, height, format, mipCount, label);
+            var texture = new RenderTexture(TextureTarget.Texture2D, width, height, 1, mipCount, label);
+            GL.TextureStorage2D(texture.Handle, mipCount, format.ToGLSizedInternalFormat(), width, height);
+            return texture;
         }
 
         /// <summary>Creates a 2D texture with immutable storage and an explicit mip count.</summary>
-        /// <param name="device">Device that creates the texture object.</param>
         /// <param name="width">Texture width in texels.</param>
         /// <param name="height">Texture height in texels.</param>
         /// <param name="format">Internal pixel format.</param>
         /// <param name="mipCount">Number of mip levels to allocate.</param>
         /// <param name="label">Label string visible in graphics debuggers.</param>
         /// <returns>The newly created render texture.</returns>
-        public static RenderTexture Create(GraphicsDevice device, int width, int height, ImageFormat format, int mipCount, string label)
+        public static RenderTexture Create(int width, int height, ImageFormat format, int mipCount, string label)
         {
-            var texture = new RenderTexture(device, TextureTarget.Texture2D, width, height, 1, mipCount, label);
+            var texture = new RenderTexture(TextureTarget.Texture2D, width, height, 1, mipCount, label);
             GL.TextureStorage2D(texture.Handle, mipCount, format.ToGLSizedInternalFormat(), width, height);
             return texture;
         }
 
         /// <summary>Creates a texture view that reinterprets a subrange of this texture's storage.</summary>
-        /// <param name="device">Device that creates the view.</param>
         /// <param name="format">The reinterpreted pixel format for the view.</param>
         /// <param name="minLevel">First mip level visible through the view.</param>
         /// <param name="numLevels">Number of mip levels visible through the view.</param>
@@ -132,11 +134,16 @@ namespace ValveResourceFormat.Renderer
         /// <param name="numLayers">Number of array layers visible through the view.</param>
         /// <param name="label">Label string visible in graphics debuggers.</param>
         /// <returns>A new <see cref="RenderTexture"/> wrapping the view.</returns>
-        public RenderTexture CreateView(GraphicsDevice device, ImageFormat format, string label, int minLevel = 0, int numLevels = 1, int minLayer = 0, int numLayers = 1)
+        public RenderTexture CreateView(ImageFormat format, string label, int minLevel = 0, int numLevels = 1, int minLayer = 0, int numLayers = 1)
         {
-            var handle = device.CreateTextureView(Handle, Target, format.ToGLSizedInternalFormat(), minLevel, numLevels, minLayer, numLayers, label);
+            var view = new RenderTexture(GL.GenTexture(), Target);
+            GL.TextureView(view.Handle, Target, Handle, (PixelInternalFormat)format.ToGLSizedInternalFormat(), minLevel, numLevels, minLayer, numLayers);
 
-            return new RenderTexture(handle, Target);
+#if DEBUG
+            GL.ObjectLabel(ObjectLabelIdentifier.Texture, view.Handle, Math.Min(GLEnvironment.MaxLabelLength, label.Length), label);
+#endif
+
+            return view;
         }
 
         /// <summary>Sets the wrap mode for all relevant texture dimensions.</summary>

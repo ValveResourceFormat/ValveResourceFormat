@@ -401,7 +401,7 @@ namespace ValveResourceFormat.Renderer.Materials
         {
             var layout = shader.GlobalsLayout;
 
-            globals ??= new Globals(shader.RendererContext.Device, Material.Name.Length > 0 ? Material.Name : shader.Name);
+            globals ??= new Globals(Material.Name.Length > 0 ? Material.Name : shader.Name);
 
             if (filledLayout != layout || filledVersion != InputsVersion)
             {

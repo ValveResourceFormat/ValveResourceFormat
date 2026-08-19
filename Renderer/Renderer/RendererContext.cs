@@ -19,11 +19,6 @@ public class RendererContext : IDisposable
     public GameFileLoader FileLoader { get; }
 
     /// <summary>
-    /// Creates GPU objects for this context.
-    /// </summary>
-    public GraphicsDevice Device { get; } = new();
-
-    /// <summary>
     /// Material and texture loader and cache.
     /// </summary>
     public MaterialLoader MaterialLoader { get; }
