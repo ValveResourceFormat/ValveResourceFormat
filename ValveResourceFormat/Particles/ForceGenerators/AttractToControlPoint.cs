@@ -27,7 +27,9 @@ class AttractToControlPoint : ParticleFunctionForceGenerator
         forceAmountMin = parse.NumberProvider("m_fForceAmountMin", forceAmountMin);
         applyMinForce = parse.Boolean("m_bApplyMinForce", applyMinForce);
         falloff = parse.Float("m_fFalloffPower", falloff);
-        transformInput = parse.TransformInput("m_TransformInput", new ControlPointTransformProvider(1, false));
+        // This operator is the one place a transform input defaults to ignoring the control point's
+        // orientation, which only its own pull direction would have read anyway.
+        transformInput = parse.TransformInput("m_TransformInput", new ControlPointTransformProvider(0, false));
     }
 
     public override void GenerateForces(ParticleCollection particles, float frameTime, ParticleSystemState particleSystemState, float strength)
