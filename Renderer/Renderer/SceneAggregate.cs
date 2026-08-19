@@ -127,6 +127,18 @@ namespace ValveResourceFormat.Renderer
             {
                 Scene.Add(fragment, false);
             }
+
+            if (Fragments.Count > 0)
+            {
+                var bounds = Fragments[0].BoundingBox;
+
+                foreach (var fragment in Fragments)
+                {
+                    bounds = bounds.Union(fragment.BoundingBox);
+                }
+
+                LocalBoundingBox = bounds;
+            }
         }
 
         /// <summary>Appends a meshlet covering an entire draw call.</summary>
@@ -235,7 +247,6 @@ namespace ValveResourceFormat.Renderer
 
                 if (fragmentTransform != null)
                 {
-                    CanDrawIndirect = false; // skip indirect draw path for instanced draws
                     fragment.Transform *= fragmentTransform.ToMatrix4x4();
                 }
 

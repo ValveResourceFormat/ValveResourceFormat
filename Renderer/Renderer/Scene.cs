@@ -110,6 +110,9 @@ namespace ValveResourceFormat.Renderer
         /// <summary>Gets or sets the GPU buffer containing per-meshlet cull info (bounds and cone data).</summary>
         public StorageBuffer? MeshletDataGpu { get; set; }
 
+        /// <summary>Gets or sets the GPU buffer mapping each aggregate indirect draw command to the meshlet it draws.</summary>
+        public StorageBuffer? CommandMeshletsGpu { get; set; }
+
         /// <summary>Gets or sets the GPU buffer containing the indirect draw commands for all meshlets.</summary>
         public StorageBuffer? IndirectDrawsGpu { get; set; }
 
@@ -559,8 +562,12 @@ namespace ValveResourceFormat.Renderer
         private void CreateIndirectDrawBuffers(bool deletePrevious = false)
         {
             var aggregateSceneNodes = staticNodes.OfType<SceneAggregate>().Where(agg => agg.CanDrawIndirect).ToList();
-            var aggregateDrawCallCount = aggregateSceneNodes.Sum(agg => agg.Fragments.Count);
+            var aggregateDrawCallCount = aggregateSceneNodes.Sum(agg => agg.RenderMesh.DrawCallsOpaque.Count);
             var aggregateMeshletCount = aggregateSceneNodes.Sum(agg => agg.RenderMesh.Meshlets.Count);
+
+            // Instanced fragments reuse one draw call with a transform each, so a fragment issues its own
+            // commands but shares the cull data they point at
+            var aggregateCommandCount = aggregateSceneNodes.Sum(agg => agg.Fragments.Sum(f => f.DrawCall.NumMeshlets));
 
             if (aggregateMeshletCount == 0)
             {
@@ -571,6 +578,7 @@ namespace ValveResourceFormat.Renderer
             {
                 DrawBoundsGpu?.Delete();
                 MeshletDataGpu?.Delete();
+                CommandMeshletsGpu?.Delete();
                 IndirectDrawsGpu?.Delete();
                 CompactedDrawsGpu?.Delete();
                 CompactedCountsGpu?.Delete();
@@ -584,13 +592,10 @@ namespace ValveResourceFormat.Renderer
                 var index = 0;
                 foreach (var agg in aggregateSceneNodes)
                 {
-                    foreach (var fragment in agg.Fragments)
+                    foreach (var drawCall in agg.RenderMesh.DrawCallsOpaque)
                     {
-                        var drawCall = fragment.DrawCall;
-                        Debug.Assert(drawCall.DrawBounds != null);
-
-                        // need to transform bounds for the 3d skybox
-                        var bounds = drawCall.DrawBounds.Value.Transform(fragment.Transform);
+                        // the cull shader transforms these, for instanced fragments and the 3d skybox
+                        var bounds = drawCall.DrawBounds ?? agg.RenderMesh.BoundingBox;
 
                         drawBounds[index].Min = bounds.Min;
                         drawBounds[index].Max = bounds.Max;
@@ -605,24 +610,40 @@ namespace ValveResourceFormat.Renderer
             // meshlets
             {
                 var meshletDataGpu = new MeshletCullInfo[aggregateMeshletCount];
-                var indirectDrawsGpu = new DrawElementsIndirectCommand[aggregateMeshletCount];
+                var commandMeshlets = new uint[aggregateCommandCount];
+                var indirectDrawsGpu = new DrawElementsIndirectCommand[aggregateCommandCount];
 
-                // Commands are laid out by meshlet index, so each draw call multidraws its
-                // [FirstMeshlet, FirstMeshlet + NumMeshlets) range within the aggregate
+                // Commands are laid out fragment by fragment, so each draw call multidraws its
+                // [FirstMeshlet, FirstMeshlet + NumMeshlets) range once per fragment drawing it
                 var sceneDrawCount = 0;
                 var sceneMeshletCount = 0;
+                var sceneCommandCount = 0;
                 var compactionRequestList = new List<uint>();
 
                 foreach (var agg in aggregateSceneNodes)
                 {
-                    agg.IndirectDrawByteOffset = sceneMeshletCount * Unsafe.SizeOf<DrawElementsIndirectCommand>();
-                    agg.IndirectDrawCount = agg.RenderMesh.Meshlets.Count;
+                    var aggregateCommandStart = sceneCommandCount;
 
+                    agg.IndirectDrawByteOffset = aggregateCommandStart * Unsafe.SizeOf<DrawElementsIndirectCommand>();
                     agg.CompactionIndex = compactionRequestList.Count / 2;
-                    compactionRequestList.Add((uint)agg.RenderMesh.Meshlets.Count);
-                    compactionRequestList.Add((uint)sceneMeshletCount);
 
-                    var drawIndex = 0;
+                    // Cull data is shared by every fragment drawing the draw call, so it stays in aggregate space
+                    for (var drawCallIndex = 0; drawCallIndex < agg.RenderMesh.DrawCallsOpaque.Count; drawCallIndex++)
+                    {
+                        var sharedCall = agg.RenderMesh.DrawCallsOpaque[drawCallIndex];
+                        var lastMeshlet = sharedCall.FirstMeshlet + sharedCall.NumMeshlets;
+
+                        for (var meshletIndex = sharedCall.FirstMeshlet; meshletIndex < lastMeshlet; meshletIndex++)
+                        {
+                            meshletDataGpu[sceneMeshletCount + meshletIndex] = new MeshletCullInfo
+                            {
+                                Bounds = agg.RenderMesh.Meshlets[meshletIndex].PackedAABB,
+                                Cone = agg.RenderMesh.Meshlets[meshletIndex].CullingData,
+                                ParentDrawBoundsIndex = (uint)(sceneDrawCount + drawCallIndex),
+                            };
+                        }
+                    }
+
                     foreach (var fragment in agg.Fragments)
                     {
                         var fragmentInstanceId = fragment.Id;
@@ -634,14 +655,9 @@ namespace ValveResourceFormat.Renderer
                         for (var drawMeshletIndex = start; drawMeshletIndex < stop; drawMeshletIndex++)
                         {
                             var meshlet = agg.RenderMesh.Meshlets[drawMeshletIndex];
-                            var commandIndex = sceneMeshletCount + drawMeshletIndex;
+                            var commandIndex = sceneCommandCount++;
 
-                            meshletDataGpu[commandIndex] = new MeshletCullInfo
-                            {
-                                Bounds = meshlet.PackedAABB,
-                                Cone = meshlet.CullingData,
-                                ParentDrawBoundsIndex = (uint)(sceneDrawCount + drawIndex),
-                            };
+                            commandMeshlets[commandIndex] = (uint)(sceneMeshletCount + drawMeshletIndex);
 
                             var count = meshlet.TriangleCount * 3;
                             var firstIndex = (uint)meshlet.TriangleOffset * 3;
@@ -673,15 +689,21 @@ namespace ValveResourceFormat.Renderer
                                 BaseInstance = fragmentInstanceId,
                             };
                         }
-
-                        drawIndex++;
                     }
 
+                    agg.IndirectDrawCount = sceneCommandCount - aggregateCommandStart;
+
+                    compactionRequestList.Add((uint)agg.IndirectDrawCount);
+                    compactionRequestList.Add((uint)aggregateCommandStart);
+
                     sceneMeshletCount += agg.RenderMesh.Meshlets.Count;
-                    sceneDrawCount += agg.Fragments.Count;
+                    sceneDrawCount += agg.RenderMesh.DrawCallsOpaque.Count;
                 }
 
-                SceneMeshletCount = sceneMeshletCount;
+                SceneMeshletCount = sceneCommandCount;
+
+                CommandMeshletsGpu = new StorageBuffer(ReservedBufferSlots.AggregateCommandMeshlets, nameof(ReservedBufferSlots.AggregateCommandMeshlets));
+                CommandMeshletsGpu.Create(commandMeshlets, BufferUsageHint.StaticDraw);
 
                 MeshletDataGpu = new StorageBuffer(ReservedBufferSlots.AggregateMeshlets, nameof(ReservedBufferSlots.AggregateMeshlets));
                 IndirectDrawsGpu = new StorageBuffer(ReservedBufferSlots.AggregateDraws, nameof(ReservedBufferSlots.AggregateDraws));
@@ -1315,7 +1337,10 @@ namespace ValveResourceFormat.Renderer
 
             Debug.Assert(DrawBoundsGpu is not null);
             Debug.Assert(MeshletDataGpu is not null);
+            Debug.Assert(CommandMeshletsGpu is not null);
             Debug.Assert(IndirectDrawsGpu is not null);
+            Debug.Assert(InstanceBufferGpu is not null);
+            Debug.Assert(TransformBufferGpu is not null);
 
             frustumBuffer.BindBufferBase();
             frustumBuffer.Data = new(frustum);
@@ -1326,7 +1351,12 @@ namespace ValveResourceFormat.Renderer
 
             MeshletDataGpu.BindBufferBase();
             DrawBoundsGpu.BindBufferBase();
+            CommandMeshletsGpu.BindBufferBase();
             IndirectDrawsGpu.BindBufferBase();
+
+            // Instance transforms move each fragment's shared cull data into world space
+            InstanceBufferGpu.BindBufferBase();
+            TransformBufferGpu.BindBufferBase();
 
             var occlusionDebugEnabled = OcclusionDebugEnabled && OcclusionDebug != null;
 

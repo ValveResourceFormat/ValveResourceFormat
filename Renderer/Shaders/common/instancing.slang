@@ -3,6 +3,8 @@
 #ifndef VRF_INSTANCING_INCLUDE
 #define VRF_INSTANCING_INCLUDE
 
+#include "instancing_base.slang"
+
 uniform mat3x4 transform;
 uniform uint vTint;
 uniform bool bIsInstancing = false;
@@ -16,25 +18,6 @@ uniform bool bIsInstancing = false;
 #if (D_BAKED_LIGHTING_FROM_PROBE > 0)
     flat out uint g_nVisibleLPV;
 #endif
-
-struct ObjectDataStandard
-{
-    uint TintAlpha;
-    uint TransformIndex;
-    uint VisibleLPV;
-    uint Identification;
-    uvec4 EnvMapVisibility;
-};
-
-layout(std430, binding = 0) readonly buffer g_objectBuffer
-{
-    ObjectDataStandard objects[];
-};
-
-layout(std430, binding = 1) readonly buffer g_transformBuffer
-{
-    mat3x4 transforms[];
-};
 
 struct ObjectData_t
 {

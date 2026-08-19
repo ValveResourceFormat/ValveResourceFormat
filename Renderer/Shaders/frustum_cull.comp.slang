@@ -1,6 +1,7 @@
 #version 460
 
 #include "common/ViewConstants.slang"
+#include "common/instancing_base.slang"
 #include "common/structs.slang"
 
 layout (local_size_x = 64) in;
@@ -23,6 +24,12 @@ layout(binding = 5, std430) readonly buffer DrawCallBounds
 layout(binding = 6, std430) readonly buffer MeshletInfoBuffer
 {
     MeshletCullInfo meshlets[];
+};
+
+// Fragments of an instanced aggregate share one draw call, so they share its meshlet cull data too
+layout(binding = 14, std430) readonly buffer CommandMeshletBuffer
+{
+    uint commandMeshlets[];
 };
 
 
@@ -247,7 +254,7 @@ void main()
         return;
     }
 
-    MeshletCullInfo meshlet = meshlets[drawId];
+    MeshletCullInfo meshlet = meshlets[commandMeshlets[drawId]];
 
     uint boundIndex = meshlet.m_nParentDrawBoundsIndex;
 
@@ -256,6 +263,49 @@ void main()
 
     vec3 meshletMin = unpackAABB(objectMin, objectMax, meshlet.m_PackedAABB.m_nMin);
     vec3 meshletMax = unpackAABB(objectMin, objectMax, meshlet.m_PackedAABB.m_nMax);
+
+    vec4 coneCullInfo = unpackSByteVector(meshlet.m_PackedCone);
+
+    // Shared cull data is stored in the aggregate's own space, so each instance moves it into
+    // world space with its own transform. Index zero is reserved for the identity transform.
+    uint transformIndex = objects[drawCommands[drawId].baseInstance].TransformIndex;
+
+    if (transformIndex != 0)
+    {
+        mat3x4 objectToWorld = transforms[transformIndex];
+
+        vec3 center = (meshletMin + meshletMax) * 0.5;
+        vec3 extents = (meshletMax - meshletMin) * 0.5;
+
+        // The three columns of a mat3x4 are the rows of the affine transform
+        vec3 worldCenter = vec3(
+            dot(objectToWorld[0].xyz, center) + objectToWorld[0].w,
+            dot(objectToWorld[1].xyz, center) + objectToWorld[1].w,
+            dot(objectToWorld[2].xyz, center) + objectToWorld[2].w
+        );
+
+        vec3 worldExtents = vec3(
+            dot(abs(objectToWorld[0].xyz), extents),
+            dot(abs(objectToWorld[1].xyz), extents),
+            dot(abs(objectToWorld[2].xyz), extents)
+        );
+
+        meshletMin = worldCenter - worldExtents;
+        meshletMax = worldCenter + worldExtents;
+
+        // Uniform scale falls out of the renormalize; a zero axis would normalize to NaN
+        vec3 coneAxis = vec3(
+            dot(objectToWorld[0].xyz, coneCullInfo.xyz),
+            dot(objectToWorld[1].xyz, coneCullInfo.xyz),
+            dot(objectToWorld[2].xyz, coneCullInfo.xyz)
+        );
+
+        float coneAxisLength = length(coneAxis);
+
+        coneCullInfo.xyz = coneAxisLength > 0.0
+            ? coneAxis * (length(coneCullInfo.xyz) / coneAxisLength)
+            : vec3(0.0);
+    }
 
     const bool FrustumCull = true;
     const bool BackfaceCull = true;
@@ -269,8 +319,6 @@ void main()
 
     if (visible && BackfaceCull)
     {
-        vec4 coneCullInfo = unpackSByteVector(meshlet.m_PackedCone);
-
         vec3 meshletCenter = (meshletMin + meshletMax) * 0.5;
         vec3 meshletSize = meshletMax - meshletMin;
 

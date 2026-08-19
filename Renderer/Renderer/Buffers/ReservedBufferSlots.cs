@@ -58,6 +58,8 @@ public enum ReservedBufferSlots
     CullBits = 12,
     /// <summary>Quad overdraw debug lock and count pairs SSBO slot.</summary>
     QuadOverdraw = 13,
+    /// <summary>Meshlet index of each aggregate indirect draw command SSBO slot.</summary>
+    AggregateCommandMeshlets = 14,
 
     /// <summary>Guaranteed minimum binding point count in OpenGL 4.6.</summary>
     Max = 8,
