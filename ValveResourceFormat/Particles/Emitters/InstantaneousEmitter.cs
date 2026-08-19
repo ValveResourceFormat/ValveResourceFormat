@@ -26,7 +26,6 @@ namespace ValveResourceFormat.Particles.Emitters
         private readonly float initFromKilledParentParticles;
         private readonly SnapshotBinding snapshotBinding;
 
-        private float time;
         private int remainingToEmit;
         private bool countResolved;
         private bool snapshotResolved;
@@ -50,13 +49,12 @@ namespace ValveResourceFormat.Particles.Emitters
             snapshotBinding = new SnapshotBinding(parse);
         }
 
-        public override void Start(Action<float> particleEmitCallback)
+        protected override void OnStart(Action<float> particleEmitCallback)
         {
             this.particleEmitCallback = particleEmitCallback;
 
             IsFinished = false;
 
-            time = 0;
             remainingToEmit = 0;
             countResolved = false;
             snapshotCursor = 0;
@@ -75,11 +73,11 @@ namespace ValveResourceFormat.Particles.Emitters
                 return;
             }
 
-            time += frameTime;
+            var elapsed = particleSystemState.Age - StartAge;
 
             var nextStartTime = startTime.NextNumber(particleSystemState);
 
-            if (time < nextStartTime)
+            if (elapsed < nextStartTime)
             {
                 return;
             }
@@ -102,7 +100,7 @@ namespace ValveResourceFormat.Particles.Emitters
                     return;
                 }
 
-                remainingToEmit = CountDueSnapshotParticles();
+                remainingToEmit = CountDueSnapshotParticles(elapsed);
             }
             else if (initFromKilledParentParticles > 0f)
             {
@@ -129,7 +127,7 @@ namespace ValveResourceFormat.Particles.Emitters
             for (var i = 0; i < numToEmit; i++)
             {
                 // Every particle is stamped at the start-time instant, offset by its snapshot release time
-                var ageAtSpawn = time - nextStartTime;
+                var ageAtSpawn = elapsed - nextStartTime;
 
                 if (snapshotTimes != null)
                 {
@@ -149,11 +147,11 @@ namespace ValveResourceFormat.Particles.Emitters
         /// <summary>
         /// How many entries of a timed snapshot have come due but not yet been released.
         /// </summary>
-        private int CountDueSnapshotParticles()
+        private int CountDueSnapshotParticles(float elapsed)
         {
             var due = 0;
 
-            while (snapshotCursor + due < snapshotTimes!.Length && snapshotTimes[snapshotCursor + due] <= time)
+            while (snapshotCursor + due < snapshotTimes!.Length && snapshotTimes[snapshotCursor + due] <= elapsed)
             {
                 due++;
             }

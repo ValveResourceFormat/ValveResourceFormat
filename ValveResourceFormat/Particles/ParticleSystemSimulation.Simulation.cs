@@ -75,7 +75,7 @@ namespace ValveResourceFormat.Particles
 
             foreach (var emitter in emitters)
             {
-                emitter.Start(emitParticleAction);
+                emitter.Start(emitParticleAction, systemState);
             }
         }
 

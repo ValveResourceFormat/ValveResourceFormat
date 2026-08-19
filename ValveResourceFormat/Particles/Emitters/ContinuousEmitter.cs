@@ -28,7 +28,6 @@ namespace ValveResourceFormat.Particles.Emitters
 
         private Action<float>? particleEmitCallback;
 
-        private float time;
         private EmissionAccumulator accumulator;
 
         public ContinuousEmitter(ParticleDefinitionParser parse) : base(parse)
@@ -39,11 +38,10 @@ namespace ValveResourceFormat.Particles.Emitters
             snapshotBinding = new SnapshotBinding(parse);
         }
 
-        public override void Start(Action<float> particleEmitCallback)
+        protected override void OnStart(Action<float> particleEmitCallback)
         {
             this.particleEmitCallback = particleEmitCallback;
 
-            time = 0f;
             accumulator.Reset(initialCharge: 0d, flushEpsilon: 0.001f);
 
             IsFinished = false;
@@ -62,13 +60,13 @@ namespace ValveResourceFormat.Particles.Emitters
                 return;
             }
 
-            var frameStart = time;
-            time += frameTime;
+            var elapsed = particleSystemState.Age - StartAge;
+            var frameStart = elapsed - frameTime;
 
             var nextStartTime = startTime.NextNumber(particleSystemState);
             var nextEmissionDuration = emissionDuration.NextNumber(particleSystemState);
 
-            if (TryGetEmissionWindow(frameStart, time, nextStartTime, nextEmissionDuration, out var windowStart, out var windowEnd))
+            if (TryGetEmissionWindow(frameStart, elapsed, nextStartTime, nextEmissionDuration, out var windowStart, out var windowEnd))
             {
                 // Re-evaluate the emit rate every frame: a control-point or curve-driven
                 // rate changes over the emitter's lifetime.
@@ -81,11 +79,11 @@ namespace ValveResourceFormat.Particles.Emitters
 
                 if (rate > 0f)
                 {
-                    accumulator.Charge(rate, windowStart, windowEnd, time, particleEmitCallback);
+                    accumulator.Charge(rate, windowStart, windowEnd, elapsed, particleEmitCallback);
                 }
             }
 
-            if (nextEmissionDuration != 0f && time > nextStartTime + nextEmissionDuration)
+            if (nextEmissionDuration != 0f && elapsed > nextStartTime + nextEmissionDuration)
             {
                 IsFinished = true;
             }
