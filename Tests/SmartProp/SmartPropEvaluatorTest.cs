@@ -329,5 +329,90 @@ namespace Tests.SmartProp
             await Assert.That(result.Models.Count).IsEqualTo(2);
         }
 
+        [Test]
+        public async Task NestedSmartPropsEvaluateThroughResolver()
+        {
+            var nestedRoot = Root(ModelElement(5, "models/nested.vmdl"));
+
+            var container = Element("SmartProp", 40);
+            container["m_sSmartProp"] = new KVObject("nested.vsmart");
+
+            var result = SmartPropEvaluator.Evaluate(
+                Root(container),
+                nestedPropResolver: path => path == "nested.vsmart" ? nestedRoot : null);
+
+            await Assert.That(result.Models).HasSingleItem();
+            await Assert.That(result.Models[0].ModelName).IsEqualTo("models/nested.vmdl");
+        }
+
+        [Test]
+        public async Task NestedSmartPropTransformsCombineWithParent()
+        {
+            var nestedRoot = Root(ModelElement(5, "models/nested.vmdl"));
+
+            var container = WithModifiers(Element("SmartProp", 40),
+                Modifier("Translate", ("m_vPosition", Vec(0f, 0f, 200f))));
+            container["m_sSmartProp"] = new KVObject("nested.vsmart");
+
+            var result = SmartPropEvaluator.Evaluate(
+                Root(container),
+                nestedPropResolver: _ => nestedRoot);
+
+            await Assert.That(result.Models[0].Position.Z).IsEqualTo(200f).Within(Tolerance);
+        }
+
+        [Test]
+        public async Task SelfReferencingSmartPropTerminates()
+        {
+            KVObject? container = null;
+            container = WithModifiers(Element("SmartProp", 40));
+            container["m_sSmartProp"] = new KVObject("loop.vsmart");
+
+            KVObject? Resolver(string path) => path == "loop.vsmart" ? Root(container!) : null;
+
+            var result = SmartPropEvaluator.Evaluate(Root(container!), nestedPropResolver: Resolver);
+            await Assert.That(result.Models).IsEmpty();
+        }
+
+        [Test]
+        public async Task NestedSmartPropWithoutResolverIsSkipped()
+        {
+            var container = Element("SmartProp", 40);
+            container["m_sSmartProp"] = new KVObject("nested.vsmart");
+
+            var result = SmartPropEvaluator.Evaluate(Root(container));
+            await Assert.That(result.Models).IsEmpty();
+        }
+
+        [Test]
+        public async Task VariablesReachExpressionsThroughTheTree()
+        {
+            var root = Root(ModelElement(1, "models/a.vmdl"));
+            var variables = KVObject.Array();
+            var variable = KVObject.Collection();
+            variable["generic_data_type"] = new KVObject("CSmartPropVariable_Float");
+            variable["m_VariableName"] = new KVObject("lift");
+            variable["m_DefaultValue"] = new KVObject(15f);
+            variables.Add(variable);
+            root["m_Variables"] = variables;
+
+            var binding = KVObject.Collection();
+            binding["m_Expression"] = new KVObject("lift * 2");
+            root["m_Children"] = ArrayOf(
+                ModelElement(1, "models/a.vmdl", Modifier("Translate", ("m_vPosition", binding))));
+
+            var result = SmartPropEvaluator.Evaluate(root);
+            await Assert.That(result.Models[0].Position.Z).IsEqualTo(30f).Within(Tolerance);
+        }
+
+        [Test]
+        public async Task EmptyRootYieldsEmptyResult()
+        {
+            var result = SmartPropEvaluator.Evaluate(Root());
+            await Assert.That(result.Models).IsEmpty();
+            await Assert.That(result.Widgets).IsEmpty();
+            await Assert.That(result.Paths).IsEmpty();
+        }
+
     }
 }
