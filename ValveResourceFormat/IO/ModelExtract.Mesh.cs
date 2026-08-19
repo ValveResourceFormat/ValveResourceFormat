@@ -688,6 +688,42 @@ partial class ModelExtract
     /// <c>$cloth_*</c> FeModel nodes (one per enabled vertex). The skeleton is emitted into the DMX joint
     /// list so the skinning resolves, exactly like a render mesh.
     /// </summary>
+    // A compiled model can carry two spellings of one bone: m_modelSkeleton's m_boneName and, for cloth
+    // control nodes, the FeModel's m_CtrlName. Both are authored - nano_shadow_form's source declares the
+    // Bone as "arm_upper_L" and the ClothShapeCapsule that anchors to it as parent_bone "arm_upper_l", and
+    // the compiler records each verbatim because every bone lookup it does is case-insensitive. Our export
+    // has one name per bone, so whichever spelling the skeleton carries is the one every DMX joint list
+    // gets - and a bone the compiler registers as a control node through a blend INDEX rather than through
+    // a KV name string then comes back under the skeleton's spelling instead of the cloth data's.
+    //
+    // Re-spelling the joints of THIS sheet only fixes that without disturbing anything else: the compiler
+    // still binds each joint to the same bone (case-insensitively), the model skeleton and every other DMX
+    // keep the spelling they were compiled with, and the control node lands under the name the cloth data
+    // actually uses.
+    static void RespellJointsAsClothControlNodes(DmeModel dmeModel, FeModel? feModel)
+    {
+        if (feModel is null || feModel.CtrlNames.Length == 0)
+        {
+            return;
+        }
+
+        var clothSpelling = new Dictionary<string, string>(feModel.CtrlNames.Length, StringComparer.OrdinalIgnoreCase);
+        foreach (var ctrlName in feModel.CtrlNames)
+        {
+            clothSpelling.TryAdd(ctrlName, ctrlName);
+        }
+
+        foreach (var element in dmeModel.JointList)
+        {
+            if (element is DmeJoint joint
+                && clothSpelling.TryGetValue(joint.Name, out var spelling) && spelling != joint.Name)
+            {
+                joint.Name = spelling;
+                joint.Transform.Name = spelling;
+            }
+        }
+    }
+
     internal byte[] BuildClothProxyMeshDmx(FeModel.ProxyMesh proxy, string name)
     {
         Debug.Assert(model is not null, "model required for cloth proxy mesh");
@@ -699,6 +735,7 @@ partial class ModelExtract
         // Joint list = the full skeleton, so BLENDINDICES resolve (mirrors ConvertMeshToDatamodelMesh).
         var dmeModel = BuildDmeDagSkeleton(skeleton, out _);
         dmeModel.Name = name;
+        RespellJointsAsClothControlNodes(dmeModel, physAggregateData?.FeModel);
 
         var (dag, vertexData) = CreateDmxDagVertexData(dmeModel, name);
         dag.Shape!.Name = name;
