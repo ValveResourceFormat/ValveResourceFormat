@@ -2709,6 +2709,11 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics
             var coveredNodes = new HashSet<int>();
             var merged = BuildProxyMesh();
 
+            // Built here unpadded and combined with any same-index rods-only remainder (below) before a
+            // single PadToAuthoredSlots pass at the end - padding each half separately would gap-detect
+            // against the wrong, incomplete slot range.
+            var pending = new List<ProxyMesh>();
+
             if (merged is not null)
             {
                 coveredNodes.UnionWith(merged.NodeIndices);
@@ -2725,15 +2730,36 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics
                     }
                 }
 
-                // Islands ordered by smallest control-node index, matching the original mesh order.
-                var islands = Enumerable.Range(0, count)
-                    .GroupBy(Find)
-                    .OrderBy(g => g.Min(v => merged.NodeIndices[v]))
-                    .ToList();
+                // Also union vertices the compiler already assigned to the same "$cloth_m<N>" mesh: a
+                // single authored ClothProxyMeshFile keeps every one of its vertices under ONE index
+                // regardless of internal face connectivity (yamato's single authored proxy spans two
+                // face-disconnected regions, yet compiles as one "$cloth_m0" - splitting it by
+                // connectivity alone invents a second mesh index the original never had, renumbering
+                // every $cloth_m reference on that side).
+                var meshIndexRep = new Dictionary<int, int>();
+                for (var v = 0; v < count; v++)
+                {
+                    var meshIndex = ParseProxyMeshIndex(CtrlNames[merged.NodeIndices[v]]);
+                    if (meshIndex < 0)
+                    {
+                        continue;
+                    }
+
+                    if (meshIndexRep.TryGetValue(meshIndex, out var rep))
+                    {
+                        groupOf[Find(v)] = Find(rep);
+                    }
+                    else
+                    {
+                        meshIndexRep[meshIndex] = v;
+                    }
+                }
+
+                var islands = Enumerable.Range(0, count).GroupBy(Find).ToList();
 
                 if (islands.Count == 1)
                 {
-                    result.Add(PadToAuthoredSlots(merged));
+                    pending.Add(merged);
                 }
                 else
                 {
@@ -2751,7 +2777,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics
 
                         T[] Take<T>(T[] source) => [.. vertices.Select(v => source[v])];
 
-                        result.Add(PadToAuthoredSlots(new ProxyMesh
+                        pending.Add(new ProxyMesh
                         {
                             NodeIndices = Take(merged.NodeIndices),
                             Positions = Take(merged.Positions),
@@ -2770,7 +2796,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics
                             Faces = [.. merged.Faces.Where(f => remap.ContainsKey(f[0])).Select(f => f.Select(v => remap[v]).ToArray())],
                             SimulatedCount = vertices.Count(v => merged.ClothEnable[v] != 0f),
                             PinnedCount = vertices.Count(v => merged.ClothEnable[v] == 0f),
-                        }));
+                        });
                     }
                 }
             }
@@ -2857,9 +2883,119 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics
             // ClothProxyMeshFile import compiles down to a bare distance-constraint (m_Rods) network,
             // discarding the authored surface (see MakeClothQuad remarks in ModelExtract.ValveModel.cs),
             // so these nodes would otherwise be silently dropped instead of round-tripping as a sheet.
-            result.AddRange(BuildProxyMeshesFromRodsOnly(coveredNodes));
+            // A rods-only group that shares its ORIGINAL "$cloth_m<N>" mesh index with one of the
+            // face-covered proxies above is that proxy's own remainder, not a separate authored piece
+            // (meepo_naruto_set's jaket: one quad covers 4 of the mesh's 75 "$cloth_m0*" nodes, the other
+            // 71 are rods-only - all one physical panel) - merge it in instead of exporting a second
+            // proxy file, which would otherwise hand the compiler two mesh indices for what the original
+            // numbers as one.
+            foreach (var rodsOnly in BuildProxyMeshesFromRodsOnly(coveredNodes))
+            {
+                var meshIndex = ProxyMeshOriginalIndex(rodsOnly);
+                var matchIndex = meshIndex >= 0 ? pending.FindIndex(p => ProxyMeshOriginalIndex(p) == meshIndex) : -1;
+                if (matchIndex >= 0)
+                {
+                    pending[matchIndex] = MergeSameIndexProxyMeshes(pending[matchIndex], rodsOnly);
+                }
+                else
+                {
+                    pending.Add(rodsOnly);
+                }
+            }
+
+            // Final order: by the ORIGINAL "$cloth_m<N>" mesh index the compiler already assigned
+            // (smallest control-node index as a fallback tiebreak, or for a proxy with no such name), so
+            // the order proxy nodes are emitted in - see EnqueueClothProxyMeshes in ModelExtract.Mesh.cs
+            // - reproduces it: the compiler numbers $cloth_m<N> by ordinal name sort of the proxy nodes,
+            // and those names sort in this list's order.
+            result.AddRange(pending
+                .OrderBy(p => { var m = ProxyMeshOriginalIndex(p); return m >= 0 ? m : int.MaxValue; })
+                .ThenBy(p => p.NodeIndices.Length == 0 ? int.MaxValue : p.NodeIndices.Min())
+                .Select(PadToAuthoredSlots));
 
             return result;
+        }
+
+        // The original "$cloth_m<N>" mesh index the compiler already assigned to a proxy vertex set (the
+        // smallest parsed index among its nodes - every node of one physical proxy carries the same
+        // index by construction, so this is exact, not a heuristic), or -1 if none of its nodes carry
+        // that name (a rods-only "$cc" panel).
+        int ProxyMeshOriginalIndex(ProxyMesh mesh) => mesh.NodeIndices
+            .Select(node => ParseProxyMeshIndex(CtrlNames[node]))
+            .Where(m => m >= 0)
+            .DefaultIfEmpty(-1)
+            .Min();
+
+        // Merges a face-covered proxy with a rods-only remainder the compiler numbers under the SAME
+        // "$cloth_m<N>" mesh index into one, re-sorted into their shared original DMX vertex-slot order
+        // so PadToAuthoredSlots's gap detection still applies to the combined set. Exporting them as two
+        // separate proxy files would give the compiler two mesh indices where the original only had one.
+        ProxyMesh MergeSameIndexProxyMeshes(ProxyMesh a, ProxyMesh b)
+        {
+            var an = a.NodeIndices.Length;
+            var bn = b.NodeIndices.Length;
+            var order = Enumerable.Range(0, an).Select(i => (FromB: false, Index: i))
+                .Concat(Enumerable.Range(0, bn).Select(i => (FromB: true, Index: i)))
+                .OrderBy(t => ParseProxyVertexIndex(CtrlNames[(t.FromB ? b : a).NodeIndices[t.Index]]))
+                .ToArray();
+
+            var n = order.Length;
+            var remapA = new int[an];
+            var remapB = new int[bn];
+            for (var slot = 0; slot < n; slot++)
+            {
+                var (fromB, index) = order[slot];
+                if (fromB) { remapB[index] = slot; } else { remapA[index] = slot; }
+            }
+
+            T[] Combine<T>(T[] fromA, T[] fromB)
+            {
+                var combined = new T[n];
+                for (var i = 0; i < an; i++) { combined[remapA[i]] = fromA[i]; }
+                for (var i = 0; i < bn; i++) { combined[remapB[i]] = fromB[i]; }
+                return combined;
+            }
+
+            var vertexMapNames = a.VertexMaps.Select(m => m.Name).Union(b.VertexMaps.Select(m => m.Name)).ToArray();
+            var vertexMaps = new (string Name, float[] Weights)[vertexMapNames.Length];
+            for (var i = 0; i < vertexMapNames.Length; i++)
+            {
+                var name = vertexMapNames[i];
+                var weights = new float[n];
+                var fromA = Array.Find(a.VertexMaps, m => m.Name == name).Weights;
+                var fromB = Array.Find(b.VertexMaps, m => m.Name == name).Weights;
+                for (var j = 0; fromA is not null && j < an; j++) { weights[remapA[j]] = fromA[j]; }
+                for (var j = 0; fromB is not null && j < bn; j++) { weights[remapB[j]] = fromB[j]; }
+                vertexMaps[i] = (name, weights);
+            }
+
+            var faces = new List<int[]>(a.Faces.Count + b.Faces.Count);
+            faces.AddRange(a.Faces.Select(f => f.Select(v => remapA[v]).ToArray()));
+            faces.AddRange(b.Faces.Select(f => f.Select(v => remapB[v]).ToArray()));
+
+            return new ProxyMesh
+            {
+                NodeIndices = Combine(a.NodeIndices, b.NodeIndices),
+                Positions = Combine(a.Positions, b.Positions),
+                ClothEnable = Combine(a.ClothEnable, b.ClothEnable),
+                GoalStrength = Combine(a.GoalStrength, b.GoalStrength),
+                GoalDamping = Combine(a.GoalDamping, b.GoalDamping),
+                CollisionRadius = Combine(a.CollisionRadius, b.CollisionRadius),
+                Friction = Combine(a.Friction, b.Friction),
+                Drag = Combine(a.Drag, b.Drag),
+                GroundCollision = Combine(a.GroundCollision, b.GroundCollision),
+                GroundFriction = Combine(a.GroundFriction, b.GroundFriction),
+                Gravity = Combine(a.Gravity, b.Gravity),
+                VertexAttraction = Combine(a.VertexAttraction, b.VertexAttraction),
+                SkinInfluences = Combine(a.SkinInfluences, b.SkinInfluences),
+                VertexMaps = vertexMaps,
+                Faces = faces,
+                SimulatedCount = a.SimulatedCount + b.SimulatedCount,
+                PinnedCount = a.PinnedCount + b.PinnedCount,
+                IsDropRisk = a.IsDropRisk || b.IsDropRisk,
+                UsesAuthoredFaces = a.UsesAuthoredFaces,
+                IsFreeFloating = a.IsFreeFloating && b.IsFreeFloating,
+            };
         }
 
         /// <summary>
@@ -3447,8 +3583,9 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics
             }
 
             var nodeFriction = Data.GetFloatArray("m_DynNodeFriction");
-            // Smallest member index first, so the proxy-mesh numbering is deterministic and follows the
-            // original control-node order.
+            // Smallest member index first; BuildProxyMeshes (the only caller) re-sorts and pads its
+            // combined final list by the original "$cloth_m<N>" mesh index itself, so this order is only
+            // a deterministic default for groups it doesn't merge into another proxy.
             foreach (var (_, nodeIndices) in groups.OrderBy(static kv => kv.Value.Min()))
             {
                 // Need at least a triangle's worth of points to synthesise a surface.
@@ -3460,7 +3597,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics
                 var mesh = BuildProxyMeshFromNodeSet(nodeIndices, nodeFriction);
                 if (mesh is not null)
                 {
-                    result.Add(PadToAuthoredSlots(mesh));
+                    result.Add(mesh);
                 }
             }
 
