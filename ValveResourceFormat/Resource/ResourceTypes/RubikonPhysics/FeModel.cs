@@ -3542,12 +3542,28 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics
                 }
             }
 
+            var (splitQuads, splitHalves) = MergeSplitQuads();
+
             foreach (var t in OrderFacesBySimdLanes(Tris, "m_SimdTris"))
             {
-                if (Kept(t))
+                if (!Kept(t))
                 {
-                    faces.Add([remap[t[0]], remap[t[1]], remap[t[2]]]);
+                    continue;
                 }
+
+                var key = SortedTriKey(t);
+                if (splitHalves.Contains(key))
+                {
+                    continue;
+                }
+
+                if (splitQuads.TryGetValue(key, out var quad))
+                {
+                    faces.Add([remap[quad[0]], remap[quad[1]], remap[quad[2]], remap[quad[3]]]);
+                    continue;
+                }
+
+                faces.Add([remap[t[0]], remap[t[1]], remap[t[2]]]);
             }
 
             var rodsDriven = new float[nodeIndices.Length];
@@ -3589,6 +3605,206 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics
                 RodsDriven = rodsFaces.Count > 0 ? rodsDriven : [],
                 UsesAuthoredFaces = rodsFaces.Count > 0,
             };
+        }
+
+        /// <summary>
+        /// The authored <c>quad_bend_tolerance</c> (ModelDoc <c>ClothParams</c>) the compiler measures the
+        /// split against, which <c>MakeClothParams</c> re-emits. Every corpus model authors or defaults to
+        /// it, spectre pinning its own value to [0.04974, 0.05026).
+        /// </summary>
+        const float QuadBendTolerance = 0.05f;
+
+        static (int, int, int) SortedTriKey(int[] tri)
+        {
+            var (a, b, c) = (tri[0], tri[1], tri[2]);
+            if (a > b) { (a, b) = (b, a); }
+            if (b > c) { (b, c) = (c, b); }
+            if (a > b) { (a, b) = (b, a); }
+            return (a, b, c);
+        }
+
+        /// <summary>
+        /// Pairs compiled <see cref="Tris"/> back into the authored quads the compiler split them from,
+        /// keyed by <see cref="SortedTriKey"/>: the first returned map gives, for the half that stayed in
+        /// place, the quad to export instead of it; the second names the half to drop.
+        /// <para>
+        /// Before building its surface arrays the compiler splits an authored quad whose two halves are not
+        /// coplanar enough - the sine of the dihedral angle across the SHORTER diagonal above
+        /// <see cref="QuadBendTolerance"/> - into the triangle <c>(n0,n1,n2)</c> in place plus
+        /// <c>(n0,n2,n3)</c> appended at the end of the element array, and only when no corner of the quad
+        /// is static. Re-exporting those two triangles instead of the quad they came from measures mass and
+        /// element rest shape over five corner pairs where the original had six, so every node around such a
+        /// quad compiles heavier (yamato: 113 of 572 inverse masses) and the discarded diagonal's bend rod
+        /// is lost with it.
+        /// </para>
+        /// <para>
+        /// The merge is accepted only where the compiler is predicted to re-split the recovered quad into
+        /// exactly the pair at hand - same diagonal, same corner order, and the appended half later in the
+        /// array - which on yamato recovers all 84 splits with no spurious merge and leaves the 2 triangles
+        /// that were never halves of anything alone.
+        /// </para>
+        /// </summary>
+        (Dictionary<(int, int, int), int[]> Quads, HashSet<(int, int, int)> Halves) MergeSplitQuads()
+        {
+            var quads = new Dictionary<(int, int, int), int[]>();
+            var halves = new HashSet<(int, int, int)>();
+            if (Tris.Length < 2 || InitPosePositions.Length == 0)
+            {
+                return (quads, halves);
+            }
+
+            bool Usable(int node) => node >= 0 && node < InitPosePositions.Length
+                && node < NodeInvMasses.Length && !IsHingeRegeneratedProxy(node);
+
+            var keys = new (int, int, int)[Tris.Length];
+            var ambiguous = new HashSet<(int, int, int)>();
+            var distinct = new HashSet<(int, int, int)>();
+            var byEdge = new Dictionary<(int, int), List<int>>();
+
+            for (var i = 0; i < Tris.Length; i++)
+            {
+                var tri = Tris[i];
+                if (tri.Length != 3)
+                {
+                    continue;
+                }
+
+                keys[i] = SortedTriKey(tri);
+                if (!distinct.Add(keys[i]))
+                {
+                    ambiguous.Add(keys[i]);
+                }
+
+                if (!Array.TrueForAll(tri, Usable))
+                {
+                    continue;
+                }
+
+                for (var a = 0; a < 3; a++)
+                {
+                    for (var b = a + 1; b < 3; b++)
+                    {
+                        var edge = tri[a] < tri[b] ? (tri[a], tri[b]) : (tri[b], tri[a]);
+                        if (!byEdge.TryGetValue(edge, out var sharing))
+                        {
+                            byEdge[edge] = sharing = [];
+                        }
+
+                        sharing.Add(i);
+                    }
+                }
+            }
+
+            var pairs = new List<(int InPlace, int Appended, int[] Quad)>();
+            foreach (var (edge, sharing) in byEdge)
+            {
+                for (var x = 0; x < sharing.Count; x++)
+                {
+                    for (var y = x + 1; y < sharing.Count; y++)
+                    {
+                        // The in-place half is emitted as (n0,n1,n2) and the appended one as (n0,n2,n3),
+                        // so the shared edge sits at the first corner and the last of the earlier of the
+                        // two, and at the first two corners of the later.
+                        var (inPlace, appended) = (sharing[x], sharing[y]);
+                        var first = Tris[inPlace];
+                        var second = Tris[appended];
+                        if (first[0] != second[0] || first[2] != second[1])
+                        {
+                            continue;
+                        }
+
+                        var quad = new[] { first[0], first[1], first[2], second[2] };
+                        if (quad.Distinct().Count() != 4)
+                        {
+                            continue;
+                        }
+
+                        var corners = Array.ConvertAll(quad, node => InitPosePositions[node]);
+                        var staticCorners = quad.Count(node => NodeInvMasses[node] == 0f);
+                        var order = PredictQuadSplit(corners, staticCorners);
+                        if (order is null)
+                        {
+                            continue;
+                        }
+
+                        var (d0, d1) = (quad[order[0]], quad[order[2]]);
+                        if ((d0 < d1 ? (d0, d1) : (d1, d0)) != edge)
+                        {
+                            continue;
+                        }
+
+                        pairs.Add((inPlace, appended, quad));
+                    }
+                }
+            }
+
+            var claims = new Dictionary<int, int>();
+            foreach (var (inPlace, appended, _) in pairs)
+            {
+                claims[inPlace] = claims.GetValueOrDefault(inPlace) + 1;
+                claims[appended] = claims.GetValueOrDefault(appended) + 1;
+            }
+
+            foreach (var (inPlace, appended, quad) in pairs)
+            {
+                if (claims[inPlace] > 1 || claims[appended] > 1
+                    || ambiguous.Contains(keys[inPlace]) || ambiguous.Contains(keys[appended]))
+                {
+                    continue;
+                }
+
+                quads[keys[inPlace]] = quad;
+                halves.Add(keys[appended]);
+            }
+
+            return (quads, halves);
+        }
+
+        /// <summary>
+        /// Whether the compiler splits the quad with the given rest corners, and in which corner order:
+        /// the two triangles it emits are <c>(order[0], order[1], order[2])</c> and
+        /// <c>(order[0], order[2], order[3])</c>. Null when the quad is kept whole.
+        /// </summary>
+        static int[]? PredictQuadSplit(Vector3[] corners, int staticCorners)
+        {
+            var order = staticCorners < 2 ? MaximalQuadPairing(corners) : [0, 1, 2, 3];
+            if (staticCorners != 0)
+            {
+                return null;
+            }
+
+            if (Vector3.Distance(corners[order[0]], corners[order[2]])
+                > Vector3.Distance(corners[order[1]], corners[order[3]]))
+            {
+                order = [order[1], order[2], order[3], order[0]];
+            }
+
+            var (a, b, c, d) = (corners[order[0]], corners[order[1]], corners[order[2]], corners[order[3]]);
+            var n1 = Vector3.Cross(b - a, c - a);
+            var n2 = Vector3.Cross(d - c, a - c);
+            return Vector3.Cross(n1, n2).Length() > n1.Length() * n2.Length() * QuadBendTolerance
+                ? order
+                : null;
+        }
+
+        // Repairs an authored corner order that does not describe a simple quadrilateral, by taking the
+        // pairing whose two diagonals span the largest cross product.
+        static int[] MaximalQuadPairing(Vector3[] corners)
+        {
+            int[][] pairings = [[0, 1, 2, 3], [0, 2, 3, 1], [0, 3, 1, 2]];
+            var best = pairings[0];
+            var bestSpan = -1f;
+            foreach (var pairing in pairings)
+            {
+                var span = Vector3.Cross(corners[pairing[3]] - corners[pairing[1]],
+                    corners[pairing[2]] - corners[pairing[0]]).Length();
+                if (span > bestSpan)
+                {
+                    (best, bestSpan) = (pairing, span);
+                }
+            }
+
+            return best;
         }
 
         // Puts an uncovered sheet vertex back as the fourth corner of the triangle its authored quad was
