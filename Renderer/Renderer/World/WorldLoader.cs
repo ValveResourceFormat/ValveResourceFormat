@@ -435,7 +435,7 @@ namespace ValveResourceFormat.Renderer.World
             {"direct_light_shadows", "g_tDirectLightShadows"},
             {"direct_light_indices", "g_tDirectLightIndices"},
             {"direct_light_strengths", "g_tDirectLightStrengths"},
-            {"debug_chart_color", "g_tIrradianceDebugChart"},
+            {"debug_chart_color", "g_tLightmapDebugCharts"},
         };
 
         private readonly string[] LightmapSetV81_SteamVr = ["g_tIrradiance", "g_tDirectionalIrradiance"];

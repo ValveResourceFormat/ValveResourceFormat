@@ -49,7 +49,7 @@ namespace ValveResourceFormat.Renderer.Materials
         [SamplerName("g_tDirectLightShadows", "g_tLPV_Shadows")]
         Lightmap5,
         /// <summary>Lightmap irradiance debug chart.</summary>
-        [SamplerName("g_tIrradianceDebugChart")]
+        [SamplerName("g_tLightmapDebugCharts")]
         Lightmap6,
         /// <summary>Environment cubemap for reflections.</summary>
         [SamplerName("g_tEnvironmentMap")]

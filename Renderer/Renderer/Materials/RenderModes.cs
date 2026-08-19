@@ -22,10 +22,10 @@ namespace ValveResourceFormat.Renderer.Materials
             new("Diffuse"),
             new("Specular"),
             new("Irradiance"),
-            new("IrradianceDebug"),
+            new("Cubemaps"),
             new("Illumination"),
             new("LightmapShadows"),
-            new("Cubemaps"),
+            new("LightmapCharts"),
             new("RimLight"),
 
             new("Material", IsHeader: true),

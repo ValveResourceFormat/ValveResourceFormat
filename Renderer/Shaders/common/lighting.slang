@@ -11,7 +11,7 @@
 #define renderMode_Diffuse 0
 #define renderMode_Specular 0
 #define renderMode_Irradiance 0
-#define renderMode_IrradianceDebug 0
+#define renderMode_LightmapCharts 0
 #define renderMode_Occlusion 0
 #define renderMode_LightmapShadows 0
 #define renderMode_LightTiles 0
@@ -20,7 +20,7 @@
 #if (D_BAKED_LIGHTING_FROM_LIGHTMAP == 1)
     centroid in vec3 vLightmapUVScaled;
     uniform sampler2DArray g_tIrradiance; // reserved
-    uniform sampler2DArray g_tIrradianceDebugChart; // reserved
+    uniform sampler2DArray g_tLightmapDebugCharts; // reserved
     #if (S_LIGHTMAP_VERSION_MINOR >= 3)
         uniform sampler2DArray g_tDirectionalIrradianceR; // reserved
         uniform sampler2DArray g_tDirectionalIrradianceG; // reserved
@@ -295,8 +295,8 @@ void CalculateIndirectLighting(inout LightingTerms_t lighting, inout MaterialPro
 
     // Indirect Lighting
 #if (D_BAKED_LIGHTING_FROM_LIGHTMAP == 1)
-    if (g_iRenderMode == renderMode_IrradianceDebug) {
-        vec3 irradiance = texture(g_tIrradianceDebugChart, mat.LightmapUv).rgb;
+    if (g_iRenderMode == renderMode_LightmapCharts) {
+        vec3 irradiance = texture(g_tLightmapDebugCharts, mat.LightmapUv).rgb;
         lighting.DiffuseIndirect = irradiance;
     } else {
         vec3 irradiance = texture(g_tIrradiance, mat.LightmapUv).rgb;
@@ -312,14 +312,14 @@ void CalculateIndirectLighting(inout LightingTerms_t lighting, inout MaterialPro
     }
 
 #elif (D_BAKED_LIGHTING_FROM_PROBE == 1)
-    if (g_iRenderMode == renderMode_IrradianceDebug) {
+    if (g_iRenderMode == renderMode_LightmapCharts) {
         lighting.DiffuseIndirect = vec3(0);
     } else {
         lighting.DiffuseIndirect = ComputeLightProbeShading(mat);
     }
 
 #elif (D_BAKED_LIGHTING_FROM_VERTEX_STREAM == 1)
-    if (g_iRenderMode == renderMode_IrradianceDebug) {
+    if (g_iRenderMode == renderMode_LightmapCharts) {
         lighting.DiffuseIndirect = vec3(1);
     } else {
         lighting.DiffuseIndirect = vPerVertexLightingOut.rgb;
@@ -433,7 +433,7 @@ bool _HandleLightingRenderModes(inout vec4 outputColor, MaterialProperties_t mat
             outputColor = vec4(lighting.DiffuseDirect + lighting.SpecularDirect, 1.0);
             return true;
         case renderMode_Irradiance:
-        case renderMode_IrradianceDebug:
+        case renderMode_LightmapCharts:
             outputColor = vec4(lighting.DiffuseIndirect, 1.0);
             return true;
         case renderMode_Diffuse:
