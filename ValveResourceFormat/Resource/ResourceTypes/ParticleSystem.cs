@@ -103,6 +103,34 @@ namespace ValveResourceFormat.ResourceTypes
             => GetUpgradedData().GetArray("m_Emitters") ?? Enumerable.Empty<KVObject>();
 
         /// <summary>
+        /// Gets the pre-emission operators in the particle system, which run once per frame before
+        /// any particle is emitted and act on the system rather than on individual particles.
+        /// </summary>
+        public IEnumerable<KVObject> GetPreEmissionOperators()
+            => GetUpgradedData().GetArray("m_PreEmissionOperators") ?? Enumerable.Empty<KVObject>();
+
+        /// <summary>
+        /// Gets the force generators in the particle system, which accumulate forces on particles
+        /// for the movement operators to integrate.
+        /// </summary>
+        public IEnumerable<KVObject> GetForceGenerators()
+            => GetUpgradedData().GetArray("m_ForceGenerators") ?? Enumerable.Empty<KVObject>();
+
+        /// <summary>
+        /// Gets the constraints in the particle system, which are applied repeatedly after movement
+        /// to pull particles back onto whatever they are constrained to.
+        /// </summary>
+        public IEnumerable<KVObject> GetConstraints()
+            => GetUpgradedData().GetArray("m_Constraints") ?? Enumerable.Empty<KVObject>();
+
+        /// <summary>
+        /// Gets the child entries of the particle system. Use <see cref="IsChildEnabled"/> to tell
+        /// whether an entry runs, and <see cref="GetChildParticleNames"/> for just the names.
+        /// </summary>
+        public IEnumerable<KVObject> GetChildren()
+            => GetUpgradedData().GetArray("m_Children") ?? Enumerable.Empty<KVObject>();
+
+        /// <summary>
         /// Gets whether a child entry runs. <c>m_bDisableChild</c> only removes a child from
         /// behavior version 5 on; older definitions keep disabled children.
         /// </summary>
