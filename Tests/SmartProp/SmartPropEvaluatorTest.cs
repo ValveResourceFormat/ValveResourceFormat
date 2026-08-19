@@ -200,5 +200,134 @@ namespace Tests.SmartProp
             await Assert.That(clamped.Models[0].ModelName).IsEqualTo("models/b.vmdl");
         }
 
+        [Test]
+        public async Task PickOneEmitsHandleWidget()
+        {
+            var pickOne = Element("PickOne", 10, ModelElement(1, "models/a.vmdl"));
+            pickOne["m_OutputChoiceVariableName"] = new KVObject("choice");
+
+            var result = SmartPropEvaluator.Evaluate(Root(pickOne));
+            await Assert.That(result.Widgets).HasSingleItem();
+            await Assert.That(result.Widgets[0]).IsTypeOf<SmartPropPickOneHandleWidget>();
+        }
+
+        [Test]
+        public async Task FitOnLineExposesLinearLengthRatioToScaleModifiers()
+        {
+            // Children consume the derived linear scale through LinearScale() in their
+            // own modifiers; a 100 unit line over a 50 unit child yields a factor of 2
+            var scaleBinding = KVObject.Collection();
+            scaleBinding["m_Expression"] = new KVObject("LinearScale()");
+
+            var child = ModelElement(1, "models/a.vmdl",
+                Modifier("Scale", ("m_flScale", new KVObject(1f))));
+            child["m_Modifiers"] = ArrayOf(Modifier("Scale", ("m_flScale", scaleBinding)));
+            var criteriaList = KVObject.Array();
+            criteriaList.Add(Criteria("LinearLength",
+                ("m_flLength", new KVObject(50f)),
+                ("m_bAllowScale", new KVObject(true))));
+            child["m_SelectionCriteria"] = criteriaList;
+
+            var fitOnLine = Element("FitOnLine", 20, child);
+            fitOnLine["m_vStart"] = Vec(0f, 0f, 0f);
+            fitOnLine["m_vEnd"] = Vec(100f, 0f, 0f);
+
+            var result = SmartPropEvaluator.Evaluate(Root(fitOnLine));
+            await Assert.That(result.Models[0].Scale.X).IsEqualTo(2f).Within(Tolerance);
+        }
+
+        [Test]
+        public async Task FitOnLineExposesLinearScaleToExpressions()
+        {
+            // The child reads LinearScale() through an expression-bound translate
+            var binding = KVObject.Collection();
+            binding["m_Expression"] = new KVObject("LinearScale() * 10");
+
+            var child = ModelElement(1, "models/a.vmdl",
+                Modifier("Translate", ("m_vPosition", binding)));
+            var criteriaList = KVObject.Array();
+            criteriaList.Add(Criteria("LinearLength", ("m_flLength", new KVObject(100f))));
+            child["m_SelectionCriteria"] = criteriaList;
+
+            var fitOnLine = Element("FitOnLine", 20, child);
+            fitOnLine["m_vStart"] = Vec(0f, 0f, 0f);
+            fitOnLine["m_vEnd"] = Vec(250f, 0f, 0f);
+
+            var result = SmartPropEvaluator.Evaluate(Root(fitOnLine));
+            await Assert.That(result.Models[0].Position.X).IsEqualTo(25f).Within(Tolerance);
+        }
+
+        [Test]
+        public async Task PlaceOnPathSpawnsInstancesAlongTheCurve()
+        {
+            // A straight 400 unit path along X with spacing 100 yields 5 instances
+            var path = Element("PlaceOnPath", 30, ModelElement(1, "models/a.vmdl"));
+            var points = KVObject.Array();
+            points.Add(PathPoint(0f, 0f, 0f));
+            points.Add(PathPoint(400f, 0f, 0f));
+            path["m_DefaultPath"] = points;
+            path["m_flSpacing"] = new KVObject(100f);
+            path["m_PathSpace"] = new KVObject("WORLD");
+
+            var result = SmartPropEvaluator.Evaluate(Root(path));
+
+            await Assert.That(result.Models.Count).IsEqualTo(5);
+            await Assert.That(result.Paths).HasSingleItem();
+            await Assert.That(result.Paths[0].ControlPoints.Length).IsEqualTo(2);
+
+            // Instances sit at 0, 100, 200, 300, 400 along X
+            for (var i = 0; i < 5; i++)
+            {
+                await Assert.That(result.Models[i].Position.X).IsEqualTo(i * 100f).Within(Tolerance);
+            }
+        }
+
+        [Test]
+        public async Task PlaceOnPathFiltersChildrenByCriteria()
+        {
+            var capOnly = ModelElement(1, "models/cap.vmdl");
+            var criteriaList = KVObject.Array();
+            criteriaList.Add(Criteria("PathPosition", ("m_PlaceAtPositions", new KVObject("START_AND_END"))));
+            capOnly["m_SelectionCriteria"] = criteriaList;
+
+            var everywhere = ModelElement(2, "models/mid.vmdl");
+
+            var path = Element("PlaceOnPath", 30, capOnly, everywhere);
+            var points = KVObject.Array();
+            points.Add(PathPoint(0f, 0f, 0f));
+            points.Add(PathPoint(300f, 0f, 0f));
+            path["m_DefaultPath"] = points;
+            path["m_flSpacing"] = new KVObject(100f);
+            path["m_PathSpace"] = new KVObject("WORLD");
+
+            var result = SmartPropEvaluator.Evaluate(Root(path));
+
+            // The cap child appears only at the two ends, the mid child at all four spots
+            var caps = result.Models.Where(m => m.ModelName == "models/cap.vmdl").ToArray();
+            var mids = result.Models.Where(m => m.ModelName == "models/mid.vmdl").ToArray();
+            await Assert.That(caps.Length).IsEqualTo(2);
+            await Assert.That(mids.Length).IsEqualTo(4);
+            await Assert.That(caps[0].Position.X).IsEqualTo(0f).Within(Tolerance);
+            await Assert.That(caps[1].Position.X).IsEqualTo(300f).Within(Tolerance);
+        }
+
+        [Test]
+        public async Task PlaceOnPathOffsetAlongPathShiftsFirstInstance()
+        {
+            var path = Element("PlaceOnPath", 30, ModelElement(1, "models/a.vmdl"));
+            var points = KVObject.Array();
+            points.Add(PathPoint(0f, 0f, 0f));
+            points.Add(PathPoint(100f, 0f, 0f));
+            path["m_DefaultPath"] = points;
+            path["m_flSpacing"] = new KVObject(50f);
+            path["m_flOffsetAlongPath"] = new KVObject(25f);
+            path["m_PathSpace"] = new KVObject("WORLD");
+
+            var result = SmartPropEvaluator.Evaluate(Root(path));
+            await Assert.That(result.Models[0].Position.X).IsEqualTo(25f).Within(Tolerance);
+            await Assert.That(result.Models[1].Position.X).IsEqualTo(75f).Within(Tolerance);
+            await Assert.That(result.Models.Count).IsEqualTo(2);
+        }
+
     }
 }
