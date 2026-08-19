@@ -10,8 +10,22 @@ namespace ValveResourceFormat.Particles.Emitters
         {
         }
 
+        /// <summary>
+        /// System age the emitter was last started at. Start times and emission durations are measured
+        /// from it against <see cref="ParticleSystemState.Age"/>, which advances every frame whether or
+        /// not the operator fade left this emitter running.
+        /// </summary>
+        protected float StartAge { get; private set; }
+
         /// <summary>Starts the emitter, registering the callback used to spawn particles.</summary>
-        public abstract void Start(Action<float> particleEmitCallback);
+        public void Start(Action<float> particleEmitCallback, ParticleSystemState particleSystemState)
+        {
+            StartAge = particleSystemState.Age;
+            OnStart(particleEmitCallback);
+        }
+
+        /// <summary>Resets the emitter's own state for a fresh run.</summary>
+        protected abstract void OnStart(Action<float> particleEmitCallback);
 
         /// <summary>Signals the emitter to stop spawning new particles.</summary>
         public abstract void Stop();

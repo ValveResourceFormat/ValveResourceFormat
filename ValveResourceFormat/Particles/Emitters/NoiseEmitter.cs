@@ -30,7 +30,6 @@ namespace ValveResourceFormat.Particles.Emitters
 
         private Action<float>? particleEmitCallback;
 
-        private float time;
         private EmissionAccumulator accumulator;
 
         public NoiseEmitter(ParticleDefinitionParser parse) : base(parse)
@@ -53,11 +52,10 @@ namespace ValveResourceFormat.Particles.Emitters
             worldTimeScale = parse.Float("m_flWorldTimeScale", worldTimeScale);
         }
 
-        public override void Start(Action<float> particleEmitCallback)
+        protected override void OnStart(Action<float> particleEmitCallback)
         {
             this.particleEmitCallback = particleEmitCallback;
 
-            time = 0f;
             accumulator.Reset(initialCharge: 1d, flushEpsilon: 0f);
 
             IsFinished = false;
@@ -76,20 +74,20 @@ namespace ValveResourceFormat.Particles.Emitters
                 return;
             }
 
-            var frameStart = time;
-            time += frameTime;
+            var elapsed = particleSystemState.Age - StartAge;
+            var frameStart = elapsed - frameTime;
 
             var nextStartTime = startTime.NextNumber(particleSystemState);
             var nextEmissionDuration = emissionDuration.NextNumber(particleSystemState);
 
-            if (TryGetEmissionWindow(frameStart, time, nextStartTime, nextEmissionDuration, out var windowStart, out var windowEnd))
+            if (TryGetEmissionWindow(frameStart, elapsed, nextStartTime, nextEmissionDuration, out var windowStart, out var windowEnd))
             {
                 var basePosition = worldNoisePoint < 0
                     ? Vector3.Zero
                     : (particleSystemState.GetControlPoint(worldNoisePoint).Position + offsetLoc) * worldNoiseScale;
 
                 // The engine's world time term ticks in milliseconds
-                var sampleTime = ((time + noiseOffset) * noiseScale.NextNumber(particleSystemState))
+                var sampleTime = ((elapsed + noiseOffset) * noiseScale.NextNumber(particleSystemState))
                     + (particleSystemState.WorldTime * 1000f * worldTimeScale);
                 var noise = Noise.Value3D(basePosition + new Vector3(sampleTime));
 
@@ -123,10 +121,10 @@ namespace ValveResourceFormat.Particles.Emitters
                     emissionRate *= indexScale;
                 }
 
-                accumulator.Charge(emissionRate, windowStart, windowEnd, time, particleEmitCallback);
+                accumulator.Charge(emissionRate, windowStart, windowEnd, elapsed, particleEmitCallback);
             }
 
-            if (nextEmissionDuration != 0f && time > nextStartTime + nextEmissionDuration)
+            if (nextEmissionDuration != 0f && elapsed > nextStartTime + nextEmissionDuration)
             {
                 IsFinished = true;
             }
