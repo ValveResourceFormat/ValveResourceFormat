@@ -704,15 +704,28 @@ partial class ModelExtract
         dag.Shape!.Name = name;
 
         var vertexCount = proxy.Positions.Length;
+
+        // Indexed one face corner at a time, the way authored proxies are: the face set names corner
+        // ordinals and every stream's index array maps corner -> vertex. A sheet with no faces has no
+        // corners and stays indexed per vertex.
+        var cornerVertices = proxy.Faces.SelectMany(static face => face).ToArray();
         var identity = Enumerable.Range(0, vertexCount).ToArray();
+        var vertexIndices = cornerVertices.Length > 0 ? cornerVertices : identity;
 
-        vertexData.AddIndexedStream("position$0", proxy.Positions, identity);
+        vertexData.AddIndexedStream("position$0", proxy.Positions, vertexIndices);
 
-        // Constant normals, deliberately: feeding computed per-vertex surface normals makes the cloth
-        // importer drop ALL quads/tris and degrade the whole sheet to distance rods (no bend/shear
-        // solve), and the recompiled fe node orientations stop matching the original. With constant
-        // normals the quad/tri surface survives and the fe node frames come out identical to Valve's.
-        vertexData.AddIndexedStream("normal$0", Enumerable.Repeat(Vector3.UnitZ, vertexCount).ToArray(), identity);
+        // The sheet's normals are its rest orientations (see FeModel.RecoverRestNormals). The importer
+        // reads proxy vertex v's normal from the flattened per-corner stream at ordinal v, not at one of
+        // v's own corners, so slot v carries vertex v's; the corners past the vertex count carry theirs.
+        var restNormals = physAggregateData?.FeModel?.RecoverRestNormals(proxy)
+            ?? [.. Enumerable.Repeat(Vector3.UnitZ, vertexCount)];
+        var cornerNormals = new Vector3[vertexIndices.Length];
+        for (var corner = 0; corner < cornerNormals.Length; corner++)
+        {
+            cornerNormals[corner] = restNormals[corner < vertexCount ? corner : vertexIndices[corner]];
+        }
+
+        vertexData.AddIndexedStream("normal$0", cornerNormals, Enumerable.Range(0, cornerNormals.Length).ToArray());
 
         // The cloth importer needs texcoords on the proxy (authored proxies always carry them; without
         // UVs the surface is not accepted as a sheet). A bounding-box projection along the two largest
@@ -731,7 +744,7 @@ partial class ModelExtract
                 extent[axisV] > 1e-6f ? (proxy.Positions[v][axisV] - boundsMin[axisV]) / extent[axisV] : 0f);
         }
 
-        vertexData.AddIndexedStream("texcoord$0", texcoords, identity);
+        vertexData.AddIndexedStream("texcoord$0", texcoords, vertexIndices);
 
         // Per-vertex cloth paint layers. The names + the full layer set match a current authored cloth
         // proxy (meepo_scream qop_body_proxy.dmx): cloth_goal_strength_v2 is the modern attribute the
@@ -740,26 +753,26 @@ partial class ModelExtract
         // is what made other cloth items "disappear". All are recovered 0..1 paint values (NOT raw compiled
         // solver numbers): the old code wrote cloth_goal_damping = flPointDamping (~6.0), 60x outside the
         // slider's 0..1 range, which is why the editor showed 0 in the text while the slider sat pegged.
-        vertexData.AddIndexedStream("cloth_enable$0", proxy.ClothEnable, identity);
-        vertexData.AddIndexedStream("cloth_goal_strength_v2$0", proxy.GoalStrength, identity);
-        vertexData.AddIndexedStream("cloth_goal_damping$0", proxy.GoalDamping, identity);
-        vertexData.AddIndexedStream("cloth_collision_radius$0", proxy.CollisionRadius, identity);
-        vertexData.AddIndexedStream("cloth_ground_collision$0", proxy.GroundCollision, identity);
-        vertexData.AddIndexedStream("cloth_drag$0", proxy.Drag, identity);
+        vertexData.AddIndexedStream("cloth_enable$0", proxy.ClothEnable, vertexIndices);
+        vertexData.AddIndexedStream("cloth_goal_strength_v2$0", proxy.GoalStrength, vertexIndices);
+        vertexData.AddIndexedStream("cloth_goal_damping$0", proxy.GoalDamping, vertexIndices);
+        vertexData.AddIndexedStream("cloth_collision_radius$0", proxy.CollisionRadius, vertexIndices);
+        vertexData.AddIndexedStream("cloth_ground_collision$0", proxy.GroundCollision, vertexIndices);
+        vertexData.AddIndexedStream("cloth_drag$0", proxy.Drag, vertexIndices);
 
         // World-collision ground friction paint (compiler attribute "cloth_ground_friction", confirmed
         // against the resourcecompiler DMX importer's own attribute table - no "cloth_world_friction"
         // counterpart exists there, so flWorldFriction has no per-vertex paint route on a proxy mesh).
         if (Array.Exists(proxy.GroundFriction, static value => value != 0f))
         {
-            vertexData.AddIndexedStream("cloth_ground_friction$0", proxy.GroundFriction, identity);
+            vertexData.AddIndexedStream("cloth_ground_friction$0", proxy.GroundFriction, vertexIndices);
         }
 
         // Friction is painted only where the cloth carries any: no authored proxy in the reference corpus
         // ships the stream, and an all-zero stream is not the same input as no stream at all.
         if (Array.Exists(proxy.Friction, static value => value != 0f))
         {
-            vertexData.AddIndexedStream("cloth_friction$0", proxy.Friction, identity);
+            vertexData.AddIndexedStream("cloth_friction$0", proxy.Friction, vertexIndices);
         }
 
         // Per-vertex gravity, painted VERBATIM: cloth_gravity$0 compiles into flGravity with no scaling
@@ -770,7 +783,7 @@ partial class ModelExtract
         // flAnimationVertexAttraction (15/10.5/6/5.25 on dark_willow) is IGNORED by the proxy importer (the
         // name belongs to ClothMapFilter's map list) - that field stays a legacy platform ceiling, do not
         // re-emit it.
-        vertexData.AddIndexedStream("cloth_gravity$0", proxy.Gravity, identity);
+        vertexData.AddIndexedStream("cloth_gravity$0", proxy.Gravity, vertexIndices);
 
         // Per-vertex mass paint. The compiler adds expf(cloth_mass * cloth_mass_scale) on top of the mass
         // it derives from the sheet's own geometry, and only when the mesh ships this stream - so a sheet
@@ -778,7 +791,7 @@ partial class ModelExtract
         // all-zero stream is a real authoring choice (e^0 = 1) and not the same as no stream at all.
         if (physAggregateData?.FeModel?.RecoverMassPaint(proxy) is { } mass)
         {
-            vertexData.AddIndexedStream("cloth_mass$0", mass, identity);
+            vertexData.AddIndexedStream("cloth_mass$0", mass, vertexIndices);
         }
 
         // Named vertex selections are painted per vertex, one stream per selection. A cloth effect or a
@@ -793,7 +806,7 @@ partial class ModelExtract
         {
             if (mapName != containerMap)
             {
-                vertexData.AddIndexedStream("cloth_vertex_set_" + mapName + "$0", weights, identity);
+                vertexData.AddIndexedStream("cloth_vertex_set_" + mapName + "$0", weights, vertexIndices);
             }
         }
 
@@ -801,7 +814,7 @@ partial class ModelExtract
         // (m_AnimStrayRadii). Without the stream the whole array compiles away.
         if (physAggregateData?.FeModel?.RecoverStrayRadiusPaint(proxy) is { } strayRadius)
         {
-            vertexData.AddIndexedStream("cloth_stray_radius$0", strayRadius, identity);
+            vertexData.AddIndexedStream("cloth_stray_radius$0", strayRadius, vertexIndices);
         }
 
         // cloth_drag_v2 and cloth_mass have no measurable effect on the compiled flPointDamping/
@@ -818,9 +831,9 @@ partial class ModelExtract
         // A sheet exported with its AUTHORED faces skips them entirely, as hand-authored proxies do.
         if (!proxy.UsesAuthoredFaces && physAggregateData?.FeModel is { HasSurfaceElements: true })
         {
-            vertexData.AddIndexedStream("cloth_use_rods$0", Enumerable.Repeat(1f, vertexCount).ToArray(), identity);
-            vertexData.AddIndexedStream("cloth_make_rods$0", Enumerable.Repeat(0.4f, vertexCount).ToArray(), identity);
-            vertexData.AddIndexedStream("cloth_bend_stiffness$0", Enumerable.Repeat(0.2f, vertexCount).ToArray(), identity);
+            vertexData.AddIndexedStream("cloth_use_rods$0", Enumerable.Repeat(1f, vertexCount).ToArray(), vertexIndices);
+            vertexData.AddIndexedStream("cloth_make_rods$0", Enumerable.Repeat(0.4f, vertexCount).ToArray(), vertexIndices);
+            vertexData.AddIndexedStream("cloth_bend_stiffness$0", Enumerable.Repeat(0.2f, vertexCount).ToArray(), vertexIndices);
         }
 
         // Skin the proxy vertices. Pinned (cloth_enable 0) vertices follow their anchor bone with weight 1;
@@ -879,11 +892,12 @@ partial class ModelExtract
             dmeMesh.FaceSets.Add(faceSet);
         }
 
+        var cornerOrdinal = 0;
         foreach (var face in proxy.Faces)
         {
-            foreach (var index in face)
+            foreach (var _ in face)
             {
-                faceSet.Faces.Add(index);
+                faceSet.Faces.Add(cornerOrdinal++);
             }
 
             faceSet.Faces.Add(-1);

@@ -448,6 +448,34 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics
         public bool IsLockedToGoal(int node) => Array.IndexOf(LockToGoal, node) >= 0;
 
         /// <summary>
+        /// Recovers the per-vertex normal of a proxy sheet from the compiled rest poses.
+        /// <para>
+        /// The cloth importer derives each proxy vertex's rest ORIENTATION from that vertex's normal and
+        /// nothing else - measured on a hand-authored sheet, the compiled <c>m_InitPose</c> rotation is the
+        /// frame whose local +Z is the vertex normal, and rebinding the skinning, rotating the UVs or
+        /// moving the mesh dag leaves it untouched. So the normal a sheet ships fixes the rest orientation
+        /// of every node it creates, and the axis the original recorded is recoverable from the pose it
+        /// compiled to.
+        /// </para>
+        /// </summary>
+        public Vector3[] RecoverRestNormals(ProxyMesh proxy)
+        {
+            var normals = new Vector3[proxy.Positions.Length];
+            for (var v = 0; v < normals.Length; v++)
+            {
+                var node = v < proxy.NodeIndices.Length ? proxy.NodeIndices[v] : -1;
+                var rotation = node >= 0 && node < InitPoseRotations.Length
+                    ? InitPoseRotations[node]
+                    : Quaternion.Identity;
+
+                var axis = Vector3.Transform(Vector3.UnitZ, rotation);
+                normals[v] = axis.LengthSquared() > 1e-12f ? Vector3.Normalize(axis) : Vector3.UnitZ;
+            }
+
+            return normals;
+        }
+
+        /// <summary>
         /// Recovers the <c>cloth_mass</c> paint of an authored-face proxy sheet, or null when the sheet
         /// carries none (or none can be recovered).
         /// <para>
