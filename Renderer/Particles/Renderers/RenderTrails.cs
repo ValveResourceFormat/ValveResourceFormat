@@ -1,4 +1,3 @@
-using System.Runtime.InteropServices;
 using OpenTK.Graphics.OpenGL;
 using ValveResourceFormat.CompiledShader;
 using ValveResourceFormat.Particles;
@@ -19,21 +18,9 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
     /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_OP_RenderTrails">C_OP_RenderTrails</seealso>
     internal class RenderTrails : ParticleFunctionRenderer
     {
-        private const string ShaderName = "particle_trail";
+        private const string ShaderName = "particle_spritecard";
+
         private const string DefaultTextureName = "materials/particle/base_trail.vtex";
-
-        [StructLayout(LayoutKind.Sequential)]
-        private readonly struct Vertex(Vector3 position, Vector4 color, Vector2 uv, Vector2 uvNextFrame, float frameBlend)
-        {
-            [VertexAttribute(VertexSlot.Position)] public readonly Vector3 Position = position;
-            [VertexAttribute(VertexSlot.Color)] public readonly Vector4 Color = color;
-            [VertexAttribute(VertexSlot.TexCoord)] public readonly Vector2 UV = uv;
-            [VertexAttribute(VertexSlot.TexCoord1)] public readonly Vector2 UVNextFrame = uvNextFrame;
-            [VertexAttribute("vFrameBlend")] public readonly float FrameBlend = frameBlend;
-
-            /// <summary>The layout of this vertex, for creating vertex array objects.</summary>
-            public static readonly VertexInputLayout InputLayout = VertexInputLayout.FromStruct<Vertex>();
-        }
 
         // The shared quad index buffer covers 65532 indices, six per quad
         private const int MaxQuads = 65532 / 6;
@@ -45,7 +32,6 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         private readonly RendererContext rendererContext;
         private readonly int vaoHandle;
         private readonly int vertexBufferHandle;
-        private RenderTexture texture;
 
         private readonly float animationRate = 0.1f;
         private readonly ParticleAnimationType animationType = ParticleAnimationType.ANIMATION_TYPE_FIXED_RATE;
@@ -63,9 +49,9 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         private readonly float endFadeDot = 2f;
 
         private readonly ParticleBlendMode blendMode = ParticleBlendMode.PARTICLE_OUTPUT_BLEND_MODE_ALPHA;
+        private readonly ParticleTextureLayer[] layers;
         private readonly ParticleOrientation orientationType;
         private readonly ParticleField prevPositionSource = ParticleField.PositionPrevious; // this is a real thing
-
 
         private readonly float maxLength = 2000f;
         private readonly float minLength;
@@ -88,21 +74,12 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
 
             blendMode = parse.Enum<ParticleBlendMode>("m_nOutputBlendMode", blendMode);
 
-            shader = rendererContext.ShaderLoader.LoadShader(ShaderName);
+            (layers, var textureName) = ParticleTextureLayer.Build(parse, rendererContext, DefaultTextureName);
+
+            shader = rendererContext.ShaderLoader.LoadShader(ShaderName, ("S_TEXTURE_LAYERS", (byte)(layers.Length - 1)));
 
             // All trails of this renderer are batched into a single dynamic vertex buffer
             (vaoHandle, vertexBufferHandle) = SetupQuadBuffer();
-
-            string? textureName = null;
-
-            var textures = parse.Array("m_vecTexturesInput");
-            if (textures.Length > 0)
-            {
-                // TODO: Support more than one texture
-                textureName = textures[0].Data.GetStringProperty("m_hTexture");
-            }
-
-            texture = rendererContext.MaterialLoader.GetTexture(textureName ?? DefaultTextureName, srgbRead: true);
 
 #if DEBUG
             var vaoLabel = $"{nameof(RenderTrails)}: {System.IO.Path.GetFileName(textureName)}";
@@ -152,14 +129,15 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         /// <inheritdoc/>
         public override void SetTextureOverride(RenderTexture texture)
         {
-            this.texture = texture;
+            // The override stands in for the base texture; layers composited over it keep their own.
+            layers[0].Texture = texture;
         }
 
         private (int Vao, int Buffer) SetupQuadBuffer()
         {
             GL.CreateBuffers(1, out int buffer);
 
-            var vao = Vertex.InputLayout.CreateVertexArray(nameof(RenderTrails), buffer, rendererContext.MeshBufferCache.QuadIndices.GLHandle);
+            var vao = SpritecardVertex.InputLayout.CreateVertexArray(nameof(RenderTrails), buffer, rendererContext.MeshBufferCache.QuadIndices.GLHandle);
 
             return (vao, buffer);
         }
@@ -191,7 +169,13 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             var quadCount = 0;
 
             // Rented from the shared float pool so the memory is reused across renderers.
-            using (var vertexBuffer = new RentedFloatBuffer<Vertex>(particleBag.Count * 4))
+            Span<ParticleTextureLayer.UvTransform> uvTransforms = stackalloc ParticleTextureLayer.UvTransform[ParticleTextureLayer.MaxLayers];
+            Span<(Vector2 Min, Vector2 Max, Vector2 NextMin, Vector2 NextMax)> layerRects
+                = stackalloc (Vector2, Vector2, Vector2, Vector2)[ParticleTextureLayer.MaxLayers];
+
+            ParticleTextureLayer.ResolveUvTransforms(layers, systemState, uvTransforms);
+
+            using (var vertexBuffer = new RentedFloatBuffer<SpritecardVertex>(particleBag.Count * 4))
             {
                 var vertices = vertexBuffer.Span;
 
@@ -306,27 +290,37 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                         tailHalfWidth = MathF.Min(MathF.Max(tailHalfWidth, minSize * tailDistance), maxSize * tailDistance);
                     }
 
-                    var uvOffset = Vector2.Zero;
-                    var uvScale = Vector2.One;
-                    var uvNextOffset = uvOffset;
-                    var uvNextScale = uvScale;
                     var frameBlend = 0f;
 
-                    var spriteSheetData = texture.SpriteSheetData;
-                    if (spriteSheetData != null && spriteSheetData.Sequences.Length > 0 && spriteSheetData.Sequences[0].Frames.Length > 0)
+                    for (var layer = 0; layer < layers.Length; layer++)
                     {
-                        var sequence = spriteSheetData.Sequences[particle.SequenceNumber % spriteSheetData.Sequences.Length];
-                        var (frame, nextFrame, blend) = GetSheetFrame(ref particle, sequence, animationRate, animationType, animateInFps);
-                        frameBlend = blend;
+                        var min = Vector2.Zero;
+                        var max = Vector2.One;
+                        var nextMin = min;
+                        var nextMax = max;
 
-                        // TODO: Support more than one image per frame?
-                        var currentImage = sequence.Frames[frame].Images[0];
-                        var nextImage = sequence.Frames[nextFrame].Images[0];
+                        var spriteSheetData = layers[layer].Texture.SpriteSheetData;
+                        if (spriteSheetData != null && spriteSheetData.Sequences.Length > 0 && spriteSheetData.Sequences[0].Frames.Length > 0)
+                        {
+                            var sequence = spriteSheetData.Sequences[particle.SequenceNumber % spriteSheetData.Sequences.Length];
+                            var (frame, nextFrame, blend) = GetSheetFrame(ref particle, sequence, animationRate, animationType, animateInFps);
 
-                        uvOffset = currentImage.UncroppedMin;
-                        uvScale *= currentImage.UncroppedMax - currentImage.UncroppedMin;
-                        uvNextOffset = nextImage.UncroppedMin;
-                        uvNextScale *= nextImage.UncroppedMax - nextImage.UncroppedMin;
+                            // TODO: Support more than one image per frame?
+                            var currentImage = sequence.Frames[frame].Images[0];
+                            var nextImage = sequence.Frames[nextFrame].Images[0];
+
+                            min = currentImage.UncroppedMin;
+                            max = currentImage.UncroppedMax;
+                            nextMin = nextImage.UncroppedMin;
+                            nextMax = nextImage.UncroppedMax;
+
+                            if (layer == 0)
+                            {
+                                frameBlend = blend;
+                            }
+                        }
+
+                        layerRects[layer] = (min, max, nextMin, nextMax);
                     }
 
                     // Corners in index buffer winding order, with the local quad's [-1, 1] axes mapping to [0, 1] uvs
@@ -351,10 +345,22 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                             + (lengthAxis * (corner.Y * halfLength));
                         var color = isHead ? head : tail;
                         var cornerUv = (corner * 0.5f) + new Vector2(0.5f);
-                        var uv = uvOffset + (cornerUv * uvScale);
-                        var uvNext = uvNextOffset + (cornerUv * uvNextScale);
 
-                        vertices[quadStart + j] = new Vertex(worldPosition, color, uv, uvNext, frameBlend);
+                        ref var vertex = ref vertices[quadStart + j];
+                        vertex = default;
+                        vertex.Position = worldPosition;
+                        vertex.Color = color;
+                        vertex.FrameBlend = frameBlend;
+                        vertex.UV = ParticleTextureLayer.PlaceCorner(cornerUv, uvTransforms[0], layerRects[0].Min, layerRects[0].Max);
+                        vertex.UVNextFrame = ParticleTextureLayer.PlaceCorner(cornerUv, uvTransforms[0], layerRects[0].NextMin, layerRects[0].NextMax);
+
+                        for (var layer = 1; layer < layers.Length; layer++)
+                        {
+                            var (min, max, nextMin, nextMax) = layerRects[layer];
+                            var layerUv = ParticleTextureLayer.PlaceCorner(cornerUv, uvTransforms[layer], min, max);
+                            var layerUvNext = ParticleTextureLayer.PlaceCorner(cornerUv, uvTransforms[layer], nextMin, nextMax);
+                            vertex.SetLayerUv(layer - 1, new Vector4(layerUv.X, layerUv.Y, layerUvNext.X, layerUvNext.Y));
+                        }
                     }
 
                     quadCount++;
@@ -367,7 +373,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
 
                 if (quadCount > 0)
                 {
-                    GL.NamedBufferData(vertexBufferHandle, quadCount * 4 * Vertex.InputLayout.Stride, vertexBuffer.FloatArray, BufferUsageHint.DynamicDraw);
+                    GL.NamedBufferData(vertexBufferHandle, quadCount * 4 * SpritecardVertex.InputLayout.Stride, vertexBuffer.FloatArray, BufferUsageHint.DynamicDraw);
                 }
             }
 
@@ -388,27 +394,19 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                 return;
             }
 
-            // The translucent pass leaves blend/depth state to each draw. Enable blending and stop
-            // depth writes, or trails render opaque. Cables instead draw opaque with depth writes.
-            // Modulate-2x scales what is behind it, so it needs its own factors; see RenderSprites.
-            // Trail quads are oriented by motion direction, so either side can face the camera.
-            var mod2x = blendMode == ParticleBlendMode.PARTICLE_OUTPUT_BLEND_MODE_MOD2X;
-            using var _ = rendererContext.RenderState.Scope(blend: true, depthWrite: false, cullMode: RsCullMode.None,
-                srcBlend: mod2x ? RsBlendMode.DestColor : RsBlendMode.One,
-                dstBlend: mod2x ? RsBlendMode.SrcColor : RsBlendMode.InvSrcAlpha);
+            using var _ = SpritecardStateScope(rendererContext.RenderState, blendMode);
 
             shader.Use();
-
             VertexArray.Bind(vaoHandle, shader);
 
-            shader.SetTexture(RenderMaterial.TextureUnitStart, "uTexture", texture);
+            ParticleTextureLayer.Bind(shader, layers, systemState);
 
             // TODO: This formula is a guess but still seems too bright compared to valve particles
             SetSharedUniforms(shader, systemState);
 
             shader.SetUniform1("uBlendFrames", blendFrames);
 
-            // Set every draw: the program is shared with every other trail renderer, whatever their mode.
+            // Set every draw: the program is shared with every other spritecard renderer, whatever their mode.
             shader.SetUniform1("uBlendMode", (int)blendMode);
 
             PerfStats.Active.Count(Counter.ParticleDraw);

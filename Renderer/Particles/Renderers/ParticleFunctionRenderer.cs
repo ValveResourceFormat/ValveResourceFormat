@@ -1,3 +1,4 @@
+using ValveResourceFormat.CompiledShader;
 using ValveResourceFormat.Particles;
 using ValveResourceFormat.ResourceTypes;
 
@@ -102,6 +103,27 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         protected Vector2 GetAlphaRemapRange(ParticleSystemState systemState)
             => new(SourceAlphaValueToMapToZero.NextNumber(systemState),
                 SourceAlphaValueToMapToOne.NextNumber(systemState));
+
+        /// <summary>
+        /// The state a spritecard draw runs under. The translucent pass leaves blend and depth to each
+        /// draw, so blending is enabled and depth writes stopped or the card renders opaque; an opaque
+        /// renderer keeps the pass defaults instead. Modulate-2x scales what is behind it and so needs
+        /// its own factors, while everything else composites premultiplied. Both faces are drawn,
+        /// since a card or ribbon can turn either one toward the camera.
+        /// </summary>
+        protected static RenderPassScope SpritecardStateScope(RenderStateTracker renderState, ParticleBlendMode blendMode, bool opaque = false)
+        {
+            if (opaque)
+            {
+                return renderState.Scope(cullMode: RsCullMode.None);
+            }
+
+            var mod2x = blendMode == ParticleBlendMode.PARTICLE_OUTPUT_BLEND_MODE_MOD2X;
+
+            return renderState.Scope(blend: true, depthWrite: false, cullMode: RsCullMode.None,
+                srcBlend: mod2x ? RsBlendMode.DestColor : RsBlendMode.One,
+                dstBlend: mod2x ? RsBlendMode.SrcColor : RsBlendMode.InvSrcAlpha);
+        }
 
         /// <summary>
         /// Uploads the shared source 2 renderer state every particle shader reads.
