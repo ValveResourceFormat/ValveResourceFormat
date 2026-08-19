@@ -148,8 +148,8 @@ namespace ValveResourceFormat.Renderer
         /// <summary>Gets the octree used to spatially partition static scene nodes.</summary>
         public Octree StaticOctree { get; }
 
-        /// <summary>Gets the octree used to spatially partition dynamic scene nodes.</summary>
-        public Octree DynamicOctree { get; }
+        /// <summary>Gets the flat spatial set holding dynamic scene nodes.</summary>
+        public SpatialNodeSet DynamicOctree { get; } = new();
 
         /// <summary>Gets or sets whether materials flagged as tools-only are rendered.</summary>
         public bool ShowToolsMaterials { get; set; }
@@ -197,15 +197,14 @@ namespace ValveResourceFormat.Renderer
         private Shader? OutlineShader;
 
         /// <summary>
-        /// Initializes a new scene with the given renderer context and optional octree size hint.
+        /// Initializes a new scene with the given renderer context and optional spatial size hint.
         /// </summary>
         /// <param name="context">The renderer context providing shared GPU resources.</param>
-        /// <param name="sizeHint">The initial world-space extent used to size the octrees.</param>
+        /// <param name="sizeHint">The initial world-space extent used to size the static octree.</param>
         public Scene(RendererContext context, float sizeHint = 32768)
         {
             RendererContext = context;
             StaticOctree = new(sizeHint);
-            DynamicOctree = new(sizeHint);
 
             LightingInfo = new(this);
             LightBinner = new(this);
@@ -213,7 +212,7 @@ namespace ValveResourceFormat.Renderer
         }
 
         /// <summary>
-        /// Performs one-time GPU setup: builds octrees, allocates buffers, computes light probe and environment map bindings, and loads internal shaders.
+        /// Performs one-time GPU setup: builds acceleration structures, allocates buffers, computes light probe and environment map bindings, and loads internal shaders.
         /// </summary>
         public void Initialize()
         {
@@ -242,15 +241,19 @@ namespace ValveResourceFormat.Renderer
         /// Adds a node to the scene, placing it in either the static or dynamic partition.
         /// </summary>
         /// <param name="node">The node to add.</param>
-        /// <param name="dynamic">When <see langword="true"/>, the node is placed in the dynamic octree; otherwise the static octree.</param>
+        /// <param name="dynamic">When <see langword="true"/>, the node is placed in <see cref="DynamicOctree"/>; otherwise in <see cref="StaticOctree"/>.</param>
         public void Add(SceneNode node, bool dynamic)
         {
-            var (nodeList, octree) = dynamic
-                ? (dynamicNodes, DynamicOctree)
-                : (staticNodes, StaticOctree);
-
-            nodeList.Add(node);
-            octree.Dirty = true;
+            if (dynamic)
+            {
+                dynamicNodes.Add(node);
+                DynamicOctree.Dirty = true;
+            }
+            else
+            {
+                staticNodes.Add(node);
+                StaticOctree.Dirty = true;
+            }
         }
 
         /// <summary>
@@ -260,12 +263,16 @@ namespace ValveResourceFormat.Renderer
         /// <param name="dynamic">When <see langword="true"/>, removes from the dynamic partition; otherwise the static partition.</param>
         public void Remove(SceneNode node, bool dynamic)
         {
-            var (nodeList, octree) = dynamic
-                ? (dynamicNodes, DynamicOctree)
-                : (staticNodes, StaticOctree);
-
-            nodeList.Remove(node);
-            octree.Dirty = true;
+            if (dynamic)
+            {
+                dynamicNodes.Remove(node);
+                DynamicOctree.Dirty = true;
+            }
+            else
+            {
+                staticNodes.Remove(node);
+                StaticOctree.Dirty = true;
+            }
         }
 
         /// <summary>Indicates which spatial partition a scene node belongs to.</summary>
@@ -412,7 +419,7 @@ namespace ValveResourceFormat.Renderer
         }
 
         /// <summary>
-        /// Updates all scene nodes for the current frame, advancing animations and rebuilding octrees and GPU buffers if the scene changed.
+        /// Updates all scene nodes for the current frame, advancing animations and rebuilding spatial sets and GPU buffers if the scene changed.
         /// </summary>
         /// <param name="updateContext">Per-frame context data including camera and timestep.</param>
         public void Update(Scene.UpdateContext updateContext)
@@ -432,13 +439,12 @@ namespace ValveResourceFormat.Renderer
                     continue; // child nodes are updated by their parent
                 }
 
-                var oldBox = node.BoundingBox;
                 node.Update(updateContext);
+            }
 
-                if (node.LayerEnabled && !oldBox.Equals(node.BoundingBox))
-                {
-                    DynamicOctree.Update(node, oldBox);
-                }
+            foreach (var node in dynamicNodes)
+            {
+                DynamicOctree.Update(node);
             }
 
             if (StaticOctree.Dirty || DynamicOctree.Dirty)
@@ -743,7 +749,7 @@ namespace ValveResourceFormat.Renderer
                 CullResults.Clear();
                 CullResults.Capacity = staticNodes.Count + dynamicNodes.Count + 100;
 
-                StaticOctree.Root.Query(frustum, CullResults);
+                StaticOctree.Query(frustum, CullResults);
                 StaticCount = CullResults.Count;
             }
             else
@@ -751,7 +757,7 @@ namespace ValveResourceFormat.Renderer
                 CullResults.RemoveRange(StaticCount, CullResults.Count - StaticCount);
             }
 
-            DynamicOctree.Root.Query(frustum, CullResults);
+            DynamicOctree.Query(frustum, CullResults);
             return CullResults;
         }
 
@@ -1060,40 +1066,22 @@ namespace ValveResourceFormat.Renderer
             }
         }
 
-        /// <summary>Invalidates the cached shadow draw calls for all faces of the given barn light, forcing a rebuild next frame.</summary>
-        /// <param name="light">The barn light whose shadow cache should be cleared.</param>
-        public static void ClearShadowCache(SceneLight light)
-        {
-            for (var i = 0; i < light.BarnFaces.Length; i++)
-            {
-                ref var entry = ref CollectionsMarshal.GetValueRefOrNullRef(light.FaceShadowCache, i);
-                if (!Unsafe.IsNullRef(ref entry))
-                {
-                    entry.FrustumHash = -1;
-                }
-            }
-        }
+        private Dictionary<DepthOnlyBucket, List<MeshBatchRenderer.Request>>? barnShadowDrawCalls;
 
         /// <summary>
-        /// Ensures the shadow draw call cache for a single barn light face is up to date, rebuilding it if the light frustum changed.
+        /// Collects the shadow draw calls for a single barn light face. The returned buckets are
+        /// scratch, valid until the next call.
         /// </summary>
         /// <param name="light">The barn light owning the shadow face.</param>
-        /// <param name="faceIndex">The face index within the barn light to update.</param>
         /// <param name="lightFrustum">The frustum representing the light's view for this face.</param>
-        public void SetupBarnLightFaceShadow(SceneLight light, int faceIndex, Frustum lightFrustum)
+        public Dictionary<DepthOnlyBucket, List<MeshBatchRenderer.Request>> SetupBarnLightFaceShadow(SceneLight light, Frustum lightFrustum)
         {
-            var barnLightFrustumHash = lightFrustum.GetHashCode();
-            ref var entry = ref CollectionsMarshal.GetValueRefOrAddDefault(light.FaceShadowCache, faceIndex, out _);
+            barnShadowDrawCalls ??= CreateDepthOnlyDrawCallCollection();
 
-            if (entry.FrustumHash == barnLightFrustumHash && entry.DrawCalls is not null)
-            {
-                return;
-            }
-
-            entry.DrawCalls ??= CreateDepthOnlyDrawCallCollection();
             // Skip static geo for stationary lights
-            CollectShadowDrawCalls(lightFrustum, includeStatic: light.DirectLight != SceneLight.DirectLightType.Stationary, includeDynamic: true, entry.DrawCalls);
-            entry.FrustumHash = barnLightFrustumHash;
+            CollectShadowDrawCalls(lightFrustum, includeStatic: light.DirectLight != SceneLight.DirectLightType.Stationary, includeDynamic: true, barnShadowDrawCalls);
+
+            return barnShadowDrawCalls;
         }
 
         private void CollectShadowDrawCalls(Frustum frustum, bool includeStatic, bool includeDynamic, Dictionary<DepthOnlyBucket, List<MeshBatchRenderer.Request>> drawBuckets)
@@ -1128,12 +1116,12 @@ namespace ValveResourceFormat.Renderer
 
             if (includeStatic)
             {
-                StaticOctree.Root.Query(frustum, CulledShadowNodes);
+                StaticOctree.Query(frustum, CulledShadowNodes);
             }
 
             if (includeDynamic)
             {
-                DynamicOctree.Root.Query(frustum, CulledShadowNodes);
+                DynamicOctree.Query(frustum, CulledShadowNodes);
             }
 
             foreach (var node in CulledShadowNodes)
@@ -1677,10 +1665,10 @@ namespace ValveResourceFormat.Renderer
         }
 
         /// <summary>
-        /// Marks the octree that owns the given node as dirty so it will be rebuilt on the next update.
+        /// Marks the spatial set that owns the given node as dirty so it will be rebuilt on the next update.
         /// Also clears barn light shadow caches.
         /// </summary>
-        /// <param name="node">The node whose owning octree should be dirtied.</param>
+        /// <param name="node">The node whose owning set should be dirtied.</param>
         /// <returns><see langword="true"/> if the node was found and its octree was dirtied; <see langword="false"/> if the node is not part of this scene.</returns>
         public bool MarkParentOctreeDirty(SceneNode node)
         {
@@ -1690,14 +1678,20 @@ namespace ValveResourceFormat.Renderer
                 return false;
             }
 
-            LightingInfo.ClearBarnShadowCache();
 
-            var octree = nodeType == NodeType.Static ? StaticOctree : DynamicOctree;
-            octree.Dirty = true;
+            if (nodeType == NodeType.Static)
+            {
+                StaticOctree.Dirty = true;
+            }
+            else
+            {
+                DynamicOctree.Dirty = true;
+            }
+
             return true;
         }
 
-        /// <summary>Rebuilds dirty static and dynamic octrees from their current node sets.</summary>
+        /// <summary>Rebuilds the static octree and the dynamic node set from their current node lists, if dirty.</summary>
         public void UpdateOctrees()
         {
             LastFrustum = -1;
@@ -1847,7 +1841,7 @@ namespace ValveResourceFormat.Renderer
             foreach (var probe in sortedLightProbes)
             {
                 StaticOctree.Root.Query(probe.BoundingBox, nodes);
-                DynamicOctree.Root.Query(probe.BoundingBox, nodes); // TODO: This should actually be done dynamically
+                DynamicOctree.Query(probe.BoundingBox, nodes); // TODO: This should actually be done dynamically
 
                 foreach (var node in nodes)
                 {
@@ -1922,8 +1916,8 @@ namespace ValveResourceFormat.Renderer
                     continue;
                 }
 
-                StaticOctree.Root.Query(envMap.BoundingBox, nodes);
-                DynamicOctree.Root.Query(envMap.BoundingBox, nodes); // TODO: This should actually be done dynamically
+                StaticOctree.Query(envMap.BoundingBox, nodes);
+                DynamicOctree.Query(envMap.BoundingBox, nodes); // TODO: This should actually be done dynamically
 
                 foreach (var node in nodes)
                 {

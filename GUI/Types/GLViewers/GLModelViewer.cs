@@ -753,13 +753,8 @@ namespace GUI.Types.GLViewers
                     return;
                 }
 
-                var oldBounds = node.BoundingBox;
                 node.Transform = transform;
-
-                if (node.LayerEnabled)
-                {
-                    node.Scene.DynamicOctree.Update(node, oldBounds);
-                }
+                node.Scene.DynamicOctree.Update(node);
             }
 
             Move(modelSceneNode, transform);

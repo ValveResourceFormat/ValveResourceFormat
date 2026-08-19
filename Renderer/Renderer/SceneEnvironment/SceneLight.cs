@@ -240,8 +240,6 @@ public class SceneLight(Scene scene) : SceneNode(scene)
     public bool IsVisible => BarnFaces.Length > 0 && BrightnessScale > 0f && Color != Vector3.Zero
         && (float.IsNaN(BrightnessLegacy) ? Brightness : BrightnessLegacy) > 0f;
 
-    internal Dictionary<int, (int FrustumHash, Dictionary<DepthOnlyBucket, List<MeshBatchRenderer.Request>>? DrawCalls)> FaceShadowCache { get; } = [];
-
     /// <summary>
     /// Returns whether the given entity classname is a recognized light type, and which <see cref="EntityType"/> it maps to.
     /// </summary>

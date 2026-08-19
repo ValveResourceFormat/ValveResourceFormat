@@ -911,9 +911,9 @@ public class Renderer
 
             // This is performing culling mid render, reusing the scene draw lists.
             // Should be in update loop.
-            Scene.SetupBarnLightFaceShadow(caster.Light, caster.FaceIndex, barnLightShadowFrustum);
+            var drawCalls = Scene.SetupBarnLightFaceShadow(caster.Light, barnLightShadowFrustum);
 
-            Scene.RenderOpaqueShadows(renderContext, depthOnlyShader, caster.Light.FaceShadowCache[caster.FaceIndex].DrawCalls!);
+            Scene.RenderOpaqueShadows(renderContext, depthOnlyShader, drawCalls);
         }
 
     }

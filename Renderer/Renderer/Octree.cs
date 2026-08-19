@@ -3,7 +3,7 @@ namespace ValveResourceFormat.Renderer
     /// <summary>
     /// Spatial partitioning structure for efficient scene node culling and queries.
     /// </summary>
-    public class Octree
+    public class Octree : ISpatialSet
     {
         private const int OptimalElementCountLarge = 4;
         private const int OptimalElementCountSmall = 32;
@@ -365,14 +365,26 @@ namespace ValveResourceFormat.Renderer
         /// <summary>
         /// Inserts a scene node into the octree.
         /// </summary>
-        /// <param name="obj">Scene node to insert.</param>
-        /// <exception cref="ArgumentNullException">Thrown if <paramref name="obj"/> is <see langword="null"/>.</exception>
-        public void Insert(SceneNode obj)
+        /// <param name="node">Scene node to insert.</param>
+        /// <exception cref="ArgumentNullException">Thrown if <paramref name="node"/> is <see langword="null"/>.</exception>
+        public void Insert(SceneNode node)
         {
-            ArgumentNullException.ThrowIfNull(obj);
+            ArgumentNullException.ThrowIfNull(node);
 
-            Root.Insert(obj);
+            Root.Insert(node);
         }
+
+        /// <summary>Appends every node whose bounds intersect the frustum.</summary>
+        public void Query(Frustum frustum, List<SceneNode> results) => Root.Query(frustum, results);
+
+        /// <summary>Appends every node whose bounds intersect the box.</summary>
+        public void Query(in AABB bounds, List<SceneNode> results) => Root.Query(bounds, results);
+
+        /// <summary>Returns the bounds covering every node in the tree.</summary>
+        public AABB GetBounds() => Root.GetBounds();
+
+        /// <summary>Marks the tree dirty; relocating a node without its old bounds takes a rebuild.</summary>
+        public void Update(SceneNode node) => Dirty = true;
 
         /// <summary>
         /// Removes a scene node from the octree.

@@ -506,14 +506,8 @@ public class BaseEntity
 
         foreach (var node in ownedNodes)
         {
-            var oldBounds = node.BoundingBox;
-
             node.Transform = Transform;
-
-            if (node.LayerEnabled && !oldBounds.Equals(node.BoundingBox))
-            {
-                Scene.DynamicOctree.Update(node, oldBounds);
-            }
+            Scene.DynamicOctree.Update(node);
         }
     }
 

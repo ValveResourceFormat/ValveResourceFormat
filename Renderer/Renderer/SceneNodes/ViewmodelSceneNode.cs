@@ -984,7 +984,6 @@ public class ViewmodelSceneNode : ModelSceneNode
         {
             item.Update(context);
             item.LocalBoundingBox = bounds;
-            item.Scene.DynamicOctree.Update(item, bounds);
         }
 
         var i = 1;

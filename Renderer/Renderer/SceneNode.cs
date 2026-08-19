@@ -158,6 +158,11 @@ namespace ValveResourceFormat.Renderer
         private Matrix4x4 transform = Matrix4x4.Identity;
 
         /// <summary>
+        /// This node's slot in the scene's <see cref="Scene.DynamicOctree"/>, or -1 when it is not in one.
+        /// </summary>
+        internal int DynamicSetIndex { get; set; } = -1;
+
+        /// <summary>
         /// Initializes a new instance of the <see cref="SceneNode"/> class.
         /// </summary>
         /// <param name="scene">The scene this node belongs to.</param>

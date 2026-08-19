@@ -293,17 +293,11 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             foreach (var attachment in AttachedNodes)
             {
                 var child = attachment.Node;
-                var oldBounds = child.BoundingBox;
 
                 // keep the child's own scale; the parent drives the rest of its transform
                 var localTransform = Matrix4x4.CreateScale(GetScale(child.Transform)) * Matrix4x4.CreateFromQuaternion(attachment.Rotation) * Matrix4x4.CreateTranslation(attachment.Offset);
                 child.Transform = localTransform * GetAttachmentOrSelfTransform(attachment.AttachmentName);
                 child.Update(context);
-
-                if (child.LayerEnabled)
-                {
-                    child.Scene.DynamicOctree.Update(child, oldBounds);
-                }
             }
         }
 
