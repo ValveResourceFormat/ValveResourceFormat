@@ -1333,10 +1333,19 @@ partial class ModelExtract
         // the original's own m_LockToGoal membership is what says which one a chain was authored in.
         // A rotation-locked root carries a second, sharper signal: format 1 suppresses that root's
         // m_NodeBases entry and format 2 keeps it, so the original's own m_NodeBases decides those chains.
+        // The node-base signal reads an ABSENT root entry as format 1, which is equally what an anchor bone
+        // several sub-chains were merged under looks like: it roots no chain in the original, so nothing
+        // ever gave it a base. Format 1 also locks every non-simulated, rotation-free joint of an extruding
+        // chain to its goal, so an original that locks none of them rules format 1 out directly.
         var root = chain.Joints.Count > 0 ? chain.Joints[0] : null;
+        var lockedInOriginal = chain.Joints.Exists(joint => feModel.IsLockedToGoal(joint.Node));
+        var locksJoints = chain.ExtrudeSides >= 1
+            && chain.Joints.Exists(joint => !joint.Simulated && feModel.AllowsRotation(joint.Node));
+
         chainData.Add("version", root is not null && !feModel.AllowsRotation(root.Node)
+                && (lockedInOriginal || !locksJoints)
             ? (feModel.NodeBases.ContainsKey(root.Node) ? 2 : 1)
-            : (chain.Joints.Exists(joint => feModel.IsLockedToGoal(joint.Node)) ? 1 : 2));
+            : (lockedInOriginal ? 1 : 2));
 
         return MakeNode("ClothChain",
             ("name", chain.RootBone),

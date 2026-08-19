@@ -1998,6 +1998,15 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics
                 // node-count and mass keys, cm_ti9_immortal_weapon two fit keys).
                 if (ProxyFitMatrixNodes.Count == 0)
                 {
+                    // Only a node the original itself compiled as a sheet vertex carries an authored
+                    // proxy skin paint. On a model with no sheet the same offset network describes free
+                    // ClothNode anchors, and reading it as skin weights re-binds the synthesised
+                    // stand-in sheet to bones the author never painted.
+                    if (!IsProxyMeshNode(node))
+                    {
+                        continue;
+                    }
+
                     // Left in the compiled array's own order (primary, then each soft offset as
                     // serialized) rather than sorted by weight: that order is the authored influence
                     // slot order, which the importer keeps for influences of equal weight.
@@ -3456,8 +3465,15 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics
             // membership bit: any strictly positive value enrolls a dynamic vertex, and the compiler reads
             // the value itself as that node's world friction, 1 - paint, sorted into runs spanning at most
             // 0.1 whose minimum is the flWorldFriction m_WorldCollisionParams stores.
+            //
+            // Only a node the original compiled as a sheet vertex can be painted: the compiler names the
+            // vertex's node itself, so on a stand-in sheet rebuilt over bone or free-ClothNode controls the
+            // paint enrolls a fabricated "$cloth_m*" node the original has no counterpart for, on top of
+            // the construct that recreates the control node and carries its own world_collision KV.
             var (worldFriction, groundFriction) = GetWorldFriction(node);
-            var groundCollision = IsWorldCollisionNode(node) ? Math.Max(1f - worldFriction, 1e-6f) : 0f;
+            var groundCollision = IsWorldCollisionNode(node) && IsProxyMeshNode(node)
+                ? Math.Max(1f - worldFriction, 1e-6f)
+                : 0f;
 
             return new ProxyVertexData(isSim, goalStrength, goalDamping, collisionRadius, friction, drag, gravity, vertexAttraction, groundCollision, groundFriction, skinInfluences);
         }
@@ -3487,6 +3503,15 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics
 
             return int.TryParse(name.AsSpan(Prefix.Length, pIndex - Prefix.Length), out var index) ? index : -1;
         }
+
+        /// <summary>
+        /// Whether the original compiled <paramref name="node"/> as a vertex of an authored cloth SHEET.
+        /// Anything a reconstructed proxy mesh covers that this rejects is a stand-in the export builds
+        /// over bone or free-<c>ClothNode</c> controls, so per-vertex sheet data recovered for it belongs
+        /// to a different construct.
+        /// </summary>
+        public bool IsProxyMeshNode(int node)
+            => node >= 0 && node < CtrlNames.Length && ParseProxyMeshIndex(CtrlNames[node]) >= 0;
 
         // Extracts the AUTHORED local vertex index from an auto-generated proxy control-node name
         // ("$cloth_m3p12" -> 12) - the compiler assigns p{N} as the vertex's position in the authored
