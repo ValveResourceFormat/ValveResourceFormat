@@ -1088,6 +1088,25 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics
                 && generated.Contains(rod.NodeA) && generated.Contains(rod.NodeB));
         }
 
+        /// <summary>
+        /// Returns whether the chains carry the extra bend network <c>add_stiffness_rods</c> spans (see
+        /// <c>MakeClothParams</c>). A chain pins every rod it builds itself to an exact length, so a rod
+        /// left free to move between a minimum and a maximum, between two of the nodes a chain generated,
+        /// can only have come from that switch - and it is the only way to get them back, since a
+        /// generated name is not a valid spring endpoint.
+        /// </summary>
+        public bool HasChainStiffnessRods(List<BoneChain> chains)
+        {
+            var generated = chains
+                .SelectMany(static chain => chain.Joints)
+                .SelectMany(joint => ProxyRingOf(joint.Node))
+                .ToHashSet();
+
+            return Rods.Any(rod => rod.MaxDist < UnboundedRodDistance && rod.MinDist < rod.MaxDist
+                && rod.NodeA != rod.NodeB
+                && generated.Contains(rod.NodeA) && generated.Contains(rod.NodeB));
+        }
+
         /// <summary>The maximum length a rod that is not length-limited at all is given.</summary>
         public const float UnboundedRodDistance = 16384f;
 

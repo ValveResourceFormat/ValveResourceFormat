@@ -2707,6 +2707,7 @@ partial class ModelExtract
                 var (softbody, softbodyChildren) = MakeListNode("Softbody");
                 softbody.Add("motion_smooth_cdt", feModel.MotionSmoothCdt);
                 softbodyChildren.Add(MakeClothParams(feModel,
+                    generatesBendRods: feModel.HasChainStiffnessRods(boneChains),
                     generatesBendOnlyRods: feModel.HasChainBendOnlyRods(boneChains)));
                 var (clothFolder, clothFolderChildren) = MakeListNode("Folder");
                 clothFolder.Add("name", "cloth");
