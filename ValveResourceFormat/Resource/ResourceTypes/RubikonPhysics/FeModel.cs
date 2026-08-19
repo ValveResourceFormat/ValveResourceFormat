@@ -1555,6 +1555,87 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics
         /// <summary>Gets the strip column pairings (<c>m_CtrlOsOffsets</c>).</summary>
         public CtrlOsOffset[] CtrlOsOffsets { get; }
 
+        /// <summary>
+        /// Gets whether the cloth was authored as ModelDoc's <c>ImportedCloth</c> node ("Imported PhysAuthFx
+        /// Cloth", wizard <c>wizard_import_legacy_cloth</c>) rather than as ClothChains or a proxy sheet.
+        /// <para>
+        /// The marker is a non-empty <c>m_CtrlOsOffsets</c>: that array is the paired second column of an
+        /// imported fx node table, and no ClothChain/proxy path produces one (an <c>extrude_sides</c> ring
+        /// produces <c>m_CtrlOffsets</c> instead). The other tests exclude the one Dota model that mixes the
+        /// two (bristlebot: 5 os-offsets alongside 20 <c>$cc</c> ring ctrls), since the import path replaces
+        /// the whole cloth folder and cannot also rebuild a ring or a sheet.
+        /// </para>
+        /// </summary>
+        public bool IsImportedCloth
+            => CtrlOsOffsets.Length > 0
+                && CtrlOffsets.Length == 0
+                && Quads.Length == 0 && Tris.Length == 0
+                && FitMatrixNodes.Count == 0
+                && CtrlNames.Length > 0
+                && !Array.Exists(CtrlNames, IsCompilerGeneratedNodeName);
+
+        // The "$" namespace is not one family. An imported fx table supplies its own node names and a
+        // definition whose name starts with "$" leads them there too (brewmaster's flails ship
+        // "$cloth1_flail_r0c1"), so only the compiler's OWN generated families disqualify a model - those
+        // are regenerated from a ring/sheet/element the import path does not rebuild.
+        static bool IsCompilerGeneratedNodeName(string? name)
+            => string.IsNullOrEmpty(name)
+                || name.StartsWith("$cc", StringComparison.Ordinal)
+                || name.StartsWith("$cloth_m", StringComparison.Ordinal)
+                || name.StartsWith(FreeClothNodePrefix, StringComparison.Ordinal)
+                || name.StartsWith("$cloth_root", StringComparison.Ordinal)
+                || name.StartsWith("$ha_", StringComparison.Ordinal);
+
+        /// <summary>
+        /// Gets each node's parent along the <c>m_Ropes</c> runs alone (the first <c>m_nRopeCount</c> entries
+        /// are the runs' exclusive end offsets). Unlike <see cref="BuildRopeParents"/> this does not fall back
+        /// to <c>m_FollowNodes</c>, so it recovers exactly the chain parenting an imported fx node table
+        /// declared - a follow link is a separate authored field on the same node.
+        /// </summary>
+        public IReadOnlyDictionary<int, int> RopeRunParents
+        {
+            get
+            {
+                var parents = new Dictionary<int, int>();
+                var ropeCount = Data.GetInt32Property("m_nRopeCount");
+                var ropes = Data.GetIntegerArray("m_Ropes");
+                if (ropeCount <= 0 || ropes.Length <= ropeCount)
+                {
+                    return parents;
+                }
+
+                var begin = ropeCount;
+                for (var rope = 0; rope < ropeCount; rope++)
+                {
+                    var end = Math.Min((int)ropes[rope], ropes.Length);
+                    for (var i = begin + 1; i < end; i++)
+                    {
+                        parents.TryAdd((int)ropes[i], (int)ropes[i - 1]);
+                    }
+
+                    begin = end;
+                }
+
+                return parents;
+            }
+        }
+
+        /// <summary>Gets each follower node's leader and follow weight (<c>m_FollowNodes</c>).</summary>
+        public IReadOnlyDictionary<int, (int Parent, float Weight)> FollowNodeLinks
+        {
+            get
+            {
+                var links = new Dictionary<int, (int, float)>();
+                foreach (var follow in Data.GetArray("m_FollowNodes") ?? [])
+                {
+                    links.TryAdd(follow.GetInt32Property("nChildNode"),
+                        (follow.GetInt32Property("nParentNode"), follow.GetFloatProperty("flWeight")));
+                }
+
+                return links;
+            }
+        }
+
         /// <summary>A generated node's bone-local anchor offset (from <c>m_CtrlOffsets</c>).</summary>
         public readonly record struct CtrlOffset(Vector3 Offset, int CtrlParent, int CtrlChild);
 

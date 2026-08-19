@@ -229,6 +229,14 @@ partial class ModelExtract
 
         BuildClothRestBonePositions(feModel);
 
+        // An imported PhysAuthFx cloth ships its own node/rod tables and is emitted as a single
+        // ImportedCloth element, so neither a synthesised proxy sheet nor a chain grid has anything to
+        // attach to and their DMX files would be written for nothing.
+        if (feModel.IsImportedCloth)
+        {
+            return;
+        }
+
         // The compiler assigns the $cloth_m<N> mesh index by ORDINAL STRING SORT of the proxy names, not
         // declaration order, so an unpadded suffix breaks every spring/basis reference on models with 11+
         // proxies ("cloth_proxy10" sorts before "cloth_proxy2" - spectre's 13 islands). Zero-padding the
