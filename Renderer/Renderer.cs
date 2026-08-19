@@ -148,7 +148,9 @@ public class Renderer
     /// The value the water effects map means "nothing here" by: the ripple, silt and foam channels are
     /// read signed around 0.5.
     /// </summary>
-    private static readonly Color4 WaterEffectsNeutral = new(0.5f, 0.5f, 0.5f, 0f);
+    private static readonly Color4 WaterEffectsNeutral = new(32767f / 65535f, 32767f / 65535f, 32767f / 65535f, 0f);
+
+    private Shader waterEffectsDepthShader = null!;
 
     /// <summary>Whether <see cref="WaterEffectsBuffer"/> currently holds nothing but <see cref="WaterEffectsNeutral"/>.</summary>
     private bool waterEffectsMapIsNeutral;
@@ -293,6 +295,7 @@ public class Renderer
         //depthOnlyShaders[(int)DepthOnlyProgram.StaticAlphaTest] = GuiContext.ShaderLoader.LoadShader("depth_only", ("F_ALPHA_TEST", 1));
         depthOnlyShaders[(int)DepthOnlyProgram.Animated] = Scene.RendererContext.ShaderLoader.LoadShader("depth_only", ("D_ANIMATED", 1));
         depthOnlyShaders[(int)DepthOnlyProgram.AnimatedEightBones] = Scene.RendererContext.ShaderLoader.LoadShader("depth_only", ("D_ANIMATED", 1), ("D_EIGHT_BONE_BLENDING", 1));
+        waterEffectsDepthShader = Scene.RendererContext.ShaderLoader.LoadShader("water_effects_depth");
 
         histogramShaders[0] = Scene.RendererContext.ShaderLoader.LoadShader("histogram");
         histogramShaders[1] = Scene.RendererContext.ShaderLoader.LoadShader("histogram", ("D_HISTOGRAM_MODE", 1));
@@ -309,14 +312,12 @@ public class Renderer
         Textures.Add(new(ReservedTextureSlots.SceneColor, "g_tSceneColor", ResolvedSceneColor));
         Textures.Add(new(ReservedTextureSlots.SceneDepth, "g_tSceneDepth", ResolvedSceneDepth));
 
-        // Eight bits a channel is what the water shader gets out of it: every read is either recentered
-        // around 0.5 or saturated, so the map never carries range beyond what a unorm target holds.
         WaterEffectsBuffer = Framebuffer.Prepare(nameof(WaterEffectsBuffer), 4, 4, 0,
-            new(PixelInternalFormat.Rgba8, PixelFormat.Rgba, PixelType.UnsignedByte), null);
+            new(PixelInternalFormat.Rgba16, PixelFormat.Rgba, PixelType.UnsignedShort),
+            new(PixelInternalFormat.DepthComponent24, PixelType.UnsignedInt));
         WaterEffectsBuffer.Initialize();
         WaterEffectsBuffer.CheckStatus_ThrowIfIncomplete(nameof(WaterEffectsBuffer));
         WaterEffectsBuffer.ClearColor = WaterEffectsNeutral;
-        WaterEffectsBuffer.ClearMask = ClearBufferMask.ColorBufferBit;
         SetupWaterEffectsTexture();
 
         EnsureDepthPyramidSize(256, 256);
@@ -1025,7 +1026,8 @@ public class Renderer
 
         using var _ = new GLDebugGroup("Water Effects Render");
 
-        var (width, height) = (renderContext.Framebuffer.Width, renderContext.Framebuffer.Height);
+        var width = Math.Max(1, (renderContext.Framebuffer.Width + 5) / 6);
+        var height = Math.Max(1, (renderContext.Framebuffer.Height + 2) / 3);
 
         if (WaterEffectsBuffer.Resize(width, height))
         {
@@ -1036,16 +1038,35 @@ public class Renderer
         // restored: only the GL state below outlives this call.
         var sceneFramebuffer = renderContext.Framebuffer;
 
+        if (hasDraws)
+        {
+            GrabFramebufferCopy(sceneFramebuffer, false, true);
+        }
+
         GL.Viewport(0, 0, width, height);
         WaterEffectsBuffer.BindAndClear();
 
-        // The map is a flat screen space accumulation with no depth of its own, and the particle renderers
-        // set up their own blend state per draw.
-        GL.Disable(EnableCap.DepthTest);
         renderContext.Framebuffer = WaterEffectsBuffer;
 
         if (hasDraws)
         {
+            Debug.Assert(ResolvedSceneDepth != null);
+
+            GL.Disable(EnableCap.Blend);
+            GL.Enable(EnableCap.DepthTest);
+            GL.DepthMask(true);
+            GL.DepthFunc(DepthFunction.Always);
+            GL.ColorMask(false, false, false, false);
+
+            waterEffectsDepthShader.Use();
+            waterEffectsDepthShader.SetTexture(0, "g_tSceneDepth", ResolvedSceneDepth);
+            GL.BindVertexArray(RendererContext.MeshBufferCache.EmptyVAO);
+            GL.DrawArrays(PrimitiveType.Triangles, 0, 3);
+
+            GL.ColorMask(true, true, true, true);
+            GL.DepthMask(false);
+            GL.DepthFunc(DepthFunction.Gequal);
+
             if (skyboxScene != null)
             {
                 renderContext.Scene = skyboxScene;
@@ -1058,6 +1079,7 @@ public class Renderer
 
         GL.Disable(EnableCap.Blend);
         GL.DepthMask(true);
+        GL.DepthFunc(DepthFunction.Greater);
         GL.Enable(EnableCap.DepthTest);
 
         GL.Viewport(0, 0, sceneFramebuffer.Width, sceneFramebuffer.Height);
