@@ -113,6 +113,12 @@ namespace ValveResourceFormat.Renderer
         /// <summary>Gets or sets the GPU buffer mapping each aggregate indirect draw command to the meshlet it draws.</summary>
         public StorageBuffer? CommandMeshletsGpu { get; set; }
 
+        /// <summary>Gets or sets the GPU buffer holding per-object LOD masks and setup indices.</summary>
+        public StorageBuffer? ObjectLodGpu { get; set; }
+
+        /// <summary>Gets or sets the GPU buffer holding one mask per LOD setup in the scene, with the bit of the level that setup selected this frame set.</summary>
+        public StorageBuffer? ActiveLodBitsGpu { get; set; }
+
         /// <summary>Gets or sets the GPU buffer containing the indirect draw commands for all meshlets.</summary>
         public StorageBuffer? IndirectDrawsGpu { get; set; }
 
@@ -467,6 +473,8 @@ namespace ValveResourceFormat.Renderer
                     CreateIndirectDrawBuffers(true);
                 }
             }
+
+            UpdateActiveLodBits();
         }
 
         /// <summary>Allocates GPU uniform and storage buffers for lighting, environment maps, light probes, frustum planes, and indirect draws.</summary>
@@ -489,6 +497,8 @@ namespace ValveResourceFormat.Renderer
             {
                 InstanceBufferGpu?.Delete();
                 TransformBufferGpu?.Delete();
+                ObjectLodGpu?.Delete();
+                ActiveLodBitsGpu?.Delete();
             }
 
             var nodes = AllNodes.ToList();
@@ -500,7 +510,22 @@ namespace ValveResourceFormat.Renderer
 
             var maxId = nodes.Max(n => n.Id);
 
+            // Setups are numbered scene wide so a fragment can name its own with a single index
+            lodAggregates.Clear();
+            var lodSetupCount = 0;
+
+            foreach (var node in nodes)
+            {
+                if (node is SceneAggregate { LodSetups.Length: > 0 } lodAggregate)
+                {
+                    lodAggregate.LodSetupBase = lodSetupCount;
+                    lodSetupCount += lodAggregate.LodSetups.Length;
+                    lodAggregates.Add(lodAggregate);
+                }
+            }
+
             var instanceData = new ObjectDataStandard[maxId + 1];
+            var lodData = new ObjectLodInfo[maxId + 1];
             var transformData = new List<OpenTK.Mathematics.Matrix3x4>(capacity: (int)maxId + 2)
             {
                 // Reserve index 0 for identity transform
@@ -537,6 +562,16 @@ namespace ValveResourceFormat.Renderer
                     transformData.Add(node.Transform.To3x4());
                 }
 
+                // Everything else keeps a zero mask, which the cull shader reads as always drawn
+                if (node is SceneAggregate.Fragment { LodGroupMask: > 0 } lodFragment && lodFragment.LodSetupIndex >= 0)
+                {
+                    lodData[node.Id] = new ObjectLodInfo
+                    {
+                        LodGroupMask = lodFragment.LodGroupMask,
+                        LodSetupIndex = (uint)(lodFragment.Parent.LodSetupBase + lodFragment.LodSetupIndex),
+                    };
+                }
+
                 instanceData[node.Id] = new ObjectDataStandard
                 {
                     TintAlpha = Color32.FromVector4(instanceTint).PackedValue,
@@ -554,10 +589,39 @@ namespace ValveResourceFormat.Renderer
             InstanceBufferGpu.Create(instanceData, BufferUsageHint.StaticDraw);
             TransformBufferGpu.Create(CollectionsMarshal.AsSpan(transformData), BufferUsageHint.StaticDraw);
 
+            activeLodBits = new uint[Math.Max(1, lodSetupCount)];
+            Array.Fill(activeLodBits, 1u);
+
+            ObjectLodGpu = new StorageBuffer(ReservedBufferSlots.BufferSlot2, "ObjectLod");
+            ActiveLodBitsGpu = new StorageBuffer(ReservedBufferSlots.BufferSlot3, "ActiveLodBits");
+
+            ObjectLodGpu.Create(lodData, BufferUsageHint.StaticDraw);
+            ActiveLodBitsGpu.Create(activeLodBits, BufferUsageHint.DynamicDraw);
+
             instanceDataCpu = instanceData;
         }
 
         private ObjectDataStandard[]? instanceDataCpu;
+        private readonly List<SceneAggregate> lodAggregates = [];
+        private uint[] activeLodBits = [];
+
+        /// <summary>
+        /// Uploads the LOD level each setup selected this frame, which the cull shader tests fragments against.
+        /// </summary>
+        private void UpdateActiveLodBits()
+        {
+            if (lodAggregates.Count == 0 || ActiveLodBitsGpu == null)
+            {
+                return;
+            }
+
+            foreach (var aggregate in lodAggregates)
+            {
+                aggregate.WriteActiveLodBits(activeLodBits);
+            }
+
+            ActiveLodBitsGpu.Update<uint>(activeLodBits, 0);
+        }
 
         private void CreateIndirectDrawBuffers(bool deletePrevious = false)
         {
@@ -1351,6 +1415,8 @@ namespace ValveResourceFormat.Renderer
             Debug.Assert(IndirectDrawsGpu is not null);
             Debug.Assert(InstanceBufferGpu is not null);
             Debug.Assert(TransformBufferGpu is not null);
+            Debug.Assert(ObjectLodGpu is not null);
+            Debug.Assert(ActiveLodBitsGpu is not null);
 
             frustumBuffer.BindBufferBase();
             frustumBuffer.Data = new(frustum);
@@ -1367,6 +1433,10 @@ namespace ValveResourceFormat.Renderer
             // Instance transforms move each fragment's shared cull data into world space
             InstanceBufferGpu.BindBufferBase();
             TransformBufferGpu.BindBufferBase();
+
+            // Scratch slots, rebound by the compaction and light cull dispatches that follow
+            ObjectLodGpu.BindBufferBase();
+            ActiveLodBitsGpu.BindBufferBase();
 
             var occlusionDebugEnabled = OcclusionDebugEnabled && OcclusionDebug != null;
 

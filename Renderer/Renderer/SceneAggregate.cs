@@ -53,6 +53,9 @@ namespace ValveResourceFormat.Renderer
 
         private int[] activeLodLevels = [];
 
+        /// <summary>Gets or sets where this aggregate's setups start in the scene's active LOD level bits.</summary>
+        public int LodSetupBase { get; set; }
+
         /// <summary>
         /// Single drawable fragment within an aggregate with independent bounds.
         /// </summary>
@@ -230,6 +233,14 @@ namespace ValveResourceFormat.Renderer
             }
         }
 
+        internal void WriteActiveLodBits(Span<uint> sceneLodBits)
+        {
+            for (var i = 0; i < activeLodLevels.Length; i++)
+            {
+                sceneLodBits[LodSetupBase + i] = 1u << activeLodLevels[i];
+            }
+        }
+
         /// <summary>
         /// Returns whether a fragment is part of the currently active LOD level of its setup.
         /// Fragments with no LOD mask are always visible.
@@ -330,12 +341,6 @@ namespace ValveResourceFormat.Renderer
                     : null;
                 // The compiler writes -1 for fragments that no setup governs
                 var lodSetupIndex = fragmentData.GetInt32Property("m_nLODSetupIndex", -1);
-
-                if (lodGroupMask != 0)
-                {
-                    // LOD-managed fragments change visibility with the camera, which the baked indirect draw buffers cannot express
-                    CanDrawIndirect = false;
-                }
 
                 var fragment = new Fragment(Scene, this, drawBounds)
                 {

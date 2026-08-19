@@ -32,6 +32,16 @@ layout(binding = 14, std430) readonly buffer CommandMeshletBuffer
     uint commandMeshlets[];
 };
 
+layout(binding = 2, std430) readonly buffer ObjectLodBuffer
+{
+    uvec2 objectLod[]; // lod group mask, index into activeLodBits
+};
+
+layout(binding = 3, std430) readonly buffer ActiveLodBitsBuffer
+{
+    uint activeLodBits[]; // per setup, the bit of the level it picked this frame
+};
+
 
 layout(binding = 7, std430) buffer OccludedBoundsDebugBuffer
 {
@@ -254,6 +264,15 @@ void main()
         return;
     }
 
+    uint objectId = drawCommands[drawId].baseInstance;
+    uvec2 lod = objectLod[objectId];
+
+    if (lod.x != 0u && (lod.x & activeLodBits[lod.y]) == 0u)
+    {
+        drawCommands[drawId].instanceCount = 0u;
+        return;
+    }
+
     MeshletCullInfo meshlet = meshlets[commandMeshlets[drawId]];
 
     uint boundIndex = meshlet.m_nParentDrawBoundsIndex;
@@ -268,7 +287,7 @@ void main()
 
     // Shared cull data is stored in the aggregate's own space, so each instance moves it into
     // world space with its own transform. Index zero is reserved for the identity transform.
-    uint transformIndex = objects[drawCommands[drawId].baseInstance].TransformIndex;
+    uint transformIndex = objects[objectId].TransformIndex;
 
     if (transformIndex != 0)
     {
