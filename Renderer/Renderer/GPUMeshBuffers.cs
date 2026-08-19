@@ -16,31 +16,24 @@ namespace ValveResourceFormat.Renderer
         public int[] IndexBuffers { get; private set; }
 
         /// <summary>Uploads all vertex and index buffers from the provided <see cref="VBIB"/> to the GPU.</summary>
+        /// <param name="device">Device that creates the buffer objects.</param>
         /// <param name="vbib">Source vertex and index buffer data.</param>
         /// <param name="name">Mesh name used to label the buffers.</param>
-        public GPUMeshBuffers(VBIB vbib, string name)
+        public GPUMeshBuffers(GraphicsDevice device, VBIB vbib, string name)
         {
             VertexBuffers = new int[vbib.VertexBuffers.Count];
-            GL.CreateBuffers(vbib.VertexBuffers.Count, VertexBuffers);
 
             for (var i = 0; i < vbib.VertexBuffers.Count; i++)
             {
-#if DEBUG
-                var label = $"{name} VB {i}";
-                GL.ObjectLabel(ObjectLabelIdentifier.Buffer, VertexBuffers[i], Math.Min(GLEnvironment.MaxLabelLength, label.Length), label);
-#endif
+                VertexBuffers[i] = device.CreateBuffer($"{name} VB {i}");
                 GL.NamedBufferData(VertexBuffers[i], (IntPtr)vbib.VertexBuffers[i].TotalSizeInBytes, vbib.VertexBuffers[i].Data, BufferUsageHint.StaticDraw);
             }
 
             IndexBuffers = new int[vbib.IndexBuffers.Count];
-            GL.CreateBuffers(vbib.IndexBuffers.Count, IndexBuffers);
 
             for (var i = 0; i < vbib.IndexBuffers.Count; i++)
             {
-#if DEBUG
-                var label = $"{name} IB {i}";
-                GL.ObjectLabel(ObjectLabelIdentifier.Buffer, IndexBuffers[i], Math.Min(GLEnvironment.MaxLabelLength, label.Length), label);
-#endif
+                IndexBuffers[i] = device.CreateBuffer($"{name} IB {i}");
                 GL.NamedBufferData(IndexBuffers[i], (IntPtr)vbib.IndexBuffers[i].TotalSizeInBytes, vbib.IndexBuffers[i].Data, BufferUsageHint.StaticDraw);
             }
         }

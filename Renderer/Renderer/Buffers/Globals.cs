@@ -16,8 +16,9 @@ public sealed class Globals : Buffer
     private bool filling;
 
     /// <summary>Initializes a new constant buffer bound to <see cref="ReservedBufferSlots.Globals"/>.</summary>
+    /// <param name="device">Device that creates the buffer object.</param>
     /// <param name="name">Debug name, normally the shader or material this buffer belongs to.</param>
-    public Globals(string name) : base(BufferTarget.UniformBuffer, (int)ReservedBufferSlots.Globals, name)
+    public Globals(GraphicsDevice device, string name) : base(device, BufferTarget.UniformBuffer, (int)ReservedBufferSlots.Globals, name)
     {
     }
 
