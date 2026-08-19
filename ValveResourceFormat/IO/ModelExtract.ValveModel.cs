@@ -1715,6 +1715,7 @@ partial class ModelExtract
         kv.Add("bend_spring", joint.BendSpring ? 1.0f : 0.0f);
         kv.Add("torsion_spring", joint.TorsionSpring ? 1.0f : 0.0f);
         kv.Add("extra_iterations", joint.ExtraIterations);
+        kv.Add("suspender", joint.Suspender);
 
         // A stiff hinge compiles to a three-node bend rather than a rod, so it is recovered from the bend
         // centred on this joint (see FeModel.GetStiffHinge).

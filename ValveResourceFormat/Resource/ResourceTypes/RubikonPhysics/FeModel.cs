@@ -395,7 +395,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics
         /// <summary>
         /// The spans <paramref name="chains"/> rebuild by themselves, with multiplicity: each joint's rod to
         /// its parent, plus a grandparent/great-grandparent rod where its bend or torsion spring is set, all
-        /// repeated once per extra solver iteration.
+        /// repeated once per extra solver iteration and, again, doubled where the joint carries a suspender.
         /// </summary>
         static Dictionary<(int, int), int> ChainGeneratedSpans(List<BoneChain> chains)
         {
@@ -415,6 +415,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics
             foreach (var chain in chains)
             {
                 var byNode = chain.Joints.ToDictionary(static j => j.Node);
+                var rootNode = chain.Joints.Find(static j => j.IsRoot)?.Node ?? -1;
                 foreach (var joint in chain.Joints)
                 {
                     var parent = joint.ParentNode;
@@ -436,6 +437,15 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics
                         {
                             Generate(greatGrandParent, joint.Node);
                         }
+                    }
+
+                    // A suspender's companion always lands on the pair (joint, chain root) - the SAME
+                    // pair as the plain parent link only when the root happens to be this joint's
+                    // parent (RootSuspenderValue's own remarks), otherwise a pair extra_iterations never
+                    // touches at all.
+                    if (joint.Suspender != 0f)
+                    {
+                        Generate(rootNode, joint.Node);
                     }
                 }
             }
@@ -5480,6 +5490,13 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics
             /// </summary>
             public int ExtraIterations { get; set; }
             /// <summary>
+            /// Gets the authored <c>suspender</c> of this joint: a single companion rod between this
+            /// joint's own ring and its CHAIN ROOT's ring that the compiler adds, carrying this value as
+            /// its own <c>flRelaxationFactor</c>. Zero when the joint carries none. Told apart from
+            /// <see cref="ExtraIterations"/> by <c>RootSuspenderValue</c> in <c>BuildBoneChains</c>.
+            /// </summary>
+            public float Suspender { get; set; }
+            /// <summary>
             /// Gets whether a rod spans this joint and its grandparent, i.e. whether the source authored a
             /// non-zero <c>bend_spring</c> here.
             /// </summary>
@@ -5682,11 +5699,22 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics
             // parent-child pair, so this never rejects a real chain link, only a coincidental one.
             var rodPairs = new HashSet<(int, int)>();
             var rodMultiplicity = new Dictionary<(int, int), int>();
+            // Every rod's own flRelaxationFactor, by pair - a suspender companion rod can be the same pair
+            // as an ordinary one but carries a DIFFERENT relaxation factor (see RootSuspenderValue), which
+            // rodMultiplicity alone (count only) cannot distinguish from an extra_iterations repeat.
+            var rodRelaxationsByPair = new Dictionary<(int, int), List<float>>();
             foreach (var rod in Rods)
             {
                 var pair = rod.NodeA < rod.NodeB ? (rod.NodeA, rod.NodeB) : (rod.NodeB, rod.NodeA);
                 rodPairs.Add(pair);
                 rodMultiplicity[pair] = rodMultiplicity.GetValueOrDefault(pair) + 1;
+                if (!rodRelaxationsByPair.TryGetValue(pair, out var relaxations))
+                {
+                    relaxations = [];
+                    rodRelaxationsByPair[pair] = relaxations;
+                }
+
+                relaxations.Add(rod.RelaxationFactor);
             }
 
             // Each real bone -> the auto-generated "$cc<bone>" proxy nodes parented straight to it (its
@@ -6409,6 +6437,43 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics
                     return proxyChildrenOf.TryGetValue(end, out var ring) && ring.Count > 0 ? ring : [end];
                 }
 
+                // THIS chain's own natural, non-suspendered relaxation factor - what every UNDOUBLED rod
+                // (a pair with exactly one recorded copy) among the chain's own nodes carries. A chain-
+                // level modifier (e.g. a non-default stretch_spring) can move this off the compiler's
+                // 1.0 default uniformly (axe_dressed_to_cull_head's "beard" chain: every undoubled rod
+                // carries 0.9), so a hardcoded 1.0 reference is wrong there. Null when the chain's
+                // undoubled rods disagree, or when it has none - no reliable reference, so
+                // RootSuspenderValue keeps today's extra_iterations-only reading rather than guess.
+                var chainNodes = new HashSet<int>();
+                foreach (var chainJoint in chain.Joints)
+                {
+                    chainNodes.Add(chainJoint.Node);
+                    foreach (var ringNode in Side(chainJoint.Node))
+                    {
+                        chainNodes.Add(ringNode);
+                    }
+                }
+
+                float? chainNaturalRf = null;
+                var chainNaturalRfConsistent = true;
+                foreach (var kv in rodRelaxationsByPair)
+                {
+                    if (!chainNaturalRfConsistent || kv.Value.Count != 1
+                        || !chainNodes.Contains(kv.Key.Item1) || !chainNodes.Contains(kv.Key.Item2))
+                    {
+                        continue;
+                    }
+
+                    if (chainNaturalRf is { } already && MathF.Abs(already - kv.Value[0]) > 1e-4f)
+                    {
+                        chainNaturalRfConsistent = false;
+                        chainNaturalRf = null;
+                        continue;
+                    }
+
+                    chainNaturalRf = kv.Value[0];
+                }
+
                 bool SpannedByRod(int node, int other)
                 {
                     if (other < 0)
@@ -6490,6 +6555,142 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics
                         : 1;
                 }
 
+                // Every upward pair this joint generates must carry EXACTLY baseCopies rods at
+                // <paramref name="naturalRf"/> plus baseCopies more at ONE other shared value, or this
+                // returns null.
+                //
+                // A candidate of 1.0 is accepted only when naturalRf is ALSO 1.0. The compiler emits a
+                // flat, hardcoded 1.0 on every copy an extra_iterations repeat adds, REGARDLESS of the
+                // chain's own natural factor - so on a chain whose natural factor is something else, a
+                // lone 1.0 copy is that iteration artifact, not an authored suspender (verified directly:
+                // setting suspender explicitly on spring2021_bristleback_paganism_pope_golem's
+                // skirt_back_2, whose chain-natural factor is 0.8, produced WRONG topology entirely - see
+                // RootSuspenderValue's own remarks). Where the natural factor is itself something other
+                // than 1.0 (axe_dressed_to_cull_head's "beard" chain: natural 0.9), a companion at 1.0
+                // would be equally ambiguous and is rejected the same way; only a candidate at some THIRD
+                // value, matching neither the natural factor nor 1.0, is unambiguous either way.
+                float? SplitEvenly(List<float> relaxations, float naturalRf, int baseCopies)
+                {
+                    var baseCount = 0;
+                    float? candidate = null;
+                    var candidateCount = 0;
+                    foreach (var rf in relaxations)
+                    {
+                        if (MathF.Abs(rf - naturalRf) < 1e-4f)
+                        {
+                            baseCount++;
+                        }
+                        else if (candidate is null || MathF.Abs(rf - candidate.Value) < 1e-4f)
+                        {
+                            candidate = rf;
+                            candidateCount++;
+                        }
+                        else
+                        {
+                            return null;
+                        }
+                    }
+
+                    if (baseCount != baseCopies || candidateCount != baseCopies || candidate is not { } value
+                        || (MathF.Abs(value - 1.0f) < 1e-4f && MathF.Abs(naturalRf - 1.0f) >= 1e-4f))
+                    {
+                        return null;
+                    }
+
+                    return value;
+                }
+
+                // A suspender adds exactly ONE companion rod between a joint's own ring and its CHAIN
+                // ROOT's ring - never its immediate parent, unless the root happens to BE that parent.
+                // Probe-verified on two independent multi-joint chains (w14_suspender.md): brewmaster's
+                // 2-joint probe, where root and parent coincide, and a controlled compile of
+                // axe_dressed_to_cull_head's real 3-joint "beard" chain (root beard_0, then beard_1, then
+                // beard_end) with suspender authored on the LEAF joint alone, which put the companion on
+                // (beard_end, beard_0) - two hops past its own parent beard_1 - never on
+                // (beard_end, beard_1). extra_iterations is unrelated: it repeats a joint's own parent,
+                // grandparent (if bend_spring) and great-grandparent (if torsion_spring) spans
+                // (JointCopies, untouched by this method), which only overlaps the root pair when the
+                // root itself happens to be one of those targets.
+                float? RootSuspenderValue(BoneChainJoint joint, int parentNode, int grand, int greatGrand)
+                {
+                    if (joint.Node == rootNode)
+                    {
+                        return null;
+                    }
+
+                    var rootIsUpwardTarget = rootNode == parentNode
+                        || (joint.BendSpring && rootNode == grand)
+                        || (joint.TorsionSpring && rootNode == greatGrand);
+
+                    if (rootIsUpwardTarget)
+                    {
+                        // The root coincides with a target JointCopies already gathers evidence from, so
+                        // ITS total already counts any extra_iterations repeats AND a suspender companion
+                        // together - split it the same way, against the chain's own natural factor.
+                        if (chainNaturalRf is not { } naturalRf)
+                        {
+                            return null;
+                        }
+
+                        var totalCopies = JointCopies(joint);
+                        if (totalCopies <= 1 || totalCopies % 2 != 0)
+                        {
+                            return null;
+                        }
+
+                        var baseCopies = totalCopies / 2;
+                        float? suspender = null;
+                        foreach (var a in Side(joint.Node))
+                        {
+                            foreach (var b in Side(rootNode))
+                            {
+                                var pair = a < b ? (a, b) : (b, a);
+                                if (!rodRelaxationsByPair.TryGetValue(pair, out var relaxations)
+                                    || relaxations.Count != baseCopies * 2
+                                    || SplitEvenly(relaxations, naturalRf, baseCopies) is not { } value
+                                    || (suspender is { } already && MathF.Abs(already - value) > 1e-4f))
+                                {
+                                    return null;
+                                }
+
+                                suspender = value;
+                            }
+                        }
+
+                        return suspender;
+                    }
+
+                    // The root is not one of extra_iterations' own targets, so in a chain with no
+                    // suspender there is no rod between this joint and the root AT ALL - a uniform,
+                    // brand-new single rod there, shared across the whole joint-ring/root-ring crossing,
+                    // is unambiguous suspender evidence with no pre-existing "natural" copy to guard
+                    // against. Skips a pair SourceSprings already accounts for as an explicit authored
+                    // ClothSpring (a rigger's own cross-chain tie - see GetAuthoredSourceSprings) so the
+                    // two mechanisms never double-claim the same rod.
+                    {
+                        float? suspender = null;
+                        foreach (var a in Side(joint.Node))
+                        {
+                            foreach (var b in Side(rootNode))
+                            {
+                                var pair = a < b ? (a, b) : (b, a);
+                                if (Array.IndexOf(SourceSprings, pair) >= 0
+                                    || Array.IndexOf(SourceSprings, (pair.Item2, pair.Item1)) >= 0
+                                    || !rodRelaxationsByPair.TryGetValue(pair, out var relaxations)
+                                    || relaxations.Count != 1
+                                    || (suspender is { } already && MathF.Abs(already - relaxations[0]) > 1e-4f))
+                                {
+                                    return null;
+                                }
+
+                                suspender = relaxations[0];
+                            }
+                        }
+
+                        return suspender;
+                    }
+                }
+
                 foreach (var joint in chain.Joints)
                 {
                     var parent = joint.ParentNode;
@@ -6498,7 +6699,20 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics
 
                     joint.BendSpring = SpannedByRod(joint.Node, grandParent);
                     joint.TorsionSpring = SpannedByRod(joint.Node, greatGrandParent);
-                    joint.ExtraIterations = JointCopies(joint) - 1;
+
+                    if (RootSuspenderValue(joint, parent, grandParent, greatGrandParent) is { } suspender)
+                    {
+                        joint.Suspender = suspender;
+                        var rootIsUpwardTarget = rootNode == parent
+                            || (joint.BendSpring && rootNode == grandParent)
+                            || (joint.TorsionSpring && rootNode == greatGrandParent);
+                        joint.ExtraIterations = rootIsUpwardTarget ? JointCopies(joint) / 2 - 1 : JointCopies(joint) - 1;
+                    }
+                    else
+                    {
+                        joint.Suspender = 0f;
+                        joint.ExtraIterations = JointCopies(joint) - 1;
+                    }
                 }
 
                 SteerNodeBaseTies(chain);
