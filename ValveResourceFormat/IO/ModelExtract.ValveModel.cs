@@ -1133,7 +1133,12 @@ partial class ModelExtract
         // The two chain formats are not interchangeable: format 1 registers a non-simulated joint that has
         // no parent to be offset from into m_LockToGoal, format 2 leaves it out. Both are in live use, so
         // the original's own m_LockToGoal membership is what says which one a chain was authored in.
-        chainData.Add("version", chain.Joints.Exists(joint => feModel.IsLockedToGoal(joint.Node)) ? 1 : 2);
+        // A rotation-locked root carries a second, sharper signal: format 1 suppresses that root's
+        // m_NodeBases entry and format 2 keeps it, so the original's own m_NodeBases decides those chains.
+        var root = chain.Joints.Count > 0 ? chain.Joints[0] : null;
+        chainData.Add("version", root is not null && !feModel.AllowsRotation(root.Node)
+            ? (feModel.NodeBases.ContainsKey(root.Node) ? 2 : 1)
+            : (chain.Joints.Exists(joint => feModel.IsLockedToGoal(joint.Node)) ? 1 : 2));
 
         return MakeNode("ClothChain",
             ("name", chain.RootBone),
