@@ -23,8 +23,9 @@ namespace ValveResourceFormat.Renderer.Buffers
         readonly GCHandle cpuBufferHandle;
 
         /// <summary>Initializes a new uniform buffer at the given binding point index.</summary>
+        /// <param name="device">Device that creates the buffer object.</param>
         /// <param name="bindingPoint">The UBO binding point index.</param>
-        public UniformBuffer(int bindingPoint) : base(BufferTarget.UniformBuffer, bindingPoint, typeof(T).Name)
+        public UniformBuffer(GraphicsDevice device, int bindingPoint) : base(device, BufferTarget.UniformBuffer, bindingPoint, typeof(T).Name)
         {
             Size = Marshal.SizeOf<T>();
             Debug.Assert(Size % 16 == 0);
@@ -38,8 +39,9 @@ namespace ValveResourceFormat.Renderer.Buffers
         }
 
         /// <summary>Initializes a new uniform buffer at the given reserved slot.</summary>
+        /// <param name="device">Device that creates the buffer object.</param>
         /// <param name="slot">The reserved buffer slot to bind to.</param>
-        public UniformBuffer(ReservedBufferSlots slot) : this((int)slot) { }
+        public UniformBuffer(GraphicsDevice device, ReservedBufferSlots slot) : this(device, (int)slot) { }
 
         private void WriteToCpuBuffer()
         {

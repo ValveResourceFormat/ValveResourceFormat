@@ -142,7 +142,7 @@ public class GLTextureDecoder : IHardwareTextureDecoder, IDisposable
         GLWindowContext.MakeCurrent();
 
         GLEnvironment.Initialize(RendererContext.Logger);
-        Framebuffer = Framebuffer.Prepare(nameof(GLTextureDecoder), 4, 4, 0, LDRFormat, null);
+        Framebuffer = Framebuffer.Prepare(RendererContext.Device, nameof(GLTextureDecoder), 4, 4, 0, LDRFormat, null);
         Framebuffer.Initialize();
         Framebuffer.ClearMask = ClearBufferMask.ColorBufferBit;
         Framebuffer.ClearColor = new OpenTK.Mathematics.Color4(0, 0, 255, 255);

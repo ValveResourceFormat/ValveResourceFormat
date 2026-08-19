@@ -54,9 +54,9 @@ public class BloomRenderer
         Accumulation = CreateFramebuffer("BloomAccumulation", BloomMipCount);
     }
 
-    private static Framebuffer CreateFramebuffer(string name, int mips = 1)
+    private Framebuffer CreateFramebuffer(string name, int mips = 1)
     {
-        var framebuffer = Framebuffer.Prepare(name, 4, 4, 0, PostProcessRenderer.DefaultColorFormat, null);
+        var framebuffer = Framebuffer.Prepare(RendererContext.Device, name, 4, 4, 0, PostProcessRenderer.DefaultColorFormat, null);
         framebuffer.NumMips = mips;
         framebuffer.Initialize();
         framebuffer.SetColorSamplerState(

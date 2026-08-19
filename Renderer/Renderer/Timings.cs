@@ -27,6 +27,20 @@ public class Timings
 
     private const int NameColumnWidth = 40;
 
+    // Null only for the collector that stands in before a renderer marks its first frame, which never captures.
+    private readonly GraphicsDevice? device;
+
+    /// <summary>Initializes timings whose GPU queries come from the given device.</summary>
+    /// <param name="device">Device that creates the timestamp queries.</param>
+    public Timings(GraphicsDevice device)
+    {
+        this.device = device;
+    }
+
+    internal Timings()
+    {
+    }
+
     /// <summary>Gets or sets whether timing data is actively collected this frame.</summary>
     public bool Capture { get; set; }
 
@@ -73,20 +87,15 @@ public class Timings
         var endQueryId = 0;
         if (!gpuStartQueries.TryGetValue(currentIndex, out var startQueryId))
         {
-            GL.CreateQueries(QueryTarget.Timestamp, 1, out startQueryId);
+            var queryDevice = device ?? throw new InvalidOperationException("GPU timings need a graphics device to create their queries.");
+
+            startQueryId = queryDevice.CreateQuery(QueryTarget.Timestamp, "GpuTimingStart");
             gpuStartQueries[currentIndex] = startQueryId;
 
-            GL.CreateQueries(QueryTarget.Timestamp, 1, out endQueryId);
+            endQueryId = queryDevice.CreateQuery(QueryTarget.Timestamp, "GpuTimingEnd");
             gpuEndQueries[currentIndex] = endQueryId;
 
             Debug.Assert(startQueryId != 0 && endQueryId != 0, "Failed to generate GPU query objects.");
-
-#if DEBUG
-            const string startLabel = "GpuTimingStart";
-            const string endLabel = "GpuTimingEnd";
-            GL.ObjectLabel(ObjectLabelIdentifier.Query, startQueryId, startLabel.Length, startLabel);
-            GL.ObjectLabel(ObjectLabelIdentifier.Query, endQueryId, endLabel.Length, endLabel);
-#endif
         }
 
         if (activeQueries.TryGetValue(currentIndex, out var activeQuery))

@@ -120,15 +120,20 @@ public class Framebuffer
     /// </summary>
     public string Name { get; }
 
+    // Null for the default framebuffer, which neither gets created nor owns attachments.
+    private readonly GraphicsDevice? device;
+
+    private GraphicsDevice Device => device ?? throw new InvalidOperationException("The default framebuffer has no attachments to create.");
+
     /// <summary>
     /// Creates a new named OpenGL framebuffer object.
     /// </summary>
+    /// <param name="device">Device that creates the framebuffer object and its attachments.</param>
     /// <param name="name">Debug label applied to the framebuffer object.</param>
-    public Framebuffer(string name)
+    public Framebuffer(GraphicsDevice device, string name)
     {
-        GL.CreateFramebuffers(1, out int handle);
-        GL.ObjectLabel(ObjectLabelIdentifier.Framebuffer, handle, name.Length, name);
-        FboHandle = handle;
+        this.device = device;
+        FboHandle = device.CreateFramebuffer(name);
         Name = name;
     }
 
@@ -173,15 +178,16 @@ public class Framebuffer
     /// <summary>
     /// Creates and configures a framebuffer without allocating GPU attachments; call <see cref="Initialize"/> to allocate.
     /// </summary>
+    /// <param name="device">Device that creates the framebuffer object and its attachments.</param>
     /// <param name="name">Debug label for the framebuffer.</param>
     /// <param name="width">Width in pixels.</param>
     /// <param name="height">Height in pixels.</param>
     /// <param name="msaa">Number of MSAA samples; 0 disables multisampling.</param>
     /// <param name="colorFormat">Color attachment format, or <see langword="null"/> for depth-only.</param>
     /// <param name="depthFormat">Depth attachment format, or <see langword="null"/> for color-only.</param>
-    public static Framebuffer Prepare(string name, int width, int height, int msaa, ImageFormat? colorFormat, ImageFormat? depthFormat)
+    public static Framebuffer Prepare(GraphicsDevice device, string name, int width, int height, int msaa, ImageFormat? colorFormat, ImageFormat? depthFormat)
     {
-        var fbo = new Framebuffer(name)
+        var fbo = new Framebuffer(device, name)
         {
             NumSamples = msaa,
             Target = TargetForSampleCount(msaa),
@@ -299,7 +305,7 @@ public class Framebuffer
                     throw new InvalidOperationException("Layered depth attachments do not support multisampling");
                 }
 
-                Depth = new RenderTexture(TextureTarget.Texture2DArray, width, height, DepthLayers, 1, $"{Name}Depth");
+                Depth = new RenderTexture(Device, TextureTarget.Texture2DArray, width, height, DepthLayers, 1, $"{Name}Depth");
                 GL.TextureStorage3D(Depth.Handle, 1, depthFormat.ToGLSizedInternalFormat(), width, height, DepthLayers);
                 AttachDepthLayer(0);
             }
@@ -322,7 +328,7 @@ public class Framebuffer
 
     private RenderTexture CreateAttachment(ImageFormat format, int width, int height, string label, int numMips = 1)
     {
-        var attachment = new RenderTexture(Target, width, height, 1, numMips, label);
+        var attachment = new RenderTexture(Device, Target, width, height, 1, numMips, label);
         var mipCount = Math.Min(RenderTexture.MaxMipCount(width, height), attachment.NumMipLevels);
 
         if (Target == TextureTarget.Texture2DMultisample)

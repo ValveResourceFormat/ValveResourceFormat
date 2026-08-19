@@ -23,13 +23,8 @@ namespace ValveResourceFormat.Renderer
         {
             Shader = rendererContext.ShaderLoader.LoadShader("default");
 
-            GL.CreateBuffers(1, out vboHandle);
-
-            vao = SimpleVertex.InputLayout.CreateVertexArray(label, vboHandle);
-
-#if DEBUG
-            GL.ObjectLabel(ObjectLabelIdentifier.Buffer, vboHandle, label.Length, label);
-#endif
+            vboHandle = rendererContext.Device.CreateBuffer(label);
+            vao = SimpleVertex.InputLayout.CreateVertexArray(rendererContext.Device, label, vboHandle);
         }
 
         /// <summary>Uploads the line vertices, two per segment.</summary>

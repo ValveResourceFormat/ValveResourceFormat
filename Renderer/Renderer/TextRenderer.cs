@@ -245,20 +245,14 @@ namespace ValveResourceFormat.Renderer
 
             shader = RendererContext.ShaderLoader.LoadShader("font_msdf");
 
-            fontTexture = new RenderTexture(TextureTarget.Texture2D, (int)AtlasSize, (int)AtlasSize, 1, 1, nameof(TextRenderer));
+            fontTexture = new RenderTexture(RendererContext.Device, TextureTarget.Texture2D, (int)AtlasSize, (int)AtlasSize, 1, 1, nameof(TextRenderer));
             fontTexture.SetWrapMode(TextureWrapMode.ClampToEdge);
             fontTexture.SetFiltering(TextureMinFilter.Linear, TextureMagFilter.Linear);
             GL.TextureStorage2D(fontTexture.Handle, 1, SizedInternalFormat.Rgba8, bitmap.Width, bitmap.Height);
             GL.TextureSubImage2D(fontTexture.Handle, 0, 0, 0, bitmap.Width, bitmap.Height, PixelFormat.Bgra, PixelType.UnsignedByte, bitmap.GetPixels());
 
-            GL.CreateBuffers(1, out bufferHandle);
-
-#if DEBUG
-            var objectLabel = nameof(TextRenderer);
-            GL.ObjectLabel(ObjectLabelIdentifier.Buffer, bufferHandle, objectLabel.Length, objectLabel);
-#endif
-
-            vao = Vertex.InputLayout.CreateVertexArray(nameof(TextRenderer), bufferHandle, RendererContext.MeshBufferCache.QuadIndices.GLHandle);
+            bufferHandle = RendererContext.Device.CreateBuffer(nameof(TextRenderer));
+            vao = Vertex.InputLayout.CreateVertexArray(RendererContext.Device, nameof(TextRenderer), bufferHandle, RendererContext.MeshBufferCache.QuadIndices.GLHandle);
         }
 
         /// <summary>Projects a 3D world position to screen space and queues the text for rendering.</summary>

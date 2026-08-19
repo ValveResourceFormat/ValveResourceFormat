@@ -12,7 +12,7 @@ public partial class GPUMeshBufferCache
     {
         get
         {
-            quadIndices ??= new QuadIndexBuffer(65532);
+            quadIndices ??= new QuadIndexBuffer(RendererContext.Device, 65532);
 
             return quadIndices;
         }
@@ -28,12 +28,7 @@ public partial class GPUMeshBufferCache
         {
             if (emptyVAO == -1)
             {
-                GL.CreateVertexArrays(1, out emptyVAO);
-
-#if DEBUG
-                var vaoLabel = nameof(EmptyVAO);
-                GL.ObjectLabel(ObjectLabelIdentifier.VertexArray, emptyVAO, vaoLabel.Length, vaoLabel);
-#endif
+                emptyVAO = RendererContext.Device.CreateVertexArray(nameof(EmptyVAO));
             }
 
             return emptyVAO;
@@ -50,13 +45,7 @@ public partial class GPUMeshBufferCache
         {
             if (vectorOneVertexBuffer == -1)
             {
-                GL.CreateBuffers(1, out vectorOneVertexBuffer);
-
-#if DEBUG
-                var bufferLabel = nameof(VectorOneVertexBuffer);
-                GL.ObjectLabel(ObjectLabelIdentifier.Buffer, vectorOneVertexBuffer, bufferLabel.Length, bufferLabel);
-#endif
-
+                vectorOneVertexBuffer = RendererContext.Device.CreateBuffer(nameof(VectorOneVertexBuffer));
                 GL.NamedBufferData(vectorOneVertexBuffer, 4 * sizeof(float), [1f, 1f, 1f, 1f], BufferUsageHint.StaticDraw);
             }
 

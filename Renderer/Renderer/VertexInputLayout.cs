@@ -140,9 +140,9 @@ namespace ValveResourceFormat.Renderer
         public VBIB.RenderInputLayoutField[] Fields() => fields;
 
         /// <summary>Creates a VAO binding one vertex buffer. An index buffer of 0 means non-indexed.</summary>
-        public int CreateVertexArray(string? debugLabel, int vertexBuffer, int indexBuffer = 0)
+        public int CreateVertexArray(GraphicsDevice device, string debugLabel, int vertexBuffer, int indexBuffer = 0)
         {
-            GL.CreateVertexArrays(1, out int vao);
+            var vao = device.CreateVertexArray(debugLabel);
             VertexArray.StartRecording(vao, Array.ConvertAll(fields, field => field.ShaderSemantic));
 
             if (indexBuffer != 0)
@@ -158,13 +158,6 @@ namespace ValveResourceFormat.Renderer
                 GL.VertexArrayAttribBinding(vao, locations[i], 0);
                 VertexArray.SetAttribFormat(vao, locations[i], fields[i].Format, (int)fields[i].Offset);
             }
-
-#if DEBUG
-            if (debugLabel != null)
-            {
-                GL.ObjectLabel(ObjectLabelIdentifier.VertexArray, vao, Math.Min(GLEnvironment.MaxLabelLength, debugLabel.Length), debugLabel);
-            }
-#endif
 
             return vao;
         }
