@@ -2494,6 +2494,8 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics
             public required float[] Drag { get; init; }
             /// <summary>Gets the per-vertex ground-collision weight (recovered where available), 0..1 paint range.</summary>
             public required float[] GroundCollision { get; init; }
+            /// <summary>Gets the per-vertex ground friction of a world-colliding node (recovered from <c>m_WorldCollisionParams</c>), 0..1 paint range.</summary>
+            public required float[] GroundFriction { get; init; }
             /// <summary>
             /// Gets the per-vertex gravity (the integrator's <c>flGravity</c>, verbatim - the
             /// <c>cloth_gravity$0</c> paint compiles into <c>flGravity</c> with no scaling, unlike the
@@ -2661,6 +2663,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics
                 Friction = Pad(mesh.Friction),
                 Drag = Pad(mesh.Drag),
                 GroundCollision = Pad(mesh.GroundCollision),
+                GroundFriction = Pad(mesh.GroundFriction),
                 Gravity = Pad(mesh.Gravity),
                 VertexAttraction = Pad(mesh.VertexAttraction),
                 SkinInfluences = Pad(mesh.SkinInfluences),
@@ -2740,6 +2743,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics
                             Friction = Take(merged.Friction),
                             Drag = Take(merged.Drag),
                             GroundCollision = Take(merged.GroundCollision),
+                            GroundFriction = Take(merged.GroundFriction),
                             Gravity = Take(merged.Gravity),
                             VertexAttraction = Take(merged.VertexAttraction),
                             SkinInfluences = Take(merged.SkinInfluences),
@@ -2904,6 +2908,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics
             var friction = new float[nodeIndices.Length];
             var drag = new float[nodeIndices.Length];
             var groundCollision = new float[nodeIndices.Length];
+            var groundFriction = new float[nodeIndices.Length];
             var gravity = new float[nodeIndices.Length];
             var vertexAttraction = new float[nodeIndices.Length];
             var skinInfluences = new (string Bone, float Weight)[nodeIndices.Length][];
@@ -2924,7 +2929,8 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics
                 collisionRadius[i] = vertex.CollisionRadius;
                 friction[i] = vertex.Friction;
                 drag[i] = vertex.Drag;
-                groundCollision[i] = 0f;
+                groundCollision[i] = vertex.WorldCollision ? 1f : 0f;
+                groundFriction[i] = vertex.GroundFriction;
                 gravity[i] = vertex.Gravity;
                 vertexAttraction[i] = vertex.VertexAttraction;
             }
@@ -2968,6 +2974,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics
                 Friction = friction,
                 Drag = drag,
                 GroundCollision = groundCollision,
+                GroundFriction = groundFriction,
                 Gravity = gravity,
                 VertexAttraction = vertexAttraction,
                 SkinInfluences = skinInfluences,
@@ -3013,6 +3020,8 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics
             float Drag,
             float Gravity,
             float VertexAttraction,
+            bool WorldCollision,
+            float GroundFriction,
             (string Bone, float Weight)[] SkinInfluences);
 
         ProxyVertexData ComputeProxyVertexData(int node, float[] nodeFriction)
@@ -3093,7 +3102,13 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics
             // (checked muerta/ringmaster/kez/primal_beast) - a genuine legacy platform ceiling.
             var vertexAttraction = integrator.VertexAttraction;
 
-            return new ProxyVertexData(isSim, goalStrength, goalDamping, collisionRadius, friction, drag, gravity, vertexAttraction, skinInfluences);
+            // Per-vertex ground collision: ctrl+54 world_collision, the same node flag ClothChain joints
+            // already emit via IsWorldCollisionNode (ModelExtract.ValveModel.cs MakeClothJoint). A proxy-mesh
+            // vertex reads it through cloth_ground_collision$0 instead of a joint KV.
+            var worldCollision = IsWorldCollisionNode(node);
+            var (_, groundFriction) = GetWorldFriction(node);
+
+            return new ProxyVertexData(isSim, goalStrength, goalDamping, collisionRadius, friction, drag, gravity, vertexAttraction, worldCollision, groundFriction, skinInfluences);
         }
 
         // Extracts the mesh index the compiler already encodes in an auto-generated proxy control-node
@@ -3450,6 +3465,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics
             var friction = new float[count];
             var drag = new float[count];
             var groundCollision = new float[count];
+            var groundFriction = new float[count];
             var gravity = new float[count];
             var vertexAttraction = new float[count];
             var skinInfluences = new (string Bone, float Weight)[count][];
@@ -3470,7 +3486,8 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics
                 collisionRadius[i] = vertex.CollisionRadius;
                 friction[i] = vertex.Friction;
                 drag[i] = vertex.Drag;
-                groundCollision[i] = 0f;
+                groundCollision[i] = vertex.WorldCollision ? 1f : 0f;
+                groundFriction[i] = vertex.GroundFriction;
                 gravity[i] = vertex.Gravity;
                 vertexAttraction[i] = vertex.VertexAttraction;
             }
@@ -3509,6 +3526,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics
                 Friction = friction,
                 Drag = drag,
                 GroundCollision = groundCollision,
+                GroundFriction = groundFriction,
                 Gravity = gravity,
                 VertexAttraction = vertexAttraction,
                 SkinInfluences = skinInfluences,
