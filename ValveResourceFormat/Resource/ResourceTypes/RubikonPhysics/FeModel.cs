@@ -2368,6 +2368,31 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics
         /// </summary>
         public int[][] SourceFaces { get; } = [];
 
+        // Whether a bone anchors any proxy-sheet vertex, which is what registers it as a control node
+        // independently of any cloth chain that also names it.
+        bool DrivesProxySheetVertex(int node)
+        {
+            foreach (var offset in CtrlOffsets)
+            {
+                if (offset.CtrlParent == node && offset.CtrlChild >= 0 && offset.CtrlChild < CtrlNames.Length
+                    && ParseProxyMeshIndex(CtrlNames[offset.CtrlChild]) >= 0)
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        // A source element identified by its corner set alone. A chain surface is recorded once per
+        // winding with its corners rotated freely, so membership is the only stable part of it.
+        static string SurfaceElementKey(IEnumerable<int> corners)
+        {
+            var sorted = corners.ToArray();
+            Array.Sort(sorted);
+            return string.Join(',', sorted);
+        }
+
         /// <summary>
         /// Gets the authored two-corner elements of <c>m_SourceElems</c>: the edges the source declared as
         /// explicit springs rather than as part of a face. Each is one authored <c>ClothSpring</c>, and each
@@ -5363,6 +5388,57 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics
                 }
             }
 
+            var ringOwnerOf = new Dictionary<int, int>();
+            foreach (var (owner, ring) in proxyChildrenOf)
+            {
+                foreach (var vertex in ring)
+                {
+                    ringOwnerOf[vertex] = owner;
+                }
+            }
+
+            // Every chain link the compiler surfaces leaves one source element behind, and a joint with no
+            // extrude ring of its own contributes its bare node to it: a ringless parent joined to a ringed
+            // child is recorded as that parent plus the child's whole ring (hornet's hat_base, once per
+            // hat_flap). Where a model records its other chain surfaces but not this one, the parent is not
+            // part of the chain and the skeleton link is the artist's bone hierarchy alone - prof_dynamo
+            // hangs three coat chains per side off clavicle_L/R, and reading that as one chain has the
+            // compiler draw six caps the original has none of.
+            //
+            // The parent also has to be a control node for a reason of its own, and driving proxy-sheet
+            // vertices through the offset network is that reason: a bone the chain alone names leaves the
+            // model with the chain, taking its m_SkelParents links and its own node with it. Every ringless
+            // parent measured across the Dota corpus whose cap element is missing drives ZERO sheet
+            // vertices; prof_dynamo's clavicles drive 20 and 2.
+            HashSet<string>? surfaceElements = null;
+            bool RinglessLinkUnrecorded(int parent, int child)
+            {
+                if (SourceFaces.Length == 0 || proxyChildrenOf.ContainsKey(parent)
+                    || !proxyChildrenOf.TryGetValue(child, out var ring) || ring.Count < 2
+                    || !DrivesProxySheetVertex(parent))
+                {
+                    return false;
+                }
+
+                if (surfaceElements is null)
+                {
+                    surfaceElements = [];
+                    var recordsChainSurfaces = false;
+                    foreach (var face in SourceFaces)
+                    {
+                        surfaceElements.Add(SurfaceElementKey(face));
+                        recordsChainSurfaces |= Array.Exists(face, ringOwnerOf.ContainsKey);
+                    }
+
+                    if (!recordsChainSurfaces)
+                    {
+                        surfaceElements.Clear();
+                    }
+                }
+
+                return surfaceElements.Count > 0 && !surfaceElements.Contains(SurfaceElementKey([parent, .. ring]));
+            }
+
             var realParent = new int[n];
             var children = new List<int>?[n];
             var roots = new List<int>();
@@ -5449,8 +5525,8 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics
                     }
                 }
 
-                if (rodLinked || bothDrivenSim || proxyRibbon || hingedRoot || bendLinked
-                    || bendRodLinked || ringLinked)
+                if ((rodLinked || bothDrivenSim || proxyRibbon || hingedRoot || bendLinked
+                    || bendRodLinked || ringLinked) && !RinglessLinkUnrecorded(p, i))
                 {
                     realParent[i] = p;
                 }
@@ -5669,15 +5745,6 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics
             // fit does not was authored elsewhere (hornet's hat_top_0 is absent from every hat_flap fit).
             // A fit that does NOT name the parent is taken over some other neighbourhood and says nothing
             // about siblings, so it never splits.
-            var ringOwnerOf = new Dictionary<int, int>();
-            foreach (var (owner, ring) in proxyChildrenOf)
-            {
-                foreach (var vertex in ring)
-                {
-                    ringOwnerOf[vertex] = owner;
-                }
-            }
-
             void SplitGroupsByFitSet(int rootNode, List<(List<int> Kids, bool RinglessRoot)> groups)
             {
                 for (var g = 0; g < groups.Count; g++)
