@@ -761,8 +761,9 @@ partial class ModelExtract
         vertexData.AddIndexedStream("cloth_drag$0", proxy.Drag, vertexIndices);
 
         // World-collision ground friction paint (compiler attribute "cloth_ground_friction", confirmed
-        // against the resourcecompiler DMX importer's own attribute table - no "cloth_world_friction"
-        // counterpart exists there, so flWorldFriction has no per-vertex paint route on a proxy mesh).
+        // against the resourcecompiler DMX importer's own attribute table). There is no
+        // "cloth_world_friction" counterpart there because world friction rides the ground-collision
+        // paint instead - see ProxyVertexData's GroundCollision.
         if (Array.Exists(proxy.GroundFriction, static value => value != 0f))
         {
             vertexData.AddIndexedStream("cloth_ground_friction$0", proxy.GroundFriction, vertexIndices);

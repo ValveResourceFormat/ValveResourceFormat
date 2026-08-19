@@ -3193,7 +3193,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics
                 collisionRadius[i] = vertex.CollisionRadius;
                 friction[i] = vertex.Friction;
                 drag[i] = vertex.Drag;
-                groundCollision[i] = vertex.WorldCollision ? 1f : 0f;
+                groundCollision[i] = vertex.GroundCollision;
                 groundFriction[i] = vertex.GroundFriction;
                 gravity[i] = vertex.Gravity;
                 vertexAttraction[i] = vertex.VertexAttraction;
@@ -3284,7 +3284,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics
             float Drag,
             float Gravity,
             float VertexAttraction,
-            bool WorldCollision,
+            float GroundCollision,
             float GroundFriction,
             (string Bone, float Weight)[] SkinInfluences);
 
@@ -3368,11 +3368,14 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics
 
             // Per-vertex ground collision: ctrl+54 world_collision, the same node flag ClothChain joints
             // already emit via IsWorldCollisionNode (ModelExtract.ValveModel.cs MakeClothJoint). A proxy-mesh
-            // vertex reads it through cloth_ground_collision$0 instead of a joint KV.
-            var worldCollision = IsWorldCollisionNode(node);
-            var (_, groundFriction) = GetWorldFriction(node);
+            // vertex reads it through cloth_ground_collision$0 instead of a joint KV. The paint is not a
+            // membership bit: any strictly positive value enrolls a dynamic vertex, and the compiler reads
+            // the value itself as that node's world friction, 1 - paint, sorted into runs spanning at most
+            // 0.1 whose minimum is the flWorldFriction m_WorldCollisionParams stores.
+            var (worldFriction, groundFriction) = GetWorldFriction(node);
+            var groundCollision = IsWorldCollisionNode(node) ? Math.Max(1f - worldFriction, 1e-6f) : 0f;
 
-            return new ProxyVertexData(isSim, goalStrength, goalDamping, collisionRadius, friction, drag, gravity, vertexAttraction, worldCollision, groundFriction, skinInfluences);
+            return new ProxyVertexData(isSim, goalStrength, goalDamping, collisionRadius, friction, drag, gravity, vertexAttraction, groundCollision, groundFriction, skinInfluences);
         }
 
         // Extracts the mesh index the compiler already encodes in an auto-generated proxy control-node
@@ -3751,7 +3754,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics
                 collisionRadius[i] = vertex.CollisionRadius;
                 friction[i] = vertex.Friction;
                 drag[i] = vertex.Drag;
-                groundCollision[i] = vertex.WorldCollision ? 1f : 0f;
+                groundCollision[i] = vertex.GroundCollision;
                 groundFriction[i] = vertex.GroundFriction;
                 gravity[i] = vertex.Gravity;
                 vertexAttraction[i] = vertex.VertexAttraction;
