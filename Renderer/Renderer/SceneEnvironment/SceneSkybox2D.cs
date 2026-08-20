@@ -1,5 +1,4 @@
 using OpenTK.Graphics.OpenGL;
-using ValveResourceFormat.CompiledShader;
 
 namespace ValveResourceFormat.Renderer.SceneEnvironment
 {
@@ -25,12 +24,7 @@ namespace ValveResourceFormat.Renderer.SceneEnvironment
         public SceneSkybox2D(RenderMaterial material)
         {
             Material = material;
-            GL.CreateVertexArrays(1, out vao);
-
-#if DEBUG
-            var vaoLabel = nameof(SceneSkybox2D);
-            GL.ObjectLabel(ObjectLabelIdentifier.VertexArray, vao, vaoLabel.Length, vaoLabel);
-#endif
+            vao = GraphicsDevice.CreateVertexArray(nameof(SceneSkybox2D));
         }
 
         /// <summary>
@@ -44,7 +38,7 @@ namespace ValveResourceFormat.Renderer.SceneEnvironment
         /// <summary>Renders the skybox using a fullscreen 36-vertex cube draw call.</summary>
         public void Render()
         {
-            using var _ = Material.Shader.RendererContext.RenderState.Scope(depthFunc: RsComparison.Equal);
+            using var _ = GraphicsContext.RenderState.Scope(depthFunc: RsComparison.Equal);
 
             Material.Shader.Use();
             Material.Render();

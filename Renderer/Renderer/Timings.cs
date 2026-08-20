@@ -73,20 +73,13 @@ public class Timings
         var endQueryId = 0;
         if (!gpuStartQueries.TryGetValue(currentIndex, out var startQueryId))
         {
-            GL.CreateQueries(QueryTarget.Timestamp, 1, out startQueryId);
+            startQueryId = GraphicsDevice.CreateQuery(QueryTarget.Timestamp, "GpuTimingStart");
             gpuStartQueries[currentIndex] = startQueryId;
 
-            GL.CreateQueries(QueryTarget.Timestamp, 1, out endQueryId);
+            endQueryId = GraphicsDevice.CreateQuery(QueryTarget.Timestamp, "GpuTimingEnd");
             gpuEndQueries[currentIndex] = endQueryId;
 
             Debug.Assert(startQueryId != 0 && endQueryId != 0, "Failed to generate GPU query objects.");
-
-#if DEBUG
-            const string startLabel = "GpuTimingStart";
-            const string endLabel = "GpuTimingEnd";
-            GL.ObjectLabel(ObjectLabelIdentifier.Query, startQueryId, startLabel.Length, startLabel);
-            GL.ObjectLabel(ObjectLabelIdentifier.Query, endQueryId, endLabel.Length, endLabel);
-#endif
         }
 
         if (activeQueries.TryGetValue(currentIndex, out var activeQuery))

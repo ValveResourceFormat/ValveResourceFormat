@@ -186,14 +186,7 @@ public class PerfStats
 
         if (frame.SegmentsUsed == frame.Segments.Count)
         {
-            GL.CreateQueries(QueryTarget.PrimitivesGenerated, 1, out int segmentQuery);
-
-#if DEBUG
-            const string segmentLabel = "TriangleSegment";
-            GL.ObjectLabel(ObjectLabelIdentifier.Query, segmentQuery, segmentLabel.Length, segmentLabel);
-#endif
-
-            frame.Segments.Add(segmentQuery);
+            frame.Segments.Add(GraphicsDevice.CreateQuery(QueryTarget.PrimitivesGenerated, "TriangleSegment"));
         }
 
         GL.BeginQuery(QueryTarget.PrimitivesGenerated, frame.Segments[frame.SegmentsUsed]);

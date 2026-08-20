@@ -1,5 +1,4 @@
 using Microsoft.Extensions.Logging;
-using ValveResourceFormat.Renderer.Buffers;
 using ValveResourceFormat.Renderer.SceneNodes;
 using ValveResourceFormat.ResourceTypes;
 

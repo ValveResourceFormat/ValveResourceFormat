@@ -1,5 +1,4 @@
 using OpenTK.Graphics.OpenGL;
-using ValveResourceFormat.CompiledShader;
 using ValveResourceFormat.ResourceTypes.ModelAnimation;
 
 namespace ValveResourceFormat.Renderer.SceneNodes
@@ -138,7 +137,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
 
             var renderShader = context.ReplacementShader ?? lineBuffer.Shader;
 
-            using var _ = Scene.RendererContext.RenderState.Scope(depthFunc: RsComparison.Always);
+            using var _ = GraphicsContext.RenderState.Scope(depthFunc: RsComparison.Always);
 
             renderShader.Use();
             renderShader.SetUniform3x4("transform", Transform);

@@ -110,7 +110,7 @@ public class DOFRenderer
             DOF = RendererContext.ShaderLoader.LoadShader("dof2");
             BlurredResult = Framebuffer.Prepare("Depth Of Field", 2, 2, 0, PostProcessRenderer.DefaultColorFormat, null);
             BlurredResult.Initialize();
-            BlurredResult.SetColorSamplerState(TextureMinFilter.Linear, TextureMagFilter.Linear, TextureWrapMode.ClampToEdge);
+            BlurredResult.SetColorSamplerState(TextureMinFilter.Linear, TextureMagFilter.Linear, RsTextureAddressMode.Clamp);
         }
 
         Debug.Assert(DOF != null);

@@ -1,6 +1,7 @@
 using System.Threading;
 using Microsoft.Extensions.Logging;
 using OpenTK.Graphics.OpenGL;
+using ValveResourceFormat.Renderer.Materials;
 
 namespace ValveResourceFormat.Renderer;
 
@@ -115,14 +116,13 @@ public static class GLEnvironment
     /// <summary>
     /// Sets the default OpenGL render state for Source 2 rendering.
     /// </summary>
-    /// <param name="rendererContext">The renderer context owning the state tracker for this GL context.</param>
-    public static void SetDefaultRenderState(RendererContext rendererContext)
+    public static void SetDefaultRenderState()
     {
         GL.Enable(EnableCap.TextureCubeMapSeamless);
         GL.ClipControl(ClipOrigin.LowerLeft, ClipDepthMode.ZeroToOne); // reverse-Z clip range
 
-        rendererContext.RenderState.SetPassBaseline(RenderState.Default);
-        rendererContext.RenderState.ApplyDynamic(DynamicState.Default);
+        GraphicsContext.RenderState.SetPassBaseline(RenderState.Default);
+        GraphicsContext.RenderState.ApplyDynamic(DynamicState.Default);
 
         EnableParallelShaderCompile();
     }

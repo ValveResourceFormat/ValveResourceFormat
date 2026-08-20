@@ -6,7 +6,6 @@ using OpenTK.Graphics.OpenGL;
 using OpenTK.Windowing.Desktop;
 using SkiaSharp;
 using ValveResourceFormat;
-using ValveResourceFormat.CompiledShader;
 using ValveResourceFormat.IO;
 using ValveResourceFormat.Renderer;
 using ValveResourceFormat.Renderer.Materials;
@@ -23,6 +22,7 @@ public class GLTextureDecoder : IHardwareTextureDecoder, IDisposable
     private readonly Thread GLThread;
 
     private NativeWindow? GLWindowContext;
+    private GraphicsContext? GraphicsContext;
     private Framebuffer? Framebuffer;
 
     public GLTextureDecoder(ILogger logger)
@@ -139,7 +139,8 @@ public class GLTextureDecoder : IHardwareTextureDecoder, IDisposable
             Title = "Source 2 Viewer Texture Decoder",
         });
 
-        GLWindowContext.MakeCurrent();
+        GraphicsContext = RendererContext.Device.CreateContext(new GLFWSurface(GLWindowContext.Context));
+        GraphicsContext.Begin();
 
         GLEnvironment.Initialize(RendererContext.Logger);
         Framebuffer = Framebuffer.Prepare(nameof(GLTextureDecoder), 4, 4, 0, LDRFormat, null);
@@ -256,6 +257,7 @@ public class GLTextureDecoder : IHardwareTextureDecoder, IDisposable
 
     private void Dispose_ThreadResources()
     {
+        GraphicsContext?.End();
         NativeWindowFactory.Destroy(GLWindowContext);
     }
 

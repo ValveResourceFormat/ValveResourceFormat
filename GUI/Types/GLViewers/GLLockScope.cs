@@ -1,5 +1,5 @@
 using System.Threading;
-using OpenTK.Windowing.Desktop;
+using ValveResourceFormat.Renderer;
 
 namespace GUI.Types.GLViewers;
 
@@ -8,19 +8,19 @@ public readonly ref struct GLLockScope
 #pragma warning disable CA2213 // Disposable fields should be disposed
     private readonly Lock.Scope lockScope;
 #pragma warning restore CA2213 // Ref structs implicitly have Dispose method and do not implement the IDisposable interface
-    private readonly IGLFWGraphicsContext context;
+    private readonly GraphicsContext context;
 
-    public GLLockScope(Lock glLock, IGLFWGraphicsContext context)
+    public GLLockScope(Lock glLock, GraphicsContext context)
     {
         lockScope = glLock.EnterScope();
         this.context = context;
 
-        context.MakeCurrent();
+        context.Begin();
     }
 
     public readonly void Dispose()
     {
-        context.MakeNoneCurrent();
+        context.End();
         lockScope.Dispose();
     }
 }

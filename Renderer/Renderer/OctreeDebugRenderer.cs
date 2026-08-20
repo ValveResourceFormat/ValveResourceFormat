@@ -59,7 +59,7 @@ namespace ValveResourceFormat.Renderer
             var vertices = new List<SimpleVertex>();
             AddOctreeNode(vertices, octree.Root, 0);
 
-            Upload(vertices, dynamic ? BufferUsageHint.DynamicDraw : BufferUsageHint.StaticDraw);
+            Upload(vertices, dynamic ? BufferUsage.Dynamic : BufferUsage.Static);
         }
 
         /// <summary>Renders the octree visualization for the current frame, rebuilding geometry if dynamic.</summary>

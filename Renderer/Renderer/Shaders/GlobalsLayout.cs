@@ -1,7 +1,6 @@
 using System.Globalization;
 using System.Runtime.InteropServices;
 using System.Text;
-using ValveResourceFormat.Renderer.Buffers;
 
 namespace ValveResourceFormat.Renderer.Shaders;
 

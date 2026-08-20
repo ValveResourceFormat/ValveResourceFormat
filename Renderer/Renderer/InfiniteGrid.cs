@@ -1,5 +1,4 @@
 using OpenTK.Graphics.OpenGL;
-using ValveResourceFormat.CompiledShader;
 
 namespace ValveResourceFormat.Renderer
 {
@@ -10,7 +9,6 @@ namespace ValveResourceFormat.Renderer
     {
         private readonly int vao;
         private readonly Shader shader;
-        private readonly RenderStateTracker renderState;
 
         /// <summary>Initializes the grid geometry and loads the grid shader.</summary>
         /// <param name="scene">Scene providing the renderer context.</param>
@@ -27,16 +25,8 @@ namespace ValveResourceFormat.Renderer
             };
 
             shader = scene.RendererContext.ShaderLoader.LoadShader("grid");
-            renderState = scene.RendererContext.RenderState;
 
-            GL.CreateBuffers(1, out int buffer);
-
-#if DEBUG
-            var vaoLabel = nameof(InfiniteGrid);
-            GL.ObjectLabel(ObjectLabelIdentifier.Buffer, buffer, vaoLabel.Length, vaoLabel);
-#endif
-
-            GL.NamedBufferData(buffer, vertices.Length * sizeof(float), vertices, BufferUsageHint.StaticDraw);
+            var buffer = GraphicsDevice.CreateBuffer<float>(nameof(InfiniteGrid), vertices, BufferUsage.Static);
 
             var format = new VertexInputLayout(sizeof(float) * 2, new VertexAttribute(VertexSlot.Position, DXGI_FORMAT.R32G32_FLOAT));
             vao = format.CreateVertexArray(nameof(InfiniteGrid), buffer);
@@ -45,7 +35,7 @@ namespace ValveResourceFormat.Renderer
         /// <summary>Renders the infinite grid for the current frame.</summary>
         public void Render()
         {
-            using var _ = renderState.Scope(blend: true);
+            using var _ = GraphicsContext.RenderState.Scope(blend: true);
 
             shader.Use();
             VertexArray.Bind(vao, shader);

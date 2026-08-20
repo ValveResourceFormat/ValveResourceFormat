@@ -19,6 +19,12 @@ public class RendererContext : IDisposable
     public GameFileLoader FileLoader { get; }
 
     /// <summary>
+    /// Owns the GPU objects created for this renderer. Creation goes through the static methods on
+    /// <see cref="GraphicsDevice"/> rather than through this property.
+    /// </summary>
+    public GraphicsDevice Device { get; }
+
+    /// <summary>
     /// Material and texture loader and cache.
     /// </summary>
     public MaterialLoader MaterialLoader { get; }
@@ -32,11 +38,6 @@ public class RendererContext : IDisposable
     /// GPU mesh buffer and vertex array object cache.
     /// </summary>
     public GPUMeshBufferCache MeshBufferCache { get; }
-
-    /// <summary>
-    /// Render state tracker for the GL context this renderer context renders with.
-    /// </summary>
-    public RenderStateTracker RenderState { get; } = new();
 
     /// <summary>
     /// Maximum texture mip size to load in <see cref="MaterialLoader"/>.
@@ -63,6 +64,7 @@ public class RendererContext : IDisposable
     {
         FileLoader = fileLoader;
         Logger = logger;
+        Device = GraphicsDevice.Create();
 
         MaterialLoader = new MaterialLoader(this);
         ShaderLoader = new ShaderLoader(this);

@@ -1,7 +1,5 @@
 using System.Diagnostics;
 using OpenTK.Graphics.OpenGL;
-using ValveResourceFormat.CompiledShader;
-using ValveResourceFormat.Renderer.Buffers;
 using ValveResourceFormat.Renderer.Materials;
 
 namespace ValveResourceFormat.Renderer;
@@ -82,7 +80,7 @@ public class LightTilesOverlay(RendererContext rendererContext)
 
         cullBits.BindBufferBase();
 
-        using var overlayState = rendererContext.RenderState.Scope(depthTest: false, depthWrite: false, blend: true);
+        using var overlayState = GraphicsContext.RenderState.Scope(depthTest: false, depthWrite: false, blend: true);
 
         GL.BindVertexArray(rendererContext.MeshBufferCache.EmptyVAO);
         GL.DrawArrays(PrimitiveType.Triangles, 0, 3);

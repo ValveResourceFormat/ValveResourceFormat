@@ -1,6 +1,5 @@
 using System.Diagnostics;
 using OpenTK.Graphics.OpenGL;
-using ValveResourceFormat.CompiledShader;
 using ValveResourceFormat.Renderer.SceneEnvironment;
 using ValveResourceFormat.Renderer.World;
 
@@ -174,10 +173,9 @@ namespace ValveResourceFormat.Renderer.PostProcess
             if (combinedLut == null || combinedLut.Width != dimensions)
             {
                 combinedLut?.Delete();
-                combinedLut = new RenderTexture(TextureTarget.Texture3D, dimensions, dimensions, dimensions, 1, "CombinedColorCorrectionLUT");
-                combinedLut.SetWrapMode(TextureWrapMode.ClampToEdge);
+                combinedLut = RenderTexture.Create3D(TextureTarget.Texture3D, dimensions, dimensions, dimensions, ImageFormat.RGBA8888, 1, "CombinedColorCorrectionLUT");
+                combinedLut.SetWrapMode(RsTextureAddressMode.Clamp);
                 combinedLut.SetFiltering(TextureMinFilter.Linear, TextureMagFilter.Linear);
-                GL.TextureStorage3D(combinedLut.Handle, 1, SizedInternalFormat.Rgba8, dimensions, dimensions, dimensions);
             }
 
             var weights = Vector4.Zero;
@@ -249,7 +247,7 @@ namespace ValveResourceFormat.Renderer.PostProcess
 
             Debug.Assert(BlueNoise != null);
 
-            using var _ = RendererContext.RenderState.Scope(depthTest: false, depthWrite: false);
+            using var _ = GraphicsContext.RenderState.Scope(depthTest: false, depthWrite: false);
 
             using (new GLDebugGroup("MSAA Resolve"))
             {

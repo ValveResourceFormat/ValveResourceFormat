@@ -1,6 +1,6 @@
+using System.Runtime.InteropServices;
 using OpenTK.Graphics.OpenGL;
 using ValveResourceFormat.Blocks;
-using ValveResourceFormat.CompiledShader;
 using ValveResourceFormat.ThirdParty;
 
 namespace ValveResourceFormat.Renderer.SceneNodes
@@ -46,15 +46,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             clusterDrawRanges = [.. ranges];
             totalVertexCount = vertices.Count;
 
-            GL.CreateBuffers(1, out int vboHandle);
-
-#if DEBUG
-            var label = nameof(VisibilitySceneNode);
-            GL.ObjectLabel(ObjectLabelIdentifier.Buffer, vboHandle, label.Length, label);
-#endif
-
-            GL.NamedBufferData(vboHandle, totalVertexCount * SimpleVertex.InputLayout.Stride,
-                ListAccessors<SimpleVertex>.GetBackingArray(vertices), BufferUsageHint.StaticDraw);
+            var vboHandle = GraphicsDevice.CreateBuffer<SimpleVertex>(nameof(VisibilitySceneNode), CollectionsMarshal.AsSpan(vertices), BufferUsage.Static);
 
             vao = SimpleVertex.InputLayout.CreateVertexArray(nameof(VisibilitySceneNode), vboHandle);
 
@@ -74,7 +66,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             renderShader.SetUniform3x4("transform", Transform);
             renderShader.SetBoneAnimationData(false);
 
-            using var _ = Scene.RendererContext.RenderState.Scope(depthWrite: false);
+            using var _ = GraphicsContext.RenderState.Scope(depthWrite: false);
 
             VertexArray.Bind(vao, renderShader);
 

@@ -1,6 +1,5 @@
 using System.Diagnostics;
 using OpenTK.Graphics.OpenGL;
-using ValveResourceFormat.CompiledShader;
 
 namespace ValveResourceFormat.Renderer.PostProcess;
 
@@ -31,7 +30,7 @@ public class OutlineRenderer(RendererContext rendererContext)
 
         outlineEdge.SetTexture(0, "g_tOutlineMask", outlineMask);
 
-        using var _ = rendererContext.RenderState.Scope(blend: true);
+        using var _ = GraphicsContext.RenderState.Scope(blend: true);
 
         GL.BindVertexArray(rendererContext.MeshBufferCache.EmptyVAO);
         GL.DrawArrays(PrimitiveType.Triangles, 0, 3);

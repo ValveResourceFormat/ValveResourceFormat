@@ -5,8 +5,6 @@ using System.Runtime.InteropServices;
 using Microsoft.Extensions.Logging;
 using OpenTK.Graphics.OpenGL;
 using ValveResourceFormat.Blocks;
-using ValveResourceFormat.CompiledShader;
-using ValveResourceFormat.Renderer.Buffers;
 using ValveResourceFormat.Renderer.Entities;
 using ValveResourceFormat.Renderer.SceneEnvironment;
 using ValveResourceFormat.Renderer.SceneNodes;
@@ -586,8 +584,8 @@ namespace ValveResourceFormat.Renderer
             InstanceBufferGpu = new StorageBuffer(ReservedBufferSlots.Objects, nameof(ReservedBufferSlots.Objects));
             TransformBufferGpu = new StorageBuffer(ReservedBufferSlots.Transforms, nameof(ReservedBufferSlots.Transforms));
 
-            InstanceBufferGpu.Create(instanceData, BufferUsageHint.StaticDraw);
-            TransformBufferGpu.Create(CollectionsMarshal.AsSpan(transformData), BufferUsageHint.StaticDraw);
+            InstanceBufferGpu.Create(instanceData, BufferUsage.Static);
+            TransformBufferGpu.Create(CollectionsMarshal.AsSpan(transformData), BufferUsage.Static);
 
             activeLodBits = new uint[Math.Max(1, lodSetupCount)];
             Array.Fill(activeLodBits, 1u);
@@ -595,8 +593,8 @@ namespace ValveResourceFormat.Renderer
             ObjectLodGpu = new StorageBuffer(ReservedBufferSlots.BufferSlot2, "ObjectLod");
             ActiveLodBitsGpu = new StorageBuffer(ReservedBufferSlots.BufferSlot3, "ActiveLodBits");
 
-            ObjectLodGpu.Create(lodData, BufferUsageHint.StaticDraw);
-            ActiveLodBitsGpu.Create(activeLodBits, BufferUsageHint.DynamicDraw);
+            ObjectLodGpu.Create(lodData, BufferUsage.Static);
+            ActiveLodBitsGpu.Create(activeLodBits, BufferUsage.Dynamic);
 
             instanceDataCpu = instanceData;
         }
@@ -668,7 +666,7 @@ namespace ValveResourceFormat.Renderer
                 }
 
                 DrawBoundsGpu = new StorageBuffer(ReservedBufferSlots.AggregateDrawBounds, nameof(ReservedBufferSlots.AggregateDrawBounds));
-                DrawBoundsGpu.Create(drawBounds, BufferUsageHint.StaticDraw);
+                DrawBoundsGpu.Create(drawBounds, BufferUsage.Static);
             }
 
             // meshlets
@@ -767,17 +765,17 @@ namespace ValveResourceFormat.Renderer
                 SceneMeshletCount = sceneCommandCount;
 
                 CommandMeshletsGpu = new StorageBuffer(ReservedBufferSlots.AggregateCommandMeshlets, nameof(ReservedBufferSlots.AggregateCommandMeshlets));
-                CommandMeshletsGpu.Create(commandMeshlets, BufferUsageHint.StaticDraw);
+                CommandMeshletsGpu.Create(commandMeshlets, BufferUsage.Static);
 
                 MeshletDataGpu = new StorageBuffer(ReservedBufferSlots.AggregateMeshlets, nameof(ReservedBufferSlots.AggregateMeshlets));
                 IndirectDrawsGpu = new StorageBuffer(ReservedBufferSlots.AggregateDraws, nameof(ReservedBufferSlots.AggregateDraws));
 
-                MeshletDataGpu.Create(meshletDataGpu, BufferUsageHint.StaticDraw);
-                IndirectDrawsGpu.Create(indirectDrawsGpu, BufferUsageHint.DynamicCopy);
+                MeshletDataGpu.Create(meshletDataGpu, BufferUsage.Static);
+                IndirectDrawsGpu.Create(indirectDrawsGpu, BufferUsage.GpuOnly);
 
                 // Create compaction buffers
                 CompactedDrawsGpu = new StorageBuffer(ReservedBufferSlots.CompactedDraws, nameof(ReservedBufferSlots.CompactedDraws));
-                CompactedDrawsGpu.Create(indirectDrawsGpu, BufferUsageHint.DynamicCopy);
+                CompactedDrawsGpu.Create(indirectDrawsGpu, BufferUsage.GpuOnly);
 
                 var compactedCounts = new uint[compactionRequestList.Count / 2];
 
@@ -787,10 +785,10 @@ namespace ValveResourceFormat.Renderer
                 }
 
                 CompactedCountsGpu = new StorageBuffer(ReservedBufferSlots.CompactedCounts, nameof(ReservedBufferSlots.CompactedCounts));
-                CompactedCountsGpu.Create(compactedCounts, BufferUsageHint.DynamicCopy);
+                CompactedCountsGpu.Create(compactedCounts, BufferUsage.GpuOnly);
 
                 CompactionRequestsGpu = new StorageBuffer(ReservedBufferSlots.BufferSlot2, "CompactionRequests");
-                CompactionRequestsGpu.Create(compactionRequestList, BufferUsageHint.StaticDraw);
+                CompactionRequestsGpu.Create(compactionRequestList, BufferUsage.Static);
             }
 
             OcclusionDebug = new OcclusionDebugRenderer(this, RendererContext);
@@ -1584,7 +1582,7 @@ namespace ValveResourceFormat.Renderer
         /// <param name="depthOnlyShader">Optional depth-only shader; when provided and <see cref="EnableDepthPrepass"/> is set, a depth prepass is performed.</param>
         public void RenderOpaqueLayer(RenderContext renderContext, Shader? depthOnlyShader = null)
         {
-            using var passScope = RendererContext.RenderState.Scope();
+            using var passScope = GraphicsContext.RenderState.Scope();
 
             var camera = renderContext.Camera;
 
@@ -1602,7 +1600,7 @@ namespace ValveResourceFormat.Renderer
             if (depthPrepass)
             {
                 using (new GLDebugGroup("Depth Prepass"))
-                using (RendererContext.RenderState.Scope(colorWriteMask: RsColorWriteEnableBits.None))
+                using (GraphicsContext.RenderState.Scope(colorWriteMask: RsColorWriteEnableBits.None))
                 {
                     PerfStats.Active.SuspendTriangleCounter();
 
@@ -1617,7 +1615,7 @@ namespace ValveResourceFormat.Renderer
                 }
 
                 using (new GLDebugGroup("Opaque Prepassed"))
-                using (RendererContext.RenderState.Scope(depthWrite: false, depthFunc: RsComparison.Equal))
+                using (GraphicsContext.RenderState.Scope(depthWrite: false, depthFunc: RsComparison.Equal))
                 {
                     renderContext.RenderPass = RenderPass.OpaqueAggregate;
                     MeshBatchRenderer.Render(renderLists[renderContext.RenderPass], renderContext);
@@ -1662,7 +1660,7 @@ namespace ValveResourceFormat.Renderer
         /// <param name="renderContext">The render context for this pass, expected to use the dedicated viewmodel camera and depth range.</param>
         public void RenderViewmodelOpaqueLayer(RenderContext renderContext)
         {
-            using var _ = RendererContext.RenderState.Scope();
+            using var _ = GraphicsContext.RenderState.Scope();
 
             renderContext.RenderPass = RenderPass.Opaque;
             MeshBatchRenderer.Render(viewmodelRenderLists[RenderPass.Opaque], renderContext);
@@ -1675,7 +1673,7 @@ namespace ValveResourceFormat.Renderer
         /// <param name="renderContext">The render context for this pass, expected to use the dedicated viewmodel camera and depth range.</param>
         public void RenderViewmodelTranslucentLayer(RenderContext renderContext)
         {
-            using var _ = RendererContext.RenderState.Scope(depthWrite: false, blend: true);
+            using var _ = GraphicsContext.RenderState.Scope(depthWrite: false, blend: true);
 
             renderContext.RenderPass = RenderPass.Translucent;
             MeshBatchRenderer.Render(viewmodelRenderLists[RenderPass.Translucent], renderContext);
@@ -1696,7 +1694,7 @@ namespace ValveResourceFormat.Renderer
             }
 
             using (new GLDebugGroup("Opaque Refract Render"))
-            using (RendererContext.RenderState.Scope())
+            using (GraphicsContext.RenderState.Scope())
             {
                 renderContext.RenderPass = RenderPass.OpaqueRefract;
                 MeshBatchRenderer.Render(requests, renderContext);
@@ -1715,7 +1713,7 @@ namespace ValveResourceFormat.Renderer
             }
 
             using (new GLDebugGroup("Fancy Water Render"))
-            using (RendererContext.RenderState.Scope())
+            using (GraphicsContext.RenderState.Scope())
             {
                 renderContext.RenderPass = RenderPass.Water;
                 MeshBatchRenderer.Render(requests, renderContext);

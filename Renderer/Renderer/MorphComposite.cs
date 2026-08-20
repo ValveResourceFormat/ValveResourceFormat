@@ -3,7 +3,6 @@ using System.Linq;
 using System.Runtime.InteropServices;
 using OpenTK.Graphics.OpenGL;
 using ValveKeyValue;
-using ValveResourceFormat.CompiledShader;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization.KeyValues;
 
@@ -24,7 +23,6 @@ namespace ValveResourceFormat.Renderer
 
         private readonly int frameBuffer;
         private readonly Shader shader;
-        private readonly RenderStateTracker renderState;
         private int vao;
         private int bufferHandle;
         private MorphRectVertex[] allVertices;
@@ -65,7 +63,6 @@ namespace ValveResourceFormat.Renderer
             morphAtlas.SetFiltering(TextureMinFilter.Nearest, TextureMagFilter.Nearest);
 
             shader = renderContext.ShaderLoader.LoadShader("morph_composite");
-            renderState = renderContext.RenderState;
 
             var width = morph.Data.GetInt32Property("m_nWidth");
             var height = morph.Data.GetInt32Property("m_nHeight");
@@ -73,15 +70,9 @@ namespace ValveResourceFormat.Renderer
 
             CompositeTexture = new(TextureTarget.Texture2D, width * 2, height, 1, 1, label);
 
-            GL.CreateFramebuffers(1, out frameBuffer);
+            frameBuffer = GraphicsDevice.CreateFramebuffer(label);
 
-            InitVertexBuffer(renderContext);
-
-#if DEBUG
-            GL.ObjectLabel(ObjectLabelIdentifier.VertexArray, vao, Math.Min(GLEnvironment.MaxLabelLength, label.Length), label);
-            GL.ObjectLabel(ObjectLabelIdentifier.Buffer, bufferHandle, Math.Min(GLEnvironment.MaxLabelLength, label.Length), label);
-            GL.ObjectLabel(ObjectLabelIdentifier.Framebuffer, frameBuffer, Math.Min(GLEnvironment.MaxLabelLength, label.Length), label);
-#endif
+            InitVertexBuffer(renderContext, label);
 
             FillVertices(morph);
 
@@ -97,7 +88,7 @@ namespace ValveResourceFormat.Renderer
         private void InitRenderTarget()
         {
             CompositeTexture.SetFiltering(TextureMinFilter.Nearest, TextureMagFilter.Nearest);
-            CompositeTexture.SetWrapMode(TextureWrapMode.ClampToEdge);
+            CompositeTexture.SetWrapMode(RsTextureAddressMode.Clamp);
 
             GL.TextureStorage2D(CompositeTexture.Handle, 1, SizedInternalFormat.Rgba16f, CompositeTexture.Width, CompositeTexture.Height);
             GL.NamedFramebufferTexture(frameBuffer, FramebufferAttachment.ColorAttachment0, CompositeTexture.Handle, 0);
@@ -118,7 +109,7 @@ namespace ValveResourceFormat.Renderer
             GL.NamedBufferSubData(bufferHandle, IntPtr.Zero, usedVertexCount * MorphRectVertex.InputLayout.Stride, usedVertices);
 
             // Every rect adds its weighted deltas on top of the ones already accumulated, alpha included.
-            using var _ = renderState.Scope(cullMode: RsCullMode.None, multisampleEnable: false,
+            using var _ = GraphicsContext.RenderState.Scope(cullMode: RsCullMode.None, multisampleEnable: false,
                 depthTest: false, depthWrite: false,
                 blend: true, srcBlend: RsBlendMode.One, dstBlend: RsBlendMode.One);
 
@@ -160,11 +151,10 @@ namespace ValveResourceFormat.Renderer
             public static readonly VertexInputLayout InputLayout = VertexInputLayout.FromStruct<MorphRectVertex>();
         }
 
-        private void InitVertexBuffer(RendererContext renderContext)
+        private void InitVertexBuffer(RendererContext renderContext, string label)
         {
-            GL.CreateBuffers(1, out bufferHandle);
-
-            vao = MorphRectVertex.InputLayout.CreateVertexArray(nameof(MorphComposite), bufferHandle, renderContext.MeshBufferCache.QuadIndices.GLHandle);
+            bufferHandle = GraphicsDevice.CreateBuffer(label);
+            vao = MorphRectVertex.InputLayout.CreateVertexArray(label, bufferHandle, renderContext.MeshBufferCache.QuadIndices.GLHandle);
         }
 
         [MemberNotNull(nameof(allVertices), nameof(usedVertices), nameof(morphRects))]

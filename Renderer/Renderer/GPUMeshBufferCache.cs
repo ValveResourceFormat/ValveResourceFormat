@@ -195,7 +195,7 @@ namespace ValveResourceFormat.Renderer
         {
             Debug.Assert(vertexBuffers != null && vertexBuffers.Length > 0);
 
-            GL.CreateVertexArrays(1, out int newVaoHandle);
+            var newVaoHandle = GraphicsDevice.CreateVertexArray(debugLabel ?? string.Empty);
             VertexArray.StartRecording(newVaoHandle);
 
             // Check for non-indexed geometry
@@ -242,13 +242,6 @@ namespace ValveResourceFormat.Renderer
 
                 bindingIndex++;
             }
-
-#if DEBUG
-            if (debugLabel != null)
-            {
-                GL.ObjectLabel(ObjectLabelIdentifier.VertexArray, newVaoHandle, Math.Min(GLEnvironment.MaxLabelLength, debugLabel.Length), debugLabel);
-            }
-#endif
 
             return newVaoHandle;
         }

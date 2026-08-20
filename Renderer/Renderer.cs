@@ -2,8 +2,6 @@ using System.Diagnostics;
 using System.IO;
 using System.Reflection;
 using OpenTK.Graphics.OpenGL;
-using ValveResourceFormat.CompiledShader;
-using ValveResourceFormat.Renderer.Buffers;
 using ValveResourceFormat.Renderer.PostProcess;
 using ValveResourceFormat.Renderer.SceneEnvironment;
 using ValveResourceFormat.Renderer.World;
@@ -78,7 +76,7 @@ public class Renderer
     /// <summary>
     /// Per-frame rendering statistics, including CPU/GPU profiling timings
     /// </summary>
-    public PerfStats PerfStats { get; } = new();
+    public PerfStats PerfStats { get; }
 
     /// <summary>
     /// The main scene to render.
@@ -216,6 +214,7 @@ public class Renderer
     public Renderer(RendererContext rendererContext)
     {
         RendererContext = rendererContext;
+        PerfStats = new PerfStats();
         Postprocess = new(rendererContext);
         LightTilesOverlay = new(rendererContext);
         Camera = new Camera(rendererContext.FieldOfView);
@@ -288,12 +287,12 @@ public class Renderer
         histogramShaders[0] = Scene.RendererContext.ShaderLoader.LoadShader("histogram");
         histogramShaders[1] = Scene.RendererContext.ShaderLoader.LoadShader("histogram", ("D_HISTOGRAM_MODE", 1));
 
-        histogramBuffers[0] = StorageBuffer.Allocate<uint>(ReservedBufferSlots.BufferSlot2, "Histogram", 256, BufferUsageHint.DynamicCopy);
-        histogramBuffers[1] = StorageBuffer.Allocate<uint>(ReservedBufferSlots.BufferSlot3, "HistogramReadback", 4, BufferUsageHint.DynamicRead);
+        histogramBuffers[0] = StorageBuffer.Allocate<uint>(ReservedBufferSlots.BufferSlot2, "Histogram", 256, BufferUsage.GpuOnly);
+        histogramBuffers[1] = StorageBuffer.Allocate<uint>(ReservedBufferSlots.BufferSlot3, "HistogramReadback", 4, BufferUsage.Readback);
 
         ResolvedSceneColor = RenderTexture.Create(4, 4, ImageFormat.RGBA16161616F, nameof(ResolvedSceneColor));
         ResolvedSceneColor.SetFiltering(TextureMinFilter.Linear, TextureMagFilter.Linear);
-        ResolvedSceneColor.SetWrapMode(TextureWrapMode.ClampToEdge);
+        ResolvedSceneColor.SetWrapMode(RsTextureAddressMode.Clamp);
 
         ResolvedSceneDepth = RenderTexture.Create(4, 4, ImageFormat.R32F, nameof(ResolvedSceneDepth));
 
@@ -372,7 +371,7 @@ public class Renderer
             }
 
             var brdfLutTexture = Scene.RendererContext.MaterialLoader.LoadTexture(brdfLutResource);
-            brdfLutTexture.SetWrapMode(TextureWrapMode.ClampToEdge);
+            brdfLutTexture.SetWrapMode(RsTextureAddressMode.Clamp);
             Textures.Add(new(ReservedTextureSlots.BRDFLookup, "g_tBRDFLookup", brdfLutTexture));
         }
         finally
@@ -509,7 +508,7 @@ public class Renderer
         scene.RenderOpaqueRefractLayer(renderContext);
         scene.RenderWaterLayer(renderContext);
 
-        using var _ = scene.RendererContext.RenderState.Scope(depthWrite: false, blend: true);
+        using var _ = GraphicsContext.RenderState.Scope(depthWrite: false, blend: true);
 
         scene.RenderTranslucentLayer(renderContext);
     }
@@ -591,7 +590,7 @@ public class Renderer
         ViewBuffer.Data.ViewportSize = new Vector2(w, h);
         ViewBuffer.Data.InvViewportSize = Vector2.One / ViewBuffer.Data.ViewportSize;
 
-        using var frameScope = RendererContext.RenderState.Scope(multisampleEnable: renderContext.Framebuffer.NumSamples > 1);
+        using var frameScope = GraphicsContext.RenderState.Scope(multisampleEnable: renderContext.Framebuffer.NumSamples > 1);
         renderContext.Framebuffer.BindAndClear();
 
         var isMainFramebuffer = ReferenceEquals(renderContext.Framebuffer, MainFramebuffer);
@@ -608,7 +607,7 @@ public class Renderer
         // TODO: check if renderpass allows wireframe mode
         // TODO+: replace wireframe shaders with solid color
         var wireframeScope = isWireframe
-            ? RendererContext.RenderState.Scope(fillMode: RsFillMode.Wireframe)
+            ? GraphicsContext.RenderState.Scope(fillMode: RsFillMode.Wireframe)
             : default;
 
         UpdatePerViewGpuBuffers(Scene, renderContext.Camera, DeltaTime);
@@ -622,7 +621,7 @@ public class Renderer
             ViewmodelCamera.CreateProjectionMatrix();
             ViewmodelCamera.RecalculateMatrices();
 
-            RendererContext.RenderState.SetDepthRange(DepthRange.Viewmodel);
+            GraphicsContext.RenderState.SetDepthRange(DepthRange.Viewmodel);
 
             ViewmodelCamera.SetViewConstants(ViewBuffer.Data);
             Scene.SetFogConstants(ViewBuffer.Data);
@@ -639,7 +638,7 @@ public class Renderer
             Scene.RenderViewmodelOpaqueLayer(renderContext);
             renderContext.Camera = mainCamera;
 
-            RendererContext.RenderState.SetDepthRange(DepthRange.Scene);
+            GraphicsContext.RenderState.SetDepthRange(DepthRange.Scene);
 
             mainCamera.SetViewConstants(ViewBuffer.Data);
             Scene.SetFogConstants(ViewBuffer.Data);
@@ -658,7 +657,7 @@ public class Renderer
 
         //using (new GLDebugGroup("Sky Render"))
         {
-            RendererContext.RenderState.SetDepthRange(DepthRange.Sky);
+            GraphicsContext.RenderState.SetDepthRange(DepthRange.Sky);
 
             renderContext.ReplacementShader?.SetUniform1AllVariants("isSkybox", 1u);
             var skyboxScene = SkyboxScene;
@@ -738,7 +737,7 @@ public class Renderer
             }
 
             renderContext.ReplacementShader?.SetUniform1AllVariants("isSkybox", 0u);
-            RendererContext.RenderState.SetDepthRange(DepthRange.Scene);
+            GraphicsContext.RenderState.SetDepthRange(DepthRange.Scene);
         }
 
         using (new GLDebugGroup("Main Scene Translucent Render"))
@@ -750,7 +749,7 @@ public class Renderer
         {
             var mainCamera = renderContext.Camera;
 
-            RendererContext.RenderState.SetDepthRange(DepthRange.Viewmodel);
+            GraphicsContext.RenderState.SetDepthRange(DepthRange.Viewmodel);
 
             ViewmodelCamera.SetViewConstants(ViewBuffer.Data);
             Scene.SetFogConstants(ViewBuffer.Data);
@@ -763,7 +762,7 @@ public class Renderer
             Scene.RenderViewmodelTranslucentLayer(renderContext);
             renderContext.Camera = mainCamera;
 
-            RendererContext.RenderState.SetDepthRange(DepthRange.Scene);
+            GraphicsContext.RenderState.SetDepthRange(DepthRange.Scene);
 
             mainCamera.SetViewConstants(ViewBuffer.Data);
             Scene.SetFogConstants(ViewBuffer.Data);
@@ -822,10 +821,10 @@ public class Renderer
             throw new InvalidOperationException("Initialize() must be called before rendering");
         }
 
-        using var _ = RendererContext.RenderState.Scope(multisampleEnable: ShadowDepthBuffer.NumSamples > 1,
+        using var _ = GraphicsContext.RenderState.Scope(multisampleEnable: ShadowDepthBuffer.NumSamples > 1,
             cullMode: RsCullMode.None, slopeScaledDepthBias: -2f);
 
-        using var shadowDepth = RendererContext.RenderState.ScopeDynamic(DepthRange.Full);
+        using var shadowDepth = GraphicsContext.RenderState.ScopeDynamic(DepthRange.Full);
 
         GL.Viewport(0, 0, ShadowDepthBuffer.Width, ShadowDepthBuffer.Height);
         ShadowDepthBuffer.Bind(FramebufferTarget.Framebuffer);
@@ -871,10 +870,10 @@ public class Renderer
         Debug.Assert(BarnLightShadowBuffer != null);
 
         // The barn shadow atlas uses forward depth, unlike the reverse-Z main view.
-        using var forwardDepth = RendererContext.RenderState.Scope(depthFunc: RsComparison.FartherEqual,
+        using var forwardDepth = GraphicsContext.RenderState.Scope(depthFunc: RsComparison.FartherEqual,
             slopeScaledDepthBias: 2f, multisampleEnable: BarnLightShadowBuffer.NumSamples > 1);
 
-        using var atlasDepth = RendererContext.RenderState.ScopeDynamic(DepthRange.Full, clearDepth: 1f, scissorTest: true);
+        using var atlasDepth = GraphicsContext.RenderState.ScopeDynamic(DepthRange.Full, clearDepth: 1f, scissorTest: true);
 
         BarnLightShadowBuffer.Bind(FramebufferTarget.Framebuffer);
 
@@ -972,7 +971,7 @@ public class Renderer
         Postprocess.OutlineMask = maskBuffer.Color;
 
         // Custom scene nodes may leave state changed, and the outline layer is drawn mid frame.
-        using var maskState = RendererContext.RenderState.Scope(cullMode: RsCullMode.None,
+        using var maskState = GraphicsContext.RenderState.Scope(cullMode: RsCullMode.None,
             multisampleEnable: maskBuffer.NumSamples > 1, depthTest: false, depthWrite: false, blend: false);
 
         GL.Viewport(0, 0, maskBuffer.Width, maskBuffer.Height);
@@ -1017,7 +1016,7 @@ public class Renderer
             ResolvedSceneColor.Delete();
             ResolvedSceneColor = RenderTexture.Create(width, height, ImageFormat.RGBA16161616F, nameof(ResolvedSceneColor));
             ResolvedSceneColor.SetFiltering(TextureMinFilter.Linear, TextureMagFilter.Linear);
-            ResolvedSceneColor.SetWrapMode(TextureWrapMode.ClampToEdge);
+            ResolvedSceneColor.SetWrapMode(RsTextureAddressMode.Clamp);
 
             ResolvedSceneDepth!.Delete();
             ResolvedSceneDepth = RenderTexture.Create(width, height, ImageFormat.R32F, nameof(ResolvedSceneDepth));

@@ -11,7 +11,6 @@ using OpenTK.Graphics.OpenGL;
 using SkiaSharp;
 using Svg.Skia;
 using ValveResourceFormat;
-using ValveResourceFormat.CompiledShader;
 using ValveResourceFormat.Graphs;
 using ValveResourceFormat.Renderer;
 using ValveResourceFormat.Renderer.Input;
@@ -536,7 +535,7 @@ namespace GUI.Types.GLViewers
                 };
 
                 texture.SetFiltering(min, mag);
-                texture.SetWrapMode(VisualizeTiling ? TextureWrapMode.Repeat : TextureWrapMode.ClampToEdge);
+                texture.SetWrapMode(VisualizeTiling ? RsTextureAddressMode.Wrap : RsTextureAddressMode.Clamp);
             }
         }
 
@@ -1219,9 +1218,8 @@ namespace GUI.Types.GLViewers
                 var resolution = postProcessingData.GetColorCorrectionLUTDimension();
                 var data = postProcessingData.GetColorCorrectionLUT();
 
-                texture = new RenderTexture(TextureTarget.Texture3D, resolution, resolution, resolution, 1, "ColorCorrectionLUT");
+                texture = RenderTexture.Create3D(TextureTarget.Texture3D, resolution, resolution, resolution, ImageFormat.RGBA8888, 1, "ColorCorrectionLUT");
 
-                GL.TextureStorage3D(texture.Handle, 1, SizedInternalFormat.Rgba8, resolution, resolution, resolution);
                 GL.TextureSubImage3D(texture.Handle, 0, 0, 0, 0, resolution, resolution, resolution, PixelFormat.Rgba, PixelType.UnsignedByte, data);
 
                 return;

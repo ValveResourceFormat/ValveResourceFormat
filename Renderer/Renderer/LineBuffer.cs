@@ -23,27 +23,22 @@ namespace ValveResourceFormat.Renderer
         {
             Shader = rendererContext.ShaderLoader.LoadShader("default");
 
-            GL.CreateBuffers(1, out vboHandle);
-
+            vboHandle = GraphicsDevice.CreateBuffer(label);
             vao = SimpleVertex.InputLayout.CreateVertexArray(label, vboHandle);
-
-#if DEBUG
-            GL.ObjectLabel(ObjectLabelIdentifier.Buffer, vboHandle, label.Length, label);
-#endif
         }
 
         /// <summary>Uploads the line vertices, two per segment.</summary>
-        public void Upload(List<SimpleVertex> vertices, BufferUsageHint usageHint = BufferUsageHint.DynamicDraw)
-            => Upload(CollectionsMarshal.AsSpan(vertices), usageHint);
+        public void Upload(List<SimpleVertex> vertices, BufferUsage usage = BufferUsage.Dynamic)
+            => Upload(CollectionsMarshal.AsSpan(vertices), usage);
 
         /// <summary>Uploads the line vertices, two per segment.</summary>
-        public unsafe void Upload(ReadOnlySpan<SimpleVertex> vertices, BufferUsageHint usageHint = BufferUsageHint.DynamicDraw)
+        public unsafe void Upload(ReadOnlySpan<SimpleVertex> vertices, BufferUsage usage = BufferUsage.Dynamic)
         {
             VertexCount = vertices.Length;
 
             fixed (SimpleVertex* data = vertices)
             {
-                GL.NamedBufferData(vboHandle, VertexCount * SimpleVertex.InputLayout.Stride, (nint)data, usageHint);
+                GL.NamedBufferData(vboHandle, VertexCount * SimpleVertex.InputLayout.Stride, (nint)data, usage.ToGLBufferUsageHint());
             }
         }
 

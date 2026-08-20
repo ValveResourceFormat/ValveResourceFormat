@@ -3,8 +3,6 @@ using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using Microsoft.Extensions.Logging;
 using OpenTK.Graphics.OpenGL;
-using ValveResourceFormat.CompiledShader;
-using ValveResourceFormat.Renderer.Buffers;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization.VfxEval;
 
@@ -575,8 +573,8 @@ namespace ValveResourceFormat.Renderer.Materials
             var userConfigSampler = 0;
             if (shader.SamplerUserConfigUniforms.Count > 0 && Loader != null)
             {
-                var addressModeU = (int)IntParams.GetValueOrDefault("g_nTextureAddressModeU");
-                var addressModeV = (int)IntParams.GetValueOrDefault("g_nTextureAddressModeV");
+                var addressModeU = (RsTextureAddressMode)IntParams.GetValueOrDefault("g_nTextureAddressModeU");
+                var addressModeV = (RsTextureAddressMode)IntParams.GetValueOrDefault("g_nTextureAddressModeV");
                 userConfigSampler = Loader.GetOrCreateSampler(addressModeU, addressModeV);
             }
 
@@ -608,7 +606,7 @@ namespace ValveResourceFormat.Renderer.Materials
                 $"'{shader.Name}' needs {textureUnit} texture units ({textureUnit - TextureUnitStart} of its own on top of {TextureUnitStart} reserved) but the driver only has {maxCombinedTextureImageUnits}.");
 #endif
 
-            var renderState = Shader.RendererContext.RenderState;
+            var renderState = GraphicsContext.RenderState;
             renderState.Apply(ComposeRenderState(renderState.CurrentPass));
         }
 

@@ -3,7 +3,6 @@ using System.Linq;
 using System.Runtime.CompilerServices;
 using Microsoft.Extensions.Logging;
 using OpenTK.Graphics.OpenGL;
-using ValveResourceFormat.Renderer.Buffers;
 using ValveResourceFormat.Renderer.SceneEnvironment;
 using ValveResourceFormat.ResourceTypes;
 
@@ -235,7 +234,7 @@ namespace ValveResourceFormat.Renderer.World
                 var first = EnvMaps[0];
                 if (envmap.EnvMapTexture.Target != first.EnvMapTexture.Target)
                 {
-                    scene.RendererContext.Logger.LogError("Envmap texture target mismatch {EnvMapTarget} != {FirstTarget}", envmap.EnvMapTexture.Target, first.EnvMapTexture.Target);
+                    scene.RendererContext.Logger.LogError("Envmap texture type mismatch {EnvMapType} != {FirstType}", envmap.EnvMapTexture.Target, first.EnvMapTexture.Target);
                 }
             }
 
@@ -707,7 +706,7 @@ namespace ValveResourceFormat.Renderer.World
 
             if (cookieTextures.Count > 0)
             {
-                using var _ = scene.RendererContext.RenderState.Scope();
+                using var _ = GraphicsContext.RenderState.Scope();
                 BarnLightCookieAtlas = BuildCookieAtlas(cookieTextures);
             }
         }
@@ -718,8 +717,7 @@ namespace ValveResourceFormat.Renderer.World
         /// </summary>
         private static RenderTexture CreateDefaultCookieAtlas()
         {
-            var atlas = new RenderTexture(TextureTarget.Texture2DArray, 1, 1, 1, 1, "EmptyCookieAtlas");
-            GL.TextureStorage3D(atlas.Handle, 1, SizedInternalFormat.Srgb8Alpha8, 1, 1, 1);
+            var atlas = RenderTexture.Create3D(TextureTarget.Texture2DArray, 1, 1, 1, ImageFormat.RGBA8888, 1, "EmptyCookieAtlas", srgb: true);
             GL.TextureSubImage3D(atlas.Handle, 0, 0, 0, 0, 1, 1, 1, PixelFormat.Rgba, PixelType.UnsignedByte, new byte[] { 255, 255, 255, 255 });
 
             return atlas;
@@ -735,16 +733,10 @@ namespace ValveResourceFormat.Renderer.World
 
             var numLayers = textures.Count + 1;
 
-            var atlas = new RenderTexture(TextureTarget.Texture2DArray, atlasSize, atlasSize, numLayers, 1, "CookieAtlas");
-            GL.TextureStorage3D(atlas.Handle, 1, SizedInternalFormat.Srgb8Alpha8, atlasSize, atlasSize, numLayers);
+            var atlas = RenderTexture.Create3D(TextureTarget.Texture2DArray, atlasSize, atlasSize, numLayers, ImageFormat.RGBA8888, 1, "CookieAtlas", srgb: true);
 
-            GL.CreateFramebuffers(1, out int readFbo);
-            GL.CreateFramebuffers(1, out int drawFbo);
-
-#if DEBUG
-            GL.ObjectLabel(ObjectLabelIdentifier.Framebuffer, readFbo, 18, "CookieAtlasBlitSrc");
-            GL.ObjectLabel(ObjectLabelIdentifier.Framebuffer, drawFbo, 18, "CookieAtlasBlitDst");
-#endif
+            var readFbo = GraphicsDevice.CreateFramebuffer("CookieAtlasBlitSrc");
+            var drawFbo = GraphicsDevice.CreateFramebuffer("CookieAtlasBlitDst");
 
             // First layer is full white
             GL.NamedFramebufferTextureLayer(drawFbo, FramebufferAttachment.ColorAttachment0, atlas.Handle, 0, 0);
@@ -771,32 +763,21 @@ namespace ValveResourceFormat.Renderer.World
 
         private void CreateCookieSamplers()
         {
-            GL.CreateSamplers(1, out CookieSamplerClampBorder);
+            var clampBorder = new Sampler(nameof(CookieSamplerClampBorder));
+            clampBorder.SetWrapMode(RsTextureAddressMode.Border, RsTextureAddressMode.Border);
+            clampBorder.SetFiltering(TextureMinFilter.Linear, TextureMagFilter.Linear);
+            CookieSamplerClampBorder = clampBorder.Handle;
 
-#if DEBUG
-            GL.ObjectLabel(ObjectLabelIdentifier.Sampler, CookieSamplerClampBorder, nameof(CookieSamplerClampBorder).Length, nameof(CookieSamplerClampBorder));
-#endif
-
-            GL.SamplerParameter(CookieSamplerClampBorder, SamplerParameterName.TextureWrapS, (int)TextureWrapMode.ClampToBorder);
-            GL.SamplerParameter(CookieSamplerClampBorder, SamplerParameterName.TextureWrapT, (int)TextureWrapMode.ClampToBorder);
-            GL.SamplerParameter(CookieSamplerClampBorder, SamplerParameterName.TextureMinFilter, (int)TextureMinFilter.Linear);
-
-            GL.CreateSamplers(1, out CookieSamplerWrap);
-
-#if DEBUG
-            GL.ObjectLabel(ObjectLabelIdentifier.Sampler, CookieSamplerWrap, nameof(CookieSamplerWrap).Length, nameof(CookieSamplerWrap));
-#endif
-
-            GL.SamplerParameter(CookieSamplerWrap, SamplerParameterName.TextureWrapS, (int)TextureWrapMode.Repeat);
-            GL.SamplerParameter(CookieSamplerWrap, SamplerParameterName.TextureWrapT, (int)TextureWrapMode.Repeat);
-            GL.SamplerParameter(CookieSamplerWrap, SamplerParameterName.TextureMinFilter, (int)TextureMinFilter.Linear);
+            var wrap = new Sampler(nameof(CookieSamplerWrap));
+            wrap.SetWrapMode(RsTextureAddressMode.Wrap, RsTextureAddressMode.Wrap);
+            wrap.SetFiltering(TextureMinFilter.Linear, TextureMagFilter.Linear);
+            CookieSamplerWrap = wrap.Handle;
         }
 
         /// <summary>Allocates the GPU storage buffer used to pass barn light data to shaders.</summary>
         public void CreateBarnLightBuffer()
         {
-            BarnLightStorageBuffer ??= StorageBuffer.Allocate<BarnLightConstants>(
-                ReservedBufferSlots.BarnLights, nameof(ReservedBufferSlots.BarnLights), BarnLightConstants.MAX_BARN_LIGHTS, BufferUsageHint.DynamicDraw);
+            BarnLightStorageBuffer ??= StorageBuffer.Allocate<BarnLightConstants>(ReservedBufferSlots.BarnLights, nameof(ReservedBufferSlots.BarnLights), BarnLightConstants.MAX_BARN_LIGHTS, BufferUsage.Dynamic);
         }
 
         /// <summary>Binds the barn light storage buffer to its reserved shader slot.</summary>

@@ -1,5 +1,4 @@
 using OpenTK.Graphics.OpenGL;
-using ValveResourceFormat.CompiledShader;
 using ValveResourceFormat.NavMesh;
 
 namespace ValveResourceFormat.Renderer.SceneNodes
@@ -117,7 +116,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
 
             VertexArray.Bind(vao, renderShader);
 
-            using var _ = Scene.RendererContext.RenderState.Scope(depthBias: 96, depthBiasClamp: 0.0005f);
+            using var _ = GraphicsContext.RenderState.Scope(depthBias: 96, depthBiasClamp: 0.0005f);
 
             GL.DrawElements(PrimitiveType.Lines, indexCount - triangleIndexCount, DrawElementsType.UnsignedInt, triangleIndexCount * sizeof(int));
 

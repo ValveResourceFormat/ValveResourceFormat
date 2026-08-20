@@ -1,5 +1,4 @@
 using OpenTK.Graphics.OpenGL;
-using ValveResourceFormat.CompiledShader;
 using ValveResourceFormat.Particles;
 using ValveResourceFormat.Particles.Utils;
 using ValveResourceFormat.Serialization.KeyValues;
@@ -72,13 +71,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             shader = rendererContext.ShaderLoader.LoadShader(ShaderName, ("S_TEXTURE_LAYERS", (byte)(layers.Length - 1)));
 
             // The same quad is reused for all particles
-            vaoHandle = SetupQuadBuffer();
-
-#if DEBUG
-            var vaoLabel = $"{nameof(RenderSprites)}: {System.IO.Path.GetFileName(textureName)}";
-            GL.ObjectLabel(ObjectLabelIdentifier.VertexArray, vaoHandle, Math.Min(GLEnvironment.MaxLabelLength, vaoLabel.Length), vaoLabel);
-            GL.ObjectLabel(ObjectLabelIdentifier.Buffer, vertexBufferHandle, Math.Min(GLEnvironment.MaxLabelLength, vaoLabel.Length), vaoLabel);
-#endif
+            vaoHandle = SetupQuadBuffer($"{nameof(RenderSprites)}: {System.IO.Path.GetFileName(textureName)}");
 
             animateInFps = parse.Boolean("m_bAnimateInFPS", animateInFps);
             orientationType = parse.Enum("m_nOrientationType", orientationType);
@@ -126,11 +119,11 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             layers[0].Texture = texture;
         }
 
-        private int SetupQuadBuffer()
+        private int SetupQuadBuffer(string label)
         {
-            GL.CreateBuffers(1, out vertexBufferHandle);
+            vertexBufferHandle = GraphicsDevice.CreateBuffer(label);
 
-            return SpritecardVertex.InputLayout.CreateVertexArray(nameof(RenderSprites), vertexBufferHandle, rendererContext.MeshBufferCache.QuadIndices.GLHandle);
+            return SpritecardVertex.InputLayout.CreateVertexArray(label, vertexBufferHandle, rendererContext.MeshBufferCache.QuadIndices.GLHandle);
         }
 
         private (Vector2 UvMin, Vector2 UvMax, Vector2 NextMin, Vector2 NextMax) GetLayerSheetUvs(int layer, ref Particle particle, out float frameBlend)
@@ -446,7 +439,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                 return;
             }
 
-            using var _ = SpritecardStateScope(rendererContext.RenderState, blendMode);
+            using var _ = SpritecardStateScope(GraphicsContext.RenderState, blendMode);
 
             shader.Use();
             VertexArray.Bind(vaoHandle, shader);

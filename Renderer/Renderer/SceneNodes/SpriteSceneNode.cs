@@ -49,19 +49,13 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             // Forcefully clamp sprites so they don't render extra pixels on edges
             foreach (var texture in material.Textures.Values)
             {
-                texture.SetWrapMode(TextureWrapMode.ClampToEdge);
+                texture.SetWrapMode(RsTextureAddressMode.Clamp);
             }
 
-            GL.CreateBuffers(1, out int vboHandle);
+            var label = $"{nameof(SpriteSceneNode)}: {System.IO.Path.GetFileName(resource.FileName)}";
+            var vboHandle = GraphicsDevice.CreateBuffer<Vertex>(label, Vertices, BufferUsage.Static);
 
-#if DEBUG
-            var vaoLabel = $"{nameof(SpriteSceneNode)}: {System.IO.Path.GetFileName(resource.FileName)}";
-            GL.ObjectLabel(ObjectLabelIdentifier.Buffer, vboHandle, Math.Min(GLEnvironment.MaxLabelLength, vaoLabel.Length), vaoLabel);
-#endif
-
-            GL.NamedBufferData(vboHandle, Vertices.Length * Vertex.InputLayout.Stride, Vertices, BufferUsageHint.StaticDraw);
-
-            vao = Vertex.InputLayout.CreateVertexArray(nameof(SpriteSceneNode), vboHandle);
+            vao = Vertex.InputLayout.CreateVertexArray(label, vboHandle);
 
             spriteSize = material.FloatParams.GetValueOrDefault("g_flUniformPointSize", 16);
             spriteSize /= 2f; // correct the scale to actually be 16x16

@@ -16,15 +16,7 @@ namespace ValveResourceFormat.Renderer
         /// <param name="size">Total number of indices to generate (must be a multiple of 6).</param>
         public QuadIndexBuffer(int size)
         {
-            GL.CreateBuffers(1, out int handle);
-            GLHandle = handle;
-
-#if DEBUG
-            var bufferLabel = nameof(QuadIndexBuffer);
-            GL.ObjectLabel(ObjectLabelIdentifier.Buffer, handle, bufferLabel.Length, bufferLabel);
-
             System.Diagnostics.Debug.Assert(size % 6 == 0);
-#endif
 
             var sizeInBytes = size * sizeof(ushort);
             var indicesBytes = ArrayPool<byte>.Shared.Rent(sizeInBytes);
@@ -42,7 +34,7 @@ namespace ValveResourceFormat.Renderer
                     indices[(i * 6) + 5] = (ushort)((i * 4) + 3);
                 }
 
-                GL.NamedBufferData(handle, sizeInBytes, indicesBytes, BufferUsageHint.StaticDraw);
+                GLHandle = GraphicsDevice.CreateBuffer<byte>(nameof(QuadIndexBuffer), indicesBytes.AsSpan(0, sizeInBytes), BufferUsage.Static);
             }
             finally
             {

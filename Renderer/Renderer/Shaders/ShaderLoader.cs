@@ -260,35 +260,19 @@ namespace ValveResourceFormat.Renderer.Shaders
                     sources.Remove(ShaderProgramType.Fragment);
                 }
 
-                static ShaderType ToShaderType(ShaderProgramType type) => type switch
-                {
-                    ShaderProgramType.Vertex => ShaderType.VertexShader,
-                    ShaderProgramType.Fragment => ShaderType.FragmentShader,
-                    ShaderProgramType.Compute => ShaderType.ComputeShader,
-                    _ => throw new ArgumentOutOfRangeException(nameof(type), type, null)
-                };
-
                 var shaderObjects = new int[sources.Count];
                 var shaderSources = new string[sources.Count];
                 var s = 0;
                 foreach (var (stage, source) in sources)
                 {
-                    shaderObjects[s] = GL.CreateShader(ToShaderType(stage));
+                    shaderObjects[s] = GraphicsDevice.CreateShader(stage, shaderFileName);
                     shaderSources[s] = source!;
                     s++;
                 }
 
                 CompileShaderObjects(shaderObjects, shaderSources, shaderFileName, shaderName, arguments, parsedData);
 
-                shaderProgram = GL.CreateProgram();
-
-#if DEBUG
-                GL.ObjectLabel(ObjectLabelIdentifier.Program, shaderProgram, shaderFileName.Length, shaderFileName);
-                for (var i = 0; i < shaderObjects.Length; i++)
-                {
-                    GL.ObjectLabel(ObjectLabelIdentifier.Shader, shaderObjects[i], shaderFileName.Length, shaderFileName);
-                }
-#endif
+                shaderProgram = GraphicsDevice.CreateProgram(shaderFileName);
 
                 // What the source declares is known before the program links, and the renderer needs it that
                 // early to have a texture bound by the first draw that samples it. Only ever grows.

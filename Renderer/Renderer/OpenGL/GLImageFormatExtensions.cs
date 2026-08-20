@@ -1,5 +1,4 @@
 using OpenTK.Graphics.OpenGL;
-using ValveResourceFormat.CompiledShader;
 
 namespace ValveResourceFormat.Renderer
 {
@@ -7,40 +6,10 @@ namespace ValveResourceFormat.Renderer
     /// Maps <see cref="ImageFormat"/>, the engine format vocabulary, to the OpenGL equivalents.
     ///
     /// This makes the renderer unaware of graphics API specific formats, and we can later map these to anything else.
+    /// The facts that hold for every API live on <see cref="Utils.ImageFormatExtensions"/> instead.
     /// </summary>
-    public static class ImageFormatExtensions
+    public static class GLImageFormatExtensions
     {
-        /// <summary>
-        /// Returns whether the format is block compressed.
-        /// Block compressed data uploads with the compressed image calls and has no pixel format or type.
-        /// </summary>
-        public static bool IsBlockCompressed(this ImageFormat format) => format
-            is ImageFormat.DXT1
-            or ImageFormat.DXT1_ONEBITALPHA
-            or ImageFormat.DXT3
-            or ImageFormat.DXT5
-            or ImageFormat.DXT5_NM
-            or ImageFormat.ATI1N
-            or ImageFormat.ATI2N
-            or ImageFormat.BC6H
-            or ImageFormat.BC7
-            or ImageFormat.R8G8B8_ETC2
-            or ImageFormat.R8G8B8A8_ETC2_EAC
-            or ImageFormat.R11_EAC
-            or ImageFormat.RG11_EAC;
-
-        /// <summary>Returns whether the format has an sRGB storage variant.</summary>
-        public static bool HasSrgbVariant(this ImageFormat format) => format
-            is ImageFormat.RGBA8888
-            or ImageFormat.BGRA8888
-            or ImageFormat.DXT1
-            or ImageFormat.DXT1_ONEBITALPHA
-            or ImageFormat.DXT3
-            or ImageFormat.DXT5
-            or ImageFormat.BC7
-            or ImageFormat.R8G8B8_ETC2
-            or ImageFormat.R8G8B8A8_ETC2_EAC;
-
         /// <summary>Returns the sized internal format for texture storage.</summary>
         public static SizedInternalFormat ToGLSizedInternalFormat(this ImageFormat format, bool srgb = false) => (format, srgb) switch
         {

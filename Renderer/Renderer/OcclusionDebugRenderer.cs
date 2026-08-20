@@ -1,8 +1,6 @@
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 using OpenTK.Graphics.OpenGL;
-using ValveResourceFormat.CompiledShader;
-using ValveResourceFormat.Renderer.Buffers;
 
 namespace ValveResourceFormat.Renderer
 {
@@ -44,7 +42,7 @@ namespace ValveResourceFormat.Renderer
             if (OccludedBoundsDebugGpu == null)
             {
                 var totalSize = HeaderSizeBytes + (scene.SceneMeshletCount * Marshal.SizeOf<OccludedBoundDebug>());
-                OccludedBoundsDebugGpu = StorageBuffer.Allocate<byte>(ReservedBufferSlots.OccludedBoundsDebug, nameof(ReservedBufferSlots.OccludedBoundsDebug), totalSize, BufferUsageHint.DynamicCopy);
+                OccludedBoundsDebugGpu = StorageBuffer.Allocate<byte>(ReservedBufferSlots.OccludedBoundsDebug, nameof(ReservedBufferSlots.OccludedBoundsDebug), totalSize, BufferUsage.GpuOnly);
             }
 
             // Clear the atomic counter before dispatching
@@ -74,7 +72,7 @@ namespace ValveResourceFormat.Renderer
                 return;
             }
 
-            var renderState = renderContext.RenderState;
+            var renderState = GraphicsContext.RenderState;
             var state = renderState.CurrentPass;
             state.BlendEnable = true;
             state.SetBlend(RsBlendMode.SrcAlpha, RsBlendMode.InvSrcAlpha);

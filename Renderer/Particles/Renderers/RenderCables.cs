@@ -112,14 +112,8 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
 
         private int SetupBuffers()
         {
-            GL.CreateBuffers(1, out vertexBufferHandle);
-            GL.CreateBuffers(1, out indexBufferHandle);
-
-#if DEBUG
-            var label = nameof(RenderCables);
-            GL.ObjectLabel(ObjectLabelIdentifier.Buffer, vertexBufferHandle, label.Length, label);
-            GL.ObjectLabel(ObjectLabelIdentifier.Buffer, indexBufferHandle, label.Length, label);
-#endif
+            vertexBufferHandle = GraphicsDevice.CreateBuffer(nameof(RenderCables));
+            indexBufferHandle = GraphicsDevice.CreateBuffer(nameof(RenderCables));
 
             return CableVertex.InputLayout.CreateVertexArray(nameof(RenderCables), vertexBufferHandle, indexBufferHandle);
         }

@@ -8,7 +8,6 @@ using OpenTK.Windowing.Common;
 using OpenTK.Windowing.Desktop;
 using SteamDatabase.ValvePak;
 using ValveResourceFormat;
-using ValveResourceFormat.CompiledShader;
 using ValveResourceFormat.IO;
 using ValveResourceFormat.Renderer;
 using ValveResourceFormat.Renderer.SceneEnvironment;
@@ -60,10 +59,10 @@ internal abstract class ThumbnailRenderer : IDisposable
         NativeWindow = GLViewers.NativeWindowFactory.Create(nativeWindowSettings);
         RendererContext = new RendererContext(context, VrfGuiContext.Logger);
 
-        NativeWindow.MakeCurrent();
+        RendererContext.Device.CreateContext(new GLViewers.GLFWSurface(NativeWindow.Context)).Begin();
 
         GLEnvironment.Initialize(RendererContext.Logger);
-        GLEnvironment.SetDefaultRenderState(RendererContext);
+        GLEnvironment.SetDefaultRenderState();
 
         SceneRenderer = new Renderer(RendererContext);
 

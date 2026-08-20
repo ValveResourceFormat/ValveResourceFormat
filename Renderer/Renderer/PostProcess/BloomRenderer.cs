@@ -62,7 +62,7 @@ public class BloomRenderer
         framebuffer.SetColorSamplerState(
             mips > 1 ? TextureMinFilter.LinearMipmapLinear : TextureMinFilter.Linear,
             TextureMagFilter.Linear,
-            TextureWrapMode.ClampToEdge
+            RsTextureAddressMode.Clamp
         );
         return framebuffer;
     }

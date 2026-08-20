@@ -7,7 +7,6 @@ using System.Reflection;
 using System.Runtime.InteropServices;
 using OpenTK.Graphics.OpenGL;
 using SkiaSharp;
-using ValveResourceFormat.CompiledShader;
 using ValveResourceFormat.ResourceTypes;
 using VrfMaterial = ValveResourceFormat.ResourceTypes.Material;
 
@@ -23,7 +22,7 @@ namespace ValveResourceFormat.Renderer.Materials
 
         private readonly Dictionary<string, RenderTexture> Textures = [];
         private readonly Dictionary<string, RenderTexture> TexturesSrgb = [];
-        private readonly Dictionary<(int AddressU, int AddressV, bool AnisotropicFiltering), int> Samplers = [];
+        private readonly Dictionary<(RsTextureAddressMode AddressU, RsTextureAddressMode AddressV, bool Mipmaps, bool AnisotropicFiltering), int> Samplers = [];
         private readonly RendererContext RendererContext;
         private RenderTexture? ErrorTexture;
         private RenderTexture? DefaultNormal;
@@ -235,13 +234,13 @@ namespace ValveResourceFormat.Renderer.Materials
         /// <summary>
         /// Gets a sampler object for the supplied texture address modes, creating and caching one per <see cref="MaterialLoader" />.
         /// </summary>
-        public int GetOrCreateSampler(int addressModeU, int addressModeV, bool mipmaps = true, bool anisotropicFiltering = true)
+        public int GetOrCreateSampler(RsTextureAddressMode addressModeU, RsTextureAddressMode addressModeV, bool mipmaps = true, bool anisotropicFiltering = true)
         {
-            var key = (addressModeU, addressModeV, anisotropicFiltering);
+            var key = (addressModeU, addressModeV, mipmaps, anisotropicFiltering);
 
-            if (key == (0, 0, true))
+            if (key == (RsTextureAddressMode.Wrap, RsTextureAddressMode.Wrap, true, true))
             {
-                return 0; // default sampler state with repeat wrap mode
+                return 0; // the default sampler state already wraps
             }
 
             if (Samplers.TryGetValue(key, out var sampler))
@@ -249,35 +248,19 @@ namespace ValveResourceFormat.Renderer.Materials
                 return sampler;
             }
 
-            GL.CreateSamplers(1, out sampler);
+            var newSampler = new Sampler($"Sampler{addressModeU}{addressModeV}");
 
-#if DEBUG
-            var samplerLabel = $"Sampler{addressModeU}{addressModeV}";
-            GL.ObjectLabel(ObjectLabelIdentifier.Sampler, sampler, samplerLabel.Length, samplerLabel);
-#endif
-
-            GL.SamplerParameter(sampler, SamplerParameterName.TextureWrapS, (int)MapAddressMode(addressModeU));
-            GL.SamplerParameter(sampler, SamplerParameterName.TextureWrapT, (int)MapAddressMode(addressModeV));
-            GL.SamplerParameter(sampler, SamplerParameterName.TextureMinFilter, (int)(mipmaps ? TextureMinFilter.LinearMipmapLinear : TextureMinFilter.Linear));
-            GL.SamplerParameter(sampler, SamplerParameterName.TextureMagFilter, (int)TextureMagFilter.Linear);
+            newSampler.SetWrapMode(addressModeU, addressModeV);
+            newSampler.SetFiltering(mipmaps ? TextureMinFilter.LinearMipmapLinear : TextureMinFilter.Linear, TextureMagFilter.Linear);
 
             if (anisotropicFiltering && MaxTextureMaxAnisotropy >= 4)
             {
-                GL.SamplerParameter(sampler, (SamplerParameterName)ExtTextureFilterAnisotropic.TextureMaxAnisotropyExt, MaxTextureMaxAnisotropy);
+                newSampler.SetMaxAnisotropy(MaxTextureMaxAnisotropy);
             }
 
-            Samplers[key] = sampler;
-            return sampler;
+            Samplers[key] = newSampler.Handle;
+            return newSampler.Handle;
         }
-
-        private static TextureWrapMode MapAddressMode(int mode) => mode switch
-        {
-            0 => TextureWrapMode.Repeat,
-            1 => TextureWrapMode.MirroredRepeat,
-            2 => TextureWrapMode.ClampToEdge,
-            3 => TextureWrapMode.ClampToBorder,
-            _ => TextureWrapMode.Repeat,
-        };
 
         private RenderTexture LoadTexture(string name, bool srgbRead = false)
         {
@@ -310,17 +293,17 @@ namespace ValveResourceFormat.Renderer.Materials
 
             var target = TextureTarget.Texture2D;
             var is3d = false;
-            var clampModeS = (data.Flags & VTexFlags.SUGGEST_CLAMPS) != 0 ? TextureWrapMode.ClampToBorder : TextureWrapMode.Repeat;
-            var clampModeT = (data.Flags & VTexFlags.SUGGEST_CLAMPT) != 0 ? TextureWrapMode.ClampToBorder : TextureWrapMode.Repeat;
-            var clampModeU = (data.Flags & VTexFlags.SUGGEST_CLAMPU) != 0 ? TextureWrapMode.ClampToBorder : TextureWrapMode.Repeat;
+            var clampModeS = (data.Flags & VTexFlags.SUGGEST_CLAMPS) != 0 ? RsTextureAddressMode.Border : RsTextureAddressMode.Wrap;
+            var clampModeT = (data.Flags & VTexFlags.SUGGEST_CLAMPT) != 0 ? RsTextureAddressMode.Border : RsTextureAddressMode.Wrap;
+            var clampModeU = (data.Flags & VTexFlags.SUGGEST_CLAMPU) != 0 ? RsTextureAddressMode.Border : RsTextureAddressMode.Wrap;
 
             if ((data.Flags & VTexFlags.CUBE_TEXTURE) != 0)
             {
                 is3d = true;
                 target = (data.Flags & VTexFlags.TEXTURE_ARRAY) != 0 ? TextureTarget.TextureCubeMapArray : TextureTarget.TextureCubeMap;
-                clampModeS = TextureWrapMode.ClampToEdge;
-                clampModeT = TextureWrapMode.ClampToEdge;
-                clampModeU = TextureWrapMode.ClampToEdge;
+                clampModeS = RsTextureAddressMode.Clamp;
+                clampModeT = RsTextureAddressMode.Clamp;
+                clampModeU = RsTextureAddressMode.Clamp;
             }
             else if ((data.Flags & (VTexFlags.TEXTURE_ARRAY | VTexFlags.VOLUME_TEXTURE)) != 0)
             {
@@ -440,9 +423,7 @@ namespace ValveResourceFormat.Renderer.Materials
 
             tex.SetFiltering(TextureMinFilter.LinearMipmapLinear, TextureMagFilter.Linear);
 
-            GL.TextureParameter(tex.Handle, TextureParameterName.TextureWrapS, (int)clampModeS);
-            GL.TextureParameter(tex.Handle, TextureParameterName.TextureWrapT, (int)clampModeT);
-            GL.TextureParameter(tex.Handle, TextureParameterName.TextureWrapR, (int)clampModeU);
+            tex.SetWrapMode(clampModeS, clampModeT, clampModeU);
 
             return tex;
         }
@@ -584,11 +565,9 @@ namespace ValveResourceFormat.Renderer.Materials
         {
             if (DefaultVolume == null)
             {
-                DefaultVolume = new RenderTexture(TextureTarget.Texture3D, 1, 1, 1, 1, "DefaultVolume");
+                DefaultVolume = RenderTexture.Create3D(TextureTarget.Texture3D, 1, 1, 1, ImageFormat.RGBA8888, 1, "DefaultVolume");
                 DefaultVolume.SetFiltering(TextureMinFilter.Nearest, TextureMagFilter.Nearest);
-                DefaultVolume.SetWrapMode(TextureWrapMode.ClampToEdge);
-
-                GL.TextureStorage3D(DefaultVolume.Handle, 1, SizedInternalFormat.Rgba8, 1, 1, 1);
+                DefaultVolume.SetWrapMode(RsTextureAddressMode.Clamp);
                 GL.TextureSubImage3D(DefaultVolume.Handle, 0, 0, 0, 0, 1, 1, 1, PixelFormat.Rgb, PixelType.UnsignedByte, WhiteTexel);
             }
 
@@ -663,7 +642,7 @@ namespace ValveResourceFormat.Renderer.Materials
             // Clamped and filtered: the ramp is addressed by a luminance, so the ends have to hold rather
             // than wrap, and the steps between stops should not be visible.
             texture.SetFiltering(TextureMinFilter.Linear, TextureMagFilter.Linear);
-            texture.SetWrapMode(TextureWrapMode.ClampToEdge);
+            texture.SetWrapMode(RsTextureAddressMode.Clamp);
 
             // sRGB storage, so a sample lands in linear space like every other layer's texture.
             GL.TextureStorage2D(texture.Handle, 1, SizedInternalFormat.Srgb8Alpha8, Width, 1);
@@ -729,7 +708,7 @@ namespace ValveResourceFormat.Renderer.Materials
 
             var texture = new RenderTexture(TextureTarget.Texture2D, width, height, 1, levels, width > 1 ? "ErrorTexture" : "ColorTexture");
             texture.SetFiltering(TextureMinFilter.Nearest, TextureMagFilter.Nearest);
-            texture.SetWrapMode(TextureWrapMode.Repeat);
+            texture.SetWrapMode(RsTextureAddressMode.Wrap);
 
             var color32 = new Color32(color[0], color[1], color[2]);
             texture.Reflectivity = color32.ToLinearColor();

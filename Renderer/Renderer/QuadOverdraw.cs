@@ -1,7 +1,5 @@
 using System.Diagnostics;
 using OpenTK.Graphics.OpenGL;
-using ValveResourceFormat.CompiledShader;
-using ValveResourceFormat.Renderer.Buffers;
 
 namespace ValveResourceFormat.Renderer;
 
@@ -64,7 +62,7 @@ public class QuadOverdraw(RendererContext rendererContext)
         if (quadBuffer == null || quadBuffer.Size != elementCount * sizeof(uint))
         {
             quadBuffer?.Delete();
-            quadBuffer = StorageBuffer.Allocate<uint>(ReservedBufferSlots.QuadOverdraw, nameof(ReservedBufferSlots.QuadOverdraw), elementCount, BufferUsageHint.DynamicCopy);
+            quadBuffer = StorageBuffer.Allocate<uint>(ReservedBufferSlots.QuadOverdraw, nameof(ReservedBufferSlots.QuadOverdraw), elementCount, BufferUsage.GpuOnly);
         }
 
         // zero is both the unlocked lock value and the starting count
@@ -81,10 +79,10 @@ public class QuadOverdraw(RendererContext rendererContext)
         savedClearMask = framebuffer.ClearMask;
         framebuffer.ClearMask &= ~ClearBufferMask.DepthBufferBit;
 
-        savedPassState = rendererContext.RenderState.CurrentPass;
+        savedPassState = GraphicsContext.RenderState.CurrentPass;
         var countingState = savedPassState;
         countingState.DepthStencil.DepthFunc = RsComparison.CloserEqual;
-        rendererContext.RenderState.SetPassBaseline(in countingState);
+        GraphicsContext.RenderState.SetPassBaseline(in countingState);
 
         SceneShader.SetUniform1AllVariants("bCountQuads", 1u);
     }
@@ -94,7 +92,7 @@ public class QuadOverdraw(RendererContext rendererContext)
     public void EndCountingPass(Framebuffer framebuffer)
     {
         framebuffer.ClearMask = savedClearMask;
-        rendererContext.RenderState.SetPassBaseline(in savedPassState);
+        GraphicsContext.RenderState.SetPassBaseline(in savedPassState);
     }
 
     /// <summary>
@@ -114,7 +112,7 @@ public class QuadOverdraw(RendererContext rendererContext)
 
         visualizeShader.Use();
 
-        using var overdrawState = rendererContext.RenderState.Scope(depthTest: false, depthWrite: false);
+        using var overdrawState = GraphicsContext.RenderState.Scope(depthTest: false, depthWrite: false);
 
         GL.BindVertexArray(rendererContext.MeshBufferCache.EmptyVAO);
         GL.DrawArrays(PrimitiveType.Triangles, 0, 3);
