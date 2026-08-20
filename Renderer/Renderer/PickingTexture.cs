@@ -94,7 +94,7 @@ public class PickingTexture : Framebuffer
 
         ColorFormat = ImageFormat.RGBA32323232_UINT;
         DepthFormat = ImageFormat.D32;
-        Target = TextureType.Texture2D;
+        Target = TextureTarget.Texture2D;
         ClearColor = Color4.Black;
 
         Width = 4;

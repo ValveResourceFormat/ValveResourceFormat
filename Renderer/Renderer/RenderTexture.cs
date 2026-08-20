@@ -9,11 +9,11 @@ namespace ValveResourceFormat.Renderer
     /// <summary>
     /// OpenGL texture object with metadata for dimensions and filtering configuration.
     /// </summary>
-    [DebuggerDisplay("{Width}x{Height}x{Depth} mip:{NumMipLevels} ({Type})")]
+    [DebuggerDisplay("{Width}x{Height}x{Depth} mip:{NumMipLevels} ({Target})")]
     public class RenderTexture
     {
-        /// <summary>Gets the shape of this texture's storage.</summary>
-        public TextureType Type { get; }
+        /// <summary>Gets the OpenGL texture target (e.g. Texture2D, TextureCubeMap).</summary>
+        public TextureTarget Target { get; }
 
         /// <summary>Gets the OpenGL texture object handle, or 0 once <see cref="Delete"/> has been called.</summary>
         public int Handle { get; private set; }
@@ -43,17 +43,17 @@ namespace ValveResourceFormat.Renderer
         /// </summary>
         public float[]? RadianceCoefficients { get; }
 
-        RenderTexture(TextureType type, string label)
+        RenderTexture(TextureTarget target, string label)
         {
-            Type = type;
-            Handle = GraphicsDevice.CreateTexture(type, label);
+            Target = target;
+            Handle = GraphicsDevice.CreateTexture(target, label);
         }
 
         /// <summary>Creates a render texture and populates metadata from the given source texture resource.</summary>
-        /// <param name="type">Shape of the texture's storage.</param>
+        /// <param name="target">OpenGL texture target.</param>
         /// <param name="data">Source texture resource providing dimensions, mip count, spritesheet data and radiance harmonics.</param>
         /// <param name="label">Label string visible in graphics debuggers.</param>
-        public RenderTexture(TextureType type, Texture data, string label) : this(type, label)
+        public RenderTexture(TextureTarget target, Texture data, string label) : this(target, label)
         {
             Width = data.Width;
             Height = data.Height;
@@ -65,14 +65,14 @@ namespace ValveResourceFormat.Renderer
         }
 
         /// <summary>Creates a render texture with explicit dimension and mip level metadata.</summary>
-        /// <param name="type">Shape of the texture's storage.</param>
+        /// <param name="target">OpenGL texture target.</param>
         /// <param name="width">Width in texels.</param>
         /// <param name="height">Height in texels.</param>
         /// <param name="depth">Depth or array layer count.</param>
         /// <param name="mipcount">Number of mip levels.</param>
         /// <param name="label">Label string visible in graphics debuggers.</param>
-        public RenderTexture(TextureType type, int width, int height, int depth, int mipcount, string label)
-            : this(type, label)
+        public RenderTexture(TextureTarget target, int width, int height, int depth, int mipcount, string label)
+            : this(target, label)
         {
             Width = width;
             Height = height;
@@ -82,11 +82,11 @@ namespace ValveResourceFormat.Renderer
 
         /// <summary>Wraps an existing OpenGL texture handle without taking ownership of its storage.</summary>
         /// <param name="handle">Existing OpenGL texture handle.</param>
-        /// <param name="type">Shape of the wrapped texture's storage.</param>
-        public RenderTexture(int handle, TextureType type)
+        /// <param name="target">OpenGL texture target.</param>
+        public RenderTexture(int handle, TextureTarget target)
         {
             Handle = handle;
-            Type = type;
+            Target = target;
         }
 
         /// <summary>Creates a 2D texture with immutable storage, optionally allocating a reduced mip chain sized by <see cref="MaxMipCount"/>.</summary>
@@ -114,7 +114,7 @@ namespace ValveResourceFormat.Renderer
         /// <returns>The newly created render texture.</returns>
         public static RenderTexture Create(int width, int height, ImageFormat format, int mipCount, string label)
         {
-            var texture = new RenderTexture(TextureType.Texture2D, width, height, 1, mipCount, label);
+            var texture = new RenderTexture(TextureTarget.Texture2D, width, height, 1, mipCount, label);
             GL.TextureStorage2D(texture.Handle, mipCount, format.ToGLSizedInternalFormat(), width, height);
             return texture;
         }
@@ -129,9 +129,9 @@ namespace ValveResourceFormat.Renderer
         /// <returns>A new <see cref="RenderTexture"/> wrapping the view.</returns>
         public RenderTexture CreateView(ImageFormat format, string label, int minLevel = 0, int numLevels = 1, int minLayer = 0, int numLayers = 1)
         {
-            var handle = GraphicsDevice.CreateTextureView(Handle, Type, format, minLevel, numLevels, minLayer, numLayers, label);
+            var handle = GraphicsDevice.CreateTextureView(Handle, Target, format, minLevel, numLevels, minLayer, numLayers, label);
 
-            return new RenderTexture(handle, Type);
+            return new RenderTexture(handle, Target);
         }
 
         /// <summary>Sets the wrap mode for all relevant texture dimensions.</summary>

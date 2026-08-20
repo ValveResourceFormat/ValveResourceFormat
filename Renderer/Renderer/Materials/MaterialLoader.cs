@@ -303,7 +303,7 @@ namespace ValveResourceFormat.Renderer.Materials
                 return LoadBitmapTexture(bitmap);
             }
 
-            var target = TextureType.Texture2D;
+            var target = TextureTarget.Texture2D;
             var is3d = false;
             var clampModeS = (data.Flags & VTexFlags.SUGGEST_CLAMPS) != 0 ? TextureWrapMode.ClampToBorder : TextureWrapMode.Repeat;
             var clampModeT = (data.Flags & VTexFlags.SUGGEST_CLAMPT) != 0 ? TextureWrapMode.ClampToBorder : TextureWrapMode.Repeat;
@@ -312,7 +312,7 @@ namespace ValveResourceFormat.Renderer.Materials
             if ((data.Flags & VTexFlags.CUBE_TEXTURE) != 0)
             {
                 is3d = true;
-                target = (data.Flags & VTexFlags.TEXTURE_ARRAY) != 0 ? TextureType.TextureCubeArray : TextureType.TextureCube;
+                target = (data.Flags & VTexFlags.TEXTURE_ARRAY) != 0 ? TextureTarget.TextureCubeMapArray : TextureTarget.TextureCubeMap;
                 clampModeS = TextureWrapMode.ClampToEdge;
                 clampModeT = TextureWrapMode.ClampToEdge;
                 clampModeU = TextureWrapMode.ClampToEdge;
@@ -320,7 +320,7 @@ namespace ValveResourceFormat.Renderer.Materials
             else if ((data.Flags & (VTexFlags.TEXTURE_ARRAY | VTexFlags.VOLUME_TEXTURE)) != 0)
             {
                 is3d = true;
-                target = (data.Flags & VTexFlags.VOLUME_TEXTURE) != 0 ? TextureType.Texture3D : TextureType.Texture2DArray;
+                target = (data.Flags & VTexFlags.VOLUME_TEXTURE) != 0 ? TextureTarget.Texture3D : TextureTarget.Texture2DArray;
             }
 
             var tex = new RenderTexture(target, data, System.IO.Path.GetFileName(textureResource.FileName) ?? "UnnamedTexture");
@@ -329,7 +329,7 @@ namespace ValveResourceFormat.Renderer.Materials
 
             // todo: BC7 and BC6H are also problematic on pre-RDNA AMD GPUs, when using immutable storage
             // see https://github.com/ValveResourceFormat/ValveResourceFormat/issues/721
-            var rgba8UncompressedFallback = target == TextureType.Texture3D && IsOpenGLUnsupportedTexture3DFormat(data.Format);
+            var rgba8UncompressedFallback = target == TextureTarget.Texture3D && IsOpenGLUnsupportedTexture3DFormat(data.Format);
 
             if (rgba8UncompressedFallback)
             {
@@ -340,7 +340,7 @@ namespace ValveResourceFormat.Renderer.Materials
 
             var texDepth = data.Depth;
 
-            if (target == TextureType.TextureCube || target == TextureType.TextureCubeArray)
+            if (target == TextureTarget.TextureCubeMap || target == TextureTarget.TextureCubeMapArray)
             {
                 texDepth *= 6;
             }
@@ -362,7 +362,7 @@ namespace ValveResourceFormat.Renderer.Materials
                 }
             }
 
-            if (is3d && target != TextureType.TextureCube)
+            if (is3d && target != TextureTarget.TextureCubeMap)
             {
                 GL.TextureStorage3D(tex.Handle, data.NumMipLevels - minMipLevelAllowed, sizedInternalFormat, texWidth, texHeight, texDepth);
             }
@@ -443,7 +443,7 @@ namespace ValveResourceFormat.Renderer.Materials
         }
 
         /// <summary>
-        /// Whether a format has to be decompressed before it can be uploaded to a <see cref="TextureType.Texture3D"/>.
+        /// Whether a format has to be decompressed before it can be uploaded to a <see cref="TextureTarget.Texture3D"/>.
         /// Of the block compressed formats only BPTC is specified to work with 3D textures, as a stack of
         /// independently compressed 2D slices. S3TC and RGTC are two-dimensional only:
         /// NVIDIA accepts them through NV_texture_compression_vtc, which reuses the very same format enums but expects
@@ -579,7 +579,7 @@ namespace ValveResourceFormat.Renderer.Materials
         {
             if (DefaultVolume == null)
             {
-                DefaultVolume = new RenderTexture(TextureType.Texture3D, 1, 1, 1, 1, "DefaultVolume");
+                DefaultVolume = new RenderTexture(TextureTarget.Texture3D, 1, 1, 1, 1, "DefaultVolume");
                 DefaultVolume.SetFiltering(TextureMinFilter.Nearest, TextureMagFilter.Nearest);
                 DefaultVolume.SetWrapMode(TextureWrapMode.ClampToEdge);
 
@@ -601,7 +601,7 @@ namespace ValveResourceFormat.Renderer.Materials
         /// <param name="bitmap">The bitmap whose pixels are uploaded to the GPU.</param>
         public static RenderTexture LoadBitmapTexture(SKBitmap bitmap)
         {
-            var texture = new RenderTexture(TextureType.Texture2D, bitmap.Width, bitmap.Height, 1, 1, "BitmapTexture");
+            var texture = new RenderTexture(TextureTarget.Texture2D, bitmap.Width, bitmap.Height, 1, 1, "BitmapTexture");
 
             var format = bitmap.ColorType switch
             {
@@ -653,7 +653,7 @@ namespace ValveResourceFormat.Renderer.Materials
                 texels[(x * 4) + 3] = color.A;
             }
 
-            var texture = new RenderTexture(TextureType.Texture2D, Width, 1, 1, 1, "GeneratedGradient");
+            var texture = new RenderTexture(TextureTarget.Texture2D, Width, 1, 1, 1, "GeneratedGradient");
 
             // Clamped and filtered: the ramp is addressed by a luminance, so the ends have to hold rather
             // than wrap, and the steps between stops should not be visible.
@@ -722,7 +722,7 @@ namespace ValveResourceFormat.Renderer.Materials
             // texture, and an incomplete mip chain would then sample as if nothing was bound
             var levels = 1 + BitOperations.Log2((uint)Math.Max(width, height));
 
-            var texture = new RenderTexture(TextureType.Texture2D, width, height, 1, levels, width > 1 ? "ErrorTexture" : "ColorTexture");
+            var texture = new RenderTexture(TextureTarget.Texture2D, width, height, 1, levels, width > 1 ? "ErrorTexture" : "ColorTexture");
             texture.SetFiltering(TextureMinFilter.Nearest, TextureMagFilter.Nearest);
             texture.SetWrapMode(TextureWrapMode.Repeat);
 

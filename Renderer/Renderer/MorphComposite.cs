@@ -69,7 +69,7 @@ namespace ValveResourceFormat.Renderer
             var height = morph.Data.GetInt32Property("m_nHeight");
             var label = $"{nameof(MorphComposite)}: {System.IO.Path.GetFileName(morph.TextureResource.FileName)}";
 
-            CompositeTexture = new(TextureType.Texture2D, width * 2, height, 1, 1, label);
+            CompositeTexture = new(TextureTarget.Texture2D, width * 2, height, 1, 1, label);
 
             frameBuffer = GraphicsDevice.CreateFramebuffer(label);
 

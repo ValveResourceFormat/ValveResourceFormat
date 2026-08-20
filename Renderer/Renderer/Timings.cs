@@ -73,10 +73,10 @@ public class Timings
         var endQueryId = 0;
         if (!gpuStartQueries.TryGetValue(currentIndex, out var startQueryId))
         {
-            startQueryId = GraphicsDevice.CreateQuery(QueryType.Timestamp, "GpuTimingStart");
+            startQueryId = GraphicsDevice.CreateQuery(QueryTarget.Timestamp, "GpuTimingStart");
             gpuStartQueries[currentIndex] = startQueryId;
 
-            endQueryId = GraphicsDevice.CreateQuery(QueryType.Timestamp, "GpuTimingEnd");
+            endQueryId = GraphicsDevice.CreateQuery(QueryTarget.Timestamp, "GpuTimingEnd");
             gpuEndQueries[currentIndex] = endQueryId;
 
             Debug.Assert(startQueryId != 0 && endQueryId != 0, "Failed to generate GPU query objects.");

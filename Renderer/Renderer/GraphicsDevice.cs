@@ -52,15 +52,15 @@ public sealed class GraphicsDevice
     /// <returns>The buffer handle.</returns>
     public static int CreateBuffer(string name) => Current.CreateBufferCore(name);
 
-    /// <summary>Creates a texture object of the given type, without storage.</summary>
-    /// <param name="type">Texture type, which the object is fixed to.</param>
+    /// <summary>Creates a texture object of the given target, without storage.</summary>
+    /// <param name="target">Texture target, which the object is fixed to.</param>
     /// <param name="name">Debug label, visible in graphics debuggers.</param>
     /// <returns>The texture handle.</returns>
-    public static int CreateTexture(TextureType type, string name) => Current.CreateTextureCore(type, name);
+    public static int CreateTexture(TextureTarget target, string name) => Current.CreateTextureCore(target, name);
 
     /// <summary>Creates a texture view over a subrange of another texture's storage.</summary>
     /// <param name="texture">Texture whose storage the view shares.</param>
-    /// <param name="type">Texture type of the view.</param>
+    /// <param name="target">Texture target of the view.</param>
     /// <param name="format">Format the storage is reinterpreted as.</param>
     /// <param name="minLevel">First mip level visible through the view.</param>
     /// <param name="numLevels">Number of mip levels visible through the view.</param>
@@ -68,8 +68,8 @@ public sealed class GraphicsDevice
     /// <param name="numLayers">Number of array layers visible through the view.</param>
     /// <param name="name">Debug label, visible in graphics debuggers.</param>
     /// <returns>The view's texture handle.</returns>
-    public static int CreateTextureView(int texture, TextureType type, ImageFormat format, int minLevel, int numLevels, int minLayer, int numLayers, string name)
-        => Current.CreateTextureViewCore(texture, type, format, minLevel, numLevels, minLayer, numLayers, name);
+    public static int CreateTextureView(int texture, TextureTarget target, ImageFormat format, int minLevel, int numLevels, int minLayer, int numLayers, string name)
+        => Current.CreateTextureViewCore(texture, target, format, minLevel, numLevels, minLayer, numLayers, name);
 
     /// <summary>Creates a sampler object with default state.</summary>
     /// <param name="name">Debug label, visible in graphics debuggers.</param>
@@ -86,11 +86,11 @@ public sealed class GraphicsDevice
     /// <returns>The vertex array handle.</returns>
     public static int CreateVertexArray(string name) => Current.CreateVertexArrayCore(name);
 
-    /// <summary>Creates a query object measuring the given quantity.</summary>
-    /// <param name="type">What the query measures, which the object is fixed to.</param>
+    /// <summary>Creates a query object of the given target.</summary>
+    /// <param name="target">Query target, which the object is fixed to.</param>
     /// <param name="name">Debug label, visible in graphics debuggers.</param>
     /// <returns>The query handle.</returns>
-    public static int CreateQuery(QueryType type, string name) => Current.CreateQueryCore(type, name);
+    public static int CreateQuery(QueryTarget target, string name) => Current.CreateQueryCore(target, name);
 
     /// <summary>Creates an empty shader object for one stage.</summary>
     /// <param name="stage">The pipeline stage the shader runs at.</param>
@@ -113,18 +113,18 @@ public sealed class GraphicsDevice
         return handle;
     }
 
-    private int CreateTextureCore(TextureType type, string name)
+    private int CreateTextureCore(TextureTarget target, string name)
     {
-        GL.CreateTextures(type.ToGLTextureTarget(), 1, out int handle);
+        GL.CreateTextures(target, 1, out int handle);
         Label(ObjectLabelIdentifier.Texture, handle, name);
         return handle;
     }
 
-    private int CreateTextureViewCore(int texture, TextureType type, ImageFormat format, int minLevel, int numLevels, int minLayer, int numLayers, string name)
+    private int CreateTextureViewCore(int texture, TextureTarget target, ImageFormat format, int minLevel, int numLevels, int minLayer, int numLayers, string name)
     {
         // A view needs a name without a target yet, which only the non-DSA path hands out.
         var handle = GL.GenTexture();
-        GL.TextureView(handle, type.ToGLTextureTarget(), texture, (PixelInternalFormat)format.ToGLSizedInternalFormat(), minLevel, numLevels, minLayer, numLayers);
+        GL.TextureView(handle, target, texture, (PixelInternalFormat)format.ToGLSizedInternalFormat(), minLevel, numLevels, minLayer, numLayers);
         Label(ObjectLabelIdentifier.Texture, handle, name);
         return handle;
     }
@@ -150,9 +150,9 @@ public sealed class GraphicsDevice
         return handle;
     }
 
-    private int CreateQueryCore(QueryType type, string name)
+    private int CreateQueryCore(QueryTarget target, string name)
     {
-        GL.CreateQueries(type.ToGLQueryTarget(), 1, out int handle);
+        GL.CreateQueries(target, 1, out int handle);
         Label(ObjectLabelIdentifier.Query, handle, name);
         return handle;
     }

@@ -106,7 +106,7 @@ public class BloomRenderer
 
         using (new GLDebugGroup("Bloom Downsample Threshold Pass"))
         {
-            Debug.Assert(input.Type == TextureType.Texture2D);
+            Debug.Assert(input.Target == TextureTarget.Texture2D);
 
             firstDownsampleBloomThreshold.Use();
             firstDownsampleBloomThreshold.SetTexture(0, "inputTexture", input);

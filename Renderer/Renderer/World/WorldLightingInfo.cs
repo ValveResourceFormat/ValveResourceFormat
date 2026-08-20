@@ -218,10 +218,10 @@ namespace ValveResourceFormat.Renderer.World
         {
             if (EnvMaps.Count == 0)
             {
-                CubemapType = envmap.EnvMapTexture.Type switch
+                CubemapType = envmap.EnvMapTexture.Target switch
                 {
-                    TextureType.TextureCubeArray => CubemapType.CubemapArray,
-                    TextureType.TextureCube => CubemapType.IndividualCubemaps,
+                    TextureTarget.TextureCubeMapArray => CubemapType.CubemapArray,
+                    TextureTarget.TextureCubeMap => CubemapType.IndividualCubemaps,
                     _ => CubemapType.None,
                 };
 
@@ -233,9 +233,9 @@ namespace ValveResourceFormat.Renderer.World
             else
             {
                 var first = EnvMaps[0];
-                if (envmap.EnvMapTexture.Type != first.EnvMapTexture.Type)
+                if (envmap.EnvMapTexture.Target != first.EnvMapTexture.Target)
                 {
-                    scene.RendererContext.Logger.LogError("Envmap texture type mismatch {EnvMapType} != {FirstType}", envmap.EnvMapTexture.Type, first.EnvMapTexture.Type);
+                    scene.RendererContext.Logger.LogError("Envmap texture type mismatch {EnvMapType} != {FirstType}", envmap.EnvMapTexture.Target, first.EnvMapTexture.Target);
                 }
             }
 
@@ -718,7 +718,7 @@ namespace ValveResourceFormat.Renderer.World
         /// </summary>
         private static RenderTexture CreateDefaultCookieAtlas()
         {
-            var atlas = new RenderTexture(TextureType.Texture2DArray, 1, 1, 1, 1, "EmptyCookieAtlas");
+            var atlas = new RenderTexture(TextureTarget.Texture2DArray, 1, 1, 1, 1, "EmptyCookieAtlas");
             GL.TextureStorage3D(atlas.Handle, 1, SizedInternalFormat.Srgb8Alpha8, 1, 1, 1);
             GL.TextureSubImage3D(atlas.Handle, 0, 0, 0, 0, 1, 1, 1, PixelFormat.Rgba, PixelType.UnsignedByte, new byte[] { 255, 255, 255, 255 });
 
@@ -735,7 +735,7 @@ namespace ValveResourceFormat.Renderer.World
 
             var numLayers = textures.Count + 1;
 
-            var atlas = new RenderTexture(TextureType.Texture2DArray, atlasSize, atlasSize, numLayers, 1, "CookieAtlas");
+            var atlas = new RenderTexture(TextureTarget.Texture2DArray, atlasSize, atlasSize, numLayers, 1, "CookieAtlas");
             GL.TextureStorage3D(atlas.Handle, 1, SizedInternalFormat.Srgb8Alpha8, atlasSize, atlasSize, numLayers);
 
             var readFbo = GraphicsDevice.CreateFramebuffer("CookieAtlasBlitSrc");

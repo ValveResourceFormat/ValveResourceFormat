@@ -24,7 +24,7 @@ namespace ValveResourceFormat.Renderer.Buffers
 
         /// <summary>Initializes a new uniform buffer at the given binding point index.</summary>
         /// <param name="bindingPoint">The UBO binding point index.</param>
-        public UniformBuffer(int bindingPoint) : base(BufferType.Uniform, bindingPoint, typeof(T).Name)
+        public UniformBuffer(int bindingPoint) : base(BufferTarget.UniformBuffer, bindingPoint, typeof(T).Name)
         {
             Size = Marshal.SizeOf<T>();
             Debug.Assert(Size % 16 == 0);

@@ -245,7 +245,7 @@ namespace ValveResourceFormat.Renderer
 
             shader = RendererContext.ShaderLoader.LoadShader("font_msdf");
 
-            fontTexture = new RenderTexture(TextureType.Texture2D, (int)AtlasSize, (int)AtlasSize, 1, 1, nameof(TextRenderer));
+            fontTexture = new RenderTexture(TextureTarget.Texture2D, (int)AtlasSize, (int)AtlasSize, 1, 1, nameof(TextRenderer));
             fontTexture.SetWrapMode(TextureWrapMode.ClampToEdge);
             fontTexture.SetFiltering(TextureMinFilter.Linear, TextureMagFilter.Linear);
             GL.TextureStorage2D(fontTexture.Handle, 1, SizedInternalFormat.Rgba8, bitmap.Width, bitmap.Height);

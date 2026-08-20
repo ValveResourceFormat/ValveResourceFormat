@@ -19,7 +19,7 @@ namespace ValveResourceFormat.Renderer.Buffers
         /// scratch slots have no meaningful name of their own, and the rest would report the uniform slot sharing
         /// their value.</param>
         public StorageBuffer(ReservedBufferSlots bindingPoint, string name)
-            : base(BufferType.Storage, (int)bindingPoint, name)
+            : base(BufferTarget.ShaderStorageBuffer, (int)bindingPoint, name)
         {
         }
 

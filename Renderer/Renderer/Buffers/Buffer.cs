@@ -7,8 +7,8 @@ namespace ValveResourceFormat.Renderer.Buffers
     /// </summary>
     public abstract class Buffer
     {
-        /// <summary>Gets how the pipeline reads this buffer.</summary>
-        public BufferType Type { get; }
+        /// <summary>Gets the OpenGL buffer target type.</summary>
+        public BufferTarget Target { get; }
         /// <summary>Gets the OpenGL buffer object handle.</summary>
         public int Handle { get; }
         /// <summary>Gets the shader binding point index.</summary>
@@ -23,13 +23,13 @@ namespace ValveResourceFormat.Renderer.Buffers
 
         /// <summary>Initializes a new buffer with the given type, binding point, and debug name,
         /// created on the device current on the calling thread.</summary>
-        /// <param name="type">How the pipeline reads this buffer.</param>
+        /// <param name="target">The OpenGL buffer target type.</param>
         /// <param name="bindingPoint">The shader binding point index.</param>
         /// <param name="name">Debug name for the buffer.</param>
-        protected Buffer(BufferType type, int bindingPoint, string name)
+        protected Buffer(BufferTarget target, int bindingPoint, string name)
         {
-            Type = type;
-            bindTarget = (BufferRangeTarget)type.ToGLBufferTarget();
+            Target = target;
+            bindTarget = (BufferRangeTarget)target;
             Handle = GraphicsDevice.CreateBuffer(name);
             BindingPoint = bindingPoint;
             Name = name;

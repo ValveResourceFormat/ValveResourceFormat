@@ -41,9 +41,9 @@ public class Framebuffer
     public int NumSamples { get; set; }
 
     /// <summary>
-    /// Texture type used for attachments (<see cref="TextureType.Texture2D"/> or <see cref="TextureType.Texture2DMultisample"/>).
+    /// Texture target used for attachments (<see cref="TextureTarget.Texture2D"/> or <see cref="TextureTarget.Texture2DMultisample"/>).
     /// </summary>
-    public TextureType Target { get; protected set; }
+    public TextureTarget Target { get; protected set; }
 
     /// <summary>
     /// Color attachment texture, or <see langword="null"/> if none.
@@ -266,8 +266,8 @@ public class Framebuffer
         return true;
     }
 
-    private static TextureType TargetForSampleCount(int numSamples)
-        => numSamples > 0 ? TextureType.Texture2DMultisample : TextureType.Texture2D;
+    private static TextureTarget TargetForSampleCount(int numSamples)
+        => numSamples > 0 ? TextureTarget.Texture2DMultisample : TextureTarget.Texture2D;
 
     private void CreateAttachments()
     {
@@ -296,12 +296,12 @@ public class Framebuffer
         {
             if (DepthLayers > 1)
             {
-                if (Target != TextureType.Texture2D)
+                if (Target != TextureTarget.Texture2D)
                 {
                     throw new InvalidOperationException("Layered depth attachments do not support multisampling");
                 }
 
-                Depth = new RenderTexture(TextureType.Texture2DArray, width, height, DepthLayers, 1, $"{Name}Depth");
+                Depth = new RenderTexture(TextureTarget.Texture2DArray, width, height, DepthLayers, 1, $"{Name}Depth");
                 GL.TextureStorage3D(Depth.Handle, 1, depthFormat.ToGLSizedInternalFormat(), width, height, DepthLayers);
                 AttachDepthLayer(0);
             }
@@ -327,7 +327,7 @@ public class Framebuffer
         var attachment = new RenderTexture(Target, width, height, 1, numMips, label);
         var mipCount = Math.Min(RenderTexture.MaxMipCount(width, height), attachment.NumMipLevels);
 
-        if (Target == TextureType.Texture2DMultisample)
+        if (Target == TextureTarget.Texture2DMultisample)
         {
             if (mipCount > 1)
             {
@@ -343,7 +343,7 @@ public class Framebuffer
 
         attachment.SetBaseMaxLevel(0, mipCount - 1);
 
-        if (Target != TextureType.Texture2DMultisample && !format.IsBlockCompressed() && IsIntegerFormat(format.ToGLPixelFormat()))
+        if (Target != TextureTarget.Texture2DMultisample && !format.IsBlockCompressed() && IsIntegerFormat(format.ToGLPixelFormat()))
         {
             // Sampling an integer texture with the default linear filtering is undefined.
             attachment.SetFiltering(TextureMinFilter.Nearest, TextureMagFilter.Nearest);
@@ -463,7 +463,7 @@ public class Framebuffer
 
     private void ApplyColorSamplerState()
     {
-        if (Color == null || Target == TextureType.Texture2DMultisample)
+        if (Color == null || Target == TextureTarget.Texture2DMultisample)
         {
             return;
         }
