@@ -122,7 +122,7 @@ public class Framebuffer
     private readonly bool isDefaultFramebuffer;
 
     /// <summary>
-    /// Creates a new named OpenGL framebuffer object on the device current on the calling thread.
+    /// Creates a new named OpenGL framebuffer object.
     /// </summary>
     /// <param name="name">Debug label applied to the framebuffer object.</param>
     public Framebuffer(string name)
@@ -272,7 +272,7 @@ public class Framebuffer
     {
         if (isDefaultFramebuffer)
         {
-            // The window creates the default framebuffer's attachments, so a resize only records the size.
+            // implicitly created by window
             return;
         }
 

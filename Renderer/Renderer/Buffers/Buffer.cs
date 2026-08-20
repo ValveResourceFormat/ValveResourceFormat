@@ -21,7 +21,7 @@ namespace ValveResourceFormat.Renderer.Buffers
 
         private readonly BufferRangeTarget bindTarget;
 
-        /// <summary>Initializes a new buffer on the device current on the calling thread.</summary>
+        /// <summary>Initializes a new buffer with the given target, binding point, and debug name.</summary>
         protected Buffer(BufferTarget target, int bindingPoint, string name)
         {
             Target = target;

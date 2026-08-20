@@ -121,9 +121,8 @@ public static class GLEnvironment
         GL.Enable(EnableCap.TextureCubeMapSeamless);
         GL.ClipControl(ClipOrigin.LowerLeft, ClipDepthMode.ZeroToOne); // reverse-Z clip range
 
-        var renderState = GraphicsContext.RenderState;
-        renderState.SetPassBaseline(RenderState.Default);
-        renderState.ApplyDynamic(DynamicState.Default);
+        GraphicsContext.RenderState.SetPassBaseline(RenderState.Default);
+        GraphicsContext.RenderState.ApplyDynamic(DynamicState.Default);
 
         EnableParallelShaderCompile();
     }
