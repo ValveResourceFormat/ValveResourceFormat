@@ -766,17 +766,15 @@ namespace ValveResourceFormat.Renderer.World
 
         private void CreateCookieSamplers()
         {
-            CookieSamplerClampBorder = GraphicsDevice.CreateSampler(nameof(CookieSamplerClampBorder));
+            var clampBorder = new Sampler(nameof(CookieSamplerClampBorder));
+            clampBorder.SetWrapMode(RsTextureAddressMode.Border, RsTextureAddressMode.Border);
+            clampBorder.SetFiltering(TextureMinFilter.Linear, TextureMagFilter.Linear);
+            CookieSamplerClampBorder = clampBorder.Handle;
 
-            GL.SamplerParameter(CookieSamplerClampBorder, SamplerParameterName.TextureWrapS, (int)RsTextureAddressMode.Border.ToGLTextureWrapMode());
-            GL.SamplerParameter(CookieSamplerClampBorder, SamplerParameterName.TextureWrapT, (int)RsTextureAddressMode.Border.ToGLTextureWrapMode());
-            GL.SamplerParameter(CookieSamplerClampBorder, SamplerParameterName.TextureMinFilter, (int)TextureMinFilter.Linear);
-
-            CookieSamplerWrap = GraphicsDevice.CreateSampler(nameof(CookieSamplerWrap));
-
-            GL.SamplerParameter(CookieSamplerWrap, SamplerParameterName.TextureWrapS, (int)RsTextureAddressMode.Wrap.ToGLTextureWrapMode());
-            GL.SamplerParameter(CookieSamplerWrap, SamplerParameterName.TextureWrapT, (int)RsTextureAddressMode.Wrap.ToGLTextureWrapMode());
-            GL.SamplerParameter(CookieSamplerWrap, SamplerParameterName.TextureMinFilter, (int)TextureMinFilter.Linear);
+            var wrap = new Sampler(nameof(CookieSamplerWrap));
+            wrap.SetWrapMode(RsTextureAddressMode.Wrap, RsTextureAddressMode.Wrap);
+            wrap.SetFiltering(TextureMinFilter.Linear, TextureMagFilter.Linear);
+            CookieSamplerWrap = wrap.Handle;
         }
 
         /// <summary>Allocates the GPU storage buffer used to pass barn light data to shaders.</summary>

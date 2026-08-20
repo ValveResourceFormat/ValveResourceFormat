@@ -22,7 +22,7 @@ namespace ValveResourceFormat.Renderer.Materials
 
         private readonly Dictionary<string, RenderTexture> Textures = [];
         private readonly Dictionary<string, RenderTexture> TexturesSrgb = [];
-        private readonly Dictionary<(int AddressU, int AddressV, bool AnisotropicFiltering), int> Samplers = [];
+        private readonly Dictionary<(RsTextureAddressMode AddressU, RsTextureAddressMode AddressV, bool AnisotropicFiltering), int> Samplers = [];
         private readonly RendererContext RendererContext;
         private RenderTexture? ErrorTexture;
         private RenderTexture? DefaultNormal;
@@ -234,13 +234,13 @@ namespace ValveResourceFormat.Renderer.Materials
         /// <summary>
         /// Gets a sampler object for the supplied texture address modes, creating and caching one per <see cref="MaterialLoader" />.
         /// </summary>
-        public int GetOrCreateSampler(int addressModeU, int addressModeV, bool mipmaps = true, bool anisotropicFiltering = true)
+        public int GetOrCreateSampler(RsTextureAddressMode addressModeU, RsTextureAddressMode addressModeV, bool mipmaps = true, bool anisotropicFiltering = true)
         {
             var key = (addressModeU, addressModeV, anisotropicFiltering);
 
-            if (key == (0, 0, true))
+            if (key == (RsTextureAddressMode.Wrap, RsTextureAddressMode.Wrap, true))
             {
-                return 0; // default sampler state with repeat wrap mode
+                return 0; // the default sampler state already wraps
             }
 
             if (Samplers.TryGetValue(key, out var sampler))
@@ -248,20 +248,18 @@ namespace ValveResourceFormat.Renderer.Materials
                 return sampler;
             }
 
-            sampler = GraphicsDevice.CreateSampler($"Sampler{addressModeU}{addressModeV}");
+            var newSampler = new Sampler($"Sampler{addressModeU}{addressModeV}");
 
-            GL.SamplerParameter(sampler, SamplerParameterName.TextureWrapS, (int)((RsTextureAddressMode)addressModeU).ToGLTextureWrapMode());
-            GL.SamplerParameter(sampler, SamplerParameterName.TextureWrapT, (int)((RsTextureAddressMode)addressModeV).ToGLTextureWrapMode());
-            GL.SamplerParameter(sampler, SamplerParameterName.TextureMinFilter, (int)(mipmaps ? TextureMinFilter.LinearMipmapLinear : TextureMinFilter.Linear));
-            GL.SamplerParameter(sampler, SamplerParameterName.TextureMagFilter, (int)TextureMagFilter.Linear);
+            newSampler.SetWrapMode(addressModeU, addressModeV);
+            newSampler.SetFiltering(mipmaps ? TextureMinFilter.LinearMipmapLinear : TextureMinFilter.Linear, TextureMagFilter.Linear);
 
             if (anisotropicFiltering && MaxTextureMaxAnisotropy >= 4)
             {
-                GL.SamplerParameter(sampler, (SamplerParameterName)ExtTextureFilterAnisotropic.TextureMaxAnisotropyExt, MaxTextureMaxAnisotropy);
+                newSampler.SetMaxAnisotropy(MaxTextureMaxAnisotropy);
             }
 
-            Samplers[key] = sampler;
-            return sampler;
+            Samplers[key] = newSampler.Handle;
+            return newSampler.Handle;
         }
 
         private RenderTexture LoadTexture(string name, bool srgbRead = false)
@@ -425,9 +423,7 @@ namespace ValveResourceFormat.Renderer.Materials
 
             tex.SetFiltering(TextureMinFilter.LinearMipmapLinear, TextureMagFilter.Linear);
 
-            GL.TextureParameter(tex.Handle, TextureParameterName.TextureWrapS, (int)clampModeS.ToGLTextureWrapMode());
-            GL.TextureParameter(tex.Handle, TextureParameterName.TextureWrapT, (int)clampModeT.ToGLTextureWrapMode());
-            GL.TextureParameter(tex.Handle, TextureParameterName.TextureWrapR, (int)clampModeU.ToGLTextureWrapMode());
+            tex.SetWrapMode(clampModeS, clampModeT, clampModeU);
 
             return tex;
         }

@@ -133,22 +133,26 @@ namespace ValveResourceFormat.Renderer
             return new RenderTexture(handle, Target);
         }
 
-        /// <summary>Sets the addressing mode for all relevant texture dimensions.</summary>
+        /// <summary>Sets one addressing mode for all relevant texture dimensions.</summary>
         /// <param name="mode">The addressing mode to apply.</param>
-        public void SetWrapMode(RsTextureAddressMode mode)
-        {
-            var wrap = mode.ToGLTextureWrapMode();
+        public void SetWrapMode(RsTextureAddressMode mode) => SetWrapMode(mode, mode, mode);
 
-            SetParameter(TextureParameterName.TextureWrapS, (int)wrap);
+        /// <summary>Sets the addressing mode per texture dimension, skipping the ones this texture does not have.</summary>
+        /// <param name="s">Addressing mode across the width.</param>
+        /// <param name="t">Addressing mode across the height.</param>
+        /// <param name="r">Addressing mode across the depth.</param>
+        public void SetWrapMode(RsTextureAddressMode s, RsTextureAddressMode t, RsTextureAddressMode r)
+        {
+            SetParameter(TextureParameterName.TextureWrapS, (int)s.ToGLTextureWrapMode());
 
             if (Height > 1)
             {
-                SetParameter(TextureParameterName.TextureWrapT, (int)wrap);
+                SetParameter(TextureParameterName.TextureWrapT, (int)t.ToGLTextureWrapMode());
             }
 
             if (Depth > 1)
             {
-                SetParameter(TextureParameterName.TextureWrapR, (int)wrap);
+                SetParameter(TextureParameterName.TextureWrapR, (int)r.ToGLTextureWrapMode());
             }
         }
 
@@ -206,5 +210,50 @@ namespace ValveResourceFormat.Renderer
 
             GL.NamedFramebufferTexture(framebuffer.FboHandle, attachment, Handle, mipLevel);
         }
+    }
+
+    /// <summary>
+    /// OpenGL sampler object: the filtering and addressing state a texture is read with, overriding
+    /// the parameters set on the texture itself for the unit it is bound to.
+    /// </summary>
+    public sealed class Sampler
+    {
+        /// <summary>Gets the OpenGL sampler object handle.</summary>
+        public int Handle { get; }
+
+        /// <summary>Creates a sampler with default state.</summary>
+        /// <param name="label">Label string visible in graphics debuggers.</param>
+        public Sampler(string label)
+        {
+            Handle = GraphicsDevice.CreateSampler(label);
+        }
+
+        /// <summary>Sets the addressing mode across the width and height.</summary>
+        /// <param name="s">Addressing mode across the width.</param>
+        /// <param name="t">Addressing mode across the height.</param>
+        public void SetWrapMode(RsTextureAddressMode s, RsTextureAddressMode t)
+        {
+            SetParameter(SamplerParameterName.TextureWrapS, (int)s.ToGLTextureWrapMode());
+            SetParameter(SamplerParameterName.TextureWrapT, (int)t.ToGLTextureWrapMode());
+        }
+
+        /// <summary>Sets the minification and magnification filters.</summary>
+        /// <param name="min">Minification filter.</param>
+        /// <param name="mag">Magnification filter.</param>
+        public void SetFiltering(TextureMinFilter min, TextureMagFilter mag)
+        {
+            SetParameter(SamplerParameterName.TextureMinFilter, (int)min);
+            SetParameter(SamplerParameterName.TextureMagFilter, (int)mag);
+        }
+
+        /// <summary>Sets how many samples anisotropic filtering may take.</summary>
+        /// <param name="maxAnisotropy">Maximum anisotropy, clamped by the driver to what it supports.</param>
+        public void SetMaxAnisotropy(float maxAnisotropy)
+        {
+            GL.SamplerParameter(Handle, (SamplerParameterName)ExtTextureFilterAnisotropic.TextureMaxAnisotropyExt, maxAnisotropy);
+        }
+
+        private void SetParameter(SamplerParameterName parameter, int value)
+            => GL.SamplerParameter(Handle, parameter, value);
     }
 }

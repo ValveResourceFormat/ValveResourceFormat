@@ -574,8 +574,8 @@ namespace ValveResourceFormat.Renderer.Materials
             var userConfigSampler = 0;
             if (shader.SamplerUserConfigUniforms.Count > 0 && Loader != null)
             {
-                var addressModeU = (int)IntParams.GetValueOrDefault("g_nTextureAddressModeU");
-                var addressModeV = (int)IntParams.GetValueOrDefault("g_nTextureAddressModeV");
+                var addressModeU = (RsTextureAddressMode)IntParams.GetValueOrDefault("g_nTextureAddressModeU");
+                var addressModeV = (RsTextureAddressMode)IntParams.GetValueOrDefault("g_nTextureAddressModeV");
                 userConfigSampler = Loader.GetOrCreateSampler(addressModeU, addressModeV);
             }
 
