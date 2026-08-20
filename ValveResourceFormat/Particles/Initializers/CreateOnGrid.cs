@@ -73,15 +73,16 @@ namespace ValveResourceFormat.Particles.Initializers
 
             // Slower but infinitely better and more stable code
 
-            // If hollow but the size never gets above 2 in any dimension.
-            // Important note: hollow + 1x1x1 actually will cause a crash in Source 2
             var totalCount = dimenX * dimenY * dimenZ;
 
             var hollowDimenX = 0;
             var hollowDimenY = 0;
             var hollowDimenZ = 0;
 
-            if (hollow)
+            // A grid one cell across in every dimension has no interior to hollow out, and is filled
+            var isHollow = hollow && (dimenX != 1 || dimenY != 1 || dimenZ != 1);
+
+            if (isHollow)
             {
                 // dimenX = ceil(rawDimenX)
                 // ceil(rawDimX) - RawDimX = extra leftover value
@@ -110,13 +111,13 @@ namespace ValveResourceFormat.Particles.Initializers
             // really slow but the cleanest way to do it
             for (var z = 0; z < dimenZ; z++)
             {
-                hollowZ = hollow && HollowTest(z, dimenZ, hollowDimenZ);
+                hollowZ = isHollow && HollowTest(z, dimenZ, hollowDimenZ);
                 for (var y = 0; y < dimenY; y++)
                 {
-                    hollowY = hollow && HollowTest(y, dimenY, hollowDimenY);
+                    hollowY = isHollow && HollowTest(y, dimenY, hollowDimenY);
                     for (var x = 0; x < dimenX; x++)
                     {
-                        hollowX = hollow && HollowTest(x, dimenX, hollowDimenX);
+                        hollowX = isHollow && HollowTest(x, dimenX, hollowDimenX);
 
                         if (hollowX && hollowY && hollowZ)
                         {

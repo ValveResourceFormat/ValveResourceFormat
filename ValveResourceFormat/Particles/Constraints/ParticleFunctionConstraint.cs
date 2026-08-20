@@ -11,6 +11,11 @@ namespace ValveResourceFormat.Particles.Constraints
         {
         }
 
+        /// <summary>Drops any state the constraint captured from the particles it has seen so far.</summary>
+        public virtual void Reset()
+        {
+        }
+
         /// <summary>
         /// Applies one relaxation pass of the constraint to the particle collection. Returns true when the
         /// constraint may have moved particles, which the renderer's work list uses to decide whether other
