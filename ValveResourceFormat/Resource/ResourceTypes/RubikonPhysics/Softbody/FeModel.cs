@@ -18,7 +18,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
     /// distinct from the <c>Rn</c> types the rest of <see cref="RubikonPhysics"/> holds.
     /// </para>
     /// </remarks>
-    /// <seealso href="https://s2v.app/SchemaExplorer/cs2/modellib/PhysFeModelDesc_t">PhysFeModelDesc_t</seealso>
+    /// <seealso href="https://s2v.app/SchemaExplorer/cs2/physicslib/PhysFeModelDesc_t">PhysFeModelDesc_t</seealso>
     public sealed partial class FeModel
     {
         /// <summary>
