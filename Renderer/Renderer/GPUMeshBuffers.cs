@@ -20,13 +20,11 @@ namespace ValveResourceFormat.Renderer
         /// <param name="name">Mesh name used to label the buffers.</param>
         public GPUMeshBuffers(VBIB vbib, string name)
         {
-            var device = GraphicsDevice.Current;
-
             VertexBuffers = new int[vbib.VertexBuffers.Count];
 
             for (var i = 0; i < vbib.VertexBuffers.Count; i++)
             {
-                VertexBuffers[i] = device.CreateBuffer($"{name} VB {i}");
+                VertexBuffers[i] = GraphicsDevice.CreateBuffer($"{name} VB {i}");
                 GL.NamedBufferData(VertexBuffers[i], (IntPtr)vbib.VertexBuffers[i].TotalSizeInBytes, vbib.VertexBuffers[i].Data, BufferUsageHint.StaticDraw);
             }
 
@@ -34,7 +32,7 @@ namespace ValveResourceFormat.Renderer
 
             for (var i = 0; i < vbib.IndexBuffers.Count; i++)
             {
-                IndexBuffers[i] = device.CreateBuffer($"{name} IB {i}");
+                IndexBuffers[i] = GraphicsDevice.CreateBuffer($"{name} IB {i}");
                 GL.NamedBufferData(IndexBuffers[i], (IntPtr)vbib.IndexBuffers[i].TotalSizeInBytes, vbib.IndexBuffers[i].Data, BufferUsageHint.StaticDraw);
             }
         }

@@ -28,7 +28,7 @@ public partial class GPUMeshBufferCache
         {
             if (emptyVAO == -1)
             {
-                emptyVAO = GraphicsDevice.Current.CreateVertexArray(nameof(EmptyVAO));
+                emptyVAO = GraphicsDevice.CreateVertexArray(nameof(EmptyVAO));
             }
 
             return emptyVAO;
@@ -45,7 +45,7 @@ public partial class GPUMeshBufferCache
         {
             if (vectorOneVertexBuffer == -1)
             {
-                vectorOneVertexBuffer = GraphicsDevice.Current.CreateBuffer(nameof(VectorOneVertexBuffer));
+                vectorOneVertexBuffer = GraphicsDevice.CreateBuffer(nameof(VectorOneVertexBuffer));
                 GL.NamedBufferData(vectorOneVertexBuffer, 4 * sizeof(float), [1f, 1f, 1f, 1f], BufferUsageHint.StaticDraw);
             }
 

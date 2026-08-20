@@ -22,8 +22,8 @@ public class RendererContext : IDisposable
     public GameFileLoader FileLoader { get; }
 
     /// <summary>
-    /// Creates GPU objects for this context. Reached through <see cref="GraphicsDevice.Current"/>
-    /// at the point of use; this property is who owns it.
+    /// Owns the GPU objects created for this renderer. Creation goes through the static methods on
+    /// <see cref="GraphicsDevice"/> rather than through this property.
     /// </summary>
     public GraphicsDevice Device { get; }
 

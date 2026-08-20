@@ -110,10 +110,9 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         {
             indexCount = inds.Count;
 
-            var device = GraphicsDevice.Current;
             var label = GetType().Name;
-            var vboHandle = device.CreateBuffer(label);
-            var iboHandle = device.CreateBuffer(label);
+            var vboHandle = GraphicsDevice.CreateBuffer(label);
+            var iboHandle = GraphicsDevice.CreateBuffer(label);
 
             GL.NamedBufferData(vboHandle, verts.Count * SimpleVertexNormal.InputLayout.Stride, ListAccessors<SimpleVertexNormal>.GetBackingArray(verts), BufferUsageHint.StaticDraw);
             GL.NamedBufferData(iboHandle, inds.Count * sizeof(int), ListAccessors<int>.GetBackingArray(inds), BufferUsageHint.StaticDraw);

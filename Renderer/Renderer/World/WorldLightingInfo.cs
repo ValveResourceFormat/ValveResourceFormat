@@ -738,8 +738,8 @@ namespace ValveResourceFormat.Renderer.World
             var atlas = new RenderTexture(TextureType.Texture2DArray, atlasSize, atlasSize, numLayers, 1, "CookieAtlas");
             GL.TextureStorage3D(atlas.Handle, 1, SizedInternalFormat.Srgb8Alpha8, atlasSize, atlasSize, numLayers);
 
-            var readFbo = GraphicsDevice.Current.CreateFramebuffer("CookieAtlasBlitSrc");
-            var drawFbo = GraphicsDevice.Current.CreateFramebuffer("CookieAtlasBlitDst");
+            var readFbo = GraphicsDevice.CreateFramebuffer("CookieAtlasBlitSrc");
+            var drawFbo = GraphicsDevice.CreateFramebuffer("CookieAtlasBlitDst");
 
             // First layer is full white
             GL.NamedFramebufferTextureLayer(drawFbo, FramebufferAttachment.ColorAttachment0, atlas.Handle, 0, 0);
@@ -766,13 +766,13 @@ namespace ValveResourceFormat.Renderer.World
 
         private void CreateCookieSamplers()
         {
-            CookieSamplerClampBorder = GraphicsDevice.Current.CreateSampler(nameof(CookieSamplerClampBorder));
+            CookieSamplerClampBorder = GraphicsDevice.CreateSampler(nameof(CookieSamplerClampBorder));
 
             GL.SamplerParameter(CookieSamplerClampBorder, SamplerParameterName.TextureWrapS, (int)TextureWrapMode.ClampToBorder);
             GL.SamplerParameter(CookieSamplerClampBorder, SamplerParameterName.TextureWrapT, (int)TextureWrapMode.ClampToBorder);
             GL.SamplerParameter(CookieSamplerClampBorder, SamplerParameterName.TextureMinFilter, (int)TextureMinFilter.Linear);
 
-            CookieSamplerWrap = GraphicsDevice.Current.CreateSampler(nameof(CookieSamplerWrap));
+            CookieSamplerWrap = GraphicsDevice.CreateSampler(nameof(CookieSamplerWrap));
 
             GL.SamplerParameter(CookieSamplerWrap, SamplerParameterName.TextureWrapS, (int)TextureWrapMode.Repeat);
             GL.SamplerParameter(CookieSamplerWrap, SamplerParameterName.TextureWrapT, (int)TextureWrapMode.Repeat);

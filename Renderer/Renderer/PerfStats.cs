@@ -186,7 +186,7 @@ public class PerfStats
 
         if (frame.SegmentsUsed == frame.Segments.Count)
         {
-            frame.Segments.Add(GraphicsDevice.Current.CreateQuery(QueryType.PrimitivesGenerated, "TriangleSegment"));
+            frame.Segments.Add(GraphicsDevice.CreateQuery(QueryType.PrimitivesGenerated, "TriangleSegment"));
         }
 
         GL.BeginQuery(QueryTarget.PrimitivesGenerated, frame.Segments[frame.SegmentsUsed]);

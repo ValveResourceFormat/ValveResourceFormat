@@ -92,8 +92,8 @@ internal class RenderTestWindow : GameWindow
     {
         base.OnLoad();
 
-        // GameWindow keeps its context current on this thread, so the device stays current with it.
-        rendererContext.Device.MakeCurrent();
+        // GameWindow keeps its context current on this thread for the life of the window.
+        rendererContext.Device.CreateContext(ExternalGraphicsSurface.Instance, nameof(RenderTestWindow)).MakeCurrent();
 
         GLEnvironment.Initialize(rendererContext.Logger);
         GLEnvironment.SetDefaultRenderState(rendererContext);

@@ -23,7 +23,7 @@ namespace ValveResourceFormat.Renderer
         {
             Shader = rendererContext.ShaderLoader.LoadShader("default");
 
-            vboHandle = GraphicsDevice.Current.CreateBuffer(label);
+            vboHandle = GraphicsDevice.CreateBuffer(label);
             vao = SimpleVertex.InputLayout.CreateVertexArray(label, vboHandle);
         }
 

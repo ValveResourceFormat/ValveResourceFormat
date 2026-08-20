@@ -170,7 +170,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
 
         private (int Vao, int Buffer) SetupQuadBuffer(string label)
         {
-            var buffer = GraphicsDevice.Current.CreateBuffer(label);
+            var buffer = GraphicsDevice.CreateBuffer(label);
             var vao = SpritecardVertex.InputLayout.CreateVertexArray(label, buffer, rendererContext.MeshBufferCache.QuadIndices.GLHandle);
 
             return (vao, buffer);

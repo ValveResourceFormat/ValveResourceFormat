@@ -249,7 +249,7 @@ namespace ValveResourceFormat.Renderer.Materials
                 return sampler;
             }
 
-            sampler = GraphicsDevice.Current.CreateSampler($"Sampler{addressModeU}{addressModeV}");
+            sampler = GraphicsDevice.CreateSampler($"Sampler{addressModeU}{addressModeV}");
 
             GL.SamplerParameter(sampler, SamplerParameterName.TextureWrapS, (int)MapAddressMode(addressModeU));
             GL.SamplerParameter(sampler, SamplerParameterName.TextureWrapT, (int)MapAddressMode(addressModeV));

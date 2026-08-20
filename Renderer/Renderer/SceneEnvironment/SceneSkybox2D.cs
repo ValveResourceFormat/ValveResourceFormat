@@ -25,7 +25,7 @@ namespace ValveResourceFormat.Renderer.SceneEnvironment
         public SceneSkybox2D(RenderMaterial material)
         {
             Material = material;
-            vao = GraphicsDevice.Current.CreateVertexArray(nameof(SceneSkybox2D));
+            vao = GraphicsDevice.CreateVertexArray(nameof(SceneSkybox2D));
         }
 
         /// <summary>

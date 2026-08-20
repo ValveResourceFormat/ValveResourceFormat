@@ -195,7 +195,7 @@ namespace ValveResourceFormat.Renderer
         {
             Debug.Assert(vertexBuffers != null && vertexBuffers.Length > 0);
 
-            var newVaoHandle = GraphicsDevice.Current.CreateVertexArray(debugLabel ?? string.Empty);
+            var newVaoHandle = GraphicsDevice.CreateVertexArray(debugLabel ?? string.Empty);
             VertexArray.StartRecording(newVaoHandle);
 
             // Check for non-indexed geometry

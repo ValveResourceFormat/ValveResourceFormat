@@ -60,8 +60,8 @@ internal abstract class ThumbnailRenderer : IDisposable
         NativeWindow = GLViewers.NativeWindowFactory.Create(nativeWindowSettings);
         RendererContext = new RendererContext(context, VrfGuiContext.Logger);
 
-        NativeWindow.MakeCurrent();
-        RendererContext.Device.MakeCurrent();
+        // The thumbnail GL thread keeps this window current, so the context does too.
+        RendererContext.Device.CreateContext(new GLViewers.GLFWSurface(NativeWindow.Context), nameof(ThumbnailRenderer)).MakeCurrent();
 
         GLEnvironment.Initialize(RendererContext.Logger);
         GLEnvironment.SetDefaultRenderState(RendererContext);

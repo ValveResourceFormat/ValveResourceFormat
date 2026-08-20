@@ -122,7 +122,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
 
         private int SetupQuadBuffer(string label)
         {
-            vertexBufferHandle = GraphicsDevice.Current.CreateBuffer(label);
+            vertexBufferHandle = GraphicsDevice.CreateBuffer(label);
 
             return SpritecardVertex.InputLayout.CreateVertexArray(label, vertexBufferHandle, rendererContext.MeshBufferCache.QuadIndices.GLHandle);
         }

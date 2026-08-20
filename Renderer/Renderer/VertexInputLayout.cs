@@ -142,7 +142,7 @@ namespace ValveResourceFormat.Renderer
         /// <summary>Creates a VAO binding one vertex buffer. An index buffer of 0 means non-indexed.</summary>
         public int CreateVertexArray(string debugLabel, int vertexBuffer, int indexBuffer = 0)
         {
-            var vao = GraphicsDevice.Current.CreateVertexArray(debugLabel);
+            var vao = GraphicsDevice.CreateVertexArray(debugLabel);
             VertexArray.StartRecording(vao, Array.ConvertAll(fields, field => field.ShaderSemantic));
 
             if (indexBuffer != 0)

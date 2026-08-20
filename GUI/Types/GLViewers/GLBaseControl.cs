@@ -21,6 +21,9 @@ internal abstract class GLBaseControl : IDisposable, IMessageFilter
     protected RendererControl? UiControl;
 
     protected OpenTK.Windowing.Desktop.NativeWindow? GLNativeWindow;
+
+    /// <summary>The command stream this control records into, over <see cref="GLNativeWindow"/>.</summary>
+    protected GraphicsContext? GraphicsContext;
     public GLControl? GLControl { get; private set; }
 
     protected Form? FullScreenForm { get; private set; }
@@ -737,6 +740,8 @@ internal abstract class GLBaseControl : IDisposable, IMessageFilter
 
         Debug.Assert(GLNativeWindow is not null);
 
+        GraphicsContext = RendererContext.Device.CreateContext(new GLFWSurface(GLNativeWindow.Context), GetType().Name);
+
         using var lockedGl = MakeCurrent();
 
         GLNativeWindow.Context.SwapInterval = Settings.Config.Vsync;
@@ -840,7 +845,7 @@ internal abstract class GLBaseControl : IDisposable, IMessageFilter
     {
         using var lockedGl = glLock.EnterScope();
 
-        if (GLNativeWindow == null || !GLNativeWindow.Exists)
+        if (GLNativeWindow == null || !GLNativeWindow.Exists || GraphicsContext == null)
         {
             Log.Debug(nameof(GLBaseControl), "Attempted to draw onto destroyed GL Native Window.");
             RenderLoopThread.UnsetCurrentGLControl(this);
@@ -849,7 +854,7 @@ internal abstract class GLBaseControl : IDisposable, IMessageFilter
 
         try
         {
-            GLNativeWindow.Context.MakeCurrent();
+            GraphicsContext.MakeCurrent();
         }
         catch (OpenTK.Windowing.GraphicsLibraryFramework.GLFWException e)
         {
@@ -858,8 +863,6 @@ internal abstract class GLBaseControl : IDisposable, IMessageFilter
             Log.Debug(nameof(GLFWGraphicsContext), e.Message);
             return;
         }
-
-        RendererContext.Device.MakeCurrent();
 
         if (ShouldResize)
         {
@@ -893,8 +896,7 @@ internal abstract class GLBaseControl : IDisposable, IMessageFilter
 
         GLNativeWindow.Context.SwapBuffers();
 
-        GraphicsDevice.MakeNoneCurrent();
-        GLNativeWindow.Context.MakeNoneCurrent();
+        GraphicsContext.MakeNoneCurrent();
 
         if (firstDraw)
         {
@@ -909,12 +911,12 @@ internal abstract class GLBaseControl : IDisposable, IMessageFilter
 
     public GLLockScope MakeCurrent()
     {
-        if (GLNativeWindow == null)
+        if (GraphicsContext == null)
         {
             throw new InvalidOperationException("Cannot acquire GLLockScope without a valid GLNativeWindow.");
         }
 
-        return new GLLockScope(glLock, GLNativeWindow.Context, RendererContext.Device);
+        return new GLLockScope(glLock, GraphicsContext);
     }
 
     static bool loadedBindings;

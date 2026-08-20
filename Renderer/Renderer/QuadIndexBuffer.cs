@@ -18,7 +18,7 @@ namespace ValveResourceFormat.Renderer
         {
             System.Diagnostics.Debug.Assert(size % 6 == 0);
 
-            var handle = GraphicsDevice.Current.CreateBuffer(nameof(QuadIndexBuffer));
+            var handle = GraphicsDevice.CreateBuffer(nameof(QuadIndexBuffer));
             GLHandle = handle;
 
             var sizeInBytes = size * sizeof(ushort);

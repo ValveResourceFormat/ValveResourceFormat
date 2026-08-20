@@ -21,8 +21,9 @@ namespace ValveResourceFormat.Renderer.Shaders
         {
             using var renderContext = new RendererContext(new ValveResourceFormat.IO.GameFileLoader(null, null), logger);
 
-            // The caller made its context current on this thread before calling in.
-            renderContext.Device.MakeCurrent();
+            // The caller made its window current on this thread before calling in.
+            var graphicsContext = renderContext.Device.CreateContext(ExternalGraphicsSurface.Instance, "Shader Validator");
+            graphicsContext.MakeCurrent();
 
             var loader = renderContext.ShaderLoader;
             var folder = ShaderParser.ShaderSourceDirectory

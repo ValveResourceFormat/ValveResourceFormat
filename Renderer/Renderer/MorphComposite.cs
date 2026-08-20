@@ -73,7 +73,7 @@ namespace ValveResourceFormat.Renderer
 
             CompositeTexture = new(TextureType.Texture2D, width * 2, height, 1, 1, label);
 
-            frameBuffer = GraphicsDevice.Current.CreateFramebuffer(label);
+            frameBuffer = GraphicsDevice.CreateFramebuffer(label);
 
             InitVertexBuffer(renderContext, label);
 
@@ -156,7 +156,7 @@ namespace ValveResourceFormat.Renderer
 
         private void InitVertexBuffer(RendererContext renderContext, string label)
         {
-            bufferHandle = GraphicsDevice.Current.CreateBuffer(label);
+            bufferHandle = GraphicsDevice.CreateBuffer(label);
             vao = MorphRectVertex.InputLayout.CreateVertexArray(label, bufferHandle, renderContext.MeshBufferCache.QuadIndices.GLHandle);
         }
 

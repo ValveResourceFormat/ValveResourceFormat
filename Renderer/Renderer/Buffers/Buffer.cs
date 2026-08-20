@@ -30,7 +30,7 @@ namespace ValveResourceFormat.Renderer.Buffers
         {
             Type = type;
             bindTarget = (BufferRangeTarget)type.ToGLBufferTarget();
-            Handle = GraphicsDevice.Current.CreateBuffer(name);
+            Handle = GraphicsDevice.CreateBuffer(name);
             BindingPoint = bindingPoint;
             Name = name;
         }

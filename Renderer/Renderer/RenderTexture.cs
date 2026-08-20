@@ -46,7 +46,7 @@ namespace ValveResourceFormat.Renderer
         RenderTexture(TextureType type, string label)
         {
             Type = type;
-            Handle = GraphicsDevice.Current.CreateTexture(type, label);
+            Handle = GraphicsDevice.CreateTexture(type, label);
         }
 
         /// <summary>Creates a render texture and populates metadata from the given source texture resource.</summary>
@@ -129,7 +129,7 @@ namespace ValveResourceFormat.Renderer
         /// <returns>A new <see cref="RenderTexture"/> wrapping the view.</returns>
         public RenderTexture CreateView(ImageFormat format, string label, int minLevel = 0, int numLevels = 1, int minLayer = 0, int numLayers = 1)
         {
-            var handle = GraphicsDevice.Current.CreateTextureView(Handle, Type, format, minLevel, numLevels, minLayer, numLayers, label);
+            var handle = GraphicsDevice.CreateTextureView(Handle, Type, format, minLevel, numLevels, minLayer, numLayers, label);
 
             return new RenderTexture(handle, Type);
         }

@@ -52,9 +52,8 @@ namespace ValveResourceFormat.Renderer.SceneNodes
                 texture.SetWrapMode(TextureWrapMode.ClampToEdge);
             }
 
-            var device = GraphicsDevice.Current;
             var label = $"{nameof(SpriteSceneNode)}: {System.IO.Path.GetFileName(resource.FileName)}";
-            var vboHandle = device.CreateBuffer(label);
+            var vboHandle = GraphicsDevice.CreateBuffer(label);
 
             GL.NamedBufferData(vboHandle, Vertices.Length * Vertex.InputLayout.Stride, Vertices, BufferUsageHint.StaticDraw);
 

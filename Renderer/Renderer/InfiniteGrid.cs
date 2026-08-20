@@ -29,8 +29,7 @@ namespace ValveResourceFormat.Renderer
             shader = scene.RendererContext.ShaderLoader.LoadShader("grid");
             renderState = scene.RendererContext.RenderState;
 
-            var device = GraphicsDevice.Current;
-            var buffer = device.CreateBuffer(nameof(InfiniteGrid));
+            var buffer = GraphicsDevice.CreateBuffer(nameof(InfiniteGrid));
 
             GL.NamedBufferData(buffer, vertices.Length * sizeof(float), vertices, BufferUsageHint.StaticDraw);
 

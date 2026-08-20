@@ -50,11 +50,9 @@ internal sealed class ReadbackRing : IDisposable
             | BufferAccessMask.MapPersistentBit
             | BufferAccessMask.MapCoherentBit;
 
-        var device = GraphicsDevice.Current;
-
         for (var i = 0; i < Depth; i++)
         {
-            var handle = device.CreateBuffer($"ReadbackRing{i}");
+            var handle = GraphicsDevice.CreateBuffer($"ReadbackRing{i}");
 
             GL.NamedBufferStorage(handle, size, IntPtr.Zero, storage);
 

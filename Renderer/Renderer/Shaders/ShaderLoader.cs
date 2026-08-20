@@ -265,14 +265,14 @@ namespace ValveResourceFormat.Renderer.Shaders
                 var s = 0;
                 foreach (var (stage, source) in sources)
                 {
-                    shaderObjects[s] = GraphicsDevice.Current.CreateShader(stage, shaderFileName);
+                    shaderObjects[s] = GraphicsDevice.CreateShader(stage, shaderFileName);
                     shaderSources[s] = source!;
                     s++;
                 }
 
                 CompileShaderObjects(shaderObjects, shaderSources, shaderFileName, shaderName, arguments, parsedData);
 
-                shaderProgram = GraphicsDevice.Current.CreateProgram(shaderFileName);
+                shaderProgram = GraphicsDevice.CreateProgram(shaderFileName);
 
                 // What the source declares is known before the program links, and the renderer needs it that
                 // early to have a texture bound by the first draw that samples it. Only ever grows.

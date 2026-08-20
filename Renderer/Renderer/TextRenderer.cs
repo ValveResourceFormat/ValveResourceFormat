@@ -251,7 +251,7 @@ namespace ValveResourceFormat.Renderer
             GL.TextureStorage2D(fontTexture.Handle, 1, SizedInternalFormat.Rgba8, bitmap.Width, bitmap.Height);
             GL.TextureSubImage2D(fontTexture.Handle, 0, 0, 0, bitmap.Width, bitmap.Height, PixelFormat.Bgra, PixelType.UnsignedByte, bitmap.GetPixels());
 
-            bufferHandle = GraphicsDevice.Current.CreateBuffer(nameof(TextRenderer));
+            bufferHandle = GraphicsDevice.CreateBuffer(nameof(TextRenderer));
             vao = Vertex.InputLayout.CreateVertexArray(nameof(TextRenderer), bufferHandle, RendererContext.MeshBufferCache.QuadIndices.GLHandle);
         }
 

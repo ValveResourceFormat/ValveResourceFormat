@@ -351,8 +351,8 @@ namespace GUI.Types.GLViewers
         {
             base.OnGLLoad();
 
-            frametimeQuery1 = GraphicsDevice.Current.CreateQuery(QueryType.TimeElapsed, "Frame Time Query");
-            frametimeQuery2 = GraphicsDevice.Current.CreateQuery(QueryType.TimeElapsed, "Frame Time Query");
+            frametimeQuery1 = GraphicsDevice.CreateQuery(QueryType.TimeElapsed, "Frame Time Query");
+            frametimeQuery2 = GraphicsDevice.CreateQuery(QueryType.TimeElapsed, "Frame Time Query");
 
             // Needed to fix crash on certain drivers
             GL.BeginQuery(QueryTarget.TimeElapsed, frametimeQuery2);

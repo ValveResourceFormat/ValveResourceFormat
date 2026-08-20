@@ -46,8 +46,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             clusterDrawRanges = [.. ranges];
             totalVertexCount = vertices.Count;
 
-            var device = GraphicsDevice.Current;
-            var vboHandle = device.CreateBuffer(nameof(VisibilitySceneNode));
+            var vboHandle = GraphicsDevice.CreateBuffer(nameof(VisibilitySceneNode));
 
             GL.NamedBufferData(vboHandle, totalVertexCount * SimpleVertex.InputLayout.Stride,
                 ListAccessors<SimpleVertex>.GetBackingArray(vertices), BufferUsageHint.StaticDraw);

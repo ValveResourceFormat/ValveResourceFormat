@@ -1,31 +1,19 @@
 using System.Diagnostics;
-using System.Threading;
 using OpenTK.Graphics.OpenGL;
 using ValveResourceFormat.CompiledShader;
 
 namespace ValveResourceFormat.Renderer;
 
-// The creation methods read no instance state yet, but a device backed by a real API object will,
-// so they stay instance methods and callers reach them through Current rather than through a static.
-#pragma warning disable CA1822 // Mark members as static
-
 /// <summary>
-/// Creates GPU objects for one graphics context.
+/// Creates the GPU objects that one or more <see cref="GraphicsContext"/> record against.
 ///
-/// A device stands for the context it was created alongside, so it is reached through
-/// <see cref="Current"/> rather than passed down: a context is current on at most one thread at a
-/// time, and <see cref="Current"/> names the device belonging to the context current on the calling
-/// thread. Whoever makes a context current is responsible for pairing that with
-/// <see cref="MakeCurrent"/> and <see cref="MakeNoneCurrent"/> so the two never disagree.
+/// Creation goes through the static methods, which resolve the device owning the context current
+/// on the calling thread. That is what lets an object be created without every caller holding a
+/// device. The instance behind those statics is what a context belongs to, and where per device
+/// state lives once there is any.
 /// </summary>
 public sealed class GraphicsDevice
 {
-    [ThreadStatic]
-    private static GraphicsDevice? current;
-
-    // 0 when this device is current on no thread. Written with Interlocked from any thread.
-    private int currentThread;
-
     /// <summary>Gets the debug name this device was created with.</summary>
     public string Name { get; }
 
@@ -34,89 +22,41 @@ public sealed class GraphicsDevice
         Name = name;
     }
 
-    /// <summary>
-    /// Gets the device owning the graphics context current on the calling thread.
-    /// </summary>
-    /// <exception cref="InvalidOperationException">
-    /// Thrown when no device is current on this thread, which means the caller is creating GPU
-    /// objects without a context, or from a thread the context was never handed to.
-    /// </exception>
-    public static GraphicsDevice Current => current
-        ?? throw new InvalidOperationException(
-            $"No graphics device is current on thread {Environment.CurrentManagedThreadId}. "
-            + $"GPU objects can only be created on a thread that has made its context, and its device, current.");
+    // The device owning the context the calling thread records into. Throws through
+    // GraphicsContext.Current when the thread has no context.
+    internal static GraphicsDevice Current => GraphicsContext.Current.Device;
 
     /// <summary>
-    /// Creates a device for a graphics context. Called once per context, by whoever owns it.
+    /// Creates a device. Called once per set of GPU objects that can be used with each other.
     /// </summary>
-    /// <param name="name">Debug name identifying the context this device belongs to.</param>
-    /// <returns>The new device, not yet current on any thread.</returns>
+    /// <param name="name">Debug name identifying what this device serves.</param>
+    /// <returns>The new device, with no contexts yet.</returns>
     public static GraphicsDevice Create(string name)
     {
         return new GraphicsDevice(name);
     }
 
     /// <summary>
-    /// Makes this device the one <see cref="Current"/> returns on the calling thread. Call it
-    /// wherever the matching graphics context is made current, and release it with
-    /// <see cref="MakeNoneCurrent"/> wherever the context is released.
+    /// Creates a context that records against this device's objects.
     /// </summary>
-    /// <exception cref="InvalidOperationException">
-    /// Thrown when the device is still current on another thread, which is a context that was
-    /// never released before being picked up elsewhere.
-    /// </exception>
-    public void MakeCurrent()
+    /// <param name="surface">The window side of the context, made current along with it.</param>
+    /// <param name="name">Debug name identifying the context.</param>
+    /// <returns>The new context, not yet current on any thread.</returns>
+    public GraphicsContext CreateContext(IGraphicsSurface surface, string name)
     {
-        var thread = Environment.CurrentManagedThreadId;
-        var holdingThread = Interlocked.CompareExchange(ref currentThread, thread, 0);
-
-        if (holdingThread != 0 && holdingThread != thread)
-        {
-            throw new InvalidOperationException(
-                $"Graphics device '{Name}' is current on thread {holdingThread} and cannot also be made current on thread {thread}. "
-                + $"Release it there first.");
-        }
-
-        current = this;
-    }
-
-    /// <summary>
-    /// Releases whichever device is current on the calling thread. Like the context release it
-    /// mirrors, this is not nestable: the innermost call releases for good.
-    /// </summary>
-    public static void MakeNoneCurrent()
-    {
-        var device = current;
-
-        if (device == null)
-        {
-            return;
-        }
-
-        current = null;
-        Interlocked.CompareExchange(ref device.currentThread, 0, Environment.CurrentManagedThreadId);
+        return new GraphicsContext(this, surface, name);
     }
 
     /// <summary>Creates a buffer object.</summary>
     /// <param name="name">Debug label, visible in graphics debuggers.</param>
     /// <returns>The buffer handle.</returns>
-    public int CreateBuffer(string name)
-    {
-        GL.CreateBuffers(1, out int handle);
-        Label(ObjectLabelIdentifier.Buffer, handle, name);
-        return handle;
-    }
+    public static int CreateBuffer(string name) => Current.CreateBufferCore(name);
 
     /// <summary>Creates a texture object of the given type, without storage.</summary>
     /// <param name="type">Texture type, which the object is fixed to.</param>
     /// <param name="name">Debug label, visible in graphics debuggers.</param>
     /// <returns>The texture handle.</returns>
-    public int CreateTexture(TextureType type, string name)
-    {
-        GL.CreateTextures(type.ToGLTextureTarget(), 1, out int handle);
-        Label(ObjectLabelIdentifier.Texture, handle, name);
-        return handle;
-    }
+    public static int CreateTexture(TextureType type, string name) => Current.CreateTextureCore(type, name);
 
     /// <summary>Creates a texture view over a subrange of another texture's storage.</summary>
     /// <param name="texture">Texture whose storage the view shares.</param>
@@ -128,7 +68,59 @@ public sealed class GraphicsDevice
     /// <param name="numLayers">Number of array layers visible through the view.</param>
     /// <param name="name">Debug label, visible in graphics debuggers.</param>
     /// <returns>The view's texture handle.</returns>
-    public int CreateTextureView(int texture, TextureType type, ImageFormat format, int minLevel, int numLevels, int minLayer, int numLayers, string name)
+    public static int CreateTextureView(int texture, TextureType type, ImageFormat format, int minLevel, int numLevels, int minLayer, int numLayers, string name)
+        => Current.CreateTextureViewCore(texture, type, format, minLevel, numLevels, minLayer, numLayers, name);
+
+    /// <summary>Creates a sampler object with default state.</summary>
+    /// <param name="name">Debug label, visible in graphics debuggers.</param>
+    /// <returns>The sampler handle.</returns>
+    public static int CreateSampler(string name) => Current.CreateSamplerCore(name);
+
+    /// <summary>Creates a framebuffer object without attachments.</summary>
+    /// <param name="name">Debug label, visible in graphics debuggers.</param>
+    /// <returns>The framebuffer handle.</returns>
+    public static int CreateFramebuffer(string name) => Current.CreateFramebufferCore(name);
+
+    /// <summary>Creates a vertex array object without attributes.</summary>
+    /// <param name="name">Debug label, visible in graphics debuggers.</param>
+    /// <returns>The vertex array handle.</returns>
+    public static int CreateVertexArray(string name) => Current.CreateVertexArrayCore(name);
+
+    /// <summary>Creates a query object measuring the given quantity.</summary>
+    /// <param name="type">What the query measures, which the object is fixed to.</param>
+    /// <param name="name">Debug label, visible in graphics debuggers.</param>
+    /// <returns>The query handle.</returns>
+    public static int CreateQuery(QueryType type, string name) => Current.CreateQueryCore(type, name);
+
+    /// <summary>Creates an empty shader object for one stage.</summary>
+    /// <param name="stage">The pipeline stage the shader runs at.</param>
+    /// <param name="name">Debug label, visible in graphics debuggers.</param>
+    /// <returns>The shader object handle.</returns>
+    public static int CreateShader(ShaderProgramType stage, string name) => Current.CreateShaderCore(stage, name);
+
+    /// <summary>Creates an empty program object.</summary>
+    /// <param name="name">Debug label, visible in graphics debuggers.</param>
+    /// <returns>The program handle.</returns>
+    public static int CreateProgram(string name) => Current.CreateProgramCore(name);
+
+    // The implementations read no instance state yet, but a device holding a real API object will.
+#pragma warning disable CA1822 // Mark members as static
+
+    private int CreateBufferCore(string name)
+    {
+        GL.CreateBuffers(1, out int handle);
+        Label(ObjectLabelIdentifier.Buffer, handle, name);
+        return handle;
+    }
+
+    private int CreateTextureCore(TextureType type, string name)
+    {
+        GL.CreateTextures(type.ToGLTextureTarget(), 1, out int handle);
+        Label(ObjectLabelIdentifier.Texture, handle, name);
+        return handle;
+    }
+
+    private int CreateTextureViewCore(int texture, TextureType type, ImageFormat format, int minLevel, int numLevels, int minLayer, int numLayers, string name)
     {
         // A view needs a name without a target yet, which only the non-DSA path hands out.
         var handle = GL.GenTexture();
@@ -137,67 +129,49 @@ public sealed class GraphicsDevice
         return handle;
     }
 
-    /// <summary>Creates a sampler object with default state.</summary>
-    /// <param name="name">Debug label, visible in graphics debuggers.</param>
-    /// <returns>The sampler handle.</returns>
-    public int CreateSampler(string name)
+    private int CreateSamplerCore(string name)
     {
         GL.CreateSamplers(1, out int handle);
         Label(ObjectLabelIdentifier.Sampler, handle, name);
         return handle;
     }
 
-    /// <summary>Creates a framebuffer object without attachments.</summary>
-    /// <param name="name">Debug label, visible in graphics debuggers.</param>
-    /// <returns>The framebuffer handle.</returns>
-    public int CreateFramebuffer(string name)
+    private int CreateFramebufferCore(string name)
     {
         GL.CreateFramebuffers(1, out int handle);
         Label(ObjectLabelIdentifier.Framebuffer, handle, name);
         return handle;
     }
 
-    /// <summary>Creates a vertex array object without attributes.</summary>
-    /// <param name="name">Debug label, visible in graphics debuggers.</param>
-    /// <returns>The vertex array handle.</returns>
-    public int CreateVertexArray(string name)
+    private int CreateVertexArrayCore(string name)
     {
         GL.CreateVertexArrays(1, out int handle);
         Label(ObjectLabelIdentifier.VertexArray, handle, name);
         return handle;
     }
 
-    /// <summary>Creates a query object measuring the given quantity.</summary>
-    /// <param name="type">What the query measures, which the object is fixed to.</param>
-    /// <param name="name">Debug label, visible in graphics debuggers.</param>
-    /// <returns>The query handle.</returns>
-    public int CreateQuery(QueryType type, string name)
+    private int CreateQueryCore(QueryType type, string name)
     {
         GL.CreateQueries(type.ToGLQueryTarget(), 1, out int handle);
         Label(ObjectLabelIdentifier.Query, handle, name);
         return handle;
     }
 
-    /// <summary>Creates an empty shader object for one stage.</summary>
-    /// <param name="stage">The pipeline stage the shader runs at.</param>
-    /// <param name="name">Debug label, visible in graphics debuggers.</param>
-    /// <returns>The shader object handle.</returns>
-    public int CreateShader(ShaderProgramType stage, string name)
+    private int CreateShaderCore(ShaderProgramType stage, string name)
     {
         var handle = GL.CreateShader(stage.ToGLShaderType());
         Label(ObjectLabelIdentifier.Shader, handle, name);
         return handle;
     }
 
-    /// <summary>Creates an empty program object.</summary>
-    /// <param name="name">Debug label, visible in graphics debuggers.</param>
-    /// <returns>The program handle.</returns>
-    public int CreateProgram(string name)
+    private int CreateProgramCore(string name)
     {
         var handle = GL.CreateProgram();
         Label(ObjectLabelIdentifier.Program, handle, name);
         return handle;
     }
+
+#pragma warning restore CA1822
 
     [Conditional("DEBUG")]
     private static void Label(ObjectLabelIdentifier identifier, int handle, string name)

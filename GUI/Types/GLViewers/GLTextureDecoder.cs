@@ -23,6 +23,7 @@ public class GLTextureDecoder : IHardwareTextureDecoder, IDisposable
     private readonly Thread GLThread;
 
     private NativeWindow? GLWindowContext;
+    private GraphicsContext? GraphicsContext;
     private Framebuffer? Framebuffer;
 
     public GLTextureDecoder(ILogger logger)
@@ -139,8 +140,10 @@ public class GLTextureDecoder : IHardwareTextureDecoder, IDisposable
             Title = "Source 2 Viewer Texture Decoder",
         });
 
-        GLWindowContext.MakeCurrent();
-        RendererContext.Device.MakeCurrent();
+        // Made current for the life of this thread, so the context follows the window rather than
+        // being released and re-taken per decode.
+        GraphicsContext = RendererContext.Device.CreateContext(new GLFWSurface(GLWindowContext.Context), nameof(GLTextureDecoder));
+        GraphicsContext.MakeCurrent();
 
         GLEnvironment.Initialize(RendererContext.Logger);
         Framebuffer = Framebuffer.Prepare(nameof(GLTextureDecoder), 4, 4, 0, LDRFormat, null);
@@ -257,7 +260,7 @@ public class GLTextureDecoder : IHardwareTextureDecoder, IDisposable
 
     private void Dispose_ThreadResources()
     {
-        GraphicsDevice.MakeNoneCurrent();
+        GraphicsContext?.MakeNoneCurrent();
         NativeWindowFactory.Destroy(GLWindowContext);
     }
 

@@ -129,7 +129,7 @@ public class Framebuffer
     /// <param name="name">Debug label applied to the framebuffer object.</param>
     public Framebuffer(string name)
     {
-        FboHandle = GraphicsDevice.Current.CreateFramebuffer(name);
+        FboHandle = GraphicsDevice.CreateFramebuffer(name);
         Name = name;
     }
 
