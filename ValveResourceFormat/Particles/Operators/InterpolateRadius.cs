@@ -45,9 +45,21 @@ namespace ValveResourceFormat.Particles.Operators
 
             foreach (ref var particle in particles.Current)
             {
-                var time = particle.NormalizedAge;
+                if (particle.Lifetime <= 0f)
+                {
+                    continue;
+                }
 
-                if (time >= startTime && time < endTime)
+                var time = particle.NormalizedAge;
+                var frameFraction = frameTime / particle.Lifetime;
+
+                // A window shorter than a frame would otherwise fall between two updates and never
+                // be entered, so the window's far end carries a frame's worth of slack
+                var windowEnd = particle.Lifetime * (endTime - startTime) <= frameTime
+                    ? startTime + frameFraction
+                    : endTime;
+
+                if (time >= startTime && time <= frameFraction + windowEnd)
                 {
                     var startScale = this.startScale.NextNumber(ref particle, particleSystemState);
                     var endScale = this.endScale.NextNumber(ref particle, particleSystemState);
@@ -63,7 +75,10 @@ namespace ValveResourceFormat.Particles.Operators
                         timeScale = ParticleMath.Bias(timeScale, bias);
                     }
 
-                    var radiusScale = float.Lerp(startScale, endScale, timeScale);
+                    var radiusScale = Math.Clamp(
+                        float.Lerp(startScale, endScale, timeScale),
+                        MathF.Min(startScale, endScale),
+                        MathF.Max(startScale, endScale));
 
                     particle.Radius = particle.GetInitialScalar(particles, ParticleField.Radius) * radiusScale;
                 }
