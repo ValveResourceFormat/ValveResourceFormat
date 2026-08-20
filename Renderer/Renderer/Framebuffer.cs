@@ -273,7 +273,8 @@ public class Framebuffer
     {
         if (isDefaultFramebuffer)
         {
-            throw new InvalidOperationException("The default framebuffer has no attachments to create.");
+            // The window creates the default framebuffer's attachments, so a resize only records the size.
+            return;
         }
 
         Color?.Delete();
