@@ -2,7 +2,7 @@ using System.Buffers;
 using System.IO;
 using System.Text;
 
-namespace ValveResourceFormat
+namespace ValveResourceFormat.Utils
 {
     internal static class StreamHelpers
     {

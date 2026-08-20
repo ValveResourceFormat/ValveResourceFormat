@@ -16,7 +16,7 @@ namespace ValveResourceFormat.CompiledShader;
 /// <summary>
 /// Provides SPIR-V reflection and decompilation utilities for shaders.
 /// </summary>
-internal static partial class ShaderSpirvReflection
+public static partial class ShaderSpirvReflection
 {
     /// <summary>
     /// Configuration for SPIR-V binding point offsets for a specific VCS version.

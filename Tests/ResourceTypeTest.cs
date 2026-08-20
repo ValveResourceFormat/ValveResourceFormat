@@ -1,6 +1,7 @@
 using System.Text;
 using System.Threading.Tasks;
 using ValveResourceFormat;
+using ValveResourceFormat.Utils;
 
 namespace Tests
 {
