@@ -140,8 +140,6 @@ public class GLTextureDecoder : IHardwareTextureDecoder, IDisposable
             Title = "Source 2 Viewer Texture Decoder",
         });
 
-        // Made current for the life of this thread, so the context follows the window rather than
-        // being released and re-taken per decode.
         GraphicsContext = RendererContext.Device.CreateContext(new GLFWSurface(GLWindowContext.Context), nameof(GLTextureDecoder));
         GraphicsContext.MakeCurrent();
 

@@ -387,7 +387,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                 return;
             }
 
-            using var _ = SpritecardStateScope(rendererContext.RenderState, blendMode);
+            using var _ = SpritecardStateScope(GraphicsContext.RenderState, blendMode);
 
             shader.Use();
             VertexArray.Bind(vaoHandle, shader);

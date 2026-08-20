@@ -67,6 +67,12 @@ public sealed class GraphicsContext
     /// <summary>Gets the debug name this context was created with.</summary>
     public string Name { get; }
 
+    private readonly RenderStateTracker renderState = new();
+
+    /// <summary>Gets the render state applied by the context the calling thread records into.
+    /// State is per context, not per device.</summary>
+    public static RenderStateTracker RenderState => Current.renderState;
+
     internal GraphicsContext(GraphicsDevice device, IGraphicsSurface surface, string name)
     {
         Device = device;

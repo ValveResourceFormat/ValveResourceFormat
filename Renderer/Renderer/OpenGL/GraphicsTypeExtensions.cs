@@ -1,10 +1,10 @@
 using OpenTK.Graphics.OpenGL;
 
-namespace ValveResourceFormat.Renderer;
+namespace ValveResourceFormat.Renderer.OpenGL;
 
 /// <summary>
 /// Maps the engine's graphics vocabulary to the OpenGL equivalents, the way
-/// <see cref="GLImageFormatExtensions"/> does for image formats. Holding every API specific enum
+/// <see cref="ImageFormatExtensions"/> does for image formats. Holding every API specific enum
 /// behind these files is what lets <see cref="GraphicsDevice"/> be reimplemented on another API
 /// without its callers changing.
 ///
@@ -13,7 +13,7 @@ namespace ValveResourceFormat.Renderer;
 /// and a layer count, and <see cref="QueryType.TimeElapsed"/> has to become a pair of timestamps
 /// where the API has no elapsed query. The engine vocabulary is what stays fixed.
 /// </summary>
-public static class GLGraphicsTypeExtensions
+public static class GraphicsTypeExtensions
 {
     /// <summary>Returns the texture target a texture of this type is created and bound with.</summary>
     public static TextureTarget ToGLTextureTarget(this TextureType type) => type switch

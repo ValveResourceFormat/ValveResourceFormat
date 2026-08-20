@@ -770,7 +770,7 @@ internal abstract class GLBaseControl : IDisposable, IMessageFilter
 #endif
 
         GLEnvironment.Initialize(VrfGuiContext.Logger);
-        GLEnvironment.SetDefaultRenderState(RendererContext);
+        GLEnvironment.SetDefaultRenderState();
 
         MaxSamples = GL.GetInteger(GetPName.MaxSamples);
         GLDefaultFramebuffer = Framebuffer.GLDefaultFramebuffer;

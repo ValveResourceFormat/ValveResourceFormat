@@ -10,7 +10,6 @@ namespace ValveResourceFormat.Renderer
     {
         private readonly int vao;
         private readonly Shader shader;
-        private readonly RenderStateTracker renderState;
 
         /// <summary>Initializes the grid geometry and loads the grid shader.</summary>
         /// <param name="scene">Scene providing the renderer context.</param>
@@ -27,7 +26,6 @@ namespace ValveResourceFormat.Renderer
             };
 
             shader = scene.RendererContext.ShaderLoader.LoadShader("grid");
-            renderState = scene.RendererContext.RenderState;
 
             var buffer = GraphicsDevice.CreateBuffer(nameof(InfiniteGrid));
 
@@ -40,7 +38,7 @@ namespace ValveResourceFormat.Renderer
         /// <summary>Renders the infinite grid for the current frame.</summary>
         public void Render()
         {
-            using var _ = renderState.Scope(blend: true);
+            using var _ = GraphicsContext.RenderState.Scope(blend: true);
 
             shader.Use();
             VertexArray.Bind(vao, shader);

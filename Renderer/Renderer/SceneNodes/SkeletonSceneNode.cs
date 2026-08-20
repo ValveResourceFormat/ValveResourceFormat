@@ -138,7 +138,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
 
             var renderShader = context.ReplacementShader ?? lineBuffer.Shader;
 
-            using var _ = Scene.RendererContext.RenderState.Scope(depthFunc: RsComparison.Always);
+            using var _ = GraphicsContext.RenderState.Scope(depthFunc: RsComparison.Always);
 
             renderShader.Use();
             renderShader.SetUniform3x4("transform", Transform);

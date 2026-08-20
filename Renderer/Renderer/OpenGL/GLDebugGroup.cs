@@ -1,4 +1,4 @@
-namespace ValveResourceFormat.Renderer;
+namespace ValveResourceFormat.Renderer.OpenGL;
 
 /// <summary>
 /// RAII wrapper for OpenGL debug group markers.

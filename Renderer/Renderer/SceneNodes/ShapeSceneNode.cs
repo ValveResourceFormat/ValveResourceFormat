@@ -360,7 +360,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
 
             VertexArray.Bind(vao, renderShader);
 
-            var renderState = Scene.RendererContext.RenderState;
+            var renderState = GraphicsContext.RenderState;
             var state = renderState.CurrentPass;
             state.DepthStencil.DepthFunc = RsComparison.CloserEqual;
 

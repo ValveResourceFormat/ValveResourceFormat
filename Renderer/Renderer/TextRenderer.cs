@@ -465,7 +465,7 @@ namespace ValveResourceFormat.Renderer
             Debug.Assert(shader != null);
             Debug.Assert(fontTexture != null);
 
-            using var textState = RendererContext.RenderState.Scope(depthTest: false, blend: true);
+            using var textState = GraphicsContext.RenderState.Scope(depthTest: false, blend: true);
 
             shader.Use();
             shader.SetUniform4x4("transform", Matrix4x4.CreateOrthographicOffCenter(0f, camera.WindowSize.X, camera.WindowSize.Y, 0f, -100f, 100f));

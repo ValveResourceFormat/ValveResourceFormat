@@ -249,7 +249,7 @@ namespace ValveResourceFormat.Renderer.PostProcess
 
             Debug.Assert(BlueNoise != null);
 
-            using var _ = RendererContext.RenderState.Scope(depthTest: false, depthWrite: false);
+            using var _ = GraphicsContext.RenderState.Scope(depthTest: false, depthWrite: false);
 
             using (new GLDebugGroup("MSAA Resolve"))
             {

@@ -9,6 +9,7 @@ using ValveResourceFormat;
 using ValveResourceFormat.CompiledShader;
 using ValveResourceFormat.IO;
 using ValveResourceFormat.Renderer;
+using ValveResourceFormat.Renderer.OpenGL;
 using ValveResourceFormat.Renderer.Input;
 using ValveResourceFormat.Renderer.World;
 using ValveResourceFormat.Utils;
@@ -92,11 +93,10 @@ internal class RenderTestWindow : GameWindow
     {
         base.OnLoad();
 
-        // GameWindow keeps its context current on this thread for the life of the window.
         rendererContext.Device.CreateContext(ExternalGraphicsSurface.Instance, nameof(RenderTestWindow)).MakeCurrent();
 
         GLEnvironment.Initialize(rendererContext.Logger);
-        GLEnvironment.SetDefaultRenderState(rendererContext);
+        GLEnvironment.SetDefaultRenderState();
 
         SceneRenderer = new Renderer(rendererContext);
         Input = new UserInput(SceneRenderer);

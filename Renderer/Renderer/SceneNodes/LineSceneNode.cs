@@ -60,7 +60,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
 
             var renderShader = context.ReplacementShader ?? lineBuffer.Shader;
 
-            using var _ = Scene.RendererContext.RenderState.Scope();
+            using var _ = GraphicsContext.RenderState.Scope();
 
             renderShader.Use();
             renderShader.SetUniform3x4("transform", Transform);

@@ -707,7 +707,7 @@ namespace ValveResourceFormat.Renderer.World
 
             if (cookieTextures.Count > 0)
             {
-                using var _ = scene.RendererContext.RenderState.Scope();
+                using var _ = GraphicsContext.RenderState.Scope();
                 BarnLightCookieAtlas = BuildCookieAtlas(cookieTextures);
             }
         }

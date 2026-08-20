@@ -120,7 +120,6 @@ public class Framebuffer
     /// </summary>
     public string Name { get; }
 
-    // The default framebuffer is owned by the window rather than created here, and has no attachments of its own.
     private readonly bool isDefaultFramebuffer;
 
     /// <summary>

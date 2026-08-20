@@ -79,7 +79,7 @@ namespace GUI.Types.GLViewers
 
             var (w, h) = (MainFramebuffer.Width, MainFramebuffer.Height);
 
-            using var _ = RendererContext.RenderState.Scope();
+            using var _ = GraphicsContext.RenderState.Scope();
 
             MainFramebuffer.Bind(FramebufferTarget.Framebuffer);
             GL.ClearColor(new OpenTK.Mathematics.Color4(0, 0, 0, 0));

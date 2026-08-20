@@ -80,7 +80,7 @@ namespace ValveResourceFormat.Renderer
             // Material-ignoring replacement shaders draw without applying render state, so a scope
             // latches the pass baseline for them.
             using var batchScope = context.ReplacementShader?.IgnoreMaterialData == true
-                ? context.Scene.RendererContext.RenderState.Scope()
+                ? GraphicsContext.RenderState.Scope()
                 : default;
 
             if (context.RenderPass is RenderPass.Opaque or RenderPass.OpaqueRefract)
@@ -182,7 +182,7 @@ namespace ValveResourceFormat.Renderer
                         {
                             // The node's scope left its own state latched, and the stateless draws
                             // that follow cannot set any themselves.
-                            context.Scene.RendererContext.RenderState.RestorePassBaseline();
+                            GraphicsContext.RenderState.RestorePassBaseline();
                         }
 
                         shader = null;

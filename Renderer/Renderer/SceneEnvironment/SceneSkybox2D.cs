@@ -39,7 +39,7 @@ namespace ValveResourceFormat.Renderer.SceneEnvironment
         /// <summary>Renders the skybox using a fullscreen 36-vertex cube draw call.</summary>
         public void Render()
         {
-            using var _ = Material.Shader.RendererContext.RenderState.Scope(depthFunc: RsComparison.Equal);
+            using var _ = GraphicsContext.RenderState.Scope(depthFunc: RsComparison.Equal);
 
             Material.Shader.Use();
             Material.Render();

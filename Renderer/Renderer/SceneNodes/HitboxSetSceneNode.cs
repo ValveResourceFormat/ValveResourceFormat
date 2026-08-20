@@ -129,7 +129,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
                 return;
             }
 
-            using var _ = Scene.RendererContext.RenderState.Scope(depthTest: false);
+            using var _ = GraphicsContext.RenderState.Scope(depthTest: false);
 
             foreach (var node in currentSet.SceneNodes)
             {

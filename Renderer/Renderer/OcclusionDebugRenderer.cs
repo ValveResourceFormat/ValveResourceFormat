@@ -74,7 +74,7 @@ namespace ValveResourceFormat.Renderer
                 return;
             }
 
-            var renderState = renderContext.RenderState;
+            var renderState = GraphicsContext.RenderState;
             var state = renderState.CurrentPass;
             state.BlendEnable = true;
             state.SetBlend(RsBlendMode.SrcAlpha, RsBlendMode.InvSrcAlpha);

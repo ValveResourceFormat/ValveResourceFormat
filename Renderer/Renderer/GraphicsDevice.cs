@@ -22,8 +22,6 @@ public sealed class GraphicsDevice
         Name = name;
     }
 
-    // The device owning the context the calling thread records into. Throws through
-    // GraphicsContext.Current when the thread has no context.
     internal static GraphicsDevice Current => GraphicsContext.Current.Device;
 
     /// <summary>

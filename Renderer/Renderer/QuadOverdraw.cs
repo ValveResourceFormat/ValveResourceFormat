@@ -81,10 +81,10 @@ public class QuadOverdraw(RendererContext rendererContext)
         savedClearMask = framebuffer.ClearMask;
         framebuffer.ClearMask &= ~ClearBufferMask.DepthBufferBit;
 
-        savedPassState = rendererContext.RenderState.CurrentPass;
+        savedPassState = GraphicsContext.RenderState.CurrentPass;
         var countingState = savedPassState;
         countingState.DepthStencil.DepthFunc = RsComparison.CloserEqual;
-        rendererContext.RenderState.SetPassBaseline(in countingState);
+        GraphicsContext.RenderState.SetPassBaseline(in countingState);
 
         SceneShader.SetUniform1AllVariants("bCountQuads", 1u);
     }
@@ -94,7 +94,7 @@ public class QuadOverdraw(RendererContext rendererContext)
     public void EndCountingPass(Framebuffer framebuffer)
     {
         framebuffer.ClearMask = savedClearMask;
-        rendererContext.RenderState.SetPassBaseline(in savedPassState);
+        GraphicsContext.RenderState.SetPassBaseline(in savedPassState);
     }
 
     /// <summary>
@@ -114,7 +114,7 @@ public class QuadOverdraw(RendererContext rendererContext)
 
         visualizeShader.Use();
 
-        using var overdrawState = rendererContext.RenderState.Scope(depthTest: false, depthWrite: false);
+        using var overdrawState = GraphicsContext.RenderState.Scope(depthTest: false, depthWrite: false);
 
         GL.BindVertexArray(rendererContext.MeshBufferCache.EmptyVAO);
         GL.DrawArrays(PrimitiveType.Triangles, 0, 3);

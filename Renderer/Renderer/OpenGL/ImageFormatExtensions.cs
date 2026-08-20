@@ -1,15 +1,15 @@
 using OpenTK.Graphics.OpenGL;
 using ValveResourceFormat.CompiledShader;
 
-namespace ValveResourceFormat.Renderer
+namespace ValveResourceFormat.Renderer.OpenGL
 {
     /// <summary>
     /// Maps <see cref="ImageFormat"/>, the engine format vocabulary, to the OpenGL equivalents.
     ///
     /// This makes the renderer unaware of graphics API specific formats, and we can later map these to anything else.
-    /// The facts that hold for every API live on <see cref="ImageFormatExtensions"/> instead.
+    /// The facts that hold for every API live on <see cref="ValveResourceFormat.Renderer.ImageFormatExtensions"/> instead.
     /// </summary>
-    public static class GLImageFormatExtensions
+    public static class ImageFormatExtensions
     {
         /// <summary>Returns the sized internal format for texture storage.</summary>
         public static SizedInternalFormat ToGLSizedInternalFormat(this ImageFormat format, bool srgb = false) => (format, srgb) switch

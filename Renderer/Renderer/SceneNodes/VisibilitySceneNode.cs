@@ -69,7 +69,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             renderShader.SetUniform3x4("transform", Transform);
             renderShader.SetBoneAnimationData(false);
 
-            using var _ = Scene.RendererContext.RenderState.Scope(depthWrite: false);
+            using var _ = GraphicsContext.RenderState.Scope(depthWrite: false);
 
             VertexArray.Bind(vao, renderShader);
 

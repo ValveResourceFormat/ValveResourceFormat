@@ -608,7 +608,7 @@ namespace ValveResourceFormat.Renderer.Materials
                 $"'{shader.Name}' needs {textureUnit} texture units ({textureUnit - TextureUnitStart} of its own on top of {TextureUnitStart} reserved) but the driver only has {maxCombinedTextureImageUnits}.");
 #endif
 
-            var renderState = Shader.RendererContext.RenderState;
+            var renderState = GraphicsContext.RenderState;
             renderState.Apply(ComposeRenderState(renderState.CurrentPass));
         }
 
