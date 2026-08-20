@@ -22,8 +22,8 @@ namespace ValveResourceFormat.Renderer
         protected void Clear() => lineBuffer.Clear();
 
         /// <summary>Uploads the line vertices, two per segment.</summary>
-        protected void Upload(List<SimpleVertex> vertices, BufferUsageHint usageHint = BufferUsageHint.DynamicDraw)
-            => lineBuffer.Upload(vertices, usageHint);
+        protected void Upload(List<SimpleVertex> vertices, BufferUsage usage = BufferUsage.Dynamic)
+            => lineBuffer.Upload(vertices, usage);
 
         /// <summary>Draws the uploaded lines, on top of everything when depth test is disabled.</summary>
         protected void RenderLines(bool disableDepthTest = false)

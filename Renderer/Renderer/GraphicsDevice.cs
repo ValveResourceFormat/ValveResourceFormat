@@ -46,9 +46,6 @@ public sealed class GraphicsDevice
             $"No graphics device is current on thread {Environment.CurrentManagedThreadId}. "
             + $"GPU objects can only be created on a thread that has made its context, and its device, current.");
 
-    /// <summary>Gets whether a device is current on the calling thread.</summary>
-    public static bool HasCurrent => current != null;
-
     /// <summary>
     /// Creates a device for a graphics context. Called once per context, by whoever owns it.
     /// </summary>
@@ -185,7 +182,7 @@ public sealed class GraphicsDevice
     /// <param name="stage">The pipeline stage the shader runs at.</param>
     /// <param name="name">Debug label, visible in graphics debuggers.</param>
     /// <returns>The shader object handle.</returns>
-    public int CreateShader(ShaderStage stage, string name)
+    public int CreateShader(ShaderProgramType stage, string name)
     {
         var handle = GL.CreateShader(stage.ToGLShaderType());
         Label(ObjectLabelIdentifier.Shader, handle, name);

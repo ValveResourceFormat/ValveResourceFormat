@@ -218,10 +218,10 @@ namespace ValveResourceFormat.Renderer.World
         {
             if (EnvMaps.Count == 0)
             {
-                CubemapType = envmap.EnvMapTexture.Target switch
+                CubemapType = envmap.EnvMapTexture.Type switch
                 {
-                    TextureTarget.TextureCubeMapArray => CubemapType.CubemapArray,
-                    TextureTarget.TextureCubeMap => CubemapType.IndividualCubemaps,
+                    TextureType.TextureCubeArray => CubemapType.CubemapArray,
+                    TextureType.TextureCube => CubemapType.IndividualCubemaps,
                     _ => CubemapType.None,
                 };
 
@@ -233,9 +233,9 @@ namespace ValveResourceFormat.Renderer.World
             else
             {
                 var first = EnvMaps[0];
-                if (envmap.EnvMapTexture.Target != first.EnvMapTexture.Target)
+                if (envmap.EnvMapTexture.Type != first.EnvMapTexture.Type)
                 {
-                    scene.RendererContext.Logger.LogError("Envmap texture target mismatch {EnvMapTarget} != {FirstTarget}", envmap.EnvMapTexture.Target, first.EnvMapTexture.Target);
+                    scene.RendererContext.Logger.LogError("Envmap texture type mismatch {EnvMapType} != {FirstType}", envmap.EnvMapTexture.Type, first.EnvMapTexture.Type);
                 }
             }
 

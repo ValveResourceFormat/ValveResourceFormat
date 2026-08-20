@@ -37,11 +37,11 @@ public static class GLGraphicsTypeExtensions
     };
 
     /// <summary>Returns the shader object type for this pipeline stage.</summary>
-    public static ShaderType ToGLShaderType(this ShaderStage stage) => stage switch
+    public static ShaderType ToGLShaderType(this ShaderProgramType stage) => stage switch
     {
-        ShaderStage.Vertex => ShaderType.VertexShader,
-        ShaderStage.Fragment => ShaderType.FragmentShader,
-        ShaderStage.Compute => ShaderType.ComputeShader,
+        ShaderProgramType.Vertex => ShaderType.VertexShader,
+        ShaderProgramType.Fragment => ShaderType.FragmentShader,
+        ShaderProgramType.Compute => ShaderType.ComputeShader,
         _ => throw new NotImplementedException($"Unsupported shader stage {stage}"),
     };
 

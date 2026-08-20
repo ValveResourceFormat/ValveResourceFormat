@@ -260,20 +260,12 @@ namespace ValveResourceFormat.Renderer.Shaders
                     sources.Remove(ShaderProgramType.Fragment);
                 }
 
-                static ShaderStage ToShaderStage(ShaderProgramType type) => type switch
-                {
-                    ShaderProgramType.Vertex => ShaderStage.Vertex,
-                    ShaderProgramType.Fragment => ShaderStage.Fragment,
-                    ShaderProgramType.Compute => ShaderStage.Compute,
-                    _ => throw new ArgumentOutOfRangeException(nameof(type), type, null)
-                };
-
                 var shaderObjects = new int[sources.Count];
                 var shaderSources = new string[sources.Count];
                 var s = 0;
                 foreach (var (stage, source) in sources)
                 {
-                    shaderObjects[s] = GraphicsDevice.Current.CreateShader(ToShaderStage(stage), shaderFileName);
+                    shaderObjects[s] = GraphicsDevice.Current.CreateShader(stage, shaderFileName);
                     shaderSources[s] = source!;
                     s++;
                 }

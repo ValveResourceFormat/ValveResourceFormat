@@ -40,21 +40,6 @@ public enum QueryType
 }
 
 /// <summary>
-/// One programmable stage of a pipeline.
-/// </summary>
-public enum ShaderStage
-{
-    /// <summary>Runs once per vertex.</summary>
-    Vertex,
-
-    /// <summary>Runs once per fragment.</summary>
-    Fragment,
-
-    /// <summary>Runs once per work item of a dispatch, outside the draw pipeline.</summary>
-    Compute,
-}
-
-/// <summary>
 /// How the pipeline reads a buffer, which decides the slot namespace it binds into.
 /// </summary>
 public enum BufferType

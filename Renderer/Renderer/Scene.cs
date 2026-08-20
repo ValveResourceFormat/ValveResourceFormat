@@ -1499,7 +1499,7 @@ namespace ValveResourceFormat.Renderer
 
             using var _ = new GLDebugGroup("Generate Depth Pyramid");
 
-            Debug.Assert(depthSource.Target == TextureTarget.Texture2D);
+            Debug.Assert(depthSource.Type == TextureType.Texture2D);
             var startMipLevel = 1;
 
             // Downsample from non power of two depth source

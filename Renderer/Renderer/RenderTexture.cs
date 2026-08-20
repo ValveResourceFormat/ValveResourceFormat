@@ -15,9 +15,6 @@ namespace ValveResourceFormat.Renderer
         /// <summary>Gets the shape of this texture's storage.</summary>
         public TextureType Type { get; }
 
-        /// <summary>Gets the OpenGL texture target that <see cref="Type"/> maps to.</summary>
-        public TextureTarget Target { get; }
-
         /// <summary>Gets the OpenGL texture object handle, or 0 once <see cref="Delete"/> has been called.</summary>
         public int Handle { get; private set; }
 
@@ -49,7 +46,6 @@ namespace ValveResourceFormat.Renderer
         RenderTexture(TextureType type, string label)
         {
             Type = type;
-            Target = type.ToGLTextureTarget();
             Handle = GraphicsDevice.Current.CreateTexture(type, label);
         }
 
@@ -91,7 +87,6 @@ namespace ValveResourceFormat.Renderer
         {
             Handle = handle;
             Type = type;
-            Target = type.ToGLTextureTarget();
         }
 
         /// <summary>Creates a 2D texture with immutable storage, optionally allocating a reduced mip chain sized by <see cref="MaxMipCount"/>.</summary>

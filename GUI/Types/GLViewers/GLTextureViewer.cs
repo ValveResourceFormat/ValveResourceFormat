@@ -1173,7 +1173,7 @@ namespace GUI.Types.GLViewers
                 }
             }
 
-            var textureType = GLTextureDecoder.GetTextureTypeDefine(texture.Target);
+            var textureType = GLTextureDecoder.GetTextureTypeDefine(texture.Type);
 
             if (shader != null && shader.Parameters.ContainsKey(textureType))
             {
