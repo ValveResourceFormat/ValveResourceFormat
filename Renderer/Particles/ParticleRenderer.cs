@@ -132,7 +132,21 @@ namespace ValveResourceFormat.Renderer.Particles
         {
             foreach (var renderer in renderers)
             {
-                renderer.Update(particles, state);
+                renderer.Simulate(particles, state);
+            }
+        }
+
+        /// <summary>Finishes the step for this system's renderers and its children's, on one thread.</summary>
+        public void Act()
+        {
+            foreach (var renderer in renderers)
+            {
+                renderer.Act(Simulation.Particles, Simulation.RenderState);
+            }
+
+            foreach (var childRenderer in childRenderers)
+            {
+                childRenderer.Act();
             }
         }
 

@@ -18,11 +18,27 @@ namespace ValveResourceFormat.Renderer
     /// </summary>
     public class Scene : IDisposable
     {
+        /// <summary>Which pass of the frame an update belongs to.</summary>
+        public enum UpdatePhase
+        {
+            /// <summary>One node at a time, in scene order.</summary>
+            Place,
+
+            /// <summary>Across the thread pool. Touch only what the node owns.</summary>
+            Simulate,
+
+            /// <summary>Finish work done on simulate. Back on the calling thread.</summary>
+            Act,
+        }
+
         /// <summary>
         /// Context data passed to scene nodes during per-frame update.
         /// </summary>
         public readonly struct UpdateContext
         {
+            /// <summary>Gets which pass of the frame this update is.</summary>
+            public UpdatePhase Phase { get; init; }
+
             /// <summary>Gets the camera used for view-dependent node updates.</summary>
             public required Camera Camera { get; init; }
 
@@ -202,6 +218,26 @@ namespace ValveResourceFormat.Renderer
 
         private readonly List<SceneNode> staticNodes = [];
         private readonly List<SceneNode> dynamicNodes = [];
+
+        private readonly ParallelDispatch simulationDispatch = new();
+        private SimulationWork? simulationWork;
+
+        private readonly List<SceneNode> CullResults = [];
+        private int StaticCount;
+        private int LastFrustum = -1;
+
+        private List<SceneNode> CulledShadowNodes { get; } = [];
+        private readonly List<RenderableMesh> listWithSingleMesh = [null!];
+
+        private ObjectDataStandard[]? instanceDataCpu;
+        private readonly List<SceneAggregate> lodAggregates = [];
+        private uint[] activeLodBits = [];
+
+        private Dictionary<DepthOnlyBucket, List<MeshBatchRenderer.Request>>? barnShadowDrawCalls;
+
+        // Bound probes in precedence order: most indoor first, then smallest, so the first volume
+        // containing a point is the best one
+        private List<SceneLightProbe>? boundLightProbes;
 
         private Shader? OutlineShader;
 
@@ -427,6 +463,60 @@ namespace ValveResourceFormat.Renderer
         }
 
         /// <summary>
+        /// The dynamic nodes are the work: the index picks one, so no filtered list is kept in step
+        /// with the scene. Holds the list itself, not a copy, so running it allocates nothing.
+        /// </summary>
+        private sealed class SimulationWork(List<SceneNode> nodes) : IParallelWork
+        {
+            public UpdateContext Context;
+
+            public void Execute(int index)
+            {
+                var node = nodes[index];
+
+                // Parented nodes are placed by their parent, but simulate here like every other one
+                if (node.Simulation == NodeSimulation.Parallel)
+                {
+                    node.Update(Context);
+                }
+            }
+        }
+
+        /// <summary>Runs the two passes after placement, for the nodes that take part in them.</summary>
+        private void SimulateNodes(UpdateContext updateContext)
+        {
+            var parallelSimulation = RendererContext.ParallelSimulation;
+
+            var simulate = updateContext with { Phase = UpdatePhase.Simulate };
+
+            if (parallelSimulation)
+            {
+                simulationWork ??= new SimulationWork(dynamicNodes);
+                simulationWork.Context = simulate;
+
+                // The dispatch publishes the context, and runs counts too small to fan out inline
+                simulationDispatch.Run(simulationWork, dynamicNodes.Count);
+            }
+
+            var act = updateContext with { Phase = UpdatePhase.Act };
+
+            foreach (var node in dynamicNodes)
+            {
+                if (node.Simulation == NodeSimulation.None)
+                {
+                    continue;
+                }
+
+                if (!parallelSimulation)
+                {
+                    node.Update(simulate);
+                }
+
+                node.Update(act);
+            }
+        }
+
+        /// <summary>
         /// Updates all scene nodes for the current frame, advancing animations and rebuilding spatial sets and GPU buffers if the scene changed.
         /// </summary>
         /// <param name="updateContext">Per-frame context data including camera and timestep.</param>
@@ -449,6 +539,8 @@ namespace ValveResourceFormat.Renderer
 
                 node.Update(updateContext);
             }
+
+            SimulateNodes(updateContext);
 
             foreach (var node in dynamicNodes)
             {
@@ -600,9 +692,6 @@ namespace ValveResourceFormat.Renderer
             instanceDataCpu = instanceData;
         }
 
-        private ObjectDataStandard[]? instanceDataCpu;
-        private readonly List<SceneAggregate> lodAggregates = [];
-        private uint[] activeLodBits = [];
 
         /// <summary>
         /// Uploads the LOD level each setup selected this frame, which the cull shader tests fragments against.
@@ -819,9 +908,6 @@ namespace ValveResourceFormat.Renderer
             LightBinner.Bind();
         }
 
-        private readonly List<SceneNode> CullResults = [];
-        private int StaticCount;
-        private int LastFrustum = -1;
 
         /// <summary>
         /// Returns all scene nodes whose bounding boxes intersect the given frustum, caching static results across frames when the frustum is unchanged.
@@ -1138,8 +1224,6 @@ namespace ValveResourceFormat.Renderer
             }
         }
 
-        private List<SceneNode> CulledShadowNodes { get; } = [];
-        private readonly List<RenderableMesh> listWithSingleMesh = [null!];
         internal Dictionary<DepthOnlyBucket, List<MeshBatchRenderer.Request>>[] CulledShadowDrawCallsCascades { get; } = CreateSunCascadeDrawCallCollections();
         internal static Dictionary<DepthOnlyBucket, List<MeshBatchRenderer.Request>> CreateDepthOnlyDrawCallCollection()
             => Enum.GetValues<DepthOnlyBucket>().ToDictionary(static bucket => bucket, static _ => new List<MeshBatchRenderer.Request>());
@@ -1194,7 +1278,6 @@ namespace ValveResourceFormat.Renderer
             }
         }
 
-        private Dictionary<DepthOnlyBucket, List<MeshBatchRenderer.Request>>? barnShadowDrawCalls;
 
         /// <summary>
         /// Collects the shadow draw calls for a single barn light face. The returned buckets are
@@ -2021,9 +2104,6 @@ namespace ValveResourceFormat.Renderer
             }
         }
 
-        // Bound probes in precedence order: most indoor first, then smallest, so the first volume
-        // containing a point is the best one
-        private List<SceneLightProbe>? boundLightProbes;
 
         /// <summary>
         /// Returns the best probe volume containing the given position, or <see langword="null"/> when
@@ -2329,6 +2409,7 @@ namespace ValveResourceFormat.Renderer
                 lightingBuffer?.Dispose();
                 lpvBuffer?.Dispose();
                 envMapBuffer?.Dispose();
+                simulationDispatch.Dispose();
                 LightingInfo.DisposeBarnLights();
             }
         }

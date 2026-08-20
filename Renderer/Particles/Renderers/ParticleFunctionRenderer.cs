@@ -160,7 +160,17 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         /// </summary>
         public SceneNode? OwnerNode { get; set; }
 
-        public virtual void Update(ParticleCollection particles, ParticleSystemState systemState)
+        /// <summary>Called as the system finishes a step. Runs on the pool, so touch only what this renderer owns.</summary>
+        /// <param name="particles">The system's particles, as the step left them.</param>
+        /// <param name="systemState">The state the system's functions read it through.</param>
+        public virtual void Simulate(ParticleCollection particles, ParticleSystemState systemState)
+        {
+        }
+
+        /// <summary>Finishes work done on <see cref="Simulate"/>, for what reaches past the system.</summary>
+        /// <param name="particles">The system's particles, as the step left them.</param>
+        /// <param name="systemState">The state the system's functions read it through.</param>
+        public virtual void Act(ParticleCollection particles, ParticleSystemState systemState)
         {
         }
 

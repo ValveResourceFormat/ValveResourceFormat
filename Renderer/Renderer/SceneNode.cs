@@ -4,6 +4,18 @@ using ValveResourceFormat.ResourceTypes;
 namespace ValveResourceFormat.Renderer
 {
     /// <summary>
+    /// Which passes of the frame beyond <see cref="Scene.UpdatePhase.Place"/> a node takes part in.
+    /// </summary>
+    public enum NodeSimulation
+    {
+        /// <summary>The node has nothing to advance once the scene has been updated.</summary>
+        None,
+
+        /// <summary> The node update can be parallelized. Affects only inner state.</summary>
+        Parallel,
+    }
+
+    /// <summary>
     /// Base class for all objects in the scene graph.
     /// </summary>
 #if DEBUG
@@ -184,6 +196,13 @@ namespace ValveResourceFormat.Renderer
         public virtual void Update(Scene.UpdateContext context)
         {
         }
+
+        /// <summary>
+        /// Gets or sets which passes after <see cref="Scene.UpdatePhase.Place"/> this node takes part
+        /// in. Simulating nodes get <see cref="Scene.UpdatePhase.Act"/> too, and belong in the dynamic
+        /// partition even if they never move.
+        /// </summary>
+        public NodeSimulation Simulation { get; protected set; }
 
         /// <summary>
         /// Called each frame to render this node.

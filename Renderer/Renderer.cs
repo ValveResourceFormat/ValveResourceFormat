@@ -224,6 +224,11 @@ public class Renderer
     public bool EnableBarnLights { get; set; } = true;
 
     /// <summary>
+    /// Whether scene nodes simulate across the thread pool. Off runs them in scene order.
+    /// </summary>
+    public bool ParallelSimulation { get; set; } = true;
+
+    /// <summary>
     /// Initializes a new renderer with the given context.
     /// </summary>
     /// <param name="rendererContext">Shared context providing loaders and caches.</param>
@@ -1230,6 +1235,8 @@ public class Renderer
         {
             throw new InvalidOperationException("Initialize() must be called before updating");
         }
+
+        RendererContext.ParallelSimulation = ParallelSimulation;
 
         Uptime += updateContext.Timestep;
         DeltaTime = updateContext.Timestep;
