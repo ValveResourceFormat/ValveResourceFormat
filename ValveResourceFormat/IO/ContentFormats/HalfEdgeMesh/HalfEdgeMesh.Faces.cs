@@ -6,7 +6,7 @@ namespace ValveResourceFormat.IO.ContentFormats.HalfEdgeMesh;
 partial class HalfEdgeMesh
 {
     /// <summary>
-    /// Collects the corner vertices of a face.
+    /// Counts the edges bordering a face.
     /// </summary>
     public static int ComputeNumEdgesInFace(FaceHandle hFace)
     {

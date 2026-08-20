@@ -1,4 +1,4 @@
-﻿namespace ValveResourceFormat.Renderer
+namespace ValveResourceFormat.Renderer
 {
     /// <summary>
     /// Spatial set for the scene nodes that move. Flat rather than hierarchical: relocating a node is

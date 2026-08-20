@@ -5,13 +5,13 @@ using System.Windows.Forms;
 using GUI.Controls;
 using GUI.Utils;
 using ValveKeyValue;
-using ValveResourceFormat.Renderer.Particles;
 using ValveResourceFormat.Blocks;
-using ValveResourceFormat.Renderer;
 using ValveResourceFormat.Particles;
+using ValveResourceFormat.Particles.Upgrade;
+using ValveResourceFormat.Renderer;
+using ValveResourceFormat.Renderer.Particles;
 using ValveResourceFormat.Renderer.SceneNodes;
 using ValveResourceFormat.ResourceTypes;
-using ValveResourceFormat.Particles.Upgrade;
 using ValveResourceFormat.Serialization.KeyValues;
 
 namespace GUI.Types.GLViewers

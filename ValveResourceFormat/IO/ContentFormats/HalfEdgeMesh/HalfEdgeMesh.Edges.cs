@@ -7,7 +7,7 @@ namespace ValveResourceFormat.IO.ContentFormats.HalfEdgeMesh;
 partial class HalfEdgeMesh
 {
     /// <summary>
-    /// Returns the face the half edge borders.
+    /// Returns the vertex the half edge points to.
     /// </summary>
     public static VertexHandle GetEndVertexConnectedToEdge(HalfEdgeHandle hHalfEdge)
     {
@@ -18,7 +18,7 @@ partial class HalfEdgeMesh
     }
 
     /// <summary>
-    /// Walks the edge loop that starts at the given edge.
+    /// Returns the start and end vertices of a half edge.
     /// </summary>
     public static void GetVerticesConnectedToHalfEdge(HalfEdgeHandle hEdge, out VertexHandle hVertexA, out VertexHandle hVertexB)
     {

@@ -7,7 +7,7 @@ namespace ValveResourceFormat.IO.ContentFormats.HalfEdgeMesh;
 partial class HalfEdgeMesh
 {
     /// <summary>
-    /// Collects the vertices one edge away from a vertex.
+    /// Counts the edges connected to a vertex.
     /// </summary>
     public static int ComputeNumEdgesConnectedToVertex(VertexHandle hVertex)
     {

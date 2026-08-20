@@ -1,8 +1,8 @@
 using System.Collections;
 using ValveKeyValue;
 using ValveResourceFormat.Blocks;
-using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Particles.Upgrade;
+using ValveResourceFormat.ResourceTypes;
 
 namespace ValveResourceFormat.Particles
 {

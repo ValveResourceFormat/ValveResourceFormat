@@ -1,6 +1,6 @@
-using ValveResourceFormat.Particles;
 using System.Buffers;
 using OpenTK.Graphics.OpenGL;
+using ValveResourceFormat.Particles;
 using ValveResourceFormat.Particles.Utils;
 using ValveResourceFormat.Renderer.SceneEnvironment;
 using ValveResourceFormat.Renderer.World;
