@@ -1,4 +1,3 @@
-using System.Threading;
 using Microsoft.Extensions.Logging;
 using ValveResourceFormat.IO;
 
@@ -9,8 +8,6 @@ namespace ValveResourceFormat.Renderer;
 /// </summary>
 public class RendererContext : IDisposable
 {
-    private static int deviceCount;
-
     /// <summary>
     /// Logger for diagnostic messages.
     /// </summary>
@@ -67,7 +64,7 @@ public class RendererContext : IDisposable
     {
         FileLoader = fileLoader;
         Logger = logger;
-        Device = GraphicsDevice.Create($"RendererContext{Interlocked.Increment(ref deviceCount)}");
+        Device = GraphicsDevice.Create();
 
         MaterialLoader = new MaterialLoader(this);
         ShaderLoader = new ShaderLoader(this);

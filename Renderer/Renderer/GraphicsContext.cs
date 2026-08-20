@@ -61,8 +61,8 @@ public sealed class GraphicsContext
 
     private readonly IGraphicsSurface surface;
 
-    /// <summary>Gets the device whose objects this context records against.</summary>
-    public GraphicsDevice Device { get; }
+    /// <summary>The device whose objects this context records against.</summary>
+    internal GraphicsDevice Device { get; }
 
     /// <summary>Gets the debug name this context was created with.</summary>
     public string Name { get; }

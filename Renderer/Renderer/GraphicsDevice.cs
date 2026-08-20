@@ -14,24 +14,15 @@ namespace ValveResourceFormat.Renderer;
 /// </summary>
 public sealed class GraphicsDevice
 {
-    /// <summary>Gets the debug name this device was created with.</summary>
-    public string Name { get; }
-
-    private GraphicsDevice(string name)
-    {
-        Name = name;
-    }
-
     internal static GraphicsDevice Current => GraphicsContext.Current.Device;
 
     /// <summary>
     /// Creates a device. Called once per set of GPU objects that can be used with each other.
     /// </summary>
-    /// <param name="name">Debug name identifying what this device serves.</param>
     /// <returns>The new device, with no contexts yet.</returns>
-    public static GraphicsDevice Create(string name)
+    public static GraphicsDevice Create()
     {
-        return new GraphicsDevice(name);
+        return new GraphicsDevice();
     }
 
     /// <summary>
