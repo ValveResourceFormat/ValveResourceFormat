@@ -162,5 +162,161 @@ namespace Tests.SmartProp
             await Assert.That(Vector3.Distance(anglesAfter, Vector3.Zero)).IsLessThan(Tolerance);
         }
 
+        [Test]
+        public async Task ResetRotationCanKeepSelectedAxes()
+        {
+            var rotate = Modifier("Rotate", ("m_vRotation", Vec(30f, 45f, 10f)));
+            var reset = Modifier("ResetRotation",
+                ("m_bResetPitch", new KVObject(true)),
+                ("m_bResetYaw", new KVObject(false)),
+                ("m_bResetRoll", new KVObject(false)));
+
+            var result = SmartPropModifierEvaluator.EvaluateElementModifiers(Element("Group", rotate, reset), Context());
+
+            var (_, angles, _) = SmartPropTransform.DecomposeTRS(result.LocalMatrix);
+            await Assert.That(MathF.Abs(angles.X)).IsLessThan(Tolerance);
+            await Assert.That(MathF.Abs(angles.Y - 45f)).IsLessThan(Tolerance);
+            await Assert.That(MathF.Abs(angles.Z - 10f)).IsLessThan(Tolerance);
+        }
+
+        [Test]
+        public async Task ScaleSupportsUniformAndPerAxis()
+        {
+            var uniform = Modifier("Scale", ("m_flScale", new KVObject(3f)));
+            var perAxis = Modifier("Scale", ("m_vScale", Vec(1f, 2f, 4f)));
+            var reset = Modifier("ResetScale");
+
+            var scaled = SmartPropModifierEvaluator.EvaluateElementModifiers(Element("Group", uniform, perAxis), Context());
+            var (_, _, scale) = SmartPropTransform.DecomposeTRS(scaled.LocalMatrix);
+            await Assert.That(Vector3.Distance(scale, new Vector3(3f, 6f, 12f))).IsLessThan(Tolerance);
+
+            var resetResult = SmartPropModifierEvaluator.EvaluateElementModifiers(
+                Element("Group", uniform, perAxis, reset), Context());
+            var (_, _, resetScale) = SmartPropTransform.DecomposeTRS(resetResult.LocalMatrix);
+            await Assert.That(Vector3.Distance(resetScale, Vector3.One)).IsLessThan(Tolerance);
+        }
+
+        [Test]
+        public async Task RandomModifiersAreDeterministicAndBounded()
+        {
+            var offset = Modifier("RandomOffset",
+                ("m_vRandomPositionMin", Vec(0f, 10f, -5f)),
+                ("m_vRandomPositionMax", Vec(2f, 20f, 5f)));
+            var rotation = Modifier("RandomRotation",
+                ("m_vRandomRotationMin", Vec(0f, 0f, 0f)),
+                ("m_vRandomRotationMax", Vec(90f, 90f, 90f)));
+            var scale = Modifier("RandomScale",
+                ("m_flRandomScaleMin", new KVObject(0.5f)),
+                ("m_flRandomScaleMax", new KVObject(1.5f)));
+
+            var first = SmartPropModifierEvaluator.EvaluateElementModifiers(Element("Group", offset, rotation, scale), Context());
+            var second = SmartPropModifierEvaluator.EvaluateElementModifiers(Element("Group", offset, rotation, scale), Context());
+
+            await Assert.That(first.LocalMatrix).IsEqualTo(second.LocalMatrix);
+
+            var (position, angles, scaleVector) = SmartPropTransform.DecomposeTRS(first.LocalMatrix);
+            await Assert.That(position.X).IsGreaterThanOrEqualTo(0f);
+            await Assert.That(position.X).IsLessThanOrEqualTo(2f);
+            await Assert.That(position.Y).IsGreaterThanOrEqualTo(10f);
+            await Assert.That(position.Y).IsLessThanOrEqualTo(20f);
+            await Assert.That(position.Z).IsGreaterThanOrEqualTo(-5f);
+            await Assert.That(position.Z).IsLessThanOrEqualTo(5f);
+            foreach (var angle in (float[])[angles.X, angles.Y, angles.Z])
+            {
+                await Assert.That(angle).IsGreaterThanOrEqualTo(0f);
+                await Assert.That(angle).IsLessThanOrEqualTo(90f);
+            }
+
+            await Assert.That(scaleVector.X).IsGreaterThanOrEqualTo(0.5f);
+            await Assert.That(scaleVector.X).IsLessThanOrEqualTo(1.5f);
+        }
+
+        [Test]
+        public async Task RandomModifiersVaryByElementIdAndInstance()
+        {
+            var offset = Modifier("RandomOffset",
+                ("m_vRandomPositionMin", Vec(0f, 0f, 0f)),
+                ("m_vRandomPositionMax", Vec(100f, 100f, 100f)));
+
+            var elementA = Element("Group", offset);
+            elementA["m_nElementID"] = new KVObject(1);
+            var elementB = Element("Group", offset);
+            elementB["m_nElementID"] = new KVObject(2);
+
+            var byElementA = SmartPropModifierEvaluator.EvaluateElementModifiers(elementA, Context());
+            var byElementB = SmartPropModifierEvaluator.EvaluateElementModifiers(elementB, Context());
+            var byInstance = SmartPropModifierEvaluator.EvaluateElementModifiers(elementA, new SmartPropEvaluationContext(instanceIndex: 5));
+
+            await Assert.That(Translation(byElementA.LocalMatrix)).IsNotEqualTo(Translation(byElementB.LocalMatrix));
+            await Assert.That(Translation(byElementA.LocalMatrix)).IsNotEqualTo(Translation(byInstance.LocalMatrix));
+        }
+
+        [Test]
+        public async Task SaveAndRestoreStateRoundTripsTransform()
+        {
+            var save = Modifier("SaveState", ("m_StateName", new KVObject("corner")));
+            var moveAway = Modifier("Translate", ("m_vPosition", Vec(99f, 99f, 99f)));
+            var restore = Modifier("RestoreState", ("m_StateName", new KVObject("corner")));
+
+            var withRestore = SmartPropModifierEvaluator.EvaluateElementModifiers(
+                Element("Group", save, moveAway, restore), Context(), stateMap: []);
+            await Assert.That(Translation(withRestore.LocalMatrix)).IsEqualTo(Vector3.Zero);
+
+            // Without the restore, the move sticks
+            var withoutRestore = SmartPropModifierEvaluator.EvaluateElementModifiers(
+                Element("Group", save, moveAway), Context(), stateMap: []);
+            await Assert.That(Translation(withoutRestore.LocalMatrix)).IsEqualTo(new Vector3(99f, 99f, 99f));
+
+            // Restoring an unknown state leaves the matrix alone
+            var unknown = SmartPropModifierEvaluator.EvaluateElementModifiers(
+                Element("Group", moveAway, restore), Context(), stateMap: []);
+            await Assert.That(Translation(unknown.LocalMatrix)).IsEqualTo(new Vector3(99f, 99f, 99f));
+        }
+
+        [Test]
+        public async Task SetVariableWritesContextOverride()
+        {
+            var variableValue = KVObject.Collection();
+            variableValue["m_TargetName"] = new KVObject("height");
+            variableValue["m_Value"] = new KVObject("InstanceIndex() * 10");
+
+            var setVariable = Modifier("SetVariable", ("m_VariableValue", variableValue));
+            var translate = Modifier("Translate", ("m_vPosition", Vec(0f, 0f, 0f)));
+            translate["m_vPosition"] = Binding("m_SourceName", "height_z");
+
+            var context = new SmartPropEvaluationContext(instanceIndex: 3);
+            var result = SmartPropModifierEvaluator.EvaluateElementModifiers(
+                Element("Group", setVariable, translate), context);
+
+            // The override holds the raw expression string, which resolves through the
+            // context's variable machinery
+            await Assert.That(context.GetVariable("height")).IsEqualTo("InstanceIndex() * 10");
+            _ = result;
+        }
+
+        [Test]
+        public async Task SetVariableFlatFormWritesOverride()
+        {
+            var setVariable = Modifier("SetVariableFloat",
+                ("m_VariableName", new KVObject("width")),
+                ("m_flValue", new KVObject(42f)));
+
+            var context = Context();
+            _ = SmartPropModifierEvaluator.EvaluateElementModifiers(Element("Group", setVariable), context);
+
+            await Assert.That(context.GetVariable("width")).IsEqualTo(42f);
+        }
+
+        [Test]
+        public async Task DisabledModifierIsSkipped()
+        {
+            var disabled = Modifier("Translate",
+                ("m_vPosition", Vec(50f, 0f, 0f)),
+                ("m_bEnabled", new KVObject(false)));
+
+            var result = SmartPropModifierEvaluator.EvaluateElementModifiers(Element("Group", disabled), Context());
+            await Assert.That(Translation(result.LocalMatrix)).IsEqualTo(Vector3.Zero);
+        }
+
     }
 }
