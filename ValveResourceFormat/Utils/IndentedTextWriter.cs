@@ -3,7 +3,7 @@ using System.Globalization;
 using System.IO;
 using System.Text;
 
-namespace ValveResourceFormat
+namespace ValveResourceFormat.Utils
 {
     /// <summary>
     /// The same as <see cref="System.CodeDom.Compiler.IndentedTextWriter" /> but works in partial trust.

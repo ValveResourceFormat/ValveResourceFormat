@@ -2,7 +2,7 @@ using System.Collections.Frozen;
 using System.Reflection;
 using ValveResourceFormat.IO;
 
-namespace ValveResourceFormat;
+namespace ValveResourceFormat.Utils;
 
 /// <summary>
 /// Extension methods for <see cref="ResourceType"/>.

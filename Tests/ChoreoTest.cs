@@ -8,6 +8,7 @@ using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.ResourceTypes.Choreo;
 using ValveResourceFormat.ResourceTypes.Choreo.Curves;
 using ValveResourceFormat.ResourceTypes.Choreo.Enums;
+using ValveResourceFormat.Utils;
 
 namespace Tests
 {

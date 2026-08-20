@@ -1,4 +1,4 @@
-namespace ValveResourceFormat
+namespace ValveResourceFormat.Utils
 {
     /// <summary>
     /// Attribute to specify file extension for resource types.
