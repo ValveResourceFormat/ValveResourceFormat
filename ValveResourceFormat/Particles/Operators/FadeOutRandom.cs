@@ -9,25 +9,18 @@ namespace ValveResourceFormat.Particles.Operators
     /// "Alpha Fade Out Random" in the particle editor. Unlike "Alpha Fade Out Simple", the range
     /// can be defined in seconds rather than a fraction of the lifespan by turning proportional off.
     /// </remarks>
+    /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_OP_FadeOut">C_OP_FadeOut</seealso>
     class FadeOutRandom : CGeneralRandomFade
     {
-        /// <summary>The bias curve's parameter. 0.5 is the identity, and an authored 0 means 0.5.</summary>
-        private readonly float fadeBias = 0.5f;
-
-        /// <summary>Eases the fade along a smoothstep instead of the bias curve, which it replaces.</summary>
+        /// <summary>Eases the fade along a smoothstep rather than running it out linearly.</summary>
         private readonly bool easeInAndOut = true;
 
         public FadeOutRandom(ParticleDefinitionParser parse) : base(parse, "m_flFadeOutTime")
         {
-            var bias = parse.Float("m_flFadeBias", fadeBias);
-
-            if (bias == 0.0f)
-            {
-                bias = 0.5f;
-            }
-
-            fadeBias = bias;
             easeInAndOut = parse.Boolean("m_bEaseInAndOut", easeInAndOut);
+
+            // m_flFadeBias is read but never applied: the variant that carries the bias curve is
+            // selected only when the bias is 0.5, the one value at which that curve is the identity.
         }
 
         public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemState particleSystemState, float strength)
@@ -47,10 +40,6 @@ namespace ValveResourceFormat.Particles.Operators
                     if (easeInAndOut)
                     {
                         elapsedFraction = MathUtils.Smoothstep(0f, 1f, elapsedFraction);
-                    }
-                    else if (fadeBias != 0.5f)
-                    {
-                        elapsedFraction = ParticleMath.Bias(elapsedFraction, fadeBias);
                     }
 
                     particle.Alpha = (1f - elapsedFraction) * particle.GetInitialScalar(particles, ParticleField.Alpha);

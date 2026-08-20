@@ -32,32 +32,46 @@ namespace ValveResourceFormat.Particles.Operators
         {
             foreach (ref var particle in particles.Current)
             {
+                // The particle ends when it outlives its lifetime, which is not the same instant as
+                // the end of the fade-out: a fade-out that finishes early leaves it alive and faded
+                if (HasExpired(particle.Age, particle.Lifetime))
+                {
+                    Expire(ref particle, frameTime);
+                    continue;
+                }
+
                 var time = particle.NormalizedAge;
                 var initialAlpha = particle.GetInitialScalar(particles, ParticleField.Alpha);
+                var alpha = particle.Alpha;
 
-                // If fading in
-                if (time >= startFadeInTime && time <= endFadeInTime)
+                if (time >= startFadeInTime && time < endFadeInTime)
                 {
-                    var blend = MathUtils.Remap(time, startFadeInTime, endFadeInTime);
+                    var blend = MathUtils.Smoothstep(startFadeInTime, endFadeInTime, time);
 
-                    // Interpolate from initialAlpha * startAlpha up to initialAlpha
-                    particle.Alpha = float.Lerp(particle.Alpha, float.Lerp(initialAlpha * startAlpha, initialAlpha, blend), strength);
+                    alpha = initialAlpha * float.Lerp(startAlpha, 1f, blend);
                 }
 
-                // If fading out
-                if (time >= startFadeOutTime && time <= endFadeOutTime)
+                if (time >= startFadeOutTime && time < endFadeOutTime)
                 {
-                    var blend = MathUtils.Remap(time, startFadeOutTime, endFadeOutTime);
+                    var blend = MathUtils.Smoothstep(startFadeOutTime, endFadeOutTime, time);
 
-                    // Interpolate from initialAlpha down to initialAlpha * endAlpha
-                    particle.Alpha = float.Lerp(particle.Alpha, float.Lerp(initialAlpha, initialAlpha * endAlpha, blend), strength);
+                    alpha = initialAlpha * float.Lerp(1f, endAlpha, blend);
                 }
 
-                if (time >= endFadeOutTime)
-                {
-                    particle.Kill();
-                }
+                particle.Alpha = BlendsWithStrength ? float.Lerp(particle.Alpha, alpha, strength) : alpha;
             }
+        }
+
+        /// <summary>Whether a particle whose age has exactly reached its lifetime counts as spent.</summary>
+        protected virtual bool HasExpired(float age, float lifetime) => lifetime < age;
+
+        /// <summary>Whether the run strength blends the alpha this operator writes.</summary>
+        protected virtual bool BlendsWithStrength => true;
+
+        /// <summary>Ends a particle that has outlived its lifetime.</summary>
+        protected virtual void Expire(ref Particle particle, float frameTime)
+        {
+            particle.Kill();
         }
     }
 }
