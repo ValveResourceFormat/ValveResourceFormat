@@ -141,7 +141,7 @@ public class GLTextureDecoder : IHardwareTextureDecoder, IDisposable
         });
 
         GraphicsContext = RendererContext.Device.CreateContext(new GLFWSurface(GLWindowContext.Context), nameof(GLTextureDecoder));
-        GraphicsContext.MakeCurrent();
+        GraphicsContext.Begin();
 
         GLEnvironment.Initialize(RendererContext.Logger);
         Framebuffer = Framebuffer.Prepare(nameof(GLTextureDecoder), 4, 4, 0, LDRFormat, null);
@@ -258,7 +258,7 @@ public class GLTextureDecoder : IHardwareTextureDecoder, IDisposable
 
     private void Dispose_ThreadResources()
     {
-        GraphicsContext?.MakeNoneCurrent();
+        GraphicsContext?.End();
         NativeWindowFactory.Destroy(GLWindowContext);
     }
 

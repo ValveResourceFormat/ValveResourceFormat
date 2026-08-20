@@ -854,7 +854,7 @@ internal abstract class GLBaseControl : IDisposable, IMessageFilter
 
         try
         {
-            GraphicsContext.MakeCurrent();
+            GraphicsContext.Begin();
         }
         catch (OpenTK.Windowing.GraphicsLibraryFramework.GLFWException e)
         {
@@ -896,7 +896,7 @@ internal abstract class GLBaseControl : IDisposable, IMessageFilter
 
         GLNativeWindow.Context.SwapBuffers();
 
-        GraphicsContext.MakeNoneCurrent();
+        GraphicsContext.End();
 
         if (firstDraw)
         {

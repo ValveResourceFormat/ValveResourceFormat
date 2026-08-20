@@ -93,7 +93,7 @@ internal class RenderTestWindow : GameWindow
     {
         base.OnLoad();
 
-        rendererContext.Device.CreateContext(ExternalGraphicsSurface.Instance, nameof(RenderTestWindow)).MakeCurrent();
+        rendererContext.Device.CreateContext(nameof(RenderTestWindow)).Begin();
 
         GLEnvironment.Initialize(rendererContext.Logger);
         GLEnvironment.SetDefaultRenderState();

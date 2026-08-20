@@ -36,6 +36,17 @@ public sealed class GraphicsDevice
         return new GraphicsContext(this, surface, name);
     }
 
+    /// <summary>
+    /// Creates a context for a surface whose currency the caller owns, such as a window made
+    /// current once and never released.
+    /// </summary>
+    /// <param name="name">Debug name identifying the context.</param>
+    /// <returns>The new context, not yet current on any thread.</returns>
+    public GraphicsContext CreateContext(string name)
+    {
+        return new GraphicsContext(this, surface: null, name);
+    }
+
     /// <summary>Creates a buffer object.</summary>
     /// <param name="name">Debug label, visible in graphics debuggers.</param>
     /// <returns>The buffer handle.</returns>
@@ -159,9 +170,6 @@ public sealed class GraphicsDevice
         Label(ObjectLabelIdentifier.Program, handle, name);
         return handle;
     }
-
-#pragma warning restore CA1822
-
     [Conditional("DEBUG")]
     private static void Label(ObjectLabelIdentifier identifier, int handle, string name)
     {

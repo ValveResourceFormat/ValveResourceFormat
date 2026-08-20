@@ -1,47 +1,23 @@
+using System.Diagnostics;
 using System.Threading;
 
 namespace ValveResourceFormat.Renderer;
 
 /// <summary>
-/// The window side of a graphics context: the surface whose commands the context drives, and
-/// whose currency it follows. Implemented by whoever owns the window.
+/// The window side of a graphics context: the surface whose commands the context drives.
+/// Implemented by whoever owns the window.
 /// </summary>
-/// <remarks>
-/// Graphics APIs that have no current-context model implement these as no-ops and rely on the
-/// context object alone to say which command stream is being recorded.
-/// </remarks>
+// End() matches the graphics vocabulary; the reserved-word clash only concerns languages this is not consumed from.
+#pragma warning disable CA1716 // Identifiers should not match keywords
 public interface IGraphicsSurface
 {
-    /// <summary>Binds the surface's command stream to the calling thread.</summary>
-    void MakeCurrent();
+    /// <summary>Opens the surface's command stream on the calling thread.</summary>
+    void Begin();
 
-    /// <summary>Releases the surface's command stream from the calling thread.</summary>
-    void MakeNoneCurrent();
+    /// <summary>Closes the surface's command stream on the calling thread.</summary>
+    void End();
 }
-
-/// <summary>
-/// A surface whose currency its owner manages rather than the context: a window made current once
-/// and never released, or an API with no current-context model at all.
-/// </summary>
-public sealed class ExternalGraphicsSurface : IGraphicsSurface
-{
-    /// <summary>Gets the shared instance. The type carries no state.</summary>
-    public static ExternalGraphicsSurface Instance { get; } = new();
-
-    private ExternalGraphicsSurface()
-    {
-    }
-
-    /// <inheritdoc/>
-    public void MakeCurrent()
-    {
-    }
-
-    /// <inheritdoc/>
-    public void MakeNoneCurrent()
-    {
-    }
-}
+#pragma warning restore CA1716
 
 /// <summary>
 /// One command stream recorded against a <see cref="GraphicsDevice"/>'s objects.
@@ -56,10 +32,13 @@ public sealed class GraphicsContext
     [ThreadStatic]
     private static GraphicsContext? current;
 
-    // 0 when this context is current on no thread. Written with Interlocked from any thread.
-    private int currentThread;
+#if DEBUG
+    // 0 when this context is open on no thread. Written with Interlocked from any thread.
+    private int openOnThread;
+#endif
 
-    private readonly IGraphicsSurface surface;
+    // Null when the caller owns the surface's currency, or the API has no current-context model.
+    private readonly IGraphicsSurface? surface;
 
     /// <summary>The device whose objects this context records against.</summary>
     internal GraphicsDevice Device { get; }
@@ -73,7 +52,7 @@ public sealed class GraphicsContext
     /// State is per context, not per device.</summary>
     public static RenderStateTracker RenderState => Current.renderState;
 
-    internal GraphicsContext(GraphicsDevice device, IGraphicsSurface surface, string name)
+    internal GraphicsContext(GraphicsDevice device, IGraphicsSurface? surface, string name)
     {
         Device = device;
         Name = name;
@@ -93,32 +72,20 @@ public sealed class GraphicsContext
             + $"Graphics work can only be issued on a thread that has made a context current.");
 
     /// <summary>
-    /// Makes this context the one the calling thread records into, binding its surface with it.
-    /// Release it with <see cref="MakeNoneCurrent"/>.
+    /// Opens this context for recording on the calling thread, opening its surface with it.
+    /// Close it with <see cref="End"/>.
     /// </summary>
-    /// <exception cref="InvalidOperationException">
-    /// Thrown when the context is still current on another thread, which is a context that was
-    /// never released before being picked up elsewhere.
-    /// </exception>
-    public void MakeCurrent()
+    public void Begin()
     {
-        var thread = Environment.CurrentManagedThreadId;
-        var holdingThread = Interlocked.CompareExchange(ref currentThread, thread, 0);
-
-        if (holdingThread != 0 && holdingThread != thread)
-        {
-            throw new InvalidOperationException(
-                $"Graphics context '{Name}' is current on thread {holdingThread} and cannot also be made current on thread {thread}. "
-                + $"Release it there first.");
-        }
+        TakeOwnership();
 
         try
         {
-            surface.MakeCurrent();
+            surface?.Begin();
         }
         catch
         {
-            Interlocked.CompareExchange(ref currentThread, 0, thread);
+            ReleaseOwnership();
             throw;
         }
 
@@ -126,10 +93,10 @@ public sealed class GraphicsContext
     }
 
     /// <summary>
-    /// Releases this context and its surface from the calling thread. Like the surface release it
-    /// drives, this is not nestable: the innermost call releases for good.
+    /// Closes this context and its surface on the calling thread. Like the surface it drives, this
+    /// is not nestable: the innermost call closes for good.
     /// </summary>
-    public void MakeNoneCurrent()
+    public void End()
     {
         if (current != this)
         {
@@ -137,7 +104,35 @@ public sealed class GraphicsContext
         }
 
         current = null;
-        Interlocked.CompareExchange(ref currentThread, 0, Environment.CurrentManagedThreadId);
-        surface.MakeNoneCurrent();
+        ReleaseOwnership();
+        surface?.End();
     }
+
+    // Cross thread misuse is a programming error, not a runtime condition, so the tracking that
+    // detects it costs an interlocked write per Begin and is not worth carrying into release.
+#pragma warning disable CA1822 // The state these read only exists in debug builds
+    [Conditional("DEBUG")]
+    private void TakeOwnership()
+    {
+#if DEBUG
+        var thread = Environment.CurrentManagedThreadId;
+        var holdingThread = Interlocked.CompareExchange(ref openOnThread, thread, 0);
+
+        if (holdingThread != 0 && holdingThread != thread)
+        {
+            throw new InvalidOperationException(
+                $"Graphics context '{Name}' is open on thread {holdingThread} and cannot also be opened on thread {thread}. "
+                + $"Close it there first.");
+        }
+#endif
+    }
+
+    [Conditional("DEBUG")]
+    private void ReleaseOwnership()
+    {
+#if DEBUG
+        Interlocked.CompareExchange(ref openOnThread, 0, Environment.CurrentManagedThreadId);
+#endif
+    }
+#pragma warning restore CA1822
 }

@@ -15,12 +15,12 @@ public readonly ref struct GLLockScope
         lockScope = glLock.EnterScope();
         this.context = context;
 
-        context.MakeCurrent();
+        context.Begin();
     }
 
     public readonly void Dispose()
     {
-        context.MakeNoneCurrent();
+        context.End();
         lockScope.Dispose();
     }
 }
