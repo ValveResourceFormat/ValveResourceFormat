@@ -41,7 +41,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             }
         }
 
-        public override void Update(ParticleCollection particles, ParticleSystemState systemState)
+        public override void Act(ParticleCollection particles, ParticleSystemState systemState)
         {
             if (soundName.Length == 0)
             {
@@ -87,7 +87,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
 
         public override void Render(ParticleCollection particles, ParticleSystemState systemState, Camera camera)
         {
-            // Nothing to draw; the sound is started from Update.
+            // Nothing to draw; the sound is started from Act.
         }
     }
 }

@@ -55,6 +55,11 @@ public class RendererContext : IDisposable
     public float ViewmodelFieldOfView { get; set; } = 64.0f;
 
     /// <summary>
+    /// Whether scene nodes simulate across the thread pool, published by the renderer each frame.
+    /// </summary>
+    public bool ParallelSimulation { get; set; } = true;
+
+    /// <summary>
     /// Initializes a new renderer context.
     /// </summary>
     /// <param name="fileLoader">Game file loader for resource access.</param>

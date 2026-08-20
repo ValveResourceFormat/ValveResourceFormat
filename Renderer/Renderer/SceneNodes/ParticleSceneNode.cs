@@ -68,6 +68,8 @@ namespace ValveResourceFormat.Renderer.SceneNodes
 
             RenderPasses = particleRenderer.Passes;
 
+            Simulation = NodeSimulation.Parallel;
+
             if (preview)
             {
                 Preview = true;
@@ -488,16 +490,35 @@ namespace ValveResourceFormat.Renderer.SceneNodes
                 return;
             }
 
-            // Control point 0 is seeded from the node transform (position, full rotation frame, and its
-            // transformed +X as the forward direction) whenever the transform changes from outside, like a
-            // non-follow attachment in game. Between seeds the control point belongs to the simulation:
-            // particle functions may move it, and the node transform reflects it back after each step.
-            // Preview drives the control point separately.
+            switch (context.Phase)
+            {
+                case Scene.UpdatePhase.Place:
+                    Place();
+                    break;
+
+                case Scene.UpdatePhase.Simulate:
+                    Simulate(context);
+                    break;
+
+                case Scene.UpdatePhase.Act:
+                    Act();
+                    break;
+            }
+        }
+
+        /// <summary>Places the effect. The half that reads other nodes: bound control points, the preview attachment.</summary>
+        private void Place()
+        {
             if (controlPointBindings != null)
             {
                 UpdateBoundControlPoints();
             }
 
+            // Control point 0 is seeded from the node transform (position, full rotation frame, and its
+            // transformed +X as the forward direction) whenever the transform changes from outside, like a
+            // non-follow attachment in game. Between seeds the control point belongs to the simulation:
+            // particle functions may move it, and the node transform reflects it back after each step.
+            // Preview drives the control point separately.
             if (seededTransform != Transform)
             {
                 var controlPoint = particleRenderer.MainControlPoint;
@@ -520,7 +541,13 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             {
                 particleRenderer.MainControlPoint.Position = PreviewModel.GetAttachmentTransform(PreviewModelAttachmentPoint).Translation;
             }
+        }
 
+        /// <summary>
+        /// Runs the effect. Touches only its own control points, particles and lights.
+        /// </summary>
+        private void Simulate(Scene.UpdateContext context)
+        {
             var frameTime = context.Timestep * FrametimeMultiplier;
 
             if (pendingRestart)
@@ -542,6 +569,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             {
                 particleRenderer.SetCameraPosition(context.Camera.Location);
                 particleRenderer.Update(frameTime, context.Uptime);
+                stepped = true;
 
                 if (!Preview)
                 {
@@ -565,6 +593,23 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             {
                 pendingRestart = true;
             }
+        }
+
+        /// <summary>Whether <see cref="Simulate"/> stepped, so there is something to finish.</summary>
+        private bool stepped;
+
+        /// <summary>
+        /// Finishes the step, on the particles it left and where reaching past the effect is safe.
+        /// </summary>
+        private void Act()
+        {
+            if (!stepped)
+            {
+                return;
+            }
+
+            stepped = false;
+            particleRenderer.Act();
         }
 
         // The node transform mirrors control point 0 after simulation, so movement applied by particle

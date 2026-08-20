@@ -54,7 +54,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             scene.LightingInfo.BarnLights.Add(light);
         }
 
-        public override void Update(ParticleCollection particles, ParticleSystemState systemState)
+        public override void Simulate(ParticleCollection particles, ParticleSystemState systemState)
         {
             if (particles.Count == 0)
             {
