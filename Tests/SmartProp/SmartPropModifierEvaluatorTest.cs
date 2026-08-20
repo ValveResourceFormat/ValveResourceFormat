@@ -318,5 +318,116 @@ namespace Tests.SmartProp
             await Assert.That(Translation(result.LocalMatrix)).IsEqualTo(Vector3.Zero);
         }
 
+        [Test]
+        public async Task UnknownModifierLeavesTransformAlone()
+        {
+            var unknown = Modifier("MaterialOverride");
+            var result = SmartPropModifierEvaluator.EvaluateElementModifiers(Element("Group", unknown), Context());
+
+            await Assert.That(result.LocalMatrix).IsEqualTo(Matrix4x4.Identity);
+            await Assert.That(result.Widgets).IsEmpty();
+        }
+
+        [Test]
+        public async Task CreateLocatorEmitsWorldPositionedWidget()
+        {
+            var parent = Matrix4x4.CreateTranslation(new Vector3(100f, 0f, 0f));
+            var move = Modifier("Translate", ("m_vPosition", Vec(0f, 10f, 0f)));
+            var locator = Modifier("CreateLocator",
+                ("m_LocatorName", new KVObject("corner")),
+                ("m_vOffset", Vec(0f, 0f, 5f)),
+                ("m_flDisplayScale", new KVObject(2.5f)));
+
+            var result = SmartPropModifierEvaluator.EvaluateElementModifiers(
+                Element("Group", move, locator), Context(), parent);
+
+            var widget = (SmartPropLocatorWidget)result.Widgets[0];
+            await Assert.That(result.Widgets).HasSingleItem();
+            await Assert.That(widget.Name).IsEqualTo("corner");
+            await Assert.That(widget.DisplayScale).IsEqualTo(2.5f);
+            await Assert.That(widget.ElementId).IsEqualTo(7);
+
+            // Offset transformed by the widget-time world matrix: local (0,10,0) plus
+            // offset (0,0,5) then shifted by the parent
+            await Assert.That(widget.Position).IsEqualTo(new Vector3(100f, 10f, 5f));
+        }
+
+        [Test]
+        public async Task CreateRotatorRotatesElementSpaceAxis()
+        {
+            var rotate = Modifier("Rotate", ("m_vRotation", Vec(0f, 90f, 0f)));
+            var rotator = Modifier("CreateRotator",
+                ("m_vRotationAxis", Vec(1f, 0f, 0f)),
+                ("m_CoordinateSpace", new KVObject("ELEMENT")),
+                ("m_flDisplayRadius", new KVObject(32f)),
+                ("m_flInitialAngle", new KVObject(45f)),
+                ("m_DisplayColor", Vec(255f, 128f, 0f)));
+
+            var result = SmartPropModifierEvaluator.EvaluateElementModifiers(
+                Element("Group", rotate, rotator), Context());
+
+            var widget = (SmartPropRotatorWidget)result.Widgets[0];
+            await Assert.That(widget.Radius).IsEqualTo(32f);
+            await Assert.That(widget.Angle).IsEqualTo(45f);
+
+            // Element space +X axis rotates to +Y under the yaw-90 frame
+            await Assert.That(Vector3.Distance(widget.Axis, new Vector3(0f, 1f, 0f))).IsLessThan(Tolerance);
+
+            // 0-255 colors rescale into 0-1
+            await Assert.That(Vector3.Distance(widget.Color, new Vector3(1f, 128f / 255f, 0f))).IsLessThan(Tolerance);
+        }
+
+        [Test]
+        public async Task CreateSizerOnlyEmitsWhenAnAxisIsActive()
+        {
+            var inactive = Modifier("CreateSizer");
+            var active = Modifier("CreateSizer",
+                ("m_flInitialMinX", new KVObject(-10f)),
+                ("m_flInitialMaxX", new KVObject(10f)),
+                ("m_OutputVariableMinY", new KVObject("sizer_min_y")));
+
+            var none = SmartPropModifierEvaluator.EvaluateElementModifiers(Element("Group", inactive), Context());
+            await Assert.That(none.Widgets).IsEmpty();
+
+            var some = SmartPropModifierEvaluator.EvaluateElementModifiers(Element("Group", active), Context());
+            var widget = (SmartPropSizerWidget)some.Widgets[0];
+            await Assert.That(widget.MinBounds).IsEqualTo(new Vector3(-10f, 0f, 0f));
+            await Assert.That(widget.MaxBounds.X).IsEqualTo(10f);
+            await Assert.That(widget.ActiveAxes.X).IsTrue();
+            await Assert.That(widget.ActiveAxes.Y).IsTrue();
+            await Assert.That(widget.ActiveAxes.Z).IsFalse();
+            await Assert.That(widget.Handles.MinY).IsTrue();
+            await Assert.That(widget.Handles.MaxX).IsFalse();
+        }
+
+        [Test]
+        public async Task PickOneElementEmitsHandleWidget()
+        {
+            var element = Element("PickOne");
+            element["m_vHandleOffset"] = Vec(0f, 4f, 0f);
+            element["m_HandleSize"] = new KVObject(12f);
+            element["m_HandleShape"] = new KVObject("diamond");
+            element["m_OutputChoiceVariableName"] = new KVObject("picked");
+
+            var result = SmartPropModifierEvaluator.EvaluateElementModifiers(element, Context());
+
+            var handle = (SmartPropPickOneHandleWidget)result.Widgets[0];
+            await Assert.That(handle.Size).IsEqualTo(12f);
+            await Assert.That(handle.Shape).IsEqualTo("DIAMOND");
+            await Assert.That(handle.Name).IsEqualTo("picked");
+            await Assert.That(handle.Position).IsEqualTo(new Vector3(0f, 4f, 0f));
+        }
+
+        [Test]
+        public async Task PickOneHandleReadsTypoOffsetField()
+        {
+            var element = Element("PickOne");
+            element["m_vHandleOfffset"] = Vec(7f, 0f, 0f);
+
+            var result = SmartPropModifierEvaluator.EvaluateElementModifiers(element, Context());
+            var handle = (SmartPropPickOneHandleWidget)result.Widgets[0];
+            await Assert.That(handle.Offset).IsEqualTo(new Vector3(7f, 0f, 0f));
+        }
+
     }
 }
