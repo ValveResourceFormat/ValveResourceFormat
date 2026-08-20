@@ -1,6 +1,6 @@
 using System.Linq;
 
-namespace ValveResourceFormat.ResourceTypes.RubikonPhysics
+namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
 {
     public sealed partial class FeModel
     {

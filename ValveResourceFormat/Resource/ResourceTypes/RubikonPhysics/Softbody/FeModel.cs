@@ -4,17 +4,19 @@ using System.Linq;
 using ValveKeyValue;
 using ValveResourceFormat.Serialization.KeyValues;
 
-namespace ValveResourceFormat.ResourceTypes.RubikonPhysics
+namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
 {
     /// <summary>
-    /// Finite-element (soft body / cloth) model embedded in a physics aggregate (<c>m_pFeModel</c>).
+    /// Soft-body (cloth) model embedded in a physics aggregate (<c>m_pFeModel</c>).
     /// </summary>
     /// <remarks>
-    /// Parses the control-node topology needed to reconstruct editable ModelDoc cloth source.
-    /// Phase 1 (bone-chain cloth) only uses the control-node names, skeleton parents and inverse
-    /// masses to rebuild <c>ClothChain</c> nodes. The raw <see cref="Data"/> object is retained so a
-    /// later phase can read the quad/tri/pose arrays (<c>m_Quads</c>, <c>m_Tris</c>, <c>m_InitPose</c>)
-    /// to rebuild full proxy-mesh cloth.
+    /// Parses the control nodes, surface and constraint arrays that editable ModelDoc cloth source is
+    /// reconstructed from; the raw <see cref="Data"/> object is retained for keys surfaced lazily.
+    /// <para>
+    /// <c>Fe</c> is the prefix Valve puts on all ~60 structs of this family (<c>FeRodConstraint_t</c>,
+    /// <c>FeQuad_t</c>, <c>FeNodeBase_t</c>, ...). Nothing in the shipped schema expands it. The family is
+    /// distinct from the <c>Rn</c> types the rest of <see cref="RubikonPhysics"/> holds.
+    /// </para>
     /// </remarks>
     /// <seealso href="https://s2v.app/SchemaExplorer/cs2/modellib/PhysFeModelDesc_t">PhysFeModelDesc_t</seealso>
     public sealed partial class FeModel
