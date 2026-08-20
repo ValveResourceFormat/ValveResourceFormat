@@ -1114,16 +1114,13 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             // the strongest attraction the modern path can express - the closest faithful reproduction of
             // the original's own compiled values, with no feel-calibrated constants (this saturates va to
             // ~0.98, which reads stiffer than the legacy snap-then-relax, an accepted platform ceiling).
-            var goalStrength = MathF.Cbrt(Math.Clamp(integrator.ForceAttraction, 0f, 1f));
+            var goalStrength = GoalStrengthFromAttraction(integrator.ForceAttraction);
             var goalDamping = GoalDampingFromAttraction(integrator.ForceAttraction, integrator.VertexAttraction);
 
             var collisionRadius = GetCollisionRadius(node);
 
             // m_DynNodeFriction is indexed by dynamic node, like m_NodeCollisionRadii.
-            var dynamicIndex = node - StaticNodeCount;
-            var friction = dynamicIndex >= 0 && dynamicIndex < nodeFriction.Length
-                ? Math.Clamp(nodeFriction[dynamicIndex], 0f, 1f)
-                : 0f;
+            var friction = Math.Clamp(DynamicNodeValue(nodeFriction, node), 0f, 1f);
 
             // The cloth_drag paint compiles to flPointDamping = paint * 30 (measured exact: 0.2 -> 6.0,
             // 0.5 -> 15.0), so the paint is recovered as pd/30. This velocity damping is what keeps the
@@ -1167,13 +1164,6 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         }
 
         // Extracts the mesh index the compiler already encodes in an auto-generated proxy control-node
-        /// <summary>
-        /// Whether the compiler named any control node as a proxy-mesh vertex, i.e. whether the original
-        /// carries a cloth SHEET at all. Without one there is nothing for a fit matrix to drive a bone
-        /// THROUGH, so a chain keeps its own ClothChain however many of its joints are back-solved.
-        /// </summary>
-        public bool HasProxyMeshNodes => Array.Exists(CtrlNames, static name => ParseProxyMeshIndex(name) >= 0);
-
         // name ("$cloth_m3p12" -> 3), or -1 if the name does not follow that convention.
         static int ParseProxyMeshIndex(string name)
         {

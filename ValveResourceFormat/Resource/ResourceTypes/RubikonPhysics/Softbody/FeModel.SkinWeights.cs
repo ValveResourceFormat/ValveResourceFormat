@@ -498,6 +498,9 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// old-era compiles (and rope cloth), where <see cref="SkelParents"/> is synthesized from
         /// <c>m_Ropes</c>/<c>m_FollowNodes</c> or the skeleton instead.
         /// </summary>
+        // TODO: the current compiler always writes m_SkelParents, old-era originals ship none, so a re-
+        // export of one gains the whole array. Decide whether that counts as a round-trip loss or whether
+        // the comparison should synthesize the same fallback this property gates.
         public bool HasCompiledSkelParents { get; }
 
         /// <summary>

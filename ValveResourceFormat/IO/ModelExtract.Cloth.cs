@@ -232,6 +232,10 @@ partial class ModelExtract
             ("import_scale", 1.0f),
             ("back_solve_joints", backSolveJoints),
             ("back_solve_joints_drive_meshes", driveMeshes),
+            // TODO: turning this on clears m_nRotLockStaticNodes and m_NodeBases on the models that want
+            // it, but on rod-only sheets the compiler's border vertex dedup then diverges and 43 Dota
+            // models regress. Blocked on making the rod and source-element reconstruction agree with the
+            // authored topology at the static/pinned boundary.
             ("flex_cloth_borders", false),
             ("add_bones_to_render_mesh", addBonesToRenderMesh),
             ("back_solve_influence_threshold", backSolveInfluenceThreshold),
@@ -594,6 +598,9 @@ partial class ModelExtract
             (neighbours.TryGetValue(b, out var nb) ? nb : neighbours[b] = []).Add(a);
         }
 
+        // TODO: this test is one-sided - a sheet whose bend network is only partly regenerable keeps
+        // explicit springs for all of it, which leaves one Deadlock model re-exporting 30 rods against
+        // the original's 10.
         var regenerable = beyondSurface.Count > 0 && beyondSurface.All(edge =>
             neighbours.TryGetValue(edge.Item1, out var near)
             && near.Any(step => neighbours.TryGetValue(step, out var beyond) && beyond.Contains(edge.Item2)));
@@ -838,6 +845,9 @@ partial class ModelExtract
         return surviving;
     }
 
+    // TODO: five models re-export more rods than the original, from overlap between the springs emitted
+    // here, the chains, and the proxy sheet all re-declaring the same span. A separate family of ten
+    // models duplicates free-ClothNode rods by an unknown mechanism.
     static void AddClothProxySprings(KVObject softbodyChildren, FeModel feModel,
         List<(string FileName, string Name, FeModel.ProxyMesh Proxy)> proxies, HashSet<int> chainJointNodes,
         HashSet<int> authoredClothNodes, Dictionary<int, string> freeClothNodeNames,
@@ -1299,6 +1309,7 @@ partial class ModelExtract
     const int ClothEffectTypeStiffen = 3;
     const int ClothEffectTypeDampenVelocity = 6;
 
+    // TODO: m_Effects still differs on a residual class of old-era Dota models that has never been scoped.
     static void AddClothEffects(KVObject softbodyChildren, FeModel feModel, IReadOnlySet<string> availableMaps)
     {
         foreach (var effect in feModel.Effects)
@@ -1547,7 +1558,7 @@ partial class ModelExtract
         // `simulate = false, goal_strength = 0.6`, compiling to flAnimationForceAttraction 0.216 = 0.6^3,
         // not 0). Gating this to 0 for non-simulated joints would zero goal_strength on every chain root.
         var integrator = feModel.GetIntegrator(joint.Node);
-        var goalStrength = MathF.Cbrt(Math.Clamp(integrator.ForceAttraction, 0f, 1f));
+        var goalStrength = FeModel.GoalStrengthFromAttraction(integrator.ForceAttraction);
 
         kv.Add("simulate", joint.Simulated);
 
@@ -1702,7 +1713,7 @@ partial class ModelExtract
         IReadOnlyDictionary<int, string>? proxyNodeNames = null)
     {
         var integrator = feModel.GetIntegrator(node);
-        var goalStrength = MathF.Cbrt(Math.Clamp(integrator.ForceAttraction, 0f, 1f));
+        var goalStrength = FeModel.GoalStrengthFromAttraction(integrator.ForceAttraction);
         var goalDamping = FeModel.GoalDampingFromAttraction(integrator.ForceAttraction, integrator.VertexAttraction);
         var strayRadius = feModel.GetStrayRadius(node);
 

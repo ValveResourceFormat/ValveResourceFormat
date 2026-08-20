@@ -132,13 +132,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
 
             var rows = members.Max(c => c.Count);
             var nodeFriction = Data.GetFloatArray("m_DynNodeFriction");
-            float FrictionAt(int node)
-            {
-                var dynamicIndex = node - StaticNodeCount;
-                return dynamicIndex >= 0 && dynamicIndex < nodeFriction.Length
-                    ? Math.Clamp(nodeFriction[dynamicIndex], 0f, 1f)
-                    : 0f;
-            }
+            float FrictionAt(int node) => Math.Clamp(DynamicNodeValue(nodeFriction, node), 0f, 1f);
 
             // Sample each chain at uniform arc-length fractions; remember the bracketing joints so the
             // vertex can be skinned/painted by interpolating them.
@@ -170,7 +164,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
 
                     var ia = GetIntegrator(a.Node);
                     var ib = GetIntegrator(b.Node);
-                    var strength = MathF.Cbrt(Math.Clamp(ia.ForceAttraction + (ib.ForceAttraction - ia.ForceAttraction) * t, 0f, 1f));
+                    var strength = GoalStrengthFromAttraction(ia.ForceAttraction + (ib.ForceAttraction - ia.ForceAttraction) * t);
                     var radius = GetCollisionRadius(a.Node) + (GetCollisionRadius(b.Node) - GetCollisionRadius(a.Node)) * t;
                     var forceAttraction = ia.ForceAttraction + (ib.ForceAttraction - ia.ForceAttraction) * t;
                     var vertexAttraction = ia.VertexAttraction + (ib.VertexAttraction - ia.VertexAttraction) * t;
