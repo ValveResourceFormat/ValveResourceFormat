@@ -1320,6 +1320,46 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// <summary>Gets the named vertex selections the cloth carries, empty when it has none.</summary>
         public IReadOnlyList<VertexMap> VertexMaps { get; } = [];
 
+        /// <summary>
+        /// The name a selection recovered from <see cref="VertexSetNames"/> is exported under. Only the
+        /// hash of the authored name survives compilation, so the name is made up; the export paints this
+        /// name and references it from the same effects and joints, which is what pairs the two back up.
+        /// </summary>
+        static string SynthesizedVertexSetName(int set)
+            => string.Create(CultureInfo.InvariantCulture, $"vertex_set_{set}");
+
+        /// <summary>
+        /// Rebuilds the named selections from the vertex-set registration
+        /// (<see cref="VertexSetNames"/> paired with <see cref="DynNodeVertexSet"/>), which is the only
+        /// form older compiles carry them in - those ship no <c>m_VertexMaps</c> at all. One set index per
+        /// dynamic node, so a node belongs to exactly the one set its index names.
+        /// </summary>
+        List<VertexMap> BuildVertexMapsFromSets()
+        {
+            var sets = new List<VertexMap>();
+            for (var set = 0; set < VertexSetNames.Length; set++)
+            {
+                var weights = new float[DynNodeVertexSet.Length];
+                var members = 0;
+                for (var node = 0; node < DynNodeVertexSet.Length; node++)
+                {
+                    if (DynNodeVertexSet[node] == set)
+                    {
+                        weights[node] = 1f;
+                        members++;
+                    }
+                }
+
+                if (members > 0)
+                {
+                    sets.Add(new VertexMap(SynthesizedVertexSetName(set), VertexSetNames[set],
+                        StaticNodeCount, DynNodeVertexSet.Length, default, weights));
+                }
+            }
+
+            return sets;
+        }
+
         /// <summary>A named vertex selection, used to target cloth effects and joint vertex maps.</summary>
         /// <param name="Name">The authored selection name.</param>
         /// <param name="NameHash">The hash the compiler keys the selection by.</param>
@@ -2136,6 +2176,11 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
 
             VertexSetNames = data.GetArray<uint>("m_VertexSetNames") ?? [];
             DynNodeVertexSet = data.GetArray<byte>("m_DynNodeVertexSet") ?? [];
+            if (VertexMaps.Count == 0)
+            {
+                VertexMaps = BuildVertexMapsFromSets();
+            }
+
             LegacyStretchForce = data.GetFloatArray("m_LegacyStretchForce");
             CollisionSpheres = data.GetArray("m_CollisionSpheres") ?? [];
 
