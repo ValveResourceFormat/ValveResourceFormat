@@ -52,6 +52,32 @@ namespace ValveResourceFormat.Particles
         public AABB LocalBoundingBox { get; private set; } = new AABB(new Vector3(float.MinValue), new Vector3(float.MaxValue));
 
         /// <summary>
+        /// The squared camera distance past which the system is not drawn (<c>m_flMaxDrawDistance</c>),
+        /// or <see cref="float.MaxValue"/> when it draws at any distance. Each system in a tree carries
+        /// its own, so a child can drop out while its parent still draws.
+        /// </summary>
+        public float MaxDrawDistanceSquared { get; }
+
+        /// <summary>
+        /// Whether the camera is near enough for the system to draw. Measured to the nearest point of
+        /// its bounds rather than to their centre, so a system wide enough to reach the camera is kept
+        /// wherever its centre happens to sit.
+        /// </summary>
+        /// <param name="cameraPosition">The world position to measure from.</param>
+        public bool IsWithinDrawDistance(Vector3 cameraPosition)
+        {
+            if (MaxDrawDistanceSquared == float.MaxValue)
+            {
+                return true;
+            }
+
+            var bounds = LocalBoundingBox.Translate(MainControlPoint.Position);
+            var nearest = Vector3.Clamp(cameraPosition, bounds.Min, bounds.Max);
+
+            return Vector3.DistanceSquared(cameraPosition, nearest) <= MaxDrawDistanceSquared;
+        }
+
+        /// <summary>
         /// Watches this system so a drawing layer can follow it. Set by whatever draws the system,
         /// and null when nothing does.
         /// </summary>
@@ -208,6 +234,13 @@ namespace ValveResourceFormat.Particles
             minimumFrames = parse.Int32("m_nMinimumFrames", 0);
             preSimulationTime = parse.Float("m_flPreSimulationTime", 0f);
             stopSimulationAfterTime = parse.Float("m_flStopSimulationAfterTime", 0f);
+
+            // A non-positive distance draws at any range, and one large enough to overflow when squared
+            // is taken as the same thing.
+            var maxDrawDistance = parse.Float("m_flMaxDrawDistance", -1f);
+            MaxDrawDistanceSquared = maxDrawDistance is <= 0f or >= 1e10f
+                ? float.MaxValue
+                : maxDrawDistance * maxDrawDistance;
 
             maximumTimeStep = Math.Max(minimumTimeStep, maximumTimeStep);
 

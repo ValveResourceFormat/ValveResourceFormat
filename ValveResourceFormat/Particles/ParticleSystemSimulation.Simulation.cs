@@ -445,6 +445,11 @@ namespace ValveResourceFormat.Particles
                     continue;
                 }
 
+                if (!childSimulation.IsWithinDrawDistance(systemState.CameraPosition))
+                {
+                    continue;
+                }
+
                 childSimulation.UpdateFrame(frameTime, presimulating);
             }
         }
