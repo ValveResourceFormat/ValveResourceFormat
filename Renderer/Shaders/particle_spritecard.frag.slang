@@ -294,13 +294,12 @@ void main(void) {
         alpha = smoothstep(uAlphaRemapRange.x, uAlphaRemapRange.y, rawAlpha);
     }
 
-    // Overlay the outline colour across its alpha band. Solid between Start1 and End0, feathered outside;
-    // the second smoothstep runs with its edges swapped so that it falls rather than rises.
+    // Overlay the outline colour across its alpha band. Solid between Start1 and End0, feathered outside.
     if (uOutline && rawAlpha >= uOutlineRanges.x && rawAlpha <= uOutlineRanges.w)
     {
         float outlineRamp = rawAlpha <= uOutlineRanges.z
             ? smoothstep(uOutlineRanges.x, uOutlineRanges.z, rawAlpha)
-            : smoothstep(uOutlineRanges.w, uOutlineRanges.y, rawAlpha);
+            : 1.0 - smoothstep(uOutlineRanges.y, uOutlineRanges.w, rawAlpha);
 
         finalColor = mix(finalColor, uOutlineColor.rgb, outlineRamp);
         alpha = mix(alpha, uOutlineColor.a, outlineRamp);

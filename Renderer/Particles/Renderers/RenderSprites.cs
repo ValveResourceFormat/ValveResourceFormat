@@ -112,12 +112,6 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             }
         }
 
-        public override void SetWireframe(bool isWireframe)
-        {
-            // Solid color
-            shader.SetUniform1("isWireframe", isWireframe ? 1 : 0);
-        }
-
         /// <inheritdoc/>
         // The override stands in for the card's base texture; the layers composited over it keep their
         // own textures along with the channels and blend settings that fold them together.
@@ -138,12 +132,17 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             frameBlend = 0f;
 
             var spriteSheetData = layers[layer].Texture.SpriteSheetData;
-            if (spriteSheetData == null || spriteSheetData.Sequences.Length == 0 || spriteSheetData.Sequences[0].Frames.Length == 0)
+            if (spriteSheetData == null || spriteSheetData.Sequences.Length == 0)
             {
                 return (Vector2.Zero, Vector2.One, Vector2.Zero, Vector2.One);
             }
 
             var sequence = spriteSheetData.Sequences[particle.SequenceNumber % spriteSheetData.Sequences.Length];
+
+            if (sequence.Frames.Length == 0)
+            {
+                return (Vector2.Zero, Vector2.One, Vector2.Zero, Vector2.One);
+            }
 
             var (frame, nextFrame, blend) = GetSheetFrame(ref particle, sequence, animationRate, animationType, animateInFps);
             frameBlend = blend;

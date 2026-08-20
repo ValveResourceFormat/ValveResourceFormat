@@ -121,11 +121,6 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             }
         }
 
-        public override void SetWireframe(bool isWireframe)
-        {
-            shader.SetUniform1("isWireframe", isWireframe ? 1 : 0);
-        }
-
         /// <inheritdoc/>
         public override void SetTextureOverride(RenderTexture texture)
         {
@@ -300,9 +295,12 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                         var nextMax = max;
 
                         var spriteSheetData = layers[layer].Texture.SpriteSheetData;
-                        if (spriteSheetData != null && spriteSheetData.Sequences.Length > 0 && spriteSheetData.Sequences[0].Frames.Length > 0)
+                        var sequence = spriteSheetData != null && spriteSheetData.Sequences.Length > 0
+                            ? spriteSheetData.Sequences[particle.SequenceNumber % spriteSheetData.Sequences.Length]
+                            : null;
+
+                        if (sequence is { Frames.Length: > 0 })
                         {
-                            var sequence = spriteSheetData.Sequences[particle.SequenceNumber % spriteSheetData.Sequences.Length];
                             var (frame, nextFrame, blend) = GetSheetFrame(ref particle, sequence, animationRate, animationType, animateInFps);
 
                             // TODO: Support more than one image per frame?
@@ -408,6 +406,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
 
             // Set every draw: the program is shared with every other spritecard renderer, whatever their mode.
             shader.SetUniform1("uBlendMode", (int)blendMode);
+            shader.SetUniform1("uOutline", false);
 
             PerfStats.Active.Count(Counter.ParticleDraw);
             GL.DrawElements(PrimitiveType.Triangles, quadCount * 6, DrawElementsType.UnsignedShort, 0);

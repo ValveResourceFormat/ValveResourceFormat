@@ -162,12 +162,6 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         }
 
         /// <inheritdoc/>
-        public override void SetWireframe(bool isWireframe)
-        {
-            shader.SetUniform1("isWireframe", isWireframe ? 1 : 0);
-        }
-
-        /// <inheritdoc/>
         public override void SetTextureOverride(RenderTexture texture)
         {
             // The override stands in for the base texture; layers composited over it keep their own.
@@ -611,13 +605,18 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
 
             var spriteSheetData = layerTexture.SpriteSheetData;
 
-            if (spriteSheetData == null || spriteSheetData.Sequences.Length == 0 || spriteSheetData.Sequences[0].Frames.Length == 0)
+            if (spriteSheetData == null || spriteSheetData.Sequences.Length == 0)
             {
                 return identity;
             }
 
             ref var head = ref particleBag.Current[0];
             var sequence = spriteSheetData.Sequences[head.SequenceNumber % spriteSheetData.Sequences.Length];
+
+            if (sequence.Frames.Length == 0)
+            {
+                return identity;
+            }
             var (frame, nextFrame, blend) = GetSheetFrame(ref head, sequence, animationRate, animationType, animateInFps);
 
             var currentImage = sequence.Frames[frame].Images[0];
@@ -656,7 +655,10 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             ParticleTextureLayer.Bind(shader, layers, systemState);
             SetSharedUniforms(shader, systemState);
             shader.SetUniform1("uBlendFrames", blendFrames);
+
+            // Set every draw: the program is shared with every other spritecard renderer, whatever their mode.
             shader.SetUniform1("uBlendMode", (int)blendMode);
+            shader.SetUniform1("uOutline", false);
 
             PerfStats.Active.Count(Counter.ParticleDraw);
             GL.DrawElements(PrimitiveType.Triangles, quadCount * 6, DrawElementsType.UnsignedShort, 0);
