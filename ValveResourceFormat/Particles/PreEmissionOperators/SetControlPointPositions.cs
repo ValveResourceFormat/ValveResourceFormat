@@ -37,6 +37,11 @@ namespace ValveResourceFormat.Particles.PreEmissionOperators
             cpOffset = parse.Int32("m_nHeadLocation", cpOffset);
         }
 
+        public override void Reset()
+        {
+            hasRunBefore = false;
+        }
+
         public override void Operate(ref ParticleSystemState particleSystemState, float frameTime)
         {
             if (!(setOnce && hasRunBefore))

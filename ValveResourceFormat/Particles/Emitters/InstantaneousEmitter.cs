@@ -57,6 +57,8 @@ namespace ValveResourceFormat.Particles.Emitters
 
             remainingToEmit = 0;
             countResolved = false;
+            snapshotResolved = false;
+            snapshotTimes = null;
             snapshotCursor = 0;
         }
 
@@ -126,7 +128,10 @@ namespace ValveResourceFormat.Particles.Emitters
 
             for (var i = 0; i < numToEmit; i++)
             {
-                // Every particle is stamped at the start-time instant, offset by its snapshot release time
+                // Every particle is stamped at the start-time instant, offset by its snapshot release time.
+                // An entry is due once the elapsed time alone reaches its release time, while the stamp also
+                // subtracts the start time, so a snapshot released under a non-zero start time carries ages
+                // below zero and the particles concerned outlive their authored lifetime.
                 var ageAtSpawn = elapsed - nextStartTime;
 
                 if (snapshotTimes != null)
