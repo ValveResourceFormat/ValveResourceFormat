@@ -278,6 +278,11 @@ namespace ValveResourceFormat.Blocks
 
                 if (!isMeshoptCompressed)
                 {
+                    if (span.Length != decompressedSize)
+                    {
+                        throw new InvalidDataException($"Decompressed buffer is {span.Length} bytes, expected {decompressedSize}.");
+                    }
+
                     var data = new byte[decompressedSize];
                     span.CopyTo(data);
                     return data;
@@ -367,7 +372,7 @@ namespace ValveResourceFormat.Blocks
                     Resource.Reader.BaseStream.Position = dataBlock.Offset;
                     Resource.Reader.Read(span);
 
-                    if (isMeshoptCompressed)
+                    if (isZstdCompressed || isMeshoptCompressed)
                     {
                         buffer.Data = DecompressData(buffer, span, (int)buffer.TotalSizeInBytes, isVertex, isZstdCompressed, isMeshoptCompressed);
                     }
