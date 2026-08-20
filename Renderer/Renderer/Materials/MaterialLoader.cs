@@ -565,11 +565,9 @@ namespace ValveResourceFormat.Renderer.Materials
         {
             if (DefaultVolume == null)
             {
-                DefaultVolume = new RenderTexture(TextureTarget.Texture3D, 1, 1, 1, 1, "DefaultVolume");
+                DefaultVolume = RenderTexture.Create3D(TextureTarget.Texture3D, 1, 1, 1, ImageFormat.RGBA8888, 1, "DefaultVolume");
                 DefaultVolume.SetFiltering(TextureMinFilter.Nearest, TextureMagFilter.Nearest);
                 DefaultVolume.SetWrapMode(RsTextureAddressMode.Clamp);
-
-                GL.TextureStorage3D(DefaultVolume.Handle, 1, SizedInternalFormat.Rgba8, 1, 1, 1);
                 GL.TextureSubImage3D(DefaultVolume.Handle, 0, 0, 0, 0, 1, 1, 1, PixelFormat.Rgb, PixelType.UnsignedByte, WhiteTexel);
             }
 

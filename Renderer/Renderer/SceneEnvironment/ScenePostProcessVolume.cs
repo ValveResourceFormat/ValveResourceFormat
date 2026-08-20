@@ -584,10 +584,9 @@ namespace ValveResourceFormat.Renderer.SceneEnvironment
 
                 ColorCorrectionLutDimensions = resolution;
 
-                ColorCorrectionLUT = new RenderTexture(TextureTarget.Texture3D, resolution, resolution, resolution, 1, nameof(ColorCorrectionLUT));
+                ColorCorrectionLUT = RenderTexture.Create3D(TextureTarget.Texture3D, resolution, resolution, resolution, ImageFormat.RGBA8888, 1, nameof(ColorCorrectionLUT));
                 ColorCorrectionLUT.SetWrapMode(RsTextureAddressMode.Clamp);
                 ColorCorrectionLUT.SetFiltering(TextureMinFilter.Linear, TextureMagFilter.Linear);
-                GL.TextureStorage3D(ColorCorrectionLUT.Handle, 1, SizedInternalFormat.Rgba8, resolution, resolution, resolution);
                 GL.TextureSubImage3D(ColorCorrectionLUT.Handle, 0, 0, 0, 0, resolution, resolution, resolution, PixelFormat.Rgba, PixelType.UnsignedByte, data);
             }
         }

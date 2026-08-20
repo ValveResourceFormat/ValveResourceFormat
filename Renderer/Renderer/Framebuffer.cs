@@ -300,8 +300,7 @@ public class Framebuffer
                     throw new InvalidOperationException("Layered depth attachments do not support multisampling");
                 }
 
-                Depth = new RenderTexture(TextureTarget.Texture2DArray, width, height, DepthLayers, 1, $"{Name}Depth");
-                GL.TextureStorage3D(Depth.Handle, 1, depthFormat.ToGLSizedInternalFormat(), width, height, DepthLayers);
+                Depth = RenderTexture.Create3D(TextureTarget.Texture2DArray, width, height, DepthLayers, depthFormat, 1, $"{Name}Depth");
                 AttachDepthLayer(0);
             }
             else

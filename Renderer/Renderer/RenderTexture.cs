@@ -118,6 +118,18 @@ namespace ValveResourceFormat.Renderer
             return texture;
         }
 
+        /// <summary>Creates a texture with immutable three dimensional storage.</summary>
+        /// <returns>The newly created render texture.</returns>
+        public static RenderTexture Create3D(TextureTarget target, int width, int height, int depth, ImageFormat format, int mipCount, string label, bool srgb = false)
+        {
+            Debug.Assert(target is TextureTarget.Texture3D or TextureTarget.Texture2DArray or TextureTarget.TextureCubeMapArray,
+                $"{target} does not take three dimensional storage.");
+
+            var texture = new RenderTexture(target, width, height, depth, mipCount, label);
+            GL.TextureStorage3D(texture.Handle, mipCount, format.ToGLSizedInternalFormat(srgb), width, height, depth);
+            return texture;
+        }
+
         /// <summary>Creates a texture view that reinterprets a subrange of this texture's storage.</summary>
         /// <param name="format">The reinterpreted pixel format for the view.</param>
         /// <param name="minLevel">First mip level visible through the view.</param>

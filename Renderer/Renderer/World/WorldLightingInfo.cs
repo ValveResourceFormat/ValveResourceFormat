@@ -717,8 +717,7 @@ namespace ValveResourceFormat.Renderer.World
         /// </summary>
         private static RenderTexture CreateDefaultCookieAtlas()
         {
-            var atlas = new RenderTexture(TextureTarget.Texture2DArray, 1, 1, 1, 1, "EmptyCookieAtlas");
-            GL.TextureStorage3D(atlas.Handle, 1, SizedInternalFormat.Srgb8Alpha8, 1, 1, 1);
+            var atlas = RenderTexture.Create3D(TextureTarget.Texture2DArray, 1, 1, 1, ImageFormat.RGBA8888, 1, "EmptyCookieAtlas", srgb: true);
             GL.TextureSubImage3D(atlas.Handle, 0, 0, 0, 0, 1, 1, 1, PixelFormat.Rgba, PixelType.UnsignedByte, new byte[] { 255, 255, 255, 255 });
 
             return atlas;
@@ -734,8 +733,7 @@ namespace ValveResourceFormat.Renderer.World
 
             var numLayers = textures.Count + 1;
 
-            var atlas = new RenderTexture(TextureTarget.Texture2DArray, atlasSize, atlasSize, numLayers, 1, "CookieAtlas");
-            GL.TextureStorage3D(atlas.Handle, 1, SizedInternalFormat.Srgb8Alpha8, atlasSize, atlasSize, numLayers);
+            var atlas = RenderTexture.Create3D(TextureTarget.Texture2DArray, atlasSize, atlasSize, numLayers, ImageFormat.RGBA8888, 1, "CookieAtlas", srgb: true);
 
             var readFbo = GraphicsDevice.CreateFramebuffer("CookieAtlasBlitSrc");
             var drawFbo = GraphicsDevice.CreateFramebuffer("CookieAtlasBlitDst");

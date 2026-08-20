@@ -173,10 +173,9 @@ namespace ValveResourceFormat.Renderer.PostProcess
             if (combinedLut == null || combinedLut.Width != dimensions)
             {
                 combinedLut?.Delete();
-                combinedLut = new RenderTexture(TextureTarget.Texture3D, dimensions, dimensions, dimensions, 1, "CombinedColorCorrectionLUT");
+                combinedLut = RenderTexture.Create3D(TextureTarget.Texture3D, dimensions, dimensions, dimensions, ImageFormat.RGBA8888, 1, "CombinedColorCorrectionLUT");
                 combinedLut.SetWrapMode(RsTextureAddressMode.Clamp);
                 combinedLut.SetFiltering(TextureMinFilter.Linear, TextureMagFilter.Linear);
-                GL.TextureStorage3D(combinedLut.Handle, 1, SizedInternalFormat.Rgba8, dimensions, dimensions, dimensions);
             }
 
             var weights = Vector4.Zero;
