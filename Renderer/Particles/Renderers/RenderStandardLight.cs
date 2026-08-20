@@ -6,6 +6,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
     /// <summary>
     /// Render a standard point light.
     /// </summary>
+    /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_OP_RenderStandardLight">C_OP_RenderStandardLight</seealso>
     internal class RenderStandardLight : ParticleFunctionRenderer
     {
         private readonly Scene scene;
