@@ -23,11 +23,9 @@ namespace ValveResourceFormat.Particles.Operators
             {
                 var vector = particle.GetVector(outputField);
 
-                // A zero vector has no direction to normalize
-                if (vector == Vector3.Zero)
-                {
-                    continue;
-                }
+                // Z carries an epsilon before the length is taken, so a vector with no direction
+                // comes out pointing along Z rather than staying at zero
+                vector.Z += ParticleMath.FloatEpsilon;
 
                 vector = ParticleMath.Normalize(vector) * scale;
 

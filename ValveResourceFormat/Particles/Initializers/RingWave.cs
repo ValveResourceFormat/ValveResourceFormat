@@ -1,3 +1,5 @@
+using ValveResourceFormat.Particles.Utils;
+
 namespace ValveResourceFormat.Particles.Initializers
 {
     /// <summary>
@@ -21,6 +23,9 @@ namespace ValveResourceFormat.Particles.Initializers
         /// <summary>Transform the ring is centred on, and whose rotation the ring plane lies in.</summary>
         private readonly ITransformProvider transformInput = new ControlPointTransformProvider();
 
+        /// <summary>Drops the vertical part of the outward speed, leaving the ring to spread flat.</summary>
+        private readonly bool xyVelocityOnly;
+
         private float orbitCount;
 
         public RingWave(ParticleDefinitionParser parse) : base(parse)
@@ -32,8 +37,10 @@ namespace ValveResourceFormat.Particles.Initializers
             initialSpeedMin = parse.NumberProvider("m_flInitialSpeedMin", initialSpeedMin);
             initialSpeedMax = parse.NumberProvider("m_flInitialSpeedMax", initialSpeedMax);
             transformInput = parse.TransformInput("m_TransformInput", transformInput);
+            xyVelocityOnly = parse.Boolean("m_bXYVelocityOnly", xyVelocityOnly);
 
-            // other properties: m_flRoll
+            // m_flRoll, m_flPitch and m_flYaw rotate the ring circle, but not the thickness offset,
+            // before the transform is applied. All three default to zero and are not read here.
         }
 
         public override void Reset()
@@ -59,11 +66,18 @@ namespace ValveResourceFormat.Particles.Initializers
 
             particle.Position = Vector3.Transform((radius * radialDirection) + thicknessOffset, transform);
 
-            // Initial speed pushes outward along the ring direction (positive = outward).
+            // Initial speed pushes outward, along the line from the transform to where the particle
+            // actually landed, so the thickness offset tilts the direction as well as the position.
+            var outward = ParticleMath.Normalize(particle.Position - transform.Translation);
+
+            if (xyVelocityOnly)
+            {
+                outward.Z = 0f;
+            }
+
             var speedMin = initialSpeedMin.NextNumber(ref particle, particleSystemState);
             var speedMax = initialSpeedMax.NextNumber(ref particle, particleSystemState);
-            particle.Velocity += Vector3.TransformNormal(radialDirection, transform)
-                * particleSystemState.Random.NextBetween(speedMin, speedMax);
+            particle.Velocity += outward * particleSystemState.Random.NextBetween(speedMin, speedMax);
 
             return particle;
         }

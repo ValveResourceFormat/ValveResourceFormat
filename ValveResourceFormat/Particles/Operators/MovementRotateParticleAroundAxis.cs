@@ -1,3 +1,5 @@
+using ValveResourceFormat.Particles.Utils;
+
 namespace ValveResourceFormat.Particles.Operators
 {
     /// <summary>
@@ -23,8 +25,10 @@ namespace ValveResourceFormat.Particles.Operators
 
         public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemState particleSystemState, float strength)
         {
-            var axis = rotationAxis.NextVector(particleSystemState);
-            axis = axis == Vector3.Zero ? Vector3.UnitZ : Vector3.Normalize(axis);
+            var authoredAxis = rotationAxis.NextVector(particleSystemState);
+
+            // The whole axis is replaced when its x is zero, so a pure Y axis rotates about Z
+            var axis = authoredAxis.X == 0f ? Vector3.UnitZ : ParticleMath.Normalize(authoredAxis);
 
             var transform = transformInput.NextTransform(particleSystemState);
 
