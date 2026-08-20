@@ -22,7 +22,7 @@ namespace ValveResourceFormat.Renderer.Materials
 
         private readonly Dictionary<string, RenderTexture> Textures = [];
         private readonly Dictionary<string, RenderTexture> TexturesSrgb = [];
-        private readonly Dictionary<(RsTextureAddressMode AddressU, RsTextureAddressMode AddressV, bool AnisotropicFiltering), int> Samplers = [];
+        private readonly Dictionary<(RsTextureAddressMode AddressU, RsTextureAddressMode AddressV, bool Mipmaps, bool AnisotropicFiltering), int> Samplers = [];
         private readonly RendererContext RendererContext;
         private RenderTexture? ErrorTexture;
         private RenderTexture? DefaultNormal;
@@ -236,9 +236,9 @@ namespace ValveResourceFormat.Renderer.Materials
         /// </summary>
         public int GetOrCreateSampler(RsTextureAddressMode addressModeU, RsTextureAddressMode addressModeV, bool mipmaps = true, bool anisotropicFiltering = true)
         {
-            var key = (addressModeU, addressModeV, anisotropicFiltering);
+            var key = (addressModeU, addressModeV, mipmaps, anisotropicFiltering);
 
-            if (key == (RsTextureAddressMode.Wrap, RsTextureAddressMode.Wrap, true))
+            if (key == (RsTextureAddressMode.Wrap, RsTextureAddressMode.Wrap, true, true))
             {
                 return 0; // the default sampler state already wraps
             }

@@ -270,6 +270,8 @@ public class Framebuffer
 
     private void CreateAttachments()
     {
+        Target = TargetForSampleCount(NumSamples);
+
         if (isDefaultFramebuffer)
         {
             // implicitly created by window
@@ -278,8 +280,6 @@ public class Framebuffer
 
         Color?.Delete();
         Depth?.Delete();
-
-        Target = TargetForSampleCount(NumSamples);
 
         var (width, height) = (Width, Height);
 

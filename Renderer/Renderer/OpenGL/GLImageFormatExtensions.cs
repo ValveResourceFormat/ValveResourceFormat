@@ -6,7 +6,7 @@ namespace ValveResourceFormat.Renderer
     /// Maps <see cref="ImageFormat"/>, the engine format vocabulary, to the OpenGL equivalents.
     ///
     /// This makes the renderer unaware of graphics API specific formats, and we can later map these to anything else.
-    /// The facts that hold for every API live on <see cref="ValveResourceFormat.Renderer.ImageFormatExtensions"/> instead.
+    /// The facts that hold for every API live on <see cref="Utils.ImageFormatExtensions"/> instead.
     /// </summary>
     public static class GLImageFormatExtensions
     {
