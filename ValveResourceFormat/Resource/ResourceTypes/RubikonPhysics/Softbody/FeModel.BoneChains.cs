@@ -212,6 +212,101 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         }
 
         /// <summary>
+        /// The rod graph as the chain reconstruction reads it: which node pairs carry a rod, how many rods
+        /// each pair carries, and every one of their relaxation factors.
+        /// </summary>
+        /// <remarks>
+        /// A suspender companion rod can span the same pair as an ordinary one but carries a DIFFERENT
+        /// relaxation factor (see RootSuspenderValue), which the multiplicity alone cannot distinguish
+        /// from an extra_iterations repeat.
+        /// </remarks>
+        (HashSet<(int, int)> Pairs, Dictionary<(int, int), int> Multiplicity,
+            Dictionary<(int, int), List<float>> RelaxationsByPair) BuildRodGraph()
+        {
+            var pairs = new HashSet<(int, int)>();
+            var multiplicity = new Dictionary<(int, int), int>();
+            var relaxationsByPair = new Dictionary<(int, int), List<float>>();
+            foreach (var rod in Rods)
+            {
+                var pair = rod.NodeA < rod.NodeB ? (rod.NodeA, rod.NodeB) : (rod.NodeB, rod.NodeA);
+                pairs.Add(pair);
+                multiplicity[pair] = multiplicity.GetValueOrDefault(pair) + 1;
+                if (!relaxationsByPair.TryGetValue(pair, out var relaxations))
+                {
+                    relaxations = [];
+                    relaxationsByPair[pair] = relaxations;
+                }
+
+                relaxations.Add(rod.RelaxationFactor);
+            }
+
+            return (pairs, multiplicity, relaxationsByPair);
+        }
+
+        /// <summary>
+        /// Each real bone mapped to the auto-generated <c>$cc&lt;bone&gt;</c> proxy nodes parented straight
+        /// to it (its ribbon width), and the inverse map from ring vertex to owning bone.
+        /// </summary>
+        /// <remarks>
+        /// Restricted to the <c>$cc</c> prefix (the ClothChain extrude proxies), NOT every <c>$</c>-node:
+        /// a <c>$cloth_m</c> SHEET must not be mistaken for a chain's own width. Used to keep a ribbon's
+        /// position-driven TIP joint in the chain, and to recover each chain's extrude width.
+        /// </remarks>
+        (Dictionary<int, List<int>> ChildrenOf, Dictionary<int, int> OwnerOf) BuildProxyRings()
+        {
+            var childrenOf = new Dictionary<int, List<int>>();
+
+            // Old-era compiles ship m_SkelParents empty; there the ring's anchor bone still survives in
+            // m_CtrlOffsets (each generated ring vertex carries its bone-local anchor offset).
+            Dictionary<int, int>? ctrlOffsetParents = null;
+            if (!HasCompiledSkelParents && CtrlOffsets.Length > 0)
+            {
+                ctrlOffsetParents = new Dictionary<int, int>(CtrlOffsets.Length);
+                foreach (var off in CtrlOffsets)
+                {
+                    ctrlOffsetParents[off.CtrlChild] = off.CtrlParent;
+                }
+            }
+
+            for (var node = 0; node < CtrlNames.Length; node++)
+            {
+                // A strip's second column is generated too, but named after the bone it widens instead of
+                // carrying the "$cc" prefix, so it counts as ribbon width the same way.
+                if (!CtrlNames[node].StartsWith("$cc", StringComparison.Ordinal)
+                    && !(!IsProxyNodeName(CtrlNames[node]) && IsGeneratedNodeName(CtrlNames[node])))
+                {
+                    continue;
+                }
+
+                var pp = node < SkelParents.Length ? SkelParents[node] : -1;
+                if (pp < 0 && ctrlOffsetParents is not null)
+                {
+                    pp = ctrlOffsetParents.GetValueOrDefault(node, -1);
+                }
+                if (pp >= 0)
+                {
+                    if (!childrenOf.TryGetValue(pp, out var list))
+                    {
+                        childrenOf[pp] = list = [];
+                    }
+
+                    list.Add(node);
+                }
+            }
+
+            var ownerOf = new Dictionary<int, int>();
+            foreach (var (owner, ring) in childrenOf)
+            {
+                foreach (var vertex in ring)
+                {
+                    ownerOf[vertex] = owner;
+                }
+            }
+
+            return (childrenOf, ownerOf);
+        }
+
+        /// <summary>
         /// Reconstructs bone chains from the control-node topology, ignoring auto-generated cloth proxy nodes.
         /// Each chain is rooted at a real bone with no real-bone parent and contains all of its real descendants.
         /// </summary>
@@ -246,79 +341,8 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             // authored chain's own joint-to-joint rods (see AddClothProxySprings remarks: a chain compiles
             // to a fully-connected local rod mesh among its own joints) always include the direct
             // parent-child pair, so this never rejects a real chain link, only a coincidental one.
-            var rodPairs = new HashSet<(int, int)>();
-            var rodMultiplicity = new Dictionary<(int, int), int>();
-            // Every rod's own flRelaxationFactor, by pair - a suspender companion rod can be the same pair
-            // as an ordinary one but carries a DIFFERENT relaxation factor (see RootSuspenderValue), which
-            // rodMultiplicity alone (count only) cannot distinguish from an extra_iterations repeat.
-            var rodRelaxationsByPair = new Dictionary<(int, int), List<float>>();
-            foreach (var rod in Rods)
-            {
-                var pair = rod.NodeA < rod.NodeB ? (rod.NodeA, rod.NodeB) : (rod.NodeB, rod.NodeA);
-                rodPairs.Add(pair);
-                rodMultiplicity[pair] = rodMultiplicity.GetValueOrDefault(pair) + 1;
-                if (!rodRelaxationsByPair.TryGetValue(pair, out var relaxations))
-                {
-                    relaxations = [];
-                    rodRelaxationsByPair[pair] = relaxations;
-                }
-
-                relaxations.Add(rod.RelaxationFactor);
-            }
-
-            // Each real bone -> the auto-generated "$cc<bone>" proxy nodes parented straight to it (its
-            // ribbon width). Restricted to the "$cc" prefix (the ClothChain extrude proxies), NOT every
-            // "$"-node: a "$cloth_m" SHEET must not be mistaken for a chain's own width (would disturb
-            // meepo's jaket). Used below to keep a ribbon's position-driven TIP joint in the chain, and
-            // later to recover each chain's extrude width.
-            var proxyChildrenOf = new Dictionary<int, List<int>>();
-
-            // Old-era compiles ship m_SkelParents empty; there the ring's anchor bone still survives in
-            // m_CtrlOffsets (each generated ring vertex carries its bone-local anchor offset).
-            Dictionary<int, int>? ctrlOffsetParents = null;
-            if (!HasCompiledSkelParents && CtrlOffsets.Length > 0)
-            {
-                ctrlOffsetParents = new Dictionary<int, int>(CtrlOffsets.Length);
-                foreach (var off in CtrlOffsets)
-                {
-                    ctrlOffsetParents[off.CtrlChild] = off.CtrlParent;
-                }
-            }
-
-            for (var node = 0; node < n; node++)
-            {
-                // A strip's second column is generated too, but named after the bone it widens instead of
-                // carrying the "$cc" prefix, so it counts as ribbon width the same way.
-                if (!CtrlNames[node].StartsWith("$cc", StringComparison.Ordinal)
-                    && !(!IsProxyNodeName(CtrlNames[node]) && IsGeneratedNodeName(CtrlNames[node])))
-                {
-                    continue;
-                }
-
-                var pp = node < SkelParents.Length ? SkelParents[node] : -1;
-                if (pp < 0 && ctrlOffsetParents is not null)
-                {
-                    pp = ctrlOffsetParents.GetValueOrDefault(node, -1);
-                }
-                if (pp >= 0)
-                {
-                    if (!proxyChildrenOf.TryGetValue(pp, out var list))
-                    {
-                        proxyChildrenOf[pp] = list = [];
-                    }
-
-                    list.Add(node);
-                }
-            }
-
-            var ringOwnerOf = new Dictionary<int, int>();
-            foreach (var (owner, ring) in proxyChildrenOf)
-            {
-                foreach (var vertex in ring)
-                {
-                    ringOwnerOf[vertex] = owner;
-                }
-            }
+            var (rodPairs, rodMultiplicity, rodRelaxationsByPair) = BuildRodGraph();
+            var (proxyChildrenOf, ringOwnerOf) = BuildProxyRings();
 
             // Every chain link the compiler surfaces leaves one source element behind, and a joint with no
             // extrude ring of its own contributes its bare node to it: a ringless parent joined to a ringed
