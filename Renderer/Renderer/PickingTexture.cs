@@ -85,7 +85,7 @@ public class PickingTexture : Framebuffer
     /// <summary>Initializes the picking framebuffer, shaders, and subscribes to the pick event.</summary>
     /// <param name="rendererContext">Renderer context for loading shaders.</param>
     /// <param name="onPicked">Handler invoked when a pick result is available.</param>
-    public PickingTexture(RendererContext rendererContext, EventHandler<PickingResponse> onPicked) : base(rendererContext.Device, nameof(PickingTexture))
+    public PickingTexture(RendererContext rendererContext, EventHandler<PickingResponse> onPicked) : base(nameof(PickingTexture))
     {
         RendererContext = rendererContext;
         Shader = rendererContext.ShaderLoader.LoadShader("picking");
@@ -94,7 +94,7 @@ public class PickingTexture : Framebuffer
 
         ColorFormat = ImageFormat.RGBA32323232_UINT;
         DepthFormat = ImageFormat.D32;
-        Target = TextureTarget.Texture2D;
+        Target = TextureType.Texture2D;
         ClearColor = Color4.Black;
 
         Width = 4;

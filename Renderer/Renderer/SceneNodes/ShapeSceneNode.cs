@@ -110,7 +110,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         {
             indexCount = inds.Count;
 
-            var device = Scene.RendererContext.Device;
+            var device = GraphicsDevice.Current;
             var label = GetType().Name;
             var vboHandle = device.CreateBuffer(label);
             var iboHandle = device.CreateBuffer(label);
@@ -118,7 +118,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             GL.NamedBufferData(vboHandle, verts.Count * SimpleVertexNormal.InputLayout.Stride, ListAccessors<SimpleVertexNormal>.GetBackingArray(verts), BufferUsageHint.StaticDraw);
             GL.NamedBufferData(iboHandle, inds.Count * sizeof(int), ListAccessors<int>.GetBackingArray(inds), BufferUsageHint.StaticDraw);
 
-            vao = SimpleVertexNormal.InputLayout.CreateVertexArray(device, nameof(ShapeSceneNode), vboHandle, iboHandle);
+            vao = SimpleVertexNormal.InputLayout.CreateVertexArray(nameof(ShapeSceneNode), vboHandle, iboHandle);
         }
 
         /// <summary>Appends two triangles forming a quad face from four vertex indices.</summary>

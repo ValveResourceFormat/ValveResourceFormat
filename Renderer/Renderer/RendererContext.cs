@@ -1,3 +1,4 @@
+using System.Threading;
 using Microsoft.Extensions.Logging;
 using ValveResourceFormat.IO;
 
@@ -8,6 +9,8 @@ namespace ValveResourceFormat.Renderer;
 /// </summary>
 public class RendererContext : IDisposable
 {
+    private static int deviceCount;
+
     /// <summary>
     /// Logger for diagnostic messages.
     /// </summary>
@@ -19,9 +22,10 @@ public class RendererContext : IDisposable
     public GameFileLoader FileLoader { get; }
 
     /// <summary>
-    /// Creates GPU objects for this context.
+    /// Creates GPU objects for this context. Reached through <see cref="GraphicsDevice.Current"/>
+    /// at the point of use; this property is who owns it.
     /// </summary>
-    public GraphicsDevice Device { get; } = new();
+    public GraphicsDevice Device { get; }
 
     /// <summary>
     /// Material and texture loader and cache.
@@ -68,6 +72,7 @@ public class RendererContext : IDisposable
     {
         FileLoader = fileLoader;
         Logger = logger;
+        Device = GraphicsDevice.Create($"RendererContext{Interlocked.Increment(ref deviceCount)}");
 
         MaterialLoader = new MaterialLoader(this);
         ShaderLoader = new ShaderLoader(this);

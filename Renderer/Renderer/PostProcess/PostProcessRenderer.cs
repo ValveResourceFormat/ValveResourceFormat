@@ -174,7 +174,7 @@ namespace ValveResourceFormat.Renderer.PostProcess
             if (combinedLut == null || combinedLut.Width != dimensions)
             {
                 combinedLut?.Delete();
-                combinedLut = new RenderTexture(RendererContext.Device, TextureTarget.Texture3D, dimensions, dimensions, dimensions, 1, "CombinedColorCorrectionLUT");
+                combinedLut = new RenderTexture(TextureType.Texture3D, dimensions, dimensions, dimensions, 1, "CombinedColorCorrectionLUT");
                 combinedLut.SetWrapMode(TextureWrapMode.ClampToEdge);
                 combinedLut.SetFiltering(TextureMinFilter.Linear, TextureMagFilter.Linear);
                 GL.TextureStorage3D(combinedLut.Handle, 1, SizedInternalFormat.Rgba8, dimensions, dimensions, dimensions);

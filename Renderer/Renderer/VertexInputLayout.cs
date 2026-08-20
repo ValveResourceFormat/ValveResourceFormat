@@ -140,9 +140,9 @@ namespace ValveResourceFormat.Renderer
         public VBIB.RenderInputLayoutField[] Fields() => fields;
 
         /// <summary>Creates a VAO binding one vertex buffer. An index buffer of 0 means non-indexed.</summary>
-        public int CreateVertexArray(GraphicsDevice device, string debugLabel, int vertexBuffer, int indexBuffer = 0)
+        public int CreateVertexArray(string debugLabel, int vertexBuffer, int indexBuffer = 0)
         {
-            var vao = device.CreateVertexArray(debugLabel);
+            var vao = GraphicsDevice.Current.CreateVertexArray(debugLabel);
             VertexArray.StartRecording(vao, Array.ConvertAll(fields, field => field.ShaderSemantic));
 
             if (indexBuffer != 0)

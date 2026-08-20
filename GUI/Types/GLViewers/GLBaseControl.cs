@@ -771,7 +771,7 @@ internal abstract class GLBaseControl : IDisposable, IMessageFilter
         GLDefaultFramebuffer = Framebuffer.GLDefaultFramebuffer;
 
         // Framebuffer used to draw geometry
-        MainFramebuffer = Framebuffer.Prepare(RendererContext.Device, nameof(MainFramebuffer),
+        MainFramebuffer = Framebuffer.Prepare(nameof(MainFramebuffer),
             4, 4,
             NumSamples,
             ImageFormat.RGBA16161616F,
@@ -859,6 +859,8 @@ internal abstract class GLBaseControl : IDisposable, IMessageFilter
             return;
         }
 
+        RendererContext.Device.MakeCurrent();
+
         if (ShouldResize)
         {
             OnResize(GLNativeWindow.Size.X, GLNativeWindow.Size.Y);
@@ -891,6 +893,7 @@ internal abstract class GLBaseControl : IDisposable, IMessageFilter
 
         GLNativeWindow.Context.SwapBuffers();
 
+        GraphicsDevice.MakeNoneCurrent();
         GLNativeWindow.Context.MakeNoneCurrent();
 
         if (firstDraw)
@@ -911,7 +914,7 @@ internal abstract class GLBaseControl : IDisposable, IMessageFilter
             throw new InvalidOperationException("Cannot acquire GLLockScope without a valid GLNativeWindow.");
         }
 
-        return new GLLockScope(glLock, GLNativeWindow.Context);
+        return new GLLockScope(glLock, GLNativeWindow.Context, RendererContext.Device);
     }
 
     static bool loadedBindings;

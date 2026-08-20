@@ -107,15 +107,17 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
 
             Pass = material.IsTranslucent ? RenderPass.Translucent : RenderPass.Opaque;
 
-            vaoHandle = SetupBuffers(rendererContext.Device);
+            vaoHandle = SetupBuffers();
         }
 
-        private int SetupBuffers(GraphicsDevice device)
+        private int SetupBuffers()
         {
+            var device = GraphicsDevice.Current;
+
             vertexBufferHandle = device.CreateBuffer(nameof(RenderCables));
             indexBufferHandle = device.CreateBuffer(nameof(RenderCables));
 
-            return CableVertex.InputLayout.CreateVertexArray(device, nameof(RenderCables), vertexBufferHandle, indexBufferHandle);
+            return CableVertex.InputLayout.CreateVertexArray(nameof(RenderCables), vertexBufferHandle, indexBufferHandle);
         }
 
         public override void Render(ParticleCollection particles, ParticleSystemState systemState, Camera camera)

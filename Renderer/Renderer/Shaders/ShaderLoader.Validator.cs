@@ -20,6 +20,10 @@ namespace ValveResourceFormat.Renderer.Shaders
         public static void ValidateShaders(IProgress<string> progressReporter, ILogger logger, string? filter = null)
         {
             using var renderContext = new RendererContext(new ValveResourceFormat.IO.GameFileLoader(null, null), logger);
+
+            // The caller made its context current on this thread before calling in.
+            renderContext.Device.MakeCurrent();
+
             var loader = renderContext.ShaderLoader;
             var folder = ShaderParser.ShaderSourceDirectory
                 ?? throw new DirectoryNotFoundException("Shader validation requires the shader source files, but this build only has the embedded copies.");

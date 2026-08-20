@@ -52,13 +52,13 @@ namespace ValveResourceFormat.Renderer.SceneNodes
                 texture.SetWrapMode(TextureWrapMode.ClampToEdge);
             }
 
-            var device = Scene.RendererContext.Device;
+            var device = GraphicsDevice.Current;
             var label = $"{nameof(SpriteSceneNode)}: {System.IO.Path.GetFileName(resource.FileName)}";
             var vboHandle = device.CreateBuffer(label);
 
             GL.NamedBufferData(vboHandle, Vertices.Length * Vertex.InputLayout.Stride, Vertices, BufferUsageHint.StaticDraw);
 
-            vao = Vertex.InputLayout.CreateVertexArray(device, label, vboHandle);
+            vao = Vertex.InputLayout.CreateVertexArray(label, vboHandle);
 
             spriteSize = material.FloatParams.GetValueOrDefault("g_flUniformPointSize", 16);
             spriteSize /= 2f; // correct the scale to actually be 16x16

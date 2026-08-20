@@ -216,7 +216,7 @@ public class Renderer
     public Renderer(RendererContext rendererContext)
     {
         RendererContext = rendererContext;
-        PerfStats = new PerfStats(rendererContext.Device);
+        PerfStats = new PerfStats();
         Postprocess = new(rendererContext);
         LightTilesOverlay = new(rendererContext);
         Camera = new Camera(rendererContext.FieldOfView);
@@ -263,10 +263,10 @@ public class Renderer
     /// </summary>
     public void Initialize()
     {
-        ViewBuffer = new UniformBuffer<ViewConstants>(RendererContext.Device, ReservedBufferSlots.View);
+        ViewBuffer = new UniformBuffer<ViewConstants>(ReservedBufferSlots.View);
         Skybox2D = BaseBackground = new SceneBackground(Scene);
 
-        ShadowDepthBuffer = Framebuffer.Prepare(RendererContext.Device, nameof(ShadowDepthBuffer), ShadowTextureSize, ShadowTextureSize, 0, null, ImageFormat.D16);
+        ShadowDepthBuffer = Framebuffer.Prepare(nameof(ShadowDepthBuffer), ShadowTextureSize, ShadowTextureSize, 0, null, ImageFormat.D16);
         ShadowDepthBuffer.DepthLayers = WorldLightingInfo.SunCascadeCount;
         ShadowDepthBuffer.Initialize();
         ShadowDepthBuffer.ClearMask = ClearBufferMask.DepthBufferBit;
@@ -276,7 +276,7 @@ public class Renderer
         Textures.Add(new(ReservedTextureSlots.ShadowDepthBufferDepth, "g_tShadowDepthBufferDepth", ShadowDepthBuffer.Depth));
 
         // Barn light shadow atlas
-        BarnLightShadowBuffer = Framebuffer.Prepare(RendererContext.Device, nameof(BarnLightShadowBuffer), 4, 4, 0, null, ImageFormat.D16);
+        BarnLightShadowBuffer = Framebuffer.Prepare(nameof(BarnLightShadowBuffer), 4, 4, 0, null, ImageFormat.D16);
         BarnLightShadowBuffer.Initialize();
         BarnLightShadowBuffer.ClearMask = ClearBufferMask.DepthBufferBit;
         Debug.Assert(BarnLightShadowBuffer.Depth != null);
@@ -289,14 +289,14 @@ public class Renderer
         histogramShaders[0] = Scene.RendererContext.ShaderLoader.LoadShader("histogram");
         histogramShaders[1] = Scene.RendererContext.ShaderLoader.LoadShader("histogram", ("D_HISTOGRAM_MODE", 1));
 
-        histogramBuffers[0] = StorageBuffer.Allocate<uint>(RendererContext.Device, ReservedBufferSlots.BufferSlot2, "Histogram", 256, BufferUsageHint.DynamicCopy);
-        histogramBuffers[1] = StorageBuffer.Allocate<uint>(RendererContext.Device, ReservedBufferSlots.BufferSlot3, "HistogramReadback", 4, BufferUsageHint.DynamicRead);
+        histogramBuffers[0] = StorageBuffer.Allocate<uint>(ReservedBufferSlots.BufferSlot2, "Histogram", 256, BufferUsage.GpuOnly);
+        histogramBuffers[1] = StorageBuffer.Allocate<uint>(ReservedBufferSlots.BufferSlot3, "HistogramReadback", 4, BufferUsage.Readback);
 
-        ResolvedSceneColor = RenderTexture.Create(RendererContext.Device, 4, 4, ImageFormat.RGBA16161616F, nameof(ResolvedSceneColor));
+        ResolvedSceneColor = RenderTexture.Create(4, 4, ImageFormat.RGBA16161616F, nameof(ResolvedSceneColor));
         ResolvedSceneColor.SetFiltering(TextureMinFilter.Linear, TextureMagFilter.Linear);
         ResolvedSceneColor.SetWrapMode(TextureWrapMode.ClampToEdge);
 
-        ResolvedSceneDepth = RenderTexture.Create(RendererContext.Device, 4, 4, ImageFormat.R32F, nameof(ResolvedSceneDepth));
+        ResolvedSceneDepth = RenderTexture.Create(4, 4, ImageFormat.R32F, nameof(ResolvedSceneDepth));
 
         Textures.Add(new(ReservedTextureSlots.SceneColor, "g_tSceneColor", ResolvedSceneColor));
         Textures.Add(new(ReservedTextureSlots.SceneDepth, "g_tSceneDepth", ResolvedSceneDepth));
@@ -998,7 +998,7 @@ public class Renderer
 
         if (OutlineMaskBuffer == null)
         {
-            OutlineMaskBuffer = Framebuffer.Prepare(RendererContext.Device, nameof(OutlineMaskBuffer), width, height, msaa, OutlineMaskFormat, null);
+            OutlineMaskBuffer = Framebuffer.Prepare(nameof(OutlineMaskBuffer), width, height, msaa, OutlineMaskFormat, null);
             OutlineMaskBuffer.ClearMask = ClearBufferMask.ColorBufferBit;
             OutlineMaskBuffer.Initialize();
         }
@@ -1016,12 +1016,12 @@ public class Renderer
             ResolvedSceneColor.Height != height)
         {
             ResolvedSceneColor.Delete();
-            ResolvedSceneColor = RenderTexture.Create(RendererContext.Device, width, height, ImageFormat.RGBA16161616F, nameof(ResolvedSceneColor));
+            ResolvedSceneColor = RenderTexture.Create(width, height, ImageFormat.RGBA16161616F, nameof(ResolvedSceneColor));
             ResolvedSceneColor.SetFiltering(TextureMinFilter.Linear, TextureMagFilter.Linear);
             ResolvedSceneColor.SetWrapMode(TextureWrapMode.ClampToEdge);
 
             ResolvedSceneDepth!.Delete();
-            ResolvedSceneDepth = RenderTexture.Create(RendererContext.Device, width, height, ImageFormat.R32F, nameof(ResolvedSceneDepth));
+            ResolvedSceneDepth = RenderTexture.Create(width, height, ImageFormat.R32F, nameof(ResolvedSceneDepth));
 
             Textures.RemoveAll(static t => t.Slot == ReservedTextureSlots.SceneColor || t.Slot == ReservedTextureSlots.SceneDepth);
             Textures.Add(new(ReservedTextureSlots.SceneColor, "g_tSceneColor", ResolvedSceneColor));
@@ -1229,7 +1229,7 @@ public class Renderer
         // Mips needed to take the larger axis down to 1
         var maxMipLevel = (int)Math.Log2(Math.Max(targetWidth, targetHeight));
 
-        Scene.DepthPyramid = RenderTexture.Create(RendererContext.Device, targetWidth, targetHeight, ImageFormat.R32F, maxMipLevel + 1, "DepthPyramid");
+        Scene.DepthPyramid = RenderTexture.Create(targetWidth, targetHeight, ImageFormat.R32F, maxMipLevel + 1, "DepthPyramid");
         Scene.DepthPyramid.SetBaseMaxLevel(0, maxMipLevel);
     }
 }

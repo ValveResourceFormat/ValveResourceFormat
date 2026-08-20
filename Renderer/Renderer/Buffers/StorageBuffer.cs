@@ -13,68 +13,66 @@ namespace ValveResourceFormat.Renderer.Buffers
         private IntPtr PersistentPtr;
 
         /// <summary>Initializes a new storage buffer bound to the given reserved slot.</summary>
-        /// <param name="device">Device that creates the buffer object.</param>
         /// <param name="bindingPoint">The reserved slot to bind the buffer to.</param>
         /// <param name="name">Debug name for the buffer. Named explicitly because <see cref="ReservedBufferSlots"/>
         /// reuses its values between the uniform and storage namespaces, so a slot cannot name itself: the
         /// scratch slots have no meaningful name of their own, and the rest would report the uniform slot sharing
         /// their value.</param>
-        public StorageBuffer(GraphicsDevice device, ReservedBufferSlots bindingPoint, string name)
-            : base(device, BufferTarget.ShaderStorageBuffer, (int)bindingPoint, name)
+        public StorageBuffer(ReservedBufferSlots bindingPoint, string name)
+            : base(BufferType.Storage, (int)bindingPoint, name)
         {
         }
 
         /// <summary>Allocates a new storage buffer sized for the given number of elements.</summary>
         /// <remarks>
-        /// BufferUsageHint.DynamicRead creates a mapped buffer
+        /// <see cref="BufferUsage.Readback"/> creates a mapped buffer
         ///  </remarks>
         /// <typeparam name="T">The element type used to compute the total byte size.</typeparam>
-        /// <param name="device">Device that creates the buffer object.</param>
         /// <param name="bindingPoint">The reserved slot to bind the buffer to.</param>
-        /// <param name="name">Debug name for the buffer, see <see cref="StorageBuffer(GraphicsDevice, ReservedBufferSlots, string)"/>.</param>
+        /// <param name="name">Debug name for the buffer, see <see cref="StorageBuffer(ReservedBufferSlots, string)"/>.</param>
         /// <param name="elements">Number of elements to allocate space for.</param>
-        /// <param name="usage">The intended usage hint for the buffer.</param>
+        /// <param name="usage">Who writes the buffer and who reads it.</param>
         /// <returns>The newly allocated <see cref="StorageBuffer"/>.</returns>
-        public static StorageBuffer Allocate<T>(GraphicsDevice device, ReservedBufferSlots bindingPoint, string name, int elements, BufferUsageHint usage)
+        public static StorageBuffer Allocate<T>(ReservedBufferSlots bindingPoint, string name, int elements, BufferUsage usage)
         {
-            var buffer = new StorageBuffer(device, bindingPoint, name) { Size = elements * Unsafe.SizeOf<T>() };
-            if (usage == BufferUsageHint.DynamicRead)
+            var buffer = new StorageBuffer(bindingPoint, name) { Size = elements * Unsafe.SizeOf<T>() };
+            if (usage == BufferUsage.Readback)
             {
                 GL.NamedBufferStorage(buffer.Handle, buffer.Size, IntPtr.Zero, BufferStorageFlags.MapPersistentBit | BufferStorageFlags.MapReadBit | BufferStorageFlags.MapCoherentBit);
                 buffer.PersistentPtr = GL.MapNamedBuffer(buffer.Handle, BufferAccess.ReadOnly);
             }
             else
             {
-                GL.NamedBufferData(buffer.Handle, buffer.Size, IntPtr.Zero, usage);
+                GL.NamedBufferData(buffer.Handle, buffer.Size, IntPtr.Zero, usage.ToGLBufferUsageHint());
             }
             return buffer;
         }
 
         /// <summary>Uploads the contents of a list to this buffer, replacing any existing data.</summary>
         /// <param name="data">The source list to upload.</param>
-        /// <param name="usageHint">The intended usage pattern for the buffer.</param>
-        public void Create<T>(List<T> data, BufferUsageHint usageHint) where T : struct
+        /// <param name="usage">Who writes the buffer and who reads it.</param>
+        public void Create<T>(List<T> data, BufferUsage usage) where T : struct
         {
-            Create(ListAccessors<T>.GetBackingArray(data), data.Count * Unsafe.SizeOf<T>(), usageHint);
+            Create(ListAccessors<T>.GetBackingArray(data), data.Count * Unsafe.SizeOf<T>(), usage);
         }
 
         /// <summary>Uploads a typed array to this buffer with the given total byte size.</summary>
         /// <param name="data">The source array to upload.</param>
         /// <param name="totalSizeInBytes">Total number of bytes to upload from <paramref name="data"/>.</param>
-        /// <param name="usageHint">The intended usage pattern for the buffer.</param>
-        public void Create<T>(T[] data, int totalSizeInBytes, BufferUsageHint usageHint) where T : struct
+        /// <param name="usage">Who writes the buffer and who reads it.</param>
+        public void Create<T>(T[] data, int totalSizeInBytes, BufferUsage usage) where T : struct
         {
             Size = totalSizeInBytes;
-            GL.NamedBufferData(Handle, totalSizeInBytes, data, usageHint);
+            GL.NamedBufferData(Handle, totalSizeInBytes, data, usage.ToGLBufferUsageHint());
         }
 
-        /// <summary>Uploads a read-only span to this buffer using the specified usage hint.</summary>
+        /// <summary>Uploads a read-only span to this buffer.</summary>
         /// <param name="data">The source span to upload.</param>
-        /// <param name="usageHint">The intended usage pattern for the buffer.</param>
-        public void Create<T>(ReadOnlySpan<T> data, BufferUsageHint usageHint) where T : struct
+        /// <param name="usage">Who writes the buffer and who reads it.</param>
+        public void Create<T>(ReadOnlySpan<T> data, BufferUsage usage) where T : struct
         {
             Size = data.Length * Unsafe.SizeOf<T>();
-            GL.NamedBufferData(Handle, Size, ref Unsafe.As<T, byte>(ref MemoryMarshal.GetReference(data)), usageHint);
+            GL.NamedBufferData(Handle, Size, ref Unsafe.As<T, byte>(ref MemoryMarshal.GetReference(data)), usage.ToGLBufferUsageHint());
         }
 
         /// <summary>Updates a region of this buffer from a span.</summary>
@@ -98,7 +96,7 @@ namespace ValveResourceFormat.Renderer.Buffers
             {
                 if (offset == 0)
                 {
-                    Create(data, size, BufferUsageHint.DynamicDraw);
+                    Create(data, size, BufferUsage.Dynamic);
                     return;
                 }
 

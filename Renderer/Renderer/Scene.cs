@@ -480,10 +480,10 @@ namespace ValveResourceFormat.Renderer
         /// <summary>Allocates GPU uniform and storage buffers for lighting, environment maps, light probes, frustum planes, and indirect draws.</summary>
         public void CreateBuffers()
         {
-            lightingBuffer ??= new(RendererContext.Device, ReservedBufferSlots.Lighting);
-            envMapBuffer ??= new(RendererContext.Device, ReservedBufferSlots.EnvironmentMap);
-            lpvBuffer ??= new(RendererContext.Device, ReservedBufferSlots.LightProbe);
-            frustumBuffer ??= new(RendererContext.Device, ReservedBufferSlots.FrustumPlanes);
+            lightingBuffer ??= new(ReservedBufferSlots.Lighting);
+            envMapBuffer ??= new(ReservedBufferSlots.EnvironmentMap);
+            lpvBuffer ??= new(ReservedBufferSlots.LightProbe);
+            frustumBuffer ??= new(ReservedBufferSlots.FrustumPlanes);
 
             lightingBuffer.Data = LightingInfo.LightingData;
 
@@ -583,20 +583,20 @@ namespace ValveResourceFormat.Renderer
                 };
             }
 
-            InstanceBufferGpu = new StorageBuffer(RendererContext.Device, ReservedBufferSlots.Objects, nameof(ReservedBufferSlots.Objects));
-            TransformBufferGpu = new StorageBuffer(RendererContext.Device, ReservedBufferSlots.Transforms, nameof(ReservedBufferSlots.Transforms));
+            InstanceBufferGpu = new StorageBuffer(ReservedBufferSlots.Objects, nameof(ReservedBufferSlots.Objects));
+            TransformBufferGpu = new StorageBuffer(ReservedBufferSlots.Transforms, nameof(ReservedBufferSlots.Transforms));
 
-            InstanceBufferGpu.Create(instanceData, BufferUsageHint.StaticDraw);
-            TransformBufferGpu.Create(CollectionsMarshal.AsSpan(transformData), BufferUsageHint.StaticDraw);
+            InstanceBufferGpu.Create(instanceData, BufferUsage.Static);
+            TransformBufferGpu.Create(CollectionsMarshal.AsSpan(transformData), BufferUsage.Static);
 
             activeLodBits = new uint[Math.Max(1, lodSetupCount)];
             Array.Fill(activeLodBits, 1u);
 
-            ObjectLodGpu = new StorageBuffer(RendererContext.Device, ReservedBufferSlots.BufferSlot2, "ObjectLod");
-            ActiveLodBitsGpu = new StorageBuffer(RendererContext.Device, ReservedBufferSlots.BufferSlot3, "ActiveLodBits");
+            ObjectLodGpu = new StorageBuffer(ReservedBufferSlots.BufferSlot2, "ObjectLod");
+            ActiveLodBitsGpu = new StorageBuffer(ReservedBufferSlots.BufferSlot3, "ActiveLodBits");
 
-            ObjectLodGpu.Create(lodData, BufferUsageHint.StaticDraw);
-            ActiveLodBitsGpu.Create(activeLodBits, BufferUsageHint.DynamicDraw);
+            ObjectLodGpu.Create(lodData, BufferUsage.Static);
+            ActiveLodBitsGpu.Create(activeLodBits, BufferUsage.Dynamic);
 
             instanceDataCpu = instanceData;
         }
@@ -667,8 +667,8 @@ namespace ValveResourceFormat.Renderer
                     }
                 }
 
-                DrawBoundsGpu = new StorageBuffer(RendererContext.Device, ReservedBufferSlots.AggregateDrawBounds, nameof(ReservedBufferSlots.AggregateDrawBounds));
-                DrawBoundsGpu.Create(drawBounds, BufferUsageHint.StaticDraw);
+                DrawBoundsGpu = new StorageBuffer(ReservedBufferSlots.AggregateDrawBounds, nameof(ReservedBufferSlots.AggregateDrawBounds));
+                DrawBoundsGpu.Create(drawBounds, BufferUsage.Static);
             }
 
             // meshlets
@@ -766,18 +766,18 @@ namespace ValveResourceFormat.Renderer
 
                 SceneMeshletCount = sceneCommandCount;
 
-                CommandMeshletsGpu = new StorageBuffer(RendererContext.Device, ReservedBufferSlots.AggregateCommandMeshlets, nameof(ReservedBufferSlots.AggregateCommandMeshlets));
-                CommandMeshletsGpu.Create(commandMeshlets, BufferUsageHint.StaticDraw);
+                CommandMeshletsGpu = new StorageBuffer(ReservedBufferSlots.AggregateCommandMeshlets, nameof(ReservedBufferSlots.AggregateCommandMeshlets));
+                CommandMeshletsGpu.Create(commandMeshlets, BufferUsage.Static);
 
-                MeshletDataGpu = new StorageBuffer(RendererContext.Device, ReservedBufferSlots.AggregateMeshlets, nameof(ReservedBufferSlots.AggregateMeshlets));
-                IndirectDrawsGpu = new StorageBuffer(RendererContext.Device, ReservedBufferSlots.AggregateDraws, nameof(ReservedBufferSlots.AggregateDraws));
+                MeshletDataGpu = new StorageBuffer(ReservedBufferSlots.AggregateMeshlets, nameof(ReservedBufferSlots.AggregateMeshlets));
+                IndirectDrawsGpu = new StorageBuffer(ReservedBufferSlots.AggregateDraws, nameof(ReservedBufferSlots.AggregateDraws));
 
-                MeshletDataGpu.Create(meshletDataGpu, BufferUsageHint.StaticDraw);
-                IndirectDrawsGpu.Create(indirectDrawsGpu, BufferUsageHint.DynamicCopy);
+                MeshletDataGpu.Create(meshletDataGpu, BufferUsage.Static);
+                IndirectDrawsGpu.Create(indirectDrawsGpu, BufferUsage.GpuOnly);
 
                 // Create compaction buffers
-                CompactedDrawsGpu = new StorageBuffer(RendererContext.Device, ReservedBufferSlots.CompactedDraws, nameof(ReservedBufferSlots.CompactedDraws));
-                CompactedDrawsGpu.Create(indirectDrawsGpu, BufferUsageHint.DynamicCopy);
+                CompactedDrawsGpu = new StorageBuffer(ReservedBufferSlots.CompactedDraws, nameof(ReservedBufferSlots.CompactedDraws));
+                CompactedDrawsGpu.Create(indirectDrawsGpu, BufferUsage.GpuOnly);
 
                 var compactedCounts = new uint[compactionRequestList.Count / 2];
 
@@ -786,11 +786,11 @@ namespace ValveResourceFormat.Renderer
                     compactedCounts[request] = compactionRequestList[request * 2];
                 }
 
-                CompactedCountsGpu = new StorageBuffer(RendererContext.Device, ReservedBufferSlots.CompactedCounts, nameof(ReservedBufferSlots.CompactedCounts));
-                CompactedCountsGpu.Create(compactedCounts, BufferUsageHint.DynamicCopy);
+                CompactedCountsGpu = new StorageBuffer(ReservedBufferSlots.CompactedCounts, nameof(ReservedBufferSlots.CompactedCounts));
+                CompactedCountsGpu.Create(compactedCounts, BufferUsage.GpuOnly);
 
-                CompactionRequestsGpu = new StorageBuffer(RendererContext.Device, ReservedBufferSlots.BufferSlot2, "CompactionRequests");
-                CompactionRequestsGpu.Create(compactionRequestList, BufferUsageHint.StaticDraw);
+                CompactionRequestsGpu = new StorageBuffer(ReservedBufferSlots.BufferSlot2, "CompactionRequests");
+                CompactionRequestsGpu.Create(compactionRequestList, BufferUsage.Static);
             }
 
             OcclusionDebug = new OcclusionDebugRenderer(this, RendererContext);

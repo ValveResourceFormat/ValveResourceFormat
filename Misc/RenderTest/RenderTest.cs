@@ -92,6 +92,9 @@ internal class RenderTestWindow : GameWindow
     {
         base.OnLoad();
 
+        // GameWindow keeps its context current on this thread, so the device stays current with it.
+        rendererContext.Device.MakeCurrent();
+
         GLEnvironment.Initialize(rendererContext.Logger);
         GLEnvironment.SetDefaultRenderState(rendererContext);
 
@@ -275,7 +278,7 @@ internal class RenderTestWindow : GameWindow
         textRenderer.Load();
 
         // Create framebuffer for rendering
-        framebuffer = Framebuffer.Prepare(rendererContext.Device, "MainFramebuffer", 4, 4, 4,
+        framebuffer = Framebuffer.Prepare("MainFramebuffer", 4, 4, 4,
             ImageFormat.RGBA16161616F,
             ImageFormat.D32);
         framebuffer.Initialize();

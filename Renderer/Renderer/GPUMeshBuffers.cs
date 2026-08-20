@@ -16,11 +16,12 @@ namespace ValveResourceFormat.Renderer
         public int[] IndexBuffers { get; private set; }
 
         /// <summary>Uploads all vertex and index buffers from the provided <see cref="VBIB"/> to the GPU.</summary>
-        /// <param name="device">Device that creates the buffer objects.</param>
         /// <param name="vbib">Source vertex and index buffer data.</param>
         /// <param name="name">Mesh name used to label the buffers.</param>
-        public GPUMeshBuffers(GraphicsDevice device, VBIB vbib, string name)
+        public GPUMeshBuffers(VBIB vbib, string name)
         {
+            var device = GraphicsDevice.Current;
+
             VertexBuffers = new int[vbib.VertexBuffers.Count];
 
             for (var i = 0; i < vbib.VertexBuffers.Count; i++)

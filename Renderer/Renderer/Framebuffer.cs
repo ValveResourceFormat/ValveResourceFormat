@@ -41,9 +41,9 @@ public class Framebuffer
     public int NumSamples { get; set; }
 
     /// <summary>
-    /// Texture target used for attachments (<see cref="TextureTarget.Texture2D"/> or <see cref="TextureTarget.Texture2DMultisample"/>).
+    /// Texture type used for attachments (<see cref="TextureType.Texture2D"/> or <see cref="TextureType.Texture2DMultisample"/>).
     /// </summary>
-    public TextureTarget Target { get; protected set; }
+    public TextureType Target { get; protected set; }
 
     /// <summary>
     /// Color attachment texture, or <see langword="null"/> if none.
@@ -120,20 +120,16 @@ public class Framebuffer
     /// </summary>
     public string Name { get; }
 
-    // Null for the default framebuffer, which neither gets created nor owns attachments.
-    private readonly GraphicsDevice? device;
-
-    private GraphicsDevice Device => device ?? throw new InvalidOperationException("The default framebuffer has no attachments to create.");
+    // The default framebuffer is owned by the window rather than created here, and has no attachments of its own.
+    private readonly bool isDefaultFramebuffer;
 
     /// <summary>
-    /// Creates a new named OpenGL framebuffer object.
+    /// Creates a new named OpenGL framebuffer object on the device current on the calling thread.
     /// </summary>
-    /// <param name="device">Device that creates the framebuffer object and its attachments.</param>
     /// <param name="name">Debug label applied to the framebuffer object.</param>
-    public Framebuffer(GraphicsDevice device, string name)
+    public Framebuffer(string name)
     {
-        this.device = device;
-        FboHandle = device.CreateFramebuffer(name);
+        FboHandle = GraphicsDevice.Current.CreateFramebuffer(name);
         Name = name;
     }
 
@@ -143,6 +139,7 @@ public class Framebuffer
         FboHandle = fboHandle;
         InitialStatus = FramebufferErrorCode.FramebufferComplete;
         Name = "GLDefaultFramebuffer";
+        isDefaultFramebuffer = true;
     }
     /// <summary>
     /// Creates a <see cref="Framebuffer"/> instance wrapping the default OpenGL framebuffer (handle 0).
@@ -178,16 +175,15 @@ public class Framebuffer
     /// <summary>
     /// Creates and configures a framebuffer without allocating GPU attachments; call <see cref="Initialize"/> to allocate.
     /// </summary>
-    /// <param name="device">Device that creates the framebuffer object and its attachments.</param>
     /// <param name="name">Debug label for the framebuffer.</param>
     /// <param name="width">Width in pixels.</param>
     /// <param name="height">Height in pixels.</param>
     /// <param name="msaa">Number of MSAA samples; 0 disables multisampling.</param>
     /// <param name="colorFormat">Color attachment format, or <see langword="null"/> for depth-only.</param>
     /// <param name="depthFormat">Depth attachment format, or <see langword="null"/> for color-only.</param>
-    public static Framebuffer Prepare(GraphicsDevice device, string name, int width, int height, int msaa, ImageFormat? colorFormat, ImageFormat? depthFormat)
+    public static Framebuffer Prepare(string name, int width, int height, int msaa, ImageFormat? colorFormat, ImageFormat? depthFormat)
     {
-        var fbo = new Framebuffer(device, name)
+        var fbo = new Framebuffer(name)
         {
             NumSamples = msaa,
             Target = TargetForSampleCount(msaa),
@@ -205,11 +201,6 @@ public class Framebuffer
     /// </summary>
     public void Initialize()
     {
-        if (Target == 0)
-        {
-            throw new InvalidOperationException("Framebuffer target is not set");
-        }
-
         if (ColorFormat == null && DepthFormat == null)
         {
             throw new InvalidOperationException("Framebuffer has no attachments");
@@ -276,11 +267,16 @@ public class Framebuffer
         return true;
     }
 
-    private static TextureTarget TargetForSampleCount(int numSamples)
-        => numSamples > 0 ? TextureTarget.Texture2DMultisample : TextureTarget.Texture2D;
+    private static TextureType TargetForSampleCount(int numSamples)
+        => numSamples > 0 ? TextureType.Texture2DMultisample : TextureType.Texture2D;
 
     private void CreateAttachments()
     {
+        if (isDefaultFramebuffer)
+        {
+            throw new InvalidOperationException("The default framebuffer has no attachments to create.");
+        }
+
         Color?.Delete();
         Depth?.Delete();
 
@@ -300,12 +296,12 @@ public class Framebuffer
         {
             if (DepthLayers > 1)
             {
-                if (Target != TextureTarget.Texture2D)
+                if (Target != TextureType.Texture2D)
                 {
                     throw new InvalidOperationException("Layered depth attachments do not support multisampling");
                 }
 
-                Depth = new RenderTexture(Device, TextureTarget.Texture2DArray, width, height, DepthLayers, 1, $"{Name}Depth");
+                Depth = new RenderTexture(TextureType.Texture2DArray, width, height, DepthLayers, 1, $"{Name}Depth");
                 GL.TextureStorage3D(Depth.Handle, 1, depthFormat.ToGLSizedInternalFormat(), width, height, DepthLayers);
                 AttachDepthLayer(0);
             }
@@ -328,10 +324,10 @@ public class Framebuffer
 
     private RenderTexture CreateAttachment(ImageFormat format, int width, int height, string label, int numMips = 1)
     {
-        var attachment = new RenderTexture(Device, Target, width, height, 1, numMips, label);
+        var attachment = new RenderTexture(Target, width, height, 1, numMips, label);
         var mipCount = Math.Min(RenderTexture.MaxMipCount(width, height), attachment.NumMipLevels);
 
-        if (Target == TextureTarget.Texture2DMultisample)
+        if (Target == TextureType.Texture2DMultisample)
         {
             if (mipCount > 1)
             {
@@ -347,7 +343,7 @@ public class Framebuffer
 
         attachment.SetBaseMaxLevel(0, mipCount - 1);
 
-        if (Target != TextureTarget.Texture2DMultisample && !format.IsBlockCompressed() && IsIntegerFormat(format.ToGLPixelFormat()))
+        if (Target != TextureType.Texture2DMultisample && !format.IsBlockCompressed() && IsIntegerFormat(format.ToGLPixelFormat()))
         {
             // Sampling an integer texture with the default linear filtering is undefined.
             attachment.SetFiltering(TextureMinFilter.Nearest, TextureMagFilter.Nearest);
@@ -467,7 +463,7 @@ public class Framebuffer
 
     private void ApplyColorSamplerState()
     {
-        if (Color == null || Target == TextureTarget.Texture2DMultisample)
+        if (Color == null || Target == TextureType.Texture2DMultisample)
         {
             return;
         }

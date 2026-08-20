@@ -122,9 +122,9 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
 
         private int SetupQuadBuffer(string label)
         {
-            vertexBufferHandle = rendererContext.Device.CreateBuffer(label);
+            vertexBufferHandle = GraphicsDevice.Current.CreateBuffer(label);
 
-            return SpritecardVertex.InputLayout.CreateVertexArray(rendererContext.Device, label, vertexBufferHandle, rendererContext.MeshBufferCache.QuadIndices.GLHandle);
+            return SpritecardVertex.InputLayout.CreateVertexArray(label, vertexBufferHandle, rendererContext.MeshBufferCache.QuadIndices.GLHandle);
         }
 
         private (Vector2 UvMin, Vector2 UvMax, Vector2 NextMin, Vector2 NextMax) GetLayerSheetUvs(int layer, ref Particle particle, out float frameBlend)

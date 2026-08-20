@@ -61,6 +61,7 @@ internal abstract class ThumbnailRenderer : IDisposable
         RendererContext = new RendererContext(context, VrfGuiContext.Logger);
 
         NativeWindow.MakeCurrent();
+        RendererContext.Device.MakeCurrent();
 
         GLEnvironment.Initialize(RendererContext.Logger);
         GLEnvironment.SetDefaultRenderState(RendererContext);
@@ -77,7 +78,7 @@ internal abstract class ThumbnailRenderer : IDisposable
 
         SceneRenderer.Postprocess.Load(4);
 
-        framebuffer = Framebuffer.Prepare(RendererContext.Device, "MainFramebuffer", 4, 4, 4,
+        framebuffer = Framebuffer.Prepare("MainFramebuffer", 4, 4, 4,
             ImageFormat.RGBA16161616F,
             ImageFormat.D16);
         framebuffer.Initialize();

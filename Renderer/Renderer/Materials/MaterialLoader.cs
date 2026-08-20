@@ -249,7 +249,7 @@ namespace ValveResourceFormat.Renderer.Materials
                 return sampler;
             }
 
-            sampler = RendererContext.Device.CreateSampler($"Sampler{addressModeU}{addressModeV}");
+            sampler = GraphicsDevice.Current.CreateSampler($"Sampler{addressModeU}{addressModeV}");
 
             GL.SamplerParameter(sampler, SamplerParameterName.TextureWrapS, (int)MapAddressMode(addressModeU));
             GL.SamplerParameter(sampler, SamplerParameterName.TextureWrapT, (int)MapAddressMode(addressModeV));
@@ -303,7 +303,7 @@ namespace ValveResourceFormat.Renderer.Materials
                 return LoadBitmapTexture(bitmap);
             }
 
-            var target = TextureTarget.Texture2D;
+            var target = TextureType.Texture2D;
             var is3d = false;
             var clampModeS = (data.Flags & VTexFlags.SUGGEST_CLAMPS) != 0 ? TextureWrapMode.ClampToBorder : TextureWrapMode.Repeat;
             var clampModeT = (data.Flags & VTexFlags.SUGGEST_CLAMPT) != 0 ? TextureWrapMode.ClampToBorder : TextureWrapMode.Repeat;
@@ -312,7 +312,7 @@ namespace ValveResourceFormat.Renderer.Materials
             if ((data.Flags & VTexFlags.CUBE_TEXTURE) != 0)
             {
                 is3d = true;
-                target = (data.Flags & VTexFlags.TEXTURE_ARRAY) != 0 ? TextureTarget.TextureCubeMapArray : TextureTarget.TextureCubeMap;
+                target = (data.Flags & VTexFlags.TEXTURE_ARRAY) != 0 ? TextureType.TextureCubeArray : TextureType.TextureCube;
                 clampModeS = TextureWrapMode.ClampToEdge;
                 clampModeT = TextureWrapMode.ClampToEdge;
                 clampModeU = TextureWrapMode.ClampToEdge;
@@ -320,16 +320,16 @@ namespace ValveResourceFormat.Renderer.Materials
             else if ((data.Flags & (VTexFlags.TEXTURE_ARRAY | VTexFlags.VOLUME_TEXTURE)) != 0)
             {
                 is3d = true;
-                target = (data.Flags & VTexFlags.VOLUME_TEXTURE) != 0 ? TextureTarget.Texture3D : TextureTarget.Texture2DArray;
+                target = (data.Flags & VTexFlags.VOLUME_TEXTURE) != 0 ? TextureType.Texture3D : TextureType.Texture2DArray;
             }
 
-            var tex = new RenderTexture(RendererContext.Device, target, data, System.IO.Path.GetFileName(textureResource.FileName) ?? "UnnamedTexture");
+            var tex = new RenderTexture(target, data, System.IO.Path.GetFileName(textureResource.FileName) ?? "UnnamedTexture");
             var format = GetTextureFormat(data.Format);
             var srgb = srgbRead && format.HasSrgbVariant();
 
             // todo: BC7 and BC6H are also problematic on pre-RDNA AMD GPUs, when using immutable storage
             // see https://github.com/ValveResourceFormat/ValveResourceFormat/issues/721
-            var rgba8UncompressedFallback = target == TextureTarget.Texture3D && IsOpenGLUnsupportedTexture3DFormat(data.Format);
+            var rgba8UncompressedFallback = target == TextureType.Texture3D && IsOpenGLUnsupportedTexture3DFormat(data.Format);
 
             if (rgba8UncompressedFallback)
             {
@@ -340,7 +340,7 @@ namespace ValveResourceFormat.Renderer.Materials
 
             var texDepth = data.Depth;
 
-            if (target == TextureTarget.TextureCubeMap || target == TextureTarget.TextureCubeMapArray)
+            if (target == TextureType.TextureCube || target == TextureType.TextureCubeArray)
             {
                 texDepth *= 6;
             }
@@ -362,7 +362,7 @@ namespace ValveResourceFormat.Renderer.Materials
                 }
             }
 
-            if (is3d && target != TextureTarget.TextureCubeMap)
+            if (is3d && target != TextureType.TextureCube)
             {
                 GL.TextureStorage3D(tex.Handle, data.NumMipLevels - minMipLevelAllowed, sizedInternalFormat, texWidth, texHeight, texDepth);
             }
@@ -562,7 +562,7 @@ namespace ValveResourceFormat.Renderer.Materials
             return ErrorTexture;
         }
 
-        private RenderTexture CreateSolidTexture(byte r, byte g, byte b) => GenerateColorTexture(1, 1, [r, g, b]);
+        private static RenderTexture CreateSolidTexture(byte r, byte g, byte b) => GenerateColorTexture(1, 1, [r, g, b]);
         /// <summary>Returns a lazily created 1×1 flat normal map texture (127, 127, 255).</summary>
         public RenderTexture GetDefaultNormal() => DefaultNormal ??= CreateSolidTexture(127, 127, 255);
 
@@ -579,7 +579,7 @@ namespace ValveResourceFormat.Renderer.Materials
         {
             if (DefaultVolume == null)
             {
-                DefaultVolume = new RenderTexture(RendererContext.Device, TextureTarget.Texture3D, 1, 1, 1, 1, "DefaultVolume");
+                DefaultVolume = new RenderTexture(TextureType.Texture3D, 1, 1, 1, 1, "DefaultVolume");
                 DefaultVolume.SetFiltering(TextureMinFilter.Nearest, TextureMagFilter.Nearest);
                 DefaultVolume.SetWrapMode(TextureWrapMode.ClampToEdge);
 
@@ -599,9 +599,9 @@ namespace ValveResourceFormat.Renderer.Materials
 
         /// <summary>Uploads an <see cref="SKBitmap"/> as a 2D texture and returns the resulting <see cref="RenderTexture"/>.</summary>
         /// <param name="bitmap">The bitmap whose pixels are uploaded to the GPU.</param>
-        public RenderTexture LoadBitmapTexture(SKBitmap bitmap)
+        public static RenderTexture LoadBitmapTexture(SKBitmap bitmap)
         {
-            var texture = new RenderTexture(RendererContext.Device, TextureTarget.Texture2D, bitmap.Width, bitmap.Height, 1, 1, "BitmapTexture");
+            var texture = new RenderTexture(TextureType.Texture2D, bitmap.Width, bitmap.Height, 1, 1, "BitmapTexture");
 
             var format = bitmap.ColorType switch
             {
@@ -636,7 +636,7 @@ namespace ValveResourceFormat.Renderer.Materials
         /// Builds a one-dimensional colour ramp from a list of gradient stops.
         /// </summary>
         /// <param name="stops">Gradient stops, each a position in 0-1 and its colour. Need not be sorted.</param>
-        public RenderTexture GenerateGradientTexture(ReadOnlySpan<(float Position, Color32 Color)> stops)
+        public static RenderTexture GenerateGradientTexture(ReadOnlySpan<(float Position, Color32 Color)> stops)
         {
             const int Width = 256;
 
@@ -653,7 +653,7 @@ namespace ValveResourceFormat.Renderer.Materials
                 texels[(x * 4) + 3] = color.A;
             }
 
-            var texture = new RenderTexture(RendererContext.Device, TextureTarget.Texture2D, Width, 1, 1, 1, "GeneratedGradient");
+            var texture = new RenderTexture(TextureType.Texture2D, Width, 1, 1, 1, "GeneratedGradient");
 
             // Clamped and filtered: the ramp is addressed by a luminance, so the ends have to hold rather
             // than wrap, and the steps between stops should not be visible.
@@ -716,13 +716,13 @@ namespace ValveResourceFormat.Renderer.Materials
                 (byte)float.Round(float.Lerp(lower.Color.A, upper.Color.A, t)));
         }
 
-        private RenderTexture GenerateColorTexture(int width, int height, byte[] color)
+        private static RenderTexture GenerateColorTexture(int width, int height, byte[] color)
         {
             // Full mip chain, because materials may bind a mipmap filtering sampler over this
             // texture, and an incomplete mip chain would then sample as if nothing was bound
             var levels = 1 + BitOperations.Log2((uint)Math.Max(width, height));
 
-            var texture = new RenderTexture(RendererContext.Device, TextureTarget.Texture2D, width, height, 1, levels, width > 1 ? "ErrorTexture" : "ColorTexture");
+            var texture = new RenderTexture(TextureType.Texture2D, width, height, 1, levels, width > 1 ? "ErrorTexture" : "ColorTexture");
             texture.SetFiltering(TextureMinFilter.Nearest, TextureMagFilter.Nearest);
             texture.SetWrapMode(TextureWrapMode.Repeat);
 

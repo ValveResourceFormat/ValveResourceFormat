@@ -27,20 +27,6 @@ public class Timings
 
     private const int NameColumnWidth = 40;
 
-    // Null only for the collector that stands in before a renderer marks its first frame, which never captures.
-    private readonly GraphicsDevice? device;
-
-    /// <summary>Initializes timings whose GPU queries come from the given device.</summary>
-    /// <param name="device">Device that creates the timestamp queries.</param>
-    public Timings(GraphicsDevice device)
-    {
-        this.device = device;
-    }
-
-    internal Timings()
-    {
-    }
-
     /// <summary>Gets or sets whether timing data is actively collected this frame.</summary>
     public bool Capture { get; set; }
 
@@ -87,12 +73,12 @@ public class Timings
         var endQueryId = 0;
         if (!gpuStartQueries.TryGetValue(currentIndex, out var startQueryId))
         {
-            var queryDevice = device ?? throw new InvalidOperationException("GPU timings need a graphics device to create their queries.");
+            var queryDevice = GraphicsDevice.Current;
 
-            startQueryId = queryDevice.CreateQuery(QueryTarget.Timestamp, "GpuTimingStart");
+            startQueryId = queryDevice.CreateQuery(QueryType.Timestamp, "GpuTimingStart");
             gpuStartQueries[currentIndex] = startQueryId;
 
-            endQueryId = queryDevice.CreateQuery(QueryTarget.Timestamp, "GpuTimingEnd");
+            endQueryId = queryDevice.CreateQuery(QueryType.Timestamp, "GpuTimingEnd");
             gpuEndQueries[currentIndex] = endQueryId;
 
             Debug.Assert(startQueryId != 0 && endQueryId != 0, "Failed to generate GPU query objects.");

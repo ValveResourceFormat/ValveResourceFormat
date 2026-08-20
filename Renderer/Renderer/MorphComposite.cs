@@ -71,9 +71,9 @@ namespace ValveResourceFormat.Renderer
             var height = morph.Data.GetInt32Property("m_nHeight");
             var label = $"{nameof(MorphComposite)}: {System.IO.Path.GetFileName(morph.TextureResource.FileName)}";
 
-            CompositeTexture = new(renderContext.Device, TextureTarget.Texture2D, width * 2, height, 1, 1, label);
+            CompositeTexture = new(TextureType.Texture2D, width * 2, height, 1, 1, label);
 
-            frameBuffer = renderContext.Device.CreateFramebuffer(label);
+            frameBuffer = GraphicsDevice.Current.CreateFramebuffer(label);
 
             InitVertexBuffer(renderContext, label);
 
@@ -156,8 +156,8 @@ namespace ValveResourceFormat.Renderer
 
         private void InitVertexBuffer(RendererContext renderContext, string label)
         {
-            bufferHandle = renderContext.Device.CreateBuffer(label);
-            vao = MorphRectVertex.InputLayout.CreateVertexArray(renderContext.Device, label, bufferHandle, renderContext.MeshBufferCache.QuadIndices.GLHandle);
+            bufferHandle = GraphicsDevice.Current.CreateBuffer(label);
+            vao = MorphRectVertex.InputLayout.CreateVertexArray(label, bufferHandle, renderContext.MeshBufferCache.QuadIndices.GLHandle);
         }
 
         [MemberNotNull(nameof(allVertices), nameof(usedVertices), nameof(morphRects))]

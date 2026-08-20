@@ -46,13 +46,13 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             clusterDrawRanges = [.. ranges];
             totalVertexCount = vertices.Count;
 
-            var device = Scene.RendererContext.Device;
+            var device = GraphicsDevice.Current;
             var vboHandle = device.CreateBuffer(nameof(VisibilitySceneNode));
 
             GL.NamedBufferData(vboHandle, totalVertexCount * SimpleVertex.InputLayout.Stride,
                 ListAccessors<SimpleVertex>.GetBackingArray(vertices), BufferUsageHint.StaticDraw);
 
-            vao = SimpleVertex.InputLayout.CreateVertexArray(device, nameof(VisibilitySceneNode), vboHandle);
+            vao = SimpleVertex.InputLayout.CreateVertexArray(nameof(VisibilitySceneNode), vboHandle);
 
             LocalBoundingBox = new AABB(voxelVisibility.MinBounds, voxelVisibility.MaxBounds);
         }

@@ -33,9 +33,8 @@ internal sealed class ReadbackRing : IDisposable
     public int InFlight => inFlight;
 
     /// <summary>Allocates the ring's mapped slots, each holding up to <paramref name="capacityWords"/> uints.</summary>
-    /// <param name="device">Device that creates the slot buffers.</param>
     /// <param name="capacityWords">Uints each slot can hold.</param>
-    public ReadbackRing(GraphicsDevice device, int capacityWords)
+    public ReadbackRing(int capacityWords)
     {
         Debug.Assert(capacityWords > 0);
 
@@ -50,6 +49,8 @@ internal sealed class ReadbackRing : IDisposable
         const BufferAccessMask access = BufferAccessMask.MapReadBit
             | BufferAccessMask.MapPersistentBit
             | BufferAccessMask.MapCoherentBit;
+
+        var device = GraphicsDevice.Current;
 
         for (var i = 0; i < Depth; i++)
         {

@@ -65,13 +65,10 @@ public class PerfStats
     public bool Capture { get; set; }
 
     /// <summary>Gets the CPU and GPU timings for the same frame. Captured independently of <see cref="Capture"/>.</summary>
-    public Timings Timings { get; }
+    public Timings Timings { get; } = new();
 
     /// <summary>Gets the managed allocation and GC statistics for the same frame. Captured independently of <see cref="Capture"/>.</summary>
     public AllocStats Allocations { get; } = new();
-
-    // Null only for the initial Active collector, which counts nothing until a renderer marks a frame and replaces it.
-    private readonly GraphicsDevice? device;
 
     // Debug groups opened outside a marked frame are not timed.
     private bool timingFrame;
@@ -84,17 +81,8 @@ public class PerfStats
     private int owningThreadId;
 
     /// <summary>Initializes a new <see cref="PerfStats"/> owned by the current thread until a frame is marked.</summary>
-    /// <param name="device">Device that creates the GPU queries behind the triangle counts and timings.</param>
-    public PerfStats(GraphicsDevice device)
+    public PerfStats()
     {
-        this.device = device;
-        Timings = new Timings(device);
-        owningThreadId = Environment.CurrentManagedThreadId;
-    }
-
-    private PerfStats()
-    {
-        Timings = new Timings();
         owningThreadId = Environment.CurrentManagedThreadId;
     }
 
@@ -198,9 +186,7 @@ public class PerfStats
 
         if (frame.SegmentsUsed == frame.Segments.Count)
         {
-            var queryDevice = device ?? throw new InvalidOperationException("Triangle counts need a graphics device to create their queries.");
-
-            frame.Segments.Add(queryDevice.CreateQuery(QueryTarget.PrimitivesGenerated, "TriangleSegment"));
+            frame.Segments.Add(GraphicsDevice.Current.CreateQuery(QueryType.PrimitivesGenerated, "TriangleSegment"));
         }
 
         GL.BeginQuery(QueryTarget.PrimitivesGenerated, frame.Segments[frame.SegmentsUsed]);

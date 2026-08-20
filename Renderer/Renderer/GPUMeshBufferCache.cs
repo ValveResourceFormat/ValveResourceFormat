@@ -67,7 +67,7 @@ namespace ValveResourceFormat.Renderer
         {
             if (!gpuBuffers.TryGetValue(meshName, out var gpuVbib))
             {
-                gpuVbib = new GPUMeshBuffers(RendererContext.Device, vbib, meshName);
+                gpuVbib = new GPUMeshBuffers(vbib, meshName);
                 gpuBuffers.Add(meshName, gpuVbib);
             }
 
@@ -195,7 +195,7 @@ namespace ValveResourceFormat.Renderer
         {
             Debug.Assert(vertexBuffers != null && vertexBuffers.Length > 0);
 
-            var newVaoHandle = RendererContext.Device.CreateVertexArray(debugLabel ?? string.Empty);
+            var newVaoHandle = GraphicsDevice.Current.CreateVertexArray(debugLabel ?? string.Empty);
             VertexArray.StartRecording(newVaoHandle);
 
             // Check for non-indexed geometry

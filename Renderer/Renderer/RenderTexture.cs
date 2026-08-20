@@ -9,10 +9,13 @@ namespace ValveResourceFormat.Renderer
     /// <summary>
     /// OpenGL texture object with metadata for dimensions and filtering configuration.
     /// </summary>
-    [DebuggerDisplay("{Width}x{Height}x{Depth} mip:{NumMipLevels} ({Target})")]
+    [DebuggerDisplay("{Width}x{Height}x{Depth} mip:{NumMipLevels} ({Type})")]
     public class RenderTexture
     {
-        /// <summary>Gets the OpenGL texture target (e.g. Texture2D, TextureCubeMap).</summary>
+        /// <summary>Gets the shape of this texture's storage.</summary>
+        public TextureType Type { get; }
+
+        /// <summary>Gets the OpenGL texture target that <see cref="Type"/> maps to.</summary>
         public TextureTarget Target { get; }
 
         /// <summary>Gets the OpenGL texture object handle, or 0 once <see cref="Delete"/> has been called.</summary>
@@ -43,18 +46,18 @@ namespace ValveResourceFormat.Renderer
         /// </summary>
         public float[]? RadianceCoefficients { get; }
 
-        RenderTexture(GraphicsDevice device, TextureTarget target, string label)
+        RenderTexture(TextureType type, string label)
         {
-            Target = target;
-            Handle = device.CreateTexture(target, label);
+            Type = type;
+            Target = type.ToGLTextureTarget();
+            Handle = GraphicsDevice.Current.CreateTexture(type, label);
         }
 
         /// <summary>Creates a render texture and populates metadata from the given source texture resource.</summary>
-        /// <param name="device">Device that creates the texture object.</param>
-        /// <param name="target">OpenGL texture target.</param>
+        /// <param name="type">Shape of the texture's storage.</param>
         /// <param name="data">Source texture resource providing dimensions, mip count, spritesheet data and radiance harmonics.</param>
         /// <param name="label">Label string visible in graphics debuggers.</param>
-        public RenderTexture(GraphicsDevice device, TextureTarget target, Texture data, string label) : this(device, target, label)
+        public RenderTexture(TextureType type, Texture data, string label) : this(type, label)
         {
             Width = data.Width;
             Height = data.Height;
@@ -66,15 +69,14 @@ namespace ValveResourceFormat.Renderer
         }
 
         /// <summary>Creates a render texture with explicit dimension and mip level metadata.</summary>
-        /// <param name="device">Device that creates the texture object.</param>
-        /// <param name="target">OpenGL texture target.</param>
+        /// <param name="type">Shape of the texture's storage.</param>
         /// <param name="width">Width in texels.</param>
         /// <param name="height">Height in texels.</param>
         /// <param name="depth">Depth or array layer count.</param>
         /// <param name="mipcount">Number of mip levels.</param>
         /// <param name="label">Label string visible in graphics debuggers.</param>
-        public RenderTexture(GraphicsDevice device, TextureTarget target, int width, int height, int depth, int mipcount, string label)
-            : this(device, target, label)
+        public RenderTexture(TextureType type, int width, int height, int depth, int mipcount, string label)
+            : this(type, label)
         {
             Width = width;
             Height = height;
@@ -84,47 +86,45 @@ namespace ValveResourceFormat.Renderer
 
         /// <summary>Wraps an existing OpenGL texture handle without taking ownership of its storage.</summary>
         /// <param name="handle">Existing OpenGL texture handle.</param>
-        /// <param name="target">OpenGL texture target.</param>
-        public RenderTexture(int handle, TextureTarget target)
+        /// <param name="type">Shape of the wrapped texture's storage.</param>
+        public RenderTexture(int handle, TextureType type)
         {
             Handle = handle;
-            Target = target;
+            Type = type;
+            Target = type.ToGLTextureTarget();
         }
 
         /// <summary>Creates a 2D texture with immutable storage, optionally allocating a reduced mip chain sized by <see cref="MaxMipCount"/>.</summary>
-        /// <param name="device">Device that creates the texture object.</param>
         /// <param name="width">Texture width in texels.</param>
         /// <param name="height">Texture height in texels.</param>
         /// <param name="format">Internal pixel format.</param>
         /// <param name="label">Label string visible in graphics debuggers.</param>
         /// <param name="mips">When <see langword="true"/>, allocates a reduced mip chain (see <see cref="MaxMipCount"/>) rather than a single level.</param>
         /// <returns>The newly created render texture.</returns>
-        public static RenderTexture Create(GraphicsDevice device, int width, int height, ImageFormat format, string label, bool mips = false)
+        public static RenderTexture Create(int width, int height, ImageFormat format, string label, bool mips = false)
         {
             var mipCount = mips
                 ? MaxMipCount(width, height)
                 : 1;
 
-            return Create(device, width, height, format, mipCount, label);
+            return Create(width, height, format, mipCount, label);
         }
 
         /// <summary>Creates a 2D texture with immutable storage and an explicit mip count.</summary>
-        /// <param name="device">Device that creates the texture object.</param>
         /// <param name="width">Texture width in texels.</param>
         /// <param name="height">Texture height in texels.</param>
         /// <param name="format">Internal pixel format.</param>
         /// <param name="mipCount">Number of mip levels to allocate.</param>
         /// <param name="label">Label string visible in graphics debuggers.</param>
         /// <returns>The newly created render texture.</returns>
-        public static RenderTexture Create(GraphicsDevice device, int width, int height, ImageFormat format, int mipCount, string label)
+        public static RenderTexture Create(int width, int height, ImageFormat format, int mipCount, string label)
         {
-            var texture = new RenderTexture(device, TextureTarget.Texture2D, width, height, 1, mipCount, label);
+            var texture = new RenderTexture(TextureType.Texture2D, width, height, 1, mipCount, label);
             GL.TextureStorage2D(texture.Handle, mipCount, format.ToGLSizedInternalFormat(), width, height);
             return texture;
         }
 
         /// <summary>Creates a texture view that reinterprets a subrange of this texture's storage.</summary>
-        /// <param name="device">Device that creates the view.</param>
         /// <param name="format">The reinterpreted pixel format for the view.</param>
         /// <param name="minLevel">First mip level visible through the view.</param>
         /// <param name="numLevels">Number of mip levels visible through the view.</param>
@@ -132,11 +132,11 @@ namespace ValveResourceFormat.Renderer
         /// <param name="numLayers">Number of array layers visible through the view.</param>
         /// <param name="label">Label string visible in graphics debuggers.</param>
         /// <returns>A new <see cref="RenderTexture"/> wrapping the view.</returns>
-        public RenderTexture CreateView(GraphicsDevice device, ImageFormat format, string label, int minLevel = 0, int numLevels = 1, int minLayer = 0, int numLayers = 1)
+        public RenderTexture CreateView(ImageFormat format, string label, int minLevel = 0, int numLevels = 1, int minLayer = 0, int numLayers = 1)
         {
-            var handle = device.CreateTextureView(Handle, Target, format.ToGLSizedInternalFormat(), minLevel, numLevels, minLayer, numLayers, label);
+            var handle = GraphicsDevice.Current.CreateTextureView(Handle, Type, format, minLevel, numLevels, minLayer, numLayers, label);
 
-            return new RenderTexture(handle, Target);
+            return new RenderTexture(handle, Type);
         }
 
         /// <summary>Sets the wrap mode for all relevant texture dimensions.</summary>
