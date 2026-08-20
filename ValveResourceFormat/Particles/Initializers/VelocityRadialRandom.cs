@@ -1,3 +1,5 @@
+using ValveResourceFormat.Particles.Utils;
+
 namespace ValveResourceFormat.Particles.Initializers
 {
     /// <summary>
@@ -45,7 +47,7 @@ namespace ValveResourceFormat.Particles.Initializers
 
             var scale = vectorScale.NextVector(ref particle, particleSystemState);
 
-            var direction = Vector3.Normalize(particle.Position - particleSystemState.GetControlPoint(controlPoint).Position);
+            var direction = ParticleMath.Normalize(particle.Position - particleSystemState.GetControlPoint(controlPoint).Position);
 
             particle.Velocity += direction * speed * scale;
 

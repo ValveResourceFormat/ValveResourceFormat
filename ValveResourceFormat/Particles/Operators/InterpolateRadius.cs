@@ -1,3 +1,5 @@
+using ValveResourceFormat.Particles.Utils;
+
 namespace ValveResourceFormat.Particles.Operators
 {
     /// <summary>
@@ -17,7 +19,9 @@ namespace ValveResourceFormat.Particles.Operators
         private readonly INumberProvider startScale = new LiteralNumberProvider(1);
         private readonly INumberProvider endScale = new LiteralNumberProvider(1);
         private readonly bool easeInAndOut;
-        private readonly INumberProvider bias = new LiteralNumberProvider(0.5f);
+
+        /// <summary>The bias curve's parameter. 0.5 is the identity, and an authored 0 means 0.5.</summary>
+        private readonly float bias = 0.5f;
 
 
         public InterpolateRadius(ParticleDefinitionParser parse) : base(parse)
@@ -27,16 +31,23 @@ namespace ValveResourceFormat.Particles.Operators
             startScale = parse.NumberProvider("m_flStartScale", startScale);
             endScale = parse.NumberProvider("m_flEndScale", endScale);
             easeInAndOut = parse.Boolean("m_bEaseInAndOut", easeInAndOut);
-            bias = parse.NumberProvider("m_flBias", bias);
+
+            var authoredBias = parse.Float("m_flBias", bias);
+            bias = authoredBias == 0f ? 0.5f : authoredBias;
         }
 
         public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemState particleSystemState, float strength)
         {
+            if (endTime <= startTime)
+            {
+                return;
+            }
+
             foreach (ref var particle in particles.Current)
             {
                 var time = particle.NormalizedAge;
 
-                if (time >= startTime && time <= endTime)
+                if (time >= startTime && time < endTime)
                 {
                     var startScale = this.startScale.NextNumber(ref particle, particleSystemState);
                     var endScale = this.endScale.NextNumber(ref particle, particleSystemState);
@@ -47,8 +58,11 @@ namespace ValveResourceFormat.Particles.Operators
                     {
                         timeScale = timeScale * timeScale * (3 - 2 * timeScale); // smoothstep
                     }
+                    else if (bias != 0.5f)
+                    {
+                        timeScale = ParticleMath.Bias(timeScale, bias);
+                    }
 
-                    timeScale = MathF.Pow(timeScale, 1.0f - bias.NextNumber(ref particle, particleSystemState)); // apply bias to timescale
                     var radiusScale = float.Lerp(startScale, endScale, timeScale);
 
                     particle.Radius = particle.GetInitialScalar(particles, ParticleField.Radius) * radiusScale;

@@ -1,3 +1,5 @@
+using ValveResourceFormat.Particles.Utils;
+
 namespace ValveResourceFormat.Particles.Operators
 {
     /// <summary>
@@ -42,7 +44,7 @@ namespace ValveResourceFormat.Particles.Operators
                 {
                     if (velocity != Vector3.Zero)
                     {
-                        particle.SetVector(outputField, Vector3.Normalize(velocity) * scale);
+                        particle.SetVector(outputField, ParticleMath.Normalize(velocity) * scale);
                     }
                 }
                 else

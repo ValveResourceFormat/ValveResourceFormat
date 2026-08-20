@@ -150,30 +150,26 @@ namespace ValveResourceFormat.Particles
                     return value * multFactor;
 
                 case PfMapType.Remap:
-                    var valueIn = inputMode switch
-                    {
-                        PfInputMode.Clamped => Math.Clamp(value, input0, input1),
-                        PfInputMode.Looped => value % (input1 - input0),
-                        _ => value
-                    };
+                    var valueIn = WrapInput(value);
 
-                    return MathUtils.RemapRange(valueIn, input0, input1, output0, output1);
+                    if (input0 == input1)
+                    {
+                        return valueIn >= input1 ? output1 : output0;
+                    }
+
+                    return ClampToOutputRange(
+                        MathUtils.RemapRange(valueIn, input0, input1, output0, output1));
 
                 case PfMapType.RemapBiased:
-                    var remappedTo0_1RangeBiased = MathUtils.Remap(value, input0, input1);
-
-                    remappedTo0_1RangeBiased = inputMode == PfInputMode.Looped
-                        ? MathUtils.Fract(remappedTo0_1RangeBiased)
-                        : MathF.Min(remappedTo0_1RangeBiased, 1f);
-
-                    var biased = ParticleMath.BiasFromParameter(remappedTo0_1RangeBiased, biasParameter, biasType);
+                    var remappedTo0_1RangeBiased = MathUtils.Remap(WrapInput(value), input0, input1);
 
                     // The lower end of the input range is never clamped; the output range is what bounds
                     // the result, and the bias curve is free to run past either end on the way there
-                    return Math.Clamp(
-                        float.Lerp(output0, output1, biased),
-                        MathF.Min(output0, output1),
-                        MathF.Max(output0, output1));
+                    remappedTo0_1RangeBiased = MathF.Min(remappedTo0_1RangeBiased, 1f);
+
+                    var biased = ParticleMath.BiasFromParameter(remappedTo0_1RangeBiased, biasParameter, biasType);
+
+                    return ClampToOutputRange(float.Lerp(output0, output1, biased));
 
                 case PfMapType.Curve:
                     return curve!.Evaluate(value);
@@ -195,5 +191,23 @@ namespace ValveResourceFormat.Particles
                     return value;
             }
         }
+
+        /// <summary>
+        /// Folds the input back into <c>[0, m_flInput1)</c> when the input mode is looped. The period is
+        /// the range's upper end alone, so a range that does not start at zero still wraps at
+        /// <see cref="input1"/>, and a negative input wraps forward rather than keeping its sign.
+        /// </summary>
+        private float WrapInput(float value)
+        {
+            if (inputMode != PfInputMode.Looped || input1 == 0f)
+            {
+                return value;
+            }
+
+            return input1 * MathUtils.Fract(value / input1);
+        }
+
+        private float ClampToOutputRange(float value)
+            => Math.Clamp(value, MathF.Min(output0, output1), MathF.Max(output0, output1));
     }
 }

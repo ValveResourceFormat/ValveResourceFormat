@@ -1,3 +1,5 @@
+using ValveResourceFormat.Particles.Utils;
+
 namespace ValveResourceFormat.Particles.Operators
 {
     /// <summary>
@@ -44,7 +46,7 @@ namespace ValveResourceFormat.Particles.Operators
                     continue;
                 }
 
-                var axis = Vector3.Normalize(drawnAxis);
+                var axis = ParticleMath.Normalize(drawnAxis);
                 var rotationRate = float.DegreesToRadians(float.Lerp(rotRateMin, rotRateMax, random));
 
                 var scale = perParticleScale.NextNumber(ref particle, particleSystemState);
@@ -53,7 +55,7 @@ namespace ValveResourceFormat.Particles.Operators
                 var rotatedVector = Vector3.TransformNormal(currentVector, Matrix4x4.CreateFromAxisAngle(axis, rotationRate * scale * frameTime));
 
                 rotatedVector = normalize
-                    ? Vector3.Normalize(rotatedVector)
+                    ? ParticleMath.Normalize(rotatedVector)
                     : rotatedVector;
 
                 particle.SetVector(outputField, Vector3.Lerp(currentVector, rotatedVector, strength));

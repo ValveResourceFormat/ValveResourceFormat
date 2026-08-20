@@ -1,3 +1,4 @@
+using ValveResourceFormat.Particles.Utils;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization.KeyValues;
 
@@ -109,7 +110,7 @@ namespace ValveResourceFormat.Particles
         public float Speed
         {
             readonly get => Velocity.Length();
-            set => Velocity = Vector3.Normalize(Velocity) * value;
+            set => Velocity = ParticleMath.Normalize(Velocity) * value;
         }
         /// <summary>
         /// Gets or sets the acceleration accumulated by force generators this frame; consumed and
