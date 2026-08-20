@@ -196,6 +196,11 @@ namespace ValveResourceFormat.Particles
             groupId = parse.Int32("m_nGroupID", 0);
             initialParticles = parse.Int32("m_nInitialParticles", 0);
             maxParticles = parse.Int32("m_nMaxParticles", 1000);
+
+            // The pool is capped whatever the file asks for, and a system that simulates on the GPU
+            // is allowed a far larger one
+            var particleCeiling = parse.Boolean("m_bIsGPUParticleSystem", false) ? 100000 : 20000;
+            maxParticles = Math.Min(maxParticles, particleCeiling);
             minimumTimeStep = parse.Float("m_flMinimumTimeStep", 0f);
             maximumTimeStep = parse.Float("m_flMaximumTimeStep", 0.1f);
             minimumSimTime = parse.Float("m_flMinimumSimTime", 0f);
