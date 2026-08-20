@@ -5,9 +5,6 @@ namespace ValveResourceFormat.Renderer;
 
 /// <summary>
 /// Creates the GPU objects that one or more <see cref="GraphicsContext"/> record against.
-///
-/// Creation goes through the static methods, which resolve the device owning the context current
-/// on the calling thread, so an object can be created without every caller holding a device.
 /// </summary>
 public sealed class GraphicsDevice
 {
@@ -26,78 +23,48 @@ public sealed class GraphicsDevice
     /// Creates a context that records against this device's objects.
     /// </summary>
     /// <param name="surface">The window side of the context, opened along with it.</param>
-    /// <param name="name">Debug name identifying the context.</param>
     /// <returns>The new context, not yet current on any thread.</returns>
-    public GraphicsContext CreateContext(IGraphicsSurface surface, string name)
+    public GraphicsContext CreateContext(IGraphicsSurface surface)
     {
-        return new GraphicsContext(this, surface, name);
+        return new GraphicsContext(this, surface);
     }
 
     /// <summary>
     /// Creates a context for a surface whose currency the caller owns, such as a window made
     /// current once and never released.
     /// </summary>
-    /// <param name="name">Debug name identifying the context.</param>
     /// <returns>The new context, not yet current on any thread.</returns>
-    public GraphicsContext CreateContext(string name)
+    public GraphicsContext CreateContext()
     {
-        return new GraphicsContext(this, surface: null, name);
+        return new GraphicsContext(this, surface: null);
     }
 
     /// <summary>Creates a buffer object.</summary>
-    /// <param name="name">Debug label, visible in graphics debuggers.</param>
-    /// <returns>The buffer handle.</returns>
     public static int CreateBuffer(string name) => Current.CreateBufferCore(name);
 
     /// <summary>Creates a texture object of the given target, without storage.</summary>
-    /// <param name="target">Texture target, which the object is fixed to.</param>
-    /// <param name="name">Debug label, visible in graphics debuggers.</param>
-    /// <returns>The texture handle.</returns>
     public static int CreateTexture(TextureTarget target, string name) => Current.CreateTextureCore(target, name);
 
     /// <summary>Creates a texture view over a subrange of another texture's storage.</summary>
-    /// <param name="texture">Texture whose storage the view shares.</param>
-    /// <param name="target">Texture target of the view.</param>
-    /// <param name="format">Format the storage is reinterpreted as.</param>
-    /// <param name="minLevel">First mip level visible through the view.</param>
-    /// <param name="numLevels">Number of mip levels visible through the view.</param>
-    /// <param name="minLayer">First array layer visible through the view.</param>
-    /// <param name="numLayers">Number of array layers visible through the view.</param>
-    /// <param name="name">Debug label, visible in graphics debuggers.</param>
-    /// <returns>The view's texture handle.</returns>
     public static int CreateTextureView(int texture, TextureTarget target, ImageFormat format, int minLevel, int numLevels, int minLayer, int numLayers, string name)
         => Current.CreateTextureViewCore(texture, target, format, minLevel, numLevels, minLayer, numLayers, name);
 
     /// <summary>Creates a sampler object with default state.</summary>
-    /// <param name="name">Debug label, visible in graphics debuggers.</param>
-    /// <returns>The sampler handle.</returns>
     public static int CreateSampler(string name) => Current.CreateSamplerCore(name);
 
     /// <summary>Creates a framebuffer object without attachments.</summary>
-    /// <param name="name">Debug label, visible in graphics debuggers.</param>
-    /// <returns>The framebuffer handle.</returns>
     public static int CreateFramebuffer(string name) => Current.CreateFramebufferCore(name);
 
     /// <summary>Creates a vertex array object without attributes.</summary>
-    /// <param name="name">Debug label, visible in graphics debuggers.</param>
-    /// <returns>The vertex array handle.</returns>
     public static int CreateVertexArray(string name) => Current.CreateVertexArrayCore(name);
 
     /// <summary>Creates a query object of the given target.</summary>
-    /// <param name="target">Query target, which the object is fixed to.</param>
-    /// <param name="name">Debug label, visible in graphics debuggers.</param>
-    /// <returns>The query handle.</returns>
     public static int CreateQuery(QueryTarget target, string name) => Current.CreateQueryCore(target, name);
 
     /// <summary>Creates an empty shader object for one stage.</summary>
-    /// <param name="stage">The pipeline stage the shader runs at.</param>
-    /// <param name="name">Debug label, visible in graphics debuggers.</param>
-    /// <returns>The shader object handle.</returns>
     public static int CreateShader(ShaderProgramType stage, string name) => Current.CreateShaderCore(stage, name);
 
     /// <summary>Creates an empty program object.</summary>
-    /// <param name="name">Debug label, visible in graphics debuggers.</param>
-    /// <returns>The program handle.</returns>
     public static int CreateProgram(string name) => Current.CreateProgramCore(name);
 
     // The implementations read no instance state yet, but a device holding a real API object will.

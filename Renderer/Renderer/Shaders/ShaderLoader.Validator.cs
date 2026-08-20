@@ -21,7 +21,7 @@ namespace ValveResourceFormat.Renderer.Shaders
         {
             using var renderContext = new RendererContext(new ValveResourceFormat.IO.GameFileLoader(null, null), logger);
 
-            var graphicsContext = renderContext.Device.CreateContext("Shader Validator");
+            var graphicsContext = renderContext.Device.CreateContext();
             graphicsContext.Begin();
 
             var loader = renderContext.ShaderLoader;

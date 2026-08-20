@@ -739,7 +739,7 @@ internal abstract class GLBaseControl : IDisposable, IMessageFilter
 
         Debug.Assert(GLNativeWindow is not null);
 
-        GraphicsContext = RendererContext.Device.CreateContext(new GLFWSurface(GLNativeWindow.Context), GetType().Name);
+        GraphicsContext = RendererContext.Device.CreateContext(new GLFWSurface(GLNativeWindow.Context));
 
         using var lockedGl = MakeCurrent();
 

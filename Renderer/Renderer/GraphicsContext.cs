@@ -1,6 +1,3 @@
-using System.Diagnostics;
-using System.Threading;
-
 namespace ValveResourceFormat.Renderer;
 
 /// <summary>
@@ -30,19 +27,11 @@ public sealed class GraphicsContext
     [ThreadStatic]
     private static GraphicsContext? current;
 
-#if DEBUG
-    // 0 when this context is open on no thread. Written with Interlocked from any thread.
-    private int openOnThread;
-#endif
-
     // Null when the caller owns the surface's currency, or the API has no current-context model.
     private readonly IGraphicsSurface? surface;
 
     /// <summary>The device whose objects this context records against.</summary>
     internal GraphicsDevice Device { get; }
-
-    /// <summary>Gets the debug name this context was created with.</summary>
-    public string Name { get; }
 
     private readonly RenderStateTracker renderState = new();
 
@@ -50,10 +39,9 @@ public sealed class GraphicsContext
     /// State is per context, not per device.</summary>
     public static RenderStateTracker RenderState => Current.renderState;
 
-    internal GraphicsContext(GraphicsDevice device, IGraphicsSurface? surface, string name)
+    internal GraphicsContext(GraphicsDevice device, IGraphicsSurface? surface)
     {
         Device = device;
-        Name = name;
         this.surface = surface;
     }
 
@@ -75,18 +63,7 @@ public sealed class GraphicsContext
     /// </summary>
     public void Begin()
     {
-        TakeOwnership();
-
-        try
-        {
-            surface?.Begin();
-        }
-        catch
-        {
-            ReleaseOwnership();
-            throw;
-        }
-
+        surface?.Begin();
         current = this;
     }
 
@@ -102,35 +79,6 @@ public sealed class GraphicsContext
         }
 
         current = null;
-        ReleaseOwnership();
         surface?.End();
     }
-
-    // Cross thread misuse is a programming error, not a runtime condition, so the tracking that
-    // detects it costs an interlocked write per Begin and is not worth carrying into release.
-#pragma warning disable CA1822 // The state these read only exists in debug builds
-    [Conditional("DEBUG")]
-    private void TakeOwnership()
-    {
-#if DEBUG
-        var thread = Environment.CurrentManagedThreadId;
-        var holdingThread = Interlocked.CompareExchange(ref openOnThread, thread, 0);
-
-        if (holdingThread != 0 && holdingThread != thread)
-        {
-            throw new InvalidOperationException(
-                $"Graphics context '{Name}' is open on thread {holdingThread} and cannot also be opened on thread {thread}. "
-                + $"Close it there first.");
-        }
-#endif
-    }
-
-    [Conditional("DEBUG")]
-    private void ReleaseOwnership()
-    {
-#if DEBUG
-        Interlocked.CompareExchange(ref openOnThread, 0, Environment.CurrentManagedThreadId);
-#endif
-    }
-#pragma warning restore CA1822
 }

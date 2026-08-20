@@ -59,7 +59,7 @@ internal abstract class ThumbnailRenderer : IDisposable
         NativeWindow = GLViewers.NativeWindowFactory.Create(nativeWindowSettings);
         RendererContext = new RendererContext(context, VrfGuiContext.Logger);
 
-        RendererContext.Device.CreateContext(new GLViewers.GLFWSurface(NativeWindow.Context), nameof(ThumbnailRenderer)).Begin();
+        RendererContext.Device.CreateContext(new GLViewers.GLFWSurface(NativeWindow.Context)).Begin();
 
         GLEnvironment.Initialize(RendererContext.Logger);
         GLEnvironment.SetDefaultRenderState();

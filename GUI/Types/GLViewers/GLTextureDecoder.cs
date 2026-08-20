@@ -139,7 +139,7 @@ public class GLTextureDecoder : IHardwareTextureDecoder, IDisposable
             Title = "Source 2 Viewer Texture Decoder",
         });
 
-        GraphicsContext = RendererContext.Device.CreateContext(new GLFWSurface(GLWindowContext.Context), nameof(GLTextureDecoder));
+        GraphicsContext = RendererContext.Device.CreateContext(new GLFWSurface(GLWindowContext.Context));
         GraphicsContext.Begin();
 
         GLEnvironment.Initialize(RendererContext.Logger);
