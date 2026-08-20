@@ -1,4 +1,5 @@
 using System.IO;
+using System.Linq;
 using Datamodel;
 using ValveResourceFormat.IO.ContentFormats.DmxModel;
 using ValveResourceFormat.ResourceTypes;
@@ -14,6 +15,13 @@ partial class ModelExtract
     /// Gets the list of animations to be extracted with their output file names.
     /// </summary>
     public List<(SequenceAnimation Anim, string FileName)> AnimationsToExtract { get; } = [];
+
+    /// <summary>
+    /// Gets the names of animations whose DMX files are not written out: compiler-generated data that a
+    /// recompile rebuilds from other emitted source (e.g. turn-layer lookFrame deltas and baked turn blends,
+    /// regenerated from the AnimTurn node's 3-frame source animation). Populated while building the vmdl.
+    /// </summary>
+    public HashSet<string> AnimationsExcludedFromDmxExport { get; } = new(StringComparer.Ordinal);
 
     private void EnqueueAnimations()
     {
@@ -58,13 +66,26 @@ partial class ModelExtract
     string GetDmxFileName_ForAnimation(string animationName)
     {
         var fileName = ModelName;
-        return (Path.GetDirectoryName(fileName)
+        var candidate = (Path.GetDirectoryName(fileName)
             + Path.DirectorySeparatorChar
             + Path.GetFileNameWithoutExtension(fileName) // so models in the same directory do not override each other's anims
             + "_"
             + animationName
             + ".dmx")
             .Replace('\\', '/');
+
+        // An animation named exactly like a render mesh maps to the mesh's own file and overwrites it
+        // (zeus_thunder_warhawk_belt ships an animation named after the model; the clobbered mesh DMX
+        // then fails every LODGroup reference - 10 corpus models). Meshes enqueue first, so collide the
+        // animation aside instead.
+        if (RenderMeshesToExtract.Any(mesh => mesh.FileName == candidate)
+            || ClothProxyMeshesToExtract.Any(proxy => proxy.FileName == candidate)
+            || ClothChainGridsToExtract.Any(grid => grid.FileName == candidate))
+        {
+            candidate = candidate[..^".dmx".Length] + "_anim.dmx";
+        }
+
+        return candidate;
     }
 
     /// <summary>
@@ -227,11 +248,12 @@ partial class ModelExtract
             ? $"_{bone.Name[1..]}"
             : bone.Name;
 
-    private static DmeModel BuildDmeDagSkeleton(Skeleton skeleton, out DmeTransform[] transforms, bool nmSkelAxisFixup = false)
+    private static DmeModel BuildDmeDagSkeleton(Skeleton skeleton, out DmeTransform[] transforms,
+        bool nmSkelAxisFixup = false, IReadOnlyDictionary<string, Vector3>? bonePositions = null)
     {
         var dmeSkeleton = new DmeModel();
 
-        transforms = AppendDmeSkeletonJoints(dmeSkeleton, skeleton);
+        transforms = AppendDmeSkeletonJoints(dmeSkeleton, skeleton, bonePositions);
 
         var rootMotionBone = skeleton["root_motion"];
 
@@ -257,7 +279,8 @@ partial class ModelExtract
     /// Adds one skeleton's joints to a DmeModel, its roots as children of the model, and returns the
     /// joint transforms indexed by bone index.
     /// </summary>
-    private static DmeTransform[] AppendDmeSkeletonJoints(DmeModel dmeSkeleton, Skeleton skeleton)
+    private static DmeTransform[] AppendDmeSkeletonJoints(DmeModel dmeSkeleton, Skeleton skeleton,
+        IReadOnlyDictionary<string, Vector3>? bonePositions = null)
     {
         var transforms = new DmeTransform[skeleton.Bones.Length];
         var boneDags = new DmeJoint[skeleton.Bones.Length];
@@ -271,7 +294,7 @@ partial class ModelExtract
             };
 
             dag.Transform.Name = boneName;
-            dag.Transform.Position = bone.Position;
+            dag.Transform.Position = BonePosition(bone, bonePositions);
             dag.Transform.Orientation = bone.Angle;
 
             boneDags[bone.Index] = dag;
@@ -380,6 +403,9 @@ partial class ModelExtract
 
     private static void ProcessFlexChannels(FlexController[] flexControllers, Animation anim, DmeChannelsClip clip, Frame[] frames)
     {
+        // Channels are named after the ORIGINAL flex controllers: the vmdl emits explicit MorphControl +
+        // MorphRule nodes decompiled from the MRPH block, so a recompile carries the same controller set
+        // and these channels bind directly.
         for (var flexId = 0; flexId < flexControllers.Length; flexId++)
         {
             var flexController = flexControllers[flexId];

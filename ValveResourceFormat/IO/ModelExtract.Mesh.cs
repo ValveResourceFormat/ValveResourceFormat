@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
@@ -30,6 +31,41 @@ partial class ModelExtract
     /// Gets the list of render meshes to be extracted.
     /// </summary>
     public List<RenderMeshExtractConfiguration> RenderMeshesToExtract { get; } = [];
+
+    /// <summary>
+    /// Gets the list of cloth proxy meshes (cloth "sheets") to be extracted as sub-DMX files. Built from
+    /// the soft-body <see cref="FeModel"/> surface so a recompile regenerates the <c>$cloth_*</c> nodes.
+    /// </summary>
+    public List<(string FileName, string Name, FeModel.ProxyMesh Proxy)> ClothProxyMeshesToExtract { get; } = [];
+
+    /// <summary>
+    /// Gets the list of cloth sheet grids generated over neighbouring bone chains (skirts/capes whose
+    /// original cloth is chain-only), extracted as sub-DMX files. The sheet simulates the surface between
+    /// the chains and drives the render mesh directly, like hand-authored item proxies.
+    /// </summary>
+    public List<(string FileName, string Name, FeModel.ChainGrid Grid)> ClothChainGridsToExtract { get; } = [];
+
+    /// <summary>
+    /// Gets the cloth control nodes that were authored as skeleton bones but culled from the compiled
+    /// skeleton; re-declared as Bone nodes so cloth constructs can reference them.
+    /// </summary>
+    public List<(int Node, string Name)> CulledClothBones { get; } = [];
+
+    /// <summary>
+    /// Gets the parent-space bone positions that put every cloth control node back on the rest position
+    /// the FeModel records for it, keyed by bone name. Empty where the model has no cloth or the two
+    /// already agree.
+    /// </summary>
+    /// <remarks>
+    /// <c>m_modelSkeleton</c> is a lossy re-expression of the authored bone transforms - re-composing it
+    /// walks away from the authored world pose as the hierarchy deepens (prof_dynamo's coat chain ends
+    /// 4.8e-3 units out, archer's fingers 1.3e-2, and the error grows strictly with depth) - while
+    /// <c>m_InitPose</c> keeps the authored world position of every control node to float32.
+    /// Emitting the skeleton straight from the compiled bone data therefore hands the compiler a rest
+    /// pose the original was never built from, and every ctrl offset measured against those bones, plus
+    /// every chain ring extruded off them, inherits the error.
+    /// </remarks>
+    public Dictionary<string, Vector3> ClothRestBonePositions { get; } = new(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>
     /// Gets the material input signatures for mapping DirectX semantic names.
@@ -86,6 +122,12 @@ partial class ModelExtract
         /// When provided, bones are emitted into the DMX <c>jointList</c> so ModelDoc can resolve indices.
         /// </summary>
         public Skeleton? Skeleton { get; init; }
+
+        /// <summary>
+        /// Parent-space bone positions to emit in place of the skeleton's own, keyed by bone name
+        /// (see <see cref="ClothRestBonePositions"/>).
+        /// </summary>
+        public IReadOnlyDictionary<string, Vector3>? BonePositions { get; init; }
     }
 
     /// <summary>
@@ -154,7 +196,193 @@ partial class ModelExtract
         }
         EnqueueRenderMeshes();
         EnqueuePhysMeshes();
+        EnqueueClothProxyMesh();
     }
+
+    // Queues a cloth proxy-mesh DMX when the model carries a soft-body FeModel with a surface (quads/tris),
+    // or generated sheet grids over the bone chains when the original cloth is chain-only.
+    private void EnqueueClothProxyMesh()
+    {
+        if (model is null || physAggregateData?.FeModel is not { } feModel)
+        {
+            return;
+        }
+
+        var skeletonBoneNames = model.Skeleton.Bones
+            .Select(static bone => bone.Name)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        feModel.SkeletonBoneNames = skeletonBoneNames;
+
+        // Culled cloth-only bones get re-declared in the exported skeleton, so the cloth pipeline
+        // treats their names as real from here on.
+        CulledClothBones.AddRange(feModel.GetCulledBoneCtrls());
+        foreach (var (_, culledName) in CulledClothBones)
+        {
+            skeletonBoneNames.Add(culledName);
+        }
+
+        var boneParents = model.Skeleton.Bones
+            .GroupBy(static bone => bone.Name, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(static g => g.Key, static g => g.First().Parent?.Name, StringComparer.OrdinalIgnoreCase);
+        feModel.SkeletonBoneParents = boneParents;
+        feModel.SetSkeletonParents(boneParents);
+
+        BuildClothRestBonePositions(feModel);
+
+        // An imported PhysAuthFx cloth ships its own node/rod tables and is emitted as a single
+        // ImportedCloth element, so neither a synthesised proxy sheet nor a chain grid has anything to
+        // attach to and their DMX files would be written for nothing.
+        if (feModel.IsImportedCloth)
+        {
+            return;
+        }
+
+        // The compiler assigns the $cloth_m<N> mesh index by ORDINAL STRING SORT of the proxy names, not
+        // declaration order, so an unpadded suffix breaks every spring/basis reference on models with 11+
+        // proxies ("cloth_proxy10" sorts before "cloth_proxy2" - spectre's 13 islands). Zero-padding the
+        // suffix to the model's own digit count keeps declaration order and sort order identical; models
+        // with up to 10 proxies keep their old single-digit names.
+        var proxyMeshes = feModel.BuildProxyMeshes().ToList();
+        var suffixWidth = Math.Max(1, (proxyMeshes.Count - 1).ToString(CultureInfo.InvariantCulture).Length);
+        var proxyIndex = 0;
+        foreach (var proxyMesh in proxyMeshes)
+        {
+            // One proxy per island, like the originals (node names $cloth_mXpY encode the mesh index).
+            var proxyName = proxyIndex > 0
+                ? "cloth_proxy" + proxyIndex.ToString(CultureInfo.InvariantCulture).PadLeft(suffixWidth, '0')
+                : "cloth_proxy";
+            ClothProxyMeshesToExtract.Add((GetDmxFileName_ForEmbeddedMesh(proxyName), proxyName, proxyMesh));
+            proxyIndex++;
+        }
+
+        // Regular sheet grids over the bone chains are generated in BOTH cases: as the only sheet for
+        // chain-only cloth, and as an alternative clean editable grid next to a recovered surface.
+        // They always ship disabled (see the vmdl emission) - purely a ready-made authoring asset.
+        var gridIndex = 0;
+        foreach (var grid in feModel.BuildChainGrids())
+        {
+            var name = "cloth_grid" + (gridIndex > 0 ? gridIndex.ToString(CultureInfo.InvariantCulture) : string.Empty);
+            ClothChainGridsToExtract.Add((GetDmxFileName_ForEmbeddedMesh(name), name, grid));
+            gridIndex++;
+        }
+    }
+
+    // How far a control node's recorded rest position may sit from the same bone's compiled bind pose and
+    // still be read as the same pose at better precision. The widest disagreement measured across the
+    // Deadlock and Dota corpora is 0.087 units (invoker_wings_of_knowledge_shoulder_alt2, on a 227-unit
+    // model) and the next value up is 269; anything past a whole unit is a node the compiler placed
+    // somewhere else entirely, and that bone keeps its compiled transform.
+    const float ClothRestBoneTolerance = 1.0f;
+
+    // And how far it has to sit before the disagreement is worth acting on. Below the absolute floor the
+    // round trip holds two floats equal at, the two poses ARE the same pose, and re-deriving the bone from
+    // the cloth data buys nothing measurable while still re-rolling every tie the compiler breaks off that
+    // bone's geometry - measured on digger_default, whose node-base scan turns on a 1e-6 margin.
+    const float ClothRestBoneFloor = 1e-3f;
+
+    // The correction runs per MODEL only when some bone disagrees by more than twice the floor. A model
+    // whose disagreements all end inside the floor's own noise band gains nothing measurable but the
+    // correction can push offsets measured against those bones just past the floor the other way
+    // (snapfire_customgame, three bones at 1.0-1.6e-3). Once enabled, every bone past the per-bone floor
+    // moves together - derived rest shapes span bones on both sides of any per-bone cut, so a partial
+    // correction leaves them mixed (mh_palico's quads).
+    const float ClothRestBoneModelGate = 2e-3f;
+
+    // Re-derives each bone's parent-space position from the cloth rest pose, root first: a bone the
+    // FeModel registers as a control node is put back on its recorded world position, and every bone under
+    // it keeps its compiled offset from that corrected parent, so a correction propagates down the
+    // hierarchy exactly as the authored transform chain would. Whether a bone qualifies is judged on the
+    // COMPILED pose, not the corrected one - the disagreement accumulates down a chain, and measuring
+    // against an already-corrected parent would only ever see one link's worth of it.
+    private void BuildClothRestBonePositions(FeModel feModel)
+    {
+        Debug.Assert(model is not null, "model required for cloth rest bones");
+
+        var targets = new Dictionary<string, Vector3>(StringComparer.OrdinalIgnoreCase);
+        for (var node = 0; node < feModel.CtrlNames.Length && node < feModel.InitPosePositions.Length; node++)
+        {
+            var name = feModel.CtrlNames[node];
+            if (!string.IsNullOrEmpty(name) && !feModel.IsGeneratedNodeName(name))
+            {
+                targets.TryAdd(name, feModel.InitPosePositions[node]);
+            }
+        }
+
+        if (targets.Count == 0)
+        {
+            return;
+        }
+
+        var maxApart = 0f;
+        void Measure(Bone bone, Vector3 compiledParent, Quaternion parentRotation)
+        {
+            var compiled = compiledParent + Vector3.Transform(bone.Position, parentRotation);
+            var rotation = parentRotation * bone.Angle;
+
+            if (targets.TryGetValue(bone.Name, out var target))
+            {
+                var apart = Vector3.Distance(compiled, target);
+                if (apart <= ClothRestBoneTolerance)
+                {
+                    maxApart = Math.Max(maxApart, apart);
+                }
+            }
+
+            foreach (var child in bone.Children)
+            {
+                Measure(child, compiled, rotation);
+            }
+        }
+
+        foreach (var root in model.Skeleton.Roots)
+        {
+            Measure(root, Vector3.Zero, Quaternion.Identity);
+        }
+
+        if (maxApart <= ClothRestBoneModelGate)
+        {
+            return;
+        }
+
+        void Walk(Bone bone, Vector3 parentPosition, Quaternion parentRotation, Vector3 compiledParent)
+        {
+            var world = parentPosition + Vector3.Transform(bone.Position, parentRotation);
+            var compiled = compiledParent + Vector3.Transform(bone.Position, parentRotation);
+            var rotation = parentRotation * bone.Angle;
+
+            if (targets.TryGetValue(bone.Name, out var target))
+            {
+                var apart = Vector3.Distance(compiled, target);
+                if (apart > ClothRestBoneFloor && apart <= ClothRestBoneTolerance)
+                {
+                    world = target;
+                }
+            }
+
+            var local = Vector3.Transform(world - parentPosition, Quaternion.Conjugate(parentRotation));
+            if (local != bone.Position)
+            {
+                ClothRestBonePositions[bone.Name] = local;
+            }
+
+            foreach (var child in bone.Children)
+            {
+                Walk(child, world, rotation, compiled);
+            }
+        }
+
+        foreach (var root in model.Skeleton.Roots)
+        {
+            Walk(root, Vector3.Zero, Quaternion.Identity, Vector3.Zero);
+        }
+    }
+
+    /// <summary>
+    /// The parent-space position to emit for a bone: its cloth rest correction where there is one, and
+    /// its compiled transform otherwise.
+    /// </summary>
+    internal static Vector3 BonePosition(Bone bone, IReadOnlyDictionary<string, Vector3>? overrides)
+        => overrides is not null && overrides.TryGetValue(bone.Name, out var position) ? position : bone.Position;
 
     private void EnqueueRenderMeshes()
     {
@@ -168,6 +396,13 @@ partial class ModelExtract
         var i = 0;
         foreach (var embedded in model.GetEmbeddedMeshes())
         {
+            // Decode the morph (face flex) atlas now while the FileLoader is available so that
+            // ConvertMeshToDatamodelMesh can emit DMX delta states from embedded.Mesh.MorphData.
+            if (fileLoader is not null)
+            {
+                embedded.Mesh.LoadExternalMorphData(fileLoader);
+            }
+
             var remapTable = model.GetRemapTable(embedded.MeshIndex);
             RenderMeshesToExtract.Add(new(embedded.Mesh, embedded.Name, embedded.MeshIndex, GetDmxFileName_ForEmbeddedMesh(embedded.Name, i++), remapTable, model.Skeleton));
         }
@@ -191,6 +426,7 @@ partial class ModelExtract
             }
 
             model.SetExternalMeshData(mesh);
+            mesh.LoadExternalMorphData(fileLoader);
 
             var remapTable = model.GetRemapTable(reference.MeshIndex);
             var meshKey = Path.GetFileNameWithoutExtension(reference.MeshName);
@@ -299,6 +535,7 @@ partial class ModelExtract
             SplitDrawCallsIntoSeparateSubmeshes = true,
             BoneRemapTable = boneRemapTable,
             Skeleton = skeleton,
+            BonePositions = extract.ClothRestBonePositions,
         };
 
         byte[] sharedDmxExtractMethod() => ToDmxMesh(
@@ -479,12 +716,20 @@ partial class ModelExtract
         // ModelDoc resolves mesh skinning indices through this list; without it the mesh is bound to "no skeleton".
         if (options.Skeleton is { Bones.Length: > 0 } skeleton)
         {
-            dmeModel = BuildDmeDagSkeleton(skeleton, out _);
+            dmeModel = BuildDmeDagSkeleton(skeleton, out _, bonePositions: options.BonePositions);
             dmeModel.Name = name;
         }
 
         var materialInputSignature = Material.VsInputSignature.Empty;
         var drawCallIndex = 0;
+
+        // Per draw call ranges used to map morph deltas (indexed in mesh vertex order) onto the
+        // DMX vertex buffers. GlobalOffset is the cumulative vertex offset across draw calls (the
+        // index space the morph atlas uses); BaseVertex is where the draw call's verts start in the
+        // DMX vertex buffer (== GlobalOffset for single-buffer meshes such as hero face models).
+        var morphDrawCalls = new List<(DmeMesh DmeMesh, int BaseVertex, int VertexCount, int GlobalOffset)>();
+        var morphVertexOffset = 0;
+        var hasMorphData = mesh.MorphData is not null;
 
         foreach (var sceneObject in mdat.GetArray("m_sceneObjects"))
         {
@@ -550,6 +795,13 @@ partial class ModelExtract
                     $"{startIndex}..{startIndex + indexCount}"
                 );
 
+                if (hasMorphData && dag.Shape is DmeMesh morphTargetMesh)
+                {
+                    var vertexCount = drawCall.GetInt32Property("m_nVertexCount");
+                    morphDrawCalls.Add((morphTargetMesh, baseVertex, vertexCount, morphVertexOffset));
+                    morphVertexOffset += vertexCount;
+                }
+
                 drawCallIndex++;
             }
         }
@@ -566,8 +818,679 @@ partial class ModelExtract
             }
         }
 
-        TieElementRoot(datamodel, dmeModel);
+        // Emit face-flex morph targets as DMX delta states so a recompile rebuilds the MRPH block
+        // (morph atlas + flex controllers/rules). Without this the model loses all face flex.
+        DmeCombinationOperator? combinationOperator = null;
+        if (mesh.MorphData is { } morphData && morphDrawCalls.Count > 0)
+        {
+            combinationOperator = AddMorphDeltaStates(morphData, morphDrawCalls);
+        }
+
+        TieElementRoot(datamodel, dmeModel, combinationOperator);
         return datamodel;
+    }
+
+    /// <summary>
+    /// Builds the cloth proxy-mesh DMX (the cloth "sheet") from the soft-body <see cref="FeModel"/>.
+    /// Vertices are the FeModel surface control nodes (positions = their rest pose), faces come from the
+    /// quad/tri surface, each vertex carries a <c>cloth_enable$0</c> paint value (1 = simulated, 0 = pinned)
+    /// and is skinned to the real skeleton bone it is anchored to. A recompile turns this back into the
+    /// <c>$cloth_*</c> FeModel nodes (one per enabled vertex). The skeleton is emitted into the DMX joint
+    /// list so the skinning resolves, exactly like a render mesh.
+    /// </summary>
+    // A compiled model can carry two spellings of one bone: m_modelSkeleton's m_boneName and, for cloth
+    // control nodes, the FeModel's m_CtrlName. Both are authored - nano_shadow_form's source declares the
+    // Bone as "arm_upper_L" and the ClothShapeCapsule that anchors to it as parent_bone "arm_upper_l", and
+    // the compiler records each verbatim because every bone lookup it does is case-insensitive. Our export
+    // has one name per bone, so whichever spelling the skeleton carries is the one every DMX joint list
+    // gets - and a bone the compiler registers as a control node through a blend INDEX rather than through
+    // a KV name string then comes back under the skeleton's spelling instead of the cloth data's.
+    //
+    // Re-spelling the joints of THIS sheet only fixes that without disturbing anything else: the compiler
+    // still binds each joint to the same bone (case-insensitively), the model skeleton and every other DMX
+    // keep the spelling they were compiled with, and the control node lands under the name the cloth data
+    // actually uses.
+    static void RespellJointsAsClothControlNodes(DmeModel dmeModel, FeModel? feModel)
+    {
+        if (feModel is null || feModel.CtrlNames.Length == 0)
+        {
+            return;
+        }
+
+        var clothSpelling = new Dictionary<string, string>(feModel.CtrlNames.Length, StringComparer.OrdinalIgnoreCase);
+        foreach (var ctrlName in feModel.CtrlNames)
+        {
+            clothSpelling.TryAdd(ctrlName, ctrlName);
+        }
+
+        foreach (var element in dmeModel.JointList)
+        {
+            if (element is DmeJoint joint
+                && clothSpelling.TryGetValue(joint.Name, out var spelling) && spelling != joint.Name)
+            {
+                joint.Name = spelling;
+                joint.Transform.Name = spelling;
+            }
+        }
+    }
+
+    internal byte[] BuildClothProxyMeshDmx(FeModel.ProxyMesh proxy, string name)
+    {
+        Debug.Assert(model is not null, "model required for cloth proxy mesh");
+
+        var skeleton = model.Skeleton;
+
+        using var dmx = new Datamodel.Datamodel("model", 22);
+
+        // Joint list = the full skeleton, so BLENDINDICES resolve (mirrors ConvertMeshToDatamodelMesh).
+        var dmeModel = BuildDmeDagSkeleton(skeleton, out _, bonePositions: ClothRestBonePositions);
+        dmeModel.Name = name;
+        RespellJointsAsClothControlNodes(dmeModel, physAggregateData?.FeModel);
+
+        var (dag, vertexData) = CreateDmxDagVertexData(dmeModel, name);
+        dag.Shape!.Name = name;
+
+        var vertexCount = proxy.Positions.Length;
+
+        // Indexed one face corner at a time, the way authored proxies are: the face set names corner
+        // ordinals and every stream's index array maps corner -> vertex. A sheet with no faces has no
+        // corners and stays indexed per vertex.
+        var cornerVertices = proxy.Faces.SelectMany(static face => face).ToArray();
+        var identity = Enumerable.Range(0, vertexCount).ToArray();
+        var vertexIndices = cornerVertices.Length > 0 ? cornerVertices : identity;
+
+        vertexData.AddIndexedStream("position$0", proxy.Positions, vertexIndices);
+
+        // The sheet's normals are its rest orientations (see FeModel.RecoverRestNormals). The importer
+        // reads proxy vertex v's normal from the flattened per-corner stream at ordinal v, not at one of
+        // v's own corners, so slot v carries vertex v's; the corners past the vertex count carry theirs.
+        var restNormals = physAggregateData?.FeModel?.RecoverRestNormals(proxy)
+            ?? [.. Enumerable.Repeat(Vector3.UnitZ, vertexCount)];
+        var cornerNormals = new Vector3[vertexIndices.Length];
+        for (var corner = 0; corner < cornerNormals.Length; corner++)
+        {
+            cornerNormals[corner] = restNormals[corner < vertexCount ? corner : vertexIndices[corner]];
+        }
+
+        vertexData.AddIndexedStream("normal$0", cornerNormals, Enumerable.Range(0, cornerNormals.Length).ToArray());
+
+        // The cloth importer needs texcoords on the proxy (authored proxies always carry them; without
+        // UVs the surface is not accepted as a sheet). A bounding-box projection along the two largest
+        // extents is enough - the UVs only need to vary smoothly across the sheet.
+        var boundsMin = proxy.Positions.Aggregate(Vector3.Min);
+        var boundsMax = proxy.Positions.Aggregate(Vector3.Max);
+        var extent = boundsMax - boundsMin;
+        Span<int> axes = [0, 1, 2];
+        axes.Sort((a, b) => extent[b].CompareTo(extent[a]));
+        var (axisU, axisV) = (axes[0], axes[1]);
+        var texcoords = new Vector2[vertexCount];
+        for (var v = 0; v < vertexCount; v++)
+        {
+            texcoords[v] = new Vector2(
+                extent[axisU] > 1e-6f ? (proxy.Positions[v][axisU] - boundsMin[axisU]) / extent[axisU] : 0f,
+                extent[axisV] > 1e-6f ? (proxy.Positions[v][axisV] - boundsMin[axisV]) / extent[axisV] : 0f);
+        }
+
+        vertexData.AddIndexedStream("texcoord$0", texcoords, vertexIndices);
+
+        // Per-vertex cloth paint layers. The names + the full layer set match a current authored cloth
+        // proxy (meepo_scream qop_body_proxy.dmx): cloth_goal_strength_v2 is the modern attribute the
+        // ModelDoc cloth editor actually paints (the legacy cloth_goal_strength reads as 0 in the current
+        // editor), and friction/drag/ground_collision are the paint layers the editor shows - omitting them
+        // is what made other cloth items "disappear". All are recovered 0..1 paint values (NOT raw compiled
+        // solver numbers): the old code wrote cloth_goal_damping = flPointDamping (~6.0), 60x outside the
+        // slider's 0..1 range, which is why the editor showed 0 in the text while the slider sat pegged.
+        vertexData.AddIndexedStream("cloth_enable$0", proxy.ClothEnable, vertexIndices);
+        vertexData.AddIndexedStream("cloth_goal_strength_v2$0", proxy.GoalStrength, vertexIndices);
+        vertexData.AddIndexedStream("cloth_goal_damping$0", proxy.GoalDamping, vertexIndices);
+        vertexData.AddIndexedStream("cloth_collision_radius$0", proxy.CollisionRadius, vertexIndices);
+        vertexData.AddIndexedStream("cloth_ground_collision$0", proxy.GroundCollision, vertexIndices);
+        vertexData.AddIndexedStream("cloth_drag$0", proxy.Drag, vertexIndices);
+
+        // World-collision ground friction paint (compiler attribute "cloth_ground_friction", confirmed
+        // against the resourcecompiler DMX importer's own attribute table). There is no
+        // "cloth_world_friction" counterpart there because world friction rides the ground-collision
+        // paint instead - see ProxyVertexData's GroundCollision.
+        if (Array.Exists(proxy.GroundFriction, static value => value != 0f))
+        {
+            vertexData.AddIndexedStream("cloth_ground_friction$0", proxy.GroundFriction, vertexIndices);
+        }
+
+        // Friction is painted only where the cloth carries any: no authored proxy in the reference corpus
+        // ships the stream, and an all-zero stream is not the same input as no stream at all.
+        if (Array.Exists(proxy.Friction, static value => value != 0f))
+        {
+            vertexData.AddIndexedStream("cloth_friction$0", proxy.Friction, vertexIndices);
+        }
+
+        // Per-vertex gravity, painted VERBATIM: cloth_gravity$0 compiles into flGravity with no scaling
+        // (measured: 0.002778 lands 0.002778, 1.0 lands 1). Without this stream the compiler defaults
+        // every vertex to 360, silently discarding authored variation - dark_willow paints its hair
+        // strands and paper lantern nearly weightless (flGravity=1) while the coattail is full weight
+        // (360). A cloth_animation_attract$0 stream for the same integrator's out-of-range legacy
+        // flAnimationVertexAttraction (15/10.5/6/5.25 on dark_willow) is IGNORED by the proxy importer (the
+        // name belongs to ClothMapFilter's map list) - that field stays a legacy platform ceiling, do not
+        // re-emit it.
+        vertexData.AddIndexedStream("cloth_gravity$0", proxy.Gravity, vertexIndices);
+
+        // Per-vertex mass paint. The compiler adds expf(cloth_mass * cloth_mass_scale) on top of the mass
+        // it derives from the sheet's own geometry, and only when the mesh ships this stream - so a sheet
+        // exported without it comes back lighter than the original wherever the mass was painted, while an
+        // all-zero stream is a real authoring choice (e^0 = 1) and not the same as no stream at all.
+        if (physAggregateData?.FeModel?.RecoverMassPaint(proxy) is { } mass)
+        {
+            vertexData.AddIndexedStream("cloth_mass$0", mass, vertexIndices);
+        }
+
+        // Named vertex selections are painted per vertex, one stream per selection. A cloth effect or a
+        // chain joint then names the selection, and the compiler collects every vertex the paint reaches.
+        // The one selection this sheet is parented under as a ClothVertexMap is left unpainted: the
+        // container recreates the same m_VertexMaps entry without the dynamic vertex set the paint also
+        // registers (and which then gives back_solve a sheet-sized set to fit against). Every other
+        // selection keeps its paint - an effect naming one the compile cannot find is a hard failure
+        // ("refers to non-existent vertex map/set").
+        var containerMap = physAggregateData?.FeModel?.GetProxyVertexMapName(proxy);
+        foreach (var (mapName, weights) in proxy.VertexMaps)
+        {
+            if (mapName != containerMap)
+            {
+                vertexData.AddIndexedStream("cloth_vertex_set_" + mapName + "$0", weights, vertexIndices);
+            }
+        }
+
+        // Per-vertex stray radius: how far a simulated vertex may leave its animated position
+        // (m_AnimStrayRadii). Without the stream the whole array compiles away.
+        if (physAggregateData?.FeModel?.RecoverStrayRadiusPaint(proxy) is { } strayRadius)
+        {
+            vertexData.AddIndexedStream("cloth_stray_radius$0", strayRadius, vertexIndices);
+        }
+
+        // cloth_drag_v2 and cloth_mass have no measurable effect on the compiled flPointDamping/
+        // m_NodeInvMasses - cloth_drag (no suffix, unlike goal_strength) is already the attribute the
+        // compiler reads, so they are intentionally omitted.
+
+        // cloth_make_rods is the per-face paint gating whether the mesh importer turns a face into rods or
+        // keeps it as a solve element (cloth_use_rods does not: probed on yamato's authored proxy, every
+        // combination of the two, only make_rods moves the split). Painted under the ~0.5 threshold the
+        // whole sheet stays faces, which is only ever right for cloth that ships a surface of its own: a
+        // rod-network cloth then compiles to invented m_Tris and loses every rod (measured on a synthesized
+        // sheet: 669 rods and 0 tris become 0 rods and 172 tris). So the paints go on only when the original
+        // itself carries faces, and the sheet is otherwise left for the compiler to rebuild rods from.
+        //
+        // A sheet that ships BOTH kinds paints the split itself: 1 over the rod region, 0 over the surface,
+        // which is how the original's own gradient paint compiled (see ProxyMesh.RodsDriven).
+        //
+        // A sheet exported with its AUTHORED faces and no rod region skips them entirely, as hand-authored
+        // proxies do.
+        if (proxy.RodsDriven.Length == vertexCount)
+        {
+            vertexData.AddIndexedStream("cloth_make_rods$0", proxy.RodsDriven, vertexIndices);
+        }
+        else if (!proxy.UsesAuthoredFaces && physAggregateData?.FeModel is { HasSurfaceElements: true })
+        {
+            vertexData.AddIndexedStream("cloth_use_rods$0", Enumerable.Repeat(1f, vertexCount).ToArray(), vertexIndices);
+            vertexData.AddIndexedStream("cloth_make_rods$0", Enumerable.Repeat(0.4f, vertexCount).ToArray(), vertexIndices);
+            vertexData.AddIndexedStream("cloth_bend_stiffness$0", Enumerable.Repeat(0.2f, vertexCount).ToArray(), vertexIndices);
+        }
+
+        // Skin the proxy vertices. Pinned (cloth_enable 0) vertices follow their anchor bone with weight 1;
+        // simulated vertices carry smooth two-joint chain weights (see FeModel.ProxyMesh.SkinInfluences) so
+        // the compiler back-solves each chain joint with a proper fit matrix instead of a point rope.
+        //
+        // Match bone names case-INSENSITIVELY: Source treats bone names case-insensitively (the model
+        // compiler matched them that way originally), and a model's compiled FeModel m_CtrlName array does
+        // NOT always agree in case with its skeleton. kez ships skeleton bones CapeLeafB_0/CapeLeafC_0 but
+        // stores the cloth control nodes as capeLeafB_0/capeLeafC_0 - an Ordinal lookup drops every one of
+        // those influences, the affected simulated vertices end up with all-zero blend weights, and with
+        // back_solve_joints on the compiler then hits "Cannot find most-bound-joint for position N in mesh
+        // cloth_proxyK_shape" and ACCESS-VIOLATION crashes (its CapeLeafA_* chain, which happens to agree in
+        // case, back-solved fine - which is exactly how the bug hid). OrdinalIgnoreCase resolves them.
+        var boneIndexByName = new Dictionary<string, int>(skeleton.Bones.Length * 2, StringComparer.OrdinalIgnoreCase);
+        foreach (var bone in skeleton.Bones)
+        {
+            boneIndexByName.TryAdd(bone.Name, bone.Index);
+            boneIndexByName.TryAdd(GetExportBoneName(bone), bone.Index);
+        }
+
+        // A sheet no real bone drives ships UNSKINNED, like its hand-authored counterpart: the compiler
+        // then anchors the whole sheet to a static root node it generates itself and records every vertex
+        // as an m_CtrlOffsets entry hanging off that root. Skinning it to the synthetic per-vertex bones
+        // binds each node directly instead, which costs both the root node and the entire offsets array.
+        if (!proxy.IsFreeFloating)
+        {
+            // Four slots cover everything BuildChainSkinInfluences synthesises, but weights recovered
+            // verbatim from a model's own offset network run to eight (abrams), and a truncated
+            // influence takes its m_CtrlSoftOffsets entry with it - familiar lost exactly the 25 tail
+            // entries of its 17 five-influence and 4 six-influence vertices. Widened only for the
+            // vertices those recovered weights cover, and only where no fit is taken over the sheet:
+            // giving a back-solving sheet more slots than its own fits need re-classifies its nodes
+            // (mars gains five node-count/mass keys).
+            var jointCount = 4;
+            if (physAggregateData?.FeModel is { ProxyFitMatrixNodes.Count: 0 } feModel)
+            {
+                for (var v = 0; v < vertexCount; v++)
+                {
+                    if (v < proxy.NodeIndices.Length && feModel.RecoveredSkinWeights.ContainsKey(proxy.NodeIndices[v]))
+                    {
+                        jointCount = Math.Max(jointCount, proxy.SkinInfluences[v].Count(i => boneIndexByName.ContainsKey(i.Bone)));
+                    }
+                }
+            }
+
+            var blendIndices = new int[vertexCount * jointCount];
+            var blendWeights = new float[vertexCount * jointCount];
+            for (var v = 0; v < vertexCount; v++)
+            {
+                var slot = 0;
+                foreach (var (boneName, weight) in proxy.SkinInfluences[v])
+                {
+                    if (slot >= jointCount || !boneIndexByName.TryGetValue(boneName, out var bi))
+                    {
+                        continue;
+                    }
+
+                    blendIndices[v * jointCount + slot] = bi;
+                    blendWeights[v * jointCount + slot] = weight;
+                    slot++;
+                }
+            }
+
+            vertexData.JointCount = jointCount;
+            vertexData.AddStream("blendindices$0", blendIndices);
+            vertexData.AddStream("blendweights$0", blendWeights);
+        }
+
+        var faceSet = new DmeFaceSet { Name = "cloth" };
+        faceSet.Material.MaterialName = "cloth";
+        if (dag.Shape is DmeMesh dmeMesh)
+        {
+            dmeMesh.FaceSets.Add(faceSet);
+        }
+
+        var cornerOrdinal = 0;
+        foreach (var face in proxy.Faces)
+        {
+            foreach (var _ in face)
+            {
+                faceSet.Faces.Add(cornerOrdinal++);
+            }
+
+            faceSet.Faces.Add(-1);
+        }
+
+        if (dag.Shape is DmeMesh morphTarget)
+        {
+            AddClothProxyMorphLayers(morphTarget, proxy, physAggregateData?.FeModel);
+        }
+
+        TieElementRoot(dmx, dmeModel);
+        using var stream = new MemoryStream();
+        dmx.Save(stream, "binary", 9);
+        return stream.ToArray();
+    }
+
+    /// <summary>
+    /// Re-emits a sheet's cloth morph layers (<c>m_MorphLayers</c>) as DMX delta states, sparse per
+    /// vertex like any flex. The compiler reads them off the proxy mesh itself - no vmdl node carries
+    /// the deltas, so a sheet exported without them loses the layer entirely.
+    /// </summary>
+    static void AddClothProxyMorphLayers(DmeMesh dmeMesh, FeModel.ProxyMesh proxy, FeModel? feModel)
+    {
+        if (feModel is null || feModel.MorphLayers.Length == 0)
+        {
+            return;
+        }
+
+        var localOfNode = new Dictionary<int, int>(proxy.NodeIndices.Length);
+        for (var v = 0; v < proxy.NodeIndices.Length; v++)
+        {
+            localOfNode.TryAdd(proxy.NodeIndices[v], v);
+        }
+
+        foreach (var layer in feModel.MorphLayers)
+        {
+            var indices = new List<int>(layer.Nodes.Length);
+            var values = new List<Vector3>(layer.Nodes.Length);
+            for (var i = 0; i < layer.Nodes.Length && i < layer.InitPos.Length; i++)
+            {
+                if (localOfNode.TryGetValue(layer.Nodes[i], out var local))
+                {
+                    indices.Add(local);
+                    values.Add(layer.InitPos[i]);
+                }
+            }
+
+            if (values.Count == 0)
+            {
+                continue;
+            }
+
+            var deltaState = new DmeVertexDeltaData { Name = layer.Name };
+            deltaState.AddIndexedStream("position$0", values.ToArray(), indices.ToArray());
+            dmeMesh.DeltaStates.Add(deltaState);
+            dmeMesh.DeltaStateWeights.Add(Vector2.Zero);
+            dmeMesh.DeltaStateWeightsLagged.Add(Vector2.Zero);
+        }
+    }
+
+    /// <summary>
+    /// Builds a generated cloth sheet grid DMX over a group of bone chains (see
+    /// <see cref="FeModel.BuildChainGrids"/>). Mirrors hand-authored item proxies: rows/columns of
+    /// vertices spanning the chains, bilinear chain-joint skinning, recovered cloth paints, quad faces.
+    /// </summary>
+    internal byte[] BuildClothChainGridDmx(FeModel.ChainGrid grid, string name)
+    {
+        Debug.Assert(model is not null, "model required for cloth grid");
+
+        var skeleton = model.Skeleton;
+
+        using var dmx = new Datamodel.Datamodel("model", 22);
+
+        var dmeModel = BuildDmeDagSkeleton(skeleton, out _, bonePositions: ClothRestBonePositions);
+        dmeModel.Name = name;
+
+        var (dag, vertexData) = CreateDmxDagVertexData(dmeModel, name);
+        dag.Shape!.Name = name;
+
+        var vertexCount = grid.Positions.Length;
+        var identity = Enumerable.Range(0, vertexCount).ToArray();
+
+        vertexData.AddIndexedStream("position$0", grid.Positions, identity);
+        vertexData.AddIndexedStream("normal$0", Enumerable.Repeat(Vector3.UnitZ, vertexCount).ToArray(), identity);
+        vertexData.AddIndexedStream("texcoord$0", grid.Texcoords, identity);
+
+        // Full paint set, matching BuildClothProxyMeshDmx - a grid missing friction/drag has nothing
+        // damping its fall once goal_strength lets go, which is why an isolated cloth_grid (no
+        // cloth_proxy back-solve driving it) looked like it "just falls".
+        vertexData.AddIndexedStream("cloth_enable$0", grid.ClothEnable, identity);
+        vertexData.AddIndexedStream("cloth_goal_strength_v2$0", grid.GoalStrength, identity);
+        vertexData.AddIndexedStream("cloth_goal_damping$0", grid.GoalDamping, identity);
+        vertexData.AddIndexedStream("cloth_collision_radius$0", grid.CollisionRadius, identity);
+        vertexData.AddIndexedStream("cloth_ground_collision$0", Enumerable.Repeat(0f, vertexCount).ToArray(), identity);
+        vertexData.AddIndexedStream("cloth_drag$0", grid.Drag, identity);
+
+        if (Array.Exists(grid.Friction, static value => value != 0f))
+        {
+            vertexData.AddIndexedStream("cloth_friction$0", grid.Friction, identity);
+        }
+
+        // See BuildClothProxyMeshDmx: keeping the sheet as faces is only right for cloth that ships faces.
+        if (physAggregateData?.FeModel is { HasSurfaceElements: true })
+        {
+            vertexData.AddIndexedStream("cloth_use_rods$0", Enumerable.Repeat(1f, vertexCount).ToArray(), identity);
+            vertexData.AddIndexedStream("cloth_make_rods$0", Enumerable.Repeat(0.4f, vertexCount).ToArray(), identity);
+            vertexData.AddIndexedStream("cloth_bend_stiffness$0", Enumerable.Repeat(0.2f, vertexCount).ToArray(), identity);
+        }
+
+        // Case-insensitive bone-name resolution - see BuildClothProxyMeshDmx for why (compiled cloth control
+        // node names do not always agree in case with the skeleton; an Ordinal miss silently drops the skin).
+        var boneIndexByName = new Dictionary<string, int>(skeleton.Bones.Length * 2, StringComparer.OrdinalIgnoreCase);
+        foreach (var bone in skeleton.Bones)
+        {
+            boneIndexByName.TryAdd(bone.Name, bone.Index);
+            boneIndexByName.TryAdd(GetExportBoneName(bone), bone.Index);
+        }
+
+        const int JointCount = 4;
+        var blendIndices = new int[vertexCount * JointCount];
+        var blendWeights = new float[vertexCount * JointCount];
+        for (var v = 0; v < vertexCount; v++)
+        {
+            var slot = 0;
+            foreach (var (boneName, weight) in grid.SkinInfluences[v])
+            {
+                if (slot >= JointCount || !boneIndexByName.TryGetValue(boneName, out var bi))
+                {
+                    continue;
+                }
+
+                blendIndices[v * JointCount + slot] = bi;
+                blendWeights[v * JointCount + slot] = weight;
+                slot++;
+            }
+        }
+
+        vertexData.JointCount = JointCount;
+        vertexData.AddStream("blendindices$0", blendIndices);
+        vertexData.AddStream("blendweights$0", blendWeights);
+
+        var faceSet = new DmeFaceSet { Name = "cloth" };
+        faceSet.Material.MaterialName = "cloth";
+        if (dag.Shape is DmeMesh dmeMesh)
+        {
+            dmeMesh.FaceSets.Add(faceSet);
+        }
+
+        foreach (var face in grid.Faces)
+        {
+            foreach (var index in face)
+            {
+                faceSet.Faces.Add(index);
+            }
+
+            faceSet.Faces.Add(-1);
+        }
+
+        TieElementRoot(dmx, dmeModel);
+        using var stream = new MemoryStream();
+        dmx.Save(stream, "binary", 9);
+        return stream.ToArray();
+    }
+
+    /// <summary>
+    /// Adds morph (face flex) delta states to the DMX meshes and builds the flex controller setup.
+    /// Each flex descriptor becomes a <see cref="DmeVertexDeltaData"/> holding the sparse per-vertex
+    /// position deltas (only changed vertices), plus a parallel zero entry in the mesh's delta-state
+    /// weight arrays. A <see cref="DmeCombinationOperator"/> is built with one input control per raw
+    /// (non-combo) flex; <c>a__b</c> corrective delta states are left for the compiler to synthesise
+    /// combination rules from. Returns the combination operator to attach to the DMX root, or null
+    /// when the mesh has no usable morph data.
+    /// </summary>
+    private static DmeCombinationOperator? AddMorphDeltaStates(Morph morphData,
+        List<(DmeMesh DmeMesh, int BaseVertex, int VertexCount, int GlobalOffset)> morphDrawCalls)
+    {
+        var flexData = morphData.GetFlexVertexData();
+        if (flexData.Count == 0)
+        {
+            return null;
+        }
+
+        // Preserve the original flex descriptor order so delta-state indices line up with the
+        // compiled morph descriptors.
+        var flexNames = morphData.GetFlexDescriptors();
+
+        var targetMeshes = new List<DmeMesh>();
+        var rawControlNames = new List<string>();
+        var seenControls = new HashSet<string>(StringComparer.Ordinal);
+
+        foreach (var meshGroup in morphDrawCalls.GroupBy(static d => d.DmeMesh))
+        {
+            var dmeMesh = meshGroup.Key;
+            var ranges = meshGroup.ToArray();
+            var meshGotDelta = false;
+
+            foreach (var morphName in flexNames)
+            {
+                if (string.IsNullOrEmpty(morphName) || !flexData.TryGetValue(morphName, out var deltas))
+                {
+                    continue;
+                }
+
+                var indices = new List<int>();
+                var values = new List<Vector3>();
+
+                foreach (var (_, baseVertex, vertexCount, globalOffset) in ranges)
+                {
+                    for (var v = 0; v < vertexCount; v++)
+                    {
+                        var srcIndex = globalOffset + v;
+                        if (srcIndex >= deltas.Length)
+                        {
+                            break;
+                        }
+
+                        var delta = deltas[srcIndex];
+                        if (delta == Vector3.Zero)
+                        {
+                            continue;
+                        }
+
+                        indices.Add(baseVertex + v);
+                        values.Add(delta);
+                    }
+                }
+
+                if (values.Count == 0)
+                {
+                    continue;
+                }
+
+                var deltaState = new DmeVertexDeltaData { Name = morphName };
+                deltaState.AddIndexedStream("position$0", values.ToArray(), indices.ToArray());
+
+                dmeMesh.DeltaStates.Add(deltaState);
+                dmeMesh.DeltaStateWeights.Add(Vector2.Zero);
+                dmeMesh.DeltaStateWeightsLagged.Add(Vector2.Zero);
+                meshGotDelta = true;
+
+                // Raw (non-combo) flexes get an input control so they are drivable/scrubbable.
+                // Combo correctives ("a__b") are derived by the compiler from the constituent controls.
+                if (!morphName.Contains("__", StringComparison.Ordinal) && seenControls.Add(morphName))
+                {
+                    rawControlNames.Add(morphName);
+                }
+            }
+
+            if (meshGotDelta)
+            {
+                targetMeshes.Add(dmeMesh);
+            }
+        }
+
+        if (rawControlNames.Count == 0 || targetMeshes.Count == 0)
+        {
+            return null;
+        }
+
+        var combinationOperator = new DmeCombinationOperator { Name = "combinationOperator" };
+
+        // Original controller ranges, matched by name against the model's compiled flex controllers:
+        // paired controllers (eyeDownAndUp, jawSideways, ...) are authored [-1, 1], not [0, 1].
+        var controllerRanges = new Dictionary<string, (float Min, float Max)>(StringComparer.Ordinal);
+        foreach (var controller in morphData.FlexControllers)
+        {
+            controllerRanges.TryAdd(controller.Name, (controller.Min, controller.Max));
+        }
+
+        // Reconstruct PAIRED input controls: an original [-1, 1] controller with no raw flex of its own
+        // name drives one raw flex on the positive half and one on the negative half (eyeDownAndUp ->
+        // eyeUp / eyeDown via min/max rules). Probing the compiled flex rules with the controller at
+        // +max / at min recovers that mapping, letting the control round-trip with its original range
+        // instead of two split 0..1 sliders.
+        var pairedByControl = new List<(string Name, string NegativeRaw, string PositiveRaw, float Min, float Max)>();
+        var pairedRaws = new HashSet<string>(StringComparer.Ordinal);
+
+        if (morphData.FlexRules.Length > 0 && morphData.FlexControllers.Length > 0)
+        {
+            var rawControlSet = new HashSet<string>(rawControlNames, StringComparer.Ordinal);
+            var probe = new float[morphData.FlexControllers.Length];
+
+            List<string> DrivenRaws(int controllerIndex, float value)
+            {
+                Array.Clear(probe);
+                probe[controllerIndex] = value;
+                var driven = new List<string>();
+                foreach (var rule in morphData.FlexRules)
+                {
+                    if (rule.FlexID < 0 || rule.FlexID >= flexNames.Count)
+                    {
+                        continue;
+                    }
+
+                    try
+                    {
+                        if (rule.Evaluate(probe) > 0.25f)
+                        {
+                            driven.Add(flexNames[rule.FlexID]);
+                        }
+                    }
+                    catch (Exception e) when (e is InvalidOperationException or NotImplementedException)
+                    {
+                        // Unsupported flex op - skip this rule.
+                    }
+                }
+
+                return driven;
+            }
+
+            for (var i = 0; i < morphData.FlexControllers.Length; i++)
+            {
+                var controller = morphData.FlexControllers[i];
+                if (controller.Min >= 0f || rawControlSet.Contains(controller.Name))
+                {
+                    continue;
+                }
+
+                var positive = DrivenRaws(i, controller.Max).Where(rawControlSet.Contains).Except(pairedRaws).ToList();
+                var negative = DrivenRaws(i, controller.Min).Where(rawControlSet.Contains).Except(pairedRaws).ToList();
+
+                if (positive.Count == 1 && negative.Count == 1 && positive[0] != negative[0])
+                {
+                    pairedByControl.Add((controller.Name, negative[0], positive[0], controller.Min, controller.Max));
+                    pairedRaws.Add(positive[0]);
+                    pairedRaws.Add(negative[0]);
+                }
+            }
+        }
+
+        void AddControlValueSlots()
+        {
+            combinationOperator.ControlValues.Add(new Vector3(0f, 0f, 0.5f));
+            combinationOperator.ControlValuesLagged.Add(new Vector3(0f, 0f, 0.5f));
+        }
+
+        foreach (var (pairName, negativeRaw, positiveRaw, flexMin, flexMax) in pairedByControl)
+        {
+            var control = new DmeCombinationInputControl { Name = pairName, FlexMin = flexMin, FlexMax = flexMax };
+            control.RawControlNames.Add(negativeRaw);
+            control.RawControlNames.Add(positiveRaw);
+            control.WrinkleScales.Add(0f);
+            control.WrinkleScales.Add(0f);
+
+            combinationOperator.Controls.Add(control);
+            AddControlValueSlots();
+        }
+
+        // Single-raw controls are NOT emitted: the compiler creates them implicitly from the delta
+        // states themselves (verified: stripping all 21 of them recompiles a byte-identical rule set),
+        // and an explicit control stamps its name into ModelDoc's otherwise-empty morph rule display.
+        // Controls whose ORIGINAL controller has a non-default range still need an explicit entry.
+        foreach (var controlName in rawControlNames)
+        {
+            if (pairedRaws.Contains(controlName))
+            {
+                continue;
+            }
+
+            if (!controllerRanges.TryGetValue(controlName, out var range) || range == (0f, 1f))
+            {
+                continue;
+            }
+
+            var control = new DmeCombinationInputControl { Name = controlName, FlexMin = range.Min, FlexMax = range.Max };
+            control.RawControlNames.Add(controlName);
+            control.WrinkleScales.Add(0f);
+
+            combinationOperator.Controls.Add(control);
+            AddControlValueSlots();
+        }
+
+        foreach (var dmeMesh in targetMeshes)
+        {
+            combinationOperator.Targets.Add(dmeMesh);
+        }
+
+        return combinationOperator;
     }
 
     /// <summary>
@@ -754,6 +1677,11 @@ partial class ModelExtract
         var shape = new DmeMesh
         {
             Name = name,
+            // bindState is the rest pose that morph (flex) delta states are applied on top of. Valve's
+            // authored morph meshes set bindState == currentState == baseStates[0] (the 'bind' vertex
+            // data); without bindState ModelDoc's flex editor has no base to add the weighted deltas to,
+            // so dragging a flex slider does not deform the mesh even though the compiled MRPH is exact.
+            BindState = vertexData,
             CurrentState = vertexData
         };
         shape.BaseStates.Add(vertexData);
@@ -764,7 +1692,9 @@ partial class ModelExtract
 
     private static (DmeDag, DmeVertexData) CreateDmxDagVertexData(DmeModel dmeModel, string name)
     {
-        // dmx requires one dag per vertex buffer
+        // dmx requires one dag per vertex buffer. Compiled UVs are exported verbatim with
+        // flipVCoordinates=false: the compiler round-trips them correctly (a V-mirrored look in
+        // Blender is that importer's convention, not an export defect).
         var vertexData = new DmeVertexData { Name = "bind" };
         var dag = CreateDmxDag(dmeModel, vertexData, name);
 
@@ -810,9 +1740,9 @@ partial class ModelExtract
         faceSet.Material.MaterialName = material;
     }
 
-    private static void TieElementRoot(Datamodel.Datamodel dmx, DmeModel dmeModel)
+    private static void TieElementRoot(Datamodel.Datamodel dmx, DmeModel dmeModel, DmeCombinationOperator? combinationOperator = null)
     {
-        dmx.Root = new Element(dmx, "root", null, "DmElement")
+        var root = new Element(dmx, "root", null, "DmElement")
         {
             ["skeleton"] = dmeModel,
             ["model"] = dmeModel,
@@ -821,5 +1751,14 @@ partial class ModelExtract
                 ["source"] = $"Generated with {StringToken.VRF_GENERATOR}",
             }
         };
+
+        // The flex controller setup hangs off the root so ModelDoc/the compiler can build the
+        // MRPH flex controllers and rules from the mesh delta states.
+        if (combinationOperator != null)
+        {
+            root["combinationOperator"] = combinationOperator;
+        }
+
+        dmx.Root = root;
     }
 }
