@@ -258,12 +258,6 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                 CenterXOffset.NextNumber(systemState),
                 CenterYOffset.NextNumber(systemState));
 
-            // Distance from the quad centre to its furthest corner, in half-widths, so a particle can be
-            // bounded by a sphere without building its basis first.
-            var cornerDistance = new Vector2(1f + MathF.Abs(centerOffset.X), 1f + MathF.Abs(centerOffset.Y)).Length();
-            var cullFrustum = camera.ViewFrustum;
-            const bool PerParticleFrustumCull = false;
-
             // Only the two normal-aligned modes fade by view angle, and only when the range can actually
             // be entered: the value it tests is a dot product magnitude, so it never exceeds 1.
             var viewAngleFadeActive = startFadeDot < 1f
@@ -329,26 +323,6 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                     if (halfWidth <= 0f || alpha < 1f / 255f)
                     {
                         continue;
-                    }
-
-                    // Off-screen particles still cost their vertices and a scan-out of the whole quad.
-                    // The bound is the corner furthest from the centre: the axes of every orientation
-                    // basis are unit length or shorter, so the offset corner distance covers all of them.
-                    if (PerParticleFrustumCull && !cullFrustum.IsEmpty)
-                    {
-                        var cornerReach = halfWidth * cornerDistance;
-
-                        if (orientationType == ParticleOrientation.PARTICLE_ORIENTATION_ALIGN_TO_PARTICLE_NORMAL)
-                        {
-                            // Its right axis is cross(up, normal) left un-normalized, so a normal that is
-                            // not unit length widens the quad past what the corner distance alone covers.
-                            cornerReach *= MathF.Max(1f, particle.Normal.Length());
-                        }
-
-                        if (!cullFrustum.Intersects(particle.Position, cornerReach))
-                        {
-                            continue;
-                        }
                     }
 
                     // Per-mode quad orientation, ported from the spritecard vertex shader. Every mode folds in
