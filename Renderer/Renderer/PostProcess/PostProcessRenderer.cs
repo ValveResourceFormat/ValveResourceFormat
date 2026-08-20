@@ -1,6 +1,5 @@
 using System.Diagnostics;
 using OpenTK.Graphics.OpenGL;
-using ValveResourceFormat.CompiledShader;
 using ValveResourceFormat.Renderer.SceneEnvironment;
 using ValveResourceFormat.Renderer.World;
 
@@ -175,7 +174,7 @@ namespace ValveResourceFormat.Renderer.PostProcess
             {
                 combinedLut?.Delete();
                 combinedLut = new RenderTexture(TextureTarget.Texture3D, dimensions, dimensions, dimensions, 1, "CombinedColorCorrectionLUT");
-                combinedLut.SetWrapMode(TextureWrapMode.ClampToEdge);
+                combinedLut.SetWrapMode(RsTextureAddressMode.Clamp);
                 combinedLut.SetFiltering(TextureMinFilter.Linear, TextureMagFilter.Linear);
                 GL.TextureStorage3D(combinedLut.Handle, 1, SizedInternalFormat.Rgba8, dimensions, dimensions, dimensions);
             }

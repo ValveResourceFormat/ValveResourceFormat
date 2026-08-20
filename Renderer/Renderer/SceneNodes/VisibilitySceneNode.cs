@@ -1,6 +1,5 @@
 using OpenTK.Graphics.OpenGL;
 using ValveResourceFormat.Blocks;
-using ValveResourceFormat.CompiledShader;
 using ValveResourceFormat.ThirdParty;
 
 namespace ValveResourceFormat.Renderer.SceneNodes

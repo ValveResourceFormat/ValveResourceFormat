@@ -50,6 +50,6 @@
   </ItemGroup>
   <ItemGroup>
     <Using Include="ValveResourceFormat.Utils" />
-    <Using Include="ValveResourceFormat.Renderer.OpenGL" />
+    <Using Include="ValveResourceFormat.CompiledShader" />
   </ItemGroup>
 </Project>

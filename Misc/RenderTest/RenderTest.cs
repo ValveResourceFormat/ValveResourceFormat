@@ -9,7 +9,6 @@ using ValveResourceFormat;
 using ValveResourceFormat.CompiledShader;
 using ValveResourceFormat.IO;
 using ValveResourceFormat.Renderer;
-using ValveResourceFormat.Renderer.OpenGL;
 using ValveResourceFormat.Renderer.Input;
 using ValveResourceFormat.Renderer.World;
 using ValveResourceFormat.Utils;

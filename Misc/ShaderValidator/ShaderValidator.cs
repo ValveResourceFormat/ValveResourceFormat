@@ -1,6 +1,5 @@
 using Microsoft.Extensions.Logging;
 using ValveResourceFormat.Renderer;
-using ValveResourceFormat.Renderer.OpenGL;
 using ValveResourceFormat.Renderer.Shaders;
 
 internal class ShaderValidator

@@ -3,7 +3,6 @@ using System.Linq;
 using System.Runtime.InteropServices;
 using OpenTK.Graphics.OpenGL;
 using ValveKeyValue;
-using ValveResourceFormat.CompiledShader;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization.KeyValues;
 
@@ -89,7 +88,7 @@ namespace ValveResourceFormat.Renderer
         private void InitRenderTarget()
         {
             CompositeTexture.SetFiltering(TextureMinFilter.Nearest, TextureMagFilter.Nearest);
-            CompositeTexture.SetWrapMode(TextureWrapMode.ClampToEdge);
+            CompositeTexture.SetWrapMode(RsTextureAddressMode.Clamp);
 
             GL.TextureStorage2D(CompositeTexture.Handle, 1, SizedInternalFormat.Rgba16f, CompositeTexture.Width, CompositeTexture.Height);
             GL.NamedFramebufferTexture(frameBuffer, FramebufferAttachment.ColorAttachment0, CompositeTexture.Handle, 0);

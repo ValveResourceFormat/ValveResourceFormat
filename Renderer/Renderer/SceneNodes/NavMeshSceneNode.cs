@@ -1,5 +1,4 @@
 using OpenTK.Graphics.OpenGL;
-using ValveResourceFormat.CompiledShader;
 using ValveResourceFormat.NavMesh;
 
 namespace ValveResourceFormat.Renderer.SceneNodes

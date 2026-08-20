@@ -1,7 +1,6 @@
 using System.Diagnostics;
 using OpenTK.Graphics.OpenGL;
 using OpenTK.Mathematics;
-using ValveResourceFormat.CompiledShader;
 
 namespace ValveResourceFormat.Renderer;
 
@@ -77,7 +76,7 @@ public class Framebuffer
     // Sampler state requested by callers, remembered so that it survives attachment recreation.
     private bool? shadowDepthSamplerLEqualCompare;
     private (TextureMinFilter Min, TextureMagFilter Mag)? colorFiltering;
-    private TextureWrapMode? colorWrapMode;
+    private RsTextureAddressMode? colorWrapMode;
 
     /// <summary>
     /// The framebuffer target this object was last bound to.
@@ -447,14 +446,14 @@ public class Framebuffer
         Depth.SetParameter(TextureParameterName.TextureCompareMode, (int)TextureCompareMode.CompareRToTexture);
         Depth.SetParameter(TextureParameterName.TextureCompareFunc, (int)(lEqualCompare ? DepthFunction.Lequal : DepthFunction.Gequal));
         Depth.SetFiltering(TextureMinFilter.Linear, TextureMagFilter.Linear);
-        Depth.SetWrapMode(TextureWrapMode.ClampToEdge);
+        Depth.SetWrapMode(RsTextureAddressMode.Clamp);
     }
 
     /// <summary>
     /// Sets the filtering and wrap mode of the color attachment. The state is remembered and re-applied
     /// whenever the attachment is recreated by a resize or a format change.
     /// </summary>
-    public void SetColorSamplerState(TextureMinFilter minFilter, TextureMagFilter magFilter, TextureWrapMode wrapMode)
+    public void SetColorSamplerState(TextureMinFilter minFilter, TextureMagFilter magFilter, RsTextureAddressMode wrapMode)
     {
         colorFiltering = (minFilter, magFilter);
         colorWrapMode = wrapMode;
@@ -473,7 +472,7 @@ public class Framebuffer
             Color.SetFiltering(colorFiltering.Value.Min, colorFiltering.Value.Mag);
         }
 
-        if (colorWrapMode is TextureWrapMode wrapMode)
+        if (colorWrapMode is RsTextureAddressMode wrapMode)
         {
             Color.SetWrapMode(wrapMode);
         }

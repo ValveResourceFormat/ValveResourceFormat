@@ -768,14 +768,14 @@ namespace ValveResourceFormat.Renderer.World
         {
             CookieSamplerClampBorder = GraphicsDevice.CreateSampler(nameof(CookieSamplerClampBorder));
 
-            GL.SamplerParameter(CookieSamplerClampBorder, SamplerParameterName.TextureWrapS, (int)TextureWrapMode.ClampToBorder);
-            GL.SamplerParameter(CookieSamplerClampBorder, SamplerParameterName.TextureWrapT, (int)TextureWrapMode.ClampToBorder);
+            GL.SamplerParameter(CookieSamplerClampBorder, SamplerParameterName.TextureWrapS, (int)RsTextureAddressMode.Border.ToGLTextureWrapMode());
+            GL.SamplerParameter(CookieSamplerClampBorder, SamplerParameterName.TextureWrapT, (int)RsTextureAddressMode.Border.ToGLTextureWrapMode());
             GL.SamplerParameter(CookieSamplerClampBorder, SamplerParameterName.TextureMinFilter, (int)TextureMinFilter.Linear);
 
             CookieSamplerWrap = GraphicsDevice.CreateSampler(nameof(CookieSamplerWrap));
 
-            GL.SamplerParameter(CookieSamplerWrap, SamplerParameterName.TextureWrapS, (int)TextureWrapMode.Repeat);
-            GL.SamplerParameter(CookieSamplerWrap, SamplerParameterName.TextureWrapT, (int)TextureWrapMode.Repeat);
+            GL.SamplerParameter(CookieSamplerWrap, SamplerParameterName.TextureWrapS, (int)RsTextureAddressMode.Wrap.ToGLTextureWrapMode());
+            GL.SamplerParameter(CookieSamplerWrap, SamplerParameterName.TextureWrapT, (int)RsTextureAddressMode.Wrap.ToGLTextureWrapMode());
             GL.SamplerParameter(CookieSamplerWrap, SamplerParameterName.TextureMinFilter, (int)TextureMinFilter.Linear);
         }
 

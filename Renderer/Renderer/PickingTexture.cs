@@ -2,7 +2,6 @@ using System.Diagnostics;
 using System.Runtime.InteropServices;
 using OpenTK.Graphics.OpenGL;
 using OpenTK.Mathematics;
-using ValveResourceFormat.CompiledShader;
 
 namespace ValveResourceFormat.Renderer;
 

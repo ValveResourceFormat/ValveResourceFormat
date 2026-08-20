@@ -3,7 +3,7 @@ using Microsoft.Extensions.Logging;
 using OpenTK.Graphics.OpenGL;
 using ValveResourceFormat.Renderer.Materials;
 
-namespace ValveResourceFormat.Renderer.OpenGL;
+namespace ValveResourceFormat.Renderer;
 
 /// <summary>
 /// OpenGL environment initialization and default render state configuration.

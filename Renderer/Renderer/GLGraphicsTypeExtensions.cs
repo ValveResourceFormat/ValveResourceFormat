@@ -1,13 +1,23 @@
 using OpenTK.Graphics.OpenGL;
 
-namespace ValveResourceFormat.Renderer.OpenGL;
+namespace ValveResourceFormat.Renderer;
 
 /// <summary>
 /// Maps the engine's own vocabulary to the OpenGL equivalents, the way
-/// <see cref="ImageFormatExtensions"/> does for image formats.
+/// <see cref="GLImageFormatExtensions"/> does for image formats.
 /// </summary>
-public static class GraphicsTypeExtensions
+public static class GLGraphicsTypeExtensions
 {
+    /// <summary>Returns the wrap mode for this addressing mode.</summary>
+    public static TextureWrapMode ToGLTextureWrapMode(this RsTextureAddressMode mode) => mode switch
+    {
+        RsTextureAddressMode.Wrap => TextureWrapMode.Repeat,
+        RsTextureAddressMode.Mirror => TextureWrapMode.MirroredRepeat,
+        RsTextureAddressMode.Clamp => TextureWrapMode.ClampToEdge,
+        RsTextureAddressMode.Border => TextureWrapMode.ClampToBorder,
+        _ => throw new NotImplementedException($"Unsupported address mode {mode}"),
+    };
+
     /// <summary>Returns the shader object type for this pipeline stage.</summary>
     public static ShaderType ToGLShaderType(this ShaderProgramType stage) => stage switch
     {

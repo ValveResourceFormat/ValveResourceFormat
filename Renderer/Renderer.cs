@@ -2,7 +2,6 @@ using System.Diagnostics;
 using System.IO;
 using System.Reflection;
 using OpenTK.Graphics.OpenGL;
-using ValveResourceFormat.CompiledShader;
 using ValveResourceFormat.Renderer.Buffers;
 using ValveResourceFormat.Renderer.PostProcess;
 using ValveResourceFormat.Renderer.SceneEnvironment;
@@ -294,7 +293,7 @@ public class Renderer
 
         ResolvedSceneColor = RenderTexture.Create(4, 4, ImageFormat.RGBA16161616F, nameof(ResolvedSceneColor));
         ResolvedSceneColor.SetFiltering(TextureMinFilter.Linear, TextureMagFilter.Linear);
-        ResolvedSceneColor.SetWrapMode(TextureWrapMode.ClampToEdge);
+        ResolvedSceneColor.SetWrapMode(RsTextureAddressMode.Clamp);
 
         ResolvedSceneDepth = RenderTexture.Create(4, 4, ImageFormat.R32F, nameof(ResolvedSceneDepth));
 
@@ -373,7 +372,7 @@ public class Renderer
             }
 
             var brdfLutTexture = Scene.RendererContext.MaterialLoader.LoadTexture(brdfLutResource);
-            brdfLutTexture.SetWrapMode(TextureWrapMode.ClampToEdge);
+            brdfLutTexture.SetWrapMode(RsTextureAddressMode.Clamp);
             Textures.Add(new(ReservedTextureSlots.BRDFLookup, "g_tBRDFLookup", brdfLutTexture));
         }
         finally
@@ -1018,7 +1017,7 @@ public class Renderer
             ResolvedSceneColor.Delete();
             ResolvedSceneColor = RenderTexture.Create(width, height, ImageFormat.RGBA16161616F, nameof(ResolvedSceneColor));
             ResolvedSceneColor.SetFiltering(TextureMinFilter.Linear, TextureMagFilter.Linear);
-            ResolvedSceneColor.SetWrapMode(TextureWrapMode.ClampToEdge);
+            ResolvedSceneColor.SetWrapMode(RsTextureAddressMode.Clamp);
 
             ResolvedSceneDepth!.Delete();
             ResolvedSceneDepth = RenderTexture.Create(width, height, ImageFormat.R32F, nameof(ResolvedSceneDepth));

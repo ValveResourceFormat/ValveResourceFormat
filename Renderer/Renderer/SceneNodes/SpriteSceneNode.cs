@@ -49,7 +49,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             // Forcefully clamp sprites so they don't render extra pixels on edges
             foreach (var texture in material.Textures.Values)
             {
-                texture.SetWrapMode(TextureWrapMode.ClampToEdge);
+                texture.SetWrapMode(RsTextureAddressMode.Clamp);
             }
 
             var label = $"{nameof(SpriteSceneNode)}: {System.IO.Path.GetFileName(resource.FileName)}";

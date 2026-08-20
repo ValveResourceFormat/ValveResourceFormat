@@ -3,7 +3,6 @@ using GUI.Utils;
 using OpenTK.Graphics.OpenGL;
 using SkiaSharp;
 using ValveResourceFormat;
-using ValveResourceFormat.CompiledShader;
 using ValveResourceFormat.Renderer;
 
 namespace GUI.Types.GLViewers

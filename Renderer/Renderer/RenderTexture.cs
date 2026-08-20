@@ -1,7 +1,6 @@
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using OpenTK.Graphics.OpenGL;
-using ValveResourceFormat.CompiledShader;
 using ValveResourceFormat.ResourceTypes;
 
 namespace ValveResourceFormat.Renderer
@@ -134,10 +133,12 @@ namespace ValveResourceFormat.Renderer
             return new RenderTexture(handle, Target);
         }
 
-        /// <summary>Sets the wrap mode for all relevant texture dimensions.</summary>
-        /// <param name="wrap">The wrap mode to apply.</param>
-        public void SetWrapMode(TextureWrapMode wrap)
+        /// <summary>Sets the addressing mode for all relevant texture dimensions.</summary>
+        /// <param name="mode">The addressing mode to apply.</param>
+        public void SetWrapMode(RsTextureAddressMode mode)
         {
+            var wrap = mode.ToGLTextureWrapMode();
+
             SetParameter(TextureParameterName.TextureWrapS, (int)wrap);
 
             if (Height > 1)

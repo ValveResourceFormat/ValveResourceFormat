@@ -11,7 +11,6 @@ using OpenTK.Graphics.OpenGL;
 using SkiaSharp;
 using Svg.Skia;
 using ValveResourceFormat;
-using ValveResourceFormat.CompiledShader;
 using ValveResourceFormat.Graphs;
 using ValveResourceFormat.Renderer;
 using ValveResourceFormat.Renderer.Input;
@@ -536,7 +535,7 @@ namespace GUI.Types.GLViewers
                 };
 
                 texture.SetFiltering(min, mag);
-                texture.SetWrapMode(VisualizeTiling ? TextureWrapMode.Repeat : TextureWrapMode.ClampToEdge);
+                texture.SetWrapMode(VisualizeTiling ? RsTextureAddressMode.Wrap : RsTextureAddressMode.Clamp);
             }
         }
 

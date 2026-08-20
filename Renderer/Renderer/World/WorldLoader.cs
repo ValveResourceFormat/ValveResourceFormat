@@ -489,7 +489,7 @@ namespace ValveResourceFormat.Renderer.World
                         renderTexture.SetFiltering(TextureMinFilter.Nearest, TextureMagFilter.Nearest);
                     }
 
-                    renderTexture.SetWrapMode(TextureWrapMode.ClampToEdge);
+                    renderTexture.SetWrapMode(RsTextureAddressMode.Clamp);
                 }
             }
 
@@ -963,14 +963,14 @@ namespace ValveResourceFormat.Renderer.World
                         if (dlsName != null)
                         {
                             lightProbe.DirectLightScalars = RendererContext.MaterialLoader.GetTexture(dlsName);
-                            lightProbe.DirectLightScalars.SetWrapMode(TextureWrapMode.ClampToEdge);
+                            lightProbe.DirectLightScalars.SetWrapMode(RsTextureAddressMode.Clamp);
                         }
 
                         if (dliName != null)
                         {
                             lightProbe.DirectLightIndices = RendererContext.MaterialLoader.GetTexture(dliName);
                             lightProbe.DirectLightIndices.SetFiltering(TextureMinFilter.Nearest, TextureMagFilter.Nearest);
-                            lightProbe.DirectLightIndices.SetWrapMode(TextureWrapMode.ClampToEdge);
+                            lightProbe.DirectLightIndices.SetWrapMode(RsTextureAddressMode.Clamp);
                         }
 
                         scene.LightingInfo.LightProbeType = entity.ContainsKey("light_probe_atlas_x") switch
@@ -982,7 +982,7 @@ namespace ValveResourceFormat.Renderer.World
                         if (dlsdName != null)
                         {
                             lightProbe.DirectLightShadows = RendererContext.MaterialLoader.GetTexture(dlsdName);
-                            lightProbe.DirectLightShadows.SetWrapMode(TextureWrapMode.ClampToEdge);
+                            lightProbe.DirectLightShadows.SetWrapMode(RsTextureAddressMode.Clamp);
 
                             lightProbe.AtlasSize = new Vector3(
                                 entity.GetFloatProperty("light_probe_size_x"),

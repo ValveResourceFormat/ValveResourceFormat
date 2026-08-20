@@ -1,4 +1,3 @@
-using ValveResourceFormat.CompiledShader;
 
 namespace ValveResourceFormat.Renderer
 {

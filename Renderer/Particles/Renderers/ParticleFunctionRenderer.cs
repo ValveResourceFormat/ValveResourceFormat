@@ -1,4 +1,3 @@
-using ValveResourceFormat.CompiledShader;
 using ValveResourceFormat.Particles;
 using ValveResourceFormat.ResourceTypes;
 

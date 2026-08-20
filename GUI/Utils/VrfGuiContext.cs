@@ -6,7 +6,6 @@ using GUI.Types.GLViewers;
 using Microsoft.Extensions.Logging;
 using SteamDatabase.ValvePak;
 using ValveResourceFormat;
-using ValveResourceFormat.CompiledShader;
 using ValveResourceFormat.IO;
 using ValveResourceFormat.Renderer;
 using ValveResourceFormat.ToolsAssetInfo;

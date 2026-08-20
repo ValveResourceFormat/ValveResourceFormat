@@ -4,7 +4,6 @@ using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using OpenTK.Graphics.OpenGL;
 using SkiaSharp;
-using ValveResourceFormat.CompiledShader;
 
 namespace ValveResourceFormat.Renderer
 {
@@ -246,7 +245,7 @@ namespace ValveResourceFormat.Renderer
             shader = RendererContext.ShaderLoader.LoadShader("font_msdf");
 
             fontTexture = new RenderTexture(TextureTarget.Texture2D, (int)AtlasSize, (int)AtlasSize, 1, 1, nameof(TextRenderer));
-            fontTexture.SetWrapMode(TextureWrapMode.ClampToEdge);
+            fontTexture.SetWrapMode(RsTextureAddressMode.Clamp);
             fontTexture.SetFiltering(TextureMinFilter.Linear, TextureMagFilter.Linear);
             GL.TextureStorage2D(fontTexture.Handle, 1, SizedInternalFormat.Rgba8, bitmap.Width, bitmap.Height);
             GL.TextureSubImage2D(fontTexture.Handle, 0, 0, 0, bitmap.Width, bitmap.Height, PixelFormat.Bgra, PixelType.UnsignedByte, bitmap.GetPixels());

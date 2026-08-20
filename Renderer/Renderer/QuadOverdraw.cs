@@ -1,6 +1,5 @@
 using System.Diagnostics;
 using OpenTK.Graphics.OpenGL;
-using ValveResourceFormat.CompiledShader;
 using ValveResourceFormat.Renderer.Buffers;
 
 namespace ValveResourceFormat.Renderer;
