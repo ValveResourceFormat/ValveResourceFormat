@@ -15,6 +15,8 @@ public static class GLGraphicsTypeExtensions
         RsTextureAddressMode.Mirror => TextureWrapMode.MirroredRepeat,
         RsTextureAddressMode.Clamp => TextureWrapMode.ClampToEdge,
         RsTextureAddressMode.Border => TextureWrapMode.ClampToBorder,
+        // Core since 4.4, but missing from the TextureWrapMode enum.
+        RsTextureAddressMode.MirrorOnce => (TextureWrapMode)Version44.MirrorClampToEdge,
         _ => throw new NotImplementedException($"Unsupported address mode {mode}"),
     };
 
