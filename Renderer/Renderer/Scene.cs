@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Linq;
 using System.Runtime.CompilerServices;
+using System.Threading.Tasks;
 using System.Runtime.InteropServices;
 using Microsoft.Extensions.Logging;
 using OpenTK.Graphics.OpenGL;
@@ -203,6 +204,32 @@ namespace ValveResourceFormat.Renderer
         private readonly List<SceneNode> staticNodes = [];
         private readonly List<SceneNode> dynamicNodes = [];
 
+        /// <summary>
+        /// The dynamic particle nodes, kept alongside <see cref="dynamicNodes"/> as nodes come and go
+        /// so that stepping them needs no per-frame partitioning pass.
+        /// </summary>
+        private readonly List<ParticleSceneNode> particleNodes = [];
+
+        /// <summary>How many particle nodes make the thread pool worth its overhead.</summary>
+        private const int ParallelParticleUpdateThreshold = 8;
+
+        private readonly List<SceneNode> CullResults = [];
+        private int StaticCount;
+        private int LastFrustum = -1;
+
+        private List<SceneNode> CulledShadowNodes { get; } = [];
+        private readonly List<RenderableMesh> listWithSingleMesh = [null!];
+
+        private ObjectDataStandard[]? instanceDataCpu;
+        private readonly List<SceneAggregate> lodAggregates = [];
+        private uint[] activeLodBits = [];
+
+        private Dictionary<DepthOnlyBucket, List<MeshBatchRenderer.Request>>? barnShadowDrawCalls;
+
+        // Bound probes in precedence order: most indoor first, then smallest, so the first volume
+        // containing a point is the best one
+        private List<SceneLightProbe>? boundLightProbes;
+
         private Shader? OutlineShader;
 
         /// <summary>
@@ -257,6 +284,11 @@ namespace ValveResourceFormat.Renderer
             {
                 dynamicNodes.Add(node);
                 DynamicOctree.Dirty = true;
+
+                if (node is ParticleSceneNode particleNode)
+                {
+                    particleNodes.Add(particleNode);
+                }
             }
             else
             {
@@ -276,6 +308,11 @@ namespace ValveResourceFormat.Renderer
             {
                 dynamicNodes.Remove(node);
                 DynamicOctree.Dirty = true;
+
+                if (node is ParticleSceneNode particleNode)
+                {
+                    particleNodes.Remove(particleNode);
+                }
             }
             else
             {
@@ -332,6 +369,7 @@ namespace ValveResourceFormat.Renderer
                 item.Delete();
             }
             dynamicNodes.Clear();
+            particleNodes.Clear();
 
             foreach (var item in staticNodes)
             {
@@ -428,6 +466,38 @@ namespace ValveResourceFormat.Renderer
         }
 
         /// <summary>
+        /// Steps this frame's particle systems. One system's simulation touches nothing another's
+        /// does: each owns its particle storage, its control points and its own random stream, and a
+        /// system's children are stepped from inside it rather than from here. That makes the systems
+        /// independent of one another, so they are stepped across the thread pool once there are
+        /// enough to be worth it.
+        /// </summary>
+        private void UpdateParticleNodes(Scene.UpdateContext updateContext)
+        {
+            // A node with a parent is stepped by that parent, the same rule the loop above follows.
+            // Parent is assigned after the node joins the scene, so it is read here and not at insertion.
+            void Step(ParticleSceneNode node)
+            {
+                if (node.Parent == null)
+                {
+                    node.Update(updateContext);
+                }
+            }
+
+            if (particleNodes.Count < ParallelParticleUpdateThreshold)
+            {
+                foreach (var node in particleNodes)
+                {
+                    Step(node);
+                }
+
+                return;
+            }
+
+            Parallel.ForEach(particleNodes, Step);
+        }
+
+        /// <summary>
         /// Updates all scene nodes for the current frame, advancing animations and rebuilding spatial sets and GPU buffers if the scene changed.
         /// </summary>
         /// <param name="updateContext">Per-frame context data including camera and timestep.</param>
@@ -448,8 +518,15 @@ namespace ValveResourceFormat.Renderer
                     continue; // child nodes are updated by their parent
                 }
 
+                if (node is ParticleSceneNode)
+                {
+                    continue; // stepped together below, once the nodes they may be bound to have settled
+                }
+
                 node.Update(updateContext);
             }
+
+            UpdateParticleNodes(updateContext);
 
             foreach (var node in dynamicNodes)
             {
@@ -601,9 +678,6 @@ namespace ValveResourceFormat.Renderer
             instanceDataCpu = instanceData;
         }
 
-        private ObjectDataStandard[]? instanceDataCpu;
-        private readonly List<SceneAggregate> lodAggregates = [];
-        private uint[] activeLodBits = [];
 
         /// <summary>
         /// Uploads the LOD level each setup selected this frame, which the cull shader tests fragments against.
@@ -820,9 +894,6 @@ namespace ValveResourceFormat.Renderer
             LightBinner.Bind();
         }
 
-        private readonly List<SceneNode> CullResults = [];
-        private int StaticCount;
-        private int LastFrustum = -1;
 
         /// <summary>
         /// Returns all scene nodes whose bounding boxes intersect the given frustum, caching static results across frames when the frustum is unchanged.
@@ -1107,8 +1178,6 @@ namespace ValveResourceFormat.Renderer
             }
         }
 
-        private List<SceneNode> CulledShadowNodes { get; } = [];
-        private readonly List<RenderableMesh> listWithSingleMesh = [null!];
         internal Dictionary<DepthOnlyBucket, List<MeshBatchRenderer.Request>>[] CulledShadowDrawCallsCascades { get; } = CreateSunCascadeDrawCallCollections();
         internal static Dictionary<DepthOnlyBucket, List<MeshBatchRenderer.Request>> CreateDepthOnlyDrawCallCollection()
             => Enum.GetValues<DepthOnlyBucket>().ToDictionary(static bucket => bucket, static _ => new List<MeshBatchRenderer.Request>());
@@ -1163,7 +1232,6 @@ namespace ValveResourceFormat.Renderer
             }
         }
 
-        private Dictionary<DepthOnlyBucket, List<MeshBatchRenderer.Request>>? barnShadowDrawCalls;
 
         /// <summary>
         /// Collects the shadow draw calls for a single barn light face. The returned buckets are
@@ -1983,9 +2051,6 @@ namespace ValveResourceFormat.Renderer
             }
         }
 
-        // Bound probes in precedence order: most indoor first, then smallest, so the first volume
-        // containing a point is the best one
-        private List<SceneLightProbe>? boundLightProbes;
 
         /// <summary>
         /// Returns the best probe volume containing the given position, or <see langword="null"/> when
