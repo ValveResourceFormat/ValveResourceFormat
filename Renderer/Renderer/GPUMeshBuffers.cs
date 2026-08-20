@@ -24,16 +24,16 @@ namespace ValveResourceFormat.Renderer
 
             for (var i = 0; i < vbib.VertexBuffers.Count; i++)
             {
-                VertexBuffers[i] = GraphicsDevice.CreateBuffer($"{name} VB {i}");
-                GL.NamedBufferData(VertexBuffers[i], (IntPtr)vbib.VertexBuffers[i].TotalSizeInBytes, vbib.VertexBuffers[i].Data, BufferUsageHint.StaticDraw);
+                var buffer = vbib.VertexBuffers[i];
+                VertexBuffers[i] = GraphicsDevice.CreateBuffer($"{name} VB {i}", buffer.Data.AsSpan(0, (int)buffer.TotalSizeInBytes), BufferUsage.Static);
             }
 
             IndexBuffers = new int[vbib.IndexBuffers.Count];
 
             for (var i = 0; i < vbib.IndexBuffers.Count; i++)
             {
-                IndexBuffers[i] = GraphicsDevice.CreateBuffer($"{name} IB {i}");
-                GL.NamedBufferData(IndexBuffers[i], (IntPtr)vbib.IndexBuffers[i].TotalSizeInBytes, vbib.IndexBuffers[i].Data, BufferUsageHint.StaticDraw);
+                var buffer = vbib.IndexBuffers[i];
+                IndexBuffers[i] = GraphicsDevice.CreateBuffer($"{name} IB {i}", buffer.Data.AsSpan(0, (int)buffer.TotalSizeInBytes), BufferUsage.Static);
             }
         }
 

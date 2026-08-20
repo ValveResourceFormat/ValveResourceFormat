@@ -18,9 +18,6 @@ namespace ValveResourceFormat.Renderer
         {
             System.Diagnostics.Debug.Assert(size % 6 == 0);
 
-            var handle = GraphicsDevice.CreateBuffer(nameof(QuadIndexBuffer));
-            GLHandle = handle;
-
             var sizeInBytes = size * sizeof(ushort);
             var indicesBytes = ArrayPool<byte>.Shared.Rent(sizeInBytes);
 
@@ -37,7 +34,7 @@ namespace ValveResourceFormat.Renderer
                     indices[(i * 6) + 5] = (ushort)((i * 4) + 3);
                 }
 
-                GL.NamedBufferData(handle, sizeInBytes, indicesBytes, BufferUsageHint.StaticDraw);
+                GLHandle = GraphicsDevice.CreateBuffer<byte>(nameof(QuadIndexBuffer), indicesBytes.AsSpan(0, sizeInBytes), BufferUsage.Static);
             }
             finally
             {

@@ -3,7 +3,6 @@ using System.Linq;
 using OpenTK.Graphics.OpenGL;
 using ValveKeyValue;
 using ValveResourceFormat.Blocks;
-using ValveResourceFormat.Renderer.Buffers;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization.KeyValues;
 

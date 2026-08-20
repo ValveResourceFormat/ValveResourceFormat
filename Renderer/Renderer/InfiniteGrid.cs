@@ -26,9 +26,7 @@ namespace ValveResourceFormat.Renderer
 
             shader = scene.RendererContext.ShaderLoader.LoadShader("grid");
 
-            var buffer = GraphicsDevice.CreateBuffer(nameof(InfiniteGrid));
-
-            GL.NamedBufferData(buffer, vertices.Length * sizeof(float), vertices, BufferUsageHint.StaticDraw);
+            var buffer = GraphicsDevice.CreateBuffer<float>(nameof(InfiniteGrid), vertices, BufferUsage.Static);
 
             var format = new VertexInputLayout(sizeof(float) * 2, new VertexAttribute(VertexSlot.Position, DXGI_FORMAT.R32G32_FLOAT));
             vao = format.CreateVertexArray(nameof(InfiniteGrid), buffer);

@@ -1,3 +1,4 @@
+using System.Runtime.InteropServices;
 using OpenTK.Graphics.OpenGL;
 using ValveResourceFormat.Blocks;
 using ValveResourceFormat.ThirdParty;
@@ -45,10 +46,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             clusterDrawRanges = [.. ranges];
             totalVertexCount = vertices.Count;
 
-            var vboHandle = GraphicsDevice.CreateBuffer(nameof(VisibilitySceneNode));
-
-            GL.NamedBufferData(vboHandle, totalVertexCount * SimpleVertex.InputLayout.Stride,
-                ListAccessors<SimpleVertex>.GetBackingArray(vertices), BufferUsageHint.StaticDraw);
+            var vboHandle = GraphicsDevice.CreateBuffer<SimpleVertex>(nameof(VisibilitySceneNode), CollectionsMarshal.AsSpan(vertices), BufferUsage.Static);
 
             vao = SimpleVertex.InputLayout.CreateVertexArray(nameof(VisibilitySceneNode), vboHandle);
 

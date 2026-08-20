@@ -1,4 +1,6 @@
 using System.Diagnostics;
+using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 using OpenTK.Graphics.OpenGL;
 
 namespace ValveResourceFormat.Renderer;
@@ -42,6 +44,15 @@ public sealed class GraphicsDevice
     /// <summary>Creates a buffer object.</summary>
     public static int CreateBuffer(string name) => Current.CreateBufferCore(name);
 
+    /// <summary>Creates a buffer object holding a copy of the given data.</summary>
+    /// <typeparam name="T">Element type of the data.</typeparam>
+    /// <param name="name">Debug label, visible in graphics debuggers.</param>
+    /// <param name="data">Contents to upload.</param>
+    /// <param name="usage">Who writes the buffer and who reads it.</param>
+    /// <returns>The buffer handle.</returns>
+    public static int CreateBuffer<T>(string name, ReadOnlySpan<T> data, BufferUsage usage) where T : unmanaged
+        => Current.CreateBufferCore(name, data, usage);
+
     /// <summary>Creates a texture object of the given target, without storage.</summary>
     public static int CreateTexture(TextureTarget target, string name) => Current.CreateTextureCore(target, name);
 
@@ -74,6 +85,26 @@ public sealed class GraphicsDevice
     {
         GL.CreateBuffers(1, out int handle);
         Label(ObjectLabelIdentifier.Buffer, handle, name);
+        return handle;
+    }
+
+    private int CreateBufferCore<T>(string name, ReadOnlySpan<T> data, BufferUsage usage) where T : unmanaged
+    {
+        var handle = CreateBufferCore(name);
+        var size = data.Length * Unsafe.SizeOf<T>();
+        ref var bytes = ref Unsafe.As<T, byte>(ref MemoryMarshal.GetReference(data));
+
+        // Static contents are set here and never written again, which immutable storage lets the
+        // driver rely on. It has no zero sized form, so an empty buffer stays mutable.
+        if (usage == BufferUsage.Static && size > 0)
+        {
+            GL.NamedBufferStorage(handle, size, ref bytes, BufferStorageFlags.None);
+        }
+        else
+        {
+            GL.NamedBufferData(handle, size, ref bytes, usage.ToGLBufferUsageHint());
+        }
+
         return handle;
     }
 
