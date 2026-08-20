@@ -12,15 +12,8 @@ namespace ValveResourceFormat.Particles.Operators
         private readonly ParticleSetMethod setMethod = ParticleSetMethod.PARTICLE_SET_REPLACE_VALUE;
         private readonly INumberProvider lerp = new LiteralNumberProvider(1f);
 
-        /// <summary>
-        /// Whether an angle output is converted from degrees. The collection-scoped variant of this
-        /// operator does not convert, so it passes false.
-        /// </summary>
-        private readonly bool convertsAngles;
-
-        public SetFloat(ParticleDefinitionParser parse, bool convertsAngles = true) : base(parse)
+        public SetFloat(ParticleDefinitionParser parse) : base(parse)
         {
-            this.convertsAngles = convertsAngles;
             outputField = parse.ParticleField("m_nOutputField", outputField);
             value = parse.NumberProvider("m_InputValue", value);
             setMethod = parse.Enum<ParticleSetMethod>("m_nSetMethod", setMethod);
@@ -39,8 +32,7 @@ namespace ValveResourceFormat.Particles.Operators
 
                 // Angles are authored in degrees and stored in radians, as in InitFloat. The scaling
                 // set methods take a unitless multiplier, not an angle, so they are left alone.
-                if (convertsAngles
-                    && outputField.IsAngleField()
+                if (outputField.IsAngleField()
                     && setMethod is not (ParticleSetMethod.PARTICLE_SET_SCALE_INITIAL_VALUE or ParticleSetMethod.PARTICLE_SET_SCALE_CURRENT_VALUE))
                 {
                     value = float.DegreesToRadians(value);
@@ -49,7 +41,8 @@ namespace ValveResourceFormat.Particles.Operators
                 var target = particle.ModifyScalarBySetMethod(particles, outputField, value, setMethod);
                 var currentValue = particle.GetScalar(outputField);
 
-                var blended = float.Lerp(currentValue, target, lerp);
+                var (min, max) = outputField.SetFloatRange();
+                var blended = Math.Clamp(float.Lerp(currentValue, target, lerp), min, max);
 
                 // Strength lerps from the spawn initial for the two initial-value set methods
                 var strengthBase = setMethod is ParticleSetMethod.PARTICLE_SET_SCALE_INITIAL_VALUE or ParticleSetMethod.PARTICLE_SET_ADD_TO_INITIAL_VALUE

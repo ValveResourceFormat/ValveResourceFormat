@@ -12,15 +12,8 @@ namespace ValveResourceFormat.Particles.Initializers
         private readonly INumberProvider inputStrength = new LiteralNumberProvider(1f);
         private readonly ParticleSetMethod setMethod = ParticleSetMethod.PARTICLE_SET_REPLACE_VALUE;
 
-        /// <summary>
-        /// Whether an angle output is converted from degrees. The collection-scoped variant of this
-        /// initializer does not convert, so it passes false.
-        /// </summary>
-        private readonly bool convertsAngles;
-
-        public InitFloat(ParticleDefinitionParser parse, bool convertsAngles = true) : base(parse)
+        public InitFloat(ParticleDefinitionParser parse) : base(parse)
         {
-            this.convertsAngles = convertsAngles;
             outputField = parse.ParticleField("m_nOutputField", outputField);
             inputValue = parse.NumberProvider("m_InputValue", inputValue);
             inputStrength = parse.NumberProvider("m_InputStrength", inputStrength);
@@ -32,21 +25,24 @@ namespace ValveResourceFormat.Particles.Initializers
         public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemState particleSystemState)
         {
             var value = inputValue.NextNumber(ref particle, particleSystemState);
-            value *= inputStrength.NextNumber(ref particle, particleSystemState);
 
             // Angles are authored in degrees and stored in radians, the same conversion the dedicated
             // rotation initializers do. The scaling set methods take a unitless multiplier, not an angle,
             // so they are left alone.
-            if (convertsAngles
-                && outputField.IsAngleField()
+            if (outputField.IsAngleField()
                 && setMethod is not (ParticleSetMethod.PARTICLE_SET_SCALE_INITIAL_VALUE or ParticleSetMethod.PARTICLE_SET_SCALE_CURRENT_VALUE))
             {
                 value = float.DegreesToRadians(value);
             }
 
-            var finalValue = particle.ModifyScalarBySetMethodAtSpawn(particles, outputField, value, setMethod);
+            var target = particle.ModifyScalarBySetMethodAtSpawn(particles, outputField, value, setMethod);
 
-            particle.SetScalar(outputField, finalValue);
+            // The strength blends the attribute toward what the set method produced; it is not a
+            // multiplier on the input, so at zero the attribute keeps the value it already had
+            var current = particle.GetScalar(outputField);
+            var strength = inputStrength.NextNumber(ref particle, particleSystemState);
+
+            particle.SetScalar(outputField, float.Lerp(current, target, strength));
 
             return particle;
         }

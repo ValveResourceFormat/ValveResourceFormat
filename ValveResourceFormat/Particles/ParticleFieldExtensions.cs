@@ -385,6 +385,18 @@ namespace ValveResourceFormat.Particles
             => field is ParticleField.Roll or ParticleField.Yaw or ParticleField.Pitch;
 
         /// <summary>
+        /// The range the float set operators hold a written value inside. Alpha is bounded to [0, 1],
+        /// radius and trail length to the non-negative half, and every other field is left free.
+        /// </summary>
+        public static (float Min, float Max) SetFloatRange(this ParticleField field)
+            => field switch
+            {
+                ParticleField.Alpha or ParticleField.AlphaAlternate => (0f, 1f),
+                ParticleField.Radius or ParticleField.TrailLength => (0f, float.MaxValue),
+                _ => (float.MinValue, float.MaxValue),
+            };
+
+        /// <summary>
         /// Whether the field is normalized to [0, 1], which the operators that write it clamp into.
         /// </summary>
         public static bool IsNormalizedField(this ParticleField field)
