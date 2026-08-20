@@ -1,3 +1,5 @@
+using ValveResourceFormat.Particles.Utils;
+
 namespace ValveResourceFormat.Particles.Operators
 {
     /// <summary>
@@ -46,7 +48,7 @@ namespace ValveResourceFormat.Particles.Operators
                 }
 
                 var interp = interpolation.NextNumber(ref particle, particleSystemState);
-                var pointed = Vector3.Lerp(particle.GetVector(outputField), Vector3.Normalize(direction), interp);
+                var pointed = Vector3.Lerp(particle.GetVector(outputField), ParticleMath.Normalize(direction), interp);
                 particle.SetVector(outputField, pointed);
             }
 

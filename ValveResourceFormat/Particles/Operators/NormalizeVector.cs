@@ -1,3 +1,5 @@
+using ValveResourceFormat.Particles.Utils;
+
 namespace ValveResourceFormat.Particles.Operators
 {
     /// <summary>
@@ -27,7 +29,7 @@ namespace ValveResourceFormat.Particles.Operators
                     continue;
                 }
 
-                vector = Vector3.Normalize(vector) * scale;
+                vector = ParticleMath.Normalize(vector) * scale;
 
                 particle.SetVector(outputField, vector);
             }

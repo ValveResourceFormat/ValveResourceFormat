@@ -23,9 +23,10 @@ namespace ValveResourceFormat.Particles.Operators
                     ? particle.NormalizedAge
                     : particle.Age;
 
-                if (time <= fadeInTime)
+                if (time < fadeInTime)
                 {
-                    particle.Alpha = (time / fadeInTime) * particle.GetInitialScalar(particles, ParticleField.Alpha);
+                    particle.Alpha = MathUtils.Smoothstep(0f, fadeInTime, time)
+                        * particle.GetInitialScalar(particles, ParticleField.Alpha);
                 }
             }
         }

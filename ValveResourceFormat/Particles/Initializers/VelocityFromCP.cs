@@ -1,3 +1,5 @@
+using ValveResourceFormat.Particles.Utils;
+
 namespace ValveResourceFormat.Particles.Initializers
 {
     /// <summary>
@@ -27,7 +29,7 @@ namespace ValveResourceFormat.Particles.Initializers
 
             if (directionOnly && velocity != Vector3.Zero)
             {
-                velocity = Vector3.Normalize(velocity);
+                velocity = ParticleMath.Normalize(velocity);
             }
 
             velocity *= velocityScale;

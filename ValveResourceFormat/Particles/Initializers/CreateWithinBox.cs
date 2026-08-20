@@ -34,7 +34,7 @@ namespace ValveResourceFormat.Particles.Initializers
 
             var offset = particleSystemState.GetControlPoint(controlPointNumber).Position;
 
-            particle.Position += position + offset;
+            particle.Position = position + offset;
 
             return particle;
         }

@@ -47,7 +47,7 @@ class TwistAroundAxis : ParticleFunctionForceGenerator
                 continue;
             }
 
-            var direction = Vector3.Normalize(delta);
+            var direction = ParticleMath.Normalize(delta);
             var alignment = 1f - Vector3.Dot(direction, axis);
 
             if (alignment * alignment <= ParticleMath.MinimumLengthSquared)

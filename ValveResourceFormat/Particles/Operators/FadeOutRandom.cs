@@ -11,7 +11,11 @@ namespace ValveResourceFormat.Particles.Operators
     /// </remarks>
     class FadeOutRandom : CGeneralRandomFade
     {
+        /// <summary>The bias curve's parameter. 0.5 is the identity, and an authored 0 means 0.5.</summary>
         private readonly float fadeBias = 0.5f;
+
+        /// <summary>Eases the fade along a smoothstep instead of the bias curve, which it replaces.</summary>
+        private readonly bool easeInAndOut = true;
 
         public FadeOutRandom(ParticleDefinitionParser parse) : base(parse, "m_flFadeOutTime")
         {
@@ -23,9 +27,7 @@ namespace ValveResourceFormat.Particles.Operators
             }
 
             fadeBias = bias;
-
-            // Other things that exist that don't seem to do anything:
-            // m_bEaseInAndOut
+            easeInAndOut = parse.Boolean("m_bEaseInAndOut", easeInAndOut);
         }
 
         public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemState particleSystemState, float strength)
@@ -38,11 +40,15 @@ namespace ValveResourceFormat.Particles.Operators
                     ? 1.0f - particle.NormalizedAge
                     : particle.Lifetime - particle.Age;
 
-                if (timeLeft <= fadeOutTime)
+                if (timeLeft < fadeOutTime)
                 {
-                    var elapsedFraction = Math.Clamp(1f - timeLeft / fadeOutTime, 0f, 1f);
+                    var elapsedFraction = MathUtils.Saturate(1f - timeLeft / fadeOutTime);
 
-                    if (fadeBias != 0.5f)
+                    if (easeInAndOut)
+                    {
+                        elapsedFraction = MathUtils.Smoothstep(0f, 1f, elapsedFraction);
+                    }
+                    else if (fadeBias != 0.5f)
                     {
                         elapsedFraction = ParticleMath.Bias(elapsedFraction, fadeBias);
                     }

@@ -1,3 +1,5 @@
+using ValveResourceFormat.Particles.Utils;
+
 namespace ValveResourceFormat.Particles.PreEmissionOperators
 {
     /// <summary>
@@ -28,7 +30,7 @@ namespace ValveResourceFormat.Particles.PreEmissionOperators
                 return;
             }
 
-            axis = Vector3.Normalize(axis);
+            axis = ParticleMath.Normalize(axis);
 
             if (localCP > -1)
             {

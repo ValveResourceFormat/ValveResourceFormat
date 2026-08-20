@@ -1,3 +1,5 @@
+using ValveResourceFormat.Particles.Utils;
+
 namespace ValveResourceFormat.Particles.Initializers
 {
     /// <summary>
@@ -58,7 +60,7 @@ namespace ValveResourceFormat.Particles.Initializers
 
             if (normalize && direction != Vector3.Zero)
             {
-                direction = Vector3.Normalize(direction);
+                direction = ParticleMath.Normalize(direction);
             }
 
             particle.SetVector(fieldOutput, direction * scale);
