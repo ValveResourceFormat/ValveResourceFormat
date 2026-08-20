@@ -592,8 +592,8 @@ namespace ValveResourceFormat.Renderer
             activeLodBits = new uint[Math.Max(1, lodSetupCount)];
             Array.Fill(activeLodBits, 1u);
 
-            ObjectLodGpu = new StorageBuffer(ReservedBufferSlots.BufferSlot2, "ObjectLod");
-            ActiveLodBitsGpu = new StorageBuffer(ReservedBufferSlots.BufferSlot3, "ActiveLodBits");
+            ObjectLodGpu = new StorageBuffer(RendererContext.Device, ReservedBufferSlots.BufferSlot2, "ObjectLod");
+            ActiveLodBitsGpu = new StorageBuffer(RendererContext.Device, ReservedBufferSlots.BufferSlot3, "ActiveLodBits");
 
             ObjectLodGpu.Create(lodData, BufferUsageHint.StaticDraw);
             ActiveLodBitsGpu.Create(activeLodBits, BufferUsageHint.DynamicDraw);
@@ -766,7 +766,7 @@ namespace ValveResourceFormat.Renderer
 
                 SceneMeshletCount = sceneCommandCount;
 
-                CommandMeshletsGpu = new StorageBuffer(ReservedBufferSlots.AggregateCommandMeshlets, nameof(ReservedBufferSlots.AggregateCommandMeshlets));
+                CommandMeshletsGpu = new StorageBuffer(RendererContext.Device, ReservedBufferSlots.AggregateCommandMeshlets, nameof(ReservedBufferSlots.AggregateCommandMeshlets));
                 CommandMeshletsGpu.Create(commandMeshlets, BufferUsageHint.StaticDraw);
 
                 MeshletDataGpu = new StorageBuffer(RendererContext.Device, ReservedBufferSlots.AggregateMeshlets, nameof(ReservedBufferSlots.AggregateMeshlets));

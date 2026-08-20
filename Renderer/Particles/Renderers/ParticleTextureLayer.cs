@@ -163,7 +163,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                 // A gradient layer synthesizes its ramp from m_Gradient rather than loading a texture.
                 if (textureInput.Boolean("m_bReplaceTextureWithGradient", false))
                 {
-                    layerTexture = MaterialLoader.GenerateGradientTexture(ParseGradientStops(textureInput));
+                    layerTexture = rendererContext.MaterialLoader.GenerateGradientTexture(ParseGradientStops(textureInput));
                 }
                 else
                 {

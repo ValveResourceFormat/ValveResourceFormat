@@ -104,13 +104,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             (layers, var textureName) = ParticleTextureLayer.Build(parse, rendererContext, DefaultTextureName);
 
             shader = rendererContext.ShaderLoader.LoadShader(ShaderName, ("S_TEXTURE_LAYERS", (byte)(layers.Length - 1)));
-            (vaoHandle, vertexBufferHandle) = SetupQuadBuffer();
-
-#if DEBUG
-            var vaoLabel = $"{nameof(RenderRopes)}: {System.IO.Path.GetFileName(textureName)}";
-            GL.ObjectLabel(ObjectLabelIdentifier.VertexArray, vaoHandle, Math.Min(GLEnvironment.MaxLabelLength, vaoLabel.Length), vaoLabel);
-            GL.ObjectLabel(ObjectLabelIdentifier.Buffer, vertexBufferHandle, Math.Min(GLEnvironment.MaxLabelLength, vaoLabel.Length), vaoLabel);
-#endif
+            (vaoHandle, vertexBufferHandle) = SetupQuadBuffer($"{nameof(RenderRopes)}: {System.IO.Path.GetFileName(textureName)}");
 
             orientationType = parse.Enum("m_nOrientationType", orientationType);
             orientationField = parse.ParticleField("m_nVectorFieldForOrientation", orientationField);
@@ -174,11 +168,10 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             layers[0].Texture = texture;
         }
 
-        private (int Vao, int Buffer) SetupQuadBuffer()
+        private (int Vao, int Buffer) SetupQuadBuffer(string label)
         {
-            GL.CreateBuffers(1, out int buffer);
-
-            var vao = SpritecardVertex.InputLayout.CreateVertexArray(nameof(RenderRopes), buffer, rendererContext.MeshBufferCache.QuadIndices.GLHandle);
+            var buffer = rendererContext.Device.CreateBuffer(label);
+            var vao = SpritecardVertex.InputLayout.CreateVertexArray(rendererContext.Device, label, buffer, rendererContext.MeshBufferCache.QuadIndices.GLHandle);
 
             return (vao, buffer);
         }
