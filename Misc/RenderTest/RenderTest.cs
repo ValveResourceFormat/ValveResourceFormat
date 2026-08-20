@@ -10,8 +10,8 @@ using ValveResourceFormat.CompiledShader;
 using ValveResourceFormat.IO;
 using ValveResourceFormat.Renderer;
 using ValveResourceFormat.Renderer.Input;
-using ValveResourceFormat.Renderer.Utils;
 using ValveResourceFormat.Renderer.World;
+using ValveResourceFormat.Utils;
 using Vector2 = System.Numerics.Vector2;
 using Vector3 = System.Numerics.Vector3;
 
