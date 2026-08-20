@@ -196,7 +196,7 @@ namespace ValveResourceFormat.Renderer.Particles
                 childRenderer.Render(camera, pass, waterEffectsLayer);
             }
 
-            if (Simulation.Particles.Count == 0)
+            if (!IsWithinDrawDistance(camera) || Simulation.Particles.Count == 0)
             {
                 return;
             }
@@ -224,6 +224,11 @@ namespace ValveResourceFormat.Renderer.Particles
                 PerfStats.Active.Count(Counter.ParticleSystem);
             }
         }
+
+        /// <summary>
+        /// Whether the camera is near enough for this system to draw and simulate.
+        /// </summary>
+        public bool IsWithinDrawDistance(Camera camera) => Simulation.IsWithinDrawDistance(camera.Location);
 
         /// <summary>
         /// Force-renders each active sub-renderer once with temporary particles.

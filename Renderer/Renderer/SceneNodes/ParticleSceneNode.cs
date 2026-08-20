@@ -565,7 +565,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
                 }
             }
 
-            if (frameTime > 0f)
+            if (frameTime > 0f && (Preview || particleRenderer.IsWithinDrawDistance(context.Camera)))
             {
                 particleRenderer.SetCameraPosition(context.Camera.Location);
                 particleRenderer.Update(frameTime, context.Uptime);
