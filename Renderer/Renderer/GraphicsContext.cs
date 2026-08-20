@@ -24,8 +24,6 @@ public interface IGraphicsSurface
 ///
 /// A device can own several contexts; each is current on at most one thread at a time, so
 /// <see cref="Current"/> is per thread and names the context the calling thread is recording into.
-/// Objects created through <see cref="GraphicsDevice"/> belong to <see cref="Device"/>, so every
-/// context of that device can use them.
 /// </summary>
 public sealed class GraphicsContext
 {

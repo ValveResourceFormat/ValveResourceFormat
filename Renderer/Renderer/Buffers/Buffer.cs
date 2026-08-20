@@ -21,8 +21,7 @@ namespace ValveResourceFormat.Renderer.Buffers
 
         private readonly BufferRangeTarget bindTarget;
 
-        /// <summary>Initializes a new buffer with the given type, binding point, and debug name,
-        /// created on the device current on the calling thread.</summary>
+        /// <summary>Initializes a new buffer on the device current on the calling thread.</summary>
         /// <param name="target">The OpenGL buffer target type.</param>
         /// <param name="bindingPoint">The shader binding point index.</param>
         /// <param name="name">Debug name for the buffer.</param>

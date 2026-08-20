@@ -7,9 +7,7 @@ namespace ValveResourceFormat.Renderer;
 /// Creates the GPU objects that one or more <see cref="GraphicsContext"/> record against.
 ///
 /// Creation goes through the static methods, which resolve the device owning the context current
-/// on the calling thread. That is what lets an object be created without every caller holding a
-/// device. The instance behind those statics is what a context belongs to, and where per device
-/// state lives once there is any.
+/// on the calling thread, so an object can be created without every caller holding a device.
 /// </summary>
 public sealed class GraphicsDevice
 {
@@ -27,7 +25,7 @@ public sealed class GraphicsDevice
     /// <summary>
     /// Creates a context that records against this device's objects.
     /// </summary>
-    /// <param name="surface">The window side of the context, made current along with it.</param>
+    /// <param name="surface">The window side of the context, opened along with it.</param>
     /// <param name="name">Debug name identifying the context.</param>
     /// <returns>The new context, not yet current on any thread.</returns>
     public GraphicsContext CreateContext(IGraphicsSurface surface, string name)
