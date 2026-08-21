@@ -31,6 +31,7 @@ namespace GUI.Controls
         {
             progressBar1 = new System.Windows.Forms.ProgressBar();
             label1 = new System.Windows.Forms.Label();
+            statusLabel = new System.Windows.Forms.Label();
             tableLayoutPanel1 = new System.Windows.Forms.TableLayoutPanel();
             tableLayoutPanel1.SuspendLayout();
             SuspendLayout();
@@ -47,6 +48,19 @@ namespace GUI.Controls
             label1.TabIndex = 1;
             label1.Text = "Loading file, please wait…";
             label1.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
+            //
+            // statusLabel
+            //
+            statusLabel.Anchor = System.Windows.Forms.AnchorStyles.None;
+            statusLabel.AutoEllipsis = true;
+            statusLabel.AutoSize = true;
+            statusLabel.Margin = new System.Windows.Forms.Padding(4, 0, 4, 8);
+            statusLabel.MaximumSize = new System.Drawing.Size(560, 0);
+            statusLabel.Name = "statusLabel";
+            statusLabel.Size = new System.Drawing.Size(192, 20);
+            statusLabel.TabIndex = 3;
+            statusLabel.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
+            statusLabel.Visible = false;
             //
             // progressBar1
             //
@@ -66,11 +80,13 @@ namespace GUI.Controls
             tableLayoutPanel1.ColumnCount = 1;
             tableLayoutPanel1.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.AutoSize));
             tableLayoutPanel1.Controls.Add(label1, 0, 0);
-            tableLayoutPanel1.Controls.Add(progressBar1, 0, 1);
+            tableLayoutPanel1.Controls.Add(statusLabel, 0, 1);
+            tableLayoutPanel1.Controls.Add(progressBar1, 0, 2);
             tableLayoutPanel1.Location = new System.Drawing.Point(150, 130);
             tableLayoutPanel1.MinimumSize = new System.Drawing.Size(300, 0);
             tableLayoutPanel1.Name = "tableLayoutPanel1";
-            tableLayoutPanel1.RowCount = 2;
+            tableLayoutPanel1.RowCount = 3;
+            tableLayoutPanel1.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.AutoSize));
             tableLayoutPanel1.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.AutoSize));
             tableLayoutPanel1.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.AutoSize));
             tableLayoutPanel1.TabIndex = 2;
@@ -95,6 +111,7 @@ namespace GUI.Controls
 
         private System.Windows.Forms.ProgressBar progressBar1;
         private System.Windows.Forms.Label label1;
+        private System.Windows.Forms.Label statusLabel;
         private System.Windows.Forms.TableLayoutPanel tableLayoutPanel1;
     }
 }

@@ -143,6 +143,17 @@ namespace ValveResourceFormat.Renderer.World
             RendererContext = scene.RendererContext;
         }
 
+        /// <summary> Loading screen hints.</summary>
+        public IProgress<string>? LoadingProgress { get; set; }
+
+        private string? currentLoadingPhase;
+
+        private void ReportLoadingPhase(string phase)
+        {
+            currentLoadingPhase = phase;
+            LoadingProgress?.Report(phase);
+        }
+
         /// <summary>
         /// Preloads referenced resources in parallel using the map's external reference list.
         /// This is called automatically by <see cref="Load"/> and does not need to be called manually.
@@ -152,6 +163,8 @@ namespace ValveResourceFormat.Renderer.World
         {
             if (mapResourceReferences != null)
             {
+                ReportLoadingPhase("Loading map resources…");
+
                 Resource? PreloadResource(string resourceName)
                 {
                     var resource = RendererContext.FileLoader.LoadFileCompiled(resourceName);
@@ -236,6 +249,8 @@ namespace ValveResourceFormat.Renderer.World
         /// </summary>
         public void LoadEntities()
         {
+            ReportLoadingPhase("Loading entities…");
+
             foreach (var lumpName in World.GetEntityLumpNames())
             {
                 if (lumpName == null)
@@ -337,6 +352,8 @@ namespace ValveResourceFormat.Renderer.World
         /// </summary>
         public void LoadWorldNodes()
         {
+            ReportLoadingPhase("Loading world geometry…");
+
             // Output is World_t we need to iterate m_worldNodes inside it.
             var worldNodes = World.GetWorldNodeNames();
             foreach (var worldNode in worldNodes)
@@ -373,6 +390,8 @@ namespace ValveResourceFormat.Renderer.World
         /// </summary>
         public void LoadWorldPhysics()
         {
+            ReportLoadingPhase("Loading world physics…");
+
             // TODO: Ideally we would use the vrman files to find relevant files.
             PhysAggregateData? phys = null;
             var physResource = RendererContext.FileLoader.LoadFile($"{MapName}/world_physics.vmdl_c");
@@ -413,6 +432,8 @@ namespace ValveResourceFormat.Renderer.World
         /// </summary>
         public void LoadWorldVisibility()
         {
+            ReportLoadingPhase("Loading world visibility…");
+
             var visResource = RendererContext.FileLoader.LoadFile($"{MapName}/world_visibility.vvis_c");
             if (visResource == null)
             {
@@ -457,6 +478,8 @@ namespace ValveResourceFormat.Renderer.World
         /// </summary>
         public void LoadWorldLightingInfo()
         {
+            ReportLoadingPhase("Loading lighting…");
+
             var worldLightingInfo = World.GetWorldLightingInfo();
             if (worldLightingInfo == null)
             {
@@ -1481,7 +1504,14 @@ namespace ValveResourceFormat.Renderer.World
             SkyboxScene = new Scene(RendererContext);
             SkyboxScene.LightingInfo.LightingData.IsSkybox = 1u;
 
+            LoadingProgress?.Report("Loading 3D sky…");
+
             var skyboxResult = LoadMap(targetmapname, SkyboxScene);
+
+            if (currentLoadingPhase != null)
+            {
+                LoadingProgress?.Report(currentLoadingPhase);
+            }
 
             // Take origin and angles from skybox_reference
             EntityTransformHelper.GetTransformComponents(entity, out _, out var skyboxReferenceRotationMatrix, out var skyboxReferencePositionMatrix);

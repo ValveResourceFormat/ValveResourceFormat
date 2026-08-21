@@ -199,16 +199,6 @@ internal abstract class GLBaseControl : IDisposable, IMessageFilter
         return UiControl;
     }
 
-    public void InitializeRenderLoop(bool renderImmediately = false)
-    {
-        RenderLoopThread.RegisterInstance();
-
-        if (renderImmediately)
-        {
-            RenderLoopThread.SetCurrentGLControl(this);
-        }
-    }
-
     /// <summary>
     /// Force the GL control to redraw. Used when the viewer becomes visible after being obscured (e.g. by a
     /// loading panel), which does not reliably deliver a paint message to the underlying GL control on its own.
@@ -414,10 +404,11 @@ internal abstract class GLBaseControl : IDisposable, IMessageFilter
 
         RestoreCursorAfterDrag();
 
+        RenderLoopThread.UnregisterInstance();
+
         if (GLControl is not null)
         {
             RenderLoopThread.UnsetCurrentGLControl(this);
-            RenderLoopThread.UnregisterInstance();
 
             GLControl.Paint -= OnGlControlPaint;
             GLControl.SizeChanged -= OnSizeChanged;
@@ -436,6 +427,7 @@ internal abstract class GLBaseControl : IDisposable, IMessageFilter
         ShaderHotReload?.Dispose();
 #endif
 
+        prewarmed.Dispose();
         FullScreenForm?.Dispose();
 
         if (GLNativeWindow is not null)
@@ -780,25 +772,35 @@ internal abstract class GLBaseControl : IDisposable, IMessageFilter
         return keys;
     }
 
-    private void OnGlControlPaint(object? sender, EventArgs e)
+    private void OnGlControlPaint(object? sender, EventArgs e) => AttachToRenderLoop();
+
+    private void AttachToRenderLoop()
     {
-        if (RenderLoopThread.SetCurrentGLControl(this))
+        if (!RenderLoopThread.IsCurrentGLControl(this))
         {
-            using var lockedGl = MakeCurrent();
+            ApplySettingsToRenderState();
+        }
 
-            GLNativeWindow?.Context.SwapInterval = Settings.Config.Vsync;
+        RenderLoopThread.SetCurrentGLControl(this);
+    }
 
-            if (this is GLSceneViewer viewer)
-            {
-                RendererContext.FieldOfView = Settings.Config.FieldOfView;
-                RendererContext.ViewmodelFieldOfView = Settings.Config.ViewmodelFieldOfView;
-                viewer.Renderer.Camera.FieldOfView = Settings.Config.FieldOfView;
-                viewer.Renderer.Camera.CreateProjectionMatrix();
+    /// <summary>Push user settings into the render state.</summary>
+    private void ApplySettingsToRenderState()
+    {
+        using var lockedGl = MakeCurrent();
 
-                // The input camera frames objects using its own field of view, so it follows the setting too
-                viewer.Input.Camera.FieldOfView = Settings.Config.FieldOfView;
-                viewer.Input.Camera.CreateProjectionMatrix();
-            }
+        GLNativeWindow?.Context.SwapInterval = Settings.Config.Vsync;
+
+        if (this is GLSceneViewer viewer)
+        {
+            RendererContext.FieldOfView = Settings.Config.FieldOfView;
+            RendererContext.ViewmodelFieldOfView = Settings.Config.ViewmodelFieldOfView;
+            viewer.Renderer.Camera.FieldOfView = Settings.Config.FieldOfView;
+            viewer.Renderer.Camera.CreateProjectionMatrix();
+
+            // The input camera frames objects using its own field of view, so it follows the setting too
+            viewer.Input.Camera.FieldOfView = Settings.Config.FieldOfView;
+            viewer.Input.Camera.CreateProjectionMatrix();
         }
     }
 
@@ -900,7 +902,25 @@ internal abstract class GLBaseControl : IDisposable, IMessageFilter
 
         Debug.Assert(GLNativeWindow is not null);
 
+        RenderLoopThread.RegisterInstance();
+
         GraphicsContext = RendererContext.Device.CreateContext(new GLFWSurface(GLNativeWindow.Context));
+
+        LoadGLResources();
+
+        if (PrewarmsRenderer)
+        {
+            PrewarmPending = true;
+
+            RenderLoopThread.SetCurrentGLControl(this);
+            prewarmed.Wait();
+            RenderLoopThread.UnsetCurrentGLControl(this);
+        }
+    }
+
+    private void LoadGLResources()
+    {
+        Debug.Assert(GLNativeWindow is not null);
 
         using var lockedGl = MakeCurrent();
 
@@ -954,6 +974,40 @@ internal abstract class GLBaseControl : IDisposable, IMessageFilter
     protected virtual void OnGLLoad()
     {
         //
+    }
+
+    /// <summary>Whether loading waits for the warm-up; such viewers must be loaded off the UI thread.</summary>
+    protected virtual bool PrewarmsRenderer => false;
+
+    protected virtual void PrewarmRenderer()
+    {
+    }
+
+    private readonly ManualResetEventSlim prewarmed = new(false);
+
+    private bool PrewarmPending { get; set; }
+
+    /// <summary>Runs the warm-up loading is waiting on, if any, and reports whether it did. Called by the
+    /// render loop thread, which is the one the driver has to see the draws come from.</summary>
+    public bool TryPrewarm()
+    {
+        if (!PrewarmPending)
+        {
+            return false;
+        }
+
+        try
+        {
+            using var lockedGl = MakeCurrent();
+            PrewarmRenderer();
+        }
+        finally
+        {
+            PrewarmPending = false;
+            prewarmed.Set();
+        }
+
+        return true;
     }
 
     protected void SetMoveSpeedOrZoomLabel(string text) => UiControl?.SetMoveSpeed(text);

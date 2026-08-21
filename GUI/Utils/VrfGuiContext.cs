@@ -38,6 +38,9 @@ namespace GUI.Utils
         // This is a hack to set camera and properties when clicking a mesh from a model or map
         internal Action<GLBaseControl>? GLPostLoadAction { get; set; }
 
+        // Loading panel listening for the phase this file is being loaded through, if one is up
+        internal IProgress<string>? LoadingProgress { get; set; }
+
         private int Children;
         private bool WantsToBeDisposed;
         private readonly ConcurrentDictionary<string, Resource> CachedResources = [];

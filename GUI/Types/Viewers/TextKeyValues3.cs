@@ -113,7 +113,6 @@ class TextKeyValues3(VrfGuiContext vrfGuiContext) : IViewer, IDisposable
         tabs.TabPages.Add(hexTab);
         ViewerContentPresenter.Present(hexTab, new ViewerContent.HexDump(bytes));
 
-        graphViewer?.InitializeRenderLoop();
     }
 
     public void Dispose()

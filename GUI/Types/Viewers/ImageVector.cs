@@ -48,7 +48,6 @@ namespace GUI.Types.Viewers
         public void Create(TabPage tab)
         {
             tab.Controls.Add(textureControl!.InitializeUiControls());
-            textureControl.InitializeRenderLoop();
         }
 
         public void NotifyVisible() => textureControl?.NotifyVisible();

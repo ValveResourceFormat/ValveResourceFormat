@@ -35,6 +35,7 @@ namespace GUI.Types.GLViewers
         {
             if (Interlocked.Increment(ref instances) == 1)
             {
+                renderSignal.Reset();
                 Start();
             }
 
@@ -57,7 +58,9 @@ namespace GUI.Types.GLViewers
 #endif
         }
 
-        public static bool SetCurrentGLControl(GLBaseControl glControl)
+        public static bool IsCurrentGLControl(GLBaseControl glControl) => currentGLControl == glControl;
+
+        public static void SetCurrentGLControl(GLBaseControl glControl)
         {
             var originalGlControl = Interlocked.Exchange(ref currentGLControl, glControl);
 
@@ -78,8 +81,6 @@ namespace GUI.Types.GLViewers
             */
 
             renderSignal.Set();
-
-            return originalGlControl != glControl;
         }
 
         public static void UnsetCurrentGLControl(GLBaseControl glControl)
@@ -138,6 +139,11 @@ namespace GUI.Types.GLViewers
                 if (control == null)
                 {
                     renderSignal.Wait();
+                    continue;
+                }
+
+                if (control.TryPrewarm())
+                {
                     continue;
                 }
 

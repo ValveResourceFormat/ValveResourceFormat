@@ -31,6 +31,20 @@ namespace GUI.Controls
             tableLayoutPanel1.SizeChanged += (_, _) => CenterContent();
         }
 
+        /// <summary>
+        /// Says what the file is waiting on under its name, or takes the line away again when passed null.
+        /// </summary>
+        public void SetStatus(string? status)
+        {
+            if (IsDisposed)
+            {
+                return;
+            }
+
+            statusLabel.Text = status;
+            statusLabel.Visible = !string.IsNullOrEmpty(status);
+        }
+
         protected override void OnLayout(LayoutEventArgs levent)
         {
             base.OnLayout(levent);
@@ -63,11 +77,14 @@ namespace GUI.Controls
                 Margin = new Padding(4, 0, 4, 8),
             };
 
-            // Insert a new top row for the icon and push the label/progress bar down into the rows below it.
-            tableLayoutPanel1.RowCount = 3;
+            tableLayoutPanel1.RowCount++;
             tableLayoutPanel1.RowStyles.Insert(0, new RowStyle(SizeType.AutoSize));
-            tableLayoutPanel1.SetRow(label1, 1);
-            tableLayoutPanel1.SetRow(progressBar1, 2);
+
+            foreach (Control control in tableLayoutPanel1.Controls)
+            {
+                tableLayoutPanel1.SetRow(control, tableLayoutPanel1.GetRow(control) + 1);
+            }
+
             tableLayoutPanel1.Controls.Add(iconBox, 0, 0);
         }
 
@@ -79,6 +96,8 @@ namespace GUI.Controls
             ForeColor = Themer.CurrentThemeColors.Contrast;
 
             label1.BackColor = Themer.CurrentThemeColors.AppMiddle;
+            statusLabel.BackColor = Themer.CurrentThemeColors.AppMiddle;
+            statusLabel.ForeColor = Themer.CurrentThemeColors.ContrastSoft;
             progressBar1.BackColor = Themer.CurrentThemeColors.AppMiddle;
             tableLayoutPanel1.BackColor = Themer.CurrentThemeColors.AppMiddle;
 

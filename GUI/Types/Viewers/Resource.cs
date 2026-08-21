@@ -529,7 +529,6 @@ namespace GUI.Types.Viewers
                     }
                 }
 
-                GLViewer.InitializeRenderLoop();
                 return true;
             }
 
@@ -542,7 +541,6 @@ namespace GUI.Types.Viewers
             var tabPage = new ThemedTabPage(tabName);
             tabPage.Controls.Add(viewer.InitializeUiControls(isPreview: false));
             resTabs.TabPages.Add(tabPage);
-            viewer.InitializeRenderLoop();
         }
 
         // Runs on the background load thread: graph construction (entity scans, icon decoding,

@@ -50,7 +50,6 @@ namespace GUI.Types.Viewers
             Debug.Assert(glViewer is not null);
 
             tab.Controls.Add(glViewer.InitializeUiControls());
-            glViewer.InitializeRenderLoop();
         }
 
         public void NotifyVisible() => glViewer?.NotifyVisible();

@@ -351,6 +351,8 @@ namespace GUI.Types.GLViewers
         {
             base.OnGLLoad();
 
+            ReportLoadingStatus("Preparing renderer…");
+
             frametimeQuery1 = GraphicsDevice.CreateQuery(QueryTarget.TimeElapsed, "Frame Time Query");
             frametimeQuery2 = GraphicsDevice.CreateQuery(QueryTarget.TimeElapsed, "Frame Time Query");
 
@@ -383,6 +385,8 @@ namespace GUI.Types.GLViewers
             LoadScene();
             timer.Stop();
             Log.Debug(GetType().Name, $"Loading scene time: {timer.Elapsed}, shader variants: {Scene.RendererContext.ShaderLoader.ShaderCount}, materials: {Scene.RendererContext.MaterialLoader.MaterialCount}");
+
+            ReportLoadingStatus("Initializing scene…");
 
             PostSceneLoad();
 
@@ -424,18 +428,17 @@ namespace GUI.Types.GLViewers
             }
         }
 
-        protected override void OnFirstPaint()
+        protected void ReportLoadingStatus(string status) => GuiContext.LoadingProgress?.Report(status);
+
+        protected override void PrewarmRenderer()
         {
-            base.OnFirstPaint();
+            ReportLoadingStatus("Compiling shaders…");
 
-            if (this is GLWorldViewer)
-            {
-                var start = Stopwatch.GetTimestamp();
+            var start = Stopwatch.GetTimestamp();
 
-                PrewarmDrawCalls();
+            PrewarmDrawCalls();
 
-                Log.Debug(GetType().Name, $"Prewarm time: {Stopwatch.GetElapsedTime(start)}");
-            }
+            Log.Debug(GetType().Name, $"Prewarm time: {Stopwatch.GetElapsedTime(start)}");
         }
 
         /// <summary>

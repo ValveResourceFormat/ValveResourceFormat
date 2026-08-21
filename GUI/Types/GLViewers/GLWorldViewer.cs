@@ -198,11 +198,16 @@ namespace GUI.Types.GLViewers
             var cameraSet = false;
 
             // Bring up the sound player before any models load, so their animation clips can pre-cache sound events
+            ReportLoadingStatus("Loading sound events…");
             InitializeSoundPlayer();
 
             if (world != null)
             {
-                LoadedWorld = new WorldLoader(world, Scene);
+                LoadedWorld = new WorldLoader(world, Scene)
+                {
+                    LoadingProgress = GuiContext.LoadingProgress,
+                };
+
                 LoadedWorld.Load(mapExternalReferences);
 
                 if (LoadedWorld.SkyboxScene != null)
@@ -229,6 +234,8 @@ namespace GUI.Types.GLViewers
                     cameraSet = true;
                 }
 
+                ReportLoadingStatus("Loading player model…");
+
                 Input.TryLoadViewmodel(Scene);
 
                 var kzMapPrefixes = new[] { "bhop", "surf", "kz", "dr" };
@@ -253,10 +260,14 @@ namespace GUI.Types.GLViewers
 
             if (worldNode != null)
             {
+                ReportLoadingStatus("Loading world geometry…");
+
                 LoadedWorldNode = new WorldNodeLoader(Scene.RendererContext, worldNode, mapExternalReferences);
                 LoadedWorldNode.Load(Scene);
             }
         }
+
+        protected override bool PrewarmsRenderer => true;
 
         protected override void OnFirstPaint()
         {

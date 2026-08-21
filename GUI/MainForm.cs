@@ -717,6 +717,8 @@ namespace GUI
 #pragma warning restore CA2000
                 tab.Controls.Add(loadingFile);
 
+                vrfGuiContext.LoadingProgress = new Progress<string>(loadingFile.SetStatus);
+
                 if (isPreview)
                 {
                     // Show the loading panel in the preview area right away (replacing the blank page).
@@ -821,6 +823,8 @@ namespace GUI
             {
                 BeginInvoke(() =>
                 {
+                    vrfGuiContext.LoadingProgress = null;
+
                     if (keepFrozen)
                     {
                         // Same-type preview: swap the frozen previous view for the newly loaded viewer.
