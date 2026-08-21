@@ -625,7 +625,6 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             };
         }
 
-        /// <inheritdoc/>
         private int quadCount;
 
         /// <inheritdoc/>
@@ -634,6 +633,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             quadCount = particles.Count == 0 ? 0 : UpdateVertices(particles, systemState, camera);
         }
 
+        /// <inheritdoc/>
         public override void Render(ParticleCollection particleBag, ParticleSystemState systemState, Camera camera)
         {
             if (particleBag.Count < 2)
