@@ -60,6 +60,24 @@ namespace ValveResourceFormat.Renderer
 
         /// <summary>Initializes a vertex format from a stride and its attributes in buffer order.</summary>
         public VertexInputLayout(int stride, params VertexAttribute[] elements)
+            : this(stride, Array.ConvertAll(elements, element => element.Name), elements)
+        {
+        }
+
+        /// <summary>
+        /// Initializes a vertex format whose buffer carries only some of the attributes its shader
+        /// declares.
+        /// </summary>
+        /// <param name="stride">Size in bytes of one vertex.</param>
+        /// <param name="declaredNames">
+        /// Every attribute name the shader declares, in any order, including the ones its combos switch
+        /// off. Locations are allocated against the whole set, because that is what the shader allocates
+        /// against: <see cref="Shaders.ShaderParser"/> stamps them over the assembled source and its
+        /// <c>#if</c> blocks are still in it, so a name the current combo drops still takes a slot.
+        /// Passing only the attributes in the buffer would place them somewhere the shader does not read.
+        /// </param>
+        /// <param name="elements">The attributes this buffer holds, in buffer order.</param>
+        public VertexInputLayout(int stride, string[] declaredNames, VertexAttribute[] elements)
         {
             fields = new VBIB.RenderInputLayoutField[elements.Length];
             locations = new int[elements.Length];
@@ -68,7 +86,7 @@ namespace ValveResourceFormat.Renderer
             // The declaring set decides where a custom attribute goes, so a shader declaring the same set
             // arrives at the same locations without either side naming a number
             var pinned = elements.Where(element => element.Location >= 0).ToDictionary(element => element.Name, element => element.Location, StringComparer.Ordinal);
-            var allocated = VertexAttributeLocations.Allocate(Array.ConvertAll(elements, element => element.Name), pinned);
+            var allocated = VertexAttributeLocations.Allocate(declaredNames, pinned);
             var packedOffset = 0;
             var boundLocations = 0;
 
@@ -140,7 +158,15 @@ namespace ValveResourceFormat.Renderer
         public VBIB.RenderInputLayoutField[] Fields() => fields;
 
         /// <summary>Creates a VAO binding one vertex buffer. An index buffer of 0 means non-indexed.</summary>
-        public int CreateVertexArray(string debugLabel, int vertexBuffer, int indexBuffer = 0)
+        /// <param name="debugLabel">Name the VAO is labelled with.</param>
+        /// <param name="vertexBuffer">Buffer every attribute reads from.</param>
+        /// <param name="indexBuffer">Index buffer, or 0 to draw non-indexed.</param>
+        /// <param name="instanceDivisor">
+        /// How many instances each set of attributes covers, or 0 for one set per vertex. 1 makes the
+        /// whole buffer per-instance data, for geometry whose vertices come from <c>gl_VertexID</c>
+        /// rather than from the buffer.
+        /// </param>
+        public int CreateVertexArray(string debugLabel, int vertexBuffer, int indexBuffer = 0, int instanceDivisor = 0)
         {
             var vao = GraphicsDevice.CreateVertexArray(debugLabel);
             VertexArray.StartRecording(vao, Array.ConvertAll(fields, field => field.ShaderSemantic));
@@ -151,6 +177,11 @@ namespace ValveResourceFormat.Renderer
             }
 
             GL.VertexArrayVertexBuffer(vao, 0, vertexBuffer, 0, Stride);
+
+            if (instanceDivisor != 0)
+            {
+                GL.VertexArrayBindingDivisor(vao, 0, instanceDivisor);
+            }
 
             for (var i = 0; i < locations.Length; i++)
             {
