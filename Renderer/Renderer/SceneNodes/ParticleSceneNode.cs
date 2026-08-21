@@ -480,7 +480,12 @@ namespace ValveResourceFormat.Renderer.SceneNodes
 
         private Matrix4x4? seededTransform;
 
-        /// <inheritdoc/>
+        /// <summary>
+        /// Places the effect, reading the nodes it is placed against: the control points bound to other
+        /// nodes, and control point 0 from this node's own transform. Runs with every other node's update;
+        /// <see cref="Simulate"/> then runs the effect itself, once every node has been placed.
+        /// </summary>
+        /// <param name="context">The current update context.</param>
         public override void Update(Scene.UpdateContext context)
         {
             if (!LayerEnabled)
@@ -488,16 +493,16 @@ namespace ValveResourceFormat.Renderer.SceneNodes
                 return;
             }
 
-            // Control point 0 is seeded from the node transform (position, full rotation frame, and its
-            // transformed +X as the forward direction) whenever the transform changes from outside, like a
-            // non-follow attachment in game. Between seeds the control point belongs to the simulation:
-            // particle functions may move it, and the node transform reflects it back after each step.
-            // Preview drives the control point separately.
             if (controlPointBindings != null)
             {
                 UpdateBoundControlPoints();
             }
 
+            // Control point 0 is seeded from the node transform (position, full rotation frame, and its
+            // transformed +X as the forward direction) whenever the transform changes from outside, like a
+            // non-follow attachment in game. Between seeds the control point belongs to the simulation:
+            // particle functions may move it, and the node transform reflects it back after each step.
+            // Preview drives the control point separately.
             if (seededTransform != Transform)
             {
                 var controlPoint = particleRenderer.MainControlPoint;
@@ -519,6 +524,20 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             if (PreviewModel != null && !string.IsNullOrEmpty(PreviewModelAttachmentPoint))
             {
                 particleRenderer.MainControlPoint.Position = PreviewModel.GetAttachmentTransform(PreviewModelAttachmentPoint).Translation;
+            }
+        }
+
+        /// <summary>
+        /// Runs the effect for this frame. Touches only what this node owns - its own control points, its
+        /// own particles, and the light each of its renderers owns one of - so that effects simulate
+        /// alongside each other.
+        /// </summary>
+        /// <param name="context">The current update context.</param>
+        internal void Simulate(Scene.UpdateContext context)
+        {
+            if (!LayerEnabled)
+            {
+                return;
             }
 
             var frameTime = context.Timestep * FrametimeMultiplier;

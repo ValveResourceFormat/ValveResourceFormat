@@ -22,6 +22,16 @@ internal static class Sound
         => Player?.Play(soundEventName, position, channel, volume);
 
     /// <summary>
+    /// Asks for a sound to be played by the next sound update, for callers that do not run on the game
+    /// thread. Returns no handle, because the sound has not started yet.
+    /// </summary>
+    /// <param name="soundEventName">Name of the sound event, e.g. "Base.Footstep".</param>
+    /// <param name="position">World position of the sound, or null for non-spatialized playback.</param>
+    /// <param name="volume">Optional programmatic volume, replacing the definition's volume property.</param>
+    public static void PlayQueued(string soundEventName, Vector3? position = null, float? volume = null)
+        => Player?.PlayQueued(soundEventName, position, volume);
+
+    /// <summary>
     /// Stops the sound currently playing on the given channel, if any.
     /// </summary>
     public static void StopChannel(string channel) => Player?.StopChannel(channel);

@@ -176,6 +176,13 @@ namespace GUI.Types.GLViewers
 
                 UiControl.AddCheckBox("Debug Sound Sources", Renderer.ShowSoundDebug, v => Renderer.ShowSoundDebug = v);
 
+                UiControl.AddCheckBox("Use Thread Pool", Scene.Particles.UseThreadPool, (v) =>
+                {
+                    Scene.Particles.UseThreadPool = v;
+
+                    SkyboxScene?.Particles.UseThreadPool = v;
+                });
+
                 perfDisplayComboBox = UiControl.AddSelection("Debug Performance", (_, i) => perfDisplay = (PerfDisplay)i);
                 perfDisplayComboBox.Items.AddRange([nameof(PerfDisplay.Off), nameof(PerfDisplay.Stats), nameof(PerfDisplay.Timings), nameof(PerfDisplay.Allocations)]);
                 perfDisplayComboBox.SelectedIndex = (int)perfDisplay;
@@ -571,12 +578,18 @@ namespace GUI.Types.GLViewers
                 return;
             }
 
-            if (!Paused)
+            if (Paused)
             {
-                using (new ProfilerScope("Update Sounds"))
-                {
-                    soundPlayer.Update(Renderer.Camera);
-                }
+                // The scene still updates while the window is unfocused, so effects still ask for
+                // sounds. Started rather than left queued: suspended output fades to silence but the
+                // sounds behind it keep advancing, so one resumed is where it should be, not at its start
+                soundPlayer.StartQueuedSounds();
+                return;
+            }
+
+            using (new ProfilerScope("Update Sounds"))
+            {
+                soundPlayer.Update(Renderer.Camera);
             }
         }
 

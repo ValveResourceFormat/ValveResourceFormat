@@ -198,6 +198,9 @@ namespace ValveResourceFormat.Renderer
         internal bool DrawMeshletsIndirect { get; private set; }
         internal bool CompactMeshletDraws { get; private set; }
 
+        /// <summary>Gets the scene's particle effects, which simulate together after the node updates.</summary>
+        public SceneParticles Particles { get; } = new();
+
         /// <summary>Gets all static and dynamic scene nodes in the order they were added.</summary>
         public IEnumerable<SceneNode> AllNodes => staticNodes.Concat(dynamicNodes);
 
@@ -264,6 +267,8 @@ namespace ValveResourceFormat.Renderer
                 staticNodes.Add(node);
                 StaticOctree.Dirty = true;
             }
+
+            Particles.Add(node);
         }
 
         /// <summary>
@@ -283,6 +288,8 @@ namespace ValveResourceFormat.Renderer
                 staticNodes.Remove(node);
                 StaticOctree.Dirty = true;
             }
+
+            Particles.Remove(node);
         }
 
         /// <summary>Indicates which spatial partition a scene node belongs to.</summary>
@@ -340,6 +347,7 @@ namespace ValveResourceFormat.Renderer
             }
             staticNodes.Clear();
 
+            Particles.Clear();
             EntitySystem.Clear();
 
             StaticOctree.Clear();
@@ -451,6 +459,9 @@ namespace ValveResourceFormat.Renderer
 
                 node.Update(updateContext);
             }
+
+            // After the nodes, so an effect bound to one reads a transform that has settled this frame
+            Particles.Simulate(updateContext);
 
             foreach (var node in dynamicNodes)
             {
@@ -2333,6 +2344,7 @@ namespace ValveResourceFormat.Renderer
                 lightingBuffer?.Dispose();
                 lpvBuffer?.Dispose();
                 envMapBuffer?.Dispose();
+                Particles.Dispose();
                 LightingInfo.DisposeBarnLights();
             }
         }

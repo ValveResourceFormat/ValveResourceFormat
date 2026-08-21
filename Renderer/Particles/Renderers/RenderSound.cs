@@ -79,7 +79,9 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                 // todo: grab handle and update position+volume every frame with the particle
                 var volume = fieldVolume > 0f ? volumeScale * fieldVolume : volumeScale;
 
-                Sound.Play(soundName, position, volume: volume);
+                // Systems simulate across the thread pool, so the sound is asked for rather than
+                // started here; the game thread starts it on its next sound update, the same frame
+                Sound.PlayQueued(soundName, position, volume);
             }
 
             nextParticleId = highestId;

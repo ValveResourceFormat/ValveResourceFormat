@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Globalization;
 using System.IO;
@@ -707,6 +708,40 @@ public sealed class SoundEventPlayer : IDisposable
         };
     }
 
+    /// <summary>
+    /// A sound asked for off the game thread, waiting for <see cref="Update"/> to start it.
+    /// </summary>
+    private readonly record struct QueuedPlay(string SoundEventName, Vector3? Position, float? Volume, float VolumeScale);
+
+    private readonly ConcurrentQueue<QueuedPlay> queuedPlays = new();
+
+    /// <summary>
+    /// Asks for a sound to be played by the next <see cref="Update"/>, for callers that do not run on
+    /// the game thread. Starting a sound reaches the channel table, the definition's instance pool and
+    /// the mixer, none of which expect a second caller, so a thread that is not the game thread leaves
+    /// the request here rather than starting it itself.
+    /// </summary>
+    /// <param name="soundEventName">Name of the sound event, e.g. "Base.Footstep".</param>
+    /// <param name="position">World position of the sound, or null for non-spatialized playback.</param>
+    /// <param name="volume">Optional programmatic volume, replacing the definition's volume property.</param>
+    /// <param name="volumeScale">Multiplier applied on top of whatever volume the event ends up at.</param>
+    public void PlayQueued(string soundEventName, Vector3? position = null, float? volume = null, float volumeScale = 1f)
+        => queuedPlays.Enqueue(new QueuedPlay(soundEventName, position, volume, volumeScale));
+
+    /// <summary>
+    /// Starts every sound left by <see cref="PlayQueued"/> since the last call. Runs from
+    /// <see cref="Update"/>, and has to keep running while the window is unfocused: output is
+    /// <see cref="Suspended"/> there rather than stopped, sounds still advance in real time, and the
+    /// queue would otherwise grow for as long as the window stays unfocused.
+    /// </summary>
+    public void StartQueuedSounds()
+    {
+        while (queuedPlays.TryDequeue(out var queued))
+        {
+            Play(queued.SoundEventName, queued.Position, volume: queued.Volume, volumeScale: queued.VolumeScale);
+        }
+    }
+
     /// <summary>Stops the sound currently playing on the given channel, if any.</summary>
     public void StopChannel(string channel)
     {
@@ -749,6 +784,7 @@ public sealed class SoundEventPlayer : IDisposable
     public void Update(Camera camera)
     {
         Sound.Player = this;
+        StartQueuedSounds();
         mixer.Update(camera.Location, camera.Forward, camera.Right, camera.Up);
         UpdateSoundscape(camera.Location);
         ReportStats();
