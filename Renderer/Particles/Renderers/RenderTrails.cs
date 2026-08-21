@@ -372,14 +372,20 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             return quadCount;
         }
 
+        private int quadCount;
+
+        /// <inheritdoc/>
+        public override void UpdateBuffers(ParticleCollection particles, ParticleSystemState systemState, Camera camera)
+        {
+            quadCount = particles.Count == 0 ? 0 : UpdateVertices(particles, systemState, camera);
+        }
+
         public override void Render(ParticleCollection particleBag, ParticleSystemState systemState, Camera camera)
         {
             if (particleBag.Count == 0)
             {
                 return;
             }
-
-            var quadCount = UpdateVertices(particleBag, systemState, camera);
 
             if (quadCount == 0)
             {

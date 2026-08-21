@@ -887,6 +887,9 @@ namespace ValveResourceFormat.Renderer
         /// <summary>Translucent draws that go to the water effects map instead of the scene.</summary>
         private readonly List<MeshBatchRenderer.Request> waterEffectsRenderList = [];
 
+        /// <summary>Visible nodes that draw themselves, listed once each however many passes they draw in.</summary>
+        private readonly List<SceneNode> customBufferNodes = [];
+
         private readonly Dictionary<RenderPass, List<MeshBatchRenderer.Request>> viewmodelRenderLists = new()
         {
             [RenderPass.Opaque] = [],
@@ -982,6 +985,7 @@ namespace ValveResourceFormat.Renderer
             }
 
             waterEffectsRenderList.Clear();
+            customBufferNodes.Clear();
 
             foreach (var bucket in depthOnlyDraws.Values)
             {
@@ -1097,6 +1101,12 @@ namespace ValveResourceFormat.Renderer
                     };
 
                     var customPasses = node.RenderPasses;
+
+                    if (customPasses != CustomRenderPasses.None)
+                    {
+                        customBufferNodes.Add(node);
+                    }
+
                     var customLists = (customPasses & CustomRenderPasses.Viewmodel) != 0
                         ? viewmodelRenderLists
                         : renderLists;
@@ -1121,6 +1131,12 @@ namespace ValveResourceFormat.Renderer
                         renderLists[RenderPass.Outline].Add(customRender);
                     }
                 }
+            }
+
+            // avoid buffer updates mid rendering
+            foreach (var node in customBufferNodes)
+            {
+                node.UpdateBuffers(camera);
             }
         }
 

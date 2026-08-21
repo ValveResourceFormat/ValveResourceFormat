@@ -595,6 +595,15 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         }
 
         /// <inheritdoc/>
+        public override void UpdateBuffers(Camera camera)
+        {
+            if (LayerEnabled)
+            {
+                particleRenderer.UpdateBuffers(camera);
+            }
+        }
+
+        /// <inheritdoc/>
         public override void Render(Scene.RenderContext context)
         {
             if (context.ReplacementShader is not null)

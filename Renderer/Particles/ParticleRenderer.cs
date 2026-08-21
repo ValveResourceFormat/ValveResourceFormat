@@ -136,6 +136,35 @@ namespace ValveResourceFormat.Renderer.Particles
             }
         }
 
+        /// <summary>Uploads the vertex buffers of every renderer that draws this frame.</summary>
+        public void UpdateBuffers(Camera camera)
+        {
+            foreach (var childRenderer in childRenderers)
+            {
+                if (!childRenderer.Simulation.ShouldRunAsChildOf(Simulation.RenderState))
+                {
+                    continue;
+                }
+
+                childRenderer.UpdateBuffers(camera);
+            }
+
+            if (Simulation.Particles.Count == 0)
+            {
+                return;
+            }
+
+            foreach (var renderer in renderers)
+            {
+                if (renderer.GetOperatorRunStrength(Simulation.RenderState) <= 0.0f)
+                {
+                    continue;
+                }
+
+                renderer.UpdateBuffers(Simulation.Particles, Simulation.RenderState, camera);
+            }
+        }
+
         /// <summary>
         /// Draws the renderers belonging to <paramref name="pass"/>.
         /// </summary>
@@ -209,6 +238,7 @@ namespace ValveResourceFormat.Renderer.Particles
                     continue;
                 }
 
+                renderer.UpdateBuffers(Simulation.Particles, Simulation.RenderState, camera);
                 renderer.Render(Simulation.Particles, Simulation.RenderState, camera);
             }
 

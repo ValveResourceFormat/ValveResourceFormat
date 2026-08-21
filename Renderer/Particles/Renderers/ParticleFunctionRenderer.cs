@@ -164,6 +164,11 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         {
         }
 
+        /// <summary>Uploads this renderer's vertex buffer. Called once a frame, before any pass draws.</summary>
+        public virtual void UpdateBuffers(ParticleCollection particles, ParticleSystemState systemState, Camera camera)
+        {
+        }
+
         public abstract void Render(ParticleCollection particles, ParticleSystemState systemState, Camera camera);
 
         /// <summary>

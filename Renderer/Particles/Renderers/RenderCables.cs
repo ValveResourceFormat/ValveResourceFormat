@@ -118,7 +118,8 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             return CableVertex.InputLayout.CreateVertexArray(nameof(RenderCables), vertexBufferHandle, indexBufferHandle);
         }
 
-        public override void Render(ParticleCollection particles, ParticleSystemState systemState, Camera camera)
+        /// <inheritdoc/>
+        public override void UpdateBuffers(ParticleCollection particles, ParticleSystemState systemState, Camera camera)
         {
             if (particles.Count < 2)
             {
@@ -227,7 +228,10 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                 ArrayPool<CableVertex>.Shared.Return(vertexArray);
                 IndexArrayPool.Return(indexArray);
             }
+        }
 
+        public override void Render(ParticleCollection particles, ParticleSystemState systemState, Camera camera)
+        {
             DrawTube();
         }
 

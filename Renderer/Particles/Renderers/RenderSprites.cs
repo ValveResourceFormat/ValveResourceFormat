@@ -423,16 +423,21 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             }
         }
 
+        private int quadCount;
+
+        /// <inheritdoc/>
+        // Fully faded particles are skipped, so this can be fewer than the live particle count.
+        public override void UpdateBuffers(ParticleCollection particles, ParticleSystemState systemState, Camera camera)
+        {
+            quadCount = particles.Count == 0 ? 0 : UpdateVertices(particles, systemState, camera);
+        }
+
         public override void Render(ParticleCollection particleBag, ParticleSystemState systemState, Camera camera)
         {
             if (particleBag.Count == 0)
             {
                 return;
             }
-
-            // Update vertex buffer. Fully faded particles are skipped, so this can be fewer than the
-            // live particle count.
-            var quadCount = UpdateVertices(particleBag, systemState, camera);
 
             if (quadCount == 0)
             {

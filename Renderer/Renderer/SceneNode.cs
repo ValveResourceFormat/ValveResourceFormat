@@ -90,6 +90,12 @@ namespace ValveResourceFormat.Renderer
         /// </summary>
         public CustomRenderPasses RenderPasses { get; set; } = CustomRenderPasses.Default;
 
+        /// <summary>Uploads this node's buffers. Called on visible nodes only, before any pass draws.</summary>
+        /// <param name="camera">The camera the frame is drawn with.</param>
+        public virtual void UpdateBuffers(Camera camera)
+        {
+        }
+
 #if DEBUG
         /// <summary>
         /// Gets a human-readable debug name including type, name, id, and position.
