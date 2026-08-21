@@ -547,7 +547,15 @@ namespace GUI.Types.GLViewers
                     SelectedNodeRenderer?.SelectNode(null);
                 }
 
-                GrabbedMouse = MouseOverRenderArea && !Input.NoClip && !Paused && !mouseReleased;
+                // Walk mode aims with the mouse, so it holds the cursor. Leaving walk mode, pausing,
+                // or pressing escape hands it back.
+                var wantsMouseLook = !Input.NoClip && !Paused && !mouseReleased;
+
+                // Taking the cursor needs it over the viewport, but keeping it does not, or a fast
+                // look that outran the pointer would drop the grab on its way past the edge.
+                var alreadyHoldingCursor = GrabbedMouse;
+
+                GrabbedMouse = wantsMouseLook && (alreadyHoldingCursor || MouseOverRenderArea);
             }
 
         }

@@ -106,6 +106,7 @@ internal class RenderTestWindow : GameWindow
 
         // Lock cursor for mouse look
         CursorState = CursorState.Grabbed;
+        RawMouseInput = GLFW.RawMouseMotionSupported();
         isCursorLocked = true;
     }
 

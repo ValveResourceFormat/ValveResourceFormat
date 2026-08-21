@@ -607,7 +607,6 @@ namespace GUI.Forms
         {
             Clicked = false;
 
-            Cursor.Show();
             Cursor.Clip = Rectangle.Empty;
 
             base.OnMouseUp(e);
@@ -818,7 +817,6 @@ namespace GUI.Forms
             Clicked = false;
 
             Cursor.Clip = Rectangle.Empty;
-            Cursor.Show();
 
             base.OnMouseUp(e);
         }

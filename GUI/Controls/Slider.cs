@@ -151,7 +151,6 @@ internal class Slider : UserControl
         Clicked = false;
 
         Cursor.Clip = Rectangle.Empty;
-        Cursor.Show();
 
         base.OnMouseUp(e);
     }

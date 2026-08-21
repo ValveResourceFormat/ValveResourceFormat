@@ -40,6 +40,7 @@ SetWindowLongPtr
 SetWindowPlacement
 SetWindowTheme
 SHChangeNotify
+ShowCursor
 ShowWindow
 TCM_SETITEMSIZE
 timeBeginPeriod

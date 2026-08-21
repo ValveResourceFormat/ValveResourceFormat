@@ -12,6 +12,7 @@ using ValveResourceFormat;
 using ValveResourceFormat.Renderer;
 using ValveResourceFormat.Renderer.Input;
 using Windows.Win32;
+using Windows.Win32.Foundation;
 
 namespace GUI.Types.GLViewers;
 
@@ -44,6 +45,10 @@ internal abstract class GLBaseControl : IDisposable, IMessageFilter
     private bool cursorHiddenForDrag;
     private bool currentDragIsTouch;
     private bool mouseLookNeedsRebase;
+    private bool rawMouseLook;
+    private bool rawMouseDeltaSeen;
+    private static bool loggedRawMouseInput;
+    private Point mouseLookRestorePosition;
 
     public bool GrabbedMouse
     {
@@ -159,6 +164,8 @@ internal abstract class GLBaseControl : IDisposable, IMessageFilter
         UiControl.GLControlContainer.Controls.Add(GLControl);
         GLControl.AttachNativeWindow(GLNativeWindow!);
 
+        GLNativeWindow!.MouseMove += OnNativeMouseMove;
+
 #if DEBUG
         ShaderHotReload.SetSynchronizingObject(GLControl);
 #endif
@@ -223,6 +230,8 @@ internal abstract class GLBaseControl : IDisposable, IMessageFilter
     private const int WM_KEYUP = 0x0101;
     private const int WM_SYSKEYDOWN = 0x0104;
     private const int WM_SYSKEYUP = 0x0105;
+    private const int WM_SETFOCUS = 0x0007;
+    private const int WM_KILLFOCUS = 0x0008;
     private const int WM_MOUSEMOVE = 0x0200;
     private const int WM_MOUSEWHEEL = 0x020A;
 
@@ -402,11 +411,7 @@ internal abstract class GLBaseControl : IDisposable, IMessageFilter
     {
         using var lockedGl = glLock.EnterScope();
 
-        if (cursorHiddenForDrag)
-        {
-            cursorHiddenForDrag = false;
-            Cursor.Show();
-        }
+        RestoreCursorAfterDrag();
 
         if (GLControl is not null)
         {
@@ -431,6 +436,12 @@ internal abstract class GLBaseControl : IDisposable, IMessageFilter
 #endif
 
         FullScreenForm?.Dispose();
+
+        if (GLNativeWindow is not null)
+        {
+            GLNativeWindow.MouseMove -= OnNativeMouseMove;
+        }
+
         NativeWindowFactory.Destroy(GLNativeWindow);
         RendererContext.Dispose();
     }
@@ -509,8 +520,130 @@ internal abstract class GLBaseControl : IDisposable, IMessageFilter
         }
 
         cursorHiddenForDrag = false;
-        Cursor.Position = MousePreviousPosition;
-        Cursor.Show();
+        mouseLookNeedsRebase = true;
+        EndRawMouseLook();
+        Cursor.Clip = Rectangle.Empty;
+        Cursor.Position = mouseLookRestorePosition;
+        SetCursorVisible(true);
+    }
+
+    private void BeginRawMouseLook()
+    {
+        if (rawMouseLook || GLNativeWindow == null
+            || !OpenTK.Windowing.GraphicsLibraryFramework.GLFW.RawMouseMotionSupported())
+        {
+            return;
+        }
+
+        rawMouseLook = true;
+        mouseLookNeedsRebase = true;
+        GLNativeWindow.CursorState = CursorState.Grabbed;
+        GLNativeWindow.RawMouseInput = true;
+        SendFocusToNativeWindow(WM_SETFOCUS);
+    }
+
+    private void EndRawMouseLook()
+    {
+        if (!rawMouseLook)
+        {
+            return;
+        }
+
+        rawMouseLook = false;
+        rawMouseDeltaSeen = false;
+
+        if (GLNativeWindow != null)
+        {
+            SendFocusToNativeWindow(WM_KILLFOCUS);
+            GLNativeWindow.CursorState = CursorState.Normal;
+        }
+    }
+
+    private unsafe void SendFocusToNativeWindow(uint message)
+    {
+        if (GLNativeWindow is not { Exists: true })
+        {
+            return;
+        }
+
+        var hWnd = (HWND)OpenTK.Windowing.GraphicsLibraryFramework.GLFW.GetWin32Window(GLNativeWindow.WindowPtr);
+
+        if (!hWnd.IsNull)
+        {
+            PInvoke.SendMessage(hWnd, message, default, default);
+        }
+    }
+
+    // Cursor visibility is a counter Windows also writes to, resetting it when a mouse is added or
+    // removed, so hiding cannot assume its own show will be what brings it back. Drive it to the state
+    // that is wanted instead of stepping it once and trusting the arithmetic.
+    private static void SetCursorVisible(bool visible)
+    {
+        for (var attempt = 0; attempt < 8; attempt++)
+        {
+            var displayCount = PInvoke.ShowCursor(visible);
+
+            if (visible ? displayCount >= 0 : displayCount < 0)
+            {
+                return;
+            }
+        }
+    }
+
+    private Point CenterOfRenderArea()
+    {
+        var renderArea = GLControl!.RectangleToScreen(GLControl.ClientRectangle);
+        return new Point(renderArea.X + renderArea.Width / 2, renderArea.Y + renderArea.Height / 2);
+    }
+
+    private void RecenterCursor()
+    {
+        if (GLControl is not { IsHandleCreated: true })
+        {
+            return;
+        }
+
+        var center = CenterOfRenderArea();
+
+        if (Cursor.Position != center)
+        {
+            Cursor.Position = center;
+        }
+    }
+
+    private void OnNativeMouseMove(MouseMoveEventArgs e)
+    {
+        if (!rawMouseLook)
+        {
+            return;
+        }
+
+        var deltaX = (int)e.DeltaX;
+        var deltaY = (int)e.DeltaY;
+
+        if (deltaX == 0 && deltaY == 0)
+        {
+            return;
+        }
+
+        if (!rawMouseDeltaSeen)
+        {
+            rawMouseDeltaSeen = true;
+
+            if (!loggedRawMouseInput)
+            {
+                loggedRawMouseInput = true;
+                Log.Debug(nameof(GLBaseControl), "Raw mouse input enabled");
+            }
+
+            return;
+        }
+
+        using var _ = inputStateLock.EnterScope();
+
+        pendingMouseDelta.X += deltaX;
+        pendingMouseDelta.Y += deltaY;
+        MouseDragged = true;
     }
 
     protected virtual void OnMouseMove(int x, int y)
@@ -525,6 +658,12 @@ internal abstract class GLBaseControl : IDisposable, IMessageFilter
 
         if (!dragging && !(GrabbedMouse && !touch))
         {
+            return;
+        }
+
+        if (rawMouseLook && !touch)
+        {
+            RecenterCursor();
             return;
         }
 
@@ -554,7 +693,16 @@ internal abstract class GLBaseControl : IDisposable, IMessageFilter
             if (!cursorHiddenForDrag)
             {
                 cursorHiddenForDrag = true;
-                Cursor.Hide();
+                mouseLookRestorePosition = MousePreviousPosition;
+                mouseLookNeedsRebase = true;
+
+                if (!touch)
+                {
+                    Cursor.Clip = GLControl.RectangleToScreen(GLControl.ClientRectangle);
+                    BeginRawMouseLook();
+                }
+
+                SetCursorVisible(false);
             }
         }
 
@@ -565,7 +713,19 @@ internal abstract class GLBaseControl : IDisposable, IMessageFilter
             return;
         }
 
+        if (rawMouseLook)
+        {
+            return;
+        }
+
+        if (!cursorHiddenForDrag)
+        {
+            MousePreviousPosition = position;
+            return;
+        }
+
         // Relative mouse: pin the cursor so the look can continue past the screen edges
+        MousePreviousPosition = CenterOfRenderArea();
         Cursor.Position = MousePreviousPosition;
     }
 
