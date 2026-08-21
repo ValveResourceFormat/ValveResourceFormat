@@ -188,5 +188,116 @@ namespace Tests.SmartProp
             await Assert.That(SmartPropSelectionCriteria.MatchesSelectionCriteria(both, 2, 5, context)).IsFalse();
         }
 
+        [Test]
+        public async Task EndCapWithoutFlagsMatchesNothing()
+        {
+            var child = Child(Criteria("EndCap"));
+            var context = Context();
+
+            await Assert.That(SmartPropSelectionCriteria.MatchesSelectionCriteria(child, 0, 5, context)).IsFalse();
+            await Assert.That(SmartPropSelectionCriteria.MatchesSelectionCriteria(child, 4, 5, context)).IsFalse();
+        }
+
+        [Test]
+        public async Task IsValidEvaluatesExpressionBindings()
+        {
+            var context = new SmartPropEvaluationContext(new Dictionary<string, object?>
+            {
+                ["threshold"] = 4f,
+            });
+
+            var passes = Child(Criteria("IsValid", ("m_Expression", Str("threshold > 2"))));
+            var fails = Child(Criteria("IsValid", ("m_Expression", Str("threshold > 10"))));
+            var zero = Child(Criteria("IsValid", ("m_Expression", Str("0"))));
+            var missing = Child(Criteria("IsValid"));
+
+            await Assert.That(SmartPropSelectionCriteria.MatchesSelectionCriteria(passes, 0, 3, context)).IsTrue();
+            await Assert.That(SmartPropSelectionCriteria.MatchesSelectionCriteria(fails, 0, 3, context)).IsFalse();
+            await Assert.That(SmartPropSelectionCriteria.MatchesSelectionCriteria(zero, 0, 3, context)).IsFalse();
+            await Assert.That(SmartPropSelectionCriteria.MatchesSelectionCriteria(missing, 0, 3, context)).IsTrue();
+        }
+
+        [Test]
+        public async Task MultipleCriteriaMustAllPass()
+        {
+            var context = Context();
+            var child = Child(
+                Criteria("PathPosition", ("m_PlaceAtPositions", Str("INTERNAL"))),
+                Criteria("IsValid", ("m_Expression", Str("1"))));
+
+            await Assert.That(SmartPropSelectionCriteria.MatchesSelectionCriteria(child, 2, 5, context)).IsTrue();
+            await Assert.That(SmartPropSelectionCriteria.MatchesSelectionCriteria(child, 0, 5, context)).IsFalse();
+        }
+
+        [Test]
+        public async Task DisabledCriteriaAreSkipped()
+        {
+            var context = Context();
+            var child = Child(Criteria("PathPosition",
+                ("m_PlaceAtPositions", Str("END")),
+                ("m_bEnabled", Bool(false))));
+
+            await Assert.That(SmartPropSelectionCriteria.MatchesSelectionCriteria(child, 1, 5, context)).IsTrue();
+        }
+
+        [Test]
+        public async Task LinearLengthIsExtractedAndScalesLines()
+        {
+            var context = Context();
+            var child = Child(Criteria("LinearLength",
+                ("m_flLength", Float(100f)),
+                ("m_bAllowScale", Bool(true)),
+                ("m_flMinLength", Float(20f)),
+                ("m_flMaxLength", Float(160f))));
+
+            await Assert.That(SmartPropSelectionCriteria.TryGetLinearLength(child, context, out var linearLength)).IsTrue();
+            await Assert.That(linearLength.Length).IsEqualTo(100f);
+            await Assert.That(linearLength.AllowScale).IsTrue();
+            await Assert.That(linearLength.MinLength).IsEqualTo(20f);
+            await Assert.That(linearLength.MaxLength).IsEqualTo(160f);
+
+            // Exact ratio
+            await Assert.That(linearLength.ComputeScale(50f)).IsEqualTo(0.5f);
+            // Clamped up to the minimum ratio 0.2
+            await Assert.That(linearLength.ComputeScale(10f)).IsEqualTo(0.2f);
+            // Clamped down to the maximum ratio 1.6
+            await Assert.That(linearLength.ComputeScale(200f)).IsEqualTo(1.6f);
+            // Non-positive lengths refuse to scale
+            await Assert.That(linearLength.ComputeScale(0f)).IsEqualTo(1f);
+        }
+
+        [Test]
+        public async Task LinearLengthWithoutScaleIsUnclamped()
+        {
+            var context = Context();
+            var child = Child(Criteria("LinearLength",
+                ("m_flLength", Float(100f)),
+                ("m_bAllowScale", Bool(false))));
+
+            await Assert.That(SmartPropSelectionCriteria.TryGetLinearLength(child, context, out var linearLength)).IsTrue();
+            await Assert.That(linearLength.ComputeScale(400f)).IsEqualTo(4f);
+            await Assert.That(linearLength.ComputeScale(25f)).IsEqualTo(0.25f);
+        }
+
+        [Test]
+        public async Task LinearLengthAbsentReturnsFalse()
+        {
+            var context = Context();
+            var child = Child(Criteria("EndCap", ("m_bStart", Bool(true))));
+
+            await Assert.That(SmartPropSelectionCriteria.TryGetLinearLength(child, context, out _)).IsFalse();
+            await Assert.That(SmartPropSelectionCriteria.TryGetLinearLength(null, context, out _)).IsFalse();
+        }
+
+        [Test]
+        public async Task ChoiceWeightDefaultsToOneAndReadsValue()
+        {
+            var context = Context();
+            var weighted = Child(Criteria("ChoiceWeight", ("m_flWeight", Float(2.5f))));
+
+            await Assert.That(SmartPropSelectionCriteria.GetChoiceWeight(weighted, context)).IsEqualTo(2.5f);
+            await Assert.That(SmartPropSelectionCriteria.GetChoiceWeight(Child(), context)).IsEqualTo(1f);
+            await Assert.That(SmartPropSelectionCriteria.GetChoiceWeight(null, context)).IsEqualTo(1f);
+        }
     }
 }
