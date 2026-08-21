@@ -533,20 +533,9 @@ namespace ValveResourceFormat.Renderer.SceneEnvironment
         /// <summary>Gets or sets the resolution of the color correction LUT cube.</summary>
         public int ColorCorrectionLutDimensions { get; set; }
 
-        // Bloom isn't implemented yet.
-        // But the BlurWeight array corresponds to the 1/2, 1/4, 1/8, 1/16, and 1/32 resolution blur strengths respectively.
-        // Same goes for BlurTint.
-
         // Local Contrast requires a scene blur, so that's off the table for the time being.
 
         // Vignette could easily be added but I haven't actually found any vpost file that uses it yet.
-
-        // For the time being we're only going to support one LUT at a time, as that's all that can be used.
-        // The most accurate method would be to go the valve route of using
-        // a compute shader to blend LUTs (up to 8) at the start of every frame.
-
-        // Additionally, due to collision detection being An Absolute Pain, we can't
-        // use local post process volumes, and can only use the master.
 
         /// <summary>
         /// Reads tonemapping, bloom, and color correction data from the given post-processing resource.
