@@ -1,4 +1,3 @@
-using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Globalization;
 using System.IO;
@@ -713,7 +712,7 @@ public sealed class SoundEventPlayer : IDisposable
     /// </summary>
     private readonly record struct QueuedPlay(string SoundEventName, Vector3? Position, float? Volume, float VolumeScale);
 
-    private readonly ConcurrentQueue<QueuedPlay> queuedPlays = new();
+    private readonly DeferredQueue<QueuedPlay> queuedPlays = new();
 
     /// <summary>
     /// Asks for a sound to be played by the next <see cref="Update"/>, for callers that do not run on
@@ -726,7 +725,7 @@ public sealed class SoundEventPlayer : IDisposable
     /// <param name="volume">Optional programmatic volume, replacing the definition's volume property.</param>
     /// <param name="volumeScale">Multiplier applied on top of whatever volume the event ends up at.</param>
     public void PlayQueued(string soundEventName, Vector3? position = null, float? volume = null, float volumeScale = 1f)
-        => queuedPlays.Enqueue(new QueuedPlay(soundEventName, position, volume, volumeScale));
+        => queuedPlays.Post(new QueuedPlay(soundEventName, position, volume, volumeScale));
 
     /// <summary>
     /// Starts every sound left by <see cref="PlayQueued"/> since the last call. Runs from
@@ -736,7 +735,7 @@ public sealed class SoundEventPlayer : IDisposable
     /// </summary>
     public void StartQueuedSounds()
     {
-        while (queuedPlays.TryDequeue(out var queued))
+        foreach (ref readonly var queued in queuedPlays.Drain())
         {
             Play(queued.SoundEventName, queued.Position, volume: queued.Volume, volumeScale: queued.VolumeScale);
         }
