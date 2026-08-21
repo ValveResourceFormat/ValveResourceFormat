@@ -48,7 +48,6 @@ namespace ValveResourceFormat.Renderer.Utils
         private const int MaxSamples = 5000;
         private const int MaxStepsPerSegment = 256;
 
-
         /// <summary>
         /// Samples the cable's cubic spline (no sag) at roughly <c>particle_spacing</c> intervals. Every
         /// path node becomes a sample and is pinned when its pin flag is set (default: all nodes pinned);

@@ -768,7 +768,6 @@ public class ViewmodelSceneNode : ModelSceneNode
                 legsController.SetAnimationWeight(GetThirdpersonAnim(posture, MovementState.InAir), inAirWeight * t);
             }
 
-
             Span<(Posture, MovementState)> locomotionStates = [
                 (Posture.Crouching, MovementState.Walking), // crouch
                 (Posture.Standing, MovementState.Walking), // walk

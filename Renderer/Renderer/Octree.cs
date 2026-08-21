@@ -464,7 +464,6 @@ namespace ValveResourceFormat.Renderer
             Root.Clear();
         }
 
-
         /// <summary>
         /// Clears all nodes and roughly sizes root to the specified bounds.
         /// </summary>

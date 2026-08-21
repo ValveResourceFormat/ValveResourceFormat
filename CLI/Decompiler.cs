@@ -1712,12 +1712,12 @@ namespace CLI
                     }
                     break;
                 case ResourceType.Shader:
-                    {
-                        var stream = resource.Reader!.BaseStream;
-                        stream.Seek(0, SeekOrigin.Begin);
-                        ParseVCS(path, stream, originalPath);
-                        break;
-                    }
+                {
+                    var stream = resource.Reader!.BaseStream;
+                    stream.Seek(0, SeekOrigin.Begin);
+                    ParseVCS(path, stream, originalPath);
+                    break;
+                }
             }
 
             AddStatLocal(info);

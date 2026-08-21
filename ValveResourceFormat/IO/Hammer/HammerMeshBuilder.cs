@@ -735,7 +735,6 @@ namespace ValveResourceFormat.IO
                 inds[1] = (int)newTriangle.Y;
                 inds[2] = (int)newTriangle.Z;
 
-
                 if (group == "Default")
                 {
                     var physicsSurfaces = mesh.Materials;
@@ -1057,7 +1056,6 @@ namespace ValveResourceFormat.IO
             {
                 dmArray.Add(item);
             }
-
 
             var stream = new CDmePolygonMeshDataStream<T>
             {

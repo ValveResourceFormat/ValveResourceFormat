@@ -213,7 +213,6 @@ namespace GUI.Controls
                 var steps = (int)Math.Round(delta / sensitivity);
                 return value + (steps * Increment);
             }
-
         }
     }
 

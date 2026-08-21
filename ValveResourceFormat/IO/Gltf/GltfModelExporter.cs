@@ -248,13 +248,13 @@ namespace ValveResourceFormat.IO
                         ExportToFile(resource.FileName, targetPath, (VWorld)resource.DataBlock!);
                         break;
                     case ResourceType.Map:
-                        {
-                            var lumpFolder = MapExtract.GetLumpFolderFromVmapRERL(resource.ExternalReferences);
-                            var worldFile = Path.Combine(lumpFolder, "world.vwrld");
-                            var mapResource = FileLoader.LoadFileCompiled(worldFile) ?? throw new FileNotFoundException($"Failed to load \"{worldFile}\"");
-                            ExportToFile(resource.FileName, targetPath, (VWorld)mapResource.DataBlock!);
-                            break;
-                        }
+                    {
+                        var lumpFolder = MapExtract.GetLumpFolderFromVmapRERL(resource.ExternalReferences);
+                        var worldFile = Path.Combine(lumpFolder, "world.vwrld");
+                        var mapResource = FileLoader.LoadFileCompiled(worldFile) ?? throw new FileNotFoundException($"Failed to load \"{worldFile}\"");
+                        ExportToFile(resource.FileName, targetPath, (VWorld)mapResource.DataBlock!);
+                        break;
+                    }
                     case ResourceType.EntityLump:
                         ExportToFile(resource.FileName, targetPath, (VEntityLump)resource.DataBlock!);
                         break;

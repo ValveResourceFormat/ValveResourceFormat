@@ -24,7 +24,6 @@ namespace ValveResourceFormat.Particles.Operators
             rotAxisMax = parse.Vector3("m_vecRotAxisMax", rotAxisMax);
             rotRateMin = parse.Float("m_flRotRateMin", rotRateMin);
 
-
             rotRateMax = parse.Float("m_flRotRateMax", rotRateMax);
             perParticleScale = parse.NumberProvider("m_flScale", perParticleScale);
             normalize = parse.Boolean("m_bNormalize", normalize);

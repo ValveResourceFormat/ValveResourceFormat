@@ -270,7 +270,6 @@ namespace ValveResourceFormat.Particles
             systemState.DetailLevel = level;
         }
 
-
         /// <summary>The systems this one runs as children, in definition order.</summary>
         public IReadOnlyList<ParticleSystemSimulation> Children => childSimulations;
 
@@ -335,7 +334,6 @@ namespace ValveResourceFormat.Particles
             CalculateBounds();
         }
 
-
         private delegate bool TryCreateFunction<T>(string className, KVObject data, ILogger logger, int behaviorVersion, [MaybeNullWhen(false)] out T result);
 
         private void SetupFunctions<T>(IEnumerable<KVObject> data, TryCreateFunction<T> tryCreate, List<T> target, string label)
@@ -396,6 +394,5 @@ namespace ValveResourceFormat.Particles
 
             return parse.Boolean("m_bDisableOperator", default);
         }
-
     }
 }

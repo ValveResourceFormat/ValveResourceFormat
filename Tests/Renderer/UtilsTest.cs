@@ -33,7 +33,6 @@ namespace Tests.Renderer
                 await Assert.That(new Color32(127.4f / 255f, 0f, 0f, 1f).R).IsEqualTo((byte)127);
                 await Assert.That(new Color32(127.6f / 255f, 0f, 0f, 1f).R).IsEqualTo((byte)128);
             }
-
         }
     }
 }

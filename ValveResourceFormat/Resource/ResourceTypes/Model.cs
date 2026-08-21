@@ -602,6 +602,5 @@ namespace ValveResourceFormat.ResourceTypes
 
             return keyvalues;
         }
-
     }
 }

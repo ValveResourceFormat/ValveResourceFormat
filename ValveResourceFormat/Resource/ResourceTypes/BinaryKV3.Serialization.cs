@@ -439,7 +439,6 @@ namespace ValveResourceFormat.ResourceTypes
                 return;
             }
 
-
             var nodeType = GetKV3BinaryNodeType(value);
             WriteType(context, nodeType, value.Flag);
 
@@ -477,26 +476,26 @@ namespace ValveResourceFormat.ResourceTypes
                     }
                     break;
                 case KVValueType.Collection:
-                    {
-                        context.ObjectLengthsWriter.Write(value.Count);
+                {
+                    context.ObjectLengthsWriter.Write(value.Count);
 
-                        foreach (var (key, property) in value)
-                        {
-                            WriteProperty(key, property, context);
-                        }
+                    foreach (var (key, property) in value)
+                    {
+                        WriteProperty(key, property, context);
                     }
-                    break;
+                }
+                break;
                 case KVValueType.Array:
-                    {
-                        context.CountArrays++;
-                        context.Bytes4Writer.Write(value.Count);
+                {
+                    context.CountArrays++;
+                    context.Bytes4Writer.Write(value.Count);
 
-                        foreach (var (_, item) in value)
-                        {
-                            WriteValueRecursive(item, context);
-                        }
+                    foreach (var (_, item) in value)
+                    {
+                        WriteValueRecursive(item, context);
                     }
-                    break;
+                }
+                break;
                 default:
                     throw new NotSupportedException($"Unsupported value type: {value.ValueType}");
             }

@@ -25,7 +25,6 @@ namespace ValveResourceFormat.TextureDecoders
         };
         protected static readonly byte[] Etc2DistanceTable = [3, 6, 11, 16, 23, 32, 41, 64];
 
-
         protected readonly uint[] m_buf = new uint[16];
         protected readonly byte[,] m_c = new byte[3, 3];
 

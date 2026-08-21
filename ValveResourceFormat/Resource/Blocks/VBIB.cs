@@ -463,43 +463,43 @@ namespace ValveResourceFormat.Blocks
                     break;
 
                 case DXGI_FORMAT.R16G16_FLOAT:
+                {
+                    for (var i = 0; i < vertexBuffer.ElementCount; i++)
                     {
-                        for (var i = 0; i < vertexBuffer.ElementCount; i++)
-                        {
-                            var halfs = MemoryMarshal.Cast<byte, Half>(data.Slice(offset, 4));
-                            result[i] = new Vector2((float)halfs[0], (float)halfs[1]);
+                        var halfs = MemoryMarshal.Cast<byte, Half>(data.Slice(offset, 4));
+                        result[i] = new Vector2((float)halfs[0], (float)halfs[1]);
 
-                            offset += (int)vertexBuffer.ElementSizeInBytes;
-                        }
-
-                        break;
+                        offset += (int)vertexBuffer.ElementSizeInBytes;
                     }
+
+                    break;
+                }
 
                 case DXGI_FORMAT.R16G16_UNORM:
+                {
+                    for (var i = 0; i < vertexBuffer.ElementCount; i++)
                     {
-                        for (var i = 0; i < vertexBuffer.ElementCount; i++)
-                        {
-                            var ushorts = MemoryMarshal.Cast<byte, ushort>(data.Slice(offset, 4));
-                            result[i] = new Vector2(ushorts[0], ushorts[1]) / 65535f;
+                        var ushorts = MemoryMarshal.Cast<byte, ushort>(data.Slice(offset, 4));
+                        result[i] = new Vector2(ushorts[0], ushorts[1]) / 65535f;
 
-                            offset += (int)vertexBuffer.ElementSizeInBytes;
-                        }
-
-                        break;
+                        offset += (int)vertexBuffer.ElementSizeInBytes;
                     }
+
+                    break;
+                }
 
                 case DXGI_FORMAT.R16G16_SNORM:
+                {
+                    for (var i = 0; i < vertexBuffer.ElementCount; i++)
                     {
-                        for (var i = 0; i < vertexBuffer.ElementCount; i++)
-                        {
-                            var shorts = MemoryMarshal.Cast<byte, short>(data.Slice(offset, 4));
-                            result[i] = new Vector2(shorts[0], shorts[1]) / 32767f;
+                        var shorts = MemoryMarshal.Cast<byte, short>(data.Slice(offset, 4));
+                        result[i] = new Vector2(shorts[0], shorts[1]) / 32767f;
 
-                            offset += (int)vertexBuffer.ElementSizeInBytes;
-                        }
-
-                        break;
+                        offset += (int)vertexBuffer.ElementSizeInBytes;
                     }
+
+                    break;
+                }
 
                 default:
                     throw new InvalidDataException($"Unexpected {attribute.SemanticName} attribute format {attribute.Format}");
@@ -540,40 +540,40 @@ namespace ValveResourceFormat.Blocks
                     break;
 
                 case DXGI_FORMAT.R16G16B16A16_FLOAT:
+                {
+                    for (var i = 0; i < vertexBuffer.ElementCount; i++)
                     {
-                        for (var i = 0; i < vertexBuffer.ElementCount; i++)
-                        {
-                            var halfs = MemoryMarshal.Cast<byte, Half>(data.Slice(offset, 8));
-                            result[i] = new Vector4(
-                                (float)halfs[0],
-                                (float)halfs[1],
-                                (float)halfs[2],
-                                (float)halfs[3]
-                            );
+                        var halfs = MemoryMarshal.Cast<byte, Half>(data.Slice(offset, 8));
+                        result[i] = new Vector4(
+                            (float)halfs[0],
+                            (float)halfs[1],
+                            (float)halfs[2],
+                            (float)halfs[3]
+                        );
 
-                            offset += (int)vertexBuffer.ElementSizeInBytes;
-                        }
-
-                        break;
+                        offset += (int)vertexBuffer.ElementSizeInBytes;
                     }
+
+                    break;
+                }
 
                 case DXGI_FORMAT.R8G8B8A8_UNORM:
+                {
+                    for (var i = 0; i < vertexBuffer.ElementCount; i++)
                     {
-                        for (var i = 0; i < vertexBuffer.ElementCount; i++)
-                        {
-                            result[i] = new Vector4(
-                                data[offset],
-                                data[offset + 1],
-                                data[offset + 2],
-                                data[offset + 3]
-                            );
+                        result[i] = new Vector4(
+                            data[offset],
+                            data[offset + 1],
+                            data[offset + 2],
+                            data[offset + 3]
+                        );
 
-                            result[i] /= 255f;
-                            offset += (int)vertexBuffer.ElementSizeInBytes;
-                        }
-
-                        return result;
+                        result[i] /= 255f;
+                        offset += (int)vertexBuffer.ElementSizeInBytes;
                     }
+
+                    return result;
+                }
 
                 default:
                     throw new InvalidDataException($"Unexpected {attribute.SemanticName} attribute format {attribute.Format}");
@@ -634,68 +634,68 @@ namespace ValveResourceFormat.Blocks
             switch (attribute.Format)
             {
                 case DXGI_FORMAT.R16G16_SINT:
+                {
+                    const int numJointsVbib = 2;
+
+                    for (var i = 0; i < vertexBuffer.ElementCount; i++)
                     {
-                        const int numJointsVbib = 2;
+                        var ushorts = MemoryMarshal.Cast<byte, ushort>(data.Slice(offset, numJointsVbib * sizeof(ushort)));
 
-                        for (var i = 0; i < vertexBuffer.ElementCount; i++)
-                        {
-                            var ushorts = MemoryMarshal.Cast<byte, ushort>(data.Slice(offset, numJointsVbib * sizeof(ushort)));
+                        System.Diagnostics.Debug.Assert(ushorts[0] <= short.MaxValue);
+                        System.Diagnostics.Debug.Assert(ushorts[1] <= short.MaxValue);
 
-                            System.Diagnostics.Debug.Assert(ushorts[0] <= short.MaxValue);
-                            System.Diagnostics.Debug.Assert(ushorts[1] <= short.MaxValue);
+                        var fourJoints = indices.AsSpan(i * numJoints, numJoints);
+                        fourJoints[0] = ushorts[0];
+                        fourJoints[1] = ushorts[1];
+                        fourJoints[2] = ushorts[1];
+                        fourJoints[3] = ushorts[1];
 
-                            var fourJoints = indices.AsSpan(i * numJoints, numJoints);
-                            fourJoints[0] = ushorts[0];
-                            fourJoints[1] = ushorts[1];
-                            fourJoints[2] = ushorts[1];
-                            fourJoints[3] = ushorts[1];
-
-                            offset += (int)vertexBuffer.ElementSizeInBytes;
-                        }
-
-                        break;
+                        offset += (int)vertexBuffer.ElementSizeInBytes;
                     }
+
+                    break;
+                }
 
                 case DXGI_FORMAT.R16G16B16A16_SINT:
                 case DXGI_FORMAT.R32G32B32A32_SINT: // 8 joints
+                {
+                    for (var i = 0; i < vertexBuffer.ElementCount; i++)
                     {
-                        for (var i = 0; i < vertexBuffer.ElementCount; i++)
-                        {
-                            var ushorts = MemoryMarshal.Cast<byte, ushort>(data.Slice(offset, numJoints * sizeof(ushort)));
+                        var ushorts = MemoryMarshal.Cast<byte, ushort>(data.Slice(offset, numJoints * sizeof(ushort)));
 #if DEBUG
-                            for (var j = 0; j < numJoints; j++)
-                            {
-                                System.Diagnostics.Debug.Assert(ushorts[j] <= short.MaxValue);
-                            }
+                        for (var j = 0; j < numJoints; j++)
+                        {
+                            System.Diagnostics.Debug.Assert(ushorts[j] <= short.MaxValue);
+                        }
 #endif
 
-                            ushorts.CopyTo(indices.AsSpan(i * numJoints, numJoints));
-                            offset += (int)vertexBuffer.ElementSizeInBytes;
-                        }
-
-                        break;
+                        ushorts.CopyTo(indices.AsSpan(i * numJoints, numJoints));
+                        offset += (int)vertexBuffer.ElementSizeInBytes;
                     }
+
+                    break;
+                }
 
                 case DXGI_FORMAT.R8G8B8A8_UINT:
                 case DXGI_FORMAT.R16G16B16A16_UINT: // 8 joints
+                {
+                    var inc = 0;
+
+                    for (var i = 0; i < vertexBuffer.ElementCount; i++)
                     {
-                        var inc = 0;
+                        var bytes = data.Slice(offset, numJoints);
 
-                        for (var i = 0; i < vertexBuffer.ElementCount; i++)
+                        for (var j = 0; j < numJoints; j++)
                         {
-                            var bytes = data.Slice(offset, numJoints);
-
-                            for (var j = 0; j < numJoints; j++)
-                            {
-                                System.Diagnostics.Debug.Assert(bytes[j] >= 0);
-                                indices[inc++] = bytes[j];
-                            }
-
-                            offset += (int)vertexBuffer.ElementSizeInBytes;
+                            System.Diagnostics.Debug.Assert(bytes[j] >= 0);
+                            indices[inc++] = bytes[j];
                         }
 
-                        break;
+                        offset += (int)vertexBuffer.ElementSizeInBytes;
                     }
+
+                    break;
+                }
 
                 default:
                     throw new InvalidDataException($"Unexpected {attribute.SemanticName} attribute format {attribute.Format}");
@@ -726,55 +726,55 @@ namespace ValveResourceFormat.Blocks
             switch (attribute.Format)
             {
                 case DXGI_FORMAT.R8G8B8A8_UNORM:
+                {
+                    for (var i = 0; i < weights.Length; i++)
                     {
-                        for (var i = 0; i < weights.Length; i++)
-                        {
-                            weights[i] = new Vector4(
-                                data[offset],
-                                data[offset + 1],
-                                data[offset + 2],
-                                data[offset + 3]
-                            );
+                        weights[i] = new Vector4(
+                            data[offset],
+                            data[offset + 1],
+                            data[offset + 2],
+                            data[offset + 3]
+                        );
 
-                            weights[i] /= 255f;
-                            offset += (int)vertexBuffer.ElementSizeInBytes;
-                        }
-
-                        break;
+                        weights[i] /= 255f;
+                        offset += (int)vertexBuffer.ElementSizeInBytes;
                     }
+
+                    break;
+                }
 
                 case DXGI_FORMAT.R16G16B16A16_UNORM:
+                {
+                    for (var i = 0; i < weights.Length; i += 2)
                     {
-                        for (var i = 0; i < weights.Length; i += 2)
-                        {
-                            weights[i] = new Vector4(data[offset], data[offset + 1], data[offset + 2], data[offset + 3]) / 255f;
-                            weights[i + 1] = new Vector4(data[offset + 4], data[offset + 5], data[offset + 6], data[offset + 7]) / 255f;
+                        weights[i] = new Vector4(data[offset], data[offset + 1], data[offset + 2], data[offset + 3]) / 255f;
+                        weights[i + 1] = new Vector4(data[offset + 4], data[offset + 5], data[offset + 6], data[offset + 7]) / 255f;
 
-                            offset += (int)vertexBuffer.ElementSizeInBytes;
-                        }
-
-                        break;
+                        offset += (int)vertexBuffer.ElementSizeInBytes;
                     }
+
+                    break;
+                }
 
                 case DXGI_FORMAT.R16G16_UNORM:
+                {
+                    for (var i = 0; i < weights.Length; i++)
                     {
-                        for (var i = 0; i < weights.Length; i++)
-                        {
-                            var packed = Unsafe.ReadUnaligned<uint>(ref MemoryMarshal.GetReference(data[offset..(offset + 4)]));
+                        var packed = Unsafe.ReadUnaligned<uint>(ref MemoryMarshal.GetReference(data[offset..(offset + 4)]));
 
-                            weights[i] = new Vector4(
-                                packed & 0x0000FFFF,
-                                packed >> 16,
-                                0f,
-                                0f
-                            );
+                        weights[i] = new Vector4(
+                            packed & 0x0000FFFF,
+                            packed >> 16,
+                            0f,
+                            0f
+                        );
 
-                            weights[i] /= 65535f;
-                            offset += (int)vertexBuffer.ElementSizeInBytes;
-                        }
-
-                        break;
+                        weights[i] /= 65535f;
+                        offset += (int)vertexBuffer.ElementSizeInBytes;
                     }
+
+                    break;
+                }
 
                 default:
                     throw new InvalidDataException($"Unexpected {attribute.SemanticName} attribute format {attribute.Format}");

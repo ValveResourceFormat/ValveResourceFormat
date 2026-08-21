@@ -10,7 +10,6 @@ class RandomForce : ParticleFunctionForceGenerator
     private readonly Vector3 min = Vector3.Zero;
     private readonly Vector3 max = Vector3.Zero;
 
-
     public RandomForce(ParticleDefinitionParser parse) : base(parse)
     {
         min = parse.Vector3("m_MinForce");

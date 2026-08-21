@@ -192,7 +192,6 @@ internal sealed class PulseGraphBuilder
     };
     #endregion Socket types
 
-
     private bool TryAddRegisterMapOutParams(
         Node node,
         int chunkIndex,
@@ -1120,435 +1119,432 @@ internal sealed class PulseGraphBuilder
             switch (instrType)
             {
                 case InstructionCode.LIBRARY_INVOKE:
+                {
+                    var invokeIndex = instruction.GetInt32Property("m_nInvokeBindingIndex");
+                    var binding = invokeBindings[invokeIndex];
+                    var registerMap = binding["m_RegisterMap"];
+
+                    var funcName = binding.GetStringProperty("m_FuncName");
+                    var node = new Node(null)
                     {
-                        var invokeIndex = instruction.GetInt32Property("m_nInvokeBindingIndex");
-                        var binding = invokeBindings[invokeIndex];
-                        var registerMap = binding["m_RegisterMap"];
+                        Name = funcName,
+                        NodeType = "Function",
+                        Category = PulseHues.HueOf(PulseCategory.Call),
+                    };
 
-                        var funcName = binding.GetStringProperty("m_FuncName");
-                        var node = new Node(null)
-                        {
-                            Name = funcName,
-                            NodeType = "Function",
-                            Category = PulseHues.HueOf(PulseCategory.Call),
-                        };
-
-                        var newActionOutSocket = SetupNodeOutputsFromRegisterMap(document, node, chunkIndex, registerOutputSocketMap, previousActionOutSocket, registerMap);
-                        if (newActionOutSocket != null)
-                        {
-                            previousActionOutSocket = newActionOutSocket;
-                        }
-
-
-                        CreateInputsFromRegisterMap(document, node, chunkIndex, registerConstValueMap, registerOutputSocketMap, registerMap);
-
-                        document.AddNode(node);
-                        break;
+                    var newActionOutSocket = SetupNodeOutputsFromRegisterMap(document, node, chunkIndex, registerOutputSocketMap, previousActionOutSocket, registerMap);
+                    if (newActionOutSocket != null)
+                    {
+                        previousActionOutSocket = newActionOutSocket;
                     }
+
+                    CreateInputsFromRegisterMap(document, node, chunkIndex, registerConstValueMap, registerOutputSocketMap, registerMap);
+
+                    document.AddNode(node);
+                    break;
+                }
                 case InstructionCode.CELL_INVOKE:
+                {
+                    var invokeIndex = instruction.GetInt32Property("m_nInvokeBindingIndex");
+                    var binding = invokeBindings[invokeIndex];
+                    var registerMap = binding["m_RegisterMap"];
+
+                    var funcName = binding.GetStringProperty("m_FuncName");
+                    var cellIndex = binding.GetInt32Property("m_nCellIndex");
+                    GetCellType(cellIndex, out var cellName);
+
+                    var funcNameSplitIdx = funcName.IndexOf("::", StringComparison.InvariantCulture);
+                    var node = new Node(null)
                     {
-                        var invokeIndex = instruction.GetInt32Property("m_nInvokeBindingIndex");
-                        var binding = invokeBindings[invokeIndex];
-                        var registerMap = binding["m_RegisterMap"];
+                        Name = cellName,
+                        // show name after '::' separator, if can't find then show full name
+                        NodeType = funcName[(funcNameSplitIdx >= 0 ? (funcNameSplitIdx + 2) : 0)..],
+                        Category = PulseHues.HueOf(GetCellCategory(cellIndex)),
+                    };
 
-                        var funcName = binding.GetStringProperty("m_FuncName");
-                        var cellIndex = binding.GetInt32Property("m_nCellIndex");
-                        GetCellType(cellIndex, out var cellName);
-
-                        var funcNameSplitIdx = funcName.IndexOf("::", StringComparison.InvariantCulture);
-                        var node = new Node(null)
-                        {
-                            Name = cellName,
-                            // show name after '::' separator, if can't find then show full name
-                            NodeType = funcName[(funcNameSplitIdx >= 0 ? (funcNameSplitIdx + 2) : 0)..],
-                            Category = PulseHues.HueOf(GetCellCategory(cellIndex)),
-                        };
-
-                        var newActionOutSocket = SetupNodeOutputsFromRegisterMap(document, node, chunkIndex, registerOutputSocketMap, previousActionOutSocket, registerMap);
-                        if (newActionOutSocket != null)
-                        {
-                            previousActionOutSocket = newActionOutSocket;
-                        }
-
-
-                        AddFilteredCellDetails(node, cellIndex);
-                        CreateInputsFromRegisterMap(document, node, chunkIndex, registerConstValueMap, registerOutputSocketMap, registerMap);
-                        PopulateCellAndTraverseOutflows(document, node, cellIndex, registerConstValueMap, registerOutputSocketMap, finalEndingInstructionIdx);
-
-                        document.AddNode(node);
-                        break;
+                    var newActionOutSocket = SetupNodeOutputsFromRegisterMap(document, node, chunkIndex, registerOutputSocketMap, previousActionOutSocket, registerMap);
+                    if (newActionOutSocket != null)
+                    {
+                        previousActionOutSocket = newActionOutSocket;
                     }
+
+                    AddFilteredCellDetails(node, cellIndex);
+                    CreateInputsFromRegisterMap(document, node, chunkIndex, registerConstValueMap, registerOutputSocketMap, registerMap);
+                    PopulateCellAndTraverseOutflows(document, node, cellIndex, registerConstValueMap, registerOutputSocketMap, finalEndingInstructionIdx);
+
+                    document.AddNode(node);
+                    break;
+                }
                 case InstructionCode.GET_CONST:
+                {
+                    var constIdx = instruction.GetInt32Property("m_nConstIdx");
+                    var outputRegIdx = instruction.GetInt32Property("m_nReg0");
+                    if (TryGetConstantValueFromId(constIdx, out var value))
                     {
-                        var constIdx = instruction.GetInt32Property("m_nConstIdx");
-                        var outputRegIdx = instruction.GetInt32Property("m_nReg0");
-                        if (TryGetConstantValueFromId(constIdx, out var value))
-                        {
-                            registerConstValueMap[outputRegIdx] = value;
-                        }
-                        else
-                        {
-                            ProgressReporter?.Report($"Failed to retrieve constant of ID={constIdx}");
-                        }
-                        break;
+                        registerConstValueMap[outputRegIdx] = value;
                     }
+                    else
+                    {
+                        ProgressReporter?.Report($"Failed to retrieve constant of ID={constIdx}");
+                    }
+                    break;
+                }
                 case InstructionCode.GET_DOMAIN_VALUE:
+                {
+                    var domainValIdx = instruction.GetInt32Property("m_nDomainValueIdx");
+                    var outputRegIdx = instruction.GetInt32Property("m_nReg0");
+                    if (TryGetDomainValueFromId(domainValIdx, out var value))
                     {
-                        var domainValIdx = instruction.GetInt32Property("m_nDomainValueIdx");
-                        var outputRegIdx = instruction.GetInt32Property("m_nReg0");
-                        if (TryGetDomainValueFromId(domainValIdx, out var value))
-                        {
-                            registerConstValueMap[outputRegIdx] = value;
-                        }
-                        else
-                        {
-                            ProgressReporter?.Report($"Failed to retrieve domain value of ID={domainValIdx}");
-                        }
-                        break;
+                        registerConstValueMap[outputRegIdx] = value;
                     }
+                    else
+                    {
+                        ProgressReporter?.Report($"Failed to retrieve domain value of ID={domainValIdx}");
+                    }
+                    break;
+                }
                 case InstructionCode.GET_VAR:
+                {
+                    var varIndex = instruction.GetInt32Property("m_nVar");
+                    var regIndex = instruction.GetInt32Property("m_nReg0");
+                    var node = new Node(null)
                     {
-                        var varIndex = instruction.GetInt32Property("m_nVar");
-                        var regIndex = instruction.GetInt32Property("m_nReg0");
-                        var node = new Node(null)
-                        {
-                            Name = "Get Variable",
-                            NodeType = "Instruction",
-                            Category = PulseHues.HueOf(PulseCategory.Instruction),
-                        };
-                        if (!TryGetVariableNameFromId(varIndex, out var name))
-                        {
-                            name = $"<UNKNOWN m_nVar={varIndex}>";
-                            ProgressReporter?.Report($"Failed to retrieve variable name of ID={varIndex}. Invalid graph definition?");
-                        }
-
-                        node.AddText(name);
-                        var outSocket = node.CreateSocketOutFromValueType("retval", GetValueTypeFromRegister(chunkIndex, regIndex));
-                        registerOutputSocketMap[regIndex] = outSocket;
-
-                        document.AddNode(node);
-
-                        var variableHub = VariableNodeFor(document, varIndex, name);
-                        var readsOutput = variableHub.GetOrAddOutput("reads", PulseHues.VariableLinkHue);
-                        document.Connect(readsOutput, node.AddInput("var", PulseHues.VariableLinkHue, allowMultiple: true), dashed: true);
-                        break;
+                        Name = "Get Variable",
+                        NodeType = "Instruction",
+                        Category = PulseHues.HueOf(PulseCategory.Instruction),
+                    };
+                    if (!TryGetVariableNameFromId(varIndex, out var name))
+                    {
+                        name = $"<UNKNOWN m_nVar={varIndex}>";
+                        ProgressReporter?.Report($"Failed to retrieve variable name of ID={varIndex}. Invalid graph definition?");
                     }
+
+                    node.AddText(name);
+                    var outSocket = node.CreateSocketOutFromValueType("retval", GetValueTypeFromRegister(chunkIndex, regIndex));
+                    registerOutputSocketMap[regIndex] = outSocket;
+
+                    document.AddNode(node);
+
+                    var variableHub = VariableNodeFor(document, varIndex, name);
+                    var readsOutput = variableHub.GetOrAddOutput("reads", PulseHues.VariableLinkHue);
+                    document.Connect(readsOutput, node.AddInput("var", PulseHues.VariableLinkHue, allowMultiple: true), dashed: true);
+                    break;
+                }
                 case InstructionCode.SET_VAR:
+                {
+                    var varIndex = instruction.GetInt32Property("m_nVar");
+                    var regIndex = instruction.GetInt32Property("m_nReg0");
+                    var node = new Node(null)
                     {
-                        var varIndex = instruction.GetInt32Property("m_nVar");
-                        var regIndex = instruction.GetInt32Property("m_nReg0");
-                        var node = new Node(null)
-                        {
-                            Name = "Set Variable",
-                            NodeType = "Instruction",
-                            Category = PulseHues.HueOf(PulseCategory.Instruction),
-                        };
-                        previousActionOutSocket = CreateSequentialActionSockets(document, node, previousActionOutSocket);
+                        Name = "Set Variable",
+                        NodeType = "Instruction",
+                        Category = PulseHues.HueOf(PulseCategory.Instruction),
+                    };
+                    previousActionOutSocket = CreateSequentialActionSockets(document, node, previousActionOutSocket);
 
-                        if (!TryGetVariableNameFromId(varIndex, out var name))
-                        {
-                            name = $"<UNKNOWN m_nVar={varIndex}>";
-                            ProgressReporter?.Report($"Failed to retrieve variable name of ID={varIndex}. Invalid graph definition?");
-                        }
-
-                        node.AddText(name);
-                        AddNodeRegisterInput(document, node, chunkIndex, registerConstValueMap, registerOutputSocketMap, regIndex, "value");
-
-                        document.AddNode(node);
-
-                        var variableHub = VariableNodeFor(document, varIndex, name);
-                        var writesInput = variableHub.GetOrAddInput("writes", PulseHues.VariableLinkHue);
-                        document.Connect(node.AddOutput("var", PulseHues.VariableLinkHue), writesInput, dashed: true);
-                        break;
+                    if (!TryGetVariableNameFromId(varIndex, out var name))
+                    {
+                        name = $"<UNKNOWN m_nVar={varIndex}>";
+                        ProgressReporter?.Report($"Failed to retrieve variable name of ID={varIndex}. Invalid graph definition?");
                     }
+
+                    node.AddText(name);
+                    AddNodeRegisterInput(document, node, chunkIndex, registerConstValueMap, registerOutputSocketMap, regIndex, "value");
+
+                    document.AddNode(node);
+
+                    var variableHub = VariableNodeFor(document, varIndex, name);
+                    var writesInput = variableHub.GetOrAddInput("writes", PulseHues.VariableLinkHue);
+                    document.Connect(node.AddOutput("var", PulseHues.VariableLinkHue), writesInput, dashed: true);
+                    break;
+                }
                 case InstructionCode.PULSE_CALL_SYNC:
                 case InstructionCode.PULSE_CALL_ASYNC_FIRE:
+                {
+                    var callTargetChunk = instruction.GetInt32Property("m_nChunk");
+                    var callDestInstructionIdx = instruction.GetInt32Property("m_nDestInstruction");
+                    if (callTargetChunk != chunkIndex || callDestInstructionIdx <= 0)
                     {
-                        var callTargetChunk = instruction.GetInt32Property("m_nChunk");
-                        var callDestInstructionIdx = instruction.GetInt32Property("m_nDestInstruction");
-                        if (callTargetChunk != chunkIndex || callDestInstructionIdx <= 0)
+                        var callInfoIndex = instruction.GetInt32Property("m_nCallInfoIndex");
+                        var node = new Node(null)
                         {
-                            var callInfoIndex = instruction.GetInt32Property("m_nCallInfoIndex");
-                            var node = new Node(null)
-                            {
-                                Name = instrType == InstructionCode.PULSE_CALL_SYNC ? "Call" : "Call Asynchronously",
-                                NodeType = "Flow",
-                                Category = PulseHues.HueOf(PulseCategory.Call),
-                            };
-                            previousActionOutSocket = CreateSequentialActionSockets(document, node, previousActionOutSocket);
-                            var callInfo = callInfos.ElementAtOrDefault(callInfoIndex);
-                            if (callInfo != null)
-                            {
-                                CreateInputsFromRegisterMap(document, node, chunkIndex, registerConstValueMap, registerOutputSocketMap, callInfo["m_RegisterMap"]);
-                            }
-                            else
-                            {
-                                ProgressReporter?.Report($"Failed to retrieve call info of ID={callInfoIndex}.");
-                            }
-                            remoteNodesToResolve.Add(new RemoteNodeInfo
-                            {
-                                targetChunk = callTargetChunk,
-                                node = node,
-                                targetNamePrefix = "Method: "
-                            });
+                            Name = instrType == InstructionCode.PULSE_CALL_SYNC ? "Call" : "Call Asynchronously",
+                            NodeType = "Flow",
+                            Category = PulseHues.HueOf(PulseCategory.Call),
+                        };
+                        previousActionOutSocket = CreateSequentialActionSockets(document, node, previousActionOutSocket);
+                        var callInfo = callInfos.ElementAtOrDefault(callInfoIndex);
+                        if (callInfo != null)
+                        {
+                            CreateInputsFromRegisterMap(document, node, chunkIndex, registerConstValueMap, registerOutputSocketMap, callInfo["m_RegisterMap"]);
                         }
                         else
                         {
-                            // If within the same chunk then treat that as a jump, don't know what it actually could represent yet besides just that.
-                            // The difference here is mostly that we still come back to process the instruction after the call finishes
-                            var outSocket = TraverseNodesForChunk(
-                                document,
-                                chunkIndex,
-                                previousActionOutSocket,
-                                new Dictionary<int, KVObject>(registerConstValueMap),
-                                new Dictionary<int, GraphSocket>(registerOutputSocketMap),
-                                callDestInstructionIdx
-                            );
-
-                            if (outSocket != null)
-                            {
-                                previousActionOutSocket = outSocket;
-                            }
+                            ProgressReporter?.Report($"Failed to retrieve call info of ID={callInfoIndex}.");
                         }
-                        break;
-                    }
-                case InstructionCode.RETURN_VALUE:
-                    {
-                        var regIndex = instruction.GetInt32Property("m_nReg0");
-                        var node = new Node(null)
+                        remoteNodesToResolve.Add(new RemoteNodeInfo
                         {
-                            Name = "Return Value",
-                            NodeType = "Flow",
-                            Category = PulseHues.HueOf(PulseCategory.FlowControl),
-                        };
-                        previousActionOutSocket = CreateSequentialActionSockets(document, node, previousActionOutSocket);
-                        AddNodeRegisterInput(document, node, chunkIndex, registerConstValueMap, registerOutputSocketMap, regIndex, "value");
-                        document.AddNode(node);
-                        break;
+                            targetChunk = callTargetChunk,
+                            node = node,
+                            targetNamePrefix = "Method: "
+                        });
                     }
-                case InstructionCode.RETURN_VOID:
-                case InstructionCode.IMMEDIATE_HALT:
+                    else
                     {
-                        stopProcessing = true;
-                        break;
-                    }
-                case InstructionCode.JUMP:
-                    {
-                        stopProcessing = true;
-                        var destInstructionIdx = instruction.GetInt32Property("m_nDestInstruction");
-                        TraverseNodesForChunk(
+                        // If within the same chunk then treat that as a jump, don't know what it actually could represent yet besides just that.
+                        // The difference here is mostly that we still come back to process the instruction after the call finishes
+                        var outSocket = TraverseNodesForChunk(
                             document,
                             chunkIndex,
                             previousActionOutSocket,
                             new Dictionary<int, KVObject>(registerConstValueMap),
                             new Dictionary<int, GraphSocket>(registerOutputSocketMap),
-                            destInstructionIdx,
-                            finalEndingInstructionIdx);
-                        break;
+                            callDestInstructionIdx
+                        );
+
+                        if (outSocket != null)
+                        {
+                            previousActionOutSocket = outSocket;
+                        }
                     }
+                    break;
+                }
+                case InstructionCode.RETURN_VALUE:
+                {
+                    var regIndex = instruction.GetInt32Property("m_nReg0");
+                    var node = new Node(null)
+                    {
+                        Name = "Return Value",
+                        NodeType = "Flow",
+                        Category = PulseHues.HueOf(PulseCategory.FlowControl),
+                    };
+                    previousActionOutSocket = CreateSequentialActionSockets(document, node, previousActionOutSocket);
+                    AddNodeRegisterInput(document, node, chunkIndex, registerConstValueMap, registerOutputSocketMap, regIndex, "value");
+                    document.AddNode(node);
+                    break;
+                }
+                case InstructionCode.RETURN_VOID:
+                case InstructionCode.IMMEDIATE_HALT:
+                {
+                    stopProcessing = true;
+                    break;
+                }
+                case InstructionCode.JUMP:
+                {
+                    stopProcessing = true;
+                    var destInstructionIdx = instruction.GetInt32Property("m_nDestInstruction");
+                    TraverseNodesForChunk(
+                        document,
+                        chunkIndex,
+                        previousActionOutSocket,
+                        new Dictionary<int, KVObject>(registerConstValueMap),
+                        new Dictionary<int, GraphSocket>(registerOutputSocketMap),
+                        destInstructionIdx,
+                        finalEndingInstructionIdx);
+                    break;
+                }
                 case InstructionCode.JUMP_COND:
+                {
+                    var reg0 = instruction.GetInt32Property("m_nReg0");
+                    var node = new Node(null)
                     {
-                        var reg0 = instruction.GetInt32Property("m_nReg0");
-                        var node = new Node(null)
+                        Name = "If",
+                        NodeType = "Flow control",
+                        Category = PulseHues.HueOf(PulseCategory.FlowControl),
+                    };
+                    var socketIn = node.CreateFlowIn("");
+                    document.Connect(previousActionOutSocket.Socket, socketIn);
+
+                    if (reg0 != -1)
+                    {
+                        AddNodeRegisterInput(document, node, chunkIndex, registerConstValueMap, registerOutputSocketMap, reg0, "Condition");
+                    }
+
+                    // If false we don't take the jump. So traverse starting from currentinstr + 1
+                    var destInstructionIdxFalse = instructionIdx + 1;
+
+                    // Find out the jump out instruction after the True case is finished.
+                    // Whether the graph code run through true or false, it will end up at one, unless it's just a return
+                    // in which case we don't have to worry about anything
+                    var firstInsturctionAfterBranches = -1;
+                    if (GetInstructionType(instructions[destInstructionIdxFalse]) == InstructionCode.JUMP)
+                    {
+                        var falseJumpTarget = instructions[destInstructionIdxFalse].GetInt32Property("m_nDestInstruction");
+
+                        if (falseJumpTarget > 0)
                         {
-                            Name = "If",
-                            NodeType = "Flow control",
-                            Category = PulseHues.HueOf(PulseCategory.FlowControl),
-                        };
-                        var socketIn = node.CreateFlowIn("");
-                        document.Connect(previousActionOutSocket.Socket, socketIn);
-
-                        if (reg0 != -1)
-                        {
-                            AddNodeRegisterInput(document, node, chunkIndex, registerConstValueMap, registerOutputSocketMap, reg0, "Condition");
-                        }
-
-                        // If false we don't take the jump. So traverse starting from currentinstr + 1
-                        var destInstructionIdxFalse = instructionIdx + 1;
-
-                        // Find out the jump out instruction after the True case is finished.
-                        // Whether the graph code run through true or false, it will end up at one, unless it's just a return
-                        // in which case we don't have to worry about anything
-                        var firstInsturctionAfterBranches = -1;
-                        if (GetInstructionType(instructions[destInstructionIdxFalse]) == InstructionCode.JUMP)
-                        {
-                            var falseJumpTarget = instructions[destInstructionIdxFalse].GetInt32Property("m_nDestInstruction");
-
-                            if (falseJumpTarget > 0)
+                            var instrTypeBefore = GetInstructionType(instructions[falseJumpTarget - 1]);
+                            if (instrTypeBefore == InstructionCode.JUMP)
                             {
-                                var instrTypeBefore = GetInstructionType(instructions[falseJumpTarget - 1]);
-                                if (instrTypeBefore == InstructionCode.JUMP)
-                                {
-                                    firstInsturctionAfterBranches = instructions[falseJumpTarget - 1].GetInt32Property("m_nDestInstruction");
-                                }
+                                firstInsturctionAfterBranches = instructions[falseJumpTarget - 1].GetInt32Property("m_nDestInstruction");
                             }
                         }
-
-                        var socketOutTrue = node.CreateFlowOut("True");
-                        var destInstructionIdxTrue = instruction.GetInt32Property("m_nDestInstruction");
-                        TraverseNodesForChunk(
-                            document,
-                            chunkIndex,
-                            FlowContinuation.Of(socketOutTrue),
-                            new Dictionary<int, KVObject>(registerConstValueMap),
-                            new Dictionary<int, GraphSocket>(registerOutputSocketMap),
-                            destInstructionIdxTrue,
-                            firstInsturctionAfterBranches == -1 ? finalEndingInstructionIdx : firstInsturctionAfterBranches
-                        );
-
-                        var socketOutFalse = node.CreateFlowOut("False");
-                        TraverseNodesForChunk(
-                            document,
-                            chunkIndex,
-                            FlowContinuation.Of(socketOutFalse),
-                            new Dictionary<int, KVObject>(registerConstValueMap),
-                            new Dictionary<int, GraphSocket>(registerOutputSocketMap),
-                            destInstructionIdxFalse,
-                            firstInsturctionAfterBranches == -1 ? finalEndingInstructionIdx : firstInsturctionAfterBranches
-                        );
-
-                        // create even if we're returning, cause the socket still could be connected to further actions
-                        // if the current flow was a subroutine
-                        previousActionOutSocket = FlowContinuation.Of(node.CreateFlowOut("Finished"));
-                        if (firstInsturctionAfterBranches != -1)
-                        {
-                            instructionIdx = firstInsturctionAfterBranches - 1; // next iteration will +1 this
-                        }
-                        else
-                        {
-                            stopProcessing = true;
-                        }
-
-                        document.AddNode(node);
-
-                        break;
                     }
-                case InstructionCode.CHUNK_LEAP_COND:
+
+                    var socketOutTrue = node.CreateFlowOut("True");
+                    var destInstructionIdxTrue = instruction.GetInt32Property("m_nDestInstruction");
+                    TraverseNodesForChunk(
+                        document,
+                        chunkIndex,
+                        FlowContinuation.Of(socketOutTrue),
+                        new Dictionary<int, KVObject>(registerConstValueMap),
+                        new Dictionary<int, GraphSocket>(registerOutputSocketMap),
+                        destInstructionIdxTrue,
+                        firstInsturctionAfterBranches == -1 ? finalEndingInstructionIdx : firstInsturctionAfterBranches
+                    );
+
+                    var socketOutFalse = node.CreateFlowOut("False");
+                    TraverseNodesForChunk(
+                        document,
+                        chunkIndex,
+                        FlowContinuation.Of(socketOutFalse),
+                        new Dictionary<int, KVObject>(registerConstValueMap),
+                        new Dictionary<int, GraphSocket>(registerOutputSocketMap),
+                        destInstructionIdxFalse,
+                        firstInsturctionAfterBranches == -1 ? finalEndingInstructionIdx : firstInsturctionAfterBranches
+                    );
+
+                    // create even if we're returning, cause the socket still could be connected to further actions
+                    // if the current flow was a subroutine
+                    previousActionOutSocket = FlowContinuation.Of(node.CreateFlowOut("Finished"));
+                    if (firstInsturctionAfterBranches != -1)
                     {
-                        var reg0 = instruction.GetInt32Property("m_nReg0");
-                        var node = new Node(null)
-                        {
-                            Name = "If",
-                            NodeType = "Flow control",
-                            Category = PulseHues.HueOf(PulseCategory.FlowControl),
-                        };
-                        var socketIn = node.CreateFlowIn("");
-                        document.Connect(previousActionOutSocket.Socket, socketIn);
-
-                        if (reg0 != -1)
-                        {
-                            AddNodeRegisterInput(document, node, chunkIndex, registerConstValueMap, registerOutputSocketMap, reg0, "Condition");
-                        }
-
-                        var socketOutTrue = node.CreateFlowOut("True");
-                        var leapTargetChunk = instruction.GetInt32Property("m_nChunk");
-                        var leapDestInstructionIdx = instruction.GetInt32Property("m_nDestInstruction");
-                        if (leapTargetChunk != chunkIndex)
-                        {
-                            var leapNode = new Node(null)
-                            {
-                                Name = "Chunk Leap",
-                                NodeType = "Flow",
-                                Category = PulseHues.HueOf(PulseCategory.FlowControl),
-                            };
-                            CreateSequentialActionSockets(document, leapNode, FlowContinuation.Of(socketOutTrue));
-
-                            if (leapDestInstructionIdx != 0)
-                            {
-                                node.AddText("Instruction: " + leapDestInstructionIdx);
-                            }
-
-                            remoteNodesToResolve.Add(new RemoteNodeInfo
-                            {
-                                targetChunk = leapTargetChunk,
-                                node = leapNode,
-                                targetNamePrefix = "Target: "
-                            });
-                        }
-
-                        // Since leaps don't come back after executing we don't have to worry about defining "bounds" for the conditions, unlike regular jumps.
-                        // Also no need for a "Finished" socket because no way for true and false flows to merge back again.
-                        previousActionOutSocket = FlowContinuation.Of(node.CreateFlowOut("False"));
-
-                        document.AddNode(node);
-
-                        break;
+                        instructionIdx = firstInsturctionAfterBranches - 1; // next iteration will +1 this
                     }
-                case InstructionCode.CHUNK_LEAP:
+                    else
                     {
-                        // Chunk leap does not seem to return back to the place after finishing, apparently just leaves current flow "behind"
                         stopProcessing = true;
-                        var leapTargetChunk = instruction.GetInt32Property("m_nChunk");
-                        var leapDestInstructionIdx = instruction.GetInt32Property("m_nDestInstruction");
-                        if (leapTargetChunk != chunkIndex)
-                        {
-                            var node = new Node(null)
-                            {
-                                Name = "Chunk Leap",
-                                NodeType = "Flow",
-                                Category = PulseHues.HueOf(PulseCategory.FlowControl),
-                            };
-                            previousActionOutSocket = CreateSequentialActionSockets(document, node, previousActionOutSocket);
-
-                            if (leapDestInstructionIdx != 0)
-                            {
-                                node.AddText("Instruction: " + leapDestInstructionIdx);
-                            }
-
-                            remoteNodesToResolve.Add(new RemoteNodeInfo
-                            {
-                                targetChunk = leapTargetChunk,
-                                node = node,
-                                targetNamePrefix = "Target: "
-                            });
-                        }
-                        break;
                     }
-                default:
+
+                    document.AddNode(node);
+
+                    break;
+                }
+                case InstructionCode.CHUNK_LEAP_COND:
+                {
+                    var reg0 = instruction.GetInt32Property("m_nReg0");
+                    var node = new Node(null)
                     {
-                        if (!flowInstructions.Contains(instrType))
-                        {
-                            var reg0 = instruction.GetInt32Property("m_nReg0");
-                            var reg1 = instruction.GetInt32Property("m_nReg1");
-                            var reg2 = instruction.GetInt32Property("m_nReg2");
+                        Name = "If",
+                        NodeType = "Flow control",
+                        Category = PulseHues.HueOf(PulseCategory.FlowControl),
+                    };
+                    var socketIn = node.CreateFlowIn("");
+                    document.Connect(previousActionOutSocket.Socket, socketIn);
 
-                            if (reg0 == -1) // nothing to do
-                            {
-                                continue;
-                            }
-
-                            var node = new Node(null)
-                            {
-                                Name = instrNameString,
-                                NodeType = "Instruction",
-                                Category = PulseHues.HueOf(PulseCategory.Instruction),
-                            };
-
-                            if (reg1 != -1)
-                            {
-                                AddNodeRegisterInput(document, node, chunkIndex, registerConstValueMap, registerOutputSocketMap, reg1, "arg1");
-                            }
-
-                            if (reg2 != -1)
-                            {
-                                AddNodeRegisterInput(document, node, chunkIndex, registerConstValueMap, registerOutputSocketMap, reg2, "arg2");
-                            }
-
-                            if (reg1 == -1 && reg2 == -1)
-                            {
-                                previousActionOutSocket = CreateSequentialActionSockets(document, node, previousActionOutSocket);
-                                AddNodeRegisterInput(document, node, chunkIndex, registerConstValueMap, registerOutputSocketMap, reg0, "arg");
-                            }
-
-                            // create output socket for this node, and store it for future connections
-                            var socketOut = node.CreateSocketOutFromValueType("retval", GetValueTypeFromRegister(chunkIndex, reg0));
-                            registerOutputSocketMap[reg0] = socketOut;
-                            document.AddNode(node);
-                        }
-
-                        break;
+                    if (reg0 != -1)
+                    {
+                        AddNodeRegisterInput(document, node, chunkIndex, registerConstValueMap, registerOutputSocketMap, reg0, "Condition");
                     }
 
+                    var socketOutTrue = node.CreateFlowOut("True");
+                    var leapTargetChunk = instruction.GetInt32Property("m_nChunk");
+                    var leapDestInstructionIdx = instruction.GetInt32Property("m_nDestInstruction");
+                    if (leapTargetChunk != chunkIndex)
+                    {
+                        var leapNode = new Node(null)
+                        {
+                            Name = "Chunk Leap",
+                            NodeType = "Flow",
+                            Category = PulseHues.HueOf(PulseCategory.FlowControl),
+                        };
+                        CreateSequentialActionSockets(document, leapNode, FlowContinuation.Of(socketOutTrue));
+
+                        if (leapDestInstructionIdx != 0)
+                        {
+                            node.AddText("Instruction: " + leapDestInstructionIdx);
+                        }
+
+                        remoteNodesToResolve.Add(new RemoteNodeInfo
+                        {
+                            targetChunk = leapTargetChunk,
+                            node = leapNode,
+                            targetNamePrefix = "Target: "
+                        });
+                    }
+
+                    // Since leaps don't come back after executing we don't have to worry about defining "bounds" for the conditions, unlike regular jumps.
+                    // Also no need for a "Finished" socket because no way for true and false flows to merge back again.
+                    previousActionOutSocket = FlowContinuation.Of(node.CreateFlowOut("False"));
+
+                    document.AddNode(node);
+
+                    break;
+                }
+                case InstructionCode.CHUNK_LEAP:
+                {
+                    // Chunk leap does not seem to return back to the place after finishing, apparently just leaves current flow "behind"
+                    stopProcessing = true;
+                    var leapTargetChunk = instruction.GetInt32Property("m_nChunk");
+                    var leapDestInstructionIdx = instruction.GetInt32Property("m_nDestInstruction");
+                    if (leapTargetChunk != chunkIndex)
+                    {
+                        var node = new Node(null)
+                        {
+                            Name = "Chunk Leap",
+                            NodeType = "Flow",
+                            Category = PulseHues.HueOf(PulseCategory.FlowControl),
+                        };
+                        previousActionOutSocket = CreateSequentialActionSockets(document, node, previousActionOutSocket);
+
+                        if (leapDestInstructionIdx != 0)
+                        {
+                            node.AddText("Instruction: " + leapDestInstructionIdx);
+                        }
+
+                        remoteNodesToResolve.Add(new RemoteNodeInfo
+                        {
+                            targetChunk = leapTargetChunk,
+                            node = node,
+                            targetNamePrefix = "Target: "
+                        });
+                    }
+                    break;
+                }
+                default:
+                {
+                    if (!flowInstructions.Contains(instrType))
+                    {
+                        var reg0 = instruction.GetInt32Property("m_nReg0");
+                        var reg1 = instruction.GetInt32Property("m_nReg1");
+                        var reg2 = instruction.GetInt32Property("m_nReg2");
+
+                        if (reg0 == -1) // nothing to do
+                        {
+                            continue;
+                        }
+
+                        var node = new Node(null)
+                        {
+                            Name = instrNameString,
+                            NodeType = "Instruction",
+                            Category = PulseHues.HueOf(PulseCategory.Instruction),
+                        };
+
+                        if (reg1 != -1)
+                        {
+                            AddNodeRegisterInput(document, node, chunkIndex, registerConstValueMap, registerOutputSocketMap, reg1, "arg1");
+                        }
+
+                        if (reg2 != -1)
+                        {
+                            AddNodeRegisterInput(document, node, chunkIndex, registerConstValueMap, registerOutputSocketMap, reg2, "arg2");
+                        }
+
+                        if (reg1 == -1 && reg2 == -1)
+                        {
+                            previousActionOutSocket = CreateSequentialActionSockets(document, node, previousActionOutSocket);
+                            AddNodeRegisterInput(document, node, chunkIndex, registerConstValueMap, registerOutputSocketMap, reg0, "arg");
+                        }
+
+                        // create output socket for this node, and store it for future connections
+                        var socketOut = node.CreateSocketOutFromValueType("retval", GetValueTypeFromRegister(chunkIndex, reg0));
+                        registerOutputSocketMap[reg0] = socketOut;
+                        document.AddNode(node);
+                    }
+
+                    break;
+                }
             }
         }
         return previousActionOutSocket;
@@ -1611,50 +1607,50 @@ internal sealed class PulseGraphBuilder
         {
             // here we assume that wait is going to be processed sequentially, not out of order, even though it's theoretically possible.
             case CellType.Wait:
-                {
-                    var wakeResume = cells[cellIdx]["m_WakeResume"];
-                    var destChunk = wakeResume.GetInt32Property("m_nDestChunk");
-                    var destInstructionIdx = wakeResume.GetInt32Property("m_nInstruction");
+            {
+                var wakeResume = cells[cellIdx]["m_WakeResume"];
+                var destChunk = wakeResume.GetInt32Property("m_nDestChunk");
+                var destInstructionIdx = wakeResume.GetInt32Property("m_nInstruction");
 
-                    var outputSocket = node.CreateFlowOut("OnFinished");
-                    TraverseOutflow(document, destChunk, destInstructionIdx, maxInstructionIdx, outputSocket, registerConstValueMap, registerOutputSocketMap);
-                    processedOutflowNames.Add("m_WakeResume");
-                    break;
-                }
+                var outputSocket = node.CreateFlowOut("OnFinished");
+                TraverseOutflow(document, destChunk, destInstructionIdx, maxInstructionIdx, outputSocket, registerConstValueMap, registerOutputSocketMap);
+                processedOutflowNames.Add("m_WakeResume");
+                break;
+            }
             case CellType.PublicOutput:
+            {
+                var outputIndex = cells[cellIdx].GetInt32Property("m_OutputIndex");
+                if (outputIndex == -1)
                 {
-                    var outputIndex = cells[cellIdx].GetInt32Property("m_OutputIndex");
-                    if (outputIndex == -1)
-                    {
-                        break;
-                    }
-
-                    var publicOutput = publicOutputs[outputIndex];
-                    var outputName = publicOutput.GetStringProperty("m_Name", $"<NAME UNKNOWN>");
-                    var outputDesc = publicOutput.GetStringProperty("m_Description", "");
-
-                    node.AddText($"Public Output: {outputName}");
-                    node.AddText($"Description: {outputDesc}");
                     break;
                 }
+
+                var publicOutput = publicOutputs[outputIndex];
+                var outputName = publicOutput.GetStringProperty("m_Name", $"<NAME UNKNOWN>");
+                var outputDesc = publicOutput.GetStringProperty("m_Description", "");
+
+                node.AddText($"Public Output: {outputName}");
+                node.AddText($"Description: {outputDesc}");
+                break;
+            }
             case CellType.Timeline:
+            {
+                var timelineEvents = cells[cellIdx].GetArray("m_TimelineEvents");
+                foreach (var timelineEvent in timelineEvents)
                 {
-                    var timelineEvents = cells[cellIdx].GetArray("m_TimelineEvents");
-                    foreach (var timelineEvent in timelineEvents)
+                    var eventOutflow = (PulseOutflowConnection?)timelineEvent["m_EventOutflow"];
+                    if (eventOutflow is null || eventOutflow.destChunk == -1)
                     {
-                        var eventOutflow = (PulseOutflowConnection?)timelineEvent["m_EventOutflow"];
-                        if (eventOutflow is null || eventOutflow.destChunk == -1)
-                        {
-                            continue;
-                        }
-
-                        var timeFromPrevious = timelineEvent.GetFloatProperty("m_flTimeFromPrevious");
-                        var socketLabel = $"(Time from prev: {timeFromPrevious}s) | {eventOutflow.sourceOutflowName}";
-                        AddOutflowSocket(document, node, eventOutflow, socketLabel, registerConstValueMap, registerOutputSocketMap, maxInstructionIdx);
-                        processedOutflowNames.Add(eventOutflow.sourceOutflowName);
+                        continue;
                     }
-                    break;
+
+                    var timeFromPrevious = timelineEvent.GetFloatProperty("m_flTimeFromPrevious");
+                    var socketLabel = $"(Time from prev: {timeFromPrevious}s) | {eventOutflow.sourceOutflowName}";
+                    AddOutflowSocket(document, node, eventOutflow, socketLabel, registerConstValueMap, registerOutputSocketMap, maxInstructionIdx);
+                    processedOutflowNames.Add(eventOutflow.sourceOutflowName);
                 }
+                break;
+            }
         }
 
         GeneratePossibleOutflowsForCell(document, node, cellIdx, registerConstValueMap, registerOutputSocketMap, maxInstructionIdx, processedOutflowNames);
@@ -1682,36 +1678,36 @@ internal sealed class PulseGraphBuilder
             switch (cellCategory)
             {
                 case PulseCategory.EntryPoint:
+                {
+                    if (!cells[cellIdx].ContainsKey("m_EntryChunk"))
                     {
-                        if (!cells[cellIdx].ContainsKey("m_EntryChunk"))
-                        {
-                            continue;
-                        }
-
-                        Dictionary<int, GraphSocket> registerSocketOutputMap = [];
-                        var entryChunkIdx = cells[cellIdx].GetInt32Property("m_EntryChunk");
-
-                        var outputSocket = FlowContinuation.Pending(cellNode);
-
-                        if (cells[cellIdx].TryGetValue("m_RegisterMap", out var registerMap))
-                        {
-                            TryAddRegisterMapOutParams(cellNode, entryChunkIdx, registerSocketOutputMap, registerMap);
-                        }
-
-                        TraverseNodesForChunk(
-                            document,
-                            entryChunkIdx,
-                            outputSocket,
-                            [],
-                            registerSocketOutputMap
-                        );
-                        chunkFunctionName.Add(entryChunkIdx, cells[cellIdx].GetStringProperty("m_MethodName"));
-
-                        AddFilteredCellDetails(cellNode, cellIdx);
-
-                        document.AddNode(cellNode);
-                        break;
+                        continue;
                     }
+
+                    Dictionary<int, GraphSocket> registerSocketOutputMap = [];
+                    var entryChunkIdx = cells[cellIdx].GetInt32Property("m_EntryChunk");
+
+                    var outputSocket = FlowContinuation.Pending(cellNode);
+
+                    if (cells[cellIdx].TryGetValue("m_RegisterMap", out var registerMap))
+                    {
+                        TryAddRegisterMapOutParams(cellNode, entryChunkIdx, registerSocketOutputMap, registerMap);
+                    }
+
+                    TraverseNodesForChunk(
+                        document,
+                        entryChunkIdx,
+                        outputSocket,
+                        [],
+                        registerSocketOutputMap
+                    );
+                    chunkFunctionName.Add(entryChunkIdx, cells[cellIdx].GetStringProperty("m_MethodName"));
+
+                    AddFilteredCellDetails(cellNode, cellIdx);
+
+                    document.AddNode(cellNode);
+                    break;
+                }
             }
         }
 

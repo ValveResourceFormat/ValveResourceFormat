@@ -122,7 +122,6 @@ namespace Tests.Renderer
             }
         }
 
-
         // Field order deliberately differs from the shader's declaration order, since neither decides a location
         [StructLayout(LayoutKind.Sequential)]
         private struct TestVertex

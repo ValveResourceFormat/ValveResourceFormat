@@ -26,7 +26,6 @@ namespace Tests
             }
         }
 
-
         [Test]
         public async Task EnsureStoresCustomKnownKeys()
         {

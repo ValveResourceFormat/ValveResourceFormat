@@ -37,7 +37,6 @@ namespace GUI.Types.GLViewers
             Both
         }
 
-
         private readonly Resource Resource;
         private TabControl? Tabs;
         private Button? openShaderButton;
@@ -691,7 +690,6 @@ namespace GUI.Types.GLViewers
             UpdateSunAngles();
             Scene.UpdateBuffers();
         }
-
 
         protected override void OnFirstPaint()
         {

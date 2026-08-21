@@ -139,6 +139,5 @@ namespace ValveResourceFormat.Renderer
                 pose[twist.Index] = local * handTwistMatrix * pose[twist.Parent.Index];
             }
         }
-
     }
 }

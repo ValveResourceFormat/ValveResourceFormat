@@ -19,7 +19,6 @@ namespace ValveResourceFormat.Particles.Operators
         private readonly bool easeInAndOut;
         private readonly INumberProvider bias = new LiteralNumberProvider(0.5f);
 
-
         public InterpolateRadius(ParticleDefinitionParser parse) : base(parse)
         {
             startTime = parse.Float("m_flStartTime", startTime);

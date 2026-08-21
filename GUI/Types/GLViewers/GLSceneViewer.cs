@@ -557,7 +557,6 @@ namespace GUI.Types.GLViewers
 
                 GrabbedMouse = wantsMouseLook && (alreadyHoldingCursor || MouseOverRenderArea);
             }
-
         }
 
         /// <summary>

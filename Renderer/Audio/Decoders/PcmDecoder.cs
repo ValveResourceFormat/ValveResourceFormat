@@ -42,15 +42,15 @@ internal static class PcmDecoder
                     break;
 
                 case 16:
+                {
+                    var samples = MemoryMarshal.Cast<byte, short>(data);
+                    for (var i = 0; i < count; i++)
                     {
-                        var samples = MemoryMarshal.Cast<byte, short>(data);
-                        for (var i = 0; i < count; i++)
-                        {
-                            scratch[i] = samples[start + i] / 32768f;
-                        }
-
-                        break;
+                        scratch[i] = samples[start + i] / 32768f;
                     }
+
+                    break;
+                }
 
                 case 24:
                     for (var i = 0; i < count; i++)
@@ -63,15 +63,15 @@ internal static class PcmDecoder
                     break;
 
                 case 32:
+                {
+                    var samples = MemoryMarshal.Cast<byte, int>(data);
+                    for (var i = 0; i < count; i++)
                     {
-                        var samples = MemoryMarshal.Cast<byte, int>(data);
-                        for (var i = 0; i < count; i++)
-                        {
-                            scratch[i] = samples[start + i] / 2147483648f;
-                        }
-
-                        break;
+                        scratch[i] = samples[start + i] / 2147483648f;
                     }
+
+                    break;
+                }
             }
 
             sink.Write(scratch.AsSpan(0, count));

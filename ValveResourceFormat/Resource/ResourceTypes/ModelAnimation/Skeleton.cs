@@ -53,7 +53,6 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
         /// </summary>
         public Bone? this[string name] => this[StringToken.Get(name)];
 
-
         /// <summary>
         /// Gets the index of a bone by its <see cref="StringToken"/> hash, or -1 if not found.
         /// </summary>

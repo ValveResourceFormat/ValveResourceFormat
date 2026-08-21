@@ -313,7 +313,6 @@ public class SceneLight(Scene scene) : SceneNode(scene)
             {
                 light.StationaryLightIndex = -1;
             }
-
         }
 
         var defaultDirectLight = isNewLightType

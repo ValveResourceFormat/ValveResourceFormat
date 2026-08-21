@@ -254,6 +254,5 @@ namespace GUI.Types.Exporter
 
             return true;
         }
-
     }
 }

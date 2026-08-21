@@ -139,7 +139,6 @@ public class ControlsBoxPanel : Panel
         // Draws the horizontal line for the minimise icon.
         e.Graphics.DrawLine(controlBoxPen, minimiseIconRect3.X, minimiseIconRect3.Y, minimiseIconRect3.X + minimiseIconRect3.Width, minimiseIconRect3.Y);
 
-
         // Draws the maximise icon.
         if (Program.MainForm.IsWindowMaximised())
         {

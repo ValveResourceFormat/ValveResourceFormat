@@ -957,7 +957,6 @@ public class Renderer
 
             Scene.RenderOpaqueShadows(renderContext, depthOnlyShader, drawCalls);
         }
-
     }
 
     private void ComputeAverageLuminance(Scene.RenderContext renderContext)

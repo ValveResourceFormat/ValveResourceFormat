@@ -501,7 +501,6 @@ public sealed class TextureExtract
                 }
             }
 
-
             if (Bitmap.Width < srcPixels.Width || Bitmap.Height < srcPixels.Height)
             {
                 var newBitmap = new SKBitmap(srcPixels.Width, srcPixels.Height, true);

@@ -78,7 +78,6 @@ namespace ValveResourceFormat.Particles
 #pragma warning restore IDE0066 // Convert switch statement to expression
         }
 
-
         // Scalar fields
         public static float GetScalar(this ref Particle particle, ParticleField field)
         {
@@ -251,7 +250,6 @@ namespace ValveResourceFormat.Particles
 
             particle.SetVector(field, joinedVector);
         }
-
 
         public static void SetVector(this ref Particle particle, ParticleField field, Vector3 value)
         {

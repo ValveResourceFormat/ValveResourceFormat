@@ -265,8 +265,6 @@ namespace GUI.Types.PackageViewer
                             continue;
                         }
                     }
-
-
                 }
             }
 #endif

@@ -198,7 +198,6 @@ namespace ValveResourceFormat.TextureDecoders
             return (byte)(ClampHighRangeColor(a) * 255 + 0.5f);
         }
 
-
         private static byte[] CreateSimdSwizzleMask(int[] swizzle) =>
         [
             ..Enumerable.Range(0, 64).Select(component =>

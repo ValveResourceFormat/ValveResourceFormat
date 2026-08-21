@@ -55,81 +55,81 @@ namespace ValveResourceFormat.Compression
                     return data;
                 case 1:
                 case 6:
-                    {
-                        var data32 = MemoryMarshal.Read<uint>(data);
-                        data32 &= data32 >> 1;
+                {
+                    var data32 = MemoryMarshal.Read<uint>(data);
+                    data32 &= data32 >> 1;
 
-                        // arrange bits such that low bits of nibbles of data64 contain all 2-bit elements of data32
-                        var data64 = ((ulong)data32 << 30) | (data32 & 0x3fffffff);
+                    // arrange bits such that low bits of nibbles of data64 contain all 2-bit elements of data32
+                    var data64 = ((ulong)data32 << 30) | (data32 & 0x3fffffff);
 
-                        // adds all 1-bit nibbles together; the sum fits in 4 bits because datacnt=16 would have used mode 3
-                        var datacnt = (int)(((data64 & 0x1111111111111111ul) * 0x1111111111111111ul) >> 60);
+                    // adds all 1-bit nibbles together; the sum fits in 4 bits because datacnt=16 would have used mode 3
+                    var datacnt = (int)(((data64 & 0x1111111111111111ul) * 0x1111111111111111ul) >> 60);
 
-                        var sel2 = Vector128.Create(MemoryMarshal.Read<uint>(data), 0, 0, 0).AsByte();
-                        var rest = Vector128.Create<byte>(data[4..]);
+                    var sel2 = Vector128.Create(MemoryMarshal.Read<uint>(data), 0, 0, 0).AsByte();
+                    var rest = Vector128.Create<byte>(data[4..]);
 
-                        var sel22 = Sse2.UnpackLow((sel2.AsInt16() >>> 4).AsByte(), sel2);
-                        var sel2222 = Sse2.UnpackLow((sel22.AsInt16() >>> 2).AsByte(), sel22);
-                        var sel = sel2222 & Vector128.Create((byte)3);
+                    var sel22 = Sse2.UnpackLow((sel2.AsInt16() >>> 4).AsByte(), sel2);
+                    var sel2222 = Sse2.UnpackLow((sel22.AsInt16() >>> 2).AsByte(), sel22);
+                    var sel = sel2222 & Vector128.Create((byte)3);
 
-                        var mask = Vector128.Equals(sel, Vector128.Create((byte)3));
-                        var mask16 = mask.ExtractMostSignificantBits();
-                        var mask0 = (byte)(mask16 & 255);
-                        var mask1 = (byte)(mask16 >> 8);
+                    var mask = Vector128.Equals(sel, Vector128.Create((byte)3));
+                    var mask16 = mask.ExtractMostSignificantBits();
+                    var mask0 = (byte)(mask16 & 255);
+                    var mask1 = (byte)(mask16 >> 8);
 
-                        var shuf = DecodeShuffleMask(mask0, mask1);
-                        var result = Ssse3.Shuffle(rest, shuf) | Sse2.AndNot(mask, sel);
+                    var shuf = DecodeShuffleMask(mask0, mask1);
+                    var result = Ssse3.Shuffle(rest, shuf) | Sse2.AndNot(mask, sel);
 
-                        result.CopyTo(destination);
+                    result.CopyTo(destination);
 
-                        return data[(4 + datacnt)..];
-                    }
+                    return data[(4 + datacnt)..];
+                }
                 case 2:
                 case 7:
-                    {
-                        var data64 = MemoryMarshal.Read<ulong>(data);
-                        data64 &= data64 >> 1;
-                        data64 &= data64 >> 2;
+                {
+                    var data64 = MemoryMarshal.Read<ulong>(data);
+                    data64 &= data64 >> 1;
+                    data64 &= data64 >> 2;
 
-                        // adds all 1-bit nibbles together; the sum fits in 4 bits because datacnt=16 would have used mode 3
-                        var datacnt = (int)(((data64 & 0x1111111111111111ul) * 0x1111111111111111ul) >> 60);
+                    // adds all 1-bit nibbles together; the sum fits in 4 bits because datacnt=16 would have used mode 3
+                    var datacnt = (int)(((data64 & 0x1111111111111111ul) * 0x1111111111111111ul) >> 60);
 
-                        var sel4 = Vector64.Create<byte>(data[..8]).ToVector128();
-                        var rest = Vector128.Create<byte>(data[8..]);
+                    var sel4 = Vector64.Create<byte>(data[..8]).ToVector128();
+                    var rest = Vector128.Create<byte>(data[8..]);
 
-                        var sel44 = Sse2.UnpackLow((sel4.AsInt16() >>> 4).AsByte(), sel4);
-                        var sel = sel44 & Vector128.Create((byte)15);
+                    var sel44 = Sse2.UnpackLow((sel4.AsInt16() >>> 4).AsByte(), sel4);
+                    var sel = sel44 & Vector128.Create((byte)15);
 
-                        var mask = Vector128.Equals(sel, Vector128.Create((byte)15));
-                        var mask16 = mask.ExtractMostSignificantBits();
-                        var mask0 = (byte)(mask16 & 255);
-                        var mask1 = (byte)(mask16 >> 8);
+                    var mask = Vector128.Equals(sel, Vector128.Create((byte)15));
+                    var mask16 = mask.ExtractMostSignificantBits();
+                    var mask0 = (byte)(mask16 & 255);
+                    var mask1 = (byte)(mask16 >> 8);
 
-                        var shuf = DecodeShuffleMask(mask0, mask1);
-                        var result = Ssse3.Shuffle(rest, shuf) | Sse2.AndNot(mask, sel);
+                    var shuf = DecodeShuffleMask(mask0, mask1);
+                    var result = Ssse3.Shuffle(rest, shuf) | Sse2.AndNot(mask, sel);
 
-                        result.CopyTo(destination);
+                    result.CopyTo(destination);
 
-                        return data[(8 + datacnt)..];
-                    }
+                    return data[(8 + datacnt)..];
+                }
                 case 3:
                 case 8:
                     data[..ByteGroupSize].CopyTo(destination);
 
                     return data[ByteGroupSize..];
                 case 5:
-                    {
-                        var mask0 = data[0];
-                        var mask1 = data[1];
-                        var rest = Vector128.Create<byte>(data[2..]);
+                {
+                    var mask0 = data[0];
+                    var mask1 = data[1];
+                    var rest = Vector128.Create<byte>(data[2..]);
 
-                        var shuf = DecodeShuffleMask(mask0, mask1);
-                        var result = Ssse3.Shuffle(rest, shuf);
+                    var shuf = DecodeShuffleMask(mask0, mask1);
+                    var result = Ssse3.Shuffle(rest, shuf);
 
-                        result.CopyTo(destination);
+                    result.CopyTo(destination);
 
-                        return data[(2 + DecodeBytesGroupCount[mask0] + DecodeBytesGroupCount[mask1])..];
-                    }
+                    return data[(2 + DecodeBytesGroupCount[mask0] + DecodeBytesGroupCount[mask1])..];
+                }
                 default:
                     throw new ArgumentException("Unexpected bit length");
             }

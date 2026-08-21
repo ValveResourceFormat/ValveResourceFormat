@@ -541,7 +541,6 @@ namespace ValveResourceFormat.Renderer.SceneEnvironment
 
         // Vignette could easily be added but I haven't actually found any vpost file that uses it yet.
 
-
         // For the time being we're only going to support one LUT at a time, as that's all that can be used.
         // The most accurate method would be to go the valve route of using
         // a compute shader to blend LUTs (up to 8) at the start of every frame.

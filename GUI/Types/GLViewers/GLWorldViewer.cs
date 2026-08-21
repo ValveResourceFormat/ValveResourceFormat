@@ -527,7 +527,6 @@ namespace GUI.Types.GLViewers
                     occlusionCullingCheckBox = UiControl.AddCheckBox("GPU Occlusion Culling", Scene.EnableOcclusionCulling, (v) => Scene.EnableOcclusionCulling = v);
                     occlusionCullingCheckBox.Enabled = Scene.EnableIndirectDraws;
 
-
                     UiControl.AddCheckBox("Depth Prepass", Scene.EnableDepthPrepass, (v) => Scene.EnableDepthPrepass = v);
 
                     UiControl.AddCheckBox("Barn Lights", Renderer.EnableBarnLights, v => Renderer.EnableBarnLights = v);

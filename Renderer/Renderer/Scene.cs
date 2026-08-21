@@ -104,7 +104,6 @@ namespace ValveResourceFormat.Renderer
         /// <summary>Gets or sets the GPU buffer containing world-space transform matrices for all scene nodes.</summary>
         public StorageBuffer? TransformBufferGpu { get; set; }
 
-
         /// <summary>Gets or sets the GPU buffer containing per-draw-call bounding boxes for indirect culling.</summary>
         public StorageBuffer? DrawBoundsGpu { get; set; }
 
@@ -404,7 +403,6 @@ namespace ValveResourceFormat.Renderer
 
             return staticNodes.Find(IsMatchingEntity) ?? dynamicNodes.Find(IsMatchingEntity);
         }
-
 
         /// <summary>
         /// Finds the first scene node whose entity name matches with the given pattern.
@@ -1776,7 +1774,6 @@ namespace ValveResourceFormat.Renderer
             renderContext.ReplacementShader = null;
         }
 
-
         internal void ActivateLayer(string layerName)
         {
             foreach (var node in AllNodes)
@@ -1835,7 +1832,6 @@ namespace ValveResourceFormat.Renderer
             {
                 return false;
             }
-
 
             if (nodeType == NodeType.Static)
             {

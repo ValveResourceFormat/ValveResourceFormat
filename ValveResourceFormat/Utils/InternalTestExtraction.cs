@@ -19,86 +19,86 @@ namespace ValveResourceFormat.Utils
             switch (resource.ResourceType)
             {
                 case ResourceType.Model:
+                {
+                    var model = (Model?)resource.DataBlock;
+                    Debug.Assert(model != null);
+                    model.GetEmbeddedAnimations();
+                    model.GetEmbeddedMeshes();
+                    model.GetEmbeddedPhys();
+
+                    /* TODO: Getting first mesh index isn't working
+                    if (model.Data.ContainsKey("m_modelSkeleton"))
                     {
-                        var model = (Model?)resource.DataBlock;
-                        Debug.Assert(model != null);
-                        model.GetEmbeddedAnimations();
-                        model.GetEmbeddedMeshes();
-                        model.GetEmbeddedPhys();
-
-                        /* TODO: Getting first mesh index isn't working
-                        if (model.Data.ContainsKey("m_modelSkeleton"))
-                        {
-                            var first = model.Data.GetIntegerArray("m_remappingTableStarts");
-                            Skeleton.FromModelData(model.Data, (int)first[0]);
-                        }
-                        */
-
-                        break;
+                        var first = model.Data.GetIntegerArray("m_remappingTableStarts");
+                        Skeleton.FromModelData(model.Data, (int)first[0]);
                     }
+                    */
+
+                    break;
+                }
                 case ResourceType.Mesh:
-                    {
-                        var mesh = (Mesh?)resource.DataBlock;
-                        Debug.Assert(mesh != null);
-                        mesh.GetBounds();
-                        break;
-                    }
+                {
+                    var mesh = (Mesh?)resource.DataBlock;
+                    Debug.Assert(mesh != null);
+                    mesh.GetBounds();
+                    break;
+                }
 
                 case ResourceType.Particle:
-                    {
-                        var particle = (ParticleSystem?)resource.DataBlock;
-                        Debug.Assert(particle != null);
-                        particle.GetChildParticleNames();
-                        particle.GetChildParticleNames(true);
-                        break;
-                    }
+                {
+                    var particle = (ParticleSystem?)resource.DataBlock;
+                    Debug.Assert(particle != null);
+                    particle.GetChildParticleNames();
+                    particle.GetChildParticleNames(true);
+                    break;
+                }
 
                 case ResourceType.PhysicsCollisionMesh:
-                    {
-                        var phys = (PhysAggregateData?)resource.DataBlock;
-                        Debug.Assert(phys != null);
-                        var bindPose = phys.BindPose;
-                        break;
-                    }
+                {
+                    var phys = (PhysAggregateData?)resource.DataBlock;
+                    Debug.Assert(phys != null);
+                    var bindPose = phys.BindPose;
+                    break;
+                }
 
                 case ResourceType.Morph:
-                    {
-                        var morph = (Morph?)resource.DataBlock;
-                        Debug.Assert(morph != null);
-                        morph.GetMorphDatas();
-                        morph.GetFlexDescriptors();
-                        morph.GetFlexVertexData();
-                        break;
-                    }
+                {
+                    var morph = (Morph?)resource.DataBlock;
+                    Debug.Assert(morph != null);
+                    morph.GetMorphDatas();
+                    morph.GetFlexDescriptors();
+                    morph.GetFlexVertexData();
+                    break;
+                }
 
                 case ResourceType.Material:
-                    {
-                        var material = (Material?)resource.DataBlock;
-                        Debug.Assert(material != null);
-                        material.GetShaderArguments();
-                        var inputSig = material.InputSignature;
-                        break;
-                    }
+                {
+                    var material = (Material?)resource.DataBlock;
+                    Debug.Assert(material != null);
+                    material.GetShaderArguments();
+                    var inputSig = material.InputSignature;
+                    break;
+                }
 
                 case ResourceType.EntityLump:
-                    {
-                        var entityLump = (EntityLump?)resource.DataBlock;
-                        Debug.Assert(entityLump != null);
-                        entityLump.ToForgeGameData();
-                        break;
-                    }
+                {
+                    var entityLump = (EntityLump?)resource.DataBlock;
+                    Debug.Assert(entityLump != null);
+                    entityLump.ToForgeGameData();
+                    break;
+                }
 
                 case ResourceType.Texture:
-                    {
-                        var texture = (Texture?)resource.DataBlock;
-                        Debug.Assert(texture != null);
-                        texture.GetSpriteSheetData();
-                        using var _ = texture.GenerateBitmap(mipLevel: (uint)Math.Max(texture.NumMipLevels - 2, 0));
+                {
+                    var texture = (Texture?)resource.DataBlock;
+                    Debug.Assert(texture != null);
+                    texture.GetSpriteSheetData();
+                    using var _ = texture.GenerateBitmap(mipLevel: (uint)Math.Max(texture.NumMipLevels - 2, 0));
 
-                        // Intentional return to avoid calling TextureExtract,
-                        // We only test extracting a smaller mip size, and avoid packing png
-                        return;
-                    }
+                    // Intentional return to avoid calling TextureExtract,
+                    // We only test extracting a smaller mip size, and avoid packing png
+                    return;
+                }
             }
 
             try

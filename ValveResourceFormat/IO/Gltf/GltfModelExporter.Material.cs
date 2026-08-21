@@ -41,7 +41,6 @@ public partial class GltfModelExporter
     internal static MaterialExtract.LayeredTextureNameComparer BlendNameComparer = new([.. SupportedGltfChannels.Select(x => x.Name)]);
     internal static MaterialExtract.ChannelMappingComparer BlendInputComparer = new(BlendNameComparer);
 
-
     // In SatelliteImages mode, SharpGLTF will still load and validate images.
     // To save memory, we initiate MemoryImage with a dummy image instead.
     private static readonly byte[] DummyPng = [137, 80, 78, 71, 0, 0, 0, 0, 0, 0, 0, 0];

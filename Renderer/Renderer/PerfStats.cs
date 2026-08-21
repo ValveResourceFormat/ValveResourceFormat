@@ -309,31 +309,31 @@ public class PerfStats
                     break; // draw calls are shared with and counted by the parent aggregate
 
                 case SceneAggregate aggregate:
+                {
+                    var instanceCount = Math.Max(1, aggregate.InstanceTransforms.Count);
+
+                    foreach (var drawCall in aggregate.RenderMesh.DrawCalls)
                     {
-                        var instanceCount = Math.Max(1, aggregate.InstanceTransforms.Count);
-
-                        foreach (var drawCall in aggregate.RenderMesh.DrawCalls)
-                        {
-                            totalDrawCalls++;
-                            totalTriangles += (long)(drawCall.IndexCount / 3) * instanceCount;
-                        }
-
-                        break;
+                        totalDrawCalls++;
+                        totalTriangles += (long)(drawCall.IndexCount / 3) * instanceCount;
                     }
+
+                    break;
+                }
 
                 case MeshCollectionNode meshCollection:
+                {
+                    foreach (var mesh in meshCollection.RenderableMeshes)
                     {
-                        foreach (var mesh in meshCollection.RenderableMeshes)
+                        foreach (var drawCall in mesh.DrawCalls)
                         {
-                            foreach (var drawCall in mesh.DrawCalls)
-                            {
-                                totalDrawCalls++;
-                                totalTriangles += drawCall.IndexCount / 3;
-                            }
+                            totalDrawCalls++;
+                            totalTriangles += drawCall.IndexCount / 3;
                         }
-
-                        break;
                     }
+
+                    break;
+                }
 
                 case SceneLight light:
                     totalLights[(int)light.Cost][(int)GetLightGroup(light)]++;
@@ -430,7 +430,6 @@ public class PerfStats
         AddLine($"Sound cache:      {counts[(int)Counter.SoundCacheMegabytes]:N0} MB decoded, {counts[(int)Counter.SoundDecodeQueue]:N0} queued to decode", valueColor);
         AddLine($"Tonemapping:      {FormatTonemapStats()}", valueColor);
     }
-
 
     /// <summary>
     /// One line of what auto exposure decided: what the frame metered at, what it was aiming for, and

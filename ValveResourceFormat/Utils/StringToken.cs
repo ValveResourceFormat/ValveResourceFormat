@@ -57,7 +57,6 @@ namespace ValveResourceFormat.Utils
             return $"vrf_unknown_key_{hash}";
         }
 
-
         /// <summary>
         /// Store a string to the table of known string hashes, so it can later be retrieved using <see cref="GetKnownString"/>.
         /// </summary>

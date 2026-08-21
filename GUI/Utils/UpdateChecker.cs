@@ -35,7 +35,6 @@ static partial class UpdateChecker
     {
     }
 
-
     private static Task? CheckTask;
     private static readonly Lock CheckLock = new();
     public static bool IsNewVersionAvailable { get; private set; }

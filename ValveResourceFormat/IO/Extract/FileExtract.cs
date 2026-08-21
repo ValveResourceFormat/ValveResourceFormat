@@ -183,11 +183,11 @@ namespace ValveResourceFormat.IO
                     break;
 
                 case ResourceType.AnimationGraph:
-                    {
-                        using var animGraphExtract = new AnimationGraphExtract(resource, fileLoader);
-                        contentFile = animGraphExtract.ToContentFile();
-                    }
-                    break;
+                {
+                    using var animGraphExtract = new AnimationGraphExtract(resource, fileLoader);
+                    contentFile = animGraphExtract.ToContentFile();
+                }
+                break;
 
                 case ResourceType.Panorama:
                 case ResourceType.PanoramaScript:
@@ -266,19 +266,19 @@ namespace ValveResourceFormat.IO
                     break;
 
                 case ResourceType.PostProcessing:
-                    {
-                        var lutFileName = Path.ChangeExtension(resource.FileName, "raw")!;
-                        contentFile.Data = Encoding.UTF8.GetBytes(
-                            ((PostProcessing)resource.DataBlock!).ToValvePostProcessing(preloadLookupTable: true, lutFileName: lutFileName.Replace(Path.DirectorySeparatorChar, '/'))
-                        );
+                {
+                    var lutFileName = Path.ChangeExtension(resource.FileName, "raw")!;
+                    contentFile.Data = Encoding.UTF8.GetBytes(
+                        ((PostProcessing)resource.DataBlock!).ToValvePostProcessing(preloadLookupTable: true, lutFileName: lutFileName.Replace(Path.DirectorySeparatorChar, '/'))
+                    );
 
-                        contentFile.AddSubFile(
-                            fileName: Path.GetFileName(lutFileName)!,
-                            extractMethod: () => ((PostProcessing)resource.DataBlock!).GetRAWData()
-                        );
+                    contentFile.AddSubFile(
+                        fileName: Path.GetFileName(lutFileName)!,
+                        extractMethod: () => ((PostProcessing)resource.DataBlock!).GetRAWData()
+                    );
 
-                        break;
-                    }
+                    break;
+                }
 
                 case ResourceType.NmSkeleton:
                     contentFile = new NmSkeletonExtract(resource).ToContentFile();
@@ -310,16 +310,16 @@ namespace ValveResourceFormat.IO
                     break;
 
                 default:
+                {
+                    var dataBlock = resource.DataBlock;
+
+                    if (dataBlock != null)
                     {
-                        var dataBlock = resource.DataBlock;
-
-                        if (dataBlock != null)
-                        {
-                            contentFile.Data = Encoding.UTF8.GetBytes(dataBlock.ToString()!);
-                        }
-
-                        break;
+                        contentFile.Data = Encoding.UTF8.GetBytes(dataBlock.ToString()!);
                     }
+
+                    break;
+                }
             }
 
             return contentFile;
@@ -401,15 +401,15 @@ namespace ValveResourceFormat.IO
                 case ResourceType.PanoramaVectorGraphic: return "svg";
 
                 case ResourceType.Texture:
+                {
+                    if (IsChildResource(resource))
                     {
-                        if (IsChildResource(resource))
-                        {
-                            var texture = (Texture)resource.DataBlock!;
-                            return TextureExtract.GetImageOutputExtension(texture);
-                        }
-
-                        return "vtex";
+                        var texture = (Texture)resource.DataBlock!;
+                        return TextureExtract.GetImageOutputExtension(texture);
                     }
+
+                    return "vtex";
+                }
 
                 case ResourceType.Sound:
                     if (resource.DataBlock is Sound soundData)

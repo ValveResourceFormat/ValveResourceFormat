@@ -151,7 +151,6 @@ partial class ModelExtract
                 }
             }
 
-
             ProcessRootMotionChannel(anim, dmeSkeleton, clip);
             ProcessBoneChannels(skeleton, anim, transforms, clip, frames);
             ProcessFlexChannels(flexControllers, anim, clip, frames);

@@ -351,11 +351,11 @@ internal record struct ParticleDefinitionParser(KVObject Data, ILogger Logger, i
             switch (type)
             {
                 case "PT_TYPE_CONTROL_POINT":
-                    {
-                        var controlPoint = parse.Int32("m_nControlPoint");
-                        var useOrientation = parse.Boolean("m_bUseOrientation", true);
-                        return new ControlPointTransformProvider(controlPoint, useOrientation);
-                    }
+                {
+                    var controlPoint = parse.Int32("m_nControlPoint");
+                    var useOrientation = parse.Boolean("m_bUseOrientation", true);
+                    return new ControlPointTransformProvider(controlPoint, useOrientation);
+                }
                 case "PT_TYPE_CONTROL_POINT_RANGE":
                     // TODO: Implement range support if needed
                     Logger.LogWarning("PT_TYPE_CONTROL_POINT_RANGE not fully supported, using first CP only");

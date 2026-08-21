@@ -114,7 +114,6 @@ namespace ValveResourceFormat.Renderer.Buffers
                 return;
             }
 
-
             GL.NamedBufferSubData(Handle, offset, size, data);
         }
 

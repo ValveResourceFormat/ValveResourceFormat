@@ -36,7 +36,6 @@ namespace ValveResourceFormat.Particles.Utils
             // So they have to be doing *something* that lets them interpolate between two
             // curve points with only tangents while still passing through both points.
 
-
             // TEMP SOLUTION (sucks): Linear interpolate between points
             return new SplineCurve
             {

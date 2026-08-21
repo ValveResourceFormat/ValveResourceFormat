@@ -381,7 +381,6 @@ namespace GUI
             return base.ProcessCmdKey(ref msg, keyData);
         }
 
-
         private void OnMainSelectedTabChanged(object? sender, EventArgs e)
         {
             UpdateWindowTitle(mainTabs.SelectedTab?.ToolTipText);

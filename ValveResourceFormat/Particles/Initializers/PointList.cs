@@ -125,7 +125,6 @@ namespace ValveResourceFormat.Particles.Initializers
 
                 return pointList[pointID].GetPosition(particleSystem);
             }
-
         }
 
         public override Particle Initialize(ref Particle particle, ParticleCollection particles, ParticleSystemState particleSystemState)

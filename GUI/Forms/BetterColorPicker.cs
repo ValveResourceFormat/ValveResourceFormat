@@ -422,7 +422,6 @@ namespace GUI.Forms
             }
         }
 
-
         protected override void OnPaint(PaintEventArgs e)
         {
             base.OnPaint(e);
@@ -440,7 +439,6 @@ namespace GUI.Forms
                 s = BetterColorPicker.S;
                 v = BetterColorPicker.V;
             }
-
 
             if (RenderImage == null || RenderImage.Width != width || RenderImage.Height != height)
             {
@@ -523,7 +521,6 @@ namespace GUI.Forms
             {
                 mouseYPos = 0;
             }
-
 
             if (!DesignMode && BetterColorPicker != null)
             {

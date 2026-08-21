@@ -622,7 +622,6 @@ namespace GUI.Controls
             }
         }
 
-
         private void WaveFormPictureBox_MouseUp(object sender, MouseEventArgs e)
         {
             WaveformClicked = false;

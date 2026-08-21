@@ -70,7 +70,6 @@ public sealed class SnapshotExtract
                     },
                 });
 
-
                 var values = KVObject.Array();
 
                 foreach (var datum in attributeStream)

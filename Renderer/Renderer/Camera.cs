@@ -320,7 +320,6 @@ namespace ValveResourceFormat.Renderer
             ClampRotation();
         }
 
-
         /// <summary>
         /// Positions the camera so the specified bounding box fills the view.
         /// </summary>

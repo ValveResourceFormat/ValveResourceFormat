@@ -46,16 +46,16 @@ public class ListViewColumnSorter : IComparer
                 compareResult = string.CompareOrdinal(tX.Text, tY.Text);
                 break;
             case 1:
-                {
-                    var sizeX = tX.IsFolder ? tX.PkgNode!.TotalSize : tX.PackageEntry!.TotalLength;
-                    var sizeY = tY.IsFolder ? tY.PkgNode!.TotalSize : tY.PackageEntry!.TotalLength;
+            {
+                var sizeX = tX.IsFolder ? tX.PkgNode!.TotalSize : tX.PackageEntry!.TotalLength;
+                var sizeY = tY.IsFolder ? tY.PkgNode!.TotalSize : tY.PackageEntry!.TotalLength;
 
-                    if (sizeX != sizeY)
-                    {
-                        compareResult = sizeX > sizeY ? 1 : -1;
-                    }
-                    break;
+                if (sizeX != sizeY)
+                {
+                    compareResult = sizeX > sizeY ? 1 : -1;
                 }
+                break;
+            }
             default:
                 compareResult = string.CompareOrdinal(tX.SubItems[SortColumn].Text, tY.SubItems[SortColumn].Text);
                 break;

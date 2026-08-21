@@ -268,58 +268,58 @@ namespace ValveResourceFormat.Serialization.VfxEval
                     return;
 
                 case OPCODE.BRANCH:
-                    {
-                        var pointerWhenTrue = dataReader.ReadUInt16();
-                        dataReader.ReadUInt16(); // pointer taken when the condition fails
+                {
+                    var pointerWhenTrue = dataReader.ReadUInt16();
+                    dataReader.ReadUInt16(); // pointer taken when the condition fails
 
-                        OffsetAtBranchExits.Push(pointerWhenTrue == dataReader.BaseStream.Position ? TRUE_BLOCK_FIRST : FALSE_BLOCK_FIRST);
-                        return;
-                    }
+                    OffsetAtBranchExits.Push(pointerWhenTrue == dataReader.BaseStream.Position ? TRUE_BLOCK_FIRST : FALSE_BLOCK_FIRST);
+                    return;
+                }
 
                 case OPCODE.FUNC:
+                {
+                    var funcId = dataReader.ReadByte();
+                    var funcCheckByte = dataReader.ReadByte();
+
+                    if (funcId >= FUNCTION_REF.Length)
                     {
-                        var funcId = dataReader.ReadByte();
-                        var funcCheckByte = dataReader.ReadByte();
-
-                        if (funcId >= FUNCTION_REF.Length)
-                        {
-                            throw new InvalidDataException($"Error parsing dynamic expression, invalid function Id = 0x{funcId:x} (position: {dataReader.BaseStream.Position})");
-                        }
-
-                        if (funcCheckByte != 0)
-                        {
-                            throw new InvalidDataException($"Error parsing dynamic expression, malformed function signature (position: {dataReader.BaseStream.Position})");
-                        }
-
-                        var (funcName, nrArguments) = FUNCTION_REF[funcId];
-                        var arguments = new string[nrArguments];
-
-                        for (var i = nrArguments - 1; i >= 0; i--)
-                        {
-                            arguments[i] = PopExpression(dataReader).Text;
-                        }
-
-                        Push($"{funcName}({string.Join(',', arguments)})");
-                        return;
+                        throw new InvalidDataException($"Error parsing dynamic expression, invalid function Id = 0x{funcId:x} (position: {dataReader.BaseStream.Position})");
                     }
+
+                    if (funcCheckByte != 0)
+                    {
+                        throw new InvalidDataException($"Error parsing dynamic expression, malformed function signature (position: {dataReader.BaseStream.Position})");
+                    }
+
+                    var (funcName, nrArguments) = FUNCTION_REF[funcId];
+                    var arguments = new string[nrArguments];
+
+                    for (var i = nrArguments - 1; i >= 0; i--)
+                    {
+                        arguments[i] = PopExpression(dataReader).Text;
+                    }
+
+                    Push($"{funcName}({string.Join(',', arguments)})");
+                    return;
+                }
 
                 case OPCODE.FLOAT:
-                    {
-                        var floatLiteral = dataReader.ReadSingle().ToString("g", CultureInfo.InvariantCulture);
+                {
+                    var floatLiteral = dataReader.ReadSingle().ToString("g", CultureInfo.InvariantCulture);
 
-                        // if a float leads with "0." remove the 0 (as how Valve likes it)
-                        var literal = floatLiteral.StartsWith("0.", StringComparison.Ordinal) ? floatLiteral[1..] : floatLiteral;
-                        Expressions.Push(new Expression(literal, TryGetValueName(literal, out var name) ? name : literal, Precedence.Atom));
-                        return;
-                    }
+                    // if a float leads with "0." remove the 0 (as how Valve likes it)
+                    var literal = floatLiteral.StartsWith("0.", StringComparison.Ordinal) ? floatLiteral[1..] : floatLiteral;
+                    Expressions.Push(new Expression(literal, TryGetValueName(literal, out var name) ? name : literal, Precedence.Atom));
+                    return;
+                }
 
                 // assignment is always to a local variable, and it terminates the line
                 case OPCODE.STORE:
-                    {
-                        var locVarname = GetLocalVarName(dataReader.ReadByte());
-                        DynamicExpressionList.Add($"{locVarname} = {PopExpression(dataReader).Text};");
-                        return;
-                    }
+                {
+                    var locVarname = GetLocalVarName(dataReader.ReadByte());
+                    DynamicExpressionList.Add($"{locVarname} = {PopExpression(dataReader).Text};");
+                    return;
+                }
 
                 case OPCODE.LOAD:
                     Push(GetLocalVarName(dataReader.ReadByte()));
@@ -331,20 +331,20 @@ namespace ValveResourceFormat.Serialization.VfxEval
                     return;
 
                 case >= OPCODE.EQUALS and <= OPCODE.MODULO:
-                    {
-                        var (symbol, precedence) = GetOperator(op);
-                        var exp2 = PopExpression(dataReader);
-                        var exp1 = PopExpression(dataReader);
+                {
+                    var (symbol, precedence) = GetOperator(op);
+                    var exp2 = PopExpression(dataReader);
+                    var exp1 = PopExpression(dataReader);
 
-                        // the bytecode is left nested, so an operand of the same precedence on the right
-                        // was bracketed in the source and stays bracketed: 1-(2-3) is not 1-2-3
-                        var (left, right) = precedence < AboveBoolean
-                            ? (AboveBoolean, AboveBoolean) // a comparison, both of its operands are numbers
-                            : (precedence, precedence + 1);
+                    // the bytecode is left nested, so an operand of the same precedence on the right
+                    // was bracketed in the source and stays bracketed: 1-(2-3) is not 1-2-3
+                    var (left, right) = precedence < AboveBoolean
+                        ? (AboveBoolean, AboveBoolean) // a comparison, both of its operands are numbers
+                        : (precedence, precedence + 1);
 
-                        Push($"{exp1.Operand(left)}{symbol}{exp2.Operand(right)}", precedence);
-                        return;
-                    }
+                    Push($"{exp1.Operand(left)}{symbol}{exp2.Operand(right)}", precedence);
+                    return;
+                }
 
                 case OPCODE.ATTRIBUTE:
                     Push(ReadTokenName(dataReader, "ATTRIBUTE"));
@@ -359,33 +359,33 @@ namespace ValveResourceFormat.Serialization.VfxEval
                     return;
 
                 case OPCODE.FEATURE:
-                    {
-                        uint featureId = dataReader.ReadByte();
-                        Push(Features is not null && featureId < Features.Count
-                            ? Features[(int)featureId]
-                            : $"FEAT[{featureId}]");
-                        return;
-                    }
+                {
+                    uint featureId = dataReader.ReadByte();
+                    Push(Features is not null && featureId < Features.Count
+                        ? Features[(int)featureId]
+                        : $"FEAT[{featureId}]");
+                    return;
+                }
 
                 case OPCODE.SWIZZLE:
-                    {
-                        var exp = PopExpression(dataReader).Operand(Precedence.Atom);
-                        Push($"{exp}.{GetSwizzle(dataReader.ReadByte())}");
-                        return;
-                    }
+                {
+                    var exp = PopExpression(dataReader).Operand(Precedence.Atom);
+                    Push($"{exp}.{GetSwizzle(dataReader.ReadByte())}");
+                    return;
+                }
 
                 // parser terminates here
                 case OPCODE.RETURN:
+                {
+                    if (dataReader.BaseStream.Position < dataReader.BaseStream.Length)
                     {
-                        if (dataReader.BaseStream.Position < dataReader.BaseStream.Length)
-                        {
-                            throw new InvalidDataException($"Looks like we did not read the data correctly (position: {dataReader.BaseStream.Position})");
-                        }
-
-                        var finalExp = PopExpression(dataReader).ResultText;
-                        DynamicExpressionList.Add(OmitReturnStatement ? finalExp : $"return {finalExp};");
-                        return;
+                        throw new InvalidDataException($"Looks like we did not read the data correctly (position: {dataReader.BaseStream.Position})");
                     }
+
+                    var finalExp = PopExpression(dataReader).ResultText;
+                    DynamicExpressionList.Add(OmitReturnStatement ? finalExp : $"return {finalExp};");
+                    return;
+                }
 
                 default:
                     throw new InvalidDataException($"Error parsing dynamic expression, unknown opcode = 0x{(int)op:x2} (position: {dataReader.BaseStream.Position})");

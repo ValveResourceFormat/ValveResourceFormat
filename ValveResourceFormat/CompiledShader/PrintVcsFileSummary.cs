@@ -536,5 +536,4 @@ namespace ValveResourceFormat.CompiledShader
             return "" + val;
         }
     }
-
 }

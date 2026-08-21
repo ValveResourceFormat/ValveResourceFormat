@@ -201,7 +201,6 @@ namespace ValveResourceFormat.Particles
                 ["C_OP_RopeSpringConstraint"] = constraintInfo => new RopeSpringConstraint(constraintInfo),
             };
 
-
         /// <summary>
         /// Shared lookup+construct logic behind every TryCreateX method below,
         /// which needs extra renderer-only constructor arguments.

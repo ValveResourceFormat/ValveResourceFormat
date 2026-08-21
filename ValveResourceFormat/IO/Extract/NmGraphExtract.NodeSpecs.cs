@@ -205,7 +205,6 @@ public sealed partial class NmGraphExtract
                 }
             }
         }
-
     }
 
     private readonly record struct NodeInputConnection(string FieldName, int InputIndex, bool Required);

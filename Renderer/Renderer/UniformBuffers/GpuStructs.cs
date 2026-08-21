@@ -88,7 +88,6 @@ public struct ObjectDataStandard
     public SceneEnvMap.EnvMapVisibility128 EnvMapVisibility;
 };
 
-
 /// <summary>Arguments for a <c>glDrawElementsIndirect</c> GPU draw call.</summary>
 [StructLayout(LayoutKind.Sequential)]
 public readonly struct DrawElementsIndirectCommand

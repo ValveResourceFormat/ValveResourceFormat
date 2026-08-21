@@ -70,7 +70,6 @@ namespace ValveResourceFormat.Particles.Initializers
             var sizeY = dimenY * spacingY;
             var sizeZ = dimenZ * spacingZ;
 
-
             // Slower but infinitely better and more stable code
 
             // If hollow but the size never gets above 2 in any dimension.
@@ -95,7 +94,6 @@ namespace ValveResourceFormat.Particles.Initializers
             }
             var hollowSize = hollowDimenX * hollowDimenY * hollowDimenZ;
             totalCount -= hollowSize;
-
 
             var relativeCount = particle.UniqueParticleId % totalCount;
 

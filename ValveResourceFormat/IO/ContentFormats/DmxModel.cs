@@ -540,7 +540,6 @@ public class DmeLogLayer<T> : DmeTypedLog<T>
     [DMProperty("values")]
     public T[] LayerValues { get; set; } = [];
 
-
     /// <summary>
     /// Checks if this layer only contains default/zero values.
     /// </summary>

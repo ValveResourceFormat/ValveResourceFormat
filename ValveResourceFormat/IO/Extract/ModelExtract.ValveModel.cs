@@ -874,7 +874,6 @@ partial class ModelExtract
             modelModifierList.Value.Add(MakeNode("ModelModifier_Translate", ("translation", ToKVArray(Translation))));
         }
 
-
         return kv.ToKV3String(format: KV3IDLookup.Get("modeldoc28"));
 
         #region Local Functions
@@ -1029,7 +1028,6 @@ partial class ModelExtract
                 weightLists.Value.Add(weightListNode);
             }
         }
-
 
         void ExtractPoseParams(IReadOnlyList<KVObject> poseParamsData)
         {

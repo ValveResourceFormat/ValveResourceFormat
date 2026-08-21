@@ -122,7 +122,6 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Shapes
         /// </summary>
         public Vector3 Max { get; }
 
-
         /// <summary>
         /// Per triangle index to surface properties. Can be empty if the whole mesh has the same material.
         /// </summary>

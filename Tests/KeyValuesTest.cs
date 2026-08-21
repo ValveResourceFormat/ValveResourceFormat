@@ -534,6 +534,5 @@ namespace Tests
 
             await Assert.That(serializedOutput).IsEqualTo(expectedOutput);
         }
-
     }
 }

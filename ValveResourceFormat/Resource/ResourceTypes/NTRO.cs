@@ -261,19 +261,19 @@ namespace ValveResourceFormat.ResourceTypes
                     return ReadStructure(newStruct, Reader.BaseStream.Position);
 
                 case SchemaFieldType.Enum:
+                {
+                    // The type data is the hash of the enum name, which is what the enum introspection is keyed by
+                    var enumValue = Reader.ReadInt32();
+                    var enumeratorName = IntrospectionManifest.GetEnumValueName(field.TypeData, enumValue);
+
+                    if (enumeratorName != null)
                     {
-                        // The type data is the hash of the enum name, which is what the enum introspection is keyed by
-                        var enumValue = Reader.ReadInt32();
-                        var enumeratorName = IntrospectionManifest.GetEnumValueName(field.TypeData, enumValue);
-
-                        if (enumeratorName != null)
-                        {
-                            return enumeratorName;
-                        }
-
-                        // Flag combinations and values the manifest does not name stay numeric
-                        return enumValue;
+                        return enumeratorName;
                     }
+
+                    // Flag combinations and values the manifest does not name stay numeric
+                    return enumValue;
+                }
 
                 case SchemaFieldType.SByte:
                     return (int)Reader.ReadSByte();
@@ -325,55 +325,55 @@ namespace ValveResourceFormat.ResourceTypes
 
                 case SchemaFieldType.Vector3D:
                 case SchemaFieldType.QAngle:
-                    {
-                        var arrayObject = KVObject.Array();
-                        arrayObject.Add(Reader.ReadSingle());
-                        arrayObject.Add(Reader.ReadSingle());
-                        arrayObject.Add(Reader.ReadSingle());
-                        return arrayObject;
-                    }
+                {
+                    var arrayObject = KVObject.Array();
+                    arrayObject.Add(Reader.ReadSingle());
+                    arrayObject.Add(Reader.ReadSingle());
+                    arrayObject.Add(Reader.ReadSingle());
+                    return arrayObject;
+                }
 
                 case SchemaFieldType.Quaternion:
                 case SchemaFieldType.Fltx4:
                 case SchemaFieldType.Vector4D:
-                    {
-                        var arrayObject = KVObject.Array();
-                        arrayObject.Add(Reader.ReadSingle());
-                        arrayObject.Add(Reader.ReadSingle());
-                        arrayObject.Add(Reader.ReadSingle());
-                        arrayObject.Add(Reader.ReadSingle());
-                        return arrayObject;
-                    }
+                {
+                    var arrayObject = KVObject.Array();
+                    arrayObject.Add(Reader.ReadSingle());
+                    arrayObject.Add(Reader.ReadSingle());
+                    arrayObject.Add(Reader.ReadSingle());
+                    arrayObject.Add(Reader.ReadSingle());
+                    return arrayObject;
+                }
 
                 case SchemaFieldType.FourVectors:
+                {
+                    // Three fltx4 laid out as x[4], y[4], z[4], which is four vectors in structure of arrays form
+                    Span<float> components = stackalloc float[12];
+                    Reader.BaseStream.ReadExactly(MemoryMarshal.AsBytes(components));
+
+                    var arrayObject = KVObject.Array();
+
+                    for (var i = 0; i < 4; i++)
                     {
-                        // Three fltx4 laid out as x[4], y[4], z[4], which is four vectors in structure of arrays form
-                        Span<float> components = stackalloc float[12];
-                        Reader.BaseStream.ReadExactly(MemoryMarshal.AsBytes(components));
-
-                        var arrayObject = KVObject.Array();
-
-                        for (var i = 0; i < 4; i++)
-                        {
-                            var vector = KVObject.Array();
-                            vector.Add(components[i]);
-                            vector.Add(components[4 + i]);
-                            vector.Add(components[8 + i]);
-                            arrayObject.Add(vector);
-                        }
-
-                        return arrayObject;
+                        var vector = KVObject.Array();
+                        vector.Add(components[i]);
+                        vector.Add(components[4 + i]);
+                        vector.Add(components[8 + i]);
+                        arrayObject.Add(vector);
                     }
+
+                    return arrayObject;
+                }
 
                 case SchemaFieldType.Color:
-                    {
-                        var arrayObject = KVObject.Array();
-                        arrayObject.Add((int)Reader.ReadByte());
-                        arrayObject.Add((int)Reader.ReadByte());
-                        arrayObject.Add((int)Reader.ReadByte());
-                        arrayObject.Add((int)Reader.ReadByte());
-                        return arrayObject;
-                    }
+                {
+                    var arrayObject = KVObject.Array();
+                    arrayObject.Add((int)Reader.ReadByte());
+                    arrayObject.Add((int)Reader.ReadByte());
+                    arrayObject.Add((int)Reader.ReadByte());
+                    arrayObject.Add((int)Reader.ReadByte());
+                    return arrayObject;
+                }
 
                 case SchemaFieldType.Char:
                     return Reader.ReadOffsetString(Encoding.UTF8);
@@ -384,45 +384,45 @@ namespace ValveResourceFormat.ResourceTypes
                     return resourceValue;
 
                 case SchemaFieldType.Vector2D:
-                    {
-                        var arrayObject = KVObject.Array();
-                        arrayObject.Add(Reader.ReadSingle());
-                        arrayObject.Add(Reader.ReadSingle());
-                        return arrayObject;
-                    }
+                {
+                    var arrayObject = KVObject.Array();
+                    arrayObject.Add(Reader.ReadSingle());
+                    arrayObject.Add(Reader.ReadSingle());
+                    return arrayObject;
+                }
 
                 case SchemaFieldType.Matrix3x4:
                 case SchemaFieldType.Matrix3x4a:
-                    {
-                        var arrayObject = KVObject.Array();
-                        arrayObject.Add(Reader.ReadSingle());
-                        arrayObject.Add(Reader.ReadSingle());
-                        arrayObject.Add(Reader.ReadSingle());
-                        arrayObject.Add(Reader.ReadSingle());
-                        arrayObject.Add(Reader.ReadSingle());
-                        arrayObject.Add(Reader.ReadSingle());
-                        arrayObject.Add(Reader.ReadSingle());
-                        arrayObject.Add(Reader.ReadSingle());
-                        arrayObject.Add(Reader.ReadSingle());
-                        arrayObject.Add(Reader.ReadSingle());
-                        arrayObject.Add(Reader.ReadSingle());
-                        arrayObject.Add(Reader.ReadSingle());
-                        return arrayObject;
-                    }
+                {
+                    var arrayObject = KVObject.Array();
+                    arrayObject.Add(Reader.ReadSingle());
+                    arrayObject.Add(Reader.ReadSingle());
+                    arrayObject.Add(Reader.ReadSingle());
+                    arrayObject.Add(Reader.ReadSingle());
+                    arrayObject.Add(Reader.ReadSingle());
+                    arrayObject.Add(Reader.ReadSingle());
+                    arrayObject.Add(Reader.ReadSingle());
+                    arrayObject.Add(Reader.ReadSingle());
+                    arrayObject.Add(Reader.ReadSingle());
+                    arrayObject.Add(Reader.ReadSingle());
+                    arrayObject.Add(Reader.ReadSingle());
+                    arrayObject.Add(Reader.ReadSingle());
+                    return arrayObject;
+                }
 
                 case SchemaFieldType.Transform:
-                    {
-                        var arrayObject = KVObject.Array();
-                        arrayObject.Add(Reader.ReadSingle());
-                        arrayObject.Add(Reader.ReadSingle());
-                        arrayObject.Add(Reader.ReadSingle());
-                        arrayObject.Add(Reader.ReadSingle());
-                        arrayObject.Add(Reader.ReadSingle());
-                        arrayObject.Add(Reader.ReadSingle());
-                        arrayObject.Add(Reader.ReadSingle());
-                        arrayObject.Add(Reader.ReadSingle());
-                        return arrayObject;
-                    }
+                {
+                    var arrayObject = KVObject.Array();
+                    arrayObject.Add(Reader.ReadSingle());
+                    arrayObject.Add(Reader.ReadSingle());
+                    arrayObject.Add(Reader.ReadSingle());
+                    arrayObject.Add(Reader.ReadSingle());
+                    arrayObject.Add(Reader.ReadSingle());
+                    arrayObject.Add(Reader.ReadSingle());
+                    arrayObject.Add(Reader.ReadSingle());
+                    arrayObject.Add(Reader.ReadSingle());
+                    return arrayObject;
+                }
 
                 default:
                     throw new NotImplementedException($"Unknown data type: {field.Type} (name: {field.FieldName})");

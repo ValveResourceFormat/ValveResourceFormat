@@ -72,7 +72,6 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             }
         }
 
-
         /// <summary>
         /// Creates a flat quad mesh node suitable for previewing a material, with vertex paint gradient strips.
         /// </summary>

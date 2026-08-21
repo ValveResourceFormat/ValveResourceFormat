@@ -343,5 +343,4 @@ internal class EntityIOGraphViewer : GLGraphViewer
 
         return $"{best!.Title} ({island.Count} nodes)";
     }
-
 }

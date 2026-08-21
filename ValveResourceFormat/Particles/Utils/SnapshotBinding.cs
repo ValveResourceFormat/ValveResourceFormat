@@ -33,7 +33,6 @@ namespace ValveResourceFormat.Particles.Utils
             hasSubset = !string.IsNullOrEmpty(parse.Data.GetStringProperty("m_strSnapshotSubset"));
         }
 
-
         /// <summary>
         /// Loads the snapshot a particle system authors as <c>m_hSnapshot</c>, which it publishes on a
         /// control point for its own functions and its children to read. This is the producing side of

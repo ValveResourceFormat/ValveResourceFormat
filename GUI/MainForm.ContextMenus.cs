@@ -502,7 +502,6 @@ namespace GUI
             {
                 newVrfGuiContext?.Dispose();
             }
-
         }
 
         private async void RegisterVpkFileAssociationToolStripMenuItem_Click(object sender, EventArgs e) => await SettingsControl.RegisterFileAssociationAsync().ConfigureAwait(true);

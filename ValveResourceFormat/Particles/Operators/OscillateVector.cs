@@ -193,5 +193,4 @@ namespace ValveResourceFormat.Particles.Operators
             }
         }
     }
-
 }

@@ -694,7 +694,6 @@ namespace ValveResourceFormat.Renderer.Shaders
             }
         }
 
-
         /// <summary>
         /// Gets this shader built for what a mesh supplies. Only a pass that replaces material shaders needs
         /// it, since a material shader already carries the combo of the mesh it was loaded for.

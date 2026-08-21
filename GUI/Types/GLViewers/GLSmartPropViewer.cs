@@ -29,49 +29,49 @@ namespace GUI.Types.GLViewers
                 switch (className)
                 {
                     case "CSmartPropElement_Model":
+                    {
+                        using var resource = GuiContext.LoadFileCompiled(child.GetStringProperty("m_sModelName"));
+                        Debug.Assert(resource != null);
+                        var model = (Model?)resource.DataBlock;
+                        Debug.Assert(model != null);
+
+                        var modelSceneNode = new ModelSceneNode(Scene, model);
+                        Scene.Add(modelSceneNode, true);
+
+                        break;
+                    }
+                    case "CSmartPropElement_SmartProp":
+                    {
+                        // TODO: m_sSmartProp - create SmartPropSceneNode?
+                        break;
+                    }
+                    case "CSmartPropElement_Group":
+                    case "CSmartPropElement_PickOne":
+                    {
+                        var pickOneChildren = child.GetArray("m_Children");
+
+                        // TODO: This probably should recurse into parent smartprop loader
+                        foreach (var pickOneChild in pickOneChildren)
                         {
-                            using var resource = GuiContext.LoadFileCompiled(child.GetStringProperty("m_sModelName"));
+                            var pickOneClass = pickOneChild.GetStringProperty("_class");
+
+                            if (pickOneClass != "CSmartPropElement_Model")
+                            {
+                                Log.Warn(nameof(GLSingleNodeViewer), $"Unhandled smart prop class {className}");
+                                continue;
+                            }
+
+                            using var resource = GuiContext.LoadFileCompiled(pickOneChild.GetStringProperty("m_sModelName"));
                             Debug.Assert(resource != null);
                             var model = (Model?)resource.DataBlock;
                             Debug.Assert(model != null);
 
                             var modelSceneNode = new ModelSceneNode(Scene, model);
                             Scene.Add(modelSceneNode, true);
-
-                            break;
                         }
-                    case "CSmartPropElement_SmartProp":
-                        {
-                            // TODO: m_sSmartProp - create SmartPropSceneNode?
-                            break;
-                        }
-                    case "CSmartPropElement_Group":
-                    case "CSmartPropElement_PickOne":
-                        {
-                            var pickOneChildren = child.GetArray("m_Children");
 
-                            // TODO: This probably should recurse into parent smartprop loader
-                            foreach (var pickOneChild in pickOneChildren)
-                            {
-                                var pickOneClass = pickOneChild.GetStringProperty("_class");
-
-                                if (pickOneClass != "CSmartPropElement_Model")
-                                {
-                                    Log.Warn(nameof(GLSingleNodeViewer), $"Unhandled smart prop class {className}");
-                                    continue;
-                                }
-
-                                using var resource = GuiContext.LoadFileCompiled(pickOneChild.GetStringProperty("m_sModelName"));
-                                Debug.Assert(resource != null);
-                                var model = (Model?)resource.DataBlock;
-                                Debug.Assert(model != null);
-
-                                var modelSceneNode = new ModelSceneNode(Scene, model);
-                                Scene.Add(modelSceneNode, true);
-                            }
-
-                            break;
-                        }
+                        break;
+                    }
                     default:
                         Log.Warn(nameof(GLSingleNodeViewer), $"Unhandled smart prop class {className}");
                         break;

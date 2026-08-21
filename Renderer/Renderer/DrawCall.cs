@@ -76,7 +76,6 @@ namespace ValveResourceFormat.Renderer
             _ => throw new UnreachableException(nameof(IndexType))
         };
 
-
         /// <summary>Replaces the material and rebuilds the vertex array state.</summary>
         /// <param name="newMaterial">The new material to assign.</param>
         public void SetNewMaterial(RenderMaterial newMaterial)

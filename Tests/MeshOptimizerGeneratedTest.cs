@@ -271,7 +271,6 @@ namespace Tests
             0x00, 0x00, 0x0a, 0x14, 0x1e, 0x00
         ];
 
-
         [Test]
         [Category("Vertex Decoder")]
         public async Task DecodeVertexBitGroups()

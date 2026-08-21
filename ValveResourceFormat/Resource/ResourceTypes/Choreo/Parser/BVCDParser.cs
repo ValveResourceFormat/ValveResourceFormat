@@ -306,7 +306,6 @@ namespace ValveResourceFormat.ResourceTypes.Choreo.Parser
                 flexTimingTags[i] = ReadTag();
             }
 
-
             //absolute tags
             //play tags
             count = reader.ReadByte();

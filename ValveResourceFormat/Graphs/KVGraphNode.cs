@@ -45,24 +45,24 @@ internal class KVGraphNode : GraphNode
             case KVValueType.Boolean:
                 return obj.ToBoolean(CultureInfo.InvariantCulture) ? "true" : "false";
             case KVValueType.Array:
+            {
+                var list = obj.AsArraySpan();
+                StringBuilder sb = new();
+                sb.Append('[');
+                var firstElem = true;
+                foreach (var elem in list)
                 {
-                    var list = obj.AsArraySpan();
-                    StringBuilder sb = new();
-                    sb.Append('[');
-                    var firstElem = true;
-                    foreach (var elem in list)
+                    if (!firstElem)
                     {
-                        if (!firstElem)
-                        {
-                            sb.Append(", ");
-                        }
-                        firstElem = false;
-
-                        sb.Append(StringifyValue(elem));
+                        sb.Append(", ");
                     }
-                    sb.Append(']');
-                    return sb.ToString();
+                    firstElem = false;
+
+                    sb.Append(StringifyValue(elem));
                 }
+                sb.Append(']');
+                return sb.ToString();
+            }
             case KVValueType.Int16:
             case KVValueType.UInt16:
             case KVValueType.Int32:

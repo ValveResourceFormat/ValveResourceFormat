@@ -1246,7 +1246,6 @@ namespace ValveResourceFormat.Renderer.World
                         {
                             RendererContext.Logger.LogWarning("Post Process model failed to load file \"{Model}\"", model);
                         }
-
                     }
 
                     scene.PostProcessInfo.AddPostProcessVolume(postProcess);
@@ -1276,7 +1275,6 @@ namespace ValveResourceFormat.Renderer.World
                     {
                         ControllerExposureSettings = exposureSettings,
                     };
-
 
                     if (scene.PostProcessInfo.MasterTonemapController == null)
                     {

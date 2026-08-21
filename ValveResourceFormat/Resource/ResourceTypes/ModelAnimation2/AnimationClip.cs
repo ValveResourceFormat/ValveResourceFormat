@@ -343,7 +343,6 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation2
             return decodedValue;
         }
 
-
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         static float DecodeUnsignedNormalizedFloat(ushort encodedValue)
         {

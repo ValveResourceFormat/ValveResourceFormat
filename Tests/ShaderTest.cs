@@ -200,7 +200,6 @@ namespace Tests
                     var depth1 = psRenderState1!.DepthStencilStateDesc!.Value;
                     var depth2 = psRenderState2!.DepthStencilStateDesc!.Value;
 
-
                     await Assert.That(depth2.DepthWriteEnable).IsEqualTo(depth1.DepthWriteEnable);
                     await Assert.That(depth2.DepthFunc).IsEqualTo(depth1.DepthFunc);
                     await Assert.That(depth2.DepthTestEnable).IsEqualTo(depth1.DepthTestEnable);
@@ -215,7 +214,6 @@ namespace Tests
                     await Assert.That(depth2.BackStencilPassOp).IsEqualTo(depth1.BackStencilPassOp);
                     await Assert.That(depth2.BackStencilFailOp).IsEqualTo(depth1.BackStencilFailOp);
                     await Assert.That(depth2.BackStencilDepthFailOp).IsEqualTo(depth1.BackStencilDepthFailOp);
-
 
                     var raster1 = psRenderState1.RasterizerStateDesc!.Value;
                     var raster2 = psRenderState2.RasterizerStateDesc!.Value;

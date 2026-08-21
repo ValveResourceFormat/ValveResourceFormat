@@ -474,7 +474,6 @@ public class UserInput
         Camera.ClampRotation();
     }
 
-
     /// <summary>
     /// Moves the camera by the specified amounts in camera space.
     /// </summary>

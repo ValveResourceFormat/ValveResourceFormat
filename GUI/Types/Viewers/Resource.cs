@@ -115,21 +115,21 @@ namespace GUI.Types.Viewers
                     break;
 
                 case ResourceType.Map:
-                    {
-                        var worldResource = vrfGuiContext.LoadFileCompiled(WorldLoader.GetWorldNameFromMap(resource.FileName!));
-                        var mapExternalReferences = resource.ExternalReferences;
+                {
+                    var worldResource = vrfGuiContext.LoadFileCompiled(WorldLoader.GetWorldNameFromMap(resource.FileName!));
+                    var mapExternalReferences = resource.ExternalReferences;
 
-                        if (worldResource != null && worldResource.DataBlock is World mapWorldData)
-                        {
-                            GLViewer = new GLWorldViewer(vrfGuiContext, rendererContext, mapWorldData, mapExternalReferences);
-                            GLViewerTabName = "MAP";
-                        }
-                        else
-                        {
-                            worldResource?.Dispose();
-                        }
-                        break;
+                    if (worldResource != null && worldResource.DataBlock is World mapWorldData)
+                    {
+                        GLViewer = new GLWorldViewer(vrfGuiContext, rendererContext, mapWorldData, mapExternalReferences);
+                        GLViewerTabName = "MAP";
                     }
+                    else
+                    {
+                        worldResource?.Dispose();
+                    }
+                    break;
+                }
 
                 case ResourceType.World:
                     if (resource.DataBlock is World worldData)
@@ -214,19 +214,19 @@ namespace GUI.Types.Viewers
                     break;
 
                 case ResourceType.Material:
+                {
+                    if (resource.DataBlock is Material { ShaderName: "sky.vfx" })
                     {
-                        if (resource.DataBlock is Material { ShaderName: "sky.vfx" })
-                        {
-                            GLViewer = new GLSkyboxViewer(vrfGuiContext, rendererContext, resource);
-                            GLViewerTabName = "SKYBOX";
-                        }
-                        else
-                        {
-                            GLViewer = new GLMaterialViewer(vrfGuiContext, rendererContext, resource);
-                            GLViewerTabName = "MATERIAL";
-                        }
-                        break;
+                        GLViewer = new GLSkyboxViewer(vrfGuiContext, rendererContext, resource);
+                        GLViewerTabName = "SKYBOX";
                     }
+                    else
+                    {
+                        GLViewer = new GLMaterialViewer(vrfGuiContext, rendererContext, resource);
+                        GLViewerTabName = "MATERIAL";
+                    }
+                    break;
+                }
 
                 case ResourceType.PhysicsCollisionMesh:
                     if (resource.DataBlock is PhysAggregateData physAggregateData)
@@ -740,29 +740,29 @@ namespace GUI.Types.Viewers
                     break;
 
                 case ResourceType.ChoreoSceneFileData:
-                    {
-                        var specialTabPage = new ThemedTabPage("VCDLIST");
-                        specialTabPage.Controls.Add(new ChoreoViewer(resource));
-                        resTabs.TabPages.Add(specialTabPage);
-                        return true;
-                    }
+                {
+                    var specialTabPage = new ThemedTabPage("VCDLIST");
+                    specialTabPage.Controls.Add(new ChoreoViewer(resource));
+                    resTabs.TabPages.Add(specialTabPage);
+                    return true;
+                }
 
                 case ResourceType.Shader:
+                {
+                    var compiledShaderViewer = new CompiledShader(vrfGuiContext);
+                    try
                     {
-                        var compiledShaderViewer = new CompiledShader(vrfGuiContext);
-                        try
-                        {
-                            var specialTabPage = new ThemedTabPage("SHADER");
-                            resTabs.TabPages.Add(specialTabPage);
-                            compiledShaderViewer.Create(specialTabPage);
-                            compiledShaderViewer = null;
-                        }
-                        finally
-                        {
-                            compiledShaderViewer?.Dispose();
-                        }
-                        return true;
+                        var specialTabPage = new ThemedTabPage("SHADER");
+                        resTabs.TabPages.Add(specialTabPage);
+                        compiledShaderViewer.Create(specialTabPage);
+                        compiledShaderViewer = null;
                     }
+                    finally
+                    {
+                        compiledShaderViewer?.Dispose();
+                    }
+                    return true;
+                }
             }
 
             return false;
@@ -1041,32 +1041,32 @@ namespace GUI.Types.Viewers
                     break;
 
                 case ResourceType.Texture:
+                {
+                    if (FileExtract.IsChildResource(resource))
                     {
-                        if (FileExtract.IsChildResource(resource))
-                        {
-                            break;
-                        }
-
-                        var textureExtract = new TextureExtract(resource);
-                        ViewerContentPresenter.AddContentTab(resTabs, "Reconstructed vtex", new ViewerContent.Text(textureExtract.ToValveTexture()));
-
-                        if (textureExtract.TryGetMksData(out var _, out var mks))
-                        {
-                            ViewerContentPresenter.AddContentTab(resTabs, "Reconstructed mks", new ViewerContent.Text(mks));
-                        }
-
                         break;
                     }
+
+                    var textureExtract = new TextureExtract(resource);
+                    ViewerContentPresenter.AddContentTab(resTabs, "Reconstructed vtex", new ViewerContent.Text(textureExtract.ToValveTexture()));
+
+                    if (textureExtract.TryGetMksData(out var _, out var mks))
+                    {
+                        ViewerContentPresenter.AddContentTab(resTabs, "Reconstructed mks", new ViewerContent.Text(mks));
+                    }
+
+                    break;
+                }
 
                 case ResourceType.ParticleSnapshot:
+                {
+                    if (!FileExtract.IsChildResource(resource))
                     {
-                        if (!FileExtract.IsChildResource(resource))
-                        {
-                            ViewerContentPresenter.AddContentTab(resTabs, "Reconstructed vsnap", new ViewerContent.Text(new SnapshotExtract(resource).ToValveSnap()));
-                        }
-
-                        break;
+                        ViewerContentPresenter.AddContentTab(resTabs, "Reconstructed vsnap", new ViewerContent.Text(new SnapshotExtract(resource).ToValveSnap()));
                     }
+
+                    break;
+                }
             }
         }
 

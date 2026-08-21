@@ -20,7 +20,6 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
         /// </summary>
         public Quaternion Angle { get; set; }
 
-
         /// <summary>
         /// Initializes with a position, scale, and rotation.
         /// </summary>

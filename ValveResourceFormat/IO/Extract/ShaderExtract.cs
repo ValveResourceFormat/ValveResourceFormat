@@ -858,7 +858,6 @@ public sealed class ShaderExtract
             return;
         }
 
-
         foreach (var (config, attributes) in attributesDisect)
         {
             if (attributes.Count == 0)

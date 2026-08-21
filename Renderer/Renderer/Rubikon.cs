@@ -1072,7 +1072,6 @@ public class Rubikon
         }
     }
 
-
     private static void AABBTraceTriangle13AxisSat(AABBTraceContext trace, Vector3 v0, Vector3 v1, Vector3 v2, ref TraceResult closestHit)
     {
         //Needs to exist from the start, as it gets updated while running through the axis.
@@ -1097,7 +1096,6 @@ public class Rubikon
 
             var tracedDistanceAlongAxis = cosTheta * trace.Length;
             var boxExtent = Vector3.Dot(Vector3.Abs(axisVector), trace.HalfExtents);
-
 
             //project the triangle onto the axis
             float min = float.PositiveInfinity, max = float.NegativeInfinity;

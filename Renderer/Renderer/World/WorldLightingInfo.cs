@@ -483,7 +483,6 @@ namespace ValveResourceFormat.Renderer.World
                     falloffAtRange > 0f ? 1f / falloffAtRange : 0f);
             }
 
-
             foreach (var light in lights)
             {
                 if (light.Cost != SceneLight.LightCost.Stationary

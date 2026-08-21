@@ -205,7 +205,6 @@ namespace ValveResourceFormat.Renderer.Materials
             return mat;
         }
 
-
         /// <summary>Returns a cached <see cref="RenderTexture"/> for the given path, loading it on first access.</summary>
         /// <param name="name">The compiled texture resource path.</param>
         /// <param name="srgbRead">Whether to interpret the texture data in sRGB color space.</param>

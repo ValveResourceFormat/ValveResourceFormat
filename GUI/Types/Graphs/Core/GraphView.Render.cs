@@ -433,7 +433,6 @@ partial class GraphView
         }
     }
 
-
     // Straight mode: a short horizontal stub at each end so the wire visibly belongs to its
     // socket, and one plain segment between them.
     private static void BuildStraightWirePath(SKPathBuilder path, SKPoint from, SKPoint to)

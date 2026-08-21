@@ -388,14 +388,14 @@ public class AnimationGraphExtract : IDisposable
                 node.Add(destKey, ExtractParameterID(value));
                 break;
             case PropAction.InputConnection:
+            {
+                var nodeIndex = value.GetIntegerProperty("m_nodeIndex");
+                if (nodeIndexToIdMap?.TryGetValue(nodeIndex, out var nodeId) == true)
                 {
-                    var nodeIndex = value.GetIntegerProperty("m_nodeIndex");
-                    if (nodeIndexToIdMap?.TryGetValue(nodeIndex, out var nodeId) == true)
-                    {
-                        node.Add("m_inputConnection", MakeInputConnection(nodeId));
-                    }
-                    break;
+                    node.Add("m_inputConnection", MakeInputConnection(nodeId));
                 }
+                break;
+            }
             case PropAction.BlendDuration:
                 node.Add(destKey, ConvertBlendDuration(value));
                 break;
@@ -403,21 +403,20 @@ public class AnimationGraphExtract : IDisposable
                 node.Add(destKey, MakeBlendCurve(value));
                 break;
             case PropAction.TagIndex:
+            {
+                var tagIndex = compiledNode.GetIntegerProperty("m_nTagIndex");
+                node.Add("m_tag", MakeNodeIdObjectValue(GetTagIdFromIndex(tagIndex)));
+                if (tagIndex != -1 && !node.ContainsKey("m_selectionSource"))
                 {
-                    var tagIndex = compiledNode.GetIntegerProperty("m_nTagIndex");
-                    node.Add("m_tag", MakeNodeIdObjectValue(GetTagIdFromIndex(tagIndex)));
-                    if (tagIndex != -1 && !node.ContainsKey("m_selectionSource"))
-                    {
-                        node.Add("m_selectionSource", "SelectionSource_Tag");
-                    }
-                    break;
+                    node.Add("m_selectionSource", "SelectionSource_Tag");
                 }
+                break;
+            }
             case PropAction.TagBehavior:
                 node.Add("m_tagBehavior", value);
                 break;
         }
     }
-
 
     /// <summary>
     /// Initializes a new instance of the <see cref="AnimationGraphExtract"/> class.
@@ -909,7 +908,6 @@ public class AnimationGraphExtract : IDisposable
         return kv.ToKV3String(format: KV3IDLookup.Get("animgraph19"));
     }
 
-
     private KVObject ConvertClipDataManager(IReadOnlyList<KVObject> sequenceTagSpans)
     {
         var clipDataManager = MakeNode("CAnimClipDataManager");
@@ -1380,7 +1378,6 @@ public class AnimationGraphExtract : IDisposable
 
         return states;
     }
-
 
     private KVObject[]? CreateConditionsFromScript(long scriptIndex, int transitionIndex)
     {
@@ -2024,8 +2021,6 @@ public class AnimationGraphExtract : IDisposable
         paramCondition.Add("m_comparisonValue", comparisonValue);
         return paramCondition;
     }
-
-
 
     private KVObject HandleParameterComparison(KVObject stateStatusCondition, string paramName, string sourceValue)
     {

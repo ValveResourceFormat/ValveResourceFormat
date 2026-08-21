@@ -9,7 +9,6 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
         public Half Y { get; set; } = y;
         public Half Z { get; set; } = z;
 
-
         public static implicit operator Half3(Vector3 v) => new((Half)v.X, (Half)v.Y, (Half)v.Z);
         public static implicit operator Vector3(Half3 v) => new((float)v.X, (float)v.Y, (float)v.Z);
 

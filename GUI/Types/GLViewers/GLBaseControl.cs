@@ -1123,5 +1123,4 @@ internal abstract class GLBaseControl : IDisposable, IMessageFilter
 
         return bitmap;
     }
-
 }

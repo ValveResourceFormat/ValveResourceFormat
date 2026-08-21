@@ -307,7 +307,6 @@ namespace ValveResourceFormat.Particles
             point.Rotation = rotation;
             point.Orientation = Vector3.Transform(Vector3.UnitX, rotation);
         }
-
     }
 
     /// <summary>

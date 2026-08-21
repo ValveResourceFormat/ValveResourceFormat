@@ -135,9 +135,9 @@ namespace ValveResourceFormat.CompiledShader
 
             OutputFormatterTabulatedData tabulatedData = new(OutputWriter);
             var emptyRow = new string[] { "", "", "", "", "" };
-            tabulatedData.DefineHeaders(StaticCombo.VariablesFromStaticCombo.Fields.Length > 0 ?
-                ["segment", "", nameof(VfxVariableIndexData.Dest), nameof(VfxVariableIndexData.Control), nameof(VfxVariableIndexData.LayoutSet)] :
-                emptyRow);
+            tabulatedData.DefineHeaders(StaticCombo.VariablesFromStaticCombo.Fields.Length > 0
+                ? ["segment", "", nameof(VfxVariableIndexData.Dest), nameof(VfxVariableIndexData.Control), nameof(VfxVariableIndexData.LayoutSet)]
+                : emptyRow);
             if (StaticCombo.VariablesFromStaticCombo.Fields.Length > 0)
             {
                 tabulatedData.AddTabulatedRow(emptyRow);
@@ -244,9 +244,9 @@ namespace ValveResourceFormat.CompiledShader
                 ? StaticCombo.ShaderFiles[0].BlockName.ToLowerInvariant()
                 : "unknown";
             var sourceHeader = $"{gpuSourceName}-source";
-            string[] dConfigHeaders = isVertexShader ?
-                    ["config-id", dNamesHeader, "write-seq.", sourceHeader, "gpu-inputs", nameof(VfxStaticComboData.ConstantBufferBindInfoSlots), nameof(VfxStaticComboData.ConstantBufferBindInfoFlags), nameof(VfxShaderFile.HashMD5)] :
-                    ["config-id", dNamesHeader, "write-seq.", sourceHeader, nameof(VfxStaticComboData.ConstantBufferBindInfoSlots), nameof(VfxStaticComboData.ConstantBufferBindInfoFlags), nameof(VfxShaderFile.HashMD5)];
+            string[] dConfigHeaders = isVertexShader
+                    ? ["config-id", dNamesHeader, "write-seq.", sourceHeader, "gpu-inputs", nameof(VfxStaticComboData.ConstantBufferBindInfoSlots), nameof(VfxStaticComboData.ConstantBufferBindInfoFlags), nameof(VfxShaderFile.HashMD5)]
+                    : ["config-id", dNamesHeader, "write-seq.", sourceHeader, nameof(VfxStaticComboData.ConstantBufferBindInfoSlots), nameof(VfxStaticComboData.ConstantBufferBindInfoFlags), nameof(VfxShaderFile.HashMD5)];
             OutputFormatterTabulatedData tabulatedConfigFull = new(OutputWriter);
             tabulatedConfigFull.DefineHeaders(dConfigHeaders);
 
@@ -257,9 +257,9 @@ namespace ValveResourceFormat.CompiledShader
                 var blockIndex = StaticCombo.GetDynamicComboIndex(block.DynamicComboId);
                 if ((dBlockIndex + 1) % 100 == 0)
                 {
-                    tabulatedConfigFull.AddTabulatedRow(isVertexShader ?
-                        ["", dNamesHeader, "", "", "", "", "", ""] :
-                        ["", dNamesHeader, "", "", "", "", ""]);
+                    tabulatedConfigFull.AddTabulatedRow(isVertexShader
+                        ? ["", dNamesHeader, "", "", "", "", "", ""]
+                        : ["", dNamesHeader, "", "", "", "", ""]);
                 }
                 var configIdText = $"0x{blockId:X2}";
                 var configCombText = hasNoDConfigsDefined ? $"{"(default)",-14}" : tabbedConfigs.Pop();
@@ -280,9 +280,9 @@ namespace ValveResourceFormat.CompiledShader
                 var arg2Text = $"{StaticCombo.ConstantBufferBindInfoFlags[blockIndex]}";
                 var hash = blockSource.HashMD5.ToString();
                 tabulatedConfigFull.AddTabulatedRow(
-                    isVertexShader ?
-                    [configIdText, configCombText, writeSeqText, sourceLink, gpuInputText, arg1Text, arg2Text, hash] :
-                    [configIdText, configCombText, writeSeqText, sourceLink, arg1Text, arg2Text, hash]);
+                    isVertexShader
+                    ? [configIdText, configCombText, writeSeqText, sourceLink, gpuInputText, arg1Text, arg2Text, hash]
+                    : [configIdText, configCombText, writeSeqText, sourceLink, arg1Text, arg2Text, hash]);
             }
 
             tabulatedConfigFull.PrintTabulatedValues();

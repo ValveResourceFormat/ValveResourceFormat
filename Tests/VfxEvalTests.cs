@@ -609,7 +609,6 @@ namespace Tests
             await Assert.That(new VfxEval(testInput, omitReturnStatement: true).DynamicExpressionResult).IsEqualTo(expectedResult);
         }
 
-
         [Test]
         public async Task TestMatrixColorTint2_GrayInput()
         {

@@ -22,7 +22,6 @@ public partial class GltfModelExporter
 
     private const float OverlayNormalOffsetDistance = 0.01f / 0.0254f;
 
-
     // TODO: Using floats as hash key is kind of unhinged
     private readonly record struct ExportedMaterial(string Name, Vector4 Tint);
     private readonly record struct ExportedMaterialData(Material Material, bool IsOverlay);
@@ -171,46 +170,46 @@ public partial class GltfModelExporter
                     switch (attributeFormat.ElementCount)
                     {
                         case 1:
-                            {
-                                var buffer = VBIB.GetScalarAttributeArray(vertexBuffer, attribute);
-                                SanitizeNonFinite(buffer);
-                                var bufferView = exportedModel.CreateBufferView(4 * buffer.Length, 0, BufferMode.ARRAY_BUFFER);
-                                new ScalarArray(bufferView.Content).Fill(buffer);
-                                var accessor = exportedModel.CreateAccessor();
-                                accessor.SetVertexData(bufferView, 0, buffer.Length, AttributeFormat.Float1);
-                                accessors[accessorName] = WithSemantic(accessor);
-                                break;
-                            }
+                        {
+                            var buffer = VBIB.GetScalarAttributeArray(vertexBuffer, attribute);
+                            SanitizeNonFinite(buffer);
+                            var bufferView = exportedModel.CreateBufferView(4 * buffer.Length, 0, BufferMode.ARRAY_BUFFER);
+                            new ScalarArray(bufferView.Content).Fill(buffer);
+                            var accessor = exportedModel.CreateAccessor();
+                            accessor.SetVertexData(bufferView, 0, buffer.Length, AttributeFormat.Float1);
+                            accessors[accessorName] = WithSemantic(accessor);
+                            break;
+                        }
 
                         case 2:
-                            {
-                                var vectors = VBIB.GetVector2AttributeArray(vertexBuffer, attribute);
-                                accessors[accessorName] = WithSemantic(CreateAccessor(exportedModel, vectors));
-                                break;
-                            }
+                        {
+                            var vectors = VBIB.GetVector2AttributeArray(vertexBuffer, attribute);
+                            accessors[accessorName] = WithSemantic(CreateAccessor(exportedModel, vectors));
+                            break;
+                        }
                         case 3:
+                        {
+                            var vectors = VBIB.GetVector3AttributeArray(vertexBuffer, attribute);
+                            if (accessorName == "POSITION")
                             {
-                                var vectors = VBIB.GetVector3AttributeArray(vertexBuffer, attribute);
-                                if (accessorName == "POSITION")
-                                {
-                                    BakePositions(vectors);
-                                }
-                                accessors[accessorName] = WithSemantic(CreateAccessor(exportedModel, vectors));
-                                break;
+                                BakePositions(vectors);
                             }
+                            accessors[accessorName] = WithSemantic(CreateAccessor(exportedModel, vectors));
+                            break;
+                        }
                         case 4:
+                        {
+                            var vectors = VBIB.GetVector4AttributeArray(vertexBuffer, attribute);
+
+                            if (accessorName == "TANGENT")
                             {
-                                var vectors = VBIB.GetVector4AttributeArray(vertexBuffer, attribute);
-
-                                if (accessorName == "TANGENT")
-                                {
-                                    FixZeroLengthVectors(vectors);
-                                    BakeTangents(vectors);
-                                }
-
-                                accessors[accessorName] = WithSemantic(CreateAccessor(exportedModel, vectors));
-                                break;
+                                FixZeroLengthVectors(vectors);
+                                BakeTangents(vectors);
                             }
+
+                            accessors[accessorName] = WithSemantic(CreateAccessor(exportedModel, vectors));
+                            break;
+                        }
 
                         default:
                             throw new NotImplementedException($"Attribute \"{attribute.SemanticName}\" has {attributeFormat.ElementCount} components");

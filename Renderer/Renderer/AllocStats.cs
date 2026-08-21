@@ -470,12 +470,10 @@ public class AllocStats
 
         AddLine(displayText.Format($"Heap:     {new ByteSize(GC.GetTotalMemory(forceFullCollection: false)),10} used, {new ByteSize(info.HeapSizeBytes),10} heap, {new ByteSize(info.FragmentedBytes),10} fragmented, {new ByteSize(info.TotalCommittedBytes),10} committed"), valueColor);
 
-
         // Climbing finalization counts are GL handle wrappers (or other disposables) nobody disposed.
         AddLine(
             displayText.Format($"Objects:     {info.PinnedObjectsCount:N0} pinned, {info.FinalizationPendingCount:N0} awaiting finalization"),
             info.FinalizationPendingCount > 100 ? new Color32(255, 255, 0) : valueColor);
-
 
         var windowCollections = 0;
 

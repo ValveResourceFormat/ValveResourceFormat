@@ -95,7 +95,6 @@ internal sealed class NmGraphBuilder(KVObject graphDefinition)
             return @type;
         }
 
-
         Dictionary<int, Node> createdNodes = new(nodes.Count);
 
         Node CreateNode(string[] nodePaths, IReadOnlyList<KVObject> nodes, int nodeIdx)
@@ -144,7 +143,6 @@ internal sealed class NmGraphBuilder(KVObject graphDefinition)
             createdNodes[nodeIdx] = node;
             return node;
         }
-
 
         (Node, GraphSocket) CreateInputAndChild<ValueType>(Node parent, int nodeIdx, string? parentInputName = null, string? childOutputName = null, bool hub = false)
             where ValueType : struct
@@ -812,7 +810,6 @@ internal sealed class NmGraphBuilder(KVObject graphDefinition)
                     {
                         CreateInputAndChild<Value>(node, resetTimeValueNodeIdx, "Reset time");
                     }
-
                 }
                 else if (node.NodeType is "AnimationPose")
                 {
@@ -852,7 +849,6 @@ internal sealed class NmGraphBuilder(KVObject graphDefinition)
             {
                 ProgressReporter?.Report($"Unhandled node type: {node.NodeType} ({node.Name})");
             }
-
         }
 
         var finalPose = new Node(null)

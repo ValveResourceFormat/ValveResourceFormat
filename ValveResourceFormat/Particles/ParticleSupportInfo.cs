@@ -31,7 +31,6 @@ public static class ParticleSupportInfo
     /// </summary>
     public static bool IsConstraintSupported(string name) => ParticleControllerFactory.ConstraintDictionary.ContainsKey(name);
 
-
     /// <summary>
     /// Checks whether the given Source 2 class name is a supported pre-emission operator.
     /// </summary>

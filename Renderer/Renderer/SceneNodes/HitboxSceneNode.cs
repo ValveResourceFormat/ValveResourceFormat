@@ -16,7 +16,6 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             new(1f, 0.5f, 0.25f, 0.14f), //HITGROUP_NECK
         ];
 
-
         /// <summary>
         /// Constructs a node with a single box shape
         /// </summary>

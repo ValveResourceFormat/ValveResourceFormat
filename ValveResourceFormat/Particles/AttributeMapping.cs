@@ -80,7 +80,6 @@ namespace ValveResourceFormat.Particles
 
         private readonly PiecewiseCurve? curve;
 
-
         public AttributeMapping(ParticleDefinitionParser parse)
         {
             mapType = parse.EnumNormalized<PfMapType>("m_nMapType");
