@@ -1,18 +1,22 @@
 #version 460
 
 // One set of attributes per particle, at divisor 1: the four corners come from gl_VertexID rather than
-// from the buffer, so nothing is duplicated per corner. Its own file rather than a combo of
-// particle_spritecard, because the two attribute sets together overrun the sixteen a vertex stage has.
+// from the buffer. Its own file rather than a combo of particle_spritecard_instanced, because a trail is
+// a trapezoid with a colour and a half width per end, where a sprite card is a parallelogram with one of
+// each, and the two attribute sets together overrun the sixteen a vertex stage has.
 #define S_TEXTURE_LAYERS 0
 
-// The card's centre, with the m_flCenterXOffset/YOffset shift already folded in.
+// The centre of the ribbon, already slid along the motion axis by m_flForwardShift.
 in vec3 vPOSITION;
-in vec4 vCOLOR;
 
-// The card's axes, with the radius already folded in, so a corner is centre + right*x + up*y. The basis
-// itself is still built on the CPU; only the expansion happens here.
-in vec3 vRight;
-in vec3 vUp;
+// The head colour; the tail end of the ribbon takes vColorTail instead.
+in vec4 vCOLOR;
+in vec4 vColorTail;
+
+// The ribbon's across axis in xyz, unit length, with the head's half width in w.
+in vec4 vWidthAxis;
+// The ribbon's along axis in xyz, already scaled to half the length, with the tail's half width in w.
+in vec4 vLengthAxis;
 
 // Sheet frame rectangles as (min.xy, max.xy), for the frame this particle is on and the one after it.
 in vec4 vUvRect;
@@ -62,17 +66,22 @@ out vec4 vColor;
 out vec3 vFragPosition;
 
 void main(void) {
-    // 0 -> (-1,-1), 1 -> (-1,+1), 2 -> (+1,-1), 3 -> (+1,+1): a strip over the quad. Only the
-    // triangulation diagonal differs from the index buffer the cards used to draw through, which a
-    // planar parallelogram is indifferent to.
-    vec2 corner = (vec2(float(gl_VertexID / 2), float(gl_VertexID % 2)) * 2.0) - 1.0;
+    // 0 -> (-1,+1), 1 -> (-1,-1), 2 -> (+1,+1), 3 -> (+1,-1). The strip's shared edge, and so its
+    // triangulation diagonal, is the one the index buffer used: a trail is a trapezoid whenever its ends
+    // taper differently, and there the diagonal decides how the sheet interpolates across it.
+    vec2 corner = vec2(
+        (float(gl_VertexID / 2) * 2.0) - 1.0,
+        1.0 - (float(gl_VertexID % 2) * 2.0));
 
-    // The card coordinate the CPU used to place: u runs with the corner, v runs against it.
-    vec2 cardUv = vec2((corner.x + 1.0) * 0.5, (1.0 - corner.y) * 0.5);
+    vec2 cardUv = (corner * 0.5) + vec2(0.5);
 
-    vec3 positionWs = vPOSITION + (vRight * corner.x) + (vUp * corner.y);
+    // The head is the end the ribbon runs towards, which is where the length axis points away from
+    bool isHead = corner.y < 0.0;
 
-    vColor = vCOLOR;
+    float halfWidth = isHead ? vWidthAxis.w : vLengthAxis.w;
+    vec3 positionWs = vPOSITION + (vWidthAxis.xyz * (corner.x * halfWidth)) + (vLengthAxis.xyz * corner.y);
+
+    vColor = isHead ? vCOLOR : vColorTail;
 
     if (uGammaCorrectVertexColors)
     {
