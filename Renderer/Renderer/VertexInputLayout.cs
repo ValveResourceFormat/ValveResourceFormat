@@ -60,6 +60,15 @@ namespace ValveResourceFormat.Renderer
 
         /// <summary>Initializes a vertex format from a stride and its attributes in buffer order.</summary>
         public VertexInputLayout(int stride, params VertexAttribute[] elements)
+            : this(stride, Array.ConvertAll(elements, element => element.Name), elements)
+        {
+        }
+
+        /// <summary>Initializes a vertex format holding only some of the attributes its shader declares.</summary>
+        /// <param name="stride">Size in bytes of one vertex.</param>
+        /// <param name="declaredNames">Every attribute name the shader declares, combo-disabled ones included.</param>
+        /// <param name="elements">The attributes this buffer holds, in buffer order.</param>
+        public VertexInputLayout(int stride, string[] declaredNames, VertexAttribute[] elements)
         {
             fields = new VBIB.RenderInputLayoutField[elements.Length];
             locations = new int[elements.Length];
@@ -68,7 +77,7 @@ namespace ValveResourceFormat.Renderer
             // The declaring set decides where a custom attribute goes, so a shader declaring the same set
             // arrives at the same locations without either side naming a number
             var pinned = elements.Where(element => element.Location >= 0).ToDictionary(element => element.Name, element => element.Location, StringComparer.Ordinal);
-            var allocated = VertexAttributeLocations.Allocate(Array.ConvertAll(elements, element => element.Name), pinned);
+            var allocated = VertexAttributeLocations.Allocate(declaredNames, pinned);
             var packedOffset = 0;
             var boundLocations = 0;
 
@@ -97,7 +106,9 @@ namespace ValveResourceFormat.Renderer
         }
 
         /// <summary>Derives the format of a vertex struct from its <see cref="VertexAttributeAttribute"/> fields.</summary>
-        public static VertexInputLayout FromStruct<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicFields | DynamicallyAccessedMemberTypes.NonPublicFields)] TVertex>() where TVertex : struct
+        /// <param name="declaredNames">As the constructor taking the same, or null for the struct's own fields.</param>
+        /// <typeparam name="TVertex">The vertex struct.</typeparam>
+        public static VertexInputLayout FromStruct<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicFields | DynamicallyAccessedMemberTypes.NonPublicFields)] TVertex>(string[]? declaredNames = null) where TVertex : struct
         {
             // Offsets come from the marshalled layout, the buffer gets the managed one. They only agree
             // while the struct stays blittable and sequential.
@@ -118,7 +129,10 @@ namespace ValveResourceFormat.Renderer
                 elements.Add(new VertexAttribute(attribute.Name, format, (int)Marshal.OffsetOf<TVertex>(field.Name), attribute.Location));
             }
 
-            return new VertexInputLayout(Marshal.SizeOf<TVertex>(), [.. elements]);
+            var fields = elements.ToArray();
+
+            return new VertexInputLayout(Marshal.SizeOf<TVertex>(),
+                declaredNames ?? Array.ConvertAll(fields, element => element.Name), fields);
         }
 
         private static readonly FrozenDictionary<Type, DXGI_FORMAT> FormatByFieldType = new Dictionary<Type, DXGI_FORMAT>
@@ -140,7 +154,11 @@ namespace ValveResourceFormat.Renderer
         public VBIB.RenderInputLayoutField[] Fields() => fields;
 
         /// <summary>Creates a VAO binding one vertex buffer. An index buffer of 0 means non-indexed.</summary>
-        public int CreateVertexArray(string debugLabel, int vertexBuffer, int indexBuffer = 0)
+        /// <param name="debugLabel">Name the VAO is labelled with.</param>
+        /// <param name="vertexBuffer">Buffer every attribute reads from.</param>
+        /// <param name="indexBuffer">Index buffer, or 0 to draw non-indexed.</param>
+        /// <param name="instanceDivisor">Instances each set of attributes covers, or 0 for one set per vertex.</param>
+        public int CreateVertexArray(string debugLabel, int vertexBuffer, int indexBuffer = 0, int instanceDivisor = 0)
         {
             var vao = GraphicsDevice.CreateVertexArray(debugLabel);
             VertexArray.StartRecording(vao, Array.ConvertAll(fields, field => field.ShaderSemantic));
@@ -151,6 +169,11 @@ namespace ValveResourceFormat.Renderer
             }
 
             GL.VertexArrayVertexBuffer(vao, 0, vertexBuffer, 0, Stride);
+
+            if (instanceDivisor != 0)
+            {
+                GL.VertexArrayBindingDivisor(vao, 0, instanceDivisor);
+            }
 
             for (var i = 0; i < locations.Length; i++)
             {

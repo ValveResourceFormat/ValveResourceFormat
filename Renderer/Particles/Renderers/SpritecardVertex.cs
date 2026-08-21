@@ -3,9 +3,10 @@ using System.Runtime.InteropServices;
 namespace ValveResourceFormat.Renderer.Particles.Renderers
 {
     /// <summary>
-    /// One corner of a spritecard quad, shared by every renderer that draws through the spritecard
-    /// shader. Each texture layer past the first carries its own coordinate pair, because a layer
-    /// resolves its sheet frame against its own sequence and lands wherever its own transform puts it.
+    /// One corner of a spritecard quad, for the renderers that hand their vertices over rather than
+    /// having them generated. Each texture layer past the first carries its own coordinate pair, because
+    /// a layer resolves its sheet frame against its own sequence and lands wherever its own transform
+    /// puts it.
     /// </summary>
     [StructLayout(LayoutKind.Sequential)]
     internal struct SpritecardVertex
@@ -20,8 +21,32 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         [VertexAttribute("vLayerUv2")] public Vector4 LayerUv2;
         [VertexAttribute("vLayerUv3")] public Vector4 LayerUv3;
 
+        /// <summary>
+        /// Every attribute name <c>particle_spritecard.vert.slang</c> declares, across all of its combos.
+        /// Keep in step with that file: both sides allocate locations over the whole set.
+        /// </summary>
+        public static readonly string[] DeclaredAttributeNames =
+        [
+            VertexAttributeLocations.GetName(VertexSlot.Position),
+            VertexAttributeLocations.GetName(VertexSlot.Color),
+            VertexAttributeLocations.GetName(VertexSlot.TexCoord),
+            VertexAttributeLocations.GetName(VertexSlot.TexCoord1),
+            "vFrameBlend",
+            "vAxisU",
+            "vAxisV",
+            "vColorTail",
+            "vLayerUv0", "vLayerUv1", "vLayerUv2", "vLayerUv3",
+            "vLayerUvNext0", "vLayerUvNext1", "vLayerUvNext2", "vLayerUvNext3",
+        ];
+
+        /// <summary>Names of the per layer rectangles a generated corner reads this frame's uv from.</summary>
+        public static readonly string[] LayerUvNames = ["vLayerUv0", "vLayerUv1", "vLayerUv2", "vLayerUv3"];
+
+        /// <summary>Names of the per layer rectangles a generated corner reads the next frame's uv from.</summary>
+        public static readonly string[] LayerUvNextNames = ["vLayerUvNext0", "vLayerUvNext1", "vLayerUvNext2", "vLayerUvNext3"];
+
         /// <summary>The layout of this vertex, for creating vertex array objects.</summary>
-        public static readonly VertexInputLayout InputLayout = VertexInputLayout.FromStruct<SpritecardVertex>();
+        public static readonly VertexInputLayout InputLayout = VertexInputLayout.FromStruct<SpritecardVertex>(DeclaredAttributeNames);
 
         /// <summary>Sets the coordinates of the layer at <paramref name="layer"/> places past the first.</summary>
         public void SetLayerUv(int layer, Vector4 uvs)

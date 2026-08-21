@@ -1,3 +1,5 @@
+using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 using OpenTK.Graphics.OpenGL;
 using ValveResourceFormat.Particles;
 using ValveResourceFormat.Particles.Utils;
@@ -68,7 +70,11 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
 
             (layers, var textureName) = ParticleTextureLayer.Build(parse, rendererContext, DefaultTextureName, srgbRead: OutputIsColor);
 
-            shader = rendererContext.ShaderLoader.LoadShader(ShaderName, ("S_TEXTURE_LAYERS", (byte)(layers.Length - 1)));
+            shader = rendererContext.ShaderLoader.LoadShader(ShaderName,
+                ("S_TEXTURE_LAYERS", (byte)(layers.Length - 1)),
+                ("S_PARTICLE_INSTANCED", (byte)1));
+
+            instanceLayout = BuildInstanceLayout(layers.Length);
 
             // The same quad is reused for all particles
             vaoHandle = SetupQuadBuffer($"{nameof(RenderSprites)}: {System.IO.Path.GetFileName(textureName)}");
@@ -113,11 +119,62 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             layers[0].Texture = texture;
         }
 
+        /// <summary>One particle's attributes, in buffer order. Must match <see cref="BuildInstanceLayout"/>.</summary>
+        [StructLayout(LayoutKind.Sequential)]
+        private struct CardInstance
+        {
+            public Vector3 Origin;
+            public Vector3 AxisU;
+            public Vector3 AxisV;
+            public Vector4 Color;
+            public Vector4 UvRect;
+            public Vector4 UvRectNext;
+            public float FrameBlend;
+        }
+
+        private static readonly int BaseInstanceFloats = Unsafe.SizeOf<CardInstance>() / sizeof(float);
+
+        // Each layer past the first resolves its own sheet frame, so it carries its own pair of rects.
+        private const int LayerInstanceFloats = 8;
+
+        private readonly VertexInputLayout instanceLayout;
+
+        /// <summary>
+        /// One set of attributes per particle, the corners coming from <c>gl_VertexID</c>. Carries only
+        /// the layers this card has, but allocates locations over every name the shader declares.
+        /// </summary>
+        private static VertexInputLayout BuildInstanceLayout(int layerCount)
+        {
+            // In buffer order. The axes are three components, so the shader's unwritten w reads as the
+            // 1.0 GL fills in, which is the half width a card wants at both of its ends.
+            var elements = new List<VertexAttribute>
+            {
+                new(VertexSlot.Position, DXGI_FORMAT.R32G32B32_FLOAT),
+                new("vAxisU", DXGI_FORMAT.R32G32B32_FLOAT),
+                new("vAxisV", DXGI_FORMAT.R32G32B32_FLOAT),
+                new(VertexSlot.Color, DXGI_FORMAT.R32G32B32A32_FLOAT),
+                new(VertexSlot.TexCoord, DXGI_FORMAT.R32G32B32A32_FLOAT),
+                new(VertexSlot.TexCoord1, DXGI_FORMAT.R32G32B32A32_FLOAT),
+                new("vFrameBlend", DXGI_FORMAT.R32_FLOAT),
+            };
+
+            for (var layer = 1; layer < layerCount; layer++)
+            {
+                elements.Add(new VertexAttribute(SpritecardVertex.LayerUvNames[layer - 1], DXGI_FORMAT.R32G32B32A32_FLOAT));
+                elements.Add(new VertexAttribute(SpritecardVertex.LayerUvNextNames[layer - 1], DXGI_FORMAT.R32G32B32A32_FLOAT));
+            }
+
+            var floats = BaseInstanceFloats + (LayerInstanceFloats * (layerCount - 1));
+
+            return new VertexInputLayout(floats * sizeof(float), SpritecardVertex.DeclaredAttributeNames, elements.ToArray());
+        }
+
         private int SetupQuadBuffer(string label)
         {
             vertexBufferHandle = GraphicsDevice.CreateBuffer(label);
 
-            return SpritecardVertex.InputLayout.CreateVertexArray(label, vertexBufferHandle, rendererContext.MeshBufferCache.QuadIndices.GLHandle);
+            // No index buffer: the corners are generated, and every attribute advances once per particle
+            return instanceLayout.CreateVertexArray(label, vertexBufferHandle, indexBuffer: 0, instanceDivisor: 1);
         }
 
         private (Vector2 UvMin, Vector2 UvMax, Vector2 NextMin, Vector2 NextMax) GetLayerSheetUvs(int layer, ref Particle particle, out float frameBlend)
@@ -234,9 +291,6 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         /// <summary>Fills and uploads the quad buffer, returning the number of quads actually emitted.</summary>
         private int UpdateVertices(ParticleCollection particles, ParticleSystemState systemState, Camera camera)
         {
-            Span<ParticleTextureLayer.UvTransform> uvTransforms = stackalloc ParticleTextureLayer.UvTransform[ParticleTextureLayer.MaxLayers];
-            ParticleTextureLayer.ResolveUvTransforms(layers, systemState, uvTransforms);
-
             var modelViewMatrix = camera.CameraViewMatrix;
 
             // Create billboarding rotation (always facing camera)
@@ -265,11 +319,13 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                 && orientationType is ParticleOrientation.PARTICLE_ORIENTATION_ALIGN_TO_PARTICLE_NORMAL
                     or ParticleOrientation.PARTICLE_ORIENTATION_SCREENALIGN_TO_PARTICLE_NORMAL;
 
-            // Update vertex buffer
-            // Rented from the shared float pool so the memory is reused across renderers.
-            using (var vertexBuffer = new RentedFloatBuffer<SpritecardVertex>(particles.Count * 4))
+            // One set of attributes per particle, rented from the shared float pool so the memory is
+            // reused across renderers.
+            var instanceFloats = instanceLayout.Stride / sizeof(float);
+
+            using (var vertexBuffer = new RentedFloatBuffer<float>(particles.Count * instanceFloats))
             {
-                var vertices = vertexBuffer.Span;
+                var instances = vertexBuffer.Span;
                 var i = 0;
                 foreach (ref var particle in particles.Current)
                 {
@@ -339,58 +395,50 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                         _ => particle.GetRotationMatrix() * particle.GetTransformationMatrix(radiusScale),
                     };
 
+                    // The corner map is corner.x * row0 + corner.y * row1 + translation, so the first two
+                    // rows are already the card's axes with the radius folded in. Handing those over
+                    // replaces four Vector4.Transform calls here and three duplicate vertices.
+                    var right = new Vector3(modelMatrix.M11, modelMatrix.M12, modelMatrix.M13);
+                    var up = new Vector3(modelMatrix.M21, modelMatrix.M22, modelMatrix.M23);
+
                     // The centre offset shifts the corners before the model matrix scales them, so it is
-                    // measured in half-widths rather than world units.
-                    var tl = Vector4.Transform(new Vector4(centerOffset.X - 1, centerOffset.Y - 1, 0, 1), modelMatrix);
-                    var bl = Vector4.Transform(new Vector4(centerOffset.X - 1, centerOffset.Y + 1, 0, 1), modelMatrix);
-                    var br = Vector4.Transform(new Vector4(centerOffset.X + 1, centerOffset.Y + 1, 0, 1), modelMatrix);
-                    var tr = Vector4.Transform(new Vector4(centerOffset.X + 1, centerOffset.Y - 1, 0, 1), modelMatrix);
-
-                    // Corners in index buffer winding order: top-left, bottom-left, bottom-right, top-right.
-                    Span<Vector3> corners =
-                    [
-                        new(tl.X, tl.Y, tl.Z),
-                        new(bl.X, bl.Y, bl.Z),
-                        new(br.X, br.Y, br.Z),
-                        new(tr.X, tr.Y, tr.Z),
-                    ];
-
-                    var color = new Vector4(particle.Color * colorFade, alpha);
+                    // measured in half-widths and folds into the origin along those same two axes.
+                    var origin = new Vector3(modelMatrix.M41, modelMatrix.M42, modelMatrix.M43)
+                        + (centerOffset.X * right)
+                        + (centerOffset.Y * up);
 
                     // Each layer resolves frame rects against its own sheet, timed by the base sequence:
                     // companion sheets match the base rects, one-frame sequences pin an atlas region.
                     var (uvMin, uvMax, uvNextMin, uvNextMax) = GetLayerSheetUvs(0, ref particle, out var frameBlend);
 
-                    var quadStart = i * 4;
+                    var start = i * instanceFloats;
 
-                    for (var j = 0; j < 4; ++j)
+                    MemoryMarshal.Cast<float, CardInstance>(instances.Slice(start, BaseInstanceFloats))[0] = new CardInstance
                     {
-                        vertices[quadStart + j] = new SpritecardVertex
-                        {
-                            Position = corners[j],
-                            Color = color,
-                            UV = ParticleTextureLayer.PlaceCorner(CardUv(j), uvTransforms[0], uvMin, uvMax),
-                            UVNextFrame = ParticleTextureLayer.PlaceCorner(CardUv(j), uvTransforms[0], uvNextMin, uvNextMax),
-                            FrameBlend = frameBlend,
-                        };
-                    }
+                        Origin = origin,
+                        AxisU = right,
+                        AxisV = up,
+                        Color = new Vector4(particle.Color * colorFade, alpha),
+                        UvRect = Rect(uvMin, uvMax),
+                        UvRectNext = Rect(uvNextMin, uvNextMax),
+                        FrameBlend = frameBlend,
+                    };
+
+                    var layerRects = MemoryMarshal.Cast<float, Vector4>(
+                        instances.Slice(start + BaseInstanceFloats, instanceFloats - BaseInstanceFloats));
 
                     for (var layer = 1; layer < layers.Length; layer++)
                     {
                         var (layerMin, layerMax, layerNextMin, layerNextMax) = GetLayerSheetUvs(layer, ref particle, out _);
 
-                        for (var j = 0; j < 4; ++j)
-                        {
-                            var uv = ParticleTextureLayer.PlaceCorner(CardUv(j), uvTransforms[layer], layerMin, layerMax);
-                            var uvNext = ParticleTextureLayer.PlaceCorner(CardUv(j), uvTransforms[layer], layerNextMin, layerNextMax);
-                            vertices[quadStart + j].SetLayerUv(layer - 1, new Vector4(uv.X, uv.Y, uvNext.X, uvNext.Y));
-                        }
+                        layerRects[(layer - 1) * 2] = Rect(layerMin, layerMax);
+                        layerRects[((layer - 1) * 2) + 1] = Rect(layerNextMin, layerNextMax);
                     }
 
                     i++;
                 }
 
-                GL.NamedBufferData(vertexBufferHandle, i * 4 * SpritecardVertex.InputLayout.Stride, vertexBuffer.FloatArray, BufferUsageHint.DynamicDraw);
+                GL.NamedBufferData(vertexBufferHandle, i * instanceLayout.Stride, vertexBuffer.FloatArray, BufferUsageHint.DynamicDraw);
 
                 return i;
             }
@@ -423,6 +471,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             VertexArray.Bind(vaoHandle, shader);
 
             ParticleTextureLayer.Bind(shader, layers, systemState);
+            ParticleTextureLayer.BindUvTransforms(shader, layers, systemState);
 
             SetSharedUniforms(shader, systemState);
             shader.SetUniform1("uBlendFrames", blendFrames);
@@ -444,7 +493,9 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             shader.SetUniform1("uBlendMode", (int)blendMode);
 
             PerfStats.Active.Count(Counter.ParticleDraw);
-            GL.DrawElements(PrimitiveType.Triangles, quadCount * 6, DrawElementsType.UnsignedShort, 0);
+
+            // Four corners generated per particle, so the buffer holds no vertices at all
+            GL.DrawArraysInstanced(PrimitiveType.TriangleStrip, 0, 4, quadCount);
         }
 
         public override IEnumerable<string> GetSupportedRenderModes() => shader.RenderModes;

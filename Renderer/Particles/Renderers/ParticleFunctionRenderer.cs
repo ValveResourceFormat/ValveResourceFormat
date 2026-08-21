@@ -181,6 +181,11 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
 
         public abstract void Render(ParticleCollection particles, ParticleSystemState systemState, Camera camera);
 
+        /// <summary>A sheet frame rectangle as the shader reads it: minimum in xy, maximum in zw.</summary>
+        /// <param name="min">Lower corner.</param>
+        /// <param name="max">Upper corner.</param>
+        protected static Vector4 Rect(Vector2 min, Vector2 max) => new(min.X, min.Y, max.X, max.Y);
+
         /// <summary>
         /// The two sheet frames a particle sits between and how far it has crossed from the first to
         /// the second. Every frame is held for its own display time as a share of the sequence's total,

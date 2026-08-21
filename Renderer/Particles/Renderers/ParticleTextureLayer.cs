@@ -19,6 +19,9 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         private static readonly string[] EffectModeNames = ["uLayerEffectMode[0]", "uLayerEffectMode[1]", "uLayerEffectMode[2]", "uLayerEffectMode[3]", "uLayerEffectMode[4]"];
         private static readonly string[] DistortionNames = ["uLayerDistortion[0]", "uLayerDistortion[1]", "uLayerDistortion[2]", "uLayerDistortion[3]", "uLayerDistortion[4]"];
         private static readonly string[] ZoomScaleNames = ["uLayerZoomScale[0]", "uLayerZoomScale[1]", "uLayerZoomScale[2]", "uLayerZoomScale[3]", "uLayerZoomScale[4]"];
+        private static readonly string[] UvScaleOffsetNames = ["uLayerUvScaleOffset[0]", "uLayerUvScaleOffset[1]", "uLayerUvScaleOffset[2]", "uLayerUvScaleOffset[3]", "uLayerUvScaleOffset[4]"];
+        private static readonly string[] UvRotationNames = ["uLayerUvRotation[0]", "uLayerUvRotation[1]", "uLayerUvRotation[2]", "uLayerUvRotation[3]", "uLayerUvRotation[4]"];
+        private static readonly string[] UvClampNames = ["uLayerUvClamp[0]", "uLayerUvClamp[1]", "uLayerUvClamp[2]", "uLayerUvClamp[3]", "uLayerUvClamp[4]"];
 
         private static readonly INumberProvider One = new LiteralNumberProvider(1f);
         private static readonly INumberProvider Zero = new LiteralNumberProvider(0f);
@@ -85,6 +88,26 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             for (var layer = 0; layer < layers.Length; layer++)
             {
                 transforms[layer] = layers[layer].ResolveUvTransform(systemState);
+            }
+        }
+
+        /// <summary>
+        /// Hands the layer uv controls to the shader, for the renderers that place their corners there
+        /// rather than on the CPU. One value per layer for the whole draw, which is what lets a card send
+        /// a sheet frame rectangle per particle instead of a placed coordinate per corner.
+        /// </summary>
+        /// <param name="shader">Shader being drawn with.</param>
+        /// <param name="layers">The chain being composited.</param>
+        /// <param name="systemState">State the controls are evaluated against.</param>
+        public static void BindUvTransforms(Shader shader, ParticleTextureLayer[] layers, ParticleSystemState systemState)
+        {
+            for (var layer = 0; layer < layers.Length; layer++)
+            {
+                var transform = layers[layer].ResolveUvTransform(systemState);
+
+                shader.SetUniform4(UvScaleOffsetNames[layer], new Vector4(transform.Scale, transform.Offset.X, transform.Offset.Y));
+                shader.SetUniform1(UvRotationNames[layer], transform.Rotation);
+                shader.SetUniform1(UvClampNames[layer], transform.Clamp);
             }
         }
 
