@@ -295,6 +295,11 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         /// <summary>Fills and uploads the quad buffer, returning the number of quads actually emitted.</summary>
         private int UpdateVertices(ParticleCollection particles, ParticleSystemState systemState, Camera camera)
         {
+            // Lifted out of the per-particle loop: both are literal on most cards, and an interface
+            // call the JIT cannot prove constant would otherwise run once per particle
+            var radiusScaleInput = RadiusScale.Hoisted();
+            var alphaScaleInput = AlphaScale.Hoisted();
+
             var modelViewMatrix = camera.CameraViewMatrix;
 
             // Create billboarding rotation (always facing camera)
@@ -339,7 +344,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                 var i = 0;
                 foreach (ref var particle in particles.Current)
                 {
-                    var radiusScale = RadiusScale.NextNumber(ref particle, systemState);
+                    var radiusScale = radiusScaleInput.Next(ref particle, systemState);
 
                     // Scales rgb and alpha alike, matching the shader's fade of the whole vertex colour.
                     var colorFade = 1f;
@@ -380,7 +385,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                         radiusScale = MathF.Min(MathF.Max(radius, minSizeSlope * cameraDistance), maxSizeSlope * cameraDistance) / particle.Radius;
                     }
 
-                    var alphaScale = AlphaScale.NextNumber(ref particle, systemState);
+                    var alphaScale = alphaScaleInput.Next(ref particle, systemState);
                     var alpha = particle.Alpha * alphaScale * colorFade * alphaFade;
                     var halfWidth = particle.Radius * radiusScale;
 

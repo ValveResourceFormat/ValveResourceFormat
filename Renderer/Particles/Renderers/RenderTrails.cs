@@ -215,6 +215,15 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             // defaults of (1, 2) put the smoothstep past its own range, which is what makes it inert.
             var viewAngleFadeActive = startFadeDot < 1f && endFadeDot > startFadeDot;
 
+            // Lifted out of the per-particle loop: all six are literal on most trails, and an interface
+            // call the JIT cannot prove constant would otherwise run once per particle
+            var radiusScaleInput = RadiusScale.Hoisted();
+            var alphaScaleInput = AlphaScale.Hoisted();
+            var headRadiusTaperInput = headRadiusTaper.Hoisted();
+            var tailRadiusTaperInput = tailRadiusTaper.Hoisted();
+            var headAlphaScaleInput = headAlphaScale.Hoisted();
+            var tailAlphaScaleInput = tailAlphaScale.Hoisted();
+
             var quadCount = 0;
 
             Span<(Vector2 Min, Vector2 Max, Vector2 NextMin, Vector2 NextMax)> layerRects
@@ -257,7 +266,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                         continue;
                     }
 
-                    var particleRadius = particle.Radius * RadiusScale.NextNumber(ref particle, systemState);
+                    var particleRadius = particle.Radius * radiusScaleInput.Next(ref particle, systemState);
 
                     // Scales rgb and alpha alike, as the view angle fade below touches alpha only
                     var colorFade = 1f;
@@ -325,8 +334,8 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                     // direction runs backwards along travel here, so the shift subtracts
                     var center = position + (direction * (length * (0.5f - forwardShift)));
 
-                    var headHalfWidth = halfWidth * headRadiusTaper.NextNumber(ref particle, systemState);
-                    var tailHalfWidth = halfWidth * tailRadiusTaper.NextNumber(ref particle, systemState);
+                    var headHalfWidth = halfWidth * headRadiusTaperInput.Next(ref particle, systemState);
+                    var tailHalfWidth = halfWidth * tailRadiusTaperInput.Next(ref particle, systemState);
 
                     // The shader clamps per vertex, on the radius the CPU has already constrained and
                     // tapered, so each end is bounded against its own distance rather than the centre's
@@ -374,14 +383,14 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
 
                     var start = quadCount * instanceFloats;
                     var alpha = particle.Alpha * particle.AlphaAlternate * colorFade * alphaFade
-                        * AlphaScale.NextNumber(ref particle, systemState);
+                        * alphaScaleInput.Next(ref particle, systemState);
                     var tint = particle.Color * colorFade;
 
                     var head = Vector4.Clamp(
-                        new Vector4(tint * headColor, alpha * headAlphaScale.NextNumber(ref particle, systemState)),
+                        new Vector4(tint * headColor, alpha * headAlphaScaleInput.Next(ref particle, systemState)),
                         Vector4.Zero, Vector4.One);
                     var tail = Vector4.Clamp(
-                        new Vector4(tint * tailColor, alpha * tailAlphaScale.NextNumber(ref particle, systemState)),
+                        new Vector4(tint * tailColor, alpha * tailAlphaScaleInput.Next(ref particle, systemState)),
                         Vector4.Zero, Vector4.One);
 
                     // The ribbon spans centre +- lengthAxis * halfLength, so folding the half length into

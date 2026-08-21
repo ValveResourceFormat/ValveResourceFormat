@@ -339,12 +339,17 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             var startFadeSlope = startFadeSize.NextNumber(systemState);
             var endFadeSlope = endFadeSize.NextNumber(systemState);
 
+            // Lifted out of the per-particle loop: both are literal on most ropes, and an interface call
+            // the JIT cannot prove constant would otherwise run once per node
+            var radiusScaleInput = RadiusScale.Hoisted();
+            var alphaScaleInput = AlphaScale.Hoisted();
+
             for (var i = 0; i < count; i++)
             {
                 ref var particle = ref particleBag.Current[reverseOrder ? count - i - 1 : i];
 
-                var radius = particle.Radius * RadiusScale.NextNumber(ref particle, systemState);
-                var alpha = particle.Alpha * particle.AlphaAlternate * AlphaScale.NextNumber(ref particle, systemState);
+                var radius = particle.Radius * radiusScaleInput.Next(ref particle, systemState);
+                var alpha = particle.Alpha * particle.AlphaAlternate * alphaScaleInput.Next(ref particle, systemState);
 
                 if (enableFadingAndClamping)
                 {

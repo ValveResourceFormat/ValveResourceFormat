@@ -1,3 +1,4 @@
+using System.Runtime.CompilerServices;
 using ValveResourceFormat.Particles.Utils;
 using ValveResourceFormat.Serialization.KeyValues;
 
@@ -30,6 +31,50 @@ namespace ValveResourceFormat.Particles
         /// </summary>
         public int NextInt(ref Particle particle, ParticleSystemState renderState)
             => (int)NextNumber(ref particle, renderState);
+
+        /// <summary>
+        /// Lifts this provider out of a per-particle loop. Call it once before the loop and ask the
+        /// result for each particle.
+        /// </summary>
+        public HoistedNumber Hoisted() => new(this);
+    }
+
+    /// <summary>
+    /// A number provider lifted out of a per-particle loop. A literal one returns the same value for
+    /// every particle, and most of them are literal, so it is read once when this is built and handed
+    /// back without a call; one that genuinely varies is still asked per particle.
+    /// </summary>
+    /// <remarks>
+    /// The JIT will not do this on its own. Tiered PGO can devirtualize the call once the site proves
+    /// monomorphic, but devirtualizing is not lifting: nothing tells it the call returns the same value
+    /// every time, so it cannot hoist one out of a loop no matter how well it inlines it.
+    /// </remarks>
+    readonly struct HoistedNumber
+    {
+        // Null exactly when the value is fixed, which is what the per-particle path branches on
+        private readonly INumberProvider? varying;
+        private readonly float constant;
+
+        /// <summary>Reads <paramref name="provider"/> now if it is a literal, and keeps it if not.</summary>
+        /// <param name="provider">The provider to lift.</param>
+        public HoistedNumber(INumberProvider provider)
+        {
+            if (provider is LiteralNumberProvider literal)
+            {
+                constant = literal.Value;
+            }
+            else
+            {
+                varying = provider;
+            }
+        }
+
+        /// <summary>The value for one particle.</summary>
+        /// <param name="particle">The particle being evaluated.</param>
+        /// <param name="renderState">State the provider reads system-wide values from.</param>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public float Next(ref Particle particle, ParticleSystemState renderState)
+            => varying == null ? constant : varying.NextNumber(ref particle, renderState);
     }
 
     // Literal Number

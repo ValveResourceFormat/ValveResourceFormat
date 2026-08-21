@@ -32,14 +32,20 @@ namespace ValveResourceFormat.Particles.Operators
 
         public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemState particleSystemState, float strength)
         {
+            // Lifted out of the loop: all three are literal on most operators, and the systems here carry
+            // a few dozen particles each, so an interface call per particle is most of what this costs
+            var startScaleInput = this.startScale.Hoisted();
+            var endScaleInput = this.endScale.Hoisted();
+            var biasInput = bias.Hoisted();
+
             foreach (ref var particle in particles.Current)
             {
                 var time = particle.NormalizedAge;
 
                 if (time >= startTime && time <= endTime)
                 {
-                    var startScale = this.startScale.NextNumber(ref particle, particleSystemState);
-                    var endScale = this.endScale.NextNumber(ref particle, particleSystemState);
+                    var startScale = startScaleInput.Next(ref particle, particleSystemState);
+                    var endScale = endScaleInput.Next(ref particle, particleSystemState);
 
                     var timeScale = MathUtils.Remap(time, startTime, endTime);
 
@@ -48,7 +54,15 @@ namespace ValveResourceFormat.Particles.Operators
                         timeScale = timeScale * timeScale * (3 - 2 * timeScale); // smoothstep
                     }
 
-                    timeScale = MathF.Pow(timeScale, 1.0f - bias.NextNumber(ref particle, particleSystemState)); // apply bias to timescale
+                    // An unbiased operator raises the time scale to the first power, and Pow(x, 1) is x
+                    // for every x this can produce. Skipping it drops a transcendental per particle from
+                    // the default case, which the hoisted bias is what makes visible.
+                    var exponent = 1.0f - biasInput.Next(ref particle, particleSystemState);
+
+                    if (exponent != 1.0f)
+                    {
+                        timeScale = MathF.Pow(timeScale, exponent);
+                    }
                     var radiusScale = float.Lerp(startScale, endScale, timeScale);
 
                     particle.Radius = particle.GetInitialScalar(particles, ParticleField.Radius) * radiusScale;

@@ -32,10 +32,15 @@ namespace ValveResourceFormat.Particles.Operators
         }
         public override void Operate(ParticleCollection particles, float frameTime, ParticleSystemState particleSystemState, float strength)
         {
+            // Lifted out of the loop: both are literal on most operators, and the systems here carry a
+            // few dozen particles each, so an interface call per particle is most of what this costs
+            var valueInput = this.value.Hoisted();
+            var lerpInput = this.lerp.Hoisted();
+
             foreach (ref var particle in particles.Current)
             {
-                var value = this.value.NextNumber(ref particle, particleSystemState);
-                var lerp = MathUtils.Saturate(this.lerp.NextNumber(ref particle, particleSystemState));
+                var value = valueInput.Next(ref particle, particleSystemState);
+                var lerp = MathUtils.Saturate(lerpInput.Next(ref particle, particleSystemState));
 
                 // Angles are authored in degrees and stored in radians, as in InitFloat. The scaling
                 // set methods take a unitless multiplier, not an angle, so they are left alone.
