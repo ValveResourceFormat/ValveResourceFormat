@@ -230,7 +230,7 @@ public class ViewmodelSceneNode : ModelSceneNode
         {
             if (ItemAnimations.TryGetValue(SelectedItemIndex, out var anim))
             {
-                return "animation/anims/viewmodel/" + State switch
+                return ViewmodelAnimPath + State switch
                 {
                     AnimationState.Idle => anim.Idle,
                     AnimationState.Draw => anim.Draw,
@@ -359,13 +359,16 @@ public class ViewmodelSceneNode : ModelSceneNode
 
     internal const string WorldLayerName = "Internal - First Person Model";
     internal const string ViewmodelLayerName = "Internal - First Person Viewmodel";
+    private const string ViewmodelAnimPath = "animation/anims/viewmodel/";
     private const string BreathingClip = "animation/anims/world/shared/breathing.vnmclip";
     private const string LandedClip = "animation/anims/world/shared/jump_additive_land.vnmclip";
     private const string MuzzleFlashAttachment = "muzzle_flash2";
 
     internal ViewmodelSceneNode(Scene scene, Model model)
-        : base(scene, model)
+        : base(scene, model, isWorldPreview: true)
     {
+        LoadItemAnimations();
+
         AnimationController.EnableFirstPersonConstraints = true;
         SetState(AnimationState.Idle);
         TargetTransform = Transform;
@@ -380,7 +383,7 @@ public class ViewmodelSceneNode : ModelSceneNode
 
         Scene.Add(PrimarySkeletonDebug, true);
 
-        Legs = new ModelSceneNode(Scene, model)
+        Legs = new ModelSceneNode(Scene, model, isWorldPreview: true)
         {
             LayerName = WorldLayerName,
             Flags = ObjectTypeFlags.DisableVisCulling,
@@ -415,6 +418,7 @@ public class ViewmodelSceneNode : ModelSceneNode
                 foreach (var heading in Enum.GetValues<Heading>())
                 {
                     var clip = GetThirdpersonAnim(posture, movement, heading);
+                    Legs.LoadAnimationClip(clip);
                     Legs.SetAnimationByName(clip, -1);
                     Legs.AnimationController.SetAnimationProperties(clip, 0f, looping: movement is not MovementState.Jumping
                                                                                                 and not MovementState.InAir
@@ -428,6 +432,8 @@ public class ViewmodelSceneNode : ModelSceneNode
             }
         }
 
+        Legs.LoadAnimationClip(LandedClip);
+        Legs.LoadAnimationClip(BreathingClip);
         Legs.SetAnimationByName(LandedClip, -1);
         Legs.SetAnimationByName(BreathingClip, -1);
 
@@ -474,6 +480,22 @@ public class ViewmodelSceneNode : ModelSceneNode
             "knife/knife_karambit/light_miss2_karambit.vnmclip"
         ),
     };
+
+    private void LoadItemAnimations()
+    {
+        foreach (var (_, anim) in ItemAnimations)
+        {
+            string?[] clips = [anim.Idle, anim.Draw, anim.LookAt, anim.Attack, anim.AltAttack, anim.Attack2, anim.AltAttack2];
+
+            foreach (var clip in clips)
+            {
+                if (clip != null)
+                {
+                    LoadAnimationClip(ViewmodelAnimPath + clip);
+                }
+            }
+        }
+    }
 
     private void AddItem(Model item)
     {

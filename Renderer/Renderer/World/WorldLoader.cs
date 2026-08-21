@@ -194,7 +194,12 @@ namespace ValveResourceFormat.Renderer.World
                     {
                         Parallel.ForEach(refs, extRef =>
                         {
-                            PreloadResource(extRef.Name);
+                            var referenced = PreloadResource(extRef.Name);
+
+                            if (referenced is { ResourceType: ResourceType.ResourceManifest, ExternalReferences.ResourceRefInfoList: var manifestRefs })
+                            {
+                                Parallel.ForEach(manifestRefs, manifestRef => PreloadResource(manifestRef.Name));
+                            }
                         });
                     }
 

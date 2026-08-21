@@ -428,6 +428,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             var anim = new ClipAnimation(clip);
             Animations[anim.Name] = anim;
             AnimationPlayer.PrewarmAnimationSounds(anim);
+            SetupBoneMatrixBuffers();
         }
 
         /// <summary>
@@ -440,6 +441,11 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             if (!clipName.EndsWith(".vnmclip", StringComparison.OrdinalIgnoreCase))
             {
                 throw new ArgumentException($"Clip must be a {ResourceType.NmClip} resource.", nameof(clipName));
+            }
+
+            if (Animations.ContainsKey(clipName))
+            {
+                return true;
             }
 
             var clipResource = Scene.RendererContext.FileLoader.LoadFileCompiled(clipName);
