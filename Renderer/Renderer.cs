@@ -834,6 +834,9 @@ public class Renderer
 
                 LightTilesOverlay.Render(Scene.LightBinner.CullBits, tileBase, words);
             }
+
+            Scene.LightBinner.SubmitVisibilityReadback();
+            SkyboxScene?.LightBinner.SubmitVisibilityReadback();
         }
         else
         {

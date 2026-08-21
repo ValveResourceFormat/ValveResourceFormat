@@ -67,6 +67,8 @@ public sealed class LightBinner(Scene scene) : IDisposable
     /// so one it missed can be told apart from one it found dark.</summary>
     public int VisibilitySequence { get; private set; }
 
+    private bool visibilityReadbackPending;
+
     /// <summary>Gets the buffer holding this scene's per tile and per depth bin masks.</summary>
     public StorageBuffer? CullBits { get; private set; }
 
@@ -264,13 +266,20 @@ public sealed class LightBinner(Scene scene) : IDisposable
 
         GL.MemoryBarrier(MemoryBarrierFlags.ShaderStorageBarrierBit);
 
-        SubmitVisibilityReadback();
+        visibilityReadbackPending = true;
     }
 
     /// <summary>Reduces this frame's barn light tile masks to one screen wide mask and queues it for
     /// readback. Skipped while every ring slot is in flight, so a stalled reader queues nothing.</summary>
-    private void SubmitVisibilityReadback()
+    public void SubmitVisibilityReadback()
     {
+        if (!visibilityReadbackPending)
+        {
+            return;
+        }
+
+        visibilityReadbackPending = false;
+
         var faces = scene.LightingInfo.BinnedBarnLightFaces;
         var words = (int)Constants.LightCullWords;
 

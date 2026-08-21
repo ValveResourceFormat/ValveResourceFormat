@@ -615,6 +615,11 @@ namespace GUI.Types.GLViewers
             Renderer.PostprocessRender(MainFramebuffer, GLDefaultFramebuffer);
         }
 
+        protected override void OnBufferSwapped(double blockedMs, double framePeriodMs)
+        {
+            Renderer.PerfStats.Timings.SetBufferSwapTime(blockedMs, framePeriodMs);
+        }
+
         protected override void OnPaint(float frameTime)
         {
             Debug.Assert(MainFramebuffer != null);

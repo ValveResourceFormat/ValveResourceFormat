@@ -85,6 +85,7 @@ internal abstract class GLBaseControl : IDisposable, IMessageFilter
 
     private bool FirstPaint = true;
     public long LastUpdate { get; protected set; }
+    private long lastSwapTimestamp;
     public bool Paused = true;
 
     /// <summary>
@@ -947,6 +948,9 @@ internal abstract class GLBaseControl : IDisposable, IMessageFilter
         OnGLLoad();
     }
 
+    /// <summary>Reports how long the buffer swap blocked the render thread.</summary>
+    protected virtual void OnBufferSwapped(double blockedMs, double framePeriodMs) { }
+
     protected virtual void OnGLLoad()
     {
         //
@@ -1053,7 +1057,17 @@ internal abstract class GLBaseControl : IDisposable, IMessageFilter
 
         OnPaint(frameTime);
 
+        var swapStart = Stopwatch.GetTimestamp();
         GLNativeWindow.Context.SwapBuffers();
+        var swapEnd = Stopwatch.GetTimestamp();
+
+        var framePeriodMs = isPaused || resumingRender || lastSwapTimestamp == 0
+            ? 0.0
+            : Stopwatch.GetElapsedTime(lastSwapTimestamp, swapEnd).TotalMilliseconds;
+
+        OnBufferSwapped(Stopwatch.GetElapsedTime(swapStart, swapEnd).TotalMilliseconds, framePeriodMs);
+
+        lastSwapTimestamp = swapEnd;
 
         GraphicsContext.End();
 
