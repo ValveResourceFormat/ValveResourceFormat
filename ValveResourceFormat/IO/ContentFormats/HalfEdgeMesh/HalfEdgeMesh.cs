@@ -407,6 +407,72 @@ public partial class HalfEdgeMesh
     }
 
     /// <summary>
+    /// Copies a set of faces of another mesh into this one, together with their half edges (boundary twins
+    /// included) and vertices, reporting the handle each source component landed on. The faces should form
+    /// whole islands: a half edge whose twin's face is not in the set becomes a boundary edge.
+    /// </summary>
+    public void AppendComponentsFromMesh(HalfEdgeMesh sourceMesh,
+        IReadOnlyCollection<FaceHandle> faces,
+        out Dictionary<VertexHandle, VertexHandle> newVertices,
+        out Dictionary<HalfEdgeHandle, HalfEdgeHandle> newHalfEdges,
+        out Dictionary<FaceHandle, FaceHandle> newFaces)
+    {
+        newVertices = new();
+        newHalfEdges = new();
+        newFaces = new();
+
+        foreach (var hFace in faces)
+        {
+            newFaces.Add(hFace, AllocateFace(Face.Invalid));
+        }
+
+        // half edges of the faces and their twins, allocated in pairs so twins stay adjacent, vertices as met
+        foreach (var hFace in faces)
+        {
+            var hEdge = hFace.Edge;
+            do
+            {
+                if (!newHalfEdges.ContainsKey(hEdge))
+                {
+                    var hOpposite = hEdge.OppositeEdge;
+                    var hNewEdge = AllocateHalfEdge(HalfEdge.Invalid);
+                    var hNewOpposite = AllocateHalfEdge(HalfEdge.Invalid);
+                    newHalfEdges.Add(hEdge, hNewEdge);
+                    newHalfEdges.Add(hOpposite, hNewOpposite);
+                }
+
+                if (!newVertices.ContainsKey(hEdge.Vertex))
+                {
+                    newVertices.Add(hEdge.Vertex, AllocateVertex(Vertex.Invalid));
+                }
+
+                hEdge = hEdge.NextEdge;
+            }
+            while (hEdge != hFace.Edge);
+        }
+
+        // with whole islands every edge at a copied vertex, every twin and every next edge (boundary loops
+        // included) is in the set, so the links map one to one
+        foreach (var (hVertex, hNewVertex) in newVertices)
+        {
+            hNewVertex.Edge = newHalfEdges[hVertex.Edge];
+        }
+
+        foreach (var (hFace, hNewFace) in newFaces)
+        {
+            hNewFace.Edge = newHalfEdges[hFace.Edge];
+        }
+
+        foreach (var (hHalfEdge, hNewHalfEdge) in newHalfEdges)
+        {
+            hNewHalfEdge.Vertex = newVertices[hHalfEdge.Vertex];
+            hNewHalfEdge.OppositeEdge = newHalfEdges[hHalfEdge.OppositeEdge];
+            hNewHalfEdge.NextEdge = newHalfEdges[hHalfEdge.NextEdge];
+            hNewHalfEdge.Face = newFaces.TryGetValue(hHalfEdge.Face, out var hFace) ? hFace : FaceHandle.Invalid;
+        }
+    }
+
+    /// <summary>
     /// Adds several vertices that border no edge yet.
     /// </summary>
     /// <param name="count">How many vertices to add.</param>
@@ -969,6 +1035,1467 @@ public partial class HalfEdgeMesh
 
         hOutFace = hFaceA;
         return true;
+    }
+
+    /// <summary>
+    /// Returns whichever half of a full edge borders no face, or an invalid handle when both sides have a face.
+    /// </summary>
+    public static HalfEdgeHandle GetOpenHalfEdgeFromFullEdge(HalfEdgeHandle hEdge)
+    {
+        if (!hEdge.IsValid)
+            return HalfEdgeHandle.Invalid;
+
+        if (hEdge.Face == FaceHandle.Invalid)
+            return hEdge;
+
+        var hOpposite = hEdge.OppositeEdge;
+        if (hOpposite.Face == FaceHandle.Invalid)
+            return hOpposite;
+
+        return HalfEdgeHandle.Invalid;
+    }
+
+
+    private void DetachEdgeFromVertex(HalfEdgeHandle hEdge, bool bRemoveFreeVerts)
+    {
+        if (!hEdge.IsValid)
+            return;
+
+        if (hEdge.Vertex == VertexHandle.Invalid)
+            return;
+
+        // Get the opposite edge and the vertex from which the edge originates
+        var hOppositeEdge = hEdge.OppositeEdge;
+        var hVertex = hOppositeEdge.Vertex;
+
+        // Determine if the this is the only edge attached to the vertex. If not remove the 
+        // edge from the loop of edges going around the vertex, otherwise update the vertex 
+        // edge reference and remove the vertex if remove free vertices is specified.
+        if (hOppositeEdge.NextEdge != hEdge)
+        {
+            var hPreviousEdge = FindPreviousEdgeInVertexLoop(hEdge);
+            Debug.Assert(hPreviousEdge.OppositeEdge.NextEdge == hEdge);
+
+            var hPrevOpp = hPreviousEdge.OppositeEdge;
+            hPrevOpp.NextEdge = hOppositeEdge.NextEdge;
+
+            // Update the edge the vertex refers to to ensure 
+            // it is not still referring to the that was detached.
+            hVertex.Edge = hOppositeEdge.NextEdge;
+
+            // Now make the opposite edge loop back
+            hOppositeEdge.NextEdge = hEdge;
+        }
+        else
+        {
+            Debug.Assert(ComputeNumEdgesConnectedToVertex(hVertex) == 1);
+
+            // If this is the only edge connected to the
+            // vertex, the vertex should refer to it.
+            Debug.Assert((hVertex.Edge == hEdge) || hVertex.Edge == HalfEdgeHandle.Invalid);
+
+            // Set the vertex as being disconnected
+            hVertex.Edge = HalfEdgeHandle.Invalid;
+
+            // Remove the vertex from the mesh entirely if remove free vertices is true
+            if (bRemoveFreeVerts)
+            {
+                RemoveVertex(hVertex, bRemoveFreeVerts);
+            }
+        }
+    }
+
+    private struct FaceEdgePair
+    {
+        public FaceHandle Face;
+        public HalfEdgeHandle IncomingEdge;
+        public HalfEdgeHandle OutgoingEdge;
+    };
+
+    /// <summary>
+    /// Removes a vertex, merging the edges that met at it; triangles it was part of are removed. Optionally removes vertices left without edges.
+    /// </summary>
+    public bool RemoveVertex(VertexHandle hVertex, bool bRemoveFreeVerts)
+    {
+        if (!hVertex.IsValid)
+            return false;
+
+        var bValidEdge = hVertex.Edge != HalfEdgeHandle.Invalid;
+
+        if (bValidEdge)
+        {
+            // Count the number of edges emanating from the vertex
+            var nVertexNumEdges = 0;
+            var hCurrentEdge = hVertex.Edge;
+            HalfEdgeHandle hPreviousAdjEdge;
+            do
+            {
+                ++nVertexNumEdges;
+                hPreviousAdjEdge = hCurrentEdge.OppositeEdge;
+                hCurrentEdge = hPreviousAdjEdge.NextEdge;
+            }
+            while (hCurrentEdge != hVertex.Edge);
+
+            // Build a list of the pairs of edges going in and out of 
+            // the specified vertex for each face connected to the vertex.
+            var pFaceEdgePairs = new FaceEdgePair[nVertexNumEdges];
+            var nNumPairs = 0;
+
+            hCurrentEdge = hVertex.Edge;
+            do
+            {
+                Debug.Assert(hPreviousAdjEdge.Vertex == hVertex);
+                Debug.Assert(hPreviousAdjEdge.NextEdge == hCurrentEdge);
+                Debug.Assert(hPreviousAdjEdge.Face == hCurrentEdge.Face);
+
+                if (hCurrentEdge.Face != FaceHandle.Invalid)
+                {
+                    var faceEdgePair = pFaceEdgePairs[nNumPairs];
+                    faceEdgePair.Face = hCurrentEdge.Face;
+                    faceEdgePair.IncomingEdge = hPreviousAdjEdge;
+                    faceEdgePair.OutgoingEdge = hCurrentEdge;
+                    pFaceEdgePairs[nNumPairs] = faceEdgePair;
+                    nNumPairs++;
+                }
+
+                hPreviousAdjEdge = hCurrentEdge.OppositeEdge;
+                hCurrentEdge = hPreviousAdjEdge.NextEdge;
+            }
+            while (hCurrentEdge != hVertex.Edge);
+
+            Debug.Assert(nNumPairs <= nVertexNumEdges);
+
+            // If the face is a triangle removing the vertex would leave
+            // it in an invalid state, so the whole face should be removed.
+            for (var iPair = 0; iPair < nNumPairs; ++iPair)
+            {
+                var pair = pFaceEdgePairs[iPair];
+
+                if (pair.OutgoingEdge.NextEdge.NextEdge == pair.IncomingEdge)
+                {
+                    RemoveFace(pair.Face, bRemoveFreeVerts);
+                    pair.Face = FaceHandle.Invalid;
+                    pFaceEdgePairs[iPair] = pair;
+                }
+            }
+
+            // Replace the incoming and outgoing edges of the vertex with a 
+            // single edge connecting the proceeding and following vertices. 
+            for (var iPair = 0; iPair < nNumPairs; ++iPair)
+            {
+                var pair = pFaceEdgePairs[iPair];
+
+                if (pair.Face != FaceHandle.Invalid)
+                {
+                    if (ReplaceFaceEdges(pair.Face, pair.IncomingEdge, pair.OutgoingEdge, bRemoveFreeVerts) == false)
+                    {
+                        RemoveFace(pair.Face, bRemoveFreeVerts);
+                        pair.Face = FaceHandle.Invalid;
+                        pFaceEdgePairs[iPair] = pair;
+                    }
+                }
+            }
+        }
+
+        // If remove free vertices was specified, this vertex will
+        // already have been removed if it was connected to anything.
+        if (!bValidEdge || !bRemoveFreeVerts)
+        {
+            FreeVertex(hVertex);
+        }
+
+        return true;
+    }
+
+    private bool ReplaceFaceEdges(FaceHandle hFace, HalfEdgeHandle hIncomingEdge, HalfEdgeHandle hOutgoingEdge, bool bRemoveFreeVerts)
+    {
+        Debug.Assert(hFace.IsValid && hIncomingEdge.IsValid && hOutgoingEdge.IsValid);
+        if (!hFace.IsValid || !hIncomingEdge.IsValid || !hOutgoingEdge.IsValid)
+            return false;
+
+        // Both edges must belong to the face
+        Debug.Assert((hIncomingEdge.Face == hFace) && (hOutgoingEdge.Face == hFace));
+        if ((hIncomingEdge.Face != hFace) || (hOutgoingEdge.Face != hFace))
+            return false;
+
+        // The outgoing edge must be the next edge in the loop from the incoming edge.
+        Debug.Assert(hIncomingEdge.NextEdge == hOutgoingEdge);
+        if (hIncomingEdge.NextEdge != hOutgoingEdge)
+            return false;
+
+        // Count the number of edges the face has, it must have more than 3 edges
+        var nFaceNumEdges = ComputeNumEdgesInFace(hFace);
+        Debug.Assert(nFaceNumEdges > 3);
+        if (nFaceNumEdges <= 3)
+            return false;
+
+        var hIncomingOppositeEdge = hIncomingEdge.OppositeEdge;
+
+        // The new edge must connect two different valid vertices
+        var hVertexA = hIncomingOppositeEdge.Vertex;
+        var hVertexB = hOutgoingEdge.Vertex;
+        Debug.Assert(hVertexA.IsValid && hVertexB.IsValid && (hVertexA != hVertexB));
+        if (!hVertexA.IsValid || !hVertexB.IsValid || (hVertexA == hVertexB))
+            return false;
+
+        // Build a list of all of the edges in the face excluding the ones that are going to be removed.
+        var pEdgeList = new HalfEdgeHandle[nFaceNumEdges];
+        int nNumEdges = 0;
+        var hCurrentEdge = hOutgoingEdge.NextEdge;
+        do
+        {
+            pEdgeList[nNumEdges++] = hCurrentEdge;
+            hCurrentEdge = hCurrentEdge.NextEdge;
+        }
+        while (hCurrentEdge != hIncomingEdge);
+        Debug.Assert(nNumEdges == (nFaceNumEdges - 2));
+
+        // Check to see if there is already a connecting edge. This can happen in the case where the 
+        // edges are part of an open triangle loop or in the case where both the incoming and outgoing 
+        // edges are internal to the face (both half edges of the pair reference the same face) when 
+        // replacing the second face edge pair.
+        var hConnectingEdge = FindHalfEdgeConnectingVertices(hVertexA, hVertexB);
+        if (hConnectingEdge.IsValid)
+        {
+            // If both the incoming and outgoing edges both have a face attached this should be the case
+            // where the edges are part of a triangle loop. If so the next edge of opposite edge of the
+            // incoming edge should be the connecting edge and the next edge of the connecting should be
+            // the opposite edge of the outgoing edge. This may occur if there is a face attached to one
+            // or both to the vertices and is inside what appeared to be an triangle loop, making it not
+            // actually a triangle loop.
+            if ((hIncomingEdge.Face != FaceHandle.Invalid) &&
+                 (hOutgoingEdge.Face != FaceHandle.Invalid))
+            {
+                if (hIncomingEdge.OppositeEdge.NextEdge != hConnectingEdge)
+                    return false;
+
+                if (hConnectingEdge.NextEdge != hOutgoingEdge.OppositeEdge)
+                    return false;
+            }
+        }
+
+        hIncomingEdge.Face = FaceHandle.Invalid;
+        hOutgoingEdge.Face = FaceHandle.Invalid;
+
+        if (hConnectingEdge.IsValid)
+        {
+            // Copy the data from the face vertex at the end of the outgoing edge to the face vertex at
+            // the end of the connecting edge, since that is the vertex replacing the vertex at the end
+            // of the outgoing edge.
+            CopyFaceVertexData(hConnectingEdge, hOutgoingEdge);
+        }
+        else
+        {
+            // If an existing connecting edge was not found, construct a new edge which 
+            // will replace the two removed edges and connect vertex a to vertex b.
+            pEdgeList[nNumEdges++] = ConstructHalfEdgePair(hVertexA, hVertexB, hOutgoingEdge.Index, hIncomingEdge.OppositeEdge.Index);
+            Debug.Assert(nNumEdges == (nFaceNumEdges - 1));
+        }
+
+        if (hIncomingEdge.OppositeEdge.Face == FaceHandle.Invalid)
+        {
+            RemoveHalfEdgePair(hIncomingEdge, bRemoveFreeVerts);
+        }
+        else
+        {
+            ClearEdgeData(hIncomingEdge);
+        }
+
+        if (hOutgoingEdge.OppositeEdge.Face == FaceHandle.Invalid)
+        {
+            RemoveHalfEdgePair(hOutgoingEdge, bRemoveFreeVerts);
+        }
+        else
+        {
+            ClearEdgeData(hOutgoingEdge);
+        }
+
+        if (hConnectingEdge.IsValid)
+        {
+            hConnectingEdge.Face = hFace;
+            hFace.Edge = hConnectingEdge;
+        }
+        else
+        {
+            // Detach all of the remaining edges from the face.
+            for (var iEdge = 0; iEdge < (nNumEdges - 1); ++iEdge)
+            {
+                var hEdge = pEdgeList[iEdge];
+                hEdge.Face = FaceHandle.Invalid;
+
+                if (hEdge.OppositeEdge.Face == FaceHandle.Invalid)
+                {
+                    DetachEdgeFromVertex(pEdgeList[iEdge], false);
+                    DetachEdgeFromVertex(hEdge.OppositeEdge, false);
+                }
+            }
+
+            hFace.Edge = HalfEdgeHandle.Invalid;
+
+            // Attach all the edges to the face
+            AttachEdgesToFace(hFace, pEdgeList, nNumEdges);
+
+            for (var iEdge = 0; iEdge < (nNumEdges - 1); ++iEdge)
+            {
+                var hEdge = pEdgeList[iEdge];
+                if (hEdge.OppositeEdge.Face == FaceHandle.Invalid)
+                {
+                    ClearEdgeData(hEdge.OppositeEdge);
+                }
+            }
+        }
+
+        // Remove any edges which are now loose edges in the face
+        RemoveLooseEdgesInFace(hFace);
+
+        return true;
+    }
+
+    /// <summary>
+    /// Removes an edge and the faces attached to it. Optionally removes vertices left without edges.
+    /// </summary>
+    public bool RemoveEdge(HalfEdgeHandle hFullEdge, bool bRemoveFreeVerts)
+    {
+        return RemoveHalfEdgePair(hFullEdge, bRemoveFreeVerts);
+    }
+
+
+    private void CopyFaceVertexData(HalfEdgeHandle hDstHalfEdge, HalfEdgeHandle hSrcHalfEdge)
+    {
+        if (!hDstHalfEdge.IsValid)
+            return;
+
+        if (!hSrcHalfEdge.IsValid)
+            return;
+
+        OnCopyFaceVertexData?.Invoke(hDstHalfEdge, hSrcHalfEdge);
+    }
+
+    /// <summary>
+    /// Removes a face and the edges only it used. Optionally removes vertices left without edges.
+    /// </summary>
+    public bool RemoveFace(FaceHandle hFace, bool bRemoveFreeVerts)
+    {
+        if (!hFace.IsValid)
+            return false;
+
+        var hFirstEdge = hFace.Edge;
+        if (hFirstEdge.IsValid && (hFirstEdge.Face == hFace))
+        {
+            // Count the number of edges around polygon
+            var nNumEdges = 0;
+            var hEdge = hFace.Edge;
+            do
+            {
+                hEdge = hEdge.NextEdge;
+                ++nNumEdges;
+            }
+            while (hEdge != hFace.Edge);
+
+            // Build the list of edges
+            var pEdgeList = new HalfEdgeHandle[nNumEdges];
+            var nEdge = 0;
+            hEdge = hFace.Edge;
+            do
+            {
+                pEdgeList[nEdge++] = hEdge;
+                hEdge = hEdge.NextEdge;
+            }
+            while (hEdge != hFace.Edge);
+            Debug.Assert(nEdge == nNumEdges);
+
+            // Walk all of the edges of polygon, if an edge is only attached to the face being removed 
+            // (its opposite edge is not attached to a face) the edge should be removed.
+            for (var iEdge = 0; iEdge < nNumEdges; ++iEdge)
+            {
+                var hCurrentEdge = pEdgeList[iEdge];
+
+                // Remove the edge's reference to this face.
+                hCurrentEdge.Face = FaceHandle.Invalid;
+
+                // If the opposite edge is open remove the edge since after removing this face it would no 
+                // longer meet the requirement of all half edge pairs being attached to at least one face.
+                // Note that if there is an interior edge it will appear in the list twice, once for 
+                // each half edge, the first time it will remove the face from the half edge resulting in
+                // it being removed when the second half edge is encountered.
+                var hOppositeEdge = hCurrentEdge.OppositeEdge;
+                if (hOppositeEdge.Face == FaceHandle.Invalid)
+                {
+                    RemoveHalfEdgePair(hCurrentEdge.OppositeEdge, bRemoveFreeVerts);
+                }
+            }
+        }
+
+        FreeFace(hFace);
+
+        return true;
+    }
+
+    private bool RemoveHalfEdgePair(HalfEdgeHandle hEdge, bool bRemoveFreeVerts)
+    {
+        if (!hEdge.IsValid)
+            return false;
+
+        var hAdjEdge = hEdge.OppositeEdge;
+        var hOppositeEdge = hAdjEdge;
+
+        // Determine if the edge is a loose edge, in this case the face connected to the edge should not
+        // be removed, but needs to be updated so that it doesn't refer to the edge once it is removed.
+        var bLooseEdge = IsLooseEdge(GetFullEdgeForHalfEdge(hEdge));
+
+        if ((hEdge.Face.IsValid || hOppositeEdge.Face.IsValid) && (bLooseEdge == false))
+        {
+            // Remove the faces attached to the edge and its opposite edge. Note this will
+            // result in RemoveFace() calling RemoveEdge when no more faces are attached 
+            // to the edge, so we don't actually remove the edge directly here.
+            var hFace = hEdge.Face;
+            var hAdjFace = hOppositeEdge.Face;
+            RemoveFace(hFace, bRemoveFreeVerts);
+            RemoveFace(hAdjFace, bRemoveFreeVerts);
+
+            // Note: It is possible that the edge is corrupt and the face it refers to does not refer 
+            // to it, in this case the edge may not have been removed along with the face, so free the
+            // edge here if it is still in the mesh.
+            RemoveHalfEdgePair(hEdge, bRemoveFreeVerts);
+        }
+        else
+        {
+            // If the edge is a loose edge which is connected to a face which will not be
+            // removed make sure that face is not referring to this edge or its opposite edge
+            var hFace = hEdge.Face;
+            if (bLooseEdge && hFace.IsValid)
+            {
+                var hNextFaceEdge = hFace.Edge;
+                while ((hNextFaceEdge == hEdge) || (hNextFaceEdge == hAdjEdge))
+                {
+                    hNextFaceEdge = hNextFaceEdge.NextEdge;
+
+                    // If we have come full circle there and not found an edge which is not going
+                    // to be removed stop. This means the face is invalid and should be removed.
+                    if (hNextFaceEdge == hFace.Edge)
+                    {
+                        hNextFaceEdge = HalfEdgeHandle.Invalid;
+                        break;
+                    }
+                }
+
+                hFace.Edge = hNextFaceEdge;
+
+                Debug.Assert(hFace.Edge != hEdge);
+                Debug.Assert(hFace.Edge != hAdjEdge);
+
+                if (hFace.Edge == HalfEdgeHandle.Invalid)
+                {
+                    RemoveFace(hEdge.Face, false);
+                }
+            }
+
+            // Detach the edge and its opposite edge from the vertices they originate from.
+            DetachEdgeFromVertex(hEdge, bRemoveFreeVerts);
+            DetachEdgeFromVertex(hEdge.OppositeEdge, bRemoveFreeVerts);
+
+            // Remove the edge and its opposite edge from the mesh. 
+            // Note pEdge is invalid as soon as hEdge is removed
+            FreeHalfEdgePair(hEdge);
+        }
+
+        return true;
+    }
+
+    private bool IsLooseEdge(HalfEdgeHandle hFullEdge)
+    {
+        GetHalfEdgesConnectedToFullEdge(hFullEdge, out var hHalfEdgeA, out var hHalfEdgeB);
+
+        if ((this[hHalfEdgeA].OppositeEdge == this[hHalfEdgeA].NextEdge) ||
+             (this[hHalfEdgeB].OppositeEdge == this[hHalfEdgeB].NextEdge))
+            return true;
+
+        return false;
+    }
+
+    private void RemoveLooseEdgesInFace(FaceHandle hFace)
+    {
+        var hEdgeToRemove = HalfEdgeHandle.Invalid;
+        {
+            if (hFace.IsValid)
+            {
+                hEdgeToRemove = FindFirstLooseEdgeInFaceLoop(hFace.Edge);
+            }
+        }
+
+        while (hEdgeToRemove.IsValid)
+        {
+            RemoveHalfEdgePair(hEdgeToRemove, true);
+
+            // Its possible that removing the edge above will result in removing the face if it was 
+            // the last edge in the face loop. If so, there are no more edges to remove and we must 
+            // stop because the face pointer may be invalid.
+            if (!hFace.IsValid)
+                break;
+
+            hEdgeToRemove = FindFirstLooseEdgeInFaceLoop(hFace.Edge);
+        }
+    }
+
+    private static HalfEdgeHandle FindFirstLooseEdgeInFaceLoop(HalfEdgeHandle hStartEdge)
+    {
+        if (hStartEdge.IsValid)
+        {
+            var hCurrentEdge = hStartEdge;
+            do
+            {
+                if (hCurrentEdge.OppositeEdge == hCurrentEdge.NextEdge)
+                    return hCurrentEdge;
+
+                hCurrentEdge = hCurrentEdge.NextEdge;
+            }
+            while (hCurrentEdge != hStartEdge);
+        }
+
+        return HalfEdgeHandle.Invalid;
+    }
+
+
+    private void FreeVertex(VertexHandle hVertex)
+    {
+        if (!hVertex.IsValid)
+            return;
+
+        this[hVertex] = Vertex.Invalid;
+        VertexList.Deallocate(hVertex.Index);
+    }
+
+
+    /// <summary>
+    /// Splits a face by adding an edge between the end vertices of two of its half edges.
+    /// </summary>
+    public bool AddEdgeToFace(HalfEdgeHandle hIncomingEdgeA, HalfEdgeHandle hIncomingEdgeB, out HalfEdgeHandle hOutNewEdge)
+    {
+        hOutNewEdge = HalfEdgeHandle.Invalid;
+
+        if (!hIncomingEdgeA.IsValid || !hIncomingEdgeB.IsValid)
+            return false;
+
+        // Both edges must be connected to the same face
+        var hFace = hIncomingEdgeA.Face;
+        if (hIncomingEdgeB.Face != hFace)
+            return false;
+
+        if (!hFace.IsValid)
+            return false;
+
+        // Both edges cannot end at the same vertex 
+        var hVertexA = hIncomingEdgeA.Vertex;
+        var hVertexB = hIncomingEdgeB.Vertex;
+        if (hVertexA == hVertexB)
+            return false;
+
+        // Make sure that an edge connecting the specified vertices does not already exist.
+        if (FindFullEdgeConnectingVertices(hVertexA, hVertexB).IsValid)
+            return false;
+
+        // Create the new half edge pair
+        if (AllocateHalfEdgePair(out var hNewEdgeAB, out var hNewEdgeBA, hIncomingEdgeB.Index, hIncomingEdgeA.Index) == false)
+            return false;
+
+        hNewEdgeAB.Vertex = hVertexB;
+        hNewEdgeBA.Vertex = hVertexA;
+
+        // Reconnect the edges
+        hNewEdgeAB.NextEdge = hIncomingEdgeB.NextEdge;
+        hNewEdgeBA.NextEdge = hIncomingEdgeA.NextEdge;
+        hIncomingEdgeA.NextEdge = hNewEdgeAB;
+        hIncomingEdgeB.NextEdge = hNewEdgeBA;
+
+        // Assign new edge A to the existing face 
+        hNewEdgeAB.Face = hFace;
+        hFace.Edge = hNewEdgeAB;
+
+        // Create the new face and assign it to all of 
+        // the edges in the loop with new edge B.
+        var hNewFace = AllocateFace(Face.Invalid, hFace.Index);
+        if (hNewFace.IsValid)
+        {
+            hNewFace.Edge = hNewEdgeBA;
+            var hNewFaceEdge = hNewFace.Edge;
+            do
+            {
+                hNewFaceEdge.Face = hNewFace;
+                hNewFaceEdge = hNewFaceEdge.NextEdge;
+            }
+            while (hNewFaceEdge != hNewFace.Edge);
+
+            Debug.Assert(CheckFaceIntegrity(hNewFace));
+        }
+
+        Debug.Assert(CheckFaceIntegrity(hFace));
+
+        hOutNewEdge = GetFullEdgeForHalfEdge(hNewEdgeAB);
+
+        return hOutNewEdge.IsValid;
+    }
+
+
+    /// <summary>
+    /// Collapses a face into a single vertex by collapsing its edges one after another.
+    /// </summary>
+    public bool CollapseFace(FaceHandle hFace, out VertexHandle hOutNewVertex)
+    {
+        hOutNewVertex = VertexHandle.Invalid;
+
+        if (!hFace.IsValid)
+            return false;
+
+        int nNumFaceEdges = ComputeNumEdgesInFace(hFace);
+        if (nNumFaceEdges <= 0)
+            return false;
+
+        // Build a list of all of the edges in the face
+        var vertexList = new VertexHandle[nNumFaceEdges];
+        int nVertexCount = 0;
+        var hEdge = hFace.Edge;
+        do
+        {
+            vertexList[nVertexCount++] = hEdge.Vertex;
+            hEdge = hEdge.NextEdge;
+        }
+        while (hEdge != hFace.Edge);
+        Debug.Assert(nVertexCount == nNumFaceEdges);
+
+        // Collapse all of the edges. Note that collapsing one edge may remove others
+        // in the list and eventually the face itself will be removed by this process.
+        var hCollapsedFaceVertex = VertexHandle.Invalid;
+        var hCurrentVertex = vertexList[0];
+        for (int iVertex = 1; iVertex < nNumFaceEdges; ++iVertex)
+        {
+            var hFullEdge = FindFullEdgeConnectingVertices(hCurrentVertex, vertexList[iVertex]);
+            if (hFullEdge.IsValid)
+            {
+                CollapseEdge(hFullEdge, out hCurrentVertex, out var _);
+
+                if (!hCurrentVertex.IsValid)
+                    break;
+            }
+
+            hCollapsedFaceVertex = hCurrentVertex;
+        }
+
+        hOutNewVertex = hCollapsedFaceVertex;
+
+        return hCollapsedFaceVertex.IsValid;
+    }
+
+    /// <summary>
+    /// Collapses an edge into a single vertex, merging the edges that end up overlapping.
+    /// </summary>
+    public bool CollapseEdge(HalfEdgeHandle hFullEdge, out VertexHandle pOutNewVertex, out List<(HalfEdgeHandle, HalfEdgeHandle)>? pOutEdgeReplacements)
+    {
+        return CollapseEdge(hFullEdge, out pOutNewVertex, false, out pOutEdgeReplacements);
+    }
+
+    /// <summary>
+    /// Collapses an edge into a single vertex, merging the edges that end up overlapping. With check only nothing is changed, only whether the collapse is possible is reported.
+    /// </summary>
+    public bool CollapseEdge(HalfEdgeHandle hFullEdge, out VertexHandle pOutNewVertex, bool bCheckOnly, out List<(HalfEdgeHandle, HalfEdgeHandle)>? pOutEdgeReplacements)
+    {
+        pOutNewVertex = VertexHandle.Invalid;
+        pOutEdgeReplacements = null;
+
+        if (!hFullEdge.IsValid)
+            return false;
+
+        GetVerticesConnectedToHalfEdge(hFullEdge, out var hVertexA, out var hVertexB);
+        var hEdgeA = hFullEdge;
+        var hEdgeB = hFullEdge.OppositeEdge;
+        var hFaceA = hEdgeA.Face;
+        var hFaceB = hEdgeB.Face;
+
+        // Find the pairs of edges which will be overlapping once the specified edge is collapsed.
+        var overlappingEdgeA1 = HalfEdgeHandle.Invalid;
+        var overlappingEdgeA2 = HalfEdgeHandle.Invalid;
+        {
+            var pEdgeA = hEdgeA;
+            var pNextEdge = pEdgeA.NextEdge;
+            if (pNextEdge.NextEdge.NextEdge == hEdgeA)
+            {
+                overlappingEdgeA1 = pEdgeA.NextEdge;
+                overlappingEdgeA2 = pNextEdge.NextEdge;
+            }
+        }
+
+        var overlappingEdgeB1 = HalfEdgeHandle.Invalid;
+        var overlappingEdgeB2 = HalfEdgeHandle.Invalid;
+        {
+            var pEdgeB = hEdgeB;
+            var pNextEdge = pEdgeB.NextEdge;
+            if (pNextEdge.NextEdge.NextEdge == hEdgeB)
+            {
+                overlappingEdgeB1 = pEdgeB.NextEdge;
+                overlappingEdgeB2 = pNextEdge.NextEdge;
+            }
+        }
+
+        // Check to see if there are any edges that would be overlapping once the specified edge is collapsed 
+        // that are not attached to same face as one of the edges, in this case the edge cannot be collapsed.
+        var hStartEdge = hVertexA.Edge;
+        var hCurrentEdge = hStartEdge;
+        do
+        {
+            var hEdgeAToN = hCurrentEdge;
+            var pEdgeAToN = hEdgeAToN;
+            hCurrentEdge = pEdgeAToN.OppositeEdge.NextEdge;
+
+            var hVertexN = pEdgeAToN.Vertex;
+            var hEdgeNToB = FindHalfEdgeConnectingVertices(hVertexN, hVertexB);
+            if (hEdgeNToB.IsValid)
+            {
+                var pEdgeNToB = hEdgeNToB;
+                var hEdgeNToA = pEdgeAToN.OppositeEdge;
+                var hEdgeBToN = pEdgeNToB.OppositeEdge;
+                var pEdgeNToA = hEdgeNToA;
+                var pEdgeBToN = hEdgeBToN;
+
+                // If the edge pair is one of the already found overlapping 
+                // edge pairs there is no need to test the face, it is allowed.
+                if (((hEdgeAToN == overlappingEdgeA1) && (hEdgeNToB == overlappingEdgeA2)) ||
+                     ((hEdgeAToN == overlappingEdgeA2) && (hEdgeNToB == overlappingEdgeA1)))
+                    continue;
+
+                if (((hEdgeAToN == overlappingEdgeB1) && (hEdgeNToB == overlappingEdgeB2)) ||
+                     ((hEdgeAToN == overlappingEdgeB2) && (hEdgeNToB == overlappingEdgeB1)))
+                    continue;
+
+                if (((hEdgeBToN == overlappingEdgeA1) && (hEdgeNToA == overlappingEdgeA2)) ||
+                     ((hEdgeBToN == overlappingEdgeA2) && (hEdgeNToA == overlappingEdgeA1)))
+                    continue;
+
+                if (((hEdgeBToN == overlappingEdgeB1) && (hEdgeNToA == overlappingEdgeB2)) ||
+                     ((hEdgeBToN == overlappingEdgeB2) && (hEdgeNToA == overlappingEdgeB1)))
+                    continue;
+
+
+                if ((pEdgeAToN.Face == pEdgeNToB.Face) && (pEdgeAToN.Face != FaceHandle.Invalid))
+                {
+                    if ((pEdgeAToN.Face == hFaceA) && ((hEdgeAToN == overlappingEdgeA1) || (hEdgeAToN == overlappingEdgeA2)))
+                        continue;
+
+                    if ((pEdgeAToN.Face == hFaceB) && ((hEdgeAToN == overlappingEdgeB1) || (hEdgeAToN == overlappingEdgeB2)))
+                        continue;
+                }
+
+                if ((pEdgeBToN.Face == pEdgeNToA.Face) && (pEdgeBToN.Face != FaceHandle.Invalid))
+                {
+                    if ((pEdgeBToN.Face == hFaceA) && ((hEdgeBToN == overlappingEdgeA1) || (hEdgeBToN == overlappingEdgeA2)))
+                        continue;
+
+                    if ((pEdgeBToN.Face == hFaceB) && ((hEdgeBToN == overlappingEdgeB1) || (hEdgeBToN == overlappingEdgeB2)))
+                        continue;
+                }
+
+                // Neither the edge path connecting vertex a to b or the path connecting vertex b to a 
+                // were connected to either of the faces directly connected to the edge being collapsed.
+                // This means collapsing the edge could result in bad topology, the collapse is not allowed.
+                return false;
+            }
+        }
+        while (hCurrentEdge != hStartEdge);
+
+        if (bCheckOnly)
+            return true;
+
+        // Create the new vertex and point all the edges that were terminating 
+        // at either of the old vertices to the new vertex.
+        var hNewVertex = AllocateVertex(Vertex.Invalid);
+        if (!hNewVertex.IsValid)
+            return false;
+
+        RedirectEdgesToVertex(hVertexA, hNewVertex);
+        RedirectEdgesToVertex(hVertexB, hNewVertex);
+
+        // Disconnect the edge that is being collapsed from the faces and other edges.
+        Debug.Assert(hEdgeA.IsValid && hEdgeB.IsValid);
+        if (hEdgeA.IsValid && hEdgeB.IsValid)
+        {
+            var pNewVertex = hNewVertex;
+            var hNextEdgeA = hEdgeA.NextEdge;
+            var hPrevEdgeA = FindPreviousEdgeInFaceLoop(hEdgeA);
+            var hNextEdgeB = hEdgeB.NextEdge;
+            var hPrevEdgeB = FindPreviousEdgeInFaceLoop(hEdgeB);
+
+            hPrevEdgeB.NextEdge = hNextEdgeB;
+            hPrevEdgeA.NextEdge = hNextEdgeA;
+
+            var pFaceA = hFaceA;
+            if (pFaceA.IsValid)
+                pFaceA.Edge = hNextEdgeA;
+
+            var pFaceB = hFaceB;
+            if (pFaceB.IsValid)
+                pFaceB.Edge = hNextEdgeB;
+
+            // Make sure the new vertex is not referencing the edge being collapsed
+            if ((pNewVertex.Edge == hEdgeA) || (pNewVertex.Edge == hEdgeB))
+            {
+                pNewVertex.Edge = hNextEdgeA;
+            }
+            Debug.Assert((pNewVertex.Edge != hEdgeA) && (pNewVertex.Edge != hEdgeB));
+
+            // Remove the old vertices
+            hVertexA.Edge = HalfEdgeHandle.Invalid;
+            RemoveVertex(hVertexA, false);
+            hVertexB.Edge = HalfEdgeHandle.Invalid;
+            RemoveVertex(hVertexB, false);
+
+            // Remove the old edge
+            hEdgeA.Face = FaceHandle.Invalid;
+            hEdgeB.Face = FaceHandle.Invalid;
+            hEdgeA.Vertex = VertexHandle.Invalid;
+            hEdgeB.Vertex = VertexHandle.Invalid;
+            RemoveHalfEdgePair(hEdgeA, false);
+        }
+
+        pOutEdgeReplacements = new();
+
+        // Merge the edges that are now overlapping and remove the faces which have become 2-sided
+        if (MergeOverlappingEdges(overlappingEdgeA1, overlappingEdgeA2, out var mergedEdgeA))
+        {
+            pOutEdgeReplacements.Add((overlappingEdgeA1, mergedEdgeA));
+            pOutEdgeReplacements.Add((overlappingEdgeA2, mergedEdgeA));
+        }
+
+        if (MergeOverlappingEdges(overlappingEdgeB1, overlappingEdgeB2, out var mergedEdgeB))
+        {
+            pOutEdgeReplacements.Add((overlappingEdgeB1, mergedEdgeB));
+            pOutEdgeReplacements.Add((overlappingEdgeB2, mergedEdgeB));
+        }
+
+        Debug.Assert(CheckVertexEdgeIntegrity(hNewVertex));
+
+        // Remove any loose edges that were created as a result of the the edge collapse. This can
+        // occur if an edge on an interior edge loop is collapsed, removing the interior face loop 
+        // leaving just a series of loose interior edges.
+        RemoveLooseEdgesInFace(hFaceA);
+        RemoveLooseEdgesInFace(hFaceB);
+
+        Debug.Assert(CheckVertexEdgeIntegrity(hNewVertex));
+        Debug.Assert(!hFaceA.IsValid || CheckFaceIntegrity(hFaceA));
+        Debug.Assert(!hFaceB.IsValid || CheckFaceIntegrity(hFaceB));
+
+        // If the edge that was collapsed was on a triangular face which was removed as a result of the
+        // edges collapse it is possible the new vertex was actually removed if the edge was not shared
+        // with any other faces.
+        if (!hNewVertex.IsValid)
+        {
+            hNewVertex = VertexHandle.Invalid;
+        }
+
+        pOutNewVertex = hNewVertex;
+
+        return true;
+    }
+
+    private static bool CheckVertexEdgeIntegrity(VertexHandle hVertex, bool bAssert = true)
+    {
+        var hStartEdge = GetFirstEdgeInVertexLoop(hVertex);
+        if (!hStartEdge.IsValid)
+            return true;
+
+        var hCurrentEdge = hStartEdge;
+        do
+        {
+            if (!CheckEdgeIntegrity(hCurrentEdge, bAssert))
+                return false;
+
+            hCurrentEdge = GetNextEdgeInVertexLoop(hCurrentEdge);
+        }
+        while (hCurrentEdge != hStartEdge);
+
+        return true;
+    }
+
+    private bool MergeOverlappingEdges(HalfEdgeHandle hHalfEdgeA, HalfEdgeHandle hHalfEdgeB, out HalfEdgeHandle pOutNewEdge)
+    {
+        pOutNewEdge = HalfEdgeHandle.Invalid;
+
+        if (!hHalfEdgeA.IsValid || !hHalfEdgeB.IsValid)
+            return false;
+
+        // Both edges must refer to each other as the next edge
+        Debug.Assert(hHalfEdgeA.NextEdge == hHalfEdgeB);
+        Debug.Assert(hHalfEdgeB.NextEdge == hHalfEdgeA);
+        if ((hHalfEdgeA.NextEdge != hHalfEdgeB) || (hHalfEdgeB.NextEdge != hHalfEdgeA))
+            return false;
+
+        // Both edges must refer to the same face
+        Debug.Assert(hHalfEdgeA.Face == hHalfEdgeB.Face);
+        if (hHalfEdgeA.Face != hHalfEdgeB.Face)
+            return false;
+
+        // The two half edges must be opposites, but not each others opposites
+        var hOppositeEdgeA = hHalfEdgeA.OppositeEdge;
+        var hOppositeEdgeB = hHalfEdgeB.OppositeEdge;
+        Debug.Assert(hOppositeEdgeA.Vertex == hHalfEdgeB.Vertex);
+        Debug.Assert(hOppositeEdgeB.Vertex == hHalfEdgeA.Vertex);
+        Debug.Assert(hOppositeEdgeA != hOppositeEdgeB);
+        if ((hOppositeEdgeA.Vertex != hHalfEdgeB.Vertex) ||
+             (hOppositeEdgeB.Vertex != hHalfEdgeA.Vertex) ||
+             (hOppositeEdgeA == hOppositeEdgeB))
+            return false;
+
+        // Remove the shared face
+        if (hHalfEdgeA.Face != FaceHandle.Invalid)
+        {
+            var hFace = hHalfEdgeA.Face;
+            DetachFaceFromEdges(hFace);
+            RemoveFace(hFace, false);
+        }
+
+        // Both edge should now be open
+        Debug.Assert(hHalfEdgeA.Face == FaceHandle.Invalid);
+        Debug.Assert(hHalfEdgeB.Face == FaceHandle.Invalid);
+
+        // Create a new half edge pair which will be a connected pair of the 
+        // opposite edges of the open edges which are being connected.
+        if (!AllocateHalfEdgePair(out var hNewHalfEdgeA, out var hNewHalfEdgeB, hOppositeEdgeA.Index, hOppositeEdgeB.Index))
+            return false;
+
+        {
+            hNewHalfEdgeA.NextEdge = hOppositeEdgeA.NextEdge;
+            hNewHalfEdgeA.Face = hOppositeEdgeA.Face;
+            hNewHalfEdgeA.Vertex = hOppositeEdgeA.Vertex;
+
+            var hPrevEdgeA = FindPreviousEdgeInFaceLoop(hOppositeEdgeA);
+            Debug.Assert(hPrevEdgeA.NextEdge == hOppositeEdgeA);
+            hPrevEdgeA.NextEdge = hNewHalfEdgeA;
+
+            var hVertA = hNewHalfEdgeA.Vertex;
+            hVertA.Edge = hNewHalfEdgeB;
+            if (hNewHalfEdgeA.Face != FaceHandle.Invalid)
+            {
+                if (hNewHalfEdgeA.Face.Edge == hOppositeEdgeA)
+                {
+                    var hFaceA = hNewHalfEdgeA.Face;
+                    hFaceA.Edge = hNewHalfEdgeA;
+                }
+            }
+
+            hNewHalfEdgeB.NextEdge = hOppositeEdgeB.NextEdge;
+            hNewHalfEdgeB.Face = hOppositeEdgeB.Face;
+            hNewHalfEdgeB.Vertex = hOppositeEdgeB.Vertex;
+
+            var hPrevEdgeB = FindPreviousEdgeInFaceLoop(hOppositeEdgeB);
+            Debug.Assert(hPrevEdgeB.NextEdge == hOppositeEdgeB);
+            hPrevEdgeB.NextEdge = hNewHalfEdgeB;
+
+            var hVertB = hNewHalfEdgeB.Vertex;
+            hVertB.Edge = hNewHalfEdgeA;
+            if (hNewHalfEdgeB.Face != FaceHandle.Invalid)
+            {
+                if (hNewHalfEdgeB.Face.Edge == hOppositeEdgeB)
+                {
+                    var hFaceB = hNewHalfEdgeB.Face;
+                    hFaceB.Edge = hNewHalfEdgeB;
+                }
+            }
+        }
+
+        // Remove the old half edge pairs
+        FreeHalfEdgePair(hHalfEdgeA);
+        FreeHalfEdgePair(hHalfEdgeB);
+
+        // If the resulting edge has no connected faces or is a loose edge remove it
+        if (((hNewHalfEdgeA.Face == FaceHandle.Invalid) && (hNewHalfEdgeB.Face == FaceHandle.Invalid)) ||
+             (hNewHalfEdgeA.NextEdge == hNewHalfEdgeB) || (hNewHalfEdgeB.NextEdge == hNewHalfEdgeA))
+        {
+            RemoveHalfEdgePair(hNewHalfEdgeA, true);
+        }
+        else
+        {
+            pOutNewEdge = hNewHalfEdgeA;
+        }
+
+        Debug.Assert(!IsHalfEdgeInMesh(hNewHalfEdgeA) || CheckEdgeIntegrity(hNewHalfEdgeA));
+        Debug.Assert(!IsHalfEdgeInMesh(hNewHalfEdgeB) || CheckEdgeIntegrity(hNewHalfEdgeB));
+        Debug.Assert(!IsHalfEdgeInMesh(hNewHalfEdgeA) || (hNewHalfEdgeA.Face == FaceHandle.Invalid) || CheckFaceIntegrity(hNewHalfEdgeA.Face));
+        Debug.Assert(!IsHalfEdgeInMesh(hNewHalfEdgeB) || (hNewHalfEdgeB.Face == FaceHandle.Invalid) || CheckFaceIntegrity(hNewHalfEdgeB.Face));
+
+        return true;
+    }
+
+
+    private static bool CheckEdgeIntegrity(HalfEdgeHandle hEdge, bool bAssert = true)
+    {
+        Debug.Assert(hEdge.IsValid || (bAssert == false));
+        if (!hEdge.IsValid)
+            return false;
+
+        // 1. Every half edge must be matched with a corresponding opposite half edge to form a pair.
+        var hOppositeEdge = GetOppositeHalfEdge(hEdge);
+        Debug.Assert(hOppositeEdge.IsValid || (bAssert == false));
+        if (!hOppositeEdge.IsValid)
+            return false;
+
+        Debug.Assert((hOppositeEdge.OppositeEdge == hEdge) || (bAssert == false));
+        if (hOppositeEdge.OppositeEdge != hEdge)
+            return false;
+
+        GetVerticesConnectedToHalfEdge(hEdge, out var hVertexA, out var hVertexB);
+        GetVerticesConnectedToHalfEdge(hEdge.OppositeEdge, out var hAdjVertexA, out var hAdjVertexB);
+        Debug.Assert((hVertexA == hAdjVertexB) || (bAssert == false));
+        if (hVertexA != hAdjVertexB)
+            return false;
+
+        Debug.Assert((hVertexB == hAdjVertexA) || (bAssert == false));
+        if (hVertexB != hAdjVertexA)
+            return false;
+
+        Debug.Assert((hVertexA != hVertexB) || (bAssert == false));
+        if (hVertexA == hVertexB)
+            return false;
+
+
+        // 2. Each half edge pair must refer to at least one face.
+        Debug.Assert((hEdge.Face != FaceHandle.Invalid) || (hOppositeEdge.Face != FaceHandle.Invalid) || (bAssert == false));
+        if ((hEdge.Face == FaceHandle.Invalid) && (hOppositeEdge.Face == FaceHandle.Invalid))
+            return false;
+
+        // If the half edge refers to a face it must be valid and must refer back to the edge
+        if (hEdge.Face != FaceHandle.Invalid)
+        {
+            // All valid handles within the mesh should always correspond to valid components
+            Debug.Assert(hEdge.Face.IsValid || (bAssert == false));
+            var hFace = hEdge.Face;
+            if (!hFace.IsValid)
+                return false;
+
+            // An edge must be in the edge loop of the face it is connected to
+            var hStartEdge = hFace.Edge;
+            var hCurrentEdge = hStartEdge;
+            while (hCurrentEdge != hEdge)
+            {
+                hCurrentEdge = hCurrentEdge.NextEdge;
+
+                // Traversed the whole face edge loop and did not find the edge
+                Debug.Assert((hCurrentEdge != hStartEdge) || (bAssert == false));
+                if (hCurrentEdge == hStartEdge)
+                    return false;
+            }
+        }
+
+        // 3. The next edge reference of an edge must always be valid.
+        Debug.Assert((hEdge.NextEdge != HalfEdgeHandle.Invalid) || (bAssert == false));
+        if (hEdge.NextEdge == HalfEdgeHandle.Invalid)
+            return false;
+
+        var hNextEdge = hEdge.NextEdge;
+        Debug.Assert(hNextEdge.IsValid || (bAssert == false));
+        if (!hNextEdge.IsValid)
+            return false;
+
+        // 4. The edge specified by the next edge reference must refer to the same face as this edge.
+        Debug.Assert((hEdge.Face == hNextEdge.Face) || (bAssert == false));
+        if (hEdge.Face != hNextEdge.Face)
+            return false;
+
+        // 5. An edge may not refer to its opposite edge as it next edge.
+        Debug.Assert((hNextEdge != hOppositeEdge) || (bAssert == false));
+        if (hNextEdge == hOppositeEdge)
+            return false;
+
+        // 6. The vertex reference of and edge must always be valid
+        Debug.Assert((hEdge.Vertex != VertexHandle.Invalid) || (bAssert == false));
+        if (hEdge.Vertex == VertexHandle.Invalid)
+            return false;
+
+        var hVertex = hEdge.Vertex;
+        Debug.Assert(hVertex.IsValid || (bAssert == false));
+        if (!hVertex.IsValid)
+            return false;
+
+        // 7. Both half edges of a pair may not specify the same vertex
+        Debug.Assert((hEdge.Vertex != hOppositeEdge.Vertex) || (bAssert == false));
+        if (hEdge.Vertex == hOppositeEdge.Vertex)
+            return false;
+
+        // 8. An edge's opposite edge must originate from the end vertex specified by the edge and
+        // therefore must be in the edge loop around the vertex. 
+        Debug.Assert((hVertex.Edge != HalfEdgeHandle.Invalid) || (bAssert == false));
+        if (hVertex.Edge == HalfEdgeHandle.Invalid)
+            return false;
+
+        bool bFoundOpposite = false;
+        {
+            var hCurrentEdge = hVertex.Edge;
+            do
+            {
+                if (hCurrentEdge == hEdge.OppositeEdge)
+                {
+                    bFoundOpposite = true;
+                    break;
+                }
+                hCurrentEdge = hCurrentEdge.OppositeEdge.NextEdge;
+            }
+            while (hCurrentEdge != hVertex.Edge);
+        }
+
+        Debug.Assert((bFoundOpposite) || (bAssert == false));
+        if (bFoundOpposite == false)
+            return false;
+
+        // 9. There may never be two edges which start and end at the same vertex. 
+        var hOverlappingEdge = FindOverlappingEdge(hEdge);
+        Debug.Assert(!hOverlappingEdge.IsValid || (bAssert == false));
+        if (hOverlappingEdge.IsValid)
+            return false;
+
+        return true;
+    }
+
+    private static HalfEdgeHandle FindOverlappingEdge(HalfEdgeHandle hHalfEdge)
+    {
+        if (!hHalfEdge.IsValid)
+            return HalfEdgeHandle.Invalid;
+
+        // Test all of the edges originating the at start vertex of
+        // this edge and check to see if they end at the same vertex.
+        var hVertex = hHalfEdge.OppositeEdge.Vertex;
+        var hCurrentEdge = hVertex.Edge;
+        do
+        {
+            if (hCurrentEdge != hHalfEdge)
+            {
+                if (hCurrentEdge.Vertex == hHalfEdge.Vertex)
+                    return hCurrentEdge;
+            }
+            hCurrentEdge = hCurrentEdge.OppositeEdge.NextEdge;
+        }
+        while (hCurrentEdge != hVertex.Edge);
+
+        return HalfEdgeHandle.Invalid;
+    }
+
+    private static void DetachFaceFromEdges(FaceHandle hFace)
+    {
+        if (!hFace.IsValid)
+            return;
+
+        if (hFace.Edge != HalfEdgeHandle.Invalid)
+        {
+            var hCurrentEdge = hFace.Edge;
+            do
+            {
+                hCurrentEdge.Face = FaceHandle.Invalid;
+                hCurrentEdge = hCurrentEdge.NextEdge;
+            }
+            while (hCurrentEdge != hFace.Edge);
+        }
+
+        hFace.Edge = HalfEdgeHandle.Invalid;
+    }
+
+    private static void RedirectEdgesToVertex(VertexHandle hOldVertex, VertexHandle hNewVertex)
+    {
+        if (!hNewVertex.IsValid)
+            return;
+
+        // Redirect all of the edges ending at the old vertex to end at the new vertex
+        var hStartEdge = hOldVertex.Edge;
+        var hCurrentEdge = hStartEdge;
+        do
+        {
+            var hOppositeEdge = hCurrentEdge.OppositeEdge;
+            Debug.Assert(hOppositeEdge.Vertex == hOldVertex);
+
+            hOppositeEdge.Vertex = hNewVertex;
+            hNewVertex.Edge = hCurrentEdge;
+
+            hCurrentEdge = hOppositeEdge.NextEdge;
+        }
+        while (hCurrentEdge != hStartEdge);
+    }
+
+
+    /// <summary>
+    /// Finds the two pairs of vertices merging two open edges would join.
+    /// </summary>
+    public static bool GetEdgeMergeVertexPairs(HalfEdgeHandle hEdgeA, HalfEdgeHandle hEdgeB,
+        out VertexHandle vertexPairA1, out VertexHandle vertexPairA2,
+        out VertexHandle vertexPairB1, out VertexHandle vertexPairB2)
+    {
+        vertexPairA1 = VertexHandle.Invalid;
+        vertexPairA2 = VertexHandle.Invalid;
+        vertexPairB1 = VertexHandle.Invalid;
+        vertexPairB2 = VertexHandle.Invalid;
+
+        // Get the open half edge of each edge, both edges must have one open half edge.
+        var hOpenHalfEdgeA = GetOpenHalfEdgeFromFullEdge(hEdgeA);
+        var hOpenHalfEdgeB = GetOpenHalfEdgeFromFullEdge(hEdgeB);
+        if ((hOpenHalfEdgeA == HalfEdgeHandle.Invalid) || (hOpenHalfEdgeB == HalfEdgeHandle.Invalid))
+            return false;
+
+        vertexPairA1 = hOpenHalfEdgeA.Vertex;
+        vertexPairA2 = hOpenHalfEdgeB.OppositeEdge.Vertex;
+
+        vertexPairB1 = hOpenHalfEdgeA.OppositeEdge.Vertex;
+        vertexPairB2 = hOpenHalfEdgeB.Vertex;
+
+        return true;
+    }
+
+    /// <summary>
+    /// Merges two open edges into one by merging their end vertices pairwise.
+    /// </summary>
+    public bool MergeEdges(HalfEdgeHandle hEdgeA, HalfEdgeHandle hEdgeB, out VertexHandle hOutNewVertexA, out VertexHandle hOutNewVertexB)
+    {
+        hOutNewVertexA = VertexHandle.Invalid;
+        hOutNewVertexB = VertexHandle.Invalid;
+
+        // Get the open half edge of each edge, both edges must have one open half edge.
+        var hOpenHalfEdgeA = GetOpenHalfEdgeFromFullEdge(hEdgeA);
+        var hOpenHalfEdgeB = GetOpenHalfEdgeFromFullEdge(hEdgeB);
+        if ((hOpenHalfEdgeA == HalfEdgeHandle.Invalid) || (hOpenHalfEdgeB == HalfEdgeHandle.Invalid))
+            return false;
+
+        // The opposite edges of the open half edges must not belong to the same face
+        if (hOpenHalfEdgeA.OppositeEdge.Face == hOpenHalfEdgeB.OppositeEdge.Face)
+            return false;
+
+        // Two edges which start or end at the same vertex may not be merged
+        if (hOpenHalfEdgeA.Vertex == hOpenHalfEdgeB.Vertex)
+            return false;
+
+        if (hOpenHalfEdgeA.OppositeEdge.Vertex == hOpenHalfEdgeB.OppositeEdge.Vertex)
+            return false;
+
+        // Build the pairs of vertices that will need to be merged.
+        if (!GetEdgeMergeVertexPairs(hEdgeA, hEdgeB, out var vertexPairA1, out var vertexPairA2, out var vertexPairB1, out var vertexPairB2))
+            return false;
+
+        // If either of the vertices are shared already, just merge the other pair of vertices.
+        if (vertexPairA1 == vertexPairA2)
+        {
+            hOutNewVertexA = vertexPairA1;
+            return MergeVertices(vertexPairB1, vertexPairB2, out hOutNewVertexB);
+        }
+
+        if (vertexPairB1 == vertexPairB2)
+        {
+            hOutNewVertexB = vertexPairB1;
+            return MergeVertices(vertexPairA1, vertexPairA2, out hOutNewVertexA);
+        }
+
+        // Test to see if both pairs of vertices can be merged. Performing this check helps avoid the 
+        // case where merging the edge results in merging a single vertex of the edge but not both.
+        if ((!MergeVertices(vertexPairA1, vertexPairA2, hOpenHalfEdgeA.NextEdge, hOpenHalfEdgeB, out _, true)) ||
+             (!MergeVertices(vertexPairB1, vertexPairB2, hOpenHalfEdgeA, hOpenHalfEdgeB.NextEdge, out _, true)))
+            return false;
+
+        // If both pairs can be merged then merge them.
+        if (!MergeVertices(vertexPairA1, vertexPairA2, hOpenHalfEdgeA.NextEdge, hOpenHalfEdgeB, out hOutNewVertexA, false))
+            return false;
+
+        if (!MergeVertices(vertexPairB1, vertexPairB2, hOpenHalfEdgeA, hOpenHalfEdgeB.NextEdge, out hOutNewVertexB, false))
+            return false;
+
+        return true;
+    }
+
+    /// <summary>
+    /// Merges two vertices into one where the topology allows it: connected vertices collapse their edge, otherwise the vertices must each have one open edge.
+    /// </summary>
+    public bool MergeVertices(VertexHandle hVertexA, VertexHandle hVertexB, out VertexHandle hOutNewVertex)
+    {
+        return MergeVertices(hVertexA, hVertexB, HalfEdgeHandle.Invalid, HalfEdgeHandle.Invalid, out hOutNewVertex, false);
+    }
+
+    /// <summary>
+    /// Merges two vertices into one along the given open edges. With check only nothing is changed, only whether the merge is possible is reported.
+    /// </summary>
+    public bool MergeVertices(VertexHandle hVertexA, VertexHandle hVertexB, HalfEdgeHandle hOpenEdgeA, HalfEdgeHandle hOpenEdgeB, out VertexHandle hOutNewVertex, bool bCheckOnly)
+    {
+        hOutNewVertex = VertexHandle.Invalid;
+
+        // If the two specified vertices are actually the same vertex, do nothing but return true
+        if (hVertexA == hVertexB)
+        {
+            hOutNewVertex = hVertexA;
+            return true;
+        }
+
+        // First check to see if there is an edge connecting the two vertices, if so collapse the edge
+        var hFullEdge = FindFullEdgeConnectingVertices(hVertexA, hVertexB);
+        if (hFullEdge != HalfEdgeHandle.Invalid)
+        {
+            return CollapseEdge(hFullEdge, out hOutNewVertex, bCheckOnly, out var _);
+        }
+
+        // If an open edge was not specified to use in merging the vertices, check to see if there is 
+        // exactly one open edge starting at the vertex, if so use that one, otherwise the vertices may 
+        // not be merged.
+        if (hOpenEdgeA != HalfEdgeHandle.Invalid)
+        {
+            Debug.Assert(hOpenEdgeA.Face == FaceHandle.Invalid);
+            Debug.Assert(hOpenEdgeA.OppositeEdge.Vertex == hVertexA);
+        }
+        else if (ComputeNumOpenEdgesInVertexLoop(hVertexA) == 1)
+        {
+            hOpenEdgeA = FindFirstOpenEdgeInVertexLoop(hVertexA);
+        }
+
+        if (hOpenEdgeB != HalfEdgeHandle.Invalid)
+        {
+            Debug.Assert(hOpenEdgeB.Face == FaceHandle.Invalid);
+            Debug.Assert(hOpenEdgeB.OppositeEdge.Vertex == hVertexB);
+        }
+        else if (ComputeNumOpenEdgesInVertexLoop(hVertexB) == 1)
+        {
+            hOpenEdgeB = FindFirstOpenEdgeInVertexLoop(hVertexB);
+        }
+
+        if ((hOpenEdgeA == HalfEdgeHandle.Invalid) || (hOpenEdgeB == HalfEdgeHandle.Invalid))
+            return false;
+
+        // Now check to see if there is a pair of open edges connecting the two vertices. If so create
+        // a triangle face and use the collapse edge function to collapse the new edge resulting in 
+        // merging the vertices.
+        {
+            // Now see if there is an open edge connecting the vertex
+            // at the end of the open edge (vertex N) to vertex B.
+            var hVertexN = hOpenEdgeA.Vertex;
+            var hEdgeNToB = FindHalfEdgeConnectingVertices(hVertexN, hVertexB);
+            if (hEdgeNToB != HalfEdgeHandle.Invalid)
+            {
+                // If there is an edge but it is not open the vertices cannot be merged
+                if (hEdgeNToB.Face != FaceHandle.Invalid)
+                    return false;
+
+                if (!AddFace(out var hNewFace, hVertexA, hVertexN, hVertexB))
+                    return false;
+
+                hFullEdge = FindFullEdgeConnectingVertices(hVertexA, hVertexB);
+                bool bSuccess = CollapseEdge(hFullEdge, out hOutNewVertex, bCheckOnly, out var _);
+                if (bCheckOnly)
+                {
+                    RemoveFace(hNewFace, false);
+                }
+                return bSuccess;
+            }
+        }
+
+        // If creating a face using the open edge from A to N failed try the open edge from B to M.
+        {
+            var hVertexM = hOpenEdgeB.Vertex;
+            var hEdgeMToA = FindHalfEdgeConnectingVertices(hVertexM, hVertexA);
+            if (hEdgeMToA != HalfEdgeHandle.Invalid)
+            {
+                if (hEdgeMToA.Face != FaceHandle.Invalid)
+                    return false;
+
+                if (!AddFace(out var hNewFace, hVertexB, hVertexM, hVertexA))
+                    return false;
+
+                hFullEdge = FindFullEdgeConnectingVertices(hVertexA, hVertexB);
+                var bSuccess = CollapseEdge(hFullEdge, out hOutNewVertex, bCheckOnly, out var _);
+                if (bCheckOnly)
+                {
+                    RemoveFace(hNewFace, false);
+                }
+                return bSuccess;
+            }
+        }
+
+        // If we have reached this point the vertices do not have a single edge or a pair of open edges
+        // that connect them. They may be merged as long as they do not belong to the same face and there
+        // is not a pair of edges connecting them.
+        var hClosedEdgeA = hOpenEdgeA.OppositeEdge;
+        var hClosedEdgeB = hOpenEdgeB.OppositeEdge;
+        if (hClosedEdgeA.Face == hClosedEdgeB.Face)
+            return false;
+
+        if (AreVerticesConnectedByEdgePair(hVertexA, hVertexB))
+            return false;
+
+        // Find the previous edges to which refer to the open edges as their next edge. 
+        // Note these edge will be open as well.
+        var hPreviousOpenEdgeA = FindPreviousEdgeInFaceLoop(hOpenEdgeA);
+        var hPreviousOpenEdgeB = FindPreviousEdgeInFaceLoop(hOpenEdgeB);
+        var pPreviousOpenEdgeA = hPreviousOpenEdgeA;
+        var pPreviousOpenEdgeB = hPreviousOpenEdgeB;
+        Debug.Assert(pPreviousOpenEdgeA.IsValid);
+        Debug.Assert(pPreviousOpenEdgeB.IsValid);
+        if (!pPreviousOpenEdgeA.IsValid || !pPreviousOpenEdgeB.IsValid)
+            return false;
+
+        if (bCheckOnly)
+            return true;
+
+        // If any of these conditions are not true there is a fundamental problem with
+        // the topology or a bug in the FindPreviousEdgeInVertexLoop() function.
+        Debug.Assert(pPreviousOpenEdgeA.Vertex == hVertexA);
+        Debug.Assert(pPreviousOpenEdgeB.Vertex == hVertexB);
+        Debug.Assert(pPreviousOpenEdgeA.NextEdge == hOpenEdgeA);
+        Debug.Assert(pPreviousOpenEdgeB.NextEdge == hOpenEdgeB);
+        Debug.Assert(pPreviousOpenEdgeA.Face == FaceHandle.Invalid);
+        Debug.Assert(pPreviousOpenEdgeB.Face == FaceHandle.Invalid);
+
+        // Create the new vertex and point all the edges that were terminating 
+        // at either of the old vertices to the new vertex.
+        var hNewVertex = AllocateVertex(Vertex.Invalid);
+        if (hNewVertex == VertexHandle.Invalid)
+            return false;
+
+        RedirectEdgesToVertex(hVertexA, hNewVertex);
+        RedirectEdgesToVertex(hVertexB, hNewVertex);
+
+        // Redirect the previous open edges at the open edge of the opposite vertex
+        pPreviousOpenEdgeA.NextEdge = hOpenEdgeB;
+        pPreviousOpenEdgeB.NextEdge = hOpenEdgeA;
+
+        // Remove the old vertices
+        hVertexA.Edge = HalfEdgeHandle.Invalid;
+        hVertexB.Edge = HalfEdgeHandle.Invalid;
+        RemoveVertex(hVertexA, false);
+        RemoveVertex(hVertexB, false);
+
+        Debug.Assert(CheckVertexEdgeIntegrity(hNewVertex));
+
+        hOutNewVertex = hNewVertex;
+
+        return true;
+    }
+
+    private static HalfEdgeHandle FindFirstOpenEdgeInVertexLoop(VertexHandle hVertex)
+    {
+        if (hVertex.IsValid)
+        {
+            var hEdge = hVertex.Edge;
+            do
+            {
+                if (hEdge.Face == FaceHandle.Invalid)
+                    return hEdge;
+
+                hEdge = hEdge.OppositeEdge.NextEdge;
+            }
+            while (hEdge != hVertex.Edge);
+        }
+
+        return HalfEdgeHandle.Invalid;
+    }
+
+    private static bool AreVerticesConnectedByEdgePair(VertexHandle hVertexA, VertexHandle hVertexB)
+    {
+        var hStartEdge = GetFirstEdgeInVertexLoop(hVertexA);
+        var hCurrentEdge = hStartEdge;
+
+        do
+        {
+            if (FindHalfEdgeConnectingVertices(hCurrentEdge.Vertex, hVertexB) != HalfEdgeHandle.Invalid)
+                return true;
+
+            hCurrentEdge = GetNextEdgeInVertexLoop(hCurrentEdge);
+        }
+        while (hCurrentEdge != hStartEdge);
+        return false;
     }
 
 #pragma warning disable CA1043
