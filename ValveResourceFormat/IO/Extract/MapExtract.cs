@@ -37,6 +37,9 @@ public sealed class MapExtract
 
     private const int PhysMeshChunkSize = 100000;
 
+    // render mesh vertices closer than this are the same Hammer vertex
+    private const float HammerMeshWeldDistance = 1f / 64f;
+
     // Selection sets (for easy access)
     private CMapSelectionSet? S2VSelectionSet;
     private CMapSelectionSet? HammerMeshesSelectionSet;
@@ -585,7 +588,7 @@ public sealed class MapExtract
         EntitiesSelectionSet = S2VSelectionSet.Children.AddReturn(new CMapSelectionSet("Entities"));
     }
 
-    internal List<CMapMesh> RenderMeshToHammerMesh(Model model, Resource resource, string? entityClassname = null, Matrix4x4? transform = null)
+    internal List<CMapMesh> RenderMeshToHammerMesh(Model model, Resource resource, string? entityClassname = null, Matrix4x4? transform = null, Func<int, Vector4>? drawCallTint = null)
     {
         List<CMapMesh> hammerMeshesToReturn = [];
 
@@ -599,76 +602,78 @@ public sealed class MapExtract
         var modelExtract = new ModelExtract(resource, FileLoader);
         modelExtract.GrabMaterialInputSignatures(resource);
 
-        var dmxOptions = new ModelExtract.DatamodelRenderMeshExtractOptions
-        {
-            MaterialInputSignatures = modelExtract.MaterialInputSignatures,
-            SplitDrawCallsIntoSeparateSubmeshes = true,
-        };
-
         // TODO: reference meshes
         var hammerMeshEntitySelectionSet = new CMapSelectionSet();
         var drawSelectionSet = new CMapSelectionSet();
-        var componentMeshCount = 0;
+        var drawCallCount = 0;
 
         foreach (var embedded in model.GetEmbeddedMeshes())
         {
+            var submeshDrawCalls = new List<(DmeDag Dag, KVObject DrawCall)>();
+            var dmxOptions = new ModelExtract.DatamodelRenderMeshExtractOptions
+            {
+                MaterialInputSignatures = modelExtract.MaterialInputSignatures,
+                SplitDrawCallsIntoSeparateSubmeshes = true,
+                SubmeshDrawCalls = submeshDrawCalls,
+            };
+
             using var dmxMesh = ModelExtract.ConvertMeshToDatamodelMesh(embedded.Mesh, Path.GetFileNameWithoutExtension(resource.FileName ?? "mesh"), dmxOptions);
 
-            var mesh = (DmeModel)dmxMesh.Root!["model"]!;
+            var buildersByTint = new Dictionary<Vector4, HammerMeshBuilder>();
 
-            foreach (var dag in mesh.JointList.Cast<DmeDag>())
+            for (var drawCallIndex = 0; drawCallIndex < submeshDrawCalls.Count; drawCallIndex++)
             {
-                var builder = new HammerMeshBuilder()
+                var (dag, drawCall) = submeshDrawCalls[drawCallIndex];
+                drawCallCount++;
+
+                var tint = drawCallTint?.Invoke(drawCallIndex) ?? GetDrawCallTint(drawCall);
+
+                if (!buildersByTint.TryGetValue(tint, out var builder))
                 {
-                    PhysicsVertexMatcher = PhysVertexMatcher,
-                    ProgressReporter = ProgressReporter,
-                };
+                    builder = new HammerMeshBuilder()
+                    {
+                        PhysicsVertexMatcher = PhysVertexMatcher,
+                        ProgressReporter = ProgressReporter,
+                    };
+                    buildersByTint.Add(tint, builder);
+                }
+
                 if (dag.Shape is DmeMesh meshShape)
                 {
                     builder.AddRenderMesh(meshShape, meshTransform);
                 }
-                var hammerMesh = new CMapMesh() { MeshData = builder.GenerateMesh() };
+            }
 
-                if (!string.IsNullOrEmpty(entityClassname))
+            foreach (var (tint, builder) in buildersByTint)
+            {
+                // connect the faces across the seams the compiled vertex buffer split them on, and across draw calls
+                builder.MergeVerticesWithinDistance(HammerMeshWeldDistance);
+
+                // one Hammer mesh per connected island, so separate objects the compiler batched together come apart again
+                foreach (var meshData in builder.GenerateMeshes())
                 {
-                    hammerMeshEntitySelectionSet.SelectionSetData.SelectedObjects.Add(hammerMesh);
+                    var hammerMesh = new CMapMesh()
+                    {
+                        MeshData = meshData,
+                        TintColor = ConvertToColor32(tint),
+                    };
+
+                    if (!string.IsNullOrEmpty(entityClassname))
+                    {
+                        hammerMeshEntitySelectionSet.SelectionSetData.SelectedObjects.Add(hammerMesh);
+                    }
+                    else
+                    {
+                        drawSelectionSet.SelectionSetData.SelectedObjects.Add(hammerMesh);
+                    }
+
+                    hammerMeshesToReturn.Add(hammerMesh);
                 }
-                else
-                {
-                    drawSelectionSet.SelectionSetData.SelectedObjects.Add(hammerMesh);
-                }
-
-                if (resource.DataBlock is null)
-                {
-                    continue;
-                }
-
-                var modelmesh = ((Model)resource.DataBlock).GetEmbeddedMeshes().First();
-                var sceneObject = modelmesh.Mesh.Data.GetArray("m_sceneObjects")[0];
-                var drawCalls = sceneObject.GetArray("m_drawCalls");
-
-                var tint = Vector3.One * 255f;
-                var alpha = 255f;
-
-                //this is fine because i think the scene objects we export are never more than one draw
-                var fragment = drawCalls[0];
-
-                if (fragment.ContainsKey("m_vTintColor"))
-                {
-                    tint *= ColorSpace.SrgbLinearToGamma(fragment.GetSubCollection("m_vTintColor").ToVector3());
-                }
-
-                alpha *= fragment.GetFloatProperty("m_flAlpha");
-
-                hammerMesh.TintColor = ConvertToColor32(new Vector4(tint, alpha));
-
-                componentMeshCount++;
-                hammerMeshesToReturn.Add(hammerMesh);
             }
         }
 
-        hammerMeshEntitySelectionSet.SelectionSetName = "hammer mesh entity " + entityClassname + " (reconstructed from " + componentMeshCount + (componentMeshCount > 1 ? " meshes )" : " mesh )");
-        drawSelectionSet.SelectionSetName = "hammer mesh (" + componentMeshCount + (componentMeshCount > 1 ? " scene objects) " : " scene object) ") + Path.GetFileNameWithoutExtension(resource.FileName);
+        hammerMeshEntitySelectionSet.SelectionSetName = "hammer mesh entity " + entityClassname + " (reconstructed from " + drawCallCount + (drawCallCount > 1 ? " draw calls )" : " draw call )");
+        drawSelectionSet.SelectionSetName = "hammer mesh (" + drawCallCount + (drawCallCount > 1 ? " draw calls) " : " draw call) ") + Path.GetFileNameWithoutExtension(resource.FileName);
 
         if (!string.IsNullOrEmpty(entityClassname))
         {
@@ -684,6 +689,23 @@ public sealed class MapExtract
         }
 
         return hammerMeshesToReturn;
+    }
+
+    /// <summary>
+    /// Tint of a draw call in gamma space, 0-255, with its alpha in W.
+    /// </summary>
+    private static Vector4 GetDrawCallTint(KVObject drawCall)
+    {
+        var tint = Vector3.One * 255f;
+
+        if (drawCall.ContainsKey("m_vTintColor"))
+        {
+            tint *= ColorSpace.SrgbLinearToGamma(drawCall.GetSubCollection("m_vTintColor").ToVector3());
+        }
+
+        var alpha = 255f * drawCall.GetFloatProperty("m_flAlpha", 1f);
+
+        return new Vector4(tint, alpha);
     }
 
     internal List<CMapMesh> PhysToHammerMeshes(PhysAggregateData phys, Vector3 positionOffset = new Vector3(), string? entityClassname = null)
@@ -1022,7 +1044,6 @@ public sealed class MapExtract
 
             var hasModelFlag = allFlags.HasFlag(ObjectTypeFlags.Model);
             var convertToHalfEdge = !hasModelFlag;
-            List<CMapMesh> halfEdgeMeshes = [];
 
             var aggregateMeshes = agg.GetArray("m_aggregateMeshes");
 
@@ -1051,14 +1072,7 @@ public sealed class MapExtract
             var sceneObject = mesh.Mesh.Data.GetArray("m_sceneObjects")[0];
             drawCalls = sceneObject.GetArray("m_drawCalls");
 
-            if (convertToHalfEdge)
-            {
-                foreach (var hammermesh in RenderMeshToHammerMesh(model, modelRes))
-                {
-                    halfEdgeMeshes.Add(hammermesh);
-                }
-            }
-            else
+            if (!convertToHalfEdge)
             {
                 if (!aggregateHasTransforms)
                 {
@@ -1081,14 +1095,51 @@ public sealed class MapExtract
             var drawSelectionSet = new CMapSelectionSet();
             if (convertToHalfEdge)
             {
-                drawSelectionSet.SelectionSetName = "hammer mesh " + (aggregateHasTransforms ? "(instanced) " : "(" + drawCalls.Count + " split draw meshes) ") + Path.GetFileNameWithoutExtension(modelName);
+                if (aggregateHasTransforms)
+                {
+                    throw new InvalidOperationException("Unhandled aggregate with instanced transforms exported as hammer mesh!");
+                }
+
+                drawSelectionSet.SelectionSetName = "hammer meshes (" + drawCalls.Count + " welded draw calls) " + Path.GetFileNameWithoutExtension(modelName);
                 HammerMeshesSelectionSet?.Children.Add(drawSelectionSet);
+
+                // the fragment tint multiplies the draw call tint, one fragment per draw call is expected here
+                var fragmentTints = new Dictionary<int, Vector3>();
+                foreach (var fragment in aggregateMeshes)
+                {
+                    if (fragment.ContainsKey("m_vTintColor"))
+                    {
+                        fragmentTints.TryAdd(fragment.GetInt32Property("m_nDrawCallIndex"), fragment.GetSubCollection("m_vTintColor").ToVector3());
+                    }
+                }
+
+                Vector4 HammerMeshTint(int drawCallIndex)
+                {
+                    var tint = GetDrawCallTint(drawCalls[drawCallIndex]);
+
+                    if (fragmentTints.TryGetValue(drawCallIndex, out var fragmentTint))
+                    {
+                        tint = new Vector4(fragmentTint * new Vector3(tint.X, tint.Y, tint.Z) / 255f, tint.W);
+                    }
+
+                    return tint;
+                }
+
+                var meshIndex = 0;
+                var meshBaseName = Path.GetFileNameWithoutExtension(modelName);
+                foreach (var mapMesh in RenderMeshToHammerMesh(model, modelRes, drawCallTint: HammerMeshTint))
+                {
+                    mapMesh.Name = $"{meshBaseName}_{meshIndex++}";
+
+                    MapDocument.World.Children.Add(mapMesh);
+                    drawSelectionSet.SelectionSetData.SelectedObjects.Add(mapMesh);
+                }
+
+                return;
             }
-            else
-            {
-                drawSelectionSet.SelectionSetName = "prop_static render mesh " + (aggregateHasTransforms ? "(instanced) " : "(" + drawCalls.Count + " split draw meshes) ") + Path.GetFileNameWithoutExtension(modelName);
-                StaticPropsSelectionSet?.Children.Add(drawSelectionSet);
-            }
+
+            drawSelectionSet.SelectionSetName = "prop_static render mesh " + (aggregateHasTransforms ? "(instanced) " : "(" + drawCalls.Count + " split draw meshes) ") + Path.GetFileNameWithoutExtension(modelName);
+            StaticPropsSelectionSet?.Children.Add(drawSelectionSet);
 
             foreach (var fragment in aggregateMeshes)
             {
@@ -1108,22 +1159,6 @@ public sealed class MapExtract
                 var drawCallTint = drawCall.GetSubCollection("m_vTintColor").ToVector3();
                 tint *= ColorSpace.SrgbLinearToGamma(drawCallTint);
                 alpha *= drawCall.GetFloatProperty("m_flAlpha");
-
-                if (convertToHalfEdge)
-                {
-                    if (aggregateHasTransforms)
-                    {
-                        throw new InvalidOperationException("Unhandled aggregate with instanced transforms exported as hammer mesh!");
-                    }
-
-                    var mapMesh = halfEdgeMeshes[i];
-                    mapMesh.Name = $"draw_{i} ({modelName})";
-                    mapMesh.TintColor = ConvertToColor32(new Vector4(tint, alpha));
-
-                    MapDocument.World.Children.Add(mapMesh);
-                    drawSelectionSet.SelectionSetData.SelectedObjects.Add(mapMesh);
-                    continue;
-                }
 
                 var fragmentModelName = ModelExtract.GetFragmentModelName(modelName, i);
                 AssetReferences.Add(fragmentModelName);

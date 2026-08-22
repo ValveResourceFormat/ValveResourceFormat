@@ -238,13 +238,14 @@ namespace ValveResourceFormat.IO
         private readonly HalfEdgeData<Vector4> VertexPaintBlendParams;
         private readonly HalfEdgeData<Vector4> VertexPaintTintColor;
         private readonly FaceData<int> MaterialIndex;
+        private readonly FaceData<bool> Extracted;
 
         private readonly List<string> Materials = [];
         private readonly Dictionary<string, int> MaterialIds = [];
 
-        // Source data for the vertices added through AddVertices(), indexed by input vertex index
-        // read in order to propagate the vertex data onto the half edges
-        private VertexStreams SourceStreams = new();
+        // Source data for the vertices added through AddVertices(), indexed by input vertex index across
+        // every call, read in order to propagate the vertex data onto the half edges
+        private readonly VertexStreams SourceStreams = new();
 
         /// <summary>
         /// Matcher that reports which physics vertices a render mesh already covers.
@@ -269,6 +270,7 @@ namespace ValveResourceFormat.IO
             VertexPaintBlendParams = HalfEdgeMesh.CreateHalfEdgeData<Vector4>(nameof(VertexPaintBlendParams));
             VertexPaintTintColor = HalfEdgeMesh.CreateHalfEdgeData<Vector4>(nameof(VertexPaintTintColor));
             MaterialIndex = HalfEdgeMesh.CreateFaceData<int>(nameof(MaterialIndex));
+            Extracted = HalfEdgeMesh.CreateFaceData<bool>(nameof(Extracted));
 
             HalfEdgeMesh.OnCopyFaceVertexData = (dst, src) =>
             {
@@ -331,6 +333,14 @@ namespace ValveResourceFormat.IO
                 faceRemap[i] = HalfEdgeMesh.IsFaceAllocated(i) ? activeFaceCount++ : -1;
             }
 
+            // merging and collapsing frees vertices too
+            var vertexRemap = new int[HalfEdgeMesh.VertexCount];
+            var activeVertexCount = 0;
+            for (var i = 0; i < HalfEdgeMesh.VertexCount; i++)
+            {
+                vertexRemap[i] = HalfEdgeMesh.IsVertexAllocated(i) ? activeVertexCount++ : -1;
+            }
+
             var mesh = new CDmePolygonMesh();
 
             var faceMaterialIndices = CreateStream<IntArray, int>(8, "materialindex:0");
@@ -359,15 +369,21 @@ namespace ValveResourceFormat.IO
 
             for (var i = 0; i < HalfEdgeMesh.VertexCount; i++)
             {
+                if (vertexRemap[i] == -1)
+                {
+                    continue;
+                }
+
                 var vertexDataIndex = mesh.VertexData.Size;
 
-                var vertexEdge = Vertices[i].Edge.Index;
+                var hVertex = new VertexHandle(i, HalfEdgeMesh); // by index, several input vertices share one mesh vertex after merging
+                var vertexEdge = hVertex.Edge.Index;
                 mesh.VertexEdgeIndices.Add(vertexEdge == -1 ? -1 : halfEdgeRemap[vertexEdge]);
 
                 mesh.VertexDataIndices.Add(vertexDataIndex);
                 mesh.VertexData.Size++;
 
-                vertexPositions.Data.Add(Positions[Vertices[i]]);
+                vertexPositions.Data.Add(Positions[hVertex]);
             }
 
             for (var i = 0; i < activeHalfEdgeCount / 2; i++)
@@ -390,7 +406,7 @@ namespace ValveResourceFormat.IO
                 // Twin half edges are always allocated (and freed) as pairs, so both map to edge newIndex / 2
                 mesh.EdgeDataIndices.Add(newIndex / 2);
 
-                mesh.EdgeVertexIndices.Add(hEdge.Vertex.Index);
+                mesh.EdgeVertexIndices.Add(vertexRemap[hEdge.Vertex.Index]);
                 mesh.EdgeOppositeIndices.Add(halfEdgeRemap[hEdge.OppositeEdge.Index]);
                 mesh.EdgeNextIndices.Add(halfEdgeRemap[hEdge.NextEdge.Index]);
 
@@ -440,21 +456,545 @@ namespace ValveResourceFormat.IO
         }
 
         /// <summary>
-        /// Adds the vertices of one source mesh. Faces added afterwards index into these vertices.
+        /// Writes everything added so far out as Hammer meshes, one per island of faces connected through shared
+        /// vertices. Faces that were extracted because they didn't fit the topology are collected into one extra
+        /// mesh. Each island is copied into its own builder and written with <see cref="GenerateMesh"/>.
+        /// </summary>
+        public List<CDmePolygonMesh> GenerateMeshes()
+        {
+            var islands = FindIslands();
+            var meshes = new List<CDmePolygonMesh>(islands.Count);
+
+            foreach (var islandFaces in islands)
+            {
+                var islandBuilder = new HammerMeshBuilder
+                {
+                    ProgressReporter = ProgressReporter,
+                };
+
+                islandBuilder.CopyFacesFrom(this, islandFaces);
+                meshes.Add(islandBuilder.GenerateMesh());
+            }
+
+#if DEBUG
+            if (meshes.Count > 1)
+            {
+                ProgressReporter?.Report($"{nameof(HammerMeshBuilder)}: Split into {meshes.Count} meshes");
+            }
+#endif
+
+            return meshes;
+        }
+
+        // groups the faces into islands connected through shared vertices, extracted faces all count as one island
+        private List<List<FaceHandle>> FindIslands()
+        {
+            var parent = new int[HalfEdgeMesh.VertexCount];
+            for (var i = 0; i < parent.Length; i++)
+            {
+                parent[i] = i;
+            }
+
+            int Find(int i)
+            {
+                while (parent[i] != i)
+                {
+                    parent[i] = parent[parent[i]];
+                    i = parent[i];
+                }
+
+                return i;
+            }
+
+            void Union(int a, int b)
+            {
+                a = Find(a);
+                b = Find(b);
+
+                if (a != b)
+                {
+                    parent[a] = b;
+                }
+            }
+
+            var extractedRoot = -1;
+            foreach (var hFace in HalfEdgeMesh.FaceHandles)
+            {
+                var first = hFace.Edge.Vertex.Index;
+
+                var hEdge = hFace.Edge;
+                do
+                {
+                    Union(hEdge.Vertex.Index, first);
+                    hEdge = hEdge.NextEdge;
+                }
+                while (hEdge != hFace.Edge);
+
+                if (Extracted[hFace])
+                {
+                    if (extractedRoot == -1)
+                    {
+                        extractedRoot = first;
+                    }
+                    else
+                    {
+                        Union(first, extractedRoot);
+                    }
+                }
+            }
+
+            var islandByRoot = new Dictionary<int, List<FaceHandle>>();
+            var islands = new List<List<FaceHandle>>();
+
+            foreach (var hFace in HalfEdgeMesh.FaceHandles)
+            {
+                var root = Find(hFace.Edge.Vertex.Index);
+
+                if (!islandByRoot.TryGetValue(root, out var island))
+                {
+                    island = [];
+                    islandByRoot.Add(root, island);
+                    islands.Add(island);
+                }
+
+                island.Add(hFace);
+            }
+
+            return islands;
+        }
+
+        // copies the given faces of another builder, with their half edges, vertices, data streams and materials, into this empty builder
+        private void CopyFacesFrom(HammerMeshBuilder source, IReadOnlyCollection<FaceHandle> faces)
+        {
+            HalfEdgeMesh.AppendComponentsFromMesh(source.HalfEdgeMesh, faces, out var newVertices, out var newHalfEdges, out var newFaces);
+
+            foreach (var (hVertex, hNewVertex) in newVertices)
+            {
+                Positions[hNewVertex] = source.Positions[hVertex];
+                Vertices.Add(hNewVertex);
+            }
+
+            foreach (var (hEdge, hNewEdge) in newHalfEdges)
+            {
+                TextureCoords[hNewEdge] = source.TextureCoords[hEdge];
+                TextureCoords1[hNewEdge] = source.TextureCoords1[hEdge];
+                Normals[hNewEdge] = source.Normals[hEdge];
+                Tangents[hNewEdge] = source.Tangents[hEdge];
+                VertexPaintBlendParams[hNewEdge] = source.VertexPaintBlendParams[hEdge];
+                VertexPaintTintColor[hNewEdge] = source.VertexPaintTintColor[hEdge];
+            }
+
+            foreach (var (hFace, hNewFace) in newFaces)
+            {
+                var materialIndex = source.MaterialIndex[hFace];
+                MaterialIndex[hNewFace] = materialIndex >= 0 ? AddMaterial(source.Materials[materialIndex]) : -1;
+                Extracted[hNewFace] = source.Extracted[hFace];
+            }
+        }
+
+        /// <summary>
+        /// Merges every vertex of the mesh that lies within <paramref name="maxDistance"/> of another one, the
+        /// Hammer "merge vertices by distance" operation. Use after all faces were added: the input vertex indices
+        /// handed out by <see cref="AddVertices"/> no longer apply afterwards.
+        /// </summary>
+        /// <param name="maxDistance">Largest distance between two vertices that still get merged.</param>
+        /// <returns>Number of vertices merged away.</returns>
+        public int MergeVerticesWithinDistance(float maxDistance)
+        {
+            var vertices = HalfEdgeMesh.VertexHandles.ToList();
+            var merged = MergeVerticesWithinDistance(vertices, maxDistance, averagePositions: false, out _);
+
+#if DEBUG
+            if (merged > 0)
+            {
+                ProgressReporter?.Report($"{nameof(HammerMeshBuilder)}: Merged {merged} of {vertices.Count} vertices within {maxDistance} units");
+            }
+#endif
+
+            return merged;
+        }
+
+        /// <summary>
+        /// Merges the given vertices into groups of vertices lying within <paramref name="maxDistance"/> of each other
+        /// </summary>
+        /// <param name="originalVertices">Vertices to consider for merging.</param>
+        /// <param name="maxDistance">Largest distance between two vertices that still get merged, negative merges all of them into one.</param>
+        /// <param name="averagePositions">Move each merged vertex to the average of the positions it merged, otherwise the first vertex of a group keeps its position.</param>
+        /// <param name="finalVertices">The vertices left over after merging.</param>
+        /// <returns>Number of vertices merged away.</returns>
+        public int MergeVerticesWithinDistance(IReadOnlyList<VertexHandle> originalVertices, float maxDistance, bool averagePositions, out List<VertexHandle> finalVertices)
+        {
+            finalVertices = [];
+            var useDistance = maxDistance >= 0.0f;
+            var distance = new Vector3(maxDistance, maxDistance, maxDistance);
+            var maxIterations = 10;
+            var maxDistanceSquared = useDistance ? (maxDistance * maxDistance) : float.MaxValue;
+
+            var verticesToMerge = new List<VertexHandle>(originalVertices.Count);
+            foreach (var hVertex in originalVertices)
+            {
+                if (hVertex.IsValid)
+                {
+                    verticesToMerge.Add(hVertex);
+                }
+            }
+
+            var numOriginalVertices = verticesToMerge.Count;
+            if (numOriginalVertices < 2)
+            {
+                return 0;
+            }
+
+            var numTotalVerticesMerged = 0;
+
+            finalVertices.EnsureCapacity(numOriginalVertices);
+
+            // Assign the vertices to groups based on their positions. Each group will contain all of the
+            // vertices within the specified maximum distance of the first vertex in the group.
+            var verticesSortedByGroup = new List<VertexHandle>(numOriginalVertices);
+            var groupVertexCounts = new int[numOriginalVertices];
+            var groupOffsets = new int[numOriginalVertices];
+
+            for (var iteration = 0; iteration < maxIterations; ++iteration)
+            {
+                // Stop if there are not at least two vertices left.
+                var numVerticesToMerge = verticesToMerge.Count;
+                if (numVerticesToMerge < 2)
+                {
+                    break;
+                }
+
+                var vertexGroupAssignments = new List<int>(numVerticesToMerge);
+                vertexGroupAssignments.AddRange(Enumerable.Repeat(-1, numVerticesToMerge));
+                verticesSortedByGroup.Clear();
+
+                var numGroups = 0;
+
+                if (useDistance)
+                {
+                    // Build an array of the positions specifically for the vertices
+                    // to merge instead of all the positions in the mesh
+                    var vertexPositions = new List<Vector3>(numVerticesToMerge);
+                    for (var iVertex = 0; iVertex < numVerticesToMerge; ++iVertex)
+                    {
+                        vertexPositions.Add(Positions[verticesToMerge[iVertex]]);
+                    }
+
+                    // Build a kd-tree of the vertex positions that we can use to find nearby vertices more efficiently
+                    var vertexPositionTree = new VertexKDTree();
+                    vertexPositionTree.BuildMidpoint(vertexPositions);
+
+                    for (var iVertex = 0; iVertex < numVerticesToMerge; ++iVertex)
+                    {
+                        // Check to see if the vertex has already been added to a group.
+                        if (vertexGroupAssignments[iVertex] >= 0)
+                        {
+                            continue;
+                        }
+
+                        // If the vertex has not been assigned to a group assign it the next available group.
+                        var hVertexA = verticesToMerge[iVertex];
+                        var groupPosition = Positions[hVertexA];
+                        var groupIndex = numGroups++;
+                        vertexGroupAssignments[iVertex] = groupIndex;
+
+                        // Set the index of the start of the group in the sorted vertex array.
+                        groupOffsets[groupIndex] = verticesSortedByGroup.Count;
+
+                        // Add the vertex to the sorted array
+                        verticesSortedByGroup.Add(hVertexA);
+
+                        // Search the the rest of the vertices to see if there are any which have not yet been
+                        // assigned a group that are close enough to the current vertex to be grouped with it.
+                        var groupMin = groupPosition - distance;
+                        var groupMax = groupPosition + distance;
+                        var verticesInBox = vertexPositionTree.FindVertsInBox(groupMin, groupMax);
+                        var numVerticesInBox = verticesInBox.Count;
+
+                        // There are some cases where the behavior of merging is order dependent, ideally it
+                        // wouldn't be, but it is due to the constraint of not being able to connect more
+                        // than two faces at a single vertex by merging. So to maintain the same behavior
+                        // as the old approach we need to add the vertices in the order they were supplied
+                        // in the input list.
+                        verticesInBox.Sort();
+
+                        for (var iVertexInBox = 0; iVertexInBox < numVerticesInBox; ++iVertexInBox)
+                        {
+                            var vertexIndexB = verticesInBox[iVertexInBox];
+                            var vertexPosition = vertexPositions[vertexIndexB];
+
+                            if (Vector3.DistanceSquared(vertexPosition, groupPosition) < maxDistanceSquared)
+                            {
+                                if (vertexGroupAssignments[vertexIndexB] < 0)
+                                {
+                                    var hVertexB = verticesToMerge[vertexIndexB];
+                                    verticesSortedByGroup.Add(hVertexB);
+                                    vertexGroupAssignments[vertexIndexB] = groupIndex;
+                                }
+                            }
+                        }
+
+                        // Compute the number of vertices that were assigned to the group
+                        groupVertexCounts[groupIndex] = verticesSortedByGroup.Count - groupOffsets[groupIndex];
+                    }
+                }
+                else
+                {
+                    // If not using the distance just add all the vertices to a single group for merging
+                    numGroups = 1;
+                    verticesSortedByGroup = new(verticesToMerge);
+
+                    for (var i = 0; i < vertexGroupAssignments.Count; i++)
+                    {
+                        vertexGroupAssignments[i] = 0;
+                    }
+
+                    groupVertexCounts[0] = numVerticesToMerge;
+                    groupOffsets[0] = 0;
+                }
+
+                var groupsMergedVertexCount = new int[numGroups]; // Number of vertices in each group that were successfully merged
+                var groupsSumPosition = new Vector3[numGroups]; // Average position of the vertices in the group that were merged
+                var groupsTargetVertex = new VertexHandle[numGroups]; // Target vertex with which other vertices in the group should be merged.
+
+                for (var iGroup = 0; iGroup < numGroups; ++iGroup)
+                {
+                    var groupVertexOffset = groupOffsets[iGroup];
+                    var hFirstVertex = verticesSortedByGroup[groupVertexOffset];
+
+                    groupsMergedVertexCount[iGroup] = 1;
+                    groupsTargetVertex[iGroup] = hFirstVertex;
+                    groupsSumPosition[iGroup] = Positions[hFirstVertex];
+
+                    // Clear the first vertex in the group, it does not need to be merged.
+                    verticesSortedByGroup[groupVertexOffset] = VertexHandle.Invalid;
+                }
+
+                // Merge all of the vertices in each group. Multiple iterations are done until all of the vertices
+                // in all of the groups have been merged or until no vertices were merged in the previous iteration.
+                for (var iGroupPass = 0; iGroupPass < numVerticesToMerge; ++iGroupPass)
+                {
+                    var numMerged = 0;
+                    var numUnmerged = 0;
+
+                    for (var iGroup = 0; iGroup < numGroups; ++iGroup)
+                    {
+                        var groupVertexCount = groupVertexCounts[iGroup];
+                        if (groupVertexCount < 2)
+                        {
+                            continue;
+                        }
+
+                        var groupVertexOffset = groupOffsets[iGroup];
+                        var numUnmergedInGroup = 0;
+
+                        var hTargetVertex = groupsTargetVertex[iGroup];
+
+                        for (var iVertex = 1; iVertex < groupVertexCount; ++iVertex)
+                        {
+                            var hMergeVertex = verticesSortedByGroup[groupVertexOffset + iVertex];
+                            if (!hMergeVertex.IsValid)
+                            {
+                                continue;
+                            }
+
+                            // Get the position of the vertex to be merged before
+                            // merging it, which will delete the vertex.
+                            var mergeVertexPosition = Positions[hMergeVertex];
+
+                            // If averaging positions, set the merge interpolation parameter to 0.5f,
+                            // otherwise set it to 1.0 so that the data of the merge vertex is preserved.
+                            var param = averagePositions ? 0.5f : 1.0f;
+
+                            if (MergeVertices(hTargetVertex, hMergeVertex, param, out var hNewVertex))
+                            {
+                                // Add the position of the vertex to the group sum position
+                                groupsSumPosition[iGroup] += mergeVertexPosition;
+                                groupsMergedVertexCount[iGroup] += 1;
+
+                                // Update the merged vertex of the group
+                                groupsTargetVertex[iGroup] = hNewVertex;
+
+                                // Update the target vertex to be the new vertex since the target vertex has
+                                // be removed, if we don't update the target, then there is no way to merge
+                                // the remaining vertices in this pass.
+                                hTargetVertex = hNewVertex;
+
+                                // Set the original vertex in the group to invalid so we
+                                // don't try to merge it again in subsequent passes.
+                                verticesSortedByGroup[groupVertexOffset + iVertex] = VertexHandle.Invalid;
+
+                                ++numMerged;
+                            }
+                            else
+                            {
+                                ++numUnmerged;
+                                ++numUnmergedInGroup;
+                            }
+                        }
+
+                        // If all of the vertices in the group were merged mark the group as not having any
+                        // vertices so that it is not touched in any future iterations.
+                        if (numUnmergedInGroup == 0)
+                        {
+                            groupVertexCounts[iGroup] = -1;
+                        }
+                    }
+
+                    if ((numUnmerged == 0) || (numMerged == 0))
+                    {
+                        break;
+                    }
+                }
+
+                // Set the merged vertex positions to the average position
+                var numVerticesMerged = 0;
+                for (var iGroup = 0; iGroup < numGroups; ++iGroup)
+                {
+                    if (averagePositions)
+                    {
+                        var hVertex = groupsTargetVertex[iGroup];
+                        if (hVertex.IsValid)
+                        {
+                            var averagePosition = groupsSumPosition[iGroup] / groupsMergedVertexCount[iGroup];
+                            Positions[hVertex] = averagePosition;
+                        }
+                    }
+
+                    var numVerticesMergedInGroup = groupsMergedVertexCount[iGroup];
+                    if (numVerticesMergedInGroup > 1)
+                    {
+                        numVerticesMerged += numVerticesMergedInGroup;
+                    }
+                }
+
+                // Add the merged vertices from the groups
+                for (var iGroup = 0; iGroup < numGroups; ++iGroup)
+                {
+                    if (groupsTargetVertex[iGroup].IsValid)
+                    {
+                        finalVertices.Add(groupsTargetVertex[iGroup]);
+                    }
+                }
+
+                // Build the remaining list of vertices to merge
+                verticesToMerge.Clear();
+                for (var iVertex = 0; iVertex < numVerticesToMerge; ++iVertex)
+                {
+                    if (verticesSortedByGroup[iVertex].IsValid)
+                    {
+                        verticesToMerge.Add(verticesSortedByGroup[iVertex]);
+                    }
+                }
+
+                numTotalVerticesMerged += numVerticesMerged;
+            }
+
+            // Add all of the vertices which were not merged
+            finalVertices.AddRange(verticesToMerge);
+
+            return numTotalVerticesMerged;
+        }
+
+        // Merges two vertices, interpolating the position by param (0 keeps the first vertex, 1 the second).
+        // Ported from S&box PolygonMesh.MergeVertices.
+        private bool MergeVertices(VertexHandle hVertexA, VertexHandle hVertexB, float param, out VertexHandle hOutNewVertex)
+        {
+            // If there is an edge connecting the vertices, just call edge collapse so that
+            // the proper interpolation is done for the face vertices of the merged edge.
+            var hEdge = HalfEdgeMesh.FindHalfEdgeConnectingVertices(hVertexA, hVertexB);
+            if (hEdge != HalfEdgeHandle.Invalid)
+            {
+                return CollapseEdge(hEdge, param, out hOutNewVertex);
+            }
+
+            // Interpolate the data on the two vertices and store a copy before they are destroyed
+            var newVertex = Vector3.Lerp(Positions[hVertexA], Positions[hVertexB], param);
+
+            // Merge the two vertices and create a new one with
+            // the interpolated values of the original vertices.
+            if (HalfEdgeMesh.MergeVertices(hVertexA, hVertexB, out hOutNewVertex))
+            {
+                Positions[hOutNewVertex] = newVertex;
+                return true;
+            }
+
+            return false;
+        }
+
+        // Collapses an edge into one vertex, interpolating the position by param. Ported from S&box PolygonMesh.CollapseEdge.
+        private bool CollapseEdge(HalfEdgeHandle hHalfEdgeA, float param, out VertexHandle hOutNewVertex)
+        {
+            var hHalfEdgeB = HalfEdgeMesh.GetOppositeHalfEdge(hHalfEdgeA);
+
+            // Get the vertices connected to the edge and average the values
+            var hVertexA = HalfEdgeMesh.GetEndVertexConnectedToEdge(hHalfEdgeB);
+            var hVertexB = HalfEdgeMesh.GetEndVertexConnectedToEdge(hHalfEdgeA);
+
+            var newVertex = Vector3.Lerp(Positions[hVertexA], Positions[hVertexB], param);
+            var hEdge = HalfEdgeMesh.GetFullEdgeForHalfEdge(hHalfEdgeA);
+            var removed = HalfEdgeMesh.CollapseEdge(hEdge, out hOutNewVertex, out _);
+
+            if (hOutNewVertex != VertexHandle.Invalid)
+            {
+                Positions[hOutNewVertex] = newVertex;
+            }
+
+            return removed;
+        }
+        /// <summary>
+        /// Adds the vertices of one source mesh. Faces added afterwards index into these vertices, offset by
+        /// the returned base index when several source meshes are added to one builder.
         /// </summary>
         /// <param name="streams">Per vertex source data.</param>
         /// <param name="positionOffset">Offset added to every position.</param>
-        public void AddVertices(VertexStreams streams, Vector3 positionOffset = new Vector3())
+        /// <returns>Index of the first added vertex, to add to the indices handed to <see cref="AddFace"/>.</returns>
+        public int AddVertices(VertexStreams streams, Vector3 positionOffset = new Vector3())
         {
-            SourceStreams = streams;
-
             var baseVertex = Vertices.Count;
-            Vertices.EnsureCapacity(baseVertex + streams.Positions.Count);
-            Vertices.AddRange(HalfEdgeMesh.AddVertices(streams.Positions.Count));
+            var count = streams.Positions.Count;
 
-            for (var i = 0; i < streams.Positions.Count; i++)
+            AppendSourceStream(SourceStreams.Positions, streams.Positions, baseVertex, count);
+            AppendSourceStream(SourceStreams.TexCoords, streams.TexCoords, baseVertex, count);
+            AppendSourceStream(SourceStreams.TexCoords1, streams.TexCoords1, baseVertex, count);
+            AppendSourceStream(SourceStreams.Normals, streams.Normals, baseVertex, count);
+            AppendSourceStream(SourceStreams.Tangents, streams.Tangents, baseVertex, count);
+            AppendSourceStream(SourceStreams.VertexPaintBlendParams, streams.VertexPaintBlendParams, baseVertex, count);
+            AppendSourceStream(SourceStreams.VertexPaintTintColor, streams.VertexPaintTintColor, baseVertex, count);
+
+            Vertices.EnsureCapacity(baseVertex + count);
+
+            Vertices.AddRange(HalfEdgeMesh.AddVertices(count));
+
+            for (var i = 0; i < count; i++)
             {
                 Positions[Vertices[baseVertex + i]] = streams.Positions[i] + positionOffset;
+            }
+
+            return baseVertex;
+        }
+
+        // Keeps a source stream indexable by absolute input vertex index across AddVertices() calls.
+        // A stream a batch doesn't provide is padded with defaults, as long as any batch provides it.
+        private static void AppendSourceStream<T>(List<T> accumulated, List<T> incoming, int baseVertex, int count) where T : struct
+        {
+            if (incoming.Count == 0 && accumulated.Count == 0)
+            {
+                return;
+            }
+
+            if (accumulated.Count < baseVertex)
+            {
+                accumulated.AddRange(Enumerable.Repeat(default(T), baseVertex - accumulated.Count));
+            }
+
+            if (incoming.Count > 0)
+            {
+                accumulated.AddRange(incoming);
+            }
+            else
+            {
+                accumulated.AddRange(Enumerable.Repeat(default(T), count));
             }
         }
 
@@ -604,6 +1144,7 @@ namespace ValveResourceFormat.IO
 
             // the duplicated vertices are isolated, so this can't fail
             HalfEdgeMesh.AddFace(out var hFace, vertices);
+            Extracted[hFace] = true;
 
             // need to write new half edge stream data
             WriteFaceData(hFace, indices, material);
@@ -635,7 +1176,7 @@ namespace ValveResourceFormat.IO
             var hull = desc.Shape;
             VertexStreams streams = new();
             streams.Positions.AddRange(hull.GetVertexPositions());
-            AddVertices(streams, positionOffset);
+            var baseVertex = AddVertices(streams, positionOffset);
 
             var hullFaces = hull.GetFaces();
             var hullEdges = hull.GetEdges();
@@ -657,7 +1198,7 @@ namespace ValveResourceFormat.IO
                         break;
                     }
 
-                    inds[indexCount] = hullEdges[he].Origin;
+                    inds[indexCount] = baseVertex + hullEdges[he].Origin;
                     he = hullEdges[he].Next;
                     indexCount++;
                 }
@@ -703,43 +1244,59 @@ namespace ValveResourceFormat.IO
                 ? (triangleRangeMin, triangleRangeMax)
                 : (0, meshTriangles.Length);
 
-            var newMesh = ReindexTriangleMesh(mesh.GetVertices(), meshTriangles, triangleStart, triangleStop);
-
-            VertexStreams streams = new();
-            streams.Positions.AddRange(newMesh.NewVertices);
-            AddVertices(streams, positionOffset);
-
-            Span<int> inds = stackalloc int[3];
-
+            // drop the triangles a render mesh already covers before reindexing, so only the vertices
+            // of the surviving triangles end up in the mesh and no loose vertices are written
+            var keptTriangles = new List<Triangle>(triangleStop - triangleStart);
+            var keptTriangleIndices = new List<int>(triangleStop - triangleStart);
             var removed = 0;
 
-            for (var i = 0; i < newMesh.NewTriangles.Count; i++)
+            for (var i = triangleStart; i < triangleStop; i++)
             {
-                var triangle = meshTriangles[i + triangleStart];
+                var triangle = meshTriangles[i];
 
-                inds[0] = triangle.X;
-                inds[1] = triangle.Y;
-                inds[2] = triangle.Z;
-
-                if (deletedIndices.Contains(inds[0])
-                 || deletedIndices.Contains(inds[1])
-                 || deletedIndices.Contains(inds[2]))
+                if (deletedIndices.Contains(triangle.X)
+                 || deletedIndices.Contains(triangle.Y)
+                 || deletedIndices.Contains(triangle.Z))
                 {
                     removed++;
                     continue;
                 }
 
+                keptTriangles.Add(triangle);
+                keptTriangleIndices.Add(i);
+            }
+
+            if (removed > 0)
+            {
+                ProgressReporter?.Report($"{nameof(HammerMeshBuilder)}: Total physics triangles removed: {removed}");
+            }
+
+            if (keptTriangles.Count == 0)
+            {
+                return;
+            }
+
+            var newMesh = ReindexTriangleMesh(mesh.GetVertices(), keptTriangles.ToArray(), 0, keptTriangles.Count);
+
+            VertexStreams streams = new();
+            streams.Positions.AddRange(newMesh.NewVertices);
+            var baseVertex = AddVertices(streams, positionOffset);
+
+            Span<int> inds = stackalloc int[3];
+
+            for (var i = 0; i < newMesh.NewTriangles.Count; i++)
+            {
                 var newTriangle = newMesh.NewTriangles[i];
 
-                inds[0] = (int)newTriangle.X;
-                inds[1] = (int)newTriangle.Y;
-                inds[2] = (int)newTriangle.Z;
+                inds[0] = baseVertex + (int)newTriangle.X;
+                inds[1] = baseVertex + (int)newTriangle.Y;
+                inds[2] = baseVertex + (int)newTriangle.Z;
 
                 if (group == "Default")
                 {
                     var physicsSurfaces = mesh.Materials;
-                    // + triangleStart because physicsSurfaces didn't also get reindexed
-                    var surfacePropertyIndex = physicsSurfaces.Length > 0 ? physicsSurfaces[i + triangleStart] : desc.SurfacePropertyIndex;
+                    // physicsSurfaces didn't get reindexed, look it up by the original triangle index
+                    var surfacePropertyIndex = physicsSurfaces.Length > 0 ? physicsSurfaces[keptTriangleIndices[i]] : desc.SurfacePropertyIndex;
                     var surfaceProperty = physicsSurfaceNames[surfacePropertyIndex];
 
                     material = surfaceProperty switch
@@ -750,11 +1307,6 @@ namespace ValveResourceFormat.IO
                 }
 
                 AddFace(inds, material);
-            }
-
-            if (removed > 0)
-            {
-                ProgressReporter?.Report($"{nameof(HammerMeshBuilder)}: Total physics triangles removed: {removed}");
             }
         }
 
@@ -901,10 +1453,15 @@ namespace ValveResourceFormat.IO
             streams.VertexPaintBlendParams.AddRange(newVertexPaintBlendParams);
             streams.VertexPaintTintColor.AddRange(newVertexPaintTintColor);
 
-            AddVertices(streams);
+            var baseVertex = AddVertices(streams);
 
             foreach (var (faceIndices, faceSet) in faceList)
             {
+                for (var i = 0; i < faceIndices.Length; i++)
+                {
+                    faceIndices[i] += baseVertex;
+                }
+
                 AddFace(faceIndices, faceSet.Material.MaterialName);
             }
         }

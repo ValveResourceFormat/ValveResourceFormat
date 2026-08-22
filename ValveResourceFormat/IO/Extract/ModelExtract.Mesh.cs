@@ -4,6 +4,7 @@ using System.Linq;
 using System.Runtime.InteropServices;
 using System.Text;
 using Datamodel;
+using ValveKeyValue;
 using ValveResourceFormat.Blocks;
 using ValveResourceFormat.IO.ContentFormats.DmxModel;
 using ValveResourceFormat.ResourceTypes;
@@ -70,6 +71,12 @@ partial class ModelExtract
         /// Split draw calls into sub-meshes named draw0, draw1, draw2...
         /// </summary>
         public bool SplitDrawCallsIntoSeparateSubmeshes { get; init; }
+
+        /// <summary>
+        /// When set together with <see cref="SplitDrawCallsIntoSeparateSubmeshes"/>, receives each sub-mesh
+        /// paired with the draw call it was made from, in draw call order.
+        /// </summary>
+        public List<(DmeDag Dag, KVObject DrawCall)>? SubmeshDrawCalls { get; init; }
 
         /// <summary>
         /// Pre-parsed input signatures used to map DirectX semantic names to engine semantic names.
@@ -540,6 +547,7 @@ partial class ModelExtract
                     }
 
                     dag.Shape!.Name = subMeshName;
+                    options.SubmeshDrawCalls?.Add((dag, drawCall));
                 }
 
                 GenerateTriangleFaceSetFromIndexBuffer(
