@@ -213,5 +213,128 @@ namespace Tests.SmartProp
             await Assert.That(u).IsEqualTo(new Vector3(0f, 1f, 0f));
         }
 
+        [Test]
+        public async Task DecomposeRoundTripsEulerRotationAndPosition()
+        {
+            Vector3[] anglesSet =
+            [
+                new(0f, 0f, 0f),
+                new(30f, 45f, 0f),
+                new(-15f, 200f, 60f),
+                new(89f, 0f, 0f),
+            ];
+
+            foreach (var angles in anglesSet)
+            {
+                var rotation = EntityTransformHelper.EulerAnglesToRotationMatrix(angles);
+                var matrix = rotation * Matrix4x4.CreateTranslation(new Vector3(5f, -3f, 12f));
+
+                var (position, decomposedAngles, scale) = SmartPropTransform.DecomposeTRS(matrix);
+
+                await Assert.That(position).IsEqualTo(new Vector3(5f, -3f, 12f));
+                await Assert.That(Vector3.Distance(scale, Vector3.One)).IsLessThan(Tolerance);
+                await Assert.That(AngleDelta(decomposedAngles.X, angles.X)).IsLessThan(Tolerance);
+                await Assert.That(AngleDelta(decomposedAngles.Y, angles.Y)).IsLessThan(Tolerance);
+                await Assert.That(AngleDelta(decomposedAngles.Z, angles.Z)).IsLessThan(Tolerance);
+            }
+        }
+
+        [Test]
+        public async Task DecomposeHandlesGimbalLock()
+        {
+            foreach (var pitch in new[] { 90f, -90f })
+            {
+                var rotation = EntityTransformHelper.EulerAnglesToRotationMatrix(new Vector3(pitch, 0f, 40f));
+                var matrix = rotation * Matrix4x4.CreateTranslation(Vector3.Zero);
+
+                var (_, angles, _) = SmartPropTransform.DecomposeTRS(matrix);
+
+                await Assert.That(AngleDelta(angles.X, pitch)).IsLessThan(Tolerance);
+
+                // Rebuilding from the decomposed angles must reproduce the same rotation
+                var rebuilt = EntityTransformHelper.EulerAnglesToRotationMatrix(angles);
+                await Assert.That(RowDelta(rebuilt, matrix, 0)).IsLessThan(Tolerance);
+                await Assert.That(RowDelta(rebuilt, matrix, 1)).IsLessThan(Tolerance);
+                await Assert.That(RowDelta(rebuilt, matrix, 2)).IsLessThan(Tolerance);
+            }
+        }
+
+        [Test]
+        public async Task DecomposeReadsPerAxisScaleFromRowLengths()
+        {
+            var rotation = EntityTransformHelper.EulerAnglesToRotationMatrix(new Vector3(20f, 50f, 10f));
+            var scale = new Vector3(2f, 3f, 0.5f);
+            var scaled = new Matrix4x4(
+                rotation.M11 * scale.X, rotation.M12 * scale.X, rotation.M13 * scale.X, 0f,
+                rotation.M21 * scale.Y, rotation.M22 * scale.Y, rotation.M23 * scale.Y, 0f,
+                rotation.M31 * scale.Z, rotation.M32 * scale.Z, rotation.M33 * scale.Z, 0f,
+                1f, 2f, 3f, 1f);
+
+            var (position, _, decomposedScale) = SmartPropTransform.DecomposeTRS(scaled);
+
+            await Assert.That(position).IsEqualTo(new Vector3(1f, 2f, 3f));
+            await Assert.That(decomposedScale.X).IsEqualTo(2f).Within(Tolerance);
+            await Assert.That(decomposedScale.Y).IsEqualTo(3f).Within(Tolerance);
+            await Assert.That(decomposedScale.Z).IsEqualTo(0.5f).Within(Tolerance);
+        }
+
+        [Test]
+        public async Task WorldPathOffsetShiftsTranslation()
+        {
+            var frame = SmartPropTransform.CreateFrame(new Vector3(10f, 0f, 0f), Vector3.UnitX);
+            var offset = SmartPropTransform.ApplyPathOffset(frame, new Vector3(1f, 2f, 3f), worldSpace: true);
+
+            await Assert.That(new Vector3(offset.M41, offset.M42, offset.M43)).IsEqualTo(new Vector3(11f, 2f, 3f));
+        }
+
+        [Test]
+        public async Task LocalPathOffsetShiftsAlongFrameAxes()
+        {
+            // Frame with forward +X gives left +Y and up +Z
+            var frame = SmartPropTransform.CreateFrame(Vector3.Zero, Vector3.UnitX);
+
+            var offset = SmartPropTransform.ApplyPathOffset(frame, new Vector3(2f, 3f, 99f), worldSpace: false);
+
+            // X shifts along left (+Y), Y shifts along up (+Z); the Z component is unused locally
+            await Assert.That(new Vector3(offset.M41, offset.M42, offset.M43)).IsEqualTo(new Vector3(0f, 2f, 3f));
+
+            // A rotated frame shifts along its own left/up rows
+            var rotated = SmartPropTransform.CreateFrame(Vector3.Zero, Vector3.UnitZ);
+            var rotatedOffset = SmartPropTransform.ApplyPathOffset(rotated, new Vector3(1f, 0f, 0f), worldSpace: false);
+            var left = new Vector3(rotated.M21, rotated.M22, rotated.M23);
+            await Assert.That(new Vector3(rotatedOffset.M41, rotatedOffset.M42, rotatedOffset.M43)).IsEqualTo(left);
+        }
+
+        [Test]
+        public async Task TransformPointAppliesRowVectorMath()
+        {
+            var identity = SmartPropTransform.TransformPoint(Matrix4x4.Identity, new Vector3(1f, 2f, 3f));
+            await Assert.That(identity).IsEqualTo(new Vector3(1f, 2f, 3f));
+
+            var rotation = EntityTransformHelper.EulerAnglesToRotationMatrix(new Vector3(0f, 90f, 0f));
+            var matrix = rotation * Matrix4x4.CreateTranslation(new Vector3(10f, 0f, 0f));
+
+            // Yaw 90 sends +X forward to +Y: (1, 0, 0) rotates to (0, 1, 0), then translates
+            var transformed = SmartPropTransform.TransformPoint(matrix, Vector3.UnitX);
+            await Assert.That(transformed.X).IsEqualTo(10f).Within(Tolerance);
+            await Assert.That(transformed.Y).IsEqualTo(1f).Within(Tolerance);
+            await Assert.That(transformed.Z).IsEqualTo(0f).Within(Tolerance);
+        }
+
+        private static Vector3 Row(Matrix4x4 matrix, int row) => row switch
+        {
+            0 => new(matrix.M11, matrix.M12, matrix.M13),
+            1 => new(matrix.M21, matrix.M22, matrix.M23),
+            _ => new(matrix.M31, matrix.M32, matrix.M33),
+        };
+
+        private static float AngleDelta(float a, float b)
+        {
+            var delta = MathF.Abs(a - b) % 360f;
+            return delta > 180f ? 360f - delta : delta;
+        }
+
+        private static float RowDelta(Matrix4x4 a, Matrix4x4 b, int row)
+            => Vector3.Distance(Row(a, row), Row(b, row));
     }
 }
