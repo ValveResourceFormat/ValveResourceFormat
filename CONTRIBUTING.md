@@ -46,8 +46,6 @@ package viewer. For example `mp3.png` will be used for files ending with `.mp3`.
 
 These icons should all have the same size. Use [TinyPNG](https://tinypng.com/) to optimize them.
 
-If a high resolution icon is available (from Source 2 tools), put it in [Misc/Icons/AssetTypes](Misc/Icons/AssetTypes) folder.
-
 ### Known entity key names
 
 Map files have entity lumps and every entity has a key value, but the keys use murmur hashes instead of strings.
