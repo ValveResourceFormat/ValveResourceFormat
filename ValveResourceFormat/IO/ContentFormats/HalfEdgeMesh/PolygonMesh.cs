@@ -28,6 +28,14 @@ public sealed class PolygonMesh
     public HalfEdgeData<Vector4> VertexPaintTintColor { get; }
     /// <summary>Index into <see cref="Materials"/> per face, -1 for no material.</summary>
     public FaceData<int> MaterialIndex { get; }
+    /// <summary>Texture projection U axis per face, see <see cref="TextureAlignToGrid"/>.</summary>
+    public FaceData<Vector3> TextureUAxis { get; }
+    /// <summary>Texture projection V axis per face.</summary>
+    public FaceData<Vector3> TextureVAxis { get; }
+    /// <summary>Texture projection scale per face, world units per texel.</summary>
+    public FaceData<Vector2> TextureScale { get; }
+    /// <summary>Texture projection offset per face, in texels.</summary>
+    public FaceData<Vector2> TextureOffset { get; }
 
     private readonly List<string> materials = [];
     private readonly Dictionary<string, int> materialIds = [];
@@ -61,6 +69,10 @@ public sealed class PolygonMesh
         VertexPaintBlendParams = Topology.CreateHalfEdgeData<Vector4>(nameof(VertexPaintBlendParams));
         VertexPaintTintColor = Topology.CreateHalfEdgeData<Vector4>(nameof(VertexPaintTintColor));
         MaterialIndex = Topology.CreateFaceData<int>(nameof(MaterialIndex));
+        TextureUAxis = Topology.CreateFaceData<Vector3>(nameof(TextureUAxis));
+        TextureVAxis = Topology.CreateFaceData<Vector3>(nameof(TextureVAxis));
+        TextureScale = Topology.CreateFaceData<Vector2>(nameof(TextureScale));
+        TextureOffset = Topology.CreateFaceData<Vector2>(nameof(TextureOffset));
 
         Topology.OnCopyFaceVertexData = (dst, src) =>
         {
@@ -127,6 +139,79 @@ public sealed class PolygonMesh
     public void SetFaceMaterial(FaceHandle hFace, string? material)
     {
         MaterialIndex[hFace] = AddMaterial(material);
+    }
+
+    /// <summary>
+    /// Add a vertex to the topology
+    /// </summary>
+    public VertexHandle AddVertex(Vector3 position)
+    {
+        var hVertex = Topology.AddVertex();
+        Positions[hVertex] = position;
+
+        return hVertex;
+    }
+
+    /// <summary>
+    /// Add multiple vertices to the topology
+    /// </summary>
+    public VertexHandle[] AddVertices(ReadOnlySpan<Vector3> positions)
+    {
+        if (positions.Length <= 0)
+            return [];
+
+        var hVertices = Topology.AddVertices(positions.Length).ToArray();
+        for (var i = 0; i < positions.Length; i++)
+            Positions[hVertices[i]] = positions[i];
+
+        return hVertices;
+    }
+
+    /// <summary>
+    /// Connect these vertices to make a face
+    /// </summary>
+    public FaceHandle AddFace(params VertexHandle[] hVertices)
+    {
+        var hFace = Topology.AddFace(hVertices);
+        if (!hFace.IsValid)
+            return hFace;
+
+        MaterialIndex[hFace] = -1;
+
+        return hFace;
+    }
+
+    /// <summary>
+    /// Remove these faces
+    /// </summary>
+    public void RemoveFaces(IEnumerable<FaceHandle> hFaces)
+    {
+        foreach (var hFace in hFaces)
+        {
+            Topology.RemoveFace(hFace, true);
+        }
+    }
+
+    /// <summary>
+    /// Remove these vertices
+    /// </summary>
+    public void RemoveVertices(IEnumerable<VertexHandle> hVertices)
+    {
+        foreach (var hVertex in hVertices)
+        {
+            Topology.RemoveVertex(hVertex, true);
+        }
+    }
+
+    /// <summary>
+    /// Remove these edges
+    /// </summary>
+    public void RemoveEdges(IEnumerable<HalfEdgeHandle> hEdges)
+    {
+        foreach (var hEdge in hEdges)
+        {
+            Topology.RemoveEdge(hEdge, true);
+        }
     }
 
     /// <summary>
@@ -222,6 +307,11 @@ public sealed class PolygonMesh
 
         foreach (var (hFace, hNewFace) in newFaces)
         {
+            TextureUAxis[hNewFace] = sourceMesh.TextureUAxis[hFace];
+            TextureVAxis[hNewFace] = sourceMesh.TextureVAxis[hFace];
+            TextureScale[hNewFace] = sourceMesh.TextureScale[hFace];
+            TextureOffset[hNewFace] = sourceMesh.TextureOffset[hFace];
+
             SetFaceMaterial(hNewFace, sourceMesh.GetFaceMaterial(hFace));
         }
     }
@@ -295,6 +385,285 @@ public sealed class PolygonMesh
             AccumulateNewellPair(ref vNormal, prev, first);
 
         FinaliseNewellNormal(vNormal, refpt, count, out pOutNormal, out pOutPlaneDistance);
+    }
+
+    private static readonly float CollinearTolerance = MathF.Cos(1f * (MathF.PI / 180f));
+
+    /// <summary>
+    /// Computes the tangent of a face corner from the face's texture mapping around it, as a direction with the
+    /// handedness in W, the way a compiled mesh carries it.
+    /// </summary>
+    /// <param name="hFaceVertex">Half edge ending at the corner.</param>
+    /// <param name="normal">Normal at the corner.</param>
+    /// <param name="tangent">The tangent, built from the normal alone when the mapping gives none.</param>
+    public void ComputeFaceVertexTangent(HalfEdgeHandle hFaceVertex, Vector3 normal, out Vector4 tangent)
+    {
+        ComputeTangentSpaceForFaceVertex(hFaceVertex, out var tangentU, out var tangentV);
+        CalcTangentAndFlipFromBasis(tangentU, tangentV, normal, out tangent);
+    }
+
+    private bool ComputeTangentSpaceForFaceVertex(HalfEdgeHandle targetHalfEdge, out Vector3 tangentU, out Vector3 tangentV)
+    {
+        tangentU = Vector3.Zero;
+        tangentV = Vector3.Zero;
+
+        var face = HalfEdgeMesh.GetFaceConnectedToHalfEdge(targetHalfEdge);
+        if (face == FaceHandle.Invalid)
+            return false;
+
+        Span<Vector3> positions = stackalloc Vector3[3];
+        Span<Vector2> texcoords = stackalloc Vector2[3];
+
+        positions[0] = Positions[targetHalfEdge.Vertex];
+        texcoords[0] = TextureCoords[targetHalfEdge];
+
+        var prevHalfEdge = HalfEdgeMesh.FindPreviousEdgeInFaceLoop(targetHalfEdge);
+        positions[1] = Positions[prevHalfEdge.Vertex];
+        texcoords[1] = TextureCoords[prevHalfEdge];
+
+        var prevToTarget = Vector3.Normalize(positions[0] - positions[1]);
+        var currentHalfEdge = targetHalfEdge.NextEdge;
+        do
+        {
+            positions[2] = Positions[currentHalfEdge.Vertex];
+            texcoords[2] = TextureCoords[currentHalfEdge];
+
+            var targetToCurrent = Vector3.Normalize(positions[2] - positions[0]);
+            if (Vector3.Dot(targetToCurrent, prevToTarget) < CollinearTolerance)
+                break;
+
+            currentHalfEdge = currentHalfEdge.NextEdge;
+        }
+        while (currentHalfEdge != targetHalfEdge);
+
+        CalcTriangleTangentSpace(positions[0], positions[1], positions[2], texcoords[0], texcoords[1], texcoords[2], out tangentU, out tangentV);
+
+        return true;
+    }
+
+    private static void CalcTriangleTangentSpace(Vector3 p0, Vector3 p1, Vector3 p2, Vector2 t0, Vector2 t1, Vector2 t2, out Vector3 sVect, out Vector3 tVect)
+    {
+        const float eps = 1e-12f;
+
+        sVect = Vector3.Zero;
+        tVect = Vector3.Zero;
+
+        float ds1 = t1.X - t0.X, dt1 = t1.Y - t0.Y;
+        float ds2 = t2.X - t0.X, dt2 = t2.Y - t0.Y;
+
+        Vector3 edge01, edge02, cross;
+
+        edge01 = new Vector3(p1.X - p0.X, ds1, dt1);
+        edge02 = new Vector3(p2.X - p0.X, ds2, dt2);
+
+        cross = Vector3.Cross(edge01, edge02);
+        if (MathF.Abs(cross.X) > eps)
+        {
+            sVect.X += -cross.Y / cross.X;
+            tVect.X += -cross.Z / cross.X;
+        }
+
+        edge01 = new Vector3(p1.Y - p0.Y, ds1, dt1);
+        edge02 = new Vector3(p2.Y - p0.Y, ds2, dt2);
+
+        cross = Vector3.Cross(edge01, edge02);
+        if (MathF.Abs(cross.X) > eps)
+        {
+            sVect.Y += -cross.Y / cross.X;
+            tVect.Y += -cross.Z / cross.X;
+        }
+
+        edge01 = new Vector3(p1.Z - p0.Z, ds1, dt1);
+        edge02 = new Vector3(p2.Z - p0.Z, ds2, dt2);
+
+        cross = Vector3.Cross(edge01, edge02);
+        if (MathF.Abs(cross.X) > eps)
+        {
+            sVect.Z += -cross.Y / cross.X;
+            tVect.Z += -cross.Z / cross.X;
+        }
+
+        if (sVect.LengthSquared() > 0.0f) sVect = Vector3.Normalize(sVect);
+        if (tVect.LengthSquared() > 0.0f) tVect = Vector3.Normalize(tVect);
+    }
+
+    private static void BuildBasis(Vector3 normal, out Vector3 tangent, out Vector3 bitangent)
+    {
+        // Source: up is +Z, left is +Y
+        tangent = Vector3.Normalize(Vector3.Cross(MathF.Abs(normal.Z) < 0.999f ? Vector3.UnitZ : Vector3.UnitY, normal));
+        bitangent = Vector3.Cross(normal, tangent);
+    }
+
+    private static void CalcTangentAndFlipFromBasis(Vector3 inTangentU, Vector3 inTangentV, Vector3 normal, out Vector4 tangent)
+    {
+        var tangentU = inTangentU;
+        var tangentV = inTangentV;
+
+        if (tangentU.Length() < 1e-12f || tangentV.Length() < 1e-12f)
+        {
+            BuildBasis(normal, out tangentU, out tangentV);
+        }
+
+        var crossUV = Vector3.Cross(tangentU, tangentV);
+        var isLeftHanded = Vector3.Dot(crossUV, normal) < 0.0f;
+        var orthoU = Vector3.Cross(normal, tangentU);
+        var tangentFromU = Vector3.Normalize(Vector3.Cross(orthoU, normal));
+        var tangentFromV = isLeftHanded ? Vector3.Cross(normal, tangentV) : Vector3.Cross(tangentV, normal);
+        tangentFromV = Vector3.Normalize(tangentFromV);
+        var finalTangent = Vector3.Normalize(tangentFromU + tangentFromV);
+        tangent = new Vector4(finalTangent.X, finalTangent.Y, finalTangent.Z, isLeftHanded ? -1.0f : 1.0f);
+    }
+
+    private static readonly Vector3[] FaceNormals =
+    [
+        new(0, 0, 1),
+        new(0, 0, -1),
+        new(0, -1, 0),
+        new(0, 1, 0),
+        new(-1, 0, 0),
+        new(1, 0, 0),
+    ];
+
+    private static readonly Vector3[] FaceRightVectors =
+    [
+        new(1, 0, 0),
+        new(1, 0, 0),
+        new(1, 0, 0),
+        new(-1, 0, 0),
+        new(0, -1, 0),
+        new(0, 1, 0),
+    ];
+
+    private static readonly Vector3[] FaceDownVectors =
+    [
+        new(0, -1, 0),
+        new(0, -1, 0),
+        new(0, 0, -1),
+        new(0, 0, -1),
+        new(0, 0, -1),
+        new(0, 0, -1),
+    ];
+
+    private static void ComputeTextureAxes(Vector3 normal, out Vector3 uAxis, out Vector3 vAxis)
+    {
+        var orientation = GetOrientationForPlane(normal);
+        uAxis = FaceRightVectors[orientation];
+        vAxis = FaceDownVectors[orientation];
+    }
+
+    private static int GetOrientationForPlane(Vector3 plane)
+    {
+        plane = Vector3.Normalize(plane);
+
+        var maxDot = 0.0f;
+        var orientation = 0;
+
+        for (var i = 0; i < 6; i++)
+        {
+            var dot = Vector3.Dot(plane, FaceNormals[i]);
+
+            if (dot >= maxDot)
+            {
+                maxDot = dot;
+                orientation = i;
+            }
+        }
+
+        return orientation;
+    }
+
+    /// <summary>
+    /// Aligns the texture projection of a face to the world axes closest to its plane, Hammer's default
+    /// alignment, and computes its texture coordinates from that.
+    /// </summary>
+    /// <param name="hFace">Face to align.</param>
+    /// <param name="textureSize">Size of the face's texture in texels, the projection is in texels.</param>
+    public void TextureAlignToGrid(FaceHandle hFace, Vector2 textureSize)
+    {
+        TextureOffset[hFace] = Vector2.Zero;
+        TextureScale[hFace] = new Vector2(0.25f);
+
+        ComputeFaceNormal(hFace, out var normal);
+        ComputeTextureAxes(normal, out var uAxis, out var vAxis);
+
+        TextureUAxis[hFace] = uAxis;
+        TextureVAxis[hFace] = vAxis;
+
+        ComputeFaceTextureCoordinatesFromParameters(hFace, textureSize);
+    }
+
+    /// <summary>
+    /// Computes the texture coordinates of a face's corners from its texture projection parameters.
+    /// </summary>
+    /// <param name="hFace">Face to compute.</param>
+    /// <param name="textureSize">Size of the face's texture in texels.</param>
+    /// <param name="defaultScale">Scale used where the face has none.</param>
+    public void ComputeFaceTextureCoordinatesFromParameters(FaceHandle hFace, Vector2 textureSize, float defaultScale = 0.25f)
+    {
+        if (!hFace.IsValid)
+            return;
+
+        var axisU = TextureUAxis[hFace];
+        var axisV = TextureVAxis[hFace];
+        var scale = TextureScale[hFace];
+        var offset = TextureOffset[hFace];
+
+        scale.X = (MathF.Abs(scale.X) < 1e-6f || float.IsNaN(scale.X)) ? defaultScale : scale.X;
+        scale.Y = (MathF.Abs(scale.Y) < 1e-6f || float.IsNaN(scale.Y)) ? defaultScale : scale.Y;
+
+        var hFaceVertex = hFace.Edge;
+        do
+        {
+            var position = Positions[hFaceVertex.Vertex];
+
+            var u = Vector3.Dot(axisU, position) / scale.X + offset.X;
+            var v = Vector3.Dot(axisV, position) / scale.Y + offset.Y;
+
+            TextureCoords[hFaceVertex] = new Vector2(u / MathF.Max(textureSize.X, 1.0f), v / MathF.Max(textureSize.Y, 1.0f));
+
+            hFaceVertex = hFaceVertex.NextEdge;
+        }
+        while (hFaceVertex != hFace.Edge);
+    }
+
+    /// <summary>
+    /// Groups faces into islands connected through shared edges.
+    /// </summary>
+    public static void FindFaceIslands(IReadOnlyList<FaceHandle> faces, out List<List<FaceHandle>> outFaces)
+    {
+        outFaces = [];
+
+        var faceSearchSet = faces.Where(f => f.IsValid).ToHashSet();
+
+        while (faceSearchSet.Count > 0)
+        {
+            var hStartFace = faceSearchSet.First();
+            faceSearchSet.Remove(hStartFace);
+
+            var island = new List<FaceHandle>(32);
+            outFaces.Add(island);
+            island.Add(hStartFace);
+
+            for (var i = 0; i < island.Count; ++i)
+            {
+                var hCurrentFace = island[i];
+                var hStartEdge = HalfEdgeMesh.GetFirstEdgeInFaceLoop(hCurrentFace);
+                var hEdge = hStartEdge;
+
+                do
+                {
+                    var hConnectedFace = hEdge.OppositeEdge.Face;
+
+                    if (faceSearchSet.Remove(hConnectedFace))
+                    {
+                        island.Add(hConnectedFace);
+                    }
+
+                    hEdge = hEdge.NextEdge;
+                }
+                while (hEdge != hStartEdge);
+            }
+        }
     }
 
     /// <summary>
@@ -679,20 +1048,47 @@ public sealed class PolygonMesh
 
     /// <summary>
     /// Groups the faces into islands connected through shared edges. Faces that only touch at a vertex stay apart,
-    /// so a bowtie vertex doesn't glue two separate objects together. Loose faces have no shared edges at all (their
-    /// vertices were duplicated), they are grouped through coinciding vertex positions instead so the pieces of one
-    /// object stay together without collecting the whole mesh's rejects in one lump.
+    /// so a bowtie vertex doesn't glue two separate objects together. Faces without any neighbour (their vertices
+    /// were duplicated, or they stand alone) are grouped through coinciding vertex positions instead, so the pieces
+    /// of one object stay together without collecting every stray face in one lump.
     /// </summary>
-    /// <param name="isLoose">Tells the faces to group by position instead, null for none.</param>
-    public List<List<FaceHandle>> FindIslands(Func<FaceHandle, bool>? isLoose = null)
+    public List<List<FaceHandle>> FindIslands()
     {
-        var parent = new int[Topology.FaceCount];
+        var connectedFaces = new List<FaceHandle>();
+        var looseFaces = new List<FaceHandle>();
+
+        foreach (var hFace in FaceHandles)
+        {
+            var hasNeighbour = false;
+            var hEdge = hFace.Edge;
+            do
+            {
+                if (hEdge.OppositeEdge.Face.IsValid)
+                {
+                    hasNeighbour = true;
+                    break;
+                }
+
+                hEdge = hEdge.NextEdge;
+            }
+            while (hEdge != hFace.Edge);
+
+            (hasNeighbour ? connectedFaces : looseFaces).Add(hFace);
+        }
+
+        FindFaceIslands(connectedFaces, out var islands);
+
+        if (looseFaces.Count == 0)
+        {
+            return islands;
+        }
+
+        // loose faces share no edges, group the ones that meet at a vertex position instead
+        var parent = new int[looseFaces.Count];
         for (var i = 0; i < parent.Length; i++)
         {
             parent[i] = i;
         }
-
-        var extractedFaceAtPosition = new Dictionary<(int X, int Y, int Z), int>();
 
         int Find(int i)
         {
@@ -716,44 +1112,35 @@ public sealed class PolygonMesh
             }
         }
 
-        foreach (var hFace in Topology.FaceHandles)
+        var faceAtPosition = new Dictionary<(int X, int Y, int Z), int>();
+
+        for (var i = 0; i < looseFaces.Count; i++)
         {
-            var extracted = isLoose?.Invoke(hFace) == true;
-            var hEdge = hFace.Edge;
+            var hEdge = looseFaces[i].Edge;
             do
             {
-                var hNeighbour = hEdge.OppositeEdge.Face;
-                if (hNeighbour.IsValid)
+                var position = Positions[hEdge.Vertex];
+                var cell = ((int)MathF.Floor(position.X * 64f), (int)MathF.Floor(position.Y * 64f), (int)MathF.Floor(position.Z * 64f));
+
+                if (faceAtPosition.TryGetValue(cell, out var otherFace))
                 {
-                    Union(hFace.Index, hNeighbour.Index);
+                    Union(i, otherFace);
                 }
-
-                if (extracted)
+                else
                 {
-                    var position = Positions[hEdge.Vertex];
-                    var cell = ((int)MathF.Floor(position.X * 64f), (int)MathF.Floor(position.Y * 64f), (int)MathF.Floor(position.Z * 64f));
-
-                    if (extractedFaceAtPosition.TryGetValue(cell, out var otherFace))
-                    {
-                        Union(hFace.Index, otherFace);
-                    }
-                    else
-                    {
-                        extractedFaceAtPosition.Add(cell, hFace.Index);
-                    }
+                    faceAtPosition.Add(cell, i);
                 }
 
                 hEdge = hEdge.NextEdge;
             }
-            while (hEdge != hFace.Edge);
+            while (hEdge != looseFaces[i].Edge);
         }
 
         var islandByRoot = new Dictionary<int, List<FaceHandle>>();
-        var islands = new List<List<FaceHandle>>();
 
-        foreach (var hFace in Topology.FaceHandles)
+        for (var i = 0; i < looseFaces.Count; i++)
         {
-            var root = Find(hFace.Index);
+            var root = Find(i);
 
             if (!islandByRoot.TryGetValue(root, out var island))
             {
@@ -762,7 +1149,7 @@ public sealed class PolygonMesh
                 islands.Add(island);
             }
 
-            island.Add(hFace);
+            island.Add(looseFaces[i]);
         }
 
         return islands;

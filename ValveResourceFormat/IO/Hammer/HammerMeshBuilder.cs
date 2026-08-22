@@ -232,9 +232,6 @@ namespace ValveResourceFormat.IO
         // input vertex index to mesh vertex
         private readonly List<VertexHandle> Vertices = [];
 
-        // faces that didn't fit the topology and were added on duplicated vertices instead
-        private readonly FaceData<bool> Extracted;
-
         /// <summary>
         /// Matcher that reports which physics vertices a render mesh already covers.
         /// </summary>
@@ -250,14 +247,6 @@ namespace ValveResourceFormat.IO
         /// agree on their corner data along the shared edge. Off by default, the faces are written as they were added.
         /// </summary>
         public bool Untriangulate { get; init; }
-
-        /// <summary>
-        /// Initializes a new instance of the <see cref="HammerMeshBuilder"/> class.
-        /// </summary>
-        public HammerMeshBuilder()
-        {
-            Extracted = Mesh.Topology.CreateFaceData<bool>(nameof(Extracted));
-        }
 
         /// <summary>
         /// Writes everything added so far out as a Hammer mesh.
@@ -295,7 +284,7 @@ namespace ValveResourceFormat.IO
         /// </summary>
         public List<CDmePolygonMesh> GenerateMeshes()
         {
-            var islands = Mesh.FindIslands(hFace => Extracted[hFace]);
+            var islands = Mesh.FindIslands();
             var meshes = new List<CDmePolygonMesh>(islands.Count);
 
             foreach (var islandFaces in islands)
@@ -476,12 +465,15 @@ namespace ValveResourceFormat.IO
         {
             var baseVertex = Vertices.Count;
 
-            Vertices.EnsureCapacity(baseVertex + positions.Length);
-            Vertices.AddRange(Mesh.Topology.AddVertices(positions.Length));
+            var hVertices = Mesh.AddVertices(positions);
+            Vertices.AddRange(hVertices);
 
-            for (var i = 0; i < positions.Length; i++)
+            if (positionOffset != Vector3.Zero)
             {
-                Mesh.Positions[Vertices[baseVertex + i]] = positions[i] + positionOffset;
+                foreach (var hVertex in hVertices)
+                {
+                    Mesh.Positions[hVertex] += positionOffset;
+                }
             }
 
             return baseVertex;
@@ -560,25 +552,89 @@ namespace ValveResourceFormat.IO
             // so walking the loop visits the corners in input order
             var hEdge = hFace.Edge;
             var i = 0;
+            var missingTexCoords = false;
+            var missingTexCoords1 = false;
+            var missingTangents = false;
 
             do
             {
                 var corner = i < corners.Length ? corners[i] : default;
-                var position = Mesh.Positions[hEdge.Vertex];
-                var normal = corner.Normal ?? faceNormal;
 
-                Mesh.Normals[hEdge] = normal;
-                Mesh.Tangents[hEdge] = corner.Tangent ?? CalculateTangentFromNormal(normal);
-                Mesh.TextureCoords[hEdge] = corner.TexCoord ?? CalculateTriplanarUVs(position, normal);
-                Mesh.TextureCoords1[hEdge] = corner.TexCoord1 ?? CalculateTriplanarUVs(position, normal);
+                Mesh.Normals[hEdge] = corner.Normal ?? faceNormal;
                 Mesh.VertexPaintBlendParams[hEdge] = corner.VertexPaintBlendParams ?? default;
                 Mesh.VertexPaintTintColor[hEdge] = corner.VertexPaintTintColor ?? default;
+
+                if (corner.TexCoord is { } texCoord)
+                {
+                    Mesh.TextureCoords[hEdge] = texCoord;
+                }
+                else
+                {
+                    missingTexCoords = true;
+                }
+
+                if (corner.TexCoord1 is { } texCoord1)
+                {
+                    Mesh.TextureCoords1[hEdge] = texCoord1;
+                }
+                else
+                {
+                    missingTexCoords1 = true;
+                }
+
+                if (corner.Tangent is { } tangent)
+                {
+                    Mesh.Tangents[hEdge] = tangent;
+                }
+                else
+                {
+                    missingTangents = true;
+                }
+
+                hEdge = hEdge.NextEdge;
+                i++;
+            }
+            while (hEdge != hFace.Edge);
+
+            // a face without texture coordinates gets Hammer's default world aligned projection
+            if (missingTexCoords)
+            {
+                Mesh.TextureAlignToGrid(hFace, ProjectedTextureSize);
+            }
+
+            if (!missingTexCoords1 && !missingTangents)
+            {
+                return;
+            }
+
+            // the second texture coordinates fall back to the first, and tangents follow from the face's
+            // texture mapping, which needs every corner's texture coordinates in place
+            hEdge = hFace.Edge;
+            i = 0;
+
+            do
+            {
+                var corner = i < corners.Length ? corners[i] : default;
+
+                if (corner.TexCoord1 is null)
+                {
+                    Mesh.TextureCoords1[hEdge] = Mesh.TextureCoords[hEdge];
+                }
+
+                if (corner.Tangent is null)
+                {
+                    Mesh.ComputeFaceVertexTangent(hEdge, Mesh.Normals[hEdge], out var tangent);
+                    Mesh.Tangents[hEdge] = tangent;
+                }
 
                 hEdge = hEdge.NextEdge;
                 i++;
             }
             while (hEdge != hFace.Edge);
         }
+
+        // texture size assumed for faces that get a projected mapping, their materials are tool textures
+        private static readonly Vector2 ProjectedTextureSize = new(256f, 256f);
 
         // Faces which can't be integrated into the existing topology (they would create a nonmanifold edge or vertex)
         // are added as a disconnected island with duplicated vertices, so no geometry is lost
@@ -594,15 +650,13 @@ namespace ValveResourceFormat.IO
 
             for (var i = 0; i < indices.Length; i++)
             {
-                var hVertex = Mesh.Topology.AddVertex();
-                Mesh.Positions[hVertex] = Mesh.Positions[Vertices[indices[i]]];
+                var hVertex = Mesh.AddVertex(Mesh.Positions[Vertices[indices[i]]]);
                 Vertices.Add(hVertex);
                 vertices[i] = hVertex;
             }
 
             // the duplicated vertices are isolated, so this can't fail
             Mesh.Topology.AddFace(out var hFace, vertices);
-            Extracted[hFace] = true;
 
             WriteCorners(hFace, material, corners);
         }
@@ -903,25 +957,6 @@ namespace ValveResourceFormat.IO
             }
 
             return true;
-        }
-
-        private static Vector4 CalculateTangentFromNormal(Vector3 normal)
-        {
-            var tangent1 = Vector3.Cross(normal, Vector3.UnitY);
-            var tangent2 = Vector3.Cross(normal, Vector3.UnitZ);
-            return new Vector4(tangent1.Length() > tangent2.Length() ? tangent1 : tangent2, 1.0f);
-        }
-
-        private static Vector2 CalculateTriplanarUVs(Vector3 vertexPos, Vector3 normal, float textureScale = 0.03125f)
-        {
-            var weights = Vector3.Abs(normal);
-            var top = new Vector2(vertexPos.X, -vertexPos.Y) * weights.Z;
-            var front = new Vector2(vertexPos.X, -vertexPos.Z) * weights.Y;
-            var side = new Vector2(vertexPos.Y, -vertexPos.Z) * weights.X;
-
-            var UV = (top + front + side);
-
-            return UV * textureScale;
         }
 
         private static bool AreVerticesCollinear(Vector3 v1, Vector3 v2, Vector3 v3)
