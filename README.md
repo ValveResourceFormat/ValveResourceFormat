@@ -136,6 +136,8 @@ Contents of this repository are available under [MIT license](LICENSE), except f
 If you ship our binaries or use parts of our code, the license requires you to keep the
 copyright notice with it.
 
+Third party code and assets used by this project are listed in [THIRD_PARTY_NOTICES.txt](THIRD_PARTY_NOTICES.txt).
+
 Source 2 Viewer is the result of years of reverse engineering by many contributors.
 If it helped anywhere in your project, even if you only ran it once to export some
 assets, please mention it with a link. If your project is substantially built on it,

@@ -36,6 +36,7 @@ namespace GUI.Forms
             label3 = new Label();
             icon = new PictureBox();
             discord = new ThemedButton();
+            licenses = new ThemedButton();
             copyVersion = new ThemedButton();
             checkForUpdatesCheckbox = new CheckBox();
             downloadButton = new ThemedButton();
@@ -67,7 +68,7 @@ namespace GUI.Forms
             website.LabelFormatFlags = TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis;
             website.Location = new System.Drawing.Point(3, 3);
             website.Name = "website";
-            website.Size = new System.Drawing.Size(148, 30);
+            website.Size = new System.Drawing.Size(109, 30);
             website.Style = true;
             website.TabIndex = 4;
             website.Text = "&Website";
@@ -84,9 +85,9 @@ namespace GUI.Forms
             github.ForeColor = System.Drawing.Color.Black;
             github.HoveredBackColor = System.Drawing.Color.FromArgb(140, 191, 255);
             github.LabelFormatFlags = TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis;
-            github.Location = new System.Drawing.Point(157, 3);
+            github.Location = new System.Drawing.Point(118, 3);
             github.Name = "github";
-            github.Size = new System.Drawing.Size(148, 30);
+            github.Size = new System.Drawing.Size(109, 30);
             github.Style = true;
             github.TabIndex = 5;
             github.Text = "&GitHub";
@@ -122,14 +123,33 @@ namespace GUI.Forms
             discord.ForeColor = System.Drawing.Color.Black;
             discord.HoveredBackColor = System.Drawing.Color.FromArgb(140, 191, 255);
             discord.LabelFormatFlags = TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis;
-            discord.Location = new System.Drawing.Point(311, 3);
+            discord.Location = new System.Drawing.Point(233, 3);
             discord.Name = "discord";
-            discord.Size = new System.Drawing.Size(149, 30);
+            discord.Size = new System.Drawing.Size(109, 30);
             discord.Style = true;
             discord.TabIndex = 12;
             discord.Text = "&Discord";
             discord.UseVisualStyleBackColor = false;
             discord.Click += OnDiscordClick;
+            // 
+            // licenses
+            // 
+            licenses.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
+            licenses.BackColor = System.Drawing.Color.FromArgb(188, 188, 188);
+            licenses.ClickedBackColor = System.Drawing.Color.FromArgb(99, 161, 255);
+            licenses.CornerRadius = 5;
+            licenses.FlatStyle = FlatStyle.Flat;
+            licenses.ForeColor = System.Drawing.Color.Black;
+            licenses.HoveredBackColor = System.Drawing.Color.FromArgb(140, 191, 255);
+            licenses.LabelFormatFlags = TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis;
+            licenses.Location = new System.Drawing.Point(348, 3);
+            licenses.Name = "licenses";
+            licenses.Size = new System.Drawing.Size(112, 30);
+            licenses.Style = true;
+            licenses.TabIndex = 7;
+            licenses.Text = "&Licenses";
+            licenses.UseVisualStyleBackColor = false;
+            licenses.Click += OnLicensesClick;
             // 
             // copyVersion
             // 
@@ -238,13 +258,15 @@ namespace GUI.Forms
             // 
             // tableLayoutPanel1
             // 
-            tableLayoutPanel1.ColumnCount = 3;
-            tableLayoutPanel1.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 33.3333321F));
-            tableLayoutPanel1.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 33.3333321F));
-            tableLayoutPanel1.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 33.3333321F));
+            tableLayoutPanel1.ColumnCount = 4;
+            tableLayoutPanel1.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 25F));
+            tableLayoutPanel1.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 25F));
+            tableLayoutPanel1.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 25F));
+            tableLayoutPanel1.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 25F));
             tableLayoutPanel1.Controls.Add(website, 0, 0);
             tableLayoutPanel1.Controls.Add(discord, 2, 0);
             tableLayoutPanel1.Controls.Add(github, 1, 0);
+            tableLayoutPanel1.Controls.Add(licenses, 3, 0);
             tableLayoutPanel1.Location = new System.Drawing.Point(16, 96);
             tableLayoutPanel1.Name = "tableLayoutPanel1";
             tableLayoutPanel1.RowCount = 1;
@@ -352,6 +374,7 @@ namespace GUI.Forms
         private ThemedButton website;
         private ThemedButton github;
         private ThemedButton discord;
+        private ThemedButton licenses;
         private ThemedButton copyVersion;
         private ThemedButton downloadButton;
         private ThemedButton viewReleaseNotesButton;

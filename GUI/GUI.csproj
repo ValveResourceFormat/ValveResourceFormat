@@ -47,6 +47,7 @@
   <ItemGroup>
     <ProjectReference Include="..\Renderer\Renderer.csproj" />
     <ProjectReference Include="..\ValveResourceFormat\ValveResourceFormat.csproj" />
+    <EmbeddedResource Include="..\THIRD_PARTY_NOTICES.txt" Link="Utils\THIRD_PARTY_NOTICES.txt" />
   </ItemGroup>
   <ItemGroup>
     <Using Include="ValveResourceFormat.Utils" />

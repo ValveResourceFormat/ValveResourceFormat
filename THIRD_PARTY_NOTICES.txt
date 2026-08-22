@@ -1,0 +1,213 @@
+THIRD PARTY NOTICES
+===================
+
+ValveResourceFormat (Source 2 Viewer) is licensed under the MIT License (see LICENSE).
+It incorporates, depends on, or was derived from the third party material listed below.
+Links to the license texts are at the end of this file.
+
+This file is maintained by hand. When adding a dependency, a copied or ported piece of code,
+or a bundled asset, add it here.
+
+7-Zip LZMA SDK
+  License: Public domain
+  Igor Pavlov
+  https://www.7-zip.org/sdk.html
+
+Blake3
+  License: BSD-2-Clause
+  Copyright (c) 2020, Alexandre Mutel
+  https://github.com/xoofx/Blake3.NET
+
+ConsoleAppFramework
+  License: MIT
+  Copyright (c) 2020 Cysharp, Inc.
+  https://github.com/Cysharp/ConsoleAppFramework
+
+FastColoredTextBox (GUI only)
+  License: LGPL-3.0
+  Copyright (C) Pavel Torgashov, 2011-2016
+  https://github.com/PavelTorgashov/FastColoredTextBox
+
+Filament
+  License: Apache-2.0
+  Copyright 2023 The Android Open Source Project
+  https://github.com/google/filament
+
+GLFW (GUI only)
+  License: Zlib
+  Copyright (c) 2002-2006 Marcus Geelnard
+  Copyright (c) 2006-2019 Camilla Löwy
+  https://www.glfw.org/
+
+JetBrains Mono
+  License: OFL-1.1
+  Copyright 2020 The JetBrains Mono Project Authors
+  https://github.com/JetBrains/JetBrainsMono
+
+K4os.Compression.LZ4
+  License: MIT
+  Copyright (c) 2017 Milosz Krajewski
+  https://github.com/MiloszKrajewski/K4os.Compression.LZ4
+
+KeyValues2
+  License: MIT
+  Copyright (c) 2013 Tom Edwards
+  Copyright (c) 2018-2026 ValveResourceFormat contributors
+  https://github.com/ValveResourceFormat/Datamodel.NET
+
+meshoptimizer
+  License: MIT
+  Copyright (c) 2016-2026 Arseny Kapoulkine
+  https://github.com/zeux/meshoptimizer
+
+Microsoft.Extensions.Logging
+  License: MIT
+  Copyright (c) .NET Foundation and Contributors
+  https://github.com/dotnet/runtime
+
+msdf-atlas-gen
+  License: MIT
+  Copyright (c) 2020-2026 Viktor Chlumsky
+  https://github.com/Chlumsky/msdf-atlas-gen
+
+msdfgen
+  License: MIT
+  Copyright (c) 2014-2025 Viktor Chlumsky
+  https://github.com/Chlumsky/msdfgen
+
+NAudio (GUI only)
+  License: MIT
+  Copyright 2020 Mark Heath
+  https://github.com/naudio/NAudio
+
+NAudio.WaveFormRenderer (GUI only)
+  License: MIT
+  Copyright (c) 2021 NAudio
+  https://github.com/naudio/NAudio.WaveFormRenderer
+
+NLayer
+  License: MIT
+  Copyright (c) 2018 Mark Heath, Andrew Ward & Contributors
+  https://github.com/naudio/NLayer
+
+OpenTK
+  License: MIT
+  Copyright (c) 2006-2019 Stefanos Apostolopoulos for the Open Toolkit project
+  https://github.com/opentk/opentk
+
+OpenTK GLControl (GUI only)
+  License: MIT
+  Copyright (c) 2006-2019 Stefanos Apostolopoulos for the Open Toolkit project
+  https://github.com/opentk/GLControl
+
+Poly Haven "Industrial Sunset (Pure Sky)" HDRI (GUI only)
+  License: CC0-1.0
+  Sergej Majboroda, Jarod Guest
+  https://polyhaven.com/a/industrial_sunset_puresky
+
+Roboto
+  License: OFL-1.1
+  Copyright 2011 The Roboto Project Authors
+  https://github.com/googlefonts/roboto-classic
+
+s&box
+  License: MIT
+  Copyright (c) 2025 Facepunch Studios Ltd
+  https://github.com/Facepunch/sbox-public
+
+SharpGLTF
+  License: MIT
+  Copyright (c) 2019 Vicente Penades
+  https://github.com/vpenades/SharpGLTF
+
+Skia
+  License: BSD-3-Clause
+  Copyright (c) 2011 Google Inc.
+  https://skia.org/
+
+SkiaSharp
+  License: MIT
+  Copyright (c) 2015-2016 Xamarin, Inc.
+  Copyright (c) 2017-2018 Microsoft Corporation
+  https://github.com/mono/SkiaSharp
+
+SPIRV-Cross
+  License: Apache-2.0 OR MIT
+  Copyright 2015-2021 Arm Limited
+  Copyright 2019-2021 Hans-Kristian Arntzen
+  https://github.com/KhronosGroup/SPIRV-Cross
+
+Svg.Skia (including ExCSS, HarfBuzzSharp and ShimSkiaSharp) (GUI only)
+  License: MIT (Svg.Custom is MS-PL)
+  Copyright (c) 2020 Wiesław Šoltés
+  https://github.com/wieslawsoltes/Svg.Skia
+
+System.IO.Hashing
+  License: MIT
+  Copyright (c) .NET Foundation and Contributors
+  https://github.com/dotnet/runtime
+
+The Lab Renderer
+  License: BSD-3-Clause
+  Copyright (c) Valve Corporation
+  https://github.com/ValveSoftware/the_lab_renderer
+
+TinyBCSharp
+  License: MIT
+  Copyright (c) 2025 Jan De Kock
+  https://github.com/jandk/TinyBCSharp
+
+TinyEXR.NET
+  License: MIT
+  Copyright (c) 2023-2026 ksgfk
+  https://github.com/ksgfk/TinyEXR.NET
+
+uTinyRipper (Etc decoder)
+  License: MIT
+  Copyright (c) 2020 mafaca
+  Copyright (c) 2017 Ishotihadus (mikunyan)
+  https://github.com/mafaca/UtinyRipper
+  https://github.com/Ishotihadus/mikunyan
+
+ValveKeyValue
+  License: MIT
+  Copyright (c) 2016 ValveKeyValue Contributors
+  https://github.com/ValveResourceFormat/ValveKeyValue
+
+ValvePak
+  License: MIT
+  Copyright (c) 2008 Rick (gibbed)
+  Copyright (c) 2016 ValvePak Contributors
+  https://github.com/ValveResourceFormat/ValvePak
+
+Vortice.SpirvCross (including Vortice.SPIRV)
+  License: MIT
+  Copyright (c) Amer Koleci and Contributors
+  https://github.com/amerkoleci/Vortice.Vulkan
+
+ZstdSharp.Port
+  License: MIT
+  Copyright (c) 2021 Oleg Stepanischev
+  https://github.com/oleg-st/ZstdSharp
+
+Licenses
+--------
+
+Apache License, Version 2.0
+  https://opensource.org/license/apache-2-0
+BSD 2-Clause License
+  https://opensource.org/license/bsd-2-clause
+BSD 3-Clause License
+  https://opensource.org/license/bsd-3-clause
+CC0 1.0 Universal
+  https://creativecommons.org/publicdomain/zero/1.0/
+GNU Lesser General Public License v3.0
+  https://opensource.org/license/lgpl-3-0
+Microsoft Public License
+  https://opensource.org/license/ms-pl
+MIT License
+  https://opensource.org/license/mit
+SIL Open Font License, Version 1.1
+  https://opensource.org/license/ofl-1-1
+Zlib License
+  https://opensource.org/license/zlib

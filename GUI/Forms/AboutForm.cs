@@ -1,8 +1,11 @@
 using System.Diagnostics;
+using System.Drawing;
 using System.Globalization;
+using System.IO;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Windows.Forms;
+using GUI.Controls;
 using GUI.Types.GLViewers;
 using GUI.Utils;
 using Svg.Skia;
@@ -83,6 +86,26 @@ namespace GUI.Forms
         private void OnDiscordClick(object sender, EventArgs e)
         {
             OpenUrl("https://discord.gg/s9QQ7Wg7r4");
+        }
+
+        private void OnLicensesClick(object sender, EventArgs e)
+        {
+            using var stream = Program.Assembly.GetManifestResourceStream("GUI.Utils.THIRD_PARTY_NOTICES.txt");
+            Debug.Assert(stream is not null);
+            using var reader = new StreamReader(stream);
+
+            using var form = new ThemedForm
+            {
+                Text = "Third party licenses",
+                Icon = Icon,
+                StartPosition = FormStartPosition.CenterParent,
+                ShowInTaskbar = false,
+                MinimizeBox = false,
+                ClientSize = new Size(800, 600),
+            };
+            using var textBox = new CodeTextBox(reader.ReadToEnd(), HighlightLanguage.None);
+            form.Controls.Add(textBox);
+            form.ShowDialog(this);
         }
 
         private void OnViewReleaseNotesButtonClick(object sender, EventArgs e)

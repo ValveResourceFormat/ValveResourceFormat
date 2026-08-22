@@ -1,4 +1,4 @@
-// Credit to https://github.com/mafaca/Etc
+// Credit to https://github.com/mafaca/UtinyRipper (C# port of https://github.com/Ishotihadus/mikunyan)
 
 using System.Runtime.CompilerServices;
 using SkiaSharp;
