@@ -119,5 +119,99 @@ namespace Tests.SmartProp
             await Assert.That(endTangent).IsEqualTo(samples[^1].Tangent);
         }
 
+        [Test]
+        public async Task InterpolateAtDistanceMidpointSitsOnCurve()
+        {
+            var (samples, totalLength) = SmartPropSpline.ComputeSamples(CurvedPoints);
+            var half = totalLength / 2f;
+
+            var (position, tangent) = SmartPropSpline.InterpolateAtDistance(samples, totalLength, half);
+
+            // The interpolated position must sit between its bracketing samples
+            var distanceToStart = Vector3.Distance(samples[0].Position, position);
+            var distanceToEnd = Vector3.Distance(samples[^1].Position, position);
+            await Assert.That(distanceToStart).IsGreaterThan(1f);
+            await Assert.That(distanceToEnd).IsGreaterThan(1f);
+
+            await Assert.That(MathF.Abs(tangent.Length() - 1f)).IsLessThan(Tolerance);
+
+            // Asking for a sample's own distance returns it exactly
+            var sampleIndex = samples.Length / 2;
+            var (exact, _) = SmartPropSpline.InterpolateAtDistance(samples, totalLength, samples[sampleIndex].Distance);
+            await Assert.That(Vector3.Distance(exact, samples[sampleIndex].Position)).IsLessThan(Tolerance);
+        }
+
+        [Test]
+        public async Task EmptySamplesInterpolateToOrigin()
+        {
+            var (position, tangent) = SmartPropSpline.InterpolateAtDistance([], 0f, 10f);
+            await Assert.That(position).IsEqualTo(Vector3.Zero);
+            await Assert.That(tangent).IsEqualTo(Vector3.UnitX);
+        }
+    }
+
+    public class SmartPropTransformTest
+    {
+        private const float Tolerance = 1e-3f;
+
+        [Test]
+        public async Task FrameWithForwardXAndUpZIsIdentityBasis()
+        {
+            var frame = SmartPropTransform.CreateFrame(new Vector3(10f, 20f, 30f), Vector3.UnitX);
+
+            await Assert.That(Row(frame, 0)).IsEqualTo(new Vector3(1f, 0f, 0f));
+            await Assert.That(Row(frame, 1)).IsEqualTo(new Vector3(0f, 1f, 0f));
+            await Assert.That(Row(frame, 2)).IsEqualTo(new Vector3(0f, 0f, 1f));
+            await Assert.That(new Vector3(frame.M41, frame.M42, frame.M43)).IsEqualTo(new Vector3(10f, 20f, 30f));
+        }
+
+        [Test]
+        public async Task FrameRowsStayOrthonormalAndRightHanded()
+        {
+            var forward = Vector3.Normalize(new Vector3(1f, 2f, 3f));
+            var frame = SmartPropTransform.CreateFrame(Vector3.Zero, forward);
+
+            var f = Row(frame, 0);
+            var l = Row(frame, 1);
+            var u = Row(frame, 2);
+
+            await Assert.That(Vector3.Distance(f, forward)).IsLessThan(Tolerance);
+            await Assert.That(MathF.Abs(Vector3.Dot(f, l))).IsLessThan(Tolerance);
+            await Assert.That(MathF.Abs(Vector3.Dot(f, u))).IsLessThan(Tolerance);
+            await Assert.That(MathF.Abs(Vector3.Dot(l, u))).IsLessThan(Tolerance);
+            await Assert.That(MathF.Abs(f.Length() - 1f)).IsLessThan(Tolerance);
+
+            // Row basis: x cross y = z, so forward x left = up
+            await Assert.That(Vector3.Cross(f, l)).IsEqualTo(u);
+        }
+
+        [Test]
+        public async Task FrameWithCustomUpHonorsUpReference()
+        {
+            var frame = SmartPropTransform.CreateFrame(Vector3.Zero, Vector3.UnitX, up: Vector3.UnitX);
+
+            // Up collinear with forward falls back to +Y as the reference, which still
+            // produces a fully orthogonal frame
+            var u = Row(frame, 2);
+            await Assert.That(MathF.Abs(Vector3.Dot(u, Vector3.UnitX))).IsLessThan(Tolerance);
+            await Assert.That(MathF.Abs(u.Length() - 1f)).IsLessThan(Tolerance);
+        }
+
+        [Test]
+        public async Task FrameForDownwardForwardUsesFallbackUp()
+        {
+            var frame = SmartPropTransform.CreateFrame(Vector3.Zero, -Vector3.UnitZ);
+
+            // Forward straight down with default up (+Z) is collinear, so the fallback up (+Y)
+            // kicks in: left = y x -z = -x, orthogonal up = -z x -x = ... verify by orthogonality
+            var f = Row(frame, 0);
+            await Assert.That(f).IsEqualTo(new Vector3(0f, 0f, -1f));
+
+            var l = Row(frame, 1);
+            var u = Row(frame, 2);
+            await Assert.That(l).IsEqualTo(new Vector3(-1f, 0f, 0f));
+            await Assert.That(u).IsEqualTo(new Vector3(0f, 1f, 0f));
+        }
+
     }
 }
