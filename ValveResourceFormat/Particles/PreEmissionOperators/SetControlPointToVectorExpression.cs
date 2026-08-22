@@ -3,6 +3,9 @@ namespace ValveResourceFormat.Particles.PreEmissionOperators
     /// <summary>
     /// Evaluates a binary vector expression (add, subtract, multiply, divide, cross product, etc.)
     /// on two input vectors and writes the result to a control point.
+    ///
+    /// <para>Division is component-wise and takes no special path for a zero divisor, so it writes an
+    /// infinity or a NaN into the control point. The scalar expression operators substitute zero.</para>
     /// </summary>
     /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_OP_SetControlPointToVectorExpression">C_OP_SetControlPointToVectorExpression</seealso>
     class SetControlPointToVectorExpression : ParticleFunctionPreEmissionOperator

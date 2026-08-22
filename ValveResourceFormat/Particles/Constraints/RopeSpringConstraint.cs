@@ -41,6 +41,12 @@ namespace ValveResourceFormat.Particles.Constraints
             adjustmentScale = parse.Float("m_flAdjustmentScale", adjustmentScale);
         }
 
+        public override void Reset()
+        {
+            captured = false;
+            baseLength = 0f;
+        }
+
         public override bool ApplyConstraint(ParticleCollection particles, float frameTime, ParticleSystemState particleSystemState)
         {
             var current = particles.Current;

@@ -67,14 +67,10 @@ namespace ValveResourceFormat.Particles.Utils
         /// </summary>
         public ParticleSnapshot? Resolve(ParticleSystemState particleSystemState)
         {
-            if (!resolved)
+            if (!resolved && IsBound)
             {
-                resolved = true;
-
-                if (IsBound)
-                {
-                    snapshot = particleSystemState.GetControlPointSnapshot(controlPoint);
-                }
+                snapshot = particleSystemState.GetControlPointSnapshot(controlPoint);
+                resolved = snapshot != null;
             }
 
             return snapshot;

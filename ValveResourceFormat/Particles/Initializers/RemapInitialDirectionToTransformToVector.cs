@@ -1,3 +1,5 @@
+using ValveResourceFormat.Particles.Utils;
+
 namespace ValveResourceFormat.Particles.Initializers
 {
     /// <summary>
@@ -56,9 +58,13 @@ namespace ValveResourceFormat.Particles.Initializers
                 Vector3.Dot(delta, rotationRowY),
                 Vector3.Dot(delta, rotationRowZ));
 
-            if (normalize && direction != Vector3.Zero)
+            if (normalize)
             {
-                direction = Vector3.Normalize(direction);
+                // Z carries an epsilon before the length is taken, so a delta with no direction
+                // comes out pointing along the transform's third axis rather than staying at zero
+                direction.Z += ParticleMath.FloatEpsilon;
+
+                direction = ParticleMath.Normalize(direction);
             }
 
             particle.SetVector(fieldOutput, direction * scale);

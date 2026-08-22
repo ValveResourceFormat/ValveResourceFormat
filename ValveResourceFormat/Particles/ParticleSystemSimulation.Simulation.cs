@@ -73,6 +73,11 @@ namespace ValveResourceFormat.Particles
                 particleOperator.Reset();
             }
 
+            foreach (var constraint in constraints)
+            {
+                constraint.Reset();
+            }
+
             foreach (var emitter in emitters)
             {
                 emitter.Start(emitParticleAction, systemState);

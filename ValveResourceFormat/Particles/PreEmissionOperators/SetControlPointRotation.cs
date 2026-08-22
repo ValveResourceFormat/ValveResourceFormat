@@ -1,3 +1,5 @@
+using ValveResourceFormat.Particles.Utils;
+
 namespace ValveResourceFormat.Particles.PreEmissionOperators
 {
     /// <summary>
@@ -21,14 +23,12 @@ namespace ValveResourceFormat.Particles.PreEmissionOperators
 
         public override void Operate(ref ParticleSystemState particleSystemState, float frameTime)
         {
-            var axis = this.axis.NextVector(particleSystemState);
+            var authoredAxis = this.axis.NextVector(particleSystemState);
 
-            if (axis == Vector3.Zero)
-            {
-                return;
-            }
-
-            axis = Vector3.Normalize(axis);
+            // The whole axis is replaced when its x is zero, so a pure Y axis rotates about Z
+            var axis = authoredAxis.X == 0f
+                ? Vector3.UnitZ
+                : ParticleMath.Normalize(authoredAxis);
 
             if (localCP > -1)
             {

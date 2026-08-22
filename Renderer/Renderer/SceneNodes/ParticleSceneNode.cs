@@ -538,7 +538,10 @@ namespace ValveResourceFormat.Renderer.SceneNodes
                 }
             }
 
-            if (frameTime > 0f)
+            // A system placed in the world stops simulating as soon as the camera is past the distance
+            // it draws at, since nothing it does out there can be seen. A preview is being looked at
+            // deliberately and runs whatever the camera is doing.
+            if (frameTime > 0f && (Preview || particleRenderer.IsWithinDrawDistance(context.Camera)))
             {
                 particleRenderer.SetCameraPosition(context.Camera.Location);
                 particleRenderer.Update(frameTime, context.Uptime);

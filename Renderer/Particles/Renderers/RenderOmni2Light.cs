@@ -7,6 +7,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
     /// <summary>
     /// Render an Omni2 light from particle data.
     /// </summary>
+    /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_OP_RenderOmni2Light">C_OP_RenderOmni2Light</seealso>
     internal class RenderOmni2Light : ParticleFunctionRenderer
     {
         private readonly Scene scene;

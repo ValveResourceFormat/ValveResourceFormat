@@ -7,6 +7,12 @@ namespace ValveResourceFormat.Particles.Upgrade;
 /// renderers into m_vecTexturesInput entries plus m_nOutputBlendMode. Two-sequence combine
 /// modes emit a second entry with per-entry channel masks, and motion-vector and normal-map
 /// textures append typed entries.
+///
+/// <para>Two of the members written here look wrong and are what the engine's own converter
+/// produces. The first entry's zoom goes to <c>m_flZoomMax</c>, which no schema declares, so it
+/// is dropped again when the upgraded file binds; only the second entry's <c>m_flZoomScale</c>
+/// survives. <c>m_flAnimationRate2</c> becomes a UV rotation, there being no per-layer rate
+/// member to carry it.</para>
 /// </summary>
 internal sealed class Vpcf27ToVpcf28 : ParticleUpgradeStep
 {

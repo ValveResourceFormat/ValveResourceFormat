@@ -28,6 +28,17 @@ namespace ValveResourceFormat.Particles.Utils
         /// </summary>
         public static float HalfWave(float t) => (4f - (4f * t)) * t;
 
+        /// <summary>
+        /// Scales <paramref name="value"/> to unit length, returning <see cref="Vector3.Zero"/> for a
+        /// vector with no length rather than the NaN a plain divide would give.
+        /// </summary>
+        public static Vector3 Normalize(Vector3 value)
+        {
+            var lengthSquared = value.LengthSquared();
+
+            return lengthSquared == 0f ? Vector3.Zero : value / MathF.Sqrt(lengthSquared);
+        }
+
         public static float Square(float value) => value * value;
 
         /// <summary>

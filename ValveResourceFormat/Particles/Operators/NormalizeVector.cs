@@ -1,3 +1,5 @@
+using ValveResourceFormat.Particles.Utils;
+
 namespace ValveResourceFormat.Particles.Operators
 {
     /// <summary>
@@ -21,13 +23,11 @@ namespace ValveResourceFormat.Particles.Operators
             {
                 var vector = particle.GetVector(outputField);
 
-                // A zero vector has no direction to normalize
-                if (vector == Vector3.Zero)
-                {
-                    continue;
-                }
+                // Z carries an epsilon before the length is taken, so a vector with no direction
+                // comes out pointing along Z rather than staying at zero
+                vector.Z += ParticleMath.FloatEpsilon;
 
-                vector = Vector3.Normalize(vector) * scale;
+                vector = ParticleMath.Normalize(vector) * scale;
 
                 particle.SetVector(outputField, vector);
             }

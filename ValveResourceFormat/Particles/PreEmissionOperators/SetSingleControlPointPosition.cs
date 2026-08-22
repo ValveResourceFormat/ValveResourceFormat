@@ -23,6 +23,11 @@ namespace ValveResourceFormat.Particles.PreEmissionOperators
             transformInput = parse.TransformInput("m_transformInput", transformInput);
         }
 
+        public override void Reset()
+        {
+            hasRunBefore = false;
+        }
+
         public override void Operate(ref ParticleSystemState particleSystemState, float frameTime)
         {
             if (!(setOnce && hasRunBefore))

@@ -111,8 +111,10 @@ namespace ValveResourceFormat.Particles.Operators
 
                 if (!alwaysLocked)
                 {
-                    var startTime = ParticleRandom.ForSampleWithExponentBetween(particle.ParticleId, startTimeExp, startTimeMin, startTimeMax);
-                    var endTime = ParticleRandom.ForSampleWithExponentBetween(particle.ParticleId, endTimeExp, endTimeMin, endTimeMax);
+                    // Redrawn every frame from the running counter rather than fixed by the particle,
+                    // so the window a particle unlocks over moves under it while it is alive
+                    var startTime = particleSystemState.Random.NextWithExponentBetween(startTimeExp, startTimeMin, startTimeMax);
+                    var endTime = particleSystemState.Random.NextWithExponentBetween(endTimeExp, endTimeMin, endTimeMax);
 
                     // Fully locked until startTime, fading the lock out until endTime, using normalized lifetime
                     timeFade = particle.NormalizedAge <= startTime

@@ -1,3 +1,5 @@
+using ValveResourceFormat.Particles.Utils;
+
 namespace ValveResourceFormat.Particles.Initializers
 {
     /// <summary>
@@ -103,7 +105,7 @@ namespace ValveResourceFormat.Particles.Initializers
 
             var bias = distanceBias.NextVector(ref particle, particleSystemState);
 
-            var biasedDirection = Vector3.Normalize(randomVector * bias);
+            var biasedDirection = ParticleMath.Normalize(randomVector * bias);
 
             var radiusMinValue = radiusMin.NextNumber(ref particle, particleSystemState);
             var radiusMaxValue = radiusMax.NextNumber(ref particle, particleSystemState);

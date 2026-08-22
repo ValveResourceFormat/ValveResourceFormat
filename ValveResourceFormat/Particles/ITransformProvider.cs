@@ -1,3 +1,4 @@
+using ValveResourceFormat.Particles.Utils;
 using ValveResourceFormat.ResourceTypes;
 
 namespace ValveResourceFormat.Particles
@@ -107,7 +108,7 @@ namespace ValveResourceFormat.Particles
             // direction itself, so there is nothing to build here.
             orientation = cp.Rotation is { } fullRotation
                 ? Vector3.Transform(Vector3.UnitX, fullRotation)
-                : Vector3.Normalize(cp.Orientation);
+                : ParticleMath.Normalize(cp.Orientation);
 
             return true;
         }

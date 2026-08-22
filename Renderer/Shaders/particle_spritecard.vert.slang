@@ -33,7 +33,8 @@ uniform bool uGammaCorrectVertexColors = true;
 uniform vec3 uColorScale = vec3(1.0);
 
 // m_flDepthBias, in world units along the view direction. The card keeps its drawn position and only
-// its depth is re-taken from the shifted point, so an effect can sit in front of nearby geometry.
+// its depth is re-taken from the shifted point, so a positive bias makes the card lose the depth test
+// against geometry it is in front of, and a negative one makes it win.
 uniform float uDepthBias = 0.0;
 
 out vec2 vTexCoordOut;

@@ -7,6 +7,7 @@ namespace ValveResourceFormat.Particles.Operators
     /// "Alpha Fade In Random" in the particle editor. Unlike "Alpha Fade In Simple", the range
     /// can be defined in seconds rather than a fraction of the lifespan by turning proportional off.
     /// </remarks>
+    /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_OP_FadeIn">C_OP_FadeIn</seealso>
     class FadeInRandom : CGeneralRandomFade
     {
         public FadeInRandom(ParticleDefinitionParser parse) : base(parse, "m_flFadeInTime")
@@ -23,9 +24,10 @@ namespace ValveResourceFormat.Particles.Operators
                     ? particle.NormalizedAge
                     : particle.Age;
 
-                if (time <= fadeInTime)
+                if (time < fadeInTime)
                 {
-                    particle.Alpha = (time / fadeInTime) * particle.GetInitialScalar(particles, ParticleField.Alpha);
+                    particle.Alpha = MathUtils.Smoothstep(0f, fadeInTime, time)
+                        * particle.GetInitialScalar(particles, ParticleField.Alpha);
                 }
             }
         }
