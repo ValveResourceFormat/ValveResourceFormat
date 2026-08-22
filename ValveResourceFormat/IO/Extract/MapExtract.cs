@@ -660,6 +660,7 @@ public sealed class MapExtract
                     {
                         PhysicsVertexMatcher = PhysVertexMatcher,
                         ProgressReporter = ProgressReporter,
+                        Untriangulate = true,
                     };
                     builders.Add(group, builder);
                 }
@@ -687,8 +688,8 @@ public sealed class MapExtract
         {
             // connect the faces across the seams the drawcall split added, edge by edge, only after try to connect vertices
             // connecting vertices blindly can lead to bad topology
-            builder.MergeCoincidentOpenEdges(HammerMeshWeldDistance);
-            builder.MergeVerticesWithinDistance(HammerMeshWeldDistance);
+            builder.Mesh.MergeCoincidentOpenEdges(HammerMeshWeldDistance);
+            builder.Mesh.MergeVerticesWithinDistance(HammerMeshWeldDistance);
 
             var materialName = Path.GetFileNameWithoutExtension(group.Material);
             var meshIndex = meshIndexPerMaterial.GetValueOrDefault(materialName);
@@ -813,7 +814,7 @@ public sealed class MapExtract
 
             foreach (var hull in shape.Hulls)
             {
-                var hammerMeshBuilder = new HammerMeshBuilder();
+                var hammerMeshBuilder = new HammerMeshBuilder { Untriangulate = true };
                 hammerMeshBuilder.AddPhysHull(hull, phys, GetAndExportAutoPhysicsMaterialName, positionOffset, materialOverride);
                 var meshData = hammerMeshBuilder.GenerateMesh();
 
@@ -859,7 +860,7 @@ public sealed class MapExtract
                     var min = j;
                     var max = Math.Min(j + PhysMeshChunkSize, totalTriangles);
 
-                    var hammerMeshBuilder = new HammerMeshBuilder();
+                    var hammerMeshBuilder = new HammerMeshBuilder { Untriangulate = true };
                     hammerMeshBuilder.AddPhysMesh(mesh, phys, GetAndExportAutoPhysicsMaterialName, deletedList, positionOffset, materialOverride, min, max, true);
 
                     var meshData = hammerMeshBuilder.GenerateMesh();

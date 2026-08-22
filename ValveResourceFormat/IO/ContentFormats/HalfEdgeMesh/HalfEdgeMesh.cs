@@ -2529,6 +2529,61 @@ public partial class HalfEdgeMesh
         return false;
     }
 
+    /// <summary>
+    /// Splits an edge by inserting a new vertex into it. The half edge keeps its start vertex and now ends at
+    /// the new vertex, a new pair continues on to the old end vertex, copying the corner data of the old pair.
+    /// </summary>
+    public bool AddVertexToEdge(HalfEdgeHandle hHalfEdge, out VertexHandle hOutNewVertex)
+    {
+        hOutNewVertex = VertexHandle.Invalid;
+
+        // Get one of the half edges of the full edge.
+        var hExistingEdgeA = hHalfEdge;
+        if (!hExistingEdgeA.IsValid)
+            return false;
+
+        GetVerticesConnectedToHalfEdge(hExistingEdgeA, out var hVertexA, out var hVertexB);
+
+        var hExistingEdgeB = hExistingEdgeA.OppositeEdge;
+        Debug.Assert(hExistingEdgeA.Vertex == hVertexB);
+        Debug.Assert(hExistingEdgeB.Vertex == hVertexA);
+
+        var hPrevEdgeB = FindPreviousEdgeInFaceLoop(hExistingEdgeB);
+        Debug.Assert(hPrevEdgeB.IsValid);
+
+        // Create the new edge pair, copying data streams from the existing edges
+        // so that face-vertex attributes (colors, UVs, etc.) are preserved on the new segments.
+        if (!AllocateHalfEdgePair(out var hNewEdgeA, out var hNewEdgeB, hExistingEdgeA.Index, hExistingEdgeB.Index))
+            return false;
+
+        // Create the new vertex
+        var hNewVertex = AllocateVertex(Vertex.Invalid);
+        if (!hNewVertex.IsValid)
+            return false;
+
+        // Redirect the existing edge so that it
+        // connects the new vertex with vertex A.
+        hExistingEdgeA.Vertex = hNewVertex;
+
+        // The new edge will connect the new vertex with vertex B
+        hNewEdgeA.Vertex = hVertexB;
+        hNewEdgeA.NextEdge = hExistingEdgeA.NextEdge;
+        hNewEdgeA.Face = hExistingEdgeA.Face;
+        hNewVertex.Edge = hNewEdgeA;
+
+        hNewEdgeB.Vertex = hNewVertex;
+        hNewEdgeB.NextEdge = hExistingEdgeB;
+        hNewEdgeB.Face = hExistingEdgeB.Face;
+        hVertexB.Edge = hNewEdgeB;
+
+        hExistingEdgeA.NextEdge = hNewEdgeA;
+        hPrevEdgeB.NextEdge = hNewEdgeB;
+
+        hOutNewVertex = hNewVertex;
+
+        return true;
+    }
+
 #pragma warning disable CA1043
     /// <summary>
     /// Gets the topology of a vertex, or <see cref="Vertex.Invalid"/> when the handle is not from this mesh.
