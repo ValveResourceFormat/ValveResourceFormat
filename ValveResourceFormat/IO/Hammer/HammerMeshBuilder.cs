@@ -355,10 +355,18 @@ namespace ValveResourceFormat.IO
 
             var mesh = new CDmePolygonMesh();
 
+            var faceTextureScales = CreateStream<Vector2Array, Vector2>(0, "textureScale:0");
+            var faceTextureAxesU = CreateStream<Vector4Array, Vector4>(0, "textureAxisU:0");
+            var faceTextureAxesV = CreateStream<Vector4Array, Vector4>(0, "textureAxisV:0");
             var faceMaterialIndices = CreateStream<IntArray, int>(8, "materialindex:0");
             var faceFlags = CreateStream<IntArray, int>(3, "flags:0");
+            var faceLightmapScaleBiases = CreateStream<IntArray, int>(1, "lightmapScaleBias:0");
+            mesh.FaceData.Streams.Add(faceTextureScales);
+            mesh.FaceData.Streams.Add(faceTextureAxesU);
+            mesh.FaceData.Streams.Add(faceTextureAxesV);
             mesh.FaceData.Streams.Add(faceMaterialIndices);
             mesh.FaceData.Streams.Add(faceFlags);
+            mesh.FaceData.Streams.Add(faceLightmapScaleBiases);
 
             var texcoords = CreateStream<Vector2Array, Vector2>(1, "texcoord:0");
             var texcoords1 = CreateStream<Vector2Array, Vector2>(1, "texcoord:1", "texcoord1");
@@ -456,8 +464,14 @@ namespace ValveResourceFormat.IO
                 mesh.FaceDataIndices.Add(faceDataIndex);
                 mesh.FaceData.Size++;
 
+                // texture projection parameters, the axes carry the texel offset in w
+                var textureOffset = polygonMesh.TextureOffset[hFace];
+                faceTextureScales.Data.Add(polygonMesh.TextureScale[hFace]);
+                faceTextureAxesU.Data.Add(new Vector4(polygonMesh.TextureUAxis[hFace], textureOffset.X));
+                faceTextureAxesV.Data.Add(new Vector4(polygonMesh.TextureVAxis[hFace], textureOffset.Y));
                 faceMaterialIndices.Data.Add(polygonMesh.MaterialIndex[hFace]);
                 faceFlags.Data.Add(0);
+                faceLightmapScaleBiases.Data.Add(0);
 
                 mesh.FaceEdgeIndices.Add(halfEdgeRemap[hFace.Edge.Index]);
             }
@@ -609,10 +623,17 @@ namespace ValveResourceFormat.IO
             }
             while (hEdge != hFace.Edge);
 
-            // a face without texture coordinates gets Hammer's default world aligned projection
+            // a face without texture coordinates gets Hammer's default world aligned projection, one with them gets
+            // the projection parameters that reproduce them, for Hammer's texture tools
+            var textureSize = TextureSizeProvider?.Invoke(material) ?? DefaultProjectedTextureSize;
+
             if (missingTexCoords)
             {
-                Mesh.TextureAlignToGrid(hFace, TextureSizeProvider?.Invoke(material) ?? DefaultProjectedTextureSize);
+                Mesh.TextureAlignToGrid(hFace, textureSize);
+            }
+            else
+            {
+                Mesh.ComputeFaceTextureParametersFromCoordinates(hFace, textureSize);
             }
 
             if (!missingTexCoords1 && !missingTangents)

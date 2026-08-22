@@ -633,6 +633,177 @@ public sealed class PolygonMesh
     }
 
     /// <summary>
+    /// Computes the texture projection parameters of a face from its texture coordinates: the world axes, scale and
+    /// offset that reproduce them through <see cref="ComputeFaceTextureCoordinatesFromParameters"/>, fitted through
+    /// the three corners that span the face best.
+    /// </summary>
+    /// <param name="hFace">Face to compute.</param>
+    /// <param name="textureSize">Size of the face's texture in texels, the parameters are in texels.</param>
+    public void ComputeFaceTextureParametersFromCoordinates(FaceHandle hFace, Vector2 textureSize)
+    {
+        if (!hFace.IsValid)
+            return;
+
+        var facePositions = new List<Vector3>();
+        var faceTexCoords = new List<Vector2>();
+
+        var hFaceVertex = hFace.Edge;
+        do
+        {
+            facePositions.Add(Positions[hFaceVertex.Vertex]);
+            faceTexCoords.Add(TextureCoords[hFaceVertex]);
+
+            hFaceVertex = hFaceVertex.NextEdge;
+        }
+        while (hFaceVertex != hFace.Edge);
+
+        GetBestThreeTextureBasisVerticies(facePositions, faceTexCoords, facePositions.Count, out var bestPositions, out var bestTexCoords);
+
+        if (CalcTextureBasisFromUVs(bestPositions, bestTexCoords, out _, out _))
+        {
+            ComputeFaceTextureParametersFromUVs(bestPositions, bestTexCoords, textureSize,
+                out var axisU, out var axisV, out var scale);
+
+            TextureUAxis[hFace] = new Vector3(axisU.X, axisU.Y, axisU.Z);
+            TextureVAxis[hFace] = new Vector3(axisV.X, axisV.Y, axisV.Z);
+            TextureOffset[hFace] = new Vector2(axisU.W, axisV.W);
+            TextureScale[hFace] = scale;
+        }
+        else
+        {
+            TextureUAxis[hFace] = new Vector3(1.0f, 0.0f, 0.0f);
+            TextureVAxis[hFace] = new Vector3(0.0f, 1.0f, 0.0f);
+            TextureOffset[hFace] = Vector2.Zero;
+            TextureScale[hFace] = Vector2.One;
+        }
+    }
+
+    private static bool CalcTextureBasisFromUVs(Vector3[] vVertPos, Vector2[] vTexCoord, out Vector3 vOutU, out Vector3 vOutV)
+    {
+        const float flEpsilon = 0.000001f;
+
+        vOutU = new Vector3(1.0f, 0.0f, 0.0f);
+        vOutV = new Vector3(0.0f, 1.0f, 0.0f);
+
+        if (vVertPos.Length < 3 || vTexCoord.Length < 3)
+            return false;
+
+        Vector3[] E = [vVertPos[1] - vVertPos[0], vVertPos[2] - vVertPos[0]];
+        Vector2[] T = [vTexCoord[1] - vTexCoord[0], vTexCoord[2] - vTexCoord[0]];
+
+        if (T[0].LengthSquared() < flEpsilon && T[1].LengthSquared() < flEpsilon)
+            return false;
+
+        var eDet = T[0].X * T[1].Y - T[1].X * T[0].Y;
+        if (MathF.Abs(eDet) < flEpsilon)
+            eDet = flEpsilon;
+
+        var textureU = 1.0f / eDet * (T[1].Y * E[0] - T[0].Y * E[1]);
+        var textureV = 1.0f / eDet * (-T[1].X * E[0] + T[0].X * E[1]);
+        var textureNormal = Vector3.Cross(textureU, textureV);
+
+        var mTextureToWorld = new Matrix4x4(
+            textureU.X, textureV.X, textureNormal.X, 0,
+            textureU.Y, textureV.Y, textureNormal.Y, 0,
+            textureU.Z, textureV.Z, textureNormal.Z, 0,
+            0, 0, 0, 1);
+
+        if (Matrix4x4.Invert(mTextureToWorld, out var mWorldToTexture))
+        {
+            vOutU = new Vector3(mWorldToTexture.M11, mWorldToTexture.M12, mWorldToTexture.M13);
+            vOutV = new Vector3(mWorldToTexture.M21, mWorldToTexture.M22, mWorldToTexture.M23);
+            return true;
+        }
+
+        return false;
+    }
+
+    private static void ComputeFaceTextureParametersFromUVs(Vector3[] vVertPos, Vector2[] vTexCoord, Vector2 vTextureDimensions, out Vector4 pAxisU, out Vector4 pAxisV, out Vector2 pScale)
+    {
+        if (!CalcTextureBasisFromUVs(vVertPos, vTexCoord, out var vWorldU, out var vWorldV))
+        {
+            pAxisU = default;
+            pAxisV = default;
+            pScale = default;
+
+            return;
+        }
+
+        var flWorldUScale = vWorldU.Length();
+        var flWorldVScale = vWorldV.Length();
+
+        vWorldU = Vector3.Normalize(vWorldU);
+        vWorldV = Vector3.Normalize(vWorldV);
+
+        pScale = new Vector2(1.0f / (vTextureDimensions.X * flWorldUScale), 1.0f / (vTextureDimensions.Y * flWorldVScale));
+
+        pAxisU = new Vector4(vWorldU, 0.0f);
+        pAxisV = new Vector4(vWorldV, 0.0f);
+
+        var vWorldOffset = new Vector2(
+            Vector3.Dot(vWorldU, vVertPos[0]) * flWorldUScale,
+            Vector3.Dot(vWorldV, vVertPos[0]) * flWorldVScale);
+
+        var vWorldOffsetFrac = new Vector2(vWorldOffset.X - (int)vWorldOffset.X, vWorldOffset.Y - (int)vWorldOffset.Y);
+        var vTexCoordFrac = new Vector2(vTexCoord[0].X - (int)vTexCoord[0].X, vTexCoord[0].Y - (int)vTexCoord[0].Y);
+
+        var uvOffset = vTexCoordFrac - vWorldOffsetFrac;
+        uvOffset.X -= (int)uvOffset.X;
+        uvOffset.Y -= (int)uvOffset.Y;
+        if (uvOffset.X < 0) uvOffset.X += 1.0f;
+        if (uvOffset.Y < 0) uvOffset.Y += 1.0f;
+
+        var uOffset = uvOffset.X * vTextureDimensions.X;
+        var vOffset = uvOffset.Y * vTextureDimensions.Y;
+        if (uOffset >= vTextureDimensions.X) uOffset -= vTextureDimensions.X;
+        if (vOffset >= vTextureDimensions.Y) vOffset -= vTextureDimensions.Y;
+
+        pAxisU.W = uOffset;
+        pAxisV.W = vOffset;
+    }
+
+    private static void GetBestThreeTextureBasisVerticies(List<Vector3> pPositions, List<Vector2> pTexCoords, int nNumPositions, out Vector3[] pOutPositions, out Vector2[] pOutTexCoords)
+    {
+        pOutPositions = new Vector3[3];
+        pOutTexCoords = new Vector2[3];
+
+        if (nNumPositions < 3)
+            return;
+
+        var nBestVert = 0;
+        var flBestHeuristic = -1.0f;
+
+        for (var i = 0; i < nNumPositions; ++i)
+        {
+            var nVert0 = (i + nNumPositions - 1) % nNumPositions;
+            var nVert1 = i;
+            var nVert2 = (i + 1) % nNumPositions;
+
+            var vEdge0 = pPositions[nVert0] - pPositions[nVert1];
+            var vEdge1 = pPositions[nVert2] - pPositions[nVert1];
+            var flOneMinsDot = 1.0f - MathF.Abs(Vector3.Dot(Vector3.Normalize(vEdge0), Vector3.Normalize(vEdge1)));
+
+            var flHeuristic = vEdge0.LengthSquared() * vEdge1.LengthSquared() * flOneMinsDot;
+            if (flHeuristic > flBestHeuristic)
+            {
+                nBestVert = nVert1;
+                flBestHeuristic = flHeuristic;
+            }
+        }
+
+        var nPrevVert = (nBestVert + nNumPositions - 1) % nNumPositions;
+        var nNextVert = (nBestVert + 1) % nNumPositions;
+
+        pOutPositions[0] = pPositions[nBestVert];
+        pOutPositions[1] = pPositions[nPrevVert];
+        pOutPositions[2] = pPositions[nNextVert];
+
+        pOutTexCoords[0] = pTexCoords[nBestVert];
+        pOutTexCoords[1] = pTexCoords[nPrevVert];
+        pOutTexCoords[2] = pTexCoords[nNextVert];
+    }
+
+    /// <summary>
     /// Groups faces into islands connected through shared edges.
     /// </summary>
     public static void FindFaceIslands(IReadOnlyList<FaceHandle> faces, out List<List<FaceHandle>> outFaces)
