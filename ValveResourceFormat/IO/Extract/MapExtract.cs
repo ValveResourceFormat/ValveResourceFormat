@@ -6,6 +6,7 @@ using System.Runtime.CompilerServices;
 using ValveKeyValue;
 using ValveResourceFormat.Blocks;
 using ValveResourceFormat.IO.ContentFormats.DmxModel;
+using ValveResourceFormat.IO.ContentFormats.HalfEdgeMesh;
 using ValveResourceFormat.IO.ContentFormats.ValveMap;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization.KeyValues;
@@ -39,6 +40,70 @@ public sealed class MapExtract
 
     // render mesh vertices closer than this are the same Hammer vertex
     private const float HammerMeshWeldDistance = 1f / 64f;
+
+    private readonly Dictionary<string, Vector2?> MaterialTextureSizes = [];
+
+    // units the generated physics surface materials span, declared in their vmat so Hammer projects them the same:
+    // their 128 texel texture at the density of the tool textures (64 texels over 8 units)
+    private const int AutoPhysicsMaterialWorldMapping = 16;
+
+    /// <summary>
+    /// The texture size Hammer projects a material with, for faces that have no texture coordinates, in texels at
+    /// <see cref="PolygonMesh.DefaultTextureScale"/>: the units its WorldMappingWidth / WorldMappingHeight attributes
+    /// say the texture spans, else the size of its representative texture. Null when the material declares neither,
+    /// projecting it at the builder's default size.
+    /// </summary>
+    private Vector2? GetMaterialTextureSize(string materialName)
+    {
+        if (MaterialTextureSizes.TryGetValue(materialName, out var cached))
+        {
+            return cached;
+        }
+
+        var size = LoadMaterialTextureSize(materialName);
+        MaterialTextureSizes[materialName] = size;
+        return size;
+    }
+
+    private Vector2? LoadMaterialTextureSize(string materialName)
+    {
+        if (ProceduralPhysMaterialsToExtract.Any(m => m.Name == materialName))
+        {
+            return new Vector2(AutoPhysicsMaterialWorldMapping) / PolygonMesh.DefaultTextureScale;
+        }
+
+        using var materialResource = FileLoader.LoadFileCompiled(materialName);
+        if (materialResource?.DataBlock is not Material material)
+        {
+            return null;
+        }
+
+        var intAttributes = material.Data.GetArray("m_intAttributes") ?? [];
+
+        int GetIntAttribute(string name)
+        {
+            var attribute = intAttributes.FirstOrDefault(a => a.GetStringProperty("m_name") == name);
+            return attribute?.GetInt32Property("m_nValue") ?? 0;
+        }
+
+        var worldMappingWidth = GetIntAttribute("WorldMappingWidth");
+        var worldMappingHeight = GetIntAttribute("WorldMappingHeight");
+
+        if (worldMappingWidth > 0 && worldMappingHeight > 0)
+        {
+            return new Vector2(worldMappingWidth, worldMappingHeight) / PolygonMesh.DefaultTextureScale;
+        }
+
+        var representativeWidth = GetIntAttribute("RepresentativeTextureWidth");
+        var representativeHeight = GetIntAttribute("RepresentativeTextureHeight");
+
+        if (representativeWidth > 0 && representativeHeight > 0)
+        {
+            return new Vector2(representativeWidth, representativeHeight);
+        }
+
+        return null;
+    }
 
     /// <summary>
     /// What one Hammer mesh builder collects: the draw calls of one material with one tint. Geometry only welds
@@ -661,6 +726,7 @@ public sealed class MapExtract
                         PhysicsVertexMatcher = PhysVertexMatcher,
                         ProgressReporter = ProgressReporter,
                         Untriangulate = true,
+                        TextureSizeProvider = GetMaterialTextureSize,
                     };
                     builders.Add(group, builder);
                 }
@@ -814,7 +880,7 @@ public sealed class MapExtract
 
             foreach (var hull in shape.Hulls)
             {
-                var hammerMeshBuilder = new HammerMeshBuilder { Untriangulate = true };
+                var hammerMeshBuilder = new HammerMeshBuilder { Untriangulate = true, TextureSizeProvider = GetMaterialTextureSize };
                 hammerMeshBuilder.AddPhysHull(hull, phys, GetAndExportAutoPhysicsMaterialName, positionOffset, materialOverride);
                 var meshData = hammerMeshBuilder.GenerateMesh();
 
@@ -860,7 +926,7 @@ public sealed class MapExtract
                     var min = j;
                     var max = Math.Min(j + PhysMeshChunkSize, totalTriangles);
 
-                    var hammerMeshBuilder = new HammerMeshBuilder { Untriangulate = true };
+                    var hammerMeshBuilder = new HammerMeshBuilder { Untriangulate = true, TextureSizeProvider = GetMaterialTextureSize };
                     hammerMeshBuilder.AddPhysMesh(mesh, phys, GetAndExportAutoPhysicsMaterialName, deletedList, positionOffset, materialOverride, min, max, true);
 
                     var meshData = hammerMeshBuilder.GenerateMesh();
@@ -1328,6 +1394,8 @@ public sealed class MapExtract
 
         var systemAttributes = ValveKeyValue.KVObject.ListCollection();
         systemAttributes.Add("PhysicsSurfaceProperties", surfaceProperty);
+        systemAttributes.Add("WorldMappingWidth", AutoPhysicsMaterialWorldMapping);
+        systemAttributes.Add("WorldMappingHeight", AutoPhysicsMaterialWorldMapping);
         root.Add("SystemAttributes", systemAttributes);
 
         using var ms = new MemoryStream();

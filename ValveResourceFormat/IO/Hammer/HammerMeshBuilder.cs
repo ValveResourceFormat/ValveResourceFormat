@@ -249,6 +249,19 @@ namespace ValveResourceFormat.IO
         public bool Untriangulate { get; init; }
 
         /// <summary>
+        /// Returns the size in texels of the texture a material uses, for faces added without texture coordinates:
+        /// their texture is projected onto them in texels, like Hammer does. Null for materials it doesn't know, which
+        /// are projected with <see cref="DefaultProjectedTextureSize"/>.
+        /// </summary>
+        public Func<string, Vector2?>? TextureSizeProvider { get; init; }
+
+        /// <summary>
+        /// Texture size assumed for a projected face when <see cref="TextureSizeProvider"/> gives none: a texture
+        /// that repeats every 128 units at <see cref="PolygonMesh.DefaultTextureScale"/>, the usual Hammer world mapping.
+        /// </summary>
+        public Vector2 DefaultProjectedTextureSize { get; init; } = new(128f / PolygonMesh.DefaultTextureScale);
+
+        /// <summary>
         /// Writes everything added so far out as a Hammer mesh.
         /// </summary>
         public CDmePolygonMesh GenerateMesh()
@@ -599,7 +612,7 @@ namespace ValveResourceFormat.IO
             // a face without texture coordinates gets Hammer's default world aligned projection
             if (missingTexCoords)
             {
-                Mesh.TextureAlignToGrid(hFace, ProjectedTextureSize);
+                Mesh.TextureAlignToGrid(hFace, TextureSizeProvider?.Invoke(material) ?? DefaultProjectedTextureSize);
             }
 
             if (!missingTexCoords1 && !missingTangents)
@@ -632,9 +645,6 @@ namespace ValveResourceFormat.IO
             }
             while (hEdge != hFace.Edge);
         }
-
-        // texture size assumed for faces that get a projected mapping, their materials are tool textures
-        private static readonly Vector2 ProjectedTextureSize = new(256f, 256f);
 
         // Faces which can't be integrated into the existing topology (they would create a nonmanifold edge or vertex)
         // are added as a disconnected island with duplicated vertices, so no geometry is lost
