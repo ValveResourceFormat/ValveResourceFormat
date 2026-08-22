@@ -83,7 +83,7 @@ public class NmClipExtract
                     }
                 }
 
-                return ModelExtract.ToDmxAnim(skeleton, [], animation, secondaryAnimations, nmSkelAxisFixup: false);
+                return ModelExtract.ToDmxAnim(skeleton, [], animation, secondaryAnimations, nmSkelAxisFixup: true);
             });
         }
 
