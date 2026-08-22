@@ -604,6 +604,185 @@ namespace ValveResourceFormat.IO
         }
 
         /// <summary>
+        /// Merges every pair of open edges that lie on top of each other.
+        /// </summary>
+        /// <param name="maxDistance">Largest distance between the edge end points that still counts as coinciding.</param>
+        /// <returns>Number of edges merged away.</returns>
+        public int MergeCoincidentOpenEdges(float maxDistance)
+        {
+            var maxDistanceSquared = maxDistance * maxDistance;
+            var invCellSize = 1f / maxDistance;
+
+            // vertices by position cell, so the copies of a position can be looked up; handles go stale when
+            // vertices are merged, that is checked on lookup, new vertices are added as they appear
+            var cells = new Dictionary<(int X, int Y, int Z), List<VertexHandle>>();
+
+            (int X, int Y, int Z) CellOf(Vector3 p) => ((int)MathF.Floor(p.X * invCellSize), (int)MathF.Floor(p.Y * invCellSize), (int)MathF.Floor(p.Z * invCellSize));
+
+            void Register(VertexHandle hVertex)
+            {
+                var cell = CellOf(Positions[hVertex]);
+                if (!cells.TryGetValue(cell, out var list))
+                {
+                    list = [];
+                    cells.Add(cell, list);
+                }
+
+                list.Add(hVertex);
+            }
+
+            IEnumerable<VertexHandle> VerticesNear(Vector3 p)
+            {
+                var cell = CellOf(p);
+                for (var dx = -1; dx <= 1; dx++)
+                {
+                    for (var dy = -1; dy <= 1; dy++)
+                    {
+                        for (var dz = -1; dz <= 1; dz++)
+                        {
+                            if (!cells.TryGetValue((cell.X + dx, cell.Y + dy, cell.Z + dz), out var list))
+                            {
+                                continue;
+                            }
+
+                            foreach (var hVertex in list)
+                            {
+                                if (hVertex.IsValid && Vector3.DistanceSquared(Positions[hVertex], p) <= maxDistanceSquared)
+                                {
+                                    yield return hVertex;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            foreach (var hVertex in HalfEdgeMesh.VertexHandles)
+            {
+                Register(hVertex);
+            }
+
+            var queue = new Queue<HalfEdgeHandle>();
+            foreach (var hEdge in HalfEdgeMesh.HalfEdgeHandles)
+            {
+                if (hEdge.Face == FaceHandle.Invalid)
+                {
+                    queue.Enqueue(hEdge);
+                }
+            }
+
+            var merged = 0;
+
+            while (queue.TryDequeue(out var hEdge))
+            {
+                // the edge may have been merged away, or closed up, since it was queued
+                if (!hEdge.IsValid || hEdge.Face != FaceHandle.Invalid)
+                {
+                    continue;
+                }
+
+                var hStart = hEdge.OppositeEdge.Vertex;
+                var hEnd = hEdge.Vertex;
+                var startPosition = Positions[hStart];
+                var endPosition = Positions[hEnd];
+
+                // look for an open edge of another fan running from a copy of the end to a copy of the start
+                var hPartner = HalfEdgeHandle.Invalid;
+                foreach (var hOtherStart in VerticesNear(startPosition))
+                {
+                    if (hOtherStart == hStart)
+                    {
+                        continue;
+                    }
+
+                    if (!HalfEdgeMesh.GetIncomingHalfEdgesConnectedToVertex(hOtherStart, out var incoming))
+                    {
+                        continue;
+                    }
+
+                    foreach (var hIncoming in incoming)
+                    {
+                        if (hIncoming.Face == FaceHandle.Invalid
+                            && hIncoming.OppositeEdge.Face != FaceHandle.Invalid
+                            && Vector3.DistanceSquared(Positions[hIncoming.OppositeEdge.Vertex], endPosition) <= maxDistanceSquared)
+                        {
+                            hPartner = hIncoming;
+                            break;
+                        }
+                    }
+
+                    if (hPartner.IsValid)
+                    {
+                        break;
+                    }
+                }
+
+                if (!hPartner.IsValid)
+                {
+                    continue;
+                }
+
+                // MergeEdges merges the two end point pairs one after the other. The first pair can be merged
+                // while the second is refused, in which case it reports failure but has already made the first
+                // merged vertex, so whatever vertices come back get their position, no matter the result.
+                // The topology doesn't know positions, the merged vertices sit where the edge was
+                var success = HalfEdgeMesh.MergeEdges(hEdge, hPartner, out var hNewVertexA, out var hNewVertexB);
+
+                foreach (var (hNewVertex, position) in new[] { (hNewVertexA, endPosition), (hNewVertexB, startPosition) })
+                {
+                    if (!hNewVertex.IsValid)
+                    {
+                        continue;
+                    }
+
+                    Positions[hNewVertex] = position;
+                    Register(hNewVertex);
+                }
+
+                if (!success)
+                {
+                    continue;
+                }
+
+                merged++;
+
+                foreach (var hNewVertex in new[] { hNewVertexA, hNewVertexB })
+                {
+                    if (!hNewVertex.IsValid)
+                    {
+                        continue;
+                    }
+
+                    // the merged vertices have new open edges that may have partners of their own
+                    if (HalfEdgeMesh.GetOutgoingHalfEdgesConnectedToVertex(hNewVertex, out var outgoing))
+                    {
+                        foreach (var hOutgoing in outgoing)
+                        {
+                            if (hOutgoing.Face == FaceHandle.Invalid)
+                            {
+                                queue.Enqueue(hOutgoing);
+                            }
+
+                            if (hOutgoing.OppositeEdge.Face == FaceHandle.Invalid)
+                            {
+                                queue.Enqueue(hOutgoing.OppositeEdge);
+                            }
+                        }
+                    }
+                }
+            }
+
+#if DEBUG
+            if (merged > 0)
+            {
+                ProgressReporter?.Report($"{nameof(HammerMeshBuilder)}: Merged {merged} coinciding open edges");
+            }
+#endif
+
+            return merged;
+        }
+
+        /// <summary>
         /// Merges every vertex of the mesh that lies within <paramref name="maxDistance"/> of another one, the
         /// Hammer "merge vertices by distance" operation. Use after all faces were added: the input vertex indices
         /// handed out by <see cref="AddVertices"/> no longer apply afterwards.

@@ -40,6 +40,17 @@ public sealed class MapExtract
     // render mesh vertices closer than this are the same Hammer vertex
     private const float HammerMeshWeldDistance = 1f / 64f;
 
+    /// <summary>
+    /// What one Hammer mesh builder collects: the draw calls of one material with one tint. Geometry only welds
+    /// within a material, and a Hammer mesh has a single tint.
+    /// </summary>
+    private readonly record struct HammerMeshGroup(string Material, Vector4 Tint);
+
+    // Builders for the hammer geometry of every world node. Filled while the world nodes are walked, welded and
+    // split into meshes once all of them are in, so geometry connects across the aggregates the compiler split it into.
+    private readonly Dictionary<HammerMeshGroup, HammerMeshBuilder> WorldHammerMeshBuilders = [];
+    private int WorldHammerMeshDrawCalls;
+
     // Selection sets (for easy access)
     private CMapSelectionSet? S2VSelectionSet;
     private CMapSelectionSet? HammerMeshesSelectionSet;
@@ -412,6 +423,23 @@ public sealed class MapExtract
             }
         }
 
+        // the hammer geometry of all world nodes is welded together here, then split back into objects
+        var worldHammerMeshes = GenerateHammerMeshes(WorldHammerMeshBuilders);
+        if (worldHammerMeshes.Count > 0)
+        {
+            var selectionSet = new CMapSelectionSet
+            {
+                SelectionSetName = $"hammer meshes ({WorldHammerMeshDrawCalls} welded draw calls, {worldHammerMeshes.Count} meshes)",
+            };
+            HammerMeshesSelectionSet?.Children.Add(selectionSet);
+
+            foreach (var hammerMesh in worldHammerMeshes)
+            {
+                MapDocument.World.Children.Add(hammerMesh);
+                selectionSet.SelectionSetData.SelectedObjects.Add(hammerMesh);
+            }
+        }
+
         AdditionalMapDocuments = SplitLargeMapDocument();
 
         var i = 2;
@@ -588,25 +616,23 @@ public sealed class MapExtract
         EntitiesSelectionSet = S2VSelectionSet.Children.AddReturn(new CMapSelectionSet("Entities"));
     }
 
-    internal List<CMapMesh> RenderMeshToHammerMesh(Model model, Resource resource, string? entityClassname = null, Matrix4x4? transform = null, Func<int, Vector4>? drawCallTint = null)
+    /// <summary>
+    /// Adds the render meshes of a model to builders, one per material and tint.
+    /// </summary>
+    /// <param name="model">Model whose embedded meshes are added.</param>
+    /// <param name="resource">Resource the model came from.</param>
+    /// <param name="transform">Transform applied to the geometry.</param>
+    /// <param name="drawCallTint">Tint (gamma space, 0-255, alpha in W) per draw call index, defaults to the draw call's own tint and alpha.</param>
+    /// <param name="builders">Builders to add to, created per material and tint as needed.</param>
+    /// <returns>Number of draw calls added.</returns>
+    private int AddRenderMeshToBuilders(Model model, Resource resource, Matrix4x4 transform, Func<int, Vector4>? drawCallTint, Dictionary<HammerMeshGroup, HammerMeshBuilder> builders)
     {
-        List<CMapMesh> hammerMeshesToReturn = [];
-
-        if (resource is null)
-        {
-            return hammerMeshesToReturn;
-        }
-
-        var meshTransform = transform ?? Matrix4x4.Identity;
-
         var modelExtract = new ModelExtract(resource, FileLoader);
         modelExtract.GrabMaterialInputSignatures(resource);
 
-        // TODO: reference meshes
-        var hammerMeshEntitySelectionSet = new CMapSelectionSet();
-        var drawSelectionSet = new CMapSelectionSet();
         var drawCallCount = 0;
 
+        // TODO: reference meshes
         foreach (var embedded in model.GetEmbeddedMeshes())
         {
             var submeshDrawCalls = new List<(DmeDag Dag, KVObject DrawCall)>();
@@ -619,56 +645,101 @@ public sealed class MapExtract
 
             using var dmxMesh = ModelExtract.ConvertMeshToDatamodelMesh(embedded.Mesh, Path.GetFileNameWithoutExtension(resource.FileName ?? "mesh"), dmxOptions);
 
-            var buildersByTint = new Dictionary<Vector4, HammerMeshBuilder>();
-
             for (var drawCallIndex = 0; drawCallIndex < submeshDrawCalls.Count; drawCallIndex++)
             {
                 var (dag, drawCall) = submeshDrawCalls[drawCallIndex];
                 drawCallCount++;
 
                 var tint = drawCallTint?.Invoke(drawCallIndex) ?? GetDrawCallTint(drawCall);
+                var material = drawCall.GetStringProperty("m_material") ?? drawCall.GetStringProperty("m_pMaterial") ?? string.Empty;
+                var group = new HammerMeshGroup(material, tint);
 
-                if (!buildersByTint.TryGetValue(tint, out var builder))
+                if (!builders.TryGetValue(group, out var builder))
                 {
                     builder = new HammerMeshBuilder()
                     {
                         PhysicsVertexMatcher = PhysVertexMatcher,
                         ProgressReporter = ProgressReporter,
                     };
-                    buildersByTint.Add(tint, builder);
+                    builders.Add(group, builder);
                 }
 
                 if (dag.Shape is DmeMesh meshShape)
                 {
-                    builder.AddRenderMesh(meshShape, meshTransform);
+                    builder.AddRenderMesh(meshShape, transform);
                 }
             }
+        }
 
-            foreach (var (tint, builder) in buildersByTint)
+        return drawCallCount;
+    }
+
+    /// <summary>
+    /// Welds the geometry of each builder and splits it into one Hammer mesh per connected island, named after
+    /// the material.
+    /// </summary>
+    private static List<CMapMesh> GenerateHammerMeshes(Dictionary<HammerMeshGroup, HammerMeshBuilder> builders)
+    {
+        List<CMapMesh> hammerMeshes = [];
+        var meshIndexPerMaterial = new Dictionary<string, int>();
+
+        foreach (var (group, builder) in builders)
+        {
+            // connect the faces across the seams the drawcall split added, edge by edge, only after try to connect vertices
+            // connecting vertices blindly can lead to bad topology
+            builder.MergeCoincidentOpenEdges(HammerMeshWeldDistance);
+            builder.MergeVerticesWithinDistance(HammerMeshWeldDistance);
+
+            var materialName = Path.GetFileNameWithoutExtension(group.Material);
+            var meshIndex = meshIndexPerMaterial.GetValueOrDefault(materialName);
+
+            // one Hammer mesh per connected island, so separate objects the compiler batched together come apart again
+            foreach (var meshData in builder.GenerateMeshes())
             {
-                // connect the faces across the seams the compiled vertex buffer split them on, and across draw calls
-                builder.MergeVerticesWithinDistance(HammerMeshWeldDistance);
-
-                // one Hammer mesh per connected island, so separate objects the compiler batched together come apart again
-                foreach (var meshData in builder.GenerateMeshes())
+                hammerMeshes.Add(new CMapMesh()
                 {
-                    var hammerMesh = new CMapMesh()
-                    {
-                        MeshData = meshData,
-                        TintColor = ConvertToColor32(tint),
-                    };
+                    Name = $"{materialName}_{meshIndex++}",
+                    MeshData = meshData,
+                    TintColor = ConvertToColor32(group.Tint),
+                });
+            }
 
-                    if (!string.IsNullOrEmpty(entityClassname))
-                    {
-                        hammerMeshEntitySelectionSet.SelectionSetData.SelectedObjects.Add(hammerMesh);
-                    }
-                    else
-                    {
-                        drawSelectionSet.SelectionSetData.SelectedObjects.Add(hammerMesh);
-                    }
+            meshIndexPerMaterial[materialName] = meshIndex;
+        }
 
-                    hammerMeshesToReturn.Add(hammerMesh);
-                }
+        return hammerMeshes;
+    }
+
+    /// <summary>
+    /// Converts the render meshes of one model into Hammer meshes, welded within the model and split into islands.
+    /// </summary>
+    /// <param name="model">Model whose embedded meshes are converted.</param>
+    /// <param name="resource">Resource the model came from.</param>
+    /// <param name="entityClassname">Class of the entity the meshes belong to, null for world geometry.</param>
+    /// <param name="transform">Transform applied to the geometry.</param>
+    internal List<CMapMesh> RenderMeshToHammerMesh(Model model, Resource resource, string? entityClassname = null, Matrix4x4? transform = null)
+    {
+        if (resource is null)
+        {
+            return [];
+        }
+
+        var builders = new Dictionary<HammerMeshGroup, HammerMeshBuilder>();
+        var drawCallCount = AddRenderMeshToBuilders(model, resource, transform ?? Matrix4x4.Identity, null, builders);
+        var hammerMeshesToReturn = GenerateHammerMeshes(builders);
+
+        var hammerMeshEntitySelectionSet = new CMapSelectionSet();
+        var drawSelectionSet = new CMapSelectionSet();
+
+        foreach (var hammerMesh in hammerMeshesToReturn)
+        {
+            if (!string.IsNullOrEmpty(entityClassname))
+            {
+                hammerMeshEntitySelectionSet.SelectionSetData.SelectedObjects.Add(hammerMesh);
+            }
+            else
+            {
+                drawSelectionSet.SelectionSetData.SelectedObjects.Add(hammerMesh);
             }
         }
 
@@ -836,7 +907,7 @@ public sealed class MapExtract
         return cMapMeshesToReturn;
     }
 
-    Datamodel.Color ConvertToColor32(Vector4 tint)
+    static Datamodel.Color ConvertToColor32(Vector4 tint)
     {
         var color32 = unchecked(stackalloc byte[] { (byte)tint.X, (byte)tint.Y, (byte)tint.Z, (byte)tint.W });
         return Datamodel.Color.FromBytes(color32);
@@ -1115,9 +1186,6 @@ public sealed class MapExtract
                     throw new InvalidOperationException("Unhandled aggregate with instanced transforms exported as hammer mesh!");
                 }
 
-                drawSelectionSet.SelectionSetName = "hammer meshes (" + drawCalls.Count + " welded draw calls) " + Path.GetFileNameWithoutExtension(modelName);
-                HammerMeshesSelectionSet?.Children.Add(drawSelectionSet);
-
                 // the fragment tint multiplies the draw call tint, one fragment per draw call is expected here
                 var fragmentTints = new Dictionary<int, Vector3>();
                 foreach (var fragment in aggregateMeshes)
@@ -1140,15 +1208,8 @@ public sealed class MapExtract
                     return tint;
                 }
 
-                var meshIndex = 0;
-                var meshBaseName = Path.GetFileNameWithoutExtension(modelName);
-                foreach (var mapMesh in RenderMeshToHammerMesh(model, modelRes, drawCallTint: HammerMeshTint))
-                {
-                    mapMesh.Name = $"{meshBaseName}_{meshIndex++}";
-
-                    MapDocument.World.Children.Add(mapMesh);
-                    drawSelectionSet.SelectionSetData.SelectedObjects.Add(mapMesh);
-                }
+                // world geometry is welded across all aggregates, the meshes are made once every world node is in
+                WorldHammerMeshDrawCalls += AddRenderMeshToBuilders(model, modelRes, Matrix4x4.Identity, HammerMeshTint, WorldHammerMeshBuilders);
 
                 return;
             }
