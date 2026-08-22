@@ -409,7 +409,8 @@ public partial class HalfEdgeMesh
     /// <summary>
     /// Copies a set of faces of another mesh into this one, together with their half edges (boundary twins
     /// included) and vertices, reporting the handle each source component landed on. The faces should form
-    /// whole islands: a half edge whose twin's face is not in the set becomes a boundary edge.
+    /// whole islands connected through edges: a half edge whose twin's face is not in the set becomes a
+    /// boundary edge, a vertex shared with faces outside the set is duplicated.
     /// </summary>
     public void AppendComponentsFromMesh(HalfEdgeMesh sourceMesh,
         IReadOnlyCollection<FaceHandle> faces,
@@ -451,11 +452,17 @@ public partial class HalfEdgeMesh
             while (hEdge != hFace.Edge);
         }
 
-        // with whole islands every edge at a copied vertex, every twin and every next edge (boundary loops
-        // included) is in the set, so the links map one to one
+        // A vertex may have edges outside the set when the copied faces only touch other faces at that vertex
+        // (a bowtie). The copy then gets its own vertex, pointing at one of the copied edges, and the boundary
+        // loop is closed up along the copied fan instead of leaving through the other fan.
         foreach (var (hVertex, hNewVertex) in newVertices)
         {
-            hNewVertex.Edge = newHalfEdges[hVertex.Edge];
+            if (!newHalfEdges.TryGetValue(hVertex.Edge, out var hNewEdge))
+            {
+                hNewEdge = newHalfEdges[FindNextOutgoingEdgeInSet(hVertex.Edge, newHalfEdges)];
+            }
+
+            hNewVertex.Edge = hNewEdge;
         }
 
         foreach (var (hFace, hNewFace) in newFaces)
@@ -467,9 +474,38 @@ public partial class HalfEdgeMesh
         {
             hNewHalfEdge.Vertex = newVertices[hHalfEdge.Vertex];
             hNewHalfEdge.OppositeEdge = newHalfEdges[hHalfEdge.OppositeEdge];
-            hNewHalfEdge.NextEdge = newHalfEdges[hHalfEdge.NextEdge];
             hNewHalfEdge.Face = newFaces.TryGetValue(hHalfEdge.Face, out var hFace) ? hFace : FaceHandle.Invalid;
+
+            if (newHalfEdges.TryGetValue(hHalfEdge.NextEdge, out var hNextEdge))
+            {
+                hNewHalfEdge.NextEdge = hNextEdge;
+            }
+            else
+            {
+                // only a boundary half edge can leave the set, its next edge is the open edge of the
+                // other fan at the end vertex; rotating on from there reaches the copied fan at its open edge
+                hNewHalfEdge.NextEdge = newHalfEdges[FindNextOutgoingEdgeInSet(hHalfEdge.NextEdge, newHalfEdges)];
+            }
         }
+    }
+
+    // Rotates around the start vertex of the given outgoing half edge (the vertex loop order, which enters
+    // each fan at its open outgoing edge) until it reaches a half edge in the set.
+    private static HalfEdgeHandle FindNextOutgoingEdgeInSet(HalfEdgeHandle hOutgoingEdge, Dictionary<HalfEdgeHandle, HalfEdgeHandle> set)
+    {
+        var hCurrent = hOutgoingEdge;
+        do
+        {
+            hCurrent = hCurrent.OppositeEdge.NextEdge;
+        }
+        while (hCurrent != hOutgoingEdge && !set.ContainsKey(hCurrent));
+
+        if (!set.ContainsKey(hCurrent))
+        {
+            throw new InvalidOperationException("The copied faces don't own any edge at one of their vertices.");
+        }
+
+        return hCurrent;
     }
 
     /// <summary>
@@ -1055,7 +1091,6 @@ public partial class HalfEdgeMesh
         return HalfEdgeHandle.Invalid;
     }
 
-
     private void DetachEdgeFromVertex(HalfEdgeHandle hEdge, bool bRemoveFreeVerts)
     {
         if (!hEdge.IsValid)
@@ -1359,7 +1394,6 @@ public partial class HalfEdgeMesh
         return RemoveHalfEdgePair(hFullEdge, bRemoveFreeVerts);
     }
 
-
     private void CopyFaceVertexData(HalfEdgeHandle hDstHalfEdge, HalfEdgeHandle hSrcHalfEdge)
     {
         if (!hDstHalfEdge.IsValid)
@@ -1555,7 +1589,6 @@ public partial class HalfEdgeMesh
         return HalfEdgeHandle.Invalid;
     }
 
-
     private void FreeVertex(VertexHandle hVertex)
     {
         if (!hVertex.IsValid)
@@ -1564,7 +1597,6 @@ public partial class HalfEdgeMesh
         this[hVertex] = Vertex.Invalid;
         VertexList.Deallocate(hVertex.Index);
     }
-
 
     /// <summary>
     /// Splits a face by adding an edge between the end vertices of two of its half edges.
@@ -1634,7 +1666,6 @@ public partial class HalfEdgeMesh
 
         return hOutNewEdge.IsValid;
     }
-
 
     /// <summary>
     /// Collapses a face into a single vertex by collapsing its edges one after another.
@@ -1772,7 +1803,6 @@ public partial class HalfEdgeMesh
                 if (((hEdgeBToN == overlappingEdgeB1) && (hEdgeNToA == overlappingEdgeB2)) ||
                      ((hEdgeBToN == overlappingEdgeB2) && (hEdgeNToA == overlappingEdgeB1)))
                     continue;
-
 
                 if ((pEdgeAToN.Face == pEdgeNToB.Face) && (pEdgeAToN.Face != FaceHandle.Invalid))
                 {
@@ -2022,7 +2052,6 @@ public partial class HalfEdgeMesh
         return true;
     }
 
-
     private static bool CheckEdgeIntegrity(HalfEdgeHandle hEdge, bool bAssert = true)
     {
         Debug.Assert(hEdge.IsValid || (bAssert == false));
@@ -2052,7 +2081,6 @@ public partial class HalfEdgeMesh
         Debug.Assert((hVertexA != hVertexB) || (bAssert == false));
         if (hVertexA == hVertexB)
             return false;
-
 
         // 2. Each half edge pair must refer to at least one face.
         Debug.Assert((hEdge.Face != FaceHandle.Invalid) || (hOppositeEdge.Face != FaceHandle.Invalid) || (bAssert == false));
@@ -2214,7 +2242,6 @@ public partial class HalfEdgeMesh
         while (hCurrentEdge != hStartEdge);
     }
 
-
     /// <summary>
     /// Finds the two pairs of vertices merging two open edges would join.
     /// </summary>
@@ -2374,7 +2401,9 @@ public partial class HalfEdgeMesh
 
                 hFullEdge = FindFullEdgeConnectingVertices(hVertexA, hVertexB);
                 bool bSuccess = CollapseEdge(hFullEdge, out hOutNewVertex, bCheckOnly, out var _);
-                if (bCheckOnly)
+                // edit from s&box code, must also remove temporary triangle in case of failure,
+                // otherwise the mesh gets polluted by hard to find ghost triangles
+                if (bCheckOnly || !bSuccess)
                 {
                     RemoveFace(hNewFace, false);
                 }
@@ -2396,7 +2425,9 @@ public partial class HalfEdgeMesh
 
                 hFullEdge = FindFullEdgeConnectingVertices(hVertexA, hVertexB);
                 var bSuccess = CollapseEdge(hFullEdge, out hOutNewVertex, bCheckOnly, out var _);
-                if (bCheckOnly)
+                // edit from s&box code, must also remove temporary triangle in case of failure,
+                // otherwise the mesh gets polluted by hard to find ghost triangles
+                if (bCheckOnly || !bSuccess)
                 {
                     RemoveFace(hNewFace, false);
                 }

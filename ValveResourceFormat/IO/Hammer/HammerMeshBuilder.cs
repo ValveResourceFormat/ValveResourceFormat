@@ -457,8 +457,8 @@ namespace ValveResourceFormat.IO
 
         /// <summary>
         /// Writes everything added so far out as Hammer meshes, one per island of faces connected through shared
-        /// vertices. Faces that were extracted because they didn't fit the topology are collected into one extra
-        /// mesh. Each island is copied into its own builder and written with <see cref="GenerateMesh"/>.
+        /// edges. Faces that were extracted because they didn't fit the topology are grouped by coinciding
+        /// positions. Each island is copied into its own builder and written with <see cref="GenerateMesh"/>.
         /// </summary>
         public List<CDmePolygonMesh> GenerateMeshes()
         {
@@ -486,14 +486,19 @@ namespace ValveResourceFormat.IO
             return meshes;
         }
 
-        // groups the faces into islands connected through shared vertices, extracted faces all count as one island
+        // groups the faces into islands connected through shared edges. Faces that only touch at a vertex stay
+        // apart, so a bowtie vertex doesn't glue two separate objects together. Extracted faces have no shared
+        // edges at all (their vertices were duplicated), they are grouped through coinciding vertex positions
+        // instead so the pieces of one object stay together without collecting the whole mesh's rejects in one lump
         private List<List<FaceHandle>> FindIslands()
         {
-            var parent = new int[HalfEdgeMesh.VertexCount];
+            var parent = new int[HalfEdgeMesh.FaceCount];
             for (var i = 0; i < parent.Length; i++)
             {
                 parent[i] = i;
             }
+
+            var extractedFaceAtPosition = new Dictionary<(int X, int Y, int Z), int>();
 
             int Find(int i)
             {
@@ -517,30 +522,36 @@ namespace ValveResourceFormat.IO
                 }
             }
 
-            var extractedRoot = -1;
             foreach (var hFace in HalfEdgeMesh.FaceHandles)
             {
-                var first = hFace.Edge.Vertex.Index;
-
+                var extracted = Extracted[hFace];
                 var hEdge = hFace.Edge;
                 do
                 {
-                    Union(hEdge.Vertex.Index, first);
+                    var hNeighbour = hEdge.OppositeEdge.Face;
+                    if (hNeighbour.IsValid)
+                    {
+                        Union(hFace.Index, hNeighbour.Index);
+                    }
+
+                    if (extracted)
+                    {
+                        var position = Positions[hEdge.Vertex];
+                        var cell = ((int)MathF.Floor(position.X * 64f), (int)MathF.Floor(position.Y * 64f), (int)MathF.Floor(position.Z * 64f));
+
+                        if (extractedFaceAtPosition.TryGetValue(cell, out var otherFace))
+                        {
+                            Union(hFace.Index, otherFace);
+                        }
+                        else
+                        {
+                            extractedFaceAtPosition.Add(cell, hFace.Index);
+                        }
+                    }
+
                     hEdge = hEdge.NextEdge;
                 }
                 while (hEdge != hFace.Edge);
-
-                if (Extracted[hFace])
-                {
-                    if (extractedRoot == -1)
-                    {
-                        extractedRoot = first;
-                    }
-                    else
-                    {
-                        Union(first, extractedRoot);
-                    }
-                }
             }
 
             var islandByRoot = new Dictionary<int, List<FaceHandle>>();
@@ -548,7 +559,7 @@ namespace ValveResourceFormat.IO
 
             foreach (var hFace in HalfEdgeMesh.FaceHandles)
             {
-                var root = Find(hFace.Edge.Vertex.Index);
+                var root = Find(hFace.Index);
 
                 if (!islandByRoot.TryGetValue(root, out var island))
                 {
@@ -601,17 +612,31 @@ namespace ValveResourceFormat.IO
         /// <returns>Number of vertices merged away.</returns>
         public int MergeVerticesWithinDistance(float maxDistance)
         {
-            var vertices = HalfEdgeMesh.VertexHandles.ToList();
-            var merged = MergeVerticesWithinDistance(vertices, maxDistance, averagePositions: false, out _);
+            var total = 0;
+            var vertexCount = HalfEdgeMesh.VertexHandles.Count();
+
+            // A pass drops every group's first vertex from its later iterations, so a pair that could only merge
+            // once a neighbouring pair had merged is not retried within the pass. Run whole passes until one
+            // merges nothing, every pass starts from all the vertices again.
+            for (var pass = 0; pass < 16; pass++)
+            {
+                var merged = MergeVerticesWithinDistance(HalfEdgeMesh.VertexHandles.ToList(), maxDistance, averagePositions: false, out _);
+                if (merged == 0)
+                {
+                    break;
+                }
+
+                total += merged;
+            }
 
 #if DEBUG
-            if (merged > 0)
+            if (total > 0)
             {
-                ProgressReporter?.Report($"{nameof(HammerMeshBuilder)}: Merged {merged} of {vertices.Count} vertices within {maxDistance} units");
+                ProgressReporter?.Report($"{nameof(HammerMeshBuilder)}: Merged {total} of {vertexCount} vertices within {maxDistance} units");
             }
 #endif
 
-            return merged;
+            return total;
         }
 
         /// <summary>
@@ -806,7 +831,7 @@ namespace ValveResourceFormat.IO
                             // otherwise set it to 1.0 so that the data of the merge vertex is preserved.
                             var param = averagePositions ? 0.5f : 1.0f;
 
-                            if (MergeVertices(hTargetVertex, hMergeVertex, param, out var hNewVertex))
+                            if (MergeVertices(hTargetVertex, hMergeVertex, param, maxDistanceSquared, out var hNewVertex))
                             {
                                 // Add the position of the vertex to the group sum position
                                 groupsSumPosition[iGroup] += mergeVertexPosition;
@@ -897,8 +922,8 @@ namespace ValveResourceFormat.IO
         }
 
         // Merges two vertices, interpolating the position by param (0 keeps the first vertex, 1 the second).
-        // Ported from S&box PolygonMesh.MergeVertices.
-        private bool MergeVertices(VertexHandle hVertexA, VertexHandle hVertexB, float param, out VertexHandle hOutNewVertex)
+        // Ported from S&box PolygonMesh.MergeVertices, with the bowtie guard added.
+        private bool MergeVertices(VertexHandle hVertexA, VertexHandle hVertexB, float param, float maxDistanceSquared, out VertexHandle hOutNewVertex)
         {
             // If there is an edge connecting the vertices, just call edge collapse so that
             // the proper interpolation is done for the face vertices of the merged edge.
@@ -906,6 +931,12 @@ namespace ValveResourceFormat.IO
             if (hEdge != HalfEdgeHandle.Invalid)
             {
                 return CollapseEdge(hEdge, param, out hOutNewVertex);
+            }
+
+            if (WouldLeaveBowtie(hVertexA, hVertexB, maxDistanceSquared))
+            {
+                hOutNewVertex = VertexHandle.Invalid;
+                return false;
             }
 
             // Interpolate the data on the two vertices and store a copy before they are destroyed
@@ -920,6 +951,64 @@ namespace ValveResourceFormat.IO
             }
 
             return false;
+        }
+
+        // Two unconnected vertices that don't share a neighbour either get merged by splicing their boundary loops
+        // through one vertex, a bowtie. Along a seam that is only the first step: merging the neighbouring pair
+        // turns the two fans into one. Where two objects merely touch at a point it is permanent, and would glue
+        // them together. So allow it only when a neighbouring pair across the seam coincides as well.
+        private bool WouldLeaveBowtie(VertexHandle hVertexA, VertexHandle hVertexB, float maxDistanceSquared)
+        {
+            var hOpenA = SingleOpenOutgoingEdge(hVertexA);
+            var hOpenB = SingleOpenOutgoingEdge(hVertexB);
+
+            if (!hOpenA.IsValid || !hOpenB.IsValid)
+            {
+                return false; // the topology refuses these anyway
+            }
+
+            // a pair of open edges connects them, the topology collapses a temporary triangle instead of splicing
+            if (HalfEdgeMesh.FindHalfEdgeConnectingVertices(hOpenA.Vertex, hVertexB).IsValid
+                || HalfEdgeMesh.FindHalfEdgeConnectingVertices(hOpenB.Vertex, hVertexA).IsValid)
+            {
+                return false;
+            }
+
+            // seam check: A's outgoing open edge ends where B's incoming open edge starts, or the mirror of that
+            var hIncomingA = HalfEdgeMesh.FindPreviousEdgeInFaceLoop(hOpenA);
+            var hIncomingB = HalfEdgeMesh.FindPreviousEdgeInFaceLoop(hOpenB);
+
+            return !(Coincide(hOpenA.Vertex, hIncomingB.OppositeEdge.Vertex)
+                || Coincide(hOpenB.Vertex, hIncomingA.OppositeEdge.Vertex));
+
+            bool Coincide(VertexHandle a, VertexHandle b)
+                => a.IsValid && b.IsValid && Vector3.DistanceSquared(Positions[a], Positions[b]) <= maxDistanceSquared;
+        }
+
+        // the open half edge leaving a vertex when it has exactly one, as the topology requires for merging
+        private static HalfEdgeHandle SingleOpenOutgoingEdge(VertexHandle hVertex)
+        {
+            var hOpen = HalfEdgeHandle.Invalid;
+
+            if (!HalfEdgeMesh.GetOutgoingHalfEdgesConnectedToVertex(hVertex, out var edges))
+            {
+                return hOpen;
+            }
+
+            foreach (var hEdge in edges)
+            {
+                if (hEdge.Face == FaceHandle.Invalid)
+                {
+                    if (hOpen.IsValid)
+                    {
+                        return HalfEdgeHandle.Invalid;
+                    }
+
+                    hOpen = hEdge;
+                }
+            }
+
+            return hOpen;
         }
 
         // Collapses an edge into one vertex, interpolating the position by param. Ported from S&box PolygonMesh.CollapseEdge.
