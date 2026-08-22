@@ -744,7 +744,14 @@ public sealed class MapExtract
             {
                 var hammerMeshBuilder = new HammerMeshBuilder();
                 hammerMeshBuilder.AddPhysHull(hull, phys, GetAndExportAutoPhysicsMaterialName, positionOffset, materialOverride);
-                var hammerMesh = new CMapMesh() { MeshData = hammerMeshBuilder.GenerateMesh() };
+                var meshData = hammerMeshBuilder.GenerateMesh();
+
+                if (meshData.FaceEdgeIndices.Count == 0)
+                {
+                    continue;
+                }
+
+                var hammerMesh = new CMapMesh() { MeshData = meshData };
 
                 if (string.IsNullOrEmpty(entityClassname))
                 {
@@ -784,7 +791,15 @@ public sealed class MapExtract
                     var hammerMeshBuilder = new HammerMeshBuilder();
                     hammerMeshBuilder.AddPhysMesh(mesh, phys, GetAndExportAutoPhysicsMaterialName, deletedList, positionOffset, materialOverride, min, max, true);
 
-                    var hammerMesh = new CMapMesh() { MeshData = hammerMeshBuilder.GenerateMesh() };
+                    var meshData = hammerMeshBuilder.GenerateMesh();
+
+                    // every triangle of the chunk may have been covered by render geometry
+                    if (meshData.FaceEdgeIndices.Count == 0)
+                    {
+                        continue;
+                    }
+
+                    var hammerMesh = new CMapMesh() { MeshData = meshData };
 
                     var selectionSet = string.IsNullOrEmpty(entityClassname) ? meshesSelectionSet : meshesEntitySelectionSet;
                     selectionSet.SelectionSetData.SelectedObjects.Add(hammerMesh);
