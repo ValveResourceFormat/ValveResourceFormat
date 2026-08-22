@@ -162,7 +162,7 @@ namespace GUI.Types.GLViewers
                     renderSignal.Reset();
                 }
 
-                control.Draw(isPaused);
+                var presented = control.Draw(isPaused);
 
                 if (!renderSignal.IsSet)
                 {
@@ -173,6 +173,11 @@ namespace GUI.Types.GLViewers
 
                     renderSignal.Wait();
                     continue;
+                }
+
+                if (!presented)
+                {
+                    Thread.Sleep(1);
                 }
 
                 /*

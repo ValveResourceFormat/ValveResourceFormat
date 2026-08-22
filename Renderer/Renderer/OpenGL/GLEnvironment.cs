@@ -91,9 +91,10 @@ public static class GLEnvironment
         }
 
         // not supported on Intel integrated drivers
-        IndirectCountSupported = vendor != "Intel";
-        SlowMultiDrawIndirect = vendor == "Intel"
-            && (renderer.Contains("Intel(R) HD", StringComparison.Ordinal) || renderer.Contains("Intel(R) UHD", StringComparison.Ordinal));
+        IndirectCountSupported = extensions.Contains("GL_ARB_indirect_parameters") && vendor != "Intel";
+        SlowMultiDrawIndirect = (vendor == "Intel"
+            && (renderer.Contains("Intel(R) HD", StringComparison.Ordinal) || renderer.Contains("Intel(R) UHD", StringComparison.Ordinal)))
+            || renderer.Contains("llvmpipe", StringComparison.Ordinal);
 
         if (extensions.Contains("GL_KHR_parallel_shader_compile"))
         {

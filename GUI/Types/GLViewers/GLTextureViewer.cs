@@ -117,7 +117,7 @@ namespace GUI.Types.GLViewers
         private bool MovedFromOrigin_Unzoomed;
 
         protected int LastRenderHash;
-        protected int NumRendersLastHash;
+        protected bool RenderUpToDate;
 
         static readonly (ChannelMapping Channels, ChannelSplitting ChannelSplitMode, string ChoiceString)[] ChannelsComboBoxOrder = [
             (ChannelMapping.R, ChannelSplitting.None, "Red"),
@@ -1329,7 +1329,11 @@ namespace GUI.Types.GLViewers
                 SetupTexture(false);
             }
 
-            // Use non-msaa framebuffer for texture viewer
+            UseDefaultFramebuffer();
+        }
+
+        protected void UseDefaultFramebuffer()
+        {
             if (MainFramebuffer != GLDefaultFramebuffer)
             {
                 MainFramebuffer?.Delete();
@@ -1399,7 +1403,29 @@ namespace GUI.Types.GLViewers
                 NextBitmapToSet = null;
             }
 
-            var renderHash = HashCode.Combine(
+            var renderHash = GetRenderHash();
+
+            if (renderHash != LastRenderHash)
+            {
+                LastRenderHash = renderHash;
+                InvalidateRender();
+            }
+
+            if (RenderUpToDate)
+            {
+                SkipBufferSwap = true;
+                return;
+            }
+
+            RenderUpToDate = true;
+            RenderToFramebuffer();
+        }
+
+        protected virtual int GetRenderHash()
+        {
+            Debug.Assert(MainFramebuffer is not null);
+
+            return HashCode.Combine(
                 HashCode.Combine(
                     GetCurrentPositionAndScale(),
                     SelectedMip,
@@ -1415,27 +1441,21 @@ namespace GUI.Types.GLViewers
                 MainFramebuffer.Width,
                 MainFramebuffer.Height
             );
+        }
 
-            if (renderHash != LastRenderHash)
-            {
-                InvalidateRender();
-            }
+        protected virtual void RenderToFramebuffer()
+        {
+            Debug.Assert(MainFramebuffer is not null);
+            Debug.Assert(GLControl is not null);
 
-            const int NumBackBuffers = 2;
-            if (NumRendersLastHash < NumBackBuffers)
-            {
-                GL.Viewport(0, 0, GLControl.Width, GLControl.Height);
-                MainFramebuffer.BindAndClear();
-                Draw(MainFramebuffer);
-
-                LastRenderHash = renderHash;
-                NumRendersLastHash++;
-            }
+            GL.Viewport(0, 0, GLControl.Width, GLControl.Height);
+            MainFramebuffer.BindAndClear();
+            Draw(MainFramebuffer);
         }
 
         protected void InvalidateRender()
         {
-            NumRendersLastHash = 0;
+            RenderUpToDate = false;
             GLControl?.Invalidate();
         }
 

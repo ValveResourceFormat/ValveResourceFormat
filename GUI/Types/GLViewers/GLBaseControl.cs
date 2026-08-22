@@ -806,6 +806,8 @@ internal abstract class GLBaseControl : IDisposable, IMessageFilter
 
     protected bool ShouldResize;
 
+    protected bool SkipBufferSwap;
+
     protected virtual void OnSizeChanged(object? sender, EventArgs e)
     {
         ShouldResize = GLControl is not null && GLControl.Width > 0 && GLControl.Height > 0;
@@ -1058,7 +1060,7 @@ internal abstract class GLBaseControl : IDisposable, IMessageFilter
 
     protected static readonly DebugProc OpenGLDebugMessageDelegate = OnDebugMessage;
 
-    public void Draw(bool isPaused)
+    public bool Draw(bool isPaused)
     {
         using var lockedGl = glLock.EnterScope();
 
@@ -1066,7 +1068,7 @@ internal abstract class GLBaseControl : IDisposable, IMessageFilter
         {
             Log.Debug(nameof(GLBaseControl), "Attempted to draw onto destroyed GL Native Window.");
             RenderLoopThread.UnsetCurrentGLControl(this);
-            return;
+            return false;
         }
 
         try
@@ -1078,7 +1080,7 @@ internal abstract class GLBaseControl : IDisposable, IMessageFilter
             // 'The requested transformation operation is not supported.' when resizing the app
             // 'The handle is invalid.' when changing tab visibility
             Log.Debug(nameof(GLFWGraphicsContext), e.Message);
-            return;
+            return false;
         }
 
         if (ShouldResize)
@@ -1111,6 +1113,13 @@ internal abstract class GLBaseControl : IDisposable, IMessageFilter
 
         OnPaint(frameTime);
 
+        if (SkipBufferSwap)
+        {
+            SkipBufferSwap = false;
+            GraphicsContext.End();
+            return false;
+        }
+
         var swapStart = Stopwatch.GetTimestamp();
         GLNativeWindow.Context.SwapBuffers();
         var swapEnd = Stopwatch.GetTimestamp();
@@ -1129,6 +1138,8 @@ internal abstract class GLBaseControl : IDisposable, IMessageFilter
         {
             LastUpdate = Stopwatch.GetTimestamp();
         }
+
+        return true;
     }
 
     protected virtual void BlitFramebufferToScreen()

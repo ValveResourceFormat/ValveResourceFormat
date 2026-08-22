@@ -848,11 +848,7 @@ namespace GUI.Types.GLViewers
 
         protected override void OnGLLoad()
         {
-            if (MainFramebuffer != GLDefaultFramebuffer)
-            {
-                MainFramebuffer?.Delete();
-                MainFramebuffer = GLDefaultFramebuffer;
-            }
+            UseDefaultFramebuffer();
 
             // Set texture size to graph bounds for zoom calculations
             graphBounds = View.GetGraphBounds();
@@ -865,31 +861,23 @@ namespace GUI.Types.GLViewers
             // The initial fit, and the zoom label that follows it, happen in OnPaint.
         }
 
-        protected override void OnPaint(float frameTime)
+        protected override int GetRenderHash()
         {
             Debug.Assert(MainFramebuffer != null);
 
-            var renderHash = HashCode.Combine(
+            return HashCode.Combine(
                 GetCurrentPositionAndScale(),
                 View.VisualVersion,
                 MainFramebuffer.Width,
                 MainFramebuffer.Height,
                 needsFit);
+        }
 
-            if (renderHash != LastRenderHash)
-            {
-                LastRenderHash = renderHash;
-                NumRendersLastHash = 0;
-            }
+        protected override void RenderToFramebuffer()
+        {
+            Debug.Assert(MainFramebuffer != null);
 
-            // Once both back buffers hold the current content, swapping them is free.
-            const int NumBackBuffers = 2;
-            if (NumRendersLastHash >= NumBackBuffers)
-            {
-                return;
-            }
-
-            NumRendersLastHash++;
+            MainFramebuffer.Bind(FramebufferTarget.Framebuffer);
 
             if (grContext == null)
             {
