@@ -14,12 +14,12 @@ using static ValveResourceFormat.ResourceTypes.RubikonPhysics.Shapes.Mesh;
 namespace ValveResourceFormat.IO
 {
     /// <summary>
-    /// Matches vertices between render meshes and physics meshes.
+    /// Finds the physics triangles that render geometry already covers in order to delete them, because reconstructed solid render meshes regenerate this physics geometry.
     /// </summary>
-    public class PhysicsVertexMatcher
+    public class PhysicsTriangleMatcher
     {
         /// <summary>
-        /// Contains physics mesh data and tracks deleted vertices.
+        /// A physics mesh and what triangles from it are covered
         /// </summary>
         public class PhysMeshData
         {
@@ -31,8 +31,8 @@ namespace ValveResourceFormat.IO
             public Triangle[] Triangles { get; }
             /// <summary>Gets the physics tree nodes.</summary>
             public Node[] PhysicsTree { get; }
-            /// <summary>Gets the set of deleted vertex indices.</summary>
-            public HashSet<int> DeletedVertexIndices { get; }
+            /// <summary>Gets the indices of the triangles render geometry covers.</summary>
+            public HashSet<int> DeletedTriangles { get; }
 
             /// <summary>
             /// Initializes a new instance of the <see cref="PhysMeshData"/> class.
@@ -45,18 +45,24 @@ namespace ValveResourceFormat.IO
                 Triangles = mesh.Shape.GetTriangles().ToArray();
                 PhysicsTree = mesh.Shape.ParseNodes().ToArray();
 
-                DeletedVertexIndices = [];
-                DeletedVertexIndices.EnsureCapacity(VertexPositions.Length / 4);
+                DeletedTriangles = [];
+                DeletedTriangles.EnsureCapacity(Triangles.Length / 4);
             }
         }
 
         /// <summary>Gets the list of physics meshes.</summary>
         public List<PhysMeshData> PhysicsMeshes { get; } = [];
 
+        // a physics triangle is covered when it lies in the plane of a render triangle, within this distance and its centre falls inside that triangle
+        private const float PlaneDistance = 0.125f;
+
+        // leeway past the edges so a centre on the diagonal of a differently triangulated quad still counts
+        private const float EdgeDistance = 0.125f;
+
         /// <summary>
-        /// Initializes a new instance of the <see cref="PhysicsVertexMatcher"/> class.
+        /// Initializes a new instance of the <see cref="PhysicsTriangleMatcher"/> class.
         /// </summary>
-        public PhysicsVertexMatcher(MeshDescriptor[] meshes)
+        public PhysicsTriangleMatcher(MeshDescriptor[] meshes)
         {
             for (var i = 0; i < meshes.Length; i++)
             {
@@ -64,57 +70,60 @@ namespace ValveResourceFormat.IO
             }
         }
 
-        /*
-          Deleting vertices might inadvertently eat up good triangles, but I couldn't
-          get the triangle delete method to work as good as vertex delete.
-
-        public void TryMatchRenderTriangleToPhysics(ReadOnlySpan<int> renderMeshTriangle)
-        {
-            if (RenderToPhys.TryGetValue(renderMeshTriangle[0], out var i0)
-             && RenderToPhys.TryGetValue(renderMeshTriangle[1], out var i1)
-             && RenderToPhys.TryGetValue(renderMeshTriangle[2], out var i2))
-            {
-                DeletedTriangles.Add((i0, i1, i2));
-            }
-        }
-        */
-
         record struct RnMeshNodeWithIndex(int Index, Node Node);
-        /// <summary>Gets or sets the last set of positions scanned.</summary>
-        public object? LastPositions { get; set; }
+
         /// <summary>
-        /// Scans physics meshes to find matching vertices from render mesh positions.
+        /// Marks the physics triangles the given render triangles cover.
         /// </summary>
-        public void ScanPhysicsPointCloudForMatches(ReadOnlySpan<Vector3> renderMeshPositions, IProgress<string>? progressReporter)
+        /// <param name="positions">Render mesh positions, in world space.</param>
+        /// <param name="indices">Three position indices per render triangle.</param>
+        /// <param name="progressReporter">Receives what was covered.</param>
+        public void MarkTrianglesCoveredBy(ReadOnlySpan<Vector3> positions, ReadOnlySpan<int> indices, IProgress<string>? progressReporter)
         {
-            Span<int> triangleIndices = [0, 0, 0];
-
-            var localMatches = new HashSet<int>(capacity: renderMeshPositions.Length);
             var stack = new Stack<RnMeshNodeWithIndex>(64);
+            var covered = 0;
 
-            for (var i = 0; i < PhysicsMeshes.Count; i++)
+            for (var t = 0; t + 2 < indices.Length; t += 3)
             {
-                var meshData = PhysicsMeshes[i];
+                var a = positions[indices[t]];
+                var b = positions[indices[t + 1]];
+                var c = positions[indices[t + 2]];
 
-                localMatches.Clear();
-                stack.Clear();
+                var normal = Vector3.Cross(b - a, c - a);
+                var doubleArea = normal.Length();
 
-                for (var j = 0; j < renderMeshPositions.Length; ++j)
+                if (doubleArea < 1e-6f)
                 {
-                    var renderPosition = renderMeshPositions[j];
-                    const float epsilon = 0.016f;
+                    continue; // degenerate
+                }
 
+                normal /= doubleArea;
+                var planeOffset = Vector3.Dot(normal, a);
+
+                // edge normals pointing into the triangle, for the inside test
+                var insideAB = Vector3.Normalize(Vector3.Cross(normal, b - a));
+                var insideBC = Vector3.Normalize(Vector3.Cross(normal, c - b));
+                var insideCA = Vector3.Normalize(Vector3.Cross(normal, a - c));
+
+                var min = Vector3.Min(a, Vector3.Min(b, c)) - new Vector3(PlaneDistance);
+                var max = Vector3.Max(a, Vector3.Max(b, c)) + new Vector3(PlaneDistance);
+
+                for (var i = 0; i < PhysicsMeshes.Count; i++)
+                {
+                    var meshData = PhysicsMeshes[i];
+
+                    stack.Clear();
                     stack.Push(new(0, meshData.PhysicsTree[0])); // root
 
                     while (stack.TryPop(out var nodeWithIndex))
                     {
                         var node = nodeWithIndex.Node;
-                        var nodeContains =
-                            renderPosition.X >= node.Min.X && renderPosition.X <= node.Max.X &&
-                            renderPosition.Y >= node.Min.Y && renderPosition.Y <= node.Max.Y &&
-                            renderPosition.Z >= node.Min.Z && renderPosition.Z <= node.Max.Z;
+                        var nodeOverlaps =
+                            max.X >= node.Min.X && min.X <= node.Max.X &&
+                            max.Y >= node.Min.Y && min.Y <= node.Max.Y &&
+                            max.Z >= node.Min.Z && min.Z <= node.Max.Z;
 
-                        if (!nodeContains)
+                        if (!nodeOverlaps)
                         {
                             continue;
                         }
@@ -130,37 +139,52 @@ namespace ValveResourceFormat.IO
                             continue;
                         }
 
-                        var triangleOffset = node.TriangleOffset;
-                        var triangleCount = node.ChildOffset; // Same packing
+                        var triangleOffset = (int)node.TriangleOffset;
+                        var triangleCount = (int)node.ChildOffset; // Same packing
 
                         for (var k = 0; k < triangleCount; k++)
                         {
-                            var triangle = meshData.Triangles[triangleOffset + k];
+                            var triangleIndex = triangleOffset + k;
 
-                            triangleIndices[0] = triangle.X;
-                            triangleIndices[1] = triangle.Y;
-                            triangleIndices[2] = triangle.Z;
-
-                            for (var t = 0; t < 3; t++)
+                            if (meshData.DeletedTriangles.Contains(triangleIndex))
                             {
-                                var pos = meshData.VertexPositions[triangleIndices[t]];
-                                if (Vector3.DistanceSquared(pos, renderPosition) < epsilon)
-                                {
-                                    localMatches.Add(triangleIndices[t]); // TODO: Add to DeletedVertexIndices
-                                }
+                                continue;
                             }
+
+                            var triangle = meshData.Triangles[triangleIndex];
+                            var p0 = meshData.VertexPositions[triangle.X];
+                            var p1 = meshData.VertexPositions[triangle.Y];
+                            var p2 = meshData.VertexPositions[triangle.Z];
+
+                            if (MathF.Abs(Vector3.Dot(normal, p0) - planeOffset) > PlaneDistance
+                             || MathF.Abs(Vector3.Dot(normal, p1) - planeOffset) > PlaneDistance
+                             || MathF.Abs(Vector3.Dot(normal, p2) - planeOffset) > PlaneDistance)
+                            {
+                                continue;
+                            }
+
+                            var centre = (p0 + p1 + p2) / 3f;
+
+                            if (Vector3.Dot(insideAB, centre - a) < -EdgeDistance
+                             || Vector3.Dot(insideBC, centre - b) < -EdgeDistance
+                             || Vector3.Dot(insideCA, centre - c) < -EdgeDistance)
+                            {
+                                continue;
+                            }
+
+                            meshData.DeletedTriangles.Add(triangleIndex);
+                            covered++;
                         }
                     }
                 }
-
-                meshData.DeletedVertexIndices.UnionWith(localMatches);
+            }
 
 #if DEBUG
-                var matched = (float)localMatches.Count / renderMeshPositions.Length * 100f;
-                progressReporter?.Report($"{nameof(PhysicsVertexMatcher)}: Matched {matched:F2}% ({localMatches.Count} vertices) of rendermesh to physics vertices!");
-#endif
-
+            if (covered > 0)
+            {
+                progressReporter?.Report($"{nameof(PhysicsTriangleMatcher)}: {covered} physics triangles covered by {indices.Length / 3} render triangles");
             }
+#endif
         }
     }
 
@@ -233,9 +257,9 @@ namespace ValveResourceFormat.IO
         private readonly List<VertexHandle> Vertices = [];
 
         /// <summary>
-        /// Matcher that reports which physics vertices a render mesh already covers.
+        /// Matcher that reports which physics triangles a render mesh already covers.
         /// </summary>
-        public PhysicsVertexMatcher? PhysicsVertexMatcher { get; init; }
+        public PhysicsTriangleMatcher? PhysicsTriangleMatcher { get; init; }
 
         /// <summary>
         /// Receives diagnostics about faces the builder had to drop.
@@ -754,21 +778,12 @@ namespace ValveResourceFormat.IO
         /// <param name="desc">Mesh to add.</param>
         /// <param name="phys">Physics data the mesh belongs to, read for its collision attributes.</param>
         /// <param name="materialNameProvider">Maps a surface property to the material to use.</param>
-        /// <param name="deletedIndices">Vertices to leave out, usually the ones a render mesh already covers.</param>
+        /// <param name="deletedTriangles">Triangles to leave out, by index, usually the ones render geometry already covers.</param>
         /// <param name="positionOffset">Offset added to every position.</param>
         /// <param name="materialOverride">Material to use instead of the one the surface property picks.</param>
-        /// <param name="triangleRangeMin">First triangle to add when <paramref name="useTriangleRange"/> is set.</param>
-        /// <param name="triangleRangeMax">Triangle to stop before when <paramref name="useTriangleRange"/> is set.</param>
-        /// <param name="useTriangleRange">Whether to add only the given triangle range.</param>
-        public void AddPhysMesh(MeshDescriptor desc, PhysAggregateData phys, Func<string, string> materialNameProvider, HashSet<int> deletedIndices,
-            Vector3 positionOffset = new Vector3(), string? materialOverride = null, int triangleRangeMin = 0, int triangleRangeMax = 0, bool useTriangleRange = false)
+        public void AddPhysMesh(MeshDescriptor desc, PhysAggregateData phys, Func<string, string> materialNameProvider, IReadOnlySet<int>? deletedTriangles = null,
+            Vector3 positionOffset = new Vector3(), string? materialOverride = null)
         {
-            if (useTriangleRange)
-            {
-                ArgumentOutOfRangeException.ThrowIfNegative(triangleRangeMin);
-                ArgumentOutOfRangeException.ThrowIfLessThan(triangleRangeMax, triangleRangeMin);
-            }
-
             var attributes = phys.CollisionAttributes[desc.CollisionAttributeIndex];
             var tags = attributes.GetArray<string>("m_InteractAsStrings") ?? attributes.GetArray<string>("m_PhysicsTagStrings");
             var group = attributes.GetStringProperty("m_CollisionGroupString");
@@ -779,29 +794,21 @@ namespace ValveResourceFormat.IO
             var mesh = desc.Shape;
             var meshTriangles = mesh.GetTriangles();
 
-            var (triangleStart, triangleStop) = useTriangleRange
-                ? (triangleRangeMin, triangleRangeMax)
-                : (0, meshTriangles.Length);
-
-            // drop the triangles a render mesh already covers before reindexing, so only the vertices
+            // drop the triangles render geometry already covers before reindexing, so only the vertices
             // of the surviving triangles end up in the mesh and no loose vertices are written
-            var keptTriangles = new List<Triangle>(triangleStop - triangleStart);
-            var keptTriangleIndices = new List<int>(triangleStop - triangleStart);
+            var keptTriangles = new List<Triangle>(meshTriangles.Length);
+            var keptTriangleIndices = new List<int>(meshTriangles.Length);
             var removed = 0;
 
-            for (var i = triangleStart; i < triangleStop; i++)
+            for (var i = 0; i < meshTriangles.Length; i++)
             {
-                var triangle = meshTriangles[i];
-
-                if (deletedIndices.Contains(triangle.X)
-                 || deletedIndices.Contains(triangle.Y)
-                 || deletedIndices.Contains(triangle.Z))
+                if (deletedTriangles?.Contains(i) == true)
                 {
                     removed++;
                     continue;
                 }
 
-                keptTriangles.Add(triangle);
+                keptTriangles.Add(meshTriangles[i]);
                 keptTriangleIndices.Add(i);
             }
 
@@ -877,13 +884,6 @@ namespace ValveResourceFormat.IO
                 throw new InvalidDataException("AddRenderMesh() trying to process a mesh with no vertices!");
             }
 
-            // Only scan when the position buffer changes
-            if (PhysicsVertexMatcher != null && PhysicsVertexMatcher.LastPositions != positions)
-            {
-                PhysicsVertexMatcher.LastPositions = positions;
-                PhysicsVertexMatcher.ScanPhysicsPointCloudForMatches([.. positions], ProgressReporter);
-            }
-
             // gather the triangles, and the source vertices they use, compacted
             List<(int[] Indices, DmeFaceSet FaceSet)> faceList = [];
             Dictionary<int, int> compactIndex = [];
@@ -956,6 +956,24 @@ namespace ValveResourceFormat.IO
 
                 newPositions[i] = position;
                 corners[i] = new Corner(Get(texcoords, sourceIndex), Get(texcoords1, sourceIndex), normal, tangent, Get(blendParams, sourceIndex), Get(tintColors, sourceIndex));
+            }
+
+            // the render triangles cover physics triangles, which the physics reconstruction then leaves out
+            if (PhysicsTriangleMatcher != null)
+            {
+                var triangleIndices = new List<int>(faceList.Count * 3);
+
+                foreach (var (faceIndices, _) in faceList)
+                {
+                    for (var i = 1; i + 1 < faceIndices.Length; i++)
+                    {
+                        triangleIndices.Add(faceIndices[0]);
+                        triangleIndices.Add(faceIndices[i]);
+                        triangleIndices.Add(faceIndices[i + 1]);
+                    }
+                }
+
+                PhysicsTriangleMatcher.MarkTrianglesCoveredBy(newPositions, CollectionsMarshal.AsSpan(triangleIndices), ProgressReporter);
             }
 
             var baseVertex = AddVertices(newPositions);

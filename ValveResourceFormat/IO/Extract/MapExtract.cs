@@ -36,8 +36,6 @@ public sealed class MapExtract
     private List<string> FolderExtractFilter { get; } = [];
     private List<string> SnapshotsToExtract { get; } = [];
 
-    private const int PhysMeshChunkSize = 100000;
-
     // render mesh vertices closer than this are the same Hammer vertex
     private const float HammerMeshWeldDistance = 1f / 64f;
 
@@ -138,7 +136,7 @@ public sealed class MapExtract
     /// <summary>Gets or sets the progress reporter.</summary>
     public IProgress<string>? ProgressReporter { get; set; }
     /// <summary>Gets the physics vertex matcher used for physics mesh processing.</summary>
-    public PhysicsVertexMatcher? PhysVertexMatcher { get; private set; }
+    public PhysicsTriangleMatcher? PhysTriangleMatcher { get; private set; }
 
     //these all seem to be roughly hammer meshes in cs2
     private static bool SceneObjectShouldConvertToHammerMesh(string? modelName)
@@ -471,7 +469,7 @@ public sealed class MapExtract
             var collisionAttributes = phys.CollisionAttributes;
             var worldPhysMeshes = phys.Parts[0].Shape.Meshes.Where(m => collisionAttributes[m.CollisionAttributeIndex].GetStringProperty("m_CollisionGroupString") == "Default");
 
-            PhysVertexMatcher = new PhysicsVertexMatcher(worldPhysMeshes.ToArray());
+            PhysTriangleMatcher = new PhysicsTriangleMatcher(worldPhysMeshes.ToArray());
 
             // TODO: physics spheres and capsules are ignored
         }
@@ -723,7 +721,7 @@ public sealed class MapExtract
                 {
                     builder = new HammerMeshBuilder()
                     {
-                        PhysicsVertexMatcher = PhysVertexMatcher,
+                        PhysicsTriangleMatcher = PhysTriangleMatcher,
                         ProgressReporter = ProgressReporter,
                         Untriangulate = true,
                         TextureSizeProvider = GetMaterialTextureSize,
@@ -870,7 +868,7 @@ public sealed class MapExtract
 
             var meshesSelectionSet = new CMapSelectionSet
             {
-                SelectionSetName = "physics shape (" + shape.Meshes.Length + " original meshes (no splits))"
+                SelectionSetName = "physics shape (" + shape.Meshes.Length + " original meshes)"
             };
 
             var meshesEntitySelectionSet = new CMapSelectionSet
@@ -903,35 +901,23 @@ public sealed class MapExtract
                 cMapMeshesToReturn.Add(hammerMesh);
             }
 
+            // physics meshes are welded together and split by connectivity like the render geometry is, however
+            // material doesnt matter and neither does tint
+            var physicsMeshBuilder = new HammerMeshBuilder { Untriangulate = true, TextureSizeProvider = GetMaterialTextureSize };
+
             foreach (var mesh in shape.Meshes)
             {
+                var deletedTriangles = PhysTriangleMatcher?.PhysicsMeshes.FirstOrDefault(physicsMesh => physicsMesh.Mesh == mesh)?.DeletedTriangles;
+                physicsMeshBuilder.AddPhysMesh(mesh, phys, GetAndExportAutoPhysicsMaterialName, deletedTriangles, positionOffset, materialOverride);
+            }
 
-                HashSet<int> deletedList = [];
-                if (PhysVertexMatcher != null)
+            if (shape.Meshes.Length > 0)
+            {
+                physicsMeshBuilder.Mesh.MergeCoincidentOpenEdges(HammerMeshWeldDistance);
+                physicsMeshBuilder.Mesh.MergeVerticesWithinDistance(HammerMeshWeldDistance);
+
+                foreach (var meshData in physicsMeshBuilder.GenerateMeshes())
                 {
-                    foreach (var physicsMesh in PhysVertexMatcher.PhysicsMeshes)
-                    {
-                        if (mesh == physicsMesh.Mesh)
-                        {
-                            deletedList = physicsMesh.DeletedVertexIndices;
-                            continue;
-                        }
-                    }
-                }
-
-                var totalTriangles = mesh.Shape.GetTriangles().Length;
-
-                for (var j = 0; j < totalTriangles; j += PhysMeshChunkSize)
-                {
-                    var min = j;
-                    var max = Math.Min(j + PhysMeshChunkSize, totalTriangles);
-
-                    var hammerMeshBuilder = new HammerMeshBuilder { Untriangulate = true, TextureSizeProvider = GetMaterialTextureSize };
-                    hammerMeshBuilder.AddPhysMesh(mesh, phys, GetAndExportAutoPhysicsMaterialName, deletedList, positionOffset, materialOverride, min, max, true);
-
-                    var meshData = hammerMeshBuilder.GenerateMesh();
-
-                    // every triangle of the chunk may have been covered by render geometry
                     if (meshData.FaceEdgeIndices.Count == 0)
                     {
                         continue;
