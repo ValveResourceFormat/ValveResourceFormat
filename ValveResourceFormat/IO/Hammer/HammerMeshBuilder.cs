@@ -308,7 +308,7 @@ namespace ValveResourceFormat.IO
             // merge coplanar triangle pairs into quads before writing to the vmap
             // currently merging faces by material, if materials differ the triangles won't be merged into a quad
             // TODO: there may possibly be smarter heuristics to merge by
-            var quadsMerged = HalfEdgeMesh.UntriangulateMesh(Positions, (hFaceA, hFaceB) => MaterialIndex[hFaceA] == MaterialIndex[hFaceB]);
+            var quadsMerged = HalfEdgeMesh.UntriangulateMesh(Positions, CanUntriangulateFaces);
 
 #if DEBUG
             if (quadsMerged > 0)
@@ -453,6 +453,53 @@ namespace ValveResourceFormat.IO
             mesh.SubdivisionData.SubdivisionLevels.AddRange(Enumerable.Repeat(0, 8));
 
             return mesh;
+        }
+
+        // two triangles only merge into a quad when they use the same material and carry the same corner data at the two vertices of the edge they share
+        //
+        // this is needed because blinding merging will merge across texture seems, a hard edge or a vertex paint break, which could stretch the texture
+        // or break shading over the quad
+        private bool CanUntriangulateFaces(FaceHandle hFaceA, FaceHandle hFaceB)
+        {
+            if (MaterialIndex[hFaceA] != MaterialIndex[hFaceB])
+            {
+                return false;
+            }
+
+            var hEdge = hFaceA.Edge;
+            do
+            {
+                if (hEdge.OppositeEdge.Face == hFaceB)
+                {
+                    break;
+                }
+
+                hEdge = hEdge.NextEdge;
+            }
+            while (hEdge != hFaceA.Edge);
+
+            var hOpposite = hEdge.OppositeEdge;
+            if (hOpposite.Face != hFaceB)
+            {
+                return false;
+            }
+
+            // a half edge carries the corner at its end vertex: at the shared edge's end the corners are hEdge on
+            // face A and the edge before the opposite on face B, at its start the edge before hEdge and the opposite
+            return CornerDataMatches(hEdge, HalfEdgeMesh.FindPreviousEdgeInFaceLoop(hOpposite))
+                && CornerDataMatches(HalfEdgeMesh.FindPreviousEdgeInFaceLoop(hEdge), hOpposite);
+        }
+
+        private bool CornerDataMatches(HalfEdgeHandle hCornerA, HalfEdgeHandle hCornerB)
+        {
+            const float TexCoordEpsilon = 1f / 1024f;
+            const float NormalEpsilon = 0.02f;
+            const float PaintEpsilon = 1f / 255f;
+
+            return Vector2.Distance(TextureCoords[hCornerA], TextureCoords[hCornerB]) <= TexCoordEpsilon
+                && Vector3.Distance(Normals[hCornerA], Normals[hCornerB]) <= NormalEpsilon
+                && Vector4.Distance(VertexPaintBlendParams[hCornerA], VertexPaintBlendParams[hCornerB]) <= PaintEpsilon
+                && Vector4.Distance(VertexPaintTintColor[hCornerA], VertexPaintTintColor[hCornerB]) <= PaintEpsilon;
         }
 
         /// <summary>
