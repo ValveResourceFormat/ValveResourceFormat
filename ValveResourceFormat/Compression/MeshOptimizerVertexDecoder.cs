@@ -398,7 +398,7 @@ namespace ValveResourceFormat.Compression
                 throw new ArgumentException("Buffer too small to contain tail data.");
             }
 
-            var resultArray = new byte[vertexCount * vertexSize];
+            var resultArray = GC.AllocateUninitializedArray<byte>(vertexCount * vertexSize);
 
             // C code always uses [256] here, but more than vertexSize can't be used
             var lastVertexBuffer = ArrayPool<byte>.Shared.Rent(vertexSize);

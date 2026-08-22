@@ -1,5 +1,6 @@
-using System.Buffers.Binary;
 using System.IO;
+using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 
 namespace ValveResourceFormat.Compression
 {
@@ -62,22 +63,23 @@ namespace ValveResourceFormat.Compression
             return last + d;
         }
 
-        private static Span<byte> WriteTriangle(Span<byte> destination, int indexSize, uint a, uint b, uint c)
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static ref byte WriteTriangle(ref byte destination, int indexSize, uint a, uint b, uint c)
         {
             if (indexSize == 2)
             {
-                BinaryPrimitives.WriteUInt16LittleEndian(destination, (ushort)a);
-                BinaryPrimitives.WriteUInt16LittleEndian(destination[2..], (ushort)b);
-                BinaryPrimitives.WriteUInt16LittleEndian(destination[4..], (ushort)c);
+                Unsafe.WriteUnaligned(ref destination, (ushort)a);
+                Unsafe.WriteUnaligned(ref Unsafe.Add(ref destination, 2), (ushort)b);
+                Unsafe.WriteUnaligned(ref Unsafe.Add(ref destination, 4), (ushort)c);
 
-                return destination[6..];
+                return ref Unsafe.Add(ref destination, 6);
             }
 
-            BinaryPrimitives.WriteUInt32LittleEndian(destination, a);
-            BinaryPrimitives.WriteUInt32LittleEndian(destination[4..], b);
-            BinaryPrimitives.WriteUInt32LittleEndian(destination[8..], c);
+            Unsafe.WriteUnaligned(ref destination, a);
+            Unsafe.WriteUnaligned(ref Unsafe.Add(ref destination, 4), b);
+            Unsafe.WriteUnaligned(ref Unsafe.Add(ref destination, 8), c);
 
-            return destination[12..];
+            return ref Unsafe.Add(ref destination, 12);
         }
 
         /// <summary>
@@ -136,8 +138,8 @@ namespace ValveResourceFormat.Compression
 
             var codeauxTable = data[dataSafeEnd..];
 
-            var destinationArray = new byte[indexCount * indexSize];
-            var destination = destinationArray.AsSpan();
+            var destinationArray = GC.AllocateUninitializedArray<byte>(indexCount * indexSize);
+            ref var destination = ref MemoryMarshal.GetArrayDataReference(destinationArray);
 
             foreach (var codetri in code)
             {
@@ -187,7 +189,7 @@ namespace ValveResourceFormat.Compression
                     PushEdgeFifo(edgeFifo, ref edgeFifoOffset, a, c);
 
                     // output triangle
-                    destination = WriteTriangle(destination, indexSize, a, b, c);
+                    destination = ref WriteTriangle(ref destination, indexSize, a, b, c);
                 }
                 else if (codetri < 0xfe)
                 {
@@ -215,7 +217,7 @@ namespace ValveResourceFormat.Compression
                     next += fec0 ? 1u : 0u;
 
                     // output triangle
-                    destination = WriteTriangle(destination, indexSize, a, b, c);
+                    destination = ref WriteTriangle(ref destination, indexSize, a, b, c);
 
                     // push vertex/edge fifo must match the encoding step *exactly* otherwise the data will not be decoded correctly
                     PushVertexFifo(vertexFifo, ref vertexFifoOffset, a);
@@ -270,7 +272,7 @@ namespace ValveResourceFormat.Compression
                     }
 
                     // output triangle
-                    destination = WriteTriangle(destination, indexSize, a, b, c);
+                    destination = ref WriteTriangle(ref destination, indexSize, a, b, c);
 
                     // push vertex/edge fifo must match the encoding step *exactly* otherwise the data will not be decoded correctly
                     PushVertexFifo(vertexFifo, ref vertexFifoOffset, a);
