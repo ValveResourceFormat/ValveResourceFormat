@@ -12,7 +12,7 @@ namespace ValveResourceFormat.Compression
         private const byte IndexHeader = 0xe0;
         private const int DecodeIndexVersion = 1;
 
-        private static void PushEdgeFifo(Span<ValueTuple<uint, uint>> fifo, ref int offset, uint a, uint b)
+        private static void PushEdgeFifo(Span<(uint, uint)> fifo, ref int offset, uint a, uint b)
         {
             fifo[offset] = (a, b);
             offset = (offset + 1) & 15;
@@ -28,11 +28,14 @@ namespace ValveResourceFormat.Compression
         {
             var lead = (uint)data[position++];
 
+            // fast path: single byte
             if (lead < 128)
             {
                 return lead;
             }
 
+            // slow path: up to 4 extra bytes
+            // note that this loop always terminates, which is important for malformed data
             var result = lead & 127;
             var shift = 7;
 
@@ -59,22 +62,22 @@ namespace ValveResourceFormat.Compression
             return last + d;
         }
 
-        private static void WriteTriangle(Span<byte> destination, int offset, int indexSize, uint a, uint b, uint c)
+        private static Span<byte> WriteTriangle(Span<byte> destination, int indexSize, uint a, uint b, uint c)
         {
-            offset *= indexSize;
-
             if (indexSize == 2)
             {
-                BinaryPrimitives.WriteUInt16LittleEndian(destination[(offset + 0)..], (ushort)a);
-                BinaryPrimitives.WriteUInt16LittleEndian(destination[(offset + 2)..], (ushort)b);
-                BinaryPrimitives.WriteUInt16LittleEndian(destination[(offset + 4)..], (ushort)c);
+                BinaryPrimitives.WriteUInt16LittleEndian(destination, (ushort)a);
+                BinaryPrimitives.WriteUInt16LittleEndian(destination[2..], (ushort)b);
+                BinaryPrimitives.WriteUInt16LittleEndian(destination[4..], (ushort)c);
+
+                return destination[6..];
             }
-            else
-            {
-                BinaryPrimitives.WriteUInt32LittleEndian(destination[(offset + 0)..], a);
-                BinaryPrimitives.WriteUInt32LittleEndian(destination[(offset + 4)..], b);
-                BinaryPrimitives.WriteUInt32LittleEndian(destination[(offset + 8)..], c);
-            }
+
+            BinaryPrimitives.WriteUInt32LittleEndian(destination, a);
+            BinaryPrimitives.WriteUInt32LittleEndian(destination[4..], b);
+            BinaryPrimitives.WriteUInt32LittleEndian(destination[8..], c);
+
+            return destination[12..];
         }
 
         /// <summary>
@@ -112,8 +115,9 @@ namespace ValveResourceFormat.Compression
                 throw new ArgumentException($"Incorrect index buffer encoding version, got {version}.");
             }
 
+            Span<(uint, uint)> edgeFifo = stackalloc (uint, uint)[16];
             Span<uint> vertexFifo = stackalloc uint[16];
-            Span<ValueTuple<uint, uint>> edgeFifo = stackalloc ValueTuple<uint, uint>[16];
+
             var edgeFifoOffset = 0;
             var vertexFifoOffset = 0;
 
@@ -122,31 +126,39 @@ namespace ValveResourceFormat.Compression
 
             var fecmax = version >= 1 ? 13 : 15;
 
-            var bufferIndex = 1;
-            var data = buffer[dataOffset..^16];
+            // since we store 16-byte codeaux table at the end, triangle data has to begin before data_safe_end
+            var code = buffer[1..dataOffset];
+            var data = buffer[dataOffset..];
+            var position = 0;
 
-            var codeauxTable = buffer[^16..];
+            // each triangle reads at most 16 bytes of data: 1b for codeaux and 5b for each free index
+            var dataSafeEnd = data.Length - 16;
+
+            var codeauxTable = data[dataSafeEnd..];
 
             var destinationArray = new byte[indexCount * indexSize];
             var destination = destinationArray.AsSpan();
-            var position = 0;
 
-            for (var i = 0; i < indexCount; i += 3)
+            foreach (var codetri in code)
             {
-                var codetri = buffer[bufferIndex++];
-
                 if (codetri < 0xf0)
                 {
                     var fe = codetri >> 4;
 
+                    // fifo reads are wrapped around 16 entry buffer
                     var (a, b) = edgeFifo[(edgeFifoOffset - 1 - fe) & 15];
-                    uint c;
+                    var c = 0u;
 
                     var fec = codetri & 15;
 
+                    // note: this is the most common path in the entire decoder
+                    // inside this if we try to stay branchless (by using cmov/etc.) since these aren't predictable
                     if (fec < fecmax)
                     {
-                        c = fec == 0 ? next : vertexFifo[(vertexFifoOffset - 1 - fec) & 15];
+                        // fifo reads are wrapped around 16 entry buffer
+                        var cf = vertexFifo[(vertexFifoOffset - 1 - fec) & 15];
+
+                        c = (fec == 0) ? next : cf;
 
                         var fec0 = fec == 0;
                         next += fec0 ? 1u : 0u;
@@ -156,8 +168,17 @@ namespace ValveResourceFormat.Compression
                     }
                     else
                     {
-                        c = last = (fec != 15) ? last + (uint)(fec - (fec ^ 3)) : DecodeIndex(data, last, ref position);
+                        // make sure we have enough data to read for a triangle; this check covers worst case advance
+                        if (position > dataSafeEnd)
+                        {
+                            throw new InvalidDataException("Index buffer data is truncated.");
+                        }
 
+                        // fec * 2 - 27 decodes 13, 14 into -1, 1
+                        // note that we need to update the last index since free indices are delta-encoded
+                        last = c = (fec != 15) ? last + (uint)(fec * 2 - 27) : DecodeIndex(data, last, ref position);
+
+                        // push vertex/edge fifo must match the encoding step *exactly* otherwise the data will not be decoded correctly
                         PushVertexFifo(vertexFifo, ref vertexFifoOffset, c);
                     }
 
@@ -166,33 +187,40 @@ namespace ValveResourceFormat.Compression
                     PushEdgeFifo(edgeFifo, ref edgeFifoOffset, a, c);
 
                     // output triangle
-                    WriteTriangle(destination, i, indexSize, a, b, c);
-
+                    destination = WriteTriangle(destination, indexSize, a, b, c);
                 }
                 else if (codetri < 0xfe)
                 {
+                    // fast path: read codeaux from the table
                     var codeaux = codeauxTable[codetri & 15];
 
+                    // note: table can't contain feb/fec=15
                     var feb = codeaux >> 4;
                     var fec = codeaux & 15;
 
+                    // fifo reads are wrapped around 16 entry buffer
+                    // also note that we increment next for all three vertices before decoding indices - this matches encoder behavior
                     var a = next++;
 
-                    var b = (feb == 0) ? next : vertexFifo[(vertexFifoOffset - feb) & 15];
+                    var bf = vertexFifo[(vertexFifoOffset - feb) & 15];
+                    var b = (feb == 0) ? next : bf;
 
-                    var feb0 = feb == 0 ? 1u : 0u;
-                    next += feb0;
+                    var feb0 = feb == 0;
+                    next += feb0 ? 1u : 0u;
 
-                    var c = (fec == 0) ? next : vertexFifo[(vertexFifoOffset - fec) & 15];
+                    var cf = vertexFifo[(vertexFifoOffset - fec) & 15];
+                    var c = (fec == 0) ? next : cf;
 
-                    var fec0 = fec == 0 ? 1u : 0u;
-                    next += fec0;
+                    var fec0 = fec == 0;
+                    next += fec0 ? 1u : 0u;
 
-                    WriteTriangle(destination, i, indexSize, a, b, c);
+                    // output triangle
+                    destination = WriteTriangle(destination, indexSize, a, b, c);
 
+                    // push vertex/edge fifo must match the encoding step *exactly* otherwise the data will not be decoded correctly
                     PushVertexFifo(vertexFifo, ref vertexFifoOffset, a);
-                    PushVertexFifo(vertexFifo, ref vertexFifoOffset, b, feb0 == 1u);
-                    PushVertexFifo(vertexFifo, ref vertexFifoOffset, c, fec0 == 1u);
+                    PushVertexFifo(vertexFifo, ref vertexFifoOffset, b, feb0);
+                    PushVertexFifo(vertexFifo, ref vertexFifoOffset, c, fec0);
 
                     PushEdgeFifo(edgeFifo, ref edgeFifoOffset, b, a);
                     PushEdgeFifo(edgeFifo, ref edgeFifoOffset, c, b);
@@ -200,21 +228,32 @@ namespace ValveResourceFormat.Compression
                 }
                 else
                 {
-                    var codeaux = (uint)data[position++];
+                    // make sure we have enough data to read for a triangle; this check covers worst case advance
+                    if (position > dataSafeEnd)
+                    {
+                        throw new InvalidDataException("Index buffer data is truncated.");
+                    }
+
+                    // slow path: read a full byte for codeaux instead of using a table lookup
+                    var codeaux = data[position++];
 
                     var fea = codetri == 0xfe ? 0 : 15;
                     var feb = codeaux >> 4;
                     var fec = codeaux & 15;
 
+                    // reset: codeaux is 0 but encoded as not-a-table
                     if (codeaux == 0)
                     {
                         next = 0;
                     }
 
+                    // fifo reads are wrapped around 16 entry buffer
+                    // also note that we increment next for all three vertices before decoding indices - this matches encoder behavior
                     var a = (fea == 0) ? next++ : 0;
-                    var b = (feb == 0) ? next++ : vertexFifo[(vertexFifoOffset - (int)feb) & 15];
-                    var c = (fec == 0) ? next++ : vertexFifo[(vertexFifoOffset - (int)fec) & 15];
+                    var b = (feb == 0) ? next++ : vertexFifo[(vertexFifoOffset - feb) & 15];
+                    var c = (fec == 0) ? next++ : vertexFifo[(vertexFifoOffset - fec) & 15];
 
+                    // note that we need to update the last index since free indices are delta-encoded
                     if (fea == 15)
                     {
                         last = a = DecodeIndex(data, last, ref position);
@@ -230,11 +269,13 @@ namespace ValveResourceFormat.Compression
                         last = c = DecodeIndex(data, last, ref position);
                     }
 
-                    WriteTriangle(destination, i, indexSize, a, b, c);
+                    // output triangle
+                    destination = WriteTriangle(destination, indexSize, a, b, c);
 
+                    // push vertex/edge fifo must match the encoding step *exactly* otherwise the data will not be decoded correctly
                     PushVertexFifo(vertexFifo, ref vertexFifoOffset, a);
-                    PushVertexFifo(vertexFifo, ref vertexFifoOffset, b, (feb == 0) || (feb == 15));
-                    PushVertexFifo(vertexFifo, ref vertexFifoOffset, c, (fec == 0) || (fec == 15));
+                    PushVertexFifo(vertexFifo, ref vertexFifoOffset, b, (feb == 0) | (feb == 15));
+                    PushVertexFifo(vertexFifo, ref vertexFifoOffset, c, (fec == 0) | (fec == 15));
 
                     PushEdgeFifo(edgeFifo, ref edgeFifoOffset, b, a);
                     PushEdgeFifo(edgeFifo, ref edgeFifoOffset, c, b);
@@ -242,9 +283,10 @@ namespace ValveResourceFormat.Compression
                 }
             }
 
-            if (position != data.Length)
+            // we should've read all data bytes and stopped at the boundary between data and codeaux table
+            if (position != dataSafeEnd)
             {
-                throw new InvalidDataException("we didn't read all data bytes and stopped before the boundary between data and codeaux table");
+                throw new InvalidDataException("Index buffer data is malformed.");
             }
 
             return destinationArray;

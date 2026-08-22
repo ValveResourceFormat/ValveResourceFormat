@@ -25,8 +25,9 @@ namespace ValveResourceFormat.Compression
 
         private static int GetVertexBlockSize(int vertexSize)
         {
-            var result = VertexBlockSizeBytes / vertexSize;
-            result &= ~(ByteGroupSize - 1);
+            // make sure the entire block fits into the scratch buffer and is aligned to byte group size
+            // note: the block size is implicitly part of the format, so we can't change it without breaking compatibility
+            var result = (VertexBlockSizeBytes / vertexSize) & ~(ByteGroupSize - 1);
 
             return result < VertexBlockMaxSize ? result : VertexBlockMaxSize;
         }
@@ -49,7 +50,7 @@ namespace ValveResourceFormat.Compression
             return (ushort)((0 - (v & 1)) ^ (v >> 1));
         }
 
-        private static ReadOnlySpan<byte> DecodeBytesGroup(ReadOnlySpan<byte> data, Span<byte> destination, int bits)
+        private static ReadOnlySpan<byte> DecodeBytesGroup(ReadOnlySpan<byte> data, Span<byte> buffer, int bits)
         {
             int dataVar;
             byte b;
@@ -74,10 +75,7 @@ namespace ValveResourceFormat.Compression
             switch (bits)
             {
                 case 0:
-                    for (var k = 0; k < ByteGroupSize; k++)
-                    {
-                        destination[k] = 0;
-                    }
+                    buffer[..ByteGroupSize].Clear();
 
                     return data;
                 case 1:
@@ -87,94 +85,96 @@ namespace ValveResourceFormat.Compression
                     b = data[0];
                     b = (byte)(((b * 0x80200802UL) & 0x0884422110UL) * 0x0101010101UL >> 32);
 
-                    destination[0] = Next(1, data[dataVar]);
-                    destination[1] = Next(1, data[dataVar]);
-                    destination[2] = Next(1, data[dataVar]);
-                    destination[3] = Next(1, data[dataVar]);
-                    destination[4] = Next(1, data[dataVar]);
-                    destination[5] = Next(1, data[dataVar]);
-                    destination[6] = Next(1, data[dataVar]);
-                    destination[7] = Next(1, data[dataVar]);
+                    buffer[0] = Next(1, data[dataVar]);
+                    buffer[1] = Next(1, data[dataVar]);
+                    buffer[2] = Next(1, data[dataVar]);
+                    buffer[3] = Next(1, data[dataVar]);
+                    buffer[4] = Next(1, data[dataVar]);
+                    buffer[5] = Next(1, data[dataVar]);
+                    buffer[6] = Next(1, data[dataVar]);
+                    buffer[7] = Next(1, data[dataVar]);
 
                     b = data[1];
                     b = (byte)(((b * 0x80200802UL) & 0x0884422110UL) * 0x0101010101UL >> 32);
 
-                    destination[8] = Next(1, data[dataVar]);
-                    destination[9] = Next(1, data[dataVar]);
-                    destination[10] = Next(1, data[dataVar]);
-                    destination[11] = Next(1, data[dataVar]);
-                    destination[12] = Next(1, data[dataVar]);
-                    destination[13] = Next(1, data[dataVar]);
-                    destination[14] = Next(1, data[dataVar]);
-                    destination[15] = Next(1, data[dataVar]);
+                    buffer[8] = Next(1, data[dataVar]);
+                    buffer[9] = Next(1, data[dataVar]);
+                    buffer[10] = Next(1, data[dataVar]);
+                    buffer[11] = Next(1, data[dataVar]);
+                    buffer[12] = Next(1, data[dataVar]);
+                    buffer[13] = Next(1, data[dataVar]);
+                    buffer[14] = Next(1, data[dataVar]);
+                    buffer[15] = Next(1, data[dataVar]);
 
                     return data[dataVar..];
                 case 2:
                     dataVar = 4;
 
+                    // 4 groups with 4 2-bit values in each byte
                     b = data[0];
-                    destination[0] = Next(2, data[dataVar]);
-                    destination[1] = Next(2, data[dataVar]);
-                    destination[2] = Next(2, data[dataVar]);
-                    destination[3] = Next(2, data[dataVar]);
+                    buffer[0] = Next(2, data[dataVar]);
+                    buffer[1] = Next(2, data[dataVar]);
+                    buffer[2] = Next(2, data[dataVar]);
+                    buffer[3] = Next(2, data[dataVar]);
 
                     b = data[1];
-                    destination[4] = Next(2, data[dataVar]);
-                    destination[5] = Next(2, data[dataVar]);
-                    destination[6] = Next(2, data[dataVar]);
-                    destination[7] = Next(2, data[dataVar]);
+                    buffer[4] = Next(2, data[dataVar]);
+                    buffer[5] = Next(2, data[dataVar]);
+                    buffer[6] = Next(2, data[dataVar]);
+                    buffer[7] = Next(2, data[dataVar]);
 
                     b = data[2];
-                    destination[8] = Next(2, data[dataVar]);
-                    destination[9] = Next(2, data[dataVar]);
-                    destination[10] = Next(2, data[dataVar]);
-                    destination[11] = Next(2, data[dataVar]);
+                    buffer[8] = Next(2, data[dataVar]);
+                    buffer[9] = Next(2, data[dataVar]);
+                    buffer[10] = Next(2, data[dataVar]);
+                    buffer[11] = Next(2, data[dataVar]);
 
                     b = data[3];
-                    destination[12] = Next(2, data[dataVar]);
-                    destination[13] = Next(2, data[dataVar]);
-                    destination[14] = Next(2, data[dataVar]);
-                    destination[15] = Next(2, data[dataVar]);
+                    buffer[12] = Next(2, data[dataVar]);
+                    buffer[13] = Next(2, data[dataVar]);
+                    buffer[14] = Next(2, data[dataVar]);
+                    buffer[15] = Next(2, data[dataVar]);
 
                     return data[dataVar..];
                 case 4:
                     dataVar = 8;
 
+                    // 8 groups with 2 4-bit values in each byte
                     b = data[0];
-                    destination[0] = Next(4, data[dataVar]);
-                    destination[1] = Next(4, data[dataVar]);
+                    buffer[0] = Next(4, data[dataVar]);
+                    buffer[1] = Next(4, data[dataVar]);
 
                     b = data[1];
-                    destination[2] = Next(4, data[dataVar]);
-                    destination[3] = Next(4, data[dataVar]);
+                    buffer[2] = Next(4, data[dataVar]);
+                    buffer[3] = Next(4, data[dataVar]);
 
                     b = data[2];
-                    destination[4] = Next(4, data[dataVar]);
-                    destination[5] = Next(4, data[dataVar]);
+                    buffer[4] = Next(4, data[dataVar]);
+                    buffer[5] = Next(4, data[dataVar]);
 
                     b = data[3];
-                    destination[6] = Next(4, data[dataVar]);
-                    destination[7] = Next(4, data[dataVar]);
+                    buffer[6] = Next(4, data[dataVar]);
+                    buffer[7] = Next(4, data[dataVar]);
 
                     b = data[4];
-                    destination[8] = Next(4, data[dataVar]);
-                    destination[9] = Next(4, data[dataVar]);
+                    buffer[8] = Next(4, data[dataVar]);
+                    buffer[9] = Next(4, data[dataVar]);
 
                     b = data[5];
-                    destination[10] = Next(4, data[dataVar]);
-                    destination[11] = Next(4, data[dataVar]);
+                    buffer[10] = Next(4, data[dataVar]);
+                    buffer[11] = Next(4, data[dataVar]);
 
                     b = data[6];
-                    destination[12] = Next(4, data[dataVar]);
-                    destination[13] = Next(4, data[dataVar]);
+                    buffer[12] = Next(4, data[dataVar]);
+                    buffer[13] = Next(4, data[dataVar]);
 
                     b = data[7];
-                    destination[14] = Next(4, data[dataVar]);
-                    destination[15] = Next(4, data[dataVar]);
+                    buffer[14] = Next(4, data[dataVar]);
+                    buffer[15] = Next(4, data[dataVar]);
 
                     return data[dataVar..];
                 case 8:
-                    data[..ByteGroupSize].CopyTo(destination);
+                    data[..ByteGroupSize].CopyTo(buffer);
 
                     return data[ByteGroupSize..];
                 default:
@@ -182,19 +182,26 @@ namespace ValveResourceFormat.Compression
             }
         }
 
-        private static ReadOnlySpan<byte> DecodeBytes(ReadOnlySpan<byte> data, Span<byte> destination, ReadOnlySpan<int> bits)
+        private static ReadOnlySpan<byte> DecodeBytes(ReadOnlySpan<byte> data, Span<byte> buffer, ReadOnlySpan<int> bits)
         {
-            if (destination.Length % ByteGroupSize != 0)
+            if (buffer.Length % ByteGroupSize != 0)
             {
                 throw new ArgumentException("Expected data length to be a multiple of ByteGroupSize.");
             }
 
-            var headerSize = ((destination.Length / ByteGroupSize) + 3) / 4;
+            // round number of groups to 4 to get number of header bytes
+            var headerSize = ((buffer.Length / ByteGroupSize) + 3) / 4;
+
+            if (data.Length < headerSize)
+            {
+                throw new InvalidOperationException("Data buffer too small for header.");
+            }
+
             var header = data[..headerSize];
 
             data = data[headerSize..];
 
-            for (var i = 0; i < destination.Length; i += ByteGroupSize)
+            for (var i = 0; i < buffer.Length; i += ByteGroupSize)
             {
                 if (data.Length < ByteGroupDecodeLimit)
                 {
@@ -205,7 +212,7 @@ namespace ValveResourceFormat.Compression
 
                 var bitsk = (header[headerOffset / 4] >> ((headerOffset % 4) * 2)) & 3;
 
-                data = DecodeBytesGroup(data, destination[i..], bits[bitsk]);
+                data = DecodeBytesGroup(data, buffer[i..], bits[bitsk]);
             }
 
             return data;
@@ -217,8 +224,8 @@ namespace ValveResourceFormat.Compression
             {
                 var vertexOffset = k;
 
-                // Original code is based on a template, so instead of uint here it uses <T>,
-                // but doing generics in C# like this is a pain, so we always just use uint.
+                // upstream is templated on the element type; uint is used for every size here because
+                // only the low bytes are stored, so the untruncated high bits never affect the result
                 uint p = lastVertex[0];
                 for (var j = 1; j < size; ++j)
                 {
@@ -271,7 +278,16 @@ namespace ValveResourceFormat.Compression
             var transposed = transposedPool.AsSpan(0, VertexBlockSizeBytes);
 
             var vertexCountAligned = (vertexCount + ByteGroupSize - 1) & ~(ByteGroupSize - 1);
+
+            // we could decode directly into the output buffer
+            // this uses strided writes and also reads the last vertex once, which is bad for performance for write-combined memory so we always go through transposed
+
             var controlSize = version == 0 ? 0 : vertexSize / 4;
+
+            if (data.Length < controlSize)
+            {
+                throw new InvalidOperationException("Data buffer too small for control data.");
+            }
 
             try
             {
@@ -288,7 +304,7 @@ namespace ValveResourceFormat.Compression
 
                         if (ctrl == 3)
                         {
-                            // Literal encoding
+                            // literal encoding
                             if (data.Length < vertexCount)
                             {
                                 throw new InvalidOperationException("Data buffer too small for literal encoding.");
@@ -299,7 +315,7 @@ namespace ValveResourceFormat.Compression
                         }
                         else if (ctrl == 2)
                         {
-                            // Zero encoding
+                            // zero encoding
                             buffer.Slice(j * vertexCount, vertexCount).Clear();
                         }
                         else
@@ -373,12 +389,11 @@ namespace ValveResourceFormat.Compression
 
             buffer = buffer[1..];
 
-            // Determine tail size based on version
             var tailSize = vertexSize + (version == 0 ? 0 : vertexSize / 4);
             var tailSizeMin = version == 0 ? TailMinSizeV0 : TailMinSizeV1;
-            var tailSizePadded = tailSize < tailSizeMin ? tailSizeMin : tailSize;
+            var tailSizePad = tailSize < tailSizeMin ? tailSizeMin : tailSize;
 
-            if (buffer.Length < tailSizePadded)
+            if (buffer.Length < tailSizePad)
             {
                 throw new ArgumentException("Buffer too small to contain tail data.");
             }
@@ -428,7 +443,7 @@ namespace ValveResourceFormat.Compression
                 ArrayPool<byte>.Shared.Return(lastVertexBuffer);
             }
 
-            if (buffer.Length != tailSizePadded)
+            if (buffer.Length != tailSizePad)
             {
                 throw new ArgumentException("Tail size incorrect");
             }
