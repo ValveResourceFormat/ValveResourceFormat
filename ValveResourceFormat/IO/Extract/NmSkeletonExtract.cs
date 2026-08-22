@@ -65,7 +65,7 @@ public class NmSkeletonExtract
         };
         contentFile.AddSubFile(Path.GetFileName(dmxFile), () =>
         {
-            return ModelExtract.ToDmxSkeleton(skel, nmSkelAxisFixup: true);
+            return ModelExtract.ToDmxSkeleton(skel, nmSkelAxisFixup: true, nmLowLodBoneCount: numLowLODBones);
         });
         return contentFile;
     }
