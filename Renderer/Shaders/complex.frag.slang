@@ -50,6 +50,12 @@
 #endif
 
 //Parameter defines - These are default values and can be overwritten based on material/model parameters
+// MODES
+// Valve declares this one on the vfx as Depth(S_MODE_DEPTH): the shader's depth only mode. It keeps the
+// vertex shader, and with it skinning, morphs, animated texture coordinates and foliage animation, but
+// cuts the pixel shader down to the alpha test. The depth passes draw with it because a forward pixel
+// shader would sample the very shadow map it is drawing into.
+#define S_MODE_DEPTH 0
 // BLENDING
 #define F_FULLBRIGHT 0 // global_lit_simple
 #define F_LIT 0 // csgo_static_overlay, vr_static_overlay
@@ -100,7 +106,9 @@ centroid in vec4 vVertexColorOut;
     in float vCurvatureOut;
 #endif
 
-out vec4 outputColor;
+#if (S_MODE_DEPTH == 0)
+    out vec4 outputColor;
+#endif
 
 uniform sampler2D g_tBlueNoise; // reserved
 uniform sampler2D g_tColor; // SrgbRead(true) Sampler(UserConfig)
@@ -303,6 +311,32 @@ uniform sampler2D g_tTintMask;
 #include "common/fullbright.slang"
 #include "common/texturing.slang"
 #include "common/fog.slang"
+
+#if (S_MODE_DEPTH == 1)
+
+    #if (alphatest)
+        // Alpha to coverage masks depth writes as well as color, and reads the alpha written here. Running
+        // the same test the forward pass runs therefore lays depth down on exactly the samples that pass
+        // will shade, edge included. A shadow map has neither a color attachment nor multisampling, so
+        // there the write is dropped and the test falls back to a hard cutout at the reference.
+        out vec4 outputColor;
+    #else
+        // Nothing discards, so the depth test can run ahead of this (empty) shader
+        layout (early_fragment_tests) in;
+    #endif
+
+    // Depth only mode. Deliberately stops short of including lighting.slang: leaving the shadow map
+    // samplers out of the program is what makes it impossible to sample a shadow map while rendering
+    // into it. The texture coordinates are the vertex shader's, so animated and scrolling UVs cut out
+    // the same shape here as they do in the forward pass.
+    void main()
+    {
+        #if (alphatest)
+            outputColor = vec4(0.0, 0.0, 0.0, AlphaTestAntiAliasing(texture(g_tColor, vTexCoordOut).a, vTexCoordOut));
+        #endif
+    }
+
+#else
 
 // Must be last
 #include "common/lighting.slang"
@@ -782,3 +816,5 @@ void main()
     }
 #endif
 }
+
+#endif

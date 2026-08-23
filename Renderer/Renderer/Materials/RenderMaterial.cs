@@ -159,6 +159,13 @@ namespace ValveResourceFormat.Renderer.Materials
         /// <summary>Gets a value indicating whether this material uses alpha-to-coverage alpha testing.</summary>
         public bool IsAlphaTest => blendMode == BlendMode.AlphaTest;
 
+        /// <summary>
+        /// Gets whether this material's draws can be laid down in a depth prepass and then shaded testing for
+        /// equality against it. Anything that moves or ignores its own depth cannot: the two passes would not
+        /// land on the same value, and the shading pass would draw nothing.
+        /// </summary>
+        public bool CanDepthPrepass => !hasDepthBias && !IsOverlay && !disableDepthTest;
+
         private readonly MaterialLoader? Loader;
 
         private Globals? globals;
@@ -320,7 +327,9 @@ namespace ValveResourceFormat.Renderer.Materials
                 return;
             }
 
-            VertexAnimation = IntParams.GetValueOrDefault("F_VERTEX_ANIMATION") > 0
+            // csgo_foliage sways from the shader name alone, with no combo on the material to read
+            VertexAnimation = ShaderName == "csgo_foliage.vfx"
+                || IntParams.GetValueOrDefault("F_VERTEX_ANIMATION") > 0
                 || IntParams.GetValueOrDefault("F_FOLIAGE_ANIMATION") > 0;
 
             // :MaterialIsOverlay
@@ -543,11 +552,57 @@ namespace ValveResourceFormat.Renderer.Materials
             globals?.Delete();
             globals = null;
             filledLayout = null;
+
+            depthMaterial?.Delete();
+            depthMaterial = null;
+        }
+
+        /// <summary>The alpha reference the shaders declare, used when a material does not name one.</summary>
+        private const float DefaultAlphaTestReference = 0.5f;
+
+        private RenderMaterial? depthMaterial;
+        private uint depthMaterialVersion;
+
+        /// <summary>
+        /// This material as a shared depth-only shader sees it: the texture it cuts out with and the value
+        /// it cuts at, and nothing else. Those shaders skip material data entirely (see
+        /// <see cref="Shader.IgnoreMaterialData"/>), so without this they would cut every material at the
+        /// reference the shader itself declares.
+        /// <para>
+        /// It is a material of its own rather than a few loose uniforms so that it owns its constant
+        /// buffer: filled once for the depth shader's layout and left alone, instead of this material's
+        /// being refilled every time a pass swaps between the two layouts.
+        /// </para>
+        /// </summary>
+        private RenderMaterial GetDepthMaterial(Shader depthShader)
+        {
+            if (depthMaterial == null)
+            {
+                depthMaterial = new RenderMaterial(depthShader);
+            }
+            else if (depthMaterialVersion == InputsVersion)
+            {
+                return depthMaterial;
+            }
+
+            depthMaterialVersion = InputsVersion;
+
+            depthMaterial.FloatParams["g_flAlphaTestReference"] =
+                FloatParams.GetValueOrDefault("g_flAlphaTestReference", DefaultAlphaTestReference);
+
+            if (Textures.TryGetValue("g_tColor", out var colorTexture))
+            {
+                depthMaterial.Textures["g_tColor"] = colorTexture;
+            }
+
+            return depthMaterial;
         }
 
         /// <summary>Binds textures, sets material uniforms, and applies blend/depth render state for this material.</summary>
         /// <param name="shader">The shader to use for this draw call, or <see langword="null"/> to use <see cref="Shader"/>.</param>
-        public void Render(Shader? shader = default)
+        /// <param name="depthPass">Whether the draw only lays down depth, which a shared depth shader still has
+        /// to rasterize this material's own way; see <see cref="ApplyDepthRenderState"/>.</param>
+        public void Render(Shader? shader = default, bool depthPass = false)
         {
             textureUnit = TextureUnitStart;
 
@@ -555,15 +610,21 @@ namespace ValveResourceFormat.Renderer.Materials
 
             if (shader.IgnoreMaterialData)
             {
-                if (shader.IsDepthOnlyAlphaTest)
+                if (shader.IsAlphaTestVariant)
                 {
-                    shader.Default.BindGlobals(shader);
+                    var depthMaterial = GetDepthMaterial(shader);
+                    depthMaterial.BindGlobals(shader);
 
-                    var colorTexture = Textures.GetValueOrDefault("g_tColor");
+                    var colorTexture = depthMaterial.Textures.GetValueOrDefault("g_tColor");
                     if (colorTexture != null)
                     {
                         shader.SetTexture(textureUnit, "g_tColor", colorTexture);
                     }
+                }
+
+                if (depthPass)
+                {
+                    ApplyDepthRenderState();
                 }
 
                 return;
@@ -818,6 +879,27 @@ namespace ValveResourceFormat.Renderer.Materials
             {
                 GL.BindSampler(unit, 0);
             }
+        }
+
+        /// <summary>
+        /// Applies the part of this material's state that a depth pass has to match: which faces it
+        /// rasterizes. A shared depth shader skips material data (see <see cref="Shader.IgnoreMaterialData"/>)
+        /// and would otherwise cull this material's back faces, leaving them without depth for the shading
+        /// pass to test against. Nothing else here needs matching: the material state that moves depth keeps
+        /// geometry out of the prepass entirely (see <see cref="CanDepthPrepass"/>), and blend state has no
+        /// color to act on.
+        /// </summary>
+        public void ApplyDepthRenderState()
+        {
+            var renderState = GraphicsContext.RenderState;
+            var state = renderState.CurrentPass;
+
+            if (isRenderBackfaces)
+            {
+                state.Rasterizer.CullMode = RsCullMode.None;
+            }
+
+            renderState.Apply(state);
         }
 
         /// <summary>Composes this material's render state over the given pass baseline.</summary>

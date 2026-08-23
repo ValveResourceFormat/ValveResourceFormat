@@ -146,6 +146,30 @@ namespace ValveResourceFormat.Renderer
             GL.BindTextureUnit((int)slot, texture.Handle);
         }
 
+        /// <summary>
+        /// Picks the program a draw runs with: the pass's replacement shader, built for what this mesh
+        /// supplies and cutting out what the material's alpha test would, or the material's own shader.
+        /// <para>
+        /// A pass that only lays down depth never gets the material's forward shader. It gets the material's
+        /// depth mode, or the shared depth-only shader when the material's shader has no depth mode.
+        /// </para>
+        /// </summary>
+        private static Shader ResolveShader(Scene.RenderContext context, RenderableMesh mesh, RenderMaterial material)
+        {
+            if (context.ReplacementShader is { } replacement)
+            {
+                return replacement.WithSkinning(mesh.ActiveSkinning).WithAlphaTest(material.IsAlphaTest);
+            }
+
+            if (context.DepthOnlyShader is { } depthOnly)
+            {
+                return material.Shader.DepthMode
+                    ?? depthOnly.WithSkinning(mesh.ActiveSkinning).WithAlphaTest(material.IsAlphaTest);
+            }
+
+            return material.Shader;
+        }
+
         private static void DrawBatch(List<Request> requests, Scene.RenderContext context)
         {
             var vao = -1;
@@ -166,7 +190,9 @@ namespace ValveResourceFormat.Renderer
             {
                 if (request.Call == null)
                 {
-                    if (context.RenderPass is RenderPass.Opaque or RenderPass.Translucent or RenderPass.Outline or RenderPass.DepthOnly)
+                    // Not RenderPass.DepthOnly: a node that draws itself has no material to take a depth
+                    // mode from, and its own shaders sample the shadow map that pass renders into.
+                    if (context.RenderPass is RenderPass.Opaque or RenderPass.Translucent or RenderPass.Outline)
                     {
                         material?.PostRender();
 
@@ -194,7 +220,7 @@ namespace ValveResourceFormat.Renderer
 
                 var requestMaterial = request.Call.Material;
 
-                var requestShader = context.ReplacementShader?.WithSkinning(request.Mesh.ActiveSkinning) ?? requestMaterial.Shader;
+                var requestShader = ResolveShader(context, request.Mesh, requestMaterial);
 
                 if (material != requestMaterial || shader != requestShader)
                 {
@@ -253,7 +279,7 @@ namespace ValveResourceFormat.Renderer
                     }
 
                     material = requestMaterial;
-                    material.Render(shader);
+                    material.Render(shader, depthPass: context.DepthOnlyShader != null);
                 }
 
                 var requestVao = request.Call.GetVertexArrayObject();

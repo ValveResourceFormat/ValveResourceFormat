@@ -1,11 +1,19 @@
 #version 460
 
 #define renderMode_QuadOverdraw 0
+#define F_ALPHA_TEST 0 // set per draw from the material, see MeshBatchRenderer
 
 #include "common/quad_overdraw.slang"
 
-// Count with the depth test the scene actually rendered with, and without the UAV writes disabling early z.
-layout(early_fragment_tests) in;
+#if (F_ALPHA_TEST == 0)
+    // Count with the depth test the scene actually rendered with, and without the UAV writes disabling early z.
+    // Alpha tested draws cannot have it: an early depth write would record the fragments they discard.
+    layout(early_fragment_tests) in;
+#else
+    layout (location = 0) in vec2 texCoord;
+    uniform sampler2D g_tColor;
+    uniform float g_flAlphaTestReference = 0.5;
+#endif
 
 layout(location = 0) out vec4 outputColor;
 
@@ -17,6 +25,13 @@ const uint QUAD_UNLOCKED = 0u;
 
 void main()
 {
+    // Before anything is counted, so cut out geometry costs what it really costs.
+    #if (F_ALPHA_TEST == 1)
+        float opacity = texture(g_tColor, texCoord).a;
+        if (opacity - 0.001 < g_flAlphaTestReference)
+            discard;
+    #endif
+
     outputColor = vec4(0.0, 0.0, 0.0, 1.0);
 
     if (!bCountQuads)

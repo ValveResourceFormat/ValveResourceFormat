@@ -30,6 +30,13 @@ namespace ValveResourceFormat.Renderer.Shaders
         /// <summary>Gets the static combo parameter values used to compile this shader variant.</summary>
         public required IReadOnlyDictionary<string, byte> Parameters { get; init; }
 
+        /// <summary>
+        /// Gets every static combo the shader source declares, with its default value. Unlike
+        /// <see cref="Parameters"/> this covers the combos this variant left at their default, so it answers
+        /// whether a combo exists at all. Shared by every variant compiled from the same source.
+        /// </summary>
+        public required IReadOnlyDictionary<string, byte> Defines { get; init; }
+
         /// <summary>Gets the set of render mode names supported by this shader.</summary>
         public required HashSet<string> RenderModes { get; init; }
 
@@ -114,8 +121,34 @@ namespace ValveResourceFormat.Renderer.Shaders
         /// <summary>Gets a value indicating whether material data (textures and params) should be skipped during rendering.</summary>
         public bool IgnoreMaterialData { get; }
 
-        /// <summary>Replacement shader that reads the material's color texture.</summary>
-        public bool IsDepthOnlyAlphaTest => Name == "depth_only" && Parameters.GetValueOrDefault("F_ALPHA_TEST") == 1;
+        /// <summary>
+        /// Gets whether this variant alpha tests. A material-ignoring replacement shader still reads the
+        /// material's color texture when it does, so that it cuts out the same shape the material would.
+        /// </summary>
+        public bool IsAlphaTestVariant => Parameters.GetValueOrDefault(AlphaTestCombo) == 1;
+
+        /// <summary>Gets whether the shader source declares <paramref name="combo"/> as a static combo.</summary>
+        public bool DeclaresCombo(string combo) => Defines.ContainsKey(combo);
+
+        /// <summary>
+        /// Gets this shader's depth only mode, or <see langword="null"/> when it has none. Valve declares the
+        /// mode on the vfx as <c>Depth(S_MODE_DEPTH)</c>; the combo drops the forward pixel shader, leaving a
+        /// program that cannot sample the shadow map a depth pass renders into.
+        /// </summary>
+        public Shader? DepthMode => DeclaresCombo(DepthModeCombo) ? WithCombo(DepthModeCombo, 1) : null;
+
+        /// <summary>
+        /// Gets this shader's alpha test variant when the material alpha tests and this shader has one,
+        /// and this shader otherwise.
+        /// </summary>
+        public Shader WithAlphaTest(bool alphaTest)
+            => alphaTest && DeclaresCombo(AlphaTestCombo) ? WithCombo(AlphaTestCombo, 1) : this;
+
+        /// <summary>The static combo that selects a material shader's depth only mode.</summary>
+        public const string DepthModeCombo = "S_MODE_DEPTH";
+
+        /// <summary>The static combo that turns on alpha testing.</summary>
+        public const string AlphaTestCombo = "F_ALPHA_TEST";
 
         private readonly ShaderLoader shaderLoader;
         private Dictionary<(string Combo, byte Value), Shader>? variants;
@@ -148,7 +181,7 @@ namespace ValveResourceFormat.Renderer.Shaders
         }
 
         /// <summary>Sets a uniform on this shader and on every variant taken from it, which are separate
-        /// programs and so hold their own copy.</summary>
+        /// programs and so hold their own copy. Variants can be taken of variants, so the walk recurses.</summary>
         public void SetUniform1AllVariants(string name, uint value)
         {
             SetUniform1(name, value);
@@ -160,7 +193,7 @@ namespace ValveResourceFormat.Renderer.Shaders
 
             foreach (var variant in variants.Values)
             {
-                variant.SetUniform1(name, value);
+                variant.SetUniform1AllVariants(name, value);
             }
         }
 

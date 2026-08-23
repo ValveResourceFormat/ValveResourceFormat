@@ -50,8 +50,9 @@ namespace ValveResourceFormat.Renderer
         None = 0,
 
         /// <summary>
-        /// Draws in <see cref="RenderPass.Opaque"/>, and with it <see cref="RenderPass.DepthOnly"/>: solid
-        /// geometry is a shadow caster.
+        /// Draws in <see cref="RenderPass.Opaque"/>. Not in <see cref="RenderPass.DepthOnly"/>, so a node
+        /// that draws itself casts no shadow: it has no material to take a depth mode from, and its own
+        /// shaders sample the shadow map that pass renders into.
         /// </summary>
         Opaque = 1 << 0,
 

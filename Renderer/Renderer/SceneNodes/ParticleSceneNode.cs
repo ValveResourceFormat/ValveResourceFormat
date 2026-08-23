@@ -656,7 +656,9 @@ namespace ValveResourceFormat.Renderer.SceneNodes
                 return;
             }
 
-            if (context.RenderPass is not (RenderPass.Opaque or RenderPass.Translucent or RenderPass.DepthOnly))
+            // Not RenderPass.DepthOnly: particles have no depth mode to draw a shadow map with, and their
+            // own shaders sample the shadow map that pass renders into.
+            if (context.RenderPass is not (RenderPass.Opaque or RenderPass.Translucent))
             {
                 return;
             }

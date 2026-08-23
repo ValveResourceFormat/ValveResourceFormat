@@ -75,6 +75,15 @@ namespace ValveResourceFormat.Renderer
             /// <summary>Gets or sets an optional shader that overrides per-material shaders for this pass.</summary>
             public Shader? ReplacementShader { get; set; }
 
+            /// <summary>
+            /// Gets or sets the shared depth only shader, set for the passes that only lay down depth. Draws
+            /// in those passes take their material's own depth mode, and this shader when the material's has
+            /// none; what they never take is the material's forward shader. In the shadow passes that would
+            /// sample the very map being rendered into, and in a prepass it would shade everything the pass
+            /// exists to stop shading.
+            /// </summary>
+            public Shader? DepthOnlyShader { get; set; }
+
             /// <summary>Gets the list of scene-level textures bound to reserved texture slots.</summary>
             public required List<(ReservedTextureSlots Slot, string Name, RenderTexture Texture)> Textures { get; init; }
         }
@@ -982,6 +991,16 @@ namespace ValveResourceFormat.Renderer
 
         private Dictionary<DepthOnlyBucket, List<MeshBatchRenderer.Request>> depthOnlyDraws { get; } = CreateDepthOnlyDrawCallCollection();
 
+        /// <summary>
+        /// Alpha tested draws, held out of <see cref="RenderPass.OpaqueAggregate"/> and <see cref="RenderPass.Opaque"/>
+        /// so that they are always prepassed, and always after the geometry that occludes them.
+        /// See <see cref="RenderAlphaTestGeometry"/>.
+        /// </summary>
+        private readonly List<MeshBatchRenderer.Request> alphaTestAggregateDraws = [];
+
+        /// <inheritdoc cref="alphaTestAggregateDraws"/>
+        private readonly List<MeshBatchRenderer.Request> alphaTestOpaqueDraws = [];
+
         private void Add(MeshBatchRenderer.Request request, RenderPass renderPass)
         {
             Debug.Assert(request.Call is not null);
@@ -1005,6 +1024,13 @@ namespace ValveResourceFormat.Renderer
             {
                 if (request.Node is SceneAggregate { CanDrawIndirect: true })
                 {
+                    // Alpha tested draws are prepassed on their own, see RenderAlphaTestGeometry
+                    if (request.Call.Material is { IsAlphaTest: true, CanDepthPrepass: true })
+                    {
+                        alphaTestAggregateDraws.Add(request);
+                        return;
+                    }
+
                     if (EnableDepthPrepass)
                     {
                         var bucket = GetDepthOnlyBucket(request.Call);
@@ -1041,6 +1067,14 @@ namespace ValveResourceFormat.Renderer
                 isLatePass = true;
             }
 
+            // Alpha tested draws are prepassed on their own, see RenderAlphaTestGeometry. Not the ones that
+            // were rerouted above: those draw after the framebuffer grab, past every depth pass.
+            if (renderPass == RenderPass.Opaque && !isViewmodelLayer && !isLatePass
+                && request.Call.Material is { IsAlphaTest: true, CanDepthPrepass: true })
+            {
+                queueList = alphaTestOpaqueDraws;
+            }
+
             // Only draws that happen after the grab can make use of the resolved copies.
             if (isLatePass)
             {
@@ -1070,6 +1104,8 @@ namespace ValveResourceFormat.Renderer
 
             waterEffectsRenderList.Clear();
             customBufferNodes.Clear();
+            alphaTestAggregateDraws.Clear();
+            alphaTestOpaqueDraws.Clear();
 
             foreach (var bucket in depthOnlyDraws.Values)
             {
@@ -1384,18 +1420,8 @@ namespace ValveResourceFormat.Renderer
                 }
                 else
                 {
-                    // Nodes that draw their own solid geometry cast shadows by drawing into the depth pass
-                    // with their own shaders, which is what this bucket is for.
-                    if ((node.Flags & skipFlags) == 0 && (node.RenderPasses & CustomRenderPasses.Opaque) != 0)
-                    {
-                        AccumulateDepthFit(node);
-
-                        drawBuckets[DepthOnlyBucket.MaterialShader].Add(new MeshBatchRenderer.Request
-                        {
-                            Node = node,
-                        });
-                    }
-
+                    // Nodes that draw themselves have no material to take a depth mode from, and their own
+                    // shaders sample the shadow map this pass renders into, so they cast no shadow.
                     continue;
                 }
 
@@ -1436,16 +1462,19 @@ namespace ValveResourceFormat.Renderer
         // The skinning variant is picked per draw, so the bucket only says which shader draws it
         private static DepthOnlyBucket GetDepthOnlyBucket(DrawCall opaqueCall)
         {
-            return opaqueCall.Material.VertexAnimation ? DepthOnlyBucket.MaterialShader
+            return opaqueCall.Material.VertexAnimation ? DepthOnlyBucket.MaterialDepthMode
                 : opaqueCall.Material.IsAlphaTest ? DepthOnlyBucket.AlphaTest
                 : DepthOnlyBucket.Specialized;
         }
 
-        /// <summary>Picks the shader that replaces material shaders for a depth-only bucket, or <see langword="null"/> for the bucket that keeps the material's own shader.</summary>
+        /// <summary>
+        /// Picks the shader that replaces material shaders for a depth-only bucket, or <see langword="null"/>
+        /// for the bucket that resolves a shader per draw instead. See <see cref="DepthOnlyBucket"/>.
+        /// </summary>
         private static Shader? GetDepthOnlyReplacementShader(DepthOnlyBucket bucket, Shader depthOnlyShader) => bucket switch
         {
-            DepthOnlyBucket.AlphaTest => depthOnlyShader.WithCombo("F_ALPHA_TEST", 1),
-            DepthOnlyBucket.MaterialShader => null,
+            DepthOnlyBucket.AlphaTest => depthOnlyShader.WithCombo(Shader.AlphaTestCombo, 1),
+            DepthOnlyBucket.MaterialDepthMode => null,
             _ => depthOnlyShader,
         };
 
@@ -1675,6 +1704,11 @@ namespace ValveResourceFormat.Renderer
         {
             renderContext.RenderPass = RenderPass.DepthOnly;
 
+            // The shadow map is the render target here while the forward lighting shaders have it bound as a
+            // texture, so this pass may not run one. Setting this makes every draw that has no replacement
+            // shader resolve a depth mode instead of the material's own shader.
+            renderContext.DepthOnlyShader = depthOnlyShader;
+
             PerfStats.Active.SuspendTriangleCounter();
 
             foreach (var (bucket, calls) in drawCalls)
@@ -1693,9 +1727,12 @@ namespace ValveResourceFormat.Renderer
 
         /// <summary>
         /// Renders the opaque pass, optionally with a depth prepass, followed by aggregate indirect draws and static overlay geometry.
+        /// The alpha tested geometry is always prepassed; see <see cref="RenderAlphaTestGeometry"/>.
         /// </summary>
         /// <param name="renderContext">The render context for this pass.</param>
-        /// <param name="depthOnlyShader">Optional depth-only shader; when provided and <see cref="EnableDepthPrepass"/> is set, a depth prepass is performed.</param>
+        /// <param name="depthOnlyShader">Optional depth-only shader. With <see cref="EnableDepthPrepass"/> it prepasses
+        /// the whole opaque layer, and without it only the alpha tested aggregates. Pass <see langword="null"/> for a
+        /// pass that replaces material shaders, which does its own depth priming if it wants one.</param>
         public void RenderOpaqueLayer(RenderContext renderContext, Shader? depthOnlyShader = null)
         {
             using var passScope = GraphicsContext.RenderState.Scope();
@@ -1720,12 +1757,20 @@ namespace ValveResourceFormat.Renderer
                 {
                     PerfStats.Active.SuspendTriangleCounter();
 
+                    // The alpha tested draws are not here; they are prepassed on their own further down. What
+                    // is left is opaque, and the bucket the shared shader cannot draw keeps the material's own
+                    // shader rather than a depth mode: the pass that follows tests depth for equality against
+                    // what this one wrote, so the two have to place every fragment identically, and only the
+                    // same program guarantees that. Nothing here samples the target, so a forward pixel
+                    // shader is safe.
                     renderContext.RenderPass = RenderPass.DepthOnly;
                     foreach (var (bucket, calls) in depthOnlyDraws)
                     {
                         renderContext.ReplacementShader = bucket == DepthOnlyBucket.Specialized ? depthOnlyShader : null;
                         MeshBatchRenderer.Render(calls, renderContext);
                     }
+
+                    renderContext.ReplacementShader = null;
 
                     PerfStats.Active.ResumeTriangleCounter();
                 }
@@ -1737,10 +1782,10 @@ namespace ValveResourceFormat.Renderer
                     MeshBatchRenderer.Render(renderLists[renderContext.RenderPass], renderContext);
                 }
             }
-
-            if (!depthPrepass && DrawMeshletsIndirect)
+            else if (DrawMeshletsIndirect)
             {
-                using var _ = new GLDebugGroup("Meshlet Render");
+                using var meshletGroup = new GLDebugGroup("Meshlet Render");
+
                 renderContext.RenderPass = RenderPass.OpaqueAggregate;
                 MeshBatchRenderer.Render(renderLists[renderContext.RenderPass], renderContext);
             }
@@ -1751,11 +1796,69 @@ namespace ValveResourceFormat.Renderer
                 MeshBatchRenderer.Render(renderLists[renderContext.RenderPass], renderContext);
             }
 
+            RenderAlphaTestGeometry(renderContext, depthOnlyShader);
+
             using (new GLDebugGroup("StaticOverlay Render"))
             {
                 renderContext.RenderPass = RenderPass.StaticOverlay;
                 MeshBatchRenderer.Render(renderLists[renderContext.RenderPass], renderContext);
             }
+        }
+
+        /// <summary>
+        /// Prepasses the alpha tested geometry and then draws it. It is prepassed whether or not
+        /// <see cref="EnableDepthPrepass"/> is set, because its pixel shader discards and so cannot early-z
+        /// against itself: without one, every layer of a dense stand of foliage shades.
+        /// <para>
+        /// Both passes run after the opaque geometry rather than before, so the depth it laid down rejects
+        /// most of the prepass as well.
+        /// </para>
+        /// </summary>
+        private void RenderAlphaTestGeometry(RenderContext renderContext, Shader? depthOnlyShader)
+        {
+            alphaTestAggregateDraws.RemoveAll(MeshBatchRenderer.IsAggregateWithNoVisibleChildren);
+
+            if (alphaTestAggregateDraws.Count == 0 && alphaTestOpaqueDraws.Count == 0)
+            {
+                return;
+            }
+
+            // Both lists are drawn twice, so they are ordered once here instead of per pass.
+            alphaTestAggregateDraws.Sort(MeshBatchRenderer.CompareAlphaTestThenProgram);
+            alphaTestOpaqueDraws.Sort(MeshBatchRenderer.CompareCustomPipeline);
+
+            var prepassed = depthOnlyShader != null;
+
+            if (prepassed)
+            {
+                using var prepassGroup = new GLDebugGroup("Alpha Test Depth Prepass");
+                using var prepassState = GraphicsContext.RenderState.Scope(colorWriteMask: RsColorWriteEnableBits.None);
+
+                PerfStats.Active.SuspendTriangleCounter();
+
+                renderContext.RenderPass = RenderPass.DepthOnly;
+                renderContext.DepthOnlyShader = depthOnlyShader;
+                MeshBatchRenderer.Render(alphaTestAggregateDraws, renderContext);
+                MeshBatchRenderer.Render(alphaTestOpaqueDraws, renderContext);
+                renderContext.DepthOnlyShader = null;
+
+                PerfStats.Active.ResumeTriangleCounter();
+            }
+
+            using var drawGroup = new GLDebugGroup("Alpha Test Render");
+
+            // The prepass already placed this geometry, and the pass baseline compares strictly closer, which
+            // every one of these fragments would now fail. Testing for equality against what the prepass wrote
+            // instead leaves each surface shaded exactly once, wherever the cutout kept it.
+            using var drawState = prepassed
+                ? GraphicsContext.RenderState.Scope(depthWrite: false, depthFunc: RsComparison.Equal)
+                : default;
+
+            renderContext.RenderPass = RenderPass.OpaqueAggregate;
+            MeshBatchRenderer.Render(alphaTestAggregateDraws, renderContext);
+
+            renderContext.RenderPass = RenderPass.Opaque;
+            MeshBatchRenderer.Render(alphaTestOpaqueDraws, renderContext);
         }
 
         /// <summary>Renders all translucent draw calls collected during <see cref="CollectSceneDrawCalls"/>.</summary>

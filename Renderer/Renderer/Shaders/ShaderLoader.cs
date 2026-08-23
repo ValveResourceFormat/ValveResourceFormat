@@ -285,6 +285,7 @@ namespace ValveResourceFormat.Renderer.Shaders
 #endif
 
                     Parameters = arguments,
+                    Defines = parsedData.Defines,
                     GlobalsLayout = parsedData.GlobalsLayout,
                     Program = shaderProgram,
                     ShaderObjects = shaderObjects,

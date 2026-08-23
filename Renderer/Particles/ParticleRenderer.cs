@@ -184,8 +184,6 @@ namespace ValveResourceFormat.Renderer.Particles
         /// </summary>
         public void Render(Camera camera, RenderPass pass, bool waterEffectsLayer = false)
         {
-            var wantedPass = pass == RenderPass.DepthOnly ? RenderPass.Opaque : pass;
-
             foreach (var childRenderer in childRenderers)
             {
                 if (!childRenderer.Simulation.ShouldRunAsChildOf(Simulation.RenderState))
@@ -205,7 +203,7 @@ namespace ValveResourceFormat.Renderer.Particles
 
             foreach (var renderer in renderers)
             {
-                if (renderer.Pass != wantedPass || renderer.OnlyRenderInEffectsWaterPass != waterEffectsLayer)
+                if (renderer.Pass != pass || renderer.OnlyRenderInEffectsWaterPass != waterEffectsLayer)
                 {
                     continue;
                 }
