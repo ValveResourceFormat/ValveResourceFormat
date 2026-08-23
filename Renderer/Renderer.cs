@@ -635,7 +635,9 @@ public class Renderer
         var isMainFramebuffer = ReferenceEquals(renderContext.Framebuffer, MainFramebuffer);
         var isStandardPass = renderContext.ReplacementShader == null && isMainFramebuffer;
 
-        if (!isStandardPass)
+        var isOverdrawRedraw = renderContext.OverdrawShader != null;
+
+        if (!isStandardPass || isOverdrawRedraw)
         {
             PerfStats.Active.SuspendTriangleCounter();
         }
@@ -818,7 +820,7 @@ public class Renderer
 
         wireframeScope.Dispose();
 
-        if (isStandardPass)
+        if (isStandardPass && !isOverdrawRedraw)
         {
             if (computeFramebufferLuminance)
             {

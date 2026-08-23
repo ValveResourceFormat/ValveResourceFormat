@@ -144,8 +144,14 @@ namespace ValveResourceFormat.Renderer.Shaders
         public Shader WithAlphaTest(bool alphaTest)
             => alphaTest && DeclaresCombo(AlphaTestCombo) ? WithCombo(AlphaTestCombo, 1) : this;
 
+        /// <summary>Gets this shader's quad overdraw counting mode, or <see langword="null"/> when it has none.</summary>
+        public Shader? OverdrawMode => DeclaresCombo(OverdrawModeCombo) ? WithCombo(OverdrawModeCombo, 1) : null;
+
         /// <summary>The static combo that selects a material shader's depth only mode.</summary>
         public const string DepthModeCombo = "S_MODE_DEPTH";
+
+        /// <summary>The static combo that selects the quad overdraw counting mode.</summary>
+        public const string OverdrawModeCombo = "S_MODE_OVERDRAW";
 
         /// <summary>The static combo that turns on alpha testing.</summary>
         public const string AlphaTestCombo = "F_ALPHA_TEST";

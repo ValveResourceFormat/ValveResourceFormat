@@ -84,6 +84,9 @@ namespace ValveResourceFormat.Renderer
             /// </summary>
             public Shader? DepthOnlyShader { get; set; }
 
+            /// <summary>Gets or sets the fallback counting shader, set for the pass that counts quad overdraw.</summary>
+            public Shader? OverdrawShader { get; set; }
+
             /// <summary>Gets the list of scene-level textures bound to reserved texture slots.</summary>
             public required List<(ReservedTextureSlots Slot, string Name, RenderTexture Texture)> Textures { get; init; }
         }
@@ -1771,6 +1774,8 @@ namespace ValveResourceFormat.Renderer
                     // what this one wrote, so the two have to place every fragment identically, and only the
                     // same program guarantees that. Nothing here samples the target, so a forward pixel
                     // shader is safe.
+                    var passShader = renderContext.ReplacementShader;
+
                     renderContext.RenderPass = RenderPass.DepthOnly;
                     foreach (var (bucket, calls) in depthOnlyDraws)
                     {
@@ -1778,7 +1783,7 @@ namespace ValveResourceFormat.Renderer
                         MeshBatchRenderer.Render(calls, renderContext);
                     }
 
-                    renderContext.ReplacementShader = null;
+                    renderContext.ReplacementShader = passShader;
 
                     PerfStats.Active.ResumeTriangleCounter();
                 }
@@ -1844,11 +1849,16 @@ namespace ValveResourceFormat.Renderer
 
                 PerfStats.Active.SuspendTriangleCounter();
 
+                var passShader = renderContext.ReplacementShader;
+                renderContext.ReplacementShader = null;
+
                 renderContext.RenderPass = RenderPass.DepthOnly;
                 renderContext.DepthOnlyShader = depthOnlyShader;
                 MeshBatchRenderer.Render(alphaTestAggregateDraws, renderContext);
                 MeshBatchRenderer.Render(alphaTestOpaqueDraws, renderContext);
+
                 renderContext.DepthOnlyShader = null;
+                renderContext.ReplacementShader = passShader;
 
                 PerfStats.Active.ResumeTriangleCounter();
             }

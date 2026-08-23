@@ -146,14 +146,7 @@ namespace ValveResourceFormat.Renderer
             GL.BindTextureUnit((int)slot, texture.Handle);
         }
 
-        /// <summary>
-        /// Picks the program a draw runs with: the pass's replacement shader, built for what this mesh
-        /// supplies and cutting out what the material's alpha test would, or the material's own shader.
-        /// <para>
-        /// A pass that only lays down depth never gets the material's forward shader. It gets the material's
-        /// depth mode, or the shared depth-only shader when the material's shader has no depth mode.
-        /// </para>
-        /// </summary>
+        /// <summary>Picks the program a draw runs with: the pass's replacement shader, the material's mode for this pass, or the material's own.</summary>
         private static Shader ResolveShader(Scene.RenderContext context, RenderableMesh mesh, RenderMaterial material)
         {
             if (context.ReplacementShader is { } replacement)
@@ -165,6 +158,12 @@ namespace ValveResourceFormat.Renderer
             {
                 return material.Shader.DepthMode
                     ?? depthOnly.WithSkinning(mesh.ActiveSkinning).WithAlphaTest(material.IsAlphaTest);
+            }
+
+            if (context.OverdrawShader is { } overdraw)
+            {
+                return material.Shader.OverdrawMode
+                    ?? overdraw.WithSkinning(mesh.ActiveSkinning).WithAlphaTest(material.IsAlphaTest);
             }
 
             return material.Shader;
