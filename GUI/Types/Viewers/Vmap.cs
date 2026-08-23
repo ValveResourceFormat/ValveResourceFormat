@@ -98,8 +98,18 @@ internal sealed class Vmap(VrfGuiContext guiContext) : IViewer
 
         var entitiesPage = new ThemedTabPage("Entity List");
         Action<EntityLump.Entity>? selectEntity = glViewer == null ? null : glViewer.SelectAndFocusEntity;
-        entitiesPage.Controls.Add(new EntityViewer(guiContext, entities, selectEntity));
+        var entityViewer = new EntityViewer(guiContext, entities, selectEntity);
+        entitiesPage.Controls.Add(entityViewer);
         tabs.TabPages.Add(entitiesPage);
+
+        if (glViewer != null)
+        {
+            glViewer.ShowEntityInList = entity =>
+            {
+                tabs.SelectTab(entitiesPage);
+                entityViewer.SelectEntity(entity);
+            };
+        }
 
         if (entityIoGraphViewer != null)
         {

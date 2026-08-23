@@ -383,6 +383,42 @@ namespace GUI.Types.Viewers
             }
         }
 
+        internal void SelectEntity(Entity entity)
+        {
+            var item = EntityViewerGrid.Items
+                .Cast<ListViewItem>()
+                .FirstOrDefault(item => ReferenceEquals(item.Tag, entity));
+
+            if (item == null)
+            {
+                SearchData.ObjectsToInclude = ObjectsToInclude.Everything;
+                SearchData.Class = string.Empty;
+                SearchData.Key = string.Empty;
+                SearchData.Value = string.Empty;
+
+                ObjectsToInclude_Everything.Checked = true;
+                ObjectsToInclude_ClassTextBox.Text = string.Empty;
+                KeyValue_Key.Text = string.Empty;
+                KeyValue_Value.Text = string.Empty;
+                UpdateGrid();
+
+                item = EntityViewerGrid.Items
+                    .Cast<ListViewItem>()
+                    .FirstOrDefault(item => ReferenceEquals(item.Tag, entity));
+            }
+
+            if (item == null)
+            {
+                return;
+            }
+
+            EntityViewerGrid.SelectedItems.Clear();
+            item.Selected = true;
+            item.Focused = true;
+            item.EnsureVisible();
+            EntityViewerGrid.Focus();
+        }
+
         private void EntityViewerGrid_CellDoubleClick(object? sender, EventArgs e)
         {
             if (EntityViewerGrid.SelectedItems.Count > 0)

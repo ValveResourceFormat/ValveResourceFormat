@@ -545,8 +545,14 @@ namespace GUI.Types.Viewers
                     }
 
                     var entitiesTabPage = new ThemedTabPage("Entity List");
-                    entitiesTabPage.Controls.Add(new EntityViewer(vrfGuiContext, loadedWorld.Entities, glWorldViewer.SelectAndFocusEntity));
+                    var entityViewer = new EntityViewer(vrfGuiContext, loadedWorld.Entities, glWorldViewer.SelectAndFocusEntity);
+                    entitiesTabPage.Controls.Add(entityViewer);
                     resTabs.TabPages.Add(entitiesTabPage);
+                    glWorldViewer.ShowEntityInList = entity =>
+                    {
+                        resTabs.SelectTab(entitiesTabPage);
+                        entityViewer.SelectEntity(entity);
+                    };
                 }
 
                 if (!isPreview)

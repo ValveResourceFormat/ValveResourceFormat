@@ -1,5 +1,7 @@
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Windows.Forms;
 using GUI.Utils;
 using ValveKeyValue;
 using ValveResourceFormat;
@@ -11,6 +13,7 @@ using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.ResourceTypes.SmartProps;
 using ValveResourceFormat.Serialization.KeyValues;
 using ValveResourceFormat.Utils;
+using static ValveResourceFormat.Renderer.PickingTexture;
 
 namespace GUI.Types.GLViewers;
 
@@ -22,6 +25,8 @@ internal sealed class GLVmapViewer : GLSingleNodeViewer
     private readonly Dictionary<int, EntityLump.Entity> entitiesByNodeId;
     private readonly IReadOnlyDictionary<int, IReadOnlyList<SmartPropMapPart>> savedSmartPropParts;
     private bool attemptedContentGameSearchPaths;
+
+    public Action<EntityLump.Entity>? ShowEntityInList { get; set; }
 
     public GLVmapViewer(
         VrfGuiContext guiContext,
@@ -405,9 +410,24 @@ internal sealed class GLVmapViewer : GLSingleNodeViewer
 
     public void SelectAndFocusEntity(EntityLump.Entity entity)
     {
-        var node = Scene.Find(entity);
-        var center = node?.BoundingBox.Center ?? entity.GetVector3Property("origin");
-        var extent = node == null ? 64f : MathF.Max(64f, node.BoundingBox.Size.Length());
+        if (UiControl?.Parent is TabPage tabPage && tabPage.Parent is TabControl tabControl)
+        {
+            tabControl.SelectTab(tabPage);
+        }
+
+        var nodes = Scene.AllNodes.Where(node => ReferenceEquals(node.EntityData, entity)).ToList();
+        var bounds = nodes.Count > 0
+            ? nodes.Skip(1).Aggregate(nodes[0].BoundingBox, static (current, node) => current.Union(node.BoundingBox))
+            : default;
+        var center = nodes.Count > 0 ? bounds.Center : entity.GetVector3Property("origin");
+        var extent = nodes.Count > 0 ? MathF.Max(64f, bounds.Size.Length()) : 64f;
+
+        if (nodes.Count > 0)
+        {
+            SelectEntityNodes(entity, toggle: false);
+        }
+
+        Input.SaveCameraForTransition();
         Input.Camera.SetLocation(center + new Vector3(extent));
         Input.Camera.LookAt(center);
         NotifyVisible();
@@ -418,6 +438,78 @@ internal sealed class GLVmapViewer : GLSingleNodeViewer
         if (entities.Count > 0)
         {
             SelectAndFocusEntity(entities[0]);
+        }
+    }
+
+    protected override void OnPicked(object? sender, PickingTexture.PickingResponse pickingResponse)
+    {
+        var selectedNodeRenderer = SelectedNodeRenderer;
+        Debug.Assert(selectedNodeRenderer != null);
+
+        var pixelInfo = pickingResponse.PixelInfo;
+        if (pixelInfo.ObjectId == 0 || pixelInfo.Unused2 != 0)
+        {
+            selectedNodeRenderer.SelectNode(null);
+            return;
+        }
+
+        var sceneNode = Scene.Find(pixelInfo.ObjectId);
+        if (sceneNode == null)
+        {
+            return;
+        }
+
+        if (pickingResponse.Intent == PickingIntent.Select)
+        {
+            if (sceneNode.EntityData != null)
+            {
+                SelectEntityNodes(sceneNode.EntityData, Control.ModifierKeys.HasFlag(Keys.Control));
+            }
+            else if (Control.ModifierKeys.HasFlag(Keys.Control))
+            {
+                selectedNodeRenderer.ToggleNode(sceneNode);
+            }
+            else
+            {
+                selectedNodeRenderer.SelectNode(sceneNode);
+            }
+
+            return;
+        }
+
+        if (pickingResponse.Intent == PickingIntent.Details && sceneNode.EntityData != null)
+        {
+            SelectEntityNodes(sceneNode.EntityData, toggle: false);
+            Program.MainForm.Invoke(() => ShowEntityInList?.Invoke(sceneNode.EntityData));
+        }
+    }
+
+    private void SelectEntityNodes(EntityLump.Entity entity, bool toggle)
+    {
+        var selectedNodeRenderer = SelectedNodeRenderer;
+        Debug.Assert(selectedNodeRenderer != null);
+
+        var nodes = Scene.AllNodes.Where(node => ReferenceEquals(node.EntityData, entity)).ToList();
+        if (nodes.Count == 0)
+        {
+            return;
+        }
+
+        if (!toggle)
+        {
+            selectedNodeRenderer.SelectNode(nodes[0], forceDisableDepth: true);
+            foreach (var node in nodes.Skip(1))
+            {
+                selectedNodeRenderer.ToggleNode(node);
+            }
+
+            return;
+        }
+
+        var select = nodes.Any(static node => !node.IsSelected);
+        foreach (var node in nodes.Where(node => node.IsSelected != select))
+        {
+            selectedNodeRenderer.ToggleNode(node);
         }
     }
 
