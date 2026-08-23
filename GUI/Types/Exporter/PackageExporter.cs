@@ -1,3 +1,4 @@
+using System.Collections.Frozen;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
@@ -24,8 +25,12 @@ namespace GUI.Types.Exporter
             public int Count = 1;
         }
 
-        private static readonly List<ResourceType> ExtractOrder =
-        [
+        // Small files are written in a couple of chunks anyway, so reserving space up front only helps for large ones
+        private const int PreallocationThreshold = 1024 * 1024;
+
+        // When decompiling, parents go first so that anything they pull in (and export themselves) is skipped later
+        private static readonly FrozenDictionary<string, int> ExtractOrder = new List<ResourceType>
+        {
             ResourceType.Map,
             ResourceType.World,
             ResourceType.WorldNode,
@@ -38,18 +43,16 @@ namespace GUI.Types.Exporter
 
             ResourceType.Material,
             ResourceType.Texture,
-        ];
+        }.Select(static (type, index) => (Key: type.GetExtension() + GameFileLoader.CompiledFileSuffix, Index: index))
+        .ToFrozenDictionary(static x => x.Key, static x => x.Index);
 
         private readonly bool decompile;
         private readonly ExportData exportData;
-        private readonly Dictionary<string, Queue<PackageEntry>> filesToExtractSorted = [];
-        private readonly List<Queue<PackageEntry>> sortedQueues = [];
         private readonly Dictionary<string, FileTypeToExtract> fileTypesToExtract = [];
-        private readonly Queue<PackageEntry> filesToExtract = new();
+        private readonly List<PackageEntry> filesToExtract = [];
         private readonly HashSet<string> extractedFiles = [];
         private string? path;
         private string? lastCreatedDirectory;
-        private int queuedCount;
         private int processed;
         private int filesFailedToExport;
         private GenericProgressForm? progress;
@@ -62,13 +65,6 @@ namespace GUI.Types.Exporter
             this.exportData = exportData;
             this.path = path;
             this.decompile = decompile;
-
-            foreach (var resourceType in ExtractOrder)
-            {
-                var queue = new Queue<PackageEntry>();
-                filesToExtractSorted.Add(resourceType.GetExtension() + GameFileLoader.CompiledFileSuffix, queue);
-                sortedQueues.Add(queue);
-            }
         }
 
         public void QueueFiles(IBetterBaseItem root)
@@ -110,15 +106,7 @@ namespace GUI.Types.Exporter
                 fileTypesToExtract[file.TypeName] = new FileTypeToExtract(); // Type to be filled in later
             }
 
-            queuedCount++;
-
-            if (decompile && filesToExtractSorted.TryGetValue(file.TypeName, out var specializedQueue))
-            {
-                specializedQueue.Enqueue(file);
-                return;
-            }
-
-            filesToExtract.Enqueue(file);
+            filesToExtract.Add(file);
         }
 
         /// <summary>
@@ -126,7 +114,7 @@ namespace GUI.Types.Exporter
         /// </summary>
         public void ExecuteMultipleFileExtract()
         {
-            if (queuedCount == 0)
+            if (filesToExtract.Count == 0)
             {
                 _ = AppMessageDialogs.ShowMessageAsync("There are no files to extract", "Failed to extract", MessageIcon.Warning);
                 return;
@@ -271,27 +259,7 @@ namespace GUI.Types.Exporter
             Log.Info(nameof(PackageExporter), $"Folder export started to \"{path}\"");
 
             processed = 0;
-            progress.SetBarMax(queuedCount);
-
-            if (decompile)
-            {
-                foreach (var files in sortedQueues)
-                {
-                    if (files.Count > 0)
-                    {
-                        await ExtractFilesAsync(files, cancellationToken).ConfigureAwait(false);
-                    }
-                }
-            }
-
-            await ExtractFilesAsync(filesToExtract, cancellationToken).ConfigureAwait(false);
-
-            Log.Info(nameof(PackageExporter), $"Export completed in {stopwatch.Elapsed}, {filesFailedToExport} files failed.");
-        }
-
-        private async Task ExtractFilesAsync(Queue<PackageEntry> files, CancellationToken cancellationToken)
-        {
-            Debug.Assert(progress != null);
+            progress.SetBarMax(filesToExtract.Count);
 
             var outputPath = OutputPath;
             var currentPackage = exportData.VrfGuiContext.CurrentPackage;
@@ -302,11 +270,16 @@ namespace GUI.Types.Exporter
                 return;
             }
 
-            while (files.Count > 0)
+            // Within each type, read the package in storage order to avoid seeking back and forth between entries
+            var files = filesToExtract
+                .OrderBy(file => decompile ? ExtractOrder.GetValueOrDefault(file.TypeName, ExtractOrder.Count) : 0)
+                .ThenBy(static file => file.ArchiveIndex)
+                .ThenBy(static file => file.Offset);
+
+            foreach (var packageFile in files)
             {
                 cancellationToken.ThrowIfCancellationRequested();
 
-                var packageFile = files.Dequeue();
                 progress.SetBarValue(++processed);
 
                 string? outputFormat = null;
@@ -345,7 +318,13 @@ namespace GUI.Types.Exporter
                 if (!decompile || !packageFile.TypeName.EndsWith(GameFileLoader.CompiledFileSuffix, StringComparison.Ordinal))
                 {
                     // Extract as is
-                    using var outStream = File.Create(outFilePath);
+                    using var outStream = new FileStream(outFilePath, new FileStreamOptions
+                    {
+                        Mode = FileMode.Create,
+                        Access = FileAccess.Write,
+                        Options = FileOptions.Asynchronous,
+                        PreallocationSize = packageFile.TotalLength >= PreallocationThreshold ? packageFile.TotalLength : 0,
+                    });
                     await stream.CopyToAsync(outStream, cancellationToken).ConfigureAwait(false);
 
                     continue;
@@ -369,6 +348,8 @@ namespace GUI.Types.Exporter
 
                 await ExtractFileAsync(resource, fileFullName, outFilePath, false, cancellationToken).ConfigureAwait(false);
             }
+
+            Log.Info(nameof(PackageExporter), $"Export completed in {stopwatch.Elapsed}, {filesFailedToExport} files failed.");
         }
 
         private async Task ExtractFileAsync(Resource resource, string inFilePath, string outFilePath, bool flatSubfiles, CancellationToken cancellationToken)
