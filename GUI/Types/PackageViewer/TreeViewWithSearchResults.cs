@@ -1070,7 +1070,7 @@ namespace GUI.Types.PackageViewer
             {
                 progressDialog.SetProgress("Scanning for deleted files, this may take a while…");
 
-                var foundFiles = Types.PackageViewer.PackageViewer.RecoverDeletedFiles(currentPackage, progressDialog.SetProgress);
+                var foundFiles = Types.PackageViewer.PackageViewer.RecoverDeletedFiles(currentPackage, progressDialog);
 
                 Invoke((MethodInvoker)(() =>
                 {

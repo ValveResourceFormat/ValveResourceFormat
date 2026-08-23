@@ -13,6 +13,8 @@ namespace GUI.Forms
         private string? pendingText;
         private int pendingBarValue = -1;
         private int pendingBarMax = -1;
+        private long startTimestamp;
+        private string? baseTitle;
         private int updateQueued;
         private long lastUpdate;
 
@@ -115,10 +117,43 @@ namespace GUI.Forms
             {
                 extractProgressBar.Value = Math.Min(barValue, extractProgressBar.Maximum);
             }
+
+            UpdateTitle();
+        }
+
+        private void UpdateTitle()
+        {
+            if (baseTitle == null)
+            {
+                return;
+            }
+
+            var elapsed = Stopwatch.GetElapsedTime(startTimestamp);
+            var value = extractProgressBar.Value;
+            var max = extractProgressBar.Maximum;
+
+            if (extractProgressBar.Style != ProgressBarStyle.Blocks || value <= 0 || max <= 0)
+            {
+                Text = $"{baseTitle} ({FormatTime(elapsed)} elapsed)";
+                return;
+            }
+
+            var remaining = elapsed * (max - value) / value;
+            Text = $"{baseTitle} {value * 100 / max}% ({FormatTime(elapsed)} elapsed, ~{FormatTime(remaining)} left)";
+        }
+
+        private static string FormatTime(TimeSpan time)
+        {
+            return time.TotalHours >= 1
+                ? time.ToString(@"h\:mm\:ss")
+                : time.ToString(@"m\:ss");
         }
 
         protected override void OnShown(EventArgs e)
         {
+            baseTitle = Text;
+            startTimestamp = Stopwatch.GetTimestamp();
+
             // Show anything that was set before the handle existed
             ApplyPendingUpdate();
 
