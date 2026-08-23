@@ -1018,7 +1018,7 @@ namespace ValveResourceFormat.Renderer
                 if (request.Node is SceneAggregate { CanDrawIndirect: true })
                 {
                     // Alpha tested draws are prepassed on their own, see RenderAlphaTestGeometry
-                    if (request.Call.Material is { IsAlphaTest: true, CanDepthPrepass: true })
+                    if (request.Call.Material is { IsAlphaTest: true, CanPrimeDepth: true })
                     {
                         alphaTestAggregateDraws.Add(request);
                         return;
@@ -1062,7 +1062,7 @@ namespace ValveResourceFormat.Renderer
 
             // Not the ones rerouted above: those draw after the framebuffer grab, past every depth pass
             if (renderPass == RenderPass.Opaque && !isViewmodelLayer && !isLatePass
-                && request.Call.Material is { IsAlphaTest: true, CanDepthPrepass: true })
+                && request.Call.Material is { IsAlphaTest: true, CanPrimeDepth: true })
             {
                 queueList = alphaTestOpaqueDraws;
             }

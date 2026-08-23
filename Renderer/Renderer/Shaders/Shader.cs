@@ -4,9 +4,7 @@ using ValveResourceFormat.ThirdParty;
 
 namespace ValveResourceFormat.Renderer.Shaders
 {
-    /// <summary>
-    /// OpenGL shader program with uniform management and material defaults.
-    /// </summary>
+    /// <summary>OpenGL shader program with uniform management and material defaults.</summary>
     public class Shader
     {
         /// <summary>Gets the shader name (typically a Source 2 <c>.vfx</c> shader name).</summary>
@@ -30,11 +28,7 @@ namespace ValveResourceFormat.Renderer.Shaders
         /// <summary>Gets the static combo parameter values used to compile this shader variant.</summary>
         public required IReadOnlyDictionary<string, byte> Parameters { get; init; }
 
-        /// <summary>
-        /// Gets every static combo the shader source declares, with its default value. Unlike
-        /// <see cref="Parameters"/> this covers the combos this variant left at their default, so it answers
-        /// whether a combo exists at all. Shared by every variant compiled from the same source.
-        /// </summary>
+        /// <summary>Gets every static combo the source declares, unlike <see cref="Parameters"/>. Shared by every variant.</summary>
         public required IReadOnlyDictionary<string, byte> Defines { get; init; }
 
         /// <summary>Gets the set of render mode names supported by this shader.</summary>
@@ -51,12 +45,7 @@ namespace ValveResourceFormat.Renderer.Shaders
 
         private GlobalsLayout globalsLayout = GlobalsLayout.Empty;
 
-        /// <summary>
-        /// Gets the packed layout of this shader's loose global uniforms. Derived from the source rather than
-        /// from the linked program, so it is known before the shader links, and is shared by every variant
-        /// compiled from the same source. A <see cref="RenderMaterial"/> only has to refill its constant
-        /// buffer when this changes, which outside of a shader reload it never does.
-        /// </summary>
+        /// <summary>Gets the packed layout of this shader's loose global uniforms, derived from the source and shared by every variant.</summary>
         public GlobalsLayout GlobalsLayout
         {
             get => globalsLayout;
@@ -91,17 +80,10 @@ namespace ValveResourceFormat.Renderer.Shaders
             }
         }
 
-        /// <summary>
-        /// Gets the set of reserved texture uniform names that this shader samples. Seeded from the parsed source,
-        /// so it is available before the program is linked, and trimmed by <see cref="EnsureLoaded"/> down to the
-        /// ones the linker kept for this variant's combos.
-        /// </summary>
+        /// <summary>Gets the reserved texture uniforms this shader samples, seeded from the source and trimmed by <see cref="EnsureLoaded"/>.</summary>
         public HashSet<string> ReservedTexturesUsed { get; init; } = [];
 
-        /// <summary>
-        /// Gets a value indicating whether the program samples <c>g_tSceneColor</c>. Declaring it is enough until
-        /// the program is linked, after which it means the linker kept it.
-        /// </summary>
+        /// <summary>Gets whether the program samples <c>g_tSceneColor</c>.</summary>
         public bool ReadsSceneColor => ReservedTexturesUsed.Contains("g_tSceneColor");
 
         private readonly Dictionary<string, (ActiveUniformType Type, int Location, bool SrgbRead)> Uniforms = [];
@@ -121,10 +103,7 @@ namespace ValveResourceFormat.Renderer.Shaders
         /// <summary>Gets a value indicating whether material data (textures and params) should be skipped during rendering.</summary>
         public bool IgnoreMaterialData { get; }
 
-        /// <summary>
-        /// Gets whether this variant alpha tests. A material-ignoring replacement shader still reads the
-        /// material's color texture when it does, so that it cuts out the same shape the material would.
-        /// </summary>
+        /// <summary>Gets whether this variant alpha tests, which makes it read the material's color texture.</summary>
         public bool IsAlphaTestVariant => Parameters.GetValueOrDefault(AlphaTestCombo) == 1;
 
         /// <summary>Gets whether the shader source declares <paramref name="combo"/> as a static combo.</summary>
@@ -133,10 +112,7 @@ namespace ValveResourceFormat.Renderer.Shaders
         /// <summary>Gets this shader's depth only mode, or <see langword="null"/> when it has none.</summary>
         public Shader? DepthMode => DeclaresCombo(DepthModeCombo) ? WithCombo(DepthModeCombo, 1) : null;
 
-        /// <summary>
-        /// Gets this shader's alpha test variant when the material alpha tests and this shader has one,
-        /// and this shader otherwise.
-        /// </summary>
+        /// <summary>Gets this shader's alpha test variant when it has one and the material alpha tests, and this shader otherwise.</summary>
         public Shader WithAlphaTest(bool alphaTest)
             => alphaTest && DeclaresCombo(AlphaTestCombo) ? WithCombo(AlphaTestCombo, 1) : this;
 
@@ -155,10 +131,7 @@ namespace ValveResourceFormat.Renderer.Shaders
         private readonly ShaderLoader shaderLoader;
         private Dictionary<(string Combo, byte Value), Shader>? variants;
 
-        /// <summary>
-        /// Gets this shader with one combo set differently. Cached, so a pass can pick a variant per draw
-        /// instead of loading every combination up front. Chain the calls to move on more than one combo.
-        /// </summary>
+        /// <summary>Gets this shader with one combo set differently, cached. Chain the calls to move more than one.</summary>
         public Shader WithCombo(string combo, byte value)
         {
             if (Parameters.GetValueOrDefault(combo) == value)
@@ -266,10 +239,7 @@ namespace ValveResourceFormat.Renderer.Shaders
             }
         }
 
-        /// <summary>
-        /// Deletes the program and the buffer holding its default globals. Any stage objects that
-        /// <see cref="EnsureLoaded"/> did not get to clean up are deleted with it.
-        /// </summary>
+        /// <summary>Deletes the program, its default globals buffer, and any stage objects still attached.</summary>
         public void Delete()
         {
             if (Program == 0)
@@ -291,10 +261,7 @@ namespace ValveResourceFormat.Renderer.Shaders
             Default.Delete();
         }
 
-        /// <summary>
-        /// Caches the attribute locations the linked program reads, and verifies each landed where its
-        /// <see cref="VertexSlot"/> puts it. Attributes the linker dropped are not active.
-        /// </summary>
+        /// <summary>Caches the attribute locations the linked program reads, and verifies each landed on its <see cref="VertexSlot"/>.</summary>
         private void StoreRequiredAttributes()
         {
             GL.GetProgram(Program, GetProgramParameterName.ActiveAttributes, out var attributeCount);
@@ -335,11 +302,7 @@ namespace ValveResourceFormat.Renderer.Shaders
             }
         }
 
-        /// <summary>
-        /// A shader whose attributes the renderer cannot place is an authoring fault, so development builds
-        /// stop on it. A release build only logs, because a mounted shader must not take the viewer down
-        /// from inside a draw call.
-        /// </summary>
+        /// <summary>Stops on an unplaceable attribute in development builds, and only logs in release.</summary>
         private void ReportBadAttribute(string message)
         {
             Logger.LogError("{Message}", message);
@@ -482,12 +445,7 @@ namespace ValveResourceFormat.Renderer.Shaders
             }
         }
 
-        /// <summary>
-        /// Installs this shader program as part of the current rendering state, along with the constant buffer
-        /// holding its own global uniforms. A <see cref="RenderMaterial"/> rendered afterwards replaces that
-        /// buffer with its own; shaders drawn without a material keep it, and <see cref="SetUniform(string, float)"/>
-        /// writes into it.
-        /// </summary>
+        /// <summary>Installs this program and the constant buffer holding its own global uniforms.</summary>
         public void Use()
         {
             EnsureLoaded();
@@ -566,11 +524,7 @@ namespace ValveResourceFormat.Renderer.Shaders
         }
 
 #if DEBUG
-        /// <summary>
-        /// Checks the offsets <see cref="GlobalsLayout"/> computed against the ones the driver laid the
-        /// block out at. They are both std140 so they have to agree, but getting this wrong would corrupt every
-        /// material silently (debug builds only).
-        /// </summary>
+        /// <summary>Checks the offsets <see cref="GlobalsLayout"/> computed against the driver's own std140 layout (debug builds only).</summary>
         private void VerifyGlobalsLayout()
         {
             if (GlobalsLayout.Size == 0)
@@ -729,10 +683,7 @@ namespace ValveResourceFormat.Renderer.Shaders
             }
         }
 
-        /// <summary>
-        /// Gets this shader built for what a mesh supplies. Only a pass that replaces material shaders needs
-        /// it, since a material shader already carries the combo of the mesh it was loaded for.
-        /// </summary>
+        /// <summary>Gets this shader built for what a mesh supplies, for passes that replace material shaders.</summary>
         public Shader WithSkinning(MeshSkinning skinning) => WithCombo("D_SKINNING", (byte)skinning);
 
         /// <summary>Sets the <c>uAnimationData</c> uniform used by skinned mesh shaders.</summary>

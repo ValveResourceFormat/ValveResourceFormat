@@ -159,8 +159,8 @@ namespace ValveResourceFormat.Renderer.Materials
         /// <summary>Gets a value indicating whether this material uses alpha-to-coverage alpha testing.</summary>
         public bool IsAlphaTest => blendMode == BlendMode.AlphaTest;
 
-        /// <summary>Gets whether this material's draws can be prepassed and then shaded testing for equality against it.</summary>
-        public bool CanDepthPrepass => !hasDepthBias && !IsOverlay && !disableDepthTest;
+        /// <summary>Gets whether this material can perform early depth priming and then shade with Equal comparison.</summary>
+        public bool CanPrimeDepth => !hasDepthBias && !IsOverlay && !disableDepthTest;
 
         private readonly MaterialLoader? Loader;
 
@@ -557,21 +557,11 @@ namespace ValveResourceFormat.Renderer.Materials
         private const float DefaultAlphaTestReference = 0.5f;
 
         private RenderMaterial? depthMaterial;
-        private uint depthMaterialVersion;
 
         /// <summary>This material as a shared depth-only shader sees it: the color texture and the alpha reference.</summary>
         private RenderMaterial GetDepthMaterial(Shader depthShader)
         {
-            if (depthMaterial == null)
-            {
-                depthMaterial = new RenderMaterial(depthShader);
-            }
-            else if (depthMaterialVersion == InputsVersion)
-            {
-                return depthMaterial;
-            }
-
-            depthMaterialVersion = InputsVersion;
+            depthMaterial ??= new RenderMaterial(depthShader);
 
             depthMaterial.FloatParams["g_flAlphaTestReference"] =
                 FloatParams.GetValueOrDefault("g_flAlphaTestReference", DefaultAlphaTestReference);
@@ -586,7 +576,7 @@ namespace ValveResourceFormat.Renderer.Materials
 
         /// <summary>Binds textures, sets material uniforms, and applies blend/depth render state for this material.</summary>
         /// <param name="shader">The shader to use for this draw call, or <see langword="null"/> to use <see cref="Shader"/>.</param>
-        /// <param name="depthPass">Whether the draw only lays down depth; see <see cref="ApplyDepthRenderState"/>.</param>
+        /// <param name="depthPass">Whether the draw only lays down depth, which a shared depth shader still rasterizes this material's way.</param>
         public void Render(Shader? shader = default, bool depthPass = false)
         {
             textureUnit = TextureUnitStart;
@@ -609,7 +599,8 @@ namespace ValveResourceFormat.Renderer.Materials
 
                 if (depthPass)
                 {
-                    ApplyDepthRenderState();
+                    var depthState = GraphicsContext.RenderState;
+                    depthState.Apply(ComposeRenderState(depthState.CurrentPass));
                 }
 
                 return;
@@ -864,20 +855,6 @@ namespace ValveResourceFormat.Renderer.Materials
             {
                 GL.BindSampler(unit, 0);
             }
-        }
-
-        /// <summary>Applies the part of this material's state a depth pass has to match: which faces it rasterizes.</summary>
-        public void ApplyDepthRenderState()
-        {
-            var renderState = GraphicsContext.RenderState;
-            var state = renderState.CurrentPass;
-
-            if (isRenderBackfaces)
-            {
-                state.Rasterizer.CullMode = RsCullMode.None;
-            }
-
-            renderState.Apply(state);
         }
 
         /// <summary>Composes this material's render state over the given pass baseline.</summary>

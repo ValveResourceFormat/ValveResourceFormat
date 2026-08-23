@@ -210,19 +210,11 @@ namespace ValveResourceFormat.Renderer.Particles
 
             foreach (var renderer in renderers)
             {
-                if (depthPass)
-                {
-                    if (!renderer.CanRenderDepth)
-                    {
-                        continue;
-                    }
-                }
-                else if (renderer.Pass != pass || renderer.OnlyRenderInEffectsWaterPass != waterEffectsLayer)
-                {
-                    continue;
-                }
+                var inPass = depthPass
+                    ? renderer.CanRenderDepth
+                    : renderer.Pass == pass && renderer.OnlyRenderInEffectsWaterPass == waterEffectsLayer;
 
-                if (renderer.GetOperatorRunStrength(Simulation.RenderState) <= 0.0f)
+                if (!inPass || renderer.GetOperatorRunStrength(Simulation.RenderState) <= 0.0f)
                 {
                     continue;
                 }
