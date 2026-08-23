@@ -534,7 +534,6 @@ namespace ValveResourceFormat.ResourceTypes.SmartProps
 
             var direction = line / lineLength;
             TraverseAt(startCaps, start);
-            TraverseAt(endCaps, end);
 
             var startLength = GetLinearLength(startCaps, context);
             var endLength = GetLinearLength(endCaps, context);
@@ -563,6 +562,8 @@ namespace ValveResourceFormat.ResourceTypes.SmartProps
                     break;
                 }
             }
+
+            TraverseAt(endCaps, end);
 
             void TraverseAt(IEnumerable<KVObject> elements, Vector3 position)
             {
