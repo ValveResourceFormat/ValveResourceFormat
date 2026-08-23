@@ -1327,7 +1327,7 @@ namespace ValveResourceFormat.Renderer
                             continue;
                         }
 
-                        if (opaqueCall.Material.DoNotCastShadows)
+                        if (opaqueCall.Material.DoNotCastShadows || opaqueCall.Material.IsToolsMaterial)
                         {
                             continue;
                         }
