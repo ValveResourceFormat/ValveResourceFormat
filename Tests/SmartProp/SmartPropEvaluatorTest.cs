@@ -274,6 +274,38 @@ namespace Tests.SmartProp
         }
 
         [Test]
+        public async Task FitOnLineSizerUpdatesEndCapsAndRepeatingMiddleParts()
+        {
+            var front = ModelElement(1, "models/front.vmdl");
+            front["m_SelectionCriteria"] = ArrayOf(
+                Criteria("LinearLength", ("m_flLength", new KVObject(120f))),
+                Criteria("EndCap", ("m_bStart", new KVObject(true)), ("m_bEnd", new KVObject(false))));
+            var middle = ModelElement(2, "models/middle.vmdl");
+            middle["m_SelectionCriteria"] = ArrayOf(Criteria("LinearLength", ("m_flLength", new KVObject(80f))));
+            var back = ModelElement(3, "models/back.vmdl");
+            back["m_SelectionCriteria"] = ArrayOf(
+                Criteria("LinearLength", ("m_flLength", new KVObject(120f))),
+                Criteria("EndCap", ("m_bStart", new KVObject(false)), ("m_bEnd", new KVObject(true))));
+
+            var length = KVObject.Collection();
+            length["m_SourceName"] = new KVObject("length");
+            var end = KVObject.Collection();
+            end["m_Components"] = ArrayOf(length, new KVObject(0f), new KVObject(0f));
+            var fitOnLine = WithModifiers(Element("FitOnLine", 20, front, middle, back),
+                Modifier("CreateSizer", ("m_flInitialMaxX", new KVObject(448f)), ("m_OutputVariableMaxX", new KVObject("length"))));
+            fitOnLine["m_vEnd"] = end;
+
+            var context = new SmartPropEvaluationContext(widgetOutputValues: new Dictionary<string, float> { ["length"] = 400f });
+            var result = SmartPropEvaluator.Evaluate(Root(fitOnLine), context);
+
+            await Assert.That(result.Models).Count().IsEqualTo(4);
+            await Assert.That(result.Models[0].Position.X).IsEqualTo(0f);
+            await Assert.That(result.Models[1].Position.X).IsEqualTo(120f);
+            await Assert.That(result.Models[2].Position.X).IsEqualTo(200f);
+            await Assert.That(result.Models[3].Position.X).IsEqualTo(400f);
+        }
+
+        [Test]
         public async Task PlaceOnPathSpawnsInstancesAlongTheCurve()
         {
             // A straight 400 unit path along X with spacing 100 yields 5 instances

@@ -176,6 +176,12 @@ namespace ValveResourceFormat.ResourceTypes.SmartProps
                 return;
             }
 
+            if (elementClass == "FitOnLine")
+            {
+                TraverseFitOnLine(element, modifiers.WorldMatrix, context, state, activeNestedPaths, nestedResolver, depth, maxDepth, activeTint);
+                return;
+            }
+
             var children = GetChildren(element);
             if (children.Length == 0)
             {
@@ -510,6 +516,136 @@ namespace ValveResourceFormat.ResourceTypes.SmartProps
             return value.ValueType is KVValueType.Int32 or KVValueType.Int64 or KVValueType.UInt32 or KVValueType.UInt64
                 ? (int)value
                 : 0;
+        }
+
+        private static void TraverseFitOnLine(
+            KVObject element,
+            Matrix4x4 worldMatrix,
+            SmartPropEvaluationContext context,
+            EvaluationState state,
+            HashSet<string> activeNestedPaths,
+            Func<string, KVObject?>? nestedResolver,
+            int depth,
+            int maxDepth,
+            Vector4? activeTintColor)
+        {
+            var children = GetChildren(element).ToArray();
+            List<KVObject> startCaps = [];
+            List<KVObject> endCaps = [];
+            List<KVObject> middle = [];
+            foreach (var child in children)
+            {
+                var isStartCap = HasEndCapCriteria(child, start: true);
+                var isEndCap = HasEndCapCriteria(child, start: false);
+                if (isStartCap)
+                {
+                    startCaps.Add(child);
+                }
+
+                if (isEndCap)
+                {
+                    endCaps.Add(child);
+                }
+
+                if (!isStartCap && !isEndCap)
+                {
+                    middle.Add(child);
+                }
+            }
+
+            if (startCaps.Count == 0 || endCaps.Count == 0)
+            {
+                for (var i = 0; i < children.Length; i++)
+                {
+                    TraverseChild(children[i], element, worldMatrix, context, state, activeNestedPaths, nestedResolver, depth, maxDepth, activeTintColor);
+                }
+
+                return;
+            }
+
+            var start = context.ResolveVector3(GetOrDefault(element, "m_vStart"));
+            var end = context.ResolveVector3(GetOrDefault(element, "m_vEnd"));
+            var line = end - start;
+            var lineLength = line.Length();
+            if (lineLength <= 1e-6f)
+            {
+                return;
+            }
+
+            var direction = line / lineLength;
+            TraverseAt(startCaps, start);
+            TraverseAt(endCaps, end);
+
+            var startLength = GetLinearLength(startCaps, context);
+            var endLength = GetLinearLength(endCaps, context);
+            var offset = startLength;
+            var availableLength = lineLength - endLength;
+
+            while (middle.Count > 0 && offset < availableLength - 1e-6f)
+            {
+                var placed = false;
+                for (var i = 0; i < middle.Count; i++)
+                {
+                    var child = middle[i];
+                    var childLength = GetLinearLength([child], context);
+                    if (childLength <= 0f || offset + childLength > availableLength + 1e-6f)
+                    {
+                        continue;
+                    }
+
+                    TraverseAt([child], start + (direction * offset));
+                    offset += childLength;
+                    placed = true;
+                }
+
+                if (!placed)
+                {
+                    break;
+                }
+            }
+
+            void TraverseAt(IEnumerable<KVObject> elements, Vector3 position)
+            {
+                var childWorld = Matrix4x4.CreateTranslation(position) * worldMatrix;
+                foreach (var child in elements)
+                {
+                    TraverseChild(child, element, childWorld, context, state, activeNestedPaths, nestedResolver, depth, maxDepth, activeTintColor);
+                }
+            }
+        }
+
+        private static bool HasEndCapCriteria(KVObject child, bool start)
+        {
+            if (!child.TryGetValue("m_SelectionCriteria", out var criteriaNode) || !criteriaNode.IsArray)
+            {
+                return false;
+            }
+
+            foreach (var criteria in criteriaNode.AsArraySpan())
+            {
+                if (criteria.ValueType == KVValueType.Collection
+                    && SmartPropModifierEvaluator.GetClassName(criteria) == "EndCap"
+                    && GetBool(criteria, start ? "m_bStart" : "m_bEnd", fallback: false))
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        private static float GetLinearLength(IEnumerable<KVObject> elements, SmartPropEvaluationContext context)
+        {
+            var length = 0f;
+            foreach (var element in elements)
+            {
+                if (SmartPropSelectionCriteria.TryGetLinearLength(element, context, out var linearLength))
+                {
+                    length = MathF.Max(length, linearLength.Length);
+                }
+            }
+
+            return length;
         }
     }
 }
