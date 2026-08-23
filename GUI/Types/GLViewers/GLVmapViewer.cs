@@ -28,6 +28,8 @@ internal sealed class GLVmapViewer : GLSingleNodeViewer
 
     public Action<EntityLump.Entity>? ShowEntityInList { get; set; }
 
+    protected override bool ShowToolsMaterialsByDefault => false;
+
     public GLVmapViewer(
         VrfGuiContext guiContext,
         RendererContext rendererContext,

@@ -14,6 +14,8 @@ namespace GUI.Types.GLViewers
     {
         private Framebuffer? SaveAsFbo;
 
+        protected virtual bool ShowToolsMaterialsByDefault => true;
+
         public GLSingleNodeViewer(VrfGuiContext vrfGuiContext, RendererContext rendererContext)
             : base(vrfGuiContext, rendererContext, Frustum.CreateEmpty())
         {
@@ -25,7 +27,7 @@ namespace GUI.Types.GLViewers
             AddRenderModeAndWireframeControls();
             AddBaseGridControl();
 
-            Scene.ShowToolsMaterials = true;
+            Scene.ShowToolsMaterials = ShowToolsMaterialsByDefault;
 
             base.AddUiControls();
         }
