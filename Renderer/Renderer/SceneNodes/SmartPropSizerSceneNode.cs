@@ -14,7 +14,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         private const int ArrowSegments = 12;
 
         private static readonly Color32 FillColor3D = new(0.22f, 0.65f, 0.95f, 0.30f);
-        private static readonly Color32 FillColor2D = new(0.22f, 0.65f, 0.95f, 0.35f);
+        private static readonly Color32 FillColor2D = new(0.22f, 0.65f, 0.95f, 0.30f);
         private static readonly Color32 OutlineColor = new(0.35f, 0.85f, 1f, 0.95f);
         private static readonly Color32 Red = new(0.90f, 0.15f, 0.15f, 1f);
         private static readonly Color32 Green = new(0.15f, 0.85f, 0.20f, 1f);
