@@ -232,7 +232,7 @@ partial class ModelExtract
     {
         var dmeSkeleton = new DmeModel();
 
-        transforms = AppendDmeSkeletonJoints(dmeSkeleton, skeleton, NmCompilerChildOrder(skeleton, nmLowLodBoneCount));
+        transforms = AppendDmeSkeletonJoints(dmeSkeleton, skeleton, nmLowLodBoneCount);
 
         var rootMotionBone = skeleton["root_motion"];
 
@@ -256,11 +256,13 @@ partial class ModelExtract
 
     /// <summary>
     /// Adds one skeleton's joints to a DmeModel, its roots as children of the model, and returns the
-    /// joint transforms indexed by bone index. <paramref name="childOrder"/> overrides the sibling
-    /// order used for the DAG; joints are appended in bone index order without it.
+    /// joint transforms indexed by bone index. When <paramref name="nmLowLodBoneCount"/> is
+    /// non-negative, DAG siblings are ordered to reproduce the skeleton's compiled NM bone order;
+    /// otherwise they are appended in bone index order.
     /// </summary>
-    private static DmeTransform[] AppendDmeSkeletonJoints(DmeModel dmeSkeleton, Skeleton skeleton, Comparison<Bone>? childOrder = null)
+    private static DmeTransform[] AppendDmeSkeletonJoints(DmeModel dmeSkeleton, Skeleton skeleton, int nmLowLodBoneCount = -1)
     {
+        var childOrder = NmCompilerChildOrder(skeleton, nmLowLodBoneCount);
         var transforms = new DmeTransform[skeleton.Bones.Length];
         var boneDags = new DmeJoint[skeleton.Bones.Length];
 
@@ -298,25 +300,25 @@ partial class ModelExtract
         return transforms;
     }
 
-    private static IReadOnlyList<Bone> SortedSiblings(IReadOnlyList<Bone> siblings, Comparison<Bone>? childOrder)
+    private static IReadOnlyList<Bone> SortedSiblings(IReadOnlyList<Bone> siblings, Func<IReadOnlyList<Bone>, IReadOnlyList<Bone>>? childOrder)
     {
         if (childOrder == null || siblings.Count < 2)
         {
             return siblings;
         }
 
-        var sorted = new List<Bone>(siblings);
-        sorted.Sort(childOrder);
-        return sorted;
+        return childOrder(siblings);
     }
 
     /// <summary>
     /// CompileNmSkeleton emits bones as a hierarchy walk filtered to the first
     /// m_numBonesToSampleAtLowLOD bones, then the same walk filtered to the rest. This builds the
     /// sibling order whose walk reproduces the skeleton's compiled bone order, keeping recompiled
-    /// skeletons index-compatible with existing clips.
+    /// skeletons index-compatible with existing clips: siblings whose subtrees contain low-LOD
+    /// bones keep their relative compiled order, and each pure high-LOD sibling is placed where
+    /// its subtree's first high-LOD bone falls between theirs.
     /// </summary>
-    private static Comparison<Bone>? NmCompilerChildOrder(Skeleton skeleton, int nmLowLodBoneCount)
+    private static Func<IReadOnlyList<Bone>, IReadOnlyList<Bone>>? NmCompilerChildOrder(Skeleton skeleton, int nmLowLodBoneCount)
     {
         if (nmLowLodBoneCount < 0)
         {
@@ -348,19 +350,37 @@ partial class ModelExtract
             }
         }
 
-        return (a, b) =>
+        return siblings =>
         {
-            if (minLow[a.Index] != int.MaxValue && minLow[b.Index] != int.MaxValue)
+            var lowContaining = new List<Bone>();
+            var highOnly = new List<Bone>();
+
+            foreach (var sibling in siblings)
             {
-                return minLow[a.Index].CompareTo(minLow[b.Index]);
+                (minLow[sibling.Index] != int.MaxValue ? lowContaining : highOnly).Add(sibling);
             }
 
-            if (minHigh[a.Index] != int.MaxValue && minHigh[b.Index] != int.MaxValue)
+            lowContaining.Sort((a, b) => minLow[a.Index].CompareTo(minLow[b.Index]));
+            highOnly.Sort((a, b) => minHigh[a.Index].CompareTo(minHigh[b.Index]));
+
+            var merged = new List<Bone>(siblings.Count);
+            var next = 0;
+
+            foreach (var sibling in lowContaining)
             {
-                return minHigh[a.Index].CompareTo(minHigh[b.Index]);
+                if (minHigh[sibling.Index] != int.MaxValue)
+                {
+                    while (next < highOnly.Count && minHigh[highOnly[next].Index] < minHigh[sibling.Index])
+                    {
+                        merged.Add(highOnly[next++]);
+                    }
+                }
+
+                merged.Add(sibling);
             }
 
-            return a.Index.CompareTo(b.Index);
+            merged.AddRange(highOnly.GetRange(next, highOnly.Count - next));
+            return merged;
         };
     }
 
