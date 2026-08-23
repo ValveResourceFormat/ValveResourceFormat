@@ -63,11 +63,11 @@ internal sealed class GLVmapViewer : GLSingleNodeViewer
 
         if (mapRoot.TryGetValue("world", out var worldValue) && worldValue is Datamodel.Element world)
         {
-            LoadChildren(world, Matrix4x4.Identity);
+            LoadChildren(world, Matrix4x4.Identity, null);
         }
     }
 
-    private void LoadChildren(Datamodel.Element parent, Matrix4x4 parentTransform)
+    private void LoadChildren(Datamodel.Element parent, Matrix4x4 parentTransform, EntityLump.Entity? ownerEntity)
     {
         if (!parent.TryGetValue("children", out var childrenValue) || childrenValue is not Datamodel.ElementArray children)
         {
@@ -78,20 +78,36 @@ internal sealed class GLVmapViewer : GLSingleNodeViewer
         {
             if (children[i] is Datamodel.Element child)
             {
-                LoadElement(child, parentTransform);
+                LoadElement(child, parentTransform, ownerEntity);
             }
         }
     }
 
-    private void LoadElement(Datamodel.Element element, Matrix4x4 parentTransform)
+    private void LoadElement(Datamodel.Element element, Matrix4x4 parentTransform, EntityLump.Entity? ownerEntity)
     {
         var worldTransform = ReadTransform(element) * parentTransform;
         var tint = ReadTint(element);
         var smartProp = SmartPropMapParameters.Read(element);
         var nodeId = ReadInt32(element, "nodeID");
         entitiesByNodeId.TryGetValue(nodeId, out var entity);
+        entity ??= ownerEntity;
 
-        if (smartProp != null)
+        if (ValveMapMeshReader.TryRead(element, out var mapMesh) && mapMesh != null)
+        {
+            var node = new ValveMapMeshSceneNode(Scene, mapMesh)
+            {
+                Transform = worldTransform,
+                EntityData = entity,
+            };
+
+            if (tint.HasValue)
+            {
+                node.Tint = tint.Value;
+            }
+
+            Scene.Add(node, false);
+        }
+        else if (smartProp != null)
         {
             if (!LoadSavedSmartProp(nodeId, worldTransform, tint, entity)
                 && !LoadSmartProp(smartProp, worldTransform, tint, entity))
@@ -111,7 +127,7 @@ internal sealed class GLVmapViewer : GLSingleNodeViewer
             AddEntityMarker(worldTransform, new Color32(255, 0, 255, 255), className, entity);
         }
 
-        LoadChildren(element, worldTransform);
+        LoadChildren(element, worldTransform, entity);
     }
 
     private bool LoadSavedSmartProp(
