@@ -68,13 +68,15 @@ partial class ModelExtract
     }
 
     /// <summary>
-    /// Produces a skeleton DMX file.
+    /// Produces a skeleton DMX file. <paramref name="nmLowLodBoneCount"/> is the skeleton's
+    /// m_numBonesToSampleAtLowLOD; when non-negative, DAG siblings are ordered to reproduce the
+    /// compiled NM bone order.
     /// </summary>
-    public static byte[] ToDmxSkeleton(Skeleton skeleton, bool nmSkelAxisFixup = false)
+    public static byte[] ToDmxSkeleton(Skeleton skeleton, bool nmSkelAxisFixup = false, int nmLowLodBoneCount = -1)
     {
         using var dmx = new Datamodel.Datamodel("model", 22);
 
-        var dmeSkeleton = BuildDmeDagSkeleton(skeleton, out var transforms, nmSkelAxisFixup);
+        var dmeSkeleton = BuildDmeDagSkeleton(skeleton, out var transforms, nmSkelAxisFixup, nmLowLodBoneCount);
 
         using var stream = new MemoryStream();
 
@@ -226,11 +228,11 @@ partial class ModelExtract
             ? $"_{bone.Name[1..]}"
             : bone.Name;
 
-    private static DmeModel BuildDmeDagSkeleton(Skeleton skeleton, out DmeTransform[] transforms, bool nmSkelAxisFixup = false)
+    private static DmeModel BuildDmeDagSkeleton(Skeleton skeleton, out DmeTransform[] transforms, bool nmSkelAxisFixup = false, int nmLowLodBoneCount = -1)
     {
         var dmeSkeleton = new DmeModel();
 
-        transforms = AppendDmeSkeletonJoints(dmeSkeleton, skeleton);
+        transforms = AppendDmeSkeletonJoints(dmeSkeleton, skeleton, nmLowLodBoneCount);
 
         var rootMotionBone = skeleton["root_motion"];
 
@@ -254,10 +256,20 @@ partial class ModelExtract
 
     /// <summary>
     /// Adds one skeleton's joints to a DmeModel, its roots as children of the model, and returns the
-    /// joint transforms indexed by bone index.
+    /// joint transforms indexed by bone index. When <paramref name="nmLowLodBoneCount"/> is
+    /// non-negative, DAG siblings are ordered to reproduce the skeleton's compiled NM bone order;
+    /// otherwise they are appended in bone index order.
     /// </summary>
-    private static DmeTransform[] AppendDmeSkeletonJoints(DmeModel dmeSkeleton, Skeleton skeleton)
+    private static DmeTransform[] AppendDmeSkeletonJoints(DmeModel dmeSkeleton, Skeleton skeleton, int nmLowLodBoneCount = -1)
     {
+        int[]? minLow = null;
+        int[]? minHigh = null;
+
+        if (nmLowLodBoneCount >= 0)
+        {
+            (minLow, minHigh) = NmLodSubtreeMins(skeleton, nmLowLodBoneCount);
+        }
+
         var transforms = new DmeTransform[skeleton.Bones.Length];
         var boneDags = new DmeJoint[skeleton.Bones.Length];
 
@@ -281,19 +293,98 @@ partial class ModelExtract
 
         foreach (var bone in skeleton.Bones)
         {
-            var boneDag = boneDags[bone.Index];
-            if (bone.Parent != null)
+            foreach (var child in OrderSiblings(bone.Children, minLow, minHigh))
             {
-                var parentDag = boneDags[bone.Parent.Index];
-                parentDag.Children.Add(boneDag);
-            }
-            else
-            {
-                dmeSkeleton.Children.Add(boneDag);
+                boneDags[bone.Index].Children.Add(boneDags[child.Index]);
             }
         }
 
+        foreach (var root in OrderSiblings(skeleton.Roots, minLow, minHigh))
+        {
+            dmeSkeleton.Children.Add(boneDags[root.Index]);
+        }
+
         return transforms;
+    }
+
+    /// <summary>
+    /// Per-bone minimum compiled index within the bone's subtree, split into a low-LOD part
+    /// (indices below <paramref name="nmLowLodBoneCount"/>) and a high-LOD part; entries are
+    /// <see cref="int.MaxValue"/> where the subtree has no bone of that kind.
+    /// </summary>
+    private static (int[] MinLow, int[] MinHigh) NmLodSubtreeMins(Skeleton skeleton, int nmLowLodBoneCount)
+    {
+        var boneCount = skeleton.Bones.Length;
+        var minLow = new int[boneCount];
+        var minHigh = new int[boneCount];
+        Array.Fill(minLow, int.MaxValue);
+        Array.Fill(minHigh, int.MaxValue);
+
+        for (var i = boneCount - 1; i >= 0; i--)
+        {
+            if (i < nmLowLodBoneCount)
+            {
+                minLow[i] = Math.Min(minLow[i], i);
+            }
+            else
+            {
+                minHigh[i] = Math.Min(minHigh[i], i);
+            }
+
+            var parent = skeleton.Bones[i].Parent;
+            if (parent != null)
+            {
+                minLow[parent.Index] = Math.Min(minLow[parent.Index], minLow[i]);
+                minHigh[parent.Index] = Math.Min(minHigh[parent.Index], minHigh[i]);
+            }
+        }
+
+        return (minLow, minHigh);
+    }
+
+    /// <summary>
+    /// CompileNmSkeleton emits bones as a hierarchy walk filtered to the first
+    /// m_numBonesToSampleAtLowLOD bones, then the same walk filtered to the rest. Orders one
+    /// sibling group so that walk reproduces the skeleton's compiled bone order. Without the
+    /// subtree tables from <see cref="NmLodSubtreeMins"/> the group is returned unchanged, in
+    /// bone index order.
+    /// </summary>
+    private static IReadOnlyList<Bone> OrderSiblings(IReadOnlyList<Bone> siblings, int[]? minLow, int[]? minHigh)
+    {
+        if (minLow == null || minHigh == null || siblings.Count < 2)
+        {
+            return siblings;
+        }
+
+        var lowContaining = new List<Bone>();
+        var highOnly = new List<Bone>();
+
+        foreach (var sibling in siblings)
+        {
+            (minLow[sibling.Index] != int.MaxValue ? lowContaining : highOnly).Add(sibling);
+        }
+
+        lowContaining.Sort((a, b) => minLow[a.Index].CompareTo(minLow[b.Index]));
+        highOnly.Sort((a, b) => minHigh[a.Index].CompareTo(minHigh[b.Index]));
+
+        var merged = new List<Bone>(siblings.Count);
+        var next = 0;
+
+        foreach (var sibling in lowContaining)
+        {
+            if (minHigh[sibling.Index] != int.MaxValue)
+            {
+                while (next < highOnly.Count && minHigh[highOnly[next].Index] < minHigh[sibling.Index])
+                {
+                    merged.Add(highOnly[next++]);
+                }
+            }
+
+            merged.Add(sibling);
+        }
+
+        merged.AddRange(highOnly.GetRange(next, highOnly.Count - next));
+        return merged;
     }
 
     private static DmeChannel BuildDmeChannel<T>(string name, Element toElement, string toAttribute, out DmeLog<T> log)
