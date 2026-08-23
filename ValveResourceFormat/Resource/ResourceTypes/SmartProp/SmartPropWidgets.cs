@@ -45,7 +45,11 @@ namespace ValveResourceFormat.ResourceTypes.SmartProps
         Vector3 Axis,
         float Radius,
         float Angle,
-        Vector3 Color) : SmartPropWidget(ElementId, WorldMatrix, Position, PitchYawRoll, Name);
+        Vector3 Color,
+        string OutputVariable = "",
+        float? MinAngle = null,
+        float? MaxAngle = null,
+        float SnappingIncrement = 0f) : SmartPropWidget(ElementId, WorldMatrix, Position, PitchYawRoll, Name);
 
     /// <summary>Which of a sizer's six handles have output variables attached.</summary>
     public readonly record struct SmartPropSizerHandles(
@@ -73,7 +77,13 @@ namespace ValveResourceFormat.ResourceTypes.SmartProps
         Vector3 MinBounds,
         Vector3 MaxBounds,
         SmartPropSizerHandles Handles,
-        SmartPropSizerAxes ActiveAxes) : SmartPropWidget(ElementId, WorldMatrix, Position, PitchYawRoll, Name);
+        SmartPropSizerAxes ActiveAxes,
+        string MinXVariable = "",
+        string MaxXVariable = "",
+        string MinYVariable = "",
+        string MaxYVariable = "",
+        string MinZVariable = "",
+        string MaxZVariable = "") : SmartPropWidget(ElementId, WorldMatrix, Position, PitchYawRoll, Name);
 
     /// <summary>
     /// The choice handle of a PickOne element: a small marker where the picked option is

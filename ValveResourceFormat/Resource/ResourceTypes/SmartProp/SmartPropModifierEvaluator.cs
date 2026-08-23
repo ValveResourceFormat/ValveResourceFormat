@@ -368,6 +368,13 @@ namespace ValveResourceFormat.ResourceTypes.SmartProps
             var outMinZ = GetString(modifier, "m_OutputVariableMinZ");
             var outMaxZ = GetString(modifier, "m_OutputVariableMaxZ");
 
+            minX = GetWidgetOutputValue(context, outMinX, minX);
+            maxX = GetWidgetOutputValue(context, outMaxX, maxX);
+            minY = GetWidgetOutputValue(context, outMinY, minY);
+            maxY = GetWidgetOutputValue(context, outMaxY, maxY);
+            minZ = GetWidgetOutputValue(context, outMinZ, minZ);
+            maxZ = GetWidgetOutputValue(context, outMaxZ, maxZ);
+
             var hasX = outMinX.Length > 0 || outMaxX.Length > 0 || minX != 0f || maxX != 0f;
             var hasY = outMinY.Length > 0 || outMaxY.Length > 0 || minY != 0f || maxY != 0f;
             var hasZ = outMinZ.Length > 0 || outMaxZ.Length > 0 || minZ != 0f || maxZ != 0f;
@@ -391,7 +398,13 @@ namespace ValveResourceFormat.ResourceTypes.SmartProps
                     outMinX.Length > 0, outMaxX.Length > 0,
                     outMinY.Length > 0, outMaxY.Length > 0,
                     outMinZ.Length > 0, outMaxZ.Length > 0),
-                new SmartPropSizerAxes(hasX, hasY, hasZ));
+                new SmartPropSizerAxes(hasX, hasY, hasZ),
+                outMinX,
+                outMaxX,
+                outMinY,
+                outMaxY,
+                outMinZ,
+                outMaxZ);
             return true;
         }
 
@@ -427,6 +440,12 @@ namespace ValveResourceFormat.ResourceTypes.SmartProps
                 }
             }
 
+            var outputVariable = GetString(modifier, "m_OutputVariable");
+            var initialAngle = context.ResolveScalar(GetOrDefault(modifier, "m_flInitialAngle"));
+            var angle = outputVariable.Length > 0 && context.GetVariable(outputVariable) is { } outputValue
+                ? Convert.ToSingle(outputValue, CultureInfo.InvariantCulture)
+                : initialAngle;
+
             return new SmartPropRotatorWidget(
                 GetInt32(modifier, "m_nElementID", elementId),
                 worldMatrix,
@@ -436,12 +455,29 @@ namespace ValveResourceFormat.ResourceTypes.SmartProps
                 offset,
                 axis,
                 MathF.Max(1f, context.ResolveScalar(GetOrDefault(modifier, "m_flDisplayRadius"), 16f)),
-                context.ResolveScalar(GetOrDefault(modifier, "m_flInitialAngle")),
-                ResolveColor(GetOrDefault(modifier, "m_DisplayColor"), context, new Vector3(0.72f, 0.74f, 0.48f)));
+                angle,
+                ResolveColor(GetOrDefault(modifier, "m_DisplayColor"), context, new Vector3(0.72f, 0.74f, 0.48f)),
+                outputVariable,
+                GetOptionalScalar(modifier, "m_flMinAngle", context),
+                GetOptionalScalar(modifier, "m_flMaxAngle", context),
+                context.ResolveScalar(GetOrDefault(modifier, "m_flSnappingIncrement")));
         }
+
+        private static float? GetOptionalScalar(KVObject modifier, string name, SmartPropEvaluationContext context)
+            => modifier.TryGetValue(name, out var value) ? context.ResolveScalar(value) : null;
+
+        private static float GetWidgetOutputValue(SmartPropEvaluationContext context, string name, float fallback)
+            => name.Length > 0 && context.TryGetWidgetOutputValue(name, out var value) ? value : fallback;
 
         private static bool TryBuildPickOneHandle(KVObject element, Matrix4x4 worldMatrix, int elementId, SmartPropEvaluationContext context, out SmartPropPickOneHandleWidget widget)
         {
+            if (!GetBool(element, "m_bConfigurable", false)
+                && GetString(element, "m_OutputChoiceVariableName").Length == 0)
+            {
+                widget = default!;
+                return false;
+            }
+
             // Some authored files carry a triple-f typo in the handle offset field name
             if (!element.TryGetValue("m_vHandleOffset", out var offsetNode)
                 && !element.TryGetValue("m_vHandleOfffset", out offsetNode))

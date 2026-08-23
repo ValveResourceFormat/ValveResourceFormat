@@ -401,6 +401,27 @@ namespace Tests.SmartProp
         }
 
         [Test]
+        public async Task InteractiveWidgetOutputsOverrideTheirInitialValues()
+        {
+            var rotator = Modifier("CreateRotator",
+                ("m_OutputVariable", new KVObject("angle")),
+                ("m_flInitialAngle", new KVObject(10f)));
+            var sizer = Modifier("CreateSizer",
+                ("m_OutputVariableMinX", new KVObject("min_x")),
+                ("m_flInitialMinX", new KVObject(-64f)));
+            var context = new SmartPropEvaluationContext(widgetOutputValues: new Dictionary<string, float> { ["min_x"] = -12f });
+            context.SetOverride("angle", 45f);
+
+            var result = SmartPropModifierEvaluator.EvaluateElementModifiers(Element("Group", rotator, sizer), context);
+            var rotatorWidget = (SmartPropRotatorWidget)result.Widgets[0];
+            var sizerWidget = (SmartPropSizerWidget)result.Widgets[1];
+
+            await Assert.That(rotatorWidget.Angle).IsEqualTo(45f);
+            await Assert.That(sizerWidget.MinBounds.X).IsEqualTo(-12f);
+            await Assert.That(sizerWidget.MinXVariable).IsEqualTo("min_x");
+        }
+
+        [Test]
         public async Task PickOneElementEmitsHandleWidget()
         {
             var element = Element("PickOne");
@@ -422,11 +443,22 @@ namespace Tests.SmartProp
         public async Task PickOneHandleReadsTypoOffsetField()
         {
             var element = Element("PickOne");
+            element["m_bConfigurable"] = new KVObject(true);
             element["m_vHandleOfffset"] = Vec(7f, 0f, 0f);
 
             var result = SmartPropModifierEvaluator.EvaluateElementModifiers(element, Context());
             var handle = (SmartPropPickOneHandleWidget)result.Widgets[0];
             await Assert.That(handle.Offset).IsEqualTo(new Vector3(7f, 0f, 0f));
+        }
+
+        [Test]
+        public async Task NonConfigurablePickOneDoesNotEmitHandle()
+        {
+            var element = Element("PickOne");
+
+            var result = SmartPropModifierEvaluator.EvaluateElementModifiers(element, Context());
+
+            await Assert.That(result.Widgets).IsEmpty();
         }
 
         [Test]
