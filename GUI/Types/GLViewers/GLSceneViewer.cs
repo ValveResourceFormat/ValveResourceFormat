@@ -174,6 +174,8 @@ namespace GUI.Types.GLViewers
                     UiControl.AddCheckBox("Debug Physics Traces", showPhysicsTraces, v => showPhysicsTraces = v);
                 }
 
+                UiControl.AddCheckBox("Order Independent Transparency", Renderer.OrderIndependentTransparency, v => Renderer.OrderIndependentTransparency = v);
+
                 UiControl.AddCheckBox("Debug Sound Sources", Renderer.ShowSoundDebug, v => Renderer.ShowSoundDebug = v);
 
                 UiControl.AddCheckBox("Disable threaded sim", !Renderer.ParallelSimulation, v => Renderer.ParallelSimulation = !v);

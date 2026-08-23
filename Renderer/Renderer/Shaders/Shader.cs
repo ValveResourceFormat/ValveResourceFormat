@@ -128,11 +128,17 @@ namespace ValveResourceFormat.Renderer.Shaders
         /// <summary>The static combo that turns on alpha testing.</summary>
         public const string AlphaTestCombo = "F_ALPHA_TEST";
 
+        /// <summary>The static combo that switches a shader to the order independent transparency outputs.</summary>
+        public const string OrderIndependentCombo = "D_OIT";
+
         private readonly ShaderLoader shaderLoader;
         private Dictionary<(string Combo, byte Value), Shader>? variants;
 
         /// <summary>Gets this shader with one combo set differently, cached. Chain the calls to move more than one.</summary>
-        public Shader WithCombo(string combo, byte value)
+        /// <param name="combo">The combo to set.</param>
+        /// <param name="value">The value to set it to.</param>
+        /// <param name="blocking">When <see langword="true"/>, waits for a newly compiled variant to link before returning.</param>
+        public Shader WithCombo(string combo, byte value, bool blocking = true)
         {
             if (Parameters.GetValueOrDefault(combo) == value)
             {
@@ -148,7 +154,7 @@ namespace ValveResourceFormat.Renderer.Shaders
                     [combo] = value,
                 };
 
-                variant = shaderLoader.LoadShader(Name, combos);
+                variant = shaderLoader.LoadShader(Name, combos, blocking);
                 variants.Add((combo, value), variant);
             }
 

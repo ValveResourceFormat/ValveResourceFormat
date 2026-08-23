@@ -85,7 +85,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             nextParticleId = highestId;
         }
 
-        public override void Render(ParticleCollection particles, ParticleSystemState systemState, Camera camera)
+        public override void Render(ParticleCollection particles, ParticleSystemState systemState, Camera camera, bool orderIndependent)
         {
             // Nothing to draw; the sound is started from Act.
         }

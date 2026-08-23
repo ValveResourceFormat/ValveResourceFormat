@@ -153,6 +153,23 @@ public class Renderer
 
     private Shader depthDownsampleShader = null!;
 
+    /// <summary>
+    /// Gets or sets whether the translucent layers are drawn with weighted blended order independent
+    /// transparency: accumulated into <see cref="OrderIndependentBuffer"/> in any order and composited
+    /// over the scene, instead of being sorted back to front. Blends that multiply the scene color,
+    /// overlays, and shaders without the outputs still draw in order on the scene itself.
+    /// </summary>
+    public bool OrderIndependentTransparency { get; set; } = true;
+
+    /// <summary>
+    /// The order independent transparency targets: accumulation (color 0, weighted premultiplied color
+    /// and weighted alpha), revealage (color 1, the product of what every fragment lets through) and
+    /// additive light (color 2). Lazily created to match <see cref="MainFramebuffer"/> and tests against its depth.
+    /// </summary>
+    public Framebuffer? OrderIndependentBuffer { get; private set; }
+
+    private Shader orderIndependentCompositeShader = null!;
+
     /// <summary>Scene pixels per water effects texel, horizontally and vertically.</summary>
     public static (int X, int Y) WaterEffectsDownsample { get; } = (4, 2); // 6:3 in low settings
 
@@ -305,6 +322,7 @@ public class Renderer
 
         depthOnlyShader = Scene.RendererContext.ShaderLoader.LoadShader("depth_only");
         depthDownsampleShader = Scene.RendererContext.ShaderLoader.LoadShader("depth_downsample");
+        orderIndependentCompositeShader = Scene.RendererContext.ShaderLoader.LoadShader("oit_composite");
 
         histogramShaders[0] = Scene.RendererContext.ShaderLoader.LoadShader("histogram");
         histogramShaders[1] = Scene.RendererContext.ShaderLoader.LoadShader("histogram", ("D_HISTOGRAM_MODE", 1));
@@ -534,14 +552,115 @@ public class Renderer
         }
     }
 
-    private static void RenderTranslucentLayer(Scene scene, Scene.RenderContext renderContext)
+    private void RenderTranslucentLayer(Scene scene, Scene.RenderContext renderContext)
     {
         scene.RenderOpaqueRefractLayer(renderContext);
         scene.RenderWaterLayer(renderContext);
 
         using var _ = GraphicsContext.RenderState.Scope(depthWrite: false, blend: true);
 
+        // The sorted draws go first so that the order independent ones composite over them
         scene.RenderTranslucentLayer(renderContext);
+
+        if (!scene.HasOrderIndependentDraws)
+        {
+            return;
+        }
+
+        // Replacement and counting shaders do not blend, so the order does not matter
+        if (renderContext.ReplacementShader != null || renderContext.OverdrawShader != null || renderContext.Framebuffer.Depth == null)
+        {
+            scene.RenderOrderIndependentTranslucentLayer(renderContext);
+            return;
+        }
+
+        var sceneFramebuffer = renderContext.Framebuffer;
+        var accumulationBuffer = GetOrderIndependentBuffer(sceneFramebuffer);
+
+        using (new GLDebugGroup("Order Independent Transparency Accumulate"))
+        {
+            accumulationBuffer.Bind(FramebufferTarget.Framebuffer);
+            GL.ClearNamedFramebuffer(accumulationBuffer.FboHandle, ClearBuffer.Color, 0, OrderIndependentAccumulationClear);
+            GL.ClearNamedFramebuffer(accumulationBuffer.FboHandle, ClearBuffer.Color, 1, OrderIndependentRevealageClear);
+            GL.ClearNamedFramebuffer(accumulationBuffer.FboHandle, ClearBuffer.Color, 2, OrderIndependentAccumulationClear);
+
+            var accumulateState = GraphicsContext.RenderState.CurrentPass;
+            accumulateState.Blend = OrderIndependentBlend;
+            using var accumulateScope = GraphicsContext.RenderState.Scope(in accumulateState);
+
+            renderContext.Framebuffer = accumulationBuffer;
+            scene.RenderOrderIndependentTranslucentLayer(renderContext);
+        }
+
+        sceneFramebuffer.Bind(FramebufferTarget.Framebuffer);
+
+        using (new GLDebugGroup("Order Independent Transparency Composite"))
+        using (GraphicsContext.RenderState.Scope(depthTest: false, cullMode: RsCullMode.None,
+            srcBlend: RsBlendMode.One, dstBlend: RsBlendMode.InvSrcAlpha))
+        {
+            Debug.Assert(accumulationBuffer.Color != null);
+
+            var compositeShader = orderIndependentCompositeShader.WithCombo("D_MSAA", (byte)(accumulationBuffer.NumSamples > 0 ? 1 : 0));
+            compositeShader.Use();
+            compositeShader.SetTexture(0, "g_tOitAccumulation", accumulationBuffer.Color);
+            compositeShader.SetTexture(1, "g_tOitRevealage", accumulationBuffer.ExtraColors[0]);
+            compositeShader.SetTexture(2, "g_tOitAdditive", accumulationBuffer.ExtraColors[1]);
+
+            GL.BindVertexArray(RendererContext.MeshBufferCache.EmptyVAO);
+            GL.DrawArrays(PrimitiveType.Triangles, 0, 3);
+        }
+    }
+
+    private static readonly float[] OrderIndependentAccumulationClear = [0f, 0f, 0f, 0f];
+    private static readonly float[] OrderIndependentRevealageClear = [1f, 0f, 0f, 0f];
+
+    /// <summary>The accumulation and additive light add, the revealage multiplies by what each fragment lets through.</summary>
+    private static readonly RsBlendStateDesc OrderIndependentBlend = CreateOrderIndependentBlend();
+
+    private static RsBlendStateDesc CreateOrderIndependentBlend()
+    {
+        var blend = RenderState.Default.Blend;
+        blend.IndependentBlendEnable = true;
+
+        blend.SetBlendEnable(0, true);
+        blend.SetSrcBlend(0, RsBlendMode.One);
+        blend.SetDestBlend(0, RsBlendMode.One);
+
+        blend.SetBlendEnable(1, true);
+        blend.SetSrcBlend(1, RsBlendMode.Zero);
+        blend.SetDestBlend(1, RsBlendMode.InvSrcColor);
+
+        blend.SetBlendEnable(2, true);
+        blend.SetSrcBlend(2, RsBlendMode.One);
+        blend.SetDestBlend(2, RsBlendMode.One);
+
+        return blend;
+    }
+
+    /// <summary>
+    /// Returns the order independent transparency targets, created or resized to match the scene framebuffer
+    /// and testing against its depth.
+    /// </summary>
+    private Framebuffer GetOrderIndependentBuffer(Framebuffer sceneFramebuffer)
+    {
+        var (width, height, msaa) = (sceneFramebuffer.Width, sceneFramebuffer.Height, sceneFramebuffer.NumSamples);
+
+        Debug.Assert(sceneFramebuffer.Depth != null);
+
+        if (OrderIndependentBuffer == null)
+        {
+            OrderIndependentBuffer = Framebuffer.Prepare(nameof(OrderIndependentBuffer), width, height, msaa, ImageFormat.RGBA16161616F, null,
+                ImageFormat.R16F, ImageFormat.IMAGE_FORMAT_R11G11B10_FLOAT);
+            OrderIndependentBuffer.Initialize();
+        }
+        else
+        {
+            OrderIndependentBuffer.Resize(width, height, msaa);
+        }
+
+        OrderIndependentBuffer.ShareDepth(sceneFramebuffer.Depth);
+
+        return OrderIndependentBuffer;
     }
 
     /// <summary>
@@ -1214,6 +1333,7 @@ public class Renderer
         ResolvedSceneColor?.Delete();
         ResolvedSceneDepth?.Delete();
         OutlineMaskBuffer?.Delete();
+        OrderIndependentBuffer?.Delete();
         ShadowDepthBuffer?.Delete();
         BarnLightShadowBuffer?.Delete();
         histogramBuffers[0]?.Delete();
@@ -1275,6 +1395,9 @@ public class Renderer
 
         Scene.UpdateIndirectRenderingState();
         SkyboxScene?.UpdateIndirectRenderingState();
+
+        // Not the 3D skybox: it draws in its own depth range, which the weights cannot read the scene depth in
+        Scene.OrderIndependentTransparency = OrderIndependentTransparency;
 
         var cullFrustum = CullFrustum;
         Scene.CollectSceneDrawCalls(updateContext.Camera, cullFrustum);

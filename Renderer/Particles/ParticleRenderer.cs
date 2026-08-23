@@ -122,6 +122,11 @@ namespace ValveResourceFormat.Renderer.Particles
                 {
                     passes |= CustomRenderPasses.DepthOnly;
                 }
+
+                if (renderer.DrawsOrderIndependent && !renderer.OnlyRenderInEffectsWaterPass)
+                {
+                    passes |= CustomRenderPasses.OrderIndependentTranslucent;
+                }
             }
 
             foreach (var childRenderer in childRenderers)
@@ -187,8 +192,12 @@ namespace ValveResourceFormat.Renderer.Particles
         /// <summary>
         /// Draws the renderers belonging to <paramref name="pass"/>.
         /// </summary>
-        public void Render(Camera camera, RenderPass pass, bool waterEffectsLayer = false)
+        public void Render(Camera camera, RenderPass pass, bool waterEffectsLayer = false, TranslucentDrawSet drawSet = TranslucentDrawSet.All)
         {
+            var rendererPass = pass == RenderPass.TranslucentOrderIndependent ? RenderPass.Translucent : pass;
+            var splitTranslucent = rendererPass == RenderPass.Translucent && drawSet != TranslucentDrawSet.All;
+            var orderIndependent = drawSet == TranslucentDrawSet.OrderIndependent;
+
             foreach (var childRenderer in childRenderers)
             {
                 if (!childRenderer.Simulation.ShouldRunAsChildOf(Simulation.RenderState))
@@ -196,7 +205,7 @@ namespace ValveResourceFormat.Renderer.Particles
                     continue;
                 }
 
-                childRenderer.Render(camera, pass, waterEffectsLayer);
+                childRenderer.Render(camera, pass, waterEffectsLayer, drawSet);
             }
 
             if (!IsWithinDrawDistance(camera) || Simulation.Particles.Count == 0)
@@ -212,9 +221,14 @@ namespace ValveResourceFormat.Renderer.Particles
             {
                 var inPass = depthPass
                     ? renderer.CanRenderDepth
-                    : renderer.Pass == pass && renderer.OnlyRenderInEffectsWaterPass == waterEffectsLayer;
+                    : renderer.Pass == rendererPass && renderer.OnlyRenderInEffectsWaterPass == waterEffectsLayer;
 
                 if (!inPass || renderer.GetOperatorRunStrength(Simulation.RenderState) <= 0.0f)
+                {
+                    continue;
+                }
+
+                if (splitTranslucent && renderer.DrawsOrderIndependent != orderIndependent)
                 {
                     continue;
                 }
@@ -225,7 +239,7 @@ namespace ValveResourceFormat.Renderer.Particles
                 }
                 else
                 {
-                    renderer.Render(Simulation.Particles, Simulation.RenderState, camera);
+                    renderer.Render(Simulation.Particles, Simulation.RenderState, camera, orderIndependent);
                 }
 
                 rendered = true;
@@ -270,7 +284,7 @@ namespace ValveResourceFormat.Renderer.Particles
                 }
 
                 renderer.UpdateBuffers(Simulation.Particles, Simulation.RenderState, camera);
-                renderer.Render(Simulation.Particles, Simulation.RenderState, camera);
+                renderer.Render(Simulation.Particles, Simulation.RenderState, camera, orderIndependent: false);
             }
 
             Simulation.EndPrewarm(scope);

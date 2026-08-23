@@ -19,7 +19,9 @@ in vec3 vBitangentOut;
 in vec4 vTexCoord; // UV1 in xy, UV2 in zw
 centroid in vec4 vVertexColorOut;
 
-out vec4 outputColor;
+layout(location = 0) out vec4 outputColor;
+
+#include "common/oit.slang"
 
 uniform sampler2D g_tColor; // SrgbRead(true)
 uniform sampler2D g_tNormalRoughness;
@@ -434,4 +436,8 @@ void main()
     {
         outputColor.rgb = vVertexColorOut.rgb;
     }
+
+#if (D_OIT == 1)
+    outputColor = OitFinish(outputColor, vFragPosition);
+#endif
 }

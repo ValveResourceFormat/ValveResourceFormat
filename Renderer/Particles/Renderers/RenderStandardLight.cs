@@ -41,7 +41,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             UpdateLight(light, ref particle, systemState);
         }
 
-        public override void Render(ParticleCollection particles, ParticleSystemState systemState, Camera camera)
+        public override void Render(ParticleCollection particles, ParticleSystemState systemState, Camera camera, bool orderIndependent)
         {
             // Light rendering is handled externally by the scene/light system.
         }

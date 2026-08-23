@@ -27,6 +27,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         private const int MaxTessellationLevel = 7;
 
         private readonly Shader shader;
+        private readonly Shader orderIndependentShader;
         private readonly RendererContext rendererContext;
         private readonly int vaoHandle;
         private readonly int vertexBufferHandle;
@@ -103,6 +104,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             (layers, var textureName) = ParticleTextureLayer.Build(parse, rendererContext, DefaultTextureName, srgbRead: OutputIsColor);
 
             shader = rendererContext.ShaderLoader.LoadShader(ShaderName, ("S_TEXTURE_LAYERS", (byte)(layers.Length - 1)));
+            orderIndependentShader = shader.WithCombo(Shader.OrderIndependentCombo, 1, blocking: false);
             (vaoHandle, vertexBufferHandle) = SetupQuadBuffer($"{nameof(RenderRopes)}: {System.IO.Path.GetFileName(textureName)}");
 
             orientationType = parse.Enum("m_nOrientationType", orientationType);
@@ -633,7 +635,9 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         }
 
         /// <inheritdoc/>
-        public override void Render(ParticleCollection particleBag, ParticleSystemState systemState, Camera camera)
+        public override bool DrawsOrderIndependent => SpritecardDrawsOrderIndependent(blendMode);
+
+        public override void Render(ParticleCollection particleBag, ParticleSystemState systemState, Camera camera, bool orderIndependent)
         {
             if (particleBag.Count < 2)
             {
@@ -645,7 +649,9 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                 return;
             }
 
-            using var _ = SpritecardStateScope(GraphicsContext.RenderState, blendMode, drawAsOpaque);
+            using var _ = SpritecardStateScope(GraphicsContext.RenderState, blendMode, orderIndependent, drawAsOpaque);
+
+            var shader = orderIndependent ? orderIndependentShader : this.shader;
 
             shader.Use();
             VertexArray.Bind(vaoHandle, shader);

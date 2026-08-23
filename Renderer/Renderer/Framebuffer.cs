@@ -50,9 +50,20 @@ public class Framebuffer
     public RenderTexture? Color { get; protected set; }
 
     /// <summary>
+    /// Color attachments past the first, in attachment order, for shaders with several outputs. See <see cref="ExtraColorFormats"/>.
+    /// </summary>
+    public RenderTexture[] ExtraColors { get; private set; } = [];
+
+    /// <summary>
     /// Depth attachment texture, or <see langword="null"/> if none.
     /// </summary>
     public RenderTexture? Depth { get; protected set; }
+
+    /// <summary>
+    /// Depth texture owned by another framebuffer that this one tests against, or <see langword="null"/> when
+    /// it has its own. Set with <see cref="ShareDepth"/>.
+    /// </summary>
+    public RenderTexture? SharedDepth { get; private set; }
 
     /// <summary>Number of layers of the depth attachment. More than one allocates it as a texture array; use <see cref="AttachDepthLayer"/> to select the layer rendering writes to.</summary>
     public int DepthLayers { get; set; } = 1;
@@ -62,6 +73,11 @@ public class Framebuffer
     /// Pixel format of the color attachment.
     /// </summary>
     public ImageFormat? ColorFormat { get; protected set; }
+
+    /// <summary>
+    /// Pixel formats of the color attachments past the first, in attachment order.
+    /// </summary>
+    public ImageFormat[] ExtraColorFormats { get; protected set; } = [];
 
     /// <summary>
     /// Pixel format of the depth attachment.
@@ -179,13 +195,15 @@ public class Framebuffer
     /// <param name="msaa">Number of MSAA samples; 0 disables multisampling.</param>
     /// <param name="colorFormat">Color attachment format, or <see langword="null"/> for depth-only.</param>
     /// <param name="depthFormat">Depth attachment format, or <see langword="null"/> for color-only.</param>
-    public static Framebuffer Prepare(string name, int width, int height, int msaa, ImageFormat? colorFormat, ImageFormat? depthFormat)
+    /// <param name="extraColorFormats">Formats of further color attachments, for shaders with several outputs.</param>
+    public static Framebuffer Prepare(string name, int width, int height, int msaa, ImageFormat? colorFormat, ImageFormat? depthFormat, params ImageFormat[] extraColorFormats)
     {
         var fbo = new Framebuffer(name)
         {
             NumSamples = msaa,
             Target = TargetForSampleCount(msaa),
             ColorFormat = colorFormat,
+            ExtraColorFormats = extraColorFormats,
             DepthFormat = depthFormat,
             Width = width,
             Height = height,
@@ -281,6 +299,11 @@ public class Framebuffer
         Color?.Delete();
         Depth?.Delete();
 
+        foreach (var extraColor in ExtraColors)
+        {
+            extraColor.Delete();
+        }
+
         var (width, height) = (Width, Height);
 
         if (ColorFormat is { } colorFormat)
@@ -289,6 +312,28 @@ public class Framebuffer
             Color.AttachToFramebuffer(this, FramebufferAttachment.ColorAttachment0, 0);
 
             ApplyColorSamplerState();
+        }
+
+        if (ExtraColorFormats.Length > 0)
+        {
+            ExtraColors = new RenderTexture[ExtraColorFormats.Length];
+            var drawBuffers = new DrawBuffersEnum[ExtraColorFormats.Length + 1];
+            drawBuffers[0] = DrawBuffersEnum.ColorAttachment0;
+
+            for (var i = 0; i < ExtraColorFormats.Length; i++)
+            {
+                var attachment = i + 1;
+                ExtraColors[i] = CreateAttachment(ExtraColorFormats[i], width, height, $"{Name}Color{attachment}");
+                ExtraColors[i].AttachToFramebuffer(this, FramebufferAttachment.ColorAttachment0 + attachment, 0);
+                drawBuffers[attachment] = DrawBuffersEnum.ColorAttachment0 + attachment;
+            }
+
+            GL.NamedFramebufferDrawBuffers(FboHandle, drawBuffers.Length, drawBuffers);
+        }
+
+        if (SharedDepth != null)
+        {
+            GL.NamedFramebufferTexture(FboHandle, FramebufferAttachment.DepthAttachment, SharedDepth.Handle, 0);
         }
 
         if (DepthFormat is { } depthFormat)
@@ -372,6 +417,24 @@ public class Framebuffer
         CreateAttachments();
     }
 
+    /// <summary>
+    /// Tests against another framebuffer's depth texture instead of allocating one. The owner must have the
+    /// same dimensions and sample count. Cheap to call every frame; the owner recreating its depth
+    /// attachment is picked up as a new texture.
+    /// </summary>
+    public void ShareDepth(RenderTexture depth)
+    {
+        Debug.Assert(DepthFormat == null, "A framebuffer with its own depth attachment cannot share another one");
+
+        if (ReferenceEquals(SharedDepth, depth))
+        {
+            return;
+        }
+
+        SharedDepth = depth;
+        GL.NamedFramebufferTexture(FboHandle, FramebufferAttachment.DepthAttachment, depth.Handle, 0);
+    }
+
     /// <summary>Attaches a specific layer of the layered depth texture to the depth attachment point.</summary>
     /// <param name="layer">Zero-based layer to attach.</param>
     public void AttachDepthLayer(int layer)
@@ -415,6 +478,11 @@ public class Framebuffer
         if (Color != null)
         {
             GL.DeleteTexture(Color.Handle);
+        }
+
+        foreach (var extraColor in ExtraColors)
+        {
+            GL.DeleteTexture(extraColor.Handle);
         }
 
         if (Depth != null)

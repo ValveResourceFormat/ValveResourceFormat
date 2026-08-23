@@ -162,6 +162,18 @@ namespace ValveResourceFormat.Renderer.Materials
         /// <summary>Gets whether this material can perform early depth priming and then shade with Equal comparison.</summary>
         public bool CanPrimeDepth => !hasDepthBias && !IsOverlay && !disableDepthTest;
 
+        /// <summary>
+        /// Gets the shader variant that draws into the order independent transparency targets, or
+        /// <see langword="null"/> when the blend multiplies the scene or the shader has no such outputs.
+        /// </summary>
+        public Shader? OrderIndependentShader { get; private set; }
+
+        /// <summary>
+        /// Gets a value indicating whether translucent draws with this material can go through order independent
+        /// transparency, which overlays never do.
+        /// </summary>
+        public bool SupportsOrderIndependentTransparency => OrderIndependentShader != null && !IsOverlay;
+
         private readonly MaterialLoader? Loader;
 
         private Globals? globals;
@@ -241,6 +253,11 @@ namespace ValveResourceFormat.Renderer.Materials
             }
 
             Shader = rendererContext.ShaderLoader.LoadShader(ShaderName, combinedShaderParameters, blocking: false);
+
+            if (blendMode is BlendMode.Translucent or BlendMode.Additive && Shader.DeclaresCombo(Shader.OrderIndependentCombo))
+            {
+                OrderIndependentShader = Shader.WithCombo(Shader.OrderIndependentCombo, 1, blocking: false);
+            }
 
             SortId = GetSortId();
         }
@@ -871,8 +888,9 @@ namespace ValveResourceFormat.Renderer.Materials
                 // harder alpha cutout on top of the one the shader already does.
                 state.Blend.AlphaToCoverageEnable = state.Rasterizer.MultisampleEnable;
             }
-            else if (blendMode >= BlendMode.Translucent)
+            else if (blendMode >= BlendMode.Translucent && !passState.Blend.IndependentBlendEnable)
             {
+                // A pass that blends per render target owns the blend state
                 if (IsOverlay)
                 {
                     state.BlendEnable = true;

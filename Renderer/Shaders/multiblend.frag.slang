@@ -36,7 +36,9 @@ in vec2 vTexCoord1Out;
     in vec2 vTexCoord3Out;
 #endif
 
-out vec4 outputColor;
+layout(location = 0) out vec4 outputColor;
+
+#include "common/oit.slang"
 
 uniform sampler2D g_tColor0; // SrgbRead(true)
 uniform sampler2D g_tColor1; // SrgbRead(true)
@@ -258,5 +260,9 @@ void main()
     {
         outputColor = vec4(PackToColor(finalBumpNormal), 1.0);
     }
+#endif
+
+#if (D_OIT == 1)
+    outputColor = OitFinish(outputColor, vFragPosition);
 #endif
 }

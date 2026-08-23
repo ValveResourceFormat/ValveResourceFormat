@@ -99,6 +99,11 @@ namespace ValveResourceFormat.Renderer
             {
                 requests.Sort(CompareCameraDistance);
             }
+            else if (context.RenderPass == RenderPass.TranslucentOrderIndependent)
+            {
+                // Order does not matter here, so batch by program
+                requests.Sort(CompareCustomPipeline);
+            }
 
             BindReservedTextures(context);
 
@@ -166,6 +171,11 @@ namespace ValveResourceFormat.Renderer
                     ?? overdraw.WithSkinning(mesh.ActiveSkinning).WithAlphaTest(material.IsAlphaTest);
             }
 
+            if (context.RenderPass == RenderPass.TranslucentOrderIndependent)
+            {
+                return material.OrderIndependentShader!;
+            }
+
             return material.Shader;
         }
 
@@ -189,7 +199,7 @@ namespace ValveResourceFormat.Renderer
             {
                 if (request.Call == null)
                 {
-                    if (context.RenderPass is RenderPass.Opaque or RenderPass.Translucent or RenderPass.Outline or RenderPass.DepthOnly)
+                    if (context.RenderPass is RenderPass.Opaque or RenderPass.Translucent or RenderPass.TranslucentOrderIndependent or RenderPass.Outline or RenderPass.DepthOnly)
                     {
                         material?.PostRender();
 

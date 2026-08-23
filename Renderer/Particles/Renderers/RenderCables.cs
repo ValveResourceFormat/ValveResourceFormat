@@ -233,7 +233,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             }
         }
 
-        public override void Render(ParticleCollection particles, ParticleSystemState systemState, Camera camera)
+        public override void Render(ParticleCollection particles, ParticleSystemState systemState, Camera camera, bool orderIndependent)
         {
             DrawTube(shader);
         }

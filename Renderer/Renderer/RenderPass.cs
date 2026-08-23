@@ -19,10 +19,34 @@ namespace ValveResourceFormat.Renderer
         OpaqueRefract,
         /// <summary>Water surface pass.</summary>
         Water,
-        /// <summary>Translucent (alpha-blended) pass.</summary>
+        /// <summary>Translucent (alpha-blended) pass, sorted back to front on the scene.</summary>
         Translucent,
+        /// <summary>
+        /// Translucent draws accumulated into the order independent transparency targets in any order.
+        /// Filled only while <see cref="Scene.OrderIndependentTransparency"/> is on.
+        /// </summary>
+        TranslucentOrderIndependent,
         /// <summary>Selection outline pass.</summary>
         Outline,
+    }
+
+    /// <summary>
+    /// Which of its translucent draws a node that draws itself should make in a translucent pass, when the
+    /// translucent layer is split between the scene target and the order independent transparency targets.
+    /// </summary>
+    public enum TranslucentDrawSet
+    {
+        /// <summary>Every translucent draw, sorted back to front on the scene target.</summary>
+        All,
+
+        /// <summary>
+        /// Draws that have to blend straight onto the scene, in order: blends that multiply the scene
+        /// color, and anything without order independent outputs.
+        /// </summary>
+        Direct,
+
+        /// <summary>Draws accumulated into the order independent transparency targets, in any order.</summary>
+        OrderIndependent,
     }
 
     /// <summary>
@@ -65,6 +89,13 @@ namespace ValveResourceFormat.Renderer
 
         /// <summary>Draws in <see cref="RenderPass.DepthOnly"/> too, and so casts a shadow.</summary>
         DepthOnly = 1 << 4,
+
+        /// <summary>
+        /// Some of the node's translucent draws can go into the order independent transparency targets.
+        /// The node is then also drawn in <see cref="RenderPass.TranslucentOrderIndependent"/>, and reads
+        /// <see cref="Scene.RenderContext.TranslucentDrawSet"/> to draw each of its parts in the set it belongs to.
+        /// </summary>
+        OrderIndependentTranslucent = 1 << 5,
 
         /// <summary>Draws in the opaque and translucent passes, the default for a node that draws itself.</summary>
         Default = Opaque | Translucent,

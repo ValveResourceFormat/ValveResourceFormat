@@ -14,7 +14,9 @@ in vec3 vBitangentOut;
 in vec2 vTexCoordOut;
 centroid in vec4 vVertexColorOut;
 
-out vec4 outputColor;
+layout(location = 0) out vec4 outputColor;
+
+#include "common/oit.slang"
 
 #define unlit (F_UNLIT == 1)
 #define alphatest (F_ALPHA_TEST == 1)
@@ -92,4 +94,8 @@ void main()
 
     ApplyFog(outputColor.rgb, mat.PositionWS);
 
+
+#if (D_OIT == 1)
+    outputColor = OitFinish(outputColor, vFragPosition);
+#endif
 }

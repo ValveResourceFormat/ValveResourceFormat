@@ -72,6 +72,9 @@ namespace ValveResourceFormat.Renderer
             /// <summary>Gets or sets which layer the pass is drawing into.</summary>
             public RenderLayer Layer { get; set; }
 
+            /// <summary>Gets or sets which of its translucent draws a node that draws itself should make in this pass.</summary>
+            public TranslucentDrawSet TranslucentDrawSet { get; set; }
+
             /// <summary>Gets or sets an optional shader that overrides per-material shaders for this pass.</summary>
             public Shader? ReplacementShader { get; set; }
 
@@ -976,8 +979,18 @@ namespace ValveResourceFormat.Renderer
             [RenderPass.OpaqueRefract] = [],
             [RenderPass.Water] = [],
             [RenderPass.Translucent] = [],
+            [RenderPass.TranslucentOrderIndependent] = [],
             [RenderPass.Outline] = [],
         };
+
+        /// <summary>
+        /// Gets or sets whether translucent draws that can go through order independent transparency are
+        /// collected into <see cref="RenderPass.TranslucentOrderIndependent"/> instead of <see cref="RenderPass.Translucent"/>.
+        /// </summary>
+        public bool OrderIndependentTransparency { get; set; }
+
+        /// <summary>Gets whether anything is queued for the order independent transparency targets this frame.</summary>
+        public bool HasOrderIndependentDraws => renderLists[RenderPass.TranslucentOrderIndependent].Count > 0;
 
         /// <summary>
         /// Draw calls for first-person layer geometry.
@@ -1066,6 +1079,11 @@ namespace ValveResourceFormat.Renderer
                     : RenderPass.OpaqueRefract];
 
                 isLatePass = true;
+            }
+            else if (isLatePass && !isViewmodelLayer && OrderIndependentTransparency && request.Call.Material.SupportsOrderIndependentTransparency)
+            {
+                queueList = renderLists[RenderPass.TranslucentOrderIndependent];
+                WantsSceneDepth = true;
             }
 
             // Not the ones rerouted above: those draw after the framebuffer grab, past every depth pass
@@ -1239,6 +1257,12 @@ namespace ValveResourceFormat.Renderer
                     if ((customPasses & CustomRenderPasses.Translucent) != 0)
                     {
                         customLists[RenderPass.Translucent].Add(customRender);
+
+                        if (OrderIndependentTransparency && (customPasses & CustomRenderPasses.OrderIndependentTranslucent) != 0)
+                        {
+                            renderLists[RenderPass.TranslucentOrderIndependent].Add(customRender);
+                            WantsSceneDepth = true;
+                        }
                     }
 
                     if ((customPasses & CustomRenderPasses.WaterEffects) != 0)
@@ -1855,7 +1879,23 @@ namespace ValveResourceFormat.Renderer
             using (new GLDebugGroup("Translucent Render"))
             {
                 renderContext.RenderPass = RenderPass.Translucent;
+                renderContext.TranslucentDrawSet = OrderIndependentTransparency ? TranslucentDrawSet.Direct : TranslucentDrawSet.All;
                 MeshBatchRenderer.Render(renderLists[RenderPass.Translucent], renderContext);
+            }
+        }
+
+        /// <summary>
+        /// Renders the translucent draw calls collected for the order independent transparency targets. Call
+        /// with those targets bound and their blend state forced, or with a replacement shader.
+        /// </summary>
+        /// <param name="renderContext">The render context for this pass.</param>
+        public void RenderOrderIndependentTranslucentLayer(RenderContext renderContext)
+        {
+            using (new GLDebugGroup("Order Independent Translucent Render"))
+            {
+                renderContext.RenderPass = RenderPass.TranslucentOrderIndependent;
+                renderContext.TranslucentDrawSet = TranslucentDrawSet.OrderIndependent;
+                MeshBatchRenderer.Render(renderLists[RenderPass.TranslucentOrderIndependent], renderContext);
             }
         }
 

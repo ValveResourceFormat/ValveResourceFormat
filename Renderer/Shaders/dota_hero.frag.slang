@@ -30,7 +30,9 @@ in vec3 vBitangentOut;
 in vec2 vTexCoordOut;
 flat in vec4 vTintColorFadeOut;
 
-out vec4 outputColor;
+layout(location = 0) out vec4 outputColor;
+
+#include "common/oit.slang"
 
 uniform float g_flAlphaTestReference;
 uniform sampler2D g_tColor;
@@ -192,5 +194,9 @@ void main()
     {
         outputColor = vec4(mask2.rgb, 1.0);
     }
+#endif
+
+#if (D_OIT == 1)
+    outputColor = OitFinish(outputColor, vFragPosition);
 #endif
 }

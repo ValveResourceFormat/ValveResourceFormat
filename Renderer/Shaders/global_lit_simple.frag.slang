@@ -37,7 +37,9 @@ in vec2 vTexCoordOut;
 #endif
 flat in vec4 vTintColorFadeOut;
 
-out vec4 outputColor;
+layout(location = 0) out vec4 outputColor;
+
+#include "common/oit.slang"
 
 #if (F_SOLID_COLOR == 0)
     uniform sampler2D g_tColor; // SrgbRead(true)
@@ -209,5 +211,9 @@ void main()
     {
         outputColor = vVertexColorOut;
     }
+#endif
+
+#if (D_OIT == 1)
+    outputColor = OitFinish(outputColor, vFragPosition);
 #endif
 }

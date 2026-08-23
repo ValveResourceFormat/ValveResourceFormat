@@ -656,12 +656,12 @@ namespace ValveResourceFormat.Renderer.SceneNodes
                 return;
             }
 
-            if (context.RenderPass is not (RenderPass.Opaque or RenderPass.Translucent or RenderPass.DepthOnly))
+            if (context.RenderPass is not (RenderPass.Opaque or RenderPass.Translucent or RenderPass.TranslucentOrderIndependent or RenderPass.DepthOnly))
             {
                 return;
             }
 
-            particleRenderer.Render(context.Camera, context.RenderPass, context.Layer == RenderLayer.WaterEffects);
+            particleRenderer.Render(context.Camera, context.RenderPass, context.Layer == RenderLayer.WaterEffects, context.TranslucentDrawSet);
         }
 
         /// <inheritdoc/>

@@ -119,11 +119,17 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         /// its own factors, while everything else composites premultiplied. Both faces are drawn,
         /// since a card or ribbon can turn either one toward the camera.
         /// </summary>
-        protected static RenderPassScope SpritecardStateScope(RenderStateTracker renderState, ParticleBlendMode blendMode, bool opaque = false)
+        protected static RenderPassScope SpritecardStateScope(RenderStateTracker renderState, ParticleBlendMode blendMode, bool orderIndependent, bool opaque = false)
         {
             if (opaque)
             {
                 return renderState.Scope(cullMode: RsCullMode.None);
+            }
+
+            // A pass that blends per render target owns the blend state
+            if (orderIndependent)
+            {
+                return renderState.Scope(depthWrite: false, cullMode: RsCullMode.None);
             }
 
             var mod2x = blendMode == ParticleBlendMode.PARTICLE_OUTPUT_BLEND_MODE_MOD2X;
@@ -155,6 +161,16 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         public RenderPass Pass { get; protected set; } = RenderPass.Translucent;
 
         /// <summary>
+        /// Whether this renderer's translucent draws can go into the order independent transparency
+        /// targets. A draw that multiplies the scene color cannot.
+        /// </summary>
+        public virtual bool DrawsOrderIndependent => false;
+
+        /// <summary>Whether a spritecard style renderer with this blend mode draws order independently.</summary>
+        protected bool SpritecardDrawsOrderIndependent(ParticleBlendMode blendMode)
+            => Pass == RenderPass.Translucent && blendMode != ParticleBlendMode.PARTICLE_OUTPUT_BLEND_MODE_MOD2X;
+
+        /// <summary>
         /// The scene node the system this belongs to renders under, when it was created for one.
         /// Set by the system renderer; renderers that light themselves read its bindings through it.
         /// </summary>
@@ -179,7 +195,13 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         {
         }
 
-        public abstract void Render(ParticleCollection particles, ParticleSystemState systemState, Camera camera);
+        /// <summary>Draws the particles.</summary>
+        /// <param name="particles">The particles to draw.</param>
+        /// <param name="systemState">The state of the system being drawn.</param>
+        /// <param name="camera">The camera to draw for.</param>
+        /// <param name="orderIndependent">Whether the draw goes into the order independent transparency
+        /// targets, with their blend state and shader outputs, rather than onto the scene.</param>
+        public abstract void Render(ParticleCollection particles, ParticleSystemState systemState, Camera camera, bool orderIndependent);
 
         /// <summary>Whether this renderer draws itself into <see cref="RenderPass.DepthOnly"/>. Set alongside <see cref="Pass"/>.</summary>
         public bool CanRenderDepth { get; protected set; }

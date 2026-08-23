@@ -28,6 +28,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
 
         // Quad corners in ring order, matching the winding of the shared quad index buffer
         private readonly Shader shader;
+        private readonly Shader orderIndependentShader;
         private readonly RendererContext rendererContext;
         private readonly int vaoHandle;
         private readonly int vertexBufferHandle;
@@ -78,6 +79,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             shader = rendererContext.ShaderLoader.LoadShader(ShaderName,
                 ("S_TEXTURE_LAYERS", (byte)(layers.Length - 1)),
                 ("S_PARTICLE_INSTANCED", (byte)2));
+            orderIndependentShader = shader.WithCombo(Shader.OrderIndependentCombo, 1, blocking: false);
 
             instanceLayout = BuildInstanceLayout(layers.Length);
 
@@ -438,7 +440,9 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             quadCount = particles.Count == 0 ? 0 : UpdateVertices(particles, systemState, camera);
         }
 
-        public override void Render(ParticleCollection particleBag, ParticleSystemState systemState, Camera camera)
+        public override bool DrawsOrderIndependent => SpritecardDrawsOrderIndependent(blendMode);
+
+        public override void Render(ParticleCollection particleBag, ParticleSystemState systemState, Camera camera, bool orderIndependent)
         {
             if (particleBag.Count == 0)
             {
@@ -450,7 +454,9 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                 return;
             }
 
-            using var _ = SpritecardStateScope(GraphicsContext.RenderState, blendMode);
+            using var _ = SpritecardStateScope(GraphicsContext.RenderState, blendMode, orderIndependent);
+
+            var shader = orderIndependent ? orderIndependentShader : this.shader;
 
             shader.Use();
             VertexArray.Bind(vaoHandle, shader);

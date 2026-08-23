@@ -86,7 +86,9 @@ in float vFrameBlendOut;
 in vec4 vColor;
 in vec3 vFragPosition;
 
-out vec4 fragColor;
+layout(location = 0) out vec4 fragColor;
+
+#include "common/oit.slang"
 
 // GLSL cannot return an opaque texture, so the per-layer choice happens at the fetch itself.
 vec4 SampleLayer(int layer, vec2 uv)
@@ -353,4 +355,15 @@ void main(void) {
     {
         fragColor = vec4(finalColor, 1.0);
     }
+
+#if (D_OIT == 1)
+    if (uBlendMode == PARTICLE_OUTPUT_BLEND_MODE_ADD)
+    {
+        fragColor = OitOutputAdditive(fragColor.rgb, vFragPosition);
+    }
+    else
+    {
+        fragColor = OitOutput(fragColor.rgb, fragColor.a, vFragPosition);
+    }
+#endif
 }

@@ -414,18 +414,51 @@ namespace ValveResourceFormat.Renderer
         }
 
         // Alpha factors and blend ops are not applied yet; the renderer always blends with the
-        // color factors and the add operation.
+        // color factors and the add operation. The color write mask is shared by every target.
         private static void ApplyBlend(in RsBlendStateDesc blend, in RsBlendStateDesc prev, bool pushEverything)
         {
-            if (pushEverything || blend.BlendEnable[0] != prev.BlendEnable[0])
-            {
-                SetEnabled(EnableCap.Blend, blend.BlendEnable[0]);
-            }
+            // The indexed calls leave each target with its own state, so the shared calls have to be repeated
+            var pushShared = pushEverything || (prev.IndependentBlendEnable && !blend.IndependentBlendEnable);
 
-            if (pushEverything || blend.SrcBlend[0] != prev.SrcBlend[0] || blend.DestBlend[0] != prev.DestBlend[0])
+            if (blend.IndependentBlendEnable)
             {
-                CountDriverCall();
-                GL.BlendFunc(ToGL(blend.SrcBlend[0]), ToGL(blend.DestBlend[0]));
+                var pushIndexed = pushEverything || !prev.IndependentBlendEnable;
+
+                for (var rt = 0; rt < RsBlendStateDesc.MaxRenderTargets; rt++)
+                {
+                    if (pushIndexed || blend.BlendEnable[rt] != prev.BlendEnable[rt])
+                    {
+                        CountDriverCall();
+
+                        if (blend.BlendEnable[rt])
+                        {
+                            GL.Enable(IndexedEnableCap.Blend, rt);
+                        }
+                        else
+                        {
+                            GL.Disable(IndexedEnableCap.Blend, rt);
+                        }
+                    }
+
+                    if (pushIndexed || blend.SrcBlend[rt] != prev.SrcBlend[rt] || blend.DestBlend[rt] != prev.DestBlend[rt])
+                    {
+                        CountDriverCall();
+                        GL.BlendFunc(rt, (BlendingFactorSrc)ToGL(blend.SrcBlend[rt]), (BlendingFactorDest)ToGL(blend.DestBlend[rt]));
+                    }
+                }
+            }
+            else
+            {
+                if (pushShared || blend.BlendEnable[0] != prev.BlendEnable[0])
+                {
+                    SetEnabled(EnableCap.Blend, blend.BlendEnable[0]);
+                }
+
+                if (pushShared || blend.SrcBlend[0] != prev.SrcBlend[0] || blend.DestBlend[0] != prev.DestBlend[0])
+                {
+                    CountDriverCall();
+                    GL.BlendFunc(ToGL(blend.SrcBlend[0]), ToGL(blend.DestBlend[0]));
+                }
             }
 
             if (pushEverything || blend.AlphaToCoverageEnable != prev.AlphaToCoverageEnable)

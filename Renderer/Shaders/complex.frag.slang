@@ -59,6 +59,7 @@
 #define F_UNLIT 0 // debugoverlay_wireframe, generic, pbr, tools_solid, tools_wireframe, vr_complex, vr_simple, vr_standard, vr_substance_painter
 #define F_ALPHA_TEST 0 // most shaders
 #define F_TRANSLUCENT 0 // most shaders
+#define F_ADDITIVE_BLEND 0 // most shaders
 #define F_BLEND_MODE 0 // csgo_projected_decals, csgo_static_overlay, csgo_unlitgeneric, vr_projected_decals, vr_static_overlay
 #define F_GLASS 0 // complex, pbr, vr_standard
 uniform int F_DISABLE_TONE_MAPPING; // vr_complex
@@ -104,12 +105,14 @@ centroid in vec4 vVertexColorOut;
 #endif
 
 #if (S_MODE_DEPTH == 0) && (S_MODE_OVERDRAW == 0)
-    out vec4 outputColor;
+    layout(location = 0) out vec4 outputColor;
 #endif
 
 #if (S_MODE_OVERDRAW == 1)
     #include "common/quad_overdraw.slang"
 #endif
+
+#include "common/oit.slang"
 
 uniform sampler2D g_tBlueNoise; // reserved
 uniform sampler2D g_tColor; // SrgbRead(true) Sampler(UserConfig)
@@ -814,6 +817,10 @@ void main()
     {
         outputColor.rgb = vColorBlendValues.rgb;
     }
+#endif
+
+#if (D_OIT == 1)
+    outputColor = OitFinish(outputColor, vFragPosition);
 #endif
 }
 
