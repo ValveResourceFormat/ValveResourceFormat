@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Drawing;
 using System.Linq;
+using System.Text;
 using System.Windows.Forms;
 using GUI.Controls;
 using GUI.Utils;
@@ -32,13 +33,15 @@ namespace GUI.Types.GLViewers
             public override string ToString() => DisplayText;
         }
 
+        private sealed record LocatorEditState(Vector3 Position, Vector3 Angles, float Scale);
+        private sealed record SizerDragState(string Variable, float InitialValue, Vector2 ScreenDirection, float PixelsPerUnit, Point Start);
+
         private const int IdColumnWidth = 40;
         private const int ClassColumnWidth = 85;
 
         private readonly SmartProp smartProp;
         private readonly List<Resource> loadedResources = [];
         private readonly Dictionary<string, KVObject> nestedSmartProps = new(StringComparer.OrdinalIgnoreCase);
-
         private readonly List<SceneNode> locatorNodes = [];
         private readonly List<SceneNode> rotatorNodes = [];
         private readonly List<SceneNode> sizerNodes = [];
@@ -46,27 +49,41 @@ namespace GUI.Types.GLViewers
         private readonly List<SceneNode> pathNodes = [];
 
         private readonly Dictionary<int, List<(SmartPropEvaluatedModel Model, SceneNode Node)>> modelsByElementId = [];
-        private readonly Dictionary<int, List<(SmartPropPathInfo Path, SceneNode Node)>> pathsByElementId = [];
-        private readonly Dictionary<int, List<(SmartPropWidget Widget, SceneNode Node)>> widgetsByElementId = [];
+        private readonly Dictionary<int, List<(SmartPropPathInfo Path, SceneNode? Node)>> pathsByElementId = [];
+        private readonly Dictionary<int, List<(SmartPropWidget Widget, SceneNode? Node)>> widgetsByElementId = [];
         private readonly Dictionary<SceneNode, TreeNode> treeNodesBySceneNode = [];
+        private readonly Dictionary<int, KVObject> elementsByElementId = [];
+        private readonly List<SmartPropWidget> overlayWidgets = [];
 
         private TextBox? filterTextBox;
         private Panel? hierarchyHeader;
         private TreeViewDoubleBuffered? hierarchyTree;
         private DataGridView? inspectorGrid;
+        private TextBox? rawSelectionTextBox;
+        private CheckBox? showRawSelectionCheckBox;
+        private HierarchyNodeData? inspectorSelection;
         private Panel? variablesPanel;
         private Panel? choicesPanel;
         private DataGridView? choiceOverridesGrid;
-        private ThemedTabControl? topTabs;
-        private ThemedTabControl? bottomTabs;
-        private SplitContainer? contentSplitter;
-        private SplitContainer? sidebarSplitter;
+        public SplitContainer? StructureControl { get; private set; }
+        public SplitContainer? VariablesControl { get; private set; }
         private bool selectingFromViewport;
         private bool updatingVariablesUi;
+        private int? activePickOneElementId;
+        private int activePickOneChildCount;
+        private SmartPropWidget? activeWidget;
+        private bool draggingWidget;
+        private Point widgetDragPoint;
+        private float widgetDragInitialAngle;
+        private LocatorEditState? locatorDragInitialState;
+        private SizerDragState? sizerDragState;
         private readonly List<SmartPropChoice> choices = [];
         private readonly Dictionary<string, string> selectedChoices = new(StringComparer.OrdinalIgnoreCase);
         private readonly List<SmartPropVariableDefinition> variableDefinitions = [];
         private readonly Dictionary<string, object?> activeVariables = new(StringComparer.OrdinalIgnoreCase);
+        private readonly Dictionary<int, int> pickOneSelections = [];
+        private readonly Dictionary<string, float> widgetOutputValues = new(StringComparer.OrdinalIgnoreCase);
+        private readonly Dictionary<int, LocatorEditState> locatorEdits = [];
 
         public GLSmartPropViewer(VrfGuiContext vrfGuiContext, RendererContext rendererContext, SmartProp smartProp) : base(vrfGuiContext, rendererContext)
         {
@@ -98,7 +115,7 @@ namespace GUI.Types.GLViewers
         private void EvaluateScene()
         {
             SmartPropChoiceMap.ApplyChoices(activeVariables, choices, selectedChoices);
-            var context = new SmartPropEvaluationContext(activeVariables);
+            var context = new SmartPropEvaluationContext(activeVariables, pickOneSelections: pickOneSelections, widgetOutputValues: widgetOutputValues);
             var result = SmartPropEvaluator.Evaluate(
                 smartProp.Data.Root,
                 context: context,
@@ -107,6 +124,7 @@ namespace GUI.Types.GLViewers
             modelsByElementId.Clear();
             pathsByElementId.Clear();
             widgetsByElementId.Clear();
+            overlayWidgets.Clear();
 
             foreach (var model in result.Models)
             {
@@ -135,19 +153,25 @@ namespace GUI.Types.GLViewers
                 list.Add((path, node));
             }
 
-            foreach (var widget in result.Widgets)
+            foreach (var evaluatedWidget in result.Widgets)
             {
+                var widget = ApplyWidgetEdit(evaluatedWidget);
+                if (activeWidget != null && activeWidget.ElementId == widget.ElementId && activeWidget.GetType() == widget.GetType())
+                {
+                    activeWidget = widget;
+                }
                 var node = CreateWidgetSceneNode(widget);
+                if (node != null && !widgetsByElementId.TryGetValue(widget.ElementId, out var list))
+                {
+                    list = [];
+                    widgetsByElementId[widget.ElementId] = list;
+                }
+
                 if (node != null)
                 {
-                    if (!widgetsByElementId.TryGetValue(widget.ElementId, out var list))
-                    {
-                        list = [];
-                        widgetsByElementId[widget.ElementId] = list;
-                    }
-
-                    list.Add((widget, node));
+                    widgetsByElementId[widget.ElementId].Add((widget, node));
                 }
+                overlayWidgets.Add(widget);
             }
         }
 
@@ -157,63 +181,20 @@ namespace GUI.Types.GLViewers
 
             Debug.Assert(UiControl != null);
 
-            using (UiControl.BeginGroup("Widgets"))
+            using (UiControl.BeginGroup("Handles"))
             {
                 UiControl.AddCheckBox("Locators", true, v => ToggleNodes(locatorNodes, v));
                 UiControl.AddCheckBox("Rotators", true, v => ToggleNodes(rotatorNodes, v));
                 UiControl.AddCheckBox("Sizers", true, v => ToggleNodes(sizerNodes, v));
                 UiControl.AddCheckBox("PickOne Handles", true, v => ToggleNodes(pickOneNodes, v));
+            }
+
+            using (UiControl.BeginGroup("Draw help widgets"))
+            {
                 UiControl.AddCheckBox("Paths", true, v => ToggleNodes(pathNodes, v));
             }
 
             BuildSidebarControls();
-
-            sidebarSplitter = new SplitContainer();
-            ((System.ComponentModel.ISupportInitialize)sidebarSplitter).BeginInit();
-            sidebarSplitter.Panel1.SuspendLayout();
-            sidebarSplitter.Panel2.SuspendLayout();
-            sidebarSplitter.SuspendLayout();
-
-            sidebarSplitter.Dock = DockStyle.Fill;
-            sidebarSplitter.Orientation = Orientation.Horizontal;
-            sidebarSplitter.Panel1MinSize = 0;
-            sidebarSplitter.Panel2MinSize = 0;
-
-            sidebarSplitter.Panel1.Controls.Add(topTabs);
-            sidebarSplitter.Panel2.Controls.Add(bottomTabs);
-
-            sidebarSplitter.Panel1.ResumeLayout(false);
-            sidebarSplitter.Panel2.ResumeLayout(false);
-            ((System.ComponentModel.ISupportInitialize)sidebarSplitter).EndInit();
-            sidebarSplitter.ResumeLayout(false);
-
-            contentSplitter = new SplitContainer();
-            ((System.ComponentModel.ISupportInitialize)contentSplitter).BeginInit();
-            contentSplitter.Panel1.SuspendLayout();
-            contentSplitter.Panel2.SuspendLayout();
-            contentSplitter.SuspendLayout();
-
-            contentSplitter.Dock = DockStyle.Fill;
-            contentSplitter.Orientation = Orientation.Vertical;
-            contentSplitter.FixedPanel = FixedPanel.Panel1;
-            contentSplitter.Panel1MinSize = 0;
-            contentSplitter.Panel2MinSize = 0;
-
-            if (GLControl != null && UiControl.GLControlContainer.Controls.Contains(GLControl))
-            {
-                UiControl.GLControlContainer.Controls.Remove(GLControl);
-                contentSplitter.Panel1.Controls.Add(sidebarSplitter);
-                contentSplitter.Panel2.Controls.Add(GLControl);
-                UiControl.GLControlContainer.Controls.Add(contentSplitter);
-            }
-
-            contentSplitter.Panel1.ResumeLayout(false);
-            contentSplitter.Panel2.ResumeLayout(false);
-            ((System.ComponentModel.ISupportInitialize)contentSplitter).EndInit();
-            contentSplitter.ResumeLayout(false);
-
-            contentSplitter.SizeChanged += InitializeContentSplitterDistance;
-            sidebarSplitter.SizeChanged += InitializeSidebarSplitterDistance;
 
             PopulateHierarchyTree();
         }
@@ -223,15 +204,8 @@ namespace GUI.Types.GLViewers
 
         private void BuildSidebarControls()
         {
-            topTabs = new ThemedTabControl
-            {
-                Dock = DockStyle.Fill,
-            };
-
-            bottomTabs = new ThemedTabControl
-            {
-                Dock = DockStyle.Fill,
-            };
+            StructureControl = CreateSplitContainer();
+            VariablesControl = CreateSplitContainer();
 
             filterTextBox = new TextBox
             {
@@ -288,6 +262,24 @@ namespace GUI.Types.GLViewers
             inspectorGrid.Columns.Add("Property", "Property");
             inspectorGrid.Columns.Add("Value", "Value");
 
+            rawSelectionTextBox = new TextBox
+            {
+                Dock = DockStyle.Fill,
+                Multiline = true,
+                ReadOnly = true,
+                ScrollBars = ScrollBars.Both,
+                Visible = false,
+                WordWrap = false,
+            };
+
+            showRawSelectionCheckBox = new CheckBox
+            {
+                Dock = DockStyle.Top,
+                Height = 24,
+                Text = "Show raw selection",
+            };
+            showRawSelectionCheckBox.CheckedChanged += (_, _) => RefreshInspector();
+
             variablesPanel = new Panel
             {
                 Dock = DockStyle.Fill,
@@ -315,27 +307,54 @@ namespace GUI.Types.GLViewers
             choiceOverridesGrid.Columns.Add("Variable", "Variable");
             choiceOverridesGrid.Columns.Add("Value", "Value");
 
-            var hierarchyTab = new ThemedTabPage("Hierarchy");
-            hierarchyTab.Controls.Add(hierarchyTree);
-            hierarchyTab.Controls.Add(hierarchyHeader);
-            hierarchyTab.Controls.Add(filterTextBox);
-            topTabs.TabPages.Add(hierarchyTab);
+            StructureControl.Panel1.Controls.Add(hierarchyTree);
+            StructureControl.Panel1.Controls.Add(hierarchyHeader);
+            StructureControl.Panel1.Controls.Add(filterTextBox);
+            StructureControl.Panel1.Controls.Add(CreatePanelHeader("Hierarchy"));
 
-            var variablesTab = new ThemedTabPage("Variables");
-            variablesTab.Controls.Add(variablesPanel);
-            topTabs.TabPages.Add(variablesTab);
+            StructureControl.Panel2.Controls.Add(inspectorGrid);
+            StructureControl.Panel2.Controls.Add(rawSelectionTextBox);
+            StructureControl.Panel2.Controls.Add(showRawSelectionCheckBox);
+            StructureControl.Panel2.Controls.Add(CreatePanelHeader("Properties"));
 
-            var choicesTab = new ThemedTabPage("Choices");
-            choicesTab.Controls.Add(choicesPanel);
-            topTabs.TabPages.Add(choicesTab);
-
-            var inspectorTab = new ThemedTabPage("Properties");
-            inspectorTab.Controls.Add(inspectorGrid);
-            bottomTabs.TabPages.Add(inspectorTab);
+            VariablesControl.Panel1.Controls.Add(variablesPanel);
+            VariablesControl.Panel1.Controls.Add(CreatePanelHeader("Variables"));
+            VariablesControl.Panel2.Controls.Add(choicesPanel);
+            VariablesControl.Panel2.Controls.Add(CreatePanelHeader("Choices"));
 
             BuildVariablesUi();
             BuildChoicesUi();
         }
+
+        private static SplitContainer CreateSplitContainer()
+        {
+            var splitter = new SplitContainer
+            {
+                Dock = DockStyle.Fill,
+                Orientation = Orientation.Vertical,
+                Panel1MinSize = 0,
+                Panel2MinSize = 0,
+            };
+
+            splitter.SizeChanged += (_, _) =>
+            {
+                if (splitter.SplitterDistance == 0 && splitter.Width > splitter.SplitterWidth)
+                {
+                    splitter.SplitterDistance = (splitter.Width - splitter.SplitterWidth) / 2;
+                }
+            };
+
+            return splitter;
+        }
+
+        private static Label CreatePanelHeader(string text) => new()
+        {
+            Dock = DockStyle.Top,
+            Height = 24,
+            Padding = new Padding(6, 4, 0, 0),
+            Text = text,
+            ForeColor = Themer.CurrentThemeColors.Contrast,
+        };
 
         private void OnHierarchyHeaderPaint(object? sender, PaintEventArgs e)
         {
@@ -615,7 +634,6 @@ namespace GUI.Types.GLViewers
 
             loadedResources.Clear();
             nestedSmartProps.Clear();
-
             locatorNodes.Clear();
             rotatorNodes.Clear();
             sizerNodes.Clear();
@@ -623,6 +641,8 @@ namespace GUI.Types.GLViewers
             pathNodes.Clear();
 
             inspectorGrid?.Rows.Clear();
+            inspectorSelection = null;
+            rawSelectionTextBox?.Clear();
 
             EvaluateScene();
 
@@ -648,6 +668,7 @@ namespace GUI.Types.GLViewers
             hierarchyTree.BeginUpdate();
             hierarchyTree.Nodes.Clear();
             treeNodesBySceneNode.Clear();
+            elementsByElementId.Clear();
 
             PopulateElementHierarchy(
                 hierarchyTree.Nodes,
@@ -660,33 +681,6 @@ namespace GUI.Types.GLViewers
 
             hierarchyTree.ExpandAll();
             hierarchyTree.EndUpdate();
-        }
-
-        private void InitializeContentSplitterDistance(object? sender, EventArgs e)
-        {
-            var splitter = contentSplitter;
-            if (splitter == null || splitter.Width <= 400)
-            {
-                return;
-            }
-
-            // SizeChanged is only used to wait until WinForms has assigned real bounds.
-            splitter.SizeChanged -= InitializeContentSplitterDistance;
-            var maximum = splitter.Width - splitter.Panel2MinSize - splitter.SplitterWidth;
-            splitter.SplitterDistance = Math.Clamp(320, splitter.Panel1MinSize, maximum);
-        }
-
-        private void InitializeSidebarSplitterDistance(object? sender, EventArgs e)
-        {
-            var splitter = sidebarSplitter;
-            if (splitter == null || splitter.Height <= 200)
-            {
-                return;
-            }
-
-            splitter.SizeChanged -= InitializeSidebarSplitterDistance;
-            var maximum = splitter.Height - splitter.Panel2MinSize - splitter.SplitterWidth;
-            splitter.SplitterDistance = Math.Clamp(splitter.Height / 2, splitter.Panel1MinSize, maximum);
         }
 
         private ModelSceneNode? CreateModelSceneNode(SmartPropEvaluatedModel model)
@@ -753,6 +747,34 @@ namespace GUI.Types.GLViewers
             return node;
         }
 
+        private SmartPropWidget ApplyWidgetEdit(SmartPropWidget widget)
+        {
+            if (widget is not SmartPropLocatorWidget locator || !locatorEdits.TryGetValue(locator.ElementId, out var edit))
+            {
+                return widget;
+            }
+
+            var matrix = EntityTransformHelper.EulerAnglesToRotationMatrix(edit.Angles);
+            matrix.M11 *= edit.Scale;
+            matrix.M12 *= edit.Scale;
+            matrix.M13 *= edit.Scale;
+            matrix.M21 *= edit.Scale;
+            matrix.M22 *= edit.Scale;
+            matrix.M23 *= edit.Scale;
+            matrix.M31 *= edit.Scale;
+            matrix.M32 *= edit.Scale;
+            matrix.M33 *= edit.Scale;
+            matrix.Translation = edit.Position;
+
+            return locator with
+            {
+                WorldMatrix = matrix,
+                Position = edit.Position,
+                PitchYawRoll = edit.Angles,
+                DisplayScale = edit.Scale,
+            };
+        }
+
         private KVObject? LoadNestedSmartProp(string path)
         {
             if (nestedSmartProps.TryGetValue(path, out var root))
@@ -783,12 +805,13 @@ namespace GUI.Types.GLViewers
             variablesPanel.SuspendLayout();
             variablesPanel.Controls.Clear();
 
-            if (variableDefinitions.Count == 0)
+            var editorVariables = variableDefinitions.Where(variable => variable.ExposeAsParameter || IsWidgetOutputVariable(variable.Name)).ToList();
+            if (editorVariables.Count == 0)
             {
                 var emptyLabel = new Label
                 {
                     Dock = DockStyle.Fill,
-                    Text = "No configurable variables in this smart prop.",
+                    Text = "No editor-visible parameters in this smart prop.",
                     TextAlign = ContentAlignment.MiddleCenter,
                     ForeColor = Themer.CurrentThemeColors.ContrastSoft,
                 };
@@ -807,9 +830,9 @@ namespace GUI.Types.GLViewers
             table.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
             table.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
 
-            for (var i = 0; i < variableDefinitions.Count; i++)
+            for (var i = 0; i < editorVariables.Count; i++)
             {
-                var variable = variableDefinitions[i];
+                var variable = editorVariables[i];
                 var displayName = variable.DisplayName ?? variable.Name;
                 var varLabel = new Label
                 {
@@ -829,6 +852,11 @@ namespace GUI.Types.GLViewers
                     {
                         var min = (decimal)(variable.MinValue ?? -1000000);
                         var max = (decimal)(variable.MaxValue ?? 1000000);
+                        if (IsWidgetOutputVariable(variable.Name) && min == max)
+                        {
+                            min = -1000000;
+                            max = 1000000;
+                        }
                         var valInt = currentVal is int ci ? ci : (int)(currentVal is float cf ? cf : 0);
                         var num = new NumericUpDown
                         {
@@ -844,6 +872,7 @@ namespace GUI.Types.GLViewers
                             if (!updatingVariablesUi)
                             {
                                 activeVariables[variable.Name] = (int)num.Value;
+                                SetWidgetOutputValue(variable.Name, (float)num.Value);
                                 ReevaluateSmartProp(false);
                             }
                         };
@@ -855,6 +884,11 @@ namespace GUI.Types.GLViewers
                     {
                         var min = (decimal)(variable.MinValue ?? -1000000);
                         var max = (decimal)(variable.MaxValue ?? 1000000);
+                        if (IsWidgetOutputVariable(variable.Name) && min == max)
+                        {
+                            min = -1000000;
+                            max = 1000000;
+                        }
                         var valFloat = currentVal is float cf ? cf : (currentVal is int ci ? ci : 0f);
                         var num = new NumericUpDown
                         {
@@ -871,6 +905,7 @@ namespace GUI.Types.GLViewers
                             if (!updatingVariablesUi)
                             {
                                 activeVariables[variable.Name] = (float)num.Value;
+                                SetWidgetOutputValue(variable.Name, (float)num.Value);
                                 ReevaluateSmartProp(false);
                             }
                         };
@@ -1023,6 +1058,193 @@ namespace GUI.Types.GLViewers
             variablesPanel.ResumeLayout(false);
         }
 
+        private bool IsWidgetOutputVariable(string name)
+        {
+            foreach (var widgetList in widgetsByElementId.Values)
+            {
+                foreach (var (widget, _) in widgetList)
+                {
+                    if (widget is SmartPropRotatorWidget { OutputVariable.Length: > 0 } rotator
+                        && string.Equals(rotator.OutputVariable, name, StringComparison.OrdinalIgnoreCase))
+                    {
+                        return true;
+                    }
+
+                    if (widget is SmartPropPickOneHandleWidget { Name.Length: > 0 } pickOne
+                        && string.Equals(pickOne.Name, name, StringComparison.OrdinalIgnoreCase))
+                    {
+                        return true;
+                    }
+
+                    if (widget is SmartPropSizerWidget sizer
+                        && (string.Equals(sizer.MinXVariable, name, StringComparison.OrdinalIgnoreCase)
+                            || string.Equals(sizer.MaxXVariable, name, StringComparison.OrdinalIgnoreCase)
+                            || string.Equals(sizer.MinYVariable, name, StringComparison.OrdinalIgnoreCase)
+                            || string.Equals(sizer.MaxYVariable, name, StringComparison.OrdinalIgnoreCase)
+                            || string.Equals(sizer.MinZVariable, name, StringComparison.OrdinalIgnoreCase)
+                            || string.Equals(sizer.MaxZVariable, name, StringComparison.OrdinalIgnoreCase)))
+                    {
+                        return true;
+                    }
+                }
+            }
+
+            return false;
+        }
+
+        private void SetWidgetOutputValue(string name, float value)
+        {
+            if (IsWidgetOutputVariable(name))
+            {
+                widgetOutputValues[name] = value;
+            }
+        }
+
+        private void SetActiveVariableValue(string name, float value)
+        {
+            var definition = variableDefinitions.FirstOrDefault(variable => string.Equals(variable.Name, name, StringComparison.OrdinalIgnoreCase));
+            activeVariables[name] = definition?.Type == "Int" ? (int)MathF.Round(value) : value;
+        }
+
+        private SizerDragState? FindSizerHandle(SmartPropSizerWidget sizer, Point location)
+        {
+            var center = (sizer.MinBounds + sizer.MaxBounds) * 0.5f;
+            var bestDistance = float.MaxValue;
+            SizerDragState? best = null;
+
+            TryHandle(sizer.MinXVariable, new Vector3(sizer.MinBounds.X, center.Y, center.Z), Vector3.UnitX, sizer.MinBounds.X);
+            TryHandle(sizer.MaxXVariable, new Vector3(sizer.MaxBounds.X, center.Y, center.Z), Vector3.UnitX, sizer.MaxBounds.X);
+            TryHandle(sizer.MinYVariable, new Vector3(center.X, sizer.MinBounds.Y, center.Z), Vector3.UnitY, sizer.MinBounds.Y);
+            TryHandle(sizer.MaxYVariable, new Vector3(center.X, sizer.MaxBounds.Y, center.Z), Vector3.UnitY, sizer.MaxBounds.Y);
+            TryHandle(sizer.MinZVariable, new Vector3(center.X, center.Y, sizer.MinBounds.Z), Vector3.UnitZ, sizer.MinBounds.Z);
+            TryHandle(sizer.MaxZVariable, new Vector3(center.X, center.Y, sizer.MaxBounds.Z), Vector3.UnitZ, sizer.MaxBounds.Z);
+            return bestDistance <= 18f ? best : null;
+
+            void TryHandle(string variable, Vector3 localPosition, Vector3 localAxis, float initialValue)
+            {
+                if (variable.Length == 0)
+                {
+                    return;
+                }
+
+                var worldPosition = SmartPropTransform.TransformPoint(sizer.WorldMatrix, localPosition);
+                var worldAxis = Vector3.TransformNormal(localAxis, sizer.WorldMatrix);
+                if (worldAxis.LengthSquared() < 1e-8f)
+                {
+                    return;
+                }
+
+                worldAxis = Vector3.Normalize(worldAxis);
+                if (!TryProject(worldPosition, out var screenPosition)
+                    || !TryProject(worldPosition + worldAxis, out var axisScreenPosition))
+                {
+                    return;
+                }
+
+                var screenAxis = axisScreenPosition - screenPosition;
+                var pixelsPerUnit = screenAxis.Length();
+                if (pixelsPerUnit < 0.01f)
+                {
+                    return;
+                }
+
+                var distance = Vector2.Distance(screenPosition, new Vector2(location.X, location.Y));
+                if (distance >= bestDistance)
+                {
+                    return;
+                }
+
+                bestDistance = distance;
+                best = new SizerDragState(variable, initialValue, screenAxis / pixelsPerUnit, pixelsPerUnit, location);
+            }
+        }
+
+        private bool TryProject(Vector3 worldPosition, out Vector2 screenPosition)
+        {
+            var clip = Vector4.Transform(new Vector4(worldPosition, 1f), Input.Camera.ViewProjectionMatrix);
+            if (clip.W <= 0.0001f || GLControl == null)
+            {
+                screenPosition = default;
+                return false;
+            }
+
+            var ndc = new Vector2(clip.X, clip.Y) / clip.W;
+            screenPosition = new Vector2(
+                (ndc.X + 1f) * GLControl.ClientSize.Width * 0.5f,
+                (1f - ndc.Y) * GLControl.ClientSize.Height * 0.5f);
+            return true;
+        }
+
+        private SmartPropWidget? FindOverlayWidget(Point location)
+        {
+            var mouse = new Vector2(location.X, location.Y);
+            SmartPropWidget? best = null;
+            var bestDistance = float.MaxValue;
+
+            for (var i = overlayWidgets.Count - 1; i >= 0; i--)
+            {
+                var widget = overlayWidgets[i];
+                if (!IsOverlayWidgetVisible(widget) || !TryProject(widget.Position, out var center))
+                {
+                    continue;
+                }
+
+                var distance = widget switch
+                {
+                    SmartPropPickOneHandleWidget => Vector2.Distance(mouse, center),
+                    SmartPropLocatorWidget => Vector2.Distance(mouse, center),
+                    SmartPropRotatorWidget rotator => DistanceToRotator(mouse, center, rotator),
+                    SmartPropSizerWidget sizer => FindSizerHandle(sizer, location) != null ? 0f : float.MaxValue,
+                    _ => float.MaxValue,
+                };
+
+                var tolerance = widget switch
+                {
+                    SmartPropPickOneHandleWidget => 22f,
+                    SmartPropLocatorWidget => 32f,
+                    SmartPropRotatorWidget => 14f,
+                    SmartPropSizerWidget => 1f,
+                    _ => 0f,
+                };
+
+                if (distance <= tolerance && distance < bestDistance)
+                {
+                    best = widget;
+                    bestDistance = distance;
+                }
+            }
+
+            return best;
+        }
+
+        private bool IsOverlayWidgetVisible(SmartPropWidget widget)
+            => widget switch
+            {
+                SmartPropLocatorWidget => locatorNodes.Count > 0 && locatorNodes[0].LayerEnabled,
+                SmartPropRotatorWidget => rotatorNodes.Count > 0 && rotatorNodes[0].LayerEnabled,
+                SmartPropSizerWidget => sizerNodes.Count > 0 && sizerNodes[0].LayerEnabled,
+                SmartPropPickOneHandleWidget => pickOneNodes.Count > 0 && pickOneNodes[0].LayerEnabled,
+                _ => false,
+            };
+
+        private float DistanceToRotator(Vector2 mouse, Vector2 center, SmartPropRotatorWidget rotator)
+        {
+            var axis = Vector3.Normalize(rotator.Axis);
+            var radial = Vector3.Cross(axis, Input.Camera.Forward);
+            if (radial.LengthSquared() < 1e-8f)
+            {
+                radial = Vector3.Cross(axis, Input.Camera.Up);
+            }
+            if (radial.LengthSquared() < 1e-8f
+                || !TryProject(rotator.Position + (Vector3.Normalize(radial) * rotator.Radius), out var rim))
+            {
+                return float.MaxValue;
+            }
+
+            var radius = Vector2.Distance(center, rim);
+            return MathF.Abs(Vector2.Distance(mouse, center) - radius);
+        }
+
         private static string FormatObjectValue(object? value) => value switch
         {
             null => "<unset>",
@@ -1036,22 +1258,22 @@ namespace GUI.Types.GLViewers
             TreeNodeCollection parentNodes,
             KVObject element,
             Dictionary<int, List<(SmartPropEvaluatedModel Model, SceneNode Node)>> modelsByElementId,
-            Dictionary<int, List<(SmartPropPathInfo Path, SceneNode Node)>> pathsByElementId,
-            Dictionary<int, List<(SmartPropWidget Widget, SceneNode Node)>> widgetsByElementId,
+            Dictionary<int, List<(SmartPropPathInfo Path, SceneNode? Node)>> pathsByElementId,
+            Dictionary<int, List<(SmartPropWidget Widget, SceneNode? Node)>> widgetsByElementId,
             HashSet<string> activeNestedProps,
             string filter)
         {
             var className = SmartPropModifierEvaluator.GetClassName(element);
             var elementId = GetInt32(element, "m_nElementID");
+            if (elementId > 0)
+            {
+                elementsByElementId[elementId] = element;
+            }
 
             // If this is the root container (CSmartPropRoot or unnamed root with m_Children), process its children directly
             if ((className is "Root" or "CSmartPropRoot" or "" || elementId == 0) && element.TryGetValue("m_Children", out var rootChildren) && rootChildren.IsArray)
             {
                 var anyRootMatch = false;
-                if (widgetsByElementId.TryGetValue(elementId, out var rootWidgetList))
-                {
-                    anyRootMatch |= AddWidgetTreeNodes(parentNodes, element, rootWidgetList, filter);
-                }
 
                 foreach (var child in rootChildren.AsArraySpan())
                 {
@@ -1084,7 +1306,6 @@ namespace GUI.Types.GLViewers
             };
 
             SceneNode? primarySceneNode = null;
-            object? primaryPayload = null;
 
             modelsByElementId.TryGetValue(elementId, out var modelList);
             pathsByElementId.TryGetValue(elementId, out var pathList);
@@ -1092,18 +1313,16 @@ namespace GUI.Types.GLViewers
             if (modelList != null && modelList.Count > 0)
             {
                 primarySceneNode = modelList[0].Node;
-                primaryPayload = modelList[0].Model;
             }
             else if (pathList != null && pathList.Count > 0)
             {
                 primarySceneNode = pathList[0].Node;
-                primaryPayload = pathList[0].Path;
             }
 
             var nodeData = new HierarchyNodeData(
                 primarySceneNode,
                 element,
-                primaryPayload ?? element,
+                element,
                 label,
                 className,
                 elementId);
@@ -1116,12 +1335,6 @@ namespace GUI.Types.GLViewers
             };
 
             var hasMatchingDescendant = false;
-
-            // Add any widgets emitted by this element's modifiers as child nodes
-            if (widgetsByElementId.TryGetValue(elementId, out var widgetList))
-            {
-                hasMatchingDescendant |= AddWidgetTreeNodes(elementNode.Nodes, element, widgetList, filter);
-            }
 
             // Expand nested smart props recursively
             if (className == "SmartProp")
@@ -1160,7 +1373,10 @@ namespace GUI.Types.GLViewers
             {
                 foreach (var (_, node) in modelList)
                 {
-                    treeNodesBySceneNode[node] = elementNode;
+                    if (node != null)
+                    {
+                        treeNodesBySceneNode[node] = elementNode;
+                    }
                 }
             }
 
@@ -1168,7 +1384,21 @@ namespace GUI.Types.GLViewers
             {
                 foreach (var (_, node) in pathList)
                 {
-                    treeNodesBySceneNode[node] = elementNode;
+                    if (node != null)
+                    {
+                        treeNodesBySceneNode[node] = elementNode;
+                    }
+                }
+            }
+
+            if (widgetsByElementId.TryGetValue(elementId, out var widgetList))
+            {
+                foreach (var (_, node) in widgetList)
+                {
+                    if (node != null)
+                    {
+                        treeNodesBySceneNode[node] = elementNode;
+                    }
                 }
             }
 
@@ -1176,57 +1406,11 @@ namespace GUI.Types.GLViewers
             return true;
         }
 
-        private bool AddWidgetTreeNodes(TreeNodeCollection parentNodes, KVObject element, List<(SmartPropWidget Widget, SceneNode Node)> widgetList, string filter)
-        {
-            var anyMatch = false;
-            var cubeIcon = AppIcons.Icons.GetValueOrDefault("cube", AppIcons.Icons.GetValueOrDefault("File", 0));
-            foreach (var (widget, node) in widgetList)
-            {
-                var kind = widget switch
-                {
-                    SmartPropLocatorWidget => "Locator",
-                    SmartPropRotatorWidget => "Rotator",
-                    SmartPropSizerWidget => "Sizer",
-                    _ => "PickOne",
-                };
-
-                var matches = filter.Length == 0
-                    || widget.Name.Contains(filter, StringComparison.OrdinalIgnoreCase)
-                    || kind.Contains(filter, StringComparison.OrdinalIgnoreCase)
-                    || (widget.ElementId > 0 && widget.ElementId.ToString().Contains(filter, StringComparison.OrdinalIgnoreCase));
-
-                if (!matches)
-                {
-                    continue;
-                }
-
-                var widgetData = new HierarchyNodeData(
-                    node,
-                    element,
-                    widget,
-                    widget.Name,
-                    kind,
-                    widget.ElementId);
-
-                var widgetNode = new TreeNode(widgetData.DisplayLabel)
-                {
-                    ImageIndex = cubeIcon,
-                    SelectedImageIndex = cubeIcon,
-                    Tag = widgetData,
-                };
-                treeNodesBySceneNode[node] = widgetNode;
-                parentNodes.Add(widgetNode);
-                anyMatch = true;
-            }
-
-            return anyMatch;
-        }
-
-        private static void ToggleNodes(List<SceneNode> nodes, bool enabled)
+        private static void ToggleNodes(List<SceneNode> nodes, bool visible)
         {
             foreach (var node in nodes)
             {
-                node.LayerEnabled = enabled;
+                node.LayerEnabled = visible;
             }
         }
 
@@ -1237,8 +1421,213 @@ namespace GUI.Types.GLViewers
                 return;
             }
 
+            UpdateActivePickOne(nodeData);
+            activeWidget = nodeData.Payload as SmartPropWidget;
             SelectedNodeRenderer?.SelectNode(nodeData.Node);
             FillInspector(nodeData);
+        }
+
+        protected override void OnMouseWheel(int delta, Point location)
+        {
+            var hoveredWidget = FindOverlayWidget(location);
+            if (hoveredWidget is SmartPropPickOneHandleWidget pickOne && delta != 0)
+            {
+                CyclePickOne(pickOne, delta);
+                return;
+            }
+
+            if (hoveredWidget is SmartPropRotatorWidget { OutputVariable.Length: > 0 } rotator && delta != 0)
+            {
+                var increment = rotator.SnappingIncrement > 0f ? rotator.SnappingIncrement : 5f;
+                var angle = rotator.Angle + (delta > 0 ? increment : -increment);
+                if (rotator.MinAngle.HasValue)
+                {
+                    angle = MathF.Max(angle, rotator.MinAngle.Value);
+                }
+                if (rotator.MaxAngle.HasValue)
+                {
+                    angle = MathF.Min(angle, rotator.MaxAngle.Value);
+                }
+
+                activeVariables[rotator.OutputVariable] = angle;
+                ReevaluateSmartProp();
+                return;
+            }
+
+            base.OnMouseWheel(delta, location);
+        }
+
+        protected override void OnMouseDown(object? sender, MouseEventArgs e)
+        {
+            if (e.Button == MouseButtons.Left)
+            {
+                activeWidget = FindOverlayWidget(e.Location);
+                if (activeWidget != null && BeginWidgetDrag(e.Location))
+                {
+                    base.OnMouseDown(sender, e);
+                    draggingWidget = true;
+                    widgetDragPoint = e.Location;
+                    return;
+                }
+            }
+
+            base.OnMouseDown(sender, e);
+        }
+
+        private void CyclePickOne(SmartPropPickOneHandleWidget pickOne, int delta)
+        {
+            if (!elementsByElementId.TryGetValue(pickOne.ElementId, out var element)
+                || !element.TryGetValue("m_Children", out var children)
+                || !children.IsArray
+                || children.AsArraySpan().Length == 0)
+            {
+                return;
+            }
+
+            var childCount = children.AsArraySpan().Length;
+            element.TryGetValue("m_SpecificChildIndex", out var authoredSelection);
+            var initial = Math.Clamp((int)new SmartPropEvaluationContext(activeVariables).ResolveScalar(authoredSelection), 0, childCount - 1);
+            var current = pickOneSelections.GetValueOrDefault(pickOne.ElementId, initial);
+            var direction = delta > 0 ? -1 : 1;
+            var selection = (current + direction + childCount) % childCount;
+            pickOneSelections[pickOne.ElementId] = selection;
+            if (pickOne.Name.Length > 0)
+            {
+                activeVariables[pickOne.Name] = selection;
+            }
+            ReevaluateSmartProp();
+        }
+
+        protected override void OnMouseMove(int x, int y)
+        {
+            if (!draggingWidget)
+            {
+                base.OnMouseMove(x, y);
+                return;
+            }
+
+            var point = new Point(x, y);
+            var delta = new Point(point.X - widgetDragPoint.X, point.Y - widgetDragPoint.Y);
+            if (delta == Point.Empty)
+            {
+                return;
+            }
+
+            MouseDragged = true;
+            UpdateWidgetDrag(point, delta);
+            widgetDragPoint = point;
+        }
+
+        protected override void OnMouseUp(object? sender, MouseEventArgs e)
+        {
+            var wasDraggingWidget = draggingWidget;
+            draggingWidget = false;
+            locatorDragInitialState = null;
+            sizerDragState = null;
+
+            base.OnMouseUp(sender, e);
+
+            if (wasDraggingWidget)
+            {
+                updatingVariablesUi = true;
+                BuildVariablesUi();
+                updatingVariablesUi = false;
+            }
+        }
+
+        private bool BeginWidgetDrag(Point location)
+        {
+            switch (activeWidget)
+            {
+                case SmartPropRotatorWidget { OutputVariable.Length: > 0 } rotator:
+                    widgetDragInitialAngle = rotator.Angle;
+                    return true;
+
+                case SmartPropLocatorWidget locator:
+                    locatorDragInitialState = locatorEdits.GetValueOrDefault(
+                        locator.ElementId,
+                        new LocatorEditState(locator.Position, locator.PitchYawRoll, locator.DisplayScale));
+                    return true;
+
+                case SmartPropSizerWidget sizer:
+                    sizerDragState = FindSizerHandle(sizer, location);
+                    return sizerDragState != null;
+
+                default:
+                    return false;
+            }
+        }
+
+        private void UpdateWidgetDrag(Point point, Point delta)
+        {
+            switch (activeWidget)
+            {
+                case SmartPropRotatorWidget { OutputVariable.Length: > 0 } rotator:
+                {
+                    var angle = widgetDragInitialAngle + (point.X - InitialMousePosition.X);
+                    if (rotator.SnappingIncrement > 0f)
+                    {
+                        angle = MathF.Round(angle / rotator.SnappingIncrement) * rotator.SnappingIncrement;
+                    }
+                    if (rotator.MinAngle.HasValue)
+                    {
+                        angle = MathF.Max(angle, rotator.MinAngle.Value);
+                    }
+                    if (rotator.MaxAngle.HasValue)
+                    {
+                        angle = MathF.Min(angle, rotator.MaxAngle.Value);
+                    }
+
+                    activeVariables[rotator.OutputVariable] = angle;
+                    ReevaluateSmartProp(false);
+                    break;
+                }
+
+                case SmartPropLocatorWidget locator when locatorDragInitialState != null:
+                    UpdateLocatorDrag(locator, delta);
+                    break;
+
+                case SmartPropSizerWidget when sizerDragState != null:
+                {
+                    var offset = new Vector2(point.X - sizerDragState.Start.X, point.Y - sizerDragState.Start.Y);
+                    var value = sizerDragState.InitialValue + (Vector2.Dot(offset, sizerDragState.ScreenDirection) / sizerDragState.PixelsPerUnit);
+                    widgetOutputValues[sizerDragState.Variable] = value;
+                    SetActiveVariableValue(sizerDragState.Variable, value);
+                    ReevaluateSmartProp(false);
+                    break;
+                }
+            }
+        }
+
+        private void UpdateLocatorDrag(SmartPropLocatorWidget locator, Point delta)
+        {
+            Debug.Assert(locatorDragInitialState != null);
+            var edit = locatorEdits.GetValueOrDefault(locator.ElementId, locatorDragInitialState);
+
+            if (Control.ModifierKeys.HasFlag(Keys.Shift))
+            {
+                edit = edit with { Angles = edit.Angles + new Vector3(-delta.Y, delta.X, 0f) };
+            }
+            else if (Control.ModifierKeys.HasFlag(Keys.Control))
+            {
+                edit = edit with { Scale = MathF.Max(0.01f, edit.Scale * MathF.Exp(delta.X * 0.01f)) };
+            }
+            else
+            {
+                var distance = MathF.Max(Vector3.Distance(Input.Camera.Location, edit.Position), 1f);
+                var unitsPerPixel = distance * 0.002f;
+                edit = edit with
+                {
+                    Position = edit.Position + (Input.Camera.Right * delta.X * unitsPerPixel) - (Input.Camera.Up * delta.Y * unitsPerPixel),
+                };
+            }
+
+            locatorEdits[locator.ElementId] = edit;
+            if (locator.Name.Length > 0)
+            {
+                activeVariables[locator.Name] = (float[])[edit.Position.X, edit.Position.Y, edit.Position.Z];
+            }
+            ReevaluateSmartProp(false);
         }
 
         private void OnHierarchyNodeDoubleClicked(object? sender, TreeNodeMouseClickEventArgs e)
@@ -1290,6 +1679,8 @@ namespace GUI.Types.GLViewers
                     treeNode.EnsureVisible();
                     if (treeNode.Tag is HierarchyNodeData nodeData)
                     {
+                        UpdateActivePickOne(nodeData);
+                        activeWidget = nodeData.Payload as SmartPropWidget;
                         FillInspector(nodeData);
                     }
                 }
@@ -1300,9 +1691,65 @@ namespace GUI.Types.GLViewers
             }
         }
 
+        private void UpdateActivePickOne(HierarchyNodeData nodeData)
+        {
+            if (nodeData.Element == null || nodeData.ClassName != "PickOne")
+            {
+                activePickOneElementId = null;
+                activePickOneChildCount = 0;
+                return;
+            }
+
+            if (!nodeData.Element.TryGetValue("m_Children", out var children) || !children.IsArray)
+            {
+                activePickOneElementId = null;
+                activePickOneChildCount = 0;
+                return;
+            }
+
+            activePickOneElementId = nodeData.ElementId;
+            activePickOneChildCount = children.AsArraySpan().Length;
+        }
+
+        private int GetInitialPickOneSelection()
+        {
+            if (!activePickOneElementId.HasValue || hierarchyTree?.SelectedNode?.Tag is not HierarchyNodeData { Element: { } element })
+            {
+                return 0;
+            }
+
+            element.TryGetValue("m_SpecificChildIndex", out var selection);
+            return Math.Clamp((int)new SmartPropEvaluationContext(activeVariables).ResolveScalar(selection), 0, activePickOneChildCount - 1);
+        }
+
         private void FillInspector(HierarchyNodeData selection)
         {
             if (inspectorGrid == null)
+            {
+                return;
+            }
+
+            inspectorSelection = selection;
+            RefreshInspector();
+        }
+
+        private void RefreshInspector()
+        {
+            if (inspectorGrid == null || inspectorSelection == null)
+            {
+                return;
+            }
+
+            var selection = inspectorSelection;
+            var showRaw = showRawSelectionCheckBox?.Checked == true;
+            inspectorGrid.Visible = !showRaw;
+            if (rawSelectionTextBox != null)
+            {
+                rawSelectionTextBox.Visible = showRaw;
+                rawSelectionTextBox.Text = showRaw ? GetRawSelectionText(selection) : string.Empty;
+            }
+
+            if (showRaw)
             {
                 return;
             }
@@ -1352,6 +1799,10 @@ namespace GUI.Types.GLViewers
                     inspectorGrid.Rows.Add("Axis", FormatVector(rotator.Axis));
                     inspectorGrid.Rows.Add("Radius", rotator.Radius.ToString());
                     inspectorGrid.Rows.Add("Angle", rotator.Angle.ToString());
+                    if (rotator.OutputVariable.Length > 0)
+                    {
+                        inspectorGrid.Rows.Add("Output Variable", rotator.OutputVariable);
+                    }
                     inspectorGrid.Rows.Add("Color", FormatVector(rotator.Color));
                     break;
 
@@ -1361,6 +1812,10 @@ namespace GUI.Types.GLViewers
                     inspectorGrid.Rows.Add("Min Bounds", FormatVector(sizer.MinBounds));
                     inspectorGrid.Rows.Add("Max Bounds", FormatVector(sizer.MaxBounds));
                     inspectorGrid.Rows.Add("Active Axes", $"X: {sizer.ActiveAxes.X}, Y: {sizer.ActiveAxes.Y}, Z: {sizer.ActiveAxes.Z}");
+                    if (sizer.MinXVariable.Length > 0 || sizer.MaxXVariable.Length > 0 || sizer.MinYVariable.Length > 0 || sizer.MaxYVariable.Length > 0 || sizer.MinZVariable.Length > 0 || sizer.MaxZVariable.Length > 0)
+                    {
+                        inspectorGrid.Rows.Add("Output Variables", $"Min: {sizer.MinXVariable}, {sizer.MinYVariable}, {sizer.MinZVariable}; Max: {sizer.MaxXVariable}, {sizer.MaxYVariable}, {sizer.MaxZVariable}");
+                    }
                     break;
 
                 case SmartPropPickOneHandleWidget pickOne:
@@ -1471,6 +1926,76 @@ namespace GUI.Types.GLViewers
                 }
             }
         }
+
+        private static string GetRawSelectionText(HierarchyNodeData selection)
+        {
+            if (selection.Element != null)
+            {
+                var builder = new StringBuilder();
+                AppendFormattedValue(builder, selection.Element, 0);
+                return builder.ToString();
+            }
+
+            return $"Selection: {selection.Title}";
+        }
+
+        private static void AppendFormattedValue(StringBuilder builder, KVObject value, int indent)
+        {
+            if (value.ValueType == KVValueType.Collection)
+            {
+                builder.AppendLine("{");
+                foreach (var key in value.Keys)
+                {
+                    if (!value.TryGetValue(key, out var child))
+                    {
+                        continue;
+                    }
+
+                    builder.Append(' ', (indent + 1) * 4);
+                    builder.Append('"').Append(key.Replace("\"", "\\\"", StringComparison.Ordinal)).Append("\" = ");
+                    AppendFormattedValue(builder, child, indent + 1);
+                    builder.AppendLine();
+                }
+
+                builder.Append(' ', indent * 4).Append('}');
+                return;
+            }
+
+            if (value.ValueType == KVValueType.Array)
+            {
+                var items = value.AsArraySpan();
+                if (items.Length == 0)
+                {
+                    builder.Append("[ ]");
+                    return;
+                }
+
+                builder.AppendLine("[");
+                for (var i = 0; i < items.Length; i++)
+                {
+                    builder.Append(' ', (indent + 1) * 4);
+                    AppendFormattedValue(builder, items[i], indent + 1);
+                    if (i < items.Length - 1)
+                    {
+                        builder.Append(',');
+                    }
+
+                    builder.AppendLine();
+                }
+
+                builder.Append(' ', indent * 4).Append(']');
+                return;
+            }
+
+            builder.Append(FormatRawPrimitive(value));
+        }
+
+        private static string FormatRawPrimitive(KVObject value) => value.ValueType switch
+        {
+            KVValueType.String => $"\"{((string)value).Replace("\\", "\\\\", StringComparison.Ordinal).Replace("\"", "\\\"", StringComparison.Ordinal).Replace("\r", "\\r", StringComparison.Ordinal).Replace("\n", "\\n", StringComparison.Ordinal)}\"",
+            KVValueType.Boolean => (bool)value ? "true" : "false",
+            _ => value.ToString() ?? string.Empty,
+        };
 
         private static string FormatValue(KVObject? value)
         {
@@ -1583,27 +2108,17 @@ namespace GUI.Types.GLViewers
         {
             base.Dispose();
 
-            if (contentSplitter != null)
-            {
-                contentSplitter.SizeChanged -= InitializeContentSplitterDistance;
-            }
-
-            if (sidebarSplitter != null)
-            {
-                sidebarSplitter.SizeChanged -= InitializeSidebarSplitterDistance;
-            }
-
             filterTextBox?.Dispose();
             hierarchyHeader?.Dispose();
             hierarchyTree?.Dispose();
             inspectorGrid?.Dispose();
+            rawSelectionTextBox?.Dispose();
+            showRawSelectionCheckBox?.Dispose();
             variablesPanel?.Dispose();
             choicesPanel?.Dispose();
             choiceOverridesGrid?.Dispose();
-            topTabs?.Dispose();
-            bottomTabs?.Dispose();
-            sidebarSplitter?.Dispose();
-            contentSplitter?.Dispose();
+            StructureControl?.Dispose();
+            VariablesControl?.Dispose();
 
             foreach (var resource in loadedResources)
             {

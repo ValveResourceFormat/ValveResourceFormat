@@ -509,6 +509,20 @@ namespace GUI.Types.Viewers
                 resTabs.TabPages.Add(specialTabPage);
                 specialTabPage.Controls.Add(glViewerControl);
 
+                if (!isPreview && GLViewer is GLSmartPropViewer { StructureControl: { } structureControl })
+                {
+                    var structureTabPage = new ThemedTabPage("Structure");
+                    structureTabPage.Controls.Add(structureControl);
+                    resTabs.TabPages.Add(structureTabPage);
+                }
+
+                if (!isPreview && GLViewer is GLSmartPropViewer { VariablesControl: { } variablesControl })
+                {
+                    var variablesTabPage = new ThemedTabPage("Variables");
+                    variablesTabPage.Controls.Add(variablesControl);
+                    resTabs.TabPages.Add(variablesTabPage);
+                }
+
                 if (!isPreview && GLViewer is GLMaterialViewer glMaterialViewer)
                 {
                     glMaterialViewer.SetTabControl(resTabs);
