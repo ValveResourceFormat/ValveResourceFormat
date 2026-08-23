@@ -13,7 +13,7 @@
 
 #if (D_OIT == 1)
 
-layout(location = 1) out float outputOitRevealage;
+layout(location = 1) out vec3 outputOitRevealage;
 layout(location = 2) out vec3 outputOitAdditive;
 
 // Larger for fragments closer to the camera, so that the weighted average leans toward what is in
@@ -45,27 +45,43 @@ vec4 OitOutput(vec3 contribution, float alpha, vec3 positionWs)
 {
     float weight = OitWeight(contribution, alpha, positionWs);
 
-    outputOitRevealage = alpha;
+    outputOitRevealage = vec3(alpha);
     outputOitAdditive = vec3(0.0);
 
     return vec4(contribution * weight, alpha * weight);
+}
+
+// For a blend that multiplies the scene by a color: it is a transmittance, which the revealage
+// target already keeps the product of. It cannot brighten.
+vec4 OitOutputTransmittance(vec3 transmittance)
+{
+    outputOitRevealage = 1.0 - saturate(transmittance);
+    outputOitAdditive = vec3(0.0);
+
+    return vec4(0.0);
 }
 
 // Additive light does not cover anything and must not be normalized with the covering fragments,
 // so it has its own target.
 vec4 OitOutputAdditive(vec3 light, vec3 positionWs)
 {
-    outputOitRevealage = 0.0;
+    outputOitRevealage = vec3(0.0);
     outputOitAdditive = light;
 
     return vec4(0.0);
 }
 
-// For a material shader's final straight alpha color, with the blend its features choose.
+// For a material shader's final color, with the blend its features choose.
 vec4 OitFinish(vec4 color, vec3 positionWs)
 {
 #if (F_ADDITIVE_BLEND == 1) || (F_BLEND_MODE == 4)
     return OitOutputAdditive(color.rgb * color.a, positionWs);
+#elif (F_BLEND_MODE == 3) || (GameVfx_csgo_decalmodulate != 0)
+    return OitOutputTransmittance(2.0 * color.rgb);
+#elif (F_BLEND_MODE == 5)
+    return OitOutputTransmittance(color.rgb);
+#elif (F_BLEND_MODE == 6)
+    return OitOutputTransmittance(color.rgb + 1.0 - color.a);
 #else
     return OitOutput(color.rgb * color.a, color.a, positionWs);
 #endif

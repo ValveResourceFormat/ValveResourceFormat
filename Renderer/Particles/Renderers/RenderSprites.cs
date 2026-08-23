@@ -455,8 +455,6 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             quadCount = particles.Count == 0 ? 0 : UpdateVertices(particles, systemState, camera);
         }
 
-        public override bool DrawsOrderIndependent => SpritecardDrawsOrderIndependent(blendMode);
-
         public override void Render(ParticleCollection particleBag, ParticleSystemState systemState, Camera camera, bool orderIndependent)
         {
             if (particleBag.Count == 0)

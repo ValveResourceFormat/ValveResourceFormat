@@ -6,10 +6,13 @@
 
 in vec2 vTexCoordOut;
 in vec4 vTintOut;
+in vec3 vFragPosition;
 
 uniform sampler2D g_tColor; // SrgbRead(true)
 
-out vec4 outputColor;
+layout(location = 0) out vec4 outputColor;
+
+#include "common/oit.slang"
 
 void main()
 {
@@ -20,4 +23,8 @@ void main()
 #endif
 
     outputColor = color * vTintOut;
+
+#if (D_OIT == 1)
+    outputColor = OitFinish(outputColor, vFragPosition);
+#endif
 }

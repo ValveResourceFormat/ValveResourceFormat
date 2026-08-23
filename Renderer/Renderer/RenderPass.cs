@@ -31,25 +31,6 @@ namespace ValveResourceFormat.Renderer
     }
 
     /// <summary>
-    /// Which of its translucent draws a node that draws itself should make in a translucent pass, when the
-    /// translucent layer is split between the scene target and the order independent transparency targets.
-    /// </summary>
-    public enum TranslucentDrawSet
-    {
-        /// <summary>Every translucent draw, sorted back to front on the scene target.</summary>
-        All,
-
-        /// <summary>
-        /// Draws that have to blend straight onto the scene, in order: blends that multiply the scene
-        /// color, and anything without order independent outputs.
-        /// </summary>
-        Direct,
-
-        /// <summary>Draws accumulated into the order independent transparency targets, in any order.</summary>
-        OrderIndependent,
-    }
-
-    /// <summary>
     /// Which target a pass draws into, for the layers that share one.
     /// </summary>
     public enum RenderLayer
@@ -91,9 +72,9 @@ namespace ValveResourceFormat.Renderer
         DepthOnly = 1 << 4,
 
         /// <summary>
-        /// Some of the node's translucent draws can go into the order independent transparency targets.
-        /// The node is then also drawn in <see cref="RenderPass.TranslucentOrderIndependent"/>, and reads
-        /// <see cref="Scene.RenderContext.TranslucentDrawSet"/> to draw each of its parts in the set it belongs to.
+        /// The node's translucent draws can go into the order independent transparency targets, so it is
+        /// drawn in <see cref="RenderPass.TranslucentOrderIndependent"/> instead of <see cref="RenderPass.Translucent"/>
+        /// when that is on.
         /// </summary>
         OrderIndependentTranslucent = 1 << 5,
 

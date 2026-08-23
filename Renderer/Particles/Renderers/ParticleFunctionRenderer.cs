@@ -161,16 +161,6 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         public RenderPass Pass { get; protected set; } = RenderPass.Translucent;
 
         /// <summary>
-        /// Whether this renderer's translucent draws can go into the order independent transparency
-        /// targets. A draw that multiplies the scene color cannot.
-        /// </summary>
-        public virtual bool DrawsOrderIndependent => false;
-
-        /// <summary>Whether a spritecard style renderer with this blend mode draws order independently.</summary>
-        protected bool SpritecardDrawsOrderIndependent(ParticleBlendMode blendMode)
-            => Pass == RenderPass.Translucent && blendMode != ParticleBlendMode.PARTICLE_OUTPUT_BLEND_MODE_MOD2X;
-
-        /// <summary>
         /// The scene node the system this belongs to renders under, when it was created for one.
         /// Set by the system renderer; renderers that light themselves read its bindings through it.
         /// </summary>

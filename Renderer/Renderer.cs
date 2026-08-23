@@ -163,8 +163,8 @@ public class Renderer
 
     /// <summary>
     /// The order independent transparency targets: accumulation (color 0, weighted premultiplied color
-    /// and weighted alpha), revealage (color 1, the product of what every fragment lets through) and
-    /// additive light (color 2). Lazily created to match <see cref="MainFramebuffer"/> and tests against its depth.
+    /// and weighted alpha), revealage (color 1, the product of what every fragment lets through, per
+    /// channel so that blends multiplying the scene can take part) and additive light (color 2). Lazily created to match <see cref="MainFramebuffer"/> and tests against its depth.
     /// </summary>
     public Framebuffer? OrderIndependentBuffer { get; private set; }
 
@@ -594,25 +594,38 @@ public class Renderer
 
         sceneFramebuffer.Bind(FramebufferTarget.Framebuffer);
 
+        // The revealage is per channel, so the scene is first scaled by it and the translucent color added on top
         using (new GLDebugGroup("Order Independent Transparency Composite"))
-        using (GraphicsContext.RenderState.Scope(depthTest: false, cullMode: RsCullMode.None,
-            srcBlend: RsBlendMode.One, dstBlend: RsBlendMode.InvSrcAlpha))
+        using (GraphicsContext.RenderState.Scope(depthTest: false, cullMode: RsCullMode.None))
         {
             Debug.Assert(accumulationBuffer.Color != null);
 
-            var compositeShader = orderIndependentCompositeShader.WithCombo("D_MSAA", (byte)(accumulationBuffer.NumSamples > 0 ? 1 : 0));
-            compositeShader.Use();
-            compositeShader.SetTexture(0, "g_tOitAccumulation", accumulationBuffer.Color);
-            compositeShader.SetTexture(1, "g_tOitRevealage", accumulationBuffer.ExtraColors[0]);
-            compositeShader.SetTexture(2, "g_tOitAdditive", accumulationBuffer.ExtraColors[1]);
+            var multisample = (byte)(accumulationBuffer.NumSamples > 0 ? 1 : 0);
+            var compositeShader = orderIndependentCompositeShader.WithCombo("D_MSAA", multisample);
+            var revealShader = compositeShader.WithCombo("D_REVEAL", 1);
 
             GL.BindVertexArray(RendererContext.MeshBufferCache.EmptyVAO);
-            GL.DrawArrays(PrimitiveType.Triangles, 0, 3);
+
+            using (GraphicsContext.RenderState.Scope(srcBlend: RsBlendMode.Zero, dstBlend: RsBlendMode.SrcColor))
+            {
+                revealShader.Use();
+                revealShader.SetTexture(1, "g_tOitRevealage", accumulationBuffer.ExtraColors[0]);
+                GL.DrawArrays(PrimitiveType.Triangles, 0, 3);
+            }
+
+            using (GraphicsContext.RenderState.Scope(srcBlend: RsBlendMode.One, dstBlend: RsBlendMode.One))
+            {
+                compositeShader.Use();
+                compositeShader.SetTexture(0, "g_tOitAccumulation", accumulationBuffer.Color);
+                compositeShader.SetTexture(1, "g_tOitRevealage", accumulationBuffer.ExtraColors[0]);
+                compositeShader.SetTexture(2, "g_tOitAdditive", accumulationBuffer.ExtraColors[1]);
+                GL.DrawArrays(PrimitiveType.Triangles, 0, 3);
+            }
         }
     }
 
     private static readonly float[] OrderIndependentAccumulationClear = [0f, 0f, 0f, 0f];
-    private static readonly float[] OrderIndependentRevealageClear = [1f, 0f, 0f, 0f];
+    private static readonly float[] OrderIndependentRevealageClear = [1f, 1f, 1f, 1f];
 
     /// <summary>The accumulation and additive light add, the revealage multiplies by what each fragment lets through.</summary>
     private static readonly RsBlendStateDesc OrderIndependentBlend = CreateOrderIndependentBlend();
@@ -650,7 +663,7 @@ public class Renderer
         if (OrderIndependentBuffer == null)
         {
             OrderIndependentBuffer = Framebuffer.Prepare(nameof(OrderIndependentBuffer), width, height, msaa, ImageFormat.RGBA16161616F, null,
-                ImageFormat.R16F, ImageFormat.IMAGE_FORMAT_R11G11B10_FLOAT);
+                ImageFormat.RGBA16161616F, ImageFormat.IMAGE_FORMAT_R11G11B10_FLOAT);
             OrderIndependentBuffer.Initialize();
         }
         else

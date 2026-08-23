@@ -1,8 +1,10 @@
 #version 460
 
-// Composites the order independent transparency targets over the scene. Output is premultiplied.
+// Composites the order independent transparency targets over the scene in two draws: the reveal
+// draw scales the scene by the per channel revealage, then this adds the translucent color and light.
 
 #define D_MSAA 0
+#define D_REVEAL 0
 
 #if (D_MSAA == 1)
     layout(binding = 0) uniform sampler2DMS g_tOitAccumulation;
@@ -20,10 +22,19 @@ layout(location = 0) out vec4 outputColor;
 
 void main()
 {
-    float revealage = FetchOit(g_tOitRevealage).r;
+    vec3 revealage = FetchOit(g_tOitRevealage).rgb;
+
+#if (D_REVEAL == 1)
+    if (all(greaterThanEqual(revealage, vec3(1.0))))
+    {
+        discard;
+    }
+
+    outputColor = vec4(revealage, 1.0);
+#else
     vec3 additive = FetchOit(g_tOitAdditive).rgb;
 
-    if (revealage >= 1.0 && all(equal(additive, vec3(0.0))))
+    if (all(greaterThanEqual(revealage, vec3(1.0))) && all(equal(additive, vec3(0.0))))
     {
         discard;
     }
@@ -38,5 +49,6 @@ void main()
     vec3 averageColor = accumulation.rgb / max(accumulation.a, 1e-5);
 
     // Which covering fragments are in front of the additive light is unknown, so it is not dimmed
-    outputColor = vec4(averageColor * (1.0 - revealage) + additive, 1.0 - revealage);
+    outputColor = vec4(averageColor * (1.0 - revealage) + additive, 1.0);
+#endif
 }

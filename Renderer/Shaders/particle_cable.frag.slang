@@ -32,8 +32,9 @@ void main(void)
 
 #else
 
-out vec4 outputColor;
+layout(location = 0) out vec4 outputColor;
 
+#include "common/oit.slang"
 #include "common/lighting.slang"
 
 void main(void)
@@ -75,6 +76,10 @@ void main(void)
     {
         //
     }
+
+#if (D_OIT == 1)
+    outputColor = OitFinish(outputColor, vFragPosition);
+#endif
 }
 
 #endif

@@ -361,6 +361,10 @@ void main(void) {
     {
         fragColor = OitOutputAdditive(fragColor.rgb, vFragPosition);
     }
+    else if (uBlendMode == PARTICLE_OUTPUT_BLEND_MODE_MOD2X)
+    {
+        fragColor = OitOutputTransmittance(2.0 * fragColor.rgb);
+    }
     else
     {
         fragColor = OitOutput(fragColor.rgb, fragColor.a, vFragPosition);

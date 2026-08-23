@@ -19,6 +19,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         private const string ShaderName = "particle_cable";
 
         private Shader shader;
+        private Shader orderIndependentShader;
         private readonly Shader? depthShader;
         private readonly Scene scene;
         private readonly RenderMaterial material;
@@ -83,6 +84,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             };
 
             shader = rendererContext.ShaderLoader.LoadShader(ShaderName, shaderArguments);
+            orderIndependentShader = shader.WithCombo(Shader.OrderIndependentCombo, 1, blocking: false);
 
             roundness = parse.Int32("m_nRoundness", roundness);
             textureRepetitionMode = parse.Enum("m_nTextureRepetitionMode", textureRepetitionMode);
@@ -235,7 +237,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
 
         public override void Render(ParticleCollection particles, ParticleSystemState systemState, Camera camera, bool orderIndependent)
         {
-            DrawTube(shader);
+            DrawTube(orderIndependent ? orderIndependentShader : shader);
         }
 
         /// <inheritdoc/>

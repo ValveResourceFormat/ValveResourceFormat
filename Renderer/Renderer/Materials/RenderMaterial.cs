@@ -254,7 +254,7 @@ namespace ValveResourceFormat.Renderer.Materials
 
             Shader = rendererContext.ShaderLoader.LoadShader(ShaderName, combinedShaderParameters, blocking: false);
 
-            if (blendMode is BlendMode.Translucent or BlendMode.Additive && Shader.DeclaresCombo(Shader.OrderIndependentCombo))
+            if (IsTranslucent && Shader.DeclaresCombo(Shader.OrderIndependentCombo))
             {
                 OrderIndependentShader = Shader.WithCombo(Shader.OrderIndependentCombo, 1, blocking: false);
             }

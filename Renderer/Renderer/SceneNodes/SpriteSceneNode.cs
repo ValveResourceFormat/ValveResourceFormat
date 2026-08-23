@@ -63,19 +63,23 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             LocalBoundingBox = new AABB(-Vector3.One * spriteSize, Vector3.One * spriteSize);
             Transform = Matrix4x4.CreateTranslation(position.X, position.Y, position.Z);
 
-            RenderPasses |= CustomRenderPasses.DepthOnly;
+            RenderPasses = material.SupportsOrderIndependentTransparency
+                ? CustomRenderPasses.Translucent | CustomRenderPasses.OrderIndependentTranslucent
+                : CustomRenderPasses.Opaque | CustomRenderPasses.DepthOnly;
         }
 
         public override void Render(Scene.RenderContext context)
         {
-            if (context.RenderPass is not RenderPass.Opaque and not RenderPass.Outline and not RenderPass.DepthOnly)
+            var orderIndependent = context.RenderPass == RenderPass.TranslucentOrderIndependent;
+
+            if (context.RenderPass is not RenderPass.Opaque and not RenderPass.Translucent and not RenderPass.Outline and not RenderPass.DepthOnly && !orderIndependent)
             {
                 return;
             }
 
             var renderShader = context.DepthOnlyShader?.WithAlphaTest(material.IsAlphaTest)
                 ?? context.ReplacementShader
-                ?? material.Shader;
+                ?? (orderIndependent ? material.OrderIndependentShader! : material.Shader);
 
             renderShader.Use();
 

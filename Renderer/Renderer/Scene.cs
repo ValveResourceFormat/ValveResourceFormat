@@ -72,9 +72,6 @@ namespace ValveResourceFormat.Renderer
             /// <summary>Gets or sets which layer the pass is drawing into.</summary>
             public RenderLayer Layer { get; set; }
 
-            /// <summary>Gets or sets which of its translucent draws a node that draws itself should make in this pass.</summary>
-            public TranslucentDrawSet TranslucentDrawSet { get; set; }
-
             /// <summary>Gets or sets an optional shader that overrides per-material shaders for this pass.</summary>
             public Shader? ReplacementShader { get; set; }
 
@@ -1256,12 +1253,14 @@ namespace ValveResourceFormat.Renderer
 
                     if ((customPasses & CustomRenderPasses.Translucent) != 0)
                     {
-                        customLists[RenderPass.Translucent].Add(customRender);
-
-                        if (OrderIndependentTransparency && (customPasses & CustomRenderPasses.OrderIndependentTranslucent) != 0)
+                        if (OrderIndependentTransparency && customLists == renderLists && (customPasses & CustomRenderPasses.OrderIndependentTranslucent) != 0)
                         {
                             renderLists[RenderPass.TranslucentOrderIndependent].Add(customRender);
                             WantsSceneDepth = true;
+                        }
+                        else
+                        {
+                            customLists[RenderPass.Translucent].Add(customRender);
                         }
                     }
 
@@ -1879,7 +1878,6 @@ namespace ValveResourceFormat.Renderer
             using (new GLDebugGroup("Translucent Render"))
             {
                 renderContext.RenderPass = RenderPass.Translucent;
-                renderContext.TranslucentDrawSet = OrderIndependentTransparency ? TranslucentDrawSet.Direct : TranslucentDrawSet.All;
                 MeshBatchRenderer.Render(renderLists[RenderPass.Translucent], renderContext);
             }
         }
@@ -1894,7 +1892,6 @@ namespace ValveResourceFormat.Renderer
             using (new GLDebugGroup("Order Independent Translucent Render"))
             {
                 renderContext.RenderPass = RenderPass.TranslucentOrderIndependent;
-                renderContext.TranslucentDrawSet = TranslucentDrawSet.OrderIndependent;
                 MeshBatchRenderer.Render(renderLists[RenderPass.TranslucentOrderIndependent], renderContext);
             }
         }

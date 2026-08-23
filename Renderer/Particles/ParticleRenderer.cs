@@ -123,7 +123,7 @@ namespace ValveResourceFormat.Renderer.Particles
                     passes |= CustomRenderPasses.DepthOnly;
                 }
 
-                if (renderer.DrawsOrderIndependent && !renderer.OnlyRenderInEffectsWaterPass)
+                if (renderer.Pass == RenderPass.Translucent && !renderer.OnlyRenderInEffectsWaterPass)
                 {
                     passes |= CustomRenderPasses.OrderIndependentTranslucent;
                 }
@@ -192,11 +192,10 @@ namespace ValveResourceFormat.Renderer.Particles
         /// <summary>
         /// Draws the renderers belonging to <paramref name="pass"/>.
         /// </summary>
-        public void Render(Camera camera, RenderPass pass, bool waterEffectsLayer = false, TranslucentDrawSet drawSet = TranslucentDrawSet.All)
+        public void Render(Camera camera, RenderPass pass, bool waterEffectsLayer = false)
         {
-            var rendererPass = pass == RenderPass.TranslucentOrderIndependent ? RenderPass.Translucent : pass;
-            var splitTranslucent = rendererPass == RenderPass.Translucent && drawSet != TranslucentDrawSet.All;
-            var orderIndependent = drawSet == TranslucentDrawSet.OrderIndependent;
+            var orderIndependent = pass == RenderPass.TranslucentOrderIndependent;
+            var rendererPass = orderIndependent ? RenderPass.Translucent : pass;
 
             foreach (var childRenderer in childRenderers)
             {
@@ -205,7 +204,7 @@ namespace ValveResourceFormat.Renderer.Particles
                     continue;
                 }
 
-                childRenderer.Render(camera, pass, waterEffectsLayer, drawSet);
+                childRenderer.Render(camera, pass, waterEffectsLayer);
             }
 
             if (!IsWithinDrawDistance(camera) || Simulation.Particles.Count == 0)
@@ -224,11 +223,6 @@ namespace ValveResourceFormat.Renderer.Particles
                     : renderer.Pass == rendererPass && renderer.OnlyRenderInEffectsWaterPass == waterEffectsLayer;
 
                 if (!inPass || renderer.GetOperatorRunStrength(Simulation.RenderState) <= 0.0f)
-                {
-                    continue;
-                }
-
-                if (splitTranslucent && renderer.DrawsOrderIndependent != orderIndependent)
                 {
                     continue;
                 }

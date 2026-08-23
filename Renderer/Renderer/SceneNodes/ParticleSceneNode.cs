@@ -661,7 +661,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
                 return;
             }
 
-            particleRenderer.Render(context.Camera, context.RenderPass, context.Layer == RenderLayer.WaterEffects, context.TranslucentDrawSet);
+            particleRenderer.Render(context.Camera, context.RenderPass, context.Layer == RenderLayer.WaterEffects);
         }
 
         /// <inheritdoc/>
