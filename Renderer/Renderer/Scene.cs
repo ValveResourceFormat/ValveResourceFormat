@@ -1770,7 +1770,7 @@ namespace ValveResourceFormat.Renderer
             }
             else if (DrawMeshletsIndirect)
             {
-                using var meshletGroup = new GLDebugGroup("Meshlet Render");
+                using var aggregateGroup = new GLDebugGroup("Aggregate Render");
 
                 renderContext.RenderPass = RenderPass.OpaqueAggregate;
                 MeshBatchRenderer.Render(renderLists[renderContext.RenderPass], renderContext);

@@ -47,7 +47,7 @@ namespace ValveResourceFormat.Renderer.World
         public WorldNode? MainWorldNode { get; private set; }
 
         /// <summary>Layer names that should be visible by default, populated during loading.</summary>
-        public HashSet<string> DefaultEnabledLayers { get; } = ["No layer", "Entities", "Particles"];
+        public HashSet<string> DefaultEnabledLayers { get; } = ["No layer", "Entities", EditorEntityNode.LayerName, "Particles"];
 
         /// <summary>Names of info_camera_link entities found in the world.</summary>
         public List<string> CameraNames { get; } = [];
