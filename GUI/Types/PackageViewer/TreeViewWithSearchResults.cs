@@ -194,7 +194,14 @@ namespace GUI.Types.PackageViewer
             {
                 foreach (var work in ThumbnailRenderQueue.GetConsumingEnumerable(RenderLoopCancelationTokenSource.Token))
                 {
-                    work().GetAwaiter().GetResult();
+                    try
+                    {
+                        work().GetAwaiter().GetResult();
+                    }
+                    catch (OperationCanceledException)
+                    {
+                        // A newer view superseded this thumbnail request.
+                    }
                 }
             }
             catch (OperationCanceledException)
@@ -303,7 +310,7 @@ namespace GUI.Types.PackageViewer
 
         private void MainListView_DisplayNodes(VirtualPackageNode pkgNode, bool updatePath = true)
         {
-            ThumbnailRenderTokenSource?.Dispose();
+            CancelThumbnailRendering();
             ThumbnailRenderTokenSource = new CancellationTokenSource();
 
             DrainThumbnailQueue();
@@ -479,7 +486,6 @@ namespace GUI.Types.PackageViewer
             {"vsvg_c", new ThumbnailSVGRenderer() },
             {"vpcf_c", new ThumbnailParticleRenderer() },
             {"vsnap_c", new ThumbnailSnapshotRenderer() },
-            {"vsmart_c", new ThumbnailSmartPropRenderer() },
         };
 
         /// <summary>
@@ -496,6 +502,18 @@ namespace GUI.Types.PackageViewer
             }
 
             QueuedOrRenderedThumbnailItems.Clear();
+        }
+
+        private void CancelThumbnailRendering()
+        {
+            if (ThumbnailRenderTokenSource == null)
+            {
+                return;
+            }
+
+            ThumbnailRenderTokenSource.Cancel();
+            ThumbnailRenderTokenSource.Dispose();
+            ThumbnailRenderTokenSource = null;
         }
 
         private ThumbnailRenderer? GetThumbnailRenderer(string resourceType)
@@ -1967,7 +1985,7 @@ namespace GUI.Types.PackageViewer
             {
                 components?.Dispose();
                 BigIconsImageList.Dispose();
-                ThumbnailRenderTokenSource?.Dispose();
+                CancelThumbnailRendering();
                 ThumbnailRenderQueue.CompleteAdding();
                 ThumbnailRenderQueue.Dispose();
                 RenderLoopCancelationTokenSource.Dispose();
@@ -1990,7 +2008,7 @@ namespace GUI.Types.PackageViewer
 
                 gridSizeSlider.Enabled = false;
 
-                ThumbnailRenderTokenSource?.Dispose();
+                CancelThumbnailRendering();
                 ThumbnailRenderTokenSource = new();
                 DrainThumbnailQueue();
 
@@ -2039,7 +2057,7 @@ namespace GUI.Types.PackageViewer
 
                 gridSizeSlider.Enabled = true;
 
-                ThumbnailRenderTokenSource?.Dispose();
+                CancelThumbnailRendering();
                 ThumbnailRenderTokenSource = new CancellationTokenSource();
 
                 mainListView.View = View.LargeIcon;
@@ -2053,7 +2071,7 @@ namespace GUI.Types.PackageViewer
 
             Settings.Config.PackageGridSize = gridSizeSlider.Value;
 
-            ThumbnailRenderTokenSource?.Dispose();
+            CancelThumbnailRendering();
             ThumbnailRenderTokenSource = new CancellationTokenSource();
 
             // rebuild image list and clear caches

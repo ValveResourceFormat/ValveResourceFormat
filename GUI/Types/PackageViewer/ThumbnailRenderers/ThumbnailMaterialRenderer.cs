@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Threading;
 using ValveResourceFormat;
 using ValveResourceFormat.Renderer.SceneEnvironment;
 using ValveResourceFormat.Renderer.SceneNodes;
@@ -10,7 +11,7 @@ internal class ThumbnailMaterialRenderer : ThumbnailRenderer
 {
     private SceneSkybox2D? skybox;
 
-    public override void SetResource(Resource resource)
+    public override void SetResource(Resource resource, CancellationToken cancellationToken)
     {
         Debug.Assert(SceneRenderer != null);
 

@@ -34,7 +34,7 @@ internal abstract class ThumbnailRenderer : IDisposable
 
     public bool Loaded { get; private set; }
 
-    public virtual void SetResource(Resource resource)
+    public virtual void SetResource(Resource resource, CancellationToken cancellationToken)
     {
 
     }
@@ -152,6 +152,8 @@ internal abstract class ThumbnailRenderer : IDisposable
     {
         Debug.Assert(SceneRenderer != null);
 
+        cancellationToken.ThrowIfCancellationRequested();
+
         using var resource = LoadResourceFromPackageEntry(context, entry);
 
         if (resource == null)
@@ -175,10 +177,12 @@ internal abstract class ThumbnailRenderer : IDisposable
         // it against the previous thumbnail's aspect ratio picks the wrong distance
         SceneRenderer.Camera.SetViewportSize(size, size);
 
-        SetResource(resource);
+        SetResource(resource, cancellationToken);
+        cancellationToken.ThrowIfCancellationRequested();
 
         // Initialize scene (creates lighting buffers, octrees, etc.)
         SceneRenderer.Scene.Initialize();
+        cancellationToken.ThrowIfCancellationRequested();
 
         RendererContext.MaxTextureSize = size;
         NativeWindow.ClientSize = new(size);
@@ -201,6 +205,7 @@ internal abstract class ThumbnailRenderer : IDisposable
         GL.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit);
 
         SceneRenderer.Render(framebuffer);
+        cancellationToken.ThrowIfCancellationRequested();
         framebuffer.Bind(FramebufferTarget.ReadFramebuffer);
         Framebuffer.GLDefaultFramebuffer.Bind(FramebufferTarget.DrawFramebuffer);
         SceneRenderer.PostprocessRender(framebuffer, Framebuffer.GLDefaultFramebuffer, flipY: false);
