@@ -3,7 +3,6 @@ using ValveResourceFormat.Renderer;
 using ValveResourceFormat.Renderer.SceneNodes;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.ResourceTypes.SmartProps;
-using ValveResourceFormat.Utils;
 
 namespace Tests.Renderer
 {
@@ -12,39 +11,6 @@ namespace Tests.Renderer
         private const float Tolerance = 1e-3f;
 
         private static Matrix4x4 IdentityWorld(Vector3 translation) => Matrix4x4.CreateTranslation(translation);
-
-        private static Matrix4x4 YawWorld(float degrees, Vector3 translation)
-            => EntityTransformHelper.EulerAnglesToRotationMatrix(new Vector3(0f, degrees, 0f)) * Matrix4x4.CreateTranslation(translation);
-
-        [Test]
-        public async Task LocatorBuildsThreeColoredAxisArms()
-        {
-            var widget = new SmartPropLocatorWidget(
-                7, IdentityWorld(new Vector3(10f, 20f, 30f)), new Vector3(10f, 20f, 30f), default, "loc",
-                new Vector3(1f, 0f, 0f), 2f);
-
-            var (vertices, indices) = SmartPropLocatorSceneNode.BuildSolidGeometry(widget);
-
-            await Assert.That(vertices.Count).IsEqualTo(126);
-            await Assert.That(indices.Count).IsEqualTo(126);
-            await Assert.That(vertices.Exists(v => v.Color == new Color32(0.85f, 0.12f, 0.12f, 1f))).IsTrue();
-            await Assert.That(vertices.Exists(v => v.Color == new Color32(0f, 0.85f, 0f, 1f))).IsTrue();
-            await Assert.That(vertices.Exists(v => v.Color == new Color32(0f, 0.16f, 0.78f, 1f))).IsTrue();
-        }
-
-        [Test]
-        public async Task LocatorArmsFollowRotatedFrame()
-        {
-            var origin = new Vector3(0f, 0f, 0f);
-            var widget = new SmartPropLocatorWidget(
-                7, YawWorld(90f, origin), origin, default, "", default, 1f);
-
-            var (vertices, _) = SmartPropLocatorSceneNode.BuildSolidGeometry(widget);
-
-            var red = new Color32(0.85f, 0.12f, 0.12f, 1f);
-            var hasRotatedArm = vertices.Exists(v => v.Color == red && v.Position.Y > 7.9f);
-            await Assert.That(hasRotatedArm).IsTrue();
-        }
 
         [Test]
         public async Task RotatorBuildsRingNeedleAndTab()

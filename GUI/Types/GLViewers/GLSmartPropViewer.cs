@@ -43,6 +43,7 @@ namespace GUI.Types.GLViewers
 
         private const int IdColumnWidth = 40;
         private const int ClassColumnWidth = 85;
+        private const string LocatorModelName = "models/editor/axis_helper_thick.vmdl";
 
         private readonly SmartProp smartProp;
         private readonly List<Resource> loadedResources = [];
@@ -1295,11 +1296,32 @@ namespace GUI.Types.GLViewers
             return pathSceneNode;
         }
 
+        private ModelSceneNode? CreateLocatorSceneNode(SmartPropLocatorWidget locator)
+        {
+            var resource = GuiContext.LoadFileCompiled(LocatorModelName);
+            if (resource?.DataBlock is not Model model)
+            {
+                resource?.Dispose();
+                return null;
+            }
+
+            loadedResources.Add(resource);
+
+            var modelSceneNode = new ModelSceneNode(Scene, model)
+            {
+                Name = locator.Name,
+                Transform = Matrix4x4.CreateScale(locator.DisplayScale) * locator.WorldMatrix,
+            };
+
+            Scene.Add(modelSceneNode, false);
+            return modelSceneNode;
+        }
+
         private SceneNode? CreateWidgetSceneNode(SmartPropWidget widget)
         {
             var sceneNode = widget switch
             {
-                SmartPropLocatorWidget locator => Track(new SmartPropLocatorSceneNode(Scene, locator), locatorNodes),
+                SmartPropLocatorWidget locator => CreateLocatorSceneNode(locator) is { } node ? Track(node, locatorNodes) : null,
                 SmartPropRotatorWidget rotator => Track(new SmartPropRotatorSceneNode(Scene, rotator), rotatorNodes),
                 SmartPropSizerWidget sizer => Track(new SmartPropSizerSceneNode(Scene, sizer), sizerNodes),
                 SmartPropPickOneHandleWidget pickOne => Track(new SmartPropPickOneSceneNode(Scene, pickOne), pickOneNodes),
