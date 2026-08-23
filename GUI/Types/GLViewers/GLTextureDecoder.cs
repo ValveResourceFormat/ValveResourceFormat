@@ -43,8 +43,6 @@ public class GLTextureDecoder : IHardwareTextureDecoder, IDisposable
     {
         public ManualResetEvent DoneEvent { get; } = new(false);
         public bool Success { get; set; }
-        public TimeSpan DecodeTime { get; set; }
-        public TimeSpan ResponseTime { get; set; }
 
         public bool Wait(int timeout = Timeout.Infinite) => DoneEvent.WaitOne(timeout);
 
@@ -94,8 +92,6 @@ public class GLTextureDecoder : IHardwareTextureDecoder, IDisposable
 
         using var request = new DecodeRequest(bitmap, resource, (int)mipLevel, (int)depth, face, ChannelMapping.RGBA, decodeFlags);
 
-        var sw = Stopwatch.StartNew();
-
         try
         {
             decodeQueue.Add(request);
@@ -107,10 +103,6 @@ public class GLTextureDecoder : IHardwareTextureDecoder, IDisposable
         }
 
         request.Wait();
-        request.ResponseTime = sw.Elapsed - request.DecodeTime;
-
-        var status = request.Success ? "succeeded" : "failed";
-        RendererContext.Logger.LogDebug("Decode {Status} in {DecodeTime}ms (response time: {ResponseTime}ms)", status, request.DecodeTime.Milliseconds, request.ResponseTime.Milliseconds);
 
         return request.Success;
     }
@@ -182,7 +174,6 @@ public class GLTextureDecoder : IHardwareTextureDecoder, IDisposable
 
     private bool DecodeTexture(DecodeRequest request)
     {
-        var sw = Stopwatch.StartNew();
         var inputTexture = RendererContext.MaterialLoader.LoadTexture(request.Resource, isViewerRequest: true);
 
         inputTexture.SetFiltering(TextureMinFilter.NearestMipmapNearest, TextureMagFilter.Nearest);
@@ -268,7 +259,6 @@ public class GLTextureDecoder : IHardwareTextureDecoder, IDisposable
             pixels
         );
 
-        request.DecodeTime = sw.Elapsed;
         return true;
     }
 
