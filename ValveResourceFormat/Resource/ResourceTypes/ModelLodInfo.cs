@@ -144,5 +144,9 @@ namespace ValveResourceFormat.ResourceTypes
         /// <summary>Returns the index of the lowest set bit in <paramref name="combinedMask"/>, or 0 if none.</summary>
         public static int LowestSetLevel(long combinedMask)
             => combinedMask == 0 ? 0 : BitOperations.TrailingZeroCount((ulong)combinedMask);
+
+        /// <summary>Returns a mask with only the lowest set level bit of <paramref name="combinedMask"/>, or 0 if none.</summary>
+        public static uint LowestSetLevelMask(uint combinedMask)
+            => combinedMask == 0 ? 0u : 1u << LowestSetLevel(combinedMask);
     }
 }

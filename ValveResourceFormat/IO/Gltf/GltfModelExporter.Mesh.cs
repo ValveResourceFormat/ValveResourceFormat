@@ -532,12 +532,15 @@ public partial class GltfModelExporter
             drawCalls.AddRange(objectDrawCalls);
         }
 
-        var combinedLodMask = 0u;
+        // LoD levels are indexed within each m_lodSetups entry, so the highest detail tier is the
+        // lowest level present per setup, not across the whole aggregate.
+        var combinedLodMaskPerSetup = new Dictionary<int, uint>();
         foreach (var fragmentData in aggregateMeshes)
         {
-            combinedLodMask |= fragmentData.GetUInt32Property("m_nLODGroupMask");
+            var setupIndex = fragmentData.GetInt32Property("m_nLODSetupIndex", -1);
+            combinedLodMaskPerSetup.TryGetValue(setupIndex, out var combinedLodMask);
+            combinedLodMaskPerSetup[setupIndex] = combinedLodMask | fragmentData.GetUInt32Property("m_nLODGroupMask");
         }
-        var lowestLodBit = combinedLodMask == 0 ? 0u : 1u << ResourceTypes.ModelLodInfo.LowestSetLevel(combinedLodMask);
 
         var id = 0;
 
@@ -563,6 +566,8 @@ public partial class GltfModelExporter
             }
 
             var lodGroupMask = fragmentData.GetUInt32Property("m_nLODGroupMask");
+            var setupIndex = fragmentData.GetInt32Property("m_nLODSetupIndex", -1);
+            var lowestLodBit = ResourceTypes.ModelLodInfo.LowestSetLevelMask(combinedLodMaskPerSetup[setupIndex]);
             var isHighestDetailMesh = lodGroupMask == 0 || (lodGroupMask & lowestLodBit) != 0;
             if (!isHighestDetailMesh)
             {
