@@ -15,6 +15,8 @@ namespace ValveResourceFormat.ResourceTypes.SmartProps
     {
         private readonly Dictionary<string, object?> variables;
         private readonly Dictionary<string, object?> overrides;
+        private readonly Dictionary<int, int> pickOneSelections;
+        private readonly Dictionary<string, float> widgetOutputValues;
 
         /// <summary>Zero based index of the instance being evaluated.</summary>
         public int InstanceIndex { get; }
@@ -38,10 +40,14 @@ namespace ValveResourceFormat.ResourceTypes.SmartProps
             int instanceCount = 1,
             int seed = 0,
             IReadOnlyDictionary<string, object?>? overrides = null,
+            IReadOnlyDictionary<int, int>? pickOneSelections = null,
+            IReadOnlyDictionary<string, float>? widgetOutputValues = null,
             float linearScale = 1f)
         {
             this.variables = CopyMap(variables);
             this.overrides = CopyMap(overrides);
+            this.pickOneSelections = CopyMap(pickOneSelections);
+            this.widgetOutputValues = CopyMap(widgetOutputValues);
             InstanceIndex = instanceIndex;
             InstanceCount = instanceCount;
             LinearScale = linearScale;
@@ -53,7 +59,7 @@ namespace ValveResourceFormat.ResourceTypes.SmartProps
         /// The copy shares the parent's RNG so random sequences continue seamlessly.
         /// </summary>
         public SmartPropEvaluationContext WithInstance(int? instanceIndex = null, int? instanceCount = null, float? linearScale = null)
-            => new(variables, instanceIndex ?? InstanceIndex, instanceCount ?? InstanceCount, 0, overrides, linearScale ?? LinearScale)
+            => new(variables, instanceIndex ?? InstanceIndex, instanceCount ?? InstanceCount, 0, overrides, pickOneSelections, widgetOutputValues, linearScale ?? LinearScale)
             {
                 Rng = Rng,
             };
@@ -76,6 +82,17 @@ namespace ValveResourceFormat.ResourceTypes.SmartProps
 
         /// <summary>Sets a live variable override that wins over declared defaults.</summary>
         public void SetOverride(string name, object? value) => overrides[name] = value;
+
+        /// <summary>Gets the live child selection for a PickOne element, when one was set by an editor.</summary>
+        public bool TryGetPickOneSelection(int elementId, out int selection)
+            => pickOneSelections.TryGetValue(elementId, out selection);
+
+        /// <summary>Sets the live child selection for a PickOne element.</summary>
+        public void SetPickOneSelection(int elementId, int selection) => pickOneSelections[elementId] = selection;
+
+        /// <summary>Gets the live value emitted by an interactive widget.</summary>
+        public bool TryGetWidgetOutputValue(string name, out float value)
+            => widgetOutputValues.TryGetValue(name, out value);
 
         /// <summary>
         /// Resolves any scalar value form to a float. Bindings are dictionaries with
@@ -364,6 +381,34 @@ namespace ValveResourceFormat.ResourceTypes.SmartProps
         private static Dictionary<string, object?> CopyMap(IReadOnlyDictionary<string, object?>? source)
         {
             var map = new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase);
+            if (source != null)
+            {
+                foreach (var (key, value) in source)
+                {
+                    map[key] = value;
+                }
+            }
+
+            return map;
+        }
+
+        private static Dictionary<int, int> CopyMap(IReadOnlyDictionary<int, int>? source)
+        {
+            Dictionary<int, int> map = [];
+            if (source != null)
+            {
+                foreach (var (key, value) in source)
+                {
+                    map[key] = value;
+                }
+            }
+
+            return map;
+        }
+
+        private static Dictionary<string, float> CopyMap(IReadOnlyDictionary<string, float>? source)
+        {
+            var map = new Dictionary<string, float>(StringComparer.OrdinalIgnoreCase);
             if (source != null)
             {
                 foreach (var (key, value) in source)
