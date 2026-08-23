@@ -73,8 +73,6 @@ namespace ValveResourceFormat.Renderer.SceneNodes
                 return;
             }
 
-            // The sprite's own shader samples the shadow map a depth pass renders into. It needs no depth mode
-            // of its own: the transform uniform set below places the quad the way the shared depth shader does.
             var renderShader = context.DepthOnlyShader?.WithAlphaTest(material.IsAlphaTest)
                 ?? context.ReplacementShader
                 ?? material.Shader;

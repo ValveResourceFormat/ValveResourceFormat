@@ -189,8 +189,6 @@ namespace ValveResourceFormat.Renderer
             {
                 if (request.Call == null)
                 {
-                    // Nodes only reach RenderPass.DepthOnly when they declare CustomRenderPasses.DepthOnly,
-                    // which says they have a shader for it; the collection is what holds the rest out.
                     if (context.RenderPass is RenderPass.Opaque or RenderPass.Translucent or RenderPass.Outline or RenderPass.DepthOnly)
                     {
                         material?.PostRender();

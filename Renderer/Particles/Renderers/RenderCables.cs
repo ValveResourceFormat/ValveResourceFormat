@@ -393,7 +393,6 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             VertexArray.Bind(vaoHandle, drawShader);
             material.Render(drawShader);
 
-            // A depth mode shades nothing, so it reads none of the lighting the binds below are for.
             if (!depthOnly)
             {
                 // todo: batch tube draws and call this less often

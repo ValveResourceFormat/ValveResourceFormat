@@ -130,11 +130,7 @@ namespace ValveResourceFormat.Renderer.Shaders
         /// <summary>Gets whether the shader source declares <paramref name="combo"/> as a static combo.</summary>
         public bool DeclaresCombo(string combo) => Defines.ContainsKey(combo);
 
-        /// <summary>
-        /// Gets this shader's depth only mode, or <see langword="null"/> when it has none. Valve declares the
-        /// mode on the vfx as <c>Depth(S_MODE_DEPTH)</c>; the combo drops the forward pixel shader, leaving a
-        /// program that cannot sample the shadow map a depth pass renders into.
-        /// </summary>
+        /// <summary>Gets this shader's depth only mode, or <see langword="null"/> when it has none.</summary>
         public Shader? DepthMode => DeclaresCombo(DepthModeCombo) ? WithCombo(DepthModeCombo, 1) : null;
 
         /// <summary>
