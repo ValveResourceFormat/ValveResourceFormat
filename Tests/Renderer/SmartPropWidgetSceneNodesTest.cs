@@ -3,6 +3,7 @@ using ValveResourceFormat.Renderer;
 using ValveResourceFormat.Renderer.SceneNodes;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.ResourceTypes.SmartProps;
+using ValveResourceFormat.Utils;
 
 namespace Tests.Renderer
 {
