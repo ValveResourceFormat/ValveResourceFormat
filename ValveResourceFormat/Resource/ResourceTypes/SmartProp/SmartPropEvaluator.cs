@@ -273,6 +273,12 @@ namespace ValveResourceFormat.ResourceTypes.SmartProps
 
         private static int PickOneChildIndex(KVObject element, int childCount, SmartPropEvaluationContext context)
         {
+            var elementId = GetInt32(element, "m_nElementID");
+            if (elementId > 0 && context.TryGetPickOneSelection(elementId, out var selectedIndex))
+            {
+                return Math.Clamp(selectedIndex, 0, childCount - 1);
+            }
+
             var index = 0;
             var mode = GetString(element, "m_SelectionMode", "RANDOM").ToUpperInvariant();
             if (mode is "SPECIFIC" or "SPECIFIC_CHILD")

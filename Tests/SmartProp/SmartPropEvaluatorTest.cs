@@ -184,6 +184,22 @@ namespace Tests.SmartProp
         }
 
         [Test]
+        public async Task PickOneLiveSelectionOverridesTheAuthoredChoice()
+        {
+            var pickOne = Element("PickOne", 10,
+                ModelElement(1, "models/a.vmdl"),
+                ModelElement(2, "models/b.vmdl"),
+                ModelElement(3, "models/c.vmdl"));
+            pickOne["m_SelectionMode"] = new KVObject("SPECIFIC");
+            pickOne["m_SpecificChildIndex"] = new KVObject(0);
+
+            var context = new SmartPropEvaluationContext(pickOneSelections: new Dictionary<int, int> { [10] = 2 });
+            var result = SmartPropEvaluator.Evaluate(Root(pickOne), context);
+
+            await Assert.That(result.Models[0].ModelName).IsEqualTo("models/c.vmdl");
+        }
+
+        [Test]
         public async Task PickOneRandomTakesFirstChildAndClampsSpecificIndex()
         {
             var random = Element("PickOne", 10,
