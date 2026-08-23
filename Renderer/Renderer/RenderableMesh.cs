@@ -119,6 +119,15 @@ namespace ValveResourceFormat.Renderer
             var meshSceneObjects = mesh.Data.GetArray("m_sceneObjects");
             ConfigureDrawCalls(scene, vbib, meshSceneObjects, initialMaterialTable, isAggregate);
 
+            if (vbibOverride != null)
+            {
+                Meshlets.Clear();
+                foreach (var drawCall in DrawCalls)
+                {
+                    drawCall.DrawBounds = BoundingBox;
+                }
+            }
+
             if (morph != null)
             {
                 FlexStateManager = new FlexStateManager(renderContext, morph);

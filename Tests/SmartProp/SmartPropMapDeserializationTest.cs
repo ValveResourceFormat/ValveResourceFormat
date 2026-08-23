@@ -94,6 +94,27 @@ public class SmartPropMapDeserializationTest
         await Assert.That(parts[1].Transform.M11).IsEqualTo(0.5625f);
     }
 
+    [Test]
+    public async Task ReadsSavedSmartPropBezierDeformers()
+    {
+        var parts = SmartPropMapPartSet.ReadAll(LoadMap("Sample01"))[2];
+
+        await Assert.That(parts).Count().IsEqualTo(7);
+        await Assert.That(parts[0].Deformer).IsNotNull();
+        await Assert.That(parts[1].Deformer).IsNotNull();
+        await Assert.That(parts[2].Deformer).IsNull();
+
+        var deformer = parts[0].Deformer!;
+        var undeformedStart = Vector3.Transform(Vector3.Zero, deformer.LocalToWorld);
+        var undeformedEnd = Vector3.Transform(new Vector3(deformer.Size.X, 0f, 0f), deformer.LocalToWorld);
+        var expectedStart = Vector3.Transform(deformer.ControlPoints[0], deformer.LocalToWorld);
+        var expectedEnd = Vector3.Transform(deformer.ControlPoints[4], deformer.LocalToWorld);
+        await Assert.That(deformer.LocalToWorld).IsNotEqualTo(Matrix4x4.Identity);
+        await Assert.That(Vector3.Distance(deformer.DeformPosition(undeformedStart), expectedStart)).IsLessThan(0.001f);
+        await Assert.That(Vector3.Distance(deformer.DeformPosition(undeformedEnd), expectedEnd)).IsLessThan(0.001f);
+        await Assert.That(expectedEnd.Y).IsEqualTo(192.0625f);
+    }
+
     private static Datamodel.Element LoadMap(string sampleName)
     {
         var path = Path.Combine(TestContext.TestDirectory!, "SmartProp", "SmartPropMapDeserializationTest", sampleName, "sample.vmap");

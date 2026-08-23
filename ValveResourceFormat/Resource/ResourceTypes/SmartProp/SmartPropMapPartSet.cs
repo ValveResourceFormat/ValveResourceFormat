@@ -153,7 +153,7 @@ public static class SmartPropMapPartSet
             }
 
             deformers.Add(new SmartPropMapDeformer(
-                ReadTransform(deformer),
+                ReadTransform(deformer, "m_LocalToWorld"),
                 ReadVector(deformer, "m_vSize", Vector3.One),
                 ReadString(deformer, "m_nInterpolationMode"),
                 controlPoints,
@@ -193,7 +193,7 @@ public static class SmartPropMapPartSet
             var deformer = deformerIndex >= 0 && deformerIndex < deformers.Count
                 ? deformers[deformerIndex]
                 : null;
-            parts.Add(new SmartPropMapPart(modelName, ReadTransform(part), ReadTint(part), deformer));
+            parts.Add(new SmartPropMapPart(modelName, ReadTransform(part, "m_Transform"), ReadTint(part), deformer));
         }
 
         return parts;
@@ -213,9 +213,9 @@ public static class SmartPropMapPartSet
         return false;
     }
 
-    private static Matrix4x4 ReadTransform(Datamodel.Element part)
+    private static Matrix4x4 ReadTransform(Datamodel.Element part, string name)
     {
-        if (!part.TryGetValue("m_Transform", out var transformValue)
+        if (!part.TryGetValue(name, out var transformValue)
             || transformValue is not Datamodel.FloatArray { Count: >= 8 } transform)
         {
             return Matrix4x4.Identity;
