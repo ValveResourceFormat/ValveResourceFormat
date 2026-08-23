@@ -1,6 +1,7 @@
 using System.Globalization;
 using ValveKeyValue;
 using ValveResourceFormat.ResourceTypes;
+using ValveResourceFormat.ResourceTypes.SmartProps;
 
 namespace ValveResourceFormat.IO.ContentFormats.ValveMap;
 
@@ -64,15 +65,29 @@ public static class ValveMapEntityReader
             properties = entityProperties;
         }
 
-        if (properties == null)
+        var smartProp = SmartPropMapParameters.Read(element);
+        if (properties == null && smartProp == null)
         {
             return null;
         }
 
         var entity = new EntityLump.Entity { ParentLump = parentLump };
-        foreach (var (name, value) in properties)
+        if (properties != null)
         {
-            entity.Add(name.ToLowerInvariant(), ConvertValue(value));
+            foreach (var (name, value) in properties)
+            {
+                entity.Add(name.ToLowerInvariant(), ConvertValue(value));
+            }
+        }
+        else
+        {
+            entity["classname"] = element.ClassName;
+            entity["smartpropfilename"] = smartProp!.SmartPropFilename;
+            entity["randomseed"] = smartProp.RandomSeed;
+            foreach (var (name, value) in smartProp.Values)
+            {
+                entity[$"parameter.{name}"] = value;
+            }
         }
 
         var nodeId = ReadInt32(element, "nodeID");
