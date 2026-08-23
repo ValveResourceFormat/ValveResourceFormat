@@ -6,6 +6,10 @@
 #include "common/features.slang"
 #include "csgo_environment_features.slang"
 
+// MODES
+#define S_MODE_DEPTH 0
+#define S_MODE_OVERDRAW 0
+
 #define IBL 1
 
 in vec3 vFragPosition;
@@ -21,9 +25,15 @@ centroid in vec4 vVertexColor_Alpha;
 in vec4 vBlendColorTint;
 
 
-out vec4 outputColor;
+#if (S_MODE_DEPTH == 0) && (S_MODE_OVERDRAW == 0)
+    out vec4 outputColor;
+#endif
 
 // Material 1
+#if (F_ALPHA_TEST == 1)
+    uniform float g_flAlphaTestReference1 = 0.5;
+    uniform float g_flAntiAliasedEdgeStrength1 = 1.0;
+#endif
 uniform sampler2D g_tColor1; // SrgbRead(true)
 uniform sampler2D g_tHeight1;
 uniform sampler2D g_tNormal1;
@@ -257,6 +267,35 @@ uniform float g_flModelTintAmount = 1.0;
 
 #include "common/fog.slang"
 
+#if (S_MODE_DEPTH == 1) || (S_MODE_OVERDRAW == 1)
+
+    #if (S_MODE_OVERDRAW == 1)
+        #include "common/quad_overdraw.slang"
+    #endif
+
+    #if (F_ALPHA_TEST == 1) || (S_MODE_OVERDRAW == 1)
+        out vec4 outputColor;
+    #endif
+
+    #if (S_MODE_OVERDRAW == 1) || (F_ALPHA_TEST == 0)
+        layout (early_fragment_tests) in;
+    #endif
+
+    void main()
+    {
+        #if (F_ALPHA_TEST == 1)
+            outputColor = vec4(0.0, 0.0, 0.0, AlphaTestAntiAliasing(texture(g_tColor1, vTexCoord.xy).a, vTexCoord.xy, g_flAlphaTestReference1, g_flAntiAliasedEdgeStrength1));
+        #elif (S_MODE_OVERDRAW == 1)
+            outputColor = vec4(0.0, 0.0, 0.0, 1.0);
+        #endif
+
+        #if (S_MODE_OVERDRAW == 1)
+            CountQuadOverdraw();
+        #endif
+    }
+
+#else
+
 // The dielectric reflectance the specular colour is built from. Wetness pulls it toward water.
 uniform float g_flReflectance = 0.04;
 
@@ -488,7 +527,7 @@ MaterialProperties_t GetMaterial(vec3 vertexNormals)
     // Alpha test
     #if (F_ALPHA_TEST == 1)
         mat.AmbientOcclusion = height.b;
-        mat.Opacity = AlphaTestAntiAliasing(color.a, vTexCoord.xy);
+        mat.Opacity = AlphaTestAntiAliasing(color.a, vTexCoord.xy, g_flAlphaTestReference1, g_flAntiAliasedEdgeStrength1);
     #endif
 
     mat.AmbientOcclusion = mix(aoLevels.x, aoLevels.z, pow(max(mat.AmbientOcclusion, 0.0), max(aoLevels.y, 0.001)));
@@ -573,3 +612,5 @@ void main()
     }
 #endif
 }
+
+#endif
