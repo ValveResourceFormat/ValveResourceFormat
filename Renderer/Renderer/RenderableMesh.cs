@@ -75,14 +75,17 @@ namespace ValveResourceFormat.Renderer
         /// <param name="initialMaterialTable">Optional material name overrides.</param>
         /// <param name="morph">Optional morph data for facial animation.</param>
         /// <param name="isAggregate">When <see langword="true"/>, all draw calls go into the opaque bucket for aggregate rendering.</param>
+        /// <param name="vbibOverride">Optional per-instance replacement vertex and index buffers.</param>
+        /// <param name="nameOverride">Optional unique mesh name used to cache replacement GPU buffers.</param>
         public RenderableMesh(Mesh mesh, int meshIndex, Scene scene, Model? model = null,
-            Dictionary<string, string>? initialMaterialTable = null, Morph? morph = null, bool isAggregate = false)
+            Dictionary<string, string>? initialMaterialTable = null, Morph? morph = null, bool isAggregate = false,
+            VBIB? vbibOverride = null, string? nameOverride = null)
         {
             renderContext = scene.RendererContext;
 
-            Name = mesh.Name;
+            Name = nameOverride ?? mesh.Name;
 
-            var vbib = mesh.VBIB;
+            var vbib = vbibOverride ?? mesh.VBIB;
 
             if (model != null)
             {
@@ -102,17 +105,56 @@ namespace ValveResourceFormat.Renderer
             BoneWeightCount = mesh.Data.GetSubCollection("m_skeleton")?.GetInt32Property("m_nBoneWeightCount") ?? 0;
             Skinning = GetSkinning(vbib, BoneWeightCount);
 
-            mesh.GetBounds();
-            BoundingBox = new AABB(mesh.MinBounds, mesh.MaxBounds);
+            if (vbibOverride != null && TryGetBounds(vbibOverride, out var overrideBounds))
+            {
+                BoundingBox = overrideBounds;
+            }
+            else
+            {
+                mesh.GetBounds();
+                BoundingBox = new AABB(mesh.MinBounds, mesh.MaxBounds);
+            }
             MeshIndex = meshIndex;
 
             var meshSceneObjects = mesh.Data.GetArray("m_sceneObjects");
             ConfigureDrawCalls(scene, vbib, meshSceneObjects, initialMaterialTable, isAggregate);
 
+            if (vbibOverride != null)
+            {
+                Meshlets.Clear();
+                foreach (var drawCall in DrawCalls)
+                {
+                    drawCall.DrawBounds = BoundingBox;
+                }
+            }
+
             if (morph != null)
             {
                 FlexStateManager = new FlexStateManager(renderContext, morph);
             }
+        }
+
+        private static bool TryGetBounds(VBIB vbib, out AABB bounds)
+        {
+            bounds = new AABB();
+            var hasPositions = false;
+            foreach (var buffer in vbib.VertexBuffers)
+            {
+                var position = buffer.InputLayoutFields.FirstOrDefault(static field
+                    => field.SemanticName == "POSITION" && field.SemanticIndex == 0);
+                if (position.Format != DXGI_FORMAT.R32G32B32_FLOAT)
+                {
+                    continue;
+                }
+
+                foreach (var vertex in VBIB.GetVector3AttributeArray(buffer, position))
+                {
+                    bounds = bounds.Encapsulate(vertex);
+                    hasPositions = true;
+                }
+            }
+
+            return hasPositions;
         }
 
         /// <summary>Returns the render mode names supported by the materials in this mesh, concatenated across draw calls (may contain duplicates).</summary>
