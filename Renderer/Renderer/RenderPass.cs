@@ -49,11 +49,7 @@ namespace ValveResourceFormat.Renderer
         /// <summary>Draws in no pass at all.</summary>
         None = 0,
 
-        /// <summary>
-        /// Draws in <see cref="RenderPass.Opaque"/>. Not in <see cref="RenderPass.DepthOnly"/>, so a node
-        /// that draws itself casts no shadow: it has no material to take a depth mode from, and its own
-        /// shaders sample the shadow map that pass renders into.
-        /// </summary>
+        /// <summary>Draws in <see cref="RenderPass.Opaque"/>.</summary>
         Opaque = 1 << 0,
 
         /// <summary>Draws in <see cref="RenderPass.Translucent"/>.</summary>
@@ -66,6 +62,13 @@ namespace ValveResourceFormat.Renderer
 
         /// <summary>Draws in the translucent pass, into the water effects map instead of the scene.</summary>
         WaterEffects = 1 << 3,
+
+        /// <summary>
+        /// Draws in <see cref="RenderPass.DepthOnly"/> too, and so casts a shadow. A node that draws itself
+        /// needs a shader that only lays down depth to set this: its forward shaders sample the very shadow
+        /// map that pass renders into.
+        /// </summary>
+        DepthOnly = 1 << 4,
 
         /// <summary>Draws in the opaque and translucent passes, the default for a node that draws itself.</summary>
         Default = Opaque | Translucent,

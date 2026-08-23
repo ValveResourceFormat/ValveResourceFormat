@@ -117,6 +117,11 @@ namespace ValveResourceFormat.Renderer.Particles
                     : renderer.Pass == RenderPass.Opaque
                         ? CustomRenderPasses.Opaque
                         : CustomRenderPasses.Translucent;
+
+                if (renderer.CanRenderDepth)
+                {
+                    passes |= CustomRenderPasses.DepthOnly;
+                }
             }
 
             foreach (var childRenderer in childRenderers)
@@ -201,9 +206,18 @@ namespace ValveResourceFormat.Renderer.Particles
 
             var rendered = false;
 
+            var depthPass = pass == RenderPass.DepthOnly;
+
             foreach (var renderer in renderers)
             {
-                if (renderer.Pass != pass || renderer.OnlyRenderInEffectsWaterPass != waterEffectsLayer)
+                if (depthPass)
+                {
+                    if (!renderer.CanRenderDepth)
+                    {
+                        continue;
+                    }
+                }
+                else if (renderer.Pass != pass || renderer.OnlyRenderInEffectsWaterPass != waterEffectsLayer)
                 {
                     continue;
                 }
@@ -213,7 +227,15 @@ namespace ValveResourceFormat.Renderer.Particles
                     continue;
                 }
 
-                renderer.Render(Simulation.Particles, Simulation.RenderState, camera);
+                if (depthPass)
+                {
+                    renderer.RenderDepth(Simulation.Particles, Simulation.RenderState, camera);
+                }
+                else
+                {
+                    renderer.Render(Simulation.Particles, Simulation.RenderState, camera);
+                }
+
                 rendered = true;
             }
 

@@ -1420,8 +1420,16 @@ namespace ValveResourceFormat.Renderer
                 }
                 else
                 {
-                    // Nodes that draw themselves have no material to take a depth mode from, and their own
-                    // shaders sample the shadow map this pass renders into, so they cast no shadow.
+                    if ((node.Flags & skipFlags) == 0 && (node.RenderPasses & CustomRenderPasses.DepthOnly) != 0)
+                    {
+                        AccumulateDepthFit(node);
+
+                        drawBuckets[DepthOnlyBucket.MaterialDepthMode].Add(new MeshBatchRenderer.Request
+                        {
+                            Node = node,
+                        });
+                    }
+
                     continue;
                 }
 
