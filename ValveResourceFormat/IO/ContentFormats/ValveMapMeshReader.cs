@@ -1,4 +1,5 @@
 using System.Linq;
+using ValveResourceFormat.ResourceTypes;
 
 namespace ValveResourceFormat.IO.ContentFormats.ValveMap;
 
@@ -17,8 +18,9 @@ public sealed record ValveMapMeshPart(string MaterialName, IReadOnlyList<ValveMa
 
 /// <summary>A Hammer-authored mesh extracted from a source VMAP node.</summary>
 /// <param name="NodeId">Source-map node id.</param>
+/// <param name="Transform">Transform from mesh-local into the CMapMesh node's space.</param>
 /// <param name="Parts">Triangle ranges grouped by material.</param>
-public sealed record ValveMapMesh(int NodeId, IReadOnlyList<ValveMapMeshPart> Parts);
+public sealed record ValveMapMesh(int NodeId, Matrix4x4 Transform, IReadOnlyList<ValveMapMeshPart> Parts);
 
 /// <summary>Reads renderable triangle data from Hammer's editable half-edge mesh representation.</summary>
 public static class ValveMapMeshReader
@@ -118,7 +120,7 @@ public static class ValveMapMeshReader
             return false;
         }
 
-        mesh = new ValveMapMesh(ReadInt32(element, "nodeID"), extractedParts);
+        mesh = new ValveMapMesh(ReadInt32(element, "nodeID"), ReadTransform(meshData), extractedParts);
         return true;
     }
 
@@ -220,4 +222,20 @@ public static class ValveMapMeshReader
 
     private static int ReadInt32(Datamodel.Element element, string name)
         => element.TryGetValue(name, out var value) && value is IConvertible convertible ? convertible.ToInt32(null) : 0;
+
+    private static Matrix4x4 ReadTransform(Datamodel.Element element)
+    {
+        var angles = Vector3.Zero;
+        if (element.TryGetValue("angles", out var anglesValue) && anglesValue is Datamodel.QAngle qAngle)
+        {
+            angles = new Vector3(qAngle.Pitch, qAngle.Yaw, qAngle.Roll);
+        }
+
+        return Matrix4x4.CreateScale(ReadVector(element, "scales", Vector3.One))
+            * EntityTransformHelper.EulerAnglesToRotationMatrix(angles)
+            * Matrix4x4.CreateTranslation(ReadVector(element, "origin", Vector3.Zero));
+    }
+
+    private static Vector3 ReadVector(Datamodel.Element element, string name, Vector3 fallback)
+        => element.TryGetValue(name, out var value) && value is Vector3 vector ? vector : fallback;
 }

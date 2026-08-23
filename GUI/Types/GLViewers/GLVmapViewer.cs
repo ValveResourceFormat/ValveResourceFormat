@@ -98,7 +98,7 @@ internal sealed class GLVmapViewer : GLSingleNodeViewer
         {
             var node = new ValveMapMeshSceneNode(Scene, mapMesh)
             {
-                Transform = worldTransform,
+                Transform = mapMesh.Transform * worldTransform,
                 EntityData = entity,
             };
 
