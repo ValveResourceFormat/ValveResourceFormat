@@ -713,12 +713,22 @@ namespace ValveResourceFormat.Renderer
         private void CreateIndirectDrawBuffers(bool deletePrevious = false)
         {
             var aggregateSceneNodes = staticNodes.OfType<SceneAggregate>().Where(agg => agg.CanDrawIndirect).ToList();
-            var aggregateDrawCallCount = aggregateSceneNodes.Sum(agg => agg.RenderMesh.DrawCallsOpaque.Count);
-            var aggregateMeshletCount = aggregateSceneNodes.Sum(agg => agg.RenderMesh.Meshlets.Count);
+            var aggregateDrawCallCount = 0;
+            var aggregateMeshletCount = 0;
+            var aggregateCommandCount = 0;
 
-            // Instanced fragments reuse one draw call with a transform each, so a fragment issues its own
-            // commands but shares the cull data they point at
-            var aggregateCommandCount = aggregateSceneNodes.Sum(agg => agg.Fragments.Sum(f => f.DrawCall.NumMeshlets));
+            foreach (var agg in aggregateSceneNodes)
+            {
+                aggregateDrawCallCount += agg.RenderMesh.DrawCallsOpaque.Count;
+                aggregateMeshletCount += agg.RenderMesh.Meshlets.Count;
+
+                // Instanced fragments reuse one draw call with a transform each, so a fragment issues its own
+                // commands but shares the cull data they point at
+                foreach (var fragment in agg.Fragments)
+                {
+                    aggregateCommandCount += fragment.DrawCall.NumMeshlets;
+                }
+            }
 
             if (aggregateMeshletCount == 0)
             {
