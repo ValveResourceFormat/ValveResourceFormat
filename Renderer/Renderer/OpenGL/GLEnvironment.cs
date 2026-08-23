@@ -14,7 +14,7 @@ public static class GLEnvironment
     private const int VersionMinor = 6;
 
     /// <summary>
-    /// Minimum required OpenGL version (4.6).
+    /// Minimum required OpenGL version.
     /// </summary>
     public static readonly Version RequiredVersion = new(VersionMajor, VersionMinor);
 

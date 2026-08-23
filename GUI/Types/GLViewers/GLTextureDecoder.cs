@@ -20,6 +20,7 @@ public class GLTextureDecoder : IHardwareTextureDecoder, IDisposable
     private readonly BlockingCollection<DecodeRequest> decodeQueue = [];
     private readonly Lock threadStartupLock = new();
     private readonly Thread GLThread;
+    private bool threadStarted;
 
     private NativeWindow? GLWindowContext;
     private GraphicsContext? GraphicsContext;
@@ -74,8 +75,9 @@ public class GLTextureDecoder : IHardwareTextureDecoder, IDisposable
     {
         lock (threadStartupLock)
         {
-            if (!GLThread.IsAlive)
+            if (!threadStarted)
             {
+                threadStarted = true;
                 GLThread.Start();
             }
         }
@@ -85,16 +87,24 @@ public class GLTextureDecoder : IHardwareTextureDecoder, IDisposable
     {
         StartThread();
 
-        if (!GLThread.IsAlive)
+        if (!GLThread.IsAlive || decodeQueue.IsAddingCompleted)
         {
-            RendererContext.Logger.LogWarning("Decoder thread is no longer available");
             return false;
         }
 
         using var request = new DecodeRequest(bitmap, resource, (int)mipLevel, (int)depth, face, ChannelMapping.RGBA, decodeFlags);
 
         var sw = Stopwatch.StartNew();
-        decodeQueue.Add(request);
+
+        try
+        {
+            decodeQueue.Add(request);
+        }
+        catch (InvalidOperationException)
+        {
+            // The thread exited between the liveness check and the add
+            return false;
+        }
 
         request.Wait();
         request.ResponseTime = sw.Elapsed - request.DecodeTime;
@@ -117,9 +127,16 @@ public class GLTextureDecoder : IHardwareTextureDecoder, IDisposable
         }
         finally
         {
+            decodeQueue.CompleteAdding();
             CleanupRequests();
             Dispose_ThreadResources();
-            RendererContext.Logger.LogWarning("Decoder thread has exited. It is no longer available");
+
+            if (HardwareAcceleratedTextureDecoder.Decoder == this)
+            {
+                HardwareAcceleratedTextureDecoder.Decoder = null;
+            }
+
+            RendererContext.Logger.LogWarning("Decoder thread has exited, textures will be decoded in software");
         }
     }
 
