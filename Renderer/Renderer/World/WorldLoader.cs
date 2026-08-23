@@ -971,15 +971,15 @@ namespace ValveResourceFormat.Renderer.World
                     if (classname != "env_light_probe_volume")
                     {
                         var cubemapTextureName = entity.GetStringProperty("cubemaptexture");
-                        var envMapTexture = cubemapTextureName != null
-                            ? RendererContext.MaterialLoader.GetTexture(cubemapTextureName, true)
-                            : null;
+                        var envMapTexture = string.IsNullOrEmpty(cubemapTextureName)
+                            ? null
+                            : RendererContext.MaterialLoader.GetTexture(cubemapTextureName, true);
 
-                        if (envMapTexture != null)
+                        if (envMapTexture is { Target: TextureTarget.TextureCubeMap or TextureTarget.TextureCubeMapArray })
                         {
                             var arrayIndex = entity.GetInt32Property("array_index");
                             var edgeFadeDists = entity.GetVector3Property("edge_fade_dists"); // TODO: Not available on all entities
-                            var isCustomTexture = entity.GetStringProperty("customcubemaptexture") != null;
+                            var isCustomTexture = !string.IsNullOrEmpty(entity.GetStringProperty("customcubemaptexture"));
 
                             var envMap = new SceneEnvMap(scene, bounds)
                             {
@@ -1005,9 +1005,9 @@ namespace ValveResourceFormat.Renderer.World
                     if (classname == "env_combined_light_probe_volume" || classname == "env_light_probe_volume")
                     {
                         var lightProbeTextureName = entity.GetStringProperty("lightprobetexture");
-                        var irradianceTexture = lightProbeTextureName != null
-                            ? RendererContext.MaterialLoader.GetTexture(lightProbeTextureName, srgbRead: true)
-                            : null;
+                        var irradianceTexture = string.IsNullOrEmpty(lightProbeTextureName)
+                            ? null
+                            : RendererContext.MaterialLoader.GetTexture(lightProbeTextureName, srgbRead: true);
 
                         var lightProbe = new SceneLightProbe(scene, bounds)
                         {
@@ -1024,13 +1024,13 @@ namespace ValveResourceFormat.Renderer.World
                         var dlsName = entity.GetStringProperty("lightprobetexture_dls");
                         var dlsdName = entity.GetStringProperty("lightprobetexture_dlshd");
 
-                        if (dlsName != null)
+                        if (!string.IsNullOrEmpty(dlsName))
                         {
                             lightProbe.DirectLightScalars = RendererContext.MaterialLoader.GetTexture(dlsName);
                             lightProbe.DirectLightScalars.SetWrapMode(RsTextureAddressMode.Clamp);
                         }
 
-                        if (dliName != null)
+                        if (!string.IsNullOrEmpty(dliName))
                         {
                             lightProbe.DirectLightIndices = RendererContext.MaterialLoader.GetTexture(dliName);
                             lightProbe.DirectLightIndices.SetFiltering(TextureMinFilter.Nearest, TextureMagFilter.Nearest);
@@ -1043,7 +1043,7 @@ namespace ValveResourceFormat.Renderer.World
                             true => LightProbeType.ProbeAtlas,
                         };
 
-                        if (dlsdName != null)
+                        if (!string.IsNullOrEmpty(dlsdName))
                         {
                             lightProbe.DirectLightShadows = RendererContext.MaterialLoader.GetTexture(dlsdName);
                             lightProbe.DirectLightShadows.SetWrapMode(RsTextureAddressMode.Clamp);
