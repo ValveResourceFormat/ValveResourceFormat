@@ -12,8 +12,8 @@ namespace Tests
 {
     public class NmSkeletonExtractTest
     {
-        // chicken.vnmskel_c is the one CS2 skeleton whose compiled bone order does not match a
-        // hierarchy walk in bone index order, so it exercises the exported child ordering.
+        // chicken.vnmskel_c is the only CS2 skeleton whose compiled bone order differs from a
+        // hierarchy walk in bone index order.
         private static (Datamodel.Element Skeleton, string[] BoneIds, int LowLodBoneCount) ExtractSkeletonDmx()
         {
             using var resource = new Resource();
@@ -51,7 +51,7 @@ namespace Tests
             }
 
             // CompileNmSkeleton emits the hierarchy walk filtered to the low-LOD bones, then the
-            // same walk filtered to the rest; the result must be the original compiled order.
+            // same walk filtered to the rest.
             var lowLod = boneIds.Take(lowLodBoneCount).ToHashSet();
             var compilerOrder = walk.Where(lowLod.Contains).Concat(walk.Where(name => !lowLod.Contains(name)));
 
@@ -72,7 +72,7 @@ namespace Tests
             var dot = Quaternion.Dot(orientation, expected);
 
             // The NM resource stores root_motion at identity; the export re-frames it into the
-            // model axis convention, so the DMX bind pose must carry the 120 degree rotation.
+            // model axis convention.
             await Assert.That(MathF.Abs(dot)).IsEqualTo(1f).Within(0.0001f);
         }
     }

@@ -69,8 +69,8 @@ partial class ModelExtract
 
     /// <summary>
     /// Produces a skeleton DMX file. <paramref name="nmLowLodBoneCount"/> is the skeleton's
-    /// m_numBonesToSampleAtLowLOD; when non-negative, DAG children are ordered so that
-    /// CompileNmSkeleton emits the bones in their original compiled order.
+    /// m_numBonesToSampleAtLowLOD; when non-negative, DAG siblings are ordered to reproduce the
+    /// compiled NM bone order.
     /// </summary>
     public static byte[] ToDmxSkeleton(Skeleton skeleton, bool nmSkelAxisFixup = false, int nmLowLodBoneCount = -1)
     {
@@ -344,13 +344,10 @@ partial class ModelExtract
 
     /// <summary>
     /// CompileNmSkeleton emits bones as a hierarchy walk filtered to the first
-    /// m_numBonesToSampleAtLowLOD bones, then the same walk filtered to the rest. This orders one
-    /// sibling group so that walk reproduces the skeleton's compiled bone order, keeping
-    /// recompiled skeletons index-compatible with existing clips: siblings whose subtrees contain
-    /// low-LOD bones keep their relative compiled order, and each pure high-LOD sibling is placed
-    /// where its subtree's first high-LOD bone falls between the mixed siblings' high-LOD
-    /// segments. Without the subtree tables from <see cref="NmLodSubtreeMins"/> the group is
-    /// returned unchanged, in bone index order.
+    /// m_numBonesToSampleAtLowLOD bones, then the same walk filtered to the rest. Orders one
+    /// sibling group so that walk reproduces the skeleton's compiled bone order. Without the
+    /// subtree tables from <see cref="NmLodSubtreeMins"/> the group is returned unchanged, in
+    /// bone index order.
     /// </summary>
     private static IReadOnlyList<Bone> OrderSiblings(IReadOnlyList<Bone> siblings, int[]? minLow, int[]? minHigh)
     {
