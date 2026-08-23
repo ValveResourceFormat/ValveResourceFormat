@@ -532,6 +532,13 @@ public partial class GltfModelExporter
             drawCalls.AddRange(objectDrawCalls);
         }
 
+        var combinedLodMask = 0u;
+        foreach (var fragmentData in aggregateMeshes)
+        {
+            combinedLodMask |= fragmentData.GetUInt32Property("m_nLODGroupMask");
+        }
+        var lowestLodBit = combinedLodMask == 0 ? 0u : 1u << ResourceTypes.ModelLodInfo.LowestSetLevel(combinedLodMask);
+
         var id = 0;
 
         foreach (var fragmentData in aggregateMeshes)
@@ -553,6 +560,13 @@ public partial class GltfModelExporter
                     ProgressReporter?.Report($"Skipping mesh: {meshName} because it has a scale of zero.");
                     continue;
                 }
+            }
+
+            var lodGroupMask = fragmentData.GetUInt32Property("m_nLODGroupMask");
+            var isHighestDetailMesh = lodGroupMask == 0 || (lodGroupMask & lowestLodBit) != 0;
+            if (!isHighestDetailMesh)
+            {
+                continue;
             }
 
             var tintColor = Vector4.One;
