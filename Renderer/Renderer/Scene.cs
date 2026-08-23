@@ -994,7 +994,7 @@ namespace ValveResourceFormat.Renderer
         /// <inheritdoc cref="alphaTestAggregateDraws"/>
         private readonly List<MeshBatchRenderer.Request> alphaTestOpaqueDraws = [];
 
-        private void Add(MeshBatchRenderer.Request request, RenderPass renderPass)
+        private void Add(in MeshBatchRenderer.Request request, RenderPass renderPass)
         {
             Debug.Assert(request.Call is not null);
 

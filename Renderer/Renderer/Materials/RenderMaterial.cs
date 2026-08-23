@@ -323,7 +323,6 @@ namespace ValveResourceFormat.Renderer.Materials
                 return;
             }
 
-            // csgo_foliage sways from the shader name alone, with no combo on the material to read
             VertexAnimation = ShaderName == "csgo_foliage.vfx"
                 || IntParams.GetValueOrDefault("F_VERTEX_ANIMATION") > 0
                 || IntParams.GetValueOrDefault("F_FOLIAGE_ANIMATION") > 0;
@@ -553,9 +552,6 @@ namespace ValveResourceFormat.Renderer.Materials
             depthMaterial = null;
         }
 
-        /// <summary>The alpha reference used when a material does not name one.</summary>
-        private const float DefaultAlphaTestReference = 0.5f;
-
         private RenderMaterial? depthMaterial;
 
         /// <summary>This material as a shared depth-only shader sees it: the color texture and the alpha reference.</summary>
@@ -564,7 +560,7 @@ namespace ValveResourceFormat.Renderer.Materials
             depthMaterial ??= new RenderMaterial(depthShader);
 
             depthMaterial.FloatParams["g_flAlphaTestReference"] =
-                FloatParams.GetValueOrDefault("g_flAlphaTestReference", DefaultAlphaTestReference);
+                FloatParams.GetValueOrDefault("g_flAlphaTestReference", 0.5f);
 
             if (Textures.TryGetValue("g_tColor", out var colorTexture))
             {

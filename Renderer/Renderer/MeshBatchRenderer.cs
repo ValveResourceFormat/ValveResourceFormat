@@ -16,7 +16,7 @@ namespace ValveResourceFormat.Renderer
 #if DEBUG
         [DebuggerDisplay("{Node.DebugName,nq}")]
 #endif
-        public record struct Request(RenderableMesh Mesh, DrawCall? Call, float DistanceFromCamera, int RenderOrder, SceneNode Node);
+        public readonly record struct Request(RenderableMesh Mesh, DrawCall? Call, float DistanceFromCamera, int RenderOrder, SceneNode Node);
         record struct BatchRequest(RenderableMesh Mesh, DrawCall Call, SceneNode Node);
 
         /// <summary>Compares two requests by shader pipeline sort ID, placing custom-render nodes at the boundary.</summary>
