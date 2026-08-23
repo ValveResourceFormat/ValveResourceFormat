@@ -10,6 +10,7 @@ using ValveResourceFormat.Renderer;
 using ValveResourceFormat.Renderer.SceneNodes;
 using ValveResourceFormat.Renderer.World;
 using ValveResourceFormat.ResourceTypes;
+using ValveResourceFormat.ResourceTypes.SmartProps;
 using ValveResourceFormat.Serialization.KeyValues;
 using ValveResourceFormat.Utils;
 using static ValveResourceFormat.Renderer.PickingTexture;
@@ -20,7 +21,9 @@ internal sealed class GLVmapViewer : GLSingleNodeViewer
 {
     private readonly Datamodel.Element mapRoot;
     private readonly List<Resource> loadedResources = [];
+    private readonly Dictionary<string, KVObject?> compiledSmartProps = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<int, EntityLump.Entity> entitiesByNodeId;
+    private readonly IReadOnlyDictionary<int, IReadOnlyList<SmartPropMapPart>> savedSmartPropParts;
     private bool attemptedContentGameSearchPaths;
 
     public Action<EntityLump.Entity>? ShowEntityInList { get; set; }
@@ -36,6 +39,7 @@ internal sealed class GLVmapViewer : GLSingleNodeViewer
     {
         this.mapRoot = mapRoot;
         entitiesByNodeId = entities.ToDictionary(item => item.NodeId, item => item.Entity);
+        savedSmartPropParts = SmartPropMapPartSet.ReadAll(mapRoot);
     }
 
     protected override void LoadScene()
@@ -47,7 +51,7 @@ internal sealed class GLVmapViewer : GLSingleNodeViewer
         var sourceMapWorld = WorldLoader.LoadSourceMapEntities(
             GuiContext.FileName,
             Scene,
-            entitiesByNodeId.Values.ToList());
+            entitiesByNodeId.Values.Where(static entity => entity.GetStringProperty("classname") != "CMapSmartProp").ToList());
 
         if (sourceMapWorld.SkyboxScene != null)
         {
@@ -85,6 +89,7 @@ internal sealed class GLVmapViewer : GLSingleNodeViewer
     {
         var worldTransform = ReadTransform(element) * parentTransform;
         var tint = ReadTint(element);
+        var smartProp = SmartPropMapParameters.Read(element);
         var nodeId = ReadInt32(element, "nodeID");
         entitiesByNodeId.TryGetValue(nodeId, out var entity);
         entity ??= ownerEntity;
@@ -104,6 +109,14 @@ internal sealed class GLVmapViewer : GLSingleNodeViewer
 
             Scene.Add(node, false);
         }
+        else if (smartProp != null)
+        {
+            if (!LoadSavedSmartProp(nodeId, worldTransform, tint, entity)
+                && !LoadSmartProp(smartProp, worldTransform, tint, entity))
+            {
+                AddEntityMarker(worldTransform, new Color32(0, 180, 255, 255), smartProp.SmartPropFilename, entity);
+            }
+        }
         else if (entity == null && TryGetModelName(element, out var modelName))
         {
             if (!AddModel(modelName, worldTransform, null, tint, entity))
@@ -119,12 +132,70 @@ internal sealed class GLVmapViewer : GLSingleNodeViewer
         LoadChildren(element, worldTransform, entity);
     }
 
+    private bool LoadSavedSmartProp(
+        int nodeId,
+        Matrix4x4 placementTransform,
+        Vector4? placementTint,
+        EntityLump.Entity? entity)
+    {
+        if (!savedSmartPropParts.TryGetValue(nodeId, out var parts))
+        {
+            return false;
+        }
+
+        var loadedAny = false;
+        foreach (var part in parts)
+        {
+            var tint = part.TintColor.HasValue && placementTint.HasValue
+                ? part.TintColor.Value * placementTint.Value
+                : part.TintColor ?? placementTint;
+            loadedAny |= AddModel(
+                part.ModelName,
+                part.Transform * placementTransform,
+                null,
+                tint,
+                entity,
+                part.Deformer,
+                part.Transform);
+        }
+
+        return loadedAny;
+    }
+
+    private bool LoadSmartProp(
+        SmartPropMapParameters parameters,
+        Matrix4x4 placementTransform,
+        Vector4? placementTint,
+        EntityLump.Entity? entity)
+    {
+        var smartPropRoot = ResolveCompiledSmartProp(parameters.SmartPropFilename);
+        if (smartPropRoot == null)
+        {
+            return false;
+        }
+
+        var context = parameters.CreateEvaluationContext(smartPropRoot);
+        var result = SmartPropEvaluator.Evaluate(smartPropRoot, context, ResolveCompiledSmartProp);
+        var loadedAny = false;
+        foreach (var model in result.Models)
+        {
+            var tint = model.TintColor.HasValue && placementTint.HasValue
+                ? model.TintColor.Value * placementTint.Value
+                : model.TintColor ?? placementTint;
+            loadedAny |= AddModel(model.ModelName, model.WorldMatrix * placementTransform, model.MaterialGroup, tint, entity);
+        }
+
+        return loadedAny;
+    }
+
     private bool AddModel(
         string modelName,
         Matrix4x4 transform,
         string? materialGroup,
         Vector4? tint,
-        EntityLump.Entity? entity = null)
+        EntityLump.Entity? entity = null,
+        SmartPropMapDeformer? deformer = null,
+        Matrix4x4 deformerPartTransform = default)
     {
         if (modelName.Length == 0)
         {
@@ -139,7 +210,10 @@ internal sealed class GLVmapViewer : GLSingleNodeViewer
         }
 
         loadedResources.Add(resource);
-        var node = new ModelSceneNode(Scene, model, skin: materialGroup)
+        Func<ValveResourceFormat.Blocks.VBIB, ValveResourceFormat.Blocks.VBIB>? meshBufferTransform = deformer == null
+            ? null
+            : vbib => SmartPropMeshDeformer.Deform(vbib, deformerPartTransform, deformer);
+        var node = new ModelSceneNode(Scene, model, skin: materialGroup, meshBufferTransform: meshBufferTransform)
         {
             Transform = transform,
             EntityData = entity,
@@ -282,6 +356,23 @@ internal sealed class GLVmapViewer : GLSingleNodeViewer
         Scene.Add(marker, false);
     }
 
+    private KVObject? ResolveCompiledSmartProp(string filename)
+    {
+        if (compiledSmartProps.TryGetValue(filename, out var cached))
+        {
+            return cached;
+        }
+
+        var resource = LoadCompiledResource(filename);
+        var root = resource?.DataBlock is SmartProp smartProp ? smartProp.Data.Root : null;
+        if (root != null && resource != null && !loadedResources.Contains(resource))
+        {
+            loadedResources.Add(resource);
+        }
+
+        compiledSmartProps[filename] = root;
+        return root;
+    }
 
     private static Matrix4x4 ReadTransform(Datamodel.Element element)
     {
@@ -478,5 +569,6 @@ internal sealed class GLVmapViewer : GLSingleNodeViewer
         }
 
         loadedResources.Clear();
+        compiledSmartProps.Clear();
     }
 }
