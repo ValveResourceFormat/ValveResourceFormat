@@ -200,17 +200,10 @@ namespace GUI.Types.Exporter
 
             foreach (var type in fileTypesToExtract.OrderByDescending(x => x.Value.Count))
             {
-                /// See <see cref="ResourceTypeExtensions.GetExtension(ResourceType)"/>
-                var firstType = type.Key switch
-                {
-                    "vjs_c" => "js",
-                    "vts_c" => "js",
-                    "vxml_c" => "xml",
-                    "vcss_c" => "css",
-                    "vsvg_c" => "svg",
-                    _ when type.Key.EndsWith(GameFileLoader.CompiledFileSuffix, StringComparison.OrdinalIgnoreCase) => type.Key[..^2],
-                    _ => type.Key,
-                };
+                var resourceType = ResourceTypeExtensions.DetermineByFileExtension("." + type.Key);
+                var firstType = resourceType != ResourceType.Unknown
+                    ? FileExtract.GetExtension(resourceType)
+                    : type.Key.EndsWith(GameFileLoader.CompiledFileSuffix, StringComparison.OrdinalIgnoreCase) ? type.Key[..^2] : type.Key;
 
                 var outputTypes = new List<string>()
                 {

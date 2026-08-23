@@ -391,15 +391,8 @@ namespace ValveResourceFormat.IO
         /// </summary>
         public static string GetExtension(Resource resource)
         {
-            // When updating this, don't forget to update PackageExporter in the GUI
             switch (resource.ResourceType)
             {
-                case ResourceType.PanoramaLayout: return "xml";
-                case ResourceType.PanoramaScript: return "js";
-                case ResourceType.PanoramaTypescript: return "js";
-                case ResourceType.PanoramaStyle: return "css";
-                case ResourceType.PanoramaVectorGraphic: return "svg";
-
                 case ResourceType.Texture:
                 {
                     if (IsChildResource(resource))
@@ -428,7 +421,24 @@ namespace ValveResourceFormat.IO
                     break;
             }
 
-            return resource.ResourceType.GetExtension() ?? "dat";
+            return GetExtension(resource.ResourceType);
+        }
+
+        /// <summary>
+        /// Gets the file extension an extracted resource of the given type has, without inspecting its data.
+        /// Textures and sounds report their source extension, use <see cref="GetExtension(Resource)"/> for the decoded one.
+        /// </summary>
+        public static string GetExtension(ResourceType resourceType)
+        {
+            return resourceType switch
+            {
+                ResourceType.PanoramaLayout => "xml",
+                ResourceType.PanoramaScript => "js",
+                ResourceType.PanoramaTypescript => "js",
+                ResourceType.PanoramaStyle => "css",
+                ResourceType.PanoramaVectorGraphic => "svg",
+                _ => resourceType.GetExtension() ?? "dat",
+            };
         }
 
         internal static void EnsurePopulatedStringToken(IFileLoader fileLoader)
