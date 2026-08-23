@@ -1,6 +1,7 @@
 using System.Globalization;
 using ValveKeyValue;
 using ValveResourceFormat.ResourceTypes;
+using ValveResourceFormat.ResourceTypes.SmartProps;
 
 namespace ValveResourceFormat.IO.ContentFormats.ValveMap;
 
@@ -18,18 +19,23 @@ public static class ValveMapEntityReader
     public static IReadOnlyList<ValveMapEntity> ReadAll(Datamodel.Element mapRoot)
     {
         List<ValveMapEntity> entities = [];
-        var parentLump = new EntityLump();
+        var parentLump = new EntityLump { Resource = new Resource() };
         if (mapRoot.TryGetValue("world", out var worldValue) && worldValue is Datamodel.Element world)
         {
-            ReadElement(world, parentLump, entities);
+            ReadElement(world, Matrix4x4.Identity, parentLump, entities);
         }
 
         return entities;
     }
 
-    private static void ReadElement(Datamodel.Element element, EntityLump parentLump, List<ValveMapEntity> entities)
+    private static void ReadElement(
+        Datamodel.Element element,
+        Matrix4x4 parentTransform,
+        EntityLump parentLump,
+        List<ValveMapEntity> entities)
     {
-        if (TryReadEntity(element, parentLump) is { } entity)
+        var worldTransform = ReadTransform(element) * parentTransform;
+        if (TryReadEntity(element, worldTransform, parentLump) is { } entity)
         {
             entities.Add(entity);
         }
@@ -43,33 +49,53 @@ public static class ValveMapEntityReader
         {
             if (children[i] is Datamodel.Element child)
             {
-                ReadElement(child, parentLump, entities);
+                ReadElement(child, worldTransform, parentLump, entities);
             }
         }
     }
 
-    private static ValveMapEntity? TryReadEntity(Datamodel.Element element, EntityLump parentLump)
+    private static ValveMapEntity? TryReadEntity(Datamodel.Element element, Matrix4x4 worldTransform, EntityLump parentLump)
     {
-        if (!element.TryGetValue("entity_properties", out var propertiesValue)
-            || propertiesValue is not Datamodel.Element properties
-            || !properties.TryGetValue("classname", out var classValue)
-            || classValue is not string className
-            || className.Length == 0)
+        Datamodel.Element? properties = null;
+        if (element.TryGetValue("entity_properties", out var propertiesValue)
+            && propertiesValue is Datamodel.Element entityProperties
+            && entityProperties.TryGetValue("classname", out var classValue)
+            && classValue is string { Length: > 0 })
+        {
+            properties = entityProperties;
+        }
+
+        var smartProp = SmartPropMapParameters.Read(element);
+        if (properties == null && smartProp == null)
         {
             return null;
         }
 
         var entity = new EntityLump.Entity { ParentLump = parentLump };
-        foreach (var (name, value) in properties)
+        if (properties != null)
         {
-            entity.Add(name.ToLowerInvariant(), ConvertValue(value));
+            foreach (var (name, value) in properties)
+            {
+                entity.Add(name.ToLowerInvariant(), ConvertValue(value));
+            }
+        }
+        else
+        {
+            entity["classname"] = element.ClassName;
+            entity["smartpropfilename"] = smartProp!.SmartPropFilename;
+            entity["randomseed"] = smartProp.RandomSeed;
+            foreach (var (name, value) in smartProp.Values)
+            {
+                entity[$"parameter.{name}"] = value;
+            }
         }
 
         var nodeId = ReadInt32(element, "nodeID");
+        Matrix4x4.Decompose(worldTransform, out var scales, out var rotation, out var origin);
         entity["hammeruniqueid"] = nodeId.ToString(CultureInfo.InvariantCulture);
-        entity["origin"] = FormatVector(ReadVector(element, "origin", Vector3.Zero));
-        entity["angles"] = FormatAngles(element);
-        entity["scales"] = FormatVector(ReadVector(element, "scales", Vector3.One));
+        entity["origin"] = FormatVector(origin);
+        entity["angles"] = FormatVector(EntityTransformHelper.ToEulerAngles(rotation));
+        entity["scales"] = FormatVector(scales);
         entity.Connections = ReadConnections(element, entity);
 
         return new ValveMapEntity(nodeId, entity);
@@ -111,7 +137,7 @@ public static class ValveMapEntityReader
     private static KVObject ConvertValue(object? value)
         => value switch
         {
-            null => KVObject.Null,
+            null => KVObject.Null(),
             bool boolean => boolean,
             string text => text,
             int integer => integer,
@@ -126,14 +152,17 @@ public static class ValveMapEntityReader
             _ => value.ToString() ?? string.Empty,
         };
 
-    private static string FormatAngles(Datamodel.Element element)
+    private static Matrix4x4 ReadTransform(Datamodel.Element element)
     {
-        if (element.TryGetValue("angles", out var value) && value is Datamodel.QAngle angles)
+        var angles = Vector3.Zero;
+        if (element.TryGetValue("angles", out var value) && value is Datamodel.QAngle qAngle)
         {
-            return FormatVector(new Vector3(angles.Pitch, angles.Yaw, angles.Roll));
+            angles = new Vector3(qAngle.Pitch, qAngle.Yaw, qAngle.Roll);
         }
 
-        return FormatVector(Vector3.Zero);
+        return Matrix4x4.CreateScale(ReadVector(element, "scales", Vector3.One))
+            * EntityTransformHelper.EulerAnglesToRotationMatrix(angles)
+            * Matrix4x4.CreateTranslation(ReadVector(element, "origin", Vector3.Zero));
     }
 
     private static string FormatVector(Vector3 vector)

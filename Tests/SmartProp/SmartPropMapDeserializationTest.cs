@@ -1,7 +1,9 @@
 using System.IO;
+using System.Linq;
 using System.Threading.Tasks;
 using Datamodel;
 using ValveKeyValue;
+using ValveResourceFormat.IO.ContentFormats.ValveMap;
 using ValveResourceFormat.ResourceTypes.SmartProps;
 using ValveResourceFormat.Serialization.KeyValues;
 
@@ -64,6 +66,32 @@ public class SmartPropMapDeserializationTest
 
         await Assert.That(smartProps).HasSingleItem();
         await Assert.That(smartProps[0].SmartPropFilename).IsEqualTo("models/test2.vsmart");
+    }
+
+    [Test]
+    public async Task ReadsVmapEntitiesForViewerTabs()
+    {
+        var entities = ValveMapEntityReader.ReadAll(LoadMap("FitOnLine01"));
+
+        await Assert.That(entities).IsNotEmpty();
+        await Assert.That(entities.Any(item => item.Entity.GetStringProperty("classname") == "worldspawn")).IsTrue();
+        var smartProp = entities.Single(item => item.Entity.GetStringProperty("classname") == "CMapSmartProp").Entity;
+        await Assert.That(smartProp.GetStringProperty("smartpropfilename")).IsEqualTo("models/test2.vsmart");
+        await Assert.That(smartProp.GetStringProperty("parameter.PickMode")).IsEqualTo("LARGEST_FIRST");
+    }
+
+    [Test]
+    public async Task ReadsSavedSmartPropEvaluationParts()
+    {
+        var partsByNode = SmartPropMapPartSet.ReadAll(LoadMap("FitOnLine01"));
+
+        await Assert.That(partsByNode).ContainsKey(2);
+        var parts = partsByNode[2];
+        await Assert.That(parts).Count().IsEqualTo(2);
+        await Assert.That(parts[0].ModelName).IsEqualTo("models/props/de_nuke/hr_nuke/web_joist_001/web_joist_support_002_horizontal_128.vmdl");
+        await Assert.That(parts[0].Transform).IsEqualTo(Matrix4x4.Identity);
+        await Assert.That(parts[1].Transform.Translation.X).IsEqualTo(-128f);
+        await Assert.That(parts[1].Transform.M11).IsEqualTo(0.5625f);
     }
 
     private static Datamodel.Element LoadMap(string sampleName)
