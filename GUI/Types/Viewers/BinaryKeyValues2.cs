@@ -2,6 +2,9 @@ using System.Diagnostics;
 using System.IO;
 using System.Threading.Tasks;
 using GUI.Utils;
+using ValveKeyValue;
+using ValveResourceFormat.ResourceTypes.SmartProps;
+using ValveResourceFormat.Serialization.KeyValues;
 
 namespace GUI.Types.Viewers
 {
@@ -10,6 +13,7 @@ namespace GUI.Types.Viewers
         public const int MAGIC = 757932348; // "<!--"
 
         private string? text;
+        private List<VmapSmartPropRow>? smartPropRows;
 
         public static bool IsAccepted(uint magic, string fileName)
         {
@@ -48,22 +52,59 @@ namespace GUI.Types.Viewers
             ms.Seek(0, SeekOrigin.Begin);
 
             text = await reader.ReadToEndAsync().ConfigureAwait(false);
+
+            if (vrfGuiContext.FileName?.EndsWith(".vmap", StringComparison.OrdinalIgnoreCase) == true && dm.Root is Datamodel.Element root)
+            {
+                smartPropRows = [];
+                foreach (var evaluation in SmartPropMapEvaluator.EvaluateAll(root, LoadSmartProp))
+                {
+                    smartPropRows.Add(new VmapSmartPropRow(
+                        evaluation.Parameters.SmartPropFilename,
+                        evaluation.Parameters.Values.Count,
+                        evaluation.Result.Models.Count));
+                }
+            }
         }
 
         public ViewerContent GetContent()
         {
             Debug.Assert(text is not null);
 
-            var content = new ViewerContent.Text(text);
+            ViewerContent content = smartPropRows is { Count: > 0 }
+                ? new ViewerContent.Tabs([
+                    new ViewerTab("Evaluated Smart Props", new ViewerContent.Grid(smartPropRows), Select: true),
+                    new ViewerTab("DataModel", new ViewerContent.Text(text)),
+                ])
+                : new ViewerContent.Text(text);
 
             text = null;
+            smartPropRows = null;
 
             return content;
+        }
+
+        private KVObject? LoadSmartProp(string filename)
+        {
+            var directory = Path.GetDirectoryName(vrfGuiContext.FileName);
+            while (!string.IsNullOrEmpty(directory))
+            {
+                var path = Path.Combine(directory, filename.Replace('/', Path.DirectorySeparatorChar));
+                if (File.Exists(path))
+                {
+                    return KVDocumentExtensions.ParseKV3(path).Root;
+                }
+
+                directory = Path.GetDirectoryName(directory);
+            }
+
+            return null;
         }
 
         public void Dispose()
         {
             //
         }
+
+        private sealed record VmapSmartPropRow(string SmartProp, int UserParameters, int EvaluatedModels);
     }
 }
