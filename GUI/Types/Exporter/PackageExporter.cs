@@ -318,6 +318,7 @@ namespace GUI.Types.Exporter
                 if (!decompile || !packageFile.TypeName.EndsWith(GameFileLoader.CompiledFileSuffix, StringComparison.Ordinal))
                 {
                     // Extract as is
+                    using var rawStream = stream;
                     using var outStream = new FileStream(outFilePath, new FileStreamOptions
                     {
                         Mode = FileMode.Create,
@@ -325,7 +326,7 @@ namespace GUI.Types.Exporter
                         Options = FileOptions.Asynchronous,
                         PreallocationSize = packageFile.TotalLength >= PreallocationThreshold ? packageFile.TotalLength : 0,
                     });
-                    await stream.CopyToAsync(outStream, cancellationToken).ConfigureAwait(false);
+                    await rawStream.CopyToAsync(outStream, cancellationToken).ConfigureAwait(false);
 
                     continue;
                 }
