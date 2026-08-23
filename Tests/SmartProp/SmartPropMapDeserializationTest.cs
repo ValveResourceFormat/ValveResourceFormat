@@ -1,9 +1,9 @@
-using Datamodel;
 using System.IO;
 using System.Threading.Tasks;
+using Datamodel;
+using ValveKeyValue;
 using ValveResourceFormat.ResourceTypes.SmartProps;
 using ValveResourceFormat.Serialization.KeyValues;
-using ValveKeyValue;
 
 namespace Tests.SmartProp;
 
@@ -18,12 +18,29 @@ public class SmartPropMapDeserializationTest
         var parameters = SmartPropMapParameters.Read(smartProp);
 
         await Assert.That(parameters).IsNotNull();
-        await Assert.That(parameters!.SmartPropFilename).IsEqualTo("models/guide_meshes/test2.vsmart");
+        await Assert.That(parameters!.SmartPropFilename).IsEqualTo("models/test2.vsmart");
         await Assert.That(parameters.Values).ContainsKey("PickMode");
         await Assert.That(parameters.Values["PickMode"]).IsEqualTo("LARGEST_FIRST");
+        await Assert.That(parameters.RandomSeed).IsEqualTo(1517519369);
+        await Assert.That(parameters.ChoiceElementIds[4]).IsEqualTo(6);
         var smartPropPath = Path.Combine(TestContext.TestDirectory!, "SmartProp", "SmartPropMapDeserializationTest", "FitOnLine01", "test2.vsmart");
         var context = parameters.CreateEvaluationContext(KVDocumentExtensions.ParseKV3(smartPropPath).Root);
         await Assert.That(context.GetVariable("PickMode")).IsEqualTo("LARGEST_FIRST");
+        await Assert.That(context.TryGetWidgetOutputValue("sizer_x", out var sizerValue)).IsTrue();
+        await Assert.That(sizerValue).IsEqualTo(-200f);
+
+        var smartPropRoot = KVDocumentExtensions.ParseKV3(smartPropPath).Root;
+        var rootElement = smartPropRoot["m_Children"].AsArraySpan()[0];
+        var fitOnLine = rootElement["m_Children"].AsArraySpan()[0];
+        await Assert.That(context.ResolveVector3(fitOnLine["m_vEnd"]).X).IsEqualTo(-200f);
+        var pickOne = fitOnLine["m_Children"].AsArraySpan()[0];
+        var modelElement = pickOne["m_Children"].AsArraySpan()[0];
+        await Assert.That(SmartPropEvaluator.Evaluate(modelElement, context).Models).IsNotEmpty();
+        await Assert.That(SmartPropEvaluator.Evaluate(pickOne, context).Models).IsNotEmpty();
+        await Assert.That(SmartPropEvaluator.Evaluate(fitOnLine, context).Models).IsNotEmpty();
+
+        var evaluation = SmartPropEvaluator.Evaluate(smartPropRoot, context);
+        await Assert.That(evaluation.Models).IsNotEmpty();
     }
 
     [Test]
@@ -36,6 +53,17 @@ public class SmartPropMapDeserializationTest
         await Assert.That(parameters).IsNotNull();
         await Assert.That(parameters!.SmartPropFilename).IsEqualTo("models/guide_meshes/guide_fitonline.vsmart");
         await Assert.That(parameters.Values).IsEmpty();
+    }
+
+    [Test]
+    public async Task FindsPlacedSmartPropsFromMapRoot()
+    {
+        var map = LoadMap("FitOnLine01");
+
+        var smartProps = SmartPropMapParameters.ReadAll(map);
+
+        await Assert.That(smartProps).HasSingleItem();
+        await Assert.That(smartProps[0].SmartPropFilename).IsEqualTo("models/test2.vsmart");
     }
 
     private static Datamodel.Element LoadMap(string sampleName)

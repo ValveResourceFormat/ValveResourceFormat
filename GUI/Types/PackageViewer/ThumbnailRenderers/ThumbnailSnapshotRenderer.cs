@@ -1,3 +1,4 @@
+using System.Threading;
 using ValveResourceFormat;
 using ValveResourceFormat.Blocks;
 using ValveResourceFormat.Particles;
@@ -9,7 +10,7 @@ internal class ThumbnailSnapshotRenderer : ThumbnailRenderer
 {
     private const float PointScreenSize = 0.02f;
 
-    public override void SetResource(Resource resource)
+    public override void SetResource(Resource resource, CancellationToken cancellationToken)
     {
         if (resource.GetBlockByType(BlockType.SNAP) is not ParticleSnapshot snapshot || !SnapshotParticleSystem.CanPreview(snapshot))
         {

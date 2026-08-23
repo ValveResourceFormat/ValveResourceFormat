@@ -375,6 +375,13 @@ namespace ValveResourceFormat.ResourceTypes.SmartProps
             minZ = GetWidgetOutputValue(context, outMinZ, minZ);
             maxZ = GetWidgetOutputValue(context, outMaxZ, maxZ);
 
+            SetWidgetOutputValue(context, outMinX, minX);
+            SetWidgetOutputValue(context, outMaxX, maxX);
+            SetWidgetOutputValue(context, outMinY, minY);
+            SetWidgetOutputValue(context, outMaxY, maxY);
+            SetWidgetOutputValue(context, outMinZ, minZ);
+            SetWidgetOutputValue(context, outMaxZ, maxZ);
+
             var hasX = outMinX.Length > 0 || outMaxX.Length > 0 || minX != 0f || maxX != 0f;
             var hasY = outMinY.Length > 0 || outMaxY.Length > 0 || minY != 0f || maxY != 0f;
             var hasZ = outMinZ.Length > 0 || outMaxZ.Length > 0 || minZ != 0f || maxZ != 0f;
@@ -404,7 +411,14 @@ namespace ValveResourceFormat.ResourceTypes.SmartProps
                 outMinY,
                 outMaxY,
                 outMinZ,
-                outMaxZ);
+                outMaxZ,
+                new SmartPropSizerConstraints(
+                    GetOptionalScalar(modifier, "m_flConstraintMinX", context),
+                    GetOptionalScalar(modifier, "m_flConstraintMaxX", context),
+                    GetOptionalScalar(modifier, "m_flConstraintMinY", context),
+                    GetOptionalScalar(modifier, "m_flConstraintMaxY", context),
+                    GetOptionalScalar(modifier, "m_flConstraintMinZ", context),
+                    GetOptionalScalar(modifier, "m_flConstraintMaxZ", context)));
             return true;
         }
 
@@ -445,6 +459,7 @@ namespace ValveResourceFormat.ResourceTypes.SmartProps
             var angle = outputVariable.Length > 0 && context.GetVariable(outputVariable) is { } outputValue
                 ? Convert.ToSingle(outputValue, CultureInfo.InvariantCulture)
                 : initialAngle;
+            var enforceLimits = GetBool(modifier, "m_bEnforceLimits", false);
 
             return new SmartPropRotatorWidget(
                 GetInt32(modifier, "m_nElementID", elementId),
@@ -458,8 +473,8 @@ namespace ValveResourceFormat.ResourceTypes.SmartProps
                 angle,
                 ResolveColor(GetOrDefault(modifier, "m_DisplayColor"), context, new Vector3(0.72f, 0.74f, 0.48f)),
                 outputVariable,
-                GetOptionalScalar(modifier, "m_flMinAngle", context),
-                GetOptionalScalar(modifier, "m_flMaxAngle", context),
+                enforceLimits ? GetOptionalScalar(modifier, "m_flMinAngle", context) : null,
+                enforceLimits ? GetOptionalScalar(modifier, "m_flMaxAngle", context) : null,
                 context.ResolveScalar(GetOrDefault(modifier, "m_flSnappingIncrement")));
         }
 
@@ -468,6 +483,14 @@ namespace ValveResourceFormat.ResourceTypes.SmartProps
 
         private static float GetWidgetOutputValue(SmartPropEvaluationContext context, string name, float fallback)
             => name.Length > 0 && context.TryGetWidgetOutputValue(name, out var value) ? value : fallback;
+
+        private static void SetWidgetOutputValue(SmartPropEvaluationContext context, string name, float value)
+        {
+            if (name.Length > 0)
+            {
+                context.SetOverride(name, value);
+            }
+        }
 
         private static bool TryBuildPickOneHandle(KVObject element, Matrix4x4 worldMatrix, int elementId, SmartPropEvaluationContext context, out SmartPropPickOneHandleWidget widget)
         {
@@ -652,7 +675,12 @@ namespace ValveResourceFormat.ResourceTypes.SmartProps
 
         private static int GetInt32(KVObject node, string key, int fallback = 0)
         {
-            return node.TryGetValue(key, out var value) && value.ValueType == KVValueType.Int32
+            if (!node.TryGetValue(key, out var value))
+            {
+                return fallback;
+            }
+
+            return value.ValueType is KVValueType.Int32 or KVValueType.Int64 or KVValueType.UInt32 or KVValueType.UInt64
                 ? (int)value
                 : fallback;
         }

@@ -34,6 +34,11 @@ namespace GUI.Types.GLViewers
         }
 
         private sealed record LocatorEditState(Vector3 Position, Vector3 Angles, float Scale);
+        private sealed record SizerEditState(Vector3 MinBounds, Vector3 MaxBounds);
+        private sealed record HandlerListItem(SmartPropWidget Widget, int Occurrence, string DisplayText)
+        {
+            public override string ToString() => DisplayText;
+        }
         private sealed record SizerDragState(string Variable, float InitialValue, Vector2 ScreenDirection, float PixelsPerUnit, Point Start);
 
         private const int IdColumnWidth = 40;
@@ -63,12 +68,20 @@ namespace GUI.Types.GLViewers
         private CheckBox? showRawSelectionCheckBox;
         private HierarchyNodeData? inspectorSelection;
         private Panel? variablesPanel;
+        private DataGridView? variablesGrid;
         private Panel? choicesPanel;
         private DataGridView? choiceOverridesGrid;
+        private ThemedGroupBox? parametersGroup;
+        private ThemedGroupBox? handlersGroup;
+        private ListBox? handlerList;
+        private Panel? handlerPropertiesPanel;
         public SplitContainer? StructureControl { get; private set; }
         public SplitContainer? VariablesControl { get; private set; }
         private bool selectingFromViewport;
         private bool updatingVariablesUi;
+        private bool reevaluatingSmartProp;
+        private bool reevaluationPending;
+        private bool pendingVariablesUiRebuild;
         private int? activePickOneElementId;
         private int activePickOneChildCount;
         private SmartPropWidget? activeWidget;
@@ -84,6 +97,9 @@ namespace GUI.Types.GLViewers
         private readonly Dictionary<int, int> pickOneSelections = [];
         private readonly Dictionary<string, float> widgetOutputValues = new(StringComparer.OrdinalIgnoreCase);
         private readonly Dictionary<int, LocatorEditState> locatorEdits = [];
+        private readonly Dictionary<int, float> rotatorEdits = [];
+        private readonly Dictionary<int, SizerEditState> sizerEdits = [];
+        private bool updatingHandlersUi;
 
         public GLSmartPropViewer(VrfGuiContext vrfGuiContext, RendererContext rendererContext, SmartProp smartProp) : base(vrfGuiContext, rendererContext)
         {
@@ -120,6 +136,15 @@ namespace GUI.Types.GLViewers
                 smartProp.Data.Root,
                 context: context,
                 nestedPropResolver: LoadNestedSmartProp);
+
+            if (InitializeSizerOutputs(result.Widgets))
+            {
+                context = new SmartPropEvaluationContext(activeVariables, pickOneSelections: pickOneSelections, widgetOutputValues: widgetOutputValues);
+                result = SmartPropEvaluator.Evaluate(
+                    smartProp.Data.Root,
+                    context: context,
+                    nestedPropResolver: LoadNestedSmartProp);
+            }
 
             modelsByElementId.Clear();
             pathsByElementId.Clear();
@@ -175,28 +200,54 @@ namespace GUI.Types.GLViewers
             }
         }
 
+        private bool InitializeSizerOutputs(IReadOnlyList<SmartPropWidget> widgets)
+        {
+            var initialized = false;
+            foreach (var sizer in widgets.OfType<SmartPropSizerWidget>())
+            {
+                initialized |= InitializeOutput(sizer.MinXVariable, sizer.MinBounds.X);
+                initialized |= InitializeOutput(sizer.MaxXVariable, sizer.MaxBounds.X);
+                initialized |= InitializeOutput(sizer.MinYVariable, sizer.MinBounds.Y);
+                initialized |= InitializeOutput(sizer.MaxYVariable, sizer.MaxBounds.Y);
+                initialized |= InitializeOutput(sizer.MinZVariable, sizer.MinBounds.Z);
+                initialized |= InitializeOutput(sizer.MaxZVariable, sizer.MaxBounds.Z);
+            }
+
+            return initialized;
+
+            bool InitializeOutput(string variable, float value)
+            {
+                if (variable.Length == 0 || widgetOutputValues.ContainsKey(variable))
+                {
+                    return false;
+                }
+
+                widgetOutputValues[variable] = value;
+                SetActiveVariableValue(variable, value);
+                return true;
+            }
+        }
+
         protected override void AddUiControls()
         {
             base.AddUiControls();
 
             Debug.Assert(UiControl != null);
 
-            using (UiControl.BeginGroup("Handles"))
-            {
-                UiControl.AddCheckBox("Locators", true, v => ToggleNodes(locatorNodes, v));
-                UiControl.AddCheckBox("Rotators", true, v => ToggleNodes(rotatorNodes, v));
-                UiControl.AddCheckBox("Sizers", true, v => ToggleNodes(sizerNodes, v));
-                UiControl.AddCheckBox("PickOne Handles", true, v => ToggleNodes(pickOneNodes, v));
-            }
+            BuildSidebarControls();
+            Debug.Assert(handlersGroup != null);
+            Debug.Assert(parametersGroup != null);
+            UiControl.AddControl(handlersGroup);
 
             using (UiControl.BeginGroup("Draw help widgets"))
             {
                 UiControl.AddCheckBox("Paths", true, v => ToggleNodes(pathNodes, v));
             }
 
-            BuildSidebarControls();
+            UiControl.AddControl(parametersGroup);
 
             PopulateHierarchyTree();
+            BuildHandlersUi();
         }
 
         private int GetClassColumnX() => Math.Max(80, (hierarchyTree?.ClientSize.Width ?? 300) - IdColumnWidth - ClassColumnWidth);
@@ -286,6 +337,21 @@ namespace GUI.Types.GLViewers
                 AutoScroll = true,
             };
 
+            variablesGrid = new DataGridView
+            {
+                Dock = DockStyle.Fill,
+                ReadOnly = true,
+                AllowUserToAddRows = false,
+                AllowUserToDeleteRows = false,
+                AllowUserToResizeRows = false,
+                RowHeadersVisible = false,
+                AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill,
+                SelectionMode = DataGridViewSelectionMode.FullRowSelect,
+                ColumnHeadersHeight = 24,
+            };
+            variablesGrid.Columns.Add("Variable", "Variable");
+            variablesGrid.Columns.Add("Value", "Value");
+
             choicesPanel = new Panel
             {
                 Dock = DockStyle.Fill,
@@ -307,6 +373,26 @@ namespace GUI.Types.GLViewers
             choiceOverridesGrid.Columns.Add("Variable", "Variable");
             choiceOverridesGrid.Columns.Add("Value", "Value");
 
+            handlerList = new ListBox
+            {
+                Dock = DockStyle.Top,
+                Height = 96,
+                IntegralHeight = false,
+            };
+            handlerList.SelectedIndexChanged += (_, _) =>
+            {
+                if (!updatingHandlersUi)
+                {
+                    BuildHandlerProperties();
+                }
+            };
+
+            handlerPropertiesPanel = new Panel
+            {
+                Dock = DockStyle.Fill,
+                AutoScroll = true,
+            };
+
             StructureControl.Panel1.Controls.Add(hierarchyTree);
             StructureControl.Panel1.Controls.Add(hierarchyHeader);
             StructureControl.Panel1.Controls.Add(filterTextBox);
@@ -317,13 +403,37 @@ namespace GUI.Types.GLViewers
             StructureControl.Panel2.Controls.Add(showRawSelectionCheckBox);
             StructureControl.Panel2.Controls.Add(CreatePanelHeader("Properties"));
 
-            VariablesControl.Panel1.Controls.Add(variablesPanel);
+            VariablesControl.Panel1.Controls.Add(variablesGrid);
             VariablesControl.Panel1.Controls.Add(CreatePanelHeader("Variables"));
             VariablesControl.Panel2.Controls.Add(choicesPanel);
             VariablesControl.Panel2.Controls.Add(CreatePanelHeader("Choices"));
 
             BuildVariablesUi();
             BuildChoicesUi();
+            choicesPanel.Enabled = false;
+            PopulateVariablesView();
+
+            parametersGroup = new ThemedGroupBox
+            {
+                Text = "Parameters",
+                Height = 300,
+                Padding = new Padding(4, 8, 4, 4),
+            };
+            parametersGroup.Controls.Add(variablesPanel);
+
+            handlersGroup = new ThemedGroupBox
+            {
+                Text = "Handlers",
+                Height = 180,
+                Padding = new Padding(4, 8, 4, 4),
+            };
+            var handlerEditor = new Panel
+            {
+                Dock = DockStyle.Fill,
+            };
+            handlerEditor.Controls.Add(handlerPropertiesPanel);
+            handlerEditor.Controls.Add(handlerList);
+            handlersGroup.Controls.Add(handlerEditor);
         }
 
         private static SplitContainer CreateSplitContainer()
@@ -619,43 +729,508 @@ namespace GUI.Types.GLViewers
             }
         }
 
+        private void BuildHandlersUi()
+        {
+            if (handlerList == null)
+            {
+                return;
+            }
+
+            var selected = handlerList.SelectedItem as HandlerListItem;
+            updatingHandlersUi = true;
+            handlerList.BeginUpdate();
+            handlerList.Items.Clear();
+
+            Dictionary<(Type Type, int ElementId), int> occurrences = [];
+            foreach (var widget in overlayWidgets)
+            {
+                if (!IsOverlayWidgetVisible(widget))
+                {
+                    continue;
+                }
+
+                var key = (widget.GetType(), widget.ElementId);
+                var occurrence = occurrences.GetValueOrDefault(key);
+                occurrences[key] = occurrence + 1;
+                var typeName = widget switch
+                {
+                    SmartPropPickOneHandleWidget => "PickOne",
+                    SmartPropLocatorWidget => "Locator",
+                    SmartPropRotatorWidget => "Rotator",
+                    SmartPropSizerWidget => "Sizer",
+                    _ => "Handler",
+                };
+                var name = widget.Name.Length > 0 ? $": {widget.Name}" : string.Empty;
+                var suffix = occurrence > 0 ? $" #{occurrence + 1}" : string.Empty;
+                handlerList.Items.Add(new HandlerListItem(widget, occurrence, $"{typeName}{name}{suffix}"));
+            }
+
+            var selectedIndex = -1;
+            if (selected != null)
+            {
+                for (var i = 0; i < handlerList.Items.Count; i++)
+                {
+                    var item = (HandlerListItem)handlerList.Items[i];
+                    if (item.Widget.ElementId == selected.Widget.ElementId
+                        && item.Widget.GetType() == selected.Widget.GetType()
+                        && item.Occurrence == selected.Occurrence)
+                    {
+                        selectedIndex = i;
+                        break;
+                    }
+                }
+            }
+
+            if (selectedIndex < 0 && handlerList.Items.Count > 0)
+            {
+                selectedIndex = 0;
+            }
+            handlerList.SelectedIndex = selectedIndex;
+            handlerList.EndUpdate();
+            updatingHandlersUi = false;
+            BuildHandlerProperties();
+        }
+
+        private void BuildHandlerProperties()
+        {
+            if (handlerPropertiesPanel == null)
+            {
+                return;
+            }
+
+            handlerPropertiesPanel.SuspendLayout();
+            handlerPropertiesPanel.Controls.Clear();
+            if (handlerList?.SelectedItem is not HandlerListItem item)
+            {
+                handlerPropertiesPanel.Controls.Add(new Label
+                {
+                    Dock = DockStyle.Fill,
+                    Text = "Select a visible handler to edit its state.",
+                    TextAlign = ContentAlignment.MiddleCenter,
+                    ForeColor = Themer.CurrentThemeColors.ContrastSoft,
+                });
+                handlerPropertiesPanel.ResumeLayout(false);
+                ResizeHandlersGroup(56);
+                return;
+            }
+
+            activeWidget = item.Widget;
+            if (widgetsByElementId.TryGetValue(item.Widget.ElementId, out var evaluatedWidgets))
+            {
+                var sceneNode = evaluatedWidgets
+                    .Where(entry => entry.Widget.GetType() == item.Widget.GetType())
+                    .Skip(item.Occurrence)
+                    .FirstOrDefault()
+                    .Node;
+                SelectedNodeRenderer?.SelectNode(sceneNode);
+            }
+            var table = CreateHandlerPropertiesTable();
+            AddHandlerTextRow(table, "Type", item.Widget switch
+            {
+                SmartPropPickOneHandleWidget => "PickOne",
+                SmartPropLocatorWidget => "Locator",
+                SmartPropRotatorWidget => "Rotator",
+                SmartPropSizerWidget => "Sizer",
+                _ => "Handler",
+            });
+
+            switch (item.Widget)
+            {
+                case SmartPropPickOneHandleWidget pickOne:
+                    AddPickOneEditor(table, pickOne);
+                    break;
+                case SmartPropLocatorWidget locator:
+                    AddLocatorEditor(table, locator);
+                    break;
+                case SmartPropRotatorWidget rotator:
+                    AddRotatorEditor(table, rotator);
+                    break;
+                case SmartPropSizerWidget sizer:
+                    AddSizerEditor(table, sizer);
+                    break;
+            }
+
+            handlerPropertiesPanel.Controls.Add(table);
+            handlerPropertiesPanel.ResumeLayout(false);
+            ResizeHandlersGroup(table.PreferredSize.Height);
+        }
+
+        private bool SelectHandlerInList(SmartPropWidget widget)
+        {
+            if (handlerList == null)
+            {
+                return false;
+            }
+
+            if (handlerList.InvokeRequired)
+            {
+                if (!handlerList.IsDisposed && handlerList.IsHandleCreated)
+                {
+                    handlerList.BeginInvoke(() => SelectHandlerInList(widget));
+                }
+
+                return true;
+            }
+
+            for (var i = 0; i < handlerList.Items.Count; i++)
+            {
+                if (handlerList.Items[i] is HandlerListItem item && ReferenceEquals(item.Widget, widget))
+                {
+                    handlerList.SelectedIndex = i;
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        private SmartPropWidget? FindWidget(SceneNode sceneNode)
+        {
+            foreach (var widgetList in widgetsByElementId.Values)
+            {
+                foreach (var (widget, node) in widgetList)
+                {
+                    if (ReferenceEquals(node, sceneNode))
+                    {
+                        return widget;
+                    }
+                }
+            }
+
+            return null;
+        }
+
+        private void ResizeHandlersGroup(int propertiesHeight)
+        {
+            if (handlersGroup == null || handlerList == null)
+            {
+                return;
+            }
+
+            handlersGroup.Height = Math.Clamp(
+                handlerList.Height + propertiesHeight + handlersGroup.Padding.Vertical + 12,
+                160,
+                420);
+        }
+
+        private static TableLayoutPanel CreateHandlerPropertiesTable()
+        {
+            var table = new TableLayoutPanel
+            {
+                Dock = DockStyle.Top,
+                AutoSize = true,
+                ColumnCount = 2,
+                Padding = new Padding(6),
+            };
+            table.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+            table.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f));
+            return table;
+        }
+
+        private static void AddHandlerTextRow(TableLayoutPanel table, string name, string value)
+        {
+            var row = table.RowCount++;
+            table.Controls.Add(CreateHandlerLabel(name), 0, row);
+            table.Controls.Add(new Label
+            {
+                Text = value,
+                AutoSize = true,
+                Margin = new Padding(0, 6, 0, 4),
+                ForeColor = Themer.CurrentThemeColors.ContrastSoft,
+            }, 1, row);
+        }
+
+        private static Label CreateHandlerLabel(string text) => new()
+        {
+            Text = text,
+            AutoSize = true,
+            Margin = new Padding(0, 7, 10, 4),
+            ForeColor = Themer.CurrentThemeColors.Contrast,
+        };
+
+        private static NumericUpDown AddHandlerNumber(
+            TableLayoutPanel table,
+            string name,
+            float value,
+            Action<float> changed,
+            decimal minimum = -1000000m,
+            decimal maximum = 1000000m,
+            int decimals = 2)
+        {
+            var row = table.RowCount++;
+            var number = new NumericUpDown
+            {
+                DecimalPlaces = decimals,
+                Increment = decimals == 0 ? 1m : 0.1m,
+                Minimum = minimum,
+                Maximum = maximum,
+                Value = Math.Clamp((decimal)value, minimum, maximum),
+                Dock = DockStyle.Top,
+                Margin = new Padding(0, 3, 0, 3),
+            };
+            number.ValueChanged += (_, _) => changed((float)number.Value);
+            table.Controls.Add(CreateHandlerLabel(name), 0, row);
+            table.Controls.Add(number, 1, row);
+            return number;
+        }
+
+        private void AddPickOneEditor(TableLayoutPanel table, SmartPropPickOneHandleWidget pickOne)
+        {
+            if (!elementsByElementId.TryGetValue(pickOne.ElementId, out var element)
+                || !element.TryGetValue("m_Children", out var children)
+                || !children.IsArray)
+            {
+                AddHandlerTextRow(table, "Choice", "No children");
+                return;
+            }
+
+            var childSpan = children.AsArraySpan();
+            var combo = new ComboBox
+            {
+                DropDownStyle = ComboBoxStyle.DropDownList,
+                Dock = DockStyle.Top,
+                Margin = new Padding(0, 3, 0, 3),
+            };
+            for (var i = 0; i < childSpan.Length; i++)
+            {
+                var label = GetString(childSpan[i], "m_sLabel");
+                combo.Items.Add(label.Length > 0 ? $"{i}: {label}" : $"{i}: Child {i + 1}");
+            }
+
+            element.TryGetValue("m_SpecificChildIndex", out var authoredSelection);
+            var initial = childSpan.Length == 0
+                ? -1
+                : Math.Clamp((int)new SmartPropEvaluationContext(activeVariables).ResolveScalar(authoredSelection), 0, childSpan.Length - 1);
+            combo.SelectedIndex = childSpan.Length == 0
+                ? -1
+                : Math.Clamp(pickOneSelections.GetValueOrDefault(pickOne.ElementId, initial), 0, childSpan.Length - 1);
+            combo.SelectedIndexChanged += (_, _) =>
+            {
+                if (combo.SelectedIndex < 0)
+                {
+                    return;
+                }
+
+                pickOneSelections[pickOne.ElementId] = combo.SelectedIndex;
+                if (pickOne.Name.Length > 0)
+                {
+                    activeVariables[pickOne.Name] = combo.SelectedIndex;
+                }
+                ReevaluateSmartProp();
+            };
+
+            var row = table.RowCount++;
+            table.Controls.Add(CreateHandlerLabel("Choice"), 0, row);
+            table.Controls.Add(combo, 1, row);
+        }
+
+        private void AddLocatorEditor(TableLayoutPanel table, SmartPropLocatorWidget locator)
+        {
+            var edit = locatorEdits.GetValueOrDefault(locator.ElementId, new(locator.Position, locator.PitchYawRoll, locator.DisplayScale));
+            AddHandlerNumber(table, "Position X", edit.Position.X, value => UpdateLocatorEditor(locator, state => state with { Position = state.Position with { X = value } }));
+            AddHandlerNumber(table, "Position Y", edit.Position.Y, value => UpdateLocatorEditor(locator, state => state with { Position = state.Position with { Y = value } }));
+            AddHandlerNumber(table, "Position Z", edit.Position.Z, value => UpdateLocatorEditor(locator, state => state with { Position = state.Position with { Z = value } }));
+            AddHandlerNumber(table, "Rotation X", edit.Angles.X, value => UpdateLocatorEditor(locator, state => state with { Angles = state.Angles with { X = value } }));
+            AddHandlerNumber(table, "Rotation Y", edit.Angles.Y, value => UpdateLocatorEditor(locator, state => state with { Angles = state.Angles with { Y = value } }));
+            AddHandlerNumber(table, "Rotation Z", edit.Angles.Z, value => UpdateLocatorEditor(locator, state => state with { Angles = state.Angles with { Z = value } }));
+            AddHandlerNumber(table, "Scale", edit.Scale, value => UpdateLocatorEditor(locator, state => state with { Scale = value }), 0.01m, 10000m);
+        }
+
+        private void UpdateLocatorEditor(SmartPropLocatorWidget locator, Func<LocatorEditState, LocatorEditState> update)
+        {
+            var state = locatorEdits.GetValueOrDefault(locator.ElementId, new(locator.Position, locator.PitchYawRoll, locator.DisplayScale));
+            state = update(state);
+            locatorEdits[locator.ElementId] = state;
+            if (locator.Name.Length > 0)
+            {
+                activeVariables[locator.Name] = (float[])[state.Position.X, state.Position.Y, state.Position.Z];
+            }
+            ReevaluateSmartProp(false);
+        }
+
+        private void AddRotatorEditor(TableLayoutPanel table, SmartPropRotatorWidget rotator)
+        {
+            var minimum = rotator.MinAngle ?? -180f;
+            var maximum = rotator.MaxAngle ?? 180f;
+            if (minimum > maximum)
+            {
+                (minimum, maximum) = (maximum, minimum);
+            }
+            var angle = rotatorEdits.GetValueOrDefault(rotator.ElementId, rotator.Angle);
+            AddHandlerNumber(table, "Angle", angle, value =>
+            {
+                if (rotator.SnappingIncrement > 0f)
+                {
+                    value = MathF.Round(value / rotator.SnappingIncrement) * rotator.SnappingIncrement;
+                }
+                value = Math.Clamp(value, minimum, maximum);
+                rotatorEdits[rotator.ElementId] = value;
+                if (rotator.OutputVariable.Length > 0)
+                {
+                    activeVariables[rotator.OutputVariable] = value;
+                    widgetOutputValues[rotator.OutputVariable] = value;
+                }
+                ReevaluateSmartProp(false);
+            }, (decimal)minimum, (decimal)maximum);
+            AddHandlerTextRow(table, "Axis", FormatVector(rotator.Axis));
+            AddHandlerTextRow(table, "Radius", rotator.Radius.ToString("0.##"));
+        }
+
+        private void AddSizerEditor(TableLayoutPanel table, SmartPropSizerWidget sizer)
+        {
+            var edit = sizerEdits.GetValueOrDefault(sizer.ElementId, new(sizer.MinBounds, sizer.MaxBounds));
+            var editableCount = 0;
+            AddBound(sizer.MinXVariable, "Minimum X", edit.MinBounds.X, sizer.Constraints.MinX, sizer.Constraints.MaxX,
+                value => UpdateSizerEditor(sizer, state => state with { MinBounds = state.MinBounds with { X = value } }));
+            AddBound(sizer.MaxXVariable, "Maximum X", edit.MaxBounds.X, sizer.Constraints.MinX, sizer.Constraints.MaxX,
+                value => UpdateSizerEditor(sizer, state => state with { MaxBounds = state.MaxBounds with { X = value } }));
+            AddBound(sizer.MinYVariable, "Minimum Y", edit.MinBounds.Y, sizer.Constraints.MinY, sizer.Constraints.MaxY,
+                value => UpdateSizerEditor(sizer, state => state with { MinBounds = state.MinBounds with { Y = value } }));
+            AddBound(sizer.MaxYVariable, "Maximum Y", edit.MaxBounds.Y, sizer.Constraints.MinY, sizer.Constraints.MaxY,
+                value => UpdateSizerEditor(sizer, state => state with { MaxBounds = state.MaxBounds with { Y = value } }));
+            AddBound(sizer.MinZVariable, "Minimum Z", edit.MinBounds.Z, sizer.Constraints.MinZ, sizer.Constraints.MaxZ,
+                value => UpdateSizerEditor(sizer, state => state with { MinBounds = state.MinBounds with { Z = value } }));
+            AddBound(sizer.MaxZVariable, "Maximum Z", edit.MaxBounds.Z, sizer.Constraints.MinZ, sizer.Constraints.MaxZ,
+                value => UpdateSizerEditor(sizer, state => state with { MaxBounds = state.MaxBounds with { Z = value } }));
+
+            if (editableCount == 0)
+            {
+                AddHandlerTextRow(table, "Bounds", "No output axes");
+            }
+
+            void AddBound(string variable, string label, float value, float? constraintMin, float? constraintMax, Action<float> changed)
+            {
+                if (variable.Length == 0)
+                {
+                    return;
+                }
+
+                editableCount++;
+                var minimum = (decimal)(constraintMin ?? -1000000f);
+                var maximum = (decimal)(constraintMax ?? 1000000f);
+                if (minimum > maximum)
+                {
+                    (minimum, maximum) = (maximum, minimum);
+                }
+                AddHandlerNumber(table, label, value, changed, minimum, maximum);
+            }
+        }
+
+        private void UpdateSizerEditor(SmartPropSizerWidget sizer, Func<SizerEditState, SizerEditState> update)
+        {
+            var state = sizerEdits.GetValueOrDefault(sizer.ElementId, new(sizer.MinBounds, sizer.MaxBounds));
+            state = update(state);
+            sizerEdits[sizer.ElementId] = state;
+            SetSizerOutput(sizer.MinXVariable, state.MinBounds.X);
+            SetSizerOutput(sizer.MinYVariable, state.MinBounds.Y);
+            SetSizerOutput(sizer.MinZVariable, state.MinBounds.Z);
+            SetSizerOutput(sizer.MaxXVariable, state.MaxBounds.X);
+            SetSizerOutput(sizer.MaxYVariable, state.MaxBounds.Y);
+            SetSizerOutput(sizer.MaxZVariable, state.MaxBounds.Z);
+            ReevaluateSmartProp(false);
+        }
+
+        private void SetSizerOutput(string variable, float value)
+        {
+            if (variable.Length == 0)
+            {
+                return;
+            }
+
+            widgetOutputValues[variable] = value;
+            SetActiveVariableValue(variable, value);
+        }
+
         private void ReevaluateSmartProp(bool rebuildVariablesUi = true)
         {
-            using var lockedGl = MakeCurrent();
-
-            SelectedNodeRenderer?.SelectNode(null);
-
-            Scene.Clear();
-
-            foreach (var resource in loadedResources)
+            if (reevaluatingSmartProp)
             {
-                resource.Dispose();
+                reevaluationPending = true;
+                pendingVariablesUiRebuild |= rebuildVariablesUi;
+                return;
             }
 
-            loadedResources.Clear();
-            nestedSmartProps.Clear();
-            locatorNodes.Clear();
-            rotatorNodes.Clear();
-            sizerNodes.Clear();
-            pickOneNodes.Clear();
-            pathNodes.Clear();
-
-            inspectorGrid?.Rows.Clear();
-            inspectorSelection = null;
-            rawSelectionTextBox?.Clear();
-
-            EvaluateScene();
-
-            PopulateHierarchyTree(filterTextBox?.Text.Trim() ?? string.Empty);
-            if (rebuildVariablesUi)
+            reevaluatingSmartProp = true;
+            try
             {
-                updatingVariablesUi = true;
-                BuildVariablesUi();
-                updatingVariablesUi = false;
-            }
-            PopulateChoiceOverrides();
+                do
+                {
+                    reevaluationPending = false;
+                    pendingVariablesUiRebuild = false;
 
-            NotifyVisible();
+                    using var lockedGl = MakeCurrent();
+
+                    SelectedNodeRenderer?.SelectNode(null);
+
+                    ClearSmartPropScene();
+
+                    foreach (var resource in loadedResources)
+                    {
+                        resource.Dispose();
+                    }
+
+                    loadedResources.Clear();
+                    nestedSmartProps.Clear();
+                    locatorNodes.Clear();
+                    rotatorNodes.Clear();
+                    sizerNodes.Clear();
+                    pickOneNodes.Clear();
+                    pathNodes.Clear();
+
+                    inspectorGrid?.Rows.Clear();
+                    inspectorSelection = null;
+                    rawSelectionTextBox?.Clear();
+
+                    EvaluateScene();
+                    RefreshLightingBindings();
+
+                    PopulateHierarchyTree(filterTextBox?.Text.Trim() ?? string.Empty);
+                    BuildHandlersUi();
+                    if (rebuildVariablesUi)
+                    {
+                        updatingVariablesUi = true;
+                        try
+                        {
+                            BuildVariablesUi();
+                        }
+                        finally
+                        {
+                            updatingVariablesUi = false;
+                        }
+                    }
+                    PopulateChoiceOverrides();
+                    PopulateVariablesView();
+
+                    NotifyVisible();
+                    rebuildVariablesUi = pendingVariablesUiRebuild;
+                }
+                while (reevaluationPending);
+            }
+            finally
+            {
+                reevaluatingSmartProp = false;
+            }
+        }
+
+        private void RefreshLightingBindings()
+        {
+            // Environment-map and light-probe assignments are normally calculated once during scene initialization.
+            // Handler edits replace every SmartProp node, so the replacements need those assignments before rendering.
+            Scene.UpdateOctrees();
+            Scene.CalculateLightProbeBindings();
+            Scene.CalculateEnvironmentMaps();
+
+            // Let the regular scene update rebuild node IDs and instance buffers with the refreshed assignments.
+            Scene.StaticOctree.Dirty = true;
+        }
+
+        private void ClearSmartPropScene()
+        {
+            foreach (var node in Scene.AllNodes.ToArray())
+            {
+                node.Delete();
+                Scene.Remove(node, dynamic: false);
+            }
         }
 
         private void PopulateHierarchyTree(string filter = "")
@@ -676,7 +1251,6 @@ namespace GUI.Types.GLViewers
                 modelsByElementId,
                 pathsByElementId,
                 widgetsByElementId,
-                new(StringComparer.OrdinalIgnoreCase),
                 filter);
 
             hierarchyTree.ExpandAll();
@@ -749,30 +1323,40 @@ namespace GUI.Types.GLViewers
 
         private SmartPropWidget ApplyWidgetEdit(SmartPropWidget widget)
         {
-            if (widget is not SmartPropLocatorWidget locator || !locatorEdits.TryGetValue(locator.ElementId, out var edit))
+            if (widget is SmartPropRotatorWidget rotator && rotatorEdits.TryGetValue(rotator.ElementId, out var angle))
             {
-                return widget;
+                return rotator with { Angle = angle };
             }
 
-            var matrix = EntityTransformHelper.EulerAnglesToRotationMatrix(edit.Angles);
-            matrix.M11 *= edit.Scale;
-            matrix.M12 *= edit.Scale;
-            matrix.M13 *= edit.Scale;
-            matrix.M21 *= edit.Scale;
-            matrix.M22 *= edit.Scale;
-            matrix.M23 *= edit.Scale;
-            matrix.M31 *= edit.Scale;
-            matrix.M32 *= edit.Scale;
-            matrix.M33 *= edit.Scale;
-            matrix.Translation = edit.Position;
-
-            return locator with
+            if (widget is SmartPropSizerWidget sizer && sizerEdits.TryGetValue(sizer.ElementId, out var sizerEdit))
             {
-                WorldMatrix = matrix,
-                Position = edit.Position,
-                PitchYawRoll = edit.Angles,
-                DisplayScale = edit.Scale,
-            };
+                return sizer with { MinBounds = sizerEdit.MinBounds, MaxBounds = sizerEdit.MaxBounds };
+            }
+
+            if (widget is SmartPropLocatorWidget locator && locatorEdits.TryGetValue(locator.ElementId, out var locatorEdit))
+            {
+                var matrix = EntityTransformHelper.EulerAnglesToRotationMatrix(locatorEdit.Angles);
+                matrix.M11 *= locatorEdit.Scale;
+                matrix.M12 *= locatorEdit.Scale;
+                matrix.M13 *= locatorEdit.Scale;
+                matrix.M21 *= locatorEdit.Scale;
+                matrix.M22 *= locatorEdit.Scale;
+                matrix.M23 *= locatorEdit.Scale;
+                matrix.M31 *= locatorEdit.Scale;
+                matrix.M32 *= locatorEdit.Scale;
+                matrix.M33 *= locatorEdit.Scale;
+                matrix.Translation = locatorEdit.Position;
+
+                return locator with
+                {
+                    WorldMatrix = matrix,
+                    Position = locatorEdit.Position,
+                    PitchYawRoll = locatorEdit.Angles,
+                    DisplayScale = locatorEdit.Scale,
+                };
+            }
+
+            return widget;
         }
 
         private KVObject? LoadNestedSmartProp(string path)
@@ -805,7 +1389,7 @@ namespace GUI.Types.GLViewers
             variablesPanel.SuspendLayout();
             variablesPanel.Controls.Clear();
 
-            var editorVariables = variableDefinitions.Where(variable => variable.ExposeAsParameter || IsWidgetOutputVariable(variable.Name)).ToList();
+            var editorVariables = variableDefinitions.Where(variable => variable.ExposeAsParameter).ToList();
             if (editorVariables.Count == 0)
             {
                 var emptyLabel = new Label
@@ -1058,6 +1642,22 @@ namespace GUI.Types.GLViewers
             variablesPanel.ResumeLayout(false);
         }
 
+        private void PopulateVariablesView()
+        {
+            if (variablesGrid == null)
+            {
+                return;
+            }
+
+            variablesGrid.Rows.Clear();
+            foreach (var variable in variableDefinitions)
+            {
+                var name = variable.DisplayName ?? variable.Name;
+                var value = activeVariables.GetValueOrDefault(variable.Name, variable.DefaultValue);
+                variablesGrid.Rows.Add(name, FormatObjectValue(value));
+            }
+        }
+
         private bool IsWidgetOutputVariable(string name)
         {
             foreach (var widgetList in widgetsByElementId.Values)
@@ -1260,7 +1860,6 @@ namespace GUI.Types.GLViewers
             Dictionary<int, List<(SmartPropEvaluatedModel Model, SceneNode Node)>> modelsByElementId,
             Dictionary<int, List<(SmartPropPathInfo Path, SceneNode? Node)>> pathsByElementId,
             Dictionary<int, List<(SmartPropWidget Widget, SceneNode? Node)>> widgetsByElementId,
-            HashSet<string> activeNestedProps,
             string filter)
         {
             var className = SmartPropModifierEvaluator.GetClassName(element);
@@ -1279,7 +1878,7 @@ namespace GUI.Types.GLViewers
                 {
                     if (child.ValueType == KVValueType.Collection)
                     {
-                        anyRootMatch |= PopulateElementHierarchy(parentNodes, child, modelsByElementId, pathsByElementId, widgetsByElementId, activeNestedProps, filter);
+                        anyRootMatch |= PopulateElementHierarchy(parentNodes, child, modelsByElementId, pathsByElementId, widgetsByElementId, filter);
                     }
                 }
 
@@ -1336,30 +1935,14 @@ namespace GUI.Types.GLViewers
 
             var hasMatchingDescendant = false;
 
-            // Expand nested smart props recursively
-            if (className == "SmartProp")
-            {
-                var nestedPath = GetString(element, "m_sSmartProp");
-                if (nestedPath.Length > 0 && activeNestedProps.Add(nestedPath))
-                {
-                    var nestedRoot = LoadNestedSmartProp(nestedPath);
-                    if (nestedRoot != null)
-                    {
-                        hasMatchingDescendant |= PopulateElementHierarchy(elementNode.Nodes, nestedRoot, modelsByElementId, pathsByElementId, widgetsByElementId, activeNestedProps, filter);
-                    }
-
-                    activeNestedProps.Remove(nestedPath);
-                }
-            }
-
             // Recursively populate child elements
-            if (element.TryGetValue("m_Children", out var children) && children.IsArray)
+            if (className != "SmartProp" && element.TryGetValue("m_Children", out var children) && children.IsArray)
             {
                 foreach (var child in children.AsArraySpan())
                 {
                     if (child.ValueType == KVValueType.Collection)
                     {
-                        hasMatchingDescendant |= PopulateElementHierarchy(elementNode.Nodes, child, modelsByElementId, pathsByElementId, widgetsByElementId, activeNestedProps, filter);
+                        hasMatchingDescendant |= PopulateElementHierarchy(elementNode.Nodes, child, modelsByElementId, pathsByElementId, widgetsByElementId, filter);
                     }
                 }
             }
@@ -1406,12 +1989,14 @@ namespace GUI.Types.GLViewers
             return true;
         }
 
-        private static void ToggleNodes(List<SceneNode> nodes, bool visible)
+        private void ToggleNodes(List<SceneNode> nodes, bool visible)
         {
             foreach (var node in nodes)
             {
                 node.LayerEnabled = visible;
             }
+
+            BuildHandlersUi();
         }
 
         private void OnHierarchyNodeSelected(object? sender, TreeViewEventArgs e)
@@ -1462,12 +2047,16 @@ namespace GUI.Types.GLViewers
             if (e.Button == MouseButtons.Left)
             {
                 activeWidget = FindOverlayWidget(e.Location);
-                if (activeWidget != null && BeginWidgetDrag(e.Location))
+                if (activeWidget != null)
                 {
-                    base.OnMouseDown(sender, e);
-                    draggingWidget = true;
-                    widgetDragPoint = e.Location;
-                    return;
+                    SelectHandlerInList(activeWidget);
+                    if (BeginWidgetDrag(e.Location))
+                    {
+                        base.OnMouseDown(sender, e);
+                        draggingWidget = true;
+                        widgetDragPoint = e.Location;
+                        return;
+                    }
                 }
             }
 
@@ -1664,6 +2253,22 @@ namespace GUI.Types.GLViewers
 
             var sceneNode = Scene.Find(pickingResponse.PixelInfo.ObjectId);
             SelectedNodeRenderer?.SelectNode(sceneNode);
+
+            if (UiControl?.IsDisposed != false)
+            {
+                return;
+            }
+
+            var widget = sceneNode != null ? FindWidget(sceneNode) : null;
+            UiControl.BeginInvoke(() => UpdatePickedUi(sceneNode, widget));
+        }
+
+        private void UpdatePickedUi(SceneNode? sceneNode, SmartPropWidget? widget)
+        {
+            if (widget != null)
+            {
+                SelectHandlerInList(widget);
+            }
 
             if (hierarchyTree == null || inspectorGrid == null)
             {
@@ -2115,8 +2720,13 @@ namespace GUI.Types.GLViewers
             rawSelectionTextBox?.Dispose();
             showRawSelectionCheckBox?.Dispose();
             variablesPanel?.Dispose();
+            variablesGrid?.Dispose();
             choicesPanel?.Dispose();
             choiceOverridesGrid?.Dispose();
+            parametersGroup?.Dispose();
+            handlersGroup?.Dispose();
+            handlerList?.Dispose();
+            handlerPropertiesPanel?.Dispose();
             StructureControl?.Dispose();
             VariablesControl?.Dispose();
 

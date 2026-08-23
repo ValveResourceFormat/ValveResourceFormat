@@ -378,18 +378,44 @@ namespace Tests.SmartProp
         }
 
         [Test]
+        public async Task CreateRotatorOnlyUsesLimitsWhenEnforced()
+        {
+            var unrestricted = Modifier("CreateRotator",
+                ("m_bEnforceLimits", new KVObject(false)),
+                ("m_flMinAngle", new KVObject(0f)),
+                ("m_flMaxAngle", new KVObject(0f)));
+            var restricted = Modifier("CreateRotator",
+                ("m_bEnforceLimits", new KVObject(true)),
+                ("m_flMinAngle", new KVObject(-90f)),
+                ("m_flMaxAngle", new KVObject(90f)));
+
+            var unrestrictedWidget = (SmartPropRotatorWidget)SmartPropModifierEvaluator
+                .EvaluateElementModifiers(Element("Group", unrestricted), Context()).Widgets[0];
+            var restrictedWidget = (SmartPropRotatorWidget)SmartPropModifierEvaluator
+                .EvaluateElementModifiers(Element("Group", restricted), Context()).Widgets[0];
+
+            await Assert.That(unrestrictedWidget.MinAngle).IsNull();
+            await Assert.That(unrestrictedWidget.MaxAngle).IsNull();
+            await Assert.That(restrictedWidget.MinAngle).IsEqualTo(-90f);
+            await Assert.That(restrictedWidget.MaxAngle).IsEqualTo(90f);
+        }
+
+        [Test]
         public async Task CreateSizerOnlyEmitsWhenAnAxisIsActive()
         {
             var inactive = Modifier("CreateSizer");
             var active = Modifier("CreateSizer",
                 ("m_flInitialMinX", new KVObject(-10f)),
                 ("m_flInitialMaxX", new KVObject(10f)),
-                ("m_OutputVariableMinY", new KVObject("sizer_min_y")));
+                ("m_OutputVariableMinY", new KVObject("sizer_min_y")),
+                ("m_flConstraintMinY", new KVObject(0f)),
+                ("m_flConstraintMaxY", new KVObject(128f)));
 
             var none = SmartPropModifierEvaluator.EvaluateElementModifiers(Element("Group", inactive), Context());
             await Assert.That(none.Widgets).IsEmpty();
 
-            var some = SmartPropModifierEvaluator.EvaluateElementModifiers(Element("Group", active), Context());
+            var someContext = Context();
+            var some = SmartPropModifierEvaluator.EvaluateElementModifiers(Element("Group", active), someContext);
             var widget = (SmartPropSizerWidget)some.Widgets[0];
             await Assert.That(widget.MinBounds).IsEqualTo(new Vector3(-10f, 0f, 0f));
             await Assert.That(widget.MaxBounds.X).IsEqualTo(10f);
@@ -398,6 +424,10 @@ namespace Tests.SmartProp
             await Assert.That(widget.ActiveAxes.Z).IsFalse();
             await Assert.That(widget.Handles.MinY).IsTrue();
             await Assert.That(widget.Handles.MaxX).IsFalse();
+            await Assert.That(widget.Constraints.MinX).IsNull();
+            await Assert.That(widget.Constraints.MinY).IsEqualTo(0f);
+            await Assert.That(widget.Constraints.MaxY).IsEqualTo(128f);
+            await Assert.That((float)someContext.GetVariable("sizer_min_y")!).IsEqualTo(0f);
         }
 
         [Test]
@@ -419,6 +449,7 @@ namespace Tests.SmartProp
             await Assert.That(rotatorWidget.Angle).IsEqualTo(45f);
             await Assert.That(sizerWidget.MinBounds.X).IsEqualTo(-12f);
             await Assert.That(sizerWidget.MinXVariable).IsEqualTo("min_x");
+            await Assert.That((float)context.GetVariable("min_x")!).IsEqualTo(-12f);
         }
 
         [Test]

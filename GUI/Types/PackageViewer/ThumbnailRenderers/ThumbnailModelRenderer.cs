@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Linq;
+using System.Threading;
 using ValveResourceFormat;
 using ValveResourceFormat.Renderer.SceneNodes;
 using ValveResourceFormat.ResourceTypes;
@@ -8,7 +9,7 @@ namespace GUI.Types.PackageViewer.ThumbnailRenderers;
 
 internal class ThumbnailModelRenderer : ThumbnailRenderer
 {
-    public override void SetResource(Resource resource)
+    public override void SetResource(Resource resource, CancellationToken cancellationToken)
     {
         var model = (Model)resource.DataBlock!;
         PhysAggregateData? phys = null;

@@ -63,6 +63,15 @@ namespace ValveResourceFormat.ResourceTypes.SmartProps
     /// <summary>Which of a sizer's axes are active at all.</summary>
     public readonly record struct SmartPropSizerAxes(bool X, bool Y, bool Z);
 
+    /// <summary>Optional authored edit limits for each sizer axis.</summary>
+    public readonly record struct SmartPropSizerConstraints(
+        float? MinX,
+        float? MaxX,
+        float? MinY,
+        float? MaxY,
+        float? MinZ,
+        float? MaxZ);
+
     /// <summary>
     /// A sizer widget: a wireframe box around the element with draggable bounds handles.
     /// Carries the initial min and max bounds, the per handle output variable presence
@@ -83,7 +92,8 @@ namespace ValveResourceFormat.ResourceTypes.SmartProps
         string MinYVariable = "",
         string MaxYVariable = "",
         string MinZVariable = "",
-        string MaxZVariable = "") : SmartPropWidget(ElementId, WorldMatrix, Position, PitchYawRoll, Name);
+        string MaxZVariable = "",
+        SmartPropSizerConstraints Constraints = default) : SmartPropWidget(ElementId, WorldMatrix, Position, PitchYawRoll, Name);
 
     /// <summary>
     /// The choice handle of a PickOne element: a small marker where the picked option is

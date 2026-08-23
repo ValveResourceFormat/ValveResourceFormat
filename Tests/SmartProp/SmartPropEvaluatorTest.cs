@@ -431,6 +431,32 @@ namespace Tests.SmartProp
         }
 
         [Test]
+        public async Task EvaluationLimitsModelResults()
+        {
+            var result = SmartPropEvaluator.Evaluate(
+                Root(
+                    ModelElement(1, "models/a.vmdl"),
+                    ModelElement(2, "models/b.vmdl"),
+                    ModelElement(3, "models/c.vmdl")),
+                maxModels: 2);
+
+            await Assert.That(result.Models.Count).IsEqualTo(2);
+        }
+
+        [Test]
+        public async Task EvaluationLimitsPathInstances()
+        {
+            var path = Element("PlaceOnPath", 30, ModelElement(1, "models/a.vmdl"));
+            path["m_DefaultPath"] = ArrayOf(PathPoint(0f, 0f, 0f), PathPoint(1000f, 0f, 0f));
+            path["m_flSpacing"] = new KVObject(0.001f);
+            path["m_PathSpace"] = new KVObject("WORLD");
+
+            var result = SmartPropEvaluator.Evaluate(Root(path), maxPathInstances: 4);
+
+            await Assert.That(result.Models.Count).IsEqualTo(4);
+        }
+
+        [Test]
         public async Task EvaluatesMaterialGroupAndTintColor()
         {
             var root = Root();

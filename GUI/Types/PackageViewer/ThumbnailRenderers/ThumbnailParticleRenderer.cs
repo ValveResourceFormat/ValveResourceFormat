@@ -1,3 +1,4 @@
+using System.Threading;
 using ValveResourceFormat;
 using ValveResourceFormat.Renderer.SceneNodes;
 using ValveResourceFormat.ResourceTypes;
@@ -6,7 +7,7 @@ namespace GUI.Types.PackageViewer.ThumbnailRenderers;
 
 internal class ThumbnailParticleRenderer : ThumbnailRenderer
 {
-    public override void SetResource(Resource resource)
+    public override void SetResource(Resource resource, CancellationToken cancellationToken)
     {
         var particleSystem = (ParticleSystem)resource.DataBlock!;
 

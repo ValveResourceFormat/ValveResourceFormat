@@ -76,26 +76,45 @@ namespace ValveResourceFormat.ResourceTypes.SmartProps
         /// nested elements are skipped when absent.
         /// </param>
         /// <param name="maxDepth">Maximum smart prop nesting depth.</param>
+        /// <param name="maxElements">Maximum number of elements to visit before returning a partial result.</param>
+        /// <param name="maxModels">Maximum number of model results to emit.</param>
+        /// <param name="maxPathInstances">Maximum number of instances produced by a single path element.</param>
         public static SmartPropEvaluationResult Evaluate(
             KVObject root,
             SmartPropEvaluationContext? context = null,
             Func<string, KVObject?>? nestedPropResolver = null,
-            int maxDepth = DefaultMaxDepth)
+            int maxDepth = DefaultMaxDepth,
+            int maxElements = int.MaxValue,
+            int maxModels = int.MaxValue,
+            int maxPathInstances = int.MaxValue)
         {
+            ArgumentOutOfRangeException.ThrowIfNegative(maxDepth);
+            ArgumentOutOfRangeException.ThrowIfNegativeOrZero(maxElements);
+            ArgumentOutOfRangeException.ThrowIfNegativeOrZero(maxModels);
+            ArgumentOutOfRangeException.ThrowIfNegativeOrZero(maxPathInstances);
+
             context ??= new SmartPropEvaluationContext(SmartPropVariableMap.Build(root));
 
-            var state = new EvaluationState();
+            var state = new EvaluationState(maxElements, maxModels, maxPathInstances);
             Traverse(root, Matrix4x4.Identity, context, state, [], nestedPropResolver, depth: 0, maxDepth);
             return new SmartPropEvaluationResult(state.Models, state.Widgets, state.Paths);
         }
 
-        private sealed class EvaluationState
+        private sealed class EvaluationState(int maxElements, int maxModels, int maxPathInstances)
         {
+            private int visitedElements;
+
             public List<SmartPropEvaluatedModel> Models { get; } = [];
 
             public List<SmartPropWidget> Widgets { get; } = [];
 
             public List<SmartPropPathInfo> Paths { get; } = [];
+
+            public int MaxModels { get; } = maxModels;
+
+            public int MaxPathInstances { get; } = maxPathInstances;
+
+            public bool TryVisitElement() => visitedElements++ < maxElements;
         }
 
         private static void Traverse(
@@ -109,7 +128,7 @@ namespace ValveResourceFormat.ResourceTypes.SmartProps
             int maxDepth,
             Vector4? inheritedTintColor = null)
         {
-            if (IsDisabled(element))
+            if (!state.TryVisitElement() || IsDisabled(element))
             {
                 return;
             }
@@ -126,7 +145,9 @@ namespace ValveResourceFormat.ResourceTypes.SmartProps
             var activeTint = modifiers.TintColor ?? inheritedTintColor;
 
             var elementId = GetInt32(element, "m_nElementID");
-            if (elementId > 0 && elementClass is "Model" or "ModelEntity" or "PropPhysics" or "PropDynamic")
+            if (state.Models.Count < state.MaxModels
+                && elementId > 0
+                && elementClass is "Model" or "ModelEntity" or "PropPhysics" or "PropDynamic")
             {
                 var (position, angles, scale) = SmartPropTransform.DecomposeTRS(modifiers.ModelWorldMatrix);
                 var materialGroup = ResolveMaterialGroup(element, context);
@@ -246,7 +267,7 @@ namespace ValveResourceFormat.ResourceTypes.SmartProps
             int maxDepth,
             Vector4? activeTintColor = null)
         {
-            var path = SamplePlaceOnPath(element, worldMatrix, context);
+            var path = SamplePlaceOnPath(element, worldMatrix, context, state.MaxPathInstances);
             state.Paths.Add(new SmartPropPathInfo(GetInt32(element, "m_nElementID"), path.CurveSamples, path.ControlPoints, worldMatrix));
 
             var children = GetChildren(element);
@@ -317,7 +338,11 @@ namespace ValveResourceFormat.ResourceTypes.SmartProps
 
         private readonly record struct PlaceOnPathResult(PathInstance[] Instances, Vector3[] CurveSamples, Vector3[] ControlPoints);
 
-        private static PlaceOnPathResult SamplePlaceOnPath(KVObject element, Matrix4x4 parentWorld, SmartPropEvaluationContext context)
+        private static PlaceOnPathResult SamplePlaceOnPath(
+            KVObject element,
+            Matrix4x4 parentWorld,
+            SmartPropEvaluationContext context,
+            int maxInstances)
         {
             // Extract and resolve control points
             List<Vector3> controlPoints = [];
@@ -368,8 +393,18 @@ namespace ValveResourceFormat.ResourceTypes.SmartProps
                     : SmartPropTransform.TransformPoint(parentWorld, samples[i].Position);
             }
 
-            var spacing = MathF.Max(0.001f, context.ResolveScalar(GetOrDefault(element, "m_flSpacing"), 1f));
+            var spacing = context.ResolveScalar(GetOrDefault(element, "m_flSpacing"), 1f);
+            if (!float.IsFinite(spacing))
+            {
+                spacing = 1f;
+            }
+
+            spacing = MathF.Max(0.001f, spacing);
             var offset = context.ResolveScalar(GetOrDefault(element, "m_flOffsetAlongPath"));
+            if (!float.IsFinite(offset))
+            {
+                offset = 0f;
+            }
             var pathOffset = context.ResolveVector3(GetOrDefault(element, "m_vPathOffset"));
             var isOffsetWorldSpace = string.Equals(GetString(element, "m_PathSpace", "WORLD").Trim().ToUpperInvariant(), "WORLD", StringComparison.Ordinal);
 
@@ -381,7 +416,7 @@ namespace ValveResourceFormat.ResourceTypes.SmartProps
             }
             else
             {
-                for (var d = offset; d <= totalLength + 1e-4f; d += spacing)
+                for (var d = offset; d <= totalLength + 1e-4f && distances.Count < maxInstances; d += spacing)
                 {
                     if (d >= -1e-4f)
                     {
@@ -467,7 +502,12 @@ namespace ValveResourceFormat.ResourceTypes.SmartProps
 
         private static int GetInt32(KVObject node, string key)
         {
-            return node.TryGetValue(key, out var value) && value.ValueType == KVValueType.Int32
+            if (!node.TryGetValue(key, out var value))
+            {
+                return 0;
+            }
+
+            return value.ValueType is KVValueType.Int32 or KVValueType.Int64 or KVValueType.UInt32 or KVValueType.UInt64
                 ? (int)value
                 : 0;
         }

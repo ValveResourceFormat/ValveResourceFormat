@@ -10,7 +10,7 @@ namespace GUI.Types.PackageViewer.ThumbnailRenderers;
 
 internal class ThumbnailTextureRenderer : ThumbnailRenderer
 {
-    public override void SetResource(Resource resource) { }
+    public override void SetResource(Resource resource, CancellationToken cancellationToken) { }
 
     public override Bitmap? Render(PackageEntry entry, VrfGuiContext context, ThumbnailSizes Size, CancellationToken cancellationToken)
     {

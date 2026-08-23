@@ -511,7 +511,7 @@ namespace GUI.Types.Viewers
 
                 if (!isPreview && GLViewer is GLSmartPropViewer { StructureControl: { } structureControl })
                 {
-                    var structureTabPage = new ThemedTabPage("Structure");
+                    var structureTabPage = new ThemedTabPage("Hierarchy");
                     structureTabPage.Controls.Add(structureControl);
                     resTabs.TabPages.Add(structureTabPage);
                 }
