@@ -262,7 +262,14 @@ partial class ModelExtract
     /// </summary>
     private static DmeTransform[] AppendDmeSkeletonJoints(DmeModel dmeSkeleton, Skeleton skeleton, int nmLowLodBoneCount = -1)
     {
-        var childOrder = NmCompilerChildOrder(skeleton, nmLowLodBoneCount);
+        int[]? minLow = null;
+        int[]? minHigh = null;
+
+        if (nmLowLodBoneCount >= 0)
+        {
+            (minLow, minHigh) = NmLodSubtreeMins(skeleton, nmLowLodBoneCount);
+        }
+
         var transforms = new DmeTransform[skeleton.Bones.Length];
         var boneDags = new DmeJoint[skeleton.Bones.Length];
 
@@ -286,13 +293,13 @@ partial class ModelExtract
 
         foreach (var bone in skeleton.Bones)
         {
-            foreach (var child in SortedSiblings(bone.Children, childOrder))
+            foreach (var child in OrderSiblings(bone.Children, minLow, minHigh))
             {
                 boneDags[bone.Index].Children.Add(boneDags[child.Index]);
             }
         }
 
-        foreach (var root in SortedSiblings(skeleton.Roots, childOrder))
+        foreach (var root in OrderSiblings(skeleton.Roots, minLow, minHigh))
         {
             dmeSkeleton.Children.Add(boneDags[root.Index]);
         }
@@ -300,31 +307,13 @@ partial class ModelExtract
         return transforms;
     }
 
-    private static IReadOnlyList<Bone> SortedSiblings(IReadOnlyList<Bone> siblings, Func<IReadOnlyList<Bone>, IReadOnlyList<Bone>>? childOrder)
-    {
-        if (childOrder == null || siblings.Count < 2)
-        {
-            return siblings;
-        }
-
-        return childOrder(siblings);
-    }
-
     /// <summary>
-    /// CompileNmSkeleton emits bones as a hierarchy walk filtered to the first
-    /// m_numBonesToSampleAtLowLOD bones, then the same walk filtered to the rest. This builds the
-    /// sibling order whose walk reproduces the skeleton's compiled bone order, keeping recompiled
-    /// skeletons index-compatible with existing clips: siblings whose subtrees contain low-LOD
-    /// bones keep their relative compiled order, and each pure high-LOD sibling is placed where
-    /// its subtree's first high-LOD bone falls between theirs.
+    /// Per-bone minimum compiled index within the bone's subtree, split into a low-LOD part
+    /// (indices below <paramref name="nmLowLodBoneCount"/>) and a high-LOD part; entries are
+    /// <see cref="int.MaxValue"/> where the subtree has no bone of that kind.
     /// </summary>
-    private static Func<IReadOnlyList<Bone>, IReadOnlyList<Bone>>? NmCompilerChildOrder(Skeleton skeleton, int nmLowLodBoneCount)
+    private static (int[] MinLow, int[] MinHigh) NmLodSubtreeMins(Skeleton skeleton, int nmLowLodBoneCount)
     {
-        if (nmLowLodBoneCount < 0)
-        {
-            return null;
-        }
-
         var boneCount = skeleton.Bones.Length;
         var minLow = new int[boneCount];
         var minHigh = new int[boneCount];
@@ -350,38 +339,55 @@ partial class ModelExtract
             }
         }
 
-        return siblings =>
+        return (minLow, minHigh);
+    }
+
+    /// <summary>
+    /// CompileNmSkeleton emits bones as a hierarchy walk filtered to the first
+    /// m_numBonesToSampleAtLowLOD bones, then the same walk filtered to the rest. This orders one
+    /// sibling group so that walk reproduces the skeleton's compiled bone order, keeping
+    /// recompiled skeletons index-compatible with existing clips: siblings whose subtrees contain
+    /// low-LOD bones keep their relative compiled order, and each pure high-LOD sibling is placed
+    /// where its subtree's first high-LOD bone falls between the mixed siblings' high-LOD
+    /// segments. Without the subtree tables from <see cref="NmLodSubtreeMins"/> the group is
+    /// returned unchanged, in bone index order.
+    /// </summary>
+    private static IReadOnlyList<Bone> OrderSiblings(IReadOnlyList<Bone> siblings, int[]? minLow, int[]? minHigh)
+    {
+        if (minLow == null || minHigh == null || siblings.Count < 2)
         {
-            var lowContaining = new List<Bone>();
-            var highOnly = new List<Bone>();
+            return siblings;
+        }
 
-            foreach (var sibling in siblings)
+        var lowContaining = new List<Bone>();
+        var highOnly = new List<Bone>();
+
+        foreach (var sibling in siblings)
+        {
+            (minLow[sibling.Index] != int.MaxValue ? lowContaining : highOnly).Add(sibling);
+        }
+
+        lowContaining.Sort((a, b) => minLow[a.Index].CompareTo(minLow[b.Index]));
+        highOnly.Sort((a, b) => minHigh[a.Index].CompareTo(minHigh[b.Index]));
+
+        var merged = new List<Bone>(siblings.Count);
+        var next = 0;
+
+        foreach (var sibling in lowContaining)
+        {
+            if (minHigh[sibling.Index] != int.MaxValue)
             {
-                (minLow[sibling.Index] != int.MaxValue ? lowContaining : highOnly).Add(sibling);
-            }
-
-            lowContaining.Sort((a, b) => minLow[a.Index].CompareTo(minLow[b.Index]));
-            highOnly.Sort((a, b) => minHigh[a.Index].CompareTo(minHigh[b.Index]));
-
-            var merged = new List<Bone>(siblings.Count);
-            var next = 0;
-
-            foreach (var sibling in lowContaining)
-            {
-                if (minHigh[sibling.Index] != int.MaxValue)
+                while (next < highOnly.Count && minHigh[highOnly[next].Index] < minHigh[sibling.Index])
                 {
-                    while (next < highOnly.Count && minHigh[highOnly[next].Index] < minHigh[sibling.Index])
-                    {
-                        merged.Add(highOnly[next++]);
-                    }
+                    merged.Add(highOnly[next++]);
                 }
-
-                merged.Add(sibling);
             }
 
-            merged.AddRange(highOnly.GetRange(next, highOnly.Count - next));
-            return merged;
-        };
+            merged.Add(sibling);
+        }
+
+        merged.AddRange(highOnly.GetRange(next, highOnly.Count - next));
+        return merged;
     }
 
     private static DmeChannel BuildDmeChannel<T>(string name, Element toElement, string toAttribute, out DmeLog<T> log)
