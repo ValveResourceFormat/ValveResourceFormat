@@ -1513,7 +1513,7 @@ public sealed class PolygonMesh
     /// the builder handed out no longer apply afterwards.
     /// </summary>
     /// <param name="maxDistance">Largest distance between two vertices that still get merged.</param>
-    /// <returns>Number of vertices merged away.</returns>
+    /// <returns>Number of vertices that took part in a merge, counting the surviving vertex of each group.</returns>
     public int MergeVerticesWithinDistance(float maxDistance)
     {
         var total = 0;

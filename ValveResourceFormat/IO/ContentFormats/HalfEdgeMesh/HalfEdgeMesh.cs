@@ -274,7 +274,7 @@ public partial class HalfEdgeMesh
     private ComponentList<HalfEdge> HalfEdgeList { get; set; } = new();
 
     /// <summary>
-    /// Called when corner data must follow a half edge, with the source edge first and the destination second.
+    /// Called when corner data must follow a half edge, with the destination edge first and the source second.
     /// </summary>
     public Action<HalfEdgeHandle, HalfEdgeHandle>? OnCopyFaceVertexData { get; set; }
 
