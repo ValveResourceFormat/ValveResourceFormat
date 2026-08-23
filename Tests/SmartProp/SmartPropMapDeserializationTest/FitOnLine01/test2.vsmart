@@ -1,0 +1,116 @@
+<!-- kv3 encoding:text:version{e21c7f3c-8a33-41c5-9977-a76d3a32aa0d} format:generic:version{7412167c-06e9-4698-aff2-e63eb59037e7} -->
+{
+	generic_data_type = "CSmartPropRoot"
+	m_nContentVersion = 0
+	editor_info = 
+	{
+		name = "Hammer 5 Tools"
+		version = "5.8.0"
+		m_nElementID = 114
+	}
+	m_Variables = 
+	[
+		
+		{
+			_class = "CSmartPropVariable_PickMode"
+			m_VariableName = "PickMode"
+			m_bExposeAsParameter = true
+			m_DefaultValue = ""
+			m_nElementID = 10
+		},
+		
+		{
+			_class = "CSmartPropVariable_Int"
+			m_VariableName = "sizer_x"
+			m_bExposeAsParameter = false
+			m_DefaultValue = ""
+			m_nElementID = 9
+			m_DisplayName = "sizer_x"
+			m_nParamaterMinValue = 0
+			m_nParamaterMaxValue = 0
+		}
+	]
+	m_Choices = 
+	[
+
+	]
+	m_Children = 
+	[
+		
+		{
+			_class = "CSmartPropElement_Group"
+			m_Modifiers = [
+			{
+				_class = "CSmartPropOperation_CreateSizer"
+				m_OutputVariableMaxX = ""
+				m_OutputVariableMaxY = ""
+				m_OutputVariableMaxZ = ""
+				m_OutputVariableMinX = "sizer_x"
+				m_OutputVariableMinY = ""
+				m_OutputVariableMinZ = ""
+				m_bEnabled = true
+				m_flInitialMaxX = 0.0
+				m_flInitialMaxY = 16.0
+				m_flInitialMaxZ = 16.0
+				m_flInitialMinX = -64.0
+				m_nElementID = 2
+			}]
+			m_SelectionCriteria = []
+			m_bEnabled = true
+			m_nElementID = 1
+			m_sLabel = "Root"
+			m_Children = [
+			{
+				_class = "CSmartPropElement_FitOnLine"
+				m_Modifiers = []
+				m_SelectionCriteria = []
+				m_bEnabled = true
+				m_nElementID = 3
+				m_nPickMode = {m_SourceName = "PickMode"}
+				m_nScaleMode = "SCALE_END_TO_FIT"
+				m_sLabel = "Line"
+				m_vEnd = {m_Components = [{m_Expression = "sizer_x"}, 0.0, 0.0]}
+				m_Children = [
+				{
+					_class = "CSmartPropElement_PickOne"
+					m_Modifiers = []
+					m_SelectionCriteria = [
+					{
+						_class = "CSmartPropSelectionCriteria_LinearLength"
+						m_bAllowScale = true
+						m_bEnabled = true
+						m_flLength = 128.0
+						m_flMaxLength = 256.0
+						m_flMinLength = 64.0
+						m_nElementID = 5
+					}]
+					m_SelectionMode = "RANDOM"
+					m_bConfigurable = false
+					m_bEnabled = true
+					m_nElementID = 4
+					m_sLabel = "128"
+					m_Children = [
+					{
+						_class = "CSmartPropElement_Model"
+						m_Modifiers = [
+						{
+							_class = "CSmartPropOperation_Rotate"
+							m_bEnabled = false
+							m_nElementID = 7
+							m_vRotation = {m_Components = [0.0, 180.0, 0.0]}
+						}]
+						m_SelectionCriteria = []
+						m_bEnabled = true
+						m_nElementID = 6
+						m_sLabel = "a"
+						m_sModelName = "models/props/de_nuke/hr_nuke/web_joist_001/web_joist_support_002_horizontal_128.vmdl"
+						m_vModelScale = 
+						{
+							m_Components = [{m_Expression = "LinearScale()"}, {m_Expression = "1"}, {m_Expression = "1"}]
+						}
+					}]
+				}]
+			}]
+		}
+	]
+}

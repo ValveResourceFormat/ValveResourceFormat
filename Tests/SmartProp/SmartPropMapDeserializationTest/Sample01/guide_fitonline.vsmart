@@ -1,0 +1,902 @@
+<!-- kv3 encoding:text:version{e21c7f3c-8a33-41c5-9977-a76d3a32aa0d} format:generic:version{7412167c-06e9-4698-aff2-e63eb59037e7} -->
+{
+	generic_data_type = "CSmartPropRoot"
+	m_nContentVersion = 0
+	editor_info = 
+	{
+		name = "Hammer 5 Tools"
+		version = "5.8.0"
+		m_nElementID = 2891
+	}
+	m_Variables = 
+	[
+		
+		{
+			_class = "CSmartPropVariable_Float"
+			m_VariableName = "SizerLengthZ"
+			m_bExposeAsParameter = false
+			m_DefaultValue = 0.0
+			m_nElementID = 33
+		},
+		
+		{
+			_class = "CSmartPropVariable_Float"
+			m_VariableName = "BendAngle"
+			m_bExposeAsParameter = false
+			m_DefaultValue = 0.0
+			m_nElementID = 139
+		}
+	]
+	m_Choices = 
+	[
+
+	]
+	m_Children = 
+	[
+		
+		{
+			_class = "CSmartPropElement_PickOne"
+			m_HandleColor = [255, 136, 17]
+			m_HandleShape = "CIRCLE"
+			m_HandleSize = 16.0
+			m_Modifiers = []
+			m_OutputChoiceVariableName = ""
+			m_SelectionCriteria = []
+			m_SelectionMode = "FIRST"
+			m_bConfigurable = true
+			m_bEnabled = true
+			m_nElementID = 52
+			m_sLabel = "Picker"
+			m_vHandleOffset = 
+			{
+				m_Components = [0.0, 0.0, 16.0]
+			}
+			m_Children = [
+			{
+				_class = "CSmartPropElement_Group"
+				m_Modifiers = [
+				{
+					_class = "CSmartPropOperation_CreateSizer"
+					m_Name = ""
+					m_OutputVariableMaxX = ""
+					m_OutputVariableMaxY = ""
+					m_OutputVariableMaxZ = "SizerLengthZ"
+					m_OutputVariableMinX = ""
+					m_OutputVariableMinY = ""
+					m_OutputVariableMinZ = ""
+					m_bDisplayModel = false
+					m_bEnabled = true
+					m_flConstraintMaxX = 0.0
+					m_flConstraintMaxY = 0.0
+					m_flConstraintMaxZ = 192.0
+					m_flConstraintMinX = 0.0
+					m_flConstraintMinY = 0.0
+					m_flConstraintMinZ = 0.0
+					m_flInitialMaxX = 0.0
+					m_flInitialMaxY = 0.0
+					m_flInitialMaxZ = 128.0
+					m_flInitialMinX = 0.0
+					m_flInitialMinY = 0.0
+					m_flInitialMinZ = 0.0
+					m_nElementID = 32
+				}]
+				m_SelectionCriteria = []
+				m_bEnabled = true
+				m_nElementID = 31
+				m_sLabel = "CreateSizer"
+				m_Children = [
+				{
+					_class = "CSmartPropElement_FitOnLine"
+					m_Modifiers = [
+					{
+						_class = "CSmartPropOperation_Translate"
+						m_CoordinateSpace = "ELEMENT"
+						m_bEnabled = {m_Expression = ""}
+						m_nElementID = 34
+						m_vPosition = 
+						{
+							m_Components = [0.0, 0.0, 0.0]
+						}
+					}]
+					m_PointSpace = "ELEMENT"
+					m_SelectionCriteria = []
+					m_UpDirectionSpace = "WORLD"
+					m_bEnabled = true
+					m_bOrientAlongLine = false
+					m_bPrioritizeUp = false
+					m_nElementID = 2
+					m_nPickMode = "LARGEST_FIRST"
+					m_nScaleMode = "SCALE_MAXIMIZE"
+					m_sLabel = "FitOnLine_02"
+					m_vEnd = {m_Components = [0.0, 0.0, {m_SourceName = "SizerLengthZ"}]}
+					m_vStart = {m_Components = [0.0, 0.0, 0.0]}
+					m_Children = [
+					{
+						_class = "CSmartPropElement_Group"
+						m_Modifiers = [
+						{
+							_class = "CSmartPropOperation_CreateRotator"
+							m_CoordinateSpace = "ELEMENT"
+							m_Name = ""
+							m_OutputVariable = ""
+							m_bApplyToCurrentTransform = true
+							m_bEnabled = true
+							m_bEnforceLimits = false
+							m_flDisplayRadius = 16.0
+							m_flInitialAngle = 0.0
+							m_flMaxAngle = 0.0
+							m_flMinAngle = 0.0
+							m_flSnappingIncrement = 0.0
+							m_nElementID = 46
+						}, 
+						{
+							_class = "CSmartPropOperation_RigidDeformation"
+							m_bEnabled = true
+							m_nElementID = 162
+						}]
+						m_SelectionCriteria = [
+						{
+							_class = "CSmartPropSelectionCriteria_LinearLength"
+							m_bAllowScale = true
+							m_bEnabled = true
+							m_flLength = 64.0
+							m_flMaxLength = 192.0
+							m_flMinLength = 32.0
+							m_nElementID = 42
+						}]
+						m_bEnabled = true
+						m_nElementID = 41
+						m_sLabel = "Pipe_192"
+						m_Children = [
+						{
+							_class = "CSmartPropElement_Model"
+							m_Modifiers = [
+							{
+								_class = "CSmartPropOperation_Rotate"
+								m_bEnabled = true
+								m_nElementID = 148
+								m_vRotation = {m_Components = [0.0, {m_Expression = "RandomFloat(-180,180)"}, 0.0]}
+							}]
+							m_SelectionCriteria = []
+							m_bEnabled = true
+							m_nElementID = 21
+							m_sLabel = "pipe_01_64_a"
+							m_sModelName = "models/guide_meshes/pipe_01_64_a.vmdl"
+							m_nReferenceID = 19
+							m_sReferenceObjectID = "f08b9db6-2c50-4bb8-82ba-d3bc37d67d02"
+							m_vModelScale = 
+							{
+								m_Components = [1.0, 1.0, {m_Expression = "LinearScale()"}]
+							}
+						}, 
+						{
+							_class = "CSmartPropElement_PickOne"
+							m_HandleShape = "DIAMOND"
+							m_HandleSize = 16.0
+							m_Modifiers = [
+							{
+								_class = "CSmartPropOperation_Translate"
+								m_CoordinateSpace = "ELEMENT"
+								m_bEnabled = true
+								m_nElementID = 146
+								m_vPosition = 
+								{
+									m_Components = [0.0, 0.0, {m_Expression = "LinearScale() * 64"}]
+								}
+							}, 
+							{
+								_class = "CSmartPropOperation_CreateRotator"
+								m_CoordinateSpace = "ELEMENT"
+								m_Name = ""
+								m_OutputVariable = ""
+								m_bApplyToCurrentTransform = true
+								m_bEnabled = true
+								m_bEnforceLimits = false
+								m_flDisplayRadius = 16.0
+								m_flInitialAngle = 0.0
+								m_flMaxAngle = 0.0
+								m_flMinAngle = 0.0
+								m_flSnappingIncrement = 0.0
+								m_nElementID = 147
+							}, 
+							{
+								_class = "CSmartPropOperation_RigidDeformation"
+								m_bEnabled = true
+								m_nElementID = 161
+							}]
+							m_OutputChoiceVariableName = ""
+							m_SelectionCriteria = []
+							m_SelectionMode = "FIRST"
+							m_bConfigurable = true
+							m_bEnabled = true
+							m_nElementID = 145
+							m_vHandleOffset = 
+							{
+								m_Components = [0.0, 0.0, 0.0]
+							}
+							m_sLabel = "End"
+							m_Children = [
+							{
+								_class = "CSmartPropElement_PickOne"
+								m_Modifiers = []
+								m_OutputChoiceVariableName = ""
+								m_SelectionCriteria = []
+								m_SelectionMode = "FIRST"
+								m_bConfigurable = true
+								m_bEnabled = true
+								m_nElementID = 57
+								m_sLabel = "Cap_01"
+								m_vHandleOffset = 
+								{
+									m_Components = [0.0, -16.0, 0.0]
+								}
+								m_Children = [
+								{
+									_class = "CSmartPropElement_Model"
+									m_Modifiers = []
+									m_SelectionCriteria = []
+									m_bEnabled = true
+									m_nElementID = 59
+									m_sLabel = "pipe_01_end_b"
+									m_sModelName = "models/guide_meshes/pipe_01_end_b.vmdl"
+									m_nReferenceID = 19
+									m_sReferenceObjectID = "ec0cbe84-e844-4dd0-843a-1dad68dc7c41"
+								}, 
+								{
+									_class = "CSmartPropElement_Model"
+									m_Modifiers = []
+									m_SelectionCriteria = []
+									m_bEnabled = true
+									m_nElementID = 58
+									m_sLabel = "pipe_01_end_a"
+									m_sModelName = "models/guide_meshes/pipe_01_end_a.vmdl"
+									m_nReferenceID = 19
+									m_sReferenceObjectID = "46ab3ecc-e5ea-4f15-a6f0-9ed5ba0f1fdf"
+								}]
+							}, 
+							{
+								_class = "CSmartPropElement_SmartProp"
+								m_Modifiers = []
+								m_SelectionCriteria = []
+								m_bEnabled = true
+								m_bLocalEvaluationState = false
+								m_nElementID = 61
+								m_sLabel = "SmartProp_57"
+								m_sSmartProp = "models/guide_meshes/guide_fitonline.vsmart"
+							}]
+						}]
+					}]
+				}]
+			}, 
+			{
+				_class = "CSmartPropElement_Model"
+				m_Modifiers = []
+				m_SelectionCriteria = []
+				m_bEnabled = true
+				m_nElementID = 19
+				m_sLabel = "pipe_01_32_a_REF"
+				m_sModelName = "models/guide_meshes/pipe_01_32_a.vmdl"
+			}, 
+			{
+				_class = "CSmartPropElement_Group"
+				m_Modifiers = []
+				m_SelectionCriteria = []
+				m_bEnabled = true
+				m_nElementID = 60
+				m_sLabel = "32_b"
+				m_Children = [
+				{
+					_class = "CSmartPropElement_Model"
+					m_Modifiers = []
+					m_SelectionCriteria = []
+					m_bEnabled = true
+					m_nElementID = 20
+					m_sLabel = "pipe_01_32_b"
+					m_sModelName = "models/guide_meshes/pipe_01_32_b.vmdl"
+					m_nReferenceID = 19
+					m_sReferenceObjectID = "5595f1cd-9bc1-4b14-9019-140de1dd2801"
+				}, 
+				{
+					_class = "CSmartPropElement_SmartProp"
+					m_Modifiers = [
+					{
+						_class = "CSmartPropOperation_Rotate"
+						m_bEnabled = true
+						m_nElementID = 128
+						m_vRotation = {m_Components = [0.0, 90.0, 90.0]}
+					}, 
+					{
+						_class = "CSmartPropOperation_Translate"
+						m_bEnabled = true
+						m_nElementID = 125
+						m_vPosition = 
+						{
+							m_Components = [-0.6192078, 15.77570343, 23.4659996]
+						}
+					}]
+					m_SelectionCriteria = []
+					m_bEnabled = true
+					m_bLocalEvaluationState = false
+					m_nElementID = 56
+					m_sLabel = "SmartProp_56"
+					m_sSmartProp = "models/guide_meshes/guide_fitonline.vsmart"
+				}]
+			}, 
+			{
+				_class = "CSmartPropElement_Group"
+				m_Modifiers = []
+				m_SelectionCriteria = []
+				m_bEnabled = true
+				m_nElementID = 129
+				m_sLabel = "crn_a"
+				m_Children = [
+				{
+					_class = "CSmartPropElement_Model"
+					m_Modifiers = [
+					{
+						_class = "CSmartPropOperation_Rotate"
+						m_bEnabled = true
+						m_vRotation = {m_Components = [90.0, 0.0, 0.0]}
+					}]
+					m_SelectionCriteria = []
+					m_bEnabled = true
+					m_nElementID = 23
+					m_sLabel = "pipe_01_crn_a"
+					m_sModelName = "models/guide_meshes/pipe_01_crn_a.vmdl"
+					m_nReferenceID = 19
+					m_sReferenceObjectID = "d4c22ad8-4b97-42f4-a7ba-12acf7697e2e"
+				}, 
+				{
+					_class = "CSmartPropElement_SmartProp"
+					m_Modifiers = [
+					{
+						_class = "CSmartPropOperation_Rotate"
+						m_bEnabled = true
+						m_nElementID = 132
+						m_vRotation = {m_Components = [-0.0, 180.0, 90.0]}
+					}, 
+					{
+						_class = "CSmartPropOperation_Translate"
+						m_bEnabled = true
+						m_nElementID = 133
+						m_vPosition = 
+						{
+							m_Components = [0.0, 20.23899841, 20.51112938]
+						}
+					}]
+					m_SelectionCriteria = []
+					m_bEnabled = true
+					m_bLocalEvaluationState = false
+					m_nElementID = 131
+					m_sLabel = "SmartProp_56"
+					m_sSmartProp = "models/guide_meshes/guide_fitonline.vsmart"
+				}]
+			}, 
+			{
+				_class = "CSmartPropElement_Group"
+				m_Modifiers = []
+				m_SelectionCriteria = []
+				m_bEnabled = true
+				m_nElementID = 134
+				m_sLabel = "crn_b"
+				m_Children = [
+				{
+					_class = "CSmartPropElement_Model"
+					m_Modifiers = [
+					{
+						_class = "CSmartPropOperation_Rotate"
+						m_bEnabled = true
+						m_vRotation = {m_Components = [90.0, 0.0, 0.0]}
+					}]
+					m_SelectionCriteria = []
+					m_bEnabled = true
+					m_nElementID = 135
+					m_sLabel = "pipe_01_crn_b"
+					m_sModelName = "models/guide_meshes/pipe_01_crn_b.vmdl"
+					m_nReferenceID = 19
+					m_sReferenceObjectID = "b2d6a46d-2eb0-4e9f-8b3e-c84fc7b1dcfd"
+				}, 
+				{
+					_class = "CSmartPropElement_SmartProp"
+					m_Modifiers = [
+					{
+						_class = "CSmartPropOperation_Rotate"
+						m_bEnabled = true
+						m_nElementID = 137
+						m_vRotation = {m_Components = [-0.0, 0.0, 90.0]}
+					}, 
+					{
+						_class = "CSmartPropOperation_Translate"
+						m_bEnabled = true
+						m_nElementID = 138
+						m_vPosition = 
+						{
+							m_Components = [-0.40777415, 19.88045502, 21.13308525]
+						}
+					}]
+					m_SelectionCriteria = []
+					m_bEnabled = true
+					m_bLocalEvaluationState = false
+					m_nElementID = 136
+					m_sLabel = "SmartProp_56"
+					m_sSmartProp = "models/guide_meshes/guide_fitonline.vsmart"
+				}]
+			}, 
+			{
+				_class = "CSmartPropElement_Group"
+				m_Modifiers = [
+				{
+					_class = "CSmartPropOperation_CreateRotator"
+					m_CoordinateSpace = "ELEMENT"
+					m_Name = ""
+					m_OutputVariable = "BendAngle"
+					m_bApplyToCurrentTransform = false
+					m_bEnabled = true
+					m_bEnforceLimits = true
+					m_flDisplayRadius = 32.0
+					m_flInitialAngle = 0.0
+					m_flMaxAngle = 90.0
+					m_flMinAngle = -90.0
+					m_flSnappingIncrement = 0.0
+					m_nElementID = 138
+					m_vRotationAxis = 
+					{
+						m_Components = [1.0, 0.0, 0.0]
+					}
+				}, 
+				{
+					_class = "CSmartPropOperation_CreateSizer"
+					m_Name = "BendSizer"
+					m_OutputVariableMaxX = ""
+					m_OutputVariableMaxY = ""
+					m_OutputVariableMaxZ = "SizerLengthZ"
+					m_OutputVariableMinX = ""
+					m_OutputVariableMinY = ""
+					m_OutputVariableMinZ = ""
+					m_bDisplayModel = false
+					m_bEnabled = true
+					m_flConstraintMaxX = 0.0
+					m_flConstraintMaxY = 0.0
+					m_flConstraintMaxZ = 192.0
+					m_flConstraintMinX = 0.0
+					m_flConstraintMinY = 0.0
+					m_flConstraintMinZ = 0.0
+					m_flInitialMaxX = 0.0
+					m_flInitialMaxY = 0.0
+					m_flInitialMaxZ = 128.0
+					m_flInitialMinX = 0.0
+					m_flInitialMinY = 0.0
+					m_flInitialMinZ = 0.0
+					m_nElementID = 150
+				}]
+				m_SelectionCriteria = []
+				m_bEnabled = true
+				m_nElementID = 137
+				m_sLabel = "Bend"
+				m_Children = [
+				{
+					_class = "CSmartPropElement_BendDeformer"
+					m_Modifiers = []
+					m_SelectionCriteria = []
+					m_bDeformationEnabled = true
+					m_bEnabled = true
+					m_flBendAngle = 
+					{
+						m_SourceName = "BendAngle"
+					}
+					m_flBendPoint = 0.0
+					m_flBendRadius = 
+					{
+						m_Expression = "SizerLengthZ"
+					}
+					m_nElementID = 136
+					m_vAngles = 
+					{
+						m_Components = [-90.0, 0.0, 0.0]
+					}
+					m_vSize = 
+					{
+						m_Components = [{m_Expression = "SizerLengthZ "}, {m_Expression = "0"}, 0.0]
+					}
+					m_sLabel = "BendDeformer"
+					m_Children = [
+					{
+						_class = "CSmartPropElement_FitOnLine"
+						m_Modifiers = []
+						m_PointSpace = "ELEMENT"
+						m_SelectionCriteria = []
+						m_UpDirectionSpace = "WORLD"
+						m_bEnabled = true
+						m_bOrientAlongLine = false
+						m_bPrioritizeUp = false
+						m_nElementID = 43
+						m_nPickMode = "LARGEST_FIRST"
+						m_nScaleMode = "SCALE_MAXIMIZE"
+						m_sLabel = "Bend FitOnLine"
+						m_vEnd = {m_Components = [0.0, 0.0, {m_SourceName = "SizerLengthZ"}]}
+						m_vStart = {m_Components = [0.0, 0.0, 0.0]}
+						m_Children = [
+						{
+							_class = "CSmartPropElement_Group"
+							m_Modifiers = [
+							{
+								_class = "CSmartPropOperation_CreateRotator"
+								m_CoordinateSpace = "ELEMENT"
+								m_Name = ""
+								m_OutputVariable = ""
+								m_bApplyToCurrentTransform = true
+								m_bEnabled = true
+								m_bEnforceLimits = false
+								m_flDisplayRadius = 16.0
+								m_flInitialAngle = 0.0
+								m_flMaxAngle = 0.0
+								m_flMinAngle = 0.0
+								m_flSnappingIncrement = 0.0
+								m_nElementID = 46
+							}, 
+							{
+								_class = "CSmartPropOperation_Rotate"
+								m_bEnabled = true
+								m_nElementID = 47
+								m_vRotation = {m_Components = [0.0, {m_Expression = "RandomFloat(-180,180)"}, 0.0]}
+							}]
+							m_SelectionCriteria = [
+							{
+								_class = "CSmartPropSelectionCriteria_LinearLength"
+								m_bAllowScale = true
+								m_bEnabled = true
+								m_flLength = 64.0
+								m_flMaxLength = 192.0
+								m_flMinLength = 32.0
+								m_nElementID = 48
+							}]
+							m_bEnabled = true
+							m_nElementID = 45
+							m_sLabel = "Pipe_192"
+							m_Children = [
+							{
+								_class = "CSmartPropElement_Model"
+								m_Modifiers = []
+								m_SelectionCriteria = []
+								m_bEnabled = true
+								m_nElementID = 22
+								m_sLabel = "pipe_01_64_b"
+								m_sModelName = "models/guide_meshes/pipe_01_64_b.vmdl"
+								m_nReferenceID = 19
+								m_sReferenceObjectID = "91159b12-f170-4c0b-9cb0-30a5fd8dbee8"
+								m_vModelScale = 
+								{
+									m_Components = [1.0, 1.0, {m_Expression = "LinearScale()"}]
+								}
+							}, 
+							{
+								_class = "CSmartPropElement_PickOne"
+								m_HandleShape = "DIAMOND"
+								m_HandleSize = 16.0
+								m_Modifiers = [
+								{
+									_class = "CSmartPropOperation_Translate"
+									m_CoordinateSpace = "ELEMENT"
+									m_bEnabled = true
+									m_nElementID = 153
+									m_vPosition = 
+									{
+										m_Components = [0.0, 0.0, {m_Expression = "LinearScale() * 64"}]
+									}
+								}, 
+								{
+									_class = "CSmartPropOperation_CreateRotator"
+									m_CoordinateSpace = "ELEMENT"
+									m_Name = ""
+									m_OutputVariable = ""
+									m_bApplyToCurrentTransform = true
+									m_bEnabled = true
+									m_bEnforceLimits = false
+									m_flDisplayRadius = 16.0
+									m_flInitialAngle = 0.0
+									m_flMaxAngle = 0.0
+									m_flMinAngle = 0.0
+									m_flSnappingIncrement = 0.0
+									m_nElementID = 154
+								}, 
+								{
+									_class = "CSmartPropOperation_RigidDeformation"
+									m_bEnabled = true
+									m_nElementID = 159
+								}]
+								m_OutputChoiceVariableName = ""
+								m_SelectionCriteria = []
+								m_SelectionMode = "FIRST"
+								m_bConfigurable = true
+								m_bEnabled = true
+								m_nElementID = 152
+								m_sLabel = "End"
+								m_vHandleOffset = 
+								{
+									m_Components = [0.0, 0.0, 0.0]
+								}
+								m_Children = [
+								{
+									_class = "CSmartPropElement_PickOne"
+									m_Modifiers = []
+									m_OutputChoiceVariableName = ""
+									m_SelectionCriteria = []
+									m_SelectionMode = "FIRST"
+									m_bConfigurable = true
+									m_bEnabled = true
+									m_nElementID = 155
+									m_sLabel = "Cap_01"
+									m_vHandleOffset = 
+									{
+										m_Components = [0.0, -16.0, 0.0]
+									}
+									m_Children = [
+									{
+										_class = "CSmartPropElement_Model"
+										m_Modifiers = []
+										m_SelectionCriteria = []
+										m_bEnabled = true
+										m_nElementID = 156
+										m_sLabel = "pipe_01_end_b"
+										m_sModelName = "models/guide_meshes/pipe_01_end_b.vmdl"
+										m_nReferenceID = 19
+										m_sReferenceObjectID = "ec0cbe84-e844-4dd0-843a-1dad68dc7c41"
+									}, 
+									{
+										_class = "CSmartPropElement_Model"
+										m_Modifiers = []
+										m_SelectionCriteria = []
+										m_bEnabled = true
+										m_nElementID = 157
+										m_sLabel = "pipe_01_end_a"
+										m_sModelName = "models/guide_meshes/pipe_01_end_a.vmdl"
+										m_nReferenceID = 19
+										m_sReferenceObjectID = "46ab3ecc-e5ea-4f15-a6f0-9ed5ba0f1fdf"
+									}]
+								}, 
+								{
+									_class = "CSmartPropElement_SmartProp"
+									m_Modifiers = []
+									m_SelectionCriteria = []
+									m_bEnabled = true
+									m_bLocalEvaluationState = false
+									m_nElementID = 158
+									m_sLabel = "SmartProp_57"
+									m_sSmartProp = "models/guide_meshes/guide_fitonline.vsmart"
+								}]
+							}]
+						}]
+					}]
+				}]
+			}]
+		},
+		
+		{
+			_class = "CSmartPropElement_PickOne"
+			m_Modifiers = []
+			m_OutputChoiceVariableName = ""
+			m_SelectionCriteria = []
+			m_SelectionMode = "FIRST"
+			m_bConfigurable = true
+			m_bEnabled = true
+			m_nElementID = 43
+			m_sLabel = "Cap"
+			m_vHandleOffset = 
+			{
+				m_Components = [0.0, -16.0, 0.0]
+			}
+			m_Children = [
+			{
+				_class = "CSmartPropElement_Model"
+				m_Modifiers = []
+				m_SelectionCriteria = []
+				m_bEnabled = true
+				m_nElementID = 25
+				m_sLabel = "pipe_01_end_a"
+				m_sModelName = "models/guide_meshes/pipe_01_end_a.vmdl"
+				m_nReferenceID = 19
+				m_sReferenceObjectID = "852e6347-61e4-44c9-945e-5257cd345806"
+			}, 
+			{
+				_class = "CSmartPropElement_Model"
+				m_Modifiers = []
+				m_SelectionCriteria = []
+				m_bEnabled = true
+				m_nElementID = 26
+				m_sLabel = "pipe_01_end_b"
+				m_sModelName = "models/guide_meshes/pipe_01_end_b.vmdl"
+				m_nReferenceID = 19
+				m_sReferenceObjectID = "2cb4fb0e-6ec5-41f1-b375-c3c64c8a6e91"
+			}]
+		}
+	]
+	m_ReferenceObjects = 
+	{
+		"f08b9db6-2c50-4bb8-82ba-d3bc37d67d02" = 
+		{
+			_class = "CSmartPropElement_Model"
+			m_Modifiers = 
+			[
+				
+				{
+					_class = "CSmartPropOperation_Rotate"
+					m_bEnabled = true
+					m_nElementID = 148
+					m_vRotation = {m_Components = [0.0, {m_Expression = "RandomFloat(-180,180)"}, 0.0]}
+				}
+			]
+			m_SelectionCriteria = 
+			[
+
+			]
+			m_bEnabled = true
+			m_nElementID = 21
+			m_nReferenceID = 19
+			m_sLabel = "pipe_01_64_a"
+			m_sModelName = "models/guide_meshes/pipe_01_64_a.vmdl"
+			m_sReferenceObjectID = "f08b9db6-2c50-4bb8-82ba-d3bc37d67d02"
+			m_vModelScale = 
+			{
+				m_Components = [1.0, 1.0, {m_Expression = "LinearScale()"}]
+			}
+		}
+		"ec0cbe84-e844-4dd0-843a-1dad68dc7c41" = 
+		{
+			_class = "CSmartPropElement_Model"
+			m_Modifiers = 
+			[
+
+			]
+			m_SelectionCriteria = 
+			[
+
+			]
+			m_bEnabled = true
+			m_nElementID = 156
+			m_nReferenceID = 19
+			m_sLabel = "pipe_01_end_b"
+			m_sModelName = "models/guide_meshes/pipe_01_end_b.vmdl"
+			m_sReferenceObjectID = "ec0cbe84-e844-4dd0-843a-1dad68dc7c41"
+		}
+		"46ab3ecc-e5ea-4f15-a6f0-9ed5ba0f1fdf" = 
+		{
+			_class = "CSmartPropElement_Model"
+			m_Modifiers = 
+			[
+
+			]
+			m_SelectionCriteria = 
+			[
+
+			]
+			m_bEnabled = true
+			m_nElementID = 157
+			m_nReferenceID = 19
+			m_sLabel = "pipe_01_end_a"
+			m_sModelName = "models/guide_meshes/pipe_01_end_a.vmdl"
+			m_sReferenceObjectID = "46ab3ecc-e5ea-4f15-a6f0-9ed5ba0f1fdf"
+		}
+		"5595f1cd-9bc1-4b14-9019-140de1dd2801" = 
+		{
+			_class = "CSmartPropElement_Model"
+			m_Modifiers = 
+			[
+
+			]
+			m_SelectionCriteria = 
+			[
+
+			]
+			m_bEnabled = true
+			m_nElementID = 20
+			m_nReferenceID = 19
+			m_sLabel = "pipe_01_32_b"
+			m_sModelName = "models/guide_meshes/pipe_01_32_b.vmdl"
+			m_sReferenceObjectID = "5595f1cd-9bc1-4b14-9019-140de1dd2801"
+		}
+		"d4c22ad8-4b97-42f4-a7ba-12acf7697e2e" = 
+		{
+			_class = "CSmartPropElement_Model"
+			m_Modifiers = 
+			[
+				
+				{
+					_class = "CSmartPropOperation_Rotate"
+					m_bEnabled = true
+					m_vRotation = {m_Components = [90.0, 0.0, 0.0]}
+				}
+			]
+			m_SelectionCriteria = 
+			[
+
+			]
+			m_bEnabled = true
+			m_nElementID = 23
+			m_nReferenceID = 19
+			m_sLabel = "pipe_01_crn_a"
+			m_sModelName = "models/guide_meshes/pipe_01_crn_a.vmdl"
+			m_sReferenceObjectID = "d4c22ad8-4b97-42f4-a7ba-12acf7697e2e"
+		}
+		"b2d6a46d-2eb0-4e9f-8b3e-c84fc7b1dcfd" = 
+		{
+			_class = "CSmartPropElement_Model"
+			m_Modifiers = 
+			[
+				
+				{
+					_class = "CSmartPropOperation_Rotate"
+					m_bEnabled = true
+					m_vRotation = {m_Components = [90.0, 0.0, 0.0]}
+				}
+			]
+			m_SelectionCriteria = 
+			[
+
+			]
+			m_bEnabled = true
+			m_nElementID = 135
+			m_nReferenceID = 19
+			m_sLabel = "pipe_01_crn_b"
+			m_sModelName = "models/guide_meshes/pipe_01_crn_b.vmdl"
+			m_sReferenceObjectID = "b2d6a46d-2eb0-4e9f-8b3e-c84fc7b1dcfd"
+		}
+		"91159b12-f170-4c0b-9cb0-30a5fd8dbee8" = 
+		{
+			_class = "CSmartPropElement_Model"
+			m_Modifiers = 
+			[
+
+			]
+			m_SelectionCriteria = 
+			[
+
+			]
+			m_bEnabled = true
+			m_nElementID = 22
+			m_nReferenceID = 19
+			m_sLabel = "pipe_01_64_b"
+			m_sModelName = "models/guide_meshes/pipe_01_64_b.vmdl"
+			m_sReferenceObjectID = "91159b12-f170-4c0b-9cb0-30a5fd8dbee8"
+			m_vModelScale = 
+			{
+				m_Components = [1.0, 1.0, {m_Expression = "LinearScale()"}]
+			}
+		}
+		"852e6347-61e4-44c9-945e-5257cd345806" = 
+		{
+			_class = "CSmartPropElement_Model"
+			m_Modifiers = 
+			[
+
+			]
+			m_SelectionCriteria = 
+			[
+
+			]
+			m_bEnabled = true
+			m_nElementID = 25
+			m_nReferenceID = 19
+			m_sLabel = "pipe_01_end_a"
+			m_sModelName = "models/guide_meshes/pipe_01_end_a.vmdl"
+			m_sReferenceObjectID = "852e6347-61e4-44c9-945e-5257cd345806"
+		}
+		"2cb4fb0e-6ec5-41f1-b375-c3c64c8a6e91" = 
+		{
+			_class = "CSmartPropElement_Model"
+			m_Modifiers = 
+			[
+
+			]
+			m_SelectionCriteria = 
+			[
+
+			]
+			m_bEnabled = true
+			m_nElementID = 26
+			m_nReferenceID = 19
+			m_sLabel = "pipe_01_end_b"
+			m_sModelName = "models/guide_meshes/pipe_01_end_b.vmdl"
+			m_sReferenceObjectID = "2cb4fb0e-6ec5-41f1-b375-c3c64c8a6e91"
+		}
+	}
+}
