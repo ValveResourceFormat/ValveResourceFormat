@@ -47,6 +47,9 @@ namespace GUI.Types.GLViewers
         /// <summary>Whether the I/O graph tab has a node for an entity. Set together with <see cref="ShowEntityInGraph"/>.</summary>
         public Func<EntityLump.Entity, bool>? EntityHasGraphNode { get; set; }
 
+        /// <summary>Jump from a picked entity in the viewport to its row in the entity list tab.</summary>
+        public Action<EntityLump.Entity>? ShowEntityInList { get; set; }
+
         public GLWorldViewer(VrfGuiContext vrfGuiContext, RendererContext rendererContext, World world, ResourceExtRefList? externalReferences = null)
             : base(vrfGuiContext, rendererContext)
         {
@@ -1060,6 +1063,13 @@ namespace GUI.Types.GLViewers
 
             if (pickingResponse.Intent == PickingIntent.Details)
             {
+                if (sceneNode.EntityData != null && ShowEntityInList != null)
+                {
+                    SelectedNodeRenderer.SelectNode(sceneNode, forceDisableDepth: true);
+                    Program.MainForm.Invoke(() => ShowEntityInList(sceneNode.EntityData));
+                    return;
+                }
+
                 Program.MainForm.Invoke(() =>
                 {
                     ShowSceneNodeDetails(sceneNode);
