@@ -692,7 +692,6 @@ namespace ValveResourceFormat.Renderer
             instanceDataCpu = instanceData;
         }
 
-
         /// <summary>
         /// Uploads the LOD level each setup selected this frame, which the cull shader tests fragments against.
         /// </summary>
@@ -907,7 +906,6 @@ namespace ValveResourceFormat.Renderer
 
             LightBinner.Bind();
         }
-
 
         /// <summary>
         /// Returns all scene nodes whose bounding boxes intersect the given frustum, caching static results across frames when the frustum is unchanged.
@@ -1277,7 +1275,6 @@ namespace ValveResourceFormat.Renderer
                 LightingInfo.FitSunLightDepthRange(cascade, casterDepthMin, casterDepthMax);
             }
         }
-
 
         /// <summary>
         /// Collects the shadow draw calls for a single barn light face. The returned buckets are
@@ -2103,7 +2100,6 @@ namespace ValveResourceFormat.Renderer
                 node.LightProbeBinding ??= FindLightProbe(node.BoundingBox.Center) ?? globalProbe;
             }
         }
-
 
         /// <summary>
         /// Returns the best probe volume containing the given position, or <see langword="null"/> when

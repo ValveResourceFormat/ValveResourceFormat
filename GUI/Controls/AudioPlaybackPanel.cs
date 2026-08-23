@@ -19,7 +19,7 @@ namespace GUI.Controls
         private readonly record struct Peak(float Min, float Max);
         private readonly record struct Rgb(byte R, byte G, byte B);
 
-        private readonly WaveOutEvent WaveOut = new();
+        private readonly WaveOut WaveOut = new();
         private readonly WaveStream WaveStream;
         private readonly MemoryStream audioData;
         private readonly SampleChannel? SampleChannel;
@@ -360,7 +360,7 @@ namespace GUI.Controls
 
         private static Peak GetNextPeak(ISampleProvider provider, float[] readBuffer)
         {
-            var samplesRead = provider.Read(readBuffer, 0, readBuffer.Length);
+            var samplesRead = provider.Read(readBuffer);
 
             if (samplesRead == 0)
             {
@@ -671,13 +671,13 @@ namespace GUI.Controls
 
             public event EventHandler? LoopOccurred;
 
-            public int Read(float[] buffer, int offset, int count)
+            public int Read(Span<float> buffer)
             {
                 var totalRead = 0;
 
-                while (totalRead < count)
+                while (totalRead < buffer.Length)
                 {
-                    var samplesToRead = count - totalRead;
+                    var samplesToRead = buffer.Length - totalRead;
 
                     if (EnableLooping && loopEndFrame > loopStartFrame)
                     {
@@ -695,7 +695,7 @@ namespace GUI.Controls
                         samplesToRead = Math.Min(samplesToRead, samplesUntilLoop);
                     }
 
-                    var samplesRead = source.Read(buffer, offset + totalRead, samplesToRead);
+                    var samplesRead = source.Read(buffer.Slice(totalRead, samplesToRead));
 
                     if (samplesRead == 0)
                     {

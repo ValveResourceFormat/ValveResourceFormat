@@ -1,7 +1,6 @@
 using System.Buffers;
 using System.Runtime.InteropServices;
 using System.Threading;
-using NAudio.CoreAudioApi;
 using NAudio.Wave;
 using ValveResourceFormat.Renderer.Audio;
 
@@ -22,36 +21,27 @@ namespace GUI.Types.Audio
         /// </summary>
         public TimeSpan MixAhead { get; set; } = TimeSpan.FromMilliseconds(25);
 
-        private readonly WasapiOut output;
+        private readonly WasapiPlayer output;
         private readonly BufferedWaveProvider buffer;
         private volatile bool disposed;
 
         public NAudioDevice()
         {
+            output = new WasapiPlayerBuilder()
+                .WithSharedMode()
+                .WithEventSync()
+                .WithLatency(WasapiLatencyMs)
+                .Build();
+
             // Use the device mix format's sample rate so WASAPI does not need to insert a resampler
-            var sampleRate = 48000;
-
-            try
-            {
-                using var enumerator = new MMDeviceEnumerator();
-                using var device = enumerator.GetDefaultAudioEndpoint(DataFlow.Render, Role.Multimedia);
-                sampleRate = device.AudioClient.MixFormat.SampleRate;
-            }
-            catch (COMException)
-            {
-                // No default endpoint to probe (no audio hardware, headless session): fall back to a common rate, WASAPI will resample
-            }
-
-            SampleRate = sampleRate;
+            SampleRate = output.DeviceMixFormat.SampleRate;
 
             var format = WaveFormat.CreateIeeeFloatWaveFormat(SampleRate, Channels);
-            buffer = new BufferedWaveProvider(format)
+            buffer = new BufferedWaveProvider(format, TimeSpan.FromMilliseconds(500))
             {
-                BufferDuration = TimeSpan.FromMilliseconds(500),
                 ReadFully = true, // produce silence when empty instead of stopping playback
             };
 
-            output = new WasapiOut(AudioClientShareMode.Shared, useEventSync: true, latency: WasapiLatencyMs);
             output.Init(buffer);
             output.Play();
             _ = Windows.Win32.PInvoke.timeBeginPeriod(1); // SubmitSamples paces the mixing thread with Thread.Sleep(1)

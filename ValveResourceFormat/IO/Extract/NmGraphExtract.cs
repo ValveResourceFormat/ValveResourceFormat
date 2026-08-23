@@ -430,7 +430,6 @@ public sealed partial class NmGraphExtract : IDisposable
             .GroupBy(transition => transition.TargetStateNodeIndex)
             .ToDictionary(group => group.Key, group => group.First());
 
-        var row = 0;
         var orderedStateDefinitions = GetOrderedGlobalTransitionStateDefinitions(stateDefinitions, transitions);
 
         foreach (var stateDefinition in orderedStateDefinitions)
@@ -1076,8 +1075,8 @@ public sealed partial class NmGraphExtract : IDisposable
         var compiledNode = GetCompiledNode(nodeIndex)
             ?? throw new InvalidDataException($"Missing parameter node {nodeIndex}.");
         var compiledClass = GetCompiledClass(compiledNode);
-        string valueType;
-        if (compiledClass.TryGetTypedSuffix("ControlParameter", out valueType))
+
+        if (compiledClass.TryGetTypedSuffix("ControlParameter", out var valueType))
         {
         }
         else if (IsVirtualParameterNode(nodeIndex))
