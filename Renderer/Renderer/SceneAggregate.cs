@@ -258,7 +258,7 @@ namespace ValveResourceFormat.Renderer
                 return true;
             }
 
-            return (fragment.LodGroupMask & (1u << activeLodLevels[fragment.LodSetupIndex])) != 0;
+            return ModelLodInfo.IsInLevel(fragment.LodGroupMask, activeLodLevels[fragment.LodSetupIndex]);
         }
 
         /// <summary>Appends a meshlet covering an entire draw call.</summary>

@@ -567,9 +567,7 @@ public partial class GltfModelExporter
 
             var lodGroupMask = fragmentData.GetUInt32Property("m_nLODGroupMask");
             var setupIndex = fragmentData.GetInt32Property("m_nLODSetupIndex", -1);
-            var lowestLodBit = ResourceTypes.ModelLodInfo.LowestSetLevelMask(combinedLodMaskPerSetup[setupIndex]);
-            var isHighestDetailMesh = lodGroupMask == 0 || (lodGroupMask & lowestLodBit) != 0;
-            if (!isHighestDetailMesh)
+            if (!ResourceTypes.ModelLodInfo.IsInLowestSetLevel(lodGroupMask, combinedLodMaskPerSetup[setupIndex]))
             {
                 continue;
             }
