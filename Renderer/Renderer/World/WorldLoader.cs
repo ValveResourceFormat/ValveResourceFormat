@@ -130,6 +130,24 @@ namespace ValveResourceFormat.Renderer.World
         }
 
         /// <summary>
+        /// Loads entities from an uncompiled source map into a scene.
+        /// </summary>
+        /// <param name="mapFileName">Full path to the source map.</param>
+        /// <param name="scene">The scene to load the entities into.</param>
+        /// <param name="entities">Entities already read from the source map.</param>
+        /// <returns>A loader containing the entities and environment state created for the scene.</returns>
+        public static WorldLoader LoadSourceMapEntities(string mapFileName, Scene scene, IReadOnlyList<Entity> entities)
+        {
+            var world = new WorldResource
+            {
+                Resource = new Resource { FileName = mapFileName },
+            };
+            var loader = new WorldLoader(world, scene);
+            loader.LoadEntities(entities);
+            return loader;
+        }
+
+        /// <summary>
         /// Initializes a new <see cref="WorldLoader"/> for the given world resource.
         /// Call <see cref="Load"/> to begin loading world components into the scene.
         /// </summary>
@@ -546,6 +564,31 @@ namespace ValveResourceFormat.Renderer.World
 
         private void LoadEntitiesFromLump(EntityLump entityLump, string originalLayerName, Matrix4x4 rootTransform)
         {
+            var traversed = EntityLumpTraversal.EnumerateEntities(
+                entityLump,
+                RendererContext.FileLoader,
+                rootTransform,
+                onMissingChildLump: name => RendererContext.Logger.LogWarning("Failed to find child entity lump with name {EntityLumpName}", name))
+                .ToList();
+
+            LoadEntities(traversed, originalLayerName);
+        }
+
+        /// <summary>
+        /// Loads source-map entities into the scene using the same entity handling as compiled maps.
+        /// </summary>
+        /// <param name="entities">Entities already read from a source map.</param>
+        public void LoadEntities(IReadOnlyList<Entity> entities)
+        {
+            var traversed = entities
+                .Select(static entity => new EntityLumpTraversal.TraversedEntity(entity, Matrix4x4.Identity, false))
+                .ToList();
+
+            LoadEntities(traversed, "Entities");
+        }
+
+        private void LoadEntities(List<EntityLumpTraversal.TraversedEntity> traversed, string originalLayerName)
+        {
             static bool IsCubemapOrProbe(string cls)
                 => cls == "env_combined_light_probe_volume"
                 || cls == "env_light_probe_volume"
@@ -554,13 +597,6 @@ namespace ValveResourceFormat.Renderer.World
 
             static bool IsFog(string cls)
                 => cls is "env_cubemap_fog" or "env_gradient_fog";
-
-            var traversed = EntityLumpTraversal.EnumerateEntities(
-                entityLump,
-                RendererContext.FileLoader,
-                rootTransform,
-                onMissingChildLump: name => RendererContext.Logger.LogWarning("Failed to find child entity lump with name {EntityLumpName}", name))
-                .ToList();
 
             var entitiesReordered = traversed
                 .Select(t => (t.Entity, t.ParentTransform, t.FromTemplate, Classname: t.Entity.GetStringProperty("classname")))

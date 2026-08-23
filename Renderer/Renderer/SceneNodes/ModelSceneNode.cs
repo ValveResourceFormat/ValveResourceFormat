@@ -2,6 +2,8 @@ using System.Buffers;
 using System.Diagnostics;
 using System.Linq;
 using System.Runtime.InteropServices;
+using System.Threading;
+using ValveResourceFormat.Blocks;
 using ValveResourceFormat.IO;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.ResourceTypes.ModelAnimation;
@@ -61,6 +63,9 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         public bool HasMeshes => meshRenderers.Count > 0;
 
         private readonly List<RenderableMesh> meshRenderers = [];
+        private readonly Func<VBIB, VBIB>? meshBufferTransform;
+        private readonly string? transformedMeshNameSuffix;
+        private static long transformedMeshSequence;
 
         /// <summary>Gets whether this model has an active GPU bone matrix buffer (i.e., has animations loaded).</summary>
         public bool IsAnimated => boneMatricesGpu != null;
@@ -87,9 +92,19 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         /// <param name="model">The model resource to render.</param>
         /// <param name="skin">The material group (skin) name to activate, or <see langword="null"/> for the default.</param>
         /// <param name="isWorldPreview">When <see langword="true"/>, only embedded animations are loaded.</param>
-        public ModelSceneNode(Scene scene, Model model, string? skin = null, bool isWorldPreview = false)
+        /// <param name="meshBufferTransform">Optional per-instance transformation applied to every loaded mesh buffer.</param>
+        public ModelSceneNode(
+            Scene scene,
+            Model model,
+            string? skin = null,
+            bool isWorldPreview = false,
+            Func<VBIB, VBIB>? meshBufferTransform = null)
             : base(scene)
         {
+            this.meshBufferTransform = meshBufferTransform;
+            transformedMeshNameSuffix = meshBufferTransform == null
+                ? null
+                : $"#transformed-{Interlocked.Increment(ref transformedMeshSequence)}";
             materialGroups = model.GetMaterialGroups().ToArray();
             meshGroups = model.GetMeshGroups().ToArray();
 
@@ -466,7 +481,16 @@ namespace ValveResourceFormat.Renderer.SceneNodes
                 embeddedMesh.Mesh.LoadExternalMorphData(Scene.RendererContext.FileLoader);
                 model.SetExternalMorphData(embeddedMesh.Mesh.MorphData);
 
-                meshRenderers.Add(new RenderableMesh(embeddedMesh.Mesh, embeddedMesh.MeshIndex, Scene, model, materialTable, embeddedMesh.Mesh.MorphData));
+                var transformedBuffers = meshBufferTransform?.Invoke(embeddedMesh.Mesh.VBIB);
+                meshRenderers.Add(new RenderableMesh(
+                    embeddedMesh.Mesh,
+                    embeddedMesh.MeshIndex,
+                    Scene,
+                    model,
+                    materialTable,
+                    embeddedMesh.Mesh.MorphData,
+                    vbibOverride: transformedBuffers,
+                    nameOverride: transformedBuffers == null ? null : $"{embeddedMesh.Mesh.Name}{transformedMeshNameSuffix}"));
             }
 
             foreach (var refMesh in referenceMeshes)
@@ -480,7 +504,15 @@ namespace ValveResourceFormat.Renderer.SceneNodes
                 mesh.LoadExternalMorphData(Scene.RendererContext.FileLoader);
                 model.SetExternalMeshData(mesh);
 
-                meshRenderers.Add(new RenderableMesh(mesh, refMesh.MeshIndex, Scene, model, materialTable));
+                var transformedBuffers = meshBufferTransform?.Invoke(mesh.VBIB);
+                meshRenderers.Add(new RenderableMesh(
+                    mesh,
+                    refMesh.MeshIndex,
+                    Scene,
+                    model,
+                    materialTable,
+                    vbibOverride: transformedBuffers,
+                    nameOverride: transformedBuffers == null ? null : $"{mesh.Name}{transformedMeshNameSuffix}"));
             }
 
             SetActiveMeshGroups(model.GetDefaultMeshGroups());
