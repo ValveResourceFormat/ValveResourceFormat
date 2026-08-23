@@ -17,6 +17,7 @@ namespace GUI.Forms
         private string? baseTitle;
         private int updateQueued;
         private long lastUpdate;
+        private long lastTextUpdate;
 
         public Func<CancellationToken, Task>? OnProcess { get; set; }
 
@@ -34,7 +35,7 @@ namespace GUI.Forms
         public void SetProgress(string text)
         {
             Volatile.Write(ref pendingText, text);
-            QueueUpdate();
+            QueueUpdate(isText: true);
         }
 
         /// <summary>
@@ -43,7 +44,7 @@ namespace GUI.Forms
         public void SetBarValue(int value)
         {
             Volatile.Write(ref pendingBarValue, value);
-            QueueUpdate();
+            QueueUpdate(isText: false);
         }
 
         /// <summary>
@@ -52,10 +53,10 @@ namespace GUI.Forms
         public void SetBarMax(int count)
         {
             Volatile.Write(ref pendingBarMax, count);
-            QueueUpdate();
+            QueueUpdate(isText: false);
         }
 
-        private void QueueUpdate()
+        private void QueueUpdate(bool isText)
         {
             if (!IsHandleCreated || cancellationTokenSource.IsCancellationRequested)
             {
@@ -64,17 +65,27 @@ namespace GUI.Forms
 
             var now = Stopwatch.GetTimestamp();
 
-            if (Stopwatch.GetElapsedTime(Volatile.Read(ref lastUpdate), now) < UpdateInterval)
+            // Text is throttled separately from bar values, otherwise a bar update posted just before
+            // the first text would consume the slot and leave the text pending until the next file
+            var last = isText ? Volatile.Read(ref lastTextUpdate) : Volatile.Read(ref lastUpdate);
+
+            if (Stopwatch.GetElapsedTime(last, now) < UpdateInterval)
             {
                 return;
             }
 
-            if (Interlocked.Exchange(ref updateQueued, 1) != 0)
+            if (isText)
             {
-                return;
+                Volatile.Write(ref lastTextUpdate, now);
             }
 
             Volatile.Write(ref lastUpdate, now);
+
+            if (Interlocked.Exchange(ref updateQueued, 1) != 0)
+            {
+                // An apply is already queued and will pick up the pending values
+                return;
+            }
 
             try
             {
