@@ -62,16 +62,21 @@ namespace ValveResourceFormat.Renderer.SceneNodes
 
             LocalBoundingBox = new AABB(-Vector3.One * spriteSize, Vector3.One * spriteSize);
             Transform = Matrix4x4.CreateTranslation(position.X, position.Y, position.Z);
+
+            RenderPasses |= CustomRenderPasses.DepthOnly;
         }
 
         public override void Render(Scene.RenderContext context)
         {
-            if (context.RenderPass is not RenderPass.Opaque and not RenderPass.Outline)
+            if (context.RenderPass is not RenderPass.Opaque and not RenderPass.Outline and not RenderPass.DepthOnly)
             {
                 return;
             }
 
-            var renderShader = context.ReplacementShader ?? material.Shader;
+            var renderShader = context.DepthOnlyShader?.WithAlphaTest(material.IsAlphaTest)
+                ?? context.ReplacementShader
+                ?? material.Shader;
+
             renderShader.Use();
 
             VertexArray.Bind(vao, renderShader);
@@ -89,6 +94,8 @@ namespace ValveResourceFormat.Renderer.SceneNodes
                 * billboardMatrix
                 * Matrix4x4.CreateTranslation(Transform.Translation);
             renderShader.SetUniform3x4("transform", transform);
+
+            renderShader.SetUniform1("bIsInstancing", 0u);
 
             renderShader.SetBoneAnimationData(false);
             renderShader.SetUniform1("vTint", Color32.FromVector4Clamped(Tint).PackedValue);

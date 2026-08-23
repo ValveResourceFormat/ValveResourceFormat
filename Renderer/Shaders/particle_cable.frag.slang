@@ -9,6 +9,8 @@
 
 // cables.vfx
 
+#define S_MODE_DEPTH 0
+
 uniform sampler2D g_tColor; // SrgbRead(true)
 
 uniform float g_flRoughness = 1.0;
@@ -19,6 +21,16 @@ in vec3 vFragPosition;
 in vec3 vNormalOut;
 in vec2 vTexCoordOut;
 in vec4 vColorOut;
+
+#if (S_MODE_DEPTH == 1)
+
+layout (early_fragment_tests) in;
+
+void main(void)
+{
+}
+
+#else
 
 out vec4 outputColor;
 
@@ -64,3 +76,5 @@ void main(void)
         //
     }
 }
+
+#endif

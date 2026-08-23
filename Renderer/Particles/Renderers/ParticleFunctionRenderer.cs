@@ -181,6 +181,14 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
 
         public abstract void Render(ParticleCollection particles, ParticleSystemState systemState, Camera camera);
 
+        /// <summary>Whether this renderer draws itself into <see cref="RenderPass.DepthOnly"/>. Set alongside <see cref="Pass"/>.</summary>
+        public bool CanRenderDepth { get; protected set; }
+
+        /// <summary>Draws depth only.</summary>
+        public virtual void RenderDepth(ParticleCollection particles, ParticleSystemState systemState, Camera camera)
+        {
+        }
+
         /// <summary>A sheet frame rectangle as the shader reads it: minimum in xy, maximum in zw.</summary>
         /// <param name="min">Lower corner.</param>
         /// <param name="max">Upper corner.</param>

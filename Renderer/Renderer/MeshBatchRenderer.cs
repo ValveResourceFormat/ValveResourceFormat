@@ -16,7 +16,7 @@ namespace ValveResourceFormat.Renderer
 #if DEBUG
         [DebuggerDisplay("{Node.DebugName,nq}")]
 #endif
-        public record struct Request(RenderableMesh Mesh, DrawCall? Call, float DistanceFromCamera, int RenderOrder, SceneNode Node);
+        public readonly record struct Request(RenderableMesh Mesh, DrawCall? Call, float DistanceFromCamera, int RenderOrder, SceneNode Node);
         record struct BatchRequest(RenderableMesh Mesh, DrawCall Call, SceneNode Node);
 
         /// <summary>Compares two requests by shader pipeline sort ID, placing custom-render nodes at the boundary.</summary>
@@ -146,6 +146,29 @@ namespace ValveResourceFormat.Renderer
             GL.BindTextureUnit((int)slot, texture.Handle);
         }
 
+        /// <summary>Picks the program a draw runs with: the pass's replacement shader, the material's mode for this pass, or the material's own.</summary>
+        private static Shader ResolveShader(Scene.RenderContext context, RenderableMesh mesh, RenderMaterial material)
+        {
+            if (context.ReplacementShader is { } replacement)
+            {
+                return replacement.WithSkinning(mesh.ActiveSkinning).WithAlphaTest(material.IsAlphaTest);
+            }
+
+            if (context.DepthOnlyShader is { } depthOnly)
+            {
+                return material.Shader.DepthMode
+                    ?? depthOnly.WithSkinning(mesh.ActiveSkinning).WithAlphaTest(material.IsAlphaTest);
+            }
+
+            if (context.OverdrawShader is { } overdraw)
+            {
+                return material.Shader.OverdrawMode
+                    ?? overdraw.WithSkinning(mesh.ActiveSkinning).WithAlphaTest(material.IsAlphaTest);
+            }
+
+            return material.Shader;
+        }
+
         private static void DrawBatch(List<Request> requests, Scene.RenderContext context)
         {
             var vao = -1;
@@ -194,7 +217,7 @@ namespace ValveResourceFormat.Renderer
 
                 var requestMaterial = request.Call.Material;
 
-                var requestShader = context.ReplacementShader?.WithSkinning(request.Mesh.ActiveSkinning) ?? requestMaterial.Shader;
+                var requestShader = ResolveShader(context, request.Mesh, requestMaterial);
 
                 if (material != requestMaterial || shader != requestShader)
                 {
@@ -253,7 +276,7 @@ namespace ValveResourceFormat.Renderer
                     }
 
                     material = requestMaterial;
-                    material.Render(shader);
+                    material.Render(shader, depthPass: context.DepthOnlyShader != null);
                 }
 
                 var requestVao = request.Call.GetVertexArrayObject();

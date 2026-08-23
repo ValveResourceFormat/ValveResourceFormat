@@ -117,6 +117,11 @@ namespace ValveResourceFormat.Renderer.Particles
                     : renderer.Pass == RenderPass.Opaque
                         ? CustomRenderPasses.Opaque
                         : CustomRenderPasses.Translucent;
+
+                if (renderer.CanRenderDepth)
+                {
+                    passes |= CustomRenderPasses.DepthOnly;
+                }
             }
 
             foreach (var childRenderer in childRenderers)
@@ -184,8 +189,6 @@ namespace ValveResourceFormat.Renderer.Particles
         /// </summary>
         public void Render(Camera camera, RenderPass pass, bool waterEffectsLayer = false)
         {
-            var wantedPass = pass == RenderPass.DepthOnly ? RenderPass.Opaque : pass;
-
             foreach (var childRenderer in childRenderers)
             {
                 if (!childRenderer.Simulation.ShouldRunAsChildOf(Simulation.RenderState))
@@ -203,19 +206,28 @@ namespace ValveResourceFormat.Renderer.Particles
 
             var rendered = false;
 
+            var depthPass = pass == RenderPass.DepthOnly;
+
             foreach (var renderer in renderers)
             {
-                if (renderer.Pass != wantedPass || renderer.OnlyRenderInEffectsWaterPass != waterEffectsLayer)
+                var inPass = depthPass
+                    ? renderer.CanRenderDepth
+                    : renderer.Pass == pass && renderer.OnlyRenderInEffectsWaterPass == waterEffectsLayer;
+
+                if (!inPass || renderer.GetOperatorRunStrength(Simulation.RenderState) <= 0.0f)
                 {
                     continue;
                 }
 
-                if (renderer.GetOperatorRunStrength(Simulation.RenderState) <= 0.0f)
+                if (depthPass)
                 {
-                    continue;
+                    renderer.RenderDepth(Simulation.Particles, Simulation.RenderState, camera);
+                }
+                else
+                {
+                    renderer.Render(Simulation.Particles, Simulation.RenderState, camera);
                 }
 
-                renderer.Render(Simulation.Particles, Simulation.RenderState, camera);
                 rendered = true;
             }
 

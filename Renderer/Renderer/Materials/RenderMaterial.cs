@@ -159,6 +159,9 @@ namespace ValveResourceFormat.Renderer.Materials
         /// <summary>Gets a value indicating whether this material uses alpha-to-coverage alpha testing.</summary>
         public bool IsAlphaTest => blendMode == BlendMode.AlphaTest;
 
+        /// <summary>Gets whether this material can perform early depth priming and then shade with Equal comparison.</summary>
+        public bool CanPrimeDepth => !hasDepthBias && !IsOverlay && !disableDepthTest;
+
         private readonly MaterialLoader? Loader;
 
         private Globals? globals;
@@ -320,7 +323,8 @@ namespace ValveResourceFormat.Renderer.Materials
                 return;
             }
 
-            VertexAnimation = IntParams.GetValueOrDefault("F_VERTEX_ANIMATION") > 0
+            VertexAnimation = ShaderName == "csgo_foliage.vfx"
+                || IntParams.GetValueOrDefault("F_VERTEX_ANIMATION") > 0
                 || IntParams.GetValueOrDefault("F_FOLIAGE_ANIMATION") > 0;
 
             // :MaterialIsOverlay
@@ -543,11 +547,33 @@ namespace ValveResourceFormat.Renderer.Materials
             globals?.Delete();
             globals = null;
             filledLayout = null;
+
+            depthMaterial?.Delete();
+            depthMaterial = null;
+        }
+
+        private RenderMaterial? depthMaterial;
+
+        /// <summary>This material as a shared depth-only shader sees it: the color texture and the alpha reference.</summary>
+        private RenderMaterial GetDepthMaterial(Shader depthShader)
+        {
+            depthMaterial ??= new RenderMaterial(depthShader);
+
+            depthMaterial.FloatParams["g_flAlphaTestReference"] =
+                FloatParams.GetValueOrDefault("g_flAlphaTestReference", 0.5f);
+
+            if (Textures.TryGetValue("g_tColor", out var colorTexture))
+            {
+                depthMaterial.Textures["g_tColor"] = colorTexture;
+            }
+
+            return depthMaterial;
         }
 
         /// <summary>Binds textures, sets material uniforms, and applies blend/depth render state for this material.</summary>
         /// <param name="shader">The shader to use for this draw call, or <see langword="null"/> to use <see cref="Shader"/>.</param>
-        public void Render(Shader? shader = default)
+        /// <param name="depthPass">Whether the draw only lays down depth, which a shared depth shader still rasterizes this material's way.</param>
+        public void Render(Shader? shader = default, bool depthPass = false)
         {
             textureUnit = TextureUnitStart;
 
@@ -555,15 +581,22 @@ namespace ValveResourceFormat.Renderer.Materials
 
             if (shader.IgnoreMaterialData)
             {
-                if (shader.IsDepthOnlyAlphaTest)
+                if (shader.IsAlphaTestVariant)
                 {
-                    shader.Default.BindGlobals(shader);
+                    var depthMaterial = GetDepthMaterial(shader);
+                    depthMaterial.BindGlobals(shader);
 
-                    var colorTexture = Textures.GetValueOrDefault("g_tColor");
+                    var colorTexture = depthMaterial.Textures.GetValueOrDefault("g_tColor");
                     if (colorTexture != null)
                     {
                         shader.SetTexture(textureUnit, "g_tColor", colorTexture);
                     }
+                }
+
+                if (depthPass)
+                {
+                    var depthState = GraphicsContext.RenderState;
+                    depthState.Apply(ComposeRenderState(depthState.CurrentPass));
                 }
 
                 return;

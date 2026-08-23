@@ -19,6 +19,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         private const string ShaderName = "particle_cable";
 
         private Shader shader;
+        private readonly Shader? depthShader;
         private readonly Scene scene;
         private readonly RenderMaterial material;
         private readonly bool ownsMaterial;
@@ -107,6 +108,9 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
 
             Pass = material.IsTranslucent ? RenderPass.Translucent : RenderPass.Opaque;
 
+            depthShader = shader.DepthMode;
+            CanRenderDepth = Pass == RenderPass.Opaque && !OnlyRenderInEffectsWaterPass && depthShader != null;
+
             vaoHandle = SetupBuffers();
         }
 
@@ -162,7 +166,6 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
 
             if (!GeometryChanged(positions, levels, radii, colors))
             {
-                DrawTube();
                 return;
             }
 
@@ -232,7 +235,16 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
 
         public override void Render(ParticleCollection particles, ParticleSystemState systemState, Camera camera)
         {
-            DrawTube();
+            DrawTube(shader);
+        }
+
+        /// <inheritdoc/>
+        public override void RenderDepth(ParticleCollection particles, ParticleSystemState systemState, Camera camera)
+        {
+            if (depthShader != null)
+            {
+                DrawTube(depthShader, depthOnly: true);
+            }
         }
 
         /// <summary>
@@ -370,24 +382,27 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         // Grow-only: reused buffers are sliced to the live count, so shrinking never reallocates.
         private static T[] EnsureCapacity<T>(T[] buffer, int size) => buffer.Length >= size ? buffer : new T[size];
 
-        private void DrawTube()
+        private void DrawTube(Shader drawShader, bool depthOnly = false)
         {
             if (indexCount == 0)
             {
                 return;
             }
 
-            shader.Use();
-            VertexArray.Bind(vaoHandle, shader);
-            material.Render(shader);
+            drawShader.Use();
+            VertexArray.Bind(vaoHandle, drawShader);
+            material.Render(drawShader);
 
-            // todo: batch tube draws and call this less often
-            scene.LightingInfo.BindLightmapTextures();
-
-            if (lightProbe is not null)
+            if (!depthOnly)
             {
-                shader.SetUniform1("uLightProbeIndex", (uint)lightProbe.ShaderIndex);
-                scene.LightingInfo.BindInstanceLightProbeTextures(lightProbe);
+                // todo: batch tube draws and call this less often
+                scene.LightingInfo.BindLightmapTextures();
+
+                if (lightProbe is not null)
+                {
+                    drawShader.SetUniform1("uLightProbeIndex", (uint)lightProbe.ShaderIndex);
+                    scene.LightingInfo.BindInstanceLightProbeTextures(lightProbe);
+                }
             }
 
             PerfStats.Active.Count(Counter.ParticleDraw);

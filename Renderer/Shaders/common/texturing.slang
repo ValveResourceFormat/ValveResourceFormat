@@ -240,7 +240,7 @@ vec3 calculateWorldNormal(vec3 normalMap, vec3 normal, vec3 tangent, vec3 bitang
 
     float AlphaTestAntiAliasing(float flOpacity, vec2 UVs)
     {
-        const bool isMsaa = true;
+        bool isMsaa = gl_NumSamples > 1;
 
         const float epsilon = 1 / 255.0;
         float flTestValue = isMsaa

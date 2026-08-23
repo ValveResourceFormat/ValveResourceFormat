@@ -633,7 +633,8 @@ public class Renderer
         renderContext.Framebuffer.BindAndClear();
 
         var isMainFramebuffer = ReferenceEquals(renderContext.Framebuffer, MainFramebuffer);
-        var isStandardPass = renderContext.ReplacementShader == null && isMainFramebuffer;
+        var isMaterialPass = renderContext.ReplacementShader == null && isMainFramebuffer;
+        var isStandardPass = isMaterialPass && renderContext.OverdrawShader == null;
 
         if (!isStandardPass)
         {
@@ -691,7 +692,7 @@ public class Renderer
         using (new GLDebugGroup("Main Scene Opaque Render"))
         {
             renderContext.Scene = Scene;
-            Scene.RenderOpaqueLayer(renderContext, isStandardPass ? depthOnlyShader : null);
+            Scene.RenderOpaqueLayer(renderContext, isMaterialPass ? depthOnlyShader : null);
         }
 
         //using (new GLDebugGroup("Sky Render"))

@@ -9,6 +9,6 @@ public enum DepthOnlyBucket
     Specialized,
     /// <summary>Drawn with the depth-only shader's alpha test variant, which samples the material's color texture and discards below its alpha reference.</summary>
     AlphaTest,
-    /// <summary>Drawn with the material's own shader.</summary>
-    MaterialShader,
+    /// <summary>Drawn with the material's own shader in its depth mode, resolved per draw.</summary>
+    MaterialDepthMode,
 }

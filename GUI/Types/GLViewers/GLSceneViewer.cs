@@ -685,10 +685,7 @@ namespace GUI.Types.GLViewers
                 else if (QuadOverdrawRenderer?.IsActive == true)
                 {
                     QuadOverdrawRenderer.Prepare(MainFramebuffer.Width, MainFramebuffer.Height);
-                    renderContext.ReplacementShader = QuadOverdrawRenderer.SceneShader;
 
-                    // set to true to render quad overdraw later, first draw the scene normally in order to have a depth buffer
-                    // so things dont look weird in quad overdraw
                     quadOverdrawThisFrame = true;
                 }
 
@@ -699,7 +696,11 @@ namespace GUI.Types.GLViewers
                     using (new GLDebugGroup("Quad Overdraw Counting Pass"))
                     {
                         QuadOverdrawRenderer!.BeginCountingPass(MainFramebuffer);
+
+                        renderContext.OverdrawShader = QuadOverdrawRenderer.SceneShader;
                         Renderer.RenderScenesWithView(renderContext);
+                        renderContext.OverdrawShader = null;
+
                         QuadOverdrawRenderer.EndCountingPass(MainFramebuffer);
                     }
 

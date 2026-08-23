@@ -50,6 +50,9 @@
 #endif
 
 //Parameter defines - These are default values and can be overwritten based on material/model parameters
+// MODES
+#define S_MODE_DEPTH 0
+#define S_MODE_OVERDRAW 0
 // BLENDING
 #define F_FULLBRIGHT 0 // global_lit_simple
 #define F_LIT 0 // csgo_static_overlay, vr_static_overlay
@@ -100,7 +103,13 @@ centroid in vec4 vVertexColorOut;
     in float vCurvatureOut;
 #endif
 
-out vec4 outputColor;
+#if (S_MODE_DEPTH == 0) && (S_MODE_OVERDRAW == 0)
+    out vec4 outputColor;
+#endif
+
+#if (S_MODE_OVERDRAW == 1)
+    #include "common/quad_overdraw.slang"
+#endif
 
 uniform sampler2D g_tBlueNoise; // reserved
 uniform sampler2D g_tColor; // SrgbRead(true) Sampler(UserConfig)
@@ -303,6 +312,31 @@ uniform sampler2D g_tTintMask;
 #include "common/fullbright.slang"
 #include "common/texturing.slang"
 #include "common/fog.slang"
+
+#if (S_MODE_DEPTH == 1) || (S_MODE_OVERDRAW == 1)
+
+    #if (alphatest) || (S_MODE_OVERDRAW == 1)
+        out vec4 outputColor;
+    #endif
+
+    #if (S_MODE_OVERDRAW == 1) || !(alphatest)
+        layout (early_fragment_tests) in;
+    #endif
+
+    void main()
+    {
+        #if (alphatest)
+            outputColor = vec4(0.0, 0.0, 0.0, AlphaTestAntiAliasing(texture(g_tColor, vTexCoordOut).a, vTexCoordOut));
+        #elif (S_MODE_OVERDRAW == 1)
+            outputColor = vec4(0.0, 0.0, 0.0, 1.0);
+        #endif
+
+        #if (S_MODE_OVERDRAW == 1)
+            CountQuadOverdraw();
+        #endif
+    }
+
+#else
 
 // Must be last
 #include "common/lighting.slang"
@@ -782,3 +816,5 @@ void main()
     }
 #endif
 }
+
+#endif
