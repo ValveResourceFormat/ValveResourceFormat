@@ -1025,7 +1025,7 @@ namespace GUI
             {
                 Text = "Compiling shaders…"
             };
-            progressDialog.OnProcess += (_, __) =>
+            progressDialog.OnProcess = _ =>
             {
                 var window = NativeWindowFactory.Create(new()
                 {
@@ -1045,6 +1045,8 @@ namespace GUI
                 {
                     NativeWindowFactory.Destroy(window);
                 }
+
+                return Task.CompletedTask;
             };
             progressDialog.ShowDialog();
         }

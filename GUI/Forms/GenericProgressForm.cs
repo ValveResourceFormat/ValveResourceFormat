@@ -1,86 +1,148 @@
+using System.Diagnostics;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 
 namespace GUI.Forms
 {
-    partial class GenericProgressForm : ThemedForm
+    partial class GenericProgressForm : ThemedForm, IProgress<string>
     {
-        private CancellationTokenSource cancellationTokenSource;
-        public event EventHandler<CancellationToken>? OnProcess;
+        private static readonly TimeSpan UpdateInterval = TimeSpan.FromMilliseconds(500);
+
+        private readonly CancellationTokenSource cancellationTokenSource = new();
+        private string? pendingText;
+        private int pendingBarValue = -1;
+        private int pendingBarMax = -1;
+        private int updateQueued;
+        private long lastUpdate;
+
+        public Func<CancellationToken, Task>? OnProcess { get; set; }
 
         public GenericProgressForm()
         {
             InitializeComponent();
-
-            cancellationTokenSource = new CancellationTokenSource();
         }
 
+        public void Report(string value) => SetProgress(value);
+
+        /// <summary>
+        /// Stores the latest status text. The label is updated at most every 500ms and only the most recent text is shown,
+        /// so this is safe to call from any thread at any rate.
+        /// </summary>
         public void SetProgress(string text)
         {
-            if (!IsHandleCreated)
-            {
-                return;
-            }
-
-            Invoke((Action)(() =>
-            {
-                extractStatusLabel.Text = text;
-            }));
+            Volatile.Write(ref pendingText, text);
+            QueueUpdate();
         }
 
+        /// <summary>
+        /// Stores the latest progress bar value, applied together with the status text.
+        /// </summary>
         public void SetBarValue(int value)
         {
-            if (!IsHandleCreated)
-            {
-                return;
-            }
-
-            extractProgressBar.Value = value;
+            Volatile.Write(ref pendingBarValue, value);
+            QueueUpdate();
         }
 
+        /// <summary>
+        /// Switches the bar from marquee to a determinate bar with the given maximum.
+        /// </summary>
         public void SetBarMax(int count)
         {
-            if (!IsHandleCreated)
+            Volatile.Write(ref pendingBarMax, count);
+            QueueUpdate();
+        }
+
+        private void QueueUpdate()
+        {
+            if (!IsHandleCreated || cancellationTokenSource.IsCancellationRequested)
             {
                 return;
             }
 
-            extractProgressBar.Style = ProgressBarStyle.Blocks;
-            extractProgressBar.Maximum = count;
+            var now = Stopwatch.GetTimestamp();
+
+            if (Stopwatch.GetElapsedTime(Volatile.Read(ref lastUpdate), now) < UpdateInterval)
+            {
+                return;
+            }
+
+            if (Interlocked.Exchange(ref updateQueued, 1) != 0)
+            {
+                return;
+            }
+
+            Volatile.Write(ref lastUpdate, now);
+
+            try
+            {
+                BeginInvoke(ApplyPendingUpdate);
+            }
+            catch (InvalidOperationException)
+            {
+                // Handle was destroyed between the check and the post
+                Volatile.Write(ref updateQueued, 0);
+            }
+        }
+
+        private void ApplyPendingUpdate()
+        {
+            Volatile.Write(ref updateQueued, 0);
+
+            if (IsDisposed)
+            {
+                return;
+            }
+
+            var text = Interlocked.Exchange(ref pendingText, null);
+
+            if (text != null)
+            {
+                extractStatusLabel.Text = text;
+            }
+
+            var barMax = Interlocked.Exchange(ref pendingBarMax, -1);
+
+            if (barMax >= 0)
+            {
+                extractProgressBar.Style = ProgressBarStyle.Blocks;
+                extractProgressBar.Maximum = barMax;
+            }
+
+            var barValue = Interlocked.Exchange(ref pendingBarValue, -1);
+
+            if (barValue >= 0)
+            {
+                extractProgressBar.Value = Math.Min(barValue, extractProgressBar.Maximum);
+            }
         }
 
         protected override void OnShown(EventArgs e)
         {
+            // Show anything that was set before the handle existed
+            ApplyPendingUpdate();
+
             Task.Run(
-                () => OnProcess?.Invoke(this, cancellationTokenSource.Token),
+                () => OnProcess?.Invoke(cancellationTokenSource.Token) ?? Task.CompletedTask,
                 cancellationTokenSource.Token)
                 .ContinueWith((t) =>
                 {
-                    if (extractProgressBar.Style != ProgressBarStyle.Blocks && IsHandleCreated)
+                    if (!IsHandleCreated)
                     {
-                        Invoke(() =>
-                        {
-                            extractProgressBar.Style = ProgressBarStyle.Blocks;
-                            extractProgressBar.Value = extractProgressBar.Maximum;
-                        });
+                        return;
                     }
 
                     if (t.Exception != null)
                     {
-                        var exceptions = t.Exception.Flatten().InnerExceptions;
-
-                        SetProgress($"An exception occurred, view console tab for more information. ({(exceptions.Count > 0 ? exceptions[0].Message : t.Exception.InnerException?.Message)})");
-
-                        foreach (var exception in exceptions)
+                        foreach (var exception in t.Exception.Flatten().InnerExceptions)
                         {
                             Program.ShowError(exception);
                         }
                     }
 
-                    if (!t.IsCanceled && IsHandleCreated)
+                    if (!t.IsCanceled)
                     {
-                        Invoke((Action)Close);
+                        Invoke(Close);
                     }
                 });
         }

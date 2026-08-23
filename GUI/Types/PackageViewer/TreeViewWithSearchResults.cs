@@ -25,6 +25,18 @@ namespace GUI.Types.PackageViewer
     /// </summary>
     partial class TreeViewWithSearchResults : UserControl
     {
+        // Counts reports into the progress bar without the thread pool hop of Progress<T>
+        private sealed class CountingProgress(GenericProgressForm dialog) : IProgress<string>
+        {
+            private int processed;
+
+            public void Report(string value)
+            {
+                dialog.SetBarValue(++processed);
+                dialog.SetProgress(value);
+            }
+        }
+
         ThumbnailSizes CurrentThumbnailSizes { get; set; } = ThumbnailSizes.Medium;
 
         private readonly List<ListViewItem> ListViewItems = [];
@@ -1054,7 +1066,7 @@ namespace GUI.Types.PackageViewer
             {
                 Text = "Scanning for deleted files…"
             };
-            progressDialog.OnProcess += (_, __) =>
+            progressDialog.OnProcess = _ =>
             {
                 progressDialog.SetProgress("Scanning for deleted files, this may take a while…");
 
@@ -1101,6 +1113,8 @@ namespace GUI.Types.PackageViewer
                     MainListView_DisplayNodes(rootVirtual);
                     mainTreeView.EndUpdate();
                 }));
+
+                return Task.CompletedTask;
             };
             progressDialog.ShowDialog();
         }
@@ -1117,7 +1131,7 @@ namespace GUI.Types.PackageViewer
             {
                 Text = "Verifying package…"
             };
-            progressDialog.OnProcess += (_, cancellationToken) =>
+            progressDialog.OnProcess = cancellationToken =>
             {
                 try
                 {
@@ -1130,8 +1144,6 @@ namespace GUI.Types.PackageViewer
 
                     package.VerifyHashes();
 
-                    var processed = 0;
-
                     // This does not need to be perfect, ValvePak reports a string per file, and success strings.
                     var maximum = package.AccessPackFileHashes.Count + 2;
 
@@ -1140,39 +1152,9 @@ namespace GUI.Types.PackageViewer
                         maximum += package.Entries.Sum(x => x.Value.Count);
                     }
 
-                    progressDialog.Invoke(() =>
-                    {
-                        progressDialog.SetBarMax(maximum);
-                    });
+                    progressDialog.SetBarMax(maximum);
 
-                    var lastUpdate = 0L;
-                    var updateInterval = TimeSpan.FromMilliseconds(400);
-
-                    var progressReporter = new Progress<string>(progress =>
-                    {
-                        if (cancellationToken.IsCancellationRequested)
-                        {
-                            return;
-                        }
-
-                        var value = Math.Min(++processed, maximum);
-
-                        var currentTime = System.Diagnostics.Stopwatch.GetTimestamp();
-                        var elapsed = System.Diagnostics.Stopwatch.GetElapsedTime(lastUpdate, currentTime);
-
-                        if (elapsed < updateInterval)
-                        {
-                            return;
-                        }
-
-                        lastUpdate = currentTime;
-
-                        progressDialog.Invoke(() =>
-                        {
-                            progressDialog.SetBarValue(value);
-                            progressDialog.SetProgress(progress);
-                        });
-                    });
+                    var progressReporter = new CountingProgress(progressDialog);
 
                     if (!cancellationToken.IsCancellationRequested)
                     {
@@ -1186,10 +1168,7 @@ namespace GUI.Types.PackageViewer
 
                     if (!cancellationToken.IsCancellationRequested)
                     {
-                        progressDialog.Invoke(() =>
-                        {
-                            progressDialog.SetBarValue(maximum);
-                        });
+                        progressDialog.SetBarValue(maximum);
 
                         _ = AppMessageDialogs.ShowMessageAsync("Successfully verified package contents.", "Verified package contents");
                     }
@@ -1198,13 +1177,13 @@ namespace GUI.Types.PackageViewer
                 {
                     Log.Error(nameof(Package), $"Failed to verify package contents: {e.Message}");
 
-                    if (cancellationToken.IsCancellationRequested)
+                    if (!cancellationToken.IsCancellationRequested)
                     {
-                        return;
+                        _ = AppMessageDialogs.ShowMessageAsync(e.Message, "Failed to verify package contents", MessageIcon.Warning);
                     }
-
-                    _ = AppMessageDialogs.ShowMessageAsync(e.Message, "Failed to verify package contents", MessageIcon.Warning);
                 }
+
+                return Task.CompletedTask;
             };
             progressDialog.ShowDialog();
         }

@@ -391,7 +391,7 @@ namespace ValveResourceFormat.IO
         /// </summary>
         public static string GetExtension(Resource resource)
         {
-            // When updating this, don't forget to update ExtractProgressForm
+            // When updating this, don't forget to update PackageExporter in the GUI
             switch (resource.ResourceType)
             {
                 case ResourceType.PanoramaLayout: return "xml";
