@@ -878,6 +878,98 @@ public sealed class PolygonMesh
     }
 
     /// <summary>
+    /// Merges neighbouring coplanar faces of the same material into single polygons where their texture mapping
+    /// continues across the shared edge, removing the vertices left on straight edges, so a patch of triangles
+    /// that carries one projection becomes one polygon again.
+    /// </summary>
+    /// <param name="textureCoordinateTolerance">How far a corner's texture coordinates may be from what the neighbour's mapping predicts for its position.</param>
+    public void CombineFacesWithMatchingTextureCoordinates(float textureCoordinateTolerance = 1f / 128f)
+    {
+        // an edge between faces that share more than one edge only dissolves once their other shared edges have
+        // gone, so keep going while it still merges something
+        var faceCount = FaceHandles.Count();
+
+        for (var pass = 0; pass < 16; pass++)
+        {
+            CombineFacesWithMatchingTextureCoordinatesPass(textureCoordinateTolerance);
+
+            var remaining = FaceHandles.Count();
+            if (remaining >= faceCount)
+                break;
+
+            faceCount = remaining;
+        }
+    }
+
+    private void CombineFacesWithMatchingTextureCoordinatesPass(float textureCoordinateTolerance)
+    {
+        var edges = new List<HalfEdgeHandle>();
+
+        foreach (var hEdge in Topology.HalfEdgeHandles)
+        {
+            var hOpposite = hEdge.OppositeEdge;
+
+            // each full edge once
+            if (hEdge.Index > hOpposite.Index)
+                continue;
+
+            var hFaceA = hEdge.Face;
+            var hFaceB = hOpposite.Face;
+
+            if (!hFaceA.IsValid || !hFaceB.IsValid || hFaceA == hFaceB)
+                continue;
+
+            if (MaterialIndex[hFaceA] != MaterialIndex[hFaceB])
+                continue;
+
+            if (!TextureMappingContinues(hFaceA, hFaceB, textureCoordinateTolerance)
+             || !TextureMappingContinues(hFaceB, hFaceA, textureCoordinateTolerance))
+                continue;
+
+            edges.Add(hEdge);
+        }
+
+        DissolveEdges(edges, true, DissolveRemoveVertexCondition.Colinear);
+    }
+
+    // whether every corner of face B carries the texture coordinates face A's mapping gives its position
+    private bool TextureMappingContinues(FaceHandle hFaceA, FaceHandle hFaceB, float tolerance)
+    {
+        var positions = new List<Vector3>();
+        var texCoords = new List<Vector2>();
+
+        var hFaceVertex = hFaceA.Edge;
+        do
+        {
+            positions.Add(Positions[hFaceVertex.Vertex]);
+            texCoords.Add(TextureCoords[hFaceVertex]);
+
+            hFaceVertex = hFaceVertex.NextEdge;
+        }
+        while (hFaceVertex != hFaceA.Edge);
+
+        GetBestThreeTextureBasisVerticies(positions, texCoords, positions.Count, out var bestPositions, out var bestTexCoords);
+
+        if (!CalcTextureBasisFromUVs(bestPositions, bestTexCoords, out var worldU, out var worldV))
+            return false;
+
+        hFaceVertex = hFaceB.Edge;
+        do
+        {
+            var offset = Positions[hFaceVertex.Vertex] - bestPositions[0];
+            var predicted = bestTexCoords[0] + new Vector2(Vector3.Dot(worldU, offset), Vector3.Dot(worldV, offset));
+
+            if (Vector2.Distance(predicted, TextureCoords[hFaceVertex]) > tolerance)
+                return false;
+
+            hFaceVertex = hFaceVertex.NextEdge;
+        }
+        while (hFaceVertex != hFaceB.Edge);
+
+        return true;
+    }
+
+    /// <summary>
     /// Merges the two faces of an edge by removing it.
     /// </summary>
     public void DissolveEdge(HalfEdgeHandle edge)
@@ -1211,6 +1303,33 @@ public sealed class PolygonMesh
             && CornerDataMatches(HalfEdgeMesh.FindPreviousEdgeInFaceLoop(hEdge), hOpposite);
     }
 
+    /// <summary>
+    /// Whether the texture coordinates continue across a seam of two coinciding open half edges, one running against
+    /// the other: the corners the two faces have at each end of the seam carry the same texture coordinates. That is
+    /// how the pieces of one mapping that was cut apart meet, while separate mappings that merely abut don't. For
+    /// <see cref="MergeCoincidentOpenEdges"/> and <see cref="RemergeDrawCalls"/>.
+    /// </summary>
+    /// <param name="hOpenEdge">An open half edge.</param>
+    /// <param name="hOpenPartner">The open half edge running against it on the other piece.</param>
+    /// <param name="tolerance">How far apart the texture coordinates may be.</param>
+    public bool TextureCoordinatesContinueAcross(HalfEdgeHandle hOpenEdge, HalfEdgeHandle hOpenPartner, float tolerance = 1f / 128f)
+    {
+        // the face sides of the seam, a half edge carries the corner at its end vertex, the edge before it in the
+        // face loop the corner at its start
+        var hFaceEdge = hOpenEdge.OppositeEdge;
+        var hPartnerFaceEdge = hOpenPartner.OppositeEdge;
+
+        if (!hFaceEdge.Face.IsValid || !hPartnerFaceEdge.Face.IsValid)
+            return false;
+
+        var hFaceEdgeStart = HalfEdgeMesh.FindPreviousEdgeInFaceLoop(hFaceEdge);
+        var hPartnerFaceEdgeStart = HalfEdgeMesh.FindPreviousEdgeInFaceLoop(hPartnerFaceEdge);
+
+        // the face edges run against each other, so the end of one meets the start of the other
+        return Vector2.Distance(TextureCoords[hFaceEdge], TextureCoords[hPartnerFaceEdgeStart]) <= tolerance
+            && Vector2.Distance(TextureCoords[hFaceEdgeStart], TextureCoords[hPartnerFaceEdge]) <= tolerance;
+    }
+
     private bool CornerDataMatches(HalfEdgeHandle hCornerA, HalfEdgeHandle hCornerB)
     {
         const float TexCoordEpsilon = 1f / 1024f;
@@ -1221,6 +1340,48 @@ public sealed class PolygonMesh
             && Vector3.Distance(Normals[hCornerA], Normals[hCornerB]) <= NormalEpsilon
             && Vector4.Distance(VertexPaintBlendParams[hCornerA], VertexPaintBlendParams[hCornerB]) <= PaintEpsilon
             && Vector4.Distance(VertexPaintTintColor[hCornerA], VertexPaintTintColor[hCornerB]) <= PaintEpsilon;
+    }
+
+    /// <summary>
+    /// Merges what the draw calls of one object were split into back together and separates what never belonged
+    /// together: welds the open edges, then the vertices, that coincide within the distance, and splits the mesh
+    /// into the parts that are connected. The render geometry, the physics geometry and the overlays of a map all go
+    /// through this.
+    /// </summary>
+    /// <param name="weldDistance">How far apart coinciding vertices may be.</param>
+    /// <param name="canMergeEdges">Decides for a pair of coinciding open half edges whether they merge, null to merge every pair; see <see cref="TextureCoordinatesContinueAcross"/>.</param>
+    /// <param name="mergeVertices">Whether coinciding vertices merge too after the edges, which also joins parts that only touch at a point.</param>
+    /// <returns>The connected parts, each copied into a mesh of its own.</returns>
+    public List<PolygonMesh> RemergeDrawCalls(float weldDistance, Func<HalfEdgeHandle, HalfEdgeHandle, bool>? canMergeEdges = null, bool mergeVertices = true)
+    {
+        // connect the faces across the seams the draw call split added, edge by edge, only after try to connect
+        // vertices, connecting vertices blindly can lead to bad topology
+        MergeCoincidentOpenEdges(weldDistance, canMergeEdges);
+
+        if (mergeVertices)
+        {
+            MergeVerticesWithinDistance(weldDistance);
+        }
+
+        return SplitConnectedParts();
+    }
+
+    /// <summary>
+    /// Splits the mesh into its connected parts, see <see cref="FindIslands"/>, each copied into a mesh of its own.
+    /// </summary>
+    public List<PolygonMesh> SplitConnectedParts()
+    {
+        var islands = FindIslands();
+        var parts = new List<PolygonMesh>(islands.Count);
+
+        foreach (var islandFaces in islands)
+        {
+            var part = new PolygonMesh();
+            part.MergeMesh(this, islandFaces, out _, out _, out _);
+            parts.Add(part);
+        }
+
+        return parts;
     }
 
     /// <summary>
@@ -1339,8 +1500,9 @@ public sealed class PolygonMesh
     /// <see cref="MergeVerticesWithinDistance(float)"/>.
     /// </summary>
     /// <param name="maxDistance">Largest distance between the edge end points that still counts as coinciding.</param>
+    /// <param name="canMerge">Decides for a pair of coinciding open half edges whether they merge, null to merge every pair; see <see cref="TextureCoordinatesContinueAcross"/>.</param>
     /// <returns>Number of edges merged.</returns>
-    public int MergeCoincidentOpenEdges(float maxDistance)
+    public int MergeCoincidentOpenEdges(float maxDistance, Func<HalfEdgeHandle, HalfEdgeHandle, bool>? canMerge = null)
     {
         var maxDistanceSquared = maxDistance * maxDistance;
         var invCellSize = 1f / maxDistance;
@@ -1449,7 +1611,7 @@ public sealed class PolygonMesh
                 }
             }
 
-            if (!hPartner.IsValid)
+            if (!hPartner.IsValid || (canMerge is not null && !canMerge(hEdge, hPartner)))
             {
                 continue;
             }

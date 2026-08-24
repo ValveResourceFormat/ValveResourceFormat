@@ -679,6 +679,102 @@ public class CMapMesh : MapNode
 }
 
 /// <summary>
+/// A decal which uses its own hammer editable mesh to project onto geometry.
+/// </summary>
+[CamelCaseProperties]
+public class CMapStaticOverlay : CMapMesh
+{
+    /// <summary>
+    /// Node ids of the nodes the overlay projects onto.
+    /// </summary>
+    public Datamodel.IntArray ProjectionTargets { get; } = [];
+
+    /// <summary>
+    /// Order the overlay is drawn in where overlays stack, higher on top.
+    /// </summary>
+    public int RenderOrder { get; set; }
+
+    /// <summary>
+    /// Whether the overlay is left out at low quality settings.
+    /// </summary>
+    public bool DisabledInLowQuality { get; set; }
+
+    /// <summary>
+    /// Whether the overlay shades with the normals of the surface under it rather than its own.
+    /// </summary>
+    public bool UseBaseNormals { get; set; }
+
+    /// <summary>
+    /// How far from its mesh the overlay projects.
+    /// </summary>
+    public float ProjectionFar { get; set; } = 128f;
+
+    /// <summary>
+    /// Adjustments applied to the decal material.
+    /// </summary>
+    [DMProperty(name: "MaterialAdjustmentParamsStruct")]
+    public CMapOverlayMaterialAdjustmentParams MaterialAdjustmentParamsStruct { get; } = [];
+
+    /// <summary>
+    /// Whether the overlay also lands on faces turned away from it.
+    /// </summary>
+    public bool ProjectOnBackFaces { get; set; }
+
+    /// <summary>
+    /// Angle from the projection direction beyond which a face counts as facing away, in degrees.
+    /// </summary>
+    public float BackFacingAngle { get; set; } = 90f;
+
+    /// <summary>
+    /// What the overlay projects onto: everything (0), world geometry (1), models (2) or its
+    /// <see cref="ProjectionTargets"/> (3).
+    /// </summary>
+    public int ProjectionMode { get; set; }
+}
+
+/// <summary>
+/// The material adjustments of a <see cref="CMapStaticOverlay"/>.
+/// </summary>
+public class CMapOverlayMaterialAdjustmentParams : DMElement
+{
+    /// <summary>
+    /// Initializes a new instance of the <see cref="CMapOverlayMaterialAdjustmentParams"/> class with Hammer's defaults.
+    /// </summary>
+    public CMapOverlayMaterialAdjustmentParams()
+    {
+        ClassName = "DmElement";
+        Name = "MaterialAdjustmentParamsStruct";
+    }
+
+    /// <summary>Colour brightness adjustment, 0.5 for none.</summary>
+    public float ColorBrightness { get; set; } = 0.5f;
+
+    /// <summary>Colour contrast adjustment, 0.5 for none.</summary>
+    public float ColorContrast { get; set; } = 0.5f;
+
+    /// <summary>Opacity of the colour.</summary>
+    public float ColorAlpha { get; set; } = 1f;
+
+    /// <summary>Roughness brightness adjustment, 0.5 for none.</summary>
+    public float RoughnessBrightness { get; set; } = 0.5f;
+
+    /// <summary>Roughness contrast adjustment, 0.5 for none.</summary>
+    public float RoughnessContrast { get; set; } = 0.5f;
+
+    /// <summary>Opacity of the shading.</summary>
+    public float ShadingAlpha { get; set; } = 1f;
+
+    /// <summary>Strength of the decal's normal map.</summary>
+    public float NormalIntensity { get; set; } = 0.75f;
+
+    /// <summary>Whether the decal's roughness and metalness replace the surface's.</summary>
+    public bool RoughnessMetalnessOverride { get; set; }
+
+    /// <summary>Whether the decal's normals blend over the surface's.</summary>
+    public bool NormalBlendOverride { get; set; } = true;
+}
+
+/// <summary>
 /// Hammer's editable mesh, stored as a half edge mesh with parallel index arrays and data streams.
 /// </summary>
 [CamelCaseProperties]

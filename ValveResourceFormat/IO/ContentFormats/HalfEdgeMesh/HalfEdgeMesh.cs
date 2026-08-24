@@ -993,83 +993,55 @@ public partial class HalfEdgeMesh
     /// Merges the two faces sharing an edge. The face of the given half edge survives, the opposite face is
     /// freed together with the edge pair.
     /// </summary>
-    /// <param name="hEdge">Edge to dissolve.</param>
-    /// <param name="hOutFace">The surviving face, set only when this returns true.</param>
+    /// <param name="hFullEdge">Edge to dissolve.</param>
+    /// <param name="hOutFaceHandle">The surviving face, set only when this returns true.</param>
     /// <returns>Whether the edge was dissolved.</returns>
-    public bool DissolveEdge(HalfEdgeHandle hEdge, out FaceHandle hOutFace)
+    public bool DissolveEdge(HalfEdgeHandle hFullEdge, out FaceHandle hOutFaceHandle)
     {
-        hOutFace = FaceHandle.Invalid;
+        hOutFaceHandle = FaceHandle.Invalid;
 
-        if (!hEdge.IsValid)
+        if (!hFullEdge.IsValid)
             return false;
 
-        var hEdgeA = hEdge;
-        var hEdgeB = GetOppositeHalfEdge(hEdge);
+        var hAdjEdge = hFullEdge.OppositeEdge;
+        var hFace = hFullEdge.Face;
+        var hAdjFace = hAdjEdge.Face;
 
-        var hFaceA = hEdgeA.Face; // kept
-        var hFaceB = hEdgeB.Face; // merged into face A
-
-        // must be an interior edge connecting two distinct faces
-        if (hFaceA == FaceHandle.Invalid || hFaceB == FaceHandle.Invalid || hFaceA == hFaceB)
+        // The edge must be connected to two different faces for dissolve to be a valid operation.
+        if (!hFace.IsValid || !hAdjFace.IsValid || (hFace == hAdjFace))
             return false;
 
-        // faces connected by more than one edge can't be merged by dissolving a single edge,
-        // that would leave the second shared edge as a degenerate interior edge
-        var sharedEdges = 0;
-        var hCurrentEdge = hFaceA.Edge;
+        // Update all of the edges that used to refer to
+        // the opposite face to refer to the current face.
+        var hAdjFaceEdge = hAdjEdge;
         do
         {
-            if (hCurrentEdge.OppositeEdge.Face == hFaceB)
-            {
-                ++sharedEdges;
-            }
-
-            hCurrentEdge = hCurrentEdge.NextEdge;
+            hAdjFaceEdge.Face = hFace;
+            hAdjFaceEdge = hAdjFaceEdge.NextEdge;
         }
-        while (hCurrentEdge != hFaceA.Edge);
+        while (hAdjFaceEdge != hAdjEdge);
 
-        if (sharedEdges != 1)
-            return false;
+        // Ensure the face is not using the edge that is going to be removed as its starting edge.
+        // Always do this so that the first edge in the face is consistent relative to the edge dissolved.
+        hFace.Edge = hFullEdge.NextEdge;
 
-        var hPrevA = FindPreviousEdgeInFaceLoop(hEdgeA);
-        var hPrevB = FindPreviousEdgeInFaceLoop(hEdgeB);
-        var hNextA = hEdgeA.NextEdge;
-        var hNextB = hEdgeB.NextEdge;
+        // Detach the edge from the face to ensure
+        // removing the edge does not destroy the face
+        hFullEdge.Face = FaceHandle.Invalid;
+        hAdjEdge.Face = FaceHandle.Invalid;
 
-        // move all of face B's edges over to face A
-        hCurrentEdge = hNextB;
-        do
-        {
-            hCurrentEdge.Face = hFaceA;
-            hCurrentEdge = hCurrentEdge.NextEdge;
-        }
-        while (hCurrentEdge != hEdgeB);
+        // Remove the specified edge and then iteratively remove any loose edges, which is what the other
+        // edges the two faces shared become, so faces sharing several edges merge too.
+        RemoveEdge(hFullEdge, true);
+        RemoveLooseEdgesInFace(hFace);
 
-        // splice the two face loops together, bypassing the dissolved edge pair
-        hPrevA.NextEdge = hNextB;
-        hPrevB.NextEdge = hNextA;
+        // Remove the opposite face. Its edge is cleared first so the remove does not incorrectly
+        // try to remove the edges which have been transferred to the current face.
+        hAdjFace.Edge = HalfEdgeHandle.Invalid;
+        RemoveFace(hAdjFace, false);
 
-        // repoint the end vertices if their outgoing edge is one of the freed half edges
-        var hVertexA = hEdgeB.Vertex; // hEdgeA emanates from this vertex
-        var hVertexB = hEdgeA.Vertex; // hEdgeB emanates from this vertex
+        hOutFaceHandle = hFace;
 
-        if (hVertexA.Edge == hEdgeA)
-            hVertexA.Edge = hNextB;
-
-        if (hVertexB.Edge == hEdgeB)
-            hVertexB.Edge = hNextA;
-
-        // repoint the surviving face if its edge is being freed
-        if (hFaceA.Edge == hEdgeA)
-            hFaceA.Edge = hPrevA;
-
-        ClearEdgeData(hEdgeA);
-        ClearEdgeData(hEdgeB);
-
-        FreeHalfEdgePair(hEdgeA);
-        FreeFace(hFaceB);
-
-        hOutFace = hFaceA;
         return true;
     }
 

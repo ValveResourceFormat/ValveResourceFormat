@@ -198,7 +198,7 @@ namespace ValveResourceFormat.IO
     /// render and physics meshes), then write the result with <see cref="GenerateMesh"/>.
     ///
     /// There are options for features such as <see cref="Untriangulate"/> to join
-    /// triangle pairs into quads or <see cref="GenerateMeshes"/> to split the mesh by mesh connectivity.
+    /// triangle pairs into quads or <see cref="GenerateMeshes()"/> to split the mesh by mesh connectivity, or <see cref="GenerateMeshes(float)"/> to weld it first.
     /// </para>
     /// 
     /// <para>
@@ -320,21 +320,29 @@ namespace ValveResourceFormat.IO
         /// positions. Each island is copied into its own mesh and written out, untriangulated when <see cref="Untriangulate"/> is set.
         /// </summary>
         public List<CDmePolygonMesh> GenerateMeshes()
+            => WriteParts(Mesh.SplitConnectedParts());
+
+        /// <summary>
+        /// Welds everything added so far together where it coincides within the distance, the draw calls of one object
+        /// becoming one mesh again, and writes it out as one Hammer mesh per connected part, see
+        /// <see cref="PolygonMesh.RemergeDrawCalls"/>. Each part is untriangulated when <see cref="Untriangulate"/> is set.
+        /// </summary>
+        /// <param name="weldDistance">How far apart coinciding vertices may be.</param>
+        public List<CDmePolygonMesh> GenerateMeshes(float weldDistance)
+            => WriteParts(Mesh.RemergeDrawCalls(weldDistance));
+
+        private List<CDmePolygonMesh> WriteParts(List<PolygonMesh> parts)
         {
-            var islands = Mesh.FindIslands();
-            var meshes = new List<CDmePolygonMesh>(islands.Count);
+            var meshes = new List<CDmePolygonMesh>(parts.Count);
 
-            foreach (var islandFaces in islands)
+            foreach (var part in parts)
             {
-                var island = new PolygonMesh();
-                island.MergeMesh(Mesh, islandFaces, out _, out _, out _);
-
                 if (Untriangulate)
                 {
-                    island.Untriangulate();
+                    part.Untriangulate();
                 }
 
-                meshes.Add(WriteMesh(island));
+                meshes.Add(WriteMesh(part));
             }
 
 #if DEBUG
@@ -1108,7 +1116,7 @@ namespace ValveResourceFormat.IO
             return stream;
         }
 
-        static IList<T>? GetElementArraySafe<T>(Element Element, string elementName)
+        internal static IList<T>? GetElementArraySafe<T>(Element Element, string elementName)
         {
             if (Element.ContainsKey(elementName))
             {
