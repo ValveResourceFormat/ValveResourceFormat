@@ -325,11 +325,13 @@ namespace ValveResourceFormat.Renderer.Materials
 
             VertexAnimation = ShaderName == "csgo_foliage.vfx"
                 || IntParams.GetValueOrDefault("F_VERTEX_ANIMATION") > 0
-                || IntParams.GetValueOrDefault("F_FOLIAGE_ANIMATION") > 0;
+                || IntParams.GetValueOrDefault("F_FOLIAGE_ANIMATION") > 0
+                || IntParams.GetValueOrDefault("F_JITTER_VERTICES") > 0;
 
             // :MaterialIsOverlay
             hasDepthBias = IntParams.GetValueOrDefault("F_DEPTHBIAS") == 1 || IntParams.GetValueOrDefault("F_DEPTH_BIAS") == 1;
             IsOverlay = IntParams.GetValueOrDefault("F_OVERLAY") == 1;
+            DoNotCastShadows |= IsOverlay;
 
             if (ShaderName == "csgo_decalmodulate.vfx")
             {
@@ -361,11 +363,18 @@ namespace ValveResourceFormat.Renderer.Materials
             }
 
             var blendModeParam = 0;
-            if (ShaderName.EndsWith("static_overlay.vfx", StringComparison.Ordinal) || ShaderName is "citadel_overlay.vfx")
+            if (ShaderName.EndsWith("static_overlay.vfx", StringComparison.Ordinal))
             {
                 IsOverlay = true;
                 blendModeParam = (int)IntParams.GetValueOrDefault("F_BLEND_MODE");
             }
+            else if (ShaderName is "citadel_overlay.vfx")
+            {
+                IsOverlay = true;
+                blendMode = BlendMode.Translucent;
+            }
+
+            DoNotCastShadows |= IsOverlay;
 
             if (ShaderName == "csgo_unlitgeneric.vfx")
             {

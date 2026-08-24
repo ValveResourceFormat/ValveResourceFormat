@@ -6,9 +6,13 @@
 
 #define IBL 1
 
-// The shared alpha test helper reads g_flAlphaTestReference; pbr calls that param
-// g_flAlphaTestReference1, so point the helper's uniform at the material's name.
-#define g_flAlphaTestReference g_flAlphaTestReference1
+// MODES
+#define S_MODE_DEPTH 0
+#define S_MODE_OVERDRAW 0
+
+#if (F_ALPHA_TEST == 1)
+    uniform float g_flAlphaTestReference1 = 0.5;
+#endif
 
 in vec3 vFragPosition;
 
@@ -19,7 +23,9 @@ in vec3 vBitangentOut;
 in vec4 vTexCoord; // UV1 in xy, UV2 in zw
 centroid in vec4 vVertexColorOut;
 
-out vec4 outputColor;
+#if (S_MODE_DEPTH == 0) && (S_MODE_OVERDRAW == 0)
+    out vec4 outputColor;
+#endif
 
 uniform sampler2D g_tColor; // SrgbRead(true)
 uniform sampler2D g_tNormalRoughness;
@@ -155,9 +161,6 @@ uniform float g_flNormalAndRoughnessScrollQuantize1 = 0.0;
 #include "common/fog.slang"
 #include "common/citadel.slang"
 
-// Must be last
-#include "common/lighting.slang"
-
 // Scroll snaps to a step of the quantize interval, so animated textures can be made to
 // tick rather than slide. A zero interval means no stepping.
 float GetScrollTime(float quantize)
@@ -185,6 +188,42 @@ vec2 GetAlbedoTexCoord()
 
     return texCoord;
 }
+
+#if (S_MODE_DEPTH == 1) || (S_MODE_OVERDRAW == 1)
+
+    #if (S_MODE_OVERDRAW == 1)
+        #include "common/quad_overdraw.slang"
+    #endif
+
+    #if (F_ALPHA_TEST == 1) || (S_MODE_OVERDRAW == 1)
+        out vec4 outputColor;
+    #endif
+
+    #if (S_MODE_OVERDRAW == 1) || (F_ALPHA_TEST == 0)
+        layout (early_fragment_tests) in;
+    #endif
+
+    void main()
+    {
+        #if (F_ALPHA_TEST == 1)
+            vec2 albedoTexCoord = GetAlbedoTexCoord();
+            float opacity = texture(g_tColor, albedoTexCoord).a;
+
+            outputColor = vec4(0.0, 0.0, 0.0,
+                AlphaTestAntiAliasing(opacity, albedoTexCoord, g_flAlphaTestReference1, g_flAntiAliasedEdgeStrength));
+        #elif (S_MODE_OVERDRAW == 1)
+            outputColor = vec4(0.0, 0.0, 0.0, 1.0);
+        #endif
+
+        #if (S_MODE_OVERDRAW == 1)
+            CountQuadOverdraw();
+        #endif
+    }
+
+#else
+
+// Must be last
+#include "common/lighting.slang"
 
 MaterialProperties_t GetMaterial(vec3 vertexNormal)
 {
@@ -335,7 +374,7 @@ MaterialProperties_t GetMaterial(vec3 vertexNormal)
     #endif
 
     #if (F_ALPHA_TEST == 1)
-        mat.Opacity = AlphaTestAntiAliasing(mat.Opacity, albedoTexCoord);
+        mat.Opacity = AlphaTestAntiAliasing(mat.Opacity, albedoTexCoord, g_flAlphaTestReference1, g_flAntiAliasedEdgeStrength);
     #endif
 
     AdjustRoughnessByGeometricNormal(mat);
@@ -435,3 +474,5 @@ void main()
         outputColor.rgb = vVertexColorOut.rgb;
     }
 }
+
+#endif

@@ -1025,14 +1025,18 @@ namespace ValveResourceFormat.Renderer
             {
                 if (request.Node is SceneAggregate { CanDrawIndirect: true })
                 {
-                    // Alpha tested draws are prepassed on their own, see RenderAlphaTestGeometry
-                    if (request.Call.Material is { IsAlphaTest: true, CanPrimeDepth: true })
+                    var material = request.Call.Material;
+
+                    if (material.IsOverlay)
+                    {
+                        renderPass = RenderPass.StaticOverlay;
+                    }
+                    else if (material is { IsAlphaTest: true, CanPrimeDepth: true })
                     {
                         alphaTestAggregateDraws.Add(request);
                         return;
                     }
-
-                    if (EnableDepthPrepass)
+                    else if (EnableDepthPrepass && material.CanPrimeDepth)
                     {
                         var bucket = GetDepthOnlyBucket(request.Call);
                         depthOnlyDraws[bucket].Add(request);
@@ -1809,7 +1813,7 @@ namespace ValveResourceFormat.Renderer
             }
 
             // Both lists are drawn twice, so they are ordered once here instead of per pass.
-            alphaTestAggregateDraws.Sort(MeshBatchRenderer.CompareAlphaTestThenProgram);
+            alphaTestAggregateDraws.Sort(MeshBatchRenderer.CompareStageThenProgram);
             alphaTestOpaqueDraws.Sort(MeshBatchRenderer.CompareCustomPipeline);
 
             var prepassed = depthOnlyShader != null;

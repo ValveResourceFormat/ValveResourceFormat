@@ -50,20 +50,27 @@ namespace ValveResourceFormat.Renderer
             return -a.DistanceFromCamera.CompareTo(b.DistanceFromCamera);
         }
 
-        /// <summary>Compares two requests by alpha-test flag first, then by shader program sort ID.</summary>
-        public static int CompareAlphaTestThenProgram(Request a, Request b)
+        /// <summary>Compares two requests by draw stage first, then by shader program sort ID.</summary>
+        public static int CompareStageThenProgram(Request a, Request b)
         {
             Debug.Assert(a.Call != null && b.Call != null);
-            var alphaTestA = a.Call.Material.IsAlphaTest;
-            var alphaTestB = b.Call.Material.IsAlphaTest;
+            var stageA = DrawStage(a.Call.Material);
+            var stageB = DrawStage(b.Call.Material);
 
-            if (alphaTestA == alphaTestB)
+            if (stageA == stageB)
             {
                 return a.Call.Material.SortId - b.Call.Material.SortId;
             }
 
-            return alphaTestA.CompareTo(alphaTestB);
+            return stageA - stageB;
         }
+
+        private static int DrawStage(RenderMaterial material) => material switch
+        {
+            { IsOverlay: true } => 2,
+            { IsAlphaTest: true } => 1,
+            _ => 0,
+        };
 
         /// <summary>Returns <see langword="true"/> if the request is a <see cref="SceneAggregate"/> with no visible children.</summary>
         public static bool IsAggregateWithNoVisibleChildren(Request req)
@@ -89,7 +96,7 @@ namespace ValveResourceFormat.Renderer
             else if (context.RenderPass == RenderPass.OpaqueAggregate)
             {
                 var removed = requests.RemoveAll(IsAggregateWithNoVisibleChildren);
-                requests.Sort(CompareAlphaTestThenProgram);
+                requests.Sort(CompareStageThenProgram);
             }
             else if (context.RenderPass == RenderPass.StaticOverlay)
             {
@@ -180,7 +187,8 @@ namespace ValveResourceFormat.Renderer
                 NeedsCubemapBinding = context.Scene.LightingInfo.CubemapType == CubemapType.IndividualCubemaps,
                 LightmapGameVersionNumber = context.Scene.LightingInfo.LightmapGameVersionNumber,
                 LightProbeType = context.Scene.LightingInfo.LightProbeType,
-                IndirectDraw = context.Scene.DrawMeshletsIndirect && context.RenderPass < RenderPass.Opaque,
+                IndirectDraw = context.Scene.DrawMeshletsIndirect
+                    && context.RenderPass is RenderPass.DepthOnly or RenderPass.OpaqueAggregate or RenderPass.StaticOverlay,
             };
 
             var counters = PerfStats.Active;
