@@ -262,7 +262,7 @@ namespace ValveResourceFormat.IO
         public PhysicsTriangleMatcher? PhysicsTriangleMatcher { get; init; }
 
         /// <summary>
-        /// Receives diagnostics about faces the builder had to drop.
+        /// General logging.
         /// </summary>
         public IProgress<string>? ProgressReporter { get; init; }
 
