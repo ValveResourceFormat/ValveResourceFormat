@@ -23,6 +23,7 @@ namespace GUI.Forms
             if (disposing)
             {
                 cancellationTokenSource.Dispose();
+                updateTimer.Dispose();
             }
 
             base.Dispose(disposing);

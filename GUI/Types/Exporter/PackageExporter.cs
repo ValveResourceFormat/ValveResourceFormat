@@ -148,7 +148,7 @@ namespace GUI.Types.Exporter
 
         private void RunInDialog(Func<CancellationToken, Task> work, string? initialText)
         {
-            using var dialog = new GenericProgressForm();
+            using var dialog = new GenericProgressForm { StayOpenOnCompletion = true };
             progress = dialog;
 
             if (initialText != null)
@@ -166,7 +166,20 @@ namespace GUI.Types.Exporter
             }
 
 #pragma warning disable CA2025 // The dialog is modal, the task has completed by the time ShowDialog returns
-            dialog.OnProcess = work;
+            dialog.OnProcess = async cancellationToken =>
+            {
+                await work(cancellationToken).ConfigureAwait(false);
+
+                var completedText = $"Export completed in {GenericProgressForm.FormatTime(dialog.Elapsed)}";
+
+                if (filesFailedToExport > 0)
+                {
+                    completedText += $", {filesFailedToExport} file{(filesFailedToExport == 1 ? "" : "s")} failed";
+                }
+
+                Log.Info(nameof(PackageExporter), completedText);
+                dialog.SetProgress(completedText);
+            };
 #pragma warning restore CA2025
             dialog.ShowDialog();
 
@@ -255,7 +268,6 @@ namespace GUI.Types.Exporter
         {
             Debug.Assert(progress != null);
 
-            var stopwatch = Stopwatch.StartNew();
             Log.Info(nameof(PackageExporter), $"Folder export started to \"{path}\"");
 
             processed = 0;
@@ -349,13 +361,10 @@ namespace GUI.Types.Exporter
 
                 await ExtractFileAsync(resource, fileFullName, outFilePath, false, cancellationToken).ConfigureAwait(false);
             }
-
-            Log.Info(nameof(PackageExporter), $"Export completed in {stopwatch.Elapsed}, {filesFailedToExport} files failed.");
         }
 
         private async Task ExtractFileAsync(Resource resource, string inFilePath, string outFilePath, bool flatSubfiles, CancellationToken cancellationToken)
         {
-            var outputPath = OutputPath;
             var outExtension = Path.GetExtension(outFilePath);
 
             if (GltfModelExporter.CanExport(resource) && outExtension is ".glb" or ".gltf")
@@ -430,7 +439,7 @@ namespace GUI.Types.Exporter
                             fileNameOut = Path.GetFileName(fileNameOut);
                         }
 
-                        await WriteFileAsync(CombineAssetFolder(outputPath, fileNameOut), additionalFile.Data, cancellationToken).ConfigureAwait(false);
+                        await WriteAssetFileAsync(fileNameOut, additionalFile.Data, cancellationToken).ConfigureAwait(false);
                     }
 
                     var contentRelativeFolder = flattenThis ? string.Empty : Path.GetDirectoryName(fileNameOut) ?? string.Empty;
@@ -461,8 +470,6 @@ namespace GUI.Types.Exporter
 
         private async Task ExtractSubfilesAsync(string contentRelativeFolder, ContentFile contentFile, CancellationToken cancellationToken)
         {
-            var outputPath = OutputPath;
-
             foreach (var contentSubFile in contentFile.SubFiles)
             {
                 cancellationToken.ThrowIfCancellationRequested();
@@ -494,9 +501,15 @@ namespace GUI.Types.Exporter
                 if (subFileData.Length > 0)
                 {
                     extractedFiles.Add(contentSubFile.FileName);
-                    await WriteFileAsync(CombineAssetFolder(outputPath, contentSubFile.FileName), subFileData, cancellationToken).ConfigureAwait(false);
+                    await WriteAssetFileAsync(contentSubFile.FileName, subFileData, cancellationToken).ConfigureAwait(false);
                 }
             }
+        }
+
+        private Task WriteAssetFileAsync(string assetName, byte[] data, CancellationToken cancellationToken)
+        {
+            progress?.SetProgress($"+ {assetName}");
+            return WriteFileAsync(CombineAssetFolder(OutputPath, assetName), data, cancellationToken);
         }
 
         private Task WriteFileAsync(string outFilePath, byte[] data, CancellationToken cancellationToken)

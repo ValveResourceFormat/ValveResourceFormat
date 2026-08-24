@@ -28,7 +28,7 @@ namespace GUI.Types.Exporter
 
         public static async Task ExtractFileFromStream(string fileName, Stream stream, VrfGuiContext vrfGuiContext, bool decompile)
         {
-            if (!await PreExportDisclaimer(Path.GetExtension(fileName)).ConfigureAwait(true))
+            if (decompile && !await PreExportDisclaimer(Path.GetExtension(fileName)).ConfigureAwait(true))
             {
                 return;
             }

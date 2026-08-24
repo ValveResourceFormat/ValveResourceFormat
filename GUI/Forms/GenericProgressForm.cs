@@ -7,35 +7,43 @@ namespace GUI.Forms
 {
     partial class GenericProgressForm : ThemedForm, IProgress<string>
     {
-        private static readonly TimeSpan UpdateInterval = TimeSpan.FromMilliseconds(500);
-
         private readonly CancellationTokenSource cancellationTokenSource = new();
+        private readonly System.Windows.Forms.Timer updateTimer = new() { Interval = 500 };
         private string? pendingText;
         private int pendingBarValue = -1;
         private int pendingBarMax = -1;
         private long startTimestamp;
         private string? baseTitle;
-        private int updateQueued;
-        private long lastUpdate;
-        private long lastTextUpdate;
+        private bool completed;
 
         public Func<CancellationToken, Task>? OnProcess { get; set; }
+
+        /// <summary>
+        /// When set, the dialog stays open after the work completes and shows a completed state instead of closing itself.
+        /// </summary>
+        public bool StayOpenOnCompletion { get; set; }
+
+        /// <summary>
+        /// Time elapsed since the dialog was shown.
+        /// </summary>
+        internal TimeSpan Elapsed => Stopwatch.GetElapsedTime(startTimestamp);
 
         public GenericProgressForm()
         {
             InitializeComponent();
+
+            updateTimer.Tick += (_, _) => ApplyPendingUpdate();
         }
 
         public void Report(string value) => SetProgress(value);
 
         /// <summary>
-        /// Stores the latest status text. The label is updated at most every 500ms and only the most recent text is shown,
+        /// Stores the latest status text. Pending values are applied on a timer and only the most recent text is shown,
         /// so this is safe to call from any thread at any rate.
         /// </summary>
         public void SetProgress(string text)
         {
             Volatile.Write(ref pendingText, text);
-            QueueUpdate(isText: true);
         }
 
         /// <summary>
@@ -44,7 +52,6 @@ namespace GUI.Forms
         public void SetBarValue(int value)
         {
             Volatile.Write(ref pendingBarValue, value);
-            QueueUpdate(isText: false);
         }
 
         /// <summary>
@@ -53,55 +60,10 @@ namespace GUI.Forms
         public void SetBarMax(int count)
         {
             Volatile.Write(ref pendingBarMax, count);
-            QueueUpdate(isText: false);
-        }
-
-        private void QueueUpdate(bool isText)
-        {
-            if (!IsHandleCreated || cancellationTokenSource.IsCancellationRequested)
-            {
-                return;
-            }
-
-            var now = Stopwatch.GetTimestamp();
-
-            // Text is throttled separately from bar values, otherwise a bar update posted just before
-            // the first text would consume the slot and leave the text pending until the next file
-            var last = isText ? Volatile.Read(ref lastTextUpdate) : Volatile.Read(ref lastUpdate);
-
-            if (Stopwatch.GetElapsedTime(last, now) < UpdateInterval)
-            {
-                return;
-            }
-
-            if (isText)
-            {
-                Volatile.Write(ref lastTextUpdate, now);
-            }
-
-            Volatile.Write(ref lastUpdate, now);
-
-            if (Interlocked.Exchange(ref updateQueued, 1) != 0)
-            {
-                // An apply is already queued and will pick up the pending values
-                return;
-            }
-
-            try
-            {
-                BeginInvoke(ApplyPendingUpdate);
-            }
-            catch (InvalidOperationException)
-            {
-                // Handle was destroyed between the check and the post
-                Volatile.Write(ref updateQueued, 0);
-            }
         }
 
         private void ApplyPendingUpdate()
         {
-            Volatile.Write(ref updateQueued, 0);
-
             if (IsDisposed)
             {
                 return;
@@ -116,7 +78,8 @@ namespace GUI.Forms
 
             var barMax = Interlocked.Exchange(ref pendingBarMax, -1);
 
-            if (barMax >= 0)
+            // A single unit of work has no meaningful progression, keep the marquee
+            if (barMax > 1)
             {
                 extractProgressBar.Style = ProgressBarStyle.Blocks;
                 extractProgressBar.Maximum = barMax;
@@ -140,6 +103,13 @@ namespace GUI.Forms
             }
 
             var elapsed = Stopwatch.GetElapsedTime(startTimestamp);
+
+            if (completed)
+            {
+                Text = $"{baseTitle} (completed in {FormatTime(elapsed)})";
+                return;
+            }
+
             var value = extractProgressBar.Value;
             var max = extractProgressBar.Maximum;
 
@@ -153,7 +123,7 @@ namespace GUI.Forms
             Text = $"{baseTitle} {value * 100 / max}% ({FormatTime(elapsed)} elapsed, ~{FormatTime(remaining)} left)";
         }
 
-        private static string FormatTime(TimeSpan time)
+        internal static string FormatTime(TimeSpan time)
         {
             return time.TotalHours >= 1
                 ? time.ToString(@"h\:mm\:ss")
@@ -167,6 +137,7 @@ namespace GUI.Forms
 
             // Show anything that was set before the handle existed
             ApplyPendingUpdate();
+            updateTimer.Start();
 
             Task.Run(
                 () => OnProcess?.Invoke(cancellationTokenSource.Token) ?? Task.CompletedTask,
@@ -188,13 +159,30 @@ namespace GUI.Forms
 
                     if (!t.IsCanceled)
                     {
-                        Invoke(Close);
+                        Invoke(StayOpenOnCompletion ? ShowCompleted : Close);
                     }
                 });
         }
 
+        private void ShowCompleted()
+        {
+            updateTimer.Stop();
+            completed = true;
+
+            // Flush the last reported text and render the completed title
+            ApplyPendingUpdate();
+
+            extractProgressBar.Style = ProgressBarStyle.Blocks;
+            extractProgressBar.Value = extractProgressBar.Maximum;
+            cancelButton.Text = "Close";
+
+            // Let Escape close the dialog once the work is done
+            CancelButton = cancelButton;
+        }
+
         protected override void OnFormClosing(FormClosingEventArgs e)
         {
+            updateTimer.Stop();
             cancellationTokenSource.Cancel();
             base.OnFormClosing(e);
         }
