@@ -534,23 +534,20 @@ namespace GUI.Types.Exporter
 
         private static string CombineAssetFolder(string userFolder, string assetName)
         {
-            var assetFolders = assetName.Split('/')[..^1];
-            var userFolders = userFolder.Split(Path.DirectorySeparatorChar);
+            var normalized = userFolder.Replace(Path.DirectorySeparatorChar, '/');
 
-            var leftChop = 0;
-
-            foreach (var i in Enumerable.Range(0, assetFolders.Length))
+            // Chop the longest run of leading asset folders that the user folder already ends with
+            for (var slash = assetName.LastIndexOf('/'); slash > 0; slash = assetName.LastIndexOf('/', slash - 1))
             {
-                if (Enumerable.SequenceEqual(
-                    assetFolders.Reverse().Skip(i),
-                    userFolders.Reverse().Take(assetFolders.Length - i)
-                ))
+                if (normalized.Length >= slash
+                    && normalized.AsSpan(normalized.Length - slash).SequenceEqual(assetName.AsSpan(0, slash))
+                    && (normalized.Length == slash || normalized[normalized.Length - slash - 1] == '/'))
                 {
-                    leftChop = assetFolders.Reverse().Skip(i).Sum(static x => x.Length + 1);
+                    return Path.Combine(userFolder, assetName[(slash + 1)..]);
                 }
             }
 
-            return Path.Combine(userFolder, assetName[leftChop..]);
+            return Path.Combine(userFolder, assetName);
         }
     }
 }
