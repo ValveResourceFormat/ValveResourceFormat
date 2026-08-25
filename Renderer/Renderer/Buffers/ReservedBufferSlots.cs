@@ -60,6 +60,12 @@ public enum ReservedBufferSlots
     QuadOverdraw = 13,
     /// <summary>Meshlet index of each aggregate indirect draw command SSBO slot.</summary>
     AggregateCommandMeshlets = 14,
+    /// <summary>Packed MSLT entries the mesh shader decodes into triangles.</summary>
+    MeshletPackedIndices = 15,
+    /// <summary>Per meshlet vertex and triangle ranges the mesh shader dispatches over.</summary>
+    MeshletDescriptors = 16,
+    /// <summary>The drawn geometry's vertex buffer, read as raw words by the mesh shader.</summary>
+    MeshletVertexBuffer = 17,
 
     /// <summary>Guaranteed minimum binding point count in OpenGL 4.6.</summary>
     Max = 8,

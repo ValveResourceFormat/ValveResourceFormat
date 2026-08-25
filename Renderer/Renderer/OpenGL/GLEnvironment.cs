@@ -48,6 +48,29 @@ public static class GLEnvironment
     public static bool SlowMultiDrawIndirect { get; private set; }
 
     /// <summary>
+    /// Indicates whether the driver can run mesh shaders.
+    /// </summary>
+    public static bool MeshShaderSupported { get; private set; }
+
+    /// <summary>
+    /// The GLSL extension the mesh shader stage is written against, empty when there is none.
+    /// <c>GL_EXT_mesh_shader</c> is what Source 2 itself compiles against and is preferred, but it dispatches
+    /// through <c>glDrawMeshTasksEXT</c>, which the GL bindings do not expose, so it is only taken when
+    /// <c>GL_NV_mesh_shader</c> and its <c>glDrawMeshTasksNV</c> are absent.
+    /// </summary>
+    public static string MeshShaderExtension { get; private set; } = string.Empty;
+
+    /// <summary>
+    /// Most vertices one mesh shader workgroup may emit, or 0 when mesh shaders are unsupported.
+    /// </summary>
+    public static int MaxMeshOutputVertices { get; private set; }
+
+    /// <summary>
+    /// Most primitives one mesh shader workgroup may emit, or 0 when mesh shaders are unsupported.
+    /// </summary>
+    public static int MaxMeshOutputPrimitives { get; private set; }
+
+    /// <summary>
     /// Gets the GPU renderer name and driver version string.
     /// </summary>
     public static string? GpuRendererAndDriver { get; private set; }
@@ -95,6 +118,38 @@ public static class GLEnvironment
         SlowMultiDrawIndirect = (vendor == "Intel"
             && (renderer.Contains("Intel(R) HD", StringComparison.Ordinal) || renderer.Contains("Intel(R) UHD", StringComparison.Ordinal)))
             || renderer.Contains("llvmpipe", StringComparison.Ordinal);
+
+        var meshShaderNv = extensions.Contains("GL_NV_mesh_shader");
+
+        if (meshShaderNv)
+        {
+            MeshShaderExtension = "GL_NV_mesh_shader";
+        }
+        else if (extensions.Contains("GL_EXT_mesh_shader"))
+        {
+            MeshShaderExtension = "GL_EXT_mesh_shader";
+        }
+
+        if (MeshShaderExtension.Length > 0)
+        {
+            // The two extensions share these limits, and only the one that is enabled answers the query
+            MaxMeshOutputVertices = GL.GetInteger((GetPName)NvMeshShader.MaxMeshOutputVerticesNv);
+            MaxMeshOutputPrimitives = GL.GetInteger((GetPName)NvMeshShader.MaxMeshOutputPrimitivesNv);
+
+            MeshShaderSupported = meshShaderNv
+                && MaxMeshOutputVertices >= MeshletLimits.MaxVertices
+                && MaxMeshOutputPrimitives >= MeshletLimits.MaxPrimitives;
+
+            if (!meshShaderNv)
+            {
+                logger.LogWarning("{Extension} is available but drawing through it needs glDrawMeshTasksEXT, which is not bound", MeshShaderExtension);
+            }
+            else if (!MeshShaderSupported)
+            {
+                logger.LogWarning("{Extension} caps out at {Vertices} vertices and {Primitives} primitives per meshlet, which is below what Source 2 meshlets need",
+                    MeshShaderExtension, MaxMeshOutputVertices, MaxMeshOutputPrimitives);
+            }
+        }
 
         if (extensions.Contains("GL_KHR_parallel_shader_compile"))
         {

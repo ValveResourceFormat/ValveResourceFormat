@@ -5,6 +5,22 @@ using ValveResourceFormat.Serialization.KeyValues;
 namespace ValveResourceFormat.Renderer
 {
     /// <summary>
+    /// Bounds a mesh shader workgroup has to declare up front. The encoder that produced the MSLT block packs
+    /// well under these, and a meshlet that did not fit is skipped rather than clipped.
+    /// </summary>
+    public static class MeshletLimits
+    {
+        /// <summary>Most vertices one meshlet may hold.</summary>
+        public const int MaxVertices = 128;
+
+        /// <summary>Most triangles one meshlet may hold.</summary>
+        public const int MaxPrimitives = 128;
+
+        /// <summary>Invocations per meshlet workgroup, one wave on the hardware this targets.</summary>
+        public const int GroupSize = 32;
+    }
+
+    /// <summary>
     /// Small group of triangles on a mesh used for low level culling
     /// </summary>
     [StructLayout(LayoutKind.Sequential, Pack = 16)]

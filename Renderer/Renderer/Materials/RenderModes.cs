@@ -61,6 +61,7 @@ namespace ValveResourceFormat.Renderer.Materials
             new("ShaderId"),
             new("ShaderProgramId"),
             new("Meshlets"),
+            new("MeshShader"),
 
             new("Debug", IsHeader: true),
             new("LightTiles"),

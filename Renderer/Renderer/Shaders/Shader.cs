@@ -199,7 +199,8 @@ namespace ValveResourceFormat.Renderer.Shaders
             IgnoreMaterialData = Name is "picking"
                                       or "outline"
                                       or "depth_only"
-                                      or "quad_overdraw";
+                                      or "quad_overdraw"
+                                      or "meshlet";
         }
 
         /// <summary>Ensures the shader program has been linked and its uniforms have been cached.</summary>

@@ -347,7 +347,8 @@ namespace ValveResourceFormat.Renderer.Shaders
         {
             { ShaderProgramType.Vertex, "vert" },
             { ShaderProgramType.Fragment, "frag" },
-            { ShaderProgramType.Compute, "comp" }
+            { ShaderProgramType.Compute, "comp" },
+            { ShaderProgramType.Mesh, "mesh" }
         };
 
         internal static readonly Dictionary<string, ShaderProgramType> ExtensionToProgramType = ProgramTypeToExtension
@@ -359,7 +360,7 @@ namespace ValveResourceFormat.Renderer.Shaders
             return ExtensionToProgramType.GetValueOrDefault(ext, ShaderProgramType.Max);
         }
 
-        /// <summary>Gets the map from shader base names to a bool array indicating which pipeline stages (vertex, fragment, compute) exist in a mounted shader directory, on disk, or in the assembly manifest.</summary>
+        /// <summary>Gets the map from shader base names to a bool array indicating which pipeline stages (vertex, fragment, compute, mesh) exist in a mounted shader directory, on disk, or in the assembly manifest.</summary>
         public Dictionary<string, bool[]> AvailableShaders { get; private set; }
 
         /// <summary>Initializes a new instance of the <see cref="ShaderParser"/> class and discovers all available shader files.</summary>
@@ -387,7 +388,7 @@ namespace ValveResourceFormat.Renderer.Shaders
 
                 if (!availableShaders.TryGetValue(shaderName, out var stages))
                 {
-                    stages = new bool[3];
+                    stages = new bool[(int)ShaderProgramType.Max];
                     availableShaders[shaderName] = stages;
                 }
 

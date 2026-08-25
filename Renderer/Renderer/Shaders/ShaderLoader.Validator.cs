@@ -30,7 +30,8 @@ namespace ValveResourceFormat.Renderer.Shaders
 
             var vertShaders = Directory.GetFiles(folder, "*.vert.slang");
             var compShaders = Directory.GetFiles(folder, "*.comp.slang");
-            var allShaders = vertShaders.Concat(compShaders).ToArray();
+            var meshShaders = Directory.GetFiles(folder, "*.mesh.slang");
+            var allShaders = vertShaders.Concat(compShaders).Concat(meshShaders).ToArray();
 
             if (filter != null)
             {
@@ -44,6 +45,13 @@ namespace ValveResourceFormat.Renderer.Shaders
 
             GLEnvironment.Initialize(renderContext.Logger);
             GLEnvironment.EnableParallelShaderCompile();
+
+            if (!GLEnvironment.MeshShaderSupported && meshShaders.Length > 0)
+            {
+                // Nothing here can compile a stage the driver does not have
+                progressReporter.Report($"Skipping {meshShaders.Length} mesh shaders, this driver has no mesh shader support");
+                allShaders = [.. allShaders.Except(meshShaders)];
+            }
 
             var validatedCount = 0;
             HashSet<string> reportedLinkLogs = [];
@@ -126,11 +134,23 @@ namespace ValveResourceFormat.Renderer.Shaders
                     return;
                 }
 
+                var shaderFileName = GetShaderFileByName(shaderName);
+                var parsed = GetOrParseShader(shaderFileName);
+
+                if (parsed.Sources.ContainsKey(ShaderProgramType.Mesh))
+                {
+                    // Only the extension spelling the driver exposes can compile, so the other value of
+                    // D_MESH_SHADER_EXT is not a variant to sweep over
+                    Compile(shaderName, new Dictionary<string, byte>
+                    {
+                        ["D_MESH_SHADER_EXT"] = GLEnvironment.MeshShaderExtension == "GL_EXT_mesh_shader" ? (byte)1 : (byte)0,
+                    });
+                    return;
+                }
+
                 Compile(shaderName);
 
                 // Test all defines one by one
-                var shaderFileName = GetShaderFileByName(shaderName);
-                var parsed = GetOrParseShader(shaderFileName);
                 var defines = parsed.Defines.Where(static x => !x.Key.StartsWith("GameVfx_", StringComparison.Ordinal)).ToDictionary();
                 var variants = parsed.Defines.Keys.Where(static x => x.StartsWith("GameVfx_", StringComparison.Ordinal));
                 var sourceLines = parsed.SourceFileLines;

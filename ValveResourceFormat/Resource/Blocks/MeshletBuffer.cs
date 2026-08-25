@@ -19,6 +19,26 @@ public class MeshletBuffer : RawBinary
     public override BlockType Type => BlockType.MSLT;
 
     /// <summary>
+    /// Gets the number of packed entries the block holds.
+    /// </summary>
+    public int EntryCount => (int)(Size / sizeof(uint));
+
+    /// <summary>
+    /// Reads every packed entry, for handing the block to a mesh shader that decodes it itself.
+    /// </summary>
+    /// <param name="entries">Receives <see cref="EntryCount"/> entries.</param>
+    public void ReadPackedEntries(Span<uint> entries)
+    {
+        if (Resource?.Reader == null)
+        {
+            throw new InvalidOperationException("Resource reader is required to lazily read meshlet data.");
+        }
+
+        Resource.Reader.BaseStream.Position = Offset;
+        Resource.Reader.Read(MemoryMarshal.AsBytes(entries));
+    }
+
+    /// <summary>
     /// Decodes a single meshlet into its vertex list and its local triangle index buffer.
     /// </summary>
     /// <param name="entryOffset">Uint offset of the meshlet's entries: the summed <c>m_nVertexCount</c> of preceding meshlets (distinct from <c>m_nVertexOffset</c>).</param>

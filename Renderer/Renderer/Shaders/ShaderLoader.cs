@@ -23,8 +23,10 @@ namespace ValveResourceFormat.Renderer.Shaders
         Fragment = 1,
         /// <summary>Compute shader stage.</summary>
         Compute = 2,
+        /// <summary>Mesh shader stage, replacing the vertex stage on drivers that expose it.</summary>
+        Mesh = 3,
         /// <summary>Sentinel value equal to the number of shader stages.</summary>
-        Max = 3,
+        Max = 4,
     }
 
     /// <summary>
@@ -221,9 +223,11 @@ namespace ValveResourceFormat.Renderer.Shaders
                 ?? throw new FileNotFoundException($"Shader '{shaderFileName}' does not exist.");
 
             if (availableStages.Length == 0
-            || availableStages[(int)ShaderProgramType.Vertex] == false && availableStages[(int)ShaderProgramType.Compute] == false)
+            || availableStages[(int)ShaderProgramType.Vertex] == false
+            && availableStages[(int)ShaderProgramType.Compute] == false
+            && availableStages[(int)ShaderProgramType.Mesh] == false)
             {
-                throw new InvalidDataException($"Shader '{shaderFileName}' does not have a vertex or compute stage.");
+                throw new InvalidDataException($"Shader '{shaderFileName}' does not have a vertex, compute or mesh stage.");
             }
 
             foreach (var (@type, extension) in ShaderParser.ProgramTypeToExtension)
@@ -351,6 +355,17 @@ namespace ValveResourceFormat.Renderer.Shaders
 
             header.Append("#extension GL_KHR_shader_subgroup_arithmetic : enable\n");
             header.Append("#extension GL_KHR_shader_subgroup_vote : enable\n");
+
+            // The mesh stage cannot ask for this itself: hoisted directives ignore the preprocessor, so
+            // a source naming both the EXT and the NV spelling would enable the one the driver lacks.
+            // Enabled rather than required because the header is shared with the fragment stage.
+            if (parsedData.Sources.ContainsKey(ShaderProgramType.Mesh) && GLEnvironment.MeshShaderExtension.Length > 0)
+            {
+                header.Append("#extension ");
+                header.Append(GLEnvironment.MeshShaderExtension);
+                header.Append(" : enable");
+                header.Append('\n');
+            }
 
             foreach (var extension in parsedData.Extensions)
             {

@@ -28,6 +28,8 @@ namespace GUI.Types.GLViewers
 
         protected QuadOverdraw? QuadOverdrawRenderer { get; set; }
 
+        protected MeshletRenderer? MeshShaderRenderer { get; set; }
+
         public Scene Scene { get; }
         public Scene? SkyboxScene => Renderer.SkyboxScene;
         public VrfGuiContext GuiContext;
@@ -376,6 +378,9 @@ namespace GUI.Types.GLViewers
             QuadOverdrawRenderer = new(Scene.RendererContext);
             QuadOverdrawRenderer.Load();
 
+            MeshShaderRenderer = new(Scene.RendererContext);
+            MeshShaderRenderer.Load();
+
             Renderer.ShadowTextureSize = Settings.Config.ShadowResolution;
             Renderer.Initialize();
 
@@ -685,6 +690,10 @@ namespace GUI.Types.GLViewers
                 {
                     renderContext.ReplacementShader = Picker.DebugShader;
                 }
+                else if (MeshShaderRenderer?.IsActive == true)
+                {
+                    renderContext.MeshletShader = MeshShaderRenderer.Shader;
+                }
                 else if (QuadOverdrawRenderer?.IsActive == true)
                 {
                     QuadOverdrawRenderer.Prepare(MainFramebuffer.Width, MainFramebuffer.Height);
@@ -947,6 +956,11 @@ namespace GUI.Types.GLViewers
                     supportedRenderModes.UnionWith(QuadOverdrawRenderer.SceneShader.RenderModes);
                 }
 
+                if (MeshletRenderer.IsSupported && MeshShaderRenderer != null)
+                {
+                    supportedRenderModes.UnionWith(MeshShaderRenderer.Shader.RenderModes);
+                }
+
                 foreach (var node in Scene.AllNodes)
                 {
                     supportedRenderModes.UnionWith(node.GetSupportedRenderModes());
@@ -1016,6 +1030,7 @@ namespace GUI.Types.GLViewers
 
             Picker.SetRenderMode(renderMode);
             QuadOverdrawRenderer?.SetRenderMode(renderMode);
+            MeshShaderRenderer?.SetRenderMode(renderMode);
             SelectedNodeRenderer.SetRenderMode(renderMode);
 
             foreach (var node in Scene.AllNodes)

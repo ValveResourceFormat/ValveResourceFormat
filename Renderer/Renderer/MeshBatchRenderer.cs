@@ -83,6 +83,16 @@ namespace ValveResourceFormat.Renderer
         /// <param name="context">Render context describing the current pass and scene state.</param>
         public static void Render(List<Request> requests, Scene.RenderContext context)
         {
+            // Only the passes that shade take the mesh path. The depth prepass and the shadow maps keep
+            // drawing the whole scene through their own replacement shaders, so geometry the mesh shader
+            // cannot draw still occludes and still casts.
+            if (context.MeshletShader is { } meshletShader && context.ReplacementShader == null
+                && context.DepthOnlyShader == null && context.OverdrawShader == null)
+            {
+                MeshletRenderer.DrawBatch(requests, context, meshletShader);
+                return;
+            }
+
             // Material-ignoring replacement shaders draw without applying render state, so a scope
             // latches the pass baseline for them.
             using var batchScope = context.ReplacementShader?.IgnoreMaterialData == true

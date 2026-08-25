@@ -18,6 +18,7 @@ namespace ValveResourceFormat.Renderer
         private readonly RendererContext RendererContext;
         private readonly Dictionary<string, GPUMeshBuffers> gpuBuffers = [];
         private readonly Dictionary<VAOKey, int> vertexArrayObjects = [];
+        private readonly Dictionary<string, MeshletBuffers?> meshletBuffers = [];
 
         /// <summary>Gets the number of distinct vertex array objects currently cached.</summary>
         public int VertexArrayObjectCount => vertexArrayObjects.Count;
@@ -96,11 +97,34 @@ namespace ValveResourceFormat.Renderer
             ], inputSignature, vbib.IndexBuffers.Count > 0 ? gpuVbib.IndexBuffers[0] : 0, meshName);
         }
 
+        /// <summary>Returns the cached meshlet buffers for the named mesh, uploading them on first use, or
+        /// <see langword="null"/> when the mesh carries nothing a mesh shader could draw.</summary>
+        /// <param name="meshName">Unique name identifying the mesh.</param>
+        /// <param name="meshlets">The mesh's meshlets, in the order they were read.</param>
+        /// <param name="packedIndices">The mesh resource's MSLT block, if it has one.</param>
+        public MeshletBuffers? GetMeshletBuffers(string meshName, List<Meshlet> meshlets, MeshletBuffer? packedIndices)
+        {
+            if (!meshletBuffers.TryGetValue(meshName, out var buffers))
+            {
+                buffers = MeshletBuffers.Create(meshName, meshlets, packedIndices);
+                meshletBuffers.Add(meshName, buffers);
+            }
+
+            return buffers;
+        }
+
         /// <summary>
         /// Disposes any cached gpu buffers and frees gpu vertex arrays.
         /// </summary>
         public void Clear()
         {
+            foreach (var meshlets in meshletBuffers.Values)
+            {
+                meshlets?.Delete();
+            }
+
+            meshletBuffers.Clear();
+
             foreach (var item in gpuBuffers)
             {
                 item.Value.Delete();
@@ -120,6 +144,11 @@ namespace ValveResourceFormat.Renderer
         /// <param name="meshName">Unique name identifying the mesh to delete.</param>
         public void DeleteVertexIndexBuffers(string meshName)
         {
+            if (meshletBuffers.Remove(meshName, out var meshlets))
+            {
+                meshlets?.Delete();
+            }
+
             if (gpuBuffers.TryGetValue(meshName, out var gpuVbib))
             {
                 gpuVbib.Delete();

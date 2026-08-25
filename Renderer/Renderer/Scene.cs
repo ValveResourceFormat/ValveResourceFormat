@@ -81,6 +81,10 @@ namespace ValveResourceFormat.Renderer
             /// <summary>Gets or sets the fallback counting shader, set for the pass that counts quad overdraw.</summary>
             public Shader? OverdrawShader { get; set; }
 
+            /// <summary>Gets or sets the mesh shader that draws meshlet carrying geometry, set for the pass
+            /// that mesh shades. Geometry without meshlets does not draw in that pass.</summary>
+            public Shader? MeshletShader { get; set; }
+
             /// <summary>Gets the list of scene-level textures bound to reserved texture slots.</summary>
             public required List<(ReservedTextureSlots Slot, string Name, RenderTexture Texture)> Textures { get; init; }
         }

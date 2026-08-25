@@ -28,6 +28,10 @@ namespace ValveResourceFormat.Renderer
         /// <summary>Gets the list of meshlets for GPU-driven indirect culling.</summary>
         public List<Meshlet> Meshlets { get; } = [];
 
+        /// <summary>Gets the MSLT block and meshlet table on the GPU, or <see langword="null"/> when the mesh
+        /// carries nothing a mesh shader could draw it from.</summary>
+        public MeshletBuffers? MeshletBuffers { get; }
+
         /// <summary>Gets the opaque draw calls for this mesh.</summary>
         public List<DrawCall> DrawCallsOpaque { get; } = [];
 
@@ -108,6 +112,9 @@ namespace ValveResourceFormat.Renderer
 
             var meshSceneObjects = mesh.Data.GetArray("m_sceneObjects");
             ConfigureDrawCalls(scene, vbib, meshSceneObjects, initialMaterialTable, isAggregate);
+
+            MeshletBuffers = renderContext.MeshBufferCache.GetMeshletBuffers(Name, Meshlets,
+                mesh.Resource?.GetBlockByType(BlockType.MSLT) as MeshletBuffer);
 
             if (morph != null)
             {

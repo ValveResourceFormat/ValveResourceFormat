@@ -26,6 +26,7 @@ public static class GLGraphicsTypeExtensions
         ShaderProgramType.Vertex => ShaderType.VertexShader,
         ShaderProgramType.Fragment => ShaderType.FragmentShader,
         ShaderProgramType.Compute => ShaderType.ComputeShader,
+        ShaderProgramType.Mesh => (ShaderType)NvMeshShader.MeshShaderNv,
         _ => throw new NotImplementedException($"Unsupported shader stage {stage}"),
     };
 

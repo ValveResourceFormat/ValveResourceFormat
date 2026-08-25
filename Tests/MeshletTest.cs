@@ -166,6 +166,66 @@ namespace Tests
             }
         }
 
+        // The mesh shader dispatches over the meshlet table alone, so it needs the entry offset from the
+        // descriptor rather than by summing the table. m_nTriangleOffset carries exactly that running sum.
+        [Test]
+        public async Task TriangleOffsetIsTheMsltEntryOffset()
+        {
+            var (loaded, meshlets, _) = await Read();
+            using var resource = loaded;
+
+            var entryOffset = 0;
+
+            foreach (var meshlet in meshlets)
+            {
+                await Assert.That(meshlet.TriangleOffset).IsEqualTo(entryOffset);
+                entryOffset += meshlet.VertexCount;
+            }
+        }
+
+        // Below 65 vertices the sliding window never wraps, so every reference decodes to itself. The mesh
+        // shader leans on that to decode those meshlets across the whole workgroup instead of walking the
+        // triangle stream in order on one invocation.
+        [Test]
+        public async Task ReferencesDecodeToThemselvesBelowTheWindowSize()
+        {
+            var (loaded, meshlets, mslt) = await Read();
+            using var resource = loaded;
+            var block = (MeshletBuffer)resource.GetBlockByType(BlockType.MSLT)!;
+            var words = MemoryMarshal.Cast<byte, uint>(mslt).ToArray();
+
+            var small = 0;
+
+            for (var i = 0; i < meshlets.Count; i++)
+            {
+                var meshlet = meshlets[i];
+
+                if (meshlet.VertexCount > 64)
+                {
+                    continue;
+                }
+
+                small++;
+
+                var vertices = new int[meshlet.VertexCount];
+                var indices = new int[meshlet.TriangleCount * 3];
+                block.DecodeMeshlet(meshlet.TriangleOffset, meshlet.VertexCount, meshlet.TriangleCount, vertices, indices);
+
+                for (var t = 0; t < meshlet.TriangleCount; t++)
+                {
+                    var triangle = words[meshlet.TriangleOffset + t] & 0x3FFFFu;
+
+                    for (var k = 0; k < 3; k++)
+                    {
+                        var reference = (int)((triangle >> (6 * k)) & 0x3F);
+                        await Assert.That(indices[t * 3 + k]).IsEqualTo(reference).Because($"meshlet {i} triangle {t} reference {k}");
+                    }
+                }
+            }
+
+            await Assert.That(small).IsGreaterThan(0);
+        }
+
         // Ground truth: meshlet 0 has an identity vertex list, so resolving its local indices through the
         // vertex list must reproduce the real index buffer (MIDX). Validates the window/wrap and the interop.
         [Test]
