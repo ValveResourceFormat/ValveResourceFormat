@@ -150,21 +150,18 @@ public static class GLEnvironment
         if (MeshShaderExtension.Length > 0)
         {
             // The EXT tokens alias the NV ones, so one query answers for either extension
-            MaxMeshOutputVertices = GL.GetInteger((GetPName)NvMeshShader.MaxMeshOutputVerticesNv);
-            MaxMeshOutputPrimitives = GL.GetInteger((GetPName)NvMeshShader.MaxMeshOutputPrimitivesNv);
+            MaxMeshOutputVertices = GetMeshShaderLimit(NvMeshShader.MaxMeshOutputVerticesNv, 256);
+            MaxMeshOutputPrimitives = GetMeshShaderLimit(NvMeshShader.MaxMeshOutputPrimitivesNv, 256);
 
             // EXT counts workgroups per dimension instead and has no equivalent of this one, so an EXT only
-            // driver takes the smallest count the spec lets an implementation report
-            MaxDrawMeshTasks = meshShaderNv ? GL.GetInteger((GetPName)NvMeshShader.MaxDrawMeshTasksCountNv) : 65535;
+            // driver falls back to the smallest count the spec lets an implementation report
+            MaxDrawMeshTasks = GetMeshShaderLimit(NvMeshShader.MaxDrawMeshTasksCountNv, 65535);
 
             MeshShaderSupported = MaxMeshOutputVertices >= MeshletLimits.MaxVertices
                 && MaxMeshOutputPrimitives >= MeshletLimits.MaxPrimitives;
 
-            if (!MeshShaderSupported)
-            {
-                logger.LogWarning("{Extension} caps out at {Vertices} vertices and {Primitives} primitives per meshlet, which is below what Source 2 meshlets need",
-                    MeshShaderExtension, MaxMeshOutputVertices, MaxMeshOutputPrimitives);
-            }
+            logger.LogDebug("{Extension}: {Vertices} vertices and {Primitives} primitives per meshlet, {Tasks} workgroups per draw",
+                MeshShaderExtension, MaxMeshOutputVertices, MaxMeshOutputPrimitives, MaxDrawMeshTasks);
         }
 
         if (extensions.Contains("GL_KHR_parallel_shader_compile"))
@@ -183,6 +180,21 @@ public static class GLEnvironment
 #if DEBUG
         MaxLabelLength = GL.GetInteger(GetPName.MaxLabelLength) - 1;
 #endif
+    }
+
+    /// <summary>
+    /// Reads one mesh shader limit. Both extensions guarantee a floor for each of these, so a driver that
+    /// answers the query with an error rather than a number (some do) reports the guaranteed value instead
+    /// of leaving the limit at zero, which would read as a device far below what the extension promises.
+    /// </summary>
+    private static int GetMeshShaderLimit(NvMeshShader parameter, int guaranteed)
+    {
+        var value = GL.GetInteger((GetPName)parameter);
+
+        // Also clears the flag, so an unanswered query does not surface later as a stray error
+        var error = GL.GetError();
+
+        return error == ErrorCode.NoError && value > 0 ? value : guaranteed;
     }
 
     private static unsafe bool TryBindDrawMeshTasksExt()
