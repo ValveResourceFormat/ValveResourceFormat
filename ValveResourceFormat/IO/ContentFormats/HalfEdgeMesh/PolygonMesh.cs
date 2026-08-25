@@ -1705,7 +1705,7 @@ public sealed class PolygonMesh
     /// <param name="maxDistance">Largest distance between two vertices that still get merged, negative merges all of them into one.</param>
     /// <param name="averagePositions">Move each merged vertex to the average of the positions it merged, otherwise the first vertex of a group keeps its position.</param>
     /// <param name="finalVertices">The vertices left over after merging.</param>
-    /// <returns>Number of vertices merged away.</returns>
+    /// <returns>Number of vertices that took part in a merge, counting the surviving vertex of each group.</returns>
     public int MergeVerticesWithinDistance(IReadOnlyList<VertexHandle> originalVertices, float maxDistance, bool averagePositions, out List<VertexHandle> finalVertices)
     {
         finalVertices = [];

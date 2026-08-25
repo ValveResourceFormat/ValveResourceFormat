@@ -15,6 +15,7 @@ namespace GUI.Forms
         private long startTimestamp;
         private string? baseTitle;
         private bool completed;
+        private Task? workCompletion;
 
         public Func<CancellationToken, Task>? OnProcess { get; set; }
 
@@ -27,6 +28,12 @@ namespace GUI.Forms
         /// Time elapsed since the dialog was shown.
         /// </summary>
         internal TimeSpan Elapsed => Stopwatch.GetElapsedTime(startTimestamp);
+
+        /// <summary>
+        /// Completes once the work has actually stopped, which on cancellation is after the dialog has already closed.
+        /// Await this before disposing anything the work reads from. Never faults, failures are reported to the user.
+        /// </summary>
+        internal Task WorkCompletion => workCompletion ?? Task.CompletedTask;
 
         public GenericProgressForm()
         {
@@ -139,7 +146,7 @@ namespace GUI.Forms
             ApplyPendingUpdate();
             updateTimer.Start();
 
-            Task.Run(
+            workCompletion = Task.Run(
                 () => OnProcess?.Invoke(cancellationTokenSource.Token) ?? Task.CompletedTask,
                 cancellationTokenSource.Token)
                 .ContinueWith((t) =>
@@ -157,11 +164,27 @@ namespace GUI.Forms
                         }
                     }
 
-                    if (!t.IsCanceled)
+                    try
                     {
-                        Invoke(StayOpenOnCompletion ? ShowCompleted : Close);
+                        Invoke(OnWorkFinished);
+                    }
+                    catch (InvalidOperationException)
+                    {
+                        // The dialog was destroyed before the worker stopped, nothing left to update
                     }
                 });
+        }
+
+        private void OnWorkFinished()
+        {
+            // Cancelling already closed the dialog, there is no completed state to show for work that did not finish
+            if (cancellationTokenSource.IsCancellationRequested || !StayOpenOnCompletion)
+            {
+                Close();
+                return;
+            }
+
+            ShowCompleted();
         }
 
         private void ShowCompleted()

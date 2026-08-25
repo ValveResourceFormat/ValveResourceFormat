@@ -134,19 +134,21 @@ namespace GUI.Types.Exporter
 
             path = selectedPath;
 
-            RunInDialog(ExtractQueuedFilesAsync, null);
+            // Nothing outside the export owns the files it reads, so there is nothing to wait for here
+            RunInDialog(ExtractQueuedFilesAsync, null, out _);
         }
 
         /// <summary>
         /// Extracts a single already-read resource to <paramref name="outFilePath"/>, including any additional and sub files,
         /// behind a modal progress dialog.
         /// </summary>
-        public void ExecuteSingleFileExtract(Resource resource, string inFilePath, string outFilePath, string initialText)
+        public Task ExecuteSingleFileExtractAsync(Resource resource, string inFilePath, string outFilePath, string initialText)
         {
-            RunInDialog(cancellationToken => ExtractFileAsync(resource, inFilePath, outFilePath, true, cancellationToken), initialText);
+            RunInDialog(cancellationToken => ExtractFileAsync(resource, inFilePath, outFilePath, true, cancellationToken), initialText, out var workCompletion);
+            return workCompletion;
         }
 
-        private void RunInDialog(Func<CancellationToken, Task> work, string? initialText)
+        private void RunInDialog(Func<CancellationToken, Task> work, string? initialText, out Task workCompletion)
         {
             using var dialog = new GenericProgressForm { StayOpenOnCompletion = true };
             progress = dialog;
@@ -165,7 +167,6 @@ namespace GUI.Types.Exporter
                 };
             }
 
-#pragma warning disable CA2025 // The dialog is modal, the task has completed by the time ShowDialog returns
             dialog.OnProcess = async cancellationToken =>
             {
                 await work(cancellationToken).ConfigureAwait(false);
@@ -180,8 +181,17 @@ namespace GUI.Types.Exporter
                 Log.Info(nameof(PackageExporter), completedText);
                 dialog.SetProgress(completedText);
             };
-#pragma warning restore CA2025
+
             dialog.ShowDialog();
+
+            // Cancelling closes the dialog right away while the work winds down, so the caller has to be handed
+            // something to wait on before it disposes what the work is still reading from.
+            workCompletion = AfterWorkStopped(dialog.WorkCompletion);
+        }
+
+        private async Task AfterWorkStopped(Task workCompletion)
+        {
+            await workCompletion.ConfigureAwait(true);
 
             if (filesFailedToExport > 0)
             {

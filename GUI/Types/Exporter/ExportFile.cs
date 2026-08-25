@@ -99,7 +99,10 @@ namespace GUI.Types.Exporter
                 try
                 {
                     var exporter = new PackageExporter(exportData, directory ?? string.Empty, true);
-                    exporter.ExecuteSingleFileExtract(resource, fileName, filaNameToSave, $"Extracting {fileName} to \"{Path.GetFileName(filaNameToSave)}\"");
+
+                    // Cancelling closes the dialog while the extract is still winding down, so wait for it to
+                    // stop before the finally pulls the resource out from under it
+                    await exporter.ExecuteSingleFileExtractAsync(resource, fileName, filaNameToSave, $"Extracting {fileName} to \"{Path.GetFileName(filaNameToSave)}\"").ConfigureAwait(true);
                 }
                 finally
                 {
