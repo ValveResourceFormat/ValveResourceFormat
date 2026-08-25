@@ -231,7 +231,7 @@ void main()
     if ((g_nDecodeFlags & HemiOctIsoRoughness_RG_B) != 0)
     {
         float flRoughness = vColor.b;
-        vColor.rgb = PackToColor(oct_to_float32x3(vec2(vColor.x + vColor.y - 1.003922, vColor.x - vColor.y)));
+        vColor.rgb = PackToColor(hemi_oct_to_float32x3(vec2(vColor.x + vColor.y - 1.003922, vColor.x - vColor.y)));
         vColor.a = flRoughness;
     }
 

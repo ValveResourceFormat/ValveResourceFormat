@@ -22,9 +22,9 @@
 vec4 DecompressTangent( vec4 inputNormal )
 {
     float fOne   = 1.0f;
-    vec4 ztztSignBits	= -floor(( inputNormal - 128.0f )/127.0f);						// sign bits for zs and bitangent (1 or 0)  set-less-than (slt) asm instruction
+    vec4 ztztSignBits	= vec4(lessThan(inputNormal, vec4(128.0f)));        // sign bits for zs and bitangent (1 or 0)  set-less-than (slt) asm instruction
     vec4 xyxyAbs		= abs( inputNormal - 128.0f ) - ztztSignBits;		// 0..127
-    vec4 xyxySignBits	= -floor(( xyxyAbs - 64.0f )/63.0f);							// sign bits for xs and ys (1 or 0)
+    vec4 xyxySignBits	= vec4(lessThan(xyxyAbs, vec4(64.0f)));							// sign bits for xs and ys (1 or 0)
     vec4 normTan		= (abs( xyxyAbs - 64.0f ) - xyxySignBits) / 63.0f;	// abs({nX, nY, tX, tY})
 
     vec4 outputTangent;
@@ -48,9 +48,9 @@ vec3 DecompressNormal( vec4 inputNormal )
     float fOne   = 1.0f;
     vec3 outputNormal = vec3(0);
 
-    vec2 ztSigns      = -floor(( inputNormal.xy - 128.0f )/127.0f);      // sign bits for zs and bitangent (1 or 0)  set-less-than (slt) asm instruction
+    vec2 ztSigns      = vec2(lessThan(inputNormal.xy, vec2(128.0f))); // sign bits for zs and bitangent (1 or 0)  set-less-than (slt) asm instruction
     vec2 xyAbs        = abs( inputNormal.xy - 128.0f ) - ztSigns;     // 0..127
-    vec2 xySigns      = -floor(( xyAbs - 64.0f )/63.0f);             // sign bits for xs and ys (1 or 0)
+    vec2 xySigns      = vec2(lessThan(xyAbs, vec2(64.0f)));             // sign bits for xs and ys (1 or 0)
     outputNormal.xy     = ( abs( xyAbs - 64.0f ) - xySigns ) / 63.0f;   // abs({nX, nY})
 
     outputNormal.z      = 1.0f - outputNormal.x - outputNormal.y;       // Project onto x+y+z=1
