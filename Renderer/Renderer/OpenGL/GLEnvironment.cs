@@ -1,5 +1,6 @@
 using System.Threading;
 using Microsoft.Extensions.Logging;
+using OpenTK;
 using OpenTK.Graphics.OpenGL;
 using ValveResourceFormat.Renderer.Materials;
 
@@ -53,12 +54,19 @@ public static class GLEnvironment
     public static bool MeshShaderSupported { get; private set; }
 
     /// <summary>
-    /// The GLSL extension the mesh shader stage is written against, empty when there is none.
-    /// <c>GL_EXT_mesh_shader</c> is what Source 2 itself compiles against and is preferred, but it dispatches
-    /// through <c>glDrawMeshTasksEXT</c>, which the GL bindings do not expose, so it is only taken when
-    /// <c>GL_NV_mesh_shader</c> and its <c>glDrawMeshTasksNV</c> are absent.
+    /// The GLSL extension the mesh shader stage is written against, empty when there is none. The vendor
+    /// neutral <c>GL_EXT_mesh_shader</c> wins where the driver has it, which means resolving
+    /// <c>glDrawMeshTasksEXT</c> by hand because the bindings only carry the NV entry points.
     /// </summary>
     public static string MeshShaderExtension { get; private set; } = string.Empty;
+
+    /// <summary>
+    /// The loader GL entry points are resolved through, for the ones the bindings do not declare. Set
+    /// alongside <c>GL.LoadBindings</c>, and so before <see cref="Initialize"/> runs.
+    /// </summary>
+    public static IBindingsContext? BindingsContext { get; set; }
+
+    private static unsafe delegate* unmanaged<uint, uint, uint, void> drawMeshTasksExt;
 
     /// <summary>
     /// Most vertices one mesh shader workgroup may emit, or 0 when mesh shaders are unsupported.
@@ -69,6 +77,11 @@ public static class GLEnvironment
     /// Most primitives one mesh shader workgroup may emit, or 0 when mesh shaders are unsupported.
     /// </summary>
     public static int MaxMeshOutputPrimitives { get; private set; }
+
+    /// <summary>
+    /// Most workgroups one mesh shader draw may dispatch, or 0 when mesh shaders are unsupported.
+    /// </summary>
+    public static int MaxDrawMeshTasks { get; private set; }
 
     /// <summary>
     /// Gets the GPU renderer name and driver version string.
@@ -121,30 +134,33 @@ public static class GLEnvironment
 
         var meshShaderNv = extensions.Contains("GL_NV_mesh_shader");
 
-        if (meshShaderNv)
+        if (extensions.Contains("GL_EXT_mesh_shader") && TryBindDrawMeshTasksExt())
+        {
+            MeshShaderExtension = "GL_EXT_mesh_shader";
+        }
+        else if (meshShaderNv)
         {
             MeshShaderExtension = "GL_NV_mesh_shader";
         }
         else if (extensions.Contains("GL_EXT_mesh_shader"))
         {
-            MeshShaderExtension = "GL_EXT_mesh_shader";
+            logger.LogWarning("GL_EXT_mesh_shader is available but glDrawMeshTasksEXT did not resolve");
         }
 
         if (MeshShaderExtension.Length > 0)
         {
-            // The two extensions share these limits, and only the one that is enabled answers the query
+            // The EXT tokens alias the NV ones, so one query answers for either extension
             MaxMeshOutputVertices = GL.GetInteger((GetPName)NvMeshShader.MaxMeshOutputVerticesNv);
             MaxMeshOutputPrimitives = GL.GetInteger((GetPName)NvMeshShader.MaxMeshOutputPrimitivesNv);
 
-            MeshShaderSupported = meshShaderNv
-                && MaxMeshOutputVertices >= MeshletLimits.MaxVertices
+            // EXT counts workgroups per dimension instead and has no equivalent of this one, so an EXT only
+            // driver takes the smallest count the spec lets an implementation report
+            MaxDrawMeshTasks = meshShaderNv ? GL.GetInteger((GetPName)NvMeshShader.MaxDrawMeshTasksCountNv) : 65535;
+
+            MeshShaderSupported = MaxMeshOutputVertices >= MeshletLimits.MaxVertices
                 && MaxMeshOutputPrimitives >= MeshletLimits.MaxPrimitives;
 
-            if (!meshShaderNv)
-            {
-                logger.LogWarning("{Extension} is available but drawing through it needs glDrawMeshTasksEXT, which is not bound", MeshShaderExtension);
-            }
-            else if (!MeshShaderSupported)
+            if (!MeshShaderSupported)
             {
                 logger.LogWarning("{Extension} caps out at {Vertices} vertices and {Primitives} primitives per meshlet, which is below what Source 2 meshlets need",
                     MeshShaderExtension, MaxMeshOutputVertices, MaxMeshOutputPrimitives);
@@ -167,6 +183,36 @@ public static class GLEnvironment
 #if DEBUG
         MaxLabelLength = GL.GetInteger(GetPName.MaxLabelLength) - 1;
 #endif
+    }
+
+    private static unsafe bool TryBindDrawMeshTasksExt()
+    {
+        var address = BindingsContext?.GetProcAddress("glDrawMeshTasksEXT") ?? IntPtr.Zero;
+
+        if (address == IntPtr.Zero)
+        {
+            return false;
+        }
+
+        drawMeshTasksExt = (delegate* unmanaged<uint, uint, uint, void>)address;
+        return true;
+    }
+
+    /// <summary>
+    /// Dispatches a mesh shader draw of <paramref name="groupCount"/> workgroups along x, through whichever
+    /// extension <see cref="MeshShaderExtension"/> named. Both number <c>gl_WorkGroupID.x</c> from zero, so
+    /// the shader does not care which one ran it.
+    /// </summary>
+    /// <param name="groupCount">Workgroups to dispatch, at most <see cref="MaxDrawMeshTasks"/>.</param>
+    public static unsafe void DrawMeshTasks(uint groupCount)
+    {
+        if (drawMeshTasksExt != null)
+        {
+            drawMeshTasksExt(groupCount, 1u, 1u);
+            return;
+        }
+
+        GL.NV.DrawMeshTask(0u, groupCount);
     }
 
     /// <summary>

@@ -1163,6 +1163,7 @@ internal abstract class GLBaseControl : IDisposable, IMessageFilter
     {
         var provider = new OpenTK.Windowing.GraphicsLibraryFramework.GLFWBindingsContext();
         GL.LoadBindings(provider);
+        GLEnvironment.BindingsContext = provider;
     }
 
     protected virtual SkiaSharp.SKBitmap? ReadPixelsToBitmap()

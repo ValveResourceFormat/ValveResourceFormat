@@ -1,5 +1,7 @@
+using System.Diagnostics;
 using OpenTK.Graphics.OpenGL;
 using ValveResourceFormat.Blocks;
+using ValveResourceFormat.Renderer.World;
 
 namespace ValveResourceFormat.Renderer;
 
@@ -62,6 +64,9 @@ public class MeshletRenderer(RendererContext rendererContext)
     {
         public int Transform;
         public int FirstMeshlet;
+        public int MeshletCount;
+        public int BaseInstance;
+        public int IsInstancing;
         public int BaseVertex;
         public int VertexStride;
         public int Position;
@@ -78,18 +83,26 @@ public class MeshletRenderer(RendererContext rendererContext)
     internal static void DrawBatch(List<MeshBatchRenderer.Request> requests, Scene.RenderContext context, Shader shader)
     {
         // Nothing here applies material state, so the pass baseline is latched for the whole batch. The
-        // mesh shader will not reproduce the prepass depth to the bit, so the test is relaxed to accept it.
-        using var scope = GraphicsContext.RenderState.Scope(depthFunc: RsComparison.CloserEqual);
+        // prepass laid this geometry down through the vertex pipeline and the mesh shader will not reproduce
+        // that depth to the bit, so the equality test the prepassed pass sets up is relaxed.
+        using var scope = GraphicsContext.RenderState.Scope(depthWrite: true, depthFunc: RsComparison.CloserEqual);
 
         shader.Use();
 
         // A mesh shader draw sources no attributes, but a core profile draw still needs some vertex array
         GL.BindVertexArray(context.Scene.RendererContext.MeshBufferCache.EmptyVAO);
 
+        Debug.Assert(context.Scene.InstanceBufferGpu != null && context.Scene.TransformBufferGpu != null);
+        context.Scene.InstanceBufferGpu.BindBufferBase();
+        context.Scene.TransformBufferGpu.BindBufferBase();
+
         var uniforms = new Uniforms
         {
             Transform = shader.GetUniformLocation("transform"),
             FirstMeshlet = shader.GetUniformLocation("nFirstMeshlet"),
+            MeshletCount = shader.GetUniformLocation("nMeshletCount"),
+            BaseInstance = shader.GetUniformLocation("nBaseInstance"),
+            IsInstancing = shader.GetUniformLocation("bIsInstancing"),
             BaseVertex = shader.GetUniformLocation("nBaseVertex"),
             VertexStride = shader.GetUniformLocation("nVertexStrideBytes"),
             Position = shader.GetUniformLocation("vPositionAttribute"),
@@ -126,7 +139,14 @@ public class MeshletRenderer(RendererContext rendererContext)
             var transform = request.Node.Transform.To3x4();
             GL.ProgramUniformMatrix3x4(shader.Program, uniforms.Transform, false, ref transform);
 
+            var instanceCount = request.Node is SceneAggregate { InstanceTransforms.Count: > 0 } aggregate
+                ? aggregate.InstanceTransforms.Count
+                : 1;
+
             GL.ProgramUniform1((uint)shader.Program, uniforms.FirstMeshlet, (uint)drawCall.FirstMeshlet);
+            GL.ProgramUniform1((uint)shader.Program, uniforms.MeshletCount, (uint)drawCall.NumMeshlets);
+            GL.ProgramUniform1((uint)shader.Program, uniforms.BaseInstance, request.Node.Id);
+            GL.ProgramUniform1(shader.Program, uniforms.IsInstancing, instanceCount > 1 ? 1 : 0);
             GL.ProgramUniform1(shader.Program, uniforms.BaseVertex, drawCall.BaseVertex);
             GL.ProgramUniform1((uint)shader.Program, uniforms.VertexStride, vertexBuffer.ElementSizeInBytes);
 
@@ -134,10 +154,13 @@ public class MeshletRenderer(RendererContext rendererContext)
             SetAttributeUniform(shader, uniforms.Normal, normal);
             SetAttributeUniform(shader, uniforms.TexCoord, texCoord);
 
-            counters.CountDrawCall(request.Node);
-            counters.CountIndirectDraw(drawCall.NumMeshlets);
+            // One workgroup per meshlet, the instances laid out one whole meshlet range after another
+            var groupCount = Math.Min((long)drawCall.NumMeshlets * instanceCount, GLEnvironment.MaxDrawMeshTasks);
 
-            GL.NV.DrawMeshTask(0u, (uint)drawCall.NumMeshlets);
+            counters.CountDrawCall(request.Node);
+            counters.CountIndirectDraw((int)groupCount);
+
+            GLEnvironment.DrawMeshTasks((uint)groupCount);
         }
     }
 

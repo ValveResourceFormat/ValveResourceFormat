@@ -1028,6 +1028,11 @@ namespace GUI.Types.GLViewers
             Scene.EnableCompaction = renderMode != "Meshlets";
             SkyboxScene?.EnableCompaction = Scene.EnableCompaction;
 
+            // An indirect aggregate draw carries its fragments as instances of one command, which a mesh
+            // shader draw has no equivalent of, so mesh shading takes the fragments as their own draws
+            Scene.EnableIndirectDraws = renderMode != "MeshShader";
+            SkyboxScene?.EnableIndirectDraws = Scene.EnableIndirectDraws;
+
             Picker.SetRenderMode(renderMode);
             QuadOverdrawRenderer?.SetRenderMode(renderMode);
             MeshShaderRenderer?.SetRenderMode(renderMode);
