@@ -29,6 +29,7 @@ public enum TrackedKeys : long
     Slot3 = 1 << 14,
     Slot4 = 1 << 16,
     F = 1 << 15,
+    E = 1 << 16,
 
     MouseWheelUp = 1 << 28,
     MouseWheelDown = 1 << 29,

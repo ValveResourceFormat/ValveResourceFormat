@@ -489,7 +489,7 @@ public class BaseEntity
         // the tick it last started rather than where it stands, re-dirtying the transform every frame
         var isMoving = EntitySystem.Enabled && (previousOrigin != origin || previousAngles != angles);
 
-        if (isMoving || isInterpolating)
+        if (isMoving || isInterpolating || UpdatesRenderTransformEveryFrame)
         {
             // Once it stops moving, one last frame at the far end lands on the tick state exactly
             UpdateRenderTransform(isMoving ? EntitySystem.InterpolationFraction : 1f);
@@ -588,6 +588,13 @@ public class BaseEntity
     }
 
     /// <summary>
+    /// Whether <see cref="UpdateRenderTransform"/> runs every rendered frame even while the tick
+    /// state stands still. For an entity drawn against something that moves per frame - a prop
+    /// carried in front of the camera - the tick state going quiet does not mean the drawing may.
+    /// </summary>
+    protected virtual bool UpdatesRenderTransformEveryFrame => false;
+
+    /// <summary>
     /// Rebuilds <see cref="Transform"/> for drawing, somewhere between the last two ticks.
     /// </summary>
     /// <remarks>
@@ -604,6 +611,16 @@ public class BaseEntity
             EntityTransformHelper.EulerAnglesToQuaternion(Angles),
             fraction);
 
+        SetRenderTransform(origin, rotation);
+    }
+
+    /// <summary>
+    /// Puts the drawn <see cref="Transform"/> at a pose directly, for an
+    /// <see cref="UpdateRenderTransform"/> override drawing somewhere other than between the ticks.
+    /// The tick state is untouched; this is only where the entity is drawn this frame.
+    /// </summary>
+    protected void SetRenderTransform(Vector3 origin, Quaternion rotation)
+    {
         Transform = Matrix4x4.CreateScale(EntityScale)
             * Matrix4x4.CreateFromQuaternion(rotation)
             * Matrix4x4.CreateTranslation(origin)

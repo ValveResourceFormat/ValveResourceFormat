@@ -428,6 +428,7 @@ namespace ValveResourceFormat.Renderer.World
                 if (phys.Parts.Length > 0)
                 {
                     scene.PhysicsWorld = new Rubikon(phys);
+                    scene.EntitySystem.Physics.AddStaticGeometry(phys);
                 }
             }
         }
