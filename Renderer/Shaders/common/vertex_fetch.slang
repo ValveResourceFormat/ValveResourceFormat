@@ -30,7 +30,9 @@ uniform uvec2 vTexCoordAttribute;
 // aligned within it, so a word index addresses them all.
 uint LoadVertexWord(uint nVertex, uint nByteOffset, uint nWord)
 {
-    return nVertexData[((nVertex * nVertexStrideBytes + nByteOffset) >> 2u) + nWord];
+    uint nWordIndex = ((nVertex * nVertexStrideBytes + nByteOffset) >> 2u) + nWord;
+
+    return nWordIndex < uint(nVertexData.length()) ? nVertexData[nWordIndex] : 0u;
 }
 
 vec4 FetchVertexAttribute(uint nVertex, uvec2 vAttribute)

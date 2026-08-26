@@ -117,6 +117,11 @@ public class MeshletRenderer(RendererContext rendererContext)
                 continue;
             }
 
+            if (drawCall.FirstMeshlet < 0 || drawCall.FirstMeshlet + drawCall.NumMeshlets > meshletBuffers.MeshletCount)
+            {
+                continue;
+            }
+
             var vertexBuffer = drawCall.VertexBuffers[0];
 
             var position = FindAttribute(vertexBuffer, "POSITION");

@@ -92,25 +92,31 @@ namespace ValveResourceFormat.Renderer
             }
 
             var descriptors = new MeshletDescriptor[meshlets.Count];
+            var useTriangleOffset = HasUsableTriangleOffsets(meshlets, entryCount);
 
-            // Meshlet segments tile the block by vertex count, in the order the meshlets were read. The
-            // running sum is what MeshletBuffer.DecodeMeshlet is tested against; m_nTriangleOffset carries
-            // the same value in the content seen so far, but nothing depends on that here.
-            var entryOffset = 0u;
+            // Where the file does not carry the offsets, the segments tile the block by vertex count in the
+            // order the meshlets were read, which is what MeshletBuffer.DecodeMeshlet is tested against.
+            var tiledOffset = 0u;
 
             for (var i = 0; i < meshlets.Count; i++)
             {
                 var meshlet = meshlets[i];
+                var entryOffset = useTriangleOffset ? (uint)meshlet.TriangleOffset : tiledOffset;
 
+                tiledOffset += meshlet.VertexCount;
+
+                // A meshlet's triangles ride in the spare bits of its own vertex list entries, so one with
+                // more triangles than vertices cannot be laid out that way, and reading it would take the
+                // overflow from whatever meshlet follows. No content seen so far has one.
                 if (entryOffset + meshlet.VertexCount > (uint)entryCount
                     || meshlet.VertexCount > MeshletLimits.MaxVertices
-                    || meshlet.TriangleCount > MeshletLimits.MaxPrimitives)
+                    || meshlet.TriangleCount > MeshletLimits.MaxPrimitives
+                    || meshlet.TriangleCount > meshlet.VertexCount)
                 {
                     // A meshlet the workgroup cannot hold, or one running past the block, draws nothing
                     // rather than reading somebody else's entries
                     descriptors[i] = default;
                     skippedMeshlets++;
-                    entryOffset += meshlet.VertexCount;
                     continue;
                 }
 
@@ -121,8 +127,6 @@ namespace ValveResourceFormat.Renderer
                     VertexCount = meshlet.VertexCount,
                     TriangleCount = meshlet.TriangleCount,
                 };
-
-                entryOffset += meshlet.VertexCount;
             }
 
             var entries = new uint[entryCount];
@@ -135,6 +139,32 @@ namespace ValveResourceFormat.Renderer
             descriptorBuffer.Create<MeshletDescriptor>(descriptors, BufferUsage.Static);
 
             return new MeshletBuffers(packedBuffer, descriptorBuffer, meshlets.Count);
+        }
+
+        /// <summary>
+        /// Whether <c>m_nTriangleOffset</c> can be taken as each meshlet's offset into the block. It carries
+        /// exactly that, but resources predating the field leave it at zero, and taking that literally would
+        /// point every meshlet at the first entry. Offsets have to stay inside the block and advance with the
+        /// meshlets to be believed.
+        /// </summary>
+        private static bool HasUsableTriangleOffsets(List<Meshlet> meshlets, int entryCount)
+        {
+            for (var i = 0; i < meshlets.Count; i++)
+            {
+                var meshlet = meshlets[i];
+
+                if (meshlet.TriangleOffset < 0 || (uint)meshlet.TriangleOffset + meshlet.VertexCount > (uint)entryCount)
+                {
+                    return false;
+                }
+
+                if (i > 0 && meshlet.TriangleOffset <= meshlets[i - 1].TriangleOffset)
+                {
+                    return false;
+                }
+            }
+
+            return true;
         }
 
         /// <summary>Binds both buffers to their reserved slots.</summary>
