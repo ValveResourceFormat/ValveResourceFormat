@@ -33,7 +33,12 @@ namespace ValveResourceFormat.Renderer
             for (var i = 0; i < vbib.IndexBuffers.Count; i++)
             {
                 var buffer = vbib.IndexBuffers[i];
-                IndexBuffers[i] = GraphicsDevice.CreateBuffer($"{name} IB {i}", buffer.Data.AsSpan(0, (int)buffer.TotalSizeInBytes), BufferUsage.Static);
+
+                // A meshlet-encoded index buffer (MSLT) keeps its raw meshopt bytes, which are shorter than the
+                // decoded TotalSizeInBytes. The classic draw path never binds it, so uploading the raw bytes is
+                // enough; clamp so it does not overrun.
+                var length = Math.Min((int)buffer.TotalSizeInBytes, buffer.Data.Length);
+                IndexBuffers[i] = GraphicsDevice.CreateBuffer($"{name} IB {i}", buffer.Data.AsSpan(0, length), BufferUsage.Static);
             }
         }
 

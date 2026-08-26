@@ -252,5 +252,53 @@ namespace Tests
                 await Assert.That(d).IsEquivalentTo(e, CollectionOrdering.Matching).Because($"triangle {t}");
             }
         }
+
+        // The antenna card model uses the meshoptimizer meshlet codec (encode version 1) instead of the legacy
+        // packed format. All of its meshlets have <= 64 vertices, so resolving each decoded meshlet's local
+        // indices through its vertex list must reproduce the real index buffer (MIDX).
+        [Test]
+        public async Task DecodesCompressedMeshletsAgainstIndexBuffer()
+        {
+            var file = Path.Combine(TestContext.TestDirectory!, "Files", "n0_lr0_agg_merge_antenna_card_0.vmdl_c");
+            using var resource = new Resource
+            {
+                FileName = file,
+            };
+            resource.Read(file);
+
+            var (meshlets, _) = await LoadMeshlets(resource);
+            var block = (MeshletBuffer)resource.GetBlockByType(BlockType.MSLT)!;
+            var indexBuffer = ((Model)resource.DataBlock!).GetEmbeddedMeshes().First().Mesh.VBIB.IndexBuffers[0];
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(block.EncodeVersion).IsEqualTo(1);
+                await Assert.That(meshlets).IsNotEmpty();
+            }
+
+            for (var i = 0; i < meshlets.Count; i++)
+            {
+                var m = meshlets[i];
+                var vertices = new int[m.VertexCount];
+                var indices = new int[m.TriangleCount * 3];
+                block.DecodeMeshletCompressed(i, m.VertexCount, m.TriangleCount, vertices, indices);
+                var expected = GltfModelExporter.ReadIndices(indexBuffer, m.TriangleOffset * 3, m.TriangleCount * 3, 0);
+
+                for (var t = 0; t < m.TriangleCount; t++)
+                {
+                    // Decoded vertices are m_nVertexOffset relative; resolve to global and compare as sorted triples.
+                    var d = new[]
+                    {
+                        vertices[indices[t * 3]] + m.VertexOffset,
+                        vertices[indices[t * 3 + 1]] + m.VertexOffset,
+                        vertices[indices[t * 3 + 2]] + m.VertexOffset,
+                    };
+                    var e = new[] { expected[t * 3], expected[t * 3 + 1], expected[t * 3 + 2] };
+                    Array.Sort(d);
+                    Array.Sort(e);
+                    await Assert.That(d).IsEquivalentTo(e, CollectionOrdering.Matching).Because($"meshlet {i} triangle {t}");
+                }
+            }
+        }
     }
 }

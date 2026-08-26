@@ -346,12 +346,16 @@ namespace ValveResourceFormat.Blocks
                 };
             })];
 
+            // The meshlet packed index buffer (MSLT) is meshoptimizer meshlet-encoded rather than a plain
+            // meshopt index sequence, and is consumed via MeshletBuffer, so keep its raw bytes here.
+            var isMeshletEncoded = data.GetInt32Property("m_nMeshoptMeshletEncodeVersion", -1) >= 0;
+
             if (data.ContainsKey("m_pData"))
             {
                 var bufferData = data.GetArray<byte>("m_pData");
                 var decompressedSize = (int)buffer.TotalSizeInBytes;
 
-                buffer.Data = bufferData.Length == decompressedSize
+                buffer.Data = isMeshletEncoded || bufferData.Length == decompressedSize
                     ? bufferData
                     : DecompressData(buffer, bufferData, decompressedSize, isVertex, isZstdCompressed: false, isMeshoptCompressed: true);
             }
@@ -372,7 +376,7 @@ namespace ValveResourceFormat.Blocks
                     Resource.Reader.BaseStream.Position = dataBlock.Offset;
                     Resource.Reader.Read(span);
 
-                    if (isZstdCompressed || isMeshoptCompressed)
+                    if (!isMeshletEncoded && (isZstdCompressed || isMeshoptCompressed))
                     {
                         buffer.Data = DecompressData(buffer, span, (int)buffer.TotalSizeInBytes, isVertex, isZstdCompressed, isMeshoptCompressed);
                     }
