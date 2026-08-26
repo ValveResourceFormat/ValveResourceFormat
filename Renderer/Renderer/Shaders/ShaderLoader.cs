@@ -390,11 +390,12 @@ namespace ValveResourceFormat.Renderer.Shaders
                 header.Append('\n');
             }
 
-            // driver lacks. Only that stage gets it: a driver may reject the directive outright in a stage
-            // the extension says nothing about, which is every other stage of the same program.
+            // The mesh stage cannot ask for its extension itself, because a hoisted directive goes into the
+            // header every stage shares and a driver may reject one naming a stage the extension says nothing
+            // about, which is every other stage of the same program. So it is emitted for that stage alone.
             var meshHeaderText = string.Empty;
 
-            if (parsedData.Sources.ContainsKey(ShaderProgramType.Mesh) && GLEnvironment.MeshShaderExtension.Length > 0)
+            if (parsedData.Sources.ContainsKey(ShaderProgramType.Mesh))
             {
                 var meshHeader = new StringBuilder(header.ToString());
 

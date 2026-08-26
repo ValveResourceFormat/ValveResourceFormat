@@ -12,11 +12,15 @@ uniform uint nBaseInstance;
 uniform int nBaseVertex;
 uniform bool bIsInstancing = false;
 
-// Per vertex outputs of a mesh shader are arrays, one slot per emitted vertex
-layout (location = 0) out vec3 vFragPosition[];
-layout (location = 1) out vec3 vNormalOut[];
-layout (location = 2) out vec2 vTexCoordOut[];
-layout (location = 3) flat out uint vMeshletIdOut[];
+// Per vertex outputs of a mesh shader are arrays, one instance per emitted vertex, and the array dimension
+// costs no locations of its own. The fragment stage matches this block by name, no locations involved.
+out MeshletVaryings
+{
+    vec3 vFragPosition;
+    vec3 vNormalOut;
+    vec2 vTexCoordOut;
+    flat uint vMeshletIdOut;
+} vOut[];
 
 // A mesh shader draw carries no instance count of its own, so the instances are laid out along the workgroup
 // axis instead: nMeshletCount groups per instance, one instance after the other.
@@ -56,10 +60,10 @@ void main()
 
         MeshVertexPosition(nLocal) = g_matWorldToProjection * vec4(vPositionWs, 1.0);
 
-        vFragPosition[nLocal] = vPositionWs;
-        vNormalOut[nLocal] = normalize(vec4(FetchVertexNormal(nVertex), 0.0) * objectToWorld);
-        vTexCoordOut[nLocal] = FetchVertexTexCoord(nVertex);
-        vMeshletIdOut[nLocal] = nMeshlet;
+        vOut[nLocal].vFragPosition = vPositionWs;
+        vOut[nLocal].vNormalOut = normalize(vec4(FetchVertexNormal(nVertex), 0.0) * objectToWorld);
+        vOut[nLocal].vTexCoordOut = FetchVertexTexCoord(nVertex);
+        vOut[nLocal].vMeshletIdOut = nMeshlet;
     }
 
     DecodeMeshletTriangles(meshlet, nPrimitives);

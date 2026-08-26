@@ -7,10 +7,13 @@
 #define renderMode_Normals 0
 #define renderMode_Meshlets 0
 
-layout (location = 0) in vec3 vFragPosition;
-layout (location = 1) in vec3 vNormalOut;
-layout (location = 2) in vec2 vTexCoordOut;
-layout (location = 3) flat in uint vMeshletIdOut;
+in MeshletVaryings
+{
+    vec3 vFragPosition;
+    vec3 vNormalOut;
+    vec2 vTexCoordOut;
+    flat uint vMeshletIdOut;
+} vIn;
 
 out vec4 outputColor;
 
@@ -27,7 +30,7 @@ vec3 MeshletColor(uint nMeshlet)
 
 void main()
 {
-    vec3 vNormal = normalize(vNormalOut);
+    vec3 vNormal = normalize(vIn.vNormalOut);
 
     if (g_iRenderMode == renderMode_Normals)
     {
@@ -35,7 +38,7 @@ void main()
         return;
     }
 
-    vec3 vAlbedo = MeshletColor(vMeshletIdOut);
+    vec3 vAlbedo = MeshletColor(vIn.vMeshletIdOut);
 
     if (g_iRenderMode == renderMode_Meshlets)
     {
@@ -44,7 +47,7 @@ void main()
     }
 
     // Enough shaping to read the silhouette without pulling the scene's lighting into a debug pass
-    vec3 vViewDir = normalize(g_vCameraPositionWs - vFragPosition);
+    vec3 vViewDir = normalize(g_vCameraPositionWs - vIn.vFragPosition);
     float flDiffuse = saturate(dot(vNormal, vViewDir)) * 0.7 + 0.3;
 
     outputColor = vec4(vAlbedo * flDiffuse, 1.0);
