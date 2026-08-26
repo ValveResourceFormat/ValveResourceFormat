@@ -266,15 +266,17 @@ namespace ValveResourceFormat.Renderer.Shaders
 
                 var shaderObjects = new int[sources.Count];
                 var shaderSources = new string[sources.Count];
+                var shaderStages = new ShaderProgramType[sources.Count];
                 var s = 0;
                 foreach (var (stage, source) in sources)
                 {
                     shaderObjects[s] = GraphicsDevice.CreateShader(stage, shaderFileName);
                     shaderSources[s] = source!;
+                    shaderStages[s] = stage;
                     s++;
                 }
 
-                CompileShaderObjects(shaderObjects, shaderSources, shaderFileName, shaderName, arguments, parsedData);
+                CompileShaderObjects(shaderObjects, shaderSources, shaderStages, shaderFileName, shaderName, arguments, parsedData);
 
                 shaderProgram = GraphicsDevice.CreateProgram(shaderFileName);
 
@@ -347,7 +349,7 @@ namespace ValveResourceFormat.Renderer.Shaders
             }
         }
 
-        private static void CompileShaderObjects(int[] shaderObjects, string[] shaderSources, string shaderFile, string originalShaderName, IReadOnlyDictionary<string, byte> arguments, ParsedShaderData parsedData)
+        private static void CompileShaderObjects(int[] shaderObjects, string[] shaderSources, ShaderProgramType[] shaderStages, string shaderFile, string originalShaderName, IReadOnlyDictionary<string, byte> arguments, ParsedShaderData parsedData)
         {
             var header = new StringBuilder();
             header.Append(ShaderParser.ExpectedShaderVersion);
@@ -355,17 +357,6 @@ namespace ValveResourceFormat.Renderer.Shaders
 
             header.Append("#extension GL_KHR_shader_subgroup_arithmetic : enable\n");
             header.Append("#extension GL_KHR_shader_subgroup_vote : enable\n");
-
-            // The mesh stage cannot ask for this itself: hoisted directives ignore the preprocessor, so
-            // a source naming both the EXT and the NV spelling would enable the one the driver lacks.
-            // Enabled rather than required because the header is shared with the fragment stage.
-            if (parsedData.Sources.ContainsKey(ShaderProgramType.Mesh) && GLEnvironment.MeshShaderExtension.Length > 0)
-            {
-                header.Append("#extension ");
-                header.Append(GLEnvironment.MeshShaderExtension);
-                header.Append(" : enable");
-                header.Append('\n');
-            }
 
             foreach (var extension in parsedData.Extensions)
             {
@@ -399,13 +390,34 @@ namespace ValveResourceFormat.Renderer.Shaders
                 header.Append('\n');
             }
 
+            // driver lacks. Only that stage gets it: a driver may reject the directive outright in a stage
+            // the extension says nothing about, which is every other stage of the same program.
+            var meshHeaderText = string.Empty;
+
+            if (parsedData.Sources.ContainsKey(ShaderProgramType.Mesh) && GLEnvironment.MeshShaderExtension.Length > 0)
+            {
+                var meshHeader = new StringBuilder(header.ToString());
+
+                // A directive may follow the defines, it only has to precede the first real token, and the
+                // packed uniform block appended below is one
+                meshHeader.Append("#extension ");
+                meshHeader.Append(GLEnvironment.MeshShaderExtension);
+                meshHeader.Append(" : require");
+                meshHeader.Append('\n');
+                meshHeader.Append(parsedData.GlobalsLayout.BlockSource);
+
+                meshHeaderText = meshHeader.ToString();
+            }
+
             header.Append(parsedData.GlobalsLayout.BlockSource);
 
             var headerText = header.ToString();
 
             for (var i = 0; i < shaderObjects.Length; i++)
             {
-                CompileShaderObject(shaderObjects[i], shaderFile, originalShaderName, arguments, headerText, shaderSources[i], parsedData);
+                var stageHeader = shaderStages[i] == ShaderProgramType.Mesh ? meshHeaderText : headerText;
+
+                CompileShaderObject(shaderObjects[i], shaderFile, originalShaderName, arguments, stageHeader, shaderSources[i], parsedData);
             }
         }
 
