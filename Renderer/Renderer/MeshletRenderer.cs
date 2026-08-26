@@ -36,11 +36,7 @@ public class MeshletRenderer(RendererContext rendererContext)
             throw new InvalidOperationException("Mesh shaders are not supported by this driver.");
         }
 
-        // Which spelling the stage is written against is the loader's choice, made from what the driver
-        // exposes; the shader only needs to be told which one it got.
-        var isExtension = GLEnvironment.MeshShaderExtension == "GL_EXT_mesh_shader";
-
-        return rendererContext.ShaderLoader.LoadShader("meshlet", ("D_MESH_SHADER_EXT", isExtension ? (byte)1 : (byte)0));
+        return rendererContext.ShaderLoader.LoadShader("meshlet");
     }
 
     /// <summary>Loads the shader up front so its render mode is offered in the mode dropdown. Does nothing
@@ -160,7 +156,7 @@ public class MeshletRenderer(RendererContext rendererContext)
             counters.CountDrawCall(request.Node);
             counters.CountIndirectDraw((int)groupCount);
 
-            GLEnvironment.DrawMeshTasks((uint)groupCount);
+            GL.NV.DrawMeshTask(0u, (uint)groupCount);
         }
     }
 

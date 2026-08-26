@@ -137,17 +137,6 @@ namespace ValveResourceFormat.Renderer.Shaders
                 var shaderFileName = GetShaderFileByName(shaderName);
                 var parsed = GetOrParseShader(shaderFileName);
 
-                if (parsed.Sources.ContainsKey(ShaderProgramType.Mesh))
-                {
-                    // Only the extension spelling the driver exposes can compile, so the other value of
-                    // D_MESH_SHADER_EXT is not a variant to sweep over
-                    Compile(shaderName, new Dictionary<string, byte>
-                    {
-                        ["D_MESH_SHADER_EXT"] = GLEnvironment.MeshShaderExtension == "GL_EXT_mesh_shader" ? (byte)1 : (byte)0,
-                    });
-                    return;
-                }
-
                 Compile(shaderName);
 
                 // Test all defines one by one

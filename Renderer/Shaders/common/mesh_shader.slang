@@ -4,53 +4,31 @@
 #define VRF_MESH_SHADER_INCLUDE
 
 // Mesh shading over the MSLT block. The extension directive is not written here: hoisted #extension lines
-// ignore the preprocessor, so the shader loader emits the spelling the driver actually exposes and sets
-// D_MESH_SHADER_EXT to say which one it picked.
-//
-// EXT is what Source 2 itself compiles against, NV is the only one OpenGL exposes today. The two differ in
-// where the output limits are declared, how the vertex array is named, and how a primitive is written, so
-// everything below is expressed once and mapped onto whichever is present.
-#define D_MESH_SHADER_EXT 0
+// land in the header every stage of the program shares, and a driver may reject one naming a stage it knows
+// nothing about, so the shader loader emits it into this stage alone.
 
 #define MESHLET_MAX_VERTICES 128
 #define MESHLET_MAX_PRIMITIVES 128
 #define MESHLET_GROUP_SIZE 32
 
 layout(local_size_x = MESHLET_GROUP_SIZE) in;
+layout(triangles) out;
+layout(max_vertices = MESHLET_MAX_VERTICES, max_primitives = MESHLET_MAX_PRIMITIVES) out;
 
-#if (D_MESH_SHADER_EXT == 1)
-    layout(triangles, max_vertices = MESHLET_MAX_VERTICES, max_primitives = MESHLET_MAX_PRIMITIVES) out;
+#define MeshVertexPosition(nVertex) gl_MeshVerticesNV[nVertex].gl_Position
 
-    #define MeshVertexPosition(nVertex) gl_MeshVerticesEXT[nVertex].gl_Position
+void SetMeshletCounts(uint nVertices, uint nPrimitives)
+{
+    // There is no vertex count to set, the highest slot the primitives index is what gets used
+    gl_PrimitiveCountNV = nPrimitives;
+}
 
-    void SetMeshletCounts(uint nVertices, uint nPrimitives)
-    {
-        SetMeshOutputsEXT(nVertices, nPrimitives);
-    }
-
-    void WriteMeshletTriangle(uint nPrimitive, uvec3 vIndices)
-    {
-        gl_PrimitiveTriangleIndicesEXT[nPrimitive] = vIndices;
-    }
-#else
-    layout(triangles) out;
-    layout(max_vertices = MESHLET_MAX_VERTICES, max_primitives = MESHLET_MAX_PRIMITIVES) out;
-
-    #define MeshVertexPosition(nVertex) gl_MeshVerticesNV[nVertex].gl_Position
-
-    void SetMeshletCounts(uint nVertices, uint nPrimitives)
-    {
-        // NV has no vertex count to set, the highest written slot is what gets used
-        gl_PrimitiveCountNV = nPrimitives;
-    }
-
-    void WriteMeshletTriangle(uint nPrimitive, uvec3 vIndices)
-    {
-        gl_PrimitiveIndicesNV[nPrimitive * 3u + 0u] = vIndices.x;
-        gl_PrimitiveIndicesNV[nPrimitive * 3u + 1u] = vIndices.y;
-        gl_PrimitiveIndicesNV[nPrimitive * 3u + 2u] = vIndices.z;
-    }
-#endif
+void WriteMeshletTriangle(uint nPrimitive, uvec3 vIndices)
+{
+    gl_PrimitiveIndicesNV[nPrimitive * 3u + 0u] = vIndices.x;
+    gl_PrimitiveIndicesNV[nPrimitive * 3u + 1u] = vIndices.y;
+    gl_PrimitiveIndicesNV[nPrimitive * 3u + 2u] = vIndices.z;
+}
 
 // One meshlet of the MSLT block, mirroring MeshletDescriptor on the CPU side.
 struct MeshletDescriptor
