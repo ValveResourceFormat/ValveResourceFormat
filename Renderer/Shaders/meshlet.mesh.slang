@@ -36,8 +36,10 @@ mat3x4 GetObjectToWorldMatrix(uint nInstance)
 
 void main()
 {
-    uint nInstance = gl_WorkGroupID.x / nMeshletCount;
-    uint nMeshlet = nFirstMeshlet + (gl_WorkGroupID.x - nInstance * nMeshletCount);
+    // Guarded, because a meshlet count of zero would be a division by zero rather than an empty draw
+    uint nPerInstance = max(nMeshletCount, 1u);
+    uint nInstance = gl_WorkGroupID.x / nPerInstance;
+    uint nMeshlet = nFirstMeshlet + (gl_WorkGroupID.x - nInstance * nPerInstance);
 
     MeshletDescriptor meshlet = meshletDescriptors[nMeshlet];
     mat3x4 objectToWorld = GetObjectToWorldMatrix(nInstance);
@@ -60,11 +62,14 @@ void main()
 
         MeshVertexPosition(nLocal) = g_matWorldToProjection * vec4(vPositionWs, 1.0);
 
+        vec3 vNormalWs = vec4(FetchVertexNormal(nVertex), 0.0) * objectToWorld;
+        float flNormalLength = length(vNormalWs);
+
         vOut[nLocal].vFragPosition = vPositionWs;
-        vOut[nLocal].vNormalOut = normalize(vec4(FetchVertexNormal(nVertex), 0.0) * objectToWorld);
+        vOut[nLocal].vNormalOut = flNormalLength > 0.0 ? vNormalWs / flNormalLength : vec3(0.0, 0.0, 1.0);
         vOut[nLocal].vTexCoordOut = FetchVertexTexCoord(nVertex);
         vOut[nLocal].vMeshletIdOut = nMeshlet;
     }
 
-    DecodeMeshletTriangles(meshlet, nPrimitives);
+    DecodeMeshletTriangles(meshlet, nVertices, nPrimitives);
 }

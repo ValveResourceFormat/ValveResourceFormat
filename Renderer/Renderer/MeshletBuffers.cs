@@ -74,8 +74,11 @@ namespace ValveResourceFormat.Renderer
         /// <param name="name">Mesh name the buffers are labelled with.</param>
         /// <param name="meshlets">The mesh's meshlets, in the order they were read.</param>
         /// <param name="packedIndices">The mesh resource's MSLT block.</param>
-        public static MeshletBuffers? Create(string name, List<Meshlet> meshlets, MeshletBuffer? packedIndices)
+        /// <param name="skippedMeshlets">Receives the number of meshlets too large for a workgroup to hold.</param>
+        public static MeshletBuffers? Create(string name, List<Meshlet> meshlets, MeshletBuffer? packedIndices, out int skippedMeshlets)
         {
+            skippedMeshlets = 0;
+
             if (packedIndices == null || meshlets.Count == 0)
             {
                 return null;
@@ -106,6 +109,7 @@ namespace ValveResourceFormat.Renderer
                     // A meshlet the workgroup cannot hold, or one running past the block, draws nothing
                     // rather than reading somebody else's entries
                     descriptors[i] = default;
+                    skippedMeshlets++;
                     entryOffset += meshlet.VertexCount;
                     continue;
                 }

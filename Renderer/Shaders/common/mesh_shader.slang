@@ -23,8 +23,13 @@ void SetMeshletCounts(uint nVertices, uint nPrimitives)
     gl_PrimitiveCountNV = nPrimitives;
 }
 
-void WriteMeshletTriangle(uint nPrimitive, uvec3 vIndices)
+void WriteMeshletTriangle(uint nPrimitive, uvec3 vIndices, uint nVertices)
 {
+    if (any(greaterThanEqual(vIndices, uvec3(nVertices))))
+    {
+        vIndices = uvec3(0u);
+    }
+
     gl_PrimitiveIndicesNV[nPrimitive * 3u + 0u] = vIndices.x;
     gl_PrimitiveIndicesNV[nPrimitive * 3u + 1u] = vIndices.y;
     gl_PrimitiveIndicesNV[nPrimitive * 3u + 2u] = vIndices.z;
@@ -81,13 +86,13 @@ int ResolveMeshletReference(int nReference, inout int nMaxIntroduced)
 // itself, because a window that never wraps leaves both branches above equal to the reference, so the whole
 // stream decodes in parallel. Past that the window's state carries from one triangle to the next and the
 // stream has to be walked in order, which one invocation does for the group.
-void DecodeMeshletTriangles(MeshletDescriptor meshlet, uint nPrimitives)
+void DecodeMeshletTriangles(MeshletDescriptor meshlet, uint nVertices, uint nPrimitives)
 {
     if (meshlet.nVertexCount <= 64u)
     {
         for (uint nTriangle = gl_LocalInvocationIndex; nTriangle < nPrimitives; nTriangle += MESHLET_GROUP_SIZE)
         {
-            WriteMeshletTriangle(nTriangle, GetMeshletTriangleReferences(meshlet, nTriangle));
+            WriteMeshletTriangle(nTriangle, GetMeshletTriangleReferences(meshlet, nTriangle), nVertices);
         }
 
         return;
@@ -109,7 +114,7 @@ void DecodeMeshletTriangles(MeshletDescriptor meshlet, uint nPrimitives)
         vIndices.y = uint(ResolveMeshletReference(int(vReferences.y), nMaxIntroduced));
         vIndices.z = uint(ResolveMeshletReference(int(vReferences.z), nMaxIntroduced));
 
-        WriteMeshletTriangle(nTriangle, vIndices);
+        WriteMeshletTriangle(nTriangle, vIndices, nVertices);
     }
 }
 

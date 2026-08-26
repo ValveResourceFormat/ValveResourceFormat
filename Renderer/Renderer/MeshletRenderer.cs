@@ -151,12 +151,15 @@ public class MeshletRenderer(RendererContext rendererContext)
             SetAttributeUniform(shader, uniforms.TexCoord, texCoord);
 
             // One workgroup per meshlet, the instances laid out one whole meshlet range after another
-            var groupCount = Math.Min((long)drawCall.NumMeshlets * instanceCount, GLEnvironment.MaxDrawMeshTasks);
+            var groupCount = (long)drawCall.NumMeshlets * instanceCount;
 
             counters.CountDrawCall(request.Node);
-            counters.CountIndirectDraw((int)groupCount);
+            counters.CountIndirectDraw((int)Math.Min(groupCount, int.MaxValue));
 
-            GL.NV.DrawMeshTask(0u, (uint)groupCount);
+            for (var first = 0L; first < groupCount; first += GLEnvironment.MaxDrawMeshTasks)
+            {
+                GL.NV.DrawMeshTask((uint)first, (uint)Math.Min(GLEnvironment.MaxDrawMeshTasks, groupCount - first));
+            }
         }
     }
 

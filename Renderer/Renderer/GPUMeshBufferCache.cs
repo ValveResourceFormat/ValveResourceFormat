@@ -1,12 +1,9 @@
 using System.Diagnostics;
 using System.Linq;
+using Microsoft.Extensions.Logging;
 using OpenTK.Graphics.OpenGL;
 using ValveResourceFormat.Blocks;
 using ValveResourceFormat.ResourceTypes;
-
-#if DEBUG
-using Microsoft.Extensions.Logging;
-#endif
 
 namespace ValveResourceFormat.Renderer
 {
@@ -106,8 +103,14 @@ namespace ValveResourceFormat.Renderer
         {
             if (!meshletBuffers.TryGetValue(meshName, out var buffers))
             {
-                buffers = MeshletBuffers.Create(meshName, meshlets, packedIndices);
+                buffers = MeshletBuffers.Create(meshName, meshlets, packedIndices, out var skipped);
                 meshletBuffers.Add(meshName, buffers);
+
+                if (skipped > 0)
+                {
+                    RendererContext.Logger.LogWarning("{Skipped} of {Total} meshlets in {MeshName} are past what a mesh shader workgroup holds ({MaxVertices} vertices, {MaxPrimitives} triangles) and will not draw",
+                        skipped, meshlets.Count, meshName, MeshletLimits.MaxVertices, MeshletLimits.MaxPrimitives);
+                }
             }
 
             return buffers;
