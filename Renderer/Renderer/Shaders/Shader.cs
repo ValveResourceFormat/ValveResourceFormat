@@ -230,6 +230,15 @@ namespace ValveResourceFormat.Renderer.Shaders
             return IsValid;
         }
 
+        /// <summary>Seeds the uniform cache from the parsed source, so lookups made before the program links stay inert instead of caching driver responses from an unlinked program.</summary>
+        public void InitializeUniformsFromParser()
+        {
+            foreach (var uniformName in UniformNames)
+            {
+                Uniforms[uniformName] = (ActiveUniformType.FloatVec4, -1, false);
+            }
+        }
+
         private void DetachAndDeleteShaderObjects()
         {
             foreach (var obj in ShaderObjects)

@@ -393,7 +393,6 @@ public class Renderer
         {
             if (brdfLutResource == null)
             {
-                // Will be used by LoadTexture, and disposed by resource
                 var brdfStream = rendererAssembly.GetManifestResourceStream("Renderer.Resources." + vtexFileName)
                     ?? throw new InvalidOperationException($"Failed to load embedded resource: {vtexFileName}");
 
@@ -421,18 +420,19 @@ public class Renderer
         const string blueNoiseName = "blue_noise_256.vtex_c";
         var blueNoiseResource = RendererContext.FileLoader.LoadFile("textures/dev/" + blueNoiseName);
 
+        // Same method as brdf
+        if (blueNoiseResource?.DataBlock is not Texture)
+        {
+            blueNoiseResource?.Dispose();
+            blueNoiseResource = null;
+        }
+
         try
         {
-            Stream? blueNoiseStream; // Same method as brdf
-
             if (blueNoiseResource == null)
             {
-                blueNoiseStream = rendererAssembly.GetManifestResourceStream("Renderer.Resources." + blueNoiseName);
-
-                if (blueNoiseStream == null)
-                {
-                    throw new InvalidOperationException($"Failed to load embedded resource: {blueNoiseName}");
-                }
+                var blueNoiseStream = rendererAssembly.GetManifestResourceStream("Renderer.Resources." + blueNoiseName)
+                    ?? throw new InvalidOperationException($"Failed to load embedded resource: {blueNoiseName}");
 
                 blueNoiseResource = new Resource() { FileName = blueNoiseName };
                 blueNoiseResource.Read(blueNoiseStream);

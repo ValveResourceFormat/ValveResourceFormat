@@ -66,6 +66,9 @@ internal abstract class ThumbnailRenderer : IDisposable
 
         SceneRenderer = new Renderer(RendererContext);
 
+        // Whole chains per read job; the drain loop in Render consumes them to completion anyway
+        RendererContext.MaterialLoader.BatchChainReads = true;
+
         SceneRenderer.Camera.SetFromQAngle(new Vector3(20f, 225f, 0f));
 
         RendererContext.Logger.LogInformation("Loading scene...");
@@ -196,6 +199,15 @@ internal abstract class ThumbnailRenderer : IDisposable
         };
 
         SceneRenderer.Update(updateContext);
+
+        // One-shot render with no frame loop to pump uploads later, so stream everything in now
+        var materialLoader = SceneRenderer.RendererContext.MaterialLoader;
+
+        while (materialLoader.HasPendingTextureStreams && !cancellationToken.IsCancellationRequested)
+        {
+            materialLoader.UploadPendingTextures(frameTime: 1f);
+            Thread.Yield(); // reads may still be in flight on the thread pool with nothing to apply yet
+        }
 
         GL.ClearColor(Color.Green);
         GL.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit);

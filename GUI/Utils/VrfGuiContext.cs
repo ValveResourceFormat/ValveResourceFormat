@@ -154,6 +154,12 @@ namespace GUI.Utils
         {
             foreach (var resource in CachedResources.Values)
             {
+                // Textures may still have pending async mip reads against their reader
+                if (resource is { ResourceType: ResourceType.Texture })
+                {
+                    continue;
+                }
+
                 resource.Dispose();
             }
 
