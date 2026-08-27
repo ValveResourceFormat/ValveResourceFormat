@@ -611,8 +611,19 @@ namespace ValveResourceFormat.Renderer.Materials
 
         /// <summary>Whether any streamed texture still has mips waiting to start, in flight on a read job,
         /// or awaiting upload. While true, <see cref="UploadPendingTextures"/> still has work to do.</summary>
-        public bool HasPendingTextureStreams
+        private bool HasPendingTextureStreams
             => !pendingStreams.IsEmpty || !pendingMipUploads.IsEmpty || Interlocked.Read(ref pendingUploadBytes) > 0;
+
+        /// <summary>Pumps until every stream has finished, for one-shot consumers that have no frame
+        /// loop to pump later. Must be called on a thread with a GL context.</summary>
+        public void FinishAllStreaming(CancellationToken cancellationToken = default)
+        {
+            while (HasPendingTextureStreams && !cancellationToken.IsCancellationRequested)
+            {
+                UploadPendingTextures(frameTime: 1f);
+                Thread.Yield(); // reads may still be in flight on the thread pool with nothing to apply yet
+            }
+        }
 
         /// <summary>Dispatches the read for a stream's next mip, or parks the stream for a later pump when
         /// too many bytes are in flight. Only called on the pump's thread, so the gate check never races its own adds.</summary>
