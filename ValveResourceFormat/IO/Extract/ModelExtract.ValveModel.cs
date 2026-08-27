@@ -1335,13 +1335,27 @@ partial class ModelExtract
 
             foreach (var genericDataClass in genericDataClasses)
             {
-                if (keyvalues.ContainsKey(genericDataClass))
+                if (!keyvalues.ContainsKey(genericDataClass))
                 {
-                    var genericData = keyvalues.GetSubCollection(genericDataClass);
-                    if (genericData != null)
+                    continue;
+                }
+
+                // Some of these classes hold one entry and others hold an array of them, and an
+                // array wrapped in a single node compiles back to an unnamed member.
+                if (keyvalues[genericDataClass].ValueType == KVValueType.Array)
+                {
+                    foreach (var entry in keyvalues.GetArray(genericDataClass))
                     {
-                        AddGenericGameData(gameDataList.Value, genericDataClass, genericData);
+                        AddGenericGameData(gameDataList.Value, genericDataClass, entry);
                     }
+
+                    continue;
+                }
+
+                var genericData = keyvalues.GetSubCollection(genericDataClass);
+                if (genericData != null)
+                {
+                    AddGenericGameData(gameDataList.Value, genericDataClass, genericData);
                 }
             }
 
