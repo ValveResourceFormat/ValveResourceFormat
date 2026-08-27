@@ -38,7 +38,6 @@ partial class ModelExtract
         return className switch
         {
             "CIKJointConstraintData_Hinge" => "IKJointConstraint_Hinge",
-            "CIKJointConstraintData_Plane" => "IKJointConstraint_Plane",
             _ => null
         };
     }
@@ -234,14 +233,14 @@ partial class ModelExtract
 
     #region IK Chains
     /// <summary>
-    /// Builds the IKData node, or returns null when no chain in the model still carries joints.
-    /// A chain whose joints were all culled is rejected by the compiler, so it is left out.
+    /// Builds the IKData node from both IK systems, or returns null when the model carries
+    /// neither. A chain that kept no joints is left out, because the compiler rejects one.
     /// </summary>
-    static KVObject? BuildIKData(IReadOnlyList<KVObject>? ikChains, (KVObject Rig, IReadOnlyList<KVObject> Chains)? controlRig)
+    static KVObject? BuildIKData(Model model)
     {
         var childrenKV = KVObject.Array();
 
-        foreach (var ikChain in ikChains ?? [])
+        foreach (var ikChain in AnimGraphModelInfo.GetIKChainsFromModel(model) ?? [])
         {
             if (GetIKChainJoints(ikChain).Count == 0)
             {
@@ -251,9 +250,9 @@ partial class ModelExtract
             childrenKV.Add(BuildIKChain(ikChain));
         }
 
-        if (controlRig is { } rig)
+        if (AnimGraphModelInfo.GetIKControlRigFromModel(model) is { } controlRig)
         {
-            childrenKV.Add(BuildIKRig(rig.Rig, rig.Chains));
+            childrenKV.Add(BuildIKRig(controlRig.Rig, controlRig.Chains));
         }
 
         return childrenKV.Count > 0 ? MakeNode("IKData", ("children", childrenKV)) : null;
@@ -286,7 +285,7 @@ partial class ModelExtract
 
         if (rig.ContainsKey("m_TiltBone"))
         {
-            rigNode.Add("tilt_bone", GetBoneName(rig, "m_TiltBone"));
+            rigNode.Add("tilt_bone", GetBoneReferenceName(rig, "m_TiltBone"));
         }
 
         return rigNode;
@@ -327,10 +326,10 @@ partial class ModelExtract
             chainNode.Add("children", childrenKV);
         }
 
-        chainNode.Add("root_bone", GetBoneName(chainData, "m_RootBone"));
-        chainNode.Add("end_effector_bone", GetBoneName(chainData, "m_EndEffectorBone"));
-        chainNode.Add("end_effector_target_bone", GetBoneName(chainData, "m_EndEffectorTargetBone"));
-        chainNode.Add("reverse_footlock_bone", GetBoneName(chainData, "m_ReverseFootLockBone"));
+        chainNode.Add("root_bone", GetBoneReferenceName(chainData, "m_RootBone"));
+        chainNode.Add("end_effector_bone", GetBoneReferenceName(chainData, "m_EndEffectorBone"));
+        chainNode.Add("end_effector_target_bone", GetBoneReferenceName(chainData, "m_EndEffectorTargetBone"));
+        chainNode.Add("reverse_footlock_bone", GetBoneReferenceName(chainData, "m_ReverseFootLockBone"));
         AddIfPresent(chainNode, "solver", chainData, "m_SolverType");
         AddIfPresent(chainNode, "break_restoration_time", chainData, "m_flBreakRestorationTime");
         AddIfPresent(chainNode, "max_lock_distance_to_target", chainData, "m_flMaxLockDistanceToTarget");
@@ -343,30 +342,9 @@ partial class ModelExtract
     }
 
     static KVObject? BuildIKRigJointConstraint(KVObject pair)
-    {
-        if (!pair.ContainsKey("m_pJointConstraintData"))
-        {
-            return null;
-        }
-
-        var constraintData = pair.GetSubCollection("m_pJointConstraintData");
-        var className = RemapIKJointConstraintClassname(constraintData.GetStringProperty("_class", string.Empty));
-        if (className == null)
-        {
-            return null;
-        }
-
-        var boneName = pair.ContainsKey("m_Bone")
-            ? pair.GetSubCollection("m_Bone").GetStringProperty("m_Name", string.Empty)
-            : string.Empty;
-
-        var constraintNode = MakeNode(className, ("constrained_joint", boneName));
-        constraintNode.Add("hinge_axis", constraintData.GetStringProperty("m_HingeAxis", string.Empty));
-        constraintNode.Add("min_radians", constraintData.GetFloatProperty("m_flMinRadians"));
-        constraintNode.Add("max_radians", constraintData.GetFloatProperty("m_flMaxRadians"));
-
-        return constraintNode;
-    }
+        => pair.ContainsKey("m_pJointConstraintData")
+            ? BuildIKJointConstraint(pair.GetSubCollection("m_pJointConstraintData"), GetBoneReferenceName(pair, "m_Bone"))
+            : null;
 
     static KVObject? BuildIKRigRule(KVObject rule)
     {
@@ -376,10 +354,10 @@ partial class ModelExtract
         }
 
         var ruleNode = MakeNode("IKRuleGround", ("name", "ground"));
-        ruleNode.Add("trace_height", GetOrDefault(rule, "m_flRaycastHeight", 20f));
-        ruleNode.Add("trace_radius", GetOrDefault(rule, "m_flRaycastRadius", 2.5f));
-        ruleNode.Add("z_spring_strength", GetOrDefault(rule, "m_flZSpringStiffness", 10f));
-        ruleNode.Add("normal_spring_strength", GetOrDefault(rule, "m_flNormalSpringStiffness", 10f));
+        AddIfPresent(ruleNode, "trace_height", rule, "m_flRaycastHeight");
+        AddIfPresent(ruleNode, "trace_radius", rule, "m_flRaycastRadius");
+        AddIfPresent(ruleNode, "z_spring_strength", rule, "m_flZSpringStiffness");
+        AddIfPresent(ruleNode, "normal_spring_strength", rule, "m_flNormalSpringStiffness");
 
         return ruleNode;
     }
@@ -401,18 +379,18 @@ partial class ModelExtract
 
         // Only these exact spellings are read back; anything else compiles and is then ignored.
         // Setting the solver type also forces the rotation fix up mode to None, hence that fallback.
-        chainNode.Add("m_bDoBonesOrientAlongPositiveX", GetOrDefault(ikChain, "m_bDoBonesOrientAlongPositiveX", true));
-        chainNode.Add("m_DefaultSolverSettings.m_nNumIterations", GetOrDefault(solverSettings, "m_nNumIterations", 6));
-        chainNode.Add("m_DefaultSolverSettings.m_SolverType ", GetOrDefault(solverSettings, "m_SolverType", "IKSOLVER_TwoBone"));
-        chainNode.Add("m_DefaultSolverSettings.m_EndEffectorRotationFixUpMode", GetOrDefault(solverSettings, "m_EndEffectorRotationFixUpMode", "None"));
+        AddIfPresent(chainNode, "m_bDoBonesOrientAlongPositiveX", ikChain, "m_bDoBonesOrientAlongPositiveX");
+        AddIfPresent(chainNode, "m_DefaultSolverSettings.m_nNumIterations", solverSettings, "m_nNumIterations");
+        AddIfPresent(chainNode, "m_DefaultSolverSettings.m_SolverType ", solverSettings, "m_SolverType");
+        AddIfPresent(chainNode, "m_DefaultSolverSettings.m_EndEffectorRotationFixUpMode", solverSettings, "m_EndEffectorRotationFixUpMode");
         chainNode.Add("m_DefaultTargetSettings.m_Bone", MakeNamedReference(targetSettings, "m_Bone"));
-        chainNode.Add("m_DefaultTargetSettings.m_TargetSource", GetOrDefault(targetSettings, "m_TargetSource", "Bone"));
+        AddIfPresent(chainNode, "m_DefaultTargetSettings.m_TargetSource", targetSettings, "m_TargetSource");
         chainNode.Add("m_Data.m_DefaultTargetSettings.m_AnimgraphParameterNamePosition", MakeAnimParamReference(targetSettings, "m_AnimgraphParameterNamePosition"));
         chainNode.Add("m_Data.m_DefaultTargetSettings.m_AnimgraphParameterNameOrientation", MakeAnimParamReference(targetSettings, "m_AnimgraphParameterNameOrientation"));
         chainNode.Add("m_Data.m_EndEffectorFixedOffsetAttachment", MakeNamedReference(ikChain, "m_EndEffectorFixedOffsetAttachment"));
-        chainNode.Add("m_Data.m_bParentJointRequiresAlignment", GetOrDefault(ikChain, "m_bParentJointRequiresAlignment", true));
-        chainNode.Add("m_bUseNewPoleVectorForAxis", GetOrDefault(ikChain, "m_bUseNewPoleVectorForAxis", false));
-        chainNode.Add("m_PoleVectorForAxis ", GetOrDefault(ikChain, "m_PoleVectorForAxis", "IKChainDataPoleVectorForAxis::Y"));
+        AddIfPresent(chainNode, "m_Data.m_bParentJointRequiresAlignment", ikChain, "m_bParentJointRequiresAlignment");
+        AddIfPresent(chainNode, "m_bUseNewPoleVectorForAxis", ikChain, "m_bUseNewPoleVectorForAxis");
+        AddIfPresent(chainNode, "m_PoleVectorForAxis ", ikChain, "m_PoleVectorForAxis");
 
         return chainNode;
     }
@@ -420,9 +398,7 @@ partial class ModelExtract
     static KVObject BuildIKChainJoint(IReadOnlyList<KVObject> joints, int index)
     {
         var joint = joints[index];
-        var boneName = joint.ContainsKey("m_Bone")
-            ? joint.GetSubCollection("m_Bone").GetStringProperty("m_Name", string.Empty)
-            : string.Empty;
+        var boneName = GetBoneReferenceName(joint, "m_Bone");
 
         var jointNode = MakeNode("IKChainJoint", ("name", boneName));
 
@@ -458,47 +434,29 @@ partial class ModelExtract
         return jointNode;
     }
 
-    static KVObject? BuildIKJointConstraint(KVObject constraintData)
+    static KVObject? BuildIKJointConstraint(KVObject constraintData, string constrainedJoint = "")
     {
-        var compiledClass = constraintData.GetStringProperty("_class", string.Empty);
-        var className = RemapIKJointConstraintClassname(compiledClass);
+        var className = RemapIKJointConstraintClassname(constraintData.GetStringProperty("_class", string.Empty));
         if (className == null)
         {
             return null;
         }
 
-        var constraintNode = MakeNode(className, ("constrained_joint", string.Empty));
-
-        if (compiledClass == "CIKJointConstraintData_Plane")
-        {
-            if (constraintData.ContainsKey("m_Plane"))
-            {
-                constraintNode.Add("plane", MakeArray(constraintData.GetFloatArray("m_Plane").Select(f => (KVObject)f)));
-            }
-        }
-        else
-        {
-            constraintNode.Add("hinge_axis", constraintData.GetStringProperty("m_HingeAxis", string.Empty));
-            constraintNode.Add("min_radians", constraintData.GetFloatProperty("m_flMinRadians"));
-            constraintNode.Add("max_radians", constraintData.GetFloatProperty("m_flMaxRadians"));
-        }
+        var constraintNode = MakeNode(className, ("constrained_joint", constrainedJoint));
+        constraintNode.Add("hinge_axis", constraintData.GetStringProperty("m_HingeAxis", string.Empty));
+        constraintNode.Add("min_radians", constraintData.GetFloatProperty("m_flMinRadians"));
+        constraintNode.Add("max_radians", constraintData.GetFloatProperty("m_flMaxRadians"));
 
         return constraintNode;
     }
 
     /// <summary>
-    /// Reads a key that older compiler eras did not write, falling back to the ModelDoc default.
-    /// </summary>
-    static KVObject GetOrDefault(KVObject? source, string key, KVObject fallback)
-        => source?.ContainsKey(key) == true ? source[key] : fallback;
-
-    /// <summary>
     /// Copies a key across only when the compiled block carries it, so a field an older compiler
     /// era never wrote stays absent instead of being created at its default.
     /// </summary>
-    static void AddIfPresent(KVObject target, string targetKey, KVObject source, string sourceKey)
+    static void AddIfPresent(KVObject target, string targetKey, KVObject? source, string sourceKey)
     {
-        if (source.ContainsKey(sourceKey))
+        if (source?.ContainsKey(sourceKey) == true)
         {
             target.Add(targetKey, source[sourceKey]);
         }
@@ -508,7 +466,7 @@ partial class ModelExtract
     /// Reads a bone reference as a plain name. The legacy rig nodes take bone names directly,
     /// unlike the chain nodes, which wrap them in an object.
     /// </summary>
-    static string GetBoneName(KVObject? source, string key)
+    static string GetBoneReferenceName(KVObject? source, string key)
         => source?.ContainsKey(key) == true
             ? source.GetSubCollection(key).GetStringProperty("m_Name", string.Empty)
             : string.Empty;
@@ -516,9 +474,7 @@ partial class ModelExtract
     static KVObject MakeNamedReference(KVObject? source, string key)
     {
         var reference = KVObject.Collection();
-        reference.Add("m_Name", source?.ContainsKey(key) == true
-            ? source.GetSubCollection(key).GetStringProperty("m_Name", string.Empty)
-            : string.Empty);
+        reference.Add("m_Name", GetBoneReferenceName(source, key));
         return reference;
     }
 
@@ -1421,9 +1377,7 @@ partial class ModelExtract
                 root.Children.Add(boneConstraintList);
             }
 
-            var ikChains = AnimGraphModelInfo.GetIKChainsFromModel(model);
-            var ikControlRig = AnimGraphModelInfo.GetIKControlRigFromModel(model);
-            if (BuildIKData(ikChains, ikControlRig) is { } ikData)
+            if (BuildIKData(model) is { } ikData)
             {
                 root.Children.Add(ikData);
             }

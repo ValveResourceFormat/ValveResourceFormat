@@ -66,11 +66,14 @@ namespace Tests
 
             using (Assert.Multiple())
             {
-                await Assert.That(vmdl).Contains("\"m_PoleVectorForAxis \" = ");
                 await Assert.That(vmdl).Contains("\"m_DefaultSolverSettings.m_SolverType \" = ");
                 await Assert.That(vmdl).Contains("m_Data.m_bParentJointRequiresAlignment = ");
                 await Assert.That(vmdl).Contains("m_Data.m_EndEffectorFixedOffsetAttachment = ");
                 await Assert.That(vmdl).Contains("m_Data.m_DefaultTargetSettings.m_AnimgraphParameterNamePosition = ");
+
+                // The pole vector keys postdate this model's compiler, and a key the compiled
+                // block does not carry is not written back.
+                await Assert.That(vmdl).DoesNotContain("m_PoleVectorForAxis");
             }
         }
 
