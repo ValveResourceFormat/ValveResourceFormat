@@ -233,23 +233,162 @@ partial class ModelExtract
     #endregion
 
     #region IK Chains
-    static KVObject BuildIKData(IReadOnlyList<KVObject> ikChains)
+    /// <summary>
+    /// Builds the IKData node, or returns null when no chain in the model still carries joints.
+    /// A chain whose joints were all culled is rejected by the compiler, so it is left out.
+    /// </summary>
+    static KVObject? BuildIKData(IReadOnlyList<KVObject>? ikChains, (KVObject Rig, IReadOnlyList<KVObject> Chains)? controlRig)
     {
         var childrenKV = KVObject.Array();
 
-        foreach (var ikChain in ikChains)
+        foreach (var ikChain in ikChains ?? [])
         {
+            if (GetIKChainJoints(ikChain).Count == 0)
+            {
+                continue;
+            }
+
             childrenKV.Add(BuildIKChain(ikChain));
         }
 
-        return MakeNode("IKData", ("children", childrenKV));
+        if (controlRig is { } rig)
+        {
+            childrenKV.Add(BuildIKRig(rig.Rig, rig.Chains));
+        }
+
+        return childrenKV.Count > 0 ? MakeNode("IKData", ("children", childrenKV)) : null;
+    }
+
+    static IReadOnlyList<KVObject> GetIKChainJoints(KVObject ikChain)
+        => ikChain.ContainsKey("m_Joints") ? ikChain.GetArray("m_Joints") : [];
+
+    /// <summary>
+    /// Builds the legacy IK rig node. Its chains carry the whole IK definition for models authored
+    /// before chains moved into m_IKChains, where the m_IKChains entries are left without joints.
+    /// </summary>
+    static KVObject BuildIKRig(KVObject rig, IReadOnlyList<KVObject> chainData)
+    {
+        var childrenKV = KVObject.Array();
+
+        foreach (var chain in chainData)
+        {
+            childrenKV.Add(BuildIKRigChain(chain));
+        }
+
+        var rigNode = MakeNode("IKRigSimple", ("name", "ik_rig"), ("children", childrenKV));
+
+        AddIfPresent(rigNode, "system", rig, "m_SystemType");
+        AddIfPresent(rigNode, "initial_master_blend_amount", rig, "m_flInitialMasterBlendAmount");
+        AddIfPresent(rigNode, "default_tilt_spring_strength", rig, "m_flDefaultTiltSpringStrength");
+        AddIfPresent(rigNode, "abs_origin_drop_height", rig, "m_flAbsOriginDropHeight");
+        AddIfPresent(rigNode, "abs_origin_drop_height_spring_strength", rig, "m_flAbsOriginDropSpringStrength");
+        AddIfPresent(rigNode, "animgraph_master_blend_parameter_name", rig, "m_MasterBlendAnimgraphParameterName");
+
+        if (rig.ContainsKey("m_TiltBone"))
+        {
+            rigNode.Add("tilt_bone", GetBoneName(rig, "m_TiltBone"));
+        }
+
+        return rigNode;
+    }
+
+    static KVObject BuildIKRigChain(KVObject chainData)
+    {
+        var chainNode = MakeNode("IKChainOld", ("name", chainData.GetStringProperty("m_Name", string.Empty)));
+
+        var childrenKV = KVObject.Array();
+
+        if (chainData.ContainsKey("m_JointConstraintPairs"))
+        {
+            foreach (var pair in chainData.GetArray("m_JointConstraintPairs"))
+            {
+                var constraint = BuildIKRigJointConstraint(pair);
+                if (constraint != null)
+                {
+                    childrenKV.Add(constraint);
+                }
+            }
+        }
+
+        if (chainData.ContainsKey("m_RuleData"))
+        {
+            foreach (var rule in chainData.GetArray("m_RuleData"))
+            {
+                var ruleNode = BuildIKRigRule(rule);
+                if (ruleNode != null)
+                {
+                    childrenKV.Add(ruleNode);
+                }
+            }
+        }
+
+        if (childrenKV.Count > 0)
+        {
+            chainNode.Add("children", childrenKV);
+        }
+
+        chainNode.Add("root_bone", GetBoneName(chainData, "m_RootBone"));
+        chainNode.Add("end_effector_bone", GetBoneName(chainData, "m_EndEffectorBone"));
+        chainNode.Add("end_effector_target_bone", GetBoneName(chainData, "m_EndEffectorTargetBone"));
+        chainNode.Add("reverse_footlock_bone", GetBoneName(chainData, "m_ReverseFootLockBone"));
+        AddIfPresent(chainNode, "solver", chainData, "m_SolverType");
+        AddIfPresent(chainNode, "break_restoration_time", chainData, "m_flBreakRestorationTime");
+        AddIfPresent(chainNode, "max_lock_distance_to_target", chainData, "m_flMaxLockDistanceToTarget");
+        AddIfPresent(chainNode, "use_target_instead_of_lock_threshold", chainData, "m_flUseTargetInsteadOfLockThreshold");
+        AddIfPresent(chainNode, "soften_percentage", chainData, "m_flSoftenPercentage");
+        AddIfPresent(chainNode, "soften_time", chainData, "m_flSoftenTime");
+        AddIfPresent(chainNode, "hyperextension_release_dot_threshold", chainData, "m_flHyperExtensionLockReleaseDotThreshold");
+
+        return chainNode;
+    }
+
+    static KVObject? BuildIKRigJointConstraint(KVObject pair)
+    {
+        if (!pair.ContainsKey("m_pJointConstraintData"))
+        {
+            return null;
+        }
+
+        var constraintData = pair.GetSubCollection("m_pJointConstraintData");
+        var className = RemapIKJointConstraintClassname(constraintData.GetStringProperty("_class", string.Empty));
+        if (className == null)
+        {
+            return null;
+        }
+
+        var boneName = pair.ContainsKey("m_Bone")
+            ? pair.GetSubCollection("m_Bone").GetStringProperty("m_Name", string.Empty)
+            : string.Empty;
+
+        var constraintNode = MakeNode(className, ("constrained_joint", boneName));
+        constraintNode.Add("hinge_axis", constraintData.GetStringProperty("m_HingeAxis", string.Empty));
+        constraintNode.Add("min_radians", constraintData.GetFloatProperty("m_flMinRadians"));
+        constraintNode.Add("max_radians", constraintData.GetFloatProperty("m_flMaxRadians"));
+
+        return constraintNode;
+    }
+
+    static KVObject? BuildIKRigRule(KVObject rule)
+    {
+        if (rule.GetStringProperty("_class", string.Empty) != "CIKRuleData_Ground_VirtualPlanes")
+        {
+            return null;
+        }
+
+        var ruleNode = MakeNode("IKRuleGround", ("name", "ground"));
+        ruleNode.Add("trace_height", GetOrDefault(rule, "m_flRaycastHeight", 20f));
+        ruleNode.Add("trace_radius", GetOrDefault(rule, "m_flRaycastRadius", 2.5f));
+        ruleNode.Add("z_spring_strength", GetOrDefault(rule, "m_flZSpringStiffness", 10f));
+        ruleNode.Add("normal_spring_strength", GetOrDefault(rule, "m_flNormalSpringStiffness", 10f));
+
+        return ruleNode;
     }
 
     static KVObject BuildIKChain(KVObject ikChain)
     {
         var chainNode = MakeNode("IKChain", ("name", ikChain.GetStringProperty("m_Name", string.Empty)));
 
-        var joints = ikChain.ContainsKey("m_Joints") ? ikChain.GetArray("m_Joints") : [];
+        var joints = GetIKChainJoints(ikChain);
         if (joints.Count > 0)
         {
             var childrenKV = KVObject.Array();
@@ -352,6 +491,27 @@ partial class ModelExtract
     /// </summary>
     static KVObject GetOrDefault(KVObject? source, string key, KVObject fallback)
         => source?.ContainsKey(key) == true ? source[key] : fallback;
+
+    /// <summary>
+    /// Copies a key across only when the compiled block carries it, so a field an older compiler
+    /// era never wrote stays absent instead of being created at its default.
+    /// </summary>
+    static void AddIfPresent(KVObject target, string targetKey, KVObject source, string sourceKey)
+    {
+        if (source.ContainsKey(sourceKey))
+        {
+            target.Add(targetKey, source[sourceKey]);
+        }
+    }
+
+    /// <summary>
+    /// Reads a bone reference as a plain name. The legacy rig nodes take bone names directly,
+    /// unlike the chain nodes, which wrap them in an object.
+    /// </summary>
+    static string GetBoneName(KVObject? source, string key)
+        => source?.ContainsKey(key) == true
+            ? source.GetSubCollection(key).GetStringProperty("m_Name", string.Empty)
+            : string.Empty;
 
     static KVObject MakeNamedReference(KVObject? source, string key)
     {
@@ -1262,9 +1422,10 @@ partial class ModelExtract
             }
 
             var ikChains = AnimGraphModelInfo.GetIKChainsFromModel(model);
-            if (ikChains is { Count: > 0 })
+            var ikControlRig = AnimGraphModelInfo.GetIKControlRigFromModel(model);
+            if (BuildIKData(ikChains, ikControlRig) is { } ikData)
             {
-                root.Children.Add(BuildIKData(ikChains));
+                root.Children.Add(ikData);
             }
 
             var genericDataClasses = new string[] {
