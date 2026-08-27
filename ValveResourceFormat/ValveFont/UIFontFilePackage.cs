@@ -55,7 +55,7 @@ public class UIFontFilePackage
     {
         // uifont files:
         // 1. the entire file is a protobuf - CUIFontFilePackagePB
-        //    https://github.com/SteamDatabase/Protobufs/blob/4de57e705463449b69f600184bcb122902cf8011/csgo/uifontfile_format.proto
+        //    https://github.com/SteamTracking/Protobufs/blob/f697fbf83cfa0f4dad1142136f53ac5752fd5a82/csgo/uifontfile_format.proto
         // 2. every encrypted_contents is AES encrypted with a hardcoded key
         // 3. the decrypted contents are protobuf - CUIFontFilePB
 
