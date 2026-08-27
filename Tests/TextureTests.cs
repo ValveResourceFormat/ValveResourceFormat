@@ -56,7 +56,7 @@ namespace Tests
                 texture.ReadTextureMipLevel(expected, mipLevel);
 
                 // Oversized like a pooled rent would be, so the margin math is exercised realistically
-                var inPlace = new byte[texture.CalculateInPlaceReadBufferSize(mipLevel) + 3];
+                var inPlace = new byte[texture.CalculateInPlaceDecompressionBufferSize(mipLevel) + 3];
                 texture.ReadTextureMipLevelInPlace(inPlace, mipLevel);
 
                 var matches = inPlace.AsSpan(0, size).SequenceEqual(expected);

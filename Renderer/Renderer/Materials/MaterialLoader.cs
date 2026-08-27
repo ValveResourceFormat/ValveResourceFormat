@@ -62,7 +62,7 @@ namespace ValveResourceFormat.Renderer.Materials
         public uint DataMipLevel(in PlannedMip mip) => (uint)(mip.ChainLevel + MinMipLevelAllowed);
 
         /// <summary>Buffer size for reading the mip, including the in-place LZ4 decompression margin.</summary>
-        public int InPlaceSize(in PlannedMip mip) => Data.CalculateInPlaceReadBufferSize(DataMipLevel(mip));
+        public int InPlaceSize(in PlannedMip mip) => Data.CalculateInPlaceDecompressionBufferSize(DataMipLevel(mip));
 
         public void Execute() => Loader.ExecuteRead(this);
     }

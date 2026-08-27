@@ -974,18 +974,26 @@ namespace ValveResourceFormat.ResourceTypes
 
             try
             {
-                var span = buf.AsSpan(0, compressedSize);
-                Reader.ReadExactly(span);
-                var written = LZ4Codec.Decode(span, output);
-
-                if (written != output.Length)
-                {
-                    throw new InvalidDataException($"Failed to decompress LZ4 (expected {output.Length} bytes, got {written}) (texture format is {Format}).");
-                }
+                ReadLz4Mip(buf.AsSpan(0, compressedSize), output);
             }
             finally
             {
                 ArrayPool<byte>.Shared.Return(buf);
+            }
+        }
+
+        /// <summary>Reads a mip's LZ4 compressed bytes into <paramref name="source"/> and decompresses them into <paramref name="output"/>.</summary>
+        private void ReadLz4Mip(Span<byte> source, Span<byte> output)
+        {
+            Debug.Assert(Reader is not null);
+
+            Reader.ReadExactly(source);
+
+            var written = LZ4Codec.Decode(source, output);
+
+            if (written != output.Length)
+            {
+                throw new InvalidDataException($"Failed to decompress LZ4 (expected {output.Length} bytes, got {written}) (texture format is {Format}).");
             }
         }
 
@@ -1065,23 +1073,16 @@ namespace ValveResourceFormat.ResourceTypes
         /// LZ4 compressed mips, the in-place decompression margin.
         /// </summary>
         /// <param name="mipLevel">Mip level for which to read texture data.</param>
-        public int CalculateInPlaceReadBufferSize(uint mipLevel)
+        public int CalculateInPlaceDecompressionBufferSize(uint mipLevel)
         {
             var uncompressedSize = CalculateBufferSizeForMipLevel(mipLevel);
 
-            if (!IsActuallyCompressedMips || CompressedMips == null)
+            if (IsActuallyCompressedMips && CompressedMips != null && CompressedMips[mipLevel] < uncompressedSize)
             {
-                return uncompressedSize;
+                return uncompressedSize + (CompressedMips[mipLevel] >> 8) + 32;
             }
 
-            var compressedSize = CompressedMips[mipLevel];
-
-            if (compressedSize >= uncompressedSize)
-            {
-                return uncompressedSize;
-            }
-
-            return uncompressedSize + (compressedSize >> 8) + 32;
+            return uncompressedSize;
         }
 
         /// <summary>
@@ -1090,13 +1091,13 @@ namespace ValveResourceFormat.ResourceTypes
         /// write cursor never catches the read cursor when the source sits at the end of the buffer with
         /// (compressedSize / 256) + 32 bytes of margin — so no scratch buffer is needed.
         /// </summary>
-        /// <param name="buffer">Buffer that will receive texture data. Must be at least <see cref="CalculateInPlaceReadBufferSize"/> bytes.</param>
+        /// <param name="buffer">Buffer that will receive texture data. Must be at least <see cref="CalculateInPlaceDecompressionBufferSize"/> bytes.</param>
         /// <param name="mipLevel">Mip level for which to read texture data.</param>
         public void ReadTextureMipLevelInPlace(Span<byte> buffer, uint mipLevel)
         {
             Debug.Assert(Reader is not null);
 
-            var requiredSize = CalculateInPlaceReadBufferSize(mipLevel);
+            var requiredSize = CalculateInPlaceDecompressionBufferSize(mipLevel);
 
             if (requiredSize > buffer.Length)
             {
@@ -1117,15 +1118,7 @@ namespace ValveResourceFormat.ResourceTypes
             SkipMipmaps(mipLevel);
 
             var compressedSize = CompressedMips![mipLevel];
-            var source = buffer.Slice(requiredSize - compressedSize, compressedSize);
-            Reader.ReadExactly(source);
-
-            var written = LZ4Codec.Decode(source, buffer[..uncompressedSize]);
-
-            if (written != uncompressedSize)
-            {
-                throw new InvalidDataException($"Failed to decompress LZ4 in place (expected {uncompressedSize} bytes, got {written}) (texture format is {Format}).");
-            }
+            ReadLz4Mip(buffer.Slice(requiredSize - compressedSize, compressedSize), buffer[..uncompressedSize]);
         }
 
         private int CalculateJpegSize()
