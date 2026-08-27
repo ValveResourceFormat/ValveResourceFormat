@@ -122,15 +122,14 @@ See the [exporting models guide](./exporting-models.md) for the workflow.
 Decompiling produces a `.vmdl` plus DMX files for meshes, physics shapes, and animations,
 loadable in ModelDoc. Reconstructed: render meshes with all vertex streams, skeleton,
 attachments, bodygroups, LOD groups, hitbox sets, material groups (skins), static collision
-shapes, bone constraints, breakable pieces, embedded sequences with events/layers/root
-motion, Animgraph 2 clips and references, and a wide range of game data blocks (prop_data,
-particle attachments, and many more) passed through verbatim.
+shapes, bone constraints, IK chains and the legacy IK control rig, breakable pieces, embedded
+sequences with events/layers/root motion, Animgraph 2 clips and references, and a wide range
+of game data blocks (prop_data, particle attachments, and many more) passed through verbatim.
 
 What a recompiled model will be missing:
 
 | What                                      | Why                          | Details                                                                                                                                                                                                                                                                                                                                                               |
 | ----------------------------------------- | ---------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| IK chains                                 | Not implemented              | `ikdata`/`m_IKChains` is parsed but never written back as vmdl IK chain nodes. [#1267](https://github.com/ValveResourceFormat/ValveResourceFormat/issues/1267)                                                                                                                                                                                                        |
 | Cloth simulation                          | Partly not in compiled files | The compiled `FeModel` cloth data is not parsed, and some of the authored cloth attributes do not survive compilation in recoverable form, so recompiled models will not simulate. [#653](https://github.com/ValveResourceFormat/ValveResourceFormat/issues/653)                                                                                                      |
 | Ragdoll joints                            | Not implemented              | Physics constraints (`m_constraints2`) are not parsed anywhere; only the collision shapes survive.                                                                                                                                                                                                                                                                    |
 | Face flexes (morphs)                      | Not implemented              | Neither the morph vertex deltas nor the flex controllers and flex rules that drive them (the expressions visible in ModelDoc, stereo left/right splits included) are written into the reconstructed model. Only flex controller animation channels in sequences are exported, with nothing to drive. VRF parses all of this data for rendering, so it is recoverable. |
