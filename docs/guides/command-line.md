@@ -17,7 +17,7 @@ The binary name is `Source2Viewer-CLI`.
 | `--vpk_cache`                | Use cached VPK manifest to keep track of updates. Only changed files will be written to disk.                                                                   |
 | `--vpk_verify`               | Verify checksums and signatures.                                                                                                                                |
 | **Output**                   |                                                                                                                                                                 |
-| `--output` (or `-o`)         | Output path to write to. If input is a folder (or a VPK), this should be a folder, unless `--vpk_filepath` matches exactly one file.                            |
+| `--output` (or `-o`)         | Output path to write to. Treated as a folder when it is an existing folder, ends with a path separator, or has no file extension; otherwise it names the file to write, which requires the input to be a single file or `--vpk_filepath` to match exactly one file. |
 | `--all` (or `-a`)            | Print the content of each resource block in the file.                                                                                                           |
 | `--block` (or `-b`)          | Print the content of a specific block, example: DATA, RERL, REDI, NTRO.                                                                                         |
 | `--vpk_decompile` (or `-d`)  | Decompile supported resource files.                                                                                                                             |
