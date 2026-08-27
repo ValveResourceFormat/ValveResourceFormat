@@ -321,9 +321,8 @@ interpreted.
 
 ## Choreo, Captions, and UI
 
-- **Choreo** (`vcdlist`): scenes, actors, events, and flex curves are fully parsed, but each
-  scene is emitted as KV3 text rather than the native Faceposer `.vcd` grammar, so the output
-  is data-complete but not directly re-ingestible by Valve's choreo tools.
+- **Choreo** (`vcdlist`): scenes, actors, events, and flex curves are fully parsed. Scenes
+  are emitted as KV3 `.vcd`.
 - **Closed captions**: caption text is recovered in full, but the compiled file stores only
   a CRC32 hash of each caption key, so exports are keyed by hash. The original key strings
   are not in the file.
