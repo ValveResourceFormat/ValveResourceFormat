@@ -55,6 +55,10 @@ export default defineConfig({
                             link: "/guides/getting-started",
                         },
                         {
+                            text: "Format Support",
+                            link: "/guides/format-support",
+                        },
+                        {
                             text: "Exporting Maps",
                             link: "/guides/exporting-maps",
                         },

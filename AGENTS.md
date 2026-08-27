@@ -14,6 +14,7 @@ The project folders are:
   - Tests are fast, run the whole suite with `dotnet test`. If it reports `Zero tests ran` (exit code 5), do a full `dotnet build` and retry.
   - When a parsing change legitimately alters text output, run tests with `VRF_REGEN_FIXTURES=1` to rewrite the mismatching `Tests/Files/ValidOutput` dumps in the source tree.
 - **Misc/**: Auxiliary tools (ShaderValidator, RenderTest, etc.) in their own solution `Misc/MiscVrfProjects.slnx`.
+- **docs/**: VitePress documentation site. When changing what VRF can parse, decompile, or export, update the support matrix and limitation tables in `docs/guides/format-support.md` in the same change.
 
 **Target:** Latest released .NET. Use modern C# features. Nullable reference types enabled.
 
