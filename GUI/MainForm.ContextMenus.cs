@@ -154,7 +154,26 @@ namespace GUI
                 if (wantsFullPath)
                 {
                     sb.Append("vpk:");
-                    sb.Append(context.FileName.Replace('\\', '/'));
+
+                    var packageChain = new Stack<string>();
+
+                    for (var chainContext = context; chainContext != null; chainContext = chainContext.ParentGuiContext)
+                    {
+                        packageChain.Push(chainContext.FileName);
+                    }
+
+                    var firstSegment = true;
+
+                    foreach (var segment in packageChain)
+                    {
+                        if (!firstSegment)
+                        {
+                            sb.Append(':');
+                        }
+
+                        sb.Append(segment.Replace('\\', '/'));
+                        firstSegment = false;
+                    }
                 }
 
                 if (!selectedNode.IsFolder)
