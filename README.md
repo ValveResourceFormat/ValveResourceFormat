@@ -12,7 +12,7 @@ Valve's Source 2 resource file format parser, renderer, decompiler, and exporter
 The library component is called **ValveResourceFormat (VRF)**.
 
 > [!IMPORTANT]
-> [**For more information and downloads of *Source 2 Viewer*, visit the website.**](https://s2v.app/)
+> [**For more information and downloads of _Source 2 Viewer_, visit the website.**](https://s2v.app/)
 >
 > [View Library API documentation here.](https://s2v.app/ValveResourceFormat/api/ValveResourceFormat.html) [View guide on getting started with parsing resources.](https://s2v.app/ValveResourceFormat/guides/read-resource.html)
 

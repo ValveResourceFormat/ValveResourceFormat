@@ -77,7 +77,7 @@ resource.Read(stream); // highlighted line
 
 ### Images
 
-If your guide benefits from screenshots or diagrams, place image files in the `docs/guides/images/` directory and reference them using an absolute path:
+If your guide benefits from screenshots or diagrams, place image files in the `docs/guides/images/` directory and reference them using a relative path:
 
 ```md
 ![Description of the image](./images/my-screenshot.png)

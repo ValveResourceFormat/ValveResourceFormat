@@ -3,22 +3,24 @@
 ValveResourceFormat (VRF) is a C# library and toolset for parsing Valve's Source 2 resource formats. The solution file is `ValveResourceFormat.slnx`.
 
 The project folders are:
+
 - **ValveResourceFormat/**: Core parsing library published to NuGet
 - **GUI/**: WinForms viewer application
 - **CLI/**: Command-line decompiler and file viewer
 - **Renderer/**: OpenGL rendering engine for Source 2 assets.
-  - Shaders use the `.slang` extension (`.frag.slang`, `.vert.slang`) with GLSL syntax, and must only contain ASCII characters.
-  - After changing shaders, run `dotnet run --project Misc/ShaderValidator -- <name filter>` to compile them and their combos on a real GL context. `complex` has combinatorially many combos and is far too slow to validate interactively, so iterate against a smaller shader.
+    - Shaders use the `.slang` extension (`.frag.slang`, `.vert.slang`) with GLSL syntax, and must only contain ASCII characters.
+    - After changing shaders, run `dotnet run --project Misc/ShaderValidator -- <name filter>` to compile them and their combos on a real GL context. `complex` has combinatorially many combos and is far too slow to validate interactively, so iterate against a smaller shader.
 - **Tests/**: TUnit test suite for the ValveResourceFormat library, plus some headless Renderer logic tests in `Tests/Renderer/`.
-  - Run tests when changing code in `ValveResourceFormat/` or `Renderer/`. GUI and CLI are not covered.
-  - Tests are fast, run the whole suite with `dotnet test`. If it reports `Zero tests ran` (exit code 5), do a full `dotnet build` and retry.
-  - When a parsing change legitimately alters text output, run tests with `VRF_REGEN_FIXTURES=1` to rewrite the mismatching `Tests/Files/ValidOutput` dumps in the source tree.
+    - Run tests when changing code in `ValveResourceFormat/` or `Renderer/`. GUI and CLI are not covered.
+    - Tests are fast, run the whole suite with `dotnet test`. If it reports `Zero tests ran` (exit code 5), do a full `dotnet build` and retry.
+    - When a parsing change legitimately alters text output, run tests with `VRF_REGEN_FIXTURES=1` to rewrite the mismatching `Tests/Files/ValidOutput` dumps in the source tree.
 - **Misc/**: Auxiliary tools (ShaderValidator, RenderTest, etc.) in their own solution `Misc/MiscVrfProjects.slnx`.
 - **docs/**: VitePress documentation site. When changing what VRF can parse, decompile, or export, update the support matrix and limitation tables in `docs/guides/format-support.md` in the same change.
 
 **Target:** Latest released .NET. Use modern C# features. Nullable reference types enabled.
 
 ### Shader Pipeline
+
 - Each Source 2 `.vfx` shader name is mapped via `GetShaderFileByName()` to one of our shader files (e.g. `vr_complex.vfx` → `complex`, `csgo_environment_blend.vfx` → `csgo_environment`). Unmapped shaders fall back to `complex`.
 - During compilation, a `GameVfx_{vfxName}` define is set to 1 (e.g. `GameVfx_vr_complex`), activating shader-specific code paths via `#if` blocks. All other `GameVfx_` defines remain 0.
 - Texture names from materials are matched to shader uniforms. An alias system maps Source 2 texture names to our uniform names when they differ.
@@ -26,26 +28,32 @@ The project folders are:
 - Render mode defines (e.g. `renderMode_Illumination`) default to 0 and are overridden via static combos at compile time.
 
 ### Transforms and Angles
+
 All angle, quaternion and direction conversions live in `EntityTransformHelper`. Use it instead of hand-rolling trig, and read its class remarks before touching this area.
+
 - Source 2 is Z-up and right-handed: +X forward, +Y left, +Z up.
 - An entity's `angles` is a QAngle: (pitch, yaw, roll) in degrees, pitch positive **downwards**.
 - Matrices are row-vector, so a rotation's first row is forward. Frames built from a direction must put it on +X.
 - `Camera` holds the same angles in radians. Convert at that boundary via `Camera.SetFromQAngle`/`GetQAngle`.
 
 ## Code Style
+
 Follow standard Microsoft C# conventions. Key rules:
 
 ### Formatting
+
 - 4 space indentation, no tabs, no trailing spaces
 - LF line endings for C# files, final newline required
 - Allman braces (opening brace on a new line)
 
 ### Naming
+
 - PascalCase for types, methods, properties, and private fields
 - camelCase for parameters and locals, IPascalCase for interfaces
 - Namespaces loosely match folder structure
 
 ### Language Use
+
 - Always use `var` for locals
 - Collection expressions: `[]` instead of `new List<>()`
 - Nullable annotations where appropriate (`string?`, `Resource?`)
@@ -59,6 +67,7 @@ Follow standard Microsoft C# conventions. Key rules:
 - `System`, `System.Numerics`, `System.Collections.Generic` are global usings (defined in Directory.Build.props)
 
 ### Comments and Documentation
+
 - Use `//` comments, and only for non-obvious logic, workarounds, and TODOs; explain "why", not "what"
 - Plain ASCII only: no em-dashes, curly quotes, ellipsis, or Unicode math symbols
 - Never mention where format knowledge came from (other codebases, tools, games' internals) in comments or commit messages

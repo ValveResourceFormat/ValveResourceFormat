@@ -4,7 +4,7 @@ Source 2 Viewer (and the ValveResourceFormat library) can view, dump, decompile,
 compiled Source 2 resources. This page describes what you get out of each format, and just
 as importantly, what you do not: which data is lost, and why.
 
-If a limitation listed here has since been fixed, please open an issue or a pull request.
+If a limitation listed here has since been fixed, please [open an issue](./reporting-issues.md) or a pull request.
 
 ## How to Read This Page
 

@@ -46,6 +46,7 @@ export default defineConfig({
             "/api/": apiSidebar,
             "/": [
                 { text: "Introduction", link: "/" },
+                { text: "Reporting Issues", link: "/guides/reporting-issues" },
                 { text: "Help Write Guides", link: "/guides/contributing" },
                 {
                     text: "Source 2 Viewer",

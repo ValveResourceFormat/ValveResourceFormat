@@ -6,7 +6,7 @@
     "dev": "vitepress dev",
     "build": "vitepress build",
     "preview": "vitepress preview",
-    "format": "prettier --write --ignore-path .prettierignore ."
+    "format": "prettier --write --ignore-path .prettierignore . ../*.md"
   },
   "devDependencies": {
     "js-yaml": "^5.0.0",
