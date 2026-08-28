@@ -1,5 +1,6 @@
 using System.Linq;
 using Microsoft.Extensions.Logging;
+using ValveResourceFormat.Renderer.Entities;
 using ValveResourceFormat.Renderer.Input;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.ResourceTypes.ModelAnimation;
@@ -312,7 +313,7 @@ public class ViewmodelSceneNode : ModelSceneNode
             Sound.Cache(soundEvent);
         }
 
-        foreach (var soundEvent in CS2ProjectileSceneNode.Sounds)
+        foreach (var soundEvent in CS2Projectile.Sounds)
         {
             Sound.Cache(soundEvent);
         }
@@ -374,11 +375,11 @@ public class ViewmodelSceneNode : ModelSceneNode
 
     private const string JumpThrowSound = "BaseGrenade.JumpThrowM";
 
-    private readonly List<CS2ProjectileSceneNode> projectiles = [];
-    private CS2ProjectileSceneNode? lastThrown;
+    private readonly List<CS2Projectile> projectiles = [];
+    private CS2Projectile? lastThrown;
 
     /// <summary>What each kind of grenade is thrown as, and what its detonation spawns.</summary>
-    private readonly Dictionary<CS2ProjectileSceneNode.GrenadeKind, (Model Model, ParticleSystem? Effect, ParticleSystem? FlightEffect)> grenadeResources = [];
+    private readonly Dictionary<CS2Projectile.GrenadeKind, (Model Model, ParticleSystem? Effect, ParticleSystem? FlightEffect)> grenadeResources = [];
 
     private float uptime;
     private float jumpUptime = float.NegativeInfinity;
@@ -534,9 +535,9 @@ public class ViewmodelSceneNode : ModelSceneNode
 
         var kind = SelectedItemIndex switch
         {
-            SmokeItemIndex => CS2ProjectileSceneNode.GrenadeKind.Smoke,
-            FireItemIndex => CS2ProjectileSceneNode.GrenadeKind.Fire,
-            _ => CS2ProjectileSceneNode.GrenadeKind.Explosive,
+            SmokeItemIndex => CS2Projectile.GrenadeKind.Smoke,
+            FireItemIndex => CS2Projectile.GrenadeKind.Fire,
+            _ => CS2Projectile.GrenadeKind.Explosive,
         };
 
         var projectile = AcquireProjectile(kind);
@@ -547,7 +548,7 @@ public class ViewmodelSceneNode : ModelSceneNode
         }
 
         var (origin, velocity) = CalculateThrow(input, throwStrength);
-        projectile.Launch(origin, velocity);
+        projectile.Launch(origin, velocity, Scene.EntitySystem.Player);
 
         lastThrown = projectile;
     }
@@ -579,9 +580,12 @@ public class ViewmodelSceneNode : ModelSceneNode
         var forward = new Vector3(yawCos * pitchCos, yawSin * pitchCos, -pitchSin);
 
         var origin = jumpThrow ? groundEyePosition : input.PlayerMovement.EyePosition;
+
+        // The mover under the player carries the throw too; riding is positional, so the ride
+        // velocity is not already inside input.Velocity
         var carried = jumpThrow
             ? new Vector3(groundVelocity.X, groundVelocity.Y, input.PlayerMovement.JumpImpulse)
-            : input.Velocity;
+            : input.Velocity + input.PlayerMovement.RideVelocity;
 
         origin.Z += float.Lerp(-UnderhandThrowLower, 0f, throwStrength);
 
@@ -589,7 +593,7 @@ public class ViewmodelSceneNode : ModelSceneNode
 
         if (input.PhysicsWorld is { } physics)
         {
-            var trace = CS2ProjectileSceneNode.SweepHull(physics, origin, reach);
+            var trace = CS2Projectile.SweepHull(physics, Scene.EntitySystem, origin, reach);
 
             if (trace is { Hit: true, IsValid: true })
             {
@@ -602,7 +606,7 @@ public class ViewmodelSceneNode : ModelSceneNode
         return (origin, forward * speed + carried * ThrownPlayerVelocityScale);
     }
 
-    private CS2ProjectileSceneNode? AcquireProjectile(CS2ProjectileSceneNode.GrenadeKind kind)
+    private CS2Projectile? AcquireProjectile(CS2Projectile.GrenadeKind kind)
     {
         foreach (var projectile in projectiles)
         {
@@ -622,15 +626,12 @@ public class ViewmodelSceneNode : ModelSceneNode
             return projectiles.Find(projectile => projectile.Kind == kind);
         }
 
-        var node = new CS2ProjectileSceneNode(Scene, resources.Model, kind, resources.Effect, resources.FlightEffect)
-        {
-            Parent = this,
-        };
+        var created = new CS2Projectile(Scene.EntitySystem, resources.Model, kind, resources.Effect, resources.FlightEffect);
 
-        Scene.Add(node, true);
-        projectiles.Add(node);
+        Scene.EntitySystem.AddEntity(created);
+        projectiles.Add(created);
 
-        return node;
+        return created;
     }
 
     private (float fire, float altFire) GetWeaponFireDelays()
@@ -952,10 +953,10 @@ public class ViewmodelSceneNode : ModelSceneNode
         scene.Add(stattrakModule, true);
         primary.AttachNode(stattrakModule, "stattrak");
 
-        Span<(CS2ProjectileSceneNode.GrenadeKind Kind, Model Model, string Effect, string? FlightEffect)> grenades = [
-            (CS2ProjectileSceneNode.GrenadeKind.Smoke, models[5], "particles/explosions_fx/explosion_smokegrenade.vpcf", null),
-            (CS2ProjectileSceneNode.GrenadeKind.Explosive, models[6], "particles/explosions_fx/explosion_hegrenade.vpcf", null),
-            (CS2ProjectileSceneNode.GrenadeKind.Fire, models[7], "particles/inferno_fx/molotov_explosion.vpcf", "particles/weapons/cs_weapon_fx/weapon_molotov_thrown.vpcf"),
+        Span<(CS2Projectile.GrenadeKind Kind, Model Model, string Effect, string? FlightEffect)> grenades = [
+            (CS2Projectile.GrenadeKind.Smoke, models[5], "particles/explosions_fx/explosion_smokegrenade.vpcf", null),
+            (CS2Projectile.GrenadeKind.Explosive, models[6], "particles/explosions_fx/explosion_hegrenade.vpcf", null),
+            (CS2Projectile.GrenadeKind.Fire, models[7], "particles/inferno_fx/molotov_explosion.vpcf", "particles/weapons/cs_weapon_fx/weapon_molotov_thrown.vpcf"),
         ];
 
         foreach (var (kind, model, effect, flightEffect) in grenades)
@@ -1421,14 +1422,6 @@ public class ViewmodelSceneNode : ModelSceneNode
         if (!FirstPersonMode)
         {
             Transform *= Matrix4x4.CreateScale(0);
-        }
-
-        // Grenades already in the air keep flying whatever the viewmodel is doing, including
-        // while the camera is off in noclip.
-        foreach (var projectile in projectiles)
-        {
-            projectile.Simulate(context.Timestep);
-            projectile.Update(context);
         }
 
         if (!active)

@@ -43,7 +43,7 @@ public sealed class EntitySystem
     /// <summary>The most ticks one frame may run before the leftover time is dropped.</summary>
     public const int MaxTicksPerFrame = 8;
 
-    /// <summary>Gets the scene the entities render into.</summary>
+    /// <summary>Gets the main scene, the one that owns and ticks this world. Entities spawned into the 3D skybox carry their own <see cref="BaseEntity.Scene"/>.</summary>
     public Scene Scene { get; }
 
     /// <summary>Gets the loader entities use to pull their models and physics.</summary>
@@ -64,6 +64,9 @@ public sealed class EntitySystem
 
     /// <summary>Gets the player, once one has been spawned into this world.</summary>
     public PlayerEntity? Player { get; private set; }
+
+    /// <summary>Gets the <c>worldspawn</c> at the root of the entity hierarchy. Always exists.</summary>
+    public WorldEntity World { get; private set; }
 
     /// <summary>Gets the current simulation time in seconds, the engine's <c>curtime</c>.</summary>
     public float CurrentTime { get; private set; }
@@ -91,6 +94,8 @@ public sealed class EntitySystem
     // Walked by index everywhere: a think, an input, or a touch handler may spawn or remove entities
     // part way through, and one spawned mid-walk is meant to be reached by it
     private readonly List<BaseEntity> entities = [];
+    private readonly List<BaseEntity> parented = [];
+
     private readonly List<QueuedInput> inputQueue = [];
     private readonly Dictionary<EntityLump.Connection, int> firedCounts = [];
     private long sequence;
@@ -104,6 +109,14 @@ public sealed class EntitySystem
     public EntitySystem(Scene scene)
     {
         Scene = scene;
+        World = CreateDefaultWorld();
+    }
+
+    private WorldEntity CreateDefaultWorld()
+    {
+        var world = new WorldEntity(this);
+        entities.Add(world);
+        return world;
     }
 
     /// <summary>
@@ -111,10 +124,14 @@ public sealed class EntitySystem
     /// <see langword="null"/> when the classname is not one the entity system implements, in which case
     /// the caller keeps ownership of it.
     /// </summary>
+    /// <param name="data">The entity's keyvalues.</param>
+    /// <param name="parentTransform">Transform of whatever spawned it.</param>
+    /// <param name="layerName">Visibility layer for its nodes.</param>
+    /// <param name="intoScene">Scene the entity's nodes render into; the main scene when omitted.</param>
     /// <returns>The spawned entity, or <see langword="null"/> if the classname is not implemented.</returns>
-    public BaseEntity? CreateEntity(Entity data, Matrix4x4 parentTransform, string? layerName)
+    public BaseEntity? CreateEntity(Entity data, Matrix4x4 parentTransform, string? layerName, Scene? intoScene = null)
     {
-        var entity = EntityFactory.Create(this, new EntitySpawnInfo(data, parentTransform, layerName));
+        var entity = EntityFactory.Create(this, new EntitySpawnInfo(data, parentTransform, layerName, intoScene ?? Scene));
 
         if (entity == null)
         {
@@ -150,17 +167,79 @@ public sealed class EntitySystem
 
     private void Add(BaseEntity entity)
     {
+        // Only the main scene's authored worldspawn takes over as the root; the 3D skybox lump carries
+        // one of its own, which joins the world as an ordinary inert entity
+        if (entity is WorldEntity world && world.Scene == Scene)
+        {
+            ReplaceWorld(world);
+        }
+        else
+        {
+            entity.Owner ??= World;
+        }
+
         entities.Add(entity);
     }
 
+    /// <summary>The map's authored worldspawn takes over from the default, adopting its children.</summary>
+    private void ReplaceWorld(WorldEntity world)
+    {
+        var previous = World;
+        World = world;
+
+        entities.Remove(previous);
+
+        foreach (var entity in entities)
+        {
+            if (entity.Owner == previous)
+            {
+                entity.Owner = world;
+            }
+        }
+    }
+
+    /// <summary>Puts an entity built in code, rather than from map keyvalues, into the world.</summary>
+    public void AddEntity(BaseEntity entity) => Add(entity);
+
     /// <summary>
-    /// Runs <see cref="BaseEntity.Activate"/> on every entity, once the whole map has spawned.
+    /// Runs <see cref="BaseEntity.Activate"/> on every entity spawned since the last call. Called once
+    /// per spawn group - the map, and again for its 3D skybox - the way the engine activates each group
+    /// as it finishes spawning.
     /// </summary>
     public void Activate()
     {
-        for (var i = 0; i < entities.Count; i++)
+        // Move parents first, so every entity activates seeing the finished hierarchy
+        for (var i = activatedCount; i < entities.Count; i++)
+        {
+            entities[i].ResolveMoveParent();
+
+            if (entities[i].MoveParent != null)
+            {
+                parented.Add(entities[i]);
+            }
+        }
+
+        for (var i = activatedCount; i < entities.Count; i++)
         {
             entities[i].Activate();
+        }
+
+        activatedCount = entities.Count;
+    }
+
+    private int activatedCount;
+
+    /// <summary>
+    /// Notify every entity a round started.
+    /// </summary>
+    public void StartRound()
+    {
+        for (var i = 0; i < entities.Count; i++)
+        {
+            if (!entities[i].IsRemoved)
+            {
+                entities[i].RoundStart();
+            }
         }
     }
 
@@ -213,7 +292,8 @@ public sealed class EntitySystem
         {
             var entity = entities[i];
 
-            if (!entity.IsTrigger || entity.IsRemoved || entity.Collider is not { IsEmpty: false } volume)
+            if (!entity.IsTrigger || entity.IsRemoved || !entity.InPlayableWorld
+                || entity.Collider is not { IsEmpty: false } volume)
             {
                 continue;
             }
@@ -241,8 +321,19 @@ public sealed class EntitySystem
     /// </summary>
     public void Clear()
     {
+        foreach (var entity in entities)
+        {
+            if (!entity.IsRemoved)
+            {
+                entity.RemoveFromScene();
+            }
+        }
+
         entities.Clear();
+        parented.Clear();
+        World = CreateDefaultWorld();
         Player = null;
+        activatedCount = 0;
         inputQueue.Clear();
         firedCounts.Clear();
         hasRemovedEntities = false;
@@ -256,7 +347,7 @@ public sealed class EntitySystem
     /// </summary>
     public void Update(float frameTime)
     {
-        if (entities.Count == 0)
+        if (entities.Count <= 1)
         {
             return;
         }
@@ -309,9 +400,21 @@ public sealed class EntitySystem
             }
         }
 
+        // Children ride their move parent after every parent has moved, whatever the tick order
+        for (var i = 0; i < parented.Count; i++)
+        {
+            var entity = parented[i];
+
+            if (!entity.IsRemoved)
+            {
+                entity.FollowMoveParent();
+            }
+        }
+
         if (hasRemovedEntities)
         {
             entities.RemoveAll(static entity => entity.IsRemoved);
+            parented.RemoveAll(static entity => entity.IsRemoved);
             hasRemovedEntities = false;
         }
 
@@ -332,6 +435,10 @@ public sealed class EntitySystem
     {
         var hitEntity = false;
 
+        // Shrunk so only real penetration counts as inside: resting contact at the keep-away gap,
+        // noise included, stays on the ordinary solid path
+        var insideExtents = halfExtents - new Vector3(Rubikon.SurfaceEpsilon / 2f);
+
         foreach (var entity in entities)
         {
             if (!entity.IsCollidable || !entity.Collider!.MightHit(from, to, halfExtents))
@@ -339,10 +446,67 @@ public sealed class EntitySystem
                 continue;
             }
 
-            hitEntity |= result.MinimizeWith(entity.Collider.TraceAABB(from, to, halfExtents, detectStartSolid));
+            // A hull inside this entity cannot be swept - the SAT sweep is meaningless from an
+            // overlapping start. A move whose endpoint is fully outside steps out freely, anything
+            // else stops where it stands: escape is always possible, crossing the interior never is,
+            // and the deep depenetration is the pusher's own job, done immediately on its tick.
+            if (entity.Collider.OverlapsVolume(from, insideExtents))
+            {
+                if (!entity.Collider.OverlapsVolume(to, insideExtents))
+                {
+                    continue;
+                }
+
+                var move = to - from;
+                var normal = move.LengthSquared() > 1e-12f ? Vector3.Normalize(-move) : Vector3.UnitZ;
+
+                var blocked = new Rubikon.TraceResult(true, from, normal, 0f, -1)
+                {
+                    StartSolid = detectStartSolid,
+                    ContactPoint = from,
+                    HitEntity = entity,
+                };
+
+                hitEntity |= result.MinimizeWith(blocked);
+                continue;
+            }
+
+            var entityTrace = entity.Collider.TraceAABB(from, to, halfExtents, detectStartSolid);
+            entityTrace.HitEntity = entity;
+
+            hitEntity |= result.MinimizeWith(entityTrace);
         }
 
         return hitEntity;
+    }
+
+    /// <summary>
+    /// Finds the nearest usable entity along a ray, for the player's <c>+use</c>.
+    /// </summary>
+    /// <returns>The nearest usable entity in reach, or <see langword="null"/> when there is none.</returns>
+    public BaseEntity? FindUseTarget(Vector3 from, Vector3 to)
+    {
+        // Seeded with the world, so a wall between the player and a button wins the trace
+        var nearest = Scene.PhysicsWorld?.TraceRay(from, to) ?? new Rubikon.TraceResult();
+        BaseEntity? target = null;
+
+        foreach (var entity in entities)
+        {
+            if (entity.IsRemoved
+                || !entity.InPlayableWorld
+                || (entity.ObjectCaps & EntityCapability.UsableMask) == 0
+                || entity.Collider is not { IsEmpty: false } collider)
+            {
+                continue;
+            }
+
+            if (nearest.MinimizeWith(collider.TraceRay(from, to)))
+            {
+                target = entity;
+            }
+        }
+
+        return target;
     }
 
     /// <summary>
@@ -380,6 +544,13 @@ public sealed class EntitySystem
 
         Enqueue(new QueuedInput(null, target, inputName, parameter, activator, caller, fireTime, sequence++, connection));
     }
+
+    /// <summary>
+    /// Drops the inputs an entity queued that have not fired yet, Source's <c>CancelPending</c>. Only the
+    /// ones it queued itself: an input another entity aimed at it is that entity's to cancel.
+    /// </summary>
+    public void CancelQueuedInputsFrom(BaseEntity caller)
+        => inputQueue.RemoveAll(input => input.Caller == caller);
 
     private void Enqueue(QueuedInput input)
     {

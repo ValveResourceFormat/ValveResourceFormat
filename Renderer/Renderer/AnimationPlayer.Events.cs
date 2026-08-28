@@ -67,7 +67,7 @@ namespace ValveResourceFormat.Renderer
         public Func<string, Vector3?>? ResolvePosition { get; set; }
 
         private readonly record struct ActiveClipSound(
-            Audio.SoundEvent Handle,
+            Audio.SoundHandle Handle,
             PlaybackClip Clip,
             NmSoundEvent Event,
             float FireTime);
@@ -95,7 +95,7 @@ namespace ValveResourceFormat.Renderer
 
             var handle = Sound.Play(soundEvent.Name, position);
 
-            if (handle != null && soundEvent.Duration > 0f)
+            if (handle.IsValid && soundEvent.Duration > 0f)
             {
                 activeClipSounds.Add(new ActiveClipSound(handle, clip, soundEvent, fireTime));
             }

@@ -32,7 +32,7 @@ public partial class PlayerMovement : IPlayerController
 
     private const float BunnyjumpMaxSpeedFactor = 1.1f;   // Only allow bunny jumping up to 1.1x max speed
 
-    private const float SurfaceEpsilon = 0.03125f;        // Keep-away margin (1/32 unit) maintained by TraceBBox
+    private const float SurfaceEpsilon = Rubikon.SurfaceEpsilon; // Keep-away margin maintained by TraceBBox
     private const float NegligibleMoveDistance = 1e-4f;   // Slide iteration stops once this little move remains
     private const float ContactNudge = SurfaceEpsilon / 4f; // Clearance kept short of a degenerate opposing surface in the margin-restore push
     private const float UntraceableDistanceSquared = Rubikon.Epsilon * Rubikon.Epsilon;
@@ -114,7 +114,7 @@ public partial class PlayerMovement : IPlayerController
     private const float FallDamageSpeed = 580f;           // PLAYER_MAX_SAFE_FALL_SPEED
 
     private float StepSoundTime;
-    private readonly List<Audio.SoundEvent> ActiveMovementSounds = [];
+    private readonly List<Audio.SoundHandle> ActiveMovementSounds = [];
 
     /// <summary>
     /// Gets the current jump stamina, from 0 to 1. Landing drains it, it recovers over roughly
@@ -128,6 +128,9 @@ public partial class PlayerMovement : IPlayerController
     /// the player's aim for rendering only, exactly like Source's m_viewPunchAngle.
     /// </summary>
     public float ViewPunchPitchDegrees => Effects.ViewPunchPitchDegrees;
+
+    /// <summary>Gets whether the player is being simulated - the viewer's walk mode.</summary>
+    public bool IsActive => Input.WalkMode;
 
     private bool HoldingCtrl => Input.Holding(TrackedKeys.Control);
     private bool HoldingShift => Input.Holding(TrackedKeys.Shift);
@@ -238,6 +241,8 @@ public partial class PlayerMovement : IPlayerController
         TracePosition = camera.Location - Vector3.UnitZ * ViewHeightStanding + new Vector3(0, 0, StandingHullHalfExtents.Z);
         Velocity = Vector3.Zero;
         HasValidPosition = false; // Do not restore positions from before the reset
+        pendingPush = Vector3.Zero;
+        pendingPushTimeLeft = 0f;
         SlopeClipNormalZ = 1f;
         HasPreviousYaw = false;
         Effects.Reset();
@@ -262,6 +267,8 @@ public partial class PlayerMovement : IPlayerController
         TracePosition = position;
         TracePositionSmooth = position;
         HasValidPosition = false; // Do not restore positions from before the teleport
+        pendingPush = Vector3.Zero;
+        pendingPushTimeLeft = 0f;
         Effects.ClearStepOffset();
 
         if (angles is { } viewAngles)
@@ -353,6 +360,9 @@ public partial class PlayerMovement : IPlayerController
         // Impact speed to use if this frame turns out to land: ground movement zeroes the
         // vertical velocity, so it must be sampled while still falling
         var fallSpeed = MathF.Max(0f, -Velocity.Z);
+
+        // What the entity tick's pushers reserved lands here, spread across the frames of the interval
+        ApplyPendingPush(ref position, deltaTime);
 
         CategorizePosition(ref position, playerHull);
 
@@ -556,7 +566,7 @@ public partial class PlayerMovement : IPlayerController
         var feetPosition = position - new Vector3(0, 0, halfExtents.Z);
         var handle = Sound.Play(soundEventName, feetPosition, volume: volume);
 
-        if (handle != null)
+        if (handle.IsValid)
         {
             ActiveMovementSounds.Add(handle);
         }
@@ -592,8 +602,42 @@ public partial class PlayerMovement : IPlayerController
         {
             LastValidPosition = position;
             HasValidPosition = true;
+            return;
         }
-        else if (HasValidPosition)
+
+        // A hull a pusher has stepped onto is not stuck, it is mid-correction: the reserved push is
+        // walking it out, and restoring an older spot would fight that walk and compound the overlap
+        if (pendingPush != Vector3.Zero)
+        {
+            return;
+        }
+
+        // Shallow penetration - grazing a turning mover's rim - frees with a nudge that keeps the
+        // player's speed; the restore below is a teleport and costs all of it
+        Span<Vector3> nudges =
+        [
+            Vector3.UnitZ,
+            Vector3.UnitX, -Vector3.UnitX,
+            Vector3.UnitY, -Vector3.UnitY,
+        ];
+
+        for (var distance = 0.25f; distance <= 1f; distance *= 2f)
+        {
+            foreach (var direction in nudges)
+            {
+                var nudged = position + direction * distance;
+
+                if (!IsStuck(nudged, halfExtents))
+                {
+                    position = nudged;
+                    LastValidPosition = nudged;
+                    HasValidPosition = true;
+                    return;
+                }
+            }
+        }
+
+        if (HasValidPosition)
         {
             position = LastValidPosition;
             Velocity = Vector3.Zero;
@@ -718,8 +762,11 @@ public partial class PlayerMovement : IPlayerController
 
         // A steep surface can shadow walkable ground; retry with quarter-footprint hulls.
         // The quadrant probes only decide groundedness: their hit positions are quarter-hull
-        // standoffs, and snapping the full hull to one embeds it into the shadowing surface
-        var snapToHit = grounded;
+        // standoffs, and snapping the full hull to one embeds it into the shadowing surface.
+        // Brush entity ground also needs the hull center over the entity: the probe is hull-sized
+        // and catches rim slivers past a mover's edge, and snapping onto those sinks the hull into
+        // the surface and welds a departing player to the mover.
+        var snapToHit = grounded && HasEntityFooting(result, position, halfExtents);
 
         if (!grounded && result.Hit)
         {
@@ -728,6 +775,10 @@ public partial class PlayerMovement : IPlayerController
 
         // NON_JUMP_VELOCITY guard, on the Z velocity a plain projection would have produced (see SlopeClipNormalZ)
         OnGround = grounded && Velocity.Z * SlopeClipNormalZ < NonJumpVelocity;
+
+        // Only a walkable main-probe hit assigns the ground entity: a quadrant-rescued grounding
+        // stands on a steep sliver, and riding that would drag the player along an entity they left
+        GroundEntity = OnGround && snapToHit ? result.HitEntity : null;
 
         // CGameMovement::CategorizePosition resets m_surfaceFriction to 1 each call and quarters
         // it while airborne and rising - but only below NON_JUMP_VELOCITY: faster ascents take
@@ -740,6 +791,21 @@ public partial class PlayerMovement : IPlayerController
         {
             SnapToGround(ref position, result, snapDownOnly: false);
         }
+    }
+
+    /// <summary>
+    /// Whether a ground hit's entity really is underfoot: the world always is, a brush entity only
+    /// when a ray from the hull center down reaches it.
+    /// </summary>
+    private bool HasEntityFooting(in Rubikon.TraceResult result, Vector3 position, Vector3 halfExtents)
+    {
+        if (result.HitEntity is not { } entity || entity == Input.EntitySystem?.World)
+        {
+            return true;
+        }
+
+        return entity.Collider?.TraceRay(
+            position, position - new Vector3(0, 0, halfExtents.Z + GroundProbeDistance)) is { Hit: true };
     }
 
     /// <summary>
@@ -1546,6 +1612,107 @@ public partial class PlayerMovement : IPlayerController
         JumpImpulse = JumpImpulseValue * Stamina;
         Velocity = new Vector3(Velocity.X, Velocity.Y, JumpImpulse);
         SlopeClipNormalZ = 1f; // jump impulse is genuine vertical velocity
+
+        // Jumping off a mover keeps its motion, the ground base velocity inheritance
+        Velocity += RideVelocity;
+    }
+
+    /// <summary>
+    /// Gets the entity the player stands on - a brush entity, or the worldspawn on the map itself -
+    /// and null in the air. The engine's <c>m_hGroundEntity</c>, taken from the ground probe every frame.
+    /// </summary>
+    public Entities.BaseEntity? GroundEntity { get; private set; }
+
+    /// <summary>
+    /// Gets the velocity of the mover currently carrying the player, zero on still ground. Riding is
+    /// positional, so <see cref="Velocity"/> never contains it.
+    /// </summary>
+    public Vector3 RideVelocity => GroundEntity?.GetSurfaceVelocity(TracePosition) ?? Vector3.Zero;
+
+    /// <summary>
+    /// Shoves the player by a pusher's tick displacement, stopped early by the static world. Runs on
+    /// the entity tick. A ride carry is reserved and walked off as real motion spread over the
+    /// following interval, so riders move with the pusher's rendered sweep instead of stepping at the
+    /// tick rate; a depenetrating shove lands immediately, so the hull never dwells inside the pusher.
+    /// </summary>
+    public Vector3 Push(Vector3 delta, bool immediate = false)
+    {
+        if (delta == Vector3.Zero)
+        {
+            return Vector3.Zero;
+        }
+
+        // Validated from where the already-reserved pushes will have left the hull
+        var start = TracePosition + pendingPush;
+        var target = start + delta;
+
+        // Clamped by the static world alone: entities are what is doing the pushing. Zero-distance
+        // hits are the tracer echoing surface noise at a resting gap, not a wall (see IsMinimalDistance).
+        var wall = Physics?.TraceAABB(start, target, HullHalfExtents, Rubikon.PlayerCollisionName);
+
+        if (wall is { Hit: true, IsValid: true, IsMinimalDistance: false, HitPosition: var stopped })
+        {
+            target = stopped;
+        }
+
+        var applied = target - start;
+
+        if (immediate)
+        {
+            TracePosition += applied;
+            TracePositionSmooth += applied;
+        }
+        else
+        {
+            pendingPush += applied;
+            pendingPushTimeLeft = Entities.EntitySystem.TickInterval;
+        }
+
+        return applied;
+    }
+
+    // Displacement the entity tick reserved but the frames have not walked yet, and how much of its
+    // interval remains
+    private Vector3 pendingPush;
+    private float pendingPushTimeLeft;
+
+    /// <inheritdoc/>
+    public Vector3 PendingPush => pendingPush;
+
+    /// <summary>
+    /// Walks off a slice of the reserved push, at the constant rate that finishes it by the next tick.
+    /// The slice is swept against the static world only: an entity is what is doing the pushing.
+    /// </summary>
+    private void ApplyPendingPush(ref Vector3 position, float deltaTime)
+    {
+        if (pendingPush == Vector3.Zero || pendingPushTimeLeft <= 0f)
+        {
+            pendingPush = Vector3.Zero;
+            pendingPushTimeLeft = 0f;
+            return;
+        }
+
+        var dt = MathF.Min(deltaTime, pendingPushTimeLeft);
+        var step = pendingPush * (dt / pendingPushTimeLeft);
+
+        pendingPush -= step;
+        pendingPushTimeLeft -= dt;
+
+        var target = position + step;
+
+        // Same zero-distance echo guard as the reservation's own clamp
+        var wall = Physics?.TraceAABB(position, target, HullHalfExtents, Rubikon.PlayerCollisionName);
+
+        if (wall is { Hit: true, IsValid: true, IsMinimalDistance: false, HitPosition: var stopped })
+        {
+            // A wall took the rest of the push; what remains is not owed
+            position = stopped;
+            pendingPush = Vector3.Zero;
+            pendingPushTimeLeft = 0f;
+            return;
+        }
+
+        position = target;
     }
 
     /// <summary>
@@ -2022,6 +2189,13 @@ public partial class PlayerMovement : IPlayerController
         {
             var normal = new Vector3(plane.X, plane.Y, plane.Z);
             result.MinimizeWith(TraceStaticPlane(from, to, halfExtents, normal, plane.W, detectStartSolid));
+        }
+
+        // The static world is the worldspawn, as the engine reports it, so standing on the map gives a
+        // ground entity like standing on anything else
+        if (result.Hit)
+        {
+            result.HitEntity = Input.EntitySystem?.World;
         }
 
         // Brush entities are not part of the world's physics, so they get swept separately

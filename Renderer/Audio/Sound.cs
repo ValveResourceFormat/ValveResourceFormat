@@ -17,9 +17,9 @@ internal static class Sound
     /// <param name="position">World position of the sound, or null for non-spatialized playback.</param>
     /// <param name="channel">Optional channel name (e.g. "player"). Playing on a channel stops whatever was playing on that channel before.</param>
     /// <param name="volume">Optional programmatic volume, replacing the definition's volume property.</param>
-    /// <returns>A handle to the playing sound, or null when no player exists or the event could not be played.</returns>
-    public static SoundEvent? Play(string soundEventName, Vector3? position = null, string? channel = null, float? volume = null)
-        => Player?.Play(soundEventName, position, channel, volume);
+    /// <returns>A handle to this play, or an inert one when no player exists or the event could not be played.</returns>
+    public static SoundHandle Play(string soundEventName, Vector3? position = null, string? channel = null, float? volume = null)
+        => Player?.Play(soundEventName, position, channel, volume) is { } soundEvent ? new SoundHandle(soundEvent) : default;
 
     /// <summary>
     /// Stops the sound currently playing on the given channel, if any.
@@ -28,4 +28,12 @@ internal static class Sound
 
     /// <summary>Queues background decodes for every vsnd a sound event could play. Returns immediately.</summary>
     public static void Cache(string soundEventName) => Player?.Cache(soundEventName);
+
+    /// <summary>Registers a soundscape region playing a single sound event, or null when there is no player.</summary>
+    public static SoundEventPlayer.Soundscape? AddSoundscape(Vector3 position, float radius, string? soundEventName)
+        => Player?.AddSoundscape(position, radius, soundEventName);
+
+    /// <summary>Registers a classic scripted soundscape region, or null when there is no player.</summary>
+    public static SoundEventPlayer.Soundscape? AddScriptedSoundscape(Vector3 position, float radius, string? soundscapeName)
+        => Player?.AddScriptedSoundscape(position, radius, soundscapeName);
 }

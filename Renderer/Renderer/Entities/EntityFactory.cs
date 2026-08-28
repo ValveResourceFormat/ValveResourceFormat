@@ -28,8 +28,42 @@ public static class EntityFactory
 
     static EntityFactory()
     {
+        Register<WorldEntity>("worldspawn", static (system, spawnInfo) => new WorldEntity(system, spawnInfo));
+        Register<InfoWorldLayer>("info_world_layer", static (system, spawnInfo) => new InfoWorldLayer(system, spawnInfo));
+
+        Register<FuncBrush>("func_brush", static (system, spawnInfo) => new FuncBrush(system, spawnInfo));
+        Register<FuncButton>("func_button", static (system, spawnInfo) => new FuncButton(system, spawnInfo));
+        Register<FuncDoor>("func_door", static (system, spawnInfo) => new FuncDoor(system, spawnInfo));
+        Register<FuncDoorRotating>("func_door_rotating", static (system, spawnInfo) => new FuncDoorRotating(system, spawnInfo));
+        Register<FuncDoor>("func_movelinear", static (system, spawnInfo) => new FuncDoor(system, spawnInfo));
         Register<FuncRotating>("func_rotating", static (system, spawnInfo) => new FuncRotating(system, spawnInfo));
+        Register<PropDoorRotating>("prop_door_rotating", static (system, spawnInfo) => new PropDoorRotating(system, spawnInfo));
+        Register<PropDoorRotating>("prop_door_rotating_physics", static (system, spawnInfo) => new PropDoorRotating(system, spawnInfo));
+        Register<FuncBreakable>("func_breakable", static (system, spawnInfo) => new FuncBreakable(system, spawnInfo));
         Register<TriggerTeleport>("trigger_teleport", static (system, spawnInfo) => new TriggerTeleport(system, spawnInfo));
+
+        // lights
+        Register<LightEntity>("light_barn", static (system, spawnInfo) => new LightEntity(system, spawnInfo));
+        Register<LightEntity>("light_environment", static (system, spawnInfo) => new LightEntity(system, spawnInfo));
+        Register<LightEntity>("light_omni", static (system, spawnInfo) => new LightEntity(system, spawnInfo));
+        Register<LightEntity>("light_omni2", static (system, spawnInfo) => new LightEntity(system, spawnInfo));
+        Register<LightEntity>("light_ortho", static (system, spawnInfo) => new LightEntity(system, spawnInfo));
+        Register<LightEntity>("light_rect", static (system, spawnInfo) => new LightEntity(system, spawnInfo));
+        Register<LightEntity>("light_spot", static (system, spawnInfo) => new LightEntity(system, spawnInfo));
+
+        // logic
+        Register<LogicAuto>("logic_auto", static (system, spawnInfo) => new LogicAuto(system, spawnInfo));
+        Register<LogicCase>("logic_case", static (system, spawnInfo) => new LogicCase(system, spawnInfo));
+        Register<LogicRelay>("logic_relay", static (system, spawnInfo) => new LogicRelay(system, spawnInfo));
+        Register<LogicTimer>("logic_timer", static (system, spawnInfo) => new LogicTimer(system, spawnInfo));
+        Register<MathCounter>("math_counter", static (system, spawnInfo) => new MathCounter(system, spawnInfo));
+
+        // sounds
+        Register<EnvSoundscape>("env_soundscape", static (system, spawnInfo) => new EnvSoundscape(system, spawnInfo));
+        Register<PointSoundEvent>("point_soundevent", static (system, spawnInfo) => new PointSoundEvent(system, spawnInfo));
+        Register<PointSoundEvent>("snd_event_point", static (system, spawnInfo) => new PointSoundEvent(system, spawnInfo));
+        Register<EnvSoundscape>("snd_soundscape", static (system, spawnInfo) => new EnvSoundscape(system, spawnInfo));
+        Register<AmbientGeneric>("ambient_generic", static (system, spawnInfo) => new AmbientGeneric(system, spawnInfo));
     }
 
     /// <summary>

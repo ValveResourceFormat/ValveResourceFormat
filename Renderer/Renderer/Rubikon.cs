@@ -23,6 +23,11 @@ public class Rubikon
     public const float Epsilon = 1e-6f;
 
     /// <summary>
+    /// The keep-away gap collision code maintains between a hull and a surface, 1/32 unit.
+    /// </summary>
+    public const float SurfaceEpsilon = 1f / 32f;
+
+    /// <summary>
     /// Triangle mesh collision data for ray tracing.
     /// </summary>
     public record PhysicsMeshData(
@@ -168,6 +173,13 @@ public class Rubikon
         /// while <see cref="HitPosition"/> is the center of the swept shape itself.
         /// </summary>
         public Vector3 ContactPoint { get; set; }
+
+        /// <summary>
+        /// Gets or sets the entity this hit belongs to, for sweeps that fold brush entities in: the
+        /// entity whose collider was struck, or the worldspawn for static world geometry, as the engine
+        /// reports it. Null when the sweep did not carry entity identity at all.
+        /// </summary>
+        public Entities.BaseEntity? HitEntity { get; set; }
 
         /// <summary>
         /// Updates this <see cref="TraceResult"/> if the <paramref name="other"/> is closer. Returns true if updated.

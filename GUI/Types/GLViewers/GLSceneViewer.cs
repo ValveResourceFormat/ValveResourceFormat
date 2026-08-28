@@ -76,6 +76,7 @@ namespace GUI.Types.GLViewers
 
         /// <summary>Set by escape to release the mouse in walk mode, cleared by clicking back into the viewport.</summary>
         private bool mouseReleased;
+        private bool roundStarted;
 
         private readonly List<RenderModes.RenderMode> renderModes = new(RenderModes.Items.Count);
         private int renderModeCurrentIndex;
@@ -553,6 +554,12 @@ namespace GUI.Types.GLViewers
                 if (!wasWalkMode && Input.WalkMode)
                 {
                     SelectedNodeRenderer?.SelectNode(null);
+
+                    if (!roundStarted)
+                    {
+                        roundStarted = true;
+                        Scene.EntitySystem.StartRound();
+                    }
                 }
 
                 // Walk mode aims with the mouse, so it holds the cursor. Leaving walk mode, pausing,

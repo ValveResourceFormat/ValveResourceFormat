@@ -383,6 +383,7 @@ internal abstract class GLBaseControl : IDisposable, IMessageFilter
         Keys.D2 => TrackedKeys.Slot2,
         Keys.D3 => TrackedKeys.Slot3,
         Keys.D4 => TrackedKeys.Slot4,
+        Keys.E => TrackedKeys.E,
         Keys.F => TrackedKeys.F,
         Keys.Escape => TrackedKeys.Escape,
         _ => TrackedKeys.None,

@@ -32,6 +32,15 @@ namespace ValveResourceFormat.Renderer.Entities;
 /// </remarks>
 public sealed class FuncRotating : BaseModelEntity
 {
+    /// <summary>A turning brush shoves the player rather than swallowing them.</summary>
+    protected internal override bool IsPusher => true;
+
+    /// <summary>
+    /// A body cannot stall a rotor: the game grinds through with crush damage, so the nearest thing
+    /// without damage is to keep turning and keep shoving.
+    /// </summary>
+    protected override bool PusherForcesThrough => true;
+
     /// <summary>
     /// What a <c>func_rotating</c>'s <c>spawnflags</c> mean. The axis flags are named for what they do;
     /// the engine's own constants name them for the QAngle component they set, which is why its
@@ -112,7 +121,7 @@ public sealed class FuncRotating : BaseModelEntity
     private Vector3 startAngles;
     private float turnedFromStart;
     private MoveDoneFunction moveDoneFunction;
-    private SoundEvent? playing;
+    private SoundHandle playing;
 
     /// <summary>
     /// Initializes a <c>func_rotating</c> from its keyvalues.
@@ -505,30 +514,22 @@ public sealed class FuncRotating : BaseModelEntity
 
         StopSound();
 
-        playing = Sound.Play(SoundName, Transform.Translation, volume: GetRampedVolume());
+        playing = Sound.Play(SoundName, Transform.Translation, volume: Volume);
+        RampVolume();
     }
 
     /// <summary>Stops the rotation sound, if one is playing.</summary>
     private void StopSound()
     {
-        playing?.Stop();
-        playing = null;
+        playing.Stop();
+        playing = default;
     }
 
-    /// <summary>
-    /// Follows the volume up and down with the speed, Source's <c>RampPitchVol</c> without the pitch.
-    /// </summary>
+    /// <summary>Follows the volume with the speed, Source's <c>RampPitchVol</c> without the pitch.</summary>
     private void RampVolume()
     {
-        if (playing != null)
-        {
-            // FIXME: sound system does not allow this rn
-            playing.VolumeOverride = GetRampedVolume();
-        }
+        playing.Volume = Math.Clamp(MathF.Abs(Speed) / MaxSpeed, 0f, 1f);
     }
-
-    /// <summary>The volume for the current speed: full volume at <see cref="MaxSpeed"/>, silence stopped.</summary>
-    private float GetRampedVolume() => Math.Clamp(Volume * (MathF.Abs(Speed) / MaxSpeed), 0f, 1f);
 
     /// <inheritdoc/>
     protected override void OnRemove()
