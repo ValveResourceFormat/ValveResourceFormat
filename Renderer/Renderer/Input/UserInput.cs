@@ -93,6 +93,20 @@ public class UserInput
     /// <summary>Gets a value indicating whether the camera is in noclip (free-flight) mode rather than FPS movement mode.</summary>
     public bool NoClip { get; private set; } = true;
 
+    /// <summary>
+    /// Gets or sets a value indicating whether walk mode uses a Deadlock-style third-person
+    /// camera: an over-the-shoulder rig framing the character on the left of the screen.
+    /// </summary>
+    public bool ThirdPersonMode { get; set; }
+
+    // Deadlock camera rig (citadel_camera_* convar defaults): the look-at pivot sits 63
+    // units up and 25 to the right of the hero, and the camera hangs 150 back from it,
+    // pulled in by a fat trace so it does not clip walls.
+    private const float ThirdPersonCameraDistance = 150f;   // citadel_camera_dist
+    private const float ThirdPersonCameraHeight = 63f;      // citadel_camera_height
+    private const float ThirdPersonCameraSideOffset = 25f;  // citadel_camera_offset (-25 along Source's left-positive Y)
+    private const float ThirdPersonCameraTraceSize = 8f;    // citadel_camera_hard_trace_radius 16 diameter
+
     /// <summary>The buttons down as of this frame's sample, which movement folds into its own tick state.</summary>
     internal TrackedKeys Keys { get; private set; }
 
@@ -312,6 +326,7 @@ public class UserInput
         }
 
         Viewmodel?.ProcessInput(this, Renderer.Uptime);
+        PlayerModel?.ProcessInput(this);
 
         ApplyToRenderCamera(renderCamera);
 
@@ -329,6 +344,48 @@ public class UserInput
         renderCamera.ClampRotation();
 
         renderCamera.Roll = Camera.Roll;
+
+        if (ThirdPersonMode && !NoClip && !OrbitMode && !following)
+        {
+            PlaceThirdPersonCamera(renderCamera);
+        }
+    }
+
+    /// <summary>
+    /// Swings the render camera back onto the Deadlock third-person rig: pivot above and to
+    /// the right of the hero, camera behind it, clipped against the world so it never goes
+    /// through walls. The aim camera (and everything simulated from it) stays first-person.
+    /// </summary>
+    private void PlaceThirdPersonCamera(Camera renderCamera)
+    {
+        renderCamera.RecalculateDirectionVectors();
+
+        var feet = PlayerMovement.Position;
+        var anchor = feet + new Vector3(0, 0, ThirdPersonCameraHeight);
+        var pivot = anchor + renderCamera.Right * ThirdPersonCameraSideOffset;
+        var desired = pivot - renderCamera.Forward * ThirdPersonCameraDistance;
+
+        if (PhysicsWorld != null)
+        {
+            var halfExtents = new Vector3(ThirdPersonCameraTraceSize);
+
+            // Two legs so the side offset cannot start the trace inside a wall: out to the
+            // pivot first, then back from it
+            var sideTrace = PhysicsWorld.TraceAABB(anchor, pivot, halfExtents, "player");
+            if (sideTrace.Hit)
+            {
+                pivot = sideTrace.HitPosition;
+                desired = pivot - renderCamera.Forward * ThirdPersonCameraDistance;
+            }
+
+            var backTrace = PhysicsWorld.TraceAABB(pivot, desired, halfExtents, "player");
+            if (backTrace.Hit)
+            {
+                desired = backTrace.HitPosition;
+            }
+        }
+
+        renderCamera.Location = desired;
     }
 
     /// <summary>
@@ -365,6 +422,8 @@ public class UserInput
         => new(Camera.Location, Camera.Pitch, Camera.Yaw);
 
     private ViewmodelSceneNode? Viewmodel { get; set; }
+
+    private DeadlockPlayerSceneNode? PlayerModel { get; set; }
 
     /// <summary>
     /// Switches to noclip mode and begins a smooth camera transition from the current position.
@@ -704,5 +763,14 @@ public class UserInput
         Viewmodel = ViewmodelSceneNode.TryLoadCs2Viewmodel(scene);
         OrbitFollowProvider = Viewmodel is null ? null : Viewmodel.GetOrbitFollow;
         return Viewmodel != null;
+    }
+
+    /// <summary>
+    /// Try and load a third-person hero model to display in Deadlock walk mode.
+    /// </summary>
+    public bool TryLoadDeadlockPlayer(Scene scene, string modelPath)
+    {
+        PlayerModel = DeadlockPlayerSceneNode.TryLoad(scene, modelPath);
+        return PlayerModel != null;
     }
 }

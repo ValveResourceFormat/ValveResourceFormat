@@ -206,6 +206,20 @@ public partial class PlayerMovement : IPlayerController
     /// <summary>Gets or sets sv_airaccelerate, the air-control acceleration rate.</summary>
     public float AirAccelerate { get; set; } = AirAccelerateMovementMaps;
 
+    /// <summary>Gets or sets the gravity multiplier (Deadlock heroes can scale gravity; 1 for CS).</summary>
+    public float GravityScale { get; set; } = 1f;
+
+    private float Gravity => GravityValue * GravityScale;
+
+    /// <summary>
+    /// Gets or sets the air-control wishspeed cap. CS clamps it to 30 u/s (strafe-only air
+    /// control); Deadlock allows far more direct steering.
+    /// </summary>
+    public float AirWishSpeedCap { get; set; } = AirMaxWishSpeed;
+
+    /// <summary>Maximum step/obstacle height the ground move can climb.</summary>
+    private float StepHeight => DeadlockMode ? DlStepHeight : StepSize;
+
     /// <summary>
     /// Gets or sets view_punch_decay, the exponential rate the landing punch recovers at.
     /// </summary>
@@ -241,6 +255,7 @@ public partial class PlayerMovement : IPlayerController
         SlopeClipNormalZ = 1f;
         HasPreviousYaw = false;
         Effects.Reset();
+        ResetDeadlockState();
 
         CacheSounds();
     }
@@ -328,6 +343,13 @@ public partial class PlayerMovement : IPlayerController
 
         SampleButtons();
 
+        // An active mantle owns the whole frame: the player is locked out and carried
+        if (DeadlockMode && DlMantleActive)
+        {
+            DeadlockMantleFrame(camera, MathF.Min(deltaTime, MaxFrameDeltaTime));
+            return;
+        }
+
         var position = TracePosition;
         var yaw = camera.Yaw;
 
@@ -341,7 +363,7 @@ public partial class PlayerMovement : IPlayerController
         Effects.DecayViewPunch(deltaTime, ViewPunchDecay);
 
         var isDucking = HoldingCtrl;
-        var isWalking = !HoldingCtrl && HoldingShift;
+        var isWalking = !DeadlockMode && !HoldingCtrl && HoldingShift; // Shift dashes in Deadlock
 
         BlendDuckedHull(deltaTime, ref position, isDucking);
 
@@ -364,6 +386,17 @@ public partial class PlayerMovement : IPlayerController
         if (justLanded)
         {
             OnLanded(fallSpeed, wantsToJump, position, playerHull);
+        }
+
+        if (DeadlockMode)
+        {
+            // Deadlock handles all jump inputs itself (ground, air, wall, mantle, dash jump)
+            wantsToJump = false;
+
+            if (DeadlockFrame(camera, deltaTime, position, playerHull))
+            {
+                return;
+            }
         }
 
         if (wantsToJump && OnGround)
@@ -408,7 +441,7 @@ public partial class PlayerMovement : IPlayerController
             var strafeGain = Velocity - preAirVelocity;
             Velocity = preAirVelocity;
 
-            airVelocityDelta = strafeGain - new Vector3(0f, 0f, GravityValue * deltaTime);
+            airVelocityDelta = strafeGain - new Vector3(0f, 0f, Gravity * deltaTime);
 
             // The frame's displacement if nothing is in the way: (v + dv/2) * dt.
             //
@@ -429,9 +462,18 @@ public partial class PlayerMovement : IPlayerController
         // is nothing to step off, so the constant-velocity slide runs on the precomputed delta
         var moveStart = position;
 
-        position = OnGround
-            ? GroundMove(position, wishdir, wishspeed, deltaTime, DuckSpeedModifierActive, isWalking, playerHull)
-            : TryPlayerMove(position, airVelocityDelta, deltaTime, playerHull, wishdir, wishspeed);
+        if (OnGround)
+        {
+            // Sliding and dashing bypass the walk friction/acceleration entirely: the frame's
+            // velocity change is the glide's own steering, low friction and downhill pull
+            position = DeadlockMode && (IsSliding || IsDashing)
+                ? TryPlayerMove(position, DeadlockGlideDelta(deltaTime, position, playerHull), deltaTime, playerHull, Vector3.Zero, 0f)
+                : GroundMove(position, wishdir, wishspeed, deltaTime, DuckSpeedModifierActive, isWalking, playerHull);
+        }
+        else
+        {
+            position = TryPlayerMove(position, airVelocityDelta, deltaTime, playerHull, wishdir, wishspeed);
+        }
 
         if (OnGround)
         {
@@ -660,7 +702,7 @@ public partial class PlayerMovement : IPlayerController
     /// </summary>
     private void StayOnGround(ref Vector3 position, Vector3 halfExtents)
     {
-        var trace = TraceBBox(position, position + new Vector3(0, 0, -StepSize), halfExtents);
+        var trace = TraceBBox(position, position + new Vector3(0, 0, -StepHeight), halfExtents);
 
         if (IsWalkableGroundHit(trace))
         {
@@ -1003,7 +1045,7 @@ public partial class PlayerMovement : IPlayerController
             // recent one.
             if (timeLeft > 0f && planeCount > 0)
             {
-                velocityDelta = ClipAcceleration(new Vector3(0f, 0f, -GravityValue * timeLeft), planes[..planeCount]);
+                velocityDelta = ClipAcceleration(new Vector3(0f, 0f, -Gravity * timeLeft), planes[..planeCount]);
 
                 if (wishspeed > 0f)
                 {
@@ -1406,14 +1448,14 @@ public partial class PlayerMovement : IPlayerController
         var directLateral = new Vector2(directPosition.X - start.X, directPosition.Y - start.Y).LengthSquared();
 
         // Stepped branch: step up as far as headroom allows, sweep, then settle back down
-        var stepUpEnd = start + new Vector3(0, 0, StepSize);
+        var stepUpEnd = start + new Vector3(0, 0, StepHeight);
         var upTrace = TraceBBox(start, stepUpEnd, halfExtents);
         var steppedStart = upTrace.Hit ? upTrace.HitPosition : stepUpEnd;
 
         var steppedSweep = TraceBBox(steppedStart, steppedStart + delta, halfExtents);
         var steppedSlide = steppedSweep.Hit ? steppedSweep.HitPosition : steppedStart + delta;
 
-        var downEnd = steppedSlide + new Vector3(0, 0, -(StepSize + GroundProbeDistance));
+        var downEnd = steppedSlide + new Vector3(0, 0, -(StepHeight + GroundProbeDistance));
         var downTrace = TraceBBox(steppedSlide, downEnd, halfExtents);
 
         // Reject unwalkable or embedded landings; the down tolerance keeps a low ceiling
@@ -1836,7 +1878,7 @@ public partial class PlayerMovement : IPlayerController
     /// </summary>
     private Vector3 AirAccelerateClipped(Vector3 velocity, Vector3 wishdir, float wishspeed, float segTime, ReadOnlySpan<Vector3> planes)
     {
-        var cap = MathF.Min(wishspeed, AirMaxWishSpeed);
+        var cap = MathF.Min(wishspeed, AirWishSpeedCap);
 
         // Note: the accel rate uses the original wishspeed, NOT the capped value
         var accelRate = AirAccelerate * wishspeed * SurfaceFriction;
@@ -1880,7 +1922,7 @@ public partial class PlayerMovement : IPlayerController
             return;
         }
 
-        var cap = Math.Min(wishspeed, AirMaxWishSpeed);
+        var cap = Math.Min(wishspeed, AirWishSpeedCap);
 
         // Note: the accel rate uses original wishspeed, NOT the capped value
         var accelRate = AirAccelerate * wishspeed * SurfaceFriction;

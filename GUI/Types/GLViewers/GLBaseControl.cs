@@ -794,13 +794,16 @@ internal abstract class GLBaseControl : IDisposable, IMessageFilter
 
         if (this is GLSceneViewer viewer)
         {
+            // A viewer can pin its own field of view (e.g. the Deadlock camera rig)
+            var fieldOfView = viewer.CameraFovOverride ?? Settings.Config.FieldOfView;
+
             RendererContext.FieldOfView = Settings.Config.FieldOfView;
             RendererContext.ViewmodelFieldOfView = Settings.Config.ViewmodelFieldOfView;
-            viewer.Renderer.Camera.FieldOfView = Settings.Config.FieldOfView;
+            viewer.Renderer.Camera.FieldOfView = fieldOfView;
             viewer.Renderer.Camera.CreateProjectionMatrix();
 
             // The input camera frames objects using its own field of view, so it follows the setting too
-            viewer.Input.Camera.FieldOfView = Settings.Config.FieldOfView;
+            viewer.Input.Camera.FieldOfView = fieldOfView;
             viewer.Input.Camera.CreateProjectionMatrix();
         }
     }

@@ -27,6 +27,10 @@ namespace GUI.Types.GLViewers
     /// </summary>
     class GLWorldViewer : GLSceneViewer
     {
+        /// <summary>Hero shown in Deadlock walk mode (Celeste, the unicorn).</summary>
+        private const string DeadlockHeroModel = "models/heroes_wip/unicorn/unicorn.vmdl";
+        private const float DeadlockCameraFov = 75f; // citadel_camera_fov
+
         private readonly World? world;
         private readonly WorldNode? worldNode;
         private readonly ResourceExtRefList? mapExternalReferences;
@@ -236,18 +240,38 @@ namespace GUI.Types.GLViewers
 
                 ReportLoadingStatus("Loading player model…");
 
-                Input.TryLoadViewmodel(Scene);
+                var mapName = Path.GetFileName(LoadedWorld.MapName);
+                var isDeadlockMap = mapName.StartsWith("dl_", StringComparison.OrdinalIgnoreCase);
+
+                if (isDeadlockMap)
+                {
+                    // Deadlock maps get Deadlock movement: third-person hero, stamina
+                    // dashes/slides/mantles, and the citadel camera rig
+                    Input.PlayerMovement.DeadlockMode = true;
+                    Input.ThirdPersonMode = true;
+                    Input.TryLoadDeadlockPlayer(Scene, DeadlockHeroModel);
+                    CameraFovOverride = DeadlockCameraFov;
+                    Renderer.Camera.FieldOfView = DeadlockCameraFov;
+                    ShowSpeed = true;
+                }
+                else
+                {
+                    Input.TryLoadViewmodel(Scene);
+                }
 
                 var kzMapPrefixes = new[] { "bhop", "surf", "kz", "dr" };
-                var mapName = Path.GetFileName(LoadedWorld.MapName);
-                var isKzMap = kzMapPrefixes.Any(prefix => mapName.StartsWith(prefix, StringComparison.OrdinalIgnoreCase));
+                var isKzMap = !isDeadlockMap
+                    && kzMapPrefixes.Any(prefix => mapName.StartsWith(prefix, StringComparison.OrdinalIgnoreCase));
 
-                ShowSpeed = isKzMap;
-                Input.PlayerMovement.PrestrafeEnabled = isKzMap;
-                Input.PlayerMovement.AutoBunnyHop = isKzMap;
-                Input.PlayerMovement.AirAccelerate = isKzMap
-                    ? PlayerMovement.AirAccelerateMovementMaps
-                    : PlayerMovement.AirAccelerateCompetitive;
+                if (!isDeadlockMap)
+                {
+                    ShowSpeed = isKzMap;
+                    Input.PlayerMovement.PrestrafeEnabled = isKzMap;
+                    Input.PlayerMovement.AutoBunnyHop = isKzMap;
+                    Input.PlayerMovement.AirAccelerate = isKzMap
+                        ? PlayerMovement.AirAccelerateMovementMaps
+                        : PlayerMovement.AirAccelerateCompetitive;
+                }
 
                 Input.EntitySystem = Scene.EntitySystem;
                 Scene.EntitySystem.SpawnPlayer(Input.PlayerMovement);
