@@ -11,6 +11,11 @@ namespace ValveResourceFormat.ResourceTypes.ModelFlex
         /// </summary>
         public string Name { get; private set; }
         /// <summary>
+        /// Gets the controller type. Morph sets compiled by the Dota SDK era tools store the flex name
+        /// here instead of the modern <c>default</c>.
+        /// </summary>
+        public string Type { get; private set; }
+        /// <summary>
         /// Gets the minimum value of the flex controller.
         /// </summary>
         public float Min { get; private set; }
@@ -24,13 +29,8 @@ namespace ValveResourceFormat.ResourceTypes.ModelFlex
         /// </summary>
         public FlexController(string name, string type, float min, float max)
         {
-            // Older games store the controller's own name in m_szType instead of "default"
-            if (type != "default" && type != name)
-            {
-                throw new NotImplementedException($"Unknown FlexController type: {type}");
-            }
-
             Name = name;
+            Type = type;
             Min = min;
             Max = max;
         }

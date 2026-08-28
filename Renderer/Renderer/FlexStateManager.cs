@@ -1,3 +1,4 @@
+using System.Linq;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.ResourceTypes.ModelFlex;
 
@@ -12,6 +13,8 @@ namespace ValveResourceFormat.Renderer
         private readonly FlexController[] FlexControllers;
         private readonly FlexRule[] FlexRules;
         private readonly float[] controllerValues;
+        private readonly float[] flexValues;
+        private readonly int[] orderedMorphIds;
         /// <summary>Gets the morph composite that renders blended morph targets to the GPU.</summary>
         public MorphComposite MorphComposite { get; }
 
@@ -27,9 +30,11 @@ namespace ValveResourceFormat.Renderer
 
             for (var i = 0; i < FlexRules.Length; i++)
             {
-                var rule = FlexRules[i];
-                morphIdToRuleId[rule.FlexID] = i;
+                morphIdToRuleId[FlexRules[i].FlexID] = i;
             }
+
+            flexValues = new float[FlexRule.GetFlexValueCount(FlexRules)];
+            orderedMorphIds = [.. morphIdToRuleId.Keys.Order()];
 
             MorphComposite = new MorphComposite(renderContext, morph);
         }
@@ -85,13 +90,21 @@ namespace ValveResourceFormat.Renderer
             var ruleId = morphIdToRuleId[morphId];
             var rule = FlexRules[ruleId];
 
-            return rule.Evaluate(controllerValues);
+            var value = rule.Evaluate(controllerValues, FlexControllers, flexValues);
+
+            if (morphId >= 0 && morphId < flexValues.Length)
+            {
+                flexValues[morphId] = value;
+            }
+
+            return value;
         }
 
         /// <summary>Evaluates all morph rules and pushes the resulting weights to the morph composite.</summary>
         public void UpdateComposite()
         {
-            foreach (var i in morphIdToRuleId.Keys)
+            // Evaluated in flex order so a fetch2 op sees the flexes it depends on already computed.
+            foreach (var i in orderedMorphIds)
             {
                 var morphValue = EvaluateMorph(i);
                 MorphComposite.SetMorphValue(i, morphValue);
