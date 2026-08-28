@@ -38,6 +38,9 @@ public class ViewmodelSceneNode : ModelSceneNode
 
     private int PreviousSelectedIndex;
 
+    /// <summary>Item index of the knife.</summary>
+    private const int KnifeItemIndex = 3;
+
     /// <summary>Item index of the smoke grenade.</summary>
     private const int SmokeItemIndex = 4;
 
@@ -48,6 +51,14 @@ public class ViewmodelSceneNode : ModelSceneNode
     private const int FireItemIndex = 6;
 
     private bool IsGrenadeSelected => SelectedItemIndex is SmokeItemIndex or ExplosiveItemIndex or FireItemIndex;
+
+    private bool IsKnifeSelected => SelectedItemIndex == KnifeItemIndex;
+
+    /// <summary>
+    /// Gets a value indicating whether to draw the walk mode crosshair: the viewmodel is up
+    /// (walk mode, camera attached to the eyes rather than orbiting) and the equipped item wants one.
+    /// </summary>
+    public bool ShowCrosshair => active && LayerEnabled && !IsKnifeSelected;
 
     /// <summary>
     /// The selected item slot.
@@ -69,7 +80,7 @@ public class ViewmodelSceneNode : ModelSceneNode
             deployTimeLeft = DeployDuration;
             SetState(AnimationState.Draw);
         }
-    } = 3;
+    } = KnifeItemIndex;
 
     readonly SkeletonSceneNode PrimarySkeletonDebug;
     ParticleSceneNode? muzzleFlashParticle;
@@ -319,7 +330,7 @@ public class ViewmodelSceneNode : ModelSceneNode
                 Sound.Play(PistolAttackSound, volume: AttackSoundVolume);
                 break;
 
-            case 3:
+            case KnifeItemIndex:
                 var camera = input.Camera;
                 var range = heavyKnifeAttack ? KnifeHeavyRange : KnifeLightRange;
                 var from = camera.Location;
@@ -627,7 +638,7 @@ public class ViewmodelSceneNode : ModelSceneNode
         {
             1 => (0.1f, 2f),
             2 => (0.1f, 2f),
-            3 => (0.3f, 1f),
+            KnifeItemIndex => (0.3f, 1f),
             _ => (0.1f, 2f),
         };
 
@@ -640,7 +651,7 @@ public class ViewmodelSceneNode : ModelSceneNode
         {
             1 => 225f, // m4a1_silencer
             2 => 240f, // usp_silencer
-            3 => 250f, // knife
+            KnifeItemIndex => 250f,
             SmokeItemIndex => 245f,     // weapon_smokegrenade
             ExplosiveItemIndex => 245f, // weapon_hegrenade
             FireItemIndex => 245f,      // weapon_molotov
@@ -958,7 +969,7 @@ public class ViewmodelSceneNode : ModelSceneNode
         }
 
         viewmodel.SelectedItemIndex = 2;
-        viewmodel.SelectedItemIndex = 3;
+        viewmodel.SelectedItemIndex = KnifeItemIndex;
 
         CacheSounds();
 
@@ -1017,7 +1028,7 @@ public class ViewmodelSceneNode : ModelSceneNode
     /// <param name="uptime"></param>
     public void ProcessInput(UserInput input, float uptime)
     {
-        active = !input.NoClip;
+        active = input.WalkMode;
 
         var distanceFromFirstPersonEyes = Vector3.Distance(input.Camera.Location, input.PlayerMovement.EyePosition);
 
@@ -1270,7 +1281,7 @@ public class ViewmodelSceneNode : ModelSceneNode
                 SetState(AnimationState.Attack);
                 PlayAttackSound(input, heavyKnifeAttack: false);
                 attackCooldown = fireDelay;
-                if (SelectedItemIndex != 3 && muzzleFlashParticle != null)
+                if (!IsKnifeSelected && muzzleFlashParticle != null)
                 {
                     muzzleFlashParticle.Restart();
                 }
@@ -1279,7 +1290,7 @@ public class ViewmodelSceneNode : ModelSceneNode
             {
                 SetState(AnimationState.AlternateAttack);
 
-                if (SelectedItemIndex == 3)
+                if (IsKnifeSelected)
                 {
                     PlayAttackSound(input, heavyKnifeAttack: true);
                 }
@@ -1298,7 +1309,7 @@ public class ViewmodelSceneNode : ModelSceneNode
         }
         else if (input.Pressed(TrackedKeys.Slot3))
         {
-            SelectedItemIndex = 3;
+            SelectedItemIndex = KnifeItemIndex;
         }
         else if (input.Pressed(TrackedKeys.Slot4))
         {

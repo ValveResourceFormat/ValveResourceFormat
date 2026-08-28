@@ -90,8 +90,18 @@ public class UserInput
     /// </summary>
     public PlayerMovement PlayerMovement { get; }
 
+    /// <summary>Gets a value indicating whether the camera is in FPS walk mode rather than noclip free flight.</summary>
+    public bool WalkMode { get; private set; }
+
     /// <summary>Gets a value indicating whether the camera is in noclip (free-flight) mode rather than FPS movement mode.</summary>
-    public bool NoClip { get; private set; } = true;
+    public bool NoClip => !WalkMode;
+
+    /// <summary>
+    /// Gets a value indicating whether the walk mode crosshair should be drawn. The viewmodel already
+    /// hides itself outside walk mode and while the camera is detached, so it decides; without one
+    /// there is nothing to aim, so no crosshair.
+    /// </summary>
+    public bool ShowCrosshair => Viewmodel is { ShowCrosshair: true };
 
     /// <summary>The buttons down as of this frame's sample, which movement folds into its own tick state.</summary>
     internal TrackedKeys Keys { get; private set; }
@@ -213,9 +223,9 @@ public class UserInput
                     }
                     else
                     {
-                        PlayerMovement.Initialize = !NoClip;
+                        PlayerMovement.Initialize = WalkMode;
 
-                        if (!NoClip)
+                        if (WalkMode)
                         {
                             SettleCamera();
                         }
@@ -251,18 +261,18 @@ public class UserInput
             EscapeFreedMouse = false;
         }
 
-        var wasClipping = !NoClip;
+        var wasWalking = WalkMode;
         if (Pressed(TrackedKeys.X))
         {
-            NoClip = !NoClip;
-            PlayerMovement.Initialize = !NoClip;
+            WalkMode = !WalkMode;
+            PlayerMovement.Initialize = WalkMode;
         }
-        else if (!NoClip && Pressed(TrackedKeys.Escape))
+        else if (WalkMode && Pressed(TrackedKeys.Escape))
         {
             if (EscapeFreedMouse)
             {
-                NoClip = true;
-                PlayerMovement.Initialize = !NoClip;
+                WalkMode = false;
+                PlayerMovement.Initialize = WalkMode;
             }
             else
             {
@@ -270,12 +280,12 @@ public class UserInput
             }
         }
 
-        if (wasClipping && NoClip)
+        if (wasWalking && !WalkMode)
         {
             MoveCamera(new Vector3(0, 0, 32), transition: true);
             CurrentSpeedModifier = 7;
         }
-        else if (!wasClipping && !NoClip)
+        else if (!wasWalking && WalkMode)
         {
             // Only reachable on the frame X hands control back, since otherwise the two agree. The body
             // is about to be seeded from the camera, so the view has to stop trailing it first.
@@ -290,7 +300,7 @@ public class UserInput
         }
         else if (OrbitMode)
         {
-            HandleOrbitControls(deltaTime, keyboardState, !NoClip);
+            HandleOrbitControls(deltaTime, keyboardState, WalkMode);
         }
         else if (NoClip)
         {
@@ -373,7 +383,7 @@ public class UserInput
     /// <param name="exitWalkMode">Whether to leave walk mode; pass false to teleport the player instead.</param>
     public void SaveCameraForTransition(float transitionDuration = 1.5f, bool exitWalkMode = true)
     {
-        if (!exitWalkMode && !NoClip)
+        if (!exitWalkMode && WalkMode)
         {
             // Teleport the player instead, without the transition lerping the view
             // behind physics that already moved.
@@ -381,7 +391,7 @@ public class UserInput
             return;
         }
 
-        NoClip = true;
+        WalkMode = false;
         TransitionCamera(transitionDuration);
     }
 

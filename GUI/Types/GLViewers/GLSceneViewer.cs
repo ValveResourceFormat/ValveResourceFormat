@@ -297,7 +297,7 @@ namespace GUI.Types.GLViewers
         {
             base.OnMouseWheel(delta, location);
 
-            if (!Input.NoClip)
+            if (Input.WalkMode)
             {
                 return;
             }
@@ -318,7 +318,7 @@ namespace GUI.Types.GLViewers
         {
             base.OnMouseUp(sender, e);
 
-            if (!Input.NoClip)
+            if (Input.WalkMode)
             {
                 return;
             }
@@ -335,7 +335,7 @@ namespace GUI.Types.GLViewers
 
             mouseReleased = false;
 
-            if (!Input.NoClip)
+            if (Input.WalkMode)
             {
                 return;
             }
@@ -523,7 +523,7 @@ namespace GUI.Types.GLViewers
 
             // Walk mode keeps simulating while the cursor is over the ui, otherwise player
             // physics and teleports stay frozen until the mouse moves back over the viewport.
-            if (MouseOverRenderArea || Input.ForceUpdate || !Input.NoClip)
+            if (MouseOverRenderArea || Input.ForceUpdate || Input.WalkMode)
             {
                 Input.MouseSensitivity = Settings.Config.MouseSensitivity;
                 Input.SmoothCameraEnabled = Settings.Config.SmoothCameraEnabled;
@@ -545,19 +545,19 @@ namespace GUI.Types.GLViewers
                 var wheelDelta = ConsumePendingMouseWheelDelta();
 
                 Input.MouseSensitivity = Settings.Config.MouseSensitivity;
-                var wasNoClip = Input.NoClip;
+                var wasWalkMode = Input.WalkMode;
                 Input.Tick(frameTime, pressedKeys, new Vector2(mouseDelta.X, mouseDelta.Y), Renderer.Camera);
                 LastMouseDelta = mouseDelta;
 
                 // cancel unintentional selection
-                if (wasNoClip && !Input.NoClip)
+                if (!wasWalkMode && Input.WalkMode)
                 {
                     SelectedNodeRenderer?.SelectNode(null);
                 }
 
                 // Walk mode aims with the mouse, so it holds the cursor. Leaving walk mode, pausing,
                 // or pressing escape hands it back.
-                var wantsMouseLook = !Input.NoClip && !Paused && !mouseReleased;
+                var wantsMouseLook = Input.WalkMode && !Paused && !mouseReleased;
 
                 // Taking the cursor needs it over the viewport, but keeping it does not, or a fast
                 // look that outran the pointer would drop the grab on its way past the edge.
@@ -797,7 +797,7 @@ namespace GUI.Types.GLViewers
 
             BlitFramebufferToScreen();
 
-            if (!Input.NoClip)
+            if (Input.ShowCrosshair)
             {
                 crosshairRenderer.Render(Renderer.Camera);
             }
