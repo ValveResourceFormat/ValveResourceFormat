@@ -351,6 +351,64 @@ partial class ModelExtract
         return aggModelName[..^vmdlExt.Length] + "_draw" + drawCallIndex + vmdlExt;
     }
 
+    /// <summary>
+    /// A mesh's vertex buffers concatenated into one, and the vertex each original buffer starts at.
+    /// </summary>
+    private readonly record struct MergedVertexBuffers(VBIB.OnDiskBufferData Buffer, Dictionary<int, int> VertexOffsets);
+
+    /// <summary>
+    /// Concatenates the vertex buffers of a mesh when every draw call reads a single buffer and all of
+    /// them share one layout. Returns null when they cannot be merged, in which case each buffer keeps
+    /// its own dme mesh.
+    /// </summary>
+    private static MergedVertexBuffers? TryMergeVertexBuffers(KVObject mdat, VBIB mbuf)
+    {
+        var usedBuffers = new List<int>();
+
+        foreach (var sceneObject in mdat.GetArray("m_sceneObjects"))
+        {
+            foreach (var drawCall in sceneObject.GetArray("m_drawCalls"))
+            {
+                var vertexBuffers = drawCall.GetArray("m_vertexBuffers");
+
+                if (vertexBuffers.Count != 1)
+                {
+                    return null;
+                }
+
+                var bufferIndex = vertexBuffers[0].GetInt32Property("m_hBuffer");
+
+                if (!usedBuffers.Contains(bufferIndex))
+                {
+                    usedBuffers.Add(bufferIndex);
+                }
+            }
+        }
+
+        if (usedBuffers.Count < 2)
+        {
+            return null;
+        }
+
+        var buffers = usedBuffers.ConvertAll(index => mbuf.VertexBuffers[index]);
+
+        if (buffers.Exists(buffer => !VBIB.HasSameLayout(buffers[0], buffer)))
+        {
+            return null;
+        }
+
+        var offsets = new Dictionary<int, int>(usedBuffers.Count);
+        var vertexOffset = 0u;
+
+        for (var i = 0; i < usedBuffers.Count; i++)
+        {
+            offsets[usedBuffers[i]] = (int)vertexOffset;
+            vertexOffset += buffers[i].ElementCount;
+        }
+
+        return new MergedVertexBuffers(VBIB.Concatenate(buffers), offsets);
+    }
+
     private static void FillDatamodelVertexData(VBIB.OnDiskBufferData vertexBuffer, DmeVertexData vertexData, Material.VsInputSignature materialInputSignature,
         int boneWeightCount, int[]? boneRemapTable)
     {
@@ -493,6 +551,15 @@ partial class ModelExtract
         var materialInputSignature = Material.VsInputSignature.Empty;
         var drawCallIndex = 0;
 
+        // One mesh whose draw calls sit in separate but identically laid out vertex buffers is a single
+        // mesh in the source art, so the buffers are concatenated back into one and the draw calls
+        // become face sets of it. Morph vertex ids run across the whole mesh, so this is also what
+        // makes the deltas line up.
+        var merged = TryMergeVertexBuffers(mdat, mbuf);
+
+        var morphVertexOffsets = new Dictionary<(int, int), int>(mbuf.VertexBuffers.Count);
+        var morphVertexOffset = 0;
+
         foreach (var sceneObject in mdat.GetArray("m_sceneObjects"))
         {
             foreach (var drawCall in sceneObject.GetArray("m_drawCalls"))
@@ -501,16 +568,21 @@ partial class ModelExtract
 
                 Debug.Assert(vertexBuffers.Count <= 2); // Hello traveler, if you are here to update this code to support more than 2 buffers!
 
-                var dmeVertexBufferKey = (
-                    vertexBuffers[0].GetInt32Property("m_hBuffer"),
-                    vertexBuffers.Count > 1 ? vertexBuffers[1].GetInt32Property("m_hBuffer") : -1
-                );
+                var bufferIndex = vertexBuffers[0].GetInt32Property("m_hBuffer");
+
+                var dmeVertexBufferKey = merged != null
+                    ? (0, -1)
+                    : (bufferIndex, vertexBuffers.Count > 1 ? vertexBuffers[1].GetInt32Property("m_hBuffer") : -1);
 
                 if (!dmeVertexBuffers.TryGetValue(dmeVertexBufferKey, out var dmeVertexBuffer))
                 {
                     dmeVertexBuffer = CreateDmxDagVertexData(dmeModel, name);
                     dmeVertexBuffers[dmeVertexBufferKey] = dmeVertexBuffer;
+                    morphVertexOffsets[dmeVertexBufferKey] = morphVertexOffset;
                 }
+
+                var mergedVertexOffset = merged?.VertexOffsets[bufferIndex] ?? 0;
+                morphVertexOffset += drawCall.GetInt32Property("m_nVertexCount");
 
                 var indexBufferInfo = drawCall.GetSubCollection("m_indexBuffer");
                 var indexBufferIndex = indexBufferInfo.GetInt32Property("m_hBuffer");
@@ -530,7 +602,7 @@ partial class ModelExtract
 
                 material ??= "materials/default.vmat";
 
-                var baseVertex = drawCall.GetInt32Property("m_nBaseVertex");
+                var baseVertex = drawCall.GetInt32Property("m_nBaseVertex") + mergedVertexOffset;
                 var startIndex = drawCall.GetInt32Property("m_nStartIndex");
                 var indexCount = drawCall.GetInt32Property("m_nIndexCount");
 
@@ -566,6 +638,12 @@ partial class ModelExtract
 
         foreach (var (vertexBufferIndices, dmeObjects) in dmeVertexBuffers)
         {
+            if (merged != null)
+            {
+                FillDatamodelVertexData(merged.Value.Buffer, dmeObjects.VertexData, materialInputSignature, boneWeightCount, options.BoneRemapTable);
+                continue;
+            }
+
             FillDatamodelVertexData(mbuf.VertexBuffers[vertexBufferIndices.Item1], dmeObjects.VertexData, materialInputSignature, boneWeightCount, options.BoneRemapTable);
 
             if (vertexBufferIndices.Item2 != -1)
@@ -575,7 +653,163 @@ partial class ModelExtract
         }
 
         TieElementRoot(datamodel, dmeModel);
+
+        if (mesh.MorphData != null)
+        {
+            var morphTargets = dmeVertexBuffers
+                .Select(pair => ((DmeMesh)pair.Value.Dag.Shape!, morphVertexOffsets[pair.Key],
+                    (int)(merged?.Buffer.ElementCount ?? mbuf.VertexBuffers[pair.Key.Item1].ElementCount)))
+                .ToList();
+
+            AddMorphData(datamodel, mesh.MorphData, morphTargets);
+        }
+
         return datamodel;
+    }
+
+    /// <summary>
+    /// Writes the morph targets of a mesh as delta states, and the flex controllers that drive them as
+    /// a combination operator. ModelDoc derives the compiled flex rules from this.
+    /// </summary>
+    private static void AddMorphData(Datamodel.Datamodel datamodel, Morph morph,
+        List<(DmeMesh Mesh, int BaseVertex, int VertexCount)> targets)
+    {
+        var flexNames = morph.GetFlexDescriptors();
+        if (flexNames.Count == 0 || targets.Count == 0)
+        {
+            return;
+        }
+
+        var positionData = morph.GetFlexVertexData(MorphBundleType.PositionSpeed);
+        var normalData = morph.GetFlexVertexData(MorphBundleType.NormalWrinkle);
+        var coverage = morph.GetFlexVertexCoverage();
+        var recovery = new FlexRecovery(morph);
+
+        var combination = new DmeCombinationOperator { Name = "combinationOperator" };
+
+        foreach (var (dmeMesh, baseVertex, vertexCount) in targets)
+        {
+            foreach (var flexName in flexNames)
+            {
+                // A morph target with no deltas at all still needs its delta state, or the compiler
+                // appends it after the ones that have data and the whole flex order shifts.
+                positionData.TryGetValue(flexName, out var deltas);
+                deltas ??= [];
+
+                normalData.TryGetValue(flexName, out var normalDeltas);
+                coverage.TryGetValue(flexName, out var covered);
+
+                var positions = new List<Vector3>();
+                var positionIndices = new List<int>();
+                var normals = new List<Vector3>();
+                var normalIndices = new List<int>();
+                var wrinkles = new List<float>();
+                var wrinkleIndices = new List<int>();
+
+                for (var i = 0; i < vertexCount; i++)
+                {
+                    var vertexId = baseVertex + i;
+                    if (vertexId >= deltas.Length)
+                    {
+                        break;
+                    }
+
+                    var inRect = covered == null || (vertexId < covered.Length && covered[vertexId]);
+                    var delta = deltas[vertexId];
+
+                    if (inRect || delta.X != 0f || delta.Y != 0f || delta.Z != 0f)
+                    {
+                        positions.Add(new Vector3(delta.X, delta.Y, delta.Z));
+                        positionIndices.Add(i);
+                    }
+
+                    if (normalDeltas == null || vertexId >= normalDeltas.Length)
+                    {
+                        continue;
+                    }
+
+                    var normal = normalDeltas[vertexId];
+
+                    if (inRect || normal.X != 0f || normal.Y != 0f || normal.Z != 0f)
+                    {
+                        normals.Add(new Vector3(normal.X, normal.Y, normal.Z));
+                        normalIndices.Add(i);
+                    }
+
+                    if (normal.W != 0f)
+                    {
+                        wrinkles.Add(normal.W);
+                        wrinkleIndices.Add(i);
+                    }
+                }
+
+                // A morph target that carries no geometry at all still has to look like one, or the
+                // compiler sorts it behind the targets that do and the flex order shifts.
+                if (positions.Count == 0 && vertexCount > 0)
+                {
+                    positions.Add(Vector3.Zero);
+                    positionIndices.Add(0);
+                }
+
+                var deltaState = new DmeVertexDeltaData { Name = FlexRecovery.Identifier(flexName) };
+                deltaState.AddIndexedStream("position$0", positions.ToArray(), positionIndices.ToArray());
+
+                if (normals.Count > 0)
+                {
+                    deltaState.AddIndexedStream("normal$0", normals.ToArray(), normalIndices.ToArray());
+                }
+
+                if (wrinkles.Count > 0)
+                {
+                    deltaState.AddIndexedStream("wrinkle$0", wrinkles.ToArray(), wrinkleIndices.ToArray());
+                }
+
+                dmeMesh.DeltaStates.Add(deltaState);
+                dmeMesh.DeltaStateWeights.Add(Vector2.Zero);
+                dmeMesh.DeltaStateWeightsLagged.Add(Vector2.Zero);
+            }
+
+            // Targeting a rule set rather than the mesh is what makes the compiler take its flex rules
+            // from the expressions below instead of giving every morph target its own controller.
+            var flexRules = new DmeFlexRules { Name = dmeMesh.Name, Target = dmeMesh };
+
+            foreach (var flexName in flexNames)
+            {
+                if (!recovery.Expressions.TryGetValue(flexName, out var expression))
+                {
+                    continue;
+                }
+
+                flexRules.DeltaStates.Add(new DmeFlexRuleExpression { Name = FlexRecovery.Identifier(flexName), Expression = expression });
+                flexRules.DeltaStateWeights.Add(Vector2.Zero);
+            }
+
+            combination.Targets.Add(flexRules);
+        }
+
+        foreach (var control in recovery.Controls)
+        {
+            var inputControl = new DmeCombinationInputControl
+            {
+                // The compiler rewrites a name that is not a plain identifier, so the names have to be
+                // rewritten the same way on both sides of a reference or it stops resolving.
+                Name = FlexRecovery.Identifier(control.Name),
+                FlexMin = control.Min,
+                FlexMax = control.Max,
+            };
+
+            foreach (var rawControlName in control.RawControlNames)
+            {
+                inputControl.RawControlNames.Add(FlexRecovery.Identifier(rawControlName));
+                inputControl.WrinkleScales.Add(0f);
+            }
+
+            combination.Controls.Add(inputControl);
+            combination.ControlValues.Add(new Vector3(0f, 0f, 0.5f));
+            combination.ControlValuesLagged.Add(new Vector3(0f, 0f, 0.5f));
+        }
+
+        datamodel.Root!["combinationOperator"] = combination;
     }
 
     /// <summary>

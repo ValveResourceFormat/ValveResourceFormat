@@ -58,13 +58,25 @@ partial class ModelExtract
     string GetDmxFileName_ForAnimation(string animationName)
     {
         var fileName = ModelName;
-        return (Path.GetDirectoryName(fileName)
+        var baseName = (Path.GetDirectoryName(fileName)
             + Path.DirectorySeparatorChar
             + Path.GetFileNameWithoutExtension(fileName) // so models in the same directory do not override each other's anims
             + "_"
-            + animationName
-            + ".dmx")
+            + animationName)
             .Replace('\\', '/');
+
+        // A mesh and an animation can share a name, and then one dmx would overwrite the other.
+        var candidate = baseName + ".dmx";
+        var suffix = 0;
+
+        while (RenderMeshesToExtract.Exists(m => m.FileName == candidate)
+            || AnimationsToExtract.Exists(a => a.FileName == candidate))
+        {
+            candidate = FormattableString.Invariant($"{baseName}_anim{(suffix > 0 ? suffix : string.Empty)}.dmx");
+            suffix++;
+        }
+
+        return candidate;
     }
 
     /// <summary>

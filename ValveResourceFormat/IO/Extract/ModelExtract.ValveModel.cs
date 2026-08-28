@@ -667,24 +667,24 @@ partial class ModelExtract
                     {
                         var meshGroupChoice = MakeNode("BodyGroupChoice");
 
-                        if (name != i.ToString(CultureInfo.InvariantCulture))
+                        var choiceName = name;
+
+                        // Fix up weird substring added to newer models
+                        const string indexMarker = "#&";
+                        var markerIndex = name.IndexOf(indexMarker, StringComparison.Ordinal);
+                        if (markerIndex >= 0)
                         {
-                            var choiceName = name;
-
-                            // Fix up weird substring added to newer models
-                            const string indexMarker = "#&";
-                            var markerIndex = name.IndexOf(indexMarker, StringComparison.Ordinal);
-                            if (markerIndex >= 0)
+                            var start = markerIndex + indexMarker.Length;
+                            if (start < name.Length)
                             {
-                                var start = markerIndex + indexMarker.Length;
-                                if (start < name.Length)
-                                {
-                                    choiceName = name[start..];
-                                }
+                                choiceName = name[start..];
                             }
-
-                            meshGroupChoice.Add("name", choiceName);
                         }
+
+                        // Every choice needs a name to recompile, even one that only repeats its index.
+                        meshGroupChoice.Add("name", string.IsNullOrEmpty(choiceName)
+                            ? i.ToString(CultureInfo.InvariantCulture)
+                            : choiceName);
 
                         if (hideInTools.Contains(key))
                         {
