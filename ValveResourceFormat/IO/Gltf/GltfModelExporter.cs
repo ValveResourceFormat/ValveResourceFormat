@@ -697,6 +697,20 @@ namespace ValveResourceFormat.IO
                 }
             }
 
+            var meshes = LoadModelMeshes(model, name).ToList();
+
+            // Animation frames are sized from the flex controllers, so they have to be known before the
+            // animations are written. Reading them here lets the model's own morph block win; only a
+            // model whose morph set sits in a separate vmorf falls back to the one its meshes carry.
+            if (model.FlexControllers.Length == 0)
+            {
+                foreach (var m in meshes)
+                {
+                    m.Mesh.LoadExternalMorphData(FileLoader);
+                    model.SetExternalMorphData(m.Mesh.MorphData);
+                }
+            }
+
             var (skeletonNode, joints) = ExportAnimations
                 ? CreateGltfSkeleton(scene, model.Skeleton, name)
                 : (null, null);
@@ -733,7 +747,7 @@ namespace ValveResourceFormat.IO
 
             var morphedMeshNodes = new List<(Node Node, VMesh Mesh)>();
 
-            foreach (var m in LoadModelMeshes(model, name))
+            foreach (var m in meshes)
             {
                 var meshName = m.Name;
 
