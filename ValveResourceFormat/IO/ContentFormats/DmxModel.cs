@@ -254,6 +254,136 @@ public class DmeVertexData : DMElement
 }
 
 /// <summary>
+/// Per-vertex deltas of one morph target, stored sparsely against the mesh's bind state.
+/// </summary>
+[CamelCaseProperties]
+public class DmeVertexDeltaData : DmeVertexData
+{
+    /// <summary>
+    /// Gets or sets a value indicating whether the deltas are already relative to the bind state.
+    /// </summary>
+    public bool Corrected { get; set; } = true;
+}
+
+/// <summary>
+/// One flex controller, naming the morph targets it drives.
+/// </summary>
+[CamelCaseProperties]
+public class DmeCombinationInputControl : DMElement
+{
+    /// <summary>
+    /// Gets the morph target names this control drives. A control with two entries is a split
+    /// control, negative side first.
+    /// </summary>
+    public Datamodel.StringArray RawControlNames { get; } = [];
+
+    /// <summary>
+    /// Gets or sets a value indicating whether the control is split left and right by the balance map.
+    /// </summary>
+    public bool Stereo { get; set; }
+
+    /// <summary>
+    /// Gets or sets a value indicating whether the control drives eyelid tracking.
+    /// </summary>
+    public bool Eyelid { get; set; }
+
+    /// <summary>
+    /// Gets or sets the lowest value the control takes.
+    /// </summary>
+    public float FlexMin { get; set; }
+
+    /// <summary>
+    /// Gets or sets the highest value the control takes.
+    /// </summary>
+    public float FlexMax { get; set; } = 1f;
+
+    /// <summary>
+    /// Gets the wrinkle scale of each raw control.
+    /// </summary>
+    public Datamodel.FloatArray WrinkleScales { get; } = [];
+}
+
+/// <summary>
+/// One rule of a <see cref="DmeFlexRules"/> set, giving a morph target its weight as an expression
+/// over the flex controllers.
+/// </summary>
+[CamelCaseProperties]
+public class DmeFlexRuleExpression : DMElement
+{
+    /// <summary>
+    /// Gets or sets the last evaluated weight.
+    /// </summary>
+    public float Result { get; set; }
+
+    /// <summary>
+    /// Gets or sets the expression that drives the morph target this rule is named after.
+    /// </summary>
+    [DMProperty("expr")]
+    public string Expression { get; set; } = string.Empty;
+}
+
+/// <summary>
+/// The rules driving one mesh's morph targets. A combination operator that targets these instead of
+/// the meshes themselves gets its flex rules from them rather than one per morph target.
+/// </summary>
+[CamelCaseProperties]
+public class DmeFlexRules : DMElement
+{
+    /// <summary>
+    /// Gets or sets the mesh whose morph targets these rules drive.
+    /// </summary>
+    public DMElement? Target { get; init; }
+
+    /// <summary>
+    /// Gets the rules, one per morph target.
+    /// </summary>
+    public Datamodel.ElementArray DeltaStates { get; } = [];
+
+    /// <summary>
+    /// Gets the weight of each rule.
+    /// </summary>
+    public Datamodel.Vector2Array DeltaStateWeights { get; } = [];
+}
+
+/// <summary>
+/// Maps flex controller values onto the delta states of the meshes it targets.
+/// </summary>
+[CamelCaseProperties]
+public class DmeCombinationOperator : DMElement
+{
+    /// <summary>
+    /// Gets the list of <see cref="DmeCombinationInputControl"/> elements.
+    /// </summary>
+    public Datamodel.ElementArray Controls { get; } = [];
+
+    /// <summary>
+    /// Gets the current value of each control, as default, minimum and balance.
+    /// </summary>
+    public Datamodel.Vector3Array ControlValues { get; } = [];
+
+    /// <summary>
+    /// Gets the lagged counterpart of <see cref="ControlValues"/>.
+    /// </summary>
+    public Datamodel.Vector3Array ControlValuesLagged { get; } = [];
+
+    /// <summary>
+    /// Gets or sets a value indicating whether the lagged values are used.
+    /// </summary>
+    public bool UsesLaggedValues { get; set; }
+
+    /// <summary>
+    /// Gets the domination rules. The compiler rebuilds suppression from the flex rule expressions,
+    /// so this is written empty.
+    /// </summary>
+    public Datamodel.ElementArray Dominators { get; } = [];
+
+    /// <summary>
+    /// Gets the meshes this operator drives.
+    /// </summary>
+    public Datamodel.ElementArray Targets { get; } = [];
+}
+
+/// <summary>
 /// Represents a list of animations.
 /// </summary>
 [CamelCaseProperties]

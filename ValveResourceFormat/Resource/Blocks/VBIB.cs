@@ -432,6 +432,71 @@ namespace ValveResourceFormat.Blocks
         */
 
         /// <summary>
+        /// Determines whether two vertex buffers hold the same attributes at the same offsets, which is
+        /// what makes their vertices interchangeable.
+        /// </summary>
+        public static bool HasSameLayout(OnDiskBufferData a, OnDiskBufferData b)
+        {
+            if (a.ElementSizeInBytes != b.ElementSizeInBytes
+                || a.InputLayoutFields.Length != b.InputLayoutFields.Length)
+            {
+                return false;
+            }
+
+            for (var i = 0; i < a.InputLayoutFields.Length; i++)
+            {
+                var x = a.InputLayoutFields[i];
+                var y = b.InputLayoutFields[i];
+
+                if (x.SemanticName != y.SemanticName || x.SemanticIndex != y.SemanticIndex
+                    || x.Format != y.Format || x.Offset != y.Offset)
+                {
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
+        /// <summary>
+        /// Concatenates vertex buffers into one, in the order given. Every buffer must share the layout
+        /// of the first, which <see cref="HasSameLayout"/> reports.
+        /// </summary>
+        public static OnDiskBufferData Concatenate(IReadOnlyList<OnDiskBufferData> buffers)
+        {
+            var first = buffers[0];
+            var totalCount = 0u;
+
+            foreach (var buffer in buffers)
+            {
+                if (!HasSameLayout(first, buffer))
+                {
+                    throw new ArgumentException("Vertex buffers must share a layout to be concatenated.", nameof(buffers));
+                }
+
+                totalCount += buffer.ElementCount;
+            }
+
+            var data = new byte[totalCount * first.ElementSizeInBytes];
+            var written = 0;
+
+            foreach (var buffer in buffers)
+            {
+                var length = (int)(buffer.ElementCount * buffer.ElementSizeInBytes);
+                Buffer.BlockCopy(buffer.Data, 0, data, written, length);
+                written += length;
+            }
+
+            return new OnDiskBufferData
+            {
+                ElementCount = totalCount,
+                ElementSizeInBytes = first.ElementSizeInBytes,
+                InputLayoutFields = first.InputLayoutFields,
+                Data = data,
+            };
+        }
+
+        /// <summary>
         /// Extracts scalar (single float) attribute data from a vertex buffer.
         /// </summary>
         public static float[] GetScalarAttributeArray(OnDiskBufferData vertexBuffer, RenderInputLayoutField attribute)
