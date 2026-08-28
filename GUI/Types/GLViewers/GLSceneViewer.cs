@@ -23,6 +23,7 @@ namespace GUI.Types.GLViewers
         public UserInput Input { get; protected set; }
 
         public ValveResourceFormat.Renderer.TextRenderer TextRenderer { get; protected set; }
+        private readonly CrosshairRenderer crosshairRenderer;
 
         protected PickingTexture? Picker { get; set; }
 
@@ -105,6 +106,7 @@ namespace GUI.Types.GLViewers
             Renderer = new(rendererContext);
             Input = new UserInput(Renderer);
             TextRenderer = new(rendererContext, Renderer.Camera);
+            crosshairRenderer = new CrosshairRenderer(rendererContext);
             Scene = Renderer.Scene;
 
 #if DEBUG
@@ -794,6 +796,11 @@ namespace GUI.Types.GLViewers
             }
 
             BlitFramebufferToScreen();
+
+            if (!Input.NoClip)
+            {
+                crosshairRenderer.Render(Renderer.Camera);
+            }
 
             if (GrabbedMouse && ShowSpeed)
             {
