@@ -32,6 +32,8 @@ namespace ValveResourceFormat.ResourceTypes
         /// </summary>
         public Resource? TextureResource { get; private set; }
 
+        private bool loaded;
+
         /// <summary>
         /// Initializes a new instance of the <see cref="Morph"/> class.
         /// </summary>
@@ -70,7 +72,43 @@ namespace ValveResourceFormat.ResourceTypes
         /// </summary>
         public Dictionary<string, Vector3[]> GetFlexVertexData()
         {
-            var flexData = new Dictionary<string, Vector3[]>();
+            var bundle = GetFlexVertexData(MorphBundleType.PositionSpeed);
+            var flexData = new Dictionary<string, Vector3[]>(bundle.Count);
+
+            foreach (var (name, values) in bundle)
+            {
+                var positions = new Vector3[values.Length];
+
+                for (var i = 0; i < values.Length; i++)
+                {
+                    positions[i] = new Vector3(values[i].X, values[i].Y, values[i].Z);
+                }
+
+                flexData.Add(name, positions);
+            }
+
+            return flexData;
+        }
+
+        /// <summary>Where a morph rect lands in the vertex grid, and its size in atlas pixels.</summary>
+        private readonly record struct RectPlacement(int XLeftDst, int YTopDst, int Width, int Height);
+
+        private static RectPlacement GetRectPlacement(KVObject rect, int texWidth, int texHeight)
+        {
+            return new RectPlacement(
+                rect.GetInt32Property("m_nXLeftDst"),
+                rect.GetInt32Property("m_nYTopDst"),
+                (int)MathF.Round(rect.GetFloatProperty("m_flUWidthSrc") * texWidth, 0),
+                (int)MathF.Round(rect.GetFloatProperty("m_flVHeightSrc") * texHeight, 0));
+        }
+
+        /// <summary>
+        /// Gets the deltas of one bundle, keyed by flex name. The fourth component carries the speed of a
+        /// position bundle or the wrinkle weight of a normal bundle.
+        /// </summary>
+        public Dictionary<string, Vector4[]> GetFlexVertexData(MorphBundleType bundleType)
+        {
+            var flexData = new Dictionary<string, Vector4[]>();
 
             if (Texture == null)
             {
@@ -110,24 +148,19 @@ namespace ValveResourceFormat.ResourceTypes
                     continue;
                 }
 
-                var rectData = new Vector3[height * width];
+                var rectData = new Vector4[height * width];
                 rectData.Initialize();
 
                 foreach (var rect in morphData.GetArray("m_morphRectDatas") ?? [])
                 {
-                    var xLeftDst = rect.GetInt32Property("m_nXLeftDst");
-                    var yTopDst = rect.GetInt32Property("m_nYTopDst");
-                    var rectWidth = (int)MathF.Round(rect.GetFloatProperty("m_flUWidthSrc") * texWidth, 0);
-                    var rectHeight = (int)MathF.Round(rect.GetFloatProperty("m_flVHeightSrc") * texHeight, 0);
+                    var placement = GetRectPlacement(rect, texWidth, texHeight);
                     var bundleDatas = rect.GetArray("m_bundleDatas") ?? [];
 
                     for (var bundleKey = 0; bundleKey < bundleDatas.Count; bundleKey++)
                     {
                         var bundleData = bundleDatas[bundleKey];
 
-                        // We currently only support Position.
-                        // TODO: Add Normal support for gltf
-                        if (bundleTypes[bundleKey] != MorphBundleType.PositionSpeed)
+                        if (bundleTypes[bundleKey] != bundleType)
                         {
                             continue;
                         }
@@ -137,21 +170,31 @@ namespace ValveResourceFormat.ResourceTypes
                         var ranges = new Vector4(bundleData.GetFloatArray("m_ranges"));
                         var offsets = new Vector4(bundleData.GetFloatArray("m_offsets"));
 
-                        for (var row = rectV; row < rectV + rectHeight; row++)
+                        for (var row = rectV; row < rectV + placement.Height; row++)
                         {
-                            for (var col = rectU; col < rectU + rectWidth; col++)
+                            for (var col = rectU; col < rectU + placement.Width; col++)
                             {
                                 var colorIndex = row * texWidth + col;
+                                var dstI = row - rectV + placement.YTopDst;
+                                var dstJ = col - rectU + placement.XLeftDst;
+
+                                // Older morph sets carry rects that run past the atlas or the vertex
+                                // grid. A row that overruns the grid width is clipped, not wrapped
+                                // onto the next row of vertices.
+                                if (colorIndex < 0 || colorIndex >= texPixels.Length
+                                    || dstI < 0 || dstI >= height || dstJ < 0 || dstJ >= width)
+                                {
+                                    continue;
+                                }
+
                                 var color = texPixels[colorIndex];
-                                var dstI = row - rectV + yTopDst;
-                                var dstJ = col - rectU + xLeftDst;
 
                                 var vec = new Vector4(color.Red, color.Green, color.Blue, color.Alpha);
                                 vec /= 255f;
                                 vec *= ranges;
                                 vec += offsets;
 
-                                rectData[dstI * width + dstJ] = new Vector3(vec.X, vec.Y, vec.Z); // We don't care about speed (alpha) yet
+                                rectData[(dstI * width) + dstJ] = vec;
                             }
                         }
                     }
@@ -164,28 +207,114 @@ namespace ValveResourceFormat.ResourceTypes
         }
 
         /// <summary>
+        /// Gets the names of the flexes <see cref="GetFlexVertexData()"/> returns deltas for, without
+        /// decoding the atlas.
+        /// </summary>
+        public HashSet<string> GetFlexNamesWithData()
+        {
+            var names = new HashSet<string>();
+
+            if (Texture == null)
+            {
+                return names;
+            }
+
+            foreach (var morphData in GetMorphKeyValueCollection(Data, "m_morphDatas"))
+            {
+                if (morphData.ValueType != KVValueType.Collection)
+                {
+                    continue;
+                }
+
+                var morphName = morphData.GetStringProperty("m_name");
+                if (!string.IsNullOrEmpty(morphName))
+                {
+                    names.Add(morphName);
+                }
+            }
+
+            return names;
+        }
+
+        /// <summary>
+        /// Gets which vertices each flex places a rect over, whether or not the delta there quantised to
+        /// zero. A writer that only kept the non-zero deltas would hand the atlas packer a more
+        /// fragmented shape than the one it started from.
+        /// </summary>
+        public Dictionary<string, bool[]> GetFlexVertexCoverage()
+        {
+            var coverage = new Dictionary<string, bool[]>();
+
+            if (Texture == null)
+            {
+                return coverage;
+            }
+
+            var width = Data.GetInt32Property("m_nWidth");
+            var height = Data.GetInt32Property("m_nHeight");
+            var texWidth = Texture.Width;
+            var texHeight = Texture.Height;
+
+            foreach (var morphData in GetMorphKeyValueCollection(Data, "m_morphDatas"))
+            {
+                if (morphData.ValueType != KVValueType.Collection)
+                {
+                    continue;
+                }
+
+                var morphName = morphData.GetStringProperty("m_name");
+                if (string.IsNullOrEmpty(morphName))
+                {
+                    continue;
+                }
+
+                var covered = new bool[height * width];
+
+                foreach (var rect in morphData.GetArray("m_morphRectDatas") ?? [])
+                {
+                    var placement = GetRectPlacement(rect, texWidth, texHeight);
+
+                    for (var row = 0; row < placement.Height; row++)
+                    {
+                        var dstI = row + placement.YTopDst;
+
+                        if (dstI < 0 || dstI >= height)
+                        {
+                            continue;
+                        }
+
+                        for (var col = 0; col < placement.Width; col++)
+                        {
+                            var dstJ = col + placement.XLeftDst;
+
+                            if (dstJ >= 0 && dstJ < width)
+                            {
+                                covered[(dstI * width) + dstJ] = true;
+                            }
+                        }
+                    }
+                }
+
+                coverage[morphName] = covered;
+            }
+
+            return coverage;
+        }
+
+        /// <summary>
         /// Loads flex data from the file loader.
         /// </summary>
         public void LoadFlexData(IFileLoader fileLoader)
         {
-            var atlasPath = Data.GetStringProperty("m_pTextureAtlas");
-            if (string.IsNullOrEmpty(atlasPath))
+            if (loaded)
             {
                 return;
             }
 
-            TextureResource = fileLoader.LoadFileCompiled(atlasPath);
-            if (TextureResource == null)
-            {
-                return;
-            }
+            loaded = true;
 
-            Texture = TextureResource.DataBlock as Texture;
-            if (Texture == null)
-            {
-                return;
-            }
-
+            // The rig is described in this block, so it is readable whether or not an atlas of deltas
+            // for it exists.
             FlexRules = GetMorphKeyValueCollection(Data, "m_FlexRules")
                 .Select(kv => ParseFlexRule(kv))
                 .ToArray();
@@ -193,6 +322,15 @@ namespace ValveResourceFormat.ResourceTypes
             FlexControllers = GetMorphKeyValueCollection(Data, "m_FlexControllers")
                 .Select(kv => ParseFlexController(kv))
                 .ToArray();
+
+            var atlasPath = Data.GetStringProperty("m_pTextureAtlas");
+            if (string.IsNullOrEmpty(atlasPath))
+            {
+                return;
+            }
+
+            TextureResource = fileLoader.LoadFileCompiled(atlasPath);
+            Texture = TextureResource?.DataBlock as Texture;
         }
 
         private static FlexController ParseFlexController(KVObject kv)
@@ -224,9 +362,13 @@ namespace ValveResourceFormat.ResourceTypes
 
         private static FlexOp? ParseFlexOp(KVObject kv)
         {
-            var opCode = kv.GetStringProperty("m_OpCode");
+            if (!kv.TryGetValue("m_OpCode", out var opCode))
+            {
+                return null;
+            }
+
             var data = kv.GetInt32Property("m_Data");
-            return FlexOp.Build(opCode, data);
+            return FlexOp.Build(FlexOp.ParseOpCode(opCode), data);
         }
 
         private static MorphBundleType ParseBundleType(KVObject bundleType)

@@ -16,8 +16,8 @@ namespace ValveResourceFormat.ResourceTypes.ModelFlex.FlexOps
         /// </remarks>
         public override void Run(in FlexRuleContext context)
         {
-            var v1 = context.Stack.Pop();
-            var v2 = context.Stack.Pop();
+            var v1 = context.Pop();
+            var v2 = context.Pop();
 
             context.Stack.Push(v2 - v1);
         }

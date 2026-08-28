@@ -201,21 +201,13 @@ namespace ValveResourceFormat.ResourceTypes
                     var morphSetResource = fileLoader.LoadFileCompiled(morphSetPath);
                     if (morphSetResource != null)
                     {
-                        MorphData = morphSetResource.GetBlockByType(BlockType.MRPH) as Morph;
+                        // A standalone vmorf_c keeps the morph set in its DATA block, an embedded one in MRPH.
+                        MorphData = (morphSetResource.GetBlockByType(BlockType.MRPH) ?? morphSetResource.DataBlock) as Morph;
                     }
                 }
             }
 
-            if (MorphData != null)
-            {
-                MorphData.LoadFlexData(fileLoader);
-
-                //If texture was not loaded, that means that this model doesn't have any valid morph data.
-                if (MorphData.TextureResource == null)
-                {
-                    MorphData = null;
-                }
-            }
+            MorphData?.LoadFlexData(fileLoader);
         }
     }
 }

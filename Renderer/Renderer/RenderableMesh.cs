@@ -109,7 +109,8 @@ namespace ValveResourceFormat.Renderer
             var meshSceneObjects = mesh.Data.GetArray("m_sceneObjects");
             ConfigureDrawCalls(scene, vbib, meshSceneObjects, initialMaterialTable, isAggregate);
 
-            if (morph != null)
+            // Without an atlas of deltas there is nothing for the composite to sample.
+            if (morph?.TextureResource != null)
             {
                 FlexStateManager = new FlexStateManager(renderContext, morph);
             }
