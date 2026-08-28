@@ -474,19 +474,19 @@ public partial class GltfModelExporter
     /// </summary>
     private void WriteMorphAnimations(ModelRoot exportedModel, VModel model, List<(Node Node, VMesh Mesh)> morphedMeshes, HashSet<string> animationFilter)
     {
-        var meshTargets = new List<(Node Node, List<int> MorphFlexIds, Dictionary<int, FlexRule> RuleByFlexId)>();
+        var meshTargets = new List<(Node Node, List<int> MorphFlexIds, Dictionary<int, FlexRule> RuleByFlexId, float[] FlexValues)>();
 
         foreach (var (node, mesh) in morphedMeshes)
         {
             var morph = mesh.MorphData!;
             var descriptors = morph.GetFlexDescriptors();
-            var flexData = morph.GetFlexVertexData();
+            var withData = morph.GetFlexNamesWithData();
 
             // The mesh's glTF morph targets are the flex descriptors that have flex data, in descriptor order.
             var morphFlexIds = new List<int>();
             for (var d = 0; d < descriptors.Count; d++)
             {
-                if (flexData.ContainsKey(descriptors[d]))
+                if (withData.Contains(descriptors[d]))
                 {
                     morphFlexIds.Add(d);
                 }
@@ -503,7 +503,7 @@ public partial class GltfModelExporter
                 ruleByFlexId[rule.FlexID] = rule;
             }
 
-            meshTargets.Add((node, morphFlexIds, ruleByFlexId));
+            meshTargets.Add((node, morphFlexIds, ruleByFlexId, new float[FlexRule.GetFlexValueCount(morph.FlexRules)]));
         }
 
         if (meshTargets.Count == 0)
@@ -538,13 +538,16 @@ public partial class GltfModelExporter
 
                 for (var t = 0; t < meshTargets.Count; t++)
                 {
-                    var (_, morphFlexIds, ruleByFlexId) = meshTargets[t];
+                    var (_, morphFlexIds, ruleByFlexId, flexValues) = meshTargets[t];
                     var weights = new float[morphFlexIds.Count];
                     for (var i = 0; i < morphFlexIds.Count; i++)
                     {
-                        if (ruleByFlexId.TryGetValue(morphFlexIds[i], out var rule))
+                        var flexId = morphFlexIds[i];
+
+                        if (ruleByFlexId.TryGetValue(flexId, out var rule))
                         {
-                            weights[i] = rule.Evaluate(frame.Datas);
+                            weights[i] = rule.Evaluate(frame.Datas, model.FlexControllers, flexValues);
+                            flexValues[flexId] = weights[i];
                             anyWeight[t] |= weights[i] != 0f;
                         }
                     }
