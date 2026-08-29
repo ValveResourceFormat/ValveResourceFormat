@@ -26,7 +26,7 @@ namespace ValveResourceFormat.IO
         /// <returns>Content file containing the flex scene as text.</returns>
         public ContentFile ToContentFile()
         {
-            var fileName = Path.ChangeExtension(flexSceneFile.Name, ".txt");
+            var fileName = Path.ChangeExtension(flexSceneFile.Name.Replace('\\', '/'), ".txt");
 
             return new ContentFile
             {
