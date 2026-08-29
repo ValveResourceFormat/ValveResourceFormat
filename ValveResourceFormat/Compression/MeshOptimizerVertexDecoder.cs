@@ -271,23 +271,22 @@ namespace ValveResourceFormat.Compression
                 throw new ArgumentException("Expected vertexCount to be between 0 and VertexMaxBlockSize");
             }
 
-            var bufferPool = ArrayPool<byte>.Shared.Rent(VertexBlockMaxSize * 4);
-            var buffer = bufferPool.AsSpan(0, VertexBlockMaxSize * 4);
-
-            var transposedPool = ArrayPool<byte>.Shared.Rent(VertexBlockSizeBytes);
-            var transposed = transposedPool.AsSpan(0, VertexBlockSizeBytes);
-
             var vertexCountAligned = (vertexCount + ByteGroupSize - 1) & ~(ByteGroupSize - 1);
-
-            // we could decode directly into the output buffer
-            // this uses strided writes and also reads the last vertex once, which is bad for performance for write-combined memory so we always go through transposed
-
             var controlSize = version == 0 ? 0 : vertexSize / 4;
 
             if (data.Length < controlSize)
             {
                 throw new InvalidOperationException("Data buffer too small for control data.");
             }
+
+            var bufferPool = ArrayPool<byte>.Shared.Rent(VertexBlockMaxSize * 4);
+            var buffer = bufferPool.AsSpan(0, VertexBlockMaxSize * 4);
+
+            var transposedPool = ArrayPool<byte>.Shared.Rent(VertexBlockSizeBytes);
+            var transposed = transposedPool.AsSpan(0, VertexBlockSizeBytes);
+
+            // we could decode directly into the output buffer
+            // this uses strided writes and also reads the last vertex once, which is bad for performance for write-combined memory so we always go through transposed
 
             try
             {

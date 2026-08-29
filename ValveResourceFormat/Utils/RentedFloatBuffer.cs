@@ -2,15 +2,16 @@ using System.Buffers;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 
-namespace ValveResourceFormat.Renderer.Utils
+namespace ValveResourceFormat.Utils
 {
     /// <summary>
     /// A scratch buffer of <typeparamref name="T"/> elements backed by an array rented from the
-    /// shared <see cref="float"/> pool, for data that is written as structs but handed to GL as floats.
+    /// shared <see cref="float"/> pool, for data that is written as one type but consumed as floats
+    /// or by exact-length span.
     /// </summary>
     /// <remarks>
-    /// Renting floats for every element type keeps all of the renderer's per-frame scratch buffers
-    /// in the same pool buckets instead of one set of buckets per struct type.
+    /// Renting floats for every element type keeps all scratch buffers in the same pool buckets
+    /// instead of one set of buckets per element type.
     /// Dispose (preferably with <see langword="using"/>) to return the array to the pool.
     /// </remarks>
     /// <typeparam name="T">Element type the buffer is written as.</typeparam>
@@ -22,7 +23,7 @@ namespace ValveResourceFormat.Renderer.Utils
         public Span<T> Span { get; }
 
         /// <summary>
-        /// Gets the rented array, for GL overloads that take a <see cref="float"/> array.
+        /// Gets the rented array, for APIs that take a <see cref="float"/> array.
         /// The pool hands out whole buckets, so this is usually longer than requested.
         /// </summary>
         public float[] FloatArray { get; }
