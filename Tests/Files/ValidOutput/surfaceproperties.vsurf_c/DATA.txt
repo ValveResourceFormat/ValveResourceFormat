@@ -1,0 +1,39 @@
+<!-- kv3 encoding:text:version{e21c7f3c-8a33-41c5-9977-a76d3a32aa0d} format:generic:version{7412167c-06e9-4698-aff2-e63eb59037e7} -->
+{
+	SurfacePropertiesList = 
+	[
+		{
+			surfacePropertyName = "default"
+			physics = 
+			{
+				density = 2000.0
+				elasticity = 0.25
+				friction = 0.8
+				dampening = 0.0
+				thickness = -1.0
+			}
+			audiosounds = 
+			{
+				bulletimpact = "Default.BulletImpact"
+				scraperough = "Default.ScrapeRough"
+				scrapesmooth = "Default.ScrapeSmooth"
+				impacthard = "Default.ImpactHard"
+				impactsoft = "Default.ImpactSoft"
+				rolling = ""
+				break = ""
+				strain = ""
+			}
+			audioparams = 
+			{
+				audioreflectivity = 0.66
+				audiohardnessfactor = 1.0
+				audioroughnessfactor = 1.0
+				scrapeRoughThreshold = 0.5
+				impactHardThreshold = 0.5
+				hardVelocityThreshold = 0.0
+			}
+			m_nameHash = 1977497166
+			m_baseNameHash = 0
+		},
+	]
+}

@@ -24,7 +24,8 @@ namespace ValveResourceFormat.ResourceTypes.ModelFlex
         /// </summary>
         public FlexController(string name, string type, float min, float max)
         {
-            if (type != "default")
+            // Older games store the controller's own name in m_szType instead of "default"
+            if (type != "default" && type != name)
             {
                 throw new NotImplementedException($"Unknown FlexController type: {type}");
             }

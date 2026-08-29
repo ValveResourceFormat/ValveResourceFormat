@@ -1,0 +1,225 @@
+<!-- kv3 encoding:text:version{e21c7f3c-8a33-41c5-9977-a76d3a32aa0d} format:generic:version{7412167c-06e9-4698-aff2-e63eb59037e7} -->
+{
+	m_name = resource:""
+	m_frameData = 
+	[
+		{
+			m_fileName = resource:""
+			m_nFrames = 1
+			m_nFramesPerBlock = 0
+			m_frameblockArray = 
+			[
+				{
+					m_nStartFrame = 0
+					m_nEndFrame = 0
+					m_segmentIndexArray = [ 0, 1 ]
+				},
+			]
+			m_usageDifferences = 
+			{
+				m_boneArray = [  ]
+				m_morphArray = [  ]
+				m_userArray = [  ]
+				m_bHasRotationBitArray = #[ 01 ]
+				m_bHasMovementBitArray = #[ 01 ]
+				m_bHasMorphBitArray = #[  ]
+				m_bHasUserBitArray = #[  ]
+			}
+		},
+	]
+	m_animArray = 
+	[
+		{
+			m_name = resource:"@idle"
+			m_flags = 
+			{
+				m_bLooping = false
+				m_bAllZeros = false
+				m_bHidden = false
+				m_bDelta = false
+				m_bLegacyWorldspace = false
+			}
+			fps = 30.0
+			m_pData = 
+			{
+				m_fileName = resource:""
+				m_nFrames = 1
+				m_nFramesPerBlock = 0
+				m_frameblockArray = 
+				[
+					{
+						m_nStartFrame = 0
+						m_nEndFrame = 0
+						m_segmentIndexArray = [ 0, 1 ]
+					},
+				]
+				m_usageDifferences = 
+				{
+					m_boneArray = [  ]
+					m_morphArray = [  ]
+					m_userArray = [  ]
+					m_bHasRotationBitArray = #[ 01 ]
+					m_bHasMovementBitArray = #[ 01 ]
+					m_bHasMorphBitArray = #[  ]
+					m_bHasUserBitArray = #[  ]
+				}
+			}
+			m_movementArray = [  ]
+			m_eventArray = [  ]
+			m_activityArray = [  ]
+			m_hierarchyArray = [  ]
+			m_IKRuleArray = [  ]
+			m_IKRuleZeroFrameArray = [  ]
+			framestalltime = 0.0
+			m_vecRootMin = [ 0.0, 0.0, 0.0 ]
+			m_vecRootMax = [ 0.0, 0.0, 0.0 ]
+			m_vecBoneWorldMin = 
+			[
+				[ 0.0, 0.0, 0.0 ],
+			]
+			m_vecBoneWorldMax = 
+			[
+				[ 0.0, 0.0, 0.0 ],
+			]
+			m_sequenceParams = 
+			{
+				m_flFadeInTime = 0.2
+				m_flFadeOutTime = 0.2
+			}
+		},
+	]
+	m_decoderArray = 
+	[
+		{
+			m_szName = resource:"CCompressedStaticFloat"
+			m_nVersion = 0
+			m_nType = 1
+		},
+		{
+			m_szName = resource:"CCompressedFullFloat"
+			m_nVersion = 0
+			m_nType = 1
+		},
+		{
+			m_szName = resource:"CCompressedStaticVector3"
+			m_nVersion = 0
+			m_nType = 3
+		},
+		{
+			m_szName = resource:"CCompressedStaticFullVector3"
+			m_nVersion = 0
+			m_nType = 3
+		},
+		{
+			m_szName = resource:"CCompressedAnimVector3"
+			m_nVersion = 0
+			m_nType = 3
+		},
+		{
+			m_szName = resource:"CCompressedDeltaVector3"
+			m_nVersion = 0
+			m_nType = 3
+		},
+		{
+			m_szName = resource:"CCompressedFullVector3"
+			m_nVersion = 0
+			m_nType = 3
+		},
+		{
+			m_szName = resource:"CCompressedStaticQuaternion"
+			m_nVersion = 0
+			m_nType = 4
+		},
+		{
+			m_szName = resource:"CCompressedAnimQuaternion"
+			m_nVersion = 0
+			m_nType = 4
+		},
+		{
+			m_szName = resource:"CCompressedStaticChar"
+			m_nVersion = 0
+			m_nType = 5
+		},
+		{
+			m_szName = resource:"CCompressedFullChar"
+			m_nVersion = 0
+			m_nType = 5
+		},
+		{
+			m_szName = resource:"CCompressedStaticInt"
+			m_nVersion = 0
+			m_nType = 5
+		},
+		{
+			m_szName = resource:"CCompressedFullShort"
+			m_nVersion = 0
+			m_nType = 5
+		},
+		{
+			m_szName = resource:"CCompressedStaticInt"
+			m_nVersion = 0
+			m_nType = 5
+		},
+		{
+			m_szName = resource:"CCompressedFullInt"
+			m_nVersion = 0
+			m_nType = 5
+		},
+		{
+			m_szName = resource:"CCompressedStaticBool"
+			m_nVersion = 0
+			m_nType = 6
+		},
+		{
+			m_szName = resource:"CCompressedFullBool"
+			m_nVersion = 0
+			m_nType = 6
+		},
+		{
+			m_szName = resource:"CCompressedStaticColor32"
+			m_nVersion = 0
+			m_nType = 9
+		},
+		{
+			m_szName = resource:"CCompressedFullColor32"
+			m_nVersion = 0
+			m_nType = 9
+		},
+		{
+			m_szName = resource:"CCompressedStaticVector2D"
+			m_nVersion = 0
+			m_nType = 25
+		},
+		{
+			m_szName = resource:"CCompressedFullVector2D"
+			m_nVersion = 0
+			m_nType = 25
+		},
+		{
+			m_szName = resource:"CCompressedStaticVector4D"
+			m_nVersion = 0
+			m_nType = 27
+		},
+		{
+			m_szName = resource:"CCompressedFullVector4D"
+			m_nVersion = 0
+			m_nType = 27
+		},
+	]
+	m_nMaxUniqueFrameIndex = 2
+	m_segmentArray = 
+	[
+		{
+			m_nUniqueFrameIndex = 0
+			m_nLocalElementMasks = 1
+			m_nLocalChannel = 0
+			m_container = #[ 02 00 03 00 01 00 10 00 00 00 00 00 00 00 00 00 ]
+		},
+		{
+			m_nUniqueFrameIndex = 1
+			m_nLocalElementMasks = 1
+			m_nLocalChannel = 1
+			m_container = #[ 08 00 04 00 01 00 10 00 01 00 00 40 00 40 00 40 ]
+		},
+	]
+}

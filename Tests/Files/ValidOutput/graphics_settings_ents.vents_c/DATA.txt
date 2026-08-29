@@ -1,0 +1,1063 @@
+<!-- kv3 encoding:text:version{e21c7f3c-8a33-41c5-9977-a76d3a32aa0d} format:generic:version{7412167c-06e9-4698-aff2-e63eb59037e7} -->
+{
+	m_name = "default_ents"
+	m_childLumps = [  ]
+	m_entityKeyValues = 
+	[
+		{
+			m_connections = [  ]
+			m_keyValuesData = #[  ]
+			keyValues3Data = 
+			{
+				version = 1
+				values = 
+				{
+					compile_source_id = "0"
+					steamaudio_customdata_occlusion_reflection_bounces = 8
+					steamaudio_customdata_occlusion_reflection_rays = 8192
+					steamaudio_customdata_occlusion_reflection = false
+					steamaudio_customdata_occlusion_pathing = true
+					steamaudio_customdata_bake_materials = false
+					steamaudio_customdata_bake_dimensions = false
+					steamaudio_customdata_bake_occlusion = false
+					steamaudio_customdata_height_above_floor = 1.5
+					steamaudio_customdata_grid_spacing = 6.0
+					steamaudio_customdata_filter_navmesh = false
+					steamaudio_customdata_filter_volumes = true
+					steamaudio_customdata_generation_type = "0"
+					steamaudio_customdata_rebake_option = "0"
+					steamaudio_pathing_filter_navmesh = false
+					steamaudio_pathing_filter_volumes = true
+					steamaudio_pathing_generation_type = "0"
+					steamaudio_reverb_clustering_depth_threshold = 10.0
+					steamaudio_reverb_clustering_cubemap_resolution = 16
+					steamaudio_reverb_clustering_enable = false
+					steamaudio_reverb_filter_navmesh = false
+					steamaudio_reverb_filter_volumes = true
+					steamaudio_reverb_generation_type = "0"
+					prefab_has_runtime_entity_by_default = "0"
+					steamaudio_pathing_visibility_pathrange = 100.0
+					steamaudio_pathing_visibility_threshold = 0.1
+					steamaudio_pathing_visibility_radius = 0.0
+					steamaudio_pathing_visibility_samples = 1
+					steamaudio_pathing_height_above_floor = 1.5
+					steamaudio_pathing_grid_spacing = 6.0
+					steamaudio_pathing_grid_type = "0"
+					steamaudio_pathing_rebake_option = "1"
+					steamaudio_reverb_ambisonic_order = 1
+					steamaudio_reverb_ir_duration = 1.0
+					steamaudio_reverb_bounces = 32
+					steamaudio_reverb_rays = 32768
+					steamaudio_reverb_height_above_floor = 1.5
+					steamaudio_reverb_grid_spacing = 6.0
+					steamaudio_reverb_grid_type = "0"
+					steamaudio_reverb_rebake_option = "1"
+					lightmap_queries = false
+					max_lightmap_resolution = "512"
+					baked_light_index_max = "256"
+					baked_light_index_min = "0"
+					vrmovement = "0"
+					vrchaperone = "0"
+					minpropscreenwidth = 0.0
+					maxpropscreenwidth = -1.0
+					newunit = "0"
+					pvstype = "10"
+					startcolor = [ 0, 0, 0 ]
+					startdark = false
+					skyname = "sky_day01_01"
+					classname = "worldspawn"
+					backgroundMap = "1"
+					origin = "0.000000 0.000000 0.000000"
+					angles = "0.000000 0.000000 0.000000"
+					scales = "1.000000 1.000000 1.000000"
+					hammerUniqueId = "1"
+					worldname = "graphics_settings"
+					mapUsageType = "background"
+				}
+				attributes = 
+				{
+				}
+			}
+		},
+		{
+			m_connections = [  ]
+			m_keyValuesData = #[  ]
+			keyValues3Data = 
+			{
+				version = 1
+				values = 
+				{
+					lightprobetexture_dlshd = "maps\\graphics_settings/lightmaps/env_light_probe_volume_atlas_dlshd.vtex"
+					clientSideEntity = "1"
+					edge_fade_dists = [ 0.0, 0.0, 0.0 ]
+					ggx_cubemap_blur_accumulation_pass_count = "1"
+					indoor_outdoor_level = "-2"
+					storage = "-1"
+					light_probe_volume_from_cubemap = "0"
+					voxelize = true
+					flood_fill = true
+					voxel_size = "108.000000"
+					box_maxs = [ 702.0, 600.0, 1140.0 ]
+					box_mins = [ -1270.0, -1350.0, -860.0 ]
+					lightprobetexture = "maps\\graphics_settings/lightmaps/env_light_probe_volume_atlas.vtex"
+					moveable = "0"
+					bakefarz = 64000.0
+					bakenearz = "2.000000"
+					cubemaptexture = resource_name:"maps/graphics_settings/cubemaps/env_cubemap_array.vtex"
+					StartDisabled = false
+					useLocalOffset = false
+					targetname = "[PR#]cm_sky"
+					classname = "env_combined_light_probe_volume"
+					compile_source_id = "1"
+					origin = "-1222.000000 28.000000 616.000000"
+					angles = "0.000000 0.000000 0.000000"
+					scales = "1.000000 1.000000 1.000000"
+					hammerUniqueId = "7961"
+					handshake = "277203036"
+					light_probe_size_x = "19"
+					light_probe_size_y = "19"
+					light_probe_size_z = "19"
+					array_index = "0"
+					light_probe_atlas_x = "1"
+					light_probe_atlas_Y = "1"
+					light_probe_atlas_Z = "29"
+				}
+				attributes = 
+				{
+				}
+			}
+		},
+		{
+			m_connections = [  ]
+			m_keyValuesData = #[  ]
+			keyValues3Data = 
+			{
+				version = 1
+				values = 
+				{
+					TeamNum = 3
+					classname = "func_buyzone"
+					compile_source_id = "10"
+					origin = "-1124.000000 -228.000000 131.000000"
+					angles = "0.000000 0.000000 0.000000"
+					scales = "1.000000 1.000000 1.000000"
+					hammerUniqueId = "18211"
+					model = "maps/graphics_settings/entities/unnamed_18211.vmdl"
+				}
+				attributes = 
+				{
+				}
+			}
+		},
+		{
+			m_connections = [  ]
+			m_keyValuesData = #[  ]
+			keyValues3Data = 
+			{
+				version = 1
+				values = 
+				{
+					hltvUsable = false
+					rendercolor = [ 128, 128, 128 ]
+					fogMaxDensity = 1.0
+					fogEnd = 4096.0
+					fogStart = 2048.0
+					fogColor = [ 0, 0, 0 ]
+					fogEnable = false
+					aspectRatio = 1.0
+					UseScreenAspectRatio = false
+					ZFar = 10000.0
+					ZNear = 4.0
+					FOV = 97.0
+					spawnflags = 0
+					clientSideEntity = "0"
+					useLocalOffset = false
+					targetname = "[PR#]cam_models"
+					classname = "point_camera"
+					compile_source_id = "12"
+					origin = "-1248.000000 -540.000000 158.000000"
+					angles = "7.454670 75.095398 1.167590"
+					scales = "1.000000 1.000000 1.000000"
+					hammerUniqueId = "18220"
+				}
+				attributes = 
+				{
+				}
+			}
+		},
+		{
+			m_connections = [  ]
+			m_keyValuesData = #[  ]
+			keyValues3Data = 
+			{
+				version = 1
+				values = 
+				{
+					no_save = false
+					tint_cp_color = [ 255, 255, 255 ]
+					tint_cp = -1
+					data_cp_value = [ 0.0, 0.0, 0.0 ]
+					data_cp = -1
+					cpoint7_parent = 0
+					cpoint6_parent = 0
+					cpoint5_parent = 0
+					cpoint4_parent = 0
+					cpoint3_parent = 0
+					cpoint2_parent = 0
+					cpoint1_parent = 0
+					snapshot_mesh = 0
+					start_active = true
+					effect_name = resource_name:"particles/barrel_burning_engine_smoke2.vpcf"
+					clientSideEntity = "0"
+					useLocalOffset = false
+					classname = "info_particle_system"
+					compile_source_id = "40"
+					origin = "-1008.000000 -277.000000 129.508423"
+					angles = "0.000000 0.000000 0.000000"
+					scales = "1.000000 1.000000 1.000000"
+					hammerUniqueId = "18298"
+				}
+				attributes = 
+				{
+				}
+			}
+		},
+		{
+			m_connections = [  ]
+			m_keyValuesData = #[  ]
+			keyValues3Data = 
+			{
+				version = 1
+				values = 
+				{
+					no_save = false
+					tint_cp_color = [ 255, 255, 255 ]
+					tint_cp = -1
+					data_cp_value = [ 0.0, 0.0, 0.0 ]
+					data_cp = -1
+					cpoint7_parent = 0
+					cpoint6_parent = 0
+					cpoint5_parent = 0
+					cpoint4_parent = 0
+					cpoint3_parent = 0
+					cpoint2_parent = 0
+					cpoint1_parent = 0
+					snapshot_mesh = 0
+					start_active = true
+					effect_name = resource_name:"particles/burning_fx/barrel_burning_engine_fire.vpcf"
+					clientSideEntity = "0"
+					useLocalOffset = false
+					classname = "info_particle_system"
+					compile_source_id = "41"
+					origin = "-999.726746 -279.000000 127.010063"
+					angles = "0.000000 0.000000 0.000000"
+					scales = "1.000000 1.000000 1.000000"
+					hammerUniqueId = "18299"
+				}
+				attributes = 
+				{
+				}
+			}
+		},
+		{
+			m_connections = [  ]
+			m_keyValuesData = #[  ]
+			keyValues3Data = 
+			{
+				version = 1
+				values = 
+				{
+					color_tint = [ 255, 255, 255 ]
+					static_collision = false
+					radius = 0.35
+					slack = 1.0
+					particle_spacing = 35.0
+					max_simulation_time = 0.0
+					start_active = true
+					effect_name = resource_name:"particles/maps/de_overpass/path_particle_cable_dynamic.vpcf"
+					classname = "path_particle_rope_clientside"
+					clientSideEntity = "1"
+					compile_source_id = "56"
+					pathNodes = """
+[
+	[
+		0.0, 0.0, 0.0, 0.0,
+		0.0, 0.0, 72.666656, -159.999969,
+		57.410664,
+	],
+	[
+		218.0, -479.999939, 172.231995, -72.666656,
+		159.999969, -57.410664, 0.0, 0.0,
+		0.0,
+	],
+]
+"""
+					pathNodeRadiusScales = "[ 1.4, 1.0 ]"
+					closed_loop = "0"
+					pathNodePinsEnabled = "[ true, true ]"
+					origin = "-1152.000000 -160.000061 322.000000"
+					angles = "0.000000 0.000000 0.000000"
+					scales = "1.000000 1.000000 1.000000"
+					hammerUniqueId = "18142"
+				}
+				attributes = 
+				{
+				}
+			}
+		},
+		{
+			m_connections = [  ]
+			m_keyValuesData = #[  ]
+			keyValues3Data = 
+			{
+				version = 1
+				values = 
+				{
+					reset_model_on_spawn = false
+					lightmapstatic = "0"
+					rendertocubemaps = false
+					object_culling = "0"
+					fademaxdist = 0.0
+					fademindist = -1.0
+					disablereceiveshadows = false
+					rendercolor = [ 255, 255, 255 ]
+					renderamt = 255
+					disableX360 = "0"
+					maxgpulevel = "0"
+					mingpulevel = "0"
+					maxcpulevel = "0"
+					mincpulevel = "0"
+					rendermode = "kRenderNormal"
+					renderfx = "kRenderFxNone"
+					model = resource_name:"agents/models/ctm_sas/ctm_sas.vmdl"
+					targetname = "[PR#]GraphicsSettings01"
+					classname = "csgo_player_previewmodel"
+					compile_source_id = "85"
+					origin = "-1226.000000 -436.000000 126.000000"
+					angles = "0.000000 201.162384 0.000000"
+					scales = "1.000000 1.000000 1.000000"
+					hammerUniqueId = "18072"
+				}
+				attributes = 
+				{
+				}
+			}
+		},
+		{
+			m_connections = [  ]
+			m_keyValuesData = #[  ]
+			keyValues3Data = 
+			{
+				version = 1
+				values = 
+				{
+					lightprobetexture_dlshd = "maps\\graphics_settings/lightmaps/env_light_probe_volume_atlas_dlshd.vtex"
+					lightprobetexture = "maps\\graphics_settings/lightmaps/env_light_probe_volume_atlas.vtex"
+					clientSideEntity = "1"
+					edge_fade_dists = [ 0.0, 0.0, 0.0 ]
+					indoor_outdoor_level = "1"
+					voxelize = true
+					flood_fill = true
+					voxel_size = "24.000000"
+					box_maxs = [ 488.0, 591.625, 568.0 ]
+					box_mins = [ -386.0, -492.375, -32.0 ]
+					bakefarz = 4096.0
+					cubemaptexture = resource_name:"maps/graphics_settings/cubemaps/env_cubemap_array.vtex"
+					StartDisabled = false
+					useLocalOffset = false
+					classname = "env_combined_light_probe_volume"
+					compile_source_id = "102"
+					origin = "-1210.000000 -429.625000 152.000000"
+					angles = "0.000000 0.000000 0.000000"
+					scales = "1.000000 1.000000 1.000000"
+					hammerUniqueId = "7925"
+					handshake = "277203037"
+					light_probe_size_x = "37"
+					light_probe_size_y = "46"
+					light_probe_size_z = "25"
+					array_index = "1"
+					light_probe_atlas_x = "1"
+					light_probe_atlas_Y = "1"
+					light_probe_atlas_Z = "1"
+				}
+				attributes = 
+				{
+				}
+			}
+		},
+		{
+			m_connections = [  ]
+			m_keyValuesData = #[  ]
+			keyValues3Data = 
+			{
+				version = 1
+				values = 
+				{
+					color_tint = [ 255, 255, 255 ]
+					static_collision = false
+					radius = 0.35
+					slack = 1.0
+					particle_spacing = 30.0
+					max_simulation_time = 0.0
+					start_active = true
+					effect_name = resource_name:"particles/maps/de_overpass/path_particle_cable_dynamic.vpcf"
+					classname = "path_particle_rope_clientside"
+					clientSideEntity = "1"
+					compile_source_id = "111"
+					pathNodes = """
+[
+	[
+		0.0, 0.0, 0.0, 0.0,
+		0.0, 0.0, 60.666664, -162.666641,
+		60.743999,
+	],
+	[
+		182.0, -487.999939, 182.231995, -60.666664,
+		162.666641, -60.743999, 0.0, 0.0,
+		0.0,
+	],
+]
+"""
+					pathNodeRadiusScales = "[ 1.4, 1.0 ]"
+					closed_loop = "0"
+					pathNodePinsEnabled = "[ true, true ]"
+					origin = "-1344.000000 -256.000000 312.000000"
+					angles = "0.000000 0.000000 0.000000"
+					scales = "1.000000 1.000000 1.000000"
+					hammerUniqueId = "18253"
+				}
+				attributes = 
+				{
+				}
+			}
+		},
+		{
+			m_connections = [  ]
+			m_keyValuesData = #[  ]
+			keyValues3Data = 
+			{
+				version = 1
+				values = 
+				{
+					color_tint = [ 255, 255, 255 ]
+					static_collision = false
+					radius = 0.35
+					slack = 1.0
+					particle_spacing = 30.0
+					max_simulation_time = 0.0
+					start_active = true
+					effect_name = resource_name:"particles/maps/de_overpass/path_particle_cable_dynamic.vpcf"
+					classname = "path_particle_rope_clientside"
+					clientSideEntity = "1"
+					compile_source_id = "114"
+					pathNodes = """
+[
+	[
+		0.0, 0.0, 0.0, 0.0,
+		0.0, 0.0, 139.333328, -138.0,
+		60.743999,
+	],
+	[
+		418.0, -414.0, 182.231995, -139.333328,
+		138.0, -60.743999, 0.0, 0.0,
+		0.0,
+	],
+]
+"""
+					pathNodeRadiusScales = "[ 1.4, 1.0 ]"
+					closed_loop = "0"
+					pathNodePinsEnabled = "[ true, true ]"
+					origin = "-1340.000000 -256.000000 312.000000"
+					angles = "0.000000 0.000000 0.000000"
+					scales = "1.000000 1.000000 1.000000"
+					hammerUniqueId = "18256"
+				}
+				attributes = 
+				{
+				}
+			}
+		},
+		{
+			m_connections = [  ]
+			m_keyValuesData = #[  ]
+			keyValues3Data = 
+			{
+				version = 1
+				values = 
+				{
+					NoInterpolate = false
+					BreakableContentsType = "BC_DEFAULT"
+					burstscale = 100.0
+					IdleAnimationLoopMode = "ANIM_LOOP_MODE_NOT_LOOPING"
+					StartingAnimationLoopMode = "ANIM_LOOP_MODE_NOT_LOOPING"
+					glowteam = -1
+					object_culling = "0"
+					health = 0
+					forcenpcexclude = false
+					CreateNavObstacle = false
+					use_animgraph = true
+					updatechildren = "0"
+					ScriptedMovement = "0"
+					AnimateOnServer = false
+					LagCompensate = false
+					MaxAnimTime = "10"
+					MinAnimTime = "5"
+					randomizecycle = false
+					RandomAnimation = "0"
+					disablelowviolence = "0"
+					glowcolor = [ 0, 0, 0 ]
+					glowrangemin = 0
+					glowrange = 0
+					glowstate = "0"
+					lightmapstatic = "1"
+					disablereceiveshadows = false
+					rendermode = "kRenderNormal"
+					renderfx = "kRenderFxNone"
+					disableX360 = "0"
+					maxgpulevel = "0"
+					mingpulevel = "0"
+					maxcpulevel = "0"
+					mincpulevel = "0"
+					pressuredelay = 0.0
+					spawnflags = 0
+					PerformanceMode = "PM_NORMAL"
+					ExplodeRadius = 0.0
+					ExplodeDamage = 0.0
+					clientSideEntity = "0"
+					useLocalOffset = false
+					rendertocubemaps = true
+					rendercolor = [ 255, 154, 126 ]
+					renderamt = 255
+					fadescale = "1"
+					fademaxdist = 0.0
+					fademindist = -1.0
+					skin = "default"
+					disableshadows = "0"
+					solid = "0"
+					model = resource_name:"models/props/de_dust/hr_dust/dust_awnings/dust_awning_commercial_01_136_short_fabric_b.vmdl"
+					classname = "prop_dynamic_override"
+					compile_source_id = "117"
+					origin = "-1242.361572 -256.000000 240.000000"
+					angles = "0.000000 180.000015 0.000000"
+					scales = "0.921628 1.000000 1.000000"
+					hammerUniqueId = "13932"
+				}
+				attributes = 
+				{
+				}
+			}
+		},
+		{
+			m_connections = 
+			[
+				{
+					m_outputName = "OnMapSpawn"
+					m_targetType = 7
+					m_targetName = "[PR#]cam_models"
+					m_inputName = "SetOn"
+					m_overrideParam = ""
+					m_flDelay = 0.0
+					m_nTimesToFire = -1
+					m_paramMap = null
+				},
+			]
+			m_keyValuesData = #[  ]
+			keyValues3Data = 
+			{
+				version = 1
+				values = 
+				{
+					spawnflags = 1
+					targetname = "[PR#]2dsky"
+					classname = "logic_auto"
+					compile_source_id = "127"
+					origin = "-1180.000000 -484.000000 142.000000"
+					angles = "0.000000 0.000000 0.000000"
+					scales = "1.000000 1.000000 1.000000"
+					hammerUniqueId = "18303"
+				}
+				attributes = 
+				{
+				}
+			}
+		},
+		{
+			m_connections = [  ]
+			m_keyValuesData = #[  ]
+			keyValues3Data = 
+			{
+				version = 1
+				values = 
+				{
+					bomb_site_designation = "0"
+					heistbomb = false
+					useLocalOffset = false
+					classname = "func_bomb_target"
+					compile_source_id = "128"
+					origin = "-1124.000000 -228.000000 137.000000"
+					angles = "0.000000 0.000000 0.000000"
+					scales = "1.000000 1.000000 1.000000"
+					hammerUniqueId = "18304"
+					model = "maps/graphics_settings/entities/unnamed_18304.vmdl"
+				}
+				attributes = 
+				{
+				}
+			}
+		},
+		{
+			m_connections = [  ]
+			m_keyValuesData = #[  ]
+			keyValues3Data = 
+			{
+				version = 1
+				values = 
+				{
+					IsMaster = false
+					spawnflags = "0"
+					StartDisabled = false
+					classname = "info_player_start"
+					compile_source_id = "129"
+					origin = "-1171.132324 -486.998657 292.000000"
+					angles = "0.000000 0.000000 0.000000"
+					scales = "1.000000 1.000000 1.000000"
+					hammerUniqueId = "18306"
+				}
+				attributes = 
+				{
+				}
+			}
+		},
+		{
+			m_connections = [  ]
+			m_keyValuesData = #[  ]
+			keyValues3Data = 
+			{
+				version = 1
+				values = 
+				{
+					reset_model_on_spawn = false
+					model = resource_name:"agents/models/ctm_sas/ctm_sas.vmdl"
+					lightmapstatic = "0"
+					rendertocubemaps = false
+					object_culling = "0"
+					fademaxdist = 0.0
+					fademindist = -1.0
+					disablereceiveshadows = false
+					rendercolor = [ 255, 255, 255 ]
+					renderamt = 255
+					rendermode = "kRenderNormal"
+					renderfx = "kRenderFxNone"
+					targetname = "[PR#]GraphicsSettings02"
+					classname = "csgo_player_previewmodel"
+					compile_source_id = "136"
+					origin = "-1324.000000 -381.786346 126.000000"
+					angles = "0.000000 290.735596 0.000000"
+					scales = "1.000000 1.000000 1.000000"
+					hammerUniqueId = "18321"
+				}
+				attributes = 
+				{
+				}
+			}
+		},
+		{
+			m_connections = [  ]
+			m_keyValuesData = #[  ]
+			keyValues3Data = 
+			{
+				version = 1
+				values = 
+				{
+					enabled = true
+					priority = 0
+					classname = "info_player_counterterrorist"
+					compile_source_id = "137"
+					origin = "-1096.661377 -600.859375 129.450272"
+					angles = [ 0.0, 0.0, 0.0 ]
+					scales = "1.000000 1.000000 1.000000"
+					hammerUniqueId = "18322"
+				}
+				attributes = 
+				{
+				}
+			}
+		},
+		{
+			m_connections = [  ]
+			m_keyValuesData = #[  ]
+			keyValues3Data = 
+			{
+				version = 1
+				values = 
+				{
+					exposurespeeddown = 1.0
+					exposurespeedup = 1.0
+					fadetime = 1.0
+					enableexposure = true
+					maxexposure = 1.0
+					minexposure = 1.0
+					master = false
+					postprocessing = resource_name:"lighting/postprocessing/de_dust2_prefab/de_dust2_vanity.vpost"
+					spawnflags = 4097
+					StartDisabled = false
+					useLocalOffset = false
+					classname = "post_processing_volume"
+					compile_source_id = "138"
+					origin = "-1183.536377 -599.519287 134.000000"
+					angles = "0.000000 0.000000 0.000000"
+					scales = "1.000000 1.000000 1.000000"
+					hammerUniqueId = "18324"
+					model = "maps/graphics_settings/entities/unnamed_18324.vmdl"
+				}
+				attributes = 
+				{
+				}
+			}
+		},
+		{
+			m_connections = [  ]
+			m_keyValuesData = #[  ]
+			keyValues3Data = 
+			{
+				version = 1
+				values = 
+				{
+					bakedshadowindex = "0"
+					light_map_uniqueid = "1383059044"
+					light_path_uniqueid = "-607520661"
+					brightness_legacy = "-nan(ind)"
+					brightness_lumens = "0"
+					nearclipplane = 1.0
+					ambient_occlusion_proxy_ambient_strength = 1.0
+					ambient_occlusion_proxy_strength_3 = 0.5
+					ambient_occlusion_proxy_strength_2 = 0.5
+					ambient_occlusion_proxy_strength_1 = 0.5
+					ambient_occlusion_proxy_strength_0 = 0.5
+					ambient_occlusion_proxy_cone_angle_3 = 0.3
+					ambient_occlusion_proxy_cone_angle_2 = 0.3
+					ambient_occlusion_proxy_cone_angle_1 = 0.3
+					ambient_occlusion_proxy_cone_angle_0 = 0.3
+					ambient_occlusion_proxy_position_3 = "[PR#]0 0 0"
+					ambient_occlusion_proxy_position_2 = "[PR#]0 0 0"
+					ambient_occlusion_proxy_position_1 = "[PR#]0 0 0"
+					ambient_occlusion_proxy_position_0 = "[PR#]0 0 0"
+					ambient_occlusion_proxy_override = false
+					allow_sst_generation = false
+					clientSideEntity = "1"
+					minroughness = 0.0
+					baked_light_indexing = true
+					brightnessscale = 1.0
+					skybouncescale = 1.0
+					skyambientbounce = [ 151, 151, 151 ]
+					skytexturescale = 1.2
+					skytexture = "[PR#]dust_sky"
+					skyintensity = 0.960784
+					skycolor = [ 211, 226, 248 ]
+					angulardiameter = 0.25
+					directlight = "1"
+					bouncescale = 1.0
+					rendertocubemaps = true
+					style = "0"
+					shadowpriority = "-1"
+					castshadows = "1"
+					brightness = 2.0
+					color = [ 255, 222, 189 ]
+					enabled = true
+					useLocalOffset = "0"
+					classname = "light_environment"
+					compile_source_id = "139"
+					origin = "-1167.483398 -431.003418 152.569305"
+					angles = "46.717381 44.112953 -4.348739"
+					scales = "1.000000 1.000000 1.000000"
+					hammerUniqueId = "18326"
+				}
+				attributes = 
+				{
+				}
+			}
+		},
+		{
+			m_connections = [  ]
+			m_keyValuesData = #[  ]
+			keyValues3Data = 
+			{
+				version = 1
+				values = 
+				{
+					brightnessscale = 1.0
+					tint_color = [ 255, 255, 255 ]
+					skyname = resource_name:"materials/skybox/sky_de_dust2.vmat"
+					StartDisabled = false
+					useLocalOffset = false
+					targetname = "[PR#]dust_sky"
+					classname = "env_sky"
+					compile_source_id = "140"
+					origin = "-1185.933716 -439.003418 196.736267"
+					angles = "0.000000 0.000000 0.000000"
+					scales = "1.000000 1.000000 1.000000"
+					hammerUniqueId = "18327"
+				}
+				attributes = 
+				{
+				}
+			}
+		},
+		{
+			m_connections = [  ]
+			m_keyValuesData = #[  ]
+			keyValues3Data = 
+			{
+				version = 1
+				values = 
+				{
+					gustdirchange = 20
+					gustduration = 5
+					maxgustdelay = 5
+					mingustdelay = 5
+					maxgust = 120
+					mingust = 80
+					windradius = -1.0
+					maxwind = 60
+					minwind = 60
+					classname = "env_wind"
+					compile_source_id = "141"
+					origin = "-1194.944336 -431.003418 196.736267"
+					angles = "0.000000 0.000000 0.000000"
+					scales = "1.000000 1.000000 1.000000"
+					hammerUniqueId = "18328"
+				}
+				attributes = 
+				{
+				}
+			}
+		},
+		{
+			m_connections = [  ]
+			m_keyValuesData = #[  ]
+			keyValues3Data = 
+			{
+				version = 1
+				values = 
+				{
+					bakedshadowindex = "1"
+					light_map_uniqueid = "1383059044"
+					light_path_uniqueid = "-1949093457"
+					precomputedsubfrusta = "6"
+					precomputedobbextent5 = "143.929291 116.105194 115.949379"
+					precomputedobbangles5 = "-0.000000 45.000004 0.000000"
+					precomputedobborigin5 = "-1201.409912 -310.369141 241.879425"
+					precomputedobbextent4 = "120.071259 143.932190 115.949478"
+					precomputedobbangles4 = "0.000000 -45.000004 0.000000"
+					precomputedobborigin4 = "-1034.498291 -477.284821 241.879257"
+					precomputedobbextent3 = "92.471252 66.629211 79.580528"
+					precomputedobbangles3 = "0.000000 -45.000004 0.000000"
+					precomputedobborigin3 = "-1035.899170 -178.281830 205.513306"
+					precomputedobbextent2 = "130.584839 143.932175 139.228683"
+					precomputedobbangles2 = "0.000000 0.000000 -45.000004"
+					precomputedobborigin2 = "-1090.513550 -294.020294 354.490082"
+					precomputedobbextent1 = "28.413147 28.410919 13.740532"
+					precomputedobbangles1 = "-0.000000 0.000000 0.000000"
+					precomputedobborigin1 = "-1017.628601 -290.697968 139.675415"
+					precomputedobbextent0 = "28.376587 57.680939 43.050667"
+					precomputedobbangles0 = "-0.000000 0.000000 0.000000"
+					precomputedobborigin0 = "-988.312012 -290.689819 168.984619"
+					precomputedboundsmaxs = "-959.936584 -147.524139 442.110474"
+					precomputedboundsmins = "-1305.394531 -575.454102 125.932976"
+					precomputedobbextent = "172.728973 213.964981 158.088745"
+					precomputedobbangles = "-0.000000 0.000000 0.000000"
+					precomputedobborigin = "-1132.665527 -361.489136 284.021729"
+					precomputedfieldsvalid = "1"
+					transmit_always = false
+					bakespeculartocubemaps_scale = 1.0
+					fogmixedshadows = "1"
+					minroughness = 0.0
+					bouncescale = 1.0
+					bouncelight = "1"
+					shadowfade_size_end = 0.05
+					shadowfade_size_start = 0.1
+					pvs_modify_entity = false
+					shadowpriority = "-1"
+					shadowmapsize = "-1"
+					castshadows = "2"
+					fade_size_end = 0.025
+					fade_size_start = 0.05
+					brightnessscale = 1.0
+					bakespeculartocubemaps = false
+					rendertocubemaps = true
+					showlight = false
+					inner_angle = 180.0
+					outer_angle = 180.0
+					range = 287.740997
+					size_params = [ 2.0, 24.0, 0.15 ]
+					skirt = 0.1
+					light_style = "flicker_1"
+					brightness_legacy = 1.51562
+					brightness = 0.597656
+					brightness_nits = 14870.0
+					brightness_candelas = 121.0
+					brightness_units = "1"
+					directlight = "3"
+					shape = "3"
+					brightness_lumens = 1515.0
+					colortemperature = 1500.0
+					color = [ 255, 108, 0 ]
+					colormode = "1"
+					enabled = true
+					clientSideEntity = "1"
+					useLocalOffset = false
+					classname = "light_omni2"
+					compile_source_id = "142"
+					origin = "-1017.626099 -290.694489 154.353439"
+					angles = "0.000000 0.000000 0.000000"
+					scales = "1.000000 1.000000 1.000000"
+					hammerUniqueId = "18329"
+				}
+				attributes = 
+				{
+				}
+			}
+		},
+		{
+			m_connections = [  ]
+			m_keyValuesData = #[  ]
+			keyValues3Data = 
+			{
+				version = 1
+				values = 
+				{
+					cubemapfogmaxopacity = 1.0
+					cubemapfogheightexponent = 1.0
+					cubemapfogheightend = 21054.800781
+					cubemapfogheightstart = 0.0
+					cubemapheightfog = true
+					cubemapfogfalloffexponent = 1.2
+					cubemapfogenddistance = 9000.0
+					cubemapfogstartdistance = 50.0
+					cubemapfoglodbiase = 1.0
+					cubemapfogskymaterial = resource_name:"materials/skybox/sky_de_dust2.vmat"
+					cubemapfogskyentity = "[PR#]dust_sky"
+					cubemapfogsource = "1"
+					StartDisabled = false
+					classname = "env_cubemap_fog"
+					compile_source_id = "143"
+					origin = "-1197.156250 -404.000000 188.000000"
+					angles = "0.000000 0.000000 0.000000"
+					scales = "1.000000 1.000000 1.000000"
+					hammerUniqueId = "18330"
+				}
+				attributes = 
+				{
+				}
+			}
+		},
+		{
+			m_connections = [  ]
+			m_keyValuesData = #[  ]
+			keyValues3Data = 
+			{
+				version = 1
+				values = 
+				{
+					bakedshadowindex = "2"
+					light_map_uniqueid = "1383059044"
+					light_path_uniqueid = "-222773308"
+					precomputedboundsmaxs = "-1198.623779 -244.935120 222.028931"
+					precomputedboundsmins = "-1344.069458 -396.833923 92.079193"
+					precomputedobbextent = "83.375488 76.499741 43.283691"
+					precomputedobbangles = "36.000000 10.000000 6.000001"
+					precomputedobborigin = "-1288.271484 -320.142548 138.520386"
+					precomputedfieldsvalid = "1"
+					transmit_always = false
+					bakespeculartocubemaps_scale = 1.0
+					forceshadowsenabled = false
+					fogmixedshadows = "1"
+					fade_size_end = 0.025
+					fade_size_start = 0.05
+					brightnessscale = 1.0
+					rendertocubemaps = true
+					shadowfade_size_end = 0.05
+					shadowfade_size_start = 0.1
+					pvs_modify_entity = false
+					shadowpriority = "-1"
+					shadowmapsize = "-1"
+					castshadows = "1"
+					minroughness = 0.0
+					bakespeculartocubemaps_size = [ 6.0, 6.0, 0.0 ]
+					bakespeculartocubemaps = "0"
+					shear = [ 0.0, 0.0 ]
+					soft_y = 0.5
+					soft_x = 0.5
+					shape = 1.0
+					size_params = [ 6.223267, 6.223267, 0.156824 ]
+					luminaire_anisotropy = 0.0
+					luminaire_size = 0.92
+					luminaire_shape = "1"
+					bouncescale = 1.0
+					bouncelight = "1"
+					skirt_near = 0.05
+					skirt = 0.1
+					range = 130.662003
+					brightness_lumens = 224.0
+					colortemperature = 6600.0
+					color = [ 255, 255, 255 ]
+					colormode = "1"
+					directlight = "3"
+					enabled = true
+					brightness_legacy = 1.21875
+					brightness = 0.289062
+					brightness_units = "1"
+					clientSideEntity = "1"
+					useLocalOffset = false
+					classname = "light_barn"
+					compile_source_id = "147"
+					origin = "-1334.909058 -270.394501 220.628052"
+					angles = "78.876976 324.736267 -34.753204"
+					scales = "1.000000 1.000000 1.000000"
+					hammerUniqueId = "18336"
+				}
+				attributes = 
+				{
+				}
+			}
+		},
+		{
+			m_connections = [  ]
+			m_keyValuesData = #[  ]
+			keyValues3Data = 
+			{
+				version = 1
+				values = 
+				{
+					reset_model_on_spawn = false
+					mincpulevel = "0"
+					maxcpulevel = "0"
+					mingpulevel = "0"
+					maxgpulevel = "0"
+					disableX360 = "0"
+					model = resource_name:"agents/models/ctm_sas/ctm_sas.vmdl"
+					lightmapstatic = "0"
+					rendertocubemaps = false
+					object_culling = "0"
+					fademaxdist = 0.0
+					fademindist = -1.0
+					disablereceiveshadows = false
+					rendercolor = [ 255, 255, 255 ]
+					renderamt = 255
+					rendermode = "kRenderNormal"
+					renderfx = "kRenderFxNone"
+					targetname = "[PR#]GraphicsSettings03"
+					classname = "csgo_player_previewmodel"
+					compile_source_id = "148"
+					origin = "-1323.992676 -284.000000 126.000000"
+					angles = "0.000000 299.908936 0.000000"
+					scales = "1.000000 1.000000 1.000000"
+					hammerUniqueId = "18338"
+				}
+				attributes = 
+				{
+				}
+			}
+		},
+	]
+}

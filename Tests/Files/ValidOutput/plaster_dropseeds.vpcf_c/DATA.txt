@@ -1,0 +1,17 @@
+<!-- kv3 encoding:text:version{e21c7f3c-8a33-41c5-9977-a76d3a32aa0d} format:generic:version{7412167c-06e9-4698-aff2-e63eb59037e7} -->
+{
+	_class = "CParticleSystemDefinition"
+	m_nMaxParticles = 0
+	m_Children = 
+	[
+		{
+			m_ChildRef = resource:"particles/atmospherics/plaster_fx_linger.vpcf"
+		},
+		{
+			m_ChildRef = resource:"particles/atmospherics/room_atmos_plaster_dropseeds.vpcf"
+		},
+		{
+			m_ChildRef = resource:"particles/atmospherics/plaster_fx_lingerlight.vpcf"
+		},
+	]
+}

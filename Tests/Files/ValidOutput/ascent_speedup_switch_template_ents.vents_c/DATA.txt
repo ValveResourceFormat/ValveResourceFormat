@@ -1,0 +1,97 @@
+<!-- kv3 encoding:text:version{e21c7f3c-8a33-41c5-9977-a76d3a32aa0d} format:generic:version{7412167c-06e9-4698-aff2-e63eb59037e7} -->
+{
+	m_name = "ascent_speedup_switch_breakable_template_1"
+	m_hammerUniqueId = "3687:3860"
+	m_childLumps = [  ]
+	m_entityKeyValues = 
+	[
+		{
+			m_keyValuesData = 
+			#[
+				01 00 00 00 2F 00 00 00 00 00 00 00 6B AF 37 41 1E 00 00 00 5B 50 52 23 5D 61 73 63 65 6E 74 5F
+				63 6F 6E 76 65 79 6F 72 5F 31 30 30 5F 73 70 65 65 64 75 70 5F 6C 65 76 65 72 5F 62 72 65 61 6B
+				61 62 6C 65 00 DD 29 4F 32 1E 00 00 00 5B 50 52 23 5D 61 73 63 65 6E 74 5F 63 6F 6E 76 65 79 6F
+				72 5F 73 77 69 74 63 68 65 73 5F 66 69 6C 74 65 72 00 1B 11 1F 49 1E 00 00 00 30 00 4C A7 04 33
+				01 00 00 00 00 00 00 00 BA BE E8 76 01 00 00 00 00 00 00 00 A6 A2 CA 7B 1E 00 00 00 50 4D 5F 4E
+				4F 52 4D 41 4C 00 B4 CC 1C DB 06 00 00 00 00 F5 EC D8 69 25 00 00 00 00 80 08 00 39 36 FA 56 1E
+				00 00 00 30 00 58 0A A7 9A 1A 00 00 00 A0 86 01 00 00 00 00 00 4A 27 43 1E 1E 00 00 00 30 00 CA
+				72 BE 6C 1E 00 00 00 30 00 28 BD 0C 2D 06 00 00 00 00 D1 2C A7 A3 1E 00 00 00 30 00 8F 66 BB C4
+				1A 00 00 00 00 00 00 00 00 00 00 00 ED CA F1 52 01 00 00 00 00 00 00 00 F3 B7 9E B6 1E 00 00 00
+				6B 52 65 6E 64 65 72 46 78 4E 6F 6E 65 00 B8 8B A4 EF 1E 00 00 00 6B 52 65 6E 64 65 72 4E 6F 72
+				6D 61 6C 00 EA E2 E4 36 1E 00 00 00 30 00 62 2E EE 98 1E 00 00 00 30 00 AB 30 E2 6B 1E 00 00 00
+				30 00 4C EA FB BF 1E 00 00 00 30 00 40 1F 4E 3D 1E 00 00 00 30 00 FB E4 F1 36 1A 00 00 00 FF 00
+				00 00 00 00 00 00 3F 3D 13 23 09 00 00 00 FF FF FF FF B3 9A DB B6 06 00 00 00 00 A3 28 DB E4 01
+				00 00 00 00 00 80 BF 05 95 55 45 01 00 00 00 00 00 00 00 43 03 46 67 06 00 00 00 00 7D 03 8D 17
+				1E 00 00 00 30 00 04 05 B7 C0 06 00 00 00 00 41 C9 02 85 1E 00 00 00 30 00 61 20 96 B2 01 00 00
+				00 00 00 00 00 59 FE B8 E3 1A 00 00 00 00 00 00 00 00 00 00 00 8A 0C 4E CE 01 00 00 00 00 00 00
+				00 0D 86 E7 C3 03 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 AB 47 C6 6C 1E 00 00 00 30 00 CC
+				F7 72 DA 1E 00 00 00 30 00 C8 43 E7 9D 01 00 00 00 00 00 00 00 D0 45 82 4C 1E 00 00 00 30 00 62
+				1C 1B C6 1E 00 00 00 66 75 6E 63 5F 70 68 79 73 62 6F 78 00 16 02 20 E4 1E 00 00 00 35 2E 30 30
+				30 30 30 30 20 34 31 2E 30 30 30 30 30 30 20 35 2E 30 30 30 30 30 30 00 CF DA 98 BA 1E 00 00 00
+				2D 30 2E 30 30 30 30 30 30 20 30 2E 30 30 30 30 30 30 20 30 2E 30 30 30 30 30 30 00 2C E4 C1 19
+				1E 00 00 00 31 2E 30 30 30 30 30 30 20 31 2E 30 30 30 30 30 30 20 31 2E 30 30 30 30 30 30 00 38
+				A0 63 A9 1E 00 00 00 33 36 38 37 3A 33 30 36 00 06 BC BF C8 1E 00 00 00 6D 61 70 73 5C 61 70 65
+				72 74 75 72 65 5F 64 65 73 6B 5F 6A 6F 62 5C 65 6E 74 69 74 69 65 73 5C 61 73 63 65 6E 74 5F 63
+				6F 6E 76 65 79 6F 72 5F 31 30 30 5F 73 70 65 65 64 75 70 5F 6C 65 76 65 72 5F 62 72 65 61 6B 61
+				62 6C 65 5F 33 36 38 37 5F 33 30 36 2E 76 6D 64 6C 00 0F A8 49 53 1E 00 00 00 30 00
+			]
+			m_connections = 
+			[
+				{
+					m_outputName = "OnDamaged"
+					m_targetType = 7
+					m_targetName = "[PR#]relay_shoot_speed_switch"
+					m_inputName = "Trigger"
+					m_overrideParam = ""
+					m_flDelay = 0.0
+					m_nTimesToFire = 1
+				},
+				{
+					m_outputName = "OnDamaged"
+					m_targetType = 7
+					m_targetName = "[PR#]snd_speed_up"
+					m_inputName = "StartSound"
+					m_overrideParam = ""
+					m_flDelay = 1.0
+					m_nTimesToFire = 1
+				},
+				{
+					m_outputName = "OnDamaged"
+					m_targetType = 7
+					m_targetName = "[PR#]ascent_speedup_switch_prop"
+					m_inputName = "SetAnimation"
+					m_overrideParam = "button_press_cover_close"
+					m_flDelay = 0.1
+					m_nTimesToFire = 1
+				},
+				{
+					m_outputName = "OnDamaged"
+					m_targetType = 7
+					m_targetName = "[PR#]ascent_conveyor_100_speedup_relay"
+					m_inputName = "Trigger"
+					m_overrideParam = ""
+					m_flDelay = 1.0
+					m_nTimesToFire = 1
+				},
+				{
+					m_outputName = "OnDamaged"
+					m_targetType = 7
+					m_targetName = "[PR#]ascent_speedup_switch_prop"
+					m_inputName = "SetAnimation"
+					m_overrideParam = "cover_closed_idle"
+					m_flDelay = 1.18
+					m_nTimesToFire = 1
+				},
+				{
+					m_outputName = "OnDamaged"
+					m_targetType = 7
+					m_targetName = "[PR#]ascent_speedup_switch_anim_relay"
+					m_inputName = "CancelPending"
+					m_overrideParam = ""
+					m_flDelay = 0.0
+					m_nTimesToFire = 1
+				},
+			]
+		},
+	]
+}

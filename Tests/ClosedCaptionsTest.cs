@@ -1,11 +1,29 @@
 using System.IO;
+using System.Text;
 using System.Threading.Tasks;
 using ValveResourceFormat.ClosedCaptions;
+using ValveResourceFormat.IO;
 
 namespace Tests
 {
     public class ClosedCaptionsTest
     {
+        [Test]
+        public async Task ExtractProducesTextContentFile()
+        {
+            var file = Path.Combine(TestContext.TestDirectory!, "Files", "subtitles_announcer_killing_spree_english.dat");
+
+            await using var stream = File.OpenRead(file);
+            var extract = new ClosedCaptionsExtract(stream, Path.GetFileName(file));
+            using var contentFile = extract.ToContentFile();
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(contentFile.FileName).IsEqualTo("subtitles_announcer_killing_spree_english.txt");
+                await Assert.That(Encoding.UTF8.GetString(contentFile.Data!)).Contains("announcer_killing_spree");
+            }
+        }
+
         [Test]
         public async Task ParseClosedCaptions()
         {

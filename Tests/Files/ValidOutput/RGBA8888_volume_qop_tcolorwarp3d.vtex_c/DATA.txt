@@ -1,0 +1,17 @@
+VTEX Version = 1
+Width        = 1
+Height       = 1
+Depth        = 1
+DisplayRectW = 0
+DisplayRectH = 0
+MotionVecMax = 0
+RangeMin     = ( 0.000000, 0.000000, 0.000000, 0.000000 )
+RangeMax     = ( 0.000000, 0.000000, 0.000000, 0.000000 )
+Reflectivity = ( 0.080220, 0.010330, 0.010330, 0.000000 )
+NumMipLevels = 1
+Picmip0Res   = 0
+Format       = 4 (VTEX_FORMAT_RGBA8888)
+Flags        = 0x00000020
+             | 0x00000020 = VTEX_FLAG_VOLUME_TEXTURE
+Extra Data   = 0 entries:
+Mip level 0 - buffer size: 4

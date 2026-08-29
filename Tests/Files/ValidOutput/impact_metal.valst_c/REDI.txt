@@ -1,0 +1,69 @@
+"ResourceEditInfo"
+{
+	"InputDependencies"
+	{
+		"0"
+		{
+			"ContentRelativeFilename"	"surfaceproperties/impact_metal.valst"
+			"ContentSearchPath"	"source2"
+			"FileCRC"	"497238576"
+			"Optional"	"0"
+			"FileExists"	"1"
+			"IsGameFile"	"0"
+		}
+	}
+	"AdditionalInputDependencies"
+	{
+	}
+	"ArgumentDependencies"
+	{
+		"0"
+		{
+			"ParameterName"	"___OverrideInputData___"
+			"ParameterType"	"BinaryBlobArg"
+			"Fingerprint"	"0"
+			"FingerprintDefault"	"0"
+		}
+	}
+	"SpecialDependencies"
+	{
+		"0"
+		{
+			"String"	"DynData Compiler Version"
+			"CompilerIdentifier"	"CompileActionList"
+			"Fingerprint"	"1"
+			"UserData"	"0"
+		}
+		"1"
+		{
+			"String"	"Action List Compiler Version"
+			"CompilerIdentifier"	"CompileActionList"
+			"Fingerprint"	"1"
+			"UserData"	"0"
+		}
+	}
+	"AdditionalRelatedFiles"
+	{
+	}
+	"ChildResourceList"
+	{
+	}
+	"SearchableUserData"
+	{
+		"0"
+		{
+			"Key"	"DynData Compiler Version"
+			"Value"	"1"
+		}
+		"1"
+		{
+			"Key"	"Action List Compiler Version"
+			"Value"	"1"
+		}
+		"2"
+		{
+			"Key"	"IsChildResource"
+			"Value"	"0"
+		}
+	}
+}

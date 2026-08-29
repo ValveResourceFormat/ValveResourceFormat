@@ -111,6 +111,52 @@ namespace Tests
             await Assert.That(lump.ToString()).IsNotEmpty();
         }
 
+        [Test]
+        public async Task TraversalRestoresTemplateChildWorldPositions()
+        {
+            using var lumpResource = map.Loader.LoadFile("maps/point_template_test/entities/default_ents.vents_c");
+            var lump = (EntityLump)lumpResource!.DataBlock!;
+
+            var traversed = EntityLumpTraversal.EnumerateEntities(lump, map.Loader, Matrix4x4.Identity).ToList();
+            var fromTemplates = traversed.Where(t => t.FromTemplate).ToList();
+
+            static Vector3 WorldPosition(EntityLumpTraversal.TraversedEntity traversed)
+                => Vector3.Transform(traversed.Entity.GetVector3Property("origin"), traversed.ParentTransform);
+
+            EntityLumpTraversal.TraversedEntity Crate(string name)
+                => fromTemplates.Single(t => t.Entity.TargetName == $"[PR#]{name}");
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(traversed.Count(t => !t.FromTemplate)).IsEqualTo(7);
+                await Assert.That(fromTemplates.Count).IsEqualTo(7);
+
+                // Applying each template's transform restores the positions the crates were authored at.
+                await AssertVector(WorldPosition(Crate("crate_offset")), new Vector3(50, 50, 50));
+                await AssertVector(WorldPosition(Crate("crate_rotated")), new Vector3(-50, 60, 70));
+                await AssertVector(WorldPosition(Crate("crate_multi_a")), new Vector3(310, 10, 0));
+
+                // crate_shared is referenced by two templates, so it traverses once per referencing template.
+                await Assert.That(fromTemplates.Count(t => t.Entity.TargetName == "[PR#]crate_shared")).IsEqualTo(2);
+            }
+        }
+
+        [Test]
+        public async Task TraversalReportsUnresolvableChildLumps()
+        {
+            using var lumpResource = map.Loader.LoadFile("maps/point_template_test/entities/default_ents.vents_c");
+            var lump = (EntityLump)lumpResource!.DataBlock!;
+
+            var missing = new List<string>();
+            var traversed = EntityLumpTraversal.EnumerateEntities(lump, new NullFileLoader(), Matrix4x4.Identity, missing.Add).ToList();
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(missing).Count().IsEqualTo(6);
+                await Assert.That(traversed).All(t => !t.FromTemplate);
+            }
+        }
+
         // The compiler stores child lump entities inverse-transformed by the template's origin and
         // rotation (but not its scale), which is why these origins differ from the authored ones.
         [Test]
