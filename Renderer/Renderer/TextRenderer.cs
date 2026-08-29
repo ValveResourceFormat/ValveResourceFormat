@@ -361,7 +361,7 @@ namespace ValveResourceFormat.Renderer
 
             verticesSize *= 4;
 
-            using (var vertexBuffer = new RentedFloatBuffer<Vertex>(verticesSize))
+            using (var vertexBuffer = new RentedBuffer<Vertex>(verticesSize))
             {
                 var vertices = vertexBuffer.Span;
                 var i = 0;
@@ -458,7 +458,7 @@ namespace ValveResourceFormat.Renderer
                 }
 
                 verticesSize = i * Vertex.Size * sizeof(float);
-                GL.NamedBufferData(bufferHandle, verticesSize, vertexBuffer.FloatArray, BufferUsageHint.DynamicDraw);
+                GL.NamedBufferData(bufferHandle, verticesSize, vertexBuffer.ByteArray, BufferUsageHint.DynamicDraw);
             }
 
             Debug.Assert(shader != null);

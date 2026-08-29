@@ -95,7 +95,7 @@ namespace ValveResourceFormat.Renderer
             var yLo = centerY - thickness / 2;
             var yHi = yLo + thickness;
 
-            using var vertexBuffer = new RentedFloatBuffer<SimpleVertex>(VertexCount);
+            using var vertexBuffer = new RentedBuffer<SimpleVertex>(VertexCount);
             var vertices = vertexBuffer.Span;
 
             var i = 0;
@@ -104,7 +104,7 @@ namespace ValveResourceFormat.Renderer
             AddBar(vertices, ref i, xLo, yLo - Gap - size, xHi, yLo - Gap);
             AddBar(vertices, ref i, xLo, yHi + Gap, xHi, yHi + Gap + size);
 
-            GL.NamedBufferData(bufferHandle, VertexCount * SimpleVertex.InputLayout.Stride, vertexBuffer.FloatArray, BufferUsageHint.StaticDraw);
+            GL.NamedBufferData(bufferHandle, VertexCount * SimpleVertex.InputLayout.Stride, vertexBuffer.ByteArray, BufferUsageHint.StaticDraw);
         }
     }
 }

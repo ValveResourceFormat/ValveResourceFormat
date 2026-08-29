@@ -193,10 +193,10 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             var vertexCount = ringCount * (sides + 1);
             var tubeIndexCount = (ringCount - 1) * sides * 6;
 
-            using var ringPositions = new RentedFloatBuffer<Vector3>(ringCount);
-            using var ringSamples = new RentedFloatBuffer<RopeSample>(ringCount);
-            using var vertexBuffer = new RentedFloatBuffer<CableVertex>(vertexCount);
-            using var indexBuffer = new RentedFloatBuffer<uint>(tubeIndexCount);
+            using var ringPositions = new RentedBuffer<Vector3>(ringCount);
+            using var ringSamples = new RentedBuffer<RopeSample>(ringCount);
+            using var vertexBuffer = new RentedBuffer<CableVertex>(vertexCount);
+            using var indexBuffer = new RentedBuffer<uint>(tubeIndexCount);
 
             BuildRings(positions, chain, levels, repeats, ringPositions.Span, ringSamples.Span);
 
@@ -208,8 +208,8 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             }
 
             var stride = CableVertex.InputLayout.Stride;
-            GL.NamedBufferData(vertexBufferHandle, vertexCount * stride, vertexBuffer.FloatArray, BufferUsageHint.DynamicDraw);
-            GL.NamedBufferData(indexBufferHandle, tubeIndexCount * sizeof(uint), indexBuffer.FloatArray, BufferUsageHint.DynamicDraw);
+            GL.NamedBufferData(vertexBufferHandle, vertexCount * stride, vertexBuffer.ByteArray, BufferUsageHint.DynamicDraw);
+            GL.NamedBufferData(indexBufferHandle, tubeIndexCount * sizeof(uint), indexBuffer.ByteArray, BufferUsageHint.DynamicDraw);
             indexCount = tubeIndexCount;
         }
 

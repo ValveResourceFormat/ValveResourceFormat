@@ -244,7 +244,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
                 var floatBufferSizeMeshBones = meshBoneCount * 12;
                 var floatBufferSizeModelBones = boneCount * 16;
 
-                using (var floatBuffer = new RentedFloatBuffer<float>(floatBufferSizeMeshBones + floatBufferSizeModelBones))
+                using (var floatBuffer = new RentedBuffer<float>(floatBufferSizeMeshBones + floatBufferSizeModelBones))
                 {
                     var meshBones = MemoryMarshal.Cast<float, OpenTK.Mathematics.Matrix3x4>(floatBuffer.Span[..floatBufferSizeMeshBones]);
                     var modelBones = MemoryMarshal.Cast<float, Matrix4x4>(floatBuffer.Span[floatBufferSizeMeshBones..]);
@@ -262,7 +262,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
                         }
                     }
 
-                    boneMatricesGpu.Update(floatBuffer.FloatArray, 0, floatBufferSizeMeshBones * sizeof(float));
+                    boneMatricesGpu.Update(floatBuffer.ByteArray, 0, floatBufferSizeMeshBones * sizeof(float));
 
                     UpdateAnimatedBoundingBox();
                 }

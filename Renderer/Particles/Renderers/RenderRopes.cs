@@ -404,7 +404,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             var quadCount = 0;
             var arcLength = scrollRate * systemState.Age;
 
-            using (var vertexBuffer = new RentedFloatBuffer<SpritecardVertex>(maxQuads * 4))
+            using (var vertexBuffer = new RentedBuffer<SpritecardVertex>(maxQuads * 4))
             {
                 var vertices = vertexBuffer.Span;
                 var stripAxis = Vector3.Zero;
@@ -447,7 +447,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
 
                 if (quadCount > 0)
                 {
-                    GL.NamedBufferData(vertexBufferHandle, quadCount * 4 * SpritecardVertex.InputLayout.Stride, vertexBuffer.FloatArray, BufferUsageHint.DynamicDraw);
+                    GL.NamedBufferData(vertexBufferHandle, quadCount * 4 * SpritecardVertex.InputLayout.Stride, vertexBuffer.ByteArray, BufferUsageHint.DynamicDraw);
                 }
             }
 

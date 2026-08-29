@@ -220,11 +220,11 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             Span<(Vector2 Min, Vector2 Max, Vector2 NextMin, Vector2 NextMax)> layerRects
                 = stackalloc (Vector2, Vector2, Vector2, Vector2)[ParticleTextureLayer.MaxLayers];
 
-            // One set of attributes per particle, rented from the shared float pool so the memory is
+            // One set of attributes per particle, rented from the shared byte pool so the memory is
             // reused across renderers.
             var instanceFloats = instanceLayout.Stride / sizeof(float);
 
-            using (var vertexBuffer = new RentedFloatBuffer<float>(particleBag.Count * instanceFloats))
+            using (var vertexBuffer = new RentedBuffer<float>(particleBag.Count * instanceFloats))
             {
                 var instances = vertexBuffer.Span;
 
@@ -423,7 +423,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
 
                 if (quadCount > 0)
                 {
-                    GL.NamedBufferData(vertexBufferHandle, quadCount * instanceLayout.Stride, vertexBuffer.FloatArray, BufferUsageHint.DynamicDraw);
+                    GL.NamedBufferData(vertexBufferHandle, quadCount * instanceLayout.Stride, vertexBuffer.ByteArray, BufferUsageHint.DynamicDraw);
                 }
             }
 
