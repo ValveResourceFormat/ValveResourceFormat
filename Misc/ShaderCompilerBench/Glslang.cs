@@ -59,6 +59,71 @@ internal static partial class Glslang
     /// </summary>
     public const string DefaultUniformBlockName = "g_DefaultUniformBlock";
 
+    /// <summary>glslang_resource_type_t, in the order the header declares it.</summary>
+    private const int ResourceTypeUbo = 3;
+    private const int ResourceTypeSsbo = 4;
+
+    /// <summary>
+    /// Whether to give each resource class a binding range of its own.
+    /// <para>
+    /// glslang numbers each class from zero, because OpenGL gives each its own namespace, so a
+    /// sampler, a uniform block and a storage block all end up on binding 0. That is legal for
+    /// OpenGL and NVIDIA accepts it, but a driver validating the module the way Vulkan would sees
+    /// one descriptor set with three things at the same binding, and can reject it without saying
+    /// why. Moving the two buffer classes clear of the samplers costs nothing and takes the question
+    /// off the table.
+    /// </para>
+    /// </summary>
+    public static bool SeparateBindingSpaces { get; set; } = true;
+
+    /// <summary>How many bindings of a class to leave room for before the next class starts.</summary>
+    private const int ReservedPerClass = 16;
+
+    private static uint uniformBlockBase;
+    private static uint storageBlockBase;
+    private static bool basesResolved;
+
+    /// <summary>
+    /// Picks the bases from the driver's own limits rather than from constants: OpenGL only promises
+    /// eight storage block bindings, so a fixed base would be off the end of a conforming driver.
+    /// A class that cannot be moved anywhere useful stays at zero.
+    /// </summary>
+    private static void ResolveBindingBases()
+    {
+        if (basesResolved)
+        {
+            return;
+        }
+
+        basesResolved = true;
+
+        OpenTK.Graphics.OpenGL.GL.GetInteger(OpenTK.Graphics.OpenGL.GetPName.MaxTextureImageUnits, out var samplers);
+        OpenTK.Graphics.OpenGL.GL.GetInteger(OpenTK.Graphics.OpenGL.GetPName.MaxUniformBufferBindings, out var uniformBlocks);
+        OpenTK.Graphics.OpenGL.GL.GetInteger((OpenTK.Graphics.OpenGL.GetPName)0x90DD /* GL_MAX_SHADER_STORAGE_BUFFER_BINDINGS */, out var storageBlocks);
+
+        var uniformBase = Math.Min(samplers, ReservedPerClass * 2);
+        uniformBlockBase = uniformBase + ReservedPerClass <= uniformBlocks ? (uint)uniformBase : 0;
+
+        var storageBase = (int)uniformBlockBase + ReservedPerClass;
+        storageBlockBase = storageBase + ReservedPerClass <= storageBlocks ? (uint)storageBase : 0;
+    }
+
+    /// <summary>Describes the binding layout for the report, once the limits have been read.</summary>
+    public static string DescribeBindings()
+    {
+        if (!SeparateBindingSpaces)
+        {
+            return "bindings: every resource class numbered from 0, as glslang does by default";
+        }
+
+        ResolveBindingBases();
+
+        var uniform = uniformBlockBase == 0 ? "0 (no room to move them)" : uniformBlockBase.ToString(CultureInfo.InvariantCulture);
+        var storage = storageBlockBase == 0 ? "0 (no room to move them)" : storageBlockBase.ToString(CultureInfo.InvariantCulture);
+
+        return $"bindings: samplers from 0, uniform blocks from {uniform}, storage blocks from {storage}";
+    }
+
     /// <summary>
     /// glslang_input_t. The field order has to match glslang's header exactly, including the three
     /// HLSL fields this bench never sets, or every field after <c>Code</c> lands on the wrong one.
@@ -126,6 +191,9 @@ internal static partial class Glslang
 
     [LibraryImport(Library)]
     private static partial void glslang_shader_set_options(nint shader, int options);
+
+    [LibraryImport(Library)]
+    private static partial void glslang_shader_shift_binding(nint shader, int resourceType, uint shift);
 
     [LibraryImport(Library)]
     private static partial nint glslang_program_create();
@@ -397,6 +465,13 @@ internal static partial class Glslang
                 glslang_shader_set_options(shader, OptionsAutoMap);
                 glslang_shader_set_default_uniform_block_name(shader, DefaultUniformBlockName);
                 glslang_shader_set_default_uniform_block_set_and_binding(shader, 0, 0);
+
+                if (SeparateBindingSpaces)
+                {
+                    ResolveBindingBases();
+                    glslang_shader_shift_binding(shader, ResourceTypeUbo, uniformBlockBase);
+                    glslang_shader_shift_binding(shader, ResourceTypeSsbo, storageBlockBase);
+                }
             }
 
             try

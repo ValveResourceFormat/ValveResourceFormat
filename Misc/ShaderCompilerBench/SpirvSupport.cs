@@ -98,6 +98,13 @@ internal static class SpirvSupport
         Console.WriteLine($"GL_KHR_shader_subgroup   {Yes(extensions.Contains("GL_KHR_shader_subgroup"))}");
         Console.WriteLine();
 
+        Console.WriteLine("Binding limits, which decide whether the classes can be kept apart:");
+        Report("GL_MAX_COMBINED_TEXTURE_IMAGE_UNITS ", GetPName.MaxCombinedTextureImageUnits);
+        Report("GL_MAX_TEXTURE_IMAGE_UNITS          ", GetPName.MaxTextureImageUnits);
+        Report("GL_MAX_UNIFORM_BUFFER_BINDINGS      ", GetPName.MaxUniformBufferBindings);
+        Report("GL_MAX_SHADER_STORAGE_BUFFER_BINDINGS", (GetPName)0x90DD);
+        Console.WriteLine();
+
         GL.GetInteger((GetPName)NumSpirVExtensions, out var spirvExtensionCount);
         Console.WriteLine($"SPIR-V extensions advertised ({spirvExtensionCount}):");
 
@@ -131,6 +138,12 @@ internal static class SpirvSupport
 
     private static bool Accepts(string version, string fragment)
         => Attempt(version, fragment).StartsWith("accepted", StringComparison.Ordinal);
+
+    private static void Report(string name, GetPName parameter)
+    {
+        GL.GetInteger(parameter, out var value);
+        Console.WriteLine($"  {name} {value}");
+    }
 
     private static string Yes(bool value) => value ? "yes" : "no";
 

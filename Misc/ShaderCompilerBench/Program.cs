@@ -68,6 +68,14 @@ internal static class Program
                 case "--list":
                     list = true;
                     break;
+                case "--bindings" when i + 1 < args.Length:
+                    Glslang.SeparateBindingSpaces = args[++i] switch
+                    {
+                        "separate" => true,
+                        "overlapping" => false,
+                        var value => throw new ArgumentException($"--bindings takes separate or overlapping, not '{value}'"),
+                    };
+                    break;
                 case "--probe":
                     probe = true;
                     break;
@@ -82,7 +90,7 @@ internal static class Program
                     break;
                 default:
                     Console.Error.WriteLine($"Unknown argument '{args[i]}'");
-                    Console.Error.WriteLine("Usage: ShaderCompilerBench [-n iterations] [-w warmup] [--shader name] [--spirv auto|1.0] [--only index] [-D NAME=VALUE] [--dump] [--in-process] [--probe] [--list]");
+                    Console.Error.WriteLine("Usage: ShaderCompilerBench [-n iterations] [-w warmup] [--shader name] [--spirv auto|1.0] [--bindings separate|overlapping] [--only index] [-D NAME=VALUE] [--dump] [--in-process] [--probe] [--list]");
                     return 1;
             }
         }

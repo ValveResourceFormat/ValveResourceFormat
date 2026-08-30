@@ -32,6 +32,7 @@ dotnet run --project Misc/ShaderCompilerBench -- -n 10 -w 2
 | `-w`, `--warmup` | Unmeasured iterations first (default 2). The driver's compiler backend costs a few hundred milliseconds to spin up once per process, so do not set this to zero. |
 | `--shader <name>` | Renderer shader for the Slang-free paths (default `csgo_environment`). `--list` prints them all. |
 | `--spirv <version>` | SPIR-V version glslang targets. Defaults to `auto`, which is the newest the driver accepts; pass `1.0` to measure the portable floor. |
+| `--bindings <mode>` | `separate` (default) gives each resource class its own binding range; `overlapping` leaves glslang's default numbering. See below. |
 | `--only <index or substring>` | Run one path. The names overlap, so an index from `--list` is the unambiguous form. |
 | `-D NAME=VALUE` | Preprocessor macro for `bench.slang`, e.g. `-D MAX_LIGHTS=32`. |
 | `--dump` | Write every intermediate (GLSL, SPIR-V) to `bin/<config>/dump`. |
@@ -56,6 +57,44 @@ Each path runs in its own process, so one failing path does not stop the others;
 exact GLSL and SPIR-V that were handed over, which is what to attach to a bug report.
 
 A run needs an OpenGL 4.6 context, which is what the renderer itself requires.
+
+### Binding ranges
+
+glslang numbers every resource class from zero, because OpenGL gives each its own namespace. For
+`csgo_environment` that produces, in the fragment stage:
+
+| class | bindings |
+| --- | --- |
+| `UniformConstant` (samplers) | 0-9 |
+| `Uniform` (uniform blocks) | 0, 1, 2, 6, 7 |
+| `StorageBuffer` (storage blocks) | 0, 1, 10, 11, 12 |
+
+Three things on binding 0. Correct for OpenGL, and NVIDIA accepts it, but a driver validating the
+module the way Vulkan would sees one descriptor set with a collision in it and can reject it with
+nothing to say. So `--bindings separate`, the default, moves the buffer classes clear:
+
+    samplers from 0, uniform blocks from 32, storage blocks from 48
+
+The bases come from `GL_MAX_TEXTURE_IMAGE_UNITS`, `GL_MAX_UNIFORM_BUFFER_BINDINGS` and
+`GL_MAX_SHADER_STORAGE_BUFFER_BINDINGS` rather than from constants, because OpenGL only promises
+eight storage block bindings and a fixed base would be off the end of a conforming driver. A class
+with nowhere to go stays at zero and the report says so. It costs nothing measurable: 6.0 ms of
+driver time either way on NVIDIA.
+
+Anything reading these bindings back has to agree with them, so a renderer adopting this would take
+its binding points from the reflection rather than from a constant.
+
+### When the driver rejects SPIR-V
+
+Drivers are allowed to fail with an empty info log, and several do. The message says so rather than
+printing a bare colon, and adds the GL error code and the module sizes. From there:
+
+- `--spirv 1.0` compiles the portable floor instead of whatever `auto` detected. If that works, the
+  driver's problem is with a newer construct rather than with the shader.
+- `--dump` writes the rejected module to `bin/<config>/dump`, ready for `spirv-val` and `spirv-dis`
+  from the Vulkan SDK.
+- `--bindings overlapping` restores glslang's own numbering, which is the layout described below.
+  If a driver takes one mode and not the other, that is the answer.
 
 ## Requirements
 

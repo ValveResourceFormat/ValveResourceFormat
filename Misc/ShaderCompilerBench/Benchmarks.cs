@@ -68,6 +68,7 @@ internal static class Benchmarks
 
         var version = Glslang.Resolve(options.SpirvVersion);
         timings.Notes.Add($"glslang from {Glslang.Source}, targeting SPIR-V {version}");
+        timings.Notes.Add(Glslang.DescribeBindings());
         Describe(timings, sources, options.Dump);
 
         SpirvPair? last = null;

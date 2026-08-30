@@ -29,6 +29,20 @@ internal static class SpirvDriver
 
     public static void Run(Timings timings, SpirvPair spirv, string entryPoint)
     {
+        try
+        {
+            Compile(timings, spirv, entryPoint);
+        }
+        catch (InvalidOperationException e)
+        {
+            throw new InvalidOperationException(
+                $"{e.Message}\nThe modules were SPIR-V {SpirvPair.Version(spirv.Vertex)}, "
+                + $"{spirv.Vertex.Length} bytes of vertex and {spirv.Fragment.Length} bytes of fragment.", e);
+        }
+    }
+
+    private static void Compile(Timings timings, SpirvPair spirv, string entryPoint)
+    {
         var vertex = GL.CreateShader(ShaderType.VertexShader);
         var fragment = GL.CreateShader(ShaderType.FragmentShader);
         var program = GL.CreateProgram();

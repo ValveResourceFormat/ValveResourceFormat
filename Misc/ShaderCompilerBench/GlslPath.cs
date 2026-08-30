@@ -78,9 +78,29 @@ internal static class GlslPath
         if (status != 1)
         {
             GL.GetShaderInfoLog(shader, out var log);
-            throw new InvalidOperationException($"Failed to compile {stage} shader:\n{log}");
+            throw new InvalidOperationException($"Failed to compile {stage} shader{Explain(log)}");
         }
     }
+
+    /// <summary>
+    /// Drivers are allowed to fail with nothing to say, and several do when handed SPIR-V they
+    /// dislike. Saying so beats printing a bare colon, and the GL error code is sometimes the only
+    /// thing left to go on.
+    /// </summary>
+    private static string Explain(string log)
+    {
+        var error = GL.GetError();
+        var errorText = error == ErrorCode.NoError ? string.Empty : $", glGetError {error}";
+
+        return string.IsNullOrWhiteSpace(log)
+            ? $". The driver returned an empty info log{errorText}. {Advice}"
+            : $"{errorText}:\n{log}";
+    }
+
+    private const string Advice =
+        "Try --spirv 1.0, and --dump to write out the module that was rejected. "
+        + "Note that glslang numbers uniform blocks and storage blocks in separate binding spaces, "
+        + "which is what OpenGL asks for but not every driver is happy with.";
 
     /// <summary>
     /// Asks the driver for the compiled program, which is how a shader cache would save it, and
@@ -120,7 +140,7 @@ internal static class GlslPath
         if (status != 1)
         {
             GL.GetProgramInfoLog(program, out var log);
-            throw new InvalidOperationException($"Failed to link program:\n{log}");
+            throw new InvalidOperationException($"Failed to link program{Explain(log)}");
         }
     }
 }
