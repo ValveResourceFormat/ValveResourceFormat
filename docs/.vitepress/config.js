@@ -115,7 +115,6 @@ export default defineConfig({
         footer: {
             message:
                 "This project is not affiliated with Valve Software. Source 2 is a trademark and/or registered trademark of Valve Corporation.",
-            copyright: "Released under the MIT License.",
         },
 
         editLink: {
