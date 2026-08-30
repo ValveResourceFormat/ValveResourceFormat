@@ -58,7 +58,9 @@ internal sealed class Timings(string title)
     /// the driver does, which is the half that no choice of shading language can remove.
     /// </summary>
     private static bool IsCompilerStage(string stage)
-        => stage.StartsWith("slang:", StringComparison.Ordinal) || stage.StartsWith("glslang:", StringComparison.Ordinal);
+        => stage.StartsWith("slang:", StringComparison.Ordinal)
+        || stage.StartsWith("glslang:", StringComparison.Ordinal)
+        || stage.StartsWith("spirv-opt:", StringComparison.Ordinal);
 
     private double MedianSum(Func<string, bool> predicate) => order
         .Where(stage => !stage.StartsWith(InformationalPrefix, StringComparison.Ordinal) && predicate(stage))

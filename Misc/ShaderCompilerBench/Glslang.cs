@@ -396,7 +396,7 @@ internal static partial class Glslang
             var vertexSpirv = timings.Measure("glslang: emit SPIR-V (vertex)", () => Generate(program, StageVertex));
             var fragmentSpirv = timings.Measure("glslang: emit SPIR-V (fragment)", () => Generate(program, StageFragment));
 
-            return new SpirvPair(vertexSpirv, fragmentSpirv);
+            return SpirvOptimizer.Apply(timings, new SpirvPair(vertexSpirv, fragmentSpirv));
         }
         finally
         {

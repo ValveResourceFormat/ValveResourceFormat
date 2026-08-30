@@ -33,6 +33,7 @@ dotnet run --project Misc/ShaderCompilerBench -- -n 10 -w 2
 | `--shader <name>` | Renderer shader for the Slang-free paths (default `csgo_environment`). `--list` prints them all. |
 | `--spirv <version>` | SPIR-V version glslang targets. Defaults to `auto`, which is the newest the driver accepts; pass `1.0` to measure the portable floor. |
 | `--bindings <mode>` | `separate` (default) gives each resource class its own binding range; `overlapping` leaves glslang's default numbering. See below. |
+| `--optimize` | Run SPIRV-Tools over what glslang emits, as `glslangValidator -Os` would. Off by default, because the default measures what the driver makes of a literal translation. |
 | `--only <index or substring>` | Run one path. The names overlap, so an index from `--list` is the unambiguous form. |
 | `-D NAME=VALUE` | Preprocessor macro for `bench.slang`, e.g. `-D MAX_LIGHTS=32`. |
 | `--dump` | Write every intermediate (GLSL, SPIR-V) to `bin/<config>/dump`. |
@@ -44,11 +45,13 @@ Every compile is stamped with a salt that differs per iteration *and* per run, b
 shader cache lives on disk and would otherwise serve most of the run out of it. The salt has to
 reach whatever the driver is handed: `bench.slang` reads `BENCH_SALT` in real arithmetic, and
 GLSL bound for the driver gets a `#define`, which is enough because the driver hashes the source
-text. GLSL bound for glslang gets a specialization constant as well, because a define nobody reads
-does not survive into the SPIR-V and the driver would then be handed the same module every
-iteration. That is an easy mistake to make and a quiet one: the driver reports a few milliseconds
-for a shader that really costs it several hundred, and the program binary it hands back is the
-same size either way. Checking that `--dump` output differs between two salts is the test.
+text. The renderer shaders never read the define, so the SPIR-V glslang makes from them is salted
+afterwards, by writing a specialization constant into the finished module. It has to be the
+finished module: a define nobody reads does not survive glslang, and a constant nobody reads does
+not survive spirv-opt, and either way the driver would be handed the same bytes every iteration.
+That is an easy mistake to make and a quiet one: the driver reports a few milliseconds for a
+shader that really costs it several hundred, and the program binary it hands back is the same
+size either way. Checking that `--dump` output differs between two salts is the test.
 
 To find out whether one shader survives one path on an unfamiliar driver, name both and turn the
 repetition off. Warmup iterations count, so a shader that fails fails during them:
@@ -151,8 +154,13 @@ Sizes on `win-x64`, and what a process actually loads, checked with `Process.Mod
 | managed wrapper | 0.31 MiB | always |
 
 So Slang is 24 MiB to emit GLSL and 30 MiB to emit SPIR-V, against 7.1 MiB for glslang alone.
-`slang-glslang` is the SPIR-V validator: renaming it away leaves both targets working and takes
-about 34 ms off each SPIR-V compile.
+`slang-glslang` carries spirv-opt and the SPIR-V validator. Slang looks for it by bare name, which
+on Windows means the process directory, so the copy the package puts under `runtimes/` is
+invisible to it and Slang quietly emits unoptimized SPIR-V with a warning in the diagnostics. The
+bench loads it into the process first, after which the name resolves to the module already there;
+a renderer would have to do the same. With it, Slang's own SPIR-V costs 13 ms more to emit for
+`bench.slang` (37 ms to 50 ms for the fragment stage), the vertex module shrinks from 11.2 KB to
+9.1 KB and the fragment barely moves, and the driver's link is the same 171-175 ms either way.
 
 This is the official Slang build, which `SlangShaderSharp` ships. `Prowl.Slang`, the other .NET
 binding, builds the same version much fatter on Windows — 33.3 MiB and 10.8 MiB, plus a
@@ -181,6 +189,13 @@ install directory is read-only.
   contain rather than an empty `main`, and `auto` lands on 1.5 there rather than 1.6. Between 1.0
   and 1.5 the version makes no measurable difference to compile time: `sky` is 3.2 ms of glslang
   and 6.3 ms of driver at 1.0, against 2.9 ms and 5.5 ms at 1.5, which is inside the noise.
+- **glslang's own optimizer cannot touch OpenGL SPIR-V above 1.0.** The `Glslang.NET` build does
+  carry SPIRV-Tools, but glslang maps an OpenGL client to a SPIR-V 1.0 tools environment whatever
+  version it was asked to emit, so the optimizer refuses the module glslang itself just produced:
+  `Invalid opcode: 400` is `OpCopyLogical` from 1.4, and subgroup ops would fail the same way at
+  1.3. It logs the error and hands back the unoptimized module, which is easy to mistake for the
+  optimizer having run. `--optimize` uses `slang-glslang` instead, which optimizes in a universal
+  1.5 environment.
 - **Slang cannot emit SPIR-V 1.0 with its own backend.** It warns *"Slang's SPIR-V backend only
   supports SPIR-V version 1.3 and later"*, then stamps the requested version into the header anyway.
   OpenGL 4.6 asks for SPIR-V 1.0, but NVIDIA accepts the 1.3 modules. Going through glslang is the
@@ -201,11 +216,19 @@ install directory is read-only.
   | `csgo_environment` | 171.8 KiB | 267 ms | 254 ms | 432 ms | 418 ms | 22 ms | 464 / 486 KB |
 
   The small shaders are a wash. The big one is slower through SPIR-V, and not by a little: the
-  link of glslang's module took 367-445 ms across ten iterations against 218-300 ms for the GLSL.
-  glslang here runs no optimizer, so the driver gets a literal translation of the source and has
-  to do everything the GLSL front end would have folded on the way in; whether `spirv-opt` closes
-  that gap is untested. `complex` cannot be measured this way until its macros are fixed, but it
-  is the same size and shape as `csgo_environment`.
+  link of glslang's module took 352-445 ms across three runs of ten against 218-300 ms for the
+  GLSL. glslang runs no optimizer here, so the driver gets a literal translation of the source and
+  has to do everything the GLSL front end would have folded on the way in.
+
+  `--optimize` runs spirv-opt over that module at Slang's default level, and it helps the driver
+  exactly as much as it costs: 51 ms of spirv-opt (48 of them on the fragment stage) takes the
+  fragment module from 152 KB to 129 KB, the link from ~362 ms to 232-247 ms, and the driver's
+  program binary from 486 KB to 137 KB. That puts the driver level with the GLSL path, so the
+  total is 75 ms of compiler plus 263 ms of driver against 267 ms of driver alone. Slang's `high`
+  level produces a module NVIDIA's compiler dies on (`fatal error C9999: exception during
+  compilation`, an empty info log otherwise), which is one more reason the version and the pass
+  list both need probing per vendor. `complex` cannot be measured this way until its macros are
+  fixed, but it is the same size and shape as `csgo_environment`.
 
   A successful link is not proof the driver finished, so every path also draws with the program it
   just built. For `csgo_environment`, first draw is 0.5 ms after the GLSL path and 0.6 ms after the

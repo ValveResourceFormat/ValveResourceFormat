@@ -1,5 +1,7 @@
 using System.Diagnostics;
 using System.Globalization;
+using System.Reflection;
+using System.Runtime.InteropServices;
 using System.Text;
 using SlangShaderSharp;
 
@@ -33,8 +35,18 @@ internal static class SlangPath
 
     private static IGlobalSession Global => globalSession ??= CreateGlobalSession();
 
+    /// <summary>
+    /// Whether <c>slang-glslang</c>, which carries spirv-opt and the SPIR-V validator, could be
+    /// found. Slang loads it by bare name from the process directory, so the copy the package puts
+    /// under <c>runtimes/</c> is invisible to it unless something has loaded it into the process
+    /// first, after which the name resolves to the module already there.
+    /// </summary>
+    private static bool downstreamLoaded;
+
     private static IGlobalSession CreateGlobalSession()
     {
+        downstreamLoaded = NativeLibrary.TryLoad("slang-glslang", Assembly.GetExecutingAssembly(), null, out _);
+
         var result = Slang.CreateGlobalSession(Slang.ApiVersion, out var session);
 
         if (result.Failed || session == null)
@@ -171,11 +183,19 @@ internal static class SlangPath
 
             timings.Notes.Add($"glslang targeting SPIR-V {Glslang.Resolve(options.SpirvVersion)}");
             timings.Notes.Add(Glslang.DescribeBindings());
+            timings.Notes.Add(SpirvOptimizer.Describe());
         }
 
         var profile = Global.FindProfile(profileName);
         timings.Notes.Add($"Slang profile '{profileName}' resolved to {(int)profile}"
             + ((int)profile == 0 ? " (unknown, Slang falls back to its default)" : string.Empty));
+
+        if (output == SlangOutput.Spirv)
+        {
+            timings.Notes.Add(downstreamLoaded
+                ? "slang-glslang loaded, so Slang runs spirv-opt over its SPIR-V"
+                : "slang-glslang not found, so Slang emits unoptimized SPIR-V");
+        }
 
         var warnings = new List<string>();
         Compiled? last = null;

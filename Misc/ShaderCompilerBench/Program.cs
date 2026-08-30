@@ -76,6 +76,12 @@ internal static class Program
                         var value => throw new ArgumentException($"--bindings takes separate or overlapping, not '{value}'"),
                     };
                     break;
+                case "--optimize":
+                    // The level is optional, so only a following word that is not an option is taken as one.
+                    SpirvOptimizer.Requested = i + 1 < args.Length && !args[i + 1].StartsWith('-')
+                        ? Enum.Parse<SpirvOptimizer.Level>(args[++i], ignoreCase: true)
+                        : SpirvOptimizer.Level.Default;
+                    break;
                 case "--probe":
                     probe = true;
                     break;
@@ -90,7 +96,7 @@ internal static class Program
                     break;
                 default:
                     Console.Error.WriteLine($"Unknown argument '{args[i]}'");
-                    Console.Error.WriteLine("Usage: ShaderCompilerBench [-n iterations] [-w warmup] [--shader name] [--spirv auto|1.0] [--bindings separate|overlapping] [--only index] [-D NAME=VALUE] [--dump] [--in-process] [--probe] [--list]");
+                    Console.Error.WriteLine("Usage: ShaderCompilerBench [-n iterations] [-w warmup] [--shader name] [--spirv auto|1.0] [--bindings separate|overlapping] [--optimize [default|high|maximal]] [--only index] [-D NAME=VALUE] [--dump] [--in-process] [--probe] [--list]");
                     return 1;
             }
         }
