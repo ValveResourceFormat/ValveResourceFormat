@@ -1031,6 +1031,11 @@ namespace GUI
 
         private void OpenWelcome()
         {
+            if (mainTabs.OpenTab("Welcome"))
+            {
+                return;
+            }
+
             var welcomeTab = new ThemedTabPage("Welcome")
             {
                 ToolTipText = "Welcome",
