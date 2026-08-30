@@ -176,8 +176,7 @@ internal static class SlangPath
                 return timings;
             }
 
-            Glslang.TargetSpirvVersion = Glslang.PackSpirvVersion(options.SpirvVersion);
-            timings.Notes.Add($"glslang targeting SPIR-V {options.SpirvVersion}");
+            timings.Notes.Add($"glslang targeting SPIR-V {Glslang.Resolve(options.SpirvVersion)}");
         }
 
         var profile = GlobalSession.FindProfile(profileName);

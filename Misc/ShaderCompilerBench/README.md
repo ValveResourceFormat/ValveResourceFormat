@@ -14,7 +14,8 @@ driver reporting `GL_LINK_STATUS` and handing back the program binary.
 | `Slang -> GLSL -> driver` | Slang emitting GLSL for the driver to compile. |
 | `Slang -> GLSL -> glslang -> SPIR-V -> driver` | Slang emitting GLSL, turned into SPIR-V offline. |
 
-The two Slang-free paths compile a real renderer shader (`--shader`, `complex` by default). The
+The two Slang-free paths compile a real renderer shader (`--shader`, `csgo_environment` by
+default, being the largest one that survives every path). The
 Slang paths compile `Shaders/bench.slang`, a forward-lit uber-shader written to be the same class of
 workload: layered materials, parallax, a clustered light loop with cascaded shadows, image based
 lighting, cloth and skin lobes, fog, and a render mode switch.
@@ -29,16 +30,32 @@ dotnet run --project Misc/ShaderCompilerBench -- -n 10 -w 2
 | --- | --- |
 | `-n`, `--iterations` | Measured iterations per stage (default 10). |
 | `-w`, `--warmup` | Unmeasured iterations first (default 2). The driver's compiler backend costs a few hundred milliseconds to spin up once per process, so do not set this to zero. |
-| `--shader <name>` | Renderer shader for the Slang-free paths (default `complex`). |
-| `--spirv <version>` | SPIR-V version glslang targets (default `1.0`). Shaders using subgroup ops need `1.3`. |
-| `--only <substring>` | Run only the paths whose name matches. |
+| `--shader <name>` | Renderer shader for the Slang-free paths (default `csgo_environment`). `--list` prints them all. |
+| `--spirv <version>` | SPIR-V version glslang targets. Defaults to `auto`, which is the newest the driver accepts; pass `1.0` to measure the portable floor. |
+| `--only <index or substring>` | Run one path. The names overlap, so an index from `--list` is the unambiguous form. |
 | `-D NAME=VALUE` | Preprocessor macro for `bench.slang`, e.g. `-D MAX_LIGHTS=32`. |
 | `--dump` | Write every intermediate (GLSL, SPIR-V) to `bin/<config>/dump`. |
 | `--in-process` | Run every path in one process instead of one process each. Crashes, see below. |
 | `--probe` | Report what SPIR-V this driver actually accepts, and exit. See below. |
+| `--list` | Print the path names `--only` matches and the shader names `--shader` takes, and exit. Needs no GPU. |
 
 Every compile is stamped with a salt that differs per iteration *and* per run, because the NVIDIA
 shader cache lives on disk and would otherwise serve most of the run out of it.
+
+To find out whether one shader survives one path on an unfamiliar driver, name both and turn the
+repetition off. Warmup iterations count, so a shader that fails fails during them:
+
+```
+ShaderCompilerBench --probe
+ShaderCompilerBench --list
+ShaderCompilerBench --only 0 --shader csgo_environment -n 1 -w 0 --dump
+```
+
+Each path runs in its own process, so one failing path does not stop the others; it is reported as
+`failed` in the summary with the compiler or driver's own message above it. `--dump` writes the
+exact GLSL and SPIR-V that were handed over, which is what to attach to a bug report.
+
+A run needs an OpenGL 4.6 context, which is what the renderer itself requires.
 
 ## Requirements
 
@@ -102,7 +119,15 @@ first use, which is worth knowing if the install directory is read-only.
   `GL_KHR_shader_subgroup` and `GL_ARB_gl_spirv` are both present, which together imply the driver
   has to take 1.3: subgroup arithmetic needs capabilities that were added in SPIR-V 1.3 and never
   had an extension. Run it on every vendor the renderer supports before relying on a version above
-  1.0. NVIDIA 595.79 on a GTX 1660 SUPER accepts 1.0 through 1.6, subgroups included.
+  1.0.
+
+  A driver taking a version is not the same as it taking a shader written in it. NVIDIA 595.79 on a
+  GTX 1660 SUPER accepts an empty 1.6 module, but rejects one that discards: SPIR-V 1.6 deprecated
+  `OpKill`, glslang emits `OpTerminateInvocation` instead once the target reaches 1.6, and the GL
+  driver answers `SPIR-V: Invalid opcode`. So the probe compiles something a real shader would
+  contain rather than an empty `main`, and `auto` lands on 1.5 there rather than 1.6. Between 1.0
+  and 1.5 the version makes no measurable difference to compile time — `sky` is 6.3 ms of glslang
+  and 0.5 ms of driver at 1.0, against 5.7 ms and 0.6 ms at 1.6.
 - **Slang cannot emit SPIR-V 1.0 with its own backend.** It warns *"Slang's SPIR-V backend only
   supports SPIR-V version 1.3 and later"*, then stamps the requested version into the header anyway.
   OpenGL 4.6 asks for SPIR-V 1.0, but NVIDIA accepts the 1.3 modules. Going through glslang is the

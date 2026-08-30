@@ -27,6 +27,22 @@ internal static class SpirvSupport
         """;
 
     /// <summary>
+    /// A shader that discards. SPIR-V 1.6 deprecated <c>OpKill</c>, so glslang emits
+    /// <c>OpTerminateInvocation</c> instead once the target reaches it, and a driver can take a
+    /// trivial 1.6 module while rejecting that opcode. Version support has to be probed with
+    /// something a real shader would contain, not with an empty one.
+    /// </summary>
+    private const string DiscardFragment = """
+        #version 460
+        layout(location = 0) out vec4 outColor;
+        void main()
+        {
+            if (gl_FragCoord.x > 1e9) { discard; }
+            outColor = vec4(gl_FragCoord.y);
+        }
+        """;
+
+    /// <summary>
     /// Subgroup arithmetic, which the renderer's tiled light culling uses. Its SPIR-V capabilities
     /// were added in SPIR-V 1.3 and never had an extension, so a driver advertising
     /// <c>GL_KHR_shader_subgroup</c> alongside <c>GL_ARB_gl_spirv</c> has to take 1.3 to be useful.
@@ -37,6 +53,36 @@ internal static class SpirvSupport
         layout(location = 0) out vec4 outColor;
         void main() { outColor = vec4(subgroupAdd(gl_FragCoord.x)); }
         """;
+
+    /// <summary>Newest first, because detection takes the first one the driver accepts.</summary>
+    private static readonly string[] Versions = ["1.6", "1.5", "1.4", "1.3", "1.0"];
+
+    private static string? detected;
+
+    /// <summary>
+    /// The newest SPIR-V this driver will actually take, found by handing it a module at each
+    /// version until one links. There is no query for this, and every driver answers differently:
+    /// OpenGL only promises 1.0, NVIDIA and Intel both go to 1.6.
+    /// </summary>
+    public static string HighestAccepted()
+    {
+        if (detected != null)
+        {
+            return detected;
+        }
+
+        foreach (var version in Versions)
+        {
+            if (Accepts(version, PlainFragment) && Accepts(version, DiscardFragment))
+            {
+                return detected = version;
+            }
+        }
+
+        // Nothing linked, so leave the caller with what OpenGL guarantees and let it report the
+        // real error rather than swallowing it here.
+        return detected = "1.0";
+    }
 
     public static int Run()
     {
@@ -70,16 +116,21 @@ internal static class SpirvSupport
 
         Console.WriteLine($"Compiling with glslang from {Glslang.Source}, then asking the driver to take the result:");
         Console.WriteLine();
-        Console.WriteLine($"  {"SPIR-V",-8} {"plain shader",-40} {"subgroup arithmetic",-40}");
-        Console.WriteLine($"  {new string('-', 8)} {new string('-', 40)} {new string('-', 40)}");
+        Console.WriteLine($"  {"SPIR-V",-8} {"plain",-26} {"discard",-26} {"subgroup arithmetic",-26}");
+        Console.WriteLine($"  {new string('-', 8)} {new string('-', 26)} {new string('-', 26)} {new string('-', 26)}");
 
-        foreach (var version in new[] { "1.0", "1.3", "1.4", "1.5", "1.6" })
+        foreach (var version in Versions.Reverse())
         {
-            Console.WriteLine($"  {version,-8} {Attempt(version, PlainFragment),-40} {Attempt(version, SubgroupFragment),-40}");
+            Console.WriteLine($"  {version,-8} {Attempt(version, PlainFragment),-26} {Attempt(version, DiscardFragment),-26} {Attempt(version, SubgroupFragment),-26}");
         }
 
+        Console.WriteLine();
+        Console.WriteLine($"Highest accepted: SPIR-V {HighestAccepted()}, which is what --spirv auto picks.");
         return 0;
     }
+
+    private static bool Accepts(string version, string fragment)
+        => Attempt(version, fragment).StartsWith("accepted", StringComparison.Ordinal);
 
     private static string Yes(bool value) => value ? "yes" : "no";
 
@@ -125,7 +176,7 @@ internal static class SpirvSupport
         }
 
         return string.Create(CultureInfo.InvariantCulture,
-            $"accepted, {spirv.Vertex.Length + spirv.Fragment.Length} bytes");
+            $"accepted, {spirv.Vertex.Length + spirv.Fragment.Length} b");
     }
 
     private static string FirstLine(string message)
@@ -135,6 +186,6 @@ internal static class SpirvSupport
             .FirstOrDefault(candidate => candidate.Contains("ERROR", StringComparison.Ordinal))
             ?? message.Split('\n')[0];
 
-        return line.Length > 34 ? line[..34] : line;
+        return line.Length > 20 ? line[..20] : line;
     }
 }

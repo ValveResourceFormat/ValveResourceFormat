@@ -240,6 +240,20 @@ internal static partial class Glslang
     /// <summary>Where glslang came from, for the report to name.</summary>
     public static string Source => SdkDirectory ?? "the Glslang.NET package";
 
+    /// <summary>
+    /// Sets the target version and returns what it resolved to. <c>auto</c> asks the driver what it
+    /// takes rather than assuming the 1.0 that OpenGL promises.
+    /// </summary>
+    public static string Resolve(string version)
+    {
+        var resolved = version == AutoVersion ? SpirvSupport.HighestAccepted() : version;
+        TargetSpirvVersion = PackSpirvVersion(resolved);
+        return version == AutoVersion ? resolved + " (detected)" : resolved;
+    }
+
+    /// <summary>The <c>--spirv</c> value that means "whatever this driver accepts".</summary>
+    public const string AutoVersion = "auto";
+
     /// <summary>Turns a "1.3" style version into the packed form glslang wants.</summary>
     public static int PackSpirvVersion(string version)
     {

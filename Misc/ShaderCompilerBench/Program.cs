@@ -29,10 +29,13 @@ internal static class Program
         var dump = false;
         var inProcess = false;
         var child = -1;
-        var rendererShader = "complex";
-        var spirvVersion = "1.0";
+        // csgo_environment rather than complex: same size class, and it is the biggest renderer
+        // shader that survives every path, so a default run has no holes in it.
+        var rendererShader = "csgo_environment";
+        var spirvVersion = Glslang.AutoVersion;
         var saltBase = -1;
         var probe = false;
+        var list = false;
         var macros = new List<(string Name, string Value)>();
 
         for (var i = 0; i < args.Length; i++)
@@ -62,6 +65,9 @@ internal static class Program
                     var equals = definition.IndexOf('=', StringComparison.Ordinal);
                     macros.Add(equals < 0 ? (definition, "1") : (definition[..equals], definition[(equals + 1)..]));
                     break;
+                case "--list":
+                    list = true;
+                    break;
                 case "--probe":
                     probe = true;
                     break;
@@ -76,7 +82,7 @@ internal static class Program
                     break;
                 default:
                     Console.Error.WriteLine($"Unknown argument '{args[i]}'");
-                    Console.Error.WriteLine("Usage: ShaderCompilerBench [-n iterations] [-w warmup] [--shader name] [--spirv 1.0] [--only substring] [-D NAME=VALUE] [--dump] [--in-process] [--probe]");
+                    Console.Error.WriteLine("Usage: ShaderCompilerBench [-n iterations] [-w warmup] [--shader name] [--spirv auto|1.0] [--only index] [-D NAME=VALUE] [--dump] [--in-process] [--probe] [--list]");
                     return 1;
             }
         }
@@ -87,6 +93,12 @@ internal static class Program
         }
 
         var options = new BenchmarkOptions(iterations, warmup, dump, macros, rendererShader, saltBase, spirvVersion);
+
+        if (list)
+        {
+            List();
+            return 0;
+        }
 
         if (probe)
         {
@@ -99,18 +111,23 @@ internal static class Program
             return RunChild(child, options);
         }
 
+        // An index is accepted as well as a substring, because the path names overlap: "GLSL -> driver"
+        // is a part of "Slang -> GLSL -> driver" too. --list prints the indices.
         var selected = Benchmarks.All
             .Index()
-            .Where(entry => filter == null || entry.Item.Name.Contains(filter, StringComparison.OrdinalIgnoreCase))
+            .Where(entry => filter == null
+                || (int.TryParse(filter, CultureInfo.InvariantCulture, out var index)
+                    ? entry.Index == index
+                    : entry.Item.Name.Contains(filter, StringComparison.OrdinalIgnoreCase)))
             .ToArray();
 
         if (selected.Length == 0)
         {
             Console.Error.WriteLine($"No benchmark matches '{filter}'. Available:");
 
-            foreach (var benchmark in Benchmarks.All)
+            foreach (var (index, benchmark) in Benchmarks.All.Index())
             {
-                Console.Error.WriteLine("  " + benchmark.Name);
+                Console.Error.WriteLine($"  {index}  {benchmark.Name}");
             }
 
             return 1;
@@ -134,6 +151,25 @@ internal static class Program
 
         Summary(results);
         return 0;
+    }
+
+    /// <summary>Prints what can be passed to --only and to --shader.</summary>
+    private static void List()
+    {
+        Console.WriteLine("Paths (--only takes an index, or any part of a name):");
+
+        foreach (var (index, benchmark) in Benchmarks.All.Index())
+        {
+            Console.WriteLine($"  {index}  {benchmark.Name}");
+        }
+
+        Console.WriteLine();
+        Console.WriteLine("Renderer shaders (--shader), those with both a vertex and a fragment stage:");
+
+        foreach (var chunk in Sources.RendererShaders().Chunk(4))
+        {
+            Console.WriteLine("  " + string.Join(string.Empty, chunk.Select(name => name.PadRight(28))).TrimEnd());
+        }
     }
 
     /// <summary>

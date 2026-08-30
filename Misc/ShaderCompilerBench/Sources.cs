@@ -72,6 +72,16 @@ internal static class Sources
         return new SourcePair(shaderName, headerText + vertex, headerText + fragment);
     }
 
+    /// <summary>
+    /// The renderer shaders that have both a vertex and a fragment stage, which is what the
+    /// Slang-free paths can compile.
+    /// </summary>
+    public static IEnumerable<string> RendererShaders()
+        => new ShaderParser().AvailableShaders
+            .Where(shader => shader.Value.Length > 1 && shader.Value[0] && shader.Value[1])
+            .Select(shader => shader.Key)
+            .Order(StringComparer.Ordinal);
+
     /// <summary>The directory the bench's own shader files are copied to next to the executable.</summary>
     public static string ShaderDirectory { get; } = Path.Combine(AppContext.BaseDirectory, "Shaders");
 
