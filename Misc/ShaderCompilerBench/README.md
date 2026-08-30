@@ -36,7 +36,7 @@ dotnet run --project Misc/ShaderCompilerBench -- -n 10 -w 2
 | `--only <index or substring>` | Run one path. The names overlap, so an index from `--list` is the unambiguous form. |
 | `-D NAME=VALUE` | Preprocessor macro for `bench.slang`, e.g. `-D MAX_LIGHTS=32`. |
 | `--dump` | Write every intermediate (GLSL, SPIR-V) to `bin/<config>/dump`. |
-| `--in-process` | Run every path in one process instead of one process each. Crashes, see below. |
+| `--in-process` | Run every path in one process instead of one process each. Faster, but the second Slang path then starts with a warm core module and looks cheaper than it is. |
 | `--probe` | Report what SPIR-V this driver actually accepts, and exit. See below. |
 | `--list` | Print the path names `--only` matches and the shader names `--shader` takes, and exit. Needs no GPU. |
 
@@ -98,8 +98,8 @@ printing a bare colon, and adds the GL error code and the module sizes. From the
 
 ## Requirements
 
-Nothing installed. glslang comes from the `Glslang.NET` package and Slang from `Prowl.Slang`, both
-of which carry their own natives. A [Vulkan SDK](https://vulkan.lunarg.com/) install is used instead
+Nothing installed. glslang comes from the `Glslang.NET` package and Slang from `SlangShaderSharp`,
+both of which carry their own natives. A [Vulkan SDK](https://vulkan.lunarg.com/) install is used instead
 when one is present and the package native is not, which is only useful for testing a different
 glslang build.
 
@@ -130,24 +130,24 @@ limits, and it links the C++ runtime dynamically, so it is the worse one to redi
 
 Sizes on `win-x64`, and what a process actually loads, checked with `Process.Modules`:
 
-| | Prowl.Slang 3.2.1 (used here) | official Slang build |
+| | size | loaded |
 | --- | --- | --- |
-| `slang-compiler` — loaded always | 33.3 MiB | 24.2 MiB |
-| `slang-glslang` — loaded for the SPIR-V target | 10.8 MiB | 5.9 MiB |
-| `slang-glsl-module` — never loaded, GLSL *input* only | 1.8 MiB | not shipped |
-| managed wrapper | 0.13 MiB | |
+| `slang-compiler` | 24.2 MiB | always |
+| `slang-glslang` | 5.9 MiB | for the SPIR-V target only |
+| managed wrapper | 0.31 MiB | always |
 
-So Slang is 24-33 MiB to emit GLSL and 30-44 MiB to emit SPIR-V, against 7.1 MiB for glslang alone.
+So Slang is 24 MiB to emit GLSL and 30 MiB to emit SPIR-V, against 7.1 MiB for glslang alone.
 `slang-glslang` is the SPIR-V validator: renaming it away leaves both targets working and takes
 about 34 ms off each SPIR-V compile.
 
-The Prowl.Slang natives are a much fatter build of the same version on Windows. Dropping the
-official binaries from `Slangc.NET` over them works with the same wrapper, and is faster as well as
-smaller — 166 ms against 203 ms for the SPIR-V path. On Linux and macOS the two builds are within a
+This is the official Slang build, which `SlangShaderSharp` ships. `Prowl.Slang`, the other .NET
+binding, builds the same version much fatter on Windows — 33.3 MiB and 10.8 MiB, plus a
+`slang-glsl-module` that never loads because it only serves GLSL *input* — and is measurably slower
+with it, 203 ms against 167 ms for the SPIR-V path. On Linux and macOS the two builds are within a
 few percent of each other, both unstripped, around 36-39 MiB.
 
-Slang also writes a `slang-glsl-module.bin` core module cache (1.2 MiB) next to its own library on
-first use, which is worth knowing if the install directory is read-only.
+Slang writes a core module cache next to its own library on first use, which is worth knowing if the
+install directory is read-only.
 
 ## Things worth knowing
 
@@ -171,9 +171,6 @@ first use, which is worth knowing if the install directory is read-only.
   supports SPIR-V version 1.3 and later"*, then stamps the requested version into the header anyway.
   OpenGL 4.6 asks for SPIR-V 1.0, but NVIDIA accepts the 1.3 modules. Going through glslang is the
   only way to get real 1.0.
-- **`Prowl.Slang` 3.2.1 is not memory safe.** Calling `GetBuildTagString` before a session, or
-  creating sessions for different targets in one process, faults inside the native library. This is
-  why each path runs in its own process and why the build tag is printed last.
 - **The renderer's GLSL is not portable to glslang.** `complex.frag.slang` uses `defined()` inside
   object-like macros, which is undefined behaviour that NVIDIA accepts and glslang rejects. Other
   shaders trip over `gl_DepthRange` (`grid`) or subgroup ops needing SPIR-V 1.3

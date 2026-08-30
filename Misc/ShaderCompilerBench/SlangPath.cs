@@ -1,7 +1,7 @@
 using System.Diagnostics;
 using System.Globalization;
 using System.Text;
-using Prowl.Slang;
+using SlangShaderSharp;
 
 namespace ShaderCompilerBench;
 
@@ -14,7 +14,7 @@ internal enum SlangOutput
     /// <summary>Slang emits GLSL text and the driver's own front end compiles it, as it does today.</summary>
     Glsl,
 
-    /// <summary>Slang emits GLSL text, glslang turns it into SPIR-V 1.0, and the driver specializes that.</summary>
+    /// <summary>Slang emits GLSL text, glslang turns it into SPIR-V, and the driver specializes that.</summary>
     GlslThenGlslang,
 }
 
@@ -29,30 +29,36 @@ internal static class SlangPath
     /// </summary>
     public const string SpirvEntryPoint = "main";
 
-    /// <summary>
-    /// Loads the native compiler and reports how long that took, once for the whole process, so no
-    /// benchmark pays for it. Creating a session is the only way to force the load.
-    /// </summary>
-    public static string Initialize()
+    private static IGlobalSession? globalSession;
+
+    private static IGlobalSession Global => globalSession ??= CreateGlobalSession();
+
+    private static IGlobalSession CreateGlobalSession()
     {
-        var description = new SessionDescription
+        var result = Slang.CreateGlobalSession(Slang.ApiVersion, out var session);
+
+        if (result.Failed || session == null)
         {
-            Targets = [new TargetDescription { Format = CompileTarget.Spirv, Profile = GlobalSession.FindProfile("spirv_1_3") }],
-        };
+            throw new InvalidOperationException($"Slang would not create a global session: {result.GetSymbolicName()}");
+        }
 
-        var start = Stopwatch.GetTimestamp();
-        CreateSession(description);
-        var elapsed = Stopwatch.GetElapsedTime(start).TotalMilliseconds;
-
-        return string.Create(CultureInfo.InvariantCulture, $"Slang native compiler loaded in {elapsed:F1} ms");
+        return session;
     }
 
     /// <summary>
-    /// Must not be called until every session has been created. In Prowl.Slang 3.2.1 this call
-    /// leaves the global session in a state where the next <c>CreateSession</c> faults inside the
-    /// native library.
+    /// Loads the native compiler and reports how long that took, once for the whole process, so no
+    /// benchmark pays for it.
     /// </summary>
-    public static string BuildTag() => GlobalSession.GetBuildTagString();
+    public static string Initialize()
+    {
+        var start = Stopwatch.GetTimestamp();
+        var version = Global.GetBuildTagString();
+        var elapsed = Stopwatch.GetElapsedTime(start).TotalMilliseconds;
+
+        return string.Create(CultureInfo.InvariantCulture, $"Slang {version} loaded in {elapsed:F1} ms");
+    }
+
+    public static string BuildTag() => Global.GetBuildTagString();
 
     private sealed record Compiled(byte[] Vertex, byte[] Fragment);
 
@@ -61,105 +67,92 @@ internal static class SlangPath
     /// keying its variants off preprocessor macros would actually pay, because the macros are fixed
     /// when the session is created.
     /// </summary>
-    private static Compiled RunSlang(Timings timings, SlangOutput output, string moduleName, string source, PreprocessorMacroDescription[] macros, ProfileID profile, List<string> warnings)
+    private static Compiled RunSlang(Timings timings, SlangOutput output, string moduleName, string source, PreprocessorMacroDesc[] macros, SlangProfileID profile, List<string> warnings)
     {
-        var targetDescription = new TargetDescription
+        var sessionDescription = new SessionDesc
         {
-            Format = output == SlangOutput.Spirv ? CompileTarget.Spirv : CompileTarget.Glsl,
-            Profile = profile,
-        };
-
-        var sessionDescription = new SessionDescription
-        {
-            Targets = [targetDescription],
+            Targets =
+            [
+                new TargetDesc
+                {
+                    Format = output == SlangOutput.Spirv ? SlangCompileTarget.Spirv : SlangCompileTarget.Glsl,
+                    Profile = profile,
+                },
+            ],
             SearchPaths = [Sources.ShaderDirectory],
             PreprocessorMacros = macros,
         };
 
-        var session = timings.Measure("slang: create session", () => CreateSession(sessionDescription));
+        var session = timings.Measure("slang: create session", () =>
+        {
+            Check(Global.CreateSession(in sessionDescription, out var created), null, "create session", warnings);
+            return created ?? throw new InvalidOperationException("Slang returned no session");
+        });
 
         var module = timings.Measure("slang: parse and check module", () =>
         {
             var loaded = session.LoadModuleFromSourceString(moduleName, moduleName + ".slang", source, out var diagnostics);
-            Check(diagnostics, "load module", warnings);
-            return loaded;
+            Check(loaded == null ? SlangResult.SLANG_FAIL : SlangResult.SLANG_OK, diagnostics, "load module", warnings);
+            return loaded!;
         });
 
         var entryPoints = timings.Measure("slang: find entry points", () =>
-            new[] { module.FindEntryPointByName(VertexEntryPoint), module.FindEntryPointByName(FragmentEntryPoint) });
+        {
+            Check(module.FindEntryPointByName(VertexEntryPoint, out var vertex), null, "find " + VertexEntryPoint, warnings);
+            Check(module.FindEntryPointByName(FragmentEntryPoint, out var fragment), null, "find " + FragmentEntryPoint, warnings);
+            return new IComponentType[] { module, vertex!, fragment! };
+        });
 
         var composite = timings.Measure("slang: compose program", () =>
         {
-            var result = session.CreateCompositeComponentType([module, entryPoints[0], entryPoints[1]], out var diagnostics);
-            Check(diagnostics, "compose", warnings);
-            return result;
+            Check(session.CreateCompositeComponentType(entryPoints, out var created, out var diagnostics), diagnostics, "compose", warnings);
+            return created!;
         });
 
         var linked = timings.Measure("slang: link", () =>
         {
-            var result = composite.Link(out var diagnostics);
-            Check(diagnostics, "link", warnings);
-            return result;
+            Check(composite.Link(out var result, out var diagnostics), diagnostics, "link", warnings);
+            return result!;
         });
 
         var vertexCode = timings.Measure("slang: emit vertex code", () => EntryPointCode(linked, 0, warnings));
         var fragmentCode = timings.Measure("slang: emit fragment code", () => EntryPointCode(linked, 1, warnings));
 
-        // Every one of these owns a COM reference the finalizer thread would release, and a release
-        // landing in the middle of the next compile is one of the ways this wrapper corrupts memory.
-        GC.KeepAlive(session);
-        GC.KeepAlive(module);
-        GC.KeepAlive(entryPoints);
-        GC.KeepAlive(composite);
-        GC.KeepAlive(linked);
-
         return new Compiled(vertexCode, fragmentCode);
     }
 
-    /// <summary>
-    /// Takes the description by value so the pointer the native side is handed points at a stack
-    /// local. Passing a lambda's captured copy hands it an interior pointer into a heap object,
-    /// which the compiler reads straight through and faults on.
-    /// </summary>
-    private static Session CreateSession(SessionDescription description)
-        => GlobalSession.CreateSession(in description);
-
-    private static byte[] EntryPointCode(ComponentType program, int entryPoint, List<string> warnings)
+    private static byte[] EntryPointCode(IComponentType program, int entryPoint, List<string> warnings)
     {
-        var code = program.GetEntryPointCode(entryPoint, 0, out var diagnostics);
-        Check(diagnostics, "emit code", warnings);
-        return code.ToArray();
+        var result = program.GetEntryPointCode(entryPoint, 0, out var code, out var diagnostics);
+        Check(result, diagnostics, "emit code", warnings);
+        return code!.Buffer.ToArray();
     }
 
     /// <summary>
-    /// Warnings are collected rather than thrown, because Slang reports things like "SPIR-V version
-    /// too old" as a warning and then emits a newer version anyway, which is exactly the kind of
-    /// answer this bench exists to surface.
+    /// Slang reports things like "SPIR-V version too old" as a warning and then emits a newer
+    /// version anyway, which is exactly the kind of answer this bench exists to surface, so the
+    /// result code decides whether a stage failed and the blob is only text to carry along.
     /// </summary>
-    private static void Check(DiagnosticInfo diagnostics, string stage, List<string> warnings)
+    private static void Check(SlangResult result, ISlangBlob? diagnostics, string stage, List<string> warnings)
     {
-        var failed = false;
+        var message = diagnostics?.AsString?.Trim() ?? string.Empty;
 
-        foreach (var diagnostic in diagnostics.GetDiagnostics())
+        if (result.Failed)
         {
-            if (diagnostic.Severity >= Severity.Error)
-            {
-                failed = true;
-            }
-            else if (diagnostic.Severity >= Severity.Warning)
-            {
-                var text = $"{stage}: {diagnostic.Message.Trim()}";
-
-                if (!warnings.Contains(text, StringComparer.Ordinal))
-                {
-                    warnings.Add(text);
-                }
-            }
+            throw new InvalidOperationException(
+                $"Slang failed to {stage}{(message.Length == 0 ? $" ({result.GetSymbolicName()})" : ":\n" + message)}");
         }
 
-        if (failed)
+        if (message.Length == 0)
         {
-            throw new InvalidOperationException($"Slang failed to {stage}: {diagnostics.Message}");
+            return;
+        }
+
+        var text = $"{stage}: {message}";
+
+        if (!warnings.Contains(text, StringComparer.Ordinal))
+        {
+            warnings.Add(text);
         }
     }
 
@@ -177,9 +170,10 @@ internal static class SlangPath
             }
 
             timings.Notes.Add($"glslang targeting SPIR-V {Glslang.Resolve(options.SpirvVersion)}");
+            timings.Notes.Add(Glslang.DescribeBindings());
         }
 
-        var profile = GlobalSession.FindProfile(profileName);
+        var profile = Global.FindProfile(profileName);
         timings.Notes.Add($"Slang profile '{profileName}' resolved to {(int)profile}"
             + ((int)profile == 0 ? " (unknown, Slang falls back to its default)" : string.Empty));
 
@@ -197,7 +191,7 @@ internal static class SlangPath
                 [.. options.Macros, ("BENCH_SALT", salt.ToString(CultureInfo.InvariantCulture))];
 
             var iterationMacros = withSalt
-                .Select(macro => new PreprocessorMacroDescription { Name = macro.Name, Value = macro.Value })
+                .Select(macro => new PreprocessorMacroDesc(macro.Name, macro.Value))
                 .ToArray();
 
             // Run the finalizers for the previous iteration's Slang objects now, so they cannot run
@@ -206,11 +200,11 @@ internal static class SlangPath
             GC.WaitForPendingFinalizers();
             GC.Collect();
 
-            GlobalSession.GetCompilerElapsedTime(out var totalBefore, out var downstreamBefore);
+            Global.GetCompilerElapsedTime(out var totalBefore, out var downstreamBefore);
 
             var compiled = RunSlang(target, output, moduleName, source, iterationMacros, profile, warnings);
 
-            GlobalSession.GetCompilerElapsedTime(out var totalAfter, out var downstreamAfter);
+            Global.GetCompilerElapsedTime(out var totalAfter, out var downstreamAfter);
 
             // Slang's own accounting, kept next to ours so the two can be checked against each other.
             target.Add(Timings.InformationalPrefix + " slang self-reported total", (totalAfter - totalBefore) * 1000.0);
@@ -242,7 +236,7 @@ internal static class SlangPath
         }
 
         Describe(timings, output, moduleName, source, last!, lastSpirv, options.Dump);
-        timings.Notes.AddRange(warnings.Select(warning => "warning: " + warning));
+        timings.Notes.AddRange(warnings.Select(warning => "warning: " + warning.ReplaceLineEndings(" ")));
         return timings;
     }
 

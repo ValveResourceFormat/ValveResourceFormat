@@ -141,9 +141,20 @@ internal static class Program
             return 1;
         }
 
-        using (var window = CreateContext())
+        // In-process mode needs a context for the whole run, not just for the banner, because
+        // nothing else creates one for it.
+        var window = CreateContext();
+
+        try
         {
             PrintEnvironment();
+        }
+        finally
+        {
+            if (!inProcess)
+            {
+                window.Dispose();
+            }
         }
 
         var results = new List<string>();
@@ -155,6 +166,11 @@ internal static class Program
             results.Add(inProcess
                 ? RunInProcess(benchmark, options)
                 : RunAsChildProcess(index, saltBase, args));
+        }
+
+        if (inProcess)
+        {
+            window.Dispose();
         }
 
         Summary(results);
@@ -181,9 +197,10 @@ internal static class Program
     }
 
     /// <summary>
-    /// Runs one benchmark and prints its report. Benchmarks are run one to a process because the
-    /// Slang wrapper corrupts memory when sessions for different targets are created in the same
-    /// one, and because a fresh process gives every path the same cold driver state.
+    /// Runs one benchmark and prints its report. Benchmarks are run one to a process so that every
+    /// path meets the same cold driver, and so that no compiler carries a warm core module over
+    /// from the path before it. <c>--in-process</c> runs them together, which is faster but flatters
+    /// whichever path runs second.
     /// </summary>
     private static int RunChild(int index, BenchmarkOptions options)
     {

@@ -1,13 +1,14 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
-    <!-- Prowl.Slang is not strong named, and this repository signs its assemblies -->
+    <!-- The Slang and glslang wrappers are not strong named, and this repository signs its assemblies -->
     <NoWarn>$(NoWarn);CS8002</NoWarn>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.Extensions.Logging.Console" Version="10.0.10" />
     <PackageReference Include="OpenTK" Version="4.9.4" />
-    <PackageReference Include="Prowl.Slang" Version="3.2.1" />
+    <!-- Carries the official Slang binaries: 24 MiB against Prowl.Slang's 33 on win-x64, and faster. -->
+    <PackageReference Include="SlangShaderSharp" Version="2026.16.1" />
     <!-- Only the native glslang is wanted. The package also carries a managed wrapper and a copy
          of the Linux binary as a content file, neither of which should reach the output. -->
     <PackageReference Include="Glslang.NET" Version="1.2.0" ExcludeAssets="compile;contentFiles;build" />
