@@ -5,6 +5,7 @@
   <Project Path="FontMsdfGen/FontMsdfGen.csproj" />
   <Project Path="MurmurHashMatcher/MurmurHashMatcher.csproj" />
   <Project Path="ShaderCatalog/ShaderCatalog.csproj" />
+  <Project Path="ShaderCompilerBench/ShaderCompilerBench.csproj" />
   <Project Path="../Renderer/Renderer.csproj" />
   <Project Path="../ValveResourceFormat/ValveResourceFormat.csproj" />
 </Solution>
