@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text;
 
 namespace ShaderCompilerBench;
@@ -13,8 +14,16 @@ internal static class SpirvInfo
     private const int OpExtension = 10;
     private const int OpCapability = 17;
 
+    private const int OpName = 5;
+    private const int OpDecorate = 71;
+    private const int OpVariable = 59;
+
     /// <summary>The first instruction that can only appear after the declarations, used to stop early.</summary>
     private const int OpFunction = 54;
+
+    private const int DecorationLocation = 30;
+    private const int StorageClassInput = 1;
+    private const int StorageClassOutput = 3;
 
     /// <summary>
     /// The capabilities worth naming. Anything missing is reported by number, which is still enough
@@ -100,17 +109,25 @@ internal static class SpirvInfo
         [5345] = "DemoteToHelperInvocation",
     };
 
-    public sealed record Declarations(List<string> Capabilities, List<string> Extensions);
+    /// <summary>One interface variable, which is matched across stages by location rather than by name.</summary>
+    public sealed record Variable(string Name, uint Location);
+
+    public sealed record Declarations(List<string> Capabilities, List<string> Extensions, List<Variable> Inputs, List<Variable> Outputs);
 
     public static Declarations Read(byte[] spirv)
     {
         var capabilities = new List<string>();
         var extensions = new List<string>();
+        var inputs = new List<Variable>();
+        var outputs = new List<Variable>();
 
         if (spirv.Length < HeaderWords * sizeof(uint))
         {
-            return new Declarations(capabilities, extensions);
+            return new Declarations(capabilities, extensions, inputs, outputs);
         }
+
+        var names = new Dictionary<uint, string>();
+        var locations = new Dictionary<uint, uint>();
 
         var words = new uint[spirv.Length / sizeof(uint)];
         Buffer.BlockCopy(spirv, 0, words, 0, words.Length * sizeof(uint));
@@ -139,12 +156,49 @@ internal static class SpirvInfo
                 case OpExtension when wordCount >= 2:
                     extensions.Add(LiteralString(words, index + 1, wordCount - 1));
                     break;
+
+                case OpName when wordCount >= 3:
+                    names[words[index + 1]] = LiteralString(words, index + 2, wordCount - 2);
+                    break;
+
+                case OpDecorate when wordCount >= 4 && words[index + 2] == DecorationLocation:
+                    locations[words[index + 1]] = words[index + 3];
+                    break;
+
+                case OpVariable when wordCount >= 4:
+                    var target = words[index + 3] == StorageClassInput ? inputs
+                        : words[index + 3] == StorageClassOutput ? outputs
+                        : null;
+
+                    target?.Add(new Variable(words[index + 2].ToString(CultureInfo.InvariantCulture), uint.MaxValue));
+                    break;
             }
 
             index += wordCount;
         }
 
-        return new Declarations(capabilities, extensions);
+        // The names and locations arrive as separate instructions, so they are joined at the end.
+        Resolve(inputs, names, locations);
+        Resolve(outputs, names, locations);
+
+        return new Declarations(capabilities, extensions, inputs, outputs);
+    }
+
+    private static void Resolve(List<Variable> variables, Dictionary<uint, string> names, Dictionary<uint, uint> locations)
+    {
+        for (var i = 0; i < variables.Count; i++)
+        {
+            var id = uint.Parse(variables[i].Name, CultureInfo.InvariantCulture);
+
+            if (!locations.TryGetValue(id, out var location))
+            {
+                // Built-ins such as gl_Position carry no location and take part in no matching.
+                variables.RemoveAt(i--);
+                continue;
+            }
+
+            variables[i] = new Variable(names.GetValueOrDefault(id, "id " + id), location);
+        }
     }
 
     /// <summary>SPIR-V literal strings are UTF-8 packed four bytes to a word and null terminated.</summary>

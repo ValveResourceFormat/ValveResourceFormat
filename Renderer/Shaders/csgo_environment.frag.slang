@@ -22,7 +22,6 @@ in vec4 vTexCoord;
 in vec4 vTexCoord2;
 in vec4 vTintColor_ModelAmount;
 centroid in vec4 vVertexColor_Alpha;
-in vec4 vBlendColorTint;
 
 
 #if (S_MODE_DEPTH == 0) && (S_MODE_OVERDRAW == 0)

@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Text;
+using ValveResourceFormat.Renderer.Materials;
 using ValveResourceFormat.Renderer.Shaders;
 using static ValveResourceFormat.Renderer.Shaders.ShaderLoader;
 
@@ -20,20 +21,35 @@ internal static class Sources
     /// </summary>
     public static SourcePair FromRenderer(string shaderName)
     {
-        // ShaderLoader's static constructor kicks off a background task that preprocesses every
-        // shader through the same static render mode registry this call writes to, and the two
-        // racing on a first-time render mode throws. Once the prewarm has seen the mode, the
-        // registration is a read and the retry sticks.
-        for (var attempt = 0; ; attempt++)
+        RegisterRenderModes();
+        return Preprocess(shaderName);
+    }
+
+    private static bool renderModesRegistered;
+
+    /// <summary>
+    /// Registers every render mode before anything parses a shader, so that the parser here and the
+    /// one on <see cref="ShaderLoader"/>'s prewarm thread never race to add the same one.
+    /// </summary>
+    private static void RegisterRenderModes()
+    {
+        if (renderModesRegistered)
         {
-            try
+            return;
+        }
+
+        renderModesRegistered = true;
+
+        foreach (var mode in RenderModes.Items)
+        {
+            var index = RenderModes.Items.IndexOf(mode);
+
+            if (mode.IsHeader || index <= 0 || RenderModes.GetShaderId(mode.Name) != 0)
             {
-                return Preprocess(shaderName);
+                continue;
             }
-            catch (ArgumentException) when (attempt < 20)
-            {
-                Thread.Sleep(50);
-            }
+
+            RenderModes.AddShaderId(mode.Name, (byte)index);
         }
     }
 

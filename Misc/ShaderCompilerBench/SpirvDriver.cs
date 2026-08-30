@@ -34,6 +34,7 @@ internal static class SpirvDriver
         try
         {
             Compile(timings, spirv, entryPoint);
+            WarnAboutInterface(timings, spirv);
         }
         catch (InvalidOperationException e)
         {
@@ -59,16 +60,68 @@ internal static class SpirvDriver
         var advertised = AdvertisedExtensions();
         report.Append(CultureInfo.InvariantCulture, $"\n  driver advertises {advertised.Count} SPIR-V extensions: {string.Join(", ", advertised)}");
 
-        Describe(report, "vertex", spirv.Vertex, advertised);
-        Describe(report, "fragment", spirv.Fragment, advertised);
+        var vertex = SpirvInfo.Read(spirv.Vertex);
+        var fragment = SpirvInfo.Read(spirv.Fragment);
+
+        Describe(report, "vertex", vertex, advertised);
+        Describe(report, "fragment", fragment, advertised);
+        MatchInterface(report, vertex, fragment);
 
         return report.ToString();
     }
 
-    private static void Describe(StringBuilder report, string stage, byte[] module, HashSet<string> advertised)
+    /// <summary>
+    /// Reports an unmatched fragment input even when the driver took the program, because the
+    /// drivers that reject it say nothing useful and the ones that accept it hide the problem.
+    /// </summary>
+    private static void WarnAboutInterface(Timings timings, SpirvPair spirv)
     {
-        var declarations = SpirvInfo.Read(module);
+        var report = new StringBuilder();
+        MatchInterface(report, SpirvInfo.Read(spirv.Vertex), SpirvInfo.Read(spirv.Fragment));
 
+        var text = report.ToString();
+
+        if (!text.Contains("no vertex output", StringComparison.Ordinal))
+        {
+            return;
+        }
+
+        var note = "warning:" + text.ReplaceLineEndings(" ").Replace("  ", " ", StringComparison.Ordinal);
+
+        if (!timings.Notes.Contains(note, StringComparer.Ordinal))
+        {
+            timings.Notes.Add(note);
+        }
+    }
+
+    /// <summary>
+    /// Stages are matched by location, not by name, and a fragment input with no vertex output
+    /// behind it is a link error that several drivers report with an empty log. GLSL front ends drop
+    /// an unread input before it gets that far, so this only shows up once the shader is going
+    /// through SPIR-V.
+    /// </summary>
+    private static void MatchInterface(StringBuilder report, SpirvInfo.Declarations vertex, SpirvInfo.Declarations fragment)
+    {
+        var produced = vertex.Outputs.Select(output => output.Location).ToHashSet();
+        var orphans = fragment.Inputs.Where(input => !produced.Contains(input.Location)).ToArray();
+
+        if (orphans.Length == 0)
+        {
+            report.Append("\n  stage interface: every fragment input has a vertex output behind it");
+            return;
+        }
+
+        report.Append(CultureInfo.InvariantCulture,
+            $"\n  stage interface: {orphans.Length} fragment input(s) with no vertex output, which is a link error:");
+
+        foreach (var orphan in orphans)
+        {
+            report.Append(CultureInfo.InvariantCulture, $"\n    {orphan.Name} at location {orphan.Location}");
+        }
+    }
+
+    private static void Describe(StringBuilder report, string stage, SpirvInfo.Declarations declarations, HashSet<string> advertised)
+    {
         report.Append(CultureInfo.InvariantCulture, $"\n  {stage} capabilities: {string.Join(", ", declarations.Capabilities)}");
 
         var required = declarations.Extensions

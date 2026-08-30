@@ -141,40 +141,39 @@ internal static class Program
             return 1;
         }
 
-        // In-process mode needs a context for the whole run, not just for the banner, because
-        // nothing else creates one for it.
-        var window = CreateContext();
+        // In-process mode needs a context for the whole run rather than just for the banner,
+        // because nothing else creates one for it. Child processes make their own.
+        NativeWindow? window = null;
 
         try
         {
+            window = CreateContext();
             PrintEnvironment();
-        }
-        finally
-        {
+
             if (!inProcess)
             {
                 window.Dispose();
+                window = null;
             }
+
+            var results = new List<string>();
+
+            foreach (var (index, benchmark) in selected)
+            {
+                Console.WriteLine($"Running {benchmark.Name}...");
+
+                results.Add(inProcess
+                    ? RunInProcess(benchmark, options)
+                    : RunAsChildProcess(index, saltBase, args));
+            }
+
+            Summary(results);
+            return 0;
         }
-
-        var results = new List<string>();
-
-        foreach (var (index, benchmark) in selected)
+        finally
         {
-            Console.WriteLine($"Running {benchmark.Name}...");
-
-            results.Add(inProcess
-                ? RunInProcess(benchmark, options)
-                : RunAsChildProcess(index, saltBase, args));
+            window?.Dispose();
         }
-
-        if (inProcess)
-        {
-            window.Dispose();
-        }
-
-        Summary(results);
-        return 0;
     }
 
     /// <summary>Prints what can be passed to --only and to --shader.</summary>
