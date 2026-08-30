@@ -98,6 +98,11 @@ internal static class SpirvSupport
         Console.WriteLine($"GL_KHR_shader_subgroup   {Yes(extensions.Contains("GL_KHR_shader_subgroup"))}");
         Console.WriteLine();
 
+        if (extensions.Contains("GL_KHR_shader_subgroup"))
+        {
+            ReportSubgroups();
+        }
+
         Console.WriteLine("Binding limits, which decide whether the classes can be kept apart:");
         Report("GL_MAX_COMBINED_TEXTURE_IMAGE_UNITS ", GetPName.MaxCombinedTextureImageUnits);
         Report("GL_MAX_TEXTURE_IMAGE_UNITS          ", GetPName.MaxTextureImageUnits);
@@ -138,6 +143,38 @@ internal static class SpirvSupport
 
     private static bool Accepts(string version, string fragment)
         => Attempt(version, fragment).StartsWith("accepted", StringComparison.Ordinal);
+
+    /// <summary>
+    /// What GL_KHR_shader_subgroup actually offers here. The renderer's tiled light culling uses
+    /// subgroup arithmetic in the fragment stage, and a driver can advertise the extension while
+    /// supporting neither that feature nor that stage.
+    /// </summary>
+    private static void ReportSubgroups()
+    {
+        const int SubgroupSize = 0x9532;
+        const int SubgroupSupportedStages = 0x9533;
+        const int SubgroupSupportedFeatures = 0x9534;
+
+        string[] featureNames = ["BASIC", "VOTE", "ARITHMETIC", "BALLOT", "SHUFFLE", "SHUFFLE_RELATIVE", "CLUSTERED", "QUAD"];
+        (int Bit, string Name)[] stageNames =
+        [
+            (0x01, "VERTEX"), (0x02, "FRAGMENT"), (0x04, "GEOMETRY"),
+            (0x08, "TESS_CONTROL"), (0x10, "TESS_EVALUATION"), (0x20, "COMPUTE"),
+        ];
+
+        GL.GetInteger((GetPName)SubgroupSize, out var size);
+        GL.GetInteger((GetPName)SubgroupSupportedStages, out var stages);
+        GL.GetInteger((GetPName)SubgroupSupportedFeatures, out var features);
+
+        var supportedFeatures = featureNames.Where((_, bit) => (features & (1 << bit)) != 0);
+        var supportedStages = stageNames.Where(stage => (stages & stage.Bit) != 0).Select(stage => stage.Name);
+
+        Console.WriteLine("Subgroup support:");
+        Console.WriteLine($"  size     {size}");
+        Console.WriteLine($"  stages   {string.Join(", ", supportedStages)}");
+        Console.WriteLine($"  features {string.Join(", ", supportedFeatures)}");
+        Console.WriteLine();
+    }
 
     private static void Report(string name, GetPName parameter)
     {

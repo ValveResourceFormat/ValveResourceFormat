@@ -97,10 +97,7 @@ internal static class GlslPath
             : $"{errorText}:\n{log}";
     }
 
-    private const string Advice =
-        "Try --spirv 1.0, and --dump to write out the module that was rejected. "
-        + "Note that glslang numbers uniform blocks and storage blocks in separate binding spaces, "
-        + "which is what OpenGL asks for but not every driver is happy with.";
+    private const string Advice = "Try --spirv 1.0 and --bindings overlapping, and --dump to write out the module.";
 
     /// <summary>
     /// Asks the driver for the compiled program, which is how a shader cache would save it, and
