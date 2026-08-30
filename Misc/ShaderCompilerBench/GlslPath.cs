@@ -65,10 +65,28 @@ internal static class GlslPath
     /// <c>#version</c>, which has to stay on the first line.
     /// </summary>
     public static string Salt(string source, int salt)
+        => Salt(source, string.Create(CultureInfo.InvariantCulture, $"#define BENCH_SALT {salt}\n"));
+
+    /// <summary>
+    /// Salts GLSL that glslang is going to turn into SPIR-V. A define the shader never reads does not
+    /// survive that: the SPIR-V comes out byte for byte the same, and the driver's disk cache serves
+    /// every iteration after the first. A specialization constant does survive, unused or not, and is
+    /// part of what a driver has to key its cache on. The driver's own front end refuses
+    /// <c>constant_id</c> in GLSL, so this cannot be used on the source the driver compiles itself.
+    /// </summary>
+    public static string SaltForSpirv(string source, int salt)
+        => Salt(source, string.Create(CultureInfo.InvariantCulture,
+            $"#define BENCH_SALT {salt}\nlayout(constant_id = {SaltConstantId}) const int BENCH_SALT_ID = {salt};\n"));
+
+    /// <summary>
+    /// High enough to stay clear of any specialization constant a shader declares itself.
+    /// </summary>
+    private const int SaltConstantId = 255;
+
+    private static string Salt(string source, string lines)
     {
         var firstLineEnd = source.IndexOf('\n', StringComparison.Ordinal) + 1;
-        return string.Create(CultureInfo.InvariantCulture,
-            $"{source[..firstLineEnd]}#define BENCH_SALT {salt}\n{source[firstLineEnd..]}");
+        return string.Concat(source.AsSpan(0, firstLineEnd), lines, source.AsSpan(firstLineEnd));
     }
 
     public static void CheckShader(int shader, string stage)

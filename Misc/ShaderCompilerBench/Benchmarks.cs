@@ -110,7 +110,7 @@ internal static class Benchmarks
     }
 
     private static SourcePair Salt(SourcePair sources, int salt)
-        => sources with { Vertex = GlslPath.Salt(sources.Vertex, salt), Fragment = GlslPath.Salt(sources.Fragment, salt) };
+        => sources with { Vertex = GlslPath.SaltForSpirv(sources.Vertex, salt), Fragment = GlslPath.SaltForSpirv(sources.Fragment, salt) };
 
     private static void Describe(Timings timings, SourcePair sources, bool dump)
     {

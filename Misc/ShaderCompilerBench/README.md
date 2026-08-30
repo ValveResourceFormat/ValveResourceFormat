@@ -41,7 +41,14 @@ dotnet run --project Misc/ShaderCompilerBench -- -n 10 -w 2
 | `--list` | Print the path names `--only` matches and the shader names `--shader` takes, and exit. Needs no GPU. |
 
 Every compile is stamped with a salt that differs per iteration *and* per run, because the NVIDIA
-shader cache lives on disk and would otherwise serve most of the run out of it.
+shader cache lives on disk and would otherwise serve most of the run out of it. The salt has to
+reach whatever the driver is handed: `bench.slang` reads `BENCH_SALT` in real arithmetic, and
+GLSL bound for the driver gets a `#define`, which is enough because the driver hashes the source
+text. GLSL bound for glslang gets a specialization constant as well, because a define nobody reads
+does not survive into the SPIR-V and the driver would then be handed the same module every
+iteration. That is an easy mistake to make and a quiet one: the driver reports a few milliseconds
+for a shader that really costs it several hundred, and the program binary it hands back is the
+same size either way. Checking that `--dump` output differs between two salts is the test.
 
 To find out whether one shader survives one path on an unfamiliar driver, name both and turn the
 repetition off. Warmup iterations count, so a shader that fails fails during them:
@@ -78,8 +85,9 @@ nothing to say. So `--bindings separate`, the default, moves the buffer classes 
 The bases come from `GL_MAX_TEXTURE_IMAGE_UNITS`, `GL_MAX_UNIFORM_BUFFER_BINDINGS` and
 `GL_MAX_SHADER_STORAGE_BUFFER_BINDINGS` rather than from constants, because OpenGL only promises
 eight storage block bindings and a fixed base would be off the end of a conforming driver. A class
-with nowhere to go stays at zero and the report says so. It costs nothing measurable: 6.0 ms of
-driver time either way on NVIDIA.
+with nowhere to go stays at zero and the report says so. It costs nothing measurable: the driver's
+link of `csgo_environment` lands in the same 370-420 ms band either way on NVIDIA, which is inside
+its run-to-run spread.
 
 Anything reading these bindings back has to agree with them, so a renderer adopting this would take
 its binding points from the reflection rather than from a constant.
@@ -106,8 +114,14 @@ glslang build.
 ## Shipping the compiler with the client
 
 Compiling GLSL to SPIR-V on the client, rather than letting the driver's GLSL front end do the work,
-is a win even before any caching: `csgo_environment` costs 405 ms of driver time as GLSL, against
-40 ms of glslang plus 5 ms of driver time as SPIR-V. Cache the SPIR-V and only the 5 ms remains.
+does not save compile time on NVIDIA. `csgo_environment` costs about 260 ms of driver time as GLSL,
+against 22 ms of glslang plus 370-430 ms of driver time as SPIR-V (RTX 4070 SUPER, driver 616.56).
+The driver's back end is where the time goes, and it runs either way; handing it SPIR-V only
+replaces its front end, which is the cheap part. Caching the SPIR-V removes the 22 ms and nothing
+else. A compiled program cache has to hold what `glGetProgramBinary` returns, and that works the
+same from GLSL as from SPIR-V. The case for shipping a compiler has to rest on something other
+than compile time: a front end that behaves the same on every driver, or a shading language the
+driver cannot read.
 
 What that costs to ship, per runtime identifier, from `Glslang.NET` 1.2.0:
 
@@ -165,8 +179,8 @@ install directory is read-only.
   `OpKill`, glslang emits `OpTerminateInvocation` instead once the target reaches 1.6, and the GL
   driver answers `SPIR-V: Invalid opcode`. So the probe compiles something a real shader would
   contain rather than an empty `main`, and `auto` lands on 1.5 there rather than 1.6. Between 1.0
-  and 1.5 the version makes no measurable difference to compile time — `sky` is 6.3 ms of glslang
-  and 0.5 ms of driver at 1.0, against 5.7 ms and 0.6 ms at 1.6.
+  and 1.5 the version makes no measurable difference to compile time: `sky` is 3.2 ms of glslang
+  and 6.3 ms of driver at 1.0, against 2.9 ms and 5.5 ms at 1.5, which is inside the noise.
 - **Slang cannot emit SPIR-V 1.0 with its own backend.** It warns *"Slang's SPIR-V backend only
   supports SPIR-V version 1.3 and later"*, then stamps the requested version into the header anyway.
   OpenGL 4.6 asks for SPIR-V 1.0, but NVIDIA accepts the 1.3 modules. Going through glslang is the
@@ -175,28 +189,34 @@ install directory is read-only.
   object-like macros, which is undefined behaviour that NVIDIA accepts and glslang rejects. Other
   shaders trip over `gl_DepthRange` (`grid`) or subgroup ops needing SPIR-V 1.3
   (`csgo_environment`). `--shader default` and `--shader sky` go all the way through.
-- **Handing the driver SPIR-V instead of GLSL is worth around two orders of magnitude.** Measured
-  driver time for the same shader, producing a program binary of the same size either way:
+- **Handing the driver SPIR-V instead of GLSL does not make the driver faster.** Measured driver
+  time for the same shader on an RTX 4070 SUPER with driver 616.56, producing a program binary of
+  about the same size either way. The driver column is everything from upload to the second draw;
+  the link is where nearly all of it goes:
 
-  | shader | preprocessed | GLSL -> driver | glslang -> SPIR-V -> driver | glslang itself | program binary |
-  | --- | --- | --- | --- | --- | --- |
-  | `default` | 4.1 KiB | 5.8 ms | 0.20 ms | 3.6 ms | 15.9 / 16.4 KB |
-  | `sky` | 14.0 KiB | 12.0 ms | 0.26 ms | 7.5 ms | 17.8 / 18.9 KB |
-  | `csgo_environment` | 171.8 KiB | 405 ms | 4.9 ms | 40 ms | 464 / 486 KB |
+  | shader | preprocessed | GLSL -> driver | of which link | glslang -> SPIR-V -> driver | of which link | glslang itself | program binary |
+  | --- | --- | --- | --- | --- | --- | --- | --- |
+  | `default` | 4.1 KiB | 4.2 ms | 2.4 ms | 4.3 ms | 2.6 ms | 1.7 ms | 15.9 / 16.4 KB |
+  | `sky` | 14.0 KiB | 7.9 ms | 4.9 ms | 5.5 ms | 3.7 ms | 2.9 ms | 17.8 / 18.9 KB |
+  | `csgo_environment` | 171.8 KiB | 267 ms | 254 ms | 432 ms | 418 ms | 22 ms | 464 / 486 KB |
 
-  The glslang half is cacheable on disk, and even paid every time it still beats the driver's own
-  front end. `complex` cannot be measured this way until its macros are fixed, but it is the same
-  size and shape as `csgo_environment`.
+  The small shaders are a wash. The big one is slower through SPIR-V, and not by a little: the
+  link of glslang's module took 367-445 ms across ten iterations against 218-300 ms for the GLSL.
+  glslang here runs no optimizer, so the driver gets a literal translation of the source and has
+  to do everything the GLSL front end would have folded on the way in; whether `spirv-opt` closes
+  that gap is untested. `complex` cannot be measured this way until its macros are fixed, but it
+  is the same size and shape as `csgo_environment`.
 
   A successful link is not proof the driver finished, so every path also draws with the program it
-  just built. NVIDIA does specialize again at first draw, but the amount is small and does not
-  change the picture — for `csgo_environment`, first draw is 0.4 ms after the GLSL path and 1.4 ms
-  after the SPIR-V path, against 401 ms and 3.6 ms of link. The second draw is 0.04 ms either way.
-  Only one render state is exercised, so a shader drawn with several states pays that 1 ms more than
-  once; that is true of both paths.
-- **`bench.slang` is much cheaper for the driver to link than `complex`**, even though the two are
-  a similar size in source. `-D UNROLL_LIGHTS=1 -D MAX_LIGHTS=64` turns the light loop into 64
-  copies of its body and brings driver link time into the same order of magnitude; past that the
-  shader stops fitting in the register file. The report splits offline compiler time from driver
-  time for exactly this reason: only the compiler half is comparable across differently sized
-  shaders.
+  just built. For `csgo_environment`, first draw is 0.5 ms after the GLSL path and 0.6 ms after the
+  SPIR-V path, and the second draw is 0.6 ms either way, so nothing is being deferred to the first
+  frame. Only one render state is exercised.
+- **`bench.slang` costs the driver about two thirds of what `csgo_environment` does**, and it costs
+  the same however it arrives. On the same machine as the table above, the driver spent 184 ms on
+  Slang's SPIR-V, 177 ms on Slang's GLSL and 196 ms on that GLSL put through glslang, of which
+  163-181 ms was the link and 7-9 ms a first draw that really does specialize, against 267 ms for
+  `csgo_environment` as GLSL. Slang's own work is 76-85 ms on top, dominated by parsing and
+  checking the module (30 ms) and emitting the fragment stage (34 ms). `-D UNROLL_LIGHTS=1 -D
+  MAX_LIGHTS=64` turns the light loop into 64 copies of its body for a heavier driver workload;
+  past that the shader stops fitting in the register file. The report splits offline compiler time
+  from driver time because only the compiler half is comparable across differently sized shaders.

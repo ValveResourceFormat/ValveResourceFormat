@@ -36,6 +36,10 @@
 #define BENCH_SALT 0
 #endif
 
+// The salt is a large integer and consecutive values above 2^24 round to the same float, which
+// would fold every iteration of a run to the same constant. The low 24 bits convert exactly.
+#define BENCH_SALT_FLOAT float(BENCH_SALT & 0xFFFFFF)
+
 static const float PI = 3.14159265358979323846;
 static const float INV_PI = 0.31830988618379067154;
 static const float EPSILON = 1e-5;
@@ -844,7 +848,7 @@ Varyings vertexMain(VertexInput input)
     // The salt has to reach the output through a uniform, or constant folding would erase it and
     // every iteration would hand the driver a binary it has already seen.
     output.Curvature = length(neighbourNormal - worldNormal) * 100.0
-        + g_Material.RenderMode.w * float(BENCH_SALT);
+        + g_Material.RenderMode.w * BENCH_SALT_FLOAT;
 
     return output;
 }
@@ -971,7 +975,7 @@ float4 fragmentMain(Varyings input) : SV_Target
     color = ApplyRenderMode(color, surface, litCount);
 
     // Keeps the salt live all the way to the output.
-    color += g_Material.RenderMode.w * float(BENCH_SALT);
+    color += g_Material.RenderMode.w * BENCH_SALT_FLOAT;
 
     return float4(color, alpha * g_Material.AlphaParameters.y);
 }
