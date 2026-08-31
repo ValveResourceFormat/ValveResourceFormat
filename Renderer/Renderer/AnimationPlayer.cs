@@ -80,7 +80,7 @@ namespace ValveResourceFormat.Renderer
             get => field;
             set
             {
-                forceUpdate = field != value;
+                forceUpdate |= field != value;
                 field = value;
             }
         }
