@@ -164,6 +164,27 @@ public sealed class GlobalsLayout
         return merged.Count == 0 ? Empty : new GlobalsLayout([.. merged.Values]);
     }
 
+    /// <summary>Initializes a layout from members with predefined offsets.</summary>
+    public GlobalsLayout(IEnumerable<GlobalsMember> members, int size)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegative(size);
+        ArgumentOutOfRangeException.ThrowIfGreaterThan(size, MaxBlockSize);
+
+        Size = size;
+        defaultBytes = new byte[size];
+
+        foreach (var member in members)
+        {
+            if (member.Offset < 0 || member.Offset + member.Size > size)
+            {
+                throw new ArgumentException(
+                    $"Member '{member.Name}' spans {member.Offset}..{member.Offset + member.Size} of a {size} byte block", nameof(members));
+            }
+
+            this.members.Add(member.Name, member);
+        }
+    }
+
     private GlobalsLayout(List<GlobalsDeclaration> declarations)
     {
         if (declarations.Count == 0)
