@@ -215,14 +215,8 @@ namespace ValveResourceFormat.Renderer
         public void SetParameter(TextureParameterName parameter, int value)
             => GL.TextureParameter(Handle, parameter, value);
 
-        /// <summary>Swaps in a new texture object, deleting the old one. Used by streamed texture growth,
-        /// where storage is recreated one mip larger as levels arrive. Sampler state set through
-        /// <see cref="SetFiltering"/>, <see cref="SetWrapMode(RsTextureAddressMode, RsTextureAddressMode, RsTextureAddressMode)"/>,
-        /// <see cref="SetBaseMaxLevel"/> and <see cref="SetMaxAnisotropy"/> is reapplied to the new
-        /// object automatically — whoever set it last, whenever they set it — but raw
-        /// <see cref="SetParameter"/> writes are not remembered and do not survive the swap.</summary>
-        /// <param name="newHandle">Handle of the replacement texture object.</param>
-        /// <param name="numMipLevels">Mip level count of the replacement storage.</param>
+        // Swaps in a new texture object, deleting the old one. Raw SetParameter writes are not
+        // remembered and do not survive the swap.
         internal void ReplaceHandle(int newHandle, int numMipLevels)
         {
             GL.DeleteTexture(Handle);

@@ -299,8 +299,6 @@ namespace ValveResourceFormat.Renderer.Shaders
                     ReservedTexturesUsed = [.. parsedData.ReservedTextures],
                 };
 
-                shader.InitializeUniformsFromParser();
-
                 foreach (var shaderObj in shaderObjects)
                 {
                     GL.AttachShader(shader.Program, shaderObj);

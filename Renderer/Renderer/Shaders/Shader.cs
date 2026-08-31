@@ -35,7 +35,22 @@ namespace ValveResourceFormat.Renderer.Shaders
         public required HashSet<string> RenderModes { get; init; }
 
         /// <summary>Gets the set of uniform names declared in the shader source.</summary>
-        public required HashSet<string> UniformNames { get; init; }
+        public required HashSet<string> UniformNames
+        {
+            get;
+            init
+            {
+                field = value;
+
+                // Seeded so lookups before the program links stay inert instead of caching an unlinked program's answers
+                Uniforms.EnsureCapacity(value.Count);
+
+                foreach (var uniformName in value)
+                {
+                    Uniforms[uniformName] = (ActiveUniformType.FloatVec4, -1, false);
+                }
+            }
+        }
 
         /// <summary>Gets the set of uniform names that require sRGB-to-linear conversion when setting material values.</summary>
         public required HashSet<string> SrgbUniforms { get; init; }
@@ -228,15 +243,6 @@ namespace ValveResourceFormat.Renderer.Shaders
             }
 
             return IsValid;
-        }
-
-        /// <summary>Seeds the uniform cache from the parsed source, so lookups made before the program links stay inert instead of caching driver responses from an unlinked program.</summary>
-        public void InitializeUniformsFromParser()
-        {
-            foreach (var uniformName in UniformNames)
-            {
-                Uniforms[uniformName] = (ActiveUniformType.FloatVec4, -1, false);
-            }
         }
 
         private void DetachAndDeleteShaderObjects()

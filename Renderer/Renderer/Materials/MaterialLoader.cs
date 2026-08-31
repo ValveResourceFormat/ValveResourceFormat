@@ -100,7 +100,7 @@ namespace ValveResourceFormat.Renderer.Materials
 
             Samplers.Clear();
 
-            DrainPendingStreams();
+            CancelAllStreaming();
         }
 
         /// <summary>Returns a cached <see cref="RenderMaterial"/> for the given resource path and shader arguments, loading and caching it on first access.</summary>
@@ -503,9 +503,6 @@ namespace ValveResourceFormat.Renderer.Materials
                     ArrayPool<byte>.Shared.Return(decodedBuffer);
                 }
             }
-
-            // The resource is not disposed: it may be a cached instance handed out again, or shared
-            // with a streaming variant still reading it, and its reader is cheap to leave to the GC
 
             return tex;
         }

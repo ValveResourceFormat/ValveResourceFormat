@@ -66,8 +66,7 @@ internal abstract class ThumbnailRenderer : IDisposable
 
         SceneRenderer = new Renderer(RendererContext);
 
-        // Whole chains per read job; the drain loop in Render consumes them to completion anyway
-        RendererContext.MaterialLoader.BatchChainReads = true;
+        RendererContext.MaterialLoader.ReadWholeChains = true;
 
         SceneRenderer.Camera.SetFromQAngle(new Vector3(20f, 225f, 0f));
 

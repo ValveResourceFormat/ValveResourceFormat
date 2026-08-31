@@ -95,7 +95,7 @@ public class RendererContext : IDisposable
         }
 
         // Pending streams hold pooled buffers; the drain makes no GL calls, safe without a context
-        MaterialLoader?.DrainPendingStreams();
+        MaterialLoader?.CancelAllStreaming();
 
         ShaderLoader?.Dispose();
     }

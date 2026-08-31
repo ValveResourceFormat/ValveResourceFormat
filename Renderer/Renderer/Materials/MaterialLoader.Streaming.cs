@@ -8,70 +8,6 @@ using ValveResourceFormat.ResourceTypes;
 
 namespace ValveResourceFormat.Renderer.Materials
 {
-    /// <summary>
-    /// Bookkeeping for one asynchronously loading texture, doubling as the thread pool work item for
-    /// its mip reads. Chain level 0 is the biggest allocated mip of the (possibly user-capped) chain.
-    /// Mips load strictly smallest to largest with one read in flight per texture: the next read is
-    /// dispatched only once the previous mip's upload has been applied. Reads may one day run a couple
-    /// of mips ahead, but must stay sequential — the reveal assumes uploads arrive in chain order.
-    /// </summary>
-    sealed class StreamedTexture : IThreadPoolWorkItem
-    {
-        public required MaterialLoader Loader { get; init; }
-        public required string Name { get; init; }
-        public required RenderTexture Texture { get; init; }
-        public required Texture Data { get; init; }
-        public required ImageFormat Format { get; init; }
-        public required SizedInternalFormat SizedInternalFormat { get; init; }
-        public required bool Is3D { get; init; }
-        public required int MinMipLevelAllowed { get; init; }
-
-        /// <summary>Number of levels in the full (possibly user-capped) chain.</summary>
-        public int ChainLevels => Mips.Length + 1;
-
-        /// <summary>Dimensions of chain level 0, after the user's size cap. Depth carries the layer
-        /// (times face) count for array and cube targets, and the spatial depth for volumes.</summary>
-        public required int AllocWidth { get; init; }
-        public required int AllocHeight { get; init; }
-        public required int AllocDepth { get; init; }
-
-        /// <summary>Chain level held by level 0 of the current storage. Starts at the smallest level
-        /// and walks toward 0 as growth recreations land.</summary>
-        public int TopChainLevel;
-
-        /// <summary>The mips left to load, ordered smallest to largest. The chain's smallest mip uploads
-        /// synchronously at load so the texture is never sampleable while empty, and is not planned here.</summary>
-        public required PlannedMip[] Mips { get; init; }
-
-        /// <summary>Index into <see cref="Mips"/> of the mip to read next. Advanced by the pump thread
-        /// as uploads are applied, read back by the worker the pump then dispatches.</summary>
-        public int NextMip;
-
-        /// <summary>Set once the first read has been dispatched. A never-started chain can safely be
-        /// completed inline by a caller that needs the texture whole.</summary>
-        public bool Started;
-
-        /// <summary>The mip's level in the source texture data, past the user's size cap.</summary>
-        public uint DataMipLevel(in PlannedMip mip) => (uint)(mip.ChainLevel + MinMipLevelAllowed);
-
-        /// <summary>Buffer size for reading the mip, including the in-place LZ4 decompression margin.</summary>
-        public int InPlaceSize(in PlannedMip mip) => Data.CalculateInPlaceDecompressionBufferSize(DataMipLevel(mip));
-
-        public void Execute() => Loader.ExecuteRead(this);
-    }
-
-    /// <summary>One mip level of a <see cref="StreamedTexture"/> waiting to be read.</summary>
-    readonly record struct PlannedMip(int ChainLevel, int Width, int Height, int Depth, int BufferSize);
-
-    /// <summary>Read mip data waiting for <see cref="MaterialLoader"/> to apply it on the render thread:
-    /// one mip, or in batched mode a texture's whole remaining chain packed into one buffer.</summary>
-    /// <param name="Stream">The texture the data belongs to.</param>
-    /// <param name="Mip">The first (smallest) mip in the buffer.</param>
-    /// <param name="MipCount">Number of consecutive planned mips the buffer holds, starting at <paramref name="Mip"/>.</param>
-    /// <param name="ByteSize">The amount this item holds of the in-flight byte gate, unwound when it is consumed.</param>
-    /// <param name="Buffer">Pooled buffer with each mip at its in-place read offset, in plan order.</param>
-    readonly record struct MipUploadData(StreamedTexture Stream, PlannedMip Mip, int MipCount, int ByteSize, byte[] Buffer);
-
     public partial class MaterialLoader
     {
         /// <summary>Streams waiting to start their next mip read: newly loaded textures and chains parked by the in-flight byte gate.</summary>
@@ -94,7 +30,7 @@ namespace ValveResourceFormat.Renderer.Materials
         /// batched like the synchronous path but with textures in parallel. For one-shot consumers that
         /// drain to completion, like the thumbnail renderer; the scene render loop stays per-mip, whose
         /// small work items its frame budget needs.</summary>
-        public bool BatchChainReads { get; set; }
+        public bool ReadWholeChains { get; set; }
 
         /// <summary>Incomplete streams by their texture, so a non-streaming request for a texture that a
         /// material already started streaming can finish the chain inline instead of sampling a stub.</summary>
@@ -107,10 +43,11 @@ namespace ValveResourceFormat.Renderer.Materials
             incompleteStreams.TryRemove(stream.Texture, out _);
         }
 
-        /// <summary>Drops all pending stream work. Makes no GL calls, so it is also safe during teardown
-        /// without a current context. The byte gate is unwound per item rather than zeroed: a straggling
-        /// read's bytes stay counted until its upload surfaces, so the counter never goes negative.</summary>
-        public void DrainPendingStreams()
+        /// <summary>Drops all pending stream work, the counterpart to <see cref="FinishAllStreaming"/>.
+        /// Makes no GL calls, so it is also safe during teardown without a current context. The byte gate
+        /// is unwound per item rather than zeroed: a straggling read's bytes stay counted until its upload
+        /// surfaces, so the counter never goes negative.</summary>
+        public void CancelAllStreaming()
         {
             while (pendingStreams.TryDequeue(out var stream))
             {
@@ -271,15 +208,24 @@ namespace ValveResourceFormat.Renderer.Materials
         public void UploadPendingTextures(float frameTime = 1f / 60f)
         {
             var start = Stopwatch.GetTimestamp();
+            var budgetSeconds = Math.Max(0f, frameTime * 0.2f - (float)lastUploadDuration / Stopwatch.Frequency);
+
+            Pump(deadline: start + (long)(budgetSeconds * Stopwatch.Frequency));
+
+            lastUploadDuration = Stopwatch.GetTimestamp() - start;
+        }
+
+        /// <summary>Body of the pump: starts what reads it can and applies what has arrived, until the
+        /// queue runs dry or the deadline passes. Returns whether any upload was applied.</summary>
+        private bool Pump(long deadline)
+        {
+            var applied = false;
 
             // Start newly loaded textures and restart chains parked by the byte gate
             while (Interlocked.Read(ref pendingUploadBytes) < MaxPendingUploadBytes && pendingStreams.TryDequeue(out var stream))
             {
                 StartNextRead(stream);
             }
-
-            var budgetSeconds = Math.Max(0f, frameTime * 0.2f - (float)lastUploadDuration / Stopwatch.Frequency);
-            var deadline = start + (long)(budgetSeconds * Stopwatch.Frequency);
 
             // Otherwise captures carry a permanent zero-cost debug group
             if (!pendingMipUploads.IsEmpty)
@@ -301,6 +247,7 @@ namespace ValveResourceFormat.Renderer.Materials
                     }
 
                     ApplyUpload(in upload);
+                    applied = true;
 
                     // The GL upload copies out of the buffer before returning, so it is dead here
                     ArrayPool<byte>.Shared.Return(upload.Buffer);
@@ -324,7 +271,7 @@ namespace ValveResourceFormat.Renderer.Materials
                 }
             }
 
-            lastUploadDuration = Stopwatch.GetTimestamp() - start;
+            return applied;
         }
 
         /// <summary>How long the previous <see cref="UploadPendingTextures"/> took, in <see cref="Stopwatch"/> ticks.</summary>
@@ -336,13 +283,23 @@ namespace ValveResourceFormat.Renderer.Materials
             => !pendingStreams.IsEmpty || !pendingMipUploads.IsEmpty || Interlocked.Read(ref pendingUploadBytes) > 0;
 
         /// <summary>Pumps until every stream has finished, for one-shot consumers that have no frame
-        /// loop to pump later. Must be called on a thread with a GL context.</summary>
+        /// loop to pump later. Runs the pump unbudgeted, since there is no frame to stay inside of, and
+        /// backs off whenever it comes up empty: the reads are still in flight on the thread pool, and
+        /// spinning here only takes cores away from them. Must be called on a thread with a GL context.</summary>
         public void FinishAllStreaming(CancellationToken cancellationToken = default)
         {
+            var backoff = new SpinWait();
+
             while (HasPendingTextureStreams && !cancellationToken.IsCancellationRequested)
             {
-                UploadPendingTextures(frameTime: 1f);
-                Thread.Yield(); // reads may still be in flight on the thread pool with nothing to apply yet
+                if (Pump(deadline: long.MaxValue))
+                {
+                    backoff = new SpinWait();
+                }
+                else
+                {
+                    backoff.SpinOnce();
+                }
             }
         }
 
@@ -369,11 +326,11 @@ namespace ValveResourceFormat.Renderer.Materials
             ThreadPool.UnsafeQueueUserWorkItem(stream, preferLocal: false);
         }
 
-        /// <summary>Data bytes the stream's next read holds of the byte gate: one mip, or in batched mode
-        /// the whole remaining chain. Also the read's unwind amount on failure, so both compute it here.</summary>
+        /// <summary>Data bytes the stream's next read holds of the byte gate: one mip, or the whole
+        /// remaining chain. Also the read's unwind amount on failure, so both compute it here.</summary>
         private int PendingReadBytes(StreamedTexture stream)
         {
-            if (!BatchChainReads)
+            if (!ReadWholeChains)
             {
                 return stream.Mips[stream.NextMip].BufferSize;
             }
@@ -438,12 +395,12 @@ namespace ValveResourceFormat.Renderer.Materials
             }
         }
 
-        /// <summary>Reads a stream's next mip — or in batched mode its whole remaining chain — into one
+        /// <summary>Reads a stream's next mip — or its whole remaining chain — into one
         /// pooled buffer, each mip decoded in place at its own offset, and queues it for the pump.</summary>
         internal void ExecuteRead(StreamedTexture stream)
         {
             var first = stream.NextMip;
-            var count = BatchChainReads ? stream.Mips.Length - first : 1;
+            var count = ReadWholeChains ? stream.Mips.Length - first : 1;
             var gateBytes = PendingReadBytes(stream);
 
             // Owned by this method until the enqueue hands it to the pump; any exit before that returns it
@@ -458,8 +415,7 @@ namespace ValveResourceFormat.Renderer.Materials
                     total += stream.InPlaceSize(stream.Mips[first + i]);
                 }
 
-                // Returned to the pool by the upload pump once the data is handed to the driver. Sized
-                // for in-place LZ4 decompression, so the reads need no second scratch buffer.
+                // Returned to the pool by the upload pump once the data is handed to the driver
                 buffer = ArrayPool<byte>.Shared.Rent(total);
 
                 var offset = 0;

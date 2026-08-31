@@ -974,7 +974,7 @@ namespace ValveResourceFormat.ResourceTypes
 
             try
             {
-                ReadLz4Mip(buf.AsSpan(0, compressedSize), output);
+                DecompressLz4Mip(buf.AsSpan(0, compressedSize), output);
             }
             finally
             {
@@ -982,8 +982,7 @@ namespace ValveResourceFormat.ResourceTypes
             }
         }
 
-        /// <summary>Reads a mip's LZ4 compressed bytes into <paramref name="source"/> and decompresses them into <paramref name="output"/>.</summary>
-        private void ReadLz4Mip(Span<byte> source, Span<byte> output)
+        private void DecompressLz4Mip(Span<byte> source, Span<byte> output)
         {
             Debug.Assert(Reader is not null);
 
@@ -1069,8 +1068,8 @@ namespace ValveResourceFormat.ResourceTypes
         }
 
         /// <summary>
-        /// Buffer size needed by <see cref="ReadTextureMipLevelInPlace"/>: the mip's data size plus, for
-        /// LZ4 compressed mips, the in-place decompression margin.
+        /// How big a buffer <see cref="ReadTextureMipLevelInPlace"/> needs for a mip: the decoded mip size,
+        /// plus room for an LZ4 mip to be decompressed over its own compressed bytes.
         /// </summary>
         /// <param name="mipLevel">Mip level for which to read texture data.</param>
         public int CalculateInPlaceDecompressionBufferSize(uint mipLevel)
@@ -1079,6 +1078,7 @@ namespace ValveResourceFormat.ResourceTypes
 
             if (IsActuallyCompressedMips && CompressedMips != null && CompressedMips[mipLevel] < uncompressedSize)
             {
+                // LZ4_DECOMPRESS_INPLACE_MARGIN from lz4.h
                 return uncompressedSize + (CompressedMips[mipLevel] >> 8) + 32;
             }
 
@@ -1087,9 +1087,7 @@ namespace ValveResourceFormat.ResourceTypes
 
         /// <summary>
         /// Read single mip level of texture into the front of <paramref name="buffer"/>. LZ4 compressed
-        /// mips are read into the buffer's tail and decompressed in place — the LZ4 format guarantees the
-        /// write cursor never catches the read cursor when the source sits at the end of the buffer with
-        /// (compressedSize / 256) + 32 bytes of margin — so no scratch buffer is needed.
+        /// mips are read into the buffer's tail and decompressed in place, so no scratch buffer is needed.
         /// </summary>
         /// <param name="buffer">Buffer that will receive texture data. Must be at least <see cref="CalculateInPlaceDecompressionBufferSize"/> bytes.</param>
         /// <param name="mipLevel">Mip level for which to read texture data.</param>
@@ -1118,7 +1116,7 @@ namespace ValveResourceFormat.ResourceTypes
             SkipMipmaps(mipLevel);
 
             var compressedSize = CompressedMips![mipLevel];
-            ReadLz4Mip(buffer.Slice(requiredSize - compressedSize, compressedSize), buffer[..uncompressedSize]);
+            DecompressLz4Mip(buffer.Slice(requiredSize - compressedSize, compressedSize), buffer[..uncompressedSize]);
         }
 
         private int CalculateJpegSize()
