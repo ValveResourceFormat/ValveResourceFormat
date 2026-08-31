@@ -9,7 +9,7 @@ namespace ValveResourceFormat.CompiledShader;
 public class VfxShaderFileDXBC : VfxShaderFile
 {
     /// <inheritdoc/>
-    public override string BlockName => "DXBC";
+    public override string SourceType => "DXBC";
 
     /// <summary>
     /// Initializes a new instance from a binary reader.

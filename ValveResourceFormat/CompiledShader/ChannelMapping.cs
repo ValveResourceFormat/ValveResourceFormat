@@ -127,12 +127,6 @@ namespace ValveResourceFormat.CompiledShader
             => channelMapping.Channels[0];
 
         /// <summary>
-        /// Returns the first mapped channel component.
-        /// </summary>
-        public static byte ToComponent(ChannelMapping channelMapping)
-            => channelMapping.Channels[0];
-
-        /// <summary>
         /// Creates a <see cref="ChannelMapping"/> from channel bytes, filling missing slots with <see cref="Channel.NULL"/>.
         /// Each channel is written to the output channel of the same position.
         /// </summary>

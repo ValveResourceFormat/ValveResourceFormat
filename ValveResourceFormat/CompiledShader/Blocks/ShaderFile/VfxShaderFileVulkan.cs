@@ -11,7 +11,7 @@ namespace ValveResourceFormat.CompiledShader;
 public class VfxShaderFileVulkan : VfxShaderFile
 {
     /// <inheritdoc/>
-    public override string BlockName => "VULKAN";
+    public override string SourceType => "VULKAN";
     /// <summary>Gets the shader file version.</summary>
     public int Version { get; private set; }
     /// <summary>Gets the size of the bytecode.</summary>
@@ -245,8 +245,8 @@ public class VfxShaderFileVulkan : VfxShaderFile
     }
 
     /// <summary>
-    /// Gets the Direct3D vertex semantic the vertex layout assigns to a shader input location,
-    /// or <see langword="false"/> when this shader has no attribute map or does not use that location.
+    /// Gets the Direct3D vertex semantic the vertex layout assigns to a shader input location.
+    /// Returns <see langword="false"/> when this shader has no attribute map or does not use that location.
     /// </summary>
     /// <param name="location">The SPIR-V input location.</param>
     /// <param name="semanticName">The Direct3D semantic name, e.g. <c>TEXCOORD</c>.</param>

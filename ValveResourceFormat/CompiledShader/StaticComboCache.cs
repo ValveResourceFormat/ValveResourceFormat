@@ -3,32 +3,32 @@ namespace ValveResourceFormat.CompiledShader
     /// <summary>
     /// Size-limited cache for shader static combo data, evicting entries in insertion order (FIFO).
     /// </summary>
-    public sealed class StaticCache : IDisposable
+    public sealed class StaticComboCache : IDisposable
     {
         private readonly VfxProgramData Program;
         private readonly Dictionary<long, VfxStaticComboData> cache = [];
-        private readonly LinkedList<long> lru = new();
+        private readonly LinkedList<long> insertionOrder = new();
         private int maxCacheSize = 1;
 
         /// <summary>
         /// Gets or sets the maximum number of cached static combos.
         /// </summary>
-        public int MaxCachedFrames
+        public int MaxCachedCombos
         {
             get => maxCacheSize;
             set
             {
                 maxCacheSize = Math.Max(value, 1);
                 cache.EnsureCapacity(maxCacheSize);
-                TrimLRU();
+                Trim();
             }
         }
 
         /// <summary>
-        ///  A ZFrame file cache with a set maximum size, trimmed in insertion order (FIFO).
+        /// A static combo cache with a set maximum size, trimmed in insertion order (FIFO).
         /// </summary>
-        /// <param name="program">Shader file to read zframes from. This reference will be used as a reading lock.</param>
-        public StaticCache(VfxProgramData program)
+        /// <param name="program">Program to read static combos from. This reference will be used as a reading lock.</param>
+        public StaticComboCache(VfxProgramData program)
         {
             Program = program;
         }
@@ -48,28 +48,28 @@ namespace ValveResourceFormat.CompiledShader
                 staticCombo = Program.GetStaticCombo(staticComboId);
                 cache.Add(staticComboId, staticCombo);
 
-                lru.AddLast(staticComboId);
-                TrimLRU();
+                insertionOrder.AddLast(staticComboId);
+                Trim();
 
                 return staticCombo;
             }
         }
 
         /// <summary>
-        /// Ensures the cache has at least the specified capacity.
+        /// Raises <see cref="MaxCachedCombos"/> to at least the given size, so that many combos stay cached.
         /// </summary>
-        public void EnsureCapacity(int capacity)
+        public void EnsureMinimumCacheSize(int size)
         {
-            MaxCachedFrames = Math.Max(capacity, MaxCachedFrames);
+            MaxCachedCombos = Math.Max(size, MaxCachedCombos);
         }
 
-        private void TrimLRU()
+        private void Trim()
         {
             var didTrim = false;
-            while (lru.Count > maxCacheSize)
+            while (insertionOrder.Count > maxCacheSize)
             {
-                var staticComboId = lru.First!.Value;
-                lru.RemoveFirst();
+                var staticComboId = insertionOrder.First!.Value;
+                insertionOrder.RemoveFirst();
                 cache[staticComboId].Dispose();
                 didTrim = cache.Remove(staticComboId) || didTrim;
             }
@@ -85,9 +85,9 @@ namespace ValveResourceFormat.CompiledShader
         /// </summary>
         public void Dispose()
         {
-            foreach (var zFrame in cache.Values)
+            foreach (var staticCombo in cache.Values)
             {
-                zFrame.Dispose();
+                staticCombo.Dispose();
             }
         }
     }

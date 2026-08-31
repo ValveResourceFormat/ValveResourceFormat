@@ -9,8 +9,8 @@ public abstract class VfxShaderFile : ShaderDataBlock
 {
     /// <summary>Gets the parent static combo data.</summary>
     public VfxStaticComboData ParentCombo { get; }
-    /// <summary>Gets the shader platform name.</summary>
-    public abstract string BlockName { get; }
+    /// <summary>Gets the shader source format name.</summary>
+    public abstract string SourceType { get; }
     /// <summary>Gets the shader file identifier.</summary>
     public int ShaderFileId { get; }
     /// <summary>Gets or sets the shader data size. Depending on the platform this may include header data in addition to the bytecode.</summary>

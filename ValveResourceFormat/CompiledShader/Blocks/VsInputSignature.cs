@@ -7,50 +7,50 @@ using static ValveResourceFormat.ResourceTypes.Material;
 namespace ValveResourceFormat.CompiledShader;
 
 /// <summary>
-/// Vertex shader input signature definitions.
+/// Vertex shader input signature.
 /// </summary>
 /// <seealso href="https://s2v.app/SchemaExplorer/cs2/modellib/VsInputSignatureElement_t">VsInputSignatureElement_t</seealso>
-public class VsInputSignatureElement : ShaderDataBlock
+public class VsInputSignature : ShaderDataBlock
 {
-    /// <summary>Gets the block index.</summary>
-    public int BlockIndex { get; }
+    /// <summary>Gets the index in the owning array.</summary>
+    public int Index { get; }
     /// <summary>Gets the array of input signature elements.</summary>
-    public InputSignatureElement[] SymbolsDefinition { get; } = [];
+    public InputSignatureElement[] Elements { get; } = [];
 
     /// <summary>
     /// Initializes a new instance from <see cref="KVObject"/> data.
     /// </summary>
-    public VsInputSignatureElement(KVObject data, int blockIndex) : base()
+    public VsInputSignature(KVObject data, int index) : base()
     {
-        BlockIndex = blockIndex;
+        Index = index;
 
         Debug.Assert(data.IsArray);
-        SymbolsDefinition = new InputSignatureElement[data.Count];
+        Elements = new InputSignatureElement[data.Count];
 
         for (var i = 0; i < data.Count; i++)
         {
             var definition = data[i];
-            SymbolsDefinition[i] = new(definition);
+            Elements[i] = new(definition);
         }
     }
 
     /// <summary>
     /// Initializes a new instance from a binary reader.
     /// </summary>
-    public VsInputSignatureElement(BinaryReader datareader, int blockIndex) : base(datareader)
+    public VsInputSignature(BinaryReader datareader, int index) : base(datareader)
     {
         // VfxUnserializeVsInputSignature
-        BlockIndex = blockIndex;
+        Index = index;
 
-        var symbolsCount = datareader.ReadInt32();
-        SymbolsDefinition = new InputSignatureElement[symbolsCount];
-        for (var i = 0; i < symbolsCount; i++)
+        var elementCount = datareader.ReadInt32();
+        Elements = new InputSignatureElement[elementCount];
+        for (var i = 0; i < elementCount; i++)
         {
             var name = datareader.ReadNullTermString(Encoding.UTF8);
             var d3dSemantic = datareader.ReadNullTermString(Encoding.UTF8);
             var semantic = datareader.ReadNullTermString(Encoding.UTF8);
             var d3dSemanticIndex = datareader.ReadInt32();
-            SymbolsDefinition[i] = new(name, semantic, d3dSemantic, d3dSemanticIndex);
+            Elements[i] = new(name, semantic, d3dSemantic, d3dSemanticIndex);
         }
     }
 }

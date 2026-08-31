@@ -811,9 +811,9 @@ namespace CLI
                 {
                     shader.PrintSummary(output);
 
-                    foreach (var zframe in shader.StaticComboEntries)
+                    foreach (var staticComboEntry in shader.StaticComboEntries)
                     {
-                        zframe.Value.Unserialize();
+                        staticComboEntry.Value.Unserialize();
                     }
 
                     // Shader resources already store stats

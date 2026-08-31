@@ -27,17 +27,17 @@ namespace ValveResourceFormat.CompiledShader
             }
             else
             {
-                PrintPsVsHeader(program);
+                PrintProgramHeader(program);
             }
             PrintCombos(program.StaticComboArray, "STATIC COMBOS", featureCombos);
             PrintComboRules(program, program.StaticComboRules, "STATIC COMBOS");
             PrintCombos(program.DynamicComboArray, "DYNAMIC COMBOS", featureCombos);
             PrintComboRules(program, program.DynamicComboRules, "DYNAMIC COMBOS");
-            PrintParameters(program);
-            PrintChannelBlocks(program);
-            PrintBufferBlocks(program);
-            PrintVertexSymbolBuffers(program);
-            PrintZFrames(program);
+            PrintVariableDescriptions(program);
+            PrintTextureChannelProcessors(program);
+            PrintConstantBuffers(program);
+            PrintVsInputSignatures(program);
+            PrintStaticCombos(program);
         }
 
         private void PrintFeaturesHeader(VfxProgramData program)
@@ -65,7 +65,7 @@ namespace ValveResourceFormat.CompiledShader
             output.WriteLine($"{nameof(program.VariableSourceMax)} = {program.VariableSourceMax}");
             output.BreakLine();
             output.WriteLine("Editor/Shader compiler stack");
-            foreach (var v in program.HashesMD5)
+            foreach (var v in program.ProgramHashes)
             {
                 output.WriteLine($"MD5    {v}");
             }
@@ -88,14 +88,14 @@ namespace ValveResourceFormat.CompiledShader
             output.AddTabulatedRow(["----", "----", "----", "----"]);
             foreach (var mode in ftHeader.Modes)
             {
-                var staticName = mode.StaticConfig.Length == 0 ? "(default)" : mode.StaticConfig;
-                output.AddTabulatedRow([mode.Name, mode.Shader, staticName, BlankNegOne(mode.Value)]);
+                var staticName = mode.StaticComboName.Length == 0 ? "(default)" : mode.StaticComboName;
+                output.AddTabulatedRow([mode.Name, mode.ShaderFallback, staticName, BlankNegOne(mode.StaticComboValue)]);
             }
             output.PrintTabulatedValues();
             output.BreakLine();
         }
 
-        private void PrintPsVsHeader(VfxProgramData program)
+        private void PrintProgramHeader(VfxProgramData program)
         {
             output.WriteLine($"Valve Compiled Shader 2 (vcs2), version {program.VcsVersion}");
             output.BreakLine();
@@ -104,16 +104,16 @@ namespace ValveResourceFormat.CompiledShader
             output.WriteLine("Editor/Shader compiler stack");
             if (program.Resource is null)
             {
-                output.WriteLine($"MD5    {program.HashesMD5[0]}    // {program.VcsProgramType}");
+                output.WriteLine($"MD5    {program.ProgramHashes[0]}    // {program.VcsProgramType}");
             }
             else
             {
-                foreach (var hash in program.HashesMD5)
+                foreach (var hash in program.ProgramHashes)
                 {
                     output.WriteLine($"MD5    {hash}");
                 }
             }
-            output.WriteLine($"MD5    {program.FileHash}    // Common editor/compiler hash shared by multiple different vcs files.");
+            output.WriteLine($"MD5    {program.VariableDescriptionVersionHash}    // Common editor/compiler hash shared by multiple different vcs files.");
             output.WriteLine($"{nameof(program.VariableSourceMax)} = {program.VariableSourceMax}");
             output.BreakLine();
         }
@@ -125,11 +125,11 @@ namespace ValveResourceFormat.CompiledShader
                 return;
             }
             output.WriteLine($"{comboDesc}({combos.Length})");
-            output.DefineHeaders([nameof(VfxCombo.BlockIndex), nameof(VfxCombo.Name), nameof(VfxCombo.RangeMin), nameof(VfxCombo.RangeMax), nameof(VfxCombo.ComboSourceType), nameof(VfxCombo.FeatureIndex), nameof(VfxCombo.ComboType), nameof(VfxCombo.Strings)]);
+            output.DefineHeaders([nameof(VfxCombo.Index), nameof(VfxCombo.Name), nameof(VfxCombo.RangeMin), nameof(VfxCombo.RangeMax), nameof(VfxCombo.ComboSourceType), nameof(VfxCombo.FeatureIndex), nameof(VfxCombo.ComboType), nameof(VfxCombo.StateNames)]);
             foreach (var item in combos)
             {
-                var checkboxNames = item.Strings.Length > 0
-                    ? string.Join(", ", item.Strings.Select(static (x, i) => $"{i}=\"{x}\""))
+                var checkboxNames = item.StateNames.Length > 0
+                    ? string.Join(", ", item.StateNames.Select(static (x, i) => $"{i}=\"{x}\""))
                     : string.Empty;
                 var comboSourceType = item.ComboType == VfxComboType.Dynamic ? ((VfxDynamicComboSourceType)item.ComboSourceType).ToString() : ((VfxStaticComboSourceType)item.ComboSourceType).ToString();
                 var featureIndex = $"{item.FeatureIndex,2}";
@@ -139,7 +139,7 @@ namespace ValveResourceFormat.CompiledShader
                     var feature = featureCombos[item.FeatureIndex];
                     featureIndex += $" ({feature.Name} {feature.RangeMin}..{feature.RangeMax})";
                 }
-                output.AddTabulatedRow([$"[{item.BlockIndex,2}]", $"{item.Name}", $"{item.RangeMin}", $"{item.RangeMax}", $"{comboSourceType}", featureIndex, $"{item.ComboType}", checkboxNames]);
+                output.AddTabulatedRow([$"[{item.Index,2}]", $"{item.Name}", $"{item.RangeMin}", $"{item.RangeMax}", $"{comboSourceType}", featureIndex, $"{item.ComboType}", checkboxNames]);
             }
             output.PrintTabulatedValues();
             output.BreakLine();
@@ -156,30 +156,30 @@ namespace ValveResourceFormat.CompiledShader
 
             foreach (var vfxRule in vfxRules)
             {
-                var maxConstrains = Array.IndexOf(vfxRule.Indices, -1);
+                var argCount = Array.IndexOf(vfxRule.ArgIndices, -1);
 
-                var ruleName = new string[maxConstrains];
+                var ruleName = new string[argCount];
                 for (var i = 0; i < ruleName.Length; i++)
                 {
-                    ruleName[i] = vfxRule.ConditionalTypes[i] switch
+                    ruleName[i] = vfxRule.ArgTypes[i] switch
                     {
                         VfxRuleType.Unknown => string.Empty,
-                        VfxRuleType.Dynamic => program.DynamicComboArray[vfxRule.Indices[i]].Name,
-                        VfxRuleType.Static => program.StaticComboArray[vfxRule.Indices[i]].Name,
+                        VfxRuleType.Dynamic => program.DynamicComboArray[vfxRule.ArgIndices[i]].Name,
+                        VfxRuleType.Static => program.StaticComboArray[vfxRule.ArgIndices[i]].Name,
                         VfxRuleType.Feature => program.VcsProgramType == VcsProgramType.Features
-                            ? program.StaticComboArray[vfxRule.Indices[i]].Name
-                            : $"FEAT[{vfxRule.Indices[i]}]",
-                        _ => throw new ShaderParserException($"Unknown {nameof(VfxRuleType)} {vfxRule.ConditionalTypes[i]}")
+                            ? program.StaticComboArray[vfxRule.ArgIndices[i]].Name
+                            : $"FEAT[{vfxRule.ArgIndices[i]}]",
+                        _ => throw new ShaderParserException($"Unknown {nameof(VfxRuleType)} {vfxRule.ArgTypes[i]}")
                     };
                 }
                 const int BL = 70;
                 var breakNames = CombineValuesBreakString(ruleName, BL);
-                var s0 = $"[{vfxRule.BlockIndex,2}]";
-                var s4 = $"{breakNames[0]}";
-                var s5 = $"{vfxRule.Rule}{vfxRule.ExtraRuleData[0]}";
-                var s6 = $"{CombineIntArray(vfxRule.Values[..maxConstrains])}";
-                var s7 = $"{CombineIntArray(vfxRule.ExtraRuleData[..maxConstrains])}";
-                output.WriteLine($"{s0}  {s5,-10}  {s4,-BL}{s6,-10}{s7,-8}");
+                var indexText = $"[{vfxRule.Index,2}]";
+                var namesText = $"{breakNames[0]}";
+                var methodText = $"{vfxRule.RuleMethod}{vfxRule.ExtraRuleData[0]}";
+                var valuesText = $"{CombineIntArray(vfxRule.ArgValues[..argCount])}";
+                var extraDataText = $"{CombineIntArray(vfxRule.ExtraRuleData[..argCount])}";
+                output.WriteLine($"{indexText}  {methodText,-10}  {namesText,-BL}{valuesText,-10}{extraDataText,-8}");
                 for (var i = 1; i < breakNames.Length; i++)
                 {
                     output.WriteLine($"{"",-7}{"",-10}{"",-15}{"",-16}{breakNames[i],-BL}");
@@ -188,7 +188,7 @@ namespace ValveResourceFormat.CompiledShader
             output.BreakLine();
         }
 
-        private void PrintParameters(VfxProgramData program)
+        private void PrintVariableDescriptions(VfxProgramData program)
         {
             if (program.VariableDescriptions.Length == 0)
             {
@@ -207,41 +207,41 @@ namespace ValveResourceFormat.CompiledShader
                 nameof(VfxVariableDescription.ContextStateAffectedByVariable),
                 nameof(VfxVariableDescription.MinPrecisionBits),
                 nameof(VfxVariableDescription.RegisterElements),
-                nameof(VfxVariableDescription.ExtConstantBufferId),
+                nameof(VfxVariableDescription.TypeSpecificBits),
                 nameof(VfxVariableDescription.VariableSource),
-                nameof(VfxVariableDescription.StringData),
+                nameof(VfxVariableDescription.SourceString),
                 nameof(VfxVariableDescription.RegisterType),
                 nameof(VfxVariableDescription.UiType),
                 nameof(VfxVariableDescription.UiGroup),
                 "command 0|1",
                 nameof(VfxVariableDescription.DefaultInputTexture),
-                nameof(VfxVariableDescription.UiVisibilityExp)]);
+                nameof(VfxVariableDescription.UiVisibilityExpression)]);
 
             foreach (var param in program.VariableDescriptions)
             {
-                var uiVisibilityExists = param.UiVisibilityExp.Length > 0 ? "true" : string.Empty;
+                var uiVisibilityExists = param.UiVisibilityExpression.Length > 0 ? "true" : string.Empty;
 
                 if (param.HasDynamicExpression || uiVisibilityExists.Length > 0)
                 {
                     dynExpCount++;
                 }
 
-                var c0 = param.ImageSuffix;
-                var c1 = param.ImageProcessor;
+                var c0 = param.TextureFileEnding;
+                var c1 = param.InputProcessingCommand;
                 if (c1.Length > 0)
                 {
                     c0 += $" | {c1}";
                 }
-                output.AddTabulatedRow([$"[{("" + param.BlockIndex).PadLeft(indexPad)}]",
+                output.AddTabulatedRow([$"[{("" + param.Index).PadLeft(indexPad)}]",
                     param.Name,
                     $"{param.VfxType}",
                     $"{BlankNegOne(param.SourceIndex),2}",
                     param.ContextStateAffectedByVariable.ToString(CultureInfo.InvariantCulture),
                     $"{BlankNegOne(param.MinPrecisionBits),2}",
                     $"{param.RegisterElements,2}",
-                    param.ExtConstantBufferId.ToString(CultureInfo.InvariantCulture),
+                    param.TypeSpecificBits.ToString(CultureInfo.InvariantCulture),
                     $"{param.VariableSource}",
-                    param.StringData,
+                    param.SourceString,
                     $"{param.RegisterType}",
                     param.UiType.ToString(),
                     param.UiGroup.CompactString,
@@ -262,11 +262,11 @@ namespace ValveResourceFormat.CompiledShader
                 nameof(VfxVariableDescription.FloatDefs),
                 nameof(VfxVariableDescription.FloatMins),
                 nameof(VfxVariableDescription.FloatMaxs),
-                nameof(VfxVariableDescription.ChannelIndices),
-                nameof(VfxVariableDescription.ImageFormat),
-                nameof(VfxVariableDescription.ImageSuffix),
+                nameof(VfxVariableDescription.ChannelInfoIndices),
+                nameof(VfxVariableDescription.OutputTextureFormat),
+                nameof(VfxVariableDescription.TextureFileEnding),
                 nameof(VfxVariableDescription.DefaultInputTexture),
-                nameof(VfxVariableDescription.DynExp),
+                nameof(VfxVariableDescription.CompiledExpression),
                 nameof(VfxVariableDescription.LayerId),
                 nameof(VfxVariableDescription.AllowLayerOverride),
                 nameof(VfxVariableDescription.MaxRes),
@@ -275,7 +275,7 @@ namespace ValveResourceFormat.CompiledShader
             {
                 var vfxType = GetVfxVariableTypeString(param.VfxType);
                 var hasDynExp = param.HasDynamicExpression ? "true" : "";
-                output.AddTabulatedRow([$"[{("" + param.BlockIndex).PadLeft(indexPad)}]",
+                output.AddTabulatedRow([$"[{("" + param.Index).PadLeft(indexPad)}]",
                     $"{param.Name}",
                     $"{Comb(param.IntDefs)}",
                     $"{Comb(param.IntMins)}",
@@ -283,9 +283,9 @@ namespace ValveResourceFormat.CompiledShader
                     $"{Comb(param.FloatDefs)}",
                     $"{Comb(param.FloatMins)}",
                     $"{Comb(param.FloatMaxs)}",
-                    $"{Comb(param.ChannelIndices)}",
-                    $"{param.ImageFormat}",
-                    param.ImageSuffix,
+                    $"{Comb(param.ChannelInfoIndices)}",
+                    $"{param.OutputTextureFormat}",
+                    param.TextureFileEnding,
                     param.DefaultInputTexture,
                     $"{hasDynExp}",
                     $"{param.LayerId}",
@@ -307,12 +307,12 @@ namespace ValveResourceFormat.CompiledShader
 
                     if (param.HasDynamicExpression)
                     {
-                        dynExpstring = ParseDynamicExpression(param.DynExp);
+                        dynExpstring = ParseDynamicExpression(param.CompiledExpression);
                     }
 
-                    if (param.UiVisibilityExp.Length > 0)
+                    if (param.UiVisibilityExpression.Length > 0)
                     {
-                        uiVisibilityString = ParseDynamicExpression(param.UiVisibilityExp);
+                        uiVisibilityString = ParseDynamicExpression(param.UiVisibilityExpression);
                     }
 
                     if (dynExpstring.Length == 0 && uiVisibilityString.Length == 0 && param.VariableSource < VfxVariableSourceType.Viewport)
@@ -320,7 +320,7 @@ namespace ValveResourceFormat.CompiledShader
                         continue;
                     }
 
-                    output.AddTabulatedRow([$"[{("" + param.BlockIndex).PadLeft(indexPad)}]",
+                    output.AddTabulatedRow([$"[{("" + param.Index).PadLeft(indexPad)}]",
                         $"{param.Name}",
                         $"{GetVfxVariableTypeString(param.VfxType)},{param.RegisterType,2},{param.RegisterElements,2},{BlankNegOne(param.SourceIndex),2}",
                         $"{param.VariableSource,2}",
@@ -332,12 +332,12 @@ namespace ValveResourceFormat.CompiledShader
             }
         }
 
-        private void PrintChannelBlocks(VfxProgramData program)
+        private void PrintTextureChannelProcessors(VfxProgramData program)
         {
             output.WriteLine($"TEXTURE CHANNEL PROCESSORS({program.TextureChannelProcessors.Length})");
             if (program.TextureChannelProcessors.Length > 0)
             {
-                output.DefineHeaders(["index", "name", nameof(VfxTextureChannelProcessor.Channel), "inputs", nameof(VfxTextureChannelProcessor.ColorMode)]);
+                output.DefineHeaders(["index", "name", nameof(VfxTextureChannelProcessor.Channel), "inputs", nameof(VfxTextureChannelProcessor.OutputColorSpace)]);
             }
             else
             {
@@ -350,17 +350,17 @@ namespace ValveResourceFormat.CompiledShader
                 var channelRemap = destinations.Where((destination, i) => destination != i).Any()
                     ? $" [{string.Join(", ", destinations)}]"
                     : string.Empty;
-                output.AddTabulatedRow([$"[{channelBlock.BlockIndex,2}]",
-                    $"{channelBlock.TexProcessorName}",
+                output.AddTabulatedRow([$"[{channelBlock.Index,2}]",
+                    $"{channelBlock.MipProcessingCommand}",
                     channelBlock.Channel.ToString() + channelRemap,
                     string.Join(" ", channelBlock.InputTextureIndices),
-                    $"{channelBlock.ColorMode,2}"]);
+                    $"{channelBlock.OutputColorSpace,2}"]);
             }
             output.PrintTabulatedValues();
             output.BreakLine();
         }
 
-        private void PrintBufferBlocks(VfxProgramData program)
+        private void PrintConstantBuffers(VfxProgramData program)
         {
             if (program.ExtConstantBufferDescriptions.Length == 0)
             {
@@ -371,7 +371,7 @@ namespace ValveResourceFormat.CompiledShader
             }
             foreach (var bufferBlock in program.ExtConstantBufferDescriptions)
             {
-                output.WriteLine($"CONSTANT BUFFERS[{bufferBlock.BlockIndex}]");
+                output.WriteLine($"CONSTANT BUFFERS[{bufferBlock.Index}]");
                 // valve splits bufferBlock.BufferSize into 0x7FFF and checks whether its negative
                 output.WriteLine($"{bufferBlock.Name} size={bufferBlock.BufferSize} ({bufferBlock.BufferSize & 0x7FFF}) param-count={bufferBlock.Variables.Length}" +
                     $" arg0={bufferBlock.Type} crc32={bufferBlock.BlockCrc:x08}");
@@ -391,9 +391,9 @@ namespace ValveResourceFormat.CompiledShader
             }
         }
 
-        private void PrintVertexSymbolBuffers(VfxProgramData program)
+        private void PrintVsInputSignatures(VfxProgramData program)
         {
-            if (program.VSInputSignatures.Length == 0)
+            if (program.VsInputSignatures.Length == 0)
             {
                 output.WriteLine("VERTEX INPUT SIGNATURES(0)");
                 output.WriteLine("[none defined]");
@@ -404,30 +404,30 @@ namespace ValveResourceFormat.CompiledShader
             var namePad = 0;
             var typePad = 0;
             var optionPad = 0;
-            foreach (var symbolBlock in program.VSInputSignatures)
+            foreach (var inputSignature in program.VsInputSignatures)
             {
-                foreach (var symbolsDef in symbolBlock.SymbolsDefinition)
+                foreach (var element in inputSignature.Elements)
                 {
-                    namePad = Math.Max(namePad, symbolsDef.Name.Length);
-                    typePad = Math.Max(namePad, symbolsDef.Semantic.Length);
-                    optionPad = Math.Max(namePad, symbolsDef.D3DSemanticName.Length);
+                    namePad = Math.Max(namePad, element.Name.Length);
+                    typePad = Math.Max(namePad, element.Semantic.Length);
+                    optionPad = Math.Max(namePad, element.D3DSemanticName.Length);
                 }
             }
-            foreach (var symbolBlock in program.VSInputSignatures)
+            foreach (var inputSignature in program.VsInputSignatures)
             {
-                output.WriteLine($"VERTEX INPUT SIGNATURES[{symbolBlock.BlockIndex}] definitions={symbolBlock.SymbolsDefinition.Length}");
+                output.WriteLine($"VERTEX INPUT SIGNATURES[{inputSignature.Index}] definitions={inputSignature.Elements.Length}");
                 output.DefineHeaders(["       ",
                     "Name".PadRight(namePad),
                     "Semantic".PadRight(typePad),
                     "SemanticName".PadRight(optionPad),
                     "Index"]);
-                foreach (var symbolsDef in symbolBlock.SymbolsDefinition)
+                foreach (var element in inputSignature.Elements)
                 {
                     output.AddTabulatedRow(["",
-                        $"{symbolsDef.Name}",
-                        $"{symbolsDef.Semantic}",
-                        $"{symbolsDef.D3DSemanticName}",
-                        $"{symbolsDef.D3DSemanticIndex,2}"]);
+                        $"{element.Name}",
+                        $"{element.Semantic}",
+                        $"{element.D3DSemanticName}",
+                        $"{element.D3DSemanticIndex,2}"]);
                 }
                 output.PrintTabulatedValues();
                 output.BreakLine();
@@ -435,36 +435,36 @@ namespace ValveResourceFormat.CompiledShader
             output.BreakLine();
         }
 
-        private void PrintZFrames(VfxProgramData program)
+        private void PrintStaticCombos(VfxProgramData program)
         {
-            var zframesHeader = $"STATIC COMBOS({program.StaticComboEntries.Count})";
-            output.WriteLine(zframesHeader);
+            var staticCombosHeader = $"STATIC COMBOS({program.StaticComboEntries.Count})";
+            output.WriteLine(staticCombosHeader);
             if (program.StaticComboEntries.Count == 0)
             {
                 var infoText = "";
                 if (program.VcsProgramType == VcsProgramType.Features)
                 {
-                    infoText = "(Features files in general don't contain zframes)";
+                    infoText = "(Features files in general don't contain static combos)";
                 }
                 output.WriteLine($"[none defined] {infoText}");
                 output.BreakLine();
                 return;
             }
-            // print the config headers every 100 frames
-            var zframeCount = 0;
+            // print the config headers every 100 static combos
+            var staticComboCount = 0;
             // prepare the lookup to determine configuration state
-            ConfigMappingParams configGen = new(program);
+            ComboConfigMapping configMapping = new(program);
             // collect names in the order they appear
-            List<string> sfNames = [];
+            List<string> comboNames = [];
             List<string> abbreviations = [];
-            foreach (var sfBlock in program.StaticComboArray)
+            foreach (var staticCombo in program.StaticComboArray)
             {
-                var sfShortName = ShortenShaderParam(sfBlock.Name).ToLowerInvariant();
-                abbreviations.Add($"{sfBlock.Name}({sfShortName})");
-                sfNames.Add(sfShortName);
+                var shortName = ShortenShaderParam(staticCombo.Name).ToLowerInvariant();
+                abbreviations.Add($"{staticCombo.Name}({shortName})");
+                comboNames.Add(shortName);
             }
-            var breakabbreviations = CombineValuesBreakString([.. abbreviations], 120);
-            foreach (var abbr in breakabbreviations)
+            var abbreviationLines = CombineValuesBreakString([.. abbreviations], 120);
+            foreach (var abbr in abbreviationLines)
             {
                 output.WriteLine(abbr);
             }
@@ -473,17 +473,17 @@ namespace ValveResourceFormat.CompiledShader
                 output.BreakLine();
             }
 
-            var configHeader = CombineStringsSpaceSep([.. sfNames], 6);
+            var configHeader = CombineStringsSpaceSep([.. comboNames], 6);
             configHeader = $"{new string(' ', 16)}{configHeader}";
-            foreach (var zframeDesc in program.StaticComboEntries)
+            foreach (var staticComboEntry in program.StaticComboEntries)
             {
-                if (zframeCount % 100 == 0 && configHeader.Trim().Length > 0)
+                if (staticComboCount % 100 == 0 && configHeader.Trim().Length > 0)
                 {
                     output.WriteLine($"{configHeader}");
                 }
-                var configState = configGen.GetConfigState(zframeDesc.Key);
-                output.WriteLine($"  Z[{zframeDesc.Key:x08}] {CombineIntsSpaceSep(configState, 6)}");
-                zframeCount++;
+                var configState = configMapping.GetConfigState(staticComboEntry.Key);
+                output.WriteLine($"  Z[{staticComboEntry.Key:x08}] {CombineIntsSpaceSep(configState, 6)}");
+                staticComboCount++;
             }
         }
 
@@ -496,14 +496,14 @@ namespace ValveResourceFormat.CompiledShader
             return "" + val;
         }
 
-        private static string Comb(int[] ints0)
+        private static string Comb(int[] values)
         {
-            return $"({Fmt(ints0[0])},{Fmt(ints0[1])},{Fmt(ints0[2])},{Fmt(ints0[3])})";
+            return $"({Fmt(values[0])},{Fmt(values[1])},{Fmt(values[2])},{Fmt(values[3])})";
         }
 
-        private static string Comb(float[] floats0)
+        private static string Comb(float[] values)
         {
-            return $"({Fmt(floats0[0])},{Fmt(floats0[1])},{Fmt(floats0[2])},{Fmt(floats0[3])})";
+            return $"({Fmt(values[0])},{Fmt(values[1])},{Fmt(values[2])},{Fmt(values[3])})";
         }
 
         private static string Fmt(float val)

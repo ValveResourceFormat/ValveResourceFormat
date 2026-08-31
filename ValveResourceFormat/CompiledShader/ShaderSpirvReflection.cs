@@ -297,8 +297,8 @@ public static partial class ShaderSpirvReflection
         if (program.StaticComboArray.Length > 0)
         {
             var parts = new List<string>();
-            var configGen = new ConfigMappingParams(program);
-            var state = configGen.GetConfigState(staticCombo.StaticComboId);
+            var configMapping = new ComboConfigMapping(program);
+            var state = configMapping.GetConfigState(staticCombo.StaticComboId);
 
             for (var i = 0; i < state.Length; i++)
             {
@@ -316,13 +316,13 @@ public static partial class ShaderSpirvReflection
             }
         }
 
-        var dynamicComboEntry = Array.Find(staticCombo.DynamicCombos, r => r.ShaderFileId == shaderFile.ShaderFileId);
+        var dynamicComboEntry = Array.Find(staticCombo.DynamicComboRenderStates, r => r.ShaderFileId == shaderFile.ShaderFileId);
         var dynamicComboId = dynamicComboEntry?.DynamicComboId ?? 0;
 
         if (dynamicComboId != 0)
         {
             var parts = new List<string>();
-            var state = program.GetDBlockConfig(dynamicComboId);
+            var state = program.GetDynamicComboConfig(dynamicComboId);
 
             for (var i = 0; i < state.Length; i++)
             {
@@ -352,17 +352,15 @@ public static partial class ShaderSpirvReflection
             return;
         }
 
-        // var leadingWriteSequence = shader.ZFrameCache.Get(zFrameId).DataBlocks[dynamicId];
-
-        // Arrays that are one entry per dynamic combo (such as VShaderInputs) are indexed by the position of the
+        // Arrays that are one entry per dynamic combo (such as VsInputSignatureIndices) are indexed by the position of the
         // combo, which is only the same as its id when no combos were skipped, and never the same as the shader file id.
-        var dynamicComboIndex = Array.FindIndex(staticComboData.DynamicCombos, r => r.ShaderFileId == shaderFile.ShaderFileId);
-        var dynamicComboId = dynamicComboIndex >= 0 ? staticComboData.DynamicCombos[dynamicComboIndex].DynamicComboId : 0;
+        var dynamicComboIndex = Array.FindIndex(staticComboData.DynamicComboRenderStates, r => r.ShaderFileId == shaderFile.ShaderFileId);
+        var dynamicComboId = dynamicComboIndex >= 0 ? staticComboData.DynamicComboRenderStates[dynamicComboIndex].DynamicComboId : 0;
         var writeSequence = staticComboData.DynamicComboVariables[Math.Max(staticComboData.GetDynamicComboIndex(dynamicComboId), 0)];
 
         var bindingConfig = GetBindingConfiguration(program.VcsVersion, program.VcsProgramType);
         var hasBindlessResources =
-            staticComboData.Attributes.FirstOrDefault(a => a.Name0 == "BindlessResources")?.ConstValue is true;
+            staticComboData.Attributes.FirstOrDefault(a => a.Name == "BindlessResources")?.ConstValue is true;
 
         int? bindlessSet = null;
         if (hasBindlessResources)
@@ -388,9 +386,9 @@ public static partial class ShaderSpirvReflection
             ? vulkanSource
             : null;
 
-        if (vertexLayout is not null && dynamicComboIndex >= 0 && dynamicComboIndex < staticComboData.VShaderInputs.Length)
+        if (vertexLayout is not null && dynamicComboIndex >= 0 && dynamicComboIndex < staticComboData.VsInputSignatureIndices.Length)
         {
-            vsInputSignature = program.VSInputSignatures[staticComboData.VShaderInputs[dynamicComboIndex]].SymbolsDefinition;
+            vsInputSignature = program.VsInputSignatures[staticComboData.VsInputSignatureIndices[dynamicComboIndex]].Elements;
         }
 
         // Fallback (set, binding) for the synthesized _Globals_ uniform buffer when VCS has no matching Cbuffer variable:
@@ -695,10 +693,10 @@ public static partial class ShaderSpirvReflection
     public static string GetGlobalBufferMemberName(VfxProgramData program, VfxVariableIndexArray writeSequence,
         int offset)
     {
-        return writeSequence.Globals
+        return writeSequence.Constants
             .Select<VfxVariableIndexData, (VfxVariableIndexData Field, VfxVariableDescription Param)>(f =>
                 (f, program.VariableDescriptions[f.VariableIndex]))
-            .FirstOrDefault(fp => fp.Field.Field2 == offset).Param?.Name ?? string.Empty;
+            .FirstOrDefault(fp => fp.Field.RegisterOffset == offset).Param?.Name ?? string.Empty;
     }
 
     // by offset

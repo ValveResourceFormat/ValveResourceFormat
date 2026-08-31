@@ -8,7 +8,7 @@ namespace ValveResourceFormat.CompiledShader;
 public class VfxShaderFileDXIL : VfxShaderFile
 {
     /// <inheritdoc/>
-    public override string BlockName => "DXIL";
+    public override string SourceType => "DXIL";
     /// <summary>Gets the first argument (always 3).</summary>
     public int Arg0 { get; }
     /// <summary>Gets the second argument (always 0xFFFF or 0xFFFE).</summary>

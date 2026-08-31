@@ -6,7 +6,7 @@ using ValveKeyValue;
 namespace ValveResourceFormat.CompiledShader;
 
 /// <summary>
-/// Entry point for a static combo in a VCS file.
+/// Directory entry for a static combo, holding what is needed to locate and lazily unserialize it.
 /// </summary>
 public class VfxStaticComboVcsEntry
 {
@@ -24,21 +24,21 @@ public class VfxStaticComboVcsEntry
     /// </summary>
     public record ResourceEntry(KVObject ComboData, VfxShaderAttribute[] AllAttributes, IReadOnlyList<KVObject> ByteCodeDescArray);
 
-    /// <summary>Gets the KeyValues entry.</summary>
-    public ResourceEntry? KVEntry { get; init; }
+    /// <summary>Gets the entry data of KeyValues-based files.</summary>
+    public ResourceEntry? ResourceData { get; init; }
 
     /// <summary>
     /// Unserializes the static combo data.
     /// </summary>
     public VfxStaticComboData Unserialize()
     {
-        if (KVEntry is not null)
+        if (ResourceData is not null)
         {
             return new VfxStaticComboData(
-                KVEntry.ComboData,
+                ResourceData.ComboData,
                 StaticComboId,
-                KVEntry.AllAttributes,
-                KVEntry.ByteCodeDescArray,
+                ResourceData.AllAttributes,
+                ResourceData.ByteCodeDescArray,
                 ParentProgramData
             );
         }
@@ -77,13 +77,13 @@ public class VfxStaticComboVcsEntry
             Debug.Assert(programData.VcsVersion <= 64);
 
             uncompressedSize = reader.ReadInt32();
-            var compressedSize2 = reader.ReadInt32();
+            var lzmaCompressedSize = reader.ReadInt32();
 
             var lzmaDecoder = new SevenZip.Compression.LZMA.Decoder();
             lzmaDecoder.SetDecoderProperties(reader.ReadBytes(5));
 
             var outStream = new PooledMemoryStream(uncompressedSize);
-            lzmaDecoder.Code(reader.BaseStream, outStream, compressedSize2, uncompressedSize, null);
+            lzmaDecoder.Code(reader.BaseStream, outStream, lzmaCompressedSize, uncompressedSize, null);
             return outStream;
         }
 
@@ -141,20 +141,4 @@ public class VfxStaticComboVcsEntry
 
         return stream;
     }
-
-#if false
-    /// <inheritdoc/>
-    public override string ToString()
-    {
-        var comprDesc = CompressionType switch
-        {
-            UNCOMPRESSED => "uncompressed",
-            ZSTD_COMPRESSION => "ZSTD",
-            LZMA_COMPRESSION => "LZMA",
-            _ => "undetermined"
-        };
-        return $"zframeId[0x{ZframeId:x08}] {comprDesc} offset={OffsetToZFrameHeader,8} " +
-            $"compressedLength={CompressedLength,7} uncompressedLength={UncompressedLength,9}";
-    }
-#endif
 }

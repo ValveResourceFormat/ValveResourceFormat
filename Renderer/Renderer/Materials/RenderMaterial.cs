@@ -218,13 +218,13 @@ namespace ValveResourceFormat.Renderer.Materials
 
                 if (shader?.Features != null)
                 {
-                    foreach (var block in shader.Features.StaticComboArray)
+                    foreach (var feature in shader.Features.StaticComboArray)
                     {
-                        if (block.Name.StartsWith("F_TEXTURE_FORMAT", StringComparison.Ordinal))
+                        if (feature.Name.StartsWith("F_TEXTURE_FORMAT", StringComparison.Ordinal))
                         {
-                            for (byte i = 0; i < block.Strings.Length; i++)
+                            for (byte i = 0; i < feature.StateNames.Length; i++)
                             {
-                                var checkbox = block.Strings[i];
+                                var checkbox = feature.StateNames[i];
 
                                 switch (checkbox)
                                 {

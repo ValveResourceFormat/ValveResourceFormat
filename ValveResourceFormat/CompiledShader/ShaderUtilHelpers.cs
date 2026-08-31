@@ -223,18 +223,18 @@ namespace ValveResourceFormat.CompiledShader
         /// <summary>
         /// Combines an integer array into a comma-separated string.
         /// </summary>
-        /// <param name="ints0">The integer array to combine.</param>
+        /// <param name="values">The integer array to combine.</param>
         /// <param name="includeParenth">Whether to include parentheses around the result.</param>
         /// <returns>A string representation of the integer array.</returns>
-        public static string CombineIntArray(int[] ints0, bool includeParenth = false)
+        public static string CombineIntArray(int[] values, bool includeParenth = false)
         {
-            if (ints0.Length == 0)
+            if (values.Length == 0)
             {
                 return $"_";
             }
 
             var valueString = "";
-            foreach (var i in ints0)
+            foreach (var i in values)
             {
                 valueString += $"{i},";
             }
@@ -245,18 +245,18 @@ namespace ValveResourceFormat.CompiledShader
         /// <summary>
         /// Combines an integer array into a space-separated, padded string.
         /// </summary>
-        /// <param name="ints0">The integer array to combine.</param>
+        /// <param name="values">The integer array to combine.</param>
         /// <param name="padding">The padding width for each value.</param>
         /// <returns>A padded string representation of the integer array.</returns>
-        public static string CombineIntsSpaceSep(int[] ints0, int padding = 5)
+        public static string CombineIntsSpaceSep(int[] values, int padding = 5)
         {
-            if (ints0.Length == 0)
+            if (values.Length == 0)
             {
                 return $"_".PadLeft(padding);
             }
 
             var valueString = "";
-            foreach (var v in ints0)
+            foreach (var v in values)
             {
                 var intPadded = $"{(v != 0 ? v : "_")}".PadLeft(padding);
                 valueString += $"{intPadded}";
@@ -283,13 +283,13 @@ namespace ValveResourceFormat.CompiledShader
         /// <summary>
         /// Combines a string array into a space-separated, padded string.
         /// </summary>
-        /// <param name="strings0">The string array to combine.</param>
+        /// <param name="strings">The string array to combine.</param>
         /// <param name="padding">The padding width for each string.</param>
         /// <returns>A padded string representation of the string array.</returns>
-        public static string CombineStringsSpaceSep(string[] strings0, int padding = 5)
+        public static string CombineStringsSpaceSep(string[] strings, int padding = 5)
         {
             var combinedString = "";
-            foreach (var s in strings0)
+            foreach (var s in strings)
             {
                 combinedString += s.PadLeft(padding);
             }
@@ -299,18 +299,18 @@ namespace ValveResourceFormat.CompiledShader
         /// <summary>
         /// Combines a string array into a comma-separated string.
         /// </summary>
-        /// <param name="strings0">The string array to combine.</param>
+        /// <param name="strings">The string array to combine.</param>
         /// <param name="includeParenth">Whether to include parentheses around the result.</param>
         /// <returns>A string representation of the string array.</returns>
-        public static string CombineStringArray(string[] strings0, bool includeParenth = false)
+        public static string CombineStringArray(string[] strings, bool includeParenth = false)
         {
-            if (strings0.Length == 0)
+            if (strings.Length == 0)
             {
                 return $"_";
             }
 
             var combinedString = "";
-            foreach (var s in strings0)
+            foreach (var s in strings)
             {
                 combinedString += $"{s}, ";
             }
@@ -321,28 +321,28 @@ namespace ValveResourceFormat.CompiledShader
         /// <summary>
         /// Combines a string array with line breaks at a specified length.
         /// </summary>
-        /// <param name="strings0">The string array to combine.</param>
+        /// <param name="strings">The string array to combine.</param>
         /// <param name="breakLen">The maximum line length before breaking to a new line.</param>
         /// <returns>An array of strings broken at the specified length.</returns>
-        public static string[] CombineValuesBreakString(string[] strings0, int breakLen)
+        public static string[] CombineValuesBreakString(string[] strings, int breakLen)
         {
             List<string> stringCollection = [];
-            if (strings0.Length == 0)
+            if (strings.Length == 0)
             {
                 stringCollection.Add("");
                 return [.. stringCollection];
             }
-            var line = strings0[0] + ", ";
-            for (var i = 1; i < strings0.Length; i++)
+            var line = strings[0] + ", ";
+            for (var i = 1; i < strings.Length; i++)
             {
-                if (line.Length + strings0[i].Length + 1 < breakLen)
+                if (line.Length + strings[i].Length + 1 < breakLen)
                 {
-                    line += strings0[i] + ", ";
+                    line += strings[i] + ", ";
                 }
                 else
                 {
                     stringCollection.Add(line[0..^2]);
-                    line = strings0[i] + ", ";
+                    line = strings[i] + ", ";
                 }
             }
             if (line.Length > 0)
@@ -355,12 +355,12 @@ namespace ValveResourceFormat.CompiledShader
         /// <summary>
         /// Converts a byte span to a hexadecimal string representation.
         /// </summary>
-        /// <param name="databytes">The byte data to convert.</param>
+        /// <param name="bytes">The byte data to convert.</param>
         /// <param name="breakLen">The number of bytes per line (-1 for no breaks).</param>
         /// <returns>A hexadecimal string representation of the byte data.</returns>
-        public static string BytesToString(ReadOnlySpan<byte> databytes, int breakLen = 32)
+        public static string BytesToString(ReadOnlySpan<byte> bytes, int breakLen = 32)
         {
-            if (databytes.Length == 0)
+            if (bytes.Length == 0)
             {
                 return "";
             }
@@ -370,9 +370,9 @@ namespace ValveResourceFormat.CompiledShader
             }
             var count = 0;
             var bytestring = "";
-            for (var i = 0; i < databytes.Length; i++)
+            for (var i = 0; i < bytes.Length; i++)
             {
-                bytestring += $"{databytes[i]:X02} ";
+                bytestring += $"{bytes[i]:X02} ";
                 if (++count % breakLen == 0)
                 {
                     bytestring += "\n";
@@ -384,13 +384,13 @@ namespace ValveResourceFormat.CompiledShader
         /// <summary>
         /// Parses a dynamic expression from bytecode.
         /// </summary>
-        /// <param name="dynExpDatabytes">The dynamic expression bytecode.</param>
+        /// <param name="bytecode">The dynamic expression bytecode.</param>
         /// <returns>The parsed expression string, or an error message if parsing fails.</returns>
-        public static string ParseDynamicExpression(byte[] dynExpDatabytes)
+        public static string ParseDynamicExpression(byte[] bytecode)
         {
             try
             {
-                return new VfxEval(dynExpDatabytes, omitReturnStatement: true).DynamicExpressionResult.Replace("UNKNOWN", "VAR", StringComparison.InvariantCulture);
+                return new VfxEval(bytecode, omitReturnStatement: true).DynamicExpressionResult.Replace("UNKNOWN", "VAR", StringComparison.InvariantCulture);
             }
             catch (Exception)
             {

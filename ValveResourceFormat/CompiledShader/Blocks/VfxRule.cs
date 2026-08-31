@@ -10,37 +10,37 @@ namespace ValveResourceFormat.CompiledShader;
 /// </summary>
 public class VfxRule : ShaderDataBlock
 {
-    /// <summary>Gets the block index.</summary>
-    public int BlockIndex { get; }
+    /// <summary>Gets the index in the owning array.</summary>
+    public int Index { get; }
     /// <summary>Gets the rule method.</summary>
-    public VfxRuleMethod Rule { get; }
+    public VfxRuleMethod RuleMethod { get; }
     /// <summary>Gets the rule type.</summary>
     public VfxRuleType RuleType { get; }
-    /// <summary>Gets the array of conditional types.</summary>
-    public VfxRuleType[] ConditionalTypes { get; }
-    /// <summary>Gets the array of indices.</summary>
-    public int[] Indices { get; }
-    /// <summary>Gets the array of values.</summary>
-    public int[] Values { get; }
+    /// <summary>Gets the type of each rule argument.</summary>
+    public VfxRuleType[] ArgTypes { get; }
+    /// <summary>Gets the combo or feature index of each rule argument.</summary>
+    public int[] ArgIndices { get; }
+    /// <summary>Gets the value of each rule argument.</summary>
+    public int[] ArgValues { get; }
     /// <summary>Gets extra rule data.</summary>
     public int[] ExtraRuleData { get; }
-    /// <summary>Gets the error description.</summary>
-    public string Description { get; }
+    /// <summary>Gets the error message shown when the rule is violated.</summary>
+    public string ErrorString { get; }
 
     private const int MaxArgs = 16;
 
     /// <summary>
     /// Initializes a new instance from <see cref="KVObject"/> data.
     /// </summary>
-    public VfxRule(KVObject data, int blockIndex) : base()
+    public VfxRule(KVObject data, int index) : base()
     {
-        BlockIndex = blockIndex;
-        Rule = data.GetEnumValue<VfxRuleMethod>("m_rule", normalize: true, stripExtension: "Method");
+        Index = index;
+        RuleMethod = data.GetEnumValue<VfxRuleMethod>("m_rule", normalize: true, stripExtension: "Method");
         RuleType = data.GetEnumValue<VfxRuleType>("m_ruleType", normalize: true);
 
-        ConditionalTypes = new VfxRuleType[MaxArgs];
-        Indices = new int[MaxArgs];
-        Values = new int[MaxArgs];
+        ArgTypes = new VfxRuleType[MaxArgs];
+        ArgIndices = new int[MaxArgs];
+        ArgValues = new int[MaxArgs];
         ExtraRuleData = new int[MaxArgs];
 
         var argTypesArray = data.GetArray<string>("m_argTypeArray")!;
@@ -54,50 +54,50 @@ public class VfxRule : ShaderDataBlock
 
         for (var i = 0; i < MaxArgs; i++)
         {
-            ConditionalTypes[i] = Enum.Parse<VfxRuleType>(KVObjectExtensions.NormalizeEnumName<VfxRuleType>(argTypesArray[i]));
-            Indices[i] = argIndexArray[i];
-            Values[i] = argValueArray[i];
+            ArgTypes[i] = Enum.Parse<VfxRuleType>(KVObjectExtensions.NormalizeEnumName<VfxRuleType>(argTypesArray[i]));
+            ArgIndices[i] = argIndexArray[i];
+            ArgValues[i] = argValueArray[i];
             ExtraRuleData[i] = extraRuleData[i];
         }
 
-        Description = data.GetStringProperty("m_szErrorString");
+        ErrorString = data.GetStringProperty("m_szErrorString");
     }
 
     /// <summary>
     /// Initializes a new instance from a binary reader.
     /// </summary>
-    public VfxRule(BinaryReader datareader, int blockIndex) : base(datareader)
+    public VfxRule(BinaryReader datareader, int index) : base(datareader)
     {
         // CVfxRule::Unserialize
-        BlockIndex = blockIndex;
-        Rule = (VfxRuleMethod)datareader.ReadInt32();
+        Index = index;
+        RuleMethod = (VfxRuleMethod)datareader.ReadInt32();
         RuleType = (VfxRuleType)datareader.ReadInt32();
 
-        ConditionalTypes = ReadByteFlags(datareader);
-        Indices = ReadIntRange(datareader);
-        Values = ReadIntRange(datareader);
-        ExtraRuleData = ReadIntRange(datareader);
+        ArgTypes = ReadArgTypes(datareader);
+        ArgIndices = ReadArgArray(datareader);
+        ArgValues = ReadArgArray(datareader);
+        ExtraRuleData = ReadArgArray(datareader);
 
-        Description = ReadStringWithMaxLength(datareader, 256);
+        ErrorString = ReadStringWithMaxLength(datareader, 256);
     }
 
-    private static int[] ReadIntRange(BinaryReader datareader)
+    private static int[] ReadArgArray(BinaryReader datareader)
     {
-        var ints0 = new int[MaxArgs];
+        var values = new int[MaxArgs];
         for (var i = 0; i < MaxArgs; i++)
         {
-            ints0[i] = datareader.ReadInt32();
+            values[i] = datareader.ReadInt32();
         }
-        return ints0;
+        return values;
     }
 
-    private static VfxRuleType[] ReadByteFlags(BinaryReader datareader)
+    private static VfxRuleType[] ReadArgTypes(BinaryReader datareader)
     {
-        var byteFlags = new VfxRuleType[MaxArgs];
+        var argTypes = new VfxRuleType[MaxArgs];
         for (var i = 0; i < MaxArgs; i++)
         {
-            byteFlags[i] = (VfxRuleType)datareader.ReadByte();
+            argTypes[i] = (VfxRuleType)datareader.ReadByte();
         }
-        return byteFlags;
+        return argTypes;
     }
 }

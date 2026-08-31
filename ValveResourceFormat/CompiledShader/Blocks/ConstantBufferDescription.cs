@@ -12,8 +12,8 @@ public class ConstantBufferDescription : ShaderDataBlock
     /// </summary>
     public readonly record struct ConstantBufferVariable(string Name, int Offset, int VectorSize, int Depth, int Length);
 
-    /// <summary>Gets the block index.</summary>
-    public int BlockIndex { get; }
+    /// <summary>Gets the index in the owning array.</summary>
+    public int Index { get; }
     /// <summary>Gets the constant buffer name.</summary>
     public string Name { get; }
     /// <summary>Gets the buffer size in bytes.</summary>
@@ -28,10 +28,10 @@ public class ConstantBufferDescription : ShaderDataBlock
     /// <summary>
     /// Initializes a new instance from a binary reader.
     /// </summary>
-    public ConstantBufferDescription(BinaryReader datareader, int blockIndex) : base(datareader)
+    public ConstantBufferDescription(BinaryReader datareader, int index) : base(datareader)
     {
         // VfxUnserializeExternalConstantBufferDescription
-        BlockIndex = blockIndex;
+        Index = index;
         Name = ReadStringWithMaxLength(datareader, 64);
 
         BufferSize = datareader.ReadInt32();

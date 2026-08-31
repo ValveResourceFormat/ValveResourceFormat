@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Text;
 using ValveKeyValue;
 using ValveResourceFormat.Serialization.KeyValues;
@@ -18,41 +19,41 @@ namespace ValveResourceFormat.CompiledShader
         /// <summary>Gets the static combo identifier.</summary>
         public long StaticComboId { get; }
 
-        /// <summary>Gets the variables from the static combo.</summary>
-        public VfxVariableIndexArray VariablesFromStaticCombo { get; }
+        /// <summary>Gets the variable write sequence shared by all dynamic combos of this static combo.</summary>
+        public VfxVariableIndexArray AllVariables { get; }
 
         /// <summary>Gets the shader attributes.</summary>
         public VfxShaderAttribute[] Attributes { get; } = [];
 
-        /// <summary>Gets the vertex shader inputs.</summary>
-        public int[] VShaderInputs { get; } = [];
+        /// <summary>Gets the vertex shader input signature indices, one entry per dynamic combo, indexing <see cref="VfxProgramData.VsInputSignatures"/>.</summary>
+        public int[] VsInputSignatureIndices { get; } = [];
 
-        /// <summary>Gets the dynamic combo variables.</summary>
+        /// <summary>Gets the variable write sequences, one per dynamic combo.</summary>
         public VfxVariableIndexArray[] DynamicComboVariables { get; } = [];
 
         /// <summary>Gets the constant buffer bind info slots.</summary>
-        public byte[] ConstantBufferBindInfoSlots { get; } = [];
+        public byte[] ConstantBufferBindingSlots { get; } = [];
 
         /// <summary>Gets the constant buffer bind info flags.</summary>
-        public byte[] ConstantBufferBindInfoFlags { get; } = [];
+        public byte[] ConstantBufferBindingFlags { get; } = [];
 
         /// <summary>Gets the constant buffer size.</summary>
         public int ConstantBufferSize { get; }
 
-        /// <summary>Gets whether the first constant-buffer flag is set.</summary>
-        public bool Flagbyte0 { get; }
+        /// <summary>Gets whether a static constant buffer is used.</summary>
+        public bool StaticCB { get; }
 
-        /// <summary>Gets the second flag byte.</summary>
-        public byte Flagbyte1 { get; }
+        /// <summary>Gets the globals buffer device address (BDA) value, likely a flag.</summary>
+        public byte GlobalsBDA { get; }
 
-        /// <summary>Gets whether the third flag is set.</summary>
+        /// <summary>Gets an unknown flag.</summary>
         public bool Flagbyte2 { get; }
 
         /// <summary>Gets the shader files for this combo.</summary>
         public VfxShaderFile[] ShaderFiles { get; } = [];
 
         /// <summary>Gets the dynamic combos render state info.</summary>
-        public VfxRenderStateInfo[] DynamicCombos { get; } = [];
+        public VfxRenderStateInfo[] DynamicComboRenderStates { get; } = [];
 
         // Binary vcs stores the per dynamic combo arrays densely over the entire dynamic combo id space,
         // so the id is already the index. Resource (kv3) shaders only store the combos that exist,
@@ -61,7 +62,7 @@ namespace ValveResourceFormat.CompiledShader
 
         /// <summary>
         /// Gets the index to address the per dynamic combo arrays with (<see cref="DynamicComboVariables"/>,
-        /// <see cref="ConstantBufferBindInfoSlots"/>, <see cref="ConstantBufferBindInfoFlags"/>).
+        /// <see cref="ConstantBufferBindingSlots"/>, <see cref="ConstantBufferBindingFlags"/>).
         /// </summary>
         /// <param name="dynamicComboId">The dynamic combo id, as found on <see cref="VfxRenderStateInfo.DynamicComboId"/>.</param>
         /// <returns>The array index, or -1 when this combo is not present in this static combo.</returns>
@@ -87,10 +88,10 @@ namespace ValveResourceFormat.CompiledShader
             var dynamicComboRenderState = data.GetArray("m_dynamicComboRenderState");
             var byteCodeIndex = data.GetArray<int>("m_byteCodeIndex")!;
 
-            DynamicCombos = new VfxRenderStateInfo[dynamicComboRenderState.Count];
-            dynamicComboIdToIndex = new Dictionary<long, int>(DynamicCombos.Length);
+            DynamicComboRenderStates = new VfxRenderStateInfo[dynamicComboRenderState.Count];
+            dynamicComboIdToIndex = new Dictionary<long, int>(DynamicComboRenderStates.Length);
 
-            for (var i = 0; i < DynamicCombos.Length; i++)
+            for (var i = 0; i < DynamicComboRenderStates.Length; i++)
             {
                 var id = dynamicComboIds.Length > 0
                     ? dynamicComboIds[i]
@@ -98,7 +99,7 @@ namespace ValveResourceFormat.CompiledShader
 
                 var renderState = dynamicComboRenderState[i];
 
-                DynamicCombos[i] = programData.VcsProgramType switch
+                DynamicComboRenderStates[i] = programData.VcsProgramType switch
                 {
                     VcsProgramType.PixelShader or VcsProgramType.PixelShaderRenderState
                         => new VfxRenderStateInfoPixelShader(id, byteCodeIndex[i], -1, renderState, programData.VcsVersion),
@@ -176,23 +177,23 @@ namespace ValveResourceFormat.CompiledShader
             }
 
             var constantBufferBindingArray = data.GetArray<int>("m_constantBufferBindingArray")!;
-            ConstantBufferBindInfoSlots = [.. constantBufferBindingArray.Select(i => (byte)(i >> 0))];
-            ConstantBufferBindInfoFlags = [.. constantBufferBindingArray.Select(i => (byte)(i >> 8))];
+            ConstantBufferBindingSlots = [.. constantBufferBindingArray.Select(i => (byte)(i >> 0))];
+            ConstantBufferBindingFlags = [.. constantBufferBindingArray.Select(i => (byte)(i >> 8))];
 
             ConstantBufferSize = data.GetInt32Property("m_nConstantBufferSize");
             // todo: are these correct?
-            Flagbyte0 = data.GetUInt32Property("m_bStaticCB") != 0u;
-            Flagbyte1 = (byte)data.GetUInt32Property("m_bGlobalsBDA"); //  != 0u
+            StaticCB = data.GetUInt32Property("m_bStaticCB") != 0u;
+            GlobalsBDA = (byte)data.GetUInt32Property("m_bGlobalsBDA"); //  != 0u
 
             var allVars = data.GetSubCollection("m_allVars");
-            VariablesFromStaticCombo = new VfxVariableIndexArray(
+            AllVariables = new VfxVariableIndexArray(
                 allVars.GetArray<uint>("m_indexAndRegisterOffsetArray"),
                 allVars.GetInt32Property("m_nFirstRenderStateElement"),
                 allVars.GetInt32Property("m_nFirstConstantElement"),
                 -1
             );
 
-            VShaderInputs = [.. data.GetIntegerArray("m_vsInputSignatureIndexArray").Select(i => (int)i)];
+            VsInputSignatureIndices = [.. data.GetIntegerArray("m_vsInputSignatureIndexArray").Select(i => (int)i)];
             Attributes = [.. data.GetIntegerArray("m_attribIdx").Select(i => attributes[i])];
         }
 
@@ -207,10 +208,10 @@ namespace ValveResourceFormat.CompiledShader
 
             if (programData.VcsVersion < 62) // not precise
             {
-                var unk1 = dataReader.ReadUInt64(); // probably StaticComboId
+                _ = dataReader.ReadUInt64(); // probably StaticComboId
             }
 
-            VariablesFromStaticCombo = new VfxVariableIndexArray(dataReader, -1, ParentProgramData.VcsProgramType != VcsProgramType.Features);
+            AllVariables = new VfxVariableIndexArray(dataReader, -1, ParentProgramData.VcsProgramType != VcsProgramType.Features);
 
             int attributeCount = dataReader.ReadInt16();
             Attributes = new VfxShaderAttribute[attributeCount];
@@ -222,11 +223,11 @@ namespace ValveResourceFormat.CompiledShader
 
             if (ParentProgramData.VcsProgramType is VcsProgramType.Features or VcsProgramType.VertexShader)
             {
-                int vsInputBlockCount = dataReader.ReadInt16();
-                VShaderInputs = new int[vsInputBlockCount];
-                for (var i = 0; i < vsInputBlockCount; i++)
+                int vsInputSignatureIndexCount = dataReader.ReadInt16();
+                VsInputSignatureIndices = new int[vsInputSignatureIndexCount];
+                for (var i = 0; i < vsInputSignatureIndexCount; i++)
                 {
-                    VShaderInputs[i] = dataReader.ReadInt16();
+                    VsInputSignatureIndices[i] = dataReader.ReadInt16();
                 }
 
                 if (ParentProgramData.VcsProgramType == VcsProgramType.Features)
@@ -240,32 +241,32 @@ namespace ValveResourceFormat.CompiledShader
                 }
             }
 
-            int dataBlockCount = dataReader.ReadUInt16();
-            DynamicComboVariables = new VfxVariableIndexArray[dataBlockCount];
-            for (var i = 0; i < dataBlockCount; i++)
+            int dynamicComboVariablesCount = dataReader.ReadUInt16();
+            DynamicComboVariables = new VfxVariableIndexArray[dynamicComboVariablesCount];
+            for (var i = 0; i < dynamicComboVariablesCount; i++)
             {
-                VfxVariableIndexArray dataBlock = new(dataReader, i, true);
-                DynamicComboVariables[i] = dataBlock;
+                VfxVariableIndexArray variableIndexArray = new(dataReader, i, true);
+                DynamicComboVariables[i] = variableIndexArray;
             }
 
-            int constantBufferBindInfoSize = dataReader.ReadUInt16();
-            ConstantBufferBindInfoSlots = new byte[constantBufferBindInfoSize];
-            ConstantBufferBindInfoFlags = new byte[constantBufferBindInfoSize];
-            for (var i = 0; i < constantBufferBindInfoSize; i++)
+            int constantBufferBindingCount = dataReader.ReadUInt16();
+            ConstantBufferBindingSlots = new byte[constantBufferBindingCount];
+            ConstantBufferBindingFlags = new byte[constantBufferBindingCount];
+            for (var i = 0; i < constantBufferBindingCount; i++)
             {
-                ConstantBufferBindInfoSlots[i] = dataReader.ReadByte();
-                ConstantBufferBindInfoFlags[i] = dataReader.ReadByte();
+                ConstantBufferBindingSlots[i] = dataReader.ReadByte();
+                ConstantBufferBindingFlags[i] = dataReader.ReadByte();
             }
 
             ConstantBufferSize = dataReader.ReadInt32();
-            Flagbyte0 = dataReader.ReadBoolean();
+            StaticCB = dataReader.ReadBoolean();
             if (ParentProgramData.VcsVersion >= 66)
             {
-                Flagbyte1 = dataReader.ReadByte();
+                GlobalsBDA = dataReader.ReadByte();
             }
 
-            var gpuSourceCount = dataReader.ReadInt32();
-            ShaderFiles = new VfxShaderFile[gpuSourceCount];
+            var shaderFileCount = dataReader.ReadInt32();
+            ShaderFiles = new VfxShaderFile[shaderFileCount];
 
             if (programData.VcsVersion >= 60) // not precise
             {
@@ -310,18 +311,18 @@ namespace ValveResourceFormat.CompiledShader
                 }
             }
 
-            var countRenderStates = dataReader.ReadInt32();
-            DynamicCombos = new VfxRenderStateInfo[countRenderStates];
-            for (var i = 0; i < countRenderStates; i++)
+            var renderStateCount = dataReader.ReadInt32();
+            DynamicComboRenderStates = new VfxRenderStateInfo[renderStateCount];
+            for (var i = 0; i < renderStateCount; i++)
             {
-                var endBlock = ParentProgramData.VcsProgramType switch
+                var renderState = ParentProgramData.VcsProgramType switch
                 {
                     VcsProgramType.PixelShader or VcsProgramType.PixelShaderRenderState => new VfxRenderStateInfoPixelShader(dataReader),
                     VcsProgramType.HullShader => new VfxRenderStateInfoHullShader(dataReader),
                     _ => new VfxRenderStateInfo(dataReader),
                 };
 
-                DynamicCombos[i] = endBlock;
+                DynamicComboRenderStates[i] = renderState;
             }
 
             if (dataReader.BaseStream.Position != dataReader.BaseStream.Length)
@@ -365,6 +366,54 @@ namespace ValveResourceFormat.CompiledShader
                 ShaderFiles[sourceId] = vulkanSource;
             }
         }
+
+        /// <summary>
+        /// Deduplicates write sequences, returning the unique ones in order of first appearance
+        /// along with a map of write sequence indices to sequence IDs (-1 for write sequences without data).
+        /// The leading write sequence (always present) is sequence 0 even when it carries no data,
+        /// as configurations may refer to it.
+        /// </summary>
+        public (List<VfxVariableIndexArray> Unique, SortedDictionary<int, int> IndexToSequence) GetWriteSequences()
+        {
+            List<VfxVariableIndexArray> unique = [AllVariables];
+            Dictionary<VfxVariableIndexData[], int> sequenceIds = new(WriteSequenceComparer)
+            {
+                { AllVariables.Fields, 0 }
+            };
+            SortedDictionary<int, int> indexToSequence = new()
+            {
+                { AllVariables.Index, 0 }
+            };
+
+            foreach (var writeSequence in DynamicComboVariables)
+            {
+                if (writeSequence.Fields.Length == 0)
+                {
+                    indexToSequence.Add(writeSequence.Index, -1);
+                    continue;
+                }
+
+                if (!sequenceIds.TryGetValue(writeSequence.Fields, out var id))
+                {
+                    id = unique.Count;
+                    sequenceIds.Add(writeSequence.Fields, id);
+                    unique.Add(writeSequence);
+                }
+
+                indexToSequence.Add(writeSequence.Index, id);
+            }
+
+            return (unique, indexToSequence);
+        }
+
+        private static readonly EqualityComparer<VfxVariableIndexData[]> WriteSequenceComparer = EqualityComparer<VfxVariableIndexData[]>.Create(
+            static (a, b) => MemoryMarshal.AsBytes(a.AsSpan()).SequenceEqual(MemoryMarshal.AsBytes(b.AsSpan())),
+            static a =>
+            {
+                var hash = new HashCode();
+                hash.AddBytes(MemoryMarshal.AsBytes(a.AsSpan()));
+                return hash.ToHashCode();
+            });
 
         /// <summary>
         /// Returns a string description of all attributes.

@@ -9,12 +9,12 @@ namespace ValveResourceFormat.CompiledShader;
 public class VfxShaderFileGL : VfxShaderFile
 {
     /// <inheritdoc/>
-    public override string BlockName => "GLSL";
+    public override string SourceType => "GLSL";
 
     /// <summary>Gets the shader file version. It is 2 for PCGL and 3 for MOBILE_GLES.</summary>
     public int Version { get; }
 
-    /// <summary>Gets the shader source code size.</summary>
+    /// <summary>Gets the size of the GLSL source text stored in <see cref="VfxShaderFile.Bytecode"/>.</summary>
     public int BytecodeSize { get; } = -1;
 
     /// <summary>
