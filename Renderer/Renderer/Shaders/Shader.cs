@@ -382,7 +382,8 @@ namespace ValveResourceFormat.Renderer.Shaders
                     continue;
                 }
 
-                var isTexture = type is >= ActiveUniformType.Sampler2D and <= ActiveUniformType.SamplerCube;
+                var isTexture = type is >= ActiveUniformType.Sampler2D and <= ActiveUniformType.SamplerCube
+                    or ActiveUniformType.Sampler1DArray or ActiveUniformType.Sampler2DArray;
                 var isVector = type is >= ActiveUniformType.FloatVec2 and <= ActiveUniformType.IntVec4;
                 var isScalar = type == ActiveUniformType.Float;
                 var isBoolean = type == ActiveUniformType.Bool;
@@ -396,8 +397,10 @@ namespace ValveResourceFormat.Renderer.Shaders
                         continue;
                     }
 
-                    Default.Textures[name] = name switch
+                    Default.Textures[name] = type switch
                     {
+                        ActiveUniformType.Sampler1DArray or ActiveUniformType.Sampler2DArray => MaterialLoader.GetDefaultTextureArray(),
+                        ActiveUniformType.Sampler3D => MaterialLoader.GetDefaultVolume(),
                         _ when name.Contains("color", StringComparison.OrdinalIgnoreCase) => MaterialLoader.GetErrorTexture(),
                         _ when name.Contains("normal", StringComparison.OrdinalIgnoreCase) => MaterialLoader.GetDefaultNormal(),
                         _ when name.Contains("mask", StringComparison.OrdinalIgnoreCase) => MaterialLoader.GetDefaultMask(),

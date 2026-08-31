@@ -30,6 +30,7 @@ namespace ValveResourceFormat.Renderer.Materials
         private RenderTexture? DefaultMask;
         private RenderTexture? DefaultColor;
         private RenderTexture? DefaultVolume;
+        private RenderTexture? DefaultTextureArray;
         /// <summary>Gets or sets the maximum anisotropy level applied to newly loaded textures when anisotropic filtering is enabled.</summary>
         public static float MaxTextureMaxAnisotropy { get; set; }
 
@@ -662,6 +663,22 @@ namespace ValveResourceFormat.Renderer.Materials
 
         /// <summary>Returns a lazily created 1×1 solid white colour texture, a neutral fallback albedo.</summary>
         public RenderTexture GetDefaultColor() => DefaultColor ??= CreateSolidTexture(255, 255, 255);
+
+        /// <summary>
+        /// Returns a lazily created 1×1 single layer white array texture.
+        /// </summary>
+        public RenderTexture GetDefaultTextureArray()
+        {
+            if (DefaultTextureArray == null)
+            {
+                DefaultTextureArray = RenderTexture.Create3D(TextureTarget.Texture2DArray, 1, 1, 1, ImageFormat.RGBA8888, 1, "DefaultTextureArray");
+                DefaultTextureArray.SetFiltering(TextureMinFilter.Nearest, TextureMagFilter.Nearest);
+                DefaultTextureArray.SetWrapMode(RsTextureAddressMode.Clamp);
+                GL.TextureSubImage3D(DefaultTextureArray.Handle, 0, 0, 0, 0, 1, 1, 1, PixelFormat.Rgb, PixelType.UnsignedByte, WhiteTexel);
+            }
+
+            return DefaultTextureArray;
+        }
 
         /// <summary>
         /// Returns a lazily created 1×1×1 white volume texture.
