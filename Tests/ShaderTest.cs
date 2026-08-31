@@ -44,7 +44,7 @@ namespace Tests
             {
                 var value = staticComboEntry.Value.Unserialize();
                 await Assert.That(value).IsNotNull();
-                var staticComboSummary = new PrintStaticComboSummary(value, sw);
+                _ = new PrintStaticComboSummary(value, sw);
             }
         }
 
@@ -301,7 +301,7 @@ namespace Tests
 
             var staticCombo = shader.GetStaticCombo(0);
             using var sw = new IndentedTextWriter();
-            var staticComboSummary = new PrintStaticComboSummary(staticCombo, sw);
+            _ = new PrintStaticComboSummary(staticCombo, sw);
 
             var (uniqueSequences, indexToSequence) = staticCombo.GetWriteSequences();
             await Assert.That(uniqueSequences.Count).IsEqualTo(1);

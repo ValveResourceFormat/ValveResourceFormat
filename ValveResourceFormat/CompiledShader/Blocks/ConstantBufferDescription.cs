@@ -41,12 +41,12 @@ public class ConstantBufferDescription : ShaderDataBlock
         Variables = new ConstantBufferVariable[variableCount];
         for (var i = 0; i < variableCount; i++)
         {
-            var paramName = ReadStringWithMaxLength(datareader, 64);
-            var bufferIndex = datareader.ReadInt32();
-            var arg0 = datareader.ReadInt32();
-            var arg1 = datareader.ReadInt32();
-            var arg2 = datareader.ReadInt32();
-            Variables[i] = new(paramName, bufferIndex, arg0, arg1, arg2);
+            var name = ReadStringWithMaxLength(datareader, 64);
+            var offset = datareader.ReadInt32();
+            var vectorSize = datareader.ReadInt32();
+            var depth = datareader.ReadInt32();
+            var length = datareader.ReadInt32();
+            Variables[i] = new(name, offset, vectorSize, depth, length);
         }
 
         BlockCrc = datareader.ReadUInt32();

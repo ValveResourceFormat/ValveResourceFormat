@@ -70,7 +70,7 @@ namespace ValveResourceFormat.CompiledShader
             {
                 var staticComboId = insertionOrder.First!.Value;
                 insertionOrder.RemoveFirst();
-                cache[staticComboId].Dispose();
+                cache[staticComboId].DetachFromProgram();
                 didTrim = cache.Remove(staticComboId) || didTrim;
             }
 
@@ -81,13 +81,13 @@ namespace ValveResourceFormat.CompiledShader
         }
 
         /// <summary>
-        /// Disposes all cached data.
+        /// Detaches all cached combos from their program.
         /// </summary>
         public void Dispose()
         {
             foreach (var staticCombo in cache.Values)
             {
-                staticCombo.Dispose();
+                staticCombo.DetachFromProgram();
             }
         }
     }

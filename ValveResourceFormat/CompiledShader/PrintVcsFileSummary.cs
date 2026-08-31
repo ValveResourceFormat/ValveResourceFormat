@@ -64,7 +64,7 @@ namespace ValveResourceFormat.CompiledShader
             output.BreakLine();
             output.WriteLine($"{nameof(program.VariableSourceMax)} = {program.VariableSourceMax}");
             output.BreakLine();
-            output.WriteLine("Editor/Shader compiler stack");
+            output.WriteLine("Program hashes");
             foreach (var v in program.ProgramHashes)
             {
                 output.WriteLine($"MD5    {v}");
@@ -101,7 +101,7 @@ namespace ValveResourceFormat.CompiledShader
             output.BreakLine();
             output.Write($"Showing {program.VcsProgramType}: {Path.GetFileName(program.FilenamePath)}");
             output.BreakLine();
-            output.WriteLine("Editor/Shader compiler stack");
+            output.WriteLine("Program hashes");
             if (program.Resource is null)
             {
                 output.WriteLine($"MD5    {program.ProgramHashes[0]}    // {program.VcsProgramType}");
@@ -113,7 +113,7 @@ namespace ValveResourceFormat.CompiledShader
                     output.WriteLine($"MD5    {hash}");
                 }
             }
-            output.WriteLine($"MD5    {program.VariableDescriptionVersionHash}    // Common editor/compiler hash shared by multiple different vcs files.");
+            output.WriteLine($"MD5    {program.VariableDescriptionVersionHash}    // {nameof(program.VariableDescriptionVersionHash)}, shared by multiple different vcs files.");
             output.WriteLine($"{nameof(program.VariableSourceMax)} = {program.VariableSourceMax}");
             output.BreakLine();
         }
@@ -128,7 +128,7 @@ namespace ValveResourceFormat.CompiledShader
             output.DefineHeaders([nameof(VfxCombo.Index), nameof(VfxCombo.Name), nameof(VfxCombo.RangeMin), nameof(VfxCombo.RangeMax), nameof(VfxCombo.ComboSourceType), nameof(VfxCombo.FeatureIndex), nameof(VfxCombo.ComboType), nameof(VfxCombo.StateNames)]);
             foreach (var item in combos)
             {
-                var checkboxNames = item.StateNames.Length > 0
+                var stateNames = item.StateNames.Length > 0
                     ? string.Join(", ", item.StateNames.Select(static (x, i) => $"{i}=\"{x}\""))
                     : string.Empty;
                 var comboSourceType = item.ComboType == VfxComboType.Dynamic ? ((VfxDynamicComboSourceType)item.ComboSourceType).ToString() : ((VfxStaticComboSourceType)item.ComboSourceType).ToString();
@@ -139,7 +139,7 @@ namespace ValveResourceFormat.CompiledShader
                     var feature = featureCombos[item.FeatureIndex];
                     featureIndex += $" ({feature.Name} {feature.RangeMin}..{feature.RangeMax})";
                 }
-                output.AddTabulatedRow([$"[{item.Index,2}]", $"{item.Name}", $"{item.RangeMin}", $"{item.RangeMax}", $"{comboSourceType}", featureIndex, $"{item.ComboType}", checkboxNames]);
+                output.AddTabulatedRow([$"[{item.Index,2}]", $"{item.Name}", $"{item.RangeMin}", $"{item.RangeMax}", $"{comboSourceType}", featureIndex, $"{item.ComboType}", stateNames]);
             }
             output.PrintTabulatedValues();
             output.BreakLine();
@@ -157,6 +157,10 @@ namespace ValveResourceFormat.CompiledShader
             foreach (var vfxRule in vfxRules)
             {
                 var argCount = Array.IndexOf(vfxRule.ArgIndices, -1);
+                if (argCount < 0)
+                {
+                    argCount = vfxRule.ArgIndices.Length;
+                }
 
                 var ruleName = new string[argCount];
                 for (var i = 0; i < ruleName.Length; i++)
@@ -213,7 +217,7 @@ namespace ValveResourceFormat.CompiledShader
                 nameof(VfxVariableDescription.RegisterType),
                 nameof(VfxVariableDescription.UiType),
                 nameof(VfxVariableDescription.UiGroup),
-                "command 0|1",
+                "file-ending | command",
                 nameof(VfxVariableDescription.DefaultInputTexture),
                 nameof(VfxVariableDescription.UiVisibilityExpression)]);
 
@@ -252,7 +256,7 @@ namespace ValveResourceFormat.CompiledShader
             output.PrintTabulatedValues(spacing: 1);
             output.BreakLine();
 
-            output.WriteLine("VARIABLES - Default values and limits    (type0,type1,arg0,arg1,arg2,arg4,arg5,command0 reprinted)");
+            output.WriteLine("VARIABLES - Default values and limits");
             output.WriteLine("(- indicates -infinity, + indicates +infinity, def. = default)");
             output.DefineHeaders(["index",
                 nameof(VfxVariableDescription.Name),
@@ -344,17 +348,17 @@ namespace ValveResourceFormat.CompiledShader
                 output.DefineHeaders([]);
                 output.WriteLine("[none defined]");
             }
-            foreach (var channelBlock in program.TextureChannelProcessors)
+            foreach (var channelProcessor in program.TextureChannelProcessors)
             {
-                var destinations = channelBlock.Channel.Destinations;
+                var destinations = channelProcessor.Channel.Destinations;
                 var channelRemap = destinations.Where((destination, i) => destination != i).Any()
                     ? $" [{string.Join(", ", destinations)}]"
                     : string.Empty;
-                output.AddTabulatedRow([$"[{channelBlock.Index,2}]",
-                    $"{channelBlock.MipProcessingCommand}",
-                    channelBlock.Channel.ToString() + channelRemap,
-                    string.Join(" ", channelBlock.InputTextureIndices),
-                    $"{channelBlock.OutputColorSpace,2}"]);
+                output.AddTabulatedRow([$"[{channelProcessor.Index,2}]",
+                    $"{channelProcessor.MipProcessingCommand}",
+                    channelProcessor.Channel.ToString() + channelRemap,
+                    string.Join(" ", channelProcessor.InputTextureIndices),
+                    $"{channelProcessor.OutputColorSpace,2}"]);
             }
             output.PrintTabulatedValues();
             output.BreakLine();
@@ -369,22 +373,16 @@ namespace ValveResourceFormat.CompiledShader
                 output.BreakLine();
                 return;
             }
-            foreach (var bufferBlock in program.ExtConstantBufferDescriptions)
+            foreach (var buffer in program.ExtConstantBufferDescriptions)
             {
-                output.WriteLine($"CONSTANT BUFFERS[{bufferBlock.Index}]");
-                // valve splits bufferBlock.BufferSize into 0x7FFF and checks whether its negative
-                output.WriteLine($"{bufferBlock.Name} size={bufferBlock.BufferSize} ({bufferBlock.BufferSize & 0x7FFF}) param-count={bufferBlock.Variables.Length}" +
-                    $" arg0={bufferBlock.Type} crc32={bufferBlock.BlockCrc:x08}");
-                output.DefineHeaders(["       ", "name", "offset", "vertex-size", "attrib-count", "data-count"]);
-                foreach (var bufferParams in bufferBlock.Variables)
+                output.WriteLine($"CONSTANT BUFFERS[{buffer.Index}]");
+                // valve splits buffer.BufferSize into 0x7FFF and checks whether its negative
+                output.WriteLine($"{buffer.Name} size={buffer.BufferSize} ({buffer.BufferSize & 0x7FFF}) param-count={buffer.Variables.Length}" +
+                    $" type={buffer.Type} crc32={buffer.BlockCrc:x08}");
+                output.DefineHeaders(["       ", "name", "offset", "vector-size", "depth", "length"]);
+                foreach (var variable in buffer.Variables)
                 {
-                    var name = bufferParams.Name;
-                    var bOffset = bufferParams.Offset;
-                    var vectorSize = bufferParams.VectorSize;
-                    var depth = bufferParams.Depth;
-                    var length = bufferParams.Length;
-                    output.AddTabulatedRow(["", $"{name}", $"{bOffset,3}", $"{vectorSize,3}", $"{depth,3}", $"{length,3}"]);
-
+                    output.AddTabulatedRow(["", $"{variable.Name}", $"{variable.Offset,3}", $"{variable.VectorSize,3}", $"{variable.Depth,3}", $"{variable.Length,3}"]);
                 }
                 output.PrintTabulatedValues();
                 output.BreakLine();
@@ -402,15 +400,15 @@ namespace ValveResourceFormat.CompiledShader
             }
             // find best padding
             var namePad = 0;
-            var typePad = 0;
-            var optionPad = 0;
+            var semanticPad = 0;
+            var d3dSemanticPad = 0;
             foreach (var inputSignature in program.VsInputSignatures)
             {
                 foreach (var element in inputSignature.Elements)
                 {
                     namePad = Math.Max(namePad, element.Name.Length);
-                    typePad = Math.Max(namePad, element.Semantic.Length);
-                    optionPad = Math.Max(namePad, element.D3DSemanticName.Length);
+                    semanticPad = Math.Max(semanticPad, element.Semantic.Length);
+                    d3dSemanticPad = Math.Max(d3dSemanticPad, element.D3DSemanticName.Length);
                 }
             }
             foreach (var inputSignature in program.VsInputSignatures)
@@ -418,8 +416,8 @@ namespace ValveResourceFormat.CompiledShader
                 output.WriteLine($"VERTEX INPUT SIGNATURES[{inputSignature.Index}] definitions={inputSignature.Elements.Length}");
                 output.DefineHeaders(["       ",
                     "Name".PadRight(namePad),
-                    "Semantic".PadRight(typePad),
-                    "SemanticName".PadRight(optionPad),
+                    "Semantic".PadRight(semanticPad),
+                    "SemanticName".PadRight(d3dSemanticPad),
                     "Index"]);
                 foreach (var element in inputSignature.Elements)
                 {
@@ -482,7 +480,7 @@ namespace ValveResourceFormat.CompiledShader
                     output.WriteLine($"{configHeader}");
                 }
                 var configState = configMapping.GetConfigState(staticComboEntry.Key);
-                output.WriteLine($"  Z[{staticComboEntry.Key:x08}] {CombineIntsSpaceSep(configState, 6)}");
+                output.WriteLine($"  SC[{staticComboEntry.Key:x08}] {CombineIntsSpaceSep(configState, 6)}");
                 staticComboCount++;
             }
         }

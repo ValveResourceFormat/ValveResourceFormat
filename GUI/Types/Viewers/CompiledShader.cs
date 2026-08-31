@@ -325,24 +325,25 @@ namespace GUI.Types.Viewers
 
             List<string> comboNamesAbbrev = [];
             List<string> comboNames = [];
-            var sourceIdToRenderStateInfo = new Dictionary<int, VfxRenderStateInfo>(combo.ShaderFiles.Length);
+            var shaderFileIdToRenderStateInfo = new Dictionary<int, VfxRenderStateInfo>(combo.ShaderFiles.Length);
 
             // We are only taking the first render state info currently
             foreach (var renderStateInfo in combo.DynamicComboRenderStates)
             {
-                sourceIdToRenderStateInfo.TryAdd(renderStateInfo.ShaderFileId, renderStateInfo);
+                shaderFileIdToRenderStateInfo.TryAdd(renderStateInfo.ShaderFileId, renderStateInfo);
             }
 
             Debug.Assert(combo.ParentProgramData != null);
 
-            foreach (var source in combo.ShaderFiles)
+            foreach (var shaderFile in combo.ShaderFiles)
             {
-                if (source.Size == 0)
+                // KV3 resources may leave unreferenced shader file slots null
+                if (shaderFile is null || shaderFile.Size == 0)
                 {
                     continue;
                 }
 
-                var config = combo.ParentProgramData.GetDynamicComboConfig(sourceIdToRenderStateInfo[source.ShaderFileId].DynamicComboId);
+                var config = combo.ParentProgramData.GetDynamicComboConfig(shaderFileIdToRenderStateInfo[shaderFile.ShaderFileId].DynamicComboId);
 
                 comboNames.Clear();
                 comboNamesAbbrev.Clear();
@@ -369,10 +370,10 @@ namespace GUI.Types.Viewers
                     }
                 }
 
-                var node = new TreeNode($"{source.ShaderFileId:X2}{(comboNamesAbbrev.Count > 0 ? $" ({string.Join(", ", comboNamesAbbrev)})" : string.Empty)}")
+                var node = new TreeNode($"{shaderFile.ShaderFileId:X2}{(comboNamesAbbrev.Count > 0 ? $" ({string.Join(", ", comboNamesAbbrev)})" : string.Empty)}")
                 {
                     ToolTipText = string.Join(Environment.NewLine, comboNames),
-                    Tag = source,
+                    Tag = shaderFile,
                     ImageIndex = sourceFileImage,
                     SelectedImageIndex = sourceFileImage,
                 };
@@ -397,7 +398,7 @@ namespace GUI.Types.Viewers
         private void DisplayStaticCombo(VfxStaticComboData combo)
         {
             using var output = new IndentedTextWriter();
-            var staticComboSummary = new PrintStaticComboSummary(combo, output);
+            _ = new PrintStaticComboSummary(combo, output);
             control.TextBox.Text = output.ToString();
         }
 

@@ -23,20 +23,20 @@ public abstract class VfxShaderFile : ShaderDataBlock
     /// <summary>
     /// Initializes a new instance from a binary reader.
     /// </summary>
-    protected VfxShaderFile(BinaryReader datareader, int sourceId, VfxStaticComboData parent) : base(datareader)
+    protected VfxShaderFile(BinaryReader datareader, int shaderFileId, VfxStaticComboData parent) : base(datareader)
     {
         ParentCombo = parent;
-        ShaderFileId = sourceId;
+        ShaderFileId = shaderFileId;
         Size = datareader.ReadInt32();
     }
 
     /// <summary>
     /// Initializes a new instance with default values.
     /// </summary>
-    protected VfxShaderFile(int sourceId, VfxStaticComboData parent) : base()
+    protected VfxShaderFile(int shaderFileId, VfxStaticComboData parent) : base()
     {
         ParentCombo = parent;
-        ShaderFileId = sourceId;
+        ShaderFileId = shaderFileId;
         Size = 0;
         Bytecode = [];
         HashMD5 = Guid.Empty;

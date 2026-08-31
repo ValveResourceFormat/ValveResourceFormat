@@ -50,8 +50,8 @@ public class VfxVariableIndexArray : ShaderDataBlock
     /// </summary>
     /// <param name="datareader">The binary reader to read from.</param>
     /// <param name="index">The index in the owning array.</param>
-    /// <param name="readDest">Whether to read the register offset.</param>
-    public VfxVariableIndexArray(BinaryReader datareader, int index, bool readDest) : base(datareader)
+    /// <param name="readRegisterOffset">Whether to read the register offset.</param>
+    public VfxVariableIndexArray(BinaryReader datareader, int index, bool readRegisterOffset) : base(datareader)
     {
         Index = index;
         var fieldCount = datareader.ReadInt32();
@@ -61,7 +61,7 @@ public class VfxVariableIndexArray : ShaderDataBlock
         Fields = new VfxVariableIndexData[fieldCount];
         for (var i = 0; i < fieldCount; i++)
         {
-            if (readDest)
+            if (readRegisterOffset)
             {
                 Fields[i] = new VfxVariableIndexData
                 {

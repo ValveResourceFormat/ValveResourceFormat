@@ -20,7 +20,7 @@ public class FeaturesHeaderBlock : ShaderDataBlock
     public string FileDescription { get; }
     /// <summary>Gets whether this is a development shader.</summary>
     public bool DevShader { get; }
-    /// <summary>Gets the array of available program types.</summary>
+    /// <summary>Gets which program types are present, indexed by program type.</summary>
     public bool[] AvailablePrograms { get; }
     /// <summary>Gets the list of shader modes.</summary>
     public List<(string Name, string ShaderFallback, string StaticComboName, int StaticComboValue)> Modes { get; } = [];

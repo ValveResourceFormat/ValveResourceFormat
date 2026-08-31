@@ -51,6 +51,7 @@ public class VfxRule : ShaderDataBlock
         Debug.Assert(argTypesArray.Length == MaxArgs);
         Debug.Assert(argIndexArray.Length == MaxArgs);
         Debug.Assert(argValueArray.Length == MaxArgs);
+        Debug.Assert(extraRuleData.Length == MaxArgs);
 
         for (var i = 0; i < MaxArgs; i++)
         {

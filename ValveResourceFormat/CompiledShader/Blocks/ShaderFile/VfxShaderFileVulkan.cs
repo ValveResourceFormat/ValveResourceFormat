@@ -72,8 +72,8 @@ public class VfxShaderFileVulkan : VfxShaderFile
     /// <summary>
     /// Initializes a new instance with explicit size and hash.
     /// </summary>
-    public VfxShaderFileVulkan(BinaryReader datareader, int sourceId, int size, Guid hash, VfxStaticComboData parent)
-        : base(sourceId, parent)
+    public VfxShaderFileVulkan(BinaryReader datareader, int shaderFileId, int size, Guid hash, VfxStaticComboData parent)
+        : base(shaderFileId, parent)
     {
         HashMD5 = hash;
         Size = size;
@@ -104,8 +104,8 @@ public class VfxShaderFileVulkan : VfxShaderFile
     /// <summary>
     /// Initializes a new instance from a binary reader.
     /// </summary>
-    public VfxShaderFileVulkan(BinaryReader datareader, int sourceId, VfxStaticComboData parent, bool isMobile)
-        : base(datareader, sourceId, parent)
+    public VfxShaderFileVulkan(BinaryReader datareader, int shaderFileId, VfxStaticComboData parent, bool isMobile)
+        : base(datareader, shaderFileId, parent)
     {
         // CVfxShaderFile::Unserialize
         if (Size > 0)

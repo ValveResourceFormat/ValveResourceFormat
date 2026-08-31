@@ -83,7 +83,7 @@ namespace ValveResourceFormat.CompiledShader
         public bool IsSbox { get; init; }
 
         /// <summary>
-        /// Gets the maximum variable source value (17 for up-to-date files, 14 for older files).
+        /// Gets the maximum variable source value; grows as values are added to <see cref="VfxVariableSourceType"/>.
         /// </summary>
         public int VariableSourceMax { get; private set; }
 
@@ -248,12 +248,12 @@ namespace ValveResourceFormat.CompiledShader
             if (outputWriter == null)
             {
                 using var output = new IndentedTextWriter();
-                var consoleOutput = new PrintVcsFileSummary(this, output, featuresProgram);
+                _ = new PrintVcsFileSummary(this, output, featuresProgram);
                 Console.Write(output.ToString());
                 return;
             }
 
-            var fileSummary = new PrintVcsFileSummary(this, outputWriter, featuresProgram);
+            _ = new PrintVcsFileSummary(this, outputWriter, featuresProgram);
         }
 
         private void VfxCreateFromVcs()
@@ -280,7 +280,7 @@ namespace ValveResourceFormat.CompiledShader
 
             if (IsSbox)
             {
-                var abiCurrentVersion = DataReader.ReadInt32();
+                _ = DataReader.ReadInt32(); // ABI current version
                 Debug.Assert(VcsVersion == 65);
                 VcsVersion = 64;
             }

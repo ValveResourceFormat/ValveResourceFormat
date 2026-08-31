@@ -171,9 +171,9 @@ namespace ValveResourceFormat.CompiledShader
             }
             OutputWriter.WriteLine();
             var dNamesHeader = hasNoDynamicCombosDefined ? "" : tabbedConfigs.Pop();
-            var gpuSourceName = StaticCombo.ShaderFiles.Length > 0
-                ? StaticCombo.ShaderFiles[0].SourceType.ToLowerInvariant()
-                : "unknown";
+            // KV3 resources may leave unreferenced shader file slots null
+            var gpuSourceName = Array.Find(StaticCombo.ShaderFiles, static f => f is not null)?.SourceType.ToLowerInvariant()
+                ?? "unknown";
             var sourceHeader = $"{gpuSourceName}-source";
             string[] dConfigHeaders = isVertexShader
                     ? ["config-id", dNamesHeader, "write-seq.", sourceHeader, "gpu-inputs", nameof(VfxStaticComboData.ConstantBufferBindingSlots), nameof(VfxStaticComboData.ConstantBufferBindingFlags), nameof(VfxShaderFile.HashMD5)]
@@ -198,7 +198,7 @@ namespace ValveResourceFormat.CompiledShader
                 var shaderFile = comboIdToShaderFile.GetValueOrDefault(dynamicComboId);
                 if (shaderFile is null)
                 {
-                    return;
+                    continue;
                 }
 
                 var sourceLink = $"{shaderFile.ShaderFileId:X2}";
@@ -241,9 +241,9 @@ namespace ValveResourceFormat.CompiledShader
             Dictionary<long, VfxShaderFile> comboIdToShaderFile = [];
             foreach (var renderState in staticCombo.DynamicComboRenderStates)
             {
-                if (renderState.ShaderFileId != -1)
+                if (renderState.ShaderFileId != -1 && staticCombo.ShaderFiles[renderState.ShaderFileId] is { } shaderFile)
                 {
-                    comboIdToShaderFile.Add(renderState.DynamicComboId, staticCombo.ShaderFiles[renderState.ShaderFileId]);
+                    comboIdToShaderFile.Add(renderState.DynamicComboId, shaderFile);
                 }
             }
             return comboIdToShaderFile;
@@ -251,11 +251,11 @@ namespace ValveResourceFormat.CompiledShader
 
         private void PrintSourceSummary()
         {
-            OutputWriter.WriteLine("source bytes/flags");
-            OutputWriter.WriteLine($"{StaticCombo.ConstantBufferSize}      // Constant Buffer Size");
-            OutputWriter.WriteLine($"{StaticCombo.StaticCB}       //");
-            OutputWriter.WriteLine($"{StaticCombo.GlobalsBDA}       // added with v66");
-            OutputWriter.WriteLine($"{StaticCombo.Flagbyte2}       //");
+            OutputWriter.WriteLine("CONSTANT BUFFER / FLAGS");
+            OutputWriter.WriteLine($"{StaticCombo.ConstantBufferSize}      // {nameof(VfxStaticComboData.ConstantBufferSize)}");
+            OutputWriter.WriteLine($"{StaticCombo.StaticCB}       // {nameof(VfxStaticComboData.StaticCB)}");
+            OutputWriter.WriteLine($"{StaticCombo.GlobalsBDA}       // {nameof(VfxStaticComboData.GlobalsBDA)}, added with v66");
+            OutputWriter.WriteLine($"{StaticCombo.Flagbyte2}       // {nameof(VfxStaticComboData.Flagbyte2)}");
             OutputWriter.WriteLine();
             OutputWriter.WriteLine();
         }
@@ -266,8 +266,8 @@ namespace ValveResourceFormat.CompiledShader
             OutputWriter.WriteLine();
             foreach (var renderState in StaticCombo.DynamicComboRenderStates)
             {
-                OutputWriter.WriteLine($"block-ref         {renderState.DynamicComboId}");
-                OutputWriter.WriteLine($"source-ref        {renderState.ShaderFileId}");
+                OutputWriter.WriteLine($"combo-id          {renderState.DynamicComboId}");
+                OutputWriter.WriteLine($"shader-file-id    {renderState.ShaderFileId}");
                 OutputWriter.WriteLine($"source-pointer    {renderState.SourcePointer}");
                 if (renderState is VfxRenderStateInfoHullShader hsRenderState)
                 {

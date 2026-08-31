@@ -336,7 +336,7 @@ namespace ValveResourceFormat.IO
                     }
 
                     // Dota seems to want one of S_MODE_FORWARD / S_MODE_DEFERRED enabled for textures
-                    // to be referenced in the writeseq blocks.
+                    // to be referenced in the write sequences.
                     var staticState = new Dictionary<string, byte>(2) { { "S_MODE_FORWARD", 1 } };
 
                     if (forcedStatic.Key is not null)

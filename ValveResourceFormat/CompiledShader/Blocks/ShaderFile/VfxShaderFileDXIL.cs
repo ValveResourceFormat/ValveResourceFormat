@@ -19,16 +19,16 @@ public class VfxShaderFileDXIL : VfxShaderFile
     /// <summary>
     /// Initializes a new instance from a binary reader.
     /// </summary>
-    public VfxShaderFileDXIL(BinaryReader datareader, int sourceId, VfxStaticComboData parent) : base(datareader, sourceId, parent)
+    public VfxShaderFileDXIL(BinaryReader datareader, int shaderFileId, VfxStaticComboData parent) : base(datareader, shaderFileId, parent)
     {
         if (Size > 0)
         {
             Arg0 = datareader.ReadInt16();
             Arg1 = (int)datareader.ReadUInt16();
-            uint dxilDelim = datareader.ReadUInt16();
-            if (dxilDelim != 0xFFFE)
+            uint delimiter = datareader.ReadUInt16();
+            if (delimiter != 0xFFFE)
             {
-                throw new ShaderParserException($"Unexpected DXIL source id {dxilDelim:x08}");
+                throw new ShaderParserException($"Unexpected DXIL delimiter {delimiter:x8}");
             }
 
             HeaderBytes = (int)datareader.ReadUInt16() * 4; // size is given as a 4-byte count

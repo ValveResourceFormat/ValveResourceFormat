@@ -8,9 +8,6 @@ namespace ValveResourceFormat.CompiledShader;
 /// <summary>
 /// Processes texture channels for shader inputs.
 /// </summary>
-/// <remarks>
-/// ChannelBlocks are always 280 bytes long
-/// </remarks>
 public class VfxTextureChannelProcessor : ShaderDataBlock
 {
     /// <summary>Gets the index in the owning array.</summary>

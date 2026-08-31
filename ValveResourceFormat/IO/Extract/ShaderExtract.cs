@@ -375,7 +375,7 @@ public sealed class ShaderExtract
         var programIndex = 0;
         foreach (var staticComboEntry in Vertex.StaticComboEntries)
         {
-            if (Options.StaticComboReadingCap >= 0 && ++programIndex >= Options.StaticComboReadingCap)
+            if (Options.StaticComboReadingCap >= 0 && programIndex++ >= Options.StaticComboReadingCap)
             {
                 break;
             }
@@ -504,7 +504,7 @@ public sealed class ShaderExtract
                     continue;
                 }
 
-                if (Options.CollapseBuffers_InInclude && IncludeWriters is not null)
+                if (Options.CollapseBuffers_InInclude)
                 {
                     var includeName = GetIncludeName(buffer.Name);
 
@@ -666,7 +666,7 @@ public sealed class ShaderExtract
         var attributeCapacity = Options.StaticComboReadingCap < 0
             ? program.StaticComboEntries.Count
             : Math.Min(program.StaticComboEntries.Count, Options.StaticComboReadingCap);
-        var attributesDisect = new Dictionary<int[], HashSet<string>>(attributeCapacity, new ConfigKeyComparer());
+        var attributesByConfig = new Dictionary<int[], HashSet<string>>(attributeCapacity, new ConfigKeyComparer());
         var perConditionAttributes = new Dictionary<(int Index, int State), HashSet<string>>(staticConfig.TotalStateCount);
 
         // Parameters
@@ -688,7 +688,7 @@ public sealed class ShaderExtract
             var staticComboAttributes = GetStaticComboAttributes(staticCombo, program.VariableDescriptions);
 
             var staticConfigState = staticConfig.GetConfigState(staticCombo.StaticComboId);
-            attributesDisect[staticConfigState] = staticComboAttributes;
+            attributesByConfig[staticConfigState] = staticComboAttributes;
 
             if (staticCombo.ShaderFiles.Length > 0 && variant0Source.Length == 0)
             {
@@ -731,7 +731,7 @@ public sealed class ShaderExtract
             }
         }
 
-        if (hasParameters && VariantParameterIndices?.Count > 0)
+        if (hasParameters && VariantParameterIndices.Count > 0)
         {
             writer.WriteLine();
             WriteVariantParameters(program.StaticComboArray, program.VariableDescriptions, program.TextureChannelProcessors, writer, perConditionParameters);
@@ -749,7 +749,7 @@ public sealed class ShaderExtract
             writer.WriteLine();
         }
 
-        WriteAttributes(program.StaticComboArray, writer, attributesDisect, perConditionAttributes);
+        WriteAttributes(program.StaticComboArray, writer, attributesByConfig, perConditionAttributes);
     }
 
     private void WriteVariantParameters(VfxCombo[] staticCombos, VfxVariableDescription[] variableDescriptions, VfxTextureChannelProcessor[] channelProcessors,
@@ -781,7 +781,7 @@ public sealed class ShaderExtract
             writer.WriteLine("#endif");
         }
 
-        if (written.Count == VariantParameterIndices.Count)
+        if (written.Count != VariantParameterIndices.Count)
         {
             var inconclusiveVariantParameters = VariantParameterIndices.Where(p => !written.Contains(p)).ToList();
             if (inconclusiveVariantParameters.Count > 0)
@@ -797,13 +797,13 @@ public sealed class ShaderExtract
     }
 
     private void WriteAttributes(VfxCombo[] staticCombos, IndentedTextWriter writer,
-        Dictionary<int[], HashSet<string>> attributesDisect, Dictionary<(int Index, int State), HashSet<string>> perConditionAttributes)
+        Dictionary<int[], HashSet<string>> attributesByConfig, Dictionary<(int Index, int State), HashSet<string>> perConditionAttributes)
     {
         var written = new HashSet<string>();
-        if (attributesDisect.Values.First().Count != 0 || !Options.StaticComboAttributes_NoSeparateGlobals)
+        if (attributesByConfig.Values.First().Count != 0 || !Options.StaticComboAttributes_NoSeparateGlobals)
         {
-            var invariants = new HashSet<string>(attributesDisect.Values.First());
-            foreach (var attributes in attributesDisect.Values.Skip(1))
+            var invariants = new HashSet<string>(attributesByConfig.Values.First());
+            foreach (var attributes in attributesByConfig.Values.Skip(1))
             {
                 // If count of this reaches 0, there can't be any invariant attributes!
                 if (invariants.Count == 0)
@@ -827,7 +827,7 @@ public sealed class ShaderExtract
                 writer.WriteLine();
 
                 // Remove invariants from the disect
-                foreach (var (config, attributes) in attributesDisect)
+                foreach (var (config, attributes) in attributesByConfig)
                 {
                     attributes.ExceptWith(invariants);
                 }
@@ -836,7 +836,7 @@ public sealed class ShaderExtract
 
         if (Options.StaticComboAttributes_NoConditionalReduce)
         {
-            foreach (var (config, attributes) in attributesDisect)
+            foreach (var (config, attributes) in attributesByConfig)
             {
                 if (attributes.Count == 0)
                 {
@@ -858,7 +858,7 @@ public sealed class ShaderExtract
             return;
         }
 
-        foreach (var (config, attributes) in attributesDisect)
+        foreach (var (config, attributes) in attributesByConfig)
         {
             if (attributes.Count == 0)
             {
@@ -902,7 +902,7 @@ public sealed class ShaderExtract
             writer.WriteLine("#endif");
         }
 
-        var missed = attributesDisect.Values.SelectMany(a => a).Where(a => !written.Contains(a)).ToHashSet();
+        var missed = attributesByConfig.Values.SelectMany(a => a).Where(a => !written.Contains(a)).ToHashSet();
         if (missed.Count == 0)
         {
             return;
@@ -917,7 +917,7 @@ public sealed class ShaderExtract
     }
 
     private static bool IsIrrelevantCondition<T>(VfxCombo[] staticCombos, Dictionary<(int Index, int State),
-        HashSet<T>> perConditionStuff, (int Index, int State) condition, HashSet<T> stuff)
+        HashSet<T>> perConditionItems, (int Index, int State) condition, HashSet<T> items)
     {
         var rangeMin = staticCombos[condition.Index].RangeMin;
         var rangeMax = staticCombos[condition.Index].RangeMax;
@@ -926,8 +926,8 @@ public sealed class ShaderExtract
         for (var j = rangeMin; j <= rangeMax; j++)
         {
             if (j == condition.State
-            || !perConditionStuff.TryGetValue((condition.Index, j), out var otherAttributes)
-            || !otherAttributes.SetEquals(stuff))
+            || !perConditionItems.TryGetValue((condition.Index, j), out var otherItems)
+            || !otherItems.SetEquals(items))
             {
                 continue;
             }
@@ -1005,9 +1005,9 @@ public sealed class ShaderExtract
     public HashSet<int> GetVariantParameters(VfxStaticComboData staticCombo)
     {
         var parameters = new HashSet<int>(VariantParameterIndices.Count);
-        foreach (var writeseq in Enumerable.Concat(Enumerable.Repeat(staticCombo.AllVariables, 1), staticCombo.DynamicComboVariables))
+        foreach (var writeSequence in Enumerable.Concat(Enumerable.Repeat(staticCombo.AllVariables, 1), staticCombo.DynamicComboVariables))
         {
-            foreach (var field in writeseq.Fields)
+            foreach (var field in writeSequence.Fields)
             {
                 parameters.Add(field.VariableIndex);
             }
@@ -1021,11 +1021,11 @@ public sealed class ShaderExtract
     {
         foreach (var feature in features)
         {
-            var checkboxNames = feature.StateNames.Length > 0
+            var stateNames = feature.StateNames.Length > 0
                 ? " (" + string.Join(", ", feature.StateNames.Select((x, i) => $"{i}=\"{x}\"")) + ")"
                 : string.Empty;
 
-            writer.WriteLine($"Feature( {feature.Name}, {feature.RangeMin}..{feature.RangeMax}{checkboxNames}, \"{feature.AliasName}\" );");
+            writer.WriteLine($"Feature( {feature.Name}, {feature.RangeMin}..{feature.RangeMax}{stateNames}, \"{feature.AliasName}\" );");
         }
 
         HandleRules(VfxRuleType.Feature,
@@ -1066,12 +1066,15 @@ public sealed class ShaderExtract
             if (combo.FeatureIndex != -1)
             {
                 var fromFeature = comboType == VfxRuleType.Dynamic ? "FromFeature" : string.Empty;
-                var equalsNotEqualsValue = (VfxStaticComboSourceType)combo.ComboSourceType switch
-                {
-                    VfxStaticComboSourceType.__SET_BY_FEATURE_EQ__ => $"=={combo.FeatureComparisonValue}",
-                    VfxStaticComboSourceType.__SET_BY_FEATURE_NE__ => $"!={combo.FeatureComparisonValue}",
-                    _ => string.Empty
-                };
+                // The EQ/NE source types only exist for static combos, dynamic combos use their own enum
+                var equalsNotEqualsValue = comboType == VfxRuleType.Static
+                    ? (VfxStaticComboSourceType)combo.ComboSourceType switch
+                    {
+                        VfxStaticComboSourceType.__SET_BY_FEATURE_EQ__ => $"=={combo.FeatureComparisonValue}",
+                        VfxStaticComboSourceType.__SET_BY_FEATURE_NE__ => $"!={combo.FeatureComparisonValue}",
+                        _ => string.Empty
+                    }
+                    : string.Empty;
 
                 writer.WriteLine($"{comboType}Combo{fromFeature}( {combo.Name}, {FeatureNames[combo.FeatureIndex]}{equalsNotEqualsValue} );");
             }
@@ -1418,7 +1421,7 @@ public sealed class ShaderExtract
             var index = param.ChannelInfoIndices[i];
             if (index == -1 || index >= channelProcessors.Length)
             {
-                throw new InvalidOperationException("Invalid channel block index");
+                throw new InvalidOperationException("Invalid channel processor index");
             }
 
             annotations.Add(GetChannelFromChannelProcessor(channelProcessors[index], variableDescriptions));

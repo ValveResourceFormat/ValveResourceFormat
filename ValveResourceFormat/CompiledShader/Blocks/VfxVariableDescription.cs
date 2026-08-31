@@ -53,10 +53,10 @@ public class VfxVariableDescription : ShaderDataBlock
     /// <summary>Gets the context state affected by this variable.</summary>
     public int ContextStateAffectedByVariable { get; }
 
-    /// <summary>Gets the register offset.</summary>
+    /// <summary>Gets the register offset. Only stored in KV3 resources; 0 for binary vcs files.</summary>
     public uint RegisterOffset { get; }
 
-    /// <summary>Gets the descriptor set index.</summary>
+    /// <summary>Gets the descriptor set index. Only stored in KV3 resources; 0 for binary vcs files.</summary>
     public uint DescriptorSet { get; }
 
     /// <summary>Gets the number of register elements.</summary>

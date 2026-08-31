@@ -9,7 +9,7 @@ namespace ValveResourceFormat.CompiledShader;
 /// Contains a definition for a shader combo, whether static, dynamic, or feature-specific.
 /// </summary>
 /// <remarks>
-/// These are usually 152 bytes long. Features may contain names describing each state
+/// Features may contain names describing each state.
 /// </remarks>
 public class VfxCombo : ShaderDataBlock
 {

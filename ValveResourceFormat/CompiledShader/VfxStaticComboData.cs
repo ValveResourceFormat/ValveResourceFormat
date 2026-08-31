@@ -11,7 +11,7 @@ namespace ValveResourceFormat.CompiledShader
     /// <summary>
     /// Represents data for a static shader combination.
     /// </summary>
-    public class VfxStaticComboData
+    public sealed class VfxStaticComboData
     {
         /// <summary>Gets the parent program data or null after disposal.</summary>
         public VfxProgramData? ParentProgramData { get; private set; }
@@ -31,10 +31,10 @@ namespace ValveResourceFormat.CompiledShader
         /// <summary>Gets the variable write sequences, one per dynamic combo.</summary>
         public VfxVariableIndexArray[] DynamicComboVariables { get; } = [];
 
-        /// <summary>Gets the constant buffer bind info slots.</summary>
+        /// <summary>Gets the constant buffer binding slots.</summary>
         public byte[] ConstantBufferBindingSlots { get; } = [];
 
-        /// <summary>Gets the constant buffer bind info flags.</summary>
+        /// <summary>Gets the constant buffer binding flags.</summary>
         public byte[] ConstantBufferBindingFlags { get; } = [];
 
         /// <summary>Gets the constant buffer size.</summary>
@@ -183,7 +183,7 @@ namespace ValveResourceFormat.CompiledShader
             ConstantBufferSize = data.GetInt32Property("m_nConstantBufferSize");
             // todo: are these correct?
             StaticCB = data.GetUInt32Property("m_bStaticCB") != 0u;
-            GlobalsBDA = (byte)data.GetUInt32Property("m_bGlobalsBDA"); //  != 0u
+            GlobalsBDA = (byte)data.GetUInt32Property("m_bGlobalsBDA");
 
             var allVars = data.GetSubCollection("m_allVars");
             AllVariables = new VfxVariableIndexArray(
@@ -211,7 +211,7 @@ namespace ValveResourceFormat.CompiledShader
                 _ = dataReader.ReadUInt64(); // probably StaticComboId
             }
 
-            AllVariables = new VfxVariableIndexArray(dataReader, -1, ParentProgramData.VcsProgramType != VcsProgramType.Features);
+            AllVariables = new VfxVariableIndexArray(dataReader, -1, readRegisterOffset: ParentProgramData.VcsProgramType != VcsProgramType.Features);
 
             int attributeCount = dataReader.ReadInt16();
             Attributes = new VfxShaderAttribute[attributeCount];
@@ -245,7 +245,7 @@ namespace ValveResourceFormat.CompiledShader
             DynamicComboVariables = new VfxVariableIndexArray[dynamicComboVariablesCount];
             for (var i = 0; i < dynamicComboVariablesCount; i++)
             {
-                VfxVariableIndexArray variableIndexArray = new(dataReader, i, true);
+                VfxVariableIndexArray variableIndexArray = new(dataReader, i, readRegisterOffset: true);
                 DynamicComboVariables[i] = variableIndexArray;
             }
 
@@ -333,26 +333,26 @@ namespace ValveResourceFormat.CompiledShader
 
         private void ReadGlslSources(BinaryReader dataReader)
         {
-            for (var sourceId = 0; sourceId < ShaderFiles.Length; sourceId++)
+            for (var shaderFileId = 0; shaderFileId < ShaderFiles.Length; shaderFileId++)
             {
-                VfxShaderFileGL glslSource = new(dataReader, sourceId, this);
-                ShaderFiles[sourceId] = glslSource;
+                VfxShaderFileGL glslSource = new(dataReader, shaderFileId, this);
+                ShaderFiles[shaderFileId] = glslSource;
             }
         }
         private void ReadDxilSources(BinaryReader dataReader)
         {
-            for (var sourceId = 0; sourceId < ShaderFiles.Length; sourceId++)
+            for (var shaderFileId = 0; shaderFileId < ShaderFiles.Length; shaderFileId++)
             {
-                VfxShaderFileDXIL dxilSource = new(dataReader, sourceId, this);
-                ShaderFiles[sourceId] = dxilSource;
+                VfxShaderFileDXIL dxilSource = new(dataReader, shaderFileId, this);
+                ShaderFiles[shaderFileId] = dxilSource;
             }
         }
         private void ReadDxbcSources(BinaryReader dataReader)
         {
-            for (var sourceId = 0; sourceId < ShaderFiles.Length; sourceId++)
+            for (var shaderFileId = 0; shaderFileId < ShaderFiles.Length; shaderFileId++)
             {
-                VfxShaderFileDXBC dxbcSource = new(dataReader, sourceId, this);
-                ShaderFiles[sourceId] = dxbcSource;
+                VfxShaderFileDXBC dxbcSource = new(dataReader, shaderFileId, this);
+                ShaderFiles[shaderFileId] = dxbcSource;
             }
         }
 
@@ -360,10 +360,10 @@ namespace ValveResourceFormat.CompiledShader
         {
             var isMobile = ParentProgramData?.VcsPlatformType is VcsPlatformType.ANDROID_VULKAN or VcsPlatformType.IOS_VULKAN;
 
-            for (var sourceId = 0; sourceId < ShaderFiles.Length; sourceId++)
+            for (var shaderFileId = 0; shaderFileId < ShaderFiles.Length; shaderFileId++)
             {
-                VfxShaderFileVulkan vulkanSource = new(dataReader, sourceId, this, isMobile);
-                ShaderFiles[sourceId] = vulkanSource;
+                VfxShaderFileVulkan vulkanSource = new(dataReader, shaderFileId, this, isMobile);
+                ShaderFiles[shaderFileId] = vulkanSource;
             }
         }
 
@@ -430,9 +430,10 @@ namespace ValveResourceFormat.CompiledShader
         }
 
         /// <summary>
-        /// Disposes resources by clearing the parent program data reference.
+        /// Clears the parent program data reference, invalidating this combo. Called when it is
+        /// evicted from the <see cref="StaticComboCache"/>.
         /// </summary>
-        public void Dispose()
+        public void DetachFromProgram()
         {
             ParentProgramData = null;
         }
