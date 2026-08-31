@@ -114,6 +114,7 @@ namespace ValveResourceFormat.IO
             is ResourceType.Mesh
             or ResourceType.Model
             or ResourceType.NmClip
+            or ResourceType.NmSkeleton
             or ResourceType.EntityLump
             or ResourceType.PhysicsCollisionMesh
             or ResourceType.WorldNode
@@ -263,6 +264,9 @@ namespace ValveResourceFormat.IO
                         break;
                     case ResourceType.NmClip:
                         ExportToFile(resource.FileName, targetPath, (VAnimationClip)resource.DataBlock!);
+                        break;
+                    case ResourceType.NmSkeleton:
+                        ExportSkeletonToFile(resource.FileName, targetPath, Skeleton.FromSkeletonData(((BinaryKV3)resource.DataBlock!).Data));
                         break;
                     default:
                         throw new ArgumentException($"{resource.ResourceType} not supported for gltf export");
@@ -669,6 +673,29 @@ namespace ValveResourceFormat.IO
             {
                 ExportAnimationClip(secondaryClip);
             }
+
+            WriteModelFile(exportedModel, fileName);
+        }
+
+        /// <summary>
+        /// Export an Animgraph 2 skeleton to GLTF.
+        /// </summary>
+        /// <param name="resourceName">The name of the resource being exported.</param>
+        /// <param name="fileName">Target file name.</param>
+        /// <param name="skeleton">The skeleton to export.</param>
+        private void ExportSkeletonToFile(string resourceName, string? fileName, Skeleton skeleton)
+        {
+            var exportedModel = CreateModelRoot(resourceName, out var scene);
+
+            var (skeletonNode, joints) = CreateGltfSkeleton(scene, skeleton, resourceName);
+            if (skeletonNode == null || joints == null)
+            {
+                throw new InvalidDataException($"Failure creating glTF skeleton for '{resourceName}'.");
+            }
+
+            // Create a skeleton visualization mesh so importers recognize this as a proper skeleton
+            var meshNode = CreateSkeletonVisualizationMesh(exportedModel, scene, skeleton, joints);
+            meshNode.Name = $"{resourceName}.empty_mesh_reference";
 
             WriteModelFile(exportedModel, fileName);
         }

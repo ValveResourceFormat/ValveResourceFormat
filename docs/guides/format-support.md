@@ -63,7 +63,7 @@ in the Dump column.
 | vnmclip  | NmClip (Animgraph 2 clip)  | 3D playback                   | yes     | clip document + DMX; glTF/GLB                                                                                |
 | vnmgraph | NmGraph (Animgraph 2)      | graph                         | generic | editable graph document                                                                                      |
 | vnmikrig | NmIKRig                    | text                          | generic | -                                                                                                            |
-| vnmskel  | NmSkeleton                 | 3D                            | generic | skeleton document + DMX                                                                                      |
+| vnmskel  | NmSkeleton                 | 3D                            | generic | skeleton document + DMX; glTF/GLB                                                                            |
 | vnmvar   | NmGraph Variation          | text                          | generic | - (variations are carried by the base graph's document)                                                      |
 | vpcf     | Particle System            | 3D                            | yes     | `.vpcf` (exact round-trip for KV3-era files)                                                                 |
 | vpdi     | Panorama Dynamic Images    | text                          | yes     | - (manifest of referenced vtex/vsvg images; holds no pixel data)                                             |
