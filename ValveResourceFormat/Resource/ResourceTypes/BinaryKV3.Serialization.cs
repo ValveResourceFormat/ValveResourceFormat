@@ -12,9 +12,7 @@ namespace ValveResourceFormat.ResourceTypes
 
         private class SerializationContext : IDisposable
         {
-            // TODO: Remove the extra list
-            public Dictionary<string, int> StringMap = [];
-            public List<string> Strings = [];
+            public OrderedDictionary<string, int> StringMap = [];
             public MemoryStream Bytes1 = new();
             public MemoryStream Bytes2 = new();
             public MemoryStream Bytes4 = new();
@@ -57,8 +55,7 @@ namespace ValveResourceFormat.ResourceTypes
 
                 if (!StringMap.TryGetValue(str, out var id))
                 {
-                    id = Strings.Count;
-                    Strings.Add(str);
+                    id = StringMap.Count;
                     StringMap[str] = id;
                 }
 
@@ -109,7 +106,7 @@ namespace ValveResourceFormat.ResourceTypes
             WriteValueRecursive(Data, context);
 
             context.Bytes4.Position = 0;
-            context.Bytes4Writer.Write(context.Strings.Count);
+            context.Bytes4Writer.Write(context.StringMap.Count);
 
             if (SerializationVersion == 5)
             {
@@ -247,7 +244,7 @@ namespace ValveResourceFormat.ResourceTypes
             using var stream = new MemoryStream();
             using var writer = new BinaryWriter(stream);
 
-            foreach (var str in context.Strings)
+            foreach (var str in context.StringMap.Keys)
             {
                 writer.Write(System.Text.Encoding.UTF8.GetBytes(str));
                 writer.Write((byte)0);
@@ -257,7 +254,7 @@ namespace ValveResourceFormat.ResourceTypes
 
             var offset = stringBytesLength;
             AlignWriter(ref offset, writer, 4);
-            writer.Write(context.Strings.Count);
+            writer.Write(context.StringMap.Count);
             return AsSegment(stream);
         }
 
@@ -557,7 +554,7 @@ namespace ValveResourceFormat.ResourceTypes
 
             var stringsStartOffset = offset;
 
-            foreach (var str in context.Strings)
+            foreach (var str in context.StringMap.Keys)
             {
                 var strBytes = System.Text.Encoding.UTF8.GetBytes(str);
                 writer.Write(strBytes);
