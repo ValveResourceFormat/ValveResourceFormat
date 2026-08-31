@@ -47,7 +47,7 @@ public class RendererContext : IDisposable
     /// <summary>
     /// Maximum texture mip size to load in <see cref="MaterialLoader"/>.
     /// </summary>
-    public int MaxTextureSize { get; set; } = 1024;
+    public int MaxTextureSize { get; set; } = int.MaxValue;
 
     /// <summary>
     /// Main camera field of view, in horizontal degrees at a 4:3 aspect ratio.

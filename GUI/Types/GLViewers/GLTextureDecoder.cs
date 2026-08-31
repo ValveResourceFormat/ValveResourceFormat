@@ -29,10 +29,7 @@ public class GLTextureDecoder : IHardwareTextureDecoder, IDisposable
     public GLTextureDecoder(ILogger logger)
     {
         using var loader = new GameFileLoader(null, null);
-        RendererContext = new RendererContext(loader, logger)
-        {
-            MaxTextureSize = int.MaxValue,
-        };
+        RendererContext = new RendererContext(loader, logger);
 
         GLThread = new Thread(Initialize_NoExcept)
         {
