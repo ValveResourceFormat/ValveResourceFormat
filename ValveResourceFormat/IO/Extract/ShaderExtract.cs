@@ -549,12 +549,12 @@ public sealed class ShaderExtract
                 ? member.VectorSize.ToString(CultureInfo.InvariantCulture)
                 : string.Empty;
 
-            var dim2 = member.Depth > 1
-                ? "x" + member.Depth.ToString(CultureInfo.InvariantCulture)
+            var dim2 = member.RowCount > 1
+                ? "x" + member.RowCount.ToString(CultureInfo.InvariantCulture)
                 : string.Empty;
 
-            var array = member.Length > 1
-                ? "[" + member.Length.ToString(CultureInfo.InvariantCulture) + "]"
+            var array = member.ElementCount > 1
+                ? "[" + member.ElementCount.ToString(CultureInfo.InvariantCulture) + "]"
                 : string.Empty;
 
             writer.WriteLine($"{type}{dim1}{dim2} {member.Name}{array};");

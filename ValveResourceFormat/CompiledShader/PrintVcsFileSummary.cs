@@ -376,13 +376,13 @@ namespace ValveResourceFormat.CompiledShader
             foreach (var buffer in program.ExtConstantBufferDescriptions)
             {
                 output.WriteLine($"CONSTANT BUFFERS[{buffer.Index}]");
-                // valve splits buffer.BufferSize into 0x7FFF and checks whether its negative
-                output.WriteLine($"{buffer.Name} size={buffer.BufferSize} ({buffer.BufferSize & 0x7FFF}) param-count={buffer.Variables.Length}" +
+                var pushConstant = buffer.IsPushConstantBuffer ? " push-constant" : string.Empty;
+                output.WriteLine($"{buffer.Name} size={buffer.BufferSize}{pushConstant} param-count={buffer.Variables.Length}" +
                     $" type={buffer.Type} crc32={buffer.BlockCrc:x08}");
-                output.DefineHeaders(["       ", "name", "offset", "vector-size", "depth", "length"]);
+                output.DefineHeaders(["       ", "name", "offset", "vector-size", "rows", "elements"]);
                 foreach (var variable in buffer.Variables)
                 {
-                    output.AddTabulatedRow(["", $"{variable.Name}", $"{variable.Offset,3}", $"{variable.VectorSize,3}", $"{variable.Depth,3}", $"{variable.Length,3}"]);
+                    output.AddTabulatedRow(["", $"{variable.Name}", $"{variable.Offset,3}", $"{variable.VectorSize,3}", $"{variable.RowCount,3}", $"{variable.ElementCount,3}"]);
                 }
                 output.PrintTabulatedValues();
                 output.BreakLine();

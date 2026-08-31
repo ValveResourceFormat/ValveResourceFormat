@@ -74,7 +74,7 @@ namespace ValveResourceFormat.CompiledShader
             OutputFormatterTabulatedData tabulatedData = new(OutputWriter);
             var emptyRow = new string[] { "", "", "", "", "" };
             tabulatedData.DefineHeaders(StaticCombo.AllVariables.Fields.Length > 0
-                ? ["segment", "", nameof(VfxVariableIndexData.Dest), nameof(VfxVariableIndexData.Control), nameof(VfxVariableIndexData.LayoutSet)]
+                ? ["segment", "", nameof(VfxVariableIndexData.BindingSlot), nameof(VfxVariableIndexData.Control), nameof(VfxVariableIndexData.LayoutSet)]
                 : emptyRow);
             if (StaticCombo.AllVariables.Fields.Length > 0)
             {
@@ -122,9 +122,9 @@ namespace ValveResourceFormat.CompiledShader
             {
                 var field = segment[i];
                 var paramDesc = $"[{field.VariableIndex}] {StaticCombo.ParentProgramData.VariableDescriptions[field.VariableIndex].Name}";
-                var destDesc = field.Dest == 0xff ? $"{"_",7}" : $"{field.Dest,7}";
+                var bindingSlotDesc = field.BindingSlot == 0xff ? $"{"_",7}" : $"{field.BindingSlot,7}";
                 var controlDesc = field.Control == 0xff ? $"{"_",10}" : $"{field.Control,10}";
-                tabulatedData.AddTabulatedRow([i == 0 ? segmentDesc : string.Empty, paramDesc, destDesc, $"{controlDesc} ({field.RegisterOffset})", $"{field.LayoutSet,7}"]);
+                tabulatedData.AddTabulatedRow([i == 0 ? segmentDesc : string.Empty, paramDesc, bindingSlotDesc, $"{controlDesc} ({field.RegisterOffset})", $"{field.LayoutSet,7}"]);
             }
         }
 
@@ -255,7 +255,7 @@ namespace ValveResourceFormat.CompiledShader
             OutputWriter.WriteLine($"{StaticCombo.ConstantBufferSize}      // {nameof(VfxStaticComboData.ConstantBufferSize)}");
             OutputWriter.WriteLine($"{StaticCombo.StaticCB}       // {nameof(VfxStaticComboData.StaticCB)}");
             OutputWriter.WriteLine($"{StaticCombo.GlobalsBDA}       // {nameof(VfxStaticComboData.GlobalsBDA)}, added with v66");
-            OutputWriter.WriteLine($"{StaticCombo.Flagbyte2}       // {nameof(VfxStaticComboData.Flagbyte2)}");
+            OutputWriter.WriteLine($"{StaticCombo.UsesGlslSources}       // {nameof(VfxStaticComboData.UsesGlslSources)}");
             OutputWriter.WriteLine();
             OutputWriter.WriteLine();
         }
@@ -268,7 +268,7 @@ namespace ValveResourceFormat.CompiledShader
             {
                 OutputWriter.WriteLine($"combo-id          {renderState.DynamicComboId}");
                 OutputWriter.WriteLine($"shader-file-id    {renderState.ShaderFileId}");
-                OutputWriter.WriteLine($"source-pointer    {renderState.SourcePointer}");
+                OutputWriter.WriteLine($"shader-file-off   {renderState.ShaderFileOffset}");
                 if (renderState is VfxRenderStateInfoHullShader hsRenderState)
                 {
                     OutputWriter.WriteLine($"hs-arg            {hsRenderState.HullShaderArg}");

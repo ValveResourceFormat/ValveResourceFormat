@@ -43,11 +43,14 @@ namespace ValveResourceFormat.CompiledShader
         /// <summary>Gets whether a static constant buffer is used.</summary>
         public bool StaticCB { get; }
 
-        /// <summary>Gets the globals buffer device address (BDA) value, likely a flag.</summary>
-        public byte GlobalsBDA { get; }
+        /// <summary>Gets the globals buffer device address flag. Not seen set in shipped files.</summary>
+        public bool GlobalsBDA { get; }
 
-        /// <summary>Gets an unknown flag.</summary>
-        public bool Flagbyte2 { get; }
+        /// <summary>
+        /// Gets whether the shader files were produced by the GLSL based compiler backends
+        /// (PCGL, MOBILE_GLES, and early Vulkan). False for D3D and current Vulkan files.
+        /// </summary>
+        public bool UsesGlslSources { get; }
 
         /// <summary>Gets the shader files for this combo.</summary>
         public VfxShaderFile[] ShaderFiles { get; } = [];
@@ -181,9 +184,8 @@ namespace ValveResourceFormat.CompiledShader
             ConstantBufferBindingFlags = [.. constantBufferBindingArray.Select(i => (byte)(i >> 8))];
 
             ConstantBufferSize = data.GetInt32Property("m_nConstantBufferSize");
-            // todo: are these correct?
             StaticCB = data.GetUInt32Property("m_bStaticCB") != 0u;
-            GlobalsBDA = (byte)data.GetUInt32Property("m_bGlobalsBDA");
+            GlobalsBDA = data.GetUInt32Property("m_bGlobalsBDA") != 0u;
 
             var allVars = data.GetSubCollection("m_allVars");
             AllVariables = new VfxVariableIndexArray(
@@ -262,15 +264,15 @@ namespace ValveResourceFormat.CompiledShader
             StaticCB = dataReader.ReadBoolean();
             if (ParentProgramData.VcsVersion >= 66)
             {
-                GlobalsBDA = dataReader.ReadByte();
+                GlobalsBDA = dataReader.ReadByte() != 0;
             }
 
             var shaderFileCount = dataReader.ReadInt32();
             ShaderFiles = new VfxShaderFile[shaderFileCount];
 
-            if (programData.VcsVersion >= 60) // not precise
+            if (programData.VcsVersion >= 60) // not present in v59, added by v62
             {
-                Flagbyte2 = dataReader.ReadBoolean();
+                UsesGlslSources = dataReader.ReadBoolean();
             }
 
             if (ParentProgramData.VcsPlatformType == VcsPlatformType.PC)

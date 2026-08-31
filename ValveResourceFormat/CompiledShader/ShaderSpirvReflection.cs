@@ -369,7 +369,7 @@ public static partial class ShaderSpirvReflection
             {
                 if (program.VariableDescriptions[field.VariableIndex].Name == "g_globalLateBoundBindlessSet")
                 {
-                    bindlessSet = field.Dest;
+                    bindlessSet = field.BindingSlot;
                     break;
                 }
             }
@@ -524,7 +524,7 @@ public static partial class ShaderSpirvReflection
 
             if (variable.RegisterType is VfxRegisterType.SamplerState)
             {
-                Debug.Assert(variable.Flags == VariableFlags.SamplerFlag4);
+                Debug.Assert(variable.Flags == VariableFlags.Sampler);
                 continue;
             }
 
@@ -534,7 +534,7 @@ public static partial class ShaderSpirvReflection
             }
 
             var isBindlessTextureArray = variable.Flags.HasFlag(VariableFlags.Bindless);
-            Debug.Assert(variable.Flags.HasFlag(VariableFlags.TextureFlag3 | VariableFlags.SamplerFlag4));
+            Debug.Assert(variable.Flags.HasFlag(VariableFlags.Texture | VariableFlags.Sampler));
 
             var startingPoint = isBindlessTextureArray ? config.TextureIndexStartingPoint : config.TextureStartingPoint;
 
@@ -552,7 +552,7 @@ public static partial class ShaderSpirvReflection
                     continue;
                 }
 
-                if (field.Dest == imageBinding - startingPoint)
+                if (field.BindingSlot == imageBinding - startingPoint)
                 {
                     return variable.Name;
                 }
@@ -586,7 +586,7 @@ public static partial class ShaderSpirvReflection
 
             var param = program.VariableDescriptions[field.VariableIndex];
 
-            if (param.RegisterType is not VfxRegisterType.SamplerState || field.Dest != samplerBinding - config.SamplerStartingPoint)
+            if (param.RegisterType is not VfxRegisterType.SamplerState || field.BindingSlot != samplerBinding - config.SamplerStartingPoint)
             {
                 continue;
             }
@@ -650,7 +650,7 @@ public static partial class ShaderSpirvReflection
                 continue;
             }
 
-            if (field.Dest == bufferBinding - config.StorageBufferStartingPoint)
+            if (field.BindingSlot == bufferBinding - config.StorageBufferStartingPoint)
             {
                 return param.Name;
             }
@@ -674,7 +674,7 @@ public static partial class ShaderSpirvReflection
         {
             var param = program.VariableDescriptions[field.VariableIndex];
 
-            if (param.VfxType is VfxVariableType.Cbuffer && field.Dest == binding && field.LayoutSet == set)
+            if (param.VfxType is VfxVariableType.Cbuffer && field.BindingSlot == binding && field.LayoutSet == set)
             {
                 return param.Name;
             }

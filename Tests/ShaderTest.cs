@@ -164,7 +164,7 @@ namespace Tests
                 await Assert.That(combo2.ConstantBufferSize).IsEqualTo(combo1.ConstantBufferSize);
                 await Assert.That(combo2.StaticCB).IsEqualTo(combo1.StaticCB);
                 await Assert.That(combo2.GlobalsBDA).IsEqualTo(combo1.GlobalsBDA);
-                await Assert.That(combo2.Flagbyte2).IsEqualTo(combo1.Flagbyte2);
+                await Assert.That(combo2.UsesGlslSources).IsEqualTo(combo1.UsesGlslSources);
 
                 static async Task TestVfxVariableIndexArray(VfxVariableIndexArray binary, VfxVariableIndexArray kv3)
                 {

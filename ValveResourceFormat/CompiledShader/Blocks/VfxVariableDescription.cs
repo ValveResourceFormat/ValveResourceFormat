@@ -50,7 +50,10 @@ public class VfxVariableDescription : ShaderDataBlock
     /// <summary>Gets the variable flags, stored in bits 8-15 of <see cref="ContextStateAffectedByVariable"/>.</summary>
     public VariableFlags Flags => (VariableFlags)((ContextStateAffectedByVariable >> 8) & 0xFF);
 
-    /// <summary>Gets the context state affected by this variable.</summary>
+    /// <summary>
+    /// Gets the context state affected by this variable. Only stored since version 64,
+    /// so a zero value on older files means unknown rather than no affected state.
+    /// </summary>
     public int ContextStateAffectedByVariable { get; }
 
     /// <summary>Gets the register offset. Only stored in KV3 resources; 0 for binary vcs files.</summary>

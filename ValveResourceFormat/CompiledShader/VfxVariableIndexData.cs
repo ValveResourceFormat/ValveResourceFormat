@@ -15,8 +15,11 @@ public readonly struct VfxVariableIndexData
     /// <summary>Gets the descriptor set ID in the shader layout.</summary>
     public int LayoutSet => PackedIndex >> 12; // Descriptor set id in the shader layout()
 
-    /// <summary>Gets the low byte of the register offset, used as the binding slot.</summary>
-    public int Dest => RegisterOffset & 0xFF;
-    /// <summary>Gets the high byte of the register offset.</summary>
+    /// <summary>Gets the binding slot, the low byte of the register offset. It is 255 when the variable has no register.</summary>
+    public int BindingSlot => RegisterOffset & 0xFF;
+    /// <summary>
+    /// Gets the high byte of the register offset. Only meaningful for constant buffer bindings,
+    /// where it appears to be the buffer's base register in a linearly allocated constant register space.
+    /// </summary>
     public int Control => (RegisterOffset >> 8) & 0xFF;
 }
