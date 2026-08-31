@@ -222,10 +222,11 @@ namespace GUI.Types.Exporter
                     firstType,
                 };
 
-                if (firstType is "vmdl" or "vmesh" or "vmap" or "vwrld" or "vwnod" or "vnmclip")
+                if (firstType is "vmdl" or "vmesh" or "vmap" or "vwrld" or "vwnod" or "vnmclip" or "vanim" or "vskel" or "vnmskel")
                 {
                     outputTypes.Add("gltf");
                     outputTypes.Add("glb");
+                    outputTypes.Add("smd");
                 }
                 else if (firstType == "vtex")
                 {
@@ -430,6 +431,36 @@ namespace GUI.Types.Exporter
             try
             {
                 contentFile = FileExtract.Extract(resource, exportData.VrfGuiContext, progress);
+
+                if (outExtension == ".smd")
+                {
+                    if (resource.ResourceType == ResourceType.NmClip)
+                    {
+                        var clipExtract = new NmClipExtract(resource, exportData.VrfGuiContext);
+                        var smdBytes = clipExtract.ToSmdData().ToBytes();
+                        await WriteFileAsync(outFilePath, smdBytes, cancellationToken).ConfigureAwait(false);
+                        return;
+                    }
+
+                    if (resource.ResourceType == ResourceType.NmSkeleton)
+                    {
+                        var skelExtract = new NmSkeletonExtract(resource);
+                        var smdBytes = skelExtract.ToSmdData().ToBytes();
+                        await WriteFileAsync(outFilePath, smdBytes, cancellationToken).ConfigureAwait(false);
+                        return;
+                    }
+
+                    var smdSubFile = contentFile.SubFiles.FirstOrDefault(f => f.FileName.EndsWith(".smd", StringComparison.OrdinalIgnoreCase));
+                    if (smdSubFile != null)
+                    {
+                        var smdBytes = smdSubFile.Extract?.Invoke();
+                        if (smdBytes != null)
+                        {
+                            await WriteFileAsync(outFilePath, smdBytes, cancellationToken).ConfigureAwait(false);
+                            return;
+                        }
+                    }
+                }
 
                 if (contentFile.Data != null)
                 {

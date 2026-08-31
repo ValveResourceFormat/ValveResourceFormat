@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Text;
 using ValveKeyValue;
+using ValveResourceFormat.IO.Smd;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.ResourceTypes.ModelAnimation;
 using ValveResourceFormat.ResourceTypes.ModelAnimation2;
@@ -16,6 +17,7 @@ public class NmSkeletonExtract
 {
     private readonly Resource resource;
     private readonly KVObject kvSkeleton;
+
     /// <summary>
     /// Initializes a new instance of the <see cref="NmSkeletonExtract"/> class.
     /// </summary>
@@ -67,6 +69,49 @@ public class NmSkeletonExtract
         {
             return ModelExtract.ToDmxSkeleton(skel, nmSkelAxisFixup: true, nmLowLodBoneCount: numLowLODBones);
         });
+
         return contentFile;
+    }
+
+    /// <summary>
+    /// Exports the skeleton directly to Source Studio Model Data (SMD) format for Blender.
+    /// </summary>
+    public SmdData ToSmdData()
+    {
+        var skel = Skeleton.FromSkeletonData(kvSkeleton);
+        var smd = new SmdData
+        {
+            Name = Path.GetFileNameWithoutExtension(resource.FileName) ?? "Skeleton",
+            Type = SmdType.Skeleton
+        };
+
+        foreach (var bone in skel.Bones)
+        {
+            smd.AddBone(bone.Parent?.Name ?? string.Empty, bone.Name);
+        }
+
+        var keyframes = new System.Collections.Generic.List<SmdData.KeyFrame>();
+        for (var i = 0; i < skel.Bones.Length; i++)
+        {
+            var bone = skel.Bones[i];
+            var euler = EntityTransformHelper.ToEulerAngles(bone.Angle);
+            keyframes.Add(new SmdData.KeyFrame(i, bone.Position, euler));
+        }
+
+        smd.Frames.Add(keyframes);
+        return smd;
+    }
+
+    /// <summary>
+    /// Exports the skeleton as an SMD ContentFile.
+    /// </summary>
+    public ContentFile ToSmdContentFile()
+    {
+        var smd = ToSmdData();
+        return new ContentFile
+        {
+            Data = smd.ToBytes(),
+            FileName = Path.ChangeExtension(resource.FileName, "smd") ?? "skeleton.smd"
+        };
     }
 }

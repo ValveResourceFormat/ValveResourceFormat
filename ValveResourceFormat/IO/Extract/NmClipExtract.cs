@@ -255,4 +255,72 @@ public class NmClipExtract
         kvDocEventTrack.Add("m_events", eventsArray);
         return kvDocEventTrack;
     }
+
+    private static readonly System.Numerics.Quaternion NmSkelRotationFixup = new(-0.5f, -0.5f, -0.5f, 0.5f);
+
+    /// <summary>
+    /// Converts the animation clip to Source Studio Model Data (SMD) format for Blender.
+    /// </summary>
+    public ValveResourceFormat.IO.Smd.SmdData ToSmdData(bool nmSkelAxisFixup = true)
+    {
+        var smd = new ValveResourceFormat.IO.Smd.SmdData
+        {
+            Name = Path.GetFileNameWithoutExtension(resource.FileName) ?? "Animation",
+            Type = ValveResourceFormat.IO.Smd.SmdType.Animation
+        };
+
+        var skeleton = ResourceTypes.ModelAnimation.Skeleton.FromSkeletonResource(fileLoader, clip.SkeletonName);
+        if (skeleton == null)
+        {
+            return smd;
+        }
+
+        foreach (var bone in skeleton.Bones)
+        {
+            smd.AddBone(bone.Parent?.Name ?? string.Empty, bone.Name);
+        }
+
+        var rootMotionBone = skeleton.Bones.FirstOrDefault(b => b.Name == "root_motion");
+        var frameBones = new ResourceTypes.ModelAnimation.FrameBone[skeleton.Bones.Length];
+
+        for (var f = 0; f < clip.NumFrames; f++)
+        {
+            clip.ReadFrame(f, frameBones);
+            var keyframes = new System.Collections.Generic.List<ValveResourceFormat.IO.Smd.SmdData.KeyFrame>();
+
+            for (var b = 0; b < skeleton.Bones.Length; b++)
+            {
+                var pos = frameBones[b].Position;
+                var rot = frameBones[b].Angle;
+
+                if (nmSkelAxisFixup && rootMotionBone != null && skeleton.Bones[b].Parent == rootMotionBone)
+                {
+                    var q = rot * NmSkelRotationFixup;
+                    pos = System.Numerics.Vector3.Transform(pos, NmSkelRotationFixup);
+                    rot = new System.Numerics.Quaternion(q.Y, q.Z, q.X, q.W);
+                }
+
+                var euler = EntityTransformHelper.ToEulerAngles(rot);
+                keyframes.Add(new ValveResourceFormat.IO.Smd.SmdData.KeyFrame(b, pos, euler));
+            }
+
+            smd.Frames.Add(keyframes);
+        }
+
+        return smd;
+    }
+
+    /// <summary>
+    /// Exports the animation clip as an SMD ContentFile.
+    /// </summary>
+    public ContentFile ToSmdContentFile(bool nmSkelAxisFixup = true)
+    {
+        var smd = ToSmdData(nmSkelAxisFixup);
+        return new ContentFile
+        {
+            Data = smd.ToBytes(),
+            FileName = Path.ChangeExtension(resource.FileName, "smd") ?? "clip.smd"
+        };
+    }
 }
+

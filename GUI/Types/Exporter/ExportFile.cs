@@ -5,6 +5,7 @@ using System.Windows.Forms;
 using GUI.Types.PackageViewer;
 using GUI.Utils;
 using SteamDatabase.ValvePak;
+using ValveResourceFormat;
 using ValveResourceFormat.IO;
 using Resource = ValveResourceFormat.Resource;
 
@@ -68,6 +69,13 @@ namespace GUI.Types.Exporter
                         const string glbFilter = "glTF Binary|*.glb";
 
                         filter = $"{filter}|{gltfFilter}|{glbFilter}";
+                    }
+
+                    if (extension is "vnmskel" or "vnmclip" or "vanim" or "vskel" or "vmdl" or "vmesh" or "vseq" or "vagrp"
+                        || resource.ResourceType is ResourceType.NmSkeleton or ResourceType.NmClip or ResourceType.Animation or ResourceType.AnimationGroup or ResourceType.Model or ResourceType.Mesh or ResourceType.Sequence)
+                    {
+                        const string smdFilter = "Source SMD (*.smd)|*.smd";
+                        filter = $"{filter}|{smdFilter}";
                     }
 
                     var fileNameForSave = Path.GetFileNameWithoutExtension(fileName);
