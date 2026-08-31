@@ -5,6 +5,7 @@ using System.IO.Hashing;
 using System.Linq;
 using System.Reflection;
 using System.Runtime.InteropServices;
+using System.Threading;
 using Microsoft.Extensions.Logging;
 using OpenTK.Graphics.OpenGL;
 using SkiaSharp;
@@ -212,10 +213,7 @@ namespace ValveResourceFormat.Renderer.Materials
         /// <param name="name">The compiled texture resource path.</param>
         /// <param name="srgbRead">Whether to interpret the texture data in sRGB color space.</param>
         /// <param name="anisotropicFiltering">Whether to apply anisotropic filtering when <see cref="MaxTextureMaxAnisotropy"/> is sufficient.</param>
-        /// <param name="streaming">Whether the texture may load progressively over the frames after this
-        /// call. Off by default: only textures that are exclusively sampled by draws — material and
-        /// particle textures — should opt in. Anything read or copied at load time (lightmaps, envmaps,
-        /// light probes, atlas sources) or snapshotted into constants must stay synchronous and complete.</param>
+        /// <param name="streaming">Whether mips may arrive over later frames.</param>
         public RenderTexture GetTexture(string name, bool srgbRead = false, bool anisotropicFiltering = false, bool streaming = false)
         {
             // TODO: Create texture view for srgb textures
@@ -237,7 +235,6 @@ namespace ValveResourceFormat.Renderer.Materials
 
             if (anisotropicFiltering && MaxTextureMaxAnisotropy >= 4)
             {
-                // Through the texture, so growth recreations reapply it to each replacement object
                 tex.SetMaxAnisotropy(MaxTextureMaxAnisotropy);
             }
 
@@ -284,16 +281,16 @@ namespace ValveResourceFormat.Renderer.Materials
                 return GetErrorTexture();
             }
 
-            return LoadTexture(textureResource, srgbRead, isViewerRequest: false, async);
+            return LoadTexture(textureResource, srgbRead, ignoreMaxTextureSize: false, async);
         }
 
 #pragma warning disable CA1822 // Mark members as static
         /// <summary>Uploads a texture resource to the GPU and returns the resulting <see cref="RenderTexture"/>.</summary>
         /// <param name="textureResource">The loaded texture resource.</param>
         /// <param name="srgbRead">Whether to use the sRGB internal format when available.</param>
-        /// <param name="isViewerRequest">When <see langword="true"/>, skips mip-level capping.</param>
+        /// <param name="ignoreMaxTextureSize">Whether to load at full size, past <see cref="RendererContext.MaxTextureSize"/>.</param>
         /// <param name="async">When <see langword="true"/>, mip data is loaded on background jobs and hooked up later by <see cref="TextureStreamingHelper.Timeslice"/>, smallest mips first.</param>
-        public RenderTexture LoadTexture(Resource textureResource, bool srgbRead = false, bool isViewerRequest = false, bool async = false)
+        public RenderTexture LoadTexture(Resource textureResource, bool srgbRead = false, bool ignoreMaxTextureSize = false, bool async = false)
 #pragma warning restore CA1822 // Mark members as static
         {
             var data = (Texture?)textureResource.DataBlock;
@@ -358,7 +355,7 @@ namespace ValveResourceFormat.Renderer.Materials
             var texWidth = data.Width;
             var texHeight = data.Height;
 
-            if (!isViewerRequest && !is3d && data.NumMipLevels > 1)
+            if (!ignoreMaxTextureSize && !is3d && data.NumMipLevels > 1)
             {
                 var maxUserTextureSize = RendererContext.MaxTextureSize;
 
@@ -451,50 +448,51 @@ namespace ValveResourceFormat.Renderer.Materials
                 decodedBuffer = ArrayPool<byte>.Shared.Rent(data.Width * data.Height * data.Depth * 4);
             }
 
+            // The other srgb variant of this resource may be streaming, and its load jobs
+            // share the block's reader with this loop
+            Monitor.Enter(data);
+
             try
             {
-                // Under the data lock: the other srgb variant of this resource may be streaming, and its
-                // read jobs share the block's reader with this loop
-                lock (data)
+                foreach (var (level, width, height, depth, bufferSize) in data.GetEveryMipLevelTexture(buffer, minMipLevelAllowed))
                 {
-                    foreach (var (level, width, height, depth, bufferSize) in data.GetEveryMipLevelTexture(buffer, minMipLevelAllowed))
+                    var realLevel = (int)level - minMipLevelAllowed;
+                    var uploadBuffer = buffer;
+
+                    if (decodedBuffer != null)
                     {
-                        var realLevel = (int)level - minMipLevelAllowed;
-                        var uploadBuffer = buffer;
+                        data.DecodeTexture(buffer.AsSpan(0, bufferSize), decodedBuffer, width, height, depth);
+                        uploadBuffer = decodedBuffer;
+                    }
 
-                        if (decodedBuffer != null)
+                    if (!format.IsBlockCompressed())
+                    {
+                        if (is3d)
                         {
-                            data.DecodeTexture(buffer.AsSpan(0, bufferSize), decodedBuffer, width, height, depth);
-                            uploadBuffer = decodedBuffer;
-                        }
-
-                        if (!format.IsBlockCompressed())
-                        {
-                            if (is3d)
-                            {
-                                GL.TextureSubImage3D(tex.Handle, realLevel, 0, 0, 0, width, height, depth, format.ToGLPixelFormat(), format.ToGLPixelType(), uploadBuffer);
-                            }
-                            else
-                            {
-                                GL.TextureSubImage2D(tex.Handle, realLevel, 0, 0, width, height, format.ToGLPixelFormat(), format.ToGLPixelType(), uploadBuffer);
-                            }
+                            GL.TextureSubImage3D(tex.Handle, realLevel, 0, 0, 0, width, height, depth, format.ToGLPixelFormat(), format.ToGLPixelType(), uploadBuffer);
                         }
                         else
                         {
-                            if (is3d)
-                            {
-                                GL.CompressedTextureSubImage3D(tex.Handle, realLevel, 0, 0, 0, width, height, depth, (PixelFormat)sizedInternalFormat, bufferSize, uploadBuffer);
-                            }
-                            else
-                            {
-                                GL.CompressedTextureSubImage2D(tex.Handle, realLevel, 0, 0, width, height, (PixelFormat)sizedInternalFormat, bufferSize, uploadBuffer);
-                            }
+                            GL.TextureSubImage2D(tex.Handle, realLevel, 0, 0, width, height, format.ToGLPixelFormat(), format.ToGLPixelType(), uploadBuffer);
+                        }
+                    }
+                    else
+                    {
+                        if (is3d)
+                        {
+                            GL.CompressedTextureSubImage3D(tex.Handle, realLevel, 0, 0, 0, width, height, depth, (PixelFormat)sizedInternalFormat, bufferSize, uploadBuffer);
+                        }
+                        else
+                        {
+                            GL.CompressedTextureSubImage2D(tex.Handle, realLevel, 0, 0, width, height, (PixelFormat)sizedInternalFormat, bufferSize, uploadBuffer);
                         }
                     }
                 }
             }
             finally
             {
+                Monitor.Exit(data);
+
                 ArrayPool<byte>.Shared.Return(buffer);
 
                 if (decodedBuffer != null)
@@ -533,7 +531,6 @@ namespace ValveResourceFormat.Renderer.Materials
                     GL.TextureStorage1D(handle, levels, format, width);
                     break;
 
-                // Cube storage allocates its six faces from 2D dimensions; a 1D array's layers ride in height
                 case TextureTarget.Texture1DArray:
                 case TextureTarget.Texture2D:
                 case TextureTarget.TextureCubeMap:

@@ -75,8 +75,6 @@ namespace GUI.Types.GLViewers
 
         /// <summary>Set by escape to release the mouse in walk mode, cleared by clicking back into the viewport.</summary>
         private bool mouseReleased;
-
-        /// <summary>Whether the current <see cref="OnPaint"/> is the shader specialization prewarm frame, which must not start texture streaming.</summary>
         private bool prewarming;
 
         private readonly List<RenderModes.RenderMode> renderModes = new(RenderModes.Items.Count);
@@ -417,9 +415,6 @@ namespace GUI.Types.GLViewers
             Renderer.DisableAllCulling = true;
 
             Renderer.Camera.CopyFrom(Input.Camera);
-
-            // Texture streaming would compete with shader specialization for every core while the
-            // loading screen is still up; it starts with the first real frame instead
             prewarming = true;
 
             try
@@ -757,9 +752,8 @@ namespace GUI.Types.GLViewers
 
             GL.EndQuery(QueryTarget.TimeElapsed);
 
-            // After all scene draws, so mip uploads never force the driver to synchronize mid-frame
-            // around a texture that is both being drawn and written
-            if (!prewarming)
+            var streamTextures = !prewarming;
+            if (streamTextures)
             {
                 Scene.RendererContext.TextureStreaming.Timeslice(frameTime);
             }

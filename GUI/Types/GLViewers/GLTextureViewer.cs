@@ -1258,7 +1258,7 @@ namespace GUI.Types.GLViewers
                 return;
             }
 
-            texture = RendererContext.MaterialLoader.LoadTexture(Resource, isViewerRequest: true);
+            texture = RendererContext.MaterialLoader.LoadTexture(Resource, ignoreMaxTextureSize: true);
             InvalidateRender();
         }
 

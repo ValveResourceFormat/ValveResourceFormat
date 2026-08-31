@@ -4,61 +4,60 @@ using System.Diagnostics;
 using System.Threading;
 using Microsoft.Extensions.Logging;
 using OpenTK.Graphics.OpenGL;
-using ValveResourceFormat.ResourceTypes;
 
 namespace ValveResourceFormat.Renderer.Materials
 {
-    /// <summary>Loads texture mip data in the background and hooks it up to the texture over the frames
-    /// after load, so scene load time stops scaling with texture volume. Named after Source 2's own
-    /// <c>CTextureStreamingHelper</c>, and borrowing its vocabulary: mip data is "bits", a chain's next
-    /// read is a "load request", and the per-frame work is time sliced.</summary>
+    /// <summary>
+    /// Reads texture mip data on background threads and gives it to the GPU over the frames that follow,
+    /// so load time stops scaling with how much texture data a scene uses. A streamed texture starts out
+    /// holding only its smallest mip and grows one level at a time as data arrives.
+    /// Vocabulary follows Source 2's <c>CTextureStreamingHelper</c>: mip data is "bits", asking for a
+    /// texture's next mip is a "load request", and the per-frame work is "time sliced".
+    /// </summary>
     public sealed class TextureStreamingHelper(RendererContext rendererContext)
     {
-        /// <summary>Streams waiting to issue their next load request: newly loaded textures and chains parked by the throttle.</summary>
+        // Streams waiting to ask for their next mip: new textures, and chains parked by the throttle
         private readonly ConcurrentQueue<StreamedTexture> pendingLoadRequests = new();
 
-        /// <summary>Loaded mip bits waiting to be hooked up. A single FIFO queue: load requests are
-        /// issued sequentially per texture, so it preserves each texture's chain order by construction.</summary>
+        // One FIFO for everything: a texture only has one request out at a time, so this is already in chain order
         private readonly ConcurrentQueue<LoadedMipBits> loadedMipBits = new();
 
-        /// <summary>Throttle on mip buffer bytes in flight between a load request and its hookup. Chains
-        /// park at the cap and the next time slice resumes them, which bounds the working set the shared
-        /// array pool must cover and keeps the managed heap bounded before the render loop is running.</summary>
-        private const long MaxBitsInFlight = 256L * 1024 * 1024;
-
-        /// <summary>Buffer bytes between a load request and its hookup. A soft gate, adjusted with interlocked adds by the hookup and by failed loads.</summary>
-        private long bitsInFlight;
-
-        /// <summary>When set, one load request reads its texture's whole remaining chain into one buffer
-        /// and hooks it up with a single storage recreation — one texture per worker, batched like the
-        /// synchronous path but with textures in parallel. For one-shot consumers that drain to completion,
-        /// like the thumbnail renderer; the scene render loop stays per-mip, whose small work items its
-        /// time slice needs.</summary>
-        public bool LoadWholeChains { get; set; }
-
-        /// <summary>Incomplete streams by their texture, so a non-streaming request for a texture that a
-        /// material already started streaming can finish the chain inline instead of sampling a stub.</summary>
+        // Streams by texture, so a caller that needs a texture whole can finish its chain inline
         private readonly ConcurrentDictionary<RenderTexture, StreamedTexture> incompleteStreams = new();
 
-        /// <summary>Takes over a freshly loaded texture that holds only its smallest mip, queueing the
-        /// load request for the rest of its chain.</summary>
+        // Cap on buffer bytes between a load request and its hookup. Chains park at the cap until a later
+        // slice drains them, which bounds both the pool's working set and the heap before the render loop runs.
+        private const long MaxBitsInFlight = 256L * 1024 * 1024;
+
+        private long bitsInFlight;
+
+        private long lastSliceDuration;
+
+        /// <summary>
+        /// Gets or sets whether one load request reads all of a texture's remaining mips at once instead of
+        /// one mip at a time. That means fewer, larger reads and a single storage recreation per texture,
+        /// which pays off when every texture is going to be drained to completion anyway. Leave it off to
+        /// keep the work items small enough to fit inside a frame.
+        /// </summary>
+        public bool LoadWholeChains { get; set; }
+
         internal void BeginStreaming(StreamedTexture stream)
         {
             incompleteStreams.TryAdd(stream.Texture, stream);
             pendingLoadRequests.Enqueue(stream);
         }
 
-        /// <summary>Retires a chain at any of its terminal points: completed, failed, or dropped with its
-        /// texture. Idempotent — a retired chain can still be dequeued from the pending queue by a later drain.</summary>
+        // Ends a chain, however it ended: finished, failed, or its texture went away. Idempotent, because a
+        // retired stream can still be sitting in a queue and get dequeued later.
         private void RetireStream(StreamedTexture stream)
         {
             incompleteStreams.TryRemove(stream.Texture, out _);
         }
 
-        /// <summary>Drops all pending stream work, the counterpart to <see cref="FinishAllStreaming"/>.
-        /// Makes no GL calls, so it is also safe during teardown without a current context. The throttle
-        /// is unwound per item rather than zeroed: a straggling load's bytes stay counted until its bits
-        /// surface, so the counter never goes negative.</summary>
+        /// <summary>
+        /// Throws away everything still streaming and hands its buffers back to the pool. Makes no GL calls,
+        /// so it is safe during teardown with no current context.
+        /// </summary>
         public void CancelAllStreaming()
         {
             while (pendingLoadRequests.TryDequeue(out var stream))
@@ -66,7 +65,8 @@ namespace ValveResourceFormat.Renderer.Materials
                 RetireStream(stream);
             }
 
-            // Drain rather than clear: these buffers belong to the pool, not the garbage collector
+            // Drain rather than clear: these buffers belong to the pool, not the garbage collector. The byte
+            // count comes off per item, never zeroed, so a load still in flight keeps its bytes counted.
             while (loadedMipBits.TryDequeue(out var bits))
             {
                 ArrayPool<byte>.Shared.Return(bits.Buffer);
@@ -77,10 +77,8 @@ namespace ValveResourceFormat.Renderer.Materials
             incompleteStreams.Clear();
         }
 
-        /// <summary>Hooks up one loaded mip level: recreates the storage one level larger, copying the
-        /// resident smaller levels over, then sub-images the new mip into the new top level. One texture's
-        /// bits arrive in chain order, smallest mip first, so the storage only ever holds defined levels
-        /// — nothing can sample as black — and VRAM stays tightly packed to what has arrived.</summary>
+        // Grows the storage to fit the new mips, then uploads them. A texture's bits always arrive smallest
+        // first, so every level in the storage has been written and nothing can ever sample as black.
         private static void HookUpMipBits(in LoadedMipBits bits)
         {
             var stream = bits.Stream;
@@ -108,7 +106,6 @@ namespace ValveResourceFormat.Renderer.Materials
             }
         }
 
-        /// <summary>Uploads one mip's texel data from an offset within a buffer to a storage level.</summary>
         private static unsafe void SubImageMip(StreamedTexture stream, int level, in PlannedMip mip, byte[] buffer, int offset)
         {
             var texture = stream.Texture;
@@ -140,9 +137,8 @@ namespace ValveResourceFormat.Renderer.Materials
             }
         }
 
-        /// <summary>Recreates a streamed texture's storage sized for the given chain level, copies the
-        /// resident smaller levels into its tail and swaps the texture over to the new object. No-op for
-        /// levels the current storage already covers, such as the synchronous smallest mip at load.</summary>
+        // Immutable storage cannot grow, so bigger levels mean a new texture object: allocate one, copy the
+        // levels already there into its tail, and swap the handle over. VRAM stays packed to what arrived.
         private static void AddMipLevels(StreamedTexture stream, int chainLevel)
         {
             if (chainLevel >= stream.ResidentChainLevel)
@@ -173,11 +169,12 @@ namespace ValveResourceFormat.Renderer.Materials
             stream.ResidentChainLevel = chainLevel;
         }
 
-        /// <summary>One frame's slice of streaming work: issues the load requests it can and hooks up the
-        /// bits that have arrived, advancing each texture's chain to its next mip. Must be called on a
-        /// thread with a GL context, once per frame.</summary>
-        /// <param name="frameTime">Duration of the previous frame in seconds. The slice gets 20% of it, less
-        /// what the previous slice spent, so its own cost never feeds back into its budget.</param>
+        /// <summary>
+        /// Does one frame's worth of streaming: starts the loads it can, and gives the GPU whatever mip data
+        /// has arrived since last time. Call once per frame, on a thread with a GL context.
+        /// </summary>
+        /// <param name="frameTime">Length of the previous frame in seconds. This call gets 20% of it, minus
+        /// what the previous call spent, so its own cost cannot grow its budget.</param>
         public void Timeslice(float frameTime = 1f / 60f)
         {
             var start = Stopwatch.GetTimestamp();
@@ -188,8 +185,7 @@ namespace ValveResourceFormat.Renderer.Materials
             lastSliceDuration = Stopwatch.GetTimestamp() - start;
         }
 
-        /// <summary>Body of a slice, run until the queues run dry or the deadline passes. Returns whether
-        /// any bits were hooked up.</summary>
+        // The work itself, until the queues run dry or the deadline passes. Says whether it hooked anything up.
         private bool RunUntil(long deadline)
         {
             var hookedUp = false;
@@ -225,7 +221,7 @@ namespace ValveResourceFormat.Renderer.Materials
                     // The GL upload copies out of the buffer before returning, so it is dead here
                     ArrayPool<byte>.Shared.Return(bits.Buffer);
 
-                    // Hooking the bits up is what lets the chain forward, so the slice paces the pipeline
+                    // Only a hookup moves a chain forward, which is what paces the whole pipeline
                     stream.NextMip += bits.MipCount;
 
                     if (stream.NextMip < stream.Mips.Length)
@@ -247,18 +243,17 @@ namespace ValveResourceFormat.Renderer.Materials
             return hookedUp;
         }
 
-        /// <summary>How long the previous <see cref="Timeslice"/> took, in <see cref="Stopwatch"/> ticks.</summary>
-        private long lastSliceDuration;
-
-        /// <summary>Whether any streamed texture still has mips waiting to be requested, in flight on a
-        /// load job, or awaiting hookup. While true, <see cref="Timeslice"/> still has work to do.</summary>
+        // Anything left to request, in flight, or waiting to be hooked up
         private bool HasPendingWork
             => !pendingLoadRequests.IsEmpty || !loadedMipBits.IsEmpty || Interlocked.Read(ref bitsInFlight) > 0;
 
-        /// <summary>Runs until every stream has finished, for one-shot consumers that have no frame loop
-        /// to slice against. Unbudgeted, since there is no frame to stay inside of, and it backs off
-        /// whenever it comes up empty: the loads are still in flight on the thread pool, and spinning here
-        /// only takes cores away from them. Must be called on a thread with a GL context.</summary>
+        /// <summary>
+        /// Keeps working until nothing is left to stream, for when there is no frame loop to spread the work
+        /// over. Runs to no budget, and sleeps rather than spins while it waits, since the loads are running
+        /// on the thread pool and spinning here would only take threads away from them. Must be called on a
+        /// thread with a GL context.
+        /// </summary>
+        /// <param name="cancellationToken">Stops early, leaving chains unfinished.</param>
         public void FinishAllStreaming(CancellationToken cancellationToken = default)
         {
             var backoff = new SpinWait();
@@ -276,8 +271,8 @@ namespace ValveResourceFormat.Renderer.Materials
             }
         }
 
-        /// <summary>Dispatches the load for a stream's next mip, or parks the stream for a later slice when
-        /// too many bytes are in flight. Only called on the slice's thread, so the throttle check never races its own adds.</summary>
+        // Asks for a stream's next mip, or parks it until the throttle lets up. Only ever runs on the thread
+        // doing the slice, so reading the byte count cannot race the adds made right below it.
         private void IssueLoadRequest(StreamedTexture stream)
         {
             // A parked chain that was finished inline by a non-streaming request has nothing left to do
@@ -292,15 +287,14 @@ namespace ValveResourceFormat.Renderer.Materials
                 return;
             }
 
-            // Counted from load request to hookup, so the throttle bounds rented buffers, not just queued data
+            // Counted from the request, not from the enqueue, so the throttle bounds rented buffers too
             Interlocked.Add(ref bitsInFlight, PendingLoadBytes(stream));
 
             stream.Started = true;
             ThreadPool.UnsafeQueueUserWorkItem(stream, preferLocal: false);
         }
 
-        /// <summary>Data bytes the stream's next load request holds of the throttle: one mip, or the whole
-        /// remaining chain. Also the load's unwind amount on failure, so both compute it here.</summary>
+        // What the next request costs the throttle, and what a failed one has to give back
         private int PendingLoadBytes(StreamedTexture stream)
         {
             if (!LoadWholeChains)
@@ -318,10 +312,9 @@ namespace ValveResourceFormat.Renderer.Materials
             return total;
         }
 
-        /// <summary>Finishes a texture's mip chain inline, so callers that copy or measure the texture at
-        /// load time — cookie atlases most of all — never see the growing stub a material left behind.
-        /// Chains cannot have started before the render loop's first slice, which is where every load-time
-        /// caller runs, so the remaining mips can be loaded and hooked up on the spot.</summary>
+        // Finishes a chain on the spot, for a caller that needs the whole texture rather than the stub a
+        // material left growing. Only works before the chain started, which no chain has by the time the
+        // first slice runs, so this is a rule rather than a fallback.
         internal void FinishStreaming(RenderTexture tex)
         {
             if (!incompleteStreams.TryRemove(tex, out var stream))
@@ -331,8 +324,7 @@ namespace ValveResourceFormat.Renderer.Materials
 
             if (stream.Started)
             {
-                // A started chain has a load in flight whose bookkeeping an inline finish would race.
-                // Load-time callers cannot get here; leave the chain to the slices.
+                // A started chain has a load in flight whose bookkeeping this would race
                 Debug.Assert(false, $"Non-streaming request for {stream.Name} while its chain is already streaming");
                 incompleteStreams.TryAdd(tex, stream);
                 return;
@@ -348,7 +340,6 @@ namespace ValveResourceFormat.Renderer.Materials
             RetireStream(stream);
         }
 
-        /// <summary>Loads one mip synchronously and hooks its bits up on the spot.</summary>
         internal static void LoadAndHookUpMip(StreamedTexture stream, in PlannedMip mip)
         {
             var buffer = ArrayPool<byte>.Shared.Rent(stream.InPlaceSize(mip));
@@ -368,16 +359,15 @@ namespace ValveResourceFormat.Renderer.Materials
             }
         }
 
-        /// <summary>Serves one load request: reads the stream's next mip — or its whole remaining
-        /// chain — into one pooled buffer, each mip decoded in place at its own offset, and queues the
-        /// bits for hookup.</summary>
+        // Serves one load request, on a thread pool thread: reads the mips it was asked for into a single
+        // pooled buffer, each decoded in place at its own offset, and queues them to be hooked up.
         internal void LoadStreamingData(StreamedTexture stream)
         {
             var first = stream.NextMip;
             var count = LoadWholeChains ? stream.Mips.Length - first : 1;
             var gateBytes = PendingLoadBytes(stream);
 
-            // Owned by this method until the enqueue hands it to the hookup; any exit before that returns it
+            // Owned here until the enqueue hands it over; any exit before that returns it
             byte[]? buffer = null;
 
             try
@@ -389,7 +379,6 @@ namespace ValveResourceFormat.Renderer.Materials
                     total += stream.InPlaceSize(stream.Mips[first + i]);
                 }
 
-                // Returned to the pool once the hookup has handed the data to the driver
                 buffer = ArrayPool<byte>.Shared.Rent(total);
 
                 var offset = 0;
@@ -408,7 +397,7 @@ namespace ValveResourceFormat.Renderer.Materials
                 }
 
                 loadedMipBits.Enqueue(new LoadedMipBits(stream, stream.Mips[first], count, gateBytes, buffer));
-                buffer = null; // ownership transferred to the hookup
+                buffer = null; // handed over
             }
             catch (Exception e)
             {

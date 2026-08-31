@@ -302,8 +302,8 @@ namespace ValveResourceFormat.ResourceTypes
 
         private int[]? CompressedMips;
 
-        /// <summary>Whether the mip data is compressed in the file, so reads have to decompress it. LZ4 is the only method shipped content uses.</summary>
-        public bool IsMipDataCompressed { get; private set; }
+        // TODO: Make this public, as a compression type enum?
+        private bool IsActuallyCompressedMips;
 
         /// <summary>
         /// Gets the baked radiance of each cube map in the array as an L2 spherical harmonic,
@@ -424,7 +424,7 @@ namespace ValveResourceFormat.ResourceTypes
                             throw new InvalidDataException($"int1 got: {int1}");
                         }
 
-                        IsMipDataCompressed = int1 == 1; // TODO: Verify whether this int is the one that actually controls compression
+                        IsActuallyCompressedMips = int1 == 1; // TODO: Verify whether this int is the one that actually controls compression
 
                         CompressedMips = new int[mips];
 
@@ -958,7 +958,7 @@ namespace ValveResourceFormat.ResourceTypes
         {
             Debug.Assert(Reader is not null);
 
-            if (!IsMipDataCompressed || CompressedMips == null)
+            if (!IsActuallyCompressedMips || CompressedMips == null)
             {
                 Reader.ReadExactly(output);
                 return;
@@ -1078,7 +1078,7 @@ namespace ValveResourceFormat.ResourceTypes
         {
             var uncompressedSize = CalculateBufferSizeForMipLevel(mipLevel);
 
-            if (IsMipDataCompressed && CompressedMips != null && CompressedMips[mipLevel] < uncompressedSize)
+            if (IsActuallyCompressedMips && CompressedMips != null && CompressedMips[mipLevel] < uncompressedSize)
             {
                 // LZ4_DECOMPRESS_INPLACE_MARGIN from lz4.h
                 return uncompressedSize + (CompressedMips[mipLevel] >> 8) + 32;

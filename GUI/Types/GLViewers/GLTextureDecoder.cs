@@ -174,7 +174,7 @@ public class GLTextureDecoder : IHardwareTextureDecoder, IDisposable
 
     private bool DecodeTexture(DecodeRequest request)
     {
-        var inputTexture = RendererContext.MaterialLoader.LoadTexture(request.Resource, isViewerRequest: true);
+        var inputTexture = RendererContext.MaterialLoader.LoadTexture(request.Resource, ignoreMaxTextureSize: true);
 
         inputTexture.SetFiltering(TextureMinFilter.NearestMipmapNearest, TextureMagFilter.Nearest);
 
