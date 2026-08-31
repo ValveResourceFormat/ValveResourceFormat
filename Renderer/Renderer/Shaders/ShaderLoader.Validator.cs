@@ -28,9 +28,14 @@ namespace ValveResourceFormat.Renderer.Shaders
             var folder = ShaderParser.ShaderSourceDirectory
                 ?? throw new DirectoryNotFoundException("Shader validation requires the shader source files, but this build only has the embedded copies.");
 
-            var vertShaders = Directory.GetFiles(folder, "*.vert.slang");
-            var compShaders = Directory.GetFiles(folder, "*.comp.slang");
-            var allShaders = vertShaders.Concat(compShaders).ToArray();
+            var vertShaders = Directory.GetFiles(folder, "*.vert.slang")
+                .Concat(ShaderRegistry.EnumerateShaderFiles("*.vert.slang"));
+            var compShaders = Directory.GetFiles(folder, "*.comp.slang")
+                .Concat(ShaderRegistry.EnumerateShaderFiles("*.comp.slang"));
+
+            var allShaders = vertShaders.Concat(compShaders)
+                .DistinctBy(Path.GetFileName, StringComparer.OrdinalIgnoreCase)
+                .ToArray();
 
             if (filter != null)
             {
