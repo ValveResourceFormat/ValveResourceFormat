@@ -44,9 +44,9 @@ namespace Tests
             var texture = (Texture?)resource.DataBlock;
             Debug.Assert(texture != null);
 
-            if (texture.IsRawAnyImage)
+            if (!texture.IsMipDataCompressed)
             {
-                return; // png/jpeg blobs have no mip chain to read
+                return; // nothing to decode in place; the plain read path already covers it
             }
 
             for (var mipLevel = 0u; mipLevel < texture.NumMipLevels; mipLevel++)

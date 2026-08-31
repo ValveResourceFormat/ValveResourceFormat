@@ -30,6 +30,11 @@ public class RendererContext : IDisposable
     public MaterialLoader MaterialLoader { get; }
 
     /// <summary>
+    /// Background loader for streamed texture mips.
+    /// </summary>
+    public TextureStreamingHelper TextureStreaming { get; }
+
+    /// <summary>
     /// Shader compiler and cache.
     /// </summary>
     public ShaderLoader ShaderLoader { get; }
@@ -71,6 +76,7 @@ public class RendererContext : IDisposable
         Logger = logger;
         Device = GraphicsDevice.Create();
 
+        TextureStreaming = new TextureStreamingHelper(this);
         MaterialLoader = new MaterialLoader(this);
         ShaderLoader = new ShaderLoader(this);
         MeshBufferCache = new GPUMeshBufferCache(this);
@@ -95,7 +101,7 @@ public class RendererContext : IDisposable
         }
 
         // Pending streams hold pooled buffers; the cancel makes no GL calls, safe without a context
-        MaterialLoader?.TextureStreaming.CancelAllStreaming();
+        TextureStreaming.CancelAllStreaming();
 
         ShaderLoader?.Dispose();
     }

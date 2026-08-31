@@ -62,11 +62,7 @@ namespace ValveResourceFormat.Renderer.Materials
         public MaterialLoader(RendererContext rendererContext)
         {
             RendererContext = rendererContext;
-            TextureStreaming = new TextureStreamingHelper(rendererContext);
         }
-
-        /// <summary>Gets the helper that loads streamed textures' remaining mips in the background.</summary>
-        public TextureStreamingHelper TextureStreaming { get; }
 
         private static readonly byte[] NewLineArray = "\n"u8.ToArray();
 
@@ -104,7 +100,7 @@ namespace ValveResourceFormat.Renderer.Materials
 
             Samplers.Clear();
 
-            TextureStreaming.CancelAllStreaming();
+            RendererContext.TextureStreaming.CancelAllStreaming();
         }
 
         /// <summary>Returns a cached <see cref="RenderMaterial"/> for the given resource path and shader arguments, loading and caching it on first access.</summary>
@@ -230,7 +226,7 @@ namespace ValveResourceFormat.Renderer.Materials
                 // A non-streaming caller needs the texture complete, even when a material started it streaming
                 if (!streaming)
                 {
-                    TextureStreaming.FinishStreaming(tex);
+                    RendererContext.TextureStreaming.FinishStreaming(tex);
                 }
 
                 return tex;
@@ -401,7 +397,7 @@ namespace ValveResourceFormat.Renderer.Materials
             {
                 var stream = new StreamedTexture
                 {
-                    Streaming = TextureStreaming,
+                    Streaming = RendererContext.TextureStreaming,
                     Name = textureName,
                     Texture = tex,
                     Data = data,
@@ -442,7 +438,7 @@ namespace ValveResourceFormat.Renderer.Materials
 
                 Debug.Assert(planned == stream.Mips.Length);
 
-                TextureStreaming.BeginStreaming(stream);
+                RendererContext.TextureStreaming.BeginStreaming(stream);
 
                 return tex;
             }

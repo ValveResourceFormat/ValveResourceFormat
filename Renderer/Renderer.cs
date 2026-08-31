@@ -366,48 +366,21 @@ public class Renderer
     }
 
     /// <summary>
-    /// Loads embedded or game-provided BRDF LUT, cube fog, and blue noise textures into <see cref="Textures"/>.
+    /// Loads the embedded BRDF LUT and cube fog textures, and the game's blue noise where it has one, into <see cref="Textures"/>.
     /// </summary>
     public void LoadRendererResources()
     {
         var rendererAssembly = Assembly.GetAssembly(typeof(RendererContext)) ?? throw new InvalidOperationException("Failed to get renderer assembly");
         const string vtexFileName = "brdf_lut.vtex_c";
 
-        // Load brdf lut, preferably from game.
-        var brdfLutResource = RendererContext.FileLoader.LoadFile("textures/dev/" + vtexFileName);
+        using var brdfStream = rendererAssembly.GetManifestResourceStream("Renderer.Resources." + vtexFileName)
+            ?? throw new InvalidOperationException($"Failed to load embedded resource: {vtexFileName}");
+        using var brdfLutResource = new Resource() { FileName = vtexFileName };
+        brdfLutResource.Read(brdfStream);
 
-        const int BrdfTextureSize = 64;
-        const int BrdfTextureDepth = 3;
-
-        if (brdfLutResource?.DataBlock is not Texture gameBrdfLut
-        || gameBrdfLut.Width != BrdfTextureSize
-        || gameBrdfLut.Height != BrdfTextureSize
-        || gameBrdfLut.Depth != BrdfTextureDepth
-        || gameBrdfLut.Format != VTexFormat.RGBA16161616F)
-        {
-            brdfLutResource?.Dispose();
-            brdfLutResource = null;
-        }
-
-        try
-        {
-            if (brdfLutResource == null)
-            {
-                var brdfStream = rendererAssembly.GetManifestResourceStream("Renderer.Resources." + vtexFileName)
-                    ?? throw new InvalidOperationException($"Failed to load embedded resource: {vtexFileName}");
-
-                brdfLutResource = new Resource() { FileName = vtexFileName };
-                brdfLutResource.Read(brdfStream);
-            }
-
-            var brdfLutTexture = Scene.RendererContext.MaterialLoader.LoadTexture(brdfLutResource);
-            brdfLutTexture.SetWrapMode(RsTextureAddressMode.Clamp);
-            Textures.Add(new(ReservedTextureSlots.BRDFLookup, "g_tBRDFLookup", brdfLutTexture));
-        }
-        finally
-        {
-            brdfLutResource?.Dispose();
-        }
+        var brdfLutTexture = Scene.RendererContext.MaterialLoader.LoadTexture(brdfLutResource);
+        brdfLutTexture.SetWrapMode(RsTextureAddressMode.Clamp);
+        Textures.Add(new(ReservedTextureSlots.BRDFLookup, "g_tBRDFLookup", brdfLutTexture));
 
         // Load default cube fog texture.
         using var cubeFogStream = rendererAssembly.GetManifestResourceStream("Renderer.Resources.sky_furnace.vtex_c") ?? throw new InvalidOperationException("Failed to load embedded cube fog texture.");
@@ -420,7 +393,7 @@ public class Renderer
         const string blueNoiseName = "blue_noise_256.vtex_c";
         var blueNoiseResource = RendererContext.FileLoader.LoadFile("textures/dev/" + blueNoiseName);
 
-        // Same method as brdf
+        // Preferred from the game, embedded otherwise
         if (blueNoiseResource?.DataBlock is not Texture)
         {
             blueNoiseResource?.Dispose();
