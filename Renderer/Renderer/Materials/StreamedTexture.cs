@@ -13,7 +13,7 @@ namespace ValveResourceFormat.Renderer.Materials
     /// </summary>
     sealed class StreamedTexture : IThreadPoolWorkItem
     {
-        public required MaterialLoader Loader { get; init; }
+        public required TextureStreamingHelper Streaming { get; init; }
         public required string Name { get; init; }
         public required RenderTexture Texture { get; init; }
         public required Texture Data { get; init; }
@@ -31,9 +31,9 @@ namespace ValveResourceFormat.Renderer.Materials
         public required int AllocHeight { get; init; }
         public required int AllocDepth { get; init; }
 
-        /// <summary>Chain level held by level 0 of the current storage. Starts at the smallest level
-        /// and walks toward 0 as growth recreations land.</summary>
-        public int TopChainLevel;
+        /// <summary>Chain level held by level 0 of the current storage: everything from here down is
+        /// resident. Starts at the smallest level and walks toward 0 as growth recreations land.</summary>
+        public int ResidentChainLevel;
 
         /// <summary>The mips left to load, ordered smallest to largest. The chain's smallest mip uploads
         /// synchronously at load so the texture is never sampleable while empty, and is not planned here.</summary>
@@ -43,7 +43,7 @@ namespace ValveResourceFormat.Renderer.Materials
         /// as uploads are applied, read back by the worker the pump then dispatches.</summary>
         public int NextMip;
 
-        /// <summary>Set once the first read has been dispatched. A never-started chain can safely be
+        /// <summary>Set once the first load request has been issued. A never-started chain can safely be
         /// completed inline by a caller that needs the texture whole.</summary>
         public bool Started;
 
@@ -53,18 +53,18 @@ namespace ValveResourceFormat.Renderer.Materials
         /// <summary>Buffer size for reading the mip in place.</summary>
         public int InPlaceSize(in PlannedMip mip) => Data.CalculateInPlaceDecompressionBufferSize(DataMipLevel(mip));
 
-        public void Execute() => Loader.ExecuteRead(this);
+        public void Execute() => Streaming.LoadStreamingData(this);
     }
 
     /// <summary>One mip level of a <see cref="StreamedTexture"/> waiting to be read.</summary>
     readonly record struct PlannedMip(int ChainLevel, int Width, int Height, int Depth, int BufferSize);
 
-    /// <summary>Read mip data waiting for <see cref="MaterialLoader"/> to apply it on the render thread:
-    /// one mip, or a texture's whole remaining chain packed into one buffer.</summary>
+    /// <summary>Loaded mip bits waiting for <see cref="TextureStreamingHelper"/> to hook them up on the
+    /// render thread: one mip, or a texture's whole remaining chain packed into one buffer.</summary>
     /// <param name="Stream">The texture the data belongs to.</param>
     /// <param name="Mip">The first (smallest) mip in the buffer.</param>
     /// <param name="MipCount">Number of consecutive planned mips the buffer holds, starting at <paramref name="Mip"/>.</param>
-    /// <param name="ByteSize">The amount this item holds of the in-flight byte gate, unwound when it is consumed.</param>
+    /// <param name="ByteSize">The amount this item holds of the in-flight throttle, unwound when it is consumed.</param>
     /// <param name="Buffer">Pooled buffer with each mip at its in-place read offset, in plan order.</param>
-    readonly record struct MipUploadData(StreamedTexture Stream, PlannedMip Mip, int MipCount, int ByteSize, byte[] Buffer);
+    readonly record struct LoadedMipBits(StreamedTexture Stream, PlannedMip Mip, int MipCount, int ByteSize, byte[] Buffer);
 }

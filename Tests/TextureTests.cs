@@ -38,7 +38,6 @@ namespace Tests
         [Test, MethodDataSource(nameof(GetTextureFiles))]
         public async Task InPlaceLz4MipReadMatchesScratchRead(string fileName)
         {
-            // In place decodes LZ4 over its own compressed bytes
             using var resource = new Resource();
             resource.Read(Path.Combine(TexturesDir, fileName));
 

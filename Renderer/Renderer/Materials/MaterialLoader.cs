@@ -62,7 +62,11 @@ namespace ValveResourceFormat.Renderer.Materials
         public MaterialLoader(RendererContext rendererContext)
         {
             RendererContext = rendererContext;
+            TextureStreaming = new TextureStreamingHelper(rendererContext);
         }
+
+        /// <summary>Gets the helper that loads streamed textures' remaining mips in the background.</summary>
+        public TextureStreamingHelper TextureStreaming { get; }
 
         private static readonly byte[] NewLineArray = "\n"u8.ToArray();
 
@@ -100,7 +104,7 @@ namespace ValveResourceFormat.Renderer.Materials
 
             Samplers.Clear();
 
-            CancelAllStreaming();
+            TextureStreaming.CancelAllStreaming();
         }
 
         /// <summary>Returns a cached <see cref="RenderMaterial"/> for the given resource path and shader arguments, loading and caching it on first access.</summary>
@@ -226,7 +230,7 @@ namespace ValveResourceFormat.Renderer.Materials
                 // A non-streaming caller needs the texture complete, even when a material started it streaming
                 if (!streaming)
                 {
-                    FinishStreaming(tex);
+                    TextureStreaming.FinishStreaming(tex);
                 }
 
                 return tex;
@@ -292,7 +296,7 @@ namespace ValveResourceFormat.Renderer.Materials
         /// <param name="textureResource">The loaded texture resource.</param>
         /// <param name="srgbRead">Whether to use the sRGB internal format when available.</param>
         /// <param name="isViewerRequest">When <see langword="true"/>, skips mip-level capping.</param>
-        /// <param name="async">When <see langword="true"/>, mip data is read on background jobs and uploaded later by <see cref="UploadPendingTextures"/>, smallest mips first.</param>
+        /// <param name="async">When <see langword="true"/>, mip data is loaded on background jobs and hooked up later by <see cref="TextureStreamingHelper.Timeslice"/>, smallest mips first.</param>
         public RenderTexture LoadTexture(Resource textureResource, bool srgbRead = false, bool isViewerRequest = false, bool async = false)
 #pragma warning restore CA1822 // Mark members as static
         {
@@ -397,7 +401,7 @@ namespace ValveResourceFormat.Renderer.Materials
             {
                 var stream = new StreamedTexture
                 {
-                    Loader = this,
+                    Streaming = TextureStreaming,
                     Name = textureName,
                     Texture = tex,
                     Data = data,
@@ -408,7 +412,7 @@ namespace ValveResourceFormat.Renderer.Materials
                     AllocWidth = texWidth,
                     AllocHeight = texHeight,
                     AllocDepth = texDepth,
-                    TopChainLevel = chainLevels - 1,
+                    ResidentChainLevel = chainLevels - 1,
                     Mips = new PlannedMip[chainLevels - 1],
                 };
 
@@ -428,7 +432,7 @@ namespace ValveResourceFormat.Renderer.Materials
                     {
                         // The smallest mip loads synchronously, so the texture is complete and safely
                         // sampleable from its very first draw
-                        ReadAndApplyMip(stream, mip);
+                        TextureStreamingHelper.LoadAndHookUpMip(stream, mip);
                         continue;
                     }
 
@@ -438,8 +442,7 @@ namespace ValveResourceFormat.Renderer.Materials
 
                 Debug.Assert(planned == stream.Mips.Length);
 
-                incompleteStreams.TryAdd(tex, stream);
-                pendingStreams.Enqueue(stream);
+                TextureStreaming.BeginStreaming(stream);
 
                 return tex;
             }
@@ -506,6 +509,47 @@ namespace ValveResourceFormat.Renderer.Materials
 
             return tex;
         }
+
+        /// <summary>Dimensions of one chain level for any texture target: width always halves per level,
+        /// height is spatial except for 1D arrays where it carries the layer count, and depth halves only
+        /// for volumes — for array and cube targets it carries the layer (times face) count.</summary>
+        internal static (int Width, int Height, int Depth) GetChainLevelSize(TextureTarget target, int width, int height, int depth, int chainLevel)
+        {
+            var levelWidth = Math.Max(1, width >> chainLevel);
+
+            var levelHeight = target is TextureTarget.Texture1D or TextureTarget.Texture1DArray
+                ? height
+                : Math.Max(1, height >> chainLevel);
+
+            var levelDepth = target is TextureTarget.Texture3D
+                ? Math.Max(1, depth >> chainLevel)
+                : depth;
+
+            return (levelWidth, levelHeight, levelDepth);
+        }
+
+        /// <summary>Allocates immutable storage on a texture object, dispatching to the storage call the target requires.</summary>
+        internal static void CreateStorageForTarget(int handle, TextureTarget target, int levels, SizedInternalFormat format, int width, int height, int depth)
+        {
+            switch (target)
+            {
+                case TextureTarget.Texture1D:
+                    GL.TextureStorage1D(handle, levels, format, width);
+                    break;
+
+                // Cube storage allocates its six faces from 2D dimensions; a 1D array's layers ride in height
+                case TextureTarget.Texture1DArray:
+                case TextureTarget.Texture2D:
+                case TextureTarget.TextureCubeMap:
+                    GL.TextureStorage2D(handle, levels, format, width, height);
+                    break;
+
+                default:
+                    GL.TextureStorage3D(handle, levels, format, width, height, depth);
+                    break;
+            }
+        }
+
 
         /// <summary>
         /// Whether a format has to be decompressed before it can be uploaded to a <see cref="TextureTarget.Texture3D"/>.

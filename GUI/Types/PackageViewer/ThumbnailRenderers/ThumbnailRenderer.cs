@@ -66,7 +66,8 @@ internal abstract class ThumbnailRenderer : IDisposable
 
         SceneRenderer = new Renderer(RendererContext);
 
-        RendererContext.MaterialLoader.ReadWholeChains = true;
+        // Whole chains per load request; the drain in Render consumes them to completion anyway
+        RendererContext.MaterialLoader.TextureStreaming.LoadWholeChains = true;
 
         SceneRenderer.Camera.SetFromQAngle(new Vector3(20f, 225f, 0f));
 
@@ -199,7 +200,7 @@ internal abstract class ThumbnailRenderer : IDisposable
 
         SceneRenderer.Update(updateContext);
 
-        SceneRenderer.RendererContext.MaterialLoader.FinishAllStreaming(cancellationToken);
+        SceneRenderer.RendererContext.MaterialLoader.TextureStreaming.FinishAllStreaming(cancellationToken);
 
         GL.ClearColor(Color.Green);
         GL.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit);

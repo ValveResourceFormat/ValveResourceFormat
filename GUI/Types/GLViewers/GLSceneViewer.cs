@@ -761,7 +761,7 @@ namespace GUI.Types.GLViewers
             // around a texture that is both being drawn and written
             if (!prewarming)
             {
-                Scene.RendererContext.MaterialLoader.UploadPendingTextures(frameTime);
+                Scene.RendererContext.MaterialLoader.TextureStreaming.Timeslice(frameTime);
             }
 
             if (Paused)
