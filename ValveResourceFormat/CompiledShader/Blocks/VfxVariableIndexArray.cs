@@ -29,12 +29,6 @@ public class VfxVariableIndexArray : ShaderDataBlock
     /// <summary>Gets the global variable indices.</summary>
     public IReadOnlyList<VfxVariableIndexData> Globals => Fields[FirstConstantElement..];
 
-    // TODO: remove this
-    /// <summary>
-    /// Gets the raw data as a byte span.
-    /// </summary>
-    public ReadOnlySpan<byte> Dataload => MemoryMarshal.AsBytes<VfxVariableIndexData>(Fields);
-
     /// <summary>
     /// Initializes a new instance of the <see cref="VfxVariableIndexArray"/> class from a span of fields.
     /// </summary>

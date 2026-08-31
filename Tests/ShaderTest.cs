@@ -303,10 +303,9 @@ namespace Tests
             using var sw = new IndentedTextWriter();
             var zframeSummary = new PrintZFrameSummary(zFrameFile, sw);
 
-            var wsCount = zframeSummary.GetUniqueWriteSequences().Count;
-            await Assert.That(wsCount).IsEqualTo(1);
+            var (uniqueSequences, zBlockToWS) = zframeSummary.GetWriteSequences();
+            await Assert.That(uniqueSequences.Count).IsEqualTo(1);
 
-            var zBlockToWS = zframeSummary.GetBlockToUniqueSequenceMap();
             var expected = new Dictionary<int, int>
             {
                 {-1, 0},

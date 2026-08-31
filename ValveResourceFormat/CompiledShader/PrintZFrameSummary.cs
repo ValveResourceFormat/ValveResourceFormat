@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.IO;
+using System.Runtime.InteropServices;
 using static ValveResourceFormat.CompiledShader.ShaderUtilHelpers;
 
 namespace ValveResourceFormat.CompiledShader
@@ -28,9 +29,9 @@ namespace ValveResourceFormat.CompiledShader
 
             PrintConfigurationState();
             PrintAttributes();
-            var writeSequences = GetBlockToUniqueSequenceMap();
-            PrintWriteSequences(writeSequences);
-            PrintDynamicConfigurations(writeSequences);
+            var (uniqueSequences, blockToSequence) = GetWriteSequences();
+            PrintWriteSequences(uniqueSequences);
+            PrintDynamicConfigurations(blockToSequence);
             OutputWriter.WriteLine();
             PrintSourceSummary();
             PrintEndBlocks();
@@ -70,66 +71,56 @@ namespace ValveResourceFormat.CompiledShader
 
         /*
          * Because the write sequences are often repeated, we only print the unique ones.
+         * The leading datablock (always present) is sequence 0 even when it carries no data,
+         * as configurations may refer to it. Blocks without data map to -1.
          */
         /// <summary>
-        /// Builds a lookup of unique write sequences, keyed by their serialized payload.
+        /// Deduplicates write sequences, returning the unique ones in order of first appearance
+        /// along with a map of block IDs to sequence IDs (-1 for blocks without data).
         /// </summary>
-        public Dictionary<string, int> GetUniqueWriteSequences()
+        public (List<VfxVariableIndexArray> Unique, SortedDictionary<int, int> BlockToSequence) GetWriteSequences()
         {
-            Dictionary<string, int> writeSequences = [];
-            var seqCount = 0;
-            writeSequences.Add(BytesToString(StaticCombo.VariablesFromStaticCombo.Dataload, -1), seqCount++);
-            foreach (var zBlock in StaticCombo.DynamicComboVariables)
+            List<VfxVariableIndexArray> unique = [StaticCombo.VariablesFromStaticCombo];
+            Dictionary<VfxVariableIndexData[], int> sequenceIds = new(WriteSequenceComparer)
             {
-                if (zBlock.Fields.Length == 0)
-                {
-                    continue;
-                }
-
-                var dataloadStr = BytesToString(zBlock.Dataload, -1);
-                if (!writeSequences.ContainsKey(dataloadStr))
-                {
-                    writeSequences.Add(dataloadStr, seqCount++);
-                }
-            }
-
-            return writeSequences;
-        }
-
-        /*
-         * Occasionally leadingData field count (leadingData is the first datablock, always present) is 0 we create the empty
-         * write sequence WRITESEQ[0] (configurations may refer to it) otherwise sequences assigned -1 mean the write
-         * sequence doesn't contain any data and not needed.
-         */
-        /// <summary>
-        /// Maps block IDs to unique sequence IDs.
-        /// </summary>
-        public SortedDictionary<int, int> GetBlockToUniqueSequenceMap()
-        {
-            SortedDictionary<int, int> sequencesMap = new()
+                { StaticCombo.VariablesFromStaticCombo.Fields, 0 }
+            };
+            SortedDictionary<int, int> blockToSequence = new()
             {
-                // IMP the first entry is always set 0 regardless of whether the leading datablock carries any data
                 { StaticCombo.VariablesFromStaticCombo.BlockId, 0 }
             };
 
-            var uniqueSequences = GetUniqueWriteSequences();
-
             foreach (var zBlock in StaticCombo.DynamicComboVariables)
             {
                 if (zBlock.Fields.Length == 0)
                 {
-                    sequencesMap.Add(zBlock.BlockId, -1);
+                    blockToSequence.Add(zBlock.BlockId, -1);
                     continue;
                 }
 
-                var dataloadStr = BytesToString(zBlock.Dataload, -1);
-                sequencesMap.Add(zBlock.BlockId, uniqueSequences[dataloadStr]);
+                if (!sequenceIds.TryGetValue(zBlock.Fields, out var id))
+                {
+                    id = unique.Count;
+                    sequenceIds.Add(zBlock.Fields, id);
+                    unique.Add(zBlock);
+                }
+
+                blockToSequence.Add(zBlock.BlockId, id);
             }
 
-            return sequencesMap;
+            return (unique, blockToSequence);
         }
 
-        private void PrintWriteSequences(SortedDictionary<int, int> writeSequences)
+        private static readonly EqualityComparer<VfxVariableIndexData[]> WriteSequenceComparer = EqualityComparer<VfxVariableIndexData[]>.Create(
+            static (a, b) => MemoryMarshal.AsBytes(a.AsSpan()).SequenceEqual(MemoryMarshal.AsBytes(b.AsSpan())),
+            static a =>
+            {
+                var hash = new HashCode();
+                hash.AddBytes(MemoryMarshal.AsBytes(a.AsSpan()));
+                return hash.ToHashCode();
+            });
+
+        private void PrintWriteSequences(List<VfxVariableIndexArray> uniqueSequences)
         {
             OutputWriter.WriteLine("DYNAMIC COMBO VARIABLES");
 
@@ -143,21 +134,14 @@ namespace ValveResourceFormat.CompiledShader
                 tabulatedData.AddTabulatedRow(emptyRow);
             }
             tabulatedData.AddTabulatedRow(["STATIC-SEQ", "", "", "", ""]);
-            var dataBlock0 = StaticCombo.VariablesFromStaticCombo;
-            PrintParamWriteSequence(dataBlock0, tabulatedData);
+            PrintParamWriteSequence(uniqueSequences[0], tabulatedData);
             tabulatedData.AddTabulatedRow(emptyRow);
 
-            var lastSeq = writeSequences[-1];
-            foreach (var item in writeSequences)
+            for (var seq = 1; seq < uniqueSequences.Count; seq++)
             {
-                if (item.Value > lastSeq)
-                {
-                    lastSeq = item.Value;
-                    var dataBlock = StaticCombo.DynamicComboVariables[item.Key];
-                    tabulatedData.AddTabulatedRow([$"WRITESEQ[{lastSeq}]", "", "", "", ""]);
-                    PrintParamWriteSequence(dataBlock, tabulatedData);
-                    tabulatedData.AddTabulatedRow(emptyRow);
-                }
+                tabulatedData.AddTabulatedRow([$"WRITESEQ[{seq}]", "", "", "", ""]);
+                PrintParamWriteSequence(uniqueSequences[seq], tabulatedData);
+                tabulatedData.AddTabulatedRow(emptyRow);
             }
             tabulatedData.PrintTabulatedValues(spacing: 2);
             OutputWriter.WriteLine();
