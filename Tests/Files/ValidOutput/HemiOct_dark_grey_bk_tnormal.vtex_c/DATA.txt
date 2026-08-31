@@ -1,0 +1,17 @@
+VTEX Version = 1
+Width        = 4
+Height       = 4
+Depth        = 1
+DisplayRectW = 0
+DisplayRectH = 0
+MotionVecMax = 0
+RangeMin     = ( 0.000000, 0.000000, 0.000000, 0.000000 )
+RangeMax     = ( 0.000000, 0.000000, 0.000000, 0.000000 )
+Reflectivity = ( 0.503891, 0.500000, 0.501961, 1.000000 )
+NumMipLevels = 1
+Picmip0Res   = 0
+Format       = 20 (VTEX_FORMAT_BC7)
+Flags        = 0x00000000
+Extra Data   = 1 entries:
+               [ Entry 0: VTEX_EXTRA_DATA_FALLBACK_BITS - 1024 bytes ]
+Mip level 0 - buffer size: 16

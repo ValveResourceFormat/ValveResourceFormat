@@ -167,7 +167,7 @@ internal class MainTabs : ThemedTabControl
 
         if (Program.MainForm?.explorerControl is { } explorerControl && tab.Contains(explorerControl))
         {
-            tab.Controls.Remove(explorerControl);
+            explorerControl.Parent?.Controls.Remove(explorerControl);
         }
 
         TabPages.Remove(tab);

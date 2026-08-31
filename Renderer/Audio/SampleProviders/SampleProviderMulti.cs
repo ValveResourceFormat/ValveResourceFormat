@@ -78,6 +78,18 @@ public class SampleProviderMulti : AudioSampleProvider
     private int fadeInSampleRate;
     private double fadeInElapsedFrames = -1; // < 0 means not fading in / already finished
 
+    // Written by the game thread; the applied value belongs to the mixing thread so each
+    // chunk ramps from where the previous one ended.
+    private volatile float liveVolume = 1f;
+    private float appliedLiveVolume = 1f;
+
+    /// <summary>Gets or sets a 0..1 gain applied live to the whole mix, ramped per chunk. Reset to 1 by <see cref="ResetFades"/>.</summary>
+    public float LiveVolume
+    {
+        get => liveVolume;
+        set => liveVolume = Math.Clamp(value, 0f, 1f);
+    }
+
     /// <summary>
     /// Starts fading the mix out: subsequent reads ramp the volume down along <paramref name="curve"/>
     /// (or linearly over <paramref name="fallbackSeconds"/> when null) and the mix ends when the fade completes.
@@ -185,6 +197,8 @@ public class SampleProviderMulti : AudioSampleProvider
             fadeCurve = null;
             fadeElapsedFrames = -1;
             fadeInElapsedFrames = -1;
+            liveVolume = 1f;
+            appliedLiveVolume = 1f;
         }
     }
 
@@ -247,6 +261,29 @@ public class SampleProviderMulti : AudioSampleProvider
                 // Fade-in finished: stop applying it, unlike the fade-out this never touches providers
                 fadeInElapsedFrames = -1;
             }
+
+            var liveTarget = liveVolume;
+
+            if (maxRead > 0 && appliedLiveVolume != liveTarget)
+            {
+                // The last sample must land exactly on the target so consecutive chunks join without a step
+                var lastIndex = Math.Max(maxRead - 1, 1);
+
+                for (var i = 0; i < maxRead; i++)
+                {
+                    buffer[offset + i] *= float.Lerp(appliedLiveVolume, liveTarget, (float)i / lastIndex);
+                }
+            }
+            else if (maxRead > 0 && liveTarget != 1f)
+            {
+                // Steady gain is a plain scale; the ramp is only for the chunk the gain changed in
+                for (var i = 0; i < maxRead; i++)
+                {
+                    buffer[offset + i] *= liveTarget;
+                }
+            }
+
+            appliedLiveVolume = liveTarget;
         }
 
         if (maxRead < count)

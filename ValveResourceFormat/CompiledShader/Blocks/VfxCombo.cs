@@ -9,14 +9,14 @@ namespace ValveResourceFormat.CompiledShader;
 /// Contains a definition for a shader combo, whether static, dynamic, or feature-specific.
 /// </summary>
 /// <remarks>
-/// These are usually 152 bytes long. Features may contain names describing each state
+/// Features may contain names describing each state.
 /// </remarks>
 public class VfxCombo : ShaderDataBlock
 {
-    /// <summary>Gets the block index.</summary>
-    public int BlockIndex { get; }
-    /// <summary>Gets or sets the calculated combo identifier.</summary>
-    public long CalculatedComboId { get; set; } // set after loading all combos
+    /// <summary>Gets the index in the owning array.</summary>
+    public int Index { get; }
+    /// <summary>Gets or sets the offset this combo contributes to a combo id per state step.</summary>
+    public long ComboIndexValue { get; set; } // set after loading all combos
     /// <summary>Gets the combo name.</summary>
     public string Name { get; }
     /// <summary>Gets the alias name.</summary>
@@ -33,15 +33,15 @@ public class VfxCombo : ShaderDataBlock
     public int FeatureComparisonValue { get; }
     /// <summary>Gets the feature index.</summary>
     public int FeatureIndex { get; }
-    /// <summary>Gets the array of state names.</summary>
-    public string[] Strings { get; } = [];
+    /// <summary>Gets the display name of each state.</summary>
+    public string[] StateNames { get; } = [];
 
     /// <summary>
     /// Initializes a new instance from <see cref="KVObject"/> data.
     /// </summary>
-    public VfxCombo(KVObject data, int blockIndex, int vcsVersion) : base()
+    public VfxCombo(KVObject data, int index, int vcsVersion) : base()
     {
-        BlockIndex = blockIndex;
+        Index = index;
         Name = data.GetStringProperty("m_szName");
         AliasName = data.GetStringProperty("m_szAliasName") ?? string.Empty;
         ComboType = data.GetEnumValue<VfxComboType>("m_comboType", normalize: true, stripExtension: "Type");
@@ -49,9 +49,9 @@ public class VfxCombo : ShaderDataBlock
         RangeMax = data.GetInt32Property("m_nMax");
         ComboSourceType = NormalizeComboSourceType(data.GetInt32Property("m_shaderComboSourceType"), vcsVersion);
         FeatureIndex = data.GetInt32Property("m_iFeatureIndex");
-        Strings = data.GetArray<string>("m_stringArray")!;
+        StateNames = data.GetArray<string>("m_stringArray")!;
 
-        CalculatedComboId = data.GetIntegerProperty("m_nComboIndexValue");
+        ComboIndexValue = data.GetIntegerProperty("m_nComboIndexValue");
 
         if (ComboSourceType is ((int)VfxStaticComboSourceType.__SET_BY_FEATURE_EQ__) or ((int)VfxStaticComboSourceType.__SET_BY_FEATURE_NE__))
         {
@@ -62,10 +62,10 @@ public class VfxCombo : ShaderDataBlock
     /// <summary>
     /// Initializes a new instance from a binary reader.
     /// </summary>
-    public VfxCombo(BinaryReader datareader, int blockIndex, int vcsVersion) : base(datareader)
+    public VfxCombo(BinaryReader datareader, int index, int vcsVersion) : base(datareader)
     {
         // CVfxCombo::Unserialize
-        BlockIndex = blockIndex;
+        Index = index;
         Name = ReadStringWithMaxLength(datareader, 64);
         AliasName = ReadStringWithMaxLength(datareader, 64);
         ComboType = (VfxComboType)datareader.ReadInt32();
@@ -74,15 +74,15 @@ public class VfxCombo : ShaderDataBlock
         ComboSourceType = NormalizeComboSourceType(datareader.ReadInt32(), vcsVersion);
         FeatureIndex = datareader.ReadInt32();
 
-        var stringsCount = datareader.ReadInt32();
+        var stateNameCount = datareader.ReadInt32();
 
-        if (stringsCount > 0)
+        if (stateNameCount > 0)
         {
-            Strings = new string[stringsCount];
+            StateNames = new string[stateNameCount];
 
-            for (var i = 0; i < stringsCount; i++)
+            for (var i = 0; i < stateNameCount; i++)
             {
-                Strings[i] = datareader.ReadNullTermString(Encoding.UTF8);
+                StateNames[i] = datareader.ReadNullTermString(Encoding.UTF8);
             }
         }
 

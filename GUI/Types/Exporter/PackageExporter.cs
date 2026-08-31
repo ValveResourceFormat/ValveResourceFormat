@@ -222,7 +222,7 @@ namespace GUI.Types.Exporter
                     firstType,
                 };
 
-                if (firstType is "vmdl" or "vmesh" or "vmap" or "vwrld" or "vwnod" or "vnmclip")
+                if (firstType is "vmdl" or "vmesh" or "vmap" or "vwrld" or "vwnod" or "vnmclip" or "vnmskel")
                 {
                     outputTypes.Add("gltf");
                     outputTypes.Add("glb");

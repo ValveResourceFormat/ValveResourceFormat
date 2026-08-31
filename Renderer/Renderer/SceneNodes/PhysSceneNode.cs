@@ -152,7 +152,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
 
                         var pose = bindPose.Length == 0 ? Matrix4x4.Identity : bindPose[p];
 
-                        using (var positionsBuffer = new RentedFloatBuffer<Vector3>(vertexPositions.Length))
+                        using (var positionsBuffer = new RentedBuffer<Vector3>(vertexPositions.Length))
                         {
                             var positions = positionsBuffer.Span;
                             for (var i = 0; i < vertexPositions.Length; i++)

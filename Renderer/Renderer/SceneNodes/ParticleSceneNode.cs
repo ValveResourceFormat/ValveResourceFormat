@@ -498,7 +498,8 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         /// <inheritdoc/>
         public override void Update(Scene.UpdateContext context)
         {
-            if (!LayerEnabled)
+            // Visible too: a layer toggle re-enabling a sleeping effect must not have it simulate unseen
+            if (!LayerEnabled || !Visible)
             {
                 return;
             }

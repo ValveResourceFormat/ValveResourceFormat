@@ -2,10 +2,12 @@ using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using SharpGLTF.Schema2;
+using TUnit.Assertions.Enums;
 using ValveResourceFormat;
 using ValveResourceFormat.IO;
 using ValveResourceFormat.NavMesh;
 using ValveResourceFormat.ResourceTypes;
+using ValveResourceFormat.Serialization.KeyValues;
 
 namespace Tests
 {
@@ -257,6 +259,26 @@ namespace Tests
                 ProgressReporter = new Progress<string>(progress => { }),
             };
             gltf.Export(resource, null);
+        }
+
+        [Test]
+        public async Task TestNmSkeleton()
+        {
+            using var resource = new Resource();
+            resource.Read(Path.Combine(TestContext.TestDirectory!, "Files", "chicken.vnmskel_c"));
+
+            ValveKeyValue.KVObject kv = ((BinaryKV3)resource.DataBlock!).Data;
+            var boneIds = kv.GetArray<string>("m_boneIDs")!;
+
+            await WithExportedGlb("chicken.vnmskel_c", async root =>
+            {
+                var skin = root.LogicalSkins.Single();
+                await Assert.That(skin.JointsCount).IsEqualTo(boneIds.Length);
+
+                // Joints are ordered by compiled bone index
+                var jointNames = Enumerable.Range(0, skin.JointsCount).Select(i => skin.GetJoint(i).Joint.Name);
+                await Assert.That(jointNames).IsEquivalentTo(boneIds, CollectionOrdering.Matching);
+            });
         }
 
         [Test]

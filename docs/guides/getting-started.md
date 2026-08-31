@@ -88,6 +88,6 @@ For large batch exports, consider using the [command-line utility](./command-lin
 
 If you have questions or want to chat, join the Discord server.
 
-If you want to report a bug or request a feature, please test the [dev version](https://s2v.app/dev/) first as it may already be fixed. When filing an issue on GitHub, follow the issue template.
+If you want to report a bug or request a feature, see the [reporting issues guide](./reporting-issues.md).
 
 Source 2 Viewer keeps its settings in `%LocalAppData%/Source2Viewer/settings.vdf`.

@@ -107,7 +107,7 @@ namespace ValveResourceFormat.IO
             }
 
             var staticConfiguration = new int[program.StaticComboArray.Length];
-            var configGen = new ConfigMappingParams(program);
+            var configMapping = new ComboConfigMapping(program);
 
             foreach (var condition in program.StaticComboArray)
             {
@@ -115,7 +115,7 @@ namespace ValveResourceFormat.IO
                 {
                     if (staticParams != null && staticParams.TryGetValue(condition.Name, out var value))
                     {
-                        staticConfiguration[condition.BlockIndex] = value;
+                        staticConfiguration[condition.Index] = value;
                     }
 
                     continue;
@@ -142,17 +142,17 @@ namespace ValveResourceFormat.IO
                         configValue = feature.RangeMin;
                     }
 
-                    staticConfiguration[condition.BlockIndex] = configValue;
+                    staticConfiguration[condition.Index] = configValue;
                 }
                 else if (sourceType == VfxStaticComboSourceType.__SET_BY_FEATURE_EQ__)
                 {
                     Debug.Assert(condition.RangeMin == 0 && condition.RangeMax == 1);
-                    staticConfiguration[condition.BlockIndex] = featureValue == condition.FeatureComparisonValue ? 1 : 0;
+                    staticConfiguration[condition.Index] = featureValue == condition.FeatureComparisonValue ? 1 : 0;
                 }
                 else if (sourceType == VfxStaticComboSourceType.__SET_BY_FEATURE_NE__)
                 {
                     Debug.Assert(condition.RangeMin == 0 && condition.RangeMax == 1);
-                    staticConfiguration[condition.BlockIndex] = featureValue != condition.FeatureComparisonValue ? 1 : 0;
+                    staticConfiguration[condition.Index] = featureValue != condition.FeatureComparisonValue ? 1 : 0;
                 }
                 else
                 {
@@ -161,7 +161,7 @@ namespace ValveResourceFormat.IO
                 }
             }
 
-            return (staticConfiguration, configGen.CalcStaticComboIdFromValues(staticConfiguration));
+            return (staticConfiguration, configMapping.CalcComboIdFromValues(staticConfiguration));
         }
 
         /// <summary>
@@ -188,15 +188,15 @@ namespace ValveResourceFormat.IO
                     {
                         for (var i = 0; i < indexCount; i++)
                         {
-                            if (constraint.ConditionalTypes[i] is not VfxRuleType.Static)
+                            if (constraint.ArgTypes[i] is not VfxRuleType.Static)
                             {
-                                Console.WriteLine($"WARNING: Static combo rule {constraint.Rule} has non-static arg type {constraint.ConditionalTypes[i]} at index {i}");
+                                Console.WriteLine($"WARNING: Static combo rule {constraint.RuleMethod} has non-static arg type {constraint.ArgTypes[i]} at index {i}");
                                 break;
                             }
                         }
                     }
 
-                    if (constraint.Rule is VfxRuleMethod.ChildOf or VfxRuleMethod.Requires)
+                    if (constraint.RuleMethod is VfxRuleMethod.ChildOf or VfxRuleMethod.Requires)
                     {
                         if (!ArgMatches(constraint, 0, reducedConfiguration))
                         {
@@ -214,11 +214,11 @@ namespace ValveResourceFormat.IO
 
                         if (numEnabled < constraint.ExtraRuleData[0])
                         {
-                            reducedConfiguration[constraint.Indices[0]] = 0;
+                            reducedConfiguration[constraint.ArgIndices[0]] = 0;
                             changed = true;
                         }
                     }
-                    else if (constraint.Rule == VfxRuleMethod.AllowNum)
+                    else if (constraint.RuleMethod == VfxRuleMethod.AllowNum)
                     {
                         var allowedCount = constraint.ExtraRuleData[0];
 
@@ -229,9 +229,9 @@ namespace ValveResourceFormat.IO
                             {
                                 if (numEnabled >= allowedCount)
                                 {
-                                    if (constraint.ConditionalTypes[i] == constraint.RuleType)
+                                    if (constraint.ArgTypes[i] == constraint.RuleType)
                                     {
-                                        reducedConfiguration[constraint.Indices[i]] = 0;
+                                        reducedConfiguration[constraint.ArgIndices[i]] = 0;
                                         changed = true;
                                     }
                                 }
@@ -254,13 +254,13 @@ namespace ValveResourceFormat.IO
 
             static bool ArgMatches(VfxRule constraint, int argIndex, int[] values)
             {
-                if (constraint.ConditionalTypes[argIndex] != VfxRuleType.Static)
+                if (constraint.ArgTypes[argIndex] != VfxRuleType.Static)
                 {
                     return false;
                 }
 
-                var value = values[constraint.Indices[argIndex]];
-                var expected = constraint.Values[argIndex];
+                var value = values[constraint.ArgIndices[argIndex]];
+                var expected = constraint.ArgValues[argIndex];
 
                 if (expected == -1)
                 {
@@ -336,7 +336,7 @@ namespace ValveResourceFormat.IO
                     }
 
                     // Dota seems to want one of S_MODE_FORWARD / S_MODE_DEFERRED enabled for textures
-                    // to be referenced in the writeseq blocks.
+                    // to be referenced in the write sequences.
                     var staticState = new Dictionary<string, byte>(2) { { "S_MODE_FORWARD", 1 } };
 
                     if (forcedStatic.Key is not null)
@@ -346,8 +346,8 @@ namespace ValveResourceFormat.IO
 
                     var staticConfig = GetStaticConfiguration_ForFeatureState(shader.Features!, shaderFile, featureState, staticState).StaticConfig;
 
-                    var configGen = new ConfigMappingParams(shaderFile);
-                    var staticComboId = configGen.CalcStaticComboIdFromValues(staticConfig);
+                    var configMapping = new ComboConfigMapping(shaderFile);
+                    var staticComboId = configMapping.CalcComboIdFromValues(staticConfig);
 
                     // It can happen that the shader feature rules don't match static rules, producing
                     // materials with bad feature configuration. That or the material data is just bad/incompatible.
@@ -359,7 +359,7 @@ namespace ValveResourceFormat.IO
                             throw new NotImplementedException("Feature state points to a missing static combo, likely because constraint solver is not implemented.");
                         }
 
-                        staticComboId = configGen.CalcStaticComboIdFromValues(reducedConfig);
+                        staticComboId = configMapping.CalcComboIdFromValues(reducedConfig);
                         if (!shaderFile.StaticComboEntries.ContainsKey(staticComboId))
                         {
                             throw new InvalidOperationException("Constraint solver failed to produce a valid static combo.");
@@ -368,14 +368,14 @@ namespace ValveResourceFormat.IO
                         staticConfig = reducedConfig;
                     }
 
-                    shaderFile.StaticComboCache.EnsureCapacity(staticConfig.Length);
+                    shaderFile.StaticComboCache.EnsureMinimumCacheSize(staticConfig.Length);
 
                     var staticVariant = shaderFile.StaticComboCache.Get(staticComboId);
 
                     // Should non-leading write sequences be checked too?
-                    foreach (var writeSequenceField in staticVariant.VariablesFromStaticCombo.Fields)
+                    foreach (var writeSequenceField in staticVariant.AllVariables.Fields)
                     {
-                        var referencedParam = fileParams.FirstOrDefault(p => p.BlockIndex == writeSequenceField.VariableIndex);
+                        var referencedParam = fileParams.FirstOrDefault(p => p.Index == writeSequenceField.VariableIndex);
                         if (referencedParam != null)
                         {
                             return (referencedParam, shaderFile);
@@ -386,7 +386,7 @@ namespace ValveResourceFormat.IO
                     {
                         // Try again with S_MODE_TOOLS_VIS
                         // Fixes hlvr/pak01/materials/skybox/sky_stars_01.vmat
-                        // Jumps from zframe 0x230a to 0x280230a, ends up matching the 2nd g_tNormal, with Box mips.
+                        // Jumps from static combo 0x230a to 0x280230a, ends up matching the 2nd g_tNormal, with Box mips.
                         return DetermineParameterReferencedByMaterial(shader, material, paramName, forcedStatic: new KeyValuePair<string, byte>("S_MODE_TOOLS_VIS", 1));
                     }
                 }
@@ -404,13 +404,13 @@ namespace ValveResourceFormat.IO
             {
                 for (var i = 0; i < param.ChannelCount; i++)
                 {
-                    var channelIndex = param.ChannelIndices[i];
+                    var channelIndex = param.ChannelInfoIndices[i];
                     var channel = program.TextureChannelProcessors[channelIndex];
 
                     var cutoff = Array.IndexOf(channel.InputTextureIndices, -1);
                     var textureProcessorInputs = channel.InputTextureIndices[..cutoff].Select(idx => program.VariableDescriptions[idx].Name).ToArray();
 
-                    if (channel.TexProcessorName == "HemiOctIsoRoughness_RG_B" || channel.TexProcessorName == "AnisoNormal")
+                    if (channel.MipProcessingCommand == "HemiOctIsoRoughness_RG_B" || channel.MipProcessingCommand == "AnisoNormal")
                     {
                         yield return (Channel.RGB, textureProcessorInputs[0]);
                         if (textureProcessorInputs.Length == 2)
@@ -423,7 +423,7 @@ namespace ValveResourceFormat.IO
 
                     // Compiler generated texture
                     // https://github.com/ValveResourceFormat/ValveResourceFormat/issues/630
-                    if (channel.TexProcessorName == "AnisoRoughness_RG" && textureProcessorInputs.Length > 1)
+                    if (channel.MipProcessingCommand == "AnisoRoughness_RG" && textureProcessorInputs.Length > 1)
                     {
                         Debug.Assert(textureProcessorInputs[0] == "TextureNormal" && textureProcessorInputs[1] == "TextureRoughness");
                         yield break;
@@ -451,9 +451,9 @@ namespace ValveResourceFormat.IO
             {
                 foreach (var param in shader.Features.VariableDescriptions)
                 {
-                    if (param.Name == inputName && !string.IsNullOrEmpty(param.ImageSuffix))
+                    if (param.Name == inputName && !string.IsNullOrEmpty(param.TextureFileEnding))
                     {
-                        return "_" + param.ImageSuffix;
+                        return "_" + param.TextureFileEnding;
                     }
                 }
             }

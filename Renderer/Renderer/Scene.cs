@@ -100,11 +100,8 @@ namespace ValveResourceFormat.Renderer
         /// <summary>Gets or sets the physics simulation world associated with this scene.</summary>
         public Rubikon? PhysicsWorld { get; set; }
 
-        /// <summary>
-        /// Gets the entity context for this scene. Simulated entities live here and are ticked by
-        /// <see cref="Update"/> before the scene nodes are updated.
-        /// </summary>
-        public EntitySystem EntitySystem { get; }
+        /// <summary>The entity world this scene takes part in.</summary>
+        public EntitySystem EntitySystem { get; set; }
 
         /// <summary>Gets or sets the voxel visibility data.</summary>
         public VoxelVisibility? VoxelVisibility { get; set; }
@@ -381,7 +378,11 @@ namespace ValveResourceFormat.Renderer
             }
             staticNodes.Clear();
 
-            EntitySystem.Clear();
+            // The shared entity world is its owning scene's to clear
+            if (EntitySystem.Scene == this)
+            {
+                EntitySystem.Clear();
+            }
 
             StaticOctree.Clear();
             DynamicOctree.Clear();
@@ -529,7 +530,10 @@ namespace ValveResourceFormat.Renderer
         public void Update(Scene.UpdateContext updateContext)
         {
             // Entities simulate on their own fixed tick, then their scene nodes pick the result up below
-            EntitySystem.Update(updateContext.Timestep);
+            if (EntitySystem.Scene == this)
+            {
+                EntitySystem.Update(updateContext.Timestep);
+            }
 
             foreach (var node in staticNodes)
             {
@@ -1135,6 +1139,11 @@ namespace ValveResourceFormat.Renderer
             // Collect mesh calls
             foreach (var node in cullResults)
             {
+                if (!node.Visible)
+                {
+                    continue;
+                }
+
                 if (node is MeshCollectionNode meshCollection)
                 {
                     foreach (var mesh in meshCollection.RenderableMeshes)
@@ -1376,6 +1385,11 @@ namespace ValveResourceFormat.Renderer
 
             foreach (var node in CulledShadowNodes)
             {
+                if (!node.Visible)
+                {
+                    continue;
+                }
+
                 const ObjectTypeFlags skipFlags = ObjectTypeFlags.NoShadows | ObjectTypeFlags.BlockLight;
 
                 List<RenderableMesh> meshes;

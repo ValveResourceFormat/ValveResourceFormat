@@ -47,21 +47,22 @@ public partial class GltfModelExporter
         var vertexBufferAccessors = CreateVertexBufferAccessors(exportedModel, vbib, boneRemapTable != null ? boneWeightCount : 0, boneRemapTable);
         var vertexOffset = 0;
 
+        // Decoding a bundle rasterises the whole delta atlas, so both are read once for the mesh
+        // rather than once per draw call.
+        var flexData = vmesh.MorphData?.GetFlexVertexData();
+        var normalData = vmesh.MorphData?.GetFlexVertexData(MorphBundleType.NormalWrinkle);
+
         foreach (var sceneObject in vmesh.Data.GetArray("m_sceneObjects"))
         {
             foreach (var drawCall in sceneObject.GetArray("m_drawCalls"))
             {
                 var primitive = CreateMeshFromDrawCall(drawCall, mesh, vbib, vertexBufferAccessors, exportedModel, skinMaterialPath, tintColor);
 
-                if (vmesh.MorphData != null)
+                if (flexData != null && normalData != null)
                 {
-                    var flexData = vmesh.MorphData.GetFlexVertexData();
-                    if (flexData != null)
-                    {
-                        var vertexCount = drawCall.GetInt32Property("m_nVertexCount");
-                        AddMorphTargetsToPrimitive(vmesh.MorphData, flexData, primitive, exportedModel, vertexOffset, vertexCount);
-                        vertexOffset += vertexCount;
-                    }
+                    var vertexCount = drawCall.GetInt32Property("m_nVertexCount");
+                    AddMorphTargetsToPrimitive(vmesh.MorphData!, flexData, normalData, primitive, exportedModel, vertexOffset, vertexCount);
+                    vertexOffset += vertexCount;
                 }
             }
         }
@@ -596,10 +597,16 @@ public partial class GltfModelExporter
         return true;
     }
 
-    private static void AddMorphTargetsToPrimitive(VMorph morph, Dictionary<string, Vector3[]> flexData, MeshPrimitive primitive, ModelRoot model, int vertexOffset, int vertexCount)
+    private static void AddMorphTargetsToPrimitive(VMorph morph, Dictionary<string, Vector3[]> flexData,
+        Dictionary<string, Vector4[]> normalData, MeshPrimitive primitive, ModelRoot model, int vertexOffset, int vertexCount)
     {
         var morphIndex = 0;
         var flexDesc = morph.GetFlexDescriptors();
+
+        // Morph deltas are mostly zero, so each target is written as a sparse accessor over one shared
+        // run of zeroes rather than a full copy of the mesh. A buffer view that several accessors read
+        // has to declare its stride.
+        var zeroes = model.CreateBufferView(3 * sizeof(float) * vertexCount, 3 * sizeof(float), BufferMode.ARRAY_BUFFER);
 
         foreach (var morphName in flexDesc)
         {
@@ -609,25 +616,93 @@ public partial class GltfModelExporter
             }
 
             // Morph deltas share the base mesh's vertex space, which is baked into glTF units, so bake them too.
-            var deltas = rectData[vertexOffset..(vertexOffset + vertexCount)];
+            // The delta grid follows a vertex count the compiler is free to change, so it can end short.
+            var deltas = new Vector3[vertexCount];
+            var available = Math.Clamp(rectData.Length - vertexOffset, 0, vertexCount);
+
+            if (available > 0)
+            {
+                Array.Copy(rectData, vertexOffset, deltas, 0, available);
+            }
+
             BakePositions(deltas);
-
-            var bufferView = model.CreateBufferView(3 * sizeof(float) * vertexCount, 0, BufferMode.ARRAY_BUFFER);
-            new Vector3Array(bufferView.Content).Fill(deltas);
-
-            var acc = model.CreateAccessor();
-            acc.Name = morphName;
-            acc.SetData(bufferView, 0, vertexCount, AttributeFormat.Float3);
 
             var dict = new Dictionary<string, Accessor>
                 {
-                    { "POSITION", acc }
+                    { "POSITION", CreateMorphAccessor(model, zeroes, deltas, morphName) }
                 };
+
+            // The normal bundle is optional, and a morph set that carries one only fills it for the
+            // targets that actually move normals.
+            if (normalData.TryGetValue(morphName, out var normalDeltas))
+            {
+                var normals = new Vector3[vertexCount];
+                var anyNormal = false;
+
+                for (var i = 0; i < vertexCount; i++)
+                {
+                    var vertexId = vertexOffset + i;
+
+                    if (vertexId >= normalDeltas.Length)
+                    {
+                        break;
+                    }
+
+                    var normal = normalDeltas[vertexId];
+                    normals[i] = new Vector3(normal.X, normal.Y, normal.Z);
+                    anyNormal |= normals[i] != Vector3.Zero;
+                }
+
+                if (anyNormal)
+                {
+                    BakeDirections(normals);
+                    dict.Add("NORMAL", CreateMorphAccessor(model, zeroes, normals, morphName + "_normal"));
+                }
+            }
 
             primitive.SetMorphTargetAccessors(morphIndex++, dict);
         }
 
         DebugValidateGLTF();
+    }
+
+    /// <summary>
+    /// Writes one morph target stream, sparsely when that is smaller. A sparse entry costs an index on
+    /// top of its value, so it only pays off while under three quarters of the vertices move.
+    /// </summary>
+    private static Accessor CreateMorphAccessor(ModelRoot model, BufferView zeroes, Vector3[] deltas, string name)
+    {
+        var moved = new Dictionary<int, Vector3>();
+
+        for (var i = 0; i < deltas.Length; i++)
+        {
+            if (deltas[i] != Vector3.Zero)
+            {
+                moved.Add(i, deltas[i]);
+            }
+        }
+
+        var accessor = model.CreateAccessor();
+        accessor.Name = name;
+
+        if (moved.Count * 4 > deltas.Length * 3)
+        {
+            var bufferView = model.CreateBufferView(3 * sizeof(float) * deltas.Length, 0, BufferMode.ARRAY_BUFFER);
+            new Vector3Array(bufferView.Content).Fill(deltas);
+            accessor.SetData(bufferView, 0, deltas.Length, AttributeFormat.Float3);
+
+            return accessor;
+        }
+
+        accessor.SetData(zeroes, 0, deltas.Length, AttributeFormat.Float3);
+
+        // A sparse block has to hold at least one entry, so an all-zero target stays as the shared zeroes.
+        if (moved.Count > 0)
+        {
+            accessor.CreateSparseData(moved);
+        }
+
+        return accessor;
     }
 
     /// <summary>

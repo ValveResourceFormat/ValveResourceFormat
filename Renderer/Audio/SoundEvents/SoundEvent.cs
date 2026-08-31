@@ -32,6 +32,16 @@ public abstract class SoundEvent
     /// <summary>Gets whether the event is active in the mixer (it may be momentarily silent, e.g. between retriggers).</summary>
     public bool Started { get; private set; }
 
+    /// <summary>Gets the id of the play this pooled instance currently represents, so a <see cref="SoundHandle"/> can tell its own play from a later reuse.</summary>
+    public long PlaybackId { get; internal set; }
+
+    /// <summary>Gets or sets a live 0..1 gain on top of the volume the play started with, unlike <see cref="VolumeOverride"/> which is folded in at start.</summary>
+    public float LiveVolume
+    {
+        get => SampleProvider.LiveVolume;
+        set => SampleProvider.LiveVolume = value;
+    }
+
     /// <summary>
     /// Gets or sets the world position of the sound. Null plays the sound without spatialization (e.g. UI or first person sounds).
     /// Can be updated while the sound is playing to move it.

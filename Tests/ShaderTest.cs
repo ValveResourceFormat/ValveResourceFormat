@@ -40,11 +40,11 @@ namespace Tests
             shader.PrintSummary(sw);
             await Assert.That(sw.ToString().Length).IsGreaterThanOrEqualTo(100);
 
-            foreach (var zframe in shader.StaticComboEntries)
+            foreach (var staticComboEntry in shader.StaticComboEntries)
             {
-                var value = zframe.Value.Unserialize();
+                var value = staticComboEntry.Value.Unserialize();
                 await Assert.That(value).IsNotNull();
-                var zframeSummary = new PrintZFrameSummary(value, sw);
+                _ = new PrintStaticComboSummary(value, sw);
             }
         }
 
@@ -62,11 +62,11 @@ namespace Tests
                 await Assert.That(shader2.VcsProgramType).IsEqualTo(shader1.VcsProgramType);
                 await Assert.That(shader2.VcsPlatformType).IsEqualTo(shader1.VcsPlatformType);
                 await Assert.That(shader2.VcsShaderModelType).IsEqualTo(shader1.VcsShaderModelType);
-                await Assert.That(shader2.FileHash).IsEqualTo(shader1.FileHash);
+                await Assert.That(shader2.VariableDescriptionVersionHash).IsEqualTo(shader1.VariableDescriptionVersionHash);
                 await Assert.That(shader2.VariableSourceMax).IsEqualTo(shader1.VariableSourceMax);
 
                 // Binary stores one hash, KV3 stores all hashes
-                // Assert.That(shader1.HashesMD5, Is.EqualTo(shader2.HashesMD5));
+                // Assert.That(shader1.ProgramHashes, Is.EqualTo(shader2.ProgramHashes));
             }
 
             using (Assert.Multiple())
@@ -78,14 +78,14 @@ namespace Tests
                     var combo2 = shader2.DynamicComboArray[i];
 
                     await Assert.That(combo2.Name).IsEqualTo(combo1.Name);
-                    await Assert.That(combo2.CalculatedComboId).IsEqualTo(combo1.CalculatedComboId);
+                    await Assert.That(combo2.ComboIndexValue).IsEqualTo(combo1.ComboIndexValue);
                     await Assert.That(combo2.AliasName).IsEqualTo(combo1.AliasName);
                     await Assert.That(combo2.ComboType).IsEqualTo(combo1.ComboType);
                     await Assert.That(combo2.ComboSourceType).IsEqualTo(combo1.ComboSourceType);
                     await Assert.That(combo2.FeatureComparisonValue).IsEqualTo(combo1.FeatureComparisonValue);
                     await Assert.That(combo2.RangeMin).IsEqualTo(combo1.RangeMin);
                     await Assert.That(combo2.RangeMax).IsEqualTo(combo1.RangeMax);
-                    await Assert.That(combo2.Strings).IsEquivalentTo(combo1.Strings);
+                    await Assert.That(combo2.StateNames).IsEquivalentTo(combo1.StateNames);
                 }
             }
 
@@ -97,13 +97,13 @@ namespace Tests
                     var rule1 = shader1.DynamicComboRules[i];
                     var rule2 = shader2.DynamicComboRules[i];
 
-                    await Assert.That(rule2.Rule).IsEqualTo(rule1.Rule);
+                    await Assert.That(rule2.RuleMethod).IsEqualTo(rule1.RuleMethod);
                     await Assert.That(rule2.RuleType).IsEqualTo(rule1.RuleType);
-                    await Assert.That(rule2.ConditionalTypes).IsEquivalentTo(rule1.ConditionalTypes);
-                    await Assert.That(rule2.Indices).IsEquivalentTo(rule1.Indices);
-                    await Assert.That(rule2.Values).IsEquivalentTo(rule1.Values);
+                    await Assert.That(rule2.ArgTypes).IsEquivalentTo(rule1.ArgTypes);
+                    await Assert.That(rule2.ArgIndices).IsEquivalentTo(rule1.ArgIndices);
+                    await Assert.That(rule2.ArgValues).IsEquivalentTo(rule1.ArgValues);
                     await Assert.That(rule2.ExtraRuleData).IsEquivalentTo(rule1.ExtraRuleData);
-                    await Assert.That(rule2.Description).IsEqualTo(rule1.Description);
+                    await Assert.That(rule2.ErrorString).IsEqualTo(rule1.ErrorString);
                 }
                 await Assert.That(shader2.VariableDescriptions).Count().IsEqualTo(shader1.VariableDescriptions.Length);
                 for (var i = 0; i < shader1.VariableDescriptions.Length; i++)
@@ -113,18 +113,18 @@ namespace Tests
 
                     await Assert.That(var2.Name).IsEqualTo(var1.Name);
                     await Assert.That(var2.UiGroup).IsEqualTo(var1.UiGroup);
-                    await Assert.That(var2.StringData).IsEqualTo(var1.StringData);
+                    await Assert.That(var2.SourceString).IsEqualTo(var1.SourceString);
                     await Assert.That(var2.UiType).IsEqualTo(var1.UiType);
                     await Assert.That(var2.UiStep).IsEqualTo(var1.UiStep);
                     await Assert.That(var2.VariableSource).IsEqualTo(var1.VariableSource);
-                    await Assert.That(var2.DynExp).IsEquivalentTo(var1.DynExp);
-                    await Assert.That(var2.UiVisibilityExp).IsEquivalentTo(var1.UiVisibilityExp);
+                    await Assert.That(var2.CompiledExpression).IsEquivalentTo(var1.CompiledExpression);
+                    await Assert.That(var2.UiVisibilityExpression).IsEquivalentTo(var1.UiVisibilityExpression);
                     await Assert.That(var2.SourceIndex).IsEqualTo(var1.SourceIndex);
                     await Assert.That(var2.VfxType).IsEqualTo(var1.VfxType);
                     await Assert.That(var2.RegisterType).IsEqualTo(var1.RegisterType);
                     await Assert.That(var2.ContextStateAffectedByVariable).IsEqualTo(var1.ContextStateAffectedByVariable);
                     await Assert.That(var2.RegisterElements).IsEqualTo(var1.RegisterElements);
-                    await Assert.That(var2.ExtConstantBufferId).IsEqualTo(var1.ExtConstantBufferId);
+                    await Assert.That(var2.TypeSpecificBits).IsEqualTo(var1.TypeSpecificBits);
                     await Assert.That(var2.DefaultInputTexture).IsEqualTo(var1.DefaultInputTexture);
                     await Assert.That(var2.IntDefs).IsEquivalentTo(var1.IntDefs).Because(var2.Name);
                     await Assert.That(var2.IntMins).IsEquivalentTo(var1.IntMins).Because(var2.Name);
@@ -132,12 +132,12 @@ namespace Tests
                     await Assert.That(var2.FloatDefs).IsEquivalentTo(var1.FloatDefs).Because(var2.Name);
                     await Assert.That(var2.FloatMins).IsEquivalentTo(var1.FloatMins).Because(var2.Name);
                     await Assert.That(var2.FloatMaxs).IsEquivalentTo(var1.FloatMaxs).Because(var2.Name);
-                    await Assert.That(var2.ImageFormat).IsEqualTo(var1.ImageFormat);
+                    await Assert.That(var2.OutputTextureFormat).IsEqualTo(var1.OutputTextureFormat);
                     await Assert.That(var2.ChannelCount).IsEqualTo(var1.ChannelCount);
-                    await Assert.That(var2.ChannelIndices).IsEquivalentTo(var1.ChannelIndices);
-                    await Assert.That(var2.ColorMode).IsEqualTo(var1.ColorMode);
-                    await Assert.That(var2.ImageSuffix).IsEqualTo(var1.ImageSuffix);
-                    await Assert.That(var2.ImageProcessor).IsEqualTo(var1.ImageProcessor);
+                    await Assert.That(var2.ChannelInfoIndices).IsEquivalentTo(var1.ChannelInfoIndices);
+                    await Assert.That(var2.InputColorSpace).IsEqualTo(var1.InputColorSpace);
+                    await Assert.That(var2.TextureFileEnding).IsEqualTo(var1.TextureFileEnding);
+                    await Assert.That(var2.InputProcessingCommand).IsEqualTo(var1.InputProcessingCommand);
 
                     await Assert.That(var2.MinPrecisionBits).IsEqualTo(var1.MinPrecisionBits);
                     await Assert.That(var2.LayerId).IsEqualTo(var1.LayerId);
@@ -158,35 +158,35 @@ namespace Tests
                 const int OneLessItemKV3 = 1;
 
                 await Assert.That(combo2.StaticComboId).IsEqualTo(combo1.StaticComboId);
-                await Assert.That(combo2.VShaderInputs).IsEquivalentTo(combo1.VShaderInputs, CollectionOrdering.Matching);
-                await Assert.That(combo2.ConstantBufferBindInfoFlags).IsEquivalentTo(combo1.ConstantBufferBindInfoFlags[..^OneLessItemKV3], CollectionOrdering.Matching);
-                await Assert.That(combo2.ConstantBufferBindInfoSlots).IsEquivalentTo(combo1.ConstantBufferBindInfoSlots[..^OneLessItemKV3], CollectionOrdering.Matching);
+                await Assert.That(combo2.VsInputSignatureIndices).IsEquivalentTo(combo1.VsInputSignatureIndices, CollectionOrdering.Matching);
+                await Assert.That(combo2.ConstantBufferBindingFlags).IsEquivalentTo(combo1.ConstantBufferBindingFlags[..^OneLessItemKV3], CollectionOrdering.Matching);
+                await Assert.That(combo2.ConstantBufferBindingSlots).IsEquivalentTo(combo1.ConstantBufferBindingSlots[..^OneLessItemKV3], CollectionOrdering.Matching);
                 await Assert.That(combo2.ConstantBufferSize).IsEqualTo(combo1.ConstantBufferSize);
-                await Assert.That(combo2.Flagbyte0).IsEqualTo(combo1.Flagbyte0);
-                await Assert.That(combo2.Flagbyte1).IsEqualTo(combo1.Flagbyte1);
-                await Assert.That(combo2.Flagbyte2).IsEqualTo(combo1.Flagbyte2);
+                await Assert.That(combo2.StaticCB).IsEqualTo(combo1.StaticCB);
+                await Assert.That(combo2.GlobalsBDA).IsEqualTo(combo1.GlobalsBDA);
+                await Assert.That(combo2.UsesGlslSources).IsEqualTo(combo1.UsesGlslSources);
 
                 static async Task TestVfxVariableIndexArray(VfxVariableIndexArray binary, VfxVariableIndexArray kv3)
                 {
                     using var _ = Assert.Multiple();
-                    await Assert.That(kv3.BlockId).IsEqualTo(binary.BlockId);
+                    await Assert.That(kv3.Index).IsEqualTo(binary.Index);
                     await Assert.That(kv3.FirstRenderStateElement).IsEqualTo(binary.FirstRenderStateElement);
                     await Assert.That(kv3.FirstConstantElement).IsEqualTo(binary.FirstConstantElement);
                     await Assert.That(kv3.Fields).IsEquivalentTo(binary.Fields, CollectionOrdering.Matching);
                 }
 
-                await TestVfxVariableIndexArray(combo1.VariablesFromStaticCombo, combo2.VariablesFromStaticCombo);
+                await TestVfxVariableIndexArray(combo1.AllVariables, combo2.AllVariables);
                 // one less
                 await Assert.That(combo2.DynamicComboVariables).Count().IsEqualTo(combo1.DynamicComboVariables.Length - OneLessItemKV3);
                 for (var i = 0; i < combo2.DynamicComboVariables.Length; i++)
                 {
                     await TestVfxVariableIndexArray(combo1.DynamicComboVariables[i], combo2.DynamicComboVariables[i]);
                 }
-                await Assert.That(combo2.DynamicCombos).Count().IsEqualTo(combo1.DynamicCombos.Length);
-                for (var i = 0; i < combo1.DynamicCombos.Length; i++)
+                await Assert.That(combo2.DynamicComboRenderStates).Count().IsEqualTo(combo1.DynamicComboRenderStates.Length);
+                for (var i = 0; i < combo1.DynamicComboRenderStates.Length; i++)
                 {
-                    var dyn1 = combo1.DynamicCombos[i];
-                    var dyn2 = combo2.DynamicCombos[i];
+                    var dyn1 = combo1.DynamicComboRenderStates[i];
+                    var dyn2 = combo2.DynamicComboRenderStates[i];
 
                     await Assert.That(dyn2.ShaderFileId).IsEqualTo(dyn1.ShaderFileId);
                     await Assert.That(dyn2.DynamicComboId).IsEqualTo(dyn1.DynamicComboId);
@@ -293,20 +293,19 @@ namespace Tests
         }
 
         [Test]
-        public async Task TestZFrameWriteSequences()
+        public async Task TestWriteSequences()
         {
             var path = Path.Combine(ShadersDir, "vcs64_error_pcgl_40_ps.vcs");
             using var shader = new VfxProgramData();
             shader.Read(path);
 
-            var zFrameFile = shader.GetStaticCombo(0);
+            var staticCombo = shader.GetStaticCombo(0);
             using var sw = new IndentedTextWriter();
-            var zframeSummary = new PrintZFrameSummary(zFrameFile, sw);
+            _ = new PrintStaticComboSummary(staticCombo, sw);
 
-            var wsCount = zframeSummary.GetUniqueWriteSequences().Count;
-            await Assert.That(wsCount).IsEqualTo(1);
+            var (uniqueSequences, indexToSequence) = staticCombo.GetWriteSequences();
+            await Assert.That(uniqueSequences.Count).IsEqualTo(1);
 
-            var zBlockToWS = zframeSummary.GetBlockToUniqueSequenceMap();
             var expected = new Dictionary<int, int>
             {
                 {-1, 0},
@@ -314,7 +313,7 @@ namespace Tests
             };
 
             // Only the block to sequence mapping matters, not the order the entries come out in.
-            await Assert.That(zBlockToWS).IsEquivalentTo(expected);
+            await Assert.That(indexToSequence).IsEquivalentTo(expected);
         }
 
         [Test]
@@ -513,7 +512,7 @@ namespace Tests
             shader.Read(path);
 
             var staticComboEntry = shader.GetStaticCombo(staticCombo);
-            var dynamicComboEntry = staticComboEntry.DynamicCombos[dynamicCombo];
+            var dynamicComboEntry = staticComboEntry.DynamicComboRenderStates[dynamicCombo];
             var code = staticComboEntry.ShaderFiles[dynamicComboEntry.ShaderFileId].GetDecompiledFile();
             code = code.Replace(StringToken.VRF_GENERATOR, "VRF-TEST", StringComparison.Ordinal);
 

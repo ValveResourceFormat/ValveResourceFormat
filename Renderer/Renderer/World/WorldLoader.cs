@@ -282,16 +282,15 @@ namespace ValveResourceFormat.Renderer.World
             ResolveAttachmentParenting();
             ResolveParticleControlPoints();
 
-            // Every entity exists now, so the simulated ones can resolve each other by name
-            scene.EntitySystem.Activate();
-
-            Action<List<SceneLight>> lightEntityStore = (scene.LightingInfo.LightmapVersionNumber, scene.LightingInfo.LightmapGameVersionNumber) switch
+            // Every entity exists now, so the simulated ones can resolve each other by name. The skybox
+            // loads part way through the map's own lump, so its loader leaves activation to the owning
+            // scene's, which runs once everything - both spawn groups - has spawned.
+            if (scene.EntitySystem.Scene == scene)
             {
-                (6, 0) or (8, 0) or (8, 1) => scene.LightingInfo.StoreLightMappedLights_V1,
-                _ => scene.LightingInfo.StoreLightMappedLights_V2,
-            };
+                scene.EntitySystem.Activate();
+            }
 
-            lightEntityStore.Invoke(
+            scene.LightingInfo.StoreLights(
                 scene.AllNodes.Where(static n => n is SceneLight).Cast<SceneLight>().ToList()
             );
         }
@@ -581,11 +580,6 @@ namespace ValveResourceFormat.Renderer.World
 
             void LoadEntity(string classname, Entity entity, Matrix4x4 parentTransform, bool fromTemplate)
             {
-                if (classname == "worldspawn")
-                {
-                    return; // do not draw
-                }
-
                 var transformationMatrix = EntityTransformHelper.ToTransformationMatrix(entity) * parentTransform;
                 var light = SceneLight.IsAccepted(classname);
 
@@ -611,18 +605,6 @@ namespace ValveResourceFormat.Renderer.World
                     layerName = "Entities (disabled)";
                 }
 
-                // Classnames the entity system implements are spawned as simulated entities, which own
-                // whatever scene nodes they need.
-                if (EntityFactory.IsRegistered(classname))
-                {
-                    scene.EntitySystem.CreateEntity(entity, parentTransform, layerName);
-                    return;
-                }
-
-                var defaultEntityLayer = toolEntityLayer == EditorEntityNode.LayerName && HammerEntities.Get(classname)?.Studio == true
-                    ? layerName
-                    : toolEntityLayer;
-
                 if (classname == "info_world_layer")
                 {
                     var spawnflags = entity.GetUInt32Property("spawnflags");
@@ -634,7 +616,20 @@ namespace ValveResourceFormat.Renderer.World
                         DefaultEnabledLayers.Add(layername);
                     }
                 }
-                else if (classname == "skybox_reference")
+
+                // Classnames the entity system implements are spawned as simulated entities, which own
+                // whatever scene nodes they need.
+                if (EntityFactory.IsRegistered(classname))
+                {
+                    scene.EntitySystem.CreateEntity(entity, parentTransform, layerName, scene);
+                    return;
+                }
+
+                var defaultEntityLayer = toolEntityLayer == EditorEntityNode.LayerName && HammerEntities.Get(classname)?.Studio == true
+                    ? layerName
+                    : toolEntityLayer;
+
+                if (classname == "skybox_reference")
                 {
                     LoadSkybox(entity);
                 }
@@ -1509,6 +1504,9 @@ namespace ValveResourceFormat.Renderer.World
             SkyboxScene = new Scene(RendererContext);
             SkyboxScene.LightingInfo.LightingData.IsSkybox = 1u;
 
+            // Entities are global: the skybox is another spawn group
+            SkyboxScene.EntitySystem = scene.EntitySystem;
+
             LoadingProgress?.Report("Loading 3D sky…");
 
             var skyboxResult = LoadMap(targetmapname, SkyboxScene);
@@ -1519,8 +1517,7 @@ namespace ValveResourceFormat.Renderer.World
             }
 
             // Take origin and angles from skybox_reference
-            EntityTransformHelper.GetTransformComponents(entity, out _, out var skyboxReferenceRotationMatrix, out var skyboxReferencePositionMatrix);
-            var skyboxReference = skyboxReferenceRotationMatrix * Matrix4x4.CreateTranslation(skyboxReferencePositionMatrix);
+            var skyboxReference = EntityTransformHelper.ToRigidTransformationMatrix(entity);
 
             if (entityParentTransforms.TryGetValue(entity, out var skyboxParentTransform))
             {
@@ -1549,6 +1546,14 @@ namespace ValveResourceFormat.Renderer.World
             foreach (var envmap in SkyboxScene.LightingInfo.EnvMaps)
             {
                 envmap.Transform *= offsetAndScaleTransform;
+            }
+
+            foreach (var skyboxEntity in scene.EntitySystem.Entities)
+            {
+                if (skyboxEntity.Scene == SkyboxScene)
+                {
+                    skyboxEntity.ApplySpawnGroupTransform(offsetAndScaleTransform);
+                }
             }
 
             if (package != null)

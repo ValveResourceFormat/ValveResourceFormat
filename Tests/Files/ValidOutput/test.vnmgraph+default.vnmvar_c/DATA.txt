@@ -1,0 +1,25 @@
+<!-- kv3 encoding:text:version{e21c7f3c-8a33-41c5-9977-a76d3a32aa0d} format:generic:version{7412167c-06e9-4698-aff2-e63eb59037e7} -->
+{
+	m_graphDefinition = resource:"animgraphs/test.vnmgraph"
+	m_dataSet = 
+	{
+		m_variationID = "Default"
+		m_skeleton = resource:"models/animgraph2/trooper_humanoid/trooper_humanoid_ag2.vnmskel"
+		m_data = 
+		[
+			{
+				_class = "CNmClipNode::CVariationData"
+				m_hAnimation = resource:""
+			},
+			{
+				_class = "CNmClipNode::CVariationData"
+				m_hAnimation = resource:""
+			},
+			{
+				_class = "CNmClipNode::CVariationData"
+				m_hAnimation = resource:""
+			},
+		]
+		m_warnings = [  ]
+	}
+}

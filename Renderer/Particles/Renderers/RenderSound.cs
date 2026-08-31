@@ -1,15 +1,14 @@
+using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 using ValveResourceFormat.Particles;
 using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.Renderer.Particles.Renderers
 {
     /// <summary>
-    /// Starts a sound event as particles spawn. Has no visual output.
+    /// Starts a sound event per spawned particle, then steers its position and volume by handle while
+    /// the particle lives. Has no visual output.
     /// </summary>
-    /// <remarks>
-    /// One sound per particle, fired the first time that particle is seen, positioned at the particle
-    /// unless m_nCPReference names a control point to take the position from instead.
-    /// </remarks>
     /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_OP_RenderSound">C_OP_RenderSound</seealso>
     internal class RenderSound : ParticleFunctionRenderer
     {
@@ -22,6 +21,16 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         // Particle ids are handed out in ascending order and never reused, so a high-water mark is all
         // the state needed to tell which particles appeared since the last update.
         private int nextParticleId;
+
+        private struct TrackedSound
+        {
+            public Audio.SoundHandle Handle;
+            public bool FieldSeen; // see ApplyFieldVolume
+            public bool SeenThisFrame;
+        }
+
+        private readonly Dictionary<int, TrackedSound> trackedSounds = [];
+        private readonly List<int> sweepScratch = [];
 
         public RenderSound(ParticleDefinitionParser parse) : base(parse)
         {
@@ -48,12 +57,19 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                 return;
             }
 
+            foreach (var particleId in trackedSounds.Keys)
+            {
+                ref var tracked = ref CollectionsMarshal.GetValueRefOrNullRef(trackedSounds, particleId);
+                tracked.SeenThisFrame = false;
+            }
+
             var highestId = nextParticleId;
 
             foreach (ref var particle in particles.Current)
             {
                 if (particle.UniqueParticleId < nextParticleId)
                 {
+                    UpdateSound(ref particle, systemState);
                     continue;
                 }
 
@@ -69,21 +85,79 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                     continue;
                 }
 
-                var position = controlPointReference >= 0
-                    ? systemState.GetControlPoint(controlPointReference).Position
-                    : particle.Position;
-
-                var fieldVolume = particle.GetInitialScalar(particles, volumeField);
-
-                // hack: ignore field volume because it is often 0 on spawn
-                // todo: grab handle and update position+volume every frame with the particle
-                var volume = fieldVolume > 0f ? volumeScale * fieldVolume : volumeScale;
-
-                Sound.Play(soundName, position, volume: volume);
+                StartSound(ref particle, systemState);
             }
 
             nextParticleId = highestId;
+
+            // A dead particle's sound is let go rather than stopped, so a one-shot finishes its tail
+            sweepScratch.Clear();
+
+            foreach (var (particleId, tracked) in trackedSounds)
+            {
+                if (!tracked.SeenThisFrame)
+                {
+                    sweepScratch.Add(particleId);
+                }
+            }
+
+            foreach (var particleId in sweepScratch)
+            {
+                trackedSounds.Remove(particleId);
+            }
         }
+
+        private void StartSound(ref Particle particle, ParticleSystemState systemState)
+        {
+            var handle = Sound.Play(soundName, GetSoundPosition(ref particle, systemState), volume: volumeScale);
+
+            if (!handle.IsValid)
+            {
+                return;
+            }
+
+            var tracked = new TrackedSound
+            {
+                Handle = handle,
+                SeenThisFrame = true,
+            };
+
+            ApplyFieldVolume(ref tracked, ref particle);
+            trackedSounds[particle.UniqueParticleId] = tracked;
+        }
+
+        private void UpdateSound(ref Particle particle, ParticleSystemState systemState)
+        {
+            ref var tracked = ref CollectionsMarshal.GetValueRefOrNullRef(trackedSounds, particle.UniqueParticleId);
+
+            if (Unsafe.IsNullRef(ref tracked))
+            {
+                return;
+            }
+
+            // A sound that finished on its own stays unseen and gets swept
+            if (tracked.Handle.Started)
+            {
+                tracked.SeenThisFrame = true;
+                tracked.Handle.Position = GetSoundPosition(ref particle, systemState);
+                ApplyFieldVolume(ref tracked, ref particle);
+            }
+        }
+
+        // Fields often sit at zero on spawn until their operators run, so the field only steers the
+        // volume once seen non-zero - one that never populates leaves the sound at full scale, not silent
+        private void ApplyFieldVolume(ref TrackedSound tracked, ref Particle particle)
+        {
+            var fieldVolume = particle.GetScalar(volumeField);
+
+            tracked.FieldSeen |= fieldVolume > 0f;
+            tracked.Handle.Volume = tracked.FieldSeen ? fieldVolume : 1f;
+        }
+
+        private Vector3 GetSoundPosition(ref Particle particle, ParticleSystemState systemState)
+            => controlPointReference >= 0
+                ? systemState.GetControlPoint(controlPointReference).Position
+                : particle.Position;
 
         public override void Render(ParticleCollection particles, ParticleSystemState systemState, Camera camera)
         {

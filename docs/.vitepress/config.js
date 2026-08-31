@@ -46,6 +46,7 @@ export default defineConfig({
             "/api/": apiSidebar,
             "/": [
                 { text: "Introduction", link: "/" },
+                { text: "Reporting Issues", link: "/guides/reporting-issues" },
                 { text: "Help Write Guides", link: "/guides/contributing" },
                 {
                     text: "Source 2 Viewer",
@@ -53,6 +54,10 @@ export default defineConfig({
                         {
                             text: "Getting Started",
                             link: "/guides/getting-started",
+                        },
+                        {
+                            text: "Format Support",
+                            link: "/guides/format-support",
                         },
                         {
                             text: "Exporting Maps",
@@ -110,7 +115,6 @@ export default defineConfig({
         footer: {
             message:
                 "This project is not affiliated with Valve Software. Source 2 is a trademark and/or registered trademark of Valve Corporation.",
-            copyright: "Released under the MIT License.",
         },
 
         editLink: {

@@ -158,9 +158,19 @@ namespace GUI
                 {
                     file = System.Net.WebUtility.UrlDecode(file[4..]);
 
-                    var innerFilePosition = file.LastIndexOf(".vpk:", StringComparison.InvariantCulture);
+                    // Every ".vpk:" separates a package from the path inside it, so nested packages
+                    // can be addressed as "outer_dir.vpk:maps/inner.vpk:models/file.vmdl_c"
+                    var packagePaths = new List<string>();
+                    var innerFile = file;
+                    int separator;
 
-                    if (innerFilePosition == -1)
+                    while ((separator = innerFile.IndexOf(".vpk:", StringComparison.OrdinalIgnoreCase)) != -1)
+                    {
+                        packagePaths.Add(innerFile[..(separator + 4)]);
+                        innerFile = innerFile[(separator + 5)..];
+                    }
+
+                    if (packagePaths.Count == 0)
                     {
                         Log.Error(nameof(MainForm), $"For vpk: protocol to work, specify a file path inside of the package, for example: \"vpk:C:/path/pak01_dir.vpk:inner/file.vmdl_c\"");
 
@@ -168,12 +178,11 @@ namespace GUI
                         continue;
                     }
 
-                    var innerFile = file[(innerFilePosition + 5)..];
-                    file = file[..(innerFilePosition + 4)];
+                    file = packagePaths[0];
 
                     if (!File.Exists(file))
                     {
-                        var dirFile = file[..innerFilePosition] + "_dir.vpk";
+                        var dirFile = string.Concat(file.AsSpan(0, file.Length - 4), "_dir.vpk");
 
                         if (!File.Exists(dirFile))
                         {
@@ -188,36 +197,79 @@ namespace GUI
                     file = Path.GetFullPath(file);
                     Log.Info(nameof(MainForm), $"Opening {file}");
 
-                    var package = new Package();
+                    VrfGuiContext? packageContext = null;
+
                     try
                     {
-                        package.OptimizeEntriesForBinarySearch(StringComparison.OrdinalIgnoreCase);
-                        package.Read(file);
+                        var package = new Package();
+                        try
+                        {
+                            package.OptimizeEntriesForBinarySearch(StringComparison.OrdinalIgnoreCase);
+                            package.Read(file);
+                            packageContext = new VrfGuiContext(file, null)
+                            {
+                                CurrentPackage = package
+                            };
+                            package = null;
+                        }
+                        finally
+                        {
+                            package?.Dispose();
+                        }
 
-                        var packageFile = package.FindEntry(innerFile);
+                        var missingFile = false;
+
+                        for (var depth = 1; depth < packagePaths.Count; depth++)
+                        {
+                            var nestedPath = packagePaths[depth];
+                            var nestedEntry = packageContext.CurrentPackage!.FindEntry(nestedPath);
+
+                            if (nestedEntry == null)
+                            {
+                                Log.Error(nameof(MainForm), $"File '{nestedPath}' does not exist in package '{packageContext.FileName}'.");
+                                mainTabs.OpenTab("Console");
+                                missingFile = true;
+                                break;
+                            }
+
+                            var nestedPackage = new Package();
+                            try
+                            {
+                                nestedPackage.OptimizeEntriesForBinarySearch(StringComparison.OrdinalIgnoreCase);
+                                nestedPackage.SetFileName(nestedPath);
+                                nestedPackage.Read(GameFileLoader.GetPackageEntryStream(packageContext.CurrentPackage!, nestedEntry));
+                                packageContext = new VrfGuiContext(nestedPath, packageContext)
+                                {
+                                    CurrentPackage = nestedPackage
+                                };
+                                nestedPackage = null;
+                            }
+                            finally
+                            {
+                                nestedPackage?.Dispose();
+                            }
+                        }
+
+                        if (missingFile)
+                        {
+                            continue;
+                        }
+
+                        var packageFile = packageContext.CurrentPackage!.FindEntry(innerFile)
+                            ?? packageContext.CurrentPackage.FindEntry(innerFile + GameFileLoader.CompiledFileSuffix);
 
                         if (packageFile == null)
                         {
-                            packageFile = package.FindEntry(innerFile + GameFileLoader.CompiledFileSuffix);
-
-                            if (packageFile == null)
-                            {
-                                Log.Error(nameof(MainForm), $"File '{innerFile}' does not exist in package '{file}'.");
-                                mainTabs.OpenTab("Console");
-                                continue;
-                            }
+                            Log.Error(nameof(MainForm), $"File '{innerFile}' does not exist in package '{packageContext.FileName}'.");
+                            mainTabs.OpenTab("Console");
+                            continue;
                         }
 
                         innerFile = packageFile.GetFullPath();
 
                         Log.Info(nameof(MainForm), $"Opening {innerFile}");
 
-                        var vrfGuiContext = new VrfGuiContext(file, null)
-                        {
-                            CurrentPackage = package
-                        };
-                        var fileContext = new VrfGuiContext(innerFile, vrfGuiContext);
-                        package = null;
+                        var fileContext = new VrfGuiContext(innerFile, packageContext);
 
                         try
                         {
@@ -227,12 +279,15 @@ namespace GUI
                         finally
                         {
                             fileContext?.Dispose();
-                            vrfGuiContext?.Dispose();
                         }
                     }
                     finally
                     {
-                        package?.Dispose();
+                        // Contexts still referenced by an opened tab are only marked here and dispose when the tab closes
+                        for (var context = packageContext; context != null; context = context.ParentGuiContext)
+                        {
+                            context.Dispose();
+                        }
                     }
 
                     continue;
@@ -976,6 +1031,11 @@ namespace GUI
 
         private void OpenWelcome()
         {
+            if (mainTabs.OpenTab("Welcome"))
+            {
+                return;
+            }
+
             var welcomeTab = new ThemedTabPage("Welcome")
             {
                 ToolTipText = "Welcome",

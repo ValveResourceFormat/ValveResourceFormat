@@ -1,3 +1,5 @@
+using ValveResourceFormat.Renderer.Input;
+
 namespace ValveResourceFormat.Renderer.Entities;
 
 /// <summary>
@@ -12,6 +14,9 @@ namespace ValveResourceFormat.Renderer.Entities;
 /// </remarks>
 public sealed class PlayerEntity : BaseEntity
 {
+    /// <summary>How far the player can reach to press something.</summary>
+    public float UseRange { get; set; } = 80f;
+
     /// <summary>Gets the controller whose state this entity reflects.</summary>
     public IPlayerController Controller { get; }
 
@@ -50,6 +55,20 @@ public sealed class PlayerEntity : BaseEntity
         SyncFromController();
     }
 
+    /// <summary>
+    /// Presses whatever the player is looking at within <see cref="UseRange"/>, the <c>+use</c> command.
+    /// </summary>
+    /// <returns>The entity that was pressed, or <see langword="null"/> if nothing was in reach.</returns>
+    public BaseEntity? PressUse()
+    {
+        var from = Controller.EyePosition;
+        var target = EntitySystem.FindUseTarget(from, from + Controller.ViewForward * UseRange);
+
+        target?.Use(this);
+
+        return target;
+    }
+
     /// <inheritdoc/>
     protected override void PhysicsSimulate(float tickInterval)
     {
@@ -59,6 +78,11 @@ public sealed class PlayerEntity : BaseEntity
 
         // The controller owns the position, so there is nothing to integrate; just keep up with it
         SyncFromController();
+
+        if (Buttons.Pressed(TrackedKeys.E))
+        {
+            PressUse();
+        }
     }
 
     private void SyncFromController()

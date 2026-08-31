@@ -41,7 +41,7 @@
  * Window_Descriptor, that in turn depends on Single_Segment_Flag), and the length of the DID can
  * vary by 0-4 bytes (0 bytes means a dictionary is not used and decompression can be achieved without).
  * The DID bytes are adjacent to the Frame_Content_Size bytes, so checking the Zstd frame size against the
- * 'zframe' header data confirms where the DID ends.
+ * static combo header data confirms where the DID ends.
  *
  *
  * Extracting the Zstd dictionary from Valve binaries

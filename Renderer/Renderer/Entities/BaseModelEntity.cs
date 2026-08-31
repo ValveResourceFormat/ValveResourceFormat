@@ -1,3 +1,4 @@
+using System.Linq;
 using Microsoft.Extensions.Logging;
 using ValveResourceFormat.Renderer.SceneNodes;
 using ValveResourceFormat.ResourceTypes;
@@ -55,12 +56,50 @@ public abstract class BaseModelEntity : BaseEntity
             Tint = Data?.GetRenderTint() ?? Vector4.One,
         };
 
+        // Model-referenced particles spawn regardless of meshes, as the plain loader path does
+        var particleNodes = ParticleSceneNode.CreateModelParticles(Scene, model, modelNode);
+
+        foreach (var particleNode in particleNodes)
+        {
+            particleNode.LayerName = "Particles";
+            Scene.Add(particleNode, true);
+        }
+
         // Whether it draws anything is only knowable once it is built, so a collision-only model costs one
-        // node that is then dropped
-        if (modelNode.HasMeshes)
+        // node that is then dropped. A particle-only model keeps its node for the follow attachments.
+        if (modelNode.HasMeshes || particleNodes.Count > 0)
         {
             // Not added here: the caller takes the returned node as the entity's own
             ModelNode = modelNode;
+        }
+
+        if (modelNode.HasMeshes)
+        {
+            // The compiler bakes physics in the model's posed frame, while the raw mesh can sit in
+            // modeldoc's working frame (de_nuke's doors are 90 degrees apart between the two). The game
+            // always poses a prop with a sequence, so the authored animation or the modeldoc ref is applied.
+            var animation = Data?.GetStringProperty("startinganim")
+                ?? Data?.GetStringProperty("defaultanim")
+                ?? Data?.GetStringProperty("idleanim");
+
+            if (animation != null && modelNode.SetAnimationForWorldPreview(animation))
+            {
+                if (Data?.GetBooleanProperty("holdanimation") == true)
+                {
+                    modelNode.AnimationController.PauseLastFrame();
+                }
+            }
+            else
+            {
+                modelNode.SetAnimationForWorldPreview("ref");
+            }
+
+            var body = Data?.GetIntegerProperty("body", -1L) ?? -1L;
+
+            if (body != -1L)
+            {
+                modelNode.SetActiveMeshGroups(modelNode.GetMeshGroups().Skip((int)body).Take(1));
+            }
         }
 
         if (EntityCollider.LoadPhysics(model, fileLoader) is { } physics)

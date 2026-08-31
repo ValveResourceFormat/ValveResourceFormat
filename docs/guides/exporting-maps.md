@@ -90,7 +90,7 @@ Map decompilation is not a perfect round-trip. The output will be imperfect:
 - Parts of the skybox mesh might be missing
 - Collision will be merged into one mesh using special materials
 - The map will lack lightmap resolution volumes
-- Hammer meshes will be triangulated
+- Hammer meshes come back mostly triangulated (adjacent coplanar triangles are merged into quads where possible)
 
 The decompiled map is useful for learning and reference, but should not be expected to recompile identically.
 :::

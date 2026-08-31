@@ -8,16 +8,19 @@ namespace ValveResourceFormat.CompiledShader;
 public class ConstantBufferDescription : ShaderDataBlock
 {
     /// <summary>
-    /// Represents a variable within a constant buffer.
+    /// Represents a variable within a constant buffer. The offset is in 4-byte scalars, vector size is the
+    /// component count, row count is greater than one for matrices, and element count for arrays.
     /// </summary>
-    public readonly record struct ConstantBufferVariable(string Name, int Offset, int VectorSize, int Depth, int Length);
+    public readonly record struct ConstantBufferVariable(string Name, int Offset, int VectorSize, int RowCount, int ElementCount);
 
-    /// <summary>Gets the block index.</summary>
-    public int BlockIndex { get; }
+    /// <summary>Gets the index in the owning array.</summary>
+    public int Index { get; }
     /// <summary>Gets the constant buffer name.</summary>
     public string Name { get; }
     /// <summary>Gets the buffer size in bytes.</summary>
     public int BufferSize { get; }
+    /// <summary>Gets whether this describes a push constant buffer.</summary>
+    public bool IsPushConstantBuffer { get; }
     /// <summary>Gets the buffer type.</summary>
     public int Type { get; }
     /// <summary>Gets the array of variables in this constant buffer.</summary>
@@ -28,25 +31,27 @@ public class ConstantBufferDescription : ShaderDataBlock
     /// <summary>
     /// Initializes a new instance from a binary reader.
     /// </summary>
-    public ConstantBufferDescription(BinaryReader datareader, int blockIndex) : base(datareader)
+    public ConstantBufferDescription(BinaryReader datareader, int index) : base(datareader)
     {
         // VfxUnserializeExternalConstantBufferDescription
-        BlockIndex = blockIndex;
+        Index = index;
         Name = ReadStringWithMaxLength(datareader, 64);
 
-        BufferSize = datareader.ReadInt32();
+        var bufferSize = datareader.ReadInt32();
+        BufferSize = bufferSize & 0x7FFFFFFF;
+        IsPushConstantBuffer = bufferSize < 0;
         Type = datareader.ReadInt32();
 
         var variableCount = datareader.ReadInt32();
         Variables = new ConstantBufferVariable[variableCount];
         for (var i = 0; i < variableCount; i++)
         {
-            var paramName = ReadStringWithMaxLength(datareader, 64);
-            var bufferIndex = datareader.ReadInt32();
-            var arg0 = datareader.ReadInt32();
-            var arg1 = datareader.ReadInt32();
-            var arg2 = datareader.ReadInt32();
-            Variables[i] = new(paramName, bufferIndex, arg0, arg1, arg2);
+            var name = ReadStringWithMaxLength(datareader, 64);
+            var offset = datareader.ReadInt32();
+            var vectorSize = datareader.ReadInt32();
+            var rowCount = datareader.ReadInt32();
+            var elementCount = datareader.ReadInt32();
+            Variables[i] = new(name, offset, vectorSize, rowCount, elementCount);
         }
 
         BlockCrc = datareader.ReadUInt32();

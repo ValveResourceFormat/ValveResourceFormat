@@ -40,7 +40,7 @@ namespace ValveResourceFormat.Renderer
             vertices.Clear();
 
             // Player collision hull while walk-mode movement is driving the camera
-            if (!input.NoClip)
+            if (input.WalkMode)
             {
                 var movement = input.PlayerMovement;
                 var halfExtents = movement.HullHalfExtents;

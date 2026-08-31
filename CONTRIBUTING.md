@@ -4,6 +4,17 @@ When contributing new code, run `dotnet format` and make sure tests pass with `d
 
 If you need help or pointers, [join our Discord](https://discord.gg/s9QQ7Wg7r4)
 
+## AI-assisted contributions
+
+Pull requests written with AI tools and coding agents are welcome. But you are the author:
+actually read the code before submitting, understand what it does, and test it. The code
+should be proper, idiomatic C# that fits the rest of the codebase, not whatever the model
+produced on the first try. If a reviewer can tell that no human ever looked at it, it's
+slop, and it wastes everyone's time.
+
+Same goes for words: don't let an agent write your issue, your PR description, or your
+comments. A short paragraph in your own words beats generated filler every time.
+
 ## Library (ValveResourceFormat)
 
 All new code should preferably go into the library component, which is shared by the GUI, CLI, and the library itself is published on NuGet for others to use.
@@ -20,11 +31,13 @@ actually load and test the new files.
 
 If you are modifying shaders, you need to run shader validator to ensure all shaders compile successfully, as we use runtime compilation.
 To perform full validation:
+
 ```sh
 dotnet run --project misc/shadervalidator
 ```
 
 To perform filtered validation:
+
 ```sh
 dotnet run --project misc/shadervalidator "water"
 ```
@@ -83,10 +96,12 @@ This is required for correct material extraction. These mappings are used as a f
 ## Making a new release
 
 ### With a script
+
 1. Run `dotnet run misc/release.cs X.X`
 2. `git push --follow-tags`
 
 ### Manually
+
 1. Bump `ProjectBaseVersion` in `Directory.Build.props` file
 2. Commit it with a message like `Bump version to X.X`
 3. Create a signed tag: `git tag -s X.X` (or `-a` if not signed)
@@ -100,4 +115,4 @@ This is required for correct material extraction. These mappings are used as a f
 
 ---
 
-*See [AGENTS.md](AGENTS.md) for more information.*
+_See [AGENTS.md](AGENTS.md) for more information._

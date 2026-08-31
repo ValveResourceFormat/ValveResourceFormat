@@ -1,5 +1,3 @@
-using System.Buffers;
-
 namespace ValveResourceFormat.ThirdParty
 {
     /// <summary>
@@ -39,16 +37,9 @@ namespace ValveResourceFormat.ThirdParty
                 return HashCaseSensitive(lowerData, seed);
             }
 
-            var lowercase = ArrayPool<char>.Shared.Rent(data.Length);
-            try
-            {
-                MemoryExtensions.ToLowerInvariant(data, lowercase);
-                return HashCaseSensitive(lowercase.AsSpan(0, data.Length), seed);
-            }
-            finally
-            {
-                ArrayPool<char>.Shared.Return(lowercase);
-            }
+            using var lowercase = new RentedBuffer<char>(data.Length);
+            MemoryExtensions.ToLowerInvariant(data, lowercase.Span);
+            return HashCaseSensitive(lowercase.Span, seed);
         }
 
         /// <summary>

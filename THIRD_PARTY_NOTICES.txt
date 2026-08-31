@@ -2,11 +2,18 @@ THIRD PARTY NOTICES
 ===================
 
 ValveResourceFormat (Source 2 Viewer) is licensed under the MIT License (see LICENSE).
-It incorporates, depends on, or was derived from the third party material listed below.
+It also ships third party material, listed below with its own copyright and license.
 Links to the license texts are at the end of this file.
 
-This file is maintained by hand. When adding a dependency, a copied or ported piece of code,
-or a bundled asset, add it here.
+The list is maintained by hand and covers anything whose code or content reaches the
+binaries or NuGet packages, whether depended on, copied, ported, or bundled as an asset,
+including the native library that a managed package wraps. It leaves out whatever sits
+deeper than that, and whatever only runs at build time without leaving code of its own
+behind.
+
+Each entry covers a project rather than a package, and names a sub package only when its
+license differs. An entry marked (GUI only) or (CLI only) does not ship in the NuGet
+libraries.
 
 7-Zip LZMA SDK
   License: Public domain
@@ -18,7 +25,7 @@ Blake3
   Copyright (c) 2020, Alexandre Mutel
   https://github.com/xoofx/Blake3.NET
 
-ConsoleAppFramework
+ConsoleAppFramework (CLI only)
   License: MIT
   Copyright (c) 2020 Cysharp, Inc.
   https://github.com/Cysharp/ConsoleAppFramework
@@ -38,6 +45,13 @@ GLFW (GUI only)
   Copyright (c) 2002-2006 Marcus Geelnard
   Copyright (c) 2006-2019 Camilla Löwy
   https://www.glfw.org/
+
+HarfBuzz (GUI only)
+  License: Old MIT
+  Copyright (c) 2010-2022 Google, Inc.
+  Copyright (c) 2004-2023 Red Hat, Inc.
+  Copyright (c) 2005-2023 Behdad Esfahbod, and others
+  https://github.com/harfbuzz/harfbuzz
 
 JetBrains Mono
   License: OFL-1.1
@@ -60,20 +74,15 @@ meshoptimizer
   Copyright (c) 2016-2026 Arseny Kapoulkine
   https://github.com/zeux/meshoptimizer
 
-Microsoft.Extensions.Logging
+Microsoft.Windows.CsWin32 (GUI only)
+  License: MIT
+  Copyright (c) Microsoft Corporation
+  https://github.com/microsoft/CsWin32
+
+.NET Runtime and Libraries
   License: MIT
   Copyright (c) .NET Foundation and Contributors
   https://github.com/dotnet/runtime
-
-msdf-atlas-gen
-  License: MIT
-  Copyright (c) 2020-2026 Viktor Chlumsky
-  https://github.com/Chlumsky/msdf-atlas-gen
-
-msdfgen
-  License: MIT
-  Copyright (c) 2014-2025 Viktor Chlumsky
-  https://github.com/Chlumsky/msdfgen
 
 NAudio (GUI only)
   License: MIT
@@ -137,15 +146,10 @@ SPIRV-Cross
   Copyright 2019-2021 Hans-Kristian Arntzen
   https://github.com/KhronosGroup/SPIRV-Cross
 
-Svg.Skia (including ExCSS, HarfBuzzSharp and ShimSkiaSharp) (GUI only)
+Svg.Skia (GUI only)
   License: MIT (Svg.Custom is MS-PL)
   Copyright (c) 2020 Wiesław Šoltés
   https://github.com/wieslawsoltes/Svg.Skia
-
-System.IO.Hashing
-  License: MIT
-  Copyright (c) .NET Foundation and Contributors
-  https://github.com/dotnet/runtime
 
 The Lab Renderer
   License: BSD-3-Clause
@@ -180,7 +184,7 @@ ValvePak
   Copyright (c) 2016 ValvePak Contributors
   https://github.com/ValveResourceFormat/ValvePak
 
-Vortice.SpirvCross (including Vortice.SPIRV)
+Vortice.SpirvCross
   License: MIT
   Copyright (c) Amer Koleci and Contributors
   https://github.com/amerkoleci/Vortice.Vulkan
@@ -207,6 +211,8 @@ Microsoft Public License
   https://opensource.org/license/ms-pl
 MIT License
   https://opensource.org/license/mit
+Old MIT License
+  https://github.com/harfbuzz/harfbuzz/blob/main/COPYING
 SIL Open Font License, Version 1.1
   https://opensource.org/license/ofl-1-1
 Zlib License

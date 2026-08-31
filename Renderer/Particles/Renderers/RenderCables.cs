@@ -1,4 +1,3 @@
-using System.Buffers;
 using OpenTK.Graphics.OpenGL;
 using ValveResourceFormat.Particles;
 using ValveResourceFormat.Particles.Utils;
@@ -60,15 +59,6 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         private Vector3[] colorsScratch = [];
         private int[] levelsScratch = [];
         private Vector3[] directionsScratch = [];
-
-        // The tube is re-tessellated whenever the positions or tessellation levels change (every frame
-        // while the camera moves or the rope sways), so the transient ring/vertex/index buffers come from
-        // pools shared across all cable instances. The index buffer gets its own pool because its worst
-        // case exceeds ArrayPool<uint>.Shared's largest bucket (2^20 elements), which would otherwise turn
-        // every rebuild of a max-size tube into a fresh multi-megabyte allocation.
-        private static readonly ArrayPool<uint> IndexArrayPool = ArrayPool<uint>.Create(
-            maxArrayLength: (MaxTubeRings - 1) * CableMeshBuilder.MaxSides * 6,
-            maxArraysPerBucket: 2);
 
         private static readonly Comparison<(int Id, Vector3 Position, float Radius, Vector3 Color)> ChainComparer =
             static (a, b) => a.Id.CompareTo(b.Id);
@@ -203,34 +193,24 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             var vertexCount = ringCount * (sides + 1);
             var tubeIndexCount = (ringCount - 1) * sides * 6;
 
-            var ringPositions = ArrayPool<Vector3>.Shared.Rent(ringCount);
-            var ringSamples = ArrayPool<RopeSample>.Shared.Rent(ringCount);
-            var vertexArray = ArrayPool<CableVertex>.Shared.Rent(vertexCount);
-            var indexArray = IndexArrayPool.Rent(tubeIndexCount);
+            using var ringPositions = new RentedBuffer<Vector3>(ringCount);
+            using var ringSamples = new RentedBuffer<RopeSample>(ringCount);
+            using var vertexBuffer = new RentedBuffer<CableVertex>(vertexCount);
+            using var indexBuffer = new RentedBuffer<uint>(tubeIndexCount);
 
-            try
+            BuildRings(positions, chain, levels, repeats, ringPositions.Span, ringSamples.Span);
+
+            if (!CableMeshBuilder.BuildTubeMesh(ringPositions.Span, ringSamples.Span,
+                sides, circumference, vertexBuffer.Span, indexBuffer.Span))
             {
-                BuildRings(positions, chain, levels, repeats, ringPositions, ringSamples);
-
-                if (!CableMeshBuilder.BuildTubeMesh(ringPositions.AsSpan(0, ringCount), ringSamples.AsSpan(0, ringCount),
-                    sides, circumference, vertexArray.AsSpan(0, vertexCount), indexArray.AsSpan(0, tubeIndexCount)))
-                {
-                    indexCount = 0;
-                    return;
-                }
-
-                var stride = CableVertex.InputLayout.Stride;
-                GL.NamedBufferData(vertexBufferHandle, vertexCount * stride, vertexArray, BufferUsageHint.DynamicDraw);
-                GL.NamedBufferData(indexBufferHandle, tubeIndexCount * sizeof(uint), indexArray, BufferUsageHint.DynamicDraw);
-                indexCount = tubeIndexCount;
+                indexCount = 0;
+                return;
             }
-            finally
-            {
-                ArrayPool<Vector3>.Shared.Return(ringPositions);
-                ArrayPool<RopeSample>.Shared.Return(ringSamples);
-                ArrayPool<CableVertex>.Shared.Return(vertexArray);
-                IndexArrayPool.Return(indexArray);
-            }
+
+            var stride = CableVertex.InputLayout.Stride;
+            GL.NamedBufferData(vertexBufferHandle, vertexCount * stride, vertexBuffer.ByteArray, BufferUsageHint.DynamicDraw);
+            GL.NamedBufferData(indexBufferHandle, tubeIndexCount * sizeof(uint), indexBuffer.ByteArray, BufferUsageHint.DynamicDraw);
+            indexCount = tubeIndexCount;
         }
 
         public override void Render(ParticleCollection particles, ParticleSystemState systemState, Camera camera)
@@ -327,7 +307,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         // Expands each particle segment into 2^level rings, interpolating position/radius/colour/U.
         // Fills exactly TotalRings entries of the (pooled, possibly larger) output arrays.
         private static void BuildRings(ReadOnlySpan<Vector3> positions, ReadOnlySpan<(int Id, Vector3 Position, float Radius, Vector3 Color)> chain,
-            ReadOnlySpan<int> levels, float repeats, Vector3[] ringPositions, RopeSample[] ringSamples)
+            ReadOnlySpan<int> levels, float repeats, Span<Vector3> ringPositions, Span<RopeSample> ringSamples)
         {
             var cursor = 0;
 

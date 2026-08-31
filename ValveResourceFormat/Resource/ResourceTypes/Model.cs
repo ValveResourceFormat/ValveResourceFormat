@@ -118,7 +118,11 @@ namespace ValveResourceFormat.ResourceTypes
         /// <param name="morph">The morph data whose flex controllers should be reused.</param>
         public void SetExternalMorphData(Morph? morph)
         {
-            cachedFlexControllers ??= morph?.FlexControllers;
+            // An empty set carries nothing, and a model whose morph set sits in a separate vmorf has one.
+            if (cachedFlexControllers == null || cachedFlexControllers.Length == 0)
+            {
+                cachedFlexControllers = morph?.FlexControllers;
+            }
         }
 
         /// <summary>
@@ -587,20 +591,8 @@ namespace ValveResourceFormat.ResourceTypes
                 return null;
             }
 
-            KVObject keyvalues;
             using var ms = new MemoryStream(Encoding.UTF8.GetBytes(keyvaluesString));
-            try
-            {
-                keyvalues = KVDocumentExtensions.ParseKV3(ms).Root;
-            }
-            catch (Exception e)
-            {
-                // TODO: Current parser fails when root is "null", so just skip over them for now
-                Console.Error.WriteLine(e.ToString());
-                return null;
-            }
-
-            return keyvalues;
+            return KVDocumentExtensions.ParseKV3(ms).Root;
         }
     }
 }

@@ -42,7 +42,7 @@ namespace ValveResourceFormat.Renderer
         public string? LayerName { get; set; }
 
         /// <summary>
-        /// Gets or sets whether this node's layer is enabled. Marks the parent octree dirty on change.
+        /// Gets or sets whether this node's layer is enabled. Queues a rebuild on the parent spatial structure.
         /// </summary>
         public virtual bool LayerEnabled
         {
@@ -57,6 +57,12 @@ namespace ValveResourceFormat.Renderer
                 }
             }
         } = true;
+
+        /// <summary>
+        /// Gets or sets whether the node itself wants to be drawn, independently of its layer.
+        /// The node remains in the scene graph and is checked each frame.
+        /// </summary>
+        public bool Visible { get; set; } = true;
 
         /// <summary>
         /// Gets the world-space axis-aligned bounding box. Recomputed from <see cref="LocalBoundingBox"/> and

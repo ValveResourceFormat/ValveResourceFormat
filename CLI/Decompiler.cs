@@ -96,7 +96,7 @@ namespace CLI
         /// A test bed command line interface for the VRF library.
         /// </summary>
         /// <param name="input">-i, Input file to be processed. With no additional arguments, a summary of the input(s) will be displayed.</param>
-        /// <param name="output">-o, Output path to write to. If input is a folder (or a VPK), this should be a folder, unless --vpk_filepath matches exactly one file.</param>
+        /// <param name="output">-o, Output path to write to. Treated as a folder when it is an existing folder, ends with a path separator, or has no file extension, otherwise it names the file to write.</param>
         /// <param name="decompile">-d|--vpk_decompile, Decompile supported resource files.</param>
         /// <param name="texture_decode_flags">Decompile textures with the specified decode flags, example: "none", "auto", "ForceLDR".</param>
         /// <param name="recursive">If specified and given input is a folder, all sub directories will be scanned too.</param>
@@ -627,7 +627,7 @@ namespace CLI
                     path = Path.ChangeExtension(path, extension);
 
                     var outFilePath = GetOutputPath(path);
-                    DumpContentFile(outFilePath, content);
+                    DumpContentFile(outFilePath, content, singleFileOutput: IsSingleFileOutput());
                 }
                 else
                 {
@@ -701,7 +701,7 @@ namespace CLI
                         }
                     }
 
-                    DumpContentFile(outFilePath, contentFile);
+                    DumpContentFile(outFilePath, contentFile, singleFileOutput: IsSingleFileOutput());
                     return;
                 }
             }
@@ -811,9 +811,9 @@ namespace CLI
                 {
                     shader.PrintSummary(output);
 
-                    foreach (var zframe in shader.StaticComboEntries)
+                    foreach (var staticComboEntry in shader.StaticComboEntries)
                     {
-                        zframe.Value.Unserialize();
+                        staticComboEntry.Value.Unserialize();
                     }
 
                     // Shader resources already store stats
@@ -1482,7 +1482,7 @@ namespace CLI
                 // directory we keep it; otherwise we flatten to the leaf name next to the parent file, which can
                 // collide on shared names. Resolving these relative to the parent's output path properly needs a
                 // bigger rework of the extract path handling (also in the GUI's PackageExporter).
-                var additionalPath = additionalFile.KeepFullPath && OutputFile != null && (IsInputFolder || Directory.Exists(OutputFile))
+                var additionalPath = additionalFile.KeepFullPath && OutputFile != null && (IsInputFolder || IsOutputDirectory())
                     ? Path.Combine(OutputFile, additionalFile.FileName)
                     : Path.Combine(Path.GetDirectoryName(path)!, Path.GetFileName(additionalFile.FileName));
                 DumpContentFile(additionalPath, additionalFile);
@@ -1543,7 +1543,7 @@ namespace CLI
 
         private bool ShouldUseOutputAsDirectory(Package package)
         {
-            if (OutputFile == null || FileFilter.Length != 1 || OutputFile.EndsWith(Path.DirectorySeparatorChar))
+            if (OutputFile == null || FileFilter.Length != 1 || IsOutputDirectory())
             {
                 return true;
             }
@@ -1560,6 +1560,21 @@ namespace CLI
                 || !filteredEntries[0].FilePath.Equals(FileFilter[0], StringComparison.Ordinal);
         }
 
+        /// <summary>
+        /// Whether the output path names a folder to write into, rather than the file to write.
+        /// A path that does not exist is a folder unless it has a file extension.
+        /// </summary>
+        private bool IsOutputDirectory()
+        {
+            Debug.Assert(OutputFile != null);
+
+            return OutputFile.EndsWith(Path.DirectorySeparatorChar)
+                || Directory.Exists(OutputFile)
+                || !Path.HasExtension(OutputFile);
+        }
+
+        private bool IsSingleFileOutput() => !IsInputFolder && !IsOutputDirectory();
+
         private string GetOutputPath(string inputPath, bool useOutputAsDirectory = false)
         {
             Debug.Assert(OutputFile != null);
@@ -1575,8 +1590,13 @@ namespace CLI
 
                 return Path.Combine(OutputFile, inputPath);
             }
-            else if (useOutputAsDirectory || Directory.Exists(OutputFile))
+            else if (useOutputAsDirectory || IsOutputDirectory())
             {
+                if (Path.IsPathRooted(inputPath))
+                {
+                    inputPath = Path.GetFileName(inputPath);
+                }
+
                 return Path.Combine(OutputFile, inputPath);
             }
 

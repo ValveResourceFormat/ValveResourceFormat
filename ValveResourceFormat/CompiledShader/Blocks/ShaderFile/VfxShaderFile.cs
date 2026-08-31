@@ -9,8 +9,8 @@ public abstract class VfxShaderFile : ShaderDataBlock
 {
     /// <summary>Gets the parent static combo data.</summary>
     public VfxStaticComboData ParentCombo { get; }
-    /// <summary>Gets the shader platform name.</summary>
-    public abstract string BlockName { get; }
+    /// <summary>Gets the shader source format name.</summary>
+    public abstract string SourceType { get; }
     /// <summary>Gets the shader file identifier.</summary>
     public int ShaderFileId { get; }
     /// <summary>Gets or sets the shader data size. Depending on the platform this may include header data in addition to the bytecode.</summary>
@@ -23,20 +23,20 @@ public abstract class VfxShaderFile : ShaderDataBlock
     /// <summary>
     /// Initializes a new instance from a binary reader.
     /// </summary>
-    protected VfxShaderFile(BinaryReader datareader, int sourceId, VfxStaticComboData parent) : base(datareader)
+    protected VfxShaderFile(BinaryReader datareader, int shaderFileId, VfxStaticComboData parent) : base(datareader)
     {
         ParentCombo = parent;
-        ShaderFileId = sourceId;
+        ShaderFileId = shaderFileId;
         Size = datareader.ReadInt32();
     }
 
     /// <summary>
     /// Initializes a new instance with default values.
     /// </summary>
-    protected VfxShaderFile(int sourceId, VfxStaticComboData parent) : base()
+    protected VfxShaderFile(int shaderFileId, VfxStaticComboData parent) : base()
     {
         ParentCombo = parent;
-        ShaderFileId = sourceId;
+        ShaderFileId = shaderFileId;
         Size = 0;
         Bytecode = [];
         HashMD5 = Guid.Empty;

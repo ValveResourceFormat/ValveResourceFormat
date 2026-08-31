@@ -319,11 +319,11 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                 && orientationType is ParticleOrientation.PARTICLE_ORIENTATION_ALIGN_TO_PARTICLE_NORMAL
                     or ParticleOrientation.PARTICLE_ORIENTATION_SCREENALIGN_TO_PARTICLE_NORMAL;
 
-            // One set of attributes per particle, rented from the shared float pool so the memory is
+            // One set of attributes per particle, rented from the shared byte pool so the memory is
             // reused across renderers.
             var instanceFloats = instanceLayout.Stride / sizeof(float);
 
-            using (var vertexBuffer = new RentedFloatBuffer<float>(particles.Count * instanceFloats))
+            using (var vertexBuffer = new RentedBuffer<float>(particles.Count * instanceFloats))
             {
                 var instances = vertexBuffer.Span;
                 var i = 0;
@@ -438,7 +438,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                     i++;
                 }
 
-                GL.NamedBufferData(vertexBufferHandle, i * instanceLayout.Stride, vertexBuffer.FloatArray, BufferUsageHint.DynamicDraw);
+                GL.NamedBufferData(vertexBufferHandle, i * instanceLayout.Stride, vertexBuffer.ByteArray, BufferUsageHint.DynamicDraw);
 
                 return i;
             }

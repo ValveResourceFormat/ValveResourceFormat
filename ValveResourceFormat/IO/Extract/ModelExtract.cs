@@ -118,6 +118,11 @@ public partial class ModelExtract
 
         foreach (var renderMesh in RenderMeshesToExtract)
         {
+            if (fileLoader != null)
+            {
+                renderMesh.Mesh.LoadExternalMorphData(fileLoader);
+            }
+
             var options = new DatamodelRenderMeshExtractOptions
             {
                 MaterialInputSignatures = MaterialInputSignatures,

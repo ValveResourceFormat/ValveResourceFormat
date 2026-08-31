@@ -133,6 +133,11 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             Attachments = model.Attachments;
             AnimationController.TwistConstraints = ParseTwistConstraints(model);
 
+            dotToMorphConstraints = ParseDotToMorphConstraints(model);
+            dotToMorphValues = dotToMorphConstraints.Length > 0
+                ? new float[Math.Max(model.FlexControllers.Length, AnimationController.AnimationFrame?.Datas.Length ?? 0)]
+                : [];
+
             // GetAttachmentOrSelfTransform already falls back to this node's own world Transform for an empty/
             // unmatched name - AnimationController.Transform is not it (see its doc comment), so route through here.
             AnimationController.ResolvePosition = attachmentName => GetAttachmentOrSelfTransform(attachmentName).Translation;
@@ -244,7 +249,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
                 var floatBufferSizeMeshBones = meshBoneCount * 12;
                 var floatBufferSizeModelBones = boneCount * 16;
 
-                using (var floatBuffer = new RentedFloatBuffer<float>(floatBufferSizeMeshBones + floatBufferSizeModelBones))
+                using (var floatBuffer = new RentedBuffer<float>(floatBufferSizeMeshBones + floatBufferSizeModelBones))
                 {
                     var meshBones = MemoryMarshal.Cast<float, OpenTK.Mathematics.Matrix3x4>(floatBuffer.Span[..floatBufferSizeMeshBones]);
                     var modelBones = MemoryMarshal.Cast<float, Matrix4x4>(floatBuffer.Span[floatBufferSizeMeshBones..]);
@@ -262,7 +267,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
                         }
                     }
 
-                    boneMatricesGpu.Update(floatBuffer.FloatArray, 0, floatBufferSizeMeshBones * sizeof(float));
+                    boneMatricesGpu.Update(floatBuffer.ByteArray, 0, floatBufferSizeMeshBones * sizeof(float));
 
                     UpdateAnimatedBoundingBox();
                 }
@@ -276,6 +281,14 @@ namespace ValveResourceFormat.Renderer.SceneNodes
                     if (renderableMesh.FlexStateManager == null)
                     {
                         continue;
+                    }
+
+                    // A bone driven morph is not in the animation, so it is layered on afterwards.
+                    if (dotToMorphConstraints.Length > 0)
+                    {
+                        datas.CopyTo(dotToMorphValues, 0);
+                        ApplyDotToMorphConstraints(dotToMorphConstraints, dotToMorphValues);
+                        datas = dotToMorphValues;
                     }
 
                     if (renderableMesh.FlexStateManager.SetControllerValues(datas))
@@ -832,6 +845,100 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         public override void Delete()
         {
             boneMatricesGpu?.Delete();
+        }
+
+        private DotToMorphConstraint[] dotToMorphConstraints = [];
+        private float[] dotToMorphValues = [];
+
+        /// <summary>
+        /// Parses the constraints that drive a morph from a bone's facing, resolving the bones and the
+        /// flex controller they name so the update does not have to search per frame.
+        /// </summary>
+        protected static DotToMorphConstraint[] ParseDotToMorphConstraints(Model model)
+        {
+            var keyvalues = model.KeyValues;
+            if (keyvalues == null || !keyvalues.ContainsKey("BoneConstraintList"))
+            {
+                return [];
+            }
+
+            var bones = model.Skeleton.Bones;
+            var controllers = model.FlexControllers;
+            var constraints = new List<DotToMorphConstraint>();
+
+            foreach (var constraintData in keyvalues.GetArray("BoneConstraintList"))
+            {
+                if (constraintData.GetStringProperty("_class") != "CBoneConstraintDotToMorph")
+                {
+                    continue;
+                }
+
+                var remap = constraintData.GetFloatArray("m_flRemap");
+                if (remap == null || remap.Length < 4)
+                {
+                    continue;
+                }
+
+                var boneName = constraintData.GetStringProperty("m_sBoneName");
+                var targetName = constraintData.GetStringProperty("m_sTargetBoneName");
+                var channel = constraintData.GetStringProperty("m_sMorphChannelName");
+
+                var constraint = new DotToMorphConstraint
+                {
+                    BoneName = boneName,
+                    TargetBoneName = targetName,
+                    MorphChannelName = channel,
+                    InputMin = remap[0],
+                    InputMax = remap[1],
+                    OutputMin = remap[2],
+                    OutputMax = remap[3],
+                    BoneIndex = Array.FindIndex(bones, b => b.Name == boneName),
+                    TargetBoneIndex = Array.FindIndex(bones, b => b.Name == targetName),
+                    MorphChannelIndex = Array.FindIndex(controllers, c => c.Name == channel),
+                };
+
+                if (constraint.BoneIndex >= 0 && constraint.TargetBoneIndex >= 0 && constraint.MorphChannelIndex >= 0)
+                {
+                    constraints.Add(constraint);
+                }
+            }
+
+            return [.. constraints];
+        }
+
+        /// <summary>
+        /// Applies the bone driven morphs on top of the animated controller values.
+        /// </summary>
+        private void ApplyDotToMorphConstraints(DotToMorphConstraint[] constraints, float[] controllerValues)
+        {
+            var pose = AnimationController.Pose;
+
+            foreach (var constraint in constraints)
+            {
+                if (constraint.MorphChannelIndex >= controllerValues.Length)
+                {
+                    continue;
+                }
+
+                var bone = pose[constraint.BoneIndex];
+                var target = pose[constraint.TargetBoneIndex];
+
+                // Measured against the bone's down axis: level with the target it reads a right angle,
+                // which is what both remaps start from, and looking down opens the angle further.
+                var facing = Vector3.Normalize(new Vector3(-bone.M31, -bone.M32, -bone.M33));
+                var toTarget = target.Translation - bone.Translation;
+
+                if (toTarget.LengthSquared() < 1e-12f)
+                {
+                    continue;
+                }
+
+                var dot = Math.Clamp(Vector3.Dot(facing, Vector3.Normalize(toTarget)), -1f, 1f);
+                var degrees = MathF.Acos(dot) * (180f / MathF.PI);
+
+                controllerValues[constraint.MorphChannelIndex] = MathUtils.RemapValClamped(
+                    degrees, constraint.InputMin, constraint.InputMax, constraint.OutputMin, constraint.OutputMax);
+            }
         }
 
         /// <summary>

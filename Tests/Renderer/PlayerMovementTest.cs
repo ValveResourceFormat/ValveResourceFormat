@@ -57,7 +57,7 @@ namespace Tests.Renderer
             input.Camera.Pitch = 0f;
             input.Tick(1f / 128f, TrackedKeys.X, Vector2.Zero, renderCamera);
 
-            await Assert.That(input.NoClip).IsFalse();
+            await Assert.That(input.WalkMode).IsTrue();
             return (input, renderCamera);
         }
 

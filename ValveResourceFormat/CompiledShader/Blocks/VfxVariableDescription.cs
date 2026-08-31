@@ -12,7 +12,7 @@ namespace ValveResourceFormat.CompiledShader;
 public class VfxVariableDescription : ShaderDataBlock
 {
     /// <summary>Gets the block index of this variable.</summary>
-    public int BlockIndex { get; }
+    public int Index { get; }
 
     /// <summary>Gets the variable name.</summary>
     public string Name { get; }
@@ -20,8 +20,8 @@ public class VfxVariableDescription : ShaderDataBlock
     /// <summary>Gets the UI group for this variable.</summary>
     public UiGroup UiGroup { get; }
 
-    /// <summary>Gets the string data associated with this variable.</summary>
-    public string StringData { get; }
+    /// <summary>Gets the source string for this variable.</summary>
+    public string SourceString { get; }
 
     /// <summary>Gets the UI type for this variable.</summary>
     public UiType UiType { get; }
@@ -33,10 +33,10 @@ public class VfxVariableDescription : ShaderDataBlock
     public VfxVariableSourceType VariableSource { get; }
 
     /// <summary>Gets the compiled dynamic expression bytecode.</summary>
-    public byte[] DynExp { get; } = [];
+    public byte[] CompiledExpression { get; } = [];
 
     /// <summary>Gets the compiled UI visibility expression bytecode.</summary>
-    public byte[] UiVisibilityExp { get; } = [];
+    public byte[] UiVisibilityExpression { get; } = [];
 
     /// <summary>Gets the source index for this variable.</summary>
     public int SourceIndex { get; }
@@ -47,26 +47,32 @@ public class VfxVariableDescription : ShaderDataBlock
     /// <summary>Gets the register type for this variable.</summary>
     public VfxRegisterType RegisterType { get; }
 
-    /// <summary>Gets the variable flags.</summary>
+    /// <summary>Gets the variable flags, stored in bits 8-15 of <see cref="ContextStateAffectedByVariable"/>.</summary>
     public VariableFlags Flags => (VariableFlags)((ContextStateAffectedByVariable >> 8) & 0xFF);
 
-    /// <summary>Gets the context state affected by this variable.</summary>
+    /// <summary>
+    /// Gets the context state affected by this variable. Only stored since version 64,
+    /// so a zero value on older files means unknown rather than no affected state.
+    /// </summary>
     public int ContextStateAffectedByVariable { get; }
 
-    /// <summary>Gets the register offset.</summary>
+    /// <summary>Gets the register offset. Only stored in KV3 resources; 0 for binary vcs files.</summary>
     public uint RegisterOffset { get; }
 
-    /// <summary>Gets the descriptor set index.</summary>
+    /// <summary>Gets the descriptor set index. Only stored in KV3 resources; 0 for binary vcs files.</summary>
     public uint DescriptorSet { get; }
 
     /// <summary>Gets the number of register elements.</summary>
     public int RegisterElements { get; }
 
     /// <summary>Gets a value indicating whether hardware sRGB reads are enabled for this variable.</summary>
-    public bool SrgbRead => (ExtConstantBufferId & 0x01) == 1;
+    public bool SrgbRead => (TypeSpecificBits & 0x01) == 1;
 
-    /// <summary>Gets the external constant buffer ID.</summary>
-    public int ExtConstantBufferId { get; }
+    /// <summary>
+    /// Gets bits whose meaning depends on the variable type, such as the external constant buffer ID.
+    /// It is -1 for variables that carry no type specific data.
+    /// </summary>
+    public int TypeSpecificBits { get; }
 
     /// <summary>Gets the default input texture name.</summary>
     public string DefaultInputTexture { get; }
@@ -95,26 +101,26 @@ public class VfxVariableDescription : ShaderDataBlock
     /// <summary>Gets the float maximum values (up to 4 components).</summary>
     public float[] FloatMaxs { get; } = [FloatInf, FloatInf, FloatInf, FloatInf];
 
-    /// <summary>Gets the image format for texture variables.</summary>
-    public ImageFormat ImageFormat { get; } = ImageFormat.UNKNOWN;
+    /// <summary>Gets the output texture format for texture variables.</summary>
+    public ImageFormat OutputTextureFormat { get; } = ImageFormat.UNKNOWN;
 
-    /// <summary>Gets the number of texture channels.</summary>
+    /// <summary>Gets the number of valid entries in <see cref="ChannelInfoIndices"/>.</summary>
     public int ChannelCount { get; }
 
-    /// <summary>Gets the channel indices for texture variables.</summary>
-    public int[] ChannelIndices { get; } = [-1, -1, -1, -1];
+    /// <summary>Gets the indices into <see cref="VfxProgramData.TextureChannelProcessors"/> for texture variables.</summary>
+    public int[] ChannelInfoIndices { get; } = [-1, -1, -1, -1];
 
-    /// <summary>Gets the color mode for texture variables.</summary>
-    public int ColorMode { get; }
+    /// <summary>Gets the input color space for texture variables.</summary>
+    public int InputColorSpace { get; }
 
     /// <summary>Gets the minimum precision bits required for this variable.</summary>
     public int MinPrecisionBits { get; } = -1;
 
-    /// <summary>Gets the image file suffix for texture variables.</summary>
-    public string ImageSuffix { get; }
+    /// <summary>Gets the texture file name suffix for texture variables.</summary>
+    public string TextureFileEnding { get; }
 
-    /// <summary>Gets the image processing command for texture variables.</summary>
-    public string ImageProcessor { get; }
+    /// <summary>Gets the input processing command for texture variables.</summary>
+    public string InputProcessingCommand { get; }
 
     /// <summary>Gets the layer ID for this variable.</summary>
     public byte LayerId { get; }
@@ -132,23 +138,23 @@ public class VfxVariableDescription : ShaderDataBlock
     /// Initializes a new instance of the <see cref="VfxVariableDescription"/> class from <see cref="KVObject"/> data.
     /// </summary>
     /// <param name="data">The <see cref="KVObject"/> containing variable data.</param>
-    /// <param name="blockIndex">The block index for this variable.</param>
-    public VfxVariableDescription(KVObject data, int blockIndex) : base()
+    /// <param name="index">The index in the owning array.</param>
+    public VfxVariableDescription(KVObject data, int index) : base()
     {
-        BlockIndex = blockIndex;
+        Index = index;
         Name = RegisterName(data.GetStringProperty("m_szName"));
         UiGroup = UiGroup.FromCompactString(data.GetStringProperty("m_szUiGroup"));
         UiType = (UiType)data.GetInt32Property("m_uiType");
         UiStep = data.GetFloatProperty("m_flUiStep");
-        StringData = data.GetStringProperty("m_pSourceString");
+        SourceString = data.GetStringProperty("m_pSourceString");
         VariableSource = (VfxVariableSourceType)data.GetInt32Property("m_sourceType");
 
         if (data.GetArray<byte>("m_pCompiledExpression") is byte[] compiledExpression)
         {
-            DynExp = compiledExpression;
+            CompiledExpression = compiledExpression;
         }
 
-        UiVisibilityExp = data.GetArray<byte>("m_pCompiledUIVisibilityExpression") ?? [];
+        UiVisibilityExpression = data.GetArray<byte>("m_pCompiledUIVisibilityExpression") ?? [];
 
         SourceIndex = data.GetInt32Property("m_sourceIndex");
         VfxType = (VfxVariableType)data.GetInt32Property("m_type");
@@ -159,7 +165,7 @@ public class VfxVariableDescription : ShaderDataBlock
         DescriptorSet = data.GetUInt32Property("m_nDescriptorSet");
 
         RegisterElements = data.GetInt32Property("m_nRegisterElements");
-        ExtConstantBufferId = unchecked((int)data.GetUInt32Property("m_nTypeSpecificBits"));
+        TypeSpecificBits = unchecked((int)data.GetUInt32Property("m_nTypeSpecificBits"));
 
         if (data.ContainsKey("m_flDefault"))
         {
@@ -195,21 +201,21 @@ public class VfxVariableDescription : ShaderDataBlock
         if (data.ContainsKey("m_outputTextureFormat"))
         {
             DefaultInputTexture = data.GetStringProperty("m_defaultInputTexture");
-            ImageFormat = (ImageFormat)data.GetUInt32Property("m_outputTextureFormat");
+            OutputTextureFormat = (ImageFormat)data.GetUInt32Property("m_outputTextureFormat");
             ChannelCount = data.GetInt32Property("m_nChannelCount");
-            ChannelIndices = data.GetArray<int>("m_nChannelInfoIndex")!;
-            ColorMode = data.GetInt32Property("m_inputColorSpace");
+            ChannelInfoIndices = data.GetArray<int>("m_nChannelInfoIndex")!;
+            InputColorSpace = data.GetInt32Property("m_inputColorSpace");
             MinPrecisionBits = data.GetInt32Property("m_nMinPrecisionBits");
 
-            ImageSuffix = data.GetStringProperty("m_szTextureFileEnding");
-            ImageProcessor = data.GetStringProperty("m_inputProcessingCommand");
+            TextureFileEnding = data.GetStringProperty("m_szTextureFileEnding");
+            InputProcessingCommand = data.GetStringProperty("m_inputProcessingCommand");
             MaxRes = data.GetInt32Property("m_nMaxRes");
         }
         else
         {
             DefaultInputTexture = string.Empty;
-            ImageSuffix = string.Empty;
-            ImageProcessor = string.Empty;
+            TextureFileEnding = string.Empty;
+            InputProcessingCommand = string.Empty;
         }
 
         LayerId = (byte)data.GetInt32Property("m_nLayerId");
@@ -221,23 +227,23 @@ public class VfxVariableDescription : ShaderDataBlock
     /// Initializes a new instance of the <see cref="VfxVariableDescription"/> class from a binary stream.
     /// </summary>
     /// <param name="datareader">The binary reader to read from.</param>
-    /// <param name="blockIndex">The block index for this variable.</param>
+    /// <param name="index">The index in the owning array.</param>
     /// <param name="vcsVersion">The VCS file version.</param>
-    public VfxVariableDescription(BinaryReader datareader, int blockIndex, int vcsVersion) : base(datareader)
+    public VfxVariableDescription(BinaryReader datareader, int index, int vcsVersion) : base(datareader)
     {
         // CVfxVariableDescription::Unserialize
-        BlockIndex = blockIndex;
+        Index = index;
         Name = RegisterName(ReadStringWithMaxLength(datareader, 64));
         UiGroup = UiGroup.FromCompactString(ReadStringWithMaxLength(datareader, 64));
         UiType = (UiType)datareader.ReadInt32();
         UiStep = datareader.ReadSingle();
-        StringData = ReadStringWithMaxLength(datareader, 64);
+        SourceString = ReadStringWithMaxLength(datareader, 64);
         VariableSource = (VfxVariableSourceType)datareader.ReadInt32();
 
         if (HasDynamicExpression)
         {
             var dynExpLen = datareader.ReadInt32();
-            DynExp = datareader.ReadBytes(dynExpLen);
+            CompiledExpression = datareader.ReadBytes(dynExpLen);
         }
 
         SourceIndex = datareader.ReadInt32();
@@ -246,7 +252,7 @@ public class VfxVariableDescription : ShaderDataBlock
         if (SourceIndex == 0x534D4253)
         {
             var dynExpLen = datareader.ReadInt32();
-            UiVisibilityExp = datareader.ReadBytes(dynExpLen);
+            UiVisibilityExpression = datareader.ReadBytes(dynExpLen);
 
             SourceIndex = datareader.ReadInt32();
         }
@@ -260,7 +266,7 @@ public class VfxVariableDescription : ShaderDataBlock
         }
 
         RegisterElements = datareader.ReadInt32();
-        ExtConstantBufferId = datareader.ReadInt32();
+        TypeSpecificBits = datareader.ReadInt32();
 
         DefaultInputTexture = ReadStringWithMaxLength(datareader, 64);
 
@@ -293,18 +299,18 @@ public class VfxVariableDescription : ShaderDataBlock
 
         Debug.Assert(!float.IsNaN(FloatMaxs[3]));
 
-        ImageFormat = (ImageFormat)datareader.ReadInt32();
+        OutputTextureFormat = (ImageFormat)datareader.ReadInt32();
         ChannelCount = datareader.ReadInt32();
         for (var i = 0; i < 4; i++)
         {
-            ChannelIndices[i] = datareader.ReadInt32();
+            ChannelInfoIndices[i] = datareader.ReadInt32();
         }
 
-        ColorMode = datareader.ReadInt32();
+        InputColorSpace = datareader.ReadInt32();
         MinPrecisionBits = datareader.ReadInt32();
 
-        ImageSuffix = ReadStringWithMaxLength(datareader, 32);
-        ImageProcessor = ReadStringWithMaxLength(datareader, 32);
+        TextureFileEnding = ReadStringWithMaxLength(datareader, 32);
+        InputProcessingCommand = ReadStringWithMaxLength(datareader, 32);
 
         if (vcsVersion >= 65)
         {

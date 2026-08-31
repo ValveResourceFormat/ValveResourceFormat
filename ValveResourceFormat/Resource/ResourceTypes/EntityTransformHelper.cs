@@ -241,6 +241,16 @@ namespace ValveResourceFormat.ResourceTypes
         }
 
         /// <summary>
+        /// The rigid transform for explicit angles and origin, the same composition
+        /// <see cref="ToRigidTransformationMatrix(Entity)"/> reads from keyvalues.
+        /// </summary>
+        /// <param name="pitchYawRoll">The Euler angles.</param>
+        /// <param name="origin">The translation.</param>
+        /// <returns>The rigid transform, rotation then translation.</returns>
+        public static Matrix4x4 ToRigidTransformationMatrix(Vector3 pitchYawRoll, Vector3 origin)
+            => EulerAnglesToRotationMatrix(pitchYawRoll) * Matrix4x4.CreateTranslation(origin);
+
+        /// <summary>
         /// Parses a string representation of a Vector2.
         /// </summary>
         /// <param name="input">The input string.</param>

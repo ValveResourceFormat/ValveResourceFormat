@@ -96,7 +96,7 @@ public sealed class AnimGraphModelInfo
         return boneNamesCache ??= ModelData?.Skeleton.Bones.Select(b => b.Name).ToArray() ?? [];
     }
 
-    private static IReadOnlyList<KVObject>? GetIKChainsFromModel(Model? modelData)
+    internal static IReadOnlyList<KVObject>? GetIKChainsFromModel(Model? modelData)
     {
         if (modelData is null)
         {
@@ -111,6 +111,29 @@ public sealed class AnimGraphModelInfo
 
         var ikdata = keyvalues.GetSubCollection("ikdata");
         return ikdata.ContainsKey("m_IKChains") ? ikdata.GetArray("m_IKChains") : null;
+    }
+
+    /// <summary>
+    /// Gets the legacy control rig, which holds the IK of models authored before chains moved into
+    /// m_IKChains. Null when the model carries no rig; a rig with no chains is still returned,
+    /// because a model that has one keeps it after a recompile.
+    /// </summary>
+    internal static (KVObject Rig, IReadOnlyList<KVObject> Chains)? GetIKControlRigFromModel(Model? modelData)
+    {
+        var keyvalues = modelData?.KeyValues;
+        if (keyvalues is null || !keyvalues.ContainsKey("ikdata"))
+        {
+            return null;
+        }
+
+        var ikdata = keyvalues.GetSubCollection("ikdata");
+        if (!ikdata.TryGetValue("m_ControlRigData", out var rigValue) || rigValue.ValueType != KVValueType.Collection)
+        {
+            return null;
+        }
+
+        var rig = ikdata.GetSubCollection("m_ControlRigData");
+        return (rig, rig.ContainsKey("m_ChainData") ? rig.GetArray("m_ChainData") : []);
     }
 
     private string[] LoadIKChainNames()

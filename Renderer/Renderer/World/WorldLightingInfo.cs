@@ -435,6 +435,48 @@ namespace ValveResourceFormat.Renderer.World
             SunViewProjections[cascade] = sunShadowView[cascade] * projection;
         }
 
+        private List<SceneLight> storedLights = [];
+        private bool usesUniformLightStore;
+
+        /// <summary>
+        /// Initial store of map lights to GPU.
+        /// </summary>
+        public void StoreLights(List<SceneLight> lights)
+        {
+            storedLights = lights;
+            usesUniformLightStore = (LightmapVersionNumber, LightmapGameVersionNumber) is (6, 0) or (8, 0) or (8, 1);
+
+            if (usesUniformLightStore)
+            {
+                StoreLightMappedLights_V1(lights);
+            }
+            else
+            {
+                StoreLightMappedLights_V2(lights);
+            }
+        }
+
+        /// <summary>Re-stores the GPU light properties.</summary>
+        public void UpdateGpuLightBuffers()
+        {
+            if (storedLights.Count == 0)
+            {
+                return;
+            }
+
+            if (usesUniformLightStore)
+            {
+                StoreLightMappedLights_V1(storedLights);
+                return;
+            }
+
+            var envLight = storedLights.FirstOrDefault(static l => l.Entity == SceneLight.EntityType.Environment);
+            if (envLight != null)
+            {
+                StoreSunLight(envLight, envLight.BakedShadowMask);
+            }
+        }
+
         /// <summary>
         /// Stores stationary and dynamic light data into <see cref="LightingData"/> using the V1 lightmap format.
         /// Stationary lights sit at their baked lightmap index and are lit through the per-texel strength

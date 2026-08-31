@@ -14,15 +14,13 @@ namespace ValveResourceFormat.CompiledShader;
 public class VfxShaderAttribute
 {
     /// <summary>Gets the attribute name.</summary>
-    public string Name0 { get; }
-    /// <summary>Gets the Murmur2 hash of the name.</summary>
+    public string Name { get; }
+    /// <summary>Gets the 32-bit MurmurHash2 of the name.</summary>
     public uint Murmur32 { get; }
     /// <summary>Gets the variable type.</summary>
     public VfxVariableType VfxType { get; }
-    /// <summary>Gets the linked parameter index.</summary>
-    public short LinkedParameterIndex { get; }
-    /// <summary>Gets the dynamic expression length.</summary>
-    public int DynExpLen { get; } = -1;
+    /// <summary>Gets the index of the variable this attribute is bound to, or -1 when it is not bound to one.</summary>
+    public short VariableBinding { get; }
     /// <summary>Gets the dynamic expression bytecode.</summary>
     public byte[]? DynExpression { get; }
     /// <summary>Gets the constant value.</summary>
@@ -33,9 +31,9 @@ public class VfxShaderAttribute
     /// </summary>
     public VfxShaderAttribute(KVObject data)
     {
-        Name0 = data.GetStringProperty("m_Name");
+        Name = data.GetStringProperty("m_Name");
         VfxType = (VfxVariableType)data.GetInt32Property("m_type");
-        LinkedParameterIndex = (short)data.GetInt32Property("m_nVariableBinding");
+        VariableBinding = (short)data.GetInt32Property("m_nVariableBinding");
 
         if (data.TryGetValue("m_value", out var value) && value.ValueType != KVValueType.Null)
         {
@@ -55,11 +53,10 @@ public class VfxShaderAttribute
 
         if (data.GetArray<byte>("m_expr") is byte[] expression)
         {
-            DynExpLen = expression.Length;
             DynExpression = expression;
         }
 
-        Murmur32 = StringToken.Store(Name0);
+        Murmur32 = StringToken.Store(Name);
     }
 
     /// <summary>
@@ -67,25 +64,25 @@ public class VfxShaderAttribute
     /// </summary>
     public VfxShaderAttribute(BinaryReader datareader)
     {
-        Name0 = datareader.ReadNullTermString(Encoding.UTF8);
+        Name = datareader.ReadNullTermString(Encoding.UTF8);
         Murmur32 = datareader.ReadUInt32();
-        var murmurCheck = StringToken.Store(Name0);
+        var murmurCheck = StringToken.Store(Name);
         if (Murmur32 != murmurCheck)
         {
             throw new ShaderParserException("Murmur check failed on header name");
         }
         VfxType = (VfxVariableType)datareader.ReadByte();
-        LinkedParameterIndex = datareader.ReadInt16();
+        VariableBinding = datareader.ReadInt16();
 
-        if (LinkedParameterIndex != -1)
+        if (VariableBinding != -1)
         {
             return;
         }
 
-        DynExpLen = datareader.ReadInt32();
-        if (DynExpLen > 0)
+        var dynExpLen = datareader.ReadInt32();
+        if (dynExpLen > 0)
         {
-            DynExpression = datareader.ReadBytes(DynExpLen);
+            DynExpression = datareader.ReadBytes(dynExpLen);
             return;
         }
 
@@ -105,17 +102,17 @@ public class VfxShaderAttribute
 
     /// <inheritdoc/>
     /// <remarks>
-    /// Returns a formatted string with the attribute name, hash, type, parameter index, and either the dynamic expression or constant value.
+    /// Returns a formatted string with the attribute name, hash, type, variable binding, and either the dynamic expression or constant value.
     /// </remarks>
     public override string ToString()
     {
         if (DynExpression != null)
         {
-            return $"{Name0,-40} 0x{Murmur32:x08}  {VfxType,-15} {LinkedParameterIndex,-3}  {ParseDynamicExpression(DynExpression)}";
+            return $"{Name,-40} 0x{Murmur32:x08}  {VfxType,-15} {VariableBinding,-3}  {ParseDynamicExpression(DynExpression)}";
         }
         else
         {
-            return $"{Name0,-40} 0x{Murmur32:x08}  {VfxType,-15} {LinkedParameterIndex,-3}  {ConstValue}";
+            return $"{Name,-40} 0x{Murmur32:x08}  {VfxType,-15} {VariableBinding,-3}  {ConstValue}";
         }
     }
 }
