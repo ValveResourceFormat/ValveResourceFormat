@@ -314,12 +314,12 @@ namespace ValveResourceFormat.Renderer.Materials
 
         // Finishes a chain on the spot, for a caller that needs the whole texture rather than the stub a
         // material left growing. Only works before the chain started, which no chain has by the time the
-        // first slice runs, so this is a rule rather than a fallback.
-        internal void FinishStreaming(RenderTexture tex)
+        // first slice runs, so this is a rule rather than a fallback. Returns true if texture is whole.
+        internal bool FinishStreaming(RenderTexture tex)
         {
             if (!incompleteStreams.TryRemove(tex, out var stream))
             {
-                return;
+                return true;
             }
 
             if (stream.Started)
@@ -327,7 +327,7 @@ namespace ValveResourceFormat.Renderer.Materials
                 // A started chain has a load in flight whose bookkeeping this would race
                 Debug.Assert(false, $"Non-streaming request for {stream.Name} while its chain is already streaming");
                 incompleteStreams.TryAdd(tex, stream);
-                return;
+                return false;
             }
 
             while (stream.NextMip < stream.Mips.Length)
@@ -338,6 +338,8 @@ namespace ValveResourceFormat.Renderer.Materials
 
             // The stream may still sit in the pending queue; a later slice discards finished chains
             RetireStream(stream);
+
+            return true;
         }
 
         internal static void LoadAndHookUpMip(StreamedTexture stream, in PlannedMip mip)
