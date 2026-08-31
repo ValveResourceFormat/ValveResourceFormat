@@ -591,20 +591,8 @@ namespace ValveResourceFormat.ResourceTypes
                 return null;
             }
 
-            KVObject keyvalues;
             using var ms = new MemoryStream(Encoding.UTF8.GetBytes(keyvaluesString));
-            try
-            {
-                keyvalues = KVDocumentExtensions.ParseKV3(ms).Root;
-            }
-            catch (Exception e)
-            {
-                // TODO: Current parser fails when root is "null", so just skip over them for now
-                Console.Error.WriteLine(e.ToString());
-                return null;
-            }
-
-            return keyvalues;
+            return KVDocumentExtensions.ParseKV3(ms).Root;
         }
     }
 }
