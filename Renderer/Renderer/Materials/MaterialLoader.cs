@@ -6,7 +6,6 @@ using System.Linq;
 using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Threading;
-using Microsoft.Extensions.Logging;
 using OpenTK.Graphics.OpenGL;
 using SkiaSharp;
 using ValveResourceFormat.ResourceTypes;
@@ -281,26 +280,19 @@ namespace ValveResourceFormat.Renderer.Materials
                 return GetErrorTexture();
             }
 
-            return LoadTexture(textureResource, srgbRead, ignoreMaxTextureSize: false, async);
+            return LoadTexture(textureResource, srgbRead, async);
         }
 
 #pragma warning disable CA1822 // Mark members as static
         /// <summary>Uploads a texture resource to the GPU and returns the resulting <see cref="RenderTexture"/>.</summary>
         /// <param name="textureResource">The loaded texture resource.</param>
         /// <param name="srgbRead">Whether to use the sRGB internal format when available.</param>
-        /// <param name="ignoreMaxTextureSize">Whether to load at full size, past <see cref="RendererContext.MaxTextureSize"/>.</param>
         /// <param name="async">When <see langword="true"/>, mip data is loaded on background jobs and hooked up later by <see cref="TextureStreamingHelper.Timeslice"/>, smallest mips first.</param>
-        public RenderTexture LoadTexture(Resource textureResource, bool srgbRead = false, bool ignoreMaxTextureSize = false, bool async = false)
+        public RenderTexture LoadTexture(Resource textureResource, bool srgbRead = false, bool async = false)
 #pragma warning restore CA1822 // Mark members as static
         {
-            var data = (Texture?)textureResource.DataBlock;
-
-            if (data == null)
-            {
-                RendererContext.Logger.LogError("Texture resource {FileName} has no data block, using error texture", textureResource.FileName);
-                Debug.Assert(false, $"{textureResource.FileName} has no data block");
-                return GetErrorTexture();
-            }
+            var data = (Texture?)textureResource.DataBlock
+                ?? throw new ArgumentException($"{textureResource.FileName} has no data block, it was never read", nameof(textureResource));
 
             if (data.IsRawAnyImage)
             {
@@ -355,7 +347,7 @@ namespace ValveResourceFormat.Renderer.Materials
             var texWidth = data.Width;
             var texHeight = data.Height;
 
-            if (!ignoreMaxTextureSize && !is3d && data.NumMipLevels > 1)
+            if (!is3d && data.NumMipLevels > 1)
             {
                 var maxUserTextureSize = RendererContext.MaxTextureSize;
 

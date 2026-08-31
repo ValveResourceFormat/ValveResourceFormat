@@ -29,7 +29,10 @@ public class GLTextureDecoder : IHardwareTextureDecoder, IDisposable
     public GLTextureDecoder(ILogger logger)
     {
         using var loader = new GameFileLoader(null, null);
-        RendererContext = new RendererContext(loader, logger);
+        RendererContext = new RendererContext(loader, logger)
+        {
+            MaxTextureSize = int.MaxValue,
+        };
 
         GLThread = new Thread(Initialize_NoExcept)
         {
@@ -174,7 +177,7 @@ public class GLTextureDecoder : IHardwareTextureDecoder, IDisposable
 
     private bool DecodeTexture(DecodeRequest request)
     {
-        var inputTexture = RendererContext.MaterialLoader.LoadTexture(request.Resource, ignoreMaxTextureSize: true);
+        var inputTexture = RendererContext.MaterialLoader.LoadTexture(request.Resource);
 
         inputTexture.SetFiltering(TextureMinFilter.NearestMipmapNearest, TextureMagFilter.Nearest);
 
