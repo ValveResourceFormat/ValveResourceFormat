@@ -51,6 +51,9 @@ namespace GUI.Types.GLViewers
                 Interlocked.Increment(ref threadHash);
                 renderSignal.Set();
                 loopThread = null; // The thread should quit on its own
+
+                var detached = Interlocked.Exchange(ref currentGLControl, null);
+                detached?.OnDetachedFromRenderLoop();
             }
 
 #if DEBUG
@@ -63,6 +66,11 @@ namespace GUI.Types.GLViewers
         public static void SetCurrentGLControl(GLBaseControl glControl)
         {
             var originalGlControl = Interlocked.Exchange(ref currentGLControl, glControl);
+
+            if (loopThread == null)
+            {
+                Start();
+            }
 
             if (originalGlControl != null && originalGlControl != glControl)
             {

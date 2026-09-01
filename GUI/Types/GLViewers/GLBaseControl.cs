@@ -94,6 +94,12 @@ internal abstract class GLBaseControl : IDisposable, IMessageFilter
     public virtual void OnDetachedFromRenderLoop()
     {
         Paused = true;
+
+        if (PrewarmPending)
+        {
+            PrewarmPending = false;
+            prewarmed.Set();
+        }
     }
     protected long lastFpsUpdate;
 
@@ -402,6 +408,8 @@ internal abstract class GLBaseControl : IDisposable, IMessageFilter
 
     public virtual void Dispose()
     {
+        RendererContext.CancelLoading();
+
         using var lockedGl = glLock.EnterScope();
 
         RestoreCursorAfterDrag();
@@ -833,6 +841,13 @@ internal abstract class GLBaseControl : IDisposable, IMessageFilter
     }
 
     public void InitializeLoad()
+    {
+        using var loading = RendererContext.BeginLoading();
+
+        InitializeLoadCore();
+    }
+
+    private void InitializeLoadCore()
     {
         // Create the GLFW window on the UI thread even though this method may be called from a
         // background thread. This is necessary because of Win32 window thread-affinity rules.

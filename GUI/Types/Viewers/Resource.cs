@@ -1080,9 +1080,12 @@ namespace GUI.Types.Viewers
 
         public void Dispose()
         {
-            resource?.Dispose();
-            rendererContext?.Dispose();
+            // Order matters: nothing may dispose a resource until every thread that could still be
+            // reading it has stopped
             GLViewer?.Dispose();
+            rendererContext?.Dispose();
+            resource?.Dispose();
+
             DisposeExtraGraphViewers();
             GLViewerError?.Dispose();
         }

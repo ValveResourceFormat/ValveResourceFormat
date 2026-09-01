@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using OpenTK.Graphics.OpenGL;
@@ -27,6 +28,8 @@ namespace ValveResourceFormat.Renderer.World
     {
         private readonly Scene scene;
         private readonly RendererContext RendererContext;
+
+        private CancellationToken CancellationToken => RendererContext.CancellationToken;
 
         // A template child's own keyvalues are in template space, so the spawning point_template's
         // transform is kept here to compose a world transform for entities looked up by name.
@@ -186,19 +189,21 @@ namespace ValveResourceFormat.Renderer.World
                     .Select(x => x.Name)
                     .Where(r => !r.StartsWith("_bakeresourcecache", StringComparison.Ordinal));
 
-                Parallel.ForEach(resourceNames, resourceReference =>
+                var parallelOptions = new ParallelOptions { CancellationToken = CancellationToken };
+
+                Parallel.ForEach(resourceNames, parallelOptions, resourceReference =>
                 {
                     var resource = PreloadResource(resourceReference);
 
                     if (resource is { ExternalReferences.ResourceRefInfoList: var refs })
                     {
-                        Parallel.ForEach(refs, extRef =>
+                        Parallel.ForEach(refs, parallelOptions, extRef =>
                         {
                             var referenced = PreloadResource(extRef.Name);
 
                             if (referenced is { ResourceType: ResourceType.ResourceManifest, ExternalReferences.ResourceRefInfoList: var manifestRefs })
                             {
-                                Parallel.ForEach(manifestRefs, manifestRef => PreloadResource(manifestRef.Name));
+                                Parallel.ForEach(manifestRefs, parallelOptions, manifestRef => PreloadResource(manifestRef.Name));
                             }
                         });
                     }
@@ -219,7 +224,7 @@ namespace ValveResourceFormat.Renderer.World
                             }
                         }
 
-                        Parallel.ForEach(toolIcons, file =>
+                        Parallel.ForEach(toolIcons, parallelOptions, file =>
                         {
                             PreloadResource(file);
                         });
@@ -258,6 +263,8 @@ namespace ValveResourceFormat.Renderer.World
 
             foreach (var lumpName in World.GetEntityLumpNames())
             {
+                CancellationToken.ThrowIfCancellationRequested();
+
                 if (lumpName == null)
                 {
                     continue;
@@ -362,6 +369,8 @@ namespace ValveResourceFormat.Renderer.World
             var worldNodes = World.GetWorldNodeNames();
             foreach (var worldNode in worldNodes)
             {
+                CancellationToken.ThrowIfCancellationRequested();
+
                 if (worldNode != null)
                 {
                     var worldNodeResource = RendererContext.FileLoader.LoadFile(string.Concat(worldNode, ".vwnod_c"));
@@ -503,6 +512,8 @@ namespace ValveResourceFormat.Renderer.World
 
             foreach (var lightmap in lightmaps)
             {
+                CancellationToken.ThrowIfCancellationRequested();
+
                 var name = Path.GetFileNameWithoutExtension(lightmap);
                 if (LightmapNameToUniformName.TryGetValue(name, out var uniformName))
                 {
@@ -1423,6 +1434,8 @@ namespace ValveResourceFormat.Renderer.World
 
             foreach (var (entity, parentTransform, fromTemplate, classname) in entitiesReordered)
             {
+                CancellationToken.ThrowIfCancellationRequested();
+
                 try
                 {
                     LoadEntity(classname, entity, parentTransform, fromTemplate);

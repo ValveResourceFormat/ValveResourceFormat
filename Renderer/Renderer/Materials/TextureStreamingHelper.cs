@@ -64,8 +64,8 @@ namespace ValveResourceFormat.Renderer.Materials
         }
 
         /// <summary>
-        /// Throws away everything still streaming and hands its buffers back to the pool. Makes no GL calls,
-        /// so it is safe during teardown with no current context.
+        /// Throws away everything queued and hands its buffers back to the pool. Makes no GL calls, so it
+        /// is safe during teardown with no current context.
         /// </summary>
         public void CancelAllStreaming()
         {
@@ -74,8 +74,9 @@ namespace ValveResourceFormat.Renderer.Materials
                 RetireStream(stream);
             }
 
-            // Drain rather than clear: these buffers belong to the pool, not the garbage collector. The byte
+            // Drained rather than cleared: these buffers belong to the pool, not the garbage collector. The
             // count comes off per item, never zeroed, so a load still in flight keeps its bytes counted.
+            // This does not wait for those: teardown does the waiting, off the thread that closed the tab.
             while (loadedMipBits.TryDequeue(out var bits))
             {
                 ArrayPool<byte>.Shared.Return(bits.Buffer);
@@ -84,6 +85,36 @@ namespace ValveResourceFormat.Renderer.Materials
             }
 
             incompleteStreams.Clear();
+        }
+
+        /// <summary>
+        /// Waits for dispatched loads to land, so no thread is left reading a texture resource that the
+        /// caller is about to dispose. Makes no GL calls. Never call this on the UI thread.
+        /// </summary>
+        public void DrainPendingLoads()
+        {
+            var backoff = new SpinWait();
+            var deadline = Stopwatch.GetTimestamp() + Stopwatch.Frequency;
+
+            while (Interlocked.Read(ref bitsInFlight) > 0)
+            {
+                while (loadedMipBits.TryDequeue(out var bits))
+                {
+                    ArrayPool<byte>.Shared.Return(bits.Buffer);
+                    Interlocked.Add(ref bitsInFlight, -bits.ByteSize);
+                    RetireStream(bits.Stream);
+                }
+
+                if (Stopwatch.GetTimestamp() >= deadline)
+                {
+                    // Only reachable if the throttle stopped balancing, which is a bug in here rather than
+                    // a slow read. Give up so teardown is not held hostage by it.
+                    rendererContext.Logger.LogError("Gave up waiting on {Bytes} streaming bytes", Interlocked.Read(ref bitsInFlight));
+                    break;
+                }
+
+                backoff.SpinOnce();
+            }
         }
 
         // Grows the storage to fit the new mips, then uploads them. A texture's bits always arrive smallest
@@ -293,17 +324,20 @@ namespace ValveResourceFormat.Renderer.Materials
                 return;
             }
 
+            stream.WholeChain = LoadWholeChains;
+            stream.GateBytes = PendingLoadBytes(stream);
+
             // Counted from the request, not from the enqueue, so the throttle bounds rented buffers too
-            Interlocked.Add(ref bitsInFlight, PendingLoadBytes(stream));
+            Interlocked.Add(ref bitsInFlight, stream.GateBytes);
 
             stream.Started = true;
             ThreadPool.UnsafeQueueUserWorkItem(stream, preferLocal: false);
         }
 
-        // What the next request costs the throttle, and what a failed one has to give back
-        private int PendingLoadBytes(StreamedTexture stream)
+        // What the request being issued costs the throttle
+        private static int PendingLoadBytes(StreamedTexture stream)
         {
-            if (!LoadWholeChains)
+            if (!stream.WholeChain)
             {
                 return stream.Mips[stream.NextMip].BufferSize;
             }
@@ -372,8 +406,8 @@ namespace ValveResourceFormat.Renderer.Materials
         internal void LoadStreamingData(StreamedTexture stream)
         {
             var first = stream.NextMip;
-            var count = LoadWholeChains ? stream.Mips.Length - first : 1;
-            var gateBytes = PendingLoadBytes(stream);
+            var count = stream.WholeChain ? stream.Mips.Length - first : 1;
+            var gateBytes = stream.GateBytes;
 
             // Deleted since the request was issued, so there is nothing to load into
             if (stream.Texture.Handle == 0)

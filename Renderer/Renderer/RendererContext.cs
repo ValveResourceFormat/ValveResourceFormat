@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Threading;
 using Microsoft.Extensions.Logging;
 using ValveResourceFormat.IO;
@@ -45,8 +46,7 @@ public class RendererContext : IDisposable
     /// </summary>
     public GPUMeshBufferCache MeshBufferCache { get; }
 
-    /// <summary>Cancels loading on this context.</summary>
-    public CancellationToken CancellationToken { get; set; }
+    private bool disposed;
 
     /// <summary>
     /// Maximum texture mip size to load in <see cref="MaterialLoader"/>.
@@ -99,14 +99,77 @@ public class RendererContext : IDisposable
     /// <param name="disposing">True to release managed resources.</param>
     protected virtual void Dispose(bool disposing)
     {
-        if (!disposing)
+        if (!disposing || disposed)
         {
             return;
         }
 
-        // Pending streams hold pooled buffers; the cancel makes no GL calls, safe without a context
+        CancelLoading();
+
+        disposed = true;
+
         TextureStreaming.CancelAllStreaming();
 
         ShaderLoader?.Dispose();
+    }
+
+    // Deliberately outlive Dispose: teardown disposes the context on the UI thread and only then waits
+    // for the loaders, off that thread, and that wait reads both of these.
+    [SuppressMessage("Usage", "CA2213:Disposable fields should be disposed", Justification = "Outlives Dispose so WaitForLoadingToStop still works after it")]
+    private readonly CancellationTokenSource loadCancellation = new();
+
+    [SuppressMessage("Usage", "CA2213:Disposable fields should be disposed", Justification = "Outlives Dispose so WaitForLoadingToStop still works after it")]
+    private readonly ManualResetEventSlim loadIdle = new(true);
+    private int loadsInFlight;
+
+    private static readonly TimeSpan LoadStopTimeout = TimeSpan.FromSeconds(1);
+
+    /// <summary>Cancels loading on this context.</summary>
+    public CancellationToken CancellationToken => loadCancellation.Token;
+
+    /// <summary>Marks loading in progress until the returned scope is disposed.</summary>
+    public IDisposable BeginLoading()
+    {
+        if (Interlocked.Increment(ref loadsInFlight) == 1)
+        {
+            loadIdle.Reset();
+        }
+
+        return new LoadScope(this);
+    }
+
+    /// <summary>Asks loading to stop. Returns straight away without waiting for it.</summary>
+    public void CancelLoading()
+    {
+        if (!disposed)
+        {
+            loadCancellation.Cancel();
+        }
+    }
+
+    /// <summary>Waits for everything reading resources to stop, returning whether it did.</summary>
+    public bool WaitForLoadingToStop()
+    {
+        var stopped = loadIdle.Wait(LoadStopTimeout);
+
+        if (!stopped)
+        {
+            Logger.LogWarning("Loading did not stop within {Timeout}, carrying on without it", LoadStopTimeout);
+        }
+
+        TextureStreaming.DrainPendingLoads();
+
+        return stopped;
+    }
+
+    private sealed class LoadScope(RendererContext context) : IDisposable
+    {
+        public void Dispose()
+        {
+            if (Interlocked.Decrement(ref context.loadsInFlight) == 0)
+            {
+                context.loadIdle.Set();
+            }
+        }
     }
 }

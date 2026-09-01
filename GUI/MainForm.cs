@@ -696,8 +696,10 @@ namespace GUI
 
                 if (oldTag is ExportData exportData)
                 {
-                    exportData.VrfGuiContext.Dispose();
+                    // Contents first: disposing them cancels loading and waits for it, and the context
+                    // disposes the resources that loading is still reading until it does
                     exportData.DisposableContents?.Dispose();
+                    exportData.VrfGuiContext.Dispose();
                 }
             }
 

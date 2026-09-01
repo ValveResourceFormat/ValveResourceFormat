@@ -1,7 +1,9 @@
 using System.Collections.Concurrent;
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
+using System.Threading.Tasks;
 using GUI.Types.GLViewers;
 using Microsoft.Extensions.Logging;
 using SteamDatabase.ValvePak;
@@ -44,6 +46,7 @@ namespace GUI.Utils
         private int Children;
         private bool WantsToBeDisposed;
         private readonly ConcurrentDictionary<string, Resource> CachedResources = [];
+        private readonly ConcurrentBag<RendererContext> rendererContexts = [];
 
 #if DEBUG
         private int TotalChildren;
@@ -150,24 +153,28 @@ namespace GUI.Utils
             return ToolsAssetInfo;
         }
 
-        public void ClearCache()
+        public void ClearCache() => ClearCache(disposeStreamingResources: false);
+
+        /// <param name="disposeStreamingResources">Only safe once every renderer context on this loader has been
+        /// disposed, since that is what waits for the streaming reads still holding these resources.</param>
+        private void ClearCache(bool disposeStreamingResources)
         {
-            foreach (var resource in CachedResources.Values)
+            foreach (var (path, resource) in CachedResources)
             {
-                // Textures are streamed
-                if (resource is { ResourceType: ResourceType.Texture })
+
+                if (!disposeStreamingResources && resource is { ResourceType: ResourceType.Texture })
                 {
                     continue;
                 }
 
                 resource.Dispose();
+                CachedResources.TryRemove(path, out _);
             }
-
-            CachedResources.Clear();
 
             //ShaderLoader.ClearCache();
         }
 
+        [SuppressMessage("Usage", "CA2215:Dispose methods should call base class dispose", Justification = "Deferred to StopLoadingAndDispose, which waits for the loaders first")]
         protected override void Dispose(bool disposing)
         {
             if (!disposing)
@@ -190,25 +197,50 @@ namespace GUI.Utils
 #endif
             ParentGuiContext?.RemoveChildren();
 
-            if (base.CurrentPackage != null)
-            {
-                base.CurrentPackage.Dispose();
-                base.CurrentPackage = null;
-            }
-
-            ClearCache();
-
-            base.Dispose(disposing);
+            StopLoadingAndDispose(disposing);
         }
 
         public RendererContext CreateRendererContext()
         {
-            return new RendererContext(this, Logger)
+            var context = new RendererContext(this, Logger)
             {
                 FieldOfView = Settings.Config.FieldOfView,
                 ViewmodelFieldOfView = Settings.Config.ViewmodelFieldOfView,
                 MaxTextureSize = Settings.Config.MaxTextureSize,
             };
+
+            rendererContexts.Add(context);
+
+            return context;
+        }
+
+        // Whoever disposes the resources has to be the one that guarantees nobody is still reading them.
+        // Leaving that to callers means every disposal path has to get the order right, and they do not.
+        private void StopLoadingAndDispose(bool disposing)
+        {
+            foreach (var context in rendererContexts)
+            {
+                context.CancelLoading();
+            }
+
+            // The wait cannot happen on the thread that closed the tab, so the teardown follows it here
+            Task.Run(() =>
+            {
+                foreach (var context in rendererContexts)
+                {
+                    context.WaitForLoadingToStop();
+                }
+
+                if (base.CurrentPackage != null)
+                {
+                    base.CurrentPackage.Dispose();
+                    base.CurrentPackage = null;
+                }
+
+                ClearCache(disposeStreamingResources: true);
+
+                base.Dispose(disposing);
+            });
         }
 
         public (VrfGuiContext? Context, PackageEntry? PackageEntry) FindFileWithContext(string file)

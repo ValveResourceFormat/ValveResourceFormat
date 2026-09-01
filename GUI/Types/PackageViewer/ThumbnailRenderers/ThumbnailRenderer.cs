@@ -199,8 +199,6 @@ internal abstract class ThumbnailRenderer : IDisposable
             Timestep = 0,
         };
 
-        RendererContext.CancellationToken = cancellationToken;
-
         SceneRenderer.Update(updateContext);
 
         GL.ClearColor(Color.Green);
