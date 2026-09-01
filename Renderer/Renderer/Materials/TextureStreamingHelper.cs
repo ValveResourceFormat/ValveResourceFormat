@@ -7,6 +7,19 @@ using OpenTK.Graphics.OpenGL;
 
 namespace ValveResourceFormat.Renderer.Materials
 {
+    /// <summary>How texture mip data reaches the GPU.</summary>
+    public enum TextureStreamingMode
+    {
+        /// <summary>Read in the background, arriving over the frames after load.</summary>
+        Timesliced,
+
+        /// <summary>Read in the background, but complete before the next frame is drawn.</summary>
+        Immediate,
+
+        /// <summary>Read whole on the thread that asks for the texture, using no background threads.</summary>
+        Synchronous,
+    }
+
     /// <summary>
     /// Reads texture mip data on background threads and gives it to the GPU over the frames that follow.
     /// A streamed texture starts out holding only its smallest mip and grows one level at a time as data arrives.
@@ -30,9 +43,12 @@ namespace ValveResourceFormat.Renderer.Materials
         private long lastSliceDuration;
 
         /// <summary>
-        /// False: parallelize single mips; True: parallelize whole textures.
+        /// How textures load. Safe to change at any point; chains already under way finish either way.
         /// </summary>
-        public bool LoadWholeChains { get; set; }
+        public TextureStreamingMode Mode { get; set; }
+
+        // False: parallelize single mips; True: parallelize whole textures
+        private bool LoadWholeChains => Mode == TextureStreamingMode.Immediate;
 
         internal void BeginStreaming(StreamedTexture stream)
         {
@@ -241,10 +257,7 @@ namespace ValveResourceFormat.Renderer.Materials
             => !pendingLoadRequests.IsEmpty || !loadedMipBits.IsEmpty || Interlocked.Read(ref bitsInFlight) > 0;
 
         /// <summary>
-        /// Keeps working until nothing is left to stream, for when there is no frame loop to spread the work
-        /// over. Runs to no budget, and sleeps rather than spins while it waits, since the loads are running
-        /// on the thread pool and spinning here would only take threads away from them. Must be called on a
-        /// thread with a GL context.
+        /// Blocks until nothing is left to stream, to no budget. Must be called on a thread with a GL context.
         /// </summary>
         /// <param name="cancellationToken">Stops early, leaving chains unfinished.</param>
         public void FinishAllStreaming(CancellationToken cancellationToken = default)

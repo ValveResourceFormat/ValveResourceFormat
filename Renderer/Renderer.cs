@@ -3,6 +3,7 @@ using System.IO;
 using System.Reflection;
 using OpenTK.Graphics.OpenGL;
 using ValveResourceFormat.CompiledShader;
+using ValveResourceFormat.Renderer.Materials;
 using ValveResourceFormat.Renderer.PostProcess;
 using ValveResourceFormat.Renderer.SceneEnvironment;
 using ValveResourceFormat.Renderer.World;
@@ -1200,6 +1201,9 @@ public class Renderer
         }
     }
 
+    /// <summary>Set while the shader specialization prewarm frame is being drawn.</summary>
+    public bool Prewarming { get; set; }
+
     /// <summary>
     /// Advances the simulation, updates scene draw calls, and prepares shadow data for the next frame.
     /// </summary>
@@ -1256,6 +1260,18 @@ public class Renderer
         if (ShowSoundDebug && Sound.Player != null)
         {
             CollectSoundDebugText(updateContext);
+        }
+
+        if (!Prewarming)
+        {
+            if (RendererContext.TextureStreaming.Mode == TextureStreamingMode.Immediate)
+            {
+                RendererContext.TextureStreaming.FinishAllStreaming(RendererContext.CancellationToken);
+            }
+            else
+            {
+                RendererContext.TextureStreaming.Timeslice(DeltaTime);
+            }
         }
     }
 

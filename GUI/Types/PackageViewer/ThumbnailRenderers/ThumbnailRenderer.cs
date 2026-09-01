@@ -10,6 +10,7 @@ using SteamDatabase.ValvePak;
 using ValveResourceFormat;
 using ValveResourceFormat.IO;
 using ValveResourceFormat.Renderer;
+using ValveResourceFormat.Renderer.Materials;
 using ValveResourceFormat.Renderer.SceneEnvironment;
 
 namespace GUI.Types.PackageViewer.ThumbnailRenderers;
@@ -67,7 +68,7 @@ internal abstract class ThumbnailRenderer : IDisposable
         SceneRenderer = new Renderer(RendererContext);
 
         // We have few textures here, so prefer streaming them to end
-        RendererContext.TextureStreaming.LoadWholeChains = true;
+        RendererContext.TextureStreaming.Mode = TextureStreamingMode.Immediate;
 
         SceneRenderer.Camera.SetFromQAngle(new Vector3(20f, 225f, 0f));
 
@@ -198,9 +199,9 @@ internal abstract class ThumbnailRenderer : IDisposable
             Timestep = 0,
         };
 
-        SceneRenderer.Update(updateContext);
+        RendererContext.CancellationToken = cancellationToken;
 
-        SceneRenderer.RendererContext.TextureStreaming.FinishAllStreaming(cancellationToken);
+        SceneRenderer.Update(updateContext);
 
         GL.ClearColor(Color.Green);
         GL.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit);

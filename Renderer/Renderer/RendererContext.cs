@@ -1,3 +1,4 @@
+using System.Threading;
 using Microsoft.Extensions.Logging;
 using ValveResourceFormat.IO;
 
@@ -43,6 +44,9 @@ public class RendererContext : IDisposable
     /// GPU mesh buffer and vertex array object cache.
     /// </summary>
     public GPUMeshBufferCache MeshBufferCache { get; }
+
+    /// <summary>Cancels loading on this context.</summary>
+    public CancellationToken CancellationToken { get; set; }
 
     /// <summary>
     /// Maximum texture mip size to load in <see cref="MaterialLoader"/>.

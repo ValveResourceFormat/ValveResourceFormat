@@ -362,9 +362,8 @@ namespace ValveResourceFormat.Renderer.Materials
 
             var chainLevels = data.NumMipLevels - minMipLevelAllowed;
 
-            // The decode fallback needs the whole chain read up front, so it stays on the synchronous
-            // path — as does a single-mip texture, which has nothing left to stream after its first upload
-            var streamable = async && !rgba8UncompressedFallback && chainLevels > 1;
+            var streamable = async && RendererContext.TextureStreaming.Mode != TextureStreamingMode.Synchronous
+                && !rgba8UncompressedFallback && chainLevels > 1;
 
             // Streamed textures are born holding only their smallest mip and grow as data arrives,
             // so VRAM is committed by the upload pump instead of all at once during the load phase
