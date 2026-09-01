@@ -8,11 +8,8 @@ using OpenTK.Graphics.OpenGL;
 namespace ValveResourceFormat.Renderer.Materials
 {
     /// <summary>
-    /// Reads texture mip data on background threads and gives it to the GPU over the frames that follow,
-    /// so load time stops scaling with how much texture data a scene uses. A streamed texture starts out
-    /// holding only its smallest mip and grows one level at a time as data arrives.
-    /// Vocabulary follows Source 2's <c>CTextureStreamingHelper</c>: mip data is "bits", asking for a
-    /// texture's next mip is a "load request", and the per-frame work is "time sliced".
+    /// Reads texture mip data on background threads and gives it to the GPU over the frames that follow.
+    /// A streamed texture starts out holding only its smallest mip and grows one level at a time as data arrives.
     /// </summary>
     public sealed class TextureStreamingHelper(RendererContext rendererContext)
     {
@@ -25,8 +22,7 @@ namespace ValveResourceFormat.Renderer.Materials
         // Streams by texture, so a caller that needs a texture whole can finish its chain inline
         private readonly ConcurrentDictionary<RenderTexture, StreamedTexture> incompleteStreams = new();
 
-        // Cap on buffer bytes between a load request and its hookup. Chains park at the cap until a later
-        // slice drains them, which bounds both the pool's working set and the heap before the render loop runs.
+        // Cap on buffer bytes between a load request and its hookup.
         private const long MaxBitsInFlight = 256L * 1024 * 1024;
 
         private long bitsInFlight;
@@ -366,6 +362,14 @@ namespace ValveResourceFormat.Renderer.Materials
             var count = LoadWholeChains ? stream.Mips.Length - first : 1;
             var gateBytes = PendingLoadBytes(stream);
 
+            // Deleted since the request was issued, so there is nothing to load into
+            if (stream.Texture.Handle == 0)
+            {
+                Interlocked.Add(ref bitsInFlight, -gateBytes);
+                RetireStream(stream);
+                return;
+            }
+
             // Owned here until the enqueue hands it over; any exit before that returns it
             byte[]? buffer = null;
 
@@ -398,10 +402,8 @@ namespace ValveResourceFormat.Renderer.Materials
                 loadedMipBits.Enqueue(new LoadedMipBits(stream, stream.Mips[first], count, gateBytes, buffer));
                 buffer = null; // handed over
             }
-            catch (Exception e)
+            catch (Exception e) // A corrupt or truncated vtex, or the package disposed under a load still in flight at teardown.
             {
-                // An exception out of an IThreadPoolWorkItem takes the process down. The chain ends
-                // here: revealing anything past a failed level would expose undefined contents.
                 rendererContext.Logger.LogError(e, "Loading mips of {Texture} failed", stream.Name);
                 Interlocked.Add(ref bitsInFlight, -gateBytes);
                 RetireStream(stream);
