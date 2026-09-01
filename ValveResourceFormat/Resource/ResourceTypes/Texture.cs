@@ -958,7 +958,7 @@ namespace ValveResourceFormat.ResourceTypes
 
             if (!IsActuallyCompressedMips || CompressedMips == null)
             {
-                Reader.Read(output);
+                Reader.ReadExactly(output);
                 return;
             }
 
@@ -966,7 +966,7 @@ namespace ValveResourceFormat.ResourceTypes
 
             if (compressedSize >= output.Length)
             {
-                Reader.Read(output);
+                Reader.ReadExactly(output);
                 return;
             }
 
@@ -974,18 +974,25 @@ namespace ValveResourceFormat.ResourceTypes
 
             try
             {
-                var span = buf.AsSpan(0, compressedSize);
-                Reader.Read(span);
-                var written = LZ4Codec.Decode(span, output);
-
-                if (written != output.Length)
-                {
-                    throw new InvalidDataException($"Failed to decompress LZ4 (expected {output.Length} bytes, got {written}) (texture format is {Format}).");
-                }
+                DecompressLz4Mip(buf.AsSpan(0, compressedSize), output);
             }
             finally
             {
                 ArrayPool<byte>.Shared.Return(buf);
+            }
+        }
+
+        private void DecompressLz4Mip(Span<byte> source, Span<byte> output)
+        {
+            Debug.Assert(Reader is not null);
+
+            Reader.ReadExactly(source);
+
+            var written = LZ4Codec.Decode(source, output);
+
+            if (written != output.Length)
+            {
+                throw new InvalidDataException($"Failed to decompress LZ4 (expected {output.Length} bytes, got {written}) (texture format is {Format}).");
             }
         }
 
@@ -1006,20 +1013,32 @@ namespace ValveResourceFormat.ResourceTypes
             Debug.Assert(Reader is not null);
             Reader.BaseStream.Position = DataOffset;
 
-            for (var i = NumMipLevels - 1; i >= 0; i--)
+            foreach (var (mipLevel, width, height, depth, uncompressedSize) in GetEveryMipLevelMetrics())
             {
-                var mipLevel = (uint)i;
-
                 if (mipLevel < minMipLevelAllowed)
                 {
                     break;
                 }
 
-                var (width, height, depth) = CalculateTextureSizesForMipLevel(mipLevel);
-                var uncompressedSize = CalculateBufferSizeForMipLevel(width, height, depth);
                 var output = buffer.AsSpan(0, uncompressedSize);
 
                 ReadTexture(mipLevel, output);
+
+                yield return (mipLevel, width, height, depth, uncompressedSize);
+            }
+        }
+
+        /// <summary>
+        /// Get metrics like dimensions and buffer size for every mip level.
+        /// </summary>
+        /// <returns>An enumerable of tuples containing mip level, width, height, depth, and buffer size for each mip level, from smallest to largest.</returns>
+        public IEnumerable<(uint Level, int Width, int Height, int Depth, int BufferSize)> GetEveryMipLevelMetrics()
+        {
+            for (var i = NumMipLevels - 1; i >= 0; i--)
+            {
+                var mipLevel = (uint)i;
+                var (width, height, depth) = CalculateTextureSizesForMipLevel(mipLevel);
+                var uncompressedSize = CalculateBufferSizeForMipLevel(width, height, depth);
 
                 yield return (mipLevel, width, height, depth, uncompressedSize);
             }
@@ -1046,6 +1065,54 @@ namespace ValveResourceFormat.ResourceTypes
             SkipMipmaps(mipLevel);
 
             ReadTexture(mipLevel, output);
+        }
+
+        /// <summary>Calculate decompression buffer size for <see cref="ReadTextureMipLevelInPlace"/>.</summary>
+        public int CalculateInPlaceDecompressionBufferSize(uint mipLevel)
+        {
+            var uncompressedSize = CalculateBufferSizeForMipLevel(mipLevel);
+
+            if (IsActuallyCompressedMips && CompressedMips != null && CompressedMips[mipLevel] < uncompressedSize)
+            {
+                // LZ4_DECOMPRESS_INPLACE_MARGIN from lz4.h
+                return uncompressedSize + (CompressedMips[mipLevel] >> 8) + 32;
+            }
+
+            return uncompressedSize;
+        }
+
+        /// <summary>
+        /// Read single mip level of texture into the front of <paramref name="buffer"/>. LZ4 compressed
+        /// mips are read into the buffer's tail and decompressed in place, so no scratch buffer is needed.
+        /// </summary>
+        /// <param name="buffer">Buffer that will receive texture data. Must be at least <see cref="CalculateInPlaceDecompressionBufferSize"/> bytes.</param>
+        /// <param name="mipLevel">Mip level for which to read texture data.</param>
+        public void ReadTextureMipLevelInPlace(Span<byte> buffer, uint mipLevel)
+        {
+            Debug.Assert(Reader is not null);
+
+            var requiredSize = CalculateInPlaceDecompressionBufferSize(mipLevel);
+
+            if (requiredSize > buffer.Length)
+            {
+                throw new ArgumentException($"Buffer size ({buffer.Length}) must be at least {requiredSize}, mip level {mipLevel}");
+            }
+
+            var uncompressedSize = CalculateBufferSizeForMipLevel(mipLevel);
+
+            // No margin means no in-place LZ4 decode is involved; the plain read path already does the job
+            if (requiredSize == uncompressedSize)
+            {
+                ReadTextureMipLevel(buffer[..uncompressedSize], mipLevel);
+                return;
+            }
+
+            Reader.BaseStream.Position = DataOffset;
+
+            SkipMipmaps(mipLevel);
+
+            var compressedSize = CompressedMips![mipLevel];
+            DecompressLz4Mip(buffer.Slice(requiredSize - compressedSize, compressedSize), buffer[..uncompressedSize]);
         }
 
         private int CalculateJpegSize()

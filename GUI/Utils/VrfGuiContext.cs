@@ -154,6 +154,12 @@ namespace GUI.Utils
         {
             foreach (var resource in CachedResources.Values)
             {
+                // Textures are streamed
+                if (resource is { ResourceType: ResourceType.Texture })
+                {
+                    continue;
+                }
+
                 resource.Dispose();
             }
 

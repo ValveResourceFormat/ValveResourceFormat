@@ -298,7 +298,7 @@ namespace ValveResourceFormat.Renderer.Particles
         /// Replaces the texture every renderer in this system and its children draws with.
         /// </summary>
         public void SetTextureOverride(string textureName)
-            => SetTextureOverride(rendererContext.MaterialLoader.GetTexture(textureName, srgbRead: true));
+            => SetTextureOverride(rendererContext.MaterialLoader.GetTexture(textureName, srgbRead: true, streaming: true));
 
         public void SetTextureOverride(RenderTexture texture)
         {

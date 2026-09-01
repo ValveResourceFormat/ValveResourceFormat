@@ -30,6 +30,11 @@ public class RendererContext : IDisposable
     public MaterialLoader MaterialLoader { get; }
 
     /// <summary>
+    /// Background loader for textures.
+    /// </summary>
+    public TextureStreamingHelper TextureStreaming { get; }
+
+    /// <summary>
     /// Shader compiler and cache.
     /// </summary>
     public ShaderLoader ShaderLoader { get; }
@@ -42,7 +47,7 @@ public class RendererContext : IDisposable
     /// <summary>
     /// Maximum texture mip size to load in <see cref="MaterialLoader"/>.
     /// </summary>
-    public int MaxTextureSize { get; set; } = 1024;
+    public int MaxTextureSize { get; set; } = int.MaxValue;
 
     /// <summary>
     /// Main camera field of view, in horizontal degrees at a 4:3 aspect ratio.
@@ -71,6 +76,7 @@ public class RendererContext : IDisposable
         Logger = logger;
         Device = GraphicsDevice.Create();
 
+        TextureStreaming = new TextureStreamingHelper(this);
         MaterialLoader = new MaterialLoader(this);
         ShaderLoader = new ShaderLoader(this);
         MeshBufferCache = new GPUMeshBufferCache(this);
@@ -93,6 +99,9 @@ public class RendererContext : IDisposable
         {
             return;
         }
+
+        // Pending streams hold pooled buffers; the cancel makes no GL calls, safe without a context
+        TextureStreaming.CancelAllStreaming();
 
         ShaderLoader?.Dispose();
     }

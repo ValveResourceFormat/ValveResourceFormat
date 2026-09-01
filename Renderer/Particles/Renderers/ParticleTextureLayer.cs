@@ -201,7 +201,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                     }
 
                     firstTextureName ??= layerTextureName;
-                    layerTexture = rendererContext.MaterialLoader.GetTexture(layerTextureName, srgbRead);
+                    layerTexture = rendererContext.MaterialLoader.GetTexture(layerTextureName, srgbRead, streaming: true);
                 }
 
                 var controls = textureInput.Data.GetSubCollection("m_TextureControls");
@@ -226,7 +226,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
 
             if (parsed.Count == 0)
             {
-                parsed.Add(new ParticleTextureLayer(rendererContext.MaterialLoader.GetTexture(defaultTextureName, srgbRead)));
+                parsed.Add(new ParticleTextureLayer(rendererContext.MaterialLoader.GetTexture(defaultTextureName, srgbRead, streaming: true)));
             }
 
             return ([.. parsed], firstTextureName);

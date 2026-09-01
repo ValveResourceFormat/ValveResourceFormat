@@ -35,7 +35,20 @@ namespace ValveResourceFormat.Renderer.Shaders
         public required HashSet<string> RenderModes { get; init; }
 
         /// <summary>Gets the set of uniform names declared in the shader source.</summary>
-        public required HashSet<string> UniformNames { get; init; }
+        public required HashSet<string> UniformNames
+        {
+            get;
+            init
+            {
+                field = value;
+                Uniforms.EnsureCapacity(value.Count);
+
+                foreach (var uniformName in value)
+                {
+                    Uniforms[uniformName] = (ActiveUniformType.FloatVec4, -1, false);
+                }
+            }
+        }
 
         /// <summary>Gets the set of uniform names that require sRGB-to-linear conversion when setting material values.</summary>
         public required HashSet<string> SrgbUniforms { get; init; }

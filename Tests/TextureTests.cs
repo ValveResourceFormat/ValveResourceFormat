@@ -35,6 +35,37 @@ namespace Tests
             }
         }
 
+        [Test, MethodDataSource(nameof(GetTextureFiles))]
+        public async Task InPlaceLz4MipReadMatchesScratchRead(string fileName)
+        {
+            using var resource = new Resource();
+            resource.Read(Path.Combine(TexturesDir, fileName));
+
+            var texture = (Texture?)resource.DataBlock;
+            Debug.Assert(texture != null);
+
+            if (texture.IsRawAnyImage)
+            {
+                return; // png/jpeg blobs have no mip chain to read
+            }
+
+            // todo: IsActuallyCompressedMips gate
+
+            for (var mipLevel = 0u; mipLevel < texture.NumMipLevels; mipLevel++)
+            {
+                var size = texture.CalculateBufferSizeForMipLevel(mipLevel);
+                var expected = new byte[size];
+                texture.ReadTextureMipLevel(expected, mipLevel);
+
+                // Oversized like a pooled rent would be, so the margin math is exercised realistically
+                var inPlace = new byte[texture.CalculateInPlaceDecompressionBufferSize(mipLevel) + 3];
+                texture.ReadTextureMipLevelInPlace(inPlace, mipLevel);
+
+                var matches = inPlace.AsSpan(0, size).SequenceEqual(expected);
+                await Assert.That(matches).IsTrue();
+            }
+        }
+
         [Test]
         public async Task SpriteSheetRectsCoverTheInclusiveTexelRange()
         {

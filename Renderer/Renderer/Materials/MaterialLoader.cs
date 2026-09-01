@@ -5,6 +5,7 @@ using System.IO.Hashing;
 using System.Linq;
 using System.Reflection;
 using System.Runtime.InteropServices;
+using System.Threading;
 using OpenTK.Graphics.OpenGL;
 using SkiaSharp;
 using ValveResourceFormat.ResourceTypes;
@@ -15,7 +16,7 @@ namespace ValveResourceFormat.Renderer.Materials
     /// <summary>
     /// Loads and caches materials and textures from Source 2 resources.
     /// </summary>
-    public class MaterialLoader
+    public partial class MaterialLoader
     {
         private readonly Dictionary<ulong, RenderMaterial> Materials = [];
         private readonly List<RenderMaterial> OwnedMaterials = [];
@@ -98,6 +99,8 @@ namespace ValveResourceFormat.Renderer.Materials
             }
 
             Samplers.Clear();
+
+            RendererContext.TextureStreaming.CancelAllStreaming();
         }
 
         /// <summary>Returns a cached <see cref="RenderMaterial"/> for the given resource path and shader arguments, loading and caching it on first access.</summary>
@@ -195,7 +198,7 @@ namespace ValveResourceFormat.Renderer.Materials
                 if (mat.Shader.UniformNames.Contains(name))
                 {
                     var srgbRead = mat.Shader.SrgbUniforms.Contains(name);
-                    mat.Textures[name] = GetTexture(path, srgbRead, anisotropicFiltering: true);
+                    mat.Textures[name] = GetTexture(path, srgbRead, anisotropicFiltering: true, streaming: true);
                     return true;
                 }
 
@@ -209,22 +212,29 @@ namespace ValveResourceFormat.Renderer.Materials
         /// <param name="name">The compiled texture resource path.</param>
         /// <param name="srgbRead">Whether to interpret the texture data in sRGB color space.</param>
         /// <param name="anisotropicFiltering">Whether to apply anisotropic filtering when <see cref="MaxTextureMaxAnisotropy"/> is sufficient.</param>
-        public RenderTexture GetTexture(string name, bool srgbRead = false, bool anisotropicFiltering = false)
+        /// <param name="streaming">Whether mips may arrive over later frames.</param>
+        public RenderTexture GetTexture(string name, bool srgbRead = false, bool anisotropicFiltering = false, bool streaming = false)
         {
             // TODO: Create texture view for srgb textures
             var cache = srgbRead ? TexturesSrgb : Textures;
 
             if (cache.TryGetValue(name, out var tex))
             {
+                // A non-streaming caller needs the texture complete, even when a material started it streaming
+                if (!streaming)
+                {
+                    RendererContext.TextureStreaming.FinishStreaming(tex);
+                }
+
                 return tex;
             }
 
-            tex = LoadTexture(name, srgbRead);
+            tex = LoadTexture(name, srgbRead, async: streaming);
             cache.Add(name, tex);
 
             if (anisotropicFiltering && MaxTextureMaxAnisotropy >= 4)
             {
-                GL.TextureParameter(tex.Handle, (TextureParameterName)ExtTextureFilterAnisotropic.TextureMaxAnisotropyExt, MaxTextureMaxAnisotropy);
+                tex.SetMaxAnisotropy(MaxTextureMaxAnisotropy);
             }
 
             return tex;
@@ -261,7 +271,7 @@ namespace ValveResourceFormat.Renderer.Materials
             return newSampler.Handle;
         }
 
-        private RenderTexture LoadTexture(string name, bool srgbRead = false)
+        private RenderTexture LoadTexture(string name, bool srgbRead = false, bool async = false)
         {
             var textureResource = RendererContext.FileLoader.LoadFileCompiled(name);
 
@@ -270,19 +280,19 @@ namespace ValveResourceFormat.Renderer.Materials
                 return GetErrorTexture();
             }
 
-            return LoadTexture(textureResource, srgbRead);
+            return LoadTexture(textureResource, srgbRead, async);
         }
 
 #pragma warning disable CA1822 // Mark members as static
         /// <summary>Uploads a texture resource to the GPU and returns the resulting <see cref="RenderTexture"/>.</summary>
         /// <param name="textureResource">The loaded texture resource.</param>
         /// <param name="srgbRead">Whether to use the sRGB internal format when available.</param>
-        /// <param name="isViewerRequest">When <see langword="true"/>, skips mip-level capping and keeps the resource alive after upload.</param>
-        public RenderTexture LoadTexture(Resource textureResource, bool srgbRead = false, bool isViewerRequest = false)
+        /// <param name="async">When <see langword="true"/>, mip data is loaded on background jobs and hooked up later by <see cref="TextureStreamingHelper.Timeslice"/>, smallest mips first.</param>
+        public RenderTexture LoadTexture(Resource textureResource, bool srgbRead = false, bool async = false)
 #pragma warning restore CA1822 // Mark members as static
         {
-            var data = (Texture?)textureResource.DataBlock;
-            Debug.Assert(data != null);
+            var data = (Texture?)textureResource.DataBlock
+                ?? throw new ArgumentException($"{textureResource.FileName} has no data block, it was never read", nameof(textureResource));
 
             if (data.IsRawAnyImage)
             {
@@ -310,7 +320,8 @@ namespace ValveResourceFormat.Renderer.Materials
                 target = (data.Flags & VTexFlags.VOLUME_TEXTURE) != 0 ? TextureTarget.Texture3D : TextureTarget.Texture2DArray;
             }
 
-            var tex = new RenderTexture(target, data, System.IO.Path.GetFileName(textureResource.FileName) ?? "UnnamedTexture");
+            var textureName = System.IO.Path.GetFileName(textureResource.FileName) ?? "UnnamedTexture";
+            var tex = new RenderTexture(target, data, textureName);
             var format = GetTextureFormat(data.Format);
             var srgb = srgbRead && format.HasSrgbVariant();
 
@@ -336,7 +347,7 @@ namespace ValveResourceFormat.Renderer.Materials
             var texWidth = data.Width;
             var texHeight = data.Height;
 
-            if (!isViewerRequest && !is3d && data.NumMipLevels > 1)
+            if (!is3d && data.NumMipLevels > 1)
             {
                 var maxUserTextureSize = RendererContext.MaxTextureSize;
 
@@ -349,13 +360,76 @@ namespace ValveResourceFormat.Renderer.Materials
                 }
             }
 
-            if (is3d && target != TextureTarget.TextureCubeMap)
+            var chainLevels = data.NumMipLevels - minMipLevelAllowed;
+
+            // The decode fallback needs the whole chain read up front, so it stays on the synchronous
+            // path — as does a single-mip texture, which has nothing left to stream after its first upload
+            var streamable = async && !rgba8UncompressedFallback && chainLevels > 1;
+
+            // Streamed textures are born holding only their smallest mip and grow as data arrives,
+            // so VRAM is committed by the upload pump instead of all at once during the load phase
+            if (streamable)
             {
-                GL.TextureStorage3D(tex.Handle, data.NumMipLevels - minMipLevelAllowed, sizedInternalFormat, texWidth, texHeight, texDepth);
+                var (smallestWidth, smallestHeight, smallestDepth) = GetChainLevelSize(target, texWidth, texHeight, texDepth, chainLevels - 1);
+
+                CreateStorageForTarget(tex.Handle, target, levels: 1, sizedInternalFormat, smallestWidth, smallestHeight, smallestDepth);
             }
             else
             {
-                GL.TextureStorage2D(tex.Handle, data.NumMipLevels - minMipLevelAllowed, sizedInternalFormat, texWidth, texHeight);
+                CreateStorageForTarget(tex.Handle, target, chainLevels, sizedInternalFormat, texWidth, texHeight, texDepth);
+            }
+
+            tex.SetFiltering(TextureMinFilter.LinearMipmapLinear, TextureMagFilter.Linear);
+            tex.SetWrapMode(clampModeS, clampModeT, clampModeU);
+
+            if (streamable)
+            {
+                var stream = new StreamedTexture
+                {
+                    Streaming = RendererContext.TextureStreaming,
+                    Name = textureName,
+                    Texture = tex,
+                    Data = data,
+                    Format = format,
+                    SizedInternalFormat = sizedInternalFormat,
+                    Is3D = is3d,
+                    MinMipLevelAllowed = minMipLevelAllowed,
+                    AllocWidth = texWidth,
+                    AllocHeight = texHeight,
+                    AllocDepth = texDepth,
+                    ResidentChainLevel = chainLevels - 1,
+                    Mips = new PlannedMip[chainLevels - 1],
+                };
+
+                var planned = 0;
+
+                foreach (var mipData in data.GetEveryMipLevelMetrics())
+                {
+                    if (mipData.Level < minMipLevelAllowed)
+                    {
+                        continue;
+                    }
+
+                    var chainLevel = (int)mipData.Level - minMipLevelAllowed;
+                    var mip = new PlannedMip(chainLevel, mipData.Width, mipData.Height, mipData.Depth, mipData.BufferSize);
+
+                    if (chainLevel == chainLevels - 1)
+                    {
+                        // The smallest mip loads synchronously, so the texture is complete and safely
+                        // sampleable from its very first draw
+                        TextureStreamingHelper.LoadAndHookUpMip(stream, mip);
+                        continue;
+                    }
+
+                    // The metrics enumerate smallest first, which is the order the chain reads in
+                    stream.Mips[planned++] = mip;
+                }
+
+                Debug.Assert(planned == stream.Mips.Length);
+
+                RendererContext.TextureStreaming.BeginStreaming(stream);
+
+                return tex;
             }
 
             var buffer = ArrayPool<byte>.Shared.Rent(data.GetBiggestBufferSize());
@@ -365,6 +439,8 @@ namespace ValveResourceFormat.Renderer.Materials
             {
                 decodedBuffer = ArrayPool<byte>.Shared.Rent(data.Width * data.Height * data.Depth * 4);
             }
+
+            Monitor.Enter(data); // reader lock
 
             try
             {
@@ -405,6 +481,8 @@ namespace ValveResourceFormat.Renderer.Materials
             }
             finally
             {
+                Monitor.Exit(data);
+
                 ArrayPool<byte>.Shared.Return(buffer);
 
                 if (decodedBuffer != null)
@@ -413,19 +491,48 @@ namespace ValveResourceFormat.Renderer.Materials
                 }
             }
 
-            if (!isViewerRequest)
-            {
-                // Dispose texture otherwise we run out of memory
-                // TODO: This might conflict when opening multiple files due to shit caching
-                textureResource.Dispose();
-            }
-
-            tex.SetFiltering(TextureMinFilter.LinearMipmapLinear, TextureMagFilter.Linear);
-
-            tex.SetWrapMode(clampModeS, clampModeT, clampModeU);
-
             return tex;
         }
+
+        /// <summary>Dimensions of one chain level for any texture target: width always halves per level,
+        /// height is spatial except for 1D arrays where it carries the layer count, and depth halves only
+        /// for volumes — for array and cube targets it carries the layer (times face) count.</summary>
+        internal static (int Width, int Height, int Depth) GetChainLevelSize(TextureTarget target, int width, int height, int depth, int chainLevel)
+        {
+            var levelWidth = Math.Max(1, width >> chainLevel);
+
+            var levelHeight = target is TextureTarget.Texture1D or TextureTarget.Texture1DArray
+                ? height
+                : Math.Max(1, height >> chainLevel);
+
+            var levelDepth = target is TextureTarget.Texture3D
+                ? Math.Max(1, depth >> chainLevel)
+                : depth;
+
+            return (levelWidth, levelHeight, levelDepth);
+        }
+
+        /// <summary>Allocates immutable storage on a texture object, dispatching to the storage call the target requires.</summary>
+        internal static void CreateStorageForTarget(int handle, TextureTarget target, int levels, SizedInternalFormat format, int width, int height, int depth)
+        {
+            switch (target)
+            {
+                case TextureTarget.Texture1D:
+                    GL.TextureStorage1D(handle, levels, format, width);
+                    break;
+
+                case TextureTarget.Texture1DArray:
+                case TextureTarget.Texture2D:
+                case TextureTarget.TextureCubeMap:
+                    GL.TextureStorage2D(handle, levels, format, width, height);
+                    break;
+
+                default:
+                    GL.TextureStorage3D(handle, levels, format, width, height, depth);
+                    break;
+            }
+        }
+
 
         /// <summary>
         /// Whether a format has to be decompressed before it can be uploaded to a <see cref="TextureTarget.Texture3D"/>.

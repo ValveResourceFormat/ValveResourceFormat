@@ -133,6 +133,7 @@ namespace GUI.Types.GLViewers
         private GLTextureViewer(VrfGuiContext vrfGuiContext, RendererContext rendererContext) : base(rendererContext)
         {
             VrfGuiContext = vrfGuiContext;
+            rendererContext.MaxTextureSize = int.MaxValue;
 
 #if DEBUG
             ShaderHotReload.ShadersReloaded += OnHotReload;
@@ -1258,7 +1259,7 @@ namespace GUI.Types.GLViewers
                 return;
             }
 
-            texture = RendererContext.MaterialLoader.LoadTexture(Resource, isViewerRequest: true);
+            texture = RendererContext.MaterialLoader.LoadTexture(Resource);
             InvalidateRender();
         }
 

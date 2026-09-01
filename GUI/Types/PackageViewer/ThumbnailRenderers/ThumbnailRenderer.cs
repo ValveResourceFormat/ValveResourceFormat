@@ -66,6 +66,9 @@ internal abstract class ThumbnailRenderer : IDisposable
 
         SceneRenderer = new Renderer(RendererContext);
 
+        // We have few textures here, so prefer streaming them to end
+        RendererContext.TextureStreaming.LoadWholeChains = true;
+
         SceneRenderer.Camera.SetFromQAngle(new Vector3(20f, 225f, 0f));
 
         RendererContext.Logger.LogInformation("Loading scene...");
@@ -196,6 +199,8 @@ internal abstract class ThumbnailRenderer : IDisposable
         };
 
         SceneRenderer.Update(updateContext);
+
+        SceneRenderer.RendererContext.TextureStreaming.FinishAllStreaming(cancellationToken);
 
         GL.ClearColor(Color.Green);
         GL.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit);

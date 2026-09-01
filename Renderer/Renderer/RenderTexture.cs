@@ -145,6 +145,13 @@ namespace ValveResourceFormat.Renderer
             return new RenderTexture(handle, Target);
         }
 
+        // Sampler state set through the methods below is remembered, so ReplaceHandle can reapply it —
+        // parameters do not carry over to a replacement texture object
+        private (TextureMinFilter Min, TextureMagFilter Mag)? filtering;
+        private (RsTextureAddressMode S, RsTextureAddressMode T, RsTextureAddressMode R)? wrapMode;
+        private (int BaseLevel, int MaxLevel)? baseMaxLevel;
+        private float maxAnisotropy;
+
         /// <summary>Sets one addressing mode for all relevant texture dimensions.</summary>
         /// <param name="mode">The addressing mode to apply.</param>
         public void SetWrapMode(RsTextureAddressMode mode) => SetWrapMode(mode, mode, mode);
@@ -155,6 +162,8 @@ namespace ValveResourceFormat.Renderer
         /// <param name="r">Addressing mode across the depth.</param>
         public void SetWrapMode(RsTextureAddressMode s, RsTextureAddressMode t, RsTextureAddressMode r)
         {
+            wrapMode = (s, t, r);
+
             SetParameter(TextureParameterName.TextureWrapS, (int)s.ToGLTextureWrapMode());
 
             if (Height > 1)
@@ -173,6 +182,8 @@ namespace ValveResourceFormat.Renderer
         /// <param name="mag">Magnification filter.</param>
         public void SetFiltering(TextureMinFilter min, TextureMagFilter mag)
         {
+            filtering = (min, mag);
+
             SetParameter(TextureParameterName.TextureMinFilter, (int)min);
             SetParameter(TextureParameterName.TextureMagFilter, (int)mag);
         }
@@ -182,8 +193,19 @@ namespace ValveResourceFormat.Renderer
         /// <param name="maxLevel">Highest mip level index.</param>
         public void SetBaseMaxLevel(int baseLevel, int maxLevel)
         {
+            baseMaxLevel = (baseLevel, maxLevel);
+
             SetParameter(TextureParameterName.TextureBaseLevel, baseLevel);
             SetParameter(TextureParameterName.TextureMaxLevel, maxLevel);
+        }
+
+        /// <summary>Sets the maximum anisotropic filtering level.</summary>
+        /// <param name="anisotropy">Maximum anisotropy, typically <see cref="GLEnvironment"/>'s supported maximum.</param>
+        public void SetMaxAnisotropy(float anisotropy)
+        {
+            maxAnisotropy = anisotropy;
+
+            GL.TextureParameter(Handle, (TextureParameterName)ExtTextureFilterAnisotropic.TextureMaxAnisotropyExt, anisotropy);
         }
 
         /// <summary>Sets a single integer texture parameter.</summary>
@@ -192,6 +214,37 @@ namespace ValveResourceFormat.Renderer
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void SetParameter(TextureParameterName parameter, int value)
             => GL.TextureParameter(Handle, parameter, value);
+
+        // Swaps in a new texture object, deleting the old one. Raw SetParameter writes are not
+        // remembered and do not survive the swap.
+        internal void ReplaceHandle(int newHandle, int numMipLevels)
+        {
+            GL.DeleteTexture(Handle);
+            Handle = newHandle;
+            NumMipLevels = numMipLevels;
+
+            if (filtering is { } filter)
+            {
+                SetParameter(TextureParameterName.TextureMinFilter, (int)filter.Min);
+                SetParameter(TextureParameterName.TextureMagFilter, (int)filter.Mag);
+            }
+
+            if (wrapMode is { } wrap)
+            {
+                SetWrapMode(wrap.S, wrap.T, wrap.R);
+            }
+
+            if (baseMaxLevel is { } levels)
+            {
+                SetParameter(TextureParameterName.TextureBaseLevel, levels.BaseLevel);
+                SetParameter(TextureParameterName.TextureMaxLevel, levels.MaxLevel);
+            }
+
+            if (maxAnisotropy > 0f)
+            {
+                SetMaxAnisotropy(maxAnisotropy);
+            }
+        }
 
         /// <summary>Deletes the underlying OpenGL texture object.</summary>
         public void Delete()

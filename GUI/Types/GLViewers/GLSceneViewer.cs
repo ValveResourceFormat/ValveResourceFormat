@@ -76,6 +76,7 @@ namespace GUI.Types.GLViewers
 
         /// <summary>Set by escape to release the mouse in walk mode, cleared by clicking back into the viewport.</summary>
         private bool mouseReleased;
+        private bool prewarming;
         private bool roundStarted;
 
         private readonly List<RenderModes.RenderMode> renderModes = new(RenderModes.Items.Count);
@@ -417,6 +418,7 @@ namespace GUI.Types.GLViewers
             Renderer.DisableAllCulling = true;
 
             Renderer.Camera.CopyFrom(Input.Camera);
+            prewarming = true;
 
             try
             {
@@ -431,6 +433,7 @@ namespace GUI.Types.GLViewers
             finally
             {
                 Renderer.DisableAllCulling = false;
+                prewarming = false;
             }
         }
 
@@ -757,6 +760,12 @@ namespace GUI.Types.GLViewers
             }
 
             GL.EndQuery(QueryTarget.TimeElapsed);
+
+            var streamTextures = !prewarming;
+            if (streamTextures)
+            {
+                Scene.RendererContext.TextureStreaming.Timeslice(frameTime);
+            }
 
             if (Paused)
             {
