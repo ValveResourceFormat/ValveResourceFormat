@@ -30,7 +30,7 @@ public class RendererContext : IDisposable
     public MaterialLoader MaterialLoader { get; }
 
     /// <summary>
-    /// Background loader for streamed texture mips.
+    /// Background loader for textures.
     /// </summary>
     public TextureStreamingHelper TextureStreaming { get; }
 

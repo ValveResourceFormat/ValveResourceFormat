@@ -440,9 +440,7 @@ namespace ValveResourceFormat.Renderer.Materials
                 decodedBuffer = ArrayPool<byte>.Shared.Rent(data.Width * data.Height * data.Depth * 4);
             }
 
-            // The other srgb variant of this resource may be streaming, and its load jobs
-            // share the block's reader with this loop
-            Monitor.Enter(data);
+            Monitor.Enter(data); // reader lock
 
             try
             {

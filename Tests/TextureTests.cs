@@ -49,6 +49,8 @@ namespace Tests
                 return; // png/jpeg blobs have no mip chain to read
             }
 
+            // todo: IsActuallyCompressedMips gate
+
             for (var mipLevel = 0u; mipLevel < texture.NumMipLevels; mipLevel++)
             {
                 var size = texture.CalculateBufferSizeForMipLevel(mipLevel);

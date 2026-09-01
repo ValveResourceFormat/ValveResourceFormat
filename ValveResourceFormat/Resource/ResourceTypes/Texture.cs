@@ -301,8 +301,6 @@ namespace ValveResourceFormat.ResourceTypes
         public Vector4 RangeMax { get; private set; }
 
         private int[]? CompressedMips;
-
-        // TODO: Make this public, as a compression type enum?
         private bool IsActuallyCompressedMips;
 
         /// <summary>
@@ -1069,11 +1067,7 @@ namespace ValveResourceFormat.ResourceTypes
             ReadTexture(mipLevel, output);
         }
 
-        /// <summary>
-        /// How big a buffer <see cref="ReadTextureMipLevelInPlace"/> needs for a mip: the decoded mip size,
-        /// plus room for an LZ4 mip to be decompressed over its own compressed bytes.
-        /// </summary>
-        /// <param name="mipLevel">Mip level for which to read texture data.</param>
+        /// <summary>Calculate decompression buffer size for <see cref="ReadTextureMipLevelInPlace"/>.</summary>
         public int CalculateInPlaceDecompressionBufferSize(uint mipLevel)
         {
             var uncompressedSize = CalculateBufferSizeForMipLevel(mipLevel);

@@ -41,8 +41,6 @@ namespace ValveResourceFormat.Renderer.Shaders
             init
             {
                 field = value;
-
-                // Seeded so lookups before the program links stay inert instead of caching an unlinked program's answers
                 Uniforms.EnsureCapacity(value.Count);
 
                 foreach (var uniformName in value)
