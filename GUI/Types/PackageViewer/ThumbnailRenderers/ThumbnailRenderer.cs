@@ -66,7 +66,7 @@ internal abstract class ThumbnailRenderer : IDisposable
 
         SceneRenderer = new Renderer(RendererContext);
 
-        // Whole chains per load request; the drain in Render consumes them to completion anyway
+        // We have few textures here, so prefer streaming them to end
         RendererContext.TextureStreaming.LoadWholeChains = true;
 
         SceneRenderer.Camera.SetFromQAngle(new Vector3(20f, 225f, 0f));

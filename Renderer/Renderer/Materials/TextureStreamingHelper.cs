@@ -34,10 +34,7 @@ namespace ValveResourceFormat.Renderer.Materials
         private long lastSliceDuration;
 
         /// <summary>
-        /// Gets or sets whether one load request reads all of a texture's remaining mips at once instead of
-        /// one mip at a time. That means fewer, larger reads and a single storage recreation per texture,
-        /// which pays off when every texture is going to be drained to completion anyway. Leave it off to
-        /// keep the work items small enough to fit inside a frame.
+        /// False: parallelize single mips; True: parallelize whole textures.
         /// </summary>
         public bool LoadWholeChains { get; set; }
 
