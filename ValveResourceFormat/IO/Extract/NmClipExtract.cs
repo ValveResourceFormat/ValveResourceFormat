@@ -36,22 +36,39 @@ public class NmClipExtract
         var contentFile = new ContentFile();
 
         var kv = KVObject.Collection();
-        var sourceFileName = Path.ChangeExtension(resource.FileName, ".dmx");
-        Debug.Assert(sourceFileName != null);
-        kv.Add("m_sourceFilename", sourceFileName);
+
+        var skeletonSourceFiles = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var skeleton = LoadSkeleton(clip.SkeletonName, skeletonSourceFiles);
+        var skeletonSourcesKnown = skeleton != null;
+
+        // Secondary animations (e.g. the weapon of a viewmodel clip) share the DMX; the compiler
+        // pulls each declared skeleton's tracks out of it by bone name.
+        var secondaryAnimations = new List<(ResourceTypes.ModelAnimation.Skeleton Skeleton, ResourceTypes.ModelAnimation.Animation Animation)>();
+        foreach (var secAnim in clip.SecondaryAnimations)
+        {
+            if (LoadSkeleton(secAnim.SkeletonName, skeletonSourceFiles) is { } secSkeleton)
+            {
+                secondaryAnimations.Add((secSkeleton, new ResourceTypes.ModelAnimation.ClipAnimation(secAnim)));
+            }
+            else
+            {
+                skeletonSourcesKnown = false;
+            }
+        }
+
+        var dmxFileName = Path.ChangeExtension(resource.FileName, ".dmx");
+        Debug.Assert(dmxFileName != null);
+
+        var (sourceFileName, additiveBaseFileName) = FindAuthoredSourceFiles(skeletonSourceFiles, skeletonSourcesKnown);
+        kv.Add("m_sourceFilename", sourceFileName ?? NormalizeContentPath(dmxFileName));
         kv.Add("m_animationSkeletonName", clip.SkeletonName);
 
-        // TODO: figure out additive type.
         if (clip.IsAdditive)
         {
-            kv.Add("m_additiveType", "RelativeToFrame");
-            kv.Add("m_additiveBaseFilename", "");
-            kv.Add("m_additiveBaseFrame", "FirstFrame");
-            kv.Add("m_nAdditiveBaseFrameIdx", 0L);
+            AddAdditiveProperties(kv, additiveBaseFileName);
         }
 
         var animation = new ResourceTypes.ModelAnimation.ClipAnimation(clip);
-        var skeleton = ResourceTypes.ModelAnimation.Skeleton.FromSkeletonResource(fileLoader, clip.SkeletonName);
         if (skeleton != null)
         {
             var modelSpaceSamplingChain = clip.Data.Root.GetArray("m_modelSpaceSamplingChain");
@@ -70,21 +87,10 @@ public class NmClipExtract
             }
             kv.Add("m_bonesToSampleInModelSpace", bonesToSampleInModelSpace);
 
-            contentFile.AddSubFile(Path.GetFileName(sourceFileName), () =>
-            {
-                // Secondary animations (e.g. the weapon of a viewmodel clip) share the DMX; the compiler
-                // pulls each declared skeleton's tracks out of it by bone name.
-                var secondaryAnimations = new List<(ResourceTypes.ModelAnimation.Skeleton Skeleton, ResourceTypes.ModelAnimation.Animation Animation)>();
-                foreach (var secAnim in clip.SecondaryAnimations)
-                {
-                    if (ResourceTypes.ModelAnimation.Skeleton.FromSkeletonResource(fileLoader, secAnim.SkeletonName) is { } secSkeleton)
-                    {
-                        secondaryAnimations.Add((secSkeleton, new ResourceTypes.ModelAnimation.ClipAnimation(secAnim)));
-                    }
-                }
-
-                return ModelExtract.ToDmxAnim(skeleton, [], animation, secondaryAnimations, nmSkelAxisFixup: true);
-            });
+            contentFile.AddSubFile(
+                Path.GetFileName(dmxFileName),
+                () => ModelExtract.ToDmxAnim(skeleton, [], animation, secondaryAnimations, nmSkelAxisFixup: true)
+            );
         }
 
         if (clip.SecondaryAnimations.Length > 0)
@@ -146,6 +152,159 @@ public class NmClipExtract
         contentFile.Data = Encoding.UTF8.GetBytes(kv.ToKV3String());
         return contentFile;
     }
+
+    /// <summary>
+    /// Loads a skeleton, collecting the content files it was compiled from so that they can be told
+    /// apart from the clip's own source animation in the input dependency list.
+    /// </summary>
+    private ResourceTypes.ModelAnimation.Skeleton? LoadSkeleton(string skeletonName, HashSet<string> skeletonSourceFiles)
+    {
+        using var skeletonResource = fileLoader.LoadFileCompiled(skeletonName);
+
+        if (skeletonResource?.DataBlock is not BinaryKV3 skeletonData)
+        {
+            return null;
+        }
+
+        if (skeletonResource.EditInfo != null)
+        {
+            foreach (var dependency in skeletonResource.EditInfo.InputDependencies)
+            {
+                skeletonSourceFiles.Add(NormalizeContentPath(dependency.ContentRelativeFilename));
+            }
+        }
+
+        return ResourceTypes.ModelAnimation.Skeleton.FromSkeletonData(skeletonData.Data);
+    }
+
+    /// <summary>
+    /// Recovers the animation the clip was authored from, and for an additive clip generated against
+    /// another animation, that animation. Neither is stored in the compiled clip, but the compiler
+    /// records both as input dependencies, alongside the clip document itself and the source files of
+    /// every skeleton the clip references.
+    /// </summary>
+    /// <param name="skeletonSourceFiles">The content files every referenced skeleton was compiled from.</param>
+    /// <param name="skeletonSourcesKnown">
+    /// Whether every skeleton the clip references was loaded. When one was not, its own source files are
+    /// missing from <paramref name="skeletonSourceFiles"/> and are indistinguishable from an additive base.
+    /// </param>
+    private (string? SourceFileName, string? AdditiveBaseFileName) FindAuthoredSourceFiles(HashSet<string> skeletonSourceFiles, bool skeletonSourcesKnown)
+    {
+        if (resource.EditInfo == null)
+        {
+            return (null, null);
+        }
+
+        var candidates = new List<string>();
+
+        foreach (var dependency in resource.EditInfo.InputDependencies)
+        {
+            var file = NormalizeContentPath(dependency.ContentRelativeFilename);
+
+            if (file.EndsWith(".vnmclip", StringComparison.OrdinalIgnoreCase) || skeletonSourceFiles.Contains(file))
+            {
+                continue;
+            }
+
+            candidates.Add(file);
+        }
+
+        if (candidates.Count == 1 && skeletonSourcesKnown)
+        {
+            return (candidates[0], null);
+        }
+
+        // An additive generated against another animation lists that animation too; the clip's own
+        // source is the one named after it.
+        var clipName = Path.GetFileNameWithoutExtension(clip.Name);
+        string? sourceFileName = null;
+
+        foreach (var candidate in candidates)
+        {
+            if (!Path.GetFileNameWithoutExtension(candidate).Equals(clipName, StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            if (sourceFileName != null)
+            {
+                return (null, null);
+            }
+
+            sourceFileName = candidate;
+        }
+
+        if (sourceFileName == null || candidates.Count != 2 || !skeletonSourcesKnown)
+        {
+            return (sourceFileName, null);
+        }
+
+        var additiveBaseFileName = candidates[0] == sourceFileName ? candidates[1] : candidates[0];
+        return (sourceFileName, additiveBaseFileName);
+    }
+
+    private void AddAdditiveProperties(KVObject kv, string? additiveBaseFileName)
+    {
+        if (additiveBaseFileName != null)
+        {
+            kv.Add("m_additiveType", "RelativeToAnimation");
+            kv.Add("m_additiveBaseFilename", additiveBaseFileName);
+            kv.Add("m_additiveBaseFrame", "FirstFrame");
+            // A negative index takes every frame relative to the matching frame of the base animation.
+            kv.Add("m_nAdditiveBaseFrameIdx", -1L);
+            return;
+        }
+
+        kv.Add("m_additiveType", "RelativeToFrame");
+        kv.Add("m_additiveBaseFilename", "");
+        kv.Add("m_additiveBaseFrame", "UserSpecifiedFrame");
+        kv.Add("m_nAdditiveBaseFrameIdx", (long)FindAdditiveBaseFrame());
+    }
+
+    /// <summary>
+    /// Finds the frame the additive was generated relative to: subtracting it left that frame as the
+    /// identity transform on every bone. Falls back to the first frame for a clip that holds no such
+    /// frame, which is the case when the additive was generated against a separate animation, or
+    /// against a frame that the clip's own frame range does not cover.
+    /// </summary>
+    private int FindAdditiveBaseFrame()
+    {
+        // Between the largest deviation measured on a base frame (9e-3, quantization) and the
+        // smallest measured on a frame that is not one (4e-2).
+        const float IdentityTolerance = 0.02f;
+
+        var bones = new ResourceTypes.ModelAnimation.FrameBone[clip.TrackCompressionSettings.Length];
+        var baseFrame = 0;
+        var smallestDeviation = float.MaxValue;
+
+        for (var frameIndex = 0; frameIndex < clip.NumFrames; frameIndex++)
+        {
+            clip.ReadFrame(frameIndex, bones);
+
+            var deviation = 0f;
+
+            foreach (var bone in bones)
+            {
+                var rotation = bone.Angle;
+                var rotationDeviation = MathF.Max(
+                    MathF.Abs(MathF.Abs(rotation.W) - 1f),
+                    new Vector3(rotation.X, rotation.Y, rotation.Z).Length()
+                );
+
+                deviation = MathF.Max(deviation, MathF.Max(bone.Position.Length(), rotationDeviation));
+            }
+
+            if (deviation < smallestDeviation)
+            {
+                smallestDeviation = deviation;
+                baseFrame = frameIndex;
+            }
+        }
+
+        return smallestDeviation <= IdentityTolerance ? baseFrame : 0;
+    }
+
+    private static string NormalizeContentPath(string path) => path.Replace('\\', '/');
 
     /// <summary>
     /// Rebuilds the doc event track a compiled float curve came from. The compiler bakes a
@@ -233,8 +392,8 @@ public class NmClipExtract
 
         foreach (var (key, value) in kvCompiledEvent.Children)
         {
-            // CNmClipDocEvent_FloatCurve has no sync id field; the compiled event's empty one is not copied.
-            if (key is "_class" || (eventName == "FloatCurve" && key is "m_syncID"))
+            // Doc events carry no sync id; the compiler derives the compiled one from the event itself.
+            if (key is "_class" or "m_syncID")
             {
                 continue;
             }
