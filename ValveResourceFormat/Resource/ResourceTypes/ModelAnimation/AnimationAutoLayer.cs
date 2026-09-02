@@ -16,6 +16,13 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
         public int LocalReference { get; set; }
 
         /// <summary>
+        /// Gets the name <see cref="LocalReference"/> resolves to against the sequence group's shared
+        /// name array, an animation for most layers or another sequence for one that blends generated
+        /// animations. Empty when the layer was read outside sequence data, or the index is out of range.
+        /// </summary>
+        public string ReferencedAnimationName { get; internal set; } = string.Empty;
+
+        /// <summary>
         /// Gets or sets the local pose index for the animation layer.
         /// </summary>
         public int LocalPose { get; set; }
@@ -61,22 +68,24 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
         public bool Subtract { get; set; }
 
         /// <summary>
-        /// Gets or sets the start time of the blend curve.
+        /// Gets or sets where the blend curve starts ramping in. A fraction of the referenced sequence's
+        /// own cycle (0 at its first frame, 1 at its last), or a fraction along the pose parameter's range
+        /// when <see cref="Pose"/> is set.
         /// </summary>
         public float Start { get; set; }
 
         /// <summary>
-        /// Gets or sets the peak time of the blend curve where the layer has maximum influence.
+        /// Gets or sets where the blend curve reaches full influence. See <see cref="Start"/> for units.
         /// </summary>
         public float Peak { get; set; }
 
         /// <summary>
-        /// Gets or sets the tail time where the blend curve begins to fade out.
+        /// Gets or sets where the blend curve starts fading out. See <see cref="Start"/> for units.
         /// </summary>
         public float Tail { get; set; }
 
         /// <summary>
-        /// Gets or sets the end time of the blend curve.
+        /// Gets or sets where the blend curve reaches zero influence. See <see cref="Start"/> for units.
         /// </summary>
         public float End { get; set; }
 

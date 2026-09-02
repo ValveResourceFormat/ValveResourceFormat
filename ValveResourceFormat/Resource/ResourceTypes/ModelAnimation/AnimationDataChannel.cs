@@ -23,32 +23,46 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
         /// <summary>
         /// Initializes a new instance of the <see cref="AnimationDataChannel"/> class.
         /// </summary>
-        public AnimationDataChannel(Skeleton skeleton, FlexController[] flexControllers, KVObject dataChannel)
+        /// <param name="skeleton">The skeleton bone channels bind against.</param>
+        /// <param name="flexControllers">The model's flex controllers, which morph channels bind against.</param>
+        /// <param name="userNames">
+        /// The decode key's own <c>m_userArray</c> names, which user channels bind against. Unlike the
+        /// skeleton and flex controllers, this list is local to one decode key, not shared model-wide.
+        /// </param>
+        /// <param name="dataChannel">The <c>CAnimDataChannelDesc</c> key values.</param>
+        public AnimationDataChannel(Skeleton skeleton, FlexController[] flexControllers, string[] userNames, KVObject dataChannel)
         {
             var elementNameArray = dataChannel.GetArray<string>("m_szElementNameArray");
             var elementIndexArray = dataChannel.GetIntegerArray("m_nElementIndexArray");
 
+            var channelClass = dataChannel.GetStringProperty("m_szChannelClass");
             var channelAttribute = dataChannel.GetStringProperty("m_szVariableName");
-            Attribute = channelAttribute switch
+
+            // m_szChannelClass disambiguates MorphChannel from UserChannel, which both use the variable
+            // name "data". Fall back to the old name-only classification for decode keys that predate it.
+            Attribute = channelClass switch
             {
-                "Position" => AnimationChannelAttribute.Position,
-                "Angle" => AnimationChannelAttribute.Angle,
-                "Scale" => AnimationChannelAttribute.Scale,
-                "data" => AnimationChannelAttribute.Data,
-                _ => AnimationChannelAttribute.Unknown,
+                "BoneChannel" => BoneAttributeFromVariableName(channelAttribute),
+                "MorphChannel" => AnimationChannelAttribute.Data,
+                "UserChannel" => AnimationChannelAttribute.User,
+                _ => channelAttribute switch
+                {
+                    "Position" => AnimationChannelAttribute.Position,
+                    "Angle" => AnimationChannelAttribute.Angle,
+                    "Scale" => AnimationChannelAttribute.Scale,
+                    "data" => AnimationChannelAttribute.Data,
+                    _ => AnimationChannelAttribute.Unknown,
+                },
             };
 
-            int remapLength;
-            if (Attribute == AnimationChannelAttribute.Data)
+            var domain = Attribute switch
             {
-                remapLength = flexControllers.Length;
-            }
-            else
-            {
-                remapLength = skeleton.Bones.Length;
-            }
+                AnimationChannelAttribute.Data => flexControllers.Length,
+                AnimationChannelAttribute.User => userNames.Length,
+                _ => skeleton.Bones.Length,
+            };
 
-            var remapTable = new int[remapLength];
+            var remapTable = new int[domain];
             Array.Fill(remapTable, -1);
 
             for (var i = 0; i < elementIndexArray.Length; i++)
@@ -56,15 +70,14 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
                 var elementName = elementNameArray![i];
                 var elementIndex = (int)elementIndexArray[i];
 
-                int id;
-                if (Attribute == AnimationChannelAttribute.Data)
+                var id = Attribute switch
                 {
-                    id = Array.FindIndex(flexControllers, ctrl => ctrl.Name.Equals(elementName, StringComparison.OrdinalIgnoreCase));
-                }
-                else
-                {
-                    id = Array.FindIndex(skeleton.Bones, bone => bone.Name.Equals(elementName, StringComparison.OrdinalIgnoreCase));
-                }
+                    AnimationChannelAttribute.Data
+                        => Array.FindIndex(flexControllers, ctrl => ctrl.Name.Equals(elementName, StringComparison.OrdinalIgnoreCase)),
+                    AnimationChannelAttribute.User
+                        => Array.FindIndex(userNames, name => name.Equals(elementName, StringComparison.OrdinalIgnoreCase)),
+                    _ => Array.FindIndex(skeleton.Bones, bone => bone.Name.Equals(elementName, StringComparison.OrdinalIgnoreCase)),
+                };
 
                 if (id != -1)
                 {
@@ -74,5 +87,13 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
 
             RemapTable = remapTable;
         }
+
+        private static AnimationChannelAttribute BoneAttributeFromVariableName(string channelAttribute) => channelAttribute switch
+        {
+            "Position" => AnimationChannelAttribute.Position,
+            "Angle" => AnimationChannelAttribute.Angle,
+            "Scale" => AnimationChannelAttribute.Scale,
+            _ => AnimationChannelAttribute.Unknown,
+        };
     }
 }
