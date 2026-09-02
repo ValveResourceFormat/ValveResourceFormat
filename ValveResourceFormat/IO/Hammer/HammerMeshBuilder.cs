@@ -724,7 +724,7 @@ namespace ValveResourceFormat.IO
             var attributes = phys.CollisionAttributes[desc.CollisionAttributeIndex];
             var tags = PhysAggregateData.GetInteractAsTags(attributes);
             var group = attributes.GetStringProperty("m_CollisionGroupString");
-            var material = materialOverride ?? MapExtract.GetToolTextureNameForCollisionTags(new ModelExtract.SurfaceTagCombo(group, tags!));
+            var material = materialOverride ?? MapExtract.GetToolTextureNameForCollisionTags(new SurfaceTagCombo(group, tags));
 
             if (group == "Default")
             {
@@ -776,7 +776,7 @@ namespace ValveResourceFormat.IO
             var attributes = phys.CollisionAttributes[desc.CollisionAttributeIndex];
             var tags = PhysAggregateData.GetInteractAsTags(attributes);
             var group = attributes.GetStringProperty("m_CollisionGroupString");
-            var material = materialOverride ?? MapExtract.GetToolTextureNameForCollisionTags(new ModelExtract.SurfaceTagCombo(group, tags!));
+            var material = materialOverride ?? MapExtract.GetToolTextureNameForCollisionTags(new SurfaceTagCombo(group, tags));
 
             var physicsSurfaceNames = phys.SurfacePropertyHashes.Select(StringToken.GetKnownString).ToArray();
 

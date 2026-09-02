@@ -460,6 +460,43 @@ namespace ValveResourceFormat.ResourceTypes
         }
 
         /// <summary>
+        /// Gets the animations this model reaches through the standalone animation groups it
+        /// references (<c>m_refAnimGroups</c>). Empty for a model that carries its animations
+        /// embedded instead.
+        /// </summary>
+        /// <param name="fileLoader">The file loader to use.</param>
+        /// <returns>Enumerable of animations.</returns>
+        public IEnumerable<SequenceAnimation> GetAnimationGroupAnimations(IFileLoader fileLoader)
+        {
+            var animGroupPaths = GetReferencedAnimationGroupNames();
+
+            if (animGroupPaths == null)
+            {
+                yield break;
+            }
+
+            foreach (var animGroupPath in animGroupPaths)
+            {
+                if (string.IsNullOrEmpty(animGroupPath))
+                {
+                    continue;
+                }
+
+                using var animGroup = fileLoader.LoadFileCompiled(animGroupPath);
+
+                if (animGroup == default)
+                {
+                    continue;
+                }
+
+                foreach (var animation in AnimationGroupLoader.LoadAnimationGroup(animGroup, fileLoader, Skeleton, FlexControllers))
+                {
+                    yield return animation;
+                }
+            }
+        }
+
+        /// <summary>
         /// Gets all animations from this model including embedded, referenced, and animation groups.
         /// </summary>
         /// <param name="fileLoader">The file loader to use.</param>
@@ -471,18 +508,9 @@ namespace ValveResourceFormat.ResourceTypes
                 return CachedAnimations;
             }
 
-            var animGroupPaths = GetReferencedAnimationGroupNames();
             var animations = GetEmbeddedAnimations().ToList<Animation>();
 
-            // Load animations from referenced animation groups
-            foreach (var animGroupPath in animGroupPaths)
-            {
-                using var animGroup = fileLoader.LoadFileCompiled(animGroupPath);
-                if (animGroup != default)
-                {
-                    animations.AddRange(AnimationGroupLoader.LoadAnimationGroup(animGroup, fileLoader, Skeleton, FlexControllers));
-                }
-            }
+            animations.AddRange(GetAnimationGroupAnimations(fileLoader));
 
             // Animation graph (AG2) clips are part of the model's animation set.
             foreach (var clipName in IO.AnimationGraphLoader.GetClipNames(this, fileLoader))
