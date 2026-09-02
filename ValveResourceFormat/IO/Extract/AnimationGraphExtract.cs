@@ -2741,6 +2741,19 @@ public class AnimationGraphExtract : IDisposable
         return defaultNode;
     }
 
+    /// <summary>
+    /// Writes an animation node's authored name, which the compiled graph carries under a different key.
+    /// A node with no name keeps a placeholder, because the name is what the document refers to it by.
+    /// </summary>
+    /// <returns>The name written, which a caller that derives more from it can read back.</returns>
+    private static string AddNodeName(KVObject node, object value)
+    {
+        var name = value.ToString() ?? "Unnamed";
+        node.Add("m_sName", name);
+
+        return name;
+    }
+
     private KVObject ConvertToUncompiled(KVObject compiledNode)
     {
         footPinningItems = [];
@@ -3209,7 +3222,7 @@ public class AnimationGraphExtract : IDisposable
             {
                 if (key == "m_name")
                 {
-                    node.Add("m_sName", value.ToString() ?? "Unnamed");
+                    AddNodeName(node, value);
                     continue;
                 }
                 else if (key == "m_flJumpEndCycle")
@@ -3249,7 +3262,7 @@ public class AnimationGraphExtract : IDisposable
             {
                 if (key == "m_name")
                 {
-                    node.Add("m_sName", value.ToString() ?? "Unnamed");
+                    AddNodeName(node, value);
                     continue;
                 }
             }
@@ -3447,8 +3460,7 @@ public class AnimationGraphExtract : IDisposable
             {
                 if (key == "m_name")
                 {
-                    var nameValue = value.ToString() ?? "Unnamed";
-                    node.Add("m_sName", nameValue);
+                    AddNodeName(node, value);
                     continue;
                 }
                 else if (key == "m_opFixedSettings")
@@ -3582,8 +3594,7 @@ public class AnimationGraphExtract : IDisposable
             {
                 if (key == "m_name")
                 {
-                    var nameValue = value.ToString() ?? "Unnamed";
-                    node.Add("m_sName", nameValue);
+                    AddNodeName(node, value);
                     continue;
                 }
                 else if (key == "m_opFixedData")
@@ -3649,8 +3660,7 @@ public class AnimationGraphExtract : IDisposable
             {
                 if (key == "m_name")
                 {
-                    var nameValue = value.ToString() ?? "Unnamed";
-                    node.Add("m_sName", nameValue);
+                    var nameValue = AddNodeName(node, value);
 
                     var colonIndex = nameValue.LastIndexOf(':');
                     if (colonIndex != -1)
@@ -3677,8 +3687,7 @@ public class AnimationGraphExtract : IDisposable
             {
                 if (key == "m_name")
                 {
-                    var nameValue = value.ToString() ?? "Unnamed";
-                    node.Add("m_sName", nameValue);
+                    AddNodeName(node, value);
                     continue;
                 }
                 else if (key == "m_dataSet")
@@ -3905,7 +3914,7 @@ public class AnimationGraphExtract : IDisposable
             {
                 if (key == "m_name")
                 {
-                    node.Add("m_sName", value.ToString() ?? "Unnamed");
+                    AddNodeName(node, value);
                     continue;
                 }
                 else if (key == "m_opFixedSettings")
@@ -3951,7 +3960,7 @@ public class AnimationGraphExtract : IDisposable
             {
                 if (key == "m_name")
                 {
-                    node.Add("m_sName", value.ToString() ?? "Unnamed");
+                    AddNodeName(node, value);
                     continue;
                 }
                 if (!node.ContainsKey("m_eLinearRootMotionMode"))
@@ -3963,7 +3972,7 @@ public class AnimationGraphExtract : IDisposable
             {
                 if (key == "m_name")
                 {
-                    node.Add("m_sName", value.ToString() ?? "Unnamed");
+                    AddNodeName(node, value);
                     continue;
                 }
             }
@@ -3971,7 +3980,7 @@ public class AnimationGraphExtract : IDisposable
             {
                 if (key == "m_name")
                 {
-                    node.Add("m_sName", value.ToString() ?? "Unnamed");
+                    AddNodeName(node, value);
                     continue;
                 }
                 if (!node.ContainsKey("m_previewSequenceName"))
@@ -3983,7 +3992,7 @@ public class AnimationGraphExtract : IDisposable
             {
                 if (key == "m_name")
                 {
-                    node.Add("m_sName", value.ToString() ?? "Unnamed");
+                    AddNodeName(node, value);
                     continue;
                 }
                 else if (key == "m_opFixedData")
