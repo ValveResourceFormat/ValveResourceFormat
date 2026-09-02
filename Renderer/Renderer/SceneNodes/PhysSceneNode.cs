@@ -1,6 +1,7 @@
 using ValveResourceFormat.IO;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization.KeyValues;
+using RnHull = ValveResourceFormat.ResourceTypes.RubikonPhysics.Shapes.Hull;
 
 namespace ValveResourceFormat.Renderer.SceneNodes
 {
@@ -169,20 +170,11 @@ namespace ValveResourceFormat.Renderer.SceneNodes
 
                             foreach (var face in faces)
                             {
-                                var startEdge = face.Edge;
-
-                                for (var edge = edges[startEdge].Next; edge != startEdge;)
+                                foreach (var (ai, bi, ci) in RnHull.GetFaceTriangles(edges, face))
                                 {
-                                    var nextEdge = edges[edge].Next;
-
-                                    if (nextEdge == startEdge)
-                                    {
-                                        break;
-                                    }
-
-                                    var a = positions[edges[startEdge].Origin];
-                                    var b = positions[edges[edge].Origin];
-                                    var c = positions[edges[nextEdge].Origin];
+                                    var a = positions[ai];
+                                    var b = positions[bi];
+                                    var c = positions[ci];
 
                                     var normal = ComputeNormal(a, b, c);
 
@@ -192,8 +184,6 @@ namespace ValveResourceFormat.Renderer.SceneNodes
                                     verts.Add(new(c, ColorHull, normal));
 
                                     AddTriangle(inds, offset, 0, 1, 2);
-
-                                    edge = nextEdge;
                                 }
                             }
                         }
@@ -266,7 +256,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
                 }
 
                 var attributes = phys.CollisionAttributes[collisionAttributeIndex];
-                var tags = attributes.GetArray<string>("m_InteractAsStrings") ?? attributes.GetArray<string>("m_PhysicsTagStrings");
+                var tags = PhysAggregateData.GetInteractAsTags(attributes);
                 var group = attributes.GetStringProperty("m_CollisionGroupString");
 
                 var tooltexture = MapExtract.GetToolTextureShortenedName_ForInteractStrings([.. tags]);

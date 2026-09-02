@@ -413,13 +413,15 @@ namespace ValveResourceFormat.Serialization.KeyValues
                 (float)obj[1],
                 (float)obj[2]);
 
-            var scale = (float)obj[3];
+            var compact = obj.Count == 7;
+            var scale = compact ? 1f : (float)obj[3];
+            var rotationOffset = compact ? 3 : 4;
 
             var rotation = new Quaternion(
-                (float)obj[4],
-                (float)obj[5],
-                (float)obj[6],
-                (float)obj[7]);
+                (float)obj[rotationOffset],
+                (float)obj[rotationOffset + 1],
+                (float)obj[rotationOffset + 2],
+                (float)obj[rotationOffset + 3]);
 
             return (position, scale, rotation);
         }

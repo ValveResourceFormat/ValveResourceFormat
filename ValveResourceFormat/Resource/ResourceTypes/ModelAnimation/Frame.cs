@@ -90,6 +90,10 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
                     Datas[bone] = data;
                     break;
 
+                case AnimationChannelAttribute.User:
+                    // Named material-attribute channels decode correctly but have no VRF consumer yet.
+                    break;
+
 #if DEBUG
                 default:
                     Console.WriteLine($"Unknown frame attribute '{attribute}' encountered with float data");
