@@ -68,11 +68,6 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
         /// </summary>
         public static Skeleton FromModelData(KVObject modelData)
         {
-            if (!modelData.ContainsKey("m_modelSkeleton"))
-            {
-                Console.WriteLine("No skeleton data found.");
-            }
-
             return new Skeleton(modelData.GetSubCollection("m_modelSkeleton"))
             {
                 Name = modelData.GetStringProperty("m_name"),
