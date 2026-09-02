@@ -315,7 +315,7 @@ public sealed partial class MapExtract
         var physics = model.GetEmbeddedPhys();
         cable.CollisionEnabled = physics is not null || model.GetReferencedPhysNames().Any();
 
-        var embedded = model.GetEmbeddedMeshesAndLoD().FirstOrDefault();
+        var embedded = model.GetEmbeddedMeshes().FirstOrDefault();
 
         if (embedded.Mesh is null || nodes.Count < 2)
         {

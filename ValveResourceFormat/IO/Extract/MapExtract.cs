@@ -1422,9 +1422,9 @@ public sealed partial class MapExtract
                 }
             }
 
-            foreach (var embedded in propModel.GetEmbeddedMeshesAndLoD())
+            foreach (var embedded in propModel.GetEmbeddedMeshes())
             {
-                if ((embedded.LoDMask & 1) != 0)
+                if ((embedded.LodMask & 1) != 0)
                 {
                     AddMesh(embedded.Mesh);
                 }
@@ -1432,7 +1432,7 @@ public sealed partial class MapExtract
 
             foreach (var reference in propModel.GetReferenceMeshNamesAndLoD())
             {
-                if ((reference.LoDMask & 1) == 0)
+                if ((reference.LodMask & 1) == 0)
                 {
                     continue;
                 }
@@ -2336,7 +2336,7 @@ public sealed partial class MapExtract
 
         var data = (Model)model.DataBlock;
 
-        var hasMeshes = data.GetEmbeddedMeshesAndLoD().Any() || data.GetReferenceMeshNamesAndLoD().Any();
+        var hasMeshes = data.GetEmbeddedMeshes().Any() || data.GetReferenceMeshNamesAndLoD().Any();
         var hasPhysics = data.GetEmbeddedPhys() != null || data.GetReferencedPhysNames().Any();
         var isJustPhysics = hasPhysics && !hasMeshes;
 
