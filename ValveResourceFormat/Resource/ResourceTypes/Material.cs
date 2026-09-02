@@ -66,8 +66,7 @@ namespace ValveResourceFormat.ResourceTypes
 
         /// <summary>
         /// Gets the dynamic scalar and texture parameter expressions, decompiled to readable source.
-        /// Nothing evaluates them: a parameter driven by one of these keeps its static baked value at
-        /// render time, so animated material attributes are decoded but never reach a shader.
+        /// Nothing evaluates them; a parameter driven by one keeps its static baked value.
         /// </summary>
         public Dictionary<string, string> DynamicExpressions { get; } = [];
 
@@ -92,8 +91,7 @@ namespace ValveResourceFormat.ResourceTypes
 
         /// <summary>
         /// Loads a material's vertex shader input signature, which maps its DirectX semantics to engine
-        /// ones. Returns <see cref="VsInputSignature.Empty"/> for a material that cannot be loaded, so
-        /// the result always has a readable element array.
+        /// ones. Returns <see cref="VsInputSignature.Empty"/> for a material that cannot be loaded.
         /// </summary>
         /// <param name="fileLoader">Loader for the material resource.</param>
         /// <param name="materialPath">Resource path of the material, e.g. <c>materials/foo.vmat</c>.</param>

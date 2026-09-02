@@ -32,22 +32,16 @@ namespace ValveResourceFormat.Renderer
             /// <summary>Gets or sets how long a <see cref="ClipTransition.Crossfade"/> takes, in seconds.</summary>
             public float BlendDuration { get; set; }
 
-            /// <summary>
-            /// Gets or sets the mask name scoping this clip per bone and per flex controller. Empty string
-            /// means no mask.
-            /// </summary>
+            /// <summary>Gets or sets the mask scoping this clip per bone and per flex controller. Empty for no mask.</summary>
             public string MaskName { get; set; } = string.Empty;
 
             /// <summary>
-            /// Gets or sets what recomputes this clip's <see cref="Weight"/> and <see cref="Time"/> every
-            /// tick from another clip's cycle, instead of them advancing on their own. Null for a clip
-            /// that plays in its own right.
+            /// Gets or sets what recomputes this clip's <see cref="Weight"/> and <see cref="Time"/> from
+            /// another clip's cycle. Null for a clip that plays on its own.
             /// </summary>
             public ClipDriver? Driver { get; set; }
 
-            /// <summary>
-            /// Gets whether another clip drives this one rather than it advancing or blending on its own.
-            /// </summary>
+            /// <summary>Gets whether another clip drives this one.</summary>
             public bool IsDriven => Driver != null;
 
             /// <summary>Gets or sets the current frame index within the cycle being played.</summary>
@@ -58,9 +52,7 @@ namespace ValveResourceFormat.Renderer
             }
         }
 
-        /// <summary>
-        /// How playback moves into a clip.
-        /// </summary>
+        /// <summary>How playback moves into a clip.</summary>
         public enum ClipTransition
         {
             /// <summary>The clip takes over at full weight immediately.</summary>
@@ -74,8 +66,7 @@ namespace ValveResourceFormat.Renderer
         }
 
         /// <summary>
-        /// What drives a clip that does not play in its own right: it takes its playback position from an
-        /// owner clip's cycle, and its weight from what that owner is doing.
+        /// Takes a driven clip's playback position from an owner clip's cycle, and its weight from that owner.
         /// </summary>
         /// <param name="Owner">The clip whose cycle position drives this one.</param>
         public abstract record ClipDriver(PlaybackClip Owner)
@@ -84,9 +75,7 @@ namespace ValveResourceFormat.Renderer
             public abstract float EvaluateWeight(AnimationPlayer player);
         }
 
-        /// <summary>
-        /// Drives one of a sequence's auto layers: the layer's blend curve, sampled at the owner's cycle.
-        /// </summary>
+        /// <summary>Drives one of a sequence's auto layers from its blend curve at the owner's cycle.</summary>
         public sealed record AutoLayerDriver(PlaybackClip Owner, AnimationAutoLayer Layer) : ClipDriver(Owner)
         {
             /// <inheritdoc/>
@@ -94,10 +83,7 @@ namespace ValveResourceFormat.Renderer
                 => EvaluateAutoLayerWeight(Layer, Owner.Animation.GetCycleFraction(Owner.Time));
         }
 
-        /// <summary>
-        /// Drives one entry of a blend sequence's fetch: the weight that entry carries at the live values
-        /// of the pose parameters the blend is spread along.
-        /// </summary>
+        /// <summary>Drives one entry of a blend sequence's fetch from the live pose parameter values.</summary>
         public sealed record BlendDriver(PlaybackClip Owner, SequenceAnimation Sequence, int Index) : ClipDriver(Owner)
         {
             /// <inheritdoc/>
@@ -110,10 +96,7 @@ namespace ValveResourceFormat.Renderer
         /// </summary>
         public bool ActiveClipFinished => activeClip != null && !activeClip.Looping && activeClip.IsPaused;
 
-        /// <summary>
-        /// Gets the current clips. Use <see cref="ClearClips"/> to empty them; removing entries directly
-        /// leaves the active clip dangling.
-        /// </summary>
+        /// <summary>Gets the current clips. Use <see cref="ClearClips"/> to empty them.</summary>
         public IReadOnlyDictionary<string, PlaybackClip> Clips => clips;
 
         private PlaybackClip? activeClip;
@@ -124,8 +107,8 @@ namespace ValveResourceFormat.Renderer
         private float currentBlendTime;
 
         /// <summary>
-        /// One named mask, scoping both the bones a clip may move and the flex controllers it may drive.
-        /// A mask registered for only one of the two leaves the other null, which reads as unrestricted.
+        /// One named mask over the bones a clip may move and the flex controllers it may drive. Null on
+        /// either side is unrestricted.
         /// </summary>
         private sealed class ClipMask
         {
@@ -135,18 +118,13 @@ namespace ValveResourceFormat.Renderer
 
         private readonly Dictionary<string, ClipMask> masks = [];
 
-        /// <summary>
-        /// Optional resolver from an animation or sequence name to the loaded <see cref="Animation"/>
-        /// instance, used to resolve an auto layer's target to the clip it plays.
-        /// </summary>
+        /// <summary>Optional resolver from an animation or sequence name to the loaded <see cref="Animation"/>.</summary>
         public Func<string, Animation?>? AnimationLookup { get; set; }
 
         private readonly Dictionary<string, PoseParameter> poseParameterDefinitions = [];
         private readonly Dictionary<string, float> poseParameterValues = [];
 
-        /// <summary>
-        /// Clears all clips and blend state so a later transition starts from a clean state.
-        /// </summary>
+        /// <summary>Clears all clips and blend state.</summary>
         public void ClearClips()
         {
             activeClip = null;
@@ -155,8 +133,8 @@ namespace ValveResourceFormat.Renderer
         }
 
         /// <summary>
-        /// Registers a pose parameter a 1D or 2D blend sequence can position its animations along by
-        /// name, defaulting its live value to zero clamped into range.
+        /// Registers a pose parameter a blend sequence positions its animations along, with its live
+        /// value at zero clamped into range.
         /// </summary>
         public void RegisterPoseParameter(PoseParameter parameter)
         {
@@ -165,10 +143,8 @@ namespace ValveResourceFormat.Renderer
         }
 
         /// <summary>
-        /// Sets the live value of a registered pose parameter, clamped to its range, and forces the next
-        /// <see cref="Update"/> to recompute the pose even if nothing else would otherwise change it (a
-        /// blend of single-frame poses has no other reason to tick). A name that was never registered is
-        /// stored unclamped, since its range is not known.
+        /// Sets the live value of a pose parameter, clamped to its range when it was registered, and
+        /// forces the next <see cref="Update"/> to recompute the pose.
         /// </summary>
         public void SetPoseParameter(string name, float value)
         {
@@ -207,8 +183,7 @@ namespace ValveResourceFormat.Renderer
         }
 
         /// <summary>
-        /// Registers a morph mask for per-flex-controller weighting. A controller missing from
-        /// <paramref name="controllerWeights"/> defaults to 1 (unrestricted).
+        /// Registers a morph mask for per-flex-controller weighting. A controller not named defaults to 1.
         /// </summary>
         /// <param name="name">The name of the morph mask.</param>
         /// <param name="controllerWeights">Dictionary mapping flex controller names to weight values.</param>
@@ -256,7 +231,6 @@ namespace ValveResourceFormat.Renderer
             {
                 if (clip.IsDriven)
                 {
-                    // Driven from its owner's cycle below rather than advanced on its own.
                     continue;
                 }
 
@@ -335,15 +309,11 @@ namespace ValveResourceFormat.Renderer
                 Debug.Assert(Math.Abs(sum - 1f) < 0.01f, $"Total blend weight should be approximately 1. Found: {sum}");
             }
 
-            // Runs last: earlier steps above zero out every clip but the active/previous pair, and a
-            // driven clip's weight must win over that.
             UpdateDrivenClips();
         }
 
         /// <summary>
-        /// Recomputes every driven clip's playback time and blend weight from its owner clip's current
-        /// cycle position, so <see cref="GetBlendedFrame"/> can blend it in like any other clip. Runs
-        /// owners before the clips they drive, which is what lets an auto layer target a blend.
+        /// Recomputes every driven clip's playback time and blend weight from its owner clip's cycle position.
         /// </summary>
         private void UpdateDrivenClips()
         {
@@ -360,9 +330,7 @@ namespace ValveResourceFormat.Renderer
         }
 
         /// <summary>
-        /// The live value driving one dimension of a blend (row for dimension 0, column for dimension 1
-        /// on a 2D blend): the value of the pose parameter <see cref="SequenceAnimation.PoseParameterNames"/>
-        /// names for that dimension, or zero when the dimension names none.
+        /// The pose parameter value driving one dimension of a blend, or zero when it names none.
         /// </summary>
         private float GetBlendPoseValue(SequenceAnimation sequence, int dimension)
         {
@@ -371,11 +339,8 @@ namespace ValveResourceFormat.Renderer
         }
 
         /// <summary>
-        /// Evaluates an auto layer's blend curve at a point in its owner's normalized cycle (0 at the
-        /// first frame, 1 at the last): a trapezoid rising from <see cref="AnimationAutoLayer.Start"/> to
-        /// <see cref="AnimationAutoLayer.Peak"/> and falling from <see cref="AnimationAutoLayer.Tail"/> to
-        /// <see cref="AnimationAutoLayer.End"/>, full weight throughout when start and end coincide (an
-        /// always-on "add" layer, as opposed to a ramped "blend" layer).
+        /// Evaluates an auto layer's blend curve at a point in its owner's cycle: a trapezoid rising from
+        /// Start to Peak and falling from Tail to End, at full weight throughout when Start equals End.
         /// </summary>
         private static float EvaluateAutoLayerWeight(AnimationAutoLayer layer, float cycle)
         {
@@ -403,12 +368,8 @@ namespace ValveResourceFormat.Renderer
         }
 
         /// <summary>
-        /// Adds a clip for each of <paramref name="sequence"/>'s auto layers whose target resolves
-        /// through <see cref="AnimationLookup"/>, keyed off <paramref name="ownerKey"/> so a warped
-        /// re-entry of the same sequence gets its own set of layer clips. A pose-parameter-driven layer
-        /// is skipped: its weight comes from the pose parameter <see cref="AnimationAutoLayer.LocalPose"/>
-        /// indexes, which is still a raw index into the sequence group rather than a resolved name, so
-        /// there is nothing to look the live value up by.
+        /// Adds a clip for each of <paramref name="sequence"/>'s auto layers whose target resolves through
+        /// <see cref="AnimationLookup"/>, keyed off <paramref name="ownerKey"/>. Pose driven layers are skipped.
         /// </summary>
         private void CreateAutoLayerClips(string ownerKey, PlaybackClip owner, SequenceAnimation sequence)
         {
@@ -424,13 +385,9 @@ namespace ValveResourceFormat.Renderer
                 var key = $"{ownerKey}$autolayer{i}";
                 var layerClip = DriveClip(key, referenced, new AutoLayerDriver(owner, layer));
 
-                // A layer is additive either because studiomdl marked it so, or because the sequence it
-                // targets is itself authored as a delta (its frames already are per-bone deltas).
                 layerClip.IsAdditive = layer.Subtract || referenced.IsAdditive;
                 layerClip.MaskName = referenced is SequenceAnimation referencedSequence ? referencedSequence.BoneMaskName : string.Empty;
 
-                // A layer can itself target a blend (Hoodwink's turn-blend layered onto its run
-                // sequences, issue #1334) rather than a single animation.
                 if (referenced is SequenceAnimation { IsBlend: true } layerBlend)
                 {
                     CreateBlendReferenceClips(key, layerClip, layerBlend);
@@ -440,11 +397,8 @@ namespace ValveResourceFormat.Renderer
 
         /// <summary>
         /// Adds a clip for each entry of <paramref name="sequence"/>'s blend fetch that resolves through
-        /// <see cref="AnimationLookup"/>, keyed off <paramref name="ownerKey"/> so a warped re-entry or a
-        /// layer instance of the same blend gets its own set of reference clips. Additivity and mask come
-        /// from the blend sequence itself, not from the individual referenced animations - a referenced
-        /// pose is typically an absolute frame with no flags of its own, and it is the blend's own
-        /// <c>m_bLegacyDelta</c>/weightlist that says how the composed result should be applied.
+        /// <see cref="AnimationLookup"/>, keyed off <paramref name="ownerKey"/>. Additivity and mask come
+        /// from the blend sequence itself, not from the referenced animations.
         /// </summary>
         private void CreateBlendReferenceClips(string ownerKey, PlaybackClip owner, SequenceAnimation sequence)
         {
@@ -467,10 +421,7 @@ namespace ValveResourceFormat.Renderer
         private Animation? Resolve(string name)
             => string.IsNullOrEmpty(name) ? null : AnimationLookup?.Invoke(name);
 
-        /// <summary>
-        /// Gets or adds the clip at <paramref name="key"/> and puts <paramref name="driver"/> in charge
-        /// of its time and weight.
-        /// </summary>
+        /// <summary>Gets or adds the clip at <paramref name="key"/>, driven by <paramref name="driver"/>.</summary>
         private PlaybackClip DriveClip(string key, Animation animation, ClipDriver driver)
         {
             if (!clips.TryGetValue(key, out var clip))
@@ -484,11 +435,7 @@ namespace ValveResourceFormat.Renderer
             return clip;
         }
 
-        /// <summary>
-        /// Whether the last frame produced was the result of blending several clips rather than sampling
-        /// one. An additive-only mix composes onto the bind pose, which is what makes that distinction
-        /// matter to <see cref="Update"/>.
-        /// </summary>
+        /// <summary>Whether the last frame produced was a blend of several clips rather than one sampled clip.</summary>
         internal bool IsUsingMixer { get; private set; }
 
         /// <summary>
@@ -519,8 +466,6 @@ namespace ValveResourceFormat.Renderer
                 return SampleFrame(activeClip);
             }
 
-            // Seeded with the bind pose so an all-additive mix (no non-additive clip contributing)
-            // composes its deltas onto a valid base.
             IsUsingMixer = true;
             BlendedFrame.Clear(Skeleton);
 
@@ -534,8 +479,7 @@ namespace ValveResourceFormat.Renderer
 
                 if (clip.Animation is SequenceAnimation { IsBlend: true })
                 {
-                    // A blend sequence carries no frame data of its own beyond its first reference; only
-                    // its per-reference driven clips are meant to be sampled.
+                    // A blend sequence carries no frame data of its own; its reference clips are sampled instead.
                     continue;
                 }
 
@@ -665,15 +609,12 @@ namespace ValveResourceFormat.Renderer
 
             if (activeClip == newClip)
             {
-                // Re-setting the same animation should not create a self-blend transition.
                 previousClip = null;
                 ZeroWeightsExcept(newClip);
                 newClip.Weight = 1f;
             }
             else if (transition != ClipTransition.Instant && activeClip != null)
             {
-                // Blend from the previous clip into the new one, either over time or under the caller's
-                // own weights; every other clip drops out immediately.
                 previousClip = activeClip;
                 previousClip.Weight = 1f;
 
@@ -700,10 +641,7 @@ namespace ValveResourceFormat.Renderer
             activeClip = newClip;
         }
 
-        /// <summary>
-        /// Drops every clip but the given ones to zero weight. Every transition ends by naming the one
-        /// or two clips that still carry weight.
-        /// </summary>
+        /// <summary>Drops every clip but the given ones to zero weight.</summary>
         private void ZeroWeightsExcept(PlaybackClip keep, PlaybackClip? alsoKeep = null)
         {
             foreach (var clip in clips.Values)

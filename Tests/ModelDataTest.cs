@@ -14,7 +14,7 @@ namespace Tests
         private static readonly long[] TruckMasks = [1, 2, 4];
         private static readonly float[] TruckSwitches = [0f, 35f, 50f];
 
-        // Truck with a LODGroupAll mesh (mask 7, present in every level) plus a second LOD0-only mesh.
+        // A LODGroupAll mesh (mask 7) plus a second LOD0-only mesh.
         private static readonly long[] AllGroupMasks = [1, 2, 4, 1, 7];
         private static readonly float[] AllGroupSwitches = [0f, 35f, 50f];
 
@@ -22,7 +22,7 @@ namespace Tests
         private static readonly long[] AlchemistMasks = [0x01, 0xFE];
         private static readonly float[] AlchemistSwitches = [0f, 1f, 1f, 1f, 1f, 1f, 1f, 1f];
 
-        // No mesh in LOD0, so the lowest populated level is 1.
+        // No mesh in LOD0.
         private static readonly long[] EmptyLod0Masks = [2, 4];
 
         private static readonly int[] TruckLevels = [0, 1, 2];
@@ -60,7 +60,7 @@ namespace Tests
 
             using (Assert.Multiple())
             {
-                // Metric grows as the model gets smaller on screen, so higher metric => higher (lower-detail) level.
+                // The metric grows as the model gets smaller on screen.
                 await Assert.That(lod.SelectLevel(0f)).IsEqualTo(0);
                 await Assert.That(lod.SelectLevel(34f)).IsEqualTo(0);
                 await Assert.That(lod.SelectLevel(35f)).IsEqualTo(1);
@@ -80,18 +80,15 @@ namespace Tests
                 await Assert.That(new ModelLodInfo(TestFixtures.ModelLodData([], [])).HasDistinctLevels).IsFalse();
                 await Assert.That(new ModelLodInfo(TestFixtures.ModelLodData([0x01], [])).HasDistinctLevels).IsFalse();
 
-                // A mesh present in every level (mask 0xFF, no switch distances) is "always shown", not a
-                // LOD. This is the chess king: m_refLODGroupMasks [255], no switch distances.
+                // A mesh present in every level with no switch distances is always shown, not a LOD.
                 await Assert.That(new ModelLodInfo(TestFixtures.ModelLodData([0xFF], [])).HasDistinctLevels).IsFalse();
-                // Multiple meshes that share the same all-levels mask also render identically everywhere.
                 await Assert.That(new ModelLodInfo(TestFixtures.ModelLodData([0x03, 0x03], [])).HasDistinctLevels).IsFalse();
 
                 // Distinct geometry per level: real LODs.
                 await Assert.That(new ModelLodInfo(TestFixtures.ModelLodData(TruckMasks, TruckSwitches)).HasDistinctLevels).IsTrue();
                 await Assert.That(new ModelLodInfo(TestFixtures.ModelLodData(AlchemistMasks, AlchemistSwitches)).HasDistinctLevels).IsTrue();
 
-                // Empty LOD0 with meshes only in LOD1 (ctm_sas): the empty level is a distinct state, so the
-                // model has a real LOD. m_refLODGroupMasks [2,2,2,2,2], switch distances [0, 2].
+                // An empty level is a distinct state, so meshes only in LOD1 are a real LOD.
                 await Assert.That(new ModelLodInfo(TestFixtures.ModelLodData([2, 2, 2, 2, 2], [0f, 2f])).HasDistinctLevels).IsTrue();
             }
         }
@@ -104,7 +101,7 @@ namespace Tests
 
             using (Assert.Multiple())
             {
-                // Each level is active from its own switch value up to the next level's. The top one is open-ended.
+                // Each level runs from its own switch value up to the next level's, the top one open-ended.
                 await Assert.That(lod.GetMetricRange(0)).IsEqualTo((0f, (float?)35f));
                 await Assert.That(lod.GetMetricRange(1)).IsEqualTo((35f, (float?)50f));
                 await Assert.That(lod.GetMetricRange(2)).IsEqualTo((50f, (float?)null));
@@ -143,14 +140,14 @@ namespace Tests
 
             using (Assert.Multiple())
             {
-                // Only the mask-7 mesh spans every level, so only it is a LODGroupAll member.
+                // Only the mask-7 mesh spans every level.
                 await Assert.That(lod.IsMeshInAllLevels(4)).IsTrue();
                 await Assert.That(lod.IsMeshInAllLevels(0)).IsFalse();
                 await Assert.That(lod.IsMeshInAllLevels(1)).IsFalse();
                 await Assert.That(lod.IsMeshInAllLevels(2)).IsFalse();
                 await Assert.That(lod.IsMeshInAllLevels(3)).IsFalse();
 
-                // A single populated level is not treated as "all levels", so nothing is pulled out.
+                // A single populated level is not treated as "all levels".
                 await Assert.That(new ModelLodInfo(TestFixtures.ModelLodData([1, 1], [0f])).IsMeshInAllLevels(0)).IsFalse();
 
             }
@@ -189,8 +186,7 @@ namespace Tests
             }
         }
 
-        // The lod_test fixture is a synthetic 5-LOD model with embedded meshes (no external
-        // references), m_refLODGroupMasks [1,2,4,8,16] and m_lodGroupSwitchDistances [0,5,10,15,20].
+        // lod_test is a synthetic 5-LOD model with embedded meshes and one mesh per level.
         [Test]
         public async Task FixtureLodInfoMatchesData()
         {
@@ -210,9 +206,8 @@ namespace Tests
         }
 
         /// <summary>
-        /// Mesh group names encode body groups: a name of the form <c>group_@choice</c> declares one
-        /// choice of a body group, and newer models bury the authored choice name behind a marker. A name
-        /// without the separator belongs to no body group at all.
+        /// Mesh group names encode body groups: <c>group_@choice</c> declares one choice, with newer
+        /// models burying the authored name behind a marker. A name without the separator declares none.
         /// </summary>
         [Test]
         public async Task MeshGroupNamesDecodeIntoBodyGroups()
@@ -232,8 +227,7 @@ namespace Tests
                     "necro_gear1_@2_#&necro_archer_gear3",
                 ], CollectionOrdering.Matching);
 
-                // A group holding one choice is compiled without the choice index, so "default" is a
-                // real body group whose one choice is named after the mesh it shows.
+                // A group holding one choice is compiled without the choice index.
                 await Assert.That(groups.BodyGroups).Count().IsEqualTo(2);
                 await Assert.That(lone.Name).IsEqualTo("default");
                 await Assert.That(lone.Choices.Select(choice => choice.Name))
@@ -246,7 +240,7 @@ namespace Tests
                 await Assert.That(gear.Choices.Select(choice => choice.Name))
                     .IsEquivalentTo(["necro_archer_gear1", "necro_archer_gear2", "necro_archer_gear3"], CollectionOrdering.Matching);
 
-                // A choice's index is the bit it occupies in a mesh's group mask, so it indexes Names.
+                // A choice's index is the bit it occupies in a mesh's group mask.
                 await Assert.That(gear.Choices.Select(choice => choice.GroupIndex))
                     .IsEquivalentTo([1, 2, 3], CollectionOrdering.Matching);
                 await Assert.That(gear.Choices.Select(choice => groups.Names[choice.GroupIndex]))
@@ -256,7 +250,7 @@ namespace Tests
                 await Assert.That(groups.Defaults)
                     .IsEquivalentTo(["default_#&necro_archer_model", "necro_gear1_@0_#&necro_archer_gear1"], CollectionOrdering.Matching);
 
-                // A model that declares no groups draws everything, whatever is asked for.
+                // A model that declares no groups draws everything.
                 using var noGroups = TestFixtures.Load("box_creature_ik_model.vmdl_c");
                 var empty = ((Model)noGroups.DataBlock!).MeshGroups;
 
@@ -267,8 +261,7 @@ namespace Tests
         }
 
         /// <summary>
-        /// Every mesh owns a contiguous slice of one bone remap table, so a mesh's slice starts where the
-        /// previous one ended and the last runs to the end of the table.
+        /// Every mesh owns a contiguous slice of one bone remap table, the last running to its end.
         /// </summary>
         [Test]
         public async Task BoneRemapSlicesTileTheTable()
@@ -298,7 +291,6 @@ namespace Tests
                 // Every entry addresses a real skeleton bone.
                 await Assert.That(remap.Table.ToArray()).All(index => index >= 0 && index < boneCount);
 
-                // GetRemapTable is the same slice, and a mesh with no slice has none.
                 await Assert.That(model.GetRemapTable(1)).IsEquivalentTo(remap.GetMeshTable(1)!, CollectionOrdering.Matching);
                 await Assert.That(model.GetRemapTable(remap.MeshCount)).IsNull();
             }
@@ -306,8 +298,7 @@ namespace Tests
 
         /// <summary>
         /// A mesh's own index addresses the model's LOD mask table, which covers embedded and referenced
-        /// meshes alike, so an embedded mesh is not necessarily the nth entry of it. Reading the mask by
-        /// position instead of by index is the bug this pins.
+        /// meshes alike, so an embedded mesh is not necessarily the nth entry of it.
         /// </summary>
         [Test]
         public async Task MeshesCarryTheMaskTheirOwnIndexAddresses()
@@ -324,17 +315,14 @@ namespace Tests
 
                 foreach (var mesh in meshes)
                 {
-                    // The mask on the mesh is the one its index addresses, not the one at its position.
                     await Assert.That(mesh.LodMask).IsEqualTo(lod.GetMeshMask(mesh.MeshIndex));
                     await Assert.That(mesh.Mesh).IsNotNull();
                     await Assert.That(mesh.Name).IsNotEmpty();
                 }
 
-                // This fixture puts one mesh in each of its five levels.
                 await Assert.That(meshes.Select(mesh => mesh.LodMask).Order())
                     .IsEquivalentTo([1L, 2L, 4L, 8L, 16L], CollectionOrdering.Matching);
 
-                // Filtering by level agrees with the mask each mesh carries.
                 for (var level = 0; level < 5; level++)
                 {
                     var atLevel = model.GetEmbeddedMeshesForLod(level).Select(mesh => mesh.MeshIndex).ToList();
@@ -346,8 +334,8 @@ namespace Tests
         }
 
         /// <summary>
-        /// A model whose meshes live in their own vmesh files reports them as references instead, keyed by
-        /// the same mesh index, so the two kinds address the model's tables the same way.
+        /// A model whose meshes live in their own vmesh files reports them as references, keyed by the
+        /// same mesh index as an embedded mesh.
         /// </summary>
         [Test]
         public async Task ReferencedMeshesUseTheSameIndexSpaceAsEmbeddedOnes()
@@ -362,7 +350,6 @@ namespace Tests
             {
                 await Assert.That(references).IsNotEmpty();
 
-                // Every reference names a vmesh and carries the mask its own index addresses.
                 foreach (var reference in references)
                 {
                     await Assert.That(reference.MeshName).EndsWith(".vmesh");

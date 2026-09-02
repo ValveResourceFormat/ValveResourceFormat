@@ -4,8 +4,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
 {
     /// <summary>
     /// Decides which LoD level of a model is drawn: the level forced by the viewer, or the one the
-    /// model's own switch values pick for a screen-size metric. Holds no scene or GL state, so the
-    /// decision can be exercised on its own.
+    /// model's own switch values pick for a screen-size metric.
     /// </summary>
     internal sealed class ModelLodSelector
     {
@@ -18,10 +17,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         /// <summary>Whether the level is chosen automatically by distance rather than forced.</summary>
         public bool IsAuto => overrideLevel == null;
 
-        /// <summary>
-        /// Whether switching level changes what is drawn at all, which is what decides whether a
-        /// selector is worth showing.
-        /// </summary>
+        /// <summary>Whether switching level changes what is drawn at all.</summary>
         public bool HasDistinctLevels => lodInfo.HasDistinctLevels;
 
         /// <summary>The levels the model populates.</summary>
@@ -52,7 +48,6 @@ namespace ValveResourceFormat.Renderer.SceneNodes
 
             overrideLevel = level;
 
-            // A forced level stays put; Auto restarts at the lowest populated level and Update takes over.
             var target = level ?? lodInfo.LowestLevel;
 
             return Select(target);
@@ -73,9 +68,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             return Select(lodInfo.SelectLevel(metric));
         }
 
-        /// <summary>
-        /// Whether the mesh at <paramref name="meshIndex"/> is drawn at the active level.
-        /// </summary>
+        /// <summary>Whether the mesh at <paramref name="meshIndex"/> is drawn at the active level.</summary>
         public bool Contains(int meshIndex) => lodInfo.IsMeshInLevel(meshIndex, ActiveLevel);
 
         private bool Select(int level)
