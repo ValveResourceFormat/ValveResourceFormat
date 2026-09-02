@@ -737,7 +737,7 @@ public sealed class MapExtract
                 drawCallCount++;
 
                 var tint = drawCallTint?.Invoke(drawCallIndex) ?? GetDrawCallTint(drawCall);
-                var material = drawCall.GetStringProperty("m_material") ?? drawCall.GetStringProperty("m_pMaterial") ?? string.Empty;
+                var material = Mesh.GetMaterialName(drawCall) ?? string.Empty;
                 var group = new HammerMeshGroup(material, tint);
 
                 if (!builders.TryGetValue(group, out var builder))
@@ -870,7 +870,7 @@ public sealed class MapExtract
                     continue;
                 }
 
-                var material = drawCall.GetStringProperty("m_material") ?? drawCall.GetStringProperty("m_pMaterial") ?? string.Empty;
+                var material = Mesh.GetMaterialName(drawCall) ?? string.Empty;
 
                 var vertexData = (DmeVertexData)shape.BaseStates[0];
                 var positions = HammerMeshBuilder.GetElementArraySafe<Vector3>(vertexData, "position$0");

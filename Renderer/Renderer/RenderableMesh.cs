@@ -99,7 +99,7 @@ namespace ValveResourceFormat.Renderer
                 }
             }
 
-            BoneWeightCount = mesh.Data.GetSubCollection("m_skeleton")?.GetInt32Property("m_nBoneWeightCount") ?? 0;
+            BoneWeightCount = mesh.BoneWeightCount;
             Skinning = GetSkinning(vbib, BoneWeightCount);
 
             mesh.GetBounds();
@@ -274,15 +274,16 @@ namespace ValveResourceFormat.Renderer
 
                 foreach (var objectDrawCall in objectDrawCalls)
                 {
-                    var materialName = objectDrawCall.GetStringProperty("m_material") ?? objectDrawCall.GetStringProperty("m_pMaterial");
-                    if (materialReplacementTable?.TryGetValue(materialName, out var replacementName) is true)
-                    {
-                        materialName = replacementName;
-                    }
+                    var materialName = Mesh.GetMaterialName(objectDrawCall);
 
                     if (materialName == null && Mesh.IsOccluder(objectDrawCall))
                     {
                         continue;
+                    }
+
+                    if (materialName != null && materialReplacementTable?.TryGetValue(materialName, out var replacementName) is true)
+                    {
+                        materialName = replacementName;
                     }
 
                     var shaderArguments = new Dictionary<string, byte>(scene.RenderAttributes);
