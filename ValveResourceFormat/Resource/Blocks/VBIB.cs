@@ -29,6 +29,19 @@ namespace ValveResourceFormat.Blocks
         /// </summary>
         public List<OnDiskBufferData> IndexBuffers { get; }
 
+        /// <summary>
+        /// Gets the tools-only vertex buffers (e.g. vertex paint), absent from most meshes.
+        /// </summary>
+        public IReadOnlyList<OnDiskBufferData> ToolsBuffers => toolsBuffers;
+
+        private readonly List<OnDiskBufferData> toolsBuffers;
+
+        /// <summary>
+        /// Adds the tools buffers a model's separate TBUF block carries for this mesh. A mesh reached
+        /// through its model gets them from there rather than from its own block.
+        /// </summary>
+        internal void AddToolsBuffers(IEnumerable<OnDiskBufferData> buffers) => toolsBuffers.AddRange(buffers);
+
 #pragma warning disable CA1051 // Do not declare visible instance fields
         /// <summary>
         /// Represents buffer data stored on disk.
@@ -129,6 +142,7 @@ namespace ValveResourceFormat.Blocks
         {
             VertexBuffers = [];
             IndexBuffers = [];
+            toolsBuffers = [];
         }
 
         /// <summary>
@@ -150,6 +164,8 @@ namespace ValveResourceFormat.Blocks
                 var indexBuffer = BufferDataFromDATA(ib, isVertex: false);
                 IndexBuffers.Add(indexBuffer);
             }
+
+            var compiledToolsBuffers = data.GetArray("m_toolsBuffers") ?? [];
         }
 
         /// <inheritdoc/>

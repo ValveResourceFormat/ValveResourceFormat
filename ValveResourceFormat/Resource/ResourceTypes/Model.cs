@@ -39,6 +39,29 @@ namespace ValveResourceFormat.ResourceTypes
             }
         }
 
+
+        /// <summary>
+        /// Gets the bone constraints the model was authored with, in compiled order. These are read by
+        /// both the decompiler, which writes them back as constraint nodes, and the renderer, which
+        /// simulates the ones it supports.
+        /// </summary>
+        public IReadOnlyList<BoneConstraint> BoneConstraints => cachedBoneConstraints ??= BoneConstraint.ReadList(KeyValues);
+
+        /// <summary>
+        /// Gets the compiled data of every bone constraint of one class, in compiled order.
+        /// </summary>
+        /// <param name="className">The compiled constraint class, e.g. <c>CTiltTwistConstraint</c>.</param>
+        public IEnumerable<KVObject> GetBoneConstraints(string className)
+        {
+            foreach (var constraint in BoneConstraints)
+            {
+                if (constraint.ClassName == className)
+                {
+                    yield return constraint.Data;
+                }
+            }
+        }
+
         /// <summary>
         /// Gets the skeleton for this model.
         /// </summary>
@@ -67,8 +90,11 @@ namespace ValveResourceFormat.ResourceTypes
         private KVObject? cachedKeyValues;
         private Skeleton? cachedSkeleton;
         private FlexController[]? cachedFlexControllers;
-        private List<(Mesh Mesh, int MeshIndex, string Name)>? cachedEmbeddedMeshes;
+        private List<ModelMesh>? cachedEmbeddedMeshes;
         private ModelLodInfo? cachedLodInfo;
+        private BoneConstraint[]? cachedBoneConstraints;
+        private BoneRemapTable? cachedBoneRemapTable;
+        private ModelMeshGroups? cachedMeshGroups;
 
         /// <summary>
         /// Gets the hitbox sets for this model.
@@ -141,48 +167,33 @@ namespace ValveResourceFormat.ResourceTypes
         /// Get the bone remap table of a specific mesh.
         /// This is used to remap bone indices in the mesh <see cref="VBIB"/> to bone indices of the model skeleton.
         /// </summary>
-        public int[]? GetRemapTable(int meshIndex)
-        {
-            var remappingTableStarts = Data.GetIntegerArray("m_remappingTableStarts");
-
-            if (remappingTableStarts.Length <= meshIndex)
-            {
-                return null;
-            }
-
-            var remappingTable = Data.GetIntegerArray("m_remappingTable");
-
-            var remappingTableStart = (int)remappingTableStarts[meshIndex];
-
-            var nextMeshIndex = meshIndex + 1;
-            var nextMeshStart = remappingTableStarts.Length > nextMeshIndex
-                ? remappingTableStarts[nextMeshIndex]
-                : remappingTable.Length;
-
-            var meshBoneCount = nextMeshStart - remappingTableStart;
-
-            var meshRemappingTable = new int[meshBoneCount];
-            for (var i = 0; i < meshBoneCount; i++)
-            {
-                meshRemappingTable[i] = (int)remappingTable[remappingTableStart + i];
-            }
-
-            return meshRemappingTable;
-        }
+        public int[]? GetRemapTable(int meshIndex) => BoneRemapTable.GetMeshTable(meshIndex);
 
         /// <summary>
-        /// Gets referenced mesh names and their LoD masks.
+        /// Gets the model's bone remap table, which maps the bone indices a mesh's <c>BLENDINDICES</c>
+        /// carry to bone indices of the model skeleton.
         /// </summary>
-        /// <returns>Enumerable of mesh index, mesh name, and LoD mask tuples.</returns>
-        public IEnumerable<(int MeshIndex, string MeshName, long LoDMask)> GetReferenceMeshNamesAndLoD()
+        public BoneRemapTable BoneRemapTable => cachedBoneRemapTable ??= new BoneRemapTable(Data);
+
+        /// <summary>
+        /// Gets the model's mesh groups, and the body groups their names encode.
+        /// </summary>
+        public ModelMeshGroups MeshGroups => cachedMeshGroups ??= new ModelMeshGroups(Data);
+
+        /// <summary>
+        /// Gets the model's references to meshes that live in their own vmesh. A slot the model fills with
+        /// an embedded mesh instead carries no reference and is left out.
+        /// </summary>
+        public IEnumerable<ModelMeshReference> GetReferenceMeshNamesAndLoD()
         {
-            var refLODGroupMasks = Data.GetIntegerArray("m_refLODGroupMasks");
             var refMeshes = Data.GetArray<string>("m_refMeshes");
+
             if (refMeshes == null)
             {
                 return [];
             }
-            var result = new List<(int MeshIndex, string MeshName, long LoDMask)>(refMeshes.Length);
+
+            var result = new List<ModelMeshReference>(refMeshes.Length);
 
             for (var meshIndex = 0; meshIndex < refMeshes.Length; meshIndex++)
             {
@@ -190,8 +201,7 @@ namespace ValveResourceFormat.ResourceTypes
 
                 if (!string.IsNullOrEmpty(refMesh))
                 {
-                    var lodMask = meshIndex < refLODGroupMasks.Length ? refLODGroupMasks[meshIndex] : 0L;
-                    result.Add((meshIndex, refMesh, lodMask));
+                    result.Add(new ModelMeshReference(meshIndex, refMesh, LodInfo.GetMeshMask(meshIndex)));
                 }
             }
 
@@ -199,37 +209,31 @@ namespace ValveResourceFormat.ResourceTypes
         }
 
         /// <summary>
-        /// Gets embedded meshes with their LoD masks.
-        /// </summary>
-        /// <returns>Enumerable of mesh, mesh index, name, and LoD mask tuples.</returns>
-        public IEnumerable<(Mesh Mesh, int MeshIndex, string Name, long LoDMask)> GetEmbeddedMeshesAndLoD()
-            => GetEmbeddedMeshes().Zip(Data.GetIntegerArray("m_refLODGroupMasks"), (l, r) => (l.Mesh, l.MeshIndex, l.Name, r));
-
-        /// <summary>
         /// Gets this model's level-of-detail structure (which meshes belong to which LOD level and the
         /// per-level switch values). Built once and cached.
         /// </summary>
-        public ModelLodInfo LodInfo => cachedLodInfo ??= new ModelLodInfo(
-            Data.GetIntegerArray("m_refLODGroupMasks"),
-            Data.GetFloatArray("m_lodGroupSwitchDistances"));
+        public ModelLodInfo LodInfo => cachedLodInfo ??= new ModelLodInfo(Data);
 
         /// <summary>
         /// Gets the embedded meshes present in the given LOD <paramref name="level"/>.
         /// </summary>
-        public IEnumerable<(Mesh Mesh, int MeshIndex, string Name, long LoDMask)> GetEmbeddedMeshesForLod(int level)
-            => GetEmbeddedMeshesAndLoD().Where(m => LodInfo.IsMeshInLevel(m.MeshIndex, level));
+        public IEnumerable<ModelMesh> GetEmbeddedMeshesForLod(int level)
+            => GetEmbeddedMeshes().Where(m => LodInfo.IsMeshInLevel(m.MeshIndex, level));
 
         /// <summary>
         /// Gets the referenced mesh names present in the given LOD <paramref name="level"/>.
         /// </summary>
-        public IEnumerable<(int MeshIndex, string MeshName, long LoDMask)> GetReferenceMeshNamesForLod(int level)
+        public IEnumerable<ModelMeshReference> GetReferenceMeshNamesForLod(int level)
             => GetReferenceMeshNamesAndLoD().Where(m => LodInfo.IsMeshInLevel(m.MeshIndex, level));
 
         /// <summary>
-        /// Gets embedded meshes from the model.
+        /// Gets the meshes embedded in the model itself.
         /// </summary>
-        /// <returns>Enumerable of mesh, mesh index, and name tuples.</returns>
-        public IEnumerable<(Mesh Mesh, int MeshIndex, string Name)> GetEmbeddedMeshes()
+        /// <remarks>
+        /// A mesh's own index addresses the model's mask tables, which cover embedded and referenced
+        /// meshes alike, so an embedded mesh is not necessarily the nth entry of them.
+        /// </remarks>
+        public IEnumerable<ModelMesh> GetEmbeddedMeshes()
         {
             if (cachedEmbeddedMeshes != null)
             {
@@ -245,7 +249,7 @@ namespace ValveResourceFormat.ResourceTypes
                 return cachedEmbeddedMeshes;
             }
 
-            var meshes = new List<(Mesh Mesh, int MeshIndex, string Name)>(embeddedMeshes.Count);
+            var meshes = new List<ModelMesh>(embeddedMeshes.Count);
 
             foreach (var embeddedMesh in embeddedMeshes)
             {
@@ -273,14 +277,15 @@ namespace ValveResourceFormat.ResourceTypes
                     mesh.MorphData = Resource.GetBlockByIndex(morphBlockIndex) as Morph;
                 }
 
-                meshes.Add((mesh, meshIndex, name));
+
+                meshes.Add(new ModelMesh(mesh, meshIndex, name, LodInfo.GetMeshMask(meshIndex)));
             }
 
             cachedEmbeddedMeshes = meshes;
             return cachedEmbeddedMeshes;
         }
 
-        private (Mesh Mesh, int MeshIndex, string Name) ParseEmbeddedMesh2(KVObject embeddedMesh)
+        private ModelMesh ParseEmbeddedMesh2(KVObject embeddedMesh)
         {
             var name = embeddedMesh.GetStringProperty("m_Name");
             var meshIndex = (int)embeddedMesh.GetIntegerProperty("m_nMeshIndex");
@@ -300,7 +305,7 @@ namespace ValveResourceFormat.ResourceTypes
                 mesh.MorphData = Resource.GetBlockByIndex(morphBlockIndex) as Morph;
             }
 
-            return (mesh, meshIndex, name);
+            return new ModelMesh(mesh, meshIndex, name, LodInfo.GetMeshMask(meshIndex));
         }
 
         /// <summary>
@@ -554,13 +559,6 @@ namespace ValveResourceFormat.ResourceTypes
         }
 
         /// <summary>
-        /// Gets the mesh groups defined in the model.
-        /// </summary>
-        /// <returns>Enumerable of mesh group names.</returns>
-        public IEnumerable<string> GetMeshGroups()
-            => Data.GetArray<string>("m_meshGroups");
-
-        /// <summary>
         /// Gets the material groups defined in the model.
         /// </summary>
         /// <returns>Enumerable of material group names and their materials.</returns>
@@ -569,15 +567,7 @@ namespace ValveResourceFormat.ResourceTypes
                 .Select(group => (group.GetStringProperty("m_name"), group.GetArray<string>("m_materials")));
 
         /// <summary>
-        /// Gets the default mesh groups based on the default mesh group mask.
         /// </summary>
-        /// <returns>Enumerable of default mesh group names.</returns>
-        public IEnumerable<string> GetDefaultMeshGroups()
-        {
-            var defaultGroupMask = Data.GetUnsignedIntegerProperty("m_nDefaultMeshGroupMask");
-
-            return GetMeshGroups().Where((group, index) => index < 64 && ((1UL << index) & defaultGroupMask) != 0);
-        }
 
         KVObject? ParseKeyValuesText()
         {

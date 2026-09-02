@@ -480,7 +480,7 @@ public partial class GltfModelExporter
     // Copied from ValveResourceFormat.Renderer.SceneAggregate.CreateFragments
     private bool AggregateCreateFragments(ModelRoot exportedModel, Scene scene, VModel model, KVObject aggregateSceneObject, string name)
     {
-        var embeddedMeshes = model.GetEmbeddedMeshesAndLoD().ToList();
+        var embeddedMeshes = model.GetEmbeddedMeshes().ToList();
         VMesh vmesh;
 
         // TODO: Perhaps use <see cref="ModelSceneNode.LoadMeshes" />
@@ -570,7 +570,7 @@ public partial class GltfModelExporter
 
             var lodGroupMask = fragmentData.GetUInt32Property("m_nLODGroupMask");
             var setupIndex = fragmentData.GetInt32Property("m_nLODSetupIndex", -1);
-            if (!ResourceTypes.ModelLodInfo.IsInLowestSetLevel(lodGroupMask, combinedLodMaskPerSetup[setupIndex]))
+            if (!ResourceTypes.ModelData.ModelLodInfo.IsInLowestSetLevel(lodGroupMask, combinedLodMaskPerSetup[setupIndex]))
             {
                 continue;
             }

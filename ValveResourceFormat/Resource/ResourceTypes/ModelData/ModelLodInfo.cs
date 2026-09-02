@@ -1,6 +1,8 @@
 using System.Linq;
+using ValveKeyValue;
+using ValveResourceFormat.Serialization.KeyValues;
 
-namespace ValveResourceFormat.ResourceTypes
+namespace ValveResourceFormat.ResourceTypes.ModelData
 {
     /// <summary>
     /// Describes a model's level-of-detail (LOD) structure: which meshes belong to which LOD level
@@ -50,16 +52,17 @@ namespace ValveResourceFormat.ResourceTypes
             .Any(level => meshLodMasks.Any(mask => IsInLevel(mask, 0) != IsInLevel(mask, level)));
 
         /// <summary>
-        /// Initializes LOD info from a model's mesh LOD masks (<c>m_refLODGroupMasks</c>) and switch
-        /// distances (<c>m_lodGroupSwitchDistances</c>).
+        /// Initializes LOD info from a compiled model's data block.
         /// </summary>
-        public ModelLodInfo(long[] meshLodMasks, float[] switchDistances)
+        public ModelLodInfo(KVObject data)
         {
-            this.meshLodMasks = meshLodMasks ?? [];
-            SwitchDistances = switchDistances ?? [];
+            ArgumentNullException.ThrowIfNull(data);
+
+            meshLodMasks = data.GetIntegerArray("m_refLODGroupMasks") ?? [];
+            SwitchDistances = data.GetFloatArray("m_lodGroupSwitchDistances") ?? [];
 
             var combined = 0L;
-            foreach (var mask in this.meshLodMasks)
+            foreach (var mask in meshLodMasks)
             {
                 combined |= mask;
             }
@@ -82,6 +85,14 @@ namespace ValveResourceFormat.ResourceTypes
             var fromMask = combined == 0 ? 0 : 64 - BitOperations.LeadingZeroCount((ulong)combined);
             LevelCount = Math.Max(fromMask, SwitchDistances.Count);
         }
+
+        /// <summary>
+        /// Gets the LOD mask of a mesh (bit N set =&gt; the mesh is in level N), zero when the mesh has
+        /// no entry. A mesh with no entry is not in "no level": <see cref="IsMeshInLevel"/> treats it as
+        /// present everywhere, since the compiler only writes masks for LOD-managed meshes.
+        /// </summary>
+        public long GetMeshMask(int meshIndex)
+            => meshIndex >= 0 && meshIndex < meshLodMasks.Length ? meshLodMasks[meshIndex] : 0L;
 
         /// <summary>
         /// Determines whether the mesh at <paramref name="meshIndex"/> is present in LOD level
@@ -153,7 +164,7 @@ namespace ValveResourceFormat.ResourceTypes
         /// Determines whether <paramref name="lodGroupMask"/> includes the lowest set level of
         /// <paramref name="combinedMask"/>. A mask of 0 is not LoD-managed and is always present.
         /// </summary>
-        public static bool IsInLowestSetLevel(uint lodGroupMask, uint combinedMask)
+        public static bool IsInLowestSetLevel(long lodGroupMask, long combinedMask)
             => lodGroupMask == 0 || IsInLevel(lodGroupMask, LowestSetLevel(combinedMask));
     }
 }

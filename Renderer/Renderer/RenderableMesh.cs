@@ -86,17 +86,8 @@ namespace ValveResourceFormat.Renderer
 
             if (model != null)
             {
-                var remapTableStarts = model.Data.GetIntegerArray("m_remappingTableStarts");
-                if (remapTableStarts.Length > meshIndex)
-                {
-                    MeshBoneOffset = (int)remapTableStarts[meshIndex];
-                }
-
-                var modelSpaceBoneIndices = model.GetRemapTable(meshIndex);
-                if (modelSpaceBoneIndices != null)
-                {
-                    MeshBoneCount = modelSpaceBoneIndices.Length;
-                }
+                MeshBoneOffset = model.BoneRemapTable.GetMeshStart(meshIndex);
+                MeshBoneCount = model.BoneRemapTable.GetMeshBoneCount(meshIndex);
             }
 
             BoneWeightCount = mesh.BoneWeightCount;
