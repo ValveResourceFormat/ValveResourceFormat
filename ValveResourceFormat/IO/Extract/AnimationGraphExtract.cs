@@ -364,7 +364,10 @@ public class AnimationGraphExtract : IDisposable
         "CFollowAttachment", "CFollowPath", "CFootAdjustment", "CFootLock", "CFootStepTrigger", "CHitReact",
         "CInputStream", "CJiggleBone", "CLookAt", "CMotionMatching", "CMover", "CPathHelper", "CRagdoll",
         "CRoot", "CSelector", "CSequence", "CSetFacing", "CSingleFrame", "CSkeletalInput",
-        "CSlowDownonSlopes", "CSolveIKChain", "CSpeedScale", "CStateMachine", "CStopAtGoal",
+        "CSlowDownOnSlopes", "CSolveIKChain", "CSpeedScale", "CStateMachine", "CStopAtGoal",
+        "CComment", "CGroundIKSolve", "CStrideLengthAdjuster",
+        "CGroup", "CGroupInput", "CGroupOutput", "CJumpHelper", "CStanceOverride",
+        "CStanceScale", "CSubGraph", "CTargetSelector",
         "CSubtract", "CTurnHelper", "CTwoBoneIK", "CWayPointHelper", "CZeroPose", "CFootPinning",
         "CAimCamera", "CTargetWarp", "COrientationWarp", "CPairedSequence", "CFollowTarget"
     };
