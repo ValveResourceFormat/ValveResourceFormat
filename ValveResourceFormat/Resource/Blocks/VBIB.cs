@@ -166,6 +166,17 @@ namespace ValveResourceFormat.Blocks
             }
 
             var compiledToolsBuffers = data.GetArray("m_toolsBuffers") ?? [];
+            foreach (var tb in compiledToolsBuffers)
+            {
+                // Shipped models keep the tools buffer's layout but strip its data, leaving no block to read.
+                if (!tb.ContainsKey("m_pData") && tb.GetInt32Property("m_nBlockIndex") < 0)
+                {
+                    continue;
+                }
+
+                var toolsBuffer = BufferDataFromDATA(tb, isVertex: true);
+                toolsBuffers.Add(toolsBuffer);
+            }
         }
 
         /// <inheritdoc/>
@@ -786,7 +797,13 @@ namespace ValveResourceFormat.Blocks
             {
                 for (var i = 0; i < indices.Length; i++)
                 {
-                    indices[i] = checked((ushort)remapTable[indices[i]]);
+                    // A mesh with no bones (m_nBoneWeightCount 0) still has a BLENDINDICES stream
+                    // to satisfy the vertex format, but its indices carry no real bone reference,
+                    // and remapTable is empty. A per-joint-format padding slot (e.g. R16G16_SINT's
+                    // duplicated second joint on a rigid vertex) can likewise hold a value with no
+                    // corresponding entry. Neither case has a meaningful bone to remap to; clamp
+                    // to joint 0 rather than indexing out of range.
+                    indices[i] = indices[i] < remapTable.Length ? checked((ushort)remapTable[indices[i]]) : (ushort)0;
                 }
             }
 
