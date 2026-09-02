@@ -39,6 +39,37 @@ namespace ValveResourceFormat.ResourceTypes
             }
         }
 
+        /// <summary>
+        /// Gets the NM skeletons this model can be animated on, by resource path, in declaration order.
+        /// Empty for a model that declares none.
+        /// </summary>
+        public string[] NmSkeletonRefs => Data.GetArray<string>("m_vecNmSkeletonRefs") ?? [];
+
+        /// <summary>
+        /// Gets the animation graphs bound to this model, in declaration order. The first entry is the
+        /// model's default graph. Empty for a model that binds none.
+        /// </summary>
+        public IReadOnlyList<(string Identifier, string GraphPath)> AnimGraph2References
+            => cachedAnimGraph2References ??= ReadAnimGraph2References();
+
+        private (string Identifier, string GraphPath)[] ReadAnimGraph2References()
+        {
+            var graphRefs = Data.GetArray("m_animGraph2Refs");
+
+            if (graphRefs == null)
+            {
+                return [];
+            }
+
+            var references = new (string Identifier, string GraphPath)[graphRefs.Count];
+
+            for (var i = 0; i < graphRefs.Count; i++)
+            {
+                references[i] = (graphRefs[i].GetStringProperty("m_sIdentifier"), graphRefs[i].GetStringProperty("m_hGraph"));
+            }
+
+            return references;
+        }
 
         /// <summary>
         /// Gets the bone constraints the model was authored with, in compiled order. These are read by
@@ -95,6 +126,7 @@ namespace ValveResourceFormat.ResourceTypes
         private BoneConstraint[]? cachedBoneConstraints;
         private BoneRemapTable? cachedBoneRemapTable;
         private ModelMeshGroups? cachedMeshGroups;
+        private (string Identifier, string GraphPath)[]? cachedAnimGraph2References;
 
         /// <summary>
         /// Gets the hitbox sets for this model.
@@ -113,7 +145,7 @@ namespace ValveResourceFormat.ResourceTypes
                 return [];
             }
 
-            var flexControllersData = morph.Data.GetArray("m_FlexControllers");
+            var flexControllersData = morph.Data.GetArray("m_FlexControllers") ?? [];
 
             var flexControllers = flexControllersData.Select(d =>
             {
@@ -144,8 +176,10 @@ namespace ValveResourceFormat.ResourceTypes
         /// <param name="morph">The morph data whose flex controllers should be reused.</param>
         public void SetExternalMorphData(Morph? morph)
         {
-            // An empty set carries nothing, and a model whose morph set sits in a separate vmorf has one.
-            if (cachedFlexControllers == null || cachedFlexControllers.Length == 0)
+            // The model's own morph block wins; only a model whose morph set sits in a separate vmorf
+            // takes the one its meshes carry. Read through the property so which one wins does not
+            // depend on whether the caller happened to touch it first.
+            if (FlexControllers.Length == 0)
             {
                 cachedFlexControllers = morph?.FlexControllers;
             }

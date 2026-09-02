@@ -78,14 +78,11 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             boneCount = model.Skeleton.Bones.Length;
             remappingTable = model.BoneRemapTable.Table;
 
-            if (model.Data.GetArray<string>("m_vecNmSkeletonRefs") is { Length: > 0 } nmSkelRefs)
+            foreach (var skeletonName in model.NmSkeletonRefs)
             {
-                foreach (var skeletonName in nmSkelRefs)
+                if (Skeleton.FromSkeletonResource(Scene.RendererContext.FileLoader, skeletonName) is { } skeleton)
                 {
-                    if (Skeleton.FromSkeletonResource(Scene.RendererContext.FileLoader, skeletonName) is { } skeleton)
-                    {
-                        AnimationController.RegisterExternalSkeleton(skeletonName, skeleton);
-                    }
+                    AnimationController.RegisterExternalSkeleton(skeletonName, skeleton);
                 }
             }
 
