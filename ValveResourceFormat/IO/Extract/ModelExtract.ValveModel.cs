@@ -1073,12 +1073,12 @@ partial class ModelExtract
                 }
             }
 
-            foreach (var (physHull, fileName, parentBone) in PhysHullsToExtract)
+            foreach (var (physHull, fileName, parentBone, _) in PhysHullsToExtract)
             {
                 HandlePhysMeshNode(physHull, fileName, parentBone);
             }
 
-            foreach (var (physMesh, fileName, parentBone) in PhysMeshesToExtract)
+            foreach (var (physMesh, fileName, parentBone, _) in PhysMeshesToExtract)
             {
                 HandlePhysMeshNode(physMesh, fileName, parentBone);
             }

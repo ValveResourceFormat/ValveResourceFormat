@@ -333,7 +333,7 @@ public sealed class MapExtract
     /// <summary>
     /// Gets the tool texture material path for a given surface tag combination.
     /// </summary>
-    public static string GetToolTextureNameForCollisionTags(ModelExtract.SurfaceTagCombo combo)
+    public static string GetToolTextureNameForCollisionTags(SurfaceTagCombo combo)
     {
         var shortenedToolTextureName = GetToolTextureShortenedName_ForInteractStrings(combo.InteractAsStrings);
 

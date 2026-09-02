@@ -18,13 +18,6 @@ public partial class ModelExtract
     private readonly string fileName;
 
     /// <summary>
-    /// Filter configuration for import operations.
-    /// </summary>
-#pragma warning disable CA2227 // Collection properties should be read only
-    public record struct ImportFilter(bool ExcludeByDefault, HashSet<string> Filter);
-#pragma warning restore CA2227 // Collection properties should be read only
-
-    /// <summary>
     /// Specifies the type of model extraction.
     /// </summary>
     public enum ModelExtractType
@@ -140,7 +133,7 @@ public partial class ModelExtract
         {
             vmdl.AddSubFile(
                 Path.GetFileName(physHull.FileName),
-                () => ToDmxMesh(physHull.Hull)
+                () => ToDmxMesh(physHull.Hull, physHull.BindPose)
             );
         }
 
@@ -148,12 +141,13 @@ public partial class ModelExtract
         {
             vmdl.AddSubFile(
                 Path.GetFileName(physMesh.FileName),
-                () => ToDmxMesh(physMesh.Mesh)
+                () => ToDmxMesh(physMesh.Mesh, physMesh.BindPose)
             );
         }
 
         foreach (var anim in AnimationsToExtract)
         {
+
             vmdl.AddSubFile(
                 Path.GetFileName(anim.FileName),
                 () =>
