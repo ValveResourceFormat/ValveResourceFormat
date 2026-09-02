@@ -12,12 +12,10 @@ namespace Tests.Renderer
 {
     public class SampledAnimationEventsTest
     {
-        private static string FilePath(string name)
-            => Path.Combine(TestContext.TestDirectory!, "Files", name);
 
         private static ClipAnimation LoadNovaShootAnimation(Resource resource)
         {
-            resource.Read(FilePath("shoot1_nova.vnmclip_c"));
+            resource.Read(TestFixtures.Path("shoot1_nova.vnmclip_c"));
 
             return new ClipAnimation((AnimationClip)resource.DataBlock!);
         }
@@ -98,7 +96,7 @@ namespace Tests.Renderer
             var animation = LoadNovaShootAnimation(resource);
 
             using var skeletonResource = new Resource();
-            skeletonResource.Read(FilePath("ak47.vnmskel_c"));
+            skeletonResource.Read(TestFixtures.Path("ak47.vnmskel_c"));
             var skeleton = Skeleton.FromSkeletonData(((BinaryKV3)skeletonResource.DataBlock!).Data);
 
             var pose = new Matrix4x4[skeleton.Bones.Length];
