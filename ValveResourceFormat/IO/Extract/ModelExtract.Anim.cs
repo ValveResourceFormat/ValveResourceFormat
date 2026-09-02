@@ -27,8 +27,7 @@ partial class ModelExtract
 
     /// <summary>
     /// Every sequence that exists only to give a second name to an animation another sequence already
-    /// declares, mapped to that animation's own name. Resolved from the sequence tables, so it does
-    /// not depend on <see cref="ToValveModel"/> having run.
+    /// declares, mapped to that animation's own name. Resolved from the sequence tables.
     /// </summary>
     private Dictionary<string, string> AliasedSequences
         => aliasedSequences ??= Sequences.CanResolveReferences
@@ -43,9 +42,8 @@ partial class ModelExtract
         => animation.FromSequence || animationGroupAnimations.Contains(animation);
 
     /// <summary>
-    /// Returns whether a sequence has an animation of its own to write out. A blend has none, it is
-    /// rebuilt as a node listing the ones it blends, and neither has a sequence that only renames one
-    /// another node already declares.
+    /// Returns whether a sequence has an animation of its own to write out. A blend has none, nor does
+    /// a sequence that only renames one another node already declares.
     /// </summary>
     private bool WritesOwnAnimation(SequenceAnimation animation)
         => !animation.IsBlend && !AliasedSequences.ContainsKey(animation.Name);
@@ -67,9 +65,8 @@ partial class ModelExtract
 
     /// <summary>
     /// Queues the animations a model reaches through the standalone animation groups it references.
-    /// The compiler writes those groups as child resources of the model, so their animations were
-    /// authored as the model's own anim files and come back as such. A group that cannot be read is
-    /// skipped: it is another resource, and the model itself still extracts without it.
+    /// Those groups are child resources of the model, and come back as its own anim files. A group that
+    /// cannot be read is skipped.
     /// </summary>
     private void EnqueueAnimationGroups(Model model)
     {
@@ -99,8 +96,7 @@ partial class ModelExtract
 
         foreach (var anim in animations)
         {
-            // Several groups can carry an animation of the same name, and the doc can hold only one
-            // node under it.
+            // Several groups can carry an animation of the same name, and the doc holds one node.
             if (!names.Add(anim.Name))
             {
                 continue;
@@ -165,9 +161,8 @@ partial class ModelExtract
     }
 
     /// <summary>
-    /// The frame rate to divide frame timings by. Guards only against zero/negative; a fractional but
-    /// positive authored rate (some looping "held pose" sequences compile with fps under 1) must pass
-    /// through unclamped or the exported clip's duration comes out far shorter than its real length.
+    /// The frame rate to divide frame timings by. Only zero and negative rates are replaced; a
+    /// fractional positive rate passes through unclamped.
     /// </summary>
     private static float EffectiveFps(float fps) => fps > 0f ? fps : 1f;
 

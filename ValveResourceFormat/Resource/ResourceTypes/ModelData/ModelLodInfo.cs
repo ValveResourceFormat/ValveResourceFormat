@@ -88,8 +88,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelData
 
         /// <summary>
         /// Gets the LOD mask of a mesh (bit N set =&gt; the mesh is in level N), zero when the mesh has
-        /// no entry. A mesh with no entry is not in "no level": <see cref="IsMeshInLevel"/> treats it as
-        /// present everywhere, since the compiler only writes masks for LOD-managed meshes.
+        /// no entry. <see cref="IsMeshInLevel"/> treats a mesh with no entry as present everywhere.
         /// </summary>
         public long GetMeshMask(int meshIndex)
             => meshIndex >= 0 && meshIndex < meshLodMasks.Length ? meshLodMasks[meshIndex] : 0L;

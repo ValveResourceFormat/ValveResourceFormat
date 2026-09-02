@@ -11,7 +11,7 @@ namespace Tests
     {
         /// <summary>
         /// A hull stores its positions in m_VertexPositions once it carries explicit vertex indices, and
-        /// in m_Vertices before that, so both eras have to read back the same way.
+        /// in m_Vertices before that. Both read back the same way.
         /// </summary>
         [Test]
         public async Task HullVertexPositionsAreReadFromEitherEra()
@@ -36,9 +36,7 @@ namespace Tests
 
         /// <summary>
         /// A hull face is a polygon of any size. Walking its edge loop yields its vertices in winding
-        /// order, and fanning it from the loop's first vertex yields two fewer triangles than it has
-        /// vertices. Both are read by the decompiler, the glTF exporter, the Hammer mesh builder and the
-        /// renderer, so they have to agree on the winding.
+        /// order, and fanning it from the loop's first vertex yields two fewer triangles than vertices.
         /// </summary>
         [Test]
         public async Task FaceLoopsAndFansAgreeOnWinding()
@@ -81,13 +79,12 @@ namespace Tests
                 await Assert.That(loops).All(loop => loop.Length == 4);
                 await Assert.That(fans).All(fan => fan.Length == 2);
 
-                // Euler's formula holds for a closed convex hull, which is what the extractors assert on.
+                // Euler's formula holds for a closed convex hull.
                 await Assert.That(faceCount + vertexCount).IsEqualTo((edgeCount / 2) + 2);
 
                 for (var i = 0; i < faceCount; i++)
                 {
-                    // Every triangle of the fan starts at the loop's first vertex, and the fan visits the
-                    // rest of the loop in order.
+                    // Every triangle of the fan starts at the loop's first vertex.
                     await Assert.That(fans[i].Select(triangle => triangle.A)).All(a => a == loops[i][0]);
                     await Assert.That(fans[i][0]).IsEqualTo((loops[i][0], loops[i][1], loops[i][2]));
                     await Assert.That(fans[i][1]).IsEqualTo((loops[i][0], loops[i][2], loops[i][3]));
@@ -99,9 +96,8 @@ namespace Tests
         }
 
         /// <summary>
-        /// A shape's collision tags moved key at some point: assets compiled before the rename carry them
-        /// under m_PhysicsTagStrings. Every consumer reads them through one accessor, because a reader
-        /// that only knows the new key gets nothing back for an older asset.
+        /// A shape's collision tags moved key at some point: older assets carry them under
+        /// m_PhysicsTagStrings. Every consumer reads them through one accessor.
         /// </summary>
         [Test]
         public async Task CollisionTagsAreReadFromEitherKey()
@@ -122,10 +118,9 @@ namespace Tests
                 await Assert.That(PhysAggregateData.GetInteractAsTags(modern)).IsEquivalentTo(["solid", "player"], CollectionOrdering.Matching);
                 await Assert.That(PhysAggregateData.GetInteractAsTags(legacy)).IsEquivalentTo(["solid", "player"], CollectionOrdering.Matching);
 
-                // No tags at all is empty, never null, so a caller can spread it without a check.
+                // No tags at all is empty, never null.
                 await Assert.That(PhysAggregateData.GetInteractAsTags(neither)).IsEmpty();
 
-                // The indexed overload agrees with the direct one, and an index out of range is empty.
                 await Assert.That(phys.GetInteractAsTags(0))
                     .IsEquivalentTo(PhysAggregateData.GetInteractAsTags(phys.CollisionAttributes[0]), CollectionOrdering.Matching);
                 await Assert.That(phys.GetInteractAsTags(phys.CollisionAttributes.Count)).IsEmpty();

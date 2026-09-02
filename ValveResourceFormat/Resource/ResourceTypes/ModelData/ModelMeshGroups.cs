@@ -11,8 +11,8 @@ namespace ValveResourceFormat.ResourceTypes.ModelData
     /// <param name="FullName">The mesh group name as compiled, e.g. <c>head_@bald</c>.</param>
     /// <param name="Name">The authored choice name, e.g. <c>bald</c>.</param>
     /// <param name="Indexed">
-    /// Whether the compiled name spelled out the choice's index. A group holding a single choice can
-    /// be compiled without it, which ModelDoc calls <c>non_bodygroup_single_choice</c>.
+    /// Whether the compiled name spelled out the choice's index. A group holding a single choice can be
+    /// compiled without it.
     /// </param>
     public sealed record BodyGroupChoice(int GroupIndex, string FullName, string Name, bool Indexed);
 
@@ -25,10 +25,8 @@ namespace ValveResourceFormat.ResourceTypes.ModelData
     public sealed record BodyGroup(string Name, IReadOnlyList<BodyGroupChoice> Choices);
 
     /// <summary>
-    /// Describes a model's mesh groups: which groups exist, which meshes belong to each, which are on
-    /// by default, and which the tools hide. Built once from the compiled model's <c>m_meshGroups</c>,
-    /// <c>m_refMeshGroupMasks</c> (bit N set =&gt; mesh is in group N), <c>m_nDefaultMeshGroupMask</c>
-    /// and <c>m_BodyGroupsHiddenInTools</c>.
+    /// Describes a model's mesh groups: which groups exist, which meshes belong to each, which are on by
+    /// default, and which the tools hide. A mesh group mask has bit N set when the mesh is in group N.
     /// </summary>
     public sealed class ModelMeshGroups
     {
@@ -44,8 +42,8 @@ namespace ValveResourceFormat.ResourceTypes.ModelData
 
         /// <summary>
         /// Gets the body groups the mesh group names encode. A name of the form <c>group_@choice</c>
-        /// declares one choice of a body group; a name without the separator belongs to no body group.
-        /// Groups and their choices keep the order their mesh groups were declared in.
+        /// declares one choice; a name without the separator belongs to no body group. Groups and their
+        /// choices keep the order their mesh groups were declared in.
         /// </summary>
         public IReadOnlyList<BodyGroup> BodyGroups { get; }
 
@@ -77,8 +75,8 @@ namespace ValveResourceFormat.ResourceTypes.ModelData
             => groupIndex >= 0 && groupIndex < MaxGroups && (GetMeshMask(meshIndex) & 1UL << groupIndex) != 0;
 
         /// <summary>
-        /// Determines whether a mesh belongs to any of the named groups. A model with no groups declared
-        /// draws every mesh, so it is treated as belonging to whatever is asked for.
+        /// Determines whether a mesh belongs to any of the named groups. Always true for a model that
+        /// declares no groups.
         /// </summary>
         public bool IsMeshInAnyGroup(int meshIndex, ICollection<string> groupNames)
         {
@@ -136,8 +134,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelData
 
                 if (!indexed && choiceName.Length == 0)
                 {
-                    // Neither part present means the compiler made this group up for the meshes no
-                    // authored group claims, so writing it back would invent a body group.
+                    // A name carrying neither part is one the compiler generated itself.
                     continue;
                 }
 
@@ -158,11 +155,10 @@ namespace ValveResourceFormat.ResourceTypes.ModelData
         /// name, and whether the choice's index was spelled out.
         /// </summary>
         /// <remarks>
-        /// The compiler writes the group, then the choice index behind
-        /// <see cref="ChoiceSeparator"/> unless the group holds a single choice and is marked
-        /// <c>non_bodygroup_single_choice</c>, then the authored name behind
-        /// <see cref="ChoiceNameMarker"/>. A name carrying neither part is one the compiler generated
-        /// itself. The group name can contain the separator, so the index comes off the last one.
+        /// The compiler writes the group, then the choice index behind <see cref="ChoiceSeparator"/>
+        /// unless the group holds a single unindexed choice, then the authored name behind
+        /// <see cref="ChoiceNameMarker"/>. The group name can itself contain the separator, so the index
+        /// comes off the last one.
         /// </remarks>
         private static (string Group, string ChoiceName, bool Indexed) SplitMeshGroupName(string fullName)
         {

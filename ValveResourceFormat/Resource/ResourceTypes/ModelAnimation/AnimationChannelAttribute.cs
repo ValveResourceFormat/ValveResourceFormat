@@ -23,9 +23,8 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
         Data = 4,
 
         /// <summary>
-        /// Channel encodes a named value from the decode key's <c>m_userArray</c> (<c>m_szChannelClass</c>
-        /// <c>"UserChannel"</c>), for example a <c>MATERIAL_ATTRIBUTE:</c> shader parameter driven by the
-        /// sequence. VRF decodes these channels but has no consumer for the values yet.
+        /// Channel encodes a named value from the decode key's <c>m_userArray</c>, for example a
+        /// <c>MATERIAL_ATTRIBUTE:</c> shader parameter driven by the sequence.
         /// </summary>
         User = 5,
     }

@@ -7,10 +7,9 @@ using ValveResourceFormat.Serialization.KeyValues;
 namespace ValveResourceFormat.ResourceTypes.ModelData
 {
     /// <summary>
-    /// A model's embedded animation data: the animation and decode blocks every model with animation
-    /// carries, plus the legacy (AG1) sequence group behind them, which holds the bone masks, morph
-    /// masks, pose parameters and faceposer folders its sequences are written against. Every member is
-    /// empty or null for a model that carries none of it.
+    /// A model's embedded animation data: the animation and decode blocks, plus the legacy (AG1)
+    /// sequence group holding the bone masks, morph masks, pose parameters and faceposer folders its
+    /// sequences are written against. Empty or null throughout for a model that carries none.
     /// </summary>
     public sealed class EmbeddedSequenceGroup
     {
@@ -31,8 +30,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelData
         public KVObject? DecodeKey { get; }
 
         /// <summary>
-        /// Gets the compiled legacy sequence group, or <see langword="null"/> for a model whose
-        /// animations are not driven by legacy sequences.
+        /// Gets the compiled legacy sequence group, or <see langword="null"/> when there is none.
         /// </summary>
         public KVObject? SequenceData { get; }
 
@@ -62,7 +60,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelData
             var animationDataBlock = resource.GetBlockByIndex((int)embeddedAnimation.GetIntegerProperty("anim_data_block")) as KeyValuesOrNTRO;
             AnimationData = animationDataBlock?.Data;
 
-            // Index zero is the model's own data block, so it never holds a sequence group.
+            // Index zero is the model's own data block.
             var sequenceBlockIndex = embeddedAnimation.GetIntegerProperty("seqgroup_data_block");
 
             if (sequenceBlockIndex > 0)
@@ -99,9 +97,8 @@ namespace ValveResourceFormat.ResourceTypes.ModelData
         }
 
         /// <summary>
-        /// Gets the named bone masks (<c>m_localBoneMaskArray</c>), mapping each mask name to its
-        /// per-bone weights. A sequence names the mask it plays with through
-        /// <see cref="SequenceAnimation.BoneMaskName"/>.
+        /// Gets the named bone masks, mapping each mask name to its per-bone weights. A sequence names
+        /// the mask it plays with through <see cref="SequenceAnimation.BoneMaskName"/>.
         /// </summary>
         public Dictionary<string, Dictionary<string, float>> GetBoneMasks()
         {
@@ -139,11 +136,9 @@ namespace ValveResourceFormat.ResourceTypes.ModelData
         }
 
         /// <summary>
-        /// Gets the named morph controller masks (<c>m_morphCtrlWeightArray</c>), mapping each mask name
-        /// to a weight for every flex controller. A controller not individually listed in a mask's array
-        /// carries that mask's own <c>m_flDefaultMorphCtrlWeight</c>, which itself defaults to 1
-        /// (unrestricted) when the compiled data omits it - the runtime schema default, not the
-        /// ModelDoc authoring default of 0. The same mask name scopes both bones
+        /// Gets the named morph controller masks, mapping each mask name to a weight for every flex
+        /// controller. A controller the mask does not list carries the mask's own default weight, itself
+        /// 1 when the compiled data omits it. A mask name scopes both bones
         /// (<see cref="GetBoneMasks"/>) and flex controllers.
         /// </summary>
         public Dictionary<string, Dictionary<string, float>> GetMorphMasks(FlexController[] flexControllers)
@@ -188,7 +183,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelData
         }
 
         /// <summary>
-        /// Gets the named pose parameters (<c>m_localPoseParamArray</c>). A 1D or 2D blend sequence's
+        /// Gets the named pose parameters. A blend sequence's
         /// <see cref="SequenceAnimation.PoseParameterNames"/> names one of these per blend dimension.
         /// </summary>
         public List<PoseParameter> GetPoseParameters()

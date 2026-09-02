@@ -66,16 +66,14 @@ namespace ValveResourceFormat.Renderer.SceneNodes
 
         /// <summary>
         /// Computes the LoD metric: <c>100 / on-screen size of a unit sphere at the model origin</c>,
-        /// scaled by the node's transform. It depends on camera distance, FOV/viewport height and the
-        /// model's scale, so where the model sits on screen doesn't matter and looking around won't flip LoDs.
+        /// scaled by the node's transform.
         /// </summary>
         private float ComputeLodMetric(Camera camera)
         {
             var distance = MathF.Sqrt(GetCameraDistance(camera));
             var scale = Transform.MaxAxisScale();
 
-            // Size on screen of a unit sphere at this distance. M22 is the projection's
-            // 1/tan(vFov/2) y-scale, so the pixel height is windowHeight * M22 * scale / distance.
+            // M22 is the projection's 1/tan(vFov/2) y-scale.
             var unitSphereSize = distance > 0f
                 ? camera.WindowSize.Y * camera.ProjectionMatrix.M22 * scale / distance
                 : float.MaxValue;

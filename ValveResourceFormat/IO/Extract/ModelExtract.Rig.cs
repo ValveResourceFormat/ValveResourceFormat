@@ -217,8 +217,8 @@ partial class ModelExtract
         return constraintListNode;
     }
     /// <summary>
-    /// Builds the IKData node from both IK systems, or returns null when the model carries
-    /// neither. A chain that kept no joints is left out, because the compiler rejects one.
+    /// Builds the IKData node from both IK systems, or returns null when the model carries neither.
+    /// A chain that kept no joints is left out.
     /// </summary>
     static KVObject? BuildIKData(Model model)
     {
@@ -435,8 +435,8 @@ partial class ModelExtract
     }
 
     /// <summary>
-    /// Copies a key across only when the compiled block carries it, so a field an older compiler
-    /// era never wrote stays absent instead of being created at its default.
+    /// Copies a key across only when the compiled block carries it, leaving a key an older compiler
+    /// never wrote absent.
     /// </summary>
     static void AddBonesRecursive(IEnumerable<Bone> bones, KVObject parent)
     {
@@ -532,11 +532,8 @@ partial class ModelExtract
             var rootOffsetArray = scaleSet.GetFloatArray("m_vRootOffset");
             var rootOffset = new Vector3(rootOffsetArray[0], rootOffsetArray[1], rootOffsetArray[2]);
 
-            // The compiler divides each bone's authored scale by its nearest ancestor's authored
-            // scale (within this same scale set, defaulting to 1 with no such ancestor), so the
-            // compiled value is a scale relative to the set's own nearest scaled ancestor rather
-            // than an independent per-bone multiplier. Recover the authored value by inverting that
-            // walk up the skeleton, memoized since a deep chain revisits the same ancestors.
+            // A compiled bone scale is the authored one divided by its nearest scaled ancestor's within
+            // the same set, 1 with no such ancestor. Invert that walk to recover the authored value.
             var compiledScaleByBone = new Dictionary<string, float>(boneArray.Length);
 
             for (var i = 0; i < boneArray.Length; i++)

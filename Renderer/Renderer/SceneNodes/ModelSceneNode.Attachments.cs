@@ -29,10 +29,10 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             }
         }
 
-        // The parent anchor for an attached child: the attachment point's world transform, the world
-        // transform of a bone with that name when no attachment matches, or the model's own transform when
-        // no name is given or it matches neither. Rigid (no scale) because Source 2 does not propagate the
-        // parent's scale to attachment-parented children.
+        /// <summary>
+        /// The parent anchor for an attached child: the attachment point's world transform, a bone's when
+        /// no attachment matches, or the model's own transform. Rigid, with no scale.
+        /// </summary>
         private Matrix4x4 GetAttachmentOrSelfTransform(string attachmentName)
         {
             if (!string.IsNullOrEmpty(attachmentName))
@@ -92,7 +92,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         /// <summary>
         /// Places <paramref name="child"/> once at the named attachment point or bone (or the model's own
         /// transform when no name is given), with <paramref name="offset"/> applied in that anchor's frame.
-        /// Unlike <see cref="AttachNode"/>, the child does not track the model afterwards. Works for any scene node.
+        /// Unlike <see cref="AttachNode"/>, the child does not track the model afterwards.
         /// </summary>
         public void PlaceNode(SceneNode child, string attachmentName, Vector3 offset)
         {
@@ -101,8 +101,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
 
         /// <summary>
         /// Attaches <paramref name="node"/> so it keeps its current world position relative to this model,
-        /// following the model if it later moves. Used for plain <c>parentname</c> parenting (no attachment point),
-        /// where the child stays where it was authored instead of snapping onto the parent.
+        /// following the model if it later moves. Used for plain <c>parentname</c> parenting.
         /// </summary>
         /// <param name="node">The child to attach.</param>
         public void AttachNodeKeepingTransform(SceneNode node)
@@ -137,8 +136,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
 
                 if (attachment.IgnoreRotation)
                 {
-                    // Dropping the rotation leaves no per-axis frame to scale along, so the transform's
-                    // scale is taken as uniform.
+                    // The transform's scale is taken as uniform.
                     var scale = transform.M22;
                     var translation = transform.Translation;
                     transform = Matrix4x4.CreateScale(scale) * Matrix4x4.CreateTranslation(translation);

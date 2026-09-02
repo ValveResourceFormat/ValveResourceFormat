@@ -83,8 +83,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
         }
 
         /// <summary>
-        /// The whole frame within the current cycle nearest <paramref name="time"/>. Sampling an exact
-        /// frame rather than interpolating rounds to this one.
+        /// The whole frame within the current cycle nearest <paramref name="time"/>.
         /// </summary>
         public int GetNearestFrame(float time)
         {
@@ -95,8 +94,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
 
         /// <summary>
         /// How far through its current cycle <paramref name="time"/> sits, 0 at the first frame and 1 at
-        /// the last. Zero for an animation with no cycle to speak of (a single pose, or one with no frame
-        /// rate).
+        /// the last. Zero for an animation with no cycle.
         /// </summary>
         public float GetCycleFraction(float time)
         {

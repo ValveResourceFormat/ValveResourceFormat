@@ -14,8 +14,7 @@ namespace Tests
     public class ModelExtractTest
     {
         /// <summary>
-        /// A vmesh has no model to read mesh groups, LODs, materials or a skeleton from, and map
-        /// extraction reaches this path for a scene object that carries a bare renderable.
+        /// A vmesh has no model to read mesh groups, LODs, materials or a skeleton from.
         /// </summary>
         [Test]
         public async Task ExtractsAMeshWithNoModelBehindIt()
@@ -31,7 +30,6 @@ namespace Tests
                 await Assert.That(vmdl).Contains("_class = \"RenderMeshFile\"");
                 await Assert.That(vmdl).Contains("filename = \"models/heroes/chen/chen_weapon.dmx\"");
 
-                // Nothing a model would have contributed may be invented for a lone mesh.
                 await Assert.That(vmdl).DoesNotContain("BodyGroupList");
                 await Assert.That(vmdl).DoesNotContain("LODGroupList");
                 await Assert.That(vmdl).DoesNotContain("MaterialGroupList");
@@ -43,9 +41,8 @@ namespace Tests
         }
 
         /// <summary>
-        /// A model doc list node is created the first time a section writes into it, so the order the
-        /// sections run in is the order the reader sees, and a list nothing wrote is absent rather than
-        /// empty. Pinned per model because which sections run at all depends on what the model carries.
+        /// A model doc list node is created the first time a section writes into it, so a list nothing
+        /// wrote is absent rather than empty. Which sections run depends on what the model carries.
         /// </summary>
         [Test]
         public async Task WritesOnlyTheDocSectionsTheModelFills()
@@ -64,13 +61,11 @@ namespace Tests
                     ["BoneMarkupList", "RenderMeshList", "AttachmentList", "WeightListList", "PoseParamList", "AnimationList", "IKData", "HitboxSetList", "Skeleton", "PhysicsBodyMarkupList", "PhysicsShapeList"],
                     CollectionOrdering.Matching);
 
-                // Only the LOD fixture reaches LODGroupList, and it has no skeleton to write.
                 await Assert.That(RootSections("lod_test.vmdl_c")).IsEquivalentTo(
                     ["BoneMarkupList", "RenderMeshList", "LODGroupList"],
                     CollectionOrdering.Matching);
 
-                // Every mesh of this one is an external reference the null loader cannot resolve, so
-                // nothing downstream of the meshes has anything to write.
+                // Every mesh of this one is an external reference the null loader cannot resolve.
                 await Assert.That(RootSections("alchemist.vmdl_c")).IsEquivalentTo(
                     ["BoneMarkupList", "Skeleton"],
                     CollectionOrdering.Matching);
@@ -78,9 +73,8 @@ namespace Tests
         }
 
         /// <summary>
-        /// A blend has no animation of its own: the compiler resolves it into a sequence that fetches
-        /// the animations it blends, positioned along a pose parameter, and it comes back as the node
-        /// listing them. A sequence that fetches nothing at all is the bind pose instead.
+        /// A blend has no animation of its own, and comes back as the node listing the animations it
+        /// blends. A sequence that fetches nothing at all is the bind pose instead.
         /// </summary>
         [Test]
         public async Task RebuildsOneDimensionalBlendsAndBindPoses()
@@ -116,9 +110,8 @@ namespace Tests
         }
 
         /// <summary>
-        /// A two dimensional blend spreads its animations over a grid of two pose parameters. The
-        /// compiler takes each dimension's size from the length of its weight list and walks the grid
-        /// row first, so a row has to come back in that order.
+        /// A two dimensional blend spreads its animations over a grid of two pose parameters, each
+        /// dimension sized by its weight list and walked row first.
         /// </summary>
         [Test]
         public async Task RebuildsTwoDimensionalBlendGrids()
@@ -139,8 +132,8 @@ namespace Tests
         }
 
         /// <summary>
-        /// A sequence applies a named weight list rather than the default one every animation gets, and
-        /// carries every activity past the first as the modifier node the compiler folds back in.
+        /// A sequence applies a named weight list rather than the default, and carries every activity
+        /// past the first as a modifier node.
         /// </summary>
         [Test]
         public async Task KeepsWeightListsAndActivityModifiers()
@@ -160,10 +153,9 @@ namespace Tests
         }
 
         /// <summary>
-        /// Each IK joint owns the joints below it, so the second nests inside the first and closes
-        /// before its parent writes its own bone key. ModelDoc registers some chain keys with a trailing
-        /// space and others behind an m_Data prefix, and ignores every other spelling, so those have to
-        /// survive serialization verbatim.
+        /// Each IK joint owns the joints below it, so the second nests inside the first. ModelDoc reads
+        /// some chain keys with a trailing space and others behind an m_Data prefix, and those spellings
+        /// have to survive serialization verbatim.
         /// </summary>
         [Test]
         public async Task RebuildsIKChainsWithTheKeySpellingsModelDocReadsBack()
@@ -190,15 +182,14 @@ namespace Tests
                 await Assert.That(vmdl).Contains("m_Data.m_EndEffectorFixedOffsetAttachment = ");
                 await Assert.That(vmdl).Contains("m_Data.m_DefaultTargetSettings.m_AnimgraphParameterNamePosition = ");
 
-                // The pole vector keys postdate this model's compiler, and a key the compiled block
-                // does not carry is not written back.
+                // A key the compiled block does not carry is not written back.
                 await Assert.That(vmdl).DoesNotContain("m_PoleVectorForAxis");
             }
         }
 
         /// <summary>
-        /// Joint constraints and target settings come back on the chain, while the three fields the
-        /// compiler fills in itself have no ModelDoc attribute and must not be written.
+        /// Joint constraints and target settings come back on the chain. The three fields the compiler
+        /// fills in itself have no ModelDoc attribute and are not written.
         /// </summary>
         [Test]
         public async Task RebuildsHingeConstraintsAndOmitsCompilerDerivedFields()
@@ -224,9 +215,8 @@ namespace Tests
 
         /// <summary>
         /// Models authored against the legacy rig carry their chains in the control rig and leave the
-        /// m_IKChains entries without joints. ModelDoc rejects a chain in that state, so the jointless
-        /// entry is dropped and the rig it belongs to is written instead. A model with neither gets no
-        /// IKData at all.
+        /// m_IKChains entries without joints. The jointless entry is dropped and the rig written instead.
+        /// A model with neither gets no IKData at all.
         /// </summary>
         [Test]
         public async Task FallsBackToTheLegacyRigAndOmitsIKDataWithoutChains()
@@ -249,9 +239,8 @@ namespace Tests
         }
 
         /// <summary>
-        /// Root motion is written to the model level transform channel, not baked into the bones, so a
-        /// clip that travels keeps its root track intact and one that does not travel writes no such
-        /// channel at all.
+        /// Root motion is written to the model level transform channel, not baked into the bones. A clip
+        /// that does not travel writes no such channel at all.
         /// </summary>
         [Test]
         public async Task WritesRootMotionToTheModelChannelOnly()
@@ -268,10 +257,9 @@ namespace Tests
 
             using (Assert.Multiple())
             {
-                // The walk travels its full ~47.92 source-unit displacement on the model channel.
                 await Assert.That((modelRoot[^1] - modelRoot[0]).X).IsEqualTo(47.92f).Within(0.1f);
 
-                // The root_motion bone itself carries no baked travel, only its raw per-frame data.
+                // The root_motion bone itself carries no baked travel.
                 await Assert.That((rootMotionBone[^1] - rootMotionBone[0]).X).IsLessThan(1.0f);
 
                 await Assert.That(idle.HasMovementData()).IsFalse();
@@ -280,8 +268,8 @@ namespace Tests
         }
 
         /// <summary>
-        /// The LOD structure comes back as one LODGroup per declared level carrying that level's switch
-        /// threshold, so a recompile rebuilds the original switch distances.
+        /// The LOD structure comes back as one LODGroup per declared level, carrying that level's switch
+        /// threshold.
         /// </summary>
         [Test]
         public async Task EmitsALodGroupPerLevel()
@@ -300,9 +288,8 @@ namespace Tests
         }
 
         /// <summary>
-        /// A model whose every mesh sits in every LOD level still needs one LODGroup per declared
-        /// level. The compiler ignores the whole LOD section unless at least two of them are present,
-        /// so collapsing the meshes into a lone LODGroupAll loses the switch distances entirely.
+        /// A model whose every mesh sits in every LOD level still gets one LODGroup per declared level.
+        /// The compiler ignores the whole LOD section unless at least two of them are present.
         /// </summary>
         [Test]
         public async Task EmitsALodGroupPerLevelEvenWhenNoLevelHasItsOwnMesh()
@@ -319,8 +306,7 @@ namespace Tests
                 await Assert.That(perLevel.Select(group => group.GetFloatProperty("switch_threshold")))
                     .IsEquivalentTo([0f, 1f], CollectionOrdering.Matching);
 
-                // The mesh belongs to every level, so it is named once by LODGroupAll and the
-                // per-level groups carry no references of their own.
+                // The mesh belongs to every level, so LODGroupAll names it and the per-level groups do not.
                 await Assert.That(perLevel.TrueForAll(group => group.GetArray("mesh_references").Count == 0)).IsTrue();
                 await Assert.That(all).Count().IsEqualTo(1);
                 await Assert.That(all[0].GetArray("mesh_references")).Count().IsEqualTo(1);

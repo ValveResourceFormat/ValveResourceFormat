@@ -57,9 +57,8 @@ namespace ValveResourceFormat.ResourceTypes
         /// Gets how many bone weights each vertex carries, or zero when the mesh is not skinned.
         /// </summary>
         /// <remarks>
-        /// Read off the vertex buffers as well as the skeleton's own <c>m_nBoneWeightCount</c>, which is 4
-        /// on plenty of meshes that carry no blend attributes at all. A buffer with blend indices but no
-        /// weights is skinned to one bone per vertex.
+        /// Read off the vertex buffers rather than the skeleton's own <c>m_nBoneWeightCount</c>. A buffer
+        /// with blend indices but no weights is skinned to one bone per vertex.
         /// </remarks>
         public int BoneWeightCount => cachedBoneWeightCount ??= ReadBoneWeightCount();
 
@@ -224,7 +223,6 @@ namespace ValveResourceFormat.ResourceTypes
 
         /// <summary>
         /// Gets the material a draw call renders with, or <see langword="null"/> when it names none.
-        /// Older meshes carry the name under <c>m_pMaterial</c>.
         /// </summary>
         /// <param name="drawCall">The draw call to read.</param>
         public static string? GetMaterialName(KVObject drawCall)

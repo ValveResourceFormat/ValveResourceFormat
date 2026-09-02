@@ -13,8 +13,8 @@ namespace Tests
     public class NmExtractTest
     {
         /// <summary>
-        /// Neither a compiled clip nor a compiled skeleton stores the file it was authored from, but the
-        /// compiler records it as an input dependency, so both recover it from there.
+        /// Neither a compiled clip nor a compiled skeleton stores the file it was authored from; both
+        /// recover it from the input dependencies.
         /// </summary>
         [Test]
         public async Task RecoversSourceFilenamesFromInputDependencies()
@@ -57,10 +57,9 @@ namespace Tests
         }
 
         /// <summary>
-        /// CompileNmSkeleton emits the hierarchy walk filtered to the low-LOD bones, then the same walk
-        /// filtered to the rest, so the exported DAG has to order siblings such that walking it that way
-        /// reproduces the compiled bone order. root_motion is the sole root and the export re-frames it
-        /// into the model axis convention, where the NM resource stores it at identity.
+        /// A compiled NM skeleton is the hierarchy walk filtered to the low-LOD bones, then the same walk
+        /// filtered to the rest, and the exported DAG orders its siblings to reproduce that. root_motion is
+        /// the sole root, re-framed into the model axis convention from the identity the resource stores.
         /// </summary>
         /// <remarks>chicken.vnmskel_c is the only CS2 skeleton whose compiled bone order differs from a
         /// hierarchy walk in bone index order.</remarks>

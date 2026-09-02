@@ -75,8 +75,6 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
             PoseKeyArray = fetchKV.GetFloatArray("m_poseKeyArray0");
             var flags = fetchKV.GetSubCollection("m_flags");
             Is1D = flags.GetBooleanProperty("m_b1D");
-            // A triangular blend has no document node of its own, so it is rebuilt as the grid it
-            // spreads its animations over.
             Is2D = flags.GetBooleanProperty("m_b2D") || flags.GetBooleanProperty("m_b2D_TRI");
             PoseKeyArray1 = fetchKV.GetFloatArray("m_poseKeyArray1");
             GroupSize = fetchKV.GetIntegerArray("m_nGroupSize");
@@ -84,8 +82,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
             var fixedWeights = fetchKV.GetFloatArray("m_flFixedBlendWeightVals");
             FixedBlendWeightValue = fixedWeights.Length > 0 ? fixedWeights[0] : 0f;
 
-            // A 2D blend spreads its references over a grid the compiler walks row first, and the row
-            // and column keys are the two pose parameter axes it is addressed along.
+            // A 2D blend spreads its references over a grid walked row first.
             var rows = Is2D && GroupSize.Length > 0 ? (int)GroupSize[0] : 0;
             var columns = Is2D && GroupSize.Length > 1 ? (int)GroupSize[1] : 0;
 
@@ -105,10 +102,9 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
 
         /// <summary>
         /// The weight one entry of <see cref="LocalReferenceArray"/> carries at the given live pose
-        /// parameter values: bilinear across the grid for a two dimensional blend
-        /// (<see cref="Is2D"/>), otherwise linear along <see cref="PoseKeyArray"/> - using
-        /// <see cref="FixedBlendWeightValue"/> in place of <paramref name="rowValue"/> when the fetch
-        /// ignores its pose parameter (<see cref="FixedBlendWeight"/>).
+        /// parameter values: bilinear across the grid when <see cref="Is2D"/>, otherwise linear along
+        /// <see cref="PoseKeyArray"/>, or at <see cref="FixedBlendWeightValue"/> when the fetch ignores
+        /// its pose parameter.
         /// </summary>
         public readonly float GetBlendWeight(int index, float rowValue, float columnValue)
         {
@@ -127,9 +123,9 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
         }
 
         /// <summary>
-        /// The weight of <paramref name="index"/> among a small, not-necessarily-sorted set of blend keys
-        /// at <paramref name="value"/>: the two keys immediately bracketing it split the weight linearly
-        /// between their indices, or the single nearest key past either end takes it all.
+        /// The weight of <paramref name="index"/> among an unsorted set of blend keys at
+        /// <paramref name="value"/>: the two keys bracketing it split the weight linearly, or the single
+        /// nearest key past either end takes it all.
         /// </summary>
         private static float KeyWeight(ReadOnlySpan<float> keys, float value, int index)
         {

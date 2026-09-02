@@ -30,15 +30,14 @@ internal readonly record struct DmxMeshBuildOptions
 
     /// <summary>
     /// The skeleton dag the mesh's BLENDINDICES reference, already built. When provided it becomes the
-    /// datamodel's model element, so ModelDoc can resolve skinning indices through its joint list.
+    /// datamodel's model element.
     /// </summary>
     public DmeModel? SkeletonRoot { get; init; }
 }
 
 /// <summary>
-/// Writes a compiled mesh and its morph targets back out as a datamodel: one dme mesh per vertex buffer,
-/// each draw call a face set of it, and the flex controllers that drive the morphs as a combination
-/// operator.
+/// Writes a compiled mesh and its morph targets back out as a datamodel: one dme mesh per vertex
+/// buffer, each draw call a face set of it, and the flex controllers as a combination operator.
 /// </summary>
 internal static class DmxMeshBuilder
 {
@@ -55,8 +54,7 @@ internal static class DmxMeshBuilder
 
     /// <summary>
     /// Concatenates the vertex buffers of a mesh when every draw call reads a single buffer and all of
-    /// them share one layout. Returns null when they cannot be merged, in which case each buffer keeps
-    /// its own dme mesh.
+    /// them share one layout. Returns null when they cannot be merged.
     /// </summary>
     private static MergedVertexBuffers? TryMergeVertexBuffers(KVObject mdat, VBIB mbuf, ToolsBufferMatcher toolsBuffers)
     {
@@ -107,10 +105,8 @@ internal static class DmxMeshBuilder
     }
 
     /// <summary>
-    /// Fills a render vertex buffer's streams, then those of every tools buffer that augments it (there
-    /// can be more than one, e.g. an extra UV channel alongside vertex paint). The render buffer goes
-    /// first because it is what the engine actually draws, so it wins a name collision; see
-    /// <see cref="FillDatamodelVertexData"/>.
+    /// Fills a render vertex buffer's streams, then those of every tools buffer that augments it. The
+    /// render buffer is filled first and wins a name collision; see <see cref="FillDatamodelVertexData"/>.
     /// </summary>
     private static void FillBufferAndItsToolsBuffers(VBIB.OnDiskBufferData vertexBuffer, DmeVertexData vertexData,
         in VertexStreams streams, ToolsBufferMatcher toolsBuffers)
@@ -124,12 +120,9 @@ internal static class DmxMeshBuilder
     }
 
     /// <summary>
-    /// Fills a datamodel vertex data element with the streams of a vertex buffer, which may be a
-    /// mesh's render buffer or one of its tools buffers. When <paramref name="skipExistingSemantics"/>
-    /// is set, an attribute whose stream name is already present in <paramref name="vertexData"/> is
-    /// left alone rather than overwritten; used when layering a tools buffer's streams onto a render
-    /// buffer's, since the render buffer - filled first - is what the engine actually draws, so it
-    /// wins a name collision.
+    /// Fills a datamodel vertex data element with the streams of a vertex buffer, either a mesh's render
+    /// buffer or one of its tools buffers. With <paramref name="skipExistingSemantics"/> set, an attribute
+    /// whose stream name is already present in <paramref name="vertexData"/> is left alone.
     /// </summary>
     private static void FillDatamodelVertexData(VBIB.OnDiskBufferData vertexBuffer, DmeVertexData vertexData,
         in VertexStreams streams, bool skipExistingSemantics = false)
@@ -160,8 +153,7 @@ internal static class DmxMeshBuilder
             {
                 vertexData.JointCount = boneWeightCount;
 
-                // An unskinned mesh can still carry the attribute, because the vertex format is shared
-                // with skinned ones, and then the indices reference nothing.
+                // An unskinned mesh can still carry the attribute, with indices that reference nothing.
                 if (boneWeightCount == 0)
                 {
                     continue;
@@ -256,8 +248,7 @@ internal static class DmxMeshBuilder
     }
 
     /// <summary>
-    /// Gives a mesh the normal and texture coordinate streams the model compiler requires. Shipped
-    /// content includes meshes authored with position alone, and the compiler faults on those.
+    /// Gives a mesh the normal and texture coordinate streams the model compiler requires.
     /// </summary>
     private static void AddCompilerRequiredStreams(DmeVertexData vertexData, int elementCount)
     {
@@ -289,7 +280,6 @@ internal static class DmxMeshBuilder
         var dmeVertexBuffers = new Dictionary<(int, int), (DmeDag Dag, DmeVertexData VertexData)>(mbuf.VertexBuffers.Count);
 
         // Populate the joint list with bones up-front so DMX BLENDINDICES line up with Bone.Index.
-        // ModelDoc resolves mesh skinning indices through this list; without it the mesh is bound to "no skeleton".
         if (options.SkeletonRoot is { } skeletonRoot)
         {
             dmeModel = skeletonRoot;
@@ -299,10 +289,8 @@ internal static class DmxMeshBuilder
         var materialInputSignature = Material.VsInputSignature.Empty;
         var drawCallIndex = 0;
 
-        // One mesh whose draw calls sit in separate but identically laid out vertex buffers is a single
-        // mesh in the source art, so the buffers are concatenated back into one and the draw calls
-        // become face sets of it. Morph vertex ids run across the whole mesh, so this is also what
-        // makes the deltas line up.
+        // Draw calls sitting in separate but identically laid out vertex buffers are one mesh in the
+        // source art, concatenated back into one with the draw calls as its face sets.
         var toolsBuffers = new ToolsBufferMatcher(mbuf);
         var merged = TryMergeVertexBuffers(mdat, mbuf, toolsBuffers);
 
@@ -449,8 +437,7 @@ internal static class DmxMeshBuilder
         {
             foreach (var flexName in flexNames)
             {
-                // A morph target with no deltas at all still needs its delta state, or the compiler
-                // appends it after the ones that have data and the whole flex order shifts.
+                // A morph target with no deltas at all still needs its delta state.
                 positionData.TryGetValue(flexName, out var deltas);
                 deltas ??= [];
 
@@ -501,8 +488,7 @@ internal static class DmxMeshBuilder
                     }
                 }
 
-                // A morph target that carries no geometry at all still has to look like one, or the
-                // compiler sorts it behind the targets that do and the flex order shifts.
+                // A morph target that carries no geometry still has to look like one.
                 if (positions.Count == 0 && vertexCount > 0)
                 {
                     positions.Add(Vector3.Zero);
@@ -527,8 +513,7 @@ internal static class DmxMeshBuilder
                 dmeMesh.DeltaStateWeightsLagged.Add(Vector2.Zero);
             }
 
-            // Targeting a rule set rather than the mesh is what makes the compiler take its flex rules
-            // from the expressions below instead of giving every morph target its own controller.
+            // The compiler takes its flex rules from the rule set rather than from the mesh.
             var flexRules = new DmeFlexRules { Name = dmeMesh.Name, Target = dmeMesh };
 
             foreach (var flexName in flexNames)
@@ -549,8 +534,7 @@ internal static class DmxMeshBuilder
         {
             var inputControl = new DmeCombinationInputControl
             {
-                // The compiler rewrites a name that is not a plain identifier, so the names have to be
-                // rewritten the same way on both sides of a reference or it stops resolving.
+                // The compiler rewrites a name that is not a plain identifier.
                 Name = FlexRecovery.Identifier(control.Name),
                 FlexMin = control.Min,
                 FlexMax = control.Max,

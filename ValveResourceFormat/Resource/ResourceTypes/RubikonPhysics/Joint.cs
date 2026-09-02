@@ -18,8 +18,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics
     }
 
     /// <summary>
-    /// The kind of constraint a <see cref="Joint"/> applies between its two bodies. Not schema-enumerated;
-    /// recovered by compiling one instance of each ModelDoc joint node class and reading back <c>m_nType</c>.
+    /// The kind of constraint a <see cref="Joint"/> applies between its two bodies.
     /// </summary>
 #pragma warning disable CA1027
     public enum JointType

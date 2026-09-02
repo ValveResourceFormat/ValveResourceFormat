@@ -154,8 +154,8 @@ public class NmClipExtract
     }
 
     /// <summary>
-    /// Loads a skeleton, collecting the content files it was compiled from so that they can be told
-    /// apart from the clip's own source animation in the input dependency list.
+    /// Loads a skeleton, collecting the content files it was compiled from to tell them apart from the
+    /// clip's own source animation in the input dependency list.
     /// </summary>
     private ResourceTypes.ModelAnimation.Skeleton? LoadSkeleton(string skeletonName, HashSet<string> skeletonSourceFiles)
     {
@@ -179,14 +179,13 @@ public class NmClipExtract
 
     /// <summary>
     /// Recovers the animation the clip was authored from, and for an additive clip generated against
-    /// another animation, that animation. Neither is stored in the compiled clip, but the compiler
-    /// records both as input dependencies, alongside the clip document itself and the source files of
-    /// every skeleton the clip references.
+    /// another animation, that animation. Both are input dependencies of the compiled clip, alongside
+    /// the clip document itself and the source files of every skeleton it references.
     /// </summary>
     /// <param name="skeletonSourceFiles">The content files every referenced skeleton was compiled from.</param>
     /// <param name="skeletonSourcesKnown">
-    /// Whether every skeleton the clip references was loaded. When one was not, its own source files are
-    /// missing from <paramref name="skeletonSourceFiles"/> and are indistinguishable from an additive base.
+    /// Whether every skeleton the clip references was loaded. A skeleton that was not leaves its own
+    /// source files out of <paramref name="skeletonSourceFiles"/>.
     /// </param>
     private (string? SourceFileName, string? AdditiveBaseFileName) FindAuthoredSourceFiles(HashSet<string> skeletonSourceFiles, bool skeletonSourcesKnown)
     {
@@ -214,8 +213,7 @@ public class NmClipExtract
             return (candidates[0], null);
         }
 
-        // An additive generated against another animation lists that animation too; the clip's own
-        // source is the one named after it.
+        // An additive lists its base animation too; the clip's own source is the one named after it.
         var clipName = Path.GetFileNameWithoutExtension(clip.Name);
         string? sourceFileName = null;
 
@@ -262,15 +260,12 @@ public class NmClipExtract
     }
 
     /// <summary>
-    /// Finds the frame the additive was generated relative to: subtracting it left that frame as the
-    /// identity transform on every bone. Falls back to the first frame for a clip that holds no such
-    /// frame, which is the case when the additive was generated against a separate animation, or
-    /// against a frame that the clip's own frame range does not cover.
+    /// Finds the frame the additive was generated relative to, the one left as the identity transform on
+    /// every bone. Falls back to the first frame for a clip that holds no such frame.
     /// </summary>
     private int FindAdditiveBaseFrame()
     {
-        // Between the largest deviation measured on a base frame (9e-3, quantization) and the
-        // smallest measured on a frame that is not one (4e-2).
+        // Between the largest deviation measured on a base frame and the smallest on any other.
         const float IdentityTolerance = 0.02f;
 
         var bones = new ResourceTypes.ModelAnimation.FrameBone[clip.TrackCompressionSettings.Length];

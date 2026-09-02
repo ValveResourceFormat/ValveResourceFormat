@@ -7,8 +7,7 @@ using ValveResourceFormat.ResourceTypes.ModelAnimation;
 namespace ValveResourceFormat.IO;
 
 /// <summary>
-/// Builds the glTF node hierarchy a skeleton becomes, and the point mesh that makes importers recognise
-/// it as one.
+/// Builds the glTF node hierarchy a skeleton becomes, and the point mesh importers recognise it by.
 /// </summary>
 public partial class GltfModelExporter
 {

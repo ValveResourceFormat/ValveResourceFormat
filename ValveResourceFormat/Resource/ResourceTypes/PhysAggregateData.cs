@@ -60,8 +60,8 @@ namespace ValveResourceFormat.ResourceTypes
             => collisionAttributes ??= Data.GetArray("m_collisionAttributes");
 
         /// <summary>
-        /// Gets what a shape with these collision attributes interacts as. Assets compiled before the
-        /// rename carry the tags under <c>m_PhysicsTagStrings</c>, and one with neither has no tags.
+        /// Gets what a shape with these collision attributes interacts as. Older assets carry the tags
+        /// under <c>m_PhysicsTagStrings</c>.
         /// </summary>
         public static string[] GetInteractAsTags(KVObject collisionAttributes)
         {
@@ -73,8 +73,7 @@ namespace ValveResourceFormat.ResourceTypes
         }
 
         /// <summary>
-        /// Gets what a shape interacts as, by index into <see cref="CollisionAttributes"/>. Empty when
-        /// the index addresses no attribute set.
+        /// Gets what a shape interacts as, by index into <see cref="CollisionAttributes"/>.
         /// </summary>
         public string[] GetInteractAsTags(int collisionAttributeIndex)
             => collisionAttributeIndex >= 0 && collisionAttributeIndex < CollisionAttributes.Count

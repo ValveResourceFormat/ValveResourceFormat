@@ -612,8 +612,7 @@ namespace ValveResourceFormat.IO
             var skeleton = renderSkeleton != null ? Skeleton.FromRenderSkeleton(renderSkeleton) : null;
             var (_, joints) = skeleton != null ? CreateGltfSkeleton(scene, skeleton, name) : (null, null);
 
-            // The mesh's own blend indices already address its render skeleton directly, so an identity
-            // remap (rather than null) is what tells CreateGltfMesh to emit joint/weight vertex data.
+            // The mesh's own blend indices already address its render skeleton directly.
             var identityRemapTable = joints != null ? Enumerable.Range(0, skeleton!.Bones.Length).ToArray() : null;
 
             AddMeshNode(exportedModel, scene, name, Vector4.One, mesh, mesh.VBIB, joints, meshNode: out _, identityRemapTable);

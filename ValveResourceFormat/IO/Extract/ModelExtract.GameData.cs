@@ -15,7 +15,7 @@ partial class ModelExtract
 {
     /// <summary>
     /// Rebuilds the nodes a model doc carries for its authored key values. The resource references are
-    /// written for every model; everything below them needs key values to have survived compilation.
+    /// written for every model, the rest only for a model that kept its key values.
     /// </summary>
     private void ExtractModelKeyValues(Model model, ModelDocLists lists, KVObject rootNode)
     {
@@ -161,8 +161,8 @@ partial class ModelExtract
                 continue;
             }
 
-            // Some of these classes hold one entry and others hold an array of them, and an
-            // array wrapped in a single node compiles back to an unnamed member.
+            // Some of these classes hold one entry and others an array; an array wrapped in a single
+            // node compiles back to an unnamed member.
             if (keyvalues[genericDataClass].ValueType == KVValueType.Array)
             {
                 foreach (var entry in keyvalues.GetArray(genericDataClass))

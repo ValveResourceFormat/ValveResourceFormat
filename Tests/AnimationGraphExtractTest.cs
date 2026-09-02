@@ -12,8 +12,7 @@ namespace Tests
 {
     /// <summary>
     /// Covers the animation graph decompiler against the committed vanmgrph fixtures. Converting a graph
-    /// node is a long chain of per-class arms, so these assert on what every arm has to produce rather
-    /// than on any one of them.
+    /// node is a long chain of per-class arms, so these assert on what every arm produces.
     /// </summary>
     public class AnimationGraphExtractTest
     {
@@ -32,8 +31,7 @@ namespace Tests
         }
 
         /// <summary>
-        /// The whole decompiled document, pinned. Small enough that the diff is readable when it moves,
-        /// which is what makes it useful for a converter this size.
+        /// The whole decompiled document, pinned. Small enough that the diff is readable when it moves.
         /// </summary>
         [Test]
         public async Task DecompilesAGraphToItsPinnedDocument()
@@ -55,8 +53,7 @@ namespace Tests
 
         /// <summary>
         /// Every animation node the converter emits carries the name the document refers to it by,
-        /// whichever arm produced it. The larger fixture is asserted structurally rather than pinned,
-        /// because its document is over a megabyte.
+        /// whichever arm produced it. The larger fixture is asserted structurally rather than pinned.
         /// </summary>
         [Test]
         public async Task EveryConvertedNodeIsNamed()
@@ -67,7 +64,6 @@ namespace Tests
 
             using (Assert.Multiple())
             {
-                // Fifteen node classes, so this covers a real slice of the converter's arms.
                 await Assert.That(nodes.Select(node => node.GetStringProperty("_class")).Distinct().Order()).IsEquivalentTo([
                     "CAddAnimNode", "CAimMatrixAnimNode", "CBlend2DAnimNode", "CBlendAnimNode",
                     "CBoneMaskAnimNode", "CChoiceAnimNode", "CMoverAnimNode", "CRootAnimNode",
@@ -82,8 +78,7 @@ namespace Tests
                 await Assert.That(nodes).All(node => node.ContainsKey("m_sName"));
                 await Assert.That(nodes).All(node => !node.ContainsKey("m_name"));
 
-                // Every node in this graph was authored with a name, so the placeholder is not reached
-                // here; pinning that at zero catches it starting to fire where a real name exists.
+                // Every node in this graph was authored with a name, so no placeholder is reached.
                 await Assert.That(unnamed).IsZero();
             }
         }

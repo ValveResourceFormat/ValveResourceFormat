@@ -10,16 +10,15 @@ using static ValveResourceFormat.IO.KVHelpers;
 namespace ValveResourceFormat.IO;
 
 /// <summary>
-/// Rebuilds the model doc nodes for the collision model: physics joints and the markup carried by the
-/// shapes they connect.
+/// Rebuilds the model doc nodes for the collision model: physics joints and the markup the shapes
+/// they connect carry.
 /// </summary>
 partial class ModelExtract
 {
     /// <summary>
     /// Builds a PhysicsJointList child node for one joint, or <see langword="null"/> for a joint type
-    /// with no known ModelDoc node class. The limit attributes are recovered per joint type: only
-    /// <see cref="JointType.Conical"/>, <see cref="JointType.Revolute"/> and
-    /// <see cref="JointType.Prismatic"/> have confirmed motion-limit authoring keys.
+    /// with no ModelDoc node class. Motion limits are written for <see cref="JointType.Conical"/>,
+    /// <see cref="JointType.Revolute"/> and <see cref="JointType.Prismatic"/> only.
     /// </summary>
     static KVObject? BuildPhysicsJoint(PhysAggregateData physAggregateData, Joint joint)
     {
@@ -75,8 +74,7 @@ partial class ModelExtract
     }
 
     /// <summary>
-    /// Writes the hit group a physics shape belongs to. Shipped content leaves this at the invalid
-    /// placeholder, which the compiler does not write back, so only a real group is emitted.
+    /// Writes the hit group a physics shape belongs to, skipping the invalid placeholder.
     /// </summary>
     static void AddHitGroup<TShape>(KVObject node, ShapeDescriptor<TShape> shape) where TShape : struct
     {
@@ -122,9 +120,8 @@ partial class ModelExtract
     {
         if (physAggregateData is not null)
         {
-            // Bones that already carry body markup as game data round-trip their mass through it, and the
-            // compiler rejects a second markup for the same body. The lookup is case-insensitive because
-            // resourcecompiler matches target_body to the existing markup's bone name that way.
+            // A bone that already carries body markup as game data round-trips its mass through it. The
+            // compiler matches target_body to that markup's bone name case-insensitively.
             var existingMarkupBones = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             var physicsBodyMarkupData = model?.KeyValues.GetSubCollection("CPhysicsBodyGameMarkupData");
             var physicsBodyMarkupByBoneName = physicsBodyMarkupData?.GetSubCollection("m_PhysicsBodyMarkupByBoneName");
@@ -148,8 +145,7 @@ partial class ModelExtract
                     || physicsPart.AngularDamping != 0f
                     || physicsPart.OverrideMassCenter;
 
-                // Markup addresses a body by its bone name, so a part the physics data gives no bone
-                // name for cannot be targeted at all.
+                // Markup addresses a body by its bone name.
                 if (hasOverrides && parentBone.Length > 0 && existingMarkupBones.Add(parentBone))
                 {
                     var bodyMarkup = MakeNode("PhysicsBodyMarkup", ("target_body", parentBone));

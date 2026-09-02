@@ -217,7 +217,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
 
         /// <summary>
         /// Pushes the frame's flex controller values to every mesh that morphs, with the bone driven
-        /// morphs layered on top of what the animation supplied.
+        /// morphs layered on top.
         /// </summary>
         private void UpdateFlexControllers()
         {
@@ -230,7 +230,6 @@ namespace ValveResourceFormat.Renderer.SceneNodes
                     continue;
                 }
 
-                // A bone driven morph is not in the animation, so it is layered on afterwards.
                 if (dotToMorphConstraints.Length > 0)
                 {
                     datas.CopyTo(dotToMorphValues, 0);

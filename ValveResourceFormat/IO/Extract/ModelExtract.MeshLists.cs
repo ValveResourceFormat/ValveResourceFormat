@@ -56,8 +56,7 @@ partial class ModelExtract
                         bodyGroup.Add("hidden_in_tools", true);
                     }
 
-                    // A single choice compiled without its index is what this flag asks for; without
-                    // it the compiler would name the group "<group>_@0_#&<choice>" instead.
+                    // A single choice compiled without its index is what this flag asks for.
                     if (bodyGroupInfo.Choices is [{ Indexed: false }])
                     {
                         bodyGroup.Add("non_bodygroup_single_choice", true);
@@ -104,10 +103,8 @@ partial class ModelExtract
                 // LOD groups. m_refLODGroupMasks says which level each mesh belongs to (bit N => level N) and
                 // m_lodGroupSwitchDistances gives each level's switch value. Emit one LODGroup per declared
                 // level so a recompile rebuilds the original switch distances, and collect meshes that live in
-                // every level into a single LODGroupAll rather than repeating them in each group. A level can
-                // legitimately end up with no unique mesh references (every mesh at that level also lives in
-                // every other level, so it moved to LODGroupAll) - the group itself still has to be
-                // written or the compiler drops that level, and with it the switch distance.
+                // every level into a single LODGroupAll rather than repeating them in each group. A level
+                // whose meshes all moved to LODGroupAll is still written, as an empty group.
                 var lodInfo = model.LodInfo;
 
                 for (var lodLevel = 0; lodLevel < lodInfo.SwitchDistances.Count; lodLevel++)

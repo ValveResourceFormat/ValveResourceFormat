@@ -75,8 +75,7 @@ internal class KVHelpers
     }
 
     /// <summary>
-    /// Reads a bone reference as a plain name. The legacy rig nodes take bone names directly,
-    /// unlike the chain nodes, which wrap them in an object.
+    /// Reads a bone reference as a plain name, the form the legacy rig nodes take.
     /// </summary>
     internal static string GetBoneReferenceName(KVObject? source, string key)
         => source?.ContainsKey(key) == true

@@ -3,8 +3,8 @@ using Datamodel;
 namespace ValveResourceFormat.IO.ContentFormats.DmxModel;
 
 /// <summary>
-/// The DMX scaffolding every mesh export shares: the dag and vertex data a datamodel mesh hangs off, the
-/// face sets its geometry is written into, and the root element that ties them to a datamodel.
+/// The DMX scaffolding every mesh export shares: the dag and vertex data a datamodel mesh hangs off,
+/// the face sets its geometry is written into, and the root element tying them to a datamodel.
 /// </summary>
 internal static class DmxScaffolding
 {

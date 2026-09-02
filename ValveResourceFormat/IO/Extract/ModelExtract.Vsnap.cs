@@ -14,8 +14,7 @@ partial class ModelExtract
 {
 
     /// <summary>
-    /// Rebuilds a VSNAPEmpty node for every particle snapshot the model references, so a recompile
-    /// regenerates the snapshot rather than leaving a dangling reference.
+    /// Rebuilds a VSNAPEmpty node for every particle snapshot the model references.
     /// </summary>
     private void AddVsnapNodes(ModelDocLists lists)
     {
@@ -79,8 +78,7 @@ partial class ModelExtract
 
             if (particles.Count == 0)
             {
-                // An empty VSNAPEmpty makes the compiler fail with "No Vertex Particles to Write"
-                // rather than emitting an empty snapshot.
+                // The compiler rejects a VSNAPEmpty with no particles.
                 continue;
             }
 

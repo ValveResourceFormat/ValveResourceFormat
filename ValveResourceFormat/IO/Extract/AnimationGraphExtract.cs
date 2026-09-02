@@ -2743,7 +2743,7 @@ public class AnimationGraphExtract : IDisposable
 
     /// <summary>
     /// Writes an animation node's authored name, which the compiled graph carries under a different key.
-    /// A node with no name keeps a placeholder, because the name is what the document refers to it by.
+    /// A node with no name keeps a placeholder.
     /// </summary>
     /// <returns>The name written, which a caller that derives more from it can read back.</returns>
     private static string AddNodeName(KVObject node, object value)

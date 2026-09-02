@@ -6,8 +6,8 @@ using ValveResourceFormat.ResourceTypes.ModelAnimation;
 namespace ValveResourceFormat.IO;
 
 /// <summary>
-/// Writes a skeleton out as a DMX dag hierarchy, with the axis and sibling order fixups the NM skeleton
-/// and clip extractors need to reproduce a compiled NM bone order.
+/// Writes a skeleton out as a DMX dag hierarchy, with the axis and sibling order fixups that reproduce
+/// a compiled NM bone order.
 /// </summary>
 partial class ModelExtract
 {
@@ -15,24 +15,21 @@ partial class ModelExtract
     private static readonly Quaternion NmSkelRotationFixupInverse = Quaternion.Inverse(NmSkelRotationFixup);
 
     /// <summary>
-    /// NM skeletons compile the bones under root_motion in a permuted axis frame. This re-frames one of
-    /// them, in root_motion's space, which is why the rotation is multiplied on the left.
+    /// NM skeletons compile the bones under root_motion in a permuted axis frame. Re-frames one of them,
+    /// in root_motion's space.
     /// </summary>
     private static (Vector3 Position, Quaternion Rotation) NmAxisFixupChild(Vector3 position, Quaternion rotation)
         => (Vector3.Transform(position, NmSkelRotationFixup), NmSkelRotationFixup * rotation);
 
     /// <summary>
-    /// The other half of <see cref="NmAxisFixupChild"/>. root_motion takes the inverse, so what its children
-    /// gained cancels against it and the subtree below them does not move.
+    /// The other half of <see cref="NmAxisFixupChild"/>: root_motion takes the inverse, cancelling what
+    /// its children gained.
     /// </summary>
-    /// <remarks>
-    /// Both halves have to be applied to the bind pose and to every frame alike, since a clip writes a
-    /// channel for each of these bones and the frame values override what the bind pose declared.
-    /// </remarks>
+    /// <remarks>Both halves apply to the bind pose and to every frame alike.</remarks>
     private static Quaternion NmAxisFixupRootMotion(Quaternion rotation)
         => rotation * NmSkelRotationFixupInverse;
 
-    /// <summary>Emits cloth bones with the '_' prefix the compiler sanitizes '$' to, so round-trips don't duplicate them.</summary>
+    /// <summary>Emits cloth bones with the '_' prefix the compiler sanitizes '$' to.</summary>
     internal static string GetExportBoneName(Bone bone)
         => bone.IsProceduralCloth && bone.Name.StartsWith('$')
             ? $"_{bone.Name[1..]}"
@@ -66,9 +63,8 @@ partial class ModelExtract
 
     /// <summary>
     /// Adds one skeleton's joints to a DmeModel, its roots as children of the model, and returns the
-    /// joint transforms indexed by bone index. When <paramref name="nmLowLodBoneCount"/> is
-    /// non-negative, DAG siblings are ordered to reproduce the skeleton's compiled NM bone order;
-    /// otherwise they are appended in bone index order.
+    /// joint transforms indexed by bone index. With <paramref name="nmLowLodBoneCount"/> non-negative,
+    /// DAG siblings reproduce the compiled NM bone order, otherwise bone index order.
     /// </summary>
     private static DmeTransform[] AppendDmeSkeletonJoints(DmeModel dmeSkeleton, Skeleton skeleton, int nmLowLodBoneCount = -1)
     {
@@ -153,11 +149,9 @@ partial class ModelExtract
     }
 
     /// <summary>
-    /// CompileNmSkeleton emits bones as a hierarchy walk filtered to the first
-    /// m_numBonesToSampleAtLowLOD bones, then the same walk filtered to the rest. Orders one
-    /// sibling group so that walk reproduces the skeleton's compiled bone order. Without the
-    /// subtree tables from <see cref="NmLodSubtreeMins"/> the group is returned unchanged, in
-    /// bone index order.
+    /// Orders one sibling group into the compiled NM bone order: a hierarchy walk filtered to the first
+    /// m_numBonesToSampleAtLowLOD bones, then the same walk filtered to the rest. Without the subtree
+    /// tables from <see cref="NmLodSubtreeMins"/> the group comes back unchanged.
     /// </summary>
     private static IReadOnlyList<Bone> OrderSiblings(IReadOnlyList<Bone> siblings, int[]? minLow, int[]? minHigh)
     {

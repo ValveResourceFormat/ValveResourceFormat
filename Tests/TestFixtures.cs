@@ -16,7 +16,7 @@ namespace Tests
         public static string Path(string fileName)
             => System.IO.Path.Combine(TestContext.TestDirectory!, "Files", fileName);
 
-        /// <summary>Reads a compiled resource. <see cref="Resource.Read(string)"/> sets its file name.</summary>
+        /// <summary>Reads a compiled resource.</summary>
         public static Resource Load(string fileName)
         {
             var resource = new Resource();
@@ -72,8 +72,7 @@ namespace Tests
         }
 
         /// <summary>
-        /// Builds the part of a compiled model's data block <see cref="ModelLodInfo"/> reads, so the LOD
-        /// structure can be exercised without a compiled model behind it.
+        /// Builds the part of a compiled model's data block <see cref="ModelLodInfo"/> reads.
         /// </summary>
         public static KVObject ModelLodData(long[] meshLodMasks, float[] switchDistances)
         {

@@ -5,8 +5,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelData
 {
     /// <summary>
     /// Maps the bone indices a mesh's <c>BLENDINDICES</c> carry to bone indices of the model skeleton.
-    /// Every mesh owns a contiguous slice of one table, built from the compiled model's
-    /// <c>m_remappingTable</c> and <c>m_remappingTableStarts</c>.
+    /// Every mesh owns a contiguous slice of one table.
     /// </summary>
     public sealed class BoneRemapTable
     {
@@ -14,8 +13,8 @@ namespace ValveResourceFormat.ResourceTypes.ModelData
         private readonly int[] table;
 
         /// <summary>
-        /// Gets every mesh bone's skeleton bone index, all meshes concatenated. A mesh addresses its own
-        /// bones by index into its slice, not into this.
+        /// Gets every mesh bone's skeleton bone index, all meshes concatenated. A mesh indexes its own
+        /// slice rather than this.
         /// </summary>
         public ReadOnlyMemory<int> Table => table;
 
