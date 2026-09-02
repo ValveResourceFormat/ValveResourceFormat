@@ -495,7 +495,7 @@ public class AnimationGraphExtract : IDisposable
         nodeIndexToIdMap = [];
 
         var assignedNodeIds = new HashSet<long>();
-        var idCursor = GeneratedNodeIdMin;
+        ref var idCursor = ref generatedNodeIdCursor;
         for (var i = 0; i < compiledNodes.Count; i++)
         {
             var compiledNode = compiledNodes[i];
@@ -537,13 +537,23 @@ public class AnimationGraphExtract : IDisposable
     private const long GeneratedNodeIdMin = 100_000_000L;
     private const long GeneratedNodeIdMax = 999_999_999L;
 
-    private static long GenerateNewNodeId(HashSet<long> assignedNodeIds, ref long cursor)
+    /// <summary>
+    /// Ids handed to nodes the document needs but the compiled graph does not number. One cursor
+    /// serves the whole document: every generated id has to be unique across it, not just within the
+    /// pass that produced it.
+    /// </summary>
+    private long generatedNodeIdCursor = GeneratedNodeIdMin;
+
+    /// <summary>Every id already handed out, so no two generated nodes can share one.</summary>
+    private readonly HashSet<long> issuedNodeIds = [];
+
+    private long GenerateNewNodeId(HashSet<long> assignedNodeIds, ref long cursor)
     {
         if (cursor < GeneratedNodeIdMin)
         {
             cursor = GeneratedNodeIdMin;
         }
-        while (cursor <= GeneratedNodeIdMax && assignedNodeIds.Contains(cursor))
+        while (cursor <= GeneratedNodeIdMax && (assignedNodeIds.Contains(cursor) || issuedNodeIds.Contains(cursor)))
         {
             cursor++;
         }
@@ -551,6 +561,9 @@ public class AnimationGraphExtract : IDisposable
         {
             throw new InvalidOperationException("Exhausted the generated node id range.");
         }
+
+        issuedNodeIds.Add(cursor);
+
         return cursor++;
     }
 
@@ -2586,7 +2599,7 @@ public class AnimationGraphExtract : IDisposable
         var nodes = new List<KVObject>();
         var idMap = new Dictionary<long, long>();
         var assignedIds = new HashSet<long>();
-        var idCursor = GeneratedNodeIdMin;
+        ref var idCursor = ref generatedNodeIdCursor;
 
         // Pass 1: assign IDs in BFS order
         {
@@ -3736,7 +3749,7 @@ public class AnimationGraphExtract : IDisposable
                                     var motionParams = new List<KVObject>();
                                     var motionParamIds = new List<long>();
                                     var motionParamIdSet = new HashSet<long>();
-                                    var motionParamCursor = GeneratedNodeIdMin;
+                                    ref var motionParamCursor = ref generatedNodeIdCursor;
 
                                     if (compiledGroup.ContainsKey("m_motionGraphConfigs"))
                                     {
