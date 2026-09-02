@@ -109,8 +109,12 @@ partial class ModelExtract
             for (var column = 0; column < columns; column++)
             {
                 var reference = row + (rows * column);
-                rowAnimations.Add(reference < fetch.LocalReferenceArray.Length
-                    ? ResolveNodeName(localSequenceNameArray[fetch.LocalReferenceArray[reference]], nodeNames)
+                var localReference = reference < fetch.LocalReferenceArray.Length
+                    ? (int)fetch.LocalReferenceArray[reference]
+                    : -1;
+
+                rowAnimations.Add(localReference >= 0 && localReference < localSequenceNameArray.Length
+                    ? ResolveNodeName(localSequenceNameArray[localReference], nodeNames)
                     : string.Empty);
             }
 
@@ -252,10 +256,6 @@ partial class ModelExtract
     }
 
     /// <summary>
-    /// Rebuilds the <c>FaceposerKeys</c> child node behind a sequence's <c>faceposer</c> gesture/posture
-    /// markup. The compiler folds the node's <c>key_type</c>/<c>entry</c>/<c>start_loop</c>/<c>end_loop</c>
-    /// attributes into a fixed <c>type</c>/<c>entrytag</c>/<c>startloop</c>/<c>endloop</c>/<c>tags</c>
-    /// shape; only the gesture shape (the only one seen in shipped Dota content) is reconstructed here.
     /// Matches each sequence that only plays an animation another sequence already declares to that
     /// other sequence's name. Such a sequence has no animation of its own to write out; it is rebuilt
     /// as a one entry blend of the node that does declare it. Only the sequences that name a pose
@@ -307,6 +307,9 @@ partial class ModelExtract
     /// </summary>
     static KVObject? ProcessFaceposerKeys(KVObject? sequenceKeys)
     {
+        // The frame the compiler writes under a fixed name rather than one the markup points at.
+        const string AccentTag = "accent";
+
         var faceposer = sequenceKeys?.GetSubCollection("faceposer");
 
         if (faceposer == null || faceposer.GetStringProperty("type") != "gesture")
@@ -314,9 +317,18 @@ partial class ModelExtract
             return null;
         }
 
-        var entryTag = faceposer.GetStringProperty("entrytag");
-        var startLoopTag = faceposer.GetStringProperty("startloop");
-        var endLoopTag = faceposer.GetStringProperty("endloop");
+        // Half-Life Alyx era markup names the exit tag in the singular, and its ModelDoc has no
+        // FaceposerKeys class to load the node back into.
+        if (faceposer.ContainsKey("exittag"))
+        {
+            return null;
+        }
+
+        // Markup that names no tag alias for a slot leaves the key out entirely rather than empty.
+        var entryTag = faceposer.GetStringProperty("entrytag", string.Empty);
+        var startLoopTag = faceposer.GetStringProperty("startloop", string.Empty);
+        var endLoopTag = faceposer.GetStringProperty("endloop", string.Empty);
+        var exitTag = faceposer.GetStringProperty("exittags", string.Empty);
         var tags = faceposer.GetSubCollection("tags");
 
         if (tags == null || entryTag.Length == 0 || startLoopTag.Length == 0 || endLoopTag.Length == 0)
@@ -324,12 +336,31 @@ partial class ModelExtract
             return null;
         }
 
-        return MakeNode("FaceposerKeys",
+        var properties = new List<(string Name, KVObject Value)>
+        {
             ("key_type", "Gesture"),
             ("entry", tags.GetInt32Property(entryTag, -1)),
-            ("start_loop", tags.GetInt32Property(startLoopTag, -1)),
-            ("end_loop", tags.GetInt32Property(endLoopTag, -1))
-        );
+        };
+
+        if (tags.ContainsKey(AccentTag))
+        {
+            properties.Add(("accent", tags.GetInt32Property(AccentTag, -1)));
+        }
+
+        properties.Add(("start_loop", tags.GetInt32Property(startLoopTag, -1)));
+        properties.Add(("end_loop", tags.GetInt32Property(endLoopTag, -1)));
+
+        if (exitTag.Length > 0 && tags.ContainsKey(exitTag))
+        {
+            properties.Add(("exit", tags.GetInt32Property(exitTag, -1)));
+        }
+
+        if (faceposer.ContainsKey("thumbnail_frame"))
+        {
+            properties.Add(("thumbnail_frame", faceposer.GetInt32Property("thumbnail_frame")));
+        }
+
+        return MakeNode("FaceposerKeys", [.. properties]);
     }
 
     /// <summary>
@@ -365,9 +396,10 @@ partial class ModelExtract
     /// </summary>
     static string ResolveNodeName(string name, HashSet<string> nodeNames)
     {
-        if (nodeNames.Contains(name))
+        // The set is case-insensitive, so a hit still has to give back the node's own spelling.
+        if (nodeNames.TryGetValue(name, out var declared))
         {
-            return name;
+            return declared;
         }
 
         var bare = name.TrimStart('@');
@@ -382,6 +414,12 @@ partial class ModelExtract
 
         return name;
     }
+
+    /// <summary>
+    /// Converts a declared frame count into the span a layer's cycle is measured against. The compiler
+    /// divides by the frame count minus one, so a sequence of one frame or less spans nothing.
+    /// </summary>
+    static int GetCycleFrames(int frameCount) => frameCount > 1 ? frameCount - 1 : 0;
 
     static KVObject ProcessAnimationAutoLayer(int cycleFrames, AnimationAutoLayer autoLayer, string[] localSequenceNameArray,
         string[] poseParamNames, HashSet<string> nodeNames)
@@ -582,13 +620,38 @@ partial class ModelExtract
                     AddActivities(bindPose, bindPoseChildren, [.. aseq.GetArray("m_activityArray")
                         .Select(activity => (activity.GetStringProperty("m_name"), activity.GetInt32Property("m_nWeight")))]);
 
-                    if (isEmptyAnim && tables.LocalSequenceNames != null)
+                    // A bind pose declares no length of its own, so a layer it carries has no frame span
+                    // to be placed on and keeps only its target and blend flags.
+                    if (tables.LocalSequenceNames != null)
                     {
                         foreach (var autoLayerKV in aseq.GetArray("m_autoLayerArray"))
                         {
                             var autoLayer = new AnimationAutoLayer(autoLayerKV);
-                            bindPoseChildren.Add(ProcessAnimationAutoLayer(frameCount, autoLayer, tables.LocalSequenceNames, tables.PoseParamNames ?? [], nodeNames));
+                            bindPoseChildren.Add(ProcessAnimationAutoLayer(GetCycleFrames(frameCount), autoLayer, tables.LocalSequenceNames, tables.PoseParamNames ?? [], nodeNames));
                         }
+                    }
+
+                    if (bindPoseFlags.GetBooleanProperty("m_bAutoplay"))
+                    {
+                        bindPoseChildren.Add(MakeNode("AnimAutoLayer"));
+                    }
+
+                    var bindPoseCyclePose = aseq.GetSubCollection("m_fetch").GetInt32Property("m_nLocalCyclePoseParameter");
+
+                    if (tables.PoseParamNames != null && bindPoseCyclePose >= 0 && bindPoseCyclePose < tables.PoseParamNames.Length)
+                    {
+                        bindPoseChildren.Add(MakeNode("AnimCycleOverride", [
+                            ("cycle_type", "Pose To Cycle"),
+                            ("pose_param_name", tables.PoseParamNames[bindPoseCyclePose]),
+                        ]));
+                    }
+
+                    if (bindPoseFlags.GetBooleanProperty("m_bLegacyRealtime"))
+                    {
+                        bindPoseChildren.Add(MakeNode("AnimCycleOverride", [
+                            ("cycle_type", "Auto Cycle"),
+                            ("pose_param_name", ""),
+                        ]));
                     }
 
                     if (ProcessFaceposerKeys(sequenceKeys) is KVObject bindPoseFaceposerKeys)
@@ -697,14 +760,11 @@ partial class ModelExtract
                         ("event_frame", animEvent.Frame)
                     );
 
+                    // The compiler derives an event's duration from the span between its frame and its
+                    // end frame, so the end frame is the whole of what an event's timing is authored as.
                     if (animEvent.EndFrame != -1)
                     {
                         animEventNode.Add("event_end_frame", animEvent.EndFrame);
-                    }
-
-                    if (animEvent.Duration != 0f)
-                    {
-                        animEventNode.Add("event_duration", animEvent.Duration);
                     }
 
                     if (animEvent.EventData != null)

@@ -148,7 +148,9 @@ partial class ModelExtract
                     || physicsPart.AngularDamping != 0f
                     || physicsPart.OverrideMassCenter;
 
-                if (hasOverrides && !existingMarkupBones.Contains(parentBone))
+                // Markup addresses a body by its bone name, so a part the physics data gives no bone
+                // name for cannot be targeted at all.
+                if (hasOverrides && parentBone.Length > 0 && existingMarkupBones.Add(parentBone))
                 {
                     var bodyMarkup = MakeNode("PhysicsBodyMarkup", ("target_body", parentBone));
 

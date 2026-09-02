@@ -165,7 +165,11 @@ partial class ModelExtract
     }
 
     /// <summary>
+    /// The frame rate to divide frame timings by. Guards only against zero/negative; a fractional but
+    /// positive authored rate (some looping "held pose" sequences compile with fps under 1) must pass
+    /// through unclamped or the exported clip's duration comes out far shorter than its real length.
     /// </summary>
+    private static float EffectiveFps(float fps) => fps > 0f ? fps : 1f;
 
     /// <summary>
     /// Converts an animation to DMX format.
@@ -200,9 +204,11 @@ partial class ModelExtract
             FrameRate = anim.Fps
         };
 
+        var fps = EffectiveFps(anim.Fps);
+
         if (anim.FrameCount > 0)
         {
-            clip.TimeFrame.Duration = TimeSpan.FromSeconds((double)(anim.FrameCount - 1) / MathF.Max(1f, anim.Fps));
+            clip.TimeFrame.Duration = TimeSpan.FromSeconds((double)(anim.FrameCount - 1) / fps);
 
             var frames = new Frame[anim.FrameCount];
             for (var i = 0; i < anim.FrameCount; i++)
@@ -334,7 +340,7 @@ partial class ModelExtract
 
         for (var i = 0; i < anim.FrameCount; i++)
         {
-            var time = i / MathF.Max(1f, anim.Fps);
+            var time = i / EffectiveFps(anim.Fps);
             var timespan = TimeSpan.FromSeconds(time);
 
             var movement = anim.GetMovementOffsetData(time);
@@ -373,7 +379,7 @@ partial class ModelExtract
             for (var i = 0; i < anim.FrameCount; i++)
             {
                 var frame = frames[i];
-                var time = TimeSpan.FromSeconds((double)i / MathF.Max(1f, anim.Fps));
+                var time = TimeSpan.FromSeconds((double)i / EffectiveFps(anim.Fps));
                 ProcessFlexFrameForDmeChannel(flexId, frame, time, flexLogLayer);
             }
             clip.Channels.Add(flexChannel);
@@ -402,7 +408,7 @@ partial class ModelExtract
             {
                 var frame = frames[i];
 
-                var time = TimeSpan.FromSeconds((double)i / MathF.Max(1f, anim.Fps));
+                var time = TimeSpan.FromSeconds((double)i / EffectiveFps(anim.Fps));
 
                 ProcessBoneFrameForDmeChannel(bone, frame, time, positionLogLayer, orientationLogLayer, bone == rootMotionBone);
             }
