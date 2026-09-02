@@ -1,0 +1,946 @@
+<!-- kv3 encoding:text:version{e21c7f3c-8a33-41c5-9977-a76d3a32aa0d} format:animgraph19:version{0adb35b7-2585-4302-8d05-e2825b4518ac} -->
+{
+	_class = "CAnimationGraph"
+	m_nodeManager = 
+	{
+		_class = "CAnimNodeManager"
+		m_nodes = 
+		[
+			{
+				key = 
+				{
+					m_id = 95318692
+				}
+				value = 
+				{
+					_class = "CSequenceAnimNode"
+					m_sName = "Idle"
+					m_networkMode = "ServerAuthoritative"
+					m_tagSpans = [  ]
+					m_sequenceName = "sequence_18"
+					m_playbackSpeed = 1.0
+					m_bLoop = true
+					m_nNodeID = 
+					{
+						m_id = 95318692
+					}
+					m_vecPosition = [ 0.0, 0.0 ]
+				}
+			},
+			{
+				key = 
+				{
+					m_id = 960684295
+				}
+				value = 
+				{
+					_class = "CSequenceAnimNode"
+					m_sName = "Idle"
+					m_networkMode = "ServerAuthoritative"
+					m_tagSpans = [  ]
+					m_sequenceName = "sequence_17"
+					m_playbackSpeed = 1.0
+					m_bLoop = true
+					m_nNodeID = 
+					{
+						m_id = 960684295
+					}
+					m_vecPosition = [ 0.0, 140.0 ]
+				}
+			},
+			{
+				key = 
+				{
+					m_id = 1714182271
+				}
+				value = 
+				{
+					_class = "CChoiceAnimNode"
+					m_sName = "Unnamed"
+					m_networkMode = "ServerAuthoritative"
+					m_children = 
+					[
+						{
+							m_inputConnection = 
+							{
+								m_nodeID = 
+								{
+									m_id = 95318692
+								}
+								m_outputID = 
+								{
+									m_id = 95318692
+								}
+							}
+							m_name = "1"
+							m_weight = 0.75
+							m_blendTime = 0.2
+						},
+						{
+							m_inputConnection = 
+							{
+								m_nodeID = 
+								{
+									m_id = 960684295
+								}
+								m_outputID = 
+								{
+									m_id = 960684295
+								}
+							}
+							m_name = "2"
+							m_weight = 0.25
+							m_blendTime = 0.2
+						},
+					]
+					m_choiceMethod = "WeightedRandom"
+					m_choiceChangeMethod = "OnResetOrCycleEnd"
+					m_blendMethod = "SingleBlendTime"
+					m_blendTime = 0.45
+					m_bCrossFade = true
+					m_bResetChosen = true
+					m_bDontResetSameSelection = false
+					m_nNodeID = 
+					{
+						m_id = 1714182271
+					}
+					m_vecPosition = [ 520.0, 70.0 ]
+				}
+			},
+			{
+				key = 
+				{
+					m_id = 1132213677
+				}
+				value = 
+				{
+					_class = "CRootAnimNode"
+					m_sName = "Unnamed"
+					m_networkMode = "ServerAuthoritative"
+					m_inputConnection = 
+					{
+						m_nodeID = 
+						{
+							m_id = 1714182271
+						}
+						m_outputID = 
+						{
+							m_id = 1714182271
+						}
+					}
+					m_nNodeID = 
+					{
+						m_id = 1132213677
+					}
+					m_vecPosition = [ 1040.0, 70.0 ]
+				}
+			},
+		]
+	}
+	m_componentManager = 
+	{
+		_class = "CAnimComponentManager"
+		m_components = [  ]
+	}
+	m_localParameters = 
+	[
+		{
+			_class = "CBoolAnimParameter"
+			m_name = "b_turn_90_left"
+			m_id = 
+			{
+				m_id = 57393212
+			}
+			m_previewButton = "ANIMPARAM_BUTTON_NONE"
+			m_bNetwork = false
+			m_bUseMostRecentValue = false
+			m_bAutoReset = false
+			m_bPredicted = false
+			m_bDefaultValue = false
+		},
+		{
+			_class = "CBoolAnimParameter"
+			m_name = "b_turn_90_right"
+			m_id = 
+			{
+				m_id = 57393213
+			}
+			m_previewButton = "ANIMPARAM_BUTTON_NONE"
+			m_bNetwork = false
+			m_bUseMostRecentValue = false
+			m_bAutoReset = false
+			m_bPredicted = false
+			m_bDefaultValue = false
+		},
+		{
+			_class = "CBoolAnimParameter"
+			m_name = "b_running"
+			m_id = 
+			{
+				m_id = 57393215
+			}
+			m_previewButton = "ANIMPARAM_BUTTON_NONE"
+			m_bNetwork = false
+			m_bUseMostRecentValue = false
+			m_bAutoReset = false
+			m_bPredicted = false
+			m_bDefaultValue = false
+		},
+		{
+			_class = "CBoolAnimParameter"
+			m_name = "b_ranged_attack"
+			m_id = 
+			{
+				m_id = 57393216
+			}
+			m_previewButton = "ANIMPARAM_BUTTON_NONE"
+			m_bNetwork = false
+			m_bUseMostRecentValue = false
+			m_bAutoReset = false
+			m_bPredicted = false
+			m_bDefaultValue = false
+		},
+		{
+			_class = "CBoolAnimParameter"
+			m_name = "b_walking"
+			m_id = 
+			{
+				m_id = 57393217
+			}
+			m_previewButton = "ANIMPARAM_BUTTON_NONE"
+			m_bNetwork = false
+			m_bUseMostRecentValue = false
+			m_bAutoReset = false
+			m_bPredicted = false
+			m_bDefaultValue = false
+		},
+		{
+			_class = "CEnumAnimParameter"
+			m_name = "e_flinch_location"
+			m_id = 
+			{
+				m_id = 57393221
+			}
+			m_previewButton = "ANIMPARAM_BUTTON_NONE"
+			m_bNetwork = false
+			m_bUseMostRecentValue = false
+			m_bAutoReset = false
+			m_bPredicted = false
+			m_defaultValue = 0
+			m_enumOptions = 
+			[
+				"HITGROUP_GENERIC",
+				"HITGROUP_HEAD",
+				"HITGROUP_CHEST",
+				"HITGROUP_STOMACH",
+				"HITGROUP_LEFTARM",
+				"HITGROUP_RIGHTARM",
+				"HITGROUP_LEFTLEG",
+				"HITGROUP_RIGHTLEG",
+			]
+		},
+		{
+			_class = "CBoolAnimParameter"
+			m_name = "b_aiinterrupt_flinch"
+			m_id = 
+			{
+				m_id = 57393222
+			}
+			m_previewButton = "ANIMPARAM_BUTTON_NONE"
+			m_bNetwork = false
+			m_bUseMostRecentValue = false
+			m_bAutoReset = false
+			m_bPredicted = false
+			m_bDefaultValue = false
+		},
+		{
+			_class = "CBoolAnimParameter"
+			m_name = "b_hug_player_face"
+			m_id = 
+			{
+				m_id = 57393223
+			}
+			m_previewButton = "ANIMPARAM_BUTTON_NONE"
+			m_bNetwork = false
+			m_bUseMostRecentValue = false
+			m_bAutoReset = false
+			m_bPredicted = false
+			m_bDefaultValue = false
+		},
+		{
+			_class = "CBoolAnimParameter"
+			m_name = "b_noninterrupt_flinch_autoclear"
+			m_id = 
+			{
+				m_id = 57393224
+			}
+			m_previewButton = "ANIMPARAM_BUTTON_NONE"
+			m_bNetwork = false
+			m_bUseMostRecentValue = false
+			m_bAutoReset = true
+			m_bPredicted = false
+			m_bDefaultValue = false
+		},
+		{
+			_class = "CEnumAnimParameter"
+			m_name = "e_ragdoll_recovery_direction"
+			m_id = 
+			{
+				m_id = 57393225
+			}
+			m_previewButton = "ANIMPARAM_BUTTON_NONE"
+			m_bNetwork = false
+			m_bUseMostRecentValue = false
+			m_bAutoReset = false
+			m_bPredicted = false
+			m_defaultValue = 0
+			m_enumOptions = 
+			[
+				"AGE_RECOVERY_BACK",
+				"AGE_RECOVERY_FRONT",
+				"AGE_RECOVERY_LEFT",
+				"AGE_RECOVERY_RIGHT",
+			]
+		},
+		{
+			_class = "CBoolAnimParameter"
+			m_name = "b_ragdoll_recovery"
+			m_id = 
+			{
+				m_id = 57393226
+			}
+			m_previewButton = "ANIMPARAM_BUTTON_NONE"
+			m_bNetwork = false
+			m_bUseMostRecentValue = false
+			m_bAutoReset = true
+			m_bPredicted = false
+			m_bDefaultValue = false
+		},
+		{
+			_class = "CBoolAnimParameter"
+			m_name = "b_threat_display"
+			m_id = 
+			{
+				m_id = 57393227
+			}
+			m_previewButton = "ANIMPARAM_BUTTON_NONE"
+			m_bNetwork = false
+			m_bUseMostRecentValue = false
+			m_bAutoReset = false
+			m_bPredicted = false
+			m_bDefaultValue = false
+		},
+		{
+			_class = "CBoolAnimParameter"
+			m_name = "b_burrowed"
+			m_id = 
+			{
+				m_id = 57393228
+			}
+			m_previewButton = "ANIMPARAM_BUTTON_NONE"
+			m_bNetwork = false
+			m_bUseMostRecentValue = false
+			m_bAutoReset = false
+			m_bPredicted = false
+			m_bDefaultValue = false
+		},
+		{
+			_class = "CBoolAnimParameter"
+			m_name = "b_burrow_in"
+			m_id = 
+			{
+				m_id = 57393229
+			}
+			m_previewButton = "ANIMPARAM_BUTTON_NONE"
+			m_bNetwork = false
+			m_bUseMostRecentValue = false
+			m_bAutoReset = false
+			m_bPredicted = false
+			m_bDefaultValue = false
+		},
+		{
+			_class = "CBoolAnimParameter"
+			m_name = "b_burrow_out"
+			m_id = 
+			{
+				m_id = 57393230
+			}
+			m_previewButton = "ANIMPARAM_BUTTON_NONE"
+			m_bNetwork = false
+			m_bUseMostRecentValue = false
+			m_bAutoReset = false
+			m_bPredicted = false
+			m_bDefaultValue = false
+		},
+		{
+			_class = "CBoolAnimParameter"
+			m_name = "b_ceiling_wait"
+			m_id = 
+			{
+				m_id = 57393231
+			}
+			m_previewButton = "ANIMPARAM_BUTTON_NONE"
+			m_bNetwork = false
+			m_bUseMostRecentValue = false
+			m_bAutoReset = false
+			m_bPredicted = false
+			m_bDefaultValue = false
+		},
+		{
+			_class = "CBoolAnimParameter"
+			m_name = "b_ceiling_detach"
+			m_id = 
+			{
+				m_id = 57393232
+			}
+			m_previewButton = "ANIMPARAM_BUTTON_NONE"
+			m_bNetwork = false
+			m_bUseMostRecentValue = false
+			m_bAutoReset = false
+			m_bPredicted = false
+			m_bDefaultValue = false
+		},
+		{
+			_class = "CBoolAnimParameter"
+			m_name = "b_ceiling_fall"
+			m_id = 
+			{
+				m_id = 57393233
+			}
+			m_previewButton = "ANIMPARAM_BUTTON_NONE"
+			m_bNetwork = false
+			m_bUseMostRecentValue = false
+			m_bAutoReset = false
+			m_bPredicted = false
+			m_bDefaultValue = false
+		},
+		{
+			_class = "CBoolAnimParameter"
+			m_name = "b_ceiling_land"
+			m_id = 
+			{
+				m_id = 57393234
+			}
+			m_previewButton = "ANIMPARAM_BUTTON_NONE"
+			m_bNetwork = false
+			m_bUseMostRecentValue = false
+			m_bAutoReset = false
+			m_bPredicted = false
+			m_bDefaultValue = false
+		},
+		{
+			_class = "CBoolAnimParameter"
+			m_name = "b_drowning"
+			m_id = 
+			{
+				m_id = 57393235
+			}
+			m_previewButton = "ANIMPARAM_BUTTON_NONE"
+			m_bNetwork = false
+			m_bUseMostRecentValue = false
+			m_bAutoReset = false
+			m_bPredicted = false
+			m_bDefaultValue = false
+		},
+		{
+			_class = "CBoolAnimParameter"
+			m_name = "b_on_fire"
+			m_id = 
+			{
+				m_id = 57393236
+			}
+			m_previewButton = "ANIMPARAM_BUTTON_NONE"
+			m_bNetwork = false
+			m_bUseMostRecentValue = false
+			m_bAutoReset = false
+			m_bPredicted = false
+			m_bDefaultValue = false
+		},
+		{
+			_class = "CBoolAnimParameter"
+			m_name = "b_crawl"
+			m_id = 
+			{
+				m_id = 57393237
+			}
+			m_previewButton = "ANIMPARAM_BUTTON_NONE"
+			m_bNetwork = false
+			m_bUseMostRecentValue = false
+			m_bAutoReset = false
+			m_bPredicted = false
+			m_bDefaultValue = false
+		},
+		{
+			_class = "CEnumAnimParameter"
+			m_name = "e_crawl_direction"
+			m_id = 
+			{
+				m_id = 57393238
+			}
+			m_previewButton = "ANIMPARAM_BUTTON_NONE"
+			m_bNetwork = false
+			m_bUseMostRecentValue = false
+			m_bAutoReset = false
+			m_bPredicted = false
+			m_defaultValue = 0
+			m_enumOptions = 
+			[
+				"AGE_CRAWL_CENTER",
+				"AGE_CRAWL_RIGHT",
+				"AGE_CRAWL_LEFT",
+			]
+		},
+		{
+			_class = "CBoolAnimParameter"
+			m_name = "b_noninterrupt_flinch"
+			m_id = 
+			{
+				m_id = 347658785
+			}
+			m_previewButton = "ANIMPARAM_BUTTON_NONE"
+			m_bNetwork = false
+			m_bUseMostRecentValue = false
+			m_bAutoReset = false
+			m_bPredicted = false
+			m_bDefaultValue = false
+		},
+		{
+			_class = "CBoolAnimParameter"
+			m_name = "b_stunned"
+			m_id = 
+			{
+				m_id = 1735771055
+			}
+			m_previewButton = "ANIMPARAM_BUTTON_NONE"
+			m_bNetwork = false
+			m_bUseMostRecentValue = false
+			m_bAutoReset = true
+			m_bPredicted = false
+			m_bDefaultValue = false
+		},
+		{
+			_class = "CBoolAnimParameter"
+			m_name = "b_animate_death"
+			m_id = 
+			{
+				m_id = 89452250
+			}
+			m_previewButton = "ANIMPARAM_BUTTON_NONE"
+			m_bNetwork = false
+			m_bUseMostRecentValue = false
+			m_bAutoReset = false
+			m_bPredicted = false
+			m_bDefaultValue = false
+		},
+		{
+			_class = "CBoolAnimParameter"
+			m_name = "b_flipped"
+			m_id = 
+			{
+				m_id = 1523385542
+			}
+			m_previewButton = "ANIMPARAM_BUTTON_NONE"
+			m_bNetwork = false
+			m_bUseMostRecentValue = false
+			m_bAutoReset = false
+			m_bPredicted = false
+			m_bDefaultValue = false
+		},
+		{
+			_class = "CFloatAnimParameter"
+			m_name = "f_Hit_Heading"
+			m_id = 
+			{
+				m_id = 1077403079
+			}
+			m_previewButton = "ANIMPARAM_BUTTON_NONE"
+			m_bNetwork = false
+			m_bUseMostRecentValue = true
+			m_bAutoReset = false
+			m_bPredicted = false
+			m_fDefaultValue = 0.0
+			m_fMinValue = -180.0
+			m_fMaxValue = 180.0
+			m_bInterpolate = false
+		},
+		{
+			_class = "CIntAnimParameter"
+			m_name = "i_Hit_Bone"
+			m_id = 
+			{
+				m_id = 719553069
+			}
+			m_previewButton = "ANIMPARAM_BUTTON_NONE"
+			m_bNetwork = true
+			m_bUseMostRecentValue = true
+			m_bAutoReset = false
+			m_bPredicted = false
+			m_defaultValue = 1
+			m_minValue = 0
+			m_maxValue = 500
+		},
+		{
+			_class = "CFloatAnimParameter"
+			m_name = "f_Hit_Strength"
+			m_id = 
+			{
+				m_id = 382247802
+			}
+			m_previewButton = "ANIMPARAM_BUTTON_NONE"
+			m_bNetwork = true
+			m_bUseMostRecentValue = true
+			m_bAutoReset = false
+			m_bPredicted = false
+			m_fDefaultValue = 1.0
+			m_fMinValue = 0.2
+			m_fMaxValue = 1.0
+			m_bInterpolate = false
+		},
+		{
+			_class = "CVectorAnimParameter"
+			m_name = "v_Hit_Offset"
+			m_id = 
+			{
+				m_id = 1860473429
+			}
+			m_previewButton = "ANIMPARAM_BUTTON_NONE"
+			m_bNetwork = true
+			m_bUseMostRecentValue = true
+			m_bAutoReset = false
+			m_bPredicted = false
+			m_defaultValue = [ 0.0, -1.0, 0.0 ]
+			m_bInterpolate = false
+		},
+		{
+			_class = "CVectorAnimParameter"
+			m_name = "v_Hit_Direction"
+			m_id = 
+			{
+				m_id = 904619261
+			}
+			m_previewButton = "ANIMPARAM_BUTTON_NONE"
+			m_bNetwork = true
+			m_bUseMostRecentValue = true
+			m_bAutoReset = false
+			m_bPredicted = false
+			m_defaultValue = [ 0.0, 0.0, 1.0 ]
+			m_bInterpolate = false
+		},
+		{
+			_class = "CBoolAnimParameter"
+			m_name = "b_Hit_Trigger"
+			m_id = 
+			{
+				m_id = 1552878120
+			}
+			m_previewButton = "ANIMPARAM_BUTTON_NONE"
+			m_bNetwork = false
+			m_bUseMostRecentValue = false
+			m_bAutoReset = true
+			m_bPredicted = false
+			m_bDefaultValue = false
+		},
+		{
+			_class = "CBoolAnimParameter"
+			m_name = "b_armored_hc_hiding"
+			m_id = 
+			{
+				m_id = 87813809
+			}
+			m_previewButton = "ANIMPARAM_BUTTON_NONE"
+			m_bNetwork = false
+			m_bUseMostRecentValue = false
+			m_bAutoReset = false
+			m_bPredicted = false
+			m_bDefaultValue = false
+		},
+		{
+			_class = "CBoolAnimParameter"
+			m_name = "b_powered_ragdoll"
+			m_id = 
+			{
+				m_id = 1070047482
+			}
+			m_previewButton = "ANIMPARAM_BUTTON_NONE"
+			m_bNetwork = false
+			m_bUseMostRecentValue = false
+			m_bAutoReset = true
+			m_bPredicted = false
+			m_bDefaultValue = false
+		},
+		{
+			_class = "CBoolAnimParameter"
+			m_name = "bLookAt"
+			m_id = 
+			{
+				m_id = 206113345
+			}
+			m_previewButton = "ANIMPARAM_BUTTON_NONE"
+			m_bNetwork = false
+			m_bUseMostRecentValue = false
+			m_bAutoReset = false
+			m_bPredicted = false
+			m_bDefaultValue = true
+		},
+		{
+			_class = "CEnumAnimParameter"
+			m_name = "e_Hit_DamageType"
+			m_id = 
+			{
+				m_id = 161737137
+			}
+			m_previewButton = "ANIMPARAM_BUTTON_NONE"
+			m_bNetwork = false
+			m_bUseMostRecentValue = true
+			m_bAutoReset = false
+			m_bPredicted = true
+			m_defaultValue = 0
+			m_enumOptions = 
+			[
+				"AGE_DMG_BULLET",
+				"AGE_DMG_BUCKSHOT",
+				"AGE_DMG_BLAST",
+			]
+		},
+		{
+			_class = "CBoolAnimParameter"
+			m_name = "b_injured"
+			m_id = 
+			{
+				m_id = 483488410
+			}
+			m_previewButton = "ANIMPARAM_BUTTON_NONE"
+			m_bNetwork = false
+			m_bUseMostRecentValue = false
+			m_bAutoReset = false
+			m_bPredicted = false
+			m_bDefaultValue = false
+		},
+		{
+			_class = "CBoolAnimParameter"
+			m_name = "b_mantle_up_256"
+			m_id = 
+			{
+				m_id = 1767968652
+			}
+			m_previewButton = "ANIMPARAM_BUTTON_NONE"
+			m_bNetwork = false
+			m_bUseMostRecentValue = false
+			m_bAutoReset = true
+			m_bPredicted = false
+			m_bDefaultValue = false
+		},
+		{
+			_class = "CBoolAnimParameter"
+			m_name = "b_melee"
+			m_id = 
+			{
+				m_id = 1273733316
+			}
+			m_previewButton = "ANIMPARAM_BUTTON_NONE"
+			m_bNetwork = false
+			m_bUseMostRecentValue = false
+			m_bAutoReset = false
+			m_bPredicted = false
+			m_bDefaultValue = false
+		},
+		{
+			_class = "CBoolAnimParameter"
+			m_name = "b_nav_link_tunnel_large"
+			m_id = 
+			{
+				m_id = 301917586
+			}
+			m_previewButton = "ANIMPARAM_BUTTON_NONE"
+			m_bNetwork = false
+			m_bUseMostRecentValue = false
+			m_bAutoReset = true
+			m_bPredicted = false
+			m_bDefaultValue = false
+		},
+	]
+	m_localTags = 
+	[
+		{
+			_class = "CSequenceFinishedAnimTag"
+			m_name = "Sequence_Finished"
+			m_tagID = 
+			{
+				m_id = 1090331730
+			}
+			m_sequenceName = ""
+		},
+		{
+			_class = "CSequenceFinishedAnimTag"
+			m_name = "Finished"
+			m_tagID = 
+			{
+				m_id = 1090331731
+			}
+			m_sequenceName = ""
+		},
+		{
+			_class = "CTaskStatusAnimTag"
+			m_name = "Finished_ThreatDisplay"
+			m_tagID = 
+			{
+				m_id = 1090331732
+			}
+			m_identifierString = ""
+		},
+		{
+			_class = "CTaskStatusAnimTag"
+			m_name = "Finished_RangedAttack"
+			m_tagID = 
+			{
+				m_id = 1090331733
+			}
+			m_identifierString = ""
+		},
+		{
+			_class = "CTaskStatusAnimTag"
+			m_name = "Finished_BurrowIn"
+			m_tagID = 
+			{
+				m_id = 1090331734
+			}
+			m_identifierString = ""
+		},
+		{
+			_class = "CTaskStatusAnimTag"
+			m_name = "Finished_BurrowOut"
+			m_tagID = 
+			{
+				m_id = 1090331735
+			}
+			m_identifierString = ""
+		},
+		{
+			_class = "CTaskStatusAnimTag"
+			m_name = "Finished_CeilingDetach"
+			m_tagID = 
+			{
+				m_id = 1090331736
+			}
+			m_identifierString = ""
+		},
+		{
+			_class = "CTaskStatusAnimTag"
+			m_name = "Finished_CeilingLand"
+			m_tagID = 
+			{
+				m_id = 1090331737
+			}
+			m_identifierString = ""
+		},
+		{
+			_class = "CTaskStatusAnimTag"
+			m_name = "Finished_Ragdoll_Recovery"
+			m_tagID = 
+			{
+				m_id = 1090331738
+			}
+			m_identifierString = ""
+		},
+		{
+			_class = "CTaskStatusAnimTag"
+			m_name = "Finished_Crawl"
+			m_tagID = 
+			{
+				m_id = 1090331739
+			}
+			m_identifierString = ""
+		},
+		{
+			_class = "CTaskStatusAnimTag"
+			m_name = "Finished_Flip"
+			m_tagID = 
+			{
+				m_id = 757599282
+			}
+			m_identifierString = ""
+		},
+		{
+			_class = "CStringAnimTag"
+			m_name = "Disable Foot Lock - All"
+			m_tagID = 
+			{
+				m_id = 1737065513
+			}
+		},
+		{
+			_class = "CStringAnimTag"
+			m_name = "Disable Powered Ragdoll Additive Animation"
+			m_tagID = 
+			{
+				m_id = 2028298705
+			}
+		},
+		{
+			_class = "CTaskStatusAnimTag"
+			m_name = "Begin_Ragdoll_BlendOut"
+			m_tagID = 
+			{
+				m_id = 323915992
+			}
+			m_identifierString = ""
+		},
+		{
+			_class = "CTaskStatusAnimTag"
+			m_name = "Finished_Stunned"
+			m_tagID = 
+			{
+				m_id = 636306738
+			}
+			m_identifierString = ""
+		},
+		{
+			_class = "CTaskStatusAnimTag"
+			m_name = "Finished_AIInterrupt_Flinch"
+			m_tagID = 
+			{
+				m_id = 745440197
+			}
+			m_identifierString = ""
+		},
+		{
+			_class = "CStringAnimTag"
+			m_name = "Lookat_disabled"
+			m_tagID = 
+			{
+				m_id = 861687360
+			}
+		},
+		{
+			_class = "CStringAnimTag"
+			m_name = "Melee_Early_Out_A"
+			m_tagID = 
+			{
+				m_id = 83085863
+			}
+		},
+		{
+			_class = "CStringAnimTag"
+			m_name = "Melee_Early_Out_B"
+			m_tagID = 
+			{
+				m_id = 2133865752
+			}
+		},
+		{
+			_class = "CTaskStatusAnimTag"
+			m_name = "Finished_Nav_Link_Animation"
+			m_tagID = 
+			{
+				m_id = 1214611780
+			}
+			m_identifierString = ""
+		},
+	]
+	m_clipDataManager = 
+	{
+		_class = "CAnimClipDataManager"
+		m_itemTable = null
+	}
+	m_modelName = "models/creatures/box_creature/box_creature_model.vmdl"
+}
