@@ -129,9 +129,7 @@ public class Rubikon
     /// </summary>
     private static (string[] InteractAs, string[] InteractExclude) GetInteractStrings(KVObject collisionAttributes)
     {
-        var interactAs = collisionAttributes.GetArray<string>("m_InteractAsStrings")
-            ?? collisionAttributes.GetArray<string>("m_PhysicsTagStrings")
-            ?? [];
+        var interactAs = PhysAggregateData.GetInteractAsTags(collisionAttributes);
         var interactExclude = collisionAttributes.GetArray<string>("m_InteractExcludeStrings") ?? [];
 
         return (interactAs, interactExclude);
