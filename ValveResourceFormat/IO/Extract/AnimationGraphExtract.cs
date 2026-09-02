@@ -378,6 +378,13 @@ public class AnimationGraphExtract : IDisposable
         string? outputKey)
     {
         var destKey = outputKey ?? key;
+
+        // A per-class arm above may already have written this key from another compiled block.
+        if (node.ContainsKey(destKey))
+        {
+            return;
+        }
+
         switch (action)
         {
             case PropAction.Copy:
@@ -1103,17 +1110,21 @@ public class AnimationGraphExtract : IDisposable
 
     private static void CopyIfPresent(KVObject source, KVObject target, string key, string? destKey = null)
     {
-        if (source.ContainsKey(key))
+        var name = destKey ?? key;
+
+        if (source.ContainsKey(key) && !target.ContainsKey(name))
         {
-            target.Add(destKey ?? key, source[key]);
+            target.Add(name, source[key]);
         }
     }
 
     private static void CopyBoolIfPresent(KVObject source, KVObject target, string key, string? destKey = null)
     {
-        if (source.ContainsKey(key))
+        var name = destKey ?? key;
+
+        if (source.ContainsKey(key) && !target.ContainsKey(name))
         {
-            target.Add(destKey ?? key, source.GetIntegerProperty(key) > 0);
+            target.Add(name, source.GetIntegerProperty(key) > 0);
         }
     }
 
