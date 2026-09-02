@@ -132,6 +132,14 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Shapes
         /// </summary>
         public Vector3 OrthographicAreas { get; }
         /// <summary>
+        /// Gets the mesh flags. Not schema-enumerated.
+        /// </summary>
+        public uint Flags { get; }
+        /// <summary>
+        /// Gets the mesh debug flags. Not schema-enumerated.
+        /// </summary>
+        public uint DebugFlags { get; }
+        /// <summary>
         /// Gets the raw data.
         /// </summary>
         public KVObject Data { get; }
@@ -156,6 +164,8 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Shapes
             }
 
             OrthographicAreas = data.GetSubCollection("m_vOrthographicAreas").ToVector3();
+            Flags = data.GetUInt32Property("m_nFlags");
+            DebugFlags = data.GetUInt32Property("m_nDebugFlags");
         }
 
         /// <summary>
