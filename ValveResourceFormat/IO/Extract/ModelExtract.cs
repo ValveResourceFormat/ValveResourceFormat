@@ -147,6 +147,10 @@ public partial class ModelExtract
 
         foreach (var anim in AnimationsToExtract)
         {
+            if (!WritesOwnAnimation(anim.Anim))
+            {
+                continue;
+            }
 
             vmdl.AddSubFile(
                 Path.GetFileName(anim.FileName),

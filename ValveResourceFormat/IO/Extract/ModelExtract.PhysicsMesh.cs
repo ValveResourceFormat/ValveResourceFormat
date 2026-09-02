@@ -35,53 +35,26 @@ partial class ModelExtract
     public List<(MeshDescriptor Mesh, string FileName, string ParentBone, Matrix4x4 BindPose)> PhysMeshesToExtract { get; } = [];
 
     /// <summary>
-    /// Gets the physics surface property names discovered in the aggregate data.
+    /// The physics surface property names, indexed by surface property index. Filled by
+    /// <see cref="EnqueuePhysMeshes"/>, which every constructor runs.
     /// </summary>
-    public string[] PhysicsSurfaceNames { get; private set; } = [];
+    private string[] PhysicsSurfaceNames { get; set; } = [];
 
     /// <summary>
-    /// Gets the physics collision tag sets associated with the current aggregate data.
+    /// The physics collision tag sets, indexed by collision attribute index. Filled by
+    /// <see cref="EnqueuePhysMeshes"/>, which every constructor runs.
     /// </summary>
-    public HashSet<string>[] PhysicsCollisionTags { get; private set; } = [];
+    private HashSet<string>[] PhysicsCollisionTags { get; set; } = [];
 
     /// <summary>
-    /// Gets the set of surface tag combinations.
+    /// The distinct surface and collision tag combinations the enqueued shapes use.
     /// </summary>
-    public HashSet<SurfaceTagCombo> SurfaceTagCombos { get; } = [];
+    private HashSet<SurfaceTagCombo> SurfaceTagCombos { get; } = [];
 
     /// <summary>
     /// Gets the function to provide render material names for physics surface tags.
     /// </summary>
     public Func<SurfaceTagCombo, string>? PhysicsToRenderMaterialNameProvider { get; init; }
-
-    /// <summary>
-    /// Represents a combination of surface property and collision tags.
-    /// </summary>
-    public sealed record SurfaceTagCombo(string SurfacePropName, HashSet<string> InteractAsStrings)
-    {
-        /// <summary>
-        /// Initializes a new instance of the <see cref="SurfaceTagCombo"/> record.
-        /// </summary>
-        public SurfaceTagCombo(string surfacePropName, string[] collisionTags)
-            : this(surfacePropName, new HashSet<string>(collisionTags))
-        { }
-
-        /// <summary>
-        /// Gets the string representation of the material.
-        /// </summary>
-        public string StringMaterial => string.Join('+', InteractAsStrings) + '$' + SurfacePropName;
-
-        /// <inheritdoc/>
-        /// <remarks>
-        /// Returns the hash code of the string material representation.
-        /// </remarks>
-        public override int GetHashCode() => StringMaterial.GetHashCode(StringComparison.OrdinalIgnoreCase);
-
-        /// <summary>
-        /// Determines whether the specified <see cref="SurfaceTagCombo"/> is equal to the current instance.
-        /// </summary>
-        public bool Equals(SurfaceTagCombo? other) => other is not null && GetHashCode() == other.GetHashCode();
-    }
 
     private void EnqueuePhysMeshes()
     {
