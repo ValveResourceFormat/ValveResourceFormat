@@ -312,6 +312,14 @@ namespace ValveResourceFormat.ResourceTypes
                     mesh.MorphData = Resource.GetBlockByIndex(morphBlockIndex) as Morph;
                 }
 
+                if (embeddedMesh.ContainsKey("tools_vb_block"))
+                {
+                    var toolsVbBlockIndex = (int)embeddedMesh.GetIntegerProperty("tools_vb_block");
+                    if (toolsVbBlockIndex >= 0 && Resource.GetBlockByIndex(toolsVbBlockIndex) is TBUF toolsBuffer)
+                    {
+                        mesh.VBIB.AddToolsBuffers(toolsBuffer.VertexBuffers);
+                    }
+                }
 
                 meshes.Add(new ModelMesh(mesh, meshIndex, name, LodInfo.GetMeshMask(meshIndex)));
             }
@@ -541,7 +549,13 @@ namespace ValveResourceFormat.ResourceTypes
                 .Select(group => (group.GetStringProperty("m_name"), group.GetArray<string>("m_materials")));
 
         /// <summary>
+        /// Gets the material attributes the anim graph is allowed to drive, with their channel count
+        /// (1 for a scalar float target, 4 for a color target).
         /// </summary>
+        /// <returns>Enumerable of attribute name and channel count pairs.</returns>
+        public IEnumerable<(string AttributeName, int NumChannels)> GetAnimatedMaterialAttributes()
+            => (Data.GetArray("m_AnimatedMaterialAttributes") ?? [])
+                .Select(attr => (attr.GetStringProperty("m_AttributeName"), (int)attr.GetIntegerProperty("m_nNumChannels")));
 
         KVObject? ParseKeyValuesText()
         {
