@@ -7,8 +7,7 @@ using static ValveResourceFormat.IO.KVHelpers;
 namespace ValveResourceFormat.IO;
 
 /// <summary>
-/// Rebuilds the model doc nodes for the hit detection markup: the hitbox sets a model was authored with
-/// and the shapes in them.
+/// Rebuilds the model doc nodes for the hit detection markup: a model's hitbox sets and their shapes.
 /// </summary>
 partial class ModelExtract
 {

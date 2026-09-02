@@ -118,9 +118,8 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
         }
 
         /// <summary>
-        /// Builds a skeleton from a mesh's own render skeleton (<c>m_skeleton</c>, <c>CRenderSkeleton</c>),
-        /// used to skin a standalone mesh that has no owning model. Bones are ordered as authored and
-        /// parented by name; a bone naming an unknown parent, or an empty name, is treated as a root.
+        /// Builds a skeleton from a mesh's own render skeleton, to skin a mesh that has no owning model.
+        /// Bones are ordered as authored and parented by name; one naming an unknown parent is a root.
         /// Returns <see langword="null"/> when the render skeleton has no bones.
         /// </summary>
         public static Skeleton? FromRenderSkeleton(KVObject renderSkeleton)

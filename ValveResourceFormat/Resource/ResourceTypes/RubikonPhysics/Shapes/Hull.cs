@@ -128,8 +128,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Shapes
             }
 
             /// <summary>
-            /// Raw node words of the region's compact SVM tree. The packing is not schema-enumerated
-            /// and has not been decoded, so these are exposed opaquely rather than as typed nodes.
+            /// Raw node words of the region's compact SVM tree, undecoded.
             /// </summary>
             public ReadOnlySpan<uint> GetNodes()
             {
@@ -168,7 +167,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Shapes
         public float Volume { get; }
 
         /// <summary>
-        /// Gets the surface area of the hull. Absent on hulls compiled before this was tracked.
+        /// Gets the surface area of the hull. Zero on older compiled hulls.
         /// </summary>
         public float SurfaceArea { get; }
 
@@ -179,8 +178,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Shapes
         public Matrix4x4 MassProperties { get; }
 
         /// <summary>
-        /// Gets the hull flags. Not schema-enumerated; VRF has observed the raw values 0x4050, 1 and 3
-        /// in shipped content, with no confirmed meaning.
+        /// Gets the hull flags.
         /// </summary>
         public uint Flags { get; }
 
@@ -287,8 +285,8 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Shapes
         }
 
         /// <summary>
-        /// Walks one face's edge loop and returns its vertex indices, in winding order. A hull face is a
-        /// polygon of any size, so a consumer that needs triangles wants <see cref="GetFaceTriangles"/>.
+        /// Walks one face's edge loop and returns its vertex indices, in winding order. A face is a polygon
+        /// of any size; see <see cref="GetFaceTriangles"/> for triangles.
         /// </summary>
         /// <param name="edges">The hull's half edges, from <see cref="GetEdges"/>.</param>
         /// <param name="face">The face to walk.</param>
@@ -297,7 +295,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Shapes
 
         /// <summary>
         /// Triangulates one face as a fan from the first vertex of its edge loop, returning vertex index
-        /// triples. A hull face is convex and planar, so a fan is a complete triangulation of it.
+        /// triples.
         /// </summary>
         /// <param name="edges">The hull's half edges, from <see cref="GetEdges"/>.</param>
         /// <param name="face">The face to triangulate.</param>

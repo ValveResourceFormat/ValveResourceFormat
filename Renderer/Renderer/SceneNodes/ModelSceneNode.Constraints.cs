@@ -18,7 +18,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
 
         /// <summary>
         /// Parses the constraints that drive a morph from a bone's facing, resolving the bones and the
-        /// flex controller they name so the update does not have to search per frame.
+        /// flex controller they name.
         /// </summary>
         protected static DotToMorphConstraint[] ParseDotToMorphConstraints(Model model)
         {
@@ -78,8 +78,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
                 var bone = pose[constraint.BoneIndex];
                 var target = pose[constraint.TargetBoneIndex];
 
-                // Measured against the bone's down axis: level with the target it reads a right angle,
-                // which is what both remaps start from, and looking down opens the angle further.
+                // Measured against the bone's down axis.
                 var facing = Vector3.Normalize(new Vector3(-bone.M31, -bone.M32, -bone.M33));
                 var toTarget = target.Translation - bone.Translation;
 

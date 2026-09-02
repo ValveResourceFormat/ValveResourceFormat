@@ -41,13 +41,11 @@ namespace ValveResourceFormat.ResourceTypes
 
         /// <summary>
         /// Gets the NM skeletons this model can be animated on, by resource path, in declaration order.
-        /// Empty for a model that declares none.
         /// </summary>
         public string[] NmSkeletonRefs => Data.GetArray<string>("m_vecNmSkeletonRefs") ?? [];
 
         /// <summary>
-        /// Gets the animation graphs bound to this model, in declaration order. The first entry is the
-        /// model's default graph. Empty for a model that binds none.
+        /// Gets the animation graphs bound to this model, in declaration order. The first is the default.
         /// </summary>
         public IReadOnlyList<(string Identifier, string GraphPath)> AnimGraph2References
             => cachedAnimGraph2References ??= ReadAnimGraph2References();
@@ -72,9 +70,7 @@ namespace ValveResourceFormat.ResourceTypes
         }
 
         /// <summary>
-        /// Gets the bone constraints the model was authored with, in compiled order. These are read by
-        /// both the decompiler, which writes them back as constraint nodes, and the renderer, which
-        /// simulates the ones it supports.
+        /// Gets the bone constraints the model was authored with, in compiled order.
         /// </summary>
         public IReadOnlyList<BoneConstraint> BoneConstraints => cachedBoneConstraints ??= BoneConstraint.ReadList(KeyValues);
 
@@ -177,9 +173,8 @@ namespace ValveResourceFormat.ResourceTypes
         /// <param name="morph">The morph data whose flex controllers should be reused.</param>
         public void SetExternalMorphData(Morph? morph)
         {
-            // The model's own morph block wins; only a model whose morph set sits in a separate vmorf
-            // takes the one its meshes carry. Read through the property so which one wins does not
-            // depend on whether the caller happened to touch it first.
+            // The model's own morph block wins; a model whose morph set sits in a separate vmorf takes
+            // the one its meshes carry.
             if (FlexControllers.Length == 0)
             {
                 cachedFlexControllers = morph?.FlexControllers;
@@ -216,8 +211,8 @@ namespace ValveResourceFormat.ResourceTypes
         public ModelMeshGroups MeshGroups => cachedMeshGroups ??= new ModelMeshGroups(Data);
 
         /// <summary>
-        /// Gets the model's references to meshes that live in their own vmesh. A slot the model fills with
-        /// an embedded mesh instead carries no reference and is left out.
+        /// Gets the model's references to meshes that live in their own vmesh. Slots filled by an
+        /// embedded mesh are left out.
         /// </summary>
         public IEnumerable<ModelMeshReference> GetReferenceMeshNamesAndLoD()
         {
@@ -266,7 +261,7 @@ namespace ValveResourceFormat.ResourceTypes
         /// </summary>
         /// <remarks>
         /// A mesh's own index addresses the model's mask tables, which cover embedded and referenced
-        /// meshes alike, so an embedded mesh is not necessarily the nth entry of them.
+        /// meshes alike.
         /// </remarks>
         public IEnumerable<ModelMesh> GetEmbeddedMeshes()
         {
@@ -384,8 +379,7 @@ namespace ValveResourceFormat.ResourceTypes
             => Data.GetArray<string>("m_refAnimGroups");
 
         /// <summary>
-        /// Gets the model's embedded animation data and the legacy sequence group behind it: the bone
-        /// masks, morph masks, pose parameters and faceposer folders its sequences are written against.
+        /// Gets the model's embedded animation data and the legacy sequence group behind it.
         /// </summary>
         public EmbeddedSequenceGroup SequenceGroup
             => cachedSequenceGroup ??= Resource != null ? new EmbeddedSequenceGroup(Resource) : EmbeddedSequenceGroup.Empty;
@@ -460,9 +454,7 @@ namespace ValveResourceFormat.ResourceTypes
         }
 
         /// <summary>
-        /// Gets the animations this model reaches through the standalone animation groups it
-        /// references (<c>m_refAnimGroups</c>). Empty for a model that carries its animations
-        /// embedded instead.
+        /// Gets the animations this model reaches through the standalone animation groups it references.
         /// </summary>
         /// <param name="fileLoader">The file loader to use.</param>
         /// <returns>Enumerable of animations.</returns>

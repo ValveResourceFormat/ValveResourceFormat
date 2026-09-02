@@ -16,9 +16,8 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
         public int LocalReference { get; set; }
 
         /// <summary>
-        /// Gets the name <see cref="LocalReference"/> resolves to against the sequence group's shared
-        /// name array, an animation for most layers or another sequence for one that blends generated
-        /// animations. Empty when the layer was read outside sequence data, or the index is out of range.
+        /// Gets the animation or sequence name <see cref="LocalReference"/> resolves to against the
+        /// sequence group's shared name array. Empty when it resolves to nothing.
         /// </summary>
         public string ReferencedAnimationName { get; internal set; } = string.Empty;
 
@@ -68,9 +67,8 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
         public bool Subtract { get; set; }
 
         /// <summary>
-        /// Gets or sets where the blend curve starts ramping in. A fraction of the referenced sequence's
-        /// own cycle (0 at its first frame, 1 at its last), or a fraction along the pose parameter's range
-        /// when <see cref="Pose"/> is set.
+        /// Gets or sets where the blend curve starts ramping in: a fraction of the referenced sequence's
+        /// own cycle, or of the pose parameter's range when <see cref="Pose"/> is set.
         /// </summary>
         public float Start { get; set; }
 

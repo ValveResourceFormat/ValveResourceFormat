@@ -11,9 +11,8 @@ namespace ValveResourceFormat.IO;
 partial class ModelExtract
 {
     /// <summary>
-    /// The list nodes a model doc is assembled from. Each one is created and appended to the root the
-    /// first time a section writes into it, so the reader sees them in the order the sections ran and a
-    /// list nothing wrote is absent rather than empty.
+    /// The list nodes a model doc is assembled from. Each is created and appended to the root the first
+    /// time a section writes into it, so a list nothing wrote is absent rather than empty.
     /// </summary>
     private sealed class ModelDocLists(KVObject rootChildren)
     {

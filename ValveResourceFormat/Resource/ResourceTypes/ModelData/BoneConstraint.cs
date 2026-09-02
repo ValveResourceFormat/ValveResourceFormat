@@ -12,9 +12,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelData
     public readonly record struct BoneConstraint(string ClassName, KVObject Data)
     {
         /// <summary>
-        /// Reads a model's constraint list in compiled order. A constraint the compiler rejected is
-        /// written as a null entry, or as an entry that keeps its slot but carries no class, and
-        /// neither is read back.
+        /// Reads a model's constraint list in compiled order, skipping the null and classless entries.
         /// </summary>
         internal static BoneConstraint[] ReadList(KVObject keyValues)
         {

@@ -113,7 +113,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
 
                 var bone = pose[boneIndex];
 
-                // A bone's scale is uniform in practice, so its X axis stands in for all three.
+                // A bone's scale is uniform in practice; its X axis stands in for all three.
                 var scale = bone.AxisScale(0);
 
                 var radius = new Vector3(spheres[boneIndex] * scale);

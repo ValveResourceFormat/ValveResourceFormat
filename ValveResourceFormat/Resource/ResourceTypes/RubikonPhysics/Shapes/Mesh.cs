@@ -132,11 +132,11 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Shapes
         /// </summary>
         public Vector3 OrthographicAreas { get; }
         /// <summary>
-        /// Gets the mesh flags. Not schema-enumerated.
+        /// Gets the mesh flags.
         /// </summary>
         public uint Flags { get; }
         /// <summary>
-        /// Gets the mesh debug flags. Not schema-enumerated.
+        /// Gets the mesh debug flags.
         /// </summary>
         public uint DebugFlags { get; }
         /// <summary>

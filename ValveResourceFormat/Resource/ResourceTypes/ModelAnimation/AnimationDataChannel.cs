@@ -26,8 +26,8 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
         /// <param name="skeleton">The skeleton bone channels bind against.</param>
         /// <param name="flexControllers">The model's flex controllers, which morph channels bind against.</param>
         /// <param name="userNames">
-        /// The decode key's own <c>m_userArray</c> names, which user channels bind against. Unlike the
-        /// skeleton and flex controllers, this list is local to one decode key, not shared model-wide.
+        /// The decode key's own <c>m_userArray</c> names, which user channels bind against. Local to one
+        /// decode key rather than shared model-wide.
         /// </param>
         /// <param name="dataChannel">The <c>CAnimDataChannelDesc</c> key values.</param>
         public AnimationDataChannel(Skeleton skeleton, FlexController[] flexControllers, string[] userNames, KVObject dataChannel)
@@ -38,8 +38,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
             var channelClass = dataChannel.GetStringProperty("m_szChannelClass");
             var channelAttribute = dataChannel.GetStringProperty("m_szVariableName");
 
-            // m_szChannelClass disambiguates MorphChannel from UserChannel, which both use the variable
-            // name "data". Fall back to the old name-only classification for decode keys that predate it.
+            // m_szChannelClass disambiguates MorphChannel from UserChannel, which both name a variable "data".
             Attribute = channelClass switch
             {
                 "BoneChannel" => BoneAttributeFromVariableName(channelAttribute),

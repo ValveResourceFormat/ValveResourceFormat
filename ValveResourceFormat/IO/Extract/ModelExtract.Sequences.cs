@@ -36,13 +36,12 @@ partial class ModelExtract
     }
 
     /// <summary>
-    /// Rebuilds the bone scale markup an animation was authored with. A DMX animation carries only
-    /// position and orientation, so a resized bone has to come back as a node the compiler applies on
-    /// top of it.
+    /// Rebuilds the bone scale markup an animation was authored with, which a DMX animation carrying
+    /// only position and orientation cannot hold.
     /// </summary>
     static IEnumerable<KVObject> ProcessBoneScales(Skeleton skeleton, FlexController[] flexControllers, SequenceAnimation animation)
     {
-        // Quantization leaves a bone the animation does not resize a hair off one.
+        // Quantization leaves an unresized bone a hair off one.
         const float RestScaleTolerance = 1e-3f;
 
         var scaledBones = animation.GetScaledBones();
@@ -80,8 +79,8 @@ partial class ModelExtract
     }
 
     /// <summary>
-    /// Rebuilds a blend that spreads its animations over a grid of two pose parameters. The compiler
-    /// takes each dimension's size from the length of its weight list, and walks the grid row first.
+    /// Rebuilds a blend that spreads its animations over a grid of two pose parameters. Each dimension's
+    /// size comes from the length of its weight list, and the grid is walked row first.
     /// </summary>
     static KVObject Process2DBlendSequence(SequenceAnimation animation, string[] localSequenceNameArray, string[] poseParamNames,
         HashSet<string> nodeNames, bool blendAnimEvents)
@@ -169,11 +168,9 @@ partial class ModelExtract
     }
 
     /// <summary>
-    /// Rebuilds the blend node behind a sequence that plays several animations at once. The compiler
-    /// resolves such a node into one sequence that fetches every listed animation, positioned along a
-    /// pose parameter. A sequence that only renames one animation another node already declares is
-    /// rebuilt through the same node with that node's name as <paramref name="aliasedAnimation"/>,
-    /// which the compiler resolves back to a single fetch of it.
+    /// Rebuilds the blend node behind a sequence that plays several animations at once, positioned along
+    /// a pose parameter. A sequence that only renames an animation another node declares is rebuilt
+    /// through the same node, naming that node as <paramref name="aliasedAnimation"/>.
     /// </summary>
     static KVObject ProcessBlendSequence(SequenceAnimation animation, string[] localSequenceNameArray, string[] poseParamNames,
         HashSet<string> nodeNames, bool blendAnimEvents, string? aliasedAnimation = null)
@@ -257,15 +254,14 @@ partial class ModelExtract
 
     /// <summary>
     /// Matches each sequence that only plays an animation another sequence already declares to that
-    /// other sequence's name. Such a sequence has no animation of its own to write out; it is rebuilt
-    /// as a one entry blend of the node that does declare it. Only the sequences that name a pose
-    /// parameter are matched, because the compiler drops a blend that names none.
+    /// other sequence's name, so it can be rebuilt as a one entry blend of that node. Only sequences
+    /// that name a pose parameter are matched.
     /// </summary>
     static Dictionary<string, string> FindAliasedSequences(List<SequenceAnimation> sequences)
     {
         static string Bare(string name) => name.TrimStart('@');
 
-        // A generated animation's name carries leading markers the sequence that declares it does not.
+        // A generated animation's name carries leading markers its declaring sequence does not.
         static bool DeclaresItsAnimation(SequenceAnimation animation)
             => Bare(animation.ReferencedAnimationName).Equals(Bare(animation.Name), StringComparison.OrdinalIgnoreCase);
 
@@ -300,14 +296,12 @@ partial class ModelExtract
 
     /// <summary>
     /// Rebuilds the <c>FaceposerKeys</c> child node behind a sequence's <c>faceposer</c> gesture markup.
-    /// The compiler folds the node's frame attributes into a fixed <c>type</c>/<c>tags</c> shape, naming
-    /// the tag each one was written to in a companion key; the accent frame keeps a fixed tag name, and
-    /// the thumbnail frame is written on the markup itself rather than as a tag. Only the gesture shape
-    /// is reconstructed here, a posture one names its tags by their defaults instead.
+    /// The compiled markup holds a <c>type</c>/<c>tags</c> pair, with a companion key naming the tag each
+    /// frame was written to. Only the gesture shape is reconstructed.
     /// </summary>
     static KVObject? ProcessFaceposerKeys(KVObject? sequenceKeys)
     {
-        // The frame the compiler writes under a fixed name rather than one the markup points at.
+        // The one frame written under a fixed tag name.
         const string AccentTag = "accent";
 
         var faceposer = sequenceKeys?.GetSubCollection("faceposer");
@@ -317,14 +311,13 @@ partial class ModelExtract
             return null;
         }
 
-        // Half-Life Alyx era markup names the exit tag in the singular, and its ModelDoc has no
-        // FaceposerKeys class to load the node back into.
+        // Markup naming the exit tag in the singular has no FaceposerKeys class to load back into.
         if (faceposer.ContainsKey("exittag"))
         {
             return null;
         }
 
-        // Markup that names no tag alias for a slot leaves the key out entirely rather than empty.
+        // A slot with no tag alias leaves the key out entirely.
         var entryTag = faceposer.GetStringProperty("entrytag", string.Empty);
         var startLoopTag = faceposer.GetStringProperty("startloop", string.Empty);
         var endLoopTag = faceposer.GetStringProperty("endloop", string.Empty);
@@ -364,8 +357,7 @@ partial class ModelExtract
     }
 
     /// <summary>
-    /// Writes an animation's primary activity onto its node, and every further one as the modifier
-    /// node the compiler folds back into the sequence's activity list.
+    /// Writes an animation's primary activity onto its node, and every further one as a modifier node.
     /// </summary>
     static void AddActivities(KVObject node, KVObject children, SequenceAnimation animation)
         => AddActivities(node, children, [.. animation.Activities.Select(activity => (activity.Name, activity.Weight))]);
@@ -390,13 +382,12 @@ partial class ModelExtract
     }
 
     /// <summary>
-    /// Matches a name a sequence refers to against the nodes the document actually declares. The
-    /// compiled name tables spell the generated animations inconsistently, differing from the node
-    /// they belong to in case or in the leading marker.
+    /// Matches a name a sequence refers to against the nodes the document declares. The compiled name
+    /// tables spell generated animations with a different case or leading marker.
     /// </summary>
     static string ResolveNodeName(string name, HashSet<string> nodeNames)
     {
-        // The set is case-insensitive, so a hit still has to give back the node's own spelling.
+        // The set is case-insensitive; a hit gives back the node's own spelling.
         if (nodeNames.TryGetValue(name, out var declared))
         {
             return declared;
@@ -416,8 +407,8 @@ partial class ModelExtract
     }
 
     /// <summary>
-    /// Converts a declared frame count into the span a layer's cycle is measured against. The compiler
-    /// divides by the frame count minus one, so a sequence of one frame or less spans nothing.
+    /// Converts a declared frame count into the span a layer's cycle is measured against: the frame count
+    /// minus one, or nothing for a sequence of a single frame.
     /// </summary>
     static int GetCycleFrames(int frameCount) => frameCount > 1 ? frameCount - 1 : 0;
 
@@ -465,8 +456,8 @@ partial class ModelExtract
     }
 
     /// <summary>
-    /// The sequence tables a model doc's animation nodes are rebuilt from, read once from the model's
-    /// ASEQ block. Every member is empty for a model that carries no sequences.
+    /// The sequence tables a model doc's animation nodes are rebuilt from, read from the model's ASEQ
+    /// block. Empty throughout for a model that carries no sequences.
     /// </summary>
     private readonly record struct SequenceTables(
         KeyValuesOrNTRO? Block,
@@ -483,8 +474,7 @@ partial class ModelExtract
     }
 
     /// <summary>
-    /// Reads the model's sequence tables out of its ASEQ block. Nothing is written to the document
-    /// here; <see cref="AddSequenceMarkupNodes"/> and <see cref="AddAnimationNodes"/> do that.
+    /// Reads the model's sequence tables out of its ASEQ block, writing nothing to the document.
     /// </summary>
     private SequenceTables ReadSequenceTables()
     {
@@ -514,8 +504,7 @@ partial class ModelExtract
 
     /// <summary>
     /// Emits the doc nodes the sequence tables carry that stand on their own: weight lists, scale sets
-    /// and pose parameters. The sequences that reference them are written by
-    /// <see cref="AddAnimationNodes"/>, so this runs first.
+    /// and pose parameters. Runs before <see cref="AddAnimationNodes"/>, which references them.
     /// </summary>
     private void AddSequenceMarkupNodes(ModelDocLists lists, SequenceTables tables)
     {
@@ -574,11 +563,8 @@ partial class ModelExtract
 
             foreach (var (name, aseq) in tables.BySequenceName)
             {
-                // A sequence that plays no animation directly is either the true bind pose (compiled
-                // with a "bind_pose" flag) or an EmptyAnim: a synthetic base of a declared length that
-                // exists only to carry auto layers, compiled with an explicit frame count and rate
-                // instead. Both compile from a node with no source_filename, so a decompile can only
-                // tell them apart by which one of those two the compiler already wrote back.
+                // A sequence that plays no animation directly is either the bind pose, flagged
+                // "bind_pose", or an EmptyAnim, carrying an explicit frame count and rate instead.
                 var playsNothing = aseq.GetSubCollection("m_fetch").GetIntegerArray("m_localReferenceArray").Length == 0;
                 var sequenceKeys = aseq.GetSubCollection("m_SequenceKeys");
 
@@ -620,8 +606,7 @@ partial class ModelExtract
                     AddActivities(bindPose, bindPoseChildren, [.. aseq.GetArray("m_activityArray")
                         .Select(activity => (activity.GetStringProperty("m_name"), activity.GetInt32Property("m_nWeight")))]);
 
-                    // A bind pose declares no length of its own, so a layer it carries has no frame span
-                    // to be placed on and keeps only its target and blend flags.
+                    // A bind pose declares no length, so its layers keep only their target and blend flags.
                     if (tables.LocalSequenceNames != null)
                     {
                         foreach (var autoLayerKV in aseq.GetArray("m_autoLayerArray"))
@@ -760,8 +745,7 @@ partial class ModelExtract
                         ("event_frame", animEvent.Frame)
                     );
 
-                    // The compiler derives an event's duration from the span between its frame and its
-                    // end frame, so the end frame is the whole of what an event's timing is authored as.
+                    // An event's duration is the span between its frame and its end frame.
                     if (animEvent.EndFrame != -1)
                     {
                         animEventNode.Add("event_end_frame", animEvent.EndFrame);

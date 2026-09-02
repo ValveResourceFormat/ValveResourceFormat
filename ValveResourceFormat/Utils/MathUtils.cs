@@ -162,8 +162,8 @@ namespace ValveResourceFormat.Utils
         }
 
         /// <summary>
-        /// The length of one of a transform's basis vectors: how much it scales along that axis, with any
-        /// rotation baked into the same rows divided out. <paramref name="axis"/> is 0 for X, 1 for Y, 2 for Z.
+        /// The length of one of a transform's basis vectors: how much it scales along that axis.
+        /// <paramref name="axis"/> is 0 for X, 1 for Y, 2 for Z.
         /// </summary>
         public static float AxisScale(this Matrix4x4 m, int axis) => axis switch
         {
@@ -173,8 +173,7 @@ namespace ValveResourceFormat.Utils
         };
 
         /// <summary>
-        /// The largest per-axis scale baked into a transform, which is what a uniform quantity such as a
-        /// bounding radius or an on-screen size has to be scaled by to stay a bound.
+        /// The largest per-axis scale baked into a transform.
         /// </summary>
         public static float MaxAxisScale(this Matrix4x4 m)
             => MathF.Max(m.AxisScale(0), MathF.Max(m.AxisScale(1), m.AxisScale(2)));

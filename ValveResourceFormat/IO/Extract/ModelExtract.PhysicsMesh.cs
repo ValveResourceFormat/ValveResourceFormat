@@ -11,8 +11,8 @@ using RnShapes = ValveResourceFormat.ResourceTypes.RubikonPhysics.Shapes;
 namespace ValveResourceFormat.IO;
 
 /// <summary>
-/// Writes a model's collision shapes out as DMX: the hulls and meshes each physics part carries, and the
-/// surface and collision tag markup that decides what material they compile against.
+/// Writes a model's collision shapes out as DMX: the hulls and meshes each physics part carries, and
+/// the surface and collision tag markup naming the material they compile against.
 /// </summary>
 partial class ModelExtract
 {
@@ -164,10 +164,8 @@ partial class ModelExtract
     /// </summary>
     /// <remarks>
     /// <paramref name="bindPose"/> transforms the hull's vertices from body-local space into bind-pose
-    /// component space. A <c>PhysicsHullFile</c> node's geometry is placed by the compiler as if
-    /// authored in that space, the same convention as a skinned render mesh, so the raw body-local
-    /// vertices read from a compiled <see cref="RnShapes.Hull"/> must be transformed by the part's
-    /// physics bind pose (<see cref="PhysAggregateData.BindPose"/>) before being written out.
+    /// component space, the space a <c>PhysicsHullFile</c> node's geometry is authored in. The raw
+    /// body-local vertices are transformed by the part's <see cref="PhysAggregateData.BindPose"/>.
     /// </remarks>
     public static byte[] ToDmxMesh(RnShapes.Hull hull, string name,
         string uniformSurface,

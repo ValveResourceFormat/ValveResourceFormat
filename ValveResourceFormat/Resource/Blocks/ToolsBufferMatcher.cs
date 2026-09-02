@@ -2,10 +2,8 @@ using System.Linq;
 namespace ValveResourceFormat.Blocks
 {
     /// <summary>
-    /// Pairs a mesh's tools buffers with the render vertex buffers they augment, consuming each tools
-    /// buffer at most once. A tools buffer carries no back-reference to the render vertex buffer it
-    /// augments, so element count - shared only by buffers describing the same vertices - is what pairs
-    /// them, and a buffer already handed out must not be handed out again.
+    /// Pairs a mesh's tools buffers with the render vertex buffers they augment, matching on element
+    /// count and consuming each tools buffer at most once.
     /// </summary>
     public sealed class ToolsBufferMatcher
     {
@@ -47,10 +45,8 @@ namespace ValveResourceFormat.Blocks
 
         /// <summary>
         /// Claims and concatenates the tools buffer matching each of the given, already order-matched
-        /// vertex buffers, mirroring their own concatenation. Returns <see langword="null"/> unless every
-        /// one of them has a tools buffer left to claim and those tools buffers all share a layout with
-        /// each other, since <see cref="VBIB.Concatenate"/> requires that. Nothing is claimed when the
-        /// merge does not happen.
+        /// vertex buffers. Returns <see langword="null"/>, claiming nothing, unless every one of them has
+        /// a tools buffer left to claim and those tools buffers share a layout.
         /// </summary>
         public VBIB.OnDiskBufferData? TryClaimMerged(IReadOnlyList<VBIB.OnDiskBufferData> vertexBuffers)
         {
@@ -70,8 +66,6 @@ namespace ValveResourceFormat.Blocks
 
                 if (index < 0)
                 {
-                    // A tools buffer missing for even one of the merged vertex buffers (stripped from
-                    // shipped content, or never authored) leaves no coherent per-vertex data to merge.
                     return null;
                 }
 

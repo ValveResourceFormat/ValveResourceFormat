@@ -91,7 +91,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
                     break;
 
                 case AnimationChannelAttribute.User:
-                    // Named material-attribute channels decode correctly but have no VRF consumer yet.
+                    // Named material-attribute channels have no consumer yet.
                     break;
 
 #if DEBUG
