@@ -122,6 +122,69 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
             return s;
         }
 
+        /// <summary>
+        /// Builds a skeleton from a mesh's own render skeleton (<c>m_skeleton</c>, <c>CRenderSkeleton</c>),
+        /// used to skin a standalone mesh that has no owning model. Bones are ordered as authored and
+        /// parented by name; a bone naming an unknown parent, or an empty name, is treated as a root.
+        /// Returns <see langword="null"/> when the render skeleton has no bones.
+        /// </summary>
+        public static Skeleton? FromRenderSkeleton(KVObject renderSkeleton)
+        {
+            var boneEntries = renderSkeleton.GetArray("m_bones");
+            if (boneEntries.Count == 0)
+            {
+                return null;
+            }
+
+            var nameToIndex = new Dictionary<string, int>(boneEntries.Count);
+            for (var i = 0; i < boneEntries.Count; i++)
+            {
+                nameToIndex[boneEntries[i].GetStringProperty("m_boneName")] = i;
+            }
+
+            var modelSpaceBindPose = new Matrix4x4[boneEntries.Count];
+            var boneParents = new long[boneEntries.Count];
+
+            for (var i = 0; i < boneEntries.Count; i++)
+            {
+                var boneData = boneEntries[i];
+                var invBindPose = boneData.GetSubCollection("m_invBindPose").ToMatrix4x4();
+                modelSpaceBindPose[i] = Matrix4x4.Invert(invBindPose, out var bindPose) ? bindPose : Matrix4x4.Identity;
+
+                var parentName = boneData.GetStringProperty("m_parentName");
+                boneParents[i] = !string.IsNullOrEmpty(parentName) && nameToIndex.TryGetValue(parentName, out var parentIndex)
+                    ? parentIndex
+                    : -1;
+            }
+
+            var boneSpheres = new float[boneEntries.Count];
+
+            var s = new Skeleton
+            {
+                Bones = new Bone[boneEntries.Count],
+                BoneSpheres = boneSpheres,
+            };
+
+            for (var i = 0; i < boneEntries.Count; i++)
+            {
+                var boneData = boneEntries[i];
+                var name = boneData.GetStringProperty("m_boneName");
+                boneSpheres[i] = boneData.GetFloatProperty("m_flSphereRadius");
+
+                var parentIndex = boneParents[i];
+                var localTransform = parentIndex >= 0 && Matrix4x4.Invert(modelSpaceBindPose[parentIndex], out var parentInverse)
+                    ? modelSpaceBindPose[i] * parentInverse
+                    : modelSpaceBindPose[i];
+
+                Matrix4x4.Decompose(localTransform, out _, out var rotation, out var translation);
+
+                s.Bones[i] = new Bone(i, name, translation, rotation, ModelSkeletonBoneFlags.NoBoneFlags);
+            }
+
+            s.SetBoneParents(boneParents);
+            return s;
+        }
+
         private Skeleton()
         {
         }
