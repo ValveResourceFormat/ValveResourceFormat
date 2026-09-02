@@ -302,6 +302,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
 
             AddAnimations(animations);
 
+            var sequenceGroup = model.SequenceGroup;
             if (Animations.Count != 0)
             {
                 SetupBoneMatrixBuffers();

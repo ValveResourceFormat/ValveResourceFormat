@@ -121,6 +121,7 @@ namespace ValveResourceFormat.ResourceTypes
         private KVObject? cachedKeyValues;
         private Skeleton? cachedSkeleton;
         private FlexController[]? cachedFlexControllers;
+        private EmbeddedSequenceGroup? cachedSequenceGroup;
         private List<ModelMesh>? cachedEmbeddedMeshes;
         private ModelLodInfo? cachedLodInfo;
         private BoneConstraint[]? cachedBoneConstraints;
@@ -375,51 +376,11 @@ namespace ValveResourceFormat.ResourceTypes
             => Data.GetArray<string>("m_refAnimGroups");
 
         /// <summary>
-        /// Gets the faceposer folders mapping animation names to folder names.
+        /// Gets the model's embedded animation data and the legacy sequence group behind it: the bone
+        /// masks, morph masks, pose parameters and faceposer folders its sequences are written against.
         /// </summary>
-        /// <returns>Dictionary mapping animation names to their folder names, or empty dictionary if no folders exist.</returns>
-        public Dictionary<string, string> GetFaceposerFolders()
-        {
-            var ctrl = Resource.GetBlockByType(BlockType.CTRL) as BinaryKV3;
-            var embeddedAnimation = ctrl?.Data.Root.GetSubCollection("embedded_animation");
-
-            if (embeddedAnimation == null)
-            {
-                return [];
-            }
-
-            var seqGroupDataBlockIndex = embeddedAnimation.GetIntegerProperty("seqgroup_data_block");
-            if (seqGroupDataBlockIndex <= 0)
-            {
-                return [];
-            }
-
-            var sequenceDataBlock = Resource.GetBlockByIndex((int)seqGroupDataBlockIndex) as KeyValuesOrNTRO;
-            var sequenceKeyValues = sequenceDataBlock?.Data.GetSubCollection("m_keyValues");
-            var faceposerFolders = sequenceKeyValues?.GetSubCollection("faceposer_folders");
-
-            if (faceposerFolders == null)
-            {
-                return [];
-            }
-
-            var animationToFolder = new Dictionary<string, string>();
-            foreach (var folder in faceposerFolders)
-            {
-                var folderName = folder.Key;
-                var animationNames = faceposerFolders.GetArray<string>(folderName);
-
-                if (animationNames != null)
-                {
-                    foreach (var animationName in animationNames)
-                    {
-                        animationToFolder[animationName] = folderName;
-                    }
-                }
-            }
-
-            return animationToFolder;
-        }
+        public EmbeddedSequenceGroup SequenceGroup
+            => cachedSequenceGroup ??= Resource != null ? new EmbeddedSequenceGroup(Resource) : EmbeddedSequenceGroup.Empty;
 
         /// <summary>
         /// Gets embedded animations from the model.
@@ -427,40 +388,19 @@ namespace ValveResourceFormat.ResourceTypes
         /// <returns>Enumerable of animations.</returns>
         public IEnumerable<SequenceAnimation> GetEmbeddedAnimations()
         {
-            var ctrl = Resource.GetBlockByType(BlockType.CTRL) as BinaryKV3;
-            var embeddedAnimation = ctrl?.Data.Root.GetSubCollection("embedded_animation");
+            var group = SequenceGroup;
 
-            if (embeddedAnimation == null)
+            if (group.AnimationData is not { } animationData || group.DecodeKey is not { } decodeKey)
             {
                 return [];
             }
 
-            var groupDataBlockIndex = (int)embeddedAnimation.GetIntegerProperty("group_data_block");
-            var animDataBlockIndex = (int)embeddedAnimation.GetIntegerProperty("anim_data_block");
-
-            var animationGroup = Resource.GetBlockByIndex(groupDataBlockIndex) as KeyValuesOrNTRO;
-            Debug.Assert(animationGroup is not null);
-            var decodeKey = animationGroup.Data.GetSubCollection("m_decodeKey");
-
-            var animationDataBlock = Resource.GetBlockByIndex(animDataBlockIndex) as KeyValuesOrNTRO;
-            Debug.Assert(animationDataBlock is not null);
-
-            var seqGroupDataBlockIndex = embeddedAnimation.GetIntegerProperty("seqgroup_data_block");
-            if (seqGroupDataBlockIndex > 0)
+            if (group.SequenceData is { } sequenceData)
             {
-                var sequenceDataBlock = Resource.GetBlockByIndex((int)seqGroupDataBlockIndex) as KeyValuesOrNTRO;
-                if (sequenceDataBlock?.Data != null)
-                {
-                    return SequenceAnimation.FromSequenceData(
-                        sequenceDataBlock.Data,
-                        animationDataBlock.Data,
-                        decodeKey,
-                        Skeleton,
-                        FlexControllers);
-                }
+                return SequenceAnimation.FromSequenceData(sequenceData, animationData, decodeKey, Skeleton, FlexControllers);
             }
 
-            return SequenceAnimation.FromData(animationDataBlock.Data, decodeKey, Skeleton, FlexControllers);
+            return SequenceAnimation.FromData(animationData, decodeKey, Skeleton, FlexControllers);
         }
 
         /// <summary>
