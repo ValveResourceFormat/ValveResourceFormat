@@ -35,11 +35,13 @@ partial class ModelExtract
             ? $"_{bone.Name[1..]}"
             : bone.Name;
 
-    private static DmeModel BuildDmeDagSkeleton(Skeleton skeleton, out DmeTransform[] transforms, bool nmSkelAxisFixup = false, int nmLowLodBoneCount = -1)
+    private static DmeModel BuildDmeDagSkeleton(Skeleton skeleton, out DmeTransform[] transforms,
+        bool nmSkelAxisFixup = false, int nmLowLodBoneCount = -1,
+        IReadOnlyDictionary<string, Vector3>? bonePositions = null)
     {
         var dmeSkeleton = new DmeModel();
 
-        transforms = AppendDmeSkeletonJoints(dmeSkeleton, skeleton, nmLowLodBoneCount);
+        transforms = AppendDmeSkeletonJoints(dmeSkeleton, skeleton, nmLowLodBoneCount, bonePositions);
 
         var rootMotionBone = skeleton["root_motion"];
 
@@ -66,7 +68,8 @@ partial class ModelExtract
     /// joint transforms indexed by bone index. With <paramref name="nmLowLodBoneCount"/> non-negative,
     /// DAG siblings reproduce the compiled NM bone order, otherwise bone index order.
     /// </summary>
-    private static DmeTransform[] AppendDmeSkeletonJoints(DmeModel dmeSkeleton, Skeleton skeleton, int nmLowLodBoneCount = -1)
+    private static DmeTransform[] AppendDmeSkeletonJoints(DmeModel dmeSkeleton, Skeleton skeleton,
+        int nmLowLodBoneCount = -1, IReadOnlyDictionary<string, Vector3>? bonePositions = null)
     {
         int[]? minLow = null;
         int[]? minHigh = null;
@@ -88,7 +91,7 @@ partial class ModelExtract
             };
 
             dag.Transform.Name = boneName;
-            dag.Transform.Position = bone.Position;
+            dag.Transform.Position = BonePosition(bone, bonePositions);
             dag.Transform.Orientation = bone.Angle;
 
             boneDags[bone.Index] = dag;

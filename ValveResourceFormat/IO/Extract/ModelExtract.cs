@@ -128,6 +128,7 @@ public partial class ModelExtract
                 MaterialInputSignatures = MaterialInputSignatures,
                 BoneRemapTable = renderMesh.BoneRemapTable,
                 Skeleton = renderMesh.Skeleton,
+                BonePositions = ClothRestBonePositions,
             };
 
             vmdl.AddSubFile(
