@@ -59,7 +59,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Shapes
             public readonly uint TriangleOffset;
 
             /// <summary>
-            /// Initializes a new instance of the <c>Node</c> struct.
+            /// Initializes a new instance of the <see cref="Node"/> struct.
             /// </summary>
             public Node(KVObject data)
             {

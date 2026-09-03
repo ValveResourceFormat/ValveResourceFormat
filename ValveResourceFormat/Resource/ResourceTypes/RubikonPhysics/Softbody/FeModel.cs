@@ -239,6 +239,13 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         internal const float TwistRelaxToChildFactor = 0.3819660112501051f;
 
         private readonly Dictionary<int, float> twistOrientFallback = [];
+
+        // The cloth_drag paint compiles to flPointDamping = paint * 30.
+        internal const float ClothDragPointDampingScale = 30f;
+
+        // Base gravity acceleration (inches/s^2) that a source gravity_z of 1.0 maps to; used to turn the
+        // compiled per-node flGravity back into the source gravity_z scale (ClothChain joints and ClothNode).
+        internal const float ClothSourceBaseGravity = 360f;
         internal const float GoalDampingSolveMinAttraction = 0.0001f;
 
         /// <summary>
@@ -477,6 +484,70 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             return weight < 0 ? entry : entry[..weight];
         }
 
+        /// <summary>
+        /// Gets the selection a <c>ClothVertexMap</c> around <paramref name="proxy"/> should carry: one
+        /// covering exactly the sheet's SIMULATED nodes and not registered as a vertex set of its own, or
+        /// null when no selection qualifies. The container restores the same <c>m_VertexMaps</c> entry the
+        /// sheet's <c>cloth_vertex_set</c> paint would, without also registering the dynamic vertex set
+        /// (<c>m_VertexSetNames</c>/<c>m_DynNodeVertexSet</c>) that the paint brings with it - so the caller
+        /// paints every OTHER selection and lets this one come from the container.
+        /// <para>
+        /// A selection the original registered as a vertex set is never a candidate: that registration
+        /// exists only because the sheet painted it.
+        /// </para>
+        /// </summary>
+        public string? GetProxyVertexMapName(ProxyMesh proxy)
+        {
+            var simulated = new HashSet<int>();
+            for (var v = 0; v < proxy.NodeIndices.Length; v++)
+            {
+                if (v < proxy.ClothEnable.Length && proxy.ClothEnable[v] != 0f)
+                {
+                    simulated.Add(proxy.NodeIndices[v]);
+                }
+            }
+
+            if (simulated.Count == 0)
+            {
+                return null;
+            }
+
+            string? found = null;
+            foreach (var map in VertexMaps)
+            {
+                if (Array.IndexOf(VertexSetNames, map.NameHash) >= 0)
+                {
+                    continue;
+                }
+
+                var members = 0;
+                var outside = false;
+                for (var i = 0; i < map.Weights.Length && !outside; i++)
+                {
+                    if (map.Weights[i] <= 0f)
+                    {
+                        continue;
+                    }
+
+                    outside = !simulated.Contains(map.VertexBase + i);
+                    members++;
+                }
+
+                if (!outside && members == simulated.Count)
+                {
+                    // Two selections over the same nodes cannot both be the sheet's parent.
+                    if (found is not null)
+                    {
+                        return null;
+                    }
+
+                    found = map.Name;
+                }
+            }
+
+            return found;
+        }
+
         /// <summary>An anti-tunnelling probe (from <c>m_AntiTunnelProbes</c>).</summary>
         public readonly record struct AntiTunnelProbe(float Weight, uint Flags, int ProbeNode, int Count, int Begin,
             float ActivationDistance, float CurvatureRadius, float Bias);
@@ -591,7 +662,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
 
         /// <summary>
         /// Gets the rigid-collider priority groups (<c>m_RigidColliderPriorities</c>), read back per
-        /// collision shape by <c>ColliderPriority</c>. A model that gives every collision shape the
+        /// collision shape by <see cref="ColliderPriority"/>. A model that gives every collision shape the
         /// same priority ships this empty.
         /// </summary>
         public RigidColliderIndices[] RigidColliderPriorities { get; }
