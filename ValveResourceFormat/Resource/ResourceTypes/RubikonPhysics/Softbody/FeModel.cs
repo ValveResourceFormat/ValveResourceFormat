@@ -612,6 +612,9 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// <summary>A jiggle bone keyed to its control node (from <c>m_JiggleBones</c>).</summary>
         public readonly record struct IndexedJiggleBone(int Node, int JiggleParent, JiggleBone Bone);
 
+        /// <summary>Gets the jiggle bones (<c>m_JiggleBones</c>).</summary>
+        public IndexedJiggleBone[] JiggleBones { get; }
+
         /// <summary>A Dota-only bone-merge link (from <c>m_BoneMergeLinks</c>, absent from CS2/Deadlock).</summary>
         public readonly record struct BoneMergeLink(uint ParentHash, int ChildNode);
 
@@ -633,6 +636,35 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// <summary>Gets the strip column pairings (<c>m_CtrlOsOffsets</c>).</summary>
         // TODO: no authored construct reproduces these; every carrier is an imported strip.
         public CtrlOsOffset[] CtrlOsOffsets { get; }
+
+        /// <summary>
+        /// Gets whether the cloth was authored as ModelDoc's <c>ImportedCloth</c> node ("Imported PhysAuthFx
+        /// Cloth", wizard <c>wizard_import_legacy_cloth</c>) rather than as ClothChains or a proxy sheet.
+        /// <para>
+        /// The marker is a non-empty <c>m_CtrlOsOffsets</c>: that array is the paired second column of an
+        /// imported fx node table, and no ClothChain or proxy path produces one (an <c>extrude_sides</c>
+        /// ring produces <c>m_CtrlOffsets</c> instead). The other tests exclude a model that mixes the two,
+        /// since the import path replaces the whole cloth folder and cannot also rebuild a ring or a sheet.
+        /// </para>
+        /// </summary>
+        public bool IsImportedCloth
+            => CtrlOsOffsets.Length > 0
+                && CtrlOffsets.Length == 0
+                && Quads.Length == 0 && Tris.Length == 0
+                && FitMatrixNodes.Count == 0
+                && CtrlNames.Length > 0
+                && !Array.Exists(CtrlNames, IsCompilerGeneratedNodeName);
+
+        // The "$" namespace is not one family. An imported fx table supplies its own node names and those
+        // can start with "$" too, so only the compiler's OWN generated families disqualify a model: they
+        // are regenerated from a ring, sheet or element the import path does not rebuild.
+        static bool IsCompilerGeneratedNodeName(string? name)
+            => string.IsNullOrEmpty(name)
+                || name.StartsWith("$cc", StringComparison.Ordinal)
+                || name.StartsWith("$cloth_m", StringComparison.Ordinal)
+                || name.StartsWith(FreeClothNodePrefix, StringComparison.Ordinal)
+                || name.StartsWith("$cloth_root", StringComparison.Ordinal)
+                || name.StartsWith("$ha_", StringComparison.Ordinal);
 
         /// <summary>A generated node's bone-local anchor offset (from <c>m_CtrlOffsets</c>).</summary>
         public readonly record struct CtrlOffset(Vector3 Offset, int CtrlParent, int CtrlChild);
@@ -883,6 +915,29 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
 
             var proxyFitNodes = new HashSet<int>();
             var fitTargets = new Dictionary<int, int[]>();
+            if (fitMatrices is not null)
+            {
+                var fitRangeWeights = data.GetArray("m_FitWeights") ?? [];
+                var fitRangeBegin = 0;
+                foreach (var fit in fitMatrices)
+                {
+                    var fitRangeEnd = fit.GetInt32Property("nEnd");
+                    var bone = fit.GetInt32Property("nNode");
+                    var targets = new List<int>();
+                    for (var i = fitRangeBegin; i < fitRangeEnd && i < fitRangeWeights.Count; i++)
+                    {
+                        var target = fitRangeWeights[i].GetInt32Property("nNode");
+                        targets.Add(target);
+                        if (target >= 0 && target < CtrlNames.Length && ParseProxyMeshIndex(CtrlNames[target]) >= 0)
+                        {
+                            proxyFitNodes.Add(bone);
+                        }
+                    }
+
+                    fitTargets[bone] = [.. targets];
+                    fitRangeBegin = fitRangeEnd;
+                }
+            }
 
             ProxyFitMatrixNodes = proxyFitNodes;
             FitMatrixTargets = fitTargets;
@@ -1006,6 +1061,34 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                 o.GetInt32Property("m_nBoxRigidIndex"), o.GetInt32Property("m_nSDFRigidIndex"),
                 o.GetInt32Property("m_nCollisionPlaneIndex")));
 
+            JiggleBones = ReadArray(data, "m_JiggleBones", static o =>
+            {
+                var bone = o.GetSubCollection("m_jiggleBone");
+                return new IndexedJiggleBone(o.GetInt32Property("m_nNode"), unchecked((int)o.GetUInt32Property("m_nJiggleParent")),
+                    bone is null ? default : new JiggleBone(
+                        bone.GetUInt32Property("m_nFlags"), bone.GetFloatProperty("m_flLength"),
+                        bone.GetFloatProperty("m_flTipMass"),
+                        bone.GetFloatProperty("m_flYawStiffness"), bone.GetFloatProperty("m_flYawDamping"),
+                        bone.GetFloatProperty("m_flPitchStiffness"), bone.GetFloatProperty("m_flPitchDamping"),
+                        bone.GetFloatProperty("m_flAlongStiffness"), bone.GetFloatProperty("m_flAlongDamping"),
+                        bone.GetFloatProperty("m_flAngleLimit"),
+                        bone.GetFloatProperty("m_flMinYaw"), bone.GetFloatProperty("m_flMaxYaw"),
+                        bone.GetFloatProperty("m_flYawFriction"), bone.GetFloatProperty("m_flYawBounce"),
+                        bone.GetFloatProperty("m_flMinPitch"), bone.GetFloatProperty("m_flMaxPitch"),
+                        bone.GetFloatProperty("m_flPitchFriction"), bone.GetFloatProperty("m_flPitchBounce"),
+                        bone.GetFloatProperty("m_flBaseMass"), bone.GetFloatProperty("m_flBaseStiffness"),
+                        bone.GetFloatProperty("m_flBaseDamping"),
+                        bone.GetFloatProperty("m_flBaseMinLeft"), bone.GetFloatProperty("m_flBaseMaxLeft"),
+                        bone.GetFloatProperty("m_flBaseLeftFriction"),
+                        bone.GetFloatProperty("m_flBaseMinUp"), bone.GetFloatProperty("m_flBaseMaxUp"),
+                        bone.GetFloatProperty("m_flBaseUpFriction"),
+                        bone.GetFloatProperty("m_flBaseMinForward"), bone.GetFloatProperty("m_flBaseMaxForward"),
+                        bone.GetFloatProperty("m_flBaseForwardFriction"),
+                        bone.GetFloatProperty("m_flRadius0"), bone.GetFloatProperty("m_flRadius1"),
+                        bone.GetSubCollection("m_vPoint0") is { } pt0 ? pt0.ToVector3() : default,
+                        bone.GetSubCollection("m_vPoint1") is { } pt1 ? pt1.ToVector3() : default,
+                        bone.GetInt32Property("m_nCollisionMask")));
+            });
 
             BoneMergeLinks = ReadArray(data, "m_BoneMergeLinks", static o => new BoneMergeLink(
                 o.GetUInt32Property("m_nParentHash"), o.GetInt32Property("m_nChildNode")));
