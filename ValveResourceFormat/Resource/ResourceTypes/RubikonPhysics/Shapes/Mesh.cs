@@ -44,7 +44,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Shapes
             public NodeType Type => (NodeType)(PackedTypeChildOffset >> 30);
 
             /// <summary>
-            /// The 2nd child offset, otherwise when <c>Type</c> is <see cref="NodeType.Leaf" />, this is the triangle count.
+            /// The 2nd child offset, otherwise when <see cref="Type" /> is <see cref="NodeType.Leaf" />, this is the triangle count.
             /// </summary>
             public uint ChildOffset => PackedTypeChildOffset & 0x3FFFFFFF;
 
