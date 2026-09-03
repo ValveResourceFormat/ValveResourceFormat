@@ -27,7 +27,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             public required float[] GoalStrength { get; init; }
             /// <summary>
             /// Gets the per-vertex goal damping paint, recovered by inverting the vertex-attraction
-            /// response (<c>GoalDampingFromAttraction</c>). Legacy models with out-of-range
+            /// response (<see cref="GoalDampingFromAttraction"/>). Legacy models with out-of-range
             /// attraction clamp to the strongest reproducible damping.
             /// </summary>
             public required float[] GoalDamping { get; init; }
