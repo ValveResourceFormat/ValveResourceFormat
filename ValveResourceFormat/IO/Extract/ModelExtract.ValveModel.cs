@@ -523,6 +523,64 @@ partial class ModelExtract
         }
     }
 
+    /// <summary>
+    /// Builds a PhysicsJointList child node for one joint, or <see langword="null"/> for a joint type
+    /// with no ModelDoc node class. Motion limits are written for <see cref="JointType.Conical"/>,
+    /// <see cref="JointType.Revolute"/> and <see cref="JointType.Prismatic"/> only.
+    /// </summary>
+    static KVObject? BuildPhysicsJoint(PhysAggregateData physAggregateData, Joint joint)
+    {
+        var className = joint.Type switch
+        {
+            JointType.Null => "PhysicsJointNull",
+            JointType.Spherical => "PhysicsJointSpherical",
+            JointType.Prismatic => "PhysicsJointPrismatic",
+            JointType.Revolute => "PhysicsJointRevolute",
+            JointType.Conical => "PhysicsJointConical",
+            JointType.Weld => "PhysicsJointWeld",
+            JointType.Wheel => "PhysicsJointWheel",
+            _ => null,
+        };
+
+        if (className is null)
+        {
+            return null;
+        }
+
+        var jointNode = MakeNode(
+            className,
+            ("parent_body", physAggregateData.GetParentBoneName(joint.Body1)),
+            ("child_body", physAggregateData.GetParentBoneName(joint.Body2)),
+            ("anchor_origin", ToKVArray(joint.Frame1.Position)),
+            ("anchor_angles", ToKVArray(EntityTransformHelper.ToEulerAngles(joint.Frame1.Rotation))),
+            ("collision_enabled", joint.EnableCollision),
+            ("friction", joint.Friction)
+        );
+
+        switch (joint.Type)
+        {
+            case JointType.Conical:
+                jointNode.Add("enable_swing_limit", joint.EnableSwingLimit);
+                jointNode.Add("swing_limit", float.RadiansToDegrees(joint.SwingLimit.Max));
+                jointNode.Add("enable_twist_limit", joint.EnableTwistLimit);
+                jointNode.Add("min_twist_angle", float.RadiansToDegrees(joint.TwistLimit.Min));
+                jointNode.Add("max_twist_angle", float.RadiansToDegrees(joint.TwistLimit.Max));
+                break;
+            case JointType.Revolute:
+                jointNode.Add("enable_limit", joint.EnableTwistLimit);
+                jointNode.Add("min_angle", float.RadiansToDegrees(joint.TwistLimit.Min));
+                jointNode.Add("max_angle", float.RadiansToDegrees(joint.TwistLimit.Max));
+                break;
+            case JointType.Prismatic:
+                jointNode.Add("enable_limit", joint.EnableLinearLimit);
+                jointNode.Add("min_offset", joint.LinearLimit.Min);
+                jointNode.Add("max_offset", joint.LinearLimit.Max);
+                break;
+        }
+
+        return jointNode;
+    }
+
     static KVObject ProcessAnimationAutoLayer(Animation animation, AnimationAutoLayer autoLayer, string[] localSequenceNameArray, string[] poseParamNames)
     {
         var animName = localSequenceNameArray[autoLayer.LocalReference];
@@ -594,6 +652,7 @@ partial class ModelExtract
         var lodGroupList = MakeLazyList("LODGroupList");
         var animationList = MakeLazyList("AnimationList");
         var physicsShapeList = MakeLazyList("PhysicsShapeList");
+        var physicsJointList = MakeLazyList("PhysicsJointList");
         var attachmentList = MakeLazyList("AttachmentList");
         var skeleton = MakeLazyList("Skeleton");
         var modelModifierList = MakeLazyList("ModelModifierList");
@@ -1340,6 +1399,17 @@ partial class ModelExtract
                     physicsShapeList.Value.Add(physicsShapeCapsule);
                 }
             }
+
+            foreach (var joint in physAggregateData.Joints)
+            {
+                var jointNode = BuildPhysicsJoint(physAggregateData, joint);
+
+                if (jointNode is not null)
+                {
+                    physicsJointList.Value.Add(jointNode);
+                }
+            }
+
         }
 
         if (Translation != Vector3.Zero)
