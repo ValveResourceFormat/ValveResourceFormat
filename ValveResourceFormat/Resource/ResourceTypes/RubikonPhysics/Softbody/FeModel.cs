@@ -782,6 +782,30 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             return ring.Count >= 2 && HingeLimitOverRing(ring) is not null;
         }
 
+        // A generated node hanging off a hinged joint - its ring and its hinge anchor alike - is rebuilt by
+        // the ClothChain that carries the hinge, so a proxy sheet must leave it alone or the two drive it
+        // twice and the sheet contributes a duplicate of every one.
+        bool IsHingeRegeneratedProxy(int node)
+        {
+            if (node >= CtrlNames.Length || !IsProxyNodeName(CtrlNames[node]))
+            {
+                return false;
+            }
+
+            var parent = node < SkelParents.Length ? SkelParents[node] : -1;
+            if (parent < 0 || parent >= CtrlNames.Length)
+            {
+                return false;
+            }
+
+            if (Array.IndexOf(CtrlNames, HingeAnchorPrefix + CtrlNames[parent]) >= 0)
+            {
+                return true;
+            }
+
+            return IsHingedJoint(parent) || RigidHingeJoints.ContainsKey(parent);
+        }
+
         // The auto-generated proxy nodes extruded from a joint, in the order their names number them.
         List<int> ProxyRingOf(int jointNode)
         {
