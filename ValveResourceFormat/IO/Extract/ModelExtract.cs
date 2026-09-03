@@ -123,6 +123,13 @@ public partial class ModelExtract
                 renderMesh.Mesh.LoadExternalMorphData(fileLoader);
             }
 
+            if (renderMesh.Mesh.MorphData is { HasMissingAtlas: true } morphData)
+            {
+                ProgressReporter?.Report(
+                    $"Morph atlas '{morphData.AtlasPath}' was not found, the {morphData.GetMorphCount()} morph target(s) of "
+                    + $"{Path.GetFileName(renderMesh.FileName)} will be written with no deltas.");
+            }
+
             var options = new DatamodelRenderMeshExtractOptions
             {
                 MaterialInputSignatures = MaterialInputSignatures,
