@@ -255,6 +255,159 @@ partial class ModelExtract
         return node;
     }
 
+    // Bits of m_nDynamicNodeFlags that carry a ClothParams boolean. The remaining ClothParams switches
+    // leave no bit behind and fall back to the modern Source 2 defaults.
+    const uint ClothFlagUninertialRods = 0x10;
+    const uint ClothFlagFollowTheLead = 0x20;
+    const uint ClothFlagImmovable = 0x4000;
+    const uint ClothFlagCollideWorldCapsulesAndSpheres = 0x30000;
+    const uint ClothFlagCollideWorldHulls = 0x40000;
+    const uint ClothFlagCollideWorldMeshes = 0x80000;
+
+    // Bits of m_nDynamicNodeFlags that carry a Softbody node boolean rather than a ClothParams one.
+    const uint ClothFlagPerBoneScaleEnabled = 0x8000;
+    const uint ClothFlagKeychainMotion = 0x1000000;
+
+    // The Softbody node's own attributes, as opposed to the ClothParams child below. The two
+    // switches are omitted unless their bit is present.
+    static void AddSoftbodyAttributes(KVObject softbody, FeModel fe)
+    {
+        softbody.Add("motion_smooth_cdt", fe.MotionSmoothCdt);
+
+        if ((fe.DynamicNodeFlags & ClothFlagPerBoneScaleEnabled) != 0)
+        {
+            softbody.Add("cloth_per_bone_scale_enabled", true);
+        }
+
+        if ((fe.DynamicNodeFlags & ClothFlagKeychainMotion) != 0)
+        {
+            softbody.Add("cloth_keychain_motion", true);
+        }
+    }
+
+    // Global cloth solver parameters, populated from the FeModel scalars. Field names match the compiled
+    // ClothParams source node; the compiler re-derives everything not emitted here.
+    static KVObject MakeClothParams(FeModel fe, bool generatesBendRods = false, bool generatesBendOnlyRods = false,
+        float addCurvature = 0f, bool explicitMasses = false)
+    {
+        var flags = fe.DynamicNodeFlags;
+        bool Flag(uint bits) => (flags & bits) != 0;
+
+        return MakeNode("ClothParams",
+            ("default_stretch", fe.DefaultSurfaceStretch),
+            // Recovered from the rod relaxation factors, NOT from m_flDefaultThreadStretch, which tracks
+            // m_flDefaultSurfaceStretch whatever the shear is.
+            ("additional_shear_stretch", fe.AdditionalShearStretch),
+            ("extra_iterations", fe.ExtraIterations),
+            ("extra_goal_iterations", fe.ExtraGoalIterations),
+            ("extra_pressure_iterations", fe.ExtraPressureIterations),
+            ("goal_strength_bias", 0.0f),
+            ("default_gravity_scale", fe.DefaultGravityScale),
+            ("default_vel_air_drag", fe.DefaultVelAirDrag),
+            ("default_exp_air_drag", fe.DefaultExpAirDrag),
+            ("velocity_smooth_rate", fe.VelocitySmoothRate),
+            ("internal_pressure", fe.InternalPressure),
+            ("windage", fe.Windage),
+            ("wind_drag", fe.WindDrag),
+            ("velocity_smooth_iterations", fe.VelocitySmoothIterations),
+            ("default_ground_friction", fe.DefaultGroundFriction),
+            ("default_world_collision_penetration", 0.0f),
+            ("add_world_collision_radius", fe.AddWorldCollisionRadius),
+            ("local_force", fe.LocalForce),
+            ("local_rotation", fe.LocalRotation),
+            ("add_curvature", addCurvature),
+            ("quad_bend_tolerance", 0.05f),
+            ("local_drag1", fe.LocalDrag1),
+            ("follow_the_lead", Flag(ClothFlagFollowTheLead)),
+            ("use_per_node_local_force_and_rotation", fe.HasPerNodeLocalForce),
+            ("uninertial_rods", Flag(ClothFlagUninertialRods)),
+            ("explicit_masses", explicitMasses),
+            ("unitless_damping", true),
+            ("force_world_collision_on_all_nodes", fe.ForcesWorldCollisionOnAllNodes),
+            ("new_style", true),
+            ("can_collide_with_world_hulls", Flag(ClothFlagCollideWorldHulls)),
+            ("can_collide_with_world_meshes", Flag(ClothFlagCollideWorldMeshes)),
+            ("can_collide_with_world_capsule_and_spheres", Flag(ClothFlagCollideWorldCapsulesAndSpheres)),
+            // A sheet whose compiled rods reach beyond its own face edges and diagonals was authored with
+            // the extra bend network switched on. Recovering it lets the compiler regenerate those rods
+            // from the surface, where declaring them as explicit springs would instead add a source
+            // element per pair and leave the sheet heavier than the original.
+            ("add_stiffness_rods", generatesBendRods),
+            ("rigid_edge_hinges", fe.HasAxialEdges),
+            ("add_bend_only_rods", generatesBendOnlyRods),
+            ("immovable", Flag(ClothFlagImmovable)));
+    }
+
+    const float ClothSourceBaseGravity = FeModel.ClothSourceBaseGravity;
+
+    const float ClothDragPointDampingScale = FeModel.ClothDragPointDampingScale;
+
+    // An unrolled proxy ring sits on the joint frame's +Y, so an authored twist counts down from 90 degrees.
+    const float ClothExtrudeTwistBase = 90f;
+
+    // Explicitly declares a two-node distance constraint (a "rod") by NODE NAME: the ClothSpring node, the
+    // analogue of ClothQuad for edges instead of faces. is_length_explicit=false, the default, pins
+    // min_length = max_length = the rest distance, a fully rigid edge. Both is_length_explicit and
+    // enable_advanced_parameters are needed together for min_length/max_length to take effect.
+    //
+    // weight0 and relaxation_factor are not ClothSpring inputs: it registers no attribute for either, so
+    // an authored weight0 compiles to the builder's default of 0.5 while min_length/max_length stay exact
+    // (see FeModel.Rod.Weight0). "stiffness" is the attribute a rod's flRelaxationFactor comes back on.
+    static KVObject MakeClothSpring(string name, string n0, string n1, float minLength, float maxLength,
+        float stiffness, int extraIterations = 0)
+    {
+        var kv = MakeNode("ClothSpring",
+            ("name", name),
+            ("cloth_node_0", n0),
+            ("cloth_node_1", n1),
+            ("stiffness", stiffness),
+            ("enable_advanced_parameters", true),
+            ("is_length_explicit", true),
+            ("min_length", minLength),
+            ("max_length", maxLength));
+
+        if (extraIterations != 0)
+        {
+            kv.Add("extra_iterations", extraIterations);
+        }
+
+        return kv;
+    }
+
+    // A ClothSelfCollisionCluster's member pair compiles to exactly one m_Rods entry (flMinDist/flMaxDist
+    // the summed member radii, flWeight0 the builder's own default) and leaves no other trace:
+    // m_SelfCollisionLayers, m_NodeCollisionRadii and m_AnimStrayRadii are all unaffected. Unlike a
+    // ClothSpring it registers no m_SourceElems entry, so it is the node to re-emit for a rod between two
+    // chain joints that a chain does not itself regenerate. The per-member radius split the compiled rod
+    // does not preserve (only the sum reaches m_Rods) is recovered as an even split.
+    static KVObject MakeClothSelfCollisionCluster(string name, string joint0, string joint1, float radius,
+        float strayRadius)
+    {
+        KVObject MakeJoint(string jointName)
+        {
+            var joint = KVObject.Collection();
+            joint.Add("joint_name", jointName);
+            joint.Add("collision_radius", radius);
+            joint.Add("stray_radius", strayRadius);
+            joint.Add("stiffness", 1.0f);
+            return joint;
+        }
+
+        var joints = KVObject.Array();
+        joints.Add(MakeJoint(joint0));
+        joints.Add(MakeJoint(joint1));
+
+        var chainData = KVObject.Collection();
+        chainData.Add("joints", joints);
+        chainData.Add("selection", KVObject.Array());
+        chainData.Add("version", 0);
+
+        return MakeNode("ClothSelfCollisionCluster",
+            ("name", name),
+            ("algorithm", 0),
+            ("chain", chainData));
+    }
+
     // Maps each global control-node index covered by an exported proxy mesh to the "$cloth_m{N}p{local}"
     // name the compiler will create for it in OUR export (declaration order; kept aligned with the
     // compiler's own name-sorted numbering by the padded proxy names, see EnqueueClothProxyMesh). Only
@@ -856,6 +1009,521 @@ partial class ModelExtract
         node.Add("cloth_collision_layer1", (mask & 2) != 0);
         node.Add("cloth_collision_layer2", (mask & 4) != 0);
         node.Add("cloth_collision_layer3", (mask & 8) != 0);
+    }
+
+    /// <summary>
+    /// Whether a lone real bone must be re-authored as a single-joint <c>ClothChain</c> instead of a
+    /// merged <c>ClothNode</c>: the original records it as an <c>m_SkelParents</c> ROOT, which a chain
+    /// root compiles back to while a merged ClothNode is re-parented onto its nearest control-node
+    /// ancestor. The single-joint chain compiles an otherwise identical node.
+    /// </summary>
+    static bool LoneClothNodeIsOriginalRoot(FeModel feModel, int node)
+        => feModel.HasCompiledSkelParents
+            && node < feModel.SkelParents.Length && feModel.SkelParents[node] < 0
+            && node < feModel.NodeInvMasses.Length && feModel.NodeInvMasses[node] != 0f;
+
+    static KVObject MakeLoneJointChain(FeModel feModel, string name, int node, bool hasOtherChains)
+    {
+        var chain = new FeModel.BoneChain { RootBone = name };
+        chain.Joints.Add(new FeModel.BoneChainJoint
+        {
+            Node = node,
+            Name = name,
+            ParentNode = -1,
+            InvMass = node < feModel.NodeInvMasses.Length ? feModel.NodeInvMasses[node] : 0f,
+        });
+        return MakeClothChainNode(feModel, chain, hasOtherChains);
+    }
+
+    static KVObject MakeClothChainNode(FeModel feModel, FeModel.BoneChain chain, bool hasOtherChains)
+    {
+        // A rigid hinge takes the chain's rod network over, so a hinged chain that still carries rods was
+        // authored with a soft link instead.
+        var softHinge = feModel.HasChainRods(chain);
+
+        var joints = KVObject.Array();
+        foreach (var joint in chain.Joints)
+        {
+            var jointNode = MakeClothJoint(feModel, joint, chainExtrudes: chain.ExtrudeSides >= 1, softHinge);
+            if (feModel.SpringsHingeChildren(chain, joint.Node))
+            {
+                jointNode.Add("child_sibling_spring", 1.0f);
+            }
+
+            joints.Add(jointNode);
+        }
+
+        var chainData = KVObject.Collection();
+        chainData.Add("joints", joints);
+        chainData.Add("attrs", MakeClothChainAttrs(chain.ExtrudeSides, chain.ExtrudeRadius, chain.ExtrudeTwist));
+        chainData.Add("selection", KVObject.Array());
+
+        // The two chain formats are not interchangeable: format 1 registers a non-simulated joint that has
+        // no parent to be offset from into m_LockToGoal, format 2 leaves it out. Both are in live use, so
+        // the original's own m_LockToGoal membership is what says which one a chain was authored in.
+        // A rotation-locked root carries a second, sharper signal: format 1 suppresses that root's
+        // m_NodeBases entry and format 2 keeps it, so the original's own m_NodeBases decides those chains.
+        // The node-base signal reads an ABSENT root entry as format 1, which is equally what an anchor bone
+        // several sub-chains were merged under looks like: it roots no chain in the original, so nothing
+        // ever gave it a base. Format 1 also locks every non-simulated, rotation-free joint of an extruding
+        // chain to its goal, so an original that locks none of them rules format 1 out directly.
+        var root = chain.Joints.Count > 0 ? chain.Joints[0] : null;
+        var lockedInOriginal = chain.Joints.Exists(joint => feModel.IsLockedToGoal(joint.Node));
+        var locksJoints = chain.ExtrudeSides >= 1
+            && chain.Joints.Exists(joint => !joint.Simulated && feModel.AllowsRotation(joint.Node));
+
+        // A chain of one joint compiles only at version 0, but the access violation it avoids only
+        // happens when the model carries a second chain; a model whose only chain has one joint
+        // compiles fine at version >= 1 and keeps the node-base-driven choice below.
+        chainData.Add("version", chain.Joints.Count == 1 && hasOtherChains
+            ? 0
+            : root is not null && !feModel.AllowsRotation(root.Node)
+                && (lockedInOriginal || !locksJoints)
+            ? (feModel.NodeBases.ContainsKey(root.Node) ? 2 : 1)
+            : (lockedInOriginal ? 1 : 2));
+
+        var chainNode = MakeNode("ClothChain",
+            ("name", chain.RootBone + chain.DeclarationSuffix),
+            ("root_bone", chain.RootBone),
+            ("chain", chainData));
+
+        // A rigid ClothChainHinge is a child node of the chain, constraining one joint by name.
+        var hinges = KVObject.Array();
+        foreach (var joint in chain.Joints)
+        {
+            if (feModel.RigidHingeJoints.TryGetValue(joint.Node, out var hingeVector))
+            {
+                hinges.Add(MakeNode("ClothChainHinge",
+                    ("constrained_bone", joint.Name),
+                    ("hinge_vector", ToKVArray(hingeVector)),
+                    ("soft_hinge_link", false),
+                    ("limits_enabled", false)));
+            }
+        }
+
+        if (hinges.Count > 0)
+        {
+            chainNode.Add("children", hinges);
+        }
+
+        return chainNode;
+    }
+
+    /// <summary>
+    /// The plain second declaration of the joints <c>BuildBoneChains</c> marked restated, or null when
+    /// the chain has none. Emitted right after the extruding chain, so the compiler re-registers those
+    /// joint nodes with these values and adds the plain parent rod, as the source's own second
+    /// declaration did. Every value is read from the joint node itself, which is where the second
+    /// declaration left it.
+    /// </summary>
+    static KVObject? MakeClothChainRestatement(FeModel feModel, FeModel.BoneChain chain)
+    {
+        var restated = chain.Joints.FindAll(static joint => joint.Restated);
+        if (restated.Count == 0)
+        {
+            return null;
+        }
+
+        var members = restated.Select(static joint => joint.Node).ToHashSet();
+        var joints = KVObject.Array();
+        string? rootBone = null;
+        foreach (var joint in restated)
+        {
+            var kv = KVObject.Collection();
+            kv.Add("joint_name", joint.Name);
+
+            var parented = members.Contains(joint.ParentNode);
+            if (parented && joint.ParentName is { } parentName)
+            {
+                kv.Add("joint_parent", parentName);
+            }
+            else
+            {
+                rootBone ??= joint.Name;
+            }
+
+            kv.Add("simulate", joint.Simulated);
+
+            var integrator = feModel.GetIntegrator(joint.Node);
+            kv.Add("goal_strength", FeModel.GoalStrengthFromAttraction(integrator.ForceAttraction));
+            kv.Add("goal_damping", FeModel.GoalDampingFromAttraction(integrator.ForceAttraction, integrator.VertexAttraction));
+            kv.Add("gravity_z", integrator.Gravity / ClothSourceBaseGravity);
+
+            if (joint.Simulated)
+            {
+                kv.Add("collision_radius", feModel.GetCollisionRadius(joint.Node));
+            }
+
+            if (parented)
+            {
+                foreach (var rod in feModel.Rods)
+                {
+                    if ((rod.NodeA == joint.Node && rod.NodeB == joint.ParentNode)
+                        || (rod.NodeA == joint.ParentNode && rod.NodeB == joint.Node))
+                    {
+                        if (rod.RelaxationFactor != 1f)
+                        {
+                            kv.Add("stretch_spring", rod.RelaxationFactor);
+                        }
+
+                        break;
+                    }
+                }
+            }
+
+            joints.Add(kv);
+        }
+
+        var chainData = KVObject.Collection();
+        chainData.Add("joints", joints);
+        chainData.Add("attrs", MakeClothChainAttrs());
+        chainData.Add("selection", KVObject.Array());
+
+        rootBone ??= restated[0].Name;
+        return MakeNode("ClothChain",
+            ("name", rootBone + "_restated"),
+            ("root_bone", rootBone),
+            ("chain", chainData));
+    }
+
+    static KVObject MakeClothJoint(FeModel feModel, FeModel.BoneChainJoint joint, bool chainExtrudes = false,
+        bool softHinge = false)
+    {
+        var kv = KVObject.Collection();
+        kv.Add("joint_name", joint.Name);
+
+        if (joint.ParentName is not null)
+        {
+            kv.Add("joint_parent", joint.ParentName);
+        }
+
+        // The compiler CUBES the joint goal_strength into flAnimationForceAttraction, the same way it
+        // treats the painted cloth_goal_strength_v2 on a proxy mesh, so the emitted value is the cube root
+        // of the recovered attraction.
+        //
+        // It is recovered regardless of joint.Simulated: a chain ROOT is routinely authored
+        // `simulate = false` with a nonzero goal_strength, so gating on the flag would zero goal_strength
+        // on every chain root.
+        //
+        // A joint the source declared twice keeps the second declaration's values on its own node;
+        // the first declaration's values survive on the ring it extruded (MakeClothChainRestatement
+        // emits the second declaration from the node). Where the two declarations each extruded a ring
+        // of their own, BoneChainJoint.ValueNode names this declaration's.
+        var valueNode = joint.ValueNode >= 0 ? joint.ValueNode
+            : joint.Restated && joint.ProxyNode >= 0 ? joint.ProxyNode : joint.Node;
+        var integrator = feModel.GetIntegrator(valueNode);
+        var goalStrength = FeModel.GoalStrengthFromAttraction(integrator.ForceAttraction);
+
+        kv.Add("simulate", joint.Simulated);
+
+        // Only a static node carries a rotation lock.
+        if (joint.Node < feModel.StaticNodeCount)
+        {
+            kv.Add("allow_rotation", feModel.AllowsRotation(joint.Node));
+        }
+
+        if (feModel.IsLockedToParent(joint.Node))
+        {
+            kv.Add("lock_translation", true);
+        }
+
+        kv.Add("goal_strength", goalStrength);
+        kv.Add("goal_damping", FeModel.GoalDampingFromAttraction(integrator.ForceAttraction, integrator.VertexAttraction));
+
+        // The same flPointDamping channel the proxy sheets carry as cloth_drag.
+        var drag = Math.Clamp(integrator.PointDamping / ClothDragPointDampingScale, 0f, 1f);
+        if (drag != 0f)
+        {
+            kv.Add("drag", drag);
+        }
+
+        var gravityNode = joint.ProxyNode >= 0 ? joint.ProxyNode : joint.Node;
+        kv.Add("gravity_z", feModel.GetIntegrator(gravityNode).Gravity / ClothSourceBaseGravity);
+
+        // A non-zero twist_relax, stiff_hinge or motion_bias makes the compiler build a Twist or
+        // KelagerBend constraint network in place of the plain ropes a chain otherwise compiles to, so
+        // each is recovered per joint, magnitude included, from the original's own m_Twists participation
+        // (FeModel.GetAuthoredTwistRelax) rather than defaulted.
+        kv.Add("twist_relax", feModel.GetAuthoredTwistRelax(joint.Node, joint.ParentNode, joint.ProxyNode));
+
+        // World collision membership and radius (m_WorldCollisionNodes / m_NodeCollisionRadii).
+        kv.Add("world_collision", feModel.IsWorldCollisionNode(joint.Node));
+
+        var (worldFriction, groundFriction) = feModel.GetWorldFriction(joint.Node);
+        kv.Add("world_friction", worldFriction);
+        kv.Add("ground_friction", groundFriction);
+        kv.Add("collision_radius", feModel.GetCollisionRadius(valueNode));
+
+        // Stray radius (m_AnimStrayRadii): the max distance the node may stray from its animated position.
+        // A joint whose own node is pinned records it on its ring alone, which is also the only place a
+        // shared joint's second declaration keeps its own.
+        var strayNode = joint.ValueNode >= 0 ? joint.ValueNode : joint.Node;
+        kv.Add("stray_radius", feModel.GetStrayRadius(strayNode));
+        kv.Add("stray_radius_stretchiness", feModel.GetStrayStretchiness(strayNode));
+        kv.Add("friction", feModel.GetNodeFriction(joint.Node));
+
+        if (feModel.RecoverJointMassMultiplier(joint.Node) is { } massMultiplier)
+        {
+            kv.Add("mass", massMultiplier);
+        }
+
+        // The named vertex selections this joint belongs to, comma separated. Naming them here is what
+        // puts the joint and the proxies extruded from it back into the selections cloth effects target.
+        // A joint that does not simulate stays out of the selection itself while its proxies join it, so
+        // when the joint's own node belongs to none the proxies it extruded carry the membership.
+        if ((feModel.GetVertexMapNames(joint.Node)
+            ?? (joint.ProxyNode >= 0 ? feModel.GetVertexMapNames(joint.ProxyNode) : null))
+            is { } vertexMaps)
+        {
+            kv.Add("vertex_map", vertexMaps);
+        }
+
+        // The hinge constraint the ClothChainHinge node writes onto the joint it constrains. It both
+        // orients that joint's proxy ring and adds the compiler's own static anchor node, so a joint that
+        // shipped one loses a control node without it - and a joint that did not gains one.
+        var hinge = feModel.GetChainHinge(joint.Name, joint.Node);
+
+        // Per-joint extrude width. The chain-level extrude_sides (MakeClothChainAttrs) is one uniform
+        // value, so it cannot reproduce a ribbon whose END-CAP joint fans wider than its body; overriding
+        // it per joint recovers that fan. A chain that extrudes at all emits every joint's own width,
+        // including an explicit 0 for a joint that carries no proxies, which would otherwise inherit the
+        // chain-level default. A chain that does not extrude emits nothing.
+        if (chainExtrudes)
+        {
+            kv.Add("extrude_sides", joint.ExtrudeSides);
+
+            // Ring geometry varies along a chain, so the chain-level defaults only fit one joint. Emit each
+            // joint's own measured ring instead.
+            if (joint.ExtrudeSides > 0)
+            {
+                kv.Add("extrude_radius", joint.ExtrudeRadius);
+                kv.Add("extrude_twist", ClothExtrudeTwistBase - joint.ExtrudeTwist + joint.ExtrudeTwistTieNudge);
+
+                // 'x' is the compiler's own default and needs no explicit key.
+                if (joint.ForwardAxis != 'x')
+                {
+                    kv.Add("extrude_forward_axis", joint.ForwardAxis.ToString());
+                }
+            }
+
+        }
+
+        // A tip that fans into two rows is a second ring this far along the joint's forward axis, not
+        // one ring of twice the width - the wider ring puts every proxy somewhere else entirely. A
+        // hinged joint that carries only the hinge's own two proxies has no second ring to recover:
+        // that pair straddles the hinge axis, which reads as two rings a ring apart. Emitted outside the
+        // extrude block: a joint whose only generated node is the "$cc<bone>_Ctr" centre has an
+        // end_effector but no ring at all, so its chain never extrudes.
+        if (joint.EndEffector != 0f && (hinge is null || feModel.ProxyCountOf(joint.Node) > 2))
+        {
+            kv.Add("end_effector", joint.EndEffector);
+        }
+
+        // Each of the three sliders lands verbatim on the flRelaxationFactor of the rod it generates, so
+        // they carry the recovered per-joint stiffness rather than a 1.0/0.0 on-off (see
+        // FeModel.BuildBoneChains). Zero still means "no rod at all" on the bend and torsion spans.
+        // 1.0 is stretch_spring's own attr default and needs no explicit key.
+        if (joint.StretchStiffness != 1.0f)
+        {
+            kv.Add("stretch_spring", joint.StretchStiffness);
+        }
+
+        kv.Add("bend_spring", joint.BendStiffness);
+        kv.Add("torsion_spring", joint.TorsionStiffness);
+        kv.Add("extra_iterations", joint.ExtraIterations);
+        kv.Add("suspender", joint.Suspender);
+
+        // A stiff hinge compiles to a three-node bend rather than a rod, so it is recovered from the bend
+        // centred on this joint (see FeModel.GetStiffHinge).
+        if (feModel.GetStiffHinge(joint.Node) is { } stiffHinge)
+        {
+            kv.Add("stiff_hinge", stiffHinge.Stiffness);
+            kv.Add("stiff_hinge_angle", stiffHinge.Angle);
+
+            if (stiffHinge.MotionBias != 0f)
+            {
+                kv.Add("motion_bias", stiffHinge.MotionBias);
+            }
+        }
+
+        if (hinge is { } chainHinge)
+        {
+            kv.Add("hinge_constraint_vector_worldspace", ToKVArray(chainHinge.Vector));
+            kv.Add("hinge_constraint_soft", softHinge);
+            kv.Add("hinge_constraint_limit_cw", chainHinge.LimitCw);
+            kv.Add("hinge_constraint_limit_ccw", chainHinge.LimitCcw);
+        }
+
+        return kv;
+    }
+
+    // Emits a standalone ClothNode for a simulated real bone that is NOT part of any multi-joint
+    // BoneChain and NOT back-solved by a proxy mesh: individual tie points connected only by explicit
+    // ClothSpring, since a real bone with no real-bone descendants of its own never forms a BoneChain
+    // (see BuildBoneChains). Mirrors MakeClothJoint's integrator recovery, which is what keeps the bone's
+    // per-node cloth paint off the compiler defaults; its rods round-trip through AddClothProxySprings
+    // either way, a plain skeleton bone name being a valid ClothSpring endpoint on its own.
+    //
+    // node_base_x0/x1/y0/y1 are read straight out of feModel.NodeBases and re-declared by NAME. A node
+    // left without them registers as position-driven and is driven through a synthesized m_Ropes fallback
+    // rather than simulated.
+    static KVObject MakeClothNode(FeModel feModel, string boneName, int node, bool isStaticNode = false,
+        string? elementName = null, Vector3 origin = default,
+        IReadOnlyDictionary<int, string>? proxyNodeNames = null)
+    {
+        var integrator = feModel.GetIntegrator(node);
+        var goalStrength = FeModel.GoalStrengthFromAttraction(integrator.ForceAttraction);
+        var goalDamping = FeModel.GoalDampingFromAttraction(integrator.ForceAttraction, integrator.VertexAttraction);
+        var strayRadius = feModel.GetStrayRadius(node);
+
+        // A basis reference names a node in the AUTHORED namespace, which is not the ctrl namespace: a
+        // proxy vertex takes the name our own proxy split gives it and a free cloth node is declared under
+        // its element name with the "$cloth_node_" prefix stripped, so echoing the ctrl name leaves a
+        // reference that resolves to nothing and the compiler recomputes the basis instead.
+        var hasBasis = feModel.NodeBases.TryGetValue(node, out var basis);
+        string BasisName(int basisNode)
+        {
+            if (!hasBasis || basisNode < 0 || basisNode >= feModel.CtrlNames.Length)
+            {
+                return string.Empty;
+            }
+
+            return ResolveAntiTunnelNodeName(feModel, basisNode, proxyNodeNames) ?? string.Empty;
+        }
+
+        return MakeNode("ClothNode",
+            ("name", elementName ?? boneName),
+            ("origin", ToKVArray(origin)),
+            ("angles", ToKVArray(Vector3.Zero)),
+            ("cloth_node_root_bone", boneName),
+            ("has_stray_radius", strayRadius > 0f),
+            ("has_world_collision", feModel.IsWorldCollisionNode(node)),
+            ("cloth_collision_layer0", true),
+            ("cloth_collision_layer1", true),
+            ("cloth_collision_layer2", true),
+            ("cloth_collision_layer3", true),
+            // The default alignment leaves a free cloth node with no basis at all - the neighbour scan
+            // that would build one finds nothing. Alignment 4 both restores the basis and reproduces the
+            // reference quadruple the original carries; on a node the scan can already serve it changes
+            // the frame instead, so it is written only where the original has a basis the default drops.
+            ("transform_alignment", hasBasis && elementName is not null ? 4 : 0),
+            ("node_base_y1", BasisName(basis.NodeY1)),
+            ("node_base_x1", BasisName(basis.NodeX1)),
+            ("node_base_y0", BasisName(basis.NodeY0)),
+            ("node_base_x0", BasisName(basis.NodeX0)),
+            ("lock_translation", feModel.IsLockedToParent(node)),
+            ("gravity_z", integrator.Gravity / ClothSourceBaseGravity),
+            ("goal_strength", goalStrength),
+            ("goal_damping", goalDamping),
+            ("mass", feModel.RecoverMassMultiplier(node) ?? 1.0f),
+            ("friction", feModel.GetNodeFriction(node)),
+            ("stray_radius", strayRadius),
+            ("stray_radius_relaxation_factor", 1.0f),
+            ("collision_radius", feModel.GetCollisionRadius(node)),
+            ("is_static_node", isStaticNode),
+            ("allow_rotation", feModel.AllowsRotation(node)),
+            ("super_damping", Math.Clamp(integrator.PointDamping / ClothDragPointDampingScale, 0f, 1f)));
+    }
+
+    // The cloth-chain joint datatable schema: per-column UI metadata and defaults, matching the editable
+    // ModelDoc source the tools produce. The compiler takes the "default" value of any joint field the
+    // joint rows above do not write.
+    static KVObject MakeClothChainAttrs(int extrudeSides = 0, float extrudeRadius = 0f, float extrudeTwist = 0f)
+    {
+        var attrs = KVObject.Collection();
+
+        KVObject AddAttr(string key, string display, bool show, int uiOrder)
+        {
+            var attr = KVObject.Collection();
+            attr.Add("display", display);
+            attr.Add("show", show);
+            attr.Add("ui_order", uiOrder);
+            attrs.Add(key, attr);
+            return attr;
+        }
+
+        KVObject FloatAttr(string key, string display, bool show, int uiOrder, float def, float? min = null, float? max = null)
+        {
+            var attr = AddAttr(key, display, show, uiOrder);
+            attr.Add("default", def);
+            if (min.HasValue) { attr.Add("min", min.Value); }
+            if (max.HasValue) { attr.Add("max", max.Value); }
+            return attr;
+        }
+
+        KVObject IntAttr(string key, string display, bool show, int uiOrder, int def, int? min = null, int? max = null)
+        {
+            var attr = AddAttr(key, display, show, uiOrder);
+            attr.Add("default", def);
+            if (min.HasValue) { attr.Add("min", min.Value); }
+            if (max.HasValue) { attr.Add("max", max.Value); }
+            return attr;
+        }
+
+        KVObject BoolAttr(string key, string display, bool show, int uiOrder, bool def)
+        {
+            var attr = AddAttr(key, display, show, uiOrder);
+            attr.Add("default", def);
+            return attr;
+        }
+
+        KVObject StringAttr(string key, string display, bool show, int uiOrder)
+        {
+            var attr = AddAttr(key, display, show, uiOrder);
+            attr.Add("default", "");
+            return attr;
+        }
+
+        // The complete version-2 attr set. An incomplete v1-era key list makes the v2 joint grid ignore
+        // the table and fall back to default columns. Attrs with values recovered from the compiled
+        // FeModel are shown; the rest keep stock visibility.
+        StringAttr("joint_name", "Joint Name", true, 1).Add("lock", true);
+        StringAttr("joint_parent", "Parent Joint", false, 2);
+        BoolAttr("simulate", "Simulate", true, 3, true);
+        BoolAttr("allow_rotation", "Allow Rotation", false, 4, true);
+        // The display names match the ClothChainAttrEditor schema and are ModelDoc UI labels only.
+        FloatAttr("stretch_spring", "Stretch Stiffness", false, 5, 1.0f, 0.0f, 1.0f);
+        FloatAttr("child_sibling_spring", "Spring Between Children", false, 6, 0.0f, 0.0f, 1.0f);
+        FloatAttr("bend_spring", "Bend Stiffness", false, 7, 1.0f, 0.0f, 1.0f);
+        FloatAttr("torsion_spring", "Torsion Stiffness", false, 8, 0.0f, 0.0f, 1.0f);
+        FloatAttr("explicit_length", "Explicit Length", false, 9, 0.0f, 0.0f);
+        BoolAttr("world_collision", "World Ground Collision", true, 10, false);
+        BoolAttr("animated_length", "Animated Length", false, 11, false);
+        FloatAttr("goal_strength", "Goal Strength", true, 12, 0.0f, 0.0f, 1.0f);
+        FloatAttr("goal_damping", "Goal Damping", true, 13, 0.0f, 0.0f, 1.0f);
+        FloatAttr("drag", "Extra Drag", false, 14, 0.0f, 0.0f, 1.0f);
+        FloatAttr("mass", "Mass", false, 15, 1.0f, 0.0f);
+        FloatAttr("gravity_z", "Gravity", true, 16, 1.0f);
+        FloatAttr("collision_radius", "Collision Radius", true, 17, 0.0f, 0.0f);
+        BoolAttr("lock_translation", "Lock Translation", false, 18, false);
+        FloatAttr("suspender", "Suspender Spring", false, 19, 0.0f);
+        FloatAttr("antishrink", "Antishrink Strength", false, 20, 1.0f, 0.0f, 1.0f);
+        FloatAttr("stray_radius", "Stray Radius", true, 21, 0.0f, 0.0f);
+        FloatAttr("stray_radius_stretchiness", "Stray Radius Stretchiness", false, 22, 0.0f, 0.0f);
+        FloatAttr("friction", "Friction", false, 23, 0.0f, 0.0f, 1.0f);
+        StringAttr("vertex_map", "Vertex Map", false, 24).Add("verify", "vertex_map");
+        FloatAttr("end_effector", "End Effector", false, 25, 0.0f).Add("lock_default_value", true);
+        FloatAttr("stiff_hinge", "Stiff Hinge", true, 26, 0.0f, 0.0f, 1.0f).Add("lock_root2", true);
+        FloatAttr("stiff_hinge_angle", "Stiff Hinge Angle", true, 27, 0.0f, 0.0f, 180.0f).Add("lock_root2", true);
+        FloatAttr("motion_bias", "Motion Bias", true, 28, 0.0f, -1.0f, 1.0f).Add("lock_root", true);
+        IntAttr("extra_iterations", "Extra Iterations", true, 29, 0, 0, 1000);
+        FloatAttr("twist_relax", "Twist Relax", true, 30, 0.0f, 0.0f, 1.0f);
+        // Recovered per chain from the compiled $cc proxy width (see FeModel.BuildBoneChains): a 2-wide
+        // strip or N-sided tube regenerates its proxies only when the ClothChain re-declares the extrude.
+        // extrudeSides 0 keeps the stock default, a plain rope.
+        IntAttr("extrude_sides", "Extrude Sides", false, 31, extrudeSides, 0, 4);
+        FloatAttr("extrude_radius", "Extrude Radius", false, 32, extrudeSides >= 1 ? extrudeRadius : 5.0f, 0.0f);
+        FloatAttr("extrude_twist", "Extrude Twist", false, 33, extrudeSides >= 1 ? extrudeTwist : 0.0f);
+        StringAttr("extrude_forward_axis", "Extrude Forward Axis", false, 34).Add("verify", "extrude_forward_axis");
+        FloatAttr("world_friction", "Ground Softness (\"world friction\" in Source1)", false, 35, 0.0f, 0.0f, 1.0f);
+        FloatAttr("ground_friction", "Ground Friction", false, 36, 0.0f, 0.0f, 1.0f);
+        StringAttr("stray_box", "Stray Box", false, 37).Add("verify", "stray_box");
+        BoolAttr("collision_layer_0", "Collision Layer 0", false, 38, true);
+        BoolAttr("collision_layer_1", "Collision Layer 1", false, 39, true);
+        BoolAttr("collision_layer_2", "Collision Layer 2", false, 40, true);
+        BoolAttr("collision_layer_3", "Collision Layer 3", false, 41, true);
+
+        return attrs;
     }
 
     // A compiled model can carry two spellings of one bone: m_modelSkeleton's m_boneName and, for cloth
