@@ -503,6 +503,15 @@ partial class ModelExtract
                 }
 
                 clothBlendIndices = (int[])compactIndices.Clone();
+
+                if (clothCompaction != null)
+                {
+                    for (var i = 0; i < compactIndices.Length; i++)
+                    {
+                        compactIndices[i] = CompactBoneIndex(clothCompaction, compactIndices[i]);
+                    }
+                }
+
                 vertexData.AddStream(semantic, compactIndices);
                 continue;
             }

@@ -504,6 +504,15 @@ partial class ModelExtract
     {
         foreach (var bone in bones)
         {
+            // The compiler makes both cloth proxy families itself, one from the proxy mesh and one
+            // from the joints a round-tripped DMX carries, and marks a bone the document pins with
+            // do_not_discard as mesh-used. Declaring them here would keep them out of that path.
+            if (IsCompilerOwnedClothBone(bone))
+            {
+                AddBonesRecursive(bone.Children, parent);
+                continue;
+            }
+
             var boneDefinitionNode = MakeNode(
                 "Bone",
                 ("name", GetExportBoneName(bone)),

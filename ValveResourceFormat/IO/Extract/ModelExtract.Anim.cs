@@ -253,6 +253,136 @@ partial class ModelExtract
             ? $"_{bone.Name[1..]}"
             : bone.Name;
 
+    /// <summary>
+    /// Whether the compiler generated this bone from a cloth proxy mesh rather than the author
+    /// declaring it.
+    /// </summary>
+    internal static bool IsGeneratedClothProxyBone(Bone bone)
+        => bone.IsProceduralCloth && bone.Name.StartsWith('$');
+
+    private const ModelSkeletonBoneFlags UsedByVertex =
+        ModelSkeletonBoneFlags.BoneUsedByVertexLod0 | ModelSkeletonBoneFlags.BoneUsedByVertexLod1
+        | ModelSkeletonBoneFlags.BoneUsedByVertexLod2 | ModelSkeletonBoneFlags.BoneUsedByVertexLod3
+        | ModelSkeletonBoneFlags.BoneUsedByVertexLod4 | ModelSkeletonBoneFlags.BoneUsedByVertexLod5
+        | ModelSkeletonBoneFlags.BoneUsedByVertexLod6 | ModelSkeletonBoneFlags.BoneUsedByVertexLod7;
+
+    /// <summary>
+    /// Whether the compiler rebuilds this cloth proxy bone on its own, so the document must not
+    /// declare it.
+    /// </summary>
+    /// <remarks>
+    /// The generated family always. The family a round-tripped DMX carries only when no vertex binds
+    /// it: those bones reach a compiled model as joints in the artist's mesh files and keep
+    /// <c>FLAG_ANIMATION</c> alone, and a document that declares them with <c>do_not_discard</c>
+    /// turns them into mesh-used bones instead. Where the family IS skinned it is real authored
+    /// weighting and has to stay.
+    /// </remarks>
+    internal static bool IsCompilerOwnedClothBone(Bone bone)
+        => IsGeneratedClothProxyBone(bone)
+            || (IsClothProxyName(bone.Name) && (bone.Flags & UsedByVertex) == 0);
+
+    /// <summary>
+    /// Whether the name is in a cloth proxy family, under either spelling. A DMX cannot carry the
+    /// '$' the compiler writes, so a model round-tripped through one arrives with the '_' form.
+    /// </summary>
+    internal static bool IsClothProxyName(string name)
+    {
+        var rest = name.AsSpan();
+
+        if (rest.Length == 0 || (rest[0] != '$' && rest[0] != '_'))
+        {
+            return false;
+        }
+
+        rest = rest[1..];
+
+        if (!rest.StartsWith("cloth_m", StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        rest = rest["cloth_m".Length..];
+        var digits = 0;
+
+        while (digits < rest.Length && char.IsAsciiDigit(rest[digits]))
+        {
+            digits++;
+        }
+
+        if (digits == 0 || digits >= rest.Length || rest[digits] != 'p')
+        {
+            return false;
+        }
+
+        rest = rest[(digits + 1)..];
+        return rest.Length > 0 && char.IsAsciiDigit(rest[0]);
+    }
+
+    /// <summary>
+    /// Where each skeleton bone lands in an emitted joint list, once the compiler-generated cloth
+    /// proxy bones are left out of it.
+    /// </summary>
+    /// <remarks>
+    /// A kept bone maps to its own emitted index. A dropped one maps to <c>-1 - f</c>, where <c>f</c>
+    /// is the emitted index of the nearest bone that survived: an influence on a dropped bone has to
+    /// name something, and the compiler replaces those weights outright when it re-binds the mesh to
+    /// the proxy nodes it regenerates.
+    /// </remarks>
+    internal static int[] BuildClothBoneCompaction(Skeleton skeleton)
+    {
+        var compaction = new int[skeleton.Bones.Length];
+        var emitted = 0;
+
+        foreach (var bone in skeleton.Bones)
+        {
+            compaction[bone.Index] = IsGeneratedClothProxyBone(bone) ? int.MinValue : emitted++;
+        }
+
+        foreach (var bone in skeleton.Bones)
+        {
+            if (compaction[bone.Index] != int.MinValue)
+            {
+                continue;
+            }
+
+            var here = bone.BindPose.Translation;
+            var nearest = 0;
+            var nearestDistance = float.MaxValue;
+
+            foreach (var candidate in skeleton.Bones)
+            {
+                if (compaction[candidate.Index] < 0 || IsClothProxyName(candidate.Name))
+                {
+                    continue;
+                }
+
+                var distance = (candidate.BindPose.Translation - here).LengthSquared();
+
+                if (distance < nearestDistance)
+                {
+                    nearestDistance = distance;
+                    nearest = compaction[candidate.Index];
+                }
+            }
+
+            compaction[bone.Index] = -1 - nearest;
+        }
+
+        return compaction;
+    }
+
+    /// <summary>Resolves one blend index through <see cref="BuildClothBoneCompaction"/>.</summary>
+    internal static int CompactBoneIndex(int[] compaction, int bone)
+    {
+        if (bone < 0 || bone >= compaction.Length)
+        {
+            return 0;
+        }
+
+        var mapped = compaction[bone];
+        return mapped < 0 ? -1 - mapped : mapped;
+    }
+
     private static DmeModel BuildDmeDagSkeleton(Skeleton skeleton, out DmeTransform[] transforms,
         bool nmSkelAxisFixup = false, int nmLowLodBoneCount = -1,
         IReadOnlyDictionary<string, Vector3>? bonePositions = null)
@@ -313,23 +443,39 @@ partial class ModelExtract
             dag.Transform.Position = BonePosition(bone, bonePositions);
             dag.Transform.Orientation = bone.Angle;
 
-            boneDags[bone.Index] = dag;
             transforms[bone.Index] = dag.Transform;
 
+            if (IsGeneratedClothProxyBone(bone))
+            {
+                continue;
+            }
+
+            boneDags[bone.Index] = dag;
             dmeSkeleton.JointList.Add(dag);
         }
 
         foreach (var bone in skeleton.Bones)
         {
+            if (boneDags[bone.Index] is not { } parentDag)
+            {
+                continue;
+            }
+
             foreach (var child in OrderSiblings(bone.Children, minLow, minHigh))
             {
-                boneDags[bone.Index].Children.Add(boneDags[child.Index]);
+                if (boneDags[child.Index] is { } childDag)
+                {
+                    parentDag.Children.Add(childDag);
+                }
             }
         }
 
         foreach (var root in OrderSiblings(skeleton.Roots, minLow, minHigh))
         {
-            dmeSkeleton.Children.Add(boneDags[root.Index]);
+            if (boneDags[root.Index] is { } rootDag)
+            {
+                dmeSkeleton.Children.Add(rootDag);
+            }
         }
 
         return transforms;
@@ -527,6 +673,11 @@ partial class ModelExtract
 
         foreach (var bone in skeleton.Bones)
         {
+            if (IsGeneratedClothProxyBone(bone))
+            {
+                continue;
+            }
+
             var transform = transforms[bone.Index];
             var boneName = GetExportBoneName(bone);
 
