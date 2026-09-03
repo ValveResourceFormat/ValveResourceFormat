@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Text;
 using System.Windows.Forms;
 using GUI.Controls;
 using GUI.Utils;
@@ -32,6 +33,7 @@ namespace GUI.Types.GLViewers
         private Label? animationTimeLabel;
         private GLViewerSliderControl? animationTrackBar;
         private GLViewerSliderControl? slowmodeTrackBar;
+        private CheckedListBox? attachmentListBox;
         public CheckedListBox? meshGroupListBox { get; private set; }
         public ComboBox? materialGroupListBox { get; private set; }
         private ComboBox? lodComboBox;
@@ -44,6 +46,7 @@ namespace GUI.Types.GLViewers
         protected SkeletonSceneNode? skeletonSceneNode;
         private HitboxSetSceneNode? hitboxSetSceneNode;
         private List<ParticleSceneNode> modelParticleNodes = [];
+        private List<AttachmentSceneNode> attachmentSceneNodes = [];
         private CheckedListBox? physicsGroupsComboBox;
         private int animationComboBoxCurrentIndex = -1;
 
@@ -71,6 +74,7 @@ namespace GUI.Types.GLViewers
             animationTimeLabel?.Dispose();
             animationTrackBar?.Dispose();
             slowmodeTrackBar?.Dispose();
+            attachmentListBox?.Dispose();
             meshGroupListBox?.Dispose();
             materialGroupListBox?.Dispose();
             lodComboBox?.Dispose();
@@ -250,6 +254,22 @@ namespace GUI.Types.GLViewers
                 skeletonSceneNode = new SkeletonSceneNode(Scene, animationController.Pose, model.Skeleton);
                 Scene.Add(skeletonSceneNode, true);
 
+                if (model.Attachments.Count > 0)
+                {
+                    attachmentSceneNodes = [];
+
+                    foreach (var (name, attachment) in model.Attachments)
+                    {
+                        var attachmentSceneNode = new AttachmentSceneNode(Scene, modelSceneNode, name, attachment)
+                        {
+                            Enabled = false,
+                        };
+
+                        attachmentSceneNodes.Add(attachmentSceneNode);
+                        Scene.Add(attachmentSceneNode, true);
+                    }
+                }
+
                 if (model.HitboxSets != null && model.HitboxSets.Count > 0)
                 {
                     hitboxSetSceneNode = new HitboxSetSceneNode(Scene, animationController, model.HitboxSets);
@@ -387,6 +407,19 @@ namespace GUI.Types.GLViewers
                     });
                     hitboxComboBox.Items.Add("");
                     hitboxComboBox.Items.AddRange([.. hitboxSets.Keys]);
+                }
+
+                if (model.Attachments.Count > 0)
+                {
+                    using var _ = UiControl.BeginGroup("Model");
+
+                    attachmentListBox = UiControl.AddMultiSelection("Attachments", listBox =>
+                    {
+                        listBox.Items.AddRange([.. model.Attachments.Keys]);
+                    }, selectedAttachments =>
+                    {
+                        SetEnabledAttachments(selectedAttachments.ToHashSet(StringComparer.OrdinalIgnoreCase));
+                    });
                 }
 
                 var lodInfo = model.LodInfo;
@@ -637,6 +670,14 @@ namespace GUI.Types.GLViewers
             }
 
             return sb.ToString();
+        }
+
+        private void SetEnabledAttachments(HashSet<string> attachments)
+        {
+            foreach (var attachmentSceneNode in attachmentSceneNodes)
+            {
+                attachmentSceneNode.Enabled = attachments.Contains(attachmentSceneNode.AttachmentName);
+            }
         }
 
         private void SetEnabledPhysicsGroups(HashSet<string> physicsGroups)
