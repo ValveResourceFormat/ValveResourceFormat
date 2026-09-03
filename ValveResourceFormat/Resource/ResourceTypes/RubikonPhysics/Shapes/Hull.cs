@@ -28,7 +28,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Shapes
             public readonly float Offset;
 
             /// <summary>
-            /// Initializes a new instance of the <c>Plane</c> struct.
+            /// Initializes a new instance of the <see cref="Plane"/> struct.
             /// </summary>
             public Plane(KVObject data)
             {
