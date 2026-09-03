@@ -385,6 +385,11 @@ partial class ModelExtract
 
         foreach (var bone in skeleton.Bones)
         {
+            if (IsGeneratedClothProxyBone(bone))
+            {
+                continue;
+            }
+
             var transform = transforms[bone.Index];
             var boneName = GetExportBoneName(bone);
 
