@@ -112,7 +112,7 @@ partial class ModelExtract
         return node;
     }
 
-    static void ProcessBoneConstraintChildren(KVObject boneConstraint, KVObject node)
+    static bool ProcessBoneConstraintChildren(KVObject boneConstraint, KVObject node)
     {
         var targets = boneConstraint.GetArray("m_targets")
                                     .Select(p => ProcessBoneConstraintTarget(p))
@@ -121,10 +121,18 @@ partial class ModelExtract
         IEnumerable<KVObject> children;
         if (node.GetStringProperty("_class") == "AnimConstraintParent")
         {
+            var parentSlaves = boneConstraint.GetArray("m_slaves");
+            if (parentSlaves.Count == 0)
+            {
+                // A parent constraint drives exactly one slave bone; with none, there is no bone
+                // this constraint could re-export as constraining.
+                return false;
+            }
+
             //Parent constraints only have a single slave and it's not a child node in the .vmdl
             children = targets;
 
-            var constrainedBoneData = boneConstraint.GetArray("m_slaves")[0];
+            var constrainedBoneData = parentSlaves[0];
             AddBoneConstraintProperty<double>(constrainedBoneData, node, "m_flWeight", "weight");
             AddBoneConstraintProperty<Vector3>(constrainedBoneData, node, "m_vBasePosition", "translation_offset");
 
@@ -151,6 +159,7 @@ partial class ModelExtract
             childrenKV.Add(child);
         }
         node.Add("children", childrenKV);
+        return true;
     }
 
     static KVObject? ProcessBoneConstraint(KVObject? boneConstraint)
@@ -181,7 +190,10 @@ partial class ModelExtract
             return MakeNode(targetClassName, boneConstraint);
         }
 
-        ProcessBoneConstraintChildren(boneConstraint, node);
+        if (!ProcessBoneConstraintChildren(boneConstraint, node))
+        {
+            return null;
+        }
 
         AddBoneConstraintProperty<long>(boneConstraint, node, "m_nTargetAxis", "input_axis");
         AddBoneConstraintProperty<long>(boneConstraint, node, "m_nSlaveAxis", "slave_axis");
