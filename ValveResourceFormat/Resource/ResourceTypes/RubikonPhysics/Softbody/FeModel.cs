@@ -224,6 +224,68 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         public IReadOnlyDictionary<int, int[]> FitMatrixTargets { get; }
 
         /// <summary>
+        /// Gets the authored per-vertex skin weights of back-solved proxy-mesh vertices, recovered
+        /// VERBATIM from the compiled data (no geometric synthesis), keyed by control node. The original
+        /// author's painted weights survive compilation spread across three arrays:
+        /// <c>m_FitWeights</c> (each entry's <c>flWeight</c> IS the vertex's authored weight to that fit's
+        /// bone, for weights at/above the model's own back_solve_influence_threshold - per-vertex totals
+        /// across fits sum to exactly 1.0 whenever nothing fell below the threshold),
+        /// <c>m_CtrlOffsets</c> (the vertex's primary rigid-anchor bone), and <c>m_CtrlSoftOffsets</c>
+        /// (nested-lerp alphas that recover even the sub-threshold weights the fit ranges drop). Any
+        /// remaining authored weight went to a STATIC bone (static bones never receive a fit matrix) and
+        /// is assigned to the primary bone's nearest static real ancestor. Every fit matrix's vCenter is
+        /// the weighted centroid of exactly these weights, so re-painting them reproduces the original fit
+        /// transforms.
+        /// <para>
+        /// A vertex no fit matrix covers is recovered from <c>m_CtrlOffsets</c>/<c>m_CtrlSoftOffsets</c>
+        /// alone, at scale 1. The compiler drops every authored influence below a fixed keep threshold
+        /// and renormalizes the survivors before building the network, so the network's expansion is
+        /// exactly the authored set the compiler itself acted on. Re-painting that expansion re-derives
+        /// the same network: renormalizing only scales weights up, so nothing that cleared the threshold
+        /// can fall back under it.
+        /// </para>
+        /// </summary>
+        public IReadOnlyDictionary<int, (string Bone, float Weight)[]> RecoveredSkinWeights { get; private set; }
+
+        /// <summary>
+        /// Drops the recovered multi-influence skinning of pinned vertices whose primary anchor's
+        /// skeleton parent never was a control node, on a model whose SHEET back-solves bones. Such a
+        /// compile pulls the anchor's parent chain into the control set, so re-painting those pins
+        /// registers a bone the original does not have. The affected pins keep the single-anchor
+        /// skinning. A sheet that back-solves nothing registers no parent, and its pins keep every
+        /// influence they ship with.
+        /// </summary>
+        public void PrunePinnedRecoveries(IReadOnlyDictionary<string, string?> boneParents)
+        {
+            if (ProxyFitMatrixNodes.Count == 0)
+            {
+                return;
+            }
+
+            var ctrls = new HashSet<string>(CtrlNames, StringComparer.OrdinalIgnoreCase);
+            Dictionary<int, (string Bone, float Weight)[]>? updated = null;
+            foreach (var (node, influences) in RecoveredSkinWeights)
+            {
+                if (!IsStatic(node) || influences.Length <= 1)
+                {
+                    continue;
+                }
+
+                var parent = boneParents.GetValueOrDefault(influences[0].Bone);
+                if (parent is not null && !ctrls.Contains(parent))
+                {
+                    updated ??= new Dictionary<int, (string Bone, float Weight)[]>(RecoveredSkinWeights);
+                    updated[node] = [influences[0] with { Weight = 1f }];
+                }
+            }
+
+            if (updated is not null)
+            {
+                RecoveredSkinWeights = updated;
+            }
+        }
+
+        /// <summary>
         /// Gets the control nodes participating in a twist constraint (<c>m_Twists</c>), i.e. whose
         /// ClothChain joint was authored with <c>twist_relax &gt; 0</c>. A chain whose joints all leave it
         /// at 0 compiles to a whole-chain <c>m_Ropes</c> fallback constraint instead, so re-declaring
@@ -1740,6 +1802,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             LegacyStretchForce = data.GetFloatArray("m_LegacyStretchForce");
             CollisionSpheres = data.GetArray("m_CollisionSpheres") ?? [];
 
+            RecoveredSkinWeights = RecoverAuthoredSkinWeights(data);
 
             AssertAllKeysAccountedFor(data);
         }
