@@ -1356,6 +1356,15 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         public uint[] GoalDampedSpringIntegrators { get; }
 
         /// <summary>
+        /// Gets, per control node, whether the export re-authors that node's goal values through the raw
+        /// <c>cloth_animation_force_attract</c>/<c>cloth_animation_attract</c> proxy paint instead of the
+        /// goal-strength pair, which is what keeps it on the raw integrator. Empty for a model with nothing
+        /// to recover that way, and for one where re-authoring it would change whether the model's dynamic
+        /// nodes hold both integrator kinds.
+        /// </summary>
+        public bool[] RawGoalPaintNodes { get; }
+
+        /// <summary>
         /// A named cloth effect (wind, stiffen, ...) from <c>m_Effects</c>. <see cref="Params"/> is the raw
         /// per-effect-type parameter block (e.g. a wind effect carries <c>Strength</c>, <c>Choppiness</c>,
         /// <c>Vortices</c> and <c>VertexMap</c>); its schema varies with <see cref="Type"/> and is kept
@@ -2004,6 +2013,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             CollisionSpheres = data.GetArray("m_CollisionSpheres") ?? [];
 
             RecoveredSkinWeights = RecoverAuthoredSkinWeights(data);
+            RawGoalPaintNodes = BuildRawGoalPaintNodes();
 
             AssertAllKeysAccountedFor(data);
         }
