@@ -624,6 +624,18 @@ partial class ModelExtract
     }
 
     /// <summary>
+    /// Influences per vertex a render mesh gets when its <c>RenderMeshFile</c> carries no
+    /// <c>RenderMeshMarkup</c>, so a mesh skinned to more than this needs one written out.
+    /// </summary>
+    private const int DefaultBlendWeightsPerVertex = 4;
+
+    /// <summary>
+    /// The <c>blend_weights_per_vertex</c> cap to write for such a mesh. It is a ceiling, not a
+    /// count: the compiler emits whatever maximum the vertices actually use, up to this.
+    /// </summary>
+    private const string WideBlendWeightsPerVertex = "8";
+
+    /// <summary>
     /// Converts the model to Valve model format as a string.
     /// </summary>
     public string ToValveModel()
@@ -676,6 +688,16 @@ partial class ModelExtract
                     ("name", renderMesh.Name),
                     ("filename", renderMesh.FileName)
                 );
+
+                var boneWeightCount = renderMesh.Mesh.Data.GetSubCollection("m_skeleton")?.GetInt32Property("m_nBoneWeightCount") ?? 0;
+
+                if (boneWeightCount > DefaultBlendWeightsPerVertex)
+                {
+                    renderMeshFile.Add("children", MakeArray(MakeNode(
+                        "RenderMeshMarkup",
+                        ("blend_weights_per_vertex", WideBlendWeightsPerVertex)
+                    )));
+                }
 
                 if (renderMesh.ImportFilter != default)
                 {
