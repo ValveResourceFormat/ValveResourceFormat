@@ -537,6 +537,191 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         }
 
         /// <summary>
+        /// The spans <paramref name="chains"/> rebuild by themselves, one entry per rod they will emit and
+        /// each carrying that rod's expected relaxation factor: a joint's rod to its parent, plus a
+        /// grandparent/great-grandparent rod where its bend or torsion spring is set, all repeated once per
+        /// extra solver iteration and, again, doubled where the joint carries a suspender.
+        /// </summary>
+        /// <remarks>
+        /// Each of the three sliders lands verbatim on the rod it generates, scaled by the model's own
+        /// <c>default_stretch</c> (see <c>BuildBoneChains</c>), so the factor is recoverable here without
+        /// re-reading the compiled rods. It is what tells a chain's own copy of a doubled pair from the
+        /// other constraint sharing it.
+        /// </remarks>
+        Dictionary<(int, int), List<float>> ChainGeneratedSpans(List<BoneChain> chains)
+        {
+            var generated = new Dictionary<(int, int), List<float>>();
+            var sliderScale = MathF.Exp(-DefaultSurfaceStretch);
+
+            void Generate(int a, int b, float slider) => ExpectPair(generated, a, b, slider * sliderScale);
+
+            foreach (var chain in chains)
+            {
+                var byNode = chain.Joints.ToDictionary(static j => j.Node);
+                var rootNode = chain.Joints.Find(static j => j.IsRoot)?.Node ?? -1;
+                foreach (var joint in chain.Joints)
+                {
+                    var parent = joint.ParentNode;
+                    var grandParent = parent >= 0 && byNode.TryGetValue(parent, out var p1) ? p1.ParentNode : -1;
+                    var greatGrandParent = grandParent >= 0 && byNode.TryGetValue(grandParent, out var p2)
+                        ? p2.ParentNode
+                        : -1;
+
+                    for (var copy = 0; copy <= joint.ExtraIterations; copy++)
+                    {
+                        Generate(parent, joint.Node, joint.StretchStiffness);
+
+                        if (joint.BendSpring)
+                        {
+                            Generate(grandParent, joint.Node, joint.BendStiffness);
+                        }
+
+                        if (joint.TorsionSpring)
+                        {
+                            Generate(greatGrandParent, joint.Node, joint.TorsionStiffness);
+                        }
+                    }
+
+                    // A suspender's companion always lands on the pair (joint, chain root) - the SAME
+                    // pair as the plain parent link only when the root happens to be this joint's
+                    // parent (RootSuspenderValue's own remarks), otherwise a pair extra_iterations never
+                    // touches at all. Its factor is the authored value, unscaled.
+                    if (joint.Suspender != 0f)
+                    {
+                        ExpectPair(generated, rootNode, joint.Node, joint.Suspender);
+                    }
+                }
+            }
+
+            return generated;
+        }
+
+        /// <summary>
+        /// The two-corner source elements that describe an authored <c>ClothSpring</c> nothing else in the
+        /// export re-declares: a tie between two extruded chain rings that no chain itself spans.
+        /// <para>
+        /// A two-corner element is NOT by itself evidence of an authored spring. An old-era rope chain
+        /// records its own parent-child links as two-corner elements, and a free <c>$cloth_node_</c>
+        /// records its tie to the bone it hangs off. Both of those are already emitted by the chain and
+        /// by the free-node writer respectively, so re-declaring one duplicates a rod and leaves every
+        /// node it touches too heavy. Restricting to <c>$cc</c> ring endpoints keeps the cross-chain ties
+        /// nothing else reaches; <see cref="GetUngeneratedRods"/>'s own emitter skips proxy-named nodes.
+        /// </para>
+        /// </summary>
+        public List<(int, int)> GetAuthoredSourceSprings(List<BoneChain> chains)
+        {
+            if (SourceSprings.Length == 0)
+            {
+                return [];
+            }
+
+            bool IsChainRing(int node) => node >= 0 && node < CtrlNames.Length
+                && CtrlNames[node].StartsWith("$cc", StringComparison.Ordinal);
+
+            var spanned = ChainGeneratedSpans(chains);
+            var authored = new List<(int, int)>(SourceSprings.Length);
+            foreach (var (a, b) in SourceSprings)
+            {
+                if (IsChainRing(a) && IsChainRing(b) && !spanned.ContainsKey(a < b ? (a, b) : (b, a)))
+                {
+                    authored.Add((a, b));
+                }
+            }
+
+            return authored;
+        }
+
+        /// <summary>
+        /// Returns the rods that <paramref name="chains"/> will not regenerate on their own. A chain emits
+        /// one rod per joint to its parent (plus a grandparent/great-grandparent rod where the joint's bend
+        /// or torsion spring is set), but a model can carry extra copies of those spans; each surplus copy
+        /// has to be re-declared as its own spring or the nodes come out too light.
+        /// </summary>
+        /// <remarks>
+        /// Which entry of a pair the chain regenerates is decided by VALUE, not by array position. Every
+        /// slider-driven chain rod pins <c>flMinDist</c> to <c>flMaxDist</c> and carries the slider it came
+        /// from, so where one pair holds a chain rod AND a separate constraint - a self-collision cluster's
+        /// asymmetric tie, a second declaration's own copy at a different relaxation - taking whichever
+        /// came first hands the chain's own rod back as surplus and re-declares it, while the copy actually
+        /// worth recovering is dropped. Rigidity outranks the relaxation match, and equally good candidates
+        /// keep array order, so a pair whose copies are identical is attributed exactly as before.
+        /// </remarks>
+        public List<Rod> GetUngeneratedRods(List<BoneChain> chains)
+        {
+            var generated = ChainGeneratedSpans(chains);
+
+            // AddClothSourceSprings re-declares these already, at a relaxation this does not model.
+            foreach (var (a, b) in GetAuthoredSourceSprings(chains))
+            {
+                ExpectPair(generated, a, b, float.NaN);
+            }
+
+            var entriesByPair = new Dictionary<(int, int), List<int>>();
+            for (var i = 0; i < Rods.Length; i++)
+            {
+                var key = Rods[i].NodeA < Rods[i].NodeB
+                    ? (Rods[i].NodeA, Rods[i].NodeB)
+                    : (Rods[i].NodeB, Rods[i].NodeA);
+                if (!entriesByPair.TryGetValue(key, out var entries))
+                {
+                    entriesByPair[key] = entries = [];
+                }
+
+                entries.Add(i);
+            }
+
+            var claimed = new bool[Rods.Length];
+            foreach (var (key, expectations) in generated)
+            {
+                if (!entriesByPair.TryGetValue(key, out var entries))
+                {
+                    continue;
+                }
+
+                foreach (var expected in expectations)
+                {
+                    var best = -1;
+                    var bestScore = float.MaxValue;
+                    foreach (var index in entries)
+                    {
+                        if (claimed[index])
+                        {
+                            continue;
+                        }
+
+                        var rod = Rods[index];
+                        var banded = MathF.Abs(rod.MinDist - rod.MaxDist)
+                            > 1e-4f * MathF.Max(1f, MathF.Abs(rod.MaxDist));
+                        var score = (banded ? 1f : 0f) + (float.IsNaN(expected)
+                            ? 0f
+                            : 0.5f * MathF.Min(1f, MathF.Abs(rod.RelaxationFactor - expected)));
+                        if (score < bestScore)
+                        {
+                            bestScore = score;
+                            best = index;
+                        }
+                    }
+
+                    if (best >= 0)
+                    {
+                        claimed[best] = true;
+                    }
+                }
+            }
+
+            var surplus = new List<Rod>();
+            for (var i = 0; i < Rods.Length; i++)
+            {
+                if (!claimed[i])
+                {
+                    surplus.Add(Rods[i]);
+                }
+            }
+
+            return surplus;
+        }
+
+        /// <summary>
         /// Gets whether every simulated node collides with the world, which is how the source's
         /// force-world-collision-on-all-nodes switch shows up (the switch itself leaves no flag bit).
         /// </summary>
@@ -1624,6 +1809,89 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             }
 
             return nodes;
+        }
+
+        /// <summary>
+        /// Returns whether a FIXED-LENGTH rod still spans a parent-child LINK of <paramref name="chain"/>.
+        /// A rigid hinge replaces that link with a quad, so a hinged chain that kept the link's rods was
+        /// authored with a soft hinge link instead. Both conditions are needed to tell the two apart: the
+        /// stiffness network a chain carries on top of a rigid hinge either reaches further along the chain
+        /// (a joint to its grandparent) or leaves its maximum at <see cref="UnboundedRodDistance"/>.
+        /// </summary>
+        public bool HasChainRods(BoneChain chain)
+        {
+            var groupOf = new Dictionary<int, int>();
+            foreach (var joint in chain.Joints)
+            {
+                groupOf[joint.Node] = joint.Node;
+                foreach (var proxy in ProxyRingOf(joint.Node))
+                {
+                    groupOf[proxy] = joint.Node;
+                }
+            }
+
+            var links = chain.Joints
+                .Where(static joint => !joint.IsRoot)
+                .Select(static joint => (joint.ParentNode, joint.Node))
+                .ToHashSet();
+
+            foreach (var rod in Rods)
+            {
+                if (rod.MaxDist < UnboundedRodDistance
+                    && groupOf.TryGetValue(rod.NodeA, out var a) && groupOf.TryGetValue(rod.NodeB, out var b)
+                    && (links.Contains((a, b)) || links.Contains((b, a))))
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        /// <summary>
+        /// Returns whether the chains carry the extra bend network <c>add_bend_only_rods</c> spans (see
+        /// <c>MakeClothParams</c>). Every rod a chain builds on its own is fixed-length, so a rod left
+        /// unbounded between two of the nodes a chain generated can only have come from that switch - and
+        /// it is the only way to get them back, since a generated name is not a valid spring endpoint.
+        /// </summary>
+        public bool HasChainBendOnlyRods(List<BoneChain> chains)
+        {
+            var generated = chains
+                .SelectMany(static chain => chain.Joints)
+                .SelectMany(joint => ProxyRingOf(joint.Node))
+                .ToHashSet();
+
+            if (generated.Count == 0)
+            {
+                generated = SourceFaceRingNodes();
+            }
+
+            return Rods.Any(rod => rod.MaxDist >= UnboundedRodDistance
+                && generated.Contains(rod.NodeA) && generated.Contains(rod.NodeB));
+        }
+
+        /// <summary>
+        /// Returns whether the chains carry the extra bend network <c>add_stiffness_rods</c> spans (see
+        /// <c>MakeClothParams</c>). A chain pins every rod it builds itself to an exact length, so a rod
+        /// left free to move between a minimum and a maximum, between two of the nodes a chain generated,
+        /// can only have come from that switch - and it is the only way to get them back, since a
+        /// generated name is not a valid spring endpoint.
+        /// </summary>
+        public bool HasChainStiffnessRods(List<BoneChain> chains)
+        {
+            var generated = chains
+                .SelectMany(static chain => chain.Joints)
+                .SelectMany(joint => ProxyRingOf(joint.Node))
+                .ToHashSet();
+
+            if (generated.Count == 0)
+            {
+                generated = SourceFaceRingNodes();
+            }
+
+            return Rods.Any(rod => rod.MaxDist < UnboundedRodDistance && rod.MinDist < rod.MaxDist
+                && rod.NodeA != rod.NodeB
+                && generated.Contains(rod.NodeA) && generated.Contains(rod.NodeB));
         }
 
         /// <summary>The maximum length a rod that is not length-limited at all is given.</summary>
