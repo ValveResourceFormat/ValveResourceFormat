@@ -460,11 +460,14 @@ partial class ModelExtract
     }
 
     private static void FillDatamodelVertexData(VBIB.OnDiskBufferData vertexBuffer, DmeVertexData vertexData, Material.VsInputSignature materialInputSignature,
-        int boneWeightCount, int[]? boneRemapTable)
+        int boneWeightCount, int[]? boneRemapTable, bool[]? clothBones = null, List<int>? clothTriangles = null,
+        int[]? clothCompaction = null)
     {
         var indices = Enumerable.Range(0, (int)vertexBuffer.ElementCount).ToArray(); // May break with non-unit strides, non-tri faces
 
         var boneArrayComponents = boneWeightCount > 4 ? 8 : 4;
+        int[]? clothBlendIndices = null;
+        float[]? clothBlendWeights = null;
 
         foreach (var attribute in vertexBuffer.InputLayoutFields)
         {
@@ -499,6 +502,7 @@ partial class ModelExtract
                     }
                 }
 
+                clothBlendIndices = (int[])compactIndices.Clone();
                 vertexData.AddStream(semantic, compactIndices);
                 continue;
             }
@@ -516,6 +520,7 @@ partial class ModelExtract
                     }
                 }
 
+                clothBlendWeights = compactWeights;
                 vertexData.AddStream("blendweights$" + attribute.SemanticIndex, compactWeights);
                 continue;
             }
@@ -563,6 +568,87 @@ partial class ModelExtract
 
             vertexData.AddStream("blendweights$0", Enumerable.Repeat(1f, collection.Count).ToArray());
         }
+
+        AddClothEnablePaint(vertexData, indices, boneWeightCount, clothBones, clothBlendIndices, clothBlendWeights, clothTriangles);
+    }
+
+    /// <summary>
+    /// Writes the <c>cloth_enable</c> vertex paint a render mesh needs for its cloth to be rebuilt.
+    /// </summary>
+    /// <remarks>
+    /// The compiler does not read a render mesh's cloth skinning back: it regenerates the
+    /// <c>$cloth_m&lt;mesh&gt;p&lt;point&gt;</c> bones from the proxy and re-binds the mesh to them
+    /// itself, on the vertices this paint marks. Without the paint no vertex is re-bound, so the
+    /// bones are never added and the FeModel's control nodes resolve to nothing. The compiled model
+    /// no longer carries the paint - it carries the result - so it is reconstructed here as the
+    /// weight each vertex holds on the generated cloth bones, which is what the compiler produced
+    /// from the paint in the first place.
+    /// </remarks>
+    private static void AddClothEnablePaint(DmeVertexData vertexData, int[] indices, int boneWeightCount,
+        bool[]? clothBones, int[]? blendIndices, float[]? blendWeights, List<int>? triangles)
+    {
+        if (clothBones == null || blendIndices == null || blendWeights == null || boneWeightCount <= 0
+            || vertexData.VertexFormat.Contains("cloth_enable$0"))
+        {
+            return;
+        }
+
+        var vertexCount = Math.Min(indices.Length, blendIndices.Length / boneWeightCount);
+        var paint = new float[indices.Length];
+        var painted = 0;
+
+        for (var vertex = 0; vertex < vertexCount; vertex++)
+        {
+            var total = 0f;
+
+            for (var slot = vertex * boneWeightCount; slot < (vertex + 1) * boneWeightCount; slot++)
+            {
+                var bone = blendIndices[slot];
+
+                if (bone >= 0 && bone < clothBones.Length && clothBones[bone] && slot < blendWeights.Length)
+                {
+                    total += blendWeights[slot];
+                }
+            }
+
+            paint[vertex] = Math.Clamp(total, 0f, 1f);
+
+            if (paint[vertex] > 0f)
+            {
+                painted++;
+            }
+        }
+
+        if (painted == 0)
+        {
+            return;
+        }
+
+        vertexData.AddIndexedStream("cloth_enable$0", paint, indices);
+    }
+
+
+    /// <summary>Marks the bones a compiled cloth proxy generated, by skeleton bone index.</summary>
+    private static bool[]? BuildClothBoneMask(Skeleton? skeleton)
+    {
+        if (skeleton == null)
+        {
+            return null;
+        }
+
+        var mask = new bool[skeleton.Bones.Length];
+        var any = false;
+
+        foreach (var bone in skeleton.Bones)
+        {
+            if (bone.IsProceduralCloth && bone.Name.StartsWith('$'))
+            {
+                mask[bone.Index] = true;
+                any = true;
+            }
+        }
+
+        return any ? mask : null;
     }
 
     /// <summary>
@@ -598,6 +684,11 @@ partial class ModelExtract
             dmeModel.Name = name;
         }
 
+        var clothBones = BuildClothBoneMask(options.Skeleton);
+        var clothCompaction = options.Skeleton != null && clothBones != null
+            ? BuildClothBoneCompaction(options.Skeleton)
+            : null;
+        var clothTriangles = new Dictionary<(int, int), List<int>>();
         var materialInputSignature = Material.VsInputSignature.Empty;
         var drawCallIndex = 0;
 
@@ -672,13 +763,29 @@ partial class ModelExtract
                     options.SubmeshDrawCalls?.Add((dag, drawCall));
                 }
 
+                var drawCallIndices = indexBuffer[startIndex..(startIndex + indexCount)];
+
                 GenerateTriangleFaceSetFromIndexBuffer(
                     dag,
-                    indexBuffer[startIndex..(startIndex + indexCount)],
+                    drawCallIndices,
                     baseVertex,
                     material,
                     $"{startIndex}..{startIndex + indexCount}"
                 );
+
+                if (clothBones != null)
+                {
+                    if (!clothTriangles.TryGetValue(dmeVertexBufferKey, out var triangles))
+                    {
+                        triangles = [];
+                        clothTriangles[dmeVertexBufferKey] = triangles;
+                    }
+
+                    foreach (var index in drawCallIndices)
+                    {
+                        triangles.Add(baseVertex + index);
+                    }
+                }
 
                 drawCallIndex++;
             }
@@ -688,17 +795,19 @@ partial class ModelExtract
 
         foreach (var (vertexBufferIndices, dmeObjects) in dmeVertexBuffers)
         {
+            clothTriangles.TryGetValue(vertexBufferIndices, out var triangles);
+
             if (merged != null)
             {
-                FillDatamodelVertexData(merged.Value.Buffer, dmeObjects.VertexData, materialInputSignature, boneWeightCount, options.BoneRemapTable);
+                FillDatamodelVertexData(merged.Value.Buffer, dmeObjects.VertexData, materialInputSignature, boneWeightCount, options.BoneRemapTable, clothBones, triangles, clothCompaction);
                 continue;
             }
 
-            FillDatamodelVertexData(mbuf.VertexBuffers[vertexBufferIndices.Item1], dmeObjects.VertexData, materialInputSignature, boneWeightCount, options.BoneRemapTable);
+            FillDatamodelVertexData(mbuf.VertexBuffers[vertexBufferIndices.Item1], dmeObjects.VertexData, materialInputSignature, boneWeightCount, options.BoneRemapTable, clothBones, triangles, clothCompaction);
 
             if (vertexBufferIndices.Item2 != -1)
             {
-                FillDatamodelVertexData(mbuf.VertexBuffers[vertexBufferIndices.Item2], dmeObjects.VertexData, materialInputSignature, boneWeightCount, options.BoneRemapTable);
+                FillDatamodelVertexData(mbuf.VertexBuffers[vertexBufferIndices.Item2], dmeObjects.VertexData, materialInputSignature, boneWeightCount, options.BoneRemapTable, clothBones, triangles, clothCompaction);
             }
         }
 
