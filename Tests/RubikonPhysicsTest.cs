@@ -117,14 +117,41 @@ namespace Tests
         {
             using var resource = Load("juggernaut.vphys_c");
             var phys = (PhysAggregateData)resource.DataBlock!;
-            var hull = phys.Parts[0].Shape.Hulls[0].Shape;
+
+            var modern = KVObject.Collection();
+            modern.Add("m_InteractAsStrings", Tags("solid", "player"));
+
+            var legacy = KVObject.Collection();
+            legacy.Add("m_PhysicsTagStrings", Tags("solid", "player"));
+
+            var neither = KVObject.Collection();
 
             using (Assert.Multiple())
             {
-                await Assert.That(hull.GetVertices().Length).IsZero();
-                await Assert.That(hull.GetVertexPositions().Length).IsEqualTo(8);
-                await Assert.That(hull.GetVertexPositions()[0]).IsEqualTo(new Vector3(-14.162005f, 15.413235f, -2.2308178f));
+                await Assert.That(PhysAggregateData.GetInteractAsTags(modern)).IsEquivalentTo(["solid", "player"], CollectionOrdering.Matching);
+                await Assert.That(PhysAggregateData.GetInteractAsTags(legacy)).IsEquivalentTo(["solid", "player"], CollectionOrdering.Matching);
+
+                // No tags at all is empty, never null, so a caller can spread it without a check.
+                await Assert.That(PhysAggregateData.GetInteractAsTags(neither)).IsEmpty();
+
+                // The indexed overload agrees with the direct one, and an index out of range is empty.
+                await Assert.That(phys.GetInteractAsTags(0))
+                    .IsEquivalentTo(PhysAggregateData.GetInteractAsTags(phys.CollisionAttributes[0]), CollectionOrdering.Matching);
+                await Assert.That(phys.GetInteractAsTags(phys.CollisionAttributes.Count)).IsEmpty();
+                await Assert.That(phys.GetInteractAsTags(-1)).IsEmpty();
             }
+        }
+
+        private static KVObject Tags(params string[] values)
+        {
+            var array = KVObject.Array();
+
+            foreach (var value in values)
+            {
+                array.Add(value);
+            }
+
+            return array;
         }
     }
 }

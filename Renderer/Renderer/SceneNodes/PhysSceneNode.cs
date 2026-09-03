@@ -256,7 +256,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
                 }
 
                 var attributes = phys.CollisionAttributes[collisionAttributeIndex];
-                var tags = attributes.GetArray<string>("m_InteractAsStrings") ?? attributes.GetArray<string>("m_PhysicsTagStrings");
+                var tags = PhysAggregateData.GetInteractAsTags(attributes);
                 var group = attributes.GetStringProperty("m_CollisionGroupString");
 
                 var tooltexture = MapExtract.GetToolTextureShortenedName_ForInteractStrings([.. tags]);
