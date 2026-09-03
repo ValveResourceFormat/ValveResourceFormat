@@ -1,0 +1,1039 @@
+using System.Diagnostics;
+using System.Globalization;
+using System.Linq;
+using ValveKeyValue;
+using ValveResourceFormat.Serialization.KeyValues;
+
+namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
+{
+    /// <summary>
+    /// Soft-body (cloth) model embedded in a physics aggregate (<c>m_pFeModel</c>).
+    /// </summary>
+    /// <remarks>
+    /// Parses the control nodes, surface and constraint arrays that editable ModelDoc cloth source is
+    /// reconstructed from; the raw <see cref="Data"/> object is retained for keys surfaced lazily.
+    /// <para>
+    /// <c>Fe</c> is the prefix Valve puts on all ~60 structs of this family (<c>FeRodConstraint_t</c>,
+    /// <c>FeQuad_t</c>, <c>FeNodeBase_t</c>, ...). Nothing in the shipped schema expands it. The family is
+    /// distinct from the <c>Rn</c> types the rest of <see cref="RubikonPhysics"/> holds.
+    /// </para>
+    /// </remarks>
+    /// <seealso href="https://s2v.app/SchemaExplorer/cs2/physicslib/PhysFeModelDesc_t">PhysFeModelDesc_t</seealso>
+    public sealed partial class FeModel
+    {
+        /// <summary>
+        /// Gets the raw key-value object backing this FeModel (kept for fields not yet surfaced as properties).
+        /// </summary>
+        public KVObject Data { get; }
+
+        /// <summary>
+        /// Gets the per-node control names. Auto-generated proxy-mesh nodes are prefixed with <c>$</c>
+        /// (e.g. <c>$cloth_m0p3</c>); the remaining entries are real skeleton bone names.
+        /// </summary>
+        public string[] CtrlNames { get; }
+
+        /// <summary>
+        /// Gets the per-node parent node index (index into <see cref="CtrlNames"/>), or -1 for a root.
+        /// </summary>
+        public int[] SkelParents { get; private set; }
+
+        /// <summary>
+        /// Gets the per-node inverse mass. 0 marks a static/pinned anchor node; &gt; 0 marks a simulated node.
+        /// </summary>
+        public float[] NodeInvMasses { get; }
+
+        /// <summary>
+        /// Gets the total number of control nodes.
+        /// </summary>
+        public int NodeCount { get; }
+
+        /// <summary>
+        /// Gets the number of leading static (pinned) nodes.
+        /// </summary>
+        public int StaticNodeCount { get; }
+
+        /// <summary>
+        /// Gets the per-node rest (bind-pose) positions in model space, parsed from the first three
+        /// components of each <c>m_InitPose</c> entry (the remaining components are the rest orientation
+        /// quaternion). Length matches <see cref="NodeCount"/>.
+        /// </summary>
+        public Vector3[] InitPosePositions { get; }
+
+        /// <summary>
+        /// Gets the per-node rest orientations, parsed from the last four components of each
+        /// <c>m_InitPose</c> entry. Length matches <see cref="InitPosePositions"/>.
+        /// </summary>
+        public Quaternion[] InitPoseRotations { get; }
+
+        /// <summary>
+        /// Gets the cloth surface quads. Each entry is a 4-element array of control-node indices.
+        /// </summary>
+        public int[][] Quads { get; }
+
+        /// <summary>
+        /// Gets the cloth surface triangles. Each entry is a 3-element array of control-node indices.
+        /// </summary>
+        public int[][] Tris { get; }
+
+        /// <summary>
+        /// Gets whether the cloth is built from a quad/tri surface rather than a pure rod network. A sheet
+        /// exported without a surface is rebuilt into rods by the compiler; one exported with a surface
+        /// keeps its faces as solve elements.
+        /// </summary>
+        public bool HasSurfaceElements => Quads.Length > 0 || Tris.Length > 0;
+
+        /// <summary>
+        /// Gets the structural distance constraints (<c>m_Rods</c>) between pairs of control nodes. They
+        /// are not derivable from the <see cref="Quads"/>/<see cref="Tris"/> edges and diagonals, so they
+        /// are re-declared directly as explicit ClothSpring nodes.
+        /// </summary>
+        public Rod[] Rods { get; }
+
+        /// <summary>A single structural rod (from <c>m_Rods</c>).</summary>
+        /// <param name="NodeA">First endpoint control-node index.</param>
+        /// <param name="NodeB">Second endpoint control-node index.</param>
+        /// <param name="MinDist">Minimum allowed distance (<c>flMinDist</c>).</param>
+        /// <param name="MaxDist">Maximum allowed distance (<c>flMaxDist</c>).</param>
+        /// <param name="Weight0">Blend weight (<c>flWeight0</c>): real per-rod data, but not re-authorable.
+        /// <c>ClothSpring</c> registers no matching attribute, so an authored <c>weight0</c> is discarded
+        /// and the rod compiles with the builder's own default of 0.5 while <c>MinDist</c>/<c>MaxDist</c>
+        /// stay exact. Recorded here, not exposed as an export field.</param>
+        /// <param name="RelaxationFactor">Relaxation factor (<c>flRelaxationFactor</c>): real per-rod data,
+        /// not a fixed default. Not re-authorable through <c>ClothSpring</c> either.</param>
+        public readonly record struct Rod(int NodeA, int NodeB, float MinDist, float MaxDist, float Weight0, float RelaxationFactor);
+
+        /// <summary>
+        /// Gets the explicit local orientation basis of certain nodes (<c>m_NodeBases</c>), keyed by
+        /// control-node index. The compiler writes one for exactly the nodes with rod-graph degree &gt;= 2
+        /// that are not a ClothChain joint; a chain joint derives its orientation from its own
+        /// parent-child twist and bend physics instead. <c>qAdjust</c> is computed from the X0/X1/Y0/Y1
+        /// references and has no authoring channel of its own, so only the four node references are
+        /// re-authorable, through <c>node_base_x0/x1/y0/y1</c>.
+        /// </summary>
+        // TODO: a sheet node's basis is lost on re-export where the rod adjacency is identical but the
+        // proxy DMX face order is not; the recompile then emits no basis at all for that node.
+        public IReadOnlyDictionary<int, NodeBasis> NodeBases { get; }
+
+        /// <summary>A single node's explicit orientation basis (from <c>m_NodeBases</c>).</summary>
+        /// <param name="NodeX0">Control-node index defining the local X axis' first endpoint.</param>
+        /// <param name="NodeX1">Control-node index defining the local X axis' second endpoint.</param>
+        /// <param name="NodeY0">Control-node index defining the local Y axis' first endpoint.</param>
+        /// <param name="NodeY1">Control-node index defining the local Y axis' second endpoint.</param>
+        public readonly record struct NodeBasis(int NodeX0, int NodeX1, int NodeY0, int NodeY1);
+
+        /// <summary>
+        /// Per-node solver integrator parameters - the cloth-to-bind attraction/damping/gravity that keep
+        /// the simulated cloth following the animated body (the original anti-clipping mechanism, used in
+        /// lieu of explicit collision capsules). Length matches <see cref="NodeCount"/>.
+        /// </summary>
+        public NodeIntegrator[] NodeIntegrators { get; }
+
+        /// <summary>
+        /// A single node's solver integrator parameters (from <c>m_NodeIntegrator</c>).
+        /// </summary>
+        /// <param name="PointDamping">Velocity damping (<c>flPointDamping</c>).</param>
+        /// <param name="ForceAttraction">Goal/force attraction toward the animated pose (<c>flAnimationForceAttraction</c>).</param>
+        /// <param name="VertexAttraction">Per-vertex attraction toward the animated pose (<c>flAnimationVertexAttraction</c>).</param>
+        /// <param name="Gravity">Gravity acceleration applied to the node (<c>flGravity</c>).</param>
+        public readonly record struct NodeIntegrator(float PointDamping, float ForceAttraction, float VertexAttraction, float Gravity);
+
+        /// <summary>Gets the integrator parameters for <paramref name="node"/>, or a zeroed struct when absent.</summary>
+        public NodeIntegrator GetIntegrator(int node)
+            => node >= 0 && node < NodeIntegrators.Length ? NodeIntegrators[node] : default;
+
+        /// <summary>
+        /// Gets the world-collision radii (<c>m_NodeCollisionRadii</c>); empty for cloth that relies on
+        /// goal attraction rather than per-node collision. Indexed by DYNAMIC node (control-node index
+        /// minus <see cref="StaticNodeCount"/>) - static nodes carry no radius.
+        /// </summary>
+        public float[] NodeCollisionRadii { get; }
+
+        /// <summary>Gets the per-dynamic-node friction (<c>m_DynNodeFriction</c>).</summary>
+        public float[] DynNodeFriction { get; }
+
+        /// <summary>
+        /// Reads a per-dynamic-node array at control node <paramref name="node"/>, or 0 when the node has
+        /// no entry. The static nodes lead the control-node array, so these arrays start past them.
+        /// </summary>
+        internal float DynamicNodeValue(float[] values, int node)
+        {
+            var dynamicIndex = node - StaticNodeCount;
+            return dynamicIndex >= 0 && dynamicIndex < values.Length ? values[dynamicIndex] : 0f;
+        }
+
+        /// <summary>Gets the world-collision radius for control node <paramref name="node"/>, or 0 when absent.</summary>
+        public float GetCollisionRadius(int node) => DynamicNodeValue(NodeCollisionRadii, node);
+
+        /// <summary>
+        /// Gets the control nodes that collide with the world (<c>m_WorldCollisionNodes</c>), from
+        /// per-joint <c>world_collision</c> in the source. Empty for cloth without world collision.
+        /// </summary>
+        public IReadOnlySet<int> WorldCollisionNodes { get; }
+
+        /// <summary>
+        /// Gets the world and ground friction of each world-colliding node
+        /// (<c>m_WorldCollisionParams</c>), from per-joint <c>world_friction</c>/<c>ground_friction</c>.
+        /// </summary>
+        public IReadOnlyDictionary<int, (float World, float Ground)> WorldCollisionFriction { get; }
+
+        /// <summary>Gets the world and ground friction for <paramref name="node"/>, or zero for both.</summary>
+        public (float World, float Ground) GetWorldFriction(int node)
+            => WorldCollisionFriction.GetValueOrDefault(node);
+
+        /// <summary>Returns whether <paramref name="node"/> collides with the world.</summary>
+        public bool IsWorldCollisionNode(int node) => WorldCollisionNodes.Contains(node);
+
+        /// <summary>
+        /// Gets the per-node animation stray radii (<c>m_AnimStrayRadii</c>): the maximum distance a
+        /// simulated node may stray from its animated position (per-joint <c>stray_radius</c> in the source).
+        /// </summary>
+        public IReadOnlyDictionary<int, (float MaxDistance, float RelaxationFactor)> AnimStrayRadii { get; }
+
+        /// <summary>
+        /// Gets the control nodes driven by a back-solved fit matrix (<c>m_FitMatrices</c>) - bones whose
+        /// orientation is derived from a driving/proxy mesh (<c>ClothProxyMeshFile.back_solve_joints</c>)
+        /// rather than simulated directly. A model can have bone-chain cloth AND a proxy mesh that are
+        /// fully INDEPENDENT of each other (proxy ships <c>back_solve_joints = false</c>): the presence of
+        /// a proxy mesh does not by itself mean every bone chain is back-solved by it - check this set.
+        /// </summary>
+        public IReadOnlySet<int> FitMatrixNodes { get; }
+
+        /// <summary>
+        /// Gets the subset of <see cref="FitMatrixNodes"/> that a PROXY SHEET back-solves, i.e. whose
+        /// <c>m_FitWeights</c> range covers a <c>$cloth_m&lt;N&gt;p&lt;S&gt;</c> vertex. A fit matrix is
+        /// the compiler's orientation solve for a bone whose rotation it cannot read off a child joint,
+        /// and which construct asked for it shows in what the fit is taken over: a proxy-driven bone fits
+        /// over the sheet's own vertices, while a <c>ClothChain</c> joint fits over the chain's own
+        /// <c>$cc</c> extrude ring and sibling joints. Only the former is driven THROUGH the proxy and
+        /// must not also be emitted as a ClothChain.
+        /// </summary>
+        public IReadOnlySet<int> ProxyFitMatrixNodes { get; }
+
+        /// <summary>
+        /// Gets the control nodes each <c>m_FitMatrices</c> entry is fit over, from its own
+        /// <c>m_FitWeights</c> range, keyed by the bone the fit drives.
+        /// </summary>
+        public IReadOnlyDictionary<int, int[]> FitMatrixTargets { get; }
+
+        /// <summary>
+        /// Gets the control nodes participating in a twist constraint (<c>m_Twists</c>), i.e. whose
+        /// ClothChain joint was authored with <c>twist_relax &gt; 0</c>. A chain whose joints all leave it
+        /// at 0 compiles to a whole-chain <c>m_Ropes</c> fallback constraint instead, so re-declaring
+        /// twist_relax as nonzero for exactly these nodes is what reproduces the twist network.
+        /// </summary>
+        public IReadOnlyDictionary<int, float> TwistNodes { get; }
+
+        /// <summary>
+        /// Gets the node pairs a twist constraint spans, unordered. A twist pair is generated by the
+        /// authored <c>twist_relax</c> of the CHILD joint of that link alone, so a node appearing in one
+        /// says nothing about its own joint - see <see cref="HasTwistToParent"/>.
+        /// </summary>
+        public IReadOnlySet<(int, int)> TwistLinks { get; }
+
+        /// <summary>
+        /// Gets whether a twist constraint spans <paramref name="node"/> and its chain parent
+        /// <paramref name="parent"/>, which is what that joint's own <c>twist_relax</c> generates.
+        /// </summary>
+        public bool HasTwistToParent(int node, int parent)
+            => parent >= 0 && TwistLinks.Contains(node < parent ? (node, parent) : (parent, node));
+        internal const float TwistRelaxToChildFactor = 0.3819660112501051f;
+
+        private readonly Dictionary<int, float> twistOrientFallback = [];
+        internal const float GoalDampingSolveMinAttraction = 0.0001f;
+
+        /// <summary>
+        /// Gets whether <paramref name="node"/> keeps its rotation free. Static nodes are ordered
+        /// rotation-locked first, so the lock is exactly the nodes below
+        /// <see cref="RotationLockedStaticNodeCount"/>.
+        /// </summary>
+        public bool AllowsRotation(int node) => node >= RotationLockedStaticNodeCount;
+
+        /// <summary>
+        /// Gets whether <paramref name="node"/> is held at a fixed offset from its parent
+        /// (<c>m_LockToParent</c>) rather than simulated.
+        /// </summary>
+        public bool IsLockedToParent(int node) => Array.Exists(LockToParent, link => link.CtrlChild == node);
+
+        /// <summary>
+        /// Gets whether <paramref name="node"/> is held at its animated goal (<c>m_LockToGoal</c>), the
+        /// lock a non-simulated node takes when it has no parent to be offset from.
+        /// </summary>
+        public bool IsLockedToGoal(int node) => Array.IndexOf(LockToGoal, node) >= 0;
+
+        bool HasProxyMeshNodes => hasProxyMeshNodes ??= CtrlNames.Any(static name => name.StartsWith("$cloth_m", StringComparison.Ordinal));
+        bool? hasProxyMeshNodes;
+
+        // Scalar cloth solver parameters (surfaced as <c>ClothParams</c> when rebuilding source).
+#pragma warning disable CS1591
+        public float InternalPressure => Data.GetFloatProperty("m_flInternalPressure");
+        public float Windage => Data.GetFloatProperty("m_flWindage");
+        public float WindDrag => Data.GetFloatProperty("m_flWindDrag");
+        public float LocalForce => Data.GetFloatProperty("m_flLocalForce");
+        public float LocalRotation => Data.GetFloatProperty("m_flLocalRotation");
+        public float AddWorldCollisionRadius => Data.GetFloatProperty("m_flAddWorldCollisionRadius");
+        public float DefaultGravityScale => Data.GetFloatProperty("m_flDefaultGravityScale", 1.0f);
+        public float DefaultVelAirDrag => Data.GetFloatProperty("m_flDefaultVelAirDrag");
+        public float DefaultExpAirDrag => Data.GetFloatProperty("m_flDefaultExpAirDrag");
+        // Tracks m_flDefaultSurfaceStretch whatever the shear is; MakeClothParams reads the shear off the
+        // rod relaxation factors instead.
+        public float DefaultThreadStretch => Data.GetFloatProperty("m_flDefaultThreadStretch");
+        public float DefaultSurfaceStretch => Data.GetFloatProperty("m_flDefaultSurfaceStretch");
+        public float LocalDrag1 => Data.GetFloatProperty("m_flLocalDrag1");
+        public int ExtraIterations => Data.GetInt32Property("m_nExtraIterations");
+        public int ExtraGoalIterations => Data.GetInt32Property("m_nExtraGoalIterations");
+        public int ExtraPressureIterations => Data.GetInt32Property("m_nExtraPressureIterations");
+        public float VelocitySmoothRate => Data.GetFloatProperty("m_flRodVelocitySmoothRate");
+        public int VelocitySmoothIterations => Data.GetInt32Property("m_nRodVelocitySmoothIterations");
+        public uint DynamicNodeFlags => Data.GetUInt32Property("m_nDynamicNodeFlags");
+
+        // Both words are derived summaries the compiler ORs over its own node population - the static half
+        // over nodes [0, StaticNodeCount), the dynamic half over the rest - from one shared six-predicate
+        // table over each node's own values. Neither carries an authored key of its own, so both come back
+        // once the per-node values and integrator kinds do; UsesGoalDampedIntegrator reads the bits that
+        // name a node's integrator, and MakeClothParams reads the dynamic-only ClothParams bits.
+        public uint StaticNodeFlags => Data.GetUInt32Property("m_nStaticNodeFlags");
+        public int RotationLockedStaticNodeCount => Data.GetInt32Property("m_nRotLockStaticNodes");
+        public float MotionSmoothCdt => Data.GetFloatProperty("m_flMotionSmoothCDT");
+
+        // The scalars below have no counterpart among the keys CModelDocClothParams registers, so the
+        // compiler re-derives them and MakeClothParams emits none of them. Older-era compiles still carry
+        // non-zero values for them.
+        public float DefaultTimeDilation => Data.GetFloatProperty("m_flDefaultTimeDilation");
+        public float DefaultVolumetricSolveAmount => Data.GetFloatProperty("m_flDefaultVolumetricSolveAmount");
+        public float DefaultVelQuadAirDrag => Data.GetFloatProperty("m_flDefaultVelQuadAirDrag");
+        public float DefaultExpQuadAirDrag => Data.GetFloatProperty("m_flDefaultExpQuadAirDrag");
+        public float DefaultVelRodAirDrag => Data.GetFloatProperty("m_flDefaultVelRodAirDrag");
+        public float DefaultExpRodAirDrag => Data.GetFloatProperty("m_flDefaultExpRodAirDrag");
+        public float QuadVelocitySmoothRate => Data.GetFloatProperty("m_flQuadVelocitySmoothRate");
+        public int QuadVelocitySmoothIterations => Data.GetInt32Property("m_nQuadVelocitySmoothIterations");
+#pragma warning restore CS1591
+
+        /// <summary>
+        /// Gets whether the cloth carries a per-node local force or rotation, which is what the source's
+        /// use-per-node-local-force-and-rotation switch produces. The switch leaves no flag bit; the arrays
+        /// existing at all is the trace.
+        /// </summary>
+        public bool HasPerNodeLocalForce
+            => Data.GetFloatArray("m_LocalForce").Length > 0 || Data.GetFloatArray("m_LocalRotation").Length > 0;
+
+        /// <summary>Gets the per-node local force multipliers, empty when the cloth uses the global one.</summary>
+        public float[] LocalForceValues => Data.GetFloatArray("m_LocalForce");
+
+        /// <summary>Gets the per-node local rotation multipliers, empty when the cloth uses the global one.</summary>
+        public float[] LocalRotationValues => Data.GetFloatArray("m_LocalRotation");
+
+
+        /// <summary>
+        /// Gets whether the cloth carries axial bend edges, which is what the source's rigid-edge-hinge
+        /// switch produces: one entry per interior edge of the sheet.
+        /// </summary>
+        public bool HasAxialEdges => Data.GetArray("m_AxialEdges") is { Count: > 0 };
+
+        /// <summary>
+        /// Gets the three-node bend constraints (<c>m_KelagerBends</c>) the compiler builds for a chain
+        /// joint authored with a stiff hinge.
+        /// </summary>
+        public IReadOnlyList<KelagerBend> KelagerBends { get; } = [];
+
+        /// <summary>A three-node bend constraint (from <c>m_KelagerBends</c>).</summary>
+        /// <param name="MidNode">The bent node, whose joint carries the authored stiff hinge.</param>
+        /// <param name="End0">The first node the bend measures against.</param>
+        /// <param name="End1">The second node the bend measures against.</param>
+        /// <param name="MidWeight">Solver share of <paramref name="MidNode"/>.</param>
+        /// <param name="End0Weight">Solver share of <paramref name="End0"/>.</param>
+        /// <param name="End1Weight">Solver share of <paramref name="End1"/>.</param>
+        /// <param name="Height">Distance from the bent node to the triple's centroid the bend allows.</param>
+        public readonly record struct KelagerBend(int MidNode, int End0, int End1,
+            float MidWeight, float End0Weight, float End1Weight, float Height);
+
+        /// <summary>The maximum length a rod that is not length-limited at all is given.</summary>
+        public const float UnboundedRodDistance = 16384f;
+
+        /// <summary>Gets the named vertex selections the cloth carries, empty when it has none.</summary>
+        public IReadOnlyList<VertexMap> VertexMaps { get; } = [];
+
+        /// <summary>
+        /// The name a selection recovered from <see cref="VertexSetNames"/> is exported under. Only the
+        /// hash of the authored name survives compilation, so the name is made up; the export paints this
+        /// name and references it from the same effects and joints, which is what pairs the two back up.
+        /// </summary>
+        static string SynthesizedVertexSetName(int set)
+            => string.Create(CultureInfo.InvariantCulture, $"vertex_set_{set}");
+
+        /// <summary>
+        /// Rebuilds the named selections from the vertex-set registration
+        /// (<see cref="VertexSetNames"/> paired with <see cref="DynNodeVertexSet"/>), which is the only
+        /// form older compiles carry them in - those ship no <c>m_VertexMaps</c> at all. One set index per
+        /// dynamic node, so a node belongs to exactly the one set its index names.
+        /// </summary>
+        List<VertexMap> BuildVertexMapsFromSets()
+        {
+            var sets = new List<VertexMap>();
+            for (var set = 0; set < VertexSetNames.Length; set++)
+            {
+                var weights = new float[DynNodeVertexSet.Length];
+                var members = 0;
+                for (var node = 0; node < DynNodeVertexSet.Length; node++)
+                {
+                    if (DynNodeVertexSet[node] == set)
+                    {
+                        weights[node] = 1f;
+                        members++;
+                    }
+                }
+
+                if (members > 0)
+                {
+                    sets.Add(new VertexMap(SynthesizedVertexSetName(set), VertexSetNames[set],
+                        StaticNodeCount, DynNodeVertexSet.Length, default, weights));
+                }
+            }
+
+            return sets;
+        }
+
+        /// <summary>A named vertex selection, used to target cloth effects and joint vertex maps.</summary>
+        /// <param name="Name">The authored selection name.</param>
+        /// <param name="NameHash">The hash the compiler keys the selection by.</param>
+        /// <param name="VertexBase">The first control node the selection covers.</param>
+        /// <param name="VertexCount">How many consecutive control nodes it covers.</param>
+        /// <param name="CenterOfMass">The selection's centre of mass.</param>
+        /// <param name="Weights">
+        /// How strongly each covered node belongs to the selection, 0..1, indexed from
+        /// <paramref name="VertexBase"/>.
+        /// </param>
+        /// <param name="VolumetricSolveStrength">
+        /// How strongly the selection is solved as a volume rather than a surface. One that is solved
+        /// volumetrically at all also weighs what its extent gives it (see
+        /// <c>GeometricNodeMasses</c>).
+        /// </param>
+        /// <param name="ScaleSourceNode">
+        /// The control node whose scale the selection follows, or -1 when it follows none.
+        /// </param>
+        public readonly record struct VertexMap(string Name, uint NameHash, int VertexBase, int VertexCount,
+            Vector3 CenterOfMass, float[] Weights, float VolumetricSolveStrength = 0f, int ScaleSourceNode = -1)
+        {
+            /// <summary>Gets how strongly <paramref name="node"/> belongs to this selection, 0 when it does not.</summary>
+            public float WeightOf(int node)
+            {
+                var index = node - VertexBase;
+                return index >= 0 && index < Weights.Length ? Weights[index] : 0f;
+            }
+        }
+
+        /// <summary>
+        /// Gets the vertex selections <paramref name="node"/> belongs to, in the
+        /// <c>name[=weight],name[=weight]</c> form a joint's <c>vertex_map</c> takes, or null when it
+        /// belongs to none. Selections overlap freely - a skirt node is typically in both
+        /// <c>skirt_vm</c> and <c>skirt_l_vm</c> - so the list form is what lets a joint join all of them
+        /// rather than only the strongest. A membership weight is only written out when it is not the
+        /// full 1.0 the bare name already means.
+        /// </summary>
+        public string? GetVertexMapNames(int node)
+        {
+            var names = new List<string>();
+            foreach (var map in VertexMaps)
+            {
+                var weight = map.WeightOf(node);
+                if (weight <= 0f)
+                {
+                    continue;
+                }
+
+                names.Add(weight >= 1f
+                    ? map.Name
+                    : string.Create(CultureInfo.InvariantCulture, $"{map.Name}={weight}"));
+            }
+
+            return names.Count > 0 ? string.Join(',', names) : null;
+        }
+
+        /// <summary>
+        /// Gets how strongly <paramref name="node"/> belongs to the selection named
+        /// <paramref name="mapName"/>, 0 when the selection does not exist or does not cover it.
+        /// </summary>
+        public float VertexMapWeight(string mapName, int node)
+        {
+            foreach (var map in VertexMaps)
+            {
+                if (map.Name == mapName)
+                {
+                    return map.WeightOf(node);
+                }
+            }
+
+            return 0f;
+        }
+
+        /// <summary>
+        /// Strips the optional <c>=weight</c> suffix off one entry of a <see cref="GetVertexMapNames"/>
+        /// list, leaving the bare selection name every key that merely REFERENCES a selection - a cloth
+        /// effect's <c>vertex_map</c>, a collision shape's, a <c>ClothVertexMap</c> container's own name -
+        /// spells it by.
+        /// </summary>
+        public static string VertexMapName(string entry)
+        {
+            var weight = entry.IndexOf('=', StringComparison.Ordinal);
+            return weight < 0 ? entry : entry[..weight];
+        }
+
+        /// <summary>An anti-tunnelling probe (from <c>m_AntiTunnelProbes</c>).</summary>
+        public readonly record struct AntiTunnelProbe(float Weight, uint Flags, int ProbeNode, int Count, int Begin,
+            float ActivationDistance, float CurvatureRadius, float Bias);
+
+        /// <summary>Gets the anti-tunnelling probes (<c>m_AntiTunnelProbes</c>).</summary>
+        public AntiTunnelProbe[] AntiTunnelProbes { get; }
+
+        /// <summary>Gets the control nodes targeted by <see cref="AntiTunnelProbes"/> (<c>m_AntiTunnelTargetNodes</c>).</summary>
+        public int[] AntiTunnelTargetNodes { get; }
+
+        /// <summary>Gets the anti-tunnelling probe bytecode (<c>m_AntiTunnelBytecode</c>). Empty in every known model.</summary>
+        public uint[] AntiTunnelBytecode { get; }
+
+        /// <summary>A dynamic-to-kinematic node link (from <c>m_DynKinLinks</c>).</summary>
+        public readonly record struct DynKinLink(int Parent, int Child);
+
+        /// <summary>
+        /// Gets the dynamic-to-kinematic node links (<c>m_DynKinLinks</c>). Each entry is one authored
+        /// <c>ClothFollowBone</c>, re-declared on export by
+        /// <c>ModelExtract.AddClothFollowBones</c>.
+        /// </summary>
+        public DynKinLink[] DynKinLinks { get; }
+
+        /// <summary>A collision plane (from <c>m_CollisionPlanes</c>).</summary>
+        public readonly record struct CollisionPlane(int CtrlParent, int ChildNode, Vector3 PlaneNormal,
+            float PlaneOffset, float Stickiness, float Strength);
+
+        /// <summary>Gets the collision planes (<c>m_CollisionPlanes</c>).</summary>
+        public CollisionPlane[] CollisionPlanes { get; }
+
+        /// <summary>A signed-distance-field collision volume (from <c>m_SDFRigids</c>).</summary>
+        public readonly record struct SDFRigid(Vector3 LocalMin, Vector3 LocalMax, float Bounciness, int Node,
+            int CollisionMask, int VertexMapIndex, uint Flags, float[] Distances, int Width, int Height, int Depth);
+
+        /// <summary>Gets the signed-distance-field collision volumes (<c>m_SDFRigids</c>).</summary>
+        // Parsed, never emitted: ClothShapeSDF is authored from a source mesh plus bake parameters, none
+        // of which the compiled voxel grid carries.
+        public SDFRigid[] SDFRigids { get; }
+
+        /// <summary>
+        /// Gets the goal-damped spring integrator bitmask (<c>m_GoalDampedSpringIntegrators</c>): one bit
+        /// per DYNAMIC node, word <c>i &gt;&gt; 5</c> bit <c>i &amp; 31</c> for node
+        /// <c>i + <see cref="StaticNodeCount"/></c>, set for a node on the goal-damped integrator. The
+        /// compiler emits it only for a model whose dynamic nodes hold both integrator kinds, so it is
+        /// empty on most models. Read through <c>UsesGoalDampedIntegrator</c>.
+        /// </summary>
+        public uint[] GoalDampedSpringIntegrators { get; }
+
+        /// <summary>
+        /// A named cloth effect (wind, stiffen, ...) from <c>m_Effects</c>. <see cref="Params"/> is the raw
+        /// per-effect-type parameter block (e.g. a wind effect carries <c>Strength</c>, <c>Choppiness</c>,
+        /// <c>Vortices</c> and <c>VertexMap</c>); its schema varies with <see cref="Type"/> and is kept
+        /// unparsed.
+        /// </summary>
+        public readonly record struct Effect(string Name, uint NameHash, int Type, KVObject Params);
+
+        /// <summary>Gets the named cloth effects (<c>m_Effects</c>).</summary>
+        public Effect[] Effects { get; }
+
+        /// <summary>A deprecated morph layer (from <c>m_MorphLayers</c>).</summary>
+        public readonly record struct MorphLayer(string Name, uint NameHash, int[] Nodes, Vector3[] InitPos,
+            float[] Gravity, float[] GoalStrength, float[] GoalDamping, uint Flags);
+
+        /// <summary>Gets the deprecated morph layers (<c>m_MorphLayers</c>).</summary>
+        public MorphLayer[] MorphLayers { get; }
+
+        /// <summary>Gets the raw morph-set data (<c>m_MorphSetData</c>). Empty in every known model.</summary>
+        public byte[] MorphSetData { get; }
+
+        /// <summary>A self-collision layer (from <c>m_SelfCollisionLayers</c>).</summary>
+        public readonly record struct SelfCollisionLayer(string Name, int[] Nodes, float ParentReaction,
+            uint Flags, uint[] EndIndices);
+
+        /// <summary>Gets the self-collision layers (<c>m_SelfCollisionLayers</c>). Empty in every known model.</summary>
+        public SelfCollisionLayer[] SelfCollisionLayers { get; }
+
+        /// <summary>A node stray-box constraint (from <c>m_NodeStrayBoxes</c>).</summary>
+        public readonly record struct NodeStrayBox(Vector3 Min, Vector3 Max, uint Flags, int NodeA, int NodeB);
+
+        /// <summary>Gets the node stray-box constraints (<c>m_NodeStrayBoxes</c>). Empty in every known model.</summary>
+        public NodeStrayBox[] NodeStrayBoxes { get; }
+
+        /// <summary>A tapered-capsule stretch constraint (from <c>m_TaperedCapsuleStretches</c>).</summary>
+        public readonly record struct TaperedCapsuleStretch(int NodeA, int NodeB, int CollisionMask,
+            float RadiusA, float RadiusB);
+
+        /// <summary>
+        /// Gets the tapered-capsule stretch constraints (<c>m_TaperedCapsuleStretches</c>). Empty in every
+        /// known model.
+        /// </summary>
+        public TaperedCapsuleStretch[] TaperedCapsuleStretches { get; }
+
+        /// <summary>A per-pair spring constraint (from <c>m_SpringIntegrator</c>).</summary>
+        public readonly record struct SpringIntegrator(int NodeA, int NodeB, float RestLength,
+            float SpringConstant, float SpringDamping, float NodeWeight0);
+
+        /// <summary>Gets the spring constraints (<c>m_SpringIntegrator</c>). Empty in every known model.</summary>
+        public SpringIntegrator[] SpringIntegrators { get; }
+
+        /// <summary>
+        /// One row of <c>m_RigidColliderPriorities</c>: the index at which a priority group starts in each
+        /// rigid-collider array. Row <c>g</c> holds group <c>g</c>'s first index in every array and the last
+        /// row holds each array's element count, so group <c>g</c> owns <c>[row[g], row[g + 1])</c>.
+        /// </summary>
+        /// <remarks>
+        /// Compiles older than Counter-Strike 2 carry a two-entry <c>m_nCollisionSphereIndex</c> in place
+        /// of <c>m_nSDFRigidIndex</c>, so <see cref="SDFRigidIndex"/> reads 0 on every model that ships
+        /// the array.
+        /// </remarks>
+        public readonly record struct RigidColliderIndices(int TaperedCapsuleRigidIndex, int SphereRigidIndex,
+            int BoxRigidIndex, int SDFRigidIndex, int CollisionPlaneIndex);
+
+        /// <summary>
+        /// Gets the rigid-collider priority groups (<c>m_RigidColliderPriorities</c>), read back per
+        /// collision shape by <c>ColliderPriority</c>. A model that gives every collision shape the
+        /// same priority ships this empty.
+        /// </summary>
+        public RigidColliderIndices[] RigidColliderPriorities { get; }
+
+        /// <summary>A jiggle bone's physical parameters (from <c>CFeJiggleBone</c>).</summary>
+        public readonly record struct JiggleBone(
+            uint Flags, float Length, float TipMass,
+            float YawStiffness, float YawDamping, float PitchStiffness, float PitchDamping,
+            float AlongStiffness, float AlongDamping, float AngleLimit,
+            float MinYaw, float MaxYaw, float YawFriction, float YawBounce,
+            float MinPitch, float MaxPitch, float PitchFriction, float PitchBounce,
+            float BaseMass, float BaseStiffness, float BaseDamping,
+            float BaseMinLeft, float BaseMaxLeft, float BaseLeftFriction,
+            float BaseMinUp, float BaseMaxUp, float BaseUpFriction,
+            float BaseMinForward, float BaseMaxForward, float BaseForwardFriction,
+            float Radius0, float Radius1, Vector3 Point0, Vector3 Point1, int CollisionMask);
+
+        /// <summary>A jiggle bone keyed to its control node (from <c>m_JiggleBones</c>).</summary>
+        public readonly record struct IndexedJiggleBone(int Node, int JiggleParent, JiggleBone Bone);
+
+        /// <summary>A Dota-only bone-merge link (from <c>m_BoneMergeLinks</c>, absent from CS2/Deadlock).</summary>
+        public readonly record struct BoneMergeLink(uint ParentHash, int ChildNode);
+
+        /// <summary>Gets the bone-merge links (<c>m_BoneMergeLinks</c>). Empty in every known model.</summary>
+        public BoneMergeLink[] BoneMergeLinks { get; }
+
+        /// <summary>A node locked to its parent's offset transform (from <c>m_LockToParent</c>).</summary>
+        public readonly record struct LockToParentLink(Vector3 Offset, int CtrlParent, int CtrlChild);
+
+        /// <summary>Gets the parent-locked node links (<c>m_LockToParent</c>).</summary>
+        public LockToParentLink[] LockToParent { get; }
+
+        /// <summary>Gets the control nodes locked to their animated goal (<c>m_LockToGoal</c>).</summary>
+        public int[] LockToGoal { get; }
+
+        /// <summary>A strip's column pairing (from <c>m_CtrlOsOffsets</c>).</summary>
+        public readonly record struct CtrlOsOffset(int CtrlParent, int CtrlChild);
+
+        /// <summary>Gets the strip column pairings (<c>m_CtrlOsOffsets</c>).</summary>
+        // TODO: no authored construct reproduces these; every carrier is an imported strip.
+        public CtrlOsOffset[] CtrlOsOffsets { get; }
+
+        /// <summary>A generated node's bone-local anchor offset (from <c>m_CtrlOffsets</c>).</summary>
+        public readonly record struct CtrlOffset(Vector3 Offset, int CtrlParent, int CtrlChild);
+
+        /// <summary>Gets the generated-node anchor offsets (<c>m_CtrlOffsets</c>).</summary>
+        public CtrlOffset[] CtrlOffsets { get; }
+
+        /// <summary>
+        /// Gets the named vertex sets' name hashes (<c>m_VertexSetNames</c>), paired with
+        /// <see cref="DynNodeVertexSet"/>.
+        /// </summary>
+        public uint[] VertexSetNames { get; }
+
+        /// <summary>
+        /// Gets each dynamic node's vertex-set index into <see cref="VertexSetNames"/>
+        /// (<c>m_DynNodeVertexSet</c>).
+        /// </summary>
+        // Read by BuildVertexMapsFromSets to rebuild the named selections of a compile that ships no
+        // m_VertexMaps. Not re-emitted: the ModelDoc construct that authors it is unknown.
+        public byte[] DynNodeVertexSet { get; }
+
+        /// <summary>Gets the legacy per-node stretch force (<c>m_LegacyStretchForce</c>).</summary>
+        public float[] LegacyStretchForce { get; }
+
+        /// <summary>
+        /// Gets the raw <c>m_CollisionSpheres</c> entries. Absent from the reference schema and empty in
+        /// every known model, so its element shape is unknown and the entries are kept uninterpreted.
+        /// </summary>
+        public IReadOnlyList<KVObject> CollisionSpheres { get; }
+
+        // Keys the compiler regenerates from other data at compile time (the BVH tree, SIMD repacks,
+        // free-node lists, and reserved/derived counts) - not parsed for authoring since a recompile
+        // rebuilds them regardless of what an exported source declares. m_SimdQuads/m_SimdTris are the one
+        // exception still read directly (see OrderFacesBySimdLanes), for face ordering rather than authoring.
+        static readonly HashSet<string> DerivedKeys =
+        [
+            "m_CtrlHash",
+            "m_TreeParents", "m_TreeChildren", "m_TreeCollisionMasks", "m_nTreeDepth",
+            "m_SimdRods", "m_SimdNodeBases", "m_SimdAnimStrayRadii", "m_SimdRodsAnim", "m_SimdSpringIntegrator",
+            "m_SimdQuads", "m_SimdTris",
+            "m_FreeNodes",
+            "m_nQuadCount1", "m_nQuadCount2", "m_nTriCount1", "m_nTriCount2",
+            "m_nSimdQuadCount1", "m_nSimdQuadCount2", "m_nSimdTriCount1", "m_nSimdTriCount2",
+            "m_nReservedUint8", "m_nNodeBaseJiggleboneDependsCount",
+            // The pre-Counter-Strike-2 spelling of the same padding.
+            "m_nReserved",
+            // Absent from the reference schema, always zero or empty, and in the same partition-count and
+            // SIMD-repack clusters as their m_nQuadCount1/2 and m_SimdNodeBases siblings.
+            "m_nCollisionSphereInclusiveCount",
+            "m_SimdFitMatrices", "m_nFitMatrixCount1", "m_nFitMatrixCount2",
+            "m_nSimdFitMatrixCount1", "m_nSimdFitMatrixCount2",
+            "m_DynNodeWindBases",
+            // Read by DeriveFirstPositionDrivenNode for the position-driven boundary, never re-authored.
+            "m_ReverseOffsets",
+        ];
+
+        // Every top-level m_pFeModel key this class reads, parsed or lazily surfaced via Data.
+        static readonly HashSet<string> ParsedKeys =
+        [
+            "m_CtrlName", "m_SkelParents", "m_NodeInvMasses", "m_nNodeCount", "m_nStaticNodes",
+            "m_nFirstPositionDrivenNode", "m_InitPose", "m_Quads", "m_Tris", "m_SourceElems",
+            "m_HingeLimits", "m_KelagerBends", "m_VertexMapValues", "m_VertexMaps", "m_Rods",
+            "m_NodeIntegrator", "m_NodeCollisionRadii", "m_WorldCollisionNodes", "m_WorldCollisionParams",
+            "m_DynNodeFriction", "m_AnimStrayRadii", "m_FitMatrices", "m_Twists", "m_NodeBases",
+            "m_CtrlOffsets", "m_CtrlSoftOffsets", "m_FitWeights", "m_TaperedCapsuleRigids", "m_BoxRigids",
+            "m_SphereRigids", "m_AxialEdges", "m_Ropes", "m_nRopeCount", "m_FollowNodes",
+            "m_LocalForce", "m_LocalRotation",
+            "m_flInternalPressure", "m_flWindage", "m_flWindDrag", "m_flLocalForce", "m_flLocalRotation",
+            "m_flAddWorldCollisionRadius", "m_flDefaultGravityScale", "m_flDefaultVelAirDrag",
+            "m_flDefaultExpAirDrag", "m_flDefaultThreadStretch", "m_flDefaultSurfaceStretch", "m_flLocalDrag1",
+            "m_nExtraIterations", "m_nExtraGoalIterations", "m_nExtraPressureIterations",
+            "m_flRodVelocitySmoothRate", "m_nRodVelocitySmoothIterations", "m_nDynamicNodeFlags",
+            "m_nStaticNodeFlags", "m_nRotLockStaticNodes", "m_flMotionSmoothCDT",
+
+            "m_VertexSetNames", "m_DynNodeVertexSet", "m_LockToGoal", "m_LockToParent", "m_LegacyStretchForce",
+            "m_CtrlOsOffsets", "m_AntiTunnelProbes", "m_AntiTunnelTargetNodes", "m_AntiTunnelBytecode",
+            "m_SDFRigids", "m_GoalDampedSpringIntegrators", "m_DynKinLinks", "m_CollisionPlanes", "m_Effects",
+            "m_MorphLayers", "m_MorphSetData", "m_SelfCollisionLayers", "m_NodeStrayBoxes",
+            "m_TaperedCapsuleStretches", "m_SpringIntegrator", "m_RigidColliderPriorities", "m_JiggleBones",
+            "m_BoneMergeLinks", "m_CollisionSpheres",
+            "m_flDefaultTimeDilation", "m_flDefaultVolumetricSolveAmount", "m_flDefaultVelQuadAirDrag",
+            "m_flDefaultExpQuadAirDrag", "m_flQuadVelocitySmoothRate", "m_nQuadVelocitySmoothIterations",
+            "m_flDefaultVelRodAirDrag", "m_flDefaultExpRodAirDrag",
+        ];
+
+        /// <summary>
+        /// Verifies every top-level <c>m_pFeModel</c> key is either parsed (<see cref="ParsedKeys"/>) or
+        /// known-derived (<see cref="DerivedKeys"/>), so a compiler adding a new key is caught here instead
+        /// of silently dropped. Debug-only.
+        /// </summary>
+        [Conditional("DEBUG")]
+        static void AssertAllKeysAccountedFor(KVObject data)
+        {
+            foreach (var key in data.Keys)
+            {
+                Debug.Assert(ParsedKeys.Contains(key) || DerivedKeys.Contains(key),
+                    $"FeModel key '{key}' is neither parsed nor in the derived-key list.");
+            }
+        }
+
+        // Reads an array-of-struct key, or [] when the key is absent.
+        static T[] ReadArray<T>(KVObject data, string key, Func<KVObject, T> map)
+        {
+            var arr = data.GetArray(key);
+            return arr is null ? [] : arr.Select(map).ToArray();
+        }
+
+        /// <summary>
+        /// Initializes a new instance of the <see cref="FeModel"/> class from a parsed <c>m_pFeModel</c> sub-object.
+        /// </summary>
+        public FeModel(KVObject data)
+        {
+            Data = data;
+            CtrlNames = data.GetArray<string>("m_CtrlName") ?? [];
+            SkelParents = (data.GetIntegerArray("m_SkelParents")).Select(static v => (int)v).ToArray();
+            HasCompiledSkelParents = SkelParents.Length > 0;
+            NodeInvMasses = data.GetFloatArray("m_NodeInvMasses");
+            NodeCount = data.GetInt32Property("m_nNodeCount");
+            StaticNodeCount = data.GetInt32Property("m_nStaticNodes");
+
+            var initPose = data.GetArray("m_InitPose");
+            InitPosePositions = initPose is null
+                ? []
+                : initPose.Select(static p => p.ToTransform().Position).ToArray();
+            InitPoseRotations = initPose is null
+                ? []
+                : initPose.Select(static p => p.ToTransform().Rotation).ToArray();
+
+            Quads = ReadNodeIndexArray(data, "m_Quads", 4);
+            Tris = ReadNodeIndexArray(data, "m_Tris", 3);
+            (SourceFaces, SourceSprings) = ReadSourceElems(data);
+
+            var kelagerBends = new List<KelagerBend>();
+            foreach (var bend in data.GetArray("m_KelagerBends") ?? [])
+            {
+                var nodes = bend.GetIntegerArray("nNode");
+                var weights = bend.GetFloatArray("flWeight");
+                if (nodes.Length >= 3 && weights.Length >= 3)
+                {
+                    kelagerBends.Add(new KelagerBend((int)nodes[0], (int)nodes[1], (int)nodes[2],
+                        weights[0], weights[1], weights[2], bend.GetFloatProperty("flHeight0")));
+                }
+            }
+
+            KelagerBends = kelagerBends;
+
+            // Each selection's per-node membership is a run of bytes in the shared value array, starting at
+            // its own map offset and covering its node range.
+            var mapValues = data.GetIntegerArray("m_VertexMapValues");
+            var vertexMaps = new List<VertexMap>();
+            foreach (var map in data.GetArray("m_VertexMaps") ?? [])
+            {
+                var count = map.GetInt32Property("nVertexCount");
+                var offset = map.GetInt32Property("nMapOffset");
+                var weights = new float[count];
+                for (var i = 0; i < count && offset + i < mapValues.Length; i++)
+                {
+                    weights[i] = mapValues[offset + i] / 255f;
+                }
+
+                vertexMaps.Add(new VertexMap(
+                    map.GetStringProperty("sName") ?? string.Empty,
+                    map.GetUInt32Property("nNameHash"),
+                    map.GetInt32Property("nVertexBase"),
+                    count,
+                    map.GetSubCollection("vCenterOfMass") is { } c ? c.ToVector3() : default,
+                    weights,
+                    map.GetFloatProperty("flVolumetricSolveStrength"),
+                    map.GetInt32Property("nScaleSourceNode")));
+            }
+
+            VertexMaps = vertexMaps;
+
+            // TODO: the self-rods dropped below (nNode = [i, i]) come from an older compiler and are not
+            // authorable on the current one, which refuses a ClothSpring with equal endpoints.
+            var rods = data.GetArray("m_Rods");
+            Rods = rods is null
+                ? []
+                : rods.Select(static o =>
+                {
+                    var nodes = o.GetIntegerArray("nNode");
+                    return new Rod(
+                        nodes.Length > 0 ? (int)nodes[0] : -1,
+                        nodes.Length > 1 ? (int)nodes[1] : -1,
+                        o.GetFloatProperty("flMinDist"),
+                        o.GetFloatProperty("flMaxDist"),
+                        o.GetFloatProperty("flWeight0"),
+                        o.GetFloatProperty("flRelaxationFactor"));
+                    // A rod joining a node to itself constrains nothing and cannot be re-authored.
+                }).Where(static r => r.NodeA >= 0 && r.NodeB >= 0 && r.NodeA != r.NodeB).ToArray();
+
+            var integrators = data.GetArray("m_NodeIntegrator");
+            NodeIntegrators = integrators is null
+                ? []
+                : integrators.Select(static o => new NodeIntegrator(
+                    o.GetFloatProperty("flPointDamping"),
+                    o.GetFloatProperty("flAnimationForceAttraction"),
+                    o.GetFloatProperty("flAnimationVertexAttraction"),
+                    o.GetFloatProperty("flGravity"))).ToArray();
+
+            NodeCollisionRadii = data.GetFloatArray("m_NodeCollisionRadii");
+            var worldCollisionOrder = data.ContainsKey("m_WorldCollisionNodes")
+                ? data.GetIntegerArray("m_WorldCollisionNodes").Select(static v => (int)v).ToArray()
+                : [];
+            WorldCollisionNodes = worldCollisionOrder.ToHashSet();
+
+            // Each params entry covers a run of m_WorldCollisionNodes, so a node's friction is the entry
+            // whose range contains its position in that list.
+            var worldFriction = new Dictionary<int, (float World, float Ground)>();
+            foreach (var entry in data.GetArray("m_WorldCollisionParams") ?? [])
+            {
+                var begin = entry.GetInt32Property("nListBegin");
+                var end = Math.Min(entry.GetInt32Property("nListEnd"), worldCollisionOrder.Length);
+                var frictions = (entry.GetFloatProperty("flWorldFriction"), entry.GetFloatProperty("flGroundFriction"));
+                for (var i = Math.Max(begin, 0); i < end; i++)
+                {
+                    worldFriction[worldCollisionOrder[i]] = frictions;
+                }
+            }
+
+            WorldCollisionFriction = worldFriction;
+
+            DynNodeFriction = data.GetFloatArray("m_DynNodeFriction");
+
+            // An entry constrains one node to its own animated position; the pair form links two different
+            // nodes and is not a per-node stray radius.
+            var strayRadii = new Dictionary<int, (float, float)>();
+            if (data.GetArray("m_AnimStrayRadii") is { } strayArray)
+            {
+                foreach (var entry in strayArray)
+                {
+                    var nodes = entry.GetIntegerArray("nNode");
+                    if (nodes.Length >= 2 && nodes[0] == nodes[1])
+                    {
+                        strayRadii[(int)nodes[0]] = (
+                            entry.GetFloatProperty("flMaxDist"),
+                            entry.GetFloatProperty("flRelaxationFactor"));
+                    }
+                }
+            }
+
+            AnimStrayRadii = strayRadii;
+
+            var fitMatrices = data.GetArray("m_FitMatrices");
+            FitMatrixNodes = fitMatrices is not null
+                ? fitMatrices.Select(static o => o.GetInt32Property("nNode")).ToHashSet()
+                : new HashSet<int>();
+
+            var proxyFitNodes = new HashSet<int>();
+            var fitTargets = new Dictionary<int, int[]>();
+
+            ProxyFitMatrixNodes = proxyFitNodes;
+            FitMatrixTargets = fitTargets;
+
+            var twistNodes = new Dictionary<int, float>();
+            var twistLinks = new HashSet<(int, int)>();
+            var twistRelaxByLink = new Dictionary<(int, int), float>();
+            if (data.GetArray("m_Twists") is { } twistsArray)
+            {
+                foreach (var entry in twistsArray)
+                {
+                    var relax = entry.GetFloatProperty("flTwistRelax");
+                    var orient = entry.GetInt32Property("nNodeOrient");
+                    var end = entry.GetInt32Property("nNodeEnd");
+                    twistNodes[orient] = relax;
+                    twistNodes[end] = relax;
+                    twistLinks.Add(orient < end ? (orient, end) : (end, orient));
+                    twistRelaxByLink[(orient, end)] = relax;
+                    twistOrientFallback.TryAdd(orient, relax);
+                }
+            }
+
+            TwistNodes = twistNodes;
+            TwistLinks = twistLinks;
+
+            var nodeBases = new Dictionary<int, NodeBasis>();
+            if (data.GetArray("m_NodeBases") is { } nodeBasesArray)
+            {
+                foreach (var entry in nodeBasesArray)
+                {
+                    nodeBases[entry.GetInt32Property("nNode")] = new NodeBasis(
+                        entry.GetInt32Property("nNodeX0"),
+                        entry.GetInt32Property("nNodeX1"),
+                        entry.GetInt32Property("nNodeY0"),
+                        entry.GetInt32Property("nNodeY1"));
+                }
+            }
+
+            NodeBases = nodeBases;
+
+            AntiTunnelProbes = ReadArray(data, "m_AntiTunnelProbes", static o => new AntiTunnelProbe(
+                o.GetFloatProperty("flWeight"), o.GetUInt32Property("nFlags"), o.GetInt32Property("nProbeNode"),
+                o.GetInt32Property("nCount"), o.GetInt32Property("nBegin"),
+                o.GetFloatProperty("flActivationDistance"), o.GetFloatProperty("flCurvatureRadius"),
+                o.GetFloatProperty("flBias")));
+            AntiTunnelTargetNodes = data.GetIntegerArray("m_AntiTunnelTargetNodes").Select(static v => (int)v).ToArray();
+            AntiTunnelBytecode = data.GetArray<uint>("m_AntiTunnelBytecode") ?? [];
+
+            DynKinLinks = ReadArray(data, "m_DynKinLinks", static o => new DynKinLink(
+                o.GetInt32Property("m_nParent"), o.GetInt32Property("m_nChild")));
+
+            CollisionPlanes = ReadArray(data, "m_CollisionPlanes", static o =>
+            {
+                var plane = o.GetSubCollection("m_Plane");
+                return new CollisionPlane(
+                    o.GetInt32Property("nCtrlParent"), o.GetInt32Property("nChildNode"),
+                    plane?.GetSubCollection("m_vNormal") is { } normal ? normal.ToVector3() : default,
+                    plane?.GetFloatProperty("m_flOffset") ?? 0f,
+                    o.GetFloatProperty("flStickiness"), o.GetFloatProperty("flStrength"));
+            });
+
+            SDFRigids = ReadArray(data, "m_SDFRigids", static o => new SDFRigid(
+                o.GetSubCollection("vLocalMin") is { } lmin ? lmin.ToVector3() : default,
+                o.GetSubCollection("vLocalMax") is { } lmax ? lmax.ToVector3() : default,
+                o.GetFloatProperty("flBounciness"), o.GetInt32Property("nNode"),
+                o.GetInt32Property("nCollisionMask"), o.GetInt32Property("nVertexMapIndex"),
+                o.GetUInt32Property("nFlags"), o.GetFloatArray("m_Distances"),
+                o.GetInt32Property("m_nWidth"), o.GetInt32Property("m_nHeight"), o.GetInt32Property("m_nDepth")));
+
+            GoalDampedSpringIntegrators = data.GetArray<uint>("m_GoalDampedSpringIntegrators") ?? [];
+
+            Effects = ReadArray(data, "m_Effects", static o => new Effect(
+                o.GetStringProperty("sName") ?? string.Empty, o.GetUInt32Property("nNameHash"),
+                o.GetInt32Property("nType"), o.GetSubCollection("m_Params")));
+
+            MorphLayers = ReadArray(data, "m_MorphLayers", static o => new MorphLayer(
+                o.GetStringProperty("m_Name") ?? string.Empty, o.GetUInt32Property("m_nNameHash"),
+                o.GetIntegerArray("m_Nodes").Select(static v => (int)v).ToArray(),
+                (o.GetArray("m_InitPos") ?? []).Select(static p => p.ToVector3()).ToArray(),
+                o.GetFloatArray("m_Gravity"), o.GetFloatArray("m_GoalStrength"), o.GetFloatArray("m_GoalDamping"),
+                o.GetUInt32Property("m_nFlags")));
+            MorphSetData = data.GetArray<byte>("m_MorphSetData") ?? [];
+
+            SelfCollisionLayers = ReadArray(data, "m_SelfCollisionLayers", static o => new SelfCollisionLayer(
+                o.GetStringProperty("m_Name") ?? string.Empty,
+                o.GetIntegerArray("m_Nodes").Select(static v => (int)v).ToArray(),
+                o.GetFloatProperty("m_flParentReaction"), o.GetUInt32Property("m_nFlags"),
+                o.GetArray<uint>("m_nEndIdx") ?? []));
+
+            NodeStrayBoxes = ReadArray(data, "m_NodeStrayBoxes", static o =>
+            {
+                var nodes = o.GetIntegerArray("nNode");
+                return new NodeStrayBox(
+                    o.GetSubCollection("vMin") is { } smin ? smin.ToVector3() : default,
+                    o.GetSubCollection("vMax") is { } smax ? smax.ToVector3() : default,
+                    o.GetUInt32Property("nFlags"),
+                    nodes.Length > 0 ? (int)nodes[0] : -1, nodes.Length > 1 ? (int)nodes[1] : -1);
+            });
+
+            TaperedCapsuleStretches = ReadArray(data, "m_TaperedCapsuleStretches", static o =>
+            {
+                var nodes = o.GetIntegerArray("nNode");
+                var radii = o.GetFloatArray("flRadius");
+                return new TaperedCapsuleStretch(
+                    nodes.Length > 0 ? (int)nodes[0] : -1, nodes.Length > 1 ? (int)nodes[1] : -1,
+                    o.GetInt32Property("nCollisionMask"),
+                    radii.Length > 0 ? radii[0] : 0f, radii.Length > 1 ? radii[1] : 0f);
+            });
+
+            SpringIntegrators = ReadArray(data, "m_SpringIntegrator", static o =>
+            {
+                var nodes = o.GetIntegerArray("nNode");
+                return new SpringIntegrator(
+                    nodes.Length > 0 ? (int)nodes[0] : -1, nodes.Length > 1 ? (int)nodes[1] : -1,
+                    o.GetFloatProperty("flSpringRestLength"), o.GetFloatProperty("flSpringConstant"),
+                    o.GetFloatProperty("flSpringDamping"), o.GetFloatProperty("flNodeWeight0"));
+            });
+
+            RigidColliderPriorities = ReadArray(data, "m_RigidColliderPriorities", static o => new RigidColliderIndices(
+                o.GetInt32Property("m_nTaperedCapsuleRigidIndex"), o.GetInt32Property("m_nSphereRigidIndex"),
+                o.GetInt32Property("m_nBoxRigidIndex"), o.GetInt32Property("m_nSDFRigidIndex"),
+                o.GetInt32Property("m_nCollisionPlaneIndex")));
+
+
+            BoneMergeLinks = ReadArray(data, "m_BoneMergeLinks", static o => new BoneMergeLink(
+                o.GetUInt32Property("m_nParentHash"), o.GetInt32Property("m_nChildNode")));
+
+            LockToParent = ReadArray(data, "m_LockToParent", static o => new LockToParentLink(
+                o.GetSubCollection("vOffset") is { } offset ? offset.ToVector3() : default,
+                o.GetInt32Property("nCtrlParent"), o.GetInt32Property("nCtrlChild")));
+            LockToGoal = data.GetIntegerArray("m_LockToGoal").Select(static v => (int)v).ToArray();
+
+            CtrlOsOffsets = ReadArray(data, "m_CtrlOsOffsets", static o => new CtrlOsOffset(
+                o.GetInt32Property("nCtrlParent"), o.GetInt32Property("nCtrlChild")));
+
+            CtrlOffsets = ReadArray(data, "m_CtrlOffsets", static o => new CtrlOffset(
+                o.GetSubCollection("vOffset") is { } ctrlOffset ? ctrlOffset.ToVector3() : default,
+                o.GetInt32Property("nCtrlParent"), o.GetInt32Property("nCtrlChild")));
+
+            VertexSetNames = data.GetArray<uint>("m_VertexSetNames") ?? [];
+            DynNodeVertexSet = data.GetArray<byte>("m_DynNodeVertexSet") ?? [];
+            if (VertexMaps.Count == 0)
+            {
+                VertexMaps = BuildVertexMapsFromSets();
+            }
+
+            LegacyStretchForce = data.GetFloatArray("m_LegacyStretchForce");
+            CollisionSpheres = data.GetArray("m_CollisionSpheres") ?? [];
+
+
+            AssertAllKeysAccountedFor(data);
+        }
+    }
+}
