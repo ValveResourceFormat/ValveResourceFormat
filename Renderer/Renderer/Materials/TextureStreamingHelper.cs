@@ -47,8 +47,14 @@ namespace ValveResourceFormat.Renderer.Materials
         /// </summary>
         public TextureStreamingMode Mode { get; set; }
 
-        // False: parallelize single mips; True: parallelize whole textures
-        private bool LoadWholeChains => Mode == TextureStreamingMode.Immediate;
+        // smallest mips are batched together, up to this size
+        private const int RequestByteBudget = 32 * 1024; // 32KB, ~128x128 with block compression
+
+        // How far up the chain requests may reach. The whole chain for now; eviction will raise this under
+        // memory pressure so a texture stops short of level 0.
+        private const int TargetChainLevel = 0;
+
+        private int RequestBudget => Mode == TextureStreamingMode.Immediate ? int.MaxValue : RequestByteBudget;
 
         internal void BeginStreaming(StreamedTexture stream)
         {
@@ -324,8 +330,14 @@ namespace ValveResourceFormat.Renderer.Materials
                 return;
             }
 
-            stream.WholeChain = LoadWholeChains;
-            stream.GateBytes = PendingLoadBytes(stream);
+            PlanRequest(stream, RequestBudget);
+
+            // Nothing left this side of the target, so there is no request to make
+            if (stream.RequestMipCount == 0)
+            {
+                RetireStream(stream);
+                return;
+            }
 
             // Counted from the request, not from the enqueue, so the throttle bounds rented buffers too
             Interlocked.Add(ref bitsInFlight, stream.GateBytes);
@@ -334,22 +346,29 @@ namespace ValveResourceFormat.Renderer.Materials
             ThreadPool.UnsafeQueueUserWorkItem(stream, preferLocal: false);
         }
 
-        // What the request being issued costs the throttle
-        private static int PendingLoadBytes(StreamedTexture stream)
+        // Decides how much of the chain the next request reads: from where the texture got to, toward the
+        // target, taking mips while they fit the budget. Always at least one, or a chain whose next mip is
+        // bigger than the budget would never move.
+        private static void PlanRequest(StreamedTexture stream, int budget)
         {
-            if (!stream.WholeChain)
+            var count = 0;
+            var bytes = 0;
+
+            for (var i = stream.NextMip; i < stream.Mips.Length && stream.Mips[i].ChainLevel >= TargetChainLevel; i++)
             {
-                return stream.Mips[stream.NextMip].BufferSize;
+                var size = stream.Mips[i].BufferSize;
+
+                if (count > 0 && bytes + size > budget)
+                {
+                    break;
+                }
+
+                bytes += size;
+                count++;
             }
 
-            var total = 0;
-
-            for (var i = stream.NextMip; i < stream.Mips.Length; i++)
-            {
-                total += stream.Mips[i].BufferSize;
-            }
-
-            return total;
+            stream.RequestMipCount = count;
+            stream.GateBytes = bytes;
         }
 
         // Finishes a chain on the spot, for a caller that needs the whole texture rather than the stub a
@@ -406,7 +425,7 @@ namespace ValveResourceFormat.Renderer.Materials
         internal void LoadStreamingData(StreamedTexture stream)
         {
             var first = stream.NextMip;
-            var count = stream.WholeChain ? stream.Mips.Length - first : 1;
+            var count = stream.RequestMipCount;
             var gateBytes = stream.GateBytes;
 
             // Deleted since the request was issued, so there is nothing to load into

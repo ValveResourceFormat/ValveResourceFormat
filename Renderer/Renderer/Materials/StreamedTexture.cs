@@ -43,10 +43,8 @@ namespace ValveResourceFormat.Renderer.Materials
         /// as uploads are applied, read back by the worker the pump then dispatches.</summary>
         public int NextMip;
 
-        /// <summary>What the issued request reads and what it took from the throttle, decided when it was
-        /// issued. Recomputing either on the load thread would read a mode the caller may have changed
-        /// since, leaving the throttle short and never able to settle.</summary>
-        public bool WholeChain;
+        /// <summary>How many mips the issued request reads.</summary>
+        public int RequestMipCount;
         public int GateBytes;
 
         /// <summary>Set once the first load request has been issued. A never-started chain can safely be
