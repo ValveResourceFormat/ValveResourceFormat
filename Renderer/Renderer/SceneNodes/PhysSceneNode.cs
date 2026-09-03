@@ -46,7 +46,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         /// </summary>
         /// <param name="scene">The scene to add nodes to.</param>
         /// <param name="phys">The physics aggregate data containing all collision shapes.</param>
-        /// <param name="fileName">The source file name, used for the node's <see cref="SceneNode.Name"/>.</param>
+        /// <param name="fileName">The source file name, used for the node's <c>Name</c>.</param>
         /// <param name="classname">Optional entity classname used to derive tool textures and names.</param>
         public static IEnumerable<PhysSceneNode> CreatePhysSceneNodes(Scene scene, PhysAggregateData phys, string? fileName, string? classname = null)
         {
