@@ -19,6 +19,10 @@ namespace ValveResourceFormat.IO;
 /// </summary>
 partial class ModelExtract
 {
+    // Sheets EmitProxySheetClothPhase re-emits with flex_cloth_borders on; their pinned vertices
+    // get freed by the flag, every other sheet's freed pins ride the per-vertex
+    // cloth_anchor_free_rotate paint instead (see BuildClothProxyMeshDmx).
+    private readonly HashSet<FeModel.ProxyMesh> clothProxiesFlexed = [];
 
     // Queues a cloth proxy-mesh DMX when the model carries a soft-body FeModel with a surface (quads/tris),
     // or generated sheet grids over the bone chains when the original cloth is chain-only.
@@ -337,6 +341,196 @@ partial class ModelExtract
             ("add_bend_only_rods", generatesBendOnlyRods),
             ("immovable", Flag(ClothFlagImmovable)));
     }
+
+    // ModelDoc's ImportedCloth node ("Imported PhysAuthFx Cloth", CModelDocImportedCloth, wizard
+    // wizard_import_legacy_cloth) carries a whole cloth in three raw KV members the compiler copies
+    // verbatim out of the element: `fx` - a table holding the m_Nodes and m_Rods row arrays - plus
+    // `bone_attrs`/`rod_attrs`, per-column tables whose "default" entry is merged into any row field the
+    // row itself omits. Writing every field explicitly on each row leaves both attr tables empty.
+    //
+    // A node row is the compiler's own fx-bone struct. m_Name is looked up against the nodes already built
+    // (case-insensitively) and appended when absent, so the compiled control-node order is the row order.
+    // m_Transform is 7 floats, [px py pz qx qy qz qw] - a compiled m_InitPose entry with its w dropped.
+    // A rod row addresses nodes by INDEX into m_Nodes, and its compiled flMaxDist is the rest distance
+    // between the two rows' transforms with flMinDist that times m_flContractionFactor (default 0.05), so
+    // both fall out of the transforms unless the original's own values disagree.
+    //
+    // Per-node mass reaches the compiled m_NodeInvMasses only under ClothParams explicit_masses; without it
+    // the compiler derives inverse masses from rod geometry instead.
+    static KVObject MakeImportedCloth(FeModel feModel)
+    {
+        var ropeParents = feModel.RopeRunParents;
+        var followLinks = feModel.FollowNodeLinks;
+        var localForce = feModel.LocalForceValues;
+        var localRotation = feModel.LocalRotationValues;
+        var osOffsetParents = new Dictionary<int, int>(feModel.CtrlOsOffsets.Length);
+        foreach (var pair in feModel.CtrlOsOffsets)
+        {
+            osOffsetParents.TryAdd(pair.CtrlChild, pair.CtrlParent);
+        }
+
+        float PerDynamic(float[] values, int node)
+        {
+            if (values.Length == feModel.CtrlNames.Length)
+            {
+                return values[node];
+            }
+
+            var dynamicIndex = node - feModel.StaticNodeCount;
+            return dynamicIndex >= 0 && dynamicIndex < values.Length ? values[dynamicIndex] : float.NaN;
+        }
+
+        var nodes = KVObject.Array();
+        for (var node = 0; node < feModel.CtrlNames.Length; node++)
+        {
+            var row = KVObject.Collection();
+            row.Add("m_Name", feModel.CtrlNames[node]);
+
+            var position = node < feModel.InitPosePositions.Length ? feModel.InitPosePositions[node] : Vector3.Zero;
+            var rotation = node < feModel.InitPoseRotations.Length ? feModel.InitPoseRotations[node] : Quaternion.Identity;
+            row.Add("m_Transform", MakeArray(position.X, position.Y, position.Z,
+                rotation.X, rotation.Y, rotation.Z, rotation.W));
+
+            var invMass = node < feModel.NodeInvMasses.Length ? feModel.NodeInvMasses[node] : 0f;
+            if (invMass == 0f)
+            {
+                row.Add("m_bSimulated", false);
+                if (node < feModel.RotationLockedStaticNodeCount)
+                {
+                    row.Add("m_bFreeRotation", false);
+                }
+            }
+            else
+            {
+                row.Add("m_flMass", 1f / invMass);
+            }
+
+            // A row flagged m_bVirtual compiles to an offset of its m_nParent rather than to an
+            // independent particle: it is excluded from the rope runs and from the extra node bases, and
+            // it takes an m_CtrlOffsets entry holding its rest position in the parent's frame. Adding
+            // m_bOsOffset moves that entry to m_CtrlOsOffsets, where the offset is the difference of the
+            // two rows' m_Transform positions in object space instead.
+            var isOsOffsetChild = osOffsetParents.TryGetValue(node, out var osOffsetParent);
+            if (isOsOffsetChild)
+            {
+                row.Add("m_bVirtual", true);
+                row.Add("m_bOsOffset", true);
+            }
+
+            // m_SkelParents is the compiled image of this exact field, so a model whose original still
+            // carries one hands the authored parenting back directly. Older compiles ship none and leave
+            // only the m_Ropes runs, which record the same chain a rope's worth at a time. Neither covers
+            // an os-offset child: a virtual node sits in no rope run, and its own pair names the parent.
+            if (isOsOffsetChild)
+            {
+                row.Add("m_nParent", osOffsetParent);
+            }
+            else if (feModel.HasCompiledSkelParents && node < feModel.SkelParents.Length && feModel.SkelParents[node] >= 0)
+            {
+                row.Add("m_nParent", feModel.SkelParents[node]);
+            }
+            else if (!feModel.HasCompiledSkelParents && ropeParents.TryGetValue(node, out var parent))
+            {
+                row.Add("m_nParent", parent);
+            }
+
+            if (followLinks.TryGetValue(node, out var follow))
+            {
+                row.Add("m_nFollowParent", follow.Parent);
+                row.Add("m_flFollowWeight", follow.Weight);
+            }
+
+            var integrator = feModel.GetIntegrator(node);
+            var integratorRow = KVObject.Collection();
+            integratorRow.Add("flPointDamping", integrator.PointDamping);
+            integratorRow.Add("flAnimationForceAttraction", integrator.ForceAttraction);
+            integratorRow.Add("flAnimationVertexAttraction", integrator.VertexAttraction);
+            integratorRow.Add("flGravity", integrator.Gravity);
+            row.Add("m_Integrator", integratorRow);
+
+            if (node < feModel.LegacyStretchForce.Length && feModel.LegacyStretchForce[node] != 0f)
+            {
+                row.Add("m_flLegacyStretchForce", feModel.LegacyStretchForce[node]);
+            }
+
+            var force = PerDynamic(localForce, node);
+            if (!float.IsNaN(force))
+            {
+                row.Add("m_flLocalForce", force);
+            }
+
+            var rotationScale = PerDynamic(localRotation, node);
+            if (!float.IsNaN(rotationScale) && rotationScale != 0f)
+            {
+                row.Add("m_flLocalRotation", rotationScale);
+            }
+
+            var radius = feModel.GetCollisionRadius(node);
+            if (radius != 0f)
+            {
+                row.Add("m_flCollisionRadius", radius);
+            }
+
+            var friction = feModel.GetNodeFriction(node);
+            if (friction != 0f)
+            {
+                row.Add("m_flFriction", friction);
+            }
+
+            if (feModel.WorldCollisionNodes.Contains(node))
+            {
+                row.Add("m_bNeedsWorldCollision", true);
+                if (feModel.WorldCollisionFriction.TryGetValue(node, out var worldFriction))
+                {
+                    row.Add("m_flWorldFriction", worldFriction.World);
+                    row.Add("m_flGroundFriction", worldFriction.Ground);
+                }
+            }
+
+            nodes.Add(row);
+        }
+
+        var rods = KVObject.Array();
+        foreach (var rod in feModel.Rods)
+        {
+            var row = KVObject.Collection();
+            row.Add("m_nNodes", MakeArray(rod.NodeA, rod.NodeB));
+
+            var restLength = rod.NodeA < feModel.InitPosePositions.Length && rod.NodeB < feModel.InitPosePositions.Length
+                ? Vector3.Distance(feModel.InitPosePositions[rod.NodeA], feModel.InitPosePositions[rod.NodeB])
+                : 0f;
+            if (Math.Abs(rod.MaxDist - restLength) > Math.Max(1e-3f, 1e-4f * Math.Max(rod.MaxDist, restLength)))
+            {
+                row.Add("m_bExplicitLength", true);
+                row.Add("m_flLength", rod.MaxDist);
+            }
+
+            var contraction = rod.MaxDist != 0f ? rod.MinDist / rod.MaxDist : ImportedClothDefaultContraction;
+            if (Math.Abs(contraction - ImportedClothDefaultContraction) > 1e-6f)
+            {
+                row.Add("m_flContractionFactor", contraction);
+            }
+
+            if (Math.Abs(rod.RelaxationFactor - 1f) > 1e-6f)
+            {
+                row.Add("m_flRelaxationFactor", rod.RelaxationFactor);
+            }
+
+            rods.Add(row);
+        }
+
+        var fx = KVObject.Collection();
+        fx.Add("m_Nodes", nodes);
+        fx.Add("m_Rods", rods);
+
+        return MakeNode("ImportedCloth",
+            ("name", "imported_cloth"),
+            ("fx", fx),
+            ("bone_attrs", KVObject.Collection()),
+            ("rod_attrs", KVObject.Collection()));
+    }
+
+    const float ImportedClothDefaultContraction = 0.05f;
 
     const float ClothSourceBaseGravity = FeModel.ClothSourceBaseGravity;
 
@@ -2430,6 +2624,457 @@ partial class ModelExtract
             dmeModel.JointList.Add(joint);
             dmeModel.Children.Add(joint);
         }
+    }
+
+    /// <summary>
+    /// Builds the cloth proxy-mesh DMX (the cloth "sheet") from the soft-body <see cref="FeModel"/>.
+    /// Vertices are the FeModel surface control nodes (positions = their rest pose), faces come from the
+    /// quad/tri surface, each vertex carries a <c>cloth_enable$0</c> paint value (1 = simulated, 0 = pinned)
+    /// and is skinned to the real skeleton bone it is anchored to. A recompile turns this back into the
+    /// <c>$cloth_*</c> FeModel nodes (one per enabled vertex). The skeleton is emitted into the DMX joint
+    /// list so the skinning resolves, exactly like a render mesh.
+    /// </summary>
+    internal byte[] BuildClothProxyMeshDmx(FeModel.ProxyMesh proxy, string name)
+    {
+        Debug.Assert(model is not null, "model required for cloth proxy mesh");
+
+        var skeleton = model.Skeleton;
+
+        using var dmx = new Datamodel.Datamodel("model", 22);
+
+        // Joint list = the full skeleton, so BLENDINDICES resolve (mirrors ConvertMeshToDatamodelMesh).
+        var dmeModel = BuildDmeDagSkeleton(skeleton, out _, bonePositions: ClothRestBonePositions);
+        dmeModel.Name = name;
+        RespellJointsAsClothControlNodes(dmeModel, physAggregateData?.FeModel);
+
+        var (dag, vertexData) = CreateDmxDagVertexData(dmeModel, name);
+        dag.Shape!.Name = name;
+
+        var vertexCount = proxy.Positions.Length;
+
+        // Indexed one face corner at a time, the way authored proxies are: the face set names corner
+        // ordinals and every stream's index array maps corner -> vertex. A sheet with no faces has no
+        // corners and stays indexed per vertex.
+        var cornerVertices = proxy.Faces.SelectMany(static face => face).ToArray();
+        var identity = Enumerable.Range(0, vertexCount).ToArray();
+        var vertexIndices = cornerVertices.Length > 0 ? cornerVertices : identity;
+
+        vertexData.AddIndexedStream("position$0", proxy.Positions, vertexIndices);
+
+        // The sheet's normals are its rest orientations (see FeModel.RecoverRestNormals). The importer
+        // reads proxy vertex v's normal from the flattened per-corner stream at ordinal v, not at one of
+        // v's own corners, so slot v carries vertex v's; the corners past the vertex count carry theirs.
+        var restNormals = physAggregateData?.FeModel?.RecoverRestNormals(proxy)
+            ?? [.. Enumerable.Repeat(Vector3.UnitZ, vertexCount)];
+        var cornerNormals = new Vector3[vertexIndices.Length];
+        for (var corner = 0; corner < cornerNormals.Length; corner++)
+        {
+            cornerNormals[corner] = restNormals[corner < vertexCount ? corner : vertexIndices[corner]];
+        }
+
+        vertexData.AddIndexedStream("normal$0", cornerNormals, Enumerable.Range(0, cornerNormals.Length).ToArray());
+
+        // The cloth importer needs texcoords on the proxy (authored proxies always carry them; without
+        // UVs the surface is not accepted as a sheet). A bounding-box projection along the two largest
+        // extents is enough - the UVs only need to vary smoothly across the sheet.
+        var boundsMin = proxy.Positions.Aggregate(Vector3.Min);
+        var boundsMax = proxy.Positions.Aggregate(Vector3.Max);
+        var extent = boundsMax - boundsMin;
+        Span<int> axes = [0, 1, 2];
+        axes.Sort((a, b) => extent[b].CompareTo(extent[a]));
+        var (axisU, axisV) = (axes[0], axes[1]);
+        var texcoords = new Vector2[vertexCount];
+        for (var v = 0; v < vertexCount; v++)
+        {
+            texcoords[v] = new Vector2(
+                extent[axisU] > 1e-6f ? (proxy.Positions[v][axisU] - boundsMin[axisU]) / extent[axisU] : 0f,
+                extent[axisV] > 1e-6f ? (proxy.Positions[v][axisV] - boundsMin[axisV]) / extent[axisV] : 0f);
+        }
+
+        vertexData.AddIndexedStream("texcoord$0", texcoords, vertexIndices);
+
+        // Per-vertex cloth paint layers, named and ordered as a current authored cloth proxy carries them.
+        // cloth_goal_strength_v2 is the attribute the ModelDoc cloth editor paints; the legacy
+        // cloth_goal_strength reads as 0 there. All values are 0..1 paint values rather than raw compiled
+        // solver numbers.
+        vertexData.AddIndexedStream("cloth_enable$0", proxy.ClothEnable, vertexIndices);
+        vertexData.AddIndexedStream("cloth_goal_strength_v2$0", proxy.GoalStrength, vertexIndices);
+        vertexData.AddIndexedStream("cloth_goal_damping$0", proxy.GoalDamping, vertexIndices);
+
+        // The raw goal pair drives the same two integrator fields at 30x without the goal-damped solve,
+        // and per vertex keeps that node on the raw integrator (see FeModel.RawGoalPaintNodes). A sheet
+        // whose nodes all compiled goal-damped ships neither stream.
+        if (Array.Exists(proxy.AnimationForceAttract, static value => value != 0f)
+            || Array.Exists(proxy.AnimationAttract, static value => value != 0f))
+        {
+            vertexData.AddIndexedStream("cloth_animation_force_attract$0", proxy.AnimationForceAttract, vertexIndices);
+            vertexData.AddIndexedStream("cloth_animation_attract$0", proxy.AnimationAttract, vertexIndices);
+        }
+
+        vertexData.AddIndexedStream("cloth_collision_radius$0", proxy.CollisionRadius, vertexIndices);
+        vertexData.AddIndexedStream("cloth_ground_collision$0", proxy.GroundCollision, vertexIndices);
+        vertexData.AddIndexedStream("cloth_drag$0", proxy.Drag, vertexIndices);
+
+        // World-collision ground friction paint. The importer has no "cloth_world_friction" counterpart:
+        // world friction rides the ground-collision paint instead, see ProxyVertexData's GroundCollision.
+        if (Array.Exists(proxy.GroundFriction, static value => value != 0f))
+        {
+            vertexData.AddIndexedStream("cloth_ground_friction$0", proxy.GroundFriction, vertexIndices);
+        }
+
+        // Friction is painted only where the cloth carries any: an all-zero stream is not the same input
+        // as no stream at all.
+        if (Array.Exists(proxy.Friction, static value => value != 0f))
+        {
+            vertexData.AddIndexedStream("cloth_friction$0", proxy.Friction, vertexIndices);
+        }
+
+        // Per-vertex gravity, painted VERBATIM: cloth_gravity$0 compiles into flGravity with no scaling.
+        // Without the stream the compiler gives every vertex 360.
+        vertexData.AddIndexedStream("cloth_gravity$0", proxy.Gravity, vertexIndices);
+
+        // The per-vertex rot-lock release: a pinned vertex compiles rotation-locked unless this
+        // paint (or the sheet-level flex_cloth_borders, which frees every pin at once) releases
+        // it, so each pin the original records as rotation-free is painted 1.0 on sheets the
+        // flag is not re-emitted for.
+        if (physAggregateData?.FeModel is { } feRotate && !clothProxiesFlexed.Contains(proxy))
+        {
+            var freeRotate = new float[vertexCount];
+            var anyFreed = false;
+            for (var v = 0; v < vertexCount && v < proxy.NodeIndices.Length; v++)
+            {
+                var node = proxy.NodeIndices[v];
+                if (proxy.ClothEnable[v] == 0f && node < feRotate.StaticNodeCount && feRotate.AllowsRotation(node))
+                {
+                    freeRotate[v] = 1f;
+                    anyFreed = true;
+                }
+            }
+
+            if (anyFreed)
+            {
+                vertexData.AddIndexedStream("cloth_anchor_free_rotate$0", freeRotate, vertexIndices);
+            }
+        }
+
+        // Per-vertex mass paint. The compiler adds expf(cloth_mass * cloth_mass_scale) on top of the mass
+        // it derives from the sheet's own geometry, and only when the mesh ships this stream - so a sheet
+        // exported without it comes back lighter than the original wherever the mass was painted, while an
+        // all-zero stream is a real authoring choice (e^0 = 1) and not the same as no stream at all.
+        if (physAggregateData?.FeModel?.RecoverMassPaint(proxy) is { } mass)
+        {
+            vertexData.AddIndexedStream("cloth_mass$0", mass, vertexIndices);
+        }
+
+        // Named vertex selections are painted per vertex, one stream per selection. A cloth effect or a
+        // chain joint then names the selection, and the compiler collects every vertex the paint reaches.
+        // The one selection this sheet is parented under as a ClothVertexMap is left unpainted: the
+        // container recreates the same m_VertexMaps entry without the dynamic vertex set the paint also
+        // registers (and which then gives back_solve a sheet-sized set to fit against). Every other
+        // selection keeps its paint - an effect naming one the compile cannot find is a hard failure
+        // ("refers to non-existent vertex map/set").
+        var containerMap = physAggregateData?.FeModel?.GetProxyVertexMapName(proxy);
+        foreach (var (mapName, weights) in proxy.VertexMaps)
+        {
+            if (mapName != containerMap)
+            {
+                vertexData.AddIndexedStream("cloth_vertex_set_" + mapName + "$0", weights, vertexIndices);
+            }
+        }
+
+        // Per-vertex stray radius: how far a simulated vertex may leave its animated position
+        // (m_AnimStrayRadii). Without the stream the whole array compiles away.
+        if (physAggregateData?.FeModel?.RecoverStrayRadiusPaint(proxy) is { } strayRadius)
+        {
+            vertexData.AddIndexedStream("cloth_stray_radius$0", strayRadius, vertexIndices);
+        }
+
+        // Suspender rods, which the compiler regenerates from this paint. Declaring them as explicit
+        // springs instead costs a source element per pair, which leaves every vertex they touch heavier
+        // than the original and re-picks its node basis (see ClothSuspenderCurvature).
+        if (ClothSuspenderPaint(proxy) is { } suspenders)
+        {
+            vertexData.AddIndexedStream("cloth_suspenders$0", suspenders, vertexIndices);
+        }
+
+        // cloth_drag_v2 and cloth_mass have no measurable effect on the compiled flPointDamping/
+        // m_NodeInvMasses - cloth_drag (no suffix, unlike goal_strength) is already the attribute the
+        // compiler reads, so they are intentionally omitted.
+
+        // cloth_make_rods is the per-face paint gating whether the mesh importer turns a face into rods or
+        // keeps it as a solve element; cloth_use_rods does not move that split. Painted under the ~0.5
+        // threshold the whole sheet stays faces, which is only right for cloth that ships a surface of its
+        // own: a rod-network cloth then compiles to invented m_Tris and loses every rod. So the paints go
+        // on only when the original itself carries faces, and the sheet is otherwise left for the compiler
+        // to rebuild rods from.
+        //
+        // A sheet that ships BOTH kinds paints the split itself: 1 over the rod region, 0 over the surface
+        // (see ProxyMesh.RodsDriven). A sheet exported with its AUTHORED faces and no rod region skips the
+        // paints entirely, as hand-authored proxies do.
+        if (proxy.RodsDriven.Length == vertexCount)
+        {
+            vertexData.AddIndexedStream("cloth_make_rods$0", proxy.RodsDriven, vertexIndices);
+        }
+        else if (!proxy.UsesAuthoredFaces && physAggregateData?.FeModel is { HasSurfaceElements: true })
+        {
+            vertexData.AddIndexedStream("cloth_use_rods$0", Enumerable.Repeat(1f, vertexCount).ToArray(), vertexIndices);
+            vertexData.AddIndexedStream("cloth_make_rods$0", Enumerable.Repeat(0.4f, vertexCount).ToArray(), vertexIndices);
+            vertexData.AddIndexedStream("cloth_bend_stiffness$0", Enumerable.Repeat(0.2f, vertexCount).ToArray(), vertexIndices);
+        }
+
+        // Skin the proxy vertices. Pinned (cloth_enable 0) vertices follow their anchor bone with weight 1;
+        // simulated vertices carry smooth two-joint chain weights (see FeModel.ProxyMesh.SkinInfluences) so
+        // the compiler back-solves each chain joint with a proper fit matrix instead of a point rope.
+        //
+        // Bone names are matched case-INSENSITIVELY, the way Source itself matches them: a model's
+        // compiled FeModel m_CtrlName array does not always agree in case with its skeleton, and an
+        // Ordinal lookup drops every influence on a bone whose two spellings differ, leaving the affected
+        // simulated vertices with all-zero blend weights.
+        var clothCompaction = BuildClothBoneCompaction(skeleton);
+        var boneIndexByName = new Dictionary<string, int>(skeleton.Bones.Length * 2, StringComparer.OrdinalIgnoreCase);
+        foreach (var bone in skeleton.Bones)
+        {
+            if (IsGeneratedClothProxyBone(bone))
+            {
+                continue;
+            }
+
+            var emitted = clothCompaction[bone.Index];
+            boneIndexByName.TryAdd(bone.Name, emitted);
+            boneIndexByName.TryAdd(GetExportBoneName(bone), emitted);
+        }
+
+        AppendCulledClothBoneJoints(dmeModel, boneIndexByName);
+
+        // A sheet no real bone drives ships UNSKINNED, like its hand-authored counterpart: the compiler
+        // then anchors the whole sheet to a static root node it generates itself and records every vertex
+        // as an m_CtrlOffsets entry hanging off that root. Skinning it to the synthetic per-vertex bones
+        // binds each node directly instead, which costs both the root node and the entire offsets array.
+        if (!proxy.IsFreeFloating)
+        {
+            // Four slots cover everything BuildChainSkinInfluences synthesises, but weights recovered
+            // verbatim from a model's own offset network can run to eight, and a truncated influence
+            // takes its m_CtrlSoftOffsets entry with it. The count is widened only for the vertices those
+            // recovered weights cover, and only where no fit is taken over the sheet: giving a
+            // back-solving sheet more slots than its own fits need re-classifies its nodes.
+            var jointCount = FeModel.ClothProxyInfluenceSlots;
+            if (physAggregateData?.FeModel is { ProxyFitMatrixNodes.Count: 0 } feModel)
+            {
+                for (var v = 0; v < vertexCount; v++)
+                {
+                    if (v < proxy.NodeIndices.Length && feModel.RecoveredSkinWeights.ContainsKey(proxy.NodeIndices[v]))
+                    {
+                        jointCount = Math.Max(jointCount, proxy.SkinInfluences[v].Count(i => boneIndexByName.ContainsKey(i.Bone)));
+                    }
+                }
+            }
+
+            var blendIndices = new int[vertexCount * jointCount];
+            var blendWeights = new float[vertexCount * jointCount];
+            for (var v = 0; v < vertexCount; v++)
+            {
+                var slot = 0;
+                foreach (var (boneName, weight) in proxy.SkinInfluences[v])
+                {
+                    if (slot >= jointCount || !boneIndexByName.TryGetValue(boneName, out var bi))
+                    {
+                        continue;
+                    }
+
+                    blendIndices[v * jointCount + slot] = bi;
+                    blendWeights[v * jointCount + slot] = weight;
+                    slot++;
+                }
+            }
+
+            vertexData.JointCount = jointCount;
+            vertexData.AddStream("blendindices$0", blendIndices);
+            vertexData.AddStream("blendweights$0", blendWeights);
+        }
+
+        var faceSet = new DmeFaceSet { Name = "cloth" };
+        faceSet.Material.MaterialName = "cloth";
+        if (dag.Shape is DmeMesh dmeMesh)
+        {
+            dmeMesh.FaceSets.Add(faceSet);
+        }
+
+        var cornerOrdinal = 0;
+        foreach (var face in proxy.Faces)
+        {
+            foreach (var _ in face)
+            {
+                faceSet.Faces.Add(cornerOrdinal++);
+            }
+
+            faceSet.Faces.Add(-1);
+        }
+
+        if (dag.Shape is DmeMesh morphTarget)
+        {
+            AddClothProxyMorphLayers(morphTarget, proxy, physAggregateData?.FeModel);
+        }
+
+        TieElementRoot(dmx, dmeModel);
+        using var stream = new MemoryStream();
+        dmx.Save(stream, "binary", 9);
+        return stream.ToArray();
+    }
+
+    /// <summary>
+    /// Re-emits a sheet's cloth morph layers (<c>m_MorphLayers</c>) as DMX delta states, sparse per
+    /// vertex like any flex. The compiler reads them off the proxy mesh itself - no vmdl node carries
+    /// the deltas, so a sheet exported without them loses the layer entirely.
+    /// </summary>
+    static void AddClothProxyMorphLayers(DmeMesh dmeMesh, FeModel.ProxyMesh proxy, FeModel? feModel)
+    {
+        if (feModel is null || feModel.MorphLayers.Length == 0)
+        {
+            return;
+        }
+
+        var localOfNode = new Dictionary<int, int>(proxy.NodeIndices.Length);
+        for (var v = 0; v < proxy.NodeIndices.Length; v++)
+        {
+            localOfNode.TryAdd(proxy.NodeIndices[v], v);
+        }
+
+        foreach (var layer in feModel.MorphLayers)
+        {
+            var indices = new List<int>(layer.Nodes.Length);
+            var values = new List<Vector3>(layer.Nodes.Length);
+            for (var i = 0; i < layer.Nodes.Length && i < layer.InitPos.Length; i++)
+            {
+                if (localOfNode.TryGetValue(layer.Nodes[i], out var local))
+                {
+                    indices.Add(local);
+                    values.Add(layer.InitPos[i]);
+                }
+            }
+
+            if (values.Count == 0)
+            {
+                continue;
+            }
+
+            var deltaState = new DmeVertexDeltaData { Name = layer.Name };
+            deltaState.AddIndexedStream("position$0", values.ToArray(), indices.ToArray());
+            dmeMesh.DeltaStates.Add(deltaState);
+            dmeMesh.DeltaStateWeights.Add(Vector2.Zero);
+            dmeMesh.DeltaStateWeightsLagged.Add(Vector2.Zero);
+        }
+    }
+
+    /// <summary>
+    /// Builds a generated cloth sheet grid DMX over a group of bone chains (see
+    /// <see cref="FeModel.BuildChainGrids"/>). Mirrors hand-authored item proxies: rows/columns of
+    /// vertices spanning the chains, bilinear chain-joint skinning, recovered cloth paints, quad faces.
+    /// </summary>
+    internal byte[] BuildClothChainGridDmx(FeModel.ChainGrid grid, string name)
+    {
+        Debug.Assert(model is not null, "model required for cloth grid");
+
+        var skeleton = model.Skeleton;
+
+        using var dmx = new Datamodel.Datamodel("model", 22);
+
+        var dmeModel = BuildDmeDagSkeleton(skeleton, out _, bonePositions: ClothRestBonePositions);
+        dmeModel.Name = name;
+
+        var (dag, vertexData) = CreateDmxDagVertexData(dmeModel, name);
+        dag.Shape!.Name = name;
+
+        var vertexCount = grid.Positions.Length;
+        var identity = Enumerable.Range(0, vertexCount).ToArray();
+
+        vertexData.AddIndexedStream("position$0", grid.Positions, identity);
+        vertexData.AddIndexedStream("normal$0", Enumerable.Repeat(Vector3.UnitZ, vertexCount).ToArray(), identity);
+        vertexData.AddIndexedStream("texcoord$0", grid.Texcoords, identity);
+
+        // Full paint set, matching BuildClothProxyMeshDmx: friction and drag are what damp the grid's fall
+        // once goal_strength lets go.
+        vertexData.AddIndexedStream("cloth_enable$0", grid.ClothEnable, identity);
+        vertexData.AddIndexedStream("cloth_goal_strength_v2$0", grid.GoalStrength, identity);
+        vertexData.AddIndexedStream("cloth_goal_damping$0", grid.GoalDamping, identity);
+        vertexData.AddIndexedStream("cloth_collision_radius$0", grid.CollisionRadius, identity);
+        vertexData.AddIndexedStream("cloth_ground_collision$0", Enumerable.Repeat(0f, vertexCount).ToArray(), identity);
+        vertexData.AddIndexedStream("cloth_drag$0", grid.Drag, identity);
+
+        if (Array.Exists(grid.Friction, static value => value != 0f))
+        {
+            vertexData.AddIndexedStream("cloth_friction$0", grid.Friction, identity);
+        }
+
+        // See BuildClothProxyMeshDmx: keeping the sheet as faces is only right for cloth that ships faces.
+        if (physAggregateData?.FeModel is { HasSurfaceElements: true })
+        {
+            vertexData.AddIndexedStream("cloth_use_rods$0", Enumerable.Repeat(1f, vertexCount).ToArray(), identity);
+            vertexData.AddIndexedStream("cloth_make_rods$0", Enumerable.Repeat(0.4f, vertexCount).ToArray(), identity);
+            vertexData.AddIndexedStream("cloth_bend_stiffness$0", Enumerable.Repeat(0.2f, vertexCount).ToArray(), identity);
+        }
+
+        // Case-insensitive bone-name resolution - see BuildClothProxyMeshDmx for why (compiled cloth control
+        // node names do not always agree in case with the skeleton; an Ordinal miss silently drops the skin).
+        var clothCompaction = BuildClothBoneCompaction(skeleton);
+        var boneIndexByName = new Dictionary<string, int>(skeleton.Bones.Length * 2, StringComparer.OrdinalIgnoreCase);
+        foreach (var bone in skeleton.Bones)
+        {
+            if (IsGeneratedClothProxyBone(bone))
+            {
+                continue;
+            }
+
+            var emitted = clothCompaction[bone.Index];
+            boneIndexByName.TryAdd(bone.Name, emitted);
+            boneIndexByName.TryAdd(GetExportBoneName(bone), emitted);
+        }
+
+        AppendCulledClothBoneJoints(dmeModel, boneIndexByName);
+
+        const int JointCount = 4;
+        var blendIndices = new int[vertexCount * JointCount];
+        var blendWeights = new float[vertexCount * JointCount];
+        for (var v = 0; v < vertexCount; v++)
+        {
+            var slot = 0;
+            foreach (var (boneName, weight) in grid.SkinInfluences[v])
+            {
+                if (slot >= JointCount || !boneIndexByName.TryGetValue(boneName, out var bi))
+                {
+                    continue;
+                }
+
+                blendIndices[v * JointCount + slot] = bi;
+                blendWeights[v * JointCount + slot] = weight;
+                slot++;
+            }
+        }
+
+        vertexData.JointCount = JointCount;
+        vertexData.AddStream("blendindices$0", blendIndices);
+        vertexData.AddStream("blendweights$0", blendWeights);
+
+        var faceSet = new DmeFaceSet { Name = "cloth" };
+        faceSet.Material.MaterialName = "cloth";
+        if (dag.Shape is DmeMesh dmeMesh)
+        {
+            dmeMesh.FaceSets.Add(faceSet);
+        }
+
+        foreach (var face in grid.Faces)
+        {
+            foreach (var index in face)
+            {
+                faceSet.Faces.Add(index);
+            }
+
+            faceSet.Faces.Add(-1);
+        }
+
+        TieElementRoot(dmx, dmeModel);
+        using var stream = new MemoryStream();
+        dmx.Save(stream, "binary", 9);
+        return stream.ToArray();
     }
 
     void AddCulledClothBones(KVObject skeletonChildren)
