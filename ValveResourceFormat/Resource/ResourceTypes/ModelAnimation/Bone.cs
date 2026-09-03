@@ -60,6 +60,16 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
         public bool IsProceduralCloth => (Flags & ModelSkeletonBoneFlags.ProceduralCloth) == ModelSkeletonBoneFlags.ProceduralCloth;
 
         /// <summary>
+        /// Gets a value indicating whether this bone is registered as an FeModel cloth control node
+        /// (<c>m_CtrlName</c>). Broader than <see cref="IsProceduralCloth"/> - the plain <c>Cloth</c> bit
+        /// alone marks EVERY control node (including static, physics-inert ones with no simulated role at
+        /// all, e.g. a real ancestor bone kept only for orientation bookkeeping); <c>Cloth | Procedural</c>
+        /// together marks only the subset the engine actually drives procedurally at runtime (chain
+        /// roots, synthetic proxy vertices).
+        /// </summary>
+        public bool IsClothControlNode => (Flags & ModelSkeletonBoneFlags.Cloth) == ModelSkeletonBoneFlags.Cloth;
+
+        /// <summary>
         /// Initializes a new instance of the <see cref="Bone"/> class.
         /// </summary>
         public Bone(int index, string name, Vector3 position, Quaternion rotation, ModelSkeletonBoneFlags flags)

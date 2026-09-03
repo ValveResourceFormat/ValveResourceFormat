@@ -306,6 +306,7 @@ partial class ModelExtract
             MaterialInputSignatures = options.MaterialInputSignatures,
             BoneRemapTable = options.BoneRemapTable,
             SkeletonRoot = skeletonRoot,
+            Skeleton = options.Skeleton,
         });
     }
 
