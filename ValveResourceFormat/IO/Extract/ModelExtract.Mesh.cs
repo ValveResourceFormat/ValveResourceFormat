@@ -633,9 +633,74 @@ partial class ModelExtract
             return;
         }
 
+        GrowClothEnablePaint(paint, triangles);
         vertexData.AddIndexedStream("cloth_enable$0", paint, indices);
     }
 
+    /// <summary>
+    /// Widens a reconstructed <c>cloth_enable</c> paint by one ring of face adjacency.
+    /// </summary>
+    /// <remarks>
+    /// The compiler binds a mesh vertex to up to four proxy nodes, then the vertex format's own four
+    /// slots and the renormalisation that follows can leave a node it touched with no weight at all.
+    /// A node like that still gets a skeleton bone, so a paint reconstructed from the surviving
+    /// weights is narrower than the one the model was compiled from, and the nodes at the edge of
+    /// the cloth region come back short. One ring of the mesh's own triangles is what closes the gap.
+    /// </remarks>
+    private static void GrowClothEnablePaint(float[] paint, List<int>? triangles)
+    {
+        if (triangles == null)
+        {
+            return;
+        }
+
+        var grown = new List<int>();
+
+        for (var ring = 0; ring < ClothEnableGrowthRings; ring++)
+        {
+            grown.Clear();
+
+            for (var i = 0; i + 2 < triangles.Count; i += 3)
+            {
+                var a = triangles[i];
+                var b = triangles[i + 1];
+                var c = triangles[i + 2];
+
+                if (a >= paint.Length || b >= paint.Length || c >= paint.Length)
+                {
+                    continue;
+                }
+
+                if (paint[a] < ClothEnableThreshold && paint[b] < ClothEnableThreshold && paint[c] < ClothEnableThreshold)
+                {
+                    continue;
+                }
+
+                grown.Add(a);
+                grown.Add(b);
+                grown.Add(c);
+            }
+
+            if (grown.Count == 0)
+            {
+                return;
+            }
+
+            foreach (var vertex in grown)
+            {
+                if (paint[vertex] < ClothEnableThreshold)
+                {
+                    paint[vertex] = 1f;
+                }
+            }
+        }
+    }
+
+    /// <summary>How far the reconstructed paint is grown past the vertices that kept a cloth weight.</summary>
+    private const int ClothEnableGrowthRings = 4;
+
+    /// <summary>The compiler's <c>m_flClothEnableThreshold</c>.</summary>
+    private const float ClothEnableThreshold = 0.05f;
 
     /// <summary>Marks the bones a compiled cloth proxy generated, by skeleton bone index.</summary>
     private static bool[]? BuildClothBoneMask(Skeleton? skeleton)
