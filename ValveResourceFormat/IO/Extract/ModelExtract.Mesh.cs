@@ -203,6 +203,7 @@ partial class ModelExtract
         }
         EnqueueRenderMeshes();
         EnqueuePhysMeshes();
+        EnqueueClothProxyMesh();
     }
 
     /// <summary>

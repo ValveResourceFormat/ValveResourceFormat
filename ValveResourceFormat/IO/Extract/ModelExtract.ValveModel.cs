@@ -1505,6 +1505,8 @@ partial class ModelExtract
             {
                 AddBonesRecursive(model.Skeleton.Roots, skeleton.Value);
             }
+
+            AddCulledClothBones(skeleton.Value);
         }
 
         if (physAggregateData is not null)
@@ -1556,6 +1558,31 @@ partial class ModelExtract
                 }
             }
 
+            var jiggleBoneList = ExtractJiggleBones(physAggregateData.FeModel);
+            if (jiggleBoneList != null)
+            {
+                root.Children.Add(jiggleBoneList);
+            }
+        }
+
+        var clothEmitted = physAggregateData?.FeModel is { } feModel && EmitCloth(feModel, root.Children);
+
+        // A soft-body FeModel that yields no authorable cloth gets a minimal placeholder PhysicsShapeList,
+        // which is what makes the compiler allocate a PHYS block and the CTRL embedded_physics reference.
+        if (physAggregateData?.FeModel is not null
+            && !clothEmitted
+            && !physicsShapeList.IsValueCreated
+            && model?.Resource?.GetBlockByType(BlockType.PHYS) is not null
+            && model.Skeleton.Bones.Length > 0)
+        {
+            physicsShapeList.Value.Add(MakeNode("PhysicsShapeSphere",
+                ("parent_bone", GetExportBoneName(model.Skeleton.Bones[0])),
+                ("surface_prop", "default"),
+                ("collision_tags", "solid"),
+                ("radius", 1.0f),
+                ("center", ToKVArray(Vector3.Zero)),
+                ("name", "vrf_phys_transplant_placeholder")
+            ));
         }
 
         if (Translation != Vector3.Zero)
