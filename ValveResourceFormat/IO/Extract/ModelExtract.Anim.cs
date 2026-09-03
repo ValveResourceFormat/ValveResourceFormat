@@ -78,6 +78,8 @@ partial class ModelExtract
 
         bool Taken(string name)
             => RenderMeshesToExtract.Exists(mesh => string.Equals(mesh.FileName, name, StringComparison.OrdinalIgnoreCase))
+            || ClothProxyMeshesToExtract.Exists(proxy => string.Equals(proxy.FileName, name, StringComparison.OrdinalIgnoreCase))
+            || ClothChainGridsToExtract.Exists(grid => string.Equals(grid.FileName, name, StringComparison.OrdinalIgnoreCase))
             || AnimationsToExtract.Exists(entry => !string.Equals(entry.Anim.Name, animationName, StringComparison.Ordinal)
                 && string.Equals(entry.FileName, name, StringComparison.OrdinalIgnoreCase));
 
