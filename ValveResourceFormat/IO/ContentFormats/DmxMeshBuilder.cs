@@ -3,6 +3,7 @@ using System.Linq;
 using System.Runtime.InteropServices;
 using ValveResourceFormat.Blocks;
 using ValveResourceFormat.ResourceTypes;
+using ValveResourceFormat.ResourceTypes.ModelAnimation;
 using ValveKeyValue;
 using ValveResourceFormat.Serialization.KeyValues;
 
@@ -33,6 +34,12 @@ internal readonly record struct DmxMeshBuildOptions
     /// datamodel's model element.
     /// </summary>
     public DmeModel? SkeletonRoot { get; init; }
+
+    /// <summary>
+    /// The skeleton the mesh's BLENDINDICES reference, which names the cloth proxy bones a compiled cloth
+    /// generated.
+    /// </summary>
+    public Skeleton? Skeleton { get; init; }
 }
 
 /// <summary>
@@ -51,7 +58,8 @@ internal static class DmxMeshBuilder
     /// The values the streams of one vertex data element are decoded against: the input signature of the
     /// first material its draw calls use that has one, and the mesh's skinning.
     /// </summary>
-    private readonly record struct VertexStreams(Material.VsInputSignature MaterialInputSignature, int BoneWeightCount, int[]? BoneRemapTable);
+    private readonly record struct VertexStreams(Material.VsInputSignature MaterialInputSignature, int BoneWeightCount, int[]? BoneRemapTable,
+        bool[]? ClothBones = null, int[]? ClothCompaction = null);
 
     /// <summary>
     /// A mesh's vertex buffers concatenated into one, the vertex each original buffer starts at, and the
@@ -116,9 +124,9 @@ internal static class DmxMeshBuilder
     /// render buffer is filled first and wins a name collision; see <see cref="FillDatamodelVertexData"/>.
     /// </summary>
     private static void FillBufferAndItsToolsBuffers(VBIB.OnDiskBufferData vertexBuffer, DmeVertexData vertexData,
-        in VertexStreams streams, ToolsBufferMatcher toolsBuffers)
+        in VertexStreams streams, ToolsBufferMatcher toolsBuffers, List<int>? clothTriangles = null)
     {
-        FillDatamodelVertexData(vertexBuffer, vertexData, streams);
+        FillDatamodelVertexData(vertexBuffer, vertexData, streams, clothTriangles: clothTriangles);
 
         while (toolsBuffers.TryClaim(vertexBuffer.ElementCount) is { } found)
         {
@@ -134,12 +142,14 @@ internal static class DmxMeshBuilder
     /// left alone.
     /// </summary>
     private static void FillDatamodelVertexData(VBIB.OnDiskBufferData vertexBuffer, DmeVertexData vertexData,
-        in VertexStreams streams, bool isToolsBuffer = false)
+        in VertexStreams streams, bool isToolsBuffer = false, List<int>? clothTriangles = null)
     {
         var indices = Enumerable.Range(0, (int)vertexBuffer.ElementCount).ToArray(); // May break with non-unit strides, non-tri faces
 
         var boneWeightCount = streams.BoneWeightCount;
         var boneArrayComponents = boneWeightCount > 4 ? 8 : 4;
+        int[]? clothBlendIndices = null;
+        float[]? clothBlendWeights = null;
 
         foreach (var attribute in vertexBuffer.InputLayoutFields)
         {
@@ -187,6 +197,7 @@ internal static class DmxMeshBuilder
                     }
                 }
 
+                clothBlendIndices = (int[])compactIndices.Clone();
                 vertexData.AddStream(semantic, compactIndices);
                 continue;
             }
@@ -211,6 +222,7 @@ internal static class DmxMeshBuilder
                     }
                 }
 
+                clothBlendWeights = compactWeights;
                 vertexData.AddStream(weightsSemantic, compactWeights);
                 continue;
             }
@@ -262,6 +274,89 @@ internal static class DmxMeshBuilder
 
             vertexData.AddStream("blendweights$0", Enumerable.Repeat(1f, collection.Count).ToArray());
         }
+
+        if (!isToolsBuffer)
+        {
+            AddClothEnablePaint(vertexData, indices, boneWeightCount, streams.ClothBones, clothBlendIndices, clothBlendWeights, clothTriangles);
+        }
+    }
+
+    /// <summary>
+    /// Writes the <c>cloth_enable</c> vertex paint a render mesh needs for its cloth to be rebuilt.
+    /// </summary>
+    /// <remarks>
+    /// The compiler does not read a render mesh's cloth skinning back: it regenerates the
+    /// <c>$cloth_m&lt;mesh&gt;p&lt;point&gt;</c> bones from the proxy and re-binds the mesh to them
+    /// itself, on the vertices this paint marks. Without the paint no vertex is re-bound, so the
+    /// bones are never added and the FeModel's control nodes resolve to nothing. The compiled model
+    /// no longer carries the paint - it carries the result - so it is reconstructed here as the
+    /// weight each vertex holds on the generated cloth bones, which is what the compiler produced
+    /// from the paint in the first place.
+    /// </remarks>
+    private static void AddClothEnablePaint(DmeVertexData vertexData, int[] indices, int boneWeightCount,
+        bool[]? clothBones, int[]? blendIndices, float[]? blendWeights, List<int>? triangles)
+    {
+        if (clothBones == null || blendIndices == null || blendWeights == null || boneWeightCount <= 0
+            || vertexData.VertexFormat.Contains("cloth_enable$0"))
+        {
+            return;
+        }
+
+        var vertexCount = Math.Min(indices.Length, blendIndices.Length / boneWeightCount);
+        var paint = new float[indices.Length];
+        var painted = 0;
+
+        for (var vertex = 0; vertex < vertexCount; vertex++)
+        {
+            var total = 0f;
+
+            for (var slot = vertex * boneWeightCount; slot < (vertex + 1) * boneWeightCount; slot++)
+            {
+                var bone = blendIndices[slot];
+
+                if (bone >= 0 && bone < clothBones.Length && clothBones[bone] && slot < blendWeights.Length)
+                {
+                    total += blendWeights[slot];
+                }
+            }
+
+            paint[vertex] = Math.Clamp(total, 0f, 1f);
+
+            if (paint[vertex] > 0f)
+            {
+                painted++;
+            }
+        }
+
+        if (painted == 0)
+        {
+            return;
+        }
+
+        vertexData.AddIndexedStream("cloth_enable$0", paint, indices);
+    }
+
+    /// <summary>Marks the bones a compiled cloth proxy generated, by skeleton bone index.</summary>
+    private static bool[]? BuildClothBoneMask(Skeleton? skeleton)
+    {
+        if (skeleton == null)
+        {
+            return null;
+        }
+
+        var mask = new bool[skeleton.Bones.Length];
+        var any = false;
+
+        foreach (var bone in skeleton.Bones)
+        {
+            if (bone.IsProceduralCloth && bone.Name.StartsWith('$'))
+            {
+                mask[bone.Index] = true;
+                any = true;
+            }
+        }
+
+        return any ? mask : null;
     }
 
     /// <summary>
@@ -321,6 +416,11 @@ internal static class DmxMeshBuilder
         }
 
         var inputSignatures = new Dictionary<(int, int), Material.VsInputSignature>(mbuf.VertexBuffers.Count);
+        var clothBones = BuildClothBoneMask(options.Skeleton);
+        var clothCompaction = options.Skeleton != null && clothBones != null
+            ? ModelExtract.BuildClothBoneCompaction(options.Skeleton)
+            : null;
+        var clothTriangles = new Dictionary<(int, int), List<int>>();
         var drawCallIndex = 0;
 
         // Draw calls sitting in separate but identically laid out vertex buffers are one mesh in the
@@ -394,13 +494,29 @@ internal static class DmxMeshBuilder
                     options.SubmeshDrawCalls?.Add((dag, drawCall));
                 }
 
+                var drawCallIndices = indexBuffer[startIndex..(startIndex + indexCount)];
+
                 DmxScaffolding.TriangleFaceSetFromIndexBuffer(
                     dag,
-                    indexBuffer[startIndex..(startIndex + indexCount)],
+                    drawCallIndices,
                     baseVertex,
                     material,
                     $"{startIndex}..{startIndex + indexCount}"
                 );
+
+                if (clothBones != null)
+                {
+                    if (!clothTriangles.TryGetValue(dmeVertexBufferKey, out var triangles))
+                    {
+                        triangles = [];
+                        clothTriangles[dmeVertexBufferKey] = triangles;
+                    }
+
+                    foreach (var index in drawCallIndices)
+                    {
+                        triangles.Add(baseVertex + index);
+                    }
+                }
 
                 drawCallIndex++;
             }
@@ -409,11 +525,13 @@ internal static class DmxMeshBuilder
         foreach (var (vertexBufferIndices, dmeObjects) in dmeVertexBuffers)
         {
             var streams = new VertexStreams(inputSignatures.GetValueOrDefault(vertexBufferIndices, Material.VsInputSignature.Empty),
-                mesh.BoneWeightCount, options.BoneRemapTable);
+                mesh.BoneWeightCount, options.BoneRemapTable, clothBones, clothCompaction);
+
+            clothTriangles.TryGetValue(vertexBufferIndices, out var triangles);
 
             if (merged != null)
             {
-                FillDatamodelVertexData(merged.Value.Buffer, dmeObjects.VertexData, streams);
+                FillDatamodelVertexData(merged.Value.Buffer, dmeObjects.VertexData, streams, clothTriangles: triangles);
 
                 if (merged.Value.MergedToolsBuffer is { } mergedToolsBuffer)
                 {
@@ -424,11 +542,11 @@ internal static class DmxMeshBuilder
                 continue;
             }
 
-            FillBufferAndItsToolsBuffers(mbuf.VertexBuffers[vertexBufferIndices.Item1], dmeObjects.VertexData, streams, toolsBuffers);
+            FillBufferAndItsToolsBuffers(mbuf.VertexBuffers[vertexBufferIndices.Item1], dmeObjects.VertexData, streams, toolsBuffers, triangles);
 
             if (vertexBufferIndices.Item2 != -1)
             {
-                FillBufferAndItsToolsBuffers(mbuf.VertexBuffers[vertexBufferIndices.Item2], dmeObjects.VertexData, streams, toolsBuffers);
+                FillBufferAndItsToolsBuffers(mbuf.VertexBuffers[vertexBufferIndices.Item2], dmeObjects.VertexData, streams, toolsBuffers, triangles);
             }
 
             AddCompilerRequiredStreams(dmeObjects.VertexData, (int)mbuf.VertexBuffers[vertexBufferIndices.Item1].ElementCount);
