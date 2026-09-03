@@ -6,6 +6,548 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
 {
     public sealed partial class FeModel
     {
+        // Recovers the authored per-vertex skin weights from the compiled back-solve bookkeeping - see
+        // the RecoveredSkinWeights property remarks for the data model. BuildChainSkinInfluences'
+        // inverse-square-distance synthesis is the fallback for a vertex with no m_CtrlOffsets entry.
+        Dictionary<int, (string Bone, float Weight)[]> RecoverAuthoredSkinWeights(KVObject data)
+        {
+            var recovered = new Dictionary<int, (string Bone, float Weight)[]>();
+            var fitMatrices = data.GetArray("m_FitMatrices");
+            var ctrlOffsets = data.GetArray("m_CtrlOffsets");
+            if (ctrlOffsets is null)
+            {
+                return recovered;
+            }
+
+            var fitWeights = data.GetArray("m_FitWeights") ?? [];
+
+            // flWeight per (vertex, fit bone), from each fit matrix's [begin, nEnd) range of m_FitWeights.
+            var fitPerVertex = new Dictionary<int, Dictionary<int, float>>();
+            var minIncludedWeight = float.MaxValue;
+            var begin = 0;
+            foreach (var fm in fitMatrices ?? [])
+            {
+                var end = fm.GetInt32Property("nEnd");
+                var bone = fm.GetInt32Property("nNode");
+                for (var i = begin; i < end && i < fitWeights.Count; i++)
+                {
+                    var node = fitWeights[i].GetInt32Property("nNode");
+                    var weight = fitWeights[i].GetFloatProperty("flWeight");
+                    if (!fitPerVertex.TryGetValue(node, out var boneWeights))
+                    {
+                        boneWeights = [];
+                        fitPerVertex[node] = boneWeights;
+                    }
+
+                    boneWeights[bone] = weight;
+                    minIncludedWeight = MathF.Min(minIncludedWeight, weight);
+                }
+
+                begin = end;
+            }
+
+            // The primary (rigid-anchor) bone per vertex.
+            var rigidParents = new Dictionary<int, int>();
+            foreach (var e in ctrlOffsets)
+            {
+                rigidParents[e.GetInt32Property("nCtrlChild")] = e.GetInt32Property("nCtrlParent");
+            }
+
+            // Soft-offset alphas per vertex, kept in ARRAY ORDER: the nested-lerp expansion below only
+            // reproduces the fit weights when applied in the order the compiler serialized them.
+            var softPerVertex = new Dictionary<int, List<(int Parent, float Alpha)>>();
+            if (data.GetArray("m_CtrlSoftOffsets") is { } softOffsets)
+            {
+                foreach (var e in softOffsets)
+                {
+                    var child = e.GetInt32Property("nCtrlChild");
+                    if (!softPerVertex.TryGetValue(child, out var list))
+                    {
+                        list = [];
+                        softPerVertex[child] = list;
+                    }
+
+                    list.Add((e.GetInt32Property("nCtrlParent"), e.GetFloatProperty("flAlpha")));
+                }
+            }
+
+            // Expands the nested lerps: start at weight 1 on the primary; each soft offset scales
+            // everything accumulated so far by flAlpha and gives (1 - flAlpha) to its own parent.
+            List<(int Bone, float Weight)> ExpandSoftOffsets(int node, int primary)
+            {
+                var weights = new List<(int Bone, float Weight)> { (primary, 1f) };
+                if (!softPerVertex.TryGetValue(node, out var softs))
+                {
+                    return weights;
+                }
+
+                foreach (var (parent, alpha) in softs)
+                {
+                    for (var i = 0; i < weights.Count; i++)
+                    {
+                        weights[i] = (weights[i].Bone, weights[i].Weight * alpha);
+                    }
+
+                    var existing = weights.FindIndex(w => w.Bone == parent);
+                    if (existing >= 0)
+                    {
+                        weights[existing] = (parent, weights[existing].Weight + (1f - alpha));
+                    }
+                    else
+                    {
+                        weights.Add((parent, 1f - alpha));
+                    }
+                }
+
+                return weights;
+            }
+
+            var maxOmittedWeight = 0f;
+            var fitlessSoft = new List<(int Node, int Primary)>();
+            foreach (var (node, primary) in rigidParents)
+            {
+                if (primary < 0 || primary >= CtrlNames.Length)
+                {
+                    continue;
+                }
+
+                // The offset network alone recovers the weights whenever nothing else consumed the
+                // vertex's authored weight outside it: every vertex of a model with no fit matrix, and
+                // every vertex no fit covers on a model whose fits are taken over CHAIN rings rather
+                // than over the sheet. The compiler drops each authored influence below its keep
+                // threshold and renormalizes the rest, so the network's own expansion is the authored
+                // set as the compiler sees it. Where the SHEET back-solves bones its weights are also
+                // inputs to the compiler's own fit solve, so a vertex the fits leave out keeps the
+                // rigid fallback.
+                if (ProxyFitMatrixNodes.Count == 0)
+                {
+                    // Only a node the original itself compiled as a sheet vertex carries an authored
+                    // proxy skin paint. On a model with no sheet the same offset network describes free
+                    // ClothNode anchors, and reading it as skin weights re-binds the synthesised
+                    // stand-in sheet to bones the author never painted.
+                    if (!IsProxyMeshNode(node))
+                    {
+                        continue;
+                    }
+
+                    // Left in the compiled array's own order (primary, then each soft offset as
+                    // serialized) rather than sorted by weight: that order is the authored influence
+                    // slot order, which the importer keeps for influences of equal weight.
+                    var painted = new List<(string Bone, float Weight)>();
+                    foreach (var (bone, weight) in ExpandSoftOffsets(node, primary))
+                    {
+                        if (weight > 0f && bone < CtrlNames.Length)
+                        {
+                            painted.Add((CtrlNames[bone], weight));
+                        }
+                    }
+
+                    SnapToBytePartition(painted);
+                    recovered[node] = [.. painted];
+                    continue;
+                }
+
+                // A pinned vertex takes no part in the fits, so its soft-offset expansion is the
+                // complete authored influence list, exactly as on a model with no fit matrices.
+                // It is emitted only where it cannot restate the vertex's own class: every influence
+                // static, and the primary still the strict maximum. Any other pin keeps its single
+                // rigid anchor.
+                if (IsStatic(node))
+                {
+                    var pinned = new List<(string Bone, float Weight)>();
+                    var pinnedToStatics = true;
+                    var anchorWeight = 0f;
+                    var rival = 0f;
+                    foreach (var (bone, weight) in ExpandSoftOffsets(node, primary))
+                    {
+                        if (weight <= 0f || bone >= CtrlNames.Length)
+                        {
+                            continue;
+                        }
+
+                        if (!IsStatic(bone))
+                        {
+                            pinnedToStatics = false;
+                            break;
+                        }
+
+                        if (bone == primary)
+                        {
+                            anchorWeight = weight;
+                        }
+                        else
+                        {
+                            rival = MathF.Max(rival, weight);
+                        }
+
+                        pinned.Add((CtrlNames[bone], weight));
+                    }
+
+                    if (pinnedToStatics && pinned.Count > 0 && anchorWeight > rival)
+                    {
+                        SnapToBytePartition(pinned);
+                        recovered[node] = [.. pinned];
+                    }
+                    else
+                    {
+                        recovered[node] = [(CtrlNames[primary], 1f)];
+                    }
+
+                    continue;
+                }
+
+                // A simulated vertex needs at least one fit entry to anchor the ABSOLUTE weight scale
+                // (soft-offset alphas alone are renormalized over the dynamic bones). Without any fit
+                // entry: no soft offsets either means the compiled data itself says the vertex is
+                // anchored 100% to its primary bone; with soft offsets the fit solve this sheet feeds
+                // is what decides the rest, so those are left to the fallback.
+                if (!fitPerVertex.TryGetValue(node, out var fits))
+                {
+                    if (!softPerVertex.ContainsKey(node))
+                    {
+                        recovered[node] = [(CtrlNames[primary], 1f)];
+                    }
+                    else
+                    {
+                        fitlessSoft.Add((node, primary));
+                    }
+
+                    continue;
+                }
+
+                var dynamicWeights = ExpandSoftOffsets(node, primary);
+
+                // Absolute scale from the largest fit-covered component (numerically safest anchor).
+                var scale = 1f;
+                var bestNormalized = 0f;
+                foreach (var (bone, normalized) in dynamicWeights)
+                {
+                    if (normalized > bestNormalized && fits.TryGetValue(bone, out var fitValue) && normalized > 0f)
+                    {
+                        bestNormalized = normalized;
+                        scale = fitValue / normalized;
+                    }
+                }
+
+                var influences = new List<(string Bone, float Weight)>(dynamicWeights.Count + 1);
+                var total = 0f;
+                foreach (var (bone, normalized) in dynamicWeights)
+                {
+                    var weight = normalized * scale;
+                    if (weight <= 0f || bone >= CtrlNames.Length)
+                    {
+                        continue;
+                    }
+
+                    influences.Add((CtrlNames[bone], weight));
+                    total += weight;
+                    if (!fits.ContainsKey(bone))
+                    {
+                        maxOmittedWeight = MathF.Max(maxOmittedWeight, weight);
+                    }
+                }
+
+                // The rest of the authored weight went to a static bone (below the original's back-solve
+                // threshold or simply not back-solvable) - the primary's nearest static real ancestor.
+                var remainder = 1f - total;
+                if (remainder > 1e-4f)
+                {
+                    var anchor = FindStaticRealAncestor(primary);
+                    if (anchor >= 0)
+                    {
+                        influences.Add((CtrlNames[anchor], remainder));
+                    }
+                }
+
+                influences.Sort(static (a, b) => b.Weight.CompareTo(a.Weight));
+                EnsureAnchorMostBound(influences, CtrlNames[primary]);
+                recovered[node] = [.. influences];
+            }
+
+            float? threshold = maxOmittedWeight > 0f && minIncludedWeight < float.MaxValue && maxOmittedWeight < minIncludedWeight
+                ? (maxOmittedWeight + minIncludedWeight) * 0.5f
+                : null;
+
+            // A vertex with soft offsets but no fit row: every authored weight it put on a fit-solved
+            // bone sat under the back-solve threshold, so the expansion is the complete paint. Taken
+            // over only where the recompile prunes the same weights again (each fit-bone influence
+            // under the threshold the recompile runs at); anything else keeps the fallback.
+            // Restricted to STATIC primaries, and to dynamic influence bones that some vertex outside
+            // this fitless set is still rigid-anchored to: either one alone leaves a back-solved bone
+            // fitted over essentially one vertex, which is a degenerate most-bound-joint solve.
+            var fitlessNodes = new HashSet<int>(fitlessSoft.Count);
+            foreach (var (node, _) in fitlessSoft)
+            {
+                fitlessNodes.Add(node);
+            }
+
+            var drivenDynamicBones = new HashSet<int>();
+            foreach (var (node, parent) in rigidParents)
+            {
+                if (!fitlessNodes.Contains(node) && !IsStatic(node))
+                {
+                    drivenDynamicBones.Add(parent);
+                }
+            }
+
+            foreach (var (node, primary) in fitlessSoft)
+            {
+                if (!IsStatic(primary))
+                {
+                    continue;
+                }
+
+                var painted = new List<(string Bone, float Weight)>();
+                var prunable = true;
+                foreach (var (bone, weight) in ExpandSoftOffsets(node, primary))
+                {
+                    if (weight <= 0f || bone >= CtrlNames.Length)
+                    {
+                        continue;
+                    }
+
+                    if (FitMatrixNodes.Contains(bone) && (threshold is not { } t || weight >= t))
+                    {
+                        prunable = false;
+                        break;
+                    }
+
+                    if (!IsStatic(bone) && !drivenDynamicBones.Contains(bone))
+                    {
+                        prunable = false;
+                        break;
+                    }
+
+                    painted.Add((CtrlNames[bone], weight));
+                }
+
+                if (!prunable || painted.Count == 0)
+                {
+                    continue;
+                }
+
+                SnapToBytePartition(painted);
+                recovered[node] = [.. painted];
+            }
+
+            return recovered;
+        }
+
+        /// <summary>
+        /// The ModelDoc default for <c>ClothProxyMeshFile.back_solve_influence_threshold</c>.
+        /// </summary>
+        public const float DefaultBackSolveInfluenceThreshold = 0.05f;
+
+        /// <summary>
+        /// The number of surviving influence vertices at which the compiler shape-fits a bone with an
+        /// <c>m_FitMatrices</c> least-squares solve. A bone left with fewer takes an <c>m_NodeBases</c>
+        /// rigid frame built from its most-influential node's neighbours instead, and a bone left with
+        /// none stops being position-driven at all.
+        /// </summary>
+        public const int FitMatrixMinInfluences = 8;
+
+        /// <summary>
+        /// The per-vertex skin influence slots a cloth proxy DMX carries for a sheet that back-solves
+        /// bones. Influences past the last slot are not exported and never reach the back-solve.
+        /// </summary>
+        public const int ClothProxyInfluenceSlots = 4;
+
+        /// <summary>
+        /// Gets the <c>back_solve_influence_threshold</c> to author for <paramref name="proxy"/>: the
+        /// minimum skin weight at which a vertex contributes to a bone's back-solved fit. The compiler
+        /// drops every lighter influence before it partitions the bones the sheet drives by the
+        /// <see cref="FitMatrixMinInfluences"/> count.
+        /// <para>
+        /// <see cref="DefaultBackSolveInfluenceThreshold"/>, unless this proxy's own compiled data proves
+        /// the original ran lower - a weight it demonstrably KEPT that the default would prune. Three
+        /// things are proven kept: a weight inside an <c>m_FitWeights</c> range, the
+        /// <see cref="FitMatrixMinInfluences"/>th heaviest weight on a bone that ships a fit matrix, and
+        /// the heaviest weight on a position-driven bone whose frame is a node base. The result is then
+        /// the midpoint between that weight and the heaviest weight the original demonstrably DROPPED
+        /// (one painted on a fit bone at a vertex its <c>m_FitWeights</c> range omits); where the two
+        /// disagree the keep bound wins, since it is read straight out of the original's own arrays
+        /// while the drop bound is only as good as the recovered paint.
+        /// </para>
+        /// </summary>
+        public float GetBackSolveInfluenceThreshold(ProxyMesh proxy)
+        {
+            var ctrlIndex = new Dictionary<string, int>(CtrlNames.Length, StringComparer.OrdinalIgnoreCase);
+            for (var i = 0; i < CtrlNames.Length; i++)
+            {
+                ctrlIndex.TryAdd(CtrlNames[i], i);
+            }
+
+            var proxyNodes = new HashSet<int>(proxy.NodeIndices);
+            var fitTargets = new Dictionary<int, HashSet<int>>(FitMatrixTargets.Count);
+            foreach (var (bone, targets) in FitMatrixTargets)
+            {
+                var covered = new HashSet<int>(targets);
+                if (covered.Overlaps(proxyNodes))
+                {
+                    fitTargets[bone] = covered;
+                }
+            }
+
+            // Only the influences the proxy DMX has slots for reach the compiler at all - a sheet that
+            // back-solves anything ships four per vertex and drops the rest.
+            var slots = ProxyFitMatrixNodes.Count == 0 ? int.MaxValue : ClothProxyInfluenceSlots;
+            var painted = new Dictionary<int, List<(int Node, float Weight)>>();
+            for (var v = 0; v < proxy.NodeIndices.Length && v < proxy.SkinInfluences.Length; v++)
+            {
+                var node = proxy.NodeIndices[v];
+                var slot = 0;
+                foreach (var (boneName, weight) in proxy.SkinInfluences[v])
+                {
+                    if (slot >= slots)
+                    {
+                        break;
+                    }
+
+                    if (!ctrlIndex.TryGetValue(boneName, out var bone))
+                    {
+                        continue;
+                    }
+
+                    slot++;
+                    if (weight <= 0f || IsProxyNodeName(CtrlNames[bone]) || IsStatic(bone))
+                    {
+                        continue;
+                    }
+
+                    if (!painted.TryGetValue(bone, out var influences))
+                    {
+                        influences = [];
+                        painted[bone] = influences;
+                    }
+
+                    influences.Add((node, weight));
+                }
+            }
+
+            var kept = float.MaxValue;
+            var dropped = 0f;
+            foreach (var (bone, influences) in painted)
+            {
+                if (fitTargets.TryGetValue(bone, out var covered))
+                {
+                    foreach (var (node, weight) in influences)
+                    {
+                        if (covered.Contains(node))
+                        {
+                            kept = MathF.Min(kept, weight);
+                        }
+                        else
+                        {
+                            dropped = MathF.Max(dropped, weight);
+                        }
+                    }
+
+                    if (influences.Count >= FitMatrixMinInfluences)
+                    {
+                        var weights = influences.ConvertAll(static i => i.Weight);
+                        weights.Sort();
+                        kept = MathF.Min(kept, weights[^FitMatrixMinInfluences]);
+                    }
+                }
+                else if (NodeBases.ContainsKey(bone) && IsPositionDriven(bone))
+                {
+                    var heaviest = 0f;
+                    foreach (var (_, weight) in influences)
+                    {
+                        heaviest = MathF.Max(heaviest, weight);
+                    }
+
+                    kept = MathF.Min(kept, heaviest);
+                }
+            }
+
+            if (kept >= DefaultBackSolveInfluenceThreshold)
+            {
+                return DefaultBackSolveInfluenceThreshold;
+            }
+
+            return dropped < kept ? (dropped + kept) * 0.5f : kept * 0.5f;
+        }
+
+        // Walks the skeleton-parent chain from `node` (exclusive) up to the first STATIC real-bone
+        // control node - the bone the author's remaining (non-back-solved) skin weight is assigned to.
+        int FindStaticRealAncestor(int node)
+        {
+            var p = node >= 0 && node < SkelParents.Length ? SkelParents[node] : -1;
+            var guard = 0;
+            while (p >= 0 && p < CtrlNames.Length && guard++ < 256)
+            {
+                if (!IsProxyNodeName(CtrlNames[p]) && IsStatic(p))
+                {
+                    return p;
+                }
+
+                p = p < SkelParents.Length ? SkelParents[p] : -1;
+            }
+
+            return -1;
+        }
+
+        // The mesh pipeline canonicalizes a vertex's influences and anchors the compiled node on the
+        // strictly heaviest joint, so an anchor that only ties at the top is re-anchored by joint index
+        // instead. Raising it one ulp above the heaviest rival makes it the strict maximum again. A
+        // genuinely lighter anchor is left alone.
+        static void EnsureAnchorMostBound(List<(string Bone, float Weight)> influences, string anchor)
+        {
+            var primaryIndex = influences.FindIndex(i => i.Bone == anchor);
+            if (primaryIndex < 0)
+            {
+                return;
+            }
+
+            var rivals = 0f;
+            for (var i = 0; i < influences.Count; i++)
+            {
+                if (i != primaryIndex)
+                {
+                    rivals = MathF.Max(rivals, influences[i].Weight);
+                }
+            }
+
+            var weight = influences[primaryIndex].Weight;
+            if (weight <= rivals && rivals - weight <= 1e-5f * rivals)
+            {
+                influences.RemoveAt(primaryIndex);
+                influences.Insert(0, (anchor, MathF.BitIncrement(rivals)));
+            }
+        }
+
+        // Restores a vertex's authored 1/255 weight quantum where the expansion lands on a whole-byte
+        // partition of 255 and only the float32 alpha chain moved it off, which leaves influences the
+        // author painted equal no longer equal and reorders them under the importer's weight sort. A
+        // set that resolves to no such partition is left exactly as recovered.
+        static void SnapToBytePartition(List<(string Bone, float Weight)> influences)
+        {
+            var bytes = new int[influences.Count];
+            var total = 0;
+            for (var i = 0; i < influences.Count; i++)
+            {
+                var scaled = influences[i].Weight * 255f;
+                var rounded = MathF.Round(scaled);
+                if (MathF.Abs(scaled - rounded) > 0.01f)
+                {
+                    return;
+                }
+
+                bytes[i] = (int)rounded;
+                total += bytes[i];
+            }
+
+            if (total != 255)
+            {
+                return;
+            }
+
+            for (var i = 0; i < influences.Count; i++)
+            {
+                influences[i] = (influences[i].Bone, bytes[i] / 255f);
+            }
+        }
 
         // Reads an array of cloth faces (m_Quads/m_Tris), returning each face's nNode index list.
         static int[][] ReadNodeIndexArray(KVObject data, string key, int expectedLength)
@@ -118,6 +660,22 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// </summary>
         public int[][] SourceFaces { get; } = [];
 
+        // Whether a bone anchors any proxy-sheet vertex, which is what registers it as a control node
+        // independently of any cloth chain that also names it.
+        bool DrivesProxySheetVertex(int node)
+        {
+            foreach (var offset in CtrlOffsets)
+            {
+                if (offset.CtrlParent == node && offset.CtrlChild >= 0 && offset.CtrlChild < CtrlNames.Length
+                    && ParseProxyMeshIndex(CtrlNames[offset.CtrlChild]) >= 0)
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
         // A source element identified by its corner set alone. A chain surface is recorded once per
         // winding with its corners rotated freely, so membership is the only stable part of it.
         static string SurfaceElementKey(IEnumerable<int> corners)
@@ -163,6 +721,41 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             }
 
             return derived;
+        }
+
+        /// <summary>
+        /// Gets the authored <c>additional_shear_stretch</c>. A SHEET rod's <c>flRelaxationFactor</c> is
+        /// <c>exp(-stretch)</c>, where a face edge uses the surface stretch and a face diagonal uses the
+        /// surface stretch plus this value, so the slackest sheet rod recovers it. A chain rod carries its
+        /// joint's own spring stiffness on the same field and belongs to a different population, so only
+        /// rods between two proxy-sheet vertices are read. The compiler clamps the authored value at zero,
+        /// which is why a negative original is indistinguishable from zero.
+        /// </summary>
+        public float AdditionalShearStretch
+        {
+            get
+            {
+                var slackest = float.MaxValue;
+                foreach (var rod in Rods)
+                {
+                    if (!IsProxyMeshNode(rod.NodeA) || !IsProxyMeshNode(rod.NodeB))
+                    {
+                        continue;
+                    }
+
+                    if (rod.RelaxationFactor > 0f && rod.RelaxationFactor < slackest)
+                    {
+                        slackest = rod.RelaxationFactor;
+                    }
+                }
+
+                if (slackest is float.MaxValue or >= 1f)
+                {
+                    return 0f;
+                }
+
+                return Math.Max(0f, -MathF.Log(slackest) - DefaultSurfaceStretch);
+            }
         }
 
         /// <summary>
@@ -374,6 +967,144 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             }
 
             return -1;
+        }
+
+        // Builds the smooth skin influences of a SIMULATED proxy vertex: inverse-distance weights over the
+        // nearest joints of the anchor's bone chain (up to 4, thresholded - see below). A bone the
+        // compiler back-solves a fit matrix for needs several weighted vertices; one that carries hard
+        // single-bone weights is driven as a point rope instead.
+        (string Bone, float Weight)[] BuildChainSkinInfluences(int node)
+        {
+            var anchor = ResolveSkinBoneNode(node);
+            if (anchor < 0)
+            {
+                return [];
+            }
+
+            if (node >= InitPosePositions.Length)
+            {
+                return [(CtrlNames[anchor], 1f)];
+            }
+
+            // Inverse-square distance weights over the (up to) four nearest chain joints. A fit matrix
+            // needs several well-separated weighted points per bone, or the compiler falls back to a point
+            // rope for that joint. The original per-vertex weights are hand-painted art data rather than a
+            // function of bone-to-vertex distance, so no distance formula reproduces them exactly.
+            var weighted = new List<(int Node, float Distance)>();
+            foreach (var candidate in GetChainComponent(anchor))
+            {
+                if (candidate < InitPosePositions.Length)
+                {
+                    weighted.Add((candidate, Vector3.Distance(InitPosePositions[node], InitPosePositions[candidate])));
+                }
+            }
+
+            if (weighted.Count == 0)
+            {
+                return [(CtrlNames[anchor], 1f)];
+            }
+
+            weighted.Sort(static (a, b) => a.Distance.CompareTo(b.Distance));
+            if (weighted[0].Distance <= 1e-6f)
+            {
+                return [(CtrlNames[weighted[0].Node], 1f)];
+            }
+
+            // Keep only influences within 16% of the strongest weight (of the 4 nearest). The compiler
+            // back-solves a fit matrix from whichever vertices reference a bone, so a flat Take(4) covers
+            // each bone with long-tail influences the original has no entry for. Thresholding lets
+            // tightly-clustered vertices keep 2-3 influences and sparse ones keep 4.
+            var top = new List<(int Node, float Weight)>(4);
+            foreach (var (candidate, distance) in weighted.Take(4))
+            {
+                top.Add((candidate, 1f / (distance * distance)));
+            }
+
+            var maxWeight = top[0].Weight;
+            var influences = new List<(string Bone, float Weight)>(4);
+            var total = 0f;
+            foreach (var (candidate, weight) in top)
+            {
+                if (weight < maxWeight * 0.16f)
+                {
+                    continue;
+                }
+
+                influences.Add((CtrlNames[candidate], weight));
+                total += weight;
+            }
+
+            return [.. influences.Select(i => (i.Bone, i.Weight / total))];
+        }
+
+        // The real-bone control nodes on the SAME physical chain as `bone`: its real-bone ancestors up to
+        // (but not through) the nearest BRANCH POINT - a real ancestor with more than one real-bone child -
+        // plus every real descendant below that point. Two sibling chains sharing only a common real
+        // ancestor stay separate pools, so a vertex's nearest-joint search cannot draw candidates from
+        // both sides of the branch at once.
+        List<int> GetChainComponent(int bone)
+        {
+            var n = CtrlNames.Length;
+
+            // realParent[i]: parent among real bones, or -1.
+            var realParent = new int[n];
+            for (var i = 0; i < n; i++)
+            {
+                realParent[i] = -1;
+                if (IsProxyNodeName(CtrlNames[i]))
+                {
+                    continue;
+                }
+
+                var p = i < SkelParents.Length ? SkelParents[i] : -1;
+                if (p >= 0 && p < n && !IsProxyNodeName(CtrlNames[p]))
+                {
+                    realParent[i] = p;
+                }
+            }
+
+            // childCount[p]: number of real-bone nodes whose real parent is p - used to detect a branch
+            // point (a shared ancestor of two or more distinct chains) that the upward walk must stop at.
+            var childCount = new int[n];
+            for (var i = 0; i < n; i++)
+            {
+                if (realParent[i] >= 0)
+                {
+                    childCount[realParent[i]]++;
+                }
+            }
+
+            // A vertex whose own nearest real ancestor already IS a branch point stays pinned to that hub
+            // bone alone rather than being distributed across the sibling chains hanging off it.
+            if (childCount[bone] > 1)
+            {
+                return [bone];
+            }
+
+            var root = bone;
+            var guard = 0;
+            while (realParent[root] >= 0 && childCount[realParent[root]] <= 1 && guard++ < 256)
+            {
+                root = realParent[root];
+            }
+
+            var component = new List<int>();
+            var stack = new Stack<int>();
+            stack.Push(root);
+            while (stack.Count > 0)
+            {
+                var current = stack.Pop();
+                component.Add(current);
+                for (var i = 0; i < n; i++)
+                {
+                    if (realParent[i] == current)
+                    {
+                        stack.Push(i);
+                    }
+                }
+            }
+
+            return component;
         }
     }
 }
