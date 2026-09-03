@@ -306,7 +306,58 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// </summary>
         public bool HasTwistToParent(int node, int parent)
             => parent >= 0 && TwistLinks.Contains(node < parent ? (node, parent) : (parent, node));
+
+        /// <summary>
+        /// Gets whether the joint at <paramref name="node"/> was authored with a non-zero
+        /// <c>twist_relax</c>. A twist pair belongs to the CHILD of the link it spans, so an interior joint
+        /// has to be matched against its own <paramref name="parent"/> - reading bare membership there
+        /// gives every joint above a twisted one a spurious twist of its own. A chain ROOT has no parent
+        /// link to match, and its authored value still steers the first link's relaxation, so membership
+        /// is the right test there.
+        /// </summary>
+        public bool HasAuthoredTwist(int node, int parent)
+            => parent >= 0 ? HasTwistToParent(node, parent) : TwistNodes.ContainsKey(node);
+
+        /// <summary>
+        /// Gets every parsed <c>m_Twists</c> entry's <c>flTwistRelax</c>, keyed by its directed
+        /// (<c>nNodeOrient</c>, <c>nNodeEnd</c>) pair. The value at a directed entry is always the ORIENT
+        /// node's own authored <c>twist_relax</c>, scaled by <see cref="TwistRelaxToParentFactor"/> when
+        /// <c>end</c> is orient's own chain parent or by <see cref="TwistRelaxToChildFactor"/> when
+        /// <c>end</c> is one of orient's own children. A joint that also generates an extrusion
+        /// ring/center node carries a flat 0.5 on its OWN entry toward its parent, so
+        /// <see cref="GetAuthoredTwistRelax"/> reads its entry toward the ring instead, which stays on
+        /// the normal child-branch factor.
+        /// </summary>
+        public IReadOnlyDictionary<(int Orient, int End), float> TwistRelaxByLink { get; }
+
+        // The two branch factors sum to 1.
+        internal const float TwistRelaxToParentFactor = 0.6180339887498949f;
         internal const float TwistRelaxToChildFactor = 0.3819660112501051f;
+
+        /// <summary>
+        /// Recovers the joint's own authored <c>twist_relax</c> at <paramref name="node"/> from its
+        /// directed <c>m_Twists</c> entries. Prefers the entry toward its own extrusion ring/center node
+        /// (<paramref name="proxyNode"/>) when it has one, since a ring-generating joint's entry toward
+        /// its own chain parent is overridden by the compiler to a flat 0.5 regardless of the authored
+        /// value. Falls back to the entry toward <paramref name="parent"/>, and for a chain root, which
+        /// has no parent-ward entry, to any entry naming it as orient.
+        /// </summary>
+        public float GetAuthoredTwistRelax(int node, int parent, int proxyNode)
+        {
+            if (proxyNode >= 0 && TwistRelaxByLink.TryGetValue((node, proxyNode), out var toRing))
+            {
+                return toRing / TwistRelaxToChildFactor;
+            }
+
+            if (parent >= 0 && TwistRelaxByLink.TryGetValue((node, parent), out var toParent))
+            {
+                return toParent / TwistRelaxToParentFactor;
+            }
+
+            return twistOrientFallback.TryGetValue(node, out var toAnyChild)
+                ? toAnyChild / TwistRelaxToChildFactor
+                : 0f;
+        }
 
         private readonly Dictionary<int, float> twistOrientFallback = [];
 
@@ -316,7 +367,100 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         // Base gravity acceleration (inches/s^2) that a source gravity_z of 1.0 maps to; used to turn the
         // compiled per-node flGravity back into the source gravity_z scale (ClothChain joints and ClothNode).
         internal const float ClothSourceBaseGravity = 360f;
+
+        // Outside this range the compiler skips the attraction solve and writes goal_damping through
+        // unchanged, so the inverse is the identity.
+        internal const float GoalDampingSolveMaxAttraction = 0.9999f;
         internal const float GoalDampingSolveMinAttraction = 0.0001f;
+
+        /// <summary>
+        /// Recovers the source <c>goal_strength</c> from a node's compiled
+        /// <c>flAnimationForceAttraction</c>, which the compiler writes as the cube of it.
+        /// </summary>
+        public static float GoalStrengthFromAttraction(float forceAttraction)
+            => MathF.Cbrt(Math.Clamp(forceAttraction, 0f, 1f));
+
+        /// <summary>
+        /// Recovers the source <c>goal_damping</c> from a node's compiled attractions, inverting the
+        /// builder's <c>va = 1 - ((1-fa) / (sqrt((1-fa)*fa + d*d) + d))^2 * fa</c>, where <c>fa</c> is
+        /// <c>flAnimationForceAttraction</c> and <c>d</c> the source damping. Legacy nodes compiled with an
+        /// out-of-range attraction clamp to the strongest damping the modern solver can express.
+        /// </summary>
+        public static float GoalDampingFromAttraction(float forceAttraction, float vertexAttraction)
+        {
+            if (forceAttraction is >= GoalDampingSolveMaxAttraction or < GoalDampingSolveMinAttraction)
+            {
+                return Math.Clamp(vertexAttraction, 0f, 1f);
+            }
+
+            var t = MathF.Sqrt(Math.Clamp(1f - vertexAttraction, 0f, 1f) / forceAttraction);
+            if (t <= 0f)
+            {
+                return 1f;
+            }
+
+            var s = (1f - forceAttraction) / t;
+            return Math.Clamp((s * s - (1f - forceAttraction) * forceAttraction) / (2f * s), 0f, 1f);
+        }
+
+        // The cloth_animation_force_attract / cloth_animation_attract paints compile into
+        // flAnimationForceAttraction / flAnimationVertexAttraction at 30x, the same scale cloth_drag uses,
+        // with no clamp at 1.
+        internal const float ClothRawGoalScale = 30f;
+
+        // The m_n*NodeFlags bits a node's own goal values raise: 0x80 on the goal-damped integrator,
+        // 0x200/0x400 on the raw one.
+        const uint NodeFlagGoalAttraction = 0x80;
+        const uint NodeFlagRawForceAttraction = 0x200;
+        const uint NodeFlagRawVertexAttraction = 0x400;
+
+        /// <summary>
+        /// Gets whether <paramref name="node"/> compiled on the goal-damped spring integrator rather than
+        /// the raw one. <see cref="GoalDampedSpringIntegrators"/> carries one bit per dynamic node and is
+        /// populated only for a model holding both kinds; otherwise the node's own band flags name the one
+        /// kind present, and a band holding both is decided from the node's values - see
+        /// <see cref="GoalSolveCanProduce"/>.
+        /// </summary>
+        public bool UsesGoalDampedIntegrator(int node)
+        {
+            var dynamicIndex = node - StaticNodeCount;
+            if (dynamicIndex >= 0 && (dynamicIndex >> 5) < GoalDampedSpringIntegrators.Length)
+            {
+                return (GoalDampedSpringIntegrators[dynamicIndex >> 5] & (1u << (dynamicIndex & 31))) != 0;
+            }
+
+            var flags = dynamicIndex >= 0 ? DynamicNodeFlags : StaticNodeFlags;
+            if ((flags & (NodeFlagRawForceAttraction | NodeFlagRawVertexAttraction)) == 0)
+            {
+                return true;
+            }
+
+            if ((flags & NodeFlagGoalAttraction) == 0)
+            {
+                return false;
+            }
+
+            var integrator = GetIntegrator(node);
+            return GoalSolveCanProduce(integrator.ForceAttraction, integrator.VertexAttraction);
+        }
+
+        /// <summary>
+        /// Whether the goal-damped solve can reach this attraction pair: both halves inside the 0..1 paint
+        /// range, and the vertex attraction at or above the force attraction, which the solve only lifts.
+        /// Outside its own solve range (<see cref="GoalDampingSolveMinAttraction"/>,
+        /// <see cref="GoalDampingSolveMaxAttraction"/>) the compiler writes the damping through unchanged,
+        /// so the two halves are then unrelated.
+        /// </summary>
+        static bool GoalSolveCanProduce(float forceAttraction, float vertexAttraction)
+        {
+            if (forceAttraction is < 0f or > 1f || vertexAttraction is < 0f or > 1f)
+            {
+                return false;
+            }
+
+            return forceAttraction is >= GoalDampingSolveMaxAttraction or < GoalDampingSolveMinAttraction
+                || vertexAttraction >= forceAttraction - 1e-4f;
+        }
 
         // Rope cloth ships no m_SkelParents. Two records of which node follows which survive: m_Ropes (its
         // first m_nRopeCount entries are the exclusive end offsets of the ordered node runs that follow)
@@ -391,6 +535,33 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
 
             values.Add(relaxation);
         }
+
+        /// <summary>
+        /// Gets whether every simulated node collides with the world, which is how the source's
+        /// force-world-collision-on-all-nodes switch shows up (the switch itself leaves no flag bit).
+        /// </summary>
+        public bool ForcesWorldCollisionOnAllNodes
+            => NodeCount > StaticNodeCount && WorldCollisionNodes.Count == NodeCount - StaticNodeCount;
+
+        /// <summary>
+        /// Gets the ground friction shared by the world-colliding nodes, which is what the source authored
+        /// as the cloth's default. Zero when the model has no world collision params.
+        /// </summary>
+        public float DefaultGroundFriction => WorldCollisionFriction.Count > 0
+            ? WorldCollisionFriction.Values.GroupBy(static f => f.Ground).OrderByDescending(static g => g.Count()).First().Key
+            : 0f;
+
+        /// <summary>Gets the stray radius for <paramref name="node"/>, or 0 when unconstrained.</summary>
+        public float GetStrayRadius(int node) => AnimStrayRadii.GetValueOrDefault(node).MaxDistance;
+
+        /// <summary>
+        /// Gets the authored stray-radius stretchiness of <paramref name="node"/>: the complement of the
+        /// compiled relaxation factor, 0 for a node with no stray radius. A fully stretchy constraint
+        /// relaxes to nothing and the compiler drops it, so the two are not interchangeable - writing the
+        /// relaxation factor into the authored key deletes the constraint it was recovered from.
+        /// </summary>
+        public float GetStrayStretchiness(int node)
+            => AnimStrayRadii.TryGetValue(node, out var stray) ? 1f - stray.RelaxationFactor : 0f;
 
         /// <summary>
         /// Gets whether <paramref name="node"/> keeps its rotation free. Static nodes are ordered
@@ -473,8 +644,37 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// </summary>
         public bool IsLockedToGoal(int node) => Array.IndexOf(LockToGoal, node) >= 0;
 
+        /// <summary>
+        /// Recovers the per-vertex normal of a proxy sheet from the compiled rest poses.
+        /// <para>
+        /// The cloth importer derives each proxy vertex's rest ORIENTATION from that vertex's normal and
+        /// nothing else: the compiled <c>m_InitPose</c> rotation is the frame whose local +Z is the vertex
+        /// normal, unaffected by the skinning, the UVs or the mesh dag. So the normal a sheet ships fixes
+        /// the rest orientation of every node it creates, and that axis is recoverable from the pose.
+        /// </para>
+        /// </summary>
+        public Vector3[] RecoverRestNormals(ProxyMesh proxy)
+        {
+            var normals = new Vector3[proxy.Positions.Length];
+            for (var v = 0; v < normals.Length; v++)
+            {
+                var node = v < proxy.NodeIndices.Length ? proxy.NodeIndices[v] : -1;
+                var rotation = node >= 0 && node < InitPoseRotations.Length
+                    ? InitPoseRotations[node]
+                    : Quaternion.Identity;
+
+                var axis = Vector3.Transform(Vector3.UnitZ, rotation);
+                normals[v] = axis.LengthSquared() > 1e-12f ? Vector3.Normalize(axis) : Vector3.UnitZ;
+            }
+
+            return normals;
+        }
+
         bool HasProxyMeshNodes => hasProxyMeshNodes ??= CtrlNames.Any(static name => name.StartsWith("$cloth_m", StringComparison.Ordinal));
         bool? hasProxyMeshNodes;
+
+        /// <summary>Gets the friction painted on <paramref name="node"/>, or 0 when it has none.</summary>
+        public float GetNodeFriction(int node) => DynamicNodeValue(DynNodeFriction, node);
 
         // Scalar cloth solver parameters (surfaced as <c>ClothParams</c> when rebuilding source).
 #pragma warning disable CS1591
@@ -1151,7 +1351,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// per DYNAMIC node, word <c>i &gt;&gt; 5</c> bit <c>i &amp; 31</c> for node
         /// <c>i + <see cref="StaticNodeCount"/></c>, set for a node on the goal-damped integrator. The
         /// compiler emits it only for a model whose dynamic nodes hold both integrator kinds, so it is
-        /// empty on most models. Read through <c>UsesGoalDampedIntegrator</c>.
+        /// empty on most models. Read through <see cref="UsesGoalDampedIntegrator(int)"/>.
         /// </summary>
         public uint[] GoalDampedSpringIntegrators { get; }
 
@@ -1649,6 +1849,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
 
             TwistNodes = twistNodes;
             TwistLinks = twistLinks;
+            TwistRelaxByLink = twistRelaxByLink;
 
             var nodeBases = new Dictionary<int, NodeBasis>();
             if (data.GetArray("m_NodeBases") is { } nodeBasesArray)
