@@ -198,6 +198,15 @@ internal static class DmxMeshBuilder
                 }
 
                 clothBlendIndices = (int[])compactIndices.Clone();
+
+                if (streams.ClothCompaction != null)
+                {
+                    for (var i = 0; i < compactIndices.Length; i++)
+                    {
+                        compactIndices[i] = ModelExtract.CompactBoneIndex(streams.ClothCompaction, compactIndices[i]);
+                    }
+                }
+
                 vertexData.AddStream(semantic, compactIndices);
                 continue;
             }
