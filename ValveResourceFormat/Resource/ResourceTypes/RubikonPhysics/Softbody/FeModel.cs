@@ -670,8 +670,522 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             return normals;
         }
 
+        /// <summary>
+        /// Recovers the <c>cloth_mass</c> paint of an authored-face proxy sheet, or null when the sheet
+        /// carries none (or none can be recovered).
+        /// <para>
+        /// The compiler gives a node the mass
+        /// <c>G * mass^2 + expf(paint * cloth_mass_scale)</c>, where <c>G</c> is the geometric term
+        /// <see cref="GeometricNodeMasses"/> derives and <c>mass</c> is the node's authored mass
+        /// multiplier, which the compiler applies once while balancing the global multipliers and once
+        /// more when it combines the terms. Every cloth node this export writes carries the default
+        /// multiplier 1, so the paint is read straight off what the shipped mass carries beyond the
+        /// geometric term, and the exponential is there only when the mesh ships a <c>cloth_mass</c>
+        /// stream at all.
+        /// </para>
+        /// <para>
+        /// Only a sheet exported with its AUTHORED faces qualifies, and within it only a vertex the
+        /// authored topology reaches. A synthesised triangulation compiles to a network of its own, so
+        /// the shipped mass and the geometric term would describe different surfaces and their
+        /// difference would measure that gap rather than any paint.
+        /// </para>
+        /// </summary>
+        public float[]? RecoverMassPaint(ProxyMesh proxy)
+        {
+            if (!proxy.UsesAuthoredFaces)
+            {
+                return null;
+            }
+
+            var count = proxy.Positions.Length;
+            var geometric = GeometricNodeMasses();
+            var paint = new float[count];
+            var painted = 0;
+            var clamped = 0;
+
+            for (var v = 0; v < count; v++)
+            {
+                var node = proxy.NodeIndices[v];
+                var invMass = node >= 0 && node < NodeInvMasses.Length ? NodeInvMasses[node] : 0f;
+                if (invMass <= 0f || invMass >= 1f)
+                {
+                    continue;
+                }
+
+                if (node >= geometric.Length || geometric[node] <= 0f)
+                {
+                    clamped++;
+                    continue;
+                }
+
+                var residual = 1f / invMass - geometric[node];
+
+                // Outside the band the node's mass is not this surface's mass plus an exponential, so it
+                // has no paint to read: below it the faces already account for more than the node weighs,
+                // above it the term is past anything expf of a painted value reaches.
+                if (residual <= MinRecoverableMassPaintTerm || residual > MaxRecoverableMassPaintTerm)
+                {
+                    clamped++;
+                    continue;
+                }
+
+                paint[v] = MathF.Log(residual);
+                painted++;
+            }
+
+            // The exponential is present or absent for the whole mesh, so a handful of nodes claiming it
+            // against a majority that cannot is a mis-predicted geometric term, not a paint layer.
+            return painted > clamped ? paint : null;
+        }
+
+        /// <summary>
+        /// Recovers the authored <c>mass</c> multiplier of a cloth node, or null when it is the default 1
+        /// or cannot be read. The compiler squares the multiplier into the node's mass
+        /// (<c>G * mass^2</c>, see <see cref="RecoverMassPaint"/>), so it is the square root of what the
+        /// shipped mass carries over the geometric term.
+        /// <para>
+        /// Read only where the geometric term is known exactly: a node that is an endpoint of no rod, whose
+        /// whole term is its elements and the volumetric selections covering it, or any node of a cloth
+        /// with no proxy sheet, where the rods that weighed are told apart from the compiler's own by
+        /// <see cref="GeometricNodeMassesWithRods"/>. A rod endpoint on a sheet is not read.
+        /// </para>
+        /// </summary>
+        public float? RecoverMassMultiplier(int node)
+        {
+            return MassMultiplierOf(node) is { } multiplier && MathF.Abs(multiplier - 1f) > MassMultiplierTolerance
+                ? multiplier
+                : null;
+        }
+
+        /// <summary>
+        /// Recovers the authored <c>mass</c> of a chain joint from the joint's own node and the ring nodes
+        /// the compiler extrudes from it, which take the joint's multiplier. Null when it is the default 1,
+        /// when no node of the joint can be read, or when the nodes that can disagree.
+        /// </summary>
+        public float? RecoverJointMassMultiplier(int joint)
+        {
+            float? multiplier = null;
+            foreach (var node in JointMassNodes(joint))
+            {
+                if (IsStatic(node) || NodeInvMasses[node] == 1f)
+                {
+                    continue;
+                }
+
+                if (MassMultiplierOf(node) is not { } nodeMultiplier)
+                {
+                    return null;
+                }
+
+                if (multiplier is { } first && MathF.Abs(nodeMultiplier - first) > MassMultiplierTolerance * first)
+                {
+                    return null;
+                }
+
+                multiplier ??= nodeMultiplier;
+            }
+
+            return multiplier is { } value && MathF.Abs(value - 1f) > MassMultiplierTolerance ? value : null;
+        }
+
+        float? MassMultiplierOf(int node)
+        {
+            if (node < 0 || node >= NodeInvMasses.Length)
+            {
+                return null;
+            }
+
+            // invMass 1.0 is the compiler's sentinel for a node that weighed nothing.
+            var invMass = NodeInvMasses[node];
+            if (invMass <= 0f || invMass == 1f)
+            {
+                return null;
+            }
+
+            float[] geometric;
+            if (!RodEndpoints.Contains(node))
+            {
+                geometric = GeometricMasses;
+            }
+            else if (!HasProxyMeshNodes)
+            {
+                geometric = RodMassPass;
+            }
+            else
+            {
+                return null;
+            }
+
+            if (node >= geometric.Length || geometric[node] <= 0f)
+            {
+                return null;
+            }
+
+            var ratio = 1f / invMass / geometric[node];
+            return ratio > 0f ? MathF.Sqrt(ratio) : null;
+        }
+
+        IEnumerable<int> JointMassNodes(int joint)
+        {
+            yield return joint;
+            for (var node = 0; node < CtrlNames.Length; node++)
+            {
+                if (CtrlNames[node].StartsWith("$cc", StringComparison.Ordinal) && ParentNodeOf(node) == joint)
+                {
+                    yield return node;
+                }
+            }
+        }
+
+        float[] GeometricMasses => geometricMasses ??= GeometricNodeMasses();
+        float[]? geometricMasses;
+
+        float[] RodMassPass => rodMassPass ??= GeometricNodeMassesWithRods();
+        float[]? rodMassPass;
+
         bool HasProxyMeshNodes => hasProxyMeshNodes ??= CtrlNames.Any(static name => name.StartsWith("$cloth_m", StringComparison.Ordinal));
         bool? hasProxyMeshNodes;
+
+        HashSet<int> RodEndpoints => rodEndpoints ??= Rods
+            .Where(static rod => rod.NodeA != rod.NodeB)
+            .SelectMany(static rod => new[] { rod.NodeA, rod.NodeB })
+            .ToHashSet();
+        HashSet<int>? rodEndpoints;
+
+        // How far a recovered multiplier may sit from the default, or two readings of one joint from each
+        // other, before it is written out.
+        const float MassMultiplierTolerance = 1e-3f;
+
+        /// <summary>
+        /// The mass the compiler derives from the cloth's own geometry, per control node.
+        /// <para>
+        /// Every element credits both ends of each of its own corner pairs with 4 per unit of rest
+        /// length, counted once per element and not once per pair, so a triangle - which the compiler
+        /// stores as <c>(n0,n1,n2,n2)</c> - credits its <c>n0n2</c> and <c>n1n2</c> pairs twice and its
+        /// <c>n0n1</c> pair once. The elements are taken as they stood before the over-bent quads were
+        /// split into triangle pairs, which is the set the mass pass ran over.
+        /// </para>
+        /// <para>
+        /// A rod credits both its ends with 8 per unit of rest length, but only the rods the cloth was
+        /// built from weigh anything - the ones the compiler derives from the surface join the network
+        /// after the mass pass. The shipped <c>m_Rods</c> mixes the two and cannot be used, so the
+        /// authored rods are taken from the authored elements that did not survive as solve elements,
+        /// which is what a <c>cloth_make_rods</c> region compiles to.
+        /// </para>
+        /// </summary>
+        float[] GeometricNodeMasses()
+        {
+            var mass = new float[InitPosePositions.Length];
+            var elements = MassElements();
+            AddElementNodeMasses(mass, elements);
+            AddAuthoredRodNodeMasses(mass, elements);
+            AddVolumetricNodeMasses(mass);
+            return mass;
+        }
+
+        void AddElementNodeMasses(float[] mass, List<int[]> elements)
+        {
+            foreach (var element in elements)
+            {
+                for (var k = 1; k < 4; k++)
+                {
+                    for (var j = 0; j < k; j++)
+                    {
+                        var (a, b) = (element[j], element[k]);
+                        if (a == b || a < 0 || b < 0 || a >= mass.Length || b >= mass.Length)
+                        {
+                            continue;
+                        }
+
+                        var term = ElementMassPerUnitLength
+                            * Vector3.Distance(InitPosePositions[a], InitPosePositions[b]);
+                        mass[a] += term;
+                        mass[b] += term;
+                    }
+                }
+            }
+        }
+
+        /// <summary>
+        /// The geometric masses of a cloth with no proxy sheet, where a shipped rod weighs 8 per unit of
+        /// rest length at both ends unless the compiler derived it from the surface: the bend rods it
+        /// builds over the shared edges of the declared elements join the network after the mass pass, and
+        /// so does an unbounded rod, whose <see cref="UnboundedRodDistance"/> maximum only that pass
+        /// writes. Everything else - explicit springs, a ring's own sides, the rods along a chain -
+        /// was in the network when the masses were taken, whatever distances it carries.
+        /// <para>
+        /// <see cref="PredictBendRods"/> over the declared elements is what names the derived pairs, and
+        /// a pair is spent once, so where the surface and a chain both rod the same two nodes the chain's
+        /// copy still weighs.
+        /// </para>
+        /// </summary>
+        float[] GeometricNodeMassesWithRods()
+        {
+            var mass = new float[InitPosePositions.Length];
+            AddElementNodeMasses(mass, MassElements());
+            AddVolumetricNodeMasses(mass);
+
+            var cycles = new List<int[]>();
+            foreach (var face in SourceFaces)
+            {
+                if (face.Length is 3 or 4)
+                {
+                    cycles.Add(CompilerCornerCycle(face, IsStatic));
+                }
+            }
+
+            var derived = PredictBendRods(cycles, IsStatic);
+
+            foreach (var rod in Rods)
+            {
+                var (a, b) = rod.NodeA < rod.NodeB ? (rod.NodeA, rod.NodeB) : (rod.NodeB, rod.NodeA);
+                if (a == b || a < 0 || b >= mass.Length
+                    || rod.MaxDist >= UnboundedRodDistance || derived.Remove((a, b)))
+                {
+                    continue;
+                }
+
+                var term = RodMassPerUnitLength * Vector3.Distance(InitPosePositions[a], InitPosePositions[b]);
+                mass[a] += term;
+                mass[b] += term;
+            }
+
+            return mass;
+        }
+
+        /// <summary>
+        /// Credits both ends of every authored rod with 8 per unit of rest length. The authored rods are
+        /// the DISTINCT corner pairs (edges and diagonals) of the authored elements the compile did not
+        /// keep as solve elements, each pair counted once however many of them share it.
+        /// </summary>
+        void AddAuthoredRodNodeMasses(float[] mass, List<int[]> elements)
+        {
+            var solved = new HashSet<(int, int, int, int)>(elements.Count);
+            foreach (var element in elements)
+            {
+                solved.Add(CornerKey(element));
+            }
+
+            var rods = new Dictionary<(int A, int B), float>();
+            foreach (var face in SourceFaces)
+            {
+                if (face.Length < 3 || solved.Contains(CornerKey(face)))
+                {
+                    continue;
+                }
+
+                for (var i = 0; i < face.Length; i++)
+                {
+                    for (var j = i + 1; j < face.Length; j++)
+                    {
+                        var (a, b) = face[i] < face[j] ? (face[i], face[j]) : (face[j], face[i]);
+                        if (a == b || a < 0 || b >= mass.Length)
+                        {
+                            continue;
+                        }
+
+                        rods[(a, b)] = Vector3.Distance(InitPosePositions[a], InitPosePositions[b]);
+                    }
+                }
+            }
+
+            foreach (var ((a, b), length) in rods)
+            {
+                var term = RodMassPerUnitLength * length;
+                mass[a] += term;
+                mass[b] += term;
+            }
+        }
+
+        static (int, int, int, int) CornerKey(int[] corners)
+        {
+            var sorted = corners.Distinct().Order().ToArray();
+            return (sorted.Length > 0 ? sorted[0] : -1, sorted.Length > 1 ? sorted[1] : -1,
+                sorted.Length > 2 ? sorted[2] : -1, sorted.Length > 3 ? sorted[3] : -1);
+        }
+
+        /// <summary>
+        /// The elements the mass pass ran over, each as four corners with a triangle repeating its last
+        /// one, rebuilt from the compiled surface by merging every triangle pair the compiler split an
+        /// over-bent quad into back into that quad.
+        /// </summary>
+        List<int[]> MassElements()
+        {
+            var elements = new List<int[]>(Quads.Length + Tris.Length);
+            elements.AddRange(Quads);
+
+            var (splitQuads, splitHalves) = MergeSplitQuads();
+            foreach (var tri in Tris)
+            {
+                var key = SortedTriKey(tri);
+                if (splitHalves.Contains(key))
+                {
+                    continue;
+                }
+
+                elements.Add(splitQuads.TryGetValue(key, out var quad) ? quad : [tri[0], tri[1], tri[2], tri[2]]);
+            }
+
+            return elements;
+        }
+
+        /// <summary>
+        /// Credits every node a volumetric selection covers with 12 per unit of the summed bounding-box
+        /// extent of that selection's own nodes, scaled by how strongly the node belongs to it. A
+        /// selection the solver does not solve volumetrically weighs nothing.
+        /// </summary>
+        void AddVolumetricNodeMasses(float[] mass)
+        {
+            foreach (var map in VertexMaps)
+            {
+                if (map.VolumetricSolveStrength < MinVolumetricSolveStrength)
+                {
+                    continue;
+                }
+
+                var min = new Vector3(float.MaxValue);
+                var max = new Vector3(float.MinValue);
+                var covered = false;
+                for (var i = 0; i < map.Weights.Length; i++)
+                {
+                    var node = map.VertexBase + i;
+                    if (map.Weights[i] <= 0f || node < 0 || node >= mass.Length)
+                    {
+                        continue;
+                    }
+
+                    min = Vector3.Min(min, InitPosePositions[node]);
+                    max = Vector3.Max(max, InitPosePositions[node]);
+                    covered = true;
+                }
+
+                if (!covered)
+                {
+                    continue;
+                }
+
+                var extent = max - min;
+                var term = VolumetricMassPerUnitExtent * (extent.X + extent.Y + extent.Z);
+                for (var i = 0; i < map.Weights.Length; i++)
+                {
+                    var node = map.VertexBase + i;
+                    if (map.Weights[i] > 0f && node >= 0 && node < mass.Length)
+                    {
+                        mass[node] += map.Weights[i] * term;
+                    }
+                }
+            }
+        }
+
+        /// <summary>
+        /// Recovers the <c>cloth_stray_radius</c> paint of a proxy sheet from <c>m_AnimStrayRadii</c>, or
+        /// null when no vertex of the sheet is stray-constrained. The compiled <c>flMaxDist</c> is the
+        /// painted distance itself, the same value a ClothChain joint's <c>stray_radius</c> carries, so a
+        /// sheet that ships no stream compiles with the whole array empty. A vertex whose node is covered
+        /// by an <see cref="IndependentBoneChains"/> chain (the chain's own joints, or the "$cc" ring
+        /// proxies the compiler auto-generates from them) is skipped: that chain's <c>MakeClothJoint</c>
+        /// KV already carries the value, and the surface reconstruction can still reference the same node
+        /// as a quad corner, which would otherwise double-paint it onto a second, compiler-synthesised
+        /// copy of the node.
+        /// </summary>
+        public float[]? RecoverStrayRadiusPaint(ProxyMesh proxy)
+        {
+            if (AnimStrayRadii.Count == 0)
+            {
+                return null;
+            }
+
+            var chainNodes = IndependentChainCoveredNodes();
+
+            var paint = new float[proxy.NodeIndices.Length];
+            var painted = 0;
+            for (var v = 0; v < paint.Length; v++)
+            {
+                var node = proxy.NodeIndices[v];
+                if (chainNodes.Contains(node))
+                {
+                    continue;
+                }
+
+                if (AnimStrayRadii.TryGetValue(node, out var stray))
+                {
+                    paint[v] = stray.MaxDistance;
+                    painted++;
+                }
+            }
+
+            return painted > 0 ? paint : null;
+        }
+
+        /// <summary>
+        /// Gets the nodes an independent <see cref="IndependentBoneChains"/> chain already owns: its own
+        /// joints, plus any <c>$cc&lt;bone&gt;_&lt;n&gt;</c> ring proxy the compiler auto-generates from
+        /// one of them (see <see cref="BuildProxyMeshes"/> for how those names arise).
+        /// </summary>
+        HashSet<int> IndependentChainCoveredNodes()
+        {
+            var chainBoneNodes = IndependentBoneChains().SelectMany(static c => c.Joints).Select(static j => j.Node).ToHashSet();
+            if (chainBoneNodes.Count == 0)
+            {
+                return chainBoneNodes;
+            }
+
+            var covered = new HashSet<int>(chainBoneNodes);
+            for (var node = 0; node < CtrlNames.Length; node++)
+            {
+                if (CtrlNames[node].StartsWith("$cc", StringComparison.Ordinal) && chainBoneNodes.Contains(ParentNodeOf(node)))
+                {
+                    covered.Add(node);
+                }
+            }
+
+            return covered;
+        }
+
+        /// <summary>
+        /// Gets the parent control node of <paramref name="node"/>, or -1 for a root: its skeleton parent,
+        /// or on an original that ships no <c>m_SkelParents</c> the parent its ctrl offset names.
+        /// </summary>
+        int ParentNodeOf(int node)
+        {
+            var parent = node >= 0 && node < SkelParents.Length ? SkelParents[node] : -1;
+            if (parent >= 0 || HasCompiledSkelParents)
+            {
+                return parent;
+            }
+
+            if (offsetParentByNode is null)
+            {
+                offsetParentByNode = new Dictionary<int, int>(CtrlOffsets.Length);
+                foreach (var off in CtrlOffsets)
+                {
+                    offsetParentByNode[off.CtrlChild] = off.CtrlParent;
+                }
+            }
+
+            return offsetParentByNode.GetValueOrDefault(node, -1);
+        }
+
+        Dictionary<int, int>? offsetParentByNode;
+
+        // Mass the compiler credits both ends of an element corner pair with, per unit of rest length.
+        const float ElementMassPerUnitLength = 4f;
+
+        // Mass the compiler credits both ends of an authored rod with, per unit of rest length.
+        const float RodMassPerUnitLength = 8f;
+
+        // Mass a volumetrically solved selection credits its nodes with, per unit of bounding-box extent.
+        const float VolumetricMassPerUnitExtent = 12f;
+
+        // The solve strength a selection needs before it weighs anything at all.
+        const float MinVolumetricSolveStrength = 1.1920929e-7f;
+
+        // The band a node's exponential mass term, expf(paint * scale), has to fall in to be read back as
+        // paint. A mesh that ships no stream leaves a residual of a float32 ulp of its own mass, so the
+        // lower bound separates that from the smallest term a stream can carry, e^0 = 1. The upper bound
+        // rejects a mass no exponential explains.
+        const float MinRecoverableMassPaintTerm = 0.05f;
+        const float MaxRecoverableMassPaintTerm = 1e6f;
 
         /// <summary>Gets the friction painted on <paramref name="node"/>, or 0 when it has none.</summary>
         public float GetNodeFriction(int node) => DynamicNodeValue(DynNodeFriction, node);
@@ -1171,7 +1685,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// <param name="VolumetricSolveStrength">
         /// How strongly the selection is solved as a volume rather than a surface. One that is solved
         /// volumetrically at all also weighs what its extent gives it (see
-        /// <c>GeometricNodeMasses</c>).
+        /// <see cref="GeometricNodeMasses"/>).
         /// </param>
         /// <param name="ScaleSourceNode">
         /// The control node whose scale the selection follows, or -1 when it follows none.
