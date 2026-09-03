@@ -497,6 +497,335 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         public readonly record struct KelagerBend(int MidNode, int End0, int End1,
             float MidWeight, float End0Weight, float End1Weight, float Height);
 
+        /// <summary>
+        /// Recovers the <c>stiff_hinge</c> stiffness and its <c>stiff_hinge_angle</c> in degrees authored on
+        /// the joint at <paramref name="jointNode"/>, or null when it carries no bend. A joint's stiff hinge
+        /// bends its PARENT: the joint (or a proxy extruded from it) is the bend's first end, its parent the
+        /// bent node and its grandparent the other end. The stiffness is spread over the bend weights
+        /// as <c>stiffness * 3 * [-2*mMid, mEnd0, mEnd1] / (4*mMid + mEnd0 + mEnd1)</c>; the angle becomes
+        /// the distance the bent node may reach from the triple's centroid,
+        /// <c>sqrt(l0^2 + l1^2 - 2*l0*l1*cos(angle)) / 3</c>, floored at the rest distance - an angle the
+        /// rest pose already exceeds leaves no trace and recovers as zero, which recompiles to the same
+        /// floor. The joint's <c>motion_bias</c> comes back with it: a fully biased joint replaces the
+        /// mass shares with the whole stiffness on one end, leaving the bent node weightless.
+        /// </summary>
+        public (float Stiffness, float Angle, float MotionBias)? GetStiffHinge(int jointNode)
+        {
+            foreach (var bend in KelagerBends)
+            {
+                var owner = bend.End0 >= 0 && bend.End0 < CtrlNames.Length && IsProxyNodeName(CtrlNames[bend.End0])
+                    && bend.End0 < SkelParents.Length
+                        ? SkelParents[bend.End0]
+                        : -1;
+                if (bend.End0 != jointNode && owner != jointNode)
+                {
+                    continue;
+                }
+
+                var midMass = InverseMassOf(bend.MidNode);
+                var end0Mass = InverseMassOf(bend.End0);
+                var end1Mass = InverseMassOf(bend.End1);
+                var total = (4f * midMass) + end0Mass + end1Mass;
+                if (total <= 0f)
+                {
+                    continue;
+                }
+
+                // A fully biased joint drops the mass share entirely and puts the whole stiffness on one
+                // end, which is the only way a bend leaves a simulated node weightless.
+                if (midMass > 0f && MathF.Abs(bend.MidWeight) < FullMotionBiasEpsilon
+                    && MathF.Abs(bend.End0Weight) > FullMotionBiasEpsilon)
+                {
+                    return (Math.Clamp(bend.End0Weight / 3f, 0f, 1f), BendAngle(bend), 1f);
+                }
+
+                // Read the stiffness off the largest weight: a share whose node is pinned carries none of it.
+                var shares = new[] { (-2f * midMass, bend.MidWeight), (end0Mass, bend.End0Weight), (end1Mass, bend.End1Weight) };
+                var stiffness = 0f;
+                var strongest = 0f;
+                foreach (var (share, weight) in shares)
+                {
+                    if (MathF.Abs(share) > 1e-9f && MathF.Abs(weight) > strongest)
+                    {
+                        strongest = MathF.Abs(weight);
+                        stiffness = weight * total / (3f * share);
+                    }
+                }
+
+                if (stiffness <= 0f)
+                {
+                    continue;
+                }
+
+                return (Math.Clamp(stiffness, 0f, 1f), BendAngle(bend), 0f);
+            }
+
+            return null;
+        }
+
+        // Below this a bend weight is the compiler's own signed zero rather than a small real share.
+        const float FullMotionBiasEpsilon = 1e-6f;
+
+        float InverseMassOf(int node)
+            => node >= 0 && node < NodeInvMasses.Length ? NodeInvMasses[node] : 0f;
+
+        // Inverts the bend height back into the authored maximum bend angle, in degrees.
+        float BendAngle(KelagerBend bend)
+        {
+            if (bend.MidNode >= InitPosePositions.Length || bend.End0 >= InitPosePositions.Length
+                || bend.End1 >= InitPosePositions.Length || bend.MidNode < 0 || bend.End0 < 0 || bend.End1 < 0)
+            {
+                return 0f;
+            }
+
+            var toEnd0 = InitPosePositions[bend.MidNode] - InitPosePositions[bend.End0];
+            var toEnd1 = InitPosePositions[bend.MidNode] - InitPosePositions[bend.End1];
+            var restHeight = (toEnd0 + toEnd1).Length() / 3f;
+            var l0 = toEnd0.Length();
+            var l1 = toEnd1.Length();
+            if (bend.Height <= restHeight * 1.0001f || l0 <= 0f || l1 <= 0f)
+            {
+                return 0f;
+            }
+
+            var cosine = ((l0 * l0) + (l1 * l1) - (9f * bend.Height * bend.Height)) / (2f * l0 * l1);
+            return float.RadiansToDegrees(MathF.Acos(Math.Clamp(cosine, -1f, 1f)));
+        }
+
+        // A hinged chain joint is anchored on a static node the compiler names after the joint's bone.
+        const string HingeAnchorPrefix = "$ha_";
+
+        /// <summary>
+        /// The hinge constraint a chain joint was authored with. <see cref="Vector"/> spans the joint to
+        /// one side of its proxy ring, so its LENGTH is the ring's half-width and overrides the joint's
+        /// own extrude radius; the limits are in degrees.
+        /// </summary>
+        /// <param name="Vector">World-space hinge axis, its length the ring half-width.</param>
+        /// <param name="LimitCw">Clockwise angular limit.</param>
+        /// <param name="LimitCcw">Counter-clockwise angular limit.</param>
+        public readonly record struct ChainHinge(Vector3 Vector, float LimitCw, float LimitCcw);
+
+        /// <summary>
+        /// Gets the hinge authored on the joint named <paramref name="boneName"/>, or null when it carries
+        /// none. The axis is recovered from where the joint's own proxy ring ended up (the hinge is what
+        /// orients that ring), and the limits from the hinge limit built over that ring - see
+        /// <see cref="HingeLimitsOf"/>.
+        /// </summary>
+        public ChainHinge? GetChainHinge(string boneName, int jointNode)
+        {
+            var ring = ProxyRingOf(jointNode);
+            if (ring.Count < 2 || ring[0] >= InitPosePositions.Length || ring[1] >= InitPosePositions.Length)
+            {
+                return null;
+            }
+
+            var limit = HingeLimitOverRing(ring);
+            if (limit is null && Array.IndexOf(CtrlNames, HingeAnchorPrefix + boneName) < 0)
+            {
+                return null;
+            }
+
+            // Half the span across the ring: the compiler lays the pair out at +/- this vector from the
+            // joint, so both the direction and the width come back from it.
+            var axis = (InitPosePositions[ring[1]] - InitPosePositions[ring[0]]) * 0.5f;
+            if (axis.LengthSquared() <= 0f)
+            {
+                return null;
+            }
+
+            axis = BreakEndEffectorQuadTie(ring, axis);
+
+            var (cw, ccw) = limit is { } hinge ? HingeLimitsOf(hinge) : (0f, 0f);
+            return new ChainHinge(axis, cw, ccw);
+        }
+
+        // The hinge limit built over a joint's own ring, or null when the joint carries none. Only the
+        // CHAIN ROOT gets a "$ha_" anchor node of its own - every joint further down the chain hinges
+        // against the ring above it - so the limit over the ring is what marks a hinged joint.
+        KVObject? HingeLimitOverRing(List<int> ring)
+        {
+            foreach (var hinge in Data.GetArray("m_HingeLimits") ?? [])
+            {
+                var nodes = hinge.GetIntegerArray("nNode");
+                if (nodes.Length >= 2 && (int)nodes[0] == ring[0] && (int)nodes[1] == ring[1])
+                {
+                    return hinge;
+                }
+            }
+
+            return null;
+        }
+
+        // The authored (limit_cw, limit_ccw) pair in degrees. The compiler keeps the range the pair spans
+        // as flAngleCenter +/- flAngleExtents around the rest angle the joint's own geometry gives
+        // (HingeRestAngle), clamping a negative limit_cw to zero first:
+        //     flAngleCenter  = rest + (max(0, cw) - ccw) / 2
+        //     flAngleExtents =        (max(0, cw) + ccw) / 2
+        // so both limits come straight back out. Their SUM survives the clamp either way, which is what
+        // the compiler gates the whole hinge on (a pair spanning a full turn drops the limit entirely).
+        (float Cw, float Ccw) HingeLimitsOf(KVObject hinge)
+        {
+            var extents = hinge.GetFloatProperty("flAngleExtents");
+            var span = float.RadiansToDegrees(extents) * 2f;
+            var rest = HingeRestAngle(hinge);
+            if (rest is null)
+            {
+                return (0f, span);
+            }
+
+            var solved = float.RadiansToDegrees(WrapAngle(hinge.GetFloatProperty("flAngleCenter") + extents - rest.Value));
+            var cw = Math.Clamp(solved, 0f, span);
+
+            // Only the clamp's own rounding may move it: a solution genuinely outside the span means the
+            // rest angle did not come out where the compiler put it, and the pair is not recoverable.
+            return MathF.Abs(cw - solved) < 0.01f ? (cw, span - cw) : (0f, span);
+        }
+
+        // The angle the hinge's four rest-pose reference points make about the constrained ring's own axis,
+        // which is where the compiler centres the limit range before the authored limits shift it. The two
+        // parent-side references each blend the pair the hinge names by the same weights it stores.
+        float? HingeRestAngle(KVObject hinge)
+        {
+            var nodes = hinge.GetIntegerArray("nNode");
+            if (nodes.Length < 6 || nodes.Any(node => node < 0 || node >= InitPosePositions.Length))
+            {
+                return null;
+            }
+
+            Vector3 Blend(int a, int b, float weight)
+                => Vector3.Lerp(InitPosePositions[a], InitPosePositions[b], weight);
+
+            var origin = InitPosePositions[(int)nodes[0]];
+            var axis = Vector3.Normalize(InitPosePositions[(int)nodes[1]] - origin);
+            if (!float.IsFinite(axis.X))
+            {
+                return null;
+            }
+
+            Vector3 Perpendicular(Vector3 point)
+            {
+                var arm = point - origin;
+                return Vector3.Normalize(arm - (Vector3.Dot(arm, axis) * axis));
+            }
+
+            var reference = Perpendicular(Blend((int)nodes[2], (int)nodes[4], hinge.GetFloatProperty("flWeight4")));
+            var arm = Perpendicular(Blend((int)nodes[3], (int)nodes[5], hinge.GetFloatProperty("flWeight5")));
+            if (!float.IsFinite(reference.X) || !float.IsFinite(arm.X))
+            {
+                return null;
+            }
+
+            var angle = MathF.Atan2(Vector3.Dot(arm, reference), Vector3.Dot(Vector3.Cross(reference, axis), arm));
+            return WrapAngle(angle - (MathF.PI / 2f));
+        }
+
+        static float WrapAngle(float angle)
+        {
+            var wrapped = angle % MathF.Tau;
+            if (wrapped > MathF.PI)
+            {
+                wrapped -= MathF.Tau;
+            }
+            else if (wrapped <= -MathF.PI)
+            {
+                wrapped += MathF.Tau;
+            }
+
+            return wrapped;
+        }
+
+        // The end-effector quad the compiler builds across a hinged joint takes its corners from the two
+        // longest of the four ring-to-ring rest distances. A hinge axis exactly perpendicular to the tip
+        // ring leaves all four the same length, so which pair the scan keeps comes down to rounding in the
+        // ring it extruded. Tilting the axis a hundred-thousandth of a radian towards the tip ring's first
+        // node settles the tie.
+        Vector3 BreakEndEffectorQuadTie(List<int> ring, Vector3 axis)
+        {
+            if (ring.Count < 4 || ring[2] >= InitPosePositions.Length || ring[3] >= InitPosePositions.Length)
+            {
+                return axis;
+            }
+
+            var longest = 0f;
+            var shortest = float.MaxValue;
+            for (var near = 0; near < 2; near++)
+            {
+                for (var far = 2; far < 4; far++)
+                {
+                    var span = Vector3.Distance(InitPosePositions[ring[near]], InitPosePositions[ring[far]]);
+                    longest = MathF.Max(longest, span);
+                    shortest = MathF.Min(shortest, span);
+                }
+            }
+
+            if (longest <= 0f || longest - shortest > longest * 1e-5f)
+            {
+                return axis;
+            }
+
+            var tip = InitPosePositions[ring[2]] - InitPosePositions[ring[3]];
+            if (tip.LengthSquared() <= 0f)
+            {
+                return axis;
+            }
+
+            return axis + (Vector3.Normalize(tip) * MathF.Max(axis.Length() * 1e-5f, 1e-5f));
+        }
+
+        /// <summary>Gets how many auto-generated proxy nodes the compiler extruded from a joint.</summary>
+        public int ProxyCountOf(int jointNode) => ProxyRingOf(jointNode).Count;
+
+        /// <summary>Gets whether a chain joint carries a hinge constraint.</summary>
+        public bool IsHingedJoint(int jointNode)
+        {
+            var ring = ProxyRingOf(jointNode);
+            return ring.Count >= 2 && HingeLimitOverRing(ring) is not null;
+        }
+
+        // The auto-generated proxy nodes extruded from a joint, in the order their names number them.
+        List<int> ProxyRingOf(int jointNode)
+        {
+            var ring = new List<int>();
+            for (var node = 0; node < CtrlNames.Length; node++)
+            {
+                if (node < SkelParents.Length && SkelParents[node] == jointNode
+                    && CtrlNames[node].StartsWith("$cc", StringComparison.Ordinal))
+                {
+                    ring.Add(node);
+                }
+            }
+
+            ring.Sort((a, b) => string.CompareOrdinal(CtrlNames[a], CtrlNames[b]));
+            return ring;
+        }
+
+        /// <summary>
+        /// The ring ($cc) nodes <see cref="ProxyRingOf"/> cannot find a joint for on a compile that carries
+        /// no <c>m_SkelParents</c> entry linking them to it: a rope-parented chain synthesizes
+        /// <see cref="SkelParents"/> from <c>m_Ropes</c>/<c>m_FollowNodes</c> (<see cref="BuildRopeParents"/>),
+        /// which walks the joints' own bone-to-bone links but never extends to each joint's own extruded
+        /// ring, so every ring on such a compile reads back empty. Recovered instead from the source's own
+        /// authored topology: <see cref="SourceFaces"/> still records a face (edge or diagonal) between two
+        /// ring nodes even when nothing in the compiled file ties either one to its joint.
+        /// </summary>
+        HashSet<int> SourceFaceRingNodes()
+        {
+            bool IsChainRing(int node) => node >= 0 && node < CtrlNames.Length
+                && CtrlNames[node].StartsWith("$cc", StringComparison.Ordinal);
+
+            var nodes = new HashSet<int>();
+            foreach (var (a, b) in DeriveRodsFromFaces(SourceFaces))
+            {
+                if (IsChainRing(a) && IsChainRing(b))
+                {
+                    nodes.Add(a);
+                    nodes.Add(b);
+                }
+            }
+
+            return nodes;
+        }
+
         /// <summary>The maximum length a rod that is not length-limited at all is given.</summary>
         public const float UnboundedRodDistance = 16384f;
 
