@@ -215,7 +215,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// <summary>
         /// Rebuilds <see cref="SkelParents"/> from the model's own bone hierarchy, for cloth that ships
         /// neither <c>m_SkelParents</c> nor the <c>m_Ropes</c>/<c>m_FollowNodes</c> trail
-        /// <c>BuildRopeParents</c> reads. A control node takes the nearest ancestor bone that is
+        /// <see cref="BuildRopeParents"/> reads. A control node takes the nearest ancestor bone that is
         /// itself a control node. Does nothing once either of those two sources has produced a hierarchy.
         /// </summary>
         public void SetSkeletonParents(IReadOnlyDictionary<string, string?> boneParents)
@@ -315,6 +315,30 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             }
 
             return result;
+        }
+
+        /// <summary>
+        /// Whether the cloth drives any REAL (non auto-generated proxy) skeleton bone: at least one
+        /// position-driven control node (index &gt;= <see cref="FirstPositionDrivenNode"/>) carries a real
+        /// bone name. Those bones are back-solved from the simulated proxy nodes, whether the mechanism is
+        /// <c>m_FitMatrices</c> or <c>m_CtrlOffsets</c> alone with no fit matrices at all. It is the signal
+        /// that a reconstructed proxy mesh emits <c>back_solve_joints = true</c>, and it is a superset of
+        /// <see cref="FitMatrixNodes"/> being non-empty.
+        /// </summary>
+        public bool DrivesRealBones
+        {
+            get
+            {
+                for (var i = FirstPositionDrivenNode; i < CtrlNames.Length; i++)
+                {
+                    if (!IsProxyNodeName(CtrlNames[i]))
+                    {
+                        return true;
+                    }
+                }
+
+                return false;
+            }
         }
 
         /// <summary>
