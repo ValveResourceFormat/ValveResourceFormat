@@ -35,6 +35,11 @@ namespace ValveResourceFormat.Renderer.Particles
         /// </summary>
         public CustomRenderPasses Passes { get; }
 
+        /// <summary>
+        /// Whether this system, or any system nested under it, soft-fades against the scene.
+        /// </summary>
+        public bool WantsSceneDepth { get; }
+
         private SceneNode? ownerNode;
 
         /// <summary>
@@ -80,6 +85,7 @@ namespace ValveResourceFormat.Renderer.Particles
             }
 
             Passes = CollectPasses();
+            WantsSceneDepth = renderers.Any(static r => r.WantsSceneDepth) || childRenderers.Any(static c => c.WantsSceneDepth);
         }
 
         private void SetupRenderers(IReadOnlyList<KVObject> rendererData, Scene scene)

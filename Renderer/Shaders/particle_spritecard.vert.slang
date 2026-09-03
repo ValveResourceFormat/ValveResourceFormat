@@ -127,6 +127,7 @@ out vec2 vTexCoordNextFrameOut;
 out vec4 vLayerUvOut[S_TEXTURE_LAYERS];
 #endif
 out float vFrameBlendOut;
+out vec2 vCardUvOut;
 out vec4 vColor;
 out vec3 vFragPosition;
 
@@ -160,6 +161,8 @@ void main(void) {
     vColor = isHead ? vCOLOR : vColorTail;
 #else
     vec3 positionWs = vPOSITION;
+
+    vec2 cardUv = vTEXCOORD;
 
     vColor = vCOLOR;
 #endif
@@ -208,6 +211,7 @@ void main(void) {
 #endif
 
     vFrameBlendOut = vFrameBlend;
+    vCardUvOut = cardUv;
     vFragPosition = positionWs;
     gl_Position = g_matWorldToProjection * vec4(positionWs, 1.0);
 

@@ -16,6 +16,9 @@ namespace ValveResourceFormat.Renderer.SceneNodes
     {
         private readonly ParticleRenderer particleRenderer;
 
+        /// <summary>Gets whether this system samples the resolved opaque depth.</summary>
+        public bool WantsSceneDepth { get; }
+
         /// <summary>
         /// Gets the preview model scene node loaded from particle preview state, if any.
         /// </summary>
@@ -67,6 +70,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             LocalBoundingBox = particleRenderer.LocalBoundingBox;
 
             RenderPasses = particleRenderer.Passes;
+            WantsSceneDepth = particleRenderer.WantsSceneDepth;
 
             Simulation = NodeSimulation.Parallel;
 

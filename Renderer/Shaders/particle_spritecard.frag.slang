@@ -3,6 +3,7 @@
 #include "common/utils.slang"
 #include "common/ViewConstants.slang"
 #include "common/fog.slang"
+#include "common/depth.slang"
 #include "common/spritecard_channels.slang"
 
 // Render modes -- Switched on/off by code
@@ -50,6 +51,9 @@ uniform bool uOutline = false;
 uniform vec4 uOutlineColor = vec4(1.0);
 uniform vec4 uOutlineRanges = vec4(0.5, 0.7, 0.6, 0.8);
 
+uniform vec2 uFeatheringRange = vec2(0.0);
+uniform float uFeatheringFilter = 1.0;
+
 // Per-layer mask mode, blend mode and strength (m_nTextureChannels, m_nTextureBlendMode,
 // m_flTextureBlend). Every entry below uLayerCount is written by the renderer each draw.
 uniform int uLayerCount = 1;
@@ -83,6 +87,7 @@ in vec2 vTexCoordNextFrameOut;
 in vec4 vLayerUvOut[S_TEXTURE_LAYERS];
 #endif
 in float vFrameBlendOut;
+in vec2 vCardUvOut;
 in vec4 vColor;
 in vec3 vFragPosition;
 
@@ -310,6 +315,26 @@ void main(void) {
     finalColor = mix(finalColor, vec3(GetLuma(finalColor)), uDesaturation);
 
     alpha *= vColor.a;
+
+    if (uFeatheringRange.y > uFeatheringRange.x)
+    {
+        vec3 toFragment = vFragPosition - g_vCameraPositionWs;
+        vec3 scenePosition = GetWorldPositionFromDepth(ivec2(gl_FragCoord.xy), toFragment);
+
+        float spread = 1.0 - alpha;
+        float halfWidening = 1.0;
+
+        if (!uBlendFrames)
+        {
+            spread += length((vCardUvOut * 2.0) - vec2(1.0));
+            halfWidening = 0.5;
+        }
+
+        float offset = spread * (uFeatheringRange.y * uFeatheringFilter * halfWidening);
+
+        alpha *= saturate((distance(vFragPosition, scenePosition) - offset - uFeatheringRange.x)
+            / (uFeatheringRange.y - uFeatheringRange.x));
+    }
 
     if (uBlendMode == PARTICLE_OUTPUT_BLEND_MODE_MOD2X)
     {

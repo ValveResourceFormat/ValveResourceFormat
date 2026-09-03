@@ -72,6 +72,21 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         /// <summary>Whether what this renderer draws is an image; the water effects map takes data instead.</summary>
         protected bool OutputIsColor => !OnlyRenderInEffectsWaterPass;
 
+        // ON_OPTIONAL and ON_REQUIRED currently treated the same
+        private ParticleDepthFeatheringMode FeatheringMode { get; }
+
+        /// <summary>How far a fragment stands off the opaque scene before it draws at full strength.</summary>
+        private INumberProvider FeatheringMinDist { get; } = new LiteralNumberProvider(0f);
+
+        /// <inheritdoc cref="FeatheringMinDist"/>
+        private INumberProvider FeatheringMaxDist { get; } = new LiteralNumberProvider(0f);
+
+        /// <summary>Widens the fade by how transparent and how off-centre a fragment already is.</summary>
+        private INumberProvider FeatheringFilter { get; } = new LiteralNumberProvider(1f);
+
+        /// <summary>Whether this renderer samples the opaque scene depth.</summary>
+        public bool WantsSceneDepth => FeatheringMode != ParticleDepthFeatheringMode.PARTICLE_DEPTH_FEATHERING_OFF;
+
         protected ParticleFunctionRenderer(ParticleDefinitionParser parse) : base(parse)
         {
             OnlyRenderInEffectsWaterPass = parse.Boolean("m_bOnlyRenderInEffectsWaterPass", false);
@@ -92,6 +107,10 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             MaxLuminanceFrameBlend = parse.Boolean("m_bMaxLuminanceBlendingSequence0", MaxLuminanceFrameBlend);
             CenterXOffset = parse.NumberProvider("m_flCenterXOffset", CenterXOffset);
             CenterYOffset = parse.NumberProvider("m_flCenterYOffset", CenterYOffset);
+            FeatheringMode = parse.Enum("m_nFeatheringMode", FeatheringMode);
+            FeatheringMinDist = parse.NumberProvider("m_flFeatheringMinDist", FeatheringMinDist);
+            FeatheringMaxDist = parse.NumberProvider("m_flFeatheringMaxDist", FeatheringMaxDist);
+            FeatheringFilter = parse.NumberProvider("m_flFeatheringFilter", FeatheringFilter);
 
             GammaCorrectVertexColors &= OutputIsColor;
         }
@@ -149,6 +168,12 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             shader.SetUniform1("uDepthBias", DepthBias.NextNumber(systemState));
             shader.SetUniform1("uSaturateColorPreAlphaBlend", SaturateColorPreAlphaBlend);
             shader.SetUniform1("uMaxLuminanceFrameBlend", MaxLuminanceFrameBlend);
+            shader.SetUniform1("g_tSceneDepth", (int)ReservedTextureSlots.SceneDepth);
+
+            shader.SetUniform2("uFeatheringRange", WantsSceneDepth
+                ? new Vector2(FeatheringMinDist.NextNumber(systemState), FeatheringMaxDist.NextNumber(systemState))
+                : Vector2.Zero);
+            shader.SetUniform1("uFeatheringFilter", FeatheringFilter.NextNumber(systemState));
         }
 
         /// <summary>The pass this renderer draws in.</summary>

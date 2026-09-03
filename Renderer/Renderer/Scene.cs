@@ -1233,6 +1233,8 @@ namespace ValveResourceFormat.Renderer
                         Node = node,
                     };
 
+                    WantsSceneDepth |= node is ParticleSceneNode { WantsSceneDepth: true };
+
                     var customPasses = node.RenderPasses;
 
                     if (customPasses != CustomRenderPasses.None)

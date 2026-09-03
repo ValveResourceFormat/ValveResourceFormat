@@ -27,19 +27,7 @@ uniform sampler2D g_tMask3;
 #endif
 
 #if F_DEPTH_FEATHER == 1
-    uniform sampler2D g_tSceneDepth; // reserved
-
-    vec3 GetWorldPositionFromDepth(ivec2 vScreenPosition, vec3 vCameraRay)
-    {
-        float flSceneDepth = texelFetch(g_tSceneDepth, vScreenPosition, 0).x;
-        float flSceneDepthNormalized = RemapValClamped(flSceneDepth, g_flViewportMinZ, g_flViewportMaxZ, 0.0, 1.0);
-
-        float invProjTerm = fma(flSceneDepthNormalized, g_vInvProjRow3.z, g_vInvProjRow3.w);
-
-        float flPerspectiveCorrection = dot(g_vCameraDirWs, vCameraRay);
-
-        return (g_vCameraPositionWs.xyz + (vCameraRay * (1.0 / (invProjTerm * flPerspectiveCorrection))));
-    }
+#include "common/depth.slang"
 
     uniform float g_flFeatherDistance;
     uniform float g_flFeatherFalloff = 1.0;
