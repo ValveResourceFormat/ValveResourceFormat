@@ -42,6 +42,9 @@ partial class ModelExtract
         public KVObject BreakPieces => Get("BreakPieceList");
         public KVObject GameData => Get("GameDataList");
 
+        /// <summary>Whether a section has already written into the list node of this class.</summary>
+        public bool Has(string className) => lists.ContainsKey(className);
+
         private KVObject Get(string className)
         {
             if (!lists.TryGetValue(className, out var children))
@@ -86,9 +89,36 @@ partial class ModelExtract
             {
                 AddBonesRecursive(model.Skeleton.Roots, lists.Skeleton);
             }
+
+            AddCulledClothBones(lists.Skeleton);
         }
 
         AddPhysicsBodyNodes(lists);
+
+        if (physAggregateData is not null && ExtractJiggleBones(physAggregateData.FeModel) is { } jiggleBoneList)
+        {
+            root.Children.Add(jiggleBoneList);
+        }
+
+        var clothEmitted = physAggregateData?.FeModel is { } feModel && EmitCloth(feModel, root.Children);
+
+        // A soft-body FeModel that yields no authorable cloth gets a minimal placeholder PhysicsShapeList,
+        // which is what makes the compiler allocate a PHYS block and the CTRL embedded_physics reference.
+        if (physAggregateData?.FeModel is not null
+            && !clothEmitted
+            && !lists.Has("PhysicsShapeList")
+            && model?.Resource?.GetBlockByType(BlockType.PHYS) is not null
+            && model.Skeleton.Bones.Length > 0)
+        {
+            lists.PhysicsShapes.Add(MakeNode("PhysicsShapeSphere",
+                ("parent_bone", GetExportBoneName(model.Skeleton.Bones[0])),
+                ("surface_prop", "default"),
+                ("collision_tags", "solid"),
+                ("radius", 1.0f),
+                ("center", ToKVArray(Vector3.Zero)),
+                ("name", "vrf_phys_transplant_placeholder")
+            ));
+        }
 
         if (Translation != Vector3.Zero)
         {
