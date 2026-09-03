@@ -500,14 +500,14 @@ partial class ModelExtract
     }
     #endregion
 
-    static void AddBonesRecursive(IEnumerable<Bone> bones, KVObject parent)
+    void AddBonesRecursive(IEnumerable<Bone> bones, KVObject parent)
     {
         foreach (var bone in bones)
         {
             var boneDefinitionNode = MakeNode(
                 "Bone",
                 ("name", GetExportBoneName(bone)),
-                ("origin", ToKVArray(bone.Position)),
+                ("origin", ToKVArray(BonePosition(bone, ClothRestBonePositions))),
                 ("angles", ToKVArray(EntityTransformHelper.ToEulerAngles(bone.Angle))),
                 ("do_not_discard", true)
             );

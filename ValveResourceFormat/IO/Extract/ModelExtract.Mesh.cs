@@ -129,6 +129,12 @@ partial class ModelExtract
         /// When provided, bones are emitted into the DMX <c>jointList</c> so ModelDoc can resolve indices.
         /// </summary>
         public Skeleton? Skeleton { get; init; }
+
+        /// <summary>
+        /// Parent-space bone positions to emit in place of the skeleton's own, keyed by bone name
+        /// (see <see cref="ClothRestBonePositions"/>).
+        /// </summary>
+        public IReadOnlyDictionary<string, Vector3>? BonePositions { get; init; }
     }
 
     /// <summary>
@@ -198,6 +204,13 @@ partial class ModelExtract
         EnqueueRenderMeshes();
         EnqueuePhysMeshes();
     }
+
+    /// <summary>
+    /// The parent-space position to emit for a bone: its cloth rest correction where there is one, and
+    /// its compiled transform otherwise.
+    /// </summary>
+    internal static Vector3 BonePosition(Bone bone, IReadOnlyDictionary<string, Vector3>? overrides)
+        => overrides is not null && overrides.TryGetValue(bone.Name, out var position) ? position : bone.Position;
 
     private void EnqueueRenderMeshes()
     {
@@ -342,6 +355,7 @@ partial class ModelExtract
             SplitDrawCallsIntoSeparateSubmeshes = true,
             BoneRemapTable = boneRemapTable,
             Skeleton = skeleton,
+            BonePositions = extract.ClothRestBonePositions,
         };
 
         byte[] sharedDmxExtractMethod() => ToDmxMesh(
@@ -580,7 +594,7 @@ partial class ModelExtract
         // ModelDoc resolves mesh skinning indices through this list; without it the mesh is bound to "no skeleton".
         if (options.Skeleton is { Bones.Length: > 0 } skeleton)
         {
-            dmeModel = BuildDmeDagSkeleton(skeleton, out _);
+            dmeModel = BuildDmeDagSkeleton(skeleton, out _, bonePositions: options.BonePositions);
             dmeModel.Name = name;
         }
 
