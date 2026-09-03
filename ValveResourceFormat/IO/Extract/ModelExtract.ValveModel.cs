@@ -972,7 +972,7 @@ partial class ModelExtract
             sequenceLocalReferenceArray = sequenceData.GetArray<string>("m_localSequenceNameArray");
         }
 
-        if (AnimationsToExtract.Count > 0)
+        if (AnimationsToExtract.Count > 0 || additionalSequenceData.Count > 0)
         {
             var animationToFolder = new Dictionary<string, KVObject>(AnimationsToExtract.Count);
             if (modelSequenceData?.Data.GetSubCollection("m_keyValues") is KVObject sequenceKeyValues)
