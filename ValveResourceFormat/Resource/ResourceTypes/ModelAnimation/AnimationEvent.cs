@@ -20,6 +20,11 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
         public int Frame { get; init; }
 
         /// <summary>
+        /// Gets the frame at which the event window ends, or -1 for an event with no window.
+        /// </summary>
+        public int EndFrame { get; init; }
+
+        /// <summary>
         /// Gets the normalized cycle time of the event.
         /// </summary>
         public float Cycle { get; init; }
@@ -47,10 +52,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
         public float StartTime => 0f;
 
         /// <inheritdoc/>
-        /// <remarks>
-        /// Always zero, sequence events fire at a single frame.
-        /// </remarks>
-        public float Duration => 0f;
+        public float Duration { get; init; }
 
         /// <summary>
         /// Initializes a new instance of the <see cref="AnimationEvent"/> struct.
@@ -59,7 +61,9 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
         {
             Name = data.GetStringProperty("m_sEventName");
             Frame = data.GetInt32Property("m_nFrame");
+            EndFrame = data.ContainsKey("m_nEndFrame") ? data.GetInt32Property("m_nEndFrame") : -1;
             Cycle = data.GetFloatProperty("m_flCycle");
+            Duration = data.GetFloatProperty("m_flDuration");
             EventData = data.GetSubCollection("m_EventData");
             Options = data.GetStringProperty("m_sOptions");
         }

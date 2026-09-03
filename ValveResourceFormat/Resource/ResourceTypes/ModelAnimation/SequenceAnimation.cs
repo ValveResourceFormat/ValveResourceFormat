@@ -94,12 +94,40 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
         public AnimationFetch? Fetch { get; }
 
         /// <summary>
+        /// Gets the name of the bone mask this sequence plays with. Empty for the default mask.
+        /// </summary>
+        public string BoneMaskName { get; } = string.Empty;
+
+        /// <summary>
+        /// Gets whether this sequence blends several animations along a pose parameter.
+        /// </summary>
+        public bool IsBlend => Fetch is { LocalReferenceArray.Length: > 1 } fetch && (fetch.Is1D || fetch.Is2D);
+
+        /// <summary>
+        /// Gets the name each entry of <see cref="AnimationFetch.LocalReferenceArray"/> resolves to
+        /// against the sequence group's shared name array, in blend order. Empty when not a blend.
+        /// </summary>
+        public string[] BlendReferenceNames { get; } = [];
+
+        /// <summary>
+        /// Gets the name each dimension of <see cref="AnimationFetch.LocalPose"/> resolves to against the
+        /// sequence group's pose parameter array, row then column. Empty where a dimension names none.
+        /// </summary>
+        public string[] PoseParameterNames { get; } = [];
+
+        /// <summary>
+        /// Gets the name the first entry of <see cref="AnimationFetch.LocalReferenceArray"/> resolves to
+        /// against the sequence group's shared name array: the animation this sequence plays.
+        /// </summary>
+        public string ReferencedAnimationName { get; } = string.Empty;
+
+        /// <summary>
         /// Gets whether this animation was constructed from sequence data.
         /// </summary>
         public bool FromSequence { get; }
 
-        private static AnimationLocalHierarchy[] GetLocalHierarchy(KVObject animDesc)
-            => animDesc.GetArray("m_hierarchyArray")?.Select(static x => new AnimationLocalHierarchy(x)).ToArray() ?? [];
+        private static AnimationLocalHierarchy[] GetLocalHierarchy(KVObject? animDesc)
+            => animDesc?.GetArray("m_hierarchyArray")?.Select(static x => new AnimationLocalHierarchy(x)).ToArray() ?? [];
 
         private SequenceAnimation(KVObject animDesc, AnimationSegmentDecoder?[] segmentArray)
         {
@@ -151,22 +179,23 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
         /// <summary>
         /// Constructor for creating animation from sequence descriptor (ASEQ) and animation data (ANIM).
         /// </summary>
-        private SequenceAnimation(KVObject seqDesc, KVObject animDesc, AnimationSegmentDecoder?[] segmentArray)
+        private SequenceAnimation(KVObject seqDesc, KVObject? animDesc, AnimationSegmentDecoder?[] segmentArray,
+            string[] sequenceNameArray, string[] boneMaskNames, string[] poseParamNames)
         {
             // Name and metadata from sequence descriptor
             Name = seqDesc.GetStringProperty("m_sName");
 
             var seqFlags = seqDesc.GetSubCollection("m_flags");
-            var animFlags = animDesc.GetSubCollection("m_flags");
+            var animFlags = animDesc?.GetSubCollection("m_flags");
 
             IsLooping = seqFlags.GetBooleanProperty("m_bLooping");
             Hidden = seqFlags.GetBooleanProperty("m_bHidden");
-            Delta = seqFlags.GetBooleanProperty("m_bLegacyDelta") || animFlags.GetBooleanProperty("m_bDelta");
+            Delta = seqFlags.GetBooleanProperty("m_bLegacyDelta") || (animFlags?.GetBooleanProperty("m_bDelta") ?? false);
 
             Worldspace = seqFlags.GetBooleanProperty("m_bLegacyWorldspace");
             Realtime = seqFlags.GetBooleanProperty("m_bLegacyRealtime");
             Autoplay = seqFlags.GetBooleanProperty("m_bAutoplay");
-            AnimGraphAdditive = animFlags.GetBooleanProperty("m_bAnimGraphAdditive");
+            AnimGraphAdditive = animFlags?.GetBooleanProperty("m_bAnimGraphAdditive") ?? false;
 
             IsAdditive = Delta || AnimGraphAdditive;
 
@@ -181,41 +210,88 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
             var transition = seqDesc.GetSubCollection("m_transition");
             SequenceParams = new AnimationSequenceParams(transition);
 
-            // Animation data from ANIM block
-            Fps = animDesc.GetFloatProperty("fps");
             SegmentArray = segmentArray;
+            Movements = [];
+            Events = [];
 
-            var pData = animDesc.GetSubCollection("m_pData");
-            FrameCount = pData.GetInt32Property("m_nFrames");
-
-            var frameBlockArray = pData.GetArray("m_frameblockArray");
-            FrameBlocks = new AnimationFrameBlock[frameBlockArray.Count];
-            for (var i = 0; i < frameBlockArray.Count; i++)
+            if (animDesc != null)
             {
-                FrameBlocks[i] = new AnimationFrameBlock(frameBlockArray[i]);
-            }
+                Fps = animDesc.GetFloatProperty("fps");
 
-            var movementArray = animDesc.GetArray("m_movementArray");
-            Movements = new AnimationMovement[movementArray.Count];
-            for (var i = 0; i < movementArray.Count; i++)
-            {
-                Movements[i] = new AnimationMovement(movementArray[i]);
-            }
+                var pData = animDesc.GetSubCollection("m_pData");
+                FrameCount = pData.GetInt32Property("m_nFrames");
 
-            // Events from animation data
-            Events = animDesc.GetArray("m_eventArray")
-                .Select(x => new AnimationEvent(x))
-                .ToArray();
+                var frameBlockArray = pData.GetArray("m_frameblockArray");
+                FrameBlocks = new AnimationFrameBlock[frameBlockArray.Count];
+                for (var i = 0; i < frameBlockArray.Count; i++)
+                {
+                    FrameBlocks[i] = new AnimationFrameBlock(frameBlockArray[i]);
+                }
+
+                var movementArray = animDesc.GetArray("m_movementArray");
+                Movements = new AnimationMovement[movementArray.Count];
+                for (var i = 0; i < movementArray.Count; i++)
+                {
+                    Movements[i] = new AnimationMovement(movementArray[i]);
+                }
+
+                Events = animDesc.GetArray("m_eventArray")
+                    .Select(x => new AnimationEvent(x))
+                    .ToArray();
+            }
 
             var autoLayerArray = seqDesc.GetArray("m_autoLayerArray");
             AutoLayers = new AnimationAutoLayer[autoLayerArray.Count];
             for (var i = 0; i < autoLayerArray.Count; i++)
             {
-                AutoLayers[i] = new AnimationAutoLayer(autoLayerArray[i]);
+                var layer = new AnimationAutoLayer(autoLayerArray[i]);
+
+                if (layer.LocalReference >= 0 && layer.LocalReference < sequenceNameArray.Length)
+                {
+                    layer.ReferencedAnimationName = sequenceNameArray[layer.LocalReference];
+                }
+
+                AutoLayers[i] = layer;
             }
 
             var fetch = seqDesc.GetSubCollection("m_fetch");
             Fetch = new AnimationFetch(fetch);
+
+            if (Fetch.Value.LocalReferenceArray is [var firstReference, ..]
+                && firstReference >= 0 && firstReference < sequenceNameArray.Length)
+            {
+                ReferencedAnimationName = sequenceNameArray[firstReference];
+            }
+
+            if (IsBlend)
+            {
+                var localReferenceArray = Fetch.Value.LocalReferenceArray;
+                var blendReferenceNames = new string[localReferenceArray.Length];
+                for (var i = 0; i < blendReferenceNames.Length; i++)
+                {
+                    var refIndex = (int)localReferenceArray[i];
+                    blendReferenceNames[i] = refIndex >= 0 && refIndex < sequenceNameArray.Length
+                        ? sequenceNameArray[refIndex]
+                        : string.Empty;
+                }
+                BlendReferenceNames = blendReferenceNames;
+
+                var localPose = Fetch.Value.LocalPose;
+                var poseParameterNames = new string[localPose.Length];
+                for (var i = 0; i < poseParameterNames.Length; i++)
+                {
+                    var poseIndex = (int)localPose[i];
+                    poseParameterNames[i] = poseIndex >= 0 && poseIndex < poseParamNames.Length
+                        ? poseParamNames[poseIndex]
+                        : string.Empty;
+                }
+                PoseParameterNames = poseParameterNames;
+            }
+
+            var weightListIndex = seqDesc.GetInt32Property("m_nLocalWeightlist");
+            BoneMaskName = weightListIndex > 0 && weightListIndex < boneMaskNames.Length
+                ? boneMaskNames[weightListIndex]
+                : string.Empty;
 
             FromSequence = true;
         }
@@ -236,12 +312,18 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
                 decoderArray[i] = decoderArrayKV[i].GetStringProperty("m_szName");
             }
 
-            //var channelElements = decodeKey.GetInt32Property("m_nChannelElements");
+            var userArrayKV = decodeKey.GetArray("m_userArray");
+            var userNames = new string[userArrayKV?.Count ?? 0];
+            for (var i = 0; i < userNames.Length; i++)
+            {
+                userNames[i] = userArrayKV![i].GetStringProperty("m_name");
+            }
+
             var dataChannelArrayKV = decodeKey.GetArray("m_dataChannelArray");
             var dataChannelArray = new AnimationDataChannel[dataChannelArrayKV.Count];
             for (var i = 0; i < dataChannelArrayKV.Count; i++)
             {
-                dataChannelArray[i] = new AnimationDataChannel(skeleton, flexControllers, dataChannelArrayKV[i]);
+                dataChannelArray[i] = new AnimationDataChannel(skeleton, flexControllers, userNames, dataChannelArrayKV[i]);
             }
 
             var segmentArrayKV = animationData.GetArray("m_segmentArray");
@@ -358,16 +440,60 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
             var segmentArray = BuildSegmentArray(animationData, decodeKey, skeleton, flexControllers);
             var sequenceNameArray = sequenceData.GetArray<string>("m_localSequenceNameArray");
 
-            var animLookup = new Dictionary<string, KVObject>();
+            var boneMaskArray = sequenceData.GetArray("m_localBoneMaskArray");
+            var boneMaskNames = new string[boneMaskArray?.Count ?? 0];
+            for (var i = 0; i < boneMaskNames.Length; i++)
+            {
+                boneMaskNames[i] = boneMaskArray![i].GetStringProperty("m_sName");
+            }
+
+            var poseParamArray = sequenceData.GetArray("m_localPoseParamArray");
+            var poseParamNames = new string[poseParamArray?.Count ?? 0];
+            for (var i = 0; i < poseParamNames.Length; i++)
+            {
+                poseParamNames[i] = poseParamArray![i].GetStringProperty("m_sName");
+            }
+
+            // The sequence group's name table spells the same animation in either case.
+            var animLookup = new Dictionary<string, KVObject>(StringComparer.OrdinalIgnoreCase);
             foreach (var anim in animArray)
             {
                 var name = anim.GetStringProperty("m_name");
                 animLookup[name] = anim;
             }
 
-            var processedAnimNames = new HashSet<string>();
+            var processedAnimNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             var seqDescArray = sequenceData.GetArray("m_localS1SeqDescArray");
             var animations = new List<SequenceAnimation>();
+
+            static KVObject? FirstReference(KVObject seqDesc, string[] sequenceNameArray, Dictionary<string, KVObject> animLookup)
+            {
+                var localRefArray = seqDesc.GetSubCollection("m_fetch").GetIntegerArray("m_localReferenceArray");
+
+                if (localRefArray.Length == 0)
+                {
+                    return null;
+                }
+
+                var refIndex = (int)localRefArray[0];
+
+                if (refIndex < 0 || refIndex >= sequenceNameArray.Length)
+                {
+                    return null;
+                }
+
+                return animLookup.GetValueOrDefault(sequenceNameArray[refIndex]);
+            }
+
+            // A reference names an entry of the shared name array: an animation, or another sequence.
+            var sequenceLookup = new Dictionary<string, KVObject>(StringComparer.OrdinalIgnoreCase);
+            foreach (var seqDesc in seqDescArray)
+            {
+                if (FirstReference(seqDesc, sequenceNameArray, animLookup) is { } referenced)
+                {
+                    sequenceLookup[seqDesc.GetStringProperty("m_sName")] = referenced;
+                }
+            }
 
             foreach (var seqDesc in seqDescArray)
             {
@@ -379,7 +505,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
                     continue;
                 }
 
-                // TODO: Handle multiple references for blend sequences - for now just use first
+                // A blend plays all of its references at once; the first stands in for the sequence.
                 var refIndex = (int)localRefArray[0];
 
                 if (refIndex < 0 || refIndex >= sequenceNameArray.Length)
@@ -389,7 +515,9 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
 
                 var refAnimName = sequenceNameArray[refIndex];
 
-                if (!animLookup.TryGetValue(refAnimName, out var animDesc))
+                if (!animLookup.TryGetValue(refAnimName, out var animDesc)
+                    && !sequenceLookup.TryGetValue(refAnimName, out animDesc)
+                    && localRefArray.Length == 1)
                 {
                     continue;
                 }
@@ -397,7 +525,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
                 var seqName = seqDesc.GetStringProperty("m_sName");
                 processedAnimNames.Add(seqName);
 
-                animations.Add(new SequenceAnimation(seqDesc, animDesc, segmentArray) { TargetSkeletonName = skeleton.Name });
+                animations.Add(new SequenceAnimation(seqDesc, animDesc, segmentArray, sequenceNameArray, boneMaskNames, poseParamNames) { TargetSkeletonName = skeleton.Name });
             }
 
             // Add remaining animations not already output as sequences
@@ -532,6 +660,33 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
             // Sequence scale is authored around one rather than around zero, so the delta is what it is
             // over one. That is also zero for a bone this animation does not scale, masking it for free.
             return new FrameBone(position, bone.Scale - 1f, angle);
+        }
+
+        /// <summary>
+        /// Returns the bones this animation writes a scale for, empty when it leaves every bone at its
+        /// rest scale.
+        /// </summary>
+        public int[] GetScaledBones()
+        {
+            var scaled = new SortedSet<int>();
+
+            foreach (var segment in SegmentArray)
+            {
+                if (segment is null || segment.ChannelAttribute != AnimationChannelAttribute.Scale)
+                {
+                    continue;
+                }
+
+                foreach (var boneIndex in segment.RemapTable)
+                {
+                    if (boneIndex >= 0)
+                    {
+                        scaled.Add(boneIndex);
+                    }
+                }
+            }
+
+            return [.. scaled];
         }
 
         private AnimatedChannels[]? animatedChannelsCache;

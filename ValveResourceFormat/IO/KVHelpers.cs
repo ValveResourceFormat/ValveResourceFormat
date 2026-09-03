@@ -1,4 +1,5 @@
 using ValveKeyValue;
+using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.IO;
 
@@ -64,4 +65,36 @@ internal class KVHelpers
 
     internal static KVObject ToKVArray(Quaternion q)
         => MakeArray(q.X, q.Y, q.Z, q.W);
+
+    internal static void AddIfPresent(KVObject target, string targetKey, KVObject? source, string sourceKey)
+    {
+        if (source?.ContainsKey(sourceKey) == true)
+        {
+            target.Add(targetKey, source[sourceKey]);
+        }
+    }
+
+    /// <summary>
+    /// Reads a bone reference as a plain name, the form the legacy rig nodes take.
+    /// </summary>
+    internal static string GetBoneReferenceName(KVObject? source, string key)
+        => source?.ContainsKey(key) == true
+            ? source.GetSubCollection(key).GetStringProperty("m_Name", string.Empty)
+            : string.Empty;
+
+    internal static KVObject MakeNamedReference(KVObject? source, string key)
+    {
+        var reference = KVObject.Collection();
+        reference.Add("m_Name", GetBoneReferenceName(source, key));
+        return reference;
+    }
+
+    internal static KVObject MakeAnimParamReference(KVObject? source, string key)
+    {
+        var reference = KVObject.Collection();
+        reference.Add("m_id", source?.ContainsKey(key) == true
+            ? source.GetSubCollection(key).GetUInt32Property("m_id")
+            : uint.MaxValue);
+        return reference;
+    }
 }

@@ -32,6 +32,12 @@ namespace ValveResourceFormat.ResourceTypes
             => parts ??= Data.GetArray("m_parts").Select(p => new Part(p)).ToArray();
 
         /// <summary>
+        /// Gets the joints (constraints) between parts in this aggregate.
+        /// </summary>
+        public Joint[] Joints
+            => joints ??= Data.GetArray("m_joints")?.Select(j => new Joint(j)).ToArray() ?? [];
+
+        /// <summary>
         /// Gets the referenced bone names.
         /// </summary>
         public string[] BoneNames => Data.GetArray<string>("m_boneNames");
@@ -53,8 +59,30 @@ namespace ValveResourceFormat.ResourceTypes
         public IReadOnlyList<KVObject> CollisionAttributes
             => collisionAttributes ??= Data.GetArray("m_collisionAttributes");
 
+        /// <summary>
+        /// Gets what a shape with these collision attributes interacts as. Older assets carry the tags
+        /// under <c>m_PhysicsTagStrings</c>.
+        /// </summary>
+        public static string[] GetInteractAsTags(KVObject collisionAttributes)
+        {
+            ArgumentNullException.ThrowIfNull(collisionAttributes);
+
+            return collisionAttributes.GetArray<string>("m_InteractAsStrings")
+                ?? collisionAttributes.GetArray<string>("m_PhysicsTagStrings")
+                ?? [];
+        }
+
+        /// <summary>
+        /// Gets what a shape interacts as, by index into <see cref="CollisionAttributes"/>.
+        /// </summary>
+        public string[] GetInteractAsTags(int collisionAttributeIndex)
+            => collisionAttributeIndex >= 0 && collisionAttributeIndex < CollisionAttributes.Count
+                ? GetInteractAsTags(CollisionAttributes[collisionAttributeIndex])
+                : [];
+
         private Matrix4x4[]? bindPose;
         private Part[]? parts;
+        private Joint[]? joints;
         private uint[]? surfacePropertyHashes;
         private IReadOnlyList<KVObject>? collisionAttributes;
 

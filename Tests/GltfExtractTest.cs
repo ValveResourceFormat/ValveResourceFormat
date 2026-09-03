@@ -182,6 +182,26 @@ namespace Tests
             });
         }
 
+        [Test]
+        public async Task TestStandaloneMeshExportIncludesSkeleton()
+        {
+            await WithExportedGlb("ghostanim_bg_ghostanim_lod0.vmesh_c", async root =>
+            {
+                await Assert.That(root.LogicalSkins).IsNotEmpty()
+                    .Because("a standalone .vmesh_c with a render skeleton should still export rigged");
+
+                var skin = root.LogicalSkins[0];
+                await Assert.That(skin.JointsCount).IsEqualTo(5);
+
+                var baseJoint = skin.Joints.SingleOrDefault(n => n.Name == "Base");
+                await Assert.That(baseJoint).IsNotNull();
+
+                var childJoint = skin.Joints.Single(n => n.Name == "Attachment_2");
+                await Assert.That(childJoint.VisualParent?.Name).IsEqualTo("Base")
+                    .Because("Attachment_2 names \"Base\" as its m_parentName");
+            });
+        }
+
         private static float WorldScale(Node node)
         {
             Matrix4x4.Decompose(node.WorldMatrix, out var scale, out _, out _);

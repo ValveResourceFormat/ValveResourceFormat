@@ -1,0 +1,1431 @@
+<!-- kv3 encoding:text:version{e21c7f3c-8a33-41c5-9977-a76d3a32aa0d} format:animgraph0:version{f8b33802-7e19-4164-9dd5-2d3c9a193c22} -->
+{
+	_class = "CAnimationGraph"
+	m_modelName = "models/vrf_animgraph/citizen_female_02.vmdl"
+	m_motorList = 
+	{
+		_class = "CAnimMotorList"
+		m_motors = [  ]
+	}
+	m_pParameterList = 
+	{
+		_class = "CAnimParameterList"
+		m_Parameters = 
+		[
+			{
+				_class = "CFloatAnimParameter"
+				m_name = "vrf_blend"
+				m_id = 
+				{
+					m_id = 1330007484
+				}
+				m_previewButton = "ANIMPARAM_BUTTON_NONE"
+				m_bNetwork = false
+				m_bUseMostRecentValue = false
+				m_bAutoReset = false
+				m_bPredicted = false
+				m_fDefaultValue = 0.0
+				m_fMinValue = -1.0
+				m_fMaxValue = 1.0
+				m_bInterpolate = true
+			},
+		]
+	}
+	m_pTagManager = 
+	{
+		_class = "CAnimTagManager"
+		m_tags = [  ]
+	}
+	m_pActivityValuesList = 
+	{
+		_class = "CAnimActivityValuesList"
+	}
+	m_rootNodeID = 
+	{
+		m_id = 1
+	}
+	m_nodes = 
+	[
+		{
+			key = 
+			{
+				m_id = 1
+			}
+			value = 
+			{
+				_class = "CRootAnimNode"
+				m_sName = "root"
+				m_vecPosition = [ 0.0, 0.0 ]
+				m_nNodeID = 
+				{
+					m_id = 1
+				}
+				m_networkMode = "ServerAuthoritative"
+				m_childID = 
+				{
+					m_id = 2
+				}
+			}
+		},
+		{
+			key = 
+			{
+				m_id = 2
+			}
+			value = 
+			{
+				_class = "CChoiceAnimNode"
+				m_sName = "hub"
+				m_vecPosition = [ 200.0, 0.0 ]
+				m_nNodeID = 
+				{
+					m_id = 2
+				}
+				m_networkMode = "ServerAuthoritative"
+				m_children = 
+				[
+					{
+						m_nodeID = 
+						{
+							m_id = 10
+						}
+						m_name = "Add"
+						m_weight = 1.0
+					},
+					{
+						m_nodeID = 
+						{
+							m_id = 11
+						}
+						m_name = "Blend2D"
+						m_weight = 1.0
+					},
+					{
+						m_nodeID = 
+						{
+							m_id = 12
+						}
+						m_name = "Blend"
+						m_weight = 1.0
+					},
+					{
+						m_nodeID = 
+						{
+							m_id = 13
+						}
+						m_name = "BoneMask"
+						m_weight = 1.0
+					},
+					{
+						m_nodeID = 
+						{
+							m_id = 14
+						}
+						m_name = "Choreo"
+						m_weight = 1.0
+					},
+					{
+						m_nodeID = 
+						{
+							m_id = 15
+						}
+						m_name = "CycleControl"
+						m_weight = 1.0
+					},
+					{
+						m_nodeID = 
+						{
+							m_id = 16
+						}
+						m_name = "CycleControlClip"
+						m_weight = 1.0
+					},
+					{
+						m_nodeID = 
+						{
+							m_id = 17
+						}
+						m_name = "DirectPlayback"
+						m_weight = 1.0
+					},
+					{
+						m_nodeID = 
+						{
+							m_id = 18
+						}
+						m_name = "DirectionalBlend"
+						m_weight = 1.0
+					},
+					{
+						m_nodeID = 
+						{
+							m_id = 19
+						}
+						m_name = "FollowAttachment"
+						m_weight = 1.0
+					},
+					{
+						m_nodeID = 
+						{
+							m_id = 20
+						}
+						m_name = "FollowPath"
+						m_weight = 1.0
+					},
+					{
+						m_nodeID = 
+						{
+							m_id = 21
+						}
+						m_name = "FootLock"
+						m_weight = 1.0
+					},
+					{
+						m_nodeID = 
+						{
+							m_id = 22
+						}
+						m_name = "HitReact"
+						m_weight = 1.0
+					},
+					{
+						m_nodeID = 
+						{
+							m_id = 23
+						}
+						m_name = "JiggleBone"
+						m_weight = 1.0
+					},
+					{
+						m_nodeID = 
+						{
+							m_id = 24
+						}
+						m_name = "LeanMatrix"
+						m_weight = 1.0
+					},
+					{
+						m_nodeID = 
+						{
+							m_id = 25
+						}
+						m_name = "LookAt"
+						m_weight = 1.0
+					},
+					{
+						m_nodeID = 
+						{
+							m_id = 26
+						}
+						m_name = "MotionMatching"
+						m_weight = 1.0
+					},
+					{
+						m_nodeID = 
+						{
+							m_id = 27
+						}
+						m_name = "Mover"
+						m_weight = 1.0
+					},
+					{
+						m_nodeID = 
+						{
+							m_id = 28
+						}
+						m_name = "PathHelper"
+						m_weight = 1.0
+					},
+					{
+						m_nodeID = 
+						{
+							m_id = 29
+						}
+						m_name = "Selector"
+						m_weight = 1.0
+					},
+					{
+						m_nodeID = 
+						{
+							m_id = 30
+						}
+						m_name = "SingleFrame"
+						m_weight = 1.0
+					},
+					{
+						m_nodeID = 
+						{
+							m_id = 31
+						}
+						m_name = "SlowDownOnSlopes"
+						m_weight = 1.0
+					},
+					{
+						m_nodeID = 
+						{
+							m_id = 32
+						}
+						m_name = "SolveIKChain"
+						m_weight = 1.0
+					},
+					{
+						m_nodeID = 
+						{
+							m_id = 33
+						}
+						m_name = "SpeedScale"
+						m_weight = 1.0
+					},
+					{
+						m_nodeID = 
+						{
+							m_id = 34
+						}
+						m_name = "StateMachine"
+						m_weight = 1.0
+					},
+					{
+						m_nodeID = 
+						{
+							m_id = 35
+						}
+						m_name = "StopAtGoal"
+						m_weight = 1.0
+					},
+					{
+						m_nodeID = 
+						{
+							m_id = 36
+						}
+						m_name = "Subtract"
+						m_weight = 1.0
+					},
+					{
+						m_nodeID = 
+						{
+							m_id = 37
+						}
+						m_name = "TurnHelper"
+						m_weight = 1.0
+					},
+					{
+						m_nodeID = 
+						{
+							m_id = 38
+						}
+						m_name = "TwoBoneIK"
+						m_weight = 1.0
+					},
+				]
+				m_seed = 1
+				m_choiceMethod = "WeightedRandom"
+				m_choiceChangeMethod = "OnReset"
+				m_blendTime = 0.2
+				m_bResetChosen = true
+			}
+		},
+		{
+			key = 
+			{
+				m_id = 3
+			}
+			value = 
+			{
+				_class = "CSequenceAnimNode"
+				m_sName = "leaf"
+				m_vecPosition = [ 400.0, 0.0 ]
+				m_nNodeID = 
+				{
+					m_id = 3
+				}
+				m_networkMode = "ServerAuthoritative"
+				m_tagSpans = [  ]
+				m_sequenceName = "idle_subtle"
+				m_playbackSpeed = 1.0
+				m_bLoop = true
+			}
+		},
+		{
+			key = 
+			{
+				m_id = 10
+			}
+			value = 
+			{
+							_class = "CAddAnimNode"
+							m_sName = "Add"
+							m_vecPosition = [ 1040.0, 49.878052 ]
+							m_nNodeID = 
+							{
+								m_id = 10
+							}
+							m_baseChildID = 
+							{
+								m_id = 3
+							}
+							m_additiveChildID = 
+							{
+								m_id = 3
+							}
+							m_bResetBase = true
+							m_bResetAdditive = true
+						}
+		},
+		{
+			key = 
+			{
+				m_id = 11
+			}
+			value = 
+			{
+							_class = "CBlend2DAnimNode"
+							m_sName = "Blend2D"
+							m_vecPosition = [ 0.0, 1580.0 ]
+							m_nNodeID = 
+							{
+								m_id = 11
+							}
+							m_networkMode = "ServerAuthoritative"
+							m_items = 
+							[
+								{
+									m_sequenceName = "idle_subtle"
+									m_blendValue = [ 0.0, 0.0 ]
+								},
+								{
+									m_sequenceName = "idle_subtle"
+									m_blendValue = [ 0.0, 0.0 ]
+								},
+								{
+									m_sequenceName = "idle_subtle"
+									m_blendValue = [ 0.0, 0.0 ]
+								},
+								{
+									m_sequenceName = "idle_subtle"
+									m_blendValue = [ 0.0, 0.0 ]
+								},
+								{
+									m_sequenceName = "idle_subtle"
+									m_blendValue = [ 0.0, 0.0 ]
+								},
+								{
+									m_sequenceName = "idle_subtle"
+									m_blendValue = [ 0.0, 0.0 ]
+								},
+								{
+									m_sequenceName = "idle_subtle"
+									m_blendValue = [ 0.0, 0.0 ]
+								},
+								{
+									m_sequenceName = "idle_subtle"
+									m_blendValue = [ 0.0, 0.0 ]
+								},
+								{
+									m_sequenceName = "idle_subtle"
+									m_blendValue = [ 0.0, 0.0 ]
+								},
+							]
+							m_blendSourceX = "ForwardSpeed"
+							m_paramX = 
+							{
+								m_id = 1330007484
+							}
+							m_blendSourceY = "StrafeSpeed"
+							m_paramY = 
+							{
+								m_id = 1330007484
+							}
+							m_eBlendNode = "Blend2DMode_General"
+							m_bLoop = true
+							m_bLockBlendOnReset = false
+							m_playbackSpeed = 1.0
+							m_damping = 
+							{
+								_class = "CAnimInputDamping"
+								m_speedFunction = "Spring"
+								m_fSpeedScale = 8.0
+								m_fMinSpeed = 10.0
+								m_fMaxTension = 1000.0
+							}
+						}
+		},
+		{
+			key = 
+			{
+				m_id = 12
+			}
+			value = 
+			{
+							_class = "CBlendAnimNode"
+							m_sName = "Blend"
+							m_vecPosition = [ 870.0, 0.0 ]
+							m_nNodeID = 
+							{
+								m_id = 12
+							}
+							m_networkMode = "ServerAuthoritative"
+							m_children = [  ]
+							m_blendValueSource = "LookHeading"
+							m_param = 
+							{
+								m_id = 1330007484
+							}
+							m_blendKeyType = "BlendKey_UserValue"
+							m_bLockBlendOnReset = false
+							m_bSyncCycles = true
+							m_bLoop = true
+							m_bLockWhenWaning = true
+							m_damping = 
+							{
+								_class = "CAnimInputDamping"
+								m_speedFunction = "NoDamping"
+								m_fSpeedScale = 1.0
+								m_fMinSpeed = 10.0
+								m_fMaxTension = 1000.0
+							}
+						}
+		},
+		{
+			key = 
+			{
+				m_id = 13
+			}
+			value = 
+			{
+							_class = "CBoneMaskAnimNode"
+							m_sName = "BoneMask"
+							m_vecPosition = [ 520.0, 341.586578 ]
+							m_nNodeID = 
+							{
+								m_id = 13
+							}
+							m_networkMode = "ServerAuthoritative"
+							m_weightListName = "vrf_weightlist"
+							m_child1ID = 
+							{
+								m_id = 3
+							}
+							m_child2ID = 
+							{
+								m_id = 3
+							}
+							m_flRootMotionBlend = 0.5
+							m_bResetChild1 = false
+							m_bResetChild2 = false
+						}
+		},
+		{
+			key = 
+			{
+				m_id = 14
+			}
+			value = 
+			{
+							_class = "CChoreoAnimNode"
+							m_sName = "Choreo"
+							m_vecPosition = [ 1040.0, 0.0 ]
+							m_nNodeID = 
+							{
+								m_id = 14
+							}
+							m_networkMode = "ServerAuthoritative"
+							m_childID = 
+							{
+								m_id = 3
+							}
+						}
+		},
+		{
+			key = 
+			{
+				m_id = 15
+			}
+			value = 
+			{
+							_class = "CCycleControlAnimNode"
+							m_sName = "CycleControl"
+							m_vecPosition = [ 520.0, 0.0 ]
+							m_nNodeID = 
+							{
+								m_id = 15
+							}
+							m_networkMode = "ClientSimulate"
+							m_childID = 
+							{
+								m_id = 3
+							}
+							m_param = 
+							{
+								m_id = 1330007484
+							}
+						}
+		},
+		{
+			key = 
+			{
+				m_id = 16
+			}
+			value = 
+			{
+								_class = "CCycleControlClipAnimNode"
+								m_sName = "CycleControlClip"
+								m_networkMode = "ServerAuthoritative"
+								m_tagSpans = [  ]
+								m_sequenceName = "idle_subtle"
+								m_duration = 2.3
+								m_valueSource = "Parameter"
+								m_param = 
+								{
+									m_id = 1330007484
+								}
+								m_nNodeID = 
+								{
+									m_id = 16
+								}
+								m_vecPosition = [ 520.0, 760.495178 ]
+							}
+		},
+		{
+			key = 
+			{
+				m_id = 17
+			}
+			value = 
+			{
+							_class = "CDirectPlaybackAnimNode"
+							m_sName = "DirectPlayback"
+							m_vecPosition = [ 520.0, 0.0 ]
+							m_nNodeID = 
+							{
+								m_id = 17
+							}
+							m_networkMode = "ServerAuthoritative"
+							m_childID = 
+							{
+								m_id = 3
+							}
+						}
+		},
+		{
+			key = 
+			{
+				m_id = 18
+			}
+			value = 
+			{
+							_class = "CDirectionalBlendAnimNode"
+							m_sName = "DirectionalBlend"
+							m_vecPosition = [ 870.0, 370.0 ]
+							m_nNodeID = 
+							{
+								m_id = 18
+							}
+							m_networkMode = "ServerAuthoritative"
+							m_animNamePrefix = "walk"
+							m_blendValueSource = "MoveHeading"
+							m_param = 
+							{
+								m_id = 1330007484
+							}
+							m_bLoop = true
+							m_bLockBlendOnReset = false
+							m_playbackSpeed = 1.0
+							m_damping = 
+							{
+								_class = "CAnimInputDamping"
+								m_speedFunction = "NoDamping"
+								m_fSpeedScale = 1.0
+								m_fMinSpeed = 10.0
+							}
+						}
+		},
+		{
+			key = 
+			{
+				m_id = 19
+			}
+			value = 
+			{
+								_class = "CFollowAttachmentAnimNode"
+								m_networkMode = "ServerAuthoritative"
+								m_sName = "FollowAttachment"
+								m_inputConnection = 
+								{
+									m_nodeID = 
+									{
+										m_id = 3
+									}
+									m_outputID = 
+									{
+										m_id = 3
+									}
+								}
+								m_boneName = "sun_0"
+								m_attachmentName = "eye_attach"
+								m_bMatchTranslation = true
+								m_bMatchRotation = true
+								m_nNodeID = 
+								{
+									m_id = 19
+								}
+								m_vecPosition = [ 9880.0, 702.009888 ]
+							}
+		},
+		{
+			key = 
+			{
+				m_id = 20
+			}
+			value = 
+			{
+							_class = "CFollowPathAnimNode"
+							m_sName = "FollowPath"
+							m_vecPosition = [ 3300.0, 0.0 ]
+							m_nNodeID = 
+							{
+								m_id = 20
+							}
+							m_networkMode = "ServerAuthoritative"
+							m_childID = 
+							{
+								m_id = 3
+							}
+							m_goalPoseChildID = 
+							{
+								m_id = 3
+							}
+							m_facingTarget = "MoveHeading"
+							m_param = 
+							{
+								m_id = 1330007484
+							}
+							m_flTurnToFaceOffset = 0.0
+							m_flStoppingDistance = 30.0
+							m_bBlendAnimation = true
+							m_damping = 
+							{
+								_class = "CAnimInputDamping"
+								m_speedFunction = "Spring"
+								m_fSpeedScale = 6.0
+								m_fMinSpeed = 10.0
+								m_fMaxTension = 1000.0
+							}
+						}
+		},
+		{
+			key = 
+			{
+				m_id = 21
+			}
+			value = 
+			{
+							_class = "CFootLockAnimNode"
+							m_sName = "FootLock"
+							m_vecPosition = [ 520.0, 1418.368042 ]
+							m_nNodeID = 
+							{
+								m_id = 21
+							}
+							m_networkMode = "ServerAuthoritative"
+							m_childID = 
+							{
+								m_id = 3
+							}
+							m_items = 
+							[
+								{
+									m_footName = "Foot_Front_Left"
+									m_targetBoneName = "leg_front_end_L_IK_target"
+								},
+								{
+									m_footName = "Foot_Front_Right"
+									m_targetBoneName = "leg_front_end_R_IK_target"
+								},
+								{
+									m_footName = "Foot_Back_Left"
+									m_targetBoneName = "leg_back_end_L_IK_target"
+								},
+								{
+									m_footName = "Foot_Back_Right"
+									m_targetBoneName = "leg_back_end_R_IK_target"
+								},
+							]
+							m_bApplyStepLimits = true
+							m_flReachScale = 0.1
+							m_bApplyMotionLimits = true
+							m_flStretchScale = 0.4
+							m_flMotionFalloffBias = 0.6
+							m_flStrideCurveScale = 1.0
+							m_flStrideCurveLimitScale = 0.25
+							m_damping = 
+							{
+								_class = "CAnimInputDamping"
+								m_speedFunction = "Constant"
+								m_fSpeedScale = 30.0
+								m_fMinSpeed = 10.0
+								m_fMaxTension = 1000.0
+							}
+							m_tiltBoneName = "body"
+							m_flTiltPlanePitchSpringStrength = 5.0
+							m_flTiltPlaneRollSpringStrength = 1.0
+							m_hipBoneName = "body"
+						}
+		},
+		{
+			key = 
+			{
+				m_id = 22
+			}
+			value = 
+			{
+							_class = "CHitReactAnimNode"
+							m_sName = "HitReact"
+							m_vecPosition = [ 1390.0, 6788.688477 ]
+							m_nNodeID = 
+							{
+								m_id = 22
+							}
+							m_networkMode = "ServerAuthoritative"
+							m_childID = 
+							{
+								m_id = 3
+							}
+							m_triggerParam = 
+							{
+								m_id = 3
+							}
+							m_hitBoneParam = 
+							{
+								m_id = 3
+							}
+							m_hitOffsetParam = 
+							{
+								m_id = 3
+							}
+							m_hitDirectionParam = 
+							{
+								m_id = 3
+							}
+							m_hitStrengthParam = 
+							{
+								m_id = 3
+							}
+							m_weightListName = "vrf_weightlist"
+							m_hipBoneName = "pelvis"
+							m_flHipBoneTranslationScale = 7.0
+							m_nEffectedBoneCount = 6
+							m_flMaxImpactForce = 60.0
+							m_flMinImpactForce = 60.0
+							m_flWhipImpactScale = 0.8
+							m_flCounterRotationScale = 1.0
+							m_flDistanceFadeScale = 0.2
+							m_flPropagationScale = 0.7
+							m_flWhipDelay = 0.07
+							m_flSpringStrength = 14.0
+							m_flWhipSpringStrength = 12.0
+							m_flHipDipSpringStrength = 6.0
+							m_flHipDipImpactScale = 0.4
+							m_flHipDipDelay = 0.03
+							m_bResetBase = true
+						}
+		},
+		{
+			key = 
+			{
+				m_id = 23
+			}
+			value = 
+			{
+							_class = "CJiggleBoneAnimNode"
+							m_sName = "JiggleBone"
+							m_vecPosition = [ 4880.0, 3009.535889 ]
+							m_nNodeID = 
+							{
+								m_id = 23
+							}
+							m_networkMode = "ServerAuthoritative"
+							m_childID = 
+							{
+								m_id = 3
+							}
+							m_items = 
+							[
+								{
+									m_boneName = "sub_root"
+									m_flSpringStrength = 10.0
+									m_flSimRateFPS = 90.0
+									m_flDamping = 0.059
+									m_eSimSpace = "SimSpace_Model"
+									m_vBoundsMaxLS = [ 10.0, 10.0, 10.0 ]
+									m_vBoundsMinLS = [ -10.0, -10.0, -10.0 ]
+								},
+							]
+						}
+		},
+		{
+			key = 
+			{
+				m_id = 24
+			}
+			value = 
+			{
+							_class = "CLeanMatrixAnimNode"
+							m_sName = "LeanMatrix"
+							m_vecPosition = [ 2780.0, 175.0 ]
+							m_nNodeID = 
+							{
+								m_id = 24
+							}
+							m_networkMode = "ServerAuthoritative"
+							m_sequenceName = "idle_subtle"
+							m_flMaxValue = 1.0
+							m_blendSource = "SlopeNormal"
+							m_param = 
+							{
+								m_id = 1330007484
+							}
+							m_verticalAxisDirection = [ 1.0, 0.0, 0.0 ]
+							m_horizontalAxisDirection = [ 0.0, 1.0, 0.0 ]
+							m_damping = 
+							{
+								_class = "CAnimInputDamping"
+								m_speedFunction = "NoDamping"
+								m_fSpeedScale = 1.0
+								m_fMinSpeed = 10.0
+								m_fMaxTension = 1000.0
+							}
+						}
+		},
+		{
+			key = 
+			{
+				m_id = 25
+			}
+			value = 
+			{
+							_class = "CLookAtAnimNode"
+							m_sName = "LookAt"
+							m_vecPosition = [ 520.0, 1210.0 ]
+							m_nNodeID = 
+							{
+								m_id = 25
+							}
+							m_networkMode = "ServerAuthoritative"
+							m_childID = 
+							{
+								m_id = 3
+							}
+							m_target = "LookTarget"
+							m_param = 
+							{
+								m_id = 1330007484
+							}
+							m_weightParam = 
+							{
+								m_id = 3
+							}
+							m_lookatChainName = "main_look_at_chain"
+							m_attachmentName = "eyes"
+							m_flYawLimit = 60.0
+							m_flPitchLimit = 50.0
+							m_bResetBase = true
+							m_bUseHysteresis = true
+							m_flHysteresisInnerAngle = 2.0
+							m_flHysteresisOuterAngle = 12.0
+							m_damping = 
+							{
+								_class = "CAnimInputDamping"
+								m_speedFunction = "Spring"
+								m_fSpeedScale = 10.0
+								m_fMinSpeed = 2.0
+								m_fMaxTension = 350.0
+							}
+						}
+		},
+		{
+			key = 
+			{
+				m_id = 26
+			}
+			value = 
+			{
+							_class = "CMotionMatchingAnimNode"
+							m_sName = "MotionMatching"
+							m_vecPosition = [ 5930.0, 3610.0 ]
+							m_nNodeID = 
+							{
+								m_id = 26
+							}
+							m_networkMode = "ServerAuthoritative"
+							m_clipGroups = 
+							[
+								{
+									_class = "CMotionClipGroup"
+									m_clips = 
+									[
+										{
+											_class = "CMotionClip"
+											m_tagSpans = [  ]
+											m_sequenceName = "idle_subtle"
+											m_bLoop = false
+										},
+										{
+											_class = "CMotionClip"
+											m_tagSpans = [  ]
+											m_sequenceName = "idle_subtle"
+											m_bLoop = false
+										},
+										{
+											_class = "CMotionClip"
+											m_tagSpans = [  ]
+											m_sequenceName = "idle_subtle"
+											m_bLoop = false
+										},
+										{
+											_class = "CMotionClip"
+											m_tagSpans = [  ]
+											m_sequenceName = "idle_subtle"
+											m_bLoop = false
+										},
+										{
+											_class = "CMotionClip"
+											m_tagSpans = [  ]
+											m_sequenceName = "idle_subtle"
+											m_bLoop = false
+										},
+										{
+											_class = "CMotionClip"
+											m_tagSpans = [  ]
+											m_sequenceName = "idle_subtle"
+											m_bLoop = false
+										},
+										{
+											_class = "CMotionClip"
+											m_tagSpans = [  ]
+											m_sequenceName = "idle_subtle"
+											m_bLoop = false
+										},
+										{
+											_class = "CMotionClip"
+											m_tagSpans = [  ]
+											m_sequenceName = "idle_subtle"
+											m_bLoop = false
+										},
+									]
+									m_name = "Walks"
+									m_tagID = 
+									{
+										m_id = 3
+									}
+								},
+							]
+							m_metrics = 
+							[
+								{
+									_class = "CFootCycleMetric"
+									m_flWeight = 1.0
+									m_feet = 
+									[
+										"Foot_Front_Left",
+										"Foot_Front_Right",
+										"Foot_Back_Left",
+										"Foot_Back_Right",
+									]
+								},
+							]
+							m_blendCurve = 
+							{
+								m_vControlPoint1 = [ 0.5, 0.0 ]
+								m_vControlPoint2 = [ 0.5, 1.0 ]
+							}
+							m_flPredictionTime = 1.0
+							m_samplingMethod = "Uniform"
+							m_flSampleRate = 0.1
+							m_bSearchAtInterval = true
+							m_flSearchInterval = 0.1
+							m_bSearchOnSteps = false
+							m_bForceSearchWhenTagsChange = false
+							m_bSearchWhenClipEnds = true
+							m_bSearchWhenGoalChanges = true
+							m_flBlendTime = 0.3
+							m_flSelectionThreshold = 0.1
+							m_bLockClipWhenWaning = false
+							m_bGoalAssist = true
+							m_flGoalAssistDistance = 40.0
+							m_flGoalAssistTolerance = 2.0
+							m_bEnableDistanceScaling = true
+							m_flDistanceScale_OuterRadius = 120.0
+							m_flDistanceScale_InnerRadius = 40.0
+							m_flDistanceScale_MaxScale = 1.5
+							m_flDistanceScale_MinScale = 0.5
+							m_distanceScale_Damping = 
+							{
+								_class = "CAnimInputDamping"
+								m_speedFunction = "NoDamping"
+								m_fSpeedScale = 1.0
+								m_fMinSpeed = 10.0
+								m_fMaxTension = 1000.0
+							}
+						}
+		},
+		{
+			key = 
+			{
+				m_id = 27
+			}
+			value = 
+			{
+							_class = "CMoverAnimNode"
+							m_sName = "Mover"
+							m_vecPosition = [ 1040.0, 851.586548 ]
+							m_nNodeID = 
+							{
+								m_id = 27
+							}
+							m_networkMode = "ServerAuthoritative"
+							m_childID = 
+							{
+								m_id = 3
+							}
+							m_bApplyMovement = false
+							m_bOrientMovement = false
+							m_bAdditive = false
+							m_bTurnToFace = true
+							m_facingTarget = "MoveHeading"
+							m_damping = 
+							{
+								_class = "CAnimInputDamping"
+								m_speedFunction = "Spring"
+								m_fSpeedScale = 8.0
+								m_fMinSpeed = 10.0
+							}
+						}
+		},
+		{
+			key = 
+			{
+				m_id = 28
+			}
+			value = 
+			{
+							_class = "CPathHelperAnimNode"
+							m_sName = "PathHelper"
+							m_vecPosition = [ 2610.0, 2920.0 ]
+							m_nNodeID = 
+							{
+								m_id = 28
+							}
+							m_networkMode = "ServerAuthoritative"
+							m_childID = 
+							{
+								m_id = 3
+							}
+							m_flStoppingRadius = 48.0
+							m_flStoppingSpeedScale = 1.0
+						}
+		},
+		{
+			key = 
+			{
+				m_id = 29
+			}
+			value = 
+			{
+							_class = "CSelectorAnimNode"
+							m_sName = "Selector"
+							m_vecPosition = [ 0.0, 0.0 ]
+							m_nNodeID = 
+							{
+								m_id = 29
+							}
+							m_networkMode = "ServerAuthoritative"
+							m_children = 
+							[
+								{
+									m_id = 3
+								},
+								{
+									m_id = 3
+								},
+							]
+							m_tags = 
+							[
+								{
+									m_id = 3
+								},
+								{
+									m_id = 3
+								},
+							]
+							m_selectionSource = "SelectionSource_Bool"
+							m_boolParamID = 
+							{
+								m_id = 3
+							}
+							m_enumParamID = 
+							{
+								m_id = 3
+							}
+							m_blendDuration = 1.0
+							m_tagBehavior = "SelectorTagBehavior_OffWhenFinished"
+							m_bResetOnChange = true
+							m_bSyncCyclesOnChange = false
+							m_blendCurve = 
+							{
+								m_vControlPoint1 = [ 0.5, 0.0 ]
+								m_vControlPoint2 = [ 0.5, 1.0 ]
+							}
+						}
+		},
+		{
+			key = 
+			{
+				m_id = 30
+			}
+			value = 
+			{
+							_class = "CSingleFrameAnimNode"
+							m_sName = "SingleFrame"
+							m_vecPosition = [ 0.0, 0.0 ]
+							m_nNodeID = 
+							{
+								m_id = 30
+							}
+							m_networkMode = "ServerAuthoritative"
+							m_sequenceName = "idle_subtle"
+							m_nFrameIndex = 0
+						}
+		},
+		{
+			key = 
+			{
+				m_id = 31
+			}
+			value = 
+			{
+							_class = "CSlowDownOnSlopesAnimNode"
+							m_sName = "SlowDownOnSlopes"
+							m_vecPosition = [ 12510.0, 6914.189453 ]
+							m_nNodeID = 
+							{
+								m_id = 31
+							}
+							m_networkMode = "ServerAuthoritative"
+							m_childID = 
+							{
+								m_id = 3
+							}
+							m_flSlowDownStrength = 1.0
+						}
+		},
+		{
+			key = 
+			{
+				m_id = 32
+			}
+			value = 
+			{
+							_class = "CSolveIKChainAnimNode"
+							m_sName = "SolveIKChain"
+							m_vecPosition = [ 1220.0, 1393.247803 ]
+							m_nNodeID = 
+							{
+								m_id = 32
+							}
+							m_networkMode = "ServerAuthoritative"
+							m_childID = 
+							{
+								m_id = 3
+							}
+							m_IkChains = 
+							[
+								{
+									_class = "CSolveIKChainAnimNodeChainData"
+									m_IkChain = "ik_left_arm"
+									m_SolverSettingSource = "SOLVEIKCHAINANIMNODESETTINGSOURCE_Default"
+									m_OverrideSolverSettings = 
+									{
+										m_SolverType = "IKSOLVER_TwoBone"
+									}
+									m_TargetSettingSource = "SOLVEIKCHAINANIMNODESETTINGSOURCE_Default"
+									m_OverrideTargetSettings = 
+									{
+										m_TargetSource = "Bone"
+										m_Bone = 
+										{
+											m_Name = ""
+										}
+										m_AnimgraphParameterNamePosition = 
+										{
+											m_id = 3
+										}
+										m_TargetCoordSystem = "World Space"
+									}
+									m_DebugSetting = "SOLVEIKCHAINANIMNODEDEBUGSETTING_None"
+									m_flDebugNormalizedLength = 0.0
+									m_vDebugOffset = [ 0.0, 0.0, 0.0 ]
+								},
+							]
+						}
+		},
+		{
+			key = 
+			{
+				m_id = 33
+			}
+			value = 
+			{
+							_class = "CSpeedScaleAnimNode"
+							m_sName = "SpeedScale"
+							m_vecPosition = [ 520.0, 0.0 ]
+							m_nNodeID = 
+							{
+								m_id = 33
+							}
+							m_networkMode = "ServerAuthoritative"
+							m_childID = 
+							{
+								m_id = 3
+							}
+							m_param = 
+							{
+								m_id = 1330007484
+							}
+						}
+		},
+		{
+			key = 
+			{
+				m_id = 34
+			}
+			value = 
+			{
+							_class = "CStateMachineAnimNode"
+							m_sName = "StateMachine"
+							m_vecPosition = [ 870.0, 600.0 ]
+							m_nNodeID = 
+							{
+								m_id = 34
+							}
+							m_networkMode = "ServerAuthoritative"
+							m_states = [  ]
+							m_bBlockWaningTags = false
+							m_bLockStateWhenWaning = false
+						}
+		},
+		{
+			key = 
+			{
+				m_id = 35
+			}
+			value = 
+			{
+							_class = "CStopAtGoalAnimNode"
+							m_sName = "StopAtGoal"
+							m_vecPosition = [ 1040.0, 740.0 ]
+							m_nNodeID = 
+							{
+								m_id = 35
+							}
+							m_networkMode = "ServerAuthoritative"
+							m_childID = 
+							{
+								m_id = 3
+							}
+							m_flOuterRadius = 70.0
+							m_flInnerRadius = 70.0
+							m_flMaxScale = 1.8
+							m_flMinScale = 0.6
+							m_damping = 
+							{
+								_class = "CAnimInputDamping"
+								m_speedFunction = "Spring"
+								m_fSpeedScale = 0.5
+								m_fMinSpeed = 0.0
+								m_fMaxTension = 1000.0
+							}
+						}
+		},
+		{
+			key = 
+			{
+				m_id = 36
+			}
+			value = 
+			{
+							_class = "CSubtractAnimNode"
+							m_sName = "Subtract"
+							m_vecPosition = [ 1040.0, 930.0 ]
+							m_nNodeID = 
+							{
+								m_id = 36
+							}
+							m_networkMode = "ServerAuthoritative"
+							m_baseChildID = 
+							{
+								m_id = 3
+							}
+							m_subtractChildID = 
+							{
+								m_id = 3
+							}
+							m_timingBehavior = "UseChild1"
+							m_flTimingBlend = 0.5
+							m_bResetBase = true
+							m_bResetSubtract = true
+							m_bApplyChannelsSeparately = true
+						}
+		},
+		{
+			key = 
+			{
+				m_id = 37
+			}
+			value = 
+			{
+							_class = "CTurnHelperAnimNode"
+							m_sName = "TurnHelper"
+							m_vecPosition = [ 4700.0, 2090.0 ]
+							m_nNodeID = 
+							{
+								m_id = 37
+							}
+							m_networkMode = "ServerAuthoritative"
+							m_childID = 
+							{
+								m_id = 3
+							}
+							m_facingTarget = "LookHeading"
+							m_turnStartTime = 0.0
+							m_turnDuration = 0.5
+							m_bMatchChildDuration = false
+							m_bUseManualTurnOffset = false
+							m_manualTurnOffset = 0.0
+						}
+		},
+		{
+			key = 
+			{
+				m_id = 38
+			}
+			value = 
+			{
+							_class = "CTwoBoneIKAnimNode"
+							m_sName = "TwoBoneIK"
+							m_vecPosition = [ 1740.0, 1160.0 ]
+							m_nNodeID = 
+							{
+								m_id = 38
+							}
+							m_networkMode = "ServerAuthoritative"
+							m_childID = 
+							{
+								m_id = 3
+							}
+							m_ikChainName = "left_leg"
+							m_attachmentName = "left_foot_ik"
+							m_bMatchTargetOrientation = true
+						}
+		},
+	]
+}

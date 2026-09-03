@@ -77,9 +77,35 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
                 return time;
             }
 
-            var (cycle, frame, remainder) = GetCyclePosition(time);
+            var (cycle, _, _) = GetCyclePosition(time);
 
-            return cycle * CycleDuration + (remainder < 0.5f ? frame : frame + 1) / Fps;
+            return cycle * CycleDuration + GetNearestFrame(time) / Fps;
+        }
+
+        /// <summary>
+        /// The whole frame within the current cycle nearest <paramref name="time"/>.
+        /// </summary>
+        public int GetNearestFrame(float time)
+        {
+            var (_, frame, remainder) = GetCyclePosition(time);
+
+            return remainder < 0.5f ? frame : frame + 1;
+        }
+
+        /// <summary>
+        /// How far through its current cycle <paramref name="time"/> sits, 0 at the first frame and 1 at
+        /// the last. Zero for an animation with no cycle.
+        /// </summary>
+        public float GetCycleFraction(float time)
+        {
+            if (CycleFrames <= 0)
+            {
+                return 0f;
+            }
+
+            var (_, frame, remainder) = GetCyclePosition(time);
+
+            return (frame + remainder) / CycleFrames;
         }
 
         /// <summary>

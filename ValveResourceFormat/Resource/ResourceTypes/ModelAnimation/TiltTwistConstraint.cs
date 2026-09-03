@@ -1,3 +1,6 @@
+using System.Linq;
+using ValveResourceFormat.Serialization.KeyValues;
+
 namespace ValveResourceFormat.ResourceTypes.ModelAnimation
 {
     /// <summary>
@@ -5,6 +8,64 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
     /// </summary>
     public class TiltTwistConstraint
     {
+        /// <summary>
+        /// Reads a model's tilt-twist constraints (<c>CTiltTwistConstraint</c>) in compiled order.
+        /// </summary>
+        public static TiltTwistConstraint[] ReadList(Model model)
+        {
+            var constraints = new List<TiltTwistConstraint>();
+
+            foreach (var constraintData in model.GetBoneConstraints("CTiltTwistConstraint"))
+            {
+                var upVec = constraintData.GetFloatArray("m_vUpVector");
+
+                var constraint = new TiltTwistConstraint
+                {
+                    Name = constraintData.GetStringProperty("m_name"),
+                    UpVector = new Vector3(upVec[0], upVec[1], upVec[2]),
+                    TargetAxis = (int)constraintData.GetIntegerProperty("m_nTargetAxis"),
+                    SlaveAxis = (int)constraintData.GetIntegerProperty("m_nSlaveAxis"),
+                };
+
+                var slaves = constraintData.GetArray("m_slaves");
+                constraint.Slaves = slaves.Select(s =>
+                {
+                    var quat = s.GetFloatArray("m_qBaseOrientation");
+                    var pos = s.GetFloatArray("m_vBasePosition");
+
+                    return new TiltTwistConstraintSlave
+                    {
+                        BaseOrientation = new Quaternion(quat[0], quat[1], quat[2], quat[3]),
+                        BasePosition = new Vector3(pos[0], pos[1], pos[2]),
+                        BoneHash = s.GetUInt32Property("m_nBoneHash"),
+                        Weight = s.GetFloatProperty("m_flWeight"),
+                        Name = s.GetStringProperty("m_sName"),
+                    };
+                }).ToArray();
+
+                var targets = constraintData.GetArray("m_targets");
+                constraint.Targets = targets.Select(t =>
+                {
+                    var quat = t.GetFloatArray("m_qOffset");
+                    var pos = t.GetFloatArray("m_vOffset");
+
+                    return new TiltTwistConstraintTarget
+                    {
+                        Offset = new Quaternion(quat[0], quat[1], quat[2], quat[3]),
+                        PositionOffset = new Vector3(pos[0], pos[1], pos[2]),
+                        BoneHash = t.GetUInt32Property("m_nBoneHash"),
+                        Name = t.GetStringProperty("m_sName"),
+                        Weight = t.GetFloatProperty("m_flWeight"),
+                        IsAttachment = t.GetBooleanProperty("m_bIsAttachment"),
+                    };
+                }).ToArray();
+
+                constraints.Add(constraint);
+            }
+
+            return [.. constraints];
+        }
+
         /// <summary>
         /// Gets or sets the name of the constraint.
         /// </summary>

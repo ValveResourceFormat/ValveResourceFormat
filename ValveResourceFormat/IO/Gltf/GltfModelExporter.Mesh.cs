@@ -42,7 +42,7 @@ public partial class GltfModelExporter
 
         vmesh.LoadExternalMorphData(FileLoader);
 
-        var boneWeightCount = vmesh.Data.GetSubCollection("m_skeleton")?.GetInt32Property("m_nBoneWeightCount") ?? 0;
+        var boneWeightCount = vmesh.BoneWeightCount;
 
         var vertexBufferAccessors = CreateVertexBufferAccessors(exportedModel, vbib, boneRemapTable != null ? boneWeightCount : 0, boneRemapTable);
         var vertexOffset = 0;
@@ -325,7 +325,7 @@ public partial class GltfModelExporter
         var indexBufferIndex = indexBufferInfo.GetInt32Property("m_hBuffer");
         var indexBuffer = vbib.IndexBuffers[indexBufferIndex];
 
-        var materialPath = skinMaterialPath ?? drawCall.GetStringProperty("m_material") ?? drawCall.GetStringProperty("m_pMaterial");
+        var materialPath = skinMaterialPath ?? VMesh.GetMaterialName(drawCall)!;
         Resource? materialResource = null;
 
         // Bake g_vLightmapUvScale into lightmap UVs. Like the renderer, only draw calls with baked
@@ -478,7 +478,7 @@ public partial class GltfModelExporter
     // Copied from ValveResourceFormat.Renderer.SceneAggregate.CreateFragments
     private bool AggregateCreateFragments(ModelRoot exportedModel, Scene scene, VModel model, KVObject aggregateSceneObject, string name)
     {
-        var embeddedMeshes = model.GetEmbeddedMeshesAndLoD().ToList();
+        var embeddedMeshes = model.GetEmbeddedMeshes().ToList();
         VMesh vmesh;
 
         // TODO: Perhaps use <see cref="ModelSceneNode.LoadMeshes" />
@@ -568,7 +568,7 @@ public partial class GltfModelExporter
 
             var lodGroupMask = fragmentData.GetUInt32Property("m_nLODGroupMask");
             var setupIndex = fragmentData.GetInt32Property("m_nLODSetupIndex", -1);
-            if (!ResourceTypes.ModelLodInfo.IsInLowestSetLevel(lodGroupMask, combinedLodMaskPerSetup[setupIndex]))
+            if (!ResourceTypes.ModelData.ModelLodInfo.IsInLowestSetLevel(lodGroupMask, combinedLodMaskPerSetup[setupIndex]))
             {
                 continue;
             }

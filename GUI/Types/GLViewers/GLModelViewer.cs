@@ -11,6 +11,7 @@ using ValveResourceFormat.Renderer.SceneEnvironment;
 using ValveResourceFormat.Renderer.SceneNodes;
 using ValveResourceFormat.Renderer.Utils;
 using ValveResourceFormat.ResourceTypes;
+using ValveResourceFormat.ResourceTypes.ModelData;
 using ValveResourceFormat.ResourceTypes.ModelAnimation;
 
 namespace GUI.Types.GLViewers
@@ -909,7 +910,7 @@ namespace GUI.Types.GLViewers
                 animationComboBox.Items.Add($"({animations.Length} animations available)");
                 animationIndexMap.Add(null);
 
-                var animationToFolder = model?.GetFaceposerFolders() ?? [];
+                var animationToFolder = model?.SequenceGroup.GetFaceposerFolders() ?? [];
 
                 // Add ag2 folders
                 foreach (var anim in animations)

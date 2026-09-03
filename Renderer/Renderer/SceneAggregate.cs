@@ -2,6 +2,7 @@ using System.IO;
 using System.Linq;
 using ValveKeyValue;
 using ValveResourceFormat.ResourceTypes;
+using ValveResourceFormat.ResourceTypes.ModelData;
 using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.Renderer
@@ -98,7 +99,7 @@ namespace ValveResourceFormat.Renderer
         public SceneAggregate(Scene scene, Model model)
             : base(scene)
         {
-            var embeddedMeshes = model.GetEmbeddedMeshesAndLoD().ToList();
+            var embeddedMeshes = model.GetEmbeddedMeshes().ToList();
 
             // TODO: Perhaps use ModelSceneNode.LoadMeshes
             if (embeddedMeshes.Count != 0)
