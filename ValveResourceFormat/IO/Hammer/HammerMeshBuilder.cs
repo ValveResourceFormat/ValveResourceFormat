@@ -10,6 +10,7 @@ using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.ResourceTypes.RubikonPhysics;
 using ValveResourceFormat.Serialization.KeyValues;
 using static ValveResourceFormat.ResourceTypes.RubikonPhysics.Shapes.Mesh;
+using RnHull = ValveResourceFormat.ResourceTypes.RubikonPhysics.Shapes.Hull;
 
 namespace ValveResourceFormat.IO
 {
@@ -759,10 +760,7 @@ namespace ValveResourceFormat.IO
             {
                 var indexCount = 0;
 
-                var startHe = face.Edge;
-                var he = startHe;
-
-                do
+                foreach (var vertex in RnHull.GetFaceVertices(hullEdges, face))
                 {
                     if (indexCount >= byte.MaxValue)
                     {
@@ -770,11 +768,8 @@ namespace ValveResourceFormat.IO
                         break;
                     }
 
-                    inds[indexCount] = baseVertex + hullEdges[he].Origin;
-                    he = hullEdges[he].Next;
-                    indexCount++;
+                    inds[indexCount++] = baseVertex + vertex;
                 }
-                while (he != startHe);
 
                 AddFace(inds[..indexCount], material);
             }

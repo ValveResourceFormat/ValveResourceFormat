@@ -23,6 +23,10 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics
         /// Gets or sets the user-friendly name.
         /// </summary>
         public string? UserFriendlyName { get; set; }
+        /// <summary>
+        /// Gets or sets the hit group this shape belongs to for location based damage.
+        /// </summary>
+        public string? HitGroupName { get; set; }
 
         /// <summary>
         /// Gets or sets the shape.
@@ -44,6 +48,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics
             CollisionAttributeIndex = data.GetInt32Property("m_nCollisionAttributeIndex");
             SurfacePropertyIndex = data.GetInt32Property("m_nSurfacePropertyIndex");
             UserFriendlyName = data.GetStringProperty("m_UserFriendlyName");
+            HitGroupName = data.GetStringProperty("m_sHitGroupName");
 
             var memberName = typeof(T).Name;
             var shapeData = data.GetSubCollection("m_" + memberName) ?? throw new InvalidDataException("Member name is not correct for shape type: " + memberName);

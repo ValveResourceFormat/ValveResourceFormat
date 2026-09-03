@@ -135,24 +135,9 @@ public partial class GltfModelExporter
     {
         foreach (var face in faces)
         {
-            var startEdge = face.Edge;
-
-            for (var edge = edges[startEdge].Next; edge != startEdge;)
+            foreach (var (a, b, c) in GetFaceTriangles(edges, face))
             {
-                var nextEdge = edges[edge].Next;
-
-                if (nextEdge == startEdge)
-                {
-                    break;
-                }
-
-                var a = transformedPositions[edges[startEdge].Origin];
-                var b = transformedPositions[edges[edge].Origin];
-                var c = transformedPositions[edges[nextEdge].Origin];
-
-                AddTriangleWithNormal(a, b, c, verts, normals, uvs, indices);
-
-                edge = nextEdge;
+                AddTriangleWithNormal(transformedPositions[a], transformedPositions[b], transformedPositions[c], verts, normals, uvs, indices);
             }
         }
     }
