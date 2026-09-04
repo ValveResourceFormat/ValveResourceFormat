@@ -1546,6 +1546,23 @@ partial class ModelExtract
 
                     physicsShapeList.Value.Add(physicsShapeCapsule);
                 }
+
+                if (physicsPart.Shape.Spheres.Length == 0 && physicsPart.Shape.Capsules.Length == 0
+                    && physicsPart.Shape.Hulls.Length == 0 && physicsPart.Shape.Meshes.Length == 0)
+                {
+                    // A body with no shape is declared as a degenerate capsule: the compiler keeps
+                    // the body and drops the shape.
+                    physicsShapeList.Value.Add(MakeNode(
+                        "PhysicsShapeCapsule",
+                        ("parent_bone", parentBone),
+                        ("surface_prop", "default"),
+                        ("collision_tags", string.Join(" ", PhysicsCollisionTags[physicsPart.CollisionAttributeIndex])),
+                        ("radius", 0f),
+                        ("point0", ToKVArray(Vector3.Zero)),
+                        ("point1", ToKVArray(Vector3.Zero)),
+                        ("name", string.Empty)
+                    ));
+                }
             }
 
             foreach (var joint in physAggregateData.Joints)
