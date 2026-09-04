@@ -363,14 +363,16 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
 
                 foreach (var (fit, members) in shapes)
                 {
+                    var (point0, point1) = PlanarizedAxis(fit, samples, members);
+
                     if (SmallestVertexMapCovering(samples, members) is { } vertexMap)
                     {
                         recovered.Add(new CollisionCapsule
                         {
                             ParentBone = bone,
-                            Point0 = fit.C0,
+                            Point0 = point0,
                             Radius0 = fit.R0,
-                            Point1 = fit.C1,
+                            Point1 = point1,
                             Radius1 = fit.R1,
                             CollisionMask = 0xF,
                             VertexMap = vertexMap,
@@ -394,9 +396,9 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                         recovered.Add(new CollisionCapsule
                         {
                             ParentBone = bone,
-                            Point0 = fit.C0,
+                            Point0 = point0,
                             Radius0 = fit.R0,
-                            Point1 = fit.C1,
+                            Point1 = point1,
                             Radius1 = fit.R1,
                             CollisionMask = 0xF,
                             VertexMap = splitMap,
@@ -410,6 +412,34 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             }
 
             return result;
+        }
+
+        /// <summary>
+        /// The two end-cap positions a recovered shape is emitted with. A fit whose caps coincide is a
+        /// single end cap, and it is given a short axis pointing away from the nodes it owns, which keeps
+        /// the recovered centre the nearest point on that axis and so leaves every plane unchanged.
+        /// </summary>
+        static (Vector3 Point0, Vector3 Point1) PlanarizedAxis(CapsuleFit fit,
+            List<PlanarizeSample> samples, List<int> members)
+        {
+            if ((fit.C1 - fit.C0).Length() > PlanarizeCapAxisMinimum)
+            {
+                return (fit.C0, fit.C1);
+            }
+
+            var away = Vector3.Zero;
+            foreach (var member in members)
+            {
+                away -= samples[member].Normal;
+            }
+
+            var length = away.Length();
+            if (length < PlanarizeCapAxisMinimum)
+            {
+                return (fit.C0, fit.C1);
+            }
+
+            return (fit.C0, fit.C0 + (away * (PlanarizeCapAxisLength / length)));
         }
 
         /// <summary>
@@ -671,6 +701,11 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         // off a leftover plane are tried alongside those.
         static readonly float[] PlanarizeCapMargins = [0.25f, 1f, 4f];
         static readonly float[] PlanarizeRadiusMargins = [0.05f, 0.5f, 2f];
+
+        // A recovered shape whose end caps coincide compiles as a sphere, and a planarized sphere loses
+        // every node a planarized capsule also covers, so such a cap is given a short axis instead.
+        const float PlanarizeCapAxisMinimum = 1e-4f;
+        const float PlanarizeCapAxisLength = 0.01f;
         const int PlanarizeCapPicks = 4;
         const int PlanarizeSubsetRounds = 3;
 
