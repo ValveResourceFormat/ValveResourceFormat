@@ -1319,14 +1319,15 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         }
 
         /// <summary>
-        /// The corner order the compiler holds a declared face in when it pairs bend rods: the three passes
-        /// it runs over a declared element, in order.
+        /// The corner order a declared face reaches the compiler's own element array in: the import
+        /// canonicalisation and the mass pass's static-first partition.
         /// </summary>
         /// <remarks>
         /// At import a quad whose two simulated corners are DIAGONAL takes a single transposition, and every
         /// other face is rotated so the trailing static run leads. Inside the mass pass a face that still has
-        /// a static corner past its leading run is stable-partitioned, non-simulated first. Finally a quad
-        /// with two leading static corners has its last two swapped when that makes it convex.
+        /// a static corner past its leading run is stable-partitioned, non-simulated first. This is the model
+        /// a SEARCH over candidate declarations scores against; the order the compiler finally pairs bend
+        /// rods in is <see cref="CompiledElementOrder"/>, one pass further on.
         /// </remarks>
         static int[] CompilerCornerCycle(int[] face, Func<int, bool> isStatic)
         {
@@ -1378,6 +1379,36 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             {
                 cycle = [.. cycle.Where(isStatic), .. cycle.Where(corner => !isStatic(corner))];
                 leading = cycle.Count(isStatic);
+            }
+
+            return cycle;
+        }
+
+        /// <summary>
+        /// The corner order the compiler pairs bend rods in for a FIXED declaration: the passes
+        /// <see cref="CompilerCornerCycle"/> models, and then the convexity swap it applies to a quad whose
+        /// two leading corners are static.
+        /// </summary>
+        /// <remarks>
+        /// The swap runs between the mass pass and the edge-descriptor walk, so only a prediction of what an
+        /// already-chosen declaration compiles to may model it. A search that picks a declaration must not:
+        /// scoring candidates through the swap makes it choose one that anticipates the swap, which the
+        /// compiler then applies on top.
+        /// </remarks>
+        static int[] CompiledElementOrder(int[] face, Func<int, bool> isStatic, Func<int, Vector3> positionOf)
+        {
+            var cycle = CompilerCornerCycle(face, isStatic);
+            if (cycle.Length != 4 || !isStatic(cycle[0]) || !isStatic(cycle[1])
+                || isStatic(cycle[2]) || isStatic(cycle[3]))
+            {
+                return cycle;
+            }
+
+            var edge0 = positionOf(cycle[1]) - positionOf(cycle[0]);
+            var edge2 = positionOf(cycle[2]) - positionOf(cycle[3]);
+            if (Vector3.Dot(edge2, edge0) < 0f)
+            {
+                (cycle[2], cycle[3]) = (cycle[3], cycle[2]);
             }
 
             return cycle;
