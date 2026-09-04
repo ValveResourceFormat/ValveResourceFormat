@@ -1673,7 +1673,7 @@ partial class ModelExtract
         foreach (var capsule in feModel.BuildPlanarizeCapsules()
             .OrderBy(c => ParentBoneNode(feModel, c.ParentBone)))
         {
-            softbodyChildren.Add(MakeClothPlanarizedShape(capsule));
+            softbodyChildren.Add(MakeClothShapeCapsule(capsule));
         }
     }
 
@@ -1683,27 +1683,6 @@ partial class ModelExtract
     {
         var node = parentBone is null ? -1 : Array.IndexOf(feModel.CtrlNames, parentBone);
         return node < 0 ? int.MaxValue : node;
-    }
-
-    // A planarized shape whose end caps coincide is a sphere: the compiler drops a capsule of zero length
-    // and the shape leaves no planes behind at all.
-    static KVObject MakeClothPlanarizedShape(FeModel.CollisionCapsule capsule)
-    {
-        if ((capsule.Point1 - capsule.Point0).Length() > 1e-4f)
-        {
-            return MakeClothShapeCapsule(capsule);
-        }
-
-        return MakeClothShapeSphere(new FeModel.CollisionSphere
-        {
-            ParentBone = capsule.ParentBone,
-            Center = capsule.Point0,
-            Radius = capsule.Radius0,
-            CollisionMask = capsule.CollisionMask,
-            VertexMap = capsule.VertexMap,
-            Inverted = capsule.Inverted,
-            Priority = capsule.Priority,
-        }, planarize: true);
     }
 
     // A selection solved as a volume carries its strength and the node it takes its scale from. Both are
@@ -2048,17 +2027,16 @@ partial class ModelExtract
         return node;
     }
 
-    static KVObject MakeClothShapeSphere(FeModel.CollisionSphere sphere, bool planarize = false)
+    static KVObject MakeClothShapeSphere(FeModel.CollisionSphere sphere)
     {
         var node = MakeNode("ClothShapeSphere",
-            ("name", (sphere.ParentBone ?? "cloth")
-                + (planarize ? "_clothPlanarizedSphere" : "_clothSphere")),
+            ("name", (sphere.ParentBone ?? "cloth") + "_clothSphere"),
             ("parent_bone", sphere.ParentBone ?? string.Empty));
         AddClothCollisionLayers(node, sphere.CollisionMask);
         node.Add("cloth_collision_priority", sphere.Priority);
         node.Add("vertex_map", sphere.VertexMap ?? "");
         node.Add("inverted_collision", sphere.Inverted);
-        node.Add("planarize", planarize);
+        node.Add("planarize", false);
         node.Add("bounciness", 0.0f);
         node.Add("radius", sphere.Radius);
         node.Add("center", ToKVArray(sphere.Center));
