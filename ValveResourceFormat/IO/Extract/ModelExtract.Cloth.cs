@@ -1633,27 +1633,56 @@ partial class ModelExtract
 
     static void AddClothCollisionShapes(KVObject softbodyChildren, FeModel feModel)
     {
-        foreach (var capsule in feModel.BuildCollisionCapsules())
+        // A shape declaration creates its parent bone as a control node where nothing has created it yet,
+        // so the three rigid kinds are interleaved to introduce their parent bones in the order the
+        // compiled model numbers them. Each kind keeps the relative order its own rigid array carries.
+        var kinds = new List<(int Node, KVObject Shape)>[]
         {
-            softbodyChildren.Add(MakeClothShapeCapsule(capsule));
-        }
+            [.. feModel.BuildCollisionCapsules()
+                .Select(c => (ParentBoneNode(feModel, c.ParentBone), MakeClothShapeCapsule(c)))],
+            [.. feModel.BuildCollisionSpheres()
+                .Select(s => (ParentBoneNode(feModel, s.ParentBone), MakeClothShapeSphere(s)))],
+            [.. feModel.BuildCollisionBoxes()
+                .Select(b => (ParentBoneNode(feModel, b.ParentBone), MakeClothShapeBox(b)))],
+        };
 
-        foreach (var sphere in feModel.BuildCollisionSpheres())
+        var taken = new int[kinds.Length];
+        while (true)
         {
-            softbodyChildren.Add(MakeClothShapeSphere(sphere));
-        }
+            var next = -1;
+            for (var kind = 0; kind < kinds.Length; kind++)
+            {
+                if (taken[kind] < kinds[kind].Count
+                    && (next < 0 || kinds[kind][taken[kind]].Node < kinds[next][taken[next]].Node))
+                {
+                    next = kind;
+                }
+            }
 
-        foreach (var box in feModel.BuildCollisionBoxes())
-        {
-            softbodyChildren.Add(MakeClothShapeBox(box));
+            if (next < 0)
+            {
+                break;
+            }
+
+            softbodyChildren.Add(kinds[next][taken[next]++].Shape);
         }
 
         // Last: a planarized capsule is excluded from m_TaperedCapsuleRigids, but declaring it ahead of the
-        // real ones still rotates their order in that array.
-        foreach (var capsule in feModel.BuildPlanarizeCapsules())
+        // real ones still rotates their order in that array. m_CollisionPlanes is sorted by the compiler,
+        // so ordering these by parent bone costs the plane array nothing.
+        foreach (var capsule in feModel.BuildPlanarizeCapsules()
+            .OrderBy(c => ParentBoneNode(feModel, c.ParentBone)))
         {
             softbodyChildren.Add(MakeClothPlanarizedShape(capsule));
         }
+    }
+
+    // Where a collision shape's parent bone sits in the compiled control-node array, or last when the
+    // compiled model does not carry it as a control node at all.
+    static int ParentBoneNode(FeModel feModel, string? parentBone)
+    {
+        var node = parentBone is null ? -1 : Array.IndexOf(feModel.CtrlNames, parentBone);
+        return node < 0 ? int.MaxValue : node;
     }
 
     // A planarized shape whose end caps coincide is a sphere: the compiler drops a capsule of zero length
