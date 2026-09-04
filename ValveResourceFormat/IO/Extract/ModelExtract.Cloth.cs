@@ -1631,8 +1631,12 @@ partial class ModelExtract
             .Where(static n => n is not null)
             .ToHashSet();
 
-    static void AddClothCollisionShapes(KVObject softbodyChildren, FeModel feModel)
+    /// <summary>
+    /// Declares the cloth collision shapes and returns the names it gave them, in declaration order.
+    /// </summary>
+    static List<string> AddClothCollisionShapes(KVObject softbodyChildren, FeModel feModel)
     {
+        var names = new List<string>();
         // A shape declaration creates its parent bone as a control node where nothing has created it yet,
         // so the three rigid kinds are interleaved to introduce their parent bones in the order the
         // compiled model numbers them. Each kind keeps the relative order its own rigid array carries.
@@ -1664,7 +1668,9 @@ partial class ModelExtract
                 break;
             }
 
-            softbodyChildren.Add(kinds[next][taken[next]++].Shape);
+            var shape = kinds[next][taken[next]++].Shape;
+            names.Add(shape.GetStringProperty("name"));
+            softbodyChildren.Add(shape);
         }
 
         // Last: a planarized capsule is excluded from m_TaperedCapsuleRigids, but declaring it ahead of the
@@ -1673,8 +1679,45 @@ partial class ModelExtract
         foreach (var capsule in feModel.BuildPlanarizeCapsules()
             .OrderBy(c => ParentBoneNode(feModel, c.ParentBone)))
         {
-            softbodyChildren.Add(MakeClothShapeCapsule(capsule));
+            var shape = MakeClothShapeCapsule(capsule);
+            names.Add(shape.GetStringProperty("name"));
+            softbodyChildren.Add(shape);
         }
+
+        return names;
+    }
+
+    /// <summary>
+    /// Declares the anti-tunnel collider group the compiler turns into <c>m_AntiTunnelBytecode</c>: a node
+    /// list naming both the cloth swept for tunnelling and the shapes it is swept against. The two kinds
+    /// are each necessary - a group naming only colliders or only cloth compiles to no bytecode at all -
+    /// and members are named, not parented, so the cloth keeps the declaration site that builds it.
+    /// </summary>
+    static void AddClothAntiTunnelGroup(KVObject softbodyChildren, FeModel feModel,
+        List<string> shapeNames, List<string> clothNames)
+    {
+        if (feModel.AntiTunnelBytecode.Length == 0 || shapeNames.Count == 0 || clothNames.Count == 0)
+        {
+            return;
+        }
+
+        var nodes = KVObject.Collection();
+        foreach (var name in shapeNames.Concat(clothNames).Distinct())
+        {
+            nodes.Add(name, true);
+        }
+
+        var data = KVObject.Collection();
+        data.Add("nodes", nodes);
+
+        softbodyChildren.Add(MakeNode("ClothAntiTunnelColliderGroup",
+            ("name", "cloth_antitunnel_group0"),
+            ("vertex_map", ""),
+            ("import_cloth_collision_layer0", false),
+            ("import_cloth_collision_layer1", false),
+            ("import_cloth_collision_layer2", false),
+            ("import_cloth_collision_layer3", false),
+            ("data", data)));
     }
 
     // Where a collision shape's parent bone sits in the compiled control-node array, or last when the
@@ -3597,7 +3640,9 @@ partial class ModelExtract
             .Select(static entry => entry.Name));
         clothBones.UnionWith(unregisteredFreeNodes.Select(static entry => entry.RootBone));
         AddClothFollowBones(softbodyChildren, feModel, clothBones);
-        AddClothCollisionShapes(softbodyChildren, feModel);
+        var shapeNames = AddClothCollisionShapes(softbodyChildren, feModel);
+        AddClothAntiTunnelGroup(softbodyChildren, feModel, shapeNames,
+            [.. ClothProxyMeshesToExtract.Select(static proxy => proxy.Name)]);
         AddClothEffects(softbodyChildren, feModel, AvailableVertexMaps(feModel, independentChains));
 
         rootChildren.Add(softbody);
