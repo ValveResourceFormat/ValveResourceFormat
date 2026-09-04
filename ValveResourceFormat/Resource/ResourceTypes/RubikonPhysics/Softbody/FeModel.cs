@@ -1115,7 +1115,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             {
                 if (face.Length is 3 or 4)
                 {
-                    cycles.Add(CompilerCornerCycle(face, IsStatic));
+                    cycles.Add(CompiledElementOrder(face, IsStatic, RestPositionOf));
                 }
             }
 
@@ -1136,6 +1136,9 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             }
 
             return mass;
+
+            Vector3 RestPositionOf(int node)
+                => node >= 0 && node < InitPosePositions.Length ? InitPosePositions[node] : Vector3.Zero;
         }
 
         /// <summary>
