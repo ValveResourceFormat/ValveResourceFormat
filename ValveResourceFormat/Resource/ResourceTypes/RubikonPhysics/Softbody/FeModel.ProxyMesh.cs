@@ -2154,8 +2154,11 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         {
             truncatedTail = [];
             var faces = new List<int[]>();
-            foreach (var face in SourceFaces)
+            var triangleElements = SourceTriangleElementCount;
+            var triangles = 0;
+            for (var i = 0; i < SourceFaces.Length; i++)
             {
+                var face = SourceFaces[i];
                 if (SpansProxyMeshes(face))
                 {
                     continue;
@@ -2174,6 +2177,10 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                 if (complete)
                 {
                     faces.Add(face);
+                    if (i < triangleElements)
+                    {
+                        triangles++;
+                    }
                 }
             }
 
@@ -2218,7 +2225,304 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             // it in opposite directions. Faces of unequal corner counts are grouped by count on the way
             // out, so their order relative to each other does not survive.
             faces.Reverse();
+            MergeFacesInNodeCreationOrder(faces, triangles);
             return [.. faces.Select(face => face.Select(corner => localOf[corner]).ToArray())];
+        }
+
+        /// <summary>
+        /// Interleaves the quad run and the triangle run of a recovered surface the way the authored sheet
+        /// declared them.
+        /// </summary>
+        /// <remarks>
+        /// <c>m_SourceElems</c> groups its elements by corner count, so the recovered list is every
+        /// triangle and then every quad while the authored one interleaves the two; each run is already in
+        /// the authored order, which makes the interleaving a merge rather than a sort. The builder numbers
+        /// a simulated node when a face corner first names it and lays the dynamic block out by
+        /// <c>(rank, creation index)</c>, so the merge takes at each step the run whose head introduces the
+        /// nodes the compiled node array numbers next. A head that introduces nothing settles no question
+        /// and the quad run goes first, as it does when neither head fits.
+        /// <para>
+        /// The corners of one face are checked as a SET per rank: which of them is named first is decided
+        /// afterwards by <see cref="DeclareFacesInStaticNodeOrder"/>, not here.
+        /// </para>
+        /// </remarks>
+        void MergeFacesInNodeCreationOrder(List<int[]> faces, int triangleCount)
+        {
+            var quadCount = faces.Count - triangleCount;
+            if (quadCount <= 0 || triangleCount <= 0)
+            {
+                return;
+            }
+
+            var rank = SurfaceNodeRanks;
+            var pending = new Dictionary<int, List<int>>();
+            var covered = new SortedSet<int>();
+            foreach (var face in faces)
+            {
+                foreach (var corner in face)
+                {
+                    if (corner >= StaticNodeCount && corner < rank.Length)
+                    {
+                        covered.Add(corner);
+                    }
+                }
+            }
+
+            foreach (var node in covered)
+            {
+                (pending.TryGetValue(rank[node], out var run) ? run : pending[rank[node]] = []).Add(node);
+            }
+
+            var walked = new Dictionary<int, List<int>>(pending.Count);
+            foreach (var (key, run) in pending)
+            {
+                walked[key] = [.. run];
+            }
+
+            var seen = new HashSet<int>();
+            var consistent = true;
+            foreach (var face in faces)
+            {
+                var fresh = new List<int>(4);
+                foreach (var corner in face)
+                {
+                    if (corner >= StaticNodeCount && corner < rank.Length
+                        && !seen.Contains(corner) && !fresh.Contains(corner))
+                    {
+                        fresh.Add(corner);
+                    }
+                }
+
+                foreach (var group in fresh.GroupBy(node => rank[node]))
+                {
+                    var wanted = group.ToHashSet();
+                    var run = walked[group.Key];
+                    if (run.Count < wanted.Count || !run.Take(wanted.Count).ToHashSet().SetEquals(wanted))
+                    {
+                        consistent = false;
+                    }
+                }
+
+                foreach (var corner in fresh)
+                {
+                    seen.Add(corner);
+                    walked[rank[corner]].Remove(corner);
+                }
+
+                if (!consistent)
+                {
+                    break;
+                }
+            }
+
+            if (consistent)
+            {
+                return;
+            }
+
+            var created = new HashSet<int>();
+            var merged = new List<int[]>(faces.Count);
+            var quad = 0;
+            var triangle = quadCount;
+
+            List<int> Introduced(int face)
+            {
+                var fresh = new List<int>(4);
+                foreach (var corner in faces[face])
+                {
+                    if (corner >= StaticNodeCount && corner < rank.Length
+                        && !created.Contains(corner) && !fresh.Contains(corner))
+                    {
+                        fresh.Add(corner);
+                    }
+                }
+
+                return fresh;
+            }
+
+            bool IsNext(List<int> fresh)
+            {
+                foreach (var group in fresh.GroupBy(node => rank[node]))
+                {
+                    if (!pending.TryGetValue(group.Key, out var run))
+                    {
+                        return false;
+                    }
+
+                    var wanted = group.ToHashSet();
+                    if (run.Count < wanted.Count || !run.Take(wanted.Count).ToHashSet().SetEquals(wanted))
+                    {
+                        return false;
+                    }
+                }
+
+                return true;
+            }
+
+            while (quad < quadCount || triangle < faces.Count)
+            {
+                var heads = quad < quadCount
+                    ? (triangle < faces.Count ? (int[])[0, 1] : [0])
+                    : (int[])[1];
+                int Face(int run) => run == 0 ? quad : triangle;
+
+                var taken = -1;
+                foreach (var head in heads)
+                {
+                    var fresh = Introduced(Face(head));
+                    if (fresh.Count > 0 && IsNext(fresh))
+                    {
+                        taken = head;
+                        break;
+                    }
+                }
+
+                if (taken < 0)
+                {
+                    foreach (var head in heads)
+                    {
+                        if (Introduced(Face(head)).Count == 0)
+                        {
+                            taken = head;
+                            break;
+                        }
+                    }
+                }
+
+                taken = taken < 0 ? heads[0] : taken;
+                var take = Face(taken);
+                foreach (var corner in Introduced(take))
+                {
+                    created.Add(corner);
+                    pending[rank[corner]].Remove(corner);
+                }
+
+                merged.Add(faces[take]);
+                if (taken == 0)
+                {
+                    quad++;
+                }
+                else
+                {
+                    triangle++;
+                }
+            }
+
+            faces.Clear();
+            faces.AddRange(merged);
+        }
+
+        /// <summary>
+        /// Each node's BFS layer from the static set over the surface, which is the <c>nRank</c> the builder
+        /// lays the dynamic node block out by.
+        /// </summary>
+        /// <remarks>
+        /// The walk crosses the solve elements and the source elements, springs included, and NOT
+        /// <c>m_Rods</c>: the compiler builds most of those after it has already assigned the ranks, so a
+        /// rod edge shortens a path it never had. A node the static set cannot reach ranks after every one
+        /// it can.
+        /// </remarks>
+        int[] SurfaceNodeRanks => surfaceNodeRanks ??= BuildSurfaceNodeRanks();
+        int[]? surfaceNodeRanks;
+
+        int[] BuildSurfaceNodeRanks()
+        {
+            var count = CtrlNames.Length;
+            var neighbours = new HashSet<int>[count];
+
+            void Link(int a, int b)
+            {
+                if (a == b || a < 0 || b < 0 || a >= count || b >= count)
+                {
+                    return;
+                }
+
+                (neighbours[a] ??= []).Add(b);
+                (neighbours[b] ??= []).Add(a);
+            }
+
+            void LinkFace(int[] face)
+            {
+                for (var i = 0; i < face.Length; i++)
+                {
+                    for (var j = i + 1; j < face.Length; j++)
+                    {
+                        Link(face[i], face[j]);
+                    }
+                }
+            }
+
+            foreach (var quad in Quads)
+            {
+                LinkFace(quad);
+            }
+
+            foreach (var tri in Tris)
+            {
+                LinkFace(tri);
+            }
+
+            foreach (var face in SourceFaces)
+            {
+                LinkFace(face);
+            }
+
+            foreach (var (a, b) in SourceSprings)
+            {
+                Link(a, b);
+            }
+
+            var rank = new int[count];
+            Array.Fill(rank, int.MaxValue);
+            var queue = new Queue<int>();
+            for (var node = 0; node < StaticNodeCount && node < count; node++)
+            {
+                rank[node] = 0;
+                queue.Enqueue(node);
+            }
+
+            while (queue.Count > 0)
+            {
+                var node = queue.Dequeue();
+                foreach (var next in neighbours[node] ?? [])
+                {
+                    if (rank[next] == int.MaxValue)
+                    {
+                        rank[next] = rank[node] + 1;
+                        queue.Enqueue(next);
+                    }
+                }
+            }
+
+            return rank;
+        }
+
+        // How many of SourceFaces came from m_SourceElems' arity-3 block. That array holds four leading
+        // counts, one per arity, and then the elements grouped by arity, so the block boundary is where the
+        // recovered surface splits into its two runs. An element whose corners repeat is not recovered.
+        int SourceTriangleElementCount
+        {
+            get
+            {
+                var elems = Data.GetIntegerArray("m_SourceElems");
+                if (elems.Length < 4)
+                {
+                    return 0;
+                }
+
+                var read = 4 + (int)elems[0] + 2 * (int)elems[1];
+                var recovered = 0;
+                for (var i = 0; i < (int)elems[2] && read + 2 < elems.Length; i++, read += 3)
+                {
+                    if (elems[read] != elems[read + 1] && elems[read] != elems[read + 2]
+                        && elems[read + 1] != elems[read + 2])
+                    {
+                        recovered++;
+                    }
+                }
+
+                return recovered;
+            }
         }
 
         /// <summary>
