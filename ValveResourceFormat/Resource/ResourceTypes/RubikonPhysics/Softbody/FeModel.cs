@@ -331,8 +331,8 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         public IReadOnlyDictionary<(int Orient, int End), float> TwistRelaxByLink { get; }
 
         // The two branch factors sum to 1.
-        internal const float TwistRelaxToParentFactor = 0.6180339887498949f;
-        internal const float TwistRelaxToChildFactor = 0.3819660112501051f;
+        internal const float TwistRelaxToParentFactor = 0.618f;
+        internal const float TwistRelaxToChildFactor = 0.382f;
 
         /// <summary>
         /// Recovers the joint's own authored <c>twist_relax</c> at <paramref name="node"/> from its

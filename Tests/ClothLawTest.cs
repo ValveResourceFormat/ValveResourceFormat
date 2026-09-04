@@ -542,24 +542,24 @@ namespace Tests
 
         /// <summary>
         /// A twist entry pointing at the joint's own extrude ring carries the authored value scaled by
-        /// the child branch factor: 0.5 * 0.38196601 = 0.19098301.
+        /// the child branch factor: 0.5 * 0.382 = 0.191.
         /// </summary>
         [Test]
         public async Task TwistRelaxDividesByTheChildBranchFactor()
         {
-            var feModel = TwistModel(1, 2, 0.19098301f);
+            var feModel = TwistModel(1, 2, 0.191f);
 
             await Assert.That(feModel.GetAuthoredTwistRelax(1, 0, 2)).IsEqualTo(0.5f).Within(1e-4f);
         }
 
         /// <summary>
         /// A joint read through its parent-ward entry instead carries the other branch factor:
-        /// 0.5 * 0.61803399 = 0.30901699.
+        /// 0.5 * 0.618 = 0.309.
         /// </summary>
         [Test]
         public async Task TwistRelaxDividesByTheParentBranchFactorWithoutARing()
         {
-            var feModel = TwistModel(1, 0, 0.30901699f);
+            var feModel = TwistModel(1, 0, 0.309f);
 
             await Assert.That(feModel.GetAuthoredTwistRelax(1, 0, -1)).IsEqualTo(0.5f).Within(1e-4f);
         }
