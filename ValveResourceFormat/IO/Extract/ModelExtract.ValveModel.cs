@@ -248,6 +248,14 @@ partial class ModelExtract
             children = targets;
 
             var constrainedBoneData = parentSlaves[0];
+
+            // A parent constraint names its slave on the node itself, not as a child node.
+            var constrainedBoneHash = constrainedBoneData.GetUInt32Property("m_nBoneHash");
+            if (StringToken.InvertedTable.TryGetValue(constrainedBoneHash, out var constrainedBoneName))
+            {
+                node.Add("constrained_bone", constrainedBoneName);
+            }
+
             AddBoneConstraintProperty<double>(constrainedBoneData, node, "m_flWeight", "weight");
             AddBoneConstraintProperty<Vector3>(constrainedBoneData, node, "m_vBasePosition", "translation_offset");
 
