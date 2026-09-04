@@ -580,6 +580,57 @@ partial class ModelExtract
         }
 
         AddClothEnablePaint(vertexData, indices, boneWeightCount, clothBones, clothBlendIndices, clothBlendWeights, clothTriangles);
+        DropClothProxyInfluences(boneWeightCount, clothCompaction, clothBlendIndices, clothBlendWeights);
+    }
+
+    /// <summary>
+    /// Zeroes the influences a vertex holds on the cloth proxy bones the compiler regenerates and
+    /// renormalises what is left, in place in the blend weight stream.
+    /// </summary>
+    /// <remarks>
+    /// The compiler re-binds a painted vertex by scaling its incoming weights by one minus the paint
+    /// and appending its own proxy bindings, so the stream carries only the vertex's real skinning.
+    /// </remarks>
+    private static void DropClothProxyInfluences(int boneWeightCount, int[]? clothCompaction,
+        int[]? blendIndices, float[]? blendWeights)
+    {
+        if (clothCompaction == null || blendIndices == null || blendWeights == null || boneWeightCount <= 0)
+        {
+            return;
+        }
+
+        var vertexCount = Math.Min(blendIndices.Length, blendWeights.Length) / boneWeightCount;
+
+        for (var vertex = 0; vertex < vertexCount; vertex++)
+        {
+            var first = vertex * boneWeightCount;
+            var kept = 0f;
+
+            for (var slot = first; slot < first + boneWeightCount; slot++)
+            {
+                var bone = blendIndices[slot];
+
+                if (bone >= 0 && bone < clothCompaction.Length && clothCompaction[bone] < 0)
+                {
+                    blendWeights[slot] = 0f;
+                }
+                else
+                {
+                    kept += blendWeights[slot];
+                }
+            }
+
+            if (kept <= 0f)
+            {
+                blendWeights[first] = 1f;
+                continue;
+            }
+
+            for (var slot = first; slot < first + boneWeightCount; slot++)
+            {
+                blendWeights[slot] /= kept;
+            }
+        }
     }
 
     /// <summary>
@@ -639,14 +690,16 @@ partial class ModelExtract
     }
 
     /// <summary>
-    /// Widens a reconstructed <c>cloth_enable</c> paint by one ring of face adjacency.
+    /// Paints the vertices that kept no cloth weight but sit within a few rings of face adjacency of
+    /// one that did. A vertex the reconstruction already gives a paint keeps it.
     /// </summary>
     /// <remarks>
     /// The compiler binds a mesh vertex to up to four proxy nodes, then the vertex format's own four
     /// slots and the renormalisation that follows can leave a node it touched with no weight at all.
     /// A node like that still gets a skeleton bone, so a paint reconstructed from the surviving
     /// weights is narrower than the one the model was compiled from, and the nodes at the edge of
-    /// the cloth region come back short. One ring of the mesh's own triangles is what closes the gap.
+    /// the cloth region come back short. The paint only has to clear the threshold to reach them,
+    /// and its value is what decides how much of the vertex the cloth takes.
     /// </remarks>
     private static void GrowClothEnablePaint(float[] paint, List<int>? triangles)
     {
@@ -689,9 +742,9 @@ partial class ModelExtract
 
             foreach (var vertex in grown)
             {
-                if (paint[vertex] < ClothEnableThreshold)
+                if (paint[vertex] <= 0f)
                 {
-                    paint[vertex] = 1f;
+                    paint[vertex] = ClothEnableGrowthPaint;
                 }
             }
         }
@@ -702,6 +755,9 @@ partial class ModelExtract
 
     /// <summary>The compiler's <c>m_flClothEnableThreshold</c>.</summary>
     private const float ClothEnableThreshold = 0.05f;
+
+    /// <summary>The value a grown vertex is painted with, the smallest that clears the threshold.</summary>
+    private const float ClothEnableGrowthPaint = 0.051f;
 
     /// <summary>Marks the bones a compiled cloth proxy generated, by skeleton bone index.</summary>
     private static bool[]? BuildClothBoneMask(Skeleton? skeleton)
