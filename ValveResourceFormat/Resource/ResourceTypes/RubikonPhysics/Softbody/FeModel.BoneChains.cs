@@ -1268,6 +1268,79 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                         ? ring
                         : proxyChildrenOf.GetValueOrDefault(node);
 
+                var subtreeFirstNode = new Dictionary<int, int>();
+
+                // The children this declaration keeps under one joint, in the order they were declared.
+                List<int> DeclaredChildren(int node)
+                {
+                    if (children[node] is not { } all)
+                    {
+                        return [];
+                    }
+
+                    var kids = spec.ChildrenOf is not null && spec.ChildrenOf.TryGetValue(node, out var kept)
+                        ? all.FindAll(kept.Contains)
+                        : [.. all];
+
+                    kids.Sort((a, b) =>
+                    {
+                        var order = SubtreeFirstNode(a).CompareTo(SubtreeFirstNode(b));
+                        return order != 0 ? order : a.CompareTo(b);
+                    });
+
+                    return kids;
+                }
+
+                // The lowest node of the chain's own simulated block a joint's subtree occupies: its own
+                // node, the ring it extruded and everything declared under it. The compiler lays that
+                // block out in declaration order, and a position-driven joint sits past the whole of it
+                // whatever its place in the declaration.
+                int SubtreeFirstNode(int start)
+                {
+                    if (subtreeFirstNode.TryGetValue(start, out var cached))
+                    {
+                        return cached;
+                    }
+
+                    var first = int.MaxValue;
+                    var firstSimulated = int.MaxValue;
+                    var stack = new Stack<int>();
+                    stack.Push(start);
+                    for (var guard = 0; stack.Count > 0 && guard < 4096; guard++)
+                    {
+                        var node = stack.Pop();
+                        foreach (var member in (int[])[node, .. DeclaredRing(node) ?? []])
+                        {
+                            if (member < 0)
+                            {
+                                continue;
+                            }
+
+                            first = Math.Min(first, member);
+                            if (member >= StaticNodeCount && member < FirstPositionDrivenNode)
+                            {
+                                firstSimulated = Math.Min(firstSimulated, member);
+                            }
+                        }
+
+                        if (children[node] is not { } all)
+                        {
+                            continue;
+                        }
+
+                        foreach (var kid in all)
+                        {
+                            if (spec.ChildrenOf is null || !spec.ChildrenOf.TryGetValue(node, out var kept)
+                                || kept.Contains(kid))
+                            {
+                                stack.Push(kid);
+                            }
+                        }
+                    }
+
+                    return subtreeFirstNode[start] = firstSimulated < int.MaxValue ? firstSimulated : first;
+                }
+
                 void Visit(int node)
                 {
                     var parent = node == rootNode ? -1 : realParent[node];
@@ -1280,19 +1353,9 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                         InvMass = node < NodeInvMasses.Length ? NodeInvMasses[node] : 0f,
                     });
 
-                    if (children[node] is { } kids)
+                    foreach (var child in DeclaredChildren(node))
                     {
-                        kids.Sort();
-                        foreach (var child in kids)
-                        {
-                            if (spec.ChildrenOf is not null && spec.ChildrenOf.TryGetValue(node, out var kept)
-                                && !kept.Contains(child))
-                            {
-                                continue;
-                            }
-
-                            Visit(child);
-                        }
+                        Visit(child);
                     }
                 }
 
