@@ -795,6 +795,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         public List<BoneChain> BuildBoneChains()
         {
             var chains = new List<BoneChain>();
+            var chainFirstSimulated = new Dictionary<BoneChain, int>();
             var n = CtrlNames.Length;
             if (n == 0)
             {
@@ -1910,6 +1911,30 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                 }
 
                 SteerNodeBaseTies(chain);
+
+                // A joint's ring can straddle the static boundary, and the joint itself records only its
+                // first proxy, so the chain's first simulated node is read off the whole declared ring.
+                var firstSimulated = int.MaxValue;
+                foreach (var joint in chain.Joints)
+                {
+                    if (joint.Node >= StaticNodeCount)
+                    {
+                        firstSimulated = Math.Min(firstSimulated, joint.Node);
+                    }
+
+                    if (DeclaredRing(joint.Node) is { } declaredRing)
+                    {
+                        foreach (var proxy in declaredRing)
+                        {
+                            if (proxy >= StaticNodeCount)
+                            {
+                                firstSimulated = Math.Min(firstSimulated, proxy);
+                            }
+                        }
+                    }
+                }
+
+                chainFirstSimulated[chain] = firstSimulated;
                 chains.Add(chain);
             }
 
@@ -1917,26 +1942,25 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
 
             int ChainFirstNode(BoneChain chain)
             {
+                if (chainFirstSimulated.TryGetValue(chain, out var firstSimulated)
+                    && firstSimulated < int.MaxValue)
+                {
+                    return firstSimulated;
+                }
+
                 var first = int.MaxValue;
-                var firstDynamic = int.MaxValue;
                 foreach (var joint in chain.Joints)
                 {
                     foreach (var node in (int[])[joint.Node, joint.ProxyNode])
                     {
-                        if (node < 0)
+                        if (node >= 0)
                         {
-                            continue;
-                        }
-
-                        first = Math.Min(first, node);
-                        if (node >= StaticNodeCount)
-                        {
-                            firstDynamic = Math.Min(firstDynamic, node);
+                            first = Math.Min(first, node);
                         }
                     }
                 }
 
-                return firstDynamic < int.MaxValue ? firstDynamic : first;
+                return first;
             }
         }
     }
