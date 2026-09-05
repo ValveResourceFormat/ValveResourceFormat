@@ -569,7 +569,12 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
 
                     for (var copy = 0; copy <= joint.ExtraIterations; copy++)
                     {
-                        Generate(parent, joint.Node, joint.StretchStiffness);
+                        // A zero slider builds no rod at all: the compiler rescales every authored rod's
+                        // relaxation and drops the ones that fall to 0.001 or below.
+                        if (joint.StretchStiffness != 0f)
+                        {
+                            Generate(parent, joint.Node, joint.StretchStiffness);
+                        }
 
                         if (joint.BendSpring)
                         {
@@ -618,11 +623,25 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             bool IsChainRing(int node) => node >= 0 && node < CtrlNames.Length
                 && CtrlNames[node].StartsWith("$cc", StringComparison.Ordinal);
 
+            var joints = new HashSet<int>();
+            foreach (var chain in chains)
+            {
+                foreach (var joint in chain.Joints)
+                {
+                    joints.Add(joint.Node);
+                }
+            }
+
+            // A chain's own joint is a valid spring endpoint, so a two-corner element between two of them
+            // is an authored spring like any other. A sheet vertex is not: naming one the compile does not
+            // create fails the whole compile.
+            bool IsEndpoint(int node) => IsChainRing(node) || joints.Contains(node);
+
             var spanned = ChainGeneratedSpans(chains);
             var authored = new List<(int, int)>(SourceSprings.Length);
             foreach (var (a, b) in SourceSprings)
             {
-                if (IsChainRing(a) && IsChainRing(b) && !spanned.ContainsKey(a < b ? (a, b) : (b, a)))
+                if (IsEndpoint(a) && IsEndpoint(b) && !spanned.ContainsKey(a < b ? (a, b) : (b, a)))
                 {
                     authored.Add((a, b));
                 }

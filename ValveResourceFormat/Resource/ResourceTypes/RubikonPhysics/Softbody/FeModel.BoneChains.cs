@@ -2055,6 +2055,32 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                     var stretch = SpanRelaxation(joint.Node, parent) ?? RingInternalRelaxation(joint.Node)
                         ?? chainNaturalRf ?? 1f;
                     joint.StretchStiffness = stretch > 0f ? Slider(stretch) : 1f;
+
+                    // A span the compile records as its own two-corner source element was authored as a
+                    // ClothSpring rather than as this joint's stretch slider, and the spring is re-declared
+                    // with the rod's own fields. The chain must not build the same span a second time: the
+                    // two are created in different passes and never merge, so a zero slider is what removes
+                    // the chain's copy.
+                    bool AuthoredSpring(int other) => other >= 0
+                        && (Array.IndexOf(SourceSprings, (joint.Node, other)) >= 0
+                            || Array.IndexOf(SourceSprings, (other, joint.Node)) >= 0);
+
+                    if (AuthoredSpring(parent))
+                    {
+                        joint.StretchStiffness = 0f;
+                    }
+
+                    if (AuthoredSpring(grandParent))
+                    {
+                        joint.BendSpring = false;
+                        joint.BendStiffness = 0f;
+                    }
+
+                    if (AuthoredSpring(greatGrandParent))
+                    {
+                        joint.TorsionSpring = false;
+                        joint.TorsionStiffness = 0f;
+                    }
                     joint.BendStiffness = joint.BendSpring ? SpringStiffness(grandParent, parent) : 0f;
                     joint.TorsionStiffness = joint.TorsionSpring ? SpringStiffness(greatGrandParent, grandParent) : 0f;
 
