@@ -33,7 +33,7 @@ namespace GUI.Types.GLViewers
         private Label? animationTimeLabel;
         private GLViewerSliderControl? animationTrackBar;
         private GLViewerSliderControl? slowmodeTrackBar;
-        private CheckedListBox? attachmentListBox;
+        private GLViewerMultiSelectionControl? attachmentList;
         public CheckedListBox? meshGroupListBox { get; private set; }
         public ComboBox? materialGroupListBox { get; private set; }
         private ComboBox? lodComboBox;
@@ -73,7 +73,7 @@ namespace GUI.Types.GLViewers
             animationTimeLabel?.Dispose();
             animationTrackBar?.Dispose();
             slowmodeTrackBar?.Dispose();
-            attachmentListBox?.Dispose();
+            attachmentList?.Dispose();
             meshGroupListBox?.Dispose();
             materialGroupListBox?.Dispose();
             lodComboBox?.Dispose();
@@ -223,18 +223,6 @@ namespace GUI.Types.GLViewers
             additiveCheckBox.Checked = animationController.ApplyAdditive;
         }
 
-        private void SetAttachmentListVisible(bool isVisible)
-        {
-            if (attachmentListBox?.Parent?.Parent is Control attachmentContainer)
-            {
-                attachmentContainer.Visible = isVisible;
-            }
-            else if (attachmentListBox != null)
-            {
-                attachmentListBox.Visible = isVisible;
-            }
-        }
-
         protected override void LoadScene()
         {
             base.LoadScene();
@@ -374,14 +362,14 @@ namespace GUI.Types.GLViewers
 
                     showAttachmentsCheckbox = UiControl.AddCheckBox("Show attachments", false, isChecked =>
                     {
-                        SetAttachmentListVisible(isChecked);
+                        attachmentList?.Visible = isChecked;
 
                         using var lockedGl = MakeCurrent();
 
                         skeletonSceneNode?.ShowAttachments = isChecked;
                     });
 
-                    attachmentListBox = UiControl.AddMultiSelection("Attachments", listBox =>
+                    attachmentList = UiControl.AddMultiSelectionControl("Attachments", listBox =>
                     {
                         listBox.Items.AddRange([.. model.Attachments.Keys]);
                         for (var i = 0; i < listBox.Items.Count; i++)
@@ -396,7 +384,7 @@ namespace GUI.Types.GLViewers
 
                         skeletonSceneNode?.SelectedAttachments = [.. selectedAttachments];
                     });
-                    SetAttachmentListVisible(false);
+                    attachmentList.Visible = false;
                 }
 
                 if (modelParticleNodes.Count > 0)

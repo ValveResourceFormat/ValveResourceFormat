@@ -176,6 +176,9 @@ partial class RendererControl : UserControl
     }
 
     public CheckedListBox AddMultiSelection(string name, Action<CheckedListBox>? initializeCallback, Action<IEnumerable<string>> changeCallback)
+        => AddMultiSelectionControl(name, initializeCallback, changeCallback).CheckedListBox;
+
+    public GLViewerMultiSelectionControl AddMultiSelectionControl(string name, Action<CheckedListBox>? initializeCallback, Action<IEnumerable<string>> changeCallback)
     {
         var selectionControl = new GLViewerMultiSelectionControl(name);
 
@@ -205,7 +208,7 @@ partial class RendererControl : UserControl
             }
         };
 
-        return selectionControl.CheckedListBox;
+        return selectionControl;
     }
 
     public GLViewerSliderControl AddTrackBar(Action<float> changeCallback, float defaultValue = 0f)
