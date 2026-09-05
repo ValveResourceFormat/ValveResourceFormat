@@ -2359,14 +2359,17 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                     }
                 }
 
-                foreach (var group in fresh.GroupBy(node => rank[node]))
+                var cursor = new Dictionary<int, int>(2);
+                foreach (var node in fresh)
                 {
-                    var wanted = group.ToHashSet();
-                    var run = pending[group.Key];
-                    if (run.Count < wanted.Count || !run.Take(wanted.Count).ToHashSet().SetEquals(wanted))
+                    var run = pending[rank[node]];
+                    var from = cursor.GetValueOrDefault(rank[node]);
+                    if (from >= run.Count || run[from] != node)
                     {
                         return false;
                     }
+
+                    cursor[rank[node]] = from + 1;
                 }
 
                 var freshPinned = PinnedRunCorners(face).Where(corner => seenPinned.Add(corner)).ToList();
@@ -2432,58 +2435,46 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                     && pinned.Take(fresh.Count).ToHashSet().SetEquals(fresh));
             }
 
-            bool IsNext(List<int> fresh)
-            {
-                foreach (var group in fresh.GroupBy(node => rank[node]))
-                {
-                    if (!pending.TryGetValue(group.Key, out var run))
-                    {
-                        return false;
-                    }
-
-                    var wanted = group.ToHashSet();
-                    if (run.Count < wanted.Count || !run.Take(wanted.Count).ToHashSet().SetEquals(wanted))
-                    {
-                        return false;
-                    }
-                }
-
-                return true;
-            }
-
-            // The nodes the compiled order numbers ahead of this head's own, which the head can only be
-            // taken after. Null where the head cannot be made to fit at all, either because a node of its
-            // is not pending or because the face that would have to carry the extra corners was emitted
-            // before the last node of that rank was created.
+            // The nodes the compiled array numbers ahead of the ones this head names, in the order it wants
+            // them; empty when the head fits as it stands, null when it cannot be taken at all. A face's
+            // corners are read in declared order, so its fresh nodes have to be the next entries of their
+            // rank's run as a SEQUENCE; where the face names two of one rank the other way round, the one
+            // the run wants first becomes an extra corner of an earlier face and the head then names it
+            // again as an ordinary corner, by which time it is no longer fresh.
             List<int>? Preceding(List<int> fresh)
             {
+                var cursor = new Dictionary<int, int>(2);
                 var missing = new List<int>();
-                foreach (var group in fresh.GroupBy(node => rank[node]))
+                foreach (var node in fresh)
                 {
-                    if (!pending.TryGetValue(group.Key, out var run))
+                    if (missing.Contains(node))
+                    {
+                        continue;
+                    }
+
+                    if (!pending.TryGetValue(rank[node], out var run))
                     {
                         return null;
                     }
 
-                    var last = -1;
-                    foreach (var node in group)
-                    {
-                        var at = run.IndexOf(node);
-                        if (at < 0)
-                        {
-                            return null;
-                        }
-
-                        last = Math.Max(last, at);
-                    }
-
-                    var ahead = run.Take(last).Where(node => !fresh.Contains(node)).ToList();
-                    if (ahead.Count > 0 && lastWide < placedAt.GetValueOrDefault(group.Key, -1))
+                    var from = cursor.GetValueOrDefault(rank[node]);
+                    var at = run.IndexOf(node, from);
+                    if (at < 0)
                     {
                         return null;
                     }
 
-                    missing.AddRange(ahead);
+                    if (at > from && lastWide < placedAt.GetValueOrDefault(rank[node], -1))
+                    {
+                        return null;
+                    }
+
+                    for (var k = from; k < at; k++)
+                    {
+                        missing.Add(run[k]);
+                    }
+
+                    cursor[rank[node]] = at + 1;
                 }
 
                 return missing;
@@ -2504,13 +2495,15 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                 int Face(int run) => run == 0 ? quad : triangle;
 
                 var taken = -1;
+                var fewest = int.MaxValue;
                 foreach (var head in heads)
                 {
                     var fresh = Introduced(Face(head));
-                    if (fresh.Count > 0 && IsNext(fresh) && IsNextPinned(Face(head)))
+                    if (fresh.Count > 0 && fresh.Count < fewest && IsNextPinned(Face(head))
+                        && Preceding(fresh) is { Count: 0 })
                     {
                         taken = head;
-                        break;
+                        fewest = fresh.Count;
                     }
                 }
 
@@ -2528,7 +2521,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
 
                 if (taken < 0 && allowExtraCorners && lastWide >= 0)
                 {
-                    List<int>? fewest = null;
+                    List<int>? shortest = null;
                     foreach (var head in heads)
                     {
                         var fresh = Introduced(Face(head));
@@ -2538,22 +2531,23 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                         }
 
                         var ahead = Preceding(fresh);
-                        if (ahead is not null && ahead.Count > 0 && (fewest is null || ahead.Count < fewest.Count))
+                        if (ahead is not null && ahead.Count > 0
+                            && (shortest is null || ahead.Count < shortest.Count))
                         {
-                            fewest = ahead;
+                            shortest = ahead;
                             taken = head;
                         }
                     }
 
-                    if (fewest is not null)
+                    if (shortest is not null)
                     {
-                        merged[lastWide] = [.. merged[lastWide], .. fewest];
-                        foreach (var node in fewest)
+                        merged[lastWide] = [.. merged[lastWide], .. shortest];
+                        foreach (var node in shortest)
                         {
                             Create(node, lastWide);
                         }
 
-                        extraCorners += fewest.Count;
+                        extraCorners += shortest.Count;
                     }
                 }
 
