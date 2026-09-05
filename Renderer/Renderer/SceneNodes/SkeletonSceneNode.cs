@@ -19,7 +19,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         public bool Enabled => ShowBones || ShowAttachments;
 
         /// <summary>Names of the attachments to draw when <see cref="ShowAttachments"/> is set.</summary>
-        public HashSet<string> SelectedAttachments { get; set; } = [];
+        public HashSet<string> SelectedAttachments { get; } = [];
 
         // Live pose buffer of whatever animates the skeleton, held by reference.
         readonly Matrix4x4[] pose;

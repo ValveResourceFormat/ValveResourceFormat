@@ -377,12 +377,16 @@ namespace GUI.Types.GLViewers
                             listBox.SetItemChecked(i, true);
                         }
 
-                        skeletonSceneNode?.SelectedAttachments = [.. model.Attachments.Keys];
+                        skeletonSceneNode?.SelectedAttachments.UnionWith(model.Attachments.Keys);
                     }, selectedAttachments =>
                     {
                         using var lockedGl = MakeCurrent();
 
-                        skeletonSceneNode?.SelectedAttachments = [.. selectedAttachments];
+                        if (skeletonSceneNode != null)
+                        {
+                            skeletonSceneNode.SelectedAttachments.Clear();
+                            skeletonSceneNode.SelectedAttachments.UnionWith(selectedAttachments);
+                        }
                     });
                     attachmentList.Visible = false;
                 }
