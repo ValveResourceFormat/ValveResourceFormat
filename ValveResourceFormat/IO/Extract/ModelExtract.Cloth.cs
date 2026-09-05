@@ -4120,6 +4120,13 @@ partial class ModelExtract
             frontier = next;
         }
 
+        // A node the walk never reaches has no rank at all, and every such node would fall into one
+        // band together, which is a constraint the compile never had.
+        if (Array.IndexOf(rank, int.MaxValue) >= 0)
+        {
+            return null;
+        }
+
         var rotLock = Math.Clamp(feModel.RotationLockedStaticNodeCount, 0, feModel.StaticNodeCount);
         var positionDriven = Math.Clamp(feModel.FirstPositionDrivenNode, feModel.StaticNodeCount, count);
         int Block(int node) => node < rotLock ? 0 : node < feModel.StaticNodeCount ? 1 : node < positionDriven ? 2 : 3;
