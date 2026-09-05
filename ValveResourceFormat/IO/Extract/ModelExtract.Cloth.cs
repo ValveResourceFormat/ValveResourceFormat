@@ -639,14 +639,12 @@ partial class ModelExtract
         }
 
         var beyondSurface = new HashSet<(int, int)>();
-        var boundedBeyondSurface = false;
         foreach (var rod in feModel.Rods)
         {
             var edge = rod.NodeA < rod.NodeB ? (rod.NodeA, rod.NodeB) : (rod.NodeB, rod.NodeA);
             if (surfaceNodes.Contains(edge.Item1) && surfaceNodes.Contains(edge.Item2) && !derived.Contains(edge))
             {
                 beyondSurface.Add(edge);
-                boundedBeyondSurface |= rod.MaxDist < ClothBendOnlyRodMaxDistance;
             }
         }
 
@@ -663,6 +661,9 @@ partial class ModelExtract
         var regenerable = beyondSurface.Count > 0 && beyondSurface.All(edge =>
             neighbours.TryGetValue(edge.Item1, out var near)
             && near.Any(step => neighbours.TryGetValue(step, out var beyond) && beyond.Contains(edge.Item2)));
+
+        var boundedBeyondSurface = feModel.Rods.Any(rod => rod.MaxDist < ClothBendOnlyRodMaxDistance
+            && beyondSurface.Contains(rod.NodeA < rod.NodeB ? (rod.NodeA, rod.NodeB) : (rod.NodeB, rod.NodeA)));
 
         // Both switches span the same pairs; only the bend-only network leaves their maximum length
         // unbounded, so the lengths are what tells the two apart.
@@ -693,6 +694,26 @@ partial class ModelExtract
             addCurvature = suspenderCurvature;
             suspenderNodes.UnionWith(suspenders.SelectMany(static edge => new[] { edge.Item1, edge.Item2 }));
             derived.UnionWith(suspenders);
+        }
+        else
+        {
+            // Last resort, for a sheet none of the readings above accounts for: the compiler's own bend
+            // network is one rod per edge two faces share, joining the far corners of the two, and where
+            // every pair it would build is a rod the original carries it can be turned on to cover that
+            // part of the sheet. What it does not name keeps its explicit springs. The subset test is what
+            // keeps it from inventing a constraint, and it is only reached once the whole-surface, mixed
+            // and suspender readings have each declined the sheet.
+            var bend = FeModel.BendRodsFromSurface(surfaceFaces, feModel.IsStatic);
+            bend.ExceptWith(derived);
+            if (bend.Count > 0 && bend.IsSubsetOf(beyondSurface))
+            {
+                var boundedBend = feModel.Rods.Any(rod => rod.MaxDist < ClothBendOnlyRodMaxDistance
+                    && bend.Contains(rod.NodeA < rod.NodeB ? (rod.NodeA, rod.NodeB) : (rod.NodeB, rod.NodeA)));
+                generatesBendRods = boundedBend;
+                generatesBendOnlyRods = !boundedBend;
+                addCurvature = ClothCurvatureFromSurface(feModel, surfaceFaces, bend);
+                derived.UnionWith(bend);
+            }
         }
 
         // Cloth that ships no surface of its own exports its synthesised sheets without the rod-suppressing
