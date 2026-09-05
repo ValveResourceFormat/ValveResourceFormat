@@ -3456,19 +3456,23 @@ partial class ModelExtract
             }
         }
 
-        // The bone a vertex hangs off in the compiled hierarchy, which is what its exported
-        // influences were derived from before the authored weights were recovered. The recovered
-        // list is wider, covering every bone the author painted, and a body bone carrying a few
-        // percent of a vertex is not the sheet driving it, so reading the wider list turns
-        // back_solve_joints on for sheets the original never back-solved. Only a model with no fit
-        // matrix at all reads the anchor; everywhere else the influence list stands.
-        IEnumerable<string> DrivingBones(FeModel.ProxyMesh proxy, int vertex)
-            => feModel.FitMatrixNodes.Count == 0
-                ? [feModel.ResolveSkinBone(proxy.NodeIndices[vertex]) ?? string.Empty]
-                : proxy.SkinInfluences[vertex].Select(static i => i.Bone);
-
+        // The bones a sheet back-solves are the ones a SIMULATED vertex carries at or above
+        // back_solve_influence_threshold; the proxy DMX carries a slot for every one of them. A
+        // compile that does not state its own position-driven boundary gives no evidence of which
+        // bones it drove, and keeps the reading that predates this rule.
         bool ProxyDrivesUnchainedBone(FeModel.ProxyMesh proxy)
         {
+            var threshold = feModel.GetBackSolveInfluenceThreshold(proxy);
+
+            IEnumerable<string> CarriedBones(int vertex)
+                => feModel.HasCompiledFirstPositionDrivenNode
+                    ? proxy.SkinInfluences[vertex]
+                        .Where(i => i.Weight >= threshold)
+                        .Select(static i => i.Bone)
+                    : feModel.FitMatrixNodes.Count == 0
+                        ? [feModel.ResolveSkinBone(proxy.NodeIndices[vertex]) ?? string.Empty]
+                        : proxy.SkinInfluences[vertex].Select(static i => i.Bone);
+
             for (var v = 0; v < proxy.ClothEnable.Length; v++)
             {
                 // Only simulated vertices back-solve a bone; a pinned vertex just follows its anchor.
@@ -3477,7 +3481,7 @@ partial class ModelExtract
                     continue;
                 }
 
-                foreach (var bone in DrivingBones(proxy, v))
+                foreach (var bone in CarriedBones(v))
                 {
                     if (positionDrivenBones.Contains(bone) && !chainDrivenBones.Contains(bone))
                     {

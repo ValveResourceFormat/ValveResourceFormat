@@ -61,6 +61,12 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         public int FirstPositionDrivenNode { get; }
 
         /// <summary>
+        /// Gets whether the compile wrote <c>m_nFirstPositionDrivenNode</c> itself, as opposed to
+        /// <see cref="FirstPositionDrivenNode"/> having been derived from the compiled arrays.
+        /// </summary>
+        public bool HasCompiledFirstPositionDrivenNode { get; }
+
+        /// <summary>
         /// Gets the per-node rest (bind-pose) positions in model space, parsed from the first three
         /// components of each <c>m_InitPose</c> entry (the remaining components are the rest orientation
         /// quaternion). Length matches <see cref="NodeCount"/>.
@@ -2494,7 +2500,8 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             NodeInvMasses = data.GetFloatArray("m_NodeInvMasses");
             NodeCount = data.GetInt32Property("m_nNodeCount");
             StaticNodeCount = data.GetInt32Property("m_nStaticNodes");
-            FirstPositionDrivenNode = data.ContainsKey("m_nFirstPositionDrivenNode")
+            HasCompiledFirstPositionDrivenNode = data.ContainsKey("m_nFirstPositionDrivenNode");
+            FirstPositionDrivenNode = HasCompiledFirstPositionDrivenNode
                 ? data.GetInt32Property("m_nFirstPositionDrivenNode")
                 : DeriveFirstPositionDrivenNode(data, CtrlNames, NodeCount, StaticNodeCount);
 
