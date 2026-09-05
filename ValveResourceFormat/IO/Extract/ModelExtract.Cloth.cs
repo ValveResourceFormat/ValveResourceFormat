@@ -1505,8 +1505,9 @@ partial class ModelExtract
     // by ClothNode element name (or plain bone name for a merged/root ClothNode); a bone with no cloth
     // declaration of its own is not a valid endpoint ("Cannot find Fx Bone").
     static int AddFreeClothNodesAndSprings(KVObject clothChildren, KVObject softbodyChildren,
-        FeModel feModel, HashSet<int> coveredNodes, bool emitBareStatics, HashSet<string> clothBones,
-        Func<int, bool, KVObject>? folderFor = null, bool hasOtherChains = false)
+        FeModel feModel, HashSet<int> coveredNodes, Func<string, bool> emitBareStatic,
+        HashSet<string> clothBones, Func<int, bool, KVObject>? folderFor = null, bool hasOtherChains = false,
+        Func<string, bool>? bareStaticReparented = null)
     {
         const string ClothNodePrefix = "$cloth_node_";
         var names = feModel.CtrlNames;
@@ -1572,9 +1573,14 @@ partial class ModelExtract
             else if (!feModel.IsGeneratedNodeName(name))
             {
                 var isStatic = feModel.IsStatic(node);
-                if (!isStatic || rodTouched.Contains(node) || emitBareStatics)
+                var bareStatic = isStatic && !rodTouched.Contains(node);
+                if (!isStatic || !bareStatic || emitBareStatic(name))
                 {
-                    var loneNode = LoneClothNodeIsOriginalRoot(feModel, node);
+                    // A static node a rod names is an anchor the spring network already ties in, and a
+                    // static node with no control-node ancestor compiles to a hierarchy root from a
+                    // merged ClothNode already. Only a BARE, re-parented one needs the chain form.
+                    var loneNode = LoneClothNodeIsOriginalRoot(feModel, node)
+                        && (!isStatic || (bareStatic && (bareStaticReparented?.Invoke(name) ?? false)));
                     (loneNode ? clothChildren : FolderOf(node)).Add(loneNode
                         ? MakeLoneJointChain(feModel, name, node, hasOtherChains)
                         : MakeClothNode(feModel, name, node, isStaticNode: isStatic));
@@ -2124,10 +2130,38 @@ partial class ModelExtract
     /// root compiles back to while a merged ClothNode is re-parented onto its nearest control-node
     /// ancestor. The single-joint chain compiles an otherwise identical node.
     /// </summary>
+    /// <summary>
+    /// Builds the test for whether a bone has an ancestor that is itself a cloth control node. That
+    /// ancestor is what the compiler re-parents a merged <c>ClothNode</c> declaration onto, so a bone
+    /// with none already compiles to an <c>m_SkelParents</c> root without a chain declaration.
+    /// </summary>
+    Func<string, bool> ClothControlAncestorTest(FeModel feModel)
+    {
+        var controlNames = new HashSet<string>(feModel.CtrlNames, StringComparer.Ordinal);
+        var boneByName = model?.Skeleton.Bones.ToDictionary(static b => b.Name, StringComparer.Ordinal);
+
+        return name =>
+        {
+            if (boneByName is null || !boneByName.TryGetValue(name, out var bone))
+            {
+                return false;
+            }
+
+            for (var ancestor = bone.Parent; ancestor is not null; ancestor = ancestor.Parent)
+            {
+                if (controlNames.Contains(ancestor.Name))
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        };
+    }
+
     static bool LoneClothNodeIsOriginalRoot(FeModel feModel, int node)
         => feModel.HasCompiledSkelParents
-            && node < feModel.SkelParents.Length && feModel.SkelParents[node] < 0
-            && node < feModel.NodeInvMasses.Length && feModel.NodeInvMasses[node] != 0f;
+            && node < feModel.SkelParents.Length && feModel.SkelParents[node] < 0;
 
     static KVObject MakeLoneJointChain(FeModel feModel, string name, int node, bool hasOtherChains)
     {
@@ -3718,12 +3752,18 @@ partial class ModelExtract
         var clothBones = ClothBoneNames(feModel);
         clothBones.UnionWith(boneChains.SelectMany(static chain => chain.Joints)
             .Select(static joint => joint.Name));
-        // A model whose whole compiled surface is a rigid hinge's fan recovers no proxy sheet, so it
-        // arrives here instead of in the sheet phase, where the static control nodes no chain claims
-        // are declared as bare ClothNodes.
-        AddFreeClothNodesAndSprings(clothFolderChildren, softbodyChildren, feModel,
-            chainCoveredNodes, emitBareStatics: feModel.Quads.Length > 0 || feModel.Tris.Length > 0,
-            clothBones, ClothVertexMapFolders(feModel, clothFolderChildren), hasOtherChains: true);
+        // A static control node no chain, shape or jiggle bone claims is recreated by nothing else in
+        // this phase, so it is declared as a bare ClothNode wherever the compiled skeleton records the
+        // bone as a cloth control node - the same evidence the proxy-sheet phase reads.
+        var clothControlBones = model?.Skeleton.Bones
+            .Where(static b => b.IsClothControlNode)
+            .Select(static b => b.Name)
+            .ToHashSet(StringComparer.Ordinal);
+        var chainSurface = feModel.Quads.Length > 0 || feModel.Tris.Length > 0;
+        AddFreeClothNodesAndSprings(clothFolderChildren, softbodyChildren, feModel, chainCoveredNodes,
+            name => chainSurface || (clothControlBones?.Contains(name) ?? false),
+            clothBones, ClothVertexMapFolders(feModel, clothFolderChildren), hasOtherChains: true,
+            ClothControlAncestorTest(feModel));
 
         AddClothFollowBones(softbodyChildren, feModel, clothBones);
         AddClothCollisionShapes(softbodyChildren, feModel);
@@ -3748,8 +3788,9 @@ partial class ModelExtract
 
         var clothBones = ClothBoneNames(feModel);
         var freeNodes = AddFreeClothNodesAndSprings(clothFolderChildren, softbodyChildren, feModel,
-            [], emitBareStatics: true, clothBones,
-            ClothVertexMapFolders(feModel, clothFolderChildren));
+            [], static _ => true, clothBones,
+            ClothVertexMapFolders(feModel, clothFolderChildren),
+            bareStaticReparented: ClothControlAncestorTest(feModel));
 
         // Every ctrl of a collision-shape-only model is a shape parent bone, which the loop above
         // skips, so gating on the node count alone drops the shapes with the rest of the Softbody.
