@@ -3710,7 +3710,11 @@ partial class ModelExtract
         // bone flag (Bone.IsClothControlNode, not the stricter IsProceduralCloth) marks exactly
         // these, and each is emitted as a static ClothNode. A capsule or sphere parent bone is
         // excluded: the compiler walks a collision bone's ancestor chain and registers them itself.
-        var boneByName = model?.Skeleton.Bones.ToDictionary(static b => b.Name, StringComparer.Ordinal);
+        // A control name carries the case the cloth was AUTHORED in, which need not be the skeleton's;
+        // the compiler resolves both by a case-insensitive compare, so this has to as well.
+        var boneByName = model?.Skeleton.Bones
+            .GroupBy(static bone => bone.Name, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(static g => g.Key, static g => g.First(), StringComparer.OrdinalIgnoreCase);
         var shapeParentBones = CollisionShapeParentBones(feModel);
         var leftoverStaticNodes = new List<(string Name, int Node)>();
 
@@ -3966,7 +3970,7 @@ partial class ModelExtract
         var clothControlBones = model?.Skeleton.Bones
             .Where(static b => b.IsClothControlNode)
             .Select(static b => b.Name)
-            .ToHashSet(StringComparer.Ordinal);
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
         var chainSurface = feModel.Quads.Length > 0 || feModel.Tris.Length > 0;
         AddFreeClothNodesAndSprings(clothFolderChildren, softbodyChildren, feModel, chainCoveredNodes,
             name => chainSurface || (clothControlBones?.Contains(name) ?? false),
