@@ -71,7 +71,14 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                 }
 
                 var second = child ?? joint;
-                var candidates = NodeBaseCandidates(first, second);
+
+                // The compiler grades over the node's own neighbour set wherever that set has three or
+                // more members; the chain's extrusion vectors below are the fallback for a node the
+                // source elements do not reach.
+                var neighbours = NodeNeighbours(joint.Node);
+                var candidates = neighbours.Count >= 3 && NodeBaseContains(neighbours, want)
+                    ? neighbours
+                    : NodeBaseCandidates(first, second);
 
                 // A stretch of chain one node wide reaches one link further back: where the two vectors
                 // above cannot even hold the references the original wrote, the parent's own vector is
@@ -262,6 +269,67 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             List<int> vector = [joint.Node];
             vector.AddRange(ring.Take(joint.ExtrudeSides));
             return vector;
+        }
+
+        /// <summary>
+        /// The neighbour set the compiler grades a node's basis against: one sorted vector per node,
+        /// seeded with the node itself, into which every source element the node belongs to inserts all of
+        /// its own corners. A two-corner element contributes a genuine neighbour pair, which is why an
+        /// authored spring moves a basis and the surface clique alone does not describe the set.
+        /// </summary>
+        List<int> NodeNeighbours(int node)
+        {
+            nodeNeighbours ??= BuildNodeNeighbours();
+            return nodeNeighbours.TryGetValue(node, out var neighbours) ? neighbours : [];
+        }
+
+        Dictionary<int, List<int>>? nodeNeighbours;
+
+        Dictionary<int, List<int>> BuildNodeNeighbours()
+        {
+            var sets = new Dictionary<int, SortedSet<int>>();
+
+            void Join(IReadOnlyList<int> corners)
+            {
+                foreach (var a in corners)
+                {
+                    if (a < 0 || a >= InitPosePositions.Length)
+                    {
+                        continue;
+                    }
+
+                    if (!sets.TryGetValue(a, out var set))
+                    {
+                        sets[a] = set = [a];
+                    }
+
+                    foreach (var b in corners)
+                    {
+                        if (b >= 0 && b < InitPosePositions.Length)
+                        {
+                            set.Add(b);
+                        }
+                    }
+                }
+            }
+
+            foreach (var face in SourceFaces)
+            {
+                Join(face);
+            }
+
+            foreach (var (a, b) in SourceSprings)
+            {
+                Join([a, b]);
+            }
+
+            var built = new Dictionary<int, List<int>>(sets.Count);
+            foreach (var (node, set) in sets)
+            {
+                built[node] = [.. set];
+            }
+
+            return built;
         }
 
         /// <summary>
