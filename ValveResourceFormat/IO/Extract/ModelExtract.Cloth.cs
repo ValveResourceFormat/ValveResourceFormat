@@ -4052,8 +4052,27 @@ partial class ModelExtract
         }
 
         var neighbours = new HashSet<int>[count];
+        var named = new bool[count];
+
+        // An element or rod every one of whose members is static is dropped before the walk, so it
+        // makes no neighbours - but its members are still placed, at the rank the walk ended on.
         void Connect(IReadOnlyList<int> group)
         {
+            var simulated = false;
+            foreach (var node in group)
+            {
+                if (node >= 0 && node < count)
+                {
+                    named[node] = true;
+                    simulated |= node >= feModel.StaticNodeCount;
+                }
+            }
+
+            if (!simulated)
+            {
+                return;
+            }
+
             foreach (var a in group)
             {
                 foreach (var b in group)
@@ -4102,8 +4121,10 @@ partial class ModelExtract
             frontier.Add(i);
         }
 
-        for (var level = 1; frontier.Count > 0; level++)
+        var level = 0;
+        while (frontier.Count > 0)
         {
+            level++;
             var next = new List<int>();
             foreach (var node in frontier)
             {
@@ -4120,11 +4141,15 @@ partial class ModelExtract
             frontier = next;
         }
 
-        // A node the walk never reaches has no rank at all, and every such node would fall into one
-        // band together, which is a constraint the compile never had.
-        if (Array.IndexOf(rank, int.MaxValue) >= 0)
+        // The two passes after the walk place what it did not reach: a node any element or rod names
+        // takes the rank the walk ended on, and only a node nothing names at all keeps its seeded
+        // int.MaxValue - which is one real band of its own, ordered by creation index like any other.
+        for (var i = 0; i < count; i++)
         {
-            return null;
+            if (rank[i] == int.MaxValue && named[i])
+            {
+                rank[i] = level;
+            }
         }
 
         var rotLock = Math.Clamp(feModel.RotationLockedStaticNodeCount, 0, feModel.StaticNodeCount);
@@ -4251,6 +4276,30 @@ partial class ModelExtract
         if (owned.Count != feModel.NodeCount)
         {
             return null;
+        }
+
+        // A chain creates a joint immediately followed by its own rings, so within a band the order of
+        // two joints and the order of their rings have to agree. Where they disagree the joint nodes
+        // came from somewhere else - a back-solved proxy sheet promotes the same bones and numbers them
+        // its own way - and none of the creation order modelled here describes that model.
+        for (var i = 0; i < joints.Count; i++)
+        {
+            for (var j = i + 1; j < joints.Count; j++)
+            {
+                var (_, first, firstRings) = joints[i];
+                var (_, second, secondRings) = joints[j];
+                if (firstRings.Count == 0 || secondRings.Count == 0
+                    || bands[first.Node] != bands[second.Node]
+                    || bands[firstRings[0]] != bands[secondRings[0]])
+                {
+                    continue;
+                }
+
+                if (first.Node < second.Node != firstRings[0] < secondRings[0])
+                {
+                    return null;
+                }
+            }
         }
 
         var solver = new ClothChainOrderSolver(joints, jointOfNode, lanes, bands);
