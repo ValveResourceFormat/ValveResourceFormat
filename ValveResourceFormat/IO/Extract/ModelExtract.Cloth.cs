@@ -1358,8 +1358,10 @@ partial class ModelExtract
     /// source element per pair. Endpoints are named verbatim, <c>$cc</c> proxies included - those are
     /// valid ClothSpring endpoints even though they are not chain joints.
     /// </summary>
-    static void AddClothSourceSprings(KVObject softbodyChildren, FeModel feModel, List<FeModel.BoneChain> chains)
+    static HashSet<(int, int)> AddClothSourceSprings(KVObject softbodyChildren, FeModel feModel,
+        List<FeModel.BoneChain> chains)
     {
+        var emitted = new HashSet<(int, int)>();
         var names = feModel.CtrlNames;
         var rodByEdge = new Dictionary<(int, int), FeModel.Rod>();
         foreach (var rod in feModel.Rods)
@@ -1381,7 +1383,10 @@ partial class ModelExtract
 
             softbodyChildren.Add(MakeClothSpring($"spring_{a}_{b}", names[rod.NodeA], names[rod.NodeB], rod.MinDist,
                 rod.MaxDist, rod.RelaxationFactor));
+            emitted.Add(a < b ? (a, b) : (b, a));
         }
+
+        return emitted;
     }
 
     /// <summary>
@@ -1552,7 +1557,7 @@ partial class ModelExtract
     static int AddFreeClothNodesAndSprings(KVObject clothChildren, KVObject softbodyChildren,
         FeModel feModel, HashSet<int> coveredNodes, Func<string, bool> emitBareStatic,
         HashSet<string> clothBones, Func<int, bool, KVObject>? folderFor = null, bool hasOtherChains = false,
-        Func<string, bool>? bareStaticReparented = null)
+        Func<string, bool>? bareStaticReparented = null, HashSet<(int, int)>? alreadyEmitted = null)
     {
         const string ClothNodePrefix = "$cloth_node_";
         var names = feModel.CtrlNames;
@@ -1667,6 +1672,13 @@ partial class ModelExtract
 
         foreach (var (edge, rods) in rodsByEdge)
         {
+            // A pair an explicit source spring already re-declared is spent: emitting it here as well
+            // ships the same constraint twice and records a second source element for it.
+            if (alreadyEmitted is not null && alreadyEmitted.Contains(edge))
+            {
+                continue;
+            }
+
             var name0 = springName[edge.Item1];
             var name1 = springName[edge.Item2];
             var first = rods[0];
@@ -3795,7 +3807,7 @@ partial class ModelExtract
             clothFolderChildren.Add(gridNode);
         }
 
-        AddClothSourceSprings(softbodyChildren, feModel, boneChains);
+        var sourceSprings = AddClothSourceSprings(softbodyChildren, feModel, boneChains);
         AddClothChainSurplusRods(softbodyChildren, feModel, boneChains);
 
         var chainCoveredNodes = boneChains.SelectMany(static chain => chain.Joints)
@@ -3815,7 +3827,7 @@ partial class ModelExtract
         AddFreeClothNodesAndSprings(clothFolderChildren, softbodyChildren, feModel, chainCoveredNodes,
             name => chainSurface || (clothControlBones?.Contains(name) ?? false),
             clothBones, ClothVertexMapFolders(feModel, clothFolderChildren), hasOtherChains: true,
-            ClothControlAncestorTest(feModel));
+            ClothControlAncestorTest(feModel), sourceSprings);
 
         AddClothFollowBones(softbodyChildren, feModel, clothBones);
         AddClothCollisionShapes(softbodyChildren, feModel);
