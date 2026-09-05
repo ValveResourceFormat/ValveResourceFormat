@@ -2061,7 +2061,16 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                     // with the rod's own fields. The chain must not build the same span a second time: the
                     // two are created in different passes and never merge, so a zero slider is what removes
                     // the chain's copy.
+                    // A compile that wrote NO node base at all had every dynamic node's basis hint pair
+                    // filled by its ropes, and a roped node keeps its chain rods for that reason: a chain
+                    // left generating nothing loses the rope, the hint pairs go empty and the compiler
+                    // then writes a basis per node the original does not carry. The explicit spring is
+                    // worth a source element, not that.
+                    var ropeHinted = NodeBases.Count == 0
+                        ? RopeRunParents
+                        : (IReadOnlyDictionary<int, int>)new Dictionary<int, int>();
                     bool AuthoredSpring(int other) => other >= 0
+                        && !ropeHinted.ContainsKey(joint.Node) && !ropeHinted.ContainsKey(other)
                         && (Array.IndexOf(SourceSprings, (joint.Node, other)) >= 0
                             || Array.IndexOf(SourceSprings, (other, joint.Node)) >= 0);
 
