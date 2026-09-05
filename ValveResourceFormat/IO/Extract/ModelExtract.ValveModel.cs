@@ -7,6 +7,7 @@ using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.ResourceTypes.ModelAnimation;
 using ValveResourceFormat.ResourceTypes.ModelData;
 using ValveResourceFormat.ResourceTypes.RubikonPhysics;
+using ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody;
 using ValveResourceFormat.Serialization.KeyValues;
 using static ValveResourceFormat.IO.KVHelpers;
 
@@ -14,6 +15,120 @@ namespace ValveResourceFormat.IO;
 
 partial class ModelExtract
 {
+    #region Jiggle Bones
+    [Flags]
+    private enum FeJiggleBoneFlags
+    {
+        Flexible = 0x1,
+        Rigid = 0x2,
+        YawConstraint = 0x4,
+        PitchConstraint = 0x8,
+        AngleConstraint = 0x10,
+        LengthConstraint = 0x20,
+        BaseSpring = 0x40,
+        InvertAxes = 0x80,
+        Collision = 0x300,
+    }
+
+    private enum JiggleBoneType
+    {
+        Rigid = 0,
+        Flexible = 1,
+        Neither = 2,
+    }
+
+    static KVObject? ProcessJiggleBone(FeModel.IndexedJiggleBone indexedJiggleBone, string[] controlNames)
+    {
+        var nodeIndex = indexedJiggleBone.Node;
+        if (nodeIndex < 0 || nodeIndex >= controlNames.Length)
+        {
+            return null;
+        }
+
+        var jiggleBone = indexedJiggleBone.Bone;
+        var flags = (FeJiggleBoneFlags)jiggleBone.Flags;
+
+        var type = JiggleBoneType.Neither;
+        if (flags.HasFlag(FeJiggleBoneFlags.Rigid))
+        {
+            type = JiggleBoneType.Rigid;
+        }
+        else if (flags.HasFlag(FeJiggleBoneFlags.Flexible))
+        {
+            type = JiggleBoneType.Flexible;
+        }
+
+        var name = controlNames[nodeIndex];
+
+        return MakeNode("JiggleBone",
+            ("name", name),
+            ("jiggle_root_bone", name),
+            ("jiggle_type", (int)type),
+            ("has_yaw_constraint", flags.HasFlag(FeJiggleBoneFlags.YawConstraint)),
+            ("has_pitch_constraint", flags.HasFlag(FeJiggleBoneFlags.PitchConstraint)),
+            ("has_angle_constraint", flags.HasFlag(FeJiggleBoneFlags.AngleConstraint)),
+            ("has_base_spring", flags.HasFlag(FeJiggleBoneFlags.BaseSpring)),
+            ("allow_flex_length", !flags.HasFlag(FeJiggleBoneFlags.LengthConstraint)),
+            ("invert_axes", flags.HasFlag(FeJiggleBoneFlags.InvertAxes)),
+            ("has_collision", (flags & FeJiggleBoneFlags.Collision) != 0),
+            ("length", jiggleBone.Length),
+            ("tip_mass", jiggleBone.TipMass),
+            ("angle_limit", float.RadiansToDegrees(jiggleBone.AngleLimit)),
+            ("min_yaw", float.RadiansToDegrees(jiggleBone.MinYaw)),
+            ("max_yaw", float.RadiansToDegrees(jiggleBone.MaxYaw)),
+            ("yaw_friction", jiggleBone.YawFriction),
+            ("yaw_bounce", jiggleBone.YawBounce),
+            ("min_pitch", float.RadiansToDegrees(jiggleBone.MinPitch)),
+            ("max_pitch", float.RadiansToDegrees(jiggleBone.MaxPitch)),
+            ("pitch_friction", jiggleBone.PitchFriction),
+            ("pitch_bounce", jiggleBone.PitchBounce),
+            ("base_mass", jiggleBone.BaseMass),
+            ("base_stiffness", jiggleBone.BaseStiffness),
+            ("base_damping", jiggleBone.BaseDamping),
+            ("base_left_min", jiggleBone.BaseMinLeft),
+            ("base_left_max", jiggleBone.BaseMaxLeft),
+            ("base_left_friction", jiggleBone.BaseLeftFriction),
+            ("base_up_min", jiggleBone.BaseMinUp),
+            ("base_up_max", jiggleBone.BaseMaxUp),
+            ("base_up_friction", jiggleBone.BaseUpFriction),
+            ("base_forward_min", jiggleBone.BaseMinForward),
+            ("base_forward_max", jiggleBone.BaseMaxForward),
+            ("base_forward_friction", jiggleBone.BaseForwardFriction),
+            ("yaw_stiffness", jiggleBone.YawStiffness),
+            ("yaw_damping", jiggleBone.YawDamping),
+            ("pitch_stiffness", jiggleBone.PitchStiffness),
+            ("pitch_damping", jiggleBone.PitchDamping),
+            ("along_stiffness", jiggleBone.AlongStiffness),
+            ("along_damping", jiggleBone.AlongDamping),
+            ("radius0", jiggleBone.Radius0),
+            ("radius1", jiggleBone.Radius1),
+            ("point0", ToKVArray(jiggleBone.Point0)),
+            ("point1", ToKVArray(jiggleBone.Point1))
+        );
+    }
+
+    static KVObject? ExtractJiggleBones(FeModel? feModel)
+    {
+        if (feModel is null || feModel.JiggleBones.Length == 0)
+        {
+            return null;
+        }
+
+        var children = KVObject.Array();
+
+        foreach (var indexedJiggleBone in feModel.JiggleBones)
+        {
+            var node = ProcessJiggleBone(indexedJiggleBone, feModel.CtrlNames);
+            if (node != null)
+            {
+                children.Add(node);
+            }
+        }
+
+        return children.Count > 0 ? MakeNode("JiggleBoneList", ("children", children)) : null;
+    }
+    #endregion
+
     #region Bone Constraints
     static string? RemapBoneConstraintClassname(string className)
     {
@@ -112,7 +227,7 @@ partial class ModelExtract
         return node;
     }
 
-    static void ProcessBoneConstraintChildren(KVObject boneConstraint, KVObject node)
+    static bool ProcessBoneConstraintChildren(KVObject boneConstraint, KVObject node)
     {
         var targets = boneConstraint.GetArray("m_targets")
                                     .Select(p => ProcessBoneConstraintTarget(p))
@@ -121,10 +236,26 @@ partial class ModelExtract
         IEnumerable<KVObject> children;
         if (node.GetStringProperty("_class") == "AnimConstraintParent")
         {
+            var parentSlaves = boneConstraint.GetArray("m_slaves");
+            if (parentSlaves.Count == 0)
+            {
+                // A parent constraint drives exactly one slave bone; with none, there is no bone
+                // this constraint could re-export as constraining.
+                return false;
+            }
+
             //Parent constraints only have a single slave and it's not a child node in the .vmdl
             children = targets;
 
-            var constrainedBoneData = boneConstraint.GetArray("m_slaves")[0];
+            var constrainedBoneData = parentSlaves[0];
+
+            // A parent constraint names its slave on the node itself, not as a child node.
+            var constrainedBoneHash = constrainedBoneData.GetUInt32Property("m_nBoneHash");
+            if (StringToken.InvertedTable.TryGetValue(constrainedBoneHash, out var constrainedBoneName))
+            {
+                node.Add("constrained_bone", constrainedBoneName);
+            }
+
             AddBoneConstraintProperty<double>(constrainedBoneData, node, "m_flWeight", "weight");
             AddBoneConstraintProperty<Vector3>(constrainedBoneData, node, "m_vBasePosition", "translation_offset");
 
@@ -151,6 +282,7 @@ partial class ModelExtract
             childrenKV.Add(child);
         }
         node.Add("children", childrenKV);
+        return true;
     }
 
     static KVObject? ProcessBoneConstraint(KVObject? boneConstraint)
@@ -181,7 +313,10 @@ partial class ModelExtract
             return MakeNode(targetClassName, boneConstraint);
         }
 
-        ProcessBoneConstraintChildren(boneConstraint, node);
+        if (!ProcessBoneConstraintChildren(boneConstraint, node))
+        {
+            return null;
+        }
 
         AddBoneConstraintProperty<long>(boneConstraint, node, "m_nTargetAxis", "input_axis");
         AddBoneConstraintProperty<long>(boneConstraint, node, "m_nSlaveAxis", "slave_axis");
@@ -488,14 +623,23 @@ partial class ModelExtract
     }
     #endregion
 
-    static void AddBonesRecursive(IEnumerable<Bone> bones, KVObject parent)
+    void AddBonesRecursive(IEnumerable<Bone> bones, KVObject parent)
     {
         foreach (var bone in bones)
         {
+            // The compiler makes both cloth proxy families itself, one from the proxy mesh and one
+            // from the joints a round-tripped DMX carries, and marks a bone the document pins with
+            // do_not_discard as mesh-used. Declaring them here would keep them out of that path.
+            if (IsCompilerOwnedClothBone(bone))
+            {
+                AddBonesRecursive(bone.Children, parent);
+                continue;
+            }
+
             var boneDefinitionNode = MakeNode(
                 "Bone",
                 ("name", GetExportBoneName(bone)),
-                ("origin", ToKVArray(bone.Position)),
+                ("origin", ToKVArray(BonePosition(bone, ClothRestBonePositions))),
                 ("angles", ToKVArray(EntityTransformHelper.ToEulerAngles(bone.Angle))),
                 ("do_not_discard", true)
             );
@@ -509,6 +653,64 @@ partial class ModelExtract
                 AddBonesRecursive(bone.Children, childBones);
             }
         }
+    }
+
+    /// <summary>
+    /// Builds a PhysicsJointList child node for one joint, or <see langword="null"/> for a joint type
+    /// with no ModelDoc node class. Motion limits are written for <see cref="JointType.Conical"/>,
+    /// <see cref="JointType.Revolute"/> and <see cref="JointType.Prismatic"/> only.
+    /// </summary>
+    static KVObject? BuildPhysicsJoint(PhysAggregateData physAggregateData, Joint joint)
+    {
+        var className = joint.Type switch
+        {
+            JointType.Null => "PhysicsJointNull",
+            JointType.Spherical => "PhysicsJointSpherical",
+            JointType.Prismatic => "PhysicsJointPrismatic",
+            JointType.Revolute => "PhysicsJointRevolute",
+            JointType.Conical => "PhysicsJointConical",
+            JointType.Weld => "PhysicsJointWeld",
+            JointType.Wheel => "PhysicsJointWheel",
+            _ => null,
+        };
+
+        if (className is null)
+        {
+            return null;
+        }
+
+        var jointNode = MakeNode(
+            className,
+            ("parent_body", physAggregateData.GetParentBoneName(joint.Body1)),
+            ("child_body", physAggregateData.GetParentBoneName(joint.Body2)),
+            ("anchor_origin", ToKVArray(joint.Frame1.Position)),
+            ("anchor_angles", ToKVArray(EntityTransformHelper.ToEulerAngles(joint.Frame1.Rotation))),
+            ("collision_enabled", joint.EnableCollision),
+            ("friction", joint.Friction)
+        );
+
+        switch (joint.Type)
+        {
+            case JointType.Conical:
+                jointNode.Add("enable_swing_limit", joint.EnableSwingLimit);
+                jointNode.Add("swing_limit", float.RadiansToDegrees(joint.SwingLimit.Max));
+                jointNode.Add("enable_twist_limit", joint.EnableTwistLimit);
+                jointNode.Add("min_twist_angle", float.RadiansToDegrees(joint.TwistLimit.Min));
+                jointNode.Add("max_twist_angle", float.RadiansToDegrees(joint.TwistLimit.Max));
+                break;
+            case JointType.Revolute:
+                jointNode.Add("enable_limit", joint.EnableTwistLimit);
+                jointNode.Add("min_angle", float.RadiansToDegrees(joint.TwistLimit.Min));
+                jointNode.Add("max_angle", float.RadiansToDegrees(joint.TwistLimit.Max));
+                break;
+            case JointType.Prismatic:
+                jointNode.Add("enable_limit", joint.EnableLinearLimit);
+                jointNode.Add("min_offset", joint.LinearLimit.Min);
+                jointNode.Add("max_offset", joint.LinearLimit.Max);
+                break;
+        }
+
+        return jointNode;
     }
 
     static KVObject ProcessAnimationAutoLayer(Animation animation, AnimationAutoLayer autoLayer, string[] localSequenceNameArray, string[] poseParamNames)
@@ -554,6 +756,18 @@ partial class ModelExtract
     }
 
     /// <summary>
+    /// Influences per vertex a render mesh gets when its <c>RenderMeshFile</c> carries no
+    /// <c>RenderMeshMarkup</c>, so a mesh skinned to more than this needs one written out.
+    /// </summary>
+    private const int DefaultBlendWeightsPerVertex = 4;
+
+    /// <summary>
+    /// The <c>blend_weights_per_vertex</c> cap to write for such a mesh. It is a ceiling, not a
+    /// count: the compiler emits whatever maximum the vertices actually use, up to this.
+    /// </summary>
+    private const string WideBlendWeightsPerVertex = "8";
+
+    /// <summary>
     /// Converts the model to Valve model format as a string.
     /// </summary>
     public string ToValveModel()
@@ -582,6 +796,7 @@ partial class ModelExtract
         var lodGroupList = MakeLazyList("LODGroupList");
         var animationList = MakeLazyList("AnimationList");
         var physicsShapeList = MakeLazyList("PhysicsShapeList");
+        var physicsJointList = MakeLazyList("PhysicsJointList");
         var attachmentList = MakeLazyList("AttachmentList");
         var skeleton = MakeLazyList("Skeleton");
         var modelModifierList = MakeLazyList("ModelModifierList");
@@ -605,6 +820,16 @@ partial class ModelExtract
                     ("name", renderMesh.Name),
                     ("filename", renderMesh.FileName)
                 );
+
+                var boneWeightCount = renderMesh.Mesh.Data.GetSubCollection("m_skeleton")?.GetInt32Property("m_nBoneWeightCount") ?? 0;
+
+                if (boneWeightCount > DefaultBlendWeightsPerVertex)
+                {
+                    renderMeshFile.Add("children", MakeArray(MakeNode(
+                        "RenderMeshMarkup",
+                        ("blend_weights_per_vertex", WideBlendWeightsPerVertex)
+                    )));
+                }
 
                 if (renderMesh.ImportFilter != default)
                 {
@@ -879,7 +1104,7 @@ partial class ModelExtract
             sequenceLocalReferenceArray = sequenceData.GetArray<string>("m_localSequenceNameArray");
         }
 
-        if (AnimationsToExtract.Count > 0)
+        if (AnimationsToExtract.Count > 0 || additionalSequenceData.Count > 0)
         {
             var animationToFolder = new Dictionary<string, KVObject>(AnimationsToExtract.Count);
             if (modelSequenceData?.Data.GetSubCollection("m_keyValues") is KVObject sequenceKeyValues)
@@ -928,9 +1153,176 @@ partial class ModelExtract
                 }
             }
 
+            // 1D blend sequences (m_bMulti + 1D fetch): VRF used to flatten these into a plain baked
+            // AnimFile, losing the blend entirely (turn leaning stopped working on recompiled models).
+            // Two reconstructions, best fidelity first:
+            //  - Turn layers (ModelDoc "AnimTurn"): pose keys [-1, 0, 1] over lookFrame deltas that were
+            //    generated from a local 3-frame animation @X. The AnimTurn node regenerates the implicit
+            //    @X_lookFrame_0/1/2 anims from that file, so this path needs @X's data to exist.
+            //  - Generic "1DBlend": a blendList of (anim name, pose key) pairs. Works even when the
+            //    referenced anims have no local data (wearables whose lookFrames live in the hero model):
+            //    the compiler emits the same dangling name references the original carries.
+            var turnSequences = new Dictionary<string, (string SourceFileName, string PoseParamName)>();
+            var turnGeneratedAnims = new HashSet<string>(StringComparer.Ordinal);
+            var blend1DSequences = new Dictionary<string, KVObject>(StringComparer.Ordinal);
+
+            if (sequenceLocalReferenceArray != null && poseParamNames != null)
+            {
+                foreach (var (seqName, seqDesc) in additionalSequenceData)
+                {
+                    var seqFlags = seqDesc.GetSubCollection("m_flags");
+                    if (!(seqFlags?.GetBooleanProperty("m_bMulti") ?? false))
+                    {
+                        continue;
+                    }
+
+                    var fetch = seqDesc.GetSubCollection("m_fetch");
+                    if (fetch is null || !(fetch.GetSubCollection("m_flags")?.GetBooleanProperty("m_b1D") ?? false))
+                    {
+                        continue;
+                    }
+
+                    var references = fetch.GetIntegerArray("m_localReferenceArray");
+                    var poseKeys = fetch.GetFloatArray("m_poseKeyArray0");
+                    var localPose = fetch.GetIntegerArray("m_nLocalPose");
+
+                    if (references.Length < 2 || poseKeys.Length < references.Length || localPose.Length == 0)
+                    {
+                        continue;
+                    }
+
+                    var poseParamIndex = (int)localPose[0];
+                    if (poseParamIndex < 0 || poseParamIndex >= poseParamNames.Length)
+                    {
+                        continue;
+                    }
+
+                    var referenceNames = new string[references.Length];
+                    var referencesValid = true;
+                    for (var i = 0; i < references.Length; i++)
+                    {
+                        var referenceIndex = (int)references[i];
+                        if (referenceIndex < 0 || referenceIndex >= sequenceLocalReferenceArray.Length)
+                        {
+                            referencesValid = false;
+                            break;
+                        }
+
+                        referenceNames[i] = sequenceLocalReferenceArray[referenceIndex];
+                    }
+
+                    if (!referencesValid)
+                    {
+                        continue;
+                    }
+
+                    var isLookFramePattern = references.Length == 3
+                        && poseKeys[0] == -1f && poseKeys[1] == 0f && poseKeys[2] == 1f
+                        && referenceNames[0] == $"@{seqName}_lookFrame_0"
+                        && referenceNames[1] == $"@{seqName}_lookFrame_1"
+                        && referenceNames[2] == $"@{seqName}_lookFrame_2";
+
+                    var sourceAnimName = $"@{seqName}";
+                    if (isLookFramePattern && AnimationsToExtract.Any(x => x.Anim.Name == sourceAnimName))
+                    {
+                        turnSequences[seqName] = (GetDmxFileName_ForAnimation(sourceAnimName), poseParamNames[poseParamIndex]);
+
+                        // The lookFrame deltas are regenerated by the compiler and the baked blend X.dmx is
+                        // unused. The hidden @X AnimFile is kept: originals ship the raw @X anim alongside
+                        // the generated pieces (the AnimTurn node itself does not recreate it).
+                        for (var i = 0; i < 3; i++)
+                        {
+                            turnGeneratedAnims.Add($"@{seqName}_lookFrame_{i}");
+                            AnimationsExcludedFromDmxExport.Add($"@{seqName}_lookFrame_{i}");
+                        }
+
+                        AnimationsExcludedFromDmxExport.Add(seqName);
+                        continue;
+                    }
+
+                    // Generic 1DBlend reconstruction. Field set matches authored content
+                    // (e.g. anessix_geometry.vmdl); blendList weights are the fetch pose keys.
+                    var blendList = KVObject.Array();
+                    for (var i = 0; i < references.Length; i++)
+                    {
+                        var entry = KVObject.Collection();
+                        entry.Add("name", referenceNames[i]);
+                        entry.Add("weight", poseKeys[i]);
+                        blendList.Add(entry);
+                    }
+
+                    var transition = seqDesc.GetSubCollection("m_transition");
+                    var seqActivities = seqDesc.GetArray("m_activityArray");
+
+                    var blendNode = MakeNode("1DBlend",
+                        ("name", seqName),
+                        ("activity_name", seqActivities is { Count: > 0 } ? seqActivities[0].GetStringProperty("m_name") : ""),
+                        ("activity_weight", seqActivities is { Count: > 0 } ? seqActivities[0].GetInt32Property("m_nWeight") : 1),
+                        ("weight_list_name", ""),
+                        ("fade_in_time", transition?.GetFloatProperty("m_flFadeInTime") ?? 0.2f),
+                        ("fade_out_time", transition?.GetFloatProperty("m_flFadeOutTime") ?? 0.2f),
+                        ("looping", seqFlags.GetBooleanProperty("m_bLooping")),
+                        ("delta", seqFlags.GetBooleanProperty("m_bLegacyDelta")),
+                        ("worldSpace", seqFlags.GetBooleanProperty("m_bLegacyWorldspace")),
+                        ("hidden", seqFlags.GetBooleanProperty("m_bHidden")),
+                        ("anim_markup_ordered", false),
+                        ("disable_compression", false),
+                        ("animgraph_additive", false),
+                        ("blend_anim_events", false),
+                        ("poseParam", poseParamNames[poseParamIndex]),
+                        ("blendList", blendList));
+
+                    if (seqActivities is { Count: > 1 })
+                    {
+                        var modifiers = KVObject.Array();
+                        for (var modifierIndex = 1; modifierIndex < seqActivities.Count; modifierIndex++)
+                        {
+                            modifiers.Add(MakeNode("ActivityModifier",
+                                ("activity_name", seqActivities[modifierIndex].GetStringProperty("m_name")),
+                                ("activity_weight", seqActivities[modifierIndex].GetInt32Property("m_nWeight"))
+                            ));
+                        }
+
+                        blendNode.Add("children", modifiers);
+                    }
+
+                    blend1DSequences[seqName] = blendNode;
+
+                    // A baked AnimFile of the blend would collide with the reconstructed sequence.
+                    AnimationsExcludedFromDmxExport.Add(seqName);
+                }
+
+                foreach (var (name, node) in blend1DSequences)
+                {
+                    AddToFolderOrRoot(name, node);
+                }
+            }
+
             var sequences = AnimationsToExtract.Where(x => x.Anim.FromSequence);
             foreach (var animation in sequences)
             {
+                // Implicit turn anims (@X, @X_lookFrame_N) are regenerated from the AnimTurn node's
+                // 3-frame source file, and 1D blend sequences are reconstructed as 1DBlend nodes;
+                // emitting their baked AnimFiles too would define them twice.
+                if (turnGeneratedAnims.Contains(animation.Anim.Name) || blend1DSequences.ContainsKey(animation.Anim.Name))
+                {
+                    continue;
+                }
+
+                if (turnSequences.TryGetValue(animation.Anim.Name, out var turn))
+                {
+                    // pose_param_name must be explicit: without it the compiler leaves the generated
+                    // 1D blend without a pose parameter ("1DBlend: X : Undefined pose parameter").
+                    AddToFolderOrRoot(animation.Anim.Name, MakeNode("AnimTurn",
+                        ("name", animation.Anim.Name),
+                        ("source_filename", turn.SourceFileName),
+                        ("pose_param_name", turn.PoseParamName),
+                        ("fade_in_time", animation.Anim.SequenceParams.FadeInTime),
+                        ("fade_out_time", animation.Anim.SequenceParams.FadeOutTime)
+                    ));
+                    continue;
+                }
+
                 var animationFile = MakeNode(
                     "AnimFile",
                     ("name", animation.Anim.Name),
@@ -943,7 +1335,22 @@ partial class ModelExtract
                     ("hidden", animation.Anim.Hidden)
                 );
 
-                if (animation.Anim.Activities.Length > 0)
+                // The sequence's m_activityArray is the authoritative source for activity + modifiers:
+                // entry [0] is the activity (ACT_*), entries [1..] are activity modifiers ("injured", "ether", ...).
+                // VRF previously only read the activity from the anim block and dropped the modifiers entirely.
+                IReadOnlyList<KVObject>? seqActivityArray = null;
+                if (additionalSequenceData.TryGetValue(animation.Anim.Name, out var seqDescForActivity))
+                {
+                    seqActivityArray = seqDescForActivity.GetArray("m_activityArray");
+                }
+
+                if (seqActivityArray is { Count: > 0 })
+                {
+                    var activity = seqActivityArray[0];
+                    animationFile.Add("activity_name", activity.GetStringProperty("m_name"));
+                    animationFile.Add("activity_weight", activity.GetInt32Property("m_nWeight"));
+                }
+                else if (animation.Anim.Activities.Length > 0)
                 {
                     var activity = animation.Anim.Activities[0];
                     animationFile.Add("activity_name", activity.Name);
@@ -951,6 +1358,22 @@ partial class ModelExtract
                 }
 
                 var childrenKV = KVObject.Array();
+
+                // Activity modifiers are entries [1..] of the sequence m_activityArray. ModelDoc represents
+                // each as an "ActivityModifier" child node of the AnimFile (activity_name = the modifier tag);
+                // the compiler merges them back into the ASEQ m_activityArray. A field-level
+                // "activity_modifiers" array is silently ignored by the compiler, so it must be child nodes.
+                if (seqActivityArray is { Count: > 1 })
+                {
+                    for (var modifierIndex = 1; modifierIndex < seqActivityArray.Count; modifierIndex++)
+                    {
+                        var modifier = seqActivityArray[modifierIndex];
+                        childrenKV.Add(MakeNode("ActivityModifier",
+                            ("activity_name", modifier.GetStringProperty("m_name")),
+                            ("activity_weight", modifier.GetInt32Property("m_nWeight"))
+                        ));
+                    }
+                }
 
                 foreach (var localHierarchy in animation.Anim.LocalHierarchy)
                 {
@@ -1036,9 +1459,6 @@ partial class ModelExtract
                     var sequenceKeys = animSequenceData.GetSubCollection("m_SequenceKeys");
                     if (sequenceKeys != null)
                     {
-                        // other keys seen:
-                        // bind_pose = true
-
                         if (sequenceKeys.GetSubCollection("AnimGameplayTiming") is KVObject animGameplayTiming)
                         {
                             childrenKV.Add(MakeNode("AnimGameplayTiming", animGameplayTiming));
@@ -1093,6 +1513,8 @@ partial class ModelExtract
             {
                 AddBonesRecursive(model.Skeleton.Roots, skeleton.Value);
             }
+
+            AddCulledClothBones(skeleton.Value);
         }
 
         if (physAggregateData is not null)
@@ -1132,7 +1554,60 @@ partial class ModelExtract
 
                     physicsShapeList.Value.Add(physicsShapeCapsule);
                 }
+
+                if (physicsPart.Shape.Spheres.Length == 0 && physicsPart.Shape.Capsules.Length == 0
+                    && physicsPart.Shape.Hulls.Length == 0 && physicsPart.Shape.Meshes.Length == 0)
+                {
+                    // A body with no shape is declared as a degenerate capsule: the compiler keeps
+                    // the body and drops the shape.
+                    physicsShapeList.Value.Add(MakeNode(
+                        "PhysicsShapeCapsule",
+                        ("parent_bone", parentBone),
+                        ("surface_prop", "default"),
+                        ("collision_tags", string.Join(" ", PhysicsCollisionTags[physicsPart.CollisionAttributeIndex])),
+                        ("radius", 0f),
+                        ("point0", ToKVArray(Vector3.Zero)),
+                        ("point1", ToKVArray(Vector3.Zero)),
+                        ("name", string.Empty)
+                    ));
+                }
             }
+
+            foreach (var joint in physAggregateData.Joints)
+            {
+                var jointNode = BuildPhysicsJoint(physAggregateData, joint);
+
+                if (jointNode is not null)
+                {
+                    physicsJointList.Value.Add(jointNode);
+                }
+            }
+
+            var jiggleBoneList = ExtractJiggleBones(physAggregateData.FeModel);
+            if (jiggleBoneList != null)
+            {
+                root.Children.Add(jiggleBoneList);
+            }
+        }
+
+        var clothEmitted = physAggregateData?.FeModel is { } feModel && EmitCloth(feModel, root.Children);
+
+        // A soft-body FeModel that yields no authorable cloth gets a minimal placeholder PhysicsShapeList,
+        // which is what makes the compiler allocate a PHYS block and the CTRL embedded_physics reference.
+        if (physAggregateData?.FeModel is not null
+            && !clothEmitted
+            && !physicsShapeList.IsValueCreated
+            && model?.Resource?.GetBlockByType(BlockType.PHYS) is not null
+            && model.Skeleton.Bones.Length > 0)
+        {
+            physicsShapeList.Value.Add(MakeNode("PhysicsShapeSphere",
+                ("parent_bone", GetExportBoneName(model.Skeleton.Bones[0])),
+                ("surface_prop", "default"),
+                ("collision_tags", "solid"),
+                ("radius", 1.0f),
+                ("center", ToKVArray(Vector3.Zero)),
+                ("name", "vrf_phys_transplant_placeholder")
+            ));
         }
 
         if (Translation != Vector3.Zero)
@@ -1477,13 +1952,23 @@ partial class ModelExtract
             foreach (var genericDataClass in genericDataClassesList)
             {
                 var dataKey = genericDataClass.ListKey;
-                if (keyvalues.ContainsKey(dataKey))
+                if (!keyvalues.ContainsKey(dataKey))
                 {
-                    var genericDataList = keyvalues.GetArray(dataKey);
-                    foreach (var genericData in genericDataList!)
+                    continue;
+                }
+
+                var genericDataList = keyvalues.GetArray(dataKey);
+                if (genericDataList != null)
+                {
+                    foreach (var genericData in genericDataList)
                     {
                         AddGenericGameData(gameDataList.Value, genericDataClass.Class, genericData);
                     }
+                }
+                else if (keyvalues.GetSubCollection(dataKey) is { } singleGenericData)
+                {
+                    // Some models author this as a single KV object instead of a one-element list.
+                    AddGenericGameData(gameDataList.Value, genericDataClass.Class, singleGenericData);
                 }
             }
 

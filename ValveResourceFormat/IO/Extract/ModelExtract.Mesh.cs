@@ -10,6 +10,7 @@ using ValveResourceFormat.IO.ContentFormats.DmxModel;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.ResourceTypes.ModelAnimation;
 using ValveResourceFormat.ResourceTypes.RubikonPhysics;
+using ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody;
 using ValveResourceFormat.Serialization.KeyValues;
 using RnShapes = ValveResourceFormat.ResourceTypes.RubikonPhysics.Shapes;
 
@@ -31,6 +32,41 @@ partial class ModelExtract
     /// Gets the list of render meshes to be extracted.
     /// </summary>
     public List<RenderMeshExtractConfiguration> RenderMeshesToExtract { get; } = [];
+
+    /// <summary>
+    /// Gets the list of cloth proxy meshes (cloth "sheets") to be extracted as sub-DMX files. Built from
+    /// the soft-body <see cref="FeModel"/> surface so a recompile regenerates the <c>$cloth_*</c> nodes.
+    /// </summary>
+    public List<(string FileName, string Name, FeModel.ProxyMesh Proxy)> ClothProxyMeshesToExtract { get; } = [];
+
+    /// <summary>
+    /// Gets the list of cloth sheet grids generated over neighbouring bone chains (skirts/capes whose
+    /// original cloth is chain-only), extracted as sub-DMX files. The sheet simulates the surface between
+    /// the chains and drives the render mesh directly, like hand-authored item proxies.
+    /// </summary>
+    public List<(string FileName, string Name, FeModel.ChainGrid Grid)> ClothChainGridsToExtract { get; } = [];
+
+    /// <summary>
+    /// Gets the cloth control nodes that were authored as skeleton bones but culled from the compiled
+    /// skeleton; re-declared as Bone nodes so cloth constructs can reference them.
+    /// </summary>
+    public List<(int Node, string Name)> CulledClothBones { get; } = [];
+
+    /// <summary>
+    /// Gets the parent-space bone positions that put every cloth control node back on the rest position
+    /// the FeModel records for it, keyed by bone name. Empty where the model has no cloth or the two
+    /// already agree.
+    /// </summary>
+    /// <remarks>
+    /// <c>m_modelSkeleton</c> is a lossy re-expression of the authored bone transforms - re-composing it
+    /// walks away from the authored world pose as the hierarchy deepens (prof_dynamo's coat chain ends
+    /// 4.8e-3 units out, archer's fingers 1.3e-2, and the error grows strictly with depth) - while
+    /// <c>m_InitPose</c> keeps the authored world position of every control node to float32.
+    /// Emitting the skeleton straight from the compiled bone data therefore hands the compiler a rest
+    /// pose the original was never built from, and every ctrl offset measured against those bones, plus
+    /// every chain ring extruded off them, inherits the error.
+    /// </remarks>
+    public Dictionary<string, Vector3> ClothRestBonePositions { get; } = new(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>
     /// Gets the material input signatures for mapping DirectX semantic names.
@@ -93,6 +129,12 @@ partial class ModelExtract
         /// When provided, bones are emitted into the DMX <c>jointList</c> so ModelDoc can resolve indices.
         /// </summary>
         public Skeleton? Skeleton { get; init; }
+
+        /// <summary>
+        /// Parent-space bone positions to emit in place of the skeleton's own, keyed by bone name
+        /// (see <see cref="ClothRestBonePositions"/>).
+        /// </summary>
+        public IReadOnlyDictionary<string, Vector3>? BonePositions { get; init; }
     }
 
     /// <summary>
@@ -161,7 +203,15 @@ partial class ModelExtract
         }
         EnqueueRenderMeshes();
         EnqueuePhysMeshes();
+        EnqueueClothProxyMesh();
     }
+
+    /// <summary>
+    /// The parent-space position to emit for a bone: its cloth rest correction where there is one, and
+    /// its compiled transform otherwise.
+    /// </summary>
+    internal static Vector3 BonePosition(Bone bone, IReadOnlyDictionary<string, Vector3>? overrides)
+        => overrides is not null && overrides.TryGetValue(bone.Name, out var position) ? position : bone.Position;
 
     private void EnqueueRenderMeshes()
     {
@@ -306,6 +356,7 @@ partial class ModelExtract
             SplitDrawCallsIntoSeparateSubmeshes = true,
             BoneRemapTable = boneRemapTable,
             Skeleton = skeleton,
+            BonePositions = extract.ClothRestBonePositions,
         };
 
         byte[] sharedDmxExtractMethod() => ToDmxMesh(
@@ -410,11 +461,14 @@ partial class ModelExtract
     }
 
     private static void FillDatamodelVertexData(VBIB.OnDiskBufferData vertexBuffer, DmeVertexData vertexData, Material.VsInputSignature materialInputSignature,
-        int boneWeightCount, int[]? boneRemapTable)
+        int boneWeightCount, int[]? boneRemapTable, bool[]? clothBones = null, List<int>? clothTriangles = null,
+        int[]? clothCompaction = null)
     {
         var indices = Enumerable.Range(0, (int)vertexBuffer.ElementCount).ToArray(); // May break with non-unit strides, non-tri faces
 
         var boneArrayComponents = boneWeightCount > 4 ? 8 : 4;
+        int[]? clothBlendIndices = null;
+        float[]? clothBlendWeights = null;
 
         foreach (var attribute in vertexBuffer.InputLayoutFields)
         {
@@ -449,6 +503,16 @@ partial class ModelExtract
                     }
                 }
 
+                clothBlendIndices = (int[])compactIndices.Clone();
+
+                if (clothCompaction != null)
+                {
+                    for (var i = 0; i < compactIndices.Length; i++)
+                    {
+                        compactIndices[i] = CompactBoneIndex(clothCompaction, compactIndices[i]);
+                    }
+                }
+
                 vertexData.AddStream(semantic, compactIndices);
                 continue;
             }
@@ -466,6 +530,7 @@ partial class ModelExtract
                     }
                 }
 
+                clothBlendWeights = compactWeights;
                 vertexData.AddStream("blendweights$" + attribute.SemanticIndex, compactWeights);
                 continue;
             }
@@ -513,6 +578,208 @@ partial class ModelExtract
 
             vertexData.AddStream("blendweights$0", Enumerable.Repeat(1f, collection.Count).ToArray());
         }
+
+        AddClothEnablePaint(vertexData, indices, boneWeightCount, clothBones, clothBlendIndices, clothBlendWeights, clothTriangles);
+        DropClothProxyInfluences(boneWeightCount, clothCompaction, clothBlendIndices, clothBlendWeights);
+    }
+
+    /// <summary>
+    /// Zeroes the influences a vertex holds on the cloth proxy bones the compiler regenerates and
+    /// renormalises what is left, in place in the blend weight stream.
+    /// </summary>
+    /// <remarks>
+    /// The compiler re-binds a painted vertex by scaling its incoming weights by one minus the paint
+    /// and appending its own proxy bindings, so the stream carries only the vertex's real skinning.
+    /// </remarks>
+    private static void DropClothProxyInfluences(int boneWeightCount, int[]? clothCompaction,
+        int[]? blendIndices, float[]? blendWeights)
+    {
+        if (clothCompaction == null || blendIndices == null || blendWeights == null || boneWeightCount <= 0)
+        {
+            return;
+        }
+
+        var vertexCount = Math.Min(blendIndices.Length, blendWeights.Length) / boneWeightCount;
+
+        for (var vertex = 0; vertex < vertexCount; vertex++)
+        {
+            var first = vertex * boneWeightCount;
+            var kept = 0f;
+
+            for (var slot = first; slot < first + boneWeightCount; slot++)
+            {
+                var bone = blendIndices[slot];
+
+                if (bone >= 0 && bone < clothCompaction.Length && clothCompaction[bone] < 0)
+                {
+                    blendWeights[slot] = 0f;
+                }
+                else
+                {
+                    kept += blendWeights[slot];
+                }
+            }
+
+            if (kept <= 0f)
+            {
+                blendWeights[first] = 1f;
+                continue;
+            }
+
+            for (var slot = first; slot < first + boneWeightCount; slot++)
+            {
+                blendWeights[slot] /= kept;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Writes the <c>cloth_enable</c> vertex paint a render mesh needs for its cloth to be rebuilt.
+    /// </summary>
+    /// <remarks>
+    /// The compiler does not read a render mesh's cloth skinning back: it regenerates the
+    /// <c>$cloth_m&lt;mesh&gt;p&lt;point&gt;</c> bones from the proxy and re-binds the mesh to them
+    /// itself, on the vertices this paint marks. Without the paint no vertex is re-bound, so the
+    /// bones are never added and the FeModel's control nodes resolve to nothing. The compiled model
+    /// no longer carries the paint - it carries the result - so it is reconstructed here as the
+    /// weight each vertex holds on the generated cloth bones, which is what the compiler produced
+    /// from the paint in the first place.
+    /// </remarks>
+    private static void AddClothEnablePaint(DmeVertexData vertexData, int[] indices, int boneWeightCount,
+        bool[]? clothBones, int[]? blendIndices, float[]? blendWeights, List<int>? triangles)
+    {
+        if (clothBones == null || blendIndices == null || blendWeights == null || boneWeightCount <= 0
+            || vertexData.VertexFormat.Contains("cloth_enable$0"))
+        {
+            return;
+        }
+
+        var vertexCount = Math.Min(indices.Length, blendIndices.Length / boneWeightCount);
+        var paint = new float[indices.Length];
+        var painted = 0;
+
+        for (var vertex = 0; vertex < vertexCount; vertex++)
+        {
+            var total = 0f;
+
+            for (var slot = vertex * boneWeightCount; slot < (vertex + 1) * boneWeightCount; slot++)
+            {
+                var bone = blendIndices[slot];
+
+                if (bone >= 0 && bone < clothBones.Length && clothBones[bone] && slot < blendWeights.Length)
+                {
+                    total += blendWeights[slot];
+                }
+            }
+
+            paint[vertex] = Math.Clamp(total, 0f, 1f);
+
+            if (paint[vertex] > 0f)
+            {
+                painted++;
+            }
+        }
+
+        if (painted == 0)
+        {
+            return;
+        }
+
+        GrowClothEnablePaint(paint, triangles);
+        vertexData.AddIndexedStream("cloth_enable$0", paint, indices);
+    }
+
+    /// <summary>
+    /// Paints the vertices that kept no cloth weight but sit within a few rings of face adjacency of
+    /// one that did. A vertex the reconstruction already gives a paint keeps it.
+    /// </summary>
+    /// <remarks>
+    /// The compiler binds a mesh vertex to up to four proxy nodes, then the vertex format's own four
+    /// slots and the renormalisation that follows can leave a node it touched with no weight at all.
+    /// A node like that still gets a skeleton bone, so a paint reconstructed from the surviving
+    /// weights is narrower than the one the model was compiled from, and the nodes at the edge of
+    /// the cloth region come back short. The paint only has to clear the threshold to reach them,
+    /// and its value is what decides how much of the vertex the cloth takes.
+    /// </remarks>
+    private static void GrowClothEnablePaint(float[] paint, List<int>? triangles)
+    {
+        if (triangles == null)
+        {
+            return;
+        }
+
+        var grown = new List<int>();
+
+        for (var ring = 0; ring < ClothEnableGrowthRings; ring++)
+        {
+            grown.Clear();
+
+            for (var i = 0; i + 2 < triangles.Count; i += 3)
+            {
+                var a = triangles[i];
+                var b = triangles[i + 1];
+                var c = triangles[i + 2];
+
+                if (a >= paint.Length || b >= paint.Length || c >= paint.Length)
+                {
+                    continue;
+                }
+
+                if (paint[a] < ClothEnableThreshold && paint[b] < ClothEnableThreshold && paint[c] < ClothEnableThreshold)
+                {
+                    continue;
+                }
+
+                grown.Add(a);
+                grown.Add(b);
+                grown.Add(c);
+            }
+
+            if (grown.Count == 0)
+            {
+                return;
+            }
+
+            foreach (var vertex in grown)
+            {
+                if (paint[vertex] <= 0f)
+                {
+                    paint[vertex] = ClothEnableGrowthPaint;
+                }
+            }
+        }
+    }
+
+    /// <summary>How far the reconstructed paint is grown past the vertices that kept a cloth weight.</summary>
+    private const int ClothEnableGrowthRings = 4;
+
+    /// <summary>The compiler's <c>m_flClothEnableThreshold</c>.</summary>
+    private const float ClothEnableThreshold = 0.05f;
+
+    /// <summary>The value a grown vertex is painted with, the smallest that clears the threshold.</summary>
+    private const float ClothEnableGrowthPaint = 0.051f;
+
+    /// <summary>Marks the bones a compiled cloth proxy generated, by skeleton bone index.</summary>
+    private static bool[]? BuildClothBoneMask(Skeleton? skeleton)
+    {
+        if (skeleton == null)
+        {
+            return null;
+        }
+
+        var mask = new bool[skeleton.Bones.Length];
+        var any = false;
+
+        foreach (var bone in skeleton.Bones)
+        {
+            if (bone.IsProceduralCloth && bone.Name.StartsWith('$'))
+            {
+                mask[bone.Index] = true;
+                any = true;
+            }
+        }
+
+        return any ? mask : null;
     }
 
     /// <summary>
@@ -544,10 +811,15 @@ partial class ModelExtract
         // ModelDoc resolves mesh skinning indices through this list; without it the mesh is bound to "no skeleton".
         if (options.Skeleton is { Bones.Length: > 0 } skeleton)
         {
-            dmeModel = BuildDmeDagSkeleton(skeleton, out _);
+            dmeModel = BuildDmeDagSkeleton(skeleton, out _, bonePositions: options.BonePositions);
             dmeModel.Name = name;
         }
 
+        var clothBones = BuildClothBoneMask(options.Skeleton);
+        var clothCompaction = options.Skeleton != null && clothBones != null
+            ? BuildClothBoneCompaction(options.Skeleton)
+            : null;
+        var clothTriangles = new Dictionary<(int, int), List<int>>();
         var materialInputSignature = Material.VsInputSignature.Empty;
         var drawCallIndex = 0;
 
@@ -622,13 +894,29 @@ partial class ModelExtract
                     options.SubmeshDrawCalls?.Add((dag, drawCall));
                 }
 
+                var drawCallIndices = indexBuffer[startIndex..(startIndex + indexCount)];
+
                 GenerateTriangleFaceSetFromIndexBuffer(
                     dag,
-                    indexBuffer[startIndex..(startIndex + indexCount)],
+                    drawCallIndices,
                     baseVertex,
                     material,
                     $"{startIndex}..{startIndex + indexCount}"
                 );
+
+                if (clothBones != null)
+                {
+                    if (!clothTriangles.TryGetValue(dmeVertexBufferKey, out var triangles))
+                    {
+                        triangles = [];
+                        clothTriangles[dmeVertexBufferKey] = triangles;
+                    }
+
+                    foreach (var index in drawCallIndices)
+                    {
+                        triangles.Add(baseVertex + index);
+                    }
+                }
 
                 drawCallIndex++;
             }
@@ -638,17 +926,19 @@ partial class ModelExtract
 
         foreach (var (vertexBufferIndices, dmeObjects) in dmeVertexBuffers)
         {
+            clothTriangles.TryGetValue(vertexBufferIndices, out var triangles);
+
             if (merged != null)
             {
-                FillDatamodelVertexData(merged.Value.Buffer, dmeObjects.VertexData, materialInputSignature, boneWeightCount, options.BoneRemapTable);
+                FillDatamodelVertexData(merged.Value.Buffer, dmeObjects.VertexData, materialInputSignature, boneWeightCount, options.BoneRemapTable, clothBones, triangles, clothCompaction);
                 continue;
             }
 
-            FillDatamodelVertexData(mbuf.VertexBuffers[vertexBufferIndices.Item1], dmeObjects.VertexData, materialInputSignature, boneWeightCount, options.BoneRemapTable);
+            FillDatamodelVertexData(mbuf.VertexBuffers[vertexBufferIndices.Item1], dmeObjects.VertexData, materialInputSignature, boneWeightCount, options.BoneRemapTable, clothBones, triangles, clothCompaction);
 
             if (vertexBufferIndices.Item2 != -1)
             {
-                FillDatamodelVertexData(mbuf.VertexBuffers[vertexBufferIndices.Item2], dmeObjects.VertexData, materialInputSignature, boneWeightCount, options.BoneRemapTable);
+                FillDatamodelVertexData(mbuf.VertexBuffers[vertexBufferIndices.Item2], dmeObjects.VertexData, materialInputSignature, boneWeightCount, options.BoneRemapTable, clothBones, triangles, clothCompaction);
             }
         }
 

@@ -1,6 +1,7 @@
 using System.Linq;
 using ValveKeyValue;
 using ValveResourceFormat.ResourceTypes.RubikonPhysics;
+using ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody;
 using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.ResourceTypes
@@ -32,6 +33,12 @@ namespace ValveResourceFormat.ResourceTypes
             => parts ??= Data.GetArray("m_parts").Select(p => new Part(p)).ToArray();
 
         /// <summary>
+        /// Gets the joints (constraints) between parts in this aggregate.
+        /// </summary>
+        public Joint[] Joints
+            => joints ??= Data.GetArray("m_joints")?.Select(j => new Joint(j)).ToArray() ?? [];
+
+        /// <summary>
         /// Gets the referenced bone names.
         /// </summary>
         public string[] BoneNames => Data.GetArray<string>("m_boneNames");
@@ -53,10 +60,64 @@ namespace ValveResourceFormat.ResourceTypes
         public IReadOnlyList<KVObject> CollisionAttributes
             => collisionAttributes ??= Data.GetArray("m_collisionAttributes");
 
+        /// <summary>
+        /// Gets the embedded finite-element (soft body / cloth) model (<c>m_pFeModel</c>), or null when the
+        /// aggregate has no cloth. Reusable for both bone-chain and proxy-mesh cloth reconstruction.
+        /// </summary>
+        public FeModel? FeModel
+        {
+            get
+            {
+                if (feModelParsed)
+                {
+                    return feModel;
+                }
+
+                feModelParsed = true;
+
+                var feModelData = Data.GetSubCollection("m_pFeModel");
+                if (feModelData is not null)
+                {
+                    var parsed = new FeModel(feModelData);
+                    if (parsed.HasData)
+                    {
+                        feModel = parsed;
+                    }
+                }
+
+                return feModel;
+            }
+        }
+
+        /// <summary>
+        /// Gets what a shape with these collision attributes interacts as. Assets compiled before the
+        /// rename carry the tags under <c>m_PhysicsTagStrings</c>, and one with neither has no tags.
+        /// </summary>
+        public static string[] GetInteractAsTags(KVObject collisionAttributes)
+        {
+            ArgumentNullException.ThrowIfNull(collisionAttributes);
+
+            return collisionAttributes.GetArray<string>("m_InteractAsStrings")
+                ?? collisionAttributes.GetArray<string>("m_PhysicsTagStrings")
+                ?? [];
+        }
+
+        /// <summary>
+        /// Gets what a shape interacts as, by index into <see cref="CollisionAttributes"/>. Empty when
+        /// the index addresses no attribute set.
+        /// </summary>
+        public string[] GetInteractAsTags(int collisionAttributeIndex)
+            => collisionAttributeIndex >= 0 && collisionAttributeIndex < CollisionAttributes.Count
+                ? GetInteractAsTags(CollisionAttributes[collisionAttributeIndex])
+                : [];
+
         private Matrix4x4[]? bindPose;
         private Part[]? parts;
+        private Joint[]? joints;
         private uint[]? surfacePropertyHashes;
         private IReadOnlyList<KVObject>? collisionAttributes;
+        private FeModel? feModel;
+        private bool feModelParsed;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="PhysAggregateData"/> class.

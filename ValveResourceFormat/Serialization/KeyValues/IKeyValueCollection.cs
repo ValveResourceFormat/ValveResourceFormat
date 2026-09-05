@@ -405,6 +405,9 @@ namespace ValveResourceFormat.Serialization.KeyValues
 
         /// <summary>
         /// Converts the key-value object to a tuple containing Position, Uniform Scale, and Rotation.
+        /// Accepts both the 8-float form (position, scale, rotation) and the compact 7-float form
+        /// (position, rotation) some compiled data uses when scale is 1 - CTransform's own default -
+        /// and omits it.
         /// </summary>
         public static (Vector3 Position, float Scale, Quaternion Rotation) ToTransform(this KVObject obj)
         {
@@ -413,13 +416,15 @@ namespace ValveResourceFormat.Serialization.KeyValues
                 (float)obj[1],
                 (float)obj[2]);
 
-            var scale = (float)obj[3];
+            var compact = obj.Count == 7;
+            var scale = compact ? 1f : (float)obj[3];
+            var rotationOffset = compact ? 3 : 4;
 
             var rotation = new Quaternion(
-                (float)obj[4],
-                (float)obj[5],
-                (float)obj[6],
-                (float)obj[7]);
+                (float)obj[rotationOffset],
+                (float)obj[rotationOffset + 1],
+                (float)obj[rotationOffset + 2],
+                (float)obj[rotationOffset + 3]);
 
             return (position, scale, rotation);
         }

@@ -100,8 +100,7 @@ public partial class GltfModelExporter
                     node.Mesh = gltfMesh;
                     node.WorldMatrix = transform * TransformSourceToGltf;
 
-                    var interactAsStrings = collisionAttributes[collisionAttrIndex].GetArray<string>("m_InteractAsStrings");
-                    var interactAsArray = new System.Text.Json.Nodes.JsonArray([.. interactAsStrings!]);
+                    var interactAsArray = new System.Text.Json.Nodes.JsonArray([.. PhysAggregateData.GetInteractAsTags(collisionAttributes[collisionAttrIndex])]);
 
                     node.Extras = new System.Text.Json.Nodes.JsonObject
                     {
@@ -135,24 +134,9 @@ public partial class GltfModelExporter
     {
         foreach (var face in faces)
         {
-            var startEdge = face.Edge;
-
-            for (var edge = edges[startEdge].Next; edge != startEdge;)
+            foreach (var (a, b, c) in GetFaceTriangles(edges, face))
             {
-                var nextEdge = edges[edge].Next;
-
-                if (nextEdge == startEdge)
-                {
-                    break;
-                }
-
-                var a = transformedPositions[edges[startEdge].Origin];
-                var b = transformedPositions[edges[edge].Origin];
-                var c = transformedPositions[edges[nextEdge].Origin];
-
-                AddTriangleWithNormal(a, b, c, verts, normals, uvs, indices);
-
-                edge = nextEdge;
+                AddTriangleWithNormal(transformedPositions[a], transformedPositions[b], transformedPositions[c], verts, normals, uvs, indices);
             }
         }
     }
@@ -207,7 +191,7 @@ public partial class GltfModelExporter
 
     private static string GetPhysicsMeshName(KVObject attributes, string surfacePropertyName)
     {
-        var tags = attributes.GetArray<string>("m_InteractAsStrings") ?? attributes.GetArray<string>("m_PhysicsTagStrings");
+        var tags = PhysAggregateData.GetInteractAsTags(attributes);
         var group = attributes.GetStringProperty("m_CollisionGroupString");
 
         var meshName = "physics_group";
@@ -439,8 +423,8 @@ public partial class GltfModelExporter
             var material = exportedModel.CreateMaterial($"{meshName}_material");
 
             // Try to load and use tool material first
-            var tags = collisionAttributes.GetArray<string>("m_InteractAsStrings") ?? collisionAttributes.GetArray<string>("m_PhysicsTagStrings");
-            var toolTextureName = MapExtract.GetToolTextureShortenedName_ForInteractStrings([.. tags!]);
+            var tags = PhysAggregateData.GetInteractAsTags(collisionAttributes);
+            var toolTextureName = MapExtract.GetToolTextureShortenedName_ForInteractStrings([.. tags]);
             var usedToolMaterial = false;
 
             if (classname != null)
