@@ -347,8 +347,9 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         public const int FitMatrixMinInfluences = 8;
 
         /// <summary>
-        /// The per-vertex skin influence slots a cloth proxy DMX carries for a sheet that back-solves
-        /// bones. Influences past the last slot are not exported and never reach the back-solve.
+        /// The smallest per-vertex skin influence budget a cloth proxy DMX is written with, matching the
+        /// importer's own <c>m_nMaxBonesPerVertex</c> default. A sheet whose recovered weights need more
+        /// is written wider; influences past the last slot are not exported and never reach the compiler.
         /// </summary>
         public const int ClothProxyInfluenceSlots = 4;
 
@@ -388,9 +389,9 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                 }
             }
 
-            // Only the influences the proxy DMX has slots for reach the compiler at all - a sheet that
-            // back-solves anything ships four per vertex and drops the rest.
-            var slots = ProxyFitMatrixNodes.Count == 0 ? int.MaxValue : ClothProxyInfluenceSlots;
+            // Only the influences the proxy DMX has slots for reach the compiler at all, and the DMX
+            // is written wide enough to hold every recovered influence.
+            const int slots = int.MaxValue;
             var painted = new Dictionary<int, List<(int Node, float Weight)>>();
             for (var v = 0; v < proxy.NodeIndices.Length && v < proxy.SkinInfluences.Length; v++)
             {
