@@ -1,4 +1,4 @@
-using System.Linq;
+﻿using System.Linq;
 using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
@@ -2231,7 +2231,8 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
 
         /// <summary>
         /// Interleaves the quad run and the triangle run of a recovered surface the way the authored sheet
-        /// declared them.
+        /// declared them, placing an already-faced node as an extra corner where the sheet's own wider
+        /// polygon named it early.
         /// </summary>
         /// <remarks>
         /// <c>m_SourceElems</c> groups its elements by corner count, so the recovered list is every
@@ -2245,6 +2246,13 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// The corners of one face are checked as a SET per rank: which of them is named first is decided
         /// afterwards by <see cref="DeclareFacesInStaticNodeOrder"/>, not here.
         /// </para>
+        /// <para>
+        /// Where no head fits because the node array numbers a node no head names, that node is appended
+        /// past the fourth corner of the last wide face already emitted, which is where a polygon wider
+        /// than a quad would have named it: only the first four corners become an element, so an authored
+        /// n-gon creates a node that leaves no trace in the recovered surface. The extra corners are kept
+        /// only when the merged list then introduces every node in the compiled order.
+        /// </para>
         /// </remarks>
         void MergeFacesInNodeCreationOrder(List<int[]> faces, int triangleCount)
         {
@@ -2255,7 +2263,26 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             }
 
             var rank = SurfaceNodeRanks;
-            var pending = new Dictionary<int, List<int>>();
+            if (IntroducesInCompiledOrder(faces, rank))
+            {
+                return;
+            }
+
+            var merged = MergeRuns(faces, quadCount, rank, true, out var extras);
+            if (extras > 0 && !IntroducesInCompiledOrder(merged, rank))
+            {
+                merged = MergeRuns(faces, quadCount, rank, false, out _);
+            }
+
+            faces.Clear();
+            faces.AddRange(merged);
+        }
+
+        // The nodes each rank contributes to the surface, in the order the compiled node array numbers
+        // them, which is the creation order restricted to that rank.
+        Dictionary<int, List<int>> CompiledRunsByRank(IEnumerable<int[]> faces, int[] rank)
+        {
+            var runs = new Dictionary<int, List<int>>();
             var covered = new SortedSet<int>();
             foreach (var face in faces)
             {
@@ -2270,17 +2297,20 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
 
             foreach (var node in covered)
             {
-                (pending.TryGetValue(rank[node], out var run) ? run : pending[rank[node]] = []).Add(node);
+                (runs.TryGetValue(rank[node], out var run) ? run : runs[rank[node]] = []).Add(node);
             }
 
-            var walked = new Dictionary<int, List<int>>(pending.Count);
-            foreach (var (key, run) in pending)
-            {
-                walked[key] = [.. run];
-            }
+            return runs;
+        }
 
+        /// <summary>
+        /// Whether walking the faces in order introduces the simulated nodes in the order the compiled node
+        /// array numbers them, taking each face's own corners as a set per rank.
+        /// </summary>
+        bool IntroducesInCompiledOrder(List<int[]> faces, int[] rank)
+        {
+            var pending = CompiledRunsByRank(faces, rank);
             var seen = new HashSet<int>();
-            var consistent = true;
             foreach (var face in faces)
             {
                 var fresh = new List<int>(4);
@@ -2296,34 +2326,34 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                 foreach (var group in fresh.GroupBy(node => rank[node]))
                 {
                     var wanted = group.ToHashSet();
-                    var run = walked[group.Key];
+                    var run = pending[group.Key];
                     if (run.Count < wanted.Count || !run.Take(wanted.Count).ToHashSet().SetEquals(wanted))
                     {
-                        consistent = false;
+                        return false;
                     }
                 }
 
                 foreach (var corner in fresh)
                 {
                     seen.Add(corner);
-                    walked[rank[corner]].Remove(corner);
-                }
-
-                if (!consistent)
-                {
-                    break;
+                    pending[rank[corner]].Remove(corner);
                 }
             }
 
-            if (consistent)
-            {
-                return;
-            }
+            return true;
+        }
 
+        List<int[]> MergeRuns(List<int[]> faces, int quadCount, int[] rank, bool allowExtraCorners,
+            out int extraCorners)
+        {
+            var pending = CompiledRunsByRank(faces, rank);
             var created = new HashSet<int>();
+            var placedAt = new Dictionary<int, int>();
             var merged = new List<int[]>(faces.Count);
             var quad = 0;
             var triangle = quadCount;
+            var lastWide = -1;
+            extraCorners = 0;
 
             List<int> Introduced(int face)
             {
@@ -2359,6 +2389,51 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                 return true;
             }
 
+            // The nodes the compiled order numbers ahead of this head's own, which the head can only be
+            // taken after. Null where the head cannot be made to fit at all, either because a node of its
+            // is not pending or because the face that would have to carry the extra corners was emitted
+            // before the last node of that rank was created.
+            List<int>? Preceding(List<int> fresh)
+            {
+                var missing = new List<int>();
+                foreach (var group in fresh.GroupBy(node => rank[node]))
+                {
+                    if (!pending.TryGetValue(group.Key, out var run))
+                    {
+                        return null;
+                    }
+
+                    var last = -1;
+                    foreach (var node in group)
+                    {
+                        var at = run.IndexOf(node);
+                        if (at < 0)
+                        {
+                            return null;
+                        }
+
+                        last = Math.Max(last, at);
+                    }
+
+                    var ahead = run.Take(last).Where(node => !fresh.Contains(node)).ToList();
+                    if (ahead.Count > 0 && lastWide < placedAt.GetValueOrDefault(group.Key, -1))
+                    {
+                        return null;
+                    }
+
+                    missing.AddRange(ahead);
+                }
+
+                return missing;
+            }
+
+            void Create(int node, int face)
+            {
+                created.Add(node);
+                pending[rank[node]].Remove(node);
+                placedAt[rank[node]] = face;
+            }
+
             while (quad < quadCount || triangle < faces.Count)
             {
                 var heads = quad < quadCount
@@ -2389,15 +2464,50 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                     }
                 }
 
+                if (taken < 0 && allowExtraCorners && lastWide >= 0)
+                {
+                    List<int>? fewest = null;
+                    foreach (var head in heads)
+                    {
+                        var fresh = Introduced(Face(head));
+                        if (fresh.Count == 0)
+                        {
+                            continue;
+                        }
+
+                        var ahead = Preceding(fresh);
+                        if (ahead is not null && ahead.Count > 0 && (fewest is null || ahead.Count < fewest.Count))
+                        {
+                            fewest = ahead;
+                            taken = head;
+                        }
+                    }
+
+                    if (fewest is not null)
+                    {
+                        merged[lastWide] = [.. merged[lastWide], .. fewest];
+                        foreach (var node in fewest)
+                        {
+                            Create(node, lastWide);
+                        }
+
+                        extraCorners += fewest.Count;
+                    }
+                }
+
                 taken = taken < 0 ? heads[0] : taken;
                 var take = Face(taken);
                 foreach (var corner in Introduced(take))
                 {
-                    created.Add(corner);
-                    pending[rank[corner]].Remove(corner);
+                    Create(corner, merged.Count);
                 }
 
                 merged.Add(faces[take]);
+                if (faces[take].Length >= 4)
+                {
+                    lastWide = merged.Count - 1;
+                }
+
                 if (taken == 0)
                 {
                     quad++;
@@ -2408,8 +2518,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                 }
             }
 
-            faces.Clear();
-            faces.AddRange(merged);
+            return merged;
         }
 
         /// <summary>
