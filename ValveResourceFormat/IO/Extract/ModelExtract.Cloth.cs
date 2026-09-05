@@ -2256,6 +2256,19 @@ partial class ModelExtract
         };
     }
 
+    /// <summary>
+    /// Whether a bone's own PARENT bone is a cloth control node. A declared cloth node is claimed by
+    /// its immediate parent alone, not by any control node further up the skeleton.
+    /// </summary>
+    Func<string, bool> ClothControlParentTest(FeModel feModel)
+    {
+        var controlNames = new HashSet<string>(feModel.CtrlNames, StringComparer.Ordinal);
+        var boneByName = model?.Skeleton.Bones.ToDictionary(static b => b.Name, StringComparer.Ordinal);
+
+        return name => boneByName is not null && boneByName.TryGetValue(name, out var bone)
+            && bone.Parent is not null && controlNames.Contains(bone.Parent.Name);
+    }
+
     static bool LoneClothNodeIsOriginalRoot(FeModel feModel, int node)
         => feModel.HasCompiledSkelParents
             && node < feModel.SkelParents.Length && feModel.SkelParents[node] < 0;
@@ -3906,7 +3919,7 @@ partial class ModelExtract
         // own ring nodes, so a joint the band order separates from its rings was created before the chain
         // ran - by an earlier declaration of the same bone name, which the chain then reuses.
         var declarationPlan = TryPlanClothChainDeclarations(feModel, boneChains,
-            ClothControlAncestorTest(feModel));
+            ClothControlParentTest(feModel));
         var declaredChains = declarationPlan?.Chains ?? boneChains;
         foreach (var (name, node) in declarationPlan?.PreDeclared ?? [])
         {
@@ -4351,10 +4364,10 @@ partial class ModelExtract
         public ClothChainDeclarationPlan? Solve(FeModel feModel, List<FeModel.BoneChain> chains,
             Func<string, bool> reparents)
         {
-            // A chain never writes a parent onto its joint node, but a ClothNode over a bone that has a
-            // control node above it in the skeleton is parented to that ancestor, so a joint the original
-            // records as a hierarchy ROOT cannot be declared ahead of its chain without inventing an
-            // m_SkelParents entry. The search works around those rather than giving up on the model.
+            // A chain never writes a parent onto its joint node, but a ClothNode over a bone whose own
+            // PARENT bone is a control node is parented to it, so a joint the original records as a
+            // hierarchy ROOT cannot be declared ahead of its chain without inventing an m_SkelParents
+            // entry. The search works around those rather than giving up on the model.
             for (var i = 0; i < joints.Count; i++)
             {
                 var node = joints[i].Joint.Node;
