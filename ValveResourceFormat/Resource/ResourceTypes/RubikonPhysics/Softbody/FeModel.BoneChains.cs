@@ -1905,13 +1905,13 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                         return suspender;
                     }
 
-                    // The root is not one of extra_iterations' own targets, so in a chain with no
-                    // suspender there is no rod between this joint and the root AT ALL - a uniform,
-                    // brand-new single rod there, shared across the whole joint-ring/root-ring crossing,
-                    // is unambiguous suspender evidence with no pre-existing "natural" copy to guard
-                    // against. Skips a pair SourceSprings already accounts for as an explicit authored
-                    // ClothSpring (a rigger's own cross-chain tie - see GetAuthoredSourceSprings) so the
-                    // two mechanisms never double-claim the same rod.
+                    // The root is not one of extra_iterations' own targets, so a chain with no suspender
+                    // has no rod between this joint and the root AT ALL: nothing but a suspender reaches a
+                    // joint further from the root than its own great-grandparent span. Every copy of that
+                    // rod carries the suspender's own value, so a pair whose rigid rods all agree names it
+                    // however many iterations repeated it. Skips a pair SourceSprings already accounts for
+                    // as an explicit authored ClothSpring (a rigger's own cross-chain tie - see
+                    // GetAuthoredSourceSprings) so the two mechanisms never double-claim the same rod.
                     {
                         float? suspender = null;
                         foreach (var a in Side(joint.Node))
@@ -1921,8 +1921,9 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                                 var pair = a < b ? (a, b) : (b, a);
                                 if (Array.IndexOf(SourceSprings, pair) >= 0
                                     || Array.IndexOf(SourceSprings, (pair.Item2, pair.Item1)) >= 0
-                                    || !rodRelaxationsByPair.TryGetValue(pair, out var relaxations)
-                                    || relaxations.Count != 1
+                                    || !rigidRodRelaxationsByPair.TryGetValue(pair, out var relaxations)
+                                    || relaxations.Count < 1
+                                    || relaxations.Exists(rf => MathF.Abs(rf - relaxations[0]) > 1e-4f)
                                     || (suspender is { } already && MathF.Abs(already - relaxations[0]) > 1e-4f))
                                 {
                                     return null;
