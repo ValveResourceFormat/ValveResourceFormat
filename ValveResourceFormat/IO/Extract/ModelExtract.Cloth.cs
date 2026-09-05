@@ -3905,7 +3905,8 @@ partial class ModelExtract
         // order the control nodes were created in. A chain creates each joint immediately followed by its
         // own ring nodes, so a joint the band order separates from its rings was created before the chain
         // ran - by an earlier declaration of the same bone name, which the chain then reuses.
-        var declarationPlan = TryPlanClothChainDeclarations(feModel, boneChains);
+        var declarationPlan = TryPlanClothChainDeclarations(feModel, boneChains,
+            ClothControlAncestorTest(feModel));
         var declaredChains = declarationPlan?.Chains ?? boneChains;
         foreach (var (name, node) in declarationPlan?.PreDeclared ?? [])
         {
@@ -3915,7 +3916,7 @@ partial class ModelExtract
         foreach (var boneChain in declaredChains)
         {
             var walk = declarationPlan is not null
-                && declarationPlan.Walk.TryGetValue(ClothChainOrderSolver.ChainKey(boneChain), out var found)
+                && declarationPlan.Walk.TryGetValue(boneChain, out var found)
                 ? found
                 : null;
             clothFolderChildren.Add(MakeClothChainNode(feModel, boneChain, hasOtherChains, walk));
@@ -4034,7 +4035,7 @@ partial class ModelExtract
     {
         public List<(string Name, int Node)> PreDeclared { get; } = [];
         public List<FeModel.BoneChain> Chains { get; } = [];
-        public Dictionary<string, List<FeModel.BoneChainJoint>> Walk { get; } = [];
+        public Dictionary<FeModel.BoneChain, List<FeModel.BoneChainJoint>> Walk { get; } = [];
     }
 
     /// <summary>
@@ -4220,7 +4221,7 @@ partial class ModelExtract
     /// order already reproduces it, when the bands cannot be read, or when no declaration order does.
     /// </summary>
     static ClothChainDeclarationPlan? TryPlanClothChainDeclarations(FeModel feModel,
-        List<FeModel.BoneChain> chains)
+        List<FeModel.BoneChain> chains, Func<string, bool> reparents)
     {
         if (chains.Count == 0 || ClothNodeBands(feModel) is not { } bands)
         {
@@ -4303,7 +4304,7 @@ partial class ModelExtract
         }
 
         var solver = new ClothChainOrderSolver(joints, jointOfNode, lanes, bands);
-        return solver.Solve(chains);
+        return solver.Solve(feModel, chains, reparents);
     }
 
     // Walks the creation order the compiler would build from a candidate declaration order, one node at
@@ -4320,6 +4321,7 @@ partial class ModelExtract
         readonly int[] lanePos;
         readonly bool[] walked;
         readonly bool[] declared;
+        readonly bool[] keepInChain;
         readonly int[] chainPending;
         readonly List<int> preDeclared = [];
         readonly List<int> walkOrder = [];
@@ -4338,6 +4340,7 @@ partial class ModelExtract
             lanePos = new int[lanes.Count];
             walked = new bool[joints.Count];
             declared = new bool[joints.Count];
+            keepInChain = new bool[joints.Count];
             chainPending = new int[joints.Count == 0 ? 0 : joints[^1].Chain + 1];
             foreach (var lane in lanes)
             {
@@ -4345,8 +4348,20 @@ partial class ModelExtract
             }
         }
 
-        public ClothChainDeclarationPlan? Solve(List<FeModel.BoneChain> chains)
+        public ClothChainDeclarationPlan? Solve(FeModel feModel, List<FeModel.BoneChain> chains,
+            Func<string, bool> reparents)
         {
+            // A chain never writes a parent onto its joint node, but a ClothNode over a bone that has a
+            // control node above it in the skeleton is parented to that ancestor, so a joint the original
+            // records as a hierarchy ROOT cannot be declared ahead of its chain without inventing an
+            // m_SkelParents entry. The search works around those rather than giving up on the model.
+            for (var i = 0; i < joints.Count; i++)
+            {
+                var node = joints[i].Joint.Node;
+                keepInChain[i] = feModel.HasCompiledSkelParents && node < feModel.SkelParents.Length
+                    && feModel.SkelParents[node] < 0 && reparents(joints[i].Joint.Name);
+            }
+
             if (WalksNaturally(chains))
             {
                 return null;
@@ -4367,8 +4382,7 @@ partial class ModelExtract
             foreach (var index in walkOrder)
             {
                 var chain = chains[joints[index].Chain];
-                var key = ChainKey(chain);
-                if (!plan.Walk.TryGetValue(key, out var walk))
+                if (!plan.Walk.TryGetValue(chain, out var walk))
                 {
                     // A chain declares its root first: every other joint names a joint_parent that has to
                     // resolve to a joint already declared above it.
@@ -4378,7 +4392,7 @@ partial class ModelExtract
                     }
 
                     walk = [];
-                    plan.Walk[key] = walk;
+                    plan.Walk[chain] = walk;
                     plan.Chains.Add(chain);
                 }
 
@@ -4388,7 +4402,6 @@ partial class ModelExtract
             return plan.Chains.Count == chains.Count ? plan : null;
         }
 
-        public static string ChainKey(FeModel.BoneChain chain) => chain.RootBone + " " + chain.DeclarationSuffix;
 
         // The order the exporter emits today: no joint declared ahead of its chain, chains and joints in
         // the order the chain reconstruction built them.
@@ -4565,7 +4578,7 @@ partial class ModelExtract
                     started = wasStarted;
                 }
 
-                if (started || walked[index] || declared[index] || !TakeHead(head))
+                if (started || walked[index] || declared[index] || keepInChain[index] || !TakeHead(head))
                 {
                     continue;
                 }
