@@ -2355,7 +2355,14 @@ partial class ModelExtract
         var integrator = feModel.GetIntegrator(valueNode);
         var goalStrength = FeModel.GoalStrengthFromAttraction(integrator.ForceAttraction);
 
-        kv.Add("simulate", joint.Simulated);
+        var twistRelax = feModel.GetAuthoredTwistRelax(joint.Node, joint.ParentNode, joint.ProxyNode);
+
+        // The compiler scales a twist entry by the ORIENT joint's own twist_relax only where that
+        // joint simulates, and writes a flat 0.0 where it merely allows rotation. So a chain root
+        // the original gives a non-zero entry of its own was authored as a SIMULATED joint, and it
+        // is pinned into the static block by lock_translation rather than by simulate = false.
+        var pinnedSimulatedRoot = joint.IsRoot && !joint.Simulated && twistRelax > 0f;
+        kv.Add("simulate", joint.Simulated || pinnedSimulatedRoot);
 
         // Only a static node carries a rotation lock.
         if (joint.Node < feModel.StaticNodeCount)
@@ -2363,7 +2370,7 @@ partial class ModelExtract
             kv.Add("allow_rotation", feModel.AllowsRotation(joint.Node));
         }
 
-        if (feModel.IsLockedToParent(joint.Node))
+        if (feModel.IsLockedToParent(joint.Node) || pinnedSimulatedRoot)
         {
             kv.Add("lock_translation", true);
         }
@@ -2385,7 +2392,7 @@ partial class ModelExtract
         // KelagerBend constraint network in place of the plain ropes a chain otherwise compiles to, so
         // each is recovered per joint, magnitude included, from the original's own m_Twists participation
         // (FeModel.GetAuthoredTwistRelax) rather than defaulted.
-        kv.Add("twist_relax", feModel.GetAuthoredTwistRelax(joint.Node, joint.ParentNode, joint.ProxyNode));
+        kv.Add("twist_relax", twistRelax);
 
         // World collision membership and radius (m_WorldCollisionNodes / m_NodeCollisionRadii).
         kv.Add("world_collision", feModel.IsWorldCollisionNode(joint.Node));
