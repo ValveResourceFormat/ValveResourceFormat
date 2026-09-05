@@ -2670,6 +2670,72 @@ partial class ModelExtract
             ("super_damping", Math.Clamp(integrator.PointDamping / ClothDragPointDampingScale, 0f, 1f)));
     }
 
+    /// <summary>
+    /// The name a <c>ClothTri</c> / <c>ClothQuad</c> corner references a control node by: the element
+    /// name for a free <c>ClothNode</c> (the compiler prefixes <c>$cloth_node_</c> to it itself) and the
+    /// plain bone name for everything else.
+    /// </summary>
+    static string ClothFaceCornerName(FeModel feModel, int node)
+    {
+        var name = feModel.CtrlNames[node];
+        return name.StartsWith(FeModel.FreeClothNodePrefix, StringComparison.Ordinal)
+            ? name[FeModel.FreeClothNodePrefix.Length..]
+            : name;
+    }
+
+    /// <summary>
+    /// Declares one compiled surface face whose corners are all already-declared cloth nodes as the
+    /// <c>ClothTri</c> or <c>ClothQuad</c> element the original was built from, instead of inventing a
+    /// proxy sheet to carry it. Repeated corners collapse, so a triangle stored in a quad slot emits as
+    /// a ClothTri.
+    /// </summary>
+    static KVObject? MakeClothFace(FeModel feModel, int[] face)
+    {
+        var corners = new List<int>(4);
+        foreach (var corner in face)
+        {
+            if (!corners.Contains(corner))
+            {
+                corners.Add(corner);
+            }
+        }
+
+        if (corners.Count is not (3 or 4))
+        {
+            return null;
+        }
+
+        var node = MakeNode(corners.Count == 4 ? "ClothQuad" : "ClothTri");
+        for (var i = 0; i < corners.Count; i++)
+        {
+            node.Add("cloth_node_" + i.ToString(CultureInfo.InvariantCulture),
+                ClothFaceCornerName(feModel, corners[i]));
+        }
+
+        return node;
+    }
+
+    /// <summary>
+    /// Emits every face the original built from a ClothTri / ClothQuad over declared cloth nodes, and
+    /// returns the control nodes those faces name so the caller can keep them declared.
+    /// </summary>
+    static HashSet<int> AddClothFaces(KVObject clothChildren, FeModel feModel)
+    {
+        var cornered = new HashSet<int>();
+        foreach (var face in feModel.GetAuthoredElementFaces())
+        {
+            if (MakeClothFace(feModel, face) is not { } element)
+            {
+                continue;
+            }
+
+            clothChildren.Add(element);
+            cornered.UnionWith(face);
+        }
+
+        return cornered;
+    }
+
     // The cloth-chain joint datatable schema: per-column UI metadata and defaults, matching the editable
     // ModelDoc source the tools produce. The compiler takes the "default" value of any joint field the
     // joint rows above do not write.
@@ -3725,8 +3791,9 @@ partial class ModelExtract
 
         var proxyNodeNameMap = BuildProxyNodeNameMap(ClothProxyMeshesToExtract);
 
+        var authoredFaces = feModel.GetAuthoredElementFaces();
         if (independentChains.Count > 0 || loneClothNodes.Count > 0 || leftoverStaticNodes.Count > 0
-            || unregisteredNodes.Count > 0 || unregisteredFreeNodes.Count > 0)
+            || unregisteredNodes.Count > 0 || unregisteredFreeNodes.Count > 0 || authoredFaces.Count > 0)
         {
             var (clothFolder, clothFolderChildren) = MakeListNode("Folder");
             clothFolder.Add("name", "cloth");
@@ -3780,6 +3847,8 @@ partial class ModelExtract
                     isStaticNode: feModel.IsStatic(node), elementName: elementName, origin: origin,
                     proxyNodeNames: proxyNodeNameMap));
             }
+
+            AddClothFaces(clothFolderChildren, feModel);
         }
 
         var authoredClothNodes = loneClothNodes.Concat(leftoverStaticNodes).Concat(unregisteredNodes)
@@ -3847,6 +3916,7 @@ partial class ModelExtract
             clothFolderChildren.Add(gridNode);
         }
 
+        AddClothFaces(clothFolderChildren, feModel);
         var sourceSprings = AddClothSourceSprings(softbodyChildren, feModel, boneChains);
         AddClothChainSurplusRods(softbodyChildren, feModel, boneChains);
 
@@ -3895,6 +3965,7 @@ partial class ModelExtract
             [], static _ => true, clothBones,
             ClothVertexMapFolders(feModel, clothFolderChildren),
             bareStaticReparented: ClothControlAncestorTest(feModel));
+        AddClothFaces(clothFolderChildren, feModel);
 
         // Every ctrl of a collision-shape-only model is a shape parent bone, which the loop above
         // skips, so gating on the node count alone drops the shapes with the rest of the Softbody.

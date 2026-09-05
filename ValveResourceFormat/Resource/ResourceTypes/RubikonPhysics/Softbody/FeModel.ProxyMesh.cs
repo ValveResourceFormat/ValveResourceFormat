@@ -619,6 +619,70 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         }
 
         /// <summary>
+        /// Whether a compiled surface face comes from a <c>ClothTri</c> / <c>ClothQuad</c> declaration
+        /// rather than from a proxy sheet: every corner is a control node an authored element names
+        /// directly, and at least one is a free <c>$cloth_node_</c> element. The free node is the
+        /// evidence - a bone chain creates ring and joint nodes but never a free one, so a face that
+        /// touches one cannot be chain-generated, while a face over chain joints alone is ambiguous and
+        /// keeps the sheet route.
+        /// </summary>
+        bool IsAuthoredElementFace(int[] face)
+        {
+            if (face.Length < 3)
+            {
+                return false;
+            }
+
+            var free = false;
+            foreach (var corner in face)
+            {
+                if (corner < 0 || corner >= CtrlNames.Length)
+                {
+                    return false;
+                }
+
+                var name = CtrlNames[corner];
+                if (name.StartsWith(FreeClothNodePrefix, StringComparison.Ordinal))
+                {
+                    free = true;
+                }
+                else if (IsProxyNodeName(name))
+                {
+                    return false;
+                }
+            }
+
+            return free;
+        }
+
+        /// <summary>
+        /// Gets the compiled surface faces the original built from a <c>ClothTri</c> or <c>ClothQuad</c>
+        /// element over already-declared cloth nodes, quads before triangles. Corners are control-node
+        /// indices in the compiled cycle order.
+        /// </summary>
+        public List<int[]> GetAuthoredElementFaces()
+        {
+            var faces = new List<int[]>();
+            foreach (var face in Quads)
+            {
+                if (!IsRigidHingeFace(face) && IsAuthoredElementFace(face))
+                {
+                    faces.Add(face);
+                }
+            }
+
+            foreach (var face in Tris)
+            {
+                if (!IsRigidHingeFace(face) && IsAuthoredElementFace(face))
+                {
+                    faces.Add(face);
+                }
+            }
+
+            return faces;
+        }
+
+        /// <summary>
         /// Reconstructs the cloth proxy mesh (sheet) from the FeModel surface arrays as ONE merged mesh.
         /// Returns null when the FeModel has no surface (no quads/tris) - e.g. a pure bone-chain cloth
         /// that only needs ClothChain.
@@ -637,7 +701,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             {
                 foreach (var face in faces)
                 {
-                    if (IsRigidHingeFace(face))
+                    if (IsRigidHingeFace(face) || IsAuthoredElementFace(face))
                     {
                         continue;
                     }
