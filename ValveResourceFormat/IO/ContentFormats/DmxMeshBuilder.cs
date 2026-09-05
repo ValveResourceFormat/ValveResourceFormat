@@ -418,6 +418,16 @@ internal static class DmxMeshBuilder
 
         var grown = new List<int>();
 
+        // The frontier is tracked as a set rather than re-read off the paint, so the value a grown
+        // vertex is painted with is free to sit below the threshold without collapsing the growth
+        // to a single ring.
+        var reached = new bool[paint.Length];
+
+        for (var vertex = 0; vertex < paint.Length; vertex++)
+        {
+            reached[vertex] = paint[vertex] >= ClothEnableThreshold;
+        }
+
         for (var ring = 0; ring < ClothEnableGrowthRings; ring++)
         {
             grown.Clear();
@@ -433,7 +443,7 @@ internal static class DmxMeshBuilder
                     continue;
                 }
 
-                if (paint[a] < ClothEnableThreshold && paint[b] < ClothEnableThreshold && paint[c] < ClothEnableThreshold)
+                if (!reached[a] && !reached[b] && !reached[c])
                 {
                     continue;
                 }
@@ -453,6 +463,7 @@ internal static class DmxMeshBuilder
                 if (paint[vertex] <= 0f)
                 {
                     paint[vertex] = ClothEnableGrowthPaint;
+                    reached[vertex] = true;
                 }
             }
         }
@@ -464,8 +475,12 @@ internal static class DmxMeshBuilder
     /// <summary>The compiler's <c>m_flClothEnableThreshold</c>.</summary>
     private const float ClothEnableThreshold = 0.05f;
 
-    /// <summary>The value a grown vertex is painted with, the smallest that clears the threshold.</summary>
-    private const float ClothEnableGrowthPaint = 0.051f;
+    /// <summary>
+    /// The value a grown vertex is painted with. It is the share of the vertex the compiler hands to
+    /// the cloth, and a grown vertex is one the original gave no cloth weight at all, so it is kept
+    /// as small as the render mesh's own binding gate allows.
+    /// </summary>
+    private const float ClothEnableGrowthPaint = 0.006f;
 
     /// <summary>Marks the bones a compiled cloth proxy generated, by skeleton bone index.</summary>
     private static bool[]? BuildClothBoneMask(Skeleton? skeleton)
