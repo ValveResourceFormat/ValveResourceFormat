@@ -102,6 +102,12 @@ partial class ModelExtract
     // holds the two poses equal.
     const float ClothRestBoneFloor = 1e-3f;
 
+    // How far apart two control bones' corrections may sit and still be read as ONE pose difference.
+    // A proxy mesh authored in a different pose moves as a unit, and it takes at least two bones
+    // agreeing to witness that; one bone on its own is an isolated disagreement, not a pose, and the
+    // exporter does not guess at it.
+    const float ClothRestBoneRigidSpread = 1e-2f;
+
     // The correction runs per MODEL only when some bone disagrees by more than twice the floor. Once
     // enabled, every bone past the per-bone floor moves together: derived rest shapes span bones on both
     // sides of any per-bone cut, so a partial correction leaves them mixed.
@@ -133,6 +139,8 @@ partial class ModelExtract
         }
 
         var maxApart = 0f;
+        var maxApartUncapped = 0f;
+        var farOffsets = new List<Vector3>();
         void Measure(Bone bone, Vector3 compiledParent, Quaternion parentRotation)
         {
             var compiled = compiledParent + Vector3.Transform(bone.Position, parentRotation);
@@ -141,9 +149,14 @@ partial class ModelExtract
             if (targets.TryGetValue(bone.Name, out var target))
             {
                 var apart = Vector3.Distance(compiled, target);
+                maxApartUncapped = Math.Max(maxApartUncapped, apart);
                 if (apart <= ClothRestBoneTolerance)
                 {
                     maxApart = Math.Max(maxApart, apart);
+                }
+                else
+                {
+                    farOffsets.Add(target - compiled);
                 }
             }
 
@@ -158,12 +171,14 @@ partial class ModelExtract
             Measure(root, Vector3.Zero, Quaternion.Identity);
         }
 
-        if (maxApart <= ClothRestBoneModelGate)
+        var farOffsetsAreRigid = farOffsets.Count > 1;
+        foreach (var offset in farOffsets)
         {
-            return;
+            farOffsetsAreRigid &= Vector3.Distance(offset, farOffsets[0]) <= ClothRestBoneRigidSpread;
         }
 
-        void Walk(Bone bone, Vector3 parentPosition, Quaternion parentRotation, Vector3 compiledParent)
+        void Walk(Bone bone, Vector3 parentPosition, Quaternion parentRotation, Vector3 compiledParent,
+            Dictionary<string, Vector3> into, float tolerance)
         {
             var world = parentPosition + Vector3.Transform(bone.Position, parentRotation);
             var compiled = compiledParent + Vector3.Transform(bone.Position, parentRotation);
@@ -172,7 +187,7 @@ partial class ModelExtract
             if (targets.TryGetValue(bone.Name, out var target))
             {
                 var apart = Vector3.Distance(compiled, target);
-                if (apart > ClothRestBoneFloor && apart <= ClothRestBoneTolerance)
+                if (apart > ClothRestBoneFloor && apart <= tolerance)
                 {
                     world = target;
                 }
@@ -181,20 +196,45 @@ partial class ModelExtract
             var local = Vector3.Transform(world - parentPosition, Quaternion.Conjugate(parentRotation));
             if (local != bone.Position)
             {
-                ClothRestBonePositions[bone.Name] = local;
+                into[bone.Name] = local;
             }
 
             foreach (var child in bone.Children)
             {
-                Walk(child, world, rotation, compiled);
+                Walk(child, world, rotation, compiled, into, tolerance);
             }
         }
 
-        foreach (var root in model.Skeleton.Roots)
+        if (maxApart > ClothRestBoneModelGate)
         {
-            Walk(root, Vector3.Zero, Quaternion.Identity, Vector3.Zero);
+            foreach (var root in model.Skeleton.Roots)
+            {
+                Walk(root, Vector3.Zero, Quaternion.Identity, Vector3.Zero,
+                    ClothRestBonePositions, ClothRestBoneTolerance);
+            }
+        }
+
+        var proxyTolerance = farOffsetsAreRigid ? float.MaxValue : ClothRestBoneTolerance;
+        if (maxApart > ClothRestBoneModelGate
+            || (farOffsetsAreRigid && maxApartUncapped > ClothRestBoneModelGate))
+        {
+            foreach (var root in model.Skeleton.Roots)
+            {
+                Walk(root, Vector3.Zero, Quaternion.Identity, Vector3.Zero,
+                    ClothProxyRestBonePositions, proxyTolerance);
+            }
         }
     }
+
+    /// <summary>
+    /// Gets the rest-pose bone positions written into the cloth PROXY mesh only. The cloth import
+    /// takes the transforms it records in <c>m_InitPose</c> from the proxy mesh file's own joint
+    /// list, so a model authored with a proxy posed differently from the render mesh is reproduced
+    /// by correcting that joint list alone. Unlike <see cref="ClothRestBonePositions"/> this one is
+    /// not capped at <see cref="ClothRestBoneTolerance"/>, because nothing the render mesh is
+    /// skinned to moves with it.
+    /// </summary>
+    public Dictionary<string, Vector3> ClothProxyRestBonePositions { get; } = new(StringComparer.OrdinalIgnoreCase);
 
     // A ClothProxyMeshFile referencing the cloth-sheet DMX. With backSolveJoints=true the compiler
     // back-solves the skinned bone-chain joints from the simulated sheet, regenerating the bone-chain
@@ -2812,7 +2852,7 @@ partial class ModelExtract
         using var dmx = new Datamodel.Datamodel("model", 22);
 
         // Joint list = the full skeleton, so BLENDINDICES resolve (mirrors ConvertMeshToDatamodelMesh).
-        var dmeModel = BuildDmeDagSkeleton(skeleton, out _, bonePositions: ClothRestBonePositions);
+        var dmeModel = BuildDmeDagSkeleton(skeleton, out _, bonePositions: ClothProxyRestBonePositions);
         dmeModel.Name = name;
         RespellJointsAsClothControlNodes(dmeModel, physAggregateData?.FeModel);
 
@@ -3147,7 +3187,7 @@ partial class ModelExtract
 
         using var dmx = new Datamodel.Datamodel("model", 22);
 
-        var dmeModel = BuildDmeDagSkeleton(skeleton, out _, bonePositions: ClothRestBonePositions);
+        var dmeModel = BuildDmeDagSkeleton(skeleton, out _, bonePositions: ClothProxyRestBonePositions);
         dmeModel.Name = name;
 
         var (dag, vertexData) = CreateDmxDagVertexData(dmeModel, name);
