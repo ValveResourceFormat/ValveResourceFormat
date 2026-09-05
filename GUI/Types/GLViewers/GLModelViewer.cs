@@ -27,11 +27,13 @@ namespace GUI.Types.GLViewers
         private CheckBox? rootMotionCheckBox;
         private CheckBox? additiveCheckBox;
         private CheckBox? showSkeletonCheckbox;
+        private CheckBox? showAttachmentsCheckbox;
         private CheckBox? showParticlesCheckbox;
         private ComboBox? hitboxComboBox;
         private Label? animationTimeLabel;
         private GLViewerSliderControl? animationTrackBar;
         private GLViewerSliderControl? slowmodeTrackBar;
+        private GLViewerMultiSelectionControl? attachmentList;
         public CheckedListBox? meshGroupListBox { get; private set; }
         public ComboBox? materialGroupListBox { get; private set; }
         private ComboBox? lodComboBox;
@@ -71,6 +73,7 @@ namespace GUI.Types.GLViewers
             animationTimeLabel?.Dispose();
             animationTrackBar?.Dispose();
             slowmodeTrackBar?.Dispose();
+            attachmentList?.Dispose();
             meshGroupListBox?.Dispose();
             materialGroupListBox?.Dispose();
             lodComboBox?.Dispose();
@@ -78,6 +81,7 @@ namespace GUI.Types.GLViewers
             rootMotionCheckBox?.Dispose();
             additiveCheckBox?.Dispose();
             showSkeletonCheckbox?.Dispose();
+            showAttachmentsCheckbox?.Dispose();
             showParticlesCheckbox?.Dispose();
             hitboxComboBox?.Dispose();
         }
@@ -247,7 +251,7 @@ namespace GUI.Types.GLViewers
                     }
                 }
 
-                skeletonSceneNode = new SkeletonSceneNode(Scene, animationController.Pose, model.Skeleton);
+                skeletonSceneNode = new SkeletonSceneNode(Scene, animationController.Pose, model.Skeleton, model.Attachments);
                 Scene.Add(skeletonSceneNode, true);
 
                 if (model.HitboxSets != null && model.HitboxSets.Count > 0)
@@ -348,8 +352,43 @@ namespace GUI.Types.GLViewers
                     showSkeletonCheckbox = UiControl.AddCheckBox("Show skeleton", false, isChecked =>
                     {
                         using var lockedGl = MakeCurrent();
-                        skeletonSceneNode?.Enabled = isChecked;
+                        skeletonSceneNode?.ShowBones = isChecked;
                     });
+                }
+
+                if (model.Attachments.Count > 0)
+                {
+                    using var _ = UiControl.BeginGroup("Model");
+
+                    showAttachmentsCheckbox = UiControl.AddCheckBox("Show attachments", false, isChecked =>
+                    {
+                        attachmentList?.Visible = isChecked;
+
+                        using var lockedGl = MakeCurrent();
+
+                        skeletonSceneNode?.ShowAttachments = isChecked;
+                    });
+
+                    attachmentList = UiControl.AddMultiSelectionControl("Attachments", listBox =>
+                    {
+                        listBox.Items.AddRange([.. model.Attachments.Keys]);
+                        for (var i = 0; i < listBox.Items.Count; i++)
+                        {
+                            listBox.SetItemChecked(i, true);
+                        }
+
+                        skeletonSceneNode?.SelectedAttachments.UnionWith(model.Attachments.Keys);
+                    }, selectedAttachments =>
+                    {
+                        using var lockedGl = MakeCurrent();
+
+                        if (skeletonSceneNode != null)
+                        {
+                            skeletonSceneNode.SelectedAttachments.Clear();
+                            skeletonSceneNode.SelectedAttachments.UnionWith(selectedAttachments);
+                        }
+                    });
+                    attachmentList.Visible = false;
                 }
 
                 if (modelParticleNodes.Count > 0)

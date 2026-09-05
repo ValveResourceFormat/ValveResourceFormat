@@ -613,32 +613,42 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         /// </summary>
         public Matrix4x4 GetAttachmentTransform(string attachmentName)
         {
+            var attachment = Attachments.GetValueOrDefault(attachmentName);
+            if (attachment == null)
+            {
+                return Transform;
+            }
+
+            return GetAttachmentLocalTransform(attachment, AnimationController.FrameCache.Skeleton, AnimationController.Pose) * Transform;
+        }
+
+        /// <summary>
+        /// Computes the model-local transform of an attachment from the given bone pose.
+        /// </summary>
+        public static Matrix4x4 GetAttachmentLocalTransform(Attachment attachment, Skeleton skeleton, Matrix4x4[] pose)
+        {
             var transform = Matrix4x4.Identity;
 
-            var attachment = Attachments.GetValueOrDefault(attachmentName);
-            if (attachment != null)
+            for (var i = 0; i < attachment.Length; i++)
             {
-                for (var i = 0; i < attachment.Length; i++)
+                var influence = attachment[i];
+                var boneIndex = skeleton.GetBoneIndex(influence.Name);
+                if (boneIndex != -1)
                 {
-                    var influence = attachment[i];
-                    var boneIndex = AnimationController.FrameCache.Skeleton.GetBoneIndex(influence.Name);
-                    if (boneIndex != -1)
-                    {
-                        var boneTransform = AnimationController.Pose[boneIndex];
-                        var influenceTransform = Matrix4x4.CreateFromQuaternion(influence.Rotation) * Matrix4x4.CreateTranslation(influence.Offset);
-                        transform *= Matrix4x4.Lerp(Matrix4x4.Identity, influenceTransform * boneTransform, influence.Weight);
-                    }
-                }
-
-                if (attachment.IgnoreRotation)
-                {
-                    var scale = transform.M22;
-                    var translation = transform.Translation;
-                    transform = Matrix4x4.CreateScale(scale) * Matrix4x4.CreateTranslation(translation);
+                    var boneTransform = pose[boneIndex];
+                    var influenceTransform = Matrix4x4.CreateFromQuaternion(influence.Rotation) * Matrix4x4.CreateTranslation(influence.Offset);
+                    transform *= Matrix4x4.Lerp(Matrix4x4.Identity, influenceTransform * boneTransform, influence.Weight);
                 }
             }
 
-            return transform * Transform;
+            if (attachment.IgnoreRotation)
+            {
+                var scale = transform.M22;
+                var translation = transform.Translation;
+                transform = Matrix4x4.CreateScale(scale) * Matrix4x4.CreateTranslation(translation);
+            }
+
+            return transform;
         }
 
 #pragma warning disable CA1024 // Use properties where appropriate

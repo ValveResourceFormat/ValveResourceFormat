@@ -718,7 +718,6 @@ public class ViewmodelSceneNode : ModelSceneNode
         {
             LayerName = WorldLayerName,
             Flags = ObjectTypeFlags.DisableVisCulling,
-            Enabled = false,
         };
 
         Scene.Add(PrimarySkeletonDebug, true);
