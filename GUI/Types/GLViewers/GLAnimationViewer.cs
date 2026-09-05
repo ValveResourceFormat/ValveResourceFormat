@@ -44,12 +44,12 @@ namespace GUI.Types.GLViewers
 
             if (!firstTime && skeletonSceneNode != null)
             {
-                skeletonSceneNode.Enabled = false; // scene.Remove?
+                skeletonSceneNode.ShowBones = false; // scene.Remove?
             }
 
             skeletonSceneNode = new SkeletonSceneNode(Scene, animationController.Pose, skeleton)
             {
-                Enabled = true,
+                ShowBones = true,
             };
 
             Scene.Add(skeletonSceneNode, true);

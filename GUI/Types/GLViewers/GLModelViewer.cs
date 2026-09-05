@@ -2,7 +2,6 @@ using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Linq;
-using System.Text;
 using System.Windows.Forms;
 using GUI.Controls;
 using GUI.Utils;
@@ -46,7 +45,6 @@ namespace GUI.Types.GLViewers
         protected AnimationController? animationController;
         protected SkeletonSceneNode? skeletonSceneNode;
         private HitboxSetSceneNode? hitboxSetSceneNode;
-        private AttachmentsSceneNode? attachmentsSceneNode;
         private List<ParticleSceneNode> modelParticleNodes = [];
         private CheckedListBox? physicsGroupsComboBox;
         private int animationComboBoxCurrentIndex = -1;
@@ -265,18 +263,8 @@ namespace GUI.Types.GLViewers
                     }
                 }
 
-                skeletonSceneNode = new SkeletonSceneNode(Scene, animationController.Pose, model.Skeleton);
+                skeletonSceneNode = new SkeletonSceneNode(Scene, animationController.Pose, model.Skeleton, model.Attachments);
                 Scene.Add(skeletonSceneNode, true);
-
-                if (model.Attachments.Count > 0)
-                {
-                    attachmentsSceneNode = new AttachmentsSceneNode(Scene, modelSceneNode)
-                    {
-                        Enabled = false,
-                    };
-
-                    Scene.Add(attachmentsSceneNode, false);
-                }
 
                 if (model.HitboxSets != null && model.HitboxSets.Count > 0)
                 {
@@ -376,7 +364,7 @@ namespace GUI.Types.GLViewers
                     showSkeletonCheckbox = UiControl.AddCheckBox("Show skeleton", false, isChecked =>
                     {
                         using var lockedGl = MakeCurrent();
-                        skeletonSceneNode?.Enabled = isChecked;
+                        skeletonSceneNode?.ShowBones = isChecked;
                     });
                 }
 
@@ -390,7 +378,7 @@ namespace GUI.Types.GLViewers
 
                         using var lockedGl = MakeCurrent();
 
-                        attachmentsSceneNode?.Enabled = isChecked;
+                        skeletonSceneNode?.ShowAttachments = isChecked;
                     });
 
                     attachmentListBox = UiControl.AddMultiSelection("Attachments", listBox =>
@@ -400,12 +388,13 @@ namespace GUI.Types.GLViewers
                         {
                             listBox.SetItemChecked(i, true);
                         }
-                        SetEnabledAttachments(model.Attachments.Keys.ToHashSet(StringComparer.OrdinalIgnoreCase));
+
+                        skeletonSceneNode?.SelectedAttachments = [.. model.Attachments.Keys];
                     }, selectedAttachments =>
                     {
                         using var lockedGl = MakeCurrent();
 
-                        SetEnabledAttachments(selectedAttachments.ToHashSet(StringComparer.OrdinalIgnoreCase));
+                        skeletonSceneNode?.SelectedAttachments = [.. selectedAttachments];
                     });
                     SetAttachmentListVisible(false);
                 }
@@ -695,11 +684,6 @@ namespace GUI.Types.GLViewers
             }
 
             return sb.ToString();
-        }
-
-        private void SetEnabledAttachments(HashSet<string> attachments)
-        {
-            attachmentsSceneNode?.SetAttachmentVisibility(attachments);
         }
 
         private void SetEnabledPhysicsGroups(HashSet<string> physicsGroups)
