@@ -702,7 +702,8 @@ partial class ModelExtract
             // every pair it would build is a rod the original carries it can be turned on to cover that
             // part of the sheet. What it does not name keeps its explicit springs. The subset test is what
             // keeps it from inventing a constraint, and it is only reached once the whole-surface, mixed
-            // and suspender readings have each declined the sheet.
+            // and suspender readings have each declined the sheet. The curvature is left alone: the rods
+            // this network builds take a fixed bend angle, not the cloth's own curvature.
             var bend = FeModel.BendRodsFromSurface(surfaceFaces, feModel.IsStatic);
             bend.ExceptWith(derived);
             if (bend.Count > 0 && bend.IsSubsetOf(beyondSurface))
@@ -711,7 +712,6 @@ partial class ModelExtract
                     && bend.Contains(rod.NodeA < rod.NodeB ? (rod.NodeA, rod.NodeB) : (rod.NodeB, rod.NodeA)));
                 generatesBendRods = boundedBend;
                 generatesBendOnlyRods = !boundedBend;
-                addCurvature = ClothCurvatureFromSurface(feModel, surfaceFaces, bend);
                 derived.UnionWith(bend);
             }
         }
