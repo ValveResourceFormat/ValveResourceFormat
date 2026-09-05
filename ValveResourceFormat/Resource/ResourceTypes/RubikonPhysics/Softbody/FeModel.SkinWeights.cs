@@ -259,7 +259,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                     }
                 }
 
-                influences.Sort(static (a, b) => b.Weight.CompareTo(a.Weight));
+                OrderByWeightKeepingTies(influences);
                 EnsureAnchorMostBound(influences, CtrlNames[primary]);
                 recovered[node] = [.. influences];
             }
@@ -487,6 +487,44 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             }
 
             return -1;
+        }
+
+        /// <summary>
+        /// Relative gap under which two recovered influence weights are one authored value. The
+        /// nested-lerp alphas the soft-offset network stores are inverted through one multiply per
+        /// slot, so two weights the compiled data records as equal come back a few parts per million
+        /// apart, and the widest such disagreement measured over the corpus is under 1e-5.
+        /// </summary>
+        const float TiedWeightEpsilon = 1e-4f;
+
+        /// <summary>
+        /// Orders a vertex's influences by descending weight, keeping the compiled array order for
+        /// weights that agree to within <see cref="TiedWeightEpsilon"/>. That order is the order the
+        /// compiler itself sorted them into, so preserving it is what keeps a tie from promoting the
+        /// wrong bone to the vertex's rigid anchor or exchanging two soft-offset slots.
+        /// </summary>
+        static void OrderByWeightKeepingTies(List<(string Bone, float Weight)> influences)
+        {
+            var source = influences.ToArray();
+            var order = new int[source.Length];
+            for (var i = 0; i < order.Length; i++)
+            {
+                order[i] = i;
+            }
+
+            Array.Sort(order, (x, y) =>
+            {
+                var a = source[x].Weight;
+                var b = source[y].Weight;
+                return MathF.Abs(a - b) > TiedWeightEpsilon * MathF.Max(MathF.Abs(a), MathF.Abs(b))
+                    ? b.CompareTo(a)
+                    : x.CompareTo(y);
+            });
+
+            for (var i = 0; i < order.Length; i++)
+            {
+                influences[i] = source[order[i]];
+            }
         }
 
         // The mesh pipeline canonicalizes a vertex's influences and anchors the compiled node on the
