@@ -2304,13 +2304,49 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         }
 
         /// <summary>
-        /// Whether walking the faces in order introduces the simulated nodes in the order the compiled node
-        /// array numbers them, taking each face's own corners as a set per rank.
+        /// The pinned nodes the surface introduces, in the order the compiled node array numbers them.
+        /// </summary>
+        /// <remarks>
+        /// Only the rotation-locked block is created by the face walk, and that walk sees a face truncated
+        /// to four corners and skips one whose corners are all pinned. A pinned node the sheet painted
+        /// simulated was created by the corner walk instead and demoted afterwards, which is what puts it
+        /// past the rotation-locked run.
+        /// </remarks>
+        List<int> CompiledPinnedRun(List<int[]> faces)
+        {
+            var covered = new SortedSet<int>();
+            foreach (var face in faces)
+            {
+                foreach (var corner in PinnedRunCorners(face))
+                {
+                    covered.Add(corner);
+                }
+            }
+
+            return [.. covered];
+        }
+
+        // The corners of one face the pinned walk creates a node for, in declared order.
+        IEnumerable<int> PinnedRunCorners(int[] face)
+        {
+            var corners = face.Length > 4 ? face[..4] : face;
+            return Array.TrueForAll(corners, static corner => corner < 0)
+                || Array.TrueForAll(corners, corner => corner < RotationLockedStaticNodeCount)
+                ? []
+                : corners.Where(corner => corner >= 0 && corner < RotationLockedStaticNodeCount);
+        }
+
+        /// <summary>
+        /// Whether walking the faces in order introduces the nodes in the order the compiled node array
+        /// numbers them, in BOTH of the compiler's walks: the simulated nodes per rank, taking each face's
+        /// own corners as a set, and the rotation-locked pinned nodes in one run.
         /// </summary>
         bool IntroducesInCompiledOrder(List<int[]> faces, int[] rank)
         {
             var pending = CompiledRunsByRank(faces, rank);
+            var pinned = CompiledPinnedRun(faces);
             var seen = new HashSet<int>();
+            var seenPinned = new HashSet<int>();
             foreach (var face in faces)
             {
                 var fresh = new List<int>(4);
@@ -2333,6 +2369,18 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                     }
                 }
 
+                var freshPinned = PinnedRunCorners(face).Where(corner => seenPinned.Add(corner)).ToList();
+                if (freshPinned.Count > 0 && (pinned.Count < freshPinned.Count
+                    || !pinned.Take(freshPinned.Count).ToHashSet().SetEquals(freshPinned)))
+                {
+                    return false;
+                }
+
+                foreach (var corner in freshPinned)
+                {
+                    pinned.Remove(corner);
+                }
+
                 foreach (var corner in fresh)
                 {
                     seen.Add(corner);
@@ -2347,7 +2395,9 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             out int extraCorners)
         {
             var pending = CompiledRunsByRank(faces, rank);
+            var pinned = CompiledPinnedRun(faces);
             var created = new HashSet<int>();
+            var createdPinned = new HashSet<int>();
             var placedAt = new Dictionary<int, int>();
             var merged = new List<int[]>(faces.Count);
             var quad = 0;
@@ -2368,6 +2418,18 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                 }
 
                 return fresh;
+            }
+
+            List<int> IntroducedPinned(int face)
+                => [.. PinnedRunCorners(faces[face]).Where(corner => !createdPinned.Contains(corner)).Distinct()];
+
+            // The pinned walk is a single run, so a head is only ever taken while the nodes it pins are the
+            // ones the compiled array numbers next.
+            bool IsNextPinned(int face)
+            {
+                var fresh = IntroducedPinned(face);
+                return fresh.Count == 0 || (pinned.Count >= fresh.Count
+                    && pinned.Take(fresh.Count).ToHashSet().SetEquals(fresh));
             }
 
             bool IsNext(List<int> fresh)
@@ -2445,7 +2507,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                 foreach (var head in heads)
                 {
                     var fresh = Introduced(Face(head));
-                    if (fresh.Count > 0 && IsNext(fresh))
+                    if (fresh.Count > 0 && IsNext(fresh) && IsNextPinned(Face(head)))
                     {
                         taken = head;
                         break;
@@ -2456,7 +2518,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                 {
                     foreach (var head in heads)
                     {
-                        if (Introduced(Face(head)).Count == 0)
+                        if (Introduced(Face(head)).Count == 0 && IsNextPinned(Face(head)))
                         {
                             taken = head;
                             break;
@@ -2470,7 +2532,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                     foreach (var head in heads)
                     {
                         var fresh = Introduced(Face(head));
-                        if (fresh.Count == 0)
+                        if (fresh.Count == 0 || !IsNextPinned(Face(head)))
                         {
                             continue;
                         }
@@ -2500,6 +2562,12 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                 foreach (var corner in Introduced(take))
                 {
                     Create(corner, merged.Count);
+                }
+
+                foreach (var corner in IntroducedPinned(take))
+                {
+                    createdPinned.Add(corner);
+                    pinned.Remove(corner);
                 }
 
                 merged.Add(faces[take]);
