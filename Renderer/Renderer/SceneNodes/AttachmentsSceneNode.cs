@@ -1,17 +1,15 @@
-using OpenTK.Graphics.OpenGL;
-using ValveResourceFormat.ResourceTypes.ModelData.Attachments;
+using SkiaSharp;
+using Attachment = ValveResourceFormat.ResourceTypes.ModelData.Attachments.Attachment;
 
 namespace ValveResourceFormat.Renderer.SceneNodes
 {
     /// <summary>
     /// Scene node that visualizes selected model attachments and their bone influences.
     /// </summary>
-    public class AttachmentSceneNode : SceneNode
+    public class AttachmentsSceneNode : SceneNode
     {
         private bool enabled;
         private readonly ModelSceneNode modelNode;
-        private readonly string attachmentName;
-        private readonly Attachment attachment;
         private readonly LineBuffer lineBuffer;
 
         /// <summary>Gets or sets whether the attachment visualization is drawn.</summary>
@@ -23,37 +21,32 @@ namespace ValveResourceFormat.Renderer.SceneNodes
                 enabled = value;
             }
         }
-
-        /// <summary>Gets the attachment name shown in the viewer.</summary>
-        public string AttachmentName => attachmentName;
+        /// <summary>Set of visible attachments.</summary>
+        public HashSet<string> SelectedAttachments { get; private set; }
 
         /// <summary>
-        /// Initializes a new instance of the <see cref="AttachmentSceneNode"/> class.
+        /// Initializes a new instance of the <see cref="AttachmentsSceneNode"/> class.
         /// </summary>
         /// <param name="scene">The scene this node belongs to.</param>
         /// <param name="modelNode">The model that owns the attachment.</param>
-        /// <param name="attachmentName">The attachment name.</param>
-        /// <param name="attachment">The attachment definition to visualize.</param>
-        public AttachmentSceneNode(Scene scene, ModelSceneNode modelNode, string attachmentName, Attachment attachment)
+        public AttachmentsSceneNode(Scene scene, ModelSceneNode modelNode)
             : base(scene)
         {
             this.modelNode = modelNode;
-            this.attachmentName = attachmentName;
-            this.attachment = attachment;
+            SelectedAttachments = [];
             lineBuffer = new LineBuffer(Scene.RendererContext, nameof(SkeletonSceneNode));
         }
 
-        /// <inheritdoc/>
-        public override void Update(Scene.UpdateContext context)
+        private void DrawAttachment(string attachmentName, List<SimpleVertex> vertices, Camera camera, TextRenderer textRenderer)
         {
-            if (!Enabled)
+            var attachment = modelNode.Attachments.GetValueOrDefault(attachmentName);
+            if (attachment == null)
             {
                 return;
             }
 
             var attachmentTransform = modelNode.GetAttachmentTransform(attachmentName);
             var attachmentPosition = attachmentTransform.Translation;
-            var vertices = new List<SimpleVertex>();
 
             var sizeCap = modelNode.BoundingBox.Size.Length();
             if (sizeCap < 1f)
@@ -61,16 +54,16 @@ namespace ValveResourceFormat.Renderer.SceneNodes
                 sizeCap = 100f;
             }
 
-            var distance = Vector3.Distance(context.Camera.Location, attachmentPosition);
+            var distance = Vector3.Distance(camera.Location, attachmentPosition);
             var distanceFade = distance > sizeCap ? sizeCap / distance : 1f;
 
             var label = string.IsNullOrEmpty(attachment.Name) ? attachmentName : attachment.Name;
-            context.TextRenderer.AddTextBillboard(attachmentPosition, new TextRenderer.TextRenderRequest
+            textRenderer.AddTextBillboard(attachmentPosition, new TextRenderer.TextRenderRequest
             {
                 Scale = 10f * distanceFade,
                 Text = label,
                 Color = new Color32(1.0f, 0.9f, 0.7f, 1.0f),
-            }, context.Camera);
+            }, camera);
 
             if (attachment.Length > 0)
             {
@@ -94,6 +87,22 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             ShapeSceneNode.AddLine(vertices, attachmentPosition, attachmentPosition + Vector3.Normalize(new Vector3(attachmentTransform.M11, attachmentTransform.M12, attachmentTransform.M13)) * axisLength, new(1.0f, 0.2f, 0.2f, 1.0f));
             ShapeSceneNode.AddLine(vertices, attachmentPosition, attachmentPosition + Vector3.Normalize(new Vector3(attachmentTransform.M21, attachmentTransform.M22, attachmentTransform.M23)) * axisLength, new(0.2f, 0.8f, 0.2f, 1.0f));
             ShapeSceneNode.AddLine(vertices, attachmentPosition, attachmentPosition + Vector3.Normalize(new Vector3(attachmentTransform.M31, attachmentTransform.M32, attachmentTransform.M33)) * axisLength, new(0.2f, 0.2f, 1.0f, 1.0f));
+        }
+
+        /// <inheritdoc/>
+        public override void Update(Scene.UpdateContext context)
+        {
+            if (!Enabled)
+            {
+                return;
+            }
+
+            var vertices = new List<SimpleVertex>();
+
+            foreach (var attachmentName in SelectedAttachments)
+            {
+                DrawAttachment(attachmentName, vertices, context.Camera, context.TextRenderer);
+            }
 
             AABB bounds = default;
             var first = true;
@@ -113,6 +122,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             }
 
             LocalBoundingBox = bounds;
+
             lineBuffer.Upload(vertices);
         }
 
@@ -144,6 +154,15 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             renderShader.SetBoneAnimationData(false);
 
             lineBuffer.Draw(Id);
+        }
+
+        /// <summary>
+        /// Enable rendering of attachment in the viewport by name.
+        /// </summary>
+        /// <param name="attachments"></param>
+        public void SetAttachmentVisibility(HashSet<string> attachments)
+        {
+            SelectedAttachments = attachments;
         }
     }
 }

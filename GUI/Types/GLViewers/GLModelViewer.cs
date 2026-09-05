@@ -28,6 +28,7 @@ namespace GUI.Types.GLViewers
         private CheckBox? rootMotionCheckBox;
         private CheckBox? additiveCheckBox;
         private CheckBox? showSkeletonCheckbox;
+        private CheckBox? showAttachmentsCheckbox;
         private CheckBox? showParticlesCheckbox;
         private ComboBox? hitboxComboBox;
         private Label? animationTimeLabel;
@@ -45,8 +46,8 @@ namespace GUI.Types.GLViewers
         protected AnimationController? animationController;
         protected SkeletonSceneNode? skeletonSceneNode;
         private HitboxSetSceneNode? hitboxSetSceneNode;
+        private AttachmentsSceneNode? attachmentsSceneNode;
         private List<ParticleSceneNode> modelParticleNodes = [];
-        private List<AttachmentSceneNode> attachmentSceneNodes = [];
         private CheckedListBox? physicsGroupsComboBox;
         private int animationComboBoxCurrentIndex = -1;
 
@@ -82,6 +83,7 @@ namespace GUI.Types.GLViewers
             rootMotionCheckBox?.Dispose();
             additiveCheckBox?.Dispose();
             showSkeletonCheckbox?.Dispose();
+            showAttachmentsCheckbox?.Dispose();
             showParticlesCheckbox?.Dispose();
             hitboxComboBox?.Dispose();
         }
@@ -223,6 +225,18 @@ namespace GUI.Types.GLViewers
             additiveCheckBox.Checked = animationController.ApplyAdditive;
         }
 
+        private void SetAttachmentListVisible(bool isVisible)
+        {
+            if (attachmentListBox?.Parent?.Parent is Control attachmentContainer)
+            {
+                attachmentContainer.Visible = isVisible;
+            }
+            else if (attachmentListBox != null)
+            {
+                attachmentListBox.Visible = isVisible;
+            }
+        }
+
         protected override void LoadScene()
         {
             base.LoadScene();
@@ -256,18 +270,12 @@ namespace GUI.Types.GLViewers
 
                 if (model.Attachments.Count > 0)
                 {
-                    attachmentSceneNodes = [];
-
-                    foreach (var (name, attachment) in model.Attachments)
+                    attachmentsSceneNode = new AttachmentsSceneNode(Scene, modelSceneNode)
                     {
-                        var attachmentSceneNode = new AttachmentSceneNode(Scene, modelSceneNode, name, attachment)
-                        {
-                            Enabled = false,
-                        };
+                        Enabled = false,
+                    };
 
-                        attachmentSceneNodes.Add(attachmentSceneNode);
-                        Scene.Add(attachmentSceneNode, true);
-                    }
+                    Scene.Add(attachmentsSceneNode, false);
                 }
 
                 if (model.HitboxSets != null && model.HitboxSets.Count > 0)
@@ -372,6 +380,36 @@ namespace GUI.Types.GLViewers
                     });
                 }
 
+                if (model.Attachments.Count > 0)
+                {
+                    using var _ = UiControl.BeginGroup("Model");
+
+                    showAttachmentsCheckbox = UiControl.AddCheckBox("Show attachments", false, isChecked =>
+                    {
+                        SetAttachmentListVisible(isChecked);
+
+                        using var lockedGl = MakeCurrent();
+
+                        attachmentsSceneNode?.Enabled = isChecked;
+                    });
+
+                    attachmentListBox = UiControl.AddMultiSelection("Attachments", listBox =>
+                    {
+                        listBox.Items.AddRange([.. model.Attachments.Keys]);
+                        for (var i = 0; i < listBox.Items.Count; i++)
+                        {
+                            listBox.SetItemChecked(i, true);
+                        }
+                        SetEnabledAttachments(model.Attachments.Keys.ToHashSet(StringComparer.OrdinalIgnoreCase));
+                    }, selectedAttachments =>
+                    {
+                        using var lockedGl = MakeCurrent();
+
+                        SetEnabledAttachments(selectedAttachments.ToHashSet(StringComparer.OrdinalIgnoreCase));
+                    });
+                    SetAttachmentListVisible(false);
+                }
+
                 if (modelParticleNodes.Count > 0)
                 {
                     using var _ = UiControl.BeginGroup("Model");
@@ -407,19 +445,6 @@ namespace GUI.Types.GLViewers
                     });
                     hitboxComboBox.Items.Add("");
                     hitboxComboBox.Items.AddRange([.. hitboxSets.Keys]);
-                }
-
-                if (model.Attachments.Count > 0)
-                {
-                    using var _ = UiControl.BeginGroup("Model");
-
-                    attachmentListBox = UiControl.AddMultiSelection("Attachments", listBox =>
-                    {
-                        listBox.Items.AddRange([.. model.Attachments.Keys]);
-                    }, selectedAttachments =>
-                    {
-                        SetEnabledAttachments(selectedAttachments.ToHashSet(StringComparer.OrdinalIgnoreCase));
-                    });
                 }
 
                 var lodInfo = model.LodInfo;
@@ -674,10 +699,7 @@ namespace GUI.Types.GLViewers
 
         private void SetEnabledAttachments(HashSet<string> attachments)
         {
-            foreach (var attachmentSceneNode in attachmentSceneNodes)
-            {
-                attachmentSceneNode.Enabled = attachments.Contains(attachmentSceneNode.AttachmentName);
-            }
+            attachmentsSceneNode?.SetAttachmentVisibility(attachments);
         }
 
         private void SetEnabledPhysicsGroups(HashSet<string> physicsGroups)
