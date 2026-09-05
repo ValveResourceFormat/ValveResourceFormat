@@ -755,5 +755,336 @@ namespace Tests
                 await Assert.That(FeModel.VertexMapName("skirt=0.5")).IsEqualTo("skirt");
             }
         }
+
+        /// <summary>
+        /// A chain root generates no span of its own, so its iteration count is read off the only other
+        /// rods that cross it: its child's span down to it. Three rigid copies of that span are two extra
+        /// iterations. A root with two children has no unambiguous stand-in and stays at one copy.
+        /// </summary>
+        [Test]
+        public async Task AChainRootCountsItsIterationsOnItsOnlyChildsSpan()
+        {
+            var oneChild = SyntheticCloth.Parse($$"""
+                {
+                    m_CtrlName = [ "root", "j1", "j2" ]
+                    m_SkelParents = [ -1, 0, 1 ]
+                    m_nNodeCount = 3
+                    m_nStaticNodes = 1
+                    m_NodeInvMasses = [ 0.0, 1.0, 1.0 ]
+                    m_InitPose =
+                    [
+                        {{SyntheticCloth.Pose(0f, 0f, 0f)}}
+                        {{SyntheticCloth.Pose(0f, 0f, -10f)}}
+                        {{SyntheticCloth.Pose(0f, 0f, -20f)}}
+                    ]
+                    m_Rods =
+                    [
+                        {{SyntheticCloth.RigidRod(0, 1, 10f, 1f)}}
+                        {{SyntheticCloth.RigidRod(0, 1, 10f, 1f)}}
+                        {{SyntheticCloth.RigidRod(0, 1, 10f, 1f)}}
+                        {{SyntheticCloth.RigidRod(1, 2, 10f, 1f)}}
+                        {{SyntheticCloth.RigidRod(1, 2, 10f, 1f)}}
+                        {{SyntheticCloth.RigidRod(1, 2, 10f, 1f)}}
+                    ]
+                }
+                """);
+
+            var twoChildren = SyntheticCloth.Parse($$"""
+                {
+                    m_CtrlName = [ "root", "j1", "j2" ]
+                    m_SkelParents = [ -1, 0, 0 ]
+                    m_nNodeCount = 3
+                    m_nStaticNodes = 1
+                    m_NodeInvMasses = [ 0.0, 1.0, 1.0 ]
+                    m_InitPose =
+                    [
+                        {{SyntheticCloth.Pose(0f, 0f, 0f)}}
+                        {{SyntheticCloth.Pose(0f, 0f, -10f)}}
+                        {{SyntheticCloth.Pose(10f, 0f, 0f)}}
+                    ]
+                    m_Rods =
+                    [
+                        {{SyntheticCloth.RigidRod(0, 1, 10f, 1f)}}
+                        {{SyntheticCloth.RigidRod(0, 1, 10f, 1f)}}
+                        {{SyntheticCloth.RigidRod(0, 1, 10f, 1f)}}
+                        {{SyntheticCloth.RigidRod(0, 2, 10f, 1f)}}
+                        {{SyntheticCloth.RigidRod(0, 2, 10f, 1f)}}
+                        {{SyntheticCloth.RigidRod(0, 2, 10f, 1f)}}
+                    ]
+                }
+                """);
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(RootJoint(oneChild).ExtraIterations).IsEqualTo(2);
+                await Assert.That(RootJoint(twoChildren).ExtraIterations).IsEqualTo(0);
+            }
+        }
+
+        private static FeModel.BoneChainJoint RootJoint(FeModel feModel)
+            => feModel.BuildBoneChains()[0].Joints.Find(static joint => joint.IsRoot)!;
+
+        /// <summary>
+        /// A chain whose root is one of a joint's own upward targets carries the suspender companion as a
+        /// single surplus rod on that pair: the parent span holds two rigid copies and the span to the root
+        /// holds three, the odd one of which is the authored suspender.
+        /// </summary>
+        [Test]
+        public async Task ASuspenderCompanionIsTheSurplusRodOnTheRootSpan()
+        {
+            var feModel = SyntheticCloth.Parse($$"""
+                {
+                    m_CtrlName = [ "root", "j1", "j2" ]
+                    m_SkelParents = [ -1, 0, 1 ]
+                    m_nNodeCount = 3
+                    m_nStaticNodes = 1
+                    m_NodeInvMasses = [ 0.0, 1.0, 1.0 ]
+                    m_InitPose =
+                    [
+                        {{SyntheticCloth.Pose(0f, 0f, 0f)}}
+                        {{SyntheticCloth.Pose(0f, 0f, -10f)}}
+                        {{SyntheticCloth.Pose(0f, 0f, -20f)}}
+                    ]
+                    m_Rods =
+                    [
+                        {{SyntheticCloth.RigidRod(0, 1, 10f, 1f)}}
+                        {{SyntheticCloth.RigidRod(1, 2, 10f, 1f)}}
+                        {{SyntheticCloth.RigidRod(1, 2, 10f, 1f)}}
+                        {{SyntheticCloth.RigidRod(0, 2, 20f, 1f)}}
+                        {{SyntheticCloth.RigidRod(0, 2, 20f, 1f)}}
+                        {{SyntheticCloth.RigidRod(0, 2, 20f, 0.35f)}}
+                    ]
+                }
+                """);
+
+            var joint = feModel.BuildBoneChains()[0].Joints.Find(static j => j.Name == "j2");
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(joint!.Suspender).IsEqualTo(0.35f).Within(1e-4f);
+                await Assert.That(joint.ExtraIterations).IsEqualTo(1);
+            }
+        }
+
+        /// <summary>
+        /// Nothing but a suspender reaches a joint further from the chain root than its own torsion span,
+        /// so every rigid rod on that pair is a copy of the one companion and they all carry its value.
+        /// Two agreeing copies name a suspender of 0.42 rather than refusing the pair for being doubled.
+        /// </summary>
+        [Test]
+        public async Task ASuspenderPastTheTorsionSpanIsReadFromItsRepeatedCopies()
+        {
+            var joint = LongChainWithSuspender().BuildBoneChains()[0].Joints
+                .Find(static j => j.Name == "j4");
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(joint!.Suspender).IsEqualTo(0.42f).Within(1e-4f);
+                await Assert.That(joint.ExtraIterations).IsEqualTo(1);
+            }
+        }
+
+        /// <summary>
+        /// The suspender companion is an iterated span like the parent, bend and torsion ones, so a joint
+        /// at two iterations regenerates BOTH copies of it and neither is left over to be re-declared.
+        /// </summary>
+        [Test]
+        public async Task ASuspenderCompanionIsRegeneratedOncePerIteration()
+        {
+            var feModel = LongChainWithSuspender();
+
+            await Assert.That(feModel.GetUngeneratedRods(feModel.BuildBoneChains())).IsEmpty();
+        }
+
+        private static FeModel LongChainWithSuspender() => SyntheticCloth.Parse($$"""
+            {
+                m_CtrlName = [ "root", "j1", "j2", "j3", "j4" ]
+                m_SkelParents = [ -1, 0, 1, 2, 3 ]
+                m_nNodeCount = 5
+                m_nStaticNodes = 1
+                m_NodeInvMasses = [ 0.0, 1.0, 1.0, 1.0, 1.0 ]
+                m_InitPose =
+                [
+                    {{SyntheticCloth.Pose(0f, 0f, 0f)}}
+                    {{SyntheticCloth.Pose(0f, 0f, -10f)}}
+                    {{SyntheticCloth.Pose(0f, 0f, -20f)}}
+                    {{SyntheticCloth.Pose(0f, 0f, -30f)}}
+                    {{SyntheticCloth.Pose(0f, 0f, -40f)}}
+                ]
+                m_Rods =
+                [
+                    {{SyntheticCloth.RigidRod(0, 1, 10f, 1f)}}
+                    {{SyntheticCloth.RigidRod(1, 2, 10f, 1f)}}
+                    {{SyntheticCloth.RigidRod(2, 3, 10f, 1f)}}
+                    {{SyntheticCloth.RigidRod(3, 4, 10f, 1f)}}
+                    {{SyntheticCloth.RigidRod(3, 4, 10f, 1f)}}
+                    {{SyntheticCloth.RigidRod(0, 4, 40f, 0.42f)}}
+                    {{SyntheticCloth.RigidRod(0, 4, 40f, 0.42f)}}
+                ]
+            }
+            """);
+
+        /// <summary>
+        /// A two-corner source element between two chain JOINTS is an authored spring like one between two
+        /// extrude rings, so it is re-declared with the rod's own fields and the chain's own copy of that
+        /// span is removed by zeroing the joint's stretch slider.
+        /// </summary>
+        [Test]
+        public async Task ASourceElementBetweenTwoChainJointsIsAnAuthoredSpring()
+        {
+            var feModel = SpringedChain(string.Empty);
+            var chains = feModel.BuildBoneChains();
+            var springs = feModel.GetAuthoredSourceSprings(chains);
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(chains[0].Joints.Find(static j => j.Name == "j2")!.StretchStiffness)
+                    .IsEqualTo(0f);
+                await Assert.That(springs.Count).IsEqualTo(1);
+                await Assert.That(springs[0]).IsEqualTo((1, 2));
+            }
+        }
+
+        /// <summary>
+        /// A compile that wrote no node base at all had its basis hint pairs filled by its ropes, so a
+        /// roped node keeps the chain rods that carry the rope and the same two-corner element is left to
+        /// the chain's own span rather than re-declared as a spring.
+        /// </summary>
+        [Test]
+        public async Task ARopedChainKeepsItsOwnSpanWhereTheCompileWroteNoNodeBase()
+        {
+            var feModel = SpringedChain("""
+                m_nRopeCount = 1
+                m_Ropes = [ 4, 0, 1, 2 ]
+                """);
+            var chains = feModel.BuildBoneChains();
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(chains[0].Joints.Find(static j => j.Name == "j2")!.StretchStiffness)
+                    .IsEqualTo(0.5f).Within(1e-4f);
+                await Assert.That(feModel.GetAuthoredSourceSprings(chains)).IsEmpty();
+            }
+        }
+
+        private static FeModel SpringedChain(string ropes) => SyntheticCloth.Parse($$"""
+            {
+                m_CtrlName = [ "root", "j1", "j2" ]
+                m_SkelParents = [ -1, 0, 1 ]
+                m_nNodeCount = 3
+                m_nStaticNodes = 1
+                m_NodeInvMasses = [ 0.0, 1.0, 1.0 ]
+                m_InitPose =
+                [
+                    {{SyntheticCloth.Pose(0f, 0f, 0f)}}
+                    {{SyntheticCloth.Pose(0f, 0f, -10f)}}
+                    {{SyntheticCloth.Pose(0f, 0f, -20f)}}
+                ]
+                m_SourceElems = [ 0, 1, 0, 0, 1, 2 ]
+                m_Rods =
+                [
+                    {{SyntheticCloth.RigidRod(0, 1, 10f, 1f)}}
+                    {{SyntheticCloth.RigidRod(1, 2, 10f, 0.5f)}}
+                ]
+                {{ropes}}
+            }
+            """);
+
+        /// <summary>
+        /// A planarized shape whose two end caps coincide compiles as a sphere, which loses every node a
+        /// capsule covers, so it is emitted with a short axis pointing away from the nodes it owns. Five
+        /// nodes six units out from a sphere of centre (1, 2, 3) leave a summed normal of +Z, so the axis
+        /// runs 0.01 along -Z from the recovered centre.
+        /// </summary>
+        [Test]
+        public async Task APlanarizedEndCapIsGivenAShortAxisAwayFromItsNodes()
+        {
+            var feModel = SyntheticCloth.Parse($$"""
+                {
+                    m_CtrlName = [ "bone", "n0", "n1", "n2", "n3", "n4" ]
+                    m_SkelParents = [ -1, 0, 0, 0, 0, 0 ]
+                    m_nNodeCount = 6
+                    m_nStaticNodes = 0
+                    m_NodeInvMasses = [ 1.0, 1.0, 1.0, 1.0, 1.0, 1.0 ]
+                    m_InitPose =
+                    [
+                        {{SyntheticCloth.Pose(0f, 0f, 0f)}}
+                        {{SyntheticCloth.Pose(7f, 2f, 3f)}}
+                        {{SyntheticCloth.Pose(-5f, 2f, 3f)}}
+                        {{SyntheticCloth.Pose(1f, 8f, 3f)}}
+                        {{SyntheticCloth.Pose(1f, -4f, 3f)}}
+                        {{SyntheticCloth.Pose(1f, 2f, 9f)}}
+                    ]
+                    m_CollisionPlanes =
+                    [
+                        {{Plane(1, "1.0, 0.0, 0.0", 5f)}}
+                        {{Plane(2, "-1.0, 0.0, 0.0", 3f)}}
+                        {{Plane(3, "0.0, 1.0, 0.0", 6f)}}
+                        {{Plane(4, "0.0, -1.0, 0.0", 2f)}}
+                        {{Plane(5, "0.0, 0.0, 1.0", 7f)}}
+                    ]
+                    m_VertexMapValues = [ 255, 255, 255, 255, 255 ]
+                    m_VertexMaps =
+                    [
+                        {
+                            sName = "belt"
+                            nNameHash = 1
+                            nVertexBase = 1
+                            nVertexCount = 5
+                            nMapOffset = 0
+                            nScaleSourceNode = -1
+                            flVolumetricSolveStrength = 0.0
+                            vCenterOfMass = [ 0.0, 0.0, 0.0 ]
+                        },
+                    ]
+                }
+                """);
+
+            var shapes = feModel.BuildPlanarizeCapsules();
+
+            await Assert.That(shapes.Count).IsEqualTo(1);
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(shapes[0].Radius0).IsEqualTo(4f).Within(1e-3f);
+                await Assert.That(Vector3.Distance(shapes[0].Point0, new Vector3(1f, 2f, 3f)))
+                    .IsLessThan(1e-3f);
+                await Assert.That(Vector3.Distance(shapes[0].Point0, shapes[0].Point1))
+                    .IsEqualTo(0.01f).Within(1e-4f);
+                await Assert.That((shapes[0].Point1 - shapes[0].Point0).Z).IsLessThan(0f);
+            }
+        }
+
+        /// <summary>
+        /// A compiled surface face every corner of which is a declared cloth node, at least one of them a
+        /// free <c>$cloth_node_</c>, comes from an authored ClothTri or ClothQuad rather than from a proxy
+        /// sheet, so the sheet reconstruction leaves it alone. A face over a sheet vertex still builds one.
+        /// </summary>
+        [Test]
+        public async Task ASurfaceFaceOverAFreeClothNodeIsNotASheetFace()
+        {
+            using (Assert.Multiple())
+            {
+                await Assert.That(FaceOverNode("$cloth_node_tie").BuildProxyMesh()).IsNull();
+                await Assert.That(FaceOverNode("$cloth_m0p0").BuildProxyMesh()).IsNotNull();
+            }
+        }
+
+        private static FeModel FaceOverNode(string third) => SyntheticCloth.Parse($$"""
+            {
+                m_CtrlName = [ "bone_a", "bone_b", "{{third}}" ]
+                m_SkelParents = [ -1, -1, -1 ]
+                m_nNodeCount = 3
+                m_nStaticNodes = 0
+                m_NodeInvMasses = [ 1.0, 1.0, 1.0 ]
+                m_InitPose =
+                [
+                    {{SyntheticCloth.Pose(0f, 0f, 0f)}}
+                    {{SyntheticCloth.Pose(4f, 0f, 0f)}}
+                    {{SyntheticCloth.Pose(0f, 3f, 0f)}}
+                ]
+                m_Tris = [ { nNode = [ 0, 1, 2 ] } ]
+            }
+            """);
     }
 }
