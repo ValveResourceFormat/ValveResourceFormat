@@ -3127,13 +3127,12 @@ partial class ModelExtract
         // binds each node directly instead, which costs both the root node and the entire offsets array.
         if (!proxy.IsFreeFloating)
         {
-            // Four slots cover everything BuildChainSkinInfluences synthesises, but weights recovered
-            // verbatim from a model's own offset network can run to eight, and a truncated influence
-            // takes its m_CtrlSoftOffsets entry with it. The count is widened only for the vertices those
-            // recovered weights cover, and only where no fit is taken over the sheet: giving a
-            // back-solving sheet more slots than its own fits need re-classifies its nodes.
+            // Four slots cover everything BuildChainSkinInfluences synthesises; weights recovered
+            // verbatim from a model's own offset network run wider, and an influence with no slot is
+            // dropped before the compiler sees it. The count is widened to hold every recovered
+            // influence, whose bone is always a control node the original already carries.
             var jointCount = FeModel.ClothProxyInfluenceSlots;
-            if (physAggregateData?.FeModel is { ProxyFitMatrixNodes.Count: 0 } feModel)
+            if (physAggregateData?.FeModel is { } feModel)
             {
                 for (var v = 0; v < vertexCount; v++)
                 {
