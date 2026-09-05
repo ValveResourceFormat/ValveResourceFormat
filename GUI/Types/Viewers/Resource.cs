@@ -1018,7 +1018,7 @@ namespace GUI.Types.Viewers
                     break;
 
                 case ResourceType.Material:
-                    ViewerContentPresenter.AddContentTab(resTabs, "Reconstructed vmat", new ViewerContent.LazyText(new MaterialExtract(resource, vrfGuiContext).ToValveMaterial));
+                    ViewerContentPresenter.AddContentTab(resTabs, "Reconstructed vmat", new ViewerContent.LazyText(new MaterialExtract(resource, vrfGuiContext.FileLoaderNoCache).ToValveMaterial));
                     break;
 
                 case ResourceType.EntityLump:

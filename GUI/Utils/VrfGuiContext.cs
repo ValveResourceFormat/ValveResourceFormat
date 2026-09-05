@@ -318,6 +318,21 @@ namespace GUI.Utils
             return base.LoadShaderFromDisk(shaderName);
         }
 
+        /// <summary>Loader that skips resource cache.</summary>
+        public IFileLoader FileLoaderNoCache => fileLoaderNoCache ??= new UncachedFileLoader(this);
+
+        private UncachedFileLoader? fileLoaderNoCache;
+
+        private sealed class UncachedFileLoader(VrfGuiContext context) : IFileLoader
+        {
+            public Resource? LoadFile(string file) => context.LoadFileUncached(file);
+            public Resource? LoadFileCompiled(string file) => LoadFile(string.Concat(file, CompiledFileSuffix));
+            public ShaderCollection? LoadShader(string shaderName) => context.LoadShader(shaderName);
+            public Stream? GetFileStream(string file) => context.GetFileStream(file);
+        }
+
+        private Resource? LoadFileUncached(string file) => base.LoadFile(file);
+
         // Override to add support for caching resources
         public override Resource? LoadFile(string file)
         {
