@@ -830,6 +830,18 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         public bool IsLockedToGoal(int node) => Array.IndexOf(LockToGoal, node) >= 0;
 
         /// <summary>
+        /// Gets whether <paramref name="node"/> was authored with <c>lock_translation</c>.
+        /// <para>
+        /// The compiler locks a node that carries fit influences to its parent when that parent is itself
+        /// simulated or free-rotating, and to its goal otherwise, but only reaches that decision for a node
+        /// that is either NOT SIMULATED or carries <c>lock_translation</c>. So a locked node that is still
+        /// simulated proves the key, while an unsimulated one reaches the same lock without it.
+        /// </para>
+        /// </summary>
+        public bool LocksTranslation(int node)
+            => IsLockedToParent(node) || (IsLockedToGoal(node) && !IsStatic(node));
+
+        /// <summary>
         /// Recovers the per-vertex normal of a proxy sheet from the compiled rest poses.
         /// <para>
         /// The cloth importer derives each proxy vertex's rest ORIENTATION from that vertex's normal and

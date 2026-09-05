@@ -2370,7 +2370,7 @@ partial class ModelExtract
             kv.Add("allow_rotation", feModel.AllowsRotation(joint.Node));
         }
 
-        if (feModel.IsLockedToParent(joint.Node) || pinnedSimulatedRoot)
+        if (feModel.LocksTranslation(joint.Node) || pinnedSimulatedRoot)
         {
             kv.Add("lock_translation", true);
         }
@@ -2559,7 +2559,7 @@ partial class ModelExtract
             ("node_base_x1", BasisName(basis.NodeX1)),
             ("node_base_y0", BasisName(basis.NodeY0)),
             ("node_base_x0", BasisName(basis.NodeX0)),
-            ("lock_translation", feModel.IsLockedToParent(node)),
+            ("lock_translation", feModel.LocksTranslation(node)),
             ("gravity_z", integrator.Gravity / ClothSourceBaseGravity),
             ("goal_strength", goalStrength),
             ("goal_damping", goalDamping),
