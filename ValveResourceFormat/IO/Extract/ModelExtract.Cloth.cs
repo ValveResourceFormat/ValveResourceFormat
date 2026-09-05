@@ -1439,6 +1439,51 @@ partial class ModelExtract
         return bones;
     }
 
+    /// <summary>
+    /// Separates equal blend weights on one proxy vertex by the smallest amount that survives the
+    /// float stream, keeping the recovered order. The cloth proxy importer sorts a vertex's
+    /// influences by descending weight to choose its primary anchor bone, which becomes the
+    /// vertex's <c>m_CtrlOffsets</c> parent while the rest become its <c>m_CtrlSoftOffsets</c>
+    /// parents; the sort breaks a tie on something the emitted skinning does not control, so an
+    /// exactly tied pair can promote the wrong bone. The nudge is several orders of magnitude below
+    /// the weight resolution the compiled data carries.
+    /// </summary>
+    static (string Bone, float Weight)[] SeparateTiedInfluenceWeights((string Bone, float Weight)[] influences)
+    {
+        static bool IsTied(float a, float b)
+            => MathF.Abs(a - b) <= TiedInfluenceSeparation * MathF.Max(MathF.Abs(a), MathF.Abs(b));
+
+        var tied = false;
+        for (var i = 1; i < influences.Length && !tied; i++)
+        {
+            tied = IsTied(influences[i].Weight, influences[i - 1].Weight);
+        }
+
+        if (!tied)
+        {
+            return influences;
+        }
+
+        var separated = new (string Bone, float Weight)[influences.Length];
+        influences.CopyTo(separated, 0);
+        for (var i = 1; i < separated.Length; i++)
+        {
+            if (IsTied(influences[i].Weight, influences[i - 1].Weight))
+            {
+                separated[i] = (separated[i].Bone, separated[i - 1].Weight * (1f - TiedInfluenceSeparation));
+            }
+        }
+
+        return separated;
+    }
+
+    /// <summary>
+    /// Relative gap forced between two proxy blend weights that would otherwise be a tie. It is
+    /// three orders below the 1/255 quantum a painted weight is authored at and survives the
+    /// per-vertex renormalization the importer applies before it sorts.
+    /// </summary>
+    const float TiedInfluenceSeparation = 1e-6f;
+
     static Dictionary<int, FeModel.CtrlOffset> BuildCtrlAnchorMap(FeModel feModel)
     {
         var anchorOf = new Dictionary<int, FeModel.CtrlOffset>();
@@ -2986,7 +3031,7 @@ partial class ModelExtract
             for (var v = 0; v < vertexCount; v++)
             {
                 var slot = 0;
-                foreach (var (boneName, weight) in proxy.SkinInfluences[v])
+                foreach (var (boneName, weight) in SeparateTiedInfluenceWeights(proxy.SkinInfluences[v]))
                 {
                     if (slot >= jointCount || !boneIndexByName.TryGetValue(boneName, out var bi))
                     {
