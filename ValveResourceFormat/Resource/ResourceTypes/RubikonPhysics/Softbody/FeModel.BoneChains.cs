@@ -1804,11 +1804,42 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                     var grand = parentNode >= 0 && jointByNode.TryGetValue(parentNode, out var g1) ? g1.ParentNode : -1;
                     var greatGrand = grand >= 0 && jointByNode.TryGetValue(grand, out var g2) ? g2.ParentNode : -1;
 
-                    return Repeats(parentNode)
-                        && (!joint.BendSpring || Repeats(grand))
-                        && (!joint.TorsionSpring || Repeats(greatGrand))
-                        ? Math.Max(copies, 1)
-                        : 1;
+                    if (!Repeats(parentNode)
+                        || (joint.BendSpring && !Repeats(grand))
+                        || (joint.TorsionSpring && !Repeats(greatGrand)))
+                    {
+                        return 1;
+                    }
+
+                    // A chain ROOT has no span of its own to count, so the reading comes from the only
+                    // other rods that cross it: its child's span down to it, which is the same rod set
+                    // read from the far end. Only an unambiguous single child can stand in.
+                    if (copies == 0)
+                    {
+                        var onlyChild = -1;
+                        foreach (var other in chain.Joints)
+                        {
+                            if (other.ParentNode != joint.Node)
+                            {
+                                continue;
+                            }
+
+                            if (onlyChild >= 0)
+                            {
+                                onlyChild = -1;
+                                break;
+                            }
+
+                            onlyChild = other.Node;
+                        }
+
+                        if (onlyChild >= 0 && !Repeats(onlyChild))
+                        {
+                            copies = 0;
+                        }
+                    }
+
+                    return Math.Max(copies, 1);
                 }
 
                 // Every upward pair this joint generates must carry EXACTLY baseCopies rods at
