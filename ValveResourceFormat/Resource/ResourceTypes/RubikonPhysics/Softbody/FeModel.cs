@@ -585,15 +585,16 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                         {
                             Generate(greatGrandParent, joint.Node, joint.TorsionStiffness);
                         }
-                    }
 
-                    // A suspender's companion always lands on the pair (joint, chain root) - the SAME
-                    // pair as the plain parent link only when the root happens to be this joint's
-                    // parent (RootSuspenderValue's own remarks), otherwise a pair extra_iterations never
-                    // touches at all. Its factor is the authored value, unscaled.
-                    if (joint.Suspender != 0f)
-                    {
-                        ExpectPair(generated, rootNode, joint.Node, joint.Suspender);
+                        // A suspender's companion always lands on the pair (joint, chain root) - the SAME
+                        // pair as the plain parent link only when the root happens to be this joint's
+                        // parent (RootSuspenderValue's own remarks), otherwise a pair extra_iterations never
+                        // touches at all. It is an iterated span like the other three, so it repeats once
+                        // per copy. Its factor is the authored value, unscaled.
+                        if (joint.Suspender != 0f)
+                        {
+                            ExpectPair(generated, rootNode, joint.Node, joint.Suspender);
+                        }
                     }
                 }
             }
