@@ -1740,6 +1740,36 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                 // count. And only RIGID rods count: a span rod carries flMinDist == flMaxDist, while
                 // add_curvature lands one slack rod on the index-aligned ring pairs of the bend span
                 // alone, which reads one higher on those pairs than on the rest of the set.
+                // The rigid rods on one joint's span to <paramref name="other"/>, counted across the whole
+                // ring-to-ring set and 0 unless every pair of it agrees. -1 marks a span the joint does not
+                // reach at all.
+                int SpanCopies(BoneChainJoint joint, int other)
+                {
+                    if (other < 0)
+                    {
+                        return -1;
+                    }
+
+                    var copies = 0;
+                    foreach (var a in Side(joint.Node))
+                    {
+                        foreach (var b in Side(other))
+                        {
+                            var count = rigidRodRelaxationsByPair.TryGetValue(a < b ? (a, b) : (b, a), out var rigid)
+                                ? rigid.Count
+                                : 0;
+                            if (count == 0 || (copies != 0 && count != copies))
+                            {
+                                return 0;
+                            }
+
+                            copies = count;
+                        }
+                    }
+
+                    return copies;
+                }
+
                 int JointCopies(BoneChainJoint joint)
                 {
                     var copies = 0;
@@ -1906,6 +1936,96 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                     }
                 }
 
+                // The suspender companion on a chain that has NO extra iterations, which
+                // <see cref="RootSuspenderValue"/>'s own route cannot see: there the root pair's total is
+                // split evenly between repeats and the companion, so it needs an even count and a second
+                // relaxation to split on. A chain that merely carries a suspender has every span of the
+                // joint at the same count and the span landing on the chain ROOT one higher, and the
+                // surplus rod may sit at the chain's own factor, which no split can separate. The count
+                // alone identifies it. The root pair is also what breaks JointCopies' uniformity test, so
+                // this reads the iteration count off the parent span instead.
+                float? RootCompanionValue(BoneChainJoint joint, int parentNode, int grand, int greatGrand)
+                {
+                    if (joint.Node == rootNode || rootNode == parentNode)
+                    {
+                        return null;
+                    }
+
+                    var rootTarget = joint.BendSpring && rootNode == grand ? grand
+                        : joint.TorsionSpring && rootNode == greatGrand ? greatGrand
+                        : -1;
+                    var baseCopies = SpanCopies(joint, parentNode);
+                    if (rootTarget < 0 || baseCopies <= 0 || SpanCopies(joint, rootTarget) != baseCopies + 1)
+                    {
+                        return null;
+                    }
+
+                    if (joint.BendSpring && grand >= 0 && grand != rootTarget
+                        && SpanCopies(joint, grand) != baseCopies)
+                    {
+                        return null;
+                    }
+
+                    if (joint.TorsionSpring && greatGrand >= 0 && greatGrand != rootTarget
+                        && SpanCopies(joint, greatGrand) != baseCopies)
+                    {
+                        return null;
+                    }
+
+                    float? companion = null;
+                    foreach (var a in Side(joint.Node))
+                    {
+                        foreach (var b in Side(rootTarget))
+                        {
+                            var pair = a < b ? (a, b) : (b, a);
+                            if (Array.IndexOf(SourceSprings, pair) >= 0
+                                || Array.IndexOf(SourceSprings, (pair.Item2, pair.Item1)) >= 0
+                                || !rigidRodRelaxationsByPair.TryGetValue(pair, out var relaxations)
+                                || Surplus(relaxations, baseCopies) is not { } value
+                                || (companion is { } already && MathF.Abs(already - value) > 1e-4f))
+                            {
+                                return null;
+                            }
+
+                            companion = value;
+                        }
+                    }
+
+                    return companion;
+                }
+
+                // The one relaxation left on a root pair once the joint's own baseCopies repeats are taken
+                // out of it: the pair's single odd value, or its shared value when every rod agrees.
+                static float? Surplus(List<float> relaxations, int baseCopies)
+                {
+                    var groups = new List<(float Value, int Count)>();
+                    foreach (var rf in relaxations)
+                    {
+                        var at = groups.FindIndex(g => MathF.Abs(g.Value - rf) < 1e-4f);
+                        if (at < 0)
+                        {
+                            groups.Add((rf, 1));
+                        }
+                        else
+                        {
+                            groups[at] = (groups[at].Value, groups[at].Count + 1);
+                        }
+                    }
+
+                    if (groups.Count == 1)
+                    {
+                        return groups[0].Count == baseCopies + 1 ? groups[0].Value : null;
+                    }
+
+                    if (groups.Count != 2)
+                    {
+                        return null;
+                    }
+
+                    var odd = groups.FindIndex(static g => g.Count == 1);
+                    return odd >= 0 && groups[1 - odd].Count == baseCopies ? groups[odd].Value : null;
+                }
+
                 // A chain rod compiles with flRelaxationFactor = slider * exp(-default_stretch), so the
                 // slider is the compiled factor with the model's own default_stretch scale taken back out.
                 var sliderScale = MathF.Exp(-DefaultSurfaceStretch);
@@ -1945,6 +2065,11 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                             || (joint.BendSpring && rootNode == grandParent)
                             || (joint.TorsionSpring && rootNode == greatGrandParent);
                         joint.ExtraIterations = rootIsUpwardTarget ? JointCopies(joint) / 2 - 1 : JointCopies(joint) - 1;
+                    }
+                    else if (RootCompanionValue(joint, parent, grandParent, greatGrandParent) is { } companion)
+                    {
+                        joint.Suspender = companion;
+                        joint.ExtraIterations = SpanCopies(joint, parent) - 1;
                     }
                     else
                     {
