@@ -949,6 +949,216 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         }
 
         /// <summary>
+        /// The face rods of the authored proxy faces this node set covers, as
+        /// <c>(pair, isDiagonal, record)</c>. A face the compile turned into rods contributes one rod per
+        /// edge and per diagonal; the same pair can also carry a rod the compiler generated afterwards
+        /// from the surface, and the authored one is the record whose <c>MaxDist</c> is the endpoints'
+        /// rest distance, an authored face rod never being given an explicit length.
+        /// </summary>
+        List<((int A, int B) Pair, bool Diagonal, Rod Rod)> AuthoredFaceRods(HashSet<int> nodes)
+        {
+            var byPair = new Dictionary<(int, int), List<Rod>>();
+            foreach (var rod in Rods)
+            {
+                var key = rod.NodeA < rod.NodeB ? (rod.NodeA, rod.NodeB) : (rod.NodeB, rod.NodeA);
+                (byPair.TryGetValue(key, out var list) ? list : byPair[key] = []).Add(rod);
+            }
+
+            var kinds = new Dictionary<(int, int), bool>();
+            foreach (var face in SourceFaces)
+            {
+                if (face.Length is not (3 or 4) || !Array.TrueForAll(face, nodes.Contains))
+                {
+                    continue;
+                }
+
+                for (var i = 0; i < face.Length; i++)
+                {
+                    Add(face[i], face[(i + 1) % face.Length], false);
+                }
+
+                if (face.Length == 4)
+                {
+                    Add(face[0], face[2], true);
+                    Add(face[1], face[3], true);
+                }
+            }
+
+            var found = new List<((int, int), bool, Rod)>(kinds.Count);
+            foreach (var (pair, diagonal) in kinds)
+            {
+                if (!byPair.TryGetValue(pair, out var candidates))
+                {
+                    continue;
+                }
+
+                var rest = Vector3.Distance(InitPosePositions[pair.Item1], InitPosePositions[pair.Item2]);
+                var authored = candidates.Count == 1
+                    ? candidates[0]
+                    : candidates.MinBy(r => MathF.Abs(r.MaxDist - rest));
+                if (MathF.Abs(authored.MaxDist - rest) <= FaceRodRestTolerance * MathF.Max(1f, rest))
+                {
+                    found.Add((pair, diagonal, authored));
+                }
+            }
+
+            return found;
+
+            void Add(int x, int y, bool diagonal)
+            {
+                if (x != y && x >= 0 && y >= 0 && x < InitPosePositions.Length && y < InitPosePositions.Length)
+                {
+                    kinds[x < y ? (x, y) : (y, x)] = diagonal;
+                }
+            }
+        }
+
+        const float FaceRodRestTolerance = 1e-3f;
+
+        /// <summary>
+        /// Solves a per-node paint from the statements <c>p[a] + p[b] = stated</c> one per node pair, or
+        /// null when the statements contradict each other or force a value outside <c>[0, 1]</c>.
+        /// <para>
+        /// A component carrying an odd cycle fixes its own free parameter; a quad's diagonal closes one
+        /// with two of its edges, so a sheet's face-rod graph is normally pinned. A component with no odd
+        /// cycle is closed by the choice that sits closest to <paramref name="fallback"/>, the value an
+        /// unpainted vertex already has, so a sheet that states nothing keeps its default.
+        /// </para>
+        /// </summary>
+        static Dictionary<int, float>? SolvePairSumPaint(Dictionary<(int A, int B), float> stated, float fallback)
+        {
+            var adjacency = new Dictionary<int, List<(int Other, float Sum)>>();
+            foreach (var ((a, b), sum) in stated)
+            {
+                (adjacency.TryGetValue(a, out var na) ? na : adjacency[a] = []).Add((b, sum));
+                (adjacency.TryGetValue(b, out var nb) ? nb : adjacency[b] = []).Add((a, sum));
+            }
+
+            var solved = new Dictionary<int, float>(adjacency.Count);
+            var sign = new Dictionary<int, float>(adjacency.Count);
+            var offset = new Dictionary<int, float>(adjacency.Count);
+            var component = new List<int>();
+            var stack = new Stack<int>();
+
+            foreach (var start in adjacency.Keys)
+            {
+                if (solved.ContainsKey(start))
+                {
+                    continue;
+                }
+
+                sign.Clear();
+                offset.Clear();
+                component.Clear();
+                sign[start] = 1f;
+                offset[start] = 0f;
+                component.Add(start);
+                stack.Push(start);
+
+                float? pinned = null;
+                while (stack.Count > 0)
+                {
+                    var node = stack.Pop();
+                    foreach (var (other, sum) in adjacency[node])
+                    {
+                        var otherSign = -sign[node];
+                        var otherOffset = sum - offset[node];
+                        if (sign.TryGetValue(other, out var known))
+                        {
+                            if (known != otherSign)
+                            {
+                                var forced = (otherOffset - offset[other]) / (known - otherSign);
+                                if (pinned is { } already && MathF.Abs(already - forced) > PaintSolveTolerance)
+                                {
+                                    return null;
+                                }
+
+                                pinned ??= forced;
+                            }
+                            else if (MathF.Abs(offset[other] - otherOffset) > PaintSolveTolerance)
+                            {
+                                return null;
+                            }
+
+                            continue;
+                        }
+
+                        sign[other] = otherSign;
+                        offset[other] = otherOffset;
+                        component.Add(other);
+                        stack.Push(other);
+                    }
+                }
+
+                var free = pinned ?? component.Sum(node => sign[node] * (fallback - offset[node])) / component.Count;
+                foreach (var node in component)
+                {
+                    var value = sign[node] * free + offset[node];
+                    if (value < -PaintSolveTolerance || value > 1f + PaintSolveTolerance)
+                    {
+                        return null;
+                    }
+
+                    solved[node] = Math.Clamp(value, 0f, 1f);
+                }
+            }
+
+            return solved;
+        }
+
+        const float PaintSolveTolerance = 2e-3f;
+
+        /// <summary>
+        /// Recovers the per-vertex <c>cloth_antishrink</c> paint of a proxy sheet, or null when the sheet
+        /// carries none and when the face rods contradict each other.
+        /// <para>
+        /// A proxy face the compile turned into rods gives each of its edges and diagonals a rod whose
+        /// <c>flMinDist</c> is <c>flMaxDist</c> times the MEAN of the two endpoints' paint, so every such
+        /// rod states the sum of two vertices' values and the sheet solves as one linear system. The
+        /// importer's own default is <see cref="SheetAntishrinkDefault"/>, which is what an unpainted
+        /// sheet compiles to, so a sheet whose recovered values are all that value ships no stream.
+        /// </para>
+        /// </summary>
+        public float[]? RecoverAntishrinkPaint(ProxyMesh proxy)
+        {
+            var nodes = new HashSet<int>(proxy.NodeIndices);
+            var stated = new Dictionary<(int A, int B), float>();
+            foreach (var (pair, _, rod) in AuthoredFaceRods(nodes))
+            {
+                if (rod.MaxDist > FaceRodRestTolerance)
+                {
+                    stated[pair] = 2f * (rod.MinDist / rod.MaxDist);
+                }
+            }
+
+            if (stated.Count == 0 || SolvePairSumPaint(stated, SheetAntishrinkDefault) is not { } solved)
+            {
+                return null;
+            }
+
+            var paint = new float[proxy.NodeIndices.Length];
+            var painted = 0;
+            for (var v = 0; v < paint.Length; v++)
+            {
+                paint[v] = solved.TryGetValue(proxy.NodeIndices[v], out var value) ? value : SheetAntishrinkDefault;
+                if (MathF.Abs(paint[v] - SheetAntishrinkDefault) > PaintSolveTolerance)
+                {
+                    painted++;
+                }
+            }
+
+            return painted > 0 ? paint : null;
+        }
+
+        /// <summary>
+        /// The <c>cloth_antishrink</c> a proxy-sheet vertex carries when the sheet paints no stream, which
+        /// the mesh importer writes over the node constructor's own value. A chain joint's default is 1
+        /// and every other node class keeps the constructor's 0.05, so only a sheet contracts its face
+        /// rods to three quarters of their rest length.
+        /// </summary>
+        public const float SheetAntishrinkDefault = 0.75f;
+
+        /// <summary>
         /// Recovers the authored <c>mass</c> multiplier of a cloth node, or null when it is the default 1
         /// or cannot be read. The compiler squares the multiplier into the node's mass
         /// (<c>G * mass^2</c>, see <see cref="RecoverMassPaint"/>), so it is the square root of what the
