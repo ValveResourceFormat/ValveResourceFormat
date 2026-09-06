@@ -265,6 +265,8 @@ partial class ModelExtract
             return ResolveAntiTunnelNodeName(feModel, basisNode, proxyNodeNames) ?? string.Empty;
         }
 
+        var layers = ClothNodeCollisionLayers(feModel.GetNodeCollisionMask(node));
+
         return MakeNode("ClothNode",
             ("name", elementName ?? boneName),
             ("origin", ToKVArray(origin)),
@@ -272,10 +274,10 @@ partial class ModelExtract
             ("cloth_node_root_bone", boneName),
             ("has_stray_radius", strayRadius > 0f),
             ("has_world_collision", feModel.IsWorldCollisionNode(node)),
-            ("cloth_collision_layer0", true),
-            ("cloth_collision_layer1", true),
-            ("cloth_collision_layer2", true),
-            ("cloth_collision_layer3", true),
+            ("cloth_collision_layer0", layers.Layer0),
+            ("cloth_collision_layer1", layers.Layer1),
+            ("cloth_collision_layer2", layers.Layer2),
+            ("cloth_collision_layer3", layers.Layer3),
             // The default alignment leaves a free cloth node with no basis at all - the neighbour scan
             // that would build one finds nothing. Alignment 4 both restores the basis and reproduces the
             // reference quadruple the original carries; on a node the scan can already serve it changes
@@ -297,6 +299,18 @@ partial class ModelExtract
             ("is_static_node", isStaticNode),
             ("allow_rotation", feModel.AllowsRotation(node)),
             ("super_damping", Math.Clamp(integrator.PointDamping / ClothDragPointDampingScale, 0f, 1f)));
+    }
+
+    /// <summary>
+    /// The four <c>cloth_collision_layer</c> booleans a <c>ClothNode</c> declares to compile to
+    /// <paramref name="mask"/>. All four set is special-cased by the compiler to the all-layers default
+    /// rather than to 15, so it is what a node with the default mask declares, and a mask the four bits
+    /// cannot spell out - 15 itself, or anything above them - falls back to the same default.
+    /// </summary>
+    static (bool Layer0, bool Layer1, bool Layer2, bool Layer3) ClothNodeCollisionLayers(int mask)
+    {
+        var bits = mask is >= 0 and <= 14 ? mask : 0xF;
+        return ((bits & 1) != 0, (bits & 2) != 0, (bits & 4) != 0, (bits & 8) != 0);
     }
 
     /// <summary>

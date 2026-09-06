@@ -613,17 +613,20 @@ partial class ModelExtract
     /// so that only the creation index changes.
     /// </summary>
     static KVObject MakeClothChainJointDeclaration(FeModel feModel, string boneName, int node)
-        => MakeNode("ClothNode",
+    {
+        var layers = ClothNodeCollisionLayers(feModel.GetNodeCollisionMask(node));
+
+        return MakeNode("ClothNode",
             ("name", boneName),
             ("origin", ToKVArray(Vector3.Zero)),
             ("angles", ToKVArray(Vector3.Zero)),
             ("cloth_node_root_bone", boneName),
             ("has_stray_radius", false),
             ("has_world_collision", false),
-            ("cloth_collision_layer0", true),
-            ("cloth_collision_layer1", true),
-            ("cloth_collision_layer2", true),
-            ("cloth_collision_layer3", true),
+            ("cloth_collision_layer0", layers.Layer0),
+            ("cloth_collision_layer1", layers.Layer1),
+            ("cloth_collision_layer2", layers.Layer2),
+            ("cloth_collision_layer3", layers.Layer3),
             ("transform_alignment", 0),
             ("node_base_y1", string.Empty),
             ("node_base_x1", string.Empty),
@@ -640,4 +643,5 @@ partial class ModelExtract
             ("collision_radius", 0.0f),
             ("is_static_node", node < feModel.StaticNodeCount),
             ("allow_rotation", feModel.AllowsRotation(node)));
+    }
 }

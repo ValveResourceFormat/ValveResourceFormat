@@ -232,6 +232,19 @@ partial class ModelExtract
         // World collision membership and radius (m_WorldCollisionNodes / m_NodeCollisionRadii).
         kv.Add("world_collision", feModel.IsWorldCollisionNode(joint.Node));
 
+        // A chain joint's node mask is exactly these four bits, with no all-set special case and no
+        // absent-key escape, so the four attr defaults of MakeClothChainAttrs already spell out 15.
+        // Only a joint whose mask says something else needs its own keys; a mask above the four bits
+        // is not expressible from a chain at all.
+        var collisionMask = feModel.GetNodeCollisionMask(joint.Node);
+        if (collisionMask is >= 0 and < 0xF)
+        {
+            kv.Add("collision_layer_0", (collisionMask & 1) != 0);
+            kv.Add("collision_layer_1", (collisionMask & 2) != 0);
+            kv.Add("collision_layer_2", (collisionMask & 4) != 0);
+            kv.Add("collision_layer_3", (collisionMask & 8) != 0);
+        }
+
         var (worldFriction, groundFriction) = feModel.GetWorldFriction(joint.Node);
         kv.Add("world_friction", worldFriction);
         kv.Add("ground_friction", groundFriction);

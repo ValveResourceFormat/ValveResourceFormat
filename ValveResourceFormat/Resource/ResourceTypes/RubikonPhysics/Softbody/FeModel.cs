@@ -179,6 +179,31 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         public float GetCollisionRadius(int node) => DynamicNodeValue(NodeCollisionRadii, node);
 
         /// <summary>
+        /// The collision mask a node carries when nothing in the source declares one: the compiler's own
+        /// all-sixteen-layers default.
+        /// </summary>
+        public const int DefaultNodeCollisionMask = 0xFFFF;
+
+        /// <summary>
+        /// Gets the per-dynamic-node collision mask, the first <c>dynamicNodes</c> entries of
+        /// <c>m_TreeCollisionMasks</c>. The rest of that array is the OR of each subtree and carries
+        /// nothing of its own. Empty when the array is absent or not <c>2 * dynamicNodes - 1</c> long.
+        /// </summary>
+        public int[] NodeCollisionMasks { get; }
+
+        /// <summary>
+        /// Gets the collision mask of control node <paramref name="node"/>, or
+        /// <see cref="DefaultNodeCollisionMask"/> where the model records none.
+        /// </summary>
+        public int GetNodeCollisionMask(int node)
+        {
+            var dynamicIndex = node - StaticNodeCount;
+            return dynamicIndex >= 0 && dynamicIndex < NodeCollisionMasks.Length
+                ? NodeCollisionMasks[dynamicIndex]
+                : DefaultNodeCollisionMask;
+        }
+
+        /// <summary>
         /// Gets the control nodes that collide with the world (<c>m_WorldCollisionNodes</c>), from
         /// per-joint <c>world_collision</c> in the source. Empty for cloth without world collision.
         /// </summary>
@@ -2414,7 +2439,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         static readonly HashSet<string> DerivedKeys =
         [
             "m_CtrlHash",
-            "m_TreeParents", "m_TreeChildren", "m_TreeCollisionMasks", "m_nTreeDepth",
+            "m_TreeParents", "m_TreeChildren", "m_nTreeDepth",
             "m_SimdRods", "m_SimdNodeBases", "m_SimdAnimStrayRadii", "m_SimdRodsAnim", "m_SimdSpringIntegrator",
             "m_SimdQuads", "m_SimdTris",
             "m_FreeNodes",
@@ -2441,6 +2466,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             "m_HingeLimits", "m_KelagerBends", "m_VertexMapValues", "m_VertexMaps", "m_Rods",
             "m_NodeIntegrator", "m_NodeCollisionRadii", "m_WorldCollisionNodes", "m_WorldCollisionParams",
             "m_DynNodeFriction", "m_AnimStrayRadii", "m_FitMatrices", "m_Twists", "m_NodeBases",
+            "m_TreeCollisionMasks",
             "m_CtrlOffsets", "m_CtrlSoftOffsets", "m_FitWeights", "m_TaperedCapsuleRigids", "m_BoxRigids",
             "m_SphereRigids", "m_AxialEdges", "m_Ropes", "m_nRopeCount", "m_FollowNodes",
             "m_LocalForce", "m_LocalRotation",
@@ -2586,6 +2612,14 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                     o.GetFloatProperty("flGravity"))).ToArray();
 
             NodeCollisionRadii = data.GetFloatArray("m_NodeCollisionRadii");
+
+            var treeMasks = data.ContainsKey("m_TreeCollisionMasks")
+                ? data.GetIntegerArray("m_TreeCollisionMasks")
+                : [];
+            var dynamicNodeCount = NodeCount - StaticNodeCount;
+            NodeCollisionMasks = dynamicNodeCount > 0 && treeMasks.Length == (2 * dynamicNodeCount) - 1
+                ? [.. treeMasks.Take(dynamicNodeCount).Select(static v => (int)v)]
+                : [];
             var worldCollisionOrder = data.ContainsKey("m_WorldCollisionNodes")
                 ? data.GetIntegerArray("m_WorldCollisionNodes").Select(static v => (int)v).ToArray()
                 : [];
