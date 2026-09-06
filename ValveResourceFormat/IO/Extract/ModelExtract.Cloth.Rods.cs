@@ -156,7 +156,7 @@ partial class ModelExtract
             derived.UnionWith(mixed.Bend);
             derived.UnionWith(mixed.Suspenders);
         }
-        else if (ClothSuspenders(feModel, beyondSurface) is var (suspenders, suspenderCurvature)
+        else if (ClothSuspenders(feModel, beyondSurface) is var (suspenders, suspenderCurvature, _)
             && suspenders.Count > 0)
         {
             addCurvature = suspenderCurvature;
@@ -249,14 +249,23 @@ partial class ModelExtract
             (network.Contains(edge) ? bend : rest).Add(edge);
         }
 
-        var (suspenders, suspenderCurvature) = ClothSuspenders(feModel, rest);
+        var (suspenders, suspenderCurvature, saturated) = ClothSuspenders(feModel, rest);
         if (bend.Count == 0 || suspenders.Count != rest.Count)
         {
             return null;
         }
 
         var curvature = ClothCurvatureFromSurface(feModel, surfaceFaces, bend);
-        if (suspenders.Count > 0)
+        if (suspenders.Count > 0 && saturated)
+        {
+            if (curvature > FeModel.ChainRingCurvatureAgreement)
+            {
+                return null;
+            }
+
+            curvature = 0f;
+        }
+        else if (suspenders.Count > 0)
         {
             if (curvature > 0f && MathF.Abs(curvature - suspenderCurvature)
                 > FeModel.ChainRingCurvatureAgreement * MathF.Max(curvature, suspenderCurvature))
@@ -298,13 +307,19 @@ partial class ModelExtract
     /// too, and a sheet with axial edges is left alone entirely because <c>rigid_edge_hinges</c> gives
     /// the same value a second, independent job.
     /// </para>
+    /// <para>
+    /// A set whose rods all sit at <c>flMinDist</c> zero is reported SATURATED. It is the one shape the
+    /// paint reproduces without the sheet having to carry a curvature at all, so the caller takes it only
+    /// where the bend network reads zero as well and the two cannot contradict each other; a chain ring
+    /// reading of its own has to be zero for the same reason.
+    /// </para>
     /// </summary>
-    static (HashSet<(int, int)> Suspenders, float AddCurvature) ClothSuspenders(FeModel feModel,
-        HashSet<(int, int)> beyondSurface)
+    static (HashSet<(int, int)> Suspenders, float AddCurvature, bool Saturated) ClothSuspenders(
+        FeModel feModel, HashSet<(int, int)> beyondSurface)
     {
         if (beyondSurface.Count == 0 || feModel.HasAxialEdges)
         {
-            return ([], 0f);
+            return ([], 0f, false);
         }
 
         var positions = feModel.InitPosePositions;
@@ -335,23 +350,26 @@ partial class ModelExtract
         }
 
         // The answer is the value the largest set of them shares, as everywhere else a curvature is read
-        // back. A curvature of zero is the one value the paint alone already reproduces, and taking the
-        // branch for it would replace the sheet's own chain curvature with nothing.
+        // back, and a set that reads zero throughout is the saturated one the summary describes.
         //
         // The whole set has to agree AND account for every rod reaching past the faces: the compiler's own
         // pass walks the authored proxy vertices while this recovers only the ones that became nodes, so
         // where the two differ the pass pairs the sheet up differently and rebuilds only part of what it
         // shipped. A set with leftovers is exactly that case, and it keeps every spring it has.
         var curvature = DominantReading(shaped.Select(static s => s.Reading), out var agreeing);
-        if (curvature <= 0f || agreeing != shaped.Count || shaped.Count != beyondSurface.Count)
+        if (shaped.Count == 0 || agreeing != shaped.Count || shaped.Count != beyondSurface.Count)
         {
-            return ([], 0f);
+            return ([], 0f, false);
         }
 
+        var saturated = curvature <= 0f;
         var ring = feModel.ChainRingCurvature;
-        if (ring > 0f && MathF.Abs(ring - curvature) > FeModel.ChainRingCurvatureAgreement * MathF.Max(ring, curvature))
+        if (saturated
+            ? ring > FeModel.ChainRingCurvatureAgreement
+            : ring > 0f && MathF.Abs(ring - curvature)
+                > FeModel.ChainRingCurvatureAgreement * MathF.Max(ring, curvature))
         {
-            return ([], 0f);
+            return ([], 0f, false);
         }
 
         var suspenders = new HashSet<(int, int)>();
@@ -363,7 +381,7 @@ partial class ModelExtract
             }
         }
 
-        return (suspenders, curvature);
+        return (suspenders, curvature, saturated);
     }
 
     // The value the largest subset of `readings` agrees on to ChainRingCurvatureAgreement, taking the
