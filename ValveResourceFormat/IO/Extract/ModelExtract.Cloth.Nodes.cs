@@ -294,7 +294,7 @@ partial class ModelExtract
             ("mass", feModel.RecoverMassMultiplier(node) ?? 1.0f),
             ("friction", feModel.GetNodeFriction(node)),
             ("stray_radius", strayRadius),
-            ("stray_radius_relaxation_factor", 1.0f),
+            ("stray_radius_relaxation_factor", feModel.GetStrayRelaxationFactor(node)),
             ("collision_radius", feModel.GetCollisionRadius(node)),
             ("is_static_node", isStaticNode),
             ("allow_rotation", feModel.AllowsRotation(node)),

@@ -253,7 +253,9 @@ partial class ModelExtract
         // Stray radius (m_AnimStrayRadii): the max distance the node may stray from its animated position.
         // A joint whose own node is pinned records it on its ring alone, which is also the only place a
         // shared joint's second declaration keeps its own.
-        var strayNode = joint.ValueNode >= 0 ? joint.ValueNode : joint.Node;
+        var strayNode = joint.ValueNode >= 0
+            ? joint.ValueNode
+            : feModel.StrayRadiusNode(joint.Node, joint.Name);
         kv.Add("stray_radius", feModel.GetStrayRadius(strayNode));
         kv.Add("stray_radius_stretchiness", feModel.GetStrayStretchiness(strayNode));
         kv.Add("friction", feModel.GetNodeFriction(joint.Node));
