@@ -1722,10 +1722,11 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             // m_DynNodeFriction is indexed by dynamic node, like m_NodeCollisionRadii.
             var friction = Math.Clamp(DynamicNodeValue(nodeFriction, node), 0f, 1f);
 
-            // The cloth_drag paint compiles to flPointDamping = paint * 30, so the paint is recovered as
-            // pd/30. This velocity damping is what keeps the original cloth calm - a 0 paint leaves the
-            // sheet swinging undamped.
-            var drag = Math.Clamp(integrator.PointDamping / ClothDragPointDampingScale, 0f, 1f);
+            // The cloth_drag paint compiles to flPointDamping = paint * 30 with no upper bound, so the
+            // paint is recovered as pd/30 and a sheet damped harder than 30 keeps its own value. This
+            // velocity damping is what keeps the original cloth calm - a 0 paint leaves the sheet
+            // swinging undamped.
+            var drag = Math.Max(integrator.PointDamping / ClothDragPointDampingScale, 0f);
 
             // Per-vertex gravity: the cloth_gravity$0 paint compiles into flGravity VERBATIM, with no
             // 360 scale, unlike the gravity_z KV field on ClothNode/ClothChain joints. Without the
