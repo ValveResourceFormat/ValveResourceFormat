@@ -378,6 +378,14 @@ partial class ModelExtract
             vertexData.AddIndexedStream("cloth_suspenders$0", suspenders, vertexIndices);
         }
 
+        // How far a face rod may contract: its flMinDist is flMaxDist times the mean of its two
+        // endpoints' paint. The importer gives a sheet vertex 0.75 without a stream, so a sheet whose
+        // face rods are rigid needs the stream at 1 (see FeModel.RecoverAntishrinkPaint).
+        if (physAggregateData?.FeModel?.RecoverAntishrinkPaint(proxy) is { } antishrink)
+        {
+            vertexData.AddIndexedStream("cloth_antishrink$0", antishrink, vertexIndices);
+        }
+
         // cloth_drag_v2 and cloth_mass have no measurable effect on the compiled flPointDamping/
         // m_NodeInvMasses - cloth_drag (no suffix, unlike goal_strength) is already the attribute the
         // compiler reads, so they are intentionally omitted.
