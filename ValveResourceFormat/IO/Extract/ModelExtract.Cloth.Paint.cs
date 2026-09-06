@@ -385,6 +385,15 @@ partial class ModelExtract
             vertexData.AddIndexedStream("cloth_suspenders$0", suspenders, vertexIndices);
         }
 
+        // How far each hinge of the sheet folds, on top of the model-wide add_curvature: the compiler
+        // takes the mean of this paint over a hinge's own two vertices, times pi, and adds it. A sheet
+        // whose suspender rods lie flat has to keep add_curvature at zero (that pass reads the model-wide
+        // angle alone), so its fold comes back here instead (see ClothBendStiffnessPaint).
+        if (ClothBendStiffnessPaint(proxy) is { } bendStiffness)
+        {
+            vertexData.AddIndexedStream("cloth_bend_stiffness$0", bendStiffness, vertexIndices);
+        }
+
         // How far a face rod may contract: its flMinDist is flMaxDist times the mean of its two
         // endpoints' paint. The importer gives a sheet vertex 0.75 without a stream, so a sheet whose
         // face rods are rigid needs the stream at 1 (see FeModel.RecoverAntishrinkPaint).
