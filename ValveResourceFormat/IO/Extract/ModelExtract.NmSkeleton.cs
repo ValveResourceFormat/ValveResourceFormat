@@ -363,7 +363,7 @@ partial class ModelExtract
             }
         };
 
-        dmx.Save(stream, "keyvalues2", 4);
+        dmx.SaveDeterministic(stream, "keyvalues2", 4);
         return stream.ToArray();
     }
 }
