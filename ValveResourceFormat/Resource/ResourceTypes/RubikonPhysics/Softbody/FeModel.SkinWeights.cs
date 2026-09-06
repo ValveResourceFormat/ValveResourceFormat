@@ -147,15 +147,22 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                     continue;
                 }
 
-                // A pinned vertex takes no part in the fits, so its soft-offset expansion is the
-                // complete authored influence list, exactly as on a model with no fit matrices.
-                // It is emitted only where it cannot restate the vertex's own class: every influence
-                // static, and the primary still the strict maximum. Any other pin keeps its single
-                // rigid anchor.
+                // A pinned vertex's soft-offset expansion is its complete authored influence list,
+                // exactly as on a model with no fit matrices, whether the bones it names are static or
+                // simulated. It is emitted where the primary is still the strict maximum, which is what
+                // keeps the anchor the vertex's most-bound joint; any other pin keeps its single rigid
+                // anchor. A pin an m_FitWeights range already covers is an INPUT to the sheet's own
+                // back-solve rather than a bystander of it, so re-painting it re-solves the fits it
+                // belongs to and re-classifies the bones they drive: those keep the single anchor.
                 if (IsStatic(node))
                 {
+                    if (fitPerVertex.ContainsKey(node))
+                    {
+                        recovered[node] = [(CtrlNames[primary], 1f)];
+                        continue;
+                    }
+
                     var pinned = new List<(string Bone, float Weight)>();
-                    var pinnedToStatics = true;
                     var anchorWeight = 0f;
                     var rival = 0f;
                     foreach (var (bone, weight) in ExpandSoftOffsets(node, primary))
@@ -163,12 +170,6 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                         if (weight <= 0f || bone >= CtrlNames.Length)
                         {
                             continue;
-                        }
-
-                        if (!IsStatic(bone))
-                        {
-                            pinnedToStatics = false;
-                            break;
                         }
 
                         if (bone == primary)
@@ -183,7 +184,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                         pinned.Add((CtrlNames[bone], weight));
                     }
 
-                    if (pinnedToStatics && pinned.Count > 0 && anchorWeight > rival)
+                    if (pinned.Count > 0 && anchorWeight > rival)
                     {
                         SnapToBytePartition(pinned);
                         recovered[node] = [.. pinned];
