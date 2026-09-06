@@ -170,8 +170,9 @@ partial class ModelExtract
             // every pair it would build is a rod the original carries it can be turned on to cover that
             // part of the sheet. What it does not name keeps its explicit springs. The subset test is what
             // keeps it from inventing a constraint, and it is only reached once the whole-surface, mixed
-            // and suspender readings have each declined the sheet. The curvature is left alone: the rods
-            // this network builds take a fixed bend angle, not the cloth's own curvature.
+            // and suspender readings have each declined the sheet. These rods are folded by the model's own
+            // curvature like any other, so the network is read for it - but only where every rod of it
+            // supports one value, since nothing else here cross-checks the answer.
             var bend = FeModel.BendRodsFromSurface(surfaceFaces, feModel.IsStatic);
             bend.ExceptWith(derived);
             if (bend.Count > 0 && bend.IsSubsetOf(beyondSurface))
@@ -180,6 +181,7 @@ partial class ModelExtract
                     && bend.Contains(rod.NodeA < rod.NodeB ? (rod.NodeA, rod.NodeB) : (rod.NodeB, rod.NodeA)));
                 generatesBendRods = boundedBend;
                 generatesBendOnlyRods = !boundedBend;
+                addCurvature = ClothCurvatureFromBendNetwork(feModel, surfaceFaces, bend);
                 derived.UnionWith(bend);
             }
         }
@@ -437,6 +439,88 @@ partial class ModelExtract
     /// </summary>
     static float ClothCurvatureFromSurface(FeModel feModel, List<int[]> faces, HashSet<(int, int)> beyondSurface)
     {
+        var (opened, capped) = ClothCurvatureReadings(feModel, faces, beyondSurface);
+
+        // The half-angle sine squared is what the minimum length is linear in, so the rods are clustered
+        // in that before the value is read off - the angle itself is arbitrarily sensitive near either end.
+        opened.Sort();
+        var agreed = 0;
+        var consensus = 0f;
+        for (var i = 0; i < opened.Count; i++)
+        {
+            var j = i;
+            while (j < opened.Count && opened[j] <= opened[i] + ClothCurvatureAgreement)
+            {
+                j++;
+            }
+
+            if (j - i > agreed)
+            {
+                agreed = j - i;
+                consensus = opened[(i + j - 1) / 2];
+            }
+        }
+
+        if (agreed < 3 || agreed * 4 < opened.Count)
+        {
+            if (capped.Count == 0)
+            {
+                return 0f;
+            }
+
+            consensus = capped.Max();
+        }
+
+        return 2f / MathF.PI * MathF.Asin(MathF.Sqrt(consensus));
+    }
+
+    // How far two rods' readings may sit apart, in the sin^2(half-angle) the minimum length is linear in,
+    // and still count as the same authored value.
+    const float ClothCurvatureAgreement = 1e-3f;
+
+    /// <summary>
+    /// The <c>add_curvature</c> of the bend network the compiler is being asked to regenerate, taken only
+    /// where the network states ONE value: every rod that still has room to open has to read the same
+    /// fraction, and every rod already pinned at its own rest span - which only says the value is at least
+    /// enough to have reached it - has to sit at or below that. A network with no room left anywhere states
+    /// a lower bound alone, and the greatest of those bounds is the answer. Anything else recovers 0 and
+    /// the sheet keeps the exporter's default, because unlike the whole-surface and suspender readings
+    /// nothing else here can contradict a wrong answer.
+    /// </summary>
+    static float ClothCurvatureFromBendNetwork(FeModel feModel, List<int[]> faces, HashSet<(int, int)> bend)
+    {
+        var (opened, capped) = ClothCurvatureReadings(feModel, faces, bend);
+        float consensus;
+        if (opened.Count == 0)
+        {
+            if (capped.Count == 0)
+            {
+                return 0f;
+            }
+
+            consensus = capped.Max();
+        }
+        else
+        {
+            opened.Sort();
+            if (opened[^1] - opened[0] > ClothCurvatureAgreement
+                || (capped.Count > 0 && capped.Max() > opened[^1] + ClothCurvatureAgreement))
+            {
+                return 0f;
+            }
+
+            consensus = opened[^1];
+        }
+
+        return consensus > ClothCurvatureAgreement ? 2f / MathF.PI * MathF.Asin(MathF.Sqrt(consensus)) : 0f;
+    }
+
+    // Per rod of `network`, the fraction of its own fold the compiled minimum length sits at, split into the
+    // rods that still had room to open (an exact reading) and the ones pinned at their rest span (a lower
+    // bound). See ClothCurvatureFromSurface for the geometry.
+    static (List<float> Opened, List<float> Capped) ClothCurvatureReadings(FeModel feModel, List<int[]> faces,
+        HashSet<(int, int)> beyondSurface)
+    {
         var positions = feModel.InitPosePositions;
         var hinges = new Dictionary<(int, int), List<int[]>>();
         var touching = new Dictionary<int, List<int[]>>();
@@ -514,37 +598,7 @@ partial class ModelExtract
             (span == rest ? capped : opened).Add(fraction);
         }
 
-        // The half-angle sine squared is what the minimum length is linear in, so the rods are clustered
-        // in that before the value is read off - the angle itself is arbitrarily sensitive near either end.
-        opened.Sort();
-        var agreed = 0;
-        var consensus = 0f;
-        for (var i = 0; i < opened.Count; i++)
-        {
-            var j = i;
-            while (j < opened.Count && opened[j] <= opened[i] + 1e-3f)
-            {
-                j++;
-            }
-
-            if (j - i > agreed)
-            {
-                agreed = j - i;
-                consensus = opened[(i + j - 1) / 2];
-            }
-        }
-
-        if (agreed < 3 || agreed * 4 < opened.Count)
-        {
-            if (capped.Count == 0)
-            {
-                return 0f;
-            }
-
-            consensus = capped.Max();
-        }
-
-        return 2f / MathF.PI * MathF.Asin(MathF.Sqrt(consensus));
+        return (opened, capped);
     }
 
     static IEnumerable<(int, int)> HingesAround(Dictionary<int, List<int[]>> touching, int node)
