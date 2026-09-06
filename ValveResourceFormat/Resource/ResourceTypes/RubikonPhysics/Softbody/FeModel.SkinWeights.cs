@@ -779,22 +779,34 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// joint's own spring stiffness on the same field and belongs to a different population, so only
         /// rods between two proxy-sheet vertices are read. The compiler clamps the authored value at zero,
         /// which is why a negative original is indistinguishable from zero.
+        /// <para>
+        /// Where the sheet's diagonals do NOT agree the scalar cannot state all of them, and the shear
+        /// paint carries the difference (see <see cref="RecoverShearResistancePaint"/>): the value is then
+        /// read from the diagonal the paint leaves at 1, the stiffest one, rather than from the slackest.
+        /// </para>
         /// </summary>
         public float AdditionalShearStretch
         {
             get
             {
                 var slackest = float.MaxValue;
-                foreach (var rod in Rods)
+                if (ShearResistance is { } shear)
                 {
-                    if (!IsProxyMeshNode(rod.NodeA) || !IsProxyMeshNode(rod.NodeB))
+                    slackest = shear.BaseRelaxation;
+                }
+                else
+                {
+                    foreach (var rod in Rods)
                     {
-                        continue;
-                    }
+                        if (!IsProxyMeshNode(rod.NodeA) || !IsProxyMeshNode(rod.NodeB))
+                        {
+                            continue;
+                        }
 
-                    if (rod.RelaxationFactor > 0f && rod.RelaxationFactor < slackest)
-                    {
-                        slackest = rod.RelaxationFactor;
+                        if (rod.RelaxationFactor > 0f && rod.RelaxationFactor < slackest)
+                        {
+                            slackest = rod.RelaxationFactor;
+                        }
                     }
                 }
 
