@@ -276,45 +276,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// can fall back under it.
         /// </para>
         /// </summary>
-        public IReadOnlyDictionary<int, (string Bone, float Weight)[]> RecoveredSkinWeights { get; private set; }
-
-        /// <summary>
-        /// Drops the recovered multi-influence skinning of pinned vertices whose primary anchor's
-        /// skeleton parent never was a control node, on a model whose SHEET back-solves bones. Such a
-        /// compile pulls the anchor's parent chain into the control set, so re-painting those pins
-        /// registers a bone the original does not have. The affected pins keep the single-anchor
-        /// skinning. A sheet that back-solves nothing registers no parent, and its pins keep every
-        /// influence they ship with.
-        /// </summary>
-        public void PrunePinnedRecoveries(IReadOnlyDictionary<string, string?> boneParents)
-        {
-            if (ProxyFitMatrixNodes.Count == 0)
-            {
-                return;
-            }
-
-            var ctrls = new HashSet<string>(CtrlNames, StringComparer.OrdinalIgnoreCase);
-            Dictionary<int, (string Bone, float Weight)[]>? updated = null;
-            foreach (var (node, influences) in RecoveredSkinWeights)
-            {
-                if (!IsStatic(node) || influences.Length <= 1)
-                {
-                    continue;
-                }
-
-                var parent = boneParents.GetValueOrDefault(influences[0].Bone);
-                if (parent is not null && !ctrls.Contains(parent))
-                {
-                    updated ??= new Dictionary<int, (string Bone, float Weight)[]>(RecoveredSkinWeights);
-                    updated[node] = [influences[0] with { Weight = 1f }];
-                }
-            }
-
-            if (updated is not null)
-            {
-                RecoveredSkinWeights = updated;
-            }
-        }
+        public IReadOnlyDictionary<int, (string Bone, float Weight)[]> RecoveredSkinWeights { get; }
 
         /// <summary>
         /// Gets the control nodes participating in a twist constraint (<c>m_Twists</c>), i.e. whose
