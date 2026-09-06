@@ -277,7 +277,8 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             // A vertex with soft offsets but no fit row: every authored weight it put on a fit-solved
             // bone sat under the back-solve threshold, so the expansion is the complete paint. Taken
             // over only where the recompile prunes the same weights again (each fit-bone influence
-            // under the threshold the recompile runs at); anything else keeps the fallback.
+            // under the threshold the recompile runs at, which is the authored default wherever the
+            // original's own arrays do not pin it lower); anything else keeps the fallback.
             // Restricted to dynamic influence bones that some vertex outside this fitless set is still
             // rigid-anchored to, so un-smearing the fallback cannot leave a back-solved bone fitted over
             // essentially one vertex, which is a degenerate most-bound-joint solve.
@@ -307,7 +308,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                         continue;
                     }
 
-                    if (FitMatrixNodes.Contains(bone) && (threshold is not { } t || weight >= t))
+                    if (FitMatrixNodes.Contains(bone) && weight >= (threshold ?? DefaultBackSolveInfluenceThreshold))
                     {
                         prunable = false;
                         break;
