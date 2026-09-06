@@ -86,9 +86,11 @@ partial class ModelExtract
     /// </summary>
     static HashSet<(int, int)> ClothRodsFromSurface(FeModel feModel,
         List<(string FileName, string Name, FeModel.ProxyMesh Proxy)> proxies, out bool generatesBendRods,
-        out bool generatesBendOnlyRods, out float addCurvature, out HashSet<int> suspenderNodes)
+        out bool generatesBendOnlyRods, out float addCurvature, out HashSet<int> suspenderNodes,
+        out float bendStiffness)
     {
         suspenderNodes = [];
+        bendStiffness = 0f;
         var surfaceNodes = new HashSet<int>();
         var derived = new HashSet<(int, int)>();
         var surfaceFaces = new List<int[]>();
@@ -152,6 +154,7 @@ partial class ModelExtract
             generatesBendRods = mixed.Bounded;
             generatesBendOnlyRods = !mixed.Bounded;
             addCurvature = mixed.AddCurvature;
+            bendStiffness = mixed.BendStiffness;
             suspenderNodes.UnionWith(mixed.Suspenders.SelectMany(static edge => new[] { edge.Item1, edge.Item2 }));
             derived.UnionWith(mixed.Bend);
             derived.UnionWith(mixed.Suspenders);
@@ -218,8 +221,17 @@ partial class ModelExtract
     /// is the signal that the surface being exported is not the one the network was built from, so such a
     /// sheet keeps every spring it has.
     /// </para>
+    /// <para>
+    /// The two passes do NOT share the whole angle. A bend rod is folded by
+    /// <c>clamp(mean cloth_bend_stiffness over its hinge's own two vertices * pi + add_curvature, 0, pi)</c>
+    /// while a suspender rod takes <c>add_curvature</c> alone, so a sheet whose suspenders lie flat states
+    /// <c>add_curvature = 0</c> and any fold its network still shows is that paint. Such a sheet reports the
+    /// fold as <c>BendStiffness</c> and keeps a curvature of zero, which is the only reading that satisfies
+    /// both passes at once.
+    /// </para>
     /// </summary>
-    static (HashSet<(int, int)> Bend, HashSet<(int, int)> Suspenders, float AddCurvature, bool Bounded)?
+    static (HashSet<(int, int)> Bend, HashSet<(int, int)> Suspenders, float AddCurvature, float BendStiffness,
+        bool Bounded)?
         ClothMixedSurfaceRods(FeModel feModel, List<int[]> surfaceFaces, HashSet<(int, int)> beyondSurface)
     {
         if (beyondSurface.Count == 0 || feModel.HasAxialEdges)
@@ -256,13 +268,10 @@ partial class ModelExtract
         }
 
         var curvature = ClothCurvatureFromSurface(feModel, surfaceFaces, bend);
+        var bendStiffness = 0f;
         if (suspenders.Count > 0 && saturated)
         {
-            if (curvature > FeModel.ChainRingCurvatureAgreement)
-            {
-                return null;
-            }
-
+            bendStiffness = curvature;
             curvature = 0f;
         }
         else if (suspenders.Count > 0)
@@ -287,7 +296,33 @@ partial class ModelExtract
             }
         }
 
-        return (bend, suspenders, curvature, bounded);
+        return (bend, suspenders, curvature, bendStiffness, bounded);
+    }
+
+    /// <summary>
+    /// The <c>cloth_bend_stiffness</c> paint of a proxy sheet, or null when the sheet needs none. The
+    /// compiler folds each bend rod by the mean of this paint over its hinge's own two vertices, added to
+    /// the model-wide <c>add_curvature</c>, so a sheet that has to keep a curvature of zero for its
+    /// suspender rods carries the fold here instead. It is emitted only on a sheet exported with its own
+    /// faces, which is the surface the fold was read off.
+    /// </summary>
+    float[]? ClothBendStiffnessPaint(FeModel.ProxyMesh proxy)
+    {
+        if (physAggregateData?.FeModel is not { } feModel || !proxy.UsesAuthoredFaces)
+        {
+            return null;
+        }
+
+        ClothRodsFromSurface(feModel, ClothProxyMeshesToExtract, out _, out _, out _, out _,
+            out var bendStiffness);
+        if (bendStiffness <= 0f)
+        {
+            return null;
+        }
+
+        var paint = new float[proxy.NodeIndices.Length];
+        Array.Fill(paint, bendStiffness);
+        return paint;
     }
 
     /// <summary>
@@ -422,7 +457,8 @@ partial class ModelExtract
             return null;
         }
 
-        ClothRodsFromSurface(feModel, ClothProxyMeshesToExtract, out _, out _, out _, out var suspenderNodes);
+        ClothRodsFromSurface(feModel, ClothProxyMeshesToExtract, out _, out _, out _, out var suspenderNodes,
+            out _);
         if (suspenderNodes.Count == 0)
         {
             return null;
