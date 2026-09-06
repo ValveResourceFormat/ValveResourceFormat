@@ -26,6 +26,18 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             BoneChainJoint First, BoneChainJoint Second);
 
         /// <summary>
+        /// Whether any vertex of <paramref name="proxy"/> that the original compiled as a synthetic
+        /// sheet vertex carries an <c>m_NodeBases</c> entry of its own. Such a vertex is a virtual node,
+        /// and a virtual node is given an orientation basis only when its sheet is imported with
+        /// <c>ClothProxyMeshFile.add_bones_to_render_mesh</c>, so an entry on one is a positive statement
+        /// that the sheet was imported with that key on. The absence of one states nothing: a vertex
+        /// reached by fewer than three source-element corners carries no basis either way, and a sheet
+        /// reconstructed over real bones has no synthetic vertex to speak for it at all.
+        /// </summary>
+        public bool ProxyOwnsNodeBases(ProxyMesh proxy)
+            => Array.Exists(proxy.NodeIndices, node => IsProxyMeshNode(node) && NodeBases.ContainsKey(node));
+
+        /// <summary>
         /// Rolls the extruded ring of a chain joint whose <c>m_NodeBases</c> axis scan is a numerical tie
         /// onto the axis pair the original kept, recording the roll in
         /// <see cref="BoneChainJoint.ExtrudeTwistTieNudge"/>.

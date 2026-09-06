@@ -217,17 +217,33 @@ partial class ModelExtract
             return false;
         }
 
-        // add_bones_to_render_mesh is recoverable from the skeleton: with the flag on, the compiler
-        // adds a model-space skeleton "Bone" per cloth PROXY vertex, carrying the raw
-        // "$cloth_m{proxy}p{vertex}" control-node name (GetExportBoneName sanitizes '$' to '_' for
-        // this exporter's own vmdl text only; the compiled skeleton keeps the literal '$').
+        // add_bones_to_render_mesh is a per-proxy key with two independent witnesses in the original,
+        // and a sheet takes it when either fires for its OWN vertices.
         //
-        // Bone.IsProceduralCloth alone does not identify those bones. It is Cloth | Procedural, a
-        // combination any procedurally-driven cloth bone carries, real back-solved bones with real
-        // names included. The narrow signal is a bone that is both flagged procedural-cloth and
-        // named by the synthetic proxy convention, which is FeModel.IsProxyNodeName's '$' check.
-        var addBonesToRenderMesh = model?.Skeleton.Bones.Any(static b =>
-            b.IsProceduralCloth && FeModel.IsProxyNodeName(b.Name)) ?? false;
+        // The compiled cloth states it directly: a proxy vertex is a virtual node, and a virtual node
+        // carries an m_NodeBases entry only under this key, so an entry on one of the sheet's own
+        // vertices settles it (FeModel.ProxyOwnsNodeBases).
+        //
+        // The skeleton states it a second way: with the key on, the compiler adds a model-space "Bone"
+        // per cloth proxy vertex carrying the raw "$cloth_m{proxy}p{vertex}" control-node name
+        // (GetExportBoneName sanitizes '$' to '_' for this exporter's own vmdl text only; the compiled
+        // skeleton keeps the literal '$'). Bone.IsProceduralCloth alone does not identify those bones -
+        // it is Cloth | Procedural, which real back-solved bones carry too - so the signal is a bone
+        // that is both flagged procedural-cloth and named by one of THIS sheet's vertices.
+        var proxyRenderBones = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var bone in model?.Skeleton.Bones ?? [])
+        {
+            if (bone.IsProceduralCloth && FeModel.IsProxyNodeName(bone.Name))
+            {
+                proxyRenderBones.Add(bone.Name);
+            }
+        }
+
+        bool ProxyAddsBonesToRenderMesh(FeModel.ProxyMesh proxy)
+            => feModel.ProxyOwnsNodeBases(proxy)
+            || (proxyRenderBones.Count > 0
+                && Array.Exists(proxy.NodeIndices, node => feModel.IsProxyMeshNode(node)
+                    && proxyRenderBones.Contains(feModel.CtrlNames[node])));
 
         // A pinned border vertex keeps its rotation locked unless the sheet was imported with
         // flex_cloth_borders on, so the flag is re-emitted wherever that reproduces the
@@ -361,7 +377,8 @@ partial class ModelExtract
                 clothProxiesFlexed.Add(proxyFile.Proxy);
             }
 
-            var proxyNode = MakeClothProxyMeshFile(proxyFile.Name, proxyFile.FileName, proxyBackSolve, driveMeshes: proxyBackSolve, addBonesToRenderMesh,
+            var proxyNode = MakeClothProxyMeshFile(proxyFile.Name, proxyFile.FileName, proxyBackSolve,
+                driveMeshes: proxyBackSolve, ProxyAddsBonesToRenderMesh(proxyFile.Proxy),
                 backSolveInfluenceThreshold: feModel.GetBackSolveInfluenceThreshold(proxyFile.Proxy),
                 flexClothBorders: proxyFlexes);
 
