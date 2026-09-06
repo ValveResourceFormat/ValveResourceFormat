@@ -278,9 +278,9 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             // bone sat under the back-solve threshold, so the expansion is the complete paint. Taken
             // over only where the recompile prunes the same weights again (each fit-bone influence
             // under the threshold the recompile runs at); anything else keeps the fallback.
-            // Restricted to STATIC primaries, and to dynamic influence bones that some vertex outside
-            // this fitless set is still rigid-anchored to: either one alone leaves a back-solved bone
-            // fitted over essentially one vertex, which is a degenerate most-bound-joint solve.
+            // Restricted to dynamic influence bones that some vertex outside this fitless set is still
+            // rigid-anchored to, so un-smearing the fallback cannot leave a back-solved bone fitted over
+            // essentially one vertex, which is a degenerate most-bound-joint solve.
             var fitlessNodes = new HashSet<int>(fitlessSoft.Count);
             foreach (var (node, _) in fitlessSoft)
             {
@@ -298,11 +298,6 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
 
             foreach (var (node, primary) in fitlessSoft)
             {
-                if (!IsStatic(primary))
-                {
-                    continue;
-                }
-
                 var painted = new List<(string Bone, float Weight)>();
                 var prunable = true;
                 foreach (var (bone, weight) in ExpandSoftOffsets(node, primary))
