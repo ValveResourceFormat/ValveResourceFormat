@@ -619,6 +619,23 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         }
 
         /// <summary>
+        /// The control nodes of every bone chain the export emits as a standalone <c>ClothChain</c>.
+        /// </summary>
+        HashSet<int> IndependentChainJointNodes()
+            => [.. IndependentBoneChains().SelectMany(static chain => chain.Joints)
+                .Select(static joint => joint.Node)];
+
+        /// <summary>
+        /// Whether every corner of a compiled surface face is a joint of a chain the export emits as a
+        /// standalone <c>ClothChain</c>. Such a face names no sheet vertex of the original's own, so a
+        /// proxy mesh rebuilt from it registers one new <c>$cloth_m&lt;N&gt;p&lt;M&gt;</c> control node
+        /// per corner on top of the bones the chain already drives.
+        /// </summary>
+        static bool IsChainJointFace(int[] face, HashSet<int> chainJoints)
+            => face.Length >= 3 && chainJoints.Count > 0
+            && Array.TrueForAll(face, chainJoints.Contains);
+
+        /// <summary>
         /// Whether a compiled surface face comes from a <c>ClothTri</c> / <c>ClothQuad</c> declaration
         /// rather than from a proxy sheet: every corner is a control node an authored element names
         /// directly, and at least one is a free <c>$cloth_node_</c> element. The free node is the
@@ -696,12 +713,14 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
 
             // Collect the control nodes actually used by the surface, in ascending order. These are the
             // proxy-mesh ("sheet") nodes; a rigid hinge's fan is chain geometry the ClothChain rebuilds.
+            var chainJoints = IndependentChainJointNodes();
             var referenced = new SortedSet<int>();
             void Collect(int[][] faces)
             {
                 foreach (var face in faces)
                 {
-                    if (IsRigidHingeFace(face) || IsAuthoredElementFace(face))
+                    if (IsRigidHingeFace(face) || IsAuthoredElementFace(face)
+                        || IsChainJointFace(face, chainJoints))
                     {
                         continue;
                     }
