@@ -226,7 +226,7 @@ partial class ModelExtract
 
         DmxScaffolding.TieElementRoot(dmx, dmeModel);
         using var stream = new MemoryStream();
-        dmx.Save(stream, "binary", 9);
+        dmx.SaveDeterministic(stream, "binary", 9);
 
         return stream.ToArray();
     }
@@ -314,7 +314,7 @@ partial class ModelExtract
 
         DmxScaffolding.TieElementRoot(dmx, dmeModel);
         using var stream = new MemoryStream();
-        dmx.Save(stream, "binary", 9);
+        dmx.SaveDeterministic(stream, "binary", 9);
 
         return stream.ToArray();
     }

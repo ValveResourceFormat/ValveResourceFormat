@@ -275,7 +275,7 @@ partial class ModelExtract
             }
         };
 
-        dmx.Save(stream, "binary", 9);
+        dmx.SaveDeterministic(stream, "binary", 9);
 
         return stream.ToArray();
     }
