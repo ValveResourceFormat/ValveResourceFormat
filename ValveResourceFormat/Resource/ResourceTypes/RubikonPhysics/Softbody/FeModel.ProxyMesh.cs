@@ -2260,11 +2260,11 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                 shipped.Add(rod.NodeA < rod.NodeB ? (rod.NodeA, rod.NodeB) : (rod.NodeB, rod.NodeA));
             }
 
-            // A rod between two pinned nodes constrains nothing, and the compiler leaves it out - so an
-            // authored edge joining two of them is absent from m_Rods without the surface being wrong.
-            foreach (var (a, b) in DeriveRodsFromFaces(faces))
+            // The compiler creates no rod whose two endpoints' inverse masses sum to RodMassFloor or less,
+            // and none for a face DIAGONAL whose shear-resistance paint leaves its relaxation at zero.
+            foreach (var (a, b) in FaceEdges(faces))
             {
-                if (!shipped.Contains((a, b)) && !(a < StaticNodeCount && b < StaticNodeCount))
+                if (!shipped.Contains((a, b)) && InverseMassOf(a) + InverseMassOf(b) > RodMassFloor)
                 {
                     return [];
                 }
@@ -2292,6 +2292,33 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             faces.Reverse();
             MergeFacesInNodeCreationOrder(faces, triangles);
             return [.. faces.Select(face => face.Select(corner => localOf[corner]).ToArray())];
+        }
+
+        /// <summary>
+        /// The inverse-mass sum at or below which the rod importer drops a rod outright.
+        /// </summary>
+        const float RodMassFloor = 1e-6f;
+
+        /// <summary>
+        /// The edges of the given faces: each face's consecutive corner pairs in its declared cycle. A
+        /// quad's two diagonals are not among them.
+        /// </summary>
+        static HashSet<(int, int)> FaceEdges(IEnumerable<int[]> faces)
+        {
+            var edges = new HashSet<(int, int)>();
+            foreach (var face in faces)
+            {
+                for (var k = 0; k < face.Length; k++)
+                {
+                    var (a, b) = (face[k], face[(k + 1) % face.Length]);
+                    if (a != b)
+                    {
+                        edges.Add(a < b ? (a, b) : (b, a));
+                    }
+                }
+            }
+
+            return edges;
         }
 
         /// <summary>
