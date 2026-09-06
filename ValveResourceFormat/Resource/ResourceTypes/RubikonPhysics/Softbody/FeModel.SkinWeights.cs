@@ -250,8 +250,13 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
 
                 // The rest of the authored weight went to a static bone (below the original's back-solve
                 // threshold or simply not back-solvable) - the primary's nearest static real ancestor.
+                // Only where the compiled network CAN be hiding one: the offset network records every
+                // bone a vertex is bound to until its eight soft slots are full, so a shortfall on a
+                // vertex with a slot to spare is authored weight that reached no control node at all,
+                // and giving it to a bone invents an influence the original does not carry.
                 var remainder = 1f - total;
-                if (remainder > 1e-4f)
+                if (remainder > 1e-4f && softPerVertex.TryGetValue(node, out var slots)
+                    && slots.Count >= ClothProxySoftOffsetSlots)
                 {
                     var anchor = FindStaticRealAncestor(primary);
                     if (anchor >= 0)
@@ -353,6 +358,14 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// is written wider; influences past the last slot are not exported and never reach the compiler.
         /// </summary>
         public const int ClothProxyInfluenceSlots = 4;
+
+        /// <summary>
+        /// The number of <c>m_CtrlSoftOffsets</c> records the compiler writes for one proxy vertex at
+        /// most: the eight secondary slots of its multi-bind list, the primary anchor being the
+        /// <c>m_CtrlOffsets</c> entry. A vertex short of this count has every bone it is bound to
+        /// recorded in the network.
+        /// </summary>
+        public const int ClothProxySoftOffsetSlots = 8;
 
         /// <summary>
         /// Gets the <c>back_solve_influence_threshold</c> to author for <paramref name="proxy"/>: the
