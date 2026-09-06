@@ -1017,7 +1017,8 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
 
         /// <summary>
         /// Solves a per-node paint from the statements <c>p[a] + p[b] = stated</c> one per node pair, or
-        /// null when the statements contradict each other or force a value outside <c>[0, 1]</c>.
+        /// null when the statements contradict each other or force a value outside
+        /// <c>[0, <paramref name="upper"/>]</c>.
         /// <para>
         /// A component carrying an odd cycle fixes its own free parameter; a quad's diagonal closes one
         /// with two of its edges, so a sheet's face-rod graph is normally pinned. A component with no odd
@@ -1025,7 +1026,8 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// unpainted vertex already has, so a sheet that states nothing keeps its default.
         /// </para>
         /// </summary>
-        static Dictionary<int, float>? SolvePairSumPaint(Dictionary<(int A, int B), float> stated, float fallback)
+        static Dictionary<int, float>? SolvePairSumPaint(Dictionary<(int A, int B), float> stated,
+            float fallback, float upper)
         {
             var adjacency = new Dictionary<int, List<(int Other, float Sum)>>();
             foreach (var ((a, b), sum) in stated)
@@ -1094,12 +1096,12 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                 foreach (var node in component)
                 {
                     var value = sign[node] * free + offset[node];
-                    if (value < -PaintSolveTolerance || value > 1f + PaintSolveTolerance)
+                    if (value < -PaintSolveTolerance || value > upper + PaintSolveTolerance)
                     {
                         return null;
                     }
 
-                    solved[node] = Math.Clamp(value, 0f, 1f);
+                    solved[node] = Math.Clamp(value, 0f, upper);
                 }
             }
 
@@ -1131,7 +1133,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                 }
             }
 
-            if (stated.Count == 0 || SolvePairSumPaint(stated, SheetAntishrinkDefault) is not { } solved)
+            if (stated.Count == 0 || SolvePairSumPaint(stated, SheetAntishrinkDefault, 1f) is not { } solved)
             {
                 return null;
             }
@@ -1157,6 +1159,107 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// rods to three quarters of their rest length.
         /// </summary>
         public const float SheetAntishrinkDefault = 0.75f;
+
+        /// <summary>
+        /// The per-node <c>cloth_shear_resistance</c> of every proxy sheet, with the relaxation the
+        /// slackest-free diagonal states taken as the paint's own 1, or null when the sheet diagonals
+        /// state one uniform value and <see cref="AdditionalShearStretch"/> alone reproduces them.
+        /// <para>
+        /// A face diagonal's relaxation is the sheet's own thread stretch times
+        /// <c>exp(-additional_shear_stretch)</c> times the CUBE of the mean of its two endpoints' paint,
+        /// while a face edge carries no shear term at all. One authored scalar therefore accounts for a
+        /// sheet whose diagonals all relax alike, and only a sheet whose diagonals disagree needs the
+        /// stream; the stiffest diagonal is what the scalar is read from, and the rest of the sheet is
+        /// painted down from it.
+        /// </para>
+        /// </summary>
+        (Dictionary<int, float> Paint, float BaseRelaxation)? ShearResistance
+        {
+            get
+            {
+                if (shearResistance is null)
+                {
+                    shearResistance = SolveShearResistance();
+                    hasShearResistance = true;
+                }
+
+                return hasShearResistance ? shearResistance : null;
+            }
+        }
+
+        (Dictionary<int, float> Paint, float BaseRelaxation)? shearResistance;
+        bool hasShearResistance;
+
+        (Dictionary<int, float>, float)? SolveShearResistance()
+        {
+            var sheetNodes = new HashSet<int>();
+            for (var node = 0; node < CtrlNames.Length; node++)
+            {
+                if (IsProxyMeshNode(node))
+                {
+                    sheetNodes.Add(node);
+                }
+            }
+
+            var diagonals = AuthoredFaceRods(sheetNodes).Where(static entry => entry.Diagonal).ToList();
+            var baseRelaxation = 0f;
+            foreach (var (_, _, rod) in diagonals)
+            {
+                baseRelaxation = MathF.Max(baseRelaxation, rod.RelaxationFactor);
+            }
+
+            if (baseRelaxation <= 0f)
+            {
+                return null;
+            }
+
+            var stated = new Dictionary<(int A, int B), float>(diagonals.Count);
+            foreach (var (pair, _, rod) in diagonals)
+            {
+                stated[pair] = 2f * MathF.Cbrt(Math.Clamp(rod.RelaxationFactor / baseRelaxation, 0f, 1f));
+            }
+
+            if (SolvePairSumPaint(stated, 1f, MaxStatedShearResistance) is not { } solved
+                || solved.Values.All(static value => MathF.Abs(value - 1f) <= PaintSolveTolerance))
+            {
+                return null;
+            }
+
+            return (solved, baseRelaxation);
+        }
+
+        /// <summary>
+        /// The largest <c>cloth_shear_resistance</c> a compiled sheet can state. The compiler clamps the
+        /// CUBE of the two endpoints' MEAN and not the paint itself, so one vertex may sit above 1 as
+        /// long as its partner sits below; no diagonal can state a mean above 1, which caps a single
+        /// vertex at twice that.
+        /// </summary>
+        const float MaxStatedShearResistance = 2f;
+
+        /// <summary>
+        /// Recovers the per-vertex <c>cloth_shear_resistance</c> paint of a proxy sheet, or null when the
+        /// sheet's diagonals state one uniform value. See <see cref="ShearResistance"/>.
+        /// </summary>
+        public float[]? RecoverShearResistancePaint(ProxyMesh proxy)
+        {
+            if (ShearResistance is not { } shear)
+            {
+                return null;
+            }
+
+            var paint = new float[proxy.NodeIndices.Length];
+            var painted = 0;
+            for (var v = 0; v < paint.Length; v++)
+            {
+                paint[v] = shear.Paint.TryGetValue(proxy.NodeIndices[v], out var value) ? value : 1f;
+                if (MathF.Abs(paint[v] - 1f) > PaintSolveTolerance)
+                {
+                    painted++;
+                }
+            }
+
+            return painted > 0 ? paint : null;
+        }
 
         /// <summary>
         /// Recovers the authored <c>mass</c> multiplier of a cloth node, or null when it is the default 1

@@ -386,6 +386,14 @@ partial class ModelExtract
             vertexData.AddIndexedStream("cloth_antishrink$0", antishrink, vertexIndices);
         }
 
+        // How far a face DIAGONAL relaxes: the cube of the mean of its two endpoints' paint, on top of
+        // the sheet-wide additional_shear_stretch MakeClothParams emits. Only a sheet whose diagonals
+        // disagree needs the stream (see FeModel.RecoverShearResistancePaint).
+        if (physAggregateData?.FeModel?.RecoverShearResistancePaint(proxy) is { } shearResistance)
+        {
+            vertexData.AddIndexedStream("cloth_shear_resistance$0", shearResistance, vertexIndices);
+        }
+
         // cloth_drag_v2 and cloth_mass have no measurable effect on the compiled flPointDamping/
         // m_NodeInvMasses - cloth_drag (no suffix, unlike goal_strength) is already the attribute the
         // compiler reads, so they are intentionally omitted.
