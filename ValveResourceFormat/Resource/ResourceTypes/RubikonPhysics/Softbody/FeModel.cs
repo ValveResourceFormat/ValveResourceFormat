@@ -753,13 +753,95 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         public float GetStrayRadius(int node) => AnimStrayRadii.GetValueOrDefault(node).MaxDistance;
 
         /// <summary>
+        /// Gets the scale every compiled <c>flRelaxationFactor</c> of <c>m_AnimStrayRadii</c> carries:
+        /// <c>exp(-m_flDefaultThreadStretch)</c>, and 1 for a model that authors no thread stretch.
+        /// </summary>
+        float StrayRelaxationScale => DefaultThreadStretch <= 0f ? 1f : MathF.Exp(-DefaultThreadStretch);
+
+        /// <summary>
+        /// Gets the authored relaxation factor behind <paramref name="node"/>'s stray radius - the
+        /// compiled factor with the model's own thread-stretch scale taken back out - and 1, the
+        /// unconstrained default, for a node with no stray radius. This is the value a
+        /// <c>ClothNode</c> carries verbatim as <c>stray_radius_relaxation_factor</c>.
+        /// </summary>
+        public float GetStrayRelaxationFactor(int node)
+            => AnimStrayRadii.TryGetValue(node, out var stray)
+                ? Math.Clamp(stray.RelaxationFactor / StrayRelaxationScale, 0f, 1f)
+                : 1f;
+
+        /// <summary>
         /// Gets the authored stray-radius stretchiness of <paramref name="node"/>: the complement of the
-        /// compiled relaxation factor, 0 for a node with no stray radius. A fully stretchy constraint
+        /// authored relaxation factor, 0 for a node with no stray radius. A fully stretchy constraint
         /// relaxes to nothing and the compiler drops it, so the two are not interchangeable - writing the
         /// relaxation factor into the authored key deletes the constraint it was recovered from.
         /// </summary>
         public float GetStrayStretchiness(int node)
-            => AnimStrayRadii.TryGetValue(node, out var stray) ? 1f - stray.RelaxationFactor : 0f;
+            => AnimStrayRadii.ContainsKey(node) ? 1f - GetStrayRelaxationFactor(node) : 0f;
+
+        /// <summary>
+        /// Gets the node a <c>ClothChain</c> joint's stray radius survives on: <paramref name="node"/>
+        /// itself when the compiler recorded one there, otherwise the first proxy the compiler
+        /// extruded from that joint which carries one. The joint's attributes are applied to the joint
+        /// node and to its centre and ring nodes alike, but only a SIMULATED node gets an
+        /// <c>m_AnimStrayRadii</c> record, so a joint the compiler pinned keeps the value on its
+        /// proxies alone. Callers pass a joint's OWN node: a bone two chains declare shares one node
+        /// between the declarations while each keeps its own ring, so reading a second declaration's
+        /// empty ring off the first declaration's full one would duplicate the record.
+        /// </summary>
+        public int StrayRadiusNode(int node, string jointName)
+        {
+            if (AnimStrayRadii.ContainsKey(node))
+            {
+                return node;
+            }
+
+            for (var proxy = 0; proxy < CtrlNames.Length; proxy++)
+            {
+                if (AnimStrayRadii.ContainsKey(proxy) && IsChainProxyOf(CtrlNames[proxy], jointName))
+                {
+                    return proxy;
+                }
+            }
+
+            return node;
+        }
+
+        /// <summary>
+        /// Whether <paramref name="ctrlName"/> is one of the centre and ring nodes a <c>ClothChain</c>
+        /// extrudes from <paramref name="jointName"/>, which the compiler names <c>$cc&lt;joint&gt;_Ctr</c>
+        /// and <c>$cc&lt;joint&gt;_&lt;index&gt;</c>. The suffix test is what keeps a joint from claiming
+        /// the proxies of another joint whose name merely extends its own.
+        /// </summary>
+        static bool IsChainProxyOf(string ctrlName, string jointName)
+        {
+            if (!ctrlName.StartsWith("$cc", StringComparison.Ordinal))
+            {
+                return false;
+            }
+
+            var body = ctrlName.AsSpan(3);
+            if (!body.StartsWith(jointName, StringComparison.Ordinal) || body.Length <= jointName.Length + 1
+                || body[jointName.Length] != '_')
+            {
+                return false;
+            }
+
+            var suffix = body[(jointName.Length + 1)..];
+            if (suffix.SequenceEqual("Ctr"))
+            {
+                return true;
+            }
+
+            foreach (var c in suffix)
+            {
+                if (!char.IsAsciiDigit(c))
+                {
+                    return false;
+                }
+            }
+
+            return true;
+        }
 
         /// <summary>
         /// Gets whether <paramref name="node"/> keeps its rotation free. Static nodes are ordered
@@ -1636,6 +1718,53 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                 if (AnimStrayRadii.TryGetValue(node, out var stray))
                 {
                     paint[v] = stray.MaxDistance;
+                    painted++;
+                }
+            }
+
+            return painted > 0 ? paint : null;
+        }
+
+        /// <summary>
+        /// The largest <c>cloth_stray_radius_stretchiness</c> a proxy vertex can carry and keep its
+        /// stray radius: at or above it the compiler cancels the radius instead of relaxing it.
+        /// </summary>
+        const float MaxProxyStrayStretchiness = 0.9999998f;
+
+        /// <summary>
+        /// Recovers the <c>cloth_stray_radius_stretchiness</c> paint of a proxy sheet, or null when no
+        /// vertex of the sheet stretches its stray radius at all. The compiler takes the paint's
+        /// SIXTEENTH ROOT before storing its complement, so the authored value is the sixteenth power of
+        /// the complement of the recovered relaxation factor. Skips the same chain-owned vertices
+        /// <see cref="RecoverStrayRadiusPaint"/> does.
+        /// </summary>
+        public float[]? RecoverStrayStretchinessPaint(ProxyMesh proxy)
+        {
+            if (AnimStrayRadii.Count == 0)
+            {
+                return null;
+            }
+
+            var chainNodes = IndependentChainCoveredNodes();
+
+            var paint = new float[proxy.NodeIndices.Length];
+            var painted = 0;
+            for (var v = 0; v < paint.Length; v++)
+            {
+                var node = proxy.NodeIndices[v];
+                if (chainNodes.Contains(node) || !AnimStrayRadii.ContainsKey(node))
+                {
+                    continue;
+                }
+
+                var slack = 1f - GetStrayRelaxationFactor(node);
+                var squared = slack * slack;
+                var stretchiness = squared * squared;
+                stretchiness *= stretchiness;
+                stretchiness *= stretchiness;
+                if (stretchiness > 0f)
+                {
+                    paint[v] = Math.Min(stretchiness, MaxProxyStrayStretchiness);
                     painted++;
                 }
             }

@@ -370,6 +370,13 @@ partial class ModelExtract
             vertexData.AddIndexedStream("cloth_stray_radius$0", strayRadius, vertexIndices);
         }
 
+        // How far that radius relaxes under load, as its own stream: a sheet without it compiles every
+        // stray-constrained vertex back at the compiler's rigid default and loses the authored give.
+        if (physAggregateData?.FeModel?.RecoverStrayStretchinessPaint(proxy) is { } strayStretchiness)
+        {
+            vertexData.AddIndexedStream("cloth_stray_radius_stretchiness$0", strayStretchiness, vertexIndices);
+        }
+
         // Suspender rods, which the compiler regenerates from this paint. Declaring them as explicit
         // springs instead costs a source element per pair, which leaves every vertex they touch heavier
         // than the original and re-picks its node basis (see ClothSuspenderCurvature).
