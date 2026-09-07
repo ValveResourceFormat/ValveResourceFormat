@@ -849,6 +849,61 @@ namespace Tests
                 }
                 """).BuildBoneChains()[0].Joints.Find(j => j.Name == "root");
 
+        /// The compiler splits a solve-element quad whose two halves are not coplanar enough and gives the
+        /// diagonal it discards a rod of its own, so the exporter must not declare that pair a second time.
+        /// The rod spans the LONGER diagonal, hinged about the shorter one the split keeps.
+        /// </summary>
+        [Test]
+        public async Task ABentQuadLosesItsLongerDiagonalToASplitRod()
+        {
+            Vector3[] corners =
+            [
+                new(0f, 0f, 0f),
+                new(1f, 0f, 0f),
+                new(1f, 1f, 1f),
+                new(0f, 1f, 0f),
+            ];
+
+            var rods = FeModel.BentQuadRodsFromFaces([[0, 1, 2, 3]], corners, static _ => false);
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(rods.Count).IsEqualTo(1);
+                await Assert.That(rods.Contains((0, 2))).IsTrue();
+            }
+        }
+
+        /// <summary>
+        /// A flat quad is kept whole and a quad with a static corner is never split at all, so neither
+        /// hands the exporter a pair to leave undeclared.
+        /// </summary>
+        [Test]
+        public async Task AFlatOrPartlyStaticQuadKeepsBothDiagonals()
+        {
+            Vector3[] flat =
+            [
+                new(0f, 0f, 0f),
+                new(1f, 0f, 0f),
+                new(1f, 1f, 0f),
+                new(0f, 1f, 0f),
+            ];
+            Vector3[] bent =
+            [
+                new(0f, 0f, 0f),
+                new(1f, 0f, 0f),
+                new(1f, 1f, 1f),
+                new(0f, 1f, 0f),
+            ];
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(FeModel.BentQuadRodsFromFaces([[0, 1, 2, 3]], flat, static _ => false))
+                    .IsEmpty();
+                await Assert.That(FeModel.BentQuadRodsFromFaces([[0, 1, 2, 3]], bent, static node => node == 3))
+                    .IsEmpty();
+            }
+        }
+
         /// <summary>
         /// A rod joining a node to itself constrains nothing and cannot be re-authored, and one missing
         /// an endpoint index is not a rod at all, so neither survives the parse.
