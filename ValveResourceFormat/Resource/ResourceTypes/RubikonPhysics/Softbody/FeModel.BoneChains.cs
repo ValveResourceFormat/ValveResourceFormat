@@ -46,6 +46,13 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             /// </summary>
             public int ExtraIterations { get; set; }
             /// <summary>
+            /// Gets the authored <c>antishrink</c> of this joint: the compiler copies it verbatim into the
+            /// contraction factor of every rod the joint's own spans generate, so each of them comes back
+            /// as <c>flMinDist / flMaxDist</c>. One when the spans disagree or carry no rod, which is the
+            /// value a joint with no key of its own compiles at.
+            /// </summary>
+            public float Antishrink { get; set; } = 1f;
+            /// <summary>
             /// Gets the authored <c>suspender</c> of this joint: a single companion rod between this
             /// joint's own ring and its CHAIN ROOT's ring that the compiler adds, carrying this value as
             /// its own <c>flRelaxationFactor</c>. Zero when the joint carries none. Told apart from
@@ -616,7 +623,8 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// </remarks>
         (HashSet<(int, int)> Pairs, Dictionary<(int, int), List<float>> RelaxationsByPair,
             Dictionary<(int, int), List<float>> RigidRelaxationsByPair,
-            Dictionary<(int, int), List<float>> RepeatRelaxationsByPair) BuildRodGraph()
+            Dictionary<(int, int), List<float>> RepeatRelaxationsByPair,
+            Dictionary<(int, int), List<float>> ContractionsByPair) BuildRodGraph()
         {
             static bool SameRecord(Rod x, Rod y)
                 => MathF.Abs(x.MaxDist - y.MaxDist) <= 1e-4f * MathF.Max(1f, MathF.Abs(x.MaxDist))
@@ -627,6 +635,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             var pairs = new HashSet<(int, int)>();
             var relaxationsByPair = new Dictionary<(int, int), List<float>>();
             var rigidRelaxationsByPair = new Dictionary<(int, int), List<float>>();
+            var contractionsByPair = new Dictionary<(int, int), List<float>>();
             var rodsByPair = new Dictionary<(int, int), List<Rod>>();
             foreach (var rod in Rods)
             {
@@ -639,6 +648,17 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                 }
 
                 relaxations.Add(rod.RelaxationFactor);
+
+                if (rod.MaxDist > 0f)
+                {
+                    if (!contractionsByPair.TryGetValue(pair, out var contractions))
+                    {
+                        contractions = [];
+                        contractionsByPair[pair] = contractions;
+                    }
+
+                    contractions.Add(rod.MinDist / rod.MaxDist);
+                }
 
                 if (!rodsByPair.TryGetValue(pair, out var all))
                 {
@@ -671,7 +691,8 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                 repeatRelaxationsByPair[pair] = rods.ConvertAll(static rod => rod.RelaxationFactor);
             }
 
-            return (pairs, relaxationsByPair, rigidRelaxationsByPair, repeatRelaxationsByPair);
+            return (pairs, relaxationsByPair, rigidRelaxationsByPair, repeatRelaxationsByPair,
+                contractionsByPair);
         }
 
         /// <summary>
@@ -854,8 +875,8 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             // chain. A link therefore needs an m_Rods entry between the node and its candidate real parent.
             // A chain compiles to a fully-connected local rod mesh among its own joints (see
             // AddClothProxySprings), which always includes the direct parent-child pair.
-            var (rodPairs, rodRelaxationsByPair, rigidRodRelaxationsByPair, repeatRodRelaxationsByPair)
-                = BuildRodGraph();
+            var (rodPairs, rodRelaxationsByPair, rigidRodRelaxationsByPair, repeatRodRelaxationsByPair,
+                rodContractionsByPair) = BuildRodGraph();
             var (proxyChildrenOf, ringOwnerOf) = BuildProxyRings();
 
             // Every chain link the compiler surfaces leaves one source element behind, and a joint with no
@@ -1807,6 +1828,49 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                     return copies;
                 }
 
+                // The compiler copies a joint's own antishrink into the contraction factor of every rod
+                // its spans generate, so each of them carries it back as flMinDist / flMaxDist. The
+                // reading is taken across the whole ring-to-ring set of every span the joint owns and
+                // only where all of them agree: a span whose rods disagree is one another producer also
+                // reaches, and one with no rod left (both endpoints static, so the rod was removed)
+                // carries no evidence at all and neither does it need any.
+                float JointContraction(BoneChainJoint joint, int parent, int grand, int greatGrand)
+                {
+                    float? found = null;
+                    foreach (var other in (int[])[parent, joint.BendSpring ? grand : -1,
+                        joint.TorsionSpring ? greatGrand : -1])
+                    {
+                        if (other < 0)
+                        {
+                            continue;
+                        }
+
+                        foreach (var a in Side(joint.Node))
+                        {
+                            foreach (var b in Side(other))
+                            {
+                                if (!rodContractionsByPair.TryGetValue(a < b ? (a, b) : (b, a),
+                                    out var contractions))
+                                {
+                                    continue;
+                                }
+
+                                foreach (var contraction in contractions)
+                                {
+                                    if (found is { } already && MathF.Abs(already - contraction) > 1e-4f)
+                                    {
+                                        return 1f;
+                                    }
+
+                                    found = contraction;
+                                }
+                            }
+                        }
+                    }
+
+                    return found is { } reading ? Math.Clamp(reading, 0f, 1f) : 1f;
+                }
+
                 int JointCopies(BoneChainJoint joint)
                 {
                     var copies = 0;
@@ -2162,6 +2226,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                     }
                     joint.BendStiffness = joint.BendSpring ? SpringStiffness(grandParent, parent) : 0f;
                     joint.TorsionStiffness = joint.TorsionSpring ? SpringStiffness(greatGrandParent, grandParent) : 0f;
+                    joint.Antishrink = JointContraction(joint, parent, grandParent, greatGrandParent);
 
                     if (RootSuspenderValue(joint, parent, grandParent, greatGrandParent) is { } suspender)
                     {
