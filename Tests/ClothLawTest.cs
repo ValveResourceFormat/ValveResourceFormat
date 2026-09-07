@@ -793,6 +793,63 @@ namespace Tests
         }
 
         /// <summary>
+        /// A joint's <c>child_sibling_spring</c> ties its own children to each other, one rod per
+        /// unordered pair of them, and that rod carries the slider as its relaxation.
+        /// </summary>
+        [Test]
+        public async Task ChildSiblingSpringIsTheRodBetweenTwoChildrenOfOneJoint()
+        {
+            var joint = SiblingChain($"""
+                {SyntheticCloth.RigidRod(0, 1, 3f, 1f)}
+                {SyntheticCloth.RigidRod(0, 2, 3f, 1f)}
+                {SyntheticCloth.RigidRod(0, 3, 3f, 1f)}
+                {SyntheticCloth.RigidRod(1, 2, 3f, 0.5f)}
+                {SyntheticCloth.RigidRod(1, 3, 3f, 0.5f)}
+                {SyntheticCloth.RigidRod(2, 3, 3f, 0.5f)}
+                """);
+
+            await Assert.That(joint!.ChildSiblingSpring).IsEqualTo(0.5f);
+        }
+
+        /// <summary>
+        /// The compiler springs EVERY pair of a joint's children or none of them, so a set missing one
+        /// of its pairs was tied by something else and states no slider at all.
+        /// </summary>
+        [Test]
+        public async Task AnIncompleteSiblingSetIsNotAChildSiblingSpring()
+        {
+            var joint = SiblingChain($"""
+                {SyntheticCloth.RigidRod(0, 1, 3f, 1f)}
+                {SyntheticCloth.RigidRod(0, 2, 3f, 1f)}
+                {SyntheticCloth.RigidRod(0, 3, 3f, 1f)}
+                {SyntheticCloth.RigidRod(1, 2, 3f, 0.5f)}
+                """);
+
+            await Assert.That(joint!.ChildSiblingSpring).IsEqualTo(0f);
+        }
+
+        private static FeModel.BoneChainJoint? SiblingChain(string rods) => SyntheticCloth.Parse($$"""
+                {
+                    m_CtrlName = [ "root", "j1", "j2", "j3" ]
+                    m_SkelParents = [ -1, 0, 0, 0 ]
+                    m_nNodeCount = 4
+                    m_nStaticNodes = 1
+                    m_NodeInvMasses = [ 0.0, 1.0, 1.0, 1.0 ]
+                    m_InitPose =
+                    [
+                        {{SyntheticCloth.Pose(0f, 0f, 0f)}}
+                        {{SyntheticCloth.Pose(3f, 0f, 0f)}}
+                        {{SyntheticCloth.Pose(0f, 3f, 0f)}}
+                        {{SyntheticCloth.Pose(0f, 0f, 3f)}}
+                    ]
+                    m_Rods =
+                    [
+                        {{rods}}
+                    ]
+                }
+                """).BuildBoneChains()[0].Joints.Find(j => j.Name == "root");
+
+        /// <summary>
         /// A rod joining a node to itself constrains nothing and cannot be re-authored, and one missing
         /// an endpoint index is not a rod at all, so neither survives the parse.
         /// </summary>

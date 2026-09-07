@@ -597,6 +597,20 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                         {
                             ExpectPair(generated, rootNode, joint.Node, joint.Suspender);
                         }
+
+                        // child_sibling_spring ties the joint's own children to each other, one rod per
+                        // unordered pair, so those pairs are the chain's as well.
+                        if (joint.ChildSiblingSpring != 0f)
+                        {
+                            var kids = chain.Joints.FindAll(other => other.ParentNode == joint.Node);
+                            for (var i = 0; i < kids.Count; i++)
+                            {
+                                for (var j = i + 1; j < kids.Count; j++)
+                                {
+                                    Generate(kids[i].Node, kids[j].Node, joint.ChildSiblingSpring);
+                                }
+                            }
+                        }
                     }
                 }
             }

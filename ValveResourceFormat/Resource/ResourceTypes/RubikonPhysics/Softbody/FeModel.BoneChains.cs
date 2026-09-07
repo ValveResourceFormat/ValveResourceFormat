@@ -60,6 +60,14 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             /// </summary>
             public float Suspender { get; set; }
             /// <summary>
+            /// Gets the authored <c>child_sibling_spring</c> of this joint: the compiler ties this joint's
+            /// own CHILDREN to each other with one rod per unordered pair of them, taken across the whole
+            /// ring-to-ring set and carrying this value as its relaxation. Zero where that rod set is
+            /// incomplete or its rods disagree, which is the value a joint with no key of its own
+            /// compiles at.
+            /// </summary>
+            public float ChildSiblingSpring { get; set; }
+            /// <summary>
             /// Gets whether a rod spans this joint and its grandparent, i.e. whether the source authored a
             /// non-zero <c>bend_spring</c> here.
             /// </summary>
@@ -2246,6 +2254,68 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                         joint.Suspender = 0f;
                         joint.ExtraIterations = JointCopies(joint) - 1;
                     }
+                }
+
+                bool Simulates(int node) => node < NodeInvMasses.Length && NodeInvMasses[node] != 0f;
+
+                // The compiler springs a joint's own CHILDREN against each other, one rod per unordered
+                // pair of them across the whole ring-to-ring set, each carrying the joint's
+                // child_sibling_spring as its relaxation. The reading is taken only where every one of
+                // those rods is present and they all agree: a pair the two children are joined by for
+                // some other reason leaves the joint at zero rather than declaring the whole set. A pair
+                // the rod maker itself would skip - neither endpoint simulates - carries no evidence and
+                // needs none, and a pair the compile records as its own authored spring is
+                // AddClothSourceSprings' to declare, not this joint's.
+                float ChildSiblingValue(BoneChainJoint joint)
+                {
+                    var kids = chain.Joints.FindAll(other => other.ParentNode == joint.Node);
+                    if (kids.Count < 2)
+                    {
+                        return 0f;
+                    }
+
+                    float? value = null;
+                    for (var i = 0; i < kids.Count; i++)
+                    {
+                        for (var j = i + 1; j < kids.Count; j++)
+                        {
+                            foreach (var a in Side(kids[i].Node))
+                            {
+                                foreach (var b in Side(kids[j].Node))
+                                {
+                                    if (!Simulates(a) && !Simulates(b))
+                                    {
+                                        continue;
+                                    }
+
+                                    var pair = a < b ? (a, b) : (b, a);
+                                    if (Array.IndexOf(SourceSprings, pair) >= 0
+                                        || Array.IndexOf(SourceSprings, (pair.Item2, pair.Item1)) >= 0
+                                        || !rodRelaxationsByPair.TryGetValue(pair, out var relaxations))
+                                    {
+                                        return 0f;
+                                    }
+
+                                    foreach (var relaxation in relaxations)
+                                    {
+                                        if (value is { } already && MathF.Abs(already - relaxation) > 1e-4f)
+                                        {
+                                            return 0f;
+                                        }
+
+                                        value = relaxation;
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    return value is { } reading && reading > 0f ? Slider(reading) : 0f;
+                }
+
+                foreach (var joint in chain.Joints)
+                {
+                    joint.ChildSiblingSpring = ChildSiblingValue(joint);
                 }
 
                 // An extruding chain ties a position-driven joint through its ring only; a rod straight
