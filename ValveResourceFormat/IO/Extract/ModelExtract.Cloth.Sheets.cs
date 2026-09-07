@@ -416,7 +416,8 @@ partial class ModelExtract
         var (softbody, softbodyChildren) = MakeListNode("Softbody");
         AddSoftbodyAttributes(softbody, feModel);
         var surfaceRods = ClothRodsFromSurface(feModel, ClothProxyMeshesToExtract,
-            out var generatesBendRods, out var generatesBendOnlyRods, out var addCurvature, out _, out _);
+            out var generatesBendRods, out var generatesBendOnlyRods, out var addCurvature, out _, out _,
+            out _);
         softbodyChildren.Add(MakeClothParams(feModel, generatesBendRods, generatesBendOnlyRods,
             addCurvature > 0f ? addCurvature : feModel.ChainRingCurvature));
 
