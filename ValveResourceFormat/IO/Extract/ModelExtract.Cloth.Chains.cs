@@ -331,6 +331,14 @@ partial class ModelExtract
         kv.Add("extra_iterations", joint.ExtraIterations);
         kv.Add("suspender", joint.Suspender);
 
+        // How far the rods this joint's spans generate may contract: the compiler copies the value
+        // straight into each one's flMinDist/flMaxDist (see FeModel.BuildBoneChains). 1.0 is the attr
+        // default and needs no explicit key, which is also what a joint whose spans disagree keeps.
+        if (joint.Antishrink != 1.0f)
+        {
+            kv.Add("antishrink", joint.Antishrink);
+        }
+
         // A stiff hinge compiles to a three-node bend rather than a rod, so it is recovered from the bend
         // centred on this joint (see FeModel.GetStiffHinge).
         if (feModel.GetStiffHinge(joint.Node) is { } stiffHinge)

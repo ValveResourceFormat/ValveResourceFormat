@@ -724,9 +724,41 @@ namespace Tests
         }
 
         /// <summary>
+        /// The compiler copies a chain joint's <c>antishrink</c> into the contraction factor of every rod
+        /// its own spans generate, so a span rod holding a quarter of its rest span states 0.25.
+        /// </summary>
+        [Test]
+        public async Task ChainJointAntishrinkIsTheSlackItsOwnSpanKeeps()
+        {
+            var feModel = SyntheticCloth.Parse($$"""
+                {
+                    m_CtrlName = [ "root", "j1" ]
+                    m_SkelParents = [ -1, 0 ]
+                    m_nNodeCount = 2
+                    m_nStaticNodes = 1
+                    m_NodeInvMasses = [ 0.0, 1.0 ]
+                    m_InitPose =
+                    [
+                        {{SyntheticCloth.Pose(0f, 0f, 0f)}}
+                        {{SyntheticCloth.Pose(0f, 0f, -3f)}}
+                    ]
+                    m_Rods =
+                    [
+                        {{SyntheticCloth.BandedRod(0, 1, 0.75f, 3f, 1f)}}
+                    ]
+                }
+                """);
+
+            var joint = feModel.BuildBoneChains()[0].Joints.Find(j => j.Name == "j1");
+
+            await Assert.That(joint!.Antishrink).IsEqualTo(0.25f);
+        }
+
+        /// <summary>
         /// Slack rods sharing a pair count as repeats of one another only when they are the same record:
         /// the importer copies one authored rod verbatim, so a pair whose slack rods disagree carries two
-        /// different constraints rather than a repeated one, and states no extra iteration.
+        /// different constraints rather than a repeated one, and states neither an extra iteration nor an
+        /// antishrink.
         /// </summary>
         [Test]
         public async Task SlackRodsThatDisagreeAreNotExtraIterations()
@@ -753,7 +785,11 @@ namespace Tests
 
             var joint = feModel.BuildBoneChains()[0].Joints.Find(j => j.Name == "j1");
 
-            await Assert.That(joint!.ExtraIterations).IsEqualTo(0);
+            using (Assert.Multiple())
+            {
+                await Assert.That(joint!.ExtraIterations).IsEqualTo(0);
+                await Assert.That(joint.Antishrink).IsEqualTo(1f);
+            }
         }
 
         /// <summary>
