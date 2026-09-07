@@ -222,7 +222,50 @@ partial class ModelExtract
             }
         }
 
+        // A sheet kept out of the rod path by the cloth_make_rods paint (see BuildClothProxyMeshDmx) still
+        // hands the compiler its faces as solve elements, and the quad-split pass gives every bent one of
+        // them a rod of its own across the diagonal it discards. Re-declaring those pairs as explicit
+        // springs ships each of them twice.
+        foreach (var (_, _, proxyMesh) in proxies)
+        {
+            var nodeOf = proxyMesh.NodeIndices;
+            derived.UnionWith(FeModel.BentQuadRodsFromFaces(
+                proxyMesh.Faces
+                    .Where(face => !ClothFaceMakesRods(feModel, proxyMesh, face))
+                    .Select(face => face.Select(local => nodeOf[local]).ToArray()),
+                feModel.InitPosePositions, feModel.IsStatic));
+        }
+
         return derived;
+    }
+
+    // The cloth_make_rods paint BuildClothProxyMeshDmx writes over a sheet it keeps out of the rod path,
+    // which is under the importer's own 0.5 threshold on the mean over a face's corners.
+    const float ClothSuppressedMakeRods = 0.4f;
+
+    /// <summary>
+    /// Whether the compiler turns <paramref name="face"/> into rods rather than into a solve element: the
+    /// mean <c>cloth_make_rods</c> paint over its corners against the importer's threshold of one half,
+    /// over the paint <see cref="BuildClothProxyMeshDmx"/> writes for this sheet.
+    /// </summary>
+    static bool ClothFaceMakesRods(FeModel feModel, FeModel.ProxyMesh proxy, int[] face)
+    {
+        var vertexCount = proxy.Positions.Length;
+        var driven = proxy.RodsDriven.Length == vertexCount;
+        if (!driven && (proxy.UsesAuthoredFaces || !feModel.HasSurfaceElements))
+        {
+            return true;
+        }
+
+        var painted = 0f;
+        foreach (var local in face)
+        {
+            painted += driven && local >= 0 && local < vertexCount
+                ? proxy.RodsDriven[local]
+                : ClothSuppressedMakeRods;
+        }
+
+        return painted >= 0.5f * face.Length;
     }
 
     // The maximum length a bend-only rod is given, which is no limit at all.

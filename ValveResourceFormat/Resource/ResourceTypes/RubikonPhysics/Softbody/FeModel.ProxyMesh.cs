@@ -1102,6 +1102,37 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         }
 
         /// <summary>
+        /// The rods the compiler builds out of <paramref name="faces"/> by splitting them: the quad-split
+        /// pass runs over the SOLVE elements - the faces the make-rods paint keeps out of the rod path -
+        /// and gives every fully dynamic quad it splits a fixed-length rod across the diagonal it discards,
+        /// hinged about the one it keeps. A sheet exported that way therefore comes back with those rods
+        /// whether or not anything declares them.
+        /// </summary>
+        internal static HashSet<(int, int)> BentQuadRodsFromFaces(IEnumerable<int[]> faces,
+            Vector3[] positions, Func<int, bool> isStatic)
+        {
+            var rods = new HashSet<(int, int)>();
+            foreach (var face in faces)
+            {
+                if (face.Length != 4 || face.Distinct().Count() != 4
+                    || Array.Exists(face, node => node < 0 || node >= positions.Length || isStatic(node)))
+                {
+                    continue;
+                }
+
+                if (PredictQuadSplit(Array.ConvertAll(face, node => positions[node]), 0) is not { } order)
+                {
+                    continue;
+                }
+
+                var (a, b) = (face[order[1]], face[order[3]]);
+                rods.Add(a < b ? (a, b) : (b, a));
+            }
+
+            return rods;
+        }
+
+        /// <summary>
         /// Whether the compiler splits the quad with the given rest corners, and in which corner order:
         /// the two triangles it emits are <c>(order[0], order[1], order[2])</c> and
         /// <c>(order[0], order[2], order[3])</c>. Null when the quad is kept whole.
