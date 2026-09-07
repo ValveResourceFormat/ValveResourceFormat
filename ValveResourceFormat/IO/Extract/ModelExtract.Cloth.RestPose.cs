@@ -27,6 +27,11 @@ partial class ModelExtract
     // sides of any per-bone cut, so a partial correction leaves them mixed.
     const float ClothRestBoneModelGate = 2e-3f;
 
+    // The gate and floor of the proxy dictionary alone, the one the cloth import reads: it corrects at
+    // half the render gate and puts back every bone that disagrees at all.
+    const float ClothProxyRestBoneModelGate = 1e-3f;
+    const float ClothProxyRestBoneFloor = 0f;
+
     // Re-derives each bone's parent-space position from the cloth rest pose, root first: a bone the
     // FeModel registers as a control node is put back on its recorded world position, and every bone under
     // it keeps its compiled offset from that corrected parent, so a correction propagates down the
@@ -92,7 +97,7 @@ partial class ModelExtract
         }
 
         void Walk(Bone bone, Vector3 parentPosition, Quaternion parentRotation, Vector3 compiledParent,
-            Dictionary<string, Vector3> into, float tolerance)
+            Dictionary<string, Vector3> into, float tolerance, float floor)
         {
             var world = parentPosition + Vector3.Transform(bone.Position, parentRotation);
             var compiled = compiledParent + Vector3.Transform(bone.Position, parentRotation);
@@ -101,7 +106,7 @@ partial class ModelExtract
             if (targets.TryGetValue(bone.Name, out var target))
             {
                 var apart = Vector3.Distance(compiled, target);
-                if (apart > ClothRestBoneFloor && apart <= tolerance)
+                if (apart > floor && apart <= tolerance)
                 {
                     world = target;
                 }
@@ -115,7 +120,7 @@ partial class ModelExtract
 
             foreach (var child in bone.Children)
             {
-                Walk(child, world, rotation, compiled, into, tolerance);
+                Walk(child, world, rotation, compiled, into, tolerance, floor);
             }
         }
 
@@ -124,18 +129,18 @@ partial class ModelExtract
             foreach (var root in model.Skeleton.Roots)
             {
                 Walk(root, Vector3.Zero, Quaternion.Identity, Vector3.Zero,
-                    ClothRestBonePositions, ClothRestBoneTolerance);
+                    ClothRestBonePositions, ClothRestBoneTolerance, ClothRestBoneFloor);
             }
         }
 
         var proxyTolerance = farOffsetsAreRigid ? float.MaxValue : ClothRestBoneTolerance;
-        if (maxApart > ClothRestBoneModelGate
-            || (farOffsetsAreRigid && maxApartUncapped > ClothRestBoneModelGate))
+        if (maxApart > ClothProxyRestBoneModelGate
+            || (farOffsetsAreRigid && maxApartUncapped > ClothProxyRestBoneModelGate))
         {
             foreach (var root in model.Skeleton.Roots)
             {
                 Walk(root, Vector3.Zero, Quaternion.Identity, Vector3.Zero,
-                    ClothProxyRestBonePositions, proxyTolerance);
+                    ClothProxyRestBonePositions, proxyTolerance, ClothProxyRestBoneFloor);
             }
         }
     }
