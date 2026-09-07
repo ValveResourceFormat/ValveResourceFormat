@@ -686,6 +686,77 @@ namespace Tests
         }
 
         /// <summary>
+        /// A chain whose joints hold an <c>antishrink</c> below one repeats SLACK spans, so the copies
+        /// of one are counted the same way: three identical slack rods on the parent span are two extra
+        /// iterations, exactly as three rigid ones are.
+        /// </summary>
+        [Test]
+        public async Task ExtraIterationsCountsIdenticalSlackCopiesOfASpan()
+        {
+            var feModel = SyntheticCloth.Parse($$"""
+                {
+                    m_CtrlName = [ "root", "j1" ]
+                    m_SkelParents = [ -1, 0 ]
+                    m_nNodeCount = 2
+                    m_nStaticNodes = 1
+                    m_NodeInvMasses = [ 0.0, 1.0 ]
+                    m_InitPose =
+                    [
+                        {{SyntheticCloth.Pose(0f, 0f, 0f)}}
+                        {{SyntheticCloth.Pose(0f, 0f, -3f)}}
+                    ]
+                    m_Rods =
+                    [
+                        {{SyntheticCloth.BandedRod(0, 1, 0f, 3f, 1f)}}
+                        {{SyntheticCloth.BandedRod(0, 1, 0f, 3f, 1f)}}
+                        {{SyntheticCloth.BandedRod(0, 1, 0f, 3f, 1f)}}
+                    ]
+                }
+                """);
+
+            var joint = feModel.BuildBoneChains()[0].Joints.Find(j => j.Name == "j1");
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(joint!.ExtraIterations).IsEqualTo(2);
+                await Assert.That(joint.Suspender).IsEqualTo(0f);
+            }
+        }
+
+        /// <summary>
+        /// Slack rods sharing a pair count as repeats of one another only when they are the same record:
+        /// the importer copies one authored rod verbatim, so a pair whose slack rods disagree carries two
+        /// different constraints rather than a repeated one, and states no extra iteration.
+        /// </summary>
+        [Test]
+        public async Task SlackRodsThatDisagreeAreNotExtraIterations()
+        {
+            var feModel = SyntheticCloth.Parse($$"""
+                {
+                    m_CtrlName = [ "root", "j1" ]
+                    m_SkelParents = [ -1, 0 ]
+                    m_nNodeCount = 2
+                    m_nStaticNodes = 1
+                    m_NodeInvMasses = [ 0.0, 1.0 ]
+                    m_InitPose =
+                    [
+                        {{SyntheticCloth.Pose(0f, 0f, 0f)}}
+                        {{SyntheticCloth.Pose(0f, 0f, -3f)}}
+                    ]
+                    m_Rods =
+                    [
+                        {{SyntheticCloth.BandedRod(0, 1, 0f, 3f, 1f)}}
+                        {{SyntheticCloth.BandedRod(0, 1, 1f, 3f, 1f)}}
+                    ]
+                }
+                """);
+
+            var joint = feModel.BuildBoneChains()[0].Joints.Find(j => j.Name == "j1");
+
+            await Assert.That(joint!.ExtraIterations).IsEqualTo(0);
+        }
+
+        /// <summary>
         /// A rod joining a node to itself constrains nothing and cannot be re-authored, and one missing
         /// an endpoint index is not a rod at all, so neither survives the parse.
         /// </summary>
