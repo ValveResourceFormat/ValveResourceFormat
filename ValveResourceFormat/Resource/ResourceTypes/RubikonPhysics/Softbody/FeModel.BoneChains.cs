@@ -599,19 +599,35 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
 
         /// <summary>
         /// The rod graph as the chain reconstruction reads it: which node pairs carry a rod, every one of
-        /// their relaxation factors, and the same for the rigid rods alone.
+        /// their relaxation factors, the same for the rigid rods alone, and the rods an
+        /// <c>extra_iterations</c> repeat could have written.
         /// </summary>
         /// <remarks>
         /// A suspender companion rod can span the same pair as an ordinary one but carries a DIFFERENT
         /// relaxation factor (see RootSuspenderValue), which a rod count alone cannot distinguish from an
         /// extra_iterations repeat.
+        /// <para>
+        /// The repeat table is the rigid one plus, for a pair carrying NO rigid rod at all, all of its rods
+        /// when they are identical records. A chain whose joints hold an <c>antishrink</c> below one
+        /// compiles slack spans, so the rigid table misses its repeats entirely; identity is what still
+        /// tells a repeat apart there, since the importer copies one authored rod verbatim while a
+        /// companion or a second producer on the same pair differs in its factor or its length.
+        /// </para>
         /// </remarks>
         (HashSet<(int, int)> Pairs, Dictionary<(int, int), List<float>> RelaxationsByPair,
-            Dictionary<(int, int), List<float>> RigidRelaxationsByPair) BuildRodGraph()
+            Dictionary<(int, int), List<float>> RigidRelaxationsByPair,
+            Dictionary<(int, int), List<float>> RepeatRelaxationsByPair) BuildRodGraph()
         {
+            static bool SameRecord(Rod x, Rod y)
+                => MathF.Abs(x.MaxDist - y.MaxDist) <= 1e-4f * MathF.Max(1f, MathF.Abs(x.MaxDist))
+                    && MathF.Abs(x.MinDist - y.MinDist) <= 1e-4f * MathF.Max(1f, MathF.Abs(x.MaxDist))
+                    && MathF.Abs(x.RelaxationFactor - y.RelaxationFactor) <= 1e-4f
+                    && MathF.Abs(x.Weight0 - y.Weight0) <= 1e-4f;
+
             var pairs = new HashSet<(int, int)>();
             var relaxationsByPair = new Dictionary<(int, int), List<float>>();
             var rigidRelaxationsByPair = new Dictionary<(int, int), List<float>>();
+            var rodsByPair = new Dictionary<(int, int), List<Rod>>();
             foreach (var rod in Rods)
             {
                 var pair = rod.NodeA < rod.NodeB ? (rod.NodeA, rod.NodeB) : (rod.NodeB, rod.NodeA);
@@ -623,6 +639,14 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                 }
 
                 relaxations.Add(rod.RelaxationFactor);
+
+                if (!rodsByPair.TryGetValue(pair, out var all))
+                {
+                    all = [];
+                    rodsByPair[pair] = all;
+                }
+
+                all.Add(rod);
 
                 if (MathF.Abs(rod.MinDist - rod.MaxDist) <= 1e-4f * MathF.Max(1f, MathF.Abs(rod.MaxDist)))
                 {
@@ -636,7 +660,18 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                 }
             }
 
-            return (pairs, relaxationsByPair, rigidRelaxationsByPair);
+            var repeatRelaxationsByPair = new Dictionary<(int, int), List<float>>(rigidRelaxationsByPair);
+            foreach (var (pair, rods) in rodsByPair)
+            {
+                if (repeatRelaxationsByPair.ContainsKey(pair) || rods.Exists(rod => !SameRecord(rod, rods[0])))
+                {
+                    continue;
+                }
+
+                repeatRelaxationsByPair[pair] = rods.ConvertAll(static rod => rod.RelaxationFactor);
+            }
+
+            return (pairs, relaxationsByPair, rigidRelaxationsByPair, repeatRelaxationsByPair);
         }
 
         /// <summary>
@@ -819,7 +854,8 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             // chain. A link therefore needs an m_Rods entry between the node and its candidate real parent.
             // A chain compiles to a fully-connected local rod mesh among its own joints (see
             // AddClothProxySprings), which always includes the direct parent-child pair.
-            var (rodPairs, rodRelaxationsByPair, rigidRodRelaxationsByPair) = BuildRodGraph();
+            var (rodPairs, rodRelaxationsByPair, rigidRodRelaxationsByPair, repeatRodRelaxationsByPair)
+                = BuildRodGraph();
             var (proxyChildrenOf, ringOwnerOf) = BuildProxyRings();
 
             // Every chain link the compiler surfaces leaves one source element behind, and a joint with no
@@ -1737,12 +1773,13 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                 //
                 // Three things are not evidence. A joint's own ring edge tracks the ring's shape rather
                 // than the iteration count. A span running DOWN to a deeper joint belongs to that joint's
-                // count. And only RIGID rods count: a span rod carries flMinDist == flMaxDist, while
+                // count. And a pair mixing a rigid rod with a slack one counts only its rigid rods, since
                 // add_curvature lands one slack rod on the index-aligned ring pairs of the bend span
-                // alone, which reads one higher on those pairs than on the rest of the set.
-                // The rigid rods on one joint's span to <paramref name="other"/>, counted across the whole
-                // ring-to-ring set and 0 unless every pair of it agrees. -1 marks a span the joint does not
-                // reach at all.
+                // alone, which would otherwise read one higher on those pairs than on the rest of the set
+                // (see BuildRodGraph for the pairs that carry no rigid rod at all).
+                // The repeatable rods on one joint's span to <paramref name="other"/>, counted across the
+                // whole ring-to-ring set and 0 unless every pair of it agrees. -1 marks a span the joint
+                // does not reach at all.
                 int SpanCopies(BoneChainJoint joint, int other)
                 {
                     if (other < 0)
@@ -1755,8 +1792,8 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                     {
                         foreach (var b in Side(other))
                         {
-                            var count = rigidRodRelaxationsByPair.TryGetValue(a < b ? (a, b) : (b, a), out var rigid)
-                                ? rigid.Count
+                            var count = repeatRodRelaxationsByPair.TryGetValue(a < b ? (a, b) : (b, a), out var repeat)
+                                ? repeat.Count
                                 : 0;
                             if (count == 0 || (copies != 0 && count != copies))
                             {
@@ -1785,8 +1822,9 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                         {
                             foreach (var b in Side(other))
                             {
-                                var count = rigidRodRelaxationsByPair.TryGetValue(a < b ? (a, b) : (b, a), out var rigid)
-                                    ? rigid.Count
+                                var count = repeatRodRelaxationsByPair.TryGetValue(a < b ? (a, b) : (b, a),
+                                    out var repeat)
+                                    ? repeat.Count
                                     : 0;
                                 if (count == 0 || (copies != 0 && count != copies))
                                 {
