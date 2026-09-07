@@ -1710,6 +1710,12 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                     var anchor = ResolveSkinBone(node);
                     skinInfluences = anchor is not null ? [(anchor, 1f)] : [];
                 }
+
+                if (skinInfluences.Length == 0
+                    && DeferredOffsetSkinWeights.TryGetValue(node, out var offsetWeights))
+                {
+                    skinInfluences = offsetWeights;
+                }
             }
 
             // Recover the per-node paint values. These are 0..1 paint sliders in the cloth editor, so

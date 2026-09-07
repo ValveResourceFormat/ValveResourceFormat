@@ -279,6 +279,15 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         public IReadOnlyDictionary<int, (string Bone, float Weight)[]> RecoveredSkinWeights { get; }
 
         /// <summary>
+        /// Gets the offset-network expansion of the proxy-mesh vertices <see cref="RecoveredSkinWeights"/>
+        /// deliberately leaves out: a vertex with soft offsets, no fit-weight entry, and an influence the
+        /// recompile is not guaranteed to prune again. It is the vertex's authored paint all the same, and
+        /// it is the only record of one on a compile that ships no <c>m_SkelParents</c>, where no skeleton
+        /// walk reaches the anchor bone and the synthesised fallback has nothing to say.
+        /// </summary>
+        public IReadOnlyDictionary<int, (string Bone, float Weight)[]> DeferredOffsetSkinWeights { get; }
+
+        /// <summary>
         /// Gets the control nodes participating in a twist constraint (<c>m_Twists</c>), i.e. whose
         /// ClothChain joint was authored with <c>twist_relax &gt; 0</c>. A chain whose joints all leave it
         /// at 0 compiles to a whole-chain <c>m_Ropes</c> fallback constraint instead, so re-declaring
@@ -3274,7 +3283,8 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             LegacyStretchForce = data.GetFloatArray("m_LegacyStretchForce");
             CollisionSpheres = data.GetArray("m_CollisionSpheres") ?? [];
 
-            RecoveredSkinWeights = RecoverAuthoredSkinWeights(data);
+            RecoveredSkinWeights = RecoverAuthoredSkinWeights(data, out var deferredOffsetWeights);
+            DeferredOffsetSkinWeights = deferredOffsetWeights;
             RawGoalPaintNodes = BuildRawGoalPaintNodes();
 
             AssertAllKeysAccountedFor(data);
