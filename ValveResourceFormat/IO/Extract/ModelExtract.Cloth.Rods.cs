@@ -87,10 +87,11 @@ partial class ModelExtract
     static HashSet<(int, int)> ClothRodsFromSurface(FeModel feModel,
         List<(string FileName, string Name, FeModel.ProxyMesh Proxy)> proxies, out bool generatesBendRods,
         out bool generatesBendOnlyRods, out float addCurvature, out HashSet<int> suspenderNodes,
-        out float bendStiffness)
+        out float bendStiffness, out Dictionary<int, float>? bendStiffnessByNode)
     {
         suspenderNodes = [];
         bendStiffness = 0f;
+        bendStiffnessByNode = null;
         var surfaceNodes = new HashSet<int>();
         var derived = new HashSet<(int, int)>();
         var surfaceFaces = new List<int[]>();
@@ -144,9 +145,14 @@ partial class ModelExtract
         // springs instead they already ship their own minimum, and the compiler builds nothing to bend.
         addCurvature = regenerable ? ClothCurvatureFromSurface(feModel, surfaceFaces, beyondSurface) : 0f;
 
+        // The pairs the exporter is asking the compiler to fold for itself, which are the ones whose hinges
+        // can carry a bend-stiffness paint. A sheet keeping its explicit springs hands the compiler no fan.
+        var bendNetwork = new HashSet<(int, int)>();
+
         if (regenerable)
         {
             derived.UnionWith(beyondSurface);
+            bendNetwork.UnionWith(beyondSurface);
         }
         else if (ClothMixedSurfaceRods(feModel, surfaceFaces, beyondSurface) is
             { Bend.Count: > 0 } mixed)
@@ -158,6 +164,7 @@ partial class ModelExtract
             suspenderNodes.UnionWith(mixed.Suspenders.SelectMany(static edge => new[] { edge.Item1, edge.Item2 }));
             derived.UnionWith(mixed.Bend);
             derived.UnionWith(mixed.Suspenders);
+            bendNetwork.UnionWith(mixed.Bend);
         }
         else if (ClothSuspenders(feModel, beyondSurface) is var (suspenders, suspenderCurvature, _)
             && suspenders.Count > 0)
@@ -186,7 +193,20 @@ partial class ModelExtract
                 generatesBendOnlyRods = !boundedBend;
                 addCurvature = ClothCurvatureFromBendNetwork(feModel, surfaceFaces, bend);
                 derived.UnionWith(bend);
+                bendNetwork.UnionWith(bend);
             }
+        }
+
+        // Whatever single value the arms above settled on, the fold each hinge actually carries is that
+        // value plus its own two vertices' paint. Where one value already accounts for the sheet the
+        // residual solves to nothing and no stream is written; where it cannot, the paint carries the
+        // rest. A rigid-edge sheet is left alone: there the compiler folds nothing and the same per-vertex
+        // number drives the Kelager ring bends instead.
+        if (bendStiffness <= 0f && bendNetwork.Count > 0 && !feModel.HasAxialEdges
+            && (generatesBendRods || generatesBendOnlyRods))
+        {
+            bendStiffnessByNode = ClothBendStiffnessFromHinges(feModel, surfaceFaces, bendNetwork,
+                addCurvature > 0f ? addCurvature : feModel.ChainRingCurvature);
         }
 
         // Cloth that ships no surface of its own exports its synthesised sheets without the rod-suppressing
@@ -305,6 +325,11 @@ partial class ModelExtract
     /// the model-wide <c>add_curvature</c>, so a sheet that has to keep a curvature of zero for its
     /// suspender rods carries the fold here instead. It is emitted only on a sheet exported with its own
     /// faces, which is the surface the fold was read off.
+    /// <para>
+    /// One value covers a sheet whose hinges all fold alike. Where they do not - part of the sheet at its
+    /// rest cap and part barely folded, which one <c>add_curvature</c> cannot produce - the paint is solved
+    /// per vertex out of the hinges themselves (see <see cref="ClothBendStiffnessFromHinges"/>).
+    /// </para>
     /// </summary>
     float[]? ClothBendStiffnessPaint(FeModel.ProxyMesh proxy)
     {
@@ -314,15 +339,31 @@ partial class ModelExtract
         }
 
         ClothRodsFromSurface(feModel, ClothProxyMeshesToExtract, out _, out _, out _, out _,
-            out var bendStiffness);
-        if (bendStiffness <= 0f)
+            out var bendStiffness, out var bendStiffnessByNode);
+        if (bendStiffness > 0f)
+        {
+            var uniform = new float[proxy.NodeIndices.Length];
+            Array.Fill(uniform, bendStiffness);
+            return uniform;
+        }
+
+        if (bendStiffnessByNode is null)
         {
             return null;
         }
 
         var paint = new float[proxy.NodeIndices.Length];
-        Array.Fill(paint, bendStiffness);
-        return paint;
+        var painted = 0;
+        for (var v = 0; v < paint.Length; v++)
+        {
+            paint[v] = bendStiffnessByNode.GetValueOrDefault(proxy.NodeIndices[v]);
+            if (paint[v] > 0f)
+            {
+                painted++;
+            }
+        }
+
+        return painted > 0 ? paint : null;
     }
 
     /// <summary>
@@ -458,7 +499,7 @@ partial class ModelExtract
         }
 
         ClothRodsFromSurface(feModel, ClothProxyMeshesToExtract, out _, out _, out _, out var suspenderNodes,
-            out _);
+            out _, out _);
         if (suspenderNodes.Count == 0)
         {
             return null;
@@ -575,6 +616,22 @@ partial class ModelExtract
     static (List<float> Opened, List<float> Capped) ClothCurvatureReadings(FeModel feModel, List<int[]> faces,
         HashSet<(int, int)> beyondSurface)
     {
+        var opened = new List<float>();
+        var capped = new List<float>();
+        foreach (var (_, fraction, isCapped, _) in ClothHingeReadings(feModel, faces, beyondSurface))
+        {
+            (isCapped ? capped : opened).Add(fraction);
+        }
+
+        return (opened, capped);
+    }
+
+    // The same readings keyed by the HINGE each rod was folded about, which is what the per-vertex paint is
+    // solved over: the compiler's angle is per hinge, not per rod, so two rods across one hinge state one
+    // value and rods across different hinges state different ones.
+    static List<((int, int) Hinge, float Fraction, bool Capped, float Error)> ClothHingeReadings(
+        FeModel feModel, List<int[]> faces, HashSet<(int, int)> beyondSurface)
+    {
         var positions = feModel.InitPosePositions;
         var hinges = new Dictionary<(int, int), List<int[]>>();
         var touching = new Dictionary<int, List<int[]>>();
@@ -590,8 +647,7 @@ partial class ModelExtract
             }
         }
 
-        var opened = new List<float>();
-        var capped = new List<float>();
+        var readings = new List<((int, int) Hinge, float Fraction, bool Capped, float Error)>();
         foreach (var rod in feModel.Rods)
         {
             var edge = rod.NodeA < rod.NodeB ? (rod.NodeA, rod.NodeB) : (rod.NodeB, rod.NodeA);
@@ -606,6 +662,7 @@ partial class ModelExtract
             var closest = float.MaxValue;
             var flat = 0f;
             var folded = 0f;
+            var about = (0, 0);
             foreach (var hinge in HingesAround(touching, rod.NodeA))
             {
                 if (hinge.Item1 == edge.Item1 || hinge.Item1 == edge.Item2
@@ -638,6 +695,7 @@ partial class ModelExtract
                     closest = error;
                     flat = open;
                     folded = shut;
+                    about = hinge;
                 }
             }
 
@@ -649,11 +707,363 @@ partial class ModelExtract
             var reach = (flat * flat) - (folded * folded);
             var span = rod.MinDist >= rest - (2e-4f * MathF.Max(1f, rest)) ? rest : rod.MinDist;
             var fraction = Math.Clamp(((span * span) - (folded * folded)) / reach, 0f, 1f);
-            (span == rest ? capped : opened).Add(fraction);
+            readings.Add((about, fraction, span == rest, closest));
         }
 
-        return (opened, capped);
+        return readings;
     }
+
+    /// <summary>
+    /// The per-vertex <c>cloth_bend_stiffness</c> paint the sheet's own bend rods state, keyed by control
+    /// node, or null where they state none. The compiler folds the rod across a hinge by
+    /// <c>clamp((paint[u] + paint[v]) * pi/2 + add_curvature * pi, 0, pi)</c>, so each hinge is one
+    /// equation in its two vertices, and the paint recovered here is the RESIDUAL on top of the
+    /// <c>add_curvature</c> the sheet already emits: a sheet the model-wide value alone explains recovers
+    /// nothing and keeps its output unchanged.
+    /// <para>
+    /// A hinge whose rod still has room to open states its sum exactly; one already pinned at its own rest
+    /// span states only a lower bound. A sum of zero pins both of its vertices to zero, and a bound of two
+    /// pins both to one, the paint being a 0..1 channel and every reader of it clamping its own angle at
+    /// pi - so no compiled rod can distinguish a sum above two from two. Those pins propagate through the
+    /// exact equations, an alternating chain per connected component; a component no pin reaches keeps the
+    /// smallest assignment its own bounds allow, which is the compiler's own default of zero wherever the
+    /// interval admits it, and the even split where the two directions tie. A vertex no hinge reaches
+    /// keeps zero, which is also what leaving the stream out would give it.
+    /// </para>
+    /// <para>
+    /// Two rods across one hinge that disagree, two pins that contradict, or an assignment that fails to
+    /// reproduce a hinge it was solved from all recover nothing: the sheet being exported is then not the
+    /// one the compiler folded, and it keeps the default.
+    /// </para>
+    /// </summary>
+    static Dictionary<int, float>? ClothBendStiffnessFromHinges(FeModel feModel, List<int[]> faces,
+        HashSet<(int, int)> network, float addCurvature)
+    {
+        var readings = ClothHingeReadings(feModel, faces, network);
+        float StatedSum(float fraction)
+            => (4f / MathF.PI * MathF.Asin(MathF.Sqrt(fraction))) - (2f * addCurvature);
+
+        // Two rods across one hinge were folded through one angle, so where they read differently the
+        // hinge one of them was matched to is not the hinge the compiler folded it about. The better fit
+        // is the reading whose flat span reproduces its rod's own maximum length more closely.
+        var best = new Dictionary<(int, int), (float Fraction, bool Capped, float Error)>();
+        foreach (var (hinge, fraction, capped, error) in readings)
+        {
+            if (!best.TryGetValue(hinge, out var stated) || error < stated.Error)
+            {
+                best[hinge] = (fraction, capped, error);
+            }
+        }
+
+        var exact = new Dictionary<(int, int), float>();
+        var bounds = new Dictionary<(int, int), float>();
+        foreach (var (hinge, reading) in best)
+        {
+            (reading.Capped ? bounds : exact)[hinge] = StatedSum(reading.Fraction);
+        }
+
+        // A rod already at its own rest span states a bound whichever hinge it was matched to, and the
+        // hinge has to satisfy the greatest of them or that rod comes back short of its cap.
+        foreach (var (hinge, fraction, capped, _) in readings)
+        {
+            var least = capped ? StatedSum(fraction) : 0f;
+            if (capped && (!bounds.TryGetValue(hinge, out var known) || least > known))
+            {
+                bounds[hinge] = least;
+            }
+        }
+
+        if (exact.Count == 0 && bounds.Count == 0)
+        {
+            return null;
+        }
+
+        var pinned = new Dictionary<int, float>();
+        var equations = new List<(int U, int V, float Sum)>();
+        var checks = new List<(int U, int V, float Least)>();
+
+        bool Pin(int node, float value)
+        {
+            if (!pinned.TryGetValue(node, out var stated))
+            {
+                pinned[node] = value;
+                return true;
+            }
+
+            return MathF.Abs(stated - value) <= ClothBendStiffnessAgreement;
+        }
+
+        foreach (var (hinge, sum) in exact.OrderBy(static entry => entry.Key.Item1)
+            .ThenBy(static entry => entry.Key.Item2))
+        {
+            if (sum < -ClothBendStiffnessAgreement)
+            {
+                return null;
+            }
+
+            if (sum <= ClothBendStiffnessAgreement)
+            {
+                if (!Pin(hinge.Item1, 0f) || !Pin(hinge.Item2, 0f))
+                {
+                    return null;
+                }
+            }
+            else if (sum >= 2f - ClothBendStiffnessAgreement)
+            {
+                if (!Pin(hinge.Item1, 1f) || !Pin(hinge.Item2, 1f))
+                {
+                    return null;
+                }
+            }
+            else
+            {
+                equations.Add((hinge.Item1, hinge.Item2, sum));
+            }
+        }
+
+        foreach (var (hinge, least) in bounds.OrderBy(static entry => entry.Key.Item1)
+            .ThenBy(static entry => entry.Key.Item2))
+        {
+            if (exact.ContainsKey(hinge))
+            {
+                checks.Add((hinge.Item1, hinge.Item2, least));
+            }
+            else if (least >= 2f - ClothBendStiffnessAgreement)
+            {
+                if (!Pin(hinge.Item1, 1f) || !Pin(hinge.Item2, 1f))
+                {
+                    return null;
+                }
+            }
+            else if (least > ClothBendStiffnessAgreement)
+            {
+                checks.Add((hinge.Item1, hinge.Item2, least));
+            }
+        }
+
+        var solved = ClothBendStiffnessComponents(pinned, equations, checks);
+        if (solved is null)
+        {
+            return null;
+        }
+
+        // A vertex the equations already decided keeps that value; only a vertex no equation and no pin
+        // reaches is free to be raised by a hinge that states a bound alone.
+        var determined = new HashSet<int>(solved.Keys);
+        foreach (var (u, v, _) in checks)
+        {
+            solved.TryAdd(u, 0f);
+            solved.TryAdd(v, 0f);
+        }
+
+        for (var pass = 0; pass < ClothBendStiffnessRepairPasses; pass++)
+        {
+            var raised = false;
+            foreach (var (u, v, least) in checks)
+            {
+                var have = solved[u] + solved[v];
+                if (have >= least - ClothBendStiffnessAgreement)
+                {
+                    continue;
+                }
+
+                var movesU = !determined.Contains(u) && solved[u] < 1f;
+                var movesV = !determined.Contains(v) && solved[v] < 1f;
+                var movable = (movesU ? 1 : 0) + (movesV ? 1 : 0);
+                if (movable == 0)
+                {
+                    return null;
+                }
+
+                var share = (least - have) / movable;
+                if (movesU)
+                {
+                    solved[u] = MathF.Min(1f, solved[u] + share);
+                }
+
+                if (movesV)
+                {
+                    solved[v] = MathF.Min(1f, solved[v] + share);
+                }
+
+                raised = true;
+            }
+
+            if (!raised)
+            {
+                break;
+            }
+        }
+
+        foreach (var (hinge, sum) in exact)
+        {
+            if (MathF.Abs(solved.GetValueOrDefault(hinge.Item1) + solved.GetValueOrDefault(hinge.Item2) - sum)
+                > ClothBendStiffnessAgreement)
+            {
+                return null;
+            }
+        }
+
+        foreach (var (hinge, least) in bounds)
+        {
+            if (solved.GetValueOrDefault(hinge.Item1) + solved.GetValueOrDefault(hinge.Item2)
+                < least - ClothBendStiffnessAgreement)
+            {
+                return null;
+            }
+        }
+
+        return solved.Values.Any(static value => value > ClothBendStiffnessAgreement) ? solved : null;
+    }
+
+    // The equation half of ClothBendStiffnessFromHinges: every hinge stating an exact sum joins its two
+    // vertices into a chain on which the values alternate, b(x) = sign * p + offset, so one pin decides the
+    // whole chain and a chain that closes on itself either checks out or decides p by itself.
+    static Dictionary<int, float>? ClothBendStiffnessComponents(Dictionary<int, float> pinned,
+        List<(int U, int V, float Sum)> equations, List<(int U, int V, float Least)> checks)
+    {
+        var adjacency = new Dictionary<int, List<(int Node, float Sum)>>();
+        foreach (var (u, v, sum) in equations)
+        {
+            (adjacency.TryGetValue(u, out var fromU) ? fromU : adjacency[u] = []).Add((v, sum));
+            (adjacency.TryGetValue(v, out var fromV) ? fromV : adjacency[v] = []).Add((u, sum));
+        }
+
+        var sign = new Dictionary<int, float>();
+        var offset = new Dictionary<int, float>();
+        var component = new Dictionary<int, int>();
+        var members = new List<List<int>>();
+        var forced = new List<List<float>>();
+
+        foreach (var root in adjacency.Keys.Concat(pinned.Keys).Distinct().Order())
+        {
+            if (component.ContainsKey(root))
+            {
+                continue;
+            }
+
+            var index = members.Count;
+            members.Add([root]);
+            forced.Add([]);
+            sign[root] = 1f;
+            offset[root] = 0f;
+            component[root] = index;
+            var walk = new Queue<int>();
+            walk.Enqueue(root);
+            while (walk.Count > 0)
+            {
+                var here = walk.Dequeue();
+                foreach (var (there, sum) in adjacency.GetValueOrDefault(here) ?? [])
+                {
+                    var thereSign = -sign[here];
+                    var thereOffset = sum - offset[here];
+                    if (component.ContainsKey(there))
+                    {
+                        if (thereSign == sign[there])
+                        {
+                            if (MathF.Abs(thereOffset - offset[there]) > ClothBendStiffnessAgreement)
+                            {
+                                return null;
+                            }
+                        }
+                        else
+                        {
+                            forced[index].Add((thereOffset - offset[there]) / (2f * sign[there]));
+                        }
+
+                        continue;
+                    }
+
+                    sign[there] = thereSign;
+                    offset[there] = thereOffset;
+                    component[there] = index;
+                    members[index].Add(there);
+                    walk.Enqueue(there);
+                }
+            }
+        }
+
+        foreach (var (node, value) in pinned)
+        {
+            forced[component[node]].Add((value - offset[node]) / sign[node]);
+        }
+
+        var solved = new Dictionary<int, float>();
+        for (var index = 0; index < members.Count; index++)
+        {
+            float parameter;
+            if (forced[index].Count > 0)
+            {
+                if (forced[index].Max() - forced[index].Min() > ClothBendStiffnessAgreement)
+                {
+                    return null;
+                }
+
+                parameter = forced[index].Average();
+            }
+            else
+            {
+                var least = float.MinValue;
+                var most = float.MaxValue;
+                foreach (var node in members[index])
+                {
+                    var end = (1f - offset[node]) / sign[node];
+                    var start = -offset[node] / sign[node];
+                    least = MathF.Max(least, MathF.Min(start, end));
+                    most = MathF.Min(most, MathF.Max(start, end));
+                }
+
+                foreach (var (u, v, need) in checks)
+                {
+                    if (component.GetValueOrDefault(u, -1) != index
+                        || component.GetValueOrDefault(v, -1) != index
+                        || sign[u] + sign[v] == 0f)
+                    {
+                        continue;
+                    }
+
+                    var edge = (need - offset[u] - offset[v]) / (sign[u] + sign[v]);
+                    if (sign[u] > 0f)
+                    {
+                        least = MathF.Max(least, edge);
+                    }
+                    else
+                    {
+                        most = MathF.Min(most, edge);
+                    }
+                }
+
+                if (least > most + ClothBendStiffnessAgreement)
+                {
+                    return null;
+                }
+
+                var direction = members[index].Sum(node => sign[node]);
+                parameter = direction > 0f ? least : direction < 0f ? most : 0.5f * (least + most);
+            }
+
+            foreach (var node in members[index])
+            {
+                var value = (sign[node] * parameter) + offset[node];
+                if (value < -ClothBendStiffnessAgreement || value > 1f + ClothBendStiffnessAgreement)
+                {
+                    return null;
+                }
+
+                solved[node] = Math.Clamp(value, 0f, 1f);
+            }
+        }
+
+        return solved;
+    }
+
+    // How far two hinges' stated sums may sit apart and still count as the same paint, in the
+    // paint's own units: a hundredth of the half turn a full sum of two folds a hinge through.
+    const float ClothBendStiffnessAgreement = 0.02f;
+
+    // How many times a hinge stating only a lower bound may raise its own two vertices before the
+    // solve gives up. Each pass satisfies every bound it can, so a chain of them settles in a few.
+    const int ClothBendStiffnessRepairPasses = 8;
 
     static IEnumerable<(int, int)> HingesAround(Dictionary<int, List<int[]>> touching, int node)
     {
