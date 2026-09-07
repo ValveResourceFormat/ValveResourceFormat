@@ -9,9 +9,11 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         // Recovers the authored per-vertex skin weights from the compiled back-solve bookkeeping - see
         // the RecoveredSkinWeights property remarks for the data model. BuildChainSkinInfluences'
         // inverse-square-distance synthesis is the fallback for a vertex with no m_CtrlOffsets entry.
-        Dictionary<int, (string Bone, float Weight)[]> RecoverAuthoredSkinWeights(KVObject data)
+        Dictionary<int, (string Bone, float Weight)[]> RecoverAuthoredSkinWeights(KVObject data,
+            out Dictionary<int, (string Bone, float Weight)[]> deferred)
         {
             var recovered = new Dictionary<int, (string Bone, float Weight)[]>();
+            deferred = [];
             var fitMatrices = data.GetArray("m_FitMatrices");
             var ctrlOffsets = data.GetArray("m_CtrlOffsets");
             if (ctrlOffsets is null)
@@ -327,29 +329,35 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                         continue;
                     }
 
-                    if (FitMatrixNodes.Contains(bone) && weight >= (threshold ?? DefaultBackSolveInfluenceThreshold))
+                    if (prunable && FitMatrixNodes.Contains(bone)
+                        && weight >= (threshold ?? DefaultBackSolveInfluenceThreshold))
                     {
                         prunable = false;
-                        break;
                     }
 
-                    if (!IsStatic(bone) && !drivenDynamicBones.Contains(bone)
+                    if (prunable && !IsStatic(bone) && !drivenDynamicBones.Contains(bone)
                         && !(backSolvedBones.Contains(bone) && !paintedElsewhere.Contains(bone)))
                     {
                         prunable = false;
-                        break;
                     }
 
                     painted.Add((CtrlNames[bone], weight));
                 }
 
-                if (!prunable || painted.Count == 0)
+                if (painted.Count == 0)
                 {
                     continue;
                 }
 
                 SnapToBytePartition(painted);
-                recovered[node] = [.. painted];
+                if (prunable)
+                {
+                    recovered[node] = [.. painted];
+                }
+                else
+                {
+                    deferred[node] = [.. painted];
+                }
             }
 
             return recovered;

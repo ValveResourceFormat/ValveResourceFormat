@@ -1177,6 +1177,97 @@ namespace Tests
             }
         }
 
+        /// <summary>
+        /// A proxy-sheet vertex the back-solve recovery defers, on a compile that ships no
+        /// <c>m_SkelParents</c>, keeps the bones its own offset network names: the skeleton walk resolves
+        /// no anchor for it, so the synthesised fallback has nothing and the vertex would otherwise be
+        /// written unskinned. $cloth_m0p3 is bound 0.7 to bone_a and 0.3 to bone_c.
+        /// </summary>
+        [Test]
+        public async Task AnUnanchoredSheetVertexKeepsItsOffsetNetworkPaint()
+        {
+            var feModel = DeferredOffsetSheet(skelParents: null);
+            var proxies = feModel.BuildProxyMeshes();
+
+            await Assert.That(proxies.Count).IsEqualTo(1);
+            var influences = proxies[0].SkinInfluences[3];
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(feModel.DeferredOffsetSkinWeights.ContainsKey(7)).IsTrue();
+                await Assert.That(influences.Length).IsEqualTo(2);
+                await Assert.That(influences[0].Bone).IsEqualTo("bone_a");
+                await Assert.That(influences[0].Weight).IsEqualTo(0.7f).Within(1e-4f);
+                await Assert.That(influences[1].Bone).IsEqualTo("bone_c");
+                await Assert.That(influences[1].Weight).IsEqualTo(0.3f).Within(1e-4f);
+            }
+        }
+
+        /// <summary>
+        /// The same vertex on a compile that DOES ship <c>m_SkelParents</c> keeps the synthesised chain
+        /// paint, so the offset network is a last resort rather than a second recovery.
+        /// </summary>
+        [Test]
+        public async Task ASheetVertexWithASkeletonAnchorKeepsTheSynthesisedPaint()
+        {
+            var feModel = DeferredOffsetSheet(skelParents: "[ -1, 0, 0, 0, 1, 1, 1, 1 ]");
+            var influences = feModel.BuildProxyMeshes()[0].SkinInfluences[3];
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(feModel.DeferredOffsetSkinWeights.ContainsKey(7)).IsTrue();
+                await Assert.That(influences.Length).IsNotEqualTo(0);
+                await Assert.That(Array.Exists(influences, i => i.Bone == "bone_c")).IsFalse();
+            }
+        }
+
+        // A sheet whose $cloth_m0p3 is fitless, carries a soft offset onto a bone no other vertex anchors,
+        // and is therefore deferred by RecoverAuthoredSkinWeights.
+        private static FeModel DeferredOffsetSheet(string? skelParents) => SyntheticCloth.Parse($$"""
+            {
+                m_CtrlName = [ "root", "bone_a", "bone_b", "bone_c",
+                               "$cloth_m0p0", "$cloth_m0p1", "$cloth_m0p2", "$cloth_m0p3" ]
+                {{(skelParents is null ? "" : "m_SkelParents = " + skelParents)}}
+                m_nNodeCount = 8
+                m_nStaticNodes = 1
+                m_NodeInvMasses = [ 0.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0 ]
+                m_InitPose =
+                [
+                    {{SyntheticCloth.Pose(0f, 0f, 0f)}}
+                    {{SyntheticCloth.Pose(0f, 0f, -10f)}}
+                    {{SyntheticCloth.Pose(0f, 0f, -20f)}}
+                    {{SyntheticCloth.Pose(0f, 0f, -30f)}}
+                    {{SyntheticCloth.Pose(0f, 4f, -10f)}}
+                    {{SyntheticCloth.Pose(4f, 4f, -10f)}}
+                    {{SyntheticCloth.Pose(4f, 4f, -20f)}}
+                    {{SyntheticCloth.Pose(0f, 4f, -20f)}}
+                ]
+                m_Tris = [ { nNode = [ 4, 5, 6 ] }, { nNode = [ 4, 6, 7 ] } ]
+                m_CtrlOffsets =
+                [
+                    { vOffset = [ 0.0, 4.0, 0.0 ] nCtrlParent = 2 nCtrlChild = 4 },
+                    { vOffset = [ 4.0, 4.0, 0.0 ] nCtrlParent = 2 nCtrlChild = 5 },
+                    { vOffset = [ 4.0, 4.0, 0.0 ] nCtrlParent = 2 nCtrlChild = 6 },
+                    { vOffset = [ 0.0, 4.0, 0.0 ] nCtrlParent = 1 nCtrlChild = 7 },
+                ]
+                m_CtrlSoftOffsets =
+                [
+                    { nCtrlParent = 3 nCtrlChild = 7 vOffset = [ 0.0, 4.0, 0.0 ] flAlpha = 0.7 },
+                ]
+                m_FitMatrices =
+                [
+                    { bone = [ 1.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0 ] vCenter = [ 0.0, 0.0, 0.0 ]
+                      nEnd = 3 nNode = 2 nBeginDynamic = 0 },
+                ]
+                m_FitWeights =
+                [
+                    { flWeight = 0.5 nNode = 4 nDummy = 0 },
+                    { flWeight = 0.5 nNode = 5 nDummy = 0 },
+                    { flWeight = 0.5 nNode = 6 nDummy = 0 },
+                ]
+            }
+            """);
+
         private static FeModel FaceOverNode(string third) => SyntheticCloth.Parse($$"""
             {
                 m_CtrlName = [ "bone_a", "bone_b", "{{third}}" ]
