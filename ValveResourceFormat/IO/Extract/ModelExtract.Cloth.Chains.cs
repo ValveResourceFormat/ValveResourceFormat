@@ -21,9 +21,15 @@ partial class ModelExtract
         foreach (var joint in walk ?? chain.Joints)
         {
             var jointNode = MakeClothJoint(feModel, joint, chainExtrudes: chain.ExtrudeSides >= 1, softHinge);
-            if (feModel.SpringsHingeChildren(chain, joint.Node))
+
+            // A rigid hinge is the one shape whose sibling set the chain reconstruction cannot read a
+            // value off, so it keeps the flat 1.0 it has always been given.
+            var childSibling = joint.ChildSiblingSpring > 0f
+                ? joint.ChildSiblingSpring
+                : feModel.SpringsHingeChildren(chain, joint.Node) ? 1.0f : 0f;
+            if (childSibling > 0f)
             {
-                jointNode.Add("child_sibling_spring", 1.0f);
+                jointNode.Add("child_sibling_spring", childSibling);
             }
 
             joints.Add(jointNode);
