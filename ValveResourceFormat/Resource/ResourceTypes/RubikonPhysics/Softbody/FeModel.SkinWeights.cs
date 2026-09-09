@@ -151,9 +151,11 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
 
                 // A pinned vertex's soft-offset expansion is its complete authored influence list,
                 // exactly as on a model with no fit matrices, whether the bones it names are static or
-                // simulated. It is emitted where the primary is still the strict maximum, which is what
-                // keeps the anchor the vertex's most-bound joint; any other pin keeps its single rigid
-                // anchor. A pin an m_FitWeights range already covers is an INPUT to the sheet's own
+                // simulated. It is emitted where the primary is at least the heaviest of them, a tie
+                // included: an author who paints two bones the same weight leaves the anchor tied, and
+                // EnsureAnchorMostBound restores the strict maximum the importer needs to pick the same
+                // most-bound joint back out. A pin whose primary is genuinely lighter keeps its single
+                // rigid anchor. A pin an m_FitWeights range already covers is an INPUT to the sheet's own
                 // back-solve rather than a bystander of it, so re-painting it re-solves the fits it
                 // belongs to and re-classifies the bones they drive: those keep the single anchor.
                 if (IsStatic(node))
@@ -186,9 +188,10 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                         pinned.Add((CtrlNames[bone], weight));
                     }
 
-                    if (pinned.Count > 0 && anchorWeight > rival)
+                    if (pinned.Count > 0 && anchorWeight >= rival)
                     {
                         SnapToBytePartition(pinned);
+                        EnsureAnchorMostBound(pinned, CtrlNames[primary]);
                         recovered[node] = [.. pinned];
                     }
                     else
