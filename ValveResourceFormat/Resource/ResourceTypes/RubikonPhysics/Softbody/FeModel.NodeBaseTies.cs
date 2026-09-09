@@ -1,4 +1,5 @@
 using System.Linq;
+using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
 {
@@ -104,6 +105,55 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
 
         static bool NodeBaseDenotes(NodeBasis basis, NodeBasis want)
             => basis == want || NodeBaseFoldReaches(basis, want);
+
+        /// <summary>
+        /// Whether a dynamic joint of <paramref name="chain"/> carries a basis hint (<c>m_DynNodeWindBases</c>)
+        /// that the compiler's twist source wrote and nothing graded afterwards: the X pair is the joint and
+        /// its own twist end and the Y pair was never touched. The hint pass grades every dynamic node whose
+        /// pair is still incomplete over its fit-influence set when the neighbour set is too small, so an
+        /// ungraded hint says the joint had NO fit influences, which a ClothChain stages only from version 1
+        /// on; such a chain was authored at version 0. A chain that also owns a fit matrix, or whose other
+        /// joints were graded over an influence set (a graded hint with fewer than three neighbours), did
+        /// stage influences and says nothing.
+        /// </summary>
+        public bool ChainHintsAreTwistWritten(BoneChain chain)
+        {
+            var hints = Data.GetArray("m_DynNodeWindBases");
+            if (hints is null || hints.Count == 0)
+            {
+                return false;
+            }
+
+            var twistWritten = false;
+            foreach (var joint in chain.Joints)
+            {
+                if (FitMatrixNodes.Contains(joint.Node))
+                {
+                    return false;
+                }
+
+                var slot = joint.Node - StaticNodeCount;
+                if (slot < 0 || slot >= hints.Count)
+                {
+                    continue;
+                }
+
+                var hint = hints[slot];
+                var x0 = hint.GetInt32Property("nNodeX0");
+                var x1 = hint.GetInt32Property("nNodeX1");
+                if (x0 == joint.Node && x1 != joint.Node && hint.GetInt32Property("nNodeY0") == 0
+                    && hint.GetInt32Property("nNodeY1") == 0 && TwistRelaxByLink.ContainsKey((joint.Node, x1)))
+                {
+                    twistWritten = true;
+                }
+                else if (NodeNeighbours(joint.Node).Count < 3)
+                {
+                    return false;
+                }
+            }
+
+            return twistWritten;
+        }
 
         /// <summary>
         /// Rolls the extruded ring of a chain joint whose <c>m_NodeBases</c> axis scan is a numerical tie

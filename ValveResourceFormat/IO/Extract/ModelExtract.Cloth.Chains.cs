@@ -77,6 +77,15 @@ partial class ModelExtract
             version = 1;
         }
 
+        // From version 1 on the chain stages fit influences for its joints, and the hint pass then grades
+        // every joint's basis hint over them. A hint the twist source wrote and nothing graded is one the
+        // original compiled without any influence at all, which is version 0.
+        if (version != 0 && !rootKeepsPreset && feModel.ChainHintsAreTwistWritten(chain)
+            && feModel.ChainBasesAreBulkGraded(chain) != false)
+        {
+            version = 0;
+        }
+
         chainData.Add("version", version);
 
         var chainNode = MakeNode("ClothChain",

@@ -1673,5 +1673,62 @@ namespace Tests
                 ]
             }
             """);
+
+        /// <summary>
+        /// The hint pass writes a twisted joint's X pair from its twist record and grades the rest only for a
+        /// joint that has fit influences, which a chain stages from version 1 on. A hint left at
+        /// {joint, twist end, 0, 0} therefore says the chain compiled at version 0; a graded hint says nothing.
+        /// </summary>
+        [Test]
+        public async Task AnUngradedTwistHintSaysTheChainCompiledAtVersionZero()
+        {
+            var ungraded = TwistedRope("nNodeX0 = 2 nNodeX1 = 1 nNodeY0 = 0 nNodeY1 = 0",
+                "nNodeX0 = 3 nNodeX1 = 2 nNodeY0 = 0 nNodeY1 = 0");
+            var graded = TwistedRope("nNodeX0 = 3 nNodeX1 = 1 nNodeY0 = 3 nNodeY1 = 3",
+                "nNodeX0 = 3 nNodeX1 = 2 nNodeY0 = 3 nNodeY1 = 3");
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(ungraded.ChainHintsAreTwistWritten(TwistedRopeChain())).IsTrue();
+                await Assert.That(graded.ChainHintsAreTwistWritten(TwistedRopeChain())).IsFalse();
+            }
+        }
+
+        private static FeModel.BoneChain TwistedRopeChain()
+        {
+            var chain = new FeModel.BoneChain { RootBone = "j1" };
+            chain.Joints.Add(new FeModel.BoneChainJoint { Node = 1, Name = "j1", ParentNode = -1 });
+            chain.Joints.Add(new FeModel.BoneChainJoint { Node = 2, Name = "j2", ParentNode = 1, InvMass = 1f });
+            chain.Joints.Add(new FeModel.BoneChainJoint { Node = 3, Name = "j3", ParentNode = 2, InvMass = 1f });
+            return chain;
+        }
+
+        private static FeModel TwistedRope(string hint2, string hint3) => SyntheticCloth.Parse($$"""
+            {
+                m_CtrlName = [ "root", "j1", "j2", "j3" ]
+                m_SkelParents = [ -1, 0, 1, 2 ]
+                m_nNodeCount = 4
+                m_nStaticNodes = 2
+                m_NodeInvMasses = [ 0.0, 0.0, 1.0, 1.0 ]
+                m_InitPose =
+                [
+                    {{SyntheticCloth.Pose(0f, 0f, 0f)}}
+                    {{SyntheticCloth.Pose(0f, 0f, -10f)}}
+                    {{SyntheticCloth.Pose(0f, 0f, -20f)}}
+                    {{SyntheticCloth.Pose(0f, 0f, -30f)}}
+                ]
+                m_Twists =
+                [
+                    { nNodeOrient = 2 nNodeEnd = 1 flTwistRelax = 0.618 },
+                    { nNodeOrient = 2 nNodeEnd = 3 flTwistRelax = 0.382 },
+                    { nNodeOrient = 3 nNodeEnd = 2 flTwistRelax = 0.618 },
+                ]
+                m_DynNodeWindBases =
+                [
+                    { {{hint2}} },
+                    { {{hint3}} },
+                ]
+            }
+            """);
     }
 }
