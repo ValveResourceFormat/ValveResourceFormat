@@ -1501,5 +1501,59 @@ namespace Tests
                 ]
             }
             """);
+
+        /// <summary>
+        /// A ClothChain of version 2 grades a preset basis for every joint with a child over the joint's own
+        /// extrusion vector and its child's, where version 1 leaves the joint to the bulk pass and its
+        /// neighbour set, which on a one-wide rope reaches the parent's ring as well. On the synthetic rope
+        /// below the bulk grade of j2 is X = (j3, $ccj1_0), Y = ($ccj3_0, j1): the two diagonals across the
+        /// parent-to-child span tie and the later pair wins. The preset grade over j2, $ccj2_0, j3, $ccj3_0
+        /// is X = (j3, $ccj2_0), Y = ($ccj3_0, j2). The entry the original carries says which pass wrote it.
+        /// </summary>
+        [Test]
+        public async Task AChainJointBasisNamingTheParentRingWasBulkGraded()
+        {
+            var bulk = OneWideRope("nNode = 3 nNodeX0 = 5 nNodeX1 = 2 nNodeY0 = 6 nNodeY1 = 1");
+            var preset = OneWideRope("nNode = 3 nNodeX0 = 5 nNodeX1 = 4 nNodeY0 = 6 nNodeY1 = 3");
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(bulk.ChainBasesAreBulkGraded(bulk.BuildBoneChains()[0])).IsTrue();
+                await Assert.That(preset.ChainBasesAreBulkGraded(preset.BuildBoneChains()[0])).IsFalse();
+            }
+        }
+
+        /// <summary>
+        /// A rope whose only entry is on a leaf joint, which no version presets, decides nothing.
+        /// </summary>
+        [Test]
+        public async Task ALeafJointBasisDecidesNoChainVersion()
+        {
+            var leaf = OneWideRope("nNode = 5 nNodeX0 = 5 nNodeX1 = 2 nNodeY0 = 6 nNodeY1 = 3");
+
+            await Assert.That(leaf.ChainBasesAreBulkGraded(leaf.BuildBoneChains()[0])).IsNull();
+        }
+
+        private static FeModel OneWideRope(string nodeBase) => SyntheticCloth.Parse($$"""
+            {
+                m_CtrlName = [ "root", "j1", "$ccj1_0", "j2", "$ccj2_0", "j3", "$ccj3_0" ]
+                m_SkelParents = [ -1, 0, 1, 1, 3, 3, 5 ]
+                m_nNodeCount = 7
+                m_nStaticNodes = 1
+                m_NodeInvMasses = [ 0.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0 ]
+                m_InitPose =
+                [
+                    {{SyntheticCloth.Pose(0f, 0f, 10f)}}
+                    {{SyntheticCloth.Pose(0f, 0f, 0f)}}
+                    {{SyntheticCloth.Pose(3f, 0f, 0f)}}
+                    {{SyntheticCloth.Pose(0f, 0f, -10f)}}
+                    {{SyntheticCloth.Pose(3f, 0f, -10f)}}
+                    {{SyntheticCloth.Pose(0f, 0f, -20f)}}
+                    {{SyntheticCloth.Pose(3f, 0f, -20f)}}
+                ]
+                m_SourceElems = [ 0, 0, 0, 2, 1, 2, 4, 3, 3, 4, 6, 5 ]
+                m_NodeBases = [ { {{nodeBase}} } ]
+            }
+            """);
     }
 }
