@@ -1711,6 +1711,12 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                 // The rods WITHIN one joint's own extrusion - ring to ring, and the joint to its ring -
                 // carry that joint's stretch_spring too, which is the only place a chain ROOT records it:
                 // a root has no parent span for SpanRelaxation to read.
+                //
+                // The chain's own ring rod spans the two nodes at their rest distance and contracts by the
+                // joint's antishrink, so on a joint that does not shrink it is RIGID; a surface rod built
+                // across the same two ring vertices measures a fan instead and is not. Where a ring pair
+                // carries both, the two disagree and the whole reading is lost, so the rigid set stands in
+                // exactly as it does for a span in RelaxationAcross.
                 float? RingInternalRelaxation(int node)
                 {
                     if (DeclaredRing(node) is not { Count: > 0 } ring)
@@ -1720,29 +1726,34 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
 
                     var extrusion = new List<int>(ring) { node };
                     extrusion.Sort();
-                    float? value = null;
-                    for (var i = 0; i < extrusion.Count; i++)
-                    {
-                        for (var j = i + 1; j < extrusion.Count; j++)
-                        {
-                            if (!rodRelaxationsByPair.TryGetValue((extrusion[i], extrusion[j]), out var relaxations))
-                            {
-                                continue;
-                            }
+                    return Inside(rodRelaxationsByPair) ?? Inside(rigidRodRelaxationsByPair);
 
-                            foreach (var relaxation in relaxations)
+                    float? Inside(Dictionary<(int, int), List<float>> byPair)
+                    {
+                        float? value = null;
+                        for (var i = 0; i < extrusion.Count; i++)
+                        {
+                            for (var j = i + 1; j < extrusion.Count; j++)
                             {
-                                if (value is { } already && MathF.Abs(already - relaxation) > 1e-4f)
+                                if (!byPair.TryGetValue((extrusion[i], extrusion[j]), out var relaxations))
                                 {
-                                    return null;
+                                    continue;
                                 }
 
-                                value = relaxation;
+                                foreach (var relaxation in relaxations)
+                                {
+                                    if (value is { } already && MathF.Abs(already - relaxation) > 1e-4f)
+                                    {
+                                        return null;
+                                    }
+
+                                    value = relaxation;
+                                }
                             }
                         }
-                    }
 
-                    return value;
+                        return value;
+                    }
                 }
 
                 float? SpanRelaxation(int node, int other) => RelaxationAcross(Side(node), other);
