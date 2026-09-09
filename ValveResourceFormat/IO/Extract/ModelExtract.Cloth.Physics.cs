@@ -123,9 +123,14 @@ partial class ModelExtract
     // data.nodes, keyed BY TARGET NAME (values unused). Target order must match
     // feModel.AntiTunnelTargetNodes exactly: the compiler round-trips a KV3 table's member order verbatim,
     // and the shipped originals do not always list targets in ascending node order.
-    static void AddClothAntiTunnelProbes(KVObject rootChildren, FeModel feModel, IReadOnlyDictionary<int, string>? proxyNodeNames)
+    // The probes themselves are declared in Begin order, which is the order their target slices are
+    // concatenated in. m_AntiTunnelProbes ships in a different order: after the concatenation the compiler
+    // moves a probe ahead of every earlier probe whose own node it targets and whose flag bit 0 is clear,
+    // carrying Begin and Count along and leaving m_AntiTunnelTargetNodes untouched.
+    internal static void AddClothAntiTunnelProbes(KVObject rootChildren, FeModel feModel, IReadOnlyDictionary<int, string>? proxyNodeNames)
     {
-        for (var i = 0; i < feModel.AntiTunnelProbes.Length; i++)
+        foreach (var i in Enumerable.Range(0, feModel.AntiTunnelProbes.Length)
+            .OrderBy(i => feModel.AntiTunnelProbes[i].Begin))
         {
             var probe = feModel.AntiTunnelProbes[i];
             var sourceName = ResolveAntiTunnelNodeName(feModel, probe.ProbeNode, proxyNodeNames);
