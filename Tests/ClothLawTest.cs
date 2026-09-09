@@ -1,7 +1,11 @@
 using System.Globalization;
 using System.IO;
 using System.Text;
+using System.Linq;
 using System.Threading.Tasks;
+using TUnit.Assertions.Enums;
+using ValveKeyValue;
+using ValveResourceFormat.IO;
 using ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody;
 using ValveResourceFormat.Serialization.KeyValues;
 
@@ -1394,6 +1398,107 @@ namespace Tests
                     {{SyntheticCloth.Pose(0f, 3f, 0f)}}
                 ]
                 m_Tris = [ { nNode = [ 0, 1, 2 ] } ]
+            }
+            """);
+
+        /// <summary>
+        /// The anti-tunnelling probes are declared in the order their target slices are concatenated
+        /// into <c>m_AntiTunnelTargetNodes</c>, which on this model is the reverse of the order
+        /// <c>m_AntiTunnelProbes</c> ships in.
+        /// </summary>
+        [Test]
+        public async Task AntiTunnelProbesAreDeclaredInTheOrderTheirTargetsAreConcatenated()
+        {
+            var children = KVObject.Array();
+            ModelExtract.AddClothAntiTunnelProbes(children, SwappedAntiTunnelProbes(), null);
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(AntiTunnelSources(children))
+                    .IsEquivalentTo(SwappedProbeSources, CollectionOrdering.Matching);
+                await Assert.That(AntiTunnelTargets(children, 0))
+                    .IsEquivalentTo(SwappedProbeFirstTargets, CollectionOrdering.Matching);
+                await Assert.That(AntiTunnelTargets(children, 1))
+                    .IsEquivalentTo(SwappedProbeSecondTargets, CollectionOrdering.Matching);
+            }
+        }
+
+        /// <summary>
+        /// A probe's own target list keeps the compiled slice order rather than being sorted by node.
+        /// </summary>
+        [Test]
+        public async Task AnAntiTunnelProbeKeepsTheSliceOrderOfItsTargets()
+        {
+            var children = KVObject.Array();
+            ModelExtract.AddClothAntiTunnelProbes(children, ShuffledAntiTunnelTargets(), null);
+
+            await Assert.That(AntiTunnelTargets(children, 0))
+                .IsEquivalentTo(ShuffledProbeTargets, CollectionOrdering.Matching);
+        }
+
+        private static readonly string[] SwappedProbeSources = ["body", "tip"];
+        private static readonly string[] SwappedProbeFirstTargets = ["a", "b", "c"];
+        private static readonly string[] SwappedProbeSecondTargets = ["body"];
+        private static readonly string[] ShuffledProbeTargets = ["c", "a", "b"];
+
+        private static string[] AntiTunnelSources(KVObject children)
+            => children.Select(static c => c.Value.GetStringProperty("source_node")).ToArray();
+
+        private static string[] AntiTunnelTargets(KVObject children, int index)
+            => children.ElementAt(index).Value.GetSubCollection("data").GetSubCollection("nodes")
+                .Select(static n => n.Key).ToArray();
+
+        // Two probes whose target slices are laid out in the reverse of the compiled probe order: the
+        // tip probe ships first and owns the LAST target slot.
+        private static FeModel SwappedAntiTunnelProbes() => SyntheticCloth.Parse($$"""
+            {
+                m_CtrlName = [ "root", "a", "b", "c", "body", "tip" ]
+                m_SkelParents = [ -1, 0, 0, 0, 0, 0 ]
+                m_nNodeCount = 6
+                m_nStaticNodes = 1
+                m_NodeInvMasses = [ 0.0, 1.0, 1.0, 1.0, 1.0, 1.0 ]
+                m_InitPose =
+                [
+                    {{SyntheticCloth.Pose(0f, 0f, 0f)}}
+                    {{SyntheticCloth.Pose(0f, 0f, -10f)}}
+                    {{SyntheticCloth.Pose(0f, 0f, -20f)}}
+                    {{SyntheticCloth.Pose(0f, 0f, -30f)}}
+                    {{SyntheticCloth.Pose(0f, 4f, -30f)}}
+                    {{SyntheticCloth.Pose(0f, 8f, -30f)}}
+                ]
+                m_AntiTunnelTargetNodes = [ 1, 2, 3, 4 ]
+                m_AntiTunnelProbes =
+                [
+                    { flWeight = 1.0 nFlags = 1 nProbeNode = 5 nCount = 1 nBegin = 3
+                      flActivationDistance = 1.0 flCurvatureRadius = 0.0 flBias = 0.0 },
+                    { flWeight = 1.0 nFlags = 0 nProbeNode = 4 nCount = 3 nBegin = 0
+                      flActivationDistance = 1.0 flCurvatureRadius = 0.0 flBias = 0.0 },
+                ]
+            }
+            """);
+
+        // One probe whose slice is not in ascending node order.
+        private static FeModel ShuffledAntiTunnelTargets() => SyntheticCloth.Parse($$"""
+            {
+                m_CtrlName = [ "root", "a", "b", "c", "body" ]
+                m_SkelParents = [ -1, 0, 0, 0, 0 ]
+                m_nNodeCount = 5
+                m_nStaticNodes = 1
+                m_NodeInvMasses = [ 0.0, 1.0, 1.0, 1.0, 1.0 ]
+                m_InitPose =
+                [
+                    {{SyntheticCloth.Pose(0f, 0f, 0f)}}
+                    {{SyntheticCloth.Pose(0f, 0f, -10f)}}
+                    {{SyntheticCloth.Pose(0f, 0f, -20f)}}
+                    {{SyntheticCloth.Pose(0f, 0f, -30f)}}
+                    {{SyntheticCloth.Pose(0f, 4f, -30f)}}
+                ]
+                m_AntiTunnelTargetNodes = [ 3, 1, 2 ]
+                m_AntiTunnelProbes =
+                [
+                    { flWeight = 1.0 nFlags = 0 nProbeNode = 4 nCount = 3 nBegin = 0
+                      flActivationDistance = 1.0 flCurvatureRadius = 0.0 flBias = 0.0 },
+                ]
             }
             """);
     }
