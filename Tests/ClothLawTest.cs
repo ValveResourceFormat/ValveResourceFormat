@@ -1555,5 +1555,55 @@ namespace Tests
                 m_NodeBases = [ { {{nodeBase}} } ]
             }
             """);
+
+        /// <summary>
+        /// A chain ROOT has no parent span, so its <c>stretch_spring</c> is only recorded by the rods
+        /// inside its own extrusion. The compiler's ring rod spans the two ring vertices at their rest
+        /// distance, so it is rigid on a joint that does not shrink, while a surface rod across the same
+        /// two vertices measures a fan and is not. Here the ring pair carries both, at 0.6 and at 1.0:
+        /// the full reading is contradictory and the rigid rods alone name the slider.
+        /// </summary>
+        [Test]
+        public async Task AChainRootReadsItsStretchSpringOffItsOwnRigidRingRod()
+        {
+            var joint = RingWithASurfaceRod(1.0f).BuildBoneChains()[0].Joints[0];
+
+            await Assert.That(joint.StretchStiffness).IsEqualTo(0.6f).Within(1e-4f);
+        }
+
+        /// <summary>
+        /// The rigid set is a fallback, not an override: where every rod inside the extrusion already
+        /// agrees, that reading stands and the rigid rods add nothing.
+        /// </summary>
+        [Test]
+        public async Task AChainRootWhoseExtrusionAgreesKeepsTheWholeReading()
+        {
+            var joint = RingWithASurfaceRod(0.6f).BuildBoneChains()[0].Joints[0];
+
+            await Assert.That(joint.StretchStiffness).IsEqualTo(0.6f).Within(1e-4f);
+        }
+
+        // A chain root extruding one two-vertex ring, whose ring pair carries the chain's own rigid rod
+        // at 0.6 beside a banded rod at the caller's relaxation.
+        private static FeModel RingWithASurfaceRod(float surfaceRelaxation) => SyntheticCloth.Parse($$"""
+            {
+                m_CtrlName = [ "root", "$ccroot_0", "$ccroot_1" ]
+                m_SkelParents = [ -1, 0, 0 ]
+                m_nNodeCount = 3
+                m_nStaticNodes = 1
+                m_NodeInvMasses = [ 0.0, 1.0, 1.0 ]
+                m_InitPose =
+                [
+                    {{SyntheticCloth.Pose(0f, 0f, 0f)}}
+                    {{SyntheticCloth.Pose(0f, 2f, 0f)}}
+                    {{SyntheticCloth.Pose(0f, -2f, 0f)}}
+                ]
+                m_Rods =
+                [
+                    {{SyntheticCloth.RigidRod(1, 2, 4f, 0.6f)}}
+                    {{SyntheticCloth.BandedRod(1, 2, 1f, 8f, surfaceRelaxation)}}
+                ]
+            }
+            """);
     }
 }
