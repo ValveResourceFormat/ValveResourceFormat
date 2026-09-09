@@ -1605,5 +1605,73 @@ namespace Tests
                 ]
             }
             """);
+
+        /// <summary>
+        /// A PINNED proxy-sheet vertex whose soft-offset expansion leaves its <c>m_CtrlOffsets</c> anchor
+        /// TIED with its heaviest rival keeps the whole authored influence list, with the anchor lifted to
+        /// a strict maximum. An author who paints two bones the same weight produces exactly that tie, and
+        /// collapsing it to the single rigid anchor loses every <c>m_CtrlSoftOffsets</c> record the
+        /// compiler wrote for the vertex.
+        /// </summary>
+        [Test]
+        public async Task ATiedPinnedSheetVertexKeepsBothItsBones()
+        {
+            var influences = TiedPinSheet().BuildProxyMeshes()[0].SkinInfluences[0];
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(influences.Length).IsEqualTo(2);
+                await Assert.That(influences[0].Bone).IsEqualTo("bone_a");
+                await Assert.That(influences[1].Bone).IsEqualTo("bone_c");
+                await Assert.That(influences[0].Weight).IsGreaterThanOrEqualTo(influences[1].Weight);
+            }
+        }
+
+        // A sheet whose pinned $cloth_m0p0 is covered by no fit weights and carries one soft offset at
+        // flAlpha 0.5, so its expansion is 0.5 on the anchor bone_a and 0.5 on bone_c.
+        private static FeModel TiedPinSheet() => SyntheticCloth.Parse($$"""
+            {
+                m_CtrlName = [ "$cloth_m0p0", "root", "bone_a", "bone_b", "bone_c",
+                               "$cloth_m0p1", "$cloth_m0p2", "$cloth_m0p3" ]
+                m_SkelParents = [ 2, -1, 1, 1, 1, 3, 3, 3 ]
+                m_nNodeCount = 8
+                m_nStaticNodes = 2
+                m_NodeInvMasses = [ 0.0, 0.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0 ]
+                m_InitPose =
+                [
+                    {{SyntheticCloth.Pose(0f, 4f, -10f)}}
+                    {{SyntheticCloth.Pose(0f, 0f, 0f)}}
+                    {{SyntheticCloth.Pose(0f, 0f, -10f)}}
+                    {{SyntheticCloth.Pose(0f, 0f, -20f)}}
+                    {{SyntheticCloth.Pose(0f, 0f, -30f)}}
+                    {{SyntheticCloth.Pose(4f, 4f, -10f)}}
+                    {{SyntheticCloth.Pose(4f, 4f, -20f)}}
+                    {{SyntheticCloth.Pose(0f, 4f, -20f)}}
+                ]
+                m_Tris = [ { nNode = [ 0, 5, 6 ] }, { nNode = [ 0, 6, 7 ] } ]
+                m_CtrlOffsets =
+                [
+                    { vOffset = [ 0.0, 4.0, 0.0 ] nCtrlParent = 2 nCtrlChild = 0 },
+                    { vOffset = [ 4.0, 4.0, 0.0 ] nCtrlParent = 3 nCtrlChild = 5 },
+                    { vOffset = [ 4.0, 4.0, 0.0 ] nCtrlParent = 3 nCtrlChild = 6 },
+                    { vOffset = [ 0.0, 4.0, 0.0 ] nCtrlParent = 3 nCtrlChild = 7 },
+                ]
+                m_CtrlSoftOffsets =
+                [
+                    { nCtrlParent = 4 nCtrlChild = 0 vOffset = [ 0.0, 4.0, 0.0 ] flAlpha = 0.5 },
+                ]
+                m_FitMatrices =
+                [
+                    { bone = [ 1.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0 ] vCenter = [ 0.0, 0.0, 0.0 ]
+                      nEnd = 3 nNode = 3 nBeginDynamic = 0 },
+                ]
+                m_FitWeights =
+                [
+                    { flWeight = 0.5 nNode = 5 nDummy = 0 },
+                    { flWeight = 0.5 nNode = 6 nDummy = 0 },
+                    { flWeight = 0.5 nNode = 7 nDummy = 0 },
+                ]
+            }
+            """);
     }
 }
