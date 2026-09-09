@@ -197,6 +197,14 @@ partial class ModelExtract
             }
         }
 
+        // A uniform reading the solver's own band cannot tell from zero is no reading: it would be
+        // written out as a flat stream that folds nothing while standing in the way of the per-vertex
+        // solve below, which is the only thing that can still account for the sheet.
+        if (bendStiffness > 0f && bendStiffness <= ClothBendStiffnessAgreement / 2f)
+        {
+            bendStiffness = 0f;
+        }
+
         // Whatever single value the arms above settled on, the fold each hinge actually carries is that
         // value plus its own two vertices' paint. Where one value already accounts for the sheet the
         // residual solves to nothing and no stream is written; where it cannot, the paint carries the
