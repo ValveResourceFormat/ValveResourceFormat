@@ -38,6 +38,74 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             => Array.Exists(proxy.NodeIndices, node => IsProxyMeshNode(node) && NodeBases.ContainsKey(node));
 
         /// <summary>
+        /// Whether the original compiled <paramref name="chain"/> without the per-joint preset bases a
+        /// <c>ClothChain</c> of version 2 or above carries: true when its joints' <c>m_NodeBases</c> entries
+        /// are the bulk grade over each joint's neighbour set, false when they are the preset grade over the
+        /// joint's own vector and its child's, null when nothing in the chain tells the two apart.
+        /// </summary>
+        /// <remarks>
+        /// At version 2 the chain importer grades a basis for every joint that has a child from that joint's
+        /// own extrusion vector and the child's, and the bulk pass then skips the node; below version 2 only a
+        /// hinged joint is graded that way and every other joint takes the bulk grade over its neighbour set,
+        /// which on a rope one node wide reaches the parent's ring as well. The two grades usually name
+        /// different references there, so a joint's entry states which pass wrote it. Only a joint whose ring
+        /// is narrower than two nodes is read: a wider ring's fit-matrix arm can write an entry of its own.
+        /// </remarks>
+        public bool? ChainBasesAreBulkGraded(BoneChain chain)
+        {
+            var bulk = 0;
+            var preset = 0;
+            var unmoved = new Dictionary<int, Vector3>();
+            foreach (var joint in chain.Joints)
+            {
+                if (!NodeBases.TryGetValue(joint.Node, out var want) || ProxyRingOf(joint.Node).Count >= 2
+                    || IsHingedJoint(joint.Node) || RigidHingeJoints.ContainsKey(joint.Node))
+                {
+                    continue;
+                }
+
+                var child = chain.Joints.Find(other => other.ParentNode == joint.Node);
+                if (child is null || ProxyRingOf(joint.Node).Count == 0 || ProxyRingOf(child.Node).Count == 0)
+                {
+                    continue;
+                }
+
+                var presetCandidates = NodeBaseCandidates(joint, child);
+                if (presetCandidates is null)
+                {
+                    continue;
+                }
+
+                var presetHit = NodeBaseContains(presetCandidates, want)
+                    && NodeBaseDenotes(PredictNodeBase(presetCandidates, joint.Node, unmoved, want).Basis, want);
+
+                var neighbours = NodeNeighbours(joint.Node);
+                var bulkEligible = joint.InvMass > 0f || AllowsRotation(joint.Node);
+                var bulkHit = bulkEligible && neighbours.Count >= 3 && NodeBaseContains(neighbours, want)
+                    && NodeBaseDenotes(PredictNodeBase(neighbours, joint.Node, unmoved, want).Basis, want);
+
+                if (presetHit == bulkHit)
+                {
+                    continue;
+                }
+
+                if (bulkHit)
+                {
+                    bulk++;
+                }
+                else
+                {
+                    preset++;
+                }
+            }
+
+            return bulk == preset ? null : bulk > preset;
+        }
+
+        static bool NodeBaseDenotes(NodeBasis basis, NodeBasis want)
+            => basis == want || NodeBaseFoldReaches(basis, want);
+
+        /// <summary>
         /// Rolls the extruded ring of a chain joint whose <c>m_NodeBases</c> axis scan is a numerical tie
         /// onto the axis pair the original kept, recording the roll in
         /// <see cref="BoneChainJoint.ExtrudeTwistTieNudge"/>.

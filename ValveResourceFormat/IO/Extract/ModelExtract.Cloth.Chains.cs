@@ -57,12 +57,27 @@ partial class ModelExtract
         // A chain of one joint compiles only at version 0, but the access violation it avoids only
         // happens when the model carries a second chain; a model whose only chain has one joint
         // compiles fine at version >= 1 and keeps the node-base-driven choice below.
-        chainData.Add("version", chain.Joints.Count == 1 && hasOtherChains
+        var version = chain.Joints.Count == 1 && hasOtherChains
             ? 0
             : root is not null && !feModel.AllowsRotation(root.Node)
                 && (lockedInOriginal || !locksJoints)
             ? (feModel.NodeBases.ContainsKey(root.Node) ? 2 : 1)
-            : (lockedInOriginal ? 1 : 2));
+            : (lockedInOriginal ? 1 : 2);
+
+        // Format 2 also grades a preset basis for every joint that has a child, over the joint's own
+        // extrusion vector and its child's, where format 1 leaves those joints to the bulk pass and its
+        // neighbour set. The joints' own entries say which grade the original carries, and a chain whose
+        // entries are the bulk grade was authored below version 2 wherever format 1 does not also lock a
+        // joint the original leaves free or drop the basis of a rotation-locked root.
+        var rootKeepsPreset = root is not null && !feModel.AllowsRotation(root.Node)
+            && feModel.NodeBases.ContainsKey(root.Node);
+        if (version == 2 && !rootKeepsPreset && (lockedInOriginal || !locksJoints)
+            && feModel.ChainBasesAreBulkGraded(chain) == true)
+        {
+            version = 1;
+        }
+
+        chainData.Add("version", version);
 
         var chainNode = MakeNode("ClothChain",
             ("name", chain.RootBone + chain.DeclarationSuffix),
