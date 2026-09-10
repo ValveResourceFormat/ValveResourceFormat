@@ -1694,6 +1694,49 @@ namespace Tests
             }
         }
 
+        [Test]
+        public async Task MotionBiasIsReadOffTheJointsOwnSpanRod()
+        {
+            var joint = new FeModel.BoneChainJoint { Node = 2, Name = "j2", ParentNode = 1, InvMass = 1f };
+            using (Assert.Multiple())
+            {
+                await Assert.That(BiasedRope("0.5").GetMotionBias(joint)).IsNull();
+                await Assert.That(BiasedRope("0.333333").GetMotionBias(joint)!.Value).IsEqualTo(0.5f).Within(1e-3f);
+                await Assert.That(BiasedRope("0.666667").GetMotionBias(joint)!.Value).IsEqualTo(-0.5f).Within(1e-3f);
+                await Assert.That(BiasedRope("0.0").GetMotionBias(joint)!.Value).IsEqualTo(1f).Within(1e-3f);
+            }
+        }
+
+        [Test]
+        public async Task MotionBiasIgnoresASpanWhoseEndsWeighDifferently()
+        {
+            // The desc's inverse masses are not the ones the rod builder divided, so an unequal pair
+            // has no known unbiased weight to read a bias against.
+            var joint = new FeModel.BoneChainJoint { Node = 2, Name = "j2", ParentNode = 1, InvMass = 1f };
+            await Assert.That(BiasedRope("0.333333", parentMass: "2.0").GetMotionBias(joint)).IsNull();
+        }
+
+        private static FeModel BiasedRope(string weight, string parentMass = "1.0") => SyntheticCloth.Parse($$"""
+            {
+                m_CtrlName = [ "root", "j1", "j2", "j3" ]
+                m_SkelParents = [ -1, 0, 1, 2 ]
+                m_nNodeCount = 4
+                m_nStaticNodes = 1
+                m_NodeInvMasses = [ 0.0, {{parentMass}}, 1.0, 1.0 ]
+                m_InitPose =
+                [
+                    {{SyntheticCloth.Pose(0f, 0f, 0f)}}
+                    {{SyntheticCloth.Pose(0f, 0f, -10f)}}
+                    {{SyntheticCloth.Pose(0f, 0f, -20f)}}
+                    {{SyntheticCloth.Pose(0f, 0f, -30f)}}
+                ]
+                m_Rods =
+                [
+                    { nNode = [ 1, 2 ] flMaxDist = 10.0 flMinDist = 10.0 flWeight0 = {{weight}} flRelaxationFactor = 1.0 },
+                ]
+            }
+            """);
+
         private static FeModel.BoneChain TwistedRopeChain()
         {
             var chain = new FeModel.BoneChain { RootBone = "j1" };
