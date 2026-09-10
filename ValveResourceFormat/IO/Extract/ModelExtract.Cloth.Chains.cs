@@ -558,6 +558,7 @@ partial class ModelExtract
         var clothBones = ClothBoneNames(feModel);
         clothBones.UnionWith(boneChains.SelectMany(static chain => chain.Joints)
             .Select(static joint => joint.Name));
+        chainCoveredNodes.UnionWith(AddClothSelfCollisionClusters(softbodyChildren, feModel, clothBones));
         // A static control node no chain, shape or jiggle bone claims is recreated by nothing else in
         // this phase, so it is declared as a bare ClothNode wherever the compiled skeleton records the
         // bone as a cloth control node - the same evidence the proxy-sheet phase reads.

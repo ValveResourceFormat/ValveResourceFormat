@@ -707,6 +707,13 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             }
 
             var claimed = new bool[Rods.Length];
+
+            // A self-collision cluster re-declares its own pairwise rods (see SelfCollisionClusters).
+            foreach (var index in SelfCollisionClusterRods)
+            {
+                claimed[index] = true;
+            }
+
             foreach (var (key, expectations) in generated)
             {
                 if (!entriesByPair.TryGetValue(key, out var entries))

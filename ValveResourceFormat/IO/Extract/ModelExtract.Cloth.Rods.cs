@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Linq;
 using ValveKeyValue;
 using ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody;
@@ -42,7 +43,7 @@ partial class ModelExtract
     // ClothSpring it registers no m_SourceElems entry, so it is the node to re-emit for a rod between two
     // chain joints that a chain does not itself regenerate. The per-member radius split the compiled rod
     // does not preserve (only the sum reaches m_Rods) is recovered as an even split.
-    static KVObject MakeClothSelfCollisionCluster(string name, string joint0, string joint1, float radius,
+    static KVObject MakeClothSelfCollisionCluster(string name, IReadOnlyList<string> members, float radius,
         float strayRadius)
     {
         KVObject MakeJoint(string jointName)
@@ -56,8 +57,10 @@ partial class ModelExtract
         }
 
         var joints = KVObject.Array();
-        joints.Add(MakeJoint(joint0));
-        joints.Add(MakeJoint(joint1));
+        foreach (var member in members)
+        {
+            joints.Add(MakeJoint(member));
+        }
 
         var chainData = KVObject.Collection();
         chainData.Add("joints", joints);
@@ -1319,9 +1322,54 @@ partial class ModelExtract
                 continue;
             }
 
-            softbodyChildren.Add(MakeClothSelfCollisionCluster($"cluster_{name0}_{name1}", name0, name1,
+            softbodyChildren.Add(MakeClothSelfCollisionCluster($"cluster_{name0}_{name1}", [name0, name1],
                 rod.MinDist / 2f, rod.MaxDist / 2f));
         }
+    }
+
+    /// <summary>
+    /// Re-declares each recovered <see cref="FeModel.SelfCollisionCluster"/> as one
+    /// <c>ClothSelfCollisionCluster</c> listing every member. The compiler rebuilds the whole pairwise rod
+    /// set from it and records no source element for any of them, which one spring per pair would.
+    /// <para>
+    /// Returns the member nodes, which the caller must keep out of the lone-node and lone-chain emitters:
+    /// the cluster registers them on its own.
+    /// </para>
+    /// </summary>
+    static HashSet<int> AddClothSelfCollisionClusters(KVObject softbodyChildren, FeModel feModel,
+        HashSet<string> clothBones)
+    {
+        var covered = new HashSet<int>();
+        var names = feModel.CtrlNames;
+        var index = 0;
+        foreach (var cluster in feModel.SelfCollisionClusters)
+        {
+            var members = new List<string>(cluster.Nodes.Length);
+            foreach (var node in cluster.Nodes)
+            {
+                if (node < 0 || node >= names.Length || feModel.IsGeneratedNodeName(names[node]))
+                {
+                    members.Clear();
+                    break;
+                }
+
+                members.Add(names[node]);
+            }
+
+            if (members.Count != cluster.Nodes.Length)
+            {
+                continue;
+            }
+
+            softbodyChildren.Add(MakeClothSelfCollisionCluster(
+                $"cluster_{index.ToString(CultureInfo.InvariantCulture)}", members,
+                cluster.MinDist / 2f, cluster.MaxDist / 2f));
+            clothBones.UnionWith(members);
+            covered.UnionWith(cluster.Nodes);
+            index++;
+        }
+
+        return covered;
     }
 
     /// <summary>
