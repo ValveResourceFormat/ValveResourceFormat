@@ -2046,6 +2046,81 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             return float.RadiansToDegrees(MathF.Acos(Math.Clamp(cosine, -1f, 1f)));
         }
 
+        /// <summary>
+        /// Gets the authored <c>add_curvature</c> of a model compiled with <c>rigid_edge_hinges</c> on,
+        /// which is the one case where the rod network states nothing about it. That switch sends the rod
+        /// builder down its rigid branch, giving every generated rod a minimum equal to its maximum, and
+        /// makes the suspender pass write a minimum of zero outright - so every rod reads back as fully
+        /// folded whatever the model was authored with, and reading the value off them recovers the top of
+        /// the range instead of the truth.
+        /// <para>
+        /// The same switch is what turns the ring bends on, so the value's whole remaining trace is
+        /// <see cref="KelagerBends"/>: a hub is folded through
+        /// <c>clamp(bend paint * pi + add_curvature * pi, 0, pi)</c> and records the distance it may reach
+        /// from its two ring members, <c>(3h)^2 = l0^2 + l1^2 + 2*l0*l1*cos(angle)</c>. An EMPTY array
+        /// therefore states an angle below the builder's own <c>pi/8</c> gate, which on a sheet carrying no
+        /// bend paint is a curvature of zero.
+        /// </para>
+        /// <para>
+        /// A non-empty array is inverted hub by hub, over the sheet hubs that pass wide enough to still
+        /// track the angle: a hub whose height has fallen to its rest distance says only that the fold is
+        /// wide. The per-vertex paint can only ADD to the angle, so each reading bounds the value from
+        /// above, and the answer is taken only where they agree. Anything else - no hub still tracking, or
+        /// readings that disagree - keeps the saturating value, which is what a rigid network recovers
+        /// today and what every authored value at or above one compiles to.
+        /// </para>
+        /// </summary>
+        public float RigidHingeCurvature
+        {
+            get
+            {
+                if (KelagerBends.Count == 0)
+                {
+                    return 0f;
+                }
+
+                var lowest = float.MaxValue;
+                var highest = 0f;
+                foreach (var bend in KelagerBends)
+                {
+                    if (bend.MidNode < 0 || bend.End0 < 0 || bend.End1 < 0
+                        || bend.MidNode >= InitPosePositions.Length
+                        || bend.End0 >= InitPosePositions.Length || bend.End1 >= InitPosePositions.Length
+                        || bend.MidNode >= CtrlNames.Length || !IsProxyNodeName(CtrlNames[bend.MidNode]))
+                    {
+                        continue;
+                    }
+
+                    var toEnd0 = InitPosePositions[bend.End0] - InitPosePositions[bend.MidNode];
+                    var toEnd1 = InitPosePositions[bend.End1] - InitPosePositions[bend.MidNode];
+                    var l0 = toEnd0.Length();
+                    var l1 = toEnd1.Length();
+                    if (l0 <= 0f || l1 <= 0f
+                        || bend.Height <= (toEnd0 + toEnd1).Length() / 3f * 1.0001f)
+                    {
+                        continue;
+                    }
+
+                    var cosine = ((9f * bend.Height * bend.Height) - (l0 * l0) - (l1 * l1)) / (2f * l0 * l1);
+                    var reading = MathF.Acos(Math.Clamp(cosine, -1f, 1f)) / MathF.PI;
+                    lowest = MathF.Min(lowest, reading);
+                    highest = MathF.Max(highest, reading);
+                }
+
+                if (lowest is float.MaxValue
+                    || highest - lowest > ChainRingCurvatureAgreement * MathF.Max(highest, ChainRingCurvatureAgreement)
+                    || highest >= 1f - ChainRingCurvatureAgreement)
+                {
+                    return SaturatedCurvature;
+                }
+
+                return Math.Clamp(highest, 0f, 1f);
+            }
+        }
+
+        // Every authored curvature at or above one opens the fold all the way and compiles identically.
+        internal const float SaturatedCurvature = 1f;
+
         // A hinged chain joint is anchored on a static node the compiler names after the joint's bone.
         const string HingeAnchorPrefix = "$ha_";
 

@@ -1730,5 +1730,64 @@ namespace Tests
                 ]
             }
             """);
+
+        /// <summary>
+        /// With <c>rigid_edge_hinges</c> on, every rod the compiler generates comes back with its minimum
+        /// equal to its maximum whatever the sheet was authored with, so the curvature has to be read off
+        /// the ring bends the same switch turns on: an empty bend array states a curvature below the
+        /// builder's own pi/8 gate, and a non-empty one is inverted from the height each hub records.
+        /// </summary>
+        [Test]
+        public async Task RigidHingeSheetReadsItsCurvatureFromTheRingBends()
+        {
+            using (Assert.Multiple())
+            {
+                // No bends at all: the builder's pi/8 gate turned every hub away, which on a sheet with no
+                // bend paint is a curvature of zero.
+                await Assert.That(RigidSheet(bends: "").RigidHingeCurvature).IsEqualTo(0f);
+                // The fixture's hub sits between two ring members ten units away on opposite sides, so
+                // (3h)^2 = 200 + 200*cos(angle): a right angle records sqrt(200)/3 = 4.714045 ...
+                await Assert.That(RigidSheet(bends: Bend(4.714045f)).RigidHingeCurvature)
+                    .IsEqualTo(0.5f).Within(0.001f);
+                // ... and an unfolded hub records 20/3 = 6.666667.
+                await Assert.That(RigidSheet(bends: Bend(6.666667f)).RigidHingeCurvature)
+                    .IsEqualTo(0f).Within(0.001f);
+                // A fold that reaches pi opens all the way, and every authored value at or above one
+                // compiles the same, so the reading saturates instead of reporting the fraction.
+                await Assert.That(RigidSheet(bends: Bend(0.1f)).RigidHingeCurvature).IsEqualTo(1f);
+                // A hub whose height has fallen to its own rest distance has stopped tracking the angle,
+                // and a sheet with nothing left tracking keeps the saturating value.
+                await Assert.That(RigidSheet(bends: Bend(0f)).RigidHingeCurvature).IsEqualTo(1f);
+                // Two hubs that disagree name no single value, so the sheet keeps it too.
+                await Assert.That(RigidSheet(bends: Bend(4.714045f) + Bend(6.666667f)).RigidHingeCurvature)
+                    .IsEqualTo(1f);
+            }
+        }
+
+        private static string Bend(float height)
+            => $"{{ nNode = [ 1, 2, 3 ] flWeight = [ -1.0, 0.5, 0.5 ] flHeight0 = {SyntheticCloth.Num(height)} }},";
+
+        /// <summary>
+        /// A sheet marked rigid-hinged by its axial edges, whose one hub (node 1) sits between two ring
+        /// members (nodes 2 and 3) ten units away on opposite sides, so the hub's own rest distance from
+        /// their centroid is zero and every fold it can record still tracks the angle.
+        /// </summary>
+        private static FeModel RigidSheet(string bends) => SyntheticCloth.Parse($$"""
+            {
+                m_CtrlName = [ "root", "$cloth_m0p0", "$cloth_m0p1", "$cloth_m0p2" ]
+                m_nNodeCount = 4
+                m_nStaticNodes = 1
+                m_NodeInvMasses = [ 0.0, 1.0, 1.0, 1.0 ]
+                m_InitPose =
+                [
+                    {{SyntheticCloth.Pose(0f, 0f, 0f)}}
+                    {{SyntheticCloth.Pose(0f, 0f, 0f)}}
+                    {{SyntheticCloth.Pose(10f, 0f, 0f)}}
+                    {{SyntheticCloth.Pose(-10f, 0f, 0f)}}
+                ]
+                m_AxialEdges = [ { nNode = [ 1, 2, 3, 3, 2, 1 ] }, ]
+                m_KelagerBends = [ {{bends}} ]
+            }
+            """);
     }
 }

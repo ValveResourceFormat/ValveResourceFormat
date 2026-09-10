@@ -154,7 +154,10 @@ partial class ModelExtract
             ("add_world_collision_radius", fe.AddWorldCollisionRadius),
             ("local_force", fe.LocalForce),
             ("local_rotation", fe.LocalRotation),
-            ("add_curvature", addCurvature),
+            // A model with rigid edge hinges states its curvature only through the ring bends that switch
+            // turns on: its rods are all built rigid, so the readings taken off them saturate whatever it
+            // was authored with (see FeModel.RigidHingeCurvature).
+            ("add_curvature", fe.HasAxialEdges ? fe.RigidHingeCurvature : addCurvature),
             ("quad_bend_tolerance", 0.05f),
             ("local_drag1", fe.LocalDrag1),
             ("follow_the_lead", Flag(ClothFlagFollowTheLead)),
