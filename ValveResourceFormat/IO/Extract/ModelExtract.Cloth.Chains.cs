@@ -151,8 +151,8 @@ partial class ModelExtract
             kv.Add("simulate", joint.Simulated);
 
             var integrator = feModel.GetIntegrator(joint.Node);
-            kv.Add("goal_strength", FeModel.GoalStrengthFromAttraction(integrator.ForceAttraction));
-            kv.Add("goal_damping", FeModel.GoalDampingFromAttraction(integrator.ForceAttraction, integrator.VertexAttraction));
+            kv.Add("goal_strength", feModel.GoalStrengthPaint(integrator.ForceAttraction));
+            kv.Add("goal_damping", feModel.GoalDampingPaint(integrator.ForceAttraction, integrator.VertexAttraction));
             kv.Add("gravity_z", integrator.Gravity / ClothSourceBaseGravity);
 
             if (joint.Simulated)
@@ -218,7 +218,7 @@ partial class ModelExtract
         var valueNode = joint.ValueNode >= 0 ? joint.ValueNode
             : joint.Restated && joint.ProxyNode >= 0 ? joint.ProxyNode : joint.Node;
         var integrator = feModel.GetIntegrator(valueNode);
-        var goalStrength = FeModel.GoalStrengthFromAttraction(integrator.ForceAttraction);
+        var goalStrength = feModel.GoalStrengthPaint(integrator.ForceAttraction);
 
         var twistRelax = feModel.GetAuthoredTwistRelax(joint.Node, joint.ParentNode, joint.ProxyNode);
 
@@ -241,7 +241,7 @@ partial class ModelExtract
         }
 
         kv.Add("goal_strength", goalStrength);
-        kv.Add("goal_damping", FeModel.GoalDampingFromAttraction(integrator.ForceAttraction, integrator.VertexAttraction));
+        kv.Add("goal_damping", feModel.GoalDampingPaint(integrator.ForceAttraction, integrator.VertexAttraction));
 
         // The same flPointDamping channel the proxy sheets carry as cloth_drag.
         var drag = Math.Clamp(integrator.PointDamping / ClothDragPointDampingScale, 0f, 1f);

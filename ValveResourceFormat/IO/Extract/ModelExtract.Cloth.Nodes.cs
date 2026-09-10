@@ -246,8 +246,8 @@ partial class ModelExtract
         IReadOnlyDictionary<int, string>? proxyNodeNames = null)
     {
         var integrator = feModel.GetIntegrator(node);
-        var goalStrength = FeModel.GoalStrengthFromAttraction(integrator.ForceAttraction);
-        var goalDamping = FeModel.GoalDampingFromAttraction(integrator.ForceAttraction, integrator.VertexAttraction);
+        var goalStrength = feModel.GoalStrengthPaint(integrator.ForceAttraction);
+        var goalDamping = feModel.GoalDampingPaint(integrator.ForceAttraction, integrator.VertexAttraction);
         var strayRadius = feModel.GetStrayRadius(node);
 
         // A basis reference names a node in the AUTHORED namespace, which is not the ctrl namespace: a

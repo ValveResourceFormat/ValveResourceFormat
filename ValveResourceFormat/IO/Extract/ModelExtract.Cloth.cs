@@ -140,7 +140,10 @@ partial class ModelExtract
             ("extra_iterations", fe.ExtraIterations),
             ("extra_goal_iterations", fe.ExtraGoalIterations),
             ("extra_pressure_iterations", fe.ExtraPressureIterations),
-            ("goal_strength_bias", 0.0f),
+            // The compiler adds this to every node's goal strength before cubing it into the force
+            // attraction while the vertex attraction keeps the unbiased cube, so a model that ships the
+            // two a constant cube root apart was authored with it (see FeModel.GoalStrengthBias).
+            ("goal_strength_bias", fe.GoalStrengthBias),
             ("default_gravity_scale", fe.DefaultGravityScale),
             ("default_vel_air_drag", fe.DefaultVelAirDrag),
             ("default_exp_air_drag", fe.DefaultExpAirDrag),
