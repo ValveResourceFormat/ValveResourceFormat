@@ -2027,6 +2027,76 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         // Below this a bend weight is the compiler's own signed zero rather than a small real share.
         const float FullMotionBiasEpsilon = 1e-6f;
 
+        // Two span rods of one joint have to agree this closely before their shared bias is believed,
+        // and a bias under it is the unbiased default and needs no key.
+        const float MotionBiasTolerance = 1e-3f;
+
+        /// <summary>
+        /// Recovers the <c>motion_bias</c> authored on a chain joint from the rods of its own span - the
+        /// rods between the joint's node group and its parent's - or null where they carry no reading.
+        /// <para>
+        /// The span builder packs the joint's bias into every rod it makes for that span, as the pair
+        /// <c>(p0, p1) = b &lt;= 0 ? (1, max(0, b+1)) : (max(0, 1-b), 1)</c> weighting the two ends'
+        /// inverse masses (02_IMPORT 5.1b writes the same construction for the bend record the same
+        /// builder emits). A rod with a static end carries nothing, because the normalise pass forces
+        /// its weight to 0, and a joint's rod to its OWN ring is not part of the span and stays
+        /// unbiased.
+        /// </para>
+        /// </summary>
+        public float? GetMotionBias(BoneChainJoint joint)
+        {
+            if (joint.ParentNode < 0)
+            {
+                return null;
+            }
+
+            var parentMass = InverseMassOf(joint.ParentNode);
+            var jointMass = InverseMassOf(joint.Node);
+            if (parentMass <= 0f || jointMass <= 0f)
+            {
+                return null;
+            }
+
+            // The desc's inverse masses are NOT the ones the rod builder divided - over the corpus the
+            // plain ratio misses the shipped weight by up to 0.27 on most rods - so a bias can only be
+            // read where the unbiased weight is known without them, which is where the two ends weigh
+            // the same and it is exactly one half.
+            if (MathF.Abs(parentMass - jointMass) > MotionBiasTolerance * MathF.Max(parentMass, jointMass))
+            {
+                return null;
+            }
+
+            float? bias = null;
+            foreach (var rod in Rods)
+            {
+                var weight = rod.NodeA == joint.ParentNode && rod.NodeB == joint.Node ? rod.Weight0
+                    : rod.NodeB == joint.ParentNode && rod.NodeA == joint.Node ? 1f - rod.Weight0
+                    : float.NaN;
+                if (float.IsNaN(weight))
+                {
+                    continue;
+                }
+
+                // A saturated bias drops one end's share to nothing, which is the only way a rod
+                // between two simulated nodes reaches an exact 0 or 1.
+                var reading = weight <= 0f ? 1f : weight >= 1f ? -1f : Bias(weight);
+                if (bias is { } seen && MathF.Abs(seen - reading) > MotionBiasTolerance)
+                {
+                    return null;
+                }
+
+                bias ??= reading;
+            }
+
+            return bias is { } value && MathF.Abs(value) > MotionBiasTolerance ? value : null;
+
+            float Bias(float weight)
+            {
+                var ratio = weight * jointMass / ((1f - weight) * parentMass);
+                return ratio <= 1f ? 1f - ratio : -(1f - (1f / ratio));
+            }
+        }
+
         float InverseMassOf(int node)
             => node >= 0 && node < NodeInvMasses.Length ? NodeInvMasses[node] : 0f;
 

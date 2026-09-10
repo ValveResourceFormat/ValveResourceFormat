@@ -381,6 +381,12 @@ partial class ModelExtract
                 kv.Add("motion_bias", stiffHinge.MotionBias);
             }
         }
+        else if (feModel.GetMotionBias(joint) is { } motionBias)
+        {
+            // Without a stiff hinge the bias leaves its only trace in the weights of the joint's own
+            // span rods, which is where FeModel.GetMotionBias reads it back from.
+            kv.Add("motion_bias", motionBias);
+        }
 
         if (hinge is { } chainHinge)
         {
