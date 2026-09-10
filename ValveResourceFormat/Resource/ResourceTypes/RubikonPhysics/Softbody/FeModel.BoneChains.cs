@@ -646,6 +646,34 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
 
         private HashSet<int>? selfCollisionClusterRods;
 
+        private HashSet<(int, int)>? selfCollisionClusterPairs;
+
+        /// <summary>Gets the node pairs a recovered cluster puts one of its own rods on.</summary>
+        public IReadOnlySet<(int, int)> SelfCollisionClusterPairs
+        {
+            get
+            {
+                if (selfCollisionClusterPairs is null)
+                {
+                    selfCollisionClusterPairs = [];
+                    foreach (var cluster in SelfCollisionClusters)
+                    {
+                        for (var i = 0; i < cluster.Nodes.Length; i++)
+                        {
+                            for (var j = i + 1; j < cluster.Nodes.Length; j++)
+                            {
+                                var a = cluster.Nodes[i];
+                                var b = cluster.Nodes[j];
+                                selfCollisionClusterPairs.Add(a < b ? (a, b) : (b, a));
+                            }
+                        }
+                    }
+                }
+
+                return selfCollisionClusterPairs;
+            }
+        }
+
         /// <summary>
         /// Gets the self-collision clusters the compiled rods record. A <c>ClothSelfCollisionCluster</c>
         /// puts exactly one rod on every pair of its members, all sharing one length band, all carrying the
@@ -2397,6 +2425,21 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                 var sliderScale = MathF.Exp(-DefaultSurfaceStretch);
                 float Slider(float relaxation) => Math.Min(1f, relaxation / sliderScale);
 
+                // The compiler builds a joint's parent rod only for a non-zero stretch slider. A chain whose
+                // spans a self-collision cluster owns, with nothing else on any of them, declared none: the
+                // rods on those pairs are the cluster's. Elsewhere an unread span is carrying its rod
+                // somewhere this reconstruction does not see, and keeps the neutral default.
+                var clusterPairs = SelfCollisionClusterPairs;
+                var chainDeclaresNoStretch = chain.Joints.Count > 1
+                    && chain.Joints.Exists(joint => !joint.IsRoot
+                        && clusterPairs.Contains(SpanPair(joint.Node, joint.ParentNode)))
+                    && chain.Joints.TrueForAll(joint => joint.IsRoot
+                        || clusterPairs.Contains(SpanPair(joint.Node, joint.ParentNode))
+                        || (!SpannedByRod(joint.Node, joint.ParentNode)
+                            && RingInternalRelaxation(joint.Node) is null));
+
+                static (int, int) SpanPair(int a, int b) => a < b ? (a, b) : (b, a);
+
                 foreach (var joint in chain.Joints)
                 {
                     var parent = joint.ParentNode;
@@ -2421,7 +2464,9 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                     var stretch = SpanRelaxation(joint.Node, parent) ?? RingInternalRelaxation(joint.Node)
                         ?? chainNaturalRf ?? 1f;
 
-                    joint.StretchStiffness = stretch > 0f ? Slider(stretch) : 1f;
+                    joint.StretchStiffness = chainDeclaresNoStretch && !joint.IsRoot
+                        ? 0f
+                        : stretch > 0f ? Slider(stretch) : 1f;
 
                     // A span the compile records as its own two-corner source element was authored as a
                     // ClothSpring rather than as this joint's stretch slider, and the spring is re-declared

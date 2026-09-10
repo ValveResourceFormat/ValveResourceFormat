@@ -1914,6 +1914,66 @@ namespace Tests
             }
         }
 
+        /// <summary>
+        /// The compiler builds a chain joint's parent rod only for a non-zero stretch slider, so a chain
+        /// every span of which a self-collision cluster owns declared none. A chain with no cluster on it
+        /// keeps the neutral default, whatever its spans read.
+        /// </summary>
+        [Test]
+        public async Task AChainWhoseSpansACollisionClusterOwnsRecoversAZeroStretchSlider()
+        {
+            var clustered = ClusteredChain().BuildBoneChains()[0].Joints;
+            var plain = StretchlessChain(SyntheticCloth.RigidRod(0, 2, 20f, 1f)
+                + SyntheticCloth.RigidRod(1, 3, 20f, 1f)).BuildBoneChains()[0].Joints;
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(clustered.Count).IsEqualTo(5);
+                await Assert.That(clustered.TrueForAll(joint => joint.IsRoot || joint.StretchStiffness == 0f))
+                    .IsTrue();
+                await Assert.That(plain.TrueForAll(joint => joint.IsRoot || joint.StretchStiffness == 1f))
+                    .IsTrue();
+            }
+        }
+
+        private static FeModel ClusteredChain()
+        {
+            var rods = new StringBuilder();
+            for (var a = 1; a <= 4; a++)
+            {
+                for (var b = a + 1; b <= 4; b++)
+                {
+                    rods.Append(SyntheticCloth.BandedRod(a, b, 2f, 10f, 1f));
+                }
+            }
+
+            rods.Append(SyntheticCloth.RigidRod(0, 2, 20f, 1f));
+            rods.Append(SyntheticCloth.RigidRod(1, 3, 20f, 1f));
+            rods.Append(SyntheticCloth.RigidRod(2, 4, 20f, 1f));
+            return SyntheticCloth.Parse($$"""
+                {
+                    m_CtrlName = [ "j0", "j1", "j2", "j3", "j4" ]
+                    m_SkelParents = [ -1, 0, 1, 2, 3 ]
+                    m_nNodeCount = 5
+                    m_nStaticNodes = 0
+                    m_nFirstPositionDrivenNode = 5
+                    m_NodeInvMasses = [ 1.0, 1.0, 1.0, 1.0, 1.0 ]
+                    m_InitPose =
+                    [
+                        {{SyntheticCloth.Pose(0f, 0f, 0f)}}
+                        {{SyntheticCloth.Pose(0f, 0f, -10f)}}
+                        {{SyntheticCloth.Pose(0f, 0f, -20f)}}
+                        {{SyntheticCloth.Pose(0f, 0f, -30f)}}
+                        {{SyntheticCloth.Pose(0f, 0f, -40f)}}
+                    ]
+                    m_Rods =
+                    [
+                        {{rods}}
+                    ]
+                }
+                """);
+        }
+
         private static FeModel ClusterCloth(int members)
         {
             var names = string.Join(", ", Enumerable.Range(0, members + 1).Select(i => $"\"j{i}\""));
