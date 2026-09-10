@@ -164,11 +164,11 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
 
                     var ia = GetIntegrator(a.Node);
                     var ib = GetIntegrator(b.Node);
-                    var strength = GoalStrengthFromAttraction(ia.ForceAttraction + (ib.ForceAttraction - ia.ForceAttraction) * t);
+                    var strength = GoalStrengthPaint(ia.ForceAttraction + (ib.ForceAttraction - ia.ForceAttraction) * t);
                     var radius = GetCollisionRadius(a.Node) + (GetCollisionRadius(b.Node) - GetCollisionRadius(a.Node)) * t;
                     var forceAttraction = ia.ForceAttraction + (ib.ForceAttraction - ia.ForceAttraction) * t;
                     var vertexAttraction = ia.VertexAttraction + (ib.VertexAttraction - ia.VertexAttraction) * t;
-                    var damping = GoalDampingFromAttraction(forceAttraction, vertexAttraction);
+                    var damping = GoalDampingPaint(forceAttraction, vertexAttraction);
                     var friction = FrictionAt(a.Node) + (FrictionAt(b.Node) - FrictionAt(a.Node)) * t;
                     var drag = Math.Clamp((ia.PointDamping + (ib.PointDamping - ia.PointDamping) * t) / ClothDragPointDampingScale, 0f, 1f);
 

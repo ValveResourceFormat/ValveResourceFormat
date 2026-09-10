@@ -383,6 +383,108 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             => MathF.Cbrt(Math.Clamp(forceAttraction, 0f, 1f));
 
         /// <summary>
+        /// Gets the authored <c>ClothParams.goal_strength_bias</c>, which the compiler adds to every
+        /// node's goal strength before cubing it into <c>flAnimationForceAttraction</c> while
+        /// <c>flAnimationVertexAttraction</c> keeps the UNBIASED cube. So a biased model ships
+        /// <c>fa = (g + bias)^3</c> against <c>va = f(g^3, damping)</c>, and the two cube roots differ by
+        /// the bias on every node the damping leaves alone.
+        /// <para>
+        /// Only a node in GOAL-DAMPED mode with both attractions in range constrains it: damping can only
+        /// raise <c>va</c> above the cube, never lower it, so a gap is either the bias or a node the
+        /// damping is pushing the other way, while a node on the RAW integrator ships an unrelated pair
+        /// this exporter already reproduces verbatim. The answer is the gap the largest set of them
+        /// agrees on, and it is taken only when that set is most of them - a thin mode is noise, and a
+        /// model with no bias has to recover exactly zero or every paint it writes would move.
+        /// </para>
+        /// </summary>
+        public float GoalStrengthBias => goalStrengthBias ??= ComputeGoalStrengthBias();
+
+        private float? goalStrengthBias;
+
+        // The bias is authored on a slider and reads back through two cube roots, so the readings are
+        // clustered at the slider's own resolution before the mode is taken.
+        private const float GoalStrengthBiasQuantum = 10000f;
+
+        // Below this many constraining nodes, or this share of them at the mode, the reading is noise.
+        private const int GoalStrengthBiasMinNodes = 8;
+
+        private const float GoalStrengthBiasMinShare = 0.5f;
+
+        private float ComputeGoalStrengthBias()
+        {
+            var counts = new Dictionary<int, int>();
+            var constraining = 0;
+            for (var node = 0; node < NodeCount; node++)
+            {
+                var integrator = GetIntegrator(node);
+                var fa = integrator.ForceAttraction;
+                var va = integrator.VertexAttraction;
+                if (fa <= 0f || fa >= 1f || va <= 0f || !UsesGoalDampedIntegrator(node))
+                {
+                    continue;
+                }
+
+                constraining++;
+                var gap = (int)MathF.Round((MathF.Cbrt(fa) - MathF.Cbrt(va)) * GoalStrengthBiasQuantum);
+                counts[gap] = counts.GetValueOrDefault(gap) + 1;
+            }
+
+            if (constraining < GoalStrengthBiasMinNodes)
+            {
+                return 0f;
+            }
+
+            var mode = 0;
+            var agreeing = 0;
+            foreach (var (gap, count) in counts)
+            {
+                if (count > agreeing)
+                {
+                    agreeing = count;
+                    mode = gap;
+                }
+            }
+
+            return mode > 0 && agreeing >= GoalStrengthBiasMinShare * constraining
+                ? mode / GoalStrengthBiasQuantum
+                : 0f;
+        }
+
+        /// <summary>
+        /// The <c>cloth_goal_strength_v2</c> to paint for a node whose compiled force attraction is
+        /// <paramref name="forceAttraction"/>: the cube root the compiler will cube back, less the
+        /// model's own <see cref="GoalStrengthBias"/>, which the compiler adds again on the way in.
+        /// <para>
+        /// A SATURATED attraction is left alone. The compiler clamps the biased strength before cubing
+        /// it, so an attraction of one says only that the sum reached one and the bias cannot be taken
+        /// back out of it - while the node's own vertex attraction still pins the strength itself, and
+        /// subtracting the bias would move the strength away from what that pins.
+        /// </para>
+        /// </summary>
+        public float GoalStrengthPaint(float forceAttraction)
+            => GoalStrengthBias <= 0f || forceAttraction >= 1f
+                ? GoalStrengthFromAttraction(forceAttraction)
+                : Math.Clamp(GoalStrengthFromAttraction(forceAttraction) - GoalStrengthBias, 0f, 1f);
+
+        /// <summary>
+        /// The <c>cloth_goal_damping</c> that goes with <see cref="GoalStrengthPaint"/>. The damping
+        /// curve is solved against the UNBIASED cube, which is what the compiler feeds it: solving it
+        /// against the biased force attraction instead makes the whole bias look like damping, and since
+        /// damping cannot lower the vertex attraction at all the solve then clamps to zero and the bias
+        /// is lost.
+        /// </summary>
+        public float GoalDampingPaint(float forceAttraction, float vertexAttraction)
+        {
+            if (GoalStrengthBias <= 0f || forceAttraction >= 1f)
+            {
+                return GoalDampingFromAttraction(forceAttraction, vertexAttraction);
+            }
+
+            var strength = GoalStrengthPaint(forceAttraction);
+            return GoalDampingFromAttraction(strength * strength * strength, vertexAttraction);
+        }
+
+        /// <summary>
         /// Recovers the source <c>goal_damping</c> from a node's compiled attractions, inverting the
         /// builder's <c>va = 1 - ((1-fa) / (sqrt((1-fa)*fa + d*d) + d))^2 * fa</c>, where <c>fa</c> is
         /// <c>flAnimationForceAttraction</c> and <c>d</c> the source damping. Legacy nodes compiled with an

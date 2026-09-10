@@ -1768,8 +1768,8 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             // scale, reaching the values above 1.0 the goal pair cannot, and a vertex the raw paint reaches
             // keeps the raw integrator while the rest of the sheet stays goal-damped.
             var rawGoal = node < RawGoalPaintNodes.Length && RawGoalPaintNodes[node];
-            var goalStrength = rawGoal ? 0f : GoalStrengthFromAttraction(integrator.ForceAttraction);
-            var goalDamping = rawGoal ? 0f : GoalDampingFromAttraction(integrator.ForceAttraction, integrator.VertexAttraction);
+            var goalStrength = rawGoal ? 0f : GoalStrengthPaint(integrator.ForceAttraction);
+            var goalDamping = rawGoal ? 0f : GoalDampingPaint(integrator.ForceAttraction, integrator.VertexAttraction);
             var animationForceAttract = rawGoal ? integrator.ForceAttraction / ClothRawGoalScale : 0f;
             var animationAttract = rawGoal ? integrator.VertexAttraction / ClothRawGoalScale : 0f;
 

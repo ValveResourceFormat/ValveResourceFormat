@@ -1865,6 +1865,69 @@ namespace Tests
                 """);
         }
 
+        /// <summary>
+        /// The compiler adds <c>goal_strength_bias</c> to a node's goal strength before cubing it into
+        /// the force attraction, while the vertex attraction keeps the unbiased cube, so a model whose
+        /// two attractions sit a constant cube root apart names the bias. Only a goal-damped node says
+        /// anything: a raw-integrator node ships an unrelated pair.
+        /// </summary>
+        [Test]
+        public async Task GoalStrengthBiasIsTheCubeRootGapTheGoalDampedNodesShare()
+        {
+            using (Assert.Multiple())
+            {
+                await Assert.That(BiasedGoals(bias: 0.02f, flags: "128").GoalStrengthBias)
+                    .IsEqualTo(0.02f).Within(0.0001f);
+                // No gap at all is no bias, and it has to recover EXACTLY zero or every paint moves.
+                await Assert.That(BiasedGoals(bias: 0f, flags: "128").GoalStrengthBias).IsEqualTo(0f);
+                // The same numbers on the RAW integrator constrain nothing.
+                await Assert.That(BiasedGoals(bias: 0.02f, flags: "1024").GoalStrengthBias).IsEqualTo(0f);
+
+                // The paint takes the bias back out below saturation, and leaves a SATURATED attraction
+                // alone: the compiler clamped the sum before cubing it, so the bias is not in there to
+                // take back out, and the node's own vertex attraction still pins the strength.
+                var biased = BiasedGoals(bias: 0.02f, flags: "128");
+                await Assert.That(biased.GoalStrengthPaint(0.140608f)).IsEqualTo(0.5f).Within(0.0005f);
+                await Assert.That(biased.GoalStrengthPaint(1f)).IsEqualTo(1f);
+                await Assert.That(biased.GoalDampingPaint(1f, 0f))
+                    .IsEqualTo(FeModel.GoalDampingFromAttraction(1f, 0f));
+            }
+        }
+
+        /// <summary>
+        /// Ten goal nodes whose force attraction is <c>(g + bias)^3</c> against a vertex attraction of
+        /// <c>g^3</c>, with <paramref name="flags"/> as the dynamic band's own mode word (128 = goal
+        /// damped, 1024 = raw).
+        /// </summary>
+        private static FeModel BiasedGoals(float bias, string flags)
+        {
+            var poses = new System.Text.StringBuilder();
+            var integrators = new System.Text.StringBuilder();
+            poses.Append(SyntheticCloth.Pose(0f, 0f, 0f));
+            integrators.Append("{ flPointDamping = 0.0 flAnimationForceAttraction = 0.0 "
+                + "flAnimationVertexAttraction = 0.0 flGravity = 360.0 },");
+            var strengths = new[] { 0.5f, 0.4f, 0.3f, 0.35f, 0.5f, 0.4f, 0.3f, 0.35f, 0.45f, 0.25f };
+            for (var i = 0; i < strengths.Length; i++)
+            {
+                var g = strengths[i];
+                var force = (g + bias) * (g + bias) * (g + bias);
+                poses.Append(SyntheticCloth.Pose(0f, 0f, -1f * (i + 1)));
+                integrators.Append($"{{ flPointDamping = 0.0 flAnimationForceAttraction = {SyntheticCloth.Num(force)} "
+                    + $"flAnimationVertexAttraction = {SyntheticCloth.Num(g * g * g)} flGravity = 360.0 }},");
+            }
+
+            return SyntheticCloth.Parse($$"""
+                {
+                    m_nNodeCount = 11
+                    m_nStaticNodes = 1
+                    m_nDynamicNodeFlags = {{flags}}
+                    m_NodeInvMasses = [ 0.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0 ]
+                    m_InitPose = [ {{poses}} ]
+                    m_NodeIntegrator = [ {{integrators}} ]
+                }
+                """);
+        }
+
         private static string Bend(float height)
             => $"{{ nNode = [ 1, 2, 3 ] flWeight = [ -1.0, 0.5, 0.5 ] flHeight0 = {SyntheticCloth.Num(height)} }},";
 
