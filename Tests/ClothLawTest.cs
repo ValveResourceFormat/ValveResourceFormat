@@ -485,6 +485,27 @@ namespace Tests
             }
         }
 
+        /// <summary>
+        /// Each declaration carries the ring IT extruded, which is what says how many nodes it created
+        /// and in what order. Read by name instead, both declarations of the bone would claim all four
+        /// ring nodes, and one ring of four is not the same creation order as two rings of two.
+        /// </summary>
+        [Test]
+        public async Task EachDeclarationOfABoneCarriesItsOwnRingNodes()
+        {
+            var split = RingDeclarationModel(
+                "\"$ccroot_0\", \"$ccroot_1\", \"$ccroot_0\", \"$ccroot_1\"").BuildBoneChains();
+            var single = RingDeclarationModel(
+                "\"$ccroot_0\", \"$ccroot_1\", \"$ccroot_2\", \"$ccroot_3\"").BuildBoneChains();
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(split[0].Joints[0].RingNodes).IsEquivalentTo([1, 2]);
+                await Assert.That(split[1].Joints[0].RingNodes).IsEquivalentTo([3, 4]);
+                await Assert.That(single[0].Joints[0].RingNodes).IsEquivalentTo([1, 2, 3, 4]);
+            }
+        }
+
         private static FeModel RingDeclarationModel(string ringNames) => SyntheticCloth.Parse($$"""
             {
                 m_CtrlName = [ "root", {{ringNames}} ]

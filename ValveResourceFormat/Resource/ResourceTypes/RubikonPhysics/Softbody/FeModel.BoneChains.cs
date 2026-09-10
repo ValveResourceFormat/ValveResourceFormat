@@ -35,6 +35,12 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             /// </summary>
             public int ExtrudeSides { get; set; }
             /// <summary>
+            /// Gets the <c>$cc</c> proxy nodes THIS declaration extruded on the joint, in node order. A
+            /// bone two chains declare carries one ring per declaration under the same name, so which
+            /// nodes a declaration created cannot be read back from the node names alone.
+            /// </summary>
+            public IReadOnlyList<int> RingNodes { get; set; } = [];
+            /// <summary>
             /// Gets one of the <c>$cc</c> proxy nodes generated from this joint, or -1 when it has none.
             /// A joint's own node is position-driven and compiles with no gravity, so the authored
             /// <c>gravity_z</c> survives only on its proxies.
@@ -1764,6 +1770,8 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                     {
                         continue;
                     }
+
+                    joint.RingNodes = [.. proxies.Order()];
 
                     // A bone this declaration shares with another leaves its own goal, damping, radius,
                     // stray radius and simulate flag on the ring it extruded; the joint node itself keeps
