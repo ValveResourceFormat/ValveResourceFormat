@@ -354,7 +354,8 @@ partial class ModelExtract
         // registers (and which then gives back_solve a sheet-sized set to fit against). Every other
         // selection keeps its paint - an effect naming one the compile cannot find is a hard failure
         // ("refers to non-existent vertex map/set").
-        var containerMap = physAggregateData?.FeModel?.GetProxyVertexMapName(proxy);
+        var containerMap = physAggregateData?.FeModel?.GetProxyVertexMapName(proxy,
+            ClothProxyMeshesToExtract.ConvertAll(static entry => entry.Proxy));
         foreach (var (mapName, weights) in proxy.VertexMaps)
         {
             if (mapName != containerMap)

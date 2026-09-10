@@ -362,6 +362,8 @@ partial class ModelExtract
         }
 
         var (clothProxyList, clothProxyChildren) = MakeListNode("ClothProxyMeshList");
+        var proxyGroup = ClothProxyMeshesToExtract.ConvertAll(static entry => entry.Proxy);
+        var vertexMapContainers = new Dictionary<string, KVObject>(StringComparer.Ordinal);
         foreach (var proxyFile in ClothProxyMeshesToExtract)
         {
             // The threshold is derived from the ORIGINAL's own compiled fit data (see
@@ -386,14 +388,19 @@ partial class ModelExtract
             // ClothVertexMap around the sheet compiles to - the grouping the "Add Cloth Vertex Map"
             // wizard builds. Only a PROXY MESH may be wrapped this way: the same container around
             // free ClothNodes that a ClothSpring references makes the compiler access-violate.
-            if (feModel.GetProxyVertexMapName(proxyFile.Proxy) is { } proxyVertexMap)
+            if (feModel.GetProxyVertexMapName(proxyFile.Proxy, proxyGroup) is { } proxyVertexMap)
             {
-                var (mapNode, mapChildren) = MakeListNode("ClothVertexMap");
-                mapNode.Add("name", proxyVertexMap);
-                AddClothVertexMapAttributes(mapNode, feModel, proxyVertexMap,
-                    BuildProxyNodeNameMap(ClothProxyMeshesToExtract));
+                if (!vertexMapContainers.TryGetValue(proxyVertexMap, out var mapChildren))
+                {
+                    var (mapNode, children) = MakeListNode("ClothVertexMap");
+                    mapNode.Add("name", proxyVertexMap);
+                    AddClothVertexMapAttributes(mapNode, feModel, proxyVertexMap,
+                        BuildProxyNodeNameMap(ClothProxyMeshesToExtract));
+                    clothProxyChildren.Add(mapNode);
+                    vertexMapContainers[proxyVertexMap] = mapChildren = children;
+                }
+
                 mapChildren.Add(proxyNode);
-                clothProxyChildren.Add(mapNode);
                 continue;
             }
 
