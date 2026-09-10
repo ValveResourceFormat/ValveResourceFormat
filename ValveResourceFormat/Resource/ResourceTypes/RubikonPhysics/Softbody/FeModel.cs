@@ -2612,17 +2612,9 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// exists only because the sheet painted it.
         /// </para>
         /// </summary>
-        public string? GetProxyVertexMapName(ProxyMesh proxy)
+        public string? GetProxyVertexMapName(ProxyMesh proxy, IReadOnlyList<ProxyMesh>? group = null)
         {
-            var simulated = new HashSet<int>();
-            for (var v = 0; v < proxy.NodeIndices.Length; v++)
-            {
-                if (v < proxy.ClothEnable.Length && proxy.ClothEnable[v] != 0f)
-                {
-                    simulated.Add(proxy.NodeIndices[v]);
-                }
-            }
-
+            var simulated = SimulatedProxyNodes(proxy);
             if (simulated.Count == 0)
             {
                 return null;
@@ -2636,20 +2628,33 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                     continue;
                 }
 
-                var members = 0;
-                var outside = false;
-                for (var i = 0; i < map.Weights.Length && !outside; i++)
+                var members = new HashSet<int>();
+                for (var i = 0; i < map.Weights.Length; i++)
                 {
-                    if (map.Weights[i] <= 0f)
+                    if (map.Weights[i] > 0f)
                     {
-                        continue;
+                        members.Add(map.VertexBase + i);
                     }
-
-                    outside = !simulated.Contains(map.VertexBase + i);
-                    members++;
                 }
 
-                if (!outside && members == simulated.Count)
+                if (!members.Overlaps(simulated))
+                {
+                    continue;
+                }
+
+                // One authored proxy is exported as one mesh per island, so a selection wrapping the
+                // authored sheet covers the union of the islands it reaches rather than any one of them.
+                var covered = new HashSet<int>();
+                foreach (var sibling in group ?? [proxy])
+                {
+                    var siblingNodes = SimulatedProxyNodes(sibling);
+                    if (members.Overlaps(siblingNodes))
+                    {
+                        covered.UnionWith(siblingNodes);
+                    }
+                }
+
+                if (members.SetEquals(covered))
                 {
                     // Two selections over the same nodes cannot both be the sheet's parent.
                     if (found is not null)
@@ -2662,6 +2667,21 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             }
 
             return found;
+        }
+
+        /// <summary>The control nodes of <paramref name="proxy"/> whose vertices its sheet simulates.</summary>
+        public static HashSet<int> SimulatedProxyNodes(ProxyMesh proxy)
+        {
+            var simulated = new HashSet<int>();
+            for (var v = 0; v < proxy.NodeIndices.Length; v++)
+            {
+                if (v < proxy.ClothEnable.Length && proxy.ClothEnable[v] != 0f)
+                {
+                    simulated.Add(proxy.NodeIndices[v]);
+                }
+            }
+
+            return simulated;
         }
 
         /// <summary>An anti-tunnelling probe (from <c>m_AntiTunnelProbes</c>).</summary>

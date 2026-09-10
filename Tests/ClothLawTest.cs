@@ -2009,5 +2009,65 @@ namespace Tests
                 }
                 """);
         }
+
+        /// <summary>
+        /// One authored proxy sheet is exported as one mesh per island, so a selection wrapping the whole
+        /// sheet covers the UNION of the islands rather than any single one. Matched against one island
+        /// alone it is not the sheet's container and the export paints it as a vertex set instead.
+        /// </summary>
+        [Test]
+        public async Task ASelectionOverSeveralExportedProxiesIsStillTheSheetsContainer()
+        {
+            var model = SplitSheet();
+            var islands = new[] { Island([0, 1]), Island([2, 3]) };
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(model.GetProxyVertexMapName(islands[0], islands)).IsEqualTo("sheet");
+                await Assert.That(model.GetProxyVertexMapName(islands[1], islands)).IsEqualTo("sheet");
+                await Assert.That(model.GetProxyVertexMapName(islands[0])).IsNull();
+            }
+        }
+
+        private static FeModel.ProxyMesh Island(int[] nodes)
+        {
+            var ones = new float[nodes.Length];
+            Array.Fill(ones, 1f);
+            var zeroes = new float[nodes.Length];
+            return new FeModel.ProxyMesh
+            {
+                NodeIndices = nodes,
+                Positions = new Vector3[nodes.Length],
+                ClothEnable = ones,
+                GoalStrength = zeroes,
+                GoalDamping = zeroes,
+                CollisionRadius = zeroes,
+                Friction = zeroes,
+                Drag = zeroes,
+                GroundCollision = zeroes,
+                GroundFriction = zeroes,
+                Gravity = zeroes,
+                VertexAttraction = zeroes,
+                SkinInfluences = new (string, float)[nodes.Length][],
+                Faces = [],
+            };
+        }
+
+        private static FeModel SplitSheet() => SyntheticCloth.Parse("""
+            {
+                m_CtrlName = [ "v0", "v1", "v2", "v3" ]
+                m_nNodeCount = 4
+                m_nStaticNodes = 0
+                m_VertexMaps =
+                [
+                    { sName = "sheet" nNameHash = 1 nColor = 0 nFlags = 0 nVertexBase = 0
+                      nVertexCount = 4 nMapOffset = 0 nNodeListOffset = 0
+                      vCenterOfMass = [ 0.0, 0.0, 0.0 ] flVolumetricSolveStrength = 0.0
+                      nScaleSourceNode = -1 },
+                ]
+                m_VertexMapValues = [ 255, 255, 255, 255 ]
+                m_VertexSetNames = [  ]
+            }
+            """);
     }
 }
