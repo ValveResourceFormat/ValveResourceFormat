@@ -1,4 +1,3 @@
-using System.Globalization;
 using ValveKeyValue;
 using ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody;
 using static ValveResourceFormat.IO.KVHelpers;
@@ -154,49 +153,6 @@ partial class ModelExtract
     }
 
     /// <summary>
-    /// The nodes a <c>ClothChain</c> creates for one joint after the joint node itself, in creation
-    /// order: the <c>$cc&lt;joint&gt;_Ctr</c> centre node and then the numbered ring nodes.
-    /// </summary>
-    static List<int> ClothChainRingNodes(FeModel feModel, string jointName)
-    {
-        var prefix = "$cc" + jointName + "_";
-        var centre = -1;
-        var rings = new List<(int Index, int Node)>();
-        for (var node = 0; node < feModel.CtrlNames.Length; node++)
-        {
-            var name = feModel.CtrlNames[node];
-            if (!name.StartsWith(prefix, StringComparison.Ordinal))
-            {
-                continue;
-            }
-
-            var suffix = name[prefix.Length..];
-            if (suffix == "Ctr")
-            {
-                centre = node;
-            }
-            else if (int.TryParse(suffix, NumberStyles.None, CultureInfo.InvariantCulture, out var index))
-            {
-                rings.Add((index, node));
-            }
-        }
-
-        rings.Sort(static (a, b) => a.Index.CompareTo(b.Index));
-        var ordered = new List<int>(rings.Count + 1);
-        if (centre >= 0)
-        {
-            ordered.Add(centre);
-        }
-
-        foreach (var (_, node) in rings)
-        {
-            ordered.Add(node);
-        }
-
-        return ordered;
-    }
-
-    /// <summary>
     /// Reproduces the compiled control-node order by choosing which chain joints are declared ahead of
     /// the chains and in what order the chains are then walked. Returns null when today's declaration
     /// order already reproduces it, when the bands cannot be read, or when no declaration order does.
@@ -209,33 +165,59 @@ partial class ModelExtract
             return null;
         }
 
+        // One entry per joint DECLARATION, not per joint node: several chains can declare the same bone,
+        // and each of them extrudes a ring of its own that the shared node is created only once for.
         var joints = new List<(int Chain, FeModel.BoneChainJoint Joint, List<int> Rings)>();
-        var jointOfNode = new Dictionary<int, int>();
+        var occurrences = new Dictionary<int, List<int>>();
+        var jointNodes = new HashSet<int>();
+        var ringNodes = new HashSet<int>();
+
+        // A joint two rings wide or wider creates its node in the compiler's second pass, after every
+        // chain's rings; anything narrower creates it before its own ring.
+        var deferred = new HashSet<int>();
         for (var c = 0; c < chains.Count; c++)
         {
             foreach (var joint in chains[c].Joints)
             {
-                if (joint.Node < 0 || joint.Node >= bands.Length || jointOfNode.ContainsKey(joint.Node))
+                if (joint.Node < 0 || joint.Node >= bands.Length)
                 {
                     return null;
                 }
 
-                jointOfNode[joint.Node] = joints.Count;
-                joints.Add((c, joint, ClothChainRingNodes(feModel, joint.Name)));
+                var rings = new List<int>(joint.RingNodes.Count);
+                foreach (var ring in joint.RingNodes)
+                {
+                    if (ring < 0 || ring >= bands.Length || !ringNodes.Add(ring))
+                    {
+                        return null;
+                    }
+
+                    rings.Add(ring);
+                }
+
+                jointNodes.Add(joint.Node);
+                if (joint.ExtrudeSides >= 2)
+                {
+                    deferred.Add(joint.Node);
+                }
+
+                if (!occurrences.TryGetValue(joint.Node, out var list))
+                {
+                    occurrences[joint.Node] = list = [];
+                }
+
+                list.Add(joints.Count);
+                joints.Add((c, joint, rings));
             }
         }
 
-        var owned = new HashSet<int>(jointOfNode.Keys);
-        foreach (var (_, _, rings) in joints)
+        if (jointNodes.Overlaps(ringNodes))
         {
-            foreach (var ring in rings)
-            {
-                if (!owned.Add(ring))
-                {
-                    return null;
-                }
-            }
+            return null;
         }
+
+        var owned = new HashSet<int>(jointNodes);
+        owned.UnionWith(ringNodes);
 
         var lanes = new List<List<int>>();
         for (var node = 0; node < bands.Length; node++)
@@ -253,17 +235,44 @@ partial class ModelExtract
             lanes[bands[node]].Add(node);
         }
 
-        // Only the chains' own nodes are placed here. A model that also carries nodes some other
-        // declaration creates has an interleaving this cannot see, so the reordering would be a guess.
-        if (owned.Count != feModel.NodeCount)
+        // Nodes some other declaration creates hold the positions they are in, so the chains can only be
+        // reordered where their own nodes fill an unbroken run of a band: a run is permuted within itself
+        // and nothing crosses it. A band a foreign node breaks carries an interleaving this cannot see.
+        var runStart = new Dictionary<int, int>();
+        var runEnd = new Dictionary<int, int>();
+        var runCount = new Dictionary<int, int>();
+        var pureBands = new HashSet<int>();
+        for (var node = 0; node < bands.Length; node++)
         {
-            return null;
+            var band = bands[node];
+            if (!owned.Contains(node))
+            {
+                pureBands.Remove(band);
+                continue;
+            }
+
+            if (!runCount.ContainsKey(band))
+            {
+                runStart[band] = node;
+                pureBands.Add(band);
+            }
+
+            runEnd[band] = node;
+            runCount[band] = runCount.GetValueOrDefault(band) + 1;
         }
 
-        // A chain creates a joint immediately followed by its own rings, so within a band the order of
-        // two joints and the order of their rings have to agree. Where they disagree the joint nodes
-        // came from somewhere else - a back-solved proxy sheet promotes the same bones and numbers them
-        // its own way - and none of the creation order modelled here describes that model.
+        foreach (var (band, count) in runCount)
+        {
+            if (count != runEnd[band] - runStart[band] + 1)
+            {
+                return null;
+            }
+        }
+
+        // A joint narrower than two rings creates its node immediately before its own rings, so within a
+        // band the order of two such joints and the order of their rings have to agree. Where they
+        // disagree the joint nodes came from somewhere else - a back-solved proxy sheet promotes the same
+        // bones and numbers them its own way - and none of the creation order modelled here describes it.
         for (var i = 0; i < joints.Count; i++)
         {
             for (var j = i + 1; j < joints.Count; j++)
@@ -271,6 +280,8 @@ partial class ModelExtract
                 var (_, first, firstRings) = joints[i];
                 var (_, second, secondRings) = joints[j];
                 if (firstRings.Count == 0 || secondRings.Count == 0
+                    || deferred.Contains(first.Node) || deferred.Contains(second.Node)
+                    || first.Node == second.Node
                     || bands[first.Node] != bands[second.Node]
                     || bands[firstRings[0]] != bands[secondRings[0]])
                 {
@@ -284,7 +295,7 @@ partial class ModelExtract
             }
         }
 
-        var solver = new ClothChainOrderSolver(joints, jointOfNode, lanes, bands);
+        var solver = new ClothChainOrderSolver(joints, occurrences, deferred, lanes, bands, pureBands);
         return solver.Solve(feModel, chains, reparents);
     }
 
@@ -296,12 +307,17 @@ partial class ModelExtract
         const int ExpansionBudget = 50000;
 
         readonly List<(int Chain, FeModel.BoneChainJoint Joint, List<int> Rings)> joints;
-        readonly Dictionary<int, int> jointOfNode;
+        readonly Dictionary<int, List<int>> occurrences;
+        readonly Dictionary<int, List<int>> owners = [];
+        readonly HashSet<int> deferred;
+        readonly HashSet<int> pureBands;
         readonly List<List<int>> lanes;
         readonly int[] bands;
         readonly int[] lanePos;
         readonly bool[] walked;
-        readonly bool[] declared;
+        readonly bool[] tookNode;
+        readonly bool[] nodeTaken;
+        readonly bool[] declaredNode;
         readonly bool[] keepInChain;
         readonly int[] chainPending;
         readonly List<int> preDeclared = [];
@@ -312,20 +328,48 @@ partial class ModelExtract
         int currentChain = -1;
 
         public ClothChainOrderSolver(List<(int Chain, FeModel.BoneChainJoint Joint, List<int> Rings)> joints,
-            Dictionary<int, int> jointOfNode, List<List<int>> lanes, int[] bands)
+            Dictionary<int, List<int>> occurrences, HashSet<int> deferred, List<List<int>> lanes,
+            int[] bands, HashSet<int> pureBands)
         {
             this.joints = joints;
-            this.jointOfNode = jointOfNode;
+            this.occurrences = occurrences;
+            this.deferred = deferred;
             this.lanes = lanes;
             this.bands = bands;
+            this.pureBands = pureBands;
             lanePos = new int[lanes.Count];
             walked = new bool[joints.Count];
-            declared = new bool[joints.Count];
+            tookNode = new bool[joints.Count];
+            nodeTaken = new bool[bands.Length];
+            declaredNode = new bool[bands.Length];
             keepInChain = new bool[joints.Count];
             chainPending = new int[joints.Count == 0 ? 0 : joints[^1].Chain + 1];
+            for (var index = 0; index < joints.Count; index++)
+            {
+                var (_, joint, rings) = joints[index];
+                Own(joint.Node, index);
+                foreach (var ring in rings)
+                {
+                    Own(ring, index);
+                }
+            }
+
             foreach (var lane in lanes)
             {
                 remaining += lane.Count;
+            }
+
+            void Own(int node, int index)
+            {
+                if (!owners.TryGetValue(node, out var list))
+                {
+                    owners[node] = list = [];
+                }
+
+                if (!list.Contains(index))
+                {
+                    list.Add(index);
+                }
             }
         }
 
@@ -385,29 +429,28 @@ partial class ModelExtract
 
 
         // The order the exporter emits today: no joint declared ahead of its chain, chains and joints in
-        // the order the chain reconstruction built them.
+        // the order the chain reconstruction built them, which is the order this list was built in.
         bool WalksNaturally(List<FeModel.BoneChain> chains)
         {
             Reset();
-            for (var c = 0; c < chains.Count; c++)
+            for (var index = 0; index < joints.Count; index++)
             {
-                foreach (var joint in chains[c].Joints)
+                if (!StartJoint(index))
                 {
-                    if (!jointOfNode.TryGetValue(joint.Node, out var index) || !StartJoint(index))
-                    {
-                        return false;
-                    }
+                    return false;
                 }
             }
 
-            return remaining == 0;
+            return TakeDeferredNodes([]) && remaining == 0;
         }
 
         void Reset()
         {
             Array.Clear(lanePos);
             Array.Clear(walked);
-            Array.Clear(declared);
+            Array.Clear(tookNode);
+            Array.Clear(nodeTaken);
+            Array.Clear(declaredNode);
             preDeclared.Clear();
             walkOrder.Clear();
             started = false;
@@ -445,7 +488,9 @@ partial class ModelExtract
             remaining++;
         }
 
-        // Consumes a joint and all of its ring nodes, which the chain creates as one block.
+        // The compiler's first pass over the chains: a joint narrower than two rings creates its own node
+        // and then its ring, a joint two rings wide or wider creates only its ring, and a bone another
+        // declaration already created the node for creates only the ring it extruded itself.
         bool StartJoint(int index)
         {
             var (chain, joint, rings) = joints[index];
@@ -454,21 +499,16 @@ partial class ModelExtract
                 return false;
             }
 
-            if (joint.ParentNode >= 0 && jointOfNode.TryGetValue(joint.ParentNode, out var parent)
-                && joints[parent].Chain == chain && !walked[parent])
+            if (joint.ParentNode >= 0 && ParentPending(chain, joint.ParentNode))
             {
                 return false;
             }
 
-            var takenJoint = false;
-            if (!declared[index])
+            var takesNode = !deferred.Contains(joint.Node) && !nodeTaken[joint.Node]
+                && !declaredNode[joint.Node];
+            if (takesNode && !TakeHead(joint.Node))
             {
-                if (!TakeHead(joint.Node))
-                {
-                    return false;
-                }
-
-                takenJoint = true;
+                return false;
             }
 
             var taken = 0;
@@ -481,7 +521,7 @@ partial class ModelExtract
                         ReturnHead(rings[i]);
                     }
 
-                    if (takenJoint)
+                    if (takesNode)
                     {
                         ReturnHead(joint.Node);
                     }
@@ -492,6 +532,8 @@ partial class ModelExtract
                 taken++;
             }
 
+            tookNode[index] = takesNode;
+            nodeTaken[joint.Node] |= takesNode;
             walked[index] = true;
             chainPending[chain]--;
             walkOrder.Add(index);
@@ -508,9 +550,11 @@ partial class ModelExtract
                 ReturnHead(rings[i]);
             }
 
-            if (!declared[index])
+            if (tookNode[index])
             {
                 ReturnHead(joint.Node);
+                nodeTaken[joint.Node] = false;
+                tookNode[index] = false;
             }
 
             walked[index] = false;
@@ -518,18 +562,109 @@ partial class ModelExtract
             walkOrder.RemoveAt(walkOrder.Count - 1);
         }
 
+        // A joint can only be walked once every declaration of its chain parent in the same chain has
+        // been, which is what makes the emitted joint_parent resolve to a joint already above it.
+        bool ParentPending(int chain, int parentNode)
+        {
+            if (!occurrences.TryGetValue(parentNode, out var list))
+            {
+                return false;
+            }
+
+            foreach (var other in list)
+            {
+                if (joints[other].Chain == chain && !walked[other])
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        // The compiler's second pass: the node of every joint two rings wide or wider, in the order the
+        // walk reached that joint. Nothing branches here - the second pass follows the same walk the
+        // first did - so this is a check on a completed walk, not a step of the search.
+        bool TakeDeferredNodes(List<int> taken)
+        {
+            foreach (var index in walkOrder)
+            {
+                var node = joints[index].Joint.Node;
+                if (!deferred.Contains(node) || nodeTaken[node] || declaredNode[node])
+                {
+                    continue;
+                }
+
+                if (!TakeHead(node))
+                {
+                    return false;
+                }
+
+                nodeTaken[node] = true;
+                taken.Add(node);
+            }
+
+            return true;
+        }
+
+        void ReturnDeferredNodes(List<int> taken)
+        {
+            for (var i = taken.Count - 1; i >= 0; i--)
+            {
+                ReturnHead(taken[i]);
+                nodeTaken[taken[i]] = false;
+            }
+        }
+
         bool ChainFinished(int chain) => chainPending[chain] == 0;
 
         bool Search()
         {
-            if (remaining == 0 && walkOrder.Count == joints.Count)
+            if (walkOrder.Count == joints.Count)
             {
-                return true;
+                var taken = new List<int>();
+                if (TakeDeferredNodes(taken) && remaining == 0)
+                {
+                    return true;
+                }
+
+                ReturnDeferredNodes(taken);
+                return false;
             }
 
             if (++expansions > ExpansionBudget)
             {
                 return false;
+            }
+
+            // Several walks can reproduce one node order, and the one closest to the order the chain
+            // reconstruction built is the one every other emitted value is already keyed to - so the
+            // next joint of that order is tried before anything else is.
+            var natural = -1;
+            for (var index = 0; index < joints.Count; index++)
+            {
+                if (!walked[index])
+                {
+                    natural = index;
+                    break;
+                }
+            }
+
+            if (natural >= 0)
+            {
+                var previousChain = currentChain;
+                var wasStarted = started;
+                if (StartJoint(natural))
+                {
+                    if (Search())
+                    {
+                        return true;
+                    }
+
+                    UndoJoint(natural);
+                    currentChain = previousChain;
+                    started = wasStarted;
+                }
             }
 
             for (var band = 0; band < lanes.Count; band++)
@@ -539,16 +674,23 @@ partial class ModelExtract
                     continue;
                 }
 
+                // The next node of a band is the first node of whichever declaration creates it, so every
+                // declaration that node belongs to is a candidate for the next step of the walk.
                 var head = lanes[band][lanePos[band]];
-                if (!jointOfNode.TryGetValue(head, out var index))
+                foreach (var index in owners.GetValueOrDefault(head, []))
                 {
-                    continue;
-                }
+                    if (index == natural)
+                    {
+                        continue;
+                    }
 
-                var previousChain = currentChain;
-                var wasStarted = started;
-                if (StartJoint(index))
-                {
+                    var previousChain = currentChain;
+                    var wasStarted = started;
+                    if (!StartJoint(index))
+                    {
+                        continue;
+                    }
+
                     if (Search())
                     {
                         return true;
@@ -559,28 +701,31 @@ partial class ModelExtract
                     started = wasStarted;
                 }
 
-                if (started || walked[index] || declared[index] || keepInChain[index] || !TakeHead(head))
+                if (started || !pureBands.Contains(band) || !CanPreDeclare(head) || !TakeHead(head))
                 {
                     continue;
                 }
 
-                declared[index] = true;
-                preDeclared.Add(index);
+                declaredNode[head] = true;
+                preDeclared.Add(occurrences[head][0]);
                 if (Search())
                 {
                     return true;
                 }
 
                 preDeclared.RemoveAt(preDeclared.Count - 1);
-                declared[index] = false;
+                declaredNode[head] = false;
                 ReturnHead(head);
             }
 
-            // A joint declared ahead of the chains contributes no node of its own when the walk reaches
-            // it, so its ring block is not the head of any band until the walk gets there.
+            // A declaration that creates no node of its own - a joint declared ahead of the chains, or a
+            // bone whose node and ring another declaration already made - is not the head of any band, so
+            // the walk has to be offered it directly.
             for (var index = 0; index < joints.Count; index++)
             {
-                if (!declared[index] || walked[index])
+                if (index == natural || walked[index] || joints[index].Rings.Count > 0
+                    || (!nodeTaken[joints[index].Joint.Node] && !declaredNode[joints[index].Joint.Node]
+                        && !deferred.Contains(joints[index].Joint.Node)))
                 {
                     continue;
                 }
@@ -603,6 +748,29 @@ partial class ModelExtract
             }
 
             return false;
+        }
+
+        // A joint whose node the chains create can be declared ahead of them instead, which claims the
+        // creation index for its name. Every declaration of that bone has to allow it, and the band has
+        // to be the chains' own: a foreign node in it is created wherever ITS declaration sits, which a
+        // node moved to the head of the cloth folder would be reordered against.
+        bool CanPreDeclare(int node)
+        {
+            if (nodeTaken[node] || declaredNode[node] || deferred.Contains(node)
+                || !occurrences.TryGetValue(node, out var list))
+            {
+                return false;
+            }
+
+            foreach (var index in list)
+            {
+                if (walked[index] || keepInChain[index])
+                {
+                    return false;
+                }
+            }
+
+            return true;
         }
     }
 
