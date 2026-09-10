@@ -1890,7 +1890,13 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                     return found is { } reading ? Math.Clamp(reading, 0f, 1f) : 1f;
                 }
 
-                int JointCopies(BoneChainJoint joint)
+                // How many times the joint's own upward spans are repeated. With `floor`, a pair carrying
+                // MORE than the rest no longer throws the reading away: a second construct declaring one
+                // of the same pairs adds to that pair alone, so the count every pair reaches is the
+                // repeat and the surplus is somebody else's rod. Without it the count has to be uniform,
+                // which is what the suspender readings below are built on. A pair with NO rod is fatal
+                // either way - the joint does not generate that span, so nothing about it is repeated.
+                int JointCopies(BoneChainJoint joint, bool floor = false)
                 {
                     var copies = 0;
 
@@ -1909,12 +1915,12 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                                     out var repeat)
                                     ? repeat.Count
                                     : 0;
-                                if (count == 0 || (copies != 0 && count != copies))
+                                if (count == 0 || (!floor && copies != 0 && count != copies))
                                 {
                                     return false;
                                 }
 
-                                copies = count;
+                                copies = floor && copies != 0 ? Math.Min(copies, count) : count;
                             }
                         }
 
@@ -2262,8 +2268,11 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                     }
                     else
                     {
+                        // No suspender to split the count with, so the repeats are read off the floor:
+                        // neither reading above is being fed, and a joint one shared pair keeps from
+                        // agreeing would otherwise lose its iteration count on every pair it has.
                         joint.Suspender = 0f;
-                        joint.ExtraIterations = JointCopies(joint) - 1;
+                        joint.ExtraIterations = JointCopies(joint, floor: true) - 1;
                     }
                 }
 

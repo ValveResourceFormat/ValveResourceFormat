@@ -1764,6 +1764,64 @@ namespace Tests
             }
         }
 
+        /// <summary>
+        /// The repeats an <c>extra_iterations</c> reading rests on are the count every pair of a span
+        /// reaches, not a count they all have to share: a pair some other construct declares as well
+        /// carries a rod on top of the repeats, and the joint's own iteration count is still the floor.
+        /// </summary>
+        [Test]
+        public async Task ExtraIterationsIsTheFloorOfASpanWhoseOnePairCarriesASurplusRod()
+        {
+            var even = RingSpanChain(surplus: 0).BuildBoneChains()[0].Joints.Find(j => j.Name == "j1");
+            var lopsided = RingSpanChain(surplus: 1).BuildBoneChains()[0].Joints.Find(j => j.Name == "j1");
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(even!.ExtraIterations).IsEqualTo(2);
+                await Assert.That(lopsided!.ExtraIterations).IsEqualTo(2);
+            }
+        }
+
+        /// <summary>
+        /// A ringed root and a ringed joint, so the joint's own span is the four pairs of the two rings.
+        /// Every pair carries three copies; <paramref name="surplus"/> more go on one of them.
+        /// </summary>
+        private static FeModel RingSpanChain(int surplus)
+        {
+            var rods = new System.Text.StringBuilder();
+            foreach (var (a, b) in new[] { (1, 4), (1, 5), (2, 4), (2, 5) })
+            {
+                var copies = 3 + (a == 1 && b == 4 ? surplus : 0);
+                for (var i = 0; i < copies; i++)
+                {
+                    rods.Append(SyntheticCloth.RigidRod(a, b, 4f, 1f));
+                }
+            }
+
+            return SyntheticCloth.Parse($$"""
+                {
+                    m_CtrlName = [ "root", "$ccroot_0", "$ccroot_1", "j1", "$ccj1_0", "$ccj1_1" ]
+                    m_SkelParents = [ -1, 0, 0, 0, 3, 3 ]
+                    m_nNodeCount = 6
+                    m_nStaticNodes = 1
+                    m_NodeInvMasses = [ 0.0, 1.0, 1.0, 1.0, 1.0, 1.0 ]
+                    m_InitPose =
+                    [
+                        {{SyntheticCloth.Pose(0f, 0f, 0f)}}
+                        {{SyntheticCloth.Pose(0f, 2f, 0f)}}
+                        {{SyntheticCloth.Pose(0f, -2f, 0f)}}
+                        {{SyntheticCloth.Pose(0f, 0f, -4f)}}
+                        {{SyntheticCloth.Pose(0f, 2f, -4f)}}
+                        {{SyntheticCloth.Pose(0f, -2f, -4f)}}
+                    ]
+                    m_Rods =
+                    [
+                        {{rods}}
+                    ]
+                }
+                """);
+        }
+
         private static string Bend(float height)
             => $"{{ nNode = [ 1, 2, 3 ] flWeight = [ -1.0, 0.5, 0.5 ] flHeight0 = {SyntheticCloth.Num(height)} }},";
 
