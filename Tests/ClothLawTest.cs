@@ -1847,5 +1847,49 @@ namespace Tests
                 m_KelagerBends = [ {{bends}} ]
             }
             """);
+
+        /// <summary>
+        /// A chain authored with <c>stretch_spring = 0</c> compiles no rod between consecutive joints. Its
+        /// top link is then recorded only by the bend rod that SPANS the second joint, running from that
+        /// joint's own skeleton parent to its child.
+        /// </summary>
+        [Test]
+        public async Task ASpanningBendRodRootsAStretchlessChainAtTheParentItSpansTo()
+        {
+            var spanned = StretchlessChain(SyntheticCloth.RigidRod(0, 2, 20f, 1f)
+                + SyntheticCloth.RigidRod(1, 3, 20f, 1f)).BuildBoneChains();
+            var unspanned = StretchlessChain(SyntheticCloth.RigidRod(1, 3, 20f, 1f)).BuildBoneChains();
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(spanned.Count).IsEqualTo(1);
+                await Assert.That(spanned[0].RootBone).IsEqualTo("j0");
+                await Assert.That(spanned[0].Joints.Count).IsEqualTo(4);
+                await Assert.That(unspanned.Find(chain => chain.Joints.Exists(joint => joint.Name == "j3"))!
+                    .RootBone).IsEqualTo("j1");
+            }
+        }
+
+        private static FeModel StretchlessChain(string rods) => SyntheticCloth.Parse($$"""
+            {
+                m_CtrlName = [ "j0", "j1", "j2", "j3" ]
+                m_SkelParents = [ -1, 0, 1, 2 ]
+                m_nNodeCount = 4
+                m_nStaticNodes = 0
+                m_nFirstPositionDrivenNode = 4
+                m_NodeInvMasses = [ 1.0, 1.0, 1.0, 1.0 ]
+                m_InitPose =
+                [
+                    {{SyntheticCloth.Pose(0f, 0f, 0f)}}
+                    {{SyntheticCloth.Pose(0f, 0f, -10f)}}
+                    {{SyntheticCloth.Pose(0f, 0f, -20f)}}
+                    {{SyntheticCloth.Pose(0f, 0f, -30f)}}
+                ]
+                m_Rods =
+                [
+                    {{rods}}
+                ]
+            }
+            """);
     }
 }
