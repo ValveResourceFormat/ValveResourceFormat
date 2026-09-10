@@ -616,6 +616,7 @@ partial class ModelExtract
         clothBones.UnionWith(loneClothNodes.Concat(leftoverStaticNodes).Concat(unregisteredNodes)
             .Select(static entry => entry.Name));
         clothBones.UnionWith(unregisteredFreeNodes.Select(static entry => entry.RootBone));
+        AddClothSelfCollisionClusters(softbodyChildren, feModel, clothBones);
         AddClothFollowBones(softbodyChildren, feModel, clothBones);
         var shapeNames = AddClothCollisionShapes(softbodyChildren, feModel);
         AddClothAntiTunnelGroup(softbodyChildren, feModel, shapeNames,

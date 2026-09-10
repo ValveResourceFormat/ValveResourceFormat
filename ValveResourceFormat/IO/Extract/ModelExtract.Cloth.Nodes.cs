@@ -393,8 +393,9 @@ partial class ModelExtract
         softbodyChildren.Add(clothFolder);
 
         var clothBones = ClothBoneNames(feModel);
+        var clustered = AddClothSelfCollisionClusters(softbodyChildren, feModel, clothBones);
         var freeNodes = AddFreeClothNodesAndSprings(clothFolderChildren, softbodyChildren, feModel,
-            [], static _ => true, clothBones,
+            clustered, static _ => true, clothBones,
             ClothVertexMapFolders(feModel, clothFolderChildren),
             bareStaticReparented: ClothControlAncestorTest(feModel));
         AddClothFaces(clothFolderChildren, feModel);

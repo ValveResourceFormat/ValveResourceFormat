@@ -629,6 +629,172 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// companion or a second producer on the same pair differs in its factor or its length.
         /// </para>
         /// </remarks>
+        /// <summary>
+        /// A recovered <c>ClothSelfCollisionCluster</c>: the member nodes, and the length band every one of
+        /// their pairwise rods carries. The per-member radii the band sums are not preserved by the
+        /// compile, so the caller splits it evenly.
+        /// </summary>
+        public readonly record struct SelfCollisionCluster(int[] Nodes, float MinDist, float MaxDist);
+
+        /// <summary>
+        /// The smallest member count a rod clique is read as a cluster at. A cluster of N members compiles
+        /// to C(N,2) rods, so three members is one triangle, which a surface can also produce.
+        /// </summary>
+        internal const int SelfCollisionClusterMinMembers = 4;
+
+        private List<SelfCollisionCluster>? selfCollisionClusters;
+
+        private HashSet<int>? selfCollisionClusterRods;
+
+        /// <summary>
+        /// Gets the self-collision clusters the compiled rods record. A <c>ClothSelfCollisionCluster</c>
+        /// puts exactly one rod on every pair of its members, all sharing one length band, all carrying the
+        /// builder's own relaxation of 1.0 and weight of 0.5, and none of them registering a source element.
+        /// A clique of rods with that signature is therefore a cluster and nothing else can produce it.
+        /// </summary>
+        public IReadOnlyList<SelfCollisionCluster> SelfCollisionClusters
+            => selfCollisionClusters ??= BuildSelfCollisionClusters();
+
+        /// <summary>
+        /// Gets the index into <see cref="Rods"/> of every rod <see cref="SelfCollisionClusters"/> accounts
+        /// for. The chain reconstruction reads its spans off the remaining rods and the export re-declares
+        /// these through the cluster instead of one spring per pair.
+        /// </summary>
+        public IReadOnlySet<int> SelfCollisionClusterRods
+            => selfCollisionClusterRods ??= BuildSelfCollisionClusterRods();
+
+        private List<SelfCollisionCluster> BuildSelfCollisionClusters()
+        {
+            var found = new List<SelfCollisionCluster>();
+            const int minMembers = SelfCollisionClusterMinMembers;
+            if (IsImportedCloth || Rods.Length < minMembers * (minMembers - 1) / 2)
+            {
+                return found;
+            }
+
+            var sprung = new HashSet<(int, int)>();
+            foreach (var (a, b) in SourceSprings)
+            {
+                sprung.Add(a < b ? (a, b) : (b, a));
+            }
+
+            var byBand = new Dictionary<(float, float), Dictionary<(int, int), int>>();
+            foreach (var rod in Rods)
+            {
+                var pair = rod.NodeA < rod.NodeB ? (rod.NodeA, rod.NodeB) : (rod.NodeB, rod.NodeA);
+                if (rod.NodeA == rod.NodeB || rod.MaxDist <= rod.MinDist || rod.RelaxationFactor != 1f
+                    || rod.Weight0 != 0.5f || sprung.Contains(pair))
+                {
+                    continue;
+                }
+
+                var band = (rod.MinDist, rod.MaxDist);
+                if (!byBand.TryGetValue(band, out var counts))
+                {
+                    byBand[band] = counts = [];
+                }
+
+                counts[pair] = counts.GetValueOrDefault(pair) + 1;
+            }
+
+            var taken = new HashSet<int>();
+            foreach (var (band, counts) in byBand.OrderBy(static entry => entry.Key.Item1)
+                .ThenBy(static entry => entry.Key.Item2))
+            {
+                var neighbours = new Dictionary<int, HashSet<int>>();
+                foreach (var ((a, b), copies) in counts)
+                {
+                    if (copies != 1)
+                    {
+                        continue;
+                    }
+
+                    Neighbours(neighbours, a).Add(b);
+                    Neighbours(neighbours, b).Add(a);
+                }
+
+                var seen = new HashSet<int>();
+                foreach (var start in neighbours.Keys.Order())
+                {
+                    if (!seen.Add(start))
+                    {
+                        continue;
+                    }
+
+                    var members = new List<int> { start };
+                    for (var read = 0; read < members.Count; read++)
+                    {
+                        foreach (var next in neighbours[members[read]])
+                        {
+                            if (seen.Add(next))
+                            {
+                                members.Add(next);
+                            }
+                        }
+                    }
+
+                    members.Sort();
+                    if (members.Count < minMembers || members.Exists(taken.Contains)
+                        || members.Exists(node => neighbours[node].Count != members.Count - 1))
+                    {
+                        continue;
+                    }
+
+                    taken.UnionWith(members);
+                    found.Add(new SelfCollisionCluster([.. members], band.Item1, band.Item2));
+                }
+            }
+
+            return found;
+
+            static HashSet<int> Neighbours(Dictionary<int, HashSet<int>> map, int node)
+            {
+                if (!map.TryGetValue(node, out var set))
+                {
+                    map[node] = set = [];
+                }
+
+                return set;
+            }
+        }
+
+        private HashSet<int> BuildSelfCollisionClusterRods()
+        {
+            var claimed = new HashSet<int>();
+            if (SelfCollisionClusters.Count == 0)
+            {
+                return claimed;
+            }
+
+            var wanted = new Dictionary<(int, int), (float Min, float Max)>();
+            foreach (var cluster in SelfCollisionClusters)
+            {
+                for (var i = 0; i < cluster.Nodes.Length; i++)
+                {
+                    for (var j = i + 1; j < cluster.Nodes.Length; j++)
+                    {
+                        var a = cluster.Nodes[i];
+                        var b = cluster.Nodes[j];
+                        wanted[a < b ? (a, b) : (b, a)] = (cluster.MinDist, cluster.MaxDist);
+                    }
+                }
+            }
+
+            for (var i = 0; i < Rods.Length; i++)
+            {
+                var rod = Rods[i];
+                var pair = rod.NodeA < rod.NodeB ? (rod.NodeA, rod.NodeB) : (rod.NodeB, rod.NodeA);
+                if (wanted.TryGetValue(pair, out var band) && rod.MinDist == band.Min
+                    && rod.MaxDist == band.Max && rod.RelaxationFactor == 1f && rod.Weight0 == 0.5f)
+                {
+                    claimed.Add(i);
+                    wanted.Remove(pair);
+                }
+            }
+
+            return claimed;
+        }
+
         (HashSet<(int, int)> Pairs, Dictionary<(int, int), List<float>> RelaxationsByPair,
             Dictionary<(int, int), List<float>> RigidRelaxationsByPair,
             Dictionary<(int, int), List<float>> RepeatRelaxationsByPair,
@@ -645,8 +811,17 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             var rigidRelaxationsByPair = new Dictionary<(int, int), List<float>>();
             var contractionsByPair = new Dictionary<(int, int), List<float>>();
             var rodsByPair = new Dictionary<(int, int), List<Rod>>();
-            foreach (var rod in Rods)
+            var clusterRods = SelfCollisionClusterRods;
+            for (var index = 0; index < Rods.Length; index++)
             {
+                // A cluster's pairwise rods are its own; reading a chain's spans off them turns every
+                // member pair into a span the chain never declared.
+                if (clusterRods.Contains(index))
+                {
+                    continue;
+                }
+
+                var rod = Rods[index];
                 var pair = rod.NodeA < rod.NodeB ? (rod.NodeA, rod.NodeB) : (rod.NodeB, rod.NodeA);
                 pairs.Add(pair);
                 if (!relaxationsByPair.TryGetValue(pair, out var relaxations))
@@ -2245,6 +2420,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
 
                     var stretch = SpanRelaxation(joint.Node, parent) ?? RingInternalRelaxation(joint.Node)
                         ?? chainNaturalRf ?? 1f;
+
                     joint.StretchStiffness = stretch > 0f ? Slider(stretch) : 1f;
 
                     // A span the compile records as its own two-corner source element was authored as a

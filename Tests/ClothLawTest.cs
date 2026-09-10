@@ -1891,5 +1891,63 @@ namespace Tests
                 ]
             }
             """);
+
+        /// <summary>
+        /// A <c>ClothSelfCollisionCluster</c> puts one rod on every member pair, all of them sharing one
+        /// length band and carrying the builder's own relaxation and weight. A complete clique of those is
+        /// read back as the cluster; a triangle sits below the member floor and stays plain rods.
+        /// </summary>
+        [Test]
+        public async Task ACompleteBandedRodCliqueIsReadBackAsASelfCollisionCluster()
+        {
+            var clique = ClusterCloth(4);
+            var triangle = ClusterCloth(3);
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(clique.SelfCollisionClusters.Count).IsEqualTo(1);
+                await Assert.That(string.Join(",", clique.SelfCollisionClusters[0].Nodes)).IsEqualTo("1,2,3,4");
+                await Assert.That(clique.SelfCollisionClusters[0].MinDist).IsEqualTo(2f);
+                await Assert.That(clique.SelfCollisionClusters[0].MaxDist).IsEqualTo(10f);
+                await Assert.That(clique.SelfCollisionClusterRods.Count).IsEqualTo(6);
+                await Assert.That(triangle.SelfCollisionClusters.Count).IsEqualTo(0);
+            }
+        }
+
+        private static FeModel ClusterCloth(int members)
+        {
+            var names = string.Join(", ", Enumerable.Range(0, members + 1).Select(i => $"\"j{i}\""));
+            var parents = string.Join(", ", Enumerable.Range(-1, members + 1));
+            var poses = string.Concat(Enumerable.Range(0, members + 1)
+                .Select(i => SyntheticCloth.Pose(0f, 0f, -10f * i) + "\n                    "));
+            var masses = string.Join(", ", Enumerable.Range(0, members + 1).Select(static _ => "1.0"));
+            var rods = new StringBuilder();
+            for (var a = 1; a <= members; a++)
+            {
+                for (var b = a + 1; b <= members; b++)
+                {
+                    rods.Append(SyntheticCloth.BandedRod(a, b, 2f, 10f, 1f));
+                }
+            }
+
+            return SyntheticCloth.Parse($$"""
+                {
+                    m_CtrlName = [ {{names}} ]
+                    m_SkelParents = [ {{parents}} ]
+                    m_nNodeCount = {{members + 1}}
+                    m_nStaticNodes = 0
+                    m_nFirstPositionDrivenNode = {{members + 1}}
+                    m_NodeInvMasses = [ {{masses}} ]
+                    m_InitPose =
+                    [
+                        {{poses}}
+                    ]
+                    m_Rods =
+                    [
+                        {{rods}}
+                    ]
+                }
+                """);
+        }
     }
 }
