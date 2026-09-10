@@ -1006,6 +1006,38 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                 }
             }
 
+            // A chain declared with no stretch spring carries no rod between consecutive joints, and its
+            // top link survives only in the BEND rod that spans the joint: that rod runs from the joint's
+            // own skeleton parent to a joint the chain already claims as its child. `bendRodLinked` above
+            // reads the same span from the child end, which no joint one below a chain root can do.
+            for (var linked = true; linked;)
+            {
+                linked = false;
+                for (var i = 0; i < n; i++)
+                {
+                    if (!isReal[i] || realParent[i] >= 0)
+                    {
+                        continue;
+                    }
+
+                    var p = i < SkelParents.Length ? SkelParents[i] : -1;
+                    if (p < 0 || p >= n || !isReal[p] || RinglessLinkUnrecorded(p, i))
+                    {
+                        continue;
+                    }
+
+                    for (var child = 0; child < n && realParent[i] < 0; child++)
+                    {
+                        if (child != p && realParent[child] == i
+                            && rodPairs.Contains(p < child ? (p, child) : (child, p)))
+                        {
+                            realParent[i] = p;
+                            linked = true;
+                        }
+                    }
+                }
+            }
+
             // A rod between two pinned nodes constrains nothing and the compiler leaves it out, so a chain
             // whose top two joints are both static loses the one link every rule above reads and roots a
             // joint too low. The parent joint keeps only its own compiled m_SkelParents entry, which is
