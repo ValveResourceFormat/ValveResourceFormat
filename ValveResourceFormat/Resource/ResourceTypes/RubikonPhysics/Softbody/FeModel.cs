@@ -2249,6 +2249,12 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// its weight to 0, and a joint's rod to its OWN ring is not part of the span and stays
         /// unbiased.
         /// </para>
+        /// <para>
+        /// The inverse masses the builder weights are the reciprocals of the two joints' authored
+        /// <c>mass</c> multipliers, not the geometric masses, so an unbiased span between two joints of
+        /// the default mass is exactly one half whatever the final masses are. Under
+        /// <see cref="HasExplicitMasses"/> they are the final masses themselves.
+        /// </para>
         /// </summary>
         public float? GetMotionBias(BoneChainJoint joint)
         {
@@ -2264,13 +2270,10 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                 return null;
             }
 
-            // The desc's inverse masses are NOT the ones the rod builder divided - over the corpus the
-            // plain ratio misses the shipped weight by up to 0.27 on most rods - so a bias can only be
-            // read where the unbiased weight is known without them, which is where the two ends weigh
-            // the same and it is exactly one half.
-            if (MathF.Abs(parentMass - jointMass) > MotionBiasTolerance * MathF.Max(parentMass, jointMass))
+            if (!HasExplicitMasses)
             {
-                return null;
+                parentMass = 1f / (RecoverJointMassMultiplier(joint.ParentNode) ?? 1f);
+                jointMass = 1f / (RecoverJointMassMultiplier(joint.Node) ?? 1f);
             }
 
             float? bias = null;
