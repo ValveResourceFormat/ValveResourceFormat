@@ -43,23 +43,23 @@ partial class ModelExtract
     // ClothSpring it registers no m_SourceElems entry, so it is the node to re-emit for a rod between two
     // chain joints that a chain does not itself regenerate. The per-member radius split the compiled rod
     // does not preserve (only the sum reaches m_Rods) is recovered as an even split.
-    static KVObject MakeClothSelfCollisionCluster(string name, IReadOnlyList<string> members, float radius,
-        float strayRadius)
+    static KVObject MakeClothSelfCollisionCluster(string name, List<string> members, float radius,
+        float strayRadius, float[]? stiffness = null)
     {
-        KVObject MakeJoint(string jointName)
+        KVObject MakeJoint(string jointName, float jointStiffness)
         {
             var joint = KVObject.Collection();
             joint.Add("joint_name", jointName);
             joint.Add("collision_radius", radius);
             joint.Add("stray_radius", strayRadius);
-            joint.Add("stiffness", 1.0f);
+            joint.Add("stiffness", jointStiffness);
             return joint;
         }
 
         var joints = KVObject.Array();
-        foreach (var member in members)
+        for (var i = 0; i < members.Count; i++)
         {
-            joints.Add(MakeJoint(member));
+            joints.Add(MakeJoint(members[i], stiffness is not null && i < stiffness.Length ? stiffness[i] : 1.0f));
         }
 
         var chainData = KVObject.Collection();
@@ -1363,7 +1363,7 @@ partial class ModelExtract
 
             softbodyChildren.Add(MakeClothSelfCollisionCluster(
                 $"cluster_{index.ToString(CultureInfo.InvariantCulture)}", members,
-                cluster.MinDist / 2f, cluster.MaxDist / 2f));
+                cluster.MinDist / 2f, cluster.MaxDist / 2f, cluster.Stiffness));
             clothBones.UnionWith(members);
             covered.UnionWith(cluster.Nodes);
             index++;
