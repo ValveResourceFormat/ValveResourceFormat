@@ -2911,5 +2911,31 @@ namespace Tests
                 ]
             }
             """;
+
+        /// <summary>
+        /// Under chain version 1 a zero <c>stretch_spring</c> drops a joint's node base and <c>animated_length</c>
+        /// keeps it, so a joint whose children are cut off from it reads as animated wherever it keeps a base. The
+        /// fixture is the compiled synthetic version 1 chain with <c>animated_length</c> on every joint, which carries
+        /// no rod at all; without a base on the tip, the tip reads as a zero stretch spring instead.
+        /// </summary>
+        [Test]
+        public async Task AnAnimatedLengthJointIsReadOffTheNodeBaseItKeeps()
+        {
+            const string InnerBases = "{ nNode = 5 nNodeX0 = 3 nNodeX1 = 0 nNodeY0 = 1 nNodeY1 = 6 }, "
+                + "{ nNode = 6 nNodeX0 = 5 nNodeX1 = 4 nNodeY0 = 7 nNodeY1 = 2 }";
+            var based = SyntheticCloth.Parse(AnimatedEveryJointText.Replace("m_Rods =",
+                "m_NodeBases = [ " + InnerBases + ", { nNode = 7 nNodeX0 = 7 nNodeX1 = 3 nNodeY0 = 4 nNodeY1 = 6 } ]\nm_Rods =",
+                StringComparison.Ordinal)).BuildBoneChains()[0].Joints;
+            var tipFree = SyntheticCloth.Parse(AnimatedEveryJointText.Replace("m_Rods =",
+                "m_NodeBases = [ " + InnerBases + " ]\nm_Rods =", StringComparison.Ordinal)).BuildBoneChains()[0].Joints;
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(based.Where(static joint => !joint.IsRoot).All(static joint => joint.AnimatedLength)).IsTrue();
+                await Assert.That(tipFree.First(static joint => joint.Name == "coattail_1_L").AnimatedLength).IsTrue();
+                await Assert.That(tipFree.First(static joint => joint.Name == "coattail_end_L").AnimatedLength).IsFalse();
+                await Assert.That(tipFree.First(static joint => joint.Name == "coattail_end_L").StretchStiffness).IsEqualTo(0f);
+            }
+        }
     }
 }
