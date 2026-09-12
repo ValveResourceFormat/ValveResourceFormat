@@ -109,7 +109,7 @@ partial class ModelExtract
 
     // The Softbody node's own attributes, as opposed to the ClothParams child below. The two
     // switches are omitted unless their bit is present.
-    static void AddSoftbodyAttributes(KVObject softbody, FeModel fe)
+    void AddSoftbodyAttributes(KVObject softbody, FeModel fe)
     {
         softbody.Add("motion_smooth_cdt", fe.MotionSmoothCdt);
 
@@ -121,6 +121,31 @@ partial class ModelExtract
         if ((fe.DynamicNodeFlags & ClothFlagKeychainMotion) != 0)
         {
             softbody.Add("cloth_keychain_motion", true);
+        }
+
+        AddSoftbodyModelKeyValues(softbody, model?.KeyValues);
+    }
+
+    /// <summary>
+    /// Restores the two Softbody keys the compiler writes into the model's key values instead of the
+    /// FeModel: <c>stiffness_on_ragdoll</c> as <c>cloth_stiffness_on_ragdoll</c> (only when above zero) and
+    /// <c>cloth_sleep_enabled</c> (only when set).
+    /// </summary>
+    internal static void AddSoftbodyModelKeyValues(KVObject softbody, KVObject? keyValues)
+    {
+        if (keyValues is null)
+        {
+            return;
+        }
+
+        if (keyValues.ContainsKey("cloth_stiffness_on_ragdoll"))
+        {
+            softbody.Add("stiffness_on_ragdoll", keyValues.GetFloatProperty("cloth_stiffness_on_ragdoll"));
+        }
+
+        if (keyValues.ContainsKey("cloth_sleep_enabled"))
+        {
+            softbody.Add("cloth_sleep_enabled", keyValues.GetBooleanProperty("cloth_sleep_enabled"));
         }
     }
 
