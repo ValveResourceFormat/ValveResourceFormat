@@ -1498,8 +1498,9 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// <summary>
         /// Whether the model was compiled with <c>ClothParams explicit_masses</c>. Every simulated node's
         /// inverse mass is then the reciprocal of an authored mass of at most two decimals, and the rod pass,
-        /// which runs on those final masses, gives every rod between two simulated nodes of unequal mass the
-        /// weight <c>invA / (invA + invB)</c>; where no such rod exists the simulated nodes share one mass.
+        /// which runs on those final masses, gives a rod between two simulated nodes of unequal mass the
+        /// weight <c>invA / (invA + invB)</c> wherever no <c>motion_bias</c> moves it, so at least one such
+        /// rod carries it; where no such rod exists the simulated nodes share one mass.
         /// A geometric chain keeps a flat <c>flWeight0</c> of 0.5 over unequal masses, and a model without
         /// rods is never read as explicit.
         /// </summary>
@@ -1543,6 +1544,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
 
             var anyRod = false;
             var unequal = 0;
+            var proportional = 0;
             foreach (var rod in Rods)
             {
                 if (rod.NodeA == rod.NodeB)
@@ -1563,13 +1565,13 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                 }
 
                 unequal++;
-                if (MathF.Abs(rod.Weight0 - a / (a + b)) > 2e-5f)
+                if (MathF.Abs(rod.Weight0 - a / (a + b)) <= 2e-5f)
                 {
-                    return false;
+                    proportional++;
                 }
             }
 
-            return simulated > 0 && anyRod && (unequal > 0 || uniform);
+            return simulated > 0 && anyRod && (unequal > 0 ? proportional > 0 : uniform);
         }
 
         float? ExplicitMassOf(int node)
