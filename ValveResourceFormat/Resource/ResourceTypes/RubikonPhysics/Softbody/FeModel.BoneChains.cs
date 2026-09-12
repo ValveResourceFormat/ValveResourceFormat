@@ -637,8 +637,9 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         public readonly record struct SelfCollisionCluster(int[] Nodes, float MinDist, float MaxDist);
 
         /// <summary>
-        /// The smallest member count a rod clique is read as a cluster at. A cluster of N members compiles
-        /// to C(N,2) rods, so three members is one triangle, which a surface can also produce.
+        /// The smallest member count a rod clique is read as a cluster at on its signature alone. A cluster of
+        /// N members compiles to C(N,2) rods, so three members is one triangle, which a surface can also
+        /// produce; a triangle is read as a cluster only when <see cref="IsRadiusBandTriangle"/> holds.
         /// </summary>
         internal const int SelfCollisionClusterMinMembers = 4;
 
@@ -694,8 +695,8 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         private List<SelfCollisionCluster> BuildSelfCollisionClusters()
         {
             var found = new List<SelfCollisionCluster>();
-            const int minMembers = SelfCollisionClusterMinMembers;
-            if (IsImportedCloth || Rods.Length < minMembers * (minMembers - 1) / 2)
+            const int minMembers = 3;
+            if (IsImportedCloth || Rods.Length < minMembers)
             {
                 return found;
             }
@@ -763,7 +764,8 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
 
                     members.Sort();
                     if (members.Count < minMembers || members.Exists(taken.Contains)
-                        || members.Exists(node => neighbours[node].Count != members.Count - 1))
+                        || members.Exists(node => neighbours[node].Count != members.Count - 1)
+                        || (members.Count < SelfCollisionClusterMinMembers && !IsRadiusBandTriangle(members, band.Item2)))
                     {
                         continue;
                     }
@@ -784,6 +786,36 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
 
                 return set;
             }
+        }
+
+        /// <summary>
+        /// Whether a three-node rod triangle is a <c>ClothSelfCollisionCluster</c> rather than a stretched
+        /// surface: every member is an authored node, and the shared band's maximum is none of the pairs' rest
+        /// distances, a cluster's band being its members' summed radii rather than a length on the surface.
+        /// </summary>
+        bool IsRadiusBandTriangle(List<int> members, float bandMax)
+        {
+            foreach (var node in members)
+            {
+                if (node >= CtrlNames.Length || node >= InitPosePositions.Length || IsGeneratedNodeName(CtrlNames[node]))
+                {
+                    return false;
+                }
+            }
+
+            for (var i = 0; i < members.Count; i++)
+            {
+                for (var j = i + 1; j < members.Count; j++)
+                {
+                    var rest = Vector3.Distance(InitPosePositions[members[i]], InitPosePositions[members[j]]);
+                    if (MathF.Abs(bandMax - rest) <= MathF.Max(1e-3f, 1e-4f * rest))
+                    {
+                        return false;
+                    }
+                }
+            }
+
+            return true;
         }
 
         private HashSet<int> BuildSelfCollisionClusterRods()
