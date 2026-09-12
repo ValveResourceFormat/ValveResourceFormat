@@ -445,10 +445,20 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                 }
             }
 
-            return mode > 0 && agreeing >= GoalStrengthBiasMinShare * constraining
-                ? mode / GoalStrengthBiasQuantum
+            if (mode > 0 && agreeing >= GoalStrengthBiasMinShare * constraining)
+            {
+                return mode / GoalStrengthBiasQuantum;
+            }
+
+            var top = counts.Keys.Max();
+            return top > 0 && counts[top] + counts.GetValueOrDefault(top - 1) >= GoalStrengthBiasMinSupport
+                ? top / GoalStrengthBiasQuantum
                 : 0f;
         }
+
+        // Damping only raises the vertex attraction, so no node's gap exceeds the bias and a node left undamped
+        // sits exactly on it: this many nodes sharing the largest gap name the bias where damping spreads the rest.
+        private const int GoalStrengthBiasMinSupport = 3;
 
         /// <summary>
         /// The <c>cloth_goal_strength_v2</c> to paint for a node whose compiled force attraction is
@@ -458,13 +468,17 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// A SATURATED attraction is left alone. The compiler clamps the biased strength before cubing
         /// it, so an attraction of one says only that the sum reached one and the bias cannot be taken
         /// back out of it - while the node's own vertex attraction still pins the strength itself, and
-        /// subtracting the bias would move the strength away from what that pins.
+        /// subtracting the bias would move the strength away from what that pins. An attraction of zero is
+        /// painted at minus the bias's cube root: below zero the compiler adds the bias to the cube of the
+        /// authored strength, which that strength brings back to exactly zero.
         /// </para>
         /// </summary>
         public float GoalStrengthPaint(float forceAttraction)
             => GoalStrengthBias <= 0f || forceAttraction >= 1f
                 ? GoalStrengthFromAttraction(forceAttraction)
-                : Math.Clamp(GoalStrengthFromAttraction(forceAttraction) - GoalStrengthBias, 0f, 1f);
+                : forceAttraction <= 0f
+                    ? -MathF.Cbrt(GoalStrengthBias)
+                    : Math.Clamp(GoalStrengthFromAttraction(forceAttraction) - GoalStrengthBias, 0f, 1f);
 
         /// <summary>
         /// The <c>cloth_goal_damping</c> that goes with <see cref="GoalStrengthPaint"/>. The damping
@@ -480,7 +494,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                 return GoalDampingFromAttraction(forceAttraction, vertexAttraction);
             }
 
-            var strength = GoalStrengthPaint(forceAttraction);
+            var strength = Math.Max(GoalStrengthPaint(forceAttraction), 0f);
             return GoalDampingFromAttraction(strength * strength * strength, vertexAttraction);
         }
 

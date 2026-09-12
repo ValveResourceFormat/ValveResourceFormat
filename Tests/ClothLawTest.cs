@@ -2937,5 +2937,56 @@ namespace Tests
                 await Assert.That(tipFree.First(static joint => joint.Name == "coattail_end_L").StretchStiffness).IsEqualTo(0f);
             }
         }
+
+        /// <summary>
+        /// Damping only raises a node's vertex attraction, so no goal-damped node's cube-root gap exceeds the
+        /// <c>goal_strength_bias</c> and an undamped node sits exactly on it. Where damping spreads most of a sheet's
+        /// gaps below the bias, the largest gap three nodes share still names it; a node the compiler ships at zero
+        /// attraction is painted at minus the bias's cube root, since below zero the bias is added to the strength's cube.
+        /// </summary>
+        [Test]
+        public async Task GoalStrengthBiasIsTheLargestGapThreeNodesShareUnderDamping()
+        {
+            var sheet = DampedBiasedGoals(bias: 0.25f, undamped: 3);
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(sheet.GoalStrengthBias).IsEqualTo(0.25f).Within(0.0002f);
+                await Assert.That(DampedBiasedGoals(bias: 0.25f, undamped: 2).GoalStrengthBias).IsEqualTo(0f);
+                await Assert.That(sheet.GoalStrengthPaint(0f)).IsEqualTo(-MathF.Cbrt(sheet.GoalStrengthBias));
+                await Assert.That(float.IsFinite(sheet.GoalDampingPaint(0f, 0f))).IsTrue();
+            }
+        }
+
+        private static FeModel DampedBiasedGoals(float bias, int undamped)
+        {
+            var poses = new System.Text.StringBuilder();
+            var integrators = new System.Text.StringBuilder();
+            poses.Append(SyntheticCloth.Pose(0f, 0f, 0f));
+            integrators.Append("{ flPointDamping = 0.0 flAnimationForceAttraction = 0.0 "
+                + "flAnimationVertexAttraction = 0.0 flGravity = 360.0 },");
+            var strengths = new[] { 0.3f, 0.4f, 0.5f, 0.35f, 0.45f, 0.55f, 0.6f, 0.38f, 0.48f, 0.58f };
+            var dampedGaps = new[] { 0.05f, 0.08f, 0.11f, 0.14f, 0.17f, 0.2f, 0.23f, 0.02f, 0.035f, 0.065f };
+            for (var i = 0; i < strengths.Length; i++)
+            {
+                var g = strengths[i];
+                var force = (g + bias) * (g + bias) * (g + bias);
+                var vertexRoot = i < undamped ? g : g + bias - dampedGaps[i];
+                poses.Append(SyntheticCloth.Pose(0f, 0f, -1f * (i + 1)));
+                integrators.Append($"{{ flPointDamping = 0.0 flAnimationForceAttraction = {SyntheticCloth.Num(force)} "
+                    + $"flAnimationVertexAttraction = {SyntheticCloth.Num(vertexRoot * vertexRoot * vertexRoot)} flGravity = 360.0 }},");
+            }
+
+            return SyntheticCloth.Parse($$"""
+                {
+                    m_nNodeCount = 11
+                    m_nStaticNodes = 1
+                    m_nDynamicNodeFlags = 128
+                    m_NodeInvMasses = [ 0.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0 ]
+                    m_InitPose = [ {{poses}} ]
+                    m_NodeIntegrator = [ {{integrators}} ]
+                }
+                """);
+        }
     }
 }
