@@ -511,7 +511,8 @@ partial class ModelExtract
         softbodyChildren.Add(MakeClothParams(feModel,
             generatesBendRods: feModel.HasChainStiffnessRods(boneChains),
             generatesBendOnlyRods: feModel.HasChainBendOnlyRods(boneChains),
-            addCurvature: feModel.ChainRingCurvature));
+            addCurvature: feModel.ChainRingCurvature,
+            explicitMasses: feModel.HasExplicitMasses));
         var (clothFolder, clothFolderChildren) = MakeListNode("Folder");
         clothFolder.Add("name", "cloth");
         softbodyChildren.Add(clothFolder);

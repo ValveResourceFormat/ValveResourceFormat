@@ -387,7 +387,7 @@ partial class ModelExtract
         // rigs) emits nothing and falls through to the PHYS transplant placeholder below.
         var (softbody, softbodyChildren) = MakeListNode("Softbody");
         AddSoftbodyAttributes(softbody, feModel);
-        softbodyChildren.Add(MakeClothParams(feModel));
+        softbodyChildren.Add(MakeClothParams(feModel, explicitMasses: feModel.HasExplicitMasses));
         var (clothFolder, clothFolderChildren) = MakeListNode("Folder");
         clothFolder.Add("name", "cloth");
         softbodyChildren.Add(clothFolder);

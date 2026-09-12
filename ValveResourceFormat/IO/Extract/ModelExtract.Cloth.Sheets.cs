@@ -431,7 +431,7 @@ partial class ModelExtract
             out var generatesBendRods, out var generatesBendOnlyRods, out var addCurvature, out _, out _,
             out _);
         softbodyChildren.Add(MakeClothParams(feModel, generatesBendRods, generatesBendOnlyRods,
-            addCurvature > 0f ? addCurvature : feModel.ChainRingCurvature));
+            addCurvature > 0f ? addCurvature : feModel.ChainRingCurvature, feModel.HasExplicitMasses));
 
         // Simulated real bones that are NEITHER back-solved NOR part of any multi-joint BoneChain:
         // standalone goal-attraction points wired together only by ClothSpring (see MakeClothNode).
