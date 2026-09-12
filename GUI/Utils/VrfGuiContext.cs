@@ -328,6 +328,7 @@ namespace GUI.Utils
             public Resource? LoadFile(string file) => context.LoadFileUncached(file);
             public Resource? LoadFileCompiled(string file) => LoadFile(string.Concat(file, CompiledFileSuffix));
             public ShaderCollection? LoadShader(string shaderName) => context.LoadShader(shaderName);
+            public Resource? LoadFilePartial(string file, ResourceReadOptions options) => context.LoadFilePartial(file, options);
             public Stream? GetFileStream(string file) => context.GetFileStream(file);
         }
 

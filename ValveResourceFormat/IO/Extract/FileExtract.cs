@@ -145,6 +145,12 @@ namespace ValveResourceFormat.IO
         public ShaderCollection? LoadShader(string shaderName) => fileLoader.LoadShader(shaderName);
 
         /// <inheritdoc/>
+        /// <remarks>
+        /// Partial reads are scans rather than extractions, so they are not tracked.
+        /// </remarks>
+        public Resource? LoadFilePartial(string file, ResourceReadOptions options) => fileLoader.LoadFilePartial(file, options);
+
+        /// <inheritdoc/>
         public Stream? GetFileStream(string file) => fileLoader.GetFileStream(file);
 
         /// <summary>

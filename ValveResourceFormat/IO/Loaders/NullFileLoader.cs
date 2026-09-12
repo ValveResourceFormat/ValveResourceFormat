@@ -30,6 +30,12 @@ namespace ValveResourceFormat.IO
         /// <remarks>
         /// Always returns null.
         /// </remarks>
+        public Resource? LoadFilePartial(string file, ResourceReadOptions options) => null;
+
+        /// <inheritdoc/>
+        /// <remarks>
+        /// Always returns null.
+        /// </remarks>
         public Stream? GetFileStream(string file) => null;
     }
 }

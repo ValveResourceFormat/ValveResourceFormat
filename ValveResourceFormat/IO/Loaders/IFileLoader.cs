@@ -40,6 +40,16 @@ namespace ValveResourceFormat.IO
         public ShaderCollection? LoadShader(string shaderName);
 
         /// <summary>
+        /// Same as <see cref="LoadFileCompiled"/> but parses only the blocks selected by
+        /// <paramref name="options"/>; the remaining blocks parse on demand while the resource
+        /// stays undisposed. The returned resource is never cached, the caller owns and disposes it.
+        /// </summary>
+        /// <param name="file">Path to the file to load (without the _c suffix).</param>
+        /// <param name="options">Options selecting which blocks to parse.</param>
+        /// <returns>Loaded compiled resource, or null if not found.</returns>
+        public Resource? LoadFilePartial(string file, ResourceReadOptions options);
+
+        /// <summary>
         /// Opens a stream for reading a raw (uncompiled) file, such as a loose script text file.
         /// </summary>
         /// <param name="file">Path to the file to read.</param>
