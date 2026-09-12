@@ -2669,6 +2669,47 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         }
 
         /// <summary>
+        /// Returns whether a quad joins a hinged joint of <paramref name="chain"/> to one of its children,
+        /// which is how a rigid hinge link compiles in place of that link's rods.
+        /// </summary>
+        public bool HasRigidHingeLink(BoneChain chain)
+        {
+            var groupOf = new Dictionary<int, int>();
+            foreach (var joint in chain.Joints)
+            {
+                groupOf[joint.Node] = joint.Node;
+                foreach (var proxy in ProxyRingOf(joint.Node))
+                {
+                    groupOf[proxy] = joint.Node;
+                }
+            }
+
+            var hingedLinks = chain.Joints
+                .Where(joint => !joint.IsRoot && IsHingedJoint(joint.ParentNode))
+                .Select(static joint => (joint.ParentNode, joint.Node))
+                .ToList();
+
+            foreach (var quad in Quads)
+            {
+                var groups = new HashSet<int>();
+                foreach (var node in quad)
+                {
+                    if (groupOf.TryGetValue(node, out var group))
+                    {
+                        groups.Add(group);
+                    }
+                }
+
+                if (hingedLinks.Exists(link => groups.Contains(link.ParentNode) && groups.Contains(link.Node)))
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        /// <summary>
         /// Returns whether a FIXED-LENGTH rod still spans a parent-child LINK of <paramref name="chain"/>.
         /// A rigid hinge replaces that link with a quad, so a hinged chain that kept the link's rods was
         /// authored with a soft hinge link instead. Both conditions are needed to tell the two apart: the
