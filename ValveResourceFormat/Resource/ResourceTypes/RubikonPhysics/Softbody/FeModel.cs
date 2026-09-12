@@ -1673,6 +1673,29 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
 
             var derived = PredictBendRods(cycles, IsStatic);
 
+            var rodsOnPair = new Dictionary<(int, int), int>();
+            foreach (var rod in Rods)
+            {
+                if (rod.NodeA != rod.NodeB)
+                {
+                    var pair = rod.NodeA < rod.NodeB ? (rod.NodeA, rod.NodeB) : (rod.NodeB, rod.NodeA);
+                    rodsOnPair[pair] = rodsOnPair.GetValueOrDefault(pair) + 1;
+                }
+            }
+
+            foreach (var cycle in cycles)
+            {
+                for (var j = 0; j < cycle.Length; j++)
+                {
+                    var (p, q) = (cycle[j], cycle[(j + 1) % cycle.Length]);
+                    var edge = p < q ? (p, q) : (q, p);
+                    if (rodsOnPair.GetValueOrDefault(edge) == 1)
+                    {
+                        derived.Remove(edge);
+                    }
+                }
+            }
+
             foreach (var rod in Rods)
             {
                 var (a, b) = rod.NodeA < rod.NodeB ? (rod.NodeA, rod.NodeB) : (rod.NodeB, rod.NodeA);
