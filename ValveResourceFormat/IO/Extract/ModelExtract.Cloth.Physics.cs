@@ -23,21 +23,26 @@ partial class ModelExtract
     /// <summary>
     /// Declares the cloth collision shapes and returns the names it gave them, in declaration order.
     /// </summary>
-    static List<string> AddClothCollisionShapes(KVObject softbodyChildren, FeModel feModel)
+    internal static List<string> AddClothCollisionShapes(KVObject softbodyChildren, FeModel feModel)
     {
         var names = new List<string>();
         // A shape declaration creates its parent bone as a control node where nothing has created it yet,
         // so the three rigid kinds are interleaved to introduce their parent bones in the order the
         // compiled model numbers them. Each kind keeps the relative order its own rigid array carries.
-        var kinds = new List<(int Node, KVObject Shape)>[]
+        // The compiler sorts each rigid array into its priority groups, keeping declaration order inside a
+        // group, so a group is one stream in its array's order and the streams are interleaved like kinds.
+        var kinds = new[]
         {
-            [.. feModel.BuildCollisionCapsules()
-                .Select(c => (ParentBoneNode(feModel, c.ParentBone), MakeClothShapeCapsule(c)))],
-            [.. feModel.BuildCollisionSpheres()
-                .Select(s => (ParentBoneNode(feModel, s.ParentBone), MakeClothShapeSphere(s)))],
-            [.. feModel.BuildCollisionBoxes()
-                .Select(b => (ParentBoneNode(feModel, b.ParentBone), MakeClothShapeBox(b)))],
-        };
+            feModel.BuildCollisionCapsules()
+                .Select(c => (c.Priority, Node: ParentBoneNode(feModel, c.ParentBone), Shape: MakeClothShapeCapsule(c))),
+            feModel.BuildCollisionSpheres()
+                .Select(s => (s.Priority, Node: ParentBoneNode(feModel, s.ParentBone), Shape: MakeClothShapeSphere(s))),
+            feModel.BuildCollisionBoxes()
+                .Select(b => (b.Priority, Node: ParentBoneNode(feModel, b.ParentBone), Shape: MakeClothShapeBox(b))),
+        }
+        .SelectMany(static shapes => shapes.GroupBy(static entry => entry.Priority)
+            .Select(static group => group.Select(static entry => (entry.Node, entry.Shape)).ToList()))
+        .ToArray();
 
         var taken = new int[kinds.Length];
         while (true)
