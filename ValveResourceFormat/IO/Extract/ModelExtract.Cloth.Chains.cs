@@ -381,9 +381,10 @@ partial class ModelExtract
             kv.Add("stiff_hinge", stiffHinge.Stiffness);
             kv.Add("stiff_hinge_angle", stiffHinge.Angle);
 
-            if (stiffHinge.MotionBias != 0f)
+            var stiffBias = stiffHinge.MotionBias != 0f ? stiffHinge.MotionBias : feModel.GetMotionBias(joint) ?? 0f;
+            if (stiffBias != 0f)
             {
-                kv.Add("motion_bias", stiffHinge.MotionBias);
+                kv.Add("motion_bias", stiffBias);
             }
         }
         else if (feModel.GetMotionBias(joint) is { } motionBias)
