@@ -638,10 +638,9 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// <summary>
         /// Whether a compiled surface face comes from a <c>ClothTri</c> / <c>ClothQuad</c> declaration
         /// rather than from a proxy sheet: every corner is a control node an authored element names
-        /// directly, and at least one is a free <c>$cloth_node_</c> element. The free node is the
-        /// evidence - a bone chain creates ring and joint nodes but never a free one, so a face that
-        /// touches one cannot be chain-generated, while a face over chain joints alone is ambiguous and
-        /// keeps the sheet route.
+        /// directly, and either one corner is a free <c>$cloth_node_</c> element or the model carries no
+        /// proxy sheet node at all. A bone chain creates ring and joint nodes but no face, so a face over
+        /// declared nodes in a model without a sheet can only be an authored element.
         /// </summary>
         bool IsAuthoredElementFace(int[] face)
         {
@@ -669,7 +668,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                 }
             }
 
-            return free;
+            return free || !HasProxyMeshNodes;
         }
 
         /// <summary>
