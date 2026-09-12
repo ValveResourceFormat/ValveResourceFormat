@@ -58,10 +58,7 @@ vec3 GetWaterRipples(vec3 posWS, vec3 geometricNormal, float wetPaint, float str
 {
     vec3 flowDir = normalize(vec3(-1.0, 0.2, 0.0));
 
-    float angle = g_flEnvPuddleRippleDirection * 6.283185482025146484375;
-    float sinAngle = sin(angle);
-    float cosAngle = cos(angle);
-    flowDir.xy = flowDir.xy * mat2(vec2(cosAngle, -sinAngle), vec2(sinAngle, cosAngle));
+    flowDir.xy = RotateVector2D(flowDir.xy, g_flEnvPuddleRippleDirection * 360.0);
 
     vec3 flowSide = -cross(flowDir, geometricNormal);
     float alongSide = dot(posWS, flowSide);
