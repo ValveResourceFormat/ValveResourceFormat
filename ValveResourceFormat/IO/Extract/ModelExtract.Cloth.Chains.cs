@@ -14,8 +14,8 @@ partial class ModelExtract
         IReadOnlyList<FeModel.BoneChainJoint>? walk = null)
     {
         // A rigid hinge takes the chain's rod network over, so a hinged chain that still carries rods was
-        // authored with a soft link instead.
-        var softHinge = feModel.HasChainRods(chain);
+        // authored with a soft link instead, unless the hinged link itself compiled to a quad.
+        var softHinge = feModel.HasChainRods(chain) && !feModel.HasRigidHingeLink(chain);
 
         var joints = KVObject.Array();
         foreach (var joint in walk ?? chain.Joints)
