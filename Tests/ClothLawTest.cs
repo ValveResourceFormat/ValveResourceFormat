@@ -3034,5 +3034,50 @@ namespace Tests
                 ]
             }
             """);
+
+        /// <summary>
+        /// A <c>leader_type</c> 1 follower compiles to an <c>m_BoneMergeLinks</c> entry that names its leader only by
+        /// the string token of the leader's bone name, so the leader is the known bone whose token matches; a link
+        /// whose hash names no known bone declares nothing.
+        /// </summary>
+        [Test]
+        public async Task ABoneMergeFollowerNamesTheBoneWhoseTokenIsItsParentHash()
+        {
+            var feModel = SyntheticCloth.Parse($$"""
+                {
+                    m_CtrlName = [ "coattail_0_L", "coattail_1_L", "coattail_2_L" ]
+                    m_SkelParents = [ -1, 0, 1 ]
+                    m_nNodeCount = 3
+                    m_nStaticNodes = 1
+                    m_NodeInvMasses = [ 0.0, 1.0, 1.0 ]
+                    m_InitPose =
+                    [
+                        {{SyntheticCloth.Pose(0f, 0f, 0f)}}
+                        {{SyntheticCloth.Pose(0f, 0f, -10f)}}
+                        {{SyntheticCloth.Pose(0f, 0f, -20f)}}
+                    ]
+                    m_BoneMergeLinks =
+                    [
+                        { m_nParentHash = {{ValveResourceFormat.Utils.StringToken.Get("spine_2")}} m_nChildNode = 2 },
+                        { m_nParentHash = 12345 m_nChildNode = 1 },
+                    ]
+                }
+                """);
+            feModel.SkeletonBoneNames = new HashSet<string>(["pelvis", "spine_2", "coattail_0_L", "coattail_1_L", "coattail_2_L"],
+                StringComparer.OrdinalIgnoreCase);
+            var children = KVObject.Array();
+            ModelExtract.AddClothFollowBones(children, feModel,
+                new HashSet<string>(["coattail_1_L", "coattail_2_L"], StringComparer.OrdinalIgnoreCase));
+
+            await Assert.That(children.Count).IsEqualTo(1);
+            var follow = children.ElementAt(0).Value;
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(follow.GetInt32Property("leader_type")).IsEqualTo(1);
+                await Assert.That(follow.GetStringProperty("leader_bone")).IsEqualTo("spine_2");
+                await Assert.That(follow.GetStringProperty("follower_bone")).IsEqualTo("coattail_2_L");
+            }
+        }
     }
 }
