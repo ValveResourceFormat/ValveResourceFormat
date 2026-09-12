@@ -3079,5 +3079,75 @@ namespace Tests
                 await Assert.That(follow.GetStringProperty("follower_bone")).IsEqualTo("coattail_2_L");
             }
         }
+
+        /// <summary>
+        /// A suspender of 1.0 on a joint whose parent is the chain root compiles every root span copy at the chain's own
+        /// relaxation, so no copy stands apart; the joint's ring rod carrying as many copies as its base span is what
+        /// names the suspender, not a repeat. The fixture is the compiled synthetic chain with suspender 1.0 on every joint.
+        /// </summary>
+        [Test]
+        public async Task ASuspenderAtTheChainsOwnRelaxationIsReadOffItsRingCopies()
+        {
+            var coattail = SyntheticCloth.Parse(SuspenderAtNaturalRelaxationText).BuildBoneChains()[0].Joints
+                .First(static joint => joint.Name == "coattail_1_L");
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(coattail.Suspender).IsEqualTo(1f).Within(1e-4f);
+                await Assert.That(coattail.ExtraIterations).IsEqualTo(0);
+            }
+        }
+
+        private const string SuspenderAtNaturalRelaxationText = """
+            {
+                m_CtrlName = [ "coattail_0_L", "$cccoattail_0_L_0", "coattail_1_L", "$cccoattail_1_L_0", "coattail_2_L", "$cccoattail_2_L_0", "coattail_end_L", "$cccoattail_end_L_0" ]
+                m_SkelParents = [ -1, 0, 0, 2, 2, 4, 4, 6 ]
+                m_nNodeCount = 8
+                m_nStaticNodes = 2
+                m_NodeInvMasses = [ 0.0, 0.0, 0.002328, 0.002343, 0.001772, 0.001774, 0.00178, 0.001781 ]
+                m_SourceElems = [ 0, 0, 0, 6, 5, 4, 6, 7, 4, 5, 7, 6, 3, 2, 4, 5, 2, 3, 5, 4, 1, 0, 2, 3, 0, 1, 3, 2 ]
+                m_InitPose =
+                [
+                    [ -8.915481, 4.000124, 65.447983, 1.0, 0.337553, -0.646323, -0.495776, -0.471731 ],
+                    [ -10.723646, 4.561181, 66.092773, 1.0, 0.337553, -0.646323, -0.495776, -0.471731 ],
+                    [ -11.695464, 4.267121, 57.419937, 1.0, -0.323373, 0.653533, 0.505948, 0.460804 ],
+                    [ -13.473376, 4.824905, 58.146507, 1.0, -0.323373, 0.653533, 0.505948, 0.460804 ],
+                    [ -14.808016, 4.637866, 49.519089, 1.0, -0.323943, 0.653251, 0.505547, 0.461245 ],
+                    [ -16.587204, 5.195801, 50.242416, 1.0, -0.323943, 0.653251, 0.505547, 0.461245 ],
+                    [ -17.907341, 5.004471, 41.612736, 1.0, -0.323943, 0.653251, 0.505547, 0.461245 ],
+                    [ -19.686529, 5.562407, 42.336063, 1.0, -0.323943, 0.653251, 0.505547, 0.461245 ],
+                ]
+                m_Rods =
+                [
+                    { nNode = [ 0, 2 ] flMinDist = 8.499948 flMaxDist = 8.499948 flWeight0 = 0.0 flRelaxationFactor = 1.0 },
+                    { nNode = [ 0, 3 ] flMinDist = 8.646747 flMaxDist = 8.646747 flWeight0 = 0.0 flRelaxationFactor = 1.0 },
+                    { nNode = [ 0, 4 ] flMinDist = 16.995832 flMaxDist = 16.995832 flWeight0 = 0.0 flRelaxationFactor = 1.0 },
+                    { nNode = [ 0, 5 ] flMinDist = 17.073202 flMaxDist = 17.073202 flWeight0 = 0.0 flRelaxationFactor = 1.0 },
+                    { nNode = [ 0, 6 ] flMinDist = 25.49473 flMaxDist = 25.49473 flWeight0 = 0.0 flRelaxationFactor = 1.0 },
+                    { nNode = [ 0, 7 ] flMinDist = 25.546371 flMaxDist = 25.546371 flWeight0 = 0.0 flRelaxationFactor = 1.0 },
+                    { nNode = [ 1, 2 ] flMinDist = 8.732066 flMaxDist = 8.732066 flWeight0 = 0.0 flRelaxationFactor = 1.0 },
+                    { nNode = [ 1, 3 ] flMinDist = 8.412711 flMaxDist = 8.412711 flWeight0 = 0.0 flRelaxationFactor = 1.0 },
+                    { nNode = [ 1, 4 ] flMinDist = 17.06971 flMaxDist = 17.06971 flWeight0 = 0.0 flRelaxationFactor = 1.0 },
+                    { nNode = [ 1, 5 ] flMinDist = 16.912064 flMaxDist = 16.912064 flWeight0 = 0.0 flRelaxationFactor = 1.0 },
+                    { nNode = [ 1, 6 ] flMinDist = 25.516155 flMaxDist = 25.516155 flWeight0 = 0.0 flRelaxationFactor = 1.0 },
+                    { nNode = [ 1, 7 ] flMinDist = 25.410963 flMaxDist = 25.410963 flWeight0 = 0.0 flRelaxationFactor = 1.0 },
+                    { nNode = [ 2, 3 ] flMinDist = 2.0 flMaxDist = 2.0 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
+                    { nNode = [ 4, 2 ] flMinDist = 8.499931 flMaxDist = 8.499931 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
+                    { nNode = [ 5, 2 ] flMinDist = 8.735466 flMaxDist = 8.735466 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
+                    { nNode = [ 4, 3 ] flMinDist = 8.732044 flMaxDist = 8.732044 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
+                    { nNode = [ 5, 3 ] flMinDist = 8.503419 flMaxDist = 8.503419 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
+                    { nNode = [ 4, 5 ] flMinDist = 2.000001 flMaxDist = 2.000001 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
+                    { nNode = [ 6, 4 ] flMinDist = 8.500037 flMaxDist = 8.500037 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
+                    { nNode = [ 7, 4 ] flMinDist = 8.732154 flMaxDist = 8.732154 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
+                    { nNode = [ 6, 5 ] flMinDist = 8.732168 flMaxDist = 8.732168 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
+                    { nNode = [ 7, 5 ] flMinDist = 8.500037 flMaxDist = 8.500037 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
+                    { nNode = [ 6, 7 ] flMinDist = 2.000001 flMaxDist = 2.000001 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
+                    { nNode = [ 0, 2 ] flMinDist = 8.499948 flMaxDist = 8.499948 flWeight0 = 0.0 flRelaxationFactor = 1.0 },
+                    { nNode = [ 0, 3 ] flMinDist = 8.646747 flMaxDist = 8.646747 flWeight0 = 0.0 flRelaxationFactor = 1.0 },
+                    { nNode = [ 1, 2 ] flMinDist = 8.732066 flMaxDist = 8.732066 flWeight0 = 0.0 flRelaxationFactor = 1.0 },
+                    { nNode = [ 1, 3 ] flMinDist = 8.412711 flMaxDist = 8.412711 flWeight0 = 0.0 flRelaxationFactor = 1.0 },
+                ]
+            }
+            """;
     }
 }

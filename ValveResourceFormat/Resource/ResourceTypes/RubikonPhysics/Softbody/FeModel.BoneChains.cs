@@ -2381,6 +2381,10 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                         }
 
                         var baseCopies = totalCopies / 2;
+                        var ringCopies = jointRingOf.TryGetValue(joint.Node, out var ownRing) && ownRing.Count > 0
+                            && rodRelaxationsByPair.TryGetValue(SpanPair(joint.Node, ownRing[0]), out var ringRods)
+                            ? ringRods.Count
+                            : 0;
                         float? suspender = null;
                         foreach (var a in Side(joint.Node))
                         {
@@ -2389,7 +2393,10 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                                 var pair = a < b ? (a, b) : (b, a);
                                 if (!rodRelaxationsByPair.TryGetValue(pair, out var relaxations)
                                     || relaxations.Count != baseCopies * 2
-                                    || SplitEvenly(relaxations, naturalRf, baseCopies) is not { } value
+                                    || (SplitEvenly(relaxations, naturalRf, baseCopies)
+                                        ?? (ringCopies == baseCopies && relaxations.TrueForAll(rf => MathF.Abs(rf - naturalRf) < 1e-4f)
+                                            ? naturalRf
+                                            : null)) is not { } value
                                     || (suspender is { } already && MathF.Abs(already - value) > 1e-4f))
                                 {
                                     return null;
