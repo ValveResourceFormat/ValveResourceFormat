@@ -2437,5 +2437,72 @@ namespace Tests
             }
             """;
 
+        /// <summary>
+        /// A three-member <c>ClothSelfCollisionCluster</c> compiles to one rod triangle whose shared band is
+        /// the members' summed collision and stray radii, whatever distance each pair sits apart. The fixture
+        /// is the compiled synthetic cluster over three chain joints with radii 6 and 24, a 12 to 48 band over
+        /// pairs 8.5, 17 and 8.5 apart. The same triangle banded at one pair's own rest distance is a
+        /// stretched surface, not a cluster.
+        /// </summary>
+        [Test]
+        public async Task AThreeMemberClusterIsReadOffABandNoPairRestsAt()
+        {
+            var cluster = SyntheticCloth.Parse(ThreeMemberClusterText).SelfCollisionClusters;
+            var surface = SyntheticCloth.Parse(ThreeMemberClusterText
+                .Replace("flMinDist = 12.0 flMaxDist = 48.0", "flMinDist = 2.0 flMaxDist = 8.5", StringComparison.Ordinal))
+                .SelfCollisionClusters;
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(cluster.Count).IsEqualTo(1);
+                await Assert.That(cluster[0].Nodes.SequenceEqual(new[] { 2, 4, 6 })).IsTrue();
+                await Assert.That(cluster[0].MinDist).IsEqualTo(12f);
+                await Assert.That(cluster[0].MaxDist).IsEqualTo(48f);
+                await Assert.That(surface.Count).IsEqualTo(0);
+            }
+        }
+
+        private const string ThreeMemberClusterText = """
+            {
+                m_CtrlName = [ "coattail_0_L", "$cccoattail_0_L_0", "coattail_1_L", "$cccoattail_1_L_0", "coattail_2_L", "$cccoattail_2_L_0", "coattail_end_L", "$cccoattail_end_L_0" ]
+                m_SkelParents = [ -1, 0, 0, 2, 2, 4, 4, 6 ]
+                m_nNodeCount = 8
+                m_nStaticNodes = 2
+                m_NodeInvMasses = [ 0.0, 0.0, 0.002017, 0.003444, 0.002338, 0.003427, 0.002794, 0.0065 ]
+                m_SourceElems = [ 0, 0, 0, 6, 5, 4, 6, 7, 4, 5, 7, 6, 3, 2, 4, 5, 2, 3, 5, 4, 1, 0, 2, 3, 0, 1, 3, 2 ]
+                m_InitPose =
+                [
+                    [ -8.915481, 4.000124, 65.447983, 1.0, 0.337553, -0.646323, -0.495776, -0.471731 ],
+                    [ -10.723646, 4.561181, 66.092773, 1.0, 0.337553, -0.646323, -0.495776, -0.471731 ],
+                    [ -11.695464, 4.267121, 57.419937, 1.0, -0.323373, 0.653533, 0.505948, 0.460804 ],
+                    [ -13.473376, 4.824905, 58.146507, 1.0, -0.323373, 0.653533, 0.505948, 0.460804 ],
+                    [ -14.808016, 4.637866, 49.519089, 1.0, -0.323943, 0.653251, 0.505547, 0.461245 ],
+                    [ -16.587204, 5.195801, 50.242416, 1.0, -0.323943, 0.653251, 0.505547, 0.461245 ],
+                    [ -17.907341, 5.004471, 41.612736, 1.0, -0.323943, 0.653251, 0.505547, 0.461245 ],
+                    [ -19.686529, 5.562407, 42.336063, 1.0, -0.323943, 0.653251, 0.505547, 0.461245 ],
+                ]
+                m_Rods =
+                [
+                    { nNode = [ 0, 2 ] flMinDist = 8.499948 flMaxDist = 8.499948 flWeight0 = 0.0 flRelaxationFactor = 1.0 },
+                    { nNode = [ 0, 3 ] flMinDist = 8.646747 flMaxDist = 8.646747 flWeight0 = 0.0 flRelaxationFactor = 1.0 },
+                    { nNode = [ 1, 2 ] flMinDist = 8.732066 flMaxDist = 8.732066 flWeight0 = 0.0 flRelaxationFactor = 1.0 },
+                    { nNode = [ 1, 3 ] flMinDist = 8.412711 flMaxDist = 8.412711 flWeight0 = 0.0 flRelaxationFactor = 1.0 },
+                    { nNode = [ 2, 3 ] flMinDist = 2.0 flMaxDist = 2.0 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
+                    { nNode = [ 2, 4 ] flMinDist = 12.0 flMaxDist = 48.0 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
+                    { nNode = [ 2, 5 ] flMinDist = 8.735466 flMaxDist = 8.735466 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
+                    { nNode = [ 2, 6 ] flMinDist = 12.0 flMaxDist = 48.0 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
+                    { nNode = [ 3, 4 ] flMinDist = 8.732044 flMaxDist = 8.732044 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
+                    { nNode = [ 3, 5 ] flMinDist = 8.503419 flMaxDist = 8.503419 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
+                    { nNode = [ 4, 5 ] flMinDist = 2.000001 flMaxDist = 2.000001 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
+                    { nNode = [ 6, 4 ] flMinDist = 8.500037 flMaxDist = 8.500037 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
+                    { nNode = [ 4, 7 ] flMinDist = 8.732154 flMaxDist = 8.732154 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
+                    { nNode = [ 6, 5 ] flMinDist = 8.732168 flMaxDist = 8.732168 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
+                    { nNode = [ 5, 7 ] flMinDist = 8.500037 flMaxDist = 8.500037 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
+                    { nNode = [ 6, 7 ] flMinDist = 2.000001 flMaxDist = 2.000001 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
+                    { nNode = [ 2, 4 ] flMinDist = 8.499931 flMaxDist = 8.499931 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
+                    { nNode = [ 6, 4 ] flMinDist = 12.0 flMaxDist = 48.0 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
+                ]
+            }
+            """;
     }
 }
