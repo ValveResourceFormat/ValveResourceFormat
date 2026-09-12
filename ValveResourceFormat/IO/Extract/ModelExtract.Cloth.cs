@@ -320,7 +320,7 @@ partial class ModelExtract
         return maps;
     }
 
-    static KVObject? MakeClothEffect(FeModel feModel, FeModel.Effect effect, IReadOnlySet<string> availableMaps)
+    internal static KVObject? MakeClothEffect(FeModel feModel, FeModel.Effect effect, IReadOnlySet<string> availableMaps)
     {
         var className = effect.Type switch
         {
@@ -345,6 +345,11 @@ partial class ModelExtract
                 node.Add("vertex_map", map.Name);
                 break;
             }
+        }
+
+        if (effect.Params.ContainsKey("Version"))
+        {
+            node.Add("cloth_effect_version", effect.Params.GetInt32Property("Version"));
         }
 
         switch (effect.Type)

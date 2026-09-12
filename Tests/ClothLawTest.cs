@@ -2988,5 +2988,51 @@ namespace Tests
                 }
                 """);
         }
+
+        /// <summary>
+        /// A cloth effect's <c>cloth_effect_version</c> compiles to its <c>Version</c> parameter, and an effect
+        /// compiled without one declares none.
+        /// </summary>
+        [Test]
+        public async Task AClothEffectVersionIsItsVersionParameter()
+        {
+            var versioned = ClothWindEffect("Version = 2");
+            var unversioned = ClothWindEffect(string.Empty);
+            var maps = new HashSet<string>();
+            var node = ModelExtract.MakeClothEffect(versioned, versioned.Effects.First(), maps);
+            var plain = ModelExtract.MakeClothEffect(unversioned, unversioned.Effects.First(), maps);
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(node!.GetInt32Property("cloth_effect_version")).IsEqualTo(2);
+                await Assert.That(plain!.ContainsKey("cloth_effect_version")).IsFalse();
+            }
+        }
+
+        private static FeModel ClothWindEffect(string version) => SyntheticCloth.Parse($$"""
+            {
+                m_nNodeCount = 1
+                m_nStaticNodes = 1
+                m_NodeInvMasses = [ 0.0 ]
+                m_InitPose = [ {{SyntheticCloth.Pose(0f, 0f, 0f)}} ]
+                m_Effects =
+                [
+                    {
+                        sName = "wind0"
+                        nNameHash = 1456486
+                        nType = 1
+                        m_Params =
+                        {
+                            Strength = [ 70.400002, 0.0, 0.0 ]
+                            AirToCloth = 0.249439
+                            LocalSpace = 0.0
+                            Choppiness = 1.0
+                            Vortices = [ { MaxSpeed = 123.200005 MaxCell = 32.0 } ]
+                            {{version}}
+                        }
+                    },
+                ]
+            }
+            """);
     }
 }
