@@ -65,6 +65,11 @@ namespace ValveResourceFormat.IO
         public Package? CurrentPackage { get; set; }
 
         /// <summary>
+        /// Gets the packages that were mounted from the game's search paths.
+        /// </summary>
+        public IReadOnlyList<Package> MountedPackages => CurrentGamePackages;
+
+        /// <summary>
         /// Initializes a new instance of the <see cref="GameFileLoader"/> class.
         /// </summary>
         /// <param name="currentPackage">The current package to search for files in.</param>

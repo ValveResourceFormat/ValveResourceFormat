@@ -7,15 +7,13 @@ using GUI.Controls;
 using GUI.Utils;
 using ValveKeyValue;
 using ValvePak;
-using ValveResourceFormat.Blocks;
+using ValveResourceFormat;
 using ValveResourceFormat.IO;
 
 namespace GUI.Types.Viewers
 {
     class SingleAssetInfo
     {
-        record FileReference(string Type, string File);
-
         public static TabPage Create(VrfGuiContext guiContext, PackageEntry entry)
         {
             var folder = Path.GetDirectoryName(guiContext.FileName);
@@ -103,47 +101,48 @@ namespace GUI.Types.Viewers
             fileControl.Dock = DockStyle.Fill;
             leftSplitter.Panel1.Controls.Add(fileControl);
 
-            var referencedBy = new List<FileReference>();
+            var referencedBy = new Dictionary<string, ResourceReferenceKind>(StringComparer.OrdinalIgnoreCase);
+
+            void AddReferencedBy(string file, ResourceReferenceKind kind)
+            {
+                referencedBy.TryGetValue(file, out var kinds);
+                referencedBy[file] = kinds | kind;
+            }
 
             foreach (var (filePathTemp, assetInfoTemp) in toolsAssetInfo.Files)
             {
                 if (assetInfoTemp.ChildResources.Contains(filePath))
                 {
-                    referencedBy.Add(new FileReference("Child Resource", filePathTemp));
+                    AddReferencedBy(filePathTemp, ResourceReferenceKind.Child);
                 }
 
                 if (assetInfoTemp.ExternalReferences.Contains(filePath))
                 {
-                    referencedBy.Add(new FileReference("External Reference", filePathTemp));
+                    AddReferencedBy(filePathTemp, ResourceReferenceKind.External);
                 }
 
                 if (assetInfoTemp.WeakReferences.Contains(filePath))
                 {
-                    referencedBy.Add(new FileReference("Weak Reference", filePathTemp));
+                    AddReferencedBy(filePathTemp, ResourceReferenceKind.Weak);
                 }
 
                 if (assetInfoTemp.AdditionalRelatedFiles.Contains(filePath))
                 {
-                    referencedBy.Add(new FileReference("Additional Related File", filePathTemp));
+                    AddReferencedBy(filePathTemp, ResourceReferenceKind.Related);
                 }
 
-                if (assetInfoTemp.InputDependencies.Exists(f => f.Filename == filePath))
+                if (assetInfoTemp.InputDependencies.Exists(f => f.Filename == filePath)
+                    || assetInfoTemp.AdditionalInputDependencies.Exists(f => f.Filename == filePath)
+                    || assetInfoTemp.SpecialInputDependencies.Exists(f => f.Filename == filePath))
                 {
-                    referencedBy.Add(new FileReference("Input Dependency", filePathTemp));
-                }
-
-                if (assetInfoTemp.AdditionalInputDependencies.Exists(f => f.Filename == filePath))
-                {
-                    referencedBy.Add(new FileReference("Additional Input Dependency", filePathTemp));
+                    AddReferencedBy(filePathTemp, ResourceReferenceKind.InputDependency);
                 }
             }
 
-            var externalReferences = referencedBy
-                .Select(static r => new ResourceExtRefList.ResourceReferenceInfo { Name = r.File })
-                .DistinctBy(static x => x.Name)
+            var references = referencedBy
+                .Select(static reference => ResourceReference.Create(reference.Key, reference.Value))
                 .ToList();
-            var referencedControl = Resource.BuildExternalRefTree(guiContext, externalReferences);
-            leftSplitter.Panel2.Controls.Add(referencedControl);
+            leftSplitter.Panel2.Controls.Add(new ResourceReferenceList(guiContext, references));
 
             using var ms = new MemoryStream();
             KVSerializer.Create(KVSerializationFormat.KeyValues1Text).Serialize(ms, assetInfo, "Asset Info");

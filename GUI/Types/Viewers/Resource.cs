@@ -12,6 +12,7 @@ using GUI.Types.GLViewers;
 using GUI.Types.Graphs;
 using GUI.Utils;
 using ValveKeyValue;
+using ValvePak;
 using ValveResourceFormat;
 using ValveResourceFormat.Blocks;
 using ValveResourceFormat.IO;
@@ -347,6 +348,9 @@ namespace GUI.Types.Viewers
 
             resTabs.Disposed += OnTabDisposed;
 
+            var references = ResourceReferenceCollector.Collect(resource);
+            var referencesTabAdded = false;
+
             List<RawBinary>? binaryBuffers = null;
 
             foreach (var block in resource.Blocks)
@@ -359,14 +363,10 @@ namespace GUI.Types.Viewers
                     continue;
                 }
 
-                if (block.Type == BlockType.RERL && block is ResourceExtRefList externalReferences)
+                if (block.Type == BlockType.RERL)
                 {
-                    var externalRefsTree = BuildExternalRefTree(vrfGuiContext, externalReferences.ResourceRefInfoList);
-
-                    var externalRefsTab = new ThemedTabPage("References");
-                    externalRefsTab.Controls.Add(externalRefsTree);
-                    resTabs.TabPages.Add(externalRefsTab);
-
+                    AddReferencesTab(vrfGuiContext, references, resTabs, resource.FileName);
+                    referencesTabAdded = true;
                     continue;
                 }
 
@@ -432,6 +432,11 @@ namespace GUI.Types.Viewers
                 {
                     resTabs.SelectTab(blockTab);
                 }
+            }
+
+            if (!referencesTabAdded)
+            {
+                AddReferencesTab(vrfGuiContext, references, resTabs, resource.FileName);
             }
 
             if (binaryBuffers != null)
@@ -674,26 +679,6 @@ namespace GUI.Types.Viewers
         {
             switch (resource.ResourceType)
             {
-                case ResourceType.Panorama:
-                    if (resource.DataBlock is Panorama { Images.Count: > 0 })
-                    {
-                        var nameControl = new DataGridView
-                        {
-                            Dock = DockStyle.Fill,
-                            AutoSize = true,
-                            ReadOnly = true,
-                            AllowUserToAddRows = false,
-                            AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill,
-                            DataSource =
-                                new BindingSource(
-                                    new BindingList<Panorama.ImageEntry>(((Panorama)resource.DataBlock).Images), string.Empty),
-                        };
-                        var specialTabPage = new ThemedTabPage("PANORAMA IMAGES");
-                        specialTabPage.Controls.Add(nameControl);
-                        resTabs.TabPages.Add(specialTabPage);
-                    }
-                    break;
-
                 case ResourceType.Sound:
                     if (resource.ContainsBlockType(BlockType.DATA))
                     {
@@ -809,100 +794,135 @@ namespace GUI.Types.Viewers
                 return true;
             }
 
+            return OpenMapPackage(vrfGuiContext, name);
+        }
+
+        /// <summary>
+        /// Finds the package a map reference points at. Maps are not packed into the content packages,
+        /// each one ships as its own vpk next to the game files, and panorama names them relative to
+        /// the maps folder.
+        /// </summary>
+        public static bool TryFindMapPackage(VrfGuiContext vrfGuiContext, string name,
+            [NotNullWhen(true)] out string? packagePath, [NotNullWhen(true)] out string? innerFile)
+        {
+            const string MapExtension = ".vmap";
+
+            packagePath = null;
+            innerFile = null;
+
+            if (!name.EndsWith(MapExtension, StringComparison.OrdinalIgnoreCase))
+            {
+                return false;
+            }
+
+            var mapName = name.Replace('\\', '/');
+
+            foreach (var candidate in new[] { mapName, string.Concat("maps/", mapName) })
+            {
+                var packageName = string.Concat(candidate.AsSpan(0, candidate.Length - MapExtension.Length), ".vpk");
+                var found = FindPackageOnDisk(vrfGuiContext, packageName);
+
+                if (found != null)
+                {
+                    packagePath = found;
+                    innerFile = candidate + GameFileLoader.CompiledFileSuffix;
+                    return true;
+                }
+            }
+
             return false;
         }
 
-        public static TreeViewDoubleBuffered BuildExternalRefTree(VrfGuiContext vrfGuiContext, List<ResourceExtRefList.ResourceReferenceInfo> references)
+        private static bool OpenMapPackage(VrfGuiContext vrfGuiContext, string name)
         {
-            var treeView = new TreeViewDoubleBuffered
+            return TryFindMapPackage(vrfGuiContext, name, out var packagePath, out var innerFile)
+                && OpenFileInPackage(packagePath, innerFile);
+        }
+
+        private static string? FindPackageOnDisk(VrfGuiContext vrfGuiContext, string packageName)
+        {
+            for (var context = vrfGuiContext; context != null; context = context.ParentGuiContext)
             {
-                Dock = DockStyle.Fill,
-                ImageList = AppIcons.ImageList,
-                HideSelection = false,
-                ShowRootLines = true,
-            };
+                var found = context.FindFile(packageName, logNotFound: false);
 
-            treeView.BeginUpdate();
+                if (found.PathOnDisk != null)
+                {
+                    return found.PathOnDisk;
+                }
+            }
 
-            var rootNodes = new Dictionary<string, TreeNode>();
-            var rootLookup = rootNodes.GetAlternateLookup<ReadOnlySpan<char>>();
-            var folderIcon = AppIcons.Icons["Folder"];
+            return null;
+        }
 
-            foreach (var refInfo in references)
+        private static bool OpenFileInPackage(string packagePath, string innerFile)
+        {
+            VrfGuiContext? packageContext = null;
+
+            try
             {
-                var pathSpan = refInfo.Name.AsSpan();
-                var slashIndex = pathSpan.IndexOf('/');
+                var package = new Package();
 
-                ReadOnlySpan<char> rootFolderSpan;
-
-                if (slashIndex >= 0)
+                try
                 {
-                    rootFolderSpan = pathSpan[..slashIndex];
-                }
-                else
-                {
-                    rootFolderSpan = [];
-                }
-
-                var extensionSpan = Path.GetExtension(pathSpan);
-                if (extensionSpan.Length > 0)
-                {
-                    extensionSpan = extensionSpan[1..];
-                }
-
-                var fileIcon = AppIcons.GetImageIndexForExtension(extensionSpan);
-                var fileNode = new TreeNode(refInfo.Name)
-                {
-                    ImageIndex = fileIcon,
-                    SelectedImageIndex = fileIcon,
-                    Tag = refInfo,
-                };
-
-                TreeNode? rootNode = null;
-
-                if (!rootFolderSpan.IsEmpty && !rootLookup.TryGetValue(rootFolderSpan, out rootNode))
-                {
-                    var rootFolder = rootFolderSpan.ToString();
-                    rootNode = new TreeNode(rootFolder)
+                    package.OptimizeEntriesForBinarySearch(StringComparison.OrdinalIgnoreCase);
+                    package.Read(packagePath);
+                    packageContext = new VrfGuiContext(packagePath, null)
                     {
-                        ImageIndex = folderIcon,
-                        SelectedImageIndex = folderIcon,
+                        CurrentPackage = package
                     };
-                    rootNodes[rootFolder] = rootNode;
-                    treeView.Nodes.Add(rootNode);
+                    package = null;
+                }
+                finally
+                {
+                    package?.Dispose();
                 }
 
-                if (rootNode != null)
+                var entry = packageContext.CurrentPackage!.FindEntry(innerFile);
+
+                if (entry == null)
                 {
-                    rootNode.Nodes.Add(fileNode);
+                    return false;
                 }
-                else
+
+                var fileContext = new VrfGuiContext(entry.GetFullPath(), packageContext);
+
+                try
                 {
-                    treeView.Nodes.Add(fileNode);
+                    Program.MainForm.OpenFile(fileContext, entry);
+                    fileContext = null;
                 }
+                finally
+                {
+                    fileContext?.Dispose();
+                }
+
+                return true;
             }
-
-            treeView.ExpandAll();
-            treeView.EndUpdate();
-
-            void OnNodeDoubleClick(object? sender, TreeNodeMouseClickEventArgs e)
+            catch (Exception e)
             {
-                if (e.Node?.Tag is ResourceExtRefList.ResourceReferenceInfo refInfo)
+                Log.Error(nameof(Resource), $"Failed to open '{innerFile}' in '{packagePath}': {e.Message}");
+                return false;
+            }
+            finally
+            {
+                // Contexts still referenced by an opened tab are only marked here and dispose when the tab closes
+                for (var context = packageContext; context != null; context = context.ParentGuiContext)
                 {
-                    OpenExternalReference(vrfGuiContext, refInfo.Name);
+                    context.Dispose();
                 }
             }
+        }
 
-            void OnDisposed(object? sender, EventArgs e)
+        private static void AddReferencesTab(VrfGuiContext vrfGuiContext, IReadOnlyList<ResourceReference> references, TabControl resTabs, string? selfName)
+        {
+            if (references.Count == 0)
             {
-                treeView.NodeMouseDoubleClick -= OnNodeDoubleClick;
-                treeView.Disposed -= OnDisposed;
+                return;
             }
 
-            treeView.NodeMouseDoubleClick += OnNodeDoubleClick;
-            treeView.Disposed += OnDisposed;
-
-            return treeView;
+            var referencesTab = new ThemedTabPage("References");
+            referencesTab.Controls.Add(new ResourceReferenceList(vrfGuiContext, references, selfName));
+            resTabs.TabPages.Add(referencesTab);
         }
 
         private static void AddByteViewControl(ValveResourceFormat.Resource resource, Block block, TabPage blockTab)
