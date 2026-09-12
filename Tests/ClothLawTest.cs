@@ -3265,6 +3265,30 @@ namespace Tests
             }
             """);
 
+        /// <summary>
+        /// <c>stiffness_on_ragdoll</c> and <c>cloth_sleep_enabled</c> compile into the model's key values as
+        /// <c>cloth_stiffness_on_ragdoll</c> and <c>cloth_sleep_enabled</c>, and nowhere in the FeModel, so the
+        /// Softbody node reads them back from there; a model whose key values carry neither declares neither.
+        /// </summary>
+        [Test]
+        public async Task SoftbodyKeysComeBackFromTheModelKeyValues()
+        {
+            var keyValues = KVObject.Collection();
+            keyValues.Add("cloth_stiffness_on_ragdoll", 0.5f);
+            keyValues.Add("cloth_sleep_enabled", true);
+            var softbody = KVObject.Collection();
+            ModelExtract.AddSoftbodyModelKeyValues(softbody, keyValues);
+            var bare = KVObject.Collection();
+            ModelExtract.AddSoftbodyModelKeyValues(bare, KVObject.Collection());
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(softbody.GetFloatProperty("stiffness_on_ragdoll")).IsEqualTo(0.5f);
+                await Assert.That(softbody.GetBooleanProperty("cloth_sleep_enabled")).IsTrue();
+                await Assert.That(bare.Count).IsEqualTo(0);
+            }
+        }
+
         private static string VertexMapEntry(string name, uint hash, int offset, int vertexBase, int count, float volumetric = 0f)
             => $"{{ sName = \"{name}\" nNameHash = {hash} nVertexBase = {vertexBase} nVertexCount = {count} nMapOffset = {offset} "
                 + $"vCenterOfMass = [ 0.0, 0.0, 0.0 ] flVolumetricSolveStrength = {SyntheticCloth.Num(volumetric)} nScaleSourceNode = -1 }},";
