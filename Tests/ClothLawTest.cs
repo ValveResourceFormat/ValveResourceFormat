@@ -3222,6 +3222,49 @@ namespace Tests
 
         private static readonly string[] VolumetricMembers = ["coattail_0_L", "coattail_1_L", "coattail_2_L", "coattail_end_L"];
 
+        /// <summary>
+        /// A stiffen effect's <c>BoneOverlay</c> compiles to its own parameter beside <c>Stiffness</c>, and an effect
+        /// compiled without one declares none.
+        /// </summary>
+        [Test]
+        public async Task AStiffenEffectsBoneOverlayIsItsOwnParameter()
+        {
+            var overlaid = ClothStiffenEffect("BoneOverlay = 0.5");
+            var plain = ClothStiffenEffect(string.Empty);
+            var maps = new HashSet<string>();
+            var node = ModelExtract.MakeClothEffect(overlaid, overlaid.Effects.First(), maps);
+            var bare = ModelExtract.MakeClothEffect(plain, plain.Effects.First(), maps);
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(node!.GetFloatProperty("BoneOverlay")).IsEqualTo(0.5f);
+                await Assert.That(node!.GetFloatProperty("Stiffness")).IsEqualTo(2f);
+                await Assert.That(bare!.ContainsKey("BoneOverlay")).IsFalse();
+            }
+        }
+
+        private static FeModel ClothStiffenEffect(string overlay) => SyntheticCloth.Parse($$"""
+            {
+                m_nNodeCount = 1
+                m_nStaticNodes = 1
+                m_NodeInvMasses = [ 0.0 ]
+                m_InitPose = [ {{SyntheticCloth.Pose(0f, 0f, 0f)}} ]
+                m_Effects =
+                [
+                    {
+                        sName = "stiffen0"
+                        nNameHash = 1
+                        nType = 3
+                        m_Params =
+                        {
+                            Stiffness = 2.0
+                            {{overlay}}
+                        }
+                    },
+                ]
+            }
+            """);
+
         private static string VertexMapEntry(string name, uint hash, int offset, int vertexBase, int count, float volumetric = 0f)
             => $"{{ sName = \"{name}\" nNameHash = {hash} nVertexBase = {vertexBase} nVertexCount = {count} nMapOffset = {offset} "
                 + $"vCenterOfMass = [ 0.0, 0.0, 0.0 ] flVolumetricSolveStrength = {SyntheticCloth.Num(volumetric)} nScaleSourceNode = -1 }},";
