@@ -5,10 +5,10 @@
 // Blend specific features
 #if (GameVfx_csgo_environment_blend != 0)
 
-    // Blend Effects
-    #define F_BLEND_EFFECTS 0 // csgo_environment_blend, csgo_static_overlay
-    #define F_BORDER_ROUGHNESS 0 // csgo_environment_blend, csgo_static_overlay
-    #define F_BORDER_BLEND_MODE 0 // 0="Multiply", 1="Add", 2="Overlay", 3="Colorize" (csgo_environment_blend)
+    // Blend Effects, per layer. F_BORDER_ROUGHNESS_n and F_BORDER_BLEND_MODE_n are uniforms
+    // rather than combos, matching the compiled shader.
+    #define F_BLEND_EFFECTS_2 0 // csgo_environment_blend, csgo_static_overlay
+    #define F_BLEND_EFFECTS_3 0 // csgo_environment_blend
 
     #define F_SHARED_COLOR_OVERLAY 0 // csgo_environment_blend
     #define F_ENABLE_LAYER_3 0 // csgo_environment_blend

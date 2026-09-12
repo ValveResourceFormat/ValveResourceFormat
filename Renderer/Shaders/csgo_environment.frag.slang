@@ -75,14 +75,30 @@ in vec4 vColorBlendValues;
     #if (F_SHARED_COLOR_OVERLAY == 1)
         uniform sampler2D g_tSharedColorOverlay; // SrgbRead(true)
 
-        uniform int g_nColorOverlayMode;                    // "0=Both Layers,1=Layer 1,2=Layer 2"
-        uniform int g_nColorOverlayTintMask;                // "0=Mask Both Layers,1=Mask Layer 1,2=Mask Layer 2,3==Unmasked"
+        uniform vec3 g_vColorOverlayLayerStrengths = vec3(1.0);
+        uniform vec3 g_vColorOverlayTintMaskStrengths = vec3(0.0); // -1 .. 1, sign picks mask or inverse
         uniform float g_flOverlayDarknessContrast = 1.0;    // 0.2 .. 2.0
         uniform float g_flOverlayBrightnessContrast = 1.0;  // 0.2 .. 2.0
     #endif
 
-    #if (F_BLEND_EFFECTS > 0)
-        // ...
+    #if (F_BLEND_EFFECTS_2 == 1)
+        uniform int F_BORDER_BLEND_MODE_2; // 0="Multiply", 1="Replace", 2="Mod2x", 3="Colorize"
+        uniform int F_BORDER_ROUGHNESS_2;
+
+        uniform float g_flBorderSpread2 = 0.1;
+        uniform float g_flBorderSoftness2 = 0.1;
+        uniform float g_flBorderOffset2 = 0.0;
+        uniform vec3 g_vBorderTint2 = vec3(1.0); // SrgbRead(true)
+        uniform vec2 g_vBorderLayerAmount2 = vec2(1.0, 0.0);
+        uniform bool g_bBorderTintMask2 = false;
+        uniform float g_fBorderRoughness2 = 0.5;
+
+        uniform float g_flBevelSpread2 = 0.1;
+        uniform float g_flBevelSoftness2 = 0.1;
+        uniform float g_flBevelOffset2 = 0.0;
+        uniform float g_flBevelStrength2 = 0.0; // * 0.01
+        uniform float g_flBevelCurve2 = 0.0;
+        uniform vec2 g_vBevelLayerAmount2 = vec2(1.0);
     #endif
 
     uniform bool g_bMetalness2 = true;
@@ -125,6 +141,26 @@ in vec4 vColorBlendValues;
 
         uniform mat4 g_mTextureColorAdjust3;
         uniform mat4 g_mTextureAdjust3;
+
+        #if (F_BLEND_EFFECTS_3 == 1)
+            uniform int F_BORDER_BLEND_MODE_3;
+            uniform int F_BORDER_ROUGHNESS_3;
+
+            uniform float g_flBorderSpread3 = 0.1;
+            uniform float g_flBorderSoftness3 = 0.1;
+            uniform float g_flBorderOffset3 = 0.0;
+            uniform vec3 g_vBorderTint3 = vec3(1.0); // SrgbRead(true)
+            uniform vec2 g_vBorderLayerAmount3 = vec2(1.0, 0.0);
+            uniform bool g_bBorderTintMask3 = false;
+            uniform float g_fBorderRoughness3 = 0.5;
+
+            uniform float g_flBevelSpread3 = 0.1;
+            uniform float g_flBevelSoftness3 = 0.1;
+            uniform float g_flBevelOffset3 = 0.0;
+            uniform float g_flBevelStrength3 = 0.0; // * 0.01
+            uniform float g_flBevelCurve3 = 0.0;
+            uniform vec2 g_vBevelLayerAmount3 = vec2(1.0);
+        #endif
     #endif
 
     // Colour composite parameters, shared by both blend paths. At these defaults the
@@ -136,16 +172,21 @@ in vec4 vColorBlendValues;
         uniform float g_flColorReplace3 = 1.0;
     #endif
 
+    float OverlayLayerAmount(float tintMask, float maskStrength, float layerStrength, float share)
+    {
+        float mask = (maskStrength > 0.0) ? tintMask : 1.0 - tintMask;
+
+        return mix(1.0, mask, abs(maskStrength)) * layerStrength * share;
+    }
+
     // Mod2x-overlays the gamma-encoded upper layer onto the lower one, then replaces toward it.
-    // overlaySource is the upper layer before its vertex colour is applied, which is what the
-    // overlay term is built from.
-    vec3 CombineColor(vec3 a, vec3 b, vec3 overlaySource, float weight, float overlay, float replace)
+    vec3 CombineColor(vec3 a, vec3 b, float weight, float overlay, float replace)
     {
         vec3 overlaid = a;
 
         if (overlay > 0.0)
         {
-            overlaid *= mix(vec3(1.0), SrgbLinearToGamma(saturate(overlaySource)) * 2.0, weight * overlay);
+            overlaid *= mix(vec3(1.0), SrgbLinearToGamma(saturate(b)) * 2.0, weight * overlay);
         }
 
         return mix(overlaid, b, weight * replace);
@@ -168,6 +209,7 @@ in vec4 vColorBlendValues;
     struct LayerCarry
     {
         float weight;       // this layer's [0, 1] weight
+        float difference;   // signed height difference the weight came from; 0 at the seam
         float signedRaw;    // 2*bf-1, clamped to >= 0 before the layer above reads it
         float signedCarry;  // signedRaw scaled by weight; read only where the layer above
                             // sets UnderlyingHeightMapInfluence below 1
@@ -197,6 +239,7 @@ in vec4 vColorBlendValues;
     {
         LayerCarry o;
         o.weight = 0.0;
+        o.difference = 0.0;
         o.signedRaw = 0.0;
         o.signedCarry = 0.0;
         o.underHeight = below.underHeight;
@@ -211,6 +254,7 @@ in vec4 vColorBlendValues;
         float difference = heightPlusSigned - mix(below.signedCarry, below.underHeight, underlyingInfluence);
 
         o.weight = BlendBandWeight(difference, bf, rawHeight, softness, maskWithHeight);
+        o.difference = difference;
         o.signedRaw = signedFactor;
 
         // The weight-scaled carry and the height it is measured against only propagate
@@ -253,6 +297,163 @@ in vec4 vColorBlendValues;
         weights = weights / vec2(weights.x + weights.y);
 
         return weights;
+    }
+#endif
+
+// Hue-preserving recolour: keep the layer's luminance, take the tint's hue, and clamp so a dark
+// tint cannot brighten the layer. Used by the model tint and by the border's Colorize mode.
+vec3 ColorizeTint(vec3 albedo, vec3 tint, float amount)
+{
+    vec3 tintNorm = normalize(max(tint, vec3(0.001)));
+    float luma = GetLuma(albedo);
+    float tinted = min(luma / GetLuma(tintNorm), 3.0 * luma * max(tint.x, max(tint.y, tint.z)));
+
+    return saturate(mix(albedo, tintNorm * tinted, amount));
+}
+
+#if (GameVfx_csgo_environment_blend != 0)
+    // Where a layer meets everything under it. The border and the bevel are both bands around
+    // difference == 0, sized in the same height units the blend weight is measured in.
+    struct SeamFrame
+    {
+        float difference;       // LayerCarry.difference, so 0 exactly on the seam
+        float paintMask;        // 0 where the vertex paint is flat, 1 across a transition
+        float heightScale;      // seam width, from the height scales of the layers it joins
+        float softness;         // blend softness at this pixel
+        float weight;           // this layer's blend weight, which sorts lower from upper
+        float maskWithHeight;   // this layer's height, folded in by MaskWithHeight
+        float tintMask;         // composited tint mask of everything up to this layer
+    };
+
+    SeamFrame GetSeamFrame(float difference, float blendFactor, float heightScale, float softness,
+                           float weight, float rawHeight, float maskWithHeight, float tintMask)
+    {
+        SeamFrame seam;
+        seam.difference = difference;
+        // The paint has to actually cross over here: fade the decoration out in the outer fifth
+        // of the gradient, and drop it entirely on the old blend path, which has no difference
+        // to measure against.
+        seam.paintMask = bUseNewBlending
+            ? saturate(blendFactor * 5.0) * saturate((1.0 - blendFactor) * 5.0)
+            : 0.0;
+        seam.heightScale = 0.5 + 0.5 * heightScale;
+        seam.softness = softness;
+        seam.weight = weight;
+        seam.maskWithHeight = mix(0.5, rawHeight, maskWithHeight);
+        seam.tintMask = tintMask;
+
+        return seam;
+    }
+
+    // Plateau of width spread around the seam, fading out over softness. The second factor is
+    // Valve's guard against a softness authored far wider than the spread it decorates.
+    float SeamBand(float difference, float spread, float softness, float spreadParam)
+    {
+        return (1.0 - smoothstep(spread - softness, spread + softness, abs(difference)))
+            * (1.0 - saturate((softness / spreadParam) * 0.01));
+    }
+
+    struct BorderParams
+    {
+        float spread;
+        float softness;
+        float offset;
+        vec3 tint;
+        vec2 layerAmount;   // x weighs the border where the lower layer wins, y where this one does
+        bool tintMask;
+        int blendMode;      // 0=Multiply, 1=Replace, 2=Mod2x, 3=Colorize
+        bool roughness;
+        float roughnessValue;
+    };
+
+    // Recolours both sides of the seam and optionally flattens their roughness. Both layers take
+    // the same amount; the blend weight decides which of the two is actually visible.
+    void ApplyBlendBorder(inout vec3 lower, inout vec3 upper, inout float lowerRoughness, inout float upperRoughness,
+                          SeamFrame seam, BorderParams p)
+    {
+        if (p.spread <= 0.0)
+        {
+            return;
+        }
+
+        float spread = p.spread * seam.heightScale * seam.paintMask;
+        float softness = seam.softness + p.softness;
+
+        float amount = SeamBand(seam.difference + p.offset, spread, softness, p.spread)
+            * saturate(seam.paintMask * mix(4.0, 1.0, saturate(softness * 0.5)))
+            * mix(saturate(p.layerAmount.x * seam.maskWithHeight * 2.0),
+                  saturate(p.layerAmount.y * seam.maskWithHeight * 2.0), seam.weight);
+
+        float mask = p.tintMask ? seam.tintMask : 1.0;
+        float weight = amount * mask;
+
+        if (p.blendMode == 3) // Colorize
+        {
+            lower = mix(lower, ColorizeTint(lower, p.tint, mask), amount);
+            upper = mix(upper, ColorizeTint(upper, p.tint, mask), amount);
+        }
+        else if (p.blendMode == 1) // Replace
+        {
+            lower = mix(lower, p.tint, weight);
+            upper = mix(upper, p.tint, weight);
+        }
+        else // Multiply, or Mod2x against a doubled tint
+        {
+            vec3 factor = mix(vec3(1.0), p.blendMode == 2 ? p.tint * 2.0 : p.tint, weight);
+            lower *= factor;
+            upper *= factor;
+        }
+
+        if (p.roughness)
+        {
+            lowerRoughness = mix(lowerRoughness, p.roughnessValue, weight);
+            upperRoughness = mix(upperRoughness, p.roughnessValue, weight);
+        }
+    }
+
+    struct BevelParams
+    {
+        float spread;
+        float softness;
+        float offset;
+        float strength;
+        float curve;
+        vec2 layerAmount;
+    };
+
+    // Rounds the seam off. A height ramp is pushed along the geometric normal and differentiated
+    // in screen space, which gives the normal the rounded edge would have had, and that is folded
+    // into the surface normal over the same band the border uses.
+    vec3 BlendBevelNormal(vec3 normal, vec3 geometricNormal, vec3 positionWs, SeamFrame seam, BevelParams p)
+    {
+        if (p.spread == 0.0 || p.strength == 0.0 || (p.layerAmount.x == 0.0 && p.layerAmount.y == 0.0))
+        {
+            return normal;
+        }
+
+        float spread = p.spread * seam.heightScale * seam.paintMask;
+        float softness = (seam.softness + p.softness) * seam.paintMask;
+        float difference = seam.difference + p.offset;
+
+        // The band collapses to zero width where the paint does not cross over, so guard the divide
+        float ramp = saturate((difference / max(spread + softness, 1e-5)) * 0.5 + 0.5);
+        float curve = 1.0 + pow(abs(p.curve), 2.0) * 10.0;
+        float height = (p.curve > 0.0) ? pow(ramp, curve) : 1.0 - pow(1.0 - ramp, curve);
+
+        vec3 ramped = positionWs + geometricNormal * height;
+        vec3 slope = cross(-dFdyFine(ramped), dFdxFine(ramped));
+
+        if (seam.paintMask == 0.0 || dot(slope, slope) <= 0.0)
+        {
+            return normal;
+        }
+
+        float amount = SeamBand(difference, spread, softness, p.spread)
+            * mix(p.layerAmount.x, p.layerAmount.y, seam.weight) * p.strength; // * 100
+
+        vec3 bevel = normalize(mix(geometricNormal, normalize(slope), amount));
+
+        return normalize(normal + bevel - geometricNormal);
     }
 #endif
 
@@ -326,45 +527,15 @@ MaterialProperties_t GetMaterial(vec3 vertexNormals)
     normal.rg = (normal.rg - 0.5) * g_fTextureNormalContrast1 + 0.5;
     normal.b = saturate(((normal.b - 0.5) * g_fTextureRoughnessContrast1 + 0.5) * g_fTextureRoughnessBrightness1);
 
-    vec3 overlayFactor = vec3(1.0);
-
-    #if (GameVfx_csgo_environment_blend != 0 && F_SHARED_COLOR_OVERLAY == 1)
-        vec3 overlay = texture(g_tSharedColorOverlay, vTexCoord.zw).rgb * 2.0 - 1.0;
-        vec3 _15235 = (((vec3(1.0) - SafePow(vec3(1.0) - max(vec3(0.0), overlay), vec3(g_flOverlayBrightnessContrast))) * g_flOverlayBrightnessContrast)
-            + ((SafePow(vec3(1.0) + min(vec3(0.0), overlay), vec3(g_flOverlayDarknessContrast)) - vec3(1.0)) * g_flOverlayDarknessContrast)) + vec3(1.0);
-        overlayFactor = max(vec3(0.0), _15235);
-    #endif
-
-    vec3 tintColorNorm = normalize(max(vTintColor_ModelAmount.xyz, vec3(0.001)));
-    float tintColorNormLuma = GetLuma(tintColorNorm);
-
     vec4 colorMaybeColorCorrected = mix(color, vec4((color * g_mTextureAdjust1).rgb, color.a), bvec4(g_nColorCorrectionMode1 == 1));
     vec4 colorColorCorrectedTinted = color * g_mTextureColorAdjust1;
 
     vec3 colorTintedMaybeColorCorrected = mix(colorMaybeColorCorrected.rgb, colorColorCorrectedTinted.rgb, tintMask1);
 
-    float tintAdjustedLuma = GetLuma(colorTintedMaybeColorCorrected);
+    color.rgb = ColorizeTint(colorTintedMaybeColorCorrected, vTintColor_ModelAmount.xyz,
+        (vTintColor_ModelAmount.w * tintMask1) * float(g_bModelTint1));
 
-    float tintColorAdjustedLumaRatio = tintAdjustedLuma / tintColorNormLuma;
-    float tintAdjustedLuma3x = 3.0 * tintAdjustedLuma;
-
-    float tintColorHighestPoint = max(vTintColor_ModelAmount.x, max(vTintColor_ModelAmount.y, vTintColor_ModelAmount.z));
-    float highPointXLuma = tintAdjustedLuma3x * tintColorHighestPoint;
-    vec3 tintResult = saturate(mix(colorTintedMaybeColorCorrected, tintColorNorm * min(tintColorAdjustedLumaRatio, highPointXLuma), vec3((vTintColor_ModelAmount.w * tintMask1) * float(g_bModelTint1))));
-
-    color.rgb = tintResult;
-
-    #if (GameVfx_csgo_environment_blend != 0)
-        #if (F_SHARED_COLOR_OVERLAY == 1)
-            // 0=Both, 1=Layer 1
-            const bool g_bColorOverlayLayer1 = g_nColorOverlayMode == 0 || g_nColorOverlayMode == 1;
-            const bool g_bColorOverlayMaskLayer1 = g_nColorOverlayTintMask == 0 || g_nColorOverlayTintMask == 1;
-            color.rgb *= mix(vec3(1.0), overlayFactor, vec3((g_bColorOverlayMaskLayer1 ? tintMask1 : 1.0) * float(g_bColorOverlayLayer1)));
-        #endif
-
-        float flVertexColorMask = float(g_nVertexColorMode1 != 2) * mix(height.g, 1.0, g_nVertexColorMode1 == 0);
-        color.rgb *= mix(vec3(1.0), vVertexColor_Alpha.rgb, flVertexColorMask);
-    #else
+    #if (GameVfx_csgo_environment_blend == 0)
         // note: g_nVertexColorMode ignored in non-blend
         color.rgb *= mix(vec3(1.0), vVertexColor_Alpha.rgb, height.g);
     #endif
@@ -388,37 +559,21 @@ MaterialProperties_t GetMaterial(vec3 vertexNormals)
 
     vec3 color2TintedMaybeColorCorrected = mix(color2MaybeColorCorrected.rgb, color2ColorCorrectedTinted.rgb, tintMask2);
 
-    float tintAdjusted2Luma = GetLuma(color2TintedMaybeColorCorrected);
-
-    float tintColorAdjusted2LumaRatio = tintAdjusted2Luma / tintColorNormLuma;
-    float tintAdjusted2Luma3x = 3.0 * tintAdjusted2Luma;
-
-    vec3 tintResult2 = saturate(mix(color2TintedMaybeColorCorrected, tintColorNorm * min(tintColorAdjusted2LumaRatio, tintAdjusted2Luma3x * tintColorHighestPoint), vec3((vTintColor_ModelAmount.w * tintMask2) * float(g_bModelTint2))));
-
-    color2.rgb = tintResult2;
-
-    #if (F_SHARED_COLOR_OVERLAY == 1)
-        // 0=Both, 2=Layer 2
-        const bool g_bColorOverlayLayer2 = g_nColorOverlayMode == 0 || g_nColorOverlayMode == 2;
-        const bool g_bColorOverlayMaskLayer2 = g_nColorOverlayTintMask == 0 || g_nColorOverlayTintMask == 2;
-        color2.rgb *= mix(vec3(1.0), overlayFactor, vec3((g_bColorOverlayMaskLayer2 ? tintMask2 : 1.0) * float(g_bColorOverlayLayer2)));
-    #endif
-
-    float flVertexColorMask2 = float(g_nVertexColorMode2 != 2) * mix(height2.g, 1.0, g_nVertexColorMode2 == 0);
-    vec3 color2Overlay = color2.rgb;
-    color2.rgb *= mix(vec3(1.0), vVertexColor_Alpha.rgb, flVertexColorMask2);
+    color2.rgb = ColorizeTint(color2TintedMaybeColorCorrected, vTintColor_ModelAmount.xyz,
+        (vTintColor_ModelAmount.w * tintMask2) * float(g_bModelTint2));
 
     // Both blend paths composite the same way and differ only in how they weigh the layer.
     float baseHeight1 = height.r - g_flHeightMapZeroPoint1;
     float baseHeight2 = height2.r - g_flHeightMapZeroPoint2;
 
-    LayerCarry carry2 = LayerCarry(0.0, 0.0, 0.0, 0.0);
+    LayerCarry carry2 = LayerCarry(0.0, 0.0, 0.0, 0.0, 0.0);
     float weight2;
     float weightBase2;
+    float weight3 = 0.0;
 
     if (bUseNewBlending)
     {
-        LayerCarry carry1 = LayerCarry(0.0, 0.0, 0.0, baseHeight1 * g_flHeightMapScale1);
+        LayerCarry carry1 = LayerCarry(0.0, 0.0, 0.0, 0.0, baseHeight1 * g_flHeightMapScale1);
         carry2 = BlendLayer(carry1, saturate(vColorBlendValues.x * 1.1 - 0.05), height2.r,
             g_flHeightMapZeroPoint2, g_flHeightMapScale2, vColorBlendValues.w,
             g_flUnderlyingHeightMapInfluence2, g_flMaskWithHeight2);
@@ -439,12 +594,26 @@ MaterialProperties_t GetMaterial(vec3 vertexNormals)
         weightBase2 = weights.x;
     }
 
+    // Tint mask of everything composited so far, which the borders mask themselves by.
+    float tintMaskBelow = mix(tintMask1, tintMask2, weight2);
+
+    #if (F_BLEND_EFFECTS_2 == 1)
+        SeamFrame seam2 = GetSeamFrame(carry2.difference, saturate(vColorBlendValues.x * 1.1 - 0.05),
+            max(abs(g_flHeightMapScale1), abs(g_flHeightMapScale2)), vColorBlendValues.w,
+            weight2, height2.r, g_flMaskWithHeight2, tintMaskBelow);
+
+        ApplyBlendBorder(color.rgb, color2.rgb, normal.b, normal2.b, seam2,
+            BorderParams(g_flBorderSpread2, g_flBorderSoftness2, g_flBorderOffset2, g_vBorderTint2,
+                g_vBorderLayerAmount2, g_bBorderTintMask2, F_BORDER_BLEND_MODE_2,
+                F_BORDER_ROUGHNESS_2 == 1, g_fBorderRoughness2));
+    #endif
+
     rawHeight = (rawHeight * weightBase2) + (height2.r * weight2);
 
     height.r = baseHeight1;
     height2.r = baseHeight2;
 
-    color.rgb = CombineColor(color.rgb, color2.rgb, color2Overlay, weight2, g_flColorOverlay2, g_flColorReplace2);
+    color.rgb = CombineColor(color.rgb, color2.rgb, weight2, g_flColorOverlay2, g_flColorReplace2);
     color.a = color.a * weightBase2 + color2.a * weight2;
     height = height * weightBase2 + height2 * weight2;
     normal = normal * weightBase2 + normal2 * weight2;
@@ -464,32 +633,16 @@ MaterialProperties_t GetMaterial(vec3 vertexNormals)
         vec4 color3ColorCorrectedTinted = color3 * g_mTextureColorAdjust3;
 
         vec3 color3TintedMaybeColorCorrected = mix(color3MaybeColorCorrected.rgb, color3ColorCorrectedTinted.rgb, tintMask3);
-        float tintAdjusted3Luma = GetLuma(color3TintedMaybeColorCorrected);
 
-        float tintColorAdjusted3LumaRatio = tintAdjusted3Luma / tintColorNormLuma;
-        float tintAdjusted3Luma3x = 3.0 * tintAdjusted3Luma;
-
-        vec3 tintResult3 = saturate(mix(color3TintedMaybeColorCorrected, tintColorNorm * min(tintColorAdjusted3LumaRatio, tintAdjusted3Luma3x * tintColorHighestPoint), vec3((vTintColor_ModelAmount.w * tintMask3) * float(g_bModelTint3))));
-
-        color3.rgb = tintResult3;
-
-        #if (F_SHARED_COLOR_OVERLAY == 1)
-            // 0=Both, 3=Layer 3
-            const bool g_bColorOverlayLayer3 = g_nColorOverlayMode == 0 || g_nColorOverlayMode == 3;
-            const bool g_bColorOverlayMaskLayer3 = g_nColorOverlayTintMask == 0 || g_nColorOverlayTintMask == 3;
-            color3.rgb *= mix(vec3(1.0), overlayFactor, vec3((g_bColorOverlayMaskLayer3 ? tintMask3 : 1.0) * float(g_bColorOverlayLayer3)));
-        #endif
-
-        float flVertexColorMask3 = float(g_nVertexColorMode3 != 2) * mix(height3.g, 1.0, g_nVertexColorMode3 == 0);
-        vec3 color3Overlay = color3.rgb;
-        color3.rgb *= mix(vec3(1.0), vVertexColor_Alpha.rgb, flVertexColorMask3);
+        color3.rgb = ColorizeTint(color3TintedMaybeColorCorrected, vTintColor_ModelAmount.xyz,
+            (vTintColor_ModelAmount.w * tintMask3) * float(g_bModelTint3));
 
         float baseHeight3 = height3.r - g_flHeightMapZeroPoint3;
-        float weight3;
+        LayerCarry carry3 = LayerCarry(0.0, 0.0, 0.0, 0.0, 0.0);
 
         if (bUseNewBlending)
         {
-            LayerCarry carry3 = BlendLayer(carry2, saturate(vColorBlendValues.y * 1.1 - 0.05), height3.r,
+            carry3 = BlendLayer(carry2, saturate(vColorBlendValues.y * 1.1 - 0.05), height3.r,
                 g_flHeightMapZeroPoint3, g_flHeightMapScale3, vColorBlendValues.w,
                 g_flUnderlyingHeightMapInfluence3, g_flMaskWithHeight3);
 
@@ -507,18 +660,72 @@ MaterialProperties_t GetMaterial(vec3 vertexNormals)
             weight3 = weights3.y;
         }
 
+        #if (F_BLEND_EFFECTS_3 == 1)
+            // Layer 3 decorates its seam against the composite below it, so both its height
+            // scale and its tint mask come from layers 1 and 2 blended together.
+            SeamFrame seam3 = GetSeamFrame(carry3.difference, saturate(vColorBlendValues.y * 1.1 - 0.05),
+                max(abs(mix(g_flHeightMapScale1, g_flHeightMapScale2, weight2)), abs(g_flHeightMapScale3)),
+                vColorBlendValues.w, weight3, height3.r, g_flMaskWithHeight3,
+                mix(tintMaskBelow, tintMask3, weight3));
+
+            ApplyBlendBorder(color.rgb, color3.rgb, normal.b, normal3.b, seam3,
+                BorderParams(g_flBorderSpread3, g_flBorderSoftness3, g_flBorderOffset3, g_vBorderTint3,
+                    g_vBorderLayerAmount3, g_bBorderTintMask3, F_BORDER_BLEND_MODE_3,
+                    F_BORDER_ROUGHNESS_3 == 1, g_fBorderRoughness3));
+        #endif
+
         rawHeight = (rawHeight * (1.0 - weight3)) + (height3.r * weight3);
 
         height3.r = baseHeight3;
 
         float weightBase3 = 1.0 - weight3;
 
-        color.rgb = CombineColor(color.rgb, color3.rgb, color3Overlay, weight3, g_flColorOverlay3, g_flColorReplace3);
+        color.rgb = CombineColor(color.rgb, color3.rgb, weight3, g_flColorOverlay3, g_flColorReplace3);
         color.a = color.a * weightBase3 + color3.a * weight3;
         height = height * weightBase3 + height3 * weight3;
         normal = normal * weightBase3 + normal3 * weight3;
         aoLevels = aoLevels * weightBase3 + g_vAmbientOcclusionLevels3.xyz * weight3;
     #endif
+
+    float share2 = weight2 * (1.0 - weight3);
+    float share1 = saturate((1.0 - share2) - weight3);
+
+    #if (F_SHARED_COLOR_OVERLAY == 1)
+        float overlayAmount =
+            OverlayLayerAmount(tintMask1, g_vColorOverlayTintMaskStrengths.x, g_vColorOverlayLayerStrengths.x, share1)
+            + OverlayLayerAmount(tintMask2, g_vColorOverlayTintMaskStrengths.y, g_vColorOverlayLayerStrengths.y, share2);
+
+        #if (F_ENABLE_LAYER_3 == 1)
+            overlayAmount += OverlayLayerAmount(tintMask3, g_vColorOverlayTintMaskStrengths.z, g_vColorOverlayLayerStrengths.z, weight3);
+        #endif
+
+        if (overlayAmount > 0.0)
+        {
+            vec3 overlay = texture(g_tSharedColorOverlay, vTexCoord.zw).rgb * 2.0 - 1.0;
+            vec3 overlayFactor = max(vec3(0.0), vec3(1.0)
+                + (vec3(1.0) - SafePow(vec3(1.0) - max(vec3(0.0), overlay), vec3(g_flOverlayBrightnessContrast))) * g_flOverlayBrightnessContrast
+                + (SafePow(vec3(1.0) + min(vec3(0.0), overlay), vec3(g_flOverlayDarknessContrast)) - vec3(1.0)) * g_flOverlayDarknessContrast);
+
+            color.rgb *= mix(vec3(1.0), overlayFactor, overlayAmount);
+        }
+    #endif
+
+    float vertexColorMasked = tintMask1 * share1 + tintMask2 * share2;
+    float vertexColorUnmasked = float(g_nVertexColorMode1 != 0) * share1 + float(g_nVertexColorMode2 != 0) * share2;
+    float vertexColorEnabled = float(g_nVertexColorMode1 != 2) * share1 + float(g_nVertexColorMode2 != 2) * share2;
+
+    #if (F_ENABLE_LAYER_3 == 1)
+        vertexColorMasked += tintMask3 * weight3;
+        vertexColorUnmasked += float(g_nVertexColorMode3 != 0) * weight3;
+    #endif
+
+    float vertexColorMask = saturate(vertexColorUnmasked + vertexColorMasked) * vertexColorEnabled;
+
+    #if (F_ENABLE_LAYER_3 == 1)
+        vertexColorMask += float(g_nVertexColorMode3 != 2) * weight3;
+    #endif
+
+    color.rgb *= mix(vec3(1.0), vVertexColor_Alpha.rgb, saturate(vertexColorMask));
 #endif
 
     mat.Albedo = color.rgb;
@@ -544,6 +751,17 @@ MaterialProperties_t GetMaterial(vec3 vertexNormals)
     #endif
 
     mat.Normal = calculateWorldNormal(mat.NormalMap, mat.GeometricNormal, mat.Tangent, mat.Bitangent);
+
+    #if (GameVfx_csgo_environment_blend != 0 && F_BLEND_EFFECTS_2 == 1)
+        mat.Normal = BlendBevelNormal(mat.Normal, mat.GeometricNormal, vFragPosition, seam2,
+            BevelParams(g_flBevelSpread2, g_flBevelSoftness2, g_flBevelOffset2,
+                g_flBevelStrength2, g_flBevelCurve2, g_vBevelLayerAmount2));
+    #endif
+    #if (GameVfx_csgo_environment_blend != 0 && F_ENABLE_LAYER_3 == 1 && F_BLEND_EFFECTS_3 == 1)
+        mat.Normal = BlendBevelNormal(mat.Normal, mat.GeometricNormal, vFragPosition, seam3,
+            BevelParams(g_flBevelSpread3, g_flBevelSoftness3, g_flBevelOffset3,
+                g_flBevelStrength3, g_flBevelCurve3, g_vBevelLayerAmount3));
+    #endif
 
     mat.Height = height.r;
     mat.Metalness = height.a;
