@@ -636,6 +636,8 @@ partial class ModelExtract
         clothBones.UnionWith(unregisteredFreeNodes.Select(static entry => entry.RootBone));
         AddClothSelfCollisionClusters(softbodyChildren, feModel, clothBones);
         AddClothFollowBones(softbodyChildren, feModel, clothBones);
+        AddClothJointLocks(softbodyChildren, feModel, (node, name) => !independentChainNodes.Contains(node)
+            && !authoredClothNodes.Contains(node) && (feModel.FitMatrixNodes.Contains(node) || proxySkinnedBones.Contains(name)));
         var shapeNames = AddClothCollisionShapes(softbodyChildren, feModel);
         AddClothAntiTunnelGroup(softbodyChildren, feModel, shapeNames,
             [.. ClothProxyMeshesToExtract.Select(static proxy => proxy.Name)]);

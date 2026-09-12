@@ -3289,6 +3289,43 @@ namespace Tests
             }
         }
 
+        /// <summary>
+        /// A joint a proxy sheet back-solves has no construct of its own to carry <c>lock_translation</c>, so a lock
+        /// on it (in <c>m_LockToGoal</c> or <c>m_LockToParent</c>) is declared as a <c>ClothJointLock</c> naming it.
+        /// A generated node and an unlocked joint get none, and a joint the caller declares elsewhere is left out.
+        /// </summary>
+        [Test]
+        public async Task ALockedBackSolvedJointIsDeclaredAsAJointLock()
+        {
+            var feModel = SyntheticCloth.Parse($$"""
+                {
+                    m_CtrlName = [ "root", "$cloth_m0p0", "locked_goal", "locked_parent", "goal_with_parent", "declared" ]
+                    m_SkelParents = [ -1, -1, -1, 2, 0, 4 ]
+                    m_nNodeCount = 6
+                    m_nStaticNodes = 3
+                    m_NodeInvMasses = [ 0.0, 0.0, 0.0, 1.0, 1.0, 1.0 ]
+                    m_InitPose =
+                    [
+                        {{SyntheticCloth.Pose(0f, 0f, 0f)}}
+                        {{SyntheticCloth.Pose(0f, 0f, -1f)}}
+                        {{SyntheticCloth.Pose(0f, 0f, -2f)}}
+                        {{SyntheticCloth.Pose(0f, 0f, -3f)}}
+                        {{SyntheticCloth.Pose(0f, 0f, -4f)}}
+                        {{SyntheticCloth.Pose(0f, 0f, -5f)}}
+                    ]
+                    m_LockToGoal = [ 1, 2 ]
+                    m_LockToParent = [ { vOffset = [ 0.0, 0.0, -1.0 ] nCtrlParent = 2 nCtrlChild = 3 }, { vOffset = [ 0.0, 0.0, -1.0 ] nCtrlParent = 4 nCtrlChild = 5 } ]
+                }
+                """);
+            var children = KVObject.Array();
+            ModelExtract.AddClothJointLocks(children, feModel, static (_, name) => name != "declared");
+
+            await Assert.That(children.Select(static c => c.Value.GetStringProperty("feeder_bone")).ToArray())
+                .IsEquivalentTo(LockedJoints, CollectionOrdering.Matching);
+        }
+
+        private static readonly string[] LockedJoints = ["locked_goal", "locked_parent"];
+
         private static string VertexMapEntry(string name, uint hash, int offset, int vertexBase, int count, float volumetric = 0f)
             => $"{{ sName = \"{name}\" nNameHash = {hash} nVertexBase = {vertexBase} nVertexCount = {count} nMapOffset = {offset} "
                 + $"vCenterOfMass = [ 0.0, 0.0, 0.0 ] flVolumetricSolveStrength = {SyntheticCloth.Num(volumetric)} nScaleSourceNode = -1 }},";
