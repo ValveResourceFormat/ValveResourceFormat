@@ -1876,24 +1876,52 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                     }
                 }
 
-                float? chainNaturalRf = null;
-                var chainNaturalRfConsistent = true;
-                foreach (var kv in rodRelaxationsByPair)
+                var crossesRoot = new HashSet<(int, int)>();
+                foreach (var chainJoint in chain.Joints)
                 {
-                    if (!chainNaturalRfConsistent || kv.Value.Count != 1
-                        || !chainNodes.Contains(kv.Key.Item1) || !chainNodes.Contains(kv.Key.Item2))
+                    if (chainJoint.Node == rootNode)
                     {
                         continue;
                     }
 
-                    if (chainNaturalRf is { } already && MathF.Abs(already - kv.Value[0]) > 1e-4f)
+                    foreach (var a in (int[])[chainJoint.Node, .. Side(chainJoint.Node)])
                     {
-                        chainNaturalRfConsistent = false;
-                        chainNaturalRf = null;
-                        continue;
+                        foreach (var b in (int[])[rootNode, .. Side(rootNode)])
+                        {
+                            crossesRoot.Add(a < b ? (a, b) : (b, a));
+                        }
+                    }
+                }
+
+                float? NaturalRf(bool? crossingRoot)
+                {
+                    float? natural = null;
+                    foreach (var kv in rodRelaxationsByPair)
+                    {
+                        if (kv.Value.Count != 1
+                            || !chainNodes.Contains(kv.Key.Item1) || !chainNodes.Contains(kv.Key.Item2)
+                            || (crossingRoot is { } want && crossesRoot.Contains(kv.Key) != want))
+                        {
+                            continue;
+                        }
+
+                        if (natural is { } already && MathF.Abs(already - kv.Value[0]) > 1e-4f)
+                        {
+                            return null;
+                        }
+
+                        natural = kv.Value[0];
                     }
 
-                    chainNaturalRf = kv.Value[0];
+                    return natural;
+                }
+
+                var chainNaturalRf = NaturalRf(null);
+                if (chainNaturalRf is null && NaturalRf(true) is { } acrossRoot
+                    && NaturalRf(false) is { } withoutRoot
+                    && MathF.Abs(acrossRoot - withoutRoot) > 1e-4f)
+                {
+                    chainNaturalRf = withoutRoot;
                 }
 
                 // The compiler writes a chain rod's flRelaxationFactor straight from the slider that

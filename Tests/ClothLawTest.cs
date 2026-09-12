@@ -2175,5 +2175,50 @@ namespace Tests
                 m_VertexSetNames = [  ]
             }
             """);
+
+        /// <summary>
+        /// A suspender puts one companion rod on the chain ROOT. On the joint whose parent IS the root
+        /// that lands on the parent span, so the pair carries two rods - which is also what one extra
+        /// iteration looks like, except that an iteration repeats every span and a suspender repeats
+        /// only this one. Reading it as an iteration emits a second copy of every other span too.
+        /// </summary>
+        [Test]
+        public async Task AJointOnTheChainRootReadsItsDoubledRootPairAsASuspender()
+        {
+            var joint = SuspendedRope().BuildBoneChains()[0].Joints[1];
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(joint.Suspender).IsEqualTo(0.5f).Within(1e-4f);
+                await Assert.That(joint.ExtraIterations).IsEqualTo(0);
+            }
+        }
+
+        private static FeModel SuspendedRope() => SyntheticCloth.Parse($$"""
+            {
+                m_CtrlName = [ "root", "j1", "j2", "j3" ]
+                m_SkelParents = [ -1, 0, 1, 2 ]
+                m_nNodeCount = 4
+                m_nStaticNodes = 1
+                m_NodeInvMasses = [ 0.0, 1.0, 1.0, 1.0 ]
+                m_InitPose =
+                [
+                    {{SyntheticCloth.Pose(0f, 0f, 0f)}}
+                    {{SyntheticCloth.Pose(0f, 0f, -10f)}}
+                    {{SyntheticCloth.Pose(0f, 0f, -20f)}}
+                    {{SyntheticCloth.Pose(0f, 0f, -30f)}}
+                ]
+                m_Rods =
+                [
+                    {{SyntheticCloth.RigidRod(0, 1, 10f, 1f)}}
+                    {{SyntheticCloth.RigidRod(0, 1, 10f, 0.5f)}}
+                    {{SyntheticCloth.RigidRod(1, 2, 10f, 1f)}}
+                    {{SyntheticCloth.RigidRod(2, 3, 10f, 1f)}}
+                    {{SyntheticCloth.RigidRod(0, 2, 20f, 0.5f)}}
+                    {{SyntheticCloth.RigidRod(0, 3, 30f, 0.5f)}}
+                ]
+            }
+            """);
+
     }
 }
