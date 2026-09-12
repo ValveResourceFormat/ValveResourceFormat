@@ -74,6 +74,10 @@ uniform float g_flTexCoordRotation1 = 0.0;
 
 in vec4 vColorBlendValues;
 
+// Height-band method instead of normalized two-height blend
+uniform int F_USE_NEW_BLENDING;
+#define bUseNewBlending (F_USE_NEW_BLENDING == 1)
+
 // Material 2
 #if (GameVfx_csgo_environment_blend != 0)
     uniform sampler2D g_tColor2; // SrgbRead(true)
@@ -268,10 +272,6 @@ in vec4 vColorBlendValues;
         return lod * lod * (0.0125 + fwidth(height * scale)) * 0.02
             * g_flBlendSoftnessDistanceModifierStrength * layerWeight;
     }
-
-    // Picks the height-band blend below over the normalized two-height blend in GetBlendWeights.
-    uniform int F_USE_NEW_BLENDING;
-    #define bUseNewBlending (F_USE_NEW_BLENDING == 1)
 
     // Height-band blend. Every layer above the first gets a single [0, 1] weight from a
     // height difference measured against the layers below it, which is carried upward.
@@ -755,8 +755,11 @@ MaterialProperties_t GetMaterial(vec3 vertexNormals)
     vec4 color = SampleMaterialTexture(g_tColor1, g_nUVSet1, vTexCoord.xy, g_vTexCoordScale1, biplanar);
     vec4 height = SampleMaterialTexture(g_tHeight1, g_nUVSet1, vTexCoord.xy, g_vTexCoordScale1, biplanar);
 
-    // Where the water line is judged against.
+    // The height the water line is judged against, and how hard wetness darkens, both blended up
+    // the layers the same way the colour is. The legacy blend path judges the raw height instead.
+    float wetHeight = WetnessHeight(height.r, g_flHeightMapZeroPoint1, g_flHeightMapScale1);
     float rawHeight = height.r;
+    float wetDarkening = g_flWetnessDarkeningStrength1;
     vec4 normal = SampleMaterialTexture(g_tNormal1, g_nUVSet1, vTexCoord.xy, g_vTexCoordScale1, biplanar);
 
     vec3 aoLevels = g_vAmbientOcclusionLevels1.xyz;
@@ -864,6 +867,7 @@ MaterialProperties_t GetMaterial(vec3 vertexNormals)
                 F_BORDER_ROUGHNESS_2 == 1, g_fBorderRoughness2));
     #endif
 
+    wetHeight = mix(wetHeight, WetnessHeight(height2.r, g_flHeightMapZeroPoint2, g_flHeightMapScale2), weight2);
     rawHeight = (rawHeight * weightBase2) + (height2.r * weight2);
 
     height.r = baseHeight1;
@@ -950,6 +954,7 @@ MaterialProperties_t GetMaterial(vec3 vertexNormals)
                     F_BORDER_ROUGHNESS_3 == 1, g_fBorderRoughness3));
         #endif
 
+        wetHeight = mix(wetHeight, WetnessHeight(height3.r, g_flHeightMapZeroPoint3, g_flHeightMapScale3), weight3);
         rawHeight = (rawHeight * (1.0 - weight3)) + (height3.r * weight3);
 
         height3.r = baseHeight3;
@@ -983,6 +988,12 @@ MaterialProperties_t GetMaterial(vec3 vertexNormals)
 
     float share2 = weight2 * (1.0 - weight3);
     float share1 = saturate((1.0 - share2) - weight3);
+
+    wetDarkening = mix(wetDarkening, g_flWetnessDarkeningStrength2, share2 * g_flColorReplace2);
+
+    #if (F_ENABLE_LAYER_3 == 1)
+        wetDarkening = mix(wetDarkening, g_flWetnessDarkeningStrength3, weight3 * g_flColorReplace3);
+    #endif
 
     #if (F_SHARED_COLOR_OVERLAY == 1)
         float overlayAmount =
@@ -1047,7 +1058,16 @@ MaterialProperties_t GetMaterial(vec3 vertexNormals)
     mat.AmbientGeometricNormal = mat.GeometricNormal;
 
     float reflectance = g_flReflectance;
-    ApplyWetness(mat, rawHeight, vColorBlendValues.z, vColorBlendValues.w, reflectance);
+
+    if (bUseNewBlending)
+    {
+        ApplyWetness(mat, wetHeight, vColorBlendValues.z, wetDarkening, reflectance);
+    }
+    else
+    {
+        ApplyWetnessOld(mat, rawHeight, vColorBlendValues.z, vColorBlendValues.w, reflectance);
+    }
+
     AdjustRoughnessByGeometricNormal(mat);
 
     mat.DiffuseColor = mat.Albedo - mat.Albedo * mat.Metalness;
