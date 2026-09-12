@@ -3326,6 +3326,54 @@ namespace Tests
 
         private static readonly string[] LockedJoints = ["locked_goal", "locked_parent"];
 
+        /// <summary>
+        /// The compiler sorts a rigid array into its priority groups, so a capsule declared first at a higher
+        /// priority lands after a later one; the order the parent bones were numbered in still carries the
+        /// declaration. The fixture is the compiled synthetic pair spine_2 at priority 2, pelvis at priority 0.
+        /// Without priority groups the array's own order is the declaration order and is kept.
+        /// </summary>
+        [Test]
+        public async Task ShapesSortedIntoPriorityGroupsAreDeclaredInTheirParentBonesOrder()
+        {
+            const string Groups = "m_RigidColliderPriorities = [ "
+                + "{ m_nTaperedCapsuleRigidIndex = 0 m_nSphereRigidIndex = 0 m_nBoxRigidIndex = 0 m_nSDFRigidIndex = 0 m_nCollisionPlaneIndex = 0 }, "
+                + "{ m_nTaperedCapsuleRigidIndex = 1 m_nSphereRigidIndex = 0 m_nBoxRigidIndex = 0 m_nSDFRigidIndex = 0 m_nCollisionPlaneIndex = 0 }, "
+                + "{ m_nTaperedCapsuleRigidIndex = 2 m_nSphereRigidIndex = 0 m_nBoxRigidIndex = 0 m_nSDFRigidIndex = 0 m_nCollisionPlaneIndex = 0 } ]";
+            var grouped = ModelExtract.AddClothCollisionShapes(KVObject.Array(), PriorityCapsules(Groups));
+            var ungrouped = ModelExtract.AddClothCollisionShapes(KVObject.Array(), PriorityCapsules("m_RigidColliderPriorities = [ ]"));
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(grouped).IsEquivalentTo(DeclaredCapsules, CollectionOrdering.Matching);
+                await Assert.That(ungrouped).IsEquivalentTo(ArrayOrderCapsules, CollectionOrdering.Matching);
+            }
+        }
+
+        private static readonly string[] DeclaredCapsules = ["spine_2_clothCapsule", "pelvis_clothCapsule"];
+        private static readonly string[] ArrayOrderCapsules = ["pelvis_clothCapsule", "spine_2_clothCapsule"];
+
+        private static FeModel PriorityCapsules(string groups) => SyntheticCloth.Parse($$"""
+            {
+                m_CtrlName = [ "spine_2", "pelvis", "coattail_0_L" ]
+                m_SkelParents = [ -1, -1, -1 ]
+                m_nNodeCount = 3
+                m_nStaticNodes = 3
+                m_NodeInvMasses = [ 0.0, 0.0, 0.0 ]
+                m_InitPose =
+                [
+                    {{SyntheticCloth.Pose(0f, 0f, 40f)}}
+                    {{SyntheticCloth.Pose(0f, 0f, 30f)}}
+                    {{SyntheticCloth.Pose(-8f, 4f, 65f)}}
+                ]
+                m_TaperedCapsuleRigids =
+                [
+                    { vSphere = [ [ 0.0, 0.0, -4.0, 4.0 ], [ 0.0, 0.0, 4.0, 4.0 ] ] nNode = 1 nCollisionMask = 15 nVertexMapIndex = 65535 nFlags = 0 },
+                    { vSphere = [ [ 0.0, 0.0, -4.0, 4.0 ], [ 0.0, 0.0, 4.0, 4.0 ] ] nNode = 0 nCollisionMask = 15 nVertexMapIndex = 65535 nFlags = 0 },
+                ]
+                {{groups}}
+            }
+            """);
+
         private static string VertexMapEntry(string name, uint hash, int offset, int vertexBase, int count, float volumetric = 0f)
             => $"{{ sName = \"{name}\" nNameHash = {hash} nVertexBase = {vertexBase} nVertexCount = {count} nMapOffset = {offset} "
                 + $"vCenterOfMass = [ 0.0, 0.0, 0.0 ] flVolumetricSolveStrength = {SyntheticCloth.Num(volumetric)} nScaleSourceNode = -1 }},";
