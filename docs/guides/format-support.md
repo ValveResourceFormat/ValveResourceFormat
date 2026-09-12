@@ -122,7 +122,9 @@ See the [exporting models guide](./exporting-models.md) for the workflow.
 Decompiling produces a `.vmdl` plus DMX files for meshes, physics shapes, and animations,
 loadable in ModelDoc. Reconstructed: render meshes with all vertex streams, skeleton,
 attachments, bodygroups, LOD groups, hitbox sets, material groups (skins), static collision
-shapes, bone constraints, IK chains and the legacy IK control rig, face flexes (morph targets
+shapes, conical/revolute ragdoll joints with limits and motion resistance, articulated body
+properties (mass, inertia scale, damping and drag), bone constraints, IK chains and the
+legacy IK control rig, face flexes (morph targets
 with position, normal and wrinkle deltas, and the flex controllers and rules that drive them),
 breakable pieces, embedded sequences with events/layers/root motion, Animgraph 2 clips and
 references, and a wide range of game data blocks (prop_data, particle attachments, and many
@@ -133,7 +135,7 @@ What a recompiled model will be missing:
 | What                                      | Why                          | Details                                                                                                                                                                                                                                                                                                                                                               |
 | ----------------------------------------- | ---------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Cloth simulation                          | Partly not in compiled files | The compiled `FeModel` cloth data is not parsed, and some of the authored cloth attributes do not survive compilation in recoverable form, so recompiled models will not simulate. [#653](https://github.com/ValveResourceFormat/ValveResourceFormat/issues/653)                                                                                                      |
-| Ragdoll joints                            | Not implemented              | Physics constraints (`m_constraints2`) are not parsed anywhere; only the collision shapes survive.                                                                                                                                                                                                                                                                    |
+| Other physics joints and motors           | Not implemented              | Conical and revolute joints in `m_joints` are reconstructed, including anchor frames, conical swing offsets, angular limits, collision settings, block solver selection, and motion resistance. Other joint types, motors, and legacy `m_constraints2` constraints are not exported.                                                                                                                                                                                                                                                                    |
 | Stereo flex controls                      | Not in compiled files        | A face rig is authored as one slider per expression plus a left/right balance map, which the compiler bakes into two independent controllers (`left_lipStretcher`, `right_lipStretcher`). Both come back and animate correctly, just as two sliders instead of one. |
 | Animations from external animation groups | Not implemented              | Only embedded sequences and Animgraph 2 clips get DMX files; sequences in referenced `vagrp` files are skipped. Animations from referenced include-models are not written either, but their `AnimIncludeModel` references are kept, so they come back if those models are decompiled too.                                                                             |
 | Additional external physics files         | Not implemented              | Only the first `m_refPhysicsData` reference is extracted; shapes from further files are dropped.                                                                                                                                                                                                                                                                      |
@@ -289,9 +291,12 @@ All four collision shape types (sphere, capsule, hull, mesh) parse, render, and 
 glTF as visualization geometry. Decompiled `.vmdl` files carry all four; `.vmap` decompiles
 carry only hulls and meshes. Hitboxes fully round-trip into decompiled models.
 
-Not parsed anywhere: ragdoll joints/constraints (`m_constraints2`) and the `FeModel`
-cloth/softbody block; both are visible only in the raw text dump. Surface properties are
-resolved by name only; their physical values (friction, density, sounds) are not consumed
+Conical and revolute joints in `m_joints` export to ModelDoc with their angular limits,
+frames, collision settings, and motion resistance. Articulated bodies retain mass, inertia
+scale, damping, drag, center-of-mass overrides, and body tags. Other joint types, motors, legacy
+`m_constraints2` constraints, and the `FeModel` cloth/softbody block remain available only
+in raw text dumps. Surface properties are resolved by name only; their physical values
+(friction, density, sounds) are not consumed
 or exported. Text-dumping the PHYS block of gigabyte-class maps can run out of memory; dump
 the block to a file via the CLI instead
 ([#840](https://github.com/ValveResourceFormat/ValveResourceFormat/issues/840)).
