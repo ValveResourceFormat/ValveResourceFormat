@@ -2556,5 +2556,59 @@ namespace Tests
                 ]
             }
             """;
+
+        /// <summary>
+        /// A joint authored at <c>stretch_spring</c> 0 compiles no rod on its span to its parent and none to
+        /// its own ring. The fixture is the compiled synthetic chain with the spring off on coattail_1_L and
+        /// coattail_end_L, with coattail_2_L between them left on. Putting coattail_1_L's ring rod back is
+        /// no longer a switched-off joint.
+        /// </summary>
+        [Test]
+        public async Task AJointsZeroStretchSpringIsReadOffItsRodlessSpanAndRing()
+        {
+            var joints = SyntheticCloth.Parse(AlternatingStretchText).BuildBoneChains()[0].Joints;
+            var ringed = SyntheticCloth.Parse(AlternatingStretchText.Replace(
+                "{ nNode = [ 5, 6 ]",
+                "{ nNode = [ 3, 4 ] flMinDist = 2.0 flMaxDist = 2.0 flWeight0 = 0.5 flRelaxationFactor = 1.0 },\n{ nNode = [ 5, 6 ]",
+                StringComparison.Ordinal)).BuildBoneChains()[0].Joints;
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(joints.First(static joint => joint.Name == "coattail_1_L").StretchStiffness).IsEqualTo(0f);
+                await Assert.That(joints.First(static joint => joint.Name == "coattail_2_L").StretchStiffness).IsEqualTo(1f);
+                await Assert.That(joints.First(static joint => joint.Name == "coattail_end_L").StretchStiffness).IsEqualTo(0f);
+                await Assert.That(ringed.First(static joint => joint.Name == "coattail_1_L").StretchStiffness).IsEqualTo(1f);
+            }
+        }
+
+        private const string AlternatingStretchText = """
+            {
+                m_CtrlName = [ "coattail_0_L", "$cccoattail_0_L_0", "$cccoattail_end_L_0", "coattail_1_L", "$cccoattail_1_L_0", "coattail_2_L", "$cccoattail_2_L_0", "coattail_end_L" ]
+                m_SkelParents = [ -1, 0, 7, 0, 3, 3, 5, 5 ]
+                m_nNodeCount = 8
+                m_nStaticNodes = 3
+                m_NodeInvMasses = [ 0.0, 0.0, 0.0, 0.007253, 0.007252, 0.0065, 0.006497, 1.0 ]
+                m_SourceElems = [ 0, 0, 0, 2, 4, 3, 5, 6, 3, 4, 6, 5 ]
+                m_InitPose =
+                [
+                    [ -8.915481, 4.000124, 65.447983, 1.0, 0.337553, -0.646323, -0.495776, -0.471731 ],
+                    [ -10.723646, 4.561181, 66.092773, 1.0, 0.337553, -0.646323, -0.495776, -0.471731 ],
+                    [ -19.686529, 5.562407, 42.336063, 1.0, -0.323943, 0.653251, 0.505547, 0.461245 ],
+                    [ -11.695464, 4.267121, 57.419937, 1.0, -0.323373, 0.653533, 0.505948, 0.460804 ],
+                    [ -13.473376, 4.824905, 58.146507, 1.0, -0.323373, 0.653533, 0.505948, 0.460804 ],
+                    [ -14.808016, 4.637866, 49.519089, 1.0, -0.323943, 0.653251, 0.505547, 0.461245 ],
+                    [ -16.587204, 5.195801, 50.242416, 1.0, -0.323943, 0.653251, 0.505547, 0.461245 ],
+                    [ -17.907341, 5.004471, 41.612736, 1.0, -0.323943, 0.653251, 0.505547, 0.461245 ],
+                ]
+                m_Rods =
+                [
+                    { nNode = [ 5, 3 ] flMinDist = 8.499931 flMaxDist = 8.499931 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
+                    { nNode = [ 6, 3 ] flMinDist = 8.735466 flMaxDist = 8.735466 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
+                    { nNode = [ 5, 4 ] flMinDist = 8.732044 flMaxDist = 8.732044 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
+                    { nNode = [ 6, 4 ] flMinDist = 8.503419 flMaxDist = 8.503419 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
+                    { nNode = [ 5, 6 ] flMinDist = 2.000001 flMaxDist = 2.000001 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
+                ]
+            }
+            """;
     }
 }

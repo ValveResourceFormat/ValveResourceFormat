@@ -2500,6 +2500,39 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
 
                 static (int, int) SpanPair(int a, int b) => a < b ? (a, b) : (b, a);
 
+                bool DeclaresNoStretch(BoneChainJoint joint)
+                {
+                    if (joint.IsRoot || joint.ParentNode < 0 || !Simulates(joint.Node) || IsPositionDriven(joint.Node)
+                        || !jointRingOf.TryGetValue(joint.Node, out var ring) || ring.Count == 0)
+                    {
+                        return false;
+                    }
+
+                    var own = Extrusion(joint.Node);
+                    return !Array.Exists(Quads, quad => Array.Exists(quad, own.Contains))
+                        && !AnyRodBetween(own, [joint.ParentNode, .. Side(joint.ParentNode)])
+                        && !AnyRodBetween(own, own);
+                }
+
+                List<int> Extrusion(int node)
+                    => jointRingOf.TryGetValue(node, out var ring) ? [node, .. ring] : [node];
+
+                bool AnyRodBetween(List<int> lhs, List<int> rhs)
+                {
+                    foreach (var a in lhs)
+                    {
+                        foreach (var b in rhs)
+                        {
+                            if (a != b && rodPairs.Contains(SpanPair(a, b)))
+                            {
+                                return true;
+                            }
+                        }
+                    }
+
+                    return false;
+                }
+
                 foreach (var joint in chain.Joints)
                 {
                     var parent = joint.ParentNode;
@@ -2524,7 +2557,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                     var stretch = SpanRelaxation(joint.Node, parent) ?? RingInternalRelaxation(joint.Node)
                         ?? chainNaturalRf ?? 1f;
 
-                    joint.StretchStiffness = chainDeclaresNoStretch && !joint.IsRoot
+                    joint.StretchStiffness = (chainDeclaresNoStretch && !joint.IsRoot) || DeclaresNoStretch(joint)
                         ? 0f
                         : stretch > 0f ? Slider(stretch) : 1f;
 
