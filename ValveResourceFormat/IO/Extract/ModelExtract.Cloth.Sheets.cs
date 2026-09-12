@@ -623,6 +623,7 @@ partial class ModelExtract
         AddClothProxySprings(softbodyChildren, feModel, ClothProxyMeshesToExtract, independentChainNodes,
             authoredClothNodes, freeClothNodeNames, surfaceRods, proxyNodeNameMap);
         AddClothChainSurplusClusters(softbodyChildren, feModel, independentChains);
+        AddClothChainVolumetricMaps(softbodyChildren, feModel, independentChains);
 
         // A bone an emitted proxy vertex is skinned to is registered by the sheet itself; the rest
         // come from the chains and cloth nodes emitted above.
