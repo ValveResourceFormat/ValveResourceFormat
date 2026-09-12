@@ -2453,6 +2453,35 @@ namespace Tests
             }
         }
 
+        /// <summary>
+        /// A cluster pair's rod carries the product of its two members' own <c>stiffness</c> as its relaxation,
+        /// so a cluster is read at any relaxation that factors that way and each member's stiffness comes back.
+        /// The fixture is the compiled synthetic three-member cluster: members at 0.5 put 0.25 on every pair, and
+        /// a pair set of 0.25 / 0.5 / 0.5 reads as two members at 0.5 and one at 1.0.
+        /// </summary>
+        [Test]
+        public async Task AClusterMembersStiffnessIsReadOffTheProductsItsPairRodsCarry()
+        {
+            const string Band = "flMinDist = 12.0 flMaxDist = 48.0 flWeight0 = 0.5 flRelaxationFactor = 1.0";
+            var uniform = SyntheticCloth.Parse(ThreeMemberClusterText
+                .Replace(Band, "flMinDist = 12.0 flMaxDist = 48.0 flWeight0 = 0.5 flRelaxationFactor = 0.25", StringComparison.Ordinal))
+                .SelfCollisionClusters;
+            var mixed = SyntheticCloth.Parse(ThreeMemberClusterText
+                .Replace("{ nNode = [ 2, 4 ] " + Band, "{ nNode = [ 2, 4 ] flMinDist = 12.0 flMaxDist = 48.0 flWeight0 = 0.5 flRelaxationFactor = 0.25", StringComparison.Ordinal)
+                .Replace(Band, "flMinDist = 12.0 flMaxDist = 48.0 flWeight0 = 0.5 flRelaxationFactor = 0.5", StringComparison.Ordinal))
+                .SelfCollisionClusters;
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(uniform.Count).IsEqualTo(1);
+                await Assert.That(uniform[0].Stiffness!.All(static s => MathF.Abs(s - 0.5f) < 1e-4f)).IsTrue();
+                await Assert.That(mixed.Count).IsEqualTo(1);
+                await Assert.That(mixed[0].Stiffness![0]).IsEqualTo(0.5f).Within(1e-4f);
+                await Assert.That(mixed[0].Stiffness![1]).IsEqualTo(0.5f).Within(1e-4f);
+                await Assert.That(mixed[0].Stiffness![2]).IsEqualTo(1f).Within(1e-4f);
+            }
+        }
+
         private const string ThreeMemberClusterText = """
             {
                 m_CtrlName = [ "coattail_0_L", "$cccoattail_0_L_0", "coattail_1_L", "$cccoattail_1_L_0", "coattail_2_L", "$cccoattail_2_L_0", "coattail_end_L", "$cccoattail_end_L_0" ]

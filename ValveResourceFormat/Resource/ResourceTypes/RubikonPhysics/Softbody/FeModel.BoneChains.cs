@@ -636,11 +636,12 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// </para>
         /// </remarks>
         /// <summary>
-        /// A recovered <c>ClothSelfCollisionCluster</c>: the member nodes, and the length band every one of
-        /// their pairwise rods carries. The per-member radii the band sums are not preserved by the
-        /// compile, so the caller splits it evenly.
+        /// A recovered <c>ClothSelfCollisionCluster</c>: the member nodes, the length band every one of their
+        /// pairwise rods carries, and each member's own stiffness, whose product over a pair is that pair's
+        /// relaxation. The per-member radii the band sums are not preserved by the compile, so the caller
+        /// splits it evenly.
         /// </summary>
-        public readonly record struct SelfCollisionCluster(int[] Nodes, float MinDist, float MaxDist);
+        public readonly record struct SelfCollisionCluster(int[] Nodes, float MinDist, float MaxDist, float[]? Stiffness = null);
 
         /// <summary>
         /// The smallest member count a rod clique is read as a cluster at on its signature alone. A cluster of
@@ -683,8 +684,9 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
 
         /// <summary>
         /// Gets the self-collision clusters the compiled rods record. A <c>ClothSelfCollisionCluster</c>
-        /// puts exactly one rod on every pair of its members, all sharing one length band, all carrying the
-        /// builder's own relaxation of 1.0 and weight of 0.5, and none of them registering a source element.
+        /// puts exactly one rod on every pair of its members, all sharing one length band and the builder's
+        /// weight of 0.5, each carrying the product of its two members' stiffness as its relaxation, and none
+        /// of them registering a source element.
         /// A clique of rods with that signature is therefore a cluster and nothing else can produce it.
         /// </summary>
         public IReadOnlyList<SelfCollisionCluster> SelfCollisionClusters
@@ -713,11 +715,11 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                 sprung.Add(a < b ? (a, b) : (b, a));
             }
 
-            var byBand = new Dictionary<(float, float), Dictionary<(int, int), int>>();
+            var byBand = new Dictionary<(float, float), Dictionary<(int, int), (int Copies, float Relaxation)>>();
             foreach (var rod in Rods)
             {
                 var pair = rod.NodeA < rod.NodeB ? (rod.NodeA, rod.NodeB) : (rod.NodeB, rod.NodeA);
-                if (rod.NodeA == rod.NodeB || rod.MaxDist <= rod.MinDist || rod.RelaxationFactor != 1f
+                if (rod.NodeA == rod.NodeB || rod.MaxDist <= rod.MinDist || rod.RelaxationFactor <= 0f
                     || rod.Weight0 != 0.5f || sprung.Contains(pair))
                 {
                     continue;
@@ -729,7 +731,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                     byBand[band] = counts = [];
                 }
 
-                counts[pair] = counts.GetValueOrDefault(pair) + 1;
+                counts[pair] = (counts.GetValueOrDefault(pair).Copies + 1, rod.RelaxationFactor);
             }
 
             var taken = new HashSet<int>();
@@ -737,7 +739,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                 .ThenBy(static entry => entry.Key.Item2))
             {
                 var neighbours = new Dictionary<int, HashSet<int>>();
-                foreach (var ((a, b), copies) in counts)
+                foreach (var ((a, b), (copies, _)) in counts)
                 {
                     if (copies != 1)
                     {
@@ -776,12 +778,43 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                         continue;
                     }
 
+                    if (MemberStiffness(members, counts) is not { } stiffness)
+                    {
+                        continue;
+                    }
+
                     taken.UnionWith(members);
-                    found.Add(new SelfCollisionCluster([.. members], band.Item1, band.Item2));
+                    found.Add(new SelfCollisionCluster([.. members], band.Item1, band.Item2, stiffness));
                 }
             }
 
             return found;
+
+            static float[]? MemberStiffness(List<int> members, Dictionary<(int, int), (int Copies, float Relaxation)> counts)
+            {
+                float RelaxationOf(int a, int b) => counts[a < b ? (a, b) : (b, a)].Relaxation;
+
+                var stiffness = new float[members.Count];
+                for (var i = 0; i < members.Count; i++)
+                {
+                    var j = members[(i + 1) % members.Count];
+                    var k = members[(i + 2) % members.Count];
+                    stiffness[i] = MathF.Sqrt(RelaxationOf(members[i], j) * RelaxationOf(members[i], k) / RelaxationOf(j, k));
+                }
+
+                for (var i = 0; i < members.Count; i++)
+                {
+                    for (var j = i + 1; j < members.Count; j++)
+                    {
+                        if (MathF.Abs(RelaxationOf(members[i], members[j]) - stiffness[i] * stiffness[j]) > 1e-4f)
+                        {
+                            return null;
+                        }
+                    }
+                }
+
+                return stiffness;
+            }
 
             static HashSet<int> Neighbours(Dictionary<int, HashSet<int>> map, int node)
             {
@@ -832,7 +865,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                 return claimed;
             }
 
-            var wanted = new Dictionary<(int, int), (float Min, float Max)>();
+            var wanted = new Dictionary<(int, int), (float Min, float Max, float Relaxation)>();
             foreach (var cluster in SelfCollisionClusters)
             {
                 for (var i = 0; i < cluster.Nodes.Length; i++)
@@ -841,7 +874,8 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                     {
                         var a = cluster.Nodes[i];
                         var b = cluster.Nodes[j];
-                        wanted[a < b ? (a, b) : (b, a)] = (cluster.MinDist, cluster.MaxDist);
+                        var relaxation = cluster.Stiffness is { } stiffness ? stiffness[i] * stiffness[j] : 1f;
+                        wanted[a < b ? (a, b) : (b, a)] = (cluster.MinDist, cluster.MaxDist, relaxation);
                     }
                 }
             }
@@ -851,7 +885,8 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                 var rod = Rods[i];
                 var pair = rod.NodeA < rod.NodeB ? (rod.NodeA, rod.NodeB) : (rod.NodeB, rod.NodeA);
                 if (wanted.TryGetValue(pair, out var band) && rod.MinDist == band.Min
-                    && rod.MaxDist == band.Max && rod.RelaxationFactor == 1f && rod.Weight0 == 0.5f)
+                    && rod.MaxDist == band.Max && MathF.Abs(rod.RelaxationFactor - band.Relaxation) <= 1e-4f
+                    && rod.Weight0 == 0.5f)
                 {
                     claimed.Add(i);
                     wanted.Remove(pair);
