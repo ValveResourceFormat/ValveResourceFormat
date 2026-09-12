@@ -2309,5 +2309,39 @@ namespace Tests
             }
             """);
 
+        /// <summary>
+        /// A <c>ClothVertexMap</c> container's own weight compiles into every value of the selection it
+        /// wraps, so a selection whose covered nodes all share one partial value carries that weight.
+        /// Full coverage and a mixed selection carry none.
+        /// </summary>
+        [Test]
+        public async Task AContainerWeightIsTheOnePartialWeightItsSelectionShares()
+        {
+            using (Assert.Multiple())
+            {
+                await Assert.That(WeightedSheet("128, 128, 128, 128").UniformVertexMapWeight("sheet")!.Value)
+                    .IsEqualTo(128f / 255f).Within(1e-4f);
+                await Assert.That(WeightedSheet("255, 255, 255, 255").UniformVertexMapWeight("sheet")).IsNull();
+                await Assert.That(WeightedSheet("128, 255, 128, 255").UniformVertexMapWeight("sheet")).IsNull();
+            }
+        }
+
+        private static FeModel WeightedSheet(string values) => SyntheticCloth.Parse($$"""
+            {
+                m_CtrlName = [ "v0", "v1", "v2", "v3" ]
+                m_nNodeCount = 4
+                m_nStaticNodes = 0
+                m_VertexMaps =
+                [
+                    { sName = "sheet" nNameHash = 1 nColor = 0 nFlags = 0 nVertexBase = 0
+                      nVertexCount = 4 nMapOffset = 0 nNodeListOffset = 0
+                      vCenterOfMass = [ 0.0, 0.0, 0.0 ] flVolumetricSolveStrength = 0.0
+                      nScaleSourceNode = -1 },
+                ]
+                m_VertexMapValues = [ {{values}} ]
+                m_VertexSetNames = [  ]
+            }
+            """);
+
     }
 }

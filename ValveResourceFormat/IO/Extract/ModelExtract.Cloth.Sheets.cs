@@ -396,6 +396,11 @@ partial class ModelExtract
                     mapNode.Add("name", proxyVertexMap);
                     AddClothVertexMapAttributes(mapNode, feModel, proxyVertexMap,
                         BuildProxyNodeNameMap(ClothProxyMeshesToExtract));
+                    if (feModel.UniformVertexMapWeight(proxyVertexMap) is { } mapWeight)
+                    {
+                        mapNode.Add("weight", mapWeight);
+                    }
+
                     clothProxyChildren.Add(mapNode);
                     vertexMapContainers[proxyVertexMap] = mapChildren = children;
                 }
