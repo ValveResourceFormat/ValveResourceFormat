@@ -3149,5 +3149,51 @@ namespace Tests
                 ]
             }
             """;
+
+        /// <summary>
+        /// Selections covering the same nodes at the same weights are aliases of one <c>ClothVertexMap</c>, whose
+        /// <c>aliases</c> list compiles to one entry per alias in place of the container's name. A selection at other
+        /// weights, and one registered as a vertex set by the sheet's paint, are not aliases.
+        /// </summary>
+        [Test]
+        public async Task SelectionsOverTheSameNodesAndWeightsAreAliasesOfOneContainer()
+        {
+            var feModel = SyntheticCloth.Parse($$"""
+                {
+                    m_nNodeCount = 3
+                    m_nStaticNodes = 1
+                    m_NodeInvMasses = [ 0.0, 1.0, 1.0 ]
+                    m_InitPose =
+                    [
+                        {{SyntheticCloth.Pose(0f, 0f, 0f)}}
+                        {{SyntheticCloth.Pose(0f, 0f, -10f)}}
+                        {{SyntheticCloth.Pose(0f, 0f, -20f)}}
+                    ]
+                    m_VertexMaps =
+                    [
+                        {{VertexMapEntry("alias0", 1548087834, 0, 1, 2)}}
+                        {{VertexMapEntry("alias1", 2540411548, 0, 1, 2)}}
+                        {{VertexMapEntry("half", 7, 2, 1, 2)}}
+                        {{VertexMapEntry("painted", 99, 0, 1, 2)}}
+                    ]
+                    m_VertexMapValues = [ 255, 255, 255, 128 ]
+                    m_VertexSetNames = [ 99 ]
+                }
+                """);
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(feModel.VertexMapAliases("alias1")).IsEquivalentTo(AliasPair, CollectionOrdering.Matching);
+                await Assert.That(feModel.VertexMapAliases("half")).IsEquivalentTo(HalfOnly, CollectionOrdering.Matching);
+                await Assert.That(feModel.VertexMapAliases("missing").Count).IsEqualTo(0);
+            }
+        }
+
+        private static readonly string[] AliasPair = ["alias0", "alias1"];
+        private static readonly string[] HalfOnly = ["half"];
+
+        private static string VertexMapEntry(string name, uint hash, int offset, int vertexBase, int count, float volumetric = 0f)
+            => $"{{ sName = \"{name}\" nNameHash = {hash} nVertexBase = {vertexBase} nVertexCount = {count} nMapOffset = {offset} "
+                + $"vCenterOfMass = [ 0.0, 0.0, 0.0 ] flVolumetricSolveStrength = {SyntheticCloth.Num(volumetric)} nScaleSourceNode = -1 }},";
     }
 }

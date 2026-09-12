@@ -353,12 +353,15 @@ partial class ModelExtract
         // container recreates the same m_VertexMaps entry without the dynamic vertex set the paint also
         // registers (and which then gives back_solve a sheet-sized set to fit against). Every other
         // selection keeps its paint - an effect naming one the compile cannot find is a hard failure
-        // ("refers to non-existent vertex map/set").
-        var containerMap = physAggregateData?.FeModel?.GetProxyVertexMapName(proxy,
-            ClothProxyMeshesToExtract.ConvertAll(static entry => entry.Proxy));
+        // ("refers to non-existent vertex map/set"). The container's aliases are its selections too.
+        IReadOnlyList<string> containerMaps = physAggregateData?.FeModel is { } proxyFeModel
+            && proxyFeModel.GetProxyVertexMapName(proxy, ClothProxyMeshesToExtract.ConvertAll(static entry => entry.Proxy))
+                is { } containerMap
+            ? proxyFeModel.VertexMapAliases(containerMap)
+            : [];
         foreach (var (mapName, weights) in proxy.VertexMaps)
         {
-            if (mapName != containerMap)
+            if (!containerMaps.Contains(mapName))
             {
                 vertexData.AddIndexedStream("cloth_vertex_set_" + mapName + "$0", weights, vertexIndices);
             }
