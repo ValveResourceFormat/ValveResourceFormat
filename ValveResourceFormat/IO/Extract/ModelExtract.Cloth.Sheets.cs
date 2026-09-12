@@ -394,6 +394,11 @@ partial class ModelExtract
                 {
                     var (mapNode, children) = MakeListNode("ClothVertexMap");
                     mapNode.Add("name", proxyVertexMap);
+                    if (feModel.VertexMapAliases(proxyVertexMap) is { Count: > 1 } aliases)
+                    {
+                        mapNode.Add("aliases", string.Join(',', aliases));
+                    }
+
                     AddClothVertexMapAttributes(mapNode, feModel, proxyVertexMap,
                         BuildProxyNodeNameMap(ClothProxyMeshesToExtract));
                     if (feModel.UniformVertexMapWeight(proxyVertexMap) is { } mapWeight)

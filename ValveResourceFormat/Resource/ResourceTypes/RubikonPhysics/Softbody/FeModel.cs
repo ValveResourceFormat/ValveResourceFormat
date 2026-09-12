@@ -3031,9 +3031,14 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
 
                 if (members.SetEquals(covered))
                 {
-                    // Two selections over the same nodes cannot both be the sheet's parent.
+                    // Two selections over the same nodes are only both the sheet's parent as aliases of one container.
                     if (found is not null)
                     {
+                        if (VertexMapAliases(found).Contains(map.Name))
+                        {
+                            continue;
+                        }
+
                         return null;
                     }
 
@@ -3042,6 +3047,42 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             }
 
             return found;
+        }
+
+        /// <summary>
+        /// Gets every selection covering the same nodes at the same weights as the one named
+        /// <paramref name="mapName"/>, in compiled order and including it, leaving out any other selection
+        /// registered as a vertex set. One <c>ClothVertexMap</c> container compiles to exactly these entries
+        /// when its <c>aliases</c> lists them: each alias becomes its own <c>m_VertexMaps</c> entry in place of
+        /// the container's name. Empty when no selection has that name.
+        /// </summary>
+        public IReadOnlyList<string> VertexMapAliases(string mapName)
+        {
+            var source = VertexMaps.FirstOrDefault(map => map.Name == mapName);
+            if (source.Name != mapName)
+            {
+                return [];
+            }
+
+            return [.. VertexMaps
+                .Where(map => map.Name == mapName
+                    || (Array.IndexOf(VertexSetNames, map.NameHash) < 0 && HasSameMembership(map, source)))
+                .Select(static map => map.Name)];
+        }
+
+        static bool HasSameMembership(VertexMap a, VertexMap b)
+        {
+            var first = Math.Min(a.VertexBase, b.VertexBase);
+            var last = Math.Max(a.VertexBase + a.VertexCount, b.VertexBase + b.VertexCount);
+            for (var node = first; node < last; node++)
+            {
+                if (MathF.Abs(a.WeightOf(node) - b.WeightOf(node)) > 0.5f / 255f)
+                {
+                    return false;
+                }
+            }
+
+            return true;
         }
 
         /// <summary>The control nodes of <paramref name="proxy"/> whose vertices its sheet simulates.</summary>
