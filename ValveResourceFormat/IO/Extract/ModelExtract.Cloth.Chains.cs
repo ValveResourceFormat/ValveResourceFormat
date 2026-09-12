@@ -584,6 +584,7 @@ partial class ModelExtract
             name => chainSurface || (clothControlBones?.Contains(name) ?? false),
             clothBones, ClothVertexMapFolders(feModel, clothFolderChildren), hasOtherChains: true,
             ClothControlAncestorTest(feModel), sourceSprings);
+        AddClothChainVolumetricMaps(softbodyChildren, feModel, boneChains);
 
         AddClothFollowBones(softbodyChildren, feModel, clothBones);
         AddClothCollisionShapes(softbodyChildren, feModel);

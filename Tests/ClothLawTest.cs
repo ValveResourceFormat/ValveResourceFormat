@@ -3192,6 +3192,36 @@ namespace Tests
         private static readonly string[] AliasPair = ["alias0", "alias1"];
         private static readonly string[] HalfOnly = ["half"];
 
+        /// <summary>
+        /// A selection solved as a volume over chain joints is declared as a container whose <c>data.nodes</c> table
+        /// lists every covered joint, the static root included, at its membership weight: the compiler reads
+        /// <c>volumetric_solve</c> only through that table. A selection solved as a surface declares no container.
+        /// </summary>
+        [Test]
+        public async Task AVolumetricSelectionOverChainJointsListsThemInItsNodeTable()
+        {
+            var feModel = SyntheticCloth.Parse(SuspenderAtNaturalRelaxationText.Replace("m_Rods =",
+                "m_VertexMaps = [ " + VertexMapEntry("vmap0", 4164734239, 0, 0, 8, 0.5f) + VertexMapEntry("surface", 5, 8, 2, 6)
+                + " ]\nm_VertexMapValues = [ 255, 255, 255, 255, 128, 128, 255, 255, 255, 255, 255, 255, 255, 255 ]\nm_Rods =",
+                StringComparison.Ordinal));
+            var children = KVObject.Array();
+            ModelExtract.AddClothChainVolumetricMaps(children, feModel, feModel.BuildBoneChains());
+
+            await Assert.That(children.Count).IsEqualTo(1);
+            var map = children.ElementAt(0).Value;
+            var nodes = map.GetSubCollection("data").GetSubCollection("nodes");
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(map.GetStringProperty("name")).IsEqualTo("vmap0");
+                await Assert.That(map.GetFloatProperty("volumetric_solve")).IsEqualTo(0.5f);
+                await Assert.That(nodes.Select(static n => n.Key).ToArray()).IsEquivalentTo(VolumetricMembers, CollectionOrdering.Any);
+                await Assert.That(nodes.GetSubCollection("coattail_2_L").GetFloatProperty("weight")).IsEqualTo(128f / 255f).Within(1e-5f);
+            }
+        }
+
+        private static readonly string[] VolumetricMembers = ["coattail_0_L", "coattail_1_L", "coattail_2_L", "coattail_end_L"];
+
         private static string VertexMapEntry(string name, uint hash, int offset, int vertexBase, int count, float volumetric = 0f)
             => $"{{ sName = \"{name}\" nNameHash = {hash} nVertexBase = {vertexBase} nVertexCount = {count} nMapOffset = {offset} "
                 + $"vCenterOfMass = [ 0.0, 0.0, 0.0 ] flVolumetricSolveStrength = {SyntheticCloth.Num(volumetric)} nScaleSourceNode = -1 }},";
