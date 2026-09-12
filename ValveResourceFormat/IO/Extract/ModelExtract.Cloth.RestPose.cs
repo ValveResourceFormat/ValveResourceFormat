@@ -59,7 +59,7 @@ partial class ModelExtract
 
         var maxApart = 0f;
         var maxApartUncapped = 0f;
-        var farOffsets = new List<Vector3>();
+        var farBones = new List<(Vector3 Compiled, Vector3 Target)>();
         void Measure(Bone bone, Vector3 compiledParent, Quaternion parentRotation)
         {
             var compiled = compiledParent + Vector3.Transform(bone.Position, parentRotation);
@@ -75,7 +75,7 @@ partial class ModelExtract
                 }
                 else
                 {
-                    farOffsets.Add(target - compiled);
+                    farBones.Add((compiled, target));
                 }
             }
 
@@ -90,11 +90,19 @@ partial class ModelExtract
             Measure(root, Vector3.Zero, Quaternion.Identity);
         }
 
-        var farOffsetsAreRigid = farOffsets.Count > 1;
-        foreach (var offset in farOffsets)
+        var farOffsetsAreRigid = farBones.Count > 1;
+        foreach (var (compiled, target) in farBones)
         {
-            farOffsetsAreRigid &= Vector3.Distance(offset, farOffsets[0]) <= ClothRestBoneRigidSpread;
+            farOffsetsAreRigid &= Vector3.Distance(target - compiled, farBones[0].Target - farBones[0].Compiled)
+                <= ClothRestBoneRigidSpread;
         }
+
+        var compiledSquared = farBones.Sum(static bone => Vector3.Dot(bone.Compiled, bone.Compiled));
+        var farScale = compiledSquared > 0f
+            ? farBones.Sum(static bone => Vector3.Dot(bone.Target, bone.Compiled)) / compiledSquared
+            : 1f;
+        var farOffsetsAreScaled = farBones.Count > 1
+            && farBones.TrueForAll(bone => Vector3.Distance(bone.Target, bone.Compiled * farScale) <= ClothRestBoneRigidSpread);
 
         void Walk(Bone bone, Vector3 parentPosition, Quaternion parentRotation, Vector3 compiledParent,
             Dictionary<string, Vector3> into, float tolerance, float floor)
@@ -133,9 +141,10 @@ partial class ModelExtract
             }
         }
 
-        var proxyTolerance = farOffsetsAreRigid ? float.MaxValue : ClothRestBoneTolerance;
+        var farOffsetsMoveTogether = farOffsetsAreRigid || farOffsetsAreScaled;
+        var proxyTolerance = farOffsetsMoveTogether ? float.MaxValue : ClothRestBoneTolerance;
         if (maxApart > ClothProxyRestBoneModelGate
-            || (farOffsetsAreRigid && maxApartUncapped > ClothProxyRestBoneModelGate))
+            || (farOffsetsMoveTogether && maxApartUncapped > ClothProxyRestBoneModelGate))
         {
             foreach (var root in model.Skeleton.Roots)
             {
