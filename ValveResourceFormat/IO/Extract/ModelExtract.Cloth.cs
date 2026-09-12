@@ -385,6 +385,11 @@ partial class ModelExtract
 
             case ClothEffectTypeStiffen:
                 node.Add("Stiffness", effect.Params.GetFloatProperty("Stiffness"));
+                if (effect.Params.ContainsKey("BoneOverlay"))
+                {
+                    node.Add("BoneOverlay", effect.Params.GetFloatProperty("BoneOverlay"));
+                }
+
                 break;
 
             default:
