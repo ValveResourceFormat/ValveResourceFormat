@@ -268,6 +268,31 @@ partial class ModelExtract
         }
     }
 
+    /// <summary>
+    /// Declares a <c>ClothJointLock</c> on every locked skeleton joint <paramref name="needsLock"/> accepts,
+    /// which is a joint no chain or cloth node of the export declares. The importer takes the feeder by its
+    /// registered node name and sets the parent-link byte a joint's <c>lock_translation</c> sets, so the joint
+    /// compiles into <c>m_LockToParent</c>, or into <c>m_LockToGoal</c> where it has no parent; a joint in
+    /// <c>m_LockToGoal</c> that keeps a parent was locked by something else. Whether the lock is hard is not
+    /// compiled.
+    /// </summary>
+    internal static void AddClothJointLocks(KVObject softbodyChildren, FeModel feModel, Func<int, string, bool> needsLock)
+    {
+        for (var node = 0; node < feModel.CtrlNames.Length; node++)
+        {
+            var name = feModel.CtrlNames[node];
+            var lockedWithoutParent = feModel.IsLockedToGoal(node) && node < feModel.SkelParents.Length
+                && feModel.SkelParents[node] < 0;
+            if (name.StartsWith('$') || !(lockedWithoutParent || feModel.IsLockedToParent(node))
+                || !needsLock(node, name))
+            {
+                continue;
+            }
+
+            softbodyChildren.Add(MakeNode("ClothJointLock", ("feeder_bone", name), ("hard_lock", true)));
+        }
+    }
+
     // The only leader_type that compiles to an m_DynKinLinks entry; 2 and 3 are rejected outright.
     const int ClothFollowBoneLeaderTypeBone = 0;
 
