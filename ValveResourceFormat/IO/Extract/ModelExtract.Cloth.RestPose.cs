@@ -59,7 +59,7 @@ partial class ModelExtract
 
         var maxApart = 0f;
         var maxApartUncapped = 0f;
-        var farBones = new List<(Vector3 Compiled, Vector3 Target)>();
+        var farBones = new List<(string Name, Vector3 Compiled, Vector3 Target)>();
         void Measure(Bone bone, Vector3 compiledParent, Quaternion parentRotation)
         {
             var compiled = compiledParent + Vector3.Transform(bone.Position, parentRotation);
@@ -75,7 +75,7 @@ partial class ModelExtract
                 }
                 else
                 {
-                    farBones.Add((compiled, target));
+                    farBones.Add((bone.Name, compiled, target));
                 }
             }
 
@@ -91,7 +91,7 @@ partial class ModelExtract
         }
 
         var farOffsetsAreRigid = farBones.Count > 1;
-        foreach (var (compiled, target) in farBones)
+        foreach (var (_, compiled, target) in farBones)
         {
             farOffsetsAreRigid &= Vector3.Distance(target - compiled, farBones[0].Target - farBones[0].Compiled)
                 <= ClothRestBoneRigidSpread;
@@ -103,6 +103,17 @@ partial class ModelExtract
             : 1f;
         var farOffsetsAreScaled = farBones.Count > 1
             && farBones.TrueForAll(bone => Vector3.Distance(bone.Target, bone.Compiled * farScale) <= ClothRestBoneRigidSpread);
+
+        if (farOffsetsAreScaled && !farOffsetsAreRigid)
+        {
+            var origins = new Dictionary<string, Vector3>(StringComparer.OrdinalIgnoreCase);
+            foreach (var (name, compiled, _) in farBones)
+            {
+                origins.TryAdd(name, compiled);
+            }
+
+            feModel.ChainExtrudeOrigins = origins;
+        }
 
         void Walk(Bone bone, Vector3 parentPosition, Quaternion parentRotation, Vector3 compiledParent,
             Dictionary<string, Vector3> into, float tolerance, float floor)

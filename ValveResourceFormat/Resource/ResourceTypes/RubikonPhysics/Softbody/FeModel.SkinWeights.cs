@@ -898,6 +898,13 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         public IReadOnlyDictionary<string, string?>? SkeletonBoneParents { get; set; }
 
         /// <summary>
+        /// Gets or sets the world bind position of each bone whose control node a scaled proxy skeleton
+        /// moved. A chain extrudes its rings from the bone itself, so a joint listed here measures its
+        /// ring against this position instead of its own rest pose.
+        /// </summary>
+        public IReadOnlyDictionary<string, Vector3>? ChainExtrudeOrigins { get; set; }
+
+        /// <summary>
         /// Rebuilds <see cref="SkelParents"/> from the model's own bone hierarchy, for cloth that ships
         /// neither <c>m_SkelParents</c> nor the <c>m_Ropes</c>/<c>m_FollowNodes</c> trail
         /// <see cref="BuildRopeParents"/> reads. A control node takes the nearest ancestor bone that is

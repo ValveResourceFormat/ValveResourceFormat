@@ -1100,6 +1100,12 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         public List<BoneChain> BuildBoneChains()
         {
             var chains = new List<BoneChain>();
+
+            Vector3 ExtrudeOrigin(int node)
+                => ChainExtrudeOrigins is { } origins && node < CtrlNames.Length
+                    && origins.TryGetValue(CtrlNames[node], out var origin)
+                    ? origin
+                    : InitPosePositions[node];
             var chainFirstSimulated = new Dictionary<BoneChain, int>();
             var n = CtrlNames.Length;
             if (n == 0)
@@ -1744,7 +1750,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                         && proxies[0] < InitPosePositions.Length)
                     {
                         var centreOffset = Vector3.Transform(
-                            InitPosePositions[proxies[0]] - InitPosePositions[joint.Node],
+                            InitPosePositions[proxies[0]] - ExtrudeOrigin(joint.Node),
                             Quaternion.Conjugate(InitPoseRotations[joint.Node]));
                         if (MathF.Abs(centreOffset.X) >= EndEffectorRingTolerance)
                         {
@@ -1767,7 +1773,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                             if (proxy < InitPosePositions.Length)
                             {
                                 forwardOf[proxy] = Vector3.Transform(
-                                    InitPosePositions[proxy] - InitPosePositions[joint.Node],
+                                    InitPosePositions[proxy] - ExtrudeOrigin(joint.Node),
                                     Quaternion.Conjugate(InitPoseRotations[joint.Node])).X;
                             }
                         }
@@ -1810,7 +1816,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                         if (joint.Node < InitPoseRotations.Length)
                         {
                             joint.ForwardAxis = DetectExtrudeForwardAxis(
-                                InitPosePositions[joint.Node], InitPoseRotations[joint.Node], proxies, InitPosePositions);
+                                ExtrudeOrigin(joint.Node), InitPoseRotations[joint.Node], proxies, InitPosePositions);
                         }
 
                         // The ring is laid out around the joint's forward axis, so the roll the compiler
@@ -1829,7 +1835,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                         {
                             var ringFrame = InitPoseRotations[joint.Node] * ExtrudeAxisSelectQuaternion(joint.ForwardAxis);
                             var offset = Vector3.Transform(
-                                InitPosePositions[measured[0]] - InitPosePositions[joint.Node],
+                                InitPosePositions[measured[0]] - ExtrudeOrigin(joint.Node),
                                 Quaternion.Conjugate(ringFrame));
                             if (new Vector2(offset.Y, offset.Z).LengthSquared() > 1e-6f)
                             {
@@ -1839,7 +1845,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                             }
 
                             joint.ExtrudeRadius = measured == proxies
-                                ? Vector3.Distance(InitPosePositions[joint.Node], InitPosePositions[measured[0]])
+                                ? Vector3.Distance(ExtrudeOrigin(joint.Node), InitPosePositions[measured[0]])
                                 : new Vector2(offset.Y, offset.Z).Length();
                         }
 
@@ -1847,7 +1853,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                         {
                             if (proxy < InitPosePositions.Length)
                             {
-                                radii.Add(Vector3.Distance(InitPosePositions[joint.Node], InitPosePositions[proxy]));
+                                radii.Add(Vector3.Distance(ExtrudeOrigin(joint.Node), InitPosePositions[proxy]));
                             }
                         }
                     }
