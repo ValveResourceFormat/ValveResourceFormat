@@ -385,6 +385,11 @@ partial class ModelExtract
 
         node.Add("vortex_choppiness", parameters.GetFloatProperty("Choppiness"));
 
+        if (parameters.ContainsKey("Algo"))
+        {
+            node.Add("underwater", parameters.GetInt32Property("Algo") == 1);
+        }
+
         var vortices = parameters.GetArray("Vortices") ?? [];
         node.Add("vortex_count", vortices.Count);
 
