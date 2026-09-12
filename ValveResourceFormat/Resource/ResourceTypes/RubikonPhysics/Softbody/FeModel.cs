@@ -2784,6 +2784,44 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         }
 
         /// <summary>
+        /// Gets the one partial weight every node covered by the selection named <paramref name="mapName"/>
+        /// shares, which is what a <c>ClothVertexMap</c> container's own <c>weight</c> compiles to over a
+        /// sheet it wraps. Null when the selection does not exist, covers no node, covers every node fully,
+        /// or covers them with different weights.
+        /// </summary>
+        public float? UniformVertexMapWeight(string mapName)
+        {
+            float? shared = null;
+            foreach (var map in VertexMaps)
+            {
+                if (map.Name != mapName)
+                {
+                    continue;
+                }
+
+                for (var node = 0; node < CtrlNames.Length; node++)
+                {
+                    var weight = map.WeightOf(node);
+                    if (weight <= 0f)
+                    {
+                        continue;
+                    }
+
+                    if (shared is { } first && MathF.Abs(weight - first) > 0.5f / 255f)
+                    {
+                        return null;
+                    }
+
+                    shared ??= weight;
+                }
+
+                break;
+            }
+
+            return shared is { } value && value < 1f ? value : null;
+        }
+
+        /// <summary>
         /// Strips the optional <c>=weight</c> suffix off one entry of a <see cref="GetVertexMapNames"/>
         /// list, leaving the bare selection name every key that merely REFERENCES a selection - a cloth
         /// effect's <c>vertex_map</c>, a collision shape's, a <c>ClothVertexMap</c> container's own name -
