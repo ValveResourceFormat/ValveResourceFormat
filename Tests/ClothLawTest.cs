@@ -2373,5 +2373,69 @@ namespace Tests
                 m_Quads = [ { nNode = [ 0, 1, 2, 3 ] } ]
             }
             """);
+
+        /// <summary>
+        /// Under <c>explicit_masses</c> a node's inverse mass is the reciprocal of its authored mass and the
+        /// rod pass weighs each rod by the final masses, <c>invA / (invA + invB)</c>. The fixture is the
+        /// compiled synthetic chain with mass 0.5 on its second joint: that joint reads back as 0.5 and its
+        /// mass-1 neighbour as the default. The same masses over flat 0.5 rod weights are a geometric chain.
+        /// </summary>
+        [Test]
+        public async Task AnExplicitMassChainIsReadOffItsMassProportionalRodWeights()
+        {
+            var explicitChain = SyntheticCloth.Parse(ExplicitMassChainText);
+            var flatChain = SyntheticCloth.Parse(ExplicitMassChainText
+                .Replace("flWeight0 = 0.333333", "flWeight0 = 0.5", StringComparison.Ordinal)
+                .Replace("flWeight0 = 0.666667", "flWeight0 = 0.5", StringComparison.Ordinal));
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(explicitChain.HasExplicitMasses).IsTrue();
+                await Assert.That(explicitChain.RecoverJointMassMultiplier(4)!.Value).IsEqualTo(0.5f).Within(1e-4f);
+                await Assert.That(explicitChain.RecoverJointMassMultiplier(2)).IsNull();
+                await Assert.That(flatChain.HasExplicitMasses).IsFalse();
+            }
+        }
+
+        private const string ExplicitMassChainText = """
+            {
+                m_CtrlName = [ "coattail_0_L", "$cccoattail_0_L_0", "coattail_1_L", "$cccoattail_1_L_0", "coattail_2_L", "$cccoattail_2_L_0", "coattail_end_L", "$cccoattail_end_L_0" ]
+                m_SkelParents = [ -1, 0, 0, 2, 2, 4, 4, 6 ]
+                m_nNodeCount = 8
+                m_nStaticNodes = 2
+                m_NodeInvMasses = [ 0.0, 0.0, 1.0, 1.0, 2.0, 2.0, 1.0, 1.0 ]
+                m_SourceElems = [ 0, 0, 0, 6, 5, 4, 6, 7, 4, 5, 7, 6, 3, 2, 4, 5, 2, 3, 5, 4, 1, 0, 2, 3, 0, 1, 3, 2 ]
+                m_InitPose =
+                [
+                    [ -8.915481, 4.000124, 65.447983, 1.0, 0.337553, -0.646323, -0.495776, -0.471731 ],
+                    [ -10.723646, 4.561181, 66.092773, 1.0, 0.337553, -0.646323, -0.495776, -0.471731 ],
+                    [ -11.695464, 4.267121, 57.419937, 1.0, -0.323373, 0.653533, 0.505948, 0.460804 ],
+                    [ -13.473376, 4.824905, 58.146507, 1.0, -0.323373, 0.653533, 0.505948, 0.460804 ],
+                    [ -14.808016, 4.637866, 49.519089, 1.0, -0.323943, 0.653251, 0.505547, 0.461245 ],
+                    [ -16.587204, 5.195801, 50.242416, 1.0, -0.323943, 0.653251, 0.505547, 0.461245 ],
+                    [ -17.907341, 5.004471, 41.612736, 1.0, -0.323943, 0.653251, 0.505547, 0.461245 ],
+                    [ -19.686529, 5.562407, 42.336063, 1.0, -0.323943, 0.653251, 0.505547, 0.461245 ],
+                ]
+                m_Rods =
+                [
+                    { nNode = [ 0, 2 ] flMinDist = 8.499948 flMaxDist = 8.499948 flWeight0 = 0.0 flRelaxationFactor = 1.0 },
+                    { nNode = [ 0, 3 ] flMinDist = 8.646747 flMaxDist = 8.646747 flWeight0 = 0.0 flRelaxationFactor = 1.0 },
+                    { nNode = [ 1, 2 ] flMinDist = 8.732066 flMaxDist = 8.732066 flWeight0 = 0.0 flRelaxationFactor = 1.0 },
+                    { nNode = [ 1, 3 ] flMinDist = 8.412711 flMaxDist = 8.412711 flWeight0 = 0.0 flRelaxationFactor = 1.0 },
+                    { nNode = [ 2, 4 ] flMinDist = 8.499931 flMaxDist = 8.499931 flWeight0 = 0.333333 flRelaxationFactor = 1.0 },
+                    { nNode = [ 2, 5 ] flMinDist = 8.735466 flMaxDist = 8.735466 flWeight0 = 0.333333 flRelaxationFactor = 1.0 },
+                    { nNode = [ 3, 4 ] flMinDist = 8.732044 flMaxDist = 8.732044 flWeight0 = 0.333333 flRelaxationFactor = 1.0 },
+                    { nNode = [ 3, 5 ] flMinDist = 8.503419 flMaxDist = 8.503419 flWeight0 = 0.333333 flRelaxationFactor = 1.0 },
+                    { nNode = [ 2, 3 ] flMinDist = 2.0 flMaxDist = 2.0 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
+                    { nNode = [ 4, 6 ] flMinDist = 8.500037 flMaxDist = 8.500037 flWeight0 = 0.666667 flRelaxationFactor = 1.0 },
+                    { nNode = [ 4, 7 ] flMinDist = 8.732154 flMaxDist = 8.732154 flWeight0 = 0.666667 flRelaxationFactor = 1.0 },
+                    { nNode = [ 5, 6 ] flMinDist = 8.732168 flMaxDist = 8.732168 flWeight0 = 0.666667 flRelaxationFactor = 1.0 },
+                    { nNode = [ 5, 7 ] flMinDist = 8.500037 flMaxDist = 8.500037 flWeight0 = 0.666667 flRelaxationFactor = 1.0 },
+                    { nNode = [ 4, 5 ] flMinDist = 2.000001 flMaxDist = 2.000001 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
+                    { nNode = [ 6, 7 ] flMinDist = 2.000001 flMaxDist = 2.000001 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
+                ]
+            }
+            """;
+
     }
 }

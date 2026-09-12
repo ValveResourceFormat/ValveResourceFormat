@@ -1116,7 +1116,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// </summary>
         public float[]? RecoverMassPaint(ProxyMesh proxy)
         {
-            if (!proxy.UsesAuthoredFaces)
+            if (!proxy.UsesAuthoredFaces || HasExplicitMasses)
             {
                 return null;
             }
@@ -1489,15 +1489,97 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// </summary>
         public float? RecoverMassMultiplier(int node)
         {
-            return MassMultiplierOf(node) is { } multiplier && MathF.Abs(multiplier - 1f) > MassMultiplierTolerance
-                ? multiplier
+            var multiplier = HasExplicitMasses ? ExplicitMassOf(node) : MassMultiplierOf(node);
+            return multiplier is { } value && MathF.Abs(value - 1f) > MassMultiplierTolerance
+                ? value
                 : null;
         }
 
         /// <summary>
+        /// Whether the model was compiled with <c>ClothParams explicit_masses</c>. Every simulated node's
+        /// inverse mass is then the reciprocal of an authored mass of at most two decimals, and the rod pass,
+        /// which runs on those final masses, gives every rod between two simulated nodes of unequal mass the
+        /// weight <c>invA / (invA + invB)</c>; where no such rod exists the simulated nodes share one mass.
+        /// A geometric chain keeps a flat <c>flWeight0</c> of 0.5 over unequal masses, and a model without
+        /// rods is never read as explicit.
+        /// </summary>
+        public bool HasExplicitMasses => hasExplicitMasses ??= ComputeHasExplicitMasses();
+        bool? hasExplicitMasses;
+
+        bool ComputeHasExplicitMasses()
+        {
+            var end = FirstPositionDrivenNode > 0 && FirstPositionDrivenNode <= NodeInvMasses.Length
+                ? FirstPositionDrivenNode
+                : NodeInvMasses.Length;
+
+            bool Simulated(int node) => node >= StaticNodeCount && node < end && NodeInvMasses[node] > 0f;
+
+            float? shared = null;
+            var uniform = true;
+            var simulated = 0;
+            for (var node = StaticNodeCount; node < end; node++)
+            {
+                var invMass = NodeInvMasses[node];
+                if (invMass <= 0f)
+                {
+                    continue;
+                }
+
+                var mass = 1f / invMass;
+                if (invMass < 0.05f || invMass > 20f
+                    || MathF.Abs(mass - MathF.Round(mass, 2)) > 1e-3f * MathF.Max(1f, mass))
+                {
+                    return false;
+                }
+
+                if (shared is { } first && MathF.Abs(invMass - first) > 1e-6f * MathF.Max(invMass, first))
+                {
+                    uniform = false;
+                }
+
+                shared ??= invMass;
+                simulated++;
+            }
+
+            var anyRod = false;
+            var unequal = 0;
+            foreach (var rod in Rods)
+            {
+                if (rod.NodeA == rod.NodeB)
+                {
+                    continue;
+                }
+
+                anyRod = true;
+                if (!Simulated(rod.NodeA) || !Simulated(rod.NodeB))
+                {
+                    continue;
+                }
+
+                var (a, b) = (NodeInvMasses[rod.NodeA], NodeInvMasses[rod.NodeB]);
+                if (MathF.Abs(a - b) <= 1e-6f * MathF.Max(a, b))
+                {
+                    continue;
+                }
+
+                unequal++;
+                if (MathF.Abs(rod.Weight0 - a / (a + b)) > 2e-5f)
+                {
+                    return false;
+                }
+            }
+
+            return simulated > 0 && anyRod && (unequal > 0 || uniform);
+        }
+
+        float? ExplicitMassOf(int node)
+            => node >= 0 && node < NodeInvMasses.Length && NodeInvMasses[node] > 0f ? 1f / NodeInvMasses[node] : null;
+
+        /// <summary>
         /// Recovers the authored <c>mass</c> of a chain joint from the joint's own node and the ring nodes
         /// the compiler extrudes from it, which take the joint's multiplier. Null when it is the default 1,
-        /// when no node of the joint can be read, or when the nodes that can disagree.
+        /// when no node of the joint can be read, or when the nodes that can disagree. Under explicit masses
+        /// the value is the nodes' own mass rather than a multiplier over the geometric term.
         /// </summary>
         public float? RecoverJointMassMultiplier(int joint)
         {
@@ -1509,7 +1591,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                     continue;
                 }
 
-                if (MassMultiplierOf(node) is not { } nodeMultiplier)
+                if ((HasExplicitMasses ? ExplicitMassOf(node) : MassMultiplierOf(node)) is not { } nodeMultiplier)
                 {
                     return null;
                 }
