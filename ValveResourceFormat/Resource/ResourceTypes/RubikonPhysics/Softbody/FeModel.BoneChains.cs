@@ -85,7 +85,8 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             /// <summary>
             /// Gets whether the source authored <c>animated_length</c> on this joint. The compiler then
             /// builds no rod on the joint's span to its parent, within its own extrusion or on its
-            /// children's spans to it, and a childless joint keeps its node base.
+            /// children's spans to it, and the joint keeps the node base a zero <c>stretch_spring</c> drops
+            /// from a childless joint and, under chain version 1, from every joint.
             /// </summary>
             public bool AnimatedLength { get; set; }
             /// <summary>
@@ -2676,9 +2677,9 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                     var kids = chain.Joints.FindAll(other => other.ParentNode == joint.Node);
                     joint.AnimatedLength = kids.Count == 0
                         ? NodeBases.ContainsKey(joint.Node)
-                        : kids.TrueForAll(kid => jointRingOf.ContainsKey(kid.Node)
-                            && !AnyRodBetween(Extrusion(kid.Node), own)
-                            && AnyRodBetween(Extrusion(kid.Node), Extrusion(kid.Node)));
+                        : kids.TrueForAll(kid => jointRingOf.ContainsKey(kid.Node) && !AnyRodBetween(Extrusion(kid.Node), own))
+                            && ((NodeBases.ContainsKey(joint.Node) && !SelfCollisionClusters.Any(cluster => cluster.Nodes.Contains(joint.Node)))
+                                || kids.TrueForAll(kid => AnyRodBetween(Extrusion(kid.Node), Extrusion(kid.Node))));
 
                     if (joint.AnimatedLength)
                     {
