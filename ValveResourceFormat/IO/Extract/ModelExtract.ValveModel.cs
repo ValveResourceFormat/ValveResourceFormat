@@ -1100,6 +1100,11 @@ partial class ModelExtract
 
         if (physAggregateData is not null)
         {
+            if (Type == ModelExtractType.Default)
+            {
+                ExtractPhysicsJoints(root.Children);
+            }
+
             for (var i = 0; i < physAggregateData.Parts.Length; i++)
             {
                 var physicsPart = physAggregateData.Parts[i];
