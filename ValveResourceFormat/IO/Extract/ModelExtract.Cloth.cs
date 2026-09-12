@@ -195,7 +195,7 @@ partial class ModelExtract
     /// over one naming a bone no cloth construct claims. Emitted in compiled order, which the compiler's
     /// own parent-before-child sort reproduces wherever the export's node order matches the original's.
     /// </summary>
-    static void AddClothFollowBones(KVObject softbodyChildren, FeModel feModel, HashSet<string> clothBones)
+    internal static void AddClothFollowBones(KVObject softbodyChildren, FeModel feModel, HashSet<string> clothBones)
     {
         var names = feModel.CtrlNames;
         foreach (var link in feModel.DynKinLinks)
@@ -219,10 +219,35 @@ partial class ModelExtract
                 ("leader_bone", leader),
                 ("follower_bone", follower)));
         }
+
+        foreach (var link in feModel.BoneMergeLinks)
+        {
+            if (link.ChildNode < 0 || link.ChildNode >= names.Length)
+            {
+                continue;
+            }
+
+            var follower = names[link.ChildNode];
+            var leader = (feModel.SkeletonBoneNames ?? Enumerable.Empty<string>()).Concat(names)
+                .FirstOrDefault(name => Utils.StringToken.Get(name) == link.ParentHash);
+            if (leader is null || !clothBones.Contains(follower) || feModel.IsGeneratedNodeName(follower))
+            {
+                continue;
+            }
+
+            softbodyChildren.Add(MakeNode("ClothFollowBone",
+                ("name", $"merge_{link.ChildNode}"),
+                ("leader_type", ClothFollowBoneLeaderTypeBoneMerge),
+                ("leader_bone", leader),
+                ("follower_bone", follower)));
+        }
     }
 
     // The only leader_type that compiles to an m_DynKinLinks entry; 2 and 3 are rejected outright.
     const int ClothFollowBoneLeaderTypeBone = 0;
+
+    // Compiles to an m_BoneMergeLinks entry naming the leader by the hash of its bone name.
+    const int ClothFollowBoneLeaderTypeBoneMerge = 1;
 
     /// <summary>
     /// The bones an export declares in cloth, seeded with the collision-shape parents the compiler
