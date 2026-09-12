@@ -2331,11 +2331,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                         // The root coincides with a target JointCopies already gathers evidence from, so
                         // ITS total already counts any extra_iterations repeats AND a suspender companion
                         // together - split it the same way, against the chain's own natural factor.
-                        if (chainNaturalRf is not { } naturalRf)
-                        {
-                            return null;
-                        }
-
+                        var naturalRf = chainNaturalRf ?? 1f;
                         var totalCopies = JointCopies(joint);
                         if (totalCopies <= 1 || totalCopies % 2 != 0)
                         {
