@@ -2343,5 +2343,35 @@ namespace Tests
             }
             """);
 
+        /// <summary>
+        /// A bone chain compiles no surface faces, so in a model without a single proxy sheet node a
+        /// quad over declared cloth nodes can only come from an authored <c>ClothQuad</c>. The same quad
+        /// in a model that also carries a sheet node stays with the sheet.
+        /// </summary>
+        [Test]
+        public async Task AQuadOverDeclaredNodesInASheetlessModelIsAnAuthoredElement()
+        {
+            using (Assert.Multiple())
+            {
+                await Assert.That(QuadOverBones("").GetAuthoredElementFaces().Count).IsEqualTo(1);
+                await Assert.That(QuadOverBones(", \"$cloth_m0p0\"").GetAuthoredElementFaces().Count).IsEqualTo(0);
+            }
+        }
+
+        private static FeModel QuadOverBones(string extraName) => SyntheticCloth.Parse($$"""
+            {
+                m_CtrlName = [ "a", "b", "c", "d"{{extraName}} ]
+                m_nNodeCount = 4
+                m_nStaticNodes = 0
+                m_InitPose =
+                [
+                    {{SyntheticCloth.Pose(0f, 0f, 0f)}}
+                    {{SyntheticCloth.Pose(3f, 0f, 0f)}}
+                    {{SyntheticCloth.Pose(3f, 4f, 0f)}}
+                    {{SyntheticCloth.Pose(0f, 4f, 0f)}}
+                ]
+                m_Quads = [ { nNode = [ 0, 1, 2, 3 ] } ]
+            }
+            """);
     }
 }
