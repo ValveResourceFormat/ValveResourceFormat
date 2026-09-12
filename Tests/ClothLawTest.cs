@@ -2610,5 +2610,91 @@ namespace Tests
                 ]
             }
             """;
+
+        /// <summary>
+        /// A joint authored with <c>animated_length</c> compiles no rod on its span to its parent, to its own
+        /// ring or on its children's spans to it, while each child keeps its own ring rod. The fixture is the
+        /// compiled synthetic chain with it on coattail_2_L only. A childless joint loses the same rods to a
+        /// zero <c>stretch_spring</c>, and there only the node base the animated joint keeps tells the two
+        /// apart: the second fixture is the chain with it on every joint.
+        /// </summary>
+        [Test]
+        public async Task AJointsAnimatedLengthIsReadOffTheRodsItAndItsChildrenLose()
+        {
+            var joints = SyntheticCloth.Parse(AnimatedJointTwoText).BuildBoneChains()[0].Joints;
+            var tipBased = SyntheticCloth.Parse(AnimatedEveryJointText.Replace(
+                "m_Rods =",
+                "m_NodeBases = [ { nNode = 7 nNodeX0 = 7 nNodeX1 = 3 nNodeY0 = 4 nNodeY1 = 6 } ]\nm_Rods =",
+                StringComparison.Ordinal)).BuildBoneChains()[0].Joints.First(static joint => joint.Name == "coattail_end_L");
+            var tipFree = SyntheticCloth.Parse(AnimatedEveryJointText).BuildBoneChains()[0].Joints
+                .First(static joint => joint.Name == "coattail_end_L");
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(joints.First(static joint => joint.Name == "coattail_2_L").AnimatedLength).IsTrue();
+                await Assert.That(joints.First(static joint => joint.Name == "coattail_2_L").StretchStiffness).IsEqualTo(1f);
+                await Assert.That(joints.First(static joint => joint.Name == "coattail_1_L").AnimatedLength).IsFalse();
+                await Assert.That(joints.First(static joint => joint.Name == "coattail_end_L").AnimatedLength).IsFalse();
+                await Assert.That(tipBased.AnimatedLength).IsTrue();
+                await Assert.That(tipFree.AnimatedLength).IsFalse();
+                await Assert.That(tipFree.StretchStiffness).IsEqualTo(0f);
+            }
+        }
+
+        private const string AnimatedJointTwoText = """
+            {
+                m_CtrlName = [ "coattail_0_L", "$cccoattail_0_L_0", "$cccoattail_2_L_0", "coattail_1_L", "$cccoattail_1_L_0", "coattail_end_L", "$cccoattail_end_L_0", "coattail_2_L" ]
+                m_SkelParents = [ -1, 0, 7, 0, 3, 7, 5, 3 ]
+                m_nNodeCount = 8
+                m_nStaticNodes = 3
+                m_NodeInvMasses = [ 0.0, 0.0, 0.0, 0.0065, 0.006558, 0.0625, 0.0625, 1.0 ]
+                m_SourceElems = [ 0, 0, 0, 6, 2, 7, 5, 6, 7, 2, 6, 5, 4, 3, 7, 2, 3, 4, 2, 7, 1, 0, 3, 4, 0, 1, 4, 3 ]
+                m_InitPose =
+                [
+                    [ -8.915481, 4.000124, 65.447983, 1.0, 0.337553, -0.646323, -0.495776, -0.471731 ],
+                    [ -10.723646, 4.561181, 66.092773, 1.0, 0.337553, -0.646323, -0.495776, -0.471731 ],
+                    [ -16.587204, 5.195801, 50.242416, 1.0, -0.323943, 0.653251, 0.505547, 0.461245 ],
+                    [ -11.695464, 4.267121, 57.419937, 1.0, -0.323373, 0.653533, 0.505948, 0.460804 ],
+                    [ -13.473376, 4.824905, 58.146507, 1.0, -0.323373, 0.653533, 0.505948, 0.460804 ],
+                    [ -17.907341, 5.004471, 41.612736, 1.0, -0.323943, 0.653251, 0.505547, 0.461245 ],
+                    [ -19.686529, 5.562407, 42.336063, 1.0, -0.323943, 0.653251, 0.505547, 0.461245 ],
+                    [ -14.808016, 4.637866, 49.519089, 1.0, -0.323943, 0.653251, 0.505547, 0.461245 ],
+                ]
+                m_Rods =
+                [
+                    { nNode = [ 0, 3 ] flMinDist = 8.499948 flMaxDist = 8.499948 flWeight0 = 0.0 flRelaxationFactor = 1.0 },
+                    { nNode = [ 0, 4 ] flMinDist = 8.646747 flMaxDist = 8.646747 flWeight0 = 0.0 flRelaxationFactor = 1.0 },
+                    { nNode = [ 1, 3 ] flMinDist = 8.732066 flMaxDist = 8.732066 flWeight0 = 0.0 flRelaxationFactor = 1.0 },
+                    { nNode = [ 1, 4 ] flMinDist = 8.412711 flMaxDist = 8.412711 flWeight0 = 0.0 flRelaxationFactor = 1.0 },
+                    { nNode = [ 3, 4 ] flMinDist = 2.0 flMaxDist = 2.0 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
+                    { nNode = [ 5, 6 ] flMinDist = 2.000001 flMaxDist = 2.000001 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
+                ]
+            }
+            """;
+
+        private const string AnimatedEveryJointText = """
+            {
+                m_CtrlName = [ "coattail_0_L", "$cccoattail_0_L_0", "$cccoattail_1_L_0", "$cccoattail_2_L_0", "$cccoattail_end_L_0", "coattail_1_L", "coattail_2_L", "coattail_end_L" ]
+                m_SkelParents = [ -1, 0, 5, 6, 7, 0, 5, 6 ]
+                m_nNodeCount = 8
+                m_nStaticNodes = 5
+                m_NodeInvMasses = [ 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 1.0 ]
+                m_SourceElems = [ 0, 0, 0, 6, 3, 6, 7, 4, 6, 3, 4, 7, 2, 5, 6, 3, 5, 2, 3, 6, 1, 0, 5, 2, 0, 1, 2, 5 ]
+                m_InitPose =
+                [
+                    [ -8.915481, 4.000124, 65.447983, 1.0, 0.337553, -0.646323, -0.495776, -0.471731 ],
+                    [ -10.723646, 4.561181, 66.092773, 1.0, 0.337553, -0.646323, -0.495776, -0.471731 ],
+                    [ -13.473376, 4.824905, 58.146507, 1.0, -0.323373, 0.653533, 0.505948, 0.460804 ],
+                    [ -16.587204, 5.195801, 50.242416, 1.0, -0.323943, 0.653251, 0.505547, 0.461245 ],
+                    [ -19.686529, 5.562407, 42.336063, 1.0, -0.323943, 0.653251, 0.505547, 0.461245 ],
+                    [ -11.695464, 4.267121, 57.419937, 1.0, -0.323373, 0.653533, 0.505948, 0.460804 ],
+                    [ -14.808016, 4.637866, 49.519089, 1.0, -0.323943, 0.653251, 0.505547, 0.461245 ],
+                    [ -17.907341, 5.004471, 41.612736, 1.0, -0.323943, 0.653251, 0.505547, 0.461245 ],
+                ]
+                m_Rods =
+                [
+                ]
+            }
+            """;
     }
 }

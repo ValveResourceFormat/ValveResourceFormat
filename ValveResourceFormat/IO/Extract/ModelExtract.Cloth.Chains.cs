@@ -356,6 +356,11 @@ partial class ModelExtract
             kv.Add("stretch_spring", joint.StretchStiffness);
         }
 
+        if (joint.AnimatedLength)
+        {
+            kv.Add("animated_length", true);
+        }
+
         kv.Add("bend_spring", joint.BendStiffness);
         kv.Add("torsion_spring", joint.TorsionStiffness);
         kv.Add("extra_iterations", joint.ExtraIterations);

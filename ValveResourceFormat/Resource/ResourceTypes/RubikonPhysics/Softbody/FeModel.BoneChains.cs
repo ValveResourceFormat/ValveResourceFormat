@@ -83,6 +83,12 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             /// </summary>
             public float StretchStiffness { get; set; } = 1f;
             /// <summary>
+            /// Gets whether the source authored <c>animated_length</c> on this joint. The compiler then
+            /// builds no rod on the joint's span to its parent, within its own extrusion or on its
+            /// children's spans to it, and a childless joint keeps its node base.
+            /// </summary>
+            public bool AnimatedLength { get; set; }
+            /// <summary>
             /// Gets the authored <c>bend_spring</c> of this joint: the <c>flRelaxationFactor</c> on the
             /// span to its grandparent. Zero when <see cref="BendSpring"/> is false, which is what keeps
             /// the compiler from generating that rod at all.
@@ -2619,6 +2625,27 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                         // agreeing would otherwise lose its iteration count on every pair it has.
                         joint.Suspender = 0f;
                         joint.ExtraIterations = JointCopies(joint, floor: true) - 1;
+                    }
+                }
+
+                foreach (var joint in chain.Joints)
+                {
+                    if (!DeclaresNoStretch(joint))
+                    {
+                        continue;
+                    }
+
+                    var own = Extrusion(joint.Node);
+                    var kids = chain.Joints.FindAll(other => other.ParentNode == joint.Node);
+                    joint.AnimatedLength = kids.Count == 0
+                        ? NodeBases.ContainsKey(joint.Node)
+                        : kids.TrueForAll(kid => jointRingOf.ContainsKey(kid.Node)
+                            && !AnyRodBetween(Extrusion(kid.Node), own)
+                            && AnyRodBetween(Extrusion(kid.Node), Extrusion(kid.Node)));
+
+                    if (joint.AnimatedLength)
+                    {
+                        joint.StretchStiffness = 1f;
                     }
                 }
 
