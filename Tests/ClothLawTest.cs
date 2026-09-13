@@ -3985,5 +3985,73 @@ namespace Tests
 
         private static KVObject EffectParentNode(string bone, bool isStatic) => KVHelpers.MakeNode("ClothNode",
             ("name", bone), ("cloth_node_root_bone", bone), ("is_static_node", isStatic));
+
+        /// <summary>
+        /// A planarized box turned in its parent's frame is recovered in its own axes. One group stands off faces,
+        /// edges and a corner of a (2, 3, 4) half-extent box; a second touches only one edge and the corner below
+        /// it, so its axes come from the edge normals alone. Each recovered box reproduces every plane. The control
+        /// is the first group unturned, which keeps the parent's own axes.
+        /// </summary>
+        [Test]
+        public async Task ATurnedPlanarizedBoxIsRecoveredInItsOwnFrame()
+        {
+            var half = new Vector3(2f, 3f, 4f);
+            var turn = Quaternion.CreateFromYawPitchRoll(0.3f, 0.5f, 0.2f);
+            Vector3[] faces =
+            [
+                new(6f, 0f, 0f), new(6f, 1f, 1f), new(6f, -1f, -2f), new(0f, 7f, 0f), new(0f, -7f, 0f),
+                new(0f, 0f, 9f), new(0f, 0f, -9f), new(6f, 7f, 0f), new(6f, 7f, 9f),
+            ];
+            Vector3[] edge = [new(-5f, -6f, -3f), new(-6f, -5f, -1f), new(-4f, -7f, 1f), new(-7f, -6f, 2f), new(-5f, -5f, -6f)];
+
+            var turned = PlanarizedGroup([.. faces.Select(local => TurnedBoxPlane(local, half, turn))]);
+            var edgeOnly = PlanarizedGroup([.. edge.Select(local => TurnedBoxPlane(local, half, turn))]);
+            var control = PlanarizedGroup([.. faces.Select(local => TurnedBoxPlane(local, half, Quaternion.Identity))]);
+
+            var turnedBoxes = turned.BuildPlanarizeBoxes();
+            var edgeBoxes = edgeOnly.BuildPlanarizeBoxes();
+            var controlBoxes = control.BuildPlanarizeBoxes();
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(turned.BuildPlanarizeCapsules()).IsEmpty();
+                await Assert.That(edgeOnly.BuildPlanarizeCapsules()).IsEmpty();
+                await Assert.That(turnedBoxes.Count).IsEqualTo(1);
+                await Assert.That(edgeBoxes.Count).IsEqualTo(1);
+                await Assert.That(controlBoxes.Count).IsEqualTo(1);
+            }
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(controlBoxes[0].Rotation).IsEqualTo(Quaternion.Identity);
+                await Assert.That(Math.Abs(Quaternion.Dot(turnedBoxes[0].Rotation, Quaternion.Identity))).IsLessThan(0.999f);
+                await Assert.That(WorstTurnedBoxPlaneMiss(turnedBoxes[0], faces, half, turn)).IsLessThan(1e-3f);
+                await Assert.That(WorstTurnedBoxPlaneMiss(edgeBoxes[0], edge, half, turn)).IsLessThan(1e-3f);
+            }
+        }
+
+        private static (Vector3 Node, Vector3 Normal, float Offset) TurnedBoxPlane(Vector3 local, Vector3 half, Quaternion turn)
+        {
+            var contact = Vector3.Clamp(local, -half, half);
+            var normal = Vector3.Transform(Vector3.Normalize(local - contact), turn);
+            return (Vector3.Transform(local, turn), normal, Vector3.Dot(normal, Vector3.Transform(contact, turn)));
+        }
+
+        private static float WorstTurnedBoxPlaneMiss(FeModel.CollisionBox box, Vector3[] locals, Vector3 half, Quaternion turn)
+        {
+            var toBox = Quaternion.Conjugate(box.Rotation);
+            var worst = 0f;
+            foreach (var local in locals)
+            {
+                var (node, normal, offset) = TurnedBoxPlane(local, half, turn);
+                var inBox = Vector3.Transform(node - box.Origin, toBox);
+                var contact = Vector3.Clamp(inBox, -box.Size, box.Size);
+                var fitNormal = Vector3.Transform(Vector3.Normalize(inBox - contact), box.Rotation);
+                var fitOffset = Vector3.Dot(fitNormal, Vector3.Transform(contact, box.Rotation) + box.Origin);
+                worst = Math.Max(worst, Math.Max((fitNormal - normal).Length(), Math.Abs(fitOffset - offset)));
+            }
+
+            return worst;
+        }
     }
 }

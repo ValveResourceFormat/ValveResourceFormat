@@ -410,7 +410,8 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// radius. Each plane therefore gives its contact point back, and the box is the one whose faces hold
         /// every contact, with a side no node reaches mirrored about the parent. Only a group the planarized
         /// capsule fit leaves unexplained is read, since planes on a box's face centres are also a sphere's,
-        /// and a group is returned only when the box reproduces every plane it owns.
+        /// and a group is returned only when the box reproduces every plane it owns. The box may be turned in the
+        /// parent's frame, so its axes are searched for among the plane normals (<see cref="PlanarizedBoxFrames"/>).
         /// </summary>
         public List<CollisionBox> BuildPlanarizeBoxes()
         {
@@ -430,7 +431,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                 }
 
                 var samples = PlanarizeSamples(parent, group.Select(static e => e.index));
-                if (FitPlanarizedBox(samples) is not { } box || FitPlanarizedShapes(samples) is not null
+                if (FitPlanarizedShapes(samples) is not null || FitOrientedPlanarizedBox(samples) is not { } box
                     || SmallestVertexMapCovering(samples, [.. Enumerable.Range(0, samples.Count)]) is not { } vertexMap)
                 {
                     continue;
@@ -439,8 +440,8 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                 result.Add(new CollisionBox
                 {
                     ParentBone = ResolveRigidBone(parent),
-                    Origin = (box.Min + box.Max) * 0.5f,
-                    Rotation = Quaternion.Identity,
+                    Origin = Vector3.Transform((box.Min + box.Max) * 0.5f, box.Rotation),
+                    Rotation = box.Rotation,
                     Size = (box.Max - box.Min) * 0.5f,
                     CollisionMask = 0xF,
                     VertexMap = vertexMap,
@@ -582,6 +583,123 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         }
 
         /// <summary>
+        /// The box whose planes are <paramref name="samples"/>, in the parent's own axes when those fit and otherwise
+        /// in the first frame from <see cref="PlanarizedBoxFrames"/> that reproduces every plane. A frame only
+        /// re-expresses each node and normal about the parent, so the compiled offsets carry over unchanged.
+        /// </summary>
+        static (Quaternion Rotation, Vector3 Min, Vector3 Max)? FitOrientedPlanarizedBox(List<PlanarizeSample> samples)
+        {
+            if (FitPlanarizedBox(samples) is { } aligned)
+            {
+                return (Quaternion.Identity, aligned.Min, aligned.Max);
+            }
+
+            if (samples.Count < PlanarizeMinShapePlanes || samples.Exists(static s => s.Gap <= PlanarizeGeometryGap))
+            {
+                return null;
+            }
+
+            foreach (var rotation in PlanarizedBoxFrames(samples))
+            {
+                var toBox = Quaternion.Conjugate(rotation);
+                var framed = samples.ConvertAll(sample => sample with
+                {
+                    Local = Vector3.Transform(sample.Local, toBox),
+                    Normal = Vector3.Transform(sample.Normal, toBox),
+                });
+
+                if (FitPlanarizedBox(framed) is { } box)
+                {
+                    return (rotation, box.Min, box.Max);
+                }
+            }
+
+            return null;
+        }
+
+        /// <summary>
+        /// Candidate frames for a planarized box, as rotations from the box's axes into the parent's. A contact on a
+        /// face has that face's axis for its normal and a contact on an edge has a normal perpendicular to the
+        /// edge's axis, so a first axis is each distinct normal and each cross product of two normals. The second
+        /// is each normal's part off the first, the two diagonals around their mean (the frame whose quadrant
+        /// holds every normal of a single touched edge), and one perpendicular for a group on a single face.
+        /// </summary>
+        static IEnumerable<Quaternion> PlanarizedBoxFrames(List<PlanarizeSample> samples)
+        {
+            var normals = DistinctAxes(samples.Select(static s => s.Normal));
+            var firstAxes = new List<Vector3>(normals);
+            for (var i = 0; i < normals.Count; i++)
+            {
+                for (var j = i + 1; j < normals.Count; j++)
+                {
+                    var cross = Vector3.Cross(normals[i], normals[j]);
+                    if (cross.Length() >= PlanarizeFrameMinimumPart)
+                    {
+                        firstAxes.Add(Vector3.Normalize(cross));
+                    }
+                }
+            }
+
+            var frames = 0;
+            foreach (var first in DistinctAxes(firstAxes))
+            {
+                var seconds = new List<Vector3>();
+                var mean = Vector3.Zero;
+                foreach (var normal in normals)
+                {
+                    var part = normal - (Vector3.Dot(normal, first) * first);
+                    if (part.Length() >= PlanarizeFrameMinimumPart)
+                    {
+                        part = Vector3.Normalize(part);
+                        seconds.Add(part);
+                        mean += part;
+                    }
+                }
+
+                if (mean.Length() >= PlanarizeFrameMinimumPart)
+                {
+                    mean = Vector3.Normalize(mean);
+                    var across = Vector3.Cross(first, mean);
+                    seconds.Add(Vector3.Normalize(mean + across));
+                    seconds.Add(Vector3.Normalize(mean - across));
+                }
+
+                seconds.Add(Vector3.Normalize(Vector3.Cross(first, Math.Abs(first.X) < 0.5f ? Vector3.UnitX : Vector3.UnitY)));
+
+                foreach (var second in DistinctAxes(seconds))
+                {
+                    if (frames++ >= PlanarizeCandidateLimit)
+                    {
+                        yield break;
+                    }
+
+                    var third = Vector3.Cross(first, second);
+                    var basis = new Matrix4x4(
+                        first.X, first.Y, first.Z, 0f,
+                        second.X, second.Y, second.Z, 0f,
+                        third.X, third.Y, third.Z, 0f,
+                        0f, 0f, 0f, 1f);
+                    yield return Quaternion.Normalize(Quaternion.CreateFromRotationMatrix(basis));
+                }
+            }
+        }
+
+        // Unit axes with any direction already listed, or its opposite, removed.
+        static List<Vector3> DistinctAxes(IEnumerable<Vector3> axes)
+        {
+            var distinct = new List<Vector3>();
+            foreach (var axis in axes)
+            {
+                if (!distinct.Exists(kept => Math.Abs(Vector3.Dot(kept, axis)) > 1f - PlanarizeFrameAxisSlack))
+                {
+                    distinct.Add(axis);
+                }
+            }
+
+            return distinct;
+        }
+
+        /// <summary>
         /// The two end-cap positions a recovered shape is emitted with. A fit whose caps coincide is a
         /// single end cap, and it is given a short axis pointing away from the nodes it owns, which keeps
         /// the recovered centre the nearest point on that axis and so leaves every plane unchanged.
@@ -628,6 +746,8 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         const int PlanarizeAxisPicks = 16;
         const int PlanarizeCandidateLimit = 4096;
         const float PlanarizeCandidateGrid = 1e4f;
+        const float PlanarizeFrameMinimumPart = 1e-2f;
+        const float PlanarizeFrameAxisSlack = 1e-5f;
 
         // The smallest plane count a recovered shape is accepted on, and the most shapes one control
         // parent's planes may be covered by.
