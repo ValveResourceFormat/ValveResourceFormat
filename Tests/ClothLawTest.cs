@@ -4468,5 +4468,66 @@ namespace Tests
                 await Assert.That(Names(shipped)).IsEquivalentTo(["jiggles"]);
             }
         }
+
+        /// <summary>
+        /// A <c>ClothRigidCloudCluster</c> of algorithm 0 compiles its <c>parent_node</c> into <c>m_LockToGoal</c> and nothing
+        /// else: <c>s12_rigid_cloud_algorithm_0_fork_children</c> equals its fork control but for <c>m_LockToGoal = [ 0 ]</c>. A
+        /// lock beside version 2's preset-graded bases is therefore the cluster's, and it is declared back over the locked
+        /// joint's chain children. The controls: a lock whose bases say nothing (no <c>m_NodeBases</c>, so neither grade
+        /// can be read) stays format evidence, and a chain without a lock has no locked joint to declare.
+        /// </summary>
+        [Test]
+        public async Task ALockBesidePresetBasesIsDeclaredAsARigidCloudCluster()
+        {
+            static FeModel Model(string locks) => SyntheticCloth.Parse($$"""
+                {
+                    m_CtrlName = [ "coattail_0_L", "coattail_1_L", "coattail_1_R" ]
+                    m_SkelParents = [ -1, 0, 0 ]
+                    m_nNodeCount = 3
+                    m_nStaticNodes = 1
+                    m_NodeInvMasses = [ 0.0, 1.0, 1.0 ]
+                    m_InitPose =
+                    [
+                        {{SyntheticCloth.Pose(0f, 0f, 60f)}}
+                        {{SyntheticCloth.Pose(0f, 4f, 52f)}}
+                        {{SyntheticCloth.Pose(0f, -4f, 52f)}}
+                    ]
+                    m_LockToGoal = [ {{locks}} ]
+                }
+                """);
+            var chain = new FeModel.BoneChain { RootBone = "coattail_0_L" };
+            chain.Joints.Add(new FeModel.BoneChainJoint { Node = 0, Name = "coattail_0_L", ParentNode = -1 });
+            chain.Joints.Add(new FeModel.BoneChainJoint { Node = 1, Name = "coattail_1_L", ParentNode = 0, ParentName = "coattail_0_L", InvMass = 1f });
+            chain.Joints.Add(new FeModel.BoneChainJoint { Node = 2, Name = "coattail_1_R", ParentNode = 0, ParentName = "coattail_0_L", InvMass = 1f });
+
+            var locked = Model("0");
+            var lockedJoints = ModelExtract.LockedJointsWithChildren(locked, chain).ToArray();
+            var cluster = ModelExtract.MakeClothRigidCloudCluster(lockedJoints[0].Joint.Name,
+                lockedJoints[0].Children.Select(static child => child.Name));
+            string[] members = [.. cluster.GetSubCollection("chain").GetArray("joints").Select(static joint => joint.GetStringProperty("joint_name"))];
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(lockedJoints.Length).IsEqualTo(1);
+                await Assert.That(cluster.GetStringProperty("_class")).IsEqualTo("ClothRigidCloudCluster");
+                await Assert.That(cluster.GetInt32Property("algorithm")).IsEqualTo(0);
+                await Assert.That(cluster.GetStringProperty("parent_node")).IsEqualTo("coattail_0_L");
+                await Assert.That(members).IsEquivalentTo(["coattail_1_L", "coattail_1_R"], CollectionOrdering.Matching);
+                await Assert.That(ModelExtract.IsRigidCloudClusterLock(locked, chain)).IsFalse();
+                await Assert.That(ModelExtract.LockedJointsWithChildren(Model(string.Empty), chain).Any()).IsFalse();
+
+                // chainver reads chain_version_1 as a lock beside a root base and bulk-graded bases, and the
+                // cluster row as the same lock beside preset-graded ones.
+                await Assert.That(ModelExtract.ClothChainVersion(jointCount: 4, hasOtherChains: false, rootAllowsRotation: true,
+                    rootHasBase: true, lockedJoint: true, rigidCloudClusterLock: false, locksJoints: false, basesBulkGraded: true,
+                    hintsTwistWritten: false, hasUnstagedThinJoint: false)).IsEqualTo(1);
+                await Assert.That(ModelExtract.ClothChainVersion(jointCount: 5, hasOtherChains: false, rootAllowsRotation: true,
+                    rootHasBase: true, lockedJoint: true, rigidCloudClusterLock: true, locksJoints: false, basesBulkGraded: false,
+                    hintsTwistWritten: false, hasUnstagedThinJoint: false)).IsEqualTo(2);
+                await Assert.That(ModelExtract.ClothChainVersion(jointCount: 5, hasOtherChains: false, rootAllowsRotation: true,
+                    rootHasBase: true, lockedJoint: true, rigidCloudClusterLock: false, locksJoints: false, basesBulkGraded: false,
+                    hintsTwistWritten: false, hasUnstagedThinJoint: false)).IsEqualTo(1);
+            }
+        }
     }
 }
