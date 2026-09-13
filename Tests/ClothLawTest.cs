@@ -3638,5 +3638,29 @@ namespace Tests
 
             return (corrected, compiled);
         }
+
+        /// <summary>
+        /// A joint's <c>motion_bias</c> weights the rods of its span to its parent, and where the parent declared
+        /// <c>animated_length</c> those rods compile into <c>m_SimdRodsAnim</c> alone, with the same weights. The
+        /// fixture is the compiled synthetic chain with <c>animated_length</c> on coattail_2_L and bias 0.5 on
+        /// coattail_end_L, whose two span lanes read 2/3; the control is the same chain with the bias left off.
+        /// </summary>
+        [Test]
+        public async Task AMotionBiasIsReadOffTheAnimatedRodsOfItsSpan()
+        {
+            var biased = SyntheticCloth.Parse(AnimatedJointTwoText
+                .Replace("[ 7, 6, 6, 6 ] ] f4Weight0 = [ 0.5,", "[ 7, 6, 6, 6 ] ] f4Weight0 = [ 0.666667,", StringComparison.Ordinal)
+                .Replace("[ 7, 5, 5, 5 ] ] f4Weight0 = [ 0.5,", "[ 7, 5, 5, 5 ] ] f4Weight0 = [ 0.666667,", StringComparison.Ordinal));
+            var unbiased = SyntheticCloth.Parse(AnimatedJointTwoText);
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(biased.GetMotionBias(TipOf(biased)) ?? float.NaN).IsEqualTo(0.5f).Within(1e-3f);
+                await Assert.That(unbiased.GetMotionBias(TipOf(unbiased)).HasValue).IsFalse();
+            }
+        }
+
+        private static FeModel.BoneChainJoint TipOf(FeModel feModel)
+            => feModel.BuildBoneChains()[0].Joints.First(static joint => joint.Name == "coattail_end_L");
     }
 }
