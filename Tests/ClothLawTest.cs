@@ -5,7 +5,10 @@ using System.Linq;
 using System.Threading.Tasks;
 using TUnit.Assertions.Enums;
 using ValveKeyValue;
+using ValveResourceFormat;
 using ValveResourceFormat.IO;
+using ValveResourceFormat.ResourceTypes;
+using ValveResourceFormat.ResourceTypes.ModelAnimation;
 using ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody;
 using ValveResourceFormat.Serialization.KeyValues;
 
@@ -3547,5 +3550,93 @@ namespace Tests
                 ]
             }
             """);
+
+        /// <summary>
+        /// A compiled skeleton is a lossy re-expression of the pose the model was authored in, while the
+        /// same file's <c>m_InitPose</c> keeps the authored world position of every cloth control node.
+        /// The exported skeleton is therefore posed from the rest pose, so that accumulating the emitted
+        /// joint chain puts every control bone back where the file records it rather than where its own
+        /// bone table accumulates to. The control is a model with no cloth, whose bones are emitted
+        /// exactly as compiled.
+        /// </summary>
+        [Test]
+        public async Task AClothControlBoneIsEmittedOnItsRecordedRestPosition()
+        {
+            var (corrected, compiled) = RestPoseDistances("sw_donkey_10th_anniversary_kv3_v3_zstd");
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(corrected).IsLessThan(1e-4f);
+                await Assert.That(compiled).IsGreaterThan(1e-3f);
+            }
+        }
+
+        /// <summary>The control: a model with no cloth registers no correction at all.</summary>
+        [Test]
+        public async Task AModelWithoutClothEmitsItsCompiledSkeleton()
+        {
+            using var resource = new Resource();
+            resource.Read(Path.Combine(TestContext.TestDirectory!, "Files", "townsfolk_03.vmdl_c"));
+            var extract = new ModelExtract(resource, new NullFileLoader());
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(((Model)resource.DataBlock!).Skeleton.Bones.Length).IsEqualTo(56);
+                await Assert.That(extract.ClothRestBonePositions.Count).IsEqualTo(0);
+                await Assert.That(extract.ClothProxyRestBonePositions.Count).IsEqualTo(0);
+            }
+        }
+
+        /// <summary>
+        /// The worst distance between a real cloth control bone's <c>m_InitPose</c> and the world position
+        /// its emitted joint chain accumulates to, with the rest-pose correction and with the compiled
+        /// bone transforms.
+        /// </summary>
+        private static (float Corrected, float Compiled) RestPoseDistances(string modelName)
+        {
+            using var resource = new Resource();
+            resource.Read(Path.Combine(TestContext.TestDirectory!, "Files", modelName + ".vmdl_c"));
+            var model = (Model)resource.DataBlock!;
+            var extract = new ModelExtract(resource, new NullFileLoader());
+            var feModel = model.GetEmbeddedPhys()!.FeModel!;
+
+            var targets = new Dictionary<string, Vector3>(StringComparer.OrdinalIgnoreCase);
+            for (var node = 0; node < feModel.CtrlNames.Length && node < feModel.InitPosePositions.Length; node++)
+            {
+                var name = feModel.CtrlNames[node];
+                if (!string.IsNullOrEmpty(name) && !feModel.IsGeneratedNodeName(name))
+                {
+                    targets.TryAdd(name, feModel.InitPosePositions[node]);
+                }
+            }
+
+            var corrected = 0f;
+            var compiled = 0f;
+            void Walk(Bone bone, Vector3 correctedParent, Vector3 compiledParent, Quaternion parentRotation)
+            {
+                var here = correctedParent
+                    + Vector3.Transform(ModelExtract.BonePosition(bone, extract.ClothRestBonePositions), parentRotation);
+                var asCompiled = compiledParent + Vector3.Transform(bone.Position, parentRotation);
+                var rotation = parentRotation * bone.Angle;
+
+                if (targets.TryGetValue(bone.Name, out var target))
+                {
+                    corrected = Math.Max(corrected, Vector3.Distance(here, target));
+                    compiled = Math.Max(compiled, Vector3.Distance(asCompiled, target));
+                }
+
+                foreach (var child in bone.Children)
+                {
+                    Walk(child, here, asCompiled, rotation);
+                }
+            }
+
+            foreach (var root in model.Skeleton.Roots)
+            {
+                Walk(root, Vector3.Zero, Vector3.Zero, Quaternion.Identity);
+            }
+
+            return (corrected, compiled);
+        }
     }
 }
