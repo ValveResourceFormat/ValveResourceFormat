@@ -1219,11 +1219,45 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// The compiler locks a node that carries fit influences to its parent when that parent is itself
         /// simulated or free-rotating, and to its goal otherwise, but only reaches that decision for a node
         /// that is either NOT SIMULATED or carries <c>lock_translation</c>. So a locked node that is still
-        /// simulated proves the key, while an unsimulated one reaches the same lock without it.
+        /// simulated proves the key, while an unsimulated one reaches the same lock without it. A second pass
+        /// locks every keyed node that has a parent, influences or not, so a static node's parent lock proves
+        /// the key only where the influence route could not have written it: the node is rotation-locked, owns
+        /// no fit group, or its parent is neither simulated nor free-rotating. A keyed node also stages its
+        /// influences into its parent's group, so a parent fit over every node the node's own group reads proves
+        /// the key as well. A chain of version 2 grades its joints' bases at import and stages no group for a
+        /// static joint, so there the parent lock proves the key whatever the node owns.
         /// </para>
         /// </summary>
-        public bool LocksTranslation(int node)
-            => IsLockedToParent(node) || (IsLockedToGoal(node) && !IsStatic(node));
+        /// <param name="node">The control node.</param>
+        /// <param name="chainVersion">The version of the chain declaring the node; 2 for a node no chain declares.</param>
+        public bool LocksTranslation(int node, int chainVersion = 2)
+            => (IsLockedToParent(node) && !(chainVersion < 2 && ReachesParentLockUnkeyed(node)))
+                || (IsLockedToGoal(node) && !IsStatic(node));
+
+        bool ReachesParentLockUnkeyed(int node)
+        {
+            if (!IsStatic(node) || !AllowsRotation(node) || (!NodeBases.ContainsKey(node) && !FitMatrixNodes.Contains(node)))
+            {
+                return false;
+            }
+
+            return Array.Exists(LockToParent, link => link.CtrlChild == node
+                && (!IsStatic(link.CtrlParent) || AllowsRotation(link.CtrlParent))
+                && !FitsOverInfluencesOf(link.CtrlParent, node));
+        }
+
+        bool FitsOverInfluencesOf(int parent, int child)
+        {
+            if (!FitMatrixTargets.TryGetValue(parent, out var targets))
+            {
+                return false;
+            }
+
+            int[] influences = FitMatrixTargets.TryGetValue(child, out var own) ? own
+                : NodeBases.TryGetValue(child, out var basis) ? [basis.NodeX0, basis.NodeX1, basis.NodeY0, basis.NodeY1]
+                : [];
+            return influences.Length > 0 && Array.TrueForAll(influences, influence => Array.IndexOf(targets, influence) >= 0);
+        }
 
         /// <summary>
         /// Recovers the per-vertex normal of a proxy sheet from the compiled rest poses.

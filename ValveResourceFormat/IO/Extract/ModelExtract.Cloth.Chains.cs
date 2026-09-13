@@ -156,6 +156,27 @@ partial class ModelExtract
         return version;
     }
 
+    /// <summary>
+    /// The <c>ClothChain</c> version <paramref name="chain"/> was authored at, read off the evidence <paramref name="feModel"/> carries.
+    /// </summary>
+    /// <param name="feModel">The compiled cloth.</param>
+    /// <param name="chain">The reconstructed chain.</param>
+    /// <param name="hasOtherChains">Whether the model declares another chain.</param>
+    internal static int ClothChainVersion(FeModel feModel, FeModel.BoneChain chain, bool hasOtherChains)
+    {
+        var root = chain.Joints.Count > 0 ? chain.Joints[0] : null;
+        return ClothChainVersion(chain.Joints.Count, hasOtherChains,
+            rootAllowsRotation: root is null ? null : feModel.AllowsRotation(root.Node),
+            rootHasBase: root is not null && feModel.NodeBases.ContainsKey(root.Node),
+            lockedJoint: chain.Joints.Exists(joint => feModel.IsLockedToGoal(joint.Node)),
+            rigidCloudClusterLock: IsRigidCloudClusterLock(feModel, chain),
+            locksJoints: chain.ExtrudeSides >= 1
+                && chain.Joints.Exists(joint => !joint.Simulated && feModel.AllowsRotation(joint.Node)),
+            basesBulkGraded: feModel.ChainBasesAreBulkGraded(chain),
+            hintsTwistWritten: feModel.ChainHintsAreTwistWritten(chain),
+            hasUnstagedThinJoint: feModel.ChainHasUnstagedThinJoint(chain));
+    }
+
     static KVObject MakeClothChainNode(FeModel feModel, FeModel.BoneChain chain, bool hasOtherChains,
         IReadOnlyList<FeModel.BoneChainJoint>? walk = null)
     {
@@ -163,10 +184,12 @@ partial class ModelExtract
         // authored with a soft link instead, unless the hinged link itself compiled to a quad.
         var softHinge = feModel.HasChainRods(chain) && !feModel.HasRigidHingeLink(chain);
 
+        var version = ClothChainVersion(feModel, chain, hasOtherChains);
+
         var joints = KVObject.Array();
         foreach (var joint in walk ?? chain.Joints)
         {
-            var jointNode = MakeClothJoint(feModel, joint, chainExtrudes: chain.ExtrudeSides >= 1, softHinge);
+            var jointNode = MakeClothJoint(feModel, joint, chainExtrudes: chain.ExtrudeSides >= 1, softHinge, version);
 
             // A rigid hinge is the one shape whose sibling set the chain reconstruction cannot read a
             // value off, so it keeps the flat 1.0 it has always been given.
@@ -185,18 +208,6 @@ partial class ModelExtract
         chainData.Add("joints", joints);
         chainData.Add("attrs", MakeClothChainAttrs(chain.ExtrudeSides, chain.ExtrudeRadius, chain.ExtrudeTwist));
         chainData.Add("selection", KVObject.Array());
-
-        var root = chain.Joints.Count > 0 ? chain.Joints[0] : null;
-        var version = ClothChainVersion(chain.Joints.Count, hasOtherChains,
-            rootAllowsRotation: root is null ? null : feModel.AllowsRotation(root.Node),
-            rootHasBase: root is not null && feModel.NodeBases.ContainsKey(root.Node),
-            lockedJoint: chain.Joints.Exists(joint => feModel.IsLockedToGoal(joint.Node)),
-            rigidCloudClusterLock: IsRigidCloudClusterLock(feModel, chain),
-            locksJoints: chain.ExtrudeSides >= 1
-                && chain.Joints.Exists(joint => !joint.Simulated && feModel.AllowsRotation(joint.Node)),
-            basesBulkGraded: feModel.ChainBasesAreBulkGraded(chain),
-            hintsTwistWritten: feModel.ChainHintsAreTwistWritten(chain),
-            hasUnstagedThinJoint: feModel.ChainHasUnstagedThinJoint(chain));
 
         chainData.Add("version", version);
 
@@ -305,7 +316,7 @@ partial class ModelExtract
     }
 
     internal static KVObject MakeClothJoint(FeModel feModel, FeModel.BoneChainJoint joint, bool chainExtrudes = false,
-        bool softHinge = false)
+        bool softHinge = false, int chainVersion = 2)
     {
         var kv = KVObject.Collection();
         kv.Add("joint_name", joint.Name);
@@ -355,7 +366,7 @@ partial class ModelExtract
             kv.Add("allow_rotation", feModel.AllowsRotation(joint.Node));
         }
 
-        if (feModel.LocksTranslation(joint.Node) || pinnedSimulatedRoot)
+        if (feModel.LocksTranslation(joint.Node, chainVersion) || pinnedSimulatedRoot)
         {
             kv.Add("lock_translation", true);
         }
