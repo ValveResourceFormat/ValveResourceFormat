@@ -3727,7 +3727,7 @@ namespace Tests
         /// three-entry floor and the record is missing, which is the only difference between the two
         /// compiled synthetic originals. The controls are the version-1 original, which carries the record,
         /// and the version-0 chain with a second, two-wide leaf: a version-0 compile drops that leaf's group
-        /// too, so a reverse offset on it rules version 0 out, while the same leaf without one says nothing.
+        /// too, so a reverse offset on it rules version 0 out, while the same leaf without one reads version 0 as well.
         /// </summary>
         [Test]
         public async Task AThinChainTipWithoutAReverseOffsetWasStagedAtVersionZero()
@@ -4626,6 +4626,31 @@ namespace Tests
                     m_ReverseOffsets = [ {{string.Join(" ", offsets)}} ]
                 }
                 """;
+        }
+
+        /// <summary>
+        /// A joint two rings wide lists its ring alone in the fit stager, so a simulated two-ring leaf's influence
+        /// table holds its two ring nodes and nothing else, like a one-wide leaf's joint and ring, and falls under the
+        /// three-entry floor unless the version-1 top-up reaches it. The fixture's two-ring leaf without a reverse
+        /// offset reads as staged at version 0; the control, the same leaf owning one, as staged at version 1.
+        /// </summary>
+        [Test]
+        public async Task ATwoRingLeafHoldsTwoFitTableEntries()
+        {
+            var ungrouped = SyntheticCloth.Parse(TwoVersionTree(rootRingFirst: true, thinTipGrouped: true, wideLeafGrouped: false));
+            var grouped = SyntheticCloth.Parse(TwoVersionTree(rootRingFirst: true, thinTipGrouped: true, wideLeafGrouped: true));
+
+            static FeModel.BoneChainJoint[] WideJoints(FeModel feModel) =>
+            [
+                .. feModel.BuildBoneChains().SelectMany(static chain => chain.Joints)
+                    .Where(static joint => joint.Name is "b0" or "b1"),
+            ];
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(ungrouped.ThinJointStagingOf(WideJoints(ungrouped))).IsEqualTo(FeModel.ThinJointStaging.Unstaged);
+                await Assert.That(grouped.ThinJointStagingOf(WideJoints(grouped))).IsEqualTo(FeModel.ThinJointStaging.Staged);
+            }
         }
     }
 }
