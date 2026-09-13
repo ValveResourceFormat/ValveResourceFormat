@@ -136,12 +136,16 @@ partial class ModelExtract
         var existingMarkupBones = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var physicsBodyMarkupData = model?.KeyValues.GetSubCollection("CPhysicsBodyGameMarkupData");
         var physicsBodyMarkupByBoneName = physicsBodyMarkupData?.GetSubCollection("m_PhysicsBodyMarkupByBoneName");
-
+        var bodyGameMarkups = new Dictionary<string, KVObject>(StringComparer.OrdinalIgnoreCase);
         if (physicsBodyMarkupByBoneName != null)
         {
-            foreach (var (boneName, _) in physicsBodyMarkupByBoneName)
+            foreach (var (name, markup) in physicsBodyMarkupByBoneName)
             {
-                existingMarkupBones.Add(boneName);
+                var target = markup.GetStringProperty("m_TargetBody", name!);
+                if (markup.ContainsKey("m_Tag"))
+                {
+                    bodyGameMarkups[target] = markup;
+                }
             }
         }
 
@@ -162,12 +166,67 @@ partial class ModelExtract
             // Markup addresses a body by its bone name.
             if (needsMarkup && parentBone.Length > 0 && existingMarkupBones.Add(parentBone))
             {
-                lists.PhysicsBodyMarkup.Add(BuildPhysicsBodyMarkup(partsData[i], parentBone));
+                bodyGameMarkups.TryGetValue(parentBone, out var gameMarkup);
+                lists.PhysicsBodyMarkup.Add(BuildPhysicsBodyMarkup(partsData[i], parentBone, gameMarkup));
+            }
+        }
+
+        if (existingMarkupBones.Count > 0)
+        {
+            RemoveExportedPhysicsBodyGameData(lists.RootChildren, existingMarkupBones);
+        }
+    }
+
+    private static void RemoveExportedPhysicsBodyGameData(KVObject rootChildren, HashSet<string> exportedBodies)
+    {
+        foreach (var (_, list) in rootChildren)
+        {
+            if (list.GetStringProperty("_class") != "GameDataList")
+            {
+                continue;
+            }
+
+            var children = list.GetSubCollection("children");
+            for (var i = children.Count - 1; i >= 0; i--)
+            {
+                var entry = children[i];
+                if (entry.GetStringProperty("_class") != "GenericGameData"
+                    || entry.GetStringProperty("game_class") != "CPhysicsBodyGameMarkupData")
+                {
+                    continue;
+                }
+
+                var keys = entry.GetSubCollection("game_keys");
+                var markups = keys.GetSubCollection("m_PhysicsBodyMarkupByBoneName");
+                if (markups == null)
+                {
+                    continue;
+                }
+
+                // ModelDoc regenerates exported bodies from PhysicsBodyMarkup nodes.
+                var remaining = KVObject.Collection();
+                foreach (var (name, markup) in markups)
+                {
+                    var target = markup.GetStringProperty("m_TargetBody", name!);
+                    if (!exportedBodies.Contains(target))
+                    {
+                        remaining.Add(name!, markup);
+                    }
+                }
+
+                if (remaining.Count == 0 && keys.Count == 1)
+                {
+                    children.RemoveAt(i);
+                }
+                else
+                {
+                    keys["m_PhysicsBodyMarkupByBoneName"] = remaining;
+                }
             }
         }
     }
 
-    private static KVObject BuildPhysicsBodyMarkup(KVObject part, string bodyName)
+    private static KVObject BuildPhysicsBodyMarkup(KVObject part, string bodyName, KVObject? gameMarkup)
     {
         var node = MakeNode("PhysicsBodyMarkup", ("target_body", bodyName));
         AddIfPresent(node, "mass_override", part, "m_flMass");
@@ -178,6 +237,11 @@ partial class ModelExtract
         AddIfPresent(node, "angular_drag", part, "m_flAngularDrag");
         AddIfPresent(node, "use_mass_center_override", part, "m_bOverrideMassCenter");
         AddIfPresent(node, "mass_center_override", part, "m_vMassCenterOverride");
+        if (gameMarkup != null)
+        {
+            AddIfPresent(node, "tag", gameMarkup, "m_Tag");
+        }
+
         return node;
     }
 }
