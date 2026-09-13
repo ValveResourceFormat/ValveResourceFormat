@@ -589,7 +589,7 @@ partial class ModelExtract
     // ClothProxyMeshFile + proxy DMX.
     bool EmitCloth(FeModel feModel, KVObject rootChildren)
     {
-        var boneChains = feModel.BuildBoneChains();
+        var boneChains = feModel.BuildBoneChains((chain, hasOtherChains) => ClothChainVersion(feModel, chain, hasOtherChains));
 
         if (feModel.IsImportedCloth)
         {

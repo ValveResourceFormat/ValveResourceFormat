@@ -225,6 +225,99 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             return unstaged ? ThinJointStaging.Unstaged : ThinJointStaging.None;
         }
 
+        /// <summary>
+        /// The root bones of <paramref name="merged"/> whose one reconstructed declaration was compiled as two,
+        /// each mapped to the children the second, ringless declaration keeps.
+        /// </summary>
+        /// <remarks>
+        /// Where the sub-chains under one root read as staged at version 0 and at version 1 or above, and the
+        /// declaration they were merged into reads as version 1, they were declared apart: once extruding the root
+        /// and once restating it ringless. A span between two static joints leaves no rod, so which sub-chains went
+        /// with the extruding declaration is read off the static node order, which is creation order: the root's
+        /// ring is created as its declaration starts, so the first sub-chain ring created after it in the same
+        /// block belongs to that declaration. A rotation-locked root's ring sorts into another block than every
+        /// sub-chain ring, where its place says nothing, and the declaration whose rings come first extrudes it.
+        /// </remarks>
+        Dictionary<int, HashSet<int>> VersionSplitRoots(List<BoneChain> merged, Func<BoneChain, bool, int> chainVersion,
+            bool hasOtherChains)
+        {
+            var splits = new Dictionary<int, HashSet<int>>();
+            foreach (var chain in merged)
+            {
+                if (chain.Joints.Count < 3 || chain.Joints[0].RingNodes.Count == 0)
+                {
+                    continue;
+                }
+
+                var root = chain.Joints[0].Node;
+                var ringEnd = chain.Joints[0].RingNodes.Max();
+                if (ringEnd >= StaticNodeCount)
+                {
+                    continue;
+                }
+
+                var staged = new List<int>();
+                var unstaged = new List<int>();
+                (int AfterRing, int Any) stagedFirst = (int.MaxValue, int.MaxValue);
+                (int AfterRing, int Any) unstagedFirst = (int.MaxValue, int.MaxValue);
+                var sharesRingBlock = false;
+                var readable = true;
+                foreach (var kid in chain.Joints)
+                {
+                    if (kid.ParentNode != root)
+                    {
+                        continue;
+                    }
+
+                    var subtree = new List<BoneChainJoint> { kid };
+                    var members = new HashSet<int> { kid.Node };
+                    foreach (var joint in chain.Joints)
+                    {
+                        if (joint != kid && members.Contains(joint.ParentNode))
+                        {
+                            members.Add(joint.Node);
+                            subtree.Add(joint);
+                        }
+                    }
+
+                    var rings = subtree.SelectMany(static joint => joint.RingNodes).Where(node => node < StaticNodeCount).ToList();
+                    var ringBlock = rings.FindAll(node => AllowsRotation(node) == AllowsRotation(ringEnd));
+                    sharesRingBlock |= ringBlock.Count > 0;
+                    var first = (AfterRing: ringBlock.Where(node => node > ringEnd).DefaultIfEmpty(int.MaxValue).Min(),
+                        Any: rings.DefaultIfEmpty(int.MaxValue).Min());
+
+                    switch (ThinJointStagingOf(subtree))
+                    {
+                        case ThinJointStaging.Staged:
+                            staged.Add(kid.Node);
+                            stagedFirst = (Math.Min(stagedFirst.AfterRing, first.AfterRing), Math.Min(stagedFirst.Any, first.Any));
+                            break;
+                        case ThinJointStaging.Unstaged:
+                            unstaged.Add(kid.Node);
+                            unstagedFirst = (Math.Min(unstagedFirst.AfterRing, first.AfterRing), Math.Min(unstagedFirst.Any, first.Any));
+                            break;
+                        default:
+                            readable = false;
+                            break;
+                    }
+                }
+
+                var (stagedAt, unstagedAt) = sharesRingBlock
+                    ? (stagedFirst.AfterRing, unstagedFirst.AfterRing)
+                    : (stagedFirst.Any, unstagedFirst.Any);
+
+                if (!readable || staged.Count == 0 || unstaged.Count == 0 || stagedAt == unstagedAt
+                    || chainVersion(chain, hasOtherChains) != 1)
+                {
+                    continue;
+                }
+
+                splits[root] = [.. stagedAt < unstagedAt ? unstaged : staged];
+            }
+
+            return splits;
+        }
+
         int NumberedRingCount(int jointNode)
             => ProxyRingOf(jointNode).Count(node => RingSuffixIndex(CtrlNames[node]) >= 0);
 

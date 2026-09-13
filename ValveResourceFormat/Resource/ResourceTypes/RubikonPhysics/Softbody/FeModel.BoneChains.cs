@@ -1139,9 +1139,24 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// extruded rings occupies, which is the order the compiler lays their simulated nodes out in.
         /// A chain with no simulated node is ordered by its lowest static node instead.
         /// </summary>
-        public List<BoneChain> BuildBoneChains()
+        public List<BoneChain> BuildBoneChains() => BuildBoneChains(null, null);
+
+        /// <summary>
+        /// Reconstructs the bone chains as <see cref="BuildBoneChains()"/> does, and declares a merged root twice where
+        /// its sub-chains were staged at two versions and <paramref name="chainVersion"/> reads the merged declaration as
+        /// version 1.
+        /// </summary>
+        /// <param name="chainVersion">The <c>ClothChain</c> version a chain reads as, given whether the model declares another chain.</param>
+        public List<BoneChain> BuildBoneChains(Func<BoneChain, bool, int> chainVersion) => BuildBoneChains(chainVersion, null);
+
+        /// <summary>
+        /// Builds the chains with each root bone <paramref name="ringlessKids"/> names declared twice: once
+        /// extruding it over its other children, and once restating it ringless over the children listed.
+        /// </summary>
+        List<BoneChain> BuildBoneChains(Func<BoneChain, bool, int>? chainVersion, Dictionary<int, HashSet<int>>? ringlessKids)
         {
             var chains = new List<BoneChain>();
+            var mergedChains = new List<BoneChain>();
 
             Vector3 ExtrudeOrigin(int node)
                 => ChainExtrudeOrigins is { } origins && node < CtrlNames.Length
@@ -1618,6 +1633,13 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                     : new List<(List<int> Kids, bool RinglessRoot)> { (rootKids, false) };
 
                 SplitGroupsByFitSet(rootNode, groups);
+
+                if (ringlessKids is not null && ringlessKids.TryGetValue(rootNode, out var versionRingless)
+                    && groups.Count == 1 && groups[0].Kids.Count == rootKids.Count)
+                {
+                    groups = [(rootKids.FindAll(kid => !versionRingless.Contains(kid)), false),
+                        (rootKids.FindAll(versionRingless.Contains), true)];
+                }
 
                 if (groups.Count == 1 && groups[0].Kids.Count == rootKids.Count)
                 {
@@ -2817,6 +2839,16 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
 
                 chainFirstSimulated[chain] = firstSimulated;
                 chains.Add(chain);
+                if (spec.ChildrenOf is null && spec.RingOf is null && !ringlessRoot)
+                {
+                    mergedChains.Add(chain);
+                }
+            }
+
+            if (ringlessKids is null && chainVersion is not null
+                && VersionSplitRoots(mergedChains, chainVersion, chains.Count > 1) is { Count: > 0 } splits)
+            {
+                return BuildBoneChains(chainVersion, splits);
             }
 
             return [.. chains.OrderBy(ChainFirstNode)];
