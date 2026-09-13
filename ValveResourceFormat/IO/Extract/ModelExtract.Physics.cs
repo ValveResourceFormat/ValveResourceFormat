@@ -38,30 +38,74 @@ partial class ModelExtract
         rootChildren.Add(jointList.Node);
 
         // Geometry alone does not preserve the mass and damping that make the articulated bodies stable.
-        var existingMarkupBones = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        var existingMarkups = model?.KeyValues.GetSubCollection("CPhysicsBodyGameMarkupData")?.GetSubCollection("m_PhysicsBodyMarkupByBoneName");
-        if (existingMarkups != null)
-        {
-            foreach (var (boneName, _) in existingMarkups)
-            {
-                existingMarkupBones.Add(boneName!);
-            }
-        }
-
+        var bodyMarkups = new Dictionary<string, KVObject>(StringComparer.OrdinalIgnoreCase);
         var markupList = MakeListNode("PhysicsBodyMarkupList");
         var parts = physAggregateData.Data.GetArray("m_parts");
         for (var i = 0; i < parts.Count; i++)
         {
             var bodyName = physAggregateData.GetParentBoneName(i);
-            if (!string.IsNullOrEmpty(bodyName) && existingMarkupBones.Add(bodyName))
+            if (!string.IsNullOrEmpty(bodyName) && !bodyMarkups.ContainsKey(bodyName))
             {
-                markupList.Children.Add(BuildPhysicsBodyMarkup(parts[i], bodyName));
+                var markup = BuildPhysicsBodyMarkup(parts[i], bodyName);
+                bodyMarkups.Add(bodyName, markup);
+                markupList.Children.Add(markup);
             }
         }
 
         if (markupList.Children.Count > 0)
         {
+            MergePhysicsBodyGameMarkup(rootChildren, bodyMarkups);
             rootChildren.Add(markupList.Node);
+        }
+    }
+
+    private static void MergePhysicsBodyGameMarkup(KVObject rootChildren, Dictionary<string, KVObject> bodyMarkups)
+    {
+        foreach (var (_, list) in rootChildren)
+        {
+            if (list.GetStringProperty("_class") != "GameDataList")
+            {
+                continue;
+            }
+
+            var children = KVObject.Array();
+            foreach (var entry in list.GetArray("children"))
+            {
+                if (entry.GetStringProperty("_class") == "GenericGameData"
+                    && entry.GetStringProperty("game_class") == "CPhysicsBodyGameMarkupData")
+                {
+                    var keys = entry.GetSubCollection("game_keys");
+                    var markups = keys.GetSubCollection("m_PhysicsBodyMarkupByBoneName");
+                    if (markups != null)
+                    {
+                        var remaining = KVObject.Collection();
+                        foreach (var (name, markup) in markups)
+                        {
+                            var target = markup.GetStringProperty("m_TargetBody", name!);
+                            if (bodyMarkups.TryGetValue(target, out var body))
+                            {
+                                AddIfPresent(body, "tag", markup, "m_Tag");
+                            }
+                            else
+                            {
+                                remaining.Add(name!, markup);
+                            }
+                        }
+
+                        // ModelDoc regenerates these entries from PhysicsBodyMarkup nodes;
+                        // emitting both declarations would create duplicate target bodies.
+                        keys["m_PhysicsBodyMarkupByBoneName"] = remaining;
+                        if (remaining.Count == 0 && keys.Count == 1)
+                        {
+                            continue;
+                        }
+                    }
+                }
+
+                children.Add(entry);
+            }
+
+            list["children"] = children;
         }
     }
 
