@@ -1280,7 +1280,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             var count = proxy.Positions.Length;
             var geometric = GeometricNodeMasses();
             var paint = new float[count];
-            var painted = 0;
+            var painted = new List<(int Vertex, float Tolerance)>();
             var clamped = 0;
 
             for (var v = 0; v < count; v++)
@@ -1310,13 +1310,55 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                 }
 
                 paint[v] = MathF.Log(residual);
-                painted++;
+                painted.Add((v, (MathF.BitIncrement(invMass) - invMass) / (invMass * invMass) / residual));
             }
 
             // The exponential is present or absent for the whole mesh, so a handful of nodes claiming it
             // against a majority that cannot is a mis-predicted geometric term, not a paint layer.
-            return painted > clamped ? paint : null;
+            if (painted.Count <= clamped)
+            {
+                return null;
+            }
+
+            if (UniformMassPaint([.. painted.Select(p => (paint[p.Vertex], p.Tolerance))]) is { } shared)
+            {
+                foreach (var (vertex, _) in painted)
+                {
+                    paint[vertex] = shared;
+                }
+            }
+
+            return paint;
         }
+
+        /// <summary>
+        /// The one value a sheet's <c>cloth_mass</c> paint readings share, or null when they differ. Each reading
+        /// carries the paint change one float32 step of the inverse mass it was read from makes; readings that
+        /// all lie within <see cref="UniformMassPaintSteps"/> of those steps of their median were painted with
+        /// one value, and the median is returned for every one of them. The compiler divides each face rod's
+        /// endpoint weights by the endpoints' mass biases, so only a shared value gives such a rod its exact 0.5.
+        /// </summary>
+        internal static float? UniformMassPaint(IReadOnlyList<(float Value, float Tolerance)> readings)
+        {
+            if (readings.Count < 2)
+            {
+                return null;
+            }
+
+            var sorted = readings.Select(static reading => reading.Value).Order().ToList();
+            var median = sorted[(sorted.Count - 1) / 2];
+            foreach (var (value, tolerance) in readings)
+            {
+                if (MathF.Abs(value - median) > UniformMassPaintSteps * tolerance)
+                {
+                    return null;
+                }
+            }
+
+            return median;
+        }
+
+        const float UniformMassPaintSteps = 16f;
 
         /// <summary>
         /// The face rods of the authored proxy faces this node set covers, as
