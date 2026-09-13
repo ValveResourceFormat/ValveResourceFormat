@@ -31,7 +31,7 @@ public readonly struct BarnLightCullVolume
 /// </remarks>
 public sealed class TiledCullFeeder
 {
-    /// <summary>Item classes culled together in one dispatch. Batch 2 is reserved for light probe volumes.</summary>
+    /// <summary>Item classes culled together in one dispatch.</summary>
     public const int BatchCount = 3;
 
     /// <summary>Batch index holding barn light faces.</summary>
@@ -39,6 +39,9 @@ public sealed class TiledCullFeeder
 
     /// <summary>Batch index holding environment map probes.</summary>
     public const int BatchEnvMaps = 1;
+
+    /// <summary>Batch index holding light probe volumes. Only probe atlas scenes fill it.</summary>
+    public const int BatchLightProbes = 2;
 
     /// <summary>Items per mask. Batches pad up to a whole number of these so no word spans two batches.</summary>
     public const int ItemsPerMask = 32;
@@ -185,6 +188,9 @@ public sealed class TiledCullFeeder
         Debug.Assert(BarnLightConstants.MAX_BARN_LIGHTS <= MaxItemsPerBatch,
             $"Barn light faces must fit the {MaxItemsPerBatch} slot batch stride");
 
+        Debug.Assert(LightProbeVolumeArray.MAX_PROBES <= MaxItemsPerBatch,
+            $"Light probe volumes must fit the {MaxItemsPerBatch} slot batch stride");
+
         this.tileCols = tileCols;
         this.tileRows = tileRows;
         this.depthBins = depthBins;
@@ -227,14 +233,18 @@ public sealed class TiledCullFeeder
     /// </remarks>
     /// <param name="barnLights">Barn light faces the shading pass will iterate.</param>
     /// <param name="envMaps">Env map probes the shading pass will iterate.</param>
-    public void AddCounts(int barnLights, int envMaps)
+    /// <param name="lightProbes">Light probe volumes the shading pass will iterate.</param>
+    public void AddCounts(int barnLights, int envMaps, int lightProbes)
     {
         batchItemCount[BatchBarnLights] = Math.Min(barnLights, MaxItemsPerBatch);
         batchItemCount[BatchEnvMaps] = Math.Min(envMaps, MaxItemsPerBatch);
+        batchItemCount[BatchLightProbes] = Math.Min(lightProbes, MaxItemsPerBatch);
 
         // Nothing was projected, so nothing was rejected either: every slot reaches every tile.
-        batchBinnedCount[BatchBarnLights] = batchItemCount[BatchBarnLights];
-        batchBinnedCount[BatchEnvMaps] = batchItemCount[BatchEnvMaps];
+        for (var batch = 0; batch < BatchCount; batch++)
+        {
+            batchBinnedCount[batch] = batchItemCount[batch];
+        }
     }
 
     /// <summary>
@@ -315,8 +325,6 @@ public sealed class TiledCullFeeder
             items[first + i] = RejectAll;
         }
 
-        Span<Vector3> corners = stackalloc Vector3[8];
-
         foreach (var envMap in envMaps)
         {
             var index = envMap.ShaderIndex;
@@ -326,21 +334,7 @@ public sealed class TiledCullFeeder
                 continue;
             }
 
-            var bounds = envMap.LocalBoundingBox;
-            var boundsMin = bounds.Min - new Vector3(EnvMapCullExtend);
-            var boundsMax = bounds.Max + new Vector3(EnvMapCullExtend);
-
-            for (var corner = 0; corner < 8; corner++)
-            {
-                var local = new Vector3(
-                    (corner & 1) != 0 ? boundsMax.X : boundsMin.X,
-                    (corner & 2) != 0 ? boundsMax.Y : boundsMin.Y,
-                    (corner & 4) != 0 ? boundsMax.Z : boundsMin.Z);
-
-                corners[corner] = Vector3.Transform(local, envMap.Transform);
-            }
-
-            var item = BuildItem(corners);
+            var item = BuildBoxItem(envMap.LocalBoundingBox, envMap.Transform, EnvMapCullExtend);
 
             items[first + index] = item;
             count = Math.Max(count, index + 1);
@@ -353,6 +347,57 @@ public sealed class TiledCullFeeder
 
         batchItemCount[BatchEnvMaps] = count;
         batchBinnedCount[BatchEnvMaps] = binned;
+    }
+
+    /// <summary>
+    /// Adds one item per light probe volume. Item <c>i</c> is volume <c>i</c>, whose shader index is also
+    /// its priority, so the shading pass takes the lowest set bit whose volume contains the fragment.
+    /// </summary>
+    /// <param name="lightProbes">Volumes in shader index order.</param>
+    public void AddLightProbes(IReadOnlyList<SceneLightProbe> lightProbes)
+    {
+        var first = BatchLightProbes * MaxItemsPerBatch;
+        var count = Math.Min(lightProbes.Count, MaxItemsPerBatch);
+        var binned = 0;
+
+        for (var i = 0; i < count; i++)
+        {
+            var lightProbe = lightProbes[i];
+            Debug.Assert(lightProbe.ShaderIndex == i);
+
+            // The shader's containment test is exact, so the skin only has to cover float error
+            var item = BuildBoxItem(lightProbe.LocalBoundingBox, lightProbe.Transform, EnvMapCullExtend);
+
+            items[first + i] = item;
+
+            if (!IsRejected(item))
+            {
+                binned++;
+            }
+        }
+
+        batchItemCount[BatchLightProbes] = count;
+        batchBinnedCount[BatchLightProbes] = binned;
+    }
+
+    private CullItem BuildBoxItem(AABB localBounds, in Matrix4x4 localToWorld, float extend)
+    {
+        Span<Vector3> corners = stackalloc Vector3[8];
+
+        var boundsMin = localBounds.Min - new Vector3(extend);
+        var boundsMax = localBounds.Max + new Vector3(extend);
+
+        for (var corner = 0; corner < 8; corner++)
+        {
+            var local = new Vector3(
+                (corner & 1) != 0 ? boundsMax.X : boundsMin.X,
+                (corner & 2) != 0 ? boundsMax.Y : boundsMin.Y,
+                (corner & 4) != 0 ? boundsMax.Z : boundsMin.Z);
+
+            corners[corner] = Vector3.Transform(local, localToWorld);
+        }
+
+        return BuildItem(corners);
     }
 
     /// <summary>

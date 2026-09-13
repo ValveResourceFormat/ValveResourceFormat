@@ -22,6 +22,11 @@ layout(binding = 6, std140) uniform LightCullConstants
     uint g_nEnvMapCount;
     uint _lightCullPadding0;
 
+    uint g_nLightProbeTileBase;
+    uint g_nLightProbeBinBase;
+    uint g_nLightProbeCullWords;
+    uint g_nLightProbeCount;
+
     vec4 g_vLightDepthSliceParams;
     vec4 g_vLightCullPixelRemap;
 
@@ -141,6 +146,17 @@ uint GetCullLiveMask(uint word, uint count)
 uint GetEnvMapLiveMask(uint word)
 {
     return GetCullLiveMask(word, g_nEnvMapCount);
+}
+
+CullMasks_t GetLightProbeCullMasks(vec3 positionWs)
+{
+    return MakeCullMasks(GetCullLookupCached(positionWs),
+                         g_nLightProbeTileBase, g_nLightProbeBinBase, g_nLightProbeCullWords);
+}
+
+uint GetLightProbeLiveMask(uint word)
+{
+    return GetCullLiveMask(word, g_nLightProbeCount);
 }
 
 uint GetCullMaskWord(CullMasks_t masks, uint word)

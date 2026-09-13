@@ -2213,6 +2213,9 @@ namespace ValveResourceFormat.Renderer
             }
         }
 
+        internal IReadOnlyList<SceneLightProbe> ProbeAtlasVolumes
+            => LightingInfo.LightProbeType == LightProbeType.ProbeAtlas && boundLightProbes != null ? boundLightProbes : [];
+
         /// <summary>
         /// Returns the best probe volume containing the given position, or <see langword="null"/> when
         /// none does.

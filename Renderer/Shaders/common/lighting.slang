@@ -5,6 +5,8 @@
 
 #include "features.slang"
 
+#include "light_cull.slang"
+
 #define S_SCENE_PROBE_TYPE 0 // 1 = Individual, 2 = Atlas
 
 #define renderMode_Illumination 0
@@ -224,8 +226,7 @@ void CalculateDirectLighting(inout LightingTerms_t lighting, inout MaterialPrope
         #if (D_BAKED_LIGHTING_FROM_LIGHTMAP == 1)
             dlsh = textureLod(g_tDirectLightShadows, mat.LightmapUv, 0.0);
         #elif (D_BAKED_LIGHTING_FROM_PROBE == 1)
-            vec3 vLightProbeShadowCoords = CalculateProbeShadowCoords(mat.PositionWS);
-            dlsh = textureLod(g_tLPV_Shadows, vLightProbeShadowCoords, 0.0);
+            dlsh = SampleProbeDirectLightShadows(mat.PositionWS);
         #endif
 
         CalculateSunLighting(lighting, mat, saturate(1.0 - dot(dlsh, g_vSunLightBakedShadowMask)));

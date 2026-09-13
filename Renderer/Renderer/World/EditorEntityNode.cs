@@ -58,7 +58,7 @@ internal static class EditorEntityNode
 
         if (resource == null)
         {
-            var color = hammerEntity?.Color ?? new Color32(255, 0, 255, 255);
+            var color = hammerEntity?.Color ?? new Color32(128, 0, 128, 255);
 
             // Do not use transform because scales need to be ignored
             EntityTransformHelper.GetTransformComponents(entity, out _, out var rotationMatrix, out var positionVector);

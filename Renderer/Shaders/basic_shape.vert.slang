@@ -6,6 +6,8 @@ in vec4 vCOLOR;
 out vec4 vtxColor;
 out vec3 vtxNormal;
 out vec3 vtxPos;
+out vec3 vtxPosWs;
+out vec3 vtxNormalWs;
 
 out vec3 camPos;
 
@@ -19,5 +21,9 @@ void main(void) {
 
     camPos = g_vCameraPositionWs;
 
-    gl_Position = g_matWorldToProjection * vec4(vec4(vPOSITION, 1.0) * CalculateObjectToWorldMatrix(), 1.0);
+    mat3x4 objectToWorld = CalculateObjectToWorldMatrix();
+    vtxPosWs = vec4(vPOSITION, 1.0) * objectToWorld;
+    vtxNormalWs = vec4(vNORMAL, 0.0) * objectToWorld;
+
+    gl_Position = g_matWorldToProjection * vec4(vtxPosWs, 1.0);
 }

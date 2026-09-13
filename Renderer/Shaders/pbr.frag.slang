@@ -222,6 +222,8 @@ vec2 GetAlbedoTexCoord()
 
 #else
 
+#define ENABLE_LPV_BLENDING
+
 // Must be last
 #include "common/lighting.slang"
 

@@ -111,15 +111,16 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             renderShader.SetUniform3x4("transform", Transform);
             renderShader.SetBoneAnimationData(false);
 
-            renderShader.SetUniform("g_bNormalShaded", true);
             renderShader.SetUniform("g_bTriplanarMapping", false);
 
             VertexArray.Bind(vao, renderShader);
 
             using var _ = GraphicsContext.RenderState.Scope(depthBias: 96, depthBiasClamp: 0.0005f);
 
+            renderShader.SetUniform("g_bNormalShaded", false);
             GL.DrawElements(PrimitiveType.Lines, indexCount - triangleIndexCount, DrawElementsType.UnsignedInt, triangleIndexCount * sizeof(int));
 
+            renderShader.SetUniform("g_bNormalShaded", true);
             GL.DrawElementsInstancedBaseInstance(PrimitiveType.Triangles, triangleIndexCount, DrawElementsType.UnsignedInt, 0, 1, Id);
 
         }

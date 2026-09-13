@@ -41,6 +41,15 @@ namespace ValveResourceFormat.Renderer.Buffers
         /// <summary>Padding to maintain 16-byte struct alignment.</summary>
         public uint _Padding0;
 
+        /// <summary>First word of the light probe volume tile mask region.</summary>
+        public uint LightProbeTileBase;
+        /// <summary>First word of the light probe volume depth bin mask region.</summary>
+        public uint LightProbeBinBase;
+        /// <summary>Words per light probe volume tile and bin mask this frame.</summary>
+        public uint LightProbeCullWords;
+        /// <summary>Light probe volume slots the shading pass may iterate. Zero outside probe atlas scenes.</summary>
+        public uint LightProbeCount;
+
         /// <summary>Depth slice mapping: X slices per world unit, Y the last slice index.</summary>
         public Vector4 LightDepthSliceParams;
 

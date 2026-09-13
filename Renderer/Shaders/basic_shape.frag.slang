@@ -5,6 +5,18 @@
 #include "common/ViewConstants.slang"
 #include "common/fog.slang"
 
+#include "common/features.slang"
+
+#define S_SCENE_PROBE_TYPE 0 // 1 = Individual, 2 = Atlas
+
+#if (D_BAKED_LIGHTING_FROM_PROBE == 1 && S_SCENE_PROBE_TYPE == 2)
+    #define ENABLE_LPV_BLENDING
+
+    #include "common/LightingConstants.slang"
+    #include "common/lighting.lpv.slang"
+    #include "common/shadowmapping.slang"
+#endif
+
 #define renderMode_Color 0
 #define renderMode_Normals 0
 #define renderMode_VertexColor 0
@@ -12,6 +24,8 @@
 in vec4 vtxColor;
 in vec3 vtxNormal;
 in vec3 vtxPos;
+in vec3 vtxPosWs;
+in vec3 vtxNormalWs;
 in vec3 camPos;
 
 out vec4 outputColor;
@@ -46,7 +60,8 @@ void main(void)
 
     if(g_bNormalShaded)
     {
-        vec3 viewDir = normalize(camPos - vtxPos);
+        vec3 normalWs = normalize(vtxNormalWs);
+        vec3 viewDir = normalize(camPos - vtxPosWs);
 
         if (g_bTriplanarMapping)
         {
@@ -55,7 +70,29 @@ void main(void)
             toolTexture = outputColor.rgb;
         }
 
-        vec3 lighting = CalculateFullbrightLighting(outputColor.rgb, vtxNormal, viewDir);
+        vec3 lighting = CalculateFullbrightLighting(outputColor.rgb, normalWs, viewDir);
+
+        #if (D_BAKED_LIGHTING_FROM_PROBE == 1 && S_SCENE_PROBE_TYPE == 2)
+            if (g_iRenderMode != renderMode_FullBright)
+            {
+                vec3 irradiance = SampleProbeAmbientCube(CalculateProbeIndirectCoords(vtxPosWs), normalWs);
+
+                float NoL = max(dot(normalWs, g_vSunDirection.xyz), 0.0);
+                float sunVisibility = saturate(1.0 - dot(SampleProbeDirectLightShadows(vtxPosWs), g_vSunLightBakedShadowMask));
+
+                if (NoL * sunVisibility > 0.0)
+                {
+                    sunVisibility *= CalculateSunShadowMapVisibility(vtxPosWs);
+                }
+
+                vec3 sun = g_vSunColor.rgb * NoL * sunVisibility;
+
+                float axisLight = mix(1.0, GetFullbrightAxisLight(normalWs), 0.5);
+
+                lighting = outputColor.rgb * (irradiance * 0.5 + sun) * axisLight;
+            }
+        #endif
+
         outputColor = vec4(lighting, vtxColor.a);
     }
     else if (!gl_FrontFacing)
@@ -63,7 +100,7 @@ void main(void)
         outputColor.rgba *= 0.75;
     }
 
-    ApplyFog(outputColor.rgb, vtxPos);
+    ApplyFog(outputColor.rgb, vtxPosWs);
 
     if (g_iRenderMode == renderMode_Color)
     {
@@ -71,7 +108,7 @@ void main(void)
     }
     else if (g_iRenderMode == renderMode_Normals)
     {
-        outputColor = vec4(PackToColor(vtxNormal), 1.0);
+        outputColor = vec4(PackToColor(normalize(vtxNormalWs)), 1.0);
     }
     else if (g_iRenderMode == renderMode_VertexColor)
     {

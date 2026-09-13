@@ -48,7 +48,8 @@ namespace ValveResourceFormat.Renderer.SceneNodes
 
         private ShapeSceneNode(Scene scene) : base(scene)
         {
-            shader = Scene.RendererContext.ShaderLoader.LoadShader("basic_shape");
+            shader = Scene.RendererContext.ShaderLoader.LoadShader("basic_shape", scene.RenderAttributes);
+            shader = shader.WithCombo("D_BAKED_LIGHTING_FROM_PROBE", scene.LightingInfo.HasValidLightProbes ? (byte)1 : (byte)0);
         }
 
         internal ShapeSceneNode(Scene scene, List<SimpleVertexNormal> verts, List<int> inds) : this(scene)
@@ -61,8 +62,8 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         /// </summary>
         internal ShapeSceneNode(Scene scene, Vector3 minBounds, Vector3 maxBounds, Color32 color) : this(scene)
         {
-            var verts = new List<SimpleVertexNormal>(8);
-            var inds = new List<int>(8 * 9);
+            var verts = new List<SimpleVertexNormal>(6 * 4);
+            var inds = new List<int>(6 * 6);
             AddBox(verts, inds, minBounds, maxBounds, color);
 
             LocalBoundingBox = new AABB(minBounds, maxBounds);
@@ -115,13 +116,6 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             var iboHandle = GraphicsDevice.CreateBuffer<int>(label, CollectionsMarshal.AsSpan(inds), BufferUsage.Static);
 
             vao = SimpleVertexNormal.InputLayout.CreateVertexArray(nameof(ShapeSceneNode), vboHandle, iboHandle);
-        }
-
-        /// <summary>Appends two triangles forming a quad face from four vertex indices.</summary>
-        protected static void AddFace(List<int> inds, int a, int b, int c, int d)
-        {
-            AddTriangle(inds, 0, a, b, c);
-            AddTriangle(inds, 0, c, d, a);
         }
 
         /// <summary>Appends capsule geometry (two hemispheres and a cylinder band) to the given vertex and index lists.</summary>
@@ -228,35 +222,42 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         /// <summary>Appends solid box geometry to the given vertex and index lists.</summary>
         protected static void AddBox(List<SimpleVertexNormal> verts, List<int> inds, Vector3 minBounds, Vector3 maxBounds, Color32 color)
         {
-            Span<SimpleVertexNormal> boxVertices =
+            Span<Vector3> corners =
             [
-                new(new(minBounds.X, minBounds.Y, minBounds.Z), color),
-                new(new(minBounds.X, minBounds.Y, maxBounds.Z), color),
-                new(new(minBounds.X, maxBounds.Y, maxBounds.Z), color),
-                new(new(minBounds.X, maxBounds.Y, minBounds.Z), color),
+                new(minBounds.X, minBounds.Y, minBounds.Z),
+                new(minBounds.X, minBounds.Y, maxBounds.Z),
+                new(minBounds.X, maxBounds.Y, maxBounds.Z),
+                new(minBounds.X, maxBounds.Y, minBounds.Z),
 
-                new(new(maxBounds.X, minBounds.Y, minBounds.Z), color),
-                new(new(maxBounds.X, minBounds.Y, maxBounds.Z), color),
-                new(new(maxBounds.X, maxBounds.Y, maxBounds.Z), color),
-                new(new(maxBounds.X, maxBounds.Y, minBounds.Z), color)
+                new(maxBounds.X, minBounds.Y, minBounds.Z),
+                new(maxBounds.X, minBounds.Y, maxBounds.Z),
+                new(maxBounds.X, maxBounds.Y, maxBounds.Z),
+                new(maxBounds.X, maxBounds.Y, minBounds.Z),
             ];
 
-            // calculate box normals
-            var center = (minBounds + maxBounds) / 2f;
-            for (var i = 0; i < boxVertices.Length; i++)
+            ReadOnlySpan<(int A, int B, int C, int D, Vector3 Normal)> faces =
+            [
+                (0, 1, 2, 3, -Vector3.UnitX),
+                (1, 5, 6, 2, Vector3.UnitZ),
+                (5, 4, 7, 6, Vector3.UnitX),
+                (0, 3, 7, 4, -Vector3.UnitZ),
+                (3, 2, 6, 7, Vector3.UnitY),
+                (1, 0, 4, 5, -Vector3.UnitY),
+            ];
+
+            // Faces do not share corners, so each keeps a flat normal instead of blending into its neighbours
+            foreach (var (a, b, c, d, normal) in faces)
             {
-                var normalFromBoxCenter = Vector3.Normalize(boxVertices[i].Position - center);
-                boxVertices[i].Normal = normalFromBoxCenter;
+                var baseVertex = verts.Count;
+
+                verts.Add(new(corners[a], color, normal));
+                verts.Add(new(corners[b], color, normal));
+                verts.Add(new(corners[c], color, normal));
+                verts.Add(new(corners[d], color, normal));
+
+                AddTriangle(inds, baseVertex, 0, 1, 2);
+                AddTriangle(inds, baseVertex, 2, 3, 0);
             }
-
-            verts.AddRange(boxVertices);
-
-            AddFace(inds, 0, 1, 2, 3);
-            AddFace(inds, 1, 5, 6, 2);
-            AddFace(inds, 5, 4, 7, 6);
-            AddFace(inds, 0, 3, 7, 4);
-            AddFace(inds, 3, 2, 6, 7);
-            AddFace(inds, 1, 0, 4, 5);
         }
 
         /// <summary>Appends full sphere geometry (two hemispheres) to the given vertex and index lists.</summary>
@@ -375,6 +376,8 @@ namespace ValveResourceFormat.Renderer.SceneNodes
                 lineState.Rasterizer.FillMode = RsFillMode.Wireframe;
                 lineState.BlendEnable = false;
                 renderState.Apply(in lineState);
+
+                renderShader.SetUniform("g_bNormalShaded", false);
                 GL.DrawElements(PrimitiveType.Triangles, indexCount, DrawElementsType.UnsignedInt, 0);
 
                 // Triangles
@@ -385,6 +388,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
                 fillState.Rasterizer.DepthBias = 100;
                 fillState.Rasterizer.DepthBiasClamp = 0.05f;
                 renderState.Apply(in fillState);
+                renderShader.SetUniform("g_bNormalShaded", Shaded);
                 GL.DrawElementsInstancedBaseInstance(PrimitiveType.Triangles, indexCount, DrawElementsType.UnsignedInt, 0, 1, Id);
             }
             else

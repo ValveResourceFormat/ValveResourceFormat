@@ -204,6 +204,8 @@ uniform float g_flBorderRoughness2 = 0.5;
 #include "common/fog.slang"
 #include "common/citadel.slang"
 
+#define ENABLE_LPV_BLENDING
+
 // Must be last
 #include "common/lighting.slang"
 

@@ -2,6 +2,7 @@ using OpenTK.Graphics.OpenGL;
 using ValveResourceFormat.Particles;
 using ValveResourceFormat.Particles.Utils;
 using ValveResourceFormat.Renderer.SceneEnvironment;
+using ValveResourceFormat.Renderer.World;
 using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.Renderer.Particles.Renderers
@@ -345,7 +346,12 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                 return;
             }
 
-            lightProbe = scene.FindLightProbe(cablePosition) ?? OwnerNode?.LightProbeBinding;
+            if (scene.LightingInfo.LightProbeType == LightProbeType.IndividualProbes)
+            {
+                lightProbe = scene.FindLightProbe(cablePosition);
+            }
+
+            lightProbe ??= OwnerNode?.LightProbeBinding;
         }
 
         private bool GeometryChanged(ReadOnlySpan<Vector3> positions, ReadOnlySpan<int> levels, ReadOnlySpan<float> radii, ReadOnlySpan<Vector3> colors)
