@@ -82,9 +82,17 @@ public class BaseEntity
     /// </summary>
     public BaseEntity? MoveParent { get; private set; }
 
+    /// <summary>
+    /// Gets whether <see cref="ResolveMoveParent"/> has run and whether
+    /// empty MoveParent means it has not yet been resolved or there's no parent.
+    /// </summary>
+    internal bool IsMoveParentResolved { get; private set; }
+
     /// <summary>Resolves <c>parentname</c> once everything has spawned; the loader parents plain scene nodes itself.</summary>
     internal void ResolveMoveParent()
     {
+        IsMoveParentResolved = true;
+
         var parentName = Data?.GetStringProperty("parentname");
 
         if (string.IsNullOrEmpty(parentName))

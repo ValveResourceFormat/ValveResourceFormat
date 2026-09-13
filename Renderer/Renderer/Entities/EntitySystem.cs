@@ -211,12 +211,7 @@ public sealed class EntitySystem
         // Move parents first, so every entity activates seeing the finished hierarchy
         for (var i = activatedCount; i < entities.Count; i++)
         {
-            entities[i].ResolveMoveParent();
-
-            if (entities[i].MoveParent != null)
-            {
-                parented.Add(entities[i]);
-            }
+            ResolveMoveParentChain(entities[i]);
         }
 
         for (var i = activatedCount; i < entities.Count; i++)
@@ -225,6 +220,27 @@ public sealed class EntitySystem
         }
 
         activatedCount = entities.Count;
+    }
+
+    /// <summary>
+    /// Resolves an entity's move parent and lists it in <see cref="parented"/> behind its whole parent
+    /// chain. Following is a per-tick delta off the parent, so a parent has to follow before anything
+    /// riding it does.
+    /// </summary>
+    private void ResolveMoveParentChain(BaseEntity entity)
+    {
+        if (entity.IsMoveParentResolved)
+        {
+            return;
+        }
+
+        entity.ResolveMoveParent();
+
+        if (entity.MoveParent is { } parent)
+        {
+            ResolveMoveParentChain(parent);
+            parented.Add(entity);
+        }
     }
 
     private int activatedCount;
