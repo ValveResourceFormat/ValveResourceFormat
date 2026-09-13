@@ -3929,5 +3929,61 @@ namespace Tests
                 await Assert.That(feModel.ClothNodeBasisPreset(5) is null).IsTrue();
             }
         }
+
+        /// <summary>
+        /// An effect authored under a static <c>ClothNode</c> records the node's root bone as its <c>Node</c> and keeps its
+        /// direction unrotated, so it is declared under the static node rooted on that bone, here inside a folder. An
+        /// AddGravity effect declares its <c>strength</c> and the <c>angles</c> of its direction. The controls are an
+        /// effect with no <c>Node</c> and one naming a bone whose only node is dynamic: both stay at the top level.
+        /// </summary>
+        [Test]
+        public async Task AnEffectRecordingANodeIsDeclaredUnderThatStaticClothNode()
+        {
+            var feModel = SyntheticCloth.Parse($$"""
+                {
+                    m_CtrlName = [ "spine_2", "coattail_0_L" ]
+                    m_SkelParents = [ -1, 0 ]
+                    m_nNodeCount = 2
+                    m_nStaticNodes = 2
+                    m_NodeInvMasses = [ 0.0, 0.0 ]
+                    m_InitPose = [ {{SyntheticCloth.Pose(0f, 0f, 0f)}} {{SyntheticCloth.Pose(0f, 0f, -10f)}} ]
+                    m_Effects =
+                    [
+                        { sName = "gravity0" nNameHash = 1 nType = 4 m_Params = { Node = 0 Strength = [ 0.353553, 0.353553, -0.0 ] } },
+                        { sName = "gravity1" nNameHash = 2 nType = 4 m_Params = { Strength = [ 0.0, 0.0, -2.0 ] } },
+                        { sName = "gravity2" nNameHash = 3 nType = 4 m_Params = { Node = 1 Strength = [ 1.0, 0.0, 0.0 ] } },
+                    ]
+                }
+                """);
+            var (folder, folderChildren) = KVHelpers.MakeListNode("Folder");
+            folderChildren.Add(EffectParentNode("spine_2", isStatic: true));
+            folderChildren.Add(EffectParentNode("coattail_0_L", isStatic: false));
+            var softbodyChildren = KVObject.Array();
+            softbodyChildren.Add(folder);
+
+            ModelExtract.AddClothEffects(softbodyChildren, feModel, new HashSet<string>());
+
+            var nested = folderChildren.ElementAt(0).Value.GetArray("children");
+            var top = softbodyChildren.Select(static child => child.Value).Skip(1).ToArray();
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(nested.Count).IsEqualTo(1);
+                await Assert.That(nested[0].GetStringProperty("_class")).IsEqualTo("ClothEffectAddGravity");
+                await Assert.That(nested[0].GetStringProperty("name")).IsEqualTo("gravity0");
+                await Assert.That(nested[0].GetFloatProperty("strength")).IsEqualTo(0.5f).Within(1e-5f);
+                await Assert.That(Vector3.Distance(nested[0].GetSubCollection("angles").ToVector3(), new Vector3(0f, 45f, 0f)))
+                    .IsLessThan(1e-3f);
+                await Assert.That(top.Select(static child => child.GetStringProperty("name")).ToArray())
+                    .IsEquivalentTo(["gravity1", "gravity2"], CollectionOrdering.Matching);
+                await Assert.That(top[0].GetFloatProperty("strength")).IsEqualTo(2f).Within(1e-5f);
+                await Assert.That(Vector3.Distance(top[0].GetSubCollection("angles").ToVector3(), new Vector3(90f, 0f, 0f)))
+                    .IsLessThan(1e-3f);
+                await Assert.That(folderChildren.ElementAt(1).Value.ContainsKey("children")).IsFalse();
+            }
+        }
+
+        private static KVObject EffectParentNode(string bone, bool isStatic) => KVHelpers.MakeNode("ClothNode",
+            ("name", bone), ("cloth_node_root_bone", bone), ("is_static_node", isStatic));
     }
 }
