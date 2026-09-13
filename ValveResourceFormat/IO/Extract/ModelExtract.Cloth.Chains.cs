@@ -10,6 +10,10 @@ partial class ModelExtract
     // An unrolled proxy ring sits on the joint frame's +Y, so an authored twist counts down from 90 degrees.
     const float ClothExtrudeTwistBase = 90f;
 
+    // A twist a static chain root authored compiles to the same pair of relaxation-free entries at every
+    // value above zero, so the re-declaration names the top of the key's range.
+    const float ClothStaticRootTwistRelax = 1f;
+
     static KVObject MakeClothChainNode(FeModel feModel, FeModel.BoneChain chain, bool hasOtherChains,
         IReadOnlyList<FeModel.BoneChainJoint>? walk = null)
     {
@@ -192,7 +196,7 @@ partial class ModelExtract
             ("chain", chainData));
     }
 
-    static KVObject MakeClothJoint(FeModel feModel, FeModel.BoneChainJoint joint, bool chainExtrudes = false,
+    internal static KVObject MakeClothJoint(FeModel feModel, FeModel.BoneChainJoint joint, bool chainExtrudes = false,
         bool softHinge = false)
     {
         var kv = KVObject.Collection();
@@ -228,6 +232,14 @@ partial class ModelExtract
         // is pinned into the static block by lock_translation rather than by simulate = false.
         var pinnedSimulatedRoot = joint.IsRoot && !joint.Simulated && twistRelax > 0f;
         kv.Add("simulate", joint.Simulated || pinnedSimulatedRoot);
+
+        // A static root's own entries carry no relaxation at all, so its authored twist_relax survives
+        // only as the twist link it made. The magnitude is gone with it: every value above zero compiles
+        // the same pair of entries, so the largest one stands for the key being set.
+        if (twistRelax == 0f && joint.IsRoot && !joint.Simulated && feModel.HasRelaxlessTwistLink(joint.Node))
+        {
+            twistRelax = ClothStaticRootTwistRelax;
+        }
 
         // Only a static node carries a rotation lock.
         if (joint.Node < feModel.StaticNodeCount)

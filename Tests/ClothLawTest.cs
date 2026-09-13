@@ -3377,5 +3377,62 @@ namespace Tests
         private static string VertexMapEntry(string name, uint hash, int offset, int vertexBase, int count, float volumetric = 0f)
             => $"{{ sName = \"{name}\" nNameHash = {hash} nVertexBase = {vertexBase} nVertexCount = {count} nMapOffset = {offset} "
                 + $"vCenterOfMass = [ 0.0, 0.0, 0.0 ] flVolumetricSolveStrength = {SyntheticCloth.Num(volumetric)} nScaleSourceNode = -1 }},";
+
+        /// <summary>
+        /// A twist link a STATIC chain root authored carries no relaxation in either direction: the
+        /// compiler scales an entry by the orient node's own value only where that node simulates. The
+        /// control is the same link made by the simulated child instead, whose own entry carries
+        /// 0.5 * 0.618 = 0.309.
+        /// </summary>
+        [Test]
+        public async Task ARelaxlessTwistLinkIsTheStaticEndsOwnTwist()
+        {
+            var rootAuthored = TwistPair("0.0", "0.0");
+            var childAuthored = TwistPair("0.0", "0.309");
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(rootAuthored.HasRelaxlessTwistLink(0)).IsTrue();
+                await Assert.That(childAuthored.HasRelaxlessTwistLink(0)).IsFalse();
+                await Assert.That(childAuthored.GetAuthoredTwistRelax(1, 0, -1)).IsEqualTo(0.5f).Within(1e-4f);
+            }
+        }
+
+        /// <summary>
+        /// The static root's own twist_relax is re-declared at the top of the key's range, since every
+        /// value above zero compiles the same pair of entries, and the root stays unsimulated: only a
+        /// root carrying a non-zero entry of its own is one the source simulated and pinned.
+        /// </summary>
+        [Test]
+        public async Task AStaticRootRedeclaresTheTwistItsLinkRecords()
+        {
+            var root = ModelExtract.MakeClothJoint(TwistPair("0.0", "0.0"), StaticRootJoint());
+            var control = ModelExtract.MakeClothJoint(TwistPair("0.0", "0.309"), StaticRootJoint());
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(root.GetFloatProperty("twist_relax")).IsEqualTo(1f);
+                await Assert.That(root.GetBooleanProperty("simulate")).IsFalse();
+                await Assert.That(control.GetFloatProperty("twist_relax")).IsEqualTo(0f);
+            }
+        }
+
+        private static FeModel.BoneChainJoint StaticRootJoint()
+            => new() { Name = "coattail_0_L", Node = 0, ParentNode = -1, InvMass = 0f };
+
+        private static FeModel TwistPair(string toChild, string toRoot) => SyntheticCloth.Parse($$"""
+            {
+                m_CtrlName = [ "coattail_0_L", "coattail_1_L" ]
+                m_SkelParents = [ -1, 0 ]
+                m_nNodeCount = 2
+                m_nStaticNodes = 1
+                m_NodeInvMasses = [ 0.0, 1.0 ]
+                m_Twists =
+                [
+                    { nNodeOrient = 0 nNodeEnd = 1 flTwistRelax = {{toChild}} flSwingRelax = 1.0 },
+                    { nNodeOrient = 1 nNodeEnd = 0 flTwistRelax = {{toRoot}} flSwingRelax = 0.0 },
+                ]
+            }
+            """);
     }
 }
