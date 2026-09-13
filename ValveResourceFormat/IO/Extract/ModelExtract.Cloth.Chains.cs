@@ -90,6 +90,12 @@ partial class ModelExtract
             version = 0;
         }
 
+        // A joint only the version-1 fit top-up gives a group to, carrying none, was staged at version 0.
+        if (version == 1 && feModel.ChainHasUnstagedThinJoint(chain))
+        {
+            version = 0;
+        }
+
         chainData.Add("version", version);
 
         var chainNode = MakeNode("ClothChain",

@@ -156,6 +156,69 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         }
 
         /// <summary>
+        /// Whether <paramref name="chain"/> has a simulated non-root joint whose fit-influence adjacency table
+        /// holds one or two entries and that owns no fit group, while no joint of the chain shows a version-1
+        /// staging. The compiler drops every influence whose matrix node's table holds fewer than three
+        /// entries, and only a chain of version 1 or above first tops such a table up from the joint's parent,
+        /// so the joint then always owns a reverse offset, a lock or a fit matrix. A joint's table is itself and
+        /// its own numbered ring nodes once it has any, plus its children's. A simulated leaf with a two-node
+        /// ring also loses its group at version 0, so one that owns a group rules version 0 out as well; one
+        /// without is not read. Version 2 leaves a thin joint without a group too, so a true result separates
+        /// version 0 from version 1 only. A hinged joint is preset at every version and is not read.
+        /// </summary>
+        public bool ChainHasUnstagedThinJoint(BoneChain chain)
+        {
+            var reverseOffsetBones = new HashSet<int>();
+            foreach (var entry in Data.GetArray("m_ReverseOffsets") ?? [])
+            {
+                reverseOffsetBones.Add(entry.GetInt32Property("nBoneCtrl"));
+            }
+
+            var unstaged = false;
+            for (var i = 1; i < chain.Joints.Count; i++)
+            {
+                var joint = chain.Joints[i];
+                if (joint.Node < StaticNodeCount || IsHingedJoint(joint.Node) || RigidHingeJoints.ContainsKey(joint.Node))
+                {
+                    continue;
+                }
+
+                var own = NumberedRingCount(joint.Node);
+                var table = own > 0 ? 1 + own : 0;
+                var leaf = true;
+                foreach (var child in chain.Joints)
+                {
+                    if (child.ParentNode == joint.Node)
+                    {
+                        table += NumberedRingCount(child.Node);
+                        leaf = false;
+                    }
+                }
+
+                var grouped = reverseOffsetBones.Contains(joint.Node) || IsLockedToGoal(joint.Node)
+                    || IsLockedToParent(joint.Node) || FitMatrixNodes.Contains(joint.Node);
+                if (table is >= 1 and <= 2)
+                {
+                    if (grouped)
+                    {
+                        return false;
+                    }
+
+                    unstaged = true;
+                }
+                else if (grouped && leaf && own == 2)
+                {
+                    return false;
+                }
+            }
+
+            return unstaged;
+        }
+
+        int NumberedRingCount(int jointNode)
+            => ProxyRingOf(jointNode).Count(node => RingSuffixIndex(CtrlNames[node]) >= 0);
+
+        /// <summary>
         /// Rolls the extruded ring of a chain joint whose <c>m_NodeBases</c> axis scan is a numerical tie
         /// onto the axis pair the original kept, recording the roll in
         /// <see cref="BoneChainJoint.ExtrudeTwistTieNudge"/>.

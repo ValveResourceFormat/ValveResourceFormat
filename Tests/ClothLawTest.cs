@@ -3719,5 +3719,69 @@ namespace Tests
                 ]
             }
             """);
+
+        /// <summary>
+        /// From <c>chain.version</c> 1 on, the chain importer tops up a joint whose fit-influence table holds
+        /// one or two entries, so a one-wide chain's tip joint owns a fit group and compiles to a reverse
+        /// offset against its own ring node. At version 0 the tip's influences fall under the compiler's
+        /// three-entry floor and the record is missing, which is the only difference between the two
+        /// compiled synthetic originals. The controls are the version-1 original, which carries the record,
+        /// and the version-0 chain with a second, two-wide leaf: a version-0 compile drops that leaf's group
+        /// too, so a reverse offset on it rules version 0 out, while the same leaf without one says nothing.
+        /// </summary>
+        [Test]
+        public async Task AThinChainTipWithoutAReverseOffsetWasStagedAtVersionZero()
+        {
+            var versionZero = SyntheticCloth.Parse(ThinTipChain(tipRecord: false));
+            var versionOne = SyntheticCloth.Parse(ThinTipChain(tipRecord: true));
+            var stagedLeaf = SyntheticCloth.Parse(WithWideLeaf(ThinTipChain(tipRecord: false), leafRecord: true));
+            var unstagedLeaf = SyntheticCloth.Parse(WithWideLeaf(ThinTipChain(tipRecord: false), leafRecord: false));
+            var chainZero = versionZero.BuildBoneChains();
+            var chainOne = versionOne.BuildBoneChains();
+            var chainStaged = stagedLeaf.BuildBoneChains();
+            var chainUnstaged = unstagedLeaf.BuildBoneChains();
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(chainZero[0].Joints.Count).IsEqualTo(4);
+                await Assert.That(versionZero.ChainHasUnstagedThinJoint(chainZero[0])).IsTrue();
+                await Assert.That(versionOne.ChainHasUnstagedThinJoint(chainOne[0])).IsFalse();
+                await Assert.That(chainStaged[0].Joints.Count).IsEqualTo(5);
+                await Assert.That(stagedLeaf.ChainHasUnstagedThinJoint(chainStaged[0])).IsFalse();
+                await Assert.That(unstagedLeaf.ChainHasUnstagedThinJoint(chainUnstaged[0])).IsTrue();
+            }
+        }
+
+        private static string WithWideLeaf(string text, bool leafRecord) => text
+            .Replace("\"$cccoattail_end_L_0\" ]",
+                "\"$cccoattail_end_L_0\", \"coattail_side_L\", \"$cccoattail_side_L_0\", \"$cccoattail_side_L_1\" ]",
+                StringComparison.Ordinal)
+            .Replace("m_SkelParents = [ -1, 0, 0, 2, 2, 4, 4, 6 ]", "m_SkelParents = [ -1, 0, 0, 2, 2, 4, 4, 6, 4, 8, 8 ]",
+                StringComparison.Ordinal)
+            .Replace("m_nNodeCount = 8", "m_nNodeCount = 11", StringComparison.Ordinal)
+            .Replace("2.0, 2.0, 1.0, 1.0 ]", "2.0, 2.0, 1.0, 1.0, 1.0, 1.0, 1.0 ]", StringComparison.Ordinal)
+            .Replace("-19.686529, 5.562407, 42.336063, 1.0, -0.323943, 0.653251, 0.505547, 0.461245 ],",
+                "-19.686529, 5.562407, 42.336063, 1.0, -0.323943, 0.653251, 0.505547, 0.461245 ], "
+                + SyntheticCloth.Pose(-14.8f, 13.0f, 45.0f) + " " + SyntheticCloth.Pose(-14.8f, 15.0f, 45.0f)
+                + " " + SyntheticCloth.Pose(-14.8f, 11.0f, 45.0f), StringComparison.Ordinal)
+            .Replace("{ nNode = [ 6, 7 ] flMinDist = 2.000001 flMaxDist = 2.000001 flWeight0 = 0.5 flRelaxationFactor = 1.0 },",
+                "{ nNode = [ 6, 7 ] flMinDist = 2.000001 flMaxDist = 2.000001 flWeight0 = 0.5 flRelaxationFactor = 1.0 }, "
+                + SyntheticCloth.RigidRod(4, 8, 9.0f, 1f) + " " + SyntheticCloth.RigidRod(8, 9, 2f, 1f) + " "
+                + SyntheticCloth.RigidRod(8, 10, 2f, 1f) + " " + SyntheticCloth.RigidRod(9, 10, 4f, 1f),
+                StringComparison.Ordinal)
+            .Replace("nBoneCtrl = 4 nTargetNode = 6 },",
+                "nBoneCtrl = 4 nTargetNode = 6 }," + (leafRecord ? " { vOffset = [ 0.0, 2.0, 0.0 ] nBoneCtrl = 8 nTargetNode = 9 }," : ""),
+                StringComparison.Ordinal);
+
+        private static string ThinTipChain(bool tipRecord) => ExplicitMassChainText.Replace("m_Rods =", $$"""
+            m_LockToGoal = [ 0 ]
+                m_ReverseOffsets =
+                [
+                    { vOffset = [ 8.49993, 0.00006, 0.000001 ] nBoneCtrl = 2 nTargetNode = 4 },
+                    { vOffset = [ 8.500038, -0.000026, 0.000008 ] nBoneCtrl = 4 nTargetNode = 6 },
+                    {{(tipRecord ? "{ vOffset = [ -0.000001, 2.000001, -0.000001 ] nBoneCtrl = 6 nTargetNode = 7 }," : "")}}
+                ]
+                m_Rods =
+            """, StringComparison.Ordinal);
     }
 }
