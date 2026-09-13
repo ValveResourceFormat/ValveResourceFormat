@@ -3783,5 +3783,89 @@ namespace Tests
                 ]
                 m_Rods =
             """, StringComparison.Ordinal);
+
+        /// <summary>
+        /// A planarized box writes no rigid, only one collision plane per node of its selection: in the
+        /// parent's frame the plane passes through the node's nearest point on the box and faces the node.
+        /// Nodes on the box's upper x face, its y and z faces, one edge and one corner recover the box, and the
+        /// lower x face no node reaches is mirrored about the parent. The control is planes at a sphere's six
+        /// axis points, which a box reproduces as well and the planarized capsule fit keeps.
+        /// </summary>
+        [Test]
+        public async Task APlanarizedBoxIsRecoveredFromItsContactPoints()
+        {
+            var half = new Vector3(2f, 3f, 4f);
+            Vector3[] nodes =
+            [
+                new(6f, 0f, 0f), new(6f, 1f, 1f), new(6f, -1f, -2f), new(0f, 7f, 0f), new(0f, -7f, 0f),
+                new(0f, 0f, 9f), new(0f, 0f, -9f), new(6f, 7f, 0f), new(6f, 7f, 9f),
+            ];
+            var box = PlanarizedGroup([.. nodes.Select(node =>
+            {
+                var contact = Vector3.Clamp(node, -half, half);
+                var normal = Vector3.Normalize(node - contact);
+                return (node, normal, Vector3.Dot(normal, contact));
+            })]);
+            var sphere = PlanarizedGroup(
+            [
+                (new Vector3(7f, 2f, 3f), Vector3.UnitX, 5f), (new Vector3(-5f, 2f, 3f), -Vector3.UnitX, 3f),
+                (new Vector3(1f, 8f, 3f), Vector3.UnitY, 6f), (new Vector3(1f, -4f, 3f), -Vector3.UnitY, 2f),
+                (new Vector3(1f, 2f, 9f), Vector3.UnitZ, 7f), (new Vector3(1f, 2f, -3f), -Vector3.UnitZ, 1f),
+            ]);
+
+            var boxes = box.BuildPlanarizeBoxes();
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(box.BuildPlanarizeCapsules()).IsEmpty();
+                await Assert.That(boxes.Count).IsEqualTo(1);
+                await Assert.That(sphere.BuildPlanarizeBoxes()).IsEmpty();
+                await Assert.That(sphere.BuildPlanarizeCapsules().Count).IsEqualTo(1);
+            }
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(boxes[0].Planarize).IsTrue();
+                await Assert.That(boxes[0].VertexMap).IsEqualTo("belt");
+                await Assert.That(boxes[0].Origin.Length()).IsLessThan(1e-3f);
+                await Assert.That(Vector3.Distance(boxes[0].Size, half)).IsLessThan(1e-3f);
+            }
+        }
+
+        private static FeModel PlanarizedGroup(IReadOnlyList<(Vector3 Node, Vector3 Normal, float Offset)> planes)
+        {
+            var count = planes.Count;
+            var names = string.Join(", ", Enumerable.Range(0, count).Select(static i => $"\"n{i}\""));
+            var poses = string.Concat(planes.Select(static p => SyntheticCloth.Pose(p.Node.X, p.Node.Y, p.Node.Z)));
+            var records = string.Concat(planes.Select(static (p, i) => Plane(i + 1,
+                $"{SyntheticCloth.Num(p.Normal.X)}, {SyntheticCloth.Num(p.Normal.Y)}, {SyntheticCloth.Num(p.Normal.Z)}",
+                p.Offset)));
+
+            return SyntheticCloth.Parse($$"""
+                {
+                    m_CtrlName = [ "bone", {{names}} ]
+                    m_SkelParents = [ -1, {{string.Join(", ", Enumerable.Repeat("0", count))}} ]
+                    m_nNodeCount = {{count + 1}}
+                    m_nStaticNodes = 0
+                    m_NodeInvMasses = [ {{string.Join(", ", Enumerable.Repeat("1.0", count + 1))}} ]
+                    m_InitPose = [ {{SyntheticCloth.Pose(0f, 0f, 0f)}} {{poses}} ]
+                    m_CollisionPlanes = [ {{records}} ]
+                    m_VertexMapValues = [ {{string.Join(", ", Enumerable.Repeat("255", count))}} ]
+                    m_VertexMaps =
+                    [
+                        {
+                            sName = "belt"
+                            nNameHash = 1
+                            nVertexBase = 1
+                            nVertexCount = {{count}}
+                            nMapOffset = 0
+                            nScaleSourceNode = -1
+                            flVolumetricSolveStrength = 0.0
+                            vCenterOfMass = [ 0.0, 0.0, 0.0 ]
+                        },
+                    ]
+                }
+                """);
+        }
     }
 }
