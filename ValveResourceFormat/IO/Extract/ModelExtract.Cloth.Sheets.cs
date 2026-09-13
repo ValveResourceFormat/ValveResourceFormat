@@ -577,6 +577,8 @@ partial class ModelExtract
                 }
             }
 
+            AddClothRigidCloudClusterLocks(softbodyChildren, feModel, independentChains);
+
             // A ClothNode carries no vertex_map of its own, so the selections covering one are
             // restored by parenting it under a ClothVertexMap instead.
             var folderFor = ClothVertexMapFolders(feModel, clothFolderChildren);

@@ -14,6 +14,148 @@ partial class ModelExtract
     // value above zero, so the re-declaration names the top of the key's range.
     const float ClothStaticRootTwistRelax = 1f;
 
+    /// <summary>
+    /// Whether the lock the original carries on <paramref name="chain"/> belongs to a <c>ClothRigidCloudCluster</c> of
+    /// algorithm 0 rather than to the chain's own format. Algorithm 0 compiles its <c>parent_node</c> into
+    /// <c>m_LockToGoal</c> and nothing else, while a chain below version 2 that locks a joint leaves its joints' node bases
+    /// bulk graded, so a lock beside preset-graded bases is the cluster's. The cluster needs members, so only a locked
+    /// joint with a chain child qualifies.
+    /// </summary>
+    internal static bool IsRigidCloudClusterLock(FeModel feModel, FeModel.BoneChain chain)
+        => LockedJointsWithChildren(feModel, chain).Any() && feModel.ChainBasesAreBulkGraded(chain) == false;
+
+    internal static IEnumerable<(FeModel.BoneChainJoint Joint, List<FeModel.BoneChainJoint> Children)> LockedJointsWithChildren(
+        FeModel feModel, FeModel.BoneChain chain)
+        => chain.Joints
+            .Where(joint => feModel.IsLockedToGoal(joint.Node))
+            .Select(joint => (joint, chain.Joints.Where(child => child.ParentNode == joint.Node).ToList()))
+            .Where(static entry => entry.Item2.Count > 0);
+
+    /// <summary>
+    /// Declares the <c>ClothRigidCloudCluster</c> of algorithm 0 behind every chain lock
+    /// <see cref="IsRigidCloudClusterLock"/> attributes to one.
+    /// </summary>
+    internal static void AddClothRigidCloudClusterLocks(KVObject softbodyChildren, FeModel feModel,
+        IEnumerable<FeModel.BoneChain> chains)
+    {
+        foreach (var chain in chains.Where(chain => IsRigidCloudClusterLock(feModel, chain)))
+        {
+            foreach (var (joint, children) in LockedJointsWithChildren(feModel, chain))
+            {
+                softbodyChildren.Add(MakeClothRigidCloudCluster(joint.Name, children.Select(static child => child.Name)));
+            }
+        }
+    }
+
+    /// <summary>
+    /// A <c>ClothRigidCloudCluster</c> of algorithm 0 locking <paramref name="parentNode"/>, with
+    /// <paramref name="members"/> as its joints at the default stiffness.
+    /// </summary>
+    internal static KVObject MakeClothRigidCloudCluster(string parentNode, IEnumerable<string> members)
+    {
+        var joints = KVObject.Array();
+        foreach (var member in members)
+        {
+            var joint = KVObject.Collection();
+            joint.Add("joint_name", member);
+            joint.Add("stiffness", 1f);
+            joints.Add(joint);
+        }
+
+        var jointName = KVObject.Collection();
+        jointName.Add("display", "Joint Name");
+        jointName.Add("show", true);
+        jointName.Add("ui_order", 0);
+        jointName.Add("default", string.Empty);
+        var stiffness = KVObject.Collection();
+        stiffness.Add("display", "Stiffness");
+        stiffness.Add("show", true);
+        stiffness.Add("ui_order", 1);
+        stiffness.Add("default", 1f);
+        var attrs = KVObject.Collection();
+        attrs.Add("joint_name", jointName);
+        attrs.Add("stiffness", stiffness);
+
+        var chainData = KVObject.Collection();
+        chainData.Add("joints", joints);
+        chainData.Add("attrs", attrs);
+        chainData.Add("selection", KVObject.Array());
+        chainData.Add("version", 0);
+
+        return MakeNode("ClothRigidCloudCluster",
+            ("name", parentNode + "_rigid_cloud"),
+            ("algorithm", 0),
+            ("parent_node", parentNode),
+            ("chain", chainData));
+    }
+
+    /// <summary>
+    /// The <c>ClothChain</c> version a chain was authored at, read off the evidence its compiled data carries.
+    /// </summary>
+    /// <param name="jointCount">The chain's joint count.</param>
+    /// <param name="hasOtherChains">Whether the model declares another chain.</param>
+    /// <param name="rootAllowsRotation">Whether the root joint rotates freely, null without a root.</param>
+    /// <param name="rootHasBase">Whether the root joint carries an <c>m_NodeBases</c> entry.</param>
+    /// <param name="lockedJoint">Whether any joint is in <c>m_LockToGoal</c>.</param>
+    /// <param name="rigidCloudClusterLock">Whether that lock belongs to a rigid cloud cluster (<see cref="IsRigidCloudClusterLock"/>).</param>
+    /// <param name="locksJoints">Whether format 1 would lock a joint of this extruding chain.</param>
+    /// <param name="basesBulkGraded">Whether the joints' node bases are the bulk grade, null when they do not say.</param>
+    /// <param name="hintsTwistWritten">Whether a joint's basis hint was written by the twist source and never graded.</param>
+    /// <param name="hasUnstagedThinJoint">Whether a joint only the version-1 fit top-up would group carries no group.</param>
+    internal static int ClothChainVersion(int jointCount, bool hasOtherChains, bool? rootAllowsRotation, bool rootHasBase,
+        bool lockedJoint, bool rigidCloudClusterLock, bool locksJoints, bool? basesBulkGraded, bool hintsTwistWritten,
+        bool hasUnstagedThinJoint)
+    {
+        // The two chain formats are not interchangeable: format 1 registers a non-simulated joint that has
+        // no parent to be offset from into m_LockToGoal, format 2 leaves it out. Both are in live use, so
+        // the original's own m_LockToGoal membership is what says which one a chain was authored in, unless a
+        // rigid cloud cluster declared the lock, which states nothing about the format.
+        // A rotation-locked root carries a second, sharper signal: format 1 suppresses that root's
+        // m_NodeBases entry and format 2 keeps it, so the original's own m_NodeBases decides those chains.
+        // The node-base signal reads an ABSENT root entry as format 1, which is equally what an anchor bone
+        // several sub-chains were merged under looks like: it roots no chain in the original, so nothing
+        // ever gave it a base. Format 1 also locks every non-simulated, rotation-free joint of an extruding
+        // chain to its goal, so an original that locks none of them rules format 1 out directly.
+        var lockedInOriginal = lockedJoint && !rigidCloudClusterLock;
+        var rootRotationLocked = rootAllowsRotation == false;
+
+        // A chain of one joint compiles only at version 0, but the access violation it avoids only
+        // happens when the model carries a second chain; a model whose only chain has one joint
+        // compiles fine at version >= 1 and keeps the node-base-driven choice below.
+        var version = jointCount == 1 && hasOtherChains
+            ? 0
+            : rootRotationLocked && (lockedInOriginal || !locksJoints)
+            ? (rootHasBase ? 2 : 1)
+            : (lockedInOriginal ? 1 : 2);
+
+        // Format 2 also grades a preset basis for every joint that has a child, over the joint's own
+        // extrusion vector and its child's, where format 1 leaves those joints to the bulk pass and its
+        // neighbour set. The joints' own entries say which grade the original carries, and a chain whose
+        // entries are the bulk grade was authored below version 2 wherever format 1 does not also lock a
+        // joint the original leaves free or drop the basis of a rotation-locked root.
+        var rootKeepsPreset = rootRotationLocked && rootHasBase;
+        if (version == 2 && !rootKeepsPreset && (lockedInOriginal || !locksJoints) && basesBulkGraded == true)
+        {
+            version = 1;
+        }
+
+        // From version 1 on the chain stages fit influences for its joints, and the hint pass then grades
+        // every joint's basis hint over them. A hint the twist source wrote and nothing graded is one the
+        // original compiled without any influence at all, which is version 0.
+        if (version != 0 && !rootKeepsPreset && hintsTwistWritten && basesBulkGraded != false)
+        {
+            version = 0;
+        }
+
+        // A joint only the version-1 fit top-up gives a group to, carrying none, was staged at version 0.
+        if (version == 1 && hasUnstagedThinJoint)
+        {
+            version = 0;
+        }
+
+        return version;
+    }
+
     static KVObject MakeClothChainNode(FeModel feModel, FeModel.BoneChain chain, bool hasOtherChains,
         IReadOnlyList<FeModel.BoneChainJoint>? walk = null)
     {
@@ -44,57 +186,17 @@ partial class ModelExtract
         chainData.Add("attrs", MakeClothChainAttrs(chain.ExtrudeSides, chain.ExtrudeRadius, chain.ExtrudeTwist));
         chainData.Add("selection", KVObject.Array());
 
-        // The two chain formats are not interchangeable: format 1 registers a non-simulated joint that has
-        // no parent to be offset from into m_LockToGoal, format 2 leaves it out. Both are in live use, so
-        // the original's own m_LockToGoal membership is what says which one a chain was authored in.
-        // A rotation-locked root carries a second, sharper signal: format 1 suppresses that root's
-        // m_NodeBases entry and format 2 keeps it, so the original's own m_NodeBases decides those chains.
-        // The node-base signal reads an ABSENT root entry as format 1, which is equally what an anchor bone
-        // several sub-chains were merged under looks like: it roots no chain in the original, so nothing
-        // ever gave it a base. Format 1 also locks every non-simulated, rotation-free joint of an extruding
-        // chain to its goal, so an original that locks none of them rules format 1 out directly.
         var root = chain.Joints.Count > 0 ? chain.Joints[0] : null;
-        var lockedInOriginal = chain.Joints.Exists(joint => feModel.IsLockedToGoal(joint.Node));
-        var locksJoints = chain.ExtrudeSides >= 1
-            && chain.Joints.Exists(joint => !joint.Simulated && feModel.AllowsRotation(joint.Node));
-
-        // A chain of one joint compiles only at version 0, but the access violation it avoids only
-        // happens when the model carries a second chain; a model whose only chain has one joint
-        // compiles fine at version >= 1 and keeps the node-base-driven choice below.
-        var version = chain.Joints.Count == 1 && hasOtherChains
-            ? 0
-            : root is not null && !feModel.AllowsRotation(root.Node)
-                && (lockedInOriginal || !locksJoints)
-            ? (feModel.NodeBases.ContainsKey(root.Node) ? 2 : 1)
-            : (lockedInOriginal ? 1 : 2);
-
-        // Format 2 also grades a preset basis for every joint that has a child, over the joint's own
-        // extrusion vector and its child's, where format 1 leaves those joints to the bulk pass and its
-        // neighbour set. The joints' own entries say which grade the original carries, and a chain whose
-        // entries are the bulk grade was authored below version 2 wherever format 1 does not also lock a
-        // joint the original leaves free or drop the basis of a rotation-locked root.
-        var rootKeepsPreset = root is not null && !feModel.AllowsRotation(root.Node)
-            && feModel.NodeBases.ContainsKey(root.Node);
-        if (version == 2 && !rootKeepsPreset && (lockedInOriginal || !locksJoints)
-            && feModel.ChainBasesAreBulkGraded(chain) == true)
-        {
-            version = 1;
-        }
-
-        // From version 1 on the chain stages fit influences for its joints, and the hint pass then grades
-        // every joint's basis hint over them. A hint the twist source wrote and nothing graded is one the
-        // original compiled without any influence at all, which is version 0.
-        if (version != 0 && !rootKeepsPreset && feModel.ChainHintsAreTwistWritten(chain)
-            && feModel.ChainBasesAreBulkGraded(chain) != false)
-        {
-            version = 0;
-        }
-
-        // A joint only the version-1 fit top-up gives a group to, carrying none, was staged at version 0.
-        if (version == 1 && feModel.ChainHasUnstagedThinJoint(chain))
-        {
-            version = 0;
-        }
+        var version = ClothChainVersion(chain.Joints.Count, hasOtherChains,
+            rootAllowsRotation: root is null ? null : feModel.AllowsRotation(root.Node),
+            rootHasBase: root is not null && feModel.NodeBases.ContainsKey(root.Node),
+            lockedJoint: chain.Joints.Exists(joint => feModel.IsLockedToGoal(joint.Node)),
+            rigidCloudClusterLock: IsRigidCloudClusterLock(feModel, chain),
+            locksJoints: chain.ExtrudeSides >= 1
+                && chain.Joints.Exists(joint => !joint.Simulated && feModel.AllowsRotation(joint.Node)),
+            basesBulkGraded: feModel.ChainBasesAreBulkGraded(chain),
+            hintsTwistWritten: feModel.ChainHintsAreTwistWritten(chain),
+            hasUnstagedThinJoint: feModel.ChainHasUnstagedThinJoint(chain));
 
         chainData.Add("version", version);
 
@@ -603,6 +705,7 @@ partial class ModelExtract
             clothBones, ClothVertexMapFolders(feModel, clothFolderChildren), hasOtherChains: true,
             ClothControlAncestorTest(feModel), sourceSprings);
         AddClothStiffHinges(softbodyChildren, feModel);
+        AddClothRigidCloudClusterLocks(softbodyChildren, feModel, declaredChains);
         AddClothChainVolumetricMaps(softbodyChildren, feModel, boneChains);
 
         AddClothFollowBones(softbodyChildren, feModel, clothBones);
