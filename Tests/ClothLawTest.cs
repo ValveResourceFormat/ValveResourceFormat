@@ -4529,5 +4529,103 @@ namespace Tests
                     hintsTwistWritten: false, hasUnstagedThinJoint: false)).IsEqualTo(1);
             }
         }
+
+        /// <summary>
+        /// The fit pass locks a static joint that owns a fit group to a parent that is simulated or free-rotating
+        /// whether or not the joint carries <c>lock_translation</c>, and a second pass locks every keyed joint to its
+        /// parent, so a static joint's parent lock proves the key only where the fit pass could not have written
+        /// it, or where the parent's fit covers every node the joint's own group reads, since a keyed joint stages
+        /// its influences into its parent's group as well. A chain of version 2 stages no group for a static joint,
+        /// so there the parent lock proves the key. The fixture's two static first joints hang off a free-rotating
+        /// static root in a version-1 chain: the one owning a node base reads no key, the one owning no group reads
+        /// the key. The controls: the same joint in a version-2 chain reads the key, a root fit over the first
+        /// joint's basis nodes reads the key on it, and a rotation-locked root, which the fit pass never locks a
+        /// child to, proves the key on both.
+        /// </summary>
+        [Test]
+        public async Task AStaticJointsFitGroupParentLockIsNotLockTranslation()
+        {
+            var free = SyntheticCloth.Parse(TwoVersionTree(rootRingFirst: true, thinTipGrouped: false, wideLeafGrouped: true));
+            var fitted = SyntheticCloth.Parse(TwoVersionTree(rootRingFirst: true, thinTipGrouped: false, wideLeafGrouped: true,
+                rootFitsFirstJoint: true));
+            var locked = SyntheticCloth.Parse(TwoVersionTree(rootRingFirst: true, thinTipGrouped: false, wideLeafGrouped: true,
+                rootRotationLocked: true));
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(free.LocksTranslation(Array.IndexOf(free.CtrlNames, "a0"), chainVersion: 1)).IsFalse();
+                await Assert.That(free.LocksTranslation(Array.IndexOf(free.CtrlNames, "a0"), chainVersion: 2)).IsTrue();
+                await Assert.That(free.LocksTranslation(Array.IndexOf(free.CtrlNames, "b0"), chainVersion: 1)).IsTrue();
+                await Assert.That(fitted.LocksTranslation(Array.IndexOf(fitted.CtrlNames, "a0"), chainVersion: 1)).IsTrue();
+                await Assert.That(locked.LocksTranslation(Array.IndexOf(locked.CtrlNames, "a0"), chainVersion: 1)).IsTrue();
+                await Assert.That(locked.LocksTranslation(Array.IndexOf(locked.CtrlNames, "b0"), chainVersion: 1)).IsTrue();
+            }
+        }
+
+        private static string TwoVersionTree(bool rootRingFirst, bool thinTipGrouped, bool wideLeafGrouped,
+            bool rootRotationLocked = false, bool rootFitsFirstJoint = false)
+        {
+            List<(string Name, string? Parent, Vector3 Position)> nodes = [("root", null, Vector3.Zero)];
+            (string Name, string? Parent, Vector3 Position) rootRing = ("$ccroot_0", "root", new Vector3(0f, 2f, 0f));
+            if (rootRingFirst || rootRotationLocked)
+            {
+                nodes.Add(rootRing);
+            }
+
+            nodes.Add(("a0", "root", new Vector3(10f, 0f, 0f)));
+            nodes.Add(("$cca0_0", "a0", new Vector3(10f, 2f, 0f)));
+            if (!rootRingFirst && !rootRotationLocked)
+            {
+                nodes.Add(rootRing);
+            }
+
+            nodes.AddRange([
+                ("$ccb0_0", "b0", new Vector3(-10f, 2f, 0f)), ("$ccb0_1", "b0", new Vector3(-10f, -2f, 0f)),
+                ("b0", "root", new Vector3(-10f, 0f, 0f)), ("a1", "a0", new Vector3(10f, 0f, -10f)),
+                ("$cca1_0", "a1", new Vector3(10f, 2f, -10f)), ("$ccb1_0", "b1", new Vector3(-10f, 2f, -10f)),
+                ("$ccb1_1", "b1", new Vector3(-10f, -2f, -10f)), ("b1", "b0", new Vector3(-10f, 0f, -10f)),
+            ]);
+
+            var names = nodes.ConvertAll(static node => node.Name);
+            int At(string name) => names.IndexOf(name);
+
+            var offsets = new List<string>();
+            if (thinTipGrouped)
+            {
+                offsets.Add($"{{ vOffset = [ 0.0, 2.0, 0.0 ] nBoneCtrl = {At("a1")} nTargetNode = {At("$cca1_0")} }},");
+            }
+
+            if (wideLeafGrouped)
+            {
+                offsets.Add($"{{ vOffset = [ 0.0, 2.0, 0.0 ] nBoneCtrl = {At("b1")} nTargetNode = {At("$ccb1_0")} }},");
+            }
+
+            var rootFit = rootFitsFirstJoint
+                ? "m_FitMatrices = [ { bone = [ 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0 ] vCenter = [ 0.0, 0.0, 0.0 ] nEnd = 4 nNode = 0 nBeginDynamic = 4 } ]"
+                    + " m_FitWeights = [ " + string.Concat("a0 $cca0_0 b0 $ccb0_0".Split(' ')
+                        .Select(name => "{ flWeight = 1.0 nNode = " + At(name) + " nDummy = 0 }, ")) + "]"
+                : string.Empty;
+
+            return $$"""
+                {
+                    m_CtrlName = [ {{string.Join(", ", names.Select(static name => '"' + name + '"'))}} ]
+                    m_SkelParents = [ {{string.Join(", ", nodes.Select(node => node.Parent is null ? -1 : At(node.Parent)))}} ]
+                    m_nNodeCount = {{nodes.Count}}
+                    m_nStaticNodes = 7
+                    m_nRotLockStaticNodes = {{(rootRotationLocked ? 2 : 0)}}
+                    m_NodeInvMasses = [ {{string.Join(", ", nodes.Select(static (_, i) => i < 7 ? "0.0" : "1.0"))}} ]
+                    m_InitPose = [ {{string.Concat(nodes.Select(static node => SyntheticCloth.Pose(node.Position.X, node.Position.Y, node.Position.Z)))}} ]
+                    m_LockToGoal = [ 0 ]
+                    m_LockToParent =
+                    [
+                        { vOffset = [ 10.0, 0.0, 0.0 ] nCtrlParent = 0 nCtrlChild = {{At("a0")}} },
+                        { vOffset = [ -10.0, 0.0, 0.0 ] nCtrlParent = 0 nCtrlChild = {{At("b0")}} },
+                    ]
+                    m_NodeBases = [ { nNode = {{At("a0")}} nNodeX0 = {{At("a0")}} nNodeX1 = {{At("$cca0_0")}} nNodeY0 = {{At("b0")}} nNodeY1 = {{At("$ccb0_0")}} } ]
+                    {{rootFit}}
+                    m_ReverseOffsets = [ {{string.Join(" ", offsets)}} ]
+                }
+                """;
+        }
     }
 }
