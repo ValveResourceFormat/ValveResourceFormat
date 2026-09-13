@@ -337,6 +337,18 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         internal const float TwistRelaxToChildFactor = 0.382f;
 
         /// <summary>
+        /// Gets whether a twist link naming <paramref name="node"/> carries a zero
+        /// <c>flTwistRelax</c> in BOTH directions. A link is written only where one of its two ends
+        /// authored <c>twist_relax</c>, and an entry takes the orient node's own value only where that
+        /// node simulates, so a link with no relaxation on either side is one a STATIC end authored.
+        /// The magnitude does not survive that compile: every value above zero writes the same pair of
+        /// entries.
+        /// </summary>
+        public bool HasRelaxlessTwistLink(int node) => relaxlessTwistNodes.Contains(node);
+
+        private readonly HashSet<int> relaxlessTwistNodes = [];
+
+        /// <summary>
         /// Recovers the joint's own authored <c>twist_relax</c> at <paramref name="node"/> from its
         /// directed <c>m_Twists</c> entries. Prefers the entry toward its own extrusion ring/center node
         /// (<paramref name="proxyNode"/>) when it has one, since a ring-generating joint's entry toward
@@ -3656,6 +3668,15 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                     twistLinks.Add(orient < end ? (orient, end) : (end, orient));
                     twistRelaxByLink[(orient, end)] = relax;
                     twistOrientFallback.TryAdd(orient, relax);
+                }
+
+                foreach (var ((orient, end), relax) in twistRelaxByLink)
+                {
+                    if (relax == 0f && twistRelaxByLink.TryGetValue((end, orient), out var back) && back == 0f)
+                    {
+                        relaxlessTwistNodes.Add(orient);
+                        relaxlessTwistNodes.Add(end);
+                    }
                 }
             }
 
