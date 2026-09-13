@@ -615,6 +615,7 @@ partial class ModelExtract
             }
 
             AddClothFaces(clothFolderChildren, feModel);
+            AddClothStiffHinges(softbodyChildren, feModel);
         }
 
         var authoredClothNodes = loneClothNodes.Concat(leftoverStaticNodes).Concat(unregisteredNodes)

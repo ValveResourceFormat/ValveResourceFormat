@@ -4340,5 +4340,58 @@ namespace Tests
                 await Assert.That(withoutBytecode.Count).IsEqualTo(0);
             }
         }
+
+        /// <summary>
+        /// A <c>ClothStiffHinge</c> over three free cloth nodes compiles one <c>m_KelagerBends</c> record in its authored node
+        /// order, measured from the hinge: <c>s12_stiffhinge_max_angle_30p0</c> hangs its nodes 4 and 8 below the hinge and
+        /// ships flHeight0 1.652419, and the 90 degree row ships 2.981424. Both come back as the hinge over those element
+        /// names with their angle. The control: a bend over chain joints declares no ClothStiffHinge.
+        /// </summary>
+        [Test]
+        public async Task ABendOverFreeClothNodesComesBackAsAStiffHinge()
+        {
+            var feModel = SyntheticCloth.Parse($$"""
+                {
+                    m_CtrlName = [ "spine_2", "$cloth_node_hinge_n0", "$cloth_node_hinge_n1", "$cloth_node_hinge_n2", "coattail_0_L", "coattail_1_L", "coattail_2_L" ]
+                    m_SkelParents = [ -1, 0, 0, 0, -1, 4, 5 ]
+                    m_nNodeCount = 7
+                    m_nStaticNodes = 3
+                    m_NodeInvMasses = [ 0.0, 0.0, 0.0, 1.0, 0.0, 1.0, 1.0 ]
+                    m_InitPose =
+                    [
+                        {{SyntheticCloth.Pose(0f, 0f, 0f)}}
+                        {{SyntheticCloth.Pose(0f, 0f, -4f)}}
+                        {{SyntheticCloth.Pose(0f, 0f, -8f)}}
+                        {{SyntheticCloth.Pose(0f, 0f, -12f)}}
+                        {{SyntheticCloth.Pose(0f, 5f, 0f)}}
+                        {{SyntheticCloth.Pose(0f, 5f, -8f)}}
+                        {{SyntheticCloth.Pose(0f, 5f, -16f)}}
+                    ]
+                    m_KelagerBends =
+                    [
+                        { flWeight = [ -0.0, 1.0, 2.0 ] flHeight0 = 1.652419 nNode = [ 1, 2, 3 ] nReserved = 0 },
+                        { flWeight = [ -0.0, 1.0, 2.0 ] flHeight0 = 2.981424 nNode = [ 1, 2, 3 ] nReserved = 0 },
+                        { flWeight = [ -2.0, 1.0, 1.0 ] flHeight0 = 0.5 nNode = [ 5, 4, 6 ] nReserved = 0 },
+                    ]
+                }
+                """);
+
+            var softbodyChildren = KVObject.Array();
+            ModelExtract.AddClothStiffHinges(softbodyChildren, feModel);
+            var hinges = softbodyChildren.Select(static child => child.Value).ToArray();
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(hinges.Length).IsEqualTo(2);
+                foreach (var (hinge, angle) in hinges.Zip([30f, 90f]))
+                {
+                    await Assert.That(hinge.GetStringProperty("_class")).IsEqualTo("ClothStiffHinge");
+                    await Assert.That(hinge.GetStringProperty("cloth_node_0")).IsEqualTo("hinge_n0");
+                    await Assert.That(hinge.GetStringProperty("cloth_node_1")).IsEqualTo("hinge_n1");
+                    await Assert.That(hinge.GetStringProperty("cloth_node_2")).IsEqualTo("hinge_n2");
+                    await Assert.That(MathF.Abs(hinge.GetFloatProperty("max_angle") - angle)).IsLessThan(1e-2f);
+                }
+            }
+        }
     }
 }
