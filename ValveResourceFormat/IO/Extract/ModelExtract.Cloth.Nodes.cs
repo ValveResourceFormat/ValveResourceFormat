@@ -65,13 +65,13 @@ partial class ModelExtract
             if (name.StartsWith(ClothNodePrefix, StringComparison.Ordinal))
             {
                 var elementName = name[ClothNodePrefix.Length..];
-                if (!TryResolveClothNodeAnchor(feModel, anchorOf, node, out var rootBone, out var origin))
+                if (!TryResolveClothNodeAnchor(feModel, anchorOf, node, out var rootBone, out var origin, out var angles))
                 {
                     continue;
                 }
 
                 FolderOf(node).Add(MakeClothNode(feModel, rootBone, node,
-                    isStaticNode: feModel.IsStatic(node), elementName: elementName, origin: origin));
+                    isStaticNode: feModel.IsStatic(node), elementName: elementName, origin: origin, angles: angles));
                 springName[node] = elementName;
                 clothBones.Add(rootBone);
                 emitted++;
@@ -242,7 +242,7 @@ partial class ModelExtract
     // left without them registers as position-driven and is driven through a synthesized m_Ropes fallback
     // rather than simulated.
     internal static KVObject MakeClothNode(FeModel feModel, string boneName, int node, bool isStaticNode = false,
-        string? elementName = null, Vector3 origin = default,
+        string? elementName = null, Vector3 origin = default, Vector3 angles = default,
         IReadOnlyDictionary<int, string>? proxyNodeNames = null)
     {
         var integrator = feModel.GetIntegrator(node);
@@ -278,7 +278,7 @@ partial class ModelExtract
         return MakeNode("ClothNode",
             ("name", elementName ?? boneName),
             ("origin", ToKVArray(origin)),
-            ("angles", ToKVArray(Vector3.Zero)),
+            ("angles", ToKVArray(angles)),
             ("cloth_node_root_bone", boneName),
             ("has_stray_radius", strayRadius > 0f),
             ("has_world_collision", feModel.IsWorldCollisionNode(node)),

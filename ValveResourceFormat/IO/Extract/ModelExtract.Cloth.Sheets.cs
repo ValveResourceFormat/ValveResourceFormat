@@ -503,7 +503,7 @@ partial class ModelExtract
         // Emitted flat, never under a ClothVertexMap: that container around a free ClothNode a
         // ClothSpring names makes the compiler access-violate.
         var unregisteredNodes = new List<(string Name, int Node)>();
-        var unregisteredFreeNodes = new List<(string RootBone, int Node, string ElementName, Vector3 Origin)>();
+        var unregisteredFreeNodes = new List<(string RootBone, int Node, string ElementName, Vector3 Origin, Vector3 Angles)>();
         var freeClothNodeNames = new Dictionary<int, string>();
 
         for (var node = 0; node < feModel.CtrlNames.Length; node++)
@@ -519,10 +519,10 @@ partial class ModelExtract
                 const string ClothNodePrefix = "$cloth_node_";
                 if (name.StartsWith(ClothNodePrefix, StringComparison.Ordinal))
                 {
-                    if (TryResolveClothNodeAnchor(feModel, anchorOf, node, out var rootBone, out var origin))
+                    if (TryResolveClothNodeAnchor(feModel, anchorOf, node, out var rootBone, out var origin, out var angles))
                     {
                         var elementName = name[ClothNodePrefix.Length..];
-                        unregisteredFreeNodes.Add((rootBone, node, elementName, origin));
+                        unregisteredFreeNodes.Add((rootBone, node, elementName, origin, angles));
                         freeClothNodeNames[node] = elementName;
                     }
                 }
@@ -607,10 +607,10 @@ partial class ModelExtract
                     isStaticNode: feModel.IsStatic(node), proxyNodeNames: proxyNodeNameMap));
             }
 
-            foreach (var (rootBone, node, elementName, origin) in unregisteredFreeNodes)
+            foreach (var (rootBone, node, elementName, origin, angles) in unregisteredFreeNodes)
             {
                 clothFolderChildren.Add(MakeClothNode(feModel, rootBone, node,
-                    isStaticNode: feModel.IsStatic(node), elementName: elementName, origin: origin,
+                    isStaticNode: feModel.IsStatic(node), elementName: elementName, origin: origin, angles: angles,
                     proxyNodeNames: proxyNodeNameMap));
             }
 

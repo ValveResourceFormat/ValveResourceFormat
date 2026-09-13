@@ -357,60 +357,78 @@ partial class ModelExtract
     /// under a static <c>ClothNode</c> rooted on that control bone, and is declared under the static node the export
     /// emits for that bone. Where it emits none, because a chain joint or another construct already claims the bone,
     /// a bare static <c>ClothNode</c> is declared for it: the compiler lands it on the node the bone already
-    /// registers, without changing that node, and records it as the effect's parent. The direction stays unrotated,
-    /// since the export's nodes carry no angles of their own.
+    /// registers, without changing that node, and records it as the effect's parent.
+    /// <para>
+    /// Among the static nodes on that bone, one declared under a name of its own is preferred: a generated
+    /// <c>$cloth_node_</c> element is where the effect was authored. The compiler rotates Strength by its parent
+    /// node's own angles, so the effect's angles are expressed in that node's frame.
+    /// </para>
     /// </summary>
     internal static void AddClothEffects(KVObject softbodyChildren, FeModel feModel, IReadOnlySet<string> availableMaps)
     {
         foreach (var effect in feModel.Effects)
         {
-            if (MakeClothEffect(feModel, effect, availableMaps) is not { } node)
+            var bone = effect.Params is not null && effect.Params.ContainsKey("Node")
+                && effect.Params.GetInt32Property("Node") is var ctrl && ctrl >= 0 && ctrl < feModel.CtrlNames.Length
+                && !feModel.CtrlNames[ctrl].StartsWith('$')
+                    ? feModel.CtrlNames[ctrl]
+                    : null;
+            var parent = bone is null ? null : FindStaticClothNode(softbodyChildren, bone);
+            var frame = parent?.GetSubCollection("angles") is { } angles
+                ? EntityTransformHelper.EulerAnglesToQuaternion(angles.ToVector3())
+                : Quaternion.Identity;
+
+            if (MakeClothEffect(feModel, effect, availableMaps, frame) is not { } node)
             {
                 continue;
             }
 
-            var siblings = softbodyChildren;
-            if (effect.Params.ContainsKey("Node") && effect.Params.GetInt32Property("Node") is var ctrl
-                && ctrl >= 0 && ctrl < feModel.CtrlNames.Length && !feModel.CtrlNames[ctrl].StartsWith('$'))
+            if (bone is null)
             {
-                var bone = feModel.CtrlNames[ctrl];
-                if (FindStaticClothNode(softbodyChildren, bone) is not { } parent)
-                {
-                    parent = MakeNode("ClothNode", ("name", bone + "_effects"), ("cloth_node_root_bone", bone),
-                        ("is_static_node", true));
-                    softbodyChildren.Add(parent);
-                }
-
-                if (!parent.TryGetValue("children", out var children))
-                {
-                    children = KVObject.Array();
-                    parent.Add("children", children);
-                }
-
-                siblings = children;
+                softbodyChildren.Add(node);
+                continue;
             }
 
-            siblings.Add(node);
+            if (parent is null)
+            {
+                parent = MakeNode("ClothNode", ("name", bone + "_effects"), ("cloth_node_root_bone", bone),
+                    ("is_static_node", true));
+                softbodyChildren.Add(parent);
+            }
+
+            if (!parent.TryGetValue("children", out var children))
+            {
+                children = KVObject.Array();
+                parent.Add("children", children);
+            }
+
+            children.Add(node);
         }
     }
 
     static KVObject? FindStaticClothNode(KVObject children, string rootBone)
+    {
+        var matches = new List<KVObject>();
+        CollectStaticClothNodes(children, rootBone, matches);
+        return matches.Find(node => !string.Equals(node.GetStringProperty("name"), rootBone, StringComparison.OrdinalIgnoreCase))
+            ?? matches.FirstOrDefault();
+    }
+
+    static void CollectStaticClothNodes(KVObject children, string rootBone, List<KVObject> matches)
     {
         foreach (var (_, child) in children)
         {
             if (child.GetStringProperty("_class") == "ClothNode" && child.GetBooleanProperty("is_static_node")
                 && string.Equals(child.GetStringProperty("cloth_node_root_bone"), rootBone, StringComparison.OrdinalIgnoreCase))
             {
-                return child;
+                matches.Add(child);
             }
 
-            if (child.TryGetValue("children", out var nested) && FindStaticClothNode(nested, rootBone) is { } found)
+            if (child.TryGetValue("children", out var nested))
             {
-                return found;
+                CollectStaticClothNodes(nested, rootBone, matches);
             }
         }
-
-        return null;
     }
 
     /// <summary>
@@ -447,7 +465,12 @@ partial class ModelExtract
         return maps;
     }
 
-    internal static KVObject? MakeClothEffect(FeModel feModel, FeModel.Effect effect, IReadOnlySet<string> availableMaps)
+    /// <summary>
+    /// Declares one compiled effect, its direction expressed in <paramref name="frame"/>, the rotation of the node
+    /// it is declared under (identity at the top level).
+    /// </summary>
+    internal static KVObject? MakeClothEffect(FeModel feModel, FeModel.Effect effect, IReadOnlySet<string> availableMaps,
+        Quaternion? frame = null)
     {
         var className = effect.Type switch
         {
@@ -483,7 +506,7 @@ partial class ModelExtract
         switch (effect.Type)
         {
             case ClothEffectTypeWind:
-                AddClothWindParams(node, effect.Params);
+                AddClothWindParams(node, effect.Params, frame ?? Quaternion.Identity);
                 break;
 
             case ClothEffectTypeStiffen:
@@ -496,7 +519,7 @@ partial class ModelExtract
                 break;
 
             case ClothEffectTypeAddGravity:
-                AddClothAddGravityParams(node, effect.Params);
+                AddClothAddGravityParams(node, effect.Params, frame ?? Quaternion.Identity);
                 break;
 
             default:
@@ -507,31 +530,33 @@ partial class ModelExtract
         return node;
     }
 
-    // Strength is the authored magnitude along the forward direction of the effect's angles.
+    // Strength is the authored magnitude along the forward direction of the effect's angles, turned by its parent
+    // node's own angles.
     static Vector3 ClothEffectStrength(KVObject parameters)
         => parameters.GetSubCollection("Strength") is { } s ? s.ToVector3() : default;
 
-    static void AddClothEffectAngles(KVObject node, Vector3 strength)
+    static void AddClothEffectAngles(KVObject node, Vector3 strength, Quaternion frame)
     {
         if (strength != Vector3.Zero)
         {
-            node.Add("angles", ToKVArray(EntityTransformHelper.ForwardDirectionToEulerAngles(strength)));
+            node.Add("angles", ToKVArray(EntityTransformHelper.ForwardDirectionToEulerAngles(
+                Vector3.Transform(strength, Quaternion.Conjugate(frame)))));
         }
     }
 
-    static void AddClothAddGravityParams(KVObject node, KVObject parameters)
+    static void AddClothAddGravityParams(KVObject node, KVObject parameters, Quaternion frame)
     {
         var strength = ClothEffectStrength(parameters);
         node.Add("strength", strength.Length());
-        AddClothEffectAngles(node, strength);
+        AddClothEffectAngles(node, strength, frame);
     }
 
-    static void AddClothWindParams(KVObject node, KVObject parameters)
+    static void AddClothWindParams(KVObject node, KVObject parameters, Quaternion frame)
     {
         var strength = ClothEffectStrength(parameters);
         node.Add("wind_speed_mph", strength.Length() / ClothWindSpeedToUnits);
         node.Add("time_multiplier", 1.0f);
-        AddClothEffectAngles(node, strength);
+        AddClothEffectAngles(node, strength, frame);
 
         var airToCloth = parameters.GetFloatProperty("AirToCloth");
         if (airToCloth > 0f)
