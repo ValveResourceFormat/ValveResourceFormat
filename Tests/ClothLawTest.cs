@@ -3662,5 +3662,62 @@ namespace Tests
 
         private static FeModel.BoneChainJoint TipOf(FeModel feModel)
             => feModel.BuildBoneChains()[0].Joints.First(static joint => joint.Name == "coattail_end_L");
+
+        /// <summary>
+        /// A two-member self-collision cluster over two chain joints compiles one banded rod beside the chain's
+        /// own rigid span and records no source element, so the banded rod left once the chain claims the rigid
+        /// one is re-declared as that cluster, half its band per member. The control carries two banded copies
+        /// beside the span, which no single cluster accounts for, and stays two springs.
+        /// </summary>
+        [Test]
+        public async Task AClusterTieBesideAChainSpanIsItsTwoMemberCluster()
+        {
+            var tiedModel = ClusterTieChain(1);
+            var tied = KVObject.Array();
+            ModelExtract.AddClothChainSurplusRods(tied, tiedModel, tiedModel.BuildBoneChains());
+            var doubledModel = ClusterTieChain(2);
+            var doubled = KVObject.Array();
+            ModelExtract.AddClothChainSurplusRods(doubled, doubledModel, doubledModel.BuildBoneChains());
+
+            await Assert.That(tied.Count).IsEqualTo(1);
+            var cluster = tied.ElementAt(0).Value;
+            var joints = cluster.GetSubCollection("chain").GetArray("joints")!.ToArray();
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(cluster.GetStringProperty("_class")).IsEqualTo("ClothSelfCollisionCluster");
+                await Assert.That(joints.Select(static joint => joint.GetStringProperty("joint_name")).ToArray())
+                    .IsEquivalentTo(ClusterTieMembers, CollectionOrdering.Matching);
+                await Assert.That(joints[0].GetFloatProperty("collision_radius")).IsEqualTo(6f);
+                await Assert.That(joints[0].GetFloatProperty("stray_radius")).IsEqualTo(24f);
+                await Assert.That(doubled.Select(static child => child.Value.GetStringProperty("_class")).ToArray())
+                    .IsEquivalentTo(ClusterTieControlClasses, CollectionOrdering.Matching);
+            }
+        }
+
+        private static readonly string[] ClusterTieMembers = ["j1", "j2"];
+        private static readonly string[] ClusterTieControlClasses = ["ClothSpring", "ClothSpring"];
+
+        private static FeModel ClusterTieChain(int ties) => SyntheticCloth.Parse($$"""
+            {
+                m_CtrlName = [ "root", "j1", "j2" ]
+                m_SkelParents = [ -1, 0, 1 ]
+                m_nNodeCount = 3
+                m_nStaticNodes = 1
+                m_NodeInvMasses = [ 0.0, 1.0, 1.0 ]
+                m_InitPose =
+                [
+                    {{SyntheticCloth.Pose(0f, 0f, 0f)}}
+                    {{SyntheticCloth.Pose(0f, 0f, -10f)}}
+                    {{SyntheticCloth.Pose(0f, 0f, -20f)}}
+                ]
+                m_Rods =
+                [
+                    {{SyntheticCloth.RigidRod(0, 1, 10f, 1f)}}
+                    {{SyntheticCloth.RigidRod(1, 2, 10f, 1f)}}
+                    {{string.Concat(Enumerable.Repeat(SyntheticCloth.BandedRod(1, 2, 12f, 48f, 1f), ties))}}
+                ]
+            }
+            """);
     }
 }

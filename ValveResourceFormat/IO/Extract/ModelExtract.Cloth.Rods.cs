@@ -1217,8 +1217,9 @@ partial class ModelExtract
         }
     }
 
-    // Rods the chains do not rebuild themselves (extra copies of a parent span) are re-declared here.
-    static void AddClothChainSurplusRods(KVObject softbodyChildren, FeModel feModel,
+    // Rods the chains do not rebuild themselves (extra copies of a parent span) are re-declared here, and a
+    // cluster's tie beside a chain span as its two-member cluster.
+    internal static void AddClothChainSurplusRods(KVObject softbodyChildren, FeModel feModel,
         List<FeModel.BoneChain> chains)
     {
         var controlNames = feModel.CtrlNames;
@@ -1233,7 +1234,9 @@ partial class ModelExtract
 
         // One spring per surplus rod OCCURRENCE, numbered like AddFreeClothNodesAndSprings' copies.
         var occurrence = new Dictionary<(int, int), int>();
-        foreach (var rod in feModel.GetUngeneratedRods(chains))
+        var surplus = feModel.GetUngeneratedRods(chains);
+        var clusterTies = ClusterTiesBesideChainSpans(feModel, surplus);
+        foreach (var rod in surplus)
         {
             if (rod.NodeA < 0 || rod.NodeA >= controlNames.Length
             || rod.NodeB < 0 || rod.NodeB >= controlNames.Length)
@@ -1250,6 +1253,13 @@ partial class ModelExtract
             var name1 = controlNames[rod.NodeB];
             if (FeModel.IsProxyNodeName(name0) || FeModel.IsProxyNodeName(name1))
             {
+                continue;
+            }
+
+            if (clusterTies.Contains(rod.NodeA < rod.NodeB ? (rod.NodeA, rod.NodeB) : (rod.NodeB, rod.NodeA)))
+            {
+                softbodyChildren.Add(MakeClothSelfCollisionCluster($"cluster_{name0}_{name1}", [name0, name1],
+                    rod.MinDist / 2f, rod.MaxDist / 2f));
                 continue;
             }
 
@@ -1280,10 +1290,7 @@ partial class ModelExtract
             .Select(static joint => joint.Node)
             .ToHashSet();
 
-        // GetUngeneratedRods decides which of several same-pair rod entries counts as "generated" by
-        // array order rather than by value, so a pair carrying both a chain-adjacent rod and a
-        // separate cluster-pairwise rod can have the two attributed backwards. A pair with more than
-        // one raw entry is that ambiguous case and is skipped.
+        // A pair with more than one raw entry is skipped unless it is a cluster tie beside a chain span.
         var rodCounts = new Dictionary<(int, int), int>();
         foreach (var rod in feModel.Rods)
         {
@@ -1291,7 +1298,9 @@ partial class ModelExtract
             rodCounts[key] = rodCounts.GetValueOrDefault(key) + 1;
         }
 
-        foreach (var rod in feModel.GetUngeneratedRods(chains))
+        var surplus = feModel.GetUngeneratedRods(chains);
+        var clusterTies = ClusterTiesBesideChainSpans(feModel, surplus);
+        foreach (var rod in surplus)
         {
             if (rod.NodeA < 0 || rod.NodeA >= controlNames.Length
             || rod.NodeB < 0 || rod.NodeB >= controlNames.Length)
@@ -1305,7 +1314,7 @@ partial class ModelExtract
             }
 
             var pairKey = rod.NodeA < rod.NodeB ? (rod.NodeA, rod.NodeB) : (rod.NodeB, rod.NodeA);
-            if (rodCounts.GetValueOrDefault(pairKey) > 1)
+            if (rodCounts.GetValueOrDefault(pairKey) > 1 && !clusterTies.Contains(pairKey))
             {
                 continue;
             }
@@ -1325,6 +1334,55 @@ partial class ModelExtract
             softbodyChildren.Add(MakeClothSelfCollisionCluster($"cluster_{name0}_{name1}", [name0, name1],
                 rod.MinDist / 2f, rod.MaxDist / 2f));
         }
+    }
+
+    /// <summary>
+    /// Returns the node pairs whose one surplus rod is a two-member self-collision cluster's tie beside the
+    /// chain span on the same pair: the pair carries several entries, every one but that rod is rigid, and
+    /// that rod is banded with the cluster's fixed relaxation of 1.0 and weight of 0.5.
+    /// <see cref="FeModel.GetUngeneratedRods"/> gives the chain the rigid entry, so the banded one left over
+    /// is the cluster's own and never the chain's.
+    /// </summary>
+    static HashSet<(int, int)> ClusterTiesBesideChainSpans(FeModel feModel, List<FeModel.Rod> surplus)
+    {
+        static bool IsBanded(FeModel.Rod rod)
+            => MathF.Abs(rod.MinDist - rod.MaxDist) > 1e-4f * MathF.Max(1f, MathF.Abs(rod.MaxDist));
+
+        static (int, int) PairOf(FeModel.Rod rod)
+            => rod.NodeA < rod.NodeB ? (rod.NodeA, rod.NodeB) : (rod.NodeB, rod.NodeA);
+
+        var entries = new Dictionary<(int, int), int>();
+        var banded = new Dictionary<(int, int), int>();
+        foreach (var rod in feModel.Rods)
+        {
+            var key = PairOf(rod);
+            entries[key] = entries.GetValueOrDefault(key) + 1;
+            if (IsBanded(rod))
+            {
+                banded[key] = banded.GetValueOrDefault(key) + 1;
+            }
+        }
+
+        var surplusCounts = new Dictionary<(int, int), int>();
+        foreach (var rod in surplus)
+        {
+            var key = PairOf(rod);
+            surplusCounts[key] = surplusCounts.GetValueOrDefault(key) + 1;
+        }
+
+        var ties = new HashSet<(int, int)>();
+        foreach (var rod in surplus)
+        {
+            var key = PairOf(rod);
+            if (entries.GetValueOrDefault(key) > 1 && banded.GetValueOrDefault(key) == 1
+                && surplusCounts[key] == 1 && IsBanded(rod)
+                && rod.RelaxationFactor == 1f && rod.Weight0 == 0.5f)
+            {
+                ties.Add(key);
+            }
+        }
+
+        return ties;
     }
 
     /// <summary>
