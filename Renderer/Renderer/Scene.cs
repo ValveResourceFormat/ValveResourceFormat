@@ -1322,7 +1322,8 @@ namespace ValveResourceFormat.Renderer
 
                 CollectShadowDrawCalls(LightingInfo.SunLightFrustums[cascade],
                     includeStatic: !LightingInfo.HasBakedShadowsFromLightmap,
-                    includeDynamic: true, CulledShadowDrawCallsCascades[cascade],
+                    includeDynamic: true, skipFlags: ObjectTypeFlags.NoShadows,
+                    CulledShadowDrawCallsCascades[cascade],
                     LightingInfo.SunCastDirection, out var casterDepthMin, out var casterDepthMax);
 
                 LightingInfo.FitSunLightDepthRange(cascade, casterDepthMin, casterDepthMax);
@@ -1340,15 +1341,15 @@ namespace ValveResourceFormat.Renderer
             barnShadowDrawCalls ??= CreateDepthOnlyDrawCallCollection();
 
             // Skip static geo for stationary lights
-            CollectShadowDrawCalls(lightFrustum, includeStatic: light.DirectLight != SceneLight.DirectLightType.Stationary, includeDynamic: true, barnShadowDrawCalls);
+            CollectShadowDrawCalls(lightFrustum, includeStatic: light.DirectLight != SceneLight.DirectLightType.Stationary, includeDynamic: true, skipFlags: ObjectTypeFlags.None, barnShadowDrawCalls);
 
             return barnShadowDrawCalls;
         }
 
-        private void CollectShadowDrawCalls(Frustum frustum, bool includeStatic, bool includeDynamic, Dictionary<DepthOnlyBucket, List<MeshBatchRenderer.Request>> drawBuckets)
-            => CollectShadowDrawCalls(frustum, includeStatic, includeDynamic, drawBuckets, Vector3.Zero, out _, out _);
+        private void CollectShadowDrawCalls(Frustum frustum, bool includeStatic, bool includeDynamic, ObjectTypeFlags skipFlags, Dictionary<DepthOnlyBucket, List<MeshBatchRenderer.Request>> drawBuckets)
+            => CollectShadowDrawCalls(frustum, includeStatic, includeDynamic, skipFlags, drawBuckets, Vector3.Zero, out _, out _);
 
-        private void CollectShadowDrawCalls(Frustum frustum, bool includeStatic, bool includeDynamic, Dictionary<DepthOnlyBucket, List<MeshBatchRenderer.Request>> drawBuckets,
+        private void CollectShadowDrawCalls(Frustum frustum, bool includeStatic, bool includeDynamic, ObjectTypeFlags skipFlags, Dictionary<DepthOnlyBucket, List<MeshBatchRenderer.Request>> drawBuckets,
             Vector3 depthFitAxis, out float casterDepthMin, out float casterDepthMax)
         {
             // Extent of the accepted casters along the fit axis, for tightening the light's depth range
@@ -1391,8 +1392,6 @@ namespace ValveResourceFormat.Renderer
                 {
                     continue;
                 }
-
-                const ObjectTypeFlags skipFlags = ObjectTypeFlags.NoShadows | ObjectTypeFlags.BlockLight;
 
                 List<RenderableMesh> meshes;
                 DrawCall? singleCall = null;

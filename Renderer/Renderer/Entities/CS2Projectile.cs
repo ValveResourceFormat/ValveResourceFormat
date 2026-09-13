@@ -1,3 +1,5 @@
+using ValveResourceFormat.Particles;
+using ValveResourceFormat.Renderer.Particles.Renderers;
 using ValveResourceFormat.Renderer.SceneNodes;
 using ValveResourceFormat.ResourceTypes;
 
@@ -122,6 +124,19 @@ public sealed class CS2Projectile : BaseEntity
 
         this.detonationEffect = AddEffect(detonationEffect);
         this.flightEffect = AddEffect(flightEffect);
+
+        // Showcase adjustments, todo: when removing this also make the properties private
+        if (kind == GrenadeKind.Explosive && this.detonationEffect != null)
+        {
+            foreach (var renderer in this.detonationEffect.Renderers)
+            {
+                if (renderer is RenderStandardLight standardLight)
+                {
+                    standardLight.RadiusMultiplier = new LiteralNumberProvider(3f);
+                    standardLight.Light.CastShadows = 1;
+                }
+            }
+        }
 
         if (this.flightEffect != null)
         {

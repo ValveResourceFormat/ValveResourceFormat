@@ -710,10 +710,9 @@ public class SceneLight(Scene scene) : SceneNode(scene)
         var linearColor = ComputeOmni2Color(light);
 
         // custom point light hack
-        if (light.LuminaireShape == -1)
-        {
-            nearPlane = 0.001f;
-        }
+        const uint LitInsideNearPlaneFlag = 0x8000u;
+        const float ApexCullNearPlane = 0.001f;
+        var faceFlags = light.LuminaireShape == -1 ? 0xFFFF0000u | LitInsideNearPlaneFlag : 0xFFFF0000u;
 
         var cookieW = 0f;
         var cookieParams = new Vector4(1f, 1f, 0f, 0f);
@@ -737,6 +736,9 @@ public class SceneLight(Scene scene) : SceneNode(scene)
             var lightView = Matrix4x4.CreateLookAtLeftHanded(origin, origin + faceForward, faceUp);
             var lightProj = Matrix4x4.CreatePerspectiveLeftHanded(2f * nearPlane, 2f * nearPlane, nearPlane, nearPlane + range);
             var worldToFrustum = lightView * lightProj;
+            var cullProj = (faceFlags & LitInsideNearPlaneFlag) != 0u
+                ? Matrix4x4.CreatePerspectiveLeftHanded(2f * ApexCullNearPlane, 2f * ApexCullNearPlane, ApexCullNearPlane, nearPlane + range)
+                : lightProj;
             var (illuminationFromWorld, obbToWorld) = GetOmni2FaceOBB(light, faceIndex);
 
             return new BarnFaceData
@@ -754,11 +756,11 @@ public class SceneLight(Scene scene) : SceneNode(scene)
                     BarnLightBakedShadowMask = light.BakedShadowMask,
                     BarnLightMinRoughness = MathF.Max(0.04f, light.MinRoughness),
                     BarnLightShadowScale = 0f,
-                    PathTraceIndex_BarnLightFlags = 0xFFFF0000u,
+                    PathTraceIndex_BarnLightFlags = faceFlags,
                     BarnIlluminationFromWorld = illuminationFromWorld
                 },
                 WorldToFrustum = worldToFrustum,
-                FrustumToWorld = InvertFrustum(worldToFrustum),
+                FrustumToWorld = InvertFrustum(lightView * cullProj),
                 ObbToWorld = obbToWorld,
             };
         }

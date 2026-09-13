@@ -171,6 +171,10 @@ namespace ValveResourceFormat.Renderer.Particles
             return passes;
         }
 
+        /// <summary>The renderers of this system and the systems nested under it.</summary>
+        public IEnumerable<ParticleFunctionRenderer> EnumerateRenderers()
+            => renderers.Concat(childRenderers.SelectMany(static child => child.EnumerateRenderers()));
+
         /// <inheritdoc/>
         public void OnFrameSimulated(ParticleCollection particles, ParticleSystemState state)
         {

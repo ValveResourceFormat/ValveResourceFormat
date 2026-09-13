@@ -13,7 +13,18 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         private readonly SceneLight light;
         private readonly IVectorProvider colorScale = new LiteralVectorProvider(Vector3.One);
         private readonly INumberProvider intensity = new LiteralNumberProvider(1f);
-        private readonly INumberProvider radiusMultiplier = new LiteralNumberProvider(1f);
+        private INumberProvider radiusMultiplier = new LiteralNumberProvider(8f);
+        private readonly INumberProvider zeroPercentFalloff = new LiteralNumberProvider(1f);
+        private readonly bool castShadows;
+
+        /// <summary>Light radius multiplier</summary>
+        internal INumberProvider RadiusMultiplier
+        {
+            get => radiusMultiplier;
+            set => radiusMultiplier = value;
+        }
+
+        internal SceneLight Light => light;
 
         public RenderStandardLight(ParticleDefinitionParser parse, RendererContext rendererContext, Scene scene)
             : base(parse)
@@ -22,6 +33,8 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             colorScale = parse.VectorProvider("m_vecColorScale", colorScale);
             intensity = parse.NumberProvider("m_flIntensity", intensity);
             radiusMultiplier = parse.NumberProvider("m_flRadiusMultiplier", radiusMultiplier);
+            zeroPercentFalloff = parse.NumberProvider("m_flZeroPercentFalloff", zeroPercentFalloff);
+            castShadows = parse.Boolean("m_bCastShadows", castShadows);
 
             // todo: one light per particle?
             light = CreateLight();
@@ -53,30 +66,37 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
 
         private SceneLight CreateLight()
         {
+            // todo: this should be legacy light (and it should not render in barn lighting scenes)
+            // forcing this to barn light path for now, to showcase the new lights
+
             return new SceneLight(scene)
             {
                 Type = SceneLight.LightType.Point,
                 Entity = SceneLight.EntityType.Omni2,
                 DirectLight = SceneLight.DirectLightType.Dynamic,
-                CastShadows = 0,
-                LuminaireSize = 0f,
+                FallOff = 0.5f,
                 SpotOuterAngle = 180f,
                 BrightnessScale = 0f,
-                FallOff = 0f,
+
+                CastShadows = castShadows ? 1 : 0,
+                LuminaireSize = 0f,
+
                 Name = nameof(RenderStandardLight),
             };
         }
 
         private void UpdateLight(SceneLight light, ref Particle particle, ParticleSystemState systemState)
         {
-            // Should we use the particle color?
-            var color = colorScale.NextVector(ref particle, systemState);
-            var radius = particle.Radius;
-            var range = radius * radiusMultiplier.NextNumber(ref particle, systemState);
+            var color = colorScale.NextVector(ref particle, systemState) * particle.Color;
+            var range = particle.Radius
+                * radiusMultiplier.NextNumber(ref particle, systemState)
+                * zeroPercentFalloff.NextNumber(ref particle, systemState);
             var brightness = MathF.Max(0f, intensity.NextNumber(ref particle, systemState));
 
+            const float IntensityScaleBarnPath = 3f;
+
             light.Color = color;
-            light.BrightnessLegacy = brightness;
+            light.BrightnessLegacy = brightness * IntensityScaleBarnPath;
             light.BrightnessScale = 1f;
             light.Range = range;
             light.Position = particle.Position;

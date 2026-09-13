@@ -4,6 +4,7 @@ using ValveResourceFormat.Blocks;
 using ValveResourceFormat.Particles;
 using ValveResourceFormat.Particles.Utils;
 using ValveResourceFormat.Renderer.Particles;
+using ValveResourceFormat.Renderer.Particles.Renderers;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization.KeyValues;
 
@@ -18,6 +19,8 @@ namespace ValveResourceFormat.Renderer.SceneNodes
 
         /// <summary>Gets whether this system samples the resolved opaque depth.</summary>
         public bool WantsSceneDepth { get; }
+
+        internal IEnumerable<ParticleFunctionRenderer> Renderers => particleRenderer.EnumerateRenderers();
 
         /// <summary>
         /// Gets the preview model scene node loaded from particle preview state, if any.
