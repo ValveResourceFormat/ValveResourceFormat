@@ -4114,5 +4114,86 @@ namespace Tests
                 await Assert.That(top[1].ContainsKey("children")).IsFalse();
             }
         }
+
+        /// <summary>
+        /// A <c>ClothNode</c> with <c>angles</c> of its own compiles to a <c>$cloth_node_</c> element whose rest rotation
+        /// is its root bone's times those angles, and it is not folded into the bone even at a zero origin. The angles
+        /// come back as the rotation relative to the bone, with the origin left at zero. The compiler also turns an
+        /// effect's Strength by its parent node's angles, so an effect recorded on that bone is declared under the
+        /// element with its direction expressed in the element's frame. The controls: an unrotated element keeps angles 0
+        /// and has its zero origin pushed off the bone, and an effect on a bone with only an unrotated node keeps the
+        /// compiled direction.
+        /// </summary>
+        [Test]
+        public async Task ARotatedClothNodeGetsItsAnglesBackAndItsEffectsInItsFrame()
+        {
+            var bone = Quaternion.Normalize(new Quaternion(-0.435361f, -0.55719f, -0.55719f, 0.435361f));
+            var turned = bone * EntityTransformHelper.EulerAnglesToQuaternion(new Vector3(0f, 90f, 0f));
+            static string RotatedPose(Quaternion q) => $"[ 0.0, 0.0, 0.0, 1.0, {SyntheticCloth.Num(q.X)}, "
+                + $"{SyntheticCloth.Num(q.Y)}, {SyntheticCloth.Num(q.Z)}, {SyntheticCloth.Num(q.W)} ],";
+            var feModel = SyntheticCloth.Parse($$"""
+                {
+                    m_CtrlName = [ "spine_2", "$cloth_node_node_spine", "$cloth_node_node_flat", "pelvis" ]
+                    m_SkelParents = [ -1, 0, 0, -1 ]
+                    m_nNodeCount = 4
+                    m_nStaticNodes = 4
+                    m_NodeInvMasses = [ 0.0, 0.0, 0.0, 0.0 ]
+                    m_InitPose = [ {{RotatedPose(bone)}} {{RotatedPose(turned)}} {{RotatedPose(bone)}} {{SyntheticCloth.Pose(0f, 0f, -5f)}} ]
+                    m_CtrlOffsets =
+                    [
+                        { vOffset = [ 0.0, 0.0, 0.0 ] nCtrlParent = 0 nCtrlChild = 1 },
+                        { vOffset = [ 0.0, 0.0, 0.0 ] nCtrlParent = 0 nCtrlChild = 2 },
+                    ]
+                    m_Effects =
+                    [
+                        { sName = "gravity0" nNameHash = 1 nType = 4 m_Params = { Node = 0 Strength = [ -0.353553, 0.353553, 0.0 ] } },
+                        { sName = "gravity1" nNameHash = 2 nType = 4 m_Params = { Node = 3 Strength = [ -0.353553, 0.353553, 0.0 ] } },
+                    ]
+                }
+                """);
+            var anchors = feModel.CtrlOffsets.ToDictionary(static offset => offset.CtrlChild);
+            var rotatedFound = ModelExtract.TryResolveClothNodeAnchor(feModel, anchors, 1, out var rotatedRoot, out var rotatedOrigin,
+                out var rotatedAngles);
+            var flatFound = ModelExtract.TryResolveClothNodeAnchor(feModel, anchors, 2, out _, out var flatOrigin, out var flatAngles);
+            var element = ModelExtract.MakeClothNode(feModel, rotatedRoot!, 1, isStaticNode: true, elementName: "node_spine",
+                origin: rotatedOrigin, angles: rotatedAngles);
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(rotatedFound).IsTrue();
+                await Assert.That(rotatedRoot).IsEqualTo("spine_2");
+                await Assert.That(Vector3.Distance(rotatedAngles, new Vector3(0f, 90f, 0f))).IsLessThan(1e-3f);
+                await Assert.That(rotatedOrigin).IsEqualTo(Vector3.Zero);
+                await Assert.That(Vector3.Distance(element.GetSubCollection("angles").ToVector3(), new Vector3(0f, 90f, 0f)))
+                    .IsLessThan(1e-3f);
+                await Assert.That(flatFound).IsTrue();
+                await Assert.That(flatAngles).IsEqualTo(Vector3.Zero);
+                await Assert.That(flatOrigin.Length()).IsGreaterThan(1e-3f);
+            }
+
+            static KVObject StaticNode(string name, string root, float yaw) => KVHelpers.MakeNode("ClothNode",
+                ("name", name), ("cloth_node_root_bone", root), ("is_static_node", true),
+                ("angles", KVHelpers.ToKVArray(new Vector3(0f, yaw, 0f))));
+            var softbodyChildren = KVObject.Array();
+            softbodyChildren.Add(StaticNode("spine_2", "spine_2", 0f));
+            softbodyChildren.Add(StaticNode("node_spine", "spine_2", 90f));
+            softbodyChildren.Add(StaticNode("pelvis", "pelvis", 0f));
+
+            ModelExtract.AddClothEffects(softbodyChildren, feModel, new HashSet<string>());
+
+            var nodes = softbodyChildren.Select(static child => child.Value).ToArray();
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(nodes.Length).IsEqualTo(3);
+                await Assert.That(nodes[0].ContainsKey("children")).IsFalse();
+                await Assert.That(nodes[1].GetArray("children")[0].GetStringProperty("name")).IsEqualTo("gravity0");
+                await Assert.That(Vector3.Distance(nodes[1].GetArray("children")[0].GetSubCollection("angles").ToVector3(),
+                    new Vector3(0f, 45f, 0f))).IsLessThan(1e-3f);
+                await Assert.That(nodes[2].GetArray("children")[0].GetStringProperty("name")).IsEqualTo("gravity1");
+                await Assert.That(Vector3.Distance(nodes[2].GetArray("children")[0].GetSubCollection("angles").ToVector3(),
+                    new Vector3(0f, 135f, 0f))).IsLessThan(1e-3f);
+            }
+        }
     }
 }

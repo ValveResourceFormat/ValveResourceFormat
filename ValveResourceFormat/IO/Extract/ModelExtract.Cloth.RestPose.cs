@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Linq;
+using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.ResourceTypes.ModelAnimation;
 using ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody;
 
@@ -185,26 +186,31 @@ partial class ModelExtract
         return anchorOf;
     }
 
-    // The bone a "$cloth_node_<name>" ctrl hangs off, plus the bone-local origin to re-author it at: the
+    // The bone a "$cloth_node_<name>" ctrl hangs off, plus the bone-local origin and angles to re-author it at: the
     // m_CtrlOffsets entry the compiler wrote for it, or the skeleton parent when the model carries no such
-    // entry. A node anchored to another generated node has no authorable root bone.
-    static bool TryResolveClothNodeAnchor(FeModel feModel, Dictionary<int, FeModel.CtrlOffset> anchorOf,
-        int node, [System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out string? rootBone, out Vector3 origin)
+    // entry, and the node's rest rotation relative to that bone, which the compiler composes as the bone's
+    // rotation times the ClothNode's own. A node anchored to another generated node has no authorable root bone.
+    internal static bool TryResolveClothNodeAnchor(FeModel feModel, Dictionary<int, FeModel.CtrlOffset> anchorOf,
+        int node, [System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out string? rootBone, out Vector3 origin,
+        out Vector3 angles)
     {
         var names = feModel.CtrlNames;
         rootBone = null;
         origin = default;
+        angles = default;
+        var parent = -1;
 
         if (anchorOf.TryGetValue(node, out var anchor)
             && anchor.CtrlParent >= 0 && anchor.CtrlParent < names.Length)
         {
-            rootBone = names[anchor.CtrlParent];
+            parent = anchor.CtrlParent;
+            rootBone = names[parent];
             origin = anchor.Offset;
         }
         else if (node < feModel.SkelParents.Length
             && feModel.SkelParents[node] >= 0 && feModel.SkelParents[node] < names.Length)
         {
-            var parent = feModel.SkelParents[node];
+            parent = feModel.SkelParents[node];
             rootBone = names[parent];
             if (node < feModel.InitPosePositions.Length && parent < feModel.InitPosePositions.Length
                 && parent < feModel.InitPoseRotations.Length)
@@ -215,11 +221,21 @@ partial class ModelExtract
             }
         }
 
-        if (rootBone is not null && origin.Length() < ClothNodeMergeRadius)
+        if (parent >= 0 && node < feModel.InitPoseRotations.Length && parent < feModel.InitPoseRotations.Length)
+        {
+            var local = Quaternion.Conjugate(feModel.InitPoseRotations[parent]) * feModel.InitPoseRotations[node];
+            if (2f * MathF.Atan2(new Vector3(local.X, local.Y, local.Z).Length(), MathF.Abs(local.W)) > ClothNodeRotationTolerance)
+            {
+                angles = EntityTransformHelper.ToEulerAngles(local);
+            }
+        }
+
+        if (rootBone is not null && angles == Vector3.Zero && origin.Length() < ClothNodeMergeRadius)
         {
             // The compiler folds a free ClothNode into its root bone's own ctrl when the authored origin
-            // is within ClothNodeMergeRadius of the bone, which loses the node the original still carries
-            // its "$cloth_node_" ctrl for. Push it just outside, keeping its direction where it has one.
+            // is within ClothNodeMergeRadius of the bone and it carries no rotation of its own, which loses
+            // the node the original still carries its "$cloth_node_" ctrl for. Push it just outside,
+            // keeping its direction where it has one.
             var direction = origin == Vector3.Zero ? Vector3.One : origin;
             origin = Vector3.Normalize(direction) * (ClothNodeMergeRadius * 1.25f);
         }
@@ -230,4 +246,7 @@ partial class ModelExtract
     // Bone-local euclidean distance under which the compiler merges a free ClothNode into its root bone's
     // control node instead of giving it one of its own. A node at exactly this distance keeps its own.
     const float ClothNodeMergeRadius = 1e-3f;
+
+    // Radians of rest rotation relative to the root bone under which a free ClothNode counts as unrotated.
+    const float ClothNodeRotationTolerance = 1e-4f;
 }
