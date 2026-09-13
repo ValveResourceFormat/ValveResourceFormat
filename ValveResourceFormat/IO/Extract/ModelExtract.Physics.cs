@@ -38,12 +38,22 @@ partial class ModelExtract
         rootChildren.Add(jointList.Node);
 
         // Geometry alone does not preserve the mass and damping that make the articulated bodies stable.
+        var existingMarkupBones = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var existingMarkups = model?.KeyValues.GetSubCollection("CPhysicsBodyGameMarkupData")?.GetSubCollection("m_PhysicsBodyMarkupByBoneName");
+        if (existingMarkups != null)
+        {
+            foreach (var (boneName, _) in existingMarkups)
+            {
+                existingMarkupBones.Add(boneName!);
+            }
+        }
+
         var markupList = MakeListNode("PhysicsBodyMarkupList");
         var parts = physAggregateData.Data.GetArray("m_parts");
         for (var i = 0; i < parts.Count; i++)
         {
             var bodyName = physAggregateData.GetParentBoneName(i);
-            if (!string.IsNullOrEmpty(bodyName))
+            if (!string.IsNullOrEmpty(bodyName) && existingMarkupBones.Add(bodyName))
             {
                 markupList.Children.Add(BuildPhysicsBodyMarkup(parts[i], bodyName));
             }
@@ -51,64 +61,7 @@ partial class ModelExtract
 
         if (markupList.Children.Count > 0)
         {
-            MergePhysicsBodyGameMarkup(rootChildren, markupList.Children);
             rootChildren.Add(markupList.Node);
-        }
-    }
-
-    internal static void MergePhysicsBodyGameMarkup(KVObject rootChildren, KVObject bodyMarkups)
-    {
-        var bodies = new Dictionary<string, KVObject>(StringComparer.OrdinalIgnoreCase);
-        foreach (var (_, body) in bodyMarkups)
-        {
-            bodies.Add(body.GetStringProperty("target_body"), body);
-        }
-
-        foreach (var (_, list) in rootChildren)
-        {
-            if (list.GetStringProperty("_class") != "GameDataList")
-            {
-                continue;
-            }
-
-            var children = KVObject.Array();
-            foreach (var entry in list.GetArray("children"))
-            {
-                if (entry.GetStringProperty("_class") == "GenericGameData"
-                    && entry.GetStringProperty("game_class") == "CPhysicsBodyGameMarkupData")
-                {
-                    var keys = entry.GetSubCollection("game_keys");
-                    var markups = keys.GetSubCollection("m_PhysicsBodyMarkupByBoneName");
-                    if (markups != null)
-                    {
-                        var remaining = KVObject.Collection();
-                        foreach (var (name, markup) in markups)
-                        {
-                            var target = markup.GetStringProperty("m_TargetBody", name!);
-                            if (bodies.TryGetValue(target, out var body))
-                            {
-                                AddIfPresent(body, "tag", markup, "m_Tag");
-                            }
-                            else
-                            {
-                                remaining.Add(name!, markup);
-                            }
-                        }
-
-                        // Body markup nodes regenerate this game data. Keeping both declarations
-                        // would make compilation fail with duplicate target bodies.
-                        keys["m_PhysicsBodyMarkupByBoneName"] = remaining;
-                        if (remaining.Count == 0 && keys.Count == 1)
-                        {
-                            continue;
-                        }
-                    }
-                }
-
-                children.Add(entry);
-            }
-
-            list["children"] = children;
         }
     }
 
