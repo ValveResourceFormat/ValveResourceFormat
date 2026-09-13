@@ -2641,11 +2641,12 @@ namespace Tests
             """;
 
         /// <summary>
-        /// A joint authored with <c>animated_length</c> compiles no rod on its span to its parent, to its own
-        /// ring or on its children's spans to it, while each child keeps its own ring rod. The fixture is the
-        /// compiled synthetic chain with it on coattail_2_L only. A childless joint loses the same rods to a
-        /// zero <c>stretch_spring</c>, and there only the node base the animated joint keeps tells the two
-        /// apart: the second fixture is the chain with it on every joint.
+        /// A joint authored with <c>animated_length</c> moves the rods on its span to its parent, on its own
+        /// ring and on its children's spans to it out of <c>m_Rods</c> and into <c>m_SimdRodsAnim</c>, while
+        /// each child keeps its own ring rod. The fixture is the compiled synthetic chain with it on
+        /// coattail_2_L only. A childless joint loses the same rods from <c>m_Rods</c> to a zero
+        /// <c>stretch_spring</c>, and there the node base the animated joint keeps tells the two apart: the
+        /// second fixture is the chain with it on every joint.
         /// </summary>
         [Test]
         public async Task AJointsAnimatedLengthIsReadOffTheRodsItAndItsChildrenLose()
@@ -2689,6 +2690,14 @@ namespace Tests
                     [ -19.686529, 5.562407, 42.336063, 1.0, -0.323943, 0.653251, 0.505547, 0.461245 ],
                     [ -14.808016, 4.637866, 49.519089, 1.0, -0.323943, 0.653251, 0.505547, 0.461245 ],
                 ]
+                m_SimdRodsAnim =
+                [
+                    { nNode = [ [ 2, 2, 2, 2 ], [ 7, 7, 7, 7 ] ] f4Weight0 = [ 0.0, 0.0, 0.0, 0.0 ] f4RelaxationFactor = [ 1.0, 1.0, 1.0, 1.0 ] },
+                    { nNode = [ [ 3, 2, 2, 2 ], [ 7, 4, 4, 4 ] ] f4Weight0 = [ 0.5, 0.0, 0.0, 0.0 ] f4RelaxationFactor = [ 1.0, 1.0, 1.0, 1.0 ] },
+                    { nNode = [ [ 4, 2, 2, 2 ], [ 7, 3, 3, 3 ] ] f4Weight0 = [ 0.5, 0.0, 0.0, 0.0 ] f4RelaxationFactor = [ 1.0, 1.0, 1.0, 1.0 ] },
+                    { nNode = [ [ 5, 2, 2, 2 ], [ 7, 6, 6, 6 ] ] f4Weight0 = [ 0.5, 0.0, 0.0, 0.0 ] f4RelaxationFactor = [ 1.0, 1.0, 1.0, 1.0 ] },
+                    { nNode = [ [ 6, 2, 2, 2 ], [ 7, 5, 5, 5 ] ] f4Weight0 = [ 0.5, 0.0, 0.0, 0.0 ] f4RelaxationFactor = [ 1.0, 1.0, 1.0, 1.0 ] },
+                ]
                 m_Rods =
                 [
                     { nNode = [ 0, 3 ] flMinDist = 8.499948 flMaxDist = 8.499948 flWeight0 = 0.0 flRelaxationFactor = 1.0 },
@@ -2719,6 +2728,14 @@ namespace Tests
                     [ -11.695464, 4.267121, 57.419937, 1.0, -0.323373, 0.653533, 0.505948, 0.460804 ],
                     [ -14.808016, 4.637866, 49.519089, 1.0, -0.323943, 0.653251, 0.505547, 0.461245 ],
                     [ -17.907341, 5.004471, 41.612736, 1.0, -0.323943, 0.653251, 0.505547, 0.461245 ],
+                ]
+                m_SimdRodsAnim =
+                [
+                    { nNode = [ [ 2, 0, 4, 4 ], [ 6, 5, 7, 7 ] ] f4Weight0 = [ 0.0, 0.0, 0.0, 0.0 ] f4RelaxationFactor = [ 1.0, 1.0, 1.0, 1.0 ] },
+                    { nNode = [ [ 3, 1, 4, 4 ], [ 6, 5, 7, 7 ] ] f4Weight0 = [ 0.0, 0.0, 0.0, 0.0 ] f4RelaxationFactor = [ 1.0, 1.0, 1.0, 1.0 ] },
+                    { nNode = [ [ 4, 3, 2, 2 ], [ 6, 7, 5, 5 ] ] f4Weight0 = [ 0.0, 0.0, 0.0, 0.0 ] f4RelaxationFactor = [ 1.0, 1.0, 1.0, 1.0 ] },
+                    { nNode = [ [ 6, 4, 4, 4 ], [ 5, 7, 7, 7 ] ] f4Weight0 = [ 0.5, 0.0, 0.0, 0.0 ] f4RelaxationFactor = [ 1.0, 1.0, 1.0, 1.0 ] },
+                    { nNode = [ [ 7, 3, 3, 3 ], [ 6, 5, 5, 5 ] ] f4Weight0 = [ 0.5, 0.0, 0.0, 0.0 ] f4RelaxationFactor = [ 1.0, 1.0, 1.0, 1.0 ] },
                 ]
                 m_Rods =
                 [
@@ -2916,7 +2933,7 @@ namespace Tests
         /// Under chain version 1 a zero <c>stretch_spring</c> drops a joint's node base and <c>animated_length</c>
         /// keeps it, so a joint whose children are cut off from it reads as animated wherever it keeps a base. The
         /// fixture is the compiled synthetic version 1 chain with <c>animated_length</c> on every joint, which carries
-        /// no rod at all; without a base on the tip, the tip reads as a zero stretch spring instead.
+        /// no <c>m_Rods</c> entry at all; without a base on the tip, the tip reads as a zero stretch spring instead.
         /// </summary>
         [Test]
         public async Task AnAnimatedLengthJointIsReadOffTheNodeBaseItKeeps()
@@ -3434,6 +3451,36 @@ namespace Tests
                 ]
             }
             """);
+
+        /// <summary>
+        /// A joint's <c>animated_length</c> routes its rods to <c>m_SimdRodsAnim</c> and does nothing else,
+        /// so a joint whose extrusion carries no entry there had no rod built for it at all - a zero
+        /// <c>stretch_spring</c>, not an animated length the rods would have recorded. The fixture is the
+        /// compiled synthetic chain with <c>animated_length</c> on every joint and its animated rods taken
+        /// away; the control is the same chain, node bases included, with them.
+        /// </summary>
+        [Test]
+        public async Task AJointWithNoAnimatedRodDeclaresNoStretchInstead()
+        {
+            const string Bases = "m_NodeBases = [ { nNode = 5 nNodeX0 = 3 nNodeX1 = 0 nNodeY0 = 1 nNodeY1 = 6 }, "
+                + "{ nNode = 6 nNodeX0 = 5 nNodeX1 = 4 nNodeY0 = 7 nNodeY1 = 2 } ]\nm_Rods =";
+            var control = SyntheticCloth.Parse(AnimatedEveryJointText
+                .Replace("m_Rods =", Bases, StringComparison.Ordinal)).BuildBoneChains()[0].Joints;
+            var rodless = SyntheticCloth.Parse(WithoutAnimatedRods(AnimatedEveryJointText)
+                .Replace("m_Rods =", Bases, StringComparison.Ordinal)).BuildBoneChains()[0].Joints;
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(control.First(static joint => joint.Name == "coattail_1_L").AnimatedLength).IsTrue();
+                await Assert.That(rodless.First(static joint => joint.Name == "coattail_1_L").AnimatedLength).IsFalse();
+                await Assert.That(rodless.First(static joint => joint.Name == "coattail_1_L").StretchStiffness)
+                    .IsEqualTo(0f);
+            }
+        }
+
+        private static string WithoutAnimatedRods(string text)
+            => text[..text.IndexOf("m_SimdRodsAnim", StringComparison.Ordinal)]
+                + text[text.IndexOf("m_Rods =", StringComparison.Ordinal)..];
 
         /// <summary>
         /// A <c>ClothSpring</c>'s <c>extra_iterations</c> is its rod's multiplicity: the compile appends the

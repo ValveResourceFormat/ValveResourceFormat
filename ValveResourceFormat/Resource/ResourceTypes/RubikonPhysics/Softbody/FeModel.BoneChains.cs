@@ -2682,11 +2682,18 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
 
                     var own = Extrusion(joint.Node);
                     var kids = chain.Joints.FindAll(other => other.ParentNode == joint.Node);
-                    joint.AnimatedLength = kids.Count == 0
+
+                    // The bit routes the joint's rods to the animated array and does nothing else, so a
+                    // joint whose extrusion carries no entry there had no rod built for it at all - which
+                    // is a zero stretch slider, not an animated length the rods would have recorded.
+                    var animated = AnimRodPairs.Count > 0
+                        && own.Exists(node => AnimRodPairs.Any(pair => pair.Item1 == node || pair.Item2 == node));
+
+                    joint.AnimatedLength = animated && (kids.Count == 0
                         ? NodeBases.ContainsKey(joint.Node)
                         : kids.TrueForAll(kid => jointRingOf.ContainsKey(kid.Node) && !AnyRodBetween(Extrusion(kid.Node), own))
                             && ((NodeBases.ContainsKey(joint.Node) && !SelfCollisionClusters.Any(cluster => cluster.Nodes.Contains(joint.Node)))
-                                || kids.TrueForAll(kid => AnyRodBetween(Extrusion(kid.Node), Extrusion(kid.Node))));
+                                || kids.TrueForAll(kid => AnyRodBetween(Extrusion(kid.Node), Extrusion(kid.Node)))));
 
                     if (joint.AnimatedLength)
                     {

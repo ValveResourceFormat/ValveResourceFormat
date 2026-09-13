@@ -116,6 +116,62 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// not a fixed default. Not re-authorable through <c>ClothSpring</c> either.</param>
         public readonly record struct Rod(int NodeA, int NodeB, float MinDist, float MaxDist, float Weight0, float RelaxationFactor);
 
+        private HashSet<(int, int)>? animRodPairs;
+
+        /// <summary>
+        /// Gets the node pairs of <c>m_SimdRodsAnim</c>, the array the compiler routes a rod to when either
+        /// endpoint's chain joint declared <c>animated_length</c>. The scalar array these lanes are packed
+        /// from never reaches the file, so they are the only record that such a rod was built at all: a span
+        /// in neither <see cref="Rods"/> nor here carries no rod, and its joint declared no stretch.
+        /// </summary>
+        public IReadOnlySet<(int, int)> AnimRodPairs => animRodPairs ??= BuildAnimRodPairs();
+
+        private HashSet<(int, int)> BuildAnimRodPairs()
+        {
+            var pairs = new HashSet<(int, int)>();
+            foreach (var entry in Data.GetArray("m_SimdRodsAnim") ?? [])
+            {
+                if (!entry.TryGetValue("nNode", out var nNodeValue) || !nNodeValue.IsArray)
+                {
+                    continue;
+                }
+
+                // nNode is 2 rows x 4 lanes, nested or flattened row-major, as in OrderFacesBySimdLanes.
+                var flat = new List<int>(8);
+                foreach (var row in nNodeValue.AsArraySpan())
+                {
+                    if (row.IsArray)
+                    {
+                        foreach (var lane in row.AsArraySpan())
+                        {
+                            flat.Add((int)(long)lane);
+                        }
+                    }
+                    else
+                    {
+                        flat.Add((int)(long)row);
+                    }
+                }
+
+                if (flat.Count < 8)
+                {
+                    continue;
+                }
+
+                for (var lane = 0; lane < 4; lane++)
+                {
+                    var a = flat[lane];
+                    var b = flat[4 + lane];
+                    if (a != b)
+                    {
+                        pairs.Add(a < b ? (a, b) : (b, a));
+                    }
+                }
+            }
+
+            return pairs;
+        }
+
         /// <summary>
         /// Gets the explicit local orientation basis of certain nodes (<c>m_NodeBases</c>), keyed by
         /// control-node index. The compiler writes one for exactly the nodes with rod-graph degree &gt;= 2
@@ -3424,8 +3480,9 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
 
         // Keys the compiler regenerates from other data at compile time (the BVH tree, SIMD repacks,
         // free-node lists, and reserved/derived counts) - not parsed for authoring since a recompile
-        // rebuilds them regardless of what an exported source declares. m_SimdQuads/m_SimdTris are the one
-        // exception still read directly (see OrderFacesBySimdLanes), for face ordering rather than authoring.
+        // rebuilds them regardless of what an exported source declares. m_SimdQuads/m_SimdTris (see
+        // OrderFacesBySimdLanes) and m_SimdRodsAnim (see BuildAnimRodPairs) are read directly all the same,
+        // for face ordering and rod evidence rather than for authoring.
         static readonly HashSet<string> DerivedKeys =
         [
             "m_CtrlHash",
