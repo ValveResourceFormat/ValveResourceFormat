@@ -12,9 +12,9 @@ partial class ModelExtract
     // entirely and that bone keeps its compiled transform.
     const float ClothRestBoneTolerance = 1.0f;
 
-    // And how far it has to sit before the disagreement is worth acting on: below the floor the round trip
-    // holds the two poses equal.
-    const float ClothRestBoneFloor = 1e-3f;
+    // And how far it has to sit before the disagreement is worth acting on: a control node whose bone
+    // already accumulates to its recorded position exactly keeps its compiled transform.
+    const float ClothRestBoneFloor = 0f;
 
     // How far apart two control bones' corrections may sit and still be read as ONE pose difference.
     // A proxy mesh authored in a different pose moves as a unit, and it takes at least two bones
@@ -22,14 +22,13 @@ partial class ModelExtract
     // exporter does not guess at it.
     const float ClothRestBoneRigidSpread = 1e-2f;
 
-    // The correction runs per MODEL only when some bone disagrees by more than twice the floor. Once
-    // enabled, every bone past the per-bone floor moves together: derived rest shapes span bones on both
-    // sides of any per-bone cut, so a partial correction leaves them mixed.
-    const float ClothRestBoneModelGate = 2e-3f;
+    // The correction runs per MODEL when any bone disagrees at all. Once enabled, every bone past the
+    // per-bone floor moves together: derived rest shapes span bones on both sides of any per-bone cut,
+    // so a partial correction leaves them mixed.
+    const float ClothRestBoneModelGate = 0f;
 
-    // The gate and floor of the proxy dictionary alone, the one the cloth import reads: it corrects at
-    // half the render gate and puts back every bone that disagrees at all.
-    const float ClothProxyRestBoneModelGate = 1e-3f;
+    // The gate and floor of the proxy dictionary alone, the one the cloth import reads.
+    const float ClothProxyRestBoneModelGate = 0f;
     const float ClothProxyRestBoneFloor = 0f;
 
     // Re-derives each bone's parent-space position from the cloth rest pose, root first: a bone the
