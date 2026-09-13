@@ -418,6 +418,15 @@ partial class ModelExtract
         return cornered;
     }
 
+    /// <summary>
+    /// Whether a model with jiggle bones was authored with a <c>Softbody</c> holding a <c>ClothParams</c> even though it
+    /// has no cloth node of its own. The jiggle bones compile the same either way, and the ClothParams leaves only its
+    /// iteration counts behind: a model compiled without one ships them as zero.
+    /// </summary>
+    internal static bool HasJiggleBoneClothParams(FeModel feModel)
+        => feModel.JiggleBones.Length > 0
+            && (feModel.ExtraIterations != 0 || feModel.ExtraGoalIterations != 0 || feModel.ExtraPressureIterations != 0);
+
     bool EmitFreeNodeClothPhase(FeModel feModel, List<FeModel.BoneChain> boneChains, KVObject rootChildren)
     {
         // No sheet and no chains: cloth built purely from free-standing ClothNodes (and the
@@ -442,7 +451,7 @@ partial class ModelExtract
 
         // Every ctrl of a collision-shape-only model is a shape parent bone, which the loop above
         // skips, so gating on the node count alone drops the shapes with the rest of the Softbody.
-        if (freeNodes > 0 || CollisionShapeParentBones(feModel).Count > 0)
+        if (freeNodes > 0 || CollisionShapeParentBones(feModel).Count > 0 || HasJiggleBoneClothParams(feModel))
         {
             AddClothFollowBones(softbodyChildren, feModel, clothBones);
             AddClothCollisionShapes(softbodyChildren, feModel);
