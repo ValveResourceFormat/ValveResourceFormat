@@ -4195,5 +4195,26 @@ namespace Tests
                     new Vector3(0f, 135f, 0f))).IsLessThan(1e-3f);
             }
         }
+
+        /// <summary>
+        /// A proxy sheet painted with one <c>cloth_mass</c> value reads back scattered by the float32 step of each
+        /// shipped inverse mass, as <c>s4_mapfilter_mass_bias_2p0</c> does (2.0 painted, read 1.9999976 to
+        /// 2.0000057 against a step of about 6.6e-6). Such readings collapse to their median. The controls are a
+        /// painted gradient, whose readings stay as read, and a sheet with a single painted vertex.
+        /// </summary>
+        [Test]
+        public async Task AUniformMassPaintIsEmittedAsOneValue()
+        {
+            const float Step = 6.6e-6f;
+            (float, float)[] uniform = [(2.0000017f, Step), (1.9999996f, Step), (1.9999976f, Step), (2.0000057f, Step), (2.0000017f, Step)];
+            (float, float)[] gradient = [(1.9f, Step), (2.0f, Step), (2.1f, Step)];
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(FeModel.UniformMassPaint(uniform)).IsEqualTo(2.0000017f);
+                await Assert.That(FeModel.UniformMassPaint(gradient)).IsNull();
+                await Assert.That(FeModel.UniformMassPaint([(2.0f, Step)])).IsNull();
+            }
+        }
     }
 }
