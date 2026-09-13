@@ -4216,5 +4216,35 @@ namespace Tests
                 await Assert.That(FeModel.UniformMassPaint([(2.0f, Step)])).IsNull();
             }
         }
+
+        /// <summary>
+        /// A colliding jiggle bone compiles its four <c>cloth_collision_layer</c> booleans into <c>m_nCollisionMask</c>:
+        /// <c>s12_jiggle_collision_tip_mass</c> leaves layer 1 out and ships 13 (flags 802, rigid, length-limited,
+        /// colliding), so the bone declares that layer false and the other three true. The controls are a colliding bone
+        /// with all four layers (15), and a bone that does not collide, whose mask is 0.
+        /// </summary>
+        [Test]
+        public async Task AJiggleBoneDeclaresTheCollisionLayersItsMaskLeavesOut()
+        {
+            static KVObject? Declare(uint flags, int mask) => ModelExtract.ProcessJiggleBone(
+                new FeModel.IndexedJiggleBone(0, -1, default(FeModel.JiggleBone) with { Flags = flags, Length = 5f, CollisionMask = mask }),
+                ["tophat"]);
+
+            var leftOut = Declare(802, 13)!;
+            var allLayers = Declare(802, 15)!;
+            var noCollision = Declare(0x22, 0)!;
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(leftOut.GetBooleanProperty("has_collision")).IsTrue();
+                await Assert.That(leftOut.GetBooleanProperty("cloth_collision_layer0")).IsTrue();
+                await Assert.That(leftOut.GetBooleanProperty("cloth_collision_layer1")).IsFalse();
+                await Assert.That(leftOut.GetBooleanProperty("cloth_collision_layer2")).IsTrue();
+                await Assert.That(leftOut.GetBooleanProperty("cloth_collision_layer3")).IsTrue();
+                await Assert.That(allLayers.ContainsKey("cloth_collision_layer1")).IsFalse();
+                await Assert.That(noCollision.GetBooleanProperty("has_collision")).IsFalse();
+                await Assert.That(noCollision.ContainsKey("cloth_collision_layer0")).IsFalse();
+            }
+        }
     }
 }
