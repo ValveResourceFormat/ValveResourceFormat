@@ -331,6 +331,41 @@ partial class ModelExtract
     }
 
     /// <summary>
+    /// Declares a <c>ClothStiffHinge</c> for every compiled bend whose three nodes are free cloth nodes. The class names
+    /// its hinge and its two base nodes by element name, and the compiler measures both bases from the hinge:
+    /// <c>9 * flHeight0^2 = |b1|^2 + |b2|^2 - 2 |b1| |b2| cos(max_angle)</c>. A bend over chain joints comes back as the
+    /// joint's <c>stiff_hinge</c>, and a sheet hub's as the sheet's curvature.
+    /// </summary>
+    internal static void AddClothStiffHinges(KVObject softbodyChildren, FeModel feModel)
+    {
+        bool IsFreeNode(int node) => node >= 0 && node < feModel.CtrlNames.Length && node < feModel.InitPosePositions.Length
+            && feModel.CtrlNames[node].StartsWith(FeModel.FreeClothNodePrefix, StringComparison.Ordinal);
+
+        foreach (var bend in feModel.KelagerBends)
+        {
+            if (!IsFreeNode(bend.MidNode) || !IsFreeNode(bend.End0) || !IsFreeNode(bend.End1))
+            {
+                continue;
+            }
+
+            var hinge = feModel.InitPosePositions[bend.MidNode];
+            var base1 = (feModel.InitPosePositions[bend.End0] - hinge).Length();
+            var base2 = (feModel.InitPosePositions[bend.End1] - hinge).Length();
+            if (base1 <= 0f || base2 <= 0f)
+            {
+                continue;
+            }
+
+            var cosine = ((base1 * base1) + (base2 * base2) - (9f * bend.Height * bend.Height)) / (2f * base1 * base2);
+            softbodyChildren.Add(MakeNode("ClothStiffHinge",
+                ("cloth_node_0", ClothFaceCornerName(feModel, bend.MidNode)),
+                ("cloth_node_1", ClothFaceCornerName(feModel, bend.End0)),
+                ("cloth_node_2", ClothFaceCornerName(feModel, bend.End1)),
+                ("max_angle", float.RadiansToDegrees(MathF.Acos(Math.Clamp(cosine, -1f, 1f))))));
+        }
+    }
+
+    /// <summary>
     /// Declares one compiled surface face whose corners are all already-declared cloth nodes as the
     /// <c>ClothTri</c> or <c>ClothQuad</c> element the original was built from, instead of inventing a
     /// proxy sheet to carry it. Repeated corners collapse, so a triangle stored in a quad slot emits as
@@ -403,6 +438,7 @@ partial class ModelExtract
             ClothVertexMapFolders(feModel, clothFolderChildren),
             bareStaticReparented: ClothControlAncestorTest(feModel));
         AddClothFaces(clothFolderChildren, feModel);
+        AddClothStiffHinges(softbodyChildren, feModel);
 
         // Every ctrl of a collision-shape-only model is a shape parent bone, which the loop above
         // skips, so gating on the node count alone drops the shapes with the rest of the Softbody.
