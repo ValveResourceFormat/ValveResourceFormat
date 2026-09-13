@@ -30,7 +30,7 @@ partial class ModelExtract
         Neither = 2,
     }
 
-    static KVObject? ProcessJiggleBone(FeModel.IndexedJiggleBone indexedJiggleBone, string[] controlNames)
+    internal static KVObject? ProcessJiggleBone(FeModel.IndexedJiggleBone indexedJiggleBone, string[] controlNames)
     {
         var nodeIndex = indexedJiggleBone.Node;
         if (nodeIndex < 0 || nodeIndex >= controlNames.Length)
@@ -53,7 +53,7 @@ partial class ModelExtract
 
         var name = controlNames[nodeIndex];
 
-        return MakeNode("JiggleBone",
+        var node = MakeNode("JiggleBone",
             ("name", name),
             ("jiggle_root_bone", name),
             ("jiggle_type", (int)type),
@@ -98,6 +98,19 @@ partial class ModelExtract
             ("point0", ToKVArray(jiggleBone.Point0)),
             ("point1", ToKVArray(jiggleBone.Point1))
         );
+
+        // A colliding bone compiles its four cloth_collision_layer booleans into m_nCollisionMask, and a
+        // bone that leaves the layers unwritten collides with all four.
+        if ((flags & FeJiggleBoneFlags.Collision) != 0 && jiggleBone.CollisionMask is >= 0 and < 0xF)
+        {
+            var (layer0, layer1, layer2, layer3) = ClothNodeCollisionLayers(jiggleBone.CollisionMask);
+            node.Add("cloth_collision_layer0", layer0);
+            node.Add("cloth_collision_layer1", layer1);
+            node.Add("cloth_collision_layer2", layer2);
+            node.Add("cloth_collision_layer3", layer3);
+        }
+
+        return node;
     }
 
     static KVObject? ExtractJiggleBones(FeModel? feModel)
