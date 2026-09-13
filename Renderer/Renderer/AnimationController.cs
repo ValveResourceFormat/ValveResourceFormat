@@ -72,6 +72,24 @@ namespace ValveResourceFormat.Renderer
         /// <summary>Gets or sets whether animations should loop when reaching the end.</summary>
         public bool Looping { get; set; } = true;
 
+        /// <summary>
+        /// Optional resolver from an animation or sequence name to the loaded <see cref="Animation"/>,
+        /// used to resolve an auto layer's <see cref="AnimationAutoLayer.ReferencedAnimationName"/>.
+        /// </summary>
+        public Func<string, Animation?>? AnimationLookup
+        {
+            get => modelPlayer.AnimationLookup;
+            set
+            {
+                modelPlayer.AnimationLookup = value;
+
+                foreach (var external in externalSkeletons.Values)
+                {
+                    external.Player.AnimationLookup = value;
+                }
+            }
+        }
+
         /// <summary>Gets the currently active animation, or <see langword="null"/> if none is set.</summary>
         public Animation? ActiveAnimation => player.ActiveAnimation;
 
@@ -118,11 +136,8 @@ namespace ValveResourceFormat.Renderer
         /// <summary>Gets whether the active animation clip has finished playing.</summary>
         public bool ActiveClipFinished => player.ActiveClipFinished;
 
-        /// <summary>Gets whether the current animation frame is the result of blending multiple clips together.</summary>
-        public bool IsUsingMixer => player.IsUsingMixer;
-
         /// <summary>Gets the clips of the player currently driving the pose.</summary>
-        public Dictionary<string, AnimationPlayer.PlaybackClip> Clips => player.Clips;
+        public IReadOnlyDictionary<string, AnimationPlayer.PlaybackClip> Clips => player.Clips;
 
         /// <summary>
         /// Initializes a new <see cref="AnimationController"/> for the given skeleton and flex controllers,
@@ -337,6 +352,7 @@ namespace ValveResourceFormat.Renderer
             var externalPlayer = new AnimationPlayer(skeleton, [], bindPose, bindPose.AsSpan().ToArray())
             {
                 ResolvePosition = ResolvePosition,
+                AnimationLookup = AnimationLookup,
             };
 
             externalSkeletons[skeletonName] = new(externalPlayer, retargeter);
@@ -356,6 +372,24 @@ namespace ValveResourceFormat.Renderer
 
             target.RegisterBoneMask(name, boneWeights);
         }
+
+        /// <summary>
+        /// Registers a morph mask for per-flex-controller weighting on the model player.
+        /// </summary>
+        /// <param name="name">The name of the morph mask.</param>
+        /// <param name="controllerWeights">Dictionary mapping flex controller names to weight values.</param>
+        public void RegisterMorphMask(string name, Dictionary<string, float> controllerWeights) => modelPlayer.RegisterMorphMask(name, controllerWeights);
+
+        /// <summary>
+        /// Registers a pose parameter a blend sequence positions its animations along, on the model player.
+        /// </summary>
+        public void RegisterPoseParameter(PoseParameter parameter) => modelPlayer.RegisterPoseParameter(parameter);
+
+        /// <summary>Sets the live value of a registered pose parameter, clamped to its range.</summary>
+        public void SetPoseParameter(string name, float value) => modelPlayer.SetPoseParameter(name, value);
+
+        /// <summary>Gets the live value of a pose parameter, or zero for one that was never set.</summary>
+        public float GetPoseParameter(string name) => modelPlayer.GetPoseParameter(name);
 
         /// <summary>
         /// Sets the blend weight for a clip with the specified animation name.

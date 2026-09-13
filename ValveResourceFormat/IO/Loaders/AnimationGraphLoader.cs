@@ -19,17 +19,12 @@ namespace ValveResourceFormat.IO
         /// </summary>
         public static IReadOnlyList<string> GetClipNames(Model model, IFileLoader fileLoader)
         {
-            var graphRefs = model.Data.GetArray("m_animGraph2Refs");
-            if (graphRefs == null)
-            {
-                return [];
-            }
-
             var visited = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             var clipNames = new List<string>();
-            foreach (var graphRef in graphRefs)
+
+            foreach (var (_, graphPath) in model.AnimGraph2References)
             {
-                CollectClips(graphRef.GetStringProperty("m_hGraph"), fileLoader, visited, clipNames);
+                CollectClips(graphPath, fileLoader, visited, clipNames);
             }
 
             return clipNames;

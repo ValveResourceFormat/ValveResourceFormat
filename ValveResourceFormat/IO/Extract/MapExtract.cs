@@ -333,7 +333,7 @@ public sealed partial class MapExtract
     /// <summary>
     /// Gets the tool texture material path for a given surface tag combination.
     /// </summary>
-    public static string GetToolTextureNameForCollisionTags(ModelExtract.SurfaceTagCombo combo)
+    public static string GetToolTextureNameForCollisionTags(SurfaceTagCombo combo)
     {
         var shortenedToolTextureName = GetToolTextureShortenedName_ForInteractStrings(combo.InteractAsStrings);
 
@@ -736,7 +736,7 @@ public sealed partial class MapExtract
                 drawCallCount++;
 
                 var tint = drawCallTint?.Invoke(drawCallIndex) ?? GetDrawCallTint(drawCall);
-                var material = drawCall.GetStringProperty("m_material") ?? drawCall.GetStringProperty("m_pMaterial") ?? string.Empty;
+                var material = Mesh.GetMaterialName(drawCall) ?? string.Empty;
                 var group = new HammerMeshGroup(material, tint);
 
                 if (!builders.TryGetValue(group, out var builder))
@@ -869,7 +869,7 @@ public sealed partial class MapExtract
                     continue;
                 }
 
-                var material = drawCall.GetStringProperty("m_material") ?? drawCall.GetStringProperty("m_pMaterial") ?? string.Empty;
+                var material = Mesh.GetMaterialName(drawCall) ?? string.Empty;
 
                 var vertexData = (DmeVertexData)shape.BaseStates[0];
                 var positions = HammerMeshBuilder.GetElementArraySafe<Vector3>(vertexData, "position$0");
@@ -1422,9 +1422,9 @@ public sealed partial class MapExtract
                 }
             }
 
-            foreach (var embedded in propModel.GetEmbeddedMeshesAndLoD())
+            foreach (var embedded in propModel.GetEmbeddedMeshes())
             {
-                if ((embedded.LoDMask & 1) != 0)
+                if ((embedded.LodMask & 1) != 0)
                 {
                     AddMesh(embedded.Mesh);
                 }
@@ -1432,7 +1432,7 @@ public sealed partial class MapExtract
 
             foreach (var reference in propModel.GetReferenceMeshNamesAndLoD())
             {
-                if ((reference.LoDMask & 1) == 0)
+                if ((reference.LodMask & 1) == 0)
                 {
                     continue;
                 }
@@ -2336,7 +2336,7 @@ public sealed partial class MapExtract
 
         var data = (Model)model.DataBlock;
 
-        var hasMeshes = data.GetEmbeddedMeshesAndLoD().Any() || data.GetReferenceMeshNamesAndLoD().Any();
+        var hasMeshes = data.GetEmbeddedMeshes().Any() || data.GetReferenceMeshNamesAndLoD().Any();
         var hasPhysics = data.GetEmbeddedPhys() != null || data.GetReferencedPhysNames().Any();
         var isJustPhysics = hasPhysics && !hasMeshes;
 

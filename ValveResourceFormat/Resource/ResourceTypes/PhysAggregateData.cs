@@ -59,6 +59,27 @@ namespace ValveResourceFormat.ResourceTypes
         public IReadOnlyList<KVObject> CollisionAttributes
             => collisionAttributes ??= Data.GetArray("m_collisionAttributes");
 
+        /// <summary>
+        /// Gets what a shape with these collision attributes interacts as. Older assets carry the tags
+        /// under <c>m_PhysicsTagStrings</c>.
+        /// </summary>
+        public static string[] GetInteractAsTags(KVObject collisionAttributes)
+        {
+            ArgumentNullException.ThrowIfNull(collisionAttributes);
+
+            return collisionAttributes.GetArray<string>("m_InteractAsStrings")
+                ?? collisionAttributes.GetArray<string>("m_PhysicsTagStrings")
+                ?? [];
+        }
+
+        /// <summary>
+        /// Gets what a shape interacts as, by index into <see cref="CollisionAttributes"/>.
+        /// </summary>
+        public string[] GetInteractAsTags(int collisionAttributeIndex)
+            => collisionAttributeIndex >= 0 && collisionAttributeIndex < CollisionAttributes.Count
+                ? GetInteractAsTags(CollisionAttributes[collisionAttributeIndex])
+                : [];
+
         private Matrix4x4[]? bindPose;
         private Part[]? parts;
         private Joint[]? joints;

@@ -12,14 +12,12 @@ namespace Tests.Renderer
 {
     public class AnimationControllerTest
     {
-        private static string FilePath(string name)
-            => Path.Combine(TestContext.TestDirectory!, "Files", name);
 
         [Test]
         public async Task PlayerOwnsPauseStateWhenTheClipFinishes()
         {
             using var resource = new Resource();
-            resource.Read(FilePath("box_creature_ik_model.vmdl_c"));
+            resource.Read(TestFixtures.Path("box_creature_ik_model.vmdl_c"));
             var model = (Model)resource.DataBlock!;
 
             var controller = new AnimationController(model.Skeleton, model.FlexControllers)
@@ -47,15 +45,15 @@ namespace Tests.Renderer
         public async Task SwitchingPlayersCarriesPauseAndRemapsTheExternalPose()
         {
             using var modelResource = new Resource();
-            modelResource.Read(FilePath("box_creature_ik_model.vmdl_c"));
+            modelResource.Read(TestFixtures.Path("box_creature_ik_model.vmdl_c"));
             var model = (Model)modelResource.DataBlock!;
 
             using var skeletonResource = new Resource();
-            skeletonResource.Read(FilePath("ak47.vnmskel_c"));
+            skeletonResource.Read(TestFixtures.Path("ak47.vnmskel_c"));
             var externalSkeleton = Skeleton.FromSkeletonData(((BinaryKV3)skeletonResource.DataBlock!).Data);
 
             using var clipResource = new Resource();
-            clipResource.Read(FilePath("idle_ak.vnmclip_c"));
+            clipResource.Read(TestFixtures.Path("idle_ak.vnmclip_c"));
             var clip = FindClipForSkeleton((AnimationClip)clipResource.DataBlock!, "ak47.vnmskel");
 
             var controller = new AnimationController(model.Skeleton, model.FlexControllers);

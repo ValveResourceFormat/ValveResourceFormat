@@ -1,213 +1,181 @@
+using System.IO;
+using System.Linq;
 using ValveKeyValue;
 using ValveResourceFormat.ResourceTypes;
+using ValveResourceFormat.ResourceTypes.ModelData;
 using ValveResourceFormat.ResourceTypes.RubikonPhysics;
 using ValveResourceFormat.Serialization.KeyValues;
 using static ValveResourceFormat.IO.KVHelpers;
 
 namespace ValveResourceFormat.IO;
 
+/// <summary>
+/// Rebuilds the model doc nodes for the collision model: the shapes each physics body carries and the
+/// physics shape files.
+/// </summary>
 partial class ModelExtract
 {
-    private void ExtractPhysicsJoints(KVObject rootChildren)
+    /// <summary>
+    /// Writes the hit group a physics shape belongs to, skipping the invalid placeholder.
+    /// </summary>
+    static void AddHitGroup<TShape>(KVObject node, ShapeDescriptor<TShape> shape) where TShape : struct
     {
-        var joints = physAggregateData!.Joints;
-        if (joints.Length == 0)
+        if (!string.IsNullOrEmpty(shape.HitGroupName) && shape.HitGroupName != "HITGROUP_INVALID")
         {
-            return;
-        }
-
-        var jointList = MakeListNode("PhysicsJointList");
-        foreach (var joint in joints)
-        {
-            var node = BuildPhysicsJoint(physAggregateData, joint);
-            if (node != null)
-            {
-                jointList.Children.Add(node);
-            }
-            else
-            {
-                ProgressReporter?.Report($"Unable to export physics joint type {joint.Type} between bodies {joint.Body1} and {joint.Body2}.");
-            }
-        }
-
-        if (jointList.Children.Count == 0)
-        {
-            return;
-        }
-
-        rootChildren.Add(jointList.Node);
-
-        // Geometry alone does not preserve the mass and damping that make the articulated bodies stable.
-        var bodyMarkups = new Dictionary<string, KVObject>(StringComparer.OrdinalIgnoreCase);
-        var markupList = MakeListNode("PhysicsBodyMarkupList");
-        var parts = physAggregateData.Data.GetArray("m_parts");
-        for (var i = 0; i < parts.Count; i++)
-        {
-            var bodyName = physAggregateData.GetParentBoneName(i);
-            if (!string.IsNullOrEmpty(bodyName) && !bodyMarkups.ContainsKey(bodyName))
-            {
-                var markup = BuildPhysicsBodyMarkup(parts[i], bodyName);
-                bodyMarkups.Add(bodyName, markup);
-                markupList.Children.Add(markup);
-            }
-        }
-
-        if (markupList.Children.Count > 0)
-        {
-            MergePhysicsBodyGameMarkup(rootChildren, bodyMarkups);
-            rootChildren.Add(markupList.Node);
+            node.Add("hitgroupname", shape.HitGroupName);
         }
     }
 
-    private static void MergePhysicsBodyGameMarkup(KVObject rootChildren, Dictionary<string, KVObject> bodyMarkups)
+    private void AddPhysicsShapeFileNodes(ModelDocLists lists)
     {
-        foreach (var (_, list) in rootChildren)
+        if (PhysHullsToExtract.Count > 0 || PhysMeshesToExtract.Count > 0)
         {
-            if (list.GetStringProperty("_class") != "GameDataList")
+            if (Type == ModelExtractType.Map_PhysicsToRenderMesh)
             {
-                continue;
+                if (PhysicsToRenderMaterialNameProvider is null)
+                {
+                    RemapMaterials(lists, globalReplace: true);
+                }
+                else
+                {
+                    var remapTable = SurfaceTagCombos.ToDictionary(
+                        combo => combo.StringMaterial,
+                        combo => PhysicsToRenderMaterialNameProvider(combo)
+                    );
+                    RemapMaterials(lists, remapTable, globalReplace: false);
+                }
             }
 
-            var children = KVObject.Array();
-            foreach (var entry in list.GetArray("children"))
+            foreach (var (physHull, fileName, parentBone, _) in PhysHullsToExtract)
             {
-                if (entry.GetStringProperty("_class") == "GenericGameData"
-                    && entry.GetStringProperty("game_class") == "CPhysicsBodyGameMarkupData")
-                {
-                    var keys = entry.GetSubCollection("game_keys");
-                    var markups = keys.GetSubCollection("m_PhysicsBodyMarkupByBoneName");
-                    if (markups != null)
-                    {
-                        var remaining = KVObject.Collection();
-                        foreach (var (name, markup) in markups)
-                        {
-                            var target = markup.GetStringProperty("m_TargetBody", name!);
-                            if (bodyMarkups.TryGetValue(target, out var body))
-                            {
-                                AddIfPresent(body, "tag", markup, "m_Tag");
-                            }
-                            else
-                            {
-                                remaining.Add(name!, markup);
-                            }
-                        }
+                AddPhysMeshNode(lists, physHull, fileName, parentBone);
+            }
 
-                        // ModelDoc regenerates these entries from PhysicsBodyMarkup nodes;
-                        // emitting both declarations would create duplicate target bodies.
-                        keys["m_PhysicsBodyMarkupByBoneName"] = remaining;
-                        if (remaining.Count == 0 && keys.Count == 1)
-                        {
-                            continue;
-                        }
-                    }
+            foreach (var (physMesh, fileName, parentBone, _) in PhysMeshesToExtract)
+            {
+                AddPhysMeshNode(lists, physMesh, fileName, parentBone);
+            }
+        }
+    }
+
+    private void AddPhysicsBodyNodes(ModelDocLists lists)
+    {
+        if (physAggregateData is not null)
+        {
+            var jointNodes = BuildPhysicsJointNodes(physAggregateData);
+
+            AddPhysicsBodyMarkup(lists, physAggregateData, jointNodes.Count > 0);
+
+            for (var i = 0; i < physAggregateData.Parts.Length; i++)
+            {
+                var physicsPart = physAggregateData.Parts[i];
+                var parentBone = physAggregateData.GetParentBoneName(i);
+
+                foreach (var sphere in physicsPart.Shape.Spheres)
+                {
+                    var physicsShapeSphere = MakeNode(
+                        "PhysicsShapeSphere",
+                        ("parent_bone", parentBone),
+                        ("surface_prop", PhysicsSurfaceNames[sphere.SurfacePropertyIndex]),
+                        ("collision_tags", string.Join(" ", PhysicsCollisionTags[sphere.CollisionAttributeIndex])),
+                        ("radius", sphere.Shape.Radius),
+                        ("center", ToKVArray(sphere.Shape.Center)),
+                        ("name", sphere.UserFriendlyName ?? string.Empty)
+                    );
+
+                    AddHitGroup(physicsShapeSphere, sphere);
+
+                    lists.PhysicsShapes.Add(physicsShapeSphere);
                 }
 
-                children.Add(entry);
+                foreach (var capsule in physicsPart.Shape.Capsules)
+                {
+                    var physicsShapeCapsule = MakeNode(
+                        "PhysicsShapeCapsule",
+                        ("parent_bone", parentBone),
+                        ("surface_prop", PhysicsSurfaceNames[capsule.SurfacePropertyIndex]),
+                        ("collision_tags", string.Join(" ", PhysicsCollisionTags[capsule.CollisionAttributeIndex])),
+                        ("radius", capsule.Shape.Radius),
+                        ("point0", ToKVArray(capsule.Shape.Center[0])),
+                        ("point1", ToKVArray(capsule.Shape.Center[1])),
+                        ("name", capsule.UserFriendlyName ?? string.Empty)
+                    );
+
+                    AddHitGroup(physicsShapeCapsule, capsule);
+
+                    lists.PhysicsShapes.Add(physicsShapeCapsule);
+                }
             }
 
-            list["children"] = children;
+            foreach (var jointNode in jointNodes)
+            {
+                lists.PhysicsJoints.Add(jointNode);
+            }
         }
     }
 
-    internal static KVObject? BuildPhysicsJoint(PhysAggregateData physics, Joint joint)
+    private void AddPhysMeshNode<TShape>(ModelDocLists lists, ShapeDescriptor<TShape> shapeDesc, string fileName, string parentBone)
+        where TShape : struct
     {
-        var className = joint.Type switch
+        var surfacePropName = PhysicsSurfaceNames[shapeDesc.SurfacePropertyIndex];
+        var collisionTags = PhysicsCollisionTags[shapeDesc.CollisionAttributeIndex];
+
+        if (Type == ModelExtractType.Map_PhysicsToRenderMesh)
         {
-            JointType.Null => "PhysicsJointNull",
-            JointType.Spherical => "PhysicsJointSpherical",
-            JointType.Prismatic => "PhysicsJointPrismatic",
-            JointType.Revolute => "PhysicsJointRevolute",
-            JointType.Conical => "PhysicsJointConical",
-            JointType.Weld => "PhysicsJointWeld",
-            JointType.Wheel => "PhysicsJointWheel",
-            _ => null,
+            lists.RenderMeshes.Add(MakeNode("RenderMeshFile", ("filename", fileName)));
+            return;
+        }
+
+        var className = shapeDesc switch
+        {
+            HullDescriptor => "PhysicsHullFile",
+            MeshDescriptor => "PhysicsMeshFile",
+            _ => throw new NotImplementedException()
         };
 
-        if (className == null)
-        {
-            return null;
-        }
+        var shapeName = shapeDesc.UserFriendlyName ?? Path.GetFileNameWithoutExtension(fileName);
 
-        var parentName = physics.GetParentBoneName(joint.Body1);
-        var childName = physics.GetParentBoneName(joint.Body2);
-        if (string.IsNullOrEmpty(parentName) || string.IsNullOrEmpty(childName))
-        {
-            return null;
-        }
+        // TODO: per faceSet surface_prop
+        var physicsShapeFile = MakeNode(
+            className,
+            ("filename", fileName),
+            ("parent_bone", parentBone),
+            ("surface_prop", surfacePropName),
+            ("collision_tags", string.Join(" ", collisionTags)),
+            ("name", shapeName)
+        );
 
-        var node = MakeNode(className,
-            ("parent_body", parentName),
-            ("child_body", childName),
-            ("anchor_origin", ToKVArray(joint.Frame1.Position)),
-            ("anchor_angles", ToKVArray(EntityTransformHelper.ToEulerAngles(Quaternion.Normalize(joint.Frame1.Rotation)))),
-            ("collision_enabled", joint.EnableCollision),
-            ("use_block_solver", joint.Flags.HasFlag(JointFlags.UseBlockSolver)));
+        AddHitGroup(physicsShapeFile, shapeDesc);
 
-        if (joint.IsAngularConstraintDisabled)
-        {
-            node.Add("constraint_space", "linear_only");
-        }
-        else if (joint.IsLinearConstraintDisabled)
-        {
-            node.Add("constraint_space", "angular_only");
-        }
-
-        switch (joint.Type)
-        {
-            case JointType.Conical:
-                node.Add("enable_swing_limit", joint.EnableSwingLimit);
-                node.Add("swing_limit", float.RadiansToDegrees(joint.SwingLimit.Max));
-                node.Add("enable_twist_limit", joint.EnableTwistLimit);
-                node.Add("min_twist_angle", float.RadiansToDegrees(joint.TwistLimit.Min));
-                node.Add("max_twist_angle", float.RadiansToDegrees(joint.TwistLimit.Max));
-
-                var bindPose = physics.BindPose;
-                if (joint.Body1 < bindPose.Length && joint.Body2 < bindPose.Length)
-                {
-                    var parentRotation = Quaternion.CreateFromRotationMatrix(bindPose[joint.Body1]);
-                    var childRotation = Quaternion.CreateFromRotationMatrix(bindPose[joint.Body2]);
-                    var parentFrame = Quaternion.Normalize(parentRotation * joint.Frame1.Rotation);
-                    var childFrame = Quaternion.Normalize(childRotation * joint.Frame2.Rotation);
-
-                    // ModelDoc applies the negated offset angles in the parent joint frame. Negating
-                    // the Euler angles is not equivalent to inverting their quaternion.
-                    var offset = -EntityTransformHelper.ToEulerAngles(Quaternion.Inverse(parentFrame) * childFrame);
-                    node.Add("swing_offset_angle", ToKVArray(offset));
-                }
-
-                break;
-            case JointType.Revolute:
-                node.Add("enable_limit", joint.EnableTwistLimit);
-                node.Add("min_angle", float.RadiansToDegrees(joint.TwistLimit.Min));
-                node.Add("max_angle", float.RadiansToDegrees(joint.TwistLimit.Max));
-                break;
-            case JointType.Prismatic:
-                node.Add("enable_limit", joint.EnableLinearLimit);
-                node.Add("min_offset", joint.LinearLimit.Min);
-                node.Add("max_offset", joint.LinearLimit.Max);
-                break;
-        }
-
-        node.Add("motion_resistance", joint.Plasticity != 0 ? "plastic" : joint.Elasticity != 0 ? "elastic" : joint.Friction != 0 ? "friction" : "none");
-        node.Add("friction", joint.Friction);
-        node.Add("elasticity", joint.Elasticity);
-        node.Add("elastic_damping", joint.ElasticDamping);
-        node.Add("plasticity", joint.Plasticity);
-
-        return node;
+        lists.PhysicsShapes.Add(physicsShapeFile);
     }
 
-    private static KVObject BuildPhysicsBodyMarkup(KVObject part, string bodyName)
+    private static void RemapMaterials(ModelDocLists lists,
+        IReadOnlyDictionary<string, string>? remapTable = null,
+        bool globalReplace = false,
+        string globalDefault = "materials/tools/toolsnodraw.vmat")
     {
-        var node = MakeNode("PhysicsBodyMarkup", ("target_body", bodyName));
-        AddIfPresent(node, "mass_override", part, "m_flMass");
-        AddIfPresent(node, "inertia_scale", part, "m_flInertiaScale");
-        AddIfPresent(node, "linear_damping", part, "m_flLinearDamping");
-        AddIfPresent(node, "angular_damping", part, "m_flAngularDamping");
-        AddIfPresent(node, "linear_drag", part, "m_flLinearDrag");
-        AddIfPresent(node, "angular_drag", part, "m_flAngularDrag");
-        AddIfPresent(node, "use_mass_center_override", part, "m_bOverrideMassCenter");
-        AddIfPresent(node, "mass_center_override", part, "m_vMassCenterOverride");
-        return node;
+        var remaps = KVObject.Array();
+        lists.MaterialGroups.Add(
+            MakeNode(
+                "DefaultMaterialGroup",
+                ("remaps", remaps),
+                ("use_global_default", globalReplace),
+                ("global_default_material", globalDefault)
+            )
+        );
+
+        if (globalReplace || remapTable == null)
+        {
+            return;
+        }
+
+        foreach (var (from, to) in remapTable)
+        {
+            var remap = KVObject.Collection();
+            remap.Add("from", from);
+            remap.Add("to", to);
+            remaps.Add(remap);
+        }
     }
 }

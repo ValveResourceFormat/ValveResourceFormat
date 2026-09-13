@@ -160,5 +160,22 @@ namespace ValveResourceFormat.Utils
             var tt = t * t;
             return (uu * u * p0) + (3.0f * uu * t * p1) + (3.0f * u * tt * p2) + (tt * t * p3);
         }
+
+        /// <summary>
+        /// The length of one of a transform's basis vectors: how much it scales along that axis.
+        /// <paramref name="axis"/> is 0 for X, 1 for Y, 2 for Z.
+        /// </summary>
+        public static float AxisScale(this Matrix4x4 m, int axis) => axis switch
+        {
+            0 => new Vector3(m.M11, m.M12, m.M13).Length(),
+            1 => new Vector3(m.M21, m.M22, m.M23).Length(),
+            _ => new Vector3(m.M31, m.M32, m.M33).Length(),
+        };
+
+        /// <summary>
+        /// The largest per-axis scale baked into a transform.
+        /// </summary>
+        public static float MaxAxisScale(this Matrix4x4 m)
+            => MathF.Max(m.AxisScale(0), MathF.Max(m.AxisScale(1), m.AxisScale(2)));
     }
 }

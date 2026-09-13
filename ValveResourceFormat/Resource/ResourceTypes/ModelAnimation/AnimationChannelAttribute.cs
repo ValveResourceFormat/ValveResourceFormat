@@ -2,23 +2,30 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
 {
     /// <summary>
     /// Specifies the type of data contained in an animation channel.
-    /// Derived from the <c>m_szVariableName</c> field of <c>CAnimDataChannelDesc</c>.
+    /// Derived from the <c>m_szChannelClass</c> and <c>m_szVariableName</c> fields of
+    /// <c>CAnimDataChannelDesc</c>.
     /// </summary>
     public enum AnimationChannelAttribute
     {
+        /// <summary>Channel attribute is not recognized by VRF. The value an unset channel reads as.</summary>
+        Unknown = 0,
+
         /// <summary>Channel encodes bone position (translation) data.</summary>
-        Position,
+        Position = 1,
 
         /// <summary>Channel encodes bone rotation (orientation) data.</summary>
-        Angle,
+        Angle = 2,
 
         /// <summary>Channel encodes bone scale data.</summary>
-        Scale,
+        Scale = 3,
 
         /// <summary>Channel encodes flex controller (morph) data.</summary>
-        Data,
+        Data = 4,
 
-        /// <summary>Channel attribute is not recognized by VRF.</summary>
-        Unknown,
+        /// <summary>
+        /// Channel encodes a named value from the decode key's <c>m_userArray</c>, for example a
+        /// <c>MATERIAL_ATTRIBUTE:</c> shader parameter driven by the sequence.
+        /// </summary>
+        User = 5,
     }
 }
