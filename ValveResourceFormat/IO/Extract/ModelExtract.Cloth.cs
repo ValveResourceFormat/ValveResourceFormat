@@ -48,6 +48,7 @@ partial class ModelExtract
             .ToDictionary(static g => g.Key, static g => g.First().Parent?.Name, StringComparer.OrdinalIgnoreCase);
         feModel.SkeletonBoneParents = boneParents;
         feModel.SetSkeletonParents(boneParents);
+        feModel.DropModelNameVertexSet(System.IO.Path.GetFileNameWithoutExtension(fileName));
 
         BuildClothRestBonePositions(feModel);
 

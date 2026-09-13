@@ -3,6 +3,7 @@ using System.Globalization;
 using System.Linq;
 using ValveKeyValue;
 using ValveResourceFormat.Serialization.KeyValues;
+using ValveResourceFormat.Utils;
 
 namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
 {
@@ -3000,7 +3001,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         public const float UnboundedRodDistance = 16384f;
 
         /// <summary>Gets the named vertex selections the cloth carries, empty when it has none.</summary>
-        public IReadOnlyList<VertexMap> VertexMaps { get; } = [];
+        public IReadOnlyList<VertexMap> VertexMaps { get; private set; } = [];
 
         /// <summary>
         /// The name a selection recovered from <see cref="VertexSetNames"/> is exported under. Only the
@@ -3040,6 +3041,27 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             }
 
             return sets;
+        }
+
+        // Whether VertexMaps was rebuilt from the vertex-set registration rather than read from m_VertexMaps.
+        bool vertexMapsFromSets;
+
+        /// <summary>
+        /// Drops the selection rebuilt from the vertex set named after the model's own file. The compiler registers a
+        /// model's default set under that name and fills it with the dynamic nodes no other set claims, so the
+        /// recompiled model recreates it by itself, while declaring it as a named selection adds an
+        /// <c>m_VertexMaps</c> entry the original does not ship. Selections read from <c>m_VertexMaps</c> are kept.
+        /// </summary>
+        /// <param name="modelFileName">The model's file name without directory or extension.</param>
+        public void DropModelNameVertexSet(string modelFileName)
+        {
+            if (!vertexMapsFromSets)
+            {
+                return;
+            }
+
+            var hash = StringToken.Get(modelFileName);
+            VertexMaps = [.. VertexMaps.Where(map => map.NameHash != hash)];
         }
 
         /// <summary>A named vertex selection, used to target cloth effects and joint vertex maps.</summary>
@@ -4010,6 +4032,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             if (VertexMaps.Count == 0)
             {
                 VertexMaps = BuildVertexMapsFromSets();
+                vertexMapsFromSets = VertexMaps.Count > 0;
             }
 
             LegacyStretchForce = data.GetFloatArray("m_LegacyStretchForce");
