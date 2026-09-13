@@ -32,6 +32,12 @@ namespace ValveResourceFormat.ResourceTypes
             => parts ??= Data.GetArray("m_parts").Select(p => new Part(p)).ToArray();
 
         /// <summary>
+        /// Gets the joints (constraints) between parts in this aggregate.
+        /// </summary>
+        public Joint[] Joints
+            => joints ??= Data.GetArray("m_joints")?.Select(j => new Joint(j)).ToArray() ?? [];
+
+        /// <summary>
         /// Gets the referenced bone names.
         /// </summary>
         public string[] BoneNames => Data.GetArray<string>("m_boneNames");
@@ -55,6 +61,7 @@ namespace ValveResourceFormat.ResourceTypes
 
         private Matrix4x4[]? bindPose;
         private Part[]? parts;
+        private Joint[]? joints;
         private uint[]? surfacePropertyHashes;
         private IReadOnlyList<KVObject>? collisionAttributes;
 

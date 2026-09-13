@@ -520,7 +520,7 @@ public sealed partial class MapExtract
             foreach (var hammerMesh in worldHammerMeshes)
             {
                 MapDocument.World.Children.Add(hammerMesh);
-                selectionSet.GetObjectSelection().SelectedObjects.Add(hammerMesh);
+                selectionSet.ObjectSelection.SelectedObjects.Add(hammerMesh);
             }
         }
 
@@ -601,7 +601,7 @@ public sealed partial class MapExtract
                 return false;
             }
 
-            var removed = selectionSet.GetObjectSelection().SelectedObjects.Remove(node);
+            var removed = selectionSet.ObjectSelection.SelectedObjects.Remove(node);
 
             foreach (var child in selectionSet.Children.OfType<CMapSelectionSet>())
             {
@@ -818,11 +818,11 @@ public sealed partial class MapExtract
         {
             if (!string.IsNullOrEmpty(entityClassname))
             {
-                hammerMeshEntitySelectionSet.GetObjectSelection().SelectedObjects.Add(hammerMesh);
+                hammerMeshEntitySelectionSet.ObjectSelection.SelectedObjects.Add(hammerMesh);
             }
             else
             {
-                drawSelectionSet.GetObjectSelection().SelectedObjects.Add(hammerMesh);
+                drawSelectionSet.ObjectSelection.SelectedObjects.Add(hammerMesh);
             }
         }
 
@@ -1029,7 +1029,7 @@ public sealed partial class MapExtract
                 overlay.DisableShadows = group.Flags.HasFlag(ObjectTypeFlags.NoShadows);
 
                 MapDocument.World.Children.Add(overlay);
-                OverlaysSelectionSet?.GetObjectSelection().SelectedObjects.Add(overlay);
+                OverlaysSelectionSet?.ObjectSelection.SelectedObjects.Add(overlay);
             }
         }
     }
@@ -1552,11 +1552,11 @@ public sealed partial class MapExtract
 
                 if (string.IsNullOrEmpty(entityClassname))
                 {
-                    hullsSelectionSet.GetObjectSelection().SelectedObjects.Add(hammerMesh);
+                    hullsSelectionSet.ObjectSelection.SelectedObjects.Add(hammerMesh);
                 }
                 else
                 {
-                    hullsEntitySelectionSet.GetObjectSelection().SelectedObjects.Add(hammerMesh);
+                    hullsEntitySelectionSet.ObjectSelection.SelectedObjects.Add(hammerMesh);
                 }
 
                 cMapMeshesToReturn.Add(hammerMesh);
@@ -1584,7 +1584,7 @@ public sealed partial class MapExtract
                     var hammerMesh = new CMapMesh() { MeshData = meshData };
 
                     var selectionSet = string.IsNullOrEmpty(entityClassname) ? meshesSelectionSet : meshesEntitySelectionSet;
-                    selectionSet.GetObjectSelection().SelectedObjects.Add(hammerMesh);
+                    selectionSet.ObjectSelection.SelectedObjects.Add(hammerMesh);
 
                     cMapMeshesToReturn.Add(hammerMesh);
                 }
@@ -1669,7 +1669,7 @@ public sealed partial class MapExtract
                         S2VSelectionSet.Children.Add(selectionSet);
                     }
 
-                    selectionSet.GetObjectSelection().SelectedObjects.Add(child);
+                    selectionSet.ObjectSelection.SelectedObjects.Add(child);
                 }
             }
         }
@@ -1982,7 +1982,7 @@ public sealed partial class MapExtract
 
                     // Keep adding the same prop
                     GetWorldLayerNode(layerIndex, layerNodes).Children.Add(instance);
-                    drawSelectionSet.GetObjectSelection().SelectedObjects.Add(instance);
+                    drawSelectionSet.ObjectSelection.SelectedObjects.Add(instance);
                     continue;
                 }
 
@@ -1997,7 +1997,7 @@ public sealed partial class MapExtract
                 SetTintAlpha(instance, new Vector4(tint, alpha));
 
                 GetWorldLayerNode(layerIndex, layerNodes).Children.Add(instance);
-                drawSelectionSet.GetObjectSelection().SelectedObjects.Add(instance);
+                drawSelectionSet.ObjectSelection.SelectedObjects.Add(instance);
             }
         }
 
@@ -2219,7 +2219,7 @@ public sealed partial class MapExtract
 
                     if (i == entityLineage.Length - 1)
                     {
-                        selectionSet.GetObjectSelection().SelectedObjects.Add(mapEntity);
+                        selectionSet.ObjectSelection.SelectedObjects.Add(mapEntity);
                     }
                 }
             }
