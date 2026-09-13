@@ -1402,7 +1402,9 @@ partial class ModelExtract
                 continue;
             }
 
-            softbodyChildren.Add(MakeClothSpring($"spring_{a}_{b}", names[rod.NodeA], names[rod.NodeB], rod.MinDist,
+            // The source element keeps the two corners in the order the spring named them, which the rod's
+            // own endpoint order does not.
+            softbodyChildren.Add(MakeClothSpring($"spring_{a}_{b}", names[a], names[b], rod.MinDist,
                 rod.MaxDist, rod.RelaxationFactor));
             emitted.Add(a < b ? (a, b) : (b, a));
         }
