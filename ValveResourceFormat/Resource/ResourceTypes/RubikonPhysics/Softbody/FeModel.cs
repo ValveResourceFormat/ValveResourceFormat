@@ -758,7 +758,13 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// nothing else reaches; <see cref="GetUngeneratedRods"/>'s own emitter skips proxy-named nodes.
         /// </para>
         /// </summary>
-        public List<(int, int)> GetAuthoredSourceSprings(List<BoneChain> chains)
+        /// <remarks>
+        /// <c>Copies</c> is how many rods the spring compiled to. <c>extra_iterations</c> is a ClothSpring's
+        /// rod MULTIPLICITY - the compile appends the rod <c>1 + extra_iterations</c> times and records the
+        /// source element once - so the rods a pair carries that no cluster claims are the one spring on it,
+        /// repeated. A pair two authored springs share cannot be split between them and takes one each.
+        /// </remarks>
+        public List<(int A, int B, int Copies)> GetAuthoredSourceSprings(List<BoneChain> chains)
         {
             if (SourceSprings.Length == 0)
             {
@@ -784,15 +790,38 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
 
             var spanned = ChainGeneratedSpans(chains);
             var authored = new List<(int, int)>(SourceSprings.Length);
+            var occurrences = new Dictionary<(int, int), int>();
             foreach (var (a, b) in SourceSprings)
             {
                 if (IsEndpoint(a) && IsEndpoint(b) && !spanned.ContainsKey(a < b ? (a, b) : (b, a)))
                 {
                     authored.Add((a, b));
+                    var key = a < b ? (a, b) : (b, a);
+                    occurrences[key] = occurrences.GetValueOrDefault(key) + 1;
                 }
             }
 
-            return authored;
+            var copies = new Dictionary<(int, int), int>();
+            var clusterRods = SelfCollisionClusterRods;
+            for (var i = 0; i < Rods.Length; i++)
+            {
+                var key = Rods[i].NodeA < Rods[i].NodeB
+                    ? (Rods[i].NodeA, Rods[i].NodeB)
+                    : (Rods[i].NodeB, Rods[i].NodeA);
+                if (!clusterRods.Contains(i) && occurrences.ContainsKey(key))
+                {
+                    copies[key] = copies.GetValueOrDefault(key) + 1;
+                }
+            }
+
+            var springs = new List<(int, int, int)>(authored.Count);
+            foreach (var (a, b) in authored)
+            {
+                var key = a < b ? (a, b) : (b, a);
+                springs.Add((a, b, occurrences[key] > 1 ? 1 : Math.Max(1, copies.GetValueOrDefault(key))));
+            }
+
+            return springs;
         }
 
         /// <summary>
@@ -814,10 +843,14 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         {
             var generated = ChainGeneratedSpans(chains);
 
-            // AddClothSourceSprings re-declares these already, at a relaxation this does not model.
-            foreach (var (a, b) in GetAuthoredSourceSprings(chains))
+            // AddClothSourceSprings re-declares these already, at a relaxation this does not model, and one
+            // spring accounts for every copy of its rod through its own extra_iterations.
+            foreach (var (a, b, copies) in GetAuthoredSourceSprings(chains))
             {
-                ExpectPair(generated, a, b, float.NaN);
+                for (var copy = 0; copy < copies; copy++)
+                {
+                    ExpectPair(generated, a, b, float.NaN);
+                }
             }
 
             var entriesByPair = new Dictionary<(int, int), List<int>>();
