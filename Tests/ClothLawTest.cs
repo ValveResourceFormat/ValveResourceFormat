@@ -4652,5 +4652,66 @@ namespace Tests
                 await Assert.That(grouped.ThinJointStagingOf(WideJoints(grouped))).IsEqualTo(FeModel.ThinJointStaging.Staged);
             }
         }
+
+        /// <summary>
+        /// Two sub-chains under one static root, each starting at a static joint, so no rod joins either to the root:
+        /// a one-wide sub-chain whose thin tip owns no group, staged at version 0, and a two-wide one whose two-ring
+        /// leaf owns a reverse offset, staged at version 1. One declaration cannot compile both, so the root is
+        /// declared twice, extruding it over the sub-chain whose ring was created right after the root's and
+        /// restating it ringless over the other. The controls: with the root's ring created after the thin
+        /// sub-chain's ring the extruding declaration moves to the wide sub-chain; with the root rotation-locked its
+        /// ring sorts apart from both and the sub-chain whose ring comes first extrudes it; with the groups swapped the
+        /// ungrouped two-ring leaf reads version 0; with both ungrouped the tree stays one declaration.
+        /// </summary>
+        [Test]
+        public async Task SubChainsStagedAtTwoVersionsAreDeclaredApart()
+        {
+            var split = SyntheticCloth.Parse(TwoVersionTree(rootRingFirst: true, thinTipGrouped: false, wideLeafGrouped: true));
+            var moved = SyntheticCloth.Parse(TwoVersionTree(rootRingFirst: false, thinTipGrouped: false, wideLeafGrouped: true));
+            var locked = SyntheticCloth.Parse(TwoVersionTree(rootRingFirst: false, thinTipGrouped: false, wideLeafGrouped: true,
+                rootRotationLocked: true));
+            var flipped = SyntheticCloth.Parse(TwoVersionTree(rootRingFirst: true, thinTipGrouped: true, wideLeafGrouped: false));
+            var merged = SyntheticCloth.Parse(TwoVersionTree(rootRingFirst: true, thinTipGrouped: false, wideLeafGrouped: false));
+            var splitChains = split.BuildBoneChains(VersionOf(split));
+            var movedChains = moved.BuildBoneChains(VersionOf(moved));
+            var lockedChains = locked.BuildBoneChains(VersionOf(locked));
+            var flippedChains = flipped.BuildBoneChains(VersionOf(flipped));
+            var mergedChains = merged.BuildBoneChains(VersionOf(merged));
+
+            static Func<FeModel.BoneChain, bool, int> VersionOf(FeModel feModel)
+                => (chain, hasOtherChains) => ModelExtract.ClothChainVersion(feModel, chain, hasOtherChains);
+
+            static FeModel.BoneChain Owning(List<FeModel.BoneChain> chains, string joint)
+                => chains.First(chain => chain.Joints.Exists(j => j.Name == joint));
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(splitChains.Count).IsEqualTo(2);
+                await Assert.That(Owning(splitChains, "a1").Joints.Select(static j => j.Name).ToArray())
+                    .IsEquivalentTo(ThinSubChain, CollectionOrdering.Matching);
+                await Assert.That(Owning(splitChains, "b1").Joints.Select(static j => j.Name).ToArray())
+                    .IsEquivalentTo(WideSubChain, CollectionOrdering.Matching);
+                await Assert.That(Owning(splitChains, "a1").Joints[0].RingNodes.Count).IsEqualTo(1);
+                await Assert.That(Owning(splitChains, "b1").Joints[0].RingNodes.Count).IsEqualTo(0);
+                await Assert.That(ModelExtract.ClothChainVersion(split, Owning(splitChains, "a1"), hasOtherChains: true)).IsEqualTo(0);
+                await Assert.That(ModelExtract.ClothChainVersion(split, Owning(splitChains, "b1"), hasOtherChains: true)).IsEqualTo(1);
+                await Assert.That(movedChains.Count).IsEqualTo(2);
+                await Assert.That(Owning(movedChains, "a1").Joints[0].RingNodes.Count).IsEqualTo(0);
+                await Assert.That(Owning(movedChains, "b1").Joints[0].RingNodes.Count).IsEqualTo(1);
+                await Assert.That(lockedChains.Count).IsEqualTo(2);
+                await Assert.That(Owning(lockedChains, "a1").Joints[0].RingNodes.Count).IsEqualTo(1);
+                await Assert.That(Owning(lockedChains, "b1").Joints[0].RingNodes.Count).IsEqualTo(0);
+                await Assert.That(flippedChains.Count).IsEqualTo(2);
+                await Assert.That(ModelExtract.ClothChainVersion(flipped, Owning(flippedChains, "a1"), hasOtherChains: true)).IsEqualTo(1);
+                await Assert.That(ModelExtract.ClothChainVersion(flipped, Owning(flippedChains, "b1"), hasOtherChains: true)).IsEqualTo(0);
+                await Assert.That(Owning(flippedChains, "b1").Joints[0].RingNodes.Count).IsEqualTo(0);
+                await Assert.That(mergedChains.Count).IsEqualTo(1);
+                await Assert.That(mergedChains[0].Joints.Count).IsEqualTo(5);
+                await Assert.That(ModelExtract.ClothChainVersion(merged, mergedChains[0], hasOtherChains: false)).IsEqualTo(0);
+            }
+        }
+
+        private static readonly string[] ThinSubChain = ["root", "a0", "a1"];
+        private static readonly string[] WideSubChain = ["root", "b0", "b1"];
     }
 }
