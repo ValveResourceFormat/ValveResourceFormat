@@ -1,5 +1,6 @@
 using ValveKeyValue;
 using ValveResourceFormat.ResourceTypes;
+using ValveResourceFormat.ResourceTypes.RubikonPhysics;
 using ValveResourceFormat.Serialization.KeyValues;
 using static ValveResourceFormat.IO.KVHelpers;
 
@@ -9,8 +10,8 @@ partial class ModelExtract
 {
     private void ExtractPhysicsJoints(KVObject rootChildren)
     {
-        var joints = physAggregateData!.Data.GetArray("m_joints");
-        if (joints == null || joints.Count == 0)
+        var joints = physAggregateData!.Joints;
+        if (joints.Length == 0)
         {
             return;
         }
@@ -25,7 +26,7 @@ partial class ModelExtract
             }
             else
             {
-                ProgressReporter?.Report($"Unable to export physics joint type {joint.GetInt32Property("m_nType")} between bodies {joint.GetInt32Property("m_nBody1")} and {joint.GetInt32Property("m_nBody2")}.");
+                ProgressReporter?.Report($"Unable to export physics joint type {joint.Type} between bodies {joint.Body1} and {joint.Body2}.");
             }
         }
 
@@ -111,13 +112,17 @@ partial class ModelExtract
         }
     }
 
-    internal static KVObject? BuildPhysicsJoint(PhysAggregateData physics, KVObject joint)
+    internal static KVObject? BuildPhysicsJoint(PhysAggregateData physics, Joint joint)
     {
-        var type = joint.GetInt32Property("m_nType");
-        var className = type switch
+        var className = joint.Type switch
         {
-            3 => "PhysicsJointRevolute",
-            4 => "PhysicsJointConical",
+            JointType.Null => "PhysicsJointNull",
+            JointType.Spherical => "PhysicsJointSpherical",
+            JointType.Prismatic => "PhysicsJointPrismatic",
+            JointType.Revolute => "PhysicsJointRevolute",
+            JointType.Conical => "PhysicsJointConical",
+            JointType.Weld => "PhysicsJointWeld",
+            JointType.Wheel => "PhysicsJointWheel",
             _ => null,
         };
 
@@ -126,81 +131,76 @@ partial class ModelExtract
             return null;
         }
 
-        var parentIndex = joint.GetInt32Property("m_nBody1", -1);
-        var childIndex = joint.GetInt32Property("m_nBody2", -1);
-        var parentName = physics.GetParentBoneName(parentIndex);
-        var childName = physics.GetParentBoneName(childIndex);
+        var parentName = physics.GetParentBoneName(joint.Body1);
+        var childName = physics.GetParentBoneName(joint.Body2);
         if (string.IsNullOrEmpty(parentName) || string.IsNullOrEmpty(childName))
         {
             return null;
         }
 
-        var frame1 = joint.GetSubCollection("m_Frame1").ToTransform();
-        var frame2 = joint.GetSubCollection("m_Frame2").ToTransform();
         var node = MakeNode(className,
             ("parent_body", parentName),
             ("child_body", childName),
-            ("anchor_origin", ToKVArray(frame1.Position)),
-            ("anchor_angles", ToKVArray(EntityTransformHelper.ToEulerAngles(Quaternion.Normalize(frame1.Rotation)))));
+            ("anchor_origin", ToKVArray(joint.Frame1.Position)),
+            ("anchor_angles", ToKVArray(EntityTransformHelper.ToEulerAngles(Quaternion.Normalize(joint.Frame1.Rotation)))),
+            ("collision_enabled", joint.EnableCollision),
+            ("use_block_solver", joint.Flags.HasFlag(JointFlags.UseBlockSolver)));
 
-        AddIfPresent(node, "collision_enabled", joint, "m_bEnableCollision");
-        if (joint.ContainsKey("m_nFlags"))
-        {
-            node.Add("use_block_solver", (joint.GetInt32Property("m_nFlags") & 2) != 0);
-        }
-
-        if (joint.GetBooleanProperty("m_bIsAngularConstraintDisabled"))
+        if (joint.IsAngularConstraintDisabled)
         {
             node.Add("constraint_space", "linear_only");
         }
-        else if (joint.GetBooleanProperty("m_bIsLinearConstraintDisabled"))
+        else if (joint.IsLinearConstraintDisabled)
         {
             node.Add("constraint_space", "angular_only");
         }
 
-        var twistLimit = joint.GetSubCollection("m_TwistLimit");
-        if (type == 4)
+        switch (joint.Type)
         {
-            AddIfPresent(node, "enable_swing_limit", joint, "m_bEnableSwingLimit");
-            node.Add("swing_limit", float.RadiansToDegrees(joint.GetSubCollection("m_SwingLimit").GetFloatProperty("m_flMax")));
-            AddIfPresent(node, "enable_twist_limit", joint, "m_bEnableTwistLimit");
-            node.Add("min_twist_angle", float.RadiansToDegrees(twistLimit.GetFloatProperty("m_flMin")));
-            node.Add("max_twist_angle", float.RadiansToDegrees(twistLimit.GetFloatProperty("m_flMax")));
+            case JointType.Conical:
+                node.Add("enable_swing_limit", joint.EnableSwingLimit);
+                node.Add("swing_limit", float.RadiansToDegrees(joint.SwingLimit.Max));
+                node.Add("enable_twist_limit", joint.EnableTwistLimit);
+                node.Add("min_twist_angle", float.RadiansToDegrees(joint.TwistLimit.Min));
+                node.Add("max_twist_angle", float.RadiansToDegrees(joint.TwistLimit.Max));
 
-            var bindPose = physics.BindPose;
-            if (parentIndex < bindPose.Length && childIndex < bindPose.Length)
-            {
-                var parentRotation = Quaternion.CreateFromRotationMatrix(bindPose[parentIndex]);
-                var childRotation = Quaternion.CreateFromRotationMatrix(bindPose[childIndex]);
-                var parentFrame = Quaternion.Normalize(parentRotation * frame1.Rotation);
-                var childFrame = Quaternion.Normalize(childRotation * frame2.Rotation);
+                var bindPose = physics.BindPose;
+                if (joint.Body1 < bindPose.Length && joint.Body2 < bindPose.Length)
+                {
+                    var parentRotation = Quaternion.CreateFromRotationMatrix(bindPose[joint.Body1]);
+                    var childRotation = Quaternion.CreateFromRotationMatrix(bindPose[joint.Body2]);
+                    var parentFrame = Quaternion.Normalize(parentRotation * joint.Frame1.Rotation);
+                    var childFrame = Quaternion.Normalize(childRotation * joint.Frame2.Rotation);
 
-                // ModelDoc applies the negated offset angles in the parent joint frame. Negating
-                // the Euler angles is not equivalent to inverting their quaternion.
-                var offset = -EntityTransformHelper.ToEulerAngles(Quaternion.Inverse(parentFrame) * childFrame);
-                node.Add("swing_offset_angle", ToKVArray(offset));
-            }
+                    // ModelDoc applies the negated offset angles in the parent joint frame. Negating
+                    // the Euler angles is not equivalent to inverting their quaternion.
+                    var offset = -EntityTransformHelper.ToEulerAngles(Quaternion.Inverse(parentFrame) * childFrame);
+                    node.Add("swing_offset_angle", ToKVArray(offset));
+                }
+
+                break;
+            case JointType.Revolute:
+                node.Add("enable_limit", joint.EnableTwistLimit);
+                node.Add("min_angle", float.RadiansToDegrees(joint.TwistLimit.Min));
+                node.Add("max_angle", float.RadiansToDegrees(joint.TwistLimit.Max));
+                break;
+            case JointType.Prismatic:
+                node.Add("enable_limit", joint.EnableLinearLimit);
+                node.Add("min_offset", joint.LinearLimit.Min);
+                node.Add("max_offset", joint.LinearLimit.Max);
+                break;
         }
-        else
-        {
-            AddIfPresent(node, "enable_limit", joint, "m_bEnableTwistLimit");
-            node.Add("min_angle", float.RadiansToDegrees(twistLimit.GetFloatProperty("m_flMin")));
-            node.Add("max_angle", float.RadiansToDegrees(twistLimit.GetFloatProperty("m_flMax")));
-        }
 
-        var friction = joint.GetFloatProperty("m_flFriction");
-        var elasticity = joint.GetFloatProperty("m_flElasticity");
-        var plasticity = joint.GetFloatProperty("m_flPlasticity");
-        node.Add("motion_resistance", plasticity != 0 ? "plastic" : elasticity != 0 ? "elastic" : friction != 0 ? "friction" : "none");
-        AddIfPresent(node, "friction", joint, "m_flFriction");
-        AddIfPresent(node, "elasticity", joint, "m_flElasticity");
-        AddIfPresent(node, "elastic_damping", joint, "m_flElasticDamping");
-        AddIfPresent(node, "plasticity", joint, "m_flPlasticity");
+        node.Add("motion_resistance", joint.Plasticity != 0 ? "plastic" : joint.Elasticity != 0 ? "elastic" : joint.Friction != 0 ? "friction" : "none");
+        node.Add("friction", joint.Friction);
+        node.Add("elasticity", joint.Elasticity);
+        node.Add("elastic_damping", joint.ElasticDamping);
+        node.Add("plasticity", joint.Plasticity);
 
         return node;
     }
 
-    internal static KVObject BuildPhysicsBodyMarkup(KVObject part, string bodyName)
+    private static KVObject BuildPhysicsBodyMarkup(KVObject part, string bodyName)
     {
         var node = MakeNode("PhysicsBodyMarkup", ("target_body", bodyName));
         AddIfPresent(node, "mass_override", part, "m_flMass");
