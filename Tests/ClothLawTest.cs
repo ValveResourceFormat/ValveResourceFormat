@@ -4393,5 +4393,38 @@ namespace Tests
                 }
             }
         }
+
+        /// <summary>
+        /// A jiggle bone beside a <c>Softbody</c> that holds only a <c>ClothParams</c> has no cloth node for the export to
+        /// declare, and the ClothParams survives only as its iteration counts: <c>s12_jiggle_only_params</c> ships
+        /// <c>m_nExtraIterations</c> and <c>m_nExtraGoalIterations</c> 1, so the model keeps its Softbody. The controls: the
+        /// pak jiggle-bone models (cs2 <c>bomb_site_tarp</c>, <c>tarp_a</c>, <c>pedestal_patch</c>) ship 0 and 0, and a model
+        /// with those counts but no jiggle bone is not this case.
+        /// </summary>
+        [Test]
+        public async Task AJiggleBoneModelKeepsTheClothParamsItsIterationCountsRecord()
+        {
+            static FeModel Model(int extraIterations, string jiggleBones) => SyntheticCloth.Parse($$"""
+                {
+                    m_CtrlName = [ "tophat" ]
+                    m_SkelParents = [ -1 ]
+                    m_nNodeCount = 1
+                    m_nStaticNodes = 0
+                    m_NodeInvMasses = [ 1.0 ]
+                    m_InitPose = [ {{SyntheticCloth.Pose(0f, 0f, 60f)}} ]
+                    m_nExtraIterations = {{extraIterations}}
+                    m_nExtraGoalIterations = {{extraIterations}}
+                    m_JiggleBones = [ {{jiggleBones}} ]
+                }
+                """);
+            const string Jiggle = "{ m_nNode = 0 m_nJiggleParent = 0 m_jiggleBone = { m_nFlags = 38 m_flLength = 5.0 } },";
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(ModelExtract.HasJiggleBoneClothParams(Model(1, Jiggle))).IsTrue();
+                await Assert.That(ModelExtract.HasJiggleBoneClothParams(Model(0, Jiggle))).IsFalse();
+                await Assert.That(ModelExtract.HasJiggleBoneClothParams(Model(1, string.Empty))).IsFalse();
+            }
+        }
     }
 }
