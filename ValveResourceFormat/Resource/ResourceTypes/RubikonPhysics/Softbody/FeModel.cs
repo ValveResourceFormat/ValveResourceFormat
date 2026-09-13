@@ -3064,6 +3064,21 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             VertexMaps = [.. VertexMaps.Where(map => map.NameHash != hash)];
         }
 
+        /// <summary>
+        /// Drops the selection rebuilt from the vertex set registered with no name (hash 0), which holds the jiggle bones'
+        /// nodes. No authored selection names it, so a chain joint that is also a jiggle bone would otherwise declare it
+        /// and register a named set the original does not ship. Selections read from <c>m_VertexMaps</c> are kept.
+        /// </summary>
+        public void DropUnnamedVertexSet()
+        {
+            if (!vertexMapsFromSets)
+            {
+                return;
+            }
+
+            VertexMaps = [.. VertexMaps.Where(static map => map.NameHash != 0)];
+        }
+
         /// <summary>A named vertex selection, used to target cloth effects and joint vertex maps.</summary>
         /// <param name="Name">The authored selection name.</param>
         /// <param name="NameHash">The hash the compiler keys the selection by.</param>

@@ -4426,5 +4426,47 @@ namespace Tests
                 await Assert.That(ModelExtract.HasJiggleBoneClothParams(Model(1, string.Empty))).IsFalse();
             }
         }
+
+        /// <summary>
+        /// The vertex set registered with no name (hash 0) holds the jiggle bones' nodes: the one jiggle node of the S12
+        /// jiggle rows, and on dl's <c>tf2medic</c> exactly its three jiggle bones, which are also chain joints there. Rebuilt
+        /// into a selection, the joints would declare <c>vertex_set_0</c> and register a named set the original does not
+        /// ship, so it is dropped. The control: a selection read from <c>m_VertexMaps</c> under hash 0 is kept.
+        /// </summary>
+        [Test]
+        public async Task TheUnnamedJiggleBoneVertexSetIsNotRedeclared()
+        {
+            string Body(string maps) => $$"""
+                {
+                    m_CtrlName = [ "root", "a", "b", "jiggle" ]
+                    m_SkelParents = [ -1, 0, 1, 0 ]
+                    m_nNodeCount = 4
+                    m_nStaticNodes = 1
+                    m_NodeInvMasses = [ 0.0, 1.0, 1.0, 1.0 ]
+                    m_InitPose =
+                    [
+                        {{SyntheticCloth.Pose(0f, 0f, 0f)}}
+                        {{SyntheticCloth.Pose(0f, 0f, -5f)}}
+                        {{SyntheticCloth.Pose(0f, 0f, -10f)}}
+                        {{SyntheticCloth.Pose(5f, 0f, 0f)}}
+                    ]
+                    m_VertexSetNames = [ 0, 91207372 ]
+                    m_DynNodeVertexSet = [ 1, 1, 0 ]
+                    {{maps}}
+                }
+                """;
+            static string[] Names(FeModel feModel) => [.. feModel.VertexMaps.Select(static map => map.Name)];
+
+            var rebuilt = SyntheticCloth.Parse(Body(string.Empty));
+            rebuilt.DropUnnamedVertexSet();
+            var shipped = SyntheticCloth.Parse(Body("""m_VertexMapValues = [ 255 ] m_VertexMaps = [ { sName = "jiggles" nNameHash = 0 nVertexBase = 3 nVertexCount = 1 nMapOffset = 0 vCenterOfMass = [ 0.0, 0.0, 0.0 ] flVolumetricSolveStrength = 0.0 nScaleSourceNode = -1 }, ]"""));
+            shipped.DropUnnamedVertexSet();
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(Names(rebuilt)).IsEquivalentTo(["vertex_set_1"]);
+                await Assert.That(Names(shipped)).IsEquivalentTo(["jiggles"]);
+            }
+        }
     }
 }

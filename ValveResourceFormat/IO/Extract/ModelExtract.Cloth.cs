@@ -49,6 +49,7 @@ partial class ModelExtract
         feModel.SkeletonBoneParents = boneParents;
         feModel.SetSkeletonParents(boneParents);
         feModel.DropModelNameVertexSet(System.IO.Path.GetFileNameWithoutExtension(fileName));
+        feModel.DropUnnamedVertexSet();
 
         BuildClothRestBonePositions(feModel);
 
