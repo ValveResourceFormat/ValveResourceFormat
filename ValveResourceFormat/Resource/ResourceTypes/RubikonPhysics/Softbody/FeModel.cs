@@ -117,6 +117,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         public readonly record struct Rod(int NodeA, int NodeB, float MinDist, float MaxDist, float Weight0, float RelaxationFactor);
 
         private HashSet<(int, int)>? animRodPairs;
+        private List<AnimRod>? animRods;
 
         /// <summary>
         /// Gets the node pairs of <c>m_SimdRodsAnim</c>, the array the compiler routes a rod to when either
@@ -124,11 +125,28 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// from never reaches the file, so they are the only record that such a rod was built at all: a span
         /// in neither <see cref="Rods"/> nor here carries no rod, and its joint declared no stretch.
         /// </summary>
-        public IReadOnlySet<(int, int)> AnimRodPairs => animRodPairs ??= BuildAnimRodPairs();
+        public IReadOnlySet<(int, int)> AnimRodPairs => animRodPairs ??= AnimRods
+            .Select(static rod => rod.NodeA < rod.NodeB ? (rod.NodeA, rod.NodeB) : (rod.NodeB, rod.NodeA))
+            .ToHashSet();
 
-        private HashSet<(int, int)> BuildAnimRodPairs()
+        /// <summary>
+        /// One rod of <c>m_SimdRodsAnim</c>: its two nodes in lane order and the <c>f4Weight0</c> lane value, which is
+        /// the share of <paramref name="NodeA"/> exactly as <see cref="Rod.Weight0"/> is on a rod kept in <c>m_Rods</c>.
+        /// </summary>
+        /// <param name="NodeA">First node of the lane.</param>
+        /// <param name="NodeB">Second node of the lane.</param>
+        /// <param name="Weight0">Blend weight of <paramref name="NodeA"/>.</param>
+        public readonly record struct AnimRod(int NodeA, int NodeB, float Weight0);
+
+        /// <summary>
+        /// Gets the rods of <c>m_SimdRodsAnim</c>, one per distinct lane: the SIMD packing repeats a lane to fill a
+        /// block of four.
+        /// </summary>
+        public IReadOnlyList<AnimRod> AnimRods => animRods ??= BuildAnimRods();
+
+        private List<AnimRod> BuildAnimRods()
         {
-            var pairs = new HashSet<(int, int)>();
+            var rods = new List<AnimRod>();
             foreach (var entry in Data.GetArray("m_SimdRodsAnim") ?? [])
             {
                 if (!entry.TryGetValue("nNode", out var nNodeValue) || !nNodeValue.IsArray)
@@ -158,18 +176,18 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                     continue;
                 }
 
+                var weights = entry.GetFloatArray("f4Weight0");
                 for (var lane = 0; lane < 4; lane++)
                 {
-                    var a = flat[lane];
-                    var b = flat[4 + lane];
-                    if (a != b)
+                    var rod = new AnimRod(flat[lane], flat[4 + lane], lane < weights.Length ? weights[lane] : 0.5f);
+                    if (rod.NodeA != rod.NodeB && !rods.Contains(rod))
                     {
-                        pairs.Add(a < b ? (a, b) : (b, a));
+                        rods.Add(rod);
                     }
                 }
             }
 
-            return pairs;
+            return rods;
         }
 
         /// <summary>
@@ -2372,6 +2390,10 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// the default mass is exactly one half whatever the final masses are. Under
         /// <see cref="HasExplicitMasses"/> they are the final masses themselves.
         /// </para>
+        /// <para>
+        /// A span whose joint or parent declared <c>animated_length</c> keeps those rods in <see cref="AnimRods"/>
+        /// alone, carrying the same weights.
+        /// </para>
         /// </summary>
         public float? GetMotionBias(BoneChainJoint joint)
         {
@@ -2394,10 +2416,12 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             }
 
             float? bias = null;
-            foreach (var rod in Rods)
+            var spanRods = Rods.Select(static rod => (rod.NodeA, rod.NodeB, rod.Weight0))
+                .Concat(AnimRods.Select(static rod => (rod.NodeA, rod.NodeB, rod.Weight0)));
+            foreach (var (nodeA, nodeB, weight0) in spanRods)
             {
-                var weight = rod.NodeA == joint.ParentNode && rod.NodeB == joint.Node ? rod.Weight0
-                    : rod.NodeB == joint.ParentNode && rod.NodeA == joint.Node ? 1f - rod.Weight0
+                var weight = nodeA == joint.ParentNode && nodeB == joint.Node ? weight0
+                    : nodeB == joint.ParentNode && nodeA == joint.Node ? 1f - weight0
                     : float.NaN;
                 if (float.IsNaN(weight))
                 {
