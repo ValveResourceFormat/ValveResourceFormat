@@ -96,7 +96,7 @@ partial class ModelExtract
     /// are each necessary - a group naming only colliders or only cloth compiles to no bytecode at all -
     /// and members are named, not parented, so the cloth keeps the declaration site that builds it.
     /// </summary>
-    static void AddClothAntiTunnelGroup(KVObject softbodyChildren, FeModel feModel,
+    internal static void AddClothAntiTunnelGroup(KVObject softbodyChildren, FeModel feModel,
         List<string> shapeNames, List<string> clothNames)
     {
         if (feModel.AntiTunnelBytecode.Length == 0 || shapeNames.Count == 0 || clothNames.Count == 0)

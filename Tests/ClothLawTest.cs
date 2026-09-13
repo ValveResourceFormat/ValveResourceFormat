@@ -4296,5 +4296,49 @@ namespace Tests
                 await Assert.That(Names(shipped)).IsEquivalentTo(["chain"]);
             }
         }
+
+        /// <summary>
+        /// A <c>ClothAntiTunnelColliderGroup</c> naming a capsule and a chain compiles to <c>m_AntiTunnelBytecode</c> on a
+        /// model with no proxy sheet (<c>s12_antitunnel_group_capsule_chain</c>: capsule 0, mask 0, then the chain's own
+        /// joint and ring pairs), so the chain phase declares the group with its chains as the cloth members, each chain
+        /// named once. The control: a model with no bytecode declares no group.
+        /// </summary>
+        [Test]
+        public async Task AChainModelWithAntiTunnelBytecodeDeclaresItsColliderGroup()
+        {
+            static FeModel Model(string bytecode) => SyntheticCloth.Parse($$"""
+                {
+                    m_CtrlName = [ "spine_2", "coattail_0_L", "coattail_1_L" ]
+                    m_SkelParents = [ -1, -1, 1 ]
+                    m_nNodeCount = 3
+                    m_nStaticNodes = 2
+                    m_NodeInvMasses = [ 0.0, 0.0, 1.0 ]
+                    m_InitPose =
+                    [
+                        {{SyntheticCloth.Pose(0f, 0f, 0f)}}
+                        {{SyntheticCloth.Pose(0f, 5f, 0f)}}
+                        {{SyntheticCloth.Pose(0f, 5f, -8f)}}
+                    ]
+                    m_AntiTunnelBytecode = [ {{bytecode}} ]
+                }
+                """);
+
+            var withBytecode = KVObject.Array();
+            ModelExtract.AddClothAntiTunnelGroup(withBytecode, Model("131072, 805306368, 2, 131073, 196609"), ["spine_2_clothCapsule"],
+                ["coattail_0_L", "coattail_0_L"]);
+            var withoutBytecode = KVObject.Array();
+            ModelExtract.AddClothAntiTunnelGroup(withoutBytecode, Model(string.Empty), ["spine_2_clothCapsule"], ["coattail_0_L"]);
+
+            var groups = withBytecode.Select(static child => child.Value).ToArray();
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(groups.Length).IsEqualTo(1);
+                await Assert.That(groups[0].GetStringProperty("_class")).IsEqualTo("ClothAntiTunnelColliderGroup");
+                await Assert.That(groups[0].GetSubCollection("data").GetSubCollection("nodes").Select(static member => member.Key))
+                    .IsEquivalentTo(["spine_2_clothCapsule", "coattail_0_L"], CollectionOrdering.Matching);
+                await Assert.That(withoutBytecode.Count).IsEqualTo(0);
+            }
+        }
     }
 }

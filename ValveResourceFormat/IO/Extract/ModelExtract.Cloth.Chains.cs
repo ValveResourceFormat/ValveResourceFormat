@@ -605,7 +605,9 @@ partial class ModelExtract
         AddClothChainVolumetricMaps(softbodyChildren, feModel, boneChains);
 
         AddClothFollowBones(softbodyChildren, feModel, clothBones);
-        AddClothCollisionShapes(softbodyChildren, feModel);
+        var shapeNames = AddClothCollisionShapes(softbodyChildren, feModel);
+        AddClothAntiTunnelGroup(softbodyChildren, feModel, shapeNames,
+            [.. declaredChains.Select(static chain => chain.RootBone + chain.DeclarationSuffix)]);
         AddClothEffects(softbodyChildren, feModel, AvailableVertexMaps(feModel, boneChains));
         rootChildren.Add(softbody);
         AddClothAntiTunnelProbes(rootChildren, feModel, proxyNodeNames: null);
