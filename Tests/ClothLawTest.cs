@@ -3933,8 +3933,8 @@ namespace Tests
         /// <summary>
         /// An effect authored under a static <c>ClothNode</c> records the node's root bone as its <c>Node</c> and keeps its
         /// direction unrotated, so it is declared under the static node rooted on that bone, here inside a folder. An
-        /// AddGravity effect declares its <c>strength</c> and the <c>angles</c> of its direction. The controls are an
-        /// effect with no <c>Node</c> and one naming a bone whose only node is dynamic: both stay at the top level.
+        /// AddGravity effect declares its <c>strength</c> and the <c>angles</c> of its direction. The control is an
+        /// effect with no <c>Node</c>: it stays at the top level.
         /// </summary>
         [Test]
         public async Task AnEffectRecordingANodeIsDeclaredUnderThatStaticClothNode()
@@ -3951,13 +3951,11 @@ namespace Tests
                     [
                         { sName = "gravity0" nNameHash = 1 nType = 4 m_Params = { Node = 0 Strength = [ 0.353553, 0.353553, -0.0 ] } },
                         { sName = "gravity1" nNameHash = 2 nType = 4 m_Params = { Strength = [ 0.0, 0.0, -2.0 ] } },
-                        { sName = "gravity2" nNameHash = 3 nType = 4 m_Params = { Node = 1 Strength = [ 1.0, 0.0, 0.0 ] } },
                     ]
                 }
                 """);
             var (folder, folderChildren) = KVHelpers.MakeListNode("Folder");
             folderChildren.Add(EffectParentNode("spine_2", isStatic: true));
-            folderChildren.Add(EffectParentNode("coattail_0_L", isStatic: false));
             var softbodyChildren = KVObject.Array();
             softbodyChildren.Add(folder);
 
@@ -3975,11 +3973,10 @@ namespace Tests
                 await Assert.That(Vector3.Distance(nested[0].GetSubCollection("angles").ToVector3(), new Vector3(0f, 45f, 0f)))
                     .IsLessThan(1e-3f);
                 await Assert.That(top.Select(static child => child.GetStringProperty("name")).ToArray())
-                    .IsEquivalentTo(["gravity1", "gravity2"], CollectionOrdering.Matching);
+                    .IsEquivalentTo(["gravity1"], CollectionOrdering.Matching);
                 await Assert.That(top[0].GetFloatProperty("strength")).IsEqualTo(2f).Within(1e-5f);
                 await Assert.That(Vector3.Distance(top[0].GetSubCollection("angles").ToVector3(), new Vector3(90f, 0f, 0f)))
                     .IsLessThan(1e-3f);
-                await Assert.That(folderChildren.ElementAt(1).Value.ContainsKey("children")).IsFalse();
             }
         }
 
@@ -4052,6 +4049,70 @@ namespace Tests
             }
 
             return worst;
+        }
+
+        /// <summary>
+        /// A static <c>ClothNode</c> on a bone a chain claims compiles onto that bone's own node and still gives its
+        /// effects that bone as <c>Node</c>, even on a simulated joint, while the export emits no static node for it.
+        /// Such an effect is declared under a bare static <c>ClothNode</c> rooted on the bone, one per bone, whether the
+        /// bone has no ClothNode at all or only a dynamic one. The controls: an effect whose bone has an emitted static
+        /// node joins it and adds no bare node, one with no <c>Node</c> stays at the top level, and one naming a
+        /// generated node gets no parent.
+        /// </summary>
+        [Test]
+        public async Task AnEffectWhoseNodeHasNoStaticClothNodeGetsABareStaticOne()
+        {
+            var feModel = SyntheticCloth.Parse($$"""
+                {
+                    m_CtrlName = [ "spine_2", "coattail_0_L", "coattail_1_L", "$cccoattail_1_L_0" ]
+                    m_SkelParents = [ -1, 0, 1, 2 ]
+                    m_nNodeCount = 4
+                    m_nStaticNodes = 2
+                    m_NodeInvMasses = [ 0.0, 0.0, 1.0, 1.0 ]
+                    m_InitPose =
+                    [
+                        {{SyntheticCloth.Pose(0f, 0f, 0f)}} {{SyntheticCloth.Pose(0f, 0f, -10f)}}
+                        {{SyntheticCloth.Pose(0f, 0f, -20f)}} {{SyntheticCloth.Pose(0f, 2f, -20f)}}
+                    ]
+                    m_Effects =
+                    [
+                        { sName = "gravity_root" nNameHash = 1 nType = 4 m_Params = { Node = 1 Strength = [ 1.0, 0.0, 0.0 ] } },
+                        { sName = "gravity_root2" nNameHash = 2 nType = 4 m_Params = { Node = 1 Strength = [ 0.0, 1.0, 0.0 ] } },
+                        { sName = "gravity_joint" nNameHash = 3 nType = 4 m_Params = { Node = 2 Strength = [ 0.0, 0.0, 1.0 ] } },
+                        { sName = "gravity_static" nNameHash = 4 nType = 4 m_Params = { Node = 0 Strength = [ 1.0, 0.0, 0.0 ] } },
+                        { sName = "gravity_top" nNameHash = 5 nType = 4 m_Params = { Strength = [ 1.0, 0.0, 0.0 ] } },
+                        { sName = "gravity_generated" nNameHash = 6 nType = 4 m_Params = { Node = 3 Strength = [ 1.0, 0.0, 0.0 ] } },
+                    ]
+                }
+                """);
+            var softbodyChildren = KVObject.Array();
+            softbodyChildren.Add(EffectParentNode("spine_2", isStatic: true));
+            softbodyChildren.Add(EffectParentNode("coattail_1_L", isStatic: false));
+
+            ModelExtract.AddClothEffects(softbodyChildren, feModel, new HashSet<string>());
+
+            var top = softbodyChildren.Select(static child => child.Value).ToArray();
+            static string[] Names(IEnumerable<KVObject> nodes) => [.. nodes.Select(static node => node.GetStringProperty("name"))];
+
+            await Assert.That(Names(top)).IsEquivalentTo(
+                ["spine_2", "coattail_1_L", "coattail_0_L_effects", "coattail_1_L_effects", "gravity_top", "gravity_generated"],
+                CollectionOrdering.Matching);
+
+            using (Assert.Multiple())
+            {
+                foreach (var (bare, bone) in new[] { (top[2], "coattail_0_L"), (top[3], "coattail_1_L") })
+                {
+                    await Assert.That(bare.GetStringProperty("_class")).IsEqualTo("ClothNode");
+                    await Assert.That(bare.GetStringProperty("cloth_node_root_bone")).IsEqualTo(bone);
+                    await Assert.That(bare.GetBooleanProperty("is_static_node")).IsTrue();
+                }
+
+                await Assert.That(Names(top[2].GetArray("children"))).IsEquivalentTo(["gravity_root", "gravity_root2"],
+                    CollectionOrdering.Matching);
+                await Assert.That(Names(top[3].GetArray("children"))).IsEquivalentTo(["gravity_joint"]);
+                await Assert.That(Names(top[0].GetArray("children"))).IsEquivalentTo(["gravity_static"]);
+                await Assert.That(top[1].ContainsKey("children")).IsFalse();
+            }
         }
     }
 }

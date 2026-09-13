@@ -354,8 +354,11 @@ partial class ModelExtract
 
     /// <summary>
     /// Declares every effect the export can recreate. An effect whose parameters record a <c>Node</c> was authored
-    /// under the static <c>ClothNode</c> rooted on that control bone, and is declared under it wherever the export
-    /// emits that node; the compiler records the parent and leaves the direction unrotated.
+    /// under a static <c>ClothNode</c> rooted on that control bone, and is declared under the static node the export
+    /// emits for that bone. Where it emits none, because a chain joint or another construct already claims the bone,
+    /// a bare static <c>ClothNode</c> is declared for it: the compiler lands it on the node the bone already
+    /// registers, without changing that node, and records it as the effect's parent. The direction stays unrotated,
+    /// since the export's nodes carry no angles of their own.
     /// </summary>
     internal static void AddClothEffects(KVObject softbodyChildren, FeModel feModel, IReadOnlySet<string> availableMaps)
     {
@@ -368,9 +371,16 @@ partial class ModelExtract
 
             var siblings = softbodyChildren;
             if (effect.Params.ContainsKey("Node") && effect.Params.GetInt32Property("Node") is var ctrl
-                && ctrl >= 0 && ctrl < feModel.CtrlNames.Length
-                && FindStaticClothNode(softbodyChildren, feModel.CtrlNames[ctrl]) is { } parent)
+                && ctrl >= 0 && ctrl < feModel.CtrlNames.Length && !feModel.CtrlNames[ctrl].StartsWith('$'))
             {
+                var bone = feModel.CtrlNames[ctrl];
+                if (FindStaticClothNode(softbodyChildren, bone) is not { } parent)
+                {
+                    parent = MakeNode("ClothNode", ("name", bone + "_effects"), ("cloth_node_root_bone", bone),
+                        ("is_static_node", true));
+                    softbodyChildren.Add(parent);
+                }
+
                 if (!parent.TryGetValue("children", out var children))
                 {
                     children = KVObject.Array();
