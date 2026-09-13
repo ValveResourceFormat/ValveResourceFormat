@@ -15,6 +15,7 @@ partial class ModelExtract
     static HashSet<string?> CollisionShapeParentBones(FeModel feModel)
         => feModel.BuildCollisionCapsules().Select(static c => c.ParentBone)
             .Concat(feModel.BuildPlanarizeCapsules().Select(static c => c.ParentBone))
+            .Concat(feModel.BuildPlanarizeBoxes().Select(static b => b.ParentBone))
             .Concat(feModel.BuildCollisionSpheres().Select(static s => s.ParentBone))
             .Concat(feModel.BuildCollisionBoxes().Select(static b => b.ParentBone))
             .Where(static n => n is not null)
@@ -74,6 +75,14 @@ partial class ModelExtract
             .OrderBy(c => ParentBoneNode(feModel, c.ParentBone)))
         {
             var shape = MakeClothShapeCapsule(capsule);
+            names.Add(shape.GetStringProperty("name"));
+            softbodyChildren.Add(shape);
+        }
+
+        foreach (var box in feModel.BuildPlanarizeBoxes()
+            .OrderBy(b => ParentBoneNode(feModel, b.ParentBone)))
+        {
+            var shape = MakeClothShapeBox(box);
             names.Add(shape.GetStringProperty("name"));
             softbodyChildren.Add(shape);
         }
@@ -195,13 +204,13 @@ partial class ModelExtract
     static KVObject MakeClothShapeBox(FeModel.CollisionBox box)
     {
         var node = MakeNode("ClothShapeBox",
-            ("name", (box.ParentBone ?? "cloth") + "_clothBox"),
+            ("name", (box.ParentBone ?? "cloth") + (box.Planarize ? "_clothPlanarizedBox" : "_clothBox")),
             ("parent_bone", box.ParentBone ?? string.Empty));
         AddClothCollisionLayers(node, box.CollisionMask);
         node.Add("cloth_collision_priority", box.Priority);
         node.Add("vertex_map", box.VertexMap ?? "");
         node.Add("inverted_collision", box.Inverted);
-        node.Add("planarize", false);
+        node.Add("planarize", box.Planarize);
         node.Add("bounciness", 0.0f);
         // The shape otherwise snaps to its parent bone, discarding the authored offset, and dimensions are
         // the full box size while the compiled vSize keeps half-extents.

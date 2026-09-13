@@ -62,6 +62,11 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             /// Gets whether the shape keeps the cloth INSIDE it rather than out of it.
             /// </summary>
             public bool Inverted { get; init; }
+            /// <summary>
+            /// Gets whether the box collides as a per-node plane rather than as a volume. Such a box leaves no
+            /// rigid of its own behind, only <c>m_CollisionPlanes</c>.
+            /// </summary>
+            public bool Planarize { get; init; }
             /// <summary>Gets the authored collision priority, recovered by <see cref="ColliderPriority"/>.</summary>
             public int Priority { get; init; }
         }
@@ -333,24 +338,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                     continue;
                 }
 
-                var toLocal = Quaternion.Conjugate(InitPoseRotations[parent]);
-                var origin = InitPosePositions[parent];
-
-                var samples = new List<PlanarizeSample>();
-                foreach (var (plane, _) in group)
-                {
-                    var node = plane.ChildNode;
-                    if (node < 0 || node >= InitPosePositions.Length)
-                    {
-                        continue;
-                    }
-
-                    var x = Vector3.Transform(InitPosePositions[node] - origin, toLocal);
-                    var normal = plane.PlaneNormal;
-                    samples.Add(new PlanarizeSample(node, x, normal, plane.PlaneOffset,
-                        Vector3.Dot(normal, x) - plane.PlaneOffset, GetCollisionRadius(node)));
-                }
-
+                var samples = PlanarizeSamples(parent, group.Select(static e => e.index));
                 if (FitPlanarizedShapes(samples) is not { } shapes)
                 {
                     continue;
@@ -412,6 +400,185 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             }
 
             return result;
+        }
+
+        /// <summary>
+        /// Reconstructs the collision boxes authored with <c>planarize</c> on. Such a box writes no
+        /// <c>m_BoxRigids</c> record either, only one <c>m_CollisionPlanes</c> entry per node of its vertex map:
+        /// in the parent control node's frame the plane passes through the node's nearest point on the box,
+        /// its normal points from that point to the node, and its offset is pushed out by the node's collision
+        /// radius. Each plane therefore gives its contact point back, and the box is the one whose faces hold
+        /// every contact, with a side no node reaches mirrored about the parent. Only a group the planarized
+        /// capsule fit leaves unexplained is read, since planes on a box's face centres are also a sphere's,
+        /// and a group is returned only when the box reproduces every plane it owns.
+        /// </summary>
+        public List<CollisionBox> BuildPlanarizeBoxes()
+        {
+            var result = new List<CollisionBox>();
+            if (CollisionPlanes.Length == 0 || InitPosePositions.Length == 0)
+            {
+                return result;
+            }
+
+            var indexed = CollisionPlanes.Select(static (plane, index) => (plane, index));
+            foreach (var group in indexed.GroupBy(static e => e.plane.CtrlParent))
+            {
+                var parent = group.Key;
+                if (parent < 0 || parent >= InitPosePositions.Length)
+                {
+                    continue;
+                }
+
+                var samples = PlanarizeSamples(parent, group.Select(static e => e.index));
+                if (FitPlanarizedBox(samples) is not { } box || FitPlanarizedShapes(samples) is not null
+                    || SmallestVertexMapCovering(samples, [.. Enumerable.Range(0, samples.Count)]) is not { } vertexMap)
+                {
+                    continue;
+                }
+
+                result.Add(new CollisionBox
+                {
+                    ParentBone = ResolveRigidBone(parent),
+                    Origin = (box.Min + box.Max) * 0.5f,
+                    Rotation = Quaternion.Identity,
+                    Size = (box.Max - box.Min) * 0.5f,
+                    CollisionMask = 0xF,
+                    VertexMap = vertexMap,
+                    Planarize = true,
+                    Priority = ColliderPriority(RigidColliderKind.CollisionPlane, group.Min(static e => e.index)),
+                });
+            }
+
+            return result;
+        }
+
+        // The collision planes one control parent owns, each with its node in the parent's rest frame.
+        List<PlanarizeSample> PlanarizeSamples(int parent, IEnumerable<int> planeIndices)
+        {
+            var toLocal = Quaternion.Conjugate(InitPoseRotations[parent]);
+            var origin = InitPosePositions[parent];
+
+            var samples = new List<PlanarizeSample>();
+            foreach (var index in planeIndices)
+            {
+                var plane = CollisionPlanes[index];
+                var node = plane.ChildNode;
+                if (node < 0 || node >= InitPosePositions.Length)
+                {
+                    continue;
+                }
+
+                var x = Vector3.Transform(InitPosePositions[node] - origin, toLocal);
+                var normal = plane.PlaneNormal;
+                samples.Add(new PlanarizeSample(node, x, normal, plane.PlaneOffset,
+                    Vector3.Dot(normal, x) - plane.PlaneOffset, GetCollisionRadius(node)));
+            }
+
+            return samples;
+        }
+
+        /// <summary>
+        /// The parent-frame box whose planes are <paramref name="samples"/>, or null when no such box exists.
+        /// A plane's normal component along an axis says the node's contact point was clamped to that axis's
+        /// lower or upper face, which pins the face; a face no contact pins is mirrored about the parent, and
+        /// widened to hold the contacts that lie inside the box on that axis. An extent that collapses is a
+        /// sphere or capsule, never a box.
+        /// </summary>
+        static (Vector3 Min, Vector3 Max)? FitPlanarizedBox(List<PlanarizeSample> samples)
+        {
+            if (samples.Count < PlanarizeMinShapePlanes)
+            {
+                return null;
+            }
+
+            var contacts = new Vector3[samples.Count];
+            for (var i = 0; i < samples.Count; i++)
+            {
+                var sample = samples[i];
+                if (sample.Gap <= PlanarizeGeometryGap)
+                {
+                    return null;
+                }
+
+                contacts[i] = sample.Local - (sample.Normal * (sample.Gap + sample.Radius));
+            }
+
+            var min = Vector3.Zero;
+            var max = Vector3.Zero;
+            for (var axis = 0; axis < 3; axis++)
+            {
+                float? lower = null;
+                float? upper = null;
+                var inside = (Low: float.MaxValue, High: float.MinValue);
+                for (var i = 0; i < samples.Count; i++)
+                {
+                    var n = samples[i].Normal[axis];
+                    var c = contacts[i][axis];
+                    if (n < -PlanarizeNormalTolerance)
+                    {
+                        if (lower is { } l && Math.Abs(l - c) > PlanarizeOffsetTolerance)
+                        {
+                            return null;
+                        }
+
+                        lower ??= c;
+                    }
+                    else if (n > PlanarizeNormalTolerance)
+                    {
+                        if (upper is { } u && Math.Abs(u - c) > PlanarizeOffsetTolerance)
+                        {
+                            return null;
+                        }
+
+                        upper ??= c;
+                    }
+                    else
+                    {
+                        inside = (Math.Min(inside.Low, c), Math.Max(inside.High, c));
+                    }
+                }
+
+                var low = lower ?? (upper is { } mirroredLow ? -mirroredLow : inside.Low);
+                var high = upper ?? (lower is { } mirroredHigh ? -mirroredHigh : inside.High);
+                if (lower is null)
+                {
+                    low = Math.Min(low, inside.Low);
+                }
+
+                if (upper is null)
+                {
+                    high = Math.Max(high, inside.High);
+                }
+
+                if (!(high - low > PlanarizeAxisTolerance))
+                {
+                    return null;
+                }
+
+                min[axis] = low;
+                max[axis] = high;
+            }
+
+            foreach (var sample in samples)
+            {
+                var contact = Vector3.Clamp(sample.Local, min, max);
+                var toNode = sample.Local - contact;
+                var length = toNode.Length();
+                if (length <= PlanarizeGeometryGap)
+                {
+                    return null;
+                }
+
+                var normal = toNode / length;
+                var offset = Vector3.Dot(normal, contact) + sample.Radius;
+                if ((normal - sample.Normal).Length() >= PlanarizeNormalTolerance
+                    || Math.Abs(offset - sample.Offset) >= PlanarizeOffsetTolerance)
+                {
+                    return null;
+                }
+            }
+
+            return (min, max);
         }
 
         /// <summary>
