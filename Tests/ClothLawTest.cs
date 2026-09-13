@@ -4246,5 +4246,55 @@ namespace Tests
                 await Assert.That(noCollision.ContainsKey("cloth_collision_layer0")).IsFalse();
             }
         }
+
+        /// <summary>
+        /// A compile with no named selection ships only the vertex-set registration, which VRF rebuilds into
+        /// selections. The S12 jiggle rows register two sets: hash 0 for the jiggle bone and the hash of the model's own
+        /// file name, the compiler's default set, for the chain. The default set is dropped, so nothing re-declares it.
+        /// The controls: another file name keeps both sets, and a selection read from <c>m_VertexMaps</c> is kept even
+        /// under the matching hash.
+        /// </summary>
+        [Test]
+        public async Task TheVertexSetNamedAfterTheModelIsNotRedeclared()
+        {
+            const string ModelFileName = "chain_extrude_sides_1";
+            var modelHash = ValveResourceFormat.Utils.StringToken.Get(ModelFileName);
+            string Body(string maps) => $$"""
+                {
+                    m_CtrlName = [ "root", "a", "b", "jiggle" ]
+                    m_SkelParents = [ -1, 0, 1, 0 ]
+                    m_nNodeCount = 4
+                    m_nStaticNodes = 1
+                    m_NodeInvMasses = [ 0.0, 1.0, 1.0, 1.0 ]
+                    m_InitPose =
+                    [
+                        {{SyntheticCloth.Pose(0f, 0f, 0f)}}
+                        {{SyntheticCloth.Pose(0f, 0f, -5f)}}
+                        {{SyntheticCloth.Pose(0f, 0f, -10f)}}
+                        {{SyntheticCloth.Pose(5f, 0f, 0f)}}
+                    ]
+                    m_VertexSetNames = [ 0, {{modelHash}} ]
+                    m_DynNodeVertexSet = [ 1, 1, 0 ]
+                    {{maps}}
+                }
+                """;
+            static string[] Names(FeModel feModel) => [.. feModel.VertexMaps.Select(static map => map.Name)];
+
+            var defaultSet = SyntheticCloth.Parse(Body(string.Empty));
+            var rebuilt = Names(defaultSet);
+            defaultSet.DropModelNameVertexSet(ModelFileName);
+            var otherModel = SyntheticCloth.Parse(Body(string.Empty));
+            otherModel.DropModelNameVertexSet("another_model");
+            var shipped = SyntheticCloth.Parse(Body($$"""m_VertexMapValues = [ 255, 255 ] m_VertexMaps = [ { sName = "chain" nNameHash = {{modelHash}} nVertexBase = 1 nVertexCount = 2 nMapOffset = 0 vCenterOfMass = [ 0.0, 0.0, 0.0 ] flVolumetricSolveStrength = 0.0 nScaleSourceNode = -1 }, ]"""));
+            shipped.DropModelNameVertexSet(ModelFileName);
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(rebuilt).IsEquivalentTo(["vertex_set_0", "vertex_set_1"], CollectionOrdering.Matching);
+                await Assert.That(Names(defaultSet)).IsEquivalentTo(["vertex_set_0"]);
+                await Assert.That(Names(otherModel)).IsEquivalentTo(["vertex_set_0", "vertex_set_1"], CollectionOrdering.Matching);
+                await Assert.That(Names(shipped)).IsEquivalentTo(["chain"]);
+            }
+        }
     }
 }
