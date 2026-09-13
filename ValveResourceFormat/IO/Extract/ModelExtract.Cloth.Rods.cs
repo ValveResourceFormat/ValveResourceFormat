@@ -1390,7 +1390,7 @@ partial class ModelExtract
             rodByEdge.TryAdd(rod.NodeA < rod.NodeB ? (rod.NodeA, rod.NodeB) : (rod.NodeB, rod.NodeA), rod);
         }
 
-        foreach (var (a, b) in feModel.GetAuthoredSourceSprings(chains))
+        foreach (var (a, b, copies) in feModel.GetAuthoredSourceSprings(chains))
         {
             if (a < 0 || a >= names.Length || b < 0 || b >= names.Length)
             {
@@ -1405,7 +1405,7 @@ partial class ModelExtract
             // The source element keeps the two corners in the order the spring named them, which the rod's
             // own endpoint order does not.
             softbodyChildren.Add(MakeClothSpring($"spring_{a}_{b}", names[a], names[b], rod.MinDist,
-                rod.MaxDist, rod.RelaxationFactor));
+                rod.MaxDist, rod.RelaxationFactor, copies - 1));
             emitted.Add(a < b ? (a, b) : (b, a));
         }
 

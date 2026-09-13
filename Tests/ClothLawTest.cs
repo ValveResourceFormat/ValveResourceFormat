@@ -1164,7 +1164,7 @@ namespace Tests
                 await Assert.That(chains[0].Joints.Find(static j => j.Name == "j2")!.StretchStiffness)
                     .IsEqualTo(0f);
                 await Assert.That(springs.Count).IsEqualTo(1);
-                await Assert.That(springs[0]).IsEqualTo((1, 2));
+                await Assert.That(springs[0]).IsEqualTo((1, 2, 1));
             }
         }
 
@@ -3431,6 +3431,51 @@ namespace Tests
                 [
                     { nNodeOrient = 0 nNodeEnd = 1 flTwistRelax = {{toChild}} flSwingRelax = 1.0 },
                     { nNodeOrient = 1 nNodeEnd = 0 flTwistRelax = {{toRoot}} flSwingRelax = 0.0 },
+                ]
+            }
+            """);
+
+        /// <summary>
+        /// A <c>ClothSpring</c>'s <c>extra_iterations</c> is its rod's multiplicity: the compile appends the
+        /// rod <c>1 + extra_iterations</c> times and records ONE source element, so the copies a pair carries
+        /// belong to the one spring on it and leave no rod for anything else to re-declare. The spring also
+        /// keeps the corner order the source element names, which the rod's own endpoints reverse. The
+        /// control is the same chain with a single copy.
+        /// </summary>
+        [Test]
+        public async Task ASourceSpringsRodCopiesAreItsExtraIterations()
+        {
+            var repeated = SpringCopies(3);
+            var single = SpringCopies(1);
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(repeated.GetAuthoredSourceSprings(repeated.BuildBoneChains())[0])
+                    .IsEqualTo((2, 1, 3));
+                await Assert.That(repeated.GetUngeneratedRods(repeated.BuildBoneChains())).IsEmpty();
+                await Assert.That(single.GetAuthoredSourceSprings(single.BuildBoneChains())[0])
+                    .IsEqualTo((2, 1, 1));
+            }
+        }
+
+        private static FeModel SpringCopies(int copies) => SyntheticCloth.Parse($$"""
+            {
+                m_CtrlName = [ "root", "j1", "j2" ]
+                m_SkelParents = [ -1, 0, 1 ]
+                m_nNodeCount = 3
+                m_nStaticNodes = 1
+                m_NodeInvMasses = [ 0.0, 1.0, 1.0 ]
+                m_InitPose =
+                [
+                    {{SyntheticCloth.Pose(0f, 0f, 0f)}}
+                    {{SyntheticCloth.Pose(0f, 0f, -10f)}}
+                    {{SyntheticCloth.Pose(0f, 0f, -20f)}}
+                ]
+                m_SourceElems = [ 0, 1, 0, 0, 2, 1 ]
+                m_Rods =
+                [
+                    {{SyntheticCloth.RigidRod(0, 1, 10f, 1f)}}
+                    {{string.Concat(Enumerable.Repeat(SyntheticCloth.RigidRod(1, 2, 10f, 0.5f), copies))}}
                 ]
             }
             """);
