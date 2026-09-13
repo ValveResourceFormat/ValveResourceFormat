@@ -348,17 +348,59 @@ partial class ModelExtract
 
     const int ClothEffectTypeStiffen = 3;
 
+    const int ClothEffectTypeAddGravity = 4;
+
     const int ClothEffectTypeDampenVelocity = 6;
 
-    static void AddClothEffects(KVObject softbodyChildren, FeModel feModel, IReadOnlySet<string> availableMaps)
+    /// <summary>
+    /// Declares every effect the export can recreate. An effect whose parameters record a <c>Node</c> was authored
+    /// under the static <c>ClothNode</c> rooted on that control bone, and is declared under it wherever the export
+    /// emits that node; the compiler records the parent and leaves the direction unrotated.
+    /// </summary>
+    internal static void AddClothEffects(KVObject softbodyChildren, FeModel feModel, IReadOnlySet<string> availableMaps)
     {
         foreach (var effect in feModel.Effects)
         {
-            if (MakeClothEffect(feModel, effect, availableMaps) is { } node)
+            if (MakeClothEffect(feModel, effect, availableMaps) is not { } node)
             {
-                softbodyChildren.Add(node);
+                continue;
+            }
+
+            var siblings = softbodyChildren;
+            if (effect.Params.ContainsKey("Node") && effect.Params.GetInt32Property("Node") is var ctrl
+                && ctrl >= 0 && ctrl < feModel.CtrlNames.Length
+                && FindStaticClothNode(softbodyChildren, feModel.CtrlNames[ctrl]) is { } parent)
+            {
+                if (!parent.TryGetValue("children", out var children))
+                {
+                    children = KVObject.Array();
+                    parent.Add("children", children);
+                }
+
+                siblings = children;
+            }
+
+            siblings.Add(node);
+        }
+    }
+
+    static KVObject? FindStaticClothNode(KVObject children, string rootBone)
+    {
+        foreach (var (_, child) in children)
+        {
+            if (child.GetStringProperty("_class") == "ClothNode" && child.GetBooleanProperty("is_static_node")
+                && string.Equals(child.GetStringProperty("cloth_node_root_bone"), rootBone, StringComparison.OrdinalIgnoreCase))
+            {
+                return child;
+            }
+
+            if (child.TryGetValue("children", out var nested) && FindStaticClothNode(nested, rootBone) is { } found)
+            {
+                return found;
             }
         }
+
+        return null;
     }
 
     /// <summary>
@@ -401,6 +443,7 @@ partial class ModelExtract
         {
             ClothEffectTypeWind => "ClothEffectWind",
             ClothEffectTypeStiffen => "ClothEffectStiffen",
+            ClothEffectTypeAddGravity => "ClothEffectAddGravity",
             ClothEffectTypeDampenVelocity => "ClothEffectDampenVelocity",
             _ => null,
         };
@@ -442,6 +485,10 @@ partial class ModelExtract
 
                 break;
 
+            case ClothEffectTypeAddGravity:
+                AddClothAddGravityParams(node, effect.Params);
+                break;
+
             default:
                 node.Add("drag", effect.Params.GetFloatProperty("Drag"));
                 break;
@@ -450,17 +497,31 @@ partial class ModelExtract
         return node;
     }
 
-    static void AddClothWindParams(KVObject node, KVObject parameters)
-    {
-        // Strength is the authored speed scaled into units and rotated by the authored angles.
-        var strength = parameters.GetSubCollection("Strength") is { } s ? s.ToVector3() : default;
-        node.Add("wind_speed_mph", strength.Length() / ClothWindSpeedToUnits);
-        node.Add("time_multiplier", 1.0f);
+    // Strength is the authored magnitude along the forward direction of the effect's angles.
+    static Vector3 ClothEffectStrength(KVObject parameters)
+        => parameters.GetSubCollection("Strength") is { } s ? s.ToVector3() : default;
 
+    static void AddClothEffectAngles(KVObject node, Vector3 strength)
+    {
         if (strength != Vector3.Zero)
         {
             node.Add("angles", ToKVArray(EntityTransformHelper.ForwardDirectionToEulerAngles(strength)));
         }
+    }
+
+    static void AddClothAddGravityParams(KVObject node, KVObject parameters)
+    {
+        var strength = ClothEffectStrength(parameters);
+        node.Add("strength", strength.Length());
+        AddClothEffectAngles(node, strength);
+    }
+
+    static void AddClothWindParams(KVObject node, KVObject parameters)
+    {
+        var strength = ClothEffectStrength(parameters);
+        node.Add("wind_speed_mph", strength.Length() / ClothWindSpeedToUnits);
+        node.Add("time_multiplier", 1.0f);
+        AddClothEffectAngles(node, strength);
 
         var airToCloth = parameters.GetFloatProperty("AirToCloth");
         if (airToCloth > 0f)
