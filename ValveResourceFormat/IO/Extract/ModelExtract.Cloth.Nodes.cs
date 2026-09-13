@@ -241,7 +241,7 @@ partial class ModelExtract
     // node_base_x0/x1/y0/y1 are read straight out of feModel.NodeBases and re-declared by NAME. A node
     // left without them registers as position-driven and is driven through a synthesized m_Ropes fallback
     // rather than simulated.
-    static KVObject MakeClothNode(FeModel feModel, string boneName, int node, bool isStaticNode = false,
+    internal static KVObject MakeClothNode(FeModel feModel, string boneName, int node, bool isStaticNode = false,
         string? elementName = null, Vector3 origin = default,
         IReadOnlyDictionary<int, string>? proxyNodeNames = null)
     {
@@ -265,6 +265,14 @@ partial class ModelExtract
             return ResolveAntiTunnelNodeName(feModel, basisNode, proxyNodeNames) ?? string.Empty;
         }
 
+        // The default alignment leaves a free cloth node, and a rotation-locked static node, with no basis at
+        // all: the neighbour scan grades neither. On a node the scan can already serve an alignment changes the
+        // frame instead, so one is written only where the original has a basis the default drops.
+        var preset = elementName is not null || (isStaticNode && !feModel.AllowsRotation(node))
+            ? feModel.ClothNodeBasisPreset(node)
+            : null;
+        var references = preset?.References ?? basis;
+
         var layers = ClothNodeCollisionLayers(feModel.GetNodeCollisionMask(node));
 
         return MakeNode("ClothNode",
@@ -278,15 +286,11 @@ partial class ModelExtract
             ("cloth_collision_layer1", layers.Layer1),
             ("cloth_collision_layer2", layers.Layer2),
             ("cloth_collision_layer3", layers.Layer3),
-            // The default alignment leaves a free cloth node with no basis at all - the neighbour scan
-            // that would build one finds nothing. Alignment 4 both restores the basis and reproduces the
-            // reference quadruple the original carries; on a node the scan can already serve it changes
-            // the frame instead, so it is written only where the original has a basis the default drops.
-            ("transform_alignment", hasBasis && elementName is not null ? 4 : 0),
-            ("node_base_y1", BasisName(basis.NodeY1)),
-            ("node_base_x1", BasisName(basis.NodeX1)),
-            ("node_base_y0", BasisName(basis.NodeY0)),
-            ("node_base_x0", BasisName(basis.NodeX0)),
+            ("transform_alignment", preset?.TransformAlignment ?? 0),
+            ("node_base_y1", BasisName(references.NodeY1)),
+            ("node_base_x1", BasisName(references.NodeX1)),
+            ("node_base_y0", BasisName(references.NodeY0)),
+            ("node_base_x0", BasisName(references.NodeX0)),
             ("lock_translation", feModel.LocksTranslation(node)),
             ("gravity_z", integrator.Gravity / ClothSourceBaseGravity),
             ("goal_strength", goalStrength),

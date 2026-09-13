@@ -3867,5 +3867,67 @@ namespace Tests
                 }
                 """);
         }
+
+        /// <summary>
+        /// A rotation-locked static ClothNode keeps the preset node base no neighbour scan would grade for it. An
+        /// entry whose X0 and one Y reference are the node itself declares <c>transform_alignment</c> 3 with the
+        /// other two references, whichever side of the Y pair the compiler's handedness flip left the node on;
+        /// any other entry declares 4 with its references as stored. The controls are a static node free to
+        /// rotate, which the scan can grade and which keeps alignment 0, and an entry whose X1 is the node, which
+        /// alignment 3 cannot compile.
+        /// </summary>
+        [Test]
+        public async Task AStaticClothNodeDeclaresThePresetItsNodeBaseCompiledFrom()
+        {
+            var feModel = SyntheticCloth.Parse($$"""
+                {
+                    m_CtrlName = [ "spine", "hip", "pin", "a", "b", "c", "d" ]
+                    m_nNodeCount = 7
+                    m_nStaticNodes = 3
+                    m_nRotLockStaticNodes = 2
+                    m_NodeInvMasses = [ 0.0, 0.0, 0.0, 1.0, 1.0, 1.0, 1.0 ]
+                    m_InitPose =
+                    [
+                        {{SyntheticCloth.Pose(0f, 0f, 60f)}}
+                        {{SyntheticCloth.Pose(0f, 0f, 40f)}}
+                        {{SyntheticCloth.Pose(0f, 5f, 40f)}}
+                        {{SyntheticCloth.Pose(-4f, 4f, 55f)}}
+                        {{SyntheticCloth.Pose(-4f, -4f, 55f)}}
+                        {{SyntheticCloth.Pose(-6f, 4f, 45f)}}
+                        {{SyntheticCloth.Pose(-6f, -4f, 45f)}}
+                    ]
+                    m_NodeBases =
+                    [
+                        { nNode = 0 nNodeX0 = 0 nNodeX1 = 3 nNodeY0 = 4 nNodeY1 = 0 },
+                        { nNode = 1 nNodeX0 = 3 nNodeX1 = 4 nNodeY0 = 6 nNodeY1 = 5 },
+                        { nNode = 2 nNodeX0 = 2 nNodeX1 = 3 nNodeY0 = 2 nNodeY1 = 4 },
+                        { nNode = 3 nNodeX0 = 4 nNodeX1 = 3 nNodeY0 = 3 nNodeY1 = 5 },
+                    ]
+                }
+                """);
+
+            var spine = ModelExtract.MakeClothNode(feModel, "spine", 0, isStaticNode: true);
+            var hip = ModelExtract.MakeClothNode(feModel, "hip", 1, isStaticNode: true);
+            var pin = ModelExtract.MakeClothNode(feModel, "pin", 2, isStaticNode: true);
+            var crossed = feModel.ClothNodeBasisPreset(3);
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(spine.GetInt32Property("transform_alignment")).IsEqualTo(3);
+                await Assert.That(spine.GetStringProperty("node_base_x0")).IsEqualTo(string.Empty);
+                await Assert.That(spine.GetStringProperty("node_base_x1")).IsEqualTo("a");
+                await Assert.That(spine.GetStringProperty("node_base_y0")).IsEqualTo(string.Empty);
+                await Assert.That(spine.GetStringProperty("node_base_y1")).IsEqualTo("b");
+                await Assert.That(hip.GetInt32Property("transform_alignment")).IsEqualTo(4);
+                await Assert.That(hip.GetStringProperty("node_base_x0")).IsEqualTo("a");
+                await Assert.That(hip.GetStringProperty("node_base_x1")).IsEqualTo("b");
+                await Assert.That(hip.GetStringProperty("node_base_y0")).IsEqualTo("d");
+                await Assert.That(hip.GetStringProperty("node_base_y1")).IsEqualTo("c");
+                await Assert.That(pin.GetInt32Property("transform_alignment")).IsEqualTo(0);
+                await Assert.That(crossed?.TransformAlignment).IsEqualTo(4);
+                await Assert.That(crossed?.References).IsEqualTo(new FeModel.NodeBasis(4, 3, 3, 5));
+                await Assert.That(feModel.ClothNodeBasisPreset(5) is null).IsTrue();
+            }
+        }
     }
 }

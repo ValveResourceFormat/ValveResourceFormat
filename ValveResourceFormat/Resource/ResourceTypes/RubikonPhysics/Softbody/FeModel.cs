@@ -210,6 +210,29 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         public readonly record struct NodeBasis(int NodeX0, int NodeX1, int NodeY0, int NodeY1);
 
         /// <summary>
+        /// The <c>ClothNode</c> <c>transform_alignment</c> and <c>node_base</c> references that compile to the
+        /// <c>m_NodeBases</c> entry of <paramref name="node"/>, or null when it has none. Alignment 3 takes
+        /// <c>node_base_x0</c> and <c>node_base_y0</c> to be the node itself, so an entry whose X0 is the node and
+        /// one of whose Y references is the node is alignment 3 naming the other Y reference, with X0 and Y0
+        /// returned as -1. The compiler swaps the Y pair of a left-handed basis, so either Y order compiles the
+        /// same entry. Every other entry is alignment 4 with its references as stored.
+        /// </summary>
+        public (int TransformAlignment, NodeBasis References)? ClothNodeBasisPreset(int node)
+        {
+            if (!NodeBases.TryGetValue(node, out var basis))
+            {
+                return null;
+            }
+
+            if (basis.NodeX0 == node && (basis.NodeY0 == node || basis.NodeY1 == node))
+            {
+                return (3, new NodeBasis(-1, basis.NodeX1, -1, basis.NodeY0 == node ? basis.NodeY1 : basis.NodeY0));
+            }
+
+            return (4, basis);
+        }
+
+        /// <summary>
         /// Per-node solver integrator parameters - the cloth-to-bind attraction/damping/gravity that keep
         /// the simulated cloth following the animated body (the original anti-clipping mechanism, used in
         /// lieu of explicit collision capsules). Length matches <see cref="NodeCount"/>.
