@@ -71,8 +71,8 @@ void DecompressNormalTangent2(uint nPackedFrame, out vec3 normal, out vec4 tange
     float Ybits = (nPackedFrame >> 22u) & 0x3ff; // 10 bits
 
     // Unpack from 0..1 to -1..1
-    float nPackedFrameX = (Xbits / 1023.0f) * 2.0 - 1.0;
-    float nPackedFrameY = (Ybits / 1023.0f) * 2.0 - 1.0;
+    float nPackedFrameX = UnpackFromColor(Xbits / 1023.0f);
+    float nPackedFrameY = UnpackFromColor(Ybits / 1023.0f);
 
     // Z is never given a sign, meaning negative values are caused by abs(packedframexy) adding up to over 1.0
     float derivedNormalZ = 1.0 - abs(nPackedFrameX) - abs(nPackedFrameY); // Project onto x+y+z=1
@@ -124,6 +124,21 @@ void GetOptionallyCompressedNormalTangent(out vec3 normal, out vec4 tangent)
     #elif (D_COMPRESSED_NORMALS_AND_TANGENTS == 2)
         DecompressNormalTangent2(vNORMAL, normal, tangent);
     #endif
+}
+
+void ComputeWorldTangentFrame(mat3x4 objectToWorld, vec3 normal, vec4 tangent, out vec3 normalWs, out vec3 tangentWs, out vec3 bitangentWs)
+{
+    normalWs = TransformDirectionToWorld(objectToWorld, normal);
+    tangentWs = TransformDirectionToWorld(objectToWorld, tangent.xyz);
+    bitangentWs = tangent.w * cross(normalWs, tangentWs);
+}
+
+void ComputeWorldTangentFrame(mat3x4 objectToWorld, out vec3 normalWs, out vec3 tangentWs, out vec3 bitangentWs)
+{
+    vec3 normal;
+    vec4 tangent;
+    GetOptionallyCompressedNormalTangent(normal, tangent);
+    ComputeWorldTangentFrame(objectToWorld, normal, tangent, normalWs, tangentWs, bitangentWs);
 }
 
 #endif

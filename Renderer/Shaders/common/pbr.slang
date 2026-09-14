@@ -73,7 +73,7 @@ float D_AnisoGGX(vec2 roughness, vec3 halfVector, vec3 normal, vec3 tangent, vec
     Dots.z = dot(halfVector, normal);
 
     Dots /= vec3(alpha, 1.0);
-    float ndf = pow2(dot(Dots, Dots)) * alpha.x * alpha.y;
+    float ndf = pow2(length_squared(Dots)) * alpha.x * alpha.y;
     return 1.0 / max(ndf, 0.0001); // not normalised to match D_GGX, see the note there
 }
 #endif
@@ -231,7 +231,7 @@ float GetSheenAlbedoScaling(MaterialProperties_t mat, vec3 lightVector)
     float directionalAlbedo = max(SampleBrdfLut(mat.SheenRoughness, NoV, BRDF_LUT_SHEEN).x,
                                   SampleBrdfLut(mat.SheenRoughness, NoL, BRDF_LUT_SHEEN).x);
 
-    float sheenMax = max(mat.SheenColor.x, max(mat.SheenColor.y, mat.SheenColor.z));
+    float sheenMax = max3(mat.SheenColor);
     return ClampToPositive(1.0 - sheenMax * directionalAlbedo);
 }
 

@@ -30,7 +30,7 @@ void ApplyEye(EyePixelInput i, vec2 texCoord, inout MaterialProperties_t mat)
 
         vec3 viewDirInv = -mat.ViewDir;
         float _11278 = dot(vEyeBallViewSpace, viewDirInv);
-        float _15588 = fma(_11278, _11278, -fma(-g_flEyeBallRadius1, g_flEyeBallRadius1, dot(vEyeBallViewSpace, vEyeBallViewSpace)));
+        float _15588 = fma(_11278, _11278, -fma(-g_flEyeBallRadius1, g_flEyeBallRadius1, length_squared(vEyeBallViewSpace)));
         float flWithinEyeBallSphere = (_15588 > 0.0) ? ((-_11278) - sqrt(_15588)) : 0.0;
 
         //mat.Albedo = _11278.xxx;

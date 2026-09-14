@@ -539,7 +539,7 @@ vec3 ColorizeTint(vec3 albedo, vec3 tint, float amount)
 {
     vec3 tintNorm = normalize(max(tint, vec3(0.001)));
     float luma = GetLuma(albedo);
-    float tinted = min(luma / GetLuma(tintNorm), 3.0 * luma * max(tint.x, max(tint.y, tint.z)));
+    float tinted = min(luma / GetLuma(tintNorm), 3.0 * luma * max3(tint));
 
     return saturate(mix(albedo, tintNorm * tinted, amount));
 }
@@ -671,13 +671,13 @@ vec3 ColorizeTint(vec3 albedo, vec3 tint, float amount)
 
         // The band collapses to zero width where the paint does not cross over, so guard the divide
         float ramp = saturate((difference / max(spread + softness, 1e-5)) * 0.5 + 0.5);
-        float curve = 1.0 + pow(abs(p.curve), 2.0) * 10.0;
+        float curve = 1.0 + pow2(p.curve) * 10.0;
         float height = (p.curve > 0.0) ? pow(ramp, curve) : 1.0 - pow(1.0 - ramp, curve);
 
         vec3 ramped = positionWs + geometricNormal * height;
         vec3 slope = cross(-dFdyFine(ramped), dFdxFine(ramped));
 
-        if (seam.paintMask == 0.0 || dot(slope, slope) <= 0.0)
+        if (seam.paintMask == 0.0 || length_squared(slope) <= 0.0)
         {
             return normal;
         }
@@ -1006,8 +1006,8 @@ MaterialProperties_t GetMaterial(vec3 vertexNormals)
 
         if (overlayAmount > 0.0)
         {
-            vec3 overlay = SampleMaterialTexture(g_tSharedColorOverlay, g_nColorOverlayUVSet,
-                vTexCoord.zw, g_vOverlayTexCoordScale, biplanar).rgb * 2.0 - 1.0;
+            vec3 overlay = UnpackFromColor(SampleMaterialTexture(g_tSharedColorOverlay, g_nColorOverlayUVSet,
+                vTexCoord.zw, g_vOverlayTexCoordScale, biplanar).rgb);
             vec3 overlayFactor = max(vec3(0.0), vec3(1.0)
                 + (vec3(1.0) - SafePow(vec3(1.0) - max(vec3(0.0), overlay), vec3(g_flOverlayBrightnessContrast))) * g_flOverlayBrightnessContrast
                 + (SafePow(vec3(1.0) + min(vec3(0.0), overlay), vec3(g_flOverlayDarknessContrast)) - vec3(1.0)) * g_flOverlayDarknessContrast);

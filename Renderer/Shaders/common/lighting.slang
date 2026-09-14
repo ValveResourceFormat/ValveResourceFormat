@@ -146,7 +146,7 @@ void CalculateDynamicLightV1(inout LightingTerms_t lighting, MaterialProperties_
     {
         vec3 vToLight = GetLightPositionWs(nLightIndex) - mat.PositionWS;
         vLightVector = normalize(vToLight);
-        flDistanceSquared = dot(vToLight, vToLight);
+        flDistanceSquared = length_squared(vToLight);
     }
 
     if (flDistanceSquared > vFalloffParams.z)
@@ -266,7 +266,7 @@ vec3 ComputeLightmapShading(vec3 irradianceColor, vec4 irradianceDirection, Mate
 
         vTangentSpaceXY *= (LIGHTMAP_DIRECTION_MAX_XY / max(LIGHTMAP_DIRECTION_MAX_XY, length(vTangentSpaceXY)));
 
-        float sinTheta = dot(vTangentSpaceXY, vTangentSpaceXY);
+        float sinTheta = length_squared(vTangentSpaceXY);
         float cosTheta = sqrt(1.0 - sinTheta);
 
         float flCurvature = GetCurvature(mat.GeometricNormal, mat.PositionWS);

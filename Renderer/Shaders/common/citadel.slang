@@ -10,7 +10,7 @@
 vec3 GetSpecularColorCitadel(vec3 albedo, float metalness)
 {
     const vec3 F0 = vec3(0.04);
-    float albedoMax = max(albedo.x, max(albedo.y, albedo.z));
+    float albedoMax = max3(albedo);
 
     return mix(F0, albedo, metalness) * saturate(albedoMax * 25.0);
 }

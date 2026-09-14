@@ -213,11 +213,8 @@ uniform float g_flBorderRoughness2 = 0.5;
 vec2 ApplyUvTransform(vec2 texCoord, vec4 scaleRotationTranslation)
 {
     float scale = scaleRotationTranslation.x;
-    float angle = radians(scaleRotationTranslation.y);
-    vec2 rotation = vec2(sin(angle), cos(angle)) * scale;
-
     vec2 offset = texCoord + scaleRotationTranslation.zw / ((scale == 0.0) ? 1.0 : scale);
-    return vec2(rotation.y * offset.x - rotation.x * offset.y, dot(rotation, offset));
+    return scale * RotateVector2D(offset, scaleRotationTranslation.y);
 }
 
 // The frame a layer's normal map is resolved against. Layers on the interpolated UVs use
@@ -364,7 +361,7 @@ LayerFrame_t GetDerivedFrame(vec2 texCoord, vec3 normal)
     // below darken, each side shaped by its own contrast exponent.
     vec3 GetOverlayFactor(vec3 overlay, float darknessContrast, float brightnessContrast)
     {
-        vec3 signedOverlay = overlay * 2.0 - 1.0;
+        vec3 signedOverlay = UnpackFromColor(overlay);
 
         vec3 brighten = (vec3(1.0) - SafePow(vec3(1.0) - max(vec3(0.0), signedOverlay), vec3(brightnessContrast))) * brightnessContrast;
         vec3 darken = (SafePow(vec3(1.0) + min(vec3(0.0), signedOverlay), vec3(darknessContrast)) - vec3(1.0)) * darknessContrast;
@@ -633,7 +630,7 @@ MaterialProperties_t GetMaterial(vec3 vertexNormal)
 
         vec2 overlayGradient = GetSurfaceGradient(overlayNormalRoughness.rg);
         vec3 overlayNormalOffset = overlayTangent * overlayGradient.x + overlayBitangent * overlayGradient.y;
-        float overlayRoughness = overlayNormalRoughness.b * 2.0 - 1.0;
+        float overlayRoughness = UnpackFromColor(overlayNormalRoughness.b);
 
         vec3 factor = GetOverlayFactor(overlayColor.rgb, g_flOverlayDarknessContrast, g_flOverlayBrightnessContrast);
 

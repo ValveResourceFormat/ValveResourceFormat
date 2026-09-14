@@ -106,7 +106,7 @@ void ApplyFog(inout vec3 pixelColor, vec3 positionWS)
 
         if (g_bFogTypeEnabled.y)
         {
-            float horizontalDistanceQuadratic = dot(cameraCenteredPixelPos.xy, cameraCenteredPixelPos.xy);
+            float horizontalDistanceQuadratic = length_squared(cameraCenteredPixelPos.xy);
 
             bool bPixelHasGradientFog = (horizontalDistanceQuadratic > g_vGradientFogCullingParams.x) || (positionWS.z > g_vGradientFogCullingParams.y);
             if (bPixelHasGradientFog)
@@ -117,7 +117,7 @@ void ApplyFog(inout vec3 pixelColor, vec3 positionWS)
 
         if (g_bFogTypeEnabled.z)
         {
-            float distanceQuadratic = dot(cameraCenteredPixelPos, cameraCenteredPixelPos);
+            float distanceQuadratic = length_squared(cameraCenteredPixelPos);
 
             bool bPixelHasCubemapFog = (distanceQuadratic > g_vCubeFogCullingParams_ExposureBias_MaxOpacity.x) || (positionWS.z > g_vCubeFogCullingParams_ExposureBias_MaxOpacity.y);
             if (bPixelHasCubemapFog)

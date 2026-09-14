@@ -46,13 +46,7 @@ void main()
     gl_Position = g_matWorldToProjection * vec4(fragPosition, 1.0);
     vFragPosition = fragPosition;
 
-    vec3 normal;
-    vec4 tangent;
-    GetOptionallyCompressedNormalTangent(normal, tangent);
-
-    vNormalOut = TransformDirectionToWorld(skinTransform, normal);
-    vTangentOut = TransformDirectionToWorld(skinTransform, tangent.xyz);
-    vBitangentOut = tangent.w * cross(vNormalOut, vTangentOut);
+    ComputeWorldTangentFrame(skinTransform, vNormalOut, vTangentOut, vBitangentOut);
     vCentroidNormalOut = vNormalOut;
 
     #if D_BAKED_LIGHTING_FROM_LIGHTMAP == 1
@@ -68,6 +62,6 @@ void main()
     vVertexColorOut.a = object.vTint.a;
 
     #if (F_DECAL_SPACE_NORMALS == 1)
-        vProjectionDir = vTEXCOORD5 * 2.0 - 1.0;
+        vProjectionDir = UnpackFromColor(vTEXCOORD5);
     #endif
 }

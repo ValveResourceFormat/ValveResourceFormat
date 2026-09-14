@@ -114,7 +114,7 @@ vec2 PlaceCorner(vec2 cardUv, int layer, vec2 rectMin, vec2 rectMax)
 
     if (uLayerUvClamp[layer])
     {
-        placed = clamp(placed, 0.0, 1.0);
+        placed = saturate(placed);
     }
 
     return rectMin + (placed * (rectMax - rectMin));

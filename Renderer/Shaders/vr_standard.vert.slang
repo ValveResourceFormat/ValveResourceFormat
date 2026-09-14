@@ -86,10 +86,7 @@ void main()
     vec4 tangent;
     GetOptionallyCompressedNormalTangent(normal, tangent);
     normal = applyMorphNormal(normal);
-
-    vNormalOut = TransformDirectionToWorld(skinTransform, normal);
-    vTangentOut = TransformDirectionToWorld(skinTransform, tangent.xyz);
-    vBitangentOut = tangent.w * cross(vNormalOut, vTangentOut);
+    ComputeWorldTangentFrame(skinTransform, normal, tangent, vNormalOut, vTangentOut, vBitangentOut);
 
     vTexCoordOut = GetAnimatedUVs(vTEXCOORD.xy);
 

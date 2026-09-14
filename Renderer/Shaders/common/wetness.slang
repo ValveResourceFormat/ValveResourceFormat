@@ -83,7 +83,7 @@ vec3 GetWaterRipples(vec3 posWS, vec3 geometricNormal, float wetPaint, float str
 
     vec2 coarseUv = vec2(phase.x, alongSide) * vec2(0.02, 0.011);
     vec4 coarse = texture(g_tWetnessWaves, coarseUv + vec2(0.2, 0.0) * g_flTime);
-    vec2 coarseNormal = coarse.xy * 2.0 - 1.0;
+    vec2 coarseNormal = UnpackFromColor(coarse.xy);
     float coarseBlur = saturate(length(fwidth(coarseUv)) * 10.0);
     vec2 coarseOffset = coarseNormal * vec2(0.1, 0.05) * wetPaint * mix(1.0, 0.3, coarseBlur);
 
@@ -91,7 +91,7 @@ vec3 GetWaterRipples(vec3 posWS, vec3 geometricNormal, float wetPaint, float str
     // each other into a visible grid.
     vec2 fineUv = vec2(phase.y, alongSide) * vec2(0.036, 0.0162) + coarseNormal * 0.05;
     vec4 fine = texture(g_tWetnessWaves, fineUv + vec2(0.15, 0.0) * g_flTime);
-    vec2 fineNormal = (fine.xy * 2.0 - 1.0) * 0.052 * wetPaint;
+    vec2 fineNormal = UnpackFromColor(fine.xy) * 0.052 * wetPaint;
     fineNormal.y *= 0.5;
     float fineBlur = saturate(length(fwidth(fineUv)) * 10.0);
     vec2 fineOffset = fineNormal * mix(1.0, 0.3, fineBlur);
@@ -302,7 +302,7 @@ void ApplyWetnessOld(inout MaterialProperties_t mat, float rawHeight, float wetP
 
     // Negative, and more so the deeper under the water line the fragment sits.
     float depth = (coverage - 1.0) - height;
-    float sedimentHeight = (g_fPuddleSedimentHeight * 2.0) - 1.0;
+    float sedimentHeight = UnpackFromColor(g_fPuddleSedimentHeight);
     float sediment = saturate(depth + sedimentHeight) * g_fPuddleSedimentOpacity * puddle;
 
     // The sheen, blotched by the wave texture's alpha so it is not a flat wash, and never less

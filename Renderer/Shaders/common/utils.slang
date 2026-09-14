@@ -10,50 +10,21 @@
 #define INCH_TO_M 0.0254
 
 // clamp(value, 0.0, 1.0)
-float saturate(float val) {
-    return clamp(val, 0, 1);
-}
-vec2 saturate(vec2 val) {
-    return clamp(val, 0.0, 1.0);
-}
-vec3 saturate(vec3 val) {
-    return clamp(val, 0.0, 1.0);
-}
-vec4 saturate(vec4 val) {
-    return clamp(val, 0.0, 1.0);
+T saturate<T : IFloat>(T val)
+{
+    return min(max(val, T(0.0)), T(1.0));
 }
 
 // value^2
-float pow2(float val)
+T pow2<T : IFloat>(T val)
 {
-    return(val * val);
-}
-vec2 pow2(vec2 val)
-{
-    return(val * val);
-}
-vec3 pow2(vec3 val)
-{
-    return(val * val);
-}
-vec4 pow2(vec4 val)
-{
-    return(val * val);
-}
-
-float pow5(float val)
-{
-    return pow(val, 5.0); // Should get optimized
+    return val * val;
 }
 
 // Guards against pow(0, 0) = NaN by clamping the base off zero.
 float SafePow(float base, float exponent)
 {
     return pow(max(base, 1e-9), exponent);
-}
-vec2 SafePow(vec2 base, vec2 exponent)
-{
-    return pow(max(base, vec2(1e-9)), exponent);
 }
 vec3 SafePow(vec3 base, vec3 exponent)
 {
@@ -65,8 +36,6 @@ float Random2D(vec2 Seed)
     return fract(sin( dot(Seed, vec2(12.9898, 78.233)) ) * 43758.5469);
 }
 
-
-
 float min3( vec3 Vector )
 {
 	return min( min( Vector.x, Vector.y ), Vector.z );
@@ -76,21 +45,10 @@ float max3( vec3 Vector )
 	return max( max( Vector.x, Vector.y ), Vector.z );
 }
 
-
-
-float length_squared(vec2 vector)
+float length_squared<T : IFloat>(T vector)
 {
 	return dot(vector, vector);
 }
-float length_squared(vec3 vector)
-{
-	return dot(vector, vector);
-}
-float length_squared(vec4 vector)
-{
-	return dot(vector, vector);
-}
-
 
 // Color
 
@@ -101,38 +59,6 @@ float GetLuma(vec3 Color) {
 	return dot( Color, vec3(0.2125, 0.7154, 0.0721) ); // BT.709-1, same as Valve
 }
 
-float LevelsAdjust(float component, vec3 L_BlackWhiteGamma)
-{
-    vec3 levels = vec3(
-        -L_BlackWhiteGamma.x,
-        -1.4427 * log2(max(0.0001, 1.0 - L_BlackWhiteGamma.y)),
-        2.0 - L_BlackWhiteGamma.z
-    );
-
-    return mix(levels.x, levels.y, SafePow(component, levels.z));
-}
-
-float SrgbGammaToLinear(float color)
-{
-    float vLinearSegment = color / 12.92;
-    float vExpSegment = pow((color / 1.055) + 0.0521327, 2.4);
-
-    const float cap = 0.04045;
-    float select = color > cap ? vExpSegment : vLinearSegment;
-
-    return select;
-}
-vec2 SrgbGammaToLinear(vec2 color)
-{
-    vec2 vLinearSegment = color / vec2(12.92);
-    vec2 vExpSegment = pow((color / vec2(1.055)) + vec2(0.0521327), vec2(2.4));
-
-    const float cap = 0.04045;
-    float select = color.r > cap ? vExpSegment.r : vLinearSegment.r;
-    float select1 = color.g > cap ? vExpSegment.g : vLinearSegment.g;
-
-    return vec2(select, select1);
-}
 vec3 SrgbGammaToLinear(vec3 color)
 {
     vec3 vLinearSegment = color / vec3(12.92);
@@ -192,16 +118,6 @@ vec3 DecodeRGBM(vec4 color)
     return color.rgb * (color.a * MaxRange);
 }
 
-vec2 Resize2D(float Base, vec4 StartPos_Size)
-{
-	return StartPos_Size.xy + Base * StartPos_Size.zw;
-}
-
-vec2 Resize2D(vec2 Base, vec4 StartPos_Size)
-{
-	return StartPos_Size.xy + Base * StartPos_Size.zw;
-}
-
 vec2 RotateVector2D(vec2 vectorInput, float rotation)
 {
     rotation = radians(rotation);
@@ -239,24 +155,9 @@ vec3 QuaternionRotation( vec3 v, vec4 q )
 // All of this is directly ported from The Lab Renderer from the unity store.
 // These are their utility functions, at least as of the lab.
 
-float ClampToPositive( float flValue )
+T ClampToPositive<T : IFloat>( T vValue )
 {
-	return max( 0.0, flValue );
-}
-
-vec2 ClampToPositive( vec2 vValue )
-{
-	return max( vec2(0.0), vValue.xy );
-}
-
-vec3 ClampToPositive( vec3 vValue )
-{
-	return max( vec3(0.0), vValue.xyz );
-}
-
-vec4 ClampToPositive( vec4 vValue )
-{
-	return max( vec4(0.0), vValue.xyzw );
+	return max( T(0.0), vValue );
 }
 
 // basically map to 0-1
@@ -285,51 +186,29 @@ float RemapValClamped( float flOldVal, float flOldMin, float flOldMax, float flN
 	return ( flValNormalized * ( flNewMax - flNewMin ) ) + flNewMin;
 }
 
-vec4 PackToColor( vec4 vValue )
+float ApplyBlendModulation(float blendFactor, float blendMask, float blendSoftness)
 {
-	return ( ( vValue.xyzw * 0.5 ) + 0.5 );
+    float minb = max(0.0, blendMask - blendSoftness);
+    float maxb = min(1.0, blendMask + blendSoftness);
+
+    return smoothstep(minb, maxb, blendFactor);
 }
 
-vec3 PackToColor( vec3 vValue )
+T PackToColor<T : IFloat>( T vValue )
 {
-	return ( ( vValue.xyz * 0.5 ) + 0.5 );
+	return ( ( vValue * T(0.5) ) + T(0.5) );
 }
 
-vec2 PackToColor( vec2 vValue )
+T UnpackFromColor<T : IFloat>( T cColor )
 {
-	return ( ( vValue.xy * 0.5 ) + 0.5 );
-}
-
-float PackToColor( float flValue )
-{
-	return ( ( flValue * 0.5 ) + 0.5 );
-}
-
-vec4 UnpackFromColor( vec4 cColor )
-{
-	return ( ( cColor.xyzw * 2.0 ) - 1.0 );
-}
-
-vec3 UnpackFromColor( vec3 cColor )
-{
-	return ( ( cColor.xyz * 2.0 ) - 1.0 );
-}
-
-vec2 UnpackFromColor( vec2 cColor )
-{
-	return ( ( cColor.xy * 2.0 ) - 1.0 );
-}
-
-float UnpackFromColor( float flColor )
-{
-	return ( ( flColor * 2.0 ) - 1.0 );
+	return ( ( cColor * T(2.0) ) - T(1.0) );
 }
 
 vec3 DecodeDxt5Normal(vec4 bumpTexel)
 {
     vec2 temp = UnpackFromColor(bumpTexel.ag);
     temp.y = -temp.y;
-    return vec3(temp, sqrt(saturate(1 - dot(temp, temp))));
+    return vec3(temp, sqrt(saturate(1 - length_squared(temp))));
 }
 
 vec2 sign_not_zero(vec2 v)
@@ -356,12 +235,19 @@ vec3 oct_to_float32x3(vec2 e)
 // Safe normalize that handles degenerate normals from zero-scaled bones
 vec3 safeNormalize(vec3 v)
 {
-    float len2 = dot(v, v);
+    float len2 = length_squared(v);
     if (len2 < 1e-8)
     {
         return vec3(0.0, 0.0, 1.0);
     }
     return v * inversesqrt(len2);
+}
+
+// Scale is assumed to be uniform.
+vec3 TransformDirectionToWorld(mat3x4 objectToWorld, vec3 vDirectionOs)
+{
+    // Plain normalize would give us NaN for zero-scaled bones.
+    return safeNormalize(vec4(vDirectionOs, 0.0) * objectToWorld);
 }
 
 // Unpack HemiOct normal map

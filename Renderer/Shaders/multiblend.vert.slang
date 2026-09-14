@@ -55,21 +55,9 @@ uniform vec2 g_vTexCoordScroll3;
 
 vec2 getTexCoord(float scale, float rotation, vec2 offset, vec2 scroll) {
 
-    float r = radians(rotation);
-
     vec2 totalOffset = (scroll.xy * g_flTime) + offset.xy;
 
-    //Scale texture
-    vec2 coord = vTEXCOORD - vec2(0.5);
-
-    float SinR = sin(r);
-    float CosR = cos(r);
-
-    //Rotate vector
-    vec2 rotatedCoords = vec2(CosR * vTEXCOORD.x - SinR * vTEXCOORD.y,
-        SinR * vTEXCOORD.x + CosR * vTEXCOORD.y);
-
-    return (rotatedCoords / scale) + vec2(0.5) + totalOffset;
+    return (RotateVector2D(vTEXCOORD, rotation) / scale) + vec2(0.5) + totalOffset;
 }
 
 void main()
@@ -81,13 +69,7 @@ void main()
     gl_Position = g_matWorldToProjection * vec4(fragPosition, 1.0);
     vFragPosition = fragPosition;
 
-    vec3 normal;
-    vec4 tangent;
-    GetOptionallyCompressedNormalTangent(normal, tangent);
-
-    vNormalOut = TransformDirectionToWorld(skinTransform, normal);
-    vTangentOut = TransformDirectionToWorld(skinTransform, tangent.xyz);
-    vBitangentOut = tangent.w * cross(vNormalOut, vTangentOut);
+    ComputeWorldTangentFrame(skinTransform, vNormalOut, vTangentOut, vBitangentOut);
 
     vTexCoordOut = getTexCoord(g_flTexCoordScale0, g_flTexCoordRotate0, g_vTexCoordOffset0, g_vTexCoordScroll0);
     vTexCoord1Out = getTexCoord(g_flTexCoordScale1, g_flTexCoordRotate1, g_vTexCoordOffset1, g_vTexCoordScroll1);

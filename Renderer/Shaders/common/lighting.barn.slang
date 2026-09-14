@@ -158,11 +158,11 @@ void CalculateBarnLighting(inout LightingTerms_t lighting, in MaterialProperties
                 float proj = dot(-segStart, segDir);
                 closestDir = proj <= 0.0
                     ? segStart
-                    : segStart + segDir * min(1.0, proj / dot(segDir, segDir));
+                    : segStart + segDir * min(1.0, proj / length_squared(segDir));
             }
 
             vec3 entityForward = QuaternionRotation(vec3(1, 0, 0), barnLight.m_vBarnLightOrientationQ);
-            attenuation *= clamp(barnLight.m_vBarnLightAngleFade.x + barnLight.m_vBarnLightAngleFade.y * dot(entityForward, normalize(closestDir)), 0.0, 1.0);
+            attenuation *= saturate(barnLight.m_vBarnLightAngleFade.x + barnLight.m_vBarnLightAngleFade.y * dot(entityForward, normalize(closestDir)));
         }
         else
         {

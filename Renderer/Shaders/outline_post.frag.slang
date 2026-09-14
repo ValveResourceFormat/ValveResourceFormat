@@ -74,7 +74,7 @@ vec4 DrawOutline()
                 insidePosSum += vec2(sampleCoords) * w;
 
                 vec2 d = vec2(pixelCoords) - vec2(sampleCoords);
-                minDistSq = min(minDistSq, dot(d, d));
+                minDistSq = min(minDistSq, length_squared(d));
             }
         }
     }
@@ -94,14 +94,14 @@ vec4 DrawOutline()
     }
 
     // Edge strength: how much of the kernel is inside while the center is not.
-    float edgeStrength = clamp(covNeighborhood - covCenter, 0.0, 1.0);
+    float edgeStrength = saturate(covNeighborhood - covCenter);
     // widen the smoothstep so weaker edges still contribute
     edgeStrength = smoothstep(0.001, 0.85 * g_flOutlineSoftness, edgeStrength);
 
     // Compute a smooth exterior falloff based on distance (in pixels) to the nearest inside sample
     float distPixels = sqrt(minDistSq);
     float fadeRadius = max(1.0, float(width)) * (2.6 * g_flOutlineSize) * max(0.6, g_flOutlineSoftness);
-    float exteriorFade = clamp(1.0 - smoothstep(0.0, fadeRadius, distPixels), 0.0, 1.0);
+    float exteriorFade = saturate(1.0 - smoothstep(0.0, fadeRadius, distPixels));
     float outlineAlpha = edgeStrength * exteriorFade * g_flOutlineIntensity;
     outlineAlpha = pow(outlineAlpha, 0.75);
 

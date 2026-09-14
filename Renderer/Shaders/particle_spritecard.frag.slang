@@ -164,11 +164,11 @@ vec3 ApplyHsvShift(vec3 sourceColor)
 {
     // The conversion runs on a normalized copy and the magnitude is put back afterwards, so a colour
     // brighter than 1 keeps its overbright rather than being crushed to the top of the value axis.
-    float overbright = max(max(sourceColor.r, max(sourceColor.g, sourceColor.b)), 1.0);
+    float overbright = max(max3(sourceColor), 1.0);
     vec3 rgb = saturate(sourceColor / overbright);
 
-    float valueMax = max(rgb.r, max(rgb.g, rgb.b));
-    float chroma = valueMax - min(rgb.r, min(rgb.g, rgb.b));
+    float valueMax = max3(rgb);
+    float chroma = valueMax - min3(rgb);
 
     vec3 hsv = vec3(0.0, 0.0, valueMax);
 
@@ -210,14 +210,12 @@ vec3 ApplyHsvShift(vec3 sourceColor)
     return vec3(satVal.y, p, q) * overbright;
 }
 
-// A layer's placed coordinates for the frame it is on (xy) and the one after it (zw). Layer 0 rides the
-// card's own pair; every layer past it brings one of its own.
 vec4 LayerUvs(int layer)
 {
 #if S_TEXTURE_LAYERS > 0
     if (layer > 0)
     {
-        return vLayerUvOut[layer - 1];
+        return vLayerUvOut[clamp(layer - 1, 0, S_TEXTURE_LAYERS - 1)];
     }
 #endif
 
@@ -240,6 +238,7 @@ void main(void) {
     vec2 flow = vec2(0.0);
     vec2 flowNext = vec2(0.0);
 
+#if S_TEXTURE_LAYERS > 0
     for (int i = 1; i < uLayerCount; ++i)
     {
         if (uLayerEffectMode[i] == SPRITECARD_TEXTURE_ANIMMOTIONVEC)
@@ -250,6 +249,7 @@ void main(void) {
             break;
         }
     }
+#endif
 
     int colourLayers = 0;
 
