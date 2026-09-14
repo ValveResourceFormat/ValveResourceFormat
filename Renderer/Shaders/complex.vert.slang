@@ -26,9 +26,9 @@ in vec2 vTEXCOORD;
 #include "common/compression.slang"
 
 //Parameter defines - These are default values and can be overwritten based on material/model parameters
-#define F_NOTINT 0 // csgo_vertexlitgeneric
+uniform int F_NOTINT; // csgo_vertexlitgeneric
 #define F_VERTEX_COLOR 0 // most shaders
-#define F_TEXTURE_ANIMATION 0 // csgo_complex, csgo_static_overlay, csgo_unlitgeneric, vr_complex, vr_monitor, vr_panorama_hint_ui, vr_simple, vr_standard
+uniform int F_TEXTURE_ANIMATION; // csgo_complex, csgo_static_overlay, csgo_unlitgeneric, vr_complex, vr_monitor, vr_panorama_hint_ui, vr_simple, vr_standard
 uniform int F_TEXTURE_ANIMATION_MODE; // csgo_complex, csgo_static_overlay, csgo_unlitgeneric, vr_complex, vr_monitor
 #define F_SPHERICAL_PROJECTED_ANISOTROPIC_TANGENTS 0 // csgo_character
 #define F_USE_PER_VERTEX_CURVATURE 0 // vr_skin, vr_skin_blended
@@ -166,13 +166,11 @@ uniform vec2 g_vTexCoordScrollSpeed;
 uniform vec2 g_vTexCoordCenter = vec2(0.5);
 uniform float g_flTexCoordRotation = 0.0;
 
-#if (F_TEXTURE_ANIMATION == 1)
-    uniform vec2 g_vAnimationGrid = vec2(1, 1);
-    uniform int g_nNumAnimationCells = 1;
-    uniform float g_flAnimationTimePerFrame = 0.1;
-    uniform float g_flAnimationTimeOffset;
-    uniform float g_flAnimationFrame;
-#endif
+uniform vec2 g_vAnimationGrid = vec2(1, 1);
+uniform int g_nNumAnimationCells = 1;
+uniform float g_flAnimationTimePerFrame = 0.1;
+uniform float g_flAnimationTimeOffset;
+uniform float g_flAnimationFrame;
 
 #if (F_SPHERICAL_PROJECTED_ANISOTROPIC_TANGENTS == 1)
     uniform float g_vSphericalAnisotropyAngle = 180.0;
@@ -201,7 +199,8 @@ vec2 GetAnimatedUVs(vec2 texCoords)
 {
     texCoords = RotateVector2D(texCoords, g_flTexCoordRotation, g_vTexCoordScale.xy, g_vTexCoordOffset.xy, g_vTexCoordCenter.xy);
 
-    #if (F_TEXTURE_ANIMATION == 1)
+    if (F_TEXTURE_ANIMATION == 1)
+    {
         uint frame = uint(g_flAnimationFrame);
         uint cells = uint(g_nNumAnimationCells);
         if (F_TEXTURE_ANIMATION_MODE == 0) // Sequential
@@ -216,7 +215,7 @@ vec2 GetAnimatedUVs(vec2 texCoords)
         )) * atlasGridInv;
 
         texCoords = texCoords * atlasGridInv + atlasOffset;
-    #endif
+    }
 
     return texCoords + g_vTexCoordScrollSpeed.xy * g_flTime;
 }
@@ -224,9 +223,10 @@ vec2 GetAnimatedUVs(vec2 texCoords)
 vec4 GetTintColorLinear(vec4 vTint)
 {
     vec4 TintFade = vec4(1.0);
-#if F_NOTINT == 0
-    TintFade.rgb = mix(vec3(1.0), SrgbGammaToLinear(vTint.rgb) * g_vColorTint.rgb, g_flModelTintAmount);
-#endif
+    if (F_NOTINT == 0)
+    {
+        TintFade.rgb = mix(vec3(1.0), SrgbGammaToLinear(vTint.rgb) * g_vColorTint.rgb, g_flModelTintAmount);
+    }
     TintFade.a = pow(vTint.a, max(g_flFadeExponent, 0.0001));
     return TintFade;
 }

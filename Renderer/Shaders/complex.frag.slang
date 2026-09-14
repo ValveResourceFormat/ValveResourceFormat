@@ -62,7 +62,7 @@
 #define F_BLEND_MODE 0 // csgo_projected_decals, csgo_static_overlay, csgo_unlitgeneric, vr_projected_decals, vr_static_overlay
 #define F_GLASS 0 // complex, pbr, vr_standard
 uniform int F_DISABLE_TONE_MAPPING; // vr_complex
-#define F_SCALE_NORMAL_MAP 0 // vr_complex
+uniform int F_SCALE_NORMAL_MAP; // vr_complex
 // TEXTURING
 #define F_TINT_MASK 0 // most shaders
 #define F_FANCY_BLENDING 0 // csgo_lightmappedgeneric
@@ -87,7 +87,7 @@ uniform int F_NO_SPECULAR_AT_FULL_ROUGHNESS; // csgo_lightmappedgeneric, pbr
 #define F_SUBSURFACE_SCATTERING 0 // csgo_character, vr_skin
 //#define F_USE_FACE_OCCLUSION_TEXTURE 0 // todo: weird; vr_skin, vr_xen_foliage
 #define F_USE_PER_VERTEX_CURVATURE 0 // vr_skin, vr_skin_blended
-#define F_SSS_MASK 0 // vr_skin
+uniform int F_SSS_MASK; // vr_skin
 
 //End of feature defines
 
@@ -292,12 +292,12 @@ uniform sampler2D g_tTintMask;
     uniform float g_flRetroReflectivity = 1.0;
 #endif
 
-#if (F_SCALE_NORMAL_MAP == 1)
-    uniform float g_flNormalMapScaleFactor = 1.0;
-#endif
+uniform float g_flNormalMapScaleFactor = 1.0;
 
 #if defined(csgo_generic_vfx_common)
     uniform float g_flBumpStrength = 1.0;
+#else
+    #define g_flBumpStrength 1.0
 #endif
 
 #if (_ambientOcclusionTexture)
@@ -472,11 +472,7 @@ MaterialProperties_t GetMaterial(vec2 texCoord, vec3 vertexNormals)
             //float flTintMask = combinedMasks.z;
         #endif
 
-        #if (F_SSS_MASK == 1)
-            mat.SSSMask = combinedMasks.a;
-        #else
-            mat.SSSMask = 1.0;
-        #endif
+        mat.SSSMask = (F_SSS_MASK == 1) ? combinedMasks.a : 1.0;
 
         #if (translucent) || (alphatest)
             mat.Opacity = combinedMasks.a;
@@ -575,11 +571,7 @@ MaterialProperties_t GetMaterial(vec2 texCoord, vec3 vertexNormals)
 #endif
 
 
-#if (F_SCALE_NORMAL_MAP == 1)
-    mat.NormalMap = normalize(mix(vec3(0, 0, 1), mat.NormalMap, g_flNormalMapScaleFactor));
-#elif defined(csgo_generic_vfx_common)
-    mat.NormalMap = normalize(mix(vec3(0, 0, 1), mat.NormalMap, g_flBumpStrength));
-#endif
+    mat.NormalMap = normalize(mix(vec3(0, 0, 1), mat.NormalMap, (F_SCALE_NORMAL_MAP == 1) ? g_flNormalMapScaleFactor : g_flBumpStrength));
 
     // Detail texture
 #if (F_DETAIL_TEXTURE > 0)

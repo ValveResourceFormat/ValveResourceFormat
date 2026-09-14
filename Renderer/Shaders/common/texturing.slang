@@ -179,9 +179,7 @@ uniform vec3 g_vAmbientOcclusionColorBleed = vec3(0.4, 0.14902, 0.129412); // Sr
 void SetDiffuseColorBleed(inout MaterialProperties_t mat)
 {
     vec3 vAmbientOcclusionExponent = vec3(1.0) - g_vAmbientOcclusionColorBleed.rgb;
-#if (F_SSS_MASK == 1)
-    vAmbientOcclusionExponent = mix(vec3(1.0), vAmbientOcclusionExponent, mat.SSSMask);
-#endif
+    vAmbientOcclusionExponent = mix(vec3(1.0), vAmbientOcclusionExponent, (F_SSS_MASK == 1) ? mat.SSSMask : 1.0);
     mat.DiffuseAO = SafePow(mat.DiffuseAO, vAmbientOcclusionExponent);
 }
 
