@@ -1226,14 +1226,78 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// influences into its parent's group, so a parent fit over every node the node's own group reads proves
         /// the key as well; a node owning a fit group stages only its one-wide entry, itself and its direct
         /// children, so for it a parent fit over that entry proves the key. A chain of version 2 grades its joints' bases at import and stages no group for a
-        /// static joint, so there the parent lock proves the key whatever the node owns.
+        /// static joint, so there the parent lock proves the key whatever the node owns. Below version 2 the chain stages a group for a
+        /// joint only where the joint's fit table, its own node lists and its children's, holds three entries, or where version 1 tops a
+        /// smaller table up from the joint's parent; a joint its chain gives no group and no sheet fits holds its parent lock by the key,
+        /// and so does a joint the declaration simulates, which the fit pass does not lock.
         /// </para>
         /// </summary>
         /// <param name="node">The control node.</param>
         /// <param name="chainVersion">The version of the chain declaring the node; 2 for a node no chain declares.</param>
-        public bool LocksTranslation(int node, int chainVersion = 2)
-            => (IsLockedToParent(node) && !(chainVersion < 2 && ReachesParentLockUnkeyed(node)))
+        /// <param name="chain">The chain declaring the node, or null to leave its fit table unread.</param>
+        public bool LocksTranslation(int node, int chainVersion = 2, BoneChain? chain = null)
+            => (IsLockedToParent(node) && !(chainVersion < 2 && ReachesParentLockUnkeyed(node) && ChainStagesFitGroup(node, chainVersion, chain)))
                 || (IsLockedToGoal(node) && !IsStatic(node));
+
+        bool ChainStagesFitGroup(int node, int chainVersion, BoneChain? chain)
+        {
+            var joint = chain?.Joints.Find(candidate => candidate.Node == node);
+            if (chain is null || joint is null || ProxyFitMatrixNodes.Contains(node))
+            {
+                return true;
+            }
+
+            if (joint.Simulated)
+            {
+                return false;
+            }
+
+            var table = FitListOf(node);
+            foreach (var child in chain.Joints)
+            {
+                if (child.ParentNode == node)
+                {
+                    table.UnionWith(FitListOf(child.Node));
+                }
+            }
+
+            var hasParent = joint.ParentNode >= 0 || (node < SkelParents.Length && SkelParents[node] >= 0);
+            return table.Count >= 3 || (chainVersion >= 1 && table.Count > 0 && hasParent);
+        }
+
+        /// <summary>
+        /// The nodes a chain joint stages fit influences from: its numbered ring nodes and its <c>end_effector</c> centre node, and the
+        /// joint itself when its ring is narrower than two nodes. Rings are matched by name, so a compile without <c>m_SkelParents</c>
+        /// reads them too.
+        /// </summary>
+        HashSet<int> FitListOf(int jointNode)
+        {
+            var list = new HashSet<int>();
+            var prefix = "$cc" + CtrlNames[jointNode] + "_";
+            var wide = false;
+            for (var node = 0; node < CtrlNames.Length; node++)
+            {
+                var name = CtrlNames[node];
+                if (!name.StartsWith(prefix, StringComparison.Ordinal))
+                {
+                    continue;
+                }
+
+                var suffix = name.AsSpan(prefix.Length);
+                if (suffix.SequenceEqual("Ctr") || (suffix.Length > 0 && int.TryParse(suffix, out _)))
+                {
+                    list.Add(node);
+                    wide |= suffix.SequenceEqual("1");
+                }
+            }
+
+            if (!wide)
+            {
+                list.Add(jointNode);
+            }
+
+            return list;
+        }
 
         bool ReachesParentLockUnkeyed(int node)
         {

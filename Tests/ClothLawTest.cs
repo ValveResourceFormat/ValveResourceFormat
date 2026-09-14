@@ -5696,5 +5696,92 @@ namespace Tests
                 await Assert.That(inside.ChainBasesAreBulkGraded(inside.BuildBoneChains()[0])).IsNull();
             }
         }
+
+        /// <summary>
+        /// Below version 2 the fit pass writes a static joint's parent lock only through a group its chain stages for it, and the
+        /// chain stages one only where the joint's fit table (its own node lists and its children's) holds three entries, or where
+        /// version 1 tops a smaller table up from the joint's parent. A joint narrower than two ring nodes lists itself. A one-wide
+        /// static joint alone in its chain at version 0 (new_years_gift_shoudler's AlchNewYearsGiftStarBase_end, table 2) and a
+        /// ringless static joint over one ringless child at version 0 (lion_dungeon_poacher_shoulder's tag_base, table 2) therefore
+        /// hold their parent locks by <c>lock_translation</c> although they own node bases. The fit pass locks only a node that does
+        /// not simulate, so a declaration simulating the joint (ds_manipulator_of_warsituation_back's clothA0_decl3) holds the lock
+        /// by the key whatever its table. Controls: the lone joint at version 1 (topped up), the joint with its one-wide child at
+        /// version 0 (table 4), and no chain given, each read the lock as the fit pass's.
+        /// </summary>
+        [Test]
+        public async Task AStaticJointItsChainGivesNoFitGroupHoldsItsParentLockByTheKey()
+        {
+            var ringed = ParentLockedTip(rings: true);
+            var ringless = ParentLockedTip(rings: false);
+
+            static FeModel.BoneChain Chain(FeModel feModel, bool withKid, bool tipSimulated = false)
+            {
+                var chain = new FeModel.BoneChain { RootBone = "tip" };
+                var tip = Array.IndexOf(feModel.CtrlNames, "tip");
+                chain.Joints.Add(new FeModel.BoneChainJoint { Node = tip, Name = "tip", ParentNode = -1, InvMass = tipSimulated ? 1f : 0f });
+                if (withKid)
+                {
+                    chain.Joints.Add(new FeModel.BoneChainJoint
+                    {
+                        Node = Array.IndexOf(feModel.CtrlNames, "kid"), Name = "kid", ParentNode = tip, ParentName = "tip", InvMass = 1f,
+                    });
+                }
+
+                return chain;
+            }
+
+            var ringedTip = Array.IndexOf(ringed.CtrlNames, "tip");
+            var ringlessTip = Array.IndexOf(ringless.CtrlNames, "tip");
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(ringed.LocksTranslation(ringedTip, chainVersion: 0, chain: Chain(ringed, withKid: false))).IsTrue();
+                await Assert.That(ringless.LocksTranslation(ringlessTip, chainVersion: 0, chain: Chain(ringless, withKid: true))).IsTrue();
+                await Assert.That(ringed.LocksTranslation(ringedTip, chainVersion: 0, chain: Chain(ringed, withKid: true, tipSimulated: true))).IsTrue();
+                await Assert.That(ringed.LocksTranslation(ringedTip, chainVersion: 1, chain: Chain(ringed, withKid: false))).IsFalse();
+                await Assert.That(ringed.LocksTranslation(ringedTip, chainVersion: 0, chain: Chain(ringed, withKid: true))).IsFalse();
+                await Assert.That(ringed.LocksTranslation(ringedTip, chainVersion: 0)).IsFalse();
+            }
+        }
+
+        private static FeModel ParentLockedTip(bool rings)
+        {
+            List<(string Name, string? Parent, Vector3 Position)> nodes = [("root", null, Vector3.Zero)];
+            if (rings)
+            {
+                nodes.Add(("$ccroot_0", "root", new Vector3(0f, 2f, 0f)));
+            }
+
+            nodes.Add(("tip", "root", new Vector3(10f, 0f, 0f)));
+            if (rings)
+            {
+                nodes.Add(("$cctip_0", "tip", new Vector3(10f, 2f, 0f)));
+            }
+
+            nodes.Add(("kid", "tip", new Vector3(10f, 0f, -10f)));
+            if (rings)
+            {
+                nodes.Add(("$cckid_0", "kid", new Vector3(10f, 2f, -10f)));
+            }
+
+            var names = nodes.ConvertAll(static node => node.Name);
+            int At(string name) => names.IndexOf(name);
+            var statics = At("kid");
+
+            return SyntheticCloth.Parse($$"""
+                {
+                    m_CtrlName = [ {{string.Join(", ", names.Select(static name => '"' + name + '"'))}} ]
+                    m_SkelParents = [ {{string.Join(", ", nodes.Select(node => node.Parent is null ? -1 : At(node.Parent)))}} ]
+                    m_nNodeCount = {{nodes.Count}}
+                    m_nStaticNodes = {{statics}}
+                    m_nRotLockStaticNodes = 0
+                    m_NodeInvMasses = [ {{string.Join(", ", nodes.Select((_, i) => i < statics ? "0.0" : "1.0"))}} ]
+                    m_InitPose = [ {{string.Concat(nodes.Select(static node => SyntheticCloth.Pose(node.Position.X, node.Position.Y, node.Position.Z)))}} ]
+                    m_LockToGoal = [ 0 ]
+                    m_LockToParent = [ { vOffset = [ 10.0, 0.0, 0.0 ] nCtrlParent = 0 nCtrlChild = {{At("tip")}} } ]
+                    m_NodeBases = [ { nNode = {{At("tip")}} nNodeX0 = {{At("tip")}} nNodeX1 = {{At("kid")}} nNodeY0 = 0 nNodeY1 = {{At("kid")}} } ]
+                }
+                """);
+        }
     }
 }

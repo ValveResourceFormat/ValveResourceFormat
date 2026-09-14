@@ -203,7 +203,7 @@ partial class ModelExtract
         foreach (var joint in walk ?? chain.Joints)
         {
             var jointNode = MakeClothJoint(feModel, joint, chainExtrudes: chain.ExtrudeSides >= 1, softHinge, version,
-                rollTies: relandedJoints?.Contains(joint.Name) != true);
+                rollTies: relandedJoints?.Contains(joint.Name) != true, chain: chain);
 
             // A rigid hinge is the one shape whose sibling set the chain reconstruction cannot read a
             // value off, so it keeps the flat 1.0 it has always been given.
@@ -330,7 +330,7 @@ partial class ModelExtract
     }
 
     internal static KVObject MakeClothJoint(FeModel feModel, FeModel.BoneChainJoint joint, bool chainExtrudes = false,
-        bool softHinge = false, int chainVersion = 2, bool rollTies = true)
+        bool softHinge = false, int chainVersion = 2, bool rollTies = true, FeModel.BoneChain? chain = null)
     {
         var kv = KVObject.Collection();
         kv.Add("joint_name", joint.Name);
@@ -380,7 +380,7 @@ partial class ModelExtract
             kv.Add("allow_rotation", feModel.AllowsRotation(joint.Node));
         }
 
-        if (feModel.LocksTranslation(joint.Node, chainVersion) || pinnedSimulatedRoot)
+        if (feModel.LocksTranslation(joint.Node, chainVersion, chain) || pinnedSimulatedRoot)
         {
             kv.Add("lock_translation", true);
         }
