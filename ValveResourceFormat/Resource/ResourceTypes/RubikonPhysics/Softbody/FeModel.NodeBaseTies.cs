@@ -115,7 +115,9 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// At version 2 the chain importer grades that preset basis for every joint with a child and records a simulated
         /// joint's reverse offset against its Y1 node as well; below version 2 a joint's reverse offset comes from its fit
         /// group alone. Only a simulated, unhinged joint with a child in the chain and a reverse offset is read, over the
-        /// chain's own rings where skeleton parents name none (<see cref="ChainJointRing"/>).
+        /// chain's own rings where skeleton parents name none (<see cref="ChainJointRing"/>). A joint naming the preset's Y0
+        /// node agrees where the original's own basis is the preset with its Y pair swapped inside the handedness tie
+        /// (<see cref="NodeBaseYPairTies"/>).
         /// </remarks>
         public bool? ChainReverseOffsetsArePreset(BoneChain chain)
         {
@@ -148,13 +150,14 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                     continue;
                 }
 
-                var preset = PredictNodeBase(candidates, joint.Node, unmoved, default).Basis;
+                var scan = PredictNodeBase(candidates, joint.Node, unmoved, default);
+                var preset = scan.Basis;
                 if (preset.NodeY0 == preset.NodeY1)
                 {
                     continue;
                 }
 
-                if (!jointTargets.Contains(preset.NodeY1))
+                if (!jointTargets.Contains(preset.NodeY1) && !(jointTargets.Contains(preset.NodeY0) && NodeBaseYPairTies(joint.Node, scan)))
                 {
                     return false;
                 }
@@ -164,6 +167,14 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
 
             return read ? true : null;
         }
+
+        /// <summary>
+        /// Whether the original's own basis for <paramref name="node"/> is <paramref name="scan"/>'s basis with its Y pair swapped,
+        /// with the handedness that orders the pair inside <see cref="NodeBaseTieMargin"/>.
+        /// </summary>
+        bool NodeBaseYPairTies(int node, NodeBaseScan scan)
+            => scan.Handedness < NodeBaseTieMargin && NodeBases.TryGetValue(node, out var want)
+                && want == new NodeBasis(scan.Basis.NodeX0, scan.Basis.NodeX1, scan.Basis.NodeY1, scan.Basis.NodeY0);
 
         static bool NodeBaseDenotes(NodeBasis basis, NodeBasis want)
             => basis == want || NodeBaseFoldReaches(basis, want);
