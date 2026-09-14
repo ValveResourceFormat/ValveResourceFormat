@@ -11,6 +11,8 @@ namespace ValveResourceFormat.IO;
 /// </summary>
 partial class ModelExtract
 {
+    private HashSet<string>? markedUpPhysicsBodies;
+
     private List<KVObject> BuildPhysicsJointNodes(PhysAggregateData physics)
     {
         var jointNodes = new List<KVObject>();
@@ -126,105 +128,158 @@ partial class ModelExtract
     }
 
     /// <summary>
-    /// Adds body markup for every body when the model has joints, and otherwise only for a body that
-    /// overrides a default.
+    /// Adds one body markup for every body in <see cref="GetMarkedUpPhysicsBodies"/>, carrying the tag of the
+    /// <c>CPhysicsBodyGameMarkupData</c> entry that targets that body.
     /// </summary>
-    private void AddPhysicsBodyMarkup(ModelDocLists lists, PhysAggregateData physics, bool hasJoints)
+    /// <remarks>
+    /// A body markup compiles into both the part fields and that game data entry, so
+    /// <see cref="AddPhysicsBodyGameData"/> writes only the entries no markup covers. The compiler merges those with
+    /// the markup only while the game data list comes first in the document; with the markup list first it drops the
+    /// whole game data passthrough.
+    /// </remarks>
+    private void AddPhysicsBodyMarkup(ModelDocLists lists, PhysAggregateData physics)
     {
-        // A bone that already carries body markup as game data round-trips its mass through it. The
-        // compiler matches target_body to that markup's bone name case-insensitively.
-        var existingMarkupBones = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        var physicsBodyMarkupData = model?.KeyValues.GetSubCollection("CPhysicsBodyGameMarkupData");
-        var physicsBodyMarkupByBoneName = physicsBodyMarkupData?.GetSubCollection("m_PhysicsBodyMarkupByBoneName");
-        var bodyGameMarkups = new Dictionary<string, KVObject>(StringComparer.OrdinalIgnoreCase);
-        if (physicsBodyMarkupByBoneName != null)
-        {
-            foreach (var (name, markup) in physicsBodyMarkupByBoneName)
-            {
-                var target = markup.GetStringProperty("m_TargetBody", name!);
-                if (markup.ContainsKey("m_Tag"))
-                {
-                    bodyGameMarkups[target] = markup;
-                }
-            }
-        }
-
+        var markedUpBodies = GetMarkedUpPhysicsBodies();
+        var gameMarkups = GetPhysicsBodyGameMarkups();
+        var added = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var partsData = physics.Data.GetArray("m_parts");
 
         for (var i = 0; i < physics.Parts.Length; i++)
         {
-            var physicsPart = physics.Parts[i];
             var parentBone = physics.GetParentBoneName(i);
 
-            var needsMarkup = hasJoints
-                || physicsPart.Mass != 0f
-                || physicsPart.InertiaScale != 1f
-                || physicsPart.LinearDamping != 0f
-                || physicsPart.AngularDamping != 0f
-                || physicsPart.OverrideMassCenter;
-
-            // Markup addresses a body by its bone name.
-            if (needsMarkup && parentBone.Length > 0 && existingMarkupBones.Add(parentBone))
+            if (markedUpBodies.Contains(parentBone) && added.Add(parentBone))
             {
-                bodyGameMarkups.TryGetValue(parentBone, out var gameMarkup);
+                gameMarkups.TryGetValue(parentBone, out var gameMarkup);
                 lists.PhysicsBodyMarkup.Add(BuildPhysicsBodyMarkup(partsData[i], parentBone, gameMarkup));
             }
         }
-
-        if (existingMarkupBones.Count > 0)
-        {
-            RemoveExportedPhysicsBodyGameData(lists.RootChildren, existingMarkupBones);
-        }
     }
 
-    private static void RemoveExportedPhysicsBodyGameData(KVObject rootChildren, HashSet<string> exportedBodies)
+    /// <summary>
+    /// Gets the bodies that get a body markup: every named body when a joint exports, and otherwise every named body
+    /// whose part fields differ from what the compiler writes for a body without markup.
+    /// </summary>
+    private HashSet<string> GetMarkedUpPhysicsBodies()
     {
-        foreach (var (_, list) in rootChildren)
+        if (markedUpPhysicsBodies != null)
         {
-            if (list.GetStringProperty("_class") != "GameDataList")
+            return markedUpPhysicsBodies;
+        }
+
+        var bodies = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        if (physAggregateData is { } physics)
+        {
+            var hasJoints = false;
+
+            foreach (var joint in physics.Joints)
             {
+                if (BuildPhysicsJoint(physics, joint) is not null)
+                {
+                    hasJoints = true;
+                    break;
+                }
+            }
+
+            var partsData = physics.Data.GetArray("m_parts");
+
+            for (var i = 0; i < physics.Parts.Length; i++)
+            {
+                var parentBone = physics.GetParentBoneName(i);
+
+                if (parentBone.Length > 0 && (hasJoints || IsPartAuthored(physics.Parts[i], partsData[i])))
+                {
+                    bodies.Add(parentBone);
+                }
+            }
+        }
+
+        return markedUpPhysicsBodies = bodies;
+    }
+
+    /// <summary>
+    /// Gets the <c>CPhysicsBodyGameMarkupData</c> entries that carry a tag, keyed by the body they target.
+    /// </summary>
+    private Dictionary<string, KVObject> GetPhysicsBodyGameMarkups()
+    {
+        var gameMarkups = new Dictionary<string, KVObject>(StringComparer.OrdinalIgnoreCase);
+        var markups = model?.KeyValues.GetSubCollection("CPhysicsBodyGameMarkupData")?.GetSubCollection("m_PhysicsBodyMarkupByBoneName");
+
+        if (markups != null)
+        {
+            foreach (var (name, markup) in markups)
+            {
+                if (markup.ContainsKey("m_Tag"))
+                {
+                    gameMarkups[markup.GetStringProperty("m_TargetBody", name!)] = markup;
+                }
+            }
+        }
+
+        return gameMarkups;
+    }
+
+    /// <summary>
+    /// Writes the <c>CPhysicsBodyGameMarkupData</c> game data no body markup compiles into: the entries targeting a
+    /// body outside <paramref name="markedUpBodies"/>, and every other key.
+    /// </summary>
+    private static void AddPhysicsBodyGameData(ModelDocLists lists, KVObject? gameData, HashSet<string> markedUpBodies)
+    {
+        if (gameData is null)
+        {
+            return;
+        }
+
+        var remaining = KVObject.Collection();
+
+        foreach (var (key, value) in gameData)
+        {
+            if (key != "m_PhysicsBodyMarkupByBoneName")
+            {
+                remaining.Add(key!, value);
                 continue;
             }
 
-            var children = list.GetSubCollection("children");
-            for (var i = children.Count - 1; i >= 0; i--)
+            var unexported = KVObject.Collection();
+
+            foreach (var (name, markup) in value)
             {
-                var entry = children[i];
-                if (entry.GetStringProperty("_class") != "GenericGameData"
-                    || entry.GetStringProperty("game_class") != "CPhysicsBodyGameMarkupData")
+                if (!markedUpBodies.Contains(markup.GetStringProperty("m_TargetBody", name!)))
                 {
-                    continue;
-                }
-
-                var keys = entry.GetSubCollection("game_keys");
-                var markups = keys.GetSubCollection("m_PhysicsBodyMarkupByBoneName");
-                if (markups == null)
-                {
-                    continue;
-                }
-
-                // ModelDoc regenerates exported bodies from PhysicsBodyMarkup nodes.
-                var remaining = KVObject.Collection();
-                foreach (var (name, markup) in markups)
-                {
-                    var target = markup.GetStringProperty("m_TargetBody", name!);
-                    if (!exportedBodies.Contains(target))
-                    {
-                        remaining.Add(name!, markup);
-                    }
-                }
-
-                if (remaining.Count == 0 && keys.Count == 1)
-                {
-                    children.RemoveAt(i);
-                }
-                else
-                {
-                    keys["m_PhysicsBodyMarkupByBoneName"] = remaining;
+                    unexported.Add(name!, markup);
                 }
             }
+
+            if (unexported.Count > 0)
+            {
+                remaining.Add(key, unexported);
+            }
+        }
+
+        if (remaining.Count > 0)
+        {
+            AddGenericGameData(lists.GameData, "CPhysicsBodyGameMarkupData", remaining);
         }
     }
+
+    private static bool IsPartAuthored(Part part, KVObject partData)
+        => part.Mass != 0f
+            || part.InertiaScale != 1f
+            || part.LinearDamping != 0f
+            || part.AngularDamping != 0f
+            || partData.GetFloatProperty("m_flLinearDrag", 1f) != 1f
+            || partData.GetFloatProperty("m_flAngularDrag", 1f) != 1f
+            || part.OverrideMassCenter
+            || part.MassCenterOverride != Vector3.Zero
+            || HasContinuousCollisionDisabled(partData);
+
+    /// <summary>
+    /// Gets whether a part disables continuous collision detection. Only parts that carry drag fields have the markup
+    /// key for it.
+    /// </summary>
+    private static bool HasContinuousCollisionDisabled(KVObject partData)
+        => partData.ContainsKey("m_flLinearDrag") && (partData.GetInt32Property("m_nFlags") & 0x20) != 0;
 
     private static KVObject BuildPhysicsBodyMarkup(KVObject part, string bodyName, KVObject? gameMarkup)
     {
@@ -237,6 +292,12 @@ partial class ModelExtract
         AddIfPresent(node, "angular_drag", part, "m_flAngularDrag");
         AddIfPresent(node, "use_mass_center_override", part, "m_bOverrideMassCenter");
         AddIfPresent(node, "mass_center_override", part, "m_vMassCenterOverride");
+
+        if (HasContinuousCollisionDisabled(part))
+        {
+            node.Add("disable_continuous_collision_detection", true);
+        }
+
         if (gameMarkup != null)
         {
             AddIfPresent(node, "tag", gameMarkup, "m_Tag");
