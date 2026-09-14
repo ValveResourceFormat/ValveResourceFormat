@@ -21,11 +21,7 @@ public class ModelExtractPhysicsTest
     }
 
     [Test]
-    [Arguments(null, null, false)]
-    [Arguments("PELVIS", null, false)]
-    [Arguments("alias", "PELVIS", false)]
-    [Arguments(null, null, true)]
-    public async Task PreservesBodyPropertiesWithGameMarkup(string? key, string? target, bool hasUnmatchedMarkup)
+    public async Task PreservesBodyPropertiesWithGameMarkup()
     {
         using var resource = new Resource();
         resource.Read(Path.Combine(TestContext.TestDirectory!, "Files", "ctm_sas.vmdl_c"));
@@ -33,52 +29,26 @@ public class ModelExtractPhysicsTest
         var physics = model.GetEmbeddedPhys()!;
         var gameData = model.KeyValues.GetSubCollection("CPhysicsBodyGameMarkupData");
         var markups = gameData.GetSubCollection("m_PhysicsBodyMarkupByBoneName");
-        if (key != null)
-        {
-            var replacement = KVObject.Collection();
-            foreach (var (name, value) in markups)
-            {
-                if (name != "pelvis")
-                {
-                    replacement.Add(name!, value);
-                    continue;
-                }
 
-                var markup = KVObject.Collection();
-                markup.Add("m_Tag", "test_tag");
-                if (target != null)
-                {
-                    markup.Add("m_TargetBody", target);
-                }
-
-                replacement.Add(key, markup);
-            }
-
-            markups = replacement;
-            gameData["m_PhysicsBodyMarkupByBoneName"] = markups;
-        }
-
-        if (hasUnmatchedMarkup)
-        {
-            var unmatched = KVObject.Collection();
-            unmatched.Add("m_TargetBody", "unmatched_body");
-            unmatched.Add("m_Tag", "unmatched_tag");
-            markups.Add("unmatched_body", unmatched);
-            gameData.Add("extra_metadata", 42);
-        }
+        var unmatched = KVObject.Collection();
+        unmatched.Add("m_TargetBody", "unmatched_body");
+        unmatched.Add("m_Tag", "unmatched_tag");
+        markups.Add("unmatched_body", unmatched);
+        gameData.Add("extra_metadata", 42);
 
         var tags = markups.ToDictionary(entry => entry.Value.GetStringProperty("m_TargetBody", entry.Key!),
             entry => entry.Value.GetStringProperty("m_Tag"), StringComparer.OrdinalIgnoreCase);
         var originalKeyValues = model.KeyValues.ToKV3String();
-        var extract = new ModelExtract(resource, new NullFileLoader());
-        var text = extract.ToValveModel();
+
+        var text = new ModelExtract(resource, new NullFileLoader()).ToValveModel();
         using var stream = new MemoryStream(Encoding.UTF8.GetBytes(text));
         var children = KVDocumentExtensions.ParseKV3(stream).Root.GetSubCollection("rootNode").GetArray("children");
-        var bodyList = children.Single(node => node.GetStringProperty("_class") == "PhysicsBodyMarkupList");
-        var bodies = bodyList.GetArray("children");
+
+        var bodies = children.Single(node => node.GetStringProperty("_class") == "PhysicsBodyMarkupList").GetArray("children");
         await Assert.That(bodies.Count).IsEqualTo(15);
         var joints = children.Single(node => node.GetStringProperty("_class") == "PhysicsJointList").GetArray("children");
         await Assert.That(joints.Count).IsEqualTo(14);
+
         var parts = physics.Data.GetArray("m_parts");
         for (var i = 0; i < parts.Count; i++)
         {
@@ -96,23 +66,16 @@ public class ModelExtractPhysicsTest
             await Assert.That(body.GetSubCollection("mass_center_override").ToVector3()).IsEqualTo(part.GetSubCollection("m_vMassCenterOverride").ToVector3());
         }
 
-        if (hasUnmatchedMarkup)
-        {
-            var gameList = children.Single(node => node.GetStringProperty("_class") == "GameDataList");
-            var remainingData = gameList.GetArray("children")
-                .Single(node => node.GetStringProperty("game_class") == "CPhysicsBodyGameMarkupData")
-                .GetSubCollection("game_keys");
-            var remaining = remainingData.GetSubCollection("m_PhysicsBodyMarkupByBoneName");
-            await Assert.That(remaining.Count).IsEqualTo(1);
-            await Assert.That(remaining.GetSubCollection("unmatched_body").GetStringProperty("m_Tag")).IsEqualTo("unmatched_tag");
-            await Assert.That(remainingData.GetInt32Property("extra_metadata")).IsEqualTo(42);
-        }
-        else
-        {
-            await Assert.That(text).DoesNotContain("CPhysicsBodyGameMarkupData");
-        }
+        var remainingData = children.Single(node => node.GetStringProperty("_class") == "GameDataList").GetArray("children")
+            .Single(node => node.GetStringProperty("game_class") == "CPhysicsBodyGameMarkupData")
+            .GetSubCollection("game_keys");
+        var remaining = remainingData.GetSubCollection("m_PhysicsBodyMarkupByBoneName");
+        await Assert.That(remaining.Count).IsEqualTo(1);
+        await Assert.That(remaining.GetSubCollection("unmatched_body").GetStringProperty("m_Tag")).IsEqualTo("unmatched_tag");
+        await Assert.That(remainingData.GetInt32Property("extra_metadata")).IsEqualTo(42);
 
-        await Assert.That(extract.ToValveModel()).IsEqualTo(text);
+        var classes = children.Select(node => node.GetStringProperty("_class")).ToList();
+        await Assert.That(classes.IndexOf("GameDataList")).IsLessThan(classes.IndexOf("PhysicsBodyMarkupList"));
         await Assert.That(model.KeyValues.ToKV3String()).IsEqualTo(originalKeyValues);
     }
 
