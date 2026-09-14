@@ -1680,7 +1680,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             var baseRelaxation = 0f;
             foreach (var (_, _, rod) in diagonals)
             {
-                baseRelaxation = MathF.Max(baseRelaxation, rod.RelaxationFactor);
+                baseRelaxation = MathF.Max(baseRelaxation, UnstretchedRelaxation(rod));
             }
 
             if (baseRelaxation <= 0f)
@@ -1691,7 +1691,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             var stated = new Dictionary<(int A, int B), float>(diagonals.Count);
             foreach (var (pair, _, rod) in diagonals)
             {
-                stated[pair] = 2f * MathF.Cbrt(Math.Clamp(rod.RelaxationFactor / baseRelaxation, 0f, 1f));
+                stated[pair] = 2f * MathF.Cbrt(Math.Clamp(UnstretchedRelaxation(rod) / baseRelaxation, 0f, 1f));
             }
 
             if (SolvePairSumPaint(stated, 1f, MaxStatedShearResistance) is not { } solved
@@ -1728,6 +1728,111 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             {
                 paint[v] = shear.Paint.TryGetValue(proxy.NodeIndices[v], out var value) ? value : 1f;
                 if (MathF.Abs(paint[v] - 1f) > PaintSolveTolerance)
+                {
+                    painted++;
+                }
+            }
+
+            return painted > 0 ? paint : null;
+        }
+
+        /// <summary>
+        /// Gets the per-node <c>cloth_stretch</c> of every proxy sheet, keyed by control node, or null where the
+        /// sheets' face edges state none.
+        /// <para>
+        /// The compiler scales every authored rod's relaxation by the thread stretch and by the CUBE of one minus the
+        /// mean of its two endpoints' paint, edges and diagonals alike. A face edge carries no other term, so each
+        /// one states the sum of its two vertices' paint, <c>2 * (1 - cbrt(relaxation / thread))</c>, and the sheets
+        /// solve as one linear system. A diagonal adds the shear terms on top and is read with this factor taken
+        /// back out (see <see cref="UnstretchedRelaxation"/>).
+        /// </para>
+        /// </summary>
+        internal Dictionary<int, float>? StretchPaint
+        {
+            get
+            {
+                if (!hasStretchPaint)
+                {
+                    stretchPaint = SolveStretchPaint();
+                    hasStretchPaint = true;
+                }
+
+                return stretchPaint;
+            }
+        }
+
+        Dictionary<int, float>? stretchPaint;
+        bool hasStretchPaint;
+
+        Dictionary<int, float>? SolveStretchPaint()
+        {
+            var sheetNodes = new HashSet<int>();
+            for (var node = 0; node < CtrlNames.Length; node++)
+            {
+                if (IsProxyMeshNode(node))
+                {
+                    sheetNodes.Add(node);
+                }
+            }
+
+            var thread = DefaultSurfaceStretch > 0f ? MathF.Exp(-DefaultSurfaceStretch) : 1f;
+            var stated = new Dictionary<(int A, int B), float>();
+            foreach (var (pair, diagonal, rod) in AuthoredFaceRods(sheetNodes))
+            {
+                if (!diagonal)
+                {
+                    stated[pair] = 2f * (1f - MathF.Cbrt(Math.Clamp(rod.RelaxationFactor / thread, 0f, 1f)));
+                }
+            }
+
+            if (stated.Count == 0 || SolvePairSumPaint(stated, 0f, MaxStatedStretch) is not { } solved
+                || solved.Values.All(static value => value <= PaintSolveTolerance))
+            {
+                return null;
+            }
+
+            return solved;
+        }
+
+        /// <summary>
+        /// The largest <c>cloth_stretch</c> a compiled sheet can state. The compiler clamps the cube of one minus the
+        /// endpoints' MEAN, so one vertex may sit above 1 as long as its partner sits below.
+        /// </summary>
+        const float MaxStatedStretch = 2f;
+
+        /// <summary>
+        /// A sheet rod's relaxation with the recovered <c>cloth_stretch</c> factor taken back out, which is what its
+        /// shear terms and the model's own stretch scalars left on it.
+        /// </summary>
+        float UnstretchedRelaxation(Rod rod)
+        {
+            if (StretchPaint is not { } paint)
+            {
+                return rod.RelaxationFactor;
+            }
+
+            var open = 1f - (0.5f * (paint.GetValueOrDefault(rod.NodeA) + paint.GetValueOrDefault(rod.NodeB)));
+            var factor = Math.Clamp(open * open * open, 0f, 1f);
+            return factor > 0f ? Math.Min(1f, rod.RelaxationFactor / factor) : rod.RelaxationFactor;
+        }
+
+        /// <summary>
+        /// Recovers the per-vertex <c>cloth_stretch</c> paint of a proxy sheet, or null when the sheet carries none.
+        /// See <see cref="StretchPaint"/>.
+        /// </summary>
+        public float[]? RecoverStretchPaint(ProxyMesh proxy)
+        {
+            if (StretchPaint is not { } byNode)
+            {
+                return null;
+            }
+
+            var paint = new float[proxy.NodeIndices.Length];
+            var painted = 0;
+            for (var v = 0; v < paint.Length; v++)
+            {
+                paint[v] = byNode.GetValueOrDefault(proxy.NodeIndices[v]);
+                if (paint[v] > PaintSolveTolerance)
                 {
                     painted++;
                 }
