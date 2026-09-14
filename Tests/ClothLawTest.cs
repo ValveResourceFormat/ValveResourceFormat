@@ -5540,5 +5540,61 @@ namespace Tests
                 await Assert.That(control.GetFloatProperty("extrude_twist")).IsEqualTo(-0.012008f).Within(1e-6f);
             }
         }
+
+        /// <summary>
+        /// A rope's hint pass writes each run node's X pair (an interior node's two neighbours, the tail its own node
+        /// and the previous) and grades the rest only for a joint with fit influences, which a chain stages from version 1
+        /// on. A hint left at that pair with Y (0, 0) therefore says version 0, as a twist-written one does. Controls: the
+        /// same run graded, and a Y (0, 0) hint whose X pair is not the rope's, say nothing; and version 0 locks the
+        /// joints format 1 locks, so an extruding chain whose original locks none of them keeps version 2.
+        /// </summary>
+        [Test]
+        public async Task AnUngradedRopeHintSaysTheChainCompiledAtVersionZero()
+        {
+            var ungraded = RopeHinted("nNodeX0 = 1 nNodeX1 = 3 nNodeY0 = 0 nNodeY1 = 0",
+                "nNodeX0 = 3 nNodeX1 = 2 nNodeY0 = 0 nNodeY1 = 0");
+            var graded = RopeHinted("nNodeX0 = 3 nNodeX1 = 1 nNodeY0 = 3 nNodeY1 = 3",
+                "nNodeX0 = 3 nNodeX1 = 2 nNodeY0 = 3 nNodeY1 = 3");
+            var foreign = RopeHinted("nNodeX0 = 3 nNodeX1 = 1 nNodeY0 = 0 nNodeY1 = 0",
+                "nNodeX0 = 2 nNodeX1 = 3 nNodeY0 = 0 nNodeY1 = 0");
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(ungraded.ChainHintsAreTwistWritten(TwistedRopeChain())).IsTrue();
+                await Assert.That(graded.ChainHintsAreTwistWritten(TwistedRopeChain())).IsFalse();
+                await Assert.That(foreign.ChainHintsAreTwistWritten(TwistedRopeChain())).IsFalse();
+
+                await Assert.That(ModelExtract.ClothChainVersion(jointCount: 5, hasOtherChains: true, rootAllowsRotation: true,
+                    rootHasBase: true, lockedJoint: false, rigidCloudClusterLock: false, locksJoints: false, basesBulkGraded: null,
+                    hintsTwistWritten: true, hasUnstagedThinJoint: false)).IsEqualTo(0);
+                await Assert.That(ModelExtract.ClothChainVersion(jointCount: 5, hasOtherChains: true, rootAllowsRotation: true,
+                    rootHasBase: true, lockedJoint: false, rigidCloudClusterLock: false, locksJoints: true, basesBulkGraded: null,
+                    hintsTwistWritten: true, hasUnstagedThinJoint: false)).IsEqualTo(2);
+            }
+        }
+
+        private static FeModel RopeHinted(string hint2, string hint3) => SyntheticCloth.Parse($$"""
+            {
+                m_CtrlName = [ "root", "j1", "j2", "j3" ]
+                m_SkelParents = [ -1, 0, 1, 2 ]
+                m_nNodeCount = 4
+                m_nStaticNodes = 2
+                m_NodeInvMasses = [ 0.0, 0.0, 1.0, 1.0 ]
+                m_InitPose =
+                [
+                    {{SyntheticCloth.Pose(0f, 0f, 0f)}}
+                    {{SyntheticCloth.Pose(0f, 0f, -10f)}}
+                    {{SyntheticCloth.Pose(0f, 0f, -20f)}}
+                    {{SyntheticCloth.Pose(0f, 0f, -30f)}}
+                ]
+                m_nRopeCount = 1
+                m_Ropes = [ 4, 1, 2, 3 ]
+                m_DynNodeWindBases =
+                [
+                    { {{hint2}} },
+                    { {{hint3}} },
+                ]
+            }
+            """);
     }
 }

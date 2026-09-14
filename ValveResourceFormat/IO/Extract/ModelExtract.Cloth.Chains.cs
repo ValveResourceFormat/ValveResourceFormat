@@ -100,7 +100,7 @@ partial class ModelExtract
     /// <param name="rigidCloudClusterLock">Whether that lock belongs to a rigid cloud cluster (<see cref="IsRigidCloudClusterLock"/>).</param>
     /// <param name="locksJoints">Whether format 1 would lock a joint of this extruding chain.</param>
     /// <param name="basesBulkGraded">Whether the joints' node bases are the bulk grade, null when they do not say.</param>
-    /// <param name="hintsTwistWritten">Whether a joint's basis hint was written by the twist source and never graded.</param>
+    /// <param name="hintsTwistWritten">Whether a joint's basis hint was written by the twist or rope source and never graded.</param>
     /// <param name="hasUnstagedThinJoint">Whether a joint only the version-1 fit top-up would group carries no group.</param>
     /// <param name="reverseOffsetsPreset">Whether the joints' reverse offsets name their preset bases' Y1 nodes, null when they do not say.</param>
     internal static int ClothChainVersion(int jointCount, bool hasOtherChains, bool? rootAllowsRotation, bool rootHasBase,
@@ -143,9 +143,10 @@ partial class ModelExtract
         }
 
         // From version 1 on the chain stages fit influences for its joints, and the hint pass then grades
-        // every joint's basis hint over them. A hint the twist source wrote and nothing graded is one the
-        // original compiled without any influence at all, which is version 0.
-        if (version != 0 && !rootKeepsPreset && hintsTwistWritten && basesBulkGraded != false)
+        // every joint's basis hint over them. A hint the twist or rope source wrote and nothing graded is one
+        // the original compiled without any influence at all, which is version 0. Version 0 locks the same
+        // joints format 1 does, so an original that locks none of them rules it out too.
+        if (version != 0 && !rootKeepsPreset && (lockedInOriginal || !locksJoints) && hintsTwistWritten && basesBulkGraded != false)
         {
             version = 0;
         }
