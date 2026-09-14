@@ -5996,5 +5996,73 @@ namespace Tests
                 ]
             }
             """);
+
+        /// <summary>
+        /// An old-era compile ships no <c>m_SkelParents</c>, so a joint's chain parent is read off the skeleton and the rods. Where the
+        /// model records its chain surfaces, an extruded joint and its extruded chain parent share a source element: k's skeleton parent
+        /// j2 carries rods to k's ring but no element, and the one ring k's elements join is j3's, so k continues the tube under j3. A ring
+        /// no element joins to any other stays a chain root. Control: with compiled <c>m_SkelParents</c> the compiled parent stands.
+        /// </summary>
+        [Test]
+        public async Task AnOldEraRingNoSourceElementJoinsToItsSkeletonParentHangsUnderTheRingItsElementsName()
+        {
+            static FeModel.BoneChainJoint Joint(FeModel model, string name)
+                => model.BuildBoneChains().SelectMany(static chain => chain.Joints).First(joint => joint.Name == name);
+
+            var tube = OldEraTube(compiledParents: false, kFace: true);
+            var loose = OldEraTube(compiledParents: false, kFace: false);
+            var compiled = OldEraTube(compiledParents: true, kFace: true);
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(tube.HasCompiledSkelParents).IsFalse();
+                await Assert.That(Joint(tube, "k").ParentName).IsEqualTo("j3");
+                await Assert.That(Joint(tube, "j3").ParentName).IsEqualTo("j2");
+                await Assert.That(Joint(loose, "k").ParentNode).IsEqualTo(-1);
+                await Assert.That(Joint(compiled, "k").ParentName).IsEqualTo("j2");
+            }
+        }
+
+        /// <summary>
+        /// Four simulated joints 10 apart down Z, each extruding a one-node ring 3 along X (rings anchored by <c>m_CtrlOffsets</c>),
+        /// with k's skeleton parent j2, rods j1-j2, j2-j3 and j2-k between the rings, and source elements j1-j2, j2-j3 and, where
+        /// <paramref name="kFace"/>, j3-k. <paramref name="compiledParents"/> adds <c>m_SkelParents</c> naming the skeleton parents.
+        /// </summary>
+        private static FeModel OldEraTube(bool compiledParents, bool kFace)
+        {
+            var parents = compiledParents ? "m_SkelParents = [ -1, 0, 0, 2, 2, 4, 2, 6 ]" : string.Empty;
+            var faces = kFace ? "0, 0, 0, 3, 0, 1, 3, 2, 2, 3, 5, 4, 4, 5, 7, 6" : "0, 0, 0, 2, 0, 1, 3, 2, 2, 3, 5, 4";
+            var model = SyntheticCloth.Parse($$"""
+                {
+                    m_CtrlName = [ "j1", "$ccj1_0", "j2", "$ccj2_0", "j3", "$ccj3_0", "k", "$cck_0" ]
+                    {{parents}}
+                    m_nNodeCount = 8
+                    m_nStaticNodes = 0
+                    m_NodeInvMasses = [ 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0 ]
+                    m_InitPose =
+                    [
+                        {{SyntheticCloth.Pose(0f, 0f, 0f)}}
+                        {{SyntheticCloth.Pose(3f, 0f, 0f)}}
+                        {{SyntheticCloth.Pose(0f, 0f, -10f)}}
+                        {{SyntheticCloth.Pose(3f, 0f, -10f)}}
+                        {{SyntheticCloth.Pose(0f, 0f, -20f)}}
+                        {{SyntheticCloth.Pose(3f, 0f, -20f)}}
+                        {{SyntheticCloth.Pose(0f, 0f, -30f)}}
+                        {{SyntheticCloth.Pose(3f, 0f, -30f)}}
+                    ]
+                    m_CtrlOffsets =
+                    [
+                        { vOffset = [ 3.0, 0.0, 0.0 ] nCtrlParent = 0 nCtrlChild = 1 },
+                        { vOffset = [ 3.0, 0.0, 0.0 ] nCtrlParent = 2 nCtrlChild = 3 },
+                        { vOffset = [ 3.0, 0.0, 0.0 ] nCtrlParent = 4 nCtrlChild = 5 },
+                        { vOffset = [ 3.0, 0.0, 0.0 ] nCtrlParent = 6 nCtrlChild = 7 },
+                    ]
+                    m_Rods = [ {{SyntheticCloth.RigidRod(1, 3, 10f, 1f)}} {{SyntheticCloth.RigidRod(3, 5, 10f, 1f)}} {{SyntheticCloth.RigidRod(3, 7, 20f, 1f)}} ]
+                    m_SourceElems = [ {{faces}} ]
+                }
+                """);
+            model.SkeletonBoneParents = new Dictionary<string, string?> { ["j1"] = null, ["j2"] = "j1", ["j3"] = "j2", ["k"] = "j2" };
+            return model;
+        }
     }
 }

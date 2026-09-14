@@ -58,8 +58,9 @@ namespace Tests
         }
 
         /// <summary>
-        /// The joints come back in pre-order with the parent each one hangs off. This chain branches:
-        /// <c>head1</c> hangs off <c>wizardSpine1_1</c>, not off the joint written before it.
+        /// The joints come back in pre-order with the parent each one hangs off. The chain is one tube: the
+        /// compiled source elements join <c>head1</c>'s ring to <c>wizardSpine1_2</c>'s, not to the ring of its
+        /// skeleton parent <c>wizardSpine1_1</c>, so <c>head1</c> hangs off <c>wizardSpine1_2</c>.
         /// </summary>
         [Test]
         public async Task ChainClothCarriesItsSixJointsInParentOrder()
@@ -86,7 +87,7 @@ namespace Tests
                 await Assert.That(Occurrences(vmdl, "joint_parent = \"")).IsEqualTo(5);
 
                 var head = vmdl.IndexOf("joint_name = \"head1\"", StringComparison.Ordinal);
-                var parent = vmdl.IndexOf("joint_parent = \"wizardSpine1_1\"", head, StringComparison.Ordinal);
+                var parent = vmdl.IndexOf("joint_parent = \"wizardSpine1_2\"", head, StringComparison.Ordinal);
                 await Assert.That(parent).IsGreaterThan(head);
             }
         }
@@ -136,11 +137,11 @@ namespace Tests
         }
 
         /// <summary>
-        /// A chain-phase model has no proxy sheet at all; the only mesh the cloth writes is the chain
-        /// grid, which is emitted disabled and never reaches the compiled physics.
+        /// A chain-phase model has no proxy sheet at all, and a chain grid is only built across neighbouring
+        /// chain columns: this chain is one tube, so the cloth writes no mesh file of either kind.
         /// </summary>
         [Test]
-        public async Task ChainClothEmitsADisabledChainGridAndNoProxySheet()
+        public async Task ChainClothOfOneTubeEmitsNoProxySheetAndNoChainGrid()
         {
             using var resource = LoadFixture(ChainClothFixture);
             var extract = new ModelExtract(resource, new NullFileLoader());
@@ -149,13 +150,8 @@ namespace Tests
             using (Assert.Multiple())
             {
                 await Assert.That(extract.ClothProxyMeshesToExtract.Count).IsEqualTo(0);
-                await Assert.That(extract.ClothChainGridsToExtract.Count).IsEqualTo(1);
-                await Assert.That(extract.ClothChainGridsToExtract[0].Name).IsEqualTo("cloth_grid");
-                await Assert.That(extract.ClothChainGridsToExtract[0].FileName).EndsWith("_cloth_grid.dmx");
-
-                await Assert.That(Occurrences(vmdl, "_class = \"ClothProxyMeshFile\"")).IsEqualTo(1);
-                await Assert.That(vmdl).Contains("name = \"cloth_grid\"");
-                await Assert.That(Occurrences(vmdl, "disabled = true")).IsEqualTo(1);
+                await Assert.That(extract.ClothChainGridsToExtract.Count).IsEqualTo(0);
+                await Assert.That(Occurrences(vmdl, "_class = \"ClothProxyMeshFile\"")).IsEqualTo(0);
             }
         }
 
@@ -181,32 +177,31 @@ namespace Tests
 
         /// <summary>
         /// Two independent extractions of one model produce the same source. Only the emitted vmdl text
-        /// is compared byte for byte: the proxy DMX writer assigns fresh element GUIDs on every run, so
-        /// its output is compared by length instead.
+        /// is compared byte for byte: the DMX writer assigns fresh element GUIDs on every run, so the
+        /// sub files are compared by their total length instead.
         /// </summary>
         [Test]
         public async Task ExtractionOfTheSameModelIsDeterministic()
         {
-            var (firstVmdl, firstGrid) = ExtractWithGrid();
-            var (secondVmdl, secondGrid) = ExtractWithGrid();
+            var (firstVmdl, firstSubFiles) = ExtractWithSubFiles();
+            var (secondVmdl, secondSubFiles) = ExtractWithSubFiles();
 
             using (Assert.Multiple())
             {
                 await Assert.That(firstVmdl).IsEqualTo(secondVmdl);
-                await Assert.That(firstGrid).IsGreaterThan(0);
-                await Assert.That(firstGrid).IsEqualTo(secondGrid);
+                await Assert.That(firstSubFiles).IsGreaterThan(0);
+                await Assert.That(firstSubFiles).IsEqualTo(secondSubFiles);
             }
         }
 
-        private static (string Vmdl, int GridLength) ExtractWithGrid()
+        private static (string Vmdl, long SubFileLength) ExtractWithSubFiles()
         {
             using var resource = LoadFixture(ChainClothFixture);
             using var content = new ModelExtract(resource, new NullFileLoader()).ToContentFile();
 
-            var grid = content.SubFiles.Single(static file =>
-                file.FileName.EndsWith("_cloth_grid.dmx", StringComparison.Ordinal));
+            var length = content.SubFiles.Sum(static file => (long)(file.Extract?.Invoke().Length ?? 0));
 
-            return (Encoding.UTF8.GetString(content.Data!), grid.Extract!().Length);
+            return (Encoding.UTF8.GetString(content.Data!), length);
         }
 
         /// <summary>

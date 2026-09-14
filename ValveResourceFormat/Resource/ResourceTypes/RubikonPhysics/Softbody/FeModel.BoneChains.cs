@@ -1226,6 +1226,64 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                 return surfaceElements.Count > 0 && !surfaceElements.Contains(SurfaceElementKey([parent, .. ring]));
             }
 
+            bool IsCentreRing(List<int> ring)
+                => ring.TrueForAll(node => CtrlNames[node].EndsWith("_Ctr", StringComparison.Ordinal));
+
+            bool RingsShareFace(List<int> a, List<int> b)
+                => Array.Exists(SourceFaces, face => Array.Exists(face, a.Contains) && Array.Exists(face, b.Contains));
+
+            bool? chainSurfacesRecorded = null;
+            var unlinkedRingChildren = new HashSet<int>();
+
+            // An old-era link read off the skeleton or the rods between two extrusion rings that no recorded source element joins.
+            bool RingLinkUnrecorded(int parent, int child)
+            {
+                if (HasCompiledSkelParents || SourceFaces.Length == 0
+                    || !proxyChildrenOf.TryGetValue(parent, out var parentRing) || !proxyChildrenOf.TryGetValue(child, out var childRing)
+                    || IsCentreRing(parentRing) || IsCentreRing(childRing))
+                {
+                    return false;
+                }
+
+                chainSurfacesRecorded ??= Array.Exists(SourceFaces, face => Array.Exists(face, ringOwnerOf.ContainsKey));
+                if (chainSurfacesRecorded == false || RingsShareFace(parentRing, childRing))
+                {
+                    return false;
+                }
+
+                unlinkedRingChildren.Add(child);
+                return true;
+            }
+
+            bool SkeletonReaches(int from, int to)
+            {
+                var guard = 0;
+                for (var node = from < SkelParents.Length ? SkelParents[from] : -1; node >= 0 && guard++ < 256;
+                    node = node < SkelParents.Length ? SkelParents[node] : -1)
+                {
+                    if (node == to)
+                    {
+                        return true;
+                    }
+                }
+
+                if (SkeletonBoneParents is not { } boneParents)
+                {
+                    return false;
+                }
+
+                for (var name = boneParents.GetValueOrDefault(CtrlNames[from]); name is not null && guard++ < 512;
+                    name = boneParents.GetValueOrDefault(name))
+                {
+                    if (string.Equals(name, CtrlNames[to], StringComparison.OrdinalIgnoreCase))
+                    {
+                        return true;
+                    }
+                }
+
+                return false;
+            }
+
             var realParent = new int[n];
             var children = new List<int>?[n];
             var roots = new List<int>();
@@ -1304,7 +1362,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                 }
 
                 if ((rodLinked || bothDrivenSim || proxyRibbon || hingedRoot || bendLinked
-                    || bendRodLinked || ringLinked) && !RinglessLinkUnrecorded(p, i))
+                    || bendRodLinked || ringLinked) && !RinglessLinkUnrecorded(p, i) && !RingLinkUnrecorded(p, i))
                 {
                     realParent[i] = p;
                 }
@@ -1325,7 +1383,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                     }
 
                     var p = i < SkelParents.Length ? SkelParents[i] : -1;
-                    if (p < 0 || p >= n || !isReal[p] || RinglessLinkUnrecorded(p, i))
+                    if (p < 0 || p >= n || !isReal[p] || RinglessLinkUnrecorded(p, i) || RingLinkUnrecorded(p, i))
                     {
                         continue;
                     }
@@ -1378,7 +1436,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
 
                         var p = i < SkelParents.Length ? SkelParents[i] : -1;
                         if (p < 0 || p >= n || !isReal[p] || (!InChain(i) && !InChain(p))
-                            || sheetSkinned.Contains(i) || sheetSkinned.Contains(p))
+                            || sheetSkinned.Contains(i) || sheetSkinned.Contains(p) || RingLinkUnrecorded(p, i))
                         {
                             continue;
                         }
@@ -1478,7 +1536,11 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                                 var key = p > i ? (i, p) : (p, i);
                                 if (linkCounts.ContainsKey(key))
                                 {
-                                    realParent[i] = p;
+                                    if (!RingLinkUnrecorded(p, i))
+                                    {
+                                        realParent[i] = p;
+                                    }
+
                                     break;
                                 }
                             }
@@ -1503,9 +1565,44 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                 foreach (var (child, link) in bestParent)
                 {
                     if (realParent[child] < 0 && realParent[link.Parent] != child
-                        && !ReachesByParents(realParent, link.Parent, child))
+                        && !ReachesByParents(realParent, link.Parent, child)
+                        && !unlinkedRingChildren.Contains(child) && !RingLinkUnrecorded(link.Parent, child))
                     {
                         realParent[child] = link.Parent;
+                    }
+                }
+            }
+
+            for (var resolved = true; resolved;)
+            {
+                resolved = false;
+                foreach (var child in unlinkedRingChildren)
+                {
+                    if (realParent[child] >= 0)
+                    {
+                        continue;
+                    }
+
+                    var ring = proxyChildrenOf[child];
+                    var candidate = -1;
+                    var candidates = 0;
+                    foreach (var (owner, ownerRing) in proxyChildrenOf)
+                    {
+                        if (owner == child || owner >= n || !isReal[owner] || IsCentreRing(ownerRing)
+                            || SkeletonReaches(owner, child) || ReachesByParents(realParent, owner, child)
+                            || !RingsShareFace(ring, ownerRing))
+                        {
+                            continue;
+                        }
+
+                        candidate = owner;
+                        candidates++;
+                    }
+
+                    if (candidates == 1)
+                    {
+                        realParent[child] = candidate;
+                        resolved = true;
                     }
                 }
             }
