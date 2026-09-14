@@ -392,6 +392,11 @@ partial class ModelExtract
             return null;
         }
 
+        if (feModel.HasAxialEdges)
+        {
+            return feModel.RecoverRigidHingeBendPaint(proxy);
+        }
+
         ClothRodsFromSurface(feModel, ClothProxyMeshesToExtract, out _, out _, out _, out _,
             out var bendStiffness, out var bendStiffnessByNode);
         if (bendStiffness > 0f)

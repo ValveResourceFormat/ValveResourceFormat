@@ -186,8 +186,9 @@ partial class ModelExtract
             ("local_rotation", fe.LocalRotation),
             // A model with rigid edge hinges states its curvature only through the ring bends that switch
             // turns on: its rods are all built rigid, so the readings taken off them saturate whatever it
-            // was authored with (see FeModel.RigidHingeCurvature).
-            ("add_curvature", fe.HasAxialEdges ? fe.RigidHingeCurvature : addCurvature),
+            // was authored with (see FeModel.RigidHingeCurvature). Where its hubs fold apart, the per-hub
+            // paint carries every fold and the model-wide value stays zero (see FeModel.RigidHingeBendPaint).
+            ("add_curvature", fe.HasAxialEdges ? (fe.RigidHingeBendPaint is null ? fe.RigidHingeCurvature : 0f) : addCurvature),
             ("quad_bend_tolerance", fe.QuadBendTolerance),
             ("local_drag1", fe.LocalDrag1),
             ("follow_the_lead", Flag(ClothFlagFollowTheLead)),

@@ -2677,6 +2677,106 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         // Every authored curvature at or above one opens the fold all the way and compiles identically.
         internal const float SaturatedCurvature = 1f;
 
+        /// <summary>
+        /// Gets the per-node <c>cloth_bend_stiffness</c> of a model compiled with <c>rigid_edge_hinges</c> whose
+        /// sheet hubs fold by different angles, keyed by hub node, or null when one
+        /// <see cref="RigidHingeCurvature"/> accounts for every hub.
+        /// <para>
+        /// A hub folds through <c>clamp(paint * pi + add_curvature * pi, 0, pi)</c>, so with the model-wide value
+        /// at zero each tracking hub's own reading is its paint. A hub whose height has fallen to its rest
+        /// distance compiles the same for every fold past the one that got it there and takes the full fold,
+        /// and a hub the builder turned away below pi/8 keeps zero. Two records of one hub that disagree
+        /// recover nothing.
+        /// </para>
+        /// </summary>
+        public Dictionary<int, float>? RigidHingeBendPaint
+        {
+            get
+            {
+                if (KelagerBends.Count == 0 || RigidHingeCurvature != SaturatedCurvature)
+                {
+                    return null;
+                }
+
+                var lowest = new Dictionary<int, float>();
+                var highest = new Dictionary<int, float>();
+                var shut = new HashSet<int>();
+                foreach (var bend in KelagerBends)
+                {
+                    if (bend.MidNode < 0 || bend.End0 < 0 || bend.End1 < 0
+                        || bend.MidNode >= InitPosePositions.Length
+                        || bend.End0 >= InitPosePositions.Length || bend.End1 >= InitPosePositions.Length
+                        || bend.MidNode >= CtrlNames.Length || !IsProxyNodeName(CtrlNames[bend.MidNode]))
+                    {
+                        continue;
+                    }
+
+                    var toEnd0 = InitPosePositions[bend.End0] - InitPosePositions[bend.MidNode];
+                    var toEnd1 = InitPosePositions[bend.End1] - InitPosePositions[bend.MidNode];
+                    var l0 = toEnd0.Length();
+                    var l1 = toEnd1.Length();
+                    if (l0 <= 0f || l1 <= 0f)
+                    {
+                        continue;
+                    }
+
+                    if (bend.Height <= (toEnd0 + toEnd1).Length() / 3f * 1.0001f)
+                    {
+                        shut.Add(bend.MidNode);
+                        continue;
+                    }
+
+                    var cosine = ((9f * bend.Height * bend.Height) - (l0 * l0) - (l1 * l1)) / (2f * l0 * l1);
+                    var reading = MathF.Acos(Math.Clamp(cosine, -1f, 1f)) / MathF.PI;
+                    lowest[bend.MidNode] = MathF.Min(lowest.GetValueOrDefault(bend.MidNode, float.MaxValue), reading);
+                    highest[bend.MidNode] = MathF.Max(highest.GetValueOrDefault(bend.MidNode), reading);
+                }
+
+                var paint = new Dictionary<int, float>();
+                foreach (var (hub, high) in highest)
+                {
+                    if (high - lowest[hub] > ChainRingCurvatureAgreement * MathF.Max(high, ChainRingCurvatureAgreement))
+                    {
+                        return null;
+                    }
+
+                    paint[hub] = high >= 1f - ChainRingCurvatureAgreement ? 1f : Math.Clamp(high, 0f, 1f);
+                }
+
+                foreach (var hub in shut)
+                {
+                    paint.TryAdd(hub, 1f);
+                }
+
+                return paint.Values.Any(static value => value > ChainRingCurvatureAgreement) ? paint : null;
+            }
+        }
+
+        /// <summary>
+        /// Recovers the per-vertex <c>cloth_bend_stiffness</c> paint of a rigid-hinged proxy sheet, or null when the
+        /// sheet's hubs state none. See <see cref="RigidHingeBendPaint"/>.
+        /// </summary>
+        public float[]? RecoverRigidHingeBendPaint(ProxyMesh proxy)
+        {
+            if (RigidHingeBendPaint is not { } byNode)
+            {
+                return null;
+            }
+
+            var paint = new float[proxy.NodeIndices.Length];
+            var painted = 0;
+            for (var v = 0; v < paint.Length; v++)
+            {
+                paint[v] = byNode.GetValueOrDefault(proxy.NodeIndices[v]);
+                if (paint[v] > 0f)
+                {
+                    painted++;
+                }
+            }
+
+            return painted > 0 ? paint : null;
+        }
+
         // A hinged chain joint is anchored on a static node the compiler names after the joint's bone.
         const string HingeAnchorPrefix = "$ha_";
 
