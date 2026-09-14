@@ -6064,5 +6064,44 @@ namespace Tests
             model.SkeletonBoneParents = new Dictionary<string, string?> { ["j1"] = null, ["j2"] = "j1", ["j3"] = "j2", ["k"] = "j2" };
             return model;
         }
+
+        /// <summary>
+        /// A chain declared with no stretch spring compiles no rod between its joints, and its only link record is the rope the
+        /// compiler builds over the chain's parents, which it builds for chain joints alone. The rope therefore links the joints,
+        /// and a link no rod or ring spans declares no stretch. Control: the same joints without the rope stay unlinked.
+        /// </summary>
+        [Test]
+        public async Task ARopeWithNoRodsBetweenItsJointsIsAChainWithNoStretchSpring()
+        {
+            var roped = SyntheticCloth.Parse(RodlessTail("m_nRopeCount = 1\n                m_Ropes = [ 4, 0, 1, 2 ]"));
+            var unroped = SyntheticCloth.Parse(RodlessTail(string.Empty));
+
+            var chain = roped.BuildBoneChains().Find(static chain => chain.Joints.Count == 3);
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(chain).IsNotNull();
+                await Assert.That(chain!.Joints[1].StretchStiffness).IsEqualTo(0f);
+                await Assert.That(chain.Joints[2].StretchStiffness).IsEqualTo(0f);
+                await Assert.That(unroped.BuildBoneChains().Exists(static chain => chain.Joints.Count > 1)).IsFalse();
+            }
+        }
+
+        private static string RodlessTail(string ropes) => $$"""
+            {
+                m_CtrlName = [ "tail_0", "tail_1", "tail_2" ]
+                m_SkelParents = [ -1, 0, 1 ]
+                m_nNodeCount = 3
+                m_nStaticNodes = 1
+                m_NodeInvMasses = [ 0.0, 1.0, 1.0 ]
+                m_InitPose =
+                [
+                    {{SyntheticCloth.Pose(0f, 0f, 0f)}}
+                    {{SyntheticCloth.Pose(10f, 0f, 0f)}}
+                    {{SyntheticCloth.Pose(20f, 0f, 0f)}}
+                ]
+                {{ropes}}
+            }
+            """;
     }
 }
