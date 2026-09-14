@@ -36,4 +36,13 @@ jobs:
         global-json-file: global.json
 
     - name: Validate
-      run: xvfb-run -a -s "-screen 0 1280x1024x24" dotnet run --project Misc/ShaderValidator
+      shell: bash
+      run: |
+        set +e
+        xvfb-run -a -s "-screen 0 1280x1024x24" dotnet run --project Misc/ShaderValidator 2>&1 | tee validator.log
+        status=${PIPESTATUS[0]}
+        if [ "$status" -ne 0 ]; then
+          # Logs need a signed in account, annotations do not
+          echo "::error title=Shader validator exited with $status::$(tail -n 25 validator.log | sed -e 's/%/%25/g' -e 's///g' | awk '{printf "%s%%0A", $0}')"
+        fi
+        exit "$status"
