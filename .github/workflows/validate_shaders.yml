@@ -54,12 +54,12 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        experiment: [current, pre_motion_vectors, no_motion_loop, no_continue, no_layer_uvs, old_distort, no_flow, softpipe]
+        experiment: [current, select_then_fetch, reverse_select, clamped_index]
 
     env:
       MESA_GLSL_VERSION_OVERRIDE: '460'
       MESA_GL_VERSION_OVERRIDE: '4.6'
-      GALLIUM_DRIVER: ${{ matrix.experiment == 'softpipe' && 'softpipe' || 'llvmpipe' }}
+      GALLIUM_DRIVER: 'llvmpipe'
       EXPERIMENT: ${{ matrix.experiment }}
 
     steps:
@@ -73,37 +73,15 @@ jobs:
         global-json-file: global.json
 
     - name: Patch shader
-      shell: python
+      shell: bash
       run: |
-        import os, pathlib, subprocess, sys
-        exp = os.environ["EXPERIMENT"]
-        path = pathlib.Path("Renderer/Shaders/particle_spritecard.frag.slang")
-        text = path.read_text()
-
-        def replace(old, new):
-            global text
-            if old not in text:
-                sys.exit(f"{exp}: pattern not found: {old!r}")
-            text = text.replace(old, new)
-
-        if exp == "pre_motion_vectors":
-            text = subprocess.run(["git", "show", "9542fb9fa^:Renderer/Shaders/particle_spritecard.frag.slang"], capture_output=True, text=True, check=True).stdout
-        elif exp == "no_motion_loop":
-            start = text.index("#if S_TEXTURE_LAYERS > 0\n    // Layer 0 is always a colour layer")
-            end = text.index("#endif\n", start) + len("#endif\n")
-            text = text[:start] + text[end:]
-        elif exp == "no_continue":
-            replace("        if (effectMode == SPRITECARD_TEXTURE_ANIMMOTIONVEC)\n        {\n            continue;\n        }\n", "")
-        elif exp == "no_layer_uvs":
-            replace("vec4 uvs = LayerUvs(i);", "vec4 uvs = vec4(vTexCoordOut, vTexCoordNextFrameOut);")
-            replace("vec4 motionUvs = LayerUvs(i);", "vec4 motionUvs = vec4(vTexCoordOut, vTexCoordNextFrameOut);")
-        elif exp == "old_distort":
-            replace("DistortPrevious(previousLayer,", "DistortPrevious(max(i - 1, 0),")
-        elif exp == "no_flow":
-            replace("        if (colourLayers < 2)\n        {\n            layerUv -= flow;\n            layerUvNext += flowNext;\n        }\n", "")
-
-        path.write_text(text)
-        print(f"{exp}: patched")
+        candidate=".github/spritecard_experiments/${EXPERIMENT}.frag.slang"
+        if [ -f "$candidate" ]; then
+          cp "$candidate" Renderer/Shaders/particle_spritecard.frag.slang
+          echo "${EXPERIMENT}: patched"
+        else
+          echo "${EXPERIMENT}: unchanged"
+        fi
 
     - name: Validate particle_spritecard
       shell: bash
