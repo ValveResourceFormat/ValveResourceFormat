@@ -244,7 +244,7 @@ partial class ModelExtract
                 proxyMesh.Faces
                     .Where(face => !ClothFaceMakesRods(feModel, proxyMesh, face))
                     .Select(face => face.Select(local => nodeOf[local]).ToArray()),
-                feModel.InitPosePositions, feModel.IsStatic));
+                feModel.InitPosePositions, feModel.IsStatic, feModel.QuadBendTolerance));
         }
 
         return derived;

@@ -892,7 +892,7 @@ namespace Tests
                 new(0f, 1f, 0f),
             ];
 
-            var rods = FeModel.BentQuadRodsFromFaces([[0, 1, 2, 3]], corners, static _ => false);
+            var rods = FeModel.BentQuadRodsFromFaces([[0, 1, 2, 3]], corners, static _ => false, 0.05f);
 
             using (Assert.Multiple())
             {
@@ -925,9 +925,9 @@ namespace Tests
 
             using (Assert.Multiple())
             {
-                await Assert.That(FeModel.BentQuadRodsFromFaces([[0, 1, 2, 3]], flat, static _ => false))
+                await Assert.That(FeModel.BentQuadRodsFromFaces([[0, 1, 2, 3]], flat, static _ => false, 0.05f))
                     .IsEmpty();
-                await Assert.That(FeModel.BentQuadRodsFromFaces([[0, 1, 2, 3]], bent, static node => node == 3))
+                await Assert.That(FeModel.BentQuadRodsFromFaces([[0, 1, 2, 3]], bent, static node => node == 3, 0.05f))
                     .IsEmpty();
             }
         }
@@ -4833,6 +4833,52 @@ namespace Tests
                 await Assert.That(ModelExtract.FlexedPinsCarryNodeBases(painted, quad)).IsFalse();
                 await Assert.That(ModelExtract.FlexedPinsCarryNodeBases(flexed, quad)).IsTrue();
                 await Assert.That(ModelExtract.FlexedPinsCarryNodeBases(painted, Sheet([[0, 1, 2]]))).IsTrue();
+            }
+        }
+
+        /// <summary>
+        /// The compiled cloth keeps no <c>quad_bend_tolerance</c>, so it is read off the split: a nearly planar quad split
+        /// into a triangle pair whose discarded diagonal ships as a rigid rod was compiled below the 0.05 default (the S16
+        /// make_rods row authors 0.0), and its split rod is then predicted at the recovered tolerance. The controls: the
+        /// same pair without its rod, and a quad bent well past the default, keep 0.05.
+        /// </summary>
+        [Test]
+        public async Task TheQuadBendToleranceIsReadOffTheSplit()
+        {
+            static FeModel Model(float bend, string rods) => SyntheticCloth.Parse($$"""
+                {
+                    m_CtrlName = [ "root", "$cloth_m0p0", "$cloth_m0p1", "$cloth_m0p2", "$cloth_m0p3" ]
+                    m_SkelParents = [ -1, 0, 0, 0, 0 ]
+                    m_nNodeCount = 5
+                    m_nStaticNodes = 1
+                    m_NodeInvMasses = [ 0.0, 1.0, 1.0, 1.0, 1.0 ]
+                    m_InitPose =
+                    [
+                        {{SyntheticCloth.Pose(0f, 0f, 10f)}}
+                        {{SyntheticCloth.Pose(0f, 0f, 0f)}}
+                        {{SyntheticCloth.Pose(2f, 0f, bend)}}
+                        {{SyntheticCloth.Pose(2f, 3f, 0f)}}
+                        {{SyntheticCloth.Pose(0f, 3f, 0f)}}
+                    ]
+                    m_Tris = [ { nNode = [ 1, 2, 3 ] }, { nNode = [ 1, 3, 4 ] } ]
+                    m_Rods = [ {{rods}} ]
+                }
+                """);
+
+            var rod = SyntheticCloth.RigidRod(2, 4, 3.6056f, 1f);
+            var nearlyPlanar = Model(0.01f, rod);
+            List<int[]> faces = [[1, 2, 3, 4]];
+            (int, int)[] splitRod = [(2, 4)];
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(nearlyPlanar.QuadBendTolerance).IsEqualTo(0f);
+                await Assert.That(Model(0.01f, string.Empty).QuadBendTolerance).IsEqualTo(0.05f);
+                await Assert.That(Model(1f, rod).QuadBendTolerance).IsEqualTo(0.05f);
+                await Assert.That(FeModel.BentQuadRodsFromFaces(faces, nearlyPlanar.InitPosePositions, static node => node == 0, 0f))
+                    .IsEquivalentTo(splitRod);
+                await Assert.That(FeModel.BentQuadRodsFromFaces(faces, nearlyPlanar.InitPosePositions, static node => node == 0, 0.05f))
+                    .IsEmpty();
             }
         }
     }

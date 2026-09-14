@@ -188,7 +188,7 @@ partial class ModelExtract
             // turns on: its rods are all built rigid, so the readings taken off them saturate whatever it
             // was authored with (see FeModel.RigidHingeCurvature).
             ("add_curvature", fe.HasAxialEdges ? fe.RigidHingeCurvature : addCurvature),
-            ("quad_bend_tolerance", 0.05f),
+            ("quad_bend_tolerance", fe.QuadBendTolerance),
             ("local_drag1", fe.LocalDrag1),
             ("follow_the_lead", Flag(ClothFlagFollowTheLead)),
             ("use_per_node_local_force_and_rotation", fe.HasPerNodeLocalForce),
