@@ -217,7 +217,8 @@ vec4 LayerUvs(int layer)
 #if S_TEXTURE_LAYERS > 0
     if (layer > 0)
     {
-        return vLayerUvOut[layer - 1];
+        // Clamped although callers stay in range: some Mesa versions crash compiling an unbounded index here.
+        return vLayerUvOut[clamp(layer - 1, 0, S_TEXTURE_LAYERS - 1)];
     }
 #endif
 
