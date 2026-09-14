@@ -299,7 +299,7 @@ partial class ModelExtract
         dmeModel.Name = name;
         RespellJointsAsClothControlNodes(dmeModel, physAggregateData?.FeModel);
 
-        var (dag, vertexData) = CreateDmxDagVertexData(dmeModel, name);
+        var (dag, vertexData) = DmxScaffolding.CreateDagVertexData(dmeModel, name);
         dag.Shape!.Name = name;
 
         var vertexCount = proxy.Positions.Length;
@@ -610,7 +610,7 @@ partial class ModelExtract
             AddClothProxyMorphLayers(morphTarget, proxy, physAggregateData?.FeModel);
         }
 
-        TieElementRoot(dmx, dmeModel);
+        DmxScaffolding.TieElementRoot(dmx, dmeModel);
         using var stream = new MemoryStream();
         dmx.SaveDeterministic(stream, "binary", 9);
         return stream.ToArray();
@@ -676,7 +676,7 @@ partial class ModelExtract
         var dmeModel = BuildDmeDagSkeleton(skeleton, out _, bonePositions: ClothProxyRestBonePositions);
         dmeModel.Name = name;
 
-        var (dag, vertexData) = CreateDmxDagVertexData(dmeModel, name);
+        var (dag, vertexData) = DmxScaffolding.CreateDagVertexData(dmeModel, name);
         dag.Shape!.Name = name;
 
         var vertexCount = grid.Positions.Length;
@@ -766,7 +766,7 @@ partial class ModelExtract
             faceSet.Faces.Add(-1);
         }
 
-        TieElementRoot(dmx, dmeModel);
+        DmxScaffolding.TieElementRoot(dmx, dmeModel);
         using var stream = new MemoryStream();
         dmx.SaveDeterministic(stream, "binary", 9);
         return stream.ToArray();
