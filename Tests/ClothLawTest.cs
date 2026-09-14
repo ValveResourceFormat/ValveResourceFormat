@@ -6103,5 +6103,50 @@ namespace Tests
                 {{ropes}}
             }
             """;
+
+        /// <summary>
+        /// A wind effect's <c>local_space</c> compiles to its <c>LocalSpace</c> parameter, which reads as zero where the
+        /// parameter is absent. Control: a zero parameter declares no key.
+        /// </summary>
+        [Test]
+        public async Task AWindEffectsLocalSpaceIsItsLocalSpaceParameter()
+        {
+            var local = WindInLocalSpace("0.469");
+            var world = WindInLocalSpace("0.0");
+            var maps = new HashSet<string>();
+            var node = ModelExtract.MakeClothEffect(local, local.Effects.First(), maps);
+            var plain = ModelExtract.MakeClothEffect(world, world.Effects.First(), maps);
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(node!.GetFloatProperty("local_space")).IsEqualTo(0.469f).Within(1e-6f);
+                await Assert.That(plain!.ContainsKey("local_space")).IsFalse();
+            }
+        }
+
+        private static FeModel WindInLocalSpace(string localSpace) => SyntheticCloth.Parse($$"""
+            {
+                m_nNodeCount = 1
+                m_nStaticNodes = 1
+                m_NodeInvMasses = [ 0.0 ]
+                m_InitPose = [ {{SyntheticCloth.Pose(0f, 0f, 0f)}} ]
+                m_Effects =
+                [
+                    {
+                        sName = "ClothEffectWind"
+                        nNameHash = 2353092209
+                        nType = 1
+                        m_Params =
+                        {
+                            Strength = [ -281.600006, 0.0, 0.0 ]
+                            AirToCloth = 0.5
+                            LocalSpace = {{localSpace}}
+                            Choppiness = 8.0
+                            Vortices = [ { MaxSpeed = 211.199997 MaxCell = 1658.880005 } ]
+                        }
+                    },
+                ]
+            }
+            """);
     }
 }
