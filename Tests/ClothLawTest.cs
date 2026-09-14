@@ -6148,5 +6148,85 @@ namespace Tests
                 ]
             }
             """);
+
+        /// <summary>
+        /// An effect names a selection the document declares, whether a <c>ClothVertexMap</c> container inside a folder declares
+        /// it or a <c>ClothChain</c> joint's <c>vertex_map</c> lists it at a partial weight. Control: a selection the document
+        /// declares nowhere is not named.
+        /// </summary>
+        [Test]
+        public async Task AnEffectNamesASelectionTheDocumentDeclares()
+        {
+            var feModel = StiffenOnSelection();
+
+            var map = KVObject.Collection();
+            map.Add("_class", "ClothVertexMap");
+            map.Add("name", "sail_vm");
+            var folderChildren = KVObject.Array();
+            folderChildren.Add(map);
+            var folder = KVObject.Collection();
+            folder.Add("_class", "Folder");
+            folder.Add("children", folderChildren);
+            var container = KVObject.Array();
+            container.Add(folder);
+
+            var joint = KVObject.Collection();
+            joint.Add("joint_name", "sail_top");
+            joint.Add("vertex_map", "sail_vm=0.5");
+            var joints = KVObject.Array();
+            joints.Add(joint);
+            var table = KVObject.Collection();
+            table.Add("joints", joints);
+            var chain = KVObject.Collection();
+            chain.Add("_class", "ClothChain");
+            chain.Add("chain", table);
+            var jointDocument = KVObject.Array();
+            jointDocument.Add(chain);
+
+            var bare = KVObject.Array();
+
+            foreach (var document in new[] { container, jointDocument, bare })
+            {
+                ModelExtract.AddClothEffects(document, feModel, new HashSet<string>());
+            }
+
+            static KVObject Effect(KVObject document)
+                => document.Select(static child => child.Value).First(static child => child.GetStringProperty("_class") == "ClothEffectStiffen");
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(Effect(container).GetStringProperty("vertex_map")).IsEqualTo("sail_vm");
+                await Assert.That(Effect(jointDocument).GetStringProperty("vertex_map")).IsEqualTo("sail_vm");
+                await Assert.That(Effect(bare).ContainsKey("vertex_map")).IsFalse();
+            }
+        }
+
+        private static FeModel StiffenOnSelection() => SyntheticCloth.Parse($$"""
+            {
+                m_nNodeCount = 2
+                m_nStaticNodes = 1
+                m_NodeInvMasses = [ 0.0, 1.0 ]
+                m_InitPose =
+                [
+                    {{SyntheticCloth.Pose(0f, 0f, 0f)}}
+                    {{SyntheticCloth.Pose(0f, 0f, -10f)}}
+                ]
+                m_VertexMaps = [ {{VertexMapEntry("sail_vm", 7, 0, 1, 1)}} ]
+                m_VertexMapValues = [ 255 ]
+                m_Effects =
+                [
+                    {
+                        sName = "stiffen0"
+                        nNameHash = 1
+                        nType = 3
+                        m_Params =
+                        {
+                            Stiffness = 1.0
+                            VertexMap = 7
+                        }
+                    },
+                ]
+            }
+            """);
     }
 }
