@@ -605,7 +605,8 @@ partial class ModelExtract
 
             foreach (var boneChain in independentChains)
             {
-                clothFolderChildren.Add(MakeClothChainNode(feModel, boneChain, hasOtherChains));
+                clothFolderChildren.Add(MakeClothChainNode(feModel, boneChain, hasOtherChains,
+                    relandedJoints: ClothChainRelandedJoints));
                 if (MakeClothChainRestatement(feModel, boneChain) is { } restated)
                 {
                     clothFolderChildren.Add(restated);

@@ -88,6 +88,8 @@ partial class ModelExtract
             ClothChainGridsToExtract.Add((GetDmxFileName_ForEmbeddedMesh(name), name, grid));
             gridIndex++;
         }
+
+        BuildClothChainBoneOrigins(feModel);
     }
 
     // Bits of m_nDynamicNodeFlags that carry a ClothParams boolean. The remaining ClothParams switches

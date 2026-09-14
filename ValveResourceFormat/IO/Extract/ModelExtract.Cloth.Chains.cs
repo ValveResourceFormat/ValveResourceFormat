@@ -182,7 +182,7 @@ partial class ModelExtract
     }
 
     static KVObject MakeClothChainNode(FeModel feModel, FeModel.BoneChain chain, bool hasOtherChains,
-        IReadOnlyList<FeModel.BoneChainJoint>? walk = null)
+        IReadOnlyList<FeModel.BoneChainJoint>? walk = null, HashSet<string>? relandedJoints = null)
     {
         // A rigid hinge takes the chain's rod network over, so a hinged chain that still carries rods was
         // authored with a soft link instead, unless the hinged link itself compiled to a quad.
@@ -193,7 +193,8 @@ partial class ModelExtract
         var joints = KVObject.Array();
         foreach (var joint in walk ?? chain.Joints)
         {
-            var jointNode = MakeClothJoint(feModel, joint, chainExtrudes: chain.ExtrudeSides >= 1, softHinge, version);
+            var jointNode = MakeClothJoint(feModel, joint, chainExtrudes: chain.ExtrudeSides >= 1, softHinge, version,
+                rollTies: relandedJoints?.Contains(joint.Name) != true);
 
             // A rigid hinge is the one shape whose sibling set the chain reconstruction cannot read a
             // value off, so it keeps the flat 1.0 it has always been given.
@@ -320,7 +321,7 @@ partial class ModelExtract
     }
 
     internal static KVObject MakeClothJoint(FeModel feModel, FeModel.BoneChainJoint joint, bool chainExtrudes = false,
-        bool softHinge = false, int chainVersion = 2)
+        bool softHinge = false, int chainVersion = 2, bool rollTies = true)
     {
         var kv = KVObject.Collection();
         kv.Add("joint_name", joint.Name);
@@ -460,7 +461,7 @@ partial class ModelExtract
             if (joint.ExtrudeSides > 0)
             {
                 kv.Add("extrude_radius", joint.ExtrudeRadius);
-                kv.Add("extrude_twist", ClothExtrudeTwistBase - joint.ExtrudeTwist + joint.ExtrudeTwistTieNudge);
+                kv.Add("extrude_twist", ClothExtrudeTwistBase - joint.ExtrudeTwist + (rollTies ? joint.ExtrudeTwistTieNudge : 0f));
 
                 // 'x' is the compiler's own default and needs no explicit key.
                 if (joint.ForwardAxis != 'x')
@@ -678,7 +679,7 @@ partial class ModelExtract
                 && declarationPlan.Walk.TryGetValue(boneChain, out var found)
                 ? found
                 : null;
-            clothFolderChildren.Add(MakeClothChainNode(feModel, boneChain, hasOtherChains, walk));
+            clothFolderChildren.Add(MakeClothChainNode(feModel, boneChain, hasOtherChains, walk, ClothChainRelandedJoints));
             if (MakeClothChainRestatement(feModel, boneChain) is { } restated)
             {
                 clothFolderChildren.Add(restated);

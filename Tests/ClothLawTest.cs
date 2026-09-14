@@ -5303,5 +5303,242 @@ namespace Tests
                 await Assert.That(Rotated(unreachable)).IsEqualTo(Order(declared));
             }
         }
+
+        private static readonly (string Name, Vector3 Origin, Vector3 Angles)[] AuthoredCoattailChain =
+        [
+            ("root_motion", new(0f, 0f, 0f), new(0.000007f, 89.999992f, 89.999992f)),
+            ("pelvis", new(0.000019f, 55.962578f, -3.491205f), new(0.00002f, 89.999939f, 89.999954f)),
+            ("spine_0", new(1.21064f, 0.305322f, 0.000013f), new(-0.000025f, 7.112689f, 0.000002f)),
+            ("spine_1", new(5.321613f, 0.00001f, 0.000016f), new(-0.000007f, -9.975122f, 0f)),
+            ("spine_2", new(5.752628f, 0.000014f, 0.000017f), new(0.000077f, -11.132942f, 0.000001f)),
+            ("coattail_0_L", new(-1.194107f, -6.585538f, 4.000018f), new(-1.799955f, -146.904633f, 16.299978f)),
+            ("coattail_1_L", new(8.499947f, 0.000031f, 0.000009f), new(0.000029f, 2.499934f, 0.000038f)),
+            ("coattail_2_L", new(8.499931f, 0.000061f, 0.000001f), new(-0.000065f, -0.099939f, -0.000009f)),
+            ("coattail_end_L", new(8.500038f, -0.000027f, 0.000008f), new(-0.000018f, 0.000002f, 0.000011f)),
+        ];
+
+        private static readonly (string Name, Vector3 Origin, Vector3 Angles)[] RebuiltCoattailChain =
+        [
+            ("root_motion", new(-0f, -0f, -0f), new(0.000014f, 89.999992f, 89.999992f)),
+            ("pelvis", new(0.000031f, 55.96254f, -3.491195f), new(0.000027f, 89.999924f, 89.999939f)),
+            ("spine_0", new(1.21062f, 0.30533f, 0.000021f), new(-0.000025f, 7.112689f, 0.000001f)),
+            ("spine_1", new(5.321589f, 0.00002f, 0.000026f), new(-0.000006f, -9.975122f, 0.000001f)),
+            ("spine_2", new(5.752597f, 0.000023f, 0.000028f), new(0.000078f, -11.132943f, 0.000002f)),
+            ("coattail_0_L", new(-1.194f, -6.585543f, 3.99998f), new(-1.799955f, -146.904633f, 16.299982f)),
+            ("coattail_1_L", new(8.499946f, 0.000034f, 0.000007f), new(0.000029f, 2.499935f, 0.000037f)),
+            ("coattail_2_L", new(8.499929f, 0.000062f, -0f), new(-0.000065f, -0.099939f, -0.00001f)),
+            ("coattail_end_L", new(8.500035f, -0.000024f, 0.000006f), new(-0.000018f, 0.000002f, 0.000011f)),
+        ];
+
+        private static readonly Dictionary<string, Vector3> AuthoredCoattailRestPositions = CoattailPositions(
+            (0xc10ea5cf, 0x40800104, 0x4282e55e), (0xc13b209f, 0x40888c41, 0x4265ae04),
+            (0xc16ceda2, 0x40946966, 0x4246138c), (0xc18f423c, 0x40a024a1, 0x42267371));
+
+        private static readonly Dictionary<string, Vector3> RebuiltCoattailRestPositions = CoattailPositions(
+            (0xc10ea5ca, 0x4080011e, 0x4282e55d), (0xc13b209b, 0x40888c55, 0x4265ae02),
+            (0xc16ced9e, 0x40946975, 0x4246138a), (0xc18f423a, 0x40a024ab, 0x4226736f));
+
+        private static readonly Dictionary<string, Quaternion> AuthoredCoattailRestRotations = CoattailRotations(
+            (0x3eacd3b6, 0xbf257574, 0xbefdd65f, 0xbef186be), (0xbea5912e, 0x3f274df7, 0x3f0185d4, 0x3eebee78),
+            (0xbea5dbd7, 0x3f273b73, 0x3f016b7f, 0x3eec2854), (0xbea5dbd3, 0x3f273b73, 0x3f016b7f, 0x3eec2858));
+
+        private static readonly Dictionary<string, Quaternion> RebuiltCoattailRestRotations = CoattailRotations(
+            (0x3eacd3b6, 0xbf257576, 0xbefdd655, 0xbef186c1), (0xbea5912e, 0x3f274dfa, 0x3f0185d0, 0x3eebee7d),
+            (0xbea5dbd6, 0x3f273b75, 0x3f016b7b, 0x3eec2858), (0xbea5dbd2, 0x3f273b75, 0x3f016b7b, 0x3eec285c));
+
+        private static Dictionary<string, Quaternion> CoattailRotations(params (uint X, uint Y, uint Z, uint W)[] joints)
+        {
+            string[] names = ["coattail_0_L", "coattail_1_L", "coattail_2_L", "coattail_end_L"];
+            return names.Select((name, i) => (name, rotation: new Quaternion(BitConverter.UInt32BitsToSingle(joints[i].X),
+                    BitConverter.UInt32BitsToSingle(joints[i].Y), BitConverter.UInt32BitsToSingle(joints[i].Z),
+                    BitConverter.UInt32BitsToSingle(joints[i].W))))
+                .ToDictionary(static joint => joint.name, static joint => joint.rotation);
+        }
+
+        private static bool SameRotationBits(Quaternion a, Quaternion b)
+            => BitConverter.SingleToUInt32Bits(a.X) == BitConverter.SingleToUInt32Bits(b.X)
+                && BitConverter.SingleToUInt32Bits(a.Y) == BitConverter.SingleToUInt32Bits(b.Y)
+                && BitConverter.SingleToUInt32Bits(a.Z) == BitConverter.SingleToUInt32Bits(b.Z)
+                && BitConverter.SingleToUInt32Bits(a.W) == BitConverter.SingleToUInt32Bits(b.W);
+
+        private static Dictionary<string, Vector3> CoattailPositions(params (uint X, uint Y, uint Z)[] joints)
+        {
+            string[] names = ["coattail_0_L", "coattail_1_L", "coattail_2_L", "coattail_end_L"];
+            return names.Select((name, i) => (name, position: new Vector3(BitConverter.UInt32BitsToSingle(joints[i].X),
+                    BitConverter.UInt32BitsToSingle(joints[i].Y), BitConverter.UInt32BitsToSingle(joints[i].Z))))
+                .ToDictionary(static joint => joint.name, static joint => joint.position);
+        }
+
+        private static (Dictionary<string, Vector3> Positions, Dictionary<string, Quaternion> Rotations,
+            Dictionary<string, Vector3> Landed, Dictionary<string, Vector3> LandedAngles) ComposeCoattailChain(
+            (string Name, Vector3 Origin, Vector3 Angles)[] chain, Dictionary<string, Vector3>? positionTargets,
+            Dictionary<string, Quaternion>? rotationTargets)
+        {
+            var positions = new Dictionary<string, Vector3>();
+            var rotations = new Dictionary<string, Quaternion>();
+            var landed = new Dictionary<string, Vector3>();
+            var landedAngles = new Dictionary<string, Vector3>();
+            ModelExtract.CompilerTransform? parent = null;
+            foreach (var (name, origin, angles) in chain)
+            {
+                Vector3? position = positionTargets is not null && positionTargets.TryGetValue(name, out var p) ? p : null;
+                Quaternion? rotation = rotationTargets is not null && rotationTargets.TryGetValue(name, out var r) ? r : null;
+                var world = ModelExtract.ComposeChainBone(parent, origin, angles, position, rotation, out var landedOrigin,
+                    out var turned);
+                positions[name] = world.Position;
+                rotations[name] = world.Rotation;
+                if (landedOrigin is { } moved)
+                {
+                    landed[name] = moved;
+                }
+
+                if (turned is { } solved)
+                {
+                    landedAngles[name] = solved;
+                }
+
+                parent = world;
+            }
+
+            return (positions, rotations, landed, landedAngles);
+        }
+
+        private static bool SameBits(Vector3 a, Vector3 b)
+            => BitConverter.SingleToUInt32Bits(a.X) == BitConverter.SingleToUInt32Bits(b.X)
+                && BitConverter.SingleToUInt32Bits(a.Y) == BitConverter.SingleToUInt32Bits(b.Y)
+                && BitConverter.SingleToUInt32Bits(a.Z) == BitConverter.SingleToUInt32Bits(b.Z);
+
+        /// <summary>
+        /// A ClothChain joint's rest pose is not the compiled skeleton accumulated. The compiler reads each Bone's
+        /// printed <c>origin</c> and <c>angles</c> back as float32, makes the quaternion from float32 half angles with
+        /// double sine and cosine, and composes the chain with its CTransform concat. Over the document text of
+        /// <c>s12_rigid_cloud_algorithm_1_chain_stiffness_0p5</c>, that chain puts all four coattail joints on their
+        /// compiled <c>m_InitPose</c> positions bit for bit, for the authored document and for VRF's rebuild alike. The
+        /// control accumulates the same text as <c>System.Numerics</c> transforms, as the rest-pose correction did, and
+        /// misses.
+        /// </summary>
+        [Test]
+        public async Task AClothChainJointRestPoseIsTheCompilersTransformChainOverTheDocumentText()
+        {
+            var authoredChain = ComposeCoattailChain(AuthoredCoattailChain, null, null);
+            var rebuiltChain = ComposeCoattailChain(RebuiltCoattailChain, null, null);
+            var authored = authoredChain.Positions;
+            var rebuilt = rebuiltChain.Positions;
+
+            var accumulated = new Dictionary<string, Vector3>();
+            var position = Vector3.Zero;
+            var rotation = Quaternion.Identity;
+            foreach (var (name, origin, angles) in AuthoredCoattailChain)
+            {
+                position += Vector3.Transform(origin, rotation);
+                rotation *= EntityTransformHelper.EulerAnglesToQuaternion(angles);
+                accumulated[name] = position;
+            }
+
+            using (Assert.Multiple())
+            {
+                foreach (var (name, expected) in AuthoredCoattailRestPositions)
+                {
+                    await Assert.That(SameBits(authored[name], expected)).IsTrue();
+                    await Assert.That(SameBits(rebuilt[name], RebuiltCoattailRestPositions[name])).IsTrue();
+                    await Assert.That(SameRotationBits(authoredChain.Rotations[name], AuthoredCoattailRestRotations[name])).IsTrue();
+                    await Assert.That(SameRotationBits(rebuiltChain.Rotations[name], RebuiltCoattailRestRotations[name])).IsTrue();
+                }
+
+                await Assert.That(AuthoredCoattailRestPositions.All(joint => SameBits(accumulated[joint.Key], joint.Value)))
+                    .IsFalse();
+            }
+        }
+
+        /// <summary>
+        /// VRF's rebuild misses the original's coattail rest pose by a few ulps. That is enough to swing an algorithm-1
+        /// tri built over three of the joints, whose <c>v2.y</c> moves by up to 3.8e-3 per ulp, and a collision tree
+        /// built over the joints and their rings. Keeping every ancestor as printed, six-decimal <c>angles</c> and then a
+        /// six-decimal <c>origin</c> a few grid steps away land each joint on the original's rotation and position
+        /// exactly, and every landed value survives the six-decimal print. Of several exact candidates the one fewest
+        /// grid steps from the real-valued solution wins, the first in ascending step order on a tie. Controls:
+        /// <list type="bullet">
+        /// <item>coattail_0_L, whose rotation no grid angle within the search reaches under the unlanded spine, keeps its
+        /// printed angles, and its position still lands, since no grid origin under its children reaches their positions
+        /// from its printed one;</item>
+        /// <item>coattail_end_L, whose printed angles already give the original's rotation once coattail_2_L is turned,
+        /// keeps them;</item>
+        /// <item>the rebuild against its own compiled rest pose, where every joint is already there, moves nothing;</item>
+        /// <item>a target one ulp off the original's coattail_1_L position, which no grid origin reaches, keeps that
+        /// joint's printed origin.</item>
+        /// </list>
+        /// </summary>
+        [Test]
+        public async Task AClothChainJointOriginIsLandedOnItsRecordedPositionOnTheSixDecimalGrid()
+        {
+            var landing = ComposeCoattailChain(RebuiltCoattailChain, AuthoredCoattailRestPositions, AuthoredCoattailRestRotations);
+            var control = ComposeCoattailChain(RebuiltCoattailChain, RebuiltCoattailRestPositions, RebuiltCoattailRestRotations);
+
+            var unreachable = new Dictionary<string, Vector3>(AuthoredCoattailRestPositions);
+            var nudged = unreachable["coattail_1_L"];
+            nudged.Z = BitConverter.UInt32BitsToSingle(BitConverter.SingleToUInt32Bits(nudged.Z) + 1);
+            unreachable["coattail_1_L"] = nudged;
+            var kept = ComposeCoattailChain(RebuiltCoattailChain, unreachable, AuthoredCoattailRestRotations);
+
+            string[] turned = ["coattail_1_L", "coattail_2_L"];
+            using (Assert.Multiple())
+            {
+                await Assert.That(landing.Landed.Count).IsEqualTo(4);
+                await Assert.That(string.Join(",", landing.LandedAngles.Keys.Order())).IsEqualTo(string.Join(",", turned.Order()));
+                await Assert.That(SameRotationBits(landing.Rotations["coattail_end_L"], AuthoredCoattailRestRotations["coattail_end_L"]))
+                    .IsTrue();
+                foreach (var (name, expected) in AuthoredCoattailRestPositions)
+                {
+                    var printed = RebuiltCoattailChain.First(bone => bone.Name == name);
+                    await Assert.That(SameBits(landing.Positions[name], expected)).IsTrue();
+                    await Assert.That(SameBits(ModelExtract.CompilerTextFloat(landing.Landed[name]), landing.Landed[name])).IsTrue();
+                    await Assert.That(Vector3.Distance(landing.Landed[name], printed.Origin)).IsLessThan(1e-4f);
+                }
+
+                foreach (var name in AuthoredCoattailRestPositions.Keys)
+                {
+                    await Assert.That(SameBits(control.Positions[name], RebuiltCoattailRestPositions[name])).IsTrue();
+                    await Assert.That(SameRotationBits(control.Rotations[name], RebuiltCoattailRestRotations[name])).IsTrue();
+                }
+
+                foreach (var name in turned)
+                {
+                    await Assert.That(SameRotationBits(landing.Rotations[name], AuthoredCoattailRestRotations[name])).IsTrue();
+                    await Assert.That(SameBits(ModelExtract.CompilerTextFloat(landing.LandedAngles[name]),
+                        landing.LandedAngles[name])).IsTrue();
+                }
+
+                await Assert.That(SameRotationBits(landing.Rotations["coattail_0_L"], AuthoredCoattailRestRotations["coattail_0_L"]))
+                    .IsFalse();
+                await Assert.That(control.Landed.Count + control.LandedAngles.Count).IsEqualTo(0);
+                await Assert.That(kept.Landed.ContainsKey("coattail_1_L")).IsFalse();
+                await Assert.That(SameBits(kept.Positions["coattail_1_L"], nudged)).IsFalse();
+            }
+        }
+
+        /// <summary>
+        /// The node-base tie roll (<see cref="FeModel.BoneChainJoint.ExtrudeTwistTieNudge"/>) is chosen against the drift a
+        /// rebuilt ring carries. A chain joint whose Bone origin or angles were re-solved onto the compiler's own rest pose
+        /// carries no such drift, so its extrude_twist is written without the roll: order_ring_root2_joints0 prints -0.012008
+        /// with it and 0.0 without, and only the latter reproduces the original's ring and wind bases. The control is the
+        /// same joint left unresolved, which keeps its roll.
+        /// </summary>
+        [Test]
+        public async Task AChainJointReSolvedOntoTheRestPoseIsWrittenWithoutItsTieRoll()
+        {
+            var feModel = TwistPair("0.0", "0.0");
+            FeModel.BoneChainJoint RolledJoint()
+                => new() { Name = "coattail_0_L", Node = 0, ParentNode = -1, InvMass = 0f, ExtrudeSides = 2, ExtrudeRadius = 2f,
+                    ExtrudeTwist = 90f, ExtrudeTwistTieNudge = -0.012008f };
+
+            var relanded = ModelExtract.MakeClothJoint(feModel, RolledJoint(), chainExtrudes: true, rollTies: false);
+            var control = ModelExtract.MakeClothJoint(feModel, RolledJoint(), chainExtrudes: true);
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(relanded.GetFloatProperty("extrude_twist")).IsEqualTo(0f);
+                await Assert.That(control.GetFloatProperty("extrude_twist")).IsEqualTo(-0.012008f).Within(1e-6f);
+            }
+        }
     }
 }
