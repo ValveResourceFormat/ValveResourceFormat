@@ -4713,5 +4713,67 @@ namespace Tests
 
         private static readonly string[] ThinSubChain = ["root", "a0", "a1"];
         private static readonly string[] WideSubChain = ["root", "b0", "b1"];
+
+        /// <summary>
+        /// A keyed joint that owns a fit group stages its one-wide entry, the joint and its direct children, into its
+        /// parent's group, while its own group also reads its second ring. So below version 2 a parent fit holding a
+        /// fit-owning static joint and each of its direct children proves <c>lock_translation</c> although it misses the
+        /// joint's grandchildren. The fixture's free-rotating static root holds a0 and a1 but, of the other sub-chain,
+        /// only b0: a0 reads the key, b0 reads none, and b0 in a version-2 chain reads the key.
+        /// </summary>
+        [Test]
+        public async Task AParentFitHoldingAFitJointsOneWideEntryIsLockTranslation()
+        {
+            var model = SyntheticCloth.Parse(OneWideEntryTree());
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(model.LocksTranslation(Array.IndexOf(model.CtrlNames, "a0"), chainVersion: 1)).IsTrue();
+                await Assert.That(model.LocksTranslation(Array.IndexOf(model.CtrlNames, "b0"), chainVersion: 1)).IsFalse();
+                await Assert.That(model.LocksTranslation(Array.IndexOf(model.CtrlNames, "b0"), chainVersion: 2)).IsTrue();
+            }
+        }
+
+        private static string OneWideEntryTree()
+        {
+            List<(string Name, string? Parent, Vector3 Position)> nodes =
+            [
+                ("root", null, Vector3.Zero), ("a0", "root", new Vector3(10f, 0f, 0f)), ("b0", "root", new Vector3(-10f, 0f, 0f)),
+                ("a1", "a0", new Vector3(10f, 0f, -10f)), ("b1", "b0", new Vector3(-10f, 0f, -10f)),
+                ("a2", "a1", new Vector3(10f, 0f, -20f)), ("b2", "b1", new Vector3(-10f, 0f, -20f)),
+            ];
+            var names = nodes.ConvertAll(static node => node.Name);
+            int At(string name) => names.IndexOf(name);
+
+            var fits = new List<string>();
+            var weights = new List<string>();
+            foreach (var group in "root:a0 a1 b0|a0:a0 a1 a2|b0:b0 b1 b2".Split('|'))
+            {
+                var (owner, members) = (group.Split(':')[0], group.Split(':')[1]);
+                weights.AddRange(members.Split(' ').Select(member => "{ flWeight = 1.0 nNode = " + At(member) + " nDummy = 0 },"));
+                fits.Add("{ bone = [ 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0 ] vCenter = [ 0.0, 0.0, 0.0 ] nEnd = " + weights.Count
+                    + " nNode = " + At(owner) + " nBeginDynamic = " + weights.Count + " },");
+            }
+
+            return $$"""
+                {
+                    m_CtrlName = [ {{string.Join(", ", names.Select(static name => '"' + name + '"'))}} ]
+                    m_SkelParents = [ {{string.Join(", ", nodes.Select(node => node.Parent is null ? -1 : At(node.Parent)))}} ]
+                    m_nNodeCount = {{nodes.Count}}
+                    m_nStaticNodes = 3
+                    m_nRotLockStaticNodes = 0
+                    m_NodeInvMasses = [ {{string.Join(", ", nodes.Select(static (_, i) => i < 3 ? "0.0" : "1.0"))}} ]
+                    m_InitPose = [ {{string.Concat(nodes.Select(static node => SyntheticCloth.Pose(node.Position.X, node.Position.Y, node.Position.Z)))}} ]
+                    m_LockToGoal = [ 0 ]
+                    m_LockToParent =
+                    [
+                        { vOffset = [ 10.0, 0.0, 0.0 ] nCtrlParent = 0 nCtrlChild = {{At("a0")}} },
+                        { vOffset = [ -10.0, 0.0, 0.0 ] nCtrlParent = 0 nCtrlChild = {{At("b0")}} },
+                    ]
+                    m_FitMatrices = [ {{string.Join(" ", fits)}} ]
+                    m_FitWeights = [ {{string.Join(" ", weights)}} ]
+                }
+                """;
+        }
     }
 }

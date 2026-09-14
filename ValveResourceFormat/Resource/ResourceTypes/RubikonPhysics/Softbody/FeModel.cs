@@ -1224,7 +1224,8 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// the key only where the influence route could not have written it: the node is rotation-locked, owns
         /// no fit group, or its parent is neither simulated nor free-rotating. A keyed node also stages its
         /// influences into its parent's group, so a parent fit over every node the node's own group reads proves
-        /// the key as well. A chain of version 2 grades its joints' bases at import and stages no group for a
+        /// the key as well; a node owning a fit group stages only its one-wide entry, itself and its direct
+        /// children, so for it a parent fit over that entry proves the key. A chain of version 2 grades its joints' bases at import and stages no group for a
         /// static joint, so there the parent lock proves the key whatever the node owns.
         /// </para>
         /// </summary>
@@ -1256,7 +1257,34 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             int[] influences = FitMatrixTargets.TryGetValue(child, out var own) ? own
                 : NodeBases.TryGetValue(child, out var basis) ? [basis.NodeX0, basis.NodeX1, basis.NodeY0, basis.NodeY1]
                 : [];
-            return influences.Length > 0 && Array.TrueForAll(influences, influence => Array.IndexOf(targets, influence) >= 0);
+            return influences.Length > 0 && Array.TrueForAll(influences, influence => Array.IndexOf(targets, influence) >= 0)
+                || own is not null && HoldsOneWideEntryOf(targets, child);
+        }
+
+        bool HoldsOneWideEntryOf(int[] targets, int node)
+        {
+            if (Array.IndexOf(targets, node) < 0)
+            {
+                return false;
+            }
+
+            var children = 0;
+            for (var i = 0; i < SkelParents.Length; i++)
+            {
+                if (SkelParents[i] != node)
+                {
+                    continue;
+                }
+
+                if (Array.IndexOf(targets, i) < 0)
+                {
+                    return false;
+                }
+
+                children++;
+            }
+
+            return children > 0;
         }
 
         /// <summary>
