@@ -4881,5 +4881,44 @@ namespace Tests
                     .IsEmpty();
             }
         }
+
+        /// <summary>
+        /// The importer creates a sheet's simulated vertices by first appearance over the declared faces and its pins by the
+        /// faces that introduce them, and the node sort breaks ties within each distance from the pins by that creation
+        /// order. The SIMD lanes the faces are read back in do not keep the authored order: the S16 make_rods grid, declared
+        /// with its pins already in order, still creates p2 before p6 and p14 before p10. Its faces sorted by their shipped
+        /// node indices reproduce the shipped order. The controls: a node-sorted order stays as it is, and an order no face
+        /// sort can fix (a face holding pins 0 and 4 together) keeps the lane order.
+        /// </summary>
+        [Test]
+        public async Task FacesAreDeclaredInTheShippedNodeOrder()
+        {
+            int[] gridNodes = [0, 14, 19, 24, 1, 13, 18, 23, 2, 15, 20, 25, 3, 16, 21, 26, 4, 17, 22, 27];
+            static bool GridStatic(int node) => node < 13;
+            static string Order(List<int[]> faces) => string.Join(" | ", faces.Select(static face => string.Join(",", face)));
+            List<int[]> Choose(List<int[]> faces, IReadOnlyList<int> nodes, Func<int, bool> isStatic)
+                => FeModel.ChooseFaceDeclarationOrder(faces, faces.Count, nodes, isStatic, 13, static _ => { });
+
+            List<int[]> lanes =
+            [
+                [0, 4, 5, 1], [4, 8, 9, 5], [8, 12, 13, 9], [12, 16, 17, 13], [2, 6, 7, 3], [13, 14, 10, 9],
+                [18, 19, 15, 14], [6, 10, 11, 7], [17, 18, 14, 13], [14, 15, 11, 10], [5, 9, 10, 6], [1, 5, 6, 2],
+            ];
+            const string NodeSorted = "0,4,5,1 | 4,8,9,5 | 8,12,13,9 | 12,16,17,13 | 1,5,6,2 | 5,9,10,6 | 13,14,10,9 | "
+                + "17,18,14,13 | 2,6,7,3 | 6,10,11,7 | 14,15,11,10 | 18,19,15,14";
+            var sorted = Choose(lanes, gridNodes, GridStatic);
+            var again = Choose(sorted, gridNodes, GridStatic);
+
+            int[] smallNodes = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
+            static bool SmallStatic(int node) => node < 5;
+            List<int[]> unfixable = [[0, 4, 9, 5], [2, 3, 8, 7], [1, 2, 7, 6]];
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(Order(sorted)).IsEqualTo(NodeSorted);
+                await Assert.That(Order(again)).IsEqualTo(NodeSorted);
+                await Assert.That(Order(Choose(unfixable, smallNodes, SmallStatic))).IsEqualTo(Order(unfixable));
+            }
+        }
     }
 }
