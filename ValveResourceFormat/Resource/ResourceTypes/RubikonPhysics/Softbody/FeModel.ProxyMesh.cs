@@ -951,10 +951,79 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         }
 
         /// <summary>
-        /// The authored <c>quad_bend_tolerance</c> (ModelDoc <c>ClothParams</c>) the compiler measures the
-        /// split against, which <c>MakeClothParams</c> re-emits.
+        /// Gets the <c>quad_bend_tolerance</c> (ModelDoc <c>ClothParams</c>) the compiler measured its quad split
+        /// against, which <c>MakeClothParams</c> re-emits. The compiled cloth keeps no field for it, so it is read off
+        /// the split: the ModelDoc default of 0.05, unless a quad the compiler split (a <see cref="Tris"/> pair whose
+        /// discarded diagonal ships as a rigid rod) bends by no more than that. Such a cloth was authored below the
+        /// default, and the tolerance is then the largest bend among the fully dynamic quads it kept whole, or zero,
+        /// as long as that still lies below every split.
         /// </summary>
-        const float QuadBendTolerance = 0.05f;
+        public float QuadBendTolerance => quadBendTolerance ??= ComputeQuadBendTolerance();
+
+        private float? quadBendTolerance;
+
+        const float DefaultQuadBendTolerance = 0.05f;
+
+        float ComputeQuadBendTolerance()
+        {
+            bool Dynamic(int node) => node >= 0 && node < InitPosePositions.Length && node < NodeInvMasses.Length
+                && NodeInvMasses[node] != 0f;
+
+            var rigid = new HashSet<(int, int)>();
+            foreach (var rod in Rods)
+            {
+                if (rod.MinDist == rod.MaxDist)
+                {
+                    rigid.Add(rod.NodeA < rod.NodeB ? (rod.NodeA, rod.NodeB) : (rod.NodeB, rod.NodeA));
+                }
+            }
+
+            var inPlace = new Dictionary<(int, int), List<int[]>>();
+            var lowestSplit = float.MaxValue;
+            foreach (var tri in Tris)
+            {
+                if (tri.Length != 3)
+                {
+                    continue;
+                }
+
+                if (inPlace.TryGetValue((tri[0], tri[1]), out var firsts))
+                {
+                    foreach (var first in firsts)
+                    {
+                        int[] quad = [first[0], first[1], first[2], tri[2]];
+                        var far = quad[1] < quad[3] ? (quad[1], quad[3]) : (quad[3], quad[1]);
+                        if (quad.Distinct().Count() == 4 && Array.TrueForAll(quad, Dynamic) && rigid.Contains(far))
+                        {
+                            lowestSplit = Math.Min(lowestSplit, QuadBendSine(Array.ConvertAll(quad, node => InitPosePositions[node])));
+                        }
+                    }
+                }
+
+                if (!inPlace.TryGetValue((tri[0], tri[2]), out var halves))
+                {
+                    inPlace[(tri[0], tri[2])] = halves = [];
+                }
+
+                halves.Add(tri);
+            }
+
+            if (lowestSplit > DefaultQuadBendTolerance)
+            {
+                return DefaultQuadBendTolerance;
+            }
+
+            var highestKept = 0f;
+            foreach (var quad in Quads)
+            {
+                if (quad.Length == 4 && quad.Distinct().Count() == 4 && Array.TrueForAll(quad, Dynamic))
+                {
+                    highestKept = Math.Max(highestKept, QuadBendSine(Array.ConvertAll(quad, node => InitPosePositions[node])));
+                }
+            }
+
+            return highestKept < lowestSplit ? highestKept : DefaultQuadBendTolerance;
+        }
 
         static (int, int, int) SortedTriKey(int[] tri)
         {
@@ -1061,7 +1130,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
 
                         var corners = Array.ConvertAll(quad, node => InitPosePositions[node]);
                         var staticCorners = quad.Count(node => NodeInvMasses[node] == 0f);
-                        var order = PredictQuadSplit(corners, staticCorners);
+                        var order = PredictQuadSplit(corners, staticCorners, QuadBendTolerance);
                         if (order is null)
                         {
                             continue;
@@ -1108,7 +1177,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// whether or not anything declares them.
         /// </summary>
         internal static HashSet<(int, int)> BentQuadRodsFromFaces(IEnumerable<int[]> faces,
-            Vector3[] positions, Func<int, bool> isStatic)
+            Vector3[] positions, Func<int, bool> isStatic, float tolerance)
         {
             var rods = new HashSet<(int, int)>();
             foreach (var face in faces)
@@ -1119,7 +1188,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                     continue;
                 }
 
-                if (PredictQuadSplit(Array.ConvertAll(face, node => positions[node]), 0) is not { } order)
+                if (PredictQuadSplit(Array.ConvertAll(face, node => positions[node]), 0, tolerance) is not { } order)
                 {
                     continue;
                 }
@@ -1132,11 +1201,12 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         }
 
         /// <summary>
-        /// Whether the compiler splits the quad with the given rest corners, and in which corner order:
-        /// the two triangles it emits are <c>(order[0], order[1], order[2])</c> and
-        /// <c>(order[0], order[2], order[3])</c>. Null when the quad is kept whole.
+        /// Whether the compiler splits the quad with the given rest corners at the given
+        /// <c>quad_bend_tolerance</c>, and in which corner order: the two triangles it emits are
+        /// <c>(order[0], order[1], order[2])</c> and <c>(order[0], order[2], order[3])</c>. Null when the quad is
+        /// kept whole.
         /// </summary>
-        static int[]? PredictQuadSplit(Vector3[] corners, int staticCorners)
+        static int[]? PredictQuadSplit(Vector3[] corners, int staticCorners, float tolerance)
         {
             var order = staticCorners < 2 ? MaximalQuadPairing(corners) : [0, 1, 2, 3];
             if (staticCorners != 0)
@@ -1144,6 +1214,16 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                 return null;
             }
 
+            var bend = QuadBend(corners, order);
+            return bend.Cross > bend.Normals * tolerance ? bend.Order : null;
+        }
+
+        /// <summary>
+        /// The quad rotated onto its shorter diagonal, with the two lengths the compiler's bend test compares: the
+        /// cross product of the two half normals, and the product of their lengths.
+        /// </summary>
+        static (int[] Order, float Cross, float Normals) QuadBend(Vector3[] corners, int[] order)
+        {
             if (Vector3.Distance(corners[order[0]], corners[order[2]])
                 > Vector3.Distance(corners[order[1]], corners[order[3]]))
             {
@@ -1153,9 +1233,14 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             var (a, b, c, d) = (corners[order[0]], corners[order[1]], corners[order[2]], corners[order[3]]);
             var n1 = Vector3.Cross(b - a, c - a);
             var n2 = Vector3.Cross(d - c, a - c);
-            return Vector3.Cross(n1, n2).Length() > n1.Length() * n2.Length() * QuadBendTolerance
-                ? order
-                : null;
+            return (order, Vector3.Cross(n1, n2).Length(), n1.Length() * n2.Length());
+        }
+
+        /// <summary>The sine of a fully dynamic quad's bend across its shorter diagonal, zero when degenerate.</summary>
+        static float QuadBendSine(Vector3[] corners)
+        {
+            var bend = QuadBend(corners, MaximalQuadPairing(corners));
+            return bend.Normals > 0f ? bend.Cross / bend.Normals : 0f;
         }
 
         // Repairs an authored corner order that does not describe a simple quadrilateral, by taking the
