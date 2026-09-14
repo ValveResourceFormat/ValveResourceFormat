@@ -8,65 +8,11 @@
 
 layout(local_size_x = D_GROUP_TILES_X, local_size_y = D_GROUP_TILES_Y, local_size_z = 1) in;
 
-struct CullBatch_t
-{
-    uint nOutputOffset;
-    uint nOutputStride;
-    uint nFirstItem;
-    uint nItemEnd;
-};
-
-struct CullItem_t
-{
-    uint  nFirstPlane;
-    uint  nUnused04;
-    uint  nNumPlanes0;
-    uint  nNumPlanes1;
-    vec2  vBoundsMin;
-    vec2  vBoundsMax;
-    float flDepthMin;
-    float flDepthMax;
-    vec2  vNdcDepthNear;
-    float flConicXX;
-    float flConicYY;
-    float flConicXY;
-    float flConicX;
-    float flConicY;
-    float flConicConst;
-    float flConicEnable;
-    float flUnused76;
-};
-
-layout(binding = 5, std140) uniform CullParams_t
-{
-    uint  g_nTiles;
-    uint  g_nTilesX;
-    uint  g_nTilesY;
-    float g_fTileEpsilon;
-    vec2  g_vTileToCenterScale;
-    vec2  g_vTileToCenterOffset;
-    uint  g_nDepthBins;
-    float g_fDepthBinWidth;
-    float g_fBinEpsilon;
-    float g_fNearPlane;
-    uvec4 g_nFirstMaskForBatch;
-    CullBatch_t g_TileBatches[3];
-    CullBatch_t g_BinBatches[3];
-};
+#include "common/light_cull_structures.slang"
 
 layout(binding = 3, std430) readonly buffer CullPlanesBuffer
 {
     vec2 g_CullPlanes[];
-};
-
-layout(binding = 2, std430) readonly buffer CullItemsBuffer
-{
-    CullItem_t g_CullItems[];
-};
-
-layout(binding = 12, std430) writeonly buffer OutputCullBitsBuffer
-{
-    uint g_OutputCullBits[];
 };
 
 // The coarse mask has to cover the whole group, and a subgroup is only guaranteed to be a part of one:
