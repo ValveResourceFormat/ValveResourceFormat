@@ -917,9 +917,11 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                 AttachStrayToTriangle(remap[stray], positions, faces, meshOf);
             }
 
-            var declared = ChooseFaceDeclarationOrder(faces, surfaceFaceCount, nodeIndices,
-                node => node < NodeInvMasses.Length && NodeInvMasses[node] == 0f, RotationLockedStaticNodeCount,
-                order => DeclareFacesInStaticNodeOrder(order, surfaceFaceCount, nodeIndices));
+            var declared = RotateQuadsToShippedMasses(
+                ChooseFaceDeclarationOrder(faces, surfaceFaceCount, nodeIndices,
+                    node => node < NodeInvMasses.Length && NodeInvMasses[node] == 0f, RotationLockedStaticNodeCount,
+                    order => DeclareFacesInStaticNodeOrder(order, surfaceFaceCount, nodeIndices)),
+                surfaceFaceCount, nodeIndices, InitPosePositions, NodeInvMasses);
             faces.Clear();
             faces.AddRange(declared);
 
@@ -1588,6 +1590,134 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
 
             return x.Length.CompareTo(y.Length);
         });
+
+        /// <summary>
+        /// Rotates fully dynamic surface quads one corner back where that makes the compiler's mass pass reproduce the
+        /// shipped inverse masses bit for bit, and returns the faces with those rotations.
+        /// </summary>
+        /// <remarks>
+        /// The mass pass credits both ends of each of an element's six corner pairs with 4 per unit of length, element by
+        /// element and pair by pair from the declared corners, so a node's float sum depends on the corner each of its
+        /// faces is declared from, and the rod sort compares the weights those masses give exactly. The quad split rotates
+        /// a fully dynamic quad by one corner onto its shorter diagonal, so the compiled cycle and the cycle one corner
+        /// back compile to the same quad and differ only in those sums. Faces are tried in declaration order, and a flip is
+        /// kept when it strictly lowers the number of simulated nodes whose replayed inverse mass misses the shipped one
+        /// and leaves the simulated nodes' creation order as it was. The flips are returned only when every simulated node
+        /// then matches, and a sheet with faces past <paramref name="surfaceFaceCount"/> is returned unchanged.
+        /// </remarks>
+        internal static List<int[]> RotateQuadsToShippedMasses(List<int[]> faces, int surfaceFaceCount,
+            IReadOnlyList<int> nodeIndices, IReadOnlyList<Vector3> positions, IReadOnlyList<float> invMasses)
+        {
+            if (faces.Count != surfaceFaceCount)
+            {
+                return faces;
+            }
+
+            bool IsStatic(int local) => nodeIndices[local] >= invMasses.Count || invMasses[nodeIndices[local]] == 0f;
+            float SquaredDistance(int a, int b)
+            {
+                var d = positions[nodeIndices[b]] - positions[nodeIndices[a]];
+                return d.X * d.X + d.Y * d.Y + d.Z * d.Z;
+            }
+
+            bool Flippable(int[] face) => face.Length == 4 && face.Distinct().Count() == 4
+                && !Array.Exists(face, IsStatic) && SquaredDistance(face[0], face[2]) < SquaredDistance(face[1], face[3]);
+
+            List<int> Created(List<int[]> order)
+            {
+                var seen = new HashSet<int>();
+                var created = new List<int>();
+                foreach (var face in order)
+                {
+                    foreach (var local in face)
+                    {
+                        if (!IsStatic(local) && seen.Add(local))
+                        {
+                            created.Add(local);
+                        }
+                    }
+                }
+
+                return created;
+            }
+
+            HashSet<int> Missed(List<int[]> order)
+            {
+                var mass = new float[nodeIndices.Count];
+                foreach (var face in order)
+                {
+                    var corners = face.Length > 4 ? face[..4] : face;
+                    if (corners.Length < 3 || Array.TrueForAll(corners, IsStatic))
+                    {
+                        continue;
+                    }
+
+                    var cycle = CompilerCornerCycle(corners, IsStatic);
+                    int[] element = cycle.Length == 4 ? cycle : [cycle[0], cycle[1], cycle[2], cycle[2]];
+                    for (var k = 1; k < 4; k++)
+                    {
+                        for (var j = 0; j < k; j++)
+                        {
+                            if (element[j] != element[k])
+                            {
+                                var term = MathF.Sqrt(SquaredDistance(element[j], element[k])) * 4f;
+                                mass[element[k]] += term;
+                                mass[element[j]] += term;
+                            }
+                        }
+                    }
+                }
+
+                var missed = new HashSet<int>();
+                foreach (var local in Created(order))
+                {
+                    if (BitConverter.SingleToInt32Bits(1f / mass[local]) != BitConverter.SingleToInt32Bits(invMasses[nodeIndices[local]]))
+                    {
+                        missed.Add(local);
+                    }
+                }
+
+                return missed;
+            }
+
+            var missed = Missed(faces);
+            var reachable = faces.Where(Flippable).SelectMany(static face => face).ToHashSet();
+            if (missed.Count == 0 || !missed.All(reachable.Contains))
+            {
+                return faces;
+            }
+
+            var creation = Created(faces);
+            var current = new List<int[]>(faces);
+            var flipped = new bool[faces.Count];
+            for (var changed = true; changed && missed.Count > 0;)
+            {
+                changed = false;
+                for (var i = 0; i < current.Count && missed.Count > 0; i++)
+                {
+                    var face = current[i];
+                    if (flipped[i] || !Flippable(face) || !Array.Exists(face, missed.Contains))
+                    {
+                        continue;
+                    }
+
+                    var trial = new List<int[]>(current);
+                    trial[i] = [face[3], face[0], face[1], face[2]];
+                    if (!Created(trial).SequenceEqual(creation))
+                    {
+                        continue;
+                    }
+
+                    var trialMissed = Missed(trial);
+                    if (trialMissed.Count < missed.Count)
+                    {
+                        (current, missed, flipped[i], changed) = (trial, trialMissed, true, true);
+                    }
+                }
+            }
+
+            return missed.Count == 0 ? current : faces;
+        }
 
         /// <summary>
         /// Rotates each surface face's declared corner order so the sheet hands the compiler its static

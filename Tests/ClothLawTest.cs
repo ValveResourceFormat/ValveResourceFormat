@@ -5241,5 +5241,67 @@ namespace Tests
 
             static float Weight(float a, float b) => MathF.Exp(b) / (MathF.Exp(a) + MathF.Exp(b));
         }
+
+        /// <summary>
+        /// The mass pass sums each node's corner-pair terms in declared corner order, and the quad split rotates a fully
+        /// dynamic quad one corner onto its shorter diagonal, so VRF reads such a quad back one corner past the corner it
+        /// was declared from. The S16 make_rods grid's last two faces, declared from the read-back corner, miss the shipped
+        /// inverse masses of nodes 25 to 27 by one or two ulps, and declared one corner back they match all fifteen. The
+        /// controls: the masses the read-back declaration compiles to keep the faces, and so does a shipped mass no
+        /// rotation reaches, though a flip would still fix the other two nodes.
+        /// </summary>
+        [Test]
+        public async Task FullyDynamicQuadsAreDeclaredFromTheCornerTheShippedMassesWitness()
+        {
+            (int Node, uint X, uint Y, uint Z)[] pose =
+            [
+                (0, 0xc10ea620, 0xc07fffd9, 0x4282e57b), (1, 0xc10ea622, 0xbfffff92, 0x4282e57a),
+                (2, 0xc10ea624, 0x378d0000, 0x4282e579), (3, 0xc10ea626, 0x40000056, 0x4282e578),
+                (4, 0xc10ea628, 0x40800033, 0x4282e577), (13, 0xc13b2105, 0xc0088b12, 0x4265ae3c),
+                (14, 0xc13b20ff, 0xc0888b30, 0x4265ae3d), (15, 0xc13b210c, 0x37740000, 0x4265ae3c),
+                (16, 0xc13b2112, 0x40088b8c, 0x4265ae3b), (17, 0xc13b2118, 0x40888b6d, 0x4265ae3a),
+                (18, 0xc16cee2d, 0xc0146850, 0x424613c2), (19, 0xc16cee25, 0xc0946869, 0x424613c2),
+                (20, 0xc16cee34, 0x37480000, 0x424613c3), (21, 0xc16cee3c, 0x401468b4, 0x424613c4),
+                (22, 0xc16cee44, 0x4094689b, 0x424613c4), (23, 0xc18f427e, 0xc020239a, 0x422673be),
+                (24, 0xc18f427a, 0xc0a023af, 0x422673bd), (25, 0xc18f4282, 0x37240000, 0x422673c0),
+                (26, 0xc18f4286, 0x402023ec, 0x422673c1), (27, 0xc18f428b, 0x40a023d8, 0x422673c3),
+            ];
+            var positions = new Vector3[28];
+            foreach (var (node, x, y, z) in pose)
+            {
+                positions[node] = new Vector3(BitConverter.UInt32BitsToSingle(x), BitConverter.UInt32BitsToSingle(y),
+                    BitConverter.UInt32BitsToSingle(z));
+            }
+
+            uint[] shipped =
+            [
+                0x3b532e7d, 0x3bd348ca, 0x3b5336ad, 0x3b532e89, 0x3bd348db, 0x3b50c6eb, 0x3bd0b9f9, 0x3b50d147,
+                0x3b50c6f5, 0x3bd0ba08, 0x3bcedbe2, 0x3c4dbd42, 0x3bcee5f1, 0x3bcedbe8, 0x3c4dbd51,
+            ];
+            uint[] readBack = [.. shipped[..12], 0x3bcee5f3, 0x3bcedbe7, 0x3c4dbd50];
+            uint[] unreachable = [.. shipped[..14], 0x3c4c0000];
+            static float[] InvMasses(uint[] simulated)
+                => [.. Enumerable.Repeat(0f, 13), .. simulated.Select(BitConverter.UInt32BitsToSingle)];
+
+            int[] nodes = [.. Enumerable.Range(0, 28)];
+            List<int[]> declared =
+            [
+                [0, 1, 13, 14], [1, 2, 15, 13], [2, 3, 16, 15], [3, 4, 17, 16], [14, 13, 18, 19], [13, 15, 20, 18],
+                [16, 21, 20, 15], [17, 22, 21, 16], [19, 18, 23, 24], [18, 20, 25, 23], [21, 26, 25, 20], [22, 27, 26, 21],
+            ];
+            static string Order(List<int[]> faces) => string.Join(" | ", faces.Select(static face => string.Join(",", face)));
+            string Rotated(uint[] simulated)
+                => Order(FeModel.RotateQuadsToShippedMasses(declared, declared.Count, nodes, positions, InvMasses(simulated)));
+
+            const string Witnessed = "0,1,13,14 | 1,2,15,13 | 2,3,16,15 | 3,4,17,16 | 14,13,18,19 | 13,15,20,18 | "
+                + "16,21,20,15 | 17,22,21,16 | 19,18,23,24 | 18,20,25,23 | 20,21,26,25 | 21,22,27,26";
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(Rotated(shipped)).IsEqualTo(Witnessed);
+                await Assert.That(Rotated(readBack)).IsEqualTo(Order(declared));
+                await Assert.That(Rotated(unreachable)).IsEqualTo(Order(declared));
+            }
+        }
     }
 }
