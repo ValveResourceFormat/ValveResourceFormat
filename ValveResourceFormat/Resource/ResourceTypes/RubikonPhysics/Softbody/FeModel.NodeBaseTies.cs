@@ -166,8 +166,9 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
 
         /// <summary>
         /// Whether a dynamic joint of <paramref name="chain"/> carries a basis hint (<c>m_DynNodeWindBases</c>)
-        /// that the compiler's twist source wrote and nothing graded afterwards: the X pair is the joint and
-        /// its own twist end and the Y pair was never touched. The hint pass grades every dynamic node whose
+        /// that the compiler's twist or rope source wrote and nothing graded afterwards: the X pair is the pair
+        /// that source writes for the joint (the joint and its own twist end, or its neighbours along its
+        /// <c>m_Ropes</c> run) and the Y pair was never touched. The hint pass grades every dynamic node whose
         /// pair is still incomplete over its fit-influence set when the neighbour set is too small, so an
         /// ungraded hint says the joint had NO fit influences, which a ClothChain stages only from version 1
         /// on; such a chain was authored at version 0. A chain that also owns a fit matrix, or whose other
@@ -182,6 +183,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                 return false;
             }
 
+            var ropePairs = RopeSourceHintPairs();
             var twistWritten = false;
             foreach (var joint in chain.Joints)
             {
@@ -199,8 +201,9 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                 var hint = hints[slot];
                 var x0 = hint.GetInt32Property("nNodeX0");
                 var x1 = hint.GetInt32Property("nNodeX1");
-                if (x0 == joint.Node && x1 != joint.Node && hint.GetInt32Property("nNodeY0") == 0
-                    && hint.GetInt32Property("nNodeY1") == 0 && TwistRelaxByLink.ContainsKey((joint.Node, x1)))
+                var ungraded = hint.GetInt32Property("nNodeY0") == 0 && hint.GetInt32Property("nNodeY1") == 0;
+                if (ungraded && ((x0 == joint.Node && x1 != joint.Node && TwistRelaxByLink.ContainsKey((joint.Node, x1)))
+                    || (ropePairs.TryGetValue(joint.Node, out var ropePair) && ropePair == (x0, x1))))
                 {
                     twistWritten = true;
                 }
@@ -211,6 +214,40 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             }
 
             return twistWritten;
+        }
+
+        /// <summary>
+        /// The X pair the hint pass's rope source writes for each node of an <c>m_Ropes</c> run, before any
+        /// grading: the head its own node and the next, an interior node its two neighbours along the run, the
+        /// tail its own node and the previous. A node on two runs keeps the first run's pair, as the source only
+        /// writes a slot it has not written yet.
+        /// </summary>
+        Dictionary<int, (int X0, int X1)> RopeSourceHintPairs()
+        {
+            var pairs = new Dictionary<int, (int X0, int X1)>();
+            var ropeCount = Data.GetInt32Property("m_nRopeCount");
+            var ropes = Data.GetIntegerArray("m_Ropes");
+            if (ropeCount <= 0 || ropes.Length <= ropeCount)
+            {
+                return pairs;
+            }
+
+            var begin = ropeCount;
+            for (var rope = 0; rope < ropeCount; rope++)
+            {
+                var end = Math.Min((int)ropes[rope], ropes.Length);
+                for (var i = begin; i < end && end - begin >= 2; i++)
+                {
+                    var pair = i == begin ? ((int)ropes[i], (int)ropes[i + 1])
+                        : i == end - 1 ? ((int)ropes[i], (int)ropes[i - 1])
+                        : ((int)ropes[i - 1], (int)ropes[i + 1]);
+                    pairs.TryAdd((int)ropes[i], pair);
+                }
+
+                begin = end;
+            }
+
+            return pairs;
         }
 
         /// <summary>What the thin joints of a set of chain joints say about the version that staged them.</summary>
