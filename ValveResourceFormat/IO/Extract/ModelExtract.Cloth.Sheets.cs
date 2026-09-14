@@ -134,6 +134,34 @@ partial class ModelExtract
         return surviving;
     }
 
+    /// <summary>
+    /// Whether every pin <c>flex_cloth_borders</c> would free on <paramref name="proxy"/> (a static corner of a face
+    /// joined to two or more simulated corners) carries an <c>m_NodeBases</c> entry in the original. On a sheet that
+    /// adds bones to the render mesh the flag gives each such pin a node base, while the per-vertex
+    /// <c>cloth_anchor_free_rotate</c> paint frees it without one.
+    /// </summary>
+    internal static bool FlexedPinsCarryNodeBases(FeModel feModel, FeModel.ProxyMesh proxy)
+    {
+        foreach (var face in proxy.Faces)
+        {
+            if (face.Distinct().Count(corner => proxy.ClothEnable[corner] != 0f) < 2)
+            {
+                continue;
+            }
+
+            foreach (var corner in face)
+            {
+                var node = proxy.NodeIndices[corner];
+                if (proxy.ClothEnable[corner] == 0f && node < feModel.StaticNodeCount && !feModel.NodeBases.ContainsKey(node))
+                {
+                    return false;
+                }
+            }
+        }
+
+        return true;
+    }
+
     bool EmitProxySheetClothPhase(FeModel feModel, List<FeModel.BoneChain> boneChains, KVObject rootChildren)
     {
         // Phase 2 (preferred): the cloth sheet ships as a proxy mesh. With back_solve_joints the
@@ -252,7 +280,9 @@ partial class ModelExtract
         // per-vertex paint does, while a pin every face leaves with fewer simulated corners
         // stays rotation-locked either way and carries no evidence. The flag is taken when every
         // reached pin is recorded rotation-free and every unreached one rotation-locked, so the
-        // paint the flag replaces has nothing left to say. A back-solving sheet instead
+        // paint the flag replaces has nothing left to say. On a sheet that adds bones to the render
+        // mesh it also needs every reached pin to carry a node base, since the flag gives it one and
+        // the paint frees it without. A back-solving sheet instead
         // frees exactly the pins with a skin influence on a registered control and its fit
         // machinery pulls anchor parent chains in, so each pin's influence registration has to
         // match its rot-lock class, no gap slot's influences may register it (a new node the
@@ -267,6 +297,11 @@ partial class ModelExtract
 
         bool ProxyFlexesClothBorders(FeModel.ProxyMesh proxy, bool proxyBackSolves)
         {
+            if (!proxyBackSolves && ProxyAddsBonesToRenderMesh(proxy) && !FlexedPinsCarryNodeBases(feModel, proxy))
+            {
+                return false;
+            }
+
             var faced = new HashSet<int>();
             var flexReaches = new HashSet<int>();
             foreach (var face in proxy.Faces)

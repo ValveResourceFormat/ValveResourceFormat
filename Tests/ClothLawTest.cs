@@ -4775,5 +4775,65 @@ namespace Tests
                 }
                 """;
         }
+
+        /// <summary>
+        /// <c>flex_cloth_borders</c> frees the pins a face joins to two or more simulated corners and, on a sheet that adds
+        /// bones to the render mesh, gives each of them a node base; the <c>cloth_anchor_free_rotate</c> paint frees the
+        /// same pins without one. The S16 row paints its pinned row free, so those pins carry no base and the flag is
+        /// refused. The controls: the same pins with bases (an authored flex sheet) keep it, and a face with a single
+        /// simulated corner reaches no pin at all.
+        /// </summary>
+        [Test]
+        public async Task FlexClothBordersNeedsItsFreedPinsToCarryNodeBases()
+        {
+            static FeModel Model(string bases) => SyntheticCloth.Parse($$"""
+                {
+                    m_CtrlName = [ "$cloth_m0p0", "$cloth_m0p1", "$cloth_m0p2", "$cloth_m0p3" ]
+                    m_SkelParents = [ -1, -1, 0, 1 ]
+                    m_nNodeCount = 4
+                    m_nStaticNodes = 2
+                    m_nRotLockStaticNodes = 0
+                    m_NodeInvMasses = [ 0.0, 0.0, 1.0, 1.0 ]
+                    m_InitPose =
+                    [
+                        {{SyntheticCloth.Pose(0f, 0f, 0f)}}
+                        {{SyntheticCloth.Pose(0f, 2f, 0f)}}
+                        {{SyntheticCloth.Pose(0f, 0f, -8f)}}
+                        {{SyntheticCloth.Pose(0f, 2f, -8f)}}
+                    ]
+                    m_NodeBases = [ {{bases}} ]
+                }
+                """);
+            static string Base(int node)
+                => $"{{ nNode = {node} nDummy = [ 0, 0, 0 ] nNodeX0 = 2 nNodeX1 = 3 nNodeY0 = 0 nNodeY1 = 1 qAdjust = [ 0.0, 0.0, 0.0, 1.0 ] }},";
+            static FeModel.ProxyMesh Sheet(List<int[]> faces) => new()
+            {
+                NodeIndices = [0, 1, 2, 3],
+                Positions = [new(0f, 0f, 0f), new(0f, 2f, 0f), new(0f, 0f, -8f), new(0f, 2f, -8f)],
+                ClothEnable = [0f, 0f, 1f, 1f],
+                GoalStrength = new float[4],
+                GoalDamping = new float[4],
+                CollisionRadius = new float[4],
+                Friction = new float[4],
+                Drag = new float[4],
+                GroundCollision = new float[4],
+                GroundFriction = new float[4],
+                Gravity = new float[4],
+                VertexAttraction = new float[4],
+                SkinInfluences = [[], [], [], []],
+                Faces = faces,
+            };
+
+            var quad = Sheet([[0, 1, 3, 2]]);
+            var painted = Model(string.Empty);
+            var flexed = Model(Base(0) + Base(1) + Base(2) + Base(3));
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(ModelExtract.FlexedPinsCarryNodeBases(painted, quad)).IsFalse();
+                await Assert.That(ModelExtract.FlexedPinsCarryNodeBases(flexed, quad)).IsTrue();
+                await Assert.That(ModelExtract.FlexedPinsCarryNodeBases(painted, Sheet([[0, 1, 2]]))).IsTrue();
+            }
+        }
     }
 }
