@@ -90,7 +90,10 @@ partial class ModelExtract
                 AddBonesRecursive(model.Skeleton.Roots, lists.Skeleton);
             }
 
-            AddCulledClothBones(lists.Skeleton);
+            if (CulledClothBones.Count > 0)
+            {
+                AddCulledClothBones(lists.Skeleton);
+            }
         }
 
         AddPhysicsBodyNodes(lists);
