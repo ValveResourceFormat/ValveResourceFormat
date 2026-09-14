@@ -43,6 +43,6 @@ jobs:
         status=${PIPESTATUS[0]}
         if [ "$status" -ne 0 ]; then
           # Logs need a signed in account, annotations do not
-          echo "::error title=Shader validator exited with $status::$(tail -n 25 validator.log | sed -e 's/%/%25/g' -e 's///g' | awk '{printf "%s%%0A", $0}')"
+          echo "::error title=Shader validator exited with $status::$(tail -n 25 validator.log | sed -e 's/%/%25/g' -e 's/\r//g' | awk '{printf "%s%%0A", $0}')"
         fi
         exit "$status"
