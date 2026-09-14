@@ -210,14 +210,11 @@ vec3 ApplyHsvShift(vec3 sourceColor)
     return vec3(satVal.y, p, q) * overbright;
 }
 
-// A layer's placed coordinates for the frame it is on (xy) and the one after it (zw). Layer 0 rides the
-// card's own pair; every layer past it brings one of its own.
 vec4 LayerUvs(int layer)
 {
 #if S_TEXTURE_LAYERS > 0
     if (layer > 0)
     {
-        // Clamped although callers stay in range: some Mesa versions crash compiling an unbounded index here.
         return vLayerUvOut[clamp(layer - 1, 0, S_TEXTURE_LAYERS - 1)];
     }
 #endif
@@ -242,8 +239,6 @@ void main(void) {
     vec2 flowNext = vec2(0.0);
 
 #if S_TEXTURE_LAYERS > 0
-    // Layer 0 is always a colour layer, so a motion vector layer can only sit past it. The single layer
-    // variant would otherwise index its one element arrays out of bounds.
     for (int i = 1; i < uLayerCount; ++i)
     {
         if (uLayerEffectMode[i] == SPRITECARD_TEXTURE_ANIMMOTIONVEC)

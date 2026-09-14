@@ -32,13 +32,13 @@ namespace ValveResourceFormat.Renderer.Shaders
     /// </summary>
     public partial class ShaderLoader : IDisposable
     {
-        [GeneratedRegex(@"^(?<SourceFile>[0-9]+)\((?<Line>[0-9]+)\) ?: error")]
+        [GeneratedRegex(@"^(?<SourceFile>[0-9]+)\((?<Line>[0-9]+)\) ?: error", RegexOptions.Multiline)]
         private static partial Regex NvidiaGlslError();
 
-        [GeneratedRegex(@"ERROR: (?<SourceFile>[0-9]+):(?<Line>[0-9]+):")]
+        [GeneratedRegex(@"ERROR: (?<SourceFile>[0-9]+):(?<Line>[0-9]+):", RegexOptions.Multiline)]
         private static partial Regex AmdGlslError();
 
-        [GeneratedRegex(@"^(?<SourceFile>[0-9]+):(?<Line>[0-9]+)\((?<Column>[0-9]+)\):")]
+        [GeneratedRegex(@"^(?<SourceFile>[0-9]+):(?<Line>[0-9]+)\((?<Column>[0-9]+)\): error", RegexOptions.Multiline)]
         private static partial Regex Mesa3dGlslError();
 
         private readonly Dictionary<ulong, Shader> CachedShaders = [];
