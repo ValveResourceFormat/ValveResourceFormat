@@ -4983,5 +4983,60 @@ namespace Tests
                 }
                 """);
         }
+
+        /// <summary>
+        /// A rigid-hinged sheet whose hubs fold by different angles states a <c>cloth_bend_stiffness</c> per hub. One
+        /// hub records a right angle (paint 0.5), one a quarter turn (0.25), and one has fallen to its rest distance
+        /// (the full fold), so no single <c>add_curvature</c> accounts for them and each hub's reading is its paint.
+        /// The CONTROL is the same sheet with its two tracking hubs agreeing, which keeps the one model-wide value and
+        /// no paint.
+        /// </summary>
+        [Test]
+        public async Task ARigidHingeSheetWhoseHubsFoldApartReadsItsBendPaintPerHub()
+        {
+            var apart = ThreeHubRigidSheet(4.714045f, 6.159197f);
+            var agreeing = ThreeHubRigidSheet(4.714045f, 4.714045f);
+            var paint = apart.RigidHingeBendPaint;
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(paint).IsNotNull();
+                await Assert.That(paint![1]).IsEqualTo(0.5f).Within(0.001f);
+                await Assert.That(paint[4]).IsEqualTo(0.25f).Within(0.001f);
+                await Assert.That(paint[7]).IsEqualTo(1f);
+                await Assert.That(apart.RigidHingeCurvature).IsEqualTo(FeModel.SaturatedCurvature);
+                await Assert.That(agreeing.RigidHingeBendPaint).IsNull();
+                await Assert.That(agreeing.RigidHingeCurvature).IsEqualTo(0.5f).Within(0.001f);
+            }
+        }
+
+        private static FeModel ThreeHubRigidSheet(float firstHeight, float secondHeight) => SyntheticCloth.Parse($$"""
+            {
+                m_CtrlName = [ "root", "$cloth_m0p0", "$cloth_m0p1", "$cloth_m0p2", "$cloth_m0p3", "$cloth_m0p4", "$cloth_m0p5", "$cloth_m0p6", "$cloth_m0p7", "$cloth_m0p8" ]
+                m_nNodeCount = 10
+                m_nStaticNodes = 1
+                m_NodeInvMasses = [ 0.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0 ]
+                m_InitPose =
+                [
+                    {{SyntheticCloth.Pose(0f, 0f, 0f)}}
+                    {{SyntheticCloth.Pose(0f, 0f, 0f)}}
+                    {{SyntheticCloth.Pose(10f, 0f, 0f)}}
+                    {{SyntheticCloth.Pose(-10f, 0f, 0f)}}
+                    {{SyntheticCloth.Pose(0f, 0f, -20f)}}
+                    {{SyntheticCloth.Pose(10f, 0f, -20f)}}
+                    {{SyntheticCloth.Pose(-10f, 0f, -20f)}}
+                    {{SyntheticCloth.Pose(0f, 0f, -40f)}}
+                    {{SyntheticCloth.Pose(10f, 0f, -40f)}}
+                    {{SyntheticCloth.Pose(-10f, 0f, -40f)}}
+                ]
+                m_AxialEdges = [ { nNode = [ 1, 2, 3, 3, 2, 1 ] }, ]
+                m_KelagerBends =
+                [
+                    { nNode = [ 1, 2, 3 ] flWeight = [ -1.0, 0.5, 0.5 ] flHeight0 = {{SyntheticCloth.Num(firstHeight)}} },
+                    { nNode = [ 4, 5, 6 ] flWeight = [ -1.0, 0.5, 0.5 ] flHeight0 = {{SyntheticCloth.Num(secondHeight)}} },
+                    { nNode = [ 7, 8, 9 ] flWeight = [ -1.0, 0.5, 0.5 ] flHeight0 = 0.0 },
+                ]
+            }
+            """);
     }
 }
