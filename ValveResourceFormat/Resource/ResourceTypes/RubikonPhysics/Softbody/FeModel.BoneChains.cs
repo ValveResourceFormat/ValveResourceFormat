@@ -1284,6 +1284,10 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                 return false;
             }
 
+            // A compile that records m_SkelParents ropes chain joints only, so each link of its m_Ropes runs is a
+            // chain link, rod or not: a chain declared with no stretch spring leaves no rod between its joints.
+            var ropeParents = HasCompiledSkelParents ? RopeRunParents : new Dictionary<int, int>();
+
             var realParent = new int[n];
             var children = new List<int>?[n];
             var roots = new List<int>();
@@ -1361,8 +1365,10 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                     }
                 }
 
+                var ropeLinked = ropeParents.TryGetValue(i, out var ropeParent) && ropeParent == p;
+
                 if ((rodLinked || bothDrivenSim || proxyRibbon || hingedRoot || bendLinked
-                    || bendRodLinked || ringLinked) && !RinglessLinkUnrecorded(p, i) && !RingLinkUnrecorded(p, i))
+                    || bendRodLinked || ringLinked || ropeLinked) && !RinglessLinkUnrecorded(p, i) && !RingLinkUnrecorded(p, i))
                 {
                     realParent[i] = p;
                 }
@@ -2735,7 +2741,9 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                     var stretch = SpanRelaxation(joint.Node, parent) ?? RingInternalRelaxation(joint.Node)
                         ?? chainNaturalRf ?? 1f;
 
+                    var roped = !joint.IsRoot && ropeParents.GetValueOrDefault(joint.Node, -1) == parent;
                     joint.StretchStiffness = (chainDeclaresNoStretch && !joint.IsRoot) || DeclaresNoStretch(joint)
+                        || (roped && !SpannedByRod(joint.Node, parent) && RingInternalRelaxation(joint.Node) is null)
                         ? 0f
                         : stretch > 0f ? Slider(stretch) : 1f;
 
