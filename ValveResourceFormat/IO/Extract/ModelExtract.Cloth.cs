@@ -569,6 +569,12 @@ partial class ModelExtract
             node.Add("cloth_air_density", 1f / airToCloth);
         }
 
+        var localSpace = parameters.ContainsKey("LocalSpace") ? parameters.GetFloatProperty("LocalSpace") : 0f;
+        if (localSpace != 0f)
+        {
+            node.Add("local_space", localSpace);
+        }
+
         node.Add("vortex_choppiness", parameters.GetFloatProperty("Choppiness"));
 
         if (parameters.ContainsKey("Algo"))
