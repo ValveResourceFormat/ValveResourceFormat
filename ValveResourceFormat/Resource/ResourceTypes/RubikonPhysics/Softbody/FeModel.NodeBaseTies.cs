@@ -271,6 +271,37 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             => ThinJointStagingOf(chain.Joints.Skip(1)) == ThinJointStaging.Unstaged;
 
         /// <summary>
+        /// Whether <paramref name="chain"/> extrudes two sides and has a simulated leaf joint that carries no node base and
+        /// none of the version-1 staging marks: a reverse offset, a lock or a fit matrix. Such a leaf sits in none of its
+        /// rings' elements, so the bulk grade never reaches it, and from version 1 on the chain bases and stages it itself.
+        /// A leaf whose zero <c>stretch_spring</c> drops its base at every version, or one with neighbours enough to be
+        /// graded, says nothing.
+        /// </summary>
+        public bool ChainHasUnbasedLeaf(BoneChain chain)
+        {
+            if (chain.ExtrudeSides != 2)
+            {
+                return false;
+            }
+
+            var reverseOffsetBones = new HashSet<int>();
+            foreach (var entry in Data.GetArray("m_ReverseOffsets") ?? [])
+            {
+                reverseOffsetBones.Add(entry.GetInt32Property("nBoneCtrl"));
+            }
+
+            return chain.Joints.Exists(joint => !joint.IsRoot && joint.Simulated
+                && joint.ExtrudeSides == 2
+                && !chain.Joints.Exists(child => child.ParentNode == joint.Node)
+                && !NodeBases.ContainsKey(joint.Node)
+                && !FitMatrixNodes.Contains(joint.Node)
+                && !reverseOffsetBones.Contains(joint.Node)
+                && !IsLockedToGoal(joint.Node) && !IsLockedToParent(joint.Node)
+                && (joint.StretchStiffness != 0f || joint.AnimatedLength)
+                && NodeNeighbours(joint.Node).Count < 3);
+        }
+
+        /// <summary>
         /// Reads the thin joints among <paramref name="joints"/>, which hold no chain root. The compiler drops
         /// every influence whose matrix node's table holds fewer than three entries, and only a chain of version 1
         /// or above first tops such a table up from the joint's parent, so the joint then always owns a reverse

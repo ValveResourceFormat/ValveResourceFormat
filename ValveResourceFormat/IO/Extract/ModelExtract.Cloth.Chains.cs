@@ -103,9 +103,10 @@ partial class ModelExtract
     /// <param name="hintsTwistWritten">Whether a joint's basis hint was written by the twist or rope source and never graded.</param>
     /// <param name="hasUnstagedThinJoint">Whether a joint only the version-1 fit top-up would group carries no group.</param>
     /// <param name="reverseOffsetsPreset">Whether the joints' reverse offsets name their preset bases' Y1 nodes, null when they do not say.</param>
+    /// <param name="hasUnbasedLeaf">Whether a simulated leaf of a two-sided chain carries no node base (<see cref="FeModel.ChainHasUnbasedLeaf"/>).</param>
     internal static int ClothChainVersion(int jointCount, bool hasOtherChains, bool? rootAllowsRotation, bool rootHasBase,
         bool lockedJoint, bool rigidCloudClusterLock, bool locksJoints, bool? basesBulkGraded, bool hintsTwistWritten,
-        bool hasUnstagedThinJoint, bool? reverseOffsetsPreset = null)
+        bool hasUnstagedThinJoint, bool? reverseOffsetsPreset = null, bool hasUnbasedLeaf = false)
     {
         // The two chain formats are not interchangeable: format 1 registers a non-simulated joint that has
         // no parent to be offset from into m_LockToGoal, format 2 leaves it out. Both are in live use, so
@@ -151,6 +152,12 @@ partial class ModelExtract
             version = 0;
         }
 
+        // A two-sided leaf with no node base is one only the chain itself could have based, which it does from version 1 on.
+        if (version != 0 && !rootKeepsPreset && (lockedInOriginal || !locksJoints) && hasUnbasedLeaf && basesBulkGraded != false)
+        {
+            version = 0;
+        }
+
         // A joint only the version-1 fit top-up gives a group to, carrying none, was staged at version 0.
         if (version == 1 && hasUnstagedThinJoint)
         {
@@ -179,7 +186,8 @@ partial class ModelExtract
             basesBulkGraded: feModel.ChainBasesAreBulkGraded(chain),
             hintsTwistWritten: feModel.ChainHintsAreTwistWritten(chain),
             hasUnstagedThinJoint: feModel.ChainHasUnstagedThinJoint(chain),
-            reverseOffsetsPreset: feModel.ChainReverseOffsetsArePreset(chain));
+            reverseOffsetsPreset: feModel.ChainReverseOffsetsArePreset(chain),
+            hasUnbasedLeaf: feModel.ChainHasUnbasedLeaf(chain));
     }
 
     static KVObject MakeClothChainNode(FeModel feModel, FeModel.BoneChain chain, bool hasOtherChains,

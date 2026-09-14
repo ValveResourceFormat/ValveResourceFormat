@@ -5596,5 +5596,72 @@ namespace Tests
                 ]
             }
             """);
+
+        /// <summary>
+        /// A two-sided chain's leaf joint sits in none of its rings' elements, so the bulk grade never bases it, and
+        /// from version 1 on the chain bases and stages it itself. A simulated leaf with no entry and no reverse offset
+        /// therefore says version 0. Controls: a based leaf, a leaf that owns a reverse offset, and a leaf whose zero
+        /// <c>stretch_spring</c> drops its base at every version, say nothing; and version 0 locks the joints format 1
+        /// locks, so an original that locks none of them keeps version 2.
+        /// </summary>
+        [Test]
+        public async Task ATwoSidedLeafWithNoNodeBaseSaysTheChainCompiledAtVersionZero()
+        {
+            const string JointBase = "{ nNode = 3 nNodeX0 = 4 nNodeX1 = 5 nNodeY0 = 6 nNodeY1 = 3 }";
+            var unbased = TwoSidedStrip(JointBase, string.Empty);
+            var based = TwoSidedStrip(JointBase + ", { nNode = 6 nNodeX0 = 7 nNodeX1 = 8 nNodeY0 = 3 nNodeY1 = 6 }", string.Empty);
+            var staged = TwoSidedStrip(JointBase, "{ vOffset = [ 0.0, 0.0, 0.0 ] nBoneCtrl = 6 nTargetNode = 7 }");
+            var slack = TwoSidedStripChain();
+            slack.Joints[2].StretchStiffness = 0f;
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(unbased.ChainHasUnbasedLeaf(TwoSidedStripChain())).IsTrue();
+                await Assert.That(based.ChainHasUnbasedLeaf(TwoSidedStripChain())).IsFalse();
+                await Assert.That(staged.ChainHasUnbasedLeaf(TwoSidedStripChain())).IsFalse();
+                await Assert.That(unbased.ChainHasUnbasedLeaf(slack)).IsFalse();
+
+                await Assert.That(ModelExtract.ClothChainVersion(jointCount: 3, hasOtherChains: false, rootAllowsRotation: true,
+                    rootHasBase: false, lockedJoint: false, rigidCloudClusterLock: false, locksJoints: false, basesBulkGraded: null,
+                    hintsTwistWritten: false, hasUnstagedThinJoint: false, hasUnbasedLeaf: true)).IsEqualTo(0);
+                await Assert.That(ModelExtract.ClothChainVersion(jointCount: 3, hasOtherChains: false, rootAllowsRotation: true,
+                    rootHasBase: false, lockedJoint: false, rigidCloudClusterLock: false, locksJoints: true, basesBulkGraded: null,
+                    hintsTwistWritten: false, hasUnstagedThinJoint: false, hasUnbasedLeaf: true)).IsEqualTo(2);
+            }
+        }
+
+        private static FeModel.BoneChain TwoSidedStripChain()
+        {
+            var chain = new FeModel.BoneChain { RootBone = "root", ExtrudeSides = 2 };
+            chain.Joints.Add(new FeModel.BoneChainJoint { Node = 0, Name = "root", ParentNode = -1, ExtrudeSides = 2, RingNodes = [1, 2] });
+            chain.Joints.Add(new FeModel.BoneChainJoint { Node = 3, Name = "j1", ParentNode = 0, InvMass = 1f, ExtrudeSides = 2, RingNodes = [4, 5] });
+            chain.Joints.Add(new FeModel.BoneChainJoint { Node = 6, Name = "j2", ParentNode = 3, InvMass = 1f, ExtrudeSides = 2, RingNodes = [7, 8] });
+            return chain;
+        }
+
+        private static FeModel TwoSidedStrip(string nodeBases, string reverseOffsets) => SyntheticCloth.Parse($$"""
+            {
+                m_CtrlName = [ "root", "$ccroot_0", "$ccroot_1", "j1", "$ccj1_0", "$ccj1_1", "j2", "$ccj2_0", "$ccj2_1" ]
+                m_SkelParents = [ -1, 0, 0, 0, 3, 3, 3, 6, 6 ]
+                m_nNodeCount = 9
+                m_nStaticNodes = 3
+                m_NodeInvMasses = [ 0.0, 0.0, 0.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0 ]
+                m_InitPose =
+                [
+                    {{SyntheticCloth.Pose(0f, 0f, 0f)}}
+                    {{SyntheticCloth.Pose(3f, 0f, 0f)}}
+                    {{SyntheticCloth.Pose(-3f, 0f, 0f)}}
+                    {{SyntheticCloth.Pose(0f, 0f, -10f)}}
+                    {{SyntheticCloth.Pose(3f, 0f, -10f)}}
+                    {{SyntheticCloth.Pose(-3f, 0f, -10f)}}
+                    {{SyntheticCloth.Pose(0f, 0f, -20f)}}
+                    {{SyntheticCloth.Pose(3f, 0f, -20f)}}
+                    {{SyntheticCloth.Pose(-3f, 0f, -20f)}}
+                ]
+                m_SourceElems = [ 0, 0, 0, 2, 1, 2, 5, 4, 4, 5, 8, 7 ]
+                m_NodeBases = [ {{nodeBases}} ]
+                m_ReverseOffsets = [ {{reverseOffsets}} ]
+            }
+            """);
     }
 }
