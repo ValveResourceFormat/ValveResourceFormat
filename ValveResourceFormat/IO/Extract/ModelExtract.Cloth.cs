@@ -371,6 +371,10 @@ partial class ModelExtract
     /// </summary>
     internal static void AddClothEffects(KVObject softbodyChildren, FeModel feModel, IReadOnlySet<string> availableMaps)
     {
+        var declaredMaps = new HashSet<string>(availableMaps, StringComparer.OrdinalIgnoreCase);
+        CollectDeclaredVertexMaps(softbodyChildren, declaredMaps);
+        availableMaps = declaredMaps;
+
         foreach (var effect in feModel.Effects)
         {
             var bone = effect.Params is not null && effect.Params.ContainsKey("Node")
@@ -408,6 +412,40 @@ partial class ModelExtract
             }
 
             children.Add(node);
+        }
+    }
+
+    /// <summary>
+    /// Adds every selection the document already declares: a <c>ClothVertexMap</c> container by its name, and each
+    /// <c>ClothChain</c> joint's <c>vertex_map</c> entries by their bare names.
+    /// </summary>
+    static void CollectDeclaredVertexMaps(KVObject children, HashSet<string> maps)
+    {
+        foreach (var (_, child) in children)
+        {
+            var kind = child.GetStringProperty("_class");
+            if (kind == "ClothVertexMap" && child.GetStringProperty("name") is { Length: > 0 } name)
+            {
+                maps.Add(name);
+            }
+            else if (kind == "ClothChain" && child.TryGetValue("chain", out var chain) && chain.TryGetValue("joints", out var joints))
+            {
+                foreach (var (_, joint) in joints)
+                {
+                    if (joint.GetStringProperty("vertex_map") is { Length: > 0 } entries)
+                    {
+                        foreach (var entry in entries.Split(','))
+                        {
+                            maps.Add(FeModel.VertexMapName(entry.Trim()));
+                        }
+                    }
+                }
+            }
+
+            if (child.TryGetValue("children", out var nested))
+            {
+                CollectDeclaredVertexMaps(nested, maps);
+            }
         }
     }
 
