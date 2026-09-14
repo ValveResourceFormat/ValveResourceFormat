@@ -103,6 +103,64 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             return bulk == preset ? null : bulk > preset;
         }
 
+        /// <summary>
+        /// Whether the original compiled <paramref name="chain"/> with the reverse offsets a <c>ClothChain</c> of version 2
+        /// or above records against its joints' preset bases: true when every read joint names the Y1 node of the preset
+        /// basis graded over its own extrusion vector and its child's, false when one names none, null when no joint is read.
+        /// </summary>
+        /// <remarks>
+        /// At version 2 the chain importer grades that preset basis for every joint with a child and records a simulated
+        /// joint's reverse offset against its Y1 node as well; below version 2 a joint's reverse offset comes from its fit
+        /// group alone. Only a simulated, unhinged joint with a child in the chain and a reverse offset is read.
+        /// </remarks>
+        public bool? ChainReverseOffsetsArePreset(BoneChain chain)
+        {
+            var targets = new Dictionary<int, HashSet<int>>();
+            foreach (var entry in Data.GetArray("m_ReverseOffsets") ?? [])
+            {
+                var bone = entry.GetInt32Property("nBoneCtrl");
+                if (!targets.TryGetValue(bone, out var boneTargets))
+                {
+                    targets[bone] = boneTargets = [];
+                }
+
+                boneTargets.Add(entry.GetInt32Property("nTargetNode"));
+            }
+
+            var read = false;
+            var unmoved = new Dictionary<int, Vector3>();
+            foreach (var joint in chain.Joints)
+            {
+                if (joint.Node < StaticNodeCount || !targets.TryGetValue(joint.Node, out var jointTargets)
+                    || IsHingedJoint(joint.Node) || RigidHingeJoints.ContainsKey(joint.Node))
+                {
+                    continue;
+                }
+
+                var child = chain.Joints.Find(other => other.ParentNode == joint.Node);
+                var candidates = child is null ? null : NodeBaseCandidates(joint, child);
+                if (candidates is null)
+                {
+                    continue;
+                }
+
+                var preset = PredictNodeBase(candidates, joint.Node, unmoved, default).Basis;
+                if (preset.NodeY0 == preset.NodeY1)
+                {
+                    continue;
+                }
+
+                if (!jointTargets.Contains(preset.NodeY1))
+                {
+                    return false;
+                }
+
+                read = true;
+            }
+
+            return read ? true : null;
+        }
+
         static bool NodeBaseDenotes(NodeBasis basis, NodeBasis want)
             => basis == want || NodeBaseFoldReaches(basis, want);
 

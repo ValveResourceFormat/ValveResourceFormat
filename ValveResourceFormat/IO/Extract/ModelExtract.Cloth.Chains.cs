@@ -102,9 +102,10 @@ partial class ModelExtract
     /// <param name="basesBulkGraded">Whether the joints' node bases are the bulk grade, null when they do not say.</param>
     /// <param name="hintsTwistWritten">Whether a joint's basis hint was written by the twist source and never graded.</param>
     /// <param name="hasUnstagedThinJoint">Whether a joint only the version-1 fit top-up would group carries no group.</param>
+    /// <param name="reverseOffsetsPreset">Whether the joints' reverse offsets name their preset bases' Y1 nodes, null when they do not say.</param>
     internal static int ClothChainVersion(int jointCount, bool hasOtherChains, bool? rootAllowsRotation, bool rootHasBase,
         bool lockedJoint, bool rigidCloudClusterLock, bool locksJoints, bool? basesBulkGraded, bool hintsTwistWritten,
-        bool hasUnstagedThinJoint)
+        bool hasUnstagedThinJoint, bool? reverseOffsetsPreset = null)
     {
         // The two chain formats are not interchangeable: format 1 registers a non-simulated joint that has
         // no parent to be offset from into m_LockToGoal, format 2 leaves it out. Both are in live use, so
@@ -132,9 +133,11 @@ partial class ModelExtract
         // extrusion vector and its child's, where format 1 leaves those joints to the bulk pass and its
         // neighbour set. The joints' own entries say which grade the original carries, and a chain whose
         // entries are the bulk grade was authored below version 2 wherever format 1 does not also lock a
-        // joint the original leaves free or drop the basis of a rotation-locked root.
+        // joint the original leaves free or drop the basis of a rotation-locked root. Where the entries do not say,
+        // the reverse offsets do: format 2 records a simulated joint's offset against its preset basis' Y1 node.
         var rootKeepsPreset = rootRotationLocked && rootHasBase;
-        if (version == 2 && !rootKeepsPreset && (lockedInOriginal || !locksJoints) && basesBulkGraded == true)
+        if (version == 2 && !rootKeepsPreset && (lockedInOriginal || !locksJoints)
+            && (basesBulkGraded == true || (basesBulkGraded is null && reverseOffsetsPreset == false)))
         {
             version = 1;
         }
@@ -174,7 +177,8 @@ partial class ModelExtract
                 && chain.Joints.Exists(joint => !joint.Simulated && feModel.AllowsRotation(joint.Node)),
             basesBulkGraded: feModel.ChainBasesAreBulkGraded(chain),
             hintsTwistWritten: feModel.ChainHintsAreTwistWritten(chain),
-            hasUnstagedThinJoint: feModel.ChainHasUnstagedThinJoint(chain));
+            hasUnstagedThinJoint: feModel.ChainHasUnstagedThinJoint(chain),
+            reverseOffsetsPreset: feModel.ChainReverseOffsetsArePreset(chain));
     }
 
     static KVObject MakeClothChainNode(FeModel feModel, FeModel.BoneChain chain, bool hasOtherChains,
