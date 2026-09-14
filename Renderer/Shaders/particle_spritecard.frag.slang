@@ -240,6 +240,9 @@ void main(void) {
     vec2 flow = vec2(0.0);
     vec2 flowNext = vec2(0.0);
 
+#if S_TEXTURE_LAYERS > 0
+    // Layer 0 is always a colour layer, so a motion vector layer can only sit past it. The single layer
+    // variant would otherwise index its one element arrays out of bounds.
     for (int i = 1; i < uLayerCount; ++i)
     {
         if (uLayerEffectMode[i] == SPRITECARD_TEXTURE_ANIMMOTIONVEC)
@@ -250,6 +253,7 @@ void main(void) {
             break;
         }
     }
+#endif
 
     int colourLayers = 0;
 
