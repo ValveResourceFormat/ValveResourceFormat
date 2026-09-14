@@ -5812,5 +5812,76 @@ namespace Tests
                 await Assert.That(unparented.ChainReverseOffsetsArePreset(unparentedChain)).IsEqualTo(reading);
             }
         }
+
+        /// <summary>
+        /// The preset scan orders a joint's Y pair by the handedness of its scanned axes. On the two-wide rope extruded along
+        /// Z every scanned axis lies in the plane that holds the joints' up axis, the handedness is zero, and j0's preset basis
+        /// is X = ($ccj1_0, $ccj0_1), Y = ($ccj1_1, $ccj0_0), j1's the same one ring along. An original that bases each joint
+        /// with that Y pair swapped and records its reverse offset against the swapped Y1 reads as version 2. The controls read
+        /// below version 2: the same offsets without those bases, and the rope extruded along Y, whose handedness is decided.
+        /// </summary>
+        [Test]
+        public async Task AReverseOffsetOnTheSwappedYNodeOfAHandednessTieIsChainVersion2()
+        {
+            var tied = SwappedYPairRope(alongZ: true, based: true);
+            var unbased = SwappedYPairRope(alongZ: true, based: false);
+            var decided = SwappedYPairRope(alongZ: false, based: true);
+            var tiedChain = tied.BuildBoneChains()[0];
+            var unbasedChain = unbased.BuildBoneChains()[0];
+            var decidedChain = decided.BuildBoneChains()[0];
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(tied.ChainReverseOffsetsArePreset(tiedChain)).IsTrue();
+                await Assert.That(unbased.ChainReverseOffsetsArePreset(unbasedChain)).IsFalse();
+                await Assert.That(decided.ChainReverseOffsetsArePreset(decidedChain)).IsFalse();
+                await Assert.That(ModelExtract.ClothChainVersion(tied, tiedChain, hasOtherChains: false)).IsEqualTo(2);
+                await Assert.That(ModelExtract.ClothChainVersion(unbased, unbasedChain, hasOtherChains: false)).IsEqualTo(1);
+                await Assert.That(ModelExtract.ClothChainVersion(decided, decidedChain, hasOtherChains: false)).IsEqualTo(1);
+            }
+        }
+
+        /// <summary>
+        /// A simulated rope of three joints 8.5 apart, each extruding a two-node ring across Z or across Y, whose j0 and j1
+        /// reverse offsets name the Y0 node of their preset basis ($ccj1_1, $ccj2_1), and whose j0 and j1 may carry that basis
+        /// with its Y pair swapped.
+        /// </summary>
+        private static FeModel SwappedYPairRope(bool alongZ, bool based)
+        {
+            string Pose(float x, float side) => alongZ ? SyntheticCloth.Pose(x, 0f, side) : SyntheticCloth.Pose(x, side, 0f);
+            var bases = based
+                ? "{ nNode = 0 nNodeX0 = 4 nNodeX1 = 2 nNodeY0 = 1 nNodeY1 = 5 }, { nNode = 3 nNodeX0 = 7 nNodeX1 = 5 nNodeY0 = 4 nNodeY1 = 8 }"
+                : string.Empty;
+
+            return SyntheticCloth.Parse($$"""
+                {
+                    m_CtrlName = [ "j0", "$ccj0_0", "$ccj0_1", "j1", "$ccj1_0", "$ccj1_1", "j2", "$ccj2_0", "$ccj2_1" ]
+                    m_SkelParents = [ -1, 0, 0, 0, 3, 3, 3, 6, 6 ]
+                    m_nNodeCount = 9
+                    m_nStaticNodes = 0
+                    m_NodeInvMasses = [ 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0 ]
+                    m_InitPose =
+                    [
+                        {{Pose(0f, 0f)}}
+                        {{Pose(0f, 2f)}}
+                        {{Pose(0f, -2f)}}
+                        {{Pose(-8.5f, 0f)}}
+                        {{Pose(-8.5f, 2f)}}
+                        {{Pose(-8.5f, -2f)}}
+                        {{Pose(-17f, 0f)}}
+                        {{Pose(-17f, 2f)}}
+                        {{Pose(-17f, -2f)}}
+                    ]
+                    m_SourceElems = [ 1, 2, 5, 4, 4, 5, 8, 7 ]
+                    m_NodeBases = [ {{bases}} ]
+                    m_ReverseOffsets =
+                    [
+                        { vOffset = [ 0.0, 2.0, 0.0 ] nBoneCtrl = 0 nTargetNode = 5 },
+                        { vOffset = [ 0.0, 2.0, 0.0 ] nBoneCtrl = 3 nTargetNode = 8 },
+                        { vOffset = [ 0.0, 2.0, 0.0 ] nBoneCtrl = 6 nTargetNode = 7 },
+                    ]
+                }
+                """);
+        }
     }
 }
