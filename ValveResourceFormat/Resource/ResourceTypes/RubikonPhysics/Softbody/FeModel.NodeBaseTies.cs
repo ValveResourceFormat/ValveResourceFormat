@@ -114,7 +114,8 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// <remarks>
         /// At version 2 the chain importer grades that preset basis for every joint with a child and records a simulated
         /// joint's reverse offset against its Y1 node as well; below version 2 a joint's reverse offset comes from its fit
-        /// group alone. Only a simulated, unhinged joint with a child in the chain and a reverse offset is read.
+        /// group alone. Only a simulated, unhinged joint with a child in the chain and a reverse offset is read, over the
+        /// chain's own rings where skeleton parents name none (<see cref="ChainJointRing"/>).
         /// </remarks>
         public bool? ChainReverseOffsetsArePreset(BoneChain chain)
         {
@@ -141,7 +142,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                 }
 
                 var child = chain.Joints.Find(other => other.ParentNode == joint.Node);
-                var candidates = child is null ? null : NodeBaseCandidates(joint, child);
+                var candidates = child is null ? null : ChainNodeBaseCandidates(joint, child);
                 if (candidates is null)
                 {
                     continue;

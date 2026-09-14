@@ -5783,5 +5783,34 @@ namespace Tests
                 }
                 """);
         }
+
+        /// <summary>
+        /// A reverse offset states its chain's version against the preset basis over the joint's ring and its child's, so
+        /// the reading needs those rings. Where the compiled data parents none of the <c>$cc</c> nodes, as old-era originals
+        /// do, the chain's own rings give the same reading as the parented rope gives.
+        /// </summary>
+        [Test]
+        public async Task AReverseOffsetIsReadOverTheChainsOwnRingsWithoutSkeletonParents()
+        {
+            const string JointBase = "nNode = 3 nNodeX0 = 2 nNodeX1 = 1 nNodeY0 = 5 nNodeY1 = 6";
+            const string Offset = "m_ReverseOffsets = [ { vOffset = [ 0.0, 0.0, 0.0 ] nBoneCtrl = 3 nTargetNode = 4 } ]\n                m_SourceElems";
+            var parentedDocument = OneWideRopeDocument(JointBase).Replace("m_SourceElems", Offset, StringComparison.Ordinal);
+            var parented = SyntheticCloth.Parse(parentedDocument);
+            var unparented = SyntheticCloth.Parse(parentedDocument.Replace(
+                "m_SkelParents = [ -1, 0, 1, 1, 3, 3, 5 ]", string.Empty, StringComparison.Ordinal));
+
+            var unparentedChain = new FeModel.BoneChain { RootBone = "j1", ExtrudeSides = 1 };
+            unparentedChain.Joints.Add(new FeModel.BoneChainJoint { Node = 1, Name = "j1", ParentNode = -1, InvMass = 1f, ExtrudeSides = 1, RingNodes = [2] });
+            unparentedChain.Joints.Add(new FeModel.BoneChainJoint { Node = 3, Name = "j2", ParentNode = 1, InvMass = 1f, ExtrudeSides = 1, RingNodes = [4] });
+            unparentedChain.Joints.Add(new FeModel.BoneChainJoint { Node = 5, Name = "j3", ParentNode = 3, InvMass = 1f, ExtrudeSides = 1, RingNodes = [6] });
+
+            var reading = parented.ChainReverseOffsetsArePreset(parented.BuildBoneChains()[0]);
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(reading).IsNotNull();
+                await Assert.That(unparented.ChainReverseOffsetsArePreset(unparentedChain)).IsEqualTo(reading);
+            }
+        }
     }
 }
