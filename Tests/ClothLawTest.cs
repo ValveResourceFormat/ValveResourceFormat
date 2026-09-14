@@ -5089,5 +5089,127 @@ namespace Tests
                 ]
             }
             """);
+
+        /// <summary>
+        /// A bend network whose hinges fold apart carries every fold in its <c>cloth_bend_stiffness</c> paint. The strip's
+        /// first hinge lies flat and its second folds a right angle, so a model-wide value read off the second (0.5)
+        /// leaves the first a negative residual; the paint then states both folds with <c>add_curvature</c> at zero, a
+        /// pair sum of 0 across the flat hinge and 1 across the folded one. CONTROLS: with both hinges folded alike
+        /// the model-wide value accounts for the sheet and no paint is written, and a sheet whose suspenders read the
+        /// same value keeps it.
+        /// </summary>
+        [Test]
+        public async Task ABendNetworkWhoseHingesFoldApartCarriesEveryFoldInItsPaint()
+        {
+            List<int[]> faces = [[0, 1, 5, 4], [1, 2, 6, 5], [2, 3, 7, 6]];
+            HashSet<(int, int)> network = [(0, 2), (4, 6), (1, 3), (5, 7)];
+            var (apart, apartCurvature) = ModelExtract.ClothBendStiffnessOverFold(FoldStrip(0f, 14.142136f), faces,
+                network, 0.5f, keepsCurvature: false);
+            var (alike, alikeCurvature) = ModelExtract.ClothBendStiffnessOverFold(FoldStrip(14.142136f, 14.142136f),
+                faces, network, 0.5f, keepsCurvature: false);
+            var (kept, keptCurvature) = ModelExtract.ClothBendStiffnessOverFold(FoldStrip(0f, 14.142136f), faces,
+                network, 0.5f, keepsCurvature: true);
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(apart).IsNotNull();
+                await Assert.That(apartCurvature).IsEqualTo(0f);
+                await Assert.That(apart!.GetValueOrDefault(1) + apart.GetValueOrDefault(5)).IsEqualTo(0f).Within(0.02f);
+                await Assert.That(apart.GetValueOrDefault(2) + apart.GetValueOrDefault(6)).IsEqualTo(1f).Within(0.02f);
+                await Assert.That(alike).IsNull();
+                await Assert.That(alikeCurvature).IsEqualTo(0.5f);
+                await Assert.That(kept).IsNull();
+                await Assert.That(keptCurvature).IsEqualTo(0.5f);
+            }
+        }
+
+        private static FeModel FoldStrip(float firstHingeMinDist, float secondHingeMinDist) => SyntheticCloth.Parse($$"""
+            {
+                m_CtrlName = [ "$cloth_m0p0", "$cloth_m0p1", "$cloth_m0p2", "$cloth_m0p3", "$cloth_m0p4", "$cloth_m0p5", "$cloth_m0p6", "$cloth_m0p7" ]
+                m_nNodeCount = 8
+                m_nStaticNodes = 0
+                m_NodeInvMasses = [ 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0 ]
+                m_InitPose =
+                [
+                    {{SyntheticCloth.Pose(0f, 0f, 0f)}}
+                    {{SyntheticCloth.Pose(10f, 0f, 0f)}}
+                    {{SyntheticCloth.Pose(20f, 0f, 0f)}}
+                    {{SyntheticCloth.Pose(30f, 0f, 0f)}}
+                    {{SyntheticCloth.Pose(0f, 0f, -10f)}}
+                    {{SyntheticCloth.Pose(10f, 0f, -10f)}}
+                    {{SyntheticCloth.Pose(20f, 0f, -10f)}}
+                    {{SyntheticCloth.Pose(30f, 0f, -10f)}}
+                ]
+                m_Rods =
+                [
+                    { nNode = [ 0, 2 ] flMaxDist = 20.0 flMinDist = {{SyntheticCloth.Num(firstHingeMinDist)}} flWeight0 = 0.5 flRelaxationFactor = 1.0 },
+                    { nNode = [ 4, 6 ] flMaxDist = 20.0 flMinDist = {{SyntheticCloth.Num(firstHingeMinDist)}} flWeight0 = 0.5 flRelaxationFactor = 1.0 },
+                    { nNode = [ 1, 3 ] flMaxDist = 20.0 flMinDist = {{SyntheticCloth.Num(secondHingeMinDist)}} flWeight0 = 0.5 flRelaxationFactor = 1.0 },
+                    { nNode = [ 5, 7 ] flMaxDist = 20.0 flMinDist = {{SyntheticCloth.Num(secondHingeMinDist)}} flWeight0 = 0.5 flRelaxationFactor = 1.0 },
+                ]
+            }
+            """);
+
+        /// <summary>
+        /// A bend rod that several hinges generate keeps the longest minimum any of them builds, so it states the fold of
+        /// the least folded one. The grid's middle-row rods each cross a vertical hinge above them (sum 0.25) and one below
+        /// (sum 0.75), and read 0.25; the bottom row's rods cross only the lower hinges and read 0.75. Taking every hinge
+        /// at the tightest lower bound its rods give it recovers all three hinge sums with <c>add_curvature</c> at zero,
+        /// where a model-wide 0.25 leaves nothing to paint and the rods below keep their negative residual.
+        /// </summary>
+        [Test]
+        public async Task ARodSeveralHingesGenerateStatesTheLeastFoldedOne()
+        {
+            List<int[]> faces = [[0, 1, 5, 4], [1, 2, 6, 5], [2, 3, 7, 6], [4, 5, 9, 8], [5, 6, 10, 9], [6, 7, 11, 10]];
+            HashSet<(int, int)> network = [(0, 2), (1, 3), (4, 6), (5, 7), (8, 10), (9, 11), (0, 8), (1, 9), (2, 10), (3, 11)];
+            var (paint, curvature) = ModelExtract.ClothBendStiffnessOverFold(LeastFoldedHingeGrid, faces, network, 0.375f,
+                keepsCurvature: false);
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(paint).IsNotNull();
+                await Assert.That(curvature).IsEqualTo(0f);
+                await Assert.That(paint!.GetValueOrDefault(1) + paint.GetValueOrDefault(5)).IsEqualTo(0.25f).Within(0.02f);
+                await Assert.That(paint.GetValueOrDefault(5) + paint.GetValueOrDefault(9)).IsEqualTo(0.75f).Within(0.02f);
+                await Assert.That(paint.GetValueOrDefault(4) + paint.GetValueOrDefault(5)).IsEqualTo(0.5f).Within(0.02f);
+            }
+        }
+
+        private static FeModel LeastFoldedHingeGrid => SyntheticCloth.Parse($$"""
+            {
+                m_CtrlName = [ "$cloth_m0p0", "$cloth_m0p1", "$cloth_m0p2", "$cloth_m0p3", "$cloth_m0p4", "$cloth_m0p5", "$cloth_m0p6", "$cloth_m0p7", "$cloth_m0p8", "$cloth_m0p9", "$cloth_m0p10", "$cloth_m0p11" ]
+                m_nNodeCount = 12
+                m_nStaticNodes = 0
+                m_NodeInvMasses = [ 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0 ]
+                m_InitPose =
+                [
+                    {{SyntheticCloth.Pose(0f, 0f, 0f)}}
+                    {{SyntheticCloth.Pose(10f, 0f, 0f)}}
+                    {{SyntheticCloth.Pose(20f, 0f, 0f)}}
+                    {{SyntheticCloth.Pose(30f, 0f, 0f)}}
+                    {{SyntheticCloth.Pose(0f, 0f, -10f)}}
+                    {{SyntheticCloth.Pose(10f, 0f, -10f)}}
+                    {{SyntheticCloth.Pose(20f, 0f, -10f)}}
+                    {{SyntheticCloth.Pose(30f, 0f, -10f)}}
+                    {{SyntheticCloth.Pose(0f, 0f, -20f)}}
+                    {{SyntheticCloth.Pose(10f, 0f, -20f)}}
+                    {{SyntheticCloth.Pose(20f, 0f, -20f)}}
+                    {{SyntheticCloth.Pose(30f, 0f, -20f)}}
+                ]
+                m_Rods =
+                [
+                    { nNode = [ 0, 2 ] flMaxDist = 20.0 flMinDist = 3.901806 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
+                    { nNode = [ 1, 3 ] flMaxDist = 20.0 flMinDist = 3.901806 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
+                    { nNode = [ 4, 6 ] flMaxDist = 20.0 flMinDist = 3.901806 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
+                    { nNode = [ 5, 7 ] flMaxDist = 20.0 flMinDist = 3.901806 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
+                    { nNode = [ 8, 10 ] flMaxDist = 20.0 flMinDist = 11.111405 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
+                    { nNode = [ 9, 11 ] flMaxDist = 20.0 flMinDist = 11.111405 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
+                    { nNode = [ 0, 8 ] flMaxDist = 20.0 flMinDist = 7.653669 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
+                    { nNode = [ 1, 9 ] flMaxDist = 20.0 flMinDist = 7.653669 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
+                    { nNode = [ 2, 10 ] flMaxDist = 20.0 flMinDist = 7.653669 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
+                    { nNode = [ 3, 11 ] flMaxDist = 20.0 flMinDist = 7.653669 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
+                ]
+            }
+            """);
     }
 }
