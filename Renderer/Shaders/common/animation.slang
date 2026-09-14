@@ -30,13 +30,6 @@ layout(std430, binding = 10) readonly buffer g_boneTransformBuffer
 #define meshBoneOffset uAnimationData.y
 #define meshBoneCount uAnimationData.z
 
-// Scale is assumed to be uniform.
-vec3 TransformDirectionToWorld(mat3x4 objectToWorld, vec3 vDirectionOs)
-{
-    // Plain normalize would give us NaN for zero-scaled bones.
-    return safeNormalize(vec4(vDirectionOs, 0.0) * objectToWorld);
-}
-
 mat3x4 getMatrix(uint boneIndex)
 {
     // Issue #705 out of bounds bone index (model needs ApplyVBIBDefaults)

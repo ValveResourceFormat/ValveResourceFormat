@@ -126,4 +126,19 @@ void GetOptionallyCompressedNormalTangent(out vec3 normal, out vec4 tangent)
     #endif
 }
 
+void ComputeWorldTangentFrame(mat3x4 objectToWorld, vec3 normal, vec4 tangent, out vec3 normalWs, out vec3 tangentWs, out vec3 bitangentWs)
+{
+    normalWs = TransformDirectionToWorld(objectToWorld, normal);
+    tangentWs = TransformDirectionToWorld(objectToWorld, tangent.xyz);
+    bitangentWs = tangent.w * cross(normalWs, tangentWs);
+}
+
+void ComputeWorldTangentFrame(mat3x4 objectToWorld, out vec3 normalWs, out vec3 tangentWs, out vec3 bitangentWs)
+{
+    vec3 normal;
+    vec4 tangent;
+    GetOptionallyCompressedNormalTangent(normal, tangent);
+    ComputeWorldTangentFrame(objectToWorld, normal, tangent, normalWs, tangentWs, bitangentWs);
+}
+
 #endif

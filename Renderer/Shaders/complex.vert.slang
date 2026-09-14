@@ -290,10 +290,7 @@ void main()
     vec4 tangent;
     GetOptionallyCompressedNormalTangent(normal, tangent);
     normal = applyMorphNormal(normal);
-
-    vNormalOut = TransformDirectionToWorld(skinTransform, normal);
-    vTangentOut = TransformDirectionToWorld(skinTransform, tangent.xyz);
-    vBitangentOut = tangent.w * cross(vNormalOut, vTangentOut);
+    ComputeWorldTangentFrame(skinTransform, normal, tangent, vNormalOut, vTangentOut, vBitangentOut);
 
     #if defined(foliage_vfx_common)
         // Interpolate out for debug visualization

@@ -243,6 +243,13 @@ vec3 safeNormalize(vec3 v)
     return v * inversesqrt(len2);
 }
 
+// Scale is assumed to be uniform.
+vec3 TransformDirectionToWorld(mat3x4 objectToWorld, vec3 vDirectionOs)
+{
+    // Plain normalize would give us NaN for zero-scaled bones.
+    return safeNormalize(vec4(vDirectionOs, 0.0) * objectToWorld);
+}
+
 // Unpack HemiOct normal map
 vec3 DecodeHemiOctahedronNormal(vec2 vHemiOct)
 {

@@ -141,13 +141,7 @@ void main()
     gl_Position = g_matWorldToProjection * vec4(fragPosition, 1.0);
     vFragPosition = fragPosition;
 
-    vec3 normal;
-    vec4 tangent;
-    GetOptionallyCompressedNormalTangent(normal, tangent);
-
-    vNormalOut = TransformDirectionToWorld(skinTransform, normal);
-    vTangentOut = TransformDirectionToWorld(skinTransform, tangent.xyz);
-    vBitangentOut = tangent.w * cross(vNormalOut, vTangentOut);
+    ComputeWorldTangentFrame(skinTransform, vNormalOut, vTangentOut, vBitangentOut);
 
     #if D_BAKED_LIGHTING_FROM_LIGHTMAP == 1
         vLightmapUVScaled = vec3(vLightmapUV * g_vLightmapUvScale.xy, 0);

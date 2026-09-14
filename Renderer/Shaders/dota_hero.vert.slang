@@ -23,14 +23,7 @@ void main()
     gl_Position = g_matWorldToProjection * vec4(fragPosition, 1.0);
     vFragPosition = fragPosition;
 
-    vec3 normal;
-    vec4 tangent;
-    GetOptionallyCompressedNormalTangent(normal, tangent);
-
-    vNormalOut = TransformDirectionToWorld(skinTransform, normal);
-    // vNormalOut = vBLENDINDICES.x == 23.0 ? vec3(1.0) : vec3(0.0);
-    vTangentOut = TransformDirectionToWorld(skinTransform, tangent.xyz);
-    vBitangentOut = tangent.w * cross(vNormalOut, vTangentOut);
+    ComputeWorldTangentFrame(skinTransform, vNormalOut, vTangentOut, vBitangentOut);
 
     vTintColorFadeOut = GetObjectTintSrgb();
 

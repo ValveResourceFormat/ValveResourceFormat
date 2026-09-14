@@ -69,13 +69,7 @@ void main()
     gl_Position = g_matWorldToProjection * vec4(fragPosition, 1.0);
     vFragPosition = fragPosition;
 
-    vec3 normal;
-    vec4 tangent;
-    GetOptionallyCompressedNormalTangent(normal, tangent);
-
-    vNormalOut = TransformDirectionToWorld(skinTransform, normal);
-    vTangentOut = TransformDirectionToWorld(skinTransform, tangent.xyz);
-    vBitangentOut = tangent.w * cross(vNormalOut, vTangentOut);
+    ComputeWorldTangentFrame(skinTransform, vNormalOut, vTangentOut, vBitangentOut);
 
     vTexCoordOut = getTexCoord(g_flTexCoordScale0, g_flTexCoordRotate0, g_vTexCoordOffset0, g_vTexCoordScroll0);
     vTexCoord1Out = getTexCoord(g_flTexCoordScale1, g_flTexCoordRotate1, g_vTexCoordOffset1, g_vTexCoordScroll1);
