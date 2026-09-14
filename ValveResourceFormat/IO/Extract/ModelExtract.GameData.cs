@@ -29,7 +29,7 @@ partial class ModelExtract
         }
 
         AddRigNodes(model, keyvalues, lists, rootNode);
-        AddGameDataNodes(keyvalues, lists);
+        AddGameDataNodes(keyvalues, lists, GetMarkedUpPhysicsBodies());
     }
 
     /// <summary>
@@ -86,7 +86,7 @@ partial class ModelExtract
     /// Writes the gameplay data classes a model carries, plus its look-at, movement, feet and break
     /// markup, each of which the compiler folds into key values under its own name.
     /// </summary>
-    private static void AddGameDataNodes(KVObject keyvalues, ModelDocLists lists)
+    private static void AddGameDataNodes(KVObject keyvalues, ModelDocLists lists, HashSet<string> markedUpPhysicsBodies)
     {
         var genericDataClasses = new string[] {
             "prop_data",
@@ -158,6 +158,12 @@ partial class ModelExtract
         {
             if (!keyvalues.ContainsKey(genericDataClass))
             {
+                continue;
+            }
+
+            if (genericDataClass == "CPhysicsBodyGameMarkupData")
+            {
+                AddPhysicsBodyGameData(lists, keyvalues.GetSubCollection(genericDataClass), markedUpPhysicsBodies);
                 continue;
             }
 

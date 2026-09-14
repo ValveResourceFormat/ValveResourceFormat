@@ -64,7 +64,7 @@ partial class ModelExtract
         {
             var jointNodes = BuildPhysicsJointNodes(physAggregateData);
 
-            AddPhysicsBodyMarkup(lists, physAggregateData, jointNodes.Count > 0);
+            AddPhysicsBodyMarkup(lists, physAggregateData);
 
             for (var i = 0; i < physAggregateData.Parts.Length; i++)
             {
