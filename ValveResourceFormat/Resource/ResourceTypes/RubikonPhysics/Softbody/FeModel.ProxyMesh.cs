@@ -917,7 +917,11 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                 AttachStrayToTriangle(remap[stray], positions, faces, meshOf);
             }
 
-            DeclareFacesInStaticNodeOrder(faces, surfaceFaceCount, nodeIndices);
+            var declared = ChooseFaceDeclarationOrder(faces, surfaceFaceCount, nodeIndices,
+                node => node < NodeInvMasses.Length && NodeInvMasses[node] == 0f, RotationLockedStaticNodeCount,
+                order => DeclareFacesInStaticNodeOrder(order, surfaceFaceCount, nodeIndices));
+            faces.Clear();
+            faces.AddRange(declared);
 
             for (var i = 0; i < nodeIndices.Length; i++)
             {
@@ -1411,6 +1415,179 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                 ? [face, [proper[3], proper[0], proper[1], proper[2]]]
                 : [face, [proper[3], proper[0], proper[1], proper[2]], [proper[2], proper[3], proper[0], proper[1]]];
         }
+
+        /// <summary>
+        /// Chooses the order the surface faces are declared in so the importer creates the sheet's nodes in the order the
+        /// shipped node array numbers them, and returns that order with its corners rotated.
+        /// </summary>
+        /// <remarks>
+        /// The importer creates a sheet's simulated vertices by first appearance over the declared faces and its pins in
+        /// the order the faces with a simulated corner introduce them. The node sort ranks the simulated nodes by their
+        /// distance from the static ones and breaks ties by that creation order, and keeps the pins in creation order
+        /// within each rotation-lock group. The distance is taken over the faces alone: the rods a sheet compiles to beyond
+        /// its faces (the quad split, the stiffness and bend networks) are built after the sort. The SIMD lane order the
+        /// faces are read back in does not always keep the authored order, so three candidates are tried: the lane order,
+        /// the faces sorted by their shipped node indices, and the lane order with only the pin-carrying faces sorted by
+        /// their lowest pin. The first whose creation reproduces the shipped order for the pins and the simulated nodes is
+        /// taken; failing that, the first of the lane order, the lowest-pin order and the node-sorted order that reproduces
+        /// the pins; failing that, the lane order. Only the first <paramref name="surfaceFaceCount"/> faces move.
+        /// </remarks>
+        internal static List<int[]> ChooseFaceDeclarationOrder(List<int[]> faces, int surfaceFaceCount,
+            IReadOnlyList<int> nodeIndices, Func<int, bool> isStaticNode, int rotationLockedCount,
+            Action<List<int[]>> rotateCorners)
+        {
+            bool IsStatic(int local) => local >= 0 && local < nodeIndices.Count && isStaticNode(nodeIndices[local]);
+            static int[] Corners(int[] face) => face.Length > 4 ? face[..4] : face;
+
+            bool SimulatedAscend(List<int[]> order)
+            {
+                var created = new List<int>();
+                var seen = new HashSet<int>();
+                var neighbours = new Dictionary<int, HashSet<int>>();
+                foreach (var face in order)
+                {
+                    foreach (var local in face)
+                    {
+                        if (!IsStatic(local) && seen.Add(local))
+                        {
+                            created.Add(local);
+                        }
+                    }
+
+                    if (!Array.TrueForAll(face, IsStatic))
+                    {
+                        foreach (var local in face)
+                        {
+                            if (!neighbours.TryGetValue(local, out var set))
+                            {
+                                neighbours[local] = set = [];
+                            }
+
+                            set.UnionWith(face);
+                        }
+                    }
+                }
+
+                var level = new Dictionary<int, int>();
+                var queue = new Queue<int>();
+                foreach (var local in neighbours.Keys.Where(IsStatic))
+                {
+                    level[local] = 0;
+                    queue.Enqueue(local);
+                }
+
+                while (queue.Count > 0)
+                {
+                    var a = queue.Dequeue();
+                    foreach (var b in neighbours[a])
+                    {
+                        if (level.TryAdd(b, level[a] + 1))
+                        {
+                            queue.Enqueue(b);
+                        }
+                    }
+                }
+
+                var last = new Dictionary<int, int>();
+                foreach (var local in created)
+                {
+                    var rank = level.GetValueOrDefault(local, int.MaxValue);
+                    if (last.TryGetValue(rank, out var previous) && nodeIndices[local] < previous)
+                    {
+                        return false;
+                    }
+
+                    last[rank] = nodeIndices[local];
+                }
+
+                return true;
+            }
+
+            bool PinsAscend(List<int[]> order)
+            {
+                var created = new HashSet<int>();
+                int[] last = [-1, -1];
+                foreach (var face in order)
+                {
+                    var corners = Corners(face);
+                    if (Array.TrueForAll(corners, IsStatic))
+                    {
+                        continue;
+                    }
+
+                    var introduced = new List<int>();
+                    foreach (var local in corners)
+                    {
+                        if (IsStatic(local) && created.Add(nodeIndices[local]))
+                        {
+                            introduced.Add(nodeIndices[local]);
+                        }
+                    }
+
+                    introduced.Sort();
+                    foreach (var node in introduced)
+                    {
+                        var group = node < rotationLockedCount ? 0 : 1;
+                        if (node < last[group])
+                        {
+                            return false;
+                        }
+
+                        last[group] = node;
+                    }
+                }
+
+                return true;
+            }
+
+            var slots = new List<int>();
+            for (var i = 0; i < surfaceFaceCount && i < faces.Count; i++)
+            {
+                var corners = Corners(faces[i]);
+                if (Array.Exists(corners, IsStatic) && !Array.TrueForAll(corners, IsStatic))
+                {
+                    slots.Add(i);
+                }
+            }
+
+            var carriers = slots.Select(i => faces[i])
+                .OrderBy(face => Corners(face).Where(IsStatic).Min(local => nodeIndices[local]))
+                .ToList();
+            var byLowestPin = new List<int[]>(faces);
+            for (var k = 0; k < slots.Count; k++)
+            {
+                byLowestPin[slots[k]] = carriers[k];
+            }
+
+            var head = Math.Min(surfaceFaceCount, faces.Count);
+            var byShippedNodes = faces.Take(head)
+                .OrderBy(face => face.Select(local => nodeIndices[local]).Order().ToArray(), ShippedNodeComparer)
+                .Concat(faces.Skip(head))
+                .ToList();
+
+            List<int[]>[] candidates = [new List<int[]>(faces), byShippedNodes, byLowestPin];
+            foreach (var order in candidates)
+            {
+                rotateCorners(order);
+            }
+
+            return Array.Find(candidates, order => PinsAscend(order) && SimulatedAscend(order))
+                ?? Array.Find([candidates[0], candidates[2], candidates[1]], PinsAscend)
+                ?? candidates[0];
+        }
+
+        static readonly Comparer<int[]> ShippedNodeComparer = Comparer<int[]>.Create(static (x, y) =>
+        {
+            for (var i = 0; i < x.Length && i < y.Length; i++)
+            {
+                if (x[i] != y[i])
+                {
+                    return x[i].CompareTo(y[i]);
+                }
+            }
+
+            return x.Length.CompareTo(y.Length);
+        });
 
         /// <summary>
         /// Rotates each surface face's declared corner order so the sheet hands the compiler its static
