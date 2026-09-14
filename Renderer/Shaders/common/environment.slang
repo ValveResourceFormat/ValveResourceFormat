@@ -285,8 +285,8 @@ vec3 GetEnvironmentNoBRDF(MaterialProperties_t mat, float reflectionCorrectionAm
             if (bUseCubemapBlending && isBoxProjection)
             {
                 vec3 envInvEdgeWidth = envData.InvEdgeWidth.xyz;
-                vec3 envmapClampedFadeMax = clamp((envMapBoxMax - envMapLocalPos) * envInvEdgeWidth, vec3(0.0), vec3(1.0));
-                vec3 envmapClampedFadeMin = clamp((envMapLocalPos - envMapBoxMin) * envInvEdgeWidth, vec3(0.0), vec3(1.0));
+                vec3 envmapClampedFadeMax = saturate((envMapBoxMax - envMapLocalPos) * envInvEdgeWidth);
+                vec3 envmapClampedFadeMin = saturate((envMapLocalPos - envMapBoxMin) * envInvEdgeWidth);
                 float distanceFromEdge = min(min3(envmapClampedFadeMin), min3(envmapClampedFadeMax));
 
                 if (distanceFromEdge == 0.0)

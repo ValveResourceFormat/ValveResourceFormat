@@ -356,7 +356,7 @@ MaterialProperties_t GetMaterial(vec2 texCoord, vec3 vertexNormals)
     vec3 viewDirInv = -mat.ViewDir;
     float invDepth = 1.0 / dot(viewDirInv, mat.GeometricNormal);
     float NdotV = clamp(dot(mat.ViewDir, mat.GeometricNormal), 0.0001, 1.0);
-    float fresnel = clamp(pow(NdotV, 0.7), 0.0, 1.0);
+    float fresnel = saturate(pow(NdotV, 0.7));
     vec2 viewDirTs = vec2(dot(viewDirInv, mat.Tangent), dot(viewDirInv, mat.Bitangent));
     vec2 normalXY = vec2(mat.NormalMap.x, -mat.NormalMap.y);
 
@@ -385,7 +385,7 @@ MaterialProperties_t GetMaterial(vec2 texCoord, vec3 vertexNormals)
 
     // Emissive
     vec3 layer1Emissive = (layer1Color.rgb * g_vLayer1EmissiveTint * g_flLayer1EmissiveLevel) * tintFactor;
-    float emissiveFresnel = clamp(pow(NdotV, g_flLayer2EmissiveFresnel), 0.0, 1.0);
+    float emissiveFresnel = saturate(pow(NdotV, g_flLayer2EmissiveFresnel));
     vec3 layer2Emissive = (layer2Color * emissiveFresnel * g_vLayer2EmissiveTint * g_flLayer2EmissiveLevel) * tintFactor;
     mat.IllumColor = mix(layer2Emissive, layer1Emissive, layer1Color.a) * (1.0 - mask);
 
@@ -597,7 +597,7 @@ MaterialProperties_t GetMaterial(vec2 texCoord, vec3 vertexNormals)
     vec2 vNormalTexels = texCoord * vec2(textureSize(g_tNormal, 0));
     vec2 vNormalDdx = dFdx(vNormalTexels);
     vec2 vNormalDdy = dFdy(vNormalTexels);
-    float flBlurLod = max(0.5 * log2(max(dot(vNormalDdx, vNormalDdx), dot(vNormalDdy, vNormalDdy))), g_flDiffuseNormalBlur);
+    float flBlurLod = max(0.5 * log2(max(length_squared(vNormalDdx), length_squared(vNormalDdy))), g_flDiffuseNormalBlur);
 
     vec3 vBlurredNormalMap = DecodeHemiOctahedronNormal(textureLod(g_tNormal, texCoord, flBlurLod).rg);
     vec3 vBlurredNormal = calculateWorldNormal(vBlurredNormalMap, mat.GeometricNormal, mat.Tangent, mat.Bitangent);

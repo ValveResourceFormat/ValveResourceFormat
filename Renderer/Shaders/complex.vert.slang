@@ -115,7 +115,7 @@ uniform int F_TEXTURE_ANIMATION_MODE; // csgo_complex, csgo_static_overlay, csgo
     {
         // Sample and calculate sway noise
         vec3 swayNoisePos = ((pos + params.heightOffset) * params.swayNoiseScale) + params.swayTimeOffset;
-        float swayNoiseMask = clamp(pow(textureLod(g_tNoiseMap, swayNoisePos * vec3(0.4, 0.4, 0.125), 0.0).z, 2.0) * 1.5, 0.0, 1.0);
+        float swayNoiseMask = saturate(pow2(textureLod(g_tNoiseMap, swayNoisePos * vec3(0.4, 0.4, 0.125), 0.0).z) * 1.5);
         vec3 swayNoise = (textureLod(g_tNoiseMap, swayNoisePos, 0.0).xyz - vec3(0.5)) * 2.0;
         vec3 swayDir = vec3(swayNoise.xy, swayNoise.y * 0.5) * 0.5;
 
@@ -264,8 +264,8 @@ void ApplyFirstpersonLegsDistortion(
     // Calculate distortion factor based on:
     // 1. Vertex Z height (legs height) - normalized and clamped
     // 2. Camera pitch (looking down) - squared for sharper falloff
-    float heightFactor = clamp((vertexPosOS.z + 1.0) * 0.0125, 0.0, 1.0) * 0.5;
-    float pitchFactor = pow(clamp(-viewDirZ, 0.0, 1.0), 2.0);
+    float heightFactor = saturate((vertexPosOS.z + 1.0) * 0.0125) * 0.5;
+    float pitchFactor = pow2(saturate(-viewDirZ));
     float distortionAmount = pow(heightFactor * pitchFactor, 1.5);
 
     // Apply distortion to clip space position

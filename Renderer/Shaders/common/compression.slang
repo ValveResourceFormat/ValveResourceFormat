@@ -71,8 +71,8 @@ void DecompressNormalTangent2(uint nPackedFrame, out vec3 normal, out vec4 tange
     float Ybits = (nPackedFrame >> 22u) & 0x3ff; // 10 bits
 
     // Unpack from 0..1 to -1..1
-    float nPackedFrameX = (Xbits / 1023.0f) * 2.0 - 1.0;
-    float nPackedFrameY = (Ybits / 1023.0f) * 2.0 - 1.0;
+    float nPackedFrameX = UnpackFromColor(Xbits / 1023.0f);
+    float nPackedFrameY = UnpackFromColor(Ybits / 1023.0f);
 
     // Z is never given a sign, meaning negative values are caused by abs(packedframexy) adding up to over 1.0
     float derivedNormalZ = 1.0 - abs(nPackedFrameX) - abs(nPackedFrameY); // Project onto x+y+z=1

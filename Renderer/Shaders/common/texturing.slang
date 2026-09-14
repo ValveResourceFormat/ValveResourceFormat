@@ -19,16 +19,8 @@ float CalculateGeometricRoughnessFactor(vec3 geometricNormal)
 {
     vec3 normalDerivX = dFdx(geometricNormal);
     vec3 normalDerivY = dFdy(geometricNormal);
-    float geometricRoughnessFactor = pow(saturate(max(dot(normalDerivX, normalDerivX), dot(normalDerivY, normalDerivY))), 0.5); // s2 uses 0.333
+    float geometricRoughnessFactor = pow(saturate(max(length_squared(normalDerivX), length_squared(normalDerivY))), 0.5); // s2 uses 0.333
     return geometricRoughnessFactor;
-}
-
-float ApplyBlendModulation(float blendFactor, float blendMask, float blendSoftness)
-{
-    float minb = max(0.0, blendMask - blendSoftness);
-    float maxb = min(1.0, blendMask + blendSoftness);
-
-    return smoothstep(minb, maxb, blendFactor);
 }
 
 // Struct full of everything needed for lighting, for easy access around the shader.
@@ -202,7 +194,7 @@ void SetDiffuseColorBleed(inout MaterialProperties_t mat)
 // Prevent over-interpolation of vertex normals. Introduced in The Lab renderer
 vec3 SwitchCentroidNormal(vec3 vNormalWs, vec3 vCentroidNormalWs)
 {
-    return ( dot(vNormalWs, vNormalWs) >= 1.01 ) ? vCentroidNormalWs : vNormalWs;
+    return ( length_squared(vNormalWs) >= 1.01 ) ? vCentroidNormalWs : vNormalWs;
 }
 
 //Calculate the normal of this fragment in world space

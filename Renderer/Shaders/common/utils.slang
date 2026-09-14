@@ -21,19 +21,10 @@ T pow2<T : IFloat>(T val)
     return val * val;
 }
 
-float pow5(float val)
-{
-    return pow(val, 5.0); // Should get optimized
-}
-
 // Guards against pow(0, 0) = NaN by clamping the base off zero.
 float SafePow(float base, float exponent)
 {
     return pow(max(base, 1e-9), exponent);
-}
-vec2 SafePow(vec2 base, vec2 exponent)
-{
-    return pow(max(base, vec2(1e-9)), exponent);
 }
 vec3 SafePow(vec3 base, vec3 exponent)
 {
@@ -45,8 +36,6 @@ float Random2D(vec2 Seed)
     return fract(sin( dot(Seed, vec2(12.9898, 78.233)) ) * 43758.5469);
 }
 
-
-
 float min3( vec3 Vector )
 {
 	return min( min( Vector.x, Vector.y ), Vector.z );
@@ -56,13 +45,10 @@ float max3( vec3 Vector )
 	return max( max( Vector.x, Vector.y ), Vector.z );
 }
 
-
-
 float length_squared<T : IFloat>(T vector)
 {
 	return dot(vector, vector);
 }
-
 
 // Color
 
@@ -73,38 +59,6 @@ float GetLuma(vec3 Color) {
 	return dot( Color, vec3(0.2125, 0.7154, 0.0721) ); // BT.709-1, same as Valve
 }
 
-float LevelsAdjust(float component, vec3 L_BlackWhiteGamma)
-{
-    vec3 levels = vec3(
-        -L_BlackWhiteGamma.x,
-        -1.4427 * log2(max(0.0001, 1.0 - L_BlackWhiteGamma.y)),
-        2.0 - L_BlackWhiteGamma.z
-    );
-
-    return mix(levels.x, levels.y, SafePow(component, levels.z));
-}
-
-float SrgbGammaToLinear(float color)
-{
-    float vLinearSegment = color / 12.92;
-    float vExpSegment = pow((color / 1.055) + 0.0521327, 2.4);
-
-    const float cap = 0.04045;
-    float select = color > cap ? vExpSegment : vLinearSegment;
-
-    return select;
-}
-vec2 SrgbGammaToLinear(vec2 color)
-{
-    vec2 vLinearSegment = color / vec2(12.92);
-    vec2 vExpSegment = pow((color / vec2(1.055)) + vec2(0.0521327), vec2(2.4));
-
-    const float cap = 0.04045;
-    float select = color.r > cap ? vExpSegment.r : vLinearSegment.r;
-    float select1 = color.g > cap ? vExpSegment.g : vLinearSegment.g;
-
-    return vec2(select, select1);
-}
 vec3 SrgbGammaToLinear(vec3 color)
 {
     vec3 vLinearSegment = color / vec3(12.92);
@@ -162,16 +116,6 @@ vec3 DecodeRGBM(vec4 color)
 {
     const float MaxRange = 6.0;
     return color.rgb * (color.a * MaxRange);
-}
-
-vec2 Resize2D(float Base, vec4 StartPos_Size)
-{
-	return StartPos_Size.xy + Base * StartPos_Size.zw;
-}
-
-vec2 Resize2D(vec2 Base, vec4 StartPos_Size)
-{
-	return StartPos_Size.xy + Base * StartPos_Size.zw;
 }
 
 vec2 RotateVector2D(vec2 vectorInput, float rotation)
@@ -242,6 +186,14 @@ float RemapValClamped( float flOldVal, float flOldMin, float flOldMax, float flN
 	return ( flValNormalized * ( flNewMax - flNewMin ) ) + flNewMin;
 }
 
+float ApplyBlendModulation(float blendFactor, float blendMask, float blendSoftness)
+{
+    float minb = max(0.0, blendMask - blendSoftness);
+    float maxb = min(1.0, blendMask + blendSoftness);
+
+    return smoothstep(minb, maxb, blendFactor);
+}
+
 T PackToColor<T : IFloat>( T vValue )
 {
 	return ( ( vValue * T(0.5) ) + T(0.5) );
@@ -256,7 +208,7 @@ vec3 DecodeDxt5Normal(vec4 bumpTexel)
 {
     vec2 temp = UnpackFromColor(bumpTexel.ag);
     temp.y = -temp.y;
-    return vec3(temp, sqrt(saturate(1 - dot(temp, temp))));
+    return vec3(temp, sqrt(saturate(1 - length_squared(temp))));
 }
 
 vec2 sign_not_zero(vec2 v)
@@ -283,7 +235,7 @@ vec3 oct_to_float32x3(vec2 e)
 // Safe normalize that handles degenerate normals from zero-scaled bones
 vec3 safeNormalize(vec3 v)
 {
-    float len2 = dot(v, v);
+    float len2 = length_squared(v);
     if (len2 < 1e-8)
     {
         return vec3(0.0, 0.0, 1.0);

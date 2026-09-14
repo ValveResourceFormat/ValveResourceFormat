@@ -164,11 +164,11 @@ vec3 ApplyHsvShift(vec3 sourceColor)
 {
     // The conversion runs on a normalized copy and the magnitude is put back afterwards, so a colour
     // brighter than 1 keeps its overbright rather than being crushed to the top of the value axis.
-    float overbright = max(max(sourceColor.r, max(sourceColor.g, sourceColor.b)), 1.0);
+    float overbright = max(max3(sourceColor), 1.0);
     vec3 rgb = saturate(sourceColor / overbright);
 
-    float valueMax = max(rgb.r, max(rgb.g, rgb.b));
-    float chroma = valueMax - min(rgb.r, min(rgb.g, rgb.b));
+    float valueMax = max3(rgb);
+    float chroma = valueMax - min3(rgb);
 
     vec3 hsv = vec3(0.0, 0.0, valueMax);
 

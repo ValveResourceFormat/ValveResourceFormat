@@ -68,6 +68,6 @@ void main()
     vVertexColorOut.a = object.vTint.a;
 
     #if (F_DECAL_SPACE_NORMALS == 1)
-        vProjectionDir = vTEXCOORD5 * 2.0 - 1.0;
+        vProjectionDir = UnpackFromColor(vTEXCOORD5);
     #endif
 }

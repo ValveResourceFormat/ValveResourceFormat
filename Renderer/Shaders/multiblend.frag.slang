@@ -90,15 +90,6 @@ uniform float g_flBumpStrength = 1.0;
     }
 #endif
 
-// from texturing.glsl
-float ApplyBlendModulation(float blendFactor, float blendMask, float blendSoftness)
-{
-    float minb = max(0.0, blendMask - blendSoftness);
-    float maxb = min(1.0, blendMask + blendSoftness);
-
-    return smoothstep(minb, maxb, blendFactor);
-}
-
 #include "common/LightingConstants.slang"
 #include "common/lighting_common.slang"
 #include "common/shadowmapping.slang"

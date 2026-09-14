@@ -157,7 +157,7 @@ void main()
     #endif
 
     vTintColor_ModelAmount.rgb = SrgbGammaToLinear(object.vTint.rgb);
-    float flLowestPoint = min(vTintColor_ModelAmount.r, min(vTintColor_ModelAmount.g, vTintColor_ModelAmount.b));
+    float flLowestPoint = min3(vTintColor_ModelAmount.rgb);
     vTintColor_ModelAmount.a = g_flModelTintAmount * (1.0 - flLowestPoint);
 
     vec3 vVertexPaint = vec3(1.0);

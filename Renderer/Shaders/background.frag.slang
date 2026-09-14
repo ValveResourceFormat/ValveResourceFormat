@@ -23,7 +23,7 @@ vec2 polarCoords(in vec3 xyz) {
     // a) rotate the projection by 90deg OR
     // b) swap xyz until the projection makes sense:
     float theta = atan(xyz.y, xyz.x);
-    float rho = sqrt(pow(xyz.x, 2.0) + pow(xyz.y, 2.0) + pow(xyz.z, 2.0));
+    float rho = length(xyz);
     return vec2((theta + PIh) * 2.0, acos(xyz.z / rho));
 }
 
@@ -32,7 +32,7 @@ vec2 polarCoords(in vec3 xyz) {
 // - is 0 when forward along y axes
 // (with multiples by the amount of color changing pillars)
 float latitude(float polar) {
-    return (sin(polar * PILLARS / 2.0) + 1.0) / 2.0;
+    return PackToColor(sin(polar * PILLARS / 2.0));
 }
 
 vec3 Rgb(int r, int g, int b)
@@ -56,9 +56,9 @@ void main() {
 
     // interpolation values to move from one phase to another
     // steeper transitions with higher powers
-    float ground = pow(smoothstep(0.1, 0.3, upAmount), 2.0);
+    float ground = pow2(smoothstep(0.1, 0.3, upAmount));
     float horizon = pow(smoothstep(0.3, 0.5, upAmount), 12.0);
-    float sky = pow(smoothstep(0.45, 0.6, upAmount), 2.0);
+    float sky = pow2(smoothstep(0.45, 0.6, upAmount));
     float highSky = pow(smoothstep(0.6, 0.85, upAmount), 3.0);
 
     vec3 vApp = Rgb(44, 49, 61);
