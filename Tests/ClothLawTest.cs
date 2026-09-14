@@ -5153,14 +5153,14 @@ namespace Tests
             """);
 
         /// <summary>
-        /// A bend rod that several hinges generate keeps the longest minimum any of them builds, so it states the fold of
-        /// the least folded one. The grid's middle-row rods each cross a vertical hinge above them (sum 0.25) and one below
+        /// A bend rod that several hinges generate keeps the shortest minimum any of them builds, so it states the fold of
+        /// the most folded one. The grid's middle-row rods each cross a vertical hinge above them (sum 0.25) and one below
         /// (sum 0.75), and read 0.25; the bottom row's rods cross only the lower hinges and read 0.75. Taking every hinge
-        /// at the tightest lower bound its rods give it recovers all three hinge sums with <c>add_curvature</c> at zero,
+        /// at the largest reading its rods give it recovers all three hinge sums with <c>add_curvature</c> at zero,
         /// where a model-wide 0.25 leaves nothing to paint and the rods below keep their negative residual.
         /// </summary>
         [Test]
-        public async Task ARodSeveralHingesGenerateStatesTheLeastFoldedOne()
+        public async Task ARodSeveralHingesGenerateStatesTheMostFoldedOne()
         {
             List<int[]> faces = [[0, 1, 5, 4], [1, 2, 6, 5], [2, 3, 7, 6], [4, 5, 9, 8], [5, 6, 10, 9], [6, 7, 11, 10]];
             HashSet<(int, int)> network = [(0, 2), (1, 3), (4, 6), (5, 7), (8, 10), (9, 11), (0, 8), (1, 9), (2, 10), (3, 11)];
@@ -5883,5 +5883,118 @@ namespace Tests
                 }
                 """);
         }
+
+        /// <summary>
+        /// The compiler keeps each bend rod's shortest minimum over the hinges that generate it, so a rod can be set by a hinge
+        /// other than the one whose flat span matches its maximum length. This sheet is the synth grid with one vertex pushed out
+        /// of the plane, painted 0.5 on its two top rows and folded by <c>add_curvature</c> 0.25: the rod along row 1 past the
+        /// column-1 vertex is set by the less painted hinge below it while the wider hinge above states more. Read hinge by hinge
+        /// the rods recover nothing; solved over every hinge that generates each rod on top of the model-wide 0.25 the paint keeps
+        /// that value and reproduces them, 1 across the row-1 hinge of column 0, 0.5 across the setting hinge and 0 below.
+        /// CONTROL: the same sheet folded by <c>add_curvature</c> alone writes no paint and keeps the value.
+        /// </summary>
+        [Test]
+        public async Task ARodSetByANarrowerHingeKeepsTheModelWideCurvatureUnderItsPaint()
+        {
+            List<int[]> faces = [[0, 4, 5, 1], [1, 5, 6, 2], [2, 6, 7, 3], [4, 8, 9, 5], [5, 9, 10, 6], [6, 10, 11, 7], [8, 12, 13, 9],
+                [9, 13, 14, 10], [10, 14, 15, 11], [12, 16, 17, 13], [13, 17, 18, 14], [14, 18, 19, 15]];
+            HashSet<(int, int)> network = [(0, 2), (1, 3), (1, 9), (2, 10), (3, 11), (4, 6), (5, 7), (5, 13), (6, 14), (7, 15), (8, 10),
+                (9, 11), (9, 17), (10, 18), (11, 19), (12, 14), (13, 15), (16, 18), (17, 19)];
+            var (paint, curvature) = ModelExtract.ClothBendStiffnessOverFold(BentSheet(BentSheetPaintedRods), faces, network, 0.25f,
+                keepsCurvature: false);
+            var (plain, plainCurvature) = ModelExtract.ClothBendStiffnessOverFold(BentSheet(BentSheetPlainRods), faces, network, 0.25f,
+                keepsCurvature: false);
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(paint).IsNotNull();
+                await Assert.That(curvature).IsEqualTo(0.25f);
+                await Assert.That(paint!.GetValueOrDefault(1) + paint.GetValueOrDefault(5)).IsEqualTo(1f).Within(0.02f);
+                await Assert.That(paint.GetValueOrDefault(5) + paint.GetValueOrDefault(6)).IsEqualTo(0.5f).Within(0.02f);
+                await Assert.That(paint.GetValueOrDefault(2) + paint.GetValueOrDefault(6)).IsEqualTo(0f).Within(0.02f);
+                await Assert.That(plain).IsNull();
+                await Assert.That(plainCurvature).IsEqualTo(0.25f);
+            }
+        }
+
+        private const string BentSheetPaintedRods = """
+            { nNode = [ 0, 2 ] flMaxDist = 16.999594 flMinDist = 15.707473 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
+            { nNode = [ 4, 6 ] flMaxDist = 16.990614 flMinDist = 15.697754 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
+            { nNode = [ 8, 10 ] flMaxDist = 17.040838 flMinDist = 15.774404 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
+            { nNode = [ 12, 14 ] flMaxDist = 16.990597 flMinDist = 15.697739 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
+            { nNode = [ 16, 18 ] flMaxDist = 16.999565 flMinDist = 15.707446 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
+            { nNode = [ 1, 3 ] flMaxDist = 16.99991 flMinDist = 6.5411534 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
+            { nNode = [ 17, 19 ] flMaxDist = 16.999882 flMinDist = 6.5411453 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
+            { nNode = [ 9, 11 ] flMaxDist = 16.670456 flMinDist = 6.3860846 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
+            { nNode = [ 5, 7 ] flMaxDist = 16.987907 flMinDist = 6.509907 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
+            { nNode = [ 13, 15 ] flMaxDist = 16.987896 flMinDist = 6.5099025 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
+            { nNode = [ 17, 9 ] flMaxDist = 4.4786596 flMinDist = 3.1739345 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
+            { nNode = [ 9, 1 ] flMaxDist = 4.4786654 flMinDist = 3.1739397 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
+            { nNode = [ 13, 5 ] flMaxDist = 4.684062 flMinDist = 3.3121321 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
+            { nNode = [ 18, 10 ] flMaxDist = 4.637758 flMinDist = 1.7772001 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
+            { nNode = [ 10, 2 ] flMaxDist = 4.637758 flMinDist = 1.7772 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
+            { nNode = [ 14, 6 ] flMaxDist = 4.6377573 flMinDist = 1.7747929 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
+            { nNode = [ 19, 11 ] flMaxDist = 5.004366 flMinDist = 1.917685 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
+            { nNode = [ 11, 3 ] flMaxDist = 5.004366 flMinDist = 1.9176855 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
+            { nNode = [ 15, 7 ] flMaxDist = 5.0043654 flMinDist = 1.9150877 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
+            """;
+
+        private const string BentSheetPlainRods = """
+            { nNode = [ 0, 2 ] flMaxDist = 16.999594 flMinDist = 6.5320888 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
+            { nNode = [ 4, 6 ] flMaxDist = 16.990614 flMinDist = 6.5086966 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
+            { nNode = [ 8, 10 ] flMaxDist = 17.040838 flMinDist = 6.9404755 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
+            { nNode = [ 12, 14 ] flMaxDist = 16.990597 flMinDist = 6.508693 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
+            { nNode = [ 16, 18 ] flMaxDist = 16.999565 flMinDist = 6.532084 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
+            { nNode = [ 1, 3 ] flMaxDist = 16.99991 flMinDist = 6.5411534 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
+            { nNode = [ 17, 19 ] flMaxDist = 16.999882 flMinDist = 6.5411453 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
+            { nNode = [ 9, 11 ] flMaxDist = 16.670456 flMinDist = 6.3860846 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
+            { nNode = [ 5, 7 ] flMaxDist = 16.987907 flMinDist = 6.509907 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
+            { nNode = [ 13, 15 ] flMaxDist = 16.987896 flMinDist = 6.5099025 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
+            { nNode = [ 17, 9 ] flMaxDist = 4.4786596 flMinDist = 1.740971 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
+            { nNode = [ 9, 1 ] flMaxDist = 4.4786654 flMinDist = 1.7409755 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
+            { nNode = [ 13, 5 ] flMaxDist = 4.684062 flMinDist = 1.7736652 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
+            { nNode = [ 18, 10 ] flMaxDist = 4.637758 flMinDist = 1.7772001 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
+            { nNode = [ 10, 2 ] flMaxDist = 4.637758 flMinDist = 1.7772 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
+            { nNode = [ 14, 6 ] flMaxDist = 4.6377573 flMinDist = 1.7747929 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
+            { nNode = [ 19, 11 ] flMaxDist = 5.004366 flMinDist = 1.917685 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
+            { nNode = [ 11, 3 ] flMaxDist = 5.004366 flMinDist = 1.9176855 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
+            { nNode = [ 15, 7 ] flMaxDist = 5.0043654 flMinDist = 1.9150877 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
+            """;
+
+        private static FeModel BentSheet(string rods) => SyntheticCloth.Parse($$"""
+            {
+                m_CtrlName = [ "$cloth_m0p0", "$cloth_m0p1", "$cloth_m0p2", "$cloth_m0p3", "$cloth_m0p4", "$cloth_m0p5", "$cloth_m0p6", "$cloth_m0p7", "$cloth_m0p8", "$cloth_m0p9", "$cloth_m0p10", "$cloth_m0p11", "$cloth_m0p12", "$cloth_m0p13", "$cloth_m0p14", "$cloth_m0p15", "$cloth_m0p16", "$cloth_m0p17", "$cloth_m0p18", "$cloth_m0p19" ]
+                m_nNodeCount = 20
+                m_nStaticNodes = 0
+                m_NodeInvMasses = [ 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0 ]
+                m_InitPose =
+                [
+                    {{SyntheticCloth.Pose(-8.915558f, -3.9999907f, 65.448204f)}}
+                    {{SyntheticCloth.Pose(-11.695556f, -4.2669907f, 57.420155f)}}
+                    {{SyntheticCloth.Pose(-14.808141f, -4.6377454f, 49.519295f)}}
+                    {{SyntheticCloth.Pose(-17.90746f, -5.004356f, 41.613026f)}}
+                    {{SyntheticCloth.Pose(-8.91556f, -1.9999869f, 65.4482f)}}
+                    {{SyntheticCloth.Pose(-11.695561f, -2.1334882f, 57.42015f)}}
+                    {{SyntheticCloth.Pose(-14.808148f, -2.3188667f, 49.519295f)}}
+                    {{SyntheticCloth.Pose(-17.907467f, -2.502173f, 41.61303f)}}
+                    {{SyntheticCloth.Pose(-8.915562f, 0.00001680851f, 65.44819f)}}
+                    {{SyntheticCloth.Pose(-12.695568f, 0.000014543533f, 57.42015f)}}
+                    {{SyntheticCloth.Pose(-14.808155f, 0.000011920929f, 49.5193f)}}
+                    {{SyntheticCloth.Pose(-17.907475f, 0.000009775162f, 41.613037f)}}
+                    {{SyntheticCloth.Pose(-8.915564f, 2.0000205f, 65.44818f)}}
+                    {{SyntheticCloth.Pose(-11.695574f, 2.1335173f, 57.420147f)}}
+                    {{SyntheticCloth.Pose(-14.808163f, 2.3188906f, 49.519302f)}}
+                    {{SyntheticCloth.Pose(-17.907482f, 2.5021925f, 41.61304f)}}
+                    {{SyntheticCloth.Pose(-8.9155655f, 4.0000243f, 65.44817f)}}
+                    {{SyntheticCloth.Pose(-11.69558f, 4.2670197f, 57.420143f)}}
+                    {{SyntheticCloth.Pose(-14.80817f, 4.637769f, 49.519302f)}}
+                    {{SyntheticCloth.Pose(-17.907492f, 5.0043755f, 41.61305f)}}
+                ]
+                m_Rods =
+                [
+                    {{rods}}
+                ]
+            }
+            """);
     }
 }

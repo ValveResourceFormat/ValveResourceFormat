@@ -697,24 +697,61 @@ partial class ModelExtract
     /// reproduces them more closely than the model-wide value does by more than the agreement (see
     /// <c>ClothBendStiffnessFromHinges</c>); a sheet whose suspenders or chain rings read the value keeps it.
     /// </para>
+    /// <para>
+    /// A sheet that reads no model-wide value has none to keep, so where its first solve recovers nothing the paint is
+    /// solved over every hinge that generates each rod, and taken wherever that reproduces every rod of the network.
+    /// </para>
+    /// <para>
+    /// A sheet whose model-wide value no hinge over-folds keeps it, and where that value alone leaves rods short of their
+    /// minimum by more than the agreement the residual is solved over every generating hinge on top of it instead. Each
+    /// of these solves holds every hinge to its largest reading first and, only where that recovers nothing, holds the
+    /// hinges no rod needs as its sole setter to that reading from below.
+    /// </para>
     /// </summary>
     internal static (Dictionary<int, float>? Paint, float AddCurvature) ClothBendStiffnessOverFold(FeModel feModel,
         List<int[]> faces, HashSet<(int, int)> network, float addCurvature, bool keepsCurvature)
     {
         var paint = ClothBendStiffnessFromHinges(feModel, faces, network,
             addCurvature > 0f ? addCurvature : feModel.ChainRingCurvature);
-        if (paint is null && addCurvature > 0f && !keepsCurvature && feModel.ChainRingCurvature <= 0f)
+        if (paint is not null || keepsCurvature || feModel.ChainRingCurvature > 0f)
         {
-            ClothBendStiffnessFromHinges(feModel, faces, network, addCurvature, generatorBound: true, out var residuals,
-                out var sharedSlack, out _);
-            if (residuals.Values.Any(static sum => sum < -ClothBendStiffnessAgreement)
-                && ClothBendStiffnessFromHinges(feModel, faces, network, 0f, generatorBound: true, out var folds,
-                    out _, out var paintedSlack) is { Count: > 0 } whole
-                && folds.Values.Max() - folds.Values.Min() > ClothBendStiffnessAgreement
-                && sharedSlack > paintedSlack + ClothBendStiffnessAgreement)
-            {
-                return (whole, 0f);
-            }
+            return (paint, addCurvature);
+        }
+
+        if (addCurvature <= 0f)
+        {
+            return (ClothBendStiffnessFromHinges(feModel, faces, network, 0f, generatorBound: true, out _, out _, out _)
+                ?? ClothBendStiffnessFromHinges(feModel, faces, network, 0f, generatorBound: true, out _, out _, out _,
+                    relaxSetters: true), addCurvature);
+        }
+
+        var residual = ClothBendStiffnessFromHinges(feModel, faces, network, addCurvature, generatorBound: true,
+            out var residuals, out var sharedSlack, out var residualSlack);
+        var overFolds = residuals.Values.Any(static sum => sum < -ClothBendStiffnessAgreement);
+        (Dictionary<int, float>? Paint, float Slack, float Spread) RetryAtZero(bool relaxSetters)
+        {
+            var retried = ClothBendStiffnessFromHinges(feModel, faces, network, 0f, generatorBound: true, out var folds,
+                out _, out var paintedSlack, relaxSetters);
+            return (retried, paintedSlack, folds.Count > 0 ? folds.Values.Max() - folds.Values.Min() : 0f);
+        }
+
+        if (overFolds && RetryAtZero(relaxSetters: false) is ({ Count: > 0 } whole, var slack, var spread)
+            && spread > ClothBendStiffnessAgreement && sharedSlack > slack + ClothBendStiffnessAgreement)
+        {
+            return (whole, 0f);
+        }
+
+        residual ??= ClothBendStiffnessFromHinges(feModel, faces, network, addCurvature, generatorBound: true, out _, out _,
+            out residualSlack, relaxSetters: true);
+        if (residual is { Count: > 0 } && sharedSlack > residualSlack + ClothBendStiffnessAgreement)
+        {
+            return (residual, addCurvature);
+        }
+
+        if (overFolds && RetryAtZero(relaxSetters: true) is ({ Count: > 0 } relaxed, var relaxedSlack, var relaxedSpread)
+            && relaxedSpread > ClothBendStiffnessAgreement && sharedSlack > relaxedSlack + ClothBendStiffnessAgreement)
+        {
+            return (relaxed, 0f);
         }
 
         return (paint, addCurvature);
@@ -849,15 +886,17 @@ partial class ModelExtract
     /// <summary>
     /// <see cref="ClothBendStiffnessFromHinges(FeModel, List{int[]}, HashSet{ValueTuple{int, int}}, float)"/>, with
     /// <paramref name="statedSums"/> set to the pair sum each hinge states on top of <paramref name="addCurvature"/>.
-    /// With <paramref name="generatorBound"/> every hinge that generates a rod is read through the least folded rule,
-    /// and the answer is kept only where it reproduces every rod: across each rod's hinges the smallest assigned
-    /// sum above the one that hinge states is zero, so no hinge folds further than the rod allows and one of them
-    /// folds as far. <paramref name="unpaintedSlack"/> and <paramref name="solvedSlack"/> are the largest amount any
+    /// With <paramref name="generatorBound"/> every hinge that generates a rod is read through its own geometry and bounded
+    /// from below by every rod it generates, the compiler keeping each rod's shortest minimum, and solved at that bound; with
+    /// <paramref name="relaxSetters"/> only a hinge some rod has as its sole candidate is solved exactly and every other hinge
+    /// only has to reach its bound. The answer is kept only where it reproduces every rod: across each rod's hinges
+    /// the smallest assigned sum above the one that hinge states is zero, so no hinge folds further than the rod allows
+    /// and one of them folds as far. <paramref name="unpaintedSlack"/> and <paramref name="solvedSlack"/> are the largest amount any
     /// rod misses that by, with no paint and with the answer; both are zero without <paramref name="generatorBound"/>.
     /// </summary>
     static Dictionary<int, float>? ClothBendStiffnessFromHinges(FeModel feModel, List<int[]> faces,
         HashSet<(int, int)> network, float addCurvature, bool generatorBound,
-        out Dictionary<(int, int), float> statedSums, out float unpaintedSlack, out float solvedSlack)
+        out Dictionary<(int, int), float> statedSums, out float unpaintedSlack, out float solvedSlack, bool relaxSetters = false)
     {
         unpaintedSlack = 0f;
         solvedSlack = 0f;
@@ -902,10 +941,10 @@ partial class ModelExtract
             (reading.Capped ? bounds : exact)[hinge] = StatedSum(reading.Fraction);
         }
 
-        // The compiler keeps one record per rod and gives it the longest minimum any hinge generating it builds,
-        // so a rod several hinges generate states the fold of the least folded of them and bounds the rest from
-        // below. Every such hinge then takes the tightest bound its rods give it, which reproduces each rod
-        // whichever of its hinges folded it.
+        // The compiler keeps one record per rod and gives it the SHORTEST minimum any hinge generating it builds,
+        // so every such hinge is bounded from below by the rod and the one that set it states its fold. Each hinge
+        // therefore takes the largest bound its rods give it. Only a hinge some rod has no other candidate for has
+        // to sit exactly there; with relaxSetters the others only have to reach it.
         if (generatorBound)
         {
             exact.Clear();
@@ -920,6 +959,35 @@ partial class ModelExtract
                 {
                     var sum = StatedSum(candidateFraction);
                     exact[hinge] = exact.TryGetValue(hinge, out var known) ? MathF.Max(known, sum) : sum;
+                }
+            }
+
+            statedSums = new Dictionary<(int, int), float>(exact);
+            if (relaxSetters)
+            {
+                var setting = new HashSet<(int, int)>();
+                foreach (var (_, _, capped, _, candidates) in readings)
+                {
+                    if (capped)
+                    {
+                        continue;
+                    }
+
+                    var setters = candidates
+                        .Where(candidate => StatedSum(candidate.Fraction) >= exact[candidate.Hinge] - ClothBendStiffnessAgreement)
+                        .Select(static candidate => candidate.Hinge)
+                        .Distinct()
+                        .ToList();
+                    if (setters.Count == 1)
+                    {
+                        setting.Add(setters[0]);
+                    }
+                }
+
+                foreach (var hinge in exact.Keys.Where(hinge => !setting.Contains(hinge)).ToList())
+                {
+                    bounds[hinge] = bounds.TryGetValue(hinge, out var least) ? MathF.Max(least, exact[hinge]) : exact[hinge];
+                    exact.Remove(hinge);
                 }
             }
 
