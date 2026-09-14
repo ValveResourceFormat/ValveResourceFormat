@@ -2686,7 +2686,6 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// <summary>Gets the per-node local rotation multipliers, empty when the cloth uses the global one.</summary>
         public float[] LocalRotationValues => Data.GetFloatArray("m_LocalRotation");
 
-
         /// <summary>
         /// Gets whether the cloth carries axial bend edges, which is what the source's rigid-edge-hinge
         /// switch produces: one entry per interior edge of the sheet.

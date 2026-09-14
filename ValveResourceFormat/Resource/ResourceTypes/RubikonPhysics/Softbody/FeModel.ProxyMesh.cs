@@ -1838,7 +1838,6 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         {
             var n = face.Length;
 
-
             if (n == 4 && face[2] != face[3] && face[1] != face[0])
             {
                 if (!isStatic(face[0]) && !isStatic(face[2]) && isStatic(face[1]) && isStatic(face[3]))

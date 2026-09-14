@@ -157,8 +157,7 @@ partial class ModelExtract
             derived.UnionWith(beyondSurface);
             bendNetwork.UnionWith(beyondSurface);
         }
-        else if (ClothMixedSurfaceRods(feModel, surfaceFaces, beyondSurface) is
-            { Bend.Count: > 0 } mixed)
+        else if (ClothMixedSurfaceRods(feModel, surfaceFaces, beyondSurface) is { Bend.Count: > 0 } mixed)
         {
             generatesBendRods = mixed.Bounded;
             generatesBendOnlyRods = !mixed.Bounded;
