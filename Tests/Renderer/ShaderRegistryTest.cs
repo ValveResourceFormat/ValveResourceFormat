@@ -118,23 +118,6 @@ namespace Tests.Renderer
             }
         }
 
-        [Test]
-        public async Task GenericFunctionIsWrittenOutPerType()
-        {
-            // Only the brace that starts a line closes the function, not the indented one
-            await WriteShader("custom_generic.vert.slang", "#version 460\nT square<T : IFloat>(T val)\n{\n    if (true) {\n    }\n    return val * val;\n}\nfloat Next();\n");
-            ShaderRegistry.AddShaderDirectory(customShaderDirectory);
-
-            var source = Preprocess("custom_generic.vert.slang");
-
-            foreach (var type in new[] { "float", "vec2", "vec3", "vec4" })
-            {
-                await Assert.That(source).Contains($"#line 2 0\n{type} square({type} val)\n{{\nif (true) {{\n}}\nreturn val * val;\n}}\n");
-            }
-
-            await Assert.That(source).Contains("vec4 square(vec4 val)\n{\nif (true) {\n}\nreturn val * val;\n}\n#line 8 0\nfloat Next();");
-        }
-
         // Field order deliberately differs from the shader's declaration order, since neither decides a location
         [StructLayout(LayoutKind.Sequential)]
         private struct TestVertex

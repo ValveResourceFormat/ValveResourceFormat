@@ -43,8 +43,7 @@ namespace ValveResourceFormat.Renderer.Shaders
         [GeneratedRegex("^#define (?<From>(?:g|F)_[A-Za-z0-9_]+) (?<To>[A-Za-z_][A-Za-z0-9_]*)$")]
         private static partial Regex RegexUniformAlias();
 
-        // A generic function in Slang syntax, for example "T pow2<T : IFloat>(T val)". GLSL has no generics, so it is written
-        // out once per float type with the parameter replaced by that type. Its body ends at a "}" that starts a line.
+        // A generic function in Slang syntax, for example "T pow2<T : IFloat>(T val)".
         [GeneratedRegex(@"^(?<Head>[A-Za-z_][A-Za-z0-9_]*\s+[A-Za-z_][A-Za-z0-9_]*)\s*<\s*(?<Parameter>[A-Za-z_][A-Za-z0-9_]*)\s*:\s*IFloat\s*>\s*(?<Tail>\(.*)$")]
         private static partial Regex RegexGenericFunction();
 
