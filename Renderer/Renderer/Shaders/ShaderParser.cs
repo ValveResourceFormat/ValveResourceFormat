@@ -43,6 +43,13 @@ namespace ValveResourceFormat.Renderer.Shaders
         [GeneratedRegex("^#define (?<From>(?:g|F)_[A-Za-z0-9_]+) (?<To>[A-Za-z_][A-Za-z0-9_]*)$")]
         private static partial Regex RegexUniformAlias();
 
+        // A generic function in Slang syntax, for example "T pow2<T : IFloat>(T val)". GLSL has no generics, so it is written
+        // out once per float type with the parameter replaced by that type. Its body ends at a "}" that starts a line.
+        [GeneratedRegex(@"^(?<Head>[A-Za-z_][A-Za-z0-9_]*\s+[A-Za-z_][A-Za-z0-9_]*)\s*<\s*(?<Parameter>[A-Za-z_][A-Za-z0-9_]*)\s*:\s*IFloat\s*>\s*(?<Tail>\(.*)$")]
+        private static partial Regex RegexGenericFunction();
+
+        private static readonly string[] GenericFloatTypes = ["float", "vec2", "vec3", "vec4"];
+
         // An attribute declaration of a vertex shader, for example "in vec4 vCOLOR;". Multiline, because the
         // locations are stamped over the whole assembled source rather than line by line.
         [GeneratedRegex(@"^in\s+[a-z0-9]+\s+(?<Name>[A-Za-z_][A-Za-z0-9_]*)\s*;", RegexOptions.Multiline)]
@@ -140,6 +147,9 @@ namespace ValveResourceFormat.Renderer.Shaders
 
                 builder.EnsureCapacity(builder.Length + (int)stream.Length);
 
+                Match? genericHeader = null;
+                List<string> genericLines = [];
+
                 while ((line = reader.ReadLine()) != null)
                 {
                     lineNum++;
@@ -178,6 +188,35 @@ namespace ValveResourceFormat.Renderer.Shaders
 #endif
 
                     {
+                        // Generic functions are held back until their closing brace, then written out per type
+                        var genericMatch = RegexGenericFunction().Match(line);
+
+                        if (genericMatch.Success || genericHeader != null)
+                        {
+                            genericHeader ??= genericMatch;
+                            genericLines.Add(line.Trim());
+
+                            if (line.StartsWith('}'))
+                            {
+                                genericLines[0] = string.Concat(genericHeader.Groups["Head"].Value, genericHeader.Groups["Tail"].Value);
+
+                                var function = string.Join('\n', genericLines);
+                                var parameter = $@"\b{genericHeader.Groups["Parameter"].Value}\b";
+
+                                foreach (var type in GenericFloatTypes)
+                                {
+                                    AppendLineNumber(lineNum - genericLines.Count, currentSourceFileNumber);
+                                    builder.Append(Regex.Replace(function, parameter, type)).Append('\n');
+                                }
+
+                                AppendLineNumber(lineNum, currentSourceFileNumber);
+                                genericHeader = null;
+                                genericLines.Clear();
+                            }
+
+                            continue;
+                        }
+
                         line = line.Trim(); // we will be outputting trimmed lines to compile too
 
                         // Includes
@@ -335,6 +374,11 @@ namespace ValveResourceFormat.Renderer.Shaders
                         // Fix an issue where #include is inside of an #if, which messes up line numbers
                         AppendLineNumber(lineNum, currentSourceFileNumber);
                     }
+                }
+
+                if (genericHeader != null)
+                {
+                    throw new ShaderCompilerException($"Generic function '{genericHeader.Groups["Head"].Value}' in '{shaderFileToLoad}' has no closing brace at the start of a line");
                 }
             }
 

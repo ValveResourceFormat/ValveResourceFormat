@@ -10,35 +10,15 @@
 #define INCH_TO_M 0.0254
 
 // clamp(value, 0.0, 1.0)
-float saturate(float val) {
-    return clamp(val, 0, 1);
-}
-vec2 saturate(vec2 val) {
-    return clamp(val, 0.0, 1.0);
-}
-vec3 saturate(vec3 val) {
-    return clamp(val, 0.0, 1.0);
-}
-vec4 saturate(vec4 val) {
-    return clamp(val, 0.0, 1.0);
+T saturate<T : IFloat>(T val)
+{
+    return min(max(val, T(0.0)), T(1.0));
 }
 
 // value^2
-float pow2(float val)
+T pow2<T : IFloat>(T val)
 {
-    return(val * val);
-}
-vec2 pow2(vec2 val)
-{
-    return(val * val);
-}
-vec3 pow2(vec3 val)
-{
-    return(val * val);
-}
-vec4 pow2(vec4 val)
-{
-    return(val * val);
+    return val * val;
 }
 
 float pow5(float val)
@@ -78,15 +58,7 @@ float max3( vec3 Vector )
 
 
 
-float length_squared(vec2 vector)
-{
-	return dot(vector, vector);
-}
-float length_squared(vec3 vector)
-{
-	return dot(vector, vector);
-}
-float length_squared(vec4 vector)
+float length_squared<T : IFloat>(T vector)
 {
 	return dot(vector, vector);
 }
@@ -239,24 +211,9 @@ vec3 QuaternionRotation( vec3 v, vec4 q )
 // All of this is directly ported from The Lab Renderer from the unity store.
 // These are their utility functions, at least as of the lab.
 
-float ClampToPositive( float flValue )
+T ClampToPositive<T : IFloat>( T vValue )
 {
-	return max( 0.0, flValue );
-}
-
-vec2 ClampToPositive( vec2 vValue )
-{
-	return max( vec2(0.0), vValue.xy );
-}
-
-vec3 ClampToPositive( vec3 vValue )
-{
-	return max( vec3(0.0), vValue.xyz );
-}
-
-vec4 ClampToPositive( vec4 vValue )
-{
-	return max( vec4(0.0), vValue.xyzw );
+	return max( T(0.0), vValue );
 }
 
 // basically map to 0-1
@@ -285,44 +242,14 @@ float RemapValClamped( float flOldVal, float flOldMin, float flOldMax, float flN
 	return ( flValNormalized * ( flNewMax - flNewMin ) ) + flNewMin;
 }
 
-vec4 PackToColor( vec4 vValue )
+T PackToColor<T : IFloat>( T vValue )
 {
-	return ( ( vValue.xyzw * 0.5 ) + 0.5 );
+	return ( ( vValue * T(0.5) ) + T(0.5) );
 }
 
-vec3 PackToColor( vec3 vValue )
+T UnpackFromColor<T : IFloat>( T cColor )
 {
-	return ( ( vValue.xyz * 0.5 ) + 0.5 );
-}
-
-vec2 PackToColor( vec2 vValue )
-{
-	return ( ( vValue.xy * 0.5 ) + 0.5 );
-}
-
-float PackToColor( float flValue )
-{
-	return ( ( flValue * 0.5 ) + 0.5 );
-}
-
-vec4 UnpackFromColor( vec4 cColor )
-{
-	return ( ( cColor.xyzw * 2.0 ) - 1.0 );
-}
-
-vec3 UnpackFromColor( vec3 cColor )
-{
-	return ( ( cColor.xyz * 2.0 ) - 1.0 );
-}
-
-vec2 UnpackFromColor( vec2 cColor )
-{
-	return ( ( cColor.xy * 2.0 ) - 1.0 );
-}
-
-float UnpackFromColor( float flColor )
-{
-	return ( ( flColor * 2.0 ) - 1.0 );
+	return ( ( cColor * T(2.0) ) - T(1.0) );
 }
 
 vec3 DecodeDxt5Normal(vec4 bumpTexel)
