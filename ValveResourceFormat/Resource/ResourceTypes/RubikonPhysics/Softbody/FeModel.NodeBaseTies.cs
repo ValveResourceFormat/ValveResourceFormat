@@ -49,8 +49,10 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// own extrusion vector and the child's, and the bulk pass then skips the node; below version 2 only a
         /// hinged joint is graded that way and every other joint takes the bulk grade over its neighbour set,
         /// which on a rope one node wide reaches the parent's ring as well. The two grades usually name
-        /// different references there, so a joint's entry states which pass wrote it. Only a joint whose ring
-        /// is narrower than two nodes is read: a wider ring's fit-matrix arm can write an entry of its own.
+        /// different references there, so a joint's entry states which pass wrote it. An entry naming a node
+        /// outside the preset's own candidates can only be the bulk grade, whether or not its scan is predicted
+        /// exactly. Only a joint whose ring is narrower than two nodes is read: a wider ring's fit-matrix arm can
+        /// write an entry of its own.
         /// </remarks>
         public bool? ChainBasesAreBulkGraded(BoneChain chain)
         {
@@ -59,31 +61,32 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             var unmoved = new Dictionary<int, Vector3>();
             foreach (var joint in chain.Joints)
             {
-                if (!NodeBases.TryGetValue(joint.Node, out var want) || ProxyRingOf(joint.Node).Count >= 2
+                if (!NodeBases.TryGetValue(joint.Node, out var want) || ChainJointRing(joint).Count >= 2
                     || IsHingedJoint(joint.Node) || RigidHingeJoints.ContainsKey(joint.Node))
                 {
                     continue;
                 }
 
                 var child = chain.Joints.Find(other => other.ParentNode == joint.Node);
-                if (child is null || ProxyRingOf(joint.Node).Count == 0 || ProxyRingOf(child.Node).Count == 0)
+                if (child is null || ChainJointRing(joint).Count == 0 || ChainJointRing(child).Count == 0)
                 {
                     continue;
                 }
 
-                var presetCandidates = NodeBaseCandidates(joint, child);
+                var presetCandidates = ChainNodeBaseCandidates(joint, child);
                 if (presetCandidates is null)
                 {
                     continue;
                 }
 
-                var presetHit = NodeBaseContains(presetCandidates, want)
+                var presetReaches = NodeBaseContains(presetCandidates, want);
+                var presetHit = presetReaches
                     && NodeBaseDenotes(PredictNodeBase(presetCandidates, joint.Node, unmoved, want).Basis, want);
 
                 var neighbours = NodeNeighbours(joint.Node);
                 var bulkEligible = joint.InvMass > 0f || AllowsRotation(joint.Node);
                 var bulkHit = bulkEligible && neighbours.Count >= 3 && NodeBaseContains(neighbours, want)
-                    && NodeBaseDenotes(PredictNodeBase(neighbours, joint.Node, unmoved, want).Basis, want);
+                    && (!presetReaches || NodeBaseDenotes(PredictNodeBase(neighbours, joint.Node, unmoved, want).Basis, want));
 
                 if (presetHit == bulkHit)
                 {
@@ -770,6 +773,47 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                 }
 
                 candidates.AddRange(vector);
+            }
+
+            if (candidates.Count < 3)
+            {
+                return null;
+            }
+
+            candidates.Sort();
+            return candidates.TrueForAll(node => node < InitPosePositions.Length) ? candidates : null;
+        }
+
+        /// <summary>
+        /// A joint's ring by its skeleton parents, or, where the compiled data parents none of the joint's
+        /// <c>$cc</c> nodes to it, the ring the chain reconstruction assigned to the joint's declaration.
+        /// </summary>
+        List<int> ChainJointRing(BoneChainJoint joint)
+            => ProxyRingOf(joint.Node) is { Count: > 0 } ring ? ring : [.. joint.RingNodes];
+
+        /// <summary>
+        /// The preset scan's node list for <paramref name="joint"/> and its child, as <see cref="NodeBaseCandidates"/> builds
+        /// it, over <see cref="ChainJointRing"/>.
+        /// </summary>
+        List<int>? ChainNodeBaseCandidates(BoneChainJoint joint, BoneChainJoint child)
+        {
+            var candidates = new List<int>();
+            foreach (var member in (ReadOnlySpan<BoneChainJoint>)[joint, child])
+            {
+                var ring = ChainJointRing(member);
+                if (member.ExtrudeSides >= 2)
+                {
+                    if (ring.Count < member.ExtrudeSides)
+                    {
+                        return null;
+                    }
+
+                    candidates.AddRange(ring.GetRange(0, member.ExtrudeSides));
+                    continue;
+                }
+
+                candidates.Add(member.Node);
+                candidates.AddRange(ring.Take(member.ExtrudeSides));
             }
 
             if (candidates.Count < 3)

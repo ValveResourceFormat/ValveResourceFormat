@@ -1558,7 +1558,9 @@ namespace Tests
             await Assert.That(leaf.ChainBasesAreBulkGraded(leaf.BuildBoneChains()[0])).IsNull();
         }
 
-        private static FeModel OneWideRope(string nodeBase) => SyntheticCloth.Parse($$"""
+        private static FeModel OneWideRope(string nodeBase) => SyntheticCloth.Parse(OneWideRopeDocument(nodeBase));
+
+        private static string OneWideRopeDocument(string nodeBase) => $$"""
             {
                 m_CtrlName = [ "root", "j1", "$ccj1_0", "j2", "$ccj2_0", "j3", "$ccj3_0" ]
                 m_SkelParents = [ -1, 0, 1, 1, 3, 3, 5 ]
@@ -1578,7 +1580,7 @@ namespace Tests
                 m_SourceElems = [ 0, 0, 0, 2, 1, 2, 4, 3, 3, 4, 6, 5 ]
                 m_NodeBases = [ { {{nodeBase}} } ]
             }
-            """);
+            """;
 
         /// <summary>
         /// A chain ROOT has no parent span, so its <c>stretch_spring</c> is only recorded by the rods
@@ -5663,5 +5665,36 @@ namespace Tests
                 m_ReverseOffsets = [ {{reverseOffsets}} ]
             }
             """);
+
+        /// <summary>
+        /// A version-2 preset over a one-wide joint scans only the joint, its ring, its child and the child's ring, so an
+        /// entry naming the parent or the parent's ring was written by the bulk pass even where its scan is not predicted
+        /// exactly: the parent-ring entry below is not the pair the bulk scan picks, and it still says bulk. The same holds
+        /// where the compiled data carries no skeleton parents for the ring nodes, as old-era originals do: the rings are
+        /// the ones the chain reconstruction assigned. Control: an entry inside the preset's candidates that no scan
+        /// predicts says nothing.
+        /// </summary>
+        [Test]
+        public async Task AJointBasisNamingTheParentRingIsBulkGradedWithoutItsScan()
+        {
+            const string ParentRingEntry = "nNode = 3 nNodeX0 = 2 nNodeX1 = 1 nNodeY0 = 5 nNodeY1 = 6";
+            var unpredicted = OneWideRope(ParentRingEntry);
+            var unparented = SyntheticCloth.Parse(OneWideRopeDocument(ParentRingEntry).Replace(
+                "m_SkelParents = [ -1, 0, 1, 1, 3, 3, 5 ]", string.Empty, StringComparison.Ordinal));
+            var inside = OneWideRope("nNode = 3 nNodeX0 = 3 nNodeX1 = 6 nNodeY0 = 4 nNodeY1 = 5");
+
+            var unparentedChain = new FeModel.BoneChain { RootBone = "j1", ExtrudeSides = 1 };
+            unparentedChain.Joints.Add(new FeModel.BoneChainJoint { Node = 1, Name = "j1", ParentNode = -1, InvMass = 1f, ExtrudeSides = 1, RingNodes = [2] });
+            unparentedChain.Joints.Add(new FeModel.BoneChainJoint { Node = 3, Name = "j2", ParentNode = 1, InvMass = 1f, ExtrudeSides = 1, RingNodes = [4] });
+            unparentedChain.Joints.Add(new FeModel.BoneChainJoint { Node = 5, Name = "j3", ParentNode = 3, InvMass = 1f, ExtrudeSides = 1, RingNodes = [6] });
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(unpredicted.ChainBasesAreBulkGraded(unpredicted.BuildBoneChains()[0])).IsTrue();
+                await Assert.That(unparented.SkelParents.Length).IsEqualTo(0);
+                await Assert.That(unparented.ChainBasesAreBulkGraded(unparentedChain)).IsTrue();
+                await Assert.That(inside.ChainBasesAreBulkGraded(inside.BuildBoneChains()[0])).IsNull();
+            }
+        }
     }
 }
