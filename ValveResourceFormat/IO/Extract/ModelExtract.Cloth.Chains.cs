@@ -478,7 +478,6 @@ partial class ModelExtract
                     kv.Add("extrude_forward_axis", joint.ForwardAxis.ToString());
                 }
             }
-
         }
 
         // A tip that fans into two rows is a second ring this far along the joint's forward axis, not

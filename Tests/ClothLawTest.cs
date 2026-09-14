@@ -1929,7 +1929,7 @@ namespace Tests
                 var g = strengths[i];
                 var force = (g + bias) * (g + bias) * (g + bias);
                 poses.Append(SyntheticCloth.Pose(0f, 0f, -1f * (i + 1)));
-                integrators.Append($"{{ flPointDamping = 0.0 flAnimationForceAttraction = {SyntheticCloth.Num(force)} "
+                integrators.Append(CultureInfo.InvariantCulture, $"{{ flPointDamping = 0.0 flAnimationForceAttraction = {SyntheticCloth.Num(force)} "
                     + $"flAnimationVertexAttraction = {SyntheticCloth.Num(g * g * g)} flGravity = 360.0 }},");
             }
 
@@ -3016,7 +3016,7 @@ namespace Tests
                 var force = (g + bias) * (g + bias) * (g + bias);
                 var vertexRoot = i < undamped ? g : g + bias - dampedGaps[i];
                 poses.Append(SyntheticCloth.Pose(0f, 0f, -1f * (i + 1)));
-                integrators.Append($"{{ flPointDamping = 0.0 flAnimationForceAttraction = {SyntheticCloth.Num(force)} "
+                integrators.Append(CultureInfo.InvariantCulture, $"{{ flPointDamping = 0.0 flAnimationForceAttraction = {SyntheticCloth.Num(force)} "
                     + $"flAnimationVertexAttraction = {SyntheticCloth.Num(vertexRoot * vertexRoot * vertexRoot)} flGravity = 360.0 }},");
             }
 
@@ -5530,8 +5530,17 @@ namespace Tests
         {
             var feModel = TwistPair("0.0", "0.0");
             FeModel.BoneChainJoint RolledJoint()
-                => new() { Name = "coattail_0_L", Node = 0, ParentNode = -1, InvMass = 0f, ExtrudeSides = 2, ExtrudeRadius = 2f,
-                    ExtrudeTwist = 90f, ExtrudeTwistTieNudge = -0.012008f };
+                => new()
+                {
+                    Name = "coattail_0_L",
+                    Node = 0,
+                    ParentNode = -1,
+                    InvMass = 0f,
+                    ExtrudeSides = 2,
+                    ExtrudeRadius = 2f,
+                    ExtrudeTwist = 90f,
+                    ExtrudeTwistTieNudge = -0.012008f,
+                };
 
             var relanded = ModelExtract.MakeClothJoint(feModel, RolledJoint(), chainExtrudes: true, rollTies: false);
             var control = ModelExtract.MakeClothJoint(feModel, RolledJoint(), chainExtrudes: true);
@@ -5723,7 +5732,11 @@ namespace Tests
                 {
                     chain.Joints.Add(new FeModel.BoneChainJoint
                     {
-                        Node = Array.IndexOf(feModel.CtrlNames, "kid"), Name = "kid", ParentNode = tip, ParentName = "tip", InvMass = 1f,
+                        Node = Array.IndexOf(feModel.CtrlNames, "kid"),
+                        Name = "kid",
+                        ParentNode = tip,
+                        ParentName = "tip",
+                        InvMass = 1f,
                     });
                 }
 

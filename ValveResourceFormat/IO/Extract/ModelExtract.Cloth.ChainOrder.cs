@@ -427,7 +427,6 @@ partial class ModelExtract
             return plan.Chains.Count == chains.Count ? plan : null;
         }
 
-
         // The order the exporter emits today: no joint declared ahead of its chain, chains and joints in
         // the order the chain reconstruction built them, which is the order this list was built in.
         bool WalksNaturally(List<FeModel.BoneChain> chains)
