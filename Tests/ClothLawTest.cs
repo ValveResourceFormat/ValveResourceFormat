@@ -5211,5 +5211,35 @@ namespace Tests
                 ]
             }
             """);
+
+        /// <summary>
+        /// A painted <c>cloth_mass</c> gradient reads back from the shipped inverse masses only to their float32 step, while
+        /// the face rods weigh their endpoints by the painted biases to the precision of their own weights. A 1.0 / 1.4 /
+        /// 2.0 chain whose readings drifted by a few millionths comes back with the rods' own differences, 0.4 and 0.6,
+        /// anchored on the readings' mean. CONTROL: with a tolerance far below that drift the rods' answer leaves the band
+        /// and the readings are kept as read.
+        /// </summary>
+        [Test]
+        public async Task AMassPaintGradientTakesItsShapeFromTheFaceRodWeights()
+        {
+            float[] authored = [1.0f, 1.4f, 2.0f];
+            float[] readings = [1.000003f, 1.399998f, 2.000001f];
+            (int, int, float)[] rods = [(0, 1, Weight(authored[0], authored[1])), (1, 2, Weight(authored[1], authored[2]))];
+            var refined = FeModel.RefineMassPaint(readings, [(0, 1e-5f), (1, 1e-5f), (2, 1e-5f)], rods);
+            var kept = FeModel.RefineMassPaint(readings, [(0, 1e-9f), (1, 1e-9f), (2, 1e-9f)], rods);
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(refined[1] - refined[0]).IsEqualTo(0.4f).Within(2e-6f);
+                await Assert.That(refined[2] - refined[1]).IsEqualTo(0.6f).Within(2e-6f);
+                await Assert.That((refined[0] + refined[1] + refined[2]) / 3f)
+                    .IsEqualTo((readings[0] + readings[1] + readings[2]) / 3f).Within(2e-6f);
+                await Assert.That(kept[0]).IsEqualTo(readings[0]);
+                await Assert.That(kept[1]).IsEqualTo(readings[1]);
+                await Assert.That(kept[2]).IsEqualTo(readings[2]);
+            }
+
+            static float Weight(float a, float b) => MathF.Exp(b) / (MathF.Exp(a) + MathF.Exp(b));
+        }
     }
 }

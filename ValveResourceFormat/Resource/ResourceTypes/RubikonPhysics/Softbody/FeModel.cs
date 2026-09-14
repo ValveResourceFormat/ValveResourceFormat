@@ -1390,9 +1390,122 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                     paint[vertex] = shared;
                 }
             }
+            else
+            {
+                var vertexOfNode = new Dictionary<int, int>();
+                foreach (var (vertex, _) in painted)
+                {
+                    vertexOfNode[proxy.NodeIndices[vertex]] = vertex;
+                }
+
+                var rods = new List<(int A, int B, float Weight0)>();
+                foreach (var (_, _, rod) in AuthoredFaceRods([.. vertexOfNode.Keys]))
+                {
+                    if (vertexOfNode.TryGetValue(rod.NodeA, out var a) && vertexOfNode.TryGetValue(rod.NodeB, out var b))
+                    {
+                        rods.Add((a, b, rod.Weight0));
+                    }
+                }
+
+                paint = RefineMassPaint(paint, painted, rods);
+            }
 
             return paint;
         }
+
+        /// <summary>
+        /// The <c>cloth_mass</c> readings of a painted sheet refined by its own face rods. The transfer weighs a face rod's
+        /// endpoints by their inverse masses divided by their mass biases, with the inverse masses equal across a sheet,
+        /// so a rod between two painted vertices states <c>paint[b] - paint[a] = ln(w / (1 - w))</c> to the precision of
+        /// its own weight, far below the float32 step of the shipped inverse masses the readings come from.
+        /// <para>
+        /// Each connected set of such vertices is solved from those differences and anchored on the mean of its
+        /// readings. A set is taken only where every vertex stays within <see cref="UniformMassPaintSteps"/> of its own
+        /// reading's step, so a sheet whose rods state something other than its paint keeps the readings.
+        /// </para>
+        /// </summary>
+        internal static float[] RefineMassPaint(float[] paint, IReadOnlyList<(int Vertex, float Tolerance)> painted,
+            IReadOnlyList<(int A, int B, float Weight0)> rods)
+        {
+            var tolerance = new Dictionary<int, float>(painted.Count);
+            foreach (var (vertex, step) in painted)
+            {
+                tolerance[vertex] = step;
+            }
+
+            var neighbours = new Dictionary<int, List<(int Other, double Difference)>>();
+            foreach (var (a, b, weight) in rods)
+            {
+                if (a == b || !tolerance.ContainsKey(a) || !tolerance.ContainsKey(b) || weight <= 0f || weight >= 1f)
+                {
+                    continue;
+                }
+
+                var difference = Math.Log(weight / (1.0 - weight));
+                (neighbours.TryGetValue(a, out var fromA) ? fromA : neighbours[a] = []).Add((b, difference));
+                (neighbours.TryGetValue(b, out var fromB) ? fromB : neighbours[b] = []).Add((a, -difference));
+            }
+
+            var refined = (float[])paint.Clone();
+            var seen = new HashSet<int>();
+            foreach (var start in neighbours.Keys.Order())
+            {
+                if (!seen.Add(start))
+                {
+                    continue;
+                }
+
+                var value = new Dictionary<int, double> { [start] = paint[start] };
+                var component = new List<int> { start };
+                for (var i = 0; i < component.Count; i++)
+                {
+                    foreach (var (other, difference) in neighbours[component[i]])
+                    {
+                        if (seen.Add(other))
+                        {
+                            value[other] = value[component[i]] + difference;
+                            component.Add(other);
+                        }
+                    }
+                }
+
+                var anchor = component.Average(vertex => (double)paint[vertex]);
+                for (var sweep = 0; sweep < MassPaintRefineSweeps; sweep++)
+                {
+                    var moved = 0.0;
+                    foreach (var vertex in component)
+                    {
+                        var next = neighbours[vertex].Average(edge => value[edge.Other] - edge.Difference);
+                        moved = Math.Max(moved, Math.Abs(next - value[vertex]));
+                        value[vertex] = next;
+                    }
+
+                    var shift = anchor - component.Average(vertex => value[vertex]);
+                    foreach (var vertex in component)
+                    {
+                        value[vertex] += shift;
+                    }
+
+                    if (moved < 1e-12)
+                    {
+                        break;
+                    }
+                }
+
+                if (component.TrueForAll(vertex =>
+                    Math.Abs(value[vertex] - paint[vertex]) <= UniformMassPaintSteps * tolerance[vertex]))
+                {
+                    foreach (var vertex in component)
+                    {
+                        refined[vertex] = (float)value[vertex];
+                    }
+                }
+            }
+
+            return refined;
+        }
+
+        const int MassPaintRefineSweeps = 400;
 
         /// <summary>
         /// The one value a sheet's <c>cloth_mass</c> paint readings share, or null when they differ. Each reading
