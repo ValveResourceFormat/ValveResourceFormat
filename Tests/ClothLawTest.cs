@@ -4920,5 +4920,68 @@ namespace Tests
                 await Assert.That(Order(Choose(unfixable, smallNodes, SmallStatic))).IsEqualTo(Order(unfixable));
             }
         }
+
+        /// <summary>
+        /// A ClothChain of version 2 records a simulated joint's reverse offset against the Y1 node of the preset basis it
+        /// grades over the joint's extrusion vector and its child's, where version 1 records it from the joint's fit group
+        /// alone. On the two-wide rope below the two ring diagonals tie for X and the later pair wins, so j0's preset basis
+        /// is X = ($ccj1_0, $ccj0_1), Y = ($ccj1_1, $ccj0_0), and j1's is the same one ring along. Offsets naming each
+        /// joint's ring node _0 read as version 2, offsets naming node _1 as version 1, and a rope without reverse offsets
+        /// keeps version 2.
+        /// </summary>
+        [Test]
+        public async Task AReverseOffsetOffItsPresetBasisY1IsBelowChainVersion2()
+        {
+            var preset = TwoWideRope(0);
+            var fitted = TwoWideRope(1);
+            var bare = TwoWideRope(null);
+            var presetChain = preset.BuildBoneChains()[0];
+            var fittedChain = fitted.BuildBoneChains()[0];
+            var bareChain = bare.BuildBoneChains()[0];
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(preset.ChainReverseOffsetsArePreset(presetChain)).IsTrue();
+                await Assert.That(fitted.ChainReverseOffsetsArePreset(fittedChain)).IsFalse();
+                await Assert.That(bare.ChainReverseOffsetsArePreset(bareChain)).IsNull();
+                await Assert.That(ModelExtract.ClothChainVersion(preset, presetChain, hasOtherChains: false)).IsEqualTo(2);
+                await Assert.That(ModelExtract.ClothChainVersion(fitted, fittedChain, hasOtherChains: false)).IsEqualTo(1);
+                await Assert.That(ModelExtract.ClothChainVersion(bare, bareChain, hasOtherChains: false)).IsEqualTo(2);
+            }
+        }
+
+        // A simulated rope of three joints 8.5 apart, each extruding a two-node ring across Y, whose joints' reverse
+        // offsets name node _ringNode of their own ring, or which carries none.
+        private static FeModel TwoWideRope(int? ringNode)
+        {
+            var offsets = ringNode is { } side
+                ? string.Concat(Enumerable.Range(0, 3).Select(joint => "{ vOffset = [ 0.0, 2.0, 0.0 ] nBoneCtrl = " + (joint * 3)
+                    + " nTargetNode = " + ((joint * 3) + 1 + side) + " }, "))
+                : string.Empty;
+
+            return SyntheticCloth.Parse($$"""
+                {
+                    m_CtrlName = [ "j0", "$ccj0_0", "$ccj0_1", "j1", "$ccj1_0", "$ccj1_1", "j2", "$ccj2_0", "$ccj2_1" ]
+                    m_SkelParents = [ -1, 0, 0, 0, 3, 3, 3, 6, 6 ]
+                    m_nNodeCount = 9
+                    m_nStaticNodes = 0
+                    m_NodeInvMasses = [ 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0 ]
+                    m_InitPose =
+                    [
+                        {{SyntheticCloth.Pose(0f, 0f, 0f)}}
+                        {{SyntheticCloth.Pose(0f, 2f, 0f)}}
+                        {{SyntheticCloth.Pose(0f, -2f, 0f)}}
+                        {{SyntheticCloth.Pose(-8.5f, 0f, 0f)}}
+                        {{SyntheticCloth.Pose(-8.5f, 2f, 0f)}}
+                        {{SyntheticCloth.Pose(-8.5f, -2f, 0f)}}
+                        {{SyntheticCloth.Pose(-17f, 0f, 0f)}}
+                        {{SyntheticCloth.Pose(-17f, 2f, 0f)}}
+                        {{SyntheticCloth.Pose(-17f, -2f, 0f)}}
+                    ]
+                    m_SourceElems = [ 1, 2, 5, 4, 4, 5, 8, 7 ]
+                    m_ReverseOffsets = [ {{offsets}} ]
+                }
+                """);
+        }
     }
 }
