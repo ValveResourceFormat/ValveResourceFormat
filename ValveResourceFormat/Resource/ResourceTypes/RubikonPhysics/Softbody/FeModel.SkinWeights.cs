@@ -834,9 +834,10 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                             continue;
                         }
 
-                        if (rod.RelaxationFactor > 0f && rod.RelaxationFactor < slackest)
+                        var relaxation = UnstretchedRelaxation(rod);
+                        if (relaxation > 0f && relaxation < slackest)
                         {
-                            slackest = rod.RelaxationFactor;
+                            slackest = relaxation;
                         }
                     }
                 }

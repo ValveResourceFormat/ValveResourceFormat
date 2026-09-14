@@ -485,6 +485,13 @@ partial class ModelExtract
             vertexData.AddIndexedStream("cloth_shear_resistance$0", shearResistance, vertexIndices);
         }
 
+        // How far every face rod relaxes, edges and diagonals alike: the cube of one minus the mean of its two
+        // endpoints' paint (see FeModel.RecoverStretchPaint).
+        if (physAggregateData?.FeModel?.RecoverStretchPaint(proxy) is { } stretch)
+        {
+            vertexData.AddIndexedStream("cloth_stretch$0", stretch, vertexIndices);
+        }
+
         // cloth_drag_v2 and cloth_mass have no measurable effect on the compiled flPointDamping/
         // m_NodeInvMasses - cloth_drag (no suffix, unlike goal_strength) is already the attribute the
         // compiler reads, so they are intentionally omitted.

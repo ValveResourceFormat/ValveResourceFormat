@@ -5038,5 +5038,56 @@ namespace Tests
                 ]
             }
             """);
+
+        /// <summary>
+        /// A proxy sheet painted with one <c>cloth_stretch</c> of 0.5 compiles every face rod, edges and diagonals
+        /// alike, to a relaxation of (1 - 0.5)^3 = 0.125. The edges state the paint, and with its factor taken back
+        /// out the diagonals carry no shear stretch of their own. The CONTROL is the same quad with rigid edges and
+        /// 0.125 on the diagonals alone, which is <c>additional_shear_stretch = ln 8</c> and no stretch paint.
+        /// </summary>
+        [Test]
+        public async Task AStretchPaintedSheetRelaxesItsEdgesAndDiagonalsAlike()
+        {
+            var painted = StretchQuad(edge: 0.125f, diagonal: 0.125f);
+            var sheared = StretchQuad(edge: 1f, diagonal: 0.125f);
+            var paint = painted.StretchPaint;
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(paint).IsNotNull();
+                await Assert.That(paint!.Count).IsEqualTo(4);
+                await Assert.That(paint.Values.All(static value => MathF.Abs(value - 0.5f) <= 1e-3f)).IsTrue();
+                await Assert.That(painted.AdditionalShearStretch).IsEqualTo(0f).Within(1e-3f);
+                await Assert.That(sheared.StretchPaint).IsNull();
+                await Assert.That(sheared.AdditionalShearStretch).IsEqualTo(MathF.Log(8f)).Within(1e-3f);
+            }
+        }
+
+        private static FeModel StretchQuad(float edge, float diagonal) => SyntheticCloth.Parse($$"""
+            {
+                m_CtrlName = [ "$cloth_m0p0", "$cloth_m0p1", "$cloth_m0p2", "$cloth_m0p3" ]
+                m_nNodeCount = 4
+                m_nStaticNodes = 0
+                m_NodeInvMasses = [ 1.0, 1.0, 1.0, 1.0 ]
+                m_flDefaultSurfaceStretch = 0.0
+                m_SourceElems = [ 0, 0, 0, 1, 0, 1, 2, 3 ]
+                m_InitPose =
+                [
+                    {{SyntheticCloth.Pose(0f, 0f, 0f)}}
+                    {{SyntheticCloth.Pose(10f, 0f, 0f)}}
+                    {{SyntheticCloth.Pose(10f, 0f, -10f)}}
+                    {{SyntheticCloth.Pose(0f, 0f, -10f)}}
+                ]
+                m_Rods =
+                [
+                    { nNode = [ 0, 1 ] flMaxDist = 10.0 flMinDist = 7.5 flWeight0 = 0.5 flRelaxationFactor = {{SyntheticCloth.Num(edge)}} },
+                    { nNode = [ 1, 2 ] flMaxDist = 10.0 flMinDist = 7.5 flWeight0 = 0.5 flRelaxationFactor = {{SyntheticCloth.Num(edge)}} },
+                    { nNode = [ 2, 3 ] flMaxDist = 10.0 flMinDist = 7.5 flWeight0 = 0.5 flRelaxationFactor = {{SyntheticCloth.Num(edge)}} },
+                    { nNode = [ 0, 3 ] flMaxDist = 10.0 flMinDist = 7.5 flWeight0 = 0.5 flRelaxationFactor = {{SyntheticCloth.Num(edge)}} },
+                    { nNode = [ 0, 2 ] flMaxDist = 14.142136 flMinDist = 10.606602 flWeight0 = 0.5 flRelaxationFactor = {{SyntheticCloth.Num(diagonal)}} },
+                    { nNode = [ 1, 3 ] flMaxDist = 14.142136 flMinDist = 10.606602 flWeight0 = 0.5 flRelaxationFactor = {{SyntheticCloth.Num(diagonal)}} },
+                ]
+            }
+            """);
     }
 }
