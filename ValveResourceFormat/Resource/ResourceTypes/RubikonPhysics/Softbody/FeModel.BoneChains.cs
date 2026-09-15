@@ -2584,8 +2584,9 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                 // surplus rod may sit at the chain's own factor, which no split can separate. The count
                 // alone identifies it. The root pair is also what breaks JointCopies' uniformity test, so
                 // this reads the iteration count off the parent span instead.
-                float? RootCompanionValue(BoneChainJoint joint, int parentNode, int grand, int greatGrand)
+                float? RootCompanionValue(BoneChainJoint joint, int parentNode, int grand, int greatGrand, out float? spanRelaxation)
                 {
+                    spanRelaxation = null;
                     if (joint.Node == rootNode || rootNode == parentNode)
                     {
                         return null;
@@ -2614,6 +2615,9 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
 
                     var baseRf = (rootTarget == grand ? joint.BendStiffness : joint.TorsionStiffness) * MathF.Exp(-DefaultSurfaceStretch);
                     float? companion = null;
+                    var pairsAgree = true;
+                    (float Low, float High)? split = null;
+                    var splitsAgree = baseCopies == 1;
                     foreach (var a in Side(joint.Node))
                     {
                         foreach (var b in Side(rootTarget))
@@ -2621,19 +2625,53 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                             var pair = a < b ? (a, b) : (b, a);
                             if (Array.IndexOf(SourceSprings, pair) >= 0
                                 || Array.IndexOf(SourceSprings, (pair.Item2, pair.Item1)) >= 0
-                                || !rigidRodRelaxationsByPair.TryGetValue(pair, out var relaxations)
-                                || Surplus(relaxations, baseCopies, baseRf) is not { } value
-                                || (companion is { } already && MathF.Abs(already - value) > 1e-4f))
+                                || !rigidRodRelaxationsByPair.TryGetValue(pair, out var relaxations))
                             {
                                 return null;
                             }
 
-                            companion = value;
+                            if (pairsAgree && Surplus(relaxations, baseCopies, baseRf) is { } value
+                                && (companion is not { } already || MathF.Abs(already - value) <= 1e-4f))
+                            {
+                                companion = value;
+                            }
+                            else
+                            {
+                                pairsAgree = false;
+                            }
+
+                            if (splitsAgree && TwoSingleRods(relaxations) is { } two
+                                && (split is not { } seen
+                                    || (MathF.Abs(seen.Low - two.Low) <= 1e-4f && MathF.Abs(seen.High - two.High) <= 1e-4f)))
+                            {
+                                split = two;
+                            }
+                            else
+                            {
+                                splitsAgree = false;
+                            }
                         }
                     }
 
-                    return companion;
+                    if (pairsAgree)
+                    {
+                        return companion;
+                    }
+
+                    if (!splitsAgree || split is not { } values)
+                    {
+                        return null;
+                    }
+
+                    spanRelaxation = values.High;
+                    return values.Low;
                 }
+
+                // A pair of exactly two rods at two different relaxations, lower first.
+                static (float Low, float High)? TwoSingleRods(List<float> relaxations)
+                    => relaxations.Count == 2 && MathF.Abs(relaxations[0] - relaxations[1]) > 1e-4f
+                        ? (MathF.Min(relaxations[0], relaxations[1]), MathF.Max(relaxations[0], relaxations[1]))
+                        : null;
 
                 // The one relaxation left on a root pair once the joint's own baseCopies repeats are taken
                 // out of it: the pair's single odd value, or its shared value when every rod agrees. A pair of
@@ -2665,10 +2703,11 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                         return null;
                     }
 
-                    if (groups[0].Count == 1 && groups[1].Count == 1
-                        && groups.FindIndex(g => MathF.Abs(g.Value - baseRf) < 1e-4f) is var atBase and >= 0)
+                    if (groups[0].Count == 1 && groups[1].Count == 1)
                     {
-                        return groups[1 - atBase].Value;
+                        return groups.FindIndex(g => MathF.Abs(g.Value - baseRf) < 1e-4f) is var atBase and >= 0
+                            ? groups[1 - atBase].Value
+                            : null;
                     }
 
                     var odd = groups.FindIndex(static g => g.Count == 1);
@@ -2804,10 +2843,18 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                             || (joint.TorsionSpring && rootNode == greatGrandParent);
                         joint.ExtraIterations = rootIsUpwardTarget ? JointCopies(joint) / 2 - 1 : JointCopies(joint) - 1;
                     }
-                    else if (RootCompanionValue(joint, parent, grandParent, greatGrandParent) is { } companion)
+                    else if (RootCompanionValue(joint, parent, grandParent, greatGrandParent, out var spanReading) is { } companion)
                     {
                         joint.Suspender = companion;
                         joint.ExtraIterations = SpanCopies(joint, parent) - 1;
+                        if (spanReading is { } span && joint.BendSpring && rootNode == grandParent)
+                        {
+                            joint.BendStiffness = Slider(span);
+                        }
+                        else if (spanReading is { } torsionSpan)
+                        {
+                            joint.TorsionStiffness = Slider(torsionSpan);
+                        }
                     }
                     else
                     {
