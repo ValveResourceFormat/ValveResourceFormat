@@ -3943,19 +3943,33 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// Gets whether the cloth was authored as ModelDoc's <c>ImportedCloth</c> node ("Imported PhysAuthFx
         /// Cloth", wizard <c>wizard_import_legacy_cloth</c>) rather than as ClothChains or a proxy sheet.
         /// <para>
-        /// The marker is a non-empty <c>m_CtrlOsOffsets</c>: that array is the paired second column of an
-        /// imported fx node table, and no ClothChain or proxy path produces one (an <c>extrude_sides</c>
-        /// ring produces <c>m_CtrlOffsets</c> instead). The other tests exclude a model that mixes the two,
-        /// since the import path replaces the whole cloth folder and cannot also rebuild a ring or a sheet.
+        /// The marker is a field only an imported fx node row writes: a non-empty <c>m_CtrlOsOffsets</c>, the
+        /// paired second column of the table (an <c>extrude_sides</c> ring produces <c>m_CtrlOffsets</c> instead);
+        /// an <c>m_FollowNodes</c> entry; a non-zero <c>m_LegacyStretchForce</c>; or a raw-integrator flag bit on a
+        /// model with no goal-attraction bit, since a ClothChain joint or a ClothNode always selects the goal
+        /// integrator and an fx node row never does. The other tests exclude a model that mixes the two, since the
+        /// import path replaces the whole cloth folder and cannot also rebuild a ring or a sheet, and with it a
+        /// proxy sheet's raw-integrator vertices.
         /// </para>
         /// </summary>
         public bool IsImportedCloth
-            => CtrlOsOffsets.Length > 0
+            => (CtrlOsOffsets.Length > 0 || HasImportedNodeFields)
                 && CtrlOffsets.Length == 0
                 && Quads.Length == 0 && Tris.Length == 0
                 && FitMatrixNodes.Count == 0
                 && CtrlNames.Length > 0
                 && !Array.Exists(CtrlNames, IsCompilerGeneratedNodeName);
+
+        bool HasImportedNodeFields
+        {
+            get
+            {
+                var flags = StaticNodeFlags | DynamicNodeFlags;
+                return ((flags & (NodeFlagRawForceAttraction | NodeFlagRawVertexAttraction)) != 0 && (flags & NodeFlagGoalAttraction) == 0)
+                    || FollowNodeLinks.Count > 0
+                    || Array.Exists(LegacyStretchForce, static force => force != 0f);
+            }
+        }
 
         // The "$" namespace is not one family. An imported fx table supplies its own node names and those
         // can start with "$" too, so only the compiler's OWN generated families disqualify a model: they

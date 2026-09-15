@@ -6278,5 +6278,53 @@ namespace Tests
                 await Assert.That(declared).IsEquivalentTo(["joint_1", "joint_2"], CollectionOrdering.Matching);
             }
         }
+
+        /// <summary>
+        /// An imported fx node table with no paired column is still an imported cloth: a raw-integrator flag bit on a model
+        /// with no goal-attraction bit, a follow link or a legacy stretch force is written by no ClothChain joint or ClothNode.
+        /// Controls: the same nodes on the goal integrator with neither field are not, nor are raw static nodes beside goal
+        /// dynamic nodes, nor is a proxy sheet's raw-integrator vertex.
+        /// </summary>
+        [Test]
+        public async Task AnFxTableWithNoPairedColumnIsAnImportedCloth()
+        {
+            const string NoFields = "";
+            const string Follow = "m_FollowNodes = [ { nParentNode = 0 nChildNode = 1 flWeight = 0.1 } ]";
+            const string Legacy = "m_LegacyStretchForce = [ 0.0, 1.0, 1.0 ]";
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(FxTable(0xF00, 0x2F10, NoFields).IsImportedCloth).IsTrue();
+                await Assert.That(FxTable(0x880, 0x2880, Follow).IsImportedCloth).IsTrue();
+                await Assert.That(FxTable(0x880, 0x2880, Legacy).IsImportedCloth).IsTrue();
+                await Assert.That(FxTable(0x880, 0x2880, NoFields).IsImportedCloth).IsFalse();
+                await Assert.That(FxTable(0x200, 0x2080, NoFields).IsImportedCloth).IsFalse();
+                await Assert.That(FxTable(0xF00, 0x2F10, NoFields, "$cloth_m0p2").IsImportedCloth).IsFalse();
+            }
+        }
+
+        private static FeModel FxTable(uint staticFlags, uint dynamicFlags, string fields, string tip = "tail_2")
+            => SyntheticCloth.Parse($$"""
+            {
+                m_CtrlName = [ "tail_0", "tail_1", "{{tip}}" ]
+                m_nNodeCount = 3
+                m_nStaticNodes = 1
+                m_nStaticNodeFlags = {{staticFlags}}
+                m_nDynamicNodeFlags = {{dynamicFlags}}
+                m_NodeInvMasses = [ 0.0, 1.0, 1.0 ]
+                m_InitPose =
+                [
+                    {{SyntheticCloth.Pose(0f, 0f, 0f)}}
+                    {{SyntheticCloth.Pose(0f, 0f, -8.5f)}}
+                    {{SyntheticCloth.Pose(0f, 0f, -17f)}}
+                ]
+                m_Rods =
+                [
+                    {{SyntheticCloth.BandedRod(0, 1, 0.425f, 8.5f, 1f)}}
+                    {{SyntheticCloth.BandedRod(1, 2, 0.425f, 8.5f, 1f)}}
+                ]
+                {{fields}}
+            }
+            """);
     }
 }
