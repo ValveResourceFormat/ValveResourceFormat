@@ -206,14 +206,25 @@ partial class ModelExtract
             rootHasBase: root is not null && feModel.NodeBases.ContainsKey(root.Node),
             lockedJoint: chain.Joints.Exists(joint => feModel.IsLockedToGoal(joint.Node)),
             rigidCloudClusterLock: IsRigidCloudClusterLock(feModel, chain),
-            locksJoints: chain.ExtrudeSides >= 1
-                && chain.Joints.Exists(joint => !joint.Simulated && feModel.AllowsRotation(joint.Node)),
+            locksJoints: ChainLocksJoints(feModel, chain),
             basesBulkGraded: feModel.ChainBasesAreBulkGraded(chain),
             hintsTwistWritten: feModel.ChainHintsAreTwistWritten(chain),
             hasUnstagedThinJoint: feModel.ChainHasUnstagedThinJoint(chain),
             reverseOffsetsPreset: feModel.ChainReverseOffsetsArePreset(chain),
             hasUnbasedLeaf: feModel.ChainHasUnbasedLeaf(chain));
     }
+
+    /// <summary>
+    /// Whether format 1 would lock a joint of <paramref name="chain"/> to its goal: a non-simulated, rotation-free joint whose
+    /// fit table holds any member. The table takes the joint's own ring and every ring its chain children extruded, so a joint
+    /// with neither stages no fit influence and no lock reaches it.
+    /// </summary>
+    /// <param name="feModel">The compiled cloth.</param>
+    /// <param name="chain">The reconstructed chain.</param>
+    internal static bool ChainLocksJoints(FeModel feModel, FeModel.BoneChain chain)
+        => chain.ExtrudeSides >= 1
+            && chain.Joints.Exists(joint => !joint.Simulated && feModel.AllowsRotation(joint.Node)
+                && (joint.RingNodes.Count > 0 || chain.Joints.Exists(child => child.ParentNode == joint.Node && child.RingNodes.Count > 0)));
 
     static KVObject MakeClothChainNode(FeModel feModel, FeModel.BoneChain chain, bool hasOtherChains,
         IReadOnlyList<FeModel.BoneChainJoint>? walk = null, HashSet<string>? relandedJoints = null)

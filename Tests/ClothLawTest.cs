@@ -6978,5 +6978,52 @@ namespace Tests
                 }
                 """);
         }
+
+        /// <summary>
+        /// A joint's fit table takes its own ring and every ring its chain children extruded (03_FINISH 2.37a, the stager adds
+        /// each list member to the parent's table too), so a non-simulated joint with neither stages no influence and no chain
+        /// format can lock it to its goal. <c>w36sb_hint_ring_on_leaf_v0</c> extrudes only its leaf, two joints below a static
+        /// rotation-free root: that root read as a lock the original's empty <c>m_LockToGoal</c> ruled out, which blocked the
+        /// rope-head hint's version-0 reading and compiled the chain at 2. A ringless root over a ringed child is locked from
+        /// version 1 on (dota <c>aa_frozen_crown_tail</c>).
+        /// </summary>
+        [Test]
+        public async Task AChainJointWithNoRingOnItselfOrItsChildrenIsNoGoalLock()
+        {
+            FeModel model = SyntheticCloth.Parse($$"""
+                {
+                    m_CtrlName = [ "root", "mid", "leaf", "$ccmid_0", "$ccmid_1", "$ccleaf_0", "$ccleaf_1" ]
+                    m_nNodeCount = 7
+                    m_nStaticNodes = 1
+                    m_nRotLockStaticNodes = 0
+                    m_NodeInvMasses = [ 0.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0 ]
+                    m_InitPose =
+                    [
+                        {{SyntheticCloth.Pose(0f, 0f, 0f)}}
+                        {{SyntheticCloth.Pose(0f, 0f, -8f)}}
+                        {{SyntheticCloth.Pose(0f, 0f, -16f)}}
+                        {{SyntheticCloth.Pose(0f, 1f, -8f)}}
+                        {{SyntheticCloth.Pose(0f, -1f, -8f)}}
+                        {{SyntheticCloth.Pose(0f, 1f, -16f)}}
+                        {{SyntheticCloth.Pose(0f, -1f, -16f)}}
+                    ]
+                }
+                """);
+
+            static FeModel.BoneChain Chain(IReadOnlyList<int> midRing)
+            {
+                var chain = new FeModel.BoneChain { RootBone = "root", ExtrudeSides = 2 };
+                chain.Joints.Add(new FeModel.BoneChainJoint { Node = 0, Name = "root", ParentNode = -1 });
+                chain.Joints.Add(new FeModel.BoneChainJoint { Node = 1, Name = "mid", ParentNode = 0, InvMass = 1f, ExtrudeSides = midRing.Count, RingNodes = midRing });
+                chain.Joints.Add(new FeModel.BoneChainJoint { Node = 2, Name = "leaf", ParentNode = 1, InvMass = 1f, ExtrudeSides = 2, RingNodes = [5, 6] });
+                return chain;
+            }
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(ModelExtract.ChainLocksJoints(model, Chain([]))).IsFalse();
+                await Assert.That(ModelExtract.ChainLocksJoints(model, Chain([3, 4]))).IsTrue();
+            }
+        }
     }
 }
