@@ -760,7 +760,8 @@ partial class ModelExtract
         AddFreeClothNodesAndSprings(clothFolderChildren, softbodyChildren, feModel, chainCoveredNodes,
             name => chainSurface || (clothControlBones?.Contains(name) ?? false),
             clothBones, ClothVertexMapFolders(feModel, clothFolderChildren), hasOtherChains: true,
-            ClothControlAncestorTest(feModel), sourceSprings);
+            ClothControlAncestorTest(feModel), sourceSprings,
+            chainJoints: [.. boneChains.SelectMany(static chain => chain.Joints).Select(static joint => joint.Node)]);
         AddClothStiffHinges(softbodyChildren, feModel);
         AddClothRigidCloudClusterLocks(softbodyChildren, feModel, declaredChains);
         AddClothChainVolumetricMaps(softbodyChildren, feModel, boneChains);

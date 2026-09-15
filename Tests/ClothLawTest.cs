@@ -6515,5 +6515,53 @@ namespace Tests
                 await Assert.That(ModelExtract.IsDeclaredByItsJiggleBone(feModel, 1)).IsFalse();
             }
         }
+
+        /// <summary>
+        /// A <c>ClothSpring</c> from a free <c>ClothNode</c> to a chain joint compiles one rod and one source element that no
+        /// chain and no chain-ring source spring re-declares: <c>w36sa_min_spring_noparams</c> lost the rod, and its tip's
+        /// inverse mass with it, until the spring was restored in VRF's own document (EXACT). The joint is an endpoint only
+        /// for a node declared beside it; the chain's own span between two joints stays the chain's.
+        /// </summary>
+        [Test]
+        public async Task ASpringFromAFreeNodeToAChainJointIsDeclared()
+        {
+            FeModel feModel = SyntheticCloth.Parse($$"""
+                {
+                    m_CtrlName = [ "coattail_0_L", "coattail_0_R", "coattail_1_R" ]
+                    m_SkelParents = [ -1, -1, 1 ]
+                    m_nNodeCount = 3
+                    m_nStaticNodes = 2
+                    m_NodeInvMasses = [ 0.0, 0.0, 0.006141 ]
+                    m_InitPose =
+                    [
+                        {{SyntheticCloth.Pose(4f, 0f, 60f)}}
+                        {{SyntheticCloth.Pose(-4f, 0f, 60f)}}
+                        {{SyntheticCloth.Pose(-4f, 0f, 51.5f)}}
+                    ]
+                    m_Rods =
+                    [
+                        {{SyntheticCloth.RigidRod(0, 2, 11.854138f, 1f)}}
+                        {{SyntheticCloth.RigidRod(1, 2, 8.5f, 1f)}}
+                    ]
+                }
+                """);
+
+            static string[] Springs(FeModel feModel, HashSet<int>? chainJoints)
+            {
+                KVObject clothChildren = KVObject.Array();
+                KVObject softbodyChildren = KVObject.Array();
+                ModelExtract.AddFreeClothNodesAndSprings(clothChildren, softbodyChildren, feModel, [1, 2], static _ => true,
+                    [], chainJoints: chainJoints);
+                return [.. softbodyChildren.Select(static child => child.Value)
+                    .Where(static child => child.GetStringProperty("_class") == "ClothSpring")
+                    .Select(static spring => spring.GetStringProperty("cloth_node_0") + "|" + spring.GetStringProperty("cloth_node_1"))];
+            }
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(Springs(feModel, [1, 2])).IsEquivalentTo(["coattail_0_L|coattail_1_R"]);
+                await Assert.That(Springs(feModel, null)).IsEmpty();
+            }
+        }
     }
 }

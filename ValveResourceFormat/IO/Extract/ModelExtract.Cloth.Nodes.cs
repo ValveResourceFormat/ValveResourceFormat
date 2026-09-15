@@ -15,11 +15,13 @@ partial class ModelExtract
     // (static when is_static_node), which is how a plain cloth bone that no chain, proxy or shape claims
     // was authored. The rods among these nodes come from explicit ClothSprings, whose endpoints resolve
     // by ClothNode element name (or plain bone name for a merged/root ClothNode); a bone with no cloth
-    // declaration of its own is not a valid endpoint ("Cannot find Fx Bone").
-    static int AddFreeClothNodesAndSprings(KVObject clothChildren, KVObject softbodyChildren,
+    // declaration of its own is not a valid endpoint ("Cannot find Fx Bone"). A rod from a node declared here to a
+    // joint of chainJoints is such a spring as well: no chain and no chain-ring source spring re-declares it.
+    internal static int AddFreeClothNodesAndSprings(KVObject clothChildren, KVObject softbodyChildren,
         FeModel feModel, HashSet<int> coveredNodes, Func<string, bool> emitBareStatic,
         HashSet<string> clothBones, Func<int, bool, KVObject>? folderFor = null, bool hasOtherChains = false,
-        Func<string, bool>? bareStaticReparented = null, HashSet<(int, int)>? alreadyEmitted = null)
+        Func<string, bool>? bareStaticReparented = null, HashSet<(int, int)>? alreadyEmitted = null,
+        HashSet<int>? chainJoints = null)
     {
         const string ClothNodePrefix = "$cloth_node_";
         var names = feModel.CtrlNames;
@@ -47,6 +49,7 @@ partial class ModelExtract
 
         // node -> the name a ClothSpring endpoint references it by.
         var springName = new Dictionary<int, string>();
+        var declared = new HashSet<int>();
         var emitted = 0;
 
         // A ClothNode carries no vertex_map of its own, so a lone one joins its selections through the
@@ -73,6 +76,7 @@ partial class ModelExtract
                 FolderOf(node).Add(MakeClothNode(feModel, rootBone, node,
                     isStaticNode: feModel.IsStatic(node), elementName: elementName, origin: origin, angles: angles));
                 springName[node] = elementName;
+                declared.Add(node);
                 clothBones.Add(rootBone);
                 emitted++;
 
@@ -97,6 +101,7 @@ partial class ModelExtract
                         ? MakeLoneJointChain(feModel, name, node, hasOtherChains)
                         : MakeClothNode(feModel, name, node, isStaticNode: isStatic));
                     springName[node] = name;
+                    declared.Add(node);
                     clothBones.Add(name);
                     emitted++;
                 }
@@ -108,6 +113,9 @@ partial class ModelExtract
             return emitted;
         }
 
+        bool IsEndpoint(int node, int other) => springName.ContainsKey(node)
+            || (chainJoints is not null && chainJoints.Contains(node) && declared.Contains(other));
+
         // One spring per rod OCCURRENCE, not per distinct pair: node mass accumulates per rod, and a model
         // can ship genuine duplicate rods. Where EVERY occurrence of a pair is an identical copy, one
         // ClothSpring's own extra_iterations reproduces them: the compiler duplicates a spring's rod once
@@ -117,8 +125,7 @@ partial class ModelExtract
         var rodsByEdge = new Dictionary<(int, int), List<FeModel.Rod>>();
         foreach (var rod in feModel.Rods)
         {
-            if (rod.NodeA == rod.NodeB
-                || !springName.ContainsKey(rod.NodeA) || !springName.ContainsKey(rod.NodeB))
+            if (rod.NodeA == rod.NodeB || !IsEndpoint(rod.NodeA, rod.NodeB) || !IsEndpoint(rod.NodeB, rod.NodeA))
             {
                 continue;
             }
@@ -141,8 +148,8 @@ partial class ModelExtract
                 continue;
             }
 
-            var name0 = springName[edge.Item1];
-            var name1 = springName[edge.Item2];
+            var name0 = springName.GetValueOrDefault(edge.Item1) ?? names[edge.Item1];
+            var name1 = springName.GetValueOrDefault(edge.Item2) ?? names[edge.Item2];
             var first = rods[0];
             var allIdentical = rods.TrueForAll(rod => rod.MinDist == first.MinDist
                 && rod.MaxDist == first.MaxDist && rod.RelaxationFactor == first.RelaxationFactor);
