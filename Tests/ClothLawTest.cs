@@ -6624,5 +6624,77 @@ namespace Tests
                 await Assert.That(suspenderFirst.Suspender).IsEqualTo(0.2f).Within(1e-4f);
             }
         }
+
+        /// <summary>
+        /// A planarized capsule whose nearest sheet column sits inside its reach clamps that column's planes through their nodes,
+        /// and the two geometric columns left share a steep cone about their mean normal that holds more inliers than the
+        /// capsule's own axis. The capsule is still recovered, from the consensus on its own axis (<c>w36c_planes_one_shape</c>,
+        /// radius 14 on bone z -4 to +4). Control: at radius 8 no column is clamped.
+        /// </summary>
+        [Test]
+        public async Task APlanarizedCapsuleOverAClampedColumnIsFitOnItsOwnAxis()
+        {
+            var clamped = PlanarizedColumns(14f).BuildPlanarizeCapsules();
+            var open = PlanarizedColumns(8f).BuildPlanarizeCapsules();
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(clamped.Count).IsEqualTo(1);
+                await Assert.That(clamped[0].Radius0).IsEqualTo(14f).Within(1e-2f);
+                await Assert.That(open.Count).IsEqualTo(1);
+                await Assert.That(open[0].Radius0).IsEqualTo(8f).Within(1e-2f);
+            }
+        }
+
+        private static FeModel PlanarizedColumns(float radius)
+        {
+            (float X, float Y, float NodeRadius, float[] Heights)[] columns =
+            [
+                (-8.311f, -11.225f, 4f, [-4.267f, -2.134f, 0f, 2.133f, 4.267f]),
+                (-15.225f, -16.156f, 6f, [-4.638f, -2.319f, 0f, 2.319f, 4.638f]),
+                (-22.147f, -21.075f, 8f, [-5.004f, -2.502f, 0f, 2.502f, 5.004f]),
+            ];
+
+            var names = new StringBuilder("\"spine_2\"");
+            var poses = new StringBuilder(SyntheticCloth.Pose(0f, 0f, 0f));
+            var radii = new List<string>();
+            var planes = new StringBuilder();
+            var node = 0;
+            foreach (var (x, y, nodeRadius, heights) in columns)
+            {
+                foreach (var z in heights)
+                {
+                    node++;
+                    var point = new Vector3(x, y, z);
+                    var centre = new Vector3(0f, 0f, Math.Clamp(z, -4f, 4f));
+                    var normal = Vector3.Normalize(point - centre);
+                    var offset = Vector3.Dot(normal, centre) + radius;
+                    if (Vector3.Dot(normal, point) - offset < nodeRadius)
+                    {
+                        offset = Vector3.Dot(normal, point);
+                    }
+
+                    names.Append(CultureInfo.InvariantCulture, $", \"v{node}\"");
+                    poses.Append(SyntheticCloth.Pose(x, y, z));
+                    radii.Add(SyntheticCloth.Num(nodeRadius));
+                    planes.Append(CultureInfo.InvariantCulture,
+                        $"{{ nCtrlParent = 0 nChildNode = {node} m_Plane = {{ m_vNormal = [ {SyntheticCloth.Num(normal.X)}, {SyntheticCloth.Num(normal.Y)}, {SyntheticCloth.Num(normal.Z)} ] m_flOffset = {SyntheticCloth.Num(offset)} }} flStrength = 1.0 }},");
+                }
+            }
+
+            return SyntheticCloth.Parse($$"""
+                {
+                    m_CtrlName = [ {{names}} ]
+                    m_nNodeCount = {{node + 1}}
+                    m_nStaticNodes = 1
+                    m_NodeInvMasses = [ 0.0{{string.Concat(Enumerable.Repeat(", 1.0", node))}} ]
+                    m_NodeCollisionRadii = [ {{string.Join(", ", radii)}} ]
+                    m_InitPose = [ {{poses}} ]
+                    m_CollisionPlanes = [ {{planes}} ]
+                    m_VertexMaps = [ {{VertexMapEntry("vmap0", 4164734239, 0, 1, node)}} ]
+                    m_VertexMapValues = [ {{string.Join(", ", Enumerable.Repeat("255", node))}} ]
+                }
+                """);
+        }
     }
 }

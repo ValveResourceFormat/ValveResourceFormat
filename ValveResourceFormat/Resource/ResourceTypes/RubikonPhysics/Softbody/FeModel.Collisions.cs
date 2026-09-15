@@ -775,7 +775,55 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
 
             var widened = new List<CapsuleFit>(primary);
             widened.AddRange(NormalCandidates(samples));
-            return widened.Count > primary.Count ? CoverGroup(samples, widened) : null;
+            if (widened.Count > primary.Count && CoverGroup(samples, widened) is { } widenedCover)
+            {
+                return widenedCover;
+            }
+
+            var exhaustive = new List<CapsuleFit>(widened);
+            exhaustive.AddRange(EveryConsensusAxisCandidates(samples));
+            return exhaustive.Count > widened.Count ? CoverGroup(samples, exhaustive) : null;
+        }
+
+        /// <summary>
+        /// Band capsules and cap spheres on every distinct consensus of the plane normals, not only the largest one. The planes
+        /// of two neighbouring sheet columns can lie on a steep cone about their mean normal that holds more inliers than the
+        /// capsule's own axis does, and every candidate the earlier stages build then sits on that cone.
+        /// </summary>
+        static List<CapsuleFit> EveryConsensusAxisCandidates(List<PlanarizeSample> samples)
+        {
+            var candidates = new CandidateSet();
+            var all = Enumerable.Range(0, samples.Count).ToList();
+            var consensuses = new HashSet<string>(StringComparer.Ordinal);
+
+            foreach (var (a, b, c) in AxisSeedTriples(all))
+            {
+                var span = Vector3.Cross(samples[b].Normal - samples[a].Normal, samples[c].Normal - samples[a].Normal);
+                if (span.Length() < 1e-4f)
+                {
+                    continue;
+                }
+
+                var seedAxis = Vector3.Normalize(span);
+                var seedCosine = Vector3.Dot(samples[a].Normal, seedAxis);
+                if (MathF.Abs(seedCosine) >= 0.999f)
+                {
+                    continue;
+                }
+
+                var inliers = AxisInliers(samples, all, seedAxis, seedCosine);
+                if (inliers.Count < PlanarizeMinShapePlanes || !consensuses.Add(string.Join(',', inliers))
+                    || !RefitAxisExact(samples, inliers, out var axis, out var cosine) || MathF.Abs(cosine) >= 0.999f)
+                {
+                    continue;
+                }
+
+                AddBandCapsules(candidates, samples, inliers, axis, TaperFromCosine(cosine));
+                AddBandCapsules(candidates, samples, inliers, -axis, TaperFromCosine(-cosine));
+                AddCapSpheres(candidates, samples, inliers);
+            }
+
+            return candidates.Fits;
         }
 
         // A greedy set cover of the group's planes by the candidates that reproduce them, one entry per
