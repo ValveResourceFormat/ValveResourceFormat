@@ -6756,5 +6756,49 @@ namespace Tests
                 }
                 """);
         }
+
+        /// <summary>
+        /// The rigid-edge-hinge ring bend (03_FINISH 2.7) and an authored stiff hinge (2.8) compile to the same record, a ring
+        /// bend at curvature c matching a stiffness-1 hinge at (1 - c) * 180 degrees, so they separate by ownership: a ring
+        /// bend's hub lies between its ends (first end its parent, second end its child), a stiff hinge bends the parent of
+        /// its first end. <c>w36sa_min_kel_3joints</c>' two ring bends were read as a 90 degree stiff hinge on the chain root,
+        /// which bends nothing, and lost both bends and <c>rigid_edge_hinges</c>.
+        /// </summary>
+        [Test]
+        public async Task ARingBendOverAJointIsNotAStiffHingeOnItsParent()
+        {
+            static FeModel Model(string bendNodes) => SyntheticCloth.Parse($$"""
+                {
+                    m_CtrlName = [ "root", "j1", "j2" ]
+                    m_SkelParents = [ -1, 0, 1 ]
+                    m_nNodeCount = 3
+                    m_nStaticNodes = 1
+                    m_NodeInvMasses = [ 0.0, 1.0, 1.0 ]
+                    m_InitPose =
+                    [
+                        {{SyntheticCloth.Pose(0f, 0f, 0f)}}
+                        {{SyntheticCloth.Pose(0f, 0f, -8.5f)}}
+                        {{SyntheticCloth.Pose(0f, 0f, -17f)}}
+                    ]
+                    m_KelagerBends =
+                    [
+                        { nNode = [ {{bendNodes}} ] flWeight = [ -1.0, 0.0, 0.9 ] flHeight0 = 4.0 nReserved = 0 },
+                    ]
+                }
+                """);
+
+            FeModel ring = Model("1, 0, 2");
+            FeModel hinge = Model("1, 2, 0");
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(ring.IsChainRingBend(ring.KelagerBends[0])).IsTrue();
+                await Assert.That(ring.HasChainRingBends).IsTrue();
+                await Assert.That(ring.GetStiffHinge(0)).IsNull();
+                await Assert.That(hinge.IsChainRingBend(hinge.KelagerBends[0])).IsFalse();
+                await Assert.That(hinge.HasChainRingBends).IsFalse();
+                await Assert.That(hinge.GetStiffHinge(2)).IsNotNull();
+            }
+        }
     }
 }

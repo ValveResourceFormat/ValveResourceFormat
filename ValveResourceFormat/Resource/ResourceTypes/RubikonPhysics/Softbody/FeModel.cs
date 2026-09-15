@@ -2782,6 +2782,33 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             float MidWeight, float End0Weight, float End1Weight, float Height);
 
         /// <summary>
+        /// Gets whether <paramref name="bend"/> is a ring bend the rigid-edge-hinge builder laid over a chain: its hub belongs to
+        /// a joint between the joints owning its two ends, the first end on the hub's parent and the second on the hub's child.
+        /// An authored stiff hinge compiles the same record but bends the parent of its first end, so the two separate by that
+        /// ownership (a <c>$</c> node is owned by its <c>m_SkelParents</c> entry).
+        /// </summary>
+        public bool IsChainRingBend(KelagerBend bend)
+        {
+            var hub = BendOwner(bend.MidNode);
+            var first = BendOwner(bend.End0);
+            var second = BendOwner(bend.End1);
+            return hub >= 0 && first >= 0 && second >= 0
+                && hub < SkelParents.Length && SkelParents[hub] == first
+                && second < SkelParents.Length && SkelParents[second] == hub;
+        }
+
+        /// <summary>
+        /// Gets whether any <see cref="KelagerBends"/> record is a chain ring bend (<see cref="IsChainRingBend"/>), which only
+        /// <c>rigid_edge_hinges</c> builds.
+        /// </summary>
+        public bool HasChainRingBends => KelagerBends.Any(IsChainRingBend);
+
+        int BendOwner(int node)
+            => node < 0 || node >= CtrlNames.Length ? -1
+                : !IsProxyNodeName(CtrlNames[node]) ? node
+                : node < SkelParents.Length ? SkelParents[node] : -1;
+
+        /// <summary>
         /// Recovers the <c>stiff_hinge</c> stiffness and its <c>stiff_hinge_angle</c> in degrees authored on
         /// the joint at <paramref name="jointNode"/>, or null when it carries no bend. A joint's stiff hinge
         /// bends its PARENT: the joint (or a proxy extruded from it) is the bend's first end, its parent the
@@ -2801,7 +2828,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                     && bend.End0 < SkelParents.Length
                         ? SkelParents[bend.End0]
                         : -1;
-                if (bend.End0 != jointNode && owner != jointNode)
+                if ((bend.End0 != jointNode && owner != jointNode) || IsChainRingBend(bend))
                 {
                     continue;
                 }

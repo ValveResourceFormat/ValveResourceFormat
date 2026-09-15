@@ -190,7 +190,9 @@ partial class ModelExtract
             // turns on: its rods are all built rigid, so the readings taken off them saturate whatever it
             // was authored with (see FeModel.RigidHingeCurvature). Where its hubs fold apart, the per-hub
             // paint carries every fold and the model-wide value stays zero (see FeModel.RigidHingeBendPaint).
-            ("add_curvature", fe.HasAxialEdges ? (fe.RigidHingeBendPaint is null ? fe.RigidHingeCurvature : 0f) : addCurvature),
+            ("add_curvature", fe.HasAxialEdges || fe.HasChainRingBends
+                ? (fe.RigidHingeBendPaint is null ? fe.RigidHingeCurvature : 0f)
+                : addCurvature),
             ("quad_bend_tolerance", fe.QuadBendTolerance),
             ("local_drag1", fe.LocalDrag1),
             ("follow_the_lead", Flag(ClothFlagFollowTheLead)),
@@ -208,7 +210,7 @@ partial class ModelExtract
             // from the surface, where declaring them as explicit springs would instead add a source
             // element per pair and leave the sheet heavier than the original.
             ("add_stiffness_rods", generatesBendRods),
-            ("rigid_edge_hinges", fe.HasAxialEdges),
+            ("rigid_edge_hinges", fe.HasAxialEdges || fe.HasChainRingBends),
             ("add_bend_only_rods", generatesBendOnlyRods),
             ("immovable", Flag(ClothFlagImmovable)));
     }
