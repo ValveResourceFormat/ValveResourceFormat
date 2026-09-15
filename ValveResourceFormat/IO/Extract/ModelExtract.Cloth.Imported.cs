@@ -22,7 +22,10 @@ partial class ModelExtract
     //
     // Per-node mass reaches the compiled m_NodeInvMasses only under ClothParams explicit_masses; without it
     // the compiler derives inverse masses from rod geometry instead.
-    static KVObject MakeImportedCloth(FeModel feModel)
+    //
+    // A table of only some of the model's nodes addresses them by their row among those nodes, and drops a
+    // parent, follow parent or rod reaching outside it.
+    static KVObject MakeImportedCloth(FeModel feModel, IReadOnlySet<int>? tableNodes = null)
     {
         var ropeParents = feModel.RopeRunParents;
         var followLinks = feModel.FollowNodeLinks;
@@ -32,6 +35,13 @@ partial class ModelExtract
         foreach (var pair in feModel.CtrlOsOffsets)
         {
             osOffsetParents.TryAdd(pair.CtrlChild, pair.CtrlParent);
+        }
+
+        var rowNodes = tableNodes is null ? Enumerable.Range(0, feModel.CtrlNames.Length).ToList() : tableNodes.Order().ToList();
+        var rowOf = new Dictionary<int, int>(rowNodes.Count);
+        for (var row = 0; row < rowNodes.Count; row++)
+        {
+            rowOf[rowNodes[row]] = row;
         }
 
         float PerDynamic(float[] values, int node)
@@ -46,7 +56,7 @@ partial class ModelExtract
         }
 
         var nodes = KVObject.Array();
-        for (var node = 0; node < feModel.CtrlNames.Length; node++)
+        foreach (var node in rowNodes)
         {
             var row = KVObject.Collection();
             row.Add("m_Name", feModel.CtrlNames[node]);
@@ -88,20 +98,27 @@ partial class ModelExtract
             // an os-offset child: a virtual node sits in no rope run, and its own pair names the parent.
             if (isOsOffsetChild)
             {
-                row.Add("m_nParent", osOffsetParent);
+                if (rowOf.TryGetValue(osOffsetParent, out var osOffsetParentRow))
+                {
+                    row.Add("m_nParent", osOffsetParentRow);
+                }
             }
             else if (feModel.HasCompiledSkelParents && node < feModel.SkelParents.Length && feModel.SkelParents[node] >= 0)
             {
-                row.Add("m_nParent", feModel.SkelParents[node]);
+                if (rowOf.TryGetValue(feModel.SkelParents[node], out var skelParentRow))
+                {
+                    row.Add("m_nParent", skelParentRow);
+                }
             }
-            else if (!feModel.HasCompiledSkelParents && ropeParents.TryGetValue(node, out var parent))
+            else if (!feModel.HasCompiledSkelParents && ropeParents.TryGetValue(node, out var parent)
+                && rowOf.TryGetValue(parent, out var ropeParentRow))
             {
-                row.Add("m_nParent", parent);
+                row.Add("m_nParent", ropeParentRow);
             }
 
-            if (followLinks.TryGetValue(node, out var follow))
+            if (followLinks.TryGetValue(node, out var follow) && rowOf.TryGetValue(follow.Parent, out var followParentRow))
             {
-                row.Add("m_nFollowParent", follow.Parent);
+                row.Add("m_nFollowParent", followParentRow);
                 row.Add("m_flFollowWeight", follow.Weight);
             }
 
@@ -158,8 +175,13 @@ partial class ModelExtract
         var rods = KVObject.Array();
         foreach (var rod in feModel.Rods)
         {
+            if (!rowOf.TryGetValue(rod.NodeA, out var rowA) || !rowOf.TryGetValue(rod.NodeB, out var rowB))
+            {
+                continue;
+            }
+
             var row = KVObject.Collection();
-            row.Add("m_nNodes", MakeArray(rod.NodeA, rod.NodeB));
+            row.Add("m_nNodes", MakeArray(rowA, rowB));
 
             var restLength = rod.NodeA < feModel.InitPosePositions.Length && rod.NodeB < feModel.InitPosePositions.Length
                 ? Vector3.Distance(feModel.InitPosePositions[rod.NodeA], feModel.InitPosePositions[rod.NodeB])
@@ -196,6 +218,9 @@ partial class ModelExtract
     }
 
     const float ImportedClothDefaultContraction = 0.05f;
+
+    static IEnumerable<string> ImportedStripBoneNames(FeModel feModel, IReadOnlySet<int> strip)
+        => strip.Select(node => feModel.CtrlNames[node]).Where(name => !feModel.IsGeneratedNodeName(name));
 
     bool EmitImportedClothPhase(FeModel feModel, List<FeModel.BoneChain> boneChains, KVObject rootChildren)
     {

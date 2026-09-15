@@ -6326,5 +6326,60 @@ namespace Tests
                 {{fields}}
             }
             """);
+
+        /// <summary>
+        /// A strip's paired columns beside a ringed chain are an imported strip of their own: the chain reconstruction reads
+        /// neither column as a joint or a ring. Control: the same strip with no ring is an imported cloth as a whole, and has
+        /// no strip set.
+        /// </summary>
+        [Test]
+        public async Task AStripBesideARingedChainIsAnImportedStripOfItsOwn()
+        {
+            var mixed = StripBesideChain(ringed: true);
+            var alone = StripBesideChain(ringed: false);
+
+            var joints = mixed.BuildBoneChains().SelectMany(static chain => chain.Joints).Select(static joint => joint.Node).ToHashSet();
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(mixed.IsImportedCloth).IsFalse();
+                await Assert.That(mixed.ImportedStripNodes.Order()).IsEquivalentTo([0, 1, 2, 3]);
+                await Assert.That(joints.Overlaps([0, 1, 2, 3])).IsFalse();
+                await Assert.That(joints.Contains(5)).IsTrue();
+                await Assert.That(alone.IsImportedCloth).IsTrue();
+                await Assert.That(alone.ImportedStripNodes.Count).IsEqualTo(0);
+            }
+        }
+
+        private static FeModel StripBesideChain(bool ringed) => SyntheticCloth.Parse($$"""
+            {
+                m_CtrlName = [ "strip_r0c0", "strip_r0c1", "strip_r1c0", "strip_r1c1", "hat", "hat_end"{{(ringed ? ", \"$cchat_end_0\"" : string.Empty)}} ]
+                m_SkelParents = [ -1, 0, 0, 2, -1, 4{{(ringed ? ", 5" : string.Empty)}} ]
+                m_nNodeCount = {{(ringed ? 7 : 6)}}
+                m_nStaticNodes = 3
+                m_nStaticNodeFlags = 3840
+                m_nDynamicNodeFlags = 12048
+                m_NodeInvMasses = [ 0.0, 0.0, 0.0, 1.0, 1.0, 1.0{{(ringed ? ", 1.0" : string.Empty)}} ]
+                m_InitPose =
+                [
+                    {{SyntheticCloth.Pose(0f, 0f, 0f)}}
+                    {{SyntheticCloth.Pose(0f, -20f, 0f)}}
+                    {{SyntheticCloth.Pose(0f, 0f, -8f)}}
+                    {{SyntheticCloth.Pose(0f, -20f, -8f)}}
+                    {{SyntheticCloth.Pose(40f, 0f, 0f)}}
+                    {{SyntheticCloth.Pose(40f, 0f, -8f)}}
+                    {{(ringed ? SyntheticCloth.Pose(40f, 2f, -8f) : string.Empty)}}
+                ]
+                m_CtrlOsOffsets = [ { nCtrlParent = 0 nCtrlChild = 1 }, { nCtrlParent = 2 nCtrlChild = 3 } ]
+                m_CtrlOffsets = [ {{(ringed ? "{ vOffset = [ 0.0, 2.0, 0.0 ] nCtrlParent = 5 nCtrlChild = 6 }" : string.Empty)}} ]
+                m_Rods =
+                [
+                    {{SyntheticCloth.BandedRod(0, 2, 0.4f, 8f, 1f)}}
+                    {{SyntheticCloth.BandedRod(1, 3, 0.4f, 8f, 1f)}}
+                    {{SyntheticCloth.BandedRod(2, 3, 1f, 20f, 1f)}}
+                    {{SyntheticCloth.RigidRod(4, 5, 8f, 1f)}}
+                ]
+            }
+            """);
     }
 }

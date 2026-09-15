@@ -440,8 +440,16 @@ partial class ModelExtract
         clothFolder.Add("name", "cloth");
         softbodyChildren.Add(clothFolder);
 
+        var strip = feModel.ImportedStripNodes;
+        if (strip.Count > 0)
+        {
+            clothFolderChildren.Add(MakeImportedCloth(feModel, strip));
+        }
+
         var clothBones = ClothBoneNames(feModel);
+        clothBones.UnionWith(ImportedStripBoneNames(feModel, strip));
         var clustered = AddClothSelfCollisionClusters(softbodyChildren, feModel, clothBones);
+        clustered.UnionWith(strip);
         var freeNodes = AddFreeClothNodesAndSprings(clothFolderChildren, softbodyChildren, feModel,
             clustered, static _ => true, clothBones,
             ClothVertexMapFolders(feModel, clothFolderChildren),
@@ -451,7 +459,7 @@ partial class ModelExtract
 
         // Every ctrl of a collision-shape-only model is a shape parent bone, which the loop above
         // skips, so gating on the node count alone drops the shapes with the rest of the Softbody.
-        if (freeNodes > 0 || CollisionShapeParentBones(feModel).Count > 0 || HasJiggleBoneClothParams(feModel))
+        if (freeNodes > 0 || strip.Count > 0 || CollisionShapeParentBones(feModel).Count > 0 || HasJiggleBoneClothParams(feModel))
         {
             AddClothFollowBones(softbodyChildren, feModel, clothBones);
             AddClothCollisionShapes(softbodyChildren, feModel);

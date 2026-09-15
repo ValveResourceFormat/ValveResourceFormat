@@ -3960,6 +3960,37 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                 && CtrlNames.Length > 0
                 && !Array.Exists(CtrlNames, IsCompilerGeneratedNodeName);
 
+        /// <summary>
+        /// Gets the nodes of an imported strip that shares its model with other cloth: both columns of every
+        /// <c>m_CtrlOsOffsets</c> pair, on a model with no surface that is not an imported cloth as a whole. The
+        /// chain reconstruction leaves them out, and the export declares them as an <c>ImportedCloth</c> table of
+        /// their own beside the other constructs.
+        /// </summary>
+        public IReadOnlySet<int> ImportedStripNodes => importedStripNodes ??= BuildImportedStripNodes();
+
+        private HashSet<int>? importedStripNodes;
+
+        private HashSet<int> BuildImportedStripNodes()
+        {
+            var strip = new HashSet<int>();
+            if (CtrlOsOffsets.Length == 0 || IsImportedCloth || Quads.Length > 0 || Tris.Length > 0)
+            {
+                return strip;
+            }
+
+            foreach (var pair in CtrlOsOffsets)
+            {
+                if (pair.CtrlParent >= 0 && pair.CtrlParent < CtrlNames.Length && pair.CtrlChild >= 0 && pair.CtrlChild < CtrlNames.Length
+                    && !IsCompilerGeneratedNodeName(CtrlNames[pair.CtrlParent]) && !IsCompilerGeneratedNodeName(CtrlNames[pair.CtrlChild]))
+                {
+                    strip.Add(pair.CtrlParent);
+                    strip.Add(pair.CtrlChild);
+                }
+            }
+
+            return strip;
+        }
+
         bool HasImportedNodeFields
         {
             get

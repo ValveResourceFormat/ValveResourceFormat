@@ -692,6 +692,12 @@ partial class ModelExtract
         clothFolder.Add("name", "cloth");
         softbodyChildren.Add(clothFolder);
 
+        var strip = feModel.ImportedStripNodes;
+        if (strip.Count > 0)
+        {
+            clothFolderChildren.Add(MakeImportedCloth(feModel, strip));
+        }
+
         var hasOtherChains = boneChains.Count > 1;
 
         // The compiled node order is (block, constraint rank, creation index), so inside a band it IS the
@@ -740,6 +746,8 @@ partial class ModelExtract
         var clothBones = ClothBoneNames(feModel);
         clothBones.UnionWith(boneChains.SelectMany(static chain => chain.Joints)
             .Select(static joint => joint.Name));
+        chainCoveredNodes.UnionWith(strip);
+        clothBones.UnionWith(ImportedStripBoneNames(feModel, strip));
         chainCoveredNodes.UnionWith(AddClothSelfCollisionClusters(softbodyChildren, feModel, clothBones));
         // A static control node no chain, shape or jiggle bone claims is recreated by nothing else in
         // this phase, so it is declared as a bare ClothNode wherever the compiled skeleton records the

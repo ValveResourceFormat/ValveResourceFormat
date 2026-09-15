@@ -727,7 +727,8 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             {
                 var pair = rod.NodeA < rod.NodeB ? (rod.NodeA, rod.NodeB) : (rod.NodeB, rod.NodeA);
                 if (rod.NodeA == rod.NodeB || rod.MaxDist <= rod.MinDist || rod.RelaxationFactor <= 0f
-                    || rod.Weight0 != 0.5f || sprung.Contains(pair))
+                    || rod.Weight0 != 0.5f || sprung.Contains(pair)
+                    || ImportedStripNodes.Contains(rod.NodeA) || ImportedStripNodes.Contains(rod.NodeB))
                 {
                     continue;
                 }
@@ -1015,8 +1016,9 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             {
                 // A strip's second column is generated too, but named after the bone it widens instead of
                 // carrying the "$cc" prefix, so it counts as ribbon width the same way.
-                if (!CtrlNames[node].StartsWith("$cc", StringComparison.Ordinal)
+                if ((!CtrlNames[node].StartsWith("$cc", StringComparison.Ordinal)
                     && !(!IsProxyNodeName(CtrlNames[node]) && IsGeneratedNodeName(CtrlNames[node])))
+                    || ImportedStripNodes.Contains(node))
                 {
                     continue;
                 }
@@ -1174,7 +1176,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             var isReal = new bool[n];
             for (var i = 0; i < n; i++)
             {
-                isReal[i] = !IsGeneratedNodeName(CtrlNames[i]);
+                isReal[i] = !IsGeneratedNodeName(CtrlNames[i]) && !ImportedStripNodes.Contains(i);
             }
 
             // For each real node, resolve its parent among real nodes. The direct skeleton parent is used when
