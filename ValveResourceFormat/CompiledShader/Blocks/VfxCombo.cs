@@ -35,6 +35,10 @@ public class VfxCombo : ShaderDataBlock
     public int FeatureIndex { get; }
     /// <summary>Gets the display name of each state.</summary>
     public string[] StateNames { get; } = [];
+    /// <summary>Gets whether this feature is an internal upgrade toggle (s&amp;box FeatureUpgrade).</summary>
+    public bool IsFeatureUpgrade { get; }
+    /// <summary>Gets the feature value auto-assigned to new materials for upgrade features (s&amp;box), -1 when not an upgrade.</summary>
+    public int FeatureUpgradeValue { get; } = -1;
 
     /// <summary>
     /// Initializes a new instance from <see cref="KVObject"/> data.
@@ -62,7 +66,7 @@ public class VfxCombo : ShaderDataBlock
     /// <summary>
     /// Initializes a new instance from a binary reader.
     /// </summary>
-    public VfxCombo(BinaryReader datareader, int index, int vcsVersion) : base(datareader)
+    public VfxCombo(BinaryReader datareader, int index, int vcsVersion, int sboxVersion) : base(datareader)
     {
         // CVfxCombo::Unserialize
         Index = index;
@@ -73,6 +77,12 @@ public class VfxCombo : ShaderDataBlock
         RangeMax = datareader.ReadInt32();
         ComboSourceType = NormalizeComboSourceType(datareader.ReadInt32(), vcsVersion);
         FeatureIndex = datareader.ReadInt32();
+
+        if (sboxVersion >= 66)
+        {
+            IsFeatureUpgrade = datareader.ReadInt32() != 0;
+            FeatureUpgradeValue = datareader.ReadInt32();
+        }
 
         var stateNameCount = datareader.ReadInt32();
 

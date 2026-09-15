@@ -68,6 +68,12 @@ namespace ValveResourceFormat.CompiledShader
         public int VcsVersion { get; private set; }
 
         /// <summary>
+        /// Gets the s&amp;box file version, or 0 for Valve files. s&amp;box version 65 matches Valve
+        /// version 64; version 66 adds feature upgrade fields to combos.
+        /// </summary>
+        public int SboxVersion { get; private set; }
+
+        /// <summary>
         /// Gets the variable description version hash, shared by multiple different vcs files.
         /// </summary>
         public Guid VariableDescriptionVersionHash { get; private set; }
@@ -281,7 +287,13 @@ namespace ValveResourceFormat.CompiledShader
             if (IsSbox)
             {
                 _ = DataReader.ReadInt32(); // ABI current version
-                Debug.Assert(VcsVersion == 65);
+
+                if (VcsVersion is not (65 or 66))
+                {
+                    throw new UnexpectedMagicException("Unsupported s&box VCS version", VcsVersion, nameof(VcsVersion));
+                }
+
+                SboxVersion = VcsVersion;
                 VcsVersion = 64;
             }
 
@@ -339,7 +351,7 @@ namespace ValveResourceFormat.CompiledShader
             StaticComboArray = new VfxCombo[staticCombosCount];
             for (var i = 0; i < staticCombosCount; i++)
             {
-                StaticComboArray[i] = new VfxCombo(DataReader, i, VcsVersion);
+                StaticComboArray[i] = new VfxCombo(DataReader, i, VcsVersion, SboxVersion);
             }
 
             CalculateComboIndexValues(StaticComboArray);
@@ -355,7 +367,7 @@ namespace ValveResourceFormat.CompiledShader
             DynamicComboArray = new VfxCombo[dynamicCombosCount];
             for (var i = 0; i < dynamicCombosCount; i++)
             {
-                DynamicComboArray[i] = new VfxCombo(DataReader, i, VcsVersion);
+                DynamicComboArray[i] = new VfxCombo(DataReader, i, VcsVersion, SboxVersion);
             }
 
             CalculateComboIndexValues(DynamicComboArray);

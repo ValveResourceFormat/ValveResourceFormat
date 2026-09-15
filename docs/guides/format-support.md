@@ -361,8 +361,9 @@ interpreted.
   particular do not render their texture layers correctly yet
   ([#1092](https://github.com/ValveResourceFormat/ValveResourceFormat/issues/1092)).
 - **s&box**: only the Vulkan shader container is supported, with `.shader` source
-  reconstruction; the older DXBC container is not read. Managed resources extract as
-  plaintext.
+  reconstruction; the older DXBC container is not read. Both current shader format
+  revisions (embedded VCS 65 and 66, including feature UI categories and `FeatureUpgrade`
+  metadata) are parsed. Managed resources extract as plaintext.
 - **Source 1 leftovers**: `vfont` (VFONT1), `uifont` packages, VBKV, closed captions, and
   flex scene `.vfe` files are supported even where they appear in Source 1 games. Source 1
   `.nav` meshes are not supported
