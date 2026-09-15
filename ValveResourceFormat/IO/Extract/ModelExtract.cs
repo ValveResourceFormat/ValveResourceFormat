@@ -116,11 +116,19 @@ public partial class ModelExtract
                 renderMesh.Mesh.LoadExternalMorphData(fileLoader);
             }
 
+            if (renderMesh.Mesh.MorphData is { HasMissingAtlas: true } morphData)
+            {
+                ProgressReporter?.Report(
+                    $"Morph atlas '{morphData.AtlasPath}' was not found, the {morphData.GetMorphCount()} morph target(s) of "
+                    + $"{Path.GetFileName(renderMesh.FileName)} will be written with no deltas.");
+            }
+
             var options = new DatamodelRenderMeshExtractOptions
             {
                 MaterialInputSignatures = MaterialInputSignatures,
                 BoneRemapTable = renderMesh.BoneRemapTable,
                 Skeleton = renderMesh.Skeleton,
+                BonePositions = ClothRestBonePositions,
             };
 
             vmdl.AddSubFile(
@@ -142,6 +150,24 @@ public partial class ModelExtract
             vmdl.AddSubFile(
                 Path.GetFileName(physMesh.FileName),
                 () => ToDmxMesh(physMesh.Mesh, physMesh.BindPose)
+            );
+        }
+
+        foreach (var clothProxy in ClothProxyMeshesToExtract)
+        {
+            var proxyMesh = clothProxy.Proxy;
+            vmdl.AddSubFile(
+                Path.GetFileName(clothProxy.FileName),
+                () => BuildClothProxyMeshDmx(proxyMesh, Path.GetFileNameWithoutExtension(clothProxy.FileName))
+            );
+        }
+
+        foreach (var clothGrid in ClothChainGridsToExtract)
+        {
+            var grid = clothGrid.Grid;
+            vmdl.AddSubFile(
+                Path.GetFileName(clothGrid.FileName),
+                () => BuildClothChainGridDmx(grid, Path.GetFileNameWithoutExtension(clothGrid.FileName))
             );
         }
 

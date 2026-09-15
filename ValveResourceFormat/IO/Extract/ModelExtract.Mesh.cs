@@ -10,6 +10,7 @@ using ValveResourceFormat.IO.ContentFormats.DmxModel;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.ResourceTypes.ModelAnimation;
 using ValveResourceFormat.ResourceTypes.RubikonPhysics;
+using ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody;
 using ValveResourceFormat.Serialization.KeyValues;
 using RnShapes = ValveResourceFormat.ResourceTypes.RubikonPhysics.Shapes;
 
@@ -22,6 +23,41 @@ partial class ModelExtract
     /// Gets the list of render meshes to be extracted.
     /// </summary>
     public List<RenderMeshExtractConfiguration> RenderMeshesToExtract { get; } = [];
+
+    /// <summary>
+    /// Gets the list of cloth proxy meshes (cloth "sheets") to be extracted as sub-DMX files. Built from
+    /// the soft-body <see cref="FeModel"/> surface so a recompile regenerates the <c>$cloth_*</c> nodes.
+    /// </summary>
+    public List<(string FileName, string Name, FeModel.ProxyMesh Proxy)> ClothProxyMeshesToExtract { get; } = [];
+
+    /// <summary>
+    /// Gets the list of cloth sheet grids generated over neighbouring bone chains (skirts/capes whose
+    /// original cloth is chain-only), extracted as sub-DMX files. The sheet simulates the surface between
+    /// the chains and drives the render mesh directly, like hand-authored item proxies.
+    /// </summary>
+    public List<(string FileName, string Name, FeModel.ChainGrid Grid)> ClothChainGridsToExtract { get; } = [];
+
+    /// <summary>
+    /// Gets the cloth control nodes that were authored as skeleton bones but culled from the compiled
+    /// skeleton; re-declared as Bone nodes so cloth constructs can reference them.
+    /// </summary>
+    public List<(int Node, string Name)> CulledClothBones { get; } = [];
+
+    /// <summary>
+    /// Gets the parent-space bone positions that put every cloth control node back on the rest position
+    /// the FeModel records for it, keyed by bone name. Empty where the model has no cloth or the two
+    /// already agree.
+    /// </summary>
+    /// <remarks>
+    /// <c>m_modelSkeleton</c> is a lossy re-expression of the authored bone transforms - re-composing it
+    /// walks away from the authored world pose as the hierarchy deepens (prof_dynamo's coat chain ends
+    /// 4.8e-3 units out, archer's fingers 1.3e-2, and the error grows strictly with depth) - while
+    /// <c>m_InitPose</c> keeps the authored world position of every control node to float32.
+    /// Emitting the skeleton straight from the compiled bone data therefore hands the compiler a rest
+    /// pose the original was never built from, and every ctrl offset measured against those bones, plus
+    /// every chain ring extruded off them, inherits the error.
+    /// </remarks>
+    public Dictionary<string, Vector3> ClothRestBonePositions { get; } = new(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>
     /// Gets the material input signatures for mapping DirectX semantic names.
@@ -64,6 +100,12 @@ partial class ModelExtract
         /// When provided, bones are emitted into the DMX <c>jointList</c> so ModelDoc can resolve indices.
         /// </summary>
         public Skeleton? Skeleton { get; init; }
+
+        /// <summary>
+        /// Parent-space bone positions to emit in place of the skeleton's own, keyed by bone name
+        /// (see <see cref="ClothRestBonePositions"/>).
+        /// </summary>
+        public IReadOnlyDictionary<string, Vector3>? BonePositions { get; init; }
     }
 
     /// <summary>
@@ -103,7 +145,15 @@ partial class ModelExtract
         }
         EnqueueRenderMeshes();
         EnqueuePhysMeshes();
+        EnqueueClothProxyMesh();
     }
+
+    /// <summary>
+    /// The parent-space position to emit for a bone: its cloth rest correction where there is one, and
+    /// its compiled transform otherwise.
+    /// </summary>
+    internal static Vector3 BonePosition(Bone bone, IReadOnlyDictionary<string, Vector3>? overrides)
+        => overrides is not null && overrides.TryGetValue(bone.Name, out var position) ? position : bone.Position;
 
     private void EnqueueRenderMeshes()
     {
@@ -180,6 +230,7 @@ partial class ModelExtract
             SplitDrawCallsIntoSeparateSubmeshes = true,
             BoneRemapTable = boneRemapTable,
             Skeleton = skeleton,
+            BonePositions = extract.ClothRestBonePositions,
         };
 
         byte[] sharedDmxExtractMethod() => ToDmxMesh(
@@ -232,7 +283,7 @@ partial class ModelExtract
     {
         using var dmx = ConvertMeshToDatamodelMesh(mesh, name, options);
         using var stream = new MemoryStream();
-        dmx.Save(stream, "binary", 9);
+        dmx.SaveDeterministic(stream, "binary", 9);
 
         return stream.ToArray();
     }
@@ -246,7 +297,7 @@ partial class ModelExtract
 
         if (options.Skeleton is { Bones.Length: > 0 } skeleton)
         {
-            skeletonRoot = BuildDmeDagSkeleton(skeleton, out _);
+            skeletonRoot = BuildDmeDagSkeleton(skeleton, out _, bonePositions: options.BonePositions);
         }
 
         return DmxMeshBuilder.Build(mesh, name, new DmxMeshBuildOptions
@@ -256,6 +307,7 @@ partial class ModelExtract
             MaterialInputSignatures = options.MaterialInputSignatures,
             BoneRemapTable = options.BoneRemapTable,
             SkeletonRoot = skeletonRoot,
+            Skeleton = options.Skeleton,
         });
     }
 

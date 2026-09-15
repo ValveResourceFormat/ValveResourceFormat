@@ -107,7 +107,7 @@ partial class ModelExtract
         return node;
     }
 
-    void ProcessBoneConstraintChildren(KVObject boneConstraint, KVObject node)
+    bool ProcessBoneConstraintChildren(KVObject boneConstraint, KVObject node)
     {
         var targets = boneConstraint.GetArray("m_targets")
                                     .Select(p => ProcessBoneConstraintTarget(p))
@@ -116,10 +116,24 @@ partial class ModelExtract
         IEnumerable<KVObject> children;
         if (node.GetStringProperty("_class") == "AnimConstraintParent")
         {
+            var parentSlaves = boneConstraint.GetArray("m_slaves");
+            if (parentSlaves.Count == 0)
+            {
+                return false;
+            }
+
             //Parent constraints only have a single slave and it's not a child node in the .vmdl
             children = targets;
 
-            var constrainedBoneData = boneConstraint.GetArray("m_slaves")[0];
+            var constrainedBoneData = parentSlaves[0];
+
+            // A parent constraint names its slave on the node itself, not as a child node.
+            var constrainedBoneHash = constrainedBoneData.GetUInt32Property("m_nBoneHash");
+            if (StringToken.InvertedTable.TryGetValue(constrainedBoneHash, out var constrainedBoneName))
+            {
+                node.Add("constrained_bone", constrainedBoneName);
+            }
+
             AddBoneConstraintProperty<double>(constrainedBoneData, node, "m_flWeight", "weight");
             AddBoneConstraintProperty<Vector3>(constrainedBoneData, node, "m_vBasePosition", "translation_offset");
 
@@ -146,6 +160,7 @@ partial class ModelExtract
             childrenKV.Add(child);
         }
         node.Add("children", childrenKV);
+        return true;
     }
 
     KVObject? ProcessBoneConstraint(BoneConstraint constraint)
@@ -170,7 +185,10 @@ partial class ModelExtract
             return MakeNode(targetClassName, boneConstraint);
         }
 
-        ProcessBoneConstraintChildren(boneConstraint, node);
+        if (!ProcessBoneConstraintChildren(boneConstraint, node))
+        {
+            return null;
+        }
 
         AddBoneConstraintProperty<long>(boneConstraint, node, "m_nTargetAxis", "input_axis");
         AddBoneConstraintProperty<long>(boneConstraint, node, "m_nSlaveAxis", "slave_axis");
@@ -438,15 +456,28 @@ partial class ModelExtract
     /// Copies a key across only when the compiled block carries it, leaving a key an older compiler
     /// never wrote absent.
     /// </summary>
-    static void AddBonesRecursive(IEnumerable<Bone> bones, KVObject parent)
+    void AddBonesRecursive(IEnumerable<Bone> bones, KVObject parent)
     {
         foreach (var bone in bones)
         {
+            // The compiler makes both cloth proxy families itself, one from the proxy mesh and one
+            // from the joints a round-tripped DMX carries, and marks a bone the document pins with
+            // do_not_discard as mesh-used. Declaring them here would keep them out of that path.
+            if (IsCompilerOwnedClothBone(bone))
+            {
+                AddBonesRecursive(bone.Children, parent);
+                continue;
+            }
+
             var boneDefinitionNode = MakeNode(
                 "Bone",
                 ("name", GetExportBoneName(bone)),
-                ("origin", ToKVArray(bone.Position)),
-                ("angles", ToKVArray(EntityTransformHelper.ToEulerAngles(bone.Angle))),
+                ("origin", ToKVArray(ClothChainBoneOrigins.TryGetValue(bone.Name, out var landedOrigin)
+                    ? landedOrigin
+                    : BonePosition(bone, ClothRestBonePositions))),
+                ("angles", ToKVArray(ClothChainBoneAngles.TryGetValue(bone.Name, out var landedAngles)
+                    ? landedAngles
+                    : EntityTransformHelper.ToEulerAngles(bone.Angle))),
                 ("do_not_discard", true)
             );
 
