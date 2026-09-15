@@ -96,7 +96,8 @@ partial class ModelExtract
                     // static node with no control-node ancestor compiles to a hierarchy root from a
                     // merged ClothNode already. Only a BARE, re-parented one needs the chain form.
                     var loneNode = LoneClothNodeIsOriginalRoot(feModel, node)
-                        && (!isStatic || (bareStatic && (bareStaticReparented?.Invoke(name) ?? false)));
+                        && (!isStatic || (bareStatic && (bareStaticReparented?.Invoke(name) ?? false)))
+                        && !(StrayRecordOnlyAClothNodeStates(feModel, node) && bareStaticReparented?.Invoke(name) == false);
                     (loneNode ? clothChildren : FolderOf(node)).Add(loneNode
                         ? MakeLoneJointChain(feModel, name, node, hasOtherChains)
                         : MakeClothNode(feModel, name, node, isStaticNode: isStatic));
@@ -253,6 +254,16 @@ partial class ModelExtract
         return name => boneByName is not null && boneByName.TryGetValue(name, out var bone)
             && bone.Parent is not null && controlNames.Contains(bone.Parent.Name);
     }
+
+    /// <summary>
+    /// Gets whether a node's stray radius record is one only a <c>ClothNode</c> can state. A chain joint writes its relaxation as
+    /// <c>1 - stray_radius_stretchiness</c> and a stretchiness at or above <see cref="ChainStrayStretchinessLimit"/> cancels the
+    /// radius, so a record relaxed to zero vanishes from a one-joint chain while a <c>ClothNode</c> carries the factor verbatim.
+    /// </summary>
+    internal static bool StrayRecordOnlyAClothNodeStates(FeModel feModel, int node)
+        => feModel.GetStrayRadius(node) > 0f && feModel.GetStrayStretchiness(node) >= ChainStrayStretchinessLimit;
+
+    const float ChainStrayStretchinessLimit = 0.99999988f;
 
     static bool LoneClothNodeIsOriginalRoot(FeModel feModel, int node)
         => feModel.HasCompiledSkelParents

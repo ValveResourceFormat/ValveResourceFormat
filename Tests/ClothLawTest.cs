@@ -6800,5 +6800,51 @@ namespace Tests
                 await Assert.That(hinge.GetStiffHinge(2)).IsNotNull();
             }
         }
+
+        /// <summary>
+        /// A lone simulated root whose stray radius record is relaxed to zero is a <c>ClothNode</c>, not a one-joint chain: a chain
+        /// joint's relaxation is <c>1 - stray_radius_stretchiness</c> and a stretchiness that high cancels the radius, so the chain
+        /// form drops the record, and with it the node's own 0xFFFF collision mask for the four bits (<c>w36c_stray_node_only</c>).
+        /// Control: a record a chain joint does state, a node with no stray radius, and a root with a control-node ancestor, which a
+        /// <c>ClothNode</c> would compile onto that ancestor.
+        /// </summary>
+        [Test]
+        public async Task AStrayRecordRelaxedToZeroIsALoneClothNode()
+        {
+            static string[] Classes(FeModel feModel, Func<string, bool> hasControlAncestor)
+            {
+                KVObject clothChildren = KVObject.Array();
+                ModelExtract.AddFreeClothNodesAndSprings(clothChildren, KVObject.Array(), feModel, [], static _ => true, [],
+                    bareStaticReparented: hasControlAncestor);
+                return [.. clothChildren.Select(static child => child.Value.GetStringProperty("_class"))];
+            }
+
+            var feModel = SyntheticCloth.Parse($$"""
+                {
+                    m_CtrlName = [ "spine_2", "tail", "ear" ]
+                    m_SkelParents = [ -1, -1, -1 ]
+                    m_nNodeCount = 3
+                    m_nStaticNodes = 0
+                    m_NodeInvMasses = [ 1.0, 1.0, 1.0 ]
+                    m_InitPose =
+                    [
+                        {{SyntheticCloth.Pose(0f, 0f, 60f)}}
+                        {{SyntheticCloth.Pose(10f, 0f, 40f)}}
+                        {{SyntheticCloth.Pose(-10f, 0f, 40f)}}
+                    ]
+                    m_AnimStrayRadii =
+                    [
+                        { nNode = [ 0, 0 ] flMaxDist = 7.0 flRelaxationFactor = 0.0 },
+                        { nNode = [ 1, 1 ] flMaxDist = 7.0 flRelaxationFactor = 0.25 },
+                    ]
+                }
+                """);
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(Classes(feModel, static _ => false)).IsEquivalentTo(["ClothNode", "ClothChain", "ClothChain"]);
+                await Assert.That(Classes(feModel, static _ => true)).IsEquivalentTo(["ClothChain", "ClothChain", "ClothChain"]);
+            }
+        }
     }
 }
