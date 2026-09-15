@@ -407,8 +407,9 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// <c>m_BoxRigids</c> record either, only one <c>m_CollisionPlanes</c> entry per node of its vertex map:
         /// in the parent control node's frame the plane passes through the node's nearest point on the box,
         /// its normal points from that point to the node, and its offset is pushed out by the node's collision
-        /// radius. Each plane therefore gives its contact point back, and the box is the one whose faces hold
-        /// every contact, with a side no node reaches mirrored about the parent. Only a group the planarized
+        /// radius, unless that radius reaches the box, which puts the plane through the node itself. Each plane
+        /// that stands clear of its node gives its contact point back, and the box is the one whose faces hold
+        /// every such contact, with a side no clear contact reaches mirrored about the parent. Only a group the planarized
         /// capsule fit leaves unexplained is read, since planes on a box's face centres are also a sphere's,
         /// and a group is returned only when the box reproduces every plane it owns. The box may be turned in the
         /// parent's frame, so its axes are searched for among the plane normals (<see cref="PlanarizedBoxFrames"/>).
@@ -482,27 +483,19 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// The parent-frame box whose planes are <paramref name="samples"/>, or null when no such box exists.
         /// A plane's normal component along an axis says the node's contact point was clamped to that axis's
         /// lower or upper face, which pins the face; a face no contact pins is mirrored about the parent, and
-        /// widened to hold the contacts that lie inside the box on that axis. An extent that collapses is a
-        /// sphere or capsule, never a box.
+        /// widened to hold the contacts that lie inside the box on that axis. Only a plane standing clear of its
+        /// node gives a contact; a plane through its node is checked against the box like every other. An extent
+        /// that collapses is a sphere or capsule, never a box.
         /// </summary>
         static (Vector3 Min, Vector3 Max)? FitPlanarizedBox(List<PlanarizeSample> samples)
         {
-            if (samples.Count < PlanarizeMinShapePlanes)
+            var free = samples.FindAll(static sample => sample.Gap > PlanarizeGeometryGap);
+            if (free.Count < PlanarizeMinShapePlanes)
             {
                 return null;
             }
 
-            var contacts = new Vector3[samples.Count];
-            for (var i = 0; i < samples.Count; i++)
-            {
-                var sample = samples[i];
-                if (sample.Gap <= PlanarizeGeometryGap)
-                {
-                    return null;
-                }
-
-                contacts[i] = sample.Local - (sample.Normal * (sample.Gap + sample.Radius));
-            }
+            var contacts = free.ConvertAll(static sample => sample.Local - (sample.Normal * (sample.Gap + sample.Radius)));
 
             var min = Vector3.Zero;
             var max = Vector3.Zero;
@@ -511,9 +504,9 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                 float? lower = null;
                 float? upper = null;
                 var inside = (Low: float.MaxValue, High: float.MinValue);
-                for (var i = 0; i < samples.Count; i++)
+                for (var i = 0; i < free.Count; i++)
                 {
-                    var n = samples[i].Normal[axis];
+                    var n = free[i].Normal[axis];
                     var c = contacts[i][axis];
                     if (n < -PlanarizeNormalTolerance)
                     {
@@ -562,16 +555,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
 
             foreach (var sample in samples)
             {
-                var contact = Vector3.Clamp(sample.Local, min, max);
-                var toNode = sample.Local - contact;
-                var length = toNode.Length();
-                if (length <= PlanarizeGeometryGap)
-                {
-                    return null;
-                }
-
-                var normal = toNode / length;
-                var offset = Vector3.Dot(normal, contact) + sample.Radius;
+                var (normal, offset) = PlanarizedBoxPlaneAt(sample, min, max);
                 if ((normal - sample.Normal).Length() >= PlanarizeNormalTolerance
                     || Math.Abs(offset - sample.Offset) >= PlanarizeOffsetTolerance)
                 {
@@ -580,6 +564,35 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             }
 
             return (min, max);
+        }
+
+        /// <summary>
+        /// The plane a planarized box writes for one node, in the box's frame: through the node's nearest point on the box,
+        /// facing the node and pushed out by the node's collision radius, or through the node itself where that radius
+        /// reaches the box. A node inside the box faces out of its nearest face, through the node.
+        /// </summary>
+        static (Vector3 Normal, float Offset) PlanarizedBoxPlaneAt(PlanarizeSample sample, Vector3 min, Vector3 max)
+        {
+            var contact = Vector3.Clamp(sample.Local, min, max);
+            var toNode = sample.Local - contact;
+            var length = toNode.Length();
+            if (length <= PlanarizeGeometryGap)
+            {
+                var x = sample.Local;
+                (float Distance, Vector3 Normal)[] faces =
+                [
+                    (x.X - min.X, -Vector3.UnitX), (max.X - x.X, Vector3.UnitX),
+                    (x.Y - min.Y, -Vector3.UnitY), (max.Y - x.Y, Vector3.UnitY),
+                    (x.Z - min.Z, -Vector3.UnitZ), (max.Z - x.Z, Vector3.UnitZ),
+                ];
+                var face = faces.MinBy(static f => f.Distance).Normal;
+                return (face, Vector3.Dot(face, x));
+            }
+
+            var normal = toNode / length;
+            return length < sample.Radius
+                ? (normal, Vector3.Dot(normal, sample.Local))
+                : (normal, Vector3.Dot(normal, contact) + sample.Radius);
         }
 
         /// <summary>
@@ -594,7 +607,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                 return (Quaternion.Identity, aligned.Min, aligned.Max);
             }
 
-            if (samples.Count < PlanarizeMinShapePlanes || samples.Exists(static s => s.Gap <= PlanarizeGeometryGap))
+            if (samples.Count(static s => s.Gap > PlanarizeGeometryGap) < PlanarizeMinShapePlanes)
             {
                 return null;
             }

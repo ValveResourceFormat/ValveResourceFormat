@@ -6896,5 +6896,87 @@ namespace Tests
                 await Assert.That(Restated(twoSided)).IsNotEmpty();
             }
         }
+
+        /// <summary>
+        /// A planarized box writes its plane through a node whose collision radius reaches the box, and a node inside the box
+        /// faces out of its nearest face through itself (dl <c>pestilence_v2</c>, <c>w37wt_box_planarize_clamped</c>). The planes
+        /// that stand clear of their nodes pin the box and every plane is checked against it. Control: the clear planes alone.
+        /// </summary>
+        [Test]
+        public async Task APlanarizedBoxKeepsThePlanesItsNodesReachThrough()
+        {
+            Vector3 half = new(2f, 3f, 4f);
+            (Vector3 Node, float Radius)[] clear =
+            [
+                (new(6f, 0f, 0f), 1f), (new(-6f, 1f, 0f), 1f), (new(0f, 7f, 0f), 1f), (new(1f, -7f, 0f), 1f),
+                (new(0f, 0f, 9f), 1f), (new(0f, 1f, -9f), 1f), (new(6f, 7f, 0f), 1f),
+            ];
+            (Vector3 Node, float Radius)[] reaching = [(new(2.5f, 1f, 1f), 1f), (new(0f, 3.4f, 0f), 2f), (new(1.9f, 0f, 0f), 1f)];
+
+            FeModel reached = PlanarizedBoxGroup([.. clear, .. reaching], half);
+            var boxes = reached.BuildPlanarizeBoxes();
+            var control = PlanarizedBoxGroup(clear, half).BuildPlanarizeBoxes();
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(reached.BuildPlanarizeCapsules()).IsEmpty();
+                await Assert.That(boxes.Count).IsEqualTo(1);
+                await Assert.That(control.Count).IsEqualTo(1);
+            }
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(boxes[0].Origin.Length()).IsLessThan(1e-3f);
+                await Assert.That(Vector3.Distance(boxes[0].Size, half)).IsLessThan(1e-3f);
+            }
+        }
+
+        private static FeModel PlanarizedBoxGroup((Vector3 Node, float Radius)[] nodes, Vector3 half)
+        {
+            StringBuilder names = new("\"bone\"");
+            StringBuilder poses = new(SyntheticCloth.Pose(0f, 0f, 0f));
+            List<string> radii = [];
+            StringBuilder planes = new();
+            for (int i = 0; i < nodes.Length; i++)
+            {
+                (Vector3 node, float radius) = nodes[i];
+                Vector3 contact = Vector3.Clamp(node, -half, half);
+                float reach = Vector3.Distance(node, contact);
+                Vector3 normal;
+                float offset;
+                if (reach <= 0f)
+                {
+                    Vector3 toFace = half - Vector3.Abs(node);
+                    normal = toFace.X <= toFace.Y && toFace.X <= toFace.Z ? new Vector3(MathF.Sign(node.X), 0f, 0f)
+                        : toFace.Y <= toFace.Z ? new Vector3(0f, MathF.Sign(node.Y), 0f) : new Vector3(0f, 0f, MathF.Sign(node.Z));
+                    offset = Vector3.Dot(normal, node);
+                }
+                else
+                {
+                    normal = (node - contact) / reach;
+                    offset = reach < radius ? Vector3.Dot(normal, node) : Vector3.Dot(normal, contact) + radius;
+                }
+
+                names.Append(CultureInfo.InvariantCulture, $", \"v{i + 1}\"");
+                poses.Append(SyntheticCloth.Pose(node.X, node.Y, node.Z));
+                radii.Add(SyntheticCloth.Num(radius));
+                planes.Append(CultureInfo.InvariantCulture,
+                    $"{{ nCtrlParent = 0 nChildNode = {i + 1} m_Plane = {{ m_vNormal = [ {SyntheticCloth.Num(normal.X)}, {SyntheticCloth.Num(normal.Y)}, {SyntheticCloth.Num(normal.Z)} ] m_flOffset = {SyntheticCloth.Num(offset)} }} flStrength = 1.0 }},");
+            }
+
+            return SyntheticCloth.Parse($$"""
+                {
+                    m_CtrlName = [ {{names}} ]
+                    m_nNodeCount = {{nodes.Length + 1}}
+                    m_nStaticNodes = 1
+                    m_NodeInvMasses = [ 0.0{{string.Concat(Enumerable.Repeat(", 1.0", nodes.Length))}} ]
+                    m_NodeCollisionRadii = [ {{string.Join(", ", radii)}} ]
+                    m_InitPose = [ {{poses}} ]
+                    m_CollisionPlanes = [ {{planes}} ]
+                    m_VertexMaps = [ {{VertexMapEntry("vmap0", 4164734239, 0, 1, nodes.Length)}} ]
+                    m_VertexMapValues = [ {{string.Join(", ", Enumerable.Repeat("255", nodes.Length))}} ]
+                }
+                """);
+        }
     }
 }
