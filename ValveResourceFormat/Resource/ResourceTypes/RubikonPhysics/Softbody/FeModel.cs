@@ -3099,7 +3099,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                 return null;
             }
 
-            axis = BreakEndEffectorQuadTie(ring, axis);
+            axis = BreakHingeFanQuadTie(ring, BreakEndEffectorQuadTie(ring, axis), Quaternion.Identity);
 
             var (cw, ccw) = limit is { } hinge ? HingeLimitsOf(hinge) : (0f, 0f);
             return new ChainHinge(axis, cw, ccw);
@@ -3236,6 +3236,70 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             }
 
             return axis + (Vector3.Normalize(tip) * MathF.Max(axis.Length() * 1e-5f, 1e-5f));
+        }
+
+        /// <summary>
+        /// Settles the corner order of the quad a two-node hinge ring builds towards a child ring. The compiler takes the
+        /// two longest of the four ring-to-ring spans as the quad's diagonals, so a hinge vector exactly perpendicular to the
+        /// child ring ties all four and the recovered vector's rounding picks the order. Where the compiled quad shows such a
+        /// tie, the vector (pointing at <paramref name="ring"/>[1], in the frame <paramref name="toVectorFrame"/> maps into)
+        /// is tilted a hundred-thousandth along that quad's own diagonals.
+        /// </summary>
+        Vector3 BreakHingeFanQuadTie(List<int> ring, Vector3 vector, Quaternion toVectorFrame)
+        {
+            if (ring.Count != 2)
+            {
+                return vector;
+            }
+
+            int[]? tied = null;
+            foreach (var quad in Quads)
+            {
+                if (quad.Length != 4 || !((quad[0] == ring[0] && quad[1] == ring[1]) || (quad[0] == ring[1] && quad[1] == ring[0]))
+                    || !Array.TrueForAll(quad, corner => corner >= 0 && corner < InitPosePositions.Length))
+                {
+                    continue;
+                }
+
+                var spans = new[]
+                {
+                    Vector3.Distance(InitPosePositions[quad[0]], InitPosePositions[quad[2]]),
+                    Vector3.Distance(InitPosePositions[quad[1]], InitPosePositions[quad[3]]),
+                    Vector3.Distance(InitPosePositions[quad[0]], InitPosePositions[quad[3]]),
+                    Vector3.Distance(InitPosePositions[quad[1]], InitPosePositions[quad[2]]),
+                };
+                var longest = spans.Max();
+                if (longest <= 0f || longest - spans.Min() > longest * 1e-5f)
+                {
+                    continue;
+                }
+
+                if (tied is not null)
+                {
+                    return vector;
+                }
+
+                tied = quad;
+            }
+
+            if (tied is null)
+            {
+                return vector;
+            }
+
+            var across = InitPosePositions[tied[3]] - InitPosePositions[tied[2]];
+            if (tied[0] == ring[0])
+            {
+                across = -across;
+            }
+
+            if (across.LengthSquared() <= 0f)
+            {
+                return vector;
+            }
+
+            var direction = Vector3.Normalize(Vector3.Transform(across, toVectorFrame));
+            return vector + (direction * MathF.Max(vector.Length() * 1e-5f, 1e-5f));
         }
 
         /// <summary>Gets how many auto-generated proxy nodes the compiler extruded from a joint.</summary>

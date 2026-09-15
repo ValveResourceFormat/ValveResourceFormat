@@ -6434,5 +6434,53 @@ namespace Tests
                 await Assert.That(suspenderFirst.ExtraIterations).IsEqualTo(0);
             }
         }
+
+        /// <summary>
+        /// A rigid hinge ring perpendicular to its child ring ties all four spans of the quad it builds, and the compiler makes
+        /// the two longest the diagonals, so the recovered hinge vector is tilted along the compiled quad's own diagonals.
+        /// Controls: the swapped corner order tilts the other way, and a child ring off the tie leaves the vector as compiled.
+        /// </summary>
+        [Test]
+        public async Task ATiedHingeFanQuadTiltsTheHingeVectorAlongItsDiagonals()
+        {
+            var forward = HingeFan("[ 1, 0, 3, 4 ]", 20f);
+            var swapped = HingeFan("[ 1, 0, 4, 3 ]", 20f);
+            var untied = HingeFan("[ 1, 0, 3, 4 ]", 22f);
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(forward.RigidHingeJoints[2].Z).IsGreaterThan(5e-5f);
+                await Assert.That(swapped.RigidHingeJoints[2].Z).IsLessThan(-5e-5f);
+                await Assert.That(untied.RigidHingeJoints[2]).IsEqualTo(new Vector3(0f, 10f, -1e-6f));
+            }
+        }
+
+        private static FeModel HingeFan(string quad, float upperChildOffset) => SyntheticCloth.Parse($$"""
+            {
+                m_CtrlName = [ "$cchat_0", "$cchat_1", "hat", "$cchat_end_0", "$cchat_end_1", "hat_end" ]
+                m_SkelParents = [ 2, 2, -1, 5, 5, 2 ]
+                m_nNodeCount = 6
+                m_nStaticNodes = 3
+                m_NodeInvMasses = [ 0.0, 0.0, 0.0, 1.0, 1.0, 1.0 ]
+                m_InitPose =
+                [
+                    {{SyntheticCloth.Pose(0f, -10f, 0f)}}
+                    {{SyntheticCloth.Pose(0f, 10f, 0f)}}
+                    {{SyntheticCloth.Pose(0f, 0f, 0f)}}
+                    {{SyntheticCloth.Pose(8f, 0f, -20f)}}
+                    {{SyntheticCloth.Pose(8f, 0f, upperChildOffset)}}
+                    {{SyntheticCloth.Pose(8f, 0f, 0f)}}
+                ]
+                m_CtrlOffsets =
+                [
+                    { vOffset = [ 0.0, -10.0, 0.000001 ] nCtrlParent = 2 nCtrlChild = 0 },
+                    { vOffset = [ 0.0, 10.0, -0.000001 ] nCtrlParent = 2 nCtrlChild = 1 },
+                    { vOffset = [ 0.0, 0.0, -20.0 ] nCtrlParent = 5 nCtrlChild = 3 },
+                    { vOffset = [ 0.0, 0.0, {{SyntheticCloth.Num(upperChildOffset)}} ] nCtrlParent = 5 nCtrlChild = 4 },
+                ]
+                m_Quads = [ { nNode = {{quad}} } ]
+                m_Rods = [ {{SyntheticCloth.RigidRod(3, 4, 40f, 1f)}} ]
+            }
+            """);
     }
 }

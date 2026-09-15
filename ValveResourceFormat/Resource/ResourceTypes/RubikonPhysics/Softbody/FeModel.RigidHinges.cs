@@ -124,7 +124,8 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                         continue;
                     }
 
-                    joints[joint] = vector;
+                    var toBoneFrame = joint < InitPoseRotations.Length ? Quaternion.Inverse(InitPoseRotations[joint]) : Quaternion.Identity;
+                    joints[joint] = BreakHingeFanQuadTie(ring, vector, toBoneFrame);
                 }
             }
 
