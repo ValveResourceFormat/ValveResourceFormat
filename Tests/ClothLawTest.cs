@@ -7025,5 +7025,42 @@ namespace Tests
                 await Assert.That(ModelExtract.ChainLocksJoints(model, Chain([3, 4]))).IsTrue();
             }
         }
+
+        /// <summary>
+        /// Only a chain joint compiles into <c>m_LockToGoal</c>. <c>w36sb_twist_free_node_end_static</c> declares a one-joint,
+        /// non-simulated chain on <c>tophat</c> with a free node sprung to it: the original locks <c>tophat</c>, and the
+        /// rod-touched static root re-declared as a merged <c>ClothNode</c> lost the lock. A static root the original leaves
+        /// unlocked stays a ClothNode.
+        /// </summary>
+        [Test]
+        public async Task AStaticRootTheOriginalLocksToItsGoalIsASingleJointChain()
+        {
+            static FeModel Model(string locks) => SyntheticCloth.Parse($$"""
+                {
+                    m_CtrlName = [ "tophat", "$cloth_node_sb_tw_end" ]
+                    m_SkelParents = [ -1, 0 ]
+                    m_nNodeCount = 2
+                    m_nStaticNodes = 1
+                    m_nRotLockStaticNodes = 0
+                    m_NodeInvMasses = [ 0.0, 312.5 ]
+                    m_LockToGoal = [ {{locks}} ]
+                    m_InitPose =
+                    [
+                        {{SyntheticCloth.Pose(0f, 0f, 0f)}}
+                        {{SyntheticCloth.Pose(0f, 0f, -4f)}}
+                    ]
+                }
+                """);
+
+            FeModel locked = Model("0");
+            FeModel free = Model("");
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(ModelExtract.LoneNodeIsJointChain(locked, 0, bareStatic: false, bareStaticReparented: false)).IsTrue();
+                await Assert.That(ModelExtract.LoneNodeIsJointChain(free, 0, bareStatic: false, bareStaticReparented: false)).IsFalse();
+                await Assert.That(ModelExtract.LoneNodeIsJointChain(free, 1, bareStatic: false, bareStaticReparented: false)).IsFalse();
+            }
+        }
     }
 }

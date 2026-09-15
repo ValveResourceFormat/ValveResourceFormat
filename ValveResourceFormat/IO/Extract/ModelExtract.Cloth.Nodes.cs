@@ -95,8 +95,7 @@ partial class ModelExtract
                     // A static node a rod names is an anchor the spring network already ties in, and a
                     // static node with no control-node ancestor compiles to a hierarchy root from a
                     // merged ClothNode already. Only a BARE, re-parented one needs the chain form.
-                    var loneNode = LoneClothNodeIsOriginalRoot(feModel, node)
-                        && (!isStatic || (bareStatic && (bareStaticReparented?.Invoke(name) ?? false)))
+                    var loneNode = LoneNodeIsJointChain(feModel, node, bareStatic, bareStaticReparented?.Invoke(name) ?? false)
                         && !(StrayRecordOnlyAClothNodeStates(feModel, node) && bareStaticReparented?.Invoke(name) == false);
                     (loneNode ? clothChildren : FolderOf(node)).Add(loneNode
                         ? MakeLoneJointChain(feModel, name, node, hasOtherChains)
@@ -268,6 +267,22 @@ partial class ModelExtract
     static bool LoneClothNodeIsOriginalRoot(FeModel feModel, int node)
         => feModel.HasCompiledSkelParents
             && node < feModel.SkelParents.Length && feModel.SkelParents[node] < 0;
+
+    /// <summary>
+    /// Whether a lone real cloth node is re-declared as a single-joint <c>ClothChain</c> rather than a merged
+    /// <c>ClothNode</c>. The original must record it as an <c>m_SkelParents</c> root, and it must be dynamic, a bare static
+    /// node a merged ClothNode would re-parent, or a static node the original locks to its goal: only a chain joint compiles
+    /// into <c>m_LockToGoal</c>, a static ClothNode never does. A stray record only a ClothNode can state
+    /// (<see cref="StrayRecordOnlyAClothNodeStates"/>) overrides all three at the call site, because a chain cannot state that
+    /// record at all.
+    /// </summary>
+    /// <param name="feModel">The compiled cloth.</param>
+    /// <param name="node">The lone node.</param>
+    /// <param name="bareStatic">Whether the node is static and no rod names it.</param>
+    /// <param name="bareStaticReparented">Whether a merged ClothNode on this bone would be re-parented onto a control-node ancestor.</param>
+    internal static bool LoneNodeIsJointChain(FeModel feModel, int node, bool bareStatic, bool bareStaticReparented)
+        => LoneClothNodeIsOriginalRoot(feModel, node)
+            && (!feModel.IsStatic(node) || (bareStatic && bareStaticReparented) || feModel.IsLockedToGoal(node));
 
     static KVObject MakeLoneJointChain(FeModel feModel, string name, int node, bool hasOtherChains)
     {
