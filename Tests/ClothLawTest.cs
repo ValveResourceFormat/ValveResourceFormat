@@ -6846,5 +6846,55 @@ namespace Tests
                 await Assert.That(Classes(feModel, static _ => true)).IsEquivalentTo(["ClothChain", "ClothChain", "ClothChain"]);
             }
         }
+
+        /// <summary>
+        /// A chain extruding a one-sided ring builds the rod from each joint to its parent itself, so that rod does not make a
+        /// position-driven joint a second declaration: a proxy sheet back-solving the chain's joints drives them without a ring
+        /// of two sides, and <c>w36sb_fit_sheet_backsolve</c> came back with its chain restated, every parent rod doubled.
+        /// Control: a position-driven joint inside a two-sided ring, which the chain ties through the ring only, is still
+        /// restated where a parent rod joins it (both fixtures are the compiled <c>chain_extrude_sides_1</c> / <c>_2</c> rows).
+        /// </summary>
+        [Test]
+        public async Task AParentRodBesideAOneSidedRingIsNotARestatement()
+        {
+            var oneSided = SyntheticCloth.Parse("""
+                {
+                    m_CtrlName = [ "coattail_0_L", "$cccoattail_0_L_0", "coattail_1_L", "$cccoattail_1_L_0", "coattail_2_L", "$cccoattail_2_L_0", "coattail_end_L", "$cccoattail_end_L_0", ]
+                    m_SkelParents = [ -1, 0, 0, 2, 2, 4, 4, 6, ]
+                    m_nNodeCount = 8
+                    m_nStaticNodes = 2
+                    m_nFirstPositionDrivenNode = 2
+                    m_NodeInvMasses = [ 0.0, 0.0, 0.003428, 0.003444, 0.003428, 0.003427, 0.0065, 0.0065, ]
+                    m_InitPose = [ [ -8.915481, 4.000124, 65.447983, 1.0, 0.337553, -0.646323, -0.495776, -0.471731, ], [ -10.723646, 4.561181, 66.092773, 1.0, 0.337553, -0.646323, -0.495776, -0.471731, ], [ -11.695464, 4.267121, 57.419937, 1.0, -0.323373, 0.653533, 0.505948, 0.460804, ], [ -13.473376, 4.824905, 58.146507, 1.0, -0.323373, 0.653533, 0.505948, 0.460804, ], [ -14.808016, 4.637866, 49.519089, 1.0, -0.323943, 0.653251, 0.505547, 0.461245, ], [ -16.587204, 5.195801, 50.242416, 1.0, -0.323943, 0.653251, 0.505547, 0.461245, ], [ -17.907341, 5.004471, 41.612736, 1.0, -0.323943, 0.653251, 0.505547, 0.461245, ], [ -19.686529, 5.562407, 42.336063, 1.0, -0.323943, 0.653251, 0.505547, 0.461245, ], ]
+                    m_Rods = [ { nNode = [ 0, 2 ] flMaxDist = 8.499948 flMinDist = 8.499948 flWeight0 = 0.0 flRelaxationFactor = 1.0 }, { nNode = [ 0, 3 ] flMaxDist = 8.646747 flMinDist = 8.646747 flWeight0 = 0.0 flRelaxationFactor = 1.0 }, { nNode = [ 1, 2 ] flMaxDist = 8.732066 flMinDist = 8.732066 flWeight0 = 0.0 flRelaxationFactor = 1.0 }, { nNode = [ 1, 3 ] flMaxDist = 8.412711 flMinDist = 8.412711 flWeight0 = 0.0 flRelaxationFactor = 1.0 }, { nNode = [ 2, 3 ] flMaxDist = 2.0 flMinDist = 2.0 flWeight0 = 0.5 flRelaxationFactor = 1.0 }, { nNode = [ 2, 4 ] flMaxDist = 8.499931 flMinDist = 8.499931 flWeight0 = 0.5 flRelaxationFactor = 1.0 }, { nNode = [ 2, 5 ] flMaxDist = 8.735466 flMinDist = 8.735466 flWeight0 = 0.5 flRelaxationFactor = 1.0 }, { nNode = [ 3, 4 ] flMaxDist = 8.732044 flMinDist = 8.732044 flWeight0 = 0.5 flRelaxationFactor = 1.0 }, { nNode = [ 3, 5 ] flMaxDist = 8.503419 flMinDist = 8.503419 flWeight0 = 0.5 flRelaxationFactor = 1.0 }, { nNode = [ 4, 5 ] flMaxDist = 2.000001 flMinDist = 2.000001 flWeight0 = 0.5 flRelaxationFactor = 1.0 }, { nNode = [ 4, 6 ] flMaxDist = 8.500037 flMinDist = 8.500037 flWeight0 = 0.5 flRelaxationFactor = 1.0 }, { nNode = [ 4, 7 ] flMaxDist = 8.732154 flMinDist = 8.732154 flWeight0 = 0.5 flRelaxationFactor = 1.0 }, { nNode = [ 5, 6 ] flMaxDist = 8.732168 flMinDist = 8.732168 flWeight0 = 0.5 flRelaxationFactor = 1.0 }, { nNode = [ 5, 7 ] flMaxDist = 8.500037 flMinDist = 8.500037 flWeight0 = 0.5 flRelaxationFactor = 1.0 }, { nNode = [ 6, 7 ] flMaxDist = 2.000001 flMinDist = 2.000001 flWeight0 = 0.5 flRelaxationFactor = 1.0 }, ]
+                    m_ReverseOffsets = [ { vOffset = [ -0.000001, 2.000001, -0.000001 ] nBoneCtrl = 6 nTargetNode = 7 }, ]
+                    m_SourceElems = [ 0, 0, 0, 6, 5, 4, 6, 7, 4, 5, 7, 6, 3, 2, 4, 5, 2, 3, 5, 4, 1, 0, 2, 3, 0, 1, 3, 2, ]
+                }
+                """);
+
+            var twoSided = SyntheticCloth.Parse("""
+                {
+                    m_CtrlName = [ "coattail_0_L", "$cccoattail_0_L_0", "$cccoattail_1_L_0", "$cccoattail_1_L_1", "$cccoattail_2_L_0", "$cccoattail_2_L_1", "$cccoattail_end_L_0", "$cccoattail_end_L_1", "coattail_1_L", "coattail_2_L", "coattail_end_L", ]
+                    m_SkelParents = [ -1, 0, 8, 8, 9, 9, 10, 10, 0, 8, 9, ]
+                    m_nNodeCount = 11
+                    m_nStaticNodes = 2
+                    m_nFirstPositionDrivenNode = 8
+                    m_NodeInvMasses = [ 0.0, 0.0, 0.003209, 0.003111, 0.003141, 0.003142, 0.005709, 0.005709, 1.0, 1.0, 1.0, ]
+                    m_InitPose = [ [ -8.915481, 4.000124, 65.447983, 1.0, 0.337553, -0.646323, -0.495776, -0.471731, ], [ -10.723646, 4.561181, 66.092773, 1.0, 0.337553, -0.646323, -0.495776, -0.471731, ], [ -13.473376, 4.824905, 58.146507, 1.0, -0.323373, 0.653533, 0.505948, 0.460804, ], [ -9.917552, 3.709337, 56.693367, 1.0, -0.323373, 0.653533, 0.505948, 0.460804, ], [ -16.587204, 5.195801, 50.242416, 1.0, -0.323943, 0.653251, 0.505547, 0.461245, ], [ -13.028829, 4.079931, 48.795761, 1.0, -0.323943, 0.653251, 0.505547, 0.461245, ], [ -19.686529, 5.562407, 42.336063, 1.0, -0.323943, 0.653251, 0.505547, 0.461245, ], [ -16.128153, 4.446536, 40.889408, 1.0, -0.323943, 0.653251, 0.505547, 0.461245, ], [ -11.695464, 4.267121, 57.419937, 1.0, -0.323373, 0.653533, 0.505948, 0.460804, ], [ -14.808016, 4.637866, 49.519089, 1.0, -0.323943, 0.653251, 0.505547, 0.461245, ], [ -17.907341, 5.004471, 41.612736, 1.0, -0.323943, 0.653251, 0.505547, 0.461245, ], ]
+                    m_Rods = [ { nNode = [ 0, 2 ] flMaxDist = 8.646747 flMinDist = 8.646747 flWeight0 = 0.0 flRelaxationFactor = 1.0 }, { nNode = [ 0, 3 ] flMaxDist = 8.816575 flMinDist = 8.816575 flWeight0 = 0.0 flRelaxationFactor = 1.0 }, { nNode = [ 1, 2 ] flMaxDist = 8.412711 flMinDist = 8.412711 flWeight0 = 0.0 flRelaxationFactor = 1.0 }, { nNode = [ 1, 3 ] flMaxDist = 9.472289 flMinDist = 9.472289 flWeight0 = 0.0 flRelaxationFactor = 1.0 }, { nNode = [ 2, 3 ] flMaxDist = 4.0 flMinDist = 4.0 flWeight0 = 0.5 flRelaxationFactor = 1.0 }, { nNode = [ 2, 4 ] flMaxDist = 8.503419 flMinDist = 8.503419 flWeight0 = 0.5 flRelaxationFactor = 1.0 }, { nNode = [ 2, 5 ] flMaxDist = 9.390903 flMinDist = 9.390903 flWeight0 = 0.5 flRelaxationFactor = 1.0 }, { nNode = [ 3, 4 ] flMaxDist = 9.397265 flMinDist = 9.397265 flWeight0 = 0.5 flRelaxationFactor = 1.0 }, { nNode = [ 3, 5 ] flMaxDist = 8.496444 flMinDist = 8.496444 flWeight0 = 0.5 flRelaxationFactor = 1.0 }, { nNode = [ 4, 5 ] flMaxDist = 4.000001 flMinDist = 4.000001 flWeight0 = 0.5 flRelaxationFactor = 1.0 }, { nNode = [ 4, 6 ] flMaxDist = 8.500037 flMinDist = 8.500037 flWeight0 = 0.5 flRelaxationFactor = 1.0 }, { nNode = [ 4, 7 ] flMaxDist = 9.394195 flMinDist = 9.394195 flWeight0 = 0.5 flRelaxationFactor = 1.0 }, { nNode = [ 5, 6 ] flMaxDist = 9.394169 flMinDist = 9.394169 flWeight0 = 0.5 flRelaxationFactor = 1.0 }, { nNode = [ 5, 7 ] flMaxDist = 8.500037 flMinDist = 8.500037 flWeight0 = 0.5 flRelaxationFactor = 1.0 }, { nNode = [ 6, 7 ] flMaxDist = 4.000002 flMinDist = 4.000002 flWeight0 = 0.5 flRelaxationFactor = 1.0 }, { nNode = [ 0, 8 ] flMaxDist = 8.499948 flMinDist = 8.499948 flWeight0 = 0.0 flRelaxationFactor = 1.0 }, { nNode = [ 8, 9 ] flMaxDist = 8.499931 flMinDist = 8.499931 flWeight0 = 0.5 flRelaxationFactor = 1.0 }, { nNode = [ 9, 10 ] flMaxDist = 8.500037 flMinDist = 8.500037 flWeight0 = 0.5 flRelaxationFactor = 1.0 }, ]
+                    m_ReverseOffsets = [ { vOffset = [ 8.496444, -1.999937, 0.000001 ] nBoneCtrl = 8 nTargetNode = 5 }, { vOffset = [ 0.000001, -2.0, 0.0 ] nBoneCtrl = 9 nTargetNode = 5 }, { vOffset = [ -0.000001, 2.000001, -0.000001 ] nBoneCtrl = 10 nTargetNode = 6 }, ]
+                    m_SourceElems = [ 0, 0, 0, 6, 5, 4, 6, 7, 4, 5, 7, 6, 3, 2, 4, 5, 2, 3, 5, 4, 1, 0, 2, 3, 0, 1, 3, 2, ]
+                }
+                """);
+
+            static string[] Restated(FeModel feModel)
+                => [.. feModel.BuildBoneChains().SelectMany(static chain => chain.Joints).Where(static joint => joint.Restated).Select(static joint => joint.Name)];
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(Restated(oneSided)).IsEmpty();
+                await Assert.That(Restated(twoSided)).IsNotEmpty();
+            }
+        }
     }
 }

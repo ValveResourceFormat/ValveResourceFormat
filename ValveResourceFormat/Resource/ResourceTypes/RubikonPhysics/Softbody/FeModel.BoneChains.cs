@@ -2956,12 +2956,13 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                     joint.ChildSiblingSpring = ChildSiblingValue(joint);
                 }
 
-                // An extruding chain ties a position-driven joint through its ring only; a rod straight
-                // between that joint node and its parent node comes from a second, plain declaration
-                // of the two, which also re-registers both joint nodes.
+                // A chain extruding a ring of two or more sides ties a position-driven joint through its
+                // ring only; a rod straight between that joint node and its parent node comes from a
+                // second, plain declaration of the two, which also re-registers both joint nodes. A
+                // one-sided ring leaves the chain's own parent rod, whatever else drives the joint.
                 foreach (var joint in chain.Joints)
                 {
-                    if (joint.IsRoot || joint.ProxyNode < 0 || !IsPositionDriven(joint.Node)
+                    if (joint.IsRoot || joint.ProxyNode < 0 || joint.ExtrudeSides < 2 || !IsPositionDriven(joint.Node)
                         || !rodPairs.Contains(joint.Node < joint.ParentNode
                             ? (joint.Node, joint.ParentNode)
                             : (joint.ParentNode, joint.Node)))
