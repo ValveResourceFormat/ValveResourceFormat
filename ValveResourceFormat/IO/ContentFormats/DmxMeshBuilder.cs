@@ -42,7 +42,13 @@ internal readonly record struct DmxMeshBuildOptions
 internal static class DmxMeshBuilder
 {
     /// <summary>
-    /// The per-conversion values every vertex stream is decoded against.
+    /// Engine semantics a vertex buffer can carry under their own name, in the spelling the model compiler reads.
+    /// </summary>
+    private static readonly string[] EngineSemantics = ["VertexPaintBlendParams", "VertexPaintTintColor"];
+
+    /// <summary>
+    /// The values the streams of one vertex data element are decoded against: the input signature of the
+    /// first material its draw calls use that has one, and the mesh's skinning.
     /// </summary>
     private readonly record struct VertexStreams(Material.VsInputSignature MaterialInputSignature, int BoneWeightCount, int[]? BoneRemapTable);
 
@@ -115,17 +121,19 @@ internal static class DmxMeshBuilder
 
         while (toolsBuffers.TryClaim(vertexBuffer.ElementCount) is { } found)
         {
-            FillDatamodelVertexData(found, vertexData, streams, skipExistingSemantics: true);
+            FillDatamodelVertexData(found, vertexData, streams, isToolsBuffer: true);
         }
     }
 
     /// <summary>
     /// Fills a datamodel vertex data element with the streams of a vertex buffer, either a mesh's render
-    /// buffer or one of its tools buffers. With <paramref name="skipExistingSemantics"/> set, an attribute
-    /// whose stream name is already present in <paramref name="vertexData"/> is left alone.
+    /// buffer or one of its tools buffers. A render buffer's vertex paint attributes take their engine name
+    /// from the material input signature, while a tools buffer's attributes keep their own names. An
+    /// attribute whose stream name is already present in <paramref name="vertexData"/>, ignoring case, is
+    /// left alone.
     /// </summary>
     private static void FillDatamodelVertexData(VBIB.OnDiskBufferData vertexBuffer, DmeVertexData vertexData,
-        in VertexStreams streams, bool skipExistingSemantics = false)
+        in VertexStreams streams, bool isToolsBuffer = false)
     {
         var indices = Enumerable.Range(0, (int)vertexBuffer.ElementCount).ToArray(); // May break with non-unit strides, non-tri faces
 
@@ -135,16 +143,23 @@ internal static class DmxMeshBuilder
         foreach (var attribute in vertexBuffer.InputLayoutFields)
         {
             var attributeFormat = VBIB.GetFormatInfo(attribute);
-            var semantic = attribute.SemanticName.ToLowerInvariant() + "$" + attribute.SemanticIndex;
+            var semantic = GetStreamName(attribute);
 
             if (attribute.SemanticName is "NORMAL")
             {
+                if (HasStream(vertexData, semantic))
+                {
+                    continue;
+                }
+
                 var (normals, tangents) = VBIB.GetNormalTangentArray(vertexBuffer, attribute);
                 vertexData.AddIndexedStream(semantic, normals, indices);
 
-                if (tangents.Length > 0)
+                var tangentSemantic = "tangent$" + attribute.SemanticIndex;
+
+                if (tangents.Length > 0 && !HasStream(vertexData, tangentSemantic))
                 {
-                    vertexData.AddIndexedStream("tangent$" + attribute.SemanticIndex, tangents, indices);
+                    vertexData.AddIndexedStream(tangentSemantic, tangents, indices);
                 }
 
                 continue;
@@ -154,7 +169,7 @@ internal static class DmxMeshBuilder
                 vertexData.JointCount = boneWeightCount;
 
                 // An unskinned mesh can still carry the attribute, with indices that reference nothing.
-                if (boneWeightCount == 0)
+                if (boneWeightCount == 0 || HasStream(vertexData, semantic))
                 {
                     continue;
                 }
@@ -176,7 +191,9 @@ internal static class DmxMeshBuilder
             }
             else if (attribute.SemanticName is "BLENDWEIGHT" or "BLENDWEIGHTS")
             {
-                if (boneWeightCount == 0)
+                var weightsSemantic = "blendweights$" + attribute.SemanticIndex;
+
+                if (boneWeightCount == 0 || HasStream(vertexData, weightsSemantic))
                 {
                     continue;
                 }
@@ -193,22 +210,22 @@ internal static class DmxMeshBuilder
                     }
                 }
 
-                vertexData.AddStream("blendweights$" + attribute.SemanticIndex, compactWeights);
+                vertexData.AddStream(weightsSemantic, compactWeights);
                 continue;
             }
 
-            if (streams.MaterialInputSignature.Elements is { Length: > 0 })
+            if (!isToolsBuffer && streams.MaterialInputSignature.Elements is { Length: > 0 })
             {
                 var insgElement = Material.FindD3DInputSignatureElement(streams.MaterialInputSignature, attribute.SemanticName, attribute.SemanticIndex);
 
                 // Use engine semantics for attributes that need them
-                if (insgElement.Semantic is "VertexPaintBlendParams" or "VertexPaintTintColor")
+                if (EngineSemantics.Contains(insgElement.Semantic))
                 {
                     semantic = insgElement.Semantic + "$0";
                 }
             }
 
-            if (skipExistingSemantics && vertexData.VertexFormat.Contains(semantic))
+            if (HasStream(vertexData, semantic))
             {
                 continue;
             }
@@ -236,7 +253,7 @@ internal static class DmxMeshBuilder
             }
         }
 
-        if (vertexData.VertexFormat.Contains("blendindices$0") && !vertexData.VertexFormat.Contains("blendweights$0"))
+        if (HasStream(vertexData, "blendindices$0") && !HasStream(vertexData, "blendweights$0"))
         {
             if (!vertexData.TryGetValue("blendindices$0", out var blendIndices) || blendIndices is not ICollection<int> collection)
             {
@@ -254,16 +271,34 @@ internal static class DmxMeshBuilder
     {
         var indices = Enumerable.Range(0, elementCount).ToArray();
 
-        if (!vertexData.VertexFormat.Contains("normal$0"))
+        if (!HasStream(vertexData, "normal$0"))
         {
             vertexData.AddIndexedStream("normal$0", Enumerable.Repeat(Vector3.UnitZ, elementCount).ToArray(), indices);
         }
 
-        if (!vertexData.VertexFormat.Contains("texcoord$0"))
+        if (!HasStream(vertexData, "texcoord$0"))
         {
             vertexData.AddIndexedStream("texcoord$0", Enumerable.Repeat(Vector2.Zero, elementCount).ToArray(), indices);
         }
     }
+
+    /// <summary>
+    /// Names the stream of a vertex attribute: an engine semantic in its engine spelling, anything else in lower case.
+    /// </summary>
+    private static string GetStreamName(VBIB.RenderInputLayoutField attribute)
+    {
+        var name = Array.Find(EngineSemantics, engineSemantic => engineSemantic.Equals(attribute.SemanticName, StringComparison.OrdinalIgnoreCase))
+            ?? attribute.SemanticName.ToLowerInvariant();
+
+        return name + "$" + attribute.SemanticIndex;
+    }
+
+    /// <summary>
+    /// Determines whether a vertex data element already has a stream of the given name. The model compiler
+    /// treats stream names that differ only in case as the same stream.
+    /// </summary>
+    private static bool HasStream(DmeVertexData vertexData, string name)
+        => vertexData.VertexFormat.Contains(name, StringComparer.OrdinalIgnoreCase);
 
     /// <summary>
     /// Converts a mesh to a datamodel mesh representation.
@@ -285,7 +320,7 @@ internal static class DmxMeshBuilder
             dmeModel.Name = name;
         }
 
-        var materialInputSignature = Material.VsInputSignature.Empty;
+        var inputSignatures = new Dictionary<(int, int), Material.VsInputSignature>(mbuf.VertexBuffers.Count);
         var drawCallIndex = 0;
 
         // Draw calls sitting in separate but identically laid out vertex buffers are one mesh in the
@@ -326,9 +361,10 @@ internal static class DmxMeshBuilder
 
                 var material = Mesh.GetMaterialName(drawCall);
 
-                if (material != null && options.MaterialInputSignatures != null && materialInputSignature.Elements is not { Length: > 0 })
+                if (material != null && options.MaterialInputSignatures != null
+                    && inputSignatures.GetValueOrDefault(dmeVertexBufferKey).Elements is not { Length: > 0 })
                 {
-                    materialInputSignature = options.MaterialInputSignatures.GetValueOrDefault(material, Material.VsInputSignature.Empty);
+                    inputSignatures[dmeVertexBufferKey] = options.MaterialInputSignatures.GetValueOrDefault(material, Material.VsInputSignature.Empty);
                 }
 
                 if (material == null && Mesh.IsOccluder(drawCall))
@@ -370,17 +406,18 @@ internal static class DmxMeshBuilder
             }
         }
 
-        var streams = new VertexStreams(materialInputSignature, mesh.BoneWeightCount, options.BoneRemapTable);
-
         foreach (var (vertexBufferIndices, dmeObjects) in dmeVertexBuffers)
         {
+            var streams = new VertexStreams(inputSignatures.GetValueOrDefault(vertexBufferIndices, Material.VsInputSignature.Empty),
+                mesh.BoneWeightCount, options.BoneRemapTable);
+
             if (merged != null)
             {
                 FillDatamodelVertexData(merged.Value.Buffer, dmeObjects.VertexData, streams);
 
                 if (merged.Value.MergedToolsBuffer is { } mergedToolsBuffer)
                 {
-                    FillDatamodelVertexData(mergedToolsBuffer, dmeObjects.VertexData, streams, skipExistingSemantics: true);
+                    FillDatamodelVertexData(mergedToolsBuffer, dmeObjects.VertexData, streams, isToolsBuffer: true);
                 }
 
                 AddCompilerRequiredStreams(dmeObjects.VertexData, (int)merged.Value.Buffer.ElementCount);

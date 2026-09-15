@@ -117,6 +117,14 @@ namespace ValveResourceFormat.ResourceTypes
         }
 
         /// <summary>
+        /// Gets the angle a rotation turns about the Z axis, leaving out any swing away from that axis.
+        /// </summary>
+        /// <param name="rotation">The rotation.</param>
+        /// <returns>The twist angle in radians.</returns>
+        public static float GetTwistAngleAroundZ(Quaternion rotation)
+            => 2f * MathF.Atan2(rotation.Z, rotation.W);
+
+        /// <summary>
         /// Converts Euler angles (pitch, yaw, roll) to a normalized forward direction vector.
         /// </summary>
         /// <param name="pitchYawRoll">The Euler angles.</param>

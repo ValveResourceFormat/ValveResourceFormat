@@ -47,6 +47,12 @@ partial class ModelExtract
     private HashSet<string>[] PhysicsCollisionTags { get; set; } = [];
 
     /// <summary>
+    /// The <c>scripts/collision_properties.txt</c> entry each collision attribute compiles from, by attribute index,
+    /// or <see langword="null"/> for the default attribute and for attributes no entry reproduces.
+    /// </summary>
+    private string?[] PhysicsCollisionProperties { get; set; } = [];
+
+    /// <summary>
     /// The distinct surface and collision tag combinations the enqueued shapes use.
     /// </summary>
     private HashSet<SurfaceTagCombo> SurfaceTagCombos { get; } = [];
@@ -79,6 +85,8 @@ partial class ModelExtract
         {
             PhysicsCollisionTags = [[]];
         }
+
+        PhysicsCollisionProperties = GetCollisionPropertyNames(physAggregateData.CollisionAttributes);
 
         var bindPoses = physAggregateData.BindPose;
 
