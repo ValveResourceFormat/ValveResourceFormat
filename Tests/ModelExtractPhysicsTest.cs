@@ -20,6 +20,12 @@ public class ModelExtractPhysicsTest
         }
     }
 
+    private static TestPhysics LoadJointFixture(string fileName)
+    {
+        var document = KVDocumentExtensions.ParseKV3(Path.Combine(TestContext.TestDirectory!, "Files", "Physics", fileName));
+        return new TestPhysics(document.Root) { Resource = null! };
+    }
+
     [Test]
     public async Task PreservesBodyPropertiesWithGameMarkup()
     {
@@ -49,11 +55,13 @@ public class ModelExtractPhysicsTest
         var joints = children.Single(node => node.GetStringProperty("_class") == "PhysicsJointList").GetArray("children");
         await Assert.That(joints.Count).IsEqualTo(14);
 
+        await Assert.That(bodies.Any(node => node.GetStringProperty("target_body") == "leg_upper_L")).IsTrue();
+
         var parts = physics.Data.GetArray("m_parts");
         for (var i = 0; i < parts.Count; i++)
         {
             var name = physics.GetParentBoneName(i);
-            var body = bodies.Single(node => node.GetStringProperty("target_body") == name);
+            var body = bodies.Single(node => string.Equals(node.GetStringProperty("target_body"), name, StringComparison.OrdinalIgnoreCase));
             var part = parts[i];
             await Assert.That(body.GetStringProperty("tag")).IsEqualTo(tags[name]);
             await Assert.That(body.GetFloatProperty("mass_override")).IsEqualTo(part.GetFloatProperty("m_flMass"));
@@ -94,10 +102,31 @@ public class ModelExtractPhysicsTest
     [Test]
     public async Task InvertsSwingOffsetRotationInsteadOfNegatingAngles()
     {
-        var document = KVDocumentExtensions.ParseKV3(Path.Combine(TestContext.TestDirectory!, "Files", "Physics", "joint_conical.kv3"));
-        var physics = new TestPhysics(document.Root) { Resource = null! };
+        var physics = LoadJointFixture("joint_conical.kv3");
         var node = ModelExtract.BuildPhysicsJoint(physics, physics.Joints[0])!;
 
         await Assert.That(Vector3.Distance(node.GetSubCollection("swing_offset_angle").ToVector3(), new Vector3(17, 29, 41))).IsLessThan(0.001f);
+    }
+
+    [Test]
+    public async Task InvertsLegacyRevoluteLimitRecentering()
+    {
+        var physics = LoadJointFixture("joint_revolute_legacy.kv3");
+        var node = ModelExtract.BuildPhysicsJoint(physics, physics.Joints[0])!;
+
+        await Assert.That(Vector3.Distance(node.GetSubCollection("anchor_angles").ToVector3(), new Vector3(0, 90, 0))).IsLessThan(0.001f);
+        await Assert.That(node.GetFloatProperty("min_angle")).IsEqualTo(-30f).Within(0.001f);
+        await Assert.That(node.GetFloatProperty("max_angle")).IsEqualTo(60f).Within(0.001f);
+        await Assert.That(node.ContainsKey("motion_resistance")).IsFalse();
+    }
+
+    [Test]
+    public async Task RecoversLegacyFrictionFromTheChildShapeMass()
+    {
+        var physics = LoadJointFixture("joint_conical_friction_legacy.kv3");
+        var surfaceProperties = new Dictionary<uint, SurfacePhysics> { [physics.SurfacePropertyHashes[0]] = new(2000f, -1f) };
+        var node = ModelExtract.BuildPhysicsJoint(physics, physics.Joints[0], surfaceProperties)!;
+
+        await Assert.That(node.GetFloatProperty("friction")).IsEqualTo(0.5f).Within(0.0001f);
     }
 }

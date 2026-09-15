@@ -26,38 +26,99 @@ partial class ModelExtract
         }
     }
 
-    private void AddPhysicsShapeFileNodes(ModelDocLists lists)
+    /// <summary>
+    /// Writes the collision property a physics shape's collision attributes compile from.
+    /// </summary>
+    private void AddCollisionProperty(KVObject node, int collisionAttributeIndex)
     {
-        if (PhysHullsToExtract.Count > 0 || PhysMeshesToExtract.Count > 0)
+        if (collisionAttributeIndex >= 0 && collisionAttributeIndex < PhysicsCollisionProperties.Length
+            && PhysicsCollisionProperties[collisionAttributeIndex] is { } collisionProperty)
         {
-            if (Type == ModelExtractType.Map_PhysicsToRenderMesh)
-            {
-                if (PhysicsToRenderMaterialNameProvider is null)
-                {
-                    RemapMaterials(lists, globalReplace: true);
-                }
-                else
-                {
-                    var remapTable = SurfaceTagCombos.ToDictionary(
-                        combo => combo.StringMaterial,
-                        combo => PhysicsToRenderMaterialNameProvider(combo)
-                    );
-                    RemapMaterials(lists, remapTable, globalReplace: false);
-                }
-            }
-
-            foreach (var (physHull, fileName, parentBone, _) in PhysHullsToExtract)
-            {
-                AddPhysMeshNode(lists, physHull, fileName, parentBone);
-            }
-
-            foreach (var (physMesh, fileName, parentBone, _) in PhysMeshesToExtract)
-            {
-                AddPhysMeshNode(lists, physMesh, fileName, parentBone);
-            }
+            node.Add("collision_prop", collisionProperty);
         }
     }
 
+    private string?[] GetCollisionPropertyNames(IReadOnlyList<KVObject> collisionAttributes)
+    {
+        var names = new string?[collisionAttributes.Count];
+        using var stream = fileLoader?.GetFileStream("scripts/collision_properties.txt");
+
+        if (stream == null)
+        {
+            return names;
+        }
+
+        var collisionProperties = KVDocumentExtensions.ParseKV3(stream).Root.GetArray("collision_properties");
+
+        for (var i = 0; i < collisionAttributes.Count; i++)
+        {
+            names[i] = FindCollisionPropertyName(collisionProperties, collisionAttributes[i]);
+        }
+
+        return names;
+    }
+
+    /// <summary>
+    /// Finds the first <c>scripts/collision_properties.txt</c> entry whose collision group and interaction layers
+    /// compile to <paramref name="collisionAttributes"/>, or <see langword="null"/> when that is the default entry
+    /// or no entry does.
+    /// </summary>
+    private static string? FindCollisionPropertyName(IReadOnlyList<KVObject> collisionProperties, KVObject collisionAttributes)
+    {
+        foreach (var collisionProperty in collisionProperties)
+        {
+            if (string.Equals(collisionProperty.GetStringProperty("collision_group"),
+                    collisionAttributes.GetStringProperty("m_CollisionGroupString"), StringComparison.OrdinalIgnoreCase)
+                && HaveSameLayers(collisionProperty.GetArray<string>("interact_as"), PhysAggregateData.GetInteractAsTags(collisionAttributes))
+                && HaveSameLayers(collisionProperty.GetArray<string>("interact_with"), collisionAttributes.GetArray<string>("m_InteractWithStrings"))
+                && HaveSameLayers(collisionProperty.GetArray<string>("interact_exclude"), collisionAttributes.GetArray<string>("m_InteractExcludeStrings")))
+            {
+                var name = collisionProperty.GetStringProperty("name");
+                return name == "default" ? null : name;
+            }
+        }
+
+        return null;
+    }
+
+    private static bool HaveSameLayers(string[]? authored, string[]? compiled)
+        => new HashSet<string>((authored ?? []).Where(layer => layer.Length > 0), StringComparer.OrdinalIgnoreCase)
+            .SetEquals((compiled ?? []).Where(layer => layer.Length > 0));
+
+    private void AddPhysicsShapeFileNodes(ModelDocLists lists)
+    {
+        if (Type != ModelExtractType.Map_PhysicsToRenderMesh || (PhysHullsToExtract.Count == 0 && PhysMeshesToExtract.Count == 0))
+        {
+            return;
+        }
+
+        if (PhysicsToRenderMaterialNameProvider is null)
+        {
+            RemapMaterials(lists, globalReplace: true);
+        }
+        else
+        {
+            var remapTable = SurfaceTagCombos.ToDictionary(
+                combo => combo.StringMaterial,
+                combo => PhysicsToRenderMaterialNameProvider(combo)
+            );
+            RemapMaterials(lists, remapTable, globalReplace: false);
+        }
+
+        foreach (var (physHull, fileName, parentBone, _) in PhysHullsToExtract)
+        {
+            AddPhysMeshNode(lists, physHull, fileName, parentBone);
+        }
+
+        foreach (var (physMesh, fileName, parentBone, _) in PhysMeshesToExtract)
+        {
+            AddPhysMeshNode(lists, physMesh, fileName, parentBone);
+        }
+    }
+
+    /// <summary>
+    /// Writes each physics part's shapes together, in part order, followed by the joints between the parts.
+    /// </summary>
     private void AddPhysicsBodyNodes(ModelDocLists lists)
     {
         if (physAggregateData is not null)
@@ -66,12 +127,17 @@ partial class ModelExtract
 
             AddPhysicsBodyMarkup(lists, physAggregateData);
 
+            var writesShapeFiles = Type != ModelExtractType.Map_PhysicsToRenderMesh;
+            var hullIndex = 0;
+            var meshIndex = 0;
+
             for (var i = 0; i < physAggregateData.Parts.Length; i++)
             {
                 var physicsPart = physAggregateData.Parts[i];
+                var shape = physicsPart.Shape;
                 var parentBone = physAggregateData.GetParentBoneName(i);
 
-                foreach (var sphere in physicsPart.Shape.Spheres)
+                foreach (var sphere in shape.Spheres)
                 {
                     var physicsShapeSphere = MakeNode(
                         "PhysicsShapeSphere",
@@ -84,11 +150,12 @@ partial class ModelExtract
                     );
 
                     AddHitGroup(physicsShapeSphere, sphere);
+                    AddCollisionProperty(physicsShapeSphere, sphere.CollisionAttributeIndex);
 
                     lists.PhysicsShapes.Add(physicsShapeSphere);
                 }
 
-                foreach (var capsule in physicsPart.Shape.Capsules)
+                foreach (var capsule in shape.Capsules)
                 {
                     var physicsShapeCapsule = MakeNode(
                         "PhysicsShapeCapsule",
@@ -102,8 +169,51 @@ partial class ModelExtract
                     );
 
                     AddHitGroup(physicsShapeCapsule, capsule);
+                    AddCollisionProperty(physicsShapeCapsule, capsule.CollisionAttributeIndex);
 
                     lists.PhysicsShapes.Add(physicsShapeCapsule);
+                }
+
+                int hullCount = Math.Min(shape.Hulls.Length, PhysHullsToExtract.Count - hullIndex);
+                int meshCount = Math.Min(shape.Meshes.Length, PhysMeshesToExtract.Count - meshIndex);
+
+                if (writesShapeFiles)
+                {
+                    for (var j = hullIndex; j < hullIndex + hullCount; j++)
+                    {
+                        var (physHull, fileName, hullBone, _) = PhysHullsToExtract[j];
+                        AddPhysMeshNode(lists, physHull, fileName, hullBone);
+                    }
+
+                    for (var j = meshIndex; j < meshIndex + meshCount; j++)
+                    {
+                        var (physMesh, fileName, meshBone, _) = PhysMeshesToExtract[j];
+                        AddPhysMeshNode(lists, physMesh, fileName, meshBone);
+                    }
+                }
+
+                hullIndex += hullCount;
+                meshIndex += meshCount;
+
+                if (parentBone.Length > 0 && shape.Spheres.Length == 0 && shape.Capsules.Length == 0 && shape.Hulls.Length == 0 && shape.Meshes.Length == 0)
+                {
+                    HashSet<string> collisionTags = physicsPart.CollisionAttributeIndex < PhysicsCollisionTags.Length
+                        ? PhysicsCollisionTags[physicsPart.CollisionAttributeIndex]
+                        : [];
+
+                    // A zero radius sphere compiles to no shape but keeps the body and the joints on it.
+                    var shapelessBodySphere = MakeNode(
+                        "PhysicsShapeSphere",
+                        ("parent_bone", parentBone),
+                        ("surface_prop", PhysicsSurfaceNames[0]),
+                        ("collision_tags", string.Join(" ", collisionTags)),
+                        ("radius", 0f),
+                        ("center", ToKVArray(Vector3.Zero)),
+                        ("name", string.Empty)
+                    );
+
+                    AddCollisionProperty(shapelessBodySphere, physicsPart.CollisionAttributeIndex);
+                    lists.PhysicsShapes.Add(shapelessBodySphere);
                 }
             }
 
@@ -146,6 +256,7 @@ partial class ModelExtract
         );
 
         AddHitGroup(physicsShapeFile, shapeDesc);
+        AddCollisionProperty(physicsShapeFile, shapeDesc.CollisionAttributeIndex);
 
         lists.PhysicsShapes.Add(physicsShapeFile);
     }

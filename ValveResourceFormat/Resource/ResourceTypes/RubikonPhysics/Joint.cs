@@ -112,6 +112,8 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics
         public float AngularFrequency { get; }
         /// <summary>Gets the angular spring damping ratio.</summary>
         public float AngularDampingRatio { get; }
+        /// <summary>Gets whether the record carries <see cref="Friction"/>. Older records have no motion resistance fields.</summary>
+        public bool HasFriction { get; }
         /// <summary>Gets the joint friction.</summary>
         public float Friction { get; }
         /// <summary>Gets the joint elasticity (restitution).</summary>
@@ -153,9 +155,10 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics
             LinearDampingRatio = data.GetFloatProperty("m_flLinearDampingRatio");
             AngularFrequency = data.GetFloatProperty("m_flAngularFrequency");
             AngularDampingRatio = data.GetFloatProperty("m_flAngularDampingRatio");
+            HasFriction = data.ContainsKey("m_flFriction");
             Friction = data.GetFloatProperty("m_flFriction");
             Elasticity = data.GetFloatProperty("m_flElasticity");
-            ElasticDamping = data.GetFloatProperty("m_flElasticDamping");
+            ElasticDamping = data.GetFloatProperty("m_flElasticDamping", 1f);
             Plasticity = data.GetFloatProperty("m_flPlasticity");
             Tag = data.GetStringProperty("m_Tag");
         }
