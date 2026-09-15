@@ -235,7 +235,7 @@ vec3 GetEnvironmentNoBRDF(MaterialProperties_t mat, float reflectionCorrectionAm
 
         vec3 coords = GetCorrectedSampleCoords(R, envMapWorldToLocal, envMapLocalPos, isBoxProjection, envMapBoxMin, envMapBoxMax);
         #if (S_LIGHTMAP_VERSION_MINOR == 0)
-            envMap = DecodeRGBM(textureLod(g_tEnvironmentMap, coords, lod));
+            envMap = SrgbGammaToLinear(DecodeRGBM(textureLod(g_tEnvironmentMap, coords, lod)));
         #else
             envMap = textureLod(g_tEnvironmentMap, coords, lod).rgb;
         #endif
