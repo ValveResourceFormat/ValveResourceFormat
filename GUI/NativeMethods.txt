@@ -36,6 +36,7 @@ PostMessage
 SendMessage
 SendMessageTimeout
 SEND_MESSAGE_TIMEOUT_FLAGS
+SetDefaultDllDirectories
 SetParent
 SetWindowLongPtr
 SetWindowPlacement

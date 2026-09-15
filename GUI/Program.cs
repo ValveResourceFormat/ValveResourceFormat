@@ -8,6 +8,8 @@ using System.Threading;
 using System.Windows.Forms;
 using GUI.Utils;
 using ValveResourceFormat.Renderer;
+using Windows.Win32;
+using Windows.Win32.System.LibraryLoader;
 
 namespace GUI
 {
@@ -37,6 +39,9 @@ namespace GUI
         [STAThread]
         internal static void Main(string[] args)
         {
+            // Stop system DLLs (e.g. dinput8.dll requested by GLFW) from being hijacked by a copy next to the exe.
+            PInvoke.SetDefaultDllDirectories(LOAD_LIBRARY_FLAGS.LOAD_LIBRARY_SEARCH_SYSTEM32);
+
             AppDomain.CurrentDomain.UnhandledException += UnhandledException;
             Application.ThreadException += ThreadException;
 
