@@ -1674,12 +1674,21 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// <para>
         /// A component carrying an odd cycle fixes its own free parameter; a quad's diagonal closes one
         /// with two of its edges, so a sheet's face-rod graph is normally pinned. A component with no odd
-        /// cycle is closed by the choice that sits closest to <paramref name="fallback"/>, the value an
-        /// unpainted vertex already has, so a sheet that states nothing keeps its default.
+        /// cycle is closed by <paramref name="chooseFree"/> where it reads the free parameter off other rods, and
+        /// otherwise by the choice that sits closest to <paramref name="fallback"/>, the value an unpainted vertex
+        /// already has, so a sheet that states nothing keeps its default.
         /// </para>
         /// </summary>
+        /// <param name="stated">The pair sums, one per node pair.</param>
+        /// <param name="fallback">The value an unpainted vertex has.</param>
+        /// <param name="upper">The largest value a vertex may take.</param>
+        /// <param name="chooseFree">
+        /// Reads a component's free parameter from each node's sign and offset (<c>value = sign * free + offset</c>), or
+        /// returns null to keep the choice closest to <paramref name="fallback"/>.
+        /// </param>
         static Dictionary<int, float>? SolvePairSumPaint(Dictionary<(int A, int B), float> stated,
-            float fallback, float upper)
+            float fallback, float upper,
+            Func<IReadOnlyDictionary<int, float>, IReadOnlyDictionary<int, float>, float?>? chooseFree = null)
         {
             var adjacency = new Dictionary<int, List<(int Other, float Sum)>>();
             foreach (var ((a, b), sum) in stated)
@@ -1744,7 +1753,8 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                     }
                 }
 
-                var free = pinned ?? component.Sum(node => sign[node] * (fallback - offset[node])) / component.Count;
+                var free = pinned ?? chooseFree?.Invoke(sign, offset)
+                    ?? component.Sum(node => sign[node] * (fallback - offset[node])) / component.Count;
                 foreach (var node in component)
                 {
                     var value = sign[node] * free + offset[node];
@@ -1954,21 +1964,83 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
 
             var thread = DefaultSurfaceStretch > 0f ? MathF.Exp(-DefaultSurfaceStretch) : 1f;
             var stated = new Dictionary<(int A, int B), float>();
+            var diagonals = new List<(int A, int B, float Relaxation)>();
             foreach (var (pair, diagonal, rod) in AuthoredFaceRods(sheetNodes))
             {
                 if (!diagonal)
                 {
                     stated[pair] = 2f * (1f - MathF.Cbrt(Math.Clamp(rod.RelaxationFactor / thread, 0f, 1f)));
                 }
+                else
+                {
+                    diagonals.Add((pair.A, pair.B, rod.RelaxationFactor));
+                }
             }
 
-            if (stated.Count == 0 || SolvePairSumPaint(stated, 0f, MaxStatedStretch) is not { } solved
+            if (stated.Count == 0
+                || SolvePairSumPaint(stated, 0f, MaxStatedStretch, (sign, offset) => DiagonalStretchFree(diagonals, sign, offset)) is not { } solved
                 || solved.Values.All(static value => value <= PaintSolveTolerance))
             {
                 return null;
             }
 
             return solved;
+        }
+
+        /// <summary>
+        /// Reads the free parameter a sheet's face edges leave on its stretch paint off the face diagonals. A quad grid's
+        /// edges form a bipartite graph, so they fix the paint only up to <c>+free</c> on one colour and <c>-free</c> on the
+        /// other, and a diagonal joins two vertices of one colour. Every diagonal carries the same shear factor times the cube
+        /// of one minus its endpoints' mean paint, so the cube roots of the diagonals' relaxations are linear in that factor's
+        /// cube root and in <c>free</c>. Null unless diagonals of both colours state one consistent value.
+        /// </summary>
+        static float? DiagonalStretchFree(List<(int A, int B, float Relaxation)> diagonals,
+            IReadOnlyDictionary<int, float> sign, IReadOnlyDictionary<int, float> offset)
+        {
+            double aa = 0, ab = 0, bb = 0, ay = 0, by = 0;
+            var rows = new List<(double Open, double Colour, double Root)>();
+            var colours = new HashSet<float>();
+            foreach (var (a, b, relaxation) in diagonals)
+            {
+                if (relaxation <= 0f || !sign.TryGetValue(a, out var signA) || !sign.TryGetValue(b, out var signB) || signA != signB)
+                {
+                    continue;
+                }
+
+                double open = 1.0 - (0.5 * (offset[a] + offset[b]));
+                double colour = -signA;
+                var root = Math.Cbrt(relaxation);
+                rows.Add((open, colour, root));
+                colours.Add(signA);
+                aa += open * open;
+                ab += open * colour;
+                bb += colour * colour;
+                ay += open * root;
+                by += colour * root;
+            }
+
+            var determinant = (aa * bb) - (ab * ab);
+            if (colours.Count < 2 || Math.Abs(determinant) < 1e-12)
+            {
+                return null;
+            }
+
+            var factor = ((ay * bb) - (by * ab)) / determinant;
+            var shifted = ((by * aa) - (ay * ab)) / determinant;
+            if (factor <= 1e-6)
+            {
+                return null;
+            }
+
+            foreach (var (open, colour, root) in rows)
+            {
+                if (Math.Abs((factor * open) + (shifted * colour) - root) > PaintSolveTolerance * factor)
+                {
+                    return null;
+                }
+            }
+
+            return (float)(shifted / factor);
         }
 
         /// <summary>

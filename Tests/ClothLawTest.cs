@@ -6696,5 +6696,65 @@ namespace Tests
                 }
                 """);
         }
+
+        /// <summary>
+        /// A <c>cloth_stretch</c> graded across a quad sheet is recovered whole. The face edges fix the paint only up to an offset
+        /// alternating over the grid's two colours; a diagonal joins two vertices of one colour under the shear factor every
+        /// diagonal shares, so the diagonals decide that offset (<c>w36sd_diag_stretch_gradient</c>). Control: a uniform paint,
+        /// which the offset closest to zero already reads.
+        /// </summary>
+        [Test]
+        public async Task AStretchGradientTakesTheOffsetItsDiagonalsState()
+        {
+            var graded = StretchedSheet([0.6f, 0.35f, 0.1f]).StretchPaint;
+            var uniform = StretchedSheet([0.5f, 0.5f, 0.5f]).StretchPaint;
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(graded).IsNotNull();
+                await Assert.That(graded![0]).IsEqualTo(0.6f).Within(1e-3f);
+                await Assert.That(graded[4]).IsEqualTo(0.35f).Within(1e-3f);
+                await Assert.That(graded[7]).IsEqualTo(0.1f).Within(1e-3f);
+                await Assert.That(uniform).IsNotNull();
+                await Assert.That(uniform![4]).IsEqualTo(0.5f).Within(1e-3f);
+            }
+        }
+
+        private static FeModel StretchedSheet(float[] rowPaint)
+        {
+            const float ShearFactor = 0.5f;
+            var rods = new StringBuilder();
+            void Rod(int a, int b)
+            {
+                var edge = a / 3 == b / 3 || a % 3 == b % 3;
+                var rest = edge ? 10f : MathF.Sqrt(200f);
+                var open = 1f - (0.5f * (rowPaint[a / 3] + rowPaint[b / 3]));
+                rods.Append(SyntheticCloth.BandedRod(a, b, rest * 0.5f, rest, (edge ? 1f : ShearFactor) * open * open * open));
+            }
+
+            foreach (var (a, b) in (ReadOnlySpan<(int, int)>)[(0, 1), (1, 2), (3, 4), (4, 5), (6, 7), (7, 8), (0, 3), (1, 4), (2, 5), (3, 6), (4, 7), (5, 8),
+                (0, 4), (1, 3), (1, 5), (2, 4), (3, 7), (4, 6), (4, 8), (5, 7)])
+            {
+                Rod(a, b);
+            }
+
+            var poses = new StringBuilder();
+            for (var node = 0; node < 9; node++)
+            {
+                poses.Append(SyntheticCloth.Pose((node % 3) * 10f, 0f, -(node / 3) * 10f));
+            }
+
+            return SyntheticCloth.Parse($$"""
+                {
+                    m_CtrlName = [ {{string.Join(", ", Enumerable.Range(0, 9).Select(static node => $"\"$cloth_m0p{node}\""))}} ]
+                    m_nNodeCount = 9
+                    m_nStaticNodes = 0
+                    m_NodeInvMasses = [ {{string.Join(", ", Enumerable.Repeat("1.0", 9))}} ]
+                    m_InitPose = [ {{poses}} ]
+                    m_SourceElems = [ 0, 0, 0, 4, 0, 1, 4, 3, 1, 2, 5, 4, 3, 4, 7, 6, 4, 5, 8, 7 ]
+                    m_Rods = [ {{rods}} ]
+                }
+                """);
+        }
     }
 }
