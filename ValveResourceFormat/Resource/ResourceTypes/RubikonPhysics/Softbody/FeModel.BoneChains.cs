@@ -2612,6 +2612,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                         return null;
                     }
 
+                    var baseRf = (rootTarget == grand ? joint.BendStiffness : joint.TorsionStiffness) * MathF.Exp(-DefaultSurfaceStretch);
                     float? companion = null;
                     foreach (var a in Side(joint.Node))
                     {
@@ -2621,7 +2622,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                             if (Array.IndexOf(SourceSprings, pair) >= 0
                                 || Array.IndexOf(SourceSprings, (pair.Item2, pair.Item1)) >= 0
                                 || !rigidRodRelaxationsByPair.TryGetValue(pair, out var relaxations)
-                                || Surplus(relaxations, baseCopies) is not { } value
+                                || Surplus(relaxations, baseCopies, baseRf) is not { } value
                                 || (companion is { } already && MathF.Abs(already - value) > 1e-4f))
                             {
                                 return null;
@@ -2635,8 +2636,10 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                 }
 
                 // The one relaxation left on a root pair once the joint's own baseCopies repeats are taken
-                // out of it: the pair's single odd value, or its shared value when every rod agrees.
-                static float? Surplus(List<float> relaxations, int baseCopies)
+                // out of it: the pair's single odd value, or its shared value when every rod agrees. A pair of
+                // one span rod and one companion has no odd count, and the compiler's rod sort puts either
+                // first, so the companion is the rod away from the joint's own span reading baseRf.
+                static float? Surplus(List<float> relaxations, int baseCopies, float baseRf)
                 {
                     var groups = new List<(float Value, int Count)>();
                     foreach (var rf in relaxations)
@@ -2660,6 +2663,12 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                     if (groups.Count != 2)
                     {
                         return null;
+                    }
+
+                    if (groups[0].Count == 1 && groups[1].Count == 1
+                        && groups.FindIndex(g => MathF.Abs(g.Value - baseRf) < 1e-4f) is var atBase and >= 0)
+                    {
+                        return groups[1 - atBase].Value;
                     }
 
                     var odd = groups.FindIndex(static g => g.Count == 1);

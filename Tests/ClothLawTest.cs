@@ -6381,5 +6381,58 @@ namespace Tests
                 ]
             }
             """);
+
+        /// <summary>
+        /// A joint whose bend span lands on the chain root carries that span's rod and the suspender's companion on the root
+        /// pair, one copy each, in whichever order the compiler's rod sort leaves them. The companion is the rod away from the
+        /// joint's own bend reading in either order: <c>w36sa_rp_ring0_bend_susp</c> (suspender 0.21, sorted after the bend
+        /// rod) read back 1.0, and the ringed <c>w36sa_min_hop2_noparams</c>, whose four ring pairs do not all sort alike,
+        /// read no suspender and lost four rods. Either document reads EXACT with the authored suspender restored.
+        /// </summary>
+        [Test]
+        public async Task ASuspenderBesideASingleBendRodIsTheRodAwayFromTheBendReading()
+        {
+            static FeModel.BoneChainJoint Tip(bool companionFirst)
+            {
+                var bend = SyntheticCloth.RigidRod(0, 2, 20f, 1f);
+                var companion = SyntheticCloth.RigidRod(0, 2, 20f, 0.21f);
+                var feModel = SyntheticCloth.Parse($$"""
+                    {
+                        m_CtrlName = [ "root", "j1", "j2" ]
+                        m_SkelParents = [ -1, 0, 1 ]
+                        m_nNodeCount = 3
+                        m_nStaticNodes = 1
+                        m_NodeInvMasses = [ 0.0, 1.0, 1.0 ]
+                        m_InitPose =
+                        [
+                            {{SyntheticCloth.Pose(0f, 0f, 0f)}}
+                            {{SyntheticCloth.Pose(0f, 0f, -10f)}}
+                            {{SyntheticCloth.Pose(0f, 0f, -20f)}}
+                        ]
+                        m_Rods =
+                        [
+                            {{SyntheticCloth.RigidRod(0, 1, 10f, 1f)}}
+                            {{SyntheticCloth.RigidRod(1, 2, 10f, 1f)}}
+                            {{(companionFirst ? companion : bend)}}
+                            {{(companionFirst ? bend : companion)}}
+                        ]
+                    }
+                    """);
+                return feModel.BuildBoneChains()[0].Joints.Find(static joint => joint.Name == "j2")!;
+            }
+
+            FeModel.BoneChainJoint bendFirst = Tip(companionFirst: false);
+            FeModel.BoneChainJoint suspenderFirst = Tip(companionFirst: true);
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(bendFirst.BendSpring).IsTrue();
+                await Assert.That(bendFirst.BendStiffness).IsEqualTo(1f).Within(1e-4f);
+                await Assert.That(bendFirst.Suspender).IsEqualTo(0.21f).Within(1e-4f);
+                await Assert.That(bendFirst.ExtraIterations).IsEqualTo(0);
+                await Assert.That(suspenderFirst.Suspender).IsEqualTo(0.21f).Within(1e-4f);
+                await Assert.That(suspenderFirst.ExtraIterations).IsEqualTo(0);
+            }
+        }
     }
 }
