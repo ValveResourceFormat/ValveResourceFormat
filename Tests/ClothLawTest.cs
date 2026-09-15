@@ -6517,16 +6517,19 @@ namespace Tests
         }
 
         /// <summary>
-        /// A <c>ClothSpring</c> from a free <c>ClothNode</c> to a chain joint compiles one rod and one source element that no
-        /// chain and no chain-ring source spring re-declares: <c>w36sa_min_spring_noparams</c> lost the rod, and its tip's
-        /// inverse mass with it, until the spring was restored in VRF's own document (EXACT). The joint is an endpoint only
-        /// for a node declared beside it; the chain's own span between two joints stays the chain's.
+        /// A rod from a free <c>ClothNode</c> to a chain joint is re-declared, since no chain and no chain-ring source spring
+        /// does: <c>w36sa_min_spring_noparams</c> lost the rod, and its tip's inverse mass with it, until its authored
+        /// <c>ClothSpring</c> was restored (EXACT). Where the original records the pair as a two-corner source element the
+        /// tie is that spring; where it records none the tie is a two-member <c>ClothSelfCollisionCluster</c>, since a spring's
+        /// element grades a basis hint the original left ungraded (<c>frostivus_mug</c>: EQUIVALENT as clusters,
+        /// <c>m_DynNodeWindBases</c> off as springs). The joint is an endpoint only for a node declared beside it.
         /// </summary>
         [Test]
         public async Task ASpringFromAFreeNodeToAChainJointIsDeclared()
         {
-            FeModel feModel = SyntheticCloth.Parse($$"""
+            static FeModel Model(string sourceElems) => SyntheticCloth.Parse($$"""
                 {
+                    m_SourceElems = [ {{sourceElems}} ]
                     m_CtrlName = [ "coattail_0_L", "coattail_0_R", "coattail_1_R" ]
                     m_SkelParents = [ -1, -1, 1 ]
                     m_nNodeCount = 3
@@ -6546,21 +6549,27 @@ namespace Tests
                 }
                 """);
 
-            static string[] Springs(FeModel feModel, HashSet<int>? chainJoints)
+            static string[] Ties(FeModel feModel, HashSet<int>? chainJoints)
             {
                 KVObject clothChildren = KVObject.Array();
                 KVObject softbodyChildren = KVObject.Array();
                 ModelExtract.AddFreeClothNodesAndSprings(clothChildren, softbodyChildren, feModel, [1, 2], static _ => true,
                     [], chainJoints: chainJoints);
-                return [.. softbodyChildren.Select(static child => child.Value)
-                    .Where(static child => child.GetStringProperty("_class") == "ClothSpring")
-                    .Select(static spring => spring.GetStringProperty("cloth_node_0") + "|" + spring.GetStringProperty("cloth_node_1"))];
+                return [.. softbodyChildren.Select(static child => child.Value).Select(static child =>
+                    child.GetStringProperty("_class") == "ClothSpring"
+                        ? "spring:" + child.GetStringProperty("cloth_node_0") + "|" + child.GetStringProperty("cloth_node_1")
+                        : "cluster:" + string.Join("|", child.GetSubCollection("chain").GetArray("joints")
+                            .Select(static joint => joint.GetStringProperty("joint_name"))))];
             }
+
+            FeModel recorded = Model("0, 1, 0, 0, 0, 2");
+            FeModel unrecorded = Model("0, 0, 0, 0");
 
             using (Assert.Multiple())
             {
-                await Assert.That(Springs(feModel, [1, 2])).IsEquivalentTo(["coattail_0_L|coattail_1_R"]);
-                await Assert.That(Springs(feModel, null)).IsEmpty();
+                await Assert.That(Ties(recorded, [1, 2])).IsEquivalentTo(["spring:coattail_0_L|coattail_1_R"]);
+                await Assert.That(Ties(unrecorded, [1, 2])).IsEquivalentTo(["cluster:coattail_0_L|coattail_1_R"]);
+                await Assert.That(Ties(unrecorded, null)).IsEmpty();
             }
         }
     }

@@ -151,6 +151,14 @@ partial class ModelExtract
             var name0 = springName.GetValueOrDefault(edge.Item1) ?? names[edge.Item1];
             var name1 = springName.GetValueOrDefault(edge.Item2) ?? names[edge.Item2];
             var first = rods[0];
+
+            if (IsUnrecordedJointTie(feModel, edge, rods, springName))
+            {
+                var memberStiffness = MathF.Sqrt(first.RelaxationFactor);
+                softbodyChildren.Add(MakeClothSelfCollisionCluster($"cluster_{edge.Item1}_{edge.Item2}", [name0, name1],
+                    first.MaxDist / 2f, first.MaxDist / 2f, [memberStiffness, memberStiffness]));
+                continue;
+            }
             var allIdentical = rods.TrueForAll(rod => rod.MinDist == first.MinDist
                 && rod.MaxDist == first.MaxDist && rod.RelaxationFactor == first.RelaxationFactor);
 
@@ -171,6 +179,31 @@ partial class ModelExtract
         }
 
         return emitted;
+    }
+
+    /// <summary>
+    /// Whether the tie on <paramref name="edge"/> between a declared node and a chain joint is one rigid rod the original
+    /// records no two-corner source element for. A <c>ClothSpring</c> registers that element and the element joins its
+    /// nodes' neighbour sets, which grades a basis hint the original left ungraded; a two-member
+    /// <c>ClothSelfCollisionCluster</c> compiles the same rod, its relaxation the product of the two member stiffnesses,
+    /// and registers nothing.
+    /// </summary>
+    internal static bool IsUnrecordedJointTie(FeModel feModel, (int A, int B) edge, List<FeModel.Rod> rods,
+        Dictionary<int, string> springName)
+    {
+        if (springName.ContainsKey(edge.A) && springName.ContainsKey(edge.B))
+        {
+            return false;
+        }
+
+        if (rods.Count != 1 || Array.IndexOf(feModel.SourceSprings, (edge.A, edge.B)) >= 0
+            || Array.IndexOf(feModel.SourceSprings, (edge.B, edge.A)) >= 0)
+        {
+            return false;
+        }
+
+        var rod = rods[0];
+        return MathF.Abs(rod.MinDist - rod.MaxDist) <= 1e-4f * MathF.Max(1f, MathF.Abs(rod.MaxDist));
     }
 
     /// <summary>
