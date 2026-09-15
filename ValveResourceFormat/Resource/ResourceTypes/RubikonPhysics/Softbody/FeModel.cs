@@ -1834,8 +1834,12 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// stream; the stiffest diagonal is what the scalar is read from, and the rest of the sheet is
         /// painted down from it.
         /// </para>
+        /// <para>
+        /// A diagonal whose mean paint is zero creates no rod at all, so a quad face that made its edges
+        /// but carries no rod along a diagonal states both corners of that diagonal at zero.
+        /// </para>
         /// </summary>
-        (Dictionary<int, float> Paint, float BaseRelaxation)? ShearResistance
+        internal (Dictionary<int, float> Paint, float BaseRelaxation)? ShearResistance
         {
             get
             {
@@ -1863,7 +1867,8 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                 }
             }
 
-            var diagonals = AuthoredFaceRods(sheetNodes).Where(static entry => entry.Diagonal).ToList();
+            var faceRods = AuthoredFaceRods(sheetNodes);
+            var diagonals = faceRods.Where(static entry => entry.Diagonal).ToList();
             var baseRelaxation = 0f;
             foreach (var (_, _, rod) in diagonals)
             {
@@ -1881,13 +1886,66 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                 stated[pair] = 2f * MathF.Cbrt(Math.Clamp(UnstretchedRelaxation(rod) / baseRelaxation, 0f, 1f));
             }
 
-            if (SolvePairSumPaint(stated, 1f, MaxStatedShearResistance) is not { } solved
+            var unbuilt = new HashSet<int>();
+            foreach (var pair in UnbuiltFaceDiagonals(sheetNodes, faceRods))
+            {
+                stated[pair] = 0f;
+                unbuilt.Add(pair.A);
+                unbuilt.Add(pair.B);
+            }
+
+            float? ZeroAtUnbuilt(IReadOnlyDictionary<int, float> sign, IReadOnlyDictionary<int, float> offset)
+            {
+                foreach (var node in unbuilt)
+                {
+                    if (sign.TryGetValue(node, out var nodeSign))
+                    {
+                        return -offset[node] * nodeSign;
+                    }
+                }
+
+                return null;
+            }
+
+            if (SolvePairSumPaint(stated, 1f, MaxStatedShearResistance, unbuilt.Count > 0 ? ZeroAtUnbuilt : null) is not { } solved
                 || solved.Values.All(static value => MathF.Abs(value - 1f) <= PaintSolveTolerance))
             {
                 return null;
             }
 
             return (solved, baseRelaxation);
+        }
+
+        /// <summary>
+        /// The diagonals of the proxy quads that made their four edges but carry no rod at all along the diagonal. A span between two
+        /// static nodes constrains nothing and is never built, so it neither counts against the face nor states anything itself.
+        /// </summary>
+        IEnumerable<(int A, int B)> UnbuiltFaceDiagonals(HashSet<int> nodes,
+            List<((int A, int B) Pair, bool Diagonal, Rod Rod)> faceRods)
+        {
+            var edges = faceRods.Where(static entry => !entry.Diagonal).Select(static entry => entry.Pair).ToHashSet();
+            var rodPairs = Rods.Select(static rod => rod.NodeA < rod.NodeB ? (rod.NodeA, rod.NodeB) : (rod.NodeB, rod.NodeA)).ToHashSet();
+            static (int, int) Key(int x, int y) => x < y ? (x, y) : (y, x);
+            bool BothStatic((int A, int B) pair) => IsStatic(pair.A) && IsStatic(pair.B);
+            bool Spans((int, int) pair) => edges.Contains(pair) || BothStatic(pair);
+
+            foreach (var face in SourceFaces)
+            {
+                if (face.Length != 4 || !Array.TrueForAll(face, nodes.Contains)
+                    || !Spans(Key(face[0], face[1])) || !Spans(Key(face[1], face[2]))
+                    || !Spans(Key(face[2], face[3])) || !Spans(Key(face[3], face[0])))
+                {
+                    continue;
+                }
+
+                foreach (var diagonal in new[] { Key(face[0], face[2]), Key(face[1], face[3]) })
+                {
+                    if (!rodPairs.Contains(diagonal) && !BothStatic(diagonal))
+                    {
+                        yield return diagonal;
+                    }
+                }
+            }
         }
 
         /// <summary>

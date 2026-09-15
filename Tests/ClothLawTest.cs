@@ -7062,5 +7062,70 @@ namespace Tests
                 await Assert.That(ModelExtract.LoneNodeIsJointChain(free, 1, bareStatic: false, bareStaticReparented: false)).IsFalse();
             }
         }
+
+        /// <summary>
+        /// A quad that made its edges but no diagonal painted both diagonals' corners at zero <c>cloth_shear_resistance</c>, since a
+        /// zero mean creates no diagonal rod at all; read as unstated, those corners took the default 1 and the rebuild grew the
+        /// diagonals (<c>w37sm_shear_step_zero</c>, the antimage_female witnesses). Control: a quad with no edges either made no rods
+        /// through its <c>cloth_make_rods</c> gate and states nothing.
+        /// </summary>
+        [Test]
+        public async Task AQuadWithEdgesButNoDiagonalPaintsItsCornersAtZeroShear()
+        {
+            var holed = ShearedSheet(leftEdges: true).ShearResistance;
+            var ungated = ShearedSheet(leftEdges: false).ShearResistance;
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(holed).IsNotNull();
+                foreach (var node in new[] { 0, 1, 3, 4, 6, 7 })
+                {
+                    await Assert.That(holed!.Value.Paint[node]).IsEqualTo(0f).Within(1e-3f);
+                }
+
+                await Assert.That(holed!.Value.Paint[5]).IsGreaterThan(0.5f);
+                await Assert.That(ungated).IsNull();
+            }
+        }
+
+        private static FeModel ShearedSheet(bool leftEdges)
+        {
+            var rods = new StringBuilder();
+            foreach (var (a, b) in (ReadOnlySpan<(int, int)>)[(1, 2), (4, 5), (7, 8), (1, 4), (2, 5), (4, 7), (5, 8)])
+            {
+                rods.Append(SyntheticCloth.RigidRod(a, b, 10f, 1f));
+            }
+
+            if (leftEdges)
+            {
+                foreach (var (a, b) in (ReadOnlySpan<(int, int)>)[(0, 1), (3, 4), (6, 7), (0, 3), (3, 6)])
+                {
+                    rods.Append(SyntheticCloth.RigidRod(a, b, 10f, 1f));
+                }
+            }
+
+            foreach (var (a, b) in (ReadOnlySpan<(int, int)>)[(1, 5), (2, 4), (4, 8), (5, 7)])
+            {
+                rods.Append(SyntheticCloth.BandedRod(a, b, MathF.Sqrt(200f) * 0.75f, MathF.Sqrt(200f), 0.125f));
+            }
+
+            var poses = new StringBuilder();
+            for (var node = 0; node < 9; node++)
+            {
+                poses.Append(SyntheticCloth.Pose((node % 3) * 10f, 0f, -(node / 3) * 10f));
+            }
+
+            return SyntheticCloth.Parse($$"""
+                {
+                    m_CtrlName = [ {{string.Join(", ", Enumerable.Range(0, 9).Select(static node => $"\"$cloth_m0p{node}\""))}} ]
+                    m_nNodeCount = 9
+                    m_nStaticNodes = 0
+                    m_NodeInvMasses = [ {{string.Join(", ", Enumerable.Repeat("1.0", 9))}} ]
+                    m_InitPose = [ {{poses}} ]
+                    m_SourceElems = [ 0, 0, 0, 4, 0, 1, 4, 3, 1, 2, 5, 4, 3, 4, 7, 6, 4, 5, 8, 7 ]
+                    m_Rods = [ {{rods}} ]
+                }
+                """);
+        }
     }
 }
