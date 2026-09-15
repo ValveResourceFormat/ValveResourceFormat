@@ -6482,5 +6482,38 @@ namespace Tests
                 m_Rods = [ {{SyntheticCloth.RigidRod(3, 4, 40f, 1f)}} ]
             }
             """);
+
+        /// <summary>
+        /// A simulated bone beside a proxy sheet that only a <c>JiggleBone</c> declares is left to the jiggle bone: it compiles
+        /// into the vertex set with no name, and a lone cloth node on it moves it into the model's default set
+        /// (<c>w36c_vset_jiggle_sheet</c>). The control: a simulated bone with no jiggle bone is still a lone cloth node.
+        /// </summary>
+        [Test]
+        public async Task ABoneOnlyItsJiggleBoneDeclaresIsNotALoneClothNode()
+        {
+            var feModel = SyntheticCloth.Parse($$"""
+                {
+                    m_CtrlName = [ "tophat", "tail" ]
+                    m_SkelParents = [ -1, -1 ]
+                    m_nNodeCount = 2
+                    m_nStaticNodes = 0
+                    m_NodeInvMasses = [ 1.0, 1.0 ]
+                    m_InitPose =
+                    [
+                        {{SyntheticCloth.Pose(0f, 0f, 60f)}}
+                        {{SyntheticCloth.Pose(10f, 0f, 40f)}}
+                    ]
+                    m_VertexSetNames = [ 0, 2103756403 ]
+                    m_DynNodeVertexSet = [ 0, 1 ]
+                    m_JiggleBones = [ { m_nNode = 0 m_nJiggleParent = 0 m_jiggleBone = { m_nFlags = 38 m_flLength = 5.0 } }, ]
+                }
+                """);
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(ModelExtract.IsDeclaredByItsJiggleBone(feModel, 0)).IsTrue();
+                await Assert.That(ModelExtract.IsDeclaredByItsJiggleBone(feModel, 1)).IsFalse();
+            }
+        }
     }
 }

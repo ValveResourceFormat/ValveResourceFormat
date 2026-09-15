@@ -162,6 +162,14 @@ partial class ModelExtract
         return true;
     }
 
+    /// <summary>
+    /// Gets whether a control node is a jiggle bone's, which its <c>JiggleBone</c> declares on its own. That node
+    /// compiles into the vertex set with no name, and declaring it as a cloth node too moves it into the model's
+    /// default set.
+    /// </summary>
+    internal static bool IsDeclaredByItsJiggleBone(FeModel feModel, int node)
+        => Array.Exists(feModel.JiggleBones, jiggle => jiggle.Node == node);
+
     bool EmitProxySheetClothPhase(FeModel feModel, List<FeModel.BoneChain> boneChains, KVObject rootChildren)
     {
         // Phase 2 (preferred): the cloth sheet ships as a proxy mesh. With back_solve_joints the
@@ -566,6 +574,11 @@ partial class ModelExtract
                     unregisteredNodes.Add((name, node));
                 }
 
+                continue;
+            }
+
+            if (IsDeclaredByItsJiggleBone(feModel, node))
+            {
                 continue;
             }
 
