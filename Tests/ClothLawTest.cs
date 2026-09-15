@@ -6241,5 +6241,42 @@ namespace Tests
                 ]
             }
             """);
+
+        /// <summary>
+        /// A <c>ClothRigidCloudCluster</c> of algorithm 0 compiles no member and refuses fewer than two ("Rigid Point Cloud must
+        /// have at least 2 nodes"), while any two members compile the same lock: <c>w36sb_lockgoal_cloud_ringed</c>, whose locked
+        /// root has one chain child, reads EXACT over five member sets and loses its lock with no cluster. A linear chain names the
+        /// child and the grandchild, a fork keeps its two children, and a locked joint over one leaf pairs the leaf with itself.
+        /// </summary>
+        [Test]
+        public async Task ARigidCloudClusterDeclaresAtLeastTwoMembers()
+        {
+            static FeModel.BoneChain Chain(params int[] parents)
+            {
+                FeModel.BoneChain chain = new() { RootBone = "joint_0" };
+                for (int node = 0; node < parents.Length; node++)
+                {
+                    chain.Joints.Add(new FeModel.BoneChainJoint { Node = node, Name = $"joint_{node}", ParentNode = parents[node] });
+                }
+
+                return chain;
+            }
+
+            static List<string> Members(FeModel.BoneChain chain) => ModelExtract.RigidCloudClusterMembers(chain, chain.Joints[0]);
+
+            FeModel.BoneChain line = Chain(-1, 0, 1, 2);
+            FeModel.BoneChain fork = Chain(-1, 0, 0, 1);
+            FeModel.BoneChain pair = Chain(-1, 0);
+            KVObject cluster = ModelExtract.MakeClothRigidCloudCluster("joint_0", Members(line));
+            string[] declared = [.. cluster.GetSubCollection("chain").GetArray("joints").Select(static joint => joint.GetStringProperty("joint_name"))];
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(Members(line)).IsEquivalentTo(["joint_1", "joint_2"], CollectionOrdering.Matching);
+                await Assert.That(Members(fork)).IsEquivalentTo(["joint_1", "joint_2"], CollectionOrdering.Matching);
+                await Assert.That(Members(pair)).IsEquivalentTo(["joint_0", "joint_1"], CollectionOrdering.Matching);
+                await Assert.That(declared).IsEquivalentTo(["joint_1", "joint_2"], CollectionOrdering.Matching);
+            }
+        }
     }
 }

@@ -40,11 +40,36 @@ partial class ModelExtract
     {
         foreach (var chain in chains.Where(chain => IsRigidCloudClusterLock(feModel, chain)))
         {
-            foreach (var (joint, children) in LockedJointsWithChildren(feModel, chain))
+            foreach (var (joint, _) in LockedJointsWithChildren(feModel, chain))
             {
-                softbodyChildren.Add(MakeClothRigidCloudCluster(joint.Name, children.Select(static child => child.Name)));
+                softbodyChildren.Add(MakeClothRigidCloudCluster(joint.Name, RigidCloudClusterMembers(chain, joint)));
             }
         }
+    }
+
+    /// <summary>
+    /// The members declared for the <c>ClothRigidCloudCluster</c> locking <paramref name="joint"/>. Algorithm 0 compiles no
+    /// member into the file and refuses a cluster of fewer than two, while any two members compile to the same lock, so the
+    /// joint's chain descendants are named a generation at a time until there are two, and the joint itself completes a pair
+    /// its subtree cannot.
+    /// </summary>
+    internal static List<string> RigidCloudClusterMembers(FeModel.BoneChain chain, FeModel.BoneChainJoint joint)
+    {
+        List<string> members = [];
+        List<int> generation = [joint.Node];
+        while (members.Count < 2 && generation.Count > 0)
+        {
+            List<FeModel.BoneChainJoint> next = [.. chain.Joints.Where(child => generation.Contains(child.ParentNode))];
+            members.AddRange(next.Select(static child => child.Name));
+            generation = [.. next.Select(static child => child.Node)];
+        }
+
+        if (members.Count < 2)
+        {
+            members.Insert(0, joint.Name);
+        }
+
+        return members;
     }
 
     /// <summary>
