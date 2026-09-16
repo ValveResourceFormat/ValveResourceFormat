@@ -85,7 +85,6 @@ namespace ValveResourceFormat.Renderer
             public ProjectedDecalTextureArray.Layer? Normal { get; init; }
             public ProjectedDecalTextureArray.Layer? Occlusion { get; init; }
             public ProjectedDecalTextureArray.Layer? Height { get; init; }
-            public bool IsMultiply { get; init; }
         }
 
         private readonly record struct ProjectedDecal(int MaterialIndex, uint Flags, Vector4 Tint, BaseEntity? Parent, Matrix4x4 LocalTransform);
@@ -120,7 +119,6 @@ namespace ValveResourceFormat.Renderer
         private int materialBufferCapacity;
         private bool decalsDirty;
         private bool materialsDirty;
-        private bool hasMultiplyDecals;
         private int parentedCount;
         private Shader? shader;
 
@@ -478,7 +476,6 @@ namespace ValveResourceFormat.Renderer
                 Normal = normal,
                 Occlusion = occlusion,
                 Height = height,
-                IsMultiply = blendMode is 1 or 3,
                 Parameters = new MaterialGpu
                 {
                     Fade = new Vector4(
@@ -563,7 +560,6 @@ namespace ValveResourceFormat.Renderer
             if (decalsDirty)
             {
                 decalsDirty = false;
-                hasMultiplyDecals = false;
 
                 decalBuffer ??= StorageBuffer.Allocate<DecalGpu>(ReservedBufferSlots.ProjectedDecals, "ProjectedDecals", MaxDecals, BufferUsage.Dynamic);
 
@@ -579,8 +575,6 @@ namespace ValveResourceFormat.Renderer
                         Flags = decal.Flags,
                         Tint = Color32.FromVector4Clamped(decal.Tint).PackedValue,
                     };
-
-                    hasMultiplyDecals |= materials[decal.MaterialIndex].IsMultiply;
                 }
 
                 decalBuffer.Update<DecalGpu>(decalGpuData.AsSpan(0, decals.Count), 0);
@@ -671,26 +665,12 @@ namespace ValveResourceFormat.Renderer
             passState.BlendEnable = true;
             passState.ColorWriteMask = RsColorWriteEnableBits.R | RsColorWriteEnableBits.G | RsColorWriteEnableBits.B;
 
-            // The shader writes what to add and how much of the destination to keep
-            passState.SetBlend(RsBlendMode.One, RsBlendMode.SrcAlpha);
+            // The shader writes what to add, and in its second output how much of the destination to keep.
+            // CS2 blends its liquid decals the same way.
+            passState.SetBlend(RsBlendMode.One, RsBlendMode.Src1Color);
 
             using (renderState.Scope(in passState))
             {
-                passShader.SetUniform1("uDecalPass", 0u);
-                GL.DrawArrays(PrimitiveType.Triangles, 0, 3);
-            }
-
-            if (!hasMultiplyDecals)
-            {
-                return;
-            }
-
-            // Mod2x and liquid decals multiply per channel, which the pass above cannot express
-            passState.SetBlend(RsBlendMode.Zero, RsBlendMode.SrcColor);
-
-            using (renderState.Scope(in passState))
-            {
-                passShader.SetUniform1("uDecalPass", 1u);
                 GL.DrawArrays(PrimitiveType.Triangles, 0, 3);
             }
         }
@@ -717,7 +697,6 @@ namespace ValveResourceFormat.Renderer
 
             decalsDirty = false;
             materialsDirty = false;
-            hasMultiplyDecals = false;
             parentedCount = 0;
             shader = null;
         }

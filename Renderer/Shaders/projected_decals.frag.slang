@@ -9,7 +9,10 @@
 // The pass covers the whole screen, so the probe volume is found per pixel
 #define ENABLE_LPV_BLENDING
 
-layout(location = 0) out vec4 outputColor;
+// Dual source: the destination becomes outputColor + destination * outputMultiplier, one channel at a time,
+// which is the same shape as every decal blend mode, so any mix of them stacks in order in one draw
+layout(location = 0, index = 0) out vec4 outputColor;
+layout(location = 0, index = 1) out vec4 outputMultiplier;
 
 // Not a varying: the shared lighting code reads the surface position from here, and this pass only
 // learns it from the depth buffer
@@ -67,9 +70,6 @@ uniform uint uDecalTileBase;
 uniform uint uDecalBinBase;
 uniform uint uDecalCullWords;
 uniform uint uDecalCount;
-
-// 0 draws lit and emissive decals, 1 the multiplying ones, which need a blend of their own
-uniform uint uDecalPass;
 
 uniform sampler2DArray uDecalColor;
 uniform sampler2DArray uDecalNormal; // rg = normal, b = roughness
@@ -243,13 +243,11 @@ void main()
     float roughness = 0.0;
     float occlusion = 0.0;
 
-    // The output is added to the destination scaled by keepDestination, with the merged surface
-    // weighted by litWeight: that keeps emissive decals in order around the translucent ones
-    float keepDestination = 1.0;
-    float litWeight = 0.0;
+    // Each layer scales everything under it and adds its own light: the destination by keepDestination,
+    // the merged lit surface by litWeight and the emissive light by itself, which keeps them all in order
+    vec3 keepDestination = vec3(1.0);
+    vec3 litWeight = vec3(0.0);
     vec3 emissiveColor = vec3(0.0);
-
-    vec3 multiplier = vec3(1.0);
 
     for (uint word = 0u; word < uDecalCullWords; word++)
     {
@@ -270,12 +268,6 @@ void main()
             ProjectedDecalMaterial_t material = g_ProjectedDecalMaterials[decal.MaterialIndex];
 
             uint blendMode = material.Flags & DECAL_BLEND_MODE_MASK;
-            bool isMultiply = blendMode == 1u || blendMode == 3u;
-
-            if (isMultiply != (uDecalPass == 1u))
-            {
-                continue;
-            }
 
             vec3 boxPosition = (vec4(positionWs, 1.0) * decal.WorldToDecal) + 0.5;
             vec3 decalCoords = vec3(boxPosition.x, 1.0 - boxPosition.y, boxPosition.z);
@@ -347,15 +339,14 @@ void main()
 
             vec3 albedo = tint.rgb * color.rgb;
 
-            if (blendMode == 1u)
+            if (blendMode == 1u || blendMode == 3u)
             {
-                multiplier *= mix(vec3(1.0), 2.0 * albedo, opacity);
-                continue;
-            }
+                // Mod2x doubles, so mid grey leaves what is under it unchanged
+                vec3 keep = mix(vec3(1.0), blendMode == 1u ? 2.0 * albedo : albedo, opacity);
 
-            if (blendMode == 3u)
-            {
-                multiplier *= albedo * opacity + vec3(1.0 - opacity);
+                keepDestination *= keep;
+                litWeight *= keep;
+                emissiveColor *= keep;
                 continue;
             }
 
@@ -411,18 +402,7 @@ void main()
         }
     }
 
-    if (uDecalPass == 1u)
-    {
-        if (multiplier == vec3(1.0))
-        {
-            discard;
-        }
-
-        outputColor = vec4(multiplier, 1.0);
-        return;
-    }
-
-    if (litWeight <= 0.0 && keepDestination >= 1.0 && emissiveColor == vec3(0.0))
+    if (litWeight == vec3(0.0) && keepDestination == vec3(1.0) && emissiveColor == vec3(0.0))
     {
         discard;
     }
@@ -462,5 +442,6 @@ void main()
         ApplyFog(litColor, positionWs);
     }
 
-    outputColor = vec4(litColor * litWeight + emissiveColor, keepDestination);
+    outputColor = vec4(litColor * litWeight + emissiveColor, 0.0);
+    outputMultiplier = vec4(keepDestination, 1.0);
 }
