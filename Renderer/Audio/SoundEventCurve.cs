@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Runtime.InteropServices;
 using ValveKeyValue;
 using ValveResourceFormat.Serialization.KeyValues;
 
@@ -30,7 +31,8 @@ public sealed class SoundEventCurve
     private readonly record struct AuthoredPoint(
         Knot Knot,
         CurveTangentType TypeIn,
-        CurveTangentType TypeOut);
+        CurveTangentType TypeOut,
+        int Order);
 
     private const float XEpsilon = 0.0001f;
     private const float SineSteep = 1.6030499935150146f;
@@ -39,7 +41,6 @@ public sealed class SoundEventCurve
     private readonly Knot[] points;
     private readonly float outputMin;
     private readonly float outputMax;
-    private readonly bool useLegacyLinearInterpolation;
 
     /// <summary>Gets the largest x value covered by the curve.</summary>
     public float MaxX => points[^1].X;
@@ -51,33 +52,38 @@ public sealed class SoundEventCurve
     /// </summary>
     public bool Attenuates => points[^1].Y < points[0].Y - 0.0001f;
 
-    private SoundEventCurve(Knot[] points, float outputMin, float outputMax, bool useLegacyLinearInterpolation = false)
+    private SoundEventCurve(Knot[] points)
     {
         this.points = points;
-        this.outputMin = outputMin;
-        this.outputMax = outputMax;
-        this.useLegacyLinearInterpolation = useLegacyLinearInterpolation;
+        outputMin = points[0].Y;
+        outputMax = points[0].Y;
+
+        for (var i = 1; i < points.Length; i++)
+        {
+            outputMin = MathF.Min(outputMin, points[i].Y);
+            outputMax = MathF.Max(outputMax, points[i].Y);
+        }
     }
 
     /// <summary>
-    /// Creates a two-point linear curve directly, e.g. to represent an authored distance range
-    /// ("spread_min"/"spread_max") as a curve without going through <see cref="Parse"/>.
+    /// Creates a straight curve through two points, for events that author a min/max pair instead of a curve.
+    /// The points may be given in either order.
     /// </summary>
     internal static SoundEventCurve Linear(float x0, float y0, float x1, float y1)
     {
-        var input = x0 <= x1
-            ? new List<AuthoredPoint>
-            {
-                new(new Knot { X = x0, Y = y0 }, CurveTangentType.Linear, CurveTangentType.Linear),
-                new(new Knot { X = x1, Y = y1 }, CurveTangentType.Linear, CurveTangentType.Linear),
-            }
-            : new List<AuthoredPoint>
-            {
-                new(new Knot { X = x1, Y = y1 }, CurveTangentType.Linear, CurveTangentType.Linear),
-                new(new Knot { X = x0, Y = y0 }, CurveTangentType.Linear, CurveTangentType.Linear),
-            };
+        if (x0 > x1)
+        {
+            (x0, x1) = (x1, x0);
+            (y0, y1) = (y1, y0);
+        }
 
-        return Build(input, useLegacyLinearInterpolation: true);
+        x1 = MathF.Max(x1, x0 + XEpsilon);
+        var slope = (y1 - y0) / (x1 - x0);
+
+        return new SoundEventCurve([
+            new Knot { X = x0, Y = y0, InTangent = slope, OutTangent = slope },
+            new Knot { X = x1, Y = y1, InTangent = slope, OutTangent = slope },
+        ]);
     }
 
     /// <summary>
@@ -101,14 +107,13 @@ public sealed class SoundEventCurve
 
         var cut = new Knot[kept + 1];
         points.AsSpan(0, kept).CopyTo(cut);
-        cut[kept] = new Knot { X = x, Y = 0f };
 
         var left = kept - 1;
-        var slope = (cut[kept].Y - cut[left].Y) / (cut[kept].X - cut[left].X);
+        var slope = -cut[left].Y / (x - cut[left].X);
         cut[left].OutTangent = slope;
-        cut[kept].InTangent = slope;
+        cut[kept] = new Knot { X = x, Y = 0f, InTangent = slope };
 
-        return CreateWithMeasuredBounds(cut, useLegacyLinearInterpolation);
+        return new SoundEventCurve(cut);
     }
 
     /// <summary>Parses a mapping curve property from sound event data, or returns null when it is missing or empty.</summary>
@@ -157,7 +162,8 @@ public sealed class SoundEventCurve
                     : (CurveTangentType)Convert.ToInt32(point[4], CultureInfo.InvariantCulture),
                 decibels || point.Count <= 5
                     ? CurveTangentType.Linear
-                    : (CurveTangentType)Convert.ToInt32(point[5], CultureInfo.InvariantCulture)));
+                    : (CurveTangentType)Convert.ToInt32(point[5], CultureInfo.InvariantCulture),
+                points.Count));
         }
 
         if (points.Count == 0)
@@ -165,132 +171,86 @@ public sealed class SoundEventCurve
             return null;
         }
 
-        return Build(points, useLegacyLinearInterpolation: decibels);
+        return Build(CollectionsMarshal.AsSpan(points));
     }
 
-    private static SoundEventCurve Build(List<AuthoredPoint> input, bool useLegacyLinearInterpolation = false)
+    private static SoundEventCurve Build(Span<AuthoredPoint> authored)
     {
-        // Sort indices, keeping authored order between equal X so a later duplicate wins
-        var order = new int[input.Count];
-        for (var i = 0; i < order.Length; i++)
+        authored.Sort(static (a, b) =>
         {
-            order[i] = i;
-        }
-
-        Array.Sort(order, (a, b) =>
-        {
-            var byX = input[a].Knot.X.CompareTo(input[b].Knot.X);
-            return byX != 0 ? byX : a.CompareTo(b);
+            var byX = a.Knot.X.CompareTo(b.Knot.X);
+            return byX != 0 ? byX : a.Order.CompareTo(b.Order);
         });
-        var knots = new List<Knot>(input.Count);
-        var types = new List<(CurveTangentType TypeIn, CurveTangentType TypeOut)>(input.Count);
-        var outputMin = input[0].Knot.Y;
-        var outputMax = input[0].Knot.Y;
-        AuthoredPoint? previous = null;
 
-        for (var sortedIndex = 0; sortedIndex < order.Length; sortedIndex++)
+        var count = 0;
+
+        for (var i = 0; i < authored.Length; i++)
         {
-            var source = input[order[sortedIndex]];
-            if (sortedIndex != 0)
+            if (count > 0 && authored[i].Knot.X == authored[count - 1].Knot.X)
             {
-                outputMin = BoundsMin(outputMin, source.Knot.Y);
-                outputMax = BoundsMax(outputMax, source.Knot.Y);
+                count--;
             }
 
-            if (previous is { } previousValue && source.Knot.X == previousValue.Knot.X)
-            {
-                knots[^1] = source.Knot;
-                previous = source;
-                continue;
-            }
-
-            knots.Add(source.Knot);
-            types.Add((source.TypeIn, source.TypeOut));
-            previous = source;
+            authored[count++] = authored[i];
         }
 
-        var result = knots.ToArray();
-        ResolveTangents(result, types);
-        return new SoundEventCurve(result, outputMin, outputMax, useLegacyLinearInterpolation);
+        authored = authored[..count];
+
+        var knots = new Knot[count];
+
+        for (var i = 0; i < count; i++)
+        {
+            knots[i] = authored[i].Knot;
+        }
+
+        for (var i = 1; i < count; i++)
+        {
+            knots[i].X = MathF.Max(knots[i].X, knots[i - 1].X + XEpsilon);
+        }
+
+        if (count > 1)
+        {
+            ResolveTangents(knots, authored);
+        }
+
+        return new SoundEventCurve(knots);
     }
 
-    private static void ResolveTangents(Knot[] result, List<(CurveTangentType TypeIn, CurveTangentType TypeOut)> types)
+    private static void ResolveTangents(Knot[] knots, ReadOnlySpan<AuthoredPoint> authored)
     {
-        if (result.Length == 1)
+        for (var i = 0; i < knots.Length; i++)
         {
-            ResolveSingleKnotTangents(ref result[0], types[0].TypeIn, types[0].TypeOut);
-            return;
-        }
-
-        var nextMin = result[0].X + XEpsilon;
-
-        for (var i = 1; i < result.Length; i++)
-        {
-            result[i].X = MathF.Max(result[i].X, nextMin);
-            nextMin = result[i].X + XEpsilon;
-        }
-
-        for (var i = 0; i < result.Length; i++)
-        {
-            ref var knot = ref result[i];
-            var (typeIn, typeOut) = types[i];
+            ref var knot = ref knots[i];
+            var (_, typeIn, typeOut, _) = authored[i];
             var hasPrev = i > 0;
-            var hasNext = i + 1 < result.Length;
-            var prev = hasPrev ? result[i - 1] : default;
-            var next = hasNext ? result[i + 1] : default;
+            var hasNext = i + 1 < knots.Length;
+            var prev = hasPrev ? knots[i - 1] : knot;
+            var next = hasNext ? knots[i + 1] : knot;
             var prevSlope = hasPrev ? Slope(prev, knot) : 0f;
             var nextSlope = hasNext ? Slope(knot, next) : 0f;
-            var span = hasPrev && hasNext ? Slope(prev, next) : (hasPrev ? prevSlope : nextSlope);
+            var spanSlope = hasPrev && hasNext ? Slope(prev, next) : hasPrev ? prevSlope : nextSlope;
 
-            knot.InTangent = typeIn switch
+            var inTangent = typeIn switch
             {
                 CurveTangentType.Linear => prevSlope,
-                CurveTangentType.Spline => span,
+                CurveTangentType.Spline => spanSlope,
                 CurveTangentType.Mirror => 0f,
-                CurveTangentType.Sine => SineIncoming(
-                    hasPrev ? knot.Y - prev.Y : 0f,
-                    hasPrev ? knot.X - prev.X : 0f),
+                CurveTangentType.Sine => SineTangent(knot.Y > prev.Y ? -SineShallow : -SineSteep, knot.X - prev.X),
                 _ => knot.InTangent,
             };
 
-            knot.OutTangent = typeOut switch
+            var outTangent = typeOut switch
             {
                 CurveTangentType.Linear => nextSlope,
-                CurveTangentType.Spline => span,
-                CurveTangentType.Mirror => knot.InTangent,
-                CurveTangentType.Sine => SineOutgoing(
-                    hasNext ? next.Y - knot.Y : 0f,
-                    hasNext ? next.X - knot.X : 0f),
+                CurveTangentType.Spline => spanSlope,
+                CurveTangentType.Mirror => inTangent,
+                CurveTangentType.Sine => SineTangent(next.Y > knot.Y ? SineSteep : SineShallow, next.X - knot.X),
                 _ => knot.OutTangent,
             };
 
-            if (typeIn == CurveTangentType.Mirror)
-            {
-                knot.InTangent = knot.OutTangent;
-            }
+            knot.InTangent = typeIn == CurveTangentType.Mirror ? outTangent : inTangent;
+            knot.OutTangent = outTangent;
         }
-
-    }
-
-    private static void ResolveSingleKnotTangents(ref Knot knot, CurveTangentType typeIn, CurveTangentType typeOut)
-    {
-        var inTangent = typeIn is CurveTangentType.Linear or CurveTangentType.Spline
-            ? 0f
-            : typeIn == CurveTangentType.Mirror
-                ? 0f
-                : typeIn == CurveTangentType.Sine ? -SineSteep : knot.InTangent;
-        var outTangent = typeOut is CurveTangentType.Linear or CurveTangentType.Spline
-            ? 0f
-            : typeOut == CurveTangentType.Mirror
-                ? inTangent
-                : typeOut == CurveTangentType.Sine ? SineShallow : knot.OutTangent;
-
-        if (typeIn == CurveTangentType.Mirror)
-        {
-            inTangent = outTangent;
-        }
-        knot.InTangent = inTangent;
-        knot.OutTangent = outTangent;
     }
 
     private static float Slope(in Knot from, in Knot to)
@@ -298,133 +258,58 @@ public sealed class SoundEventCurve
         return (to.Y - from.Y) / (to.X - from.X);
     }
 
-    private static float SineIncoming(float deltaY, float deltaX)
+    private static float SineTangent(float slope, float width)
     {
-        var value = deltaY > 0f ? -SineShallow : -SineSteep;
-        if (deltaX != 0f)
-        {
-            value = (1f / deltaX) * value;
-        }
-        return value;
-    }
-
-    private static float SineOutgoing(float deltaY, float deltaX)
-    {
-        var value = deltaY <= 0f ? SineShallow : SineSteep;
-        if (deltaX != 0f)
-        {
-            value = (1f / deltaX) * value;
-        }
-        return value;
-    }
-
-    private static float BoundsMin(float accumulator, float candidate)
-        => candidate < accumulator ? candidate : accumulator;
-
-    private static float BoundsMax(float accumulator, float candidate)
-        => candidate > accumulator ? candidate : accumulator;
-
-    private static SoundEventCurve CreateWithMeasuredBounds(Knot[] knots, bool useLegacyLinearInterpolation)
-    {
-        var minimum = knots[0].Y;
-        var maximum = knots[0].Y;
-        for (var i = 1; i < knots.Length; i++)
-        {
-            minimum = BoundsMin(minimum, knots[i].Y);
-            maximum = BoundsMax(maximum, knots[i].Y);
-        }
-        return new SoundEventCurve(knots, minimum, maximum, useLegacyLinearInterpolation);
+        return width != 0f ? slope / width : slope;
     }
 
     /// <summary>Evaluates the curve at the given x, clamping to the first and last points.</summary>
     public float Evaluate(float x)
     {
-        if (useLegacyLinearInterpolation)
+        if (x <= points[0].X)
         {
-            if (x <= points[0].X)
-            {
-                return points[0].Y;
-            }
-            if (x >= points[^1].X)
-            {
-                return points[^1].Y;
-            }
-            for (var i = 1; i < points.Length; i++)
-            {
-                if (x <= points[i].X)
-                {
-                    var amount = (x - points[i - 1].X) / (points[i].X - points[i - 1].X);
-                    return float.Lerp(points[i - 1].Y, points[i].Y, amount);
-                }
-            }
+            return points[0].Y;
+        }
+
+        if (x >= points[^1].X)
+        {
             return points[^1].Y;
         }
 
-        if (points.Length == 1)
-        {
-            return EvaluateMin(EvaluateMax(x, outputMin), outputMax);
-        }
+        var low = 1;
+        var high = points.Length - 1;
 
-        int rightIndex;
-        if (x <= points[0].X)
+        while (low < high)
         {
-            rightIndex = 1;
-        }
-        else if (x >= points[^1].X)
-        {
-            rightIndex = points.Length - 1;
-        }
-        else
-        {
-            var low = 1;
-            var high = points.Length - 1;
-            while (low < high)
+            var middle = (low + high) >> 1;
+
+            if (x > points[middle].X)
             {
-                var middle = (low + high) >> 1;
-                if (x > points[middle].X)
-                {
-                    low = middle + 1;
-                }
-                else
-                {
-                    high = middle;
-                }
+                low = middle + 1;
             }
-            rightIndex = low;
+            else
+            {
+                high = middle;
+            }
         }
 
-        var left = points[rightIndex - 1];
-        var right = points[rightIndex];
+        ref readonly var left = ref points[low - 1];
+        ref readonly var right = ref points[low];
         var width = right.X - left.X;
-        var t = x - left.X;
-        if (width != 0f)
-        {
-            t /= width;
-        }
-        t = t >= 0f ? MathF.Min(1f, t) : 0f;
+        var t = (x - left.X) / width;
+        var t2 = t * t;
+        var t3 = t2 * t;
 
-        var delta = right.Y - left.Y;
-        var m0 = left.OutTangent;
-        var m1 = right.InTangent;
-        var term1 = delta * 3f;
-        var term2A = (m1 + m0) * width;
-        term2A -= delta + delta;
-        term2A *= t;
-        var term2B = -m1 - (m0 + m0);
-        term2B *= width;
-        var value = term2A + term2B;
-        value = term1 + value;
-        value *= t;
-        value += width * m0;
-        value *= t;
-        value += left.Y;
+        var h00 = 2f * t3 - 3f * t2 + 1f;
+        var h10 = t3 - 2f * t2 + t;
+        var h01 = -2f * t3 + 3f * t2;
+        var h11 = t3 - t2;
 
-        return EvaluateMin(EvaluateMax(value, outputMin), outputMax);
+        var value = h00 * left.Y
+            + h10 * width * left.OutTangent
+            + h01 * right.Y
+            + h11 * width * right.InTangent;
+
+        return float.ClampNative(value, outputMin, outputMax);
     }
-
-    // Engine MINSS/MAXSS take the second operand on ties: +0.0 against a -0.0
-    // bound stays -0.0. The shipped corpus pins 130 such evaluations.
-    private static float EvaluateMax(float value, float bound) => value > bound ? value : bound;
-
-    private static float EvaluateMin(float value, float bound) => value < bound ? value : bound;
 }
