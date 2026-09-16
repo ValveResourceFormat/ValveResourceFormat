@@ -493,7 +493,10 @@ namespace ValveResourceFormat.Renderer
             RsBlendMode.InvDestColor => BlendingFactor.OneMinusDstColor,
             RsBlendMode.SrcAlphaSat => BlendingFactor.SrcAlphaSaturate,
             RsBlendMode.BlendFactor => BlendingFactor.ConstantColor,
-            RsBlendMode.InvBlendFactor => BlendingFactor.OneMinusConstantColor,
+            RsBlendMode.Src1Color => BlendingFactor.Src1Color,
+            RsBlendMode.InvSrc1Color => BlendingFactor.OneMinusSrc1Color,
+            RsBlendMode.Src1Alpha => BlendingFactor.Src1Alpha,
+            RsBlendMode.InvSrc1Alpha => BlendingFactor.OneMinusSrc1Alpha,
             _ => throw new NotImplementedException($"Unknown blend factor {factor}"),
         };
     }
