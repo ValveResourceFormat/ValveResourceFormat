@@ -7702,5 +7702,86 @@ namespace Tests
                 }
                 """);
         }
+
+        /// <summary>
+        /// A bend rod held at its rest span states a lower bound through every hinge that generates it. This sheet is the synth
+        /// grid corrugated so that every hinge folds, compiled under <c>add_curvature</c> 0.5 with a painted gradient, its nodes in
+        /// the compiled order: all its bend rods sit at their rest span. The rod (5, 15) crosses the hinge (10, 11), whose flat
+        /// span matches its maximum, and the hinge (10, 12); it keeps its rest span only while those hinges sum at least 0.5615 and
+        /// 0.5673 on top of the curvature. The paint solved on top of 0.5 meets both, asserted to within 1e-3 below each bound
+        /// (0.5605 and 0.5663). CONTROL: the matched hinge's own bound, which the paint met before any other hinge was bounded,
+        /// and the model-wide value it keeps.
+        /// </summary>
+        [Test]
+        public async Task ACappedBendRodBoundsEveryHingeThatGeneratesIt()
+        {
+            List<int[]> faces = [[0, 1, 5, 6], [6, 5, 10, 11], [11, 10, 15, 16], [1, 2, 7, 5], [5, 7, 12, 10], [10, 12, 17, 15],
+                [2, 3, 8, 7], [7, 8, 13, 12], [12, 13, 18, 17], [3, 4, 9, 8], [8, 9, 14, 13], [13, 14, 19, 18]];
+            HashSet<(int, int)> network = [(0, 11), (1, 10), (2, 12), (3, 13), (4, 14), (5, 8), (5, 15), (6, 7), (6, 16), (7, 9),
+                (7, 17), (8, 18), (9, 19), (10, 13), (11, 12), (12, 14), (15, 18), (16, 17), (17, 19)];
+            var (paint, curvature) = ModelExtract.ClothBendStiffnessOverFold(CorrugatedSheet, faces, network, 0.49999997f, keepsCurvature: false);
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(paint).IsNotNull();
+                await Assert.That(curvature).IsEqualTo(0.49999997f);
+                await Assert.That((paint?.GetValueOrDefault(10) ?? 0f) + (paint?.GetValueOrDefault(11) ?? 0f)).IsGreaterThanOrEqualTo(0.5605f);
+                await Assert.That((paint?.GetValueOrDefault(10) ?? 0f) + (paint?.GetValueOrDefault(12) ?? 0f)).IsGreaterThanOrEqualTo(0.5663f);
+            }
+        }
+
+        private static FeModel CorrugatedSheet => SyntheticCloth.Parse($$"""
+            {
+                m_CtrlName = [ "$cloth_m0p0", "$cloth_m0p1", "$cloth_m0p2", "$cloth_m0p3", "$cloth_m0p4", "$cloth_m0p5", "$cloth_m0p6", "$cloth_m0p7", "$cloth_m0p8", "$cloth_m0p9", "$cloth_m0p10", "$cloth_m0p11", "$cloth_m0p12", "$cloth_m0p13", "$cloth_m0p14", "$cloth_m0p15", "$cloth_m0p16", "$cloth_m0p17", "$cloth_m0p18", "$cloth_m0p19" ]
+                m_nNodeCount = 20
+                m_nStaticNodes = 0
+                m_NodeInvMasses = [ 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0 ]
+                m_InitPose =
+                [
+                    {{SyntheticCloth.Pose(-8.915558f, 8.00001f, 65.448204f)}}
+                    {{SyntheticCloth.Pose(-6.91556f, 10.000013f, 65.4482f)}}
+                    {{SyntheticCloth.Pose(-8.915562f, 12.000017f, 65.44819f)}}
+                    {{SyntheticCloth.Pose(-6.9155636f, 14.000021f, 65.44818f)}}
+                    {{SyntheticCloth.Pose(-8.9155655f, 16.000025f, 65.44817f)}}
+                    {{SyntheticCloth.Pose(-5.6955614f, 9.866512f, 57.42015f)}}
+                    {{SyntheticCloth.Pose(-7.6955557f, 7.7330093f, 57.420155f)}}
+                    {{SyntheticCloth.Pose(-7.695568f, 12.000014f, 57.42015f)}}
+                    {{SyntheticCloth.Pose(-5.695574f, 14.133517f, 57.420147f)}}
+                    {{SyntheticCloth.Pose(-7.6955795f, 16.26702f, 57.420143f)}}
+                    {{SyntheticCloth.Pose(-12.808148f, 9.681133f, 49.519295f)}}
+                    {{SyntheticCloth.Pose(-14.808141f, 7.3622546f, 49.519295f)}}
+                    {{SyntheticCloth.Pose(-14.808155f, 12.000011f, 49.5193f)}}
+                    {{SyntheticCloth.Pose(-12.808163f, 14.318891f, 49.519302f)}}
+                    {{SyntheticCloth.Pose(-14.80817f, 16.63777f, 49.519302f)}}
+                    {{SyntheticCloth.Pose(-11.907467f, 9.497828f, 41.61303f)}}
+                    {{SyntheticCloth.Pose(-13.907459f, 6.995644f, 41.613026f)}}
+                    {{SyntheticCloth.Pose(-13.9074745f, 12.00001f, 41.613037f)}}
+                    {{SyntheticCloth.Pose(-11.907482f, 14.5021925f, 41.61304f)}}
+                    {{SyntheticCloth.Pose(-13.907492f, 17.004375f, 41.61305f)}}
+                ]
+                m_Rods =
+                [
+                    { nNode = [ 0, 11 ] flMaxDist = 17.985956 flMinDist = 16.995865 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
+                    { nNode = [ 1, 10 ] flMaxDist = 17.995607 flMinDist = 16.986883 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
+                    { nNode = [ 2, 12 ] flMaxDist = 17.987026 flMinDist = 16.983881 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
+                    { nNode = [ 3, 13 ] flMaxDist = 17.995596 flMinDist = 16.986866 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
+                    { nNode = [ 4, 14 ] flMaxDist = 17.985922 flMinDist = 16.995836 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
+                    { nNode = [ 5, 15 ] flMaxDist = 17.972176 flMinDist = 16.987902 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
+                    { nNode = [ 8, 18 ] flMaxDist = 17.972157 flMinDist = 16.987888 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
+                    { nNode = [ 6, 16 ] flMaxDist = 17.989737 flMinDist = 16.999905 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
+                    { nNode = [ 9, 19 ] flMaxDist = 17.989702 flMinDist = 16.999876 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
+                    { nNode = [ 7, 17 ] flMaxDist = 17.96188 flMinDist = 16.983892 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
+                    { nNode = [ 9, 7 ] flMaxDist = 5.8177505 flMinDist = 4.267005 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
+                    { nNode = [ 7, 6 ] flMaxDist = 5.8177505 flMinDist = 4.267005 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
+                    { nNode = [ 8, 5 ] flMaxDist = 5.8177466 flMinDist = 4.267005 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
+                    { nNode = [ 14, 12 ] flMaxDist = 6.1076894 flMinDist = 4.6377583 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
+                    { nNode = [ 12, 11 ] flMaxDist = 6.107687 flMinDist = 4.637757 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
+                    { nNode = [ 13, 10 ] flMaxDist = 6.1076837 flMinDist = 4.6377573 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
+                    { nNode = [ 19, 17 ] flMaxDist = 6.39052 flMinDist = 5.004366 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
+                    { nNode = [ 17, 16 ] flMaxDist = 6.3905187 flMinDist = 5.0043654 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
+                    { nNode = [ 18, 15 ] flMaxDist = 6.3905153 flMinDist = 5.004365 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
+                ]
+            }
+            """);
     }
 }
