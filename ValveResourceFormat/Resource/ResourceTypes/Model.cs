@@ -388,7 +388,12 @@ namespace ValveResourceFormat.ResourceTypes
         /// Gets embedded animations from the model.
         /// </summary>
         /// <returns>Enumerable of animations.</returns>
-        public IEnumerable<SequenceAnimation> GetEmbeddedAnimations()
+        public IEnumerable<SequenceAnimation> GetEmbeddedAnimations() => GetEmbeddedAnimations(Skeleton, FlexControllers);
+
+        /// <summary>
+        /// Gets embedded animations from the model, with remap tables built for the provided skeleton and flex controllers.
+        /// </summary>
+        public IEnumerable<SequenceAnimation> GetEmbeddedAnimations(Skeleton skeleton, FlexController[] flexControllers)
         {
             var group = SequenceGroup;
 
@@ -399,24 +404,10 @@ namespace ValveResourceFormat.ResourceTypes
 
             if (group.SequenceData is { } sequenceData)
             {
-                return SequenceAnimation.FromSequenceData(sequenceData, animationData, decodeKey, Skeleton, FlexControllers);
+                return SequenceAnimation.FromSequenceData(sequenceData, animationData, decodeKey, skeleton, flexControllers);
             }
 
-            return SequenceAnimation.FromData(animationData, decodeKey, Skeleton, FlexControllers);
-        }
-
-        /// <summary>
-        /// Get the embedded animations with a different skeleton as animation target.
-        /// </summary>
-        public static IEnumerable<Animation> GetEmbeddedAnimationsWithSkeleton(IFileLoader fileLoader, Skeleton skeleton, Model model)
-        {
-            var old = model.cachedSkeleton;
-
-            model.cachedSkeleton = skeleton;
-            var anims = model.GetAllAnimations(fileLoader);
-
-            model.cachedSkeleton = old;
-            return anims;
+            return SequenceAnimation.FromData(animationData, decodeKey, skeleton, flexControllers);
         }
 
         /// <summary>
@@ -446,8 +437,8 @@ namespace ValveResourceFormat.ResourceTypes
                     continue;
                 }
 
-                var anims = GetEmbeddedAnimationsWithSkeleton(fileLoader, Skeleton, model);
-                allAnims.AddRange(anims);
+                allAnims.AddRange(model.GetEmbeddedAnimations(Skeleton, FlexControllers));
+                allAnims.AddRange(model.GetAnimationGroupAnimations(fileLoader, Skeleton, FlexControllers));
             }
 
             return allAnims;
@@ -458,7 +449,13 @@ namespace ValveResourceFormat.ResourceTypes
         /// </summary>
         /// <param name="fileLoader">The file loader to use.</param>
         /// <returns>Enumerable of animations.</returns>
-        public IEnumerable<SequenceAnimation> GetAnimationGroupAnimations(IFileLoader fileLoader)
+        public IEnumerable<SequenceAnimation> GetAnimationGroupAnimations(IFileLoader fileLoader) => GetAnimationGroupAnimations(fileLoader, Skeleton, FlexControllers);
+
+        /// <summary>
+        /// Gets the animations this model reaches through the standalone animation groups it references.
+        /// With remap tables built for the provided skeleton and flex controllers.
+        /// </summary>
+        public IEnumerable<SequenceAnimation> GetAnimationGroupAnimations(IFileLoader fileLoader, Skeleton skeleton, FlexController[] flexControllers)
         {
             var animGroupPaths = GetReferencedAnimationGroupNames();
 
@@ -481,7 +478,7 @@ namespace ValveResourceFormat.ResourceTypes
                     continue;
                 }
 
-                foreach (var animation in AnimationGroupLoader.LoadAnimationGroup(animGroup, fileLoader, Skeleton, FlexControllers))
+                foreach (var animation in AnimationGroupLoader.LoadAnimationGroup(animGroup, fileLoader, skeleton, flexControllers))
                 {
                     yield return animation;
                 }
