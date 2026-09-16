@@ -607,14 +607,17 @@ namespace ValveResourceFormat.Renderer
         /// <c>g_tSceneDepth</c> texture beforehand, see <see cref="Scene.WantsSceneDepth"/>, and this
         /// scene's cull masks bound.
         /// </summary>
-        public void Render(Scene.RenderContext context)
+        /// <param name="context">The render context of the main scene.</param>
+        /// <param name="translucentSurfaces">Draws them over the translucent surfaces in front of the opaque
+        /// scene instead, which needs <c>g_tTranslucentSceneDepth</c> filled and the translucent layer drawn.</param>
+        public void Render(Scene.RenderContext context, bool translucentSurfaces = false)
         {
             if (decals.Count == 0 || context.ReplacementShader != null)
             {
                 return;
             }
 
-            using var _ = new GLDebugGroup("Projected Decals");
+            using var _ = new GLDebugGroup(translucentSurfaces ? "Projected Decals (Translucent)" : "Projected Decals");
 
             // The samplers always need an array of the right kind bound, even one no decal uses
             colorArray.EnsureCreated();
@@ -626,18 +629,19 @@ namespace ValveResourceFormat.Renderer
 
             shader ??= LoadShader();
 
+            var passShader = shader.WithCombo("D_TRANSLUCENT_SCENE_DEPTH", translucentSurfaces ? (byte)1 : (byte)0);
             var binner = scene.LightBinner;
 
-            shader.Use();
-            shader.SetUniform1("uDecalTileBase", binner.DecalTileBase);
-            shader.SetUniform1("uDecalBinBase", binner.DecalBinBase);
-            shader.SetUniform1("uDecalCullWords", binner.DecalCullWords);
-            shader.SetUniform1("uDecalCount", (uint)binner.DecalSlotCount);
+            passShader.Use();
+            passShader.SetUniform1("uDecalTileBase", binner.DecalTileBase);
+            passShader.SetUniform1("uDecalBinBase", binner.DecalBinBase);
+            passShader.SetUniform1("uDecalCullWords", binner.DecalCullWords);
+            passShader.SetUniform1("uDecalCount", (uint)binner.DecalSlotCount);
 
             // The global volume, for pixels no volume contains
             if (scene.ProbeAtlasVolumes is [.., var globalProbe])
             {
-                shader.SetUniform1("uLightProbeIndex", (uint)globalProbe.ShaderIndex);
+                passShader.SetUniform1("uLightProbeIndex", (uint)globalProbe.ShaderIndex);
             }
 
             foreach (var (slot, _, texture) in context.Textures)
@@ -648,10 +652,10 @@ namespace ValveResourceFormat.Renderer
             scene.LightingInfo.BindLightmapTextures();
 
             var textureUnit = RenderMaterial.TextureUnitStart;
-            shader.SetTexture(textureUnit++, "uDecalColor", colorArray.ArrayTexture);
-            shader.SetTexture(textureUnit++, "uDecalNormal", normalArray.ArrayTexture);
-            shader.SetTexture(textureUnit++, "uDecalOcclusion", occlusionArray.ArrayTexture);
-            shader.SetTexture(textureUnit, "uDecalHeight", heightArray.ArrayTexture);
+            passShader.SetTexture(textureUnit++, "uDecalColor", colorArray.ArrayTexture);
+            passShader.SetTexture(textureUnit++, "uDecalNormal", normalArray.ArrayTexture);
+            passShader.SetTexture(textureUnit++, "uDecalOcclusion", occlusionArray.ArrayTexture);
+            passShader.SetTexture(textureUnit, "uDecalHeight", heightArray.ArrayTexture);
 
             decalBuffer?.BindBufferBase();
             materialBuffer?.BindBufferBase();
@@ -672,7 +676,7 @@ namespace ValveResourceFormat.Renderer
 
             using (renderState.Scope(in passState))
             {
-                shader.SetUniform1("uDecalPass", 0u);
+                passShader.SetUniform1("uDecalPass", 0u);
                 GL.DrawArrays(PrimitiveType.Triangles, 0, 3);
             }
 
@@ -686,7 +690,7 @@ namespace ValveResourceFormat.Renderer
 
             using (renderState.Scope(in passState))
             {
-                shader.SetUniform1("uDecalPass", 1u);
+                passShader.SetUniform1("uDecalPass", 1u);
                 GL.DrawArrays(PrimitiveType.Triangles, 0, 3);
             }
         }

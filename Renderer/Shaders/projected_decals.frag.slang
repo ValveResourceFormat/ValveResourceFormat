@@ -3,6 +3,9 @@
 #include "common/utils.slang"
 #include "common/features.slang"
 
+// Set for the pass after the translucent layer, which decals the translucent surfaces in front of the opaque scene
+#define D_TRANSLUCENT_SCENE_DEPTH 0
+
 // The pass covers the whole screen, so the probe volume is found per pixel
 #define ENABLE_LPV_BLENDING
 
@@ -77,6 +80,10 @@ uniform sampler2DArray uDecalHeight;
 #include "common/LightingConstants.slang"
 #include "common/depth.slang"
 
+#if (D_TRANSLUCENT_SCENE_DEPTH == 1)
+    uniform sampler2D g_tTranslucentSceneDepth; // reserved
+#endif
+
 #include "common/fullbright.slang"
 #include "common/texturing.slang"
 #include "common/fog.slang"
@@ -85,7 +92,17 @@ uniform sampler2DArray uDecalHeight;
 // Must be last
 #include "common/lighting.slang"
 
-// The world position the resolved scene depth holds under a pixel
+// The nearest surface this pass decals under a pixel
+float ReadReceiverDepth(ivec2 pixel)
+{
+#if (D_TRANSLUCENT_SCENE_DEPTH == 1)
+    return texelFetch(g_tTranslucentSceneDepth, pixel, 0).x;
+#else
+    return texelFetch(g_tSceneDepth, pixel, 0).x;
+#endif
+}
+
+// The world position of that surface
 vec3 GetScenePosition(vec2 fragCoord)
 {
     vec2 ndc = fragCoord * g_vInvViewportSize * 2.0 - 1.0;
@@ -93,7 +110,7 @@ vec3 GetScenePosition(vec2 fragCoord)
     vec3 cameraRay = transpose(mat3(g_matWorldToView)) * (viewRay.xyz / viewRay.w);
 
     ivec2 pixel = clamp(ivec2(fragCoord), ivec2(0), ivec2(g_vViewportSize) - 1);
-    return GetWorldPositionFromDepth(pixel, cameraRay);
+    return GetWorldPositionFromDepthValue(ReadReceiverDepth(pixel), cameraRay);
 }
 
 vec4 SampleDecalTexture(sampler2DArray decalTexture, vec4 scaleLayer, vec2 texCoord, vec2 texCoordDdx, vec2 texCoordDdy)
@@ -197,6 +214,15 @@ void main()
     {
         discard;
     }
+
+#if (D_TRANSLUCENT_SCENE_DEPTH == 1)
+    // The translucent depth starts out as the opaque one, and the pass before the translucent layer
+    // already decaled wherever nothing was drawn nearer
+    if (ReadReceiverDepth(ivec2(fragCoord)) <= texelFetch(g_tSceneDepth, ivec2(fragCoord), 0).x)
+    {
+        discard;
+    }
+#endif
 
     vec3 positionWs = GetScenePosition(fragCoord);
     CullMasks_t masks = MakeCullMasks(GetCullLookupCached(positionWs), uDecalTileBase, uDecalBinBase, uDecalCullWords);
