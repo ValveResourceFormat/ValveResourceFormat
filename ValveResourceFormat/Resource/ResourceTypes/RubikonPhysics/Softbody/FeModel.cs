@@ -4762,8 +4762,10 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             LegacyStretchForce = data.GetFloatArray("m_LegacyStretchForce");
             CollisionSpheres = data.GetArray("m_CollisionSpheres") ?? [];
 
-            RecoveredSkinWeights = RecoverAuthoredSkinWeights(data, out var deferredOffsetWeights);
+            RecoveredSkinWeights = RecoverAuthoredSkinWeights(data, out var deferredOffsetWeights,
+                out var unbackSolvedMeshes);
             DeferredOffsetSkinWeights = deferredOffsetWeights;
+            UnbackSolvedProxyMeshes = unbackSolvedMeshes;
             RawGoalPaintNodes = BuildRawGoalPaintNodes();
 
             AssertAllKeysAccountedFor(data);

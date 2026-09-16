@@ -7284,5 +7284,107 @@ namespace Tests
                 m_SourceElems = [ 0, 1, 0, 6, 4, 2, 6, 5, 7, 8, 5, 6, 8, 7, 3, 2, 5, 6, 2, 3, 6, 5, 1, 0, 2, 3, 0, 1, 3, 2 ]
             }
             """);
+
+        /// <summary>
+        /// A proxy sheet whose own vertices no <c>m_FitWeights</c> range names, on a model whose other sheet's vertices ARE named and
+        /// whose every position-driven bone that sheet is bound to is fit over the other sheet, was compiled with its own
+        /// <c>back_solve_joints</c> off: its vertices carry the authored skin paint in the offset network without driving a bone through
+        /// it, so the fitless-soft veto has no fit of that sheet's to protect and the paint is recovered verbatim. The fixture is two
+        /// sheets over one two-bone chain, mesh 0 fit-covered and mesh 1 not. CONTROLS: with one of mesh 1's own vertices in a fit range
+        /// the sheet does back-solve, the veto stands and the paint is deferred; with no fit matrix anywhere the set is empty and the
+        /// no-fit-matrices branch recovers the paint regardless of this law.
+        /// </summary>
+        [Test]
+        public async Task ASheetTheOriginalDidNotBackSolveKeepsItsAuthoredProxyPaint()
+        {
+            var oneBackSolving = TwoProxySheets("""
+                m_FitMatrices =
+                [
+                    { nEnd = 2 nNode = 6 nBeginDynamic = 0 },
+                    { nEnd = 4 nNode = 7 nBeginDynamic = 0 },
+                ]
+                m_FitWeights =
+                [
+                    { flWeight = 0.75 nNode = 2 nDummy = 0 },
+                    { flWeight = 0.5 nNode = 3 nDummy = 0 },
+                    { flWeight = 0.25 nNode = 2 nDummy = 0 },
+                    { flWeight = 0.5 nNode = 3 nDummy = 0 },
+                ]
+                """);
+            var bothBackSolving = TwoProxySheets("""
+                m_FitMatrices =
+                [
+                    { nEnd = 3 nNode = 6 nBeginDynamic = 0 },
+                    { nEnd = 5 nNode = 7 nBeginDynamic = 0 },
+                ]
+                m_FitWeights =
+                [
+                    { flWeight = 0.75 nNode = 2 nDummy = 0 },
+                    { flWeight = 0.5 nNode = 3 nDummy = 0 },
+                    { flWeight = 0.6 nNode = 5 nDummy = 0 },
+                    { flWeight = 0.25 nNode = 2 nDummy = 0 },
+                    { flWeight = 0.5 nNode = 3 nDummy = 0 },
+                ]
+                """);
+            var noFits = TwoProxySheets("");
+
+            const int Mesh1Vertex = 4;
+            var recovered = oneBackSolving.RecoveredSkinWeights.GetValueOrDefault(Mesh1Vertex, []);
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(oneBackSolving.UnbackSolvedProxyMeshes.Contains(1)).IsTrue();
+                await Assert.That(oneBackSolving.UnbackSolvedProxyMeshes.Contains(0)).IsFalse();
+                await Assert.That(recovered.Length).IsEqualTo(2);
+                await Assert.That(recovered[0].Bone).IsEqualTo("bone_1");
+                await Assert.That(recovered[0].Weight).IsEqualTo(0.75f).Within(1e-4f);
+                await Assert.That(recovered[1].Bone).IsEqualTo("bone_2");
+                await Assert.That(recovered[1].Weight).IsEqualTo(0.25f).Within(1e-4f);
+
+                await Assert.That(bothBackSolving.UnbackSolvedProxyMeshes.Count).IsEqualTo(0);
+                await Assert.That(bothBackSolving.RecoveredSkinWeights.ContainsKey(Mesh1Vertex)).IsFalse();
+                await Assert.That(bothBackSolving.DeferredOffsetSkinWeights.ContainsKey(Mesh1Vertex)).IsTrue();
+
+                await Assert.That(noFits.UnbackSolvedProxyMeshes.Count).IsEqualTo(0);
+                await Assert.That(noFits.RecoveredSkinWeights.ContainsKey(Mesh1Vertex)).IsTrue();
+            }
+        }
+
+        // Two proxy sheets over one two-bone chain. Mesh 0's vertices 2 and 3 are the fit targets; mesh 1's vertex 4 carries a two-bone
+        // authored paint (bone_1 0.75, bone_2 0.25) in the offset network and no fit entry, and its vertex 5 is single-bound. The hole
+        // carries the fit arrays, which is what decides whether mesh 1 is named by a fit range at all.
+        private static FeModel TwoProxySheets(string fits) => SyntheticCloth.Parse($$"""
+            {
+                m_CtrlName = [ "bone_0", "$cloth_m0p0", "$cloth_m0p1", "$cloth_m0p2", "$cloth_m1p1", "$cloth_m1p2", "bone_1", "bone_2" ]
+                m_SkelParents = [ -1, 0, 6, 7, 6, 6, 0, 6 ]
+                m_nNodeCount = 8
+                m_nStaticNodes = 2
+                m_nFirstPositionDrivenNode = 6
+                m_NodeInvMasses = [ 0.0, 0.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0 ]
+                m_InitPose =
+                [
+                    [ 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0 ],
+                    [ 1.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0 ],
+                    [ 1.0, 0.0, -8.0, 1.0, 0.0, 0.0, 0.0, 1.0 ],
+                    [ 1.0, 0.0, -16.0, 1.0, 0.0, 0.0, 0.0, 1.0 ],
+                    [ -1.0, 0.0, -8.0, 1.0, 0.0, 0.0, 0.0, 1.0 ],
+                    [ -1.0, 0.0, -16.0, 1.0, 0.0, 0.0, 0.0, 1.0 ],
+                    [ 0.0, 0.0, -8.0, 1.0, 0.0, 0.0, 0.0, 1.0 ],
+                    [ 0.0, 0.0, -16.0, 1.0, 0.0, 0.0, 0.0, 1.0 ],
+                ]
+                m_CtrlOffsets =
+                [
+                    { vOffset = [ 1.0, 0.0, 0.0 ] nCtrlParent = 6 nCtrlChild = 2 },
+                    { vOffset = [ 1.0, 0.0, 0.0 ] nCtrlParent = 7 nCtrlChild = 3 },
+                    { vOffset = [ -1.0, 0.0, 0.0 ] nCtrlParent = 6 nCtrlChild = 4 },
+                    { vOffset = [ -1.0, 0.0, -8.0 ] nCtrlParent = 6 nCtrlChild = 5 },
+                ]
+                m_CtrlSoftOffsets =
+                [
+                    { nCtrlParent = 7 nCtrlChild = 4 vOffset = [ -1.0, 0.0, 8.0 ] flAlpha = 0.75 },
+                ]
+                {{fits}}
+            }
+            """);
     }
 }

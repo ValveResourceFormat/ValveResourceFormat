@@ -415,7 +415,11 @@ partial class ModelExtract
             // influences carry bones over the fit-matrix minimum the original left below it.
             // Per-vertex gravity rides the cloth_gravity$0 paint in the proxy DMX instead of any
             // KV field here (the cloth_gravity_scale KV was tested and does not reach flGravity).
-            var proxyBackSolve = backSolveJoints && ProxyDrivesUnchainedBone(proxyFile.Proxy);
+            // A sheet whose every position-driven bone the original already fits over ANOTHER sheet's vertices was
+            // compiled with its own back-solve off (see FeModel.UnbackSolvedProxyMeshes): it carries the authored
+            // skin paint that parents its vertices without driving a bone through it.
+            var proxyBackSolve = backSolveJoints && ProxyDrivesUnchainedBone(proxyFile.Proxy)
+                && !feModel.IsUnbackSolvedProxyMesh(proxyFile.Proxy);
             var proxyFlexes = ProxyFlexesClothBorders(proxyFile.Proxy, proxyBackSolve);
             if (proxyFlexes)
             {

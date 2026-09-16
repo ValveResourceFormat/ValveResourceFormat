@@ -10,10 +10,11 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         // the RecoveredSkinWeights property remarks for the data model. BuildChainSkinInfluences'
         // inverse-square-distance synthesis is the fallback for a vertex with no m_CtrlOffsets entry.
         Dictionary<int, (string Bone, float Weight)[]> RecoverAuthoredSkinWeights(KVObject data,
-            out Dictionary<int, (string Bone, float Weight)[]> deferred)
+            out Dictionary<int, (string Bone, float Weight)[]> deferred, out HashSet<int> unbackSolvedMeshes)
         {
             var recovered = new Dictionary<int, (string Bone, float Weight)[]>();
             deferred = [];
+            unbackSolvedMeshes = [];
             var fitMatrices = data.GetArray("m_FitMatrices");
             var ctrlOffsets = data.GetArray("m_CtrlOffsets");
             if (ctrlOffsets is null)
@@ -102,6 +103,82 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                 }
 
                 return weights;
+            }
+
+            // The proxy sheets the original compiled without back-solving, by mesh index: no m_FitWeights range names
+            // one of the mesh's own vertices, another mesh's vertices ARE named, and every position-driven bone the
+            // mesh's simulated vertices are bound to is fit over another mesh's vertices.
+            var backSolvedMeshes = new HashSet<int>();
+            var fitBoneMeshes = new Dictionary<int, HashSet<int>>();
+            foreach (var (bone, targets) in FitMatrixTargets)
+            {
+                foreach (var target in targets)
+                {
+                    var targetMesh = target >= 0 && target < CtrlNames.Length
+                        ? ParseProxyMeshIndex(CtrlNames[target]) : -1;
+                    if (targetMesh < 0)
+                    {
+                        continue;
+                    }
+
+                    backSolvedMeshes.Add(targetMesh);
+                    if (!fitBoneMeshes.TryGetValue(bone, out var boneMeshes))
+                    {
+                        boneMeshes = [];
+                        fitBoneMeshes[bone] = boneMeshes;
+                    }
+
+                    boneMeshes.Add(targetMesh);
+                }
+            }
+
+            if (backSolvedMeshes.Count > 0)
+            {
+                var drivenByMesh = new Dictionary<int, HashSet<int>>();
+                foreach (var (node, primary) in rigidParents)
+                {
+                    var mesh = node >= 0 && node < CtrlNames.Length ? ParseProxyMeshIndex(CtrlNames[node]) : -1;
+                    if (mesh < 0 || backSolvedMeshes.Contains(mesh) || IsStatic(node)
+                        || primary < 0 || primary >= CtrlNames.Length)
+                    {
+                        continue;
+                    }
+
+                    foreach (var (bone, weight) in ExpandSoftOffsets(node, primary))
+                    {
+                        if (weight < DefaultBackSolveInfluenceThreshold || bone < 0 || bone >= CtrlNames.Length
+                            || !IsPositionDriven(bone) || IsProxyNodeName(CtrlNames[bone]))
+                        {
+                            continue;
+                        }
+
+                        if (!drivenByMesh.TryGetValue(mesh, out var bones))
+                        {
+                            bones = [];
+                            drivenByMesh[mesh] = bones;
+                        }
+
+                        bones.Add(bone);
+                    }
+                }
+
+                foreach (var (mesh, bones) in drivenByMesh)
+                {
+                    var fitElsewhere = bones.Count > 0;
+                    foreach (var bone in bones)
+                    {
+                        if (!fitBoneMeshes.ContainsKey(bone))
+                        {
+                            fitElsewhere = false;
+                            break;
+                        }
+                    }
+
+                    if (fitElsewhere)
+                    {
+                        unbackSolvedMeshes.Add(mesh);
+                    }
+                }
             }
 
             var maxOmittedWeight = 0f;
@@ -325,6 +402,11 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             {
                 var painted = new List<(string Bone, float Weight)>();
                 var prunable = true;
+
+                // A vertex of a sheet the original did not back-solve reaches no fit range at all, so the weight it
+                // paints on a fit bone is not an input to that bone's solve.
+                var mesh = node >= 0 && node < CtrlNames.Length ? ParseProxyMeshIndex(CtrlNames[node]) : -1;
+                var sheetBackSolves = mesh < 0 || !unbackSolvedMeshes.Contains(mesh);
                 foreach (var (bone, weight) in ExpandSoftOffsets(node, primary))
                 {
                     if (weight <= 0f || bone >= CtrlNames.Length)
@@ -332,7 +414,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                         continue;
                     }
 
-                    if (prunable && FitMatrixNodes.Contains(bone)
+                    if (prunable && sheetBackSolves && FitMatrixNodes.Contains(bone)
                         && weight >= (threshold ?? DefaultBackSolveInfluenceThreshold))
                     {
                         prunable = false;
@@ -364,6 +446,49 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             }
 
             return recovered;
+        }
+
+        /// <summary>
+        /// Gets the proxy-mesh indices (the <c>&lt;i&gt;</c> of a <c>$cloth_m&lt;i&gt;p&lt;j&gt;</c> control-node
+        /// name) whose sheet the original compiled WITHOUT back-solving: no <c>m_FitWeights</c> range names one of
+        /// that mesh's own vertices, another mesh's vertices are named, and every position-driven bone the mesh's
+        /// simulated vertices are bound to is fit over another mesh's vertices.
+        /// <para>
+        /// <c>AddFitWeights</c> is called under a sheet's own <c>back_solve_joints</c> /
+        /// <c>back_solve_joints_drive_meshes</c>, while the most-bound-joint parenting that fills
+        /// <c>m_CtrlOffsets</c> and <c>m_CtrlSoftOffsets</c> is called unconditionally, so such a mesh carries its
+        /// authored skin paint in the offset network with no fit entry anywhere. A model whose compile names no
+        /// mesh at all states nothing about the split and yields an empty set.
+        /// </para>
+        /// </summary>
+        public IReadOnlySet<int> UnbackSolvedProxyMeshes { get; }
+
+        /// <summary>
+        /// Returns whether every proxy-sheet vertex of <paramref name="proxy"/> belongs to a mesh in
+        /// <see cref="UnbackSolvedProxyMeshes"/>, i.e. whether the original compiled this sheet without
+        /// back-solving it. False for a reconstruction covering no proxy-sheet vertex, and for one spanning a mesh
+        /// the original did back-solve.
+        /// </summary>
+        public bool IsUnbackSolvedProxyMesh(ProxyMesh proxy)
+        {
+            var sheetVertices = 0;
+            foreach (var node in proxy.NodeIndices)
+            {
+                var mesh = node >= 0 && node < CtrlNames.Length ? ParseProxyMeshIndex(CtrlNames[node]) : -1;
+                if (mesh < 0)
+                {
+                    continue;
+                }
+
+                if (!UnbackSolvedProxyMeshes.Contains(mesh))
+                {
+                    return false;
+                }
+
+                sheetVertices++;
+            }
+
+            return sheetVertices > 0;
         }
 
         /// <summary>
