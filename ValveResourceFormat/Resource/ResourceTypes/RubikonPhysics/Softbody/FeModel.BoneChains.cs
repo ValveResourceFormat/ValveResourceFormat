@@ -1707,11 +1707,25 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                     continue;
                 }
 
+                // A static childless kid with a ring of its own that no rod ties to the root or its ring was declared
+                // as a one-joint chain of its own.
+                var looseKids = rootKids.Count > 1 && proxyChildrenOf.TryGetValue(rootNode, out var ownRing) && ownRing.Count > 0
+                    ? rootKids.FindAll(kid => IsStatic(kid) && children[kid] is null
+                        && proxyChildrenOf.TryGetValue(kid, out var kidRing) && kidRing.Count > 0
+                        && !AnyRod([rootNode, .. ownRing], [kid, .. kidRing]))
+                    : [];
+                if (looseKids.Count == rootKids.Count)
+                {
+                    looseKids.Clear();
+                }
+
+                var keptKids = looseKids.Count > 0 ? rootKids.FindAll(kid => !looseKids.Contains(kid)) : rootKids;
+
                 List<int> ringAnchored = [];
                 List<int> boneAnchored = [];
-                if (rootKids.Count > 1 && proxyChildrenOf.TryGetValue(rootNode, out var rootRing) && rootRing.Count > 0)
+                if (keptKids.Count > 1 && proxyChildrenOf.TryGetValue(rootNode, out var rootRing) && rootRing.Count > 0)
                 {
-                    foreach (var kid in rootKids)
+                    foreach (var kid in keptKids)
                     {
                         var kidSide = proxyChildrenOf.TryGetValue(kid, out var kr) && kr.Count > 0 ? kr : [kid];
                         if (AnyRod(rootRing, kidSide))
@@ -1735,7 +1749,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
 
                 var groups = ringAnchored.Count > 0 && boneAnchored.Count > 0
                     ? [(ringAnchored, false), (boneAnchored, true)]
-                    : new List<(List<int> Kids, bool RinglessRoot)> { (rootKids, false) };
+                    : new List<(List<int> Kids, bool RinglessRoot)> { (keptKids, false) };
 
                 SplitGroupsByFitSet(rootNode, groups);
 
@@ -1761,6 +1775,11 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                             ChildrenOf = new Dictionary<int, HashSet<int>> { [rootNode] = [.. kids] },
                         });
                     }
+                }
+
+                foreach (var kid in looseKids)
+                {
+                    chainSpecs.Add(new ChainSpec { Root = kid });
                 }
             }
 

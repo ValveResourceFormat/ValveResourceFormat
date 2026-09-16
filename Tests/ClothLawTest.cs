@@ -7127,5 +7127,81 @@ namespace Tests
                 }
                 """);
         }
+
+        /// <summary>
+        /// <c>tp_w35ft_7b_new_years_lock</c> declares a one-joint chain on a static ringed bone under a ringed chain root with
+        /// no rod between the two, and a model with no compiled skeleton keeps that parent only in <c>m_SkelParents</c>.
+        /// Folded into the root's chain it staged a ring quad, a node base and two fit weights the original never had; split
+        /// out on a flat skeleton it lost its parent. The split chain root and its bone nested under the parent's bone in
+        /// local space compile the original. A rod tying the child to the root keeps one chain.
+        /// </summary>
+        [Test]
+        public async Task AStaticRingedChildNoRodTiesToItsRootIsAChainOfItsOwn()
+        {
+            static FeModel Model(string tie) => SyntheticCloth.Parse($$"""
+                {
+                    m_CtrlName = [ "root", "$ccroot_0", "end", "$ccend_0", "a", "$cca_0", "b", "$ccb_0" ]
+                    m_SkelParents = [ -1, 0, 0, 2, 0, 4, 0, 6 ]
+                    m_nNodeCount = 8
+                    m_nStaticNodes = 4
+                    m_NodeInvMasses = [ 0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 1.0, 1.0 ]
+                    m_InitPose =
+                    [
+                        {{SyntheticCloth.Pose(0f, 0f, 0f)}}
+                        {{SyntheticCloth.Pose(0f, 2f, 0f)}}
+                        {{SyntheticCloth.Pose(-10f, 0f, 0f)}}
+                        {{SyntheticCloth.Pose(-10f, 2f, 0f)}}
+                        {{SyntheticCloth.Pose(0f, 0f, -10f)}}
+                        {{SyntheticCloth.Pose(0f, 2f, -10f)}}
+                        {{SyntheticCloth.Pose(5f, 0f, -10f)}}
+                        {{SyntheticCloth.Pose(5f, 2f, -10f)}}
+                    ]
+                    m_Rods =
+                    [
+                        {{SyntheticCloth.RigidRod(0, 4, 10f, 1f)}}
+                        {{SyntheticCloth.RigidRod(1, 4, 10.198039f, 1f)}}
+                        {{SyntheticCloth.RigidRod(0, 5, 10.198039f, 1f)}}
+                        {{SyntheticCloth.RigidRod(4, 5, 2f, 1f)}}
+                        {{SyntheticCloth.RigidRod(0, 6, 11.18034f, 1f)}}
+                        {{SyntheticCloth.RigidRod(1, 6, 11.357817f, 1f)}}
+                        {{SyntheticCloth.RigidRod(0, 7, 11.357817f, 1f)}}
+                        {{SyntheticCloth.RigidRod(6, 7, 2f, 1f)}}
+                        {{tie}}
+                    ]
+                }
+                """);
+
+            var loose = Model("").BuildBoneChains();
+            var tied = Model(SyntheticCloth.RigidRod(0, 2, 10f, 1f)).BuildBoneChains();
+
+            FeModel rotated = SyntheticCloth.Parse("""
+                {
+                    m_CtrlName = [ "parent", "child" ]
+                    m_SkelParents = [ -1, 0 ]
+                    m_nNodeCount = 2
+                    m_nStaticNodes = 2
+                    m_NodeInvMasses = [ 0.0, 0.0 ]
+                    m_InitPose =
+                    [
+                        [ 1.0, 2.0, 3.0, 1.0, 0.0, 0.0, 0.7071068, 0.7071068 ],
+                        [ 1.0, 12.0, 3.0, 1.0, 0.0, 0.0, 0.7071068, 0.7071068 ],
+                    ]
+                }
+                """);
+            var (origin, rotation) = ModelExtract.ClothBoneLocalPose(rotated, 1, 0);
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(loose.Count).IsEqualTo(2);
+                await Assert.That(loose.Exists(chain => chain.RootBone == "end" && chain.Joints.Count == 1)).IsTrue();
+                await Assert.That(loose.Exists(chain => chain.RootBone == "root" && !chain.Joints.Exists(joint => joint.Name == "end"))).IsTrue();
+                await Assert.That(tied.Count).IsEqualTo(1);
+                await Assert.That(tied[0].Joints.Exists(joint => joint.Name == "end")).IsTrue();
+                await Assert.That(origin.X).IsEqualTo(10f).Within(1e-4f);
+                await Assert.That(origin.Y).IsEqualTo(0f).Within(1e-4f);
+                await Assert.That(origin.Z).IsEqualTo(0f).Within(1e-4f);
+                await Assert.That(MathF.Abs(rotation.W)).IsEqualTo(1f).Within(1e-4f);
+            }
+        }
     }
 }

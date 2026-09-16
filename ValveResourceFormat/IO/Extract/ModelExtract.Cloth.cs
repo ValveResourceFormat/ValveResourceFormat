@@ -664,20 +664,69 @@ partial class ModelExtract
         // references. Re-declared WITHOUT do_not_discard so the compiler culls them again; the cloth
         // build resolves against the document skeleton, which is all these need to exist in.
         var culledSource = physAggregateData?.FeModel;
+        if (culledSource is null)
+        {
+            return;
+        }
+
+        // A model with no compiled bones at all keeps its hierarchy only in m_SkelParents.
+        var nestByClothParent = model is not null && model.Skeleton.Roots.Length == 0 && culledSource.HasCompiledSkelParents;
+        var emitted = CulledClothBones.Where(bone => bone.Node < culledSource.InitPosePositions.Length)
+            .Select(static bone => bone.Node).ToHashSet();
+
+        var bones = new List<(int Node, int Parent, KVObject Bone)>();
         foreach (var (node, name) in CulledClothBones)
         {
-            if (culledSource is null || node >= culledSource.InitPosePositions.Length)
+            if (!emitted.Contains(node))
             {
                 continue;
             }
 
-            var boneAngles = node < culledSource.InitPoseRotations.Length
-                ? EntityTransformHelper.ToEulerAngles(culledSource.InitPoseRotations[node])
-                : Vector3.Zero;
-            skeletonChildren.Add(MakeNode("Bone",
+            var parent = nestByClothParent && node < culledSource.SkelParents.Length && emitted.Contains(culledSource.SkelParents[node])
+                ? culledSource.SkelParents[node]
+                : -1;
+            var (origin, rotation) = parent >= 0
+                ? ClothBoneLocalPose(culledSource, node, parent)
+                : (culledSource.InitPosePositions[node],
+                    node < culledSource.InitPoseRotations.Length ? culledSource.InitPoseRotations[node] : Quaternion.Identity);
+            bones.Add((node, parent, MakeNode("Bone",
                 ("name", name),
-                ("origin", ToKVArray(culledSource.InitPosePositions[node])),
-                ("angles", ToKVArray(boneAngles))));
+                ("origin", ToKVArray(origin)),
+                ("angles", ToKVArray(EntityTransformHelper.ToEulerAngles(rotation))))));
         }
+
+        var boneByNode = bones.ToDictionary(static bone => bone.Node, static bone => bone.Bone);
+        foreach (var (_, parent, bone) in bones)
+        {
+            if (parent < 0)
+            {
+                skeletonChildren.Add(bone);
+                continue;
+            }
+
+            var parentBone = boneByNode[parent];
+            if (!parentBone.TryGetValue("children", out var childBones))
+            {
+                childBones = KVObject.Array();
+                parentBone.Add("children", childBones);
+            }
+
+            childBones.Add(bone);
+        }
+    }
+
+    /// <summary>
+    /// The pose of a cloth control node's bone relative to its parent's bone, both read off the control nodes' rest poses.
+    /// </summary>
+    /// <param name="feModel">The compiled cloth.</param>
+    /// <param name="node">The bone's control node.</param>
+    /// <param name="parent">The parent bone's control node.</param>
+    internal static (Vector3 Origin, Quaternion Rotation) ClothBoneLocalPose(FeModel feModel, int node, int parent)
+    {
+        var parentRotation = parent < feModel.InitPoseRotations.Length ? feModel.InitPoseRotations[parent] : Quaternion.Identity;
+        var rotation = node < feModel.InitPoseRotations.Length ? feModel.InitPoseRotations[node] : Quaternion.Identity;
+        var inverse = Quaternion.Conjugate(parentRotation);
+        return (Vector3.Transform(feModel.InitPosePositions[node] - feModel.InitPosePositions[parent], inverse),
+            Quaternion.Normalize(inverse * rotation));
     }
 }
