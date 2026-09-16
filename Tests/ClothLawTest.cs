@@ -7536,5 +7536,90 @@ namespace Tests
                 ]
             }
             """);
+
+        /// <summary>
+        /// A collision-shape parent bone whose compiled goal pair and gravity are the <c>ClothNode</c> defaults (goal strength
+        /// 0.6, goal damping 0.3, gravity 360) is declared as a bare static <c>ClothNode</c>: a shape registers its parent bone
+        /// with no goal attraction, so the defaults came from a declaration of its own. CONTROLS: a shape parent at no goal
+        /// attraction, one at goal values that are not the defaults, one the document already declares a static
+        /// <c>ClothNode</c> on, one a <c>ClothChain</c> joint names, and a bone at the defaults that no shape names all get
+        /// no declaration.
+        /// </summary>
+        [Test]
+        public async Task AShapeParentAtTheClothNodeDefaultsIsDeclaredABareStaticClothNode()
+        {
+            var feModel = ShapeParentIntegrators;
+            var (folder, folderChildren) = KVHelpers.MakeListNode("Folder");
+            folderChildren.Add(EffectParentNode("head", isStatic: true));
+            var joint = KVObject.Collection();
+            joint.Add("joint_name", "neck_0");
+            var joints = KVObject.Array();
+            joints.Add(joint);
+            var chain = KVObject.Collection();
+            chain.Add("joints", joints);
+            var softbodyChildren = KVObject.Array();
+            softbodyChildren.Add(folder);
+            softbodyChildren.Add(KVHelpers.MakeNode("ClothChain", ("name", "neck_0"), ("root_bone", "neck_0"), ("chain", chain)));
+
+            ModelExtract.AddShapeParentDefaultClothNodes(softbodyChildren, feModel);
+
+            var added = softbodyChildren.Select(static child => child.Value).Skip(2).ToArray();
+            var bones = added.Select(static node => node.GetStringProperty("cloth_node_root_bone")).ToArray();
+            string[] declaredBones = ["pelvis"];
+            string[] undeclaredBones = ["spine_2", "clavicle_L", "head", "neck_0", "hand_R"];
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(bones).IsEquivalentTo(declaredBones, CollectionOrdering.Matching);
+                await Assert.That(added.Select(static node => node.GetStringProperty("name")).ToArray())
+                    .IsEquivalentTo(declaredBones, CollectionOrdering.Matching);
+                await Assert.That(added.Count(static node => node.GetStringProperty("_class") == "ClothNode"
+                    && node.GetBooleanProperty("is_static_node") && !node.ContainsKey("goal_strength"))).IsEqualTo(1);
+
+                await Assert.That(bones.Intersect(undeclaredBones).Count()).IsEqualTo(0);
+                await Assert.That(added.Count(static node => node.ContainsKey("goal_strength"))).IsEqualTo(0);
+                await Assert.That(folderChildren.Count).IsEqualTo(1);
+            }
+        }
+
+        // Six static bones. pelvis, spine_2, clavicle_L, head and neck_0 each parent a capsule; hand_R parents none. pelvis,
+        // head, neck_0 and hand_R compile the ClothNode defaults (0, 0.216 = 0.6^3, 0.797273, 360); spine_2 compiles a shape
+        // parent's plain (0, 0, 0, 360) and clavicle_L goal strength 0.5 at damping 0.3.
+        private static FeModel ShapeParentIntegrators => SyntheticCloth.Parse($$"""
+            {
+                m_CtrlName = [ "pelvis", "spine_2", "clavicle_L", "head", "neck_0", "hand_R" ]
+                m_SkelParents = [ -1, 0, 1, 1, 1, 2 ]
+                m_nNodeCount = 6
+                m_nStaticNodes = 6
+                m_NodeInvMasses = [ 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 ]
+                m_InitPose =
+                [
+                    {{SyntheticCloth.Pose(0f, 0f, 30f)}}
+                    {{SyntheticCloth.Pose(0f, 0f, 40f)}}
+                    {{SyntheticCloth.Pose(4f, 0f, 50f)}}
+                    {{SyntheticCloth.Pose(0f, 0f, 60f)}}
+                    {{SyntheticCloth.Pose(0f, 0f, 55f)}}
+                    {{SyntheticCloth.Pose(8f, 0f, 45f)}}
+                ]
+                m_NodeIntegrator =
+                [
+                    { flPointDamping = 0.0 flAnimationForceAttraction = 0.216 flAnimationVertexAttraction = 0.797273 flGravity = 360.0 },
+                    { flPointDamping = 0.0 flAnimationForceAttraction = 0.0 flAnimationVertexAttraction = 0.0 flGravity = 360.0 },
+                    { flPointDamping = 0.0 flAnimationForceAttraction = 0.125 flAnimationVertexAttraction = 0.173846 flGravity = 360.0 },
+                    { flPointDamping = 0.0 flAnimationForceAttraction = 0.216 flAnimationVertexAttraction = 0.797273 flGravity = 360.0 },
+                    { flPointDamping = 0.0 flAnimationForceAttraction = 0.216 flAnimationVertexAttraction = 0.797273 flGravity = 360.0 },
+                    { flPointDamping = 0.0 flAnimationForceAttraction = 0.216 flAnimationVertexAttraction = 0.797273 flGravity = 360.0 },
+                ]
+                m_TaperedCapsuleRigids =
+                [
+                    { vSphere = [ [ 0.0, 0.0, -4.0, 4.0 ], [ 0.0, 0.0, 4.0, 4.0 ] ] nNode = 0 nCollisionMask = 15 nVertexMapIndex = 65535 nFlags = 0 },
+                    { vSphere = [ [ 0.0, 0.0, -4.0, 4.0 ], [ 0.0, 0.0, 4.0, 4.0 ] ] nNode = 1 nCollisionMask = 15 nVertexMapIndex = 65535 nFlags = 0 },
+                    { vSphere = [ [ 0.0, 0.0, -4.0, 4.0 ], [ 0.0, 0.0, 4.0, 4.0 ] ] nNode = 2 nCollisionMask = 15 nVertexMapIndex = 65535 nFlags = 0 },
+                    { vSphere = [ [ 0.0, 0.0, -4.0, 4.0 ], [ 0.0, 0.0, 4.0, 4.0 ] ] nNode = 3 nCollisionMask = 15 nVertexMapIndex = 65535 nFlags = 0 },
+                    { vSphere = [ [ 0.0, 0.0, -4.0, 4.0 ], [ 0.0, 0.0, 4.0, 4.0 ] ] nNode = 4 nCollisionMask = 15 nVertexMapIndex = 65535 nFlags = 0 },
+                ]
+                m_RigidColliderPriorities = [ ]
+            }
+            """);
     }
 }
