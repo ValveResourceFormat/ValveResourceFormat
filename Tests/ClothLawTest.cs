@@ -7621,5 +7621,86 @@ namespace Tests
                 m_RigidColliderPriorities = [ ]
             }
             """);
+
+        /// <summary>
+        /// A face diagonal the compile never built weighs nothing in the geometric node mass the <c>cloth_mass</c> paint is read against:
+        /// crediting it left every corner of the unbuilt diagonals with a negative residual, out of the readable band, and the paint
+        /// came back at 0 against the sheet's 1 (the antimage_female witnesses' mesh m2). The fixture's masses are the geometry of the
+        /// rods that exist plus <c>expf(1)</c>, so every vertex reads 1. CONTROL: the same sheet with all four quads' diagonals built,
+        /// which the credit always reproduced.
+        /// </summary>
+        [Test]
+        public async Task AnUnbuiltFaceDiagonalAddsNoGeometricMassToItsCorners()
+        {
+            var holed = MassedSheet(leftDiagonals: false);
+            var built = MassedSheet(leftDiagonals: true);
+            var holedPaint = holed.RecoverMassPaint(holed.BuildProxyMeshes()[0]);
+            var builtPaint = built.RecoverMassPaint(built.BuildProxyMeshes()[0]);
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(holedPaint).IsNotNull();
+                await Assert.That(holedPaint?.Count(static value => MathF.Abs(value - 1f) <= 1e-3f) ?? 0).IsEqualTo(9);
+                await Assert.That(builtPaint).IsNotNull();
+                await Assert.That(builtPaint?.Count(static value => MathF.Abs(value - 1f) <= 1e-3f) ?? 0).IsEqualTo(9);
+            }
+        }
+
+        // The 3 x 3 sheet of ShearedSheet with every edge built, the right-hand quads' diagonals built, and the left-hand quads' diagonals
+        // built only with leftDiagonals. Each node's inverse mass is 1 / (8 per unit rest length of every rod at it + e).
+        private static FeModel MassedSheet(bool leftDiagonals)
+        {
+            var built = new List<(int A, int B, bool Diagonal)>();
+            foreach (var (a, b) in (ReadOnlySpan<(int, int)>)[(0, 1), (1, 2), (3, 4), (4, 5), (6, 7), (7, 8), (0, 3), (1, 4), (2, 5), (3, 6),
+                (4, 7), (5, 8)])
+            {
+                built.Add((a, b, false));
+            }
+
+            foreach (var (a, b) in (ReadOnlySpan<(int, int)>)[(1, 5), (2, 4), (4, 8), (5, 7)])
+            {
+                built.Add((a, b, true));
+            }
+
+            if (leftDiagonals)
+            {
+                foreach (var (a, b) in (ReadOnlySpan<(int, int)>)[(0, 4), (1, 3), (3, 7), (4, 6)])
+                {
+                    built.Add((a, b, true));
+                }
+            }
+
+            var rods = new StringBuilder();
+            var geometric = new float[9];
+            foreach (var (a, b, diagonal) in built)
+            {
+                var length = diagonal ? MathF.Sqrt(200f) : 10f;
+                rods.Append(diagonal
+                    ? SyntheticCloth.BandedRod(a, b, length * 0.75f, length, 0.125f)
+                    : SyntheticCloth.RigidRod(a, b, length, 1f));
+                geometric[a] += 8f * length;
+                geometric[b] += 8f * length;
+            }
+
+            var poses = new StringBuilder();
+            for (var node = 0; node < 9; node++)
+            {
+                poses.Append(SyntheticCloth.Pose((node % 3) * 10f, 0f, -(node / 3) * 10f));
+            }
+
+            var invMasses = geometric.Select(static mass => SyntheticCloth.Num(1f / (mass + MathF.E)));
+
+            return SyntheticCloth.Parse($$"""
+                {
+                    m_CtrlName = [ {{string.Join(", ", Enumerable.Range(0, 9).Select(static node => $"\"$cloth_m0p{node}\""))}} ]
+                    m_nNodeCount = 9
+                    m_nStaticNodes = 0
+                    m_NodeInvMasses = [ {{string.Join(", ", invMasses)}} ]
+                    m_InitPose = [ {{poses}} ]
+                    m_SourceElems = [ 0, 0, 0, 4, 0, 1, 4, 3, 1, 2, 5, 4, 3, 4, 7, 6, 4, 5, 8, 7 ]
+                    m_Rods = [ {{rods}} ]
+                }
+                """);
+        }
     }
 }
