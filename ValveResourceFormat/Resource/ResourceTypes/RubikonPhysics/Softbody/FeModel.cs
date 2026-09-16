@@ -2476,7 +2476,8 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// <summary>
         /// Credits both ends of every authored rod with 8 per unit of rest length. The authored rods are
         /// the DISTINCT corner pairs (edges and diagonals) of the authored elements the compile did not
-        /// keep as solve elements, each pair counted once however many of them share it.
+        /// keep as solve elements, each pair counted once however many of them share it. A face diagonal the
+        /// compile never built (see <see cref="UnbuiltFaceDiagonals"/>) is no rod and weighs nothing.
         /// </summary>
         void AddAuthoredRodNodeMasses(float[] mass, List<int[]> elements)
         {
@@ -2486,6 +2487,16 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                 solved.Add(CornerKey(element));
             }
 
+            var sheetNodes = new HashSet<int>();
+            for (var node = 0; node < CtrlNames.Length; node++)
+            {
+                if (IsProxyMeshNode(node))
+                {
+                    sheetNodes.Add(node);
+                }
+            }
+
+            var unbuilt = UnbuiltFaceDiagonals(sheetNodes, AuthoredFaceRods(sheetNodes)).ToHashSet();
             var rods = new Dictionary<(int A, int B), float>();
             foreach (var face in SourceFaces)
             {
@@ -2499,7 +2510,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                     for (var j = i + 1; j < face.Length; j++)
                     {
                         var (a, b) = face[i] < face[j] ? (face[i], face[j]) : (face[j], face[i]);
-                        if (a == b || a < 0 || b >= mass.Length)
+                        if (a == b || a < 0 || b >= mass.Length || unbuilt.Contains((a, b)))
                         {
                             continue;
                         }
