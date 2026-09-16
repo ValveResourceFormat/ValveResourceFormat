@@ -293,8 +293,8 @@ public sealed class SoundEventCurve
             }
         }
 
-        ref readonly var left = ref points[low - 1];
-        ref readonly var right = ref points[low];
+        var left = points[low - 1];
+        var right = points[low];
         var width = right.X - left.X;
         var t = (x - left.X) / width;
         var t2 = t * t;
