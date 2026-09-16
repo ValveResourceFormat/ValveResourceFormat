@@ -68,8 +68,9 @@ namespace ValveResourceFormat.CompiledShader
         public int VcsVersion { get; private set; }
 
         /// <summary>
-        /// Gets the s&amp;box file version, or 0 for Valve files. s&amp;box version 65 matches Valve
-        /// version 64; version 66 adds feature upgrade fields to combos.
+        /// Gets the s&amp;box file version, or 0 for Valve files. s&amp;box numbers its shader files
+        /// independently of Valve, so <see cref="VcsVersion"/> is normalized to 64 for parsing.
+        /// Version 66 adds feature upgrade fields to combos.
         /// </summary>
         public int SboxVersion { get; private set; }
 
