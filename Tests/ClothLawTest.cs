@@ -7465,5 +7465,76 @@ namespace Tests
                 {{fits}}
             }
             """);
+
+        /// <summary>
+        /// A proxy sheet node the original records in a vertex set while that selection's own compiled weight for it is 0 is
+        /// painted into the selection at <see cref="FeModel.SubQuantumMembershipWeight"/>, a weight that wins the node its set
+        /// and still compiles to byte 0. Both shapes a compile leaves are covered: a member before the selection's first covered
+        /// node, and a member inside its range at weight 0. CONTROLS: a node at 0 in a selection it is not a member of stays 0,
+        /// a static node stays 0, a member with a positive weight keeps it, and a model that ships no per-node set array gains
+        /// no paint at all.
+        /// </summary>
+        [Test]
+        public async Task ASetMemberItsSelectionWeighsZeroIsPaintedBelowAQuantum()
+        {
+            var recorded = SubQuantumMembers("m_DynNodeVertexSet = [ 0, 0, 0, 1 ]").BuildProxyMeshes()[0];
+            var unrecorded = SubQuantumMembers("").BuildProxyMeshes()[0];
+
+            static float Weight(FeModel.ProxyMesh proxy, string map, int node)
+                => Array.Find(proxy.VertexMaps, m => m.Name == map).Weights[Array.IndexOf(proxy.NodeIndices, node)];
+
+            var inRange = Weight(recorded, "qb", 5);
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(Weight(recorded, "qb", 3)).IsEqualTo(FeModel.SubQuantumMembershipWeight);
+                await Assert.That(inRange).IsEqualTo(FeModel.SubQuantumMembershipWeight);
+                await Assert.That(inRange).IsGreaterThan(0f);
+                await Assert.That(MathF.Round(inRange * 255f)).IsEqualTo(0f);
+                await Assert.That(Weight(recorded, "qb", 4)).IsEqualTo(1f);
+                await Assert.That(Weight(recorded, "qz", 5)).IsEqualTo(0f);
+                await Assert.That(Weight(recorded, "qz", 3)).IsEqualTo(0f);
+                await Assert.That(Weight(recorded, "qb", 1)).IsEqualTo(0f);
+
+                await Assert.That(Weight(unrecorded, "qb", 3)).IsEqualTo(0f);
+                await Assert.That(Weight(unrecorded, "qb", 5)).IsEqualTo(0f);
+            }
+        }
+
+        // A two-row sheet pinned along its top row ($cloth_m0p0 / p1, nodes 1 and 2) over dynamic nodes 3-6. 'qb' covers nodes
+        // 4-6 at 255 / 0 / 128 and 'qz' nodes 5-6 at 0 / 255. The hole carries m_DynNodeVertexSet, which puts nodes 3, 4 and 5
+        // in 'qb' and node 6 in 'qz': node 3 lies before 'qb''s range and node 5 inside it at 0.
+        private static FeModel SubQuantumMembers(string sets) => SyntheticCloth.Parse($$"""
+            {
+                m_CtrlName = [ "root", "$cloth_m0p0", "$cloth_m0p1", "$cloth_m0p2", "$cloth_m0p3", "$cloth_m0p4", "$cloth_m0p5" ]
+                m_SkelParents = [ -1, 0, 0, 0, 0, 0, 0 ]
+                m_nNodeCount = 7
+                m_nStaticNodes = 3
+                m_NodeInvMasses = [ 0.0, 0.0, 0.0, 1.0, 1.0, 1.0, 1.0 ]
+                m_InitPose =
+                [
+                    {{SyntheticCloth.Pose(0f, 0f, 0f)}}
+                    {{SyntheticCloth.Pose(0f, 0f, -10f)}}
+                    {{SyntheticCloth.Pose(4f, 0f, -10f)}}
+                    {{SyntheticCloth.Pose(0f, 0f, -20f)}}
+                    {{SyntheticCloth.Pose(4f, 0f, -20f)}}
+                    {{SyntheticCloth.Pose(0f, 0f, -30f)}}
+                    {{SyntheticCloth.Pose(4f, 0f, -30f)}}
+                ]
+                m_Tris =
+                [
+                    { nNode = [ 1, 2, 4 ] }, { nNode = [ 1, 4, 3 ] },
+                    { nNode = [ 3, 4, 6 ] }, { nNode = [ 3, 6, 5 ] },
+                ]
+                m_VertexSetNames = [ 3919779763, 51193340 ]
+                {{sets}}
+                m_VertexMapValues = [ 255, 0, 128, 0, 255 ]
+                m_VertexMaps =
+                [
+                    { sName = "qb" nNameHash = 3919779763 nVertexBase = 4 nVertexCount = 3 nMapOffset = 0 nNodeListOffset = 0 nNodeListCount = 2 flVolumetricSolveStrength = 0.0 nScaleSourceNode = -1 },
+                    { sName = "qz" nNameHash = 51193340 nVertexBase = 5 nVertexCount = 2 nMapOffset = 3 nNodeListOffset = 2 nNodeListCount = 1 flVolumetricSolveStrength = 0.0 nScaleSourceNode = -1 },
+                ]
+            }
+            """);
     }
 }
