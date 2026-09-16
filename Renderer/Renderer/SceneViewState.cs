@@ -279,7 +279,7 @@ public sealed class SceneViewState : IDisposable
         }
 
         WantsSceneColor = false;
-        WantsSceneDepth = false;
+        WantsSceneDepth = Scene.ProjectedDecals.Count > 0;
 
         ResetPvsHiddenBits();
 

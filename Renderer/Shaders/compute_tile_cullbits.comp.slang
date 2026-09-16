@@ -120,9 +120,10 @@ bool TestConic(vec2 vPoint, CullItem_t item)
 
 void main()
 {
-    uint nBatch = (gl_WorkGroupID.z >= g_nFirstMaskForBatch.z)
-                ? 2u
-                : uint(gl_WorkGroupID.z >= g_nFirstMaskForBatch.y);
+    // Batch 0 always starts at mask 0, and an empty batch shares its first mask with the next one
+    uint nBatch = uint(gl_WorkGroupID.z >= g_nFirstMaskForBatch.y)
+                + uint(gl_WorkGroupID.z >= g_nFirstMaskForBatch.z)
+                + uint(gl_WorkGroupID.z >= g_nFirstMaskForBatch.w);
     uint nMaskIndex = gl_WorkGroupID.z - g_nFirstMaskForBatch[nBatch];
     CullBatch_t batch = g_TileBatches[nBatch];
 

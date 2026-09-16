@@ -278,7 +278,11 @@ namespace ValveResourceFormat.Renderer
             StaticOctree = new(sizeHint);
 
             LightingInfo = new(this);
+            ProjectedDecals = new(this);
         }
+
+        /// <summary>Gets the decals projected onto the scene's depth, such as bullet impacts.</summary>
+        public ProjectedDecalSystem ProjectedDecals { get; }
 
         /// <summary>
         /// Performs one-time GPU setup: builds acceleration structures, allocates buffers, computes light probe and environment map bindings, and loads internal shaders.
@@ -413,6 +417,7 @@ namespace ValveResourceFormat.Renderer
 
             Skybox2D?.Delete();
             Skybox2D = null;
+            ProjectedDecals.Clear();
         }
 
         /// <summary>
@@ -2147,6 +2152,7 @@ namespace ValveResourceFormat.Renderer
         {
             if (disposing)
             {
+                ProjectedDecals.Delete();
                 FrustumBuffer?.Dispose();
                 Skybox2D?.Delete();
                 Skybox2D = null;

@@ -829,6 +829,9 @@ public class Renderer : ISpawnGroupHost
             }
         }
 
+        // Decals on moving entities are binned where the entity is drawn this frame
+        Scene.ProjectedDecals.UpdateParentedDecals();
+
         // Backwards, so the first scene of the main view is left bound
         for (var i = views.Length - 1; i >= 0; i--)
         {
@@ -1171,6 +1174,13 @@ public class Renderer : ISpawnGroupHost
 
         using (new GLDebugGroup("Main Scene Translucent Render"))
         {
+            // Decals read the depth grabbed above, which only the main framebuffer gets
+            if (isStandardPass && !isWireframe)
+            {
+                DrawThrough(mainView, mainState, ref renderContext);
+                Scene.ProjectedDecals.Render(renderContext);
+            }
+
             RenderTranslucentLayer(mainView, ref renderContext);
         }
 
