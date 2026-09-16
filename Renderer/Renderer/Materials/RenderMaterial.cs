@@ -73,6 +73,9 @@ namespace ValveResourceFormat.Renderer.Materials
         /// <summary>Resolved scene depth buffer.</summary>
         [SamplerName("g_tSceneDepth")]
         SceneDepth,
+        /// <summary>Nearest depth of the resolved scene and the translucent surfaces in front of it.</summary>
+        [SamplerName("g_tTranslucentSceneDepth")]
+        TranslucentSceneDepth,
         /// <summary>Screen space water effects map written by the water effects layer.</summary>
         [SamplerName("g_tWaterEffectsMap")]
         WaterEffectsMap,
@@ -155,6 +158,9 @@ namespace ValveResourceFormat.Renderer.Materials
 
         /// <summary>Gets a value indicating whether this material uses any blending mode that requires back-to-front ordering.</summary>
         public bool IsTranslucent => blendMode >= BlendMode.Translucent;
+
+        /// <summary>Gets a value indicating whether this material only adds light over the destination, hiding nothing behind it.</summary>
+        public bool IsAdditive => blendMode == BlendMode.Additive;
 
         /// <summary>Gets a value indicating whether this material uses alpha-to-coverage alpha testing.</summary>
         public bool IsAlphaTest => blendMode == BlendMode.AlphaTest;
