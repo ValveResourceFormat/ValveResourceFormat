@@ -36,7 +36,23 @@ public class Rubikon
         Vector3[] VertexPositions,
         Triangle[] Triangles,
         Node[] PhysicsTree
-    );
+    )
+    {
+        /// <summary>Gets the hash of the surface property shared by triangles without their own.</summary>
+        public uint SurfacePropertyHash { get; init; }
+
+        /// <summary>Gets the aggregate's surface property hashes, which <see cref="TriangleSurfaceProperties"/> index.</summary>
+        public uint[] SurfacePropertyHashes { get; init; } = [];
+
+        /// <summary>Gets the surface property index of each triangle, or an empty array when the whole mesh uses <see cref="SurfacePropertyHash"/>.</summary>
+        public int[] TriangleSurfaceProperties { get; init; } = [];
+
+        /// <summary>Gets the surface property hash of a triangle in <see cref="Triangles"/>.</summary>
+        public uint GetSurfacePropertyHash(int triangleIndex)
+            => (uint)triangleIndex < (uint)TriangleSurfaceProperties.Length
+                ? Rubikon.GetSurfacePropertyHash(SurfacePropertyHashes, TriangleSurfaceProperties[triangleIndex])
+                : SurfacePropertyHash;
+    }
 
     /// <summary>
     /// Convex hull collision data with vertices, edges, and planes.
@@ -50,7 +66,11 @@ public class Rubikon
         Hull.HalfEdge[] HalfEdges,
         byte[] FaceEdgeIndices,
         Hull.Plane[] Planes
-    );
+    )
+    {
+        /// <summary>Gets the hash of the surface property of the hull.</summary>
+        public uint SurfacePropertyHash { get; init; }
+    }
 
     /// <summary>Gets the triangle mesh collision shapes available for tracing.</summary>
     public PhysicsMeshData[] Meshes { get; }
@@ -81,6 +101,7 @@ public class Rubikon
 
         Meshes = new PhysicsMeshData[worldMeshes.Length];
         var meshIndex = 0;
+        var surfacePropertyHashes = physicsData.SurfacePropertyHashes;
 
         foreach (var mesh in worldMeshes)
         {
@@ -90,7 +111,12 @@ public class Rubikon
 
             var (interactAs, interactExclude) = GetInteractStrings(physicsData.CollisionAttributes[mesh.CollisionAttributeIndex]);
 
-            Meshes[meshIndex++] = new PhysicsMeshData(interactAs, interactExclude, [.. vertexPositions], [.. triangles], [.. physicsTree]);
+            Meshes[meshIndex++] = new PhysicsMeshData(interactAs, interactExclude, [.. vertexPositions], [.. triangles], [.. physicsTree])
+            {
+                SurfacePropertyHash = GetSurfacePropertyHash(surfacePropertyHashes, mesh.SurfacePropertyIndex),
+                SurfacePropertyHashes = surfacePropertyHashes,
+                TriangleSurfaceProperties = mesh.Shape.Materials,
+            };
         }
 
         // we want to run player clip traces first because the mesh is much simpler
@@ -115,13 +141,19 @@ public class Rubikon
                 [.. halfEdges],
                 [.. MemoryMarshal.Cast<Hull.Face, byte>(faceEdgeIndices)],
                 [.. planes]
-            );
+            )
+            {
+                SurfacePropertyHash = GetSurfacePropertyHash(surfacePropertyHashes, hullDesc.SurfacePropertyIndex),
+            };
         }
 
         // Build BVH for hulls
         HullIndices = [.. Enumerable.Range(0, Hulls.Length)];
         HullTree = BuildHullBVH();
     }
+
+    private static uint GetSurfacePropertyHash(uint[] surfacePropertyHashes, int index)
+        => (uint)index < (uint)surfacePropertyHashes.Length ? surfacePropertyHashes[index] : 0;
 
     /// <summary>
     /// Older assets carry their tags in m_PhysicsTagStrings instead of m_InteractAsStrings,
@@ -178,6 +210,12 @@ public class Rubikon
         /// reports it. Null when the sweep did not carry entity identity at all.
         /// </summary>
         public Entities.BaseEntity? HitEntity { get; set; }
+
+        /// <summary>
+        /// Gets or sets the hash of the surface property of the hit triangle or hull, zero when unknown.
+        /// Only ray traces report it.
+        /// </summary>
+        public uint SurfacePropertyHash { get; set; }
 
         /// <summary>
         /// Updates this <see cref="TraceResult"/> if the <paramref name="other"/> is closer. Returns true if updated.
@@ -880,7 +918,10 @@ public class Rubikon
         {
             if (RayIntersectsTriangle(ray, v0, v1, v2, out var intersection) && intersection.Distance < closestHit.Distance)
             {
-                closestHit = new(true, ray.Origin + ray.Direction * intersection.Distance, intersection.Normal, intersection.Distance, -1);
+                closestHit = new(true, ray.Origin + ray.Direction * intersection.Distance, intersection.Normal, intersection.Distance, -1)
+                {
+                    SurfacePropertyHash = hull.SurfacePropertyHash,
+                };
             }
         }
     }
@@ -983,7 +1024,10 @@ public class Rubikon
 
                 if (intersection.Distance < ClosestHit.Distance)
                 {
-                    ClosestHit = new(true, ray.Origin + ray.Direction * intersection.Distance, intersection.Normal, intersection.Distance, i);
+                    ClosestHit = new(true, ray.Origin + ray.Direction * intersection.Distance, intersection.Normal, intersection.Distance, i)
+                    {
+                        SurfacePropertyHash = mesh.GetSurfacePropertyHash(i),
+                    };
                 }
             }
 

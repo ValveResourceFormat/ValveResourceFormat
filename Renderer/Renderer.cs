@@ -448,6 +448,9 @@ public class Renderer
         var cullWidth = (int)ViewBuffer.Data.ViewportSize.X;
         var cullHeight = (int)ViewBuffer.Data.ViewportSize.Y;
 
+        // Decals on moving entities are binned where the entity is drawn this frame
+        scene.ProjectedDecals.UpdateParentedDecals();
+
         var tileCullEnabled = scene.EnableTiledLightCulling;
         scene.LightBinner.Update(ViewBuffer.Data, cullWidth, cullHeight, tileCullEnabled);
         SkyboxScene?.LightBinner.Update(ViewBuffer.Data, cullWidth, cullHeight, tileCullEnabled);
@@ -759,6 +762,12 @@ public class Renderer
 
         using (new GLDebugGroup("Main Scene Translucent Render"))
         {
+            // Decals read the depth grabbed above, which only the main framebuffer gets
+            if (isStandardPass && !isWireframe)
+            {
+                Scene.ProjectedDecals.Render(renderContext);
+            }
+
             RenderTranslucentLayer(Scene, renderContext);
         }
 

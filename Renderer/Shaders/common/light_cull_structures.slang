@@ -45,8 +45,8 @@ layout(binding = 5, std140) uniform CullParams_t
     float g_fBinEpsilon;
     float g_fNearPlane;
     uvec4 g_nFirstMaskForBatch;
-    CullBatch_t g_TileBatches[3];
-    CullBatch_t g_BinBatches[3];
+    CullBatch_t g_TileBatches[4];
+    CullBatch_t g_BinBatches[4];
 };
 
 layout(binding = 2, std430) readonly buffer CullItemsBuffer

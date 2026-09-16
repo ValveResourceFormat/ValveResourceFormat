@@ -32,7 +32,7 @@ public readonly struct BarnLightCullVolume
 public sealed class TiledCullFeeder
 {
     /// <summary>Item classes culled together in one dispatch.</summary>
-    public const int BatchCount = 3;
+    public const int BatchCount = 4;
 
     /// <summary>Batch index holding barn light faces.</summary>
     public const int BatchBarnLights = 0;
@@ -42,6 +42,9 @@ public sealed class TiledCullFeeder
 
     /// <summary>Batch index holding light probe volumes. Only probe atlas scenes fill it.</summary>
     public const int BatchLightProbes = 2;
+
+    /// <summary>Batch index holding projected decal boxes.</summary>
+    public const int BatchDecals = 3;
 
     /// <summary>Items per mask. Batches pad up to a whole number of these so no word spans two batches.</summary>
     public const int ItemsPerMask = 32;
@@ -191,6 +194,9 @@ public sealed class TiledCullFeeder
         Debug.Assert(LightProbeVolumeArray.MAX_PROBES <= MaxItemsPerBatch,
             $"Light probe volumes must fit the {MaxItemsPerBatch} slot batch stride");
 
+        Debug.Assert(ProjectedDecalSystem.MaxDecals <= MaxItemsPerBatch,
+            $"Projected decals must fit the {MaxItemsPerBatch} slot batch stride");
+
         this.tileCols = tileCols;
         this.tileRows = tileRows;
         this.depthBins = depthBins;
@@ -234,11 +240,13 @@ public sealed class TiledCullFeeder
     /// <param name="barnLights">Barn light faces the shading pass will iterate.</param>
     /// <param name="envMaps">Env map probes the shading pass will iterate.</param>
     /// <param name="lightProbes">Light probe volumes the shading pass will iterate.</param>
-    public void AddCounts(int barnLights, int envMaps, int lightProbes)
+    /// <param name="decals">Projected decals the decal pass will iterate.</param>
+    public void AddCounts(int barnLights, int envMaps, int lightProbes, int decals)
     {
         batchItemCount[BatchBarnLights] = Math.Min(barnLights, MaxItemsPerBatch);
         batchItemCount[BatchEnvMaps] = Math.Min(envMaps, MaxItemsPerBatch);
         batchItemCount[BatchLightProbes] = Math.Min(lightProbes, MaxItemsPerBatch);
+        batchItemCount[BatchDecals] = Math.Min(decals, MaxItemsPerBatch);
 
         // Nothing was projected, so nothing was rejected either: every slot reaches every tile.
         for (var batch = 0; batch < BatchCount; batch++)
@@ -380,6 +388,35 @@ public sealed class TiledCullFeeder
         batchBinnedCount[BatchLightProbes] = binned;
     }
 
+    /// <summary>
+    /// Adds one item per projected decal box. Item <c>i</c> is decal <c>i</c>, so the decal pass walks the
+    /// bits in the order the decals were added.
+    /// </summary>
+    /// <param name="boxTransforms">Maps the unit cube centred on the origin onto each decal box.</param>
+    public void AddDecals(ReadOnlySpan<Matrix4x4> boxTransforms)
+    {
+        var first = BatchDecals * MaxItemsPerBatch;
+        var count = Math.Min(boxTransforms.Length, MaxItemsPerBatch);
+        var binned = 0;
+
+        for (var i = 0; i < count; i++)
+        {
+            var item = BuildBoxItem(UnitCube, boxTransforms[i], 0f);
+
+            items[first + i] = item;
+
+            if (!IsRejected(item))
+            {
+                binned++;
+            }
+        }
+
+        batchItemCount[BatchDecals] = count;
+        batchBinnedCount[BatchDecals] = binned;
+    }
+
+    private static readonly AABB UnitCube = new(new Vector3(-0.5f), new Vector3(0.5f));
+
     private CullItem BuildBoxItem(AABB localBounds, in Matrix4x4 localToWorld, float extend)
     {
         Span<Vector3> corners = stackalloc Vector3[8];
@@ -485,8 +522,7 @@ public sealed class TiledCullFeeder
         running += cullParams.TileBatches[1].OutputStride;
         cullParams.FirstMaskForBatch2 = running;
         running += cullParams.TileBatches[2].OutputStride;
-
-        cullParams.MaskCount = running;
+        cullParams.FirstMaskForBatch3 = running;
     }
 
     /// <summary>An item nothing matches, for rejected entries that keep their slot and for tail padding.</summary>

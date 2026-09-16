@@ -105,8 +105,8 @@ public readonly struct DrawElementsIndirectCommand
 };
 
 /// <summary>
-/// One item class culled by <c>compute_tile_cullbits</c> and <c>compute_depthbin_cullbits</c>. Three are
-/// dispatched together, covering barn lights, env maps and light probe volumes in one pass.
+/// One item class culled by <c>compute_tile_cullbits</c> and <c>compute_depthbin_cullbits</c>. Four are
+/// dispatched together, covering barn lights, env maps, light probe volumes and projected decals in one pass.
 /// </summary>
 /// <remarks>Matches <c>CullBatch_t</c>, 16 bytes.</remarks>
 [StructLayout(LayoutKind.Sequential)]
@@ -173,16 +173,16 @@ public struct CullItem
     public float _Unused76;
 };
 
-/// <summary>Three <see cref="CullBatch"/> entries, matching the fixed size arrays in <c>CullParams_t</c>.</summary>
-[InlineArray(3)]
-public struct CullBatchTriple
+/// <summary>One <see cref="CullBatch"/> per <see cref="TiledCullFeeder.BatchCount"/>, matching the fixed size arrays in <c>CullParams_t</c>.</summary>
+[InlineArray(TiledCullFeeder.BatchCount)]
+public struct CullBatchArray
 {
     private CullBatch Batch0;
 }
 
 /// <summary>Shared constants for both cull passes.</summary>
 /// <remarks>
-/// Matches <c>CullParams_t</c>, 160 bytes. Sequential .NET packing reproduces the std140 offsets, which
+/// Matches <c>CullParams_t</c>, 192 bytes. Sequential .NET packing reproduces the std140 offsets, which
 /// in turn reproduce the packoffsets Source 2's own build uses (c0, c1, c3, c4, c7).
 /// </remarks>
 [StructLayout(LayoutKind.Sequential)]
@@ -223,10 +223,10 @@ public struct CullParams
     public uint FirstMaskForBatch1;
     /// <summary>First mask index of batch 2.</summary>
     public uint FirstMaskForBatch2;
-    /// <summary>Total mask count across all batches. Read by neither shader; it is the dispatch size.</summary>
-    public uint MaskCount;
+    /// <summary>First mask index of batch 3.</summary>
+    public uint FirstMaskForBatch3;
     /// <summary>Output layout of each batch in the tile pass.</summary>
-    public CullBatchTriple TileBatches;
+    public CullBatchArray TileBatches;
     /// <summary>Output layout of each batch in the depth bin pass.</summary>
-    public CullBatchTriple BinBatches;
+    public CullBatchArray BinBatches;
 };

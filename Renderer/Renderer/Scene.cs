@@ -257,7 +257,11 @@ namespace ValveResourceFormat.Renderer
             LightingInfo = new(this);
             LightBinner = new(this);
             EntitySystem = new(this);
+            ProjectedDecals = new(this);
         }
+
+        /// <summary>Gets the decals projected onto the scene's depth, such as bullet impacts.</summary>
+        public ProjectedDecalSystem ProjectedDecals { get; }
 
         /// <summary>
         /// Performs one-time GPU setup: builds acceleration structures, allocates buffers, computes light probe and environment map bindings, and loads internal shaders.
@@ -387,6 +391,7 @@ namespace ValveResourceFormat.Renderer
             StaticOctree.Clear();
             DynamicOctree.Clear();
 
+            ProjectedDecals.Clear();
             RendererContext.MaterialLoader.Clear();
             RendererContext.MeshBufferCache.Clear();
         }
@@ -1121,7 +1126,7 @@ namespace ValveResourceFormat.Renderer
             }
 
             WantsSceneColor = false;
-            WantsSceneDepth = false;
+            WantsSceneDepth = ProjectedDecals.Count > 0;
 
             var frustum = cullFrustum ??= camera.ViewFrustum;
             var cullResults = GetFrustumCullResults(frustum);
@@ -2515,6 +2520,7 @@ namespace ValveResourceFormat.Renderer
         {
             if (disposing)
             {
+                ProjectedDecals.Delete();
                 frustumBuffer?.Dispose();
                 LightBinner.Dispose();
                 lightingBuffer?.Dispose();

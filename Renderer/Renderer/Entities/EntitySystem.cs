@@ -497,6 +497,30 @@ public sealed class EntitySystem
     }
 
     /// <summary>
+    /// Traces a ray against every solid entity, narrowing <paramref name="result"/> to the nearest hit.
+    /// </summary>
+    /// <returns><see langword="true"/> when an entity produced the nearest hit.</returns>
+    public bool TraceRay(Vector3 from, Vector3 to, ref Rubikon.TraceResult result)
+    {
+        var hitEntity = false;
+
+        foreach (var entity in entities)
+        {
+            if (!entity.IsCollidable)
+            {
+                continue;
+            }
+
+            var entityTrace = entity.Collider!.TraceRay(from, to);
+            entityTrace.HitEntity = entity;
+
+            hitEntity |= result.MinimizeWith(entityTrace);
+        }
+
+        return hitEntity;
+    }
+
+    /// <summary>
     /// Finds the nearest usable entity along a ray, for the player's <c>+use</c>.
     /// </summary>
     /// <returns>The nearest usable entity in reach, or <see langword="null"/> when there is none.</returns>
