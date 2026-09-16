@@ -2018,6 +2018,14 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             faces[best] = [triangle[start], triangle[(start + 1) % 3], triangle[(start + 2) % 3], stray];
         }
 
+        /// <summary>
+        /// The weight a selection is painted at on a node the original records as a member of its vertex set while the
+        /// selection's own compiled weight there is 0. It clears the floor a paint has to clear to win the node's set
+        /// and stays under half of the 1/255 step the compiler rounds a selection's weight to, so the node rejoins the
+        /// set and its compiled weight is still 0.
+        /// </summary>
+        internal const float SubQuantumMembershipWeight = 0.001f;
+
         // The vertex selections that reach any of the given nodes, as a membership weight per node.
         (string Name, float[] Weights)[] BuildVertexMapWeights(IReadOnlyList<int> nodeIndices)
         {
@@ -2029,6 +2037,11 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                 for (var i = 0; i < nodeIndices.Count; i++)
                 {
                     weights[i] = map.WeightOf(nodeIndices[i]);
+                    if (weights[i] <= 0f && InRecordedVertexSet(nodeIndices[i], map.NameHash))
+                    {
+                        weights[i] = SubQuantumMembershipWeight;
+                    }
+
                     covers |= weights[i] > 0f;
                 }
 
@@ -2039,6 +2052,19 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             }
 
             return [.. maps];
+        }
+
+        /// <summary>
+        /// Whether <c>m_DynNodeVertexSet</c> puts <paramref name="node"/> in the vertex set keyed by
+        /// <paramref name="nameHash"/>. False for a static node, and for every node of a model that ships no per-node
+        /// set array.
+        /// </summary>
+        bool InRecordedVertexSet(int node, uint nameHash)
+        {
+            var dynamic = node - StaticNodeCount;
+            return dynamic >= 0 && dynamic < DynNodeVertexSet.Length
+                && DynNodeVertexSet[dynamic] < VertexSetNames.Length
+                && VertexSetNames[DynNodeVertexSet[dynamic]] == nameHash;
         }
 
         /// <summary>
