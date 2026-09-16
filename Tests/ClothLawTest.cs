@@ -7351,6 +7351,38 @@ namespace Tests
         }
 
         /// <summary>
+        /// A proxy sheet's <c>cloth_vertex_set</c> streams go out in an order that satisfies the original's own per-node
+        /// winners: the compiler gives a node to the FIRST stream painting it at its maximum weight, so a selection some node
+        /// records as its winner has to be written before every selection covering that node at the same weight. CONTROLS:
+        /// with no constraint at all the sheet's own order is kept, and a set of constraints holding a CYCLE keeps it too,
+        /// since no single order can satisfy those and the fallback must not invent one.
+        /// </summary>
+        [Test]
+        public async Task AVertexSetStreamOrderPutsEveryNodesWinnerBeforeItsRivals()
+        {
+            string[] names = ["charlie", "bravo", "alpha"];
+            var ordered = FeModel.OrderByFirstWriterWins(names,
+                [("alpha", "bravo"), ("alpha", "charlie"), ("bravo", "charlie")]);
+            var unconstrained = FeModel.OrderByFirstWriterWins(names, []);
+            var cyclic = FeModel.OrderByFirstWriterWins(names, [("alpha", "bravo"), ("bravo", "alpha")]);
+            var partial = FeModel.OrderByFirstWriterWins(names, [("alpha", "charlie")]);
+
+            string[] winnersFirst = ["alpha", "bravo", "charlie"];
+            string[] charlieLast = ["bravo", "alpha", "charlie"];
+
+            // The assertions compare the SEQUENCE: the law is an order, so an order-insensitive compare on the same
+            // three names would pass against the unordered input and could not fail.
+            using (Assert.Multiple())
+            {
+                await Assert.That(ordered).IsEquivalentTo(winnersFirst, CollectionOrdering.Matching);
+                await Assert.That(unconstrained).IsEquivalentTo(names, CollectionOrdering.Matching);
+                await Assert.That(cyclic).IsEquivalentTo(names, CollectionOrdering.Matching);
+                await Assert.That(partial).IsEquivalentTo(charlieLast, CollectionOrdering.Matching);
+                await Assert.That(string.Join(",", ordered)).IsEqualTo("alpha,bravo,charlie");
+            }
+        }
+
+        /// <summary>
         /// A selection the original registers over NO vertex - an <c>m_VertexMaps</c> record with a name and
         /// <c>nVertexCount</c> 0 - is one the export has to re-paint as an all-zero <c>cloth_vertex_set</c> stream, since the
         /// compiler registers a stream's name and then admits only the vertices whose weight clears its floor. The fixture is

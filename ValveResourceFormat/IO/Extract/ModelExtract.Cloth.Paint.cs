@@ -430,9 +430,21 @@ partial class ModelExtract
                 is { } containerMap
             ? proxyFeModel.VertexMapAliases(containerMap)
             : [];
+        // The streams go out in the order the original's own per-node winners imply (see
+        // FeModel.VertexSetStreamOrder), since the compiler gives a node to the first stream painting it at its
+        // maximum weight and the compiled m_VertexMaps array is hash-sorted rather than authored-ordered.
+        var selectionWeights = new Dictionary<string, float[]>(proxy.VertexMaps.Length, StringComparer.Ordinal);
         foreach (var (mapName, weights) in proxy.VertexMaps)
         {
-            if (!containerMaps.Contains(mapName))
+            selectionWeights[mapName] = weights;
+        }
+
+        var selectionOrder = physAggregateData?.FeModel is { } orderFeModel
+            ? orderFeModel.VertexSetStreamOrder(proxy)
+            : proxy.VertexMaps.Select(static map => map.Name).ToArray();
+        foreach (var mapName in selectionOrder)
+        {
+            if (!containerMaps.Contains(mapName) && selectionWeights.TryGetValue(mapName, out var weights))
             {
                 vertexData.AddIndexedStream("cloth_vertex_set_" + mapName + "$0", weights, vertexIndices);
             }

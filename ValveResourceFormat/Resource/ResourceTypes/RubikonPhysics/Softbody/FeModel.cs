@@ -3668,6 +3668,132 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         public IReadOnlyList<VertexMap> VertexMaps { get; private set; } = [];
 
         /// <summary>
+        /// Returns <paramref name="proxy"/>'s named selections in the order their
+        /// <c>cloth_vertex_set_&lt;name&gt;</c> streams have to be written. A dynamic node's
+        /// <c>m_DynNodeVertexSet</c> slot goes to the FIRST stream among those painting it at its maximum weight, so
+        /// a selection some node of this sheet records as its winner has to precede every selection covering that
+        /// node at the same weight. The compiled <c>m_VertexMaps</c> array is name-hash sorted and keeps no trace of
+        /// the authored order, so the winners are the only record of it.
+        /// <para>
+        /// The proxy's own order is returned unchanged where the constraints hold a cycle, where the original states
+        /// no per-node winner at all, or where its winner is a selection this sheet does not paint.
+        /// </para>
+        /// </summary>
+        public string[] VertexSetStreamOrder(ProxyMesh proxy)
+        {
+            var names = proxy.VertexMaps.Select(static map => map.Name).ToArray();
+            if (names.Length < 2 || DynNodeVertexSet.Length == 0)
+            {
+                return names;
+            }
+
+            var nameOfHash = new Dictionary<uint, string>(VertexMaps.Count);
+            foreach (var map in VertexMaps)
+            {
+                nameOfHash.TryAdd(map.NameHash, map.Name);
+            }
+
+            var constraints = new List<(string Winner, string Rival)>();
+            for (var vertex = 0; vertex < proxy.NodeIndices.Length; vertex++)
+            {
+                var dynamic = proxy.NodeIndices[vertex] - StaticNodeCount;
+                if (dynamic < 0 || dynamic >= DynNodeVertexSet.Length)
+                {
+                    continue;
+                }
+
+                var set = DynNodeVertexSet[dynamic];
+                if (set >= VertexSetNames.Length
+                    || !nameOfHash.TryGetValue(VertexSetNames[set], out var winner))
+                {
+                    continue;
+                }
+
+                var top = 0f;
+                foreach (var (_, weights) in proxy.VertexMaps)
+                {
+                    if (vertex < weights.Length)
+                    {
+                        top = MathF.Max(top, weights[vertex]);
+                    }
+                }
+
+                if (top <= 0f)
+                {
+                    continue;
+                }
+
+                var winnerCovers = false;
+                var rivals = new List<string>();
+                foreach (var (mapName, weights) in proxy.VertexMaps)
+                {
+                    if (vertex >= weights.Length || weights[vertex] < top)
+                    {
+                        continue;
+                    }
+
+                    if (mapName == winner)
+                    {
+                        winnerCovers = true;
+                    }
+                    else
+                    {
+                        rivals.Add(mapName);
+                    }
+                }
+
+                if (!winnerCovers)
+                {
+                    continue;
+                }
+
+                foreach (var rival in rivals)
+                {
+                    constraints.Add((winner, rival));
+                }
+            }
+
+            return OrderByFirstWriterWins(names, constraints);
+        }
+
+        // `names` reordered so every (winner before rival) constraint holds, keeping the given order among names
+        // nothing separates, or `names` unchanged where the constraints hold a cycle.
+        internal static string[] OrderByFirstWriterWins(IReadOnlyList<string> names,
+            IReadOnlyList<(string Winner, string Rival)> constraints)
+        {
+            var incoming = new Dictionary<string, HashSet<string>>(names.Count, StringComparer.Ordinal);
+            foreach (var name in names)
+            {
+                incoming[name] = [];
+            }
+
+            foreach (var (winner, rival) in constraints)
+            {
+                if (winner != rival && incoming.ContainsKey(winner) && incoming.TryGetValue(rival, out var before))
+                {
+                    before.Add(winner);
+                }
+            }
+
+            var ordered = new List<string>(names.Count);
+            var placed = new HashSet<string>(StringComparer.Ordinal);
+            while (ordered.Count < names.Count)
+            {
+                var next = names.FirstOrDefault(name => !placed.Contains(name)
+                    && incoming[name].All(placed.Contains));
+                if (next is null)
+                {
+                    return [.. names];
+                }
+
+                ordered.Add(next);
+                placed.Add(next);
+            }
+
+            return [.. ordered];
+        }
+
+        /// <summary>
         /// Gets the names of the selections the original registers over NO vertex at all - an
         /// <c>m_VertexMaps</c> record carrying a name with <c>nVertexCount</c> 0. The compiler registers the name of
         /// every <c>cloth_vertex_set_&lt;name&gt;</c> stream it reads and gives the selection only the vertices whose
