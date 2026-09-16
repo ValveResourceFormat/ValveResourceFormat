@@ -150,6 +150,16 @@ partial class ModelExtract
 
             var name0 = springName.GetValueOrDefault(edge.Item1) ?? names[edge.Item1];
             var name1 = springName.GetValueOrDefault(edge.Item2) ?? names[edge.Item2];
+
+            // The source element keeps the two corners in the order the spring named them, which for a
+            // spring reaching a chain joint is not the rod's own node order.
+            if ((!declared.Contains(edge.Item1) || !declared.Contains(edge.Item2))
+                && Array.IndexOf(feModel.SourceSprings, (edge.Item2, edge.Item1)) >= 0
+                && Array.IndexOf(feModel.SourceSprings, (edge.Item1, edge.Item2)) < 0)
+            {
+                (name0, name1) = (name1, name0);
+            }
+
             var first = rods[0];
 
             if (IsUnrecordedJointTie(feModel, edge, rods, springName))
