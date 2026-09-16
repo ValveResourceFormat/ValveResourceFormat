@@ -7350,6 +7350,53 @@ namespace Tests
             }
         }
 
+        /// <summary>
+        /// A selection the original registers over NO vertex - an <c>m_VertexMaps</c> record with a name and
+        /// <c>nVertexCount</c> 0 - is one the export has to re-paint as an all-zero <c>cloth_vertex_set</c> stream, since the
+        /// compiler registers a stream's name and then admits only the vertices whose weight clears its floor. The fixture is
+        /// three records on one sheet. CONTROLS: a record WITH vertices is not one of these (it is painted from its own weights),
+        /// and a zero-vertex record with no name is not either (there is no stream to name).
+        /// </summary>
+        [Test]
+        public async Task ASelectionRegisteredOverNoVertexIsNamedByAnAllZeroPaint()
+        {
+            var feModel = SelectionsOverNoVertex;
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(feModel.ZeroVertexSelectionNames.Count).IsEqualTo(1);
+                await Assert.That(feModel.ZeroVertexSelectionNames[0]).IsEqualTo("ghost");
+                await Assert.That(feModel.VertexMaps.Count).IsEqualTo(3);
+                await Assert.That(feModel.ZeroVertexSelectionNames.Contains("real")).IsFalse();
+            }
+        }
+
+        // One sheet carrying three m_VertexMaps records: 'ghost' named with no vertices, 'real' with two, and an unnamed record
+        // with no vertices. m_VertexMapValues holds only 'real''s run, which is what a zero-vertex record looks like compiled.
+        private static FeModel SelectionsOverNoVertex => SyntheticCloth.Parse("""
+            {
+                m_CtrlName = [ "bone_0", "$cloth_m0p0", "$cloth_m0p1", "$cloth_m0p2" ]
+                m_SkelParents = [ -1, 0, 0, 0 ]
+                m_nNodeCount = 4
+                m_nStaticNodes = 2
+                m_NodeInvMasses = [ 0.0, 0.0, 1.0, 1.0 ]
+                m_InitPose =
+                [
+                    [ 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0 ],
+                    [ 1.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0 ],
+                    [ 1.0, 0.0, -8.0, 1.0, 0.0, 0.0, 0.0, 1.0 ],
+                    [ 1.0, 0.0, -16.0, 1.0, 0.0, 0.0, 0.0, 1.0 ],
+                ]
+                m_VertexMapValues = [ 255, 255 ]
+                m_VertexMaps =
+                [
+                    { sName = "ghost" nNameHash = 2018973841 nVertexBase = 0 nVertexCount = 0 nMapOffset = 0 nNodeListOffset = 0 nNodeListCount = 0 flVolumetricSolveStrength = 0.0 nScaleSourceNode = -1 },
+                    { sName = "real" nNameHash = 2081852616 nVertexBase = 2 nVertexCount = 2 nMapOffset = 0 nNodeListOffset = 0 nNodeListCount = 2 flVolumetricSolveStrength = 0.0 nScaleSourceNode = -1 },
+                    { sName = "" nNameHash = 0 nVertexBase = 0 nVertexCount = 0 nMapOffset = 0 nNodeListOffset = 0 nNodeListCount = 0 flVolumetricSolveStrength = 0.0 nScaleSourceNode = -1 },
+                ]
+            }
+            """);
+
         // Two proxy sheets over one two-bone chain. Mesh 0's vertices 2 and 3 are the fit targets; mesh 1's vertex 4 carries a two-bone
         // authored paint (bone_1 0.75, bone_2 0.25) in the offset network and no fit entry, and its vertex 5 is single-bound. The hole
         // carries the fit arrays, which is what decides whether mesh 1 is named by a fit range at all.

@@ -3668,6 +3668,16 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         public IReadOnlyList<VertexMap> VertexMaps { get; private set; } = [];
 
         /// <summary>
+        /// Gets the names of the selections the original registers over NO vertex at all - an
+        /// <c>m_VertexMaps</c> record carrying a name with <c>nVertexCount</c> 0. The compiler registers the name of
+        /// every <c>cloth_vertex_set_&lt;name&gt;</c> stream it reads and gives the selection only the vertices whose
+        /// weight clears its epsilon floor, so an all-zero stream is what reproduces such a record; a selection
+        /// rebuilt from the vertex-set registration instead of read from <c>m_VertexMaps</c> always has members and
+        /// never appears here.
+        /// </summary>
+        public IReadOnlyList<string> ZeroVertexSelectionNames { get; private set; } = [];
+
+        /// <summary>
         /// The name a selection recovered from <see cref="VertexSetNames"/> is exported under. Only the
         /// hash of the authored name survives compilation, so the name is made up; the export paints this
         /// name and references it from the same effects and joints, which is what pairs the two back up.
@@ -4465,6 +4475,9 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             }
 
             VertexMaps = vertexMaps;
+            ZeroVertexSelectionNames = [.. vertexMaps
+                .Where(static map => map.VertexCount == 0 && map.Name.Length > 0)
+                .Select(static map => map.Name)];
 
             // TODO: the self-rods dropped below (nNode = [i, i]) come from an older compiler and are not
             // authorable on the current one, which refuses a ClothSpring with equal endpoints.

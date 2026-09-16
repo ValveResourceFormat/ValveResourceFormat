@@ -438,6 +438,29 @@ partial class ModelExtract
             }
         }
 
+        // A selection the original registers over NO vertex at all still ships as an m_VertexMaps record carrying
+        // its name. The compiler registers the name of every cloth_vertex_set stream it reads and gives the
+        // selection only the vertices whose weight clears its epsilon floor, so an all-zero stream reproduces the
+        // record. It goes on the first exported sheet alone: one stream is what registers the name.
+        if (physAggregateData?.FeModel is { } ghostFeModel
+            && ClothProxyMeshesToExtract.Count > 0 && ClothProxyMeshesToExtract[0].Proxy == proxy)
+        {
+            var painted = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var (mapName, _weights) in proxy.VertexMaps)
+            {
+                painted.Add(mapName);
+            }
+
+            foreach (var mapName in ghostFeModel.ZeroVertexSelectionNames)
+            {
+                if (!painted.Contains(mapName) && !containerMaps.Contains(mapName))
+                {
+                    vertexData.AddIndexedStream("cloth_vertex_set_" + mapName + "$0",
+                        new float[vertexCount], vertexIndices);
+                }
+            }
+        }
+
         // Per-vertex stray radius: how far a simulated vertex may leave its animated position
         // (m_AnimStrayRadii). Without the stream the whole array compiles away.
         if (physAggregateData?.FeModel?.RecoverStrayRadiusPaint(proxy) is { } strayRadius)
