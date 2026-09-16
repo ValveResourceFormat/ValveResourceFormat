@@ -540,6 +540,7 @@ partial class ModelExtract
             AddClothFollowBones(softbodyChildren, feModel, clothBones);
             AddClothCollisionShapes(softbodyChildren, feModel);
             AddClothEffects(softbodyChildren, feModel, AvailableVertexMaps(feModel, boneChains));
+            AddShapeParentDefaultClothNodes(softbodyChildren, feModel);
             rootChildren.Add(softbody);
             AddClothAntiTunnelProbes(rootChildren, feModel, proxyNodeNames: null);
             return true;

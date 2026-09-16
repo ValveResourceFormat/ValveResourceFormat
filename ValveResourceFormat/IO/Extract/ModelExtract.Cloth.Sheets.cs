@@ -698,6 +698,7 @@ partial class ModelExtract
         AddClothAntiTunnelGroup(softbodyChildren, feModel, shapeNames,
             [.. ClothProxyMeshesToExtract.Select(static proxy => proxy.Name)]);
         AddClothEffects(softbodyChildren, feModel, AvailableVertexMaps(feModel, independentChains));
+        AddShapeParentDefaultClothNodes(softbodyChildren, feModel);
 
         rootChildren.Add(softbody);
         AddClothAntiTunnelProbes(rootChildren, feModel, proxyNodeNameMap);

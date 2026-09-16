@@ -417,6 +417,84 @@ partial class ModelExtract
         }
     }
 
+    /// <summary>The <c>goal_strength</c> a <c>ClothNode</c> declared without one compiles.</summary>
+    const float ClothNodeDefaultGoalStrength = 0.6f;
+
+    /// <summary>The <c>goal_damping</c> a <c>ClothNode</c> declared without one compiles.</summary>
+    const float ClothNodeDefaultGoalDamping = 0.3f;
+
+    /// <summary>How far a recovered goal attribute or gravity may sit from a <c>ClothNode</c> default and still read as it.</summary>
+    const float ClothNodeDefaultTolerance = 1e-3f;
+
+    /// <summary>
+    /// Declares a bare static <c>ClothNode</c> on every collision-shape parent bone whose compiled goal pair and gravity are
+    /// the defaults such a node compiles, where nothing the document already declares carries them: no static
+    /// <c>ClothNode</c> and no <c>ClothChain</c> joint names the bone. A shape registers its parent bone with no goal
+    /// attraction, and so does a sheet anchor, so those defaults on a shape parent come from a declaration of its own. One
+    /// declared after the bone is registered compiles the same integrator and leaves every other key, node order included,
+    /// as it was. It runs after <see cref="AddClothEffects"/>, whose own static nodes it leaves alone.
+    /// </summary>
+    internal static void AddShapeParentDefaultClothNodes(KVObject softbodyChildren, FeModel feModel)
+    {
+        var chainJoints = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        CollectChainJointNames(softbodyChildren, chainJoints);
+
+        var bones = new List<(int Node, string Bone)>();
+        foreach (var bone in CollisionShapeParentBones(feModel))
+        {
+            if (bone is null || chainJoints.Contains(bone) || FindStaticClothNode(softbodyChildren, bone) is not null)
+            {
+                continue;
+            }
+
+            var node = Array.IndexOf(feModel.CtrlNames, bone);
+            if (node >= 0 && feModel.IsStatic(node) && CompilesClothNodeDefaults(feModel, node))
+            {
+                bones.Add((node, bone));
+            }
+        }
+
+        foreach (var (_, bone) in bones.OrderBy(static entry => entry.Node))
+        {
+            softbodyChildren.Add(MakeNode("ClothNode", ("name", bone), ("cloth_node_root_bone", bone),
+                ("is_static_node", true)));
+        }
+    }
+
+    static bool CompilesClothNodeDefaults(FeModel feModel, int node)
+    {
+        var integrator = feModel.GetIntegrator(node);
+        return integrator.PointDamping == 0f
+            && MathF.Abs(integrator.Gravity - ClothSourceBaseGravity) <= ClothNodeDefaultTolerance
+            && MathF.Abs(feModel.GoalStrengthPaint(integrator.ForceAttraction) - ClothNodeDefaultGoalStrength)
+                <= ClothNodeDefaultTolerance
+            && MathF.Abs(feModel.GoalDampingPaint(integrator.ForceAttraction, integrator.VertexAttraction)
+                - ClothNodeDefaultGoalDamping) <= ClothNodeDefaultTolerance;
+    }
+
+    static void CollectChainJointNames(KVObject children, HashSet<string> joints)
+    {
+        foreach (var (_, child) in children)
+        {
+            if (child.GetStringProperty("_class") == "ClothChain" && child.TryGetValue("chain", out var chain)
+                && chain.TryGetValue("joints", out var list))
+            {
+                foreach (var (_, joint) in list)
+                {
+                    if (joint.GetStringProperty("joint_name") is { Length: > 0 } name)
+                    {
+                        joints.Add(name);
+                    }
+                }
+            }
+
+            if (child.TryGetValue("children", out var nested))
+            {
+                CollectChainJointNames(nested, joints);
+            }
+        }
+    }
+
     /// <summary>
     /// Adds every selection the document already declares: a <c>ClothVertexMap</c> container by its name, and each
     /// <c>ClothChain</c> joint's <c>vertex_map</c> entries by their bare names.
