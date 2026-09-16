@@ -890,7 +890,8 @@ partial class ModelExtract
     /// <paramref name="relaxSetters"/> only a hinge some rod has as its sole candidate is solved exactly and every other hinge
     /// only has to reach its bound. The answer is kept only where it reproduces every rod: across each rod's hinges
     /// the smallest assigned sum above the one that hinge states is zero, so no hinge folds further than the rod allows
-    /// and one of them folds as far. <paramref name="unpaintedSlack"/> and <paramref name="solvedSlack"/> are the largest amount any
+    /// and one of them folds as far, and a rod already at its rest span has no hinge assigned less than the sum it states
+    /// there. <paramref name="unpaintedSlack"/> and <paramref name="solvedSlack"/> are the largest amount any
     /// rod misses that by, with no paint and with the answer; both are zero without <paramref name="generatorBound"/>.
     /// </summary>
     static Dictionary<int, float>? ClothBendStiffnessFromHinges(FeModel feModel, List<int[]> faces,
@@ -908,13 +909,14 @@ partial class ModelExtract
             var worst = 0f;
             foreach (var (_, _, capped, _, candidates) in readings)
             {
-                if (capped || candidates.Length == 0)
+                if (candidates.Length == 0)
                 {
                     continue;
                 }
 
-                worst = MathF.Max(worst, MathF.Abs(candidates.Min(candidate =>
-                    assigned(candidate.Hinge) - StatedSum(candidate.Fraction))));
+                worst = MathF.Max(worst, capped
+                    ? candidates.Max(candidate => StatedSum(candidate.Fraction) - assigned(candidate.Hinge))
+                    : MathF.Abs(candidates.Min(candidate => assigned(candidate.Hinge) - StatedSum(candidate.Fraction))));
             }
 
             return worst;
@@ -993,14 +995,22 @@ partial class ModelExtract
             unpaintedSlack = RodSlack(static _ => 0f);
         }
 
-        // A rod already at its own rest span states a bound whichever hinge it was matched to, and the
+        // A rod already at its own rest span states a bound through every hinge that generates it, and each
         // hinge has to satisfy the greatest of them or that rod comes back short of its cap.
-        foreach (var (hinge, fraction, capped, _, _) in readings)
+        foreach (var (_, _, capped, _, candidates) in readings)
         {
-            var least = capped ? StatedSum(fraction) : 0f;
-            if (capped && (!bounds.TryGetValue(hinge, out var known) || least > known))
+            if (!capped)
             {
-                bounds[hinge] = least;
+                continue;
+            }
+
+            foreach (var (hinge, candidateFraction) in candidates)
+            {
+                var least = StatedSum(candidateFraction);
+                if (!bounds.TryGetValue(hinge, out var known) || least > known)
+                {
+                    bounds[hinge] = least;
+                }
             }
         }
 
