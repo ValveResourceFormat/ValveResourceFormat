@@ -1,4 +1,4 @@
-using ValveResourceFormat.Particles.Utils;
+using ValveResourceFormat.Utils;
 
 namespace ValveResourceFormat.Particles.Initializers
 {
@@ -22,7 +22,7 @@ namespace ValveResourceFormat.Particles.Initializers
             // The control point orientation is a forward direction; zero means unset, so keep the default normal.
             if (orientation != Vector3.Zero)
             {
-                particle.Normal = ParticleMath.Normalize(orientation);
+                particle.Normal = MathUtils.SafeNormalize(orientation);
             }
 
             return particle;

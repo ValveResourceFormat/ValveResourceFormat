@@ -1,4 +1,4 @@
-using ValveResourceFormat.Particles.Utils;
+using ValveResourceFormat.Utils;
 
 namespace ValveResourceFormat.Particles.PreEmissionOperators
 {
@@ -28,7 +28,7 @@ namespace ValveResourceFormat.Particles.PreEmissionOperators
             // The whole axis is replaced when its x is zero, so a pure Y axis rotates about Z
             var axis = authoredAxis.X == 0f
                 ? Vector3.UnitZ
-                : ParticleMath.Normalize(authoredAxis);
+                : MathUtils.SafeNormalize(authoredAxis);
 
             if (localCP > -1)
             {

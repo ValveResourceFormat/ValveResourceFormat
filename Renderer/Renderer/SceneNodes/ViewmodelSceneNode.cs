@@ -744,8 +744,6 @@ public class ViewmodelSceneNode : ModelSceneNode
     {
         LoadItemAnimations();
 
-        AnimationController.EnableFirstPersonConstraints = true;
-
         SetState(AnimationState.Idle);
         TargetTransform = Transform;
 
@@ -783,7 +781,6 @@ public class ViewmodelSceneNode : ModelSceneNode
                 .Except(armsMaterials)
         );
 
-        Legs.AnimationController.TwistConstraints = [];
         Legs.AnimationController.Looping = true;
 
         foreach (var posture in Enum.GetValues<Posture>())

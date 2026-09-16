@@ -1,4 +1,4 @@
-using ValveResourceFormat.Particles.Utils;
+using ValveResourceFormat.Utils;
 
 namespace ValveResourceFormat.Particles.Operators
 {
@@ -28,7 +28,7 @@ namespace ValveResourceFormat.Particles.Operators
             var authoredAxis = rotationAxis.NextVector(particleSystemState);
 
             // The whole axis is replaced when its x is zero, so a pure Y axis rotates about Z
-            var axis = authoredAxis.X == 0f ? Vector3.UnitZ : ParticleMath.Normalize(authoredAxis);
+            var axis = authoredAxis.X == 0f ? Vector3.UnitZ : MathUtils.SafeNormalize(authoredAxis);
 
             var transform = transformInput.NextTransform(particleSystemState);
 

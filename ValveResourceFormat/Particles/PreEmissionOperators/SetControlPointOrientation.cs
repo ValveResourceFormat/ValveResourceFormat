@@ -1,5 +1,5 @@
-using ValveResourceFormat.Particles.Utils;
 using ValveResourceFormat.ResourceTypes;
+using ValveResourceFormat.Utils;
 
 namespace ValveResourceFormat.Particles.PreEmissionOperators
 {
@@ -64,7 +64,7 @@ namespace ValveResourceFormat.Particles.PreEmissionOperators
                 var referenceOrientation = particleSystemState.GetControlPoint(headLocation).Orientation;
                 if (referenceOrientation != Vector3.Zero)
                 {
-                    targetOrientation = ParticleMath.Normalize(targetOrientation + referenceOrientation);
+                    targetOrientation = MathUtils.SafeNormalize(targetOrientation + referenceOrientation);
                 }
             }
 
@@ -74,7 +74,7 @@ namespace ValveResourceFormat.Particles.PreEmissionOperators
 
             if (outputOrientation != Vector3.Zero)
             {
-                outputOrientation = ParticleMath.Normalize(outputOrientation);
+                outputOrientation = MathUtils.SafeNormalize(outputOrientation);
             }
 
             particleSystemState.SetControlPointOrientation(cp, outputOrientation);

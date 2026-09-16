@@ -1,4 +1,4 @@
-using ValveResourceFormat.Particles.Utils;
+using ValveResourceFormat.Utils;
 
 namespace ValveResourceFormat.Particles.Operators
 {
@@ -38,7 +38,7 @@ namespace ValveResourceFormat.Particles.Operators
 
                 if (normalizedOutput && value != Vector3.Zero)
                 {
-                    value = ParticleMath.Normalize(value);
+                    value = MathUtils.SafeNormalize(value);
                 }
 
                 particle.SetVector(outputField, value);

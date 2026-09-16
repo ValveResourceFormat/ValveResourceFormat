@@ -1,21 +1,27 @@
-using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.ResourceTypes.ModelAnimation;
 
 namespace ValveResourceFormat.Renderer
 {
     public partial class AnimationController
     {
-        /// <summary>
-        /// Gets or sets the tilt-twist skeleton constraints. These are not yet evaluated at runtime;
-        /// only hardcoded first-person viewmodel constraints are currently applied (see <see cref="ApplyConstraints"/>).
-        /// </summary>
-        public TiltTwistConstraint[] TwistConstraints { get; set; } = [];
+        private float[] constrainedFlexValues = [];
 
         /// <summary>Gets or sets whether first-person legs mode is enabled (zeros bones from spine_0 and up, keeping the pelvis and legs).</summary>
         internal bool EnableFirstPersonLegs { get; set; }
 
-        /// <summary>Gets or sets whether viewmodel-specific twist constraints should be applied.</summary>
-        internal bool EnableFirstPersonConstraints { get; set; }
+        /// <summary>Gets or sets whether the bone constraints are evaluated after each pose update.</summary>
+        public bool EnableConstraints { get; set; } = true;
+
+        /// <summary>Gets or sets the bone constraints evaluated on the pose after each update.</summary>
+        public BoneConstraintSolver? BoneConstraints { get; set; }
+
+        /// <summary>
+        /// Gets the flex controller values of the current frame with the morph driving constraints applied,
+        /// or the frame's own values when no constraint writes morphs.
+        /// </summary>
+        public float[]? FlexValues => BoneConstraints is { WritesMorphs: true } && AnimationFrame != null
+            ? constrainedFlexValues
+            : AnimationFrame?.Datas;
 
         /// <summary>
         /// Applies inverse kinematics to the current pose.
@@ -44,50 +50,27 @@ namespace ValveResourceFormat.Renderer
         }
 
         /// <summary>
-        /// Applies twist constraints to the current pose. Currently only hardcoded first-person
-        /// viewmodel arm-twist constraints are applied (when <see cref="EnableFirstPersonConstraints"/>
-        /// is set); the configured <see cref="TwistConstraints"/> array is not yet evaluated.
+        /// Evaluates the bone constraints on the current pose, and the morph driving ones on the frame's flex controller values.
         /// </summary>
         public void ApplyConstraints()
         {
-            if (TwistConstraints.Length == 0)
+            if (BoneConstraints is not { Count: > 0 } || !EnableConstraints)
             {
                 return;
             }
 
-            // todo: evaluate model constraints dynamically
+            var datas = AnimationFrame?.Datas ?? [];
+            var length = Math.Max(datas.Length, flexControllers.Length);
 
-            if (EnableFirstPersonConstraints)
+            if (constrainedFlexValues.Length != length)
             {
-                var skeleton = Skeleton;
-                var pose = Pose.AsSpan();
-
-                EvaluateViewmodelConstraints(skeleton, pose);
+                constrainedFlexValues = new float[length];
             }
-        }
 
-        private static void EvaluateViewmodelConstraints(Skeleton skeleton, Span<Matrix4x4> pose)
-        {
-            Span<(string Target, string Twist, string Twist1)> constraints =
-            [
-                ("hand_r", "arm_lower_r_twist", "arm_lower_r_twist1"),
-                //("arm_lower_r", "arm_upper_r_twist", "arm_upper_r_twist1"),
+            Array.Clear(constrainedFlexValues);
+            datas.CopyTo(constrainedFlexValues, 0);
 
-                ("hand_l", "arm_lower_l_twist", "arm_lower_l_twist1"),
-                //("arm_lower_l", "arm_upper_l_twist", "arm_upper_l_twist1"),
-            ];
-
-            foreach (var constraint in constraints)
-            {
-                var target = skeleton[constraint.Target];
-                var twist = skeleton[constraint.Twist];
-                var twist1 = skeleton[constraint.Twist1];
-
-                if (target != null && twist1 != null)
-                {
-                    ApplyTwistIK(pose, target, twist, twist1);
-                }
-            }
+            BoneConstraints.Evaluate(Pose, constrainedFlexValues);
         }
 
         private static void ZeroBoneAndChildren(Span<Matrix4x4> pose, Bone bone)
@@ -105,38 +88,6 @@ namespace ValveResourceFormat.Renderer
             foreach (var child in bone.Children)
             {
                 ZeroBoneAndChildren(pose, child);
-            }
-        }
-
-        private static void ApplyTwistIK(Span<Matrix4x4> pose, Bone hand, Bone? twist, Bone twist1)
-        {
-            if (hand.Parent == null)
-            {
-                return;
-            }
-
-            // Extract hand local rotation and calculate twist rotation
-            Matrix4x4.Invert(pose[hand.Parent.Index], out var handParentInverse);
-            var handLocal = pose[hand.Index] * handParentInverse;
-            Matrix4x4.Decompose(handLocal, out _, out var handRotation, out _);
-            var handTwistAngle = float.DegreesToRadians(EntityTransformHelper.ToEulerAngles(handRotation).Z);
-            var handTwist = Quaternion.CreateFromAxisAngle(Vector3.UnitX, handTwistAngle - 1.45f);
-            handTwist = Quaternion.Slerp(Quaternion.Identity, handTwist, 1f);
-            var handTwistMatrix = Matrix4x4.CreateFromQuaternion(handTwist);
-
-            // Apply in local space: local = world * inv(parent), new world = (local * twist) * parent
-            if (twist1.Parent != null)
-            {
-                Matrix4x4.Invert(pose[twist1.Parent.Index], out var parentInverse);
-                var local = pose[twist1.Index] * parentInverse;
-                pose[twist1.Index] = local * handTwistMatrix * pose[twist1.Parent.Index];
-            }
-
-            if (twist != null && twist.Parent != null)
-            {
-                Matrix4x4.Invert(pose[twist.Parent.Index], out var parentInverse);
-                var local = pose[twist.Index] * parentInverse;
-                pose[twist.Index] = local * handTwistMatrix * pose[twist.Parent.Index];
             }
         }
     }

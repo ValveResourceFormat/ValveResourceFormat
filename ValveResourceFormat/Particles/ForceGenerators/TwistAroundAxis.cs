@@ -1,4 +1,5 @@
 using ValveResourceFormat.Particles.Utils;
+using ValveResourceFormat.Utils;
 
 namespace ValveResourceFormat.Particles.ForceGenerators;
 
@@ -47,7 +48,7 @@ class TwistAroundAxis : ParticleFunctionForceGenerator
                 continue;
             }
 
-            var direction = ParticleMath.Normalize(delta);
+            var direction = MathUtils.SafeNormalize(delta);
             var alignment = 1f - Vector3.Dot(direction, axis);
 
             if (alignment * alignment <= ParticleMath.MinimumLengthSquared)

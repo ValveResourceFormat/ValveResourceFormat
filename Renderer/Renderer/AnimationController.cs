@@ -34,6 +34,7 @@ namespace ValveResourceFormat.Renderer
         public Matrix4x4[] Pose { get; }
 
         private readonly AnimationPlayer modelPlayer;
+        private readonly FlexController[] flexControllers;
         private readonly Dictionary<string, ExternalSkeleton> externalSkeletons = [];
 
         // The player producing the current pose; playback members forward to it.
@@ -148,6 +149,7 @@ namespace ValveResourceFormat.Renderer
         public AnimationController(Skeleton skeleton, FlexController[] flexControllers)
         {
             Skeleton = skeleton;
+            this.flexControllers = flexControllers;
             BindPose = ComputeBindPose(skeleton);
             InverseBindPose = new Matrix4x4[skeleton.Bones.Length];
             Pose = BindPose.AsSpan().ToArray();

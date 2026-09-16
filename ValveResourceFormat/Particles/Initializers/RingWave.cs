@@ -1,4 +1,4 @@
-using ValveResourceFormat.Particles.Utils;
+using ValveResourceFormat.Utils;
 
 namespace ValveResourceFormat.Particles.Initializers
 {
@@ -68,7 +68,7 @@ namespace ValveResourceFormat.Particles.Initializers
 
             // Initial speed pushes outward, along the line from the transform to where the particle
             // actually landed, so the thickness offset tilts the direction as well as the position.
-            var outward = ParticleMath.Normalize(particle.Position - transform.Translation);
+            var outward = MathUtils.SafeNormalize(particle.Position - transform.Translation);
 
             if (xyVelocityOnly)
             {

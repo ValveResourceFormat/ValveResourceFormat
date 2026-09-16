@@ -56,6 +56,49 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
         public readonly Vector3 ScaleVector => new(Scale);
 
         /// <summary>
+        /// Reads a transform with uniform scale from a matrix.
+        /// </summary>
+        public static FrameBone FromMatrix(in Matrix4x4 matrix)
+        {
+            Matrix4x4.Decompose(matrix, out var scale, out var rotation, out var translation);
+            return new(translation, scale.X, rotation);
+        }
+
+        /// <summary>Converts to a matrix.</summary>
+        public readonly Matrix4x4 ToMatrix()
+        {
+            var matrix = Matrix4x4.CreateFromQuaternion(Angle);
+            if (Scale != 1f)
+            {
+                matrix *= Matrix4x4.CreateScale(Scale);
+            }
+
+            matrix.Translation = Position;
+            return matrix;
+        }
+
+        /// <summary>
+        /// Composes a transform expressed in this one's space onto it, flipping the local rotation's sign
+        /// to our hemisphere.
+        /// </summary>
+        public readonly FrameBone Concat(FrameBone local)
+        {
+            var angle = Quaternion.Dot(Angle, local.Angle) < 0f ? -local.Angle : local.Angle;
+            return new(TransformPoint(local.Position), Scale * local.Scale, Angle * angle);
+        }
+
+        /// <summary>Gets the inverse transform.</summary>
+        public readonly FrameBone Inverse()
+        {
+            var angle = Quaternion.Inverse(Angle);
+            var scale = 1f / Scale;
+            return new(Vector3.Transform(-Position, angle) * scale, scale, angle);
+        }
+
+        /// <summary>Transforms a point by this transform.</summary>
+        public readonly Vector3 TransformPoint(Vector3 point) => Position + Vector3.Transform(point * Scale, Angle);
+
+        /// <summary>
         /// Blends to the target transform normally.
         /// </summary>
         public readonly FrameBone Blend(FrameBone target, float t)

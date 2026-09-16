@@ -1,4 +1,4 @@
-using ValveResourceFormat.Particles.Utils;
+using ValveResourceFormat.Utils;
 
 namespace ValveResourceFormat.Particles.Operators
 {
@@ -32,7 +32,7 @@ namespace ValveResourceFormat.Particles.Operators
 
                 if (normalize)
                 {
-                    cross = ParticleMath.Normalize(cross);
+                    cross = MathUtils.SafeNormalize(cross);
                 }
 
                 particle.SetVector(fieldOutput, cross);

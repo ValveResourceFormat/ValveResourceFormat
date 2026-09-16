@@ -78,6 +78,18 @@ namespace ValveResourceFormat.Utils
         }
 
         /// <summary>
+        /// Scales <paramref name="value"/> to unit length, returning <see cref="Vector3.Zero"/> for a
+        /// vector with no length rather than the NaN a plain divide would give.
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static Vector3 SafeNormalize(Vector3 value)
+        {
+            var lengthSquared = value.LengthSquared();
+
+            return lengthSquared == 0f ? Vector3.Zero : value / MathF.Sqrt(lengthSquared);
+        }
+
+        /// <summary>
         /// Swaps <paramref name="min"/> and <paramref name="max"/> if <paramref name="min"/> > <paramref name="max"/>.
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

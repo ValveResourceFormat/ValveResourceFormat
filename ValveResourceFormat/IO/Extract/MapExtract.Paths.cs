@@ -6,6 +6,7 @@ using ValveResourceFormat.Particles.Utils;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization.KeyValues;
 using static ValveResourceFormat.ResourceTypes.EntityLump;
+using ValveResourceFormat.Utils;
 
 namespace ValveResourceFormat.IO;
 
@@ -73,10 +74,10 @@ public sealed partial class MapExtract
             var inThird = Vector3.Distance(node, previous) / 3f;
             var outThird = Vector3.Distance(next, node) / 3f;
 
-            var inLinear = SameHandle(nodes[i].InTangent, ParticleMath.Normalize(previous - node) * inThird);
-            var inSpline = SameHandle(nodes[i].InTangent, ParticleMath.Normalize(previous - next) * inThird);
-            var outLinear = SameHandle(nodes[i].OutTangent, ParticleMath.Normalize(next - node) * outThird);
-            var outSpline = SameHandle(nodes[i].OutTangent, ParticleMath.Normalize(next - previous) * outThird);
+            var inLinear = SameHandle(nodes[i].InTangent, MathUtils.SafeNormalize(previous - node) * inThird);
+            var inSpline = SameHandle(nodes[i].InTangent, MathUtils.SafeNormalize(previous - next) * inThird);
+            var outLinear = SameHandle(nodes[i].OutTangent, MathUtils.SafeNormalize(next - node) * outThird);
+            var outSpline = SameHandle(nodes[i].OutTangent, MathUtils.SafeNormalize(next - previous) * outThird);
 
             allLinear &= inLinear && outLinear;
             allSpline &= inSpline && outSpline;

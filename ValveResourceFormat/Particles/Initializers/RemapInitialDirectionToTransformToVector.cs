@@ -1,4 +1,5 @@
 using ValveResourceFormat.Particles.Utils;
+using ValveResourceFormat.Utils;
 
 namespace ValveResourceFormat.Particles.Initializers
 {
@@ -64,7 +65,7 @@ namespace ValveResourceFormat.Particles.Initializers
                 // comes out pointing along the transform's third axis rather than staying at zero
                 direction.Z += ParticleMath.FloatEpsilon;
 
-                direction = ParticleMath.Normalize(direction);
+                direction = MathUtils.SafeNormalize(direction);
             }
 
             particle.SetVector(fieldOutput, direction * scale);

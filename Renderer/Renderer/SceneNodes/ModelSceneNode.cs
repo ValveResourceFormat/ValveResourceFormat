@@ -98,12 +98,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
 
             SetCharacterEyeRenderParams();
             Attachments = model.Attachments;
-            AnimationController.TwistConstraints = TiltTwistConstraint.ReadList(model);
-
-            dotToMorphConstraints = ParseDotToMorphConstraints(model);
-            dotToMorphValues = dotToMorphConstraints.Length > 0
-                ? new float[Math.Max(model.FlexControllers.Length, AnimationController.AnimationFrame?.Datas.Length ?? 0)]
-                : [];
+            AnimationController.BoneConstraints = new BoneConstraintSolver(model);
 
             // GetAttachmentOrSelfTransform already falls back to this node's own world Transform for an empty/
             // unmatched name - AnimationController.Transform is not it (see its doc comment), so route through here.
@@ -214,25 +209,17 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         }
 
         /// <summary>
-        /// Pushes the frame's flex controller values to every mesh that morphs, with the bone driven
-        /// morphs layered on top.
+        /// Pushes the frame's flex controller values, with the constraint driven morphs applied, to every mesh that morphs.
         /// </summary>
         private void UpdateFlexControllers()
         {
-            var datas = AnimationController.AnimationFrame!.Datas;
+            var datas = AnimationController.FlexValues!;
 
             foreach (var renderableMesh in RenderableMeshes)
             {
                 if (renderableMesh.FlexStateManager == null)
                 {
                     continue;
-                }
-
-                if (dotToMorphConstraints.Length > 0)
-                {
-                    datas.CopyTo(dotToMorphValues, 0);
-                    ApplyDotToMorphConstraints(dotToMorphConstraints, dotToMorphValues);
-                    datas = dotToMorphValues;
                 }
 
                 if (renderableMesh.FlexStateManager.SetControllerValues(datas))
