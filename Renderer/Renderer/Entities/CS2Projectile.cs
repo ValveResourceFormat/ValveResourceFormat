@@ -1,3 +1,4 @@
+using Box3D;
 using ValveResourceFormat.Particles;
 using ValveResourceFormat.Renderer.Particles.Renderers;
 using ValveResourceFormat.Renderer.SceneNodes;
@@ -45,6 +46,17 @@ public sealed class CS2Projectile : BaseEntity
     private const float FireStillSpeed = 5f;
     private const float FireStillDetonateTime = 0.5f;
     private const float FireExpireTime = 2f;
+
+    // The HE blast's push on props: full strength out to the core radius, dying away over the
+    // falloff, roughly the grenade's 350 unit damage radius in total. The impulse is per unit
+    // of exposed shape area, sized for prop masses in kilograms: light bottles fly, a 60 kg
+    // planter rocks.
+    private const float ExplosionPushRadius = 96f;
+    private const float ExplosionPushFalloff = 250f;
+    private const float ExplosionPushImpulse = 20f;
+
+    // What the grenade weighs to a prop it lands on, in the rigid body world's mass units
+    private const float GrenadeMass = 0.45f;
 
     private const string EntitiesLayerName = "Entities";
     private const string ThrownAnimation = "thrown";
@@ -290,6 +302,12 @@ public sealed class CS2Projectile : BaseEntity
 
         Sound.Play(detonateSound, Origin);
 
+        // The blast shoves the props around it, Source's radius push
+        if (Kind == GrenadeKind.Explosive)
+        {
+            EntitySystem.PhysicsOrNull?.Explode(Origin, ExplosionPushRadius, ExplosionPushFalloff, ExplosionPushImpulse);
+        }
+
         StopFlightEffect();
 
         // The smoke grenade model stays visible inside its own smoke; the others vanish into the effect
@@ -375,6 +393,34 @@ public sealed class CS2Projectile : BaseEntity
 
         entities?.TraceAABB(from, to, HullHalfExtents, detectStartSolid: false, ref trace);
 
+        // Dynamic props live only in the rigid body world; the prop-only mask keeps this from
+        // sweeping the static world a second time. The ray has no hull, so the hit backs off by
+        // the hull radius instead.
+        if (entities?.PhysicsOrNull is { } rigidBodies)
+        {
+            var moveLength = (to - from).Length();
+
+            if (moveLength > 0.0001f)
+            {
+                var propHit = rigidBodies.World.RaycastClosest(from, to - from,
+                    new QueryFilter(PhysicsSimulation.PlayerCategory, PhysicsSimulation.PropCategory));
+
+                if (propHit.Hit)
+                {
+                    var propDistance = MathF.Max(propHit.Fraction * moveLength - HullHalfExtents.X, 0f);
+
+                    if (!trace.Hit || propDistance < trace.Distance)
+                    {
+                        trace.Hit = true;
+                        trace.IsValid = true;
+                        trace.Distance = propDistance;
+                        trace.HitNormal = propHit.Normal;
+                        trace.HitEntity = rigidBodies.GetOwner(propHit.Shape.Body);
+                    }
+                }
+            }
+        }
+
         if (!trace.Hit || !trace.IsValid)
         {
             return trace;
@@ -405,6 +451,12 @@ public sealed class CS2Projectile : BaseEntity
         }
 
         var impactSpeed = MathF.Abs(Vector3.Dot(Velocity, trace.HitNormal));
+
+        // Landing on a prop passes the grenade's momentum on, so a bottle it clips gets knocked
+        if (trace.HitEntity is PropPhysics { HasBody: true } prop)
+        {
+            prop.Body.ApplyImpulse(Velocity * GrenadeMass, trace.HitPosition, wake: true);
+        }
 
         var elasticity = Math.Clamp(GrenadeElasticity, 0f, 0.9f);
         var bounced = ClipVelocity(Velocity, trace.HitNormal, 2f) * elasticity;

@@ -296,6 +296,15 @@ public class ViewmodelSceneNode : ModelSceneNode
     // Both knife buttons share one timer, which a swing that connects pushes back further
     private const float KnifeHitDelay = 0.1f;
 
+    // What the weapons do to physics props: a bullet punches the first prop on its way, a
+    // connecting knife swing shoves what it hit. Impulses are in prop-mass units (roughly
+    // kilograms) times units per second: a rifle round blasts light props away and gives a
+    // 60 kg planter a solid 200 u/s shove.
+    private const float BulletRange = 8192f;
+    private const float RifleBulletImpulse = 12000f;
+    private const float PistolBulletImpulse = 6000f;
+    private const float KnifeImpulse = 25000f;
+
     // A missed line trace is retried with swept spheres shrinking from 14 to 2 units, each ending that much
     // short, keeping the smallest that still connects. We are currently missing sphere traces, so cubes stand in.
     private const float KnifeSweepMaxRadius = 14f;
@@ -328,23 +337,37 @@ public class ViewmodelSceneNode : ModelSceneNode
     // Returns whether a knife swing connected
     private bool PlayAttackSound(UserInput input, bool heavyKnifeAttack)
     {
+        var rigidBodies = Scene.EntitySystem.PhysicsOrNull;
+
         switch (SelectedItemIndex)
         {
             case 1:
                 Sound.Play(RifleAttackSound, volume: AttackSoundVolume);
+                rigidBodies?.ApplyImpactImpulse(input.Camera.Location, input.Camera.Forward, BulletRange, RifleBulletImpulse);
                 return false;
 
             case 2:
                 Sound.Play(PistolAttackSound, volume: AttackSoundVolume);
+                rigidBodies?.ApplyImpactImpulse(input.Camera.Location, input.Camera.Forward, BulletRange, PistolBulletImpulse);
                 return false;
 
             case KnifeItemIndex:
                 var camera = input.Camera;
                 var range = (heavyKnifeAttack ? KnifeHeavyRange : KnifeLightRange) + KnifeRangePadding;
 
+                // A swing can connect with a prop the world trace cannot see, and shoving it is a
+                // hit of its own
+                var hitProp = rigidBodies?.ApplyImpactImpulse(camera.Location, camera.Forward, range, KnifeImpulse) == true;
+
                 if (TraceKnifeSwing(input.PhysicsWorld, camera.Location, camera.Forward, range) is not { } hitPosition)
                 {
-                    return false;
+                    if (!hitProp)
+                    {
+                        return false;
+                    }
+
+                    Sound.Play(heavyKnifeAttack ? KnifeHeavyHitSound : KnifeLightHitSound);
+                    return true;
                 }
 
                 // this is played in-ear but i'd like to keep it positional
