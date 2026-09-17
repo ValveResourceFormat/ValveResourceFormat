@@ -95,6 +95,12 @@ public class UserInput
     public bool NoClip => !WalkMode;
 
     /// <summary>
+    /// Gets a value indicating whether mouse look mode is on: the mouse turns the camera without holding
+    /// a button.
+    /// </summary>
+    public bool MouseLook { get; private set; }
+
+    /// <summary>
     /// Gets a value indicating whether the walk mode crosshair should be drawn. The viewmodel already
     /// hides itself outside walk mode and while the camera is detached, so it decides; without one
     /// there is nothing to aim, so no crosshair.
@@ -278,6 +284,18 @@ public class UserInput
             }
         }
 
+        if (!WalkMode)
+        {
+            if (Pressed(TrackedKeys.R))
+            {
+                MouseLook = !MouseLook;
+            }
+            else if (MouseLook && Pressed(TrackedKeys.Escape))
+            {
+                MouseLook = false;
+            }
+        }
+
         if (wasWalking && !WalkMode)
         {
             MoveCamera(new Vector3(0, 0, 32), transition: true);
@@ -298,7 +316,7 @@ public class UserInput
         }
         else if (OrbitMode)
         {
-            HandleOrbitControls(deltaTime, keyboardState, WalkMode);
+            HandleOrbitControls(deltaTime, keyboardState, WalkMode || MouseLook);
         }
         else if (NoClip)
         {
@@ -480,7 +498,7 @@ public class UserInput
         Camera.Location = target - Camera.Forward * OrbitDistance;
     }
 
-    private void HandleOrbitControls(float deltaTime, TrackedKeys keyboardState, bool walking)
+    private void HandleOrbitControls(float deltaTime, TrackedKeys keyboardState, bool mouseLook)
     {
         var previousCamera = CameraPositionAngles;
 
@@ -493,7 +511,7 @@ public class UserInput
             Camera.Location += panOffset;
         }
 
-        if ((keyboardState & TrackedKeys.MouseLeft) != 0 || walking)
+        if ((keyboardState & TrackedKeys.MouseLeft) != 0 || mouseLook)
         {
             Camera.Yaw -= MouseDeltaPitchYaw.Y;
             Camera.Pitch += MouseDeltaPitchYaw.X;

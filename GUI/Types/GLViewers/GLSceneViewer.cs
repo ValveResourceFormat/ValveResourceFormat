@@ -318,7 +318,7 @@ namespace GUI.Types.GLViewers
         {
             base.OnMouseUp(sender, e);
 
-            if (Input.WalkMode)
+            if (Input.WalkMode || Input.MouseLook)
             {
                 return;
             }
@@ -335,7 +335,7 @@ namespace GUI.Types.GLViewers
 
             mouseReleased = false;
 
-            if (Input.WalkMode)
+            if (Input.WalkMode || Input.MouseLook)
             {
                 return;
             }
@@ -563,9 +563,9 @@ namespace GUI.Types.GLViewers
                     }
                 }
 
-                // Walk mode aims with the mouse, so it holds the cursor. Leaving walk mode, pausing,
-                // or pressing escape hands it back.
-                var wantsMouseLook = Input.WalkMode && !Paused && !mouseReleased;
+                // Walk mode and mouse look mode aim with the mouse, so they hold the cursor. Leaving
+                // both, pausing, or pressing escape hands it back.
+                var wantsMouseLook = (Input.WalkMode || Input.MouseLook) && !Paused && !mouseReleased;
 
                 // Taking the cursor needs it over the viewport, but keeping it does not, or a fast
                 // look that outran the pointer would drop the grab on its way past the edge.
@@ -1060,7 +1060,10 @@ namespace GUI.Types.GLViewers
             if (keyData == Keys.Escape)
             {
                 SelectedNodeRenderer.SelectNode(null);
-                mouseReleased = true;
+                if (Input.WalkMode)
+                {
+                    mouseReleased = true;
+                }
             }
 
             if (keyData == Keys.Tab && perfDisplayComboBox != null)
