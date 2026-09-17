@@ -77,6 +77,18 @@ public sealed class EntitySystem
     /// </summary>
     public WorldEntity? World { get; private set; }
 
+    /// <summary>
+    /// Gets the rigid body world, creating it on first use. The world loader pushes the static
+    /// geometry through here, physics props add their bodies, and <see cref="Tick"/> steps it.
+    /// </summary>
+    public PhysicsSimulation Physics => physics ??= new PhysicsSimulation(FileLoader);
+
+    /// <summary>
+    /// Gets the rigid body world if anything has created one, without creating it: the player's
+    /// pickup logic has nothing to do in a scene with no simulated physics.
+    /// </summary>
+    public PhysicsSimulation? PhysicsOrNull => physics;
+
     /// <summary>Gets the current simulation time in seconds, the engine's <c>curtime</c>.</summary>
     public float CurrentTime { get; private set; }
 
@@ -111,6 +123,7 @@ public sealed class EntitySystem
     private long sequence;
     private float tickAccumulator;
     private bool hasRemovedEntities;
+    private PhysicsSimulation? physics;
 
     /// <summary>
     /// Initializes an entity world. Prefer <see cref="Renderer.EntitySystem"/> over constructing one
@@ -383,6 +396,8 @@ public sealed class EntitySystem
         World = null;
         Player = null;
         activatedCount = 0;
+        physics?.Dispose();
+        physics = null;
         inputQueue.Clear();
         firedCounts.Clear();
         playerImpacts.Clear();
@@ -439,6 +454,12 @@ public sealed class EntitySystem
     {
         TickCount++;
         CurrentTime = TickCount * TickInterval;
+
+        // The rigid bodies move first, so every entity this tick reads settled poses: a physics
+        // prop adopts where its body landed, and what the entities do in response (the player's
+        // carry velocities, mostly) is what the next step integrates. Its time bills to the
+        // surrounding Entity System scope.
+        physics?.Step(TickInterval);
 
         for (var i = 0; i < entities.Count; i++)
         {

@@ -1,4 +1,5 @@
 using System.Linq;
+using Box3D;
 using Microsoft.Extensions.Logging;
 using ValveResourceFormat.Renderer.SceneNodes;
 using ValveResourceFormat.ResourceTypes;
@@ -45,6 +46,19 @@ public abstract class BaseModelEntity : BaseEntity
 
     /// <summary>Gets the model this entity loaded, or <see langword="null"/> when it names none or it failed to load.</summary>
     protected Model? LoadedModel { get; private set; }
+
+    /// <summary>
+    /// Whether this entity mirrors its collider into the rigid body world as a kinematic mover, so
+    /// props collide with it and a door swings them aside. A class that runs its own body - a
+    /// physics prop - turns this off.
+    /// </summary>
+    protected virtual bool UsesMoverBody => true;
+
+    // The kinematic mirror of the collider, and whether it currently collides; a mover the map
+    // makes non-solid takes its body along
+    private Body moverBody;
+    private bool hasMoverBody;
+    private bool moverBodyEnabled;
 
     /// <summary>
     /// Initializes a model entity from its keyvalues.
@@ -149,6 +163,18 @@ public abstract class BaseModelEntity : BaseEntity
             if (Scene.EntitiesCollide && BuildsCollider)
             {
                 Collider = new EntityCollider(physics);
+
+                // The same collision again as a kinematic body, so props collide with this entity and
+                // a moving one - a door - carries them with a real velocity
+                if (UsesMoverBody && !IsTrigger
+                    && EntitySystem.Physics.CreateMoverBody(physics, Origin,
+                        EntityTransformHelper.EulerAnglesToQuaternion(Angles)) is { } body)
+                {
+                    moverBody = body;
+                    hasMoverBody = true;
+                    moverBodyEnabled = true;
+                }
+
                 UpdateColliderTransform();
             }
 
@@ -171,6 +197,64 @@ public abstract class BaseModelEntity : BaseEntity
     /// either way. Read while the entity is constructed, so an override must not depend on its own state.
     /// </summary>
     protected virtual bool BuildsCollider => true;
+
+    /// <inheritdoc/>
+    protected override void UpdateColliderTransform()
+    {
+        base.UpdateColliderTransform();
+
+        if (!hasMoverBody)
+        {
+            return;
+        }
+
+        // Solidity the map toggles takes the body along, so a door made passable stops pushing
+        var shouldCollide = IsSolid && !IsTrigger && !IsRemoved;
+
+        if (shouldCollide != moverBodyEnabled)
+        {
+            moverBodyEnabled = shouldCollide;
+
+            if (shouldCollide)
+            {
+                moverBody.Enable();
+            }
+            else
+            {
+                moverBody.Disable();
+            }
+        }
+
+        if (!shouldCollide)
+        {
+            return;
+        }
+
+        var rotation = EntityTransformHelper.EulerAnglesToQuaternion(Angles);
+
+        // Moved with a velocity rather than teleported, so the solver sweeps props aside with the
+        // mover's real speed; a jump across the map is not a sweep, so that snaps instead
+        if (Vector3.DistanceSquared(moverBody.Position, Origin) > 256f * 256f)
+        {
+            moverBody.SetTransform(Origin, rotation);
+        }
+        else
+        {
+            moverBody.MoveTowards(Origin, rotation, EntitySystem.TickInterval, wake: true);
+        }
+    }
+
+    /// <inheritdoc/>
+    protected override void OnRemove()
+    {
+        base.OnRemove();
+
+        if (hasMoverBody)
+        {
+            moverBody.Destroy();
+            hasMoverBody = false;
+        }
+    }
 
     /// <summary>Tints the model with <c>"R G B"</c> in 0-255.</summary>
     [EntityInput("Color")]
