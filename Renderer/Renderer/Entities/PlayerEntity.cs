@@ -24,15 +24,25 @@ public sealed class PlayerEntity : BaseEntity
     private const float HoldDistance = 50f;
 
     // The shadow controller: the held body is asked to cover its pose error over SecondsToArrival,
-    // clamped to the speed caps, but its velocity may only change by the acceleration caps per
-    // second. Updating the solver's velocity with a bounded step - instead of overwriting it -
-    // is what makes contacts stick: a wall that zeroed the approach stays in charge, and the
-    // carry can only lean back in gently. The speed caps also set how hard a view flick throws.
+    // clamped to the speed caps. Free of contacts the chase is rigid - the velocity is set
+    // outright, so the prop rides the view with no trailing - but while something is touching
+    // the body, its velocity may only change by the acceleration caps per second. Updating the
+    // solver's velocity with a bounded step is what makes contacts stick: a wall that zeroed the
+    // approach stays in charge, and the carry can only lean back in gently. The speed caps also
+    // set how hard a view flick throws.
     private const float SecondsToArrival = 0.1f;
     private const float MaxCarrySpeed = 1000f;
     private const float MaxCarryAcceleration = 6000f;
     private const float MaxCarryAngularSpeed = 25f;
     private const float MaxCarryAngularAcceleration = 150f;
+
+    // Contacts are detected by what the solver did to last tick's command: gravity is off while
+    // carried, so a free body keeps exactly the velocity it was handed, and any difference is a
+    // contact's doing. The softness lingers briefly so a scraping carry does not flicker between
+    // the regimes at the tick rate.
+    private const float ContactVelocityTolerance = 5f;
+    private const float ContactAngularTolerance = 0.5f;
+    private const float CarrySoftDuration = 0.2f;
 
     // How long the prop may strain far from the hold pose before the player loses hold of it.
     // The window also covers the attach: a full-reach grab needs about a third of a second to
@@ -70,6 +80,12 @@ public sealed class PlayerEntity : BaseEntity
     // tracks a walking player without trailing by the servo's lag
     private Vector3 lastHoldPosition;
     private Quaternion lastHoldRotation;
+
+    // Last tick's commanded velocities and how much longer the chase stays soft, for the
+    // contact detection above
+    private Vector3 carryCommandedVelocity;
+    private Vector3 carryCommandedAngularVelocity;
+    private float carrySoftTime;
 
     /// <summary>
     /// Creates the player entity for a movement controller.
@@ -182,14 +198,13 @@ public sealed class PlayerEntity : BaseEntity
 
     /// <summary>
     /// The +USE carry, the way Half-Life 2's shadow controller holds what the player picks up: a
-    /// target velocity that would land the body on the hold pose, approached with a bounded
-    /// acceleration from whatever velocity the solver left the body with. The bound is the whole
-    /// design: a contact that stopped the prop stays stopped, because the carry may only lean the
-    /// velocity back toward the pose a step at a time - it can press, but never ram. Free of
-    /// obstacles the same servo converges smoothly onto the pose, which also covers the attach:
-    /// a grab far away accelerates over and eases in with no scripted glide. The body keeps its
-    /// steered velocity on release, so dropping mid-stride carries the player's motion and a view
-    /// flick is a throw.
+    /// target velocity that would land the body on the hold pose. Free of contacts it is handed
+    /// to the body outright, so the prop rides the view rigidly; while something touches the
+    /// body, the velocity may only change by a bounded acceleration from whatever the solver
+    /// left it with. The bound is what makes contacts stick: a wall that stopped the prop stays
+    /// in charge, because the carry can only lean back in a step at a time - it presses, never
+    /// rams. The body keeps its steered velocity on release, so dropping mid-stride carries the
+    /// player's motion and a view flick is a throw.
     /// </summary>
     private void UpdateCarry(float tickInterval)
     {
@@ -248,15 +263,26 @@ public sealed class PlayerEntity : BaseEntity
         lastHoldPosition = holdPosition;
         lastHoldRotation = holdRotation;
 
-        body.LinearVelocity = SteerVelocity(
+        var disturbed = (body.LinearVelocity - carryCommandedVelocity).Length() > ContactVelocityTolerance
+            || (body.AngularVelocity - carryCommandedAngularVelocity).Length() > ContactAngularTolerance;
+
+        carrySoftTime = disturbed ? CarrySoftDuration : MathF.Max(carrySoftTime - tickInterval, 0f);
+        var soft = carrySoftTime > 0f;
+
+        carryCommandedVelocity = SteerVelocity(
             body.LinearVelocity,
             holdPosition - body.Position, holdVelocity,
-            tickInterval, MaxCarrySpeed, MaxCarryAcceleration);
+            tickInterval, MaxCarrySpeed,
+            soft ? MaxCarryAcceleration : float.PositiveInfinity);
 
-        body.AngularVelocity = SteerVelocity(
+        carryCommandedAngularVelocity = SteerVelocity(
             body.AngularVelocity,
             RotationError(body.Rotation, holdRotation), holdAngularVelocity,
-            tickInterval, MaxCarryAngularSpeed, MaxCarryAngularAcceleration);
+            tickInterval, MaxCarryAngularSpeed,
+            soft ? MaxCarryAngularAcceleration : float.PositiveInfinity);
+
+        body.LinearVelocity = carryCommandedVelocity;
+        body.AngularVelocity = carryCommandedAngularVelocity;
     }
 
     // One axis of the shadow controller: the velocity that covers the error over SecondsToArrival
@@ -335,6 +361,9 @@ public sealed class PlayerEntity : BaseEntity
         // the player's hull
         CarriedProp = prop;
         carryStrainTime = 0f;
+        carrySoftTime = 0f;
+        carryCommandedVelocity = prop.Body.LinearVelocity;
+        carryCommandedAngularVelocity = prop.Body.AngularVelocity;
         prop.BeginCarry(this, HoldDistance + Vector3.Distance(hit.Point, prop.Body.CenterOfMass));
 
         // The feed-forward baseline: the hold pose as of the grab, so the first tick sees the
