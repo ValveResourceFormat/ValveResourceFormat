@@ -148,6 +148,17 @@ public sealed class PhysicsSimulation : IDisposable
     private const float DensityScale = 1f / (UnitsPerMeter * UnitsPerMeter * UnitsPerMeter);
 
     /// <summary>
+    /// The solver restitution a table elasticity maps to. The table's values are vphysics
+    /// flavored, not plain coefficients of restitution: weapons carry 0.95 and soda cans 0.99,
+    /// which taken raw are superballs - and the solver combines a contact's restitution by
+    /// taking the larger side, so one hot surface bounces off everything. Compressing through
+    /// e/(1+e) keeps the authored ordering while landing the hot end near a half, and the cap
+    /// leaves the authored metal_bouncy (1000) an honest trampoline.
+    /// </summary>
+    private static float ToRestitution(float elasticity)
+        => MathF.Min(elasticity / (1f + elasticity), 0.9f);
+
+    /// <summary>
     /// The shape properties a surface hash dictates: the table's friction, elasticity and density,
     /// and the hash itself riding along as the material id so a contact can find the surface again.
     /// </summary>
@@ -161,7 +172,7 @@ public sealed class PhysicsSimulation : IDisposable
             Material = PhysicsMaterial.Default with
             {
                 Friction = surface.Friction,
-                Restitution = surface.Elasticity,
+                Restitution = ToRestitution(surface.Elasticity),
                 UserMaterialId = surfaceHash,
             },
             Filter = new CollisionFilter(categories, ulong.MaxValue, 0),
@@ -285,7 +296,7 @@ public sealed class PhysicsSimulation : IDisposable
         return PhysicsMaterial.Default with
         {
             Friction = surface.Friction,
-            Restitution = surface.Elasticity,
+            Restitution = ToRestitution(surface.Elasticity),
             UserMaterialId = surfaceHash,
         };
     }
