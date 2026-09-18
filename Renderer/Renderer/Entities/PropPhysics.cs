@@ -60,22 +60,6 @@ public class PropPhysics : BaseModelEntity
     private Vector3 carryLocalMassCenter;
     private Quaternion carryRelativeRotation;
 
-    // The hold pose as the last two ticks saw it, so the drawing can subtract the tick-rate
-    // camera out of the tick-rate body pose and re-base what remains - the physical deviation -
-    // onto the live per-frame camera
-    private (Vector3 Position, Quaternion Rotation) carryTickHold;
-    private (Vector3 Position, Quaternion Rotation) carryTickHoldPrevious;
-
-    // The drawn deviation chases the measured one with this time constant, framerate
-    // independently. The filter is what keeps 64 Hz out of the picture: the measured deviation
-    // steps at the tick rate, the smoothed one cannot, and free carry decays it to zero so the
-    // prop rides the frame camera exactly.
-    private const float DeviationSmoothingTime = 0.05f;
-
-    // The smoothed deviation itself, persisted across frames
-    private Vector3 smoothedCarryDeviation;
-    private Quaternion smoothedCarryDeviationRotation = Quaternion.Identity;
-
     // The body's sleep state as of the last tick, for the OnAwakened edge
     private bool wasAwake;
 
@@ -145,18 +129,10 @@ public class PropPhysics : BaseModelEntity
 
         wasAwake = isAwake;
 
-        // The world stepped at the start of this tick; adopt the pose it produced. The entity's
-        // interpolation then draws the frames in between, and the collider follows so the player
-        // keeps colliding with the prop wherever it tumbles to.
+        // Adopt the pose the frame-stepped world has moved the body to, so the entity state and
+        // its collider follow the prop wherever it tumbles. The drawing does not wait for this:
+        // an awake body is drawn at its live pose every frame.
         SetOriginAndAngles(body.Position, EntityTransformHelper.ToEulerAngles(body.Rotation));
-
-        // The hold pose this tick saw, kept alongside the body pose it produced, so the drawing
-        // can tell how much of the body's pose is the camera and how much is physics
-        if (IsCarried)
-        {
-            carryTickHoldPrevious = carryTickHold;
-            carryTickHold = ComputeHoldPose();
-        }
     }
 
     /// <inheritdoc/>
@@ -202,12 +178,6 @@ public class PropPhysics : BaseModelEntity
         body.CanSleep = false;
         body.IsAwake = true;
 
-        carryTickHold = carryTickHoldPrevious = ComputeHoldPose();
-
-        // The drawn deviation starts as the real one - the prop is still standing wherever it
-        // was grabbed - and decays as the body flies in, which is the attach as the player sees it
-        smoothedCarryDeviation = body.Position - carryTickHold.Position;
-        smoothedCarryDeviationRotation = body.Rotation * Quaternion.Inverse(carryTickHold.Rotation);
     }
 
     /// <summary>
@@ -231,84 +201,50 @@ public class PropPhysics : BaseModelEntity
     /// <summary>
     /// Relaxes the grip part way toward the body's current orientation, for when the world is
     /// twisting the held prop away from the hold rotation: the twist gradually becomes the
-    /// carried orientation instead of an error the carry keeps fighting.
+    /// carried orientation instead of an error the carry keeps fighting. Only the chase target
+    /// moves - the drawing reads the body itself - so nothing visible jumps.
     /// </summary>
     /// <param name="fraction">How much of the way to the body's orientation the grip moves.</param>
     internal void AdoptCarryRotation(float fraction)
     {
         var view = ViewRotation(Carrier!.Controller.ViewAngles);
-        var oldRelative = carryRelativeRotation;
-        carryRelativeRotation = Quaternion.Slerp(oldRelative, Quaternion.Inverse(view) * body.Rotation, fraction);
 
-        // The recorded tick holds move with the grip, so the deviation the drawing subtracts
-        // shrinks by exactly what the grip absorbed and the rendered pose stays continuous
-        var gripChange = Quaternion.Inverse(oldRelative) * carryRelativeRotation;
-        carryTickHold.Rotation *= gripChange;
-        carryTickHoldPrevious.Rotation *= gripChange;
-
-        // The drawn deviation counter-rotates by the hold rotation's own move, so the relaxing
-        // grip does not read as motion: what it absorbed leaves the picture too
-        var counter = view * oldRelative * Quaternion.Inverse(carryRelativeRotation) * Quaternion.Inverse(view);
-        smoothedCarryDeviationRotation = Quaternion.Normalize(smoothedCarryDeviationRotation * counter);
+        carryRelativeRotation = Quaternion.Slerp(carryRelativeRotation,
+            Quaternion.Inverse(view) * body.Rotation, fraction);
     }
 
     /// <inheritdoc/>
-    protected override bool UpdatesRenderTransformEveryFrame => IsCarried;
+    protected override bool UpdatesRenderTransformEveryFrame => HasBody;
 
     /// <summary>
-    /// Draws the carried prop against the live camera instead of a tick behind it. The tick-rate
-    /// hold pose is subtracted out of the tick-rate body pose, leaving only the physical
-    /// deviation the solver imposed - the tracking lag, or a wall in the way - and that deviation
-    /// is re-based onto the hold pose of the frame's own camera. Held free, the deviation is near
-    /// zero and the prop is glued to the crosshair with no 64 Hz quantization; held against an
-    /// obstacle, the full deviation shows, changing only at tick rate and interpolated like any
-    /// other physics.
+    /// Draws an awake body at its live pose. The world steps with the rendered frame, so the
+    /// body's pose IS this frame's pose - there is nothing to interpolate and no tick rate to
+    /// see. A sleeping body has not moved since its tick state, which the base interpolation
+    /// draws exactly.
     /// </summary>
     protected override void UpdateRenderTransform(float fraction)
     {
-        if (!IsCarried)
+        if (HasBody && (IsCarried || body.IsAwake))
         {
-            base.UpdateRenderTransform(fraction);
+            SetRenderTransform(body.Position, body.Rotation);
             return;
         }
 
-        var (tickPosition, tickRotation) = InterpolateTickPose(fraction);
-        var holdPosition = Vector3.Lerp(carryTickHoldPrevious.Position, carryTickHold.Position, fraction);
-        var holdRotation = Quaternion.Slerp(carryTickHoldPrevious.Rotation, carryTickHold.Rotation, fraction);
-
-        // The FRAME'S camera, not the controller's: view smoothing and view punch sit between the
-        // input camera the carry steers by and the camera the frame is drawn with, and a hold pose
-        // computed from the wrong one leaves the prop trailing the view by exactly that gap
-        var (livePosition, liveRotation) = EntitySystem.RenderCamera is { } camera
-            ? ComputeHoldPose(camera.Location, camera.Forward, camera.GetQAngle())
-            : ComputeHoldPose();
-
-        // World-frame deviations: a prop pressed against a wall stays pressed against that wall
-        // while the camera keeps moving
-        var deviation = tickPosition - holdPosition;
-        var deviationRotation = tickRotation * Quaternion.Inverse(holdRotation);
-
-        // The physics only ever saw the camera at 64 Hz, so the measured deviation steps at the
-        // tick rate - the body chased last tick's hold pose, and a high-fps view changes speed
-        // every frame. The drawing follows a low-pass filtered copy instead: the tick staircase
-        // cannot pass the filter, free carry decays it to zero so the prop rides the frame
-        // camera exactly, and a real obstruction fades in over the time constant.
-        var alpha = 1f - MathF.Exp(-Math.Clamp(EntitySystem.FrameInterval, 0f, 0.1f) / DeviationSmoothingTime);
-
-        smoothedCarryDeviation = Vector3.Lerp(smoothedCarryDeviation, deviation, alpha);
-        smoothedCarryDeviationRotation = Quaternion.Slerp(smoothedCarryDeviationRotation, deviationRotation, alpha);
-
-        SetRenderTransform(
-            livePosition + smoothedCarryDeviation,
-            Quaternion.Normalize(smoothedCarryDeviationRotation) * liveRotation);
+        base.UpdateRenderTransform(fraction);
     }
 
     /// <summary>
-    /// Where the carried body belongs by the carrier's input camera, which is what the carry
-    /// steers the body toward on the tick.
+    /// Where the carried body belongs, by the camera the frame is drawn with when there is one:
+    /// view smoothing and view punch sit between the input camera and the drawn view, and a
+    /// carry steered by the wrong one trails the picture by exactly that gap.
     /// </summary>
     internal (Vector3 Position, Quaternion Rotation) ComputeHoldPose()
     {
+        if (EntitySystem.RenderCamera is { } camera)
+        {
+            return ComputeHoldPose(camera.Location, camera.Forward, camera.GetQAngle());
+        }
+
         var controller = Carrier!.Controller;
 
         return ComputeHoldPose(controller.EyePosition, controller.ViewForward, controller.ViewAngles);
