@@ -40,6 +40,13 @@ public sealed class PlayerEntity : BaseEntity
     private const float CarryBreakDistance = 64f;
     private const float CarryBreakTime = 0.5f;
 
+    // When the world twists the held prop more than 10 degrees away from the grip, the grip
+    // re-latches to the twisted orientation instead of fighting to twist back - but only while
+    // the view turns slower than this, because during a flick the same gap is just the servo
+    // catching up, and adopting it would bleed the turn out of the grip.
+    private const float CarryAdoptRotationError = 10f * MathF.PI / 180f;
+    private const float CarryAdoptViewQuiet = 2f;
+
     /// <summary>Gets the controller whose state this entity reflects.</summary>
     public IPlayerController Controller { get; }
 
@@ -225,6 +232,19 @@ public sealed class PlayerEntity : BaseEntity
         // flick hands the prop the flick's speed, which is the throw
         var holdVelocity = (holdPosition - lastHoldPosition) / tickInterval;
         var holdAngularVelocity = RotationError(lastHoldRotation, holdRotation) / tickInterval;
+
+        // The world re-shaping the grip: a contact that has twisted the prop well away from the
+        // hold rotation makes the twisted orientation the held one
+        if (holdAngularVelocity.Length() < CarryAdoptViewQuiet
+            && RotationError(body.Rotation, holdRotation).Length() > CarryAdoptRotationError)
+        {
+            prop.AdoptCarryRotation();
+            holdRotation = body.Rotation;
+
+            // The hold rotation jumping to the adopted grip is not motion to feed forward
+            holdAngularVelocity = Vector3.Zero;
+        }
+
         lastHoldPosition = holdPosition;
         lastHoldRotation = holdRotation;
 

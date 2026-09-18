@@ -213,6 +213,23 @@ public class PropPhysics : BaseModelEntity
         SnapInterpolation();
     }
 
+    /// <summary>
+    /// Re-latches the grip to the body's current orientation, for when the world has twisted the
+    /// held prop away from the hold rotation: the twist becomes the carried orientation instead
+    /// of an error the carry keeps fighting.
+    /// </summary>
+    internal void AdoptCarryRotation()
+    {
+        var oldRelative = carryRelativeRotation;
+        carryRelativeRotation = Quaternion.Inverse(ViewRotation(Carrier!.Controller.ViewAngles)) * body.Rotation;
+
+        // The recorded tick holds move with the grip, so the deviation the drawing subtracts
+        // shrinks by exactly what the grip absorbed and the rendered pose stays continuous
+        var gripChange = Quaternion.Inverse(oldRelative) * carryRelativeRotation;
+        carryTickHold.Rotation *= gripChange;
+        carryTickHoldPrevious.Rotation *= gripChange;
+    }
+
     /// <inheritdoc/>
     protected override bool UpdatesRenderTransformEveryFrame => IsCarried;
 
