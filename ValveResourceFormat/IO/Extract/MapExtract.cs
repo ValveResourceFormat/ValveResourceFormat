@@ -1589,6 +1589,22 @@ public sealed partial class MapExtract
         return uniformTint;
     }
 
+    /// <summary>
+    /// Tint of an aggregate fragment in gamma space, 0-255, with its alpha in W. The compiler stores the authored
+    /// color as is, and appends the render alpha to it when the fragment is not opaque.
+    /// </summary>
+    private static Vector4 GetFragmentTint(KVObject fragment)
+    {
+        if (!fragment.ContainsKey("m_vTintColor"))
+        {
+            return new Vector4(255f);
+        }
+
+        KVObject tint = fragment.GetSubCollection("m_vTintColor");
+
+        return tint.Count > 3 ? tint.ToVector4() : new Vector4(tint.ToVector3(), 255f);
+    }
+
     internal List<CMapMesh> PhysToHammerMeshes(PhysAggregateData phys, Vector3 positionOffset = new Vector3(), string? entityClassname = null)
     {
         var cMapMeshesToReturn = new List<CMapMesh>();
@@ -2003,22 +2019,22 @@ public sealed partial class MapExtract
                 }
 
                 // the fragment tint multiplies the draw call tint, one fragment per draw call is expected here
-                var fragmentTints = new Dictionary<int, Vector3>();
+                var fragmentTints = new Dictionary<int, Vector4>();
                 foreach (var fragment in aggregateMeshes)
                 {
                     if (fragment.ContainsKey("m_vTintColor"))
                     {
-                        fragmentTints.TryAdd(fragment.GetInt32Property("m_nDrawCallIndex"), fragment.GetSubCollection("m_vTintColor").ToVector3());
+                        fragmentTints.TryAdd(fragment.GetInt32Property("m_nDrawCallIndex"), GetFragmentTint(fragment));
                     }
                 }
 
                 Vector4 HammerMeshTint(int drawCallIndex)
                 {
-                    var tint = GetDrawCallTint(drawCalls[drawCallIndex]);
+                    Vector4 tint = GetDrawCallTint(drawCalls[drawCallIndex]);
 
                     if (fragmentTints.TryGetValue(drawCallIndex, out var fragmentTint))
                     {
-                        tint = new Vector4(fragmentTint * new Vector3(tint.X, tint.Y, tint.Z) / 255f, tint.W);
+                        tint = fragmentTint * tint / 255f;
                     }
 
                     return tint;
@@ -2038,19 +2054,11 @@ public sealed partial class MapExtract
                 var i = fragment.GetInt32Property("m_nDrawCallIndex");
                 var fragmentFlags = fragment.GetEnumValue<ObjectTypeFlags>("m_objectFlags", normalize: true);
 
-                var tint = Vector3.One * 255f;
-                var alpha = 255f;
+                Vector4 fragmentTint = GetFragmentTint(fragment);
+                Vector4 drawCallTint = GetDrawCallTint(drawCalls[i]) / 255f;
 
-                var drawCall = drawCalls[i];
-
-                if (fragment.ContainsKey("m_vTintColor"))
-                {
-                    tint = fragment.GetSubCollection("m_vTintColor").ToVector3();
-                }
-
-                var drawCallTint = GetDrawCallTint(drawCall) / 255f;
-                tint *= drawCallTint.AsVector3();
-                alpha *= drawCallTint.W;
+                Vector3 tint = fragmentTint.AsVector3() * drawCallTint.AsVector3();
+                float alpha = fragmentTint.W * drawCallTint.W;
 
                 var fragmentModelName = ModelExtract.GetFragmentModelName(modelName, i);
                 AssetReferences.Add(fragmentModelName);
