@@ -229,15 +229,16 @@ public class PropPhysics : BaseModelEntity
     }
 
     /// <summary>
-    /// Re-latches the grip to the body's current orientation, for when the world has twisted the
-    /// held prop away from the hold rotation: the twist becomes the carried orientation instead
-    /// of an error the carry keeps fighting.
+    /// Relaxes the grip part way toward the body's current orientation, for when the world is
+    /// twisting the held prop away from the hold rotation: the twist gradually becomes the
+    /// carried orientation instead of an error the carry keeps fighting.
     /// </summary>
-    internal void AdoptCarryRotation()
+    /// <param name="fraction">How much of the way to the body's orientation the grip moves.</param>
+    internal void AdoptCarryRotation(float fraction)
     {
         var view = ViewRotation(Carrier!.Controller.ViewAngles);
         var oldRelative = carryRelativeRotation;
-        carryRelativeRotation = Quaternion.Inverse(view) * body.Rotation;
+        carryRelativeRotation = Quaternion.Slerp(oldRelative, Quaternion.Inverse(view) * body.Rotation, fraction);
 
         // The recorded tick holds move with the grip, so the deviation the drawing subtracts
         // shrinks by exactly what the grip absorbed and the rendered pose stays continuous
@@ -245,8 +246,8 @@ public class PropPhysics : BaseModelEntity
         carryTickHold.Rotation *= gripChange;
         carryTickHoldPrevious.Rotation *= gripChange;
 
-        // The drawn deviation counter-rotates by the hold rotation's own jump, so the re-latch
-        // does not read as motion: what the grip absorbed leaves the picture too
+        // The drawn deviation counter-rotates by the hold rotation's own move, so the relaxing
+        // grip does not read as motion: what it absorbed leaves the picture too
         var counter = view * oldRelative * Quaternion.Inverse(carryRelativeRotation) * Quaternion.Inverse(view);
         smoothedCarryDeviationRotation = Quaternion.Normalize(smoothedCarryDeviationRotation * counter);
     }
