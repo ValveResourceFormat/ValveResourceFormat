@@ -976,10 +976,10 @@ public class ViewmodelSceneNode : ModelSceneNode
         => itemIndex >= 1 && itemIndex + 1 < ViewmodelResources.Length ? ViewmodelResources[itemIndex + 1] : null;
 
     // The weapon drop: how far ahead of the eyes the prop appears, its toss speed on top of the
-    // player's own motion, and the forward tumble it leaves the hand with
+    // player's own motion, and the flat spin it leaves the hand with
     private const float DropSpawnDistance = 24f;
     private const float DropTossSpeed = 250f;
-    private const float DropTumbleSpeed = 8f;
+    private const float DropSpinSpeed = 5f;
 
     /// <summary>
     /// Drops the held item as a physics prop, CS2's G: the weapon model spawns tossed ahead of
@@ -1003,7 +1003,10 @@ public class ViewmodelSceneNode : ModelSceneNode
         data.Add("classname", "prop_physics_override");
         data.Add("model", modelPath);
         data.Add("origin", FormattableString.Invariant($"{origin.X} {origin.Y} {origin.Z}"));
-        data.Add("angles", FormattableString.Invariant($"0 {float.RadiansToDegrees(camera.Yaw)} 0"));
+
+        // A quarter turn counter-clockwise off the view, so the weapon leaves the hand side-on
+        // to the player the way the game presents a dropped gun
+        data.Add("angles", FormattableString.Invariant($"0 {float.RadiansToDegrees(camera.Yaw) + 90f} 0"));
         data.Add("defaultanim", "dropped");
 
         var dropped = new PropPhysics(entities, new EntitySpawnInfo(data, Matrix4x4.Identity, "Entities", Scene));
@@ -1012,9 +1015,12 @@ public class ViewmodelSceneNode : ModelSceneNode
 
         if (dropped.HasBody)
         {
+            // Thrown as if shoved on the stock: the push at the rear end of a side-on weapon
+            // torques it flat about up, so it spins like a bottle rather than tumbling end
+            // over end
             var body = dropped.Body;
             body.LinearVelocity = camera.Forward * DropTossSpeed + input.Velocity;
-            body.AngularVelocity = camera.Right * -DropTumbleSpeed;
+            body.AngularVelocity = Vector3.UnitZ * DropSpinSpeed;
         }
 
         // The hands come back up with the same item, endless-armory style
