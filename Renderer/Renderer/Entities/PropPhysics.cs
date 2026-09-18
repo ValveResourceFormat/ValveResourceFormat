@@ -54,12 +54,6 @@ public class PropPhysics : BaseModelEntity
     /// <summary>Gets how far ahead of the eyes the mass center is held while carried.</summary>
     public float CarryDistance { get; private set; }
 
-    // The attach glide: how fast the grabbed prop flies to the hold pose, bounded so a close grab
-    // still eases and a far one does not take all day
-    private const float AttachSpeed = 900f;
-    private const float MinAttachDuration = 0.15f;
-    private const float MaxAttachDuration = 0.4f;
-
     // How close to the eyes the hold point may be pulled when a wall is in the way
     private const float MinHoldDistance = 16f;
 
@@ -68,13 +62,6 @@ public class PropPhysics : BaseModelEntity
     // was oriented relative to the view when grabbed
     private Vector3 carryLocalMassCenter;
     private Quaternion carryRelativeRotation;
-
-    // The attach glide's fixed end: where the body was grabbed, and when, so the carry pose can
-    // ease from there to the hold pose instead of yanking the prop over in one tick
-    private Vector3 carryStartPosition;
-    private Quaternion carryStartRotation;
-    private float carryStartTime;
-    private float carryAttachDuration;
 
     // Roughly how much room the prop needs, for the wall trace to leave in front of a hit
     private float carryBoundsRadius;
@@ -189,17 +176,7 @@ public class PropPhysics : BaseModelEntity
         CarryDistance = carryDistance;
         carryLocalMassCenter = body.LocalCenterOfMass;
         carryRelativeRotation = Quaternion.Inverse(ViewRotation(carrier.Controller.ViewForward)) * body.Rotation;
-
-        // The glide in: from where it stands now to the hold pose, over a time set by how far
-        // that is, so a distant grab pulls the prop over rather than teleporting it to hand
-        carryStartPosition = body.Position;
-        carryStartRotation = body.Rotation;
-        carryStartTime = EntitySystem.CurrentTime;
         carryBoundsRadius = body.Bounds.Extents.Length();
-
-        var (holdPosition, _) = ComputeHoldPose();
-        carryAttachDuration = Math.Clamp(Vector3.Distance(body.Position, holdPosition) / AttachSpeed,
-            MinAttachDuration, MaxAttachDuration);
 
         // Off the pushing body, so the held prop cannot wedge against its carrier
         SetCollidesWithPlayer(false);
@@ -224,36 +201,13 @@ public class PropPhysics : BaseModelEntity
     }
 
     /// <summary>
-    /// Where the carried body belongs at a moment in time: the hold pose in front of the eyes,
-    /// eased in from the grab pose while the attach glide is still running. Read per tick to steer
-    /// the body and per frame to draw it, so both follow the same live view.
+    /// Where the carried body belongs: the mass center on the eye ray, the grab orientation turned
+    /// with the view. The engine's grab controller traces the view and pulls the hold point in
+    /// front of whatever it hits, and so does this: a target that is never inside a wall is what
+    /// keeps the chase from pressing the prop through one. There is no attach glide - the carry's
+    /// bounded acceleration is what pulls a distant grab over smoothly.
     /// </summary>
-    /// <param name="time">The <see cref="EntitySystem.CurrentTime"/> moment to evaluate at.</param>
-    /// <returns>The body-origin position and rotation of the carry pose.</returns>
-    internal (Vector3 Position, Quaternion Rotation) ComputeCarryPose(float time)
-    {
-        var (position, rotation) = ComputeHoldPose();
-        var attach = Math.Clamp((time - carryStartTime) / carryAttachDuration, 0f, 1f);
-
-        if (attach >= 1f)
-        {
-            return (position, rotation);
-        }
-
-        // Smoothstep, so the glide leaves the grab gently and arrives gently
-        var ease = attach * attach * (3f - 2f * attach);
-
-        return (Vector3.Lerp(carryStartPosition, position, ease),
-            Quaternion.Slerp(carryStartRotation, rotation, ease));
-    }
-
-    /// <summary>
-    /// The hold pose alone: the mass center on the eye ray, the grab orientation turned with the
-    /// view. The engine's grab controller traces the view and pulls the hold point in front of
-    /// whatever it hits, and so does this: a target that is never inside a wall is what keeps the
-    /// rigid chase from pressing the prop through one.
-    /// </summary>
-    private (Vector3 Position, Quaternion Rotation) ComputeHoldPose()
+    internal (Vector3 Position, Quaternion Rotation) ComputeHoldPose()
     {
         var controller = Carrier!.Controller;
         var eyePosition = controller.EyePosition;
