@@ -286,7 +286,7 @@ public class UserInput
 
         if (!WalkMode)
         {
-            if (Pressed(TrackedKeys.R))
+            if (Pressed(TrackedKeys.Z))
             {
                 MouseLook = !MouseLook;
             }
@@ -678,16 +678,6 @@ public class UserInput
         if ((keyboardState & TrackedKeys.A) != 0)
         {
             targetVelocity -= Camera.Right * maxSpeed;
-        }
-
-        if ((keyboardState & TrackedKeys.Z) != 0)
-        {
-            targetVelocity += new Vector3(0, 0, -maxSpeed);
-        }
-
-        if ((keyboardState & TrackedKeys.Q) != 0)
-        {
-            targetVelocity += new Vector3(0, 0, maxSpeed);
         }
 
         // Apply acceleration or deceleration
