@@ -1046,6 +1046,7 @@ namespace GUI.Types.GLViewers
                 }
             };
 
+            Input.MouseLook = false;
             Program.MainForm.Invoke(() =>
             {
                 Program.MainForm.OpenFile(foundFile.Context, foundFile.PackageEntry);

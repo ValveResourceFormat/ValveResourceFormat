@@ -98,7 +98,7 @@ public class UserInput
     /// Gets a value indicating whether mouse look mode is on: the mouse turns the camera without holding
     /// a button.
     /// </summary>
-    public bool MouseLook { get; private set; }
+    public bool MouseLook { get; set; }
 
     /// <summary>
     /// Gets a value indicating whether the walk mode crosshair should be drawn. The viewmodel already

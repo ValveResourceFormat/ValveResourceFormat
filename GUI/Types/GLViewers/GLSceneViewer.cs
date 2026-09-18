@@ -323,7 +323,7 @@ namespace GUI.Types.GLViewers
                 return;
             }
 
-            if (!MouseDragged)
+            if (!MouseDragged || GrabbedMouse)
             {
                 Picker?.RequestNextFrame(InitialMousePosition.X, InitialMousePosition.Y, PickingIntent.Select);
             }
