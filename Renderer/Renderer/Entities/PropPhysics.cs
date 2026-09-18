@@ -60,6 +60,12 @@ public class PropPhysics : BaseModelEntity
     private Vector3 carryLocalMassCenter;
     private Quaternion carryRelativeRotation;
 
+    // The hold pose as the last two ticks saw it, so the drawing can subtract the tick-rate
+    // camera out of the tick-rate body pose and re-base what remains - the physical deviation -
+    // onto the live per-frame camera
+    private (Vector3 Position, Quaternion Rotation) carryTickHold;
+    private (Vector3 Position, Quaternion Rotation) carryTickHoldPrevious;
+
     // The body's sleep state as of the last tick, for the OnAwakened edge
     private bool wasAwake;
 
@@ -133,6 +139,14 @@ public class PropPhysics : BaseModelEntity
         // interpolation then draws the frames in between, and the collider follows so the player
         // keeps colliding with the prop wherever it tumbles to.
         SetOriginAndAngles(body.Position, EntityTransformHelper.ToEulerAngles(body.Rotation));
+
+        // The hold pose this tick saw, kept alongside the body pose it produced, so the drawing
+        // can tell how much of the body's pose is the camera and how much is physics
+        if (IsCarried)
+        {
+            carryTickHoldPrevious = carryTickHold;
+            carryTickHold = ComputeHoldPose();
+        }
     }
 
     /// <inheritdoc/>
@@ -177,6 +191,8 @@ public class PropPhysics : BaseModelEntity
         body.GravityScale = 0f;
         body.CanSleep = false;
         body.IsAwake = true;
+
+        carryTickHold = carryTickHoldPrevious = ComputeHoldPose();
     }
 
     /// <summary>
@@ -191,6 +207,42 @@ public class PropPhysics : BaseModelEntity
         body.GravityScale = 1f;
         body.CanSleep = true;
         body.IsAwake = true;
+
+        // Back to plain interpolation next frame; snapping the history trims the one-frame hop
+        // from the camera-glued pose to the tick-lagged one when dropped mid-stride
+        SnapInterpolation();
+    }
+
+    /// <inheritdoc/>
+    protected override bool UpdatesRenderTransformEveryFrame => IsCarried;
+
+    /// <summary>
+    /// Draws the carried prop against the live camera instead of a tick behind it. The tick-rate
+    /// hold pose is subtracted out of the tick-rate body pose, leaving only the physical
+    /// deviation the solver imposed - the tracking lag, or a wall in the way - and that deviation
+    /// is re-based onto the hold pose of the frame's own camera. Held free, the deviation is near
+    /// zero and the prop is glued to the crosshair with no 64 Hz quantization; held against an
+    /// obstacle, the full deviation shows, changing only at tick rate and interpolated like any
+    /// other physics.
+    /// </summary>
+    protected override void UpdateRenderTransform(float fraction)
+    {
+        if (!IsCarried)
+        {
+            base.UpdateRenderTransform(fraction);
+            return;
+        }
+
+        var (tickPosition, tickRotation) = InterpolateTickPose(fraction);
+        var holdPosition = Vector3.Lerp(carryTickHoldPrevious.Position, carryTickHold.Position, fraction);
+        var holdRotation = Quaternion.Slerp(carryTickHoldPrevious.Rotation, carryTickHold.Rotation, fraction);
+        var (livePosition, liveRotation) = ComputeHoldPose();
+
+        // World-frame deviations: a prop pressed against a wall stays pressed against that wall
+        // while the camera keeps moving
+        SetRenderTransform(
+            livePosition + (tickPosition - holdPosition),
+            tickRotation * Quaternion.Inverse(holdRotation) * liveRotation);
     }
 
     /// <summary>
