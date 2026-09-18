@@ -965,13 +965,24 @@ public class BaseEntity
     /// </remarks>
     protected virtual void UpdateRenderTransform(float fraction)
     {
+        var (origin, rotation) = InterpolateTickPose(fraction);
+
+        SetRenderTransform(origin, rotation);
+    }
+
+    /// <summary>
+    /// The pose between the last two tick states that plain interpolation draws at, for an
+    /// <see cref="UpdateRenderTransform"/> override that builds on it rather than replacing it.
+    /// </summary>
+    protected (Vector3 Origin, Quaternion Rotation) InterpolateTickPose(float fraction)
+    {
         var origin = Vector3.Lerp(previousOrigin, Origin, fraction);
         var rotation = Quaternion.Slerp(
             EntityTransformHelper.EulerAnglesToQuaternion(previousAngles),
             EntityTransformHelper.EulerAnglesToQuaternion(Angles),
             fraction);
 
-        SetRenderTransform(origin, rotation);
+        return (origin, rotation);
     }
 
     /// <summary>
