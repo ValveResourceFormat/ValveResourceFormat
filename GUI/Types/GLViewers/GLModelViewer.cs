@@ -927,6 +927,7 @@ namespace GUI.Types.GLViewers
                             }
                         };
 
+                        Input.MouseLook = false;
                         Program.MainForm.OpenFile(foundFile.Context, foundFile.PackageEntry);
                     }
                 }
