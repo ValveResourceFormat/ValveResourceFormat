@@ -981,7 +981,7 @@ public class ViewmodelSceneNode : ModelSceneNode
     private const float DropSpawnDistance = 24f;
     private const float DropSpawnBelowEyes = 10f;
     private const float DropTossSpeed = 300f;
-    private const float DropSpinSpeed = 5f;
+    private const float DropSpinSpeed = 2f;
 
     /// <summary>
     /// Drops the held item as a physics prop, CS2's G: the weapon model spawns tossed ahead of
