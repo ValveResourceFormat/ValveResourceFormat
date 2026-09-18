@@ -454,6 +454,9 @@ public sealed class PhysicsSimulation : IDisposable
     public BaseEntity? GetOwner(Body body)
         => bodyOwners.TryGetValue(body.UserData, out var owner) ? owner : null;
 
+    // 3V-6 edges at 40 vertices is 114, comfortably inside the solver's 128 edge budget
+    private const int ReducedHullVertexBudget = 40;
+
     private static ConvexHull? BuildHull(ReadOnlySpan<Vector3> points, Matrix4x4 pose)
     {
         if (points.Length < 4)
@@ -482,9 +485,23 @@ public sealed class PhysicsSimulation : IDisposable
         }
         catch (ArgumentException)
         {
-            // Degenerate (flat or tiny) input the quickhull cannot enclose; skip the hull rather
-            // than lose the whole aggregate
-            return null;
+            // The library's budget is 256 HALF-EDGES - the same order as RnHull's byte-indexed
+            // caps, so the authored hull always fit. But only the vertex positions survive the
+            // trip here, and the rebuild's quickhull splits coplanar faces the compiler had
+            // merged into n-gons: a rounded ~70 vertex hull comes back with more edges than its
+            // authored topology had. A convex hull has at most 3V-6 edges, so a 40 vertex retry
+            // is guaranteed to fit - the round shape simplifies slightly instead of vanishing
+            // from the world.
+            try
+            {
+                return ConvexHull.FromPoints(transformed, ReducedHullVertexBudget);
+            }
+            catch (ArgumentException)
+            {
+                // Degenerate (flat or tiny) input the quickhull cannot enclose; skip the hull
+                // rather than lose the whole aggregate
+                return null;
+            }
         }
     }
 
