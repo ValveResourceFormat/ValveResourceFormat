@@ -21,7 +21,7 @@ public sealed class PlayerEntity : BaseEntity
     // The +USE carry: how far the pickup trace reaches, and how far ahead of the mass center the
     // base hold point sits
     private const float PickupReach = 300f;
-    private const float HoldDistance = 45f;
+    private const float HoldDistance = 40f;
 
     // The shadow controller: the held body is asked for the velocity that lands it exactly on
     // this frame's hold pose - the world steps right after the ask, so this is neither lag nor
