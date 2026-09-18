@@ -50,12 +50,10 @@ public sealed class PlayerEntity : BaseEntity
     private const float CarryBreakDistance = 64f;
     private const float CarryBreakTime = 0.5f;
 
-    // When the world twists the held prop more than 10 degrees away from the grip, the grip
-    // re-latches to the twisted orientation instead of fighting to twist back - but only while
-    // the view turns slower than this, because during a flick the same gap is just the servo
-    // catching up, and adopting it would bleed the turn out of the grip.
-    private const float CarryAdoptRotationError = 10f * MathF.PI / 180f;
-    private const float CarryAdoptViewQuiet = 2f;
+    // While contacts are acting, the grip relaxes toward the orientation the world forces on the
+    // prop with this time constant, so a plank dragged along a doorframe rotates to fit and
+    // stays that way. Free carry never relaxes, which keeps view turns exact.
+    private const float GripRelaxTime = 0.25f;
 
     /// <summary>Gets the controller whose state this entity reflects.</summary>
     public IPlayerController Controller { get; }
@@ -248,26 +246,24 @@ public sealed class PlayerEntity : BaseEntity
         var holdVelocity = (holdPosition - lastHoldPosition) / tickInterval;
         var holdAngularVelocity = RotationError(lastHoldRotation, holdRotation) / tickInterval;
 
-        // The world re-shaping the grip: a contact that has twisted the prop well away from the
-        // hold rotation makes the twisted orientation the held one
-        if (holdAngularVelocity.Length() < CarryAdoptViewQuiet
-            && RotationError(body.Rotation, holdRotation).Length() > CarryAdoptRotationError)
-        {
-            prop.AdoptCarryRotation();
-            holdRotation = body.Rotation;
-
-            // The hold rotation jumping to the adopted grip is not motion to feed forward
-            holdAngularVelocity = Vector3.Zero;
-        }
-
-        lastHoldPosition = holdPosition;
-        lastHoldRotation = holdRotation;
-
         var disturbed = (body.LinearVelocity - carryCommandedVelocity).Length() > ContactVelocityTolerance
             || (body.AngularVelocity - carryCommandedAngularVelocity).Length() > ContactAngularTolerance;
 
         carrySoftTime = disturbed ? CarrySoftDuration : MathF.Max(carrySoftTime - tickInterval, 0f);
         var soft = carrySoftTime > 0f;
+
+        // The world re-shaping the grip: while contacts are acting, the grip continuously
+        // relaxes toward the orientation the world is forcing, rather than springing back
+        // forever. Continuous rather than threshold-triggered on purpose: a threshold re-latch
+        // fired repeatedly during a turn and stepped the prop's rotation in visible quanta.
+        if (soft)
+        {
+            prop.AdoptCarryRotation(1f - MathF.Exp(-tickInterval / GripRelaxTime));
+            (_, holdRotation) = prop.ComputeHoldPose();
+        }
+
+        lastHoldPosition = holdPosition;
+        lastHoldRotation = holdRotation;
 
         carryCommandedVelocity = SteerVelocity(
             body.LinearVelocity,
