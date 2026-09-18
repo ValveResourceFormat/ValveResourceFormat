@@ -959,28 +959,79 @@ public class ViewmodelSceneNode : ModelSceneNode
         }
     }
 
+    // The arms, the stattrak module, then the items in slot order; the item entries double as
+    // the models dropped weapons spawn with
+    private static readonly string[] ViewmodelResources = [
+        "agents/models/ctm_st6/ctm_st6_varianti.vmdl",
+        "weapons/models/shared/stattrak/stattrak_module.vmdl",
+        "weapons/models/m4a1_silencer/weapon_rif_m4a1_silencer.vmdl",
+        "weapons/models/usp_silencer/weapon_pist_usp_silencer.vmdl",
+        "weapons/models/knife/knife_karambit/weapon_knife_karambit.vmdl",
+        "weapons/models/grenade/smokegrenade/weapon_smokegrenade.vmdl",
+        "weapons/models/grenade/hegrenade/weapon_hegrenade.vmdl",
+        "weapons/models/grenade/molotov/weapon_molotov.vmdl",
+    ];
+
+    private static string? ItemModelPath(int itemIndex)
+        => itemIndex >= 1 && itemIndex + 1 < ViewmodelResources.Length ? ViewmodelResources[itemIndex + 1] : null;
+
+    // The weapon drop: how far ahead of the eyes the prop appears, its toss speed on top of the
+    // player's own motion, and the forward tumble it leaves the hand with
+    private const float DropSpawnDistance = 24f;
+    private const float DropTossSpeed = 250f;
+    private const float DropTumbleSpeed = 8f;
+
+    /// <summary>
+    /// Drops the held item as a physics prop, CS2's G: the weapon model spawns tossed ahead of
+    /// the view in its dropped ground state, and the hands draw the item anew. Being an ordinary
+    /// physics prop, the dropped weapon can be picked up with +USE, shot and blasted around.
+    /// </summary>
+    private void DropHeldItem(UserInput input)
+    {
+        if (ItemModelPath(SelectedItemIndex) is not { } modelPath)
+        {
+            return;
+        }
+
+        var entities = Scene.EntitySystem;
+        var camera = input.Camera;
+        var origin = camera.Location + camera.Forward * DropSpawnDistance;
+
+        // A synthesized prop_physics_override, as if the map had authored one here; defaultanim
+        // is the ground state the game's dropped weapons rest in
+        var data = new EntityLump.Entity { ParentLump = new EntityLump { Resource = new Resource() } };
+        data.Add("classname", "prop_physics_override");
+        data.Add("model", modelPath);
+        data.Add("origin", FormattableString.Invariant($"{origin.X} {origin.Y} {origin.Z}"));
+        data.Add("angles", FormattableString.Invariant($"0 {float.RadiansToDegrees(camera.Yaw)} 0"));
+        data.Add("defaultanim", "dropped");
+
+        var dropped = new PropPhysics(entities, new EntitySpawnInfo(data, Matrix4x4.Identity, "Entities", Scene));
+        dropped.Spawn();
+        entities.AddEntity(dropped);
+
+        if (dropped.HasBody)
+        {
+            var body = dropped.Body;
+            body.LinearVelocity = camera.Forward * DropTossSpeed + input.Velocity;
+            body.AngularVelocity = camera.Right * -DropTumbleSpeed;
+        }
+
+        // The hands come back up with the same item, endless-armory style
+        CancelGrenadeThrow();
+        deployTimeLeft = DeployDuration;
+        SetState(AnimationState.Draw);
+    }
+
     /// <summary>
     /// Try to load the CS2 viewmodel, returning null if the necessary resources are not found.
     /// </summary>
-    /// <param name="scene"></param>
-    /// <returns></returns>
     public static ViewmodelSceneNode? TryLoadCs2Viewmodel(Scene scene)
     {
         var loader = scene.RendererContext.FileLoader;
 
-        Span<string> resources = [
-            "agents/models/ctm_st6/ctm_st6_varianti.vmdl",
-            "weapons/models/shared/stattrak/stattrak_module.vmdl",
-            "weapons/models/m4a1_silencer/weapon_rif_m4a1_silencer.vmdl",
-            "weapons/models/usp_silencer/weapon_pist_usp_silencer.vmdl",
-            "weapons/models/knife/knife_karambit/weapon_knife_karambit.vmdl",
-            "weapons/models/grenade/smokegrenade/weapon_smokegrenade.vmdl",
-            "weapons/models/grenade/hegrenade/weapon_hegrenade.vmdl",
-            "weapons/models/grenade/molotov/weapon_molotov.vmdl",
-        ];
-
         List<Model> models = [];
-        foreach (var name in resources)
+        foreach (var name in ViewmodelResources)
         {
             var resource = loader.LoadFileCompiled(name);
             if (resource?.DataBlock is not Model model)
@@ -1384,6 +1435,10 @@ public class ViewmodelSceneNode : ModelSceneNode
         else if (input.Pressed(TrackedKeys.Q))
         {
             SelectPreviousItem();
+        }
+        else if (input.Pressed(TrackedKeys.G) && Deployed)
+        {
+            DropHeldItem(input);
         }
 
         if (input.Pressed(TrackedKeys.F) && CanInspect)
