@@ -105,6 +105,7 @@ public partial class GltfModelExporter
                     node.Extras = new System.Text.Json.Nodes.JsonObject
                     {
                         ["SurfaceProperty"] = surfaceProperty,
+                        ["CollisionGroup"] = collisionAttributes[collisionAttrIndex].GetStringProperty("m_CollisionGroupString"),
                         ["InteractAs"] = interactAsArray,
                     };
                 }
