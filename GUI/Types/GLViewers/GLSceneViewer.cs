@@ -73,8 +73,8 @@ namespace GUI.Types.GLViewers
         private PerfDisplay perfDisplay;
         private ComboBox? perfDisplayComboBox;
 
-        /// <summary>Set by escape to release the mouse in walk mode, cleared by clicking back into the viewport.</summary>
-        private bool mouseReleased;
+        /// <summary>Set by escape to release the mouse in walk mode or mouselook, cleared by clicking back into the viewport.</summary>
+        public bool MouseReleased { get; set; }
         private bool roundStarted;
 
         private readonly List<RenderModes.RenderMode> renderModes = new(RenderModes.Items.Count);
@@ -318,7 +318,7 @@ namespace GUI.Types.GLViewers
         {
             base.OnMouseUp(sender, e);
 
-            if (Input.WalkMode || Input.MouseLook)
+            if (Input.WalkMode)
             {
                 return;
             }
@@ -333,9 +333,9 @@ namespace GUI.Types.GLViewers
         {
             base.OnMouseDown(sender, e);
 
-            mouseReleased = false;
+            MouseReleased = false;
 
-            if (Input.WalkMode || Input.MouseLook)
+            if (Input.WalkMode)
             {
                 return;
             }
@@ -565,7 +565,7 @@ namespace GUI.Types.GLViewers
 
                 // Walk mode and mouse look mode aim with the mouse, so they hold the cursor. Leaving
                 // both, pausing, or pressing escape hands it back.
-                var wantsMouseLook = (Input.WalkMode || Input.MouseLook) && !Paused && !mouseReleased;
+                var wantsMouseLook = (Input.WalkMode || Input.MouseLook) && !Paused && !MouseReleased;
 
                 // Taking the cursor needs it over the viewport, but keeping it does not, or a fast
                 // look that outran the pointer would drop the grab on its way past the edge.
@@ -1062,7 +1062,7 @@ namespace GUI.Types.GLViewers
                 SelectedNodeRenderer.SelectNode(null);
                 if (Input.WalkMode)
                 {
-                    mouseReleased = true;
+                    MouseReleased = true;
                 }
             }
 

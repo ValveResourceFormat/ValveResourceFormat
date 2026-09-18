@@ -948,6 +948,8 @@ namespace GUI.Types.GLViewers
 
             if (pickingResponse.Intent == PickingIntent.Details)
             {
+                // temporarily release mouselook when opening entity details
+                MouseReleased = true;
                 Program.MainForm.Invoke(() =>
                 {
                     ShowSceneNodeDetails(sceneNode);
