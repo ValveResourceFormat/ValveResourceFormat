@@ -37,8 +37,11 @@ public sealed class PhysicsSimulation : IDisposable
     /// </summary>
     public const ulong MoverCategory = 8;
 
-    /// <summary>Solver sub-steps per tick, Box3D's recommended default.</summary>
-    private const int SubStepCount = 4;
+    /// <summary>
+    /// Solver sub-steps per step. The world steps once per rendered frame, so the steps are
+    /// already small; two sub-steps keep stacks stable without paying for four.
+    /// </summary>
+    private const int SubStepCount = 2;
 
     /// <summary>Gets the underlying Box3D world.</summary>
     public PhysicsWorld World { get; }

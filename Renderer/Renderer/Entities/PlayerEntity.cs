@@ -23,14 +23,13 @@ public sealed class PlayerEntity : BaseEntity
     private const float PickupReach = 300f;
     private const float HoldDistance = 50f;
 
-    // The shadow controller: the held body is asked to cover its pose error over SecondsToArrival,
-    // clamped to the speed caps. Free of contacts the chase is rigid - the velocity is set
-    // outright, so the prop rides the view with no trailing - but while something is touching
-    // the body, its velocity may only change by the acceleration caps per second. Updating the
-    // solver's velocity with a bounded step is what makes contacts stick: a wall that zeroed the
-    // approach stays in charge, and the carry can only lean back in gently. The speed caps also
-    // set how hard a view flick throws.
-    private const float SecondsToArrival = 0.1f;
+    // The shadow controller: the held body is asked for the velocity that lands it exactly on
+    // this frame's hold pose - the world steps right after the ask, so this is neither lag nor
+    // lead - clamped to the speed caps. Free of contacts the chase is rigid, the velocity set
+    // outright; while something is touching the body, its velocity may only change by the
+    // acceleration caps per second. Updating the solver's velocity with a bounded step is what
+    // makes contacts stick: a wall that zeroed the approach stays in charge, and the carry can
+    // only lean back in gently. The speed caps also set how hard a view flick throws.
     private const float MaxCarrySpeed = 1000f;
     private const float MaxCarryAcceleration = 6000f;
     private const float MaxCarryAngularSpeed = 25f;
@@ -74,12 +73,7 @@ public sealed class PlayerEntity : BaseEntity
     // tick or two, a wedged prop keeps it climbing until the carry gives up
     private float carryStrainTime;
 
-    // The hold pose as of the last tick, whose motion feeds forward into the chase so a held prop
-    // tracks a walking player without trailing by the servo's lag
-    private Vector3 lastHoldPosition;
-    private Quaternion lastHoldRotation;
-
-    // Last tick's commanded velocities and how much longer the chase stays soft, for the
+    // Last frame's commanded velocities and how much longer the chase stays soft, for the
     // contact detection above
     private Vector3 carryCommandedVelocity;
     private Vector3 carryCommandedAngularVelocity;
@@ -211,9 +205,11 @@ public sealed class PlayerEntity : BaseEntity
     /// rams. The body keeps its steered velocity on release, so dropping mid-stride carries the
     /// player's motion and a view flick is a throw.
     /// </summary>
-    private void UpdateCarry(float tickInterval)
+    private void UpdateCarry(float deltaTime)
     {
-        if (CarriedProp is not { } prop)
+        // A zero-length frame has no step to steer for, and dividing by it would hand the
+        // solver a NaN it can never recover from
+        if (deltaTime <= 1e-6f || CarriedProp is not { } prop)
         {
             return;
         }
@@ -234,7 +230,7 @@ public sealed class PlayerEntity : BaseEntity
         // will not let through gives up rather than grinding.
         if (Vector3.Distance(body.Position, holdPosition) > CarryBreakDistance)
         {
-            carryStrainTime += tickInterval;
+            carryStrainTime += deltaTime;
 
             if (carryStrainTime >= CarryBreakTime)
             {
@@ -247,16 +243,10 @@ public sealed class PlayerEntity : BaseEntity
             carryStrainTime = 0f;
         }
 
-        // How the hold pose itself moved this tick: fed forward so a prop carried by a walking,
-        // turning player rides along instead of trailing by the servo's catch-up lag - and a view
-        // flick hands the prop the flick's speed, which is the throw
-        var holdVelocity = (holdPosition - lastHoldPosition) / tickInterval;
-        var holdAngularVelocity = RotationError(lastHoldRotation, holdRotation) / tickInterval;
-
         var disturbed = (body.LinearVelocity - carryCommandedVelocity).Length() > ContactVelocityTolerance
             || (body.AngularVelocity - carryCommandedAngularVelocity).Length() > ContactAngularTolerance;
 
-        carrySoftTime = disturbed ? CarrySoftDuration : MathF.Max(carrySoftTime - tickInterval, 0f);
+        carrySoftTime = disturbed ? CarrySoftDuration : MathF.Max(carrySoftTime - deltaTime, 0f);
         var soft = carrySoftTime > 0f;
 
         // The world re-shaping the grip: while contacts are acting, the grip continuously
@@ -265,36 +255,34 @@ public sealed class PlayerEntity : BaseEntity
         // fired repeatedly during a turn and stepped the prop's rotation in visible quanta.
         if (soft)
         {
-            prop.AdoptCarryRotation(1f - MathF.Exp(-tickInterval / GripRelaxTime));
+            prop.AdoptCarryRotation(1f - MathF.Exp(-deltaTime / GripRelaxTime));
             (_, holdRotation) = prop.ComputeHoldPose();
         }
 
-        lastHoldPosition = holdPosition;
-        lastHoldRotation = holdRotation;
-
         carryCommandedVelocity = SteerVelocity(
             body.LinearVelocity,
-            holdPosition - body.Position, holdVelocity,
-            tickInterval, MaxCarrySpeed,
+            holdPosition - body.Position,
+            deltaTime, MaxCarrySpeed,
             soft ? MaxCarryAcceleration : float.PositiveInfinity);
 
         carryCommandedAngularVelocity = SteerVelocity(
             body.AngularVelocity,
-            RotationError(body.Rotation, holdRotation), holdAngularVelocity,
-            tickInterval, MaxCarryAngularSpeed,
+            RotationError(body.Rotation, holdRotation),
+            deltaTime, MaxCarryAngularSpeed,
             soft ? MaxCarryAngularAcceleration : float.PositiveInfinity);
 
         body.LinearVelocity = carryCommandedVelocity;
         body.AngularVelocity = carryCommandedAngularVelocity;
     }
 
-    // One axis of the shadow controller: the velocity that covers the error over SecondsToArrival
-    // on top of the target's own motion, speed-capped, approached from the current velocity by at
-    // most maxAcceleration in this tick
-    private static Vector3 SteerVelocity(Vector3 current, Vector3 error, Vector3 feedForward,
-        float tickInterval, float maxSpeed, float maxAcceleration)
+    // One axis of the shadow controller: the velocity that lands the body on the pose within the
+    // step about to run - no feed-forward on top, which extrapolated a frame ahead and made the
+    // held prop lead the view by one frame's motion - speed-capped, approached from the current
+    // velocity by at most maxAcceleration over the step
+    private static Vector3 SteerVelocity(Vector3 current, Vector3 error,
+        float deltaTime, float maxSpeed, float maxAcceleration)
     {
-        var target = feedForward + error / SecondsToArrival;
+        var target = error / deltaTime;
         var targetSpeed = target.Length();
 
         if (targetSpeed > maxSpeed)
@@ -304,7 +292,7 @@ public sealed class PlayerEntity : BaseEntity
 
         var step = target - current;
         var stepLength = step.Length();
-        var stepCap = maxAcceleration * tickInterval;
+        var stepCap = maxAcceleration * deltaTime;
 
         if (stepLength > stepCap)
         {
@@ -368,10 +356,6 @@ public sealed class PlayerEntity : BaseEntity
         carryCommandedVelocity = prop.Body.LinearVelocity;
         carryCommandedAngularVelocity = prop.Body.AngularVelocity;
         prop.BeginCarry(this, HoldDistance + Vector3.Distance(hit.Point, prop.Body.CenterOfMass));
-
-        // The feed-forward baseline: the hold pose as of the grab, so the first tick sees the
-        // pose's motion as zero rather than a jump from wherever the last carry ended
-        (lastHoldPosition, lastHoldRotation) = prop.ComputeHoldPose();
     }
 
     private void Drop()
