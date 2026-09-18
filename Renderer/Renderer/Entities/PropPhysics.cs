@@ -54,9 +54,6 @@ public class PropPhysics : BaseModelEntity
     /// <summary>Gets how far ahead of the eyes the mass center is held while carried.</summary>
     public float CarryDistance { get; private set; }
 
-    // How close to the eyes the hold point may be pulled when a wall is in the way
-    private const float MinHoldDistance = 16f;
-
     // The grab in the body's frame: where the mass center sits (the hold point steers the mass
     // center, not the body origin, so the prop hangs centered under the crosshair) and how the body
     // was oriented relative to the view when grabbed
@@ -216,26 +213,19 @@ public class PropPhysics : BaseModelEntity
 
         if (EntitySystem.PhysicsOrNull is { } physics)
         {
-            // Against the world and the movers, so a closed door shortens the hold like a wall
-            // does; props (this one included) and the player must not shorten their own hold.
-            // The ray reaches the prop's radius past the hold point, because a wall just beyond
-            // the hold still needs the pose pulled back to clear it.
-            var reach = distance + carryBoundsRadius;
-            var hit = physics.World.RaycastClosest(eyePosition, forward * reach,
+            // The prop's bounding sphere swept along the aim, against the world and the movers, so
+            // a closed door shortens the hold like a wall does; props (this one included) and the
+            // player must not shorten their own hold. The solver's own geometry finds the farthest
+            // pose the shape still fits at, which clamps oblique walls, edges and corners
+            // correctly with no backoff arithmetic. Jammed against a wall the free spot is
+            // honestly near the eye, and a fully wedged grab is what the strain drop is for.
+            var fraction = physics.World.CastCapsule(
+                new Capsule(Vector3.Zero, Vector3.Zero, carryBoundsRadius),
+                eyePosition, forward * distance,
                 new QueryFilter(PhysicsSimulation.PlayerCategory,
                     PhysicsSimulation.StaticCategory | PhysicsSimulation.MoverCategory));
 
-            if (hit.Hit)
-            {
-                // Backed off by the radius, floored so the prop is not pulled into the camera -
-                // but never past the hit itself: against a wall nearer than the floor, the wall
-                // wins and the prop squeezes toward the face rather than being sent through
-                var hitDistance = hit.Fraction * reach;
-
-                distance = MathF.Min(
-                    MathF.Min(Math.Max(hitDistance - carryBoundsRadius, MinHoldDistance), hitDistance),
-                    distance);
-            }
+            distance *= fraction;
         }
 
         var rotation = ViewRotation(forward) * carryRelativeRotation;
