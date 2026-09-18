@@ -975,10 +975,12 @@ public class ViewmodelSceneNode : ModelSceneNode
     private static string? ItemModelPath(int itemIndex)
         => itemIndex >= 1 && itemIndex + 1 < ViewmodelResources.Length ? ViewmodelResources[itemIndex + 1] : null;
 
-    // The weapon drop: how far ahead of the eyes the prop appears, its toss speed on top of the
-    // player's own motion, and the flat spin it leaves the hand with
+    // The weapon drop: the toss leaves from the torso, a couple of hands below the eyes, so it
+    // reads as let go rather than thrown from the face - with a bit more forward push to reach
+    // as far as an eye-level toss would. Plus the flat spin it leaves the hand with.
     private const float DropSpawnDistance = 24f;
-    private const float DropTossSpeed = 250f;
+    private const float DropSpawnBelowEyes = 10f;
+    private const float DropTossSpeed = 300f;
     private const float DropSpinSpeed = 5f;
 
     /// <summary>
@@ -995,7 +997,7 @@ public class ViewmodelSceneNode : ModelSceneNode
 
         var entities = Scene.EntitySystem;
         var camera = input.Camera;
-        var origin = camera.Location + camera.Forward * DropSpawnDistance;
+        var origin = camera.Location - new Vector3(0f, 0f, DropSpawnBelowEyes) + camera.Forward * DropSpawnDistance;
 
         // A synthesized prop_physics_override, as if the map had authored one here; defaultanim
         // is the ground state the game's dropped weapons rest in
@@ -1442,8 +1444,9 @@ public class ViewmodelSceneNode : ModelSceneNode
         {
             SelectPreviousItem();
         }
-        else if (input.Pressed(TrackedKeys.G) && Deployed)
+        else if (input.Pressed(TrackedKeys.G))
         {
+            // Never gated on the deploy timer or any other action: dropping is always allowed
             DropHeldItem(input);
         }
 
