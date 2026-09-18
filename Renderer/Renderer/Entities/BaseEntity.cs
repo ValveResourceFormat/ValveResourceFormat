@@ -538,6 +538,15 @@ public class BaseEntity
         => MoveDoneTime = delay >= 0f ? EntitySystem.CurrentTime + delay : -1f;
 
     /// <summary>
+    /// Runs once per rendered frame while the world is simulating, before the rigid body world
+    /// steps by that frame. For steering that must see every frame's camera - the +USE carry -
+    /// while game logic stays on the tick in <see cref="PhysicsSimulate"/>.
+    /// </summary>
+    internal virtual void FrameSimulate(float frameTime)
+    {
+    }
+
+    /// <summary>
     /// Runs one entity tick: think, move, then move-done, the order Source's pusher physics uses.
     /// </summary>
     internal void Simulate(float tickInterval)

@@ -154,7 +154,14 @@ public sealed class PlayerEntity : BaseEntity
         }
 
         UpdatePhysicsPresence(tickInterval);
-        UpdateCarry(tickInterval);
+    }
+
+    /// <inheritdoc/>
+    internal override void FrameSimulate(float frameTime)
+    {
+        // Per frame, not per tick: the carry chases the camera, and a chase sampled at 64 Hz
+        // reads back quantized however smoothly it is drawn
+        UpdateCarry(frameTime);
     }
 
     private void SyncFromController()

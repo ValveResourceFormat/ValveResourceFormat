@@ -424,6 +424,26 @@ public sealed class EntitySystem
             tickAccumulator = 0f;
         }
 
+        if (Enabled)
+        {
+            // The rigid body world steps with the rendered frame, like the player movement does:
+            // physics that only ever saw the camera at the tick rate reads back quantized however
+            // it is drawn. Steering runs first and drawing happens after, so what the carry asks
+            // for this frame is on screen this frame. The entity tick above stays the cadence of
+            // game logic; this is only the integrator.
+            for (var i = 0; i < entities.Count; i++)
+            {
+                var entity = entities[i];
+
+                if (!entity.IsRemoved)
+                {
+                    entity.FrameSimulate(frameTime);
+                }
+            }
+
+            physics?.Step(MathF.Min(frameTime, MaxPhysicsFrameStep));
+        }
+
         // Entities are not scene nodes, so nothing else would place what they own
         foreach (var entity in entities)
         {
@@ -431,16 +451,13 @@ public sealed class EntitySystem
         }
     }
 
+    // Load stalls and breakpoints must not become one giant integration step
+    private const float MaxPhysicsFrameStep = 0.1f;
+
     private void Tick()
     {
         TickCount++;
         CurrentTime = TickCount * TickInterval;
-
-        // The rigid bodies move first, so every entity this tick reads settled poses: a physics
-        // prop adopts where its body landed, and what the entities do in response (the player's
-        // carry velocities, mostly) is what the next step integrates. Its time bills to the
-        // surrounding Entity System scope.
-        physics?.Step(TickInterval);
 
         for (var i = 0; i < entities.Count; i++)
         {
