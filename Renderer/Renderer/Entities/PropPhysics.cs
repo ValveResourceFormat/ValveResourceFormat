@@ -217,14 +217,24 @@ public class PropPhysics : BaseModelEntity
         if (EntitySystem.PhysicsOrNull is { } physics)
         {
             // Against the world and the movers, so a closed door shortens the hold like a wall
-            // does; props (this one included) and the player must not shorten their own hold
-            var hit = physics.World.RaycastClosest(eyePosition, forward * distance,
+            // does; props (this one included) and the player must not shorten their own hold.
+            // The ray reaches the prop's radius past the hold point, because a wall just beyond
+            // the hold still needs the pose pulled back to clear it.
+            var reach = distance + carryBoundsRadius;
+            var hit = physics.World.RaycastClosest(eyePosition, forward * reach,
                 new QueryFilter(PhysicsSimulation.PlayerCategory,
                     PhysicsSimulation.StaticCategory | PhysicsSimulation.MoverCategory));
 
             if (hit.Hit)
             {
-                distance = Math.Max(hit.Fraction * distance - carryBoundsRadius, MinHoldDistance);
+                // Backed off by the radius, floored so the prop is not pulled into the camera -
+                // but never past the hit itself: against a wall nearer than the floor, the wall
+                // wins and the prop squeezes toward the face rather than being sent through
+                var hitDistance = hit.Fraction * reach;
+
+                distance = MathF.Min(
+                    MathF.Min(Math.Max(hitDistance - carryBoundsRadius, MinHoldDistance), hitDistance),
+                    distance);
             }
         }
 
