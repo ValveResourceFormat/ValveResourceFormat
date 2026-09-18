@@ -414,6 +414,9 @@ public sealed class EntitySystem
     /// </summary>
     public Camera? RenderCamera { get; private set; }
 
+    /// <summary>Gets the duration of the frame being drawn, for per-frame smoothing in render paths.</summary>
+    public float FrameInterval { get; private set; }
+
     /// <summary>
     /// Advances the world by a rendered frame's worth of time, running whole ticks.
     /// </summary>
@@ -422,6 +425,7 @@ public sealed class EntitySystem
     public void Update(float frameTime, Camera? renderCamera = null)
     {
         RenderCamera = renderCamera;
+        FrameInterval = frameTime;
 
         if (entities.Count <= 1)
         {

@@ -66,12 +66,15 @@ public class PropPhysics : BaseModelEntity
     private (Vector3 Position, Quaternion Rotation) carryTickHold;
     private (Vector3 Position, Quaternion Rotation) carryTickHoldPrevious;
 
-    // How much pose deviation is 64 Hz camera-sampling noise (drawn as glued) and where real
-    // obstruction fully takes over the drawing, in units and radians
-    private const float DeviationDeadband = 4f;
-    private const float DeviationFullScale = 16f;
-    private const float RotationDeviationDeadband = 0.12f;
-    private const float RotationDeviationFullScale = 0.35f;
+    // The drawn deviation chases the measured one with this time constant, framerate
+    // independently. The filter is what keeps 64 Hz out of the picture: the measured deviation
+    // steps at the tick rate, the smoothed one cannot, and free carry decays it to zero so the
+    // prop rides the frame camera exactly.
+    private const float DeviationSmoothingTime = 0.05f;
+
+    // The smoothed deviation itself, persisted across frames
+    private Vector3 smoothedCarryDeviation;
+    private Quaternion smoothedCarryDeviationRotation = Quaternion.Identity;
 
     // The body's sleep state as of the last tick, for the OnAwakened edge
     private bool wasAwake;
@@ -200,6 +203,11 @@ public class PropPhysics : BaseModelEntity
         body.IsAwake = true;
 
         carryTickHold = carryTickHoldPrevious = ComputeHoldPose();
+
+        // The drawn deviation starts as the real one - the prop is still standing wherever it
+        // was grabbed - and decays as the body flies in, which is the attach as the player sees it
+        smoothedCarryDeviation = body.Position - carryTickHold.Position;
+        smoothedCarryDeviationRotation = body.Rotation * Quaternion.Inverse(carryTickHold.Rotation);
     }
 
     /// <summary>
@@ -227,14 +235,20 @@ public class PropPhysics : BaseModelEntity
     /// </summary>
     internal void AdoptCarryRotation()
     {
+        var view = ViewRotation(Carrier!.Controller.ViewAngles);
         var oldRelative = carryRelativeRotation;
-        carryRelativeRotation = Quaternion.Inverse(ViewRotation(Carrier!.Controller.ViewAngles)) * body.Rotation;
+        carryRelativeRotation = Quaternion.Inverse(view) * body.Rotation;
 
         // The recorded tick holds move with the grip, so the deviation the drawing subtracts
         // shrinks by exactly what the grip absorbed and the rendered pose stays continuous
         var gripChange = Quaternion.Inverse(oldRelative) * carryRelativeRotation;
         carryTickHold.Rotation *= gripChange;
         carryTickHoldPrevious.Rotation *= gripChange;
+
+        // The drawn deviation counter-rotates by the hold rotation's own jump, so the re-latch
+        // does not read as motion: what the grip absorbed leaves the picture too
+        var counter = view * oldRelative * Quaternion.Inverse(carryRelativeRotation) * Quaternion.Inverse(view);
+        smoothedCarryDeviationRotation = Quaternion.Normalize(smoothedCarryDeviationRotation * counter);
     }
 
     /// <inheritdoc/>
@@ -273,29 +287,19 @@ public class PropPhysics : BaseModelEntity
         var deviation = tickPosition - holdPosition;
         var deviationRotation = tickRotation * Quaternion.Inverse(holdRotation);
 
-        // The physics only ever saw the camera at 64 Hz, so the deviation carries tick-rate
-        // sampling ripple even with nothing touching the prop - the body chased last tick's hold
-        // pose, and a 200 fps view changes speed every frame. Deviation inside the deadband is
-        // that noise and draws as zero, the prop glued to the frame's view; real obstruction
-        // shows in full, ramped in so contact never pops.
-        var positionWeight = DeviationWeight(deviation.Length(),
-            DeviationDeadband, DeviationFullScale);
-        var rotationAngle = 2f * MathF.Acos(Math.Clamp(MathF.Abs(deviationRotation.W), 0f, 1f));
-        var rotationWeight = DeviationWeight(rotationAngle,
-            RotationDeviationDeadband, RotationDeviationFullScale);
+        // The physics only ever saw the camera at 64 Hz, so the measured deviation steps at the
+        // tick rate - the body chased last tick's hold pose, and a high-fps view changes speed
+        // every frame. The drawing follows a low-pass filtered copy instead: the tick staircase
+        // cannot pass the filter, free carry decays it to zero so the prop rides the frame
+        // camera exactly, and a real obstruction fades in over the time constant.
+        var alpha = 1f - MathF.Exp(-Math.Clamp(EntitySystem.FrameInterval, 0f, 0.1f) / DeviationSmoothingTime);
+
+        smoothedCarryDeviation = Vector3.Lerp(smoothedCarryDeviation, deviation, alpha);
+        smoothedCarryDeviationRotation = Quaternion.Slerp(smoothedCarryDeviationRotation, deviationRotation, alpha);
 
         SetRenderTransform(
-            livePosition + deviation * positionWeight,
-            Quaternion.Slerp(liveRotation, deviationRotation * liveRotation, rotationWeight));
-    }
-
-    // How much of a deviation the drawing shows: nothing inside the deadband, everything past
-    // full scale, smoothstepped between
-    private static float DeviationWeight(float magnitude, float deadband, float fullScale)
-    {
-        var ramp = Math.Clamp((magnitude - deadband) / (fullScale - deadband), 0f, 1f);
-
-        return ramp * ramp * (3f - 2f * ramp);
+            livePosition + smoothedCarryDeviation,
+            Quaternion.Normalize(smoothedCarryDeviationRotation) * liveRotation);
     }
 
     /// <summary>
