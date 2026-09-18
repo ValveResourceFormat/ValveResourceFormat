@@ -169,7 +169,7 @@ public class PropPhysics : BaseModelEntity
         Carrier = carrier;
         CarryDistance = carryDistance;
         carryLocalMassCenter = body.LocalCenterOfMass;
-        carryRelativeRotation = Quaternion.Inverse(ViewRotation(carrier.Controller.ViewForward)) * body.Rotation;
+        carryRelativeRotation = Quaternion.Inverse(ViewRotation(carrier.Controller.ViewAngles)) * body.Rotation;
 
         // Off the pushing body, so the held prop cannot wedge against its carrier
         SetCollidesWithPlayer(false);
@@ -208,7 +208,7 @@ public class PropPhysics : BaseModelEntity
         // it, and the solver's contacts are what hold the body at the surface - the chase's
         // bounded acceleration keeps that press gentle. A prop held far from an unreachable
         // pose for long enough is let go by the strain drop.
-        var rotation = ViewRotation(forward) * carryRelativeRotation;
+        var rotation = ViewRotation(controller.ViewAngles) * carryRelativeRotation;
 
         // Offsetting by the rotated local mass center is what puts the *center* of the prop under
         // the crosshair, wherever its body origin happens to sit. The body's own rotation, not the
@@ -222,16 +222,13 @@ public class PropPhysics : BaseModelEntity
     }
 
     /// <summary>
-    /// The view direction as a rotation, pitch and yaw only, so a carried prop turns with the
-    /// whole view the way the gravgun's held objects do.
+    /// The view as a rotation, pitch and yaw only, so a carried prop turns with the whole view
+    /// the way the gravgun's held objects do. Built from the view angles rather than the forward
+    /// vector: a reconstructed yaw degenerates looking straight down, and the whipping target
+    /// rotation used to spin the carried prop there.
     /// </summary>
-    internal static Quaternion ViewRotation(Vector3 forward)
-    {
-        var pitch = float.RadiansToDegrees(-MathF.Asin(Math.Clamp(forward.Z, -1f, 1f)));
-        var yaw = float.RadiansToDegrees(MathF.Atan2(forward.Y, forward.X));
-
-        return EntityTransformHelper.EulerAnglesToQuaternion(new Vector3(pitch, yaw, 0f));
-    }
+    internal static Quaternion ViewRotation(Vector3 viewAngles)
+        => EntityTransformHelper.EulerAnglesToQuaternion(new Vector3(viewAngles.X, viewAngles.Y, 0f));
 
     private void SetCollidesWithPlayer(bool collide)
     {
