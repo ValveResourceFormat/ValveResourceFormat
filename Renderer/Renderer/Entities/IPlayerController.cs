@@ -29,6 +29,13 @@ public interface IPlayerController
     /// <summary>Gets the direction the player is looking.</summary>
     Vector3 ViewForward { get; }
 
+    /// <summary>
+    /// Gets the view orientation as a QAngle in degrees. Unlike a direction vector, the yaw here
+    /// stays well-defined looking straight up or down, because it comes from the input state
+    /// rather than being reconstructed from <see cref="ViewForward"/>.
+    /// </summary>
+    Vector3 ViewAngles { get; }
+
     /// <summary>Gets the entity the player stands on, or null in the air.</summary>
     BaseEntity? GroundEntity { get; }
 
