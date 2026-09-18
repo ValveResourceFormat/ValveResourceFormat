@@ -510,10 +510,7 @@ public class ViewmodelSceneNode : ModelSceneNode
             {
                 pinPulled = true;
 
-                if (attack2)
-                {
-                    throwStrength = 0f;
-                }
+                throwStrength = attack2 ? 0f : 1f;
 
                 SetState(AnimationState.PullPin);
             }
