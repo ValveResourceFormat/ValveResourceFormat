@@ -268,15 +268,11 @@ public class Rubikon
             RayIntersectsWithMesh(ray, mesh, ref closestHit);
         }
 
-        foreach (var hull in Hulls)
+        if (HullTree.Length > 0)
         {
-            // Invisible clip geometry should not block picking, matching the mesh filter above
-            if (ContainsString(hull.InteractAs, "playerclip"))
-            {
-                continue;
-            }
-
-            RayIntersectsWithHull(ray, hull, ref closestHit);
+            var query = new RayHullsQuery(ray, Hulls, HullIndices) { ClosestHit = closestHit };
+            TraverseBvh(HullTree, ref query);
+            closestHit = query.ClosestHit;
         }
 
         return closestHit;
@@ -943,6 +939,35 @@ public class Rubikon
                 {
                     return true;
                 }
+            }
+
+            return false;
+        }
+    }
+
+    private struct RayHullsQuery(RayTraceContext ray, PhysicsHullData[] hulls, int[] hullIndices) : IBvhQuery
+    {
+        public TraceResult ClosestHit;
+
+        // Skip nodes that cannot contain a hit closer than the best one found so far
+        public readonly bool IntersectsNode(in Node node)
+            => RayIntersectsAABB(ray, node.Min, node.Max, out var entryDistance) && entryDistance <= ClosestHit.Distance;
+
+        // Traverse the child nearest along the ray first
+        public readonly bool DescendLeftFirst(int splitAxis) => ray.Direction[splitAxis] >= 0;
+
+        public bool VisitLeaf(int start, int count)
+        {
+            for (var i = start; i < start + count; i++)
+            {
+                var hull = hulls[hullIndices[i]];
+
+                if (ContainsString(hull.InteractAs, "playerclip"))
+                {
+                    continue;
+                }
+
+                RayIntersectsWithHull(ray, hull, ref ClosestHit);
             }
 
             return false;
