@@ -1835,24 +1835,24 @@ public sealed partial class MapExtract
                     return;
                 }
 
-                if (!HasFoliageAnimationStreams(model))
+                // Source 2 bakes a mesh's scale into its vertices, so bake it here and keep only origin/angles on the node.
+                var meshOrigin = Vector3.Zero;
+                var meshAngles = new Datamodel.QAngle();
+                var scaleTransform = Matrix4x4.Identity;
+                if (!objectTransform.IsIdentity)
                 {
-                    // Source 2 bakes a mesh's scale into its vertices, so bake it here and keep only origin/angles on the node.
-                    var meshOrigin = Vector3.Zero;
-                    var meshAngles = new Datamodel.QAngle();
-                    var scaleTransform = Matrix4x4.Identity;
-                    if (!objectTransform.IsIdentity)
+                    if (!Matrix4x4.Decompose(objectTransform, out var scales, out var rotation, out var translation))
                     {
-                        if (!Matrix4x4.Decompose(objectTransform, out var scales, out var rotation, out var translation))
-                        {
-                            throw new InvalidOperationException("Matrix decompose failed");
-                        }
-
-                        meshOrigin = translation;
-                        meshAngles = EntityTransformHelper.ToEulerAngles(rotation);
-                        scaleTransform = Matrix4x4.CreateScale(scales);
+                        throw new InvalidOperationException("Matrix decompose failed");
                     }
 
+                    meshOrigin = translation;
+                    meshAngles = EntityTransformHelper.ToEulerAngles(rotation);
+                    scaleTransform = Matrix4x4.CreateScale(scales);
+                }
+
+                if (!HasFoliageAnimationStreams(model))
+                {
                     foreach (var hammermesh in RenderMeshToHammerMesh(model, mesh, transform: scaleTransform))
                     {
                         hammermesh.Origin = meshOrigin;
