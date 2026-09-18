@@ -60,9 +60,6 @@ public class PropPhysics : BaseModelEntity
     private Vector3 carryLocalMassCenter;
     private Quaternion carryRelativeRotation;
 
-    // Roughly how much room the prop needs, for the wall trace to leave in front of a hit
-    private float carryBoundsRadius;
-
     // The body's sleep state as of the last tick, for the OnAwakened edge
     private bool wasAwake;
 
@@ -173,7 +170,6 @@ public class PropPhysics : BaseModelEntity
         CarryDistance = carryDistance;
         carryLocalMassCenter = body.LocalCenterOfMass;
         carryRelativeRotation = Quaternion.Inverse(ViewRotation(carrier.Controller.ViewForward)) * body.Rotation;
-        carryBoundsRadius = body.Bounds.Extents.Length();
 
         // Off the pushing body, so the held prop cannot wedge against its carrier
         SetCollidesWithPlayer(false);
@@ -198,36 +194,20 @@ public class PropPhysics : BaseModelEntity
     }
 
     /// <summary>
-    /// Where the carried body belongs: the mass center on the eye ray, the grab orientation turned
-    /// with the view. The engine's grab controller traces the view and pulls the hold point in
-    /// front of whatever it hits, and so does this: a target that is never inside a wall is what
-    /// keeps the chase from pressing the prop through one. There is no attach glide - the carry's
-    /// bounded acceleration is what pulls a distant grab over smoothly.
+    /// Where the carried body belongs: the mass center on the eye ray at the carry distance, the
+    /// grab orientation turned with the view. There is no attach glide - the carry's bounded
+    /// acceleration is what pulls a distant grab over smoothly.
     /// </summary>
     internal (Vector3 Position, Quaternion Rotation) ComputeHoldPose()
     {
         var controller = Carrier!.Controller;
         var eyePosition = controller.EyePosition;
         var forward = controller.ViewForward;
-        var distance = CarryDistance;
 
-        if (EntitySystem.PhysicsOrNull is { } physics)
-        {
-            // The prop's bounding sphere swept along the aim, against the world and the movers, so
-            // a closed door shortens the hold like a wall does; props (this one included) and the
-            // player must not shorten their own hold. The solver's own geometry finds the farthest
-            // pose the shape still fits at, which clamps oblique walls, edges and corners
-            // correctly with no backoff arithmetic. Jammed against a wall the free spot is
-            // honestly near the eye, and a fully wedged grab is what the strain drop is for.
-            var fraction = physics.World.CastCapsule(
-                new Capsule(Vector3.Zero, Vector3.Zero, carryBoundsRadius),
-                eyePosition, forward * distance,
-                new QueryFilter(PhysicsSimulation.PlayerCategory,
-                    PhysicsSimulation.StaticCategory | PhysicsSimulation.MoverCategory));
-
-            distance *= fraction;
-        }
-
+        // The pose is not clamped against the world: aiming into a wall asks for a pose inside
+        // it, and the solver's contacts are what hold the body at the surface - the chase's
+        // bounded acceleration keeps that press gentle. A prop held far from an unreachable
+        // pose for long enough is let go by the strain drop.
         var rotation = ViewRotation(forward) * carryRelativeRotation;
 
         // Offsetting by the rotated local mass center is what puts the *center* of the prop under
@@ -235,7 +215,7 @@ public class PropPhysics : BaseModelEntity
         // target's: while the turn is still catching up, aiming the origin with the target
         // rotation would push the actual mass center off the ray and set position and rotation
         // fighting each other.
-        var position = eyePosition + forward * distance
+        var position = eyePosition + forward * CarryDistance
             - Vector3.Transform(carryLocalMassCenter, body.Rotation);
 
         return (position, rotation);
