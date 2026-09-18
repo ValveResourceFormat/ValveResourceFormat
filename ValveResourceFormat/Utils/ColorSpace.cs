@@ -32,6 +32,21 @@ namespace ValveResourceFormat.Utils
         }
 
         /// <summary>
+        /// Converts a linear RGB color to gamma space with a plain 2.2 exponent, the curve the map compiler
+        /// bakes draw call tints with.
+        /// </summary>
+        public static Vector3 LinearToGamma22(Vector3 vLinearColor)
+        {
+            const float power = 1.0f / 2.2f;
+
+            return new Vector3(
+                MathF.Pow(vLinearColor.X, power),
+                MathF.Pow(vLinearColor.Y, power),
+                MathF.Pow(vLinearColor.Z, power)
+            );
+        }
+
+        /// <summary>
         /// Converts an sRGB gamma space color to linear RGB.
         /// </summary>
         public static Vector3 SrgbGammaToLinear(Vector3 vSrgbGammaColor)

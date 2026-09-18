@@ -171,6 +171,67 @@ public sealed partial class MapExtract
     }
 
     /// <summary>
+    /// Vertex streams a material reads as foliage animation. A Hammer mesh has no stream for them.
+    /// </summary>
+    private static readonly string[] FoliageAnimationStreams = ["PivotPaint", "FoliageAnimation"];
+
+    /// <summary>
+    /// The draw calls of every mesh embedded in a model, each paired with the mesh it belongs to.
+    /// </summary>
+    private static IEnumerable<(Mesh Mesh, KVObject DrawCall)> EnumerateDrawCalls(Model model)
+    {
+        foreach (var embedded in model.GetEmbeddedMeshes())
+        {
+            foreach (var meshSceneObject in embedded.Mesh.Data.GetArray("m_sceneObjects"))
+            {
+                foreach (var drawCall in meshSceneObject.GetArray("m_drawCalls"))
+                {
+                    yield return (embedded.Mesh, drawCall);
+                }
+            }
+        }
+    }
+
+    /// <summary>
+    /// Whether a draw call of the model carries a vertex stream its material reads as foliage animation.
+    /// </summary>
+    private bool HasFoliageAnimationStreams(Model model)
+    {
+        var inputSignatures = new Dictionary<string, Material.VsInputSignature>();
+
+        foreach (var (mesh, drawCall) in EnumerateDrawCalls(model))
+        {
+            var materialName = Mesh.GetMaterialName(drawCall);
+
+            if (materialName is null)
+            {
+                continue;
+            }
+
+            if (!inputSignatures.TryGetValue(materialName, out var inputSignature))
+            {
+                inputSignature = Material.LoadInputSignature(FileLoader, materialName);
+                inputSignatures.Add(materialName, inputSignature);
+            }
+
+            foreach (var vertexBuffer in drawCall.GetArray("m_vertexBuffers"))
+            {
+                foreach (var attribute in mesh.VBIB.VertexBuffers[vertexBuffer.GetInt32Property("m_hBuffer")].InputLayoutFields)
+                {
+                    var element = Material.FindD3DInputSignatureElement(inputSignature, attribute.SemanticName, attribute.SemanticIndex);
+
+                    if (FoliageAnimationStreams.Contains(element.Semantic))
+                    {
+                        return true;
+                    }
+                }
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>
     /// Extract a map from a resource. Accepted types include <see cref="ResourceType.Map"/>, <see cref="ResourceType.World"/>. TODO: <see cref="ResourceType.WorldNode"/> and <see cref="ResourceType.EntityLump"/>.
     /// </summary>
     public MapExtract(Resource resource, IFileLoader? fileLoader)
@@ -1489,7 +1550,8 @@ public sealed partial class MapExtract
     }
 
     /// <summary>
-    /// Tint of a draw call in gamma space, 0-255, with its alpha in W.
+    /// Tint of a draw call in gamma space, 0-255, with its alpha in W. The compiler stores it as (tint / 255) to the
+    /// power of 2.2.
     /// </summary>
     private static Vector4 GetDrawCallTint(KVObject drawCall)
     {
@@ -1497,12 +1559,34 @@ public sealed partial class MapExtract
 
         if (drawCall.ContainsKey("m_vTintColor"))
         {
-            tint *= ColorSpace.SrgbLinearToGamma(drawCall.GetSubCollection("m_vTintColor").ToVector3());
+            tint *= ColorSpace.LinearToGamma22(drawCall.GetSubCollection("m_vTintColor").ToVector3());
         }
 
         var alpha = 255f * drawCall.GetFloatProperty("m_flAlpha", 1f);
 
         return new Vector4(tint, alpha);
+    }
+
+    /// <summary>
+    /// The tint every draw call of a model shares, or <see langword="null"/> when they differ.
+    /// </summary>
+    private static Vector4? GetUniformDrawCallTint(Model model)
+    {
+        Vector4? uniformTint = null;
+
+        foreach (var (_, drawCall) in EnumerateDrawCalls(model))
+        {
+            var tint = GetDrawCallTint(drawCall);
+
+            if (uniformTint is { } seenTint && seenTint != tint)
+            {
+                return null;
+            }
+
+            uniformTint = tint;
+        }
+
+        return uniformTint;
     }
 
     internal List<CMapMesh> PhysToHammerMeshes(PhysAggregateData phys, Vector3 positionOffset = new Vector3(), string? entityClassname = null)
@@ -1620,7 +1704,8 @@ public sealed partial class MapExtract
 
     static Datamodel.Color ConvertToColor32(Vector4 tint)
     {
-        var color32 = unchecked(stackalloc byte[] { (byte)tint.X, (byte)tint.Y, (byte)tint.Z, (byte)tint.W });
+        var rounded = Vector4.Clamp(Vector4.Round(tint), Vector4.Zero, new Vector4(255f));
+        Span<byte> color32 = stackalloc byte[] { (byte)rounded.X, (byte)rounded.Y, (byte)rounded.Z, (byte)rounded.W };
         return Datamodel.Color.FromBytes(color32);
     }
 
@@ -1729,6 +1814,7 @@ public sealed partial class MapExtract
             FolderExtractFilter.Add(modelName ?? meshName);
 
             var objectTransform = sceneObject.GetArray("m_vTransform").ToMatrix4x4();
+            Vector4? drawCallTint = null;
 
             if (SceneObjectShouldConvertToHammerMesh(modelName))
             {
@@ -1749,35 +1835,38 @@ public sealed partial class MapExtract
                     return;
                 }
 
-                // Source 2 bakes a mesh's scale into its vertices, so bake it here and keep only origin/angles on the node.
-                var meshOrigin = Vector3.Zero;
-                var meshAngles = new Datamodel.QAngle();
-                var scaleTransform = Matrix4x4.Identity;
-                if (!objectTransform.IsIdentity)
+                if (!HasFoliageAnimationStreams(model))
                 {
-                    if (!Matrix4x4.Decompose(objectTransform, out var scales, out var rotation, out var translation))
+                    // Source 2 bakes a mesh's scale into its vertices, so bake it here and keep only origin/angles on the node.
+                    var meshOrigin = Vector3.Zero;
+                    var meshAngles = new Datamodel.QAngle();
+                    var scaleTransform = Matrix4x4.Identity;
+                    if (!objectTransform.IsIdentity)
                     {
-                        throw new InvalidOperationException("Matrix decompose failed");
+                        if (!Matrix4x4.Decompose(objectTransform, out var scales, out var rotation, out var translation))
+                        {
+                            throw new InvalidOperationException("Matrix decompose failed");
+                        }
+
+                        meshOrigin = translation;
+                        meshAngles = EntityTransformHelper.ToEulerAngles(rotation);
+                        scaleTransform = Matrix4x4.CreateScale(scales);
                     }
 
-                    meshOrigin = translation;
-                    meshAngles = EntityTransformHelper.ToEulerAngles(rotation);
-                    scaleTransform = Matrix4x4.CreateScale(scales);
+                    foreach (var hammermesh in RenderMeshToHammerMesh(model, mesh, transform: scaleTransform))
+                    {
+                        hammermesh.Origin = meshOrigin;
+                        hammermesh.Angles = meshAngles;
+                        MapDocument.World.Children.Add(hammermesh);
+                    }
+                    return;
                 }
 
-                foreach (var hammermesh in RenderMeshToHammerMesh(model, mesh, transform: scaleTransform))
-                {
-                    hammermesh.Origin = meshOrigin;
-                    hammermesh.Angles = meshAngles;
-                    MapDocument.World.Children.Add(hammermesh);
-                }
-                return;
-            }
-            else
-            {
-                SceneObjectsToExtract.Add(modelName!);
+                // the compiler bakes the tint of the prop into the draw calls of its model
+                drawCallTint = GetUniformDrawCallTint(model);
             }
 
+            SceneObjectsToExtract.Add(modelName!);
             AssetReferences.Add(modelName!);
 
             var propStatic = new CMapEntity()
@@ -1809,6 +1898,10 @@ public sealed partial class MapExtract
             {
                 SetTintAlpha(propStatic, tintColor * 255f);
             }
+            else if (drawCallTint is { } bakedTint && bakedTint != new Vector4(255f))
+            {
+                SetTintAlpha(propStatic, bakedTint);
+            }
 
             /* // TODO: check for values being 0
             if (!sceneObject.ContainsKey("m_nLightProbeVolumePrecomputedHandshake") || !sceneObject.ContainsKey("m_nCubeMapPrecomputedHandshake"))
@@ -1834,7 +1927,7 @@ public sealed partial class MapExtract
 
             if (Path.GetFileName(modelName!).Contains("nomerge", StringComparison.Ordinal))
             {
-                propStatic.EntityProperties["disablemeshmerging"] = StringBool(true);
+                propStatic.EntityProperties["disablemerging"] = StringBool(true);
             }
 
             StaticPropFinalize(propStatic, layerIndex, layerNodes, isEmbeddedModel);
@@ -1955,9 +2048,9 @@ public sealed partial class MapExtract
                     tint = fragment.GetSubCollection("m_vTintColor").ToVector3();
                 }
 
-                var drawCallTint = drawCall.GetSubCollection("m_vTintColor").ToVector3();
-                tint *= ColorSpace.SrgbLinearToGamma(drawCallTint);
-                alpha *= drawCall.GetFloatProperty("m_flAlpha");
+                var drawCallTint = GetDrawCallTint(drawCall) / 255f;
+                tint *= drawCallTint.AsVector3();
+                alpha *= drawCallTint.W;
 
                 var fragmentModelName = ModelExtract.GetFragmentModelName(modelName, i);
                 AssetReferences.Add(fragmentModelName);
