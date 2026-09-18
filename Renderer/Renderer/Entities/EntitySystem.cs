@@ -374,10 +374,21 @@ public sealed class EntitySystem
     }
 
     /// <summary>
+    /// Gets the camera the current frame is drawn with, or <see langword="null"/> outside a frame.
+    /// The input camera and this can differ - view smoothing and view punch sit between them - so
+    /// anything drawn relative to the view must read this one, not the controller's.
+    /// </summary>
+    public Camera? RenderCamera { get; private set; }
+
+    /// <summary>
     /// Advances the world by a rendered frame's worth of time, running whole ticks.
     /// </summary>
-    public void Update(float frameTime)
+    /// <param name="frameTime">Elapsed time in seconds since the last frame.</param>
+    /// <param name="renderCamera">The camera the frame is drawn with, for <see cref="RenderCamera"/>.</param>
+    public void Update(float frameTime, Camera? renderCamera = null)
     {
+        RenderCamera = renderCamera;
+
         if (entities.Count <= 1)
         {
             return;

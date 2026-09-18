@@ -66,6 +66,13 @@ public class PropPhysics : BaseModelEntity
     private (Vector3 Position, Quaternion Rotation) carryTickHold;
     private (Vector3 Position, Quaternion Rotation) carryTickHoldPrevious;
 
+    // How much pose deviation is 64 Hz camera-sampling noise (drawn as glued) and where real
+    // obstruction fully takes over the drawing, in units and radians
+    private const float DeviationDeadband = 4f;
+    private const float DeviationFullScale = 16f;
+    private const float RotationDeviationDeadband = 0.12f;
+    private const float RotationDeviationFullScale = 0.35f;
+
     // The body's sleep state as of the last tick, for the OnAwakened edge
     private bool wasAwake;
 
@@ -253,31 +260,66 @@ public class PropPhysics : BaseModelEntity
         var (tickPosition, tickRotation) = InterpolateTickPose(fraction);
         var holdPosition = Vector3.Lerp(carryTickHoldPrevious.Position, carryTickHold.Position, fraction);
         var holdRotation = Quaternion.Slerp(carryTickHoldPrevious.Rotation, carryTickHold.Rotation, fraction);
-        var (livePosition, liveRotation) = ComputeHoldPose();
+
+        // The FRAME'S camera, not the controller's: view smoothing and view punch sit between the
+        // input camera the carry steers by and the camera the frame is drawn with, and a hold pose
+        // computed from the wrong one leaves the prop trailing the view by exactly that gap
+        var (livePosition, liveRotation) = EntitySystem.RenderCamera is { } camera
+            ? ComputeHoldPose(camera.Location, camera.Forward, camera.GetQAngle())
+            : ComputeHoldPose();
 
         // World-frame deviations: a prop pressed against a wall stays pressed against that wall
         // while the camera keeps moving
+        var deviation = tickPosition - holdPosition;
+        var deviationRotation = tickRotation * Quaternion.Inverse(holdRotation);
+
+        // The physics only ever saw the camera at 64 Hz, so the deviation carries tick-rate
+        // sampling ripple even with nothing touching the prop - the body chased last tick's hold
+        // pose, and a 200 fps view changes speed every frame. Deviation inside the deadband is
+        // that noise and draws as zero, the prop glued to the frame's view; real obstruction
+        // shows in full, ramped in so contact never pops.
+        var positionWeight = DeviationWeight(deviation.Length(),
+            DeviationDeadband, DeviationFullScale);
+        var rotationAngle = 2f * MathF.Acos(Math.Clamp(MathF.Abs(deviationRotation.W), 0f, 1f));
+        var rotationWeight = DeviationWeight(rotationAngle,
+            RotationDeviationDeadband, RotationDeviationFullScale);
+
         SetRenderTransform(
-            livePosition + (tickPosition - holdPosition),
-            tickRotation * Quaternion.Inverse(holdRotation) * liveRotation);
+            livePosition + deviation * positionWeight,
+            Quaternion.Slerp(liveRotation, deviationRotation * liveRotation, rotationWeight));
+    }
+
+    // How much of a deviation the drawing shows: nothing inside the deadband, everything past
+    // full scale, smoothstepped between
+    private static float DeviationWeight(float magnitude, float deadband, float fullScale)
+    {
+        var ramp = Math.Clamp((magnitude - deadband) / (fullScale - deadband), 0f, 1f);
+
+        return ramp * ramp * (3f - 2f * ramp);
     }
 
     /// <summary>
-    /// Where the carried body belongs: the mass center on the eye ray at the carry distance, the
-    /// grab orientation turned with the view. There is no attach glide - the carry's bounded
-    /// acceleration is what pulls a distant grab over smoothly.
+    /// Where the carried body belongs by the carrier's input camera, which is what the carry
+    /// steers the body toward on the tick.
     /// </summary>
     internal (Vector3 Position, Quaternion Rotation) ComputeHoldPose()
     {
         var controller = Carrier!.Controller;
-        var eyePosition = controller.EyePosition;
-        var forward = controller.ViewForward;
 
-        // The pose is not clamped against the world: aiming into a wall asks for a pose inside
-        // it, and the solver's contacts are what hold the body at the surface - the chase's
-        // bounded acceleration keeps that press gentle. A prop held far from an unreachable
-        // pose for long enough is let go by the strain drop.
-        var rotation = ViewRotation(controller.ViewAngles) * carryRelativeRotation;
+        return ComputeHoldPose(controller.EyePosition, controller.ViewForward, controller.ViewAngles);
+    }
+
+    /// <summary>
+    /// Where the carried body belongs for a given view: the mass center on the eye ray at the
+    /// carry distance, the grab orientation turned with the view. There is no attach glide - the
+    /// carry's bounded acceleration is what pulls a distant grab over smoothly - and the pose is
+    /// not clamped against the world: aiming into a wall asks for a pose inside it, the solver's
+    /// contacts hold the body at the surface, and a prop held far from an unreachable pose for
+    /// long enough is let go by the strain drop.
+    /// </summary>
+    private (Vector3 Position, Quaternion Rotation) ComputeHoldPose(Vector3 eyePosition, Vector3 forward, Vector3 viewAngles)
+    {
+        var rotation = ViewRotation(viewAngles) * carryRelativeRotation;
 
         // Offsetting by the rotated local mass center is what puts the *center* of the prop under
         // the crosshair, wherever its body origin happens to sit. The body's own rotation, not the

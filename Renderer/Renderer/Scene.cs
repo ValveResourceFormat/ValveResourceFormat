@@ -532,7 +532,7 @@ namespace ValveResourceFormat.Renderer
             // Entities simulate on their own fixed tick, then their scene nodes pick the result up below
             if (EntitySystem.Scene == this)
             {
-                EntitySystem.Update(updateContext.Timestep);
+                EntitySystem.Update(updateContext.Timestep, updateContext.Camera);
             }
 
             foreach (var node in staticNodes)
