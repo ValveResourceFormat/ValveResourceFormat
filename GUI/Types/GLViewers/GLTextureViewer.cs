@@ -1301,30 +1301,16 @@ namespace GUI.Types.GLViewers
 
             if (IsZoomedIn)
             {
-                if (GLControl.Width < width)
-                {
-                    Position.X = Math.Clamp(Position.X, 0, width - GLControl.Width);
-                }
-                else
-                {
-                    Position.X = Math.Clamp(Position.X, Math.Min(0, -GLControl.Width + width), 0);
-                }
-
-                if (GLControl.Height < height)
-                {
-                    Position.Y = Math.Clamp(Position.Y, 0, height - GLControl.Height);
-                }
-                else
-                {
-                    Position.Y = Math.Clamp(Position.Y, Math.Min(0, -GLControl.Height + height), 0);
-                }
+                // The far bound is negative on an axis where the texture is smaller than the control
+                Position.X = MathUtils.Clamp(Position.X, 0, width - GLControl.Width);
+                Position.Y = MathUtils.Clamp(Position.Y, 0, height - GLControl.Height);
 
                 MovedFromOrigin_Unzoomed = false;
             }
             else if (MovedFromOrigin_Unzoomed)
             {
-                Position.X = Math.Clamp(Position.X, Math.Min(0, -GLControl.Width + width), 0);
-                Position.Y = Math.Clamp(Position.Y, Math.Min(0, -GLControl.Height + height), 0);
+                Position.X = MathUtils.Clamp(Position.X, 0, width - GLControl.Width);
+                Position.Y = MathUtils.Clamp(Position.Y, 0, height - GLControl.Height);
             }
             else
             {

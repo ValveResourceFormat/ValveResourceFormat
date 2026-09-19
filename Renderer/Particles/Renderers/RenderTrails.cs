@@ -110,12 +110,6 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             tailAlphaScale = parse.NumberProvider("m_flTailAlphaScale", tailAlphaScale);
             headColorScale = parse.VectorProvider("m_vecHeadColorScale", headColorScale);
             tailColorScale = parse.VectorProvider("m_vecTailColorScale", tailColorScale);
-
-            if (minLength > maxLength)
-            {
-                // Some particles may have length range set up incorrectly
-                maxLength = minLength;
-            }
         }
 
         /// <inheritdoc/>
@@ -253,7 +247,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                     // The engine clamps the full extent of the trail, and it clamps unconditionally: an
                     // effect that authors m_flLengthScale 0 alongside a minimum length is asking for a
                     // fixed streak that does not track speed, so a zero raw length still draws.
-                    length = Math.Clamp(length, minLength, maxLength);
+                    length = MathUtils.Clamp(length, minLength, maxLength);
 
                     if (length == 0f)
                     {

@@ -207,6 +207,6 @@ namespace ValveResourceFormat.Particles
         }
 
         private float ClampToOutputRange(float value)
-            => Math.Clamp(value, MathF.Min(output0, output1), MathF.Max(output0, output1));
+            => MathUtils.Clamp(value, output0, output1);
     }
 }

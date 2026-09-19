@@ -90,24 +90,27 @@ namespace ValveResourceFormat.Utils
         }
 
         /// <summary>
-        /// Swaps <paramref name="min"/> and <paramref name="max"/> if <paramref name="min"/> > <paramref name="max"/>.
-        /// </summary>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static void MinMaxFixUp<T>(ref T min, ref T max) where T : INumber<T>
-        {
-            if (min > max)
-            {
-                (min, max) = (max, min);
-            }
-        }
-
-        /// <summary>
         /// Clamps a value to [0, 1].
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static float Saturate(float x)
         {
             return Math.Clamp(x, 0.0f, 1.0f);
+        }
+
+        /// <summary>
+        /// Clamps a value between two bounds given in either order, unlike <see cref="Math.Clamp(float, float, float)"/>
+        /// which throws when <paramref name="min"/> is greater than <paramref name="max"/>.
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static T Clamp<T>(T value, T min, T max) where T : INumber<T>
+        {
+            if (min > max)
+            {
+                return T.Min(T.Max(value, max), min);
+            }
+
+            return T.Min(T.Max(value, min), max);
         }
 
         /// <summary>

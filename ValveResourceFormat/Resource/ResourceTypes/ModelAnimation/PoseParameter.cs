@@ -15,6 +15,6 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
         /// <summary>
         /// Returns <paramref name="value"/> clamped to <see cref="Min"/>/<see cref="Max"/>.
         /// </summary>
-        public float Clamp(float value) => Math.Clamp(value, Min, Max);
+        public float Clamp(float value) => MathUtils.Clamp(value, Min, Max);
     }
 }

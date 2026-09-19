@@ -78,8 +78,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             textureRepetitionMode = parse.Enum("m_nTextureRepetitionMode", textureRepetitionMode);
             tessScale = parse.Float("m_flTessScale", tessScale);
             minTessellation = parse.Int32("m_nMinTesselation", minTessellation);
-            // Guard against inverted authored bounds so the per-frame Math.Clamp cannot throw.
-            maxTessellation = Math.Max(minTessellation, parse.Int32("m_nMaxTesselation", maxTessellation));
+            maxTessellation = parse.Int32("m_nMaxTesselation", maxTessellation);
             textureRepeatsPerSegment = parse.NumberProvider("m_flTextureRepeatsPerSegment", textureRepeatsPerSegment);
             circumferenceRepeats = parse.NumberProvider("m_flTextureRepeatsCircumference", circumferenceRepeats);
 
@@ -262,7 +261,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                     : Math.Clamp(radius * camera.ProjectionMatrix.M22 / MathF.Sqrt(distanceSquared), 0f, 1f);
 
                 var tess = size * tessScale * resolutionScale;
-                var subdivisions = Math.Clamp(Math.Clamp((int)tess, minTessellation, maxTessellation), 1, 1 << MaxTessellationLevel);
+                var subdivisions = Math.Clamp(MathUtils.Clamp((int)tess, minTessellation, maxTessellation), 1, 1 << MaxTessellationLevel);
                 var level = BitOperations.Log2((uint)subdivisions);
 
                 var bendPrev = i > 0 ? Vector3.Dot(directions[i], directions[i - 1]) : 1f;
