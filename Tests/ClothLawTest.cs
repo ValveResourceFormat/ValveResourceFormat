@@ -8278,5 +8278,59 @@ namespace Tests
             };
             return model;
         }
+
+        /// <summary>
+        /// A pair of children the compiler ALSO joined for some other reason carries that rod beside the
+        /// sibling spring's, so the slider is the relaxation every pair has in common rather than the one
+        /// every rod agrees on.
+        /// </summary>
+        /// <remarks>
+        /// dl `unicorn_celeste`: nineteen children of `Front_Hair`, seven pairs examined, six of them
+        /// carrying the spring's four copies of 0.3 and the seventh carrying those four and a rigid rod at
+        /// 1.0. Demanding that every rod agree read the whole set as no spring at all, and with it went
+        /// twenty fit matrices and 429 fit weights. Controls: a pair carrying no value the others do, and a
+        /// set whose pairs share two values, both of which state nothing.
+        /// </remarks>
+        [Test]
+        public async Task AForeignRodOnOnePairDoesNotRefuteTheSiblingSpring()
+        {
+            var shared = SiblingChain($"""
+                {SyntheticCloth.RigidRod(0, 1, 3f, 1f)}
+                {SyntheticCloth.RigidRod(0, 2, 3f, 1f)}
+                {SyntheticCloth.RigidRod(0, 3, 3f, 1f)}
+                {SyntheticCloth.RigidRod(1, 2, 3f, 0.5f)}
+                {SyntheticCloth.RigidRod(1, 2, 3f, 0.9f)}
+                {SyntheticCloth.RigidRod(1, 3, 3f, 0.5f)}
+                {SyntheticCloth.RigidRod(2, 3, 3f, 0.5f)}
+                """);
+
+            var disjoint = SiblingChain($"""
+                {SyntheticCloth.RigidRod(0, 1, 3f, 1f)}
+                {SyntheticCloth.RigidRod(0, 2, 3f, 1f)}
+                {SyntheticCloth.RigidRod(0, 3, 3f, 1f)}
+                {SyntheticCloth.RigidRod(1, 2, 3f, 0.9f)}
+                {SyntheticCloth.RigidRod(1, 3, 3f, 0.5f)}
+                {SyntheticCloth.RigidRod(2, 3, 3f, 0.5f)}
+                """);
+
+            var ambiguous = SiblingChain($"""
+                {SyntheticCloth.RigidRod(0, 1, 3f, 1f)}
+                {SyntheticCloth.RigidRod(0, 2, 3f, 1f)}
+                {SyntheticCloth.RigidRod(0, 3, 3f, 1f)}
+                {SyntheticCloth.RigidRod(1, 2, 3f, 0.5f)}
+                {SyntheticCloth.RigidRod(1, 2, 3f, 0.9f)}
+                {SyntheticCloth.RigidRod(1, 3, 3f, 0.5f)}
+                {SyntheticCloth.RigidRod(1, 3, 3f, 0.9f)}
+                {SyntheticCloth.RigidRod(2, 3, 3f, 0.5f)}
+                {SyntheticCloth.RigidRod(2, 3, 3f, 0.9f)}
+                """);
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(shared!.ChildSiblingSpring).IsEqualTo(0.5f);
+                await Assert.That(disjoint!.ChildSiblingSpring).IsEqualTo(0f);
+                await Assert.That(ambiguous!.ChildSiblingSpring).IsEqualTo(0f);
+            }
+        }
     }
 }

@@ -2938,7 +2938,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                         return 0f;
                     }
 
-                    float? value = null;
+                    List<float>? common = null;
                     for (var i = 0; i < kids.Count; i++)
                     {
                         for (var j = i + 1; j < kids.Count; j++)
@@ -2960,21 +2960,38 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                                         return 0f;
                                     }
 
-                                    foreach (var relaxation in relaxations)
+                                    // The compiler writes ONE rod per pair, at the spring's own relaxation.
+                                    // A pair the two children are ALSO joined by for some other reason
+                                    // carries that rod beside it and does not refute the set, so the
+                                    // reading is the value every pair has in common rather than the value
+                                    // every rod agrees on. It survives only while exactly one value does.
+                                    if (common is null)
                                     {
-                                        if (value is { } already && MathF.Abs(already - relaxation) > 1e-4f)
+                                        common = [];
+                                        foreach (var relaxation in relaxations)
                                         {
-                                            return 0f;
+                                            if (!common.Exists(seen => MathF.Abs(seen - relaxation) <= 1e-4f))
+                                            {
+                                                common.Add(relaxation);
+                                            }
                                         }
+                                    }
+                                    else
+                                    {
+                                        common.RemoveAll(seen =>
+                                            !relaxations.Exists(relaxation => MathF.Abs(seen - relaxation) <= 1e-4f));
+                                    }
 
-                                        value = relaxation;
+                                    if (common.Count == 0)
+                                    {
+                                        return 0f;
                                     }
                                 }
                             }
                         }
                     }
 
-                    return value is { } reading && reading > 0f ? Slider(reading) : 0f;
+                    return common is [var reading] && reading > 0f ? Slider(reading) : 0f;
                 }
 
                 foreach (var joint in chain.Joints)
