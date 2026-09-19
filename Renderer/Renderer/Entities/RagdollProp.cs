@@ -51,23 +51,25 @@ public class RagdollProp : BaseModelEntity, ICarryable
     private PlayerEntity? carrier;
     private float carryDistance;
 
-    // The rest-energy drain, the way Rubikon ragdolls shed energy: near rest the stiff joint
-    // solve chatters micro-impulses into the parts faster than the authored damping bleeds
-    // them - measured 1-3 u/s and a visibly spinning head forever, since a sphere's point
-    // contact has no twist friction. Once every part is below these speeds the doll cannot be
-    // doing anything watchable, so its velocities are drained outright; active motion - falls,
-    // throws, swings - sits above the thresholds and is never touched.
+    // The rest-energy drain, the way Rubikon ragdolls shed energy: the solver injects micro
+    // impulses into a jointed assembly with every outer step's contact update, faster than the
+    // authored damping bleeds them - measured 1-3 u/s and a visibly spinning head forever,
+    // since a sphere's point contact has no twist friction. Once every part is below these
+    // speeds the doll cannot be doing anything watchable, so its velocities are drained
+    // outright until the solver's own island sleep closes - the island, not the doll, so a
+    // pile of ragdolls goes down together instead of freezing one doll against a moving
+    // neighbor. Active motion - falls, throws, swings - sits above the thresholds untouched.
     private const float DrainLinearSpeed = 15f;
-    private const float DrainAngularSpeed = 3f;
+    private const float DrainAngularSpeed = 5f;
     private const float DrainRate = 4f;
 
-    // Source's ragdoll_sleepaftertime, tightened: the solver's island sleep waits for every
-    // part to stay under its own strict threshold at once, which the limit springs' micro
-    // chatter defers for many seconds; the entity forces the doll asleep once nothing has
-    // moved visibly for a while. Any real contact or impulse wakes it again.
-    private const float ForcedSleepLinearSpeed = 6f;
-    private const float ForcedSleepAngularSpeed = 1f;
-    private const float ForcedSleepAfter = 0.5f;
+    // The terminal state is still sleep - the solver's island sleep never fires for a pile,
+    // where one of dozens of bodies always spikes over its threshold inside the shared timer's
+    // window - but it is forced only at speeds below what an eye can see, which the drain
+    // guarantees every doll in a pile reaches, and reaches together.
+    private const float ForcedSleepLinearSpeed = 2f;
+    private const float ForcedSleepAngularSpeed = 0.4f;
+    private const float ForcedSleepAfter = 0.75f;
     private float stillTime;
 
     /// <summary>
@@ -168,8 +170,8 @@ public class RagdollProp : BaseModelEntity, ICarryable
         }
 
         var anyAwake = false;
-        var visiblyMoving = false;
         var nearRest = true;
+        var belowSleep = true;
 
         for (var i = 0; i < bodies.Length; i++)
         {
@@ -188,34 +190,31 @@ public class RagdollProp : BaseModelEntity, ICarryable
                 var linearSpeed = bodies[i].LinearVelocity.Length();
                 var angularSpeed = bodies[i].AngularVelocity.Length();
 
-                visiblyMoving |= linearSpeed > ForcedSleepLinearSpeed || angularSpeed > ForcedSleepAngularSpeed;
                 nearRest &= linearSpeed <= DrainLinearSpeed && angularSpeed <= DrainAngularSpeed;
+                belowSleep &= linearSpeed <= ForcedSleepLinearSpeed && angularSpeed <= ForcedSleepAngularSpeed;
             }
         }
 
-        // A held doll never rests, and a sleeping one needs neither drain nor timer
-        if (carriedPart >= 0 || !anyAwake)
+        // A held doll never rests, and a sleeping one has nothing to drain
+        if (carriedPart >= 0 || !anyAwake || !nearRest)
         {
             stillTime = 0f;
             return;
         }
 
-        if (nearRest)
-        {
-            var drain = MathF.Exp(-DrainRate * tickInterval);
+        var drain = MathF.Exp(-DrainRate * tickInterval);
 
-            for (var i = 0; i < bodies.Length; i++)
+        for (var i = 0; i < bodies.Length; i++)
+        {
+            if (hasBody[i])
             {
-                if (hasBody[i])
-                {
-                    var body = bodies[i];
-                    body.LinearVelocity *= drain;
-                    body.AngularVelocity *= drain;
-                }
+                var body = bodies[i];
+                body.LinearVelocity *= drain;
+                body.AngularVelocity *= drain;
             }
         }
 
-        stillTime = visiblyMoving ? 0f : stillTime + tickInterval;
+        stillTime = belowSleep ? stillTime + tickInterval : 0f;
 
         if (stillTime >= ForcedSleepAfter)
         {
