@@ -1929,22 +1929,32 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             => PredictBendRods([.. faces.Select(static face => face.Length > 4 ? face[..4] : face)], isStatic);
 
         // The bend rods the compiler derives from the given elements, one pair of far corners per edge two of
-        // them share. Elements are walked in order and an edge is paired with the earliest unpaired element
-        // that lists it, in the same direction first; the far corners then pair by position when the
-        // directions agree and crosswise when they oppose. A rod between two static corners is never built.
+        // them share. A rod between two static corners is never built.
         static HashSet<(int, int)> PredictBendRods(List<int[]> elements, Func<int, bool> isStatic)
         {
-            var open = new Dictionary<(int, int), (int Near, int Far)>();
             var rods = new HashSet<(int, int)>();
-            void Add(int a, int b)
+            foreach (var (_, nodeA, nodeB) in BendRodGenerators(elements))
             {
-                if (a != b && !(isStatic(a) && isStatic(b)))
+                if (nodeA != nodeB && !(isStatic(nodeA) && isStatic(nodeB)))
                 {
-                    rods.Add(a < b ? (a, b) : (b, a));
+                    rods.Add(nodeA < nodeB ? (nodeA, nodeB) : (nodeB, nodeA));
                 }
             }
 
-            foreach (var e in elements)
+            return rods;
+        }
+
+        /// <summary>
+        /// Every bend rod the compiler derives from a surface, as the hinge edge it folds that rod about and
+        /// the two far corners the rod joins. Elements are walked in order and an edge is paired with the
+        /// earliest unpaired element that lists it, in the same direction first; the far corners then pair by
+        /// position when the two directions agree and crosswise when they oppose. An edge a third element
+        /// lists opens again rather than pairing with either of the first two, so it generates nothing there.
+        /// </summary>
+        internal static IEnumerable<((int, int) Hinge, int NodeA, int NodeB)> BendRodGenerators(IEnumerable<int[]> elements)
+        {
+            var open = new Dictionary<(int, int), (int Near, int Far)>();
+            foreach (var e in elements.Select(static element => element.Length > 4 ? element[..4] : element))
             {
                 var n = e.Length;
                 for (var j = 0; j < n; j++)
@@ -1953,15 +1963,16 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                     var n1 = e[(j + 1) % n];
                     var n2 = n == 3 ? e[(j + 2) % 3] : e[(j + 2) % 4];
                     var n3 = n == 3 ? n2 : e[(j + 3) % 4];
+                    var hinge = n0 < n1 ? (n0, n1) : (n1, n0);
                     if (open.Remove((n0, n1), out var same))
                     {
-                        Add(n2, same.Near);
-                        Add(n3, same.Far);
+                        yield return (hinge, n2, same.Near);
+                        yield return (hinge, n3, same.Far);
                     }
                     else if (open.Remove((n1, n0), out var opposite))
                     {
-                        Add(n2, opposite.Far);
-                        Add(n3, opposite.Near);
+                        yield return (hinge, n2, opposite.Far);
+                        yield return (hinge, n3, opposite.Near);
                     }
                     else
                     {
@@ -1969,8 +1980,6 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                     }
                 }
             }
-
-            return rods;
         }
 
         // Puts an uncovered sheet vertex back as the fourth corner of the triangle its authored quad was

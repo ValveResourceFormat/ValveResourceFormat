@@ -763,17 +763,19 @@ partial class ModelExtract
         FeModel feModel, List<int[]> faces, HashSet<(int, int)> beyondSurface)
     {
         var positions = feModel.InitPosePositions;
-        var hinges = new Dictionary<(int, int), List<int[]>>();
-        var touching = new Dictionary<int, List<int[]>>();
-        foreach (var face in faces)
+        var generators = new Dictionary<(int, int), List<(int, int)>>();
+        foreach (var (hinge, nodeA, nodeB) in FeModel.BendRodGenerators(faces))
         {
-            for (var i = 0; i < face.Length; i++)
+            if (nodeA == nodeB)
             {
-                var a = face[i];
-                var b = face[(i + 1) % face.Length];
-                var hinge = a < b ? (a, b) : (b, a);
-                (hinges.TryGetValue(hinge, out var sharing) ? sharing : hinges[hinge] = []).Add(face);
-                (touching.TryGetValue(a, out var around) ? around : touching[a] = []).Add(face);
+                continue;
+            }
+
+            var generated = nodeA < nodeB ? (nodeA, nodeB) : (nodeB, nodeA);
+            var about = generators.TryGetValue(generated, out var known) ? known : generators[generated] = [];
+            if (!about.Contains(hinge))
+            {
+                about.Add(hinge);
             }
         }
 
@@ -794,15 +796,8 @@ partial class ModelExtract
             var folded = 0f;
             var about = (0, 0);
             var fits = new List<((int, int) Hinge, float Error, float Open, float Shut)>();
-            foreach (var hinge in HingesAround(touching, rod.NodeA))
+            foreach (var hinge in generators.TryGetValue(edge, out var generating) ? generating : [])
             {
-                if (hinge.Item1 == edge.Item1 || hinge.Item1 == edge.Item2
-                    || hinge.Item2 == edge.Item1 || hinge.Item2 == edge.Item2
-                    || !hinges[hinge].Any(face => face.Contains(rod.NodeB)))
-                {
-                    continue;
-                }
-
                 var axis = positions[hinge.Item2] - positions[hinge.Item1];
                 var axisLength = axis.Length();
                 if (axisLength < 1e-6f)
@@ -843,8 +838,8 @@ partial class ModelExtract
             var reach = (flat * flat) - (folded * folded);
             var span = rod.MinDist >= rest - (2e-4f * MathF.Max(1f, rest)) ? rest : rod.MinDist;
             var fraction = Math.Clamp(((span * span) - (folded * folded)) / reach, 0f, 1f);
-            // The compiler generates the rod from every hinge whose two faces carry its endpoints as far corners,
-            // and each of them reads the rod's one minimum through its own geometry.
+            // The compiler builds the rod once per hinge its own element pairing generates it from, and each of
+            // those reads the rod's one minimum through its own geometry.
             var candidates = fits
                 .Select(fit => (fit.Hinge, Math.Clamp(((span * span) - (fit.Shut * fit.Shut))
                     / ((fit.Open * fit.Open) - (fit.Shut * fit.Shut)), 0f, 1f)))
@@ -1314,24 +1309,6 @@ partial class ModelExtract
     // How many times a hinge stating only a lower bound may raise its own two vertices before the
     // solve gives up. Each pass satisfies every bound it can, so a chain of them settles in a few.
     const int ClothBendStiffnessRepairPasses = 8;
-
-    static IEnumerable<(int, int)> HingesAround(Dictionary<int, List<int[]>> touching, int node)
-    {
-        if (!touching.TryGetValue(node, out var around))
-        {
-            yield break;
-        }
-
-        foreach (var face in around)
-        {
-            for (var i = 0; i < face.Length; i++)
-            {
-                var a = face[i];
-                var b = face[(i + 1) % face.Length];
-                yield return a < b ? (a, b) : (b, a);
-            }
-        }
-    }
 
     // TODO: some models re-export more rods than the original, from overlap between the springs emitted
     // here, the chains, and the proxy sheet all re-declaring the same span.
