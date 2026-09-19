@@ -183,7 +183,16 @@ namespace ValveResourceFormat.Renderer.SceneNodes
 
                 if (value)
                 {
+                    // The buffer normally reaches the mesh renderers when an animation
+                    // activates; an externally posed model may never have one - CS2 models keep
+                    // their animations in animgraph clips - so bind it here, or every mesh
+                    // draws rigid and the written pose never shows
                     SetupBoneMatrixBuffers();
+
+                    foreach (var renderer in meshRenderers)
+                    {
+                        renderer.SetBoneMatricesBuffer(boneMatricesGpu);
+                    }
                 }
             }
         }
