@@ -54,6 +54,13 @@ public abstract class BaseModelEntity : BaseEntity
     /// </summary>
     protected virtual bool UsesMoverBody => true;
 
+    /// <summary>
+    /// Whether the collision debug nodes are built with the model, posed at bind under the entity
+    /// transform. An entity that visualizes its physics itself - a ragdoll moving each part's
+    /// hull with its body - opts out and builds its own.
+    /// </summary>
+    protected virtual bool CreatesPhysDebugNodes => true;
+
     // The kinematic mirror of the collider, and whether it currently collides; a mover the map
     // makes non-solid takes its body along
     private Body moverBody;
@@ -180,9 +187,12 @@ public abstract class BaseModelEntity : BaseEntity
 
             // Owned outright rather than hung off the model: a brush compiled for collision alone has no
             // model node to hang them from, and its hulls are then the only thing there is to show.
-            foreach (var physicsNode in PhysSceneNode.CreatePhysSceneNodes(Scene, physics, modelName, Classname))
+            if (CreatesPhysDebugNodes)
             {
-                AddNode(physicsNode);
+                foreach (var physicsNode in PhysSceneNode.CreatePhysSceneNodes(Scene, physics, modelName, Classname))
+                {
+                    AddNode(physicsNode);
+                }
             }
 
             // intentionally skip default scene node if phys exists
