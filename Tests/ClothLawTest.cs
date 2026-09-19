@@ -8439,5 +8439,55 @@ namespace Tests
                 await Assert.That(model.ChainHintsAreTwistWritten(leaf)).IsFalse();
             }
         }
+        /// <summary>
+        /// A rotation-locked root's ABSENT node base states format 1 only where the chain EXTRUDES. A
+        /// ringless chain raises no version-2 preset candidates at all, so it compiles the same at either
+        /// version and its root's missing entry states nothing.
+        /// </summary>
+        /// <remarks>
+        /// PROBED 2026-09-20 on both sides. dl <c>bookworm2</c>'s ringless <c>hair</c> chain, whose own
+        /// authored version is 2, forced from 1 to 2 emits the same 6 node bases on the same owners, the
+        /// same 6 reverse offsets and the same 1092 rods - the version is unobservable there. dl
+        /// <c>hornet_new_default</c>, whose chains extrude, gains bases on <c>hat_base</c> and three
+        /// <c>hat_flap_*</c> joints the original bases not at all, so its absent entries are real evidence
+        /// of format 1. Reading the two alike took twelve authored-version-2 chains to version 1, and
+        /// correcting it without this test regressed seven dl rows.
+        /// </remarks>
+        [Test]
+        public async Task ARinglessChainsAbsentRootBaseStatesNoFormat()
+        {
+            var ringless = SyntheticCloth.Parse($$"""
+                {
+                    m_CtrlName = [ "root", "j1", "j2" ]
+                    m_SkelParents = [ -1, 0, 1 ]
+                    m_nNodeCount = 3
+                    m_nStaticNodes = 1
+                    m_nRotLockStaticNodes = 1
+                    m_NodeInvMasses = [ 0.0, 1.0, 1.0 ]
+                    m_InitPose =
+                    [
+                        {{SyntheticCloth.Pose(0f, 0f, 0f)}}
+                        {{SyntheticCloth.Pose(0f, 0f, -10f)}}
+                        {{SyntheticCloth.Pose(0f, 0f, -20f)}}
+                    ]
+                    m_Rods =
+                    [
+                        {{SyntheticCloth.RigidRod(0, 1, 10f, 1f)}}
+                        {{SyntheticCloth.RigidRod(1, 2, 10f, 1f)}}
+                    ]
+                }
+                """);
+
+            var chain = ringless.BuildBoneChains()[0];
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(chain.ExtrudeSides).IsLessThan(1);
+                await Assert.That(ringless.AllowsRotation(chain.Joints[0].Node)).IsFalse();
+                await Assert.That(ringless.NodeBases.ContainsKey(chain.Joints[0].Node)).IsFalse();
+                await Assert.That(ModelExtract.ClothChainVersion(ringless, chain, hasOtherChains: true))
+                    .IsEqualTo(2);
+            }
+        }
     }
 }

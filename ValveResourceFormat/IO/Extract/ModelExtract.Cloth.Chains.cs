@@ -129,9 +129,12 @@ partial class ModelExtract
     /// <param name="hasUnstagedThinJoint">Whether a joint only the version-1 fit top-up would group carries no group.</param>
     /// <param name="reverseOffsetsPreset">Whether the joints' reverse offsets name their preset bases' Y1 nodes, null when they do not say.</param>
     /// <param name="hasUnbasedLeaf">Whether a simulated leaf of a two-sided chain carries no node base (<see cref="FeModel.ChainHasUnbasedLeaf"/>).</param>
+    /// <param name="siblingHubLock">Whether the chain's locks are its sibling hub's, which states nothing about the format.</param>
+    /// <param name="extrudesNothing">Whether the chain extrudes no ring at all, so the version-2 preset grade raises no candidates and cannot be read.</param>
     internal static int ClothChainVersion(int jointCount, bool hasOtherChains, bool? rootAllowsRotation, bool rootHasBase,
         bool lockedJoint, bool rigidCloudClusterLock, bool locksJoints, bool? basesBulkGraded, bool hintsTwistWritten,
-        bool hasUnstagedThinJoint, bool? reverseOffsetsPreset = null, bool hasUnbasedLeaf = false)
+        bool hasUnstagedThinJoint, bool? reverseOffsetsPreset = null, bool hasUnbasedLeaf = false,
+        bool siblingHubLock = false, bool extrudesNothing = false)
     {
         // The two chain formats are not interchangeable: format 1 registers a non-simulated joint that has
         // no parent to be offset from into m_LockToGoal, format 2 leaves it out. Both are in live use, so
@@ -143,7 +146,7 @@ partial class ModelExtract
         // several sub-chains were merged under looks like: it roots no chain in the original, so nothing
         // ever gave it a base. Format 1 also locks every non-simulated, rotation-free joint of an extruding
         // chain to its goal, so an original that locks none of them rules format 1 out directly.
-        var lockedInOriginal = lockedJoint && !rigidCloudClusterLock;
+        var lockedInOriginal = lockedJoint && !rigidCloudClusterLock && !siblingHubLock;
         var rootRotationLocked = rootAllowsRotation == false;
 
         // A one-joint chain carries no version of its own: MEASURED 2026-09-20 on dl `haze` (30 chains,
@@ -152,17 +155,21 @@ partial class ModelExtract
         // once guarded against was a LONE one-joint chain, which this condition never covered anyway,
         // and the authored sources ship one-joint chains at version 2 beside eighteen others.
         //
-        // A rotation-locked root with an ABSENT m_NodeBases entry reads as format 1 here, and the authored
-        // sources say that is wrong on twelve chains (haze's six hub chains, its Flame_Head, bookworm's
-        // Hair): all are authored version 2. It is NOT corrected, because doing so REGRESSES the compiled
-        // round trip - MEASURED 2026-09-20, `w40chainver.py` + `w40dlrow.py`: reading them at their own
-        // authored version takes `archer_default`, `gigawatt_prisoner_default`, `hornet_default`,
-        // `hornet_new_default(_cs2)` and `pestilence_v2` from EXACT to DEFECT and `bebop_default` from
-        // EQUIVALENT to DEFECT, every one of them on `m_NodeBases` and the fit matrices that ride on it.
-        // The demotion is compensating for a version-2 preset grade this exporter does not yet reproduce,
-        // so it stays until that does. 07_REFUTED.
+        // A rotation-locked root whose m_NodeBases entry is PRESENT is format 2 outright, since format 1
+        // suppresses it. An ABSENT entry states nothing on its own: it is equally what a root that never
+        // rooted a chain in the original looks like, and reading it as format 1 was wrong on every
+        // authored chain of that shape (MEASURED 2026-09-20: haze's six hub chains, its Flame_Head and
+        // bookworm's Hair are all authored version 2 and all read version 1).
+        //
+        // What decides it is whether the chain EXTRUDES. The version-2 preset grade runs over a joint's
+        // own extrusion vector and its child's, so a RINGLESS chain raises no candidates and compiles
+        // identically at either version - PROBED on dl `bookworm2`'s ringless `hair` chain, whose own
+        // authored version is 2: forced from 1 to 2 it emits the same 6 node bases on the same owners,
+        // the same 6 reverse offsets and the same 1092 rods. An EXTRUDING chain does differ, and its
+        // absent bases are then real evidence of format 1 - PROBED on `hornet_new_default`, where forcing
+        // version 2 bases `hat_base` and three `hat_flap_*` joints the original bases not at all.
         var version = rootRotationLocked && (lockedInOriginal || !locksJoints)
-            ? (rootHasBase ? 2 : 1)
+            ? (rootHasBase || extrudesNothing ? 2 : 1)
             : (lockedInOriginal ? 1 : 2);
 
         // Format 2 also grades a preset basis for every joint that has a child, over the joint's own
@@ -221,7 +228,12 @@ partial class ModelExtract
             hintsTwistWritten: feModel.ChainHintsAreTwistWritten(chain),
             hasUnstagedThinJoint: feModel.ChainHasUnstagedThinJoint(chain),
             reverseOffsetsPreset: feModel.ChainReverseOffsetsArePreset(chain),
-            hasUnbasedLeaf: feModel.ChainHasUnbasedLeaf(chain));
+            hasUnbasedLeaf: feModel.ChainHasUnbasedLeaf(chain),
+            siblingHubLock: feModel.SiblingSpringHubs.Contains(chain.RootBone)
+                && chain.Joints.TrueForAll(joint => !feModel.IsLockedToGoal(joint.Node)
+                    || joint.SpringsWithSiblings),
+            extrudesNothing: chain.ExtrudeSides < 1
+                && !chain.Joints.Exists(static joint => joint.RingNodes.Count > 0));
     }
 
     /// <summary>
