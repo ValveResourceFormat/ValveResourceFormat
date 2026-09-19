@@ -478,12 +478,24 @@ partial class ModelExtract
         var selectionOrder = physAggregateData?.FeModel is { } orderFeModel
             ? orderFeModel.VertexSetStreamOrder(proxy)
             : proxy.VertexMaps.Select(static map => map.Name).ToArray();
+        // A selection the original does NOT register as a vertex set is declared as its own container
+        // instead (see the unregistered-selection containers in EmitProxySheetClothPhase): painting it here
+        // would register the name and hand the recompile a dynamic vertex set the original never had.
         foreach (var mapName in selectionOrder)
         {
-            if (!containerMaps.Contains(mapName) && selectionWeights.TryGetValue(mapName, out var weights))
+            if (containerMaps.Contains(mapName) || !selectionWeights.TryGetValue(mapName, out var weights))
             {
-                vertexData.AddIndexedStream("cloth_vertex_set_" + mapName + "$0", weights, vertexIndices);
+                continue;
             }
+
+            if (physAggregateData?.FeModel is { } setFeModel
+                && setFeModel.VertexMaps.FirstOrDefault(map => map.Name == mapName) is { } selection
+                && selection.Name == mapName && !setFeModel.RegistersVertexSet(selection.NameHash))
+            {
+                continue;
+            }
+
+            vertexData.AddIndexedStream("cloth_vertex_set_" + mapName + "$0", weights, vertexIndices);
         }
 
         // A selection the original registers over NO vertex at all still ships as an m_VertexMaps record carrying

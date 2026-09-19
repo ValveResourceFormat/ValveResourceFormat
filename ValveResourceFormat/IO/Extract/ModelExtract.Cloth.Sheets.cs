@@ -464,6 +464,57 @@ partial class ModelExtract
             clothProxyChildren.Add(proxyNode);
         }
 
+        // A selection the original does NOT register as a vertex set covers sheet vertices without any
+        // per-node membership of its own, so it cannot be painted: the compiler registers the name of every
+        // cloth_vertex_set stream it reads. It is declared as its own container instead, listing the
+        // vertices it covers by name at their weights, which compiles to the same m_VertexMaps entry and
+        // registers nothing.
+        var sheetNodeNames = BuildProxyNodeNameMap(ClothProxyMeshesToExtract);
+        foreach (var map in feModel.VertexMaps)
+        {
+            if (feModel.RegistersVertexSet(map.NameHash) || vertexMapContainers.ContainsKey(map.Name))
+            {
+                continue;
+            }
+
+            var members = KVObject.Collection();
+            var listed = 0;
+            for (var node = map.VertexBase; node < map.VertexBase + map.VertexCount; node++)
+            {
+                var weight = map.WeightOf(node);
+                if (weight <= 0f || !sheetNodeNames.TryGetValue(node, out var memberName))
+                {
+                    continue;
+                }
+
+                if (weight >= 1f)
+                {
+                    members.Add(memberName, true);
+                }
+                else
+                {
+                    var member = KVObject.Collection();
+                    member.Add("weight", weight);
+                    members.Add(memberName, member);
+                }
+
+                listed++;
+            }
+
+            if (listed == 0)
+            {
+                continue;
+            }
+
+            var (unregisteredNode, _) = MakeListNode("ClothVertexMap");
+            unregisteredNode.Add("name", map.Name);
+            AddClothVertexMapAttributes(unregisteredNode, feModel, map.Name, sheetNodeNames);
+            var unregisteredData = KVObject.Collection();
+            unregisteredData.Add("nodes", members);
+            unregisteredNode.Add("data", unregisteredData);
+            clothProxyChildren.Add(unregisteredNode);
+        }
+
         // Clean regular grids generated over the bone chains, shipped DISABLED next to the
         // recovered surface: a ready-made editable sheet for re-authoring the cloth.
         foreach (var clothGrid in ClothChainGridsToExtract)

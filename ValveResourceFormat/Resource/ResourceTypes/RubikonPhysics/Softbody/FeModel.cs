@@ -4098,6 +4098,13 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         }
 
         /// <summary>
+        /// Whether the model registers a selection under <paramref name="nameHash"/> as a vertex SET, which is
+        /// what a <c>cloth_vertex_set</c> paint stream creates. A selection the original carries only as an
+        /// <c>m_VertexMaps</c> entry has to be re-declared some way that registers nothing.
+        /// </summary>
+        public bool RegistersVertexSet(uint nameHash) => Array.IndexOf(VertexSetNames, nameHash) >= 0;
+
+        /// <summary>
         /// Gets every selection covering the same nodes at the same weights as the one named
         /// <paramref name="mapName"/>, in compiled order and including it, leaving out any other selection
         /// registered as a vertex set. One <c>ClothVertexMap</c> container compiles to exactly these entries
