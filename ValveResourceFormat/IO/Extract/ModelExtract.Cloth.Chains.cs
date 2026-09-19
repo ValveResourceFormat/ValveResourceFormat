@@ -402,10 +402,14 @@ partial class ModelExtract
         var pinnedSimulatedRoot = (joint.IsRoot && !joint.Simulated && twistRelax > 0f) || joint.SpringsWithSiblings;
         kv.Add("simulate", joint.Simulated || pinnedSimulatedRoot);
 
-        // A static root's own entries carry no relaxation at all, so its authored twist_relax survives
+        // A STATIC joint's own entries carry no relaxation at all, so its authored twist_relax survives
         // only as the twist link it made. The magnitude is gone with it: every value above zero compiles
-        // the same pair of entries, so the largest one stands for the key being set.
-        if (twistRelax == 0f && joint.IsRoot && !joint.Simulated
+        // the same pair of entries, so the largest one stands for the key being set. The evidence is the
+        // joint's own entries and is read per joint, so a static joint reads the same way wherever it
+        // sits: a chain we root one bone higher than the source did leaves such a joint interior, and
+        // dropping its twist there costs it the goal lock the compiler writes for a node whose parent has
+        // neither simulation nor rotation to offset from.
+        if (twistRelax == 0f && !joint.Simulated
             && (feModel.HasRelaxlessTwistLink(joint.Node) || feModel.OrientsRelaxlessTwist(joint.Node)))
         {
             twistRelax = ClothStaticRootTwistRelax;

@@ -8332,5 +8332,51 @@ namespace Tests
                 await Assert.That(ambiguous!.ChildSiblingSpring).IsEqualTo(0f);
             }
         }
+
+        /// <summary>
+        /// A static joint's relaxless twist is its own whatever its place in the chain, so an INTERIOR
+        /// static joint re-declares it exactly as a root does.
+        /// </summary>
+        /// <remarks>
+        /// dl `unicorn_celeste`: the source roots its Breast chain at `BreastRoot_R` and we root it one
+        /// bone higher at `spine_3`, which leaves that joint interior. Gated on the root, the recovery
+        /// dropped its twist - and a node whose parent offers neither simulation nor rotation to offset
+        /// from is then locked to its goal by the compiler (`CFeModelBuilder::PreprocessInput` clears such
+        /// a parent, and `BuildFitMatrices` writes `m_LockToGoal`), which cost the row that key and an
+        /// `m_NodeBases` entry. Control: the same joint SIMULATING, which explains its own entry and
+        /// states nothing.
+        /// </remarks>
+        [Test]
+        public async Task AnInteriorStaticJointRedeclaresItsRelaxlessTwistToo()
+        {
+            var interior = ModelExtract.MakeClothJoint(InteriorTwist("0.0"), InteriorStaticJoint(0f));
+            var simulated = ModelExtract.MakeClothJoint(InteriorTwist("1.0"), InteriorStaticJoint(1f));
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(InteriorTwist("0.0").OrientsRelaxlessTwist(1)).IsTrue();
+                await Assert.That(interior.GetFloatProperty("twist_relax")).IsEqualTo(1f);
+                await Assert.That(interior.GetBooleanProperty("simulate")).IsFalse();
+                await Assert.That(simulated.GetFloatProperty("twist_relax")).IsNotEqualTo(1f);
+            }
+        }
+
+        private static FeModel.BoneChainJoint InteriorStaticJoint(float invMass)
+            => new() { Name = "mid", Node = 1, ParentNode = 0, ParentName = "root", InvMass = invMass };
+
+        /// <summary>A three-bone chain whose MIDDLE joint orients a twist the far end states nothing back for.</summary>
+        private static FeModel InteriorTwist(string relax) => SyntheticCloth.Parse($$"""
+            {
+                m_CtrlName = [ "root", "mid", "tip" ]
+                m_SkelParents = [ -1, 0, 1 ]
+                m_nNodeCount = 3
+                m_nStaticNodes = 2
+                m_NodeInvMasses = [ 0.0, 0.0, 1.0 ]
+                m_Twists =
+                [
+                    { nNodeOrient = 1 nNodeEnd = 2 flTwistRelax = {{relax}} flSwingRelax = 1.0 },
+                ]
+            }
+            """);
     }
 }
