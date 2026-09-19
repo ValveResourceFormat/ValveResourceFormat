@@ -685,13 +685,13 @@ namespace GUI.Types.GLViewers
                 if (Picker.ActiveNextFrame)
                 {
                     using var _ = new GLDebugGroup("Picker Object Id Render");
-                    renderContext.ReplacementShader = Picker.Shader;
-                    renderContext.Framebuffer = Picker;
 
-                    Renderer.RenderScenesWithView(renderContext);
+                    var pickerContext = renderContext with { ReplacementShader = Picker.Shader, Framebuffer = Picker };
+                    Renderer.RenderScenesWithView(pickerContext);
                     Picker.Finish();
                 }
-                else if (Picker.IsDebugActive)
+
+                if (Picker.IsDebugActive)
                 {
                     renderContext.ReplacementShader = Picker.DebugShader;
                 }

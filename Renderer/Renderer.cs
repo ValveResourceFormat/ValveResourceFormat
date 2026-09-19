@@ -675,7 +675,11 @@ public class Renderer
             var render3DSkybox = ShowSkybox && skyboxScene != null;
             var (copyColor, copyDepth) = (Scene.WantsSceneColor, Scene.WantsSceneDepth);
             copyDepth |= ForceResolveSceneDepth;
-            Postprocess.HasOutlineObjects = Scene.HasOutlineObjects;
+
+            if (isStandardPass)
+            {
+                Postprocess.HasOutlineObjects = Scene.HasOutlineObjects;
+            }
 
             if (render3DSkybox)
             {
@@ -686,7 +690,11 @@ public class Renderer
 
                 copyColor |= skyboxScene.WantsSceneColor;
                 copyDepth |= skyboxScene.WantsSceneDepth;
-                Postprocess.HasOutlineObjects |= skyboxScene.HasOutlineObjects;
+
+                if (isStandardPass)
+                {
+                    Postprocess.HasOutlineObjects |= skyboxScene.HasOutlineObjects;
+                }
 
                 using var _ = new GLDebugGroup("3D Sky Scene");
                 skyboxScene.RenderOpaqueLayer(renderContext);
