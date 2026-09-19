@@ -444,7 +444,17 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// </summary>
         public bool HasRelaxlessTwistLink(int node) => relaxlessTwistNodes.Contains(node);
 
+        /// <summary>
+        /// Whether <paramref name="node"/> orients a twist entry carrying no relaxation at all. A static
+        /// root's own entries read that way whether or not the far end states one back, so this is the
+        /// one-directional half of <see cref="HasRelaxlessTwistLink"/>: the link exists and the magnitude
+        /// is gone with it.
+        /// </summary>
+        public bool OrientsRelaxlessTwist(int node) => relaxlessTwistOrients.Contains(node);
+
         private readonly HashSet<int> relaxlessTwistNodes = [];
+
+        private readonly HashSet<int> relaxlessTwistOrients = [];
 
         /// <summary>
         /// Recovers the joint's own authored <c>twist_relax</c> at <paramref name="node"/> from its
@@ -4747,7 +4757,18 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
 
                 foreach (var ((orient, end), relax) in twistRelaxByLink)
                 {
-                    if (relax == 0f && twistRelaxByLink.TryGetValue((end, orient), out var back) && back == 0f)
+                    if (relax != 0f)
+                    {
+                        continue;
+                    }
+
+                    if (!twistRelaxByLink.TryGetValue((end, orient), out var back))
+                    {
+                        // The far end states nothing back at all, so nothing explains this entry's missing
+                        // relaxation except the orient node being the static one.
+                        relaxlessTwistOrients.Add(orient);
+                    }
+                    else if (back == 0f)
                     {
                         relaxlessTwistNodes.Add(orient);
                         relaxlessTwistNodes.Add(end);

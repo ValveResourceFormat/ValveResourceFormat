@@ -405,7 +405,8 @@ partial class ModelExtract
         // A static root's own entries carry no relaxation at all, so its authored twist_relax survives
         // only as the twist link it made. The magnitude is gone with it: every value above zero compiles
         // the same pair of entries, so the largest one stands for the key being set.
-        if (twistRelax == 0f && joint.IsRoot && !joint.Simulated && feModel.HasRelaxlessTwistLink(joint.Node))
+        if (twistRelax == 0f && joint.IsRoot && !joint.Simulated
+            && (feModel.HasRelaxlessTwistLink(joint.Node) || feModel.OrientsRelaxlessTwist(joint.Node)))
         {
             twistRelax = ClothStaticRootTwistRelax;
         }
