@@ -1023,6 +1023,34 @@ public class ViewmodelSceneNode : ModelSceneNode
         SetState(AnimationState.Draw);
     }
 
+    // How far ahead the test ragdoll spawns, and its send-off along the view
+    private const float RagdollSpawnDistance = 96f;
+    private const float RagdollTossSpeed = 200f;
+
+    /// <summary>
+    /// Spawns an agent ragdoll ahead of the view, the showcase for the authored joint physics.
+    /// The agent model is the same one the arms already come from, so it is warm in the loader.
+    /// </summary>
+    private void SpawnRagdoll(UserInput input)
+    {
+        var entities = Scene.EntitySystem;
+        var camera = input.Camera;
+        var origin = camera.Location + camera.Forward with { Z = 0f } * RagdollSpawnDistance - new Vector3(0f, 0f, 40f);
+
+        var data = new EntityLump.Entity { ParentLump = new EntityLump { Resource = new Resource() } };
+        data.Add("classname", "prop_ragdoll");
+        data.Add("model", ViewmodelResources[0]);
+        data.Add("origin", FormattableString.Invariant($"{origin.X} {origin.Y} {origin.Z}"));
+        data.Add("angles", FormattableString.Invariant($"0 {float.RadiansToDegrees(camera.Yaw) + 180f} 0"));
+
+        var ragdoll = new RagdollProp(entities, new EntitySpawnInfo(data, Matrix4x4.Identity, "Entities", Scene));
+        ragdoll.Spawn();
+        entities.AddEntity(ragdoll);
+
+        // Sent off with the view's motion, so it crumples mid-flight rather than materializing still
+        ragdoll.SetVelocity(camera.Forward * RagdollTossSpeed);
+    }
+
     /// <summary>
     /// Try to load the CS2 viewmodel, returning null if the necessary resources are not found.
     /// </summary>
@@ -1443,6 +1471,10 @@ public class ViewmodelSceneNode : ModelSceneNode
         {
             // Never gated on the deploy timer or any other action: dropping is always allowed
             DropHeldItem(input);
+        }
+        else if (input.Pressed(TrackedKeys.H))
+        {
+            SpawnRagdoll(input);
         }
 
         if (input.Pressed(TrackedKeys.F) && CanInspect)

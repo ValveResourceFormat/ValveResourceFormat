@@ -169,6 +169,25 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             }
         }
 
+        /// <summary>
+        /// Gets or sets whether something other than animation playback writes
+        /// <see cref="AnimationController.Pose"/> - a ragdoll adopting its rigid bodies' poses.
+        /// While set, playback is bypassed and the pose is uploaded for skinning every frame.
+        /// </summary>
+        public bool PoseDrivenExternally
+        {
+            get;
+            set
+            {
+                field = value;
+
+                if (value)
+                {
+                    SetupBoneMatrixBuffers();
+                }
+            }
+        }
+
         /// <inheritdoc/>
         public override void Delete()
         {
@@ -188,6 +207,18 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         public override void Update(Scene.UpdateContext context)
         {
             UpdateAutoLod(context.Camera);
+
+            if (PoseDrivenExternally)
+            {
+                if (IsAnimated)
+                {
+                    UploadBoneMatrices();
+                }
+
+                UpdateAttachments(context);
+                return;
+            }
+
             var animationUpdated = AnimationController.Update(context.Timestep);
             UpdateAttachments(context);
 

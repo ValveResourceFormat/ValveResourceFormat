@@ -343,6 +343,138 @@ public sealed class PhysicsSimulation : IDisposable
     }
 
     /// <summary>
+    /// Creates one rigid body of a ragdoll: the given part's shapes in the part's own local
+    /// space, placed at a world pose, with the part's authored mass. Ragdoll parts are authored
+    /// per bone with real kilogram masses, so after attaching the shapes the densities are
+    /// scaled until the body weighs exactly what the artist said.
+    /// </summary>
+    /// <param name="phys">The ragdoll model's physics aggregate.</param>
+    /// <param name="partIndex">Which part to build.</param>
+    /// <param name="position">The part's bone position in the world.</param>
+    /// <param name="rotation">The part's bone orientation in the world.</param>
+    /// <param name="owner">The entity the body reports as, from <see cref="GetOwner"/>.</param>
+    /// <returns>The created body, or <see langword="null"/> when the part offers no shapes.</returns>
+    public Body? CreateRagdollBody(PhysAggregateData phys, int partIndex, Vector3 position, Quaternion rotation, BaseEntity owner)
+    {
+        var body = World.CreateBody(BodyDefinition.Dynamic(position, rotation));
+        var shape = phys.Parts[partIndex].Shape;
+
+        foreach (var sphere in shape.Spheres)
+        {
+            body.AddSphere(new Sphere(sphere.Shape.Center, sphere.Shape.Radius),
+                MakeShapeDefinition(GetSurfaceHash(phys, sphere.SurfacePropertyIndex), PropCategory));
+        }
+
+        foreach (var capsule in shape.Capsules)
+        {
+            var center = capsule.Shape.Center;
+            body.AddCapsule(new Capsule(center[0], center[1], capsule.Shape.Radius),
+                MakeShapeDefinition(GetSurfaceHash(phys, capsule.SurfacePropertyIndex), PropCategory));
+        }
+
+        foreach (var hullDesc in shape.Hulls)
+        {
+            if (BuildHull(hullDesc.Shape.GetVertexPositions(), Matrix4x4.Identity) is { } hull)
+            {
+                using (hull)
+                {
+                    body.AddHull(hull,
+                        MakeShapeDefinition(GetSurfaceHash(phys, hullDesc.SurfacePropertyIndex), PropCategory));
+                }
+            }
+        }
+
+        if (body.ShapeCount == 0)
+        {
+            body.Destroy();
+            return null;
+        }
+
+        var authoredMass = phys.Parts[partIndex].Mass;
+
+        if (authoredMass > 0f && body.Mass > 0f)
+        {
+            var massScale = authoredMass / body.Mass;
+            Span<Shape> shapes = stackalloc Shape[body.ShapeCount];
+            var count = body.GetShapes(shapes);
+
+            for (var i = 0; i < count; i++)
+            {
+                shapes[i].SetDensity(shapes[i].Density * massScale, updateBodyMass: true);
+            }
+        }
+
+        Register(body, owner);
+        return body;
+    }
+
+    /// <summary>
+    /// Creates the constraint a ragdoll joint describes between two of its bodies: the authored
+    /// swing cone and twist range, self-collision setting, and joint friction as a zero-velocity
+    /// motor resisting motion with the authored torque.
+    /// </summary>
+    /// <returns>The created joint, or <see langword="null"/> for a joint type nothing maps to.</returns>
+    public Joint? CreateRagdollJoint(in ResourceTypes.RubikonPhysics.Joint joint, Body body1, Body body2)
+    {
+        var baseDefinition = JointDefinition.Connect(body1, body2,
+            new JointFrame(joint.Frame1.Position, joint.Frame1.Rotation),
+            new JointFrame(joint.Frame2.Position, joint.Frame2.Rotation))
+            with
+        { CollideConnected = joint.EnableCollision };
+
+        var withFriction = joint.HasFriction && joint.Friction > 0f;
+
+        switch (joint.Type)
+        {
+            case ResourceTypes.RubikonPhysics.JointType.Revolute:
+            {
+                var definition = RevoluteJointDefinition.Default with
+                {
+                    Base = baseDefinition,
+                    LimitsEnabled = joint.EnableTwistLimit,
+                    LowerAngle = joint.TwistLimit.Min,
+                    UpperAngle = joint.TwistLimit.Max,
+                    MotorEnabled = withFriction,
+                    MotorSpeed = 0f,
+                    MaxMotorTorque = joint.Friction * RagdollFrictionTorque,
+                };
+
+                return World.CreateRevoluteJoint(definition).AsJoint;
+            }
+
+            case ResourceTypes.RubikonPhysics.JointType.Spherical:
+            case ResourceTypes.RubikonPhysics.JointType.Conical:
+            {
+                var definition = SphericalJointDefinition.Default with
+                {
+                    Base = baseDefinition,
+                    ConeLimitEnabled = joint.EnableSwingLimit,
+                    ConeAngle = joint.SwingLimit.Max,
+                    TwistLimitEnabled = joint.EnableTwistLimit,
+                    LowerTwistAngle = joint.TwistLimit.Min,
+                    UpperTwistAngle = joint.TwistLimit.Max,
+                    MotorEnabled = withFriction,
+                    MotorVelocity = Vector3.Zero,
+                    MaxMotorTorque = joint.Friction * RagdollFrictionTorque,
+                };
+
+                return World.CreateSphericalJoint(definition).AsJoint;
+            }
+
+            case ResourceTypes.RubikonPhysics.JointType.Weld:
+                return World.CreateWeldJoint(WeldJointDefinition.Default with { Base = baseDefinition }).AsJoint;
+
+            default:
+                return null;
+        }
+    }
+
+    // The authored joint friction is a small unitless number (0.15 to 0.7 on agents); this turns
+    // it into the resisting torque of the zero-velocity motor, sized against limb masses in
+    // kilograms so a ragdoll settles rather than swinging like pendulums
+    private const float RagdollFrictionTorque = 100f;
+
+    /// <summary>
     /// Creates the kinematic body mirroring a solid entity's collision - a door, or one of the
     /// func movers - so props collide with it and get pushed when it moves. The entity keeps the
     /// body on its tick pose; the player still collides with the entity through the movement
