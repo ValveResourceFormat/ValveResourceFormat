@@ -146,12 +146,22 @@ partial class ModelExtract
         var lockedInOriginal = lockedJoint && !rigidCloudClusterLock;
         var rootRotationLocked = rootAllowsRotation == false;
 
-        // A chain of one joint compiles only at version 0, but the access violation it avoids only
-        // happens when the model carries a second chain; a model whose only chain has one joint
-        // compiles fine at version >= 1 and keeps the node-base-driven choice below.
-        var version = jointCount == 1 && hasOtherChains
-            ? 0
-            : rootRotationLocked && (lockedInOriginal || !locksJoints)
+        // A one-joint chain carries no version of its own: MEASURED 2026-09-20 on dl `haze` (30 chains,
+        // six of them one joint) and `unicorn_celeste` (eleven chains, four), every chain forced to
+        // version 1 and then to version 2 - both compile, no access violation. The wave-26 crash this
+        // once guarded against was a LONE one-joint chain, which this condition never covered anyway,
+        // and the authored sources ship one-joint chains at version 2 beside eighteen others.
+        //
+        // A rotation-locked root with an ABSENT m_NodeBases entry reads as format 1 here, and the authored
+        // sources say that is wrong on twelve chains (haze's six hub chains, its Flame_Head, bookworm's
+        // Hair): all are authored version 2. It is NOT corrected, because doing so REGRESSES the compiled
+        // round trip - MEASURED 2026-09-20, `w40chainver.py` + `w40dlrow.py`: reading them at their own
+        // authored version takes `archer_default`, `gigawatt_prisoner_default`, `hornet_default`,
+        // `hornet_new_default(_cs2)` and `pestilence_v2` from EXACT to DEFECT and `bebop_default` from
+        // EQUIVALENT to DEFECT, every one of them on `m_NodeBases` and the fit matrices that ride on it.
+        // The demotion is compensating for a version-2 preset grade this exporter does not yet reproduce,
+        // so it stays until that does. 07_REFUTED.
+        var version = rootRotationLocked && (lockedInOriginal || !locksJoints)
             ? (rootHasBase ? 2 : 1)
             : (lockedInOriginal ? 1 : 2);
 

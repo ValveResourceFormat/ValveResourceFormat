@@ -8378,5 +8378,32 @@ namespace Tests
                 ]
             }
             """);
+        /// <summary>
+        /// A one-joint chain carries its own version like any other: the compiler takes it at 1 and at 2
+        /// alike, so nothing forces such a chain to 0.
+        /// </summary>
+        /// <remarks>
+        /// The rule this replaces read a one-joint chain in a multi-chain model as version 0 to dodge an
+        /// access violation. MEASURED 2026-09-20 on dl <c>haze</c> (30 chains, six of them one joint) and
+        /// <c>unicorn_celeste</c> (eleven chains, four): every chain forced to version 1, then to version
+        /// 2, compiles - no access violation either way. The wave-26 crash was a LONE one-joint chain,
+        /// which that condition never covered, and the authored sources ship one-joint chains at version
+        /// 2 beside eighteen others (twelve such chains, every one authored v2).
+        /// </remarks>
+        [Test]
+        public async Task AOneJointChainIsNotForcedToVersionZero()
+        {
+            static int Version(int joints, bool otherChains) => ModelExtract.ClothChainVersion(
+                joints, otherChains, rootAllowsRotation: true, rootHasBase: false, lockedJoint: false,
+                rigidCloudClusterLock: false, locksJoints: false, basesBulkGraded: null,
+                hintsTwistWritten: false, hasUnstagedThinJoint: false);
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(Version(1, true)).IsEqualTo(Version(4, true));
+                await Assert.That(Version(1, true)).IsEqualTo(2);
+                await Assert.That(Version(1, false)).IsEqualTo(2);
+            }
+        }
     }
 }
