@@ -189,6 +189,13 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// on; such a chain was authored at version 0. A chain that also owns a fit matrix, or whose other
         /// joints were graded over an influence set (a graded hint with fewer than three neighbours), did
         /// stage influences and says nothing.
+        /// <para>
+        /// Only a joint WITH A CHAIN CHILD states it. A leaf stages influences from its own ring alone, so
+        /// it carries none at any version and its hint is ungraded whatever the chain was authored at:
+        /// MEASURED 2026-09-20 against the authored sources (`w40chainver.py`) - bookworm's Breast chains
+        /// are authored version 2 with every interior joint graded and only the leaf ungraded, while
+        /// haze's, authored with no version key at all, leave the interior joint ungraded too.
+        /// </para>
         /// </summary>
         public bool ChainHintsAreTwistWritten(BoneChain chain)
         {
@@ -220,7 +227,12 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                 if (ungraded && ((x0 == joint.Node && x1 != joint.Node && TwistRelaxByLink.ContainsKey((joint.Node, x1)))
                     || (ropePairs.TryGetValue(joint.Node, out var ropePair) && ropePair == (x0, x1))))
                 {
-                    twistWritten = true;
+                    // A LEAF carries no influences of its own at any version, so its ungraded hint states
+                    // nothing either way - it neither says version 0 nor rules it out.
+                    if (chain.Joints.Exists(child => child.ParentNode == joint.Node))
+                    {
+                        twistWritten = true;
+                    }
                 }
                 else if (NodeNeighbours(joint.Node).Count < 3)
                 {

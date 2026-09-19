@@ -8405,5 +8405,39 @@ namespace Tests
                 await Assert.That(Version(1, false)).IsEqualTo(2);
             }
         }
+        /// <summary>
+        /// A LEAF joint's ungraded basis hint states no version: it stages influences from its own ring
+        /// alone, so it carries none whatever the chain was authored at. Only an ungraded hint on a joint
+        /// WITH A CHAIN CHILD says version 0.
+        /// </summary>
+        /// <remarks>
+        /// Both arms read the SAME compiled data, with the same ungraded twist-written hint on <c>j2</c>;
+        /// only whether the chain gives <c>j2</c> a child differs. MEASURED 2026-09-20 against the
+        /// authored sources: bookworm's Breast chains are authored version 2 with every interior joint
+        /// graded and only the leaf ungraded, while haze's, which carry no version key at all, leave the
+        /// interior joint ungraded too. Reading a leaf as evidence took eleven authored-version-2 chains
+        /// to version 0.
+        /// </remarks>
+        [Test]
+        public async Task ALeafsUngradedHintStatesNoVersion()
+        {
+            var model = TwistedRope("nNodeX0 = 2 nNodeX1 = 1 nNodeY0 = 0 nNodeY1 = 0",
+                "nNodeX0 = 3 nNodeX1 = 2 nNodeY0 = 0 nNodeY1 = 0");
+
+            var interior = new FeModel.BoneChain { RootBone = "j1" };
+            interior.Joints.Add(new FeModel.BoneChainJoint { Node = 1, Name = "j1", ParentNode = -1 });
+            interior.Joints.Add(new FeModel.BoneChainJoint { Node = 2, Name = "j2", ParentNode = 1, InvMass = 1f });
+            interior.Joints.Add(new FeModel.BoneChainJoint { Node = 3, Name = "j3", ParentNode = 2, InvMass = 1f });
+
+            var leaf = new FeModel.BoneChain { RootBone = "j1" };
+            leaf.Joints.Add(new FeModel.BoneChainJoint { Node = 1, Name = "j1", ParentNode = -1 });
+            leaf.Joints.Add(new FeModel.BoneChainJoint { Node = 2, Name = "j2", ParentNode = 1, InvMass = 1f });
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(model.ChainHintsAreTwistWritten(interior)).IsTrue();
+                await Assert.That(model.ChainHintsAreTwistWritten(leaf)).IsFalse();
+            }
+        }
     }
 }
