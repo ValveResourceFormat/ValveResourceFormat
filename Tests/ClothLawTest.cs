@@ -8150,5 +8150,36 @@ namespace Tests
                 + $"m_Plane = {{ m_vNormal = [ {SyntheticCloth.Num(normal.X)}, {SyntheticCloth.Num(normal.Y)}, "
                 + $"{SyntheticCloth.Num(normal.Z)} ] m_flOffset = {SyntheticCloth.Num(5f)} }} }},";
 
+        /// <summary>
+        /// A node resting against a capsule's SIDE takes a plane normal square to the capsule axis, so two
+        /// such normals cross to the axis itself. Every other axis seed spans the normals' own TIPS, which
+        /// for a set of square normals is noise, so a group whose planes are all side contacts raises no
+        /// candidate at all and the collider is dropped. The fixture is the synthetic row
+        /// <c>w37wt_probe_chain_capsule_noring_3planes</c>, whose three planes are its own: two square to the
+        /// axis and one over the end cap, in the parent's frame, around a capsule of radius 4.
+        /// </summary>
+        [Test]
+        public async Task ACapsuleIsRecoveredFromSideContactsWhoseNormalsSpanNoCone()
+        {
+            var sideContacts = PlanarizedGroup(
+            [
+                (new Vector3(-8.311506f, -11.224525f, 4.267012f),
+                    new Vector3(-0.595091f, -0.803658f, 0f), 4f),
+                (new Vector3(-15.225058f, -16.15545f, 4.63776f),
+                    new Vector3(-0.685841f, -0.727751f, 0f), 4f),
+                (new Vector3(-22.147151f, -21.074872f, 5.004368f),
+                    new Vector3(-0.72441f, -0.689337f, 0.006685f), 4.032088f),
+            ]);
+
+            var shapes = sideContacts.BuildPlanarizeCapsules();
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(shapes.Count).IsEqualTo(1);
+                await Assert.That(shapes[0].Planarize).IsTrue();
+                await Assert.That(shapes[0].Radius0).IsEqualTo(4f).Within(1e-3f);
+                await Assert.That(shapes[0].Radius1).IsEqualTo(4f).Within(1e-3f);
+            }
+        }
     }
 }

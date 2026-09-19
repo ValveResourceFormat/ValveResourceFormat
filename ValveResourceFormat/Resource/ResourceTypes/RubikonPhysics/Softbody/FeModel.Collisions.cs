@@ -828,6 +828,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
 
             var exhaustive = new List<CapsuleFit>(widened);
             exhaustive.AddRange(EveryConsensusAxisCandidates(samples));
+            exhaustive.AddRange(SideNormalAxisCandidates(samples));
             return exhaustive.Count > widened.Count ? CoverGroup(samples, exhaustive) : null;
         }
 
@@ -871,6 +872,49 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
 
             return candidates.Fits;
         }
+
+        /// <summary>
+        /// Capsules whose axis is the common perpendicular of two plane normals. A node resting against a
+        /// capsule's SIDE takes a normal square to the axis, so two such normals cross to the axis itself -
+        /// which the seeds above cannot find, since they span the normals' own TIPS and a set of square
+        /// normals spans only noise. Two side planes raise the candidate; the cover still has to reproduce
+        /// three, so a cap plane neither of them explains is checked against the capsule like any other.
+        /// </summary>
+        static List<CapsuleFit> SideNormalAxisCandidates(List<PlanarizeSample> samples)
+        {
+            var candidates = new CandidateSet();
+            var all = Enumerable.Range(0, samples.Count).ToList();
+            var seen = new HashSet<string>(StringComparer.Ordinal);
+
+            for (var i = 0; i < samples.Count; i++)
+            {
+                for (var j = i + 1; j < samples.Count; j++)
+                {
+                    var span = Vector3.Cross(samples[i].Normal, samples[j].Normal);
+                    if (span.Length() < PlanarizeSideAxisSpan)
+                    {
+                        continue;
+                    }
+
+                    var axis = Vector3.Normalize(span);
+                    var inliers = AxisInliers(samples, all, axis, 0f);
+                    if (inliers.Count < 2 || !seen.Add(string.Join(',', inliers)))
+                    {
+                        continue;
+                    }
+
+                    var taper = TaperFromCosine(0f);
+                    AddBandCapsules(candidates, samples, inliers, axis, taper);
+                    AddBandCapsules(candidates, samples, inliers, -axis, taper);
+                    AddCapSpheres(candidates, samples, inliers);
+                }
+            }
+
+            return candidates.Fits;
+        }
+
+        // Below this the two normals are parallel enough that their cross states no axis.
+        const float PlanarizeSideAxisSpan = 1e-2f;
 
         // A greedy set cover of the group's planes by the candidates that reproduce them, one entry per
         // shape. Null unless the shapes account for every plane in the group.
