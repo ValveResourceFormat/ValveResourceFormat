@@ -1,4 +1,4 @@
-using Box3D;
+﻿using Box3D;
 using ValveResourceFormat.Renderer.Entities;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization.KeyValues;
@@ -374,11 +374,15 @@ public sealed class PhysicsSimulation : IDisposable
 
         // The authored per-part damping is the ragdoll's energy loss. Without it a held ragdoll
         // spins forever about the grip: rigid whole-body rotation moves no joint, so joint
-        // friction never sees it, and only body damping can bleed it.
+        // friction never sees it, and only body damping can bleed it. HL:Alyx characters author
+        // zero everywhere - their engine drained ragdolls globally - so a zero falls back to
+        // the value CS2 gives every limb.
+        var angularDamping = part.AngularDamping > 0f ? part.AngularDamping : FallbackAngularDamping;
+
         var body = World.CreateBody(BodyDefinition.Dynamic(position, rotation) with
         {
             LinearDamping = part.LinearDamping,
-            AngularDamping = part.AngularDamping,
+            AngularDamping = angularDamping,
         });
 
         var shape = part.Shape;
@@ -438,6 +442,12 @@ public sealed class PhysicsSimulation : IDisposable
         Register(body, owner);
         return body;
     }
+
+    // What CS2 authors as angular damping on every agent limb, for ragdoll parts authored zero
+    private const float FallbackAngularDamping = 2f;
+
+    // The middle of the joint friction range CS2 authors, for joints authored without any
+    private const float FallbackJointFriction = 0.3f;
 
     // How far in front of the crossed surface a caught body is placed
     private const float TunnelRescueMargin = 0.25f;
@@ -513,7 +523,10 @@ public sealed class PhysicsSimulation : IDisposable
             };
         }
 
-        var withFriction = joint.HasFriction && joint.Friction > 0f;
+        // HL:Alyx characters author no joint friction at all - their engine damped ragdolls
+        // globally - and a frictionless doll swings for many seconds; a missing value falls
+        // back to the middle of the range CS2 authors (0.15 to 0.7)
+        var frictionAmount = joint.HasFriction && joint.Friction > 0f ? joint.Friction : FallbackJointFriction;
 
         switch (joint.Type)
         {
@@ -525,9 +538,9 @@ public sealed class PhysicsSimulation : IDisposable
                     LimitsEnabled = joint.EnableTwistLimit,
                     LowerAngle = joint.TwistLimit.Min,
                     UpperAngle = joint.TwistLimit.Max,
-                    MotorEnabled = withFriction,
+                    MotorEnabled = true,
                     MotorSpeed = 0f,
-                    MaxMotorTorque = joint.Friction * RagdollFrictionTorque,
+                    MaxMotorTorque = frictionAmount * RagdollFrictionTorque,
                 };
 
                 return World.CreateRevoluteJoint(definition).AsJoint;
@@ -544,9 +557,9 @@ public sealed class PhysicsSimulation : IDisposable
                     TwistLimitEnabled = joint.EnableTwistLimit,
                     LowerTwistAngle = joint.TwistLimit.Min,
                     UpperTwistAngle = joint.TwistLimit.Max,
-                    MotorEnabled = withFriction,
+                    MotorEnabled = true,
                     MotorVelocity = Vector3.Zero,
-                    MaxMotorTorque = joint.Friction * RagdollFrictionTorque,
+                    MaxMotorTorque = frictionAmount * RagdollFrictionTorque,
                 };
 
                 return World.CreateSphericalJoint(definition).AsJoint;
