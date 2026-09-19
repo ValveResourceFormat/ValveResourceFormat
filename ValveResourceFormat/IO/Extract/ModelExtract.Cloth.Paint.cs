@@ -385,6 +385,31 @@ partial class ModelExtract
         // Without the stream the compiler gives every vertex 360.
         vertexData.AddIndexedStream("cloth_gravity$0", proxy.Gravity, vertexIndices);
 
+        // The per-vertex collision layers. Each layer is its own paint, and a vertex painted 0 on layer k
+        // compiles with bit k CLEARED in its tree collision mask; without the stream every layer stays set,
+        // so a layer is written only where some vertex of the sheet clears it.
+        if (physAggregateData?.FeModel is { } feLayers)
+        {
+            for (var layer = 0; layer < ClothCollisionLayers; layer++)
+            {
+                var bit = 1 << layer;
+                var painted = new float[vertexCount];
+                var anyCleared = false;
+                for (var v = 0; v < vertexCount; v++)
+                {
+                    var set = v >= proxy.NodeIndices.Length
+                        || (feLayers.GetNodeCollisionMask(proxy.NodeIndices[v]) & bit) != 0;
+                    painted[v] = set ? 1f : 0f;
+                    anyCleared |= !set;
+                }
+
+                if (anyCleared)
+                {
+                    vertexData.AddIndexedStream($"cloth_collision_layer_{layer}$0", painted, vertexIndices);
+                }
+            }
+        }
+
         // The per-vertex rot-lock release: a pinned vertex compiles rotation-locked unless this
         // paint (or the sheet-level flex_cloth_borders, which frees every pin at once) releases
         // it, so each pin the original records as rotation-free is painted 1.0 on sheets the

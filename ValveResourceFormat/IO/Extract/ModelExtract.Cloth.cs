@@ -300,6 +300,9 @@ partial class ModelExtract
         }
     }
 
+    // The collision layers a node's mask carries its own bit for; the rest of the mask is not per layer.
+    const int ClothCollisionLayers = 4;
+
     // The only leader_type that compiles to an m_DynKinLinks entry; 2 and 3 are rejected outright.
     const int ClothFollowBoneLeaderTypeBone = 0;
 
