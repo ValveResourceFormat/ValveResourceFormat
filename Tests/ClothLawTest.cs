@@ -7896,5 +7896,66 @@ namespace Tests
             }
             """;
 
+        /// <summary>
+        /// A bend rod is read only through the hinges the compiler's own element pairing builds it from, and not
+        /// through every edge two faces share with one of its ends in each. The compiler pairs an edge with the
+        /// earliest unpaired element that lists it and joins the two far corners by position when both walks agree
+        /// on the edge's direction and CROSSWISE when they oppose, so a neighbouring edge whose pairing joins other
+        /// corners never folds this rod at all.
+        /// <para>
+        /// The fixture is the neighbourhood of dl <c>dynamo_default</c>'s rod <c>(427, 452)</c>, renumbered: the
+        /// triangle and quad that share the generating hinge <c>(3, 4)</c>, and the quad that shares edge
+        /// <c>(2, 3)</c> with the second of them. <c>(2, 3)</c> carries node 0 in one face and node 5 in the other,
+        /// so the old reading took it as a candidate and read the rod 12.5 % shorter than the compiler ever folds
+        /// it - 0.9198679 against the rod's own 1.0513982, which is one of the 50 rods of 1815 that made this
+        /// EXACT model read as a paint it does not carry.
+        /// </para>
+        /// </summary>
+        [Test]
+        public async Task ABendRodIsReadOnlyThroughTheHingesItsElementPairingBuildsItFrom()
+        {
+            List<int[]> faces = [[4, 0, 3], [0, 1, 2, 3], [5, 4, 3, 2]];
+            HashSet<(int, int)> network = [(0, 5)];
+            var (paint, curvature) = ModelExtract.ClothBendStiffnessOverFold(PairedHingeSheet(1.0513982f), faces,
+                network, 0.64999986f, keepsCurvature: false);
+
+            // The same rod held further open than the model-wide curvature alone leaves it: the residual has to be
+            // painted on the generating hinge's own vertices, which node 4 is on and node 2 is not.
+            var (folded, foldedCurvature) = ModelExtract.ClothBendStiffnessOverFold(PairedHingeSheet(1.06f),
+                faces, network, 0.64999986f, keepsCurvature: false);
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(paint).IsNull();
+                await Assert.That(curvature).IsEqualTo(0.64999986f);
+                await Assert.That(folded).IsNotNull();
+                await Assert.That(folded!.GetValueOrDefault(3) + folded.GetValueOrDefault(4)).IsGreaterThan(0f);
+                await Assert.That(folded.GetValueOrDefault(2)).IsEqualTo(0f);
+                await Assert.That(foldedCurvature).IsEqualTo(0.64999986f);
+            }
+        }
+
+        private static FeModel PairedHingeSheet(float minDist) => SyntheticCloth.Parse($$"""
+            {
+                m_CtrlName = [ "$cloth_m0p0", "$cloth_m0p1", "$cloth_m0p2", "$cloth_m0p3", "$cloth_m0p4", "$cloth_m0p5" ]
+                m_nNodeCount = 6
+                m_nStaticNodes = 0
+                m_NodeInvMasses = [ 1.0, 1.0, 1.0, 1.0, 1.0, 1.0 ]
+                m_InitPose =
+                [
+                    {{SyntheticCloth.Pose(-1.7257074f, 20.404041f, 46.822933f)}}
+                    {{SyntheticCloth.Pose(-1.7570662f, 20.385893f, 46.739212f)}}
+                    {{SyntheticCloth.Pose(-2.2579334f, 20.29848f, 47.05001f)}}
+                    {{SyntheticCloth.Pose(-2.1855373f, 20.323782f, 47.10828f)}}
+                    {{SyntheticCloth.Pose(-2.3192735f, 20.206625f, 47.622124f)}}
+                    {{SyntheticCloth.Pose(-2.404188f, 20.17036f, 47.61194f)}}
+                ]
+                m_Rods =
+                [
+                    { nNode = [ 0, 5 ] flMaxDist = 1.0688722 flMinDist = {{SyntheticCloth.Num(minDist)}} flWeight0 = 0.5 flRelaxationFactor = 1.0 },
+                ]
+            }
+            """);
+
     }
 }
