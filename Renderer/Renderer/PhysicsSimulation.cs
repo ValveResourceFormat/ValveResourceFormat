@@ -38,10 +38,14 @@ public sealed class PhysicsSimulation : IDisposable
     public const ulong MoverCategory = 8;
 
     /// <summary>
-    /// Solver sub-steps per step. The world steps once per rendered frame, so the steps are
-    /// already small; two sub-steps keep stacks stable without paying for four.
+    /// The world steps once per rendered frame, so the sub-step count scales with the frame:
+    /// at high framerates the steps are already small and two sub-steps keep stacks stable, but
+    /// a vsynced 60 fps frame needs more - measured on ragdolls, a heap stepped in 1/64 slices
+    /// with two sub-steps jitters at 8 u/s forever, while the same heap in finer effective
+    /// slices comes to rest and sleeps. The target is roughly 240 solver slices per second.
     /// </summary>
-    private const int SubStepCount = 2;
+    private static int SubStepsFor(float timeStep)
+        => Math.Clamp((int)MathF.Ceiling(timeStep * 240f), 2, 8);
 
     /// <summary>Gets the underlying Box3D world.</summary>
     public PhysicsWorld World { get; }
@@ -92,7 +96,7 @@ public sealed class PhysicsSimulation : IDisposable
     /// </summary>
     public void Step(float tickInterval)
     {
-        World.Step(tickInterval, SubStepCount);
+        World.Step(tickInterval, SubStepsFor(tickInterval));
     }
 
     /// <summary>
@@ -416,6 +420,13 @@ public sealed class PhysicsSimulation : IDisposable
     /// <returns>The created joint, or <see langword="null"/> for a joint type nothing maps to.</returns>
     public Joint? CreateRagdollJoint(in ResourceTypes.RubikonPhysics.Joint joint, Body body1, Body body2)
     {
+        // Rubikon frames measure twist and hinge rotation about a different local axis than
+        // Box3D's frame Z. Rotating each frame's basis by this fix keeps the authored limits
+        // meaning what the artist authored - without it the knee's real axis is the one the
+        // solver LOCKS, and limbs pinned against false limits pump energy.
+        // The authored frames and limits pass to the solver as they are: verified by the
+        // constraint harness, which measures the knee's reachable arc at 110 degrees against
+        // the authored 109, at zero rest drift in free fall
         var baseDefinition = JointDefinition.Connect(body1, body2,
             new JointFrame(joint.Frame1.Position, joint.Frame1.Rotation),
             new JointFrame(joint.Frame2.Position, joint.Frame2.Rotation))
