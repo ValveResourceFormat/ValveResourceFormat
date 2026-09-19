@@ -1428,10 +1428,29 @@ partial class ModelExtract
             .Select(static joint => joint.Node)
             .ToHashSet();
 
+        // Ring nodes the emitted chain regenerates, and which joint extruded each: a cluster tie may name
+        // one, a spring may not, and a tie spans the rings of two DIFFERENT joints.
+        var chainRingNodes = chains.SelectMany(static chain => chain.Joints)
+            .SelectMany(static joint => joint.RingNodes)
+            .ToHashSet();
+
+        var ringOwner = new Dictionary<int, int>();
+        foreach (var joint in chains.SelectMany(static chain => chain.Joints))
+        {
+            foreach (var ring in joint.RingNodes)
+            {
+                ringOwner[ring] = joint.Node;
+            }
+        }
+
+        bool Nameable(int node, bool tie)
+            => chainJoints.Contains(node) || (tie && chainRingNodes.Contains(node));
+
         // One spring per surplus rod OCCURRENCE, numbered like AddFreeClothNodesAndSprings' copies.
         var occurrence = new Dictionary<(int, int), int>();
         var surplus = feModel.GetUngeneratedRods(chains);
         var clusterTies = ClusterTiesBesideChainSpans(feModel, surplus);
+        var ringTies = RingClusterTies(feModel, surplus, ringOwner);
         foreach (var rod in surplus)
         {
             if (rod.NodeA < 0 || rod.NodeA >= controlNames.Length
@@ -1440,28 +1459,33 @@ partial class ModelExtract
                 continue;
             }
 
-            if (!chainJoints.Contains(rod.NodeA) || !chainJoints.Contains(rod.NodeB))
+            var pair = rod.NodeA < rod.NodeB ? (rod.NodeA, rod.NodeB) : (rod.NodeB, rod.NodeA);
+            var tie = clusterTies.Contains(pair) || (ringTies.Contains(pair) && IsBandedRod(rod));
+            if (!Nameable(rod.NodeA, tie) || !Nameable(rod.NodeB, tie))
             {
                 continue;
             }
 
             var name0 = controlNames[rod.NodeA];
             var name1 = controlNames[rod.NodeB];
-            if (FeModel.IsProxyNodeName(name0) || FeModel.IsProxyNodeName(name1))
+            if ((FeModel.IsProxyNodeName(name0) && !chainRingNodes.Contains(rod.NodeA))
+                || (FeModel.IsProxyNodeName(name1) && !chainRingNodes.Contains(rod.NodeB)))
             {
                 continue;
             }
 
-            if (clusterTies.Contains(rod.NodeA < rod.NodeB ? (rod.NodeA, rod.NodeB) : (rod.NodeB, rod.NodeA)))
+            if (tie)
             {
-                softbodyChildren.Add(MakeClothSelfCollisionCluster($"cluster_{name0}_{name1}", [name0, name1],
+                softbodyChildren.Add(MakeClothSelfCollisionCluster(
+                    NodeNameSafe($"cluster_{name0}_{name1}"), [name0, name1],
                     rod.MinDist / 2f, rod.MaxDist / 2f));
                 continue;
             }
 
             var copy = occurrence.GetValueOrDefault((rod.NodeA, rod.NodeB));
             occurrence[(rod.NodeA, rod.NodeB)] = copy + 1;
-            var springLabel = copy == 0 ? $"rod_{name0}_{name1}" : $"rod_{name0}_{name1}_{copy}";
+            var springLabel = NodeNameSafe(copy == 0
+                ? $"rod_{name0}_{name1}" : $"rod_{name0}_{name1}_{copy}");
             softbodyChildren.Add(MakeClothSpring(springLabel, name0, name1, rod.MinDist, rod.MaxDist,
                 rod.RelaxationFactor));
         }
@@ -1527,9 +1551,97 @@ partial class ModelExtract
                 continue;
             }
 
-            softbodyChildren.Add(MakeClothSelfCollisionCluster($"cluster_{name0}_{name1}", [name0, name1],
+            softbodyChildren.Add(MakeClothSelfCollisionCluster(
+                NodeNameSafe($"cluster_{name0}_{name1}"), [name0, name1],
                 rod.MinDist / 2f, rod.MaxDist / 2f));
         }
+    }
+
+    /// <summary>
+    /// A composed ModelDoc node name the compiler will keep. A softbody child whose <c>name</c> carries a
+    /// <c>$</c> ANYWHERE is discarded silently - no error, and the compile still reports success - so a name
+    /// built out of control names, every generated one of which carries one, has to drop it. The members a
+    /// cluster or spring NAMES are unaffected: <c>joint_name</c> resolves a <c>$cc</c> ring node fine.
+    /// <para>
+    /// Measured on VRF's own emitted document for synth row <c>w37wt_probe_ring2_cluster_span</c>: five arms
+    /// differing in this field alone, compiled into one namespace. The two with no <c>$</c> compiled the
+    /// cluster's rod (16 rods, the banded 12/48 on the ring pair); the three with one, leading, middle or
+    /// trailing, compiled 15 and dropped it. A 43-character name with no <c>$</c> compiled, so it is the
+    /// character and not the length.
+    /// </para>
+    /// </summary>
+    static string NodeNameSafe(string name)
+        => name.Contains('$', StringComparison.Ordinal)
+            ? name.Replace("$", string.Empty, StringComparison.Ordinal)
+            : name;
+
+    /// <summary>Whether a rod's length band is open: a cluster's separation constraint rather than a span.</summary>
+    static bool IsBandedRod(FeModel.Rod rod)
+        => MathF.Abs(rod.MinDist - rod.MaxDist) > 1e-4f * MathF.Max(1f, MathF.Abs(rod.MaxDist));
+
+    /// <summary>
+    /// Returns the node pairs whose one banded rod is a two-member <c>ClothSelfCollisionCluster</c> over the
+    /// extruded ring nodes of two DIFFERENT chain joints, beside the chain's rigid span on the same pair.
+    /// <para>
+    /// <see cref="ClusterTiesBesideChainSpans"/> cannot see these: it requires the pair to hold exactly ONE
+    /// surplus rod, which assumes <see cref="FeModel.GetUngeneratedRods"/> gave the chain the rigid entry,
+    /// and a chain whose spans that model does not predict leaves BOTH on the pair. Ring-ring spans are the
+    /// population where that happens, so two other conditions have to do the work instead.
+    /// </para>
+    /// <para>
+    /// FIRST, the rings belong to different joints. A banded rod between two rings of ONE joint is that
+    /// joint's own ring rod under an <c>antishrink</c> below one, which the emitted chain regenerates:
+    /// declaring a cluster there duplicates it. Measured on the 30 dota documents a band test alone reached,
+    /// 21 of which were EXACT or EQUIVALENT and every one of which gained <c>m_Rods</c> without this
+    /// condition. SECOND, the band's maximum is not the pair's rest length, which is
+    /// <see cref="FeModel.IsRadiusBandTriangle"/>'s test applied to a pair: a cluster's maximum is its
+    /// members' summed stray radii and has nothing to do with how far apart they sit.
+    /// </para>
+    /// </summary>
+    static HashSet<(int, int)> RingClusterTies(FeModel feModel, List<FeModel.Rod> surplus,
+        Dictionary<int, int> ringOwner)
+    {
+        var ties = new HashSet<(int, int)>();
+        if (ringOwner.Count == 0)
+        {
+            return ties;
+        }
+
+        var entries = new Dictionary<(int, int), int>();
+        var banded = new Dictionary<(int, int), int>();
+        foreach (var rod in feModel.Rods)
+        {
+            var key = rod.NodeA < rod.NodeB ? (rod.NodeA, rod.NodeB) : (rod.NodeB, rod.NodeA);
+            entries[key] = entries.GetValueOrDefault(key) + 1;
+            if (IsBandedRod(rod))
+            {
+                banded[key] = banded.GetValueOrDefault(key) + 1;
+            }
+        }
+
+        var poses = feModel.InitPosePositions;
+        foreach (var rod in surplus)
+        {
+            var key = rod.NodeA < rod.NodeB ? (rod.NodeA, rod.NodeB) : (rod.NodeB, rod.NodeA);
+            if (!ringOwner.TryGetValue(rod.NodeA, out var ownerA)
+                || !ringOwner.TryGetValue(rod.NodeB, out var ownerB) || ownerA == ownerB
+                || entries.GetValueOrDefault(key) < 2 || banded.GetValueOrDefault(key) != 1
+                || !IsBandedRod(rod) || rod.RelaxationFactor != 1f || rod.Weight0 != 0.5f
+                || rod.NodeA >= poses.Length || rod.NodeB >= poses.Length)
+            {
+                continue;
+            }
+
+            var rest = Vector3.Distance(poses[rod.NodeA], poses[rod.NodeB]);
+            if (MathF.Abs(rod.MaxDist - rest) <= MathF.Max(1e-3f, 1e-4f * rest))
+            {
+                continue;
+            }
+
+            ties.Add(key);
+        }
+
+        return ties;
     }
 
     /// <summary>
@@ -1541,9 +1653,6 @@ partial class ModelExtract
     /// </summary>
     static HashSet<(int, int)> ClusterTiesBesideChainSpans(FeModel feModel, List<FeModel.Rod> surplus)
     {
-        static bool IsBanded(FeModel.Rod rod)
-            => MathF.Abs(rod.MinDist - rod.MaxDist) > 1e-4f * MathF.Max(1f, MathF.Abs(rod.MaxDist));
-
         static (int, int) PairOf(FeModel.Rod rod)
             => rod.NodeA < rod.NodeB ? (rod.NodeA, rod.NodeB) : (rod.NodeB, rod.NodeA);
 
@@ -1553,7 +1662,7 @@ partial class ModelExtract
         {
             var key = PairOf(rod);
             entries[key] = entries.GetValueOrDefault(key) + 1;
-            if (IsBanded(rod))
+            if (IsBandedRod(rod))
             {
                 banded[key] = banded.GetValueOrDefault(key) + 1;
             }
@@ -1571,7 +1680,7 @@ partial class ModelExtract
         {
             var key = PairOf(rod);
             if (entries.GetValueOrDefault(key) > 1 && banded.GetValueOrDefault(key) == 1
-                && surplusCounts[key] == 1 && IsBanded(rod)
+                && surplusCounts[key] == 1 && IsBandedRod(rod)
                 && rod.RelaxationFactor == 1f && rod.Weight0 == 0.5f)
             {
                 ties.Add(key);
