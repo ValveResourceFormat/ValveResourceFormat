@@ -42,9 +42,10 @@ internal readonly record struct DmxMeshBuildOptions
 internal static class DmxMeshBuilder
 {
     /// <summary>
-    /// Engine semantics a vertex buffer can carry under their own name, in the spelling the model compiler reads.
+    /// Vertex streams that keep their own name in the DMX instead of the lowercased DirectX semantic,
+    /// in the spelling the model compiler reads.
     /// </summary>
-    private static readonly string[] EngineSemantics = ["VertexPaintBlendParams", "VertexPaintTintColor"];
+    private static readonly string[] NamedVertexStreams = ["VertexPaintBlendParams", "VertexPaintTintColor", "PivotPaint", "FoliageAnimation"];
 
     /// <summary>
     /// The values the streams of one vertex data element are decoded against: the input signature of the
@@ -218,8 +219,7 @@ internal static class DmxMeshBuilder
             {
                 var insgElement = Material.FindD3DInputSignatureElement(streams.MaterialInputSignature, attribute.SemanticName, attribute.SemanticIndex);
 
-                // Use engine semantics for attributes that need them
-                if (EngineSemantics.Contains(insgElement.Semantic))
+                if (NamedVertexStreams.Contains(insgElement.Semantic))
                 {
                     semantic = insgElement.Semantic + "$0";
                 }
@@ -283,11 +283,11 @@ internal static class DmxMeshBuilder
     }
 
     /// <summary>
-    /// Names the stream of a vertex attribute: an engine semantic in its engine spelling, anything else in lower case.
+    /// Names the stream of a vertex attribute: a named vertex stream in its own spelling, anything else in lower case.
     /// </summary>
     private static string GetStreamName(VBIB.RenderInputLayoutField attribute)
     {
-        var name = Array.Find(EngineSemantics, engineSemantic => engineSemantic.Equals(attribute.SemanticName, StringComparison.OrdinalIgnoreCase))
+        var name = Array.Find(NamedVertexStreams, streamName => streamName.Equals(attribute.SemanticName, StringComparison.OrdinalIgnoreCase))
             ?? attribute.SemanticName.ToLowerInvariant();
 
         return name + "$" + attribute.SemanticIndex;
