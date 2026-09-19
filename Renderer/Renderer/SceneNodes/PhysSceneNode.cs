@@ -183,7 +183,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
                 AddSphere(verts, inds, center, radius, ColorSphere);
 
                 GrowBounds(ref boundingBox, ref boundingBoxInitted,
-                    new AABB(center + new Vector3(radius), center - new Vector3(radius)));
+                    new AABB(center - new Vector3(radius), center + new Vector3(radius)));
             }
 
             foreach (var capsule in shape.Capsules)
@@ -205,9 +205,9 @@ namespace ValveResourceFormat.Renderer.SceneNodes
                 AddCapsule(verts, inds, center0, center1, radius, ColorCapsule);
 
                 GrowBounds(ref boundingBox, ref boundingBoxInitted,
-                    new AABB(center0 + new Vector3(radius), center0 - new Vector3(radius)));
+                    new AABB(center0 - new Vector3(radius), center0 + new Vector3(radius)));
                 GrowBounds(ref boundingBox, ref boundingBoxInitted,
-                    new AABB(center1 + new Vector3(radius), center1 - new Vector3(radius)));
+                    new AABB(center1 - new Vector3(radius), center1 + new Vector3(radius)));
             }
 
             foreach (var hull in shape.Hulls)
