@@ -399,7 +399,7 @@ partial class ModelExtract
         // joint simulates, and writes a flat 0.0 where it merely allows rotation. So a chain root
         // the original gives a non-zero entry of its own was authored as a SIMULATED joint, and it
         // is pinned into the static block by lock_translation rather than by simulate = false.
-        var pinnedSimulatedRoot = joint.IsRoot && !joint.Simulated && twistRelax > 0f;
+        var pinnedSimulatedRoot = (joint.IsRoot && !joint.Simulated && twistRelax > 0f) || joint.SpringsWithSiblings;
         kv.Add("simulate", joint.Simulated || pinnedSimulatedRoot);
 
         // A static root's own entries carry no relaxation at all, so its authored twist_relax survives
@@ -750,9 +750,13 @@ partial class ModelExtract
 
         AddClothFaces(clothFolderChildren, feModel);
         var sourceSprings = AddClothSourceSprings(softbodyChildren, feModel, boneChains);
-        AddClothChainSurplusRods(softbodyChildren, feModel, boneChains);
+        sourceSprings.UnionWith(AddClothChainSurplusRods(softbodyChildren, feModel, boneChains));
 
+        // A sibling hub is declared for its spring alone and anchors no chain of its own, so it keeps the
+        // bare ClothNode every static control node the chains do not claim is declared as - which is what
+        // the cloth nodes parented to it resolve through.
         var chainCoveredNodes = boneChains.SelectMany(static chain => chain.Joints)
+            .Where(joint => !feModel.SiblingSpringHubs.Contains(joint.Name))
             .Select(static joint => joint.Node)
             .ToHashSet();
         var clothBones = ClothBoneNames(feModel);

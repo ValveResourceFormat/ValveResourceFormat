@@ -15,9 +15,9 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             /// <summary>Gets the bone name of this joint.</summary>
             public required string Name { get; init; }
             /// <summary>Gets the control-node index of the chain parent, or -1 if this is the chain root.</summary>
-            public int ParentNode { get; init; }
+            public int ParentNode { get; set; }
             /// <summary>Gets the bone name of the chain parent, or null if this is the chain root.</summary>
-            public string? ParentName { get; init; }
+            public string? ParentName { get; set; }
             /// <summary>Gets the inverse mass for this node (0 = static anchor).</summary>
             public float InvMass { get; set; }
             /// <summary>
@@ -139,6 +139,13 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             /// from it carry two different sets of values.
             /// </summary>
             public bool Restated { get; set; }
+            /// <summary>
+            /// Gets whether this joint is one of a hub's sprung siblings: a static joint the original
+            /// locks to its goal, whose chain the hub's <c>child_sibling_spring</c> gathers. Such a joint
+            /// is authored SIMULATING and pinned into the static block by <c>lock_translation</c>, which
+            /// is what lets the compiler stage its fit influences.
+            /// </summary>
+            public bool SpringsWithSiblings { get; set; }
             /// <summary>Gets a value indicating whether this joint is simulated (invMass &gt; 0).</summary>
             public bool Simulated => InvMass > 0f;
             /// <summary>Gets a value indicating whether this joint is the chain root.</summary>
@@ -151,7 +158,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         public sealed class BoneChain
         {
             /// <summary>Gets the anchor (root) bone name.</summary>
-            public required string RootBone { get; init; }
+            public required string RootBone { get; set; }
             /// <summary>
             /// Gets the suffix that tells this chain apart from another declaration over the same root
             /// bone, empty for a bone only one chain declares.
@@ -3034,6 +3041,8 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                 return BuildBoneChains(chainVersion, splits);
             }
 
+            MergeSiblingHubs(chains);
+
             return [.. chains.OrderBy(ChainFirstNode)];
 
             int ChainFirstNode(BoneChain chain)
@@ -3057,6 +3066,120 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                 }
 
                 return first;
+            }
+        }
+
+        readonly HashSet<string> siblingSpringHubs = new(StringComparer.OrdinalIgnoreCase);
+
+        /// <summary>
+        /// Gets the bones a chain declares only to spring its siblings together. Such a bone anchors no
+        /// chain of its own, so a cloth node parented to it still needs its own static declaration.
+        /// </summary>
+        public IReadOnlySet<string> SiblingSpringHubs => siblingSpringHubs;
+
+        /// <summary>
+        /// Gathers the chains of a ringless sibling group under the bone that parents them, and marks the
+        /// hub as springing its children together.
+        /// </summary>
+        /// <remarks>
+        /// A joint's <c>child_sibling_spring</c> rods its own children to each other, and those rods are
+        /// what stage each child's fit influences and lock it to its goal. Where every one of the children
+        /// is static the rods themselves are dropped, so the group's only compiled trace is the locks and
+        /// the fits - which is why the rod-read <c>ChildSiblingSpring</c> cannot see it and why each such
+        /// child otherwise reads as a chain root of its own. The spring's magnitude leaves no trace at all
+        /// there, so any value above zero states it.
+        /// </remarks>
+        /// <param name="chains">The reconstructed chains, edited in place.</param>
+        void MergeSiblingHubs(List<BoneChain> chains)
+        {
+            siblingSpringHubs.Clear();
+            if (SkeletonBoneParents is null)
+            {
+                return;
+            }
+
+            var nodeOf = new Dictionary<string, int>(CtrlNames.Length, StringComparer.OrdinalIgnoreCase);
+            for (var i = 0; i < CtrlNames.Length; i++)
+            {
+                nodeOf.TryAdd(CtrlNames[i], i);
+            }
+
+            var groups = new Dictionary<string, List<BoneChain>>(StringComparer.OrdinalIgnoreCase);
+            foreach (var chain in chains)
+            {
+                if (chain.ExtrudeSides >= 1 || chain.Joints.Exists(static joint => joint.RingNodes.Count > 0))
+                {
+                    continue;
+                }
+
+                if (chain.Joints.Find(static joint => joint.IsRoot) is not { Simulated: false } root
+                    || !IsLockedToGoal(root.Node))
+                {
+                    continue;
+                }
+
+                if (SkeletonBoneParents.GetValueOrDefault(root.Name) is not { } hub
+                    || !nodeOf.TryGetValue(hub, out var hubNode)
+                    || chain.Joints.Exists(joint => joint.Node == hubNode))
+                {
+                    continue;
+                }
+
+                if (!groups.TryGetValue(hub, out var members))
+                {
+                    groups[hub] = members = [];
+                }
+
+                members.Add(chain);
+            }
+
+            foreach (var (hub, members) in groups)
+            {
+                if (members.Count < 2)
+                {
+                    continue;
+                }
+
+                var hubNode = nodeOf[hub];
+                var host = chains.Find(chain => chain.Joints.Exists(joint => joint.Node == hubNode));
+                if (host is null)
+                {
+                    host = members[0];
+                    host.RootBone = hub;
+                    host.Joints.Insert(0, new BoneChainJoint
+                    {
+                        Node = hubNode,
+                        Name = CtrlNames[hubNode],
+                        ParentNode = -1,
+                        InvMass = hubNode < NodeInvMasses.Length ? NodeInvMasses[hubNode] : 0f,
+                    });
+                }
+
+                host.Joints.Find(joint => joint.Node == hubNode)!.ChildSiblingSpring = 1f;
+                siblingSpringHubs.Add(CtrlNames[hubNode]);
+
+                foreach (var member in members)
+                {
+                    foreach (var joint in member.Joints)
+                    {
+                        if (joint.IsRoot && joint.Node != hubNode)
+                        {
+                            joint.ParentNode = hubNode;
+                            joint.ParentName = hub;
+                            joint.SpringsWithSiblings = true;
+                        }
+
+                        if (member != host)
+                        {
+                            host.Joints.Add(joint);
+                        }
+                    }
+
+                    if (member != host)
+                    {
+                        chains.Remove(member);
+                    }
+                }
             }
         }
     }

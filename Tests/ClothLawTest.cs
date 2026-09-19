@@ -8181,5 +8181,102 @@ namespace Tests
                 await Assert.That(shapes[0].Radius1).IsEqualTo(4f).Within(1e-3f);
             }
         }
+
+        /// <summary>
+        /// Two ringless chains whose static roots the original locks to its goal and whose bone parent is
+        /// the same cloth node are one chain under that bone, which springs them together.
+        /// </summary>
+        /// <remarks>
+        /// A joint's <c>child_sibling_spring</c> rods its own children to each other, and those rods stage
+        /// each child's fit influences and lock it to its goal. Where every child is static the rods
+        /// themselves are dropped, so the group's only compiled trace is the locks - and each child reads
+        /// as a chain root of its own. Controls: the same roots with no lock, and a group whose chains
+        /// extrude rings, whose locks the chain format already accounts for.
+        /// </remarks>
+        [Test]
+        public async Task LockedRinglessRootsUnderOneBoneAreOneSprungChain()
+        {
+            var sprung = SiblingHubs(locked: true, rings: false);
+            var unlocked = SiblingHubs(locked: false, rings: false);
+            var ringed = SiblingHubs(locked: true, rings: true);
+
+            var chains = sprung.BuildBoneChains();
+            var merged = chains.Find(static chain => chain.RootBone == "hub");
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(chains.Count).IsEqualTo(1);
+                await Assert.That(merged).IsNotNull();
+                await Assert.That(merged!.Joints.Count).IsEqualTo(5);
+                await Assert.That(merged.Joints.Find(static joint => joint.Name == "hub")!.ChildSiblingSpring)
+                    .IsGreaterThan(0f);
+
+                foreach (var name in (string[])["r1", "r2"])
+                {
+                    await Assert.That(merged.Joints.Find(joint => joint.Name == name)!.ParentName).IsEqualTo("hub");
+                }
+
+                await Assert.That(unlocked.BuildBoneChains().Exists(static chain => chain.RootBone == "hub"))
+                    .IsFalse();
+                await Assert.That(ringed.BuildBoneChains().Exists(static chain => chain.RootBone == "hub"))
+                    .IsFalse();
+            }
+        }
+
+        /// <summary>
+        /// Two static roots under one bone, each carrying a simulated child, with no rod between the roots:
+        /// haze's own shape. <paramref name="locked"/> puts the roots in <c>m_LockToGoal</c> and
+        /// <paramref name="rings"/> gives each root an extruded proxy ring.
+        /// </summary>
+        private static FeModel SiblingHubs(bool locked, bool rings)
+        {
+            var names = rings
+                ? "\"hub\", \"r1\", \"r2\", \"c1\", \"c2\", \"$ccr1_0\", \"$ccr2_0\""
+                : "\"hub\", \"r1\", \"r2\", \"c1\", \"c2\"";
+            var model = SyntheticCloth.Parse($$"""
+                {
+                    m_CtrlName = [ {{names}} ]
+                    m_SkelParents = [ -1, -1, -1, 1, 2{{(rings ? ", 1, 2" : string.Empty)}} ]
+                    m_nNodeCount = {{(rings ? 7 : 5)}}
+                    m_nStaticNodes = 3
+                    m_NodeInvMasses = [ 0.0, 0.0, 0.0, 1.0, 1.0{{(rings ? ", 1.0, 1.0" : string.Empty)}} ]
+                    m_LockToGoal = [ {{(locked ? "1, 2" : string.Empty)}} ]
+                    m_InitPose =
+                    [
+                        {{SyntheticCloth.Pose(0f, 0f, 0f)}}
+                        {{SyntheticCloth.Pose(-5f, 0f, -10f)}}
+                        {{SyntheticCloth.Pose(5f, 0f, -10f)}}
+                        {{SyntheticCloth.Pose(-5f, 0f, -20f)}}
+                        {{SyntheticCloth.Pose(5f, 0f, -20f)}}
+                        {{(rings ? SyntheticCloth.Pose(-2f, 0f, -10f) + SyntheticCloth.Pose(8f, 0f, -10f) : string.Empty)}}
+                    ]
+                    {{(rings
+                        ? """
+                          m_CtrlOffsets =
+                          [
+                              { vOffset = [ 3.0, 0.0, 0.0 ] nCtrlParent = 1 nCtrlChild = 5 },
+                              { vOffset = [ 3.0, 0.0, 0.0 ] nCtrlParent = 2 nCtrlChild = 6 },
+                          ]
+                          """
+                        : string.Empty)}}
+                    m_Rods =
+                    [
+                        {{SyntheticCloth.RigidRod(1, 3, 10f, 1f)}}
+                        {{SyntheticCloth.RigidRod(2, 4, 10f, 1f)}}
+                    ]
+                }
+                """);
+            model.SkeletonBoneParents = new Dictionary<string, string?>
+            {
+                ["hub"] = null,
+                ["r1"] = "hub",
+                ["r2"] = "hub",
+                ["c1"] = "r1",
+                ["c2"] = "r2",
+                ["$ccr1_0"] = "r1",
+                ["$ccr2_0"] = "r2",
+            };
+            return model;
+        }
     }
 }

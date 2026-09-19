@@ -1392,9 +1392,13 @@ partial class ModelExtract
 
     // Rods the chains do not rebuild themselves (extra copies of a parent span) are re-declared here, and a
     // cluster's tie beside a chain span as its two-member cluster.
-    internal static void AddClothChainSurplusRods(KVObject softbodyChildren, FeModel feModel,
+    internal static HashSet<(int, int)> AddClothChainSurplusRods(KVObject softbodyChildren, FeModel feModel,
         List<FeModel.BoneChain> chains)
     {
+        // The pairs declared here, so the free-node pass does not re-declare one of them and ship the
+        // same constraint twice. A pair reaches both only where one endpoint is a chain joint the other
+        // passes still declare a bare node for, which is what a sibling hub is.
+        var declaredPairs = new HashSet<(int, int)>();
         var controlNames = feModel.CtrlNames;
 
         // Only a bone some emitted chain actually claims as a joint is registered as a cloth node, and so
@@ -1451,6 +1455,7 @@ partial class ModelExtract
                 continue;
             }
 
+            declaredPairs.Add(pair);
             if (tie)
             {
                 softbodyChildren.Add(MakeClothSelfCollisionCluster(
@@ -1466,6 +1471,8 @@ partial class ModelExtract
             softbodyChildren.Add(MakeClothSpring(springLabel, name0, name1, rod.MinDist, rod.MaxDist,
                 rod.RelaxationFactor));
         }
+
+        return declaredPairs;
     }
 
     // The proxy-sheet phase's own AddClothProxySprings skips every rod touching an independent chain
