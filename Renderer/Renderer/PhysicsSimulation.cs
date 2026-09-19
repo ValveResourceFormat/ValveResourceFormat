@@ -483,8 +483,10 @@ public sealed class PhysicsSimulation : IDisposable
 
     // The authored joint friction is a small unitless number (0.15 to 0.7 on agents); this turns
     // it into the resisting torque of the zero-velocity motor, sized against limb masses in
-    // kilograms so a ragdoll settles rather than swinging like pendulums
-    private const float RagdollFrictionTorque = 100f;
+    // kilograms so a ragdoll settles rather than swinging like pendulums. Mutable so the
+    // stability harness can sweep it.
+    /// <summary>Torque per unit of authored ragdoll joint friction. See the comment above.</summary>
+    public static float RagdollFrictionTorque { get; set; } = 100f;
 
     /// <summary>
     /// How stiffly ragdoll joints hold, as the solver's constraint softness: zero hertz is the
