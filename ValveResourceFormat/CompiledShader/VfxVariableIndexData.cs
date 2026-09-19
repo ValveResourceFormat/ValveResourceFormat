@@ -1,8 +1,15 @@
+using System.Runtime.InteropServices;
+
 namespace ValveResourceFormat.CompiledShader;
 
 /// <summary>
 /// One write sequence entry: a variable index paired with the register offset it is written to.
 /// </summary>
+/// <remarks>
+/// Resource encoded shaders store each entry as one 32-bit value that is reinterpreted as this struct,
+/// so the field order and size are part of the format: register offset in the low half, packed index in the high half.
+/// </remarks>
+[StructLayout(LayoutKind.Sequential, Pack = 1, Size = 4)]
 public readonly struct VfxVariableIndexData
 {
     /// <summary>Gets the register offset the variable is written to.</summary>
