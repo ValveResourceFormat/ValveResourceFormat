@@ -45,12 +45,9 @@ namespace ValveResourceFormat.Particles.Operators
                         particleSystemState.Random.ForParticleBetween(particle.ParticleId, BlueOffset, colorFadeMin.Z, colorFadeMax.Z))
                     : particleSystemState.Random.ForParticleBetween(particle.ParticleId, RedOffset, colorFadeMin, colorFadeMax);
 
-                var t = MathUtils.Saturate(MathUtils.Remap(particle.NormalizedAge, fadeStartTime, fadeEndTime));
-
-                if (easeInOut)
-                {
-                    t = t * t * (3 - 2 * t);
-                }
+                var t = easeInOut
+                    ? MathUtils.Smoothstep(fadeStartTime, fadeEndTime, particle.NormalizedAge)
+                    : MathUtils.Saturate(MathUtils.Remap(particle.NormalizedAge, fadeStartTime, fadeEndTime));
 
                 var initialColor = particle.GetInitialVector(particles, fieldOutput);
 

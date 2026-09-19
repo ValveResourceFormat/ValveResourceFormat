@@ -462,7 +462,7 @@ public abstract class SoundEvent
             volume += float.Lerp(randomMin, randomMax, Random.NextSingle());
         }
 
-        return Math.Clamp(volume, 0f, 1f) * VolumeScale * Mixer.Player.GetMixGroupVolume(mixGroup);
+        return MathUtils.Saturate(volume) * VolumeScale * Mixer.Player.GetMixGroupVolume(mixGroup);
     }
 
     /// <summary>

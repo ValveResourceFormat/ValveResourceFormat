@@ -217,7 +217,7 @@ namespace GUI.Types.GLViewers
         protected void UpdateSunAngles()
         {
             sunAngles.X = Math.Clamp(sunAngles.X, 0f, 89f);
-            sunAngles.Y %= 360f;
+            sunAngles.Y = MathUtils.Wrap(sunAngles.Y, 0f, 360f);
 
             Scene.LightingInfo.SetSunDirectionFromAngles(new Vector3(sunAngles.X, sunAngles.Y, 0f));
         }

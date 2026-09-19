@@ -183,6 +183,6 @@ public abstract class BaseModelEntity : BaseEntity
             return;
         }
 
-        node.Tint = node.Tint with { W = Math.Clamp(alpha / 255f, 0f, 1f) };
+        node.Tint = node.Tint with { W = MathUtils.Saturate(alpha / 255f) };
     }
 }

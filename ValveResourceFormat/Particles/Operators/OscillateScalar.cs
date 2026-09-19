@@ -88,7 +88,7 @@ namespace ValveResourceFormat.Particles.Operators
 
                 var oscillated = particle.GetScalar(outputField) + (delta * (rate * step));
 
-                particle.SetScalar(outputField, clampToUnit ? Math.Clamp(oscillated, 0f, 1f) : oscillated);
+                particle.SetScalar(outputField, clampToUnit ? MathUtils.Saturate(oscillated) : oscillated);
             }
         }
     }

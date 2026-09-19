@@ -144,7 +144,7 @@ public sealed class FuncButton : BaseToggle
         positionIn = positionOut + MoveDirection * GetTravelDistance();
 
         // A button with nowhere to go fires in place
-        if (HasSpawnFlags(SpawnFlag.DontMove) || (positionIn - positionOut).Length() < 1f)
+        if (HasSpawnFlags(SpawnFlag.DontMove) || Vector3.Distance(positionIn, positionOut) < 1f)
         {
             positionIn = positionOut;
         }

@@ -68,7 +68,7 @@ public sealed class SoundEventPlayer : IDisposable
         get => volume;
         set
         {
-            value = Math.Clamp(value, 0f, 1f);
+            value = MathUtils.Saturate(value);
             if (value == volume)
             {
                 return;
@@ -98,7 +98,7 @@ public sealed class SoundEventPlayer : IDisposable
     public float SpectralCueStrength
     {
         get => spectralCueStrength;
-        set => spectralCueStrength = Math.Clamp(value, 0f, 1f);
+        set => spectralCueStrength = MathUtils.Saturate(value);
     }
 
     private float dopplerScale = 0.2f;

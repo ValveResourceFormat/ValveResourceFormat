@@ -452,7 +452,7 @@ partial class ModelExtract
         {
             var currentVal = logLayer.LayerValues[i];
 
-            if ((lastVal - currentVal).Length() >= 0.01f)
+            if (Vector3.Distance(lastVal, currentVal) >= 0.01f)
             {
                 return true;
             }

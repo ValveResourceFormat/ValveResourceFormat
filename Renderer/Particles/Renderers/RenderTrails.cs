@@ -273,7 +273,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                                 continue;
                             }
 
-                            colorFade = 1f - ((particleRadius - fadeStart) / (fadeEnd - fadeStart));
+                            colorFade = 1f - MathUtils.Remap(particleRadius, fadeStart, fadeEnd);
                         }
                     }
 

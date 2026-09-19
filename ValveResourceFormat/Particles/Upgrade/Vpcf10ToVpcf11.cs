@@ -102,7 +102,7 @@ internal sealed class Vpcf10ToVpcf11 : ParticleUpgradeStep
         var quantized = (float)Math.Truncate(exponent * 4.0) * 0.25f;
 
         return quantized >= 1f
-            ? 0f - Math.Clamp((quantized - 1f) / 19f, 0f, 1f)
-            : 1f - Math.Clamp(quantized, 0f, 1f);
+            ? 0f - MathUtils.Saturate((quantized - 1f) / 19f)
+            : 1f - MathUtils.Saturate(quantized);
     }
 }

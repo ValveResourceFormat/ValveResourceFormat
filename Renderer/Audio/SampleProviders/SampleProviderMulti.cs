@@ -87,7 +87,7 @@ public class SampleProviderMulti : AudioSampleProvider
     public float LiveVolume
     {
         get => liveVolume;
-        set => liveVolume = Math.Clamp(value, 0f, 1f);
+        set => liveVolume = MathUtils.Saturate(value);
     }
 
     /// <summary>
@@ -168,13 +168,12 @@ public class SampleProviderMulti : AudioSampleProvider
             return Math.Max(fadeCurve.Evaluate((float)seconds), 0f);
         }
 
-        return Math.Clamp(1f - (float)(seconds / fadeDuration), 0f, 1f);
+        return MathUtils.Saturate(1f - (float)(seconds / fadeDuration));
     }
 
     private float EvaluateFadeIn(double seconds)
     {
-        var t = Math.Clamp((float)(seconds / fadeInDuration), 0f, 1f);
-        return t * t * (3f - 2f * t);
+        return MathUtils.Smoothstep(0f, 1f, (float)(seconds / fadeInDuration));
     }
 
     /// <summary>Removes all providers from the mix.</summary>

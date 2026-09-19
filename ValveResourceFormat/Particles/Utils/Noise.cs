@@ -218,7 +218,7 @@ namespace ValveResourceFormat.Particles.Utils
                 }
             }
 
-            return (MathF.Min(1f, MathF.Max(0f, nearest)) * 2f) - 1f;
+            return (MathUtils.Saturate(nearest) * 2f) - 1f;
         }
 
         /// <summary>
@@ -286,7 +286,7 @@ namespace ValveResourceFormat.Particles.Utils
         {
             var remainder = MathF.IEEERemainder(noiseOffset + 1.7233999967575073f, 0.6483259797096252f);
 
-            return (MathF.Min(1f, MathF.Max(0f, remainder)) * 0.19999998807907104f) + 0.75f;
+            return (MathUtils.Saturate(remainder) * 0.19999998807907104f) + 0.75f;
         }
 
         /// <summary>

@@ -51,7 +51,7 @@ internal sealed class SoundEventHLVRStartSoundEvent : SoundEvent
             return;
         }
 
-        child.VolumeOverride = Math.Clamp((VolumeOverride ?? Definition.Volume) * volumeAttenuation, 0f, 1f);
+        child.VolumeOverride = MathUtils.Saturate((VolumeOverride ?? Definition.Volume) * volumeAttenuation);
         StartAsChild(child);
     }
 

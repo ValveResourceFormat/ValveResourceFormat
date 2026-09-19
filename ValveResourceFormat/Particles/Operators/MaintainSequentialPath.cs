@@ -56,8 +56,8 @@ namespace ValveResourceFormat.Particles.Operators
                 var endNow = particleSystemState.GetControlPoint(pathParams.EndControlPointNumber).Position;
 
                 // The raw tolerance value is compared against the squared control point movement.
-                if ((startNow - lastStartPosition).LengthSquared() < tolerance
-                    && (endNow - lastEndPosition).LengthSquared() < tolerance)
+                if (Vector3.DistanceSquared(startNow, lastStartPosition) < tolerance
+                    && Vector3.DistanceSquared(endNow, lastEndPosition) < tolerance)
                 {
                     return;
                 }

@@ -289,10 +289,10 @@ namespace ValveResourceFormat.Renderer
                 else
                 {
                     var t = activeClip.BlendDuration > 0f
-                        ? 1f - Math.Clamp(currentBlendTime / activeClip.BlendDuration, 0f, 1f)
+                        ? 1f - MathUtils.Saturate(currentBlendTime / activeClip.BlendDuration)
                         : 1f;
 
-                    var blendProgress = t * t * (3f - 2f * t);
+                    var blendProgress = MathUtils.Smoothstep(0f, 1f, t);
 
                     activeClip.Weight = blendProgress;
                     previousClip.Weight = 1f - blendProgress;
@@ -354,14 +354,14 @@ namespace ValveResourceFormat.Renderer
                 return cycle >= layer.Start && cycle <= layer.End ? 1f : 0f;
             }
 
-            var rising = layer.Start != layer.Peak ? (cycle - layer.Start) / (layer.Peak - layer.Start) : 1f;
-            var falling = layer.Tail != layer.End ? (layer.End - cycle) / (layer.End - layer.Tail) : 1f;
+            var rising = layer.Start != layer.Peak ? MathUtils.Remap(cycle, layer.Start, layer.Peak) : 1f;
+            var falling = layer.Tail != layer.End ? MathUtils.Remap(cycle, layer.End, layer.Tail) : 1f;
 
-            var weight = Math.Clamp(Math.Min(rising, falling), 0f, 1f);
+            var weight = MathUtils.Saturate(Math.Min(rising, falling));
 
             if (layer.Spline)
             {
-                weight = weight * weight * (3f - 2f * weight);
+                weight = MathUtils.Smoothstep(0f, 1f, weight);
             }
 
             return weight;

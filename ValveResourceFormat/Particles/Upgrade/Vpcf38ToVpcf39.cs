@@ -141,6 +141,6 @@ internal sealed class Vpcf38ToVpcf39 : ParticleUpgradeStep
     /// </summary>
     private static float BiasParameter(float exponent)
         => exponent >= 1f
-            ? 0f - Math.Clamp((exponent - 1f) / 19f, 0f, 1f)
-            : 1f - Math.Clamp(exponent, 0f, 1f);
+            ? 0f - MathUtils.Saturate((exponent - 1f) / 19f)
+            : 1f - MathUtils.Saturate(exponent);
 }

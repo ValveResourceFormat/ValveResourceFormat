@@ -350,7 +350,7 @@ public partial class GltfModelExporter
         // See https://github.com/ValveResourceFormat/ValveResourceFormat/issues/527 (NaN)
         // and https://github.com/ValveResourceFormat/ValveResourceFormat/issues/570 (inf)
         private static float SanitizeScale(float value)
-            => float.IsNaN(value) || float.IsInfinity(value) ? 0f : value;
+            => float.IsFinite(value) ? value : 0f;
     }
 
     /// <summary>

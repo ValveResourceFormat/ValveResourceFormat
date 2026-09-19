@@ -314,8 +314,7 @@ namespace ValveResourceFormat.Renderer
             var direction = target - Location;
 
             // A direction carries no roll, so adopting these angles levels the camera too
-            SetFromQAngle(EntityTransformHelper.ForwardDirectionToEulerAngles(
-                direction == Vector3.Zero ? direction : Vector3.Normalize(direction)));
+            SetFromQAngle(EntityTransformHelper.ForwardDirectionToEulerAngles(MathUtils.SafeNormalize(direction)));
 
             ClampRotation();
         }

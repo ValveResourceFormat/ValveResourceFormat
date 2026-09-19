@@ -273,7 +273,7 @@ public sealed class TiledCullFeeder
                     1f);
 
                 var world = Vector4.Transform(clip, volume.FrustumToWorld);
-                corners[corner] = new Vector3(world.X, world.Y, world.Z) / world.W;
+                corners[corner] = world.AsVector3() / world.W;
             }
 
             var item = BuildItem(corners);
@@ -289,7 +289,7 @@ public sealed class TiledCullFeeder
                         1f);
 
                     var world = Vector4.Transform(cube, volume.ObbToWorld);
-                    corners[corner] = new Vector3(world.X, world.Y, world.Z);
+                    corners[corner] = world.AsVector3();
                 }
 
                 ApplySecondHull(ref item, corners);
@@ -298,7 +298,7 @@ public sealed class TiledCullFeeder
             if (item.NumPlanes0 != 0u)
             {
                 var sphere = volume.RangeSphere;
-                ApplyRangeConic(ref item, new Vector3(sphere.X, sphere.Y, sphere.Z), sphere.W);
+                ApplyRangeConic(ref item, sphere.AsVector3(), sphere.W);
             }
 
             items[first + i] = item;
@@ -632,7 +632,7 @@ public sealed class TiledCullFeeder
                     continue;
                 }
 
-                var t = (cameraNearPlane - wNear) / (wFar - wNear);
+                var t = MathUtils.Remap(cameraNearPlane, wNear, wFar);
 
                 var crossing = Vector2.Lerp(
                     new Vector2(clip[i].X, clip[i].Y),
@@ -898,7 +898,7 @@ public sealed class TiledCullFeeder
         var rowW = new Vector4(projectionToWorld.M41, projectionToWorld.M42, projectionToWorld.M43, projectionToWorld.M44);
 
         static Vector3 Column(Vector4 axis, Vector4 z)
-            => (new Vector3(z.X, z.Y, z.Z) * axis.W) - (new Vector3(axis.X, axis.Y, axis.Z) * z.W);
+            => (z.AsVector3() * axis.W) - (axis.AsVector3() * z.W);
 
         var r0 = Column(rowX, rowZ);
         var r1 = Column(rowY, rowZ);
@@ -974,6 +974,6 @@ public sealed class TiledCullFeeder
         var pc = NdcToPixel(new Vector2(atCentre.X, atCentre.Y) / atCentre.W);
         var pe = NdcToPixel(new Vector2(atEdge.X, atEdge.Y) / atEdge.W);
 
-        return (pe - pc).Length();
+        return Vector2.Distance(pe, pc);
     }
 }

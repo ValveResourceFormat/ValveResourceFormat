@@ -63,7 +63,7 @@ internal sealed class SoundEventHLVRAmbientMultiVsnd : SoundEvent
             return;
         }
 
-        startBaseVolume = Math.Clamp(VolumeOverride ?? Definition.Volume, 0f, 1f) * Mixer.Player.GetMixGroupVolume(mixGroup);
+        startBaseVolume = MathUtils.Saturate(VolumeOverride ?? Definition.Volume) * Mixer.Player.GetMixGroupVolume(mixGroup);
         var delay = DelayOverride ?? Definition.Delay;
 
         var childDefinitions = Definition.ChildDefinitions ??= BuildLayerDefinitions(delay);

@@ -75,7 +75,7 @@ namespace ValveResourceFormat.Particles.Initializers
 
             if (fieldOutput is ParticleField.Alpha or ParticleField.AlphaAlternate)
             {
-                value = Math.Clamp(value, 0f, 1f);
+                value = MathUtils.Saturate(value);
             }
 
             particle.SetScalar(fieldOutput, value);

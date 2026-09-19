@@ -29,7 +29,7 @@ namespace ValveResourceFormat.Particles.Operators
             foreach (ref var particle in particles.Current)
             {
                 var value = this.value.NextVector(ref particle, particleSystemState);
-                var lerp = Math.Clamp(this.lerp.NextNumber(ref particle, particleSystemState) * strength, 0f, 1f);
+                var lerp = MathUtils.Saturate(this.lerp.NextNumber(ref particle, particleSystemState) * strength);
 
                 var currentValue = particle.ModifyVectorBySetMethod(particles, outputField, value, setMethod);
                 var initialValue = particle.GetVector(outputField);

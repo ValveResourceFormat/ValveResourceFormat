@@ -157,12 +157,8 @@ namespace ValveResourceFormat.ResourceTypes
                 var localMin = sceneObjects[i].GetSubCollection("m_vMinBounds").ToVector3();
                 var localMax = sceneObjects[i].GetSubCollection("m_vMaxBounds").ToVector3();
 
-                minBounds.X = Math.Min(minBounds.X, localMin.X);
-                minBounds.Y = Math.Min(minBounds.Y, localMin.Y);
-                minBounds.Z = Math.Min(minBounds.Z, localMin.Z);
-                maxBounds.X = Math.Max(maxBounds.X, localMax.X);
-                maxBounds.Y = Math.Max(maxBounds.Y, localMax.Y);
-                maxBounds.Z = Math.Max(maxBounds.Z, localMax.Z);
+                minBounds = Vector3.Min(minBounds, localMin);
+                maxBounds = Vector3.Max(maxBounds, localMax);
             }
 
             MinBounds = minBounds;

@@ -1537,7 +1537,7 @@ public sealed partial class MapExtract
 
                 // distance to the edge
                 var edge = cj - ci;
-                var along = Math.Clamp(Vector3.Dot(point - ci, edge) / MathF.Max(edge.LengthSquared(), 1e-12f), 0f, 1f);
+                var along = MathUtils.Saturate(Vector3.Dot(point - ci, edge) / MathF.Max(edge.LengthSquared(), 1e-12f));
 
                 if (Vector3.Distance(point, ci + edge * along) <= tolerance)
                 {

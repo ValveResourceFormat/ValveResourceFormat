@@ -130,7 +130,7 @@ internal static class SoundscapeOperatorParsing
             return 0f;
         }
 
-        return MathF.Pow(10f, (ReferenceDecibels - db) / 20f) / ReferenceDistance;
+        return MathUtils.DecibelsToLinear(ReferenceDecibels - db) / ReferenceDistance;
     }
 
     private static float? ParseSoundLevel(string? token)

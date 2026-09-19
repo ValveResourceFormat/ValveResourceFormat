@@ -83,7 +83,7 @@ namespace ValveResourceFormat.Renderer.World
                 var targetWeight = inside ? 1f : 0f;
                 var fadeStep = volume.FadeTime > 0f ? deltaTime / volume.FadeTime : 1f;
 
-                volume.Weight = float.Clamp(volume.Weight + float.Clamp(targetWeight - volume.Weight, -fadeStep, fadeStep), 0f, 1f);
+                volume.Weight = MathUtils.Saturate(volume.Weight + float.Clamp(targetWeight - volume.Weight, -fadeStep, fadeStep));
 
                 if (volume.Weight > MinWeight)
                 {

@@ -174,7 +174,7 @@ public sealed class FuncRotating : BaseModelEntity
 
         // Authored 0 to 10, and emitted as a fraction of full volume. A map that leaves it at zero means
         // the default rather than silence, as it did before the keyvalue existed.
-        Volume = Math.Clamp(KeyValues.GetFloatProperty("volume") / 10f, 0f, 1f);
+        Volume = MathUtils.Saturate(KeyValues.GetFloatProperty("volume") / 10f);
 
         if (Volume == 0f)
         {
@@ -528,7 +528,7 @@ public sealed class FuncRotating : BaseModelEntity
     /// <summary>Follows the volume with the speed, Source's <c>RampPitchVol</c> without the pitch.</summary>
     private void RampVolume()
     {
-        playing.Volume = Math.Clamp(MathF.Abs(Speed) / MaxSpeed, 0f, 1f);
+        playing.Volume = MathUtils.Saturate(MathF.Abs(Speed) / MaxSpeed);
     }
 
     /// <inheritdoc/>

@@ -41,7 +41,7 @@ internal sealed class SoundEventScriptedLoop : SoundEvent
 
         Position = origin;
 
-        var trackVolume = Math.Clamp(VolumeOverride ?? volume, 0f, 1f) * VolumeScale;
+        var trackVolume = MathUtils.Saturate(VolumeOverride ?? volume) * VolumeScale;
 
         if (StartTrack(trackNames, trackVolume, Math.Clamp(pitch, 0.25f, 4f), range: 0f) is SampleProvider3D spatial)
         {

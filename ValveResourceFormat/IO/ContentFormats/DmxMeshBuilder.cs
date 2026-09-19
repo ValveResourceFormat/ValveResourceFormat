@@ -500,7 +500,7 @@ internal static class DmxMeshBuilder
 
                     if (inRect || delta.X != 0f || delta.Y != 0f || delta.Z != 0f)
                     {
-                        positions.Add(new Vector3(delta.X, delta.Y, delta.Z));
+                        positions.Add(delta.AsVector3());
                         positionIndices.Add(i);
                     }
 
@@ -513,7 +513,7 @@ internal static class DmxMeshBuilder
 
                     if (inRect || normal.X != 0f || normal.Y != 0f || normal.Z != 0f)
                     {
-                        normals.Add(new Vector3(normal.X, normal.Y, normal.Z));
+                        normals.Add(normal.AsVector3());
                         normalIndices.Add(i);
                     }
 

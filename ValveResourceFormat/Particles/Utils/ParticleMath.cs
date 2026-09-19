@@ -110,8 +110,8 @@ namespace ValveResourceFormat.Particles.Utils
             if (biasType == ParticleFloatBiasType.PF_BIAS_TYPE_EXPONENTIAL)
             {
                 var exponent = biasParameter >= 0f
-                    ? 1f - Math.Clamp(biasParameter, 0f, 1f)
-                    : 20f - (Math.Clamp(biasParameter + 1f, 0f, 1f) * 19f);
+                    ? 1f - MathUtils.Saturate(biasParameter)
+                    : 20f - (MathUtils.Saturate(biasParameter + 1f) * 19f);
 
                 if (exponent <= 0f)
                 {
@@ -137,7 +137,7 @@ namespace ValveResourceFormat.Particles.Utils
                 return 0f;
             }
 
-            var bias = Math.Clamp((biasParameter + 1f) * 0.5f, 0f, 1f);
+            var bias = MathUtils.Saturate((biasParameter + 1f) * 0.5f);
 
             if (bias <= 0f)
             {

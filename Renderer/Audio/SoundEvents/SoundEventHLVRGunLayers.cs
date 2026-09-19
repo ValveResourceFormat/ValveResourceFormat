@@ -60,7 +60,7 @@ internal sealed class SoundEventHLVRGunLayers : SoundEvent
             return;
         }
 
-        startBaseVolume = Math.Clamp(VolumeOverride ?? Definition.Volume, 0f, 1f) * Mixer.Player.GetMixGroupVolume(mixGroup);
+        startBaseVolume = MathUtils.Saturate(VolumeOverride ?? Definition.Volume) * Mixer.Player.GetMixGroupVolume(mixGroup);
 
         StartChildren(Definition.ChildDefinitions ??= BuildLayerDefinitions(), applyLayer);
     }

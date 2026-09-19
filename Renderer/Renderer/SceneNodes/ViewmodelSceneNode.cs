@@ -1117,7 +1117,7 @@ public class ViewmodelSceneNode : ModelSceneNode
 
             Vector2 walkRun = new(float.Lerp(84f, 120f, standing), 250f);
 
-            var running = MathUtils.Saturate((speed - walkRun.X) / (walkRun.Y - walkRun.X));
+            var running = MathUtils.Saturate(MathUtils.Remap(speed, walkRun.X, walkRun.Y));
             var walking = MathUtils.Saturate(speed / walkRun.X) * (1f - running);
             var stopped = MathF.Max(0f, 1f - running - walking);
 
@@ -1424,7 +1424,7 @@ public class ViewmodelSceneNode : ModelSceneNode
 
         currentBob = Vector3.Lerp(currentBob, targetBob, 0.5f);
 
-        var bobAmplitude = MathUtils.Saturate((speed - 150f) / 150f) * 0.1f;
+        var bobAmplitude = MathUtils.RemapValClamped(speed, 150f, 300f, 0f, 0.1f);
 
         if (!input.PlayerMovement.OnGround)
         {

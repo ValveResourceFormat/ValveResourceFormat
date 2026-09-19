@@ -48,8 +48,8 @@ namespace ValveResourceFormat.Renderer
             var newCycle = newTime * toCycles;
 
             wholeTimeline = newCycle - previousCycle >= 1f;
-            startCycle = Wrap(previousCycle);
-            endCycle = Wrap(newCycle);
+            startCycle = MathUtils.Fract(previousCycle);
+            endCycle = MathUtils.Fract(newCycle);
             inclusiveEnd = finished;
             index = -1;
         }
@@ -97,12 +97,6 @@ namespace ValveResourceFormat.Renderer
             return startCycle <= endCycle
                 ? eventCycle >= startCycle && eventCycle < endCycle
                 : eventCycle >= startCycle || eventCycle < endCycle;
-        }
-
-        private static float Wrap(float cycle)
-        {
-            var wrapped = cycle % 1f;
-            return wrapped < 0f ? wrapped + 1f : wrapped;
         }
     }
 }

@@ -50,8 +50,8 @@ namespace ValveResourceFormat.Particles.Initializers
 
             if (fieldOutput is ParticleField.Alpha or ParticleField.AlphaAlternate)
             {
-                outMin = Math.Clamp(outMin, 0f, 1f);
-                outMax = Math.Clamp(outMax, 0f, 1f);
+                outMin = MathUtils.Saturate(outMin);
+                outMax = MathUtils.Saturate(outMax);
             }
 
             var distance = ((controlPointPosition - particle.Position) * distanceScale).Length();
@@ -61,13 +61,11 @@ namespace ValveResourceFormat.Particles.Initializers
                 return particle;
             }
 
-            var value = inMin == inMax
-                ? (distance < inMax ? outMin : outMax)
-                : outMin + MathUtils.Saturate((distance - inMin) / (inMax - inMin)) * (outMax - outMin);
+            var value = MathUtils.RemapValClamped(distance, inMin, inMax, outMin, outMax);
 
             if (hasBias)
             {
-                value = ParticleMath.Bias(Math.Clamp(value, 0f, 1f), remapBias);
+                value = ParticleMath.Bias(MathUtils.Saturate(value), remapBias);
             }
 
             value = particle.ModifyScalarBySetMethodAtSpawn(particles, fieldOutput, value, setMethod);

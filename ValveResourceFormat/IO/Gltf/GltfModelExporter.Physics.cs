@@ -373,7 +373,7 @@ public partial class GltfModelExporter
     /// </summary>
     private static Vector2 GeneratePlanarUV(Vector3 position, Vector3 normal)
     {
-        var absNormal = new Vector3(Math.Abs(normal.X), Math.Abs(normal.Y), Math.Abs(normal.Z));
+        var absNormal = Vector3.Abs(normal);
         const float uvScale = 0.02f; // Scale factor for reasonable texture tiling
 
         // Choose the best projection plane based on the dominant normal component

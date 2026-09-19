@@ -279,7 +279,7 @@ namespace ValveResourceFormat.Renderer.Utils
             for (var i = 1; i <= subdivisions; i++)
             {
                 var point = MathUtils.CubicBezier(p0, p1, p2, p3, i / (float)subdivisions);
-                length += (point - previous).Length();
+                length += Vector3.Distance(point, previous);
                 previous = point;
             }
 

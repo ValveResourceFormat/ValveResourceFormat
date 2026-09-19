@@ -99,7 +99,7 @@ internal class Slider : UserControl
         var halfPenWidth = (int)Math.Ceiling(penWidth / 2f);
         var effectiveWidth = Width - knobSize - halfPenWidth * 2;
 
-        Value = MathUtils.Saturate((mousePos.X - knobRadius - halfPenWidth) / (float)effectiveWidth);
+        Value = MathUtils.Saturate(MathUtils.Remap(mousePos.X - knobRadius - halfPenWidth, 0f, effectiveWidth));
 
         ValueChanged?.Invoke(Value);
     }

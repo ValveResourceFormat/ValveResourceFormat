@@ -254,7 +254,7 @@ namespace ValveResourceFormat.Renderer
         /// <returns>The squared distance to the camera.</returns>
         public float GetCameraDistance(Camera camera)
         {
-            return (BoundingBox.Center - camera.Location).LengthSquared();
+            return Vector3.DistanceSquared(BoundingBox.Center, camera.Location);
         }
     }
 }

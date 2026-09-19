@@ -272,7 +272,7 @@ public class Renderer
         var sunForward = EntityTransformHelper.EulerAnglesToForwardDirection(new Vector3(DefaultSunAngles.X, DefaultSunAngles.Y, 0f));
         scene.LightingInfo.LightingData.SunDirection = new Vector4(-sunForward, 0f);
         scene.LightingInfo.LightingData.SunColor =
-            new Vector4(new Vector3(DefaultSunColor.X, DefaultSunColor.Y, DefaultSunColor.Z) * DefaultSunColor.W, 1f);
+            new Vector4(DefaultSunColor.AsVector3() * DefaultSunColor.W, 1f);
     }
 
     /// <summary>

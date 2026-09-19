@@ -253,12 +253,12 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             {
                 var radius = chain[i].Radius;
                 var midpoint = (positions[i] + positions[i + 1]) * 0.5f;
-                var distanceSquared = (midpoint - camera.Location).LengthSquared();
+                var distanceSquared = Vector3.DistanceSquared(midpoint, camera.Location);
 
                 // Apparent radius as a fraction of the viewport; full when the camera is inside the tube.
                 var size = distanceSquared <= radius * radius
                     ? 1f
-                    : Math.Clamp(radius * camera.ProjectionMatrix.M22 / MathF.Sqrt(distanceSquared), 0f, 1f);
+                    : MathUtils.Saturate(radius * camera.ProjectionMatrix.M22 / MathF.Sqrt(distanceSquared));
 
                 var tess = size * tessScale * resolutionScale;
                 var subdivisions = Math.Clamp(MathUtils.Clamp((int)tess, minTessellation, maxTessellation), 1, 1 << MaxTessellationLevel);

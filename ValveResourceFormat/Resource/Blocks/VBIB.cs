@@ -959,7 +959,7 @@ namespace ValveResourceFormat.Blocks
 
                 // If Z is negative, X and Y have had extra amounts (TODO: find the logic behind this value) added into them so they would add up to over 1.0
                 // Thus, we take the negative components of Z and add them back into XY to get the correct original values.
-                var negativeZCompensation = Math.Clamp(-derivedNormalZ, 0.0f, 1.0f); // Isolate the negative 0..1 range of derived Z
+                var negativeZCompensation = MathUtils.Saturate(-derivedNormalZ); // Isolate the negative 0..1 range of derived Z
 
                 var unpackedNormalXPositive = unpackedNormal.X >= 0.0f ? 1.0f : 0.0f;
                 var unpackedNormalYPositive = unpackedNormal.Y >= 0.0f ? 1.0f : 0.0f;

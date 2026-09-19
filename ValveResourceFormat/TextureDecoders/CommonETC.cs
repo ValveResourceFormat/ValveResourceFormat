@@ -180,7 +180,7 @@ namespace ValveResourceFormat.TextureDecoders
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         protected static int Clamp255(int n)
         {
-            return n < 0 ? 0 : n > 255 ? 255 : n;
+            return Math.Clamp(n, 0, 255);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

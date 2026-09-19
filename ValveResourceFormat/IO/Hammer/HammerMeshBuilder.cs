@@ -938,7 +938,7 @@ namespace ValveResourceFormat.IO
 
                     if (tangent is { } t)
                     {
-                        var direction = Vector3.Normalize(Vector3.TransformNormal(new Vector3(t.X, t.Y, t.Z), transform));
+                        var direction = Vector3.Normalize(Vector3.TransformNormal(t.AsVector3(), transform));
                         tangent = new Vector4(direction, t.W);
                     }
                 }

@@ -70,7 +70,7 @@ internal sealed class SoundEventScriptedRandom : SoundEvent
         Position = randomPosition ? PickRandomPosition() : origin;
 
         var pitch = Math.Clamp(float.Lerp(pitchRange.Min, pitchRange.Max, Random.NextSingle()) / 100f, 0.25f, 4f);
-        var volume = Math.Clamp(VolumeOverride ?? float.Lerp(volumeRange.Min, volumeRange.Max, Random.NextSingle()), 0f, 1f) * VolumeScale;
+        var volume = MathUtils.Saturate(VolumeOverride ?? float.Lerp(volumeRange.Min, volumeRange.Max, Random.NextSingle())) * VolumeScale;
 
         if (StartTrack(trackNames, volume, pitch, range: 0f) is SampleProvider3D spatial)
         {

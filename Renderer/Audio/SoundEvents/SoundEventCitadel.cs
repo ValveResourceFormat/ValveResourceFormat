@@ -143,7 +143,7 @@ internal sealed class SoundEventCitadel : SoundEvent
 
         // Definition.Volume is in decibels for this event family
         var decibels = (VolumeOverride ?? Definition.Volume) + volumeOffsetDecibels;
-        var baseVolume = Math.Clamp(MathUtils.DecibelsToLinear(decibels), 0f, 1f);
+        var baseVolume = MathUtils.Saturate(MathUtils.DecibelsToLinear(decibels));
         var mixGroupVolume = Mixer.Player.GetMixGroupVolume(mixGroup);
         targetVolume = baseVolume * volumeMult * volumeCurveGain * mixGroupVolume * VolumeScale;
 

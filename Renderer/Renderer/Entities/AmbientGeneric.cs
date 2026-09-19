@@ -55,7 +55,7 @@ public sealed class AmbientGeneric : BaseEntity
         SoundName = KeyValues.GetStringProperty("message");
 
         // Authored 0 to 10, and the engine emits it as a fraction of full volume
-        Volume = Math.Clamp(KeyValues.GetFloatProperty("health", 10f), 0f, 10f) / 10f;
+        Volume = MathUtils.Saturate(KeyValues.GetFloatProperty("health", 10f) / 10f);
 
         fadeInSeconds = KeyValues.GetFloatProperty("fadeinsecs");
         fadeOutSeconds = KeyValues.GetFloatProperty("fadeoutsecs");
@@ -174,7 +174,7 @@ public sealed class AmbientGeneric : BaseEntity
     [EntityInput("Volume")]
     private void InputVolume(EntityInputData data)
     {
-        Volume = Math.Clamp(data.Float(10f), 0f, 10f) / 10f;
+        Volume = MathUtils.Saturate(data.Float(10f) / 10f);
         playing.Volume = Volume;
     }
 

@@ -497,15 +497,8 @@ public sealed class PolygonMesh
             tVect.Z += -cross.Z / cross.X;
         }
 
-        if (sVect.LengthSquared() > 0.0f)
-        {
-            sVect = Vector3.Normalize(sVect);
-        }
-
-        if (tVect.LengthSquared() > 0.0f)
-        {
-            tVect = Vector3.Normalize(tVect);
-        }
+        sVect = MathUtils.SafeNormalize(sVect);
+        tVect = MathUtils.SafeNormalize(tVect);
     }
 
     private static void BuildBasis(Vector3 normal, out Vector3 tangent, out Vector3 bitangent)
@@ -689,8 +682,8 @@ public sealed class PolygonMesh
             ComputeFaceTextureParametersFromUVs(bestPositions, bestTexCoords, textureSize,
                 out var axisU, out var axisV, out var scale);
 
-            TextureUAxis[hFace] = new Vector3(axisU.X, axisU.Y, axisU.Z);
-            TextureVAxis[hFace] = new Vector3(axisV.X, axisV.Y, axisV.Z);
+            TextureUAxis[hFace] = axisU.AsVector3();
+            TextureVAxis[hFace] = axisV.AsVector3();
             TextureOffset[hFace] = new Vector2(axisU.W, axisV.W);
             TextureScale[hFace] = scale;
         }

@@ -38,9 +38,7 @@ namespace ValveResourceFormat.Particles.Operators
         {
             var visibility = RemapTransformVisibilityToScalar.QueryVisibility(transformInput.NextTransform(particleSystemState).Translation);
 
-            var fraction = inputMin == inputMax
-                ? (visibility - inputMax >= 0f ? 1f : 0f)
-                : MathUtils.Saturate((visibility - inputMin) / (inputMax - inputMin));
+            var fraction = MathUtils.RemapValClamped(visibility, inputMin, inputMax, 0f, 1f);
             var value = Vector3.Lerp(outputMin, outputMax, fraction);
 
             foreach (ref var particle in particles.Current)

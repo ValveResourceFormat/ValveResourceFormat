@@ -58,7 +58,7 @@ namespace ValveResourceFormat.Particles.Utils
 
             var value = ApplyTurbulence(sum / OctaveDivisors[octaves - 1], coord);
 
-            return (Math.Clamp(ApplyModifier(value), 0f, 1f) * (outputMax - outputMin)) + outputMin;
+            return (MathUtils.Saturate(ApplyModifier(value)) * (outputMax - outputMin)) + outputMin;
         }
 
         private float SampleNoise(Vector3 coord, float jitter, float seed) => noiseType switch
@@ -126,7 +126,7 @@ namespace ValveResourceFormat.Particles.Utils
             ParticleNoiseModifier.PF_NOISE_MODIFIER_NONE => (value * 0.5f) + 0.5f,
             ParticleNoiseModifier.PF_NOISE_MODIFIER_LINES => ParticleMath.Square(MathF.Sin(value * (3f * MathF.PI))),
             ParticleNoiseModifier.PF_NOISE_MODIFIER_CLUMPS => Clumps(value),
-            ParticleNoiseModifier.PF_NOISE_MODIFIER_RINGS => Math.Clamp((MathF.Abs(MathF.Sin(value * MathF.PI)) + 0.25f) / 1.25f, 0f, 1f),
+            ParticleNoiseModifier.PF_NOISE_MODIFIER_RINGS => MathUtils.Saturate((MathF.Abs(MathF.Sin(value * MathF.PI)) + 0.25f) / 1.25f),
             _ => 1f,
         };
 

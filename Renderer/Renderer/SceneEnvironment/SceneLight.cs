@@ -959,7 +959,7 @@ public class SceneLight(Scene scene) : SceneNode(scene)
     private static Vector3 ProjectNDCToWorld(Matrix4x4 frustumToWorld, float x, float y, float z)
     {
         var v = Vector4.Transform(new Vector4(x, y, z, 1f), frustumToWorld);
-        return new Vector3(v.X, v.Y, v.Z) / v.W;
+        return v.AsVector3() / v.W;
     }
 
     private static bool ShouldEnableOBB(SceneLight light)

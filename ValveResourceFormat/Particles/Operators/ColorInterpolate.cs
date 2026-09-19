@@ -32,8 +32,7 @@ namespace ValveResourceFormat.Particles.Operators
                     var t = MathUtils.Remap(time, fadeStartTime, fadeEndTime);
                     if (easeInOut)
                     {
-                        // Smoothstep easing
-                        t = t * t * (3 - 2 * t);
+                        t = MathUtils.Smoothstep(0f, 1f, t);
                     }
 
                     // Interpolate from constant color to fade color; strength blends from the initial color

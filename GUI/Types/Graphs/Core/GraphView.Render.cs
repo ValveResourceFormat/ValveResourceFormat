@@ -347,7 +347,7 @@ partial class GraphView
                 continue;
             }
 
-            var fade = Math.Clamp((spacingPx - 10f) / 20f, 0f, 1f);
+            var fade = MathUtils.Saturate((spacingPx - 10f) / 20f);
             fade *= fade;
 
             var dotRadiusPx = Math.Clamp(spacingPx / 12f, 1.2f, 2.6f);

@@ -238,13 +238,13 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                 max = Vector3.Max(max, node.Position);
             }
 
-            var diagonal = (max - min).Length();
+            var diagonal = Vector3.Distance(max, min);
             var centre = (min + max) * 0.5f;
-            var distanceSquared = (centre - camera.Location).LengthSquared();
+            var distanceSquared = Vector3.DistanceSquared(centre, camera.Location);
 
             var coverage = distanceSquared <= diagonal * diagonal
                 ? 1f
-                : Math.Clamp(diagonal * camera.ProjectionMatrix.M22 / MathF.Sqrt(distanceSquared), 0f, 1f);
+                : MathUtils.Saturate(diagonal * camera.ProjectionMatrix.M22 / MathF.Sqrt(distanceSquared));
 
             var metric = MathF.Sqrt(coverage) * 1024f / nodes.Length;
             var raw = (int)(metric * tessScale * 0.1f);
@@ -351,7 +351,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
 
                     if (radius > fadeStart && fadeEnd > fadeStart)
                     {
-                        alpha *= MathF.Max(0f, 1f - ((radius - fadeStart) / (fadeEnd - fadeStart)));
+                        alpha *= MathF.Max(0f, 1f - MathUtils.Remap(radius, fadeStart, fadeEnd));
                     }
 
                     radius = MathF.Min(MathF.Max(radius, minSize * cameraDistance), maxSize * cameraDistance);
@@ -461,7 +461,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         {
             var v = useScalarForTextureCoordinate ? coordinate : (coordinate * oneOverWorldSize) + vOffset;
 
-            return clampV ? Math.Clamp(v, 0f, 1f) : v;
+            return clampV ? MathUtils.Saturate(v) : v;
         }
 
         /// <summary>

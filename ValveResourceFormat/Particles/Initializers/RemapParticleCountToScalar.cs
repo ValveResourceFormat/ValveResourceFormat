@@ -52,8 +52,8 @@ namespace ValveResourceFormat.Particles.Initializers
 
             if (fieldOutput is ParticleField.Alpha or ParticleField.AlphaAlternate)
             {
-                outputMin = Math.Clamp(outputMin, 0f, 1f);
-                outputMax = Math.Clamp(outputMax, 0f, 1f);
+                outputMin = MathUtils.Saturate(outputMin);
+                outputMax = MathUtils.Saturate(outputMax);
             }
         }
 

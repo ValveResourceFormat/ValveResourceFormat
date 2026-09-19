@@ -1628,8 +1628,8 @@ namespace GUI.Types.GLViewers
             var cycle = SpriteCyclePosition + deltaTime * passesPerSecond;
 
             SpriteCyclePosition = SpriteLoop
-                ? cycle - MathF.Floor(cycle)
-                : Math.Clamp(cycle, 0f, 1f);
+                ? MathUtils.Fract(cycle)
+                : MathUtils.Saturate(cycle);
 
             var (frame, _, _) = sequence.GetFrameAtPosition(SpriteCyclePosition * sequence.EffectiveTotalTime);
 

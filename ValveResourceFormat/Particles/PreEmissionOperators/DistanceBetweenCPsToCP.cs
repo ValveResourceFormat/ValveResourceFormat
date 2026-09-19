@@ -38,12 +38,7 @@ namespace ValveResourceFormat.Particles.PreEmissionOperators
 
             var distance = Vector3.Distance(startCP.Position, endCP.Position);
 
-            var remappedDistance = MathUtils.Remap(distance, distanceMin, distanceMax);
-
-            // always clamped to output min/max
-            remappedDistance = MathUtils.Saturate(remappedDistance);
-
-            var finalValue = float.Lerp(outputMin, outputMax, remappedDistance);
+            var finalValue = MathUtils.RemapValClamped(distance, distanceMin, distanceMax, outputMin, outputMax);
 
             particleSystemState.SetControlPointValueComponent(outputCP, outputCPField, finalValue);
         }

@@ -1159,7 +1159,7 @@ public partial class PlayerMovement : IPlayerController
         // distance fraction, with no special case needed for a small ratio.
         var timeFraction = 2f * distanceFraction / (linearCoefficient + MathF.Sqrt(discriminant));
 
-        return float.IsFinite(timeFraction) ? Math.Clamp(timeFraction, 0f, 1f) : distanceFraction;
+        return float.IsFinite(timeFraction) ? MathUtils.Saturate(timeFraction) : distanceFraction;
     }
 
     /// <summary>
@@ -1552,7 +1552,7 @@ public partial class PlayerMovement : IPlayerController
             return 1f;
         }
 
-        return Math.Clamp(LateralProgress(start, position, delta) / intended, 0f, 1f);
+        return MathUtils.Saturate(LateralProgress(start, position, delta) / intended);
     }
 
     /// <summary>
@@ -2002,7 +2002,7 @@ public partial class PlayerMovement : IPlayerController
             Velocity = CapSpeedNoPrestrafe(Velocity, wishdir, wishspeed, previousSpeed, preFrictionVelocity, deltaTime, frictionRate, accelMagnitude);
 
             // A cap intervention changes the trajectory mid-frame; fall back to the trapezoid
-            if ((Velocity - preCapVelocity).LengthSquared() > 1e-8f)
+            if (Vector3.DistanceSquared(Velocity, preCapVelocity) > 1e-8f)
             {
                 GroundMoveDelta = TrapezoidDisplacement(preFrictionVelocity, Velocity, deltaTime);
             }
@@ -2214,7 +2214,7 @@ public partial class PlayerMovement : IPlayerController
 
         foreach (var plane in DebugCollisionPlanes)
         {
-            var normal = new Vector3(plane.X, plane.Y, plane.Z);
+            var normal = plane.AsVector3();
             result.MinimizeWith(TraceStaticPlane(from, to, halfExtents, normal, plane.W, detectStartSolid));
         }
 

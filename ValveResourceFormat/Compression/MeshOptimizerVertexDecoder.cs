@@ -33,12 +33,6 @@ namespace ValveResourceFormat.Compression
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static uint Rotate32(uint v, int r)
-        {
-            return (v << r) | (v >> ((32 - r) & 31));
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static byte Unzigzag8(byte v)
         {
             return (byte)((0 - (v & 1)) ^ (v >> 1));
@@ -244,7 +238,7 @@ namespace ValveResourceFormat.Compression
                     {
                         1 => Unzigzag8((byte)v) + p,
                         2 => Unzigzag16((ushort)v) + p,
-                        4 => Rotate32(v, rot) ^ p,
+                        4 => BitOperations.RotateLeft(v, rot) ^ p,
                         _ => throw new UnreachableException(),
                     };
 

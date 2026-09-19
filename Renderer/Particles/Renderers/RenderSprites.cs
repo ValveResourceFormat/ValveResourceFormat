@@ -431,7 +431,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                             continue;
                         }
 
-                        colorFade = 1f - ((radius - fadeStart) / (fadeEnd - fadeStart));
+                        colorFade = 1f - MathUtils.Remap(radius, fadeStart, fadeEnd);
                     }
 
                     // Nested min/max rather than a clamp, so an inverted range resolves to the maximum
@@ -473,7 +473,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
 
                     // The centre offset shifts the corners before the model matrix scales them, so it is
                     // measured in half-widths and folds into the origin along those same two axes.
-                    var origin = new Vector3(modelMatrix.M41, modelMatrix.M42, modelMatrix.M43)
+                    var origin = modelMatrix.Translation
                         + (centerOffset.X * right)
                         + (centerOffset.Y * up);
 

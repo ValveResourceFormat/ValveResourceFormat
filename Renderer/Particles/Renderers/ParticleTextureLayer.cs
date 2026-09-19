@@ -142,7 +142,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                 (centred.X * sin) + (centred.Y * cos));
 
             var origin = transform.Offset + new Vector2(0.5f);
-            var wrapped = new Vector2(origin.X - MathF.Floor(origin.X), origin.Y - MathF.Floor(origin.Y));
+            var wrapped = new Vector2(MathUtils.Fract(origin.X), MathUtils.Fract(origin.Y));
 
             var placed = (rotated / transform.Scale) + wrapped;
 

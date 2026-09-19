@@ -54,7 +54,7 @@ namespace ValveResourceFormat.Particles.PreEmissionOperators
 
             if (useDeltaV)
             {
-                speed = (velocity - previousVelocity).Length();
+                speed = Vector3.Distance(velocity, previousVelocity);
                 previousVelocity = velocity;
             }
             else
@@ -62,17 +62,7 @@ namespace ValveResourceFormat.Particles.PreEmissionOperators
                 speed = velocity.Length();
             }
 
-            float output;
-
-            if (inputMin == inputMax)
-            {
-                output = speed < inputMax ? outputMin : outputMax;
-            }
-            else
-            {
-                var remapped = MathUtils.Saturate((speed - inputMin) / (inputMax - inputMin));
-                output = outputMin + (remapped * (outputMax - outputMin));
-            }
+            var output = MathUtils.RemapValClamped(speed, inputMin, inputMax, outputMin, outputMax);
 
             particleSystemState.SetControlPointValueComponent(outControlPoint, field, output);
         }

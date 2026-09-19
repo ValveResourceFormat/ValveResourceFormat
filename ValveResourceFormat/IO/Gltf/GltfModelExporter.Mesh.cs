@@ -649,7 +649,7 @@ public partial class GltfModelExporter
                     }
 
                     var normal = normalDeltas[vertexId];
-                    normals[i] = new Vector3(normal.X, normal.Y, normal.Z);
+                    normals[i] = normal.AsVector3();
                     anyNormal |= normals[i] != Vector3.Zero;
                 }
 
@@ -805,7 +805,7 @@ public partial class GltfModelExporter
         {
             var vec = vectorArray[i];
 
-            if (Math.Abs(new Vector3(vec.X, vec.Y, vec.Z).Length() - 1.0f) > UnitLengthThresholdVec3)
+            if (Math.Abs(vec.AsVector3().Length() - 1.0f) > UnitLengthThresholdVec3)
             {
                 vectorArray[i] = -Vector4.UnitZ;
                 vectorArray[i].W = vec.W;

@@ -2399,7 +2399,7 @@ namespace ValveResourceFormat.Renderer
                         // CS2 Mapping docs say that the lighting origin should point at an exact cubemap.
                         foreach (var envMap in LightingInfo.EnvMaps)
                         {
-                            if ((envMap.Transform.Translation - lightingOrigin).LengthSquared() < 0.01f)
+                            if (Vector3.DistanceSquared(envMap.Transform.Translation, lightingOrigin) < 0.01f)
                             {
                                 node.EnvMaps.Clear();
                                 node.EnvMaps.Add(envMap);

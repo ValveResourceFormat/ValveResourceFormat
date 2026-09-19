@@ -62,6 +62,7 @@ Follow standard Microsoft C# conventions. Key rules:
 - Switch expressions, pattern matching, null coalescing, throw expressions, string interpolation
 - Using declarations rather than using statements when possible
 - `MathF` operations over `(float)Math` casts
+- Use the shared helpers in `MathUtils` instead of writing the formula inline, and add new general-purpose math there
 - Prefer early returns
 - Sort usings with System namespaces first, then others alphabetically, and remove unused ones
 - `System`, `System.Numerics`, `System.Collections.Generic` are global usings (defined in Directory.Build.props)

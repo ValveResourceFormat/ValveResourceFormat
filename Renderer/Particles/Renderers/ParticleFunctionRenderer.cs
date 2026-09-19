@@ -269,8 +269,8 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             }
 
             var position = totalTime * (sequence.Clamp
-                ? Math.Clamp(passes, 0f, 1f)
-                : passes - MathF.Floor(passes));
+                ? MathUtils.Saturate(passes)
+                : MathUtils.Fract(passes));
 
             return sequence.GetFrameAtPosition(position);
         }

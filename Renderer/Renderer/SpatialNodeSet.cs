@@ -69,8 +69,8 @@ namespace ValveResourceFormat.Renderer
 
         private void WriteBounds(int index, in AABB bounds)
         {
-            var center = (bounds.Min + bounds.Max) * 0.5f;
-            var extent = (bounds.Max - bounds.Min) * 0.5f;
+            var center = bounds.Center;
+            var extent = bounds.Size * 0.5f;
 
             centerX[index] = center.X;
             centerY[index] = center.Y;
