@@ -7,16 +7,19 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
 {
     /// <summary>
     /// Starts a sound event per spawned particle, then steers its position and volume by handle while
-    /// the particle lives. Has no visual output.
+    /// the particle lives and stops it when the particle dies. Has no visual output.
     /// </summary>
     /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_OP_RenderSound">C_OP_RenderSound</seealso>
     internal class RenderSound : ParticleFunctionRenderer
     {
+        private const float StopFadeFallbackSeconds = 0.05f;
+
         private readonly string soundName = string.Empty;
         private readonly float volumeScale = 1f;
         private readonly ParticleField volumeField = ParticleField.Alpha;
         // -1 leaves the sound on the particle rather than attaching it to a control point.
         private readonly int controlPointReference = -1;
+        private readonly bool suppressStopSoundEvent;
 
         // Particle ids are handed out in ascending order and never reused, so a high-water mark is all
         // the state needed to tell which particles appeared since the last update.
@@ -42,6 +45,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             volumeScale = parse.Float("m_flVolumeScale", volumeScale);
             volumeField = parse.ParticleField("m_nVolumeField", volumeField);
             controlPointReference = parse.Int32("m_nCPReference", controlPointReference);
+            suppressStopSoundEvent = parse.Boolean("m_bSuppressStopSoundEvent");
 
             // Decoding a vsnd on the update thread would stall the first particle that wants it.
             if (soundName.Length > 0)
@@ -90,13 +94,17 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
 
             nextParticleId = highestId;
 
-            // A dead particle's sound is let go rather than stopped, so a one-shot finishes its tail
             sweepScratch.Clear();
 
             foreach (var (particleId, tracked) in trackedSounds)
             {
                 if (!tracked.SeenThisFrame)
                 {
+                    if (!suppressStopSoundEvent)
+                    {
+                        tracked.Handle.FadeOutAndStop(StopFadeFallbackSeconds);
+                    }
+
                     sweepScratch.Add(particleId);
                 }
             }
@@ -162,6 +170,16 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         public override void Render(ParticleCollection particles, ParticleSystemState systemState, Camera camera)
         {
             // Nothing to draw; the sound is started from Act.
+        }
+
+        public override void Delete()
+        {
+            foreach (var tracked in trackedSounds.Values)
+            {
+                tracked.Handle.Stop();
+            }
+
+            trackedSounds.Clear();
         }
     }
 }
