@@ -68,26 +68,49 @@ partial class ModelExtract
             softbodyChildren.Add(shape);
         }
 
-        // Last: a planarized capsule is excluded from m_TaperedCapsuleRigids, but declaring it ahead of the
-        // real ones still rotates their order in that array. m_CollisionPlanes is sorted by the compiler,
-        // so ordering these by parent bone costs the plane array nothing.
-        foreach (var capsule in feModel.BuildPlanarizeCapsules()
-            .OrderBy(c => ParentBoneNode(feModel, c.ParentBone)))
+        // Last: a planarized shape is excluded from m_TaperedCapsuleRigids, but declaring it ahead of the
+        // real ones still rotates their order in that array.
+        foreach (var shape in PlanarizedShapesInClaimOrder(feModel))
         {
-            var shape = MakeClothShapeCapsule(capsule);
-            names.Add(shape.GetStringProperty("name"));
-            softbodyChildren.Add(shape);
-        }
-
-        foreach (var box in feModel.BuildPlanarizeBoxes()
-            .OrderBy(b => ParentBoneNode(feModel, b.ParentBone)))
-        {
-            var shape = MakeClothShapeBox(box);
             names.Add(shape.GetStringProperty("name"));
             softbodyChildren.Add(shape);
         }
 
         return names;
+    }
+
+    /// <summary>
+    /// The model's planarized collision shapes in the order that leaves each one the
+    /// <c>m_CollisionPlanes</c> entries the original gives it.
+    /// <para>
+    /// Two planarized shapes over one vertex map can both reach a node, and only one plane per node
+    /// survives. MEASURED over every ordering of one model's four contesting shapes: the FIRST shape
+    /// declared claims every node it reaches, and among the rest the LAST shape reaching a node owns it.
+    /// So the smallest shape leads - it is the one every other shape can swallow, and leading protects it -
+    /// and the rest follow largest first, which leaves each of them later than the shapes that would take
+    /// its nodes. Two copies of one split fit share its geometry and tie on that count, and the copy
+    /// holding FEWER of the fit's own planes leads.
+    /// </para>
+    /// </summary>
+    internal static List<KVObject> PlanarizedShapesInClaimOrder(FeModel feModel)
+    {
+        var shapes = feModel.BuildPlanarizeCapsules()
+            .Select(c => (c.PlanarizePlanes, c.PlanarizeOwnPlanes, Shape: MakeClothShapeCapsule(c)))
+            .Concat(feModel.BuildPlanarizeBoxes()
+                .Select(b => (b.PlanarizePlanes, b.PlanarizeOwnPlanes, Shape: MakeClothShapeBox(b))))
+            .OrderByDescending(static entry => entry.PlanarizePlanes)
+            .ThenBy(static entry => entry.PlanarizeOwnPlanes)
+            .Select(static entry => entry.Shape)
+            .ToList();
+
+        if (shapes.Count > 1)
+        {
+            var smallest = shapes[^1];
+            shapes.RemoveAt(shapes.Count - 1);
+            shapes.Insert(0, smallest);
+        }
+
+        return shapes;
     }
 
     /// <summary>

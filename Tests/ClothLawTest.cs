@@ -8081,5 +8081,74 @@ namespace Tests
             }
             """;
 
+        /// <summary>
+        /// Two planarized shapes over one selection can both reach a node, and only one plane per node
+        /// survives the compile. Measured over every ordering of one model's contesting shapes: the FIRST
+        /// shape declared claims every node it reaches, and among the rest the LAST shape reaching a node
+        /// owns it. So the smallest shape leads and the others follow largest first, which is what leaves
+        /// each of them the planes the original gives it. The fixture is two spheres on two bones, six
+        /// planes against five; declaring them by control node, as the stock order does, puts the six-plane
+        /// shape first.
+        /// </summary>
+        [Test]
+        public async Task ThePlanarizedShapeOwningFewestPlanesIsDeclaredFirst()
+        {
+            var order = ModelExtract.PlanarizedShapesInClaimOrder(TwoPlanarizedSpheres());
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(order.Count).IsEqualTo(2);
+                await Assert.That(order[0].GetStringProperty("parent_bone")).IsEqualTo("boneB");
+                await Assert.That(order[1].GetStringProperty("parent_bone")).IsEqualTo("boneA");
+            }
+        }
+
+        /// <summary>A six-plane sphere on <c>boneA</c> and a five-plane one on <c>boneB</c>.</summary>
+        private static FeModel TwoPlanarizedSpheres()
+        {
+            Vector3[] axes = [Vector3.UnitX, -Vector3.UnitX, Vector3.UnitY, -Vector3.UnitY,
+                Vector3.UnitZ, -Vector3.UnitZ];
+            var bigB = new Vector3(100f, 0f, 0f);
+            var poses = new List<string> { SyntheticCloth.Pose(0f, 0f, 0f), SyntheticCloth.Pose(100f, 0f, 0f) };
+            var planes = new List<string>();
+            var node = 2;
+            foreach (var axis in axes)
+            {
+                var at = axis * 7f;
+                poses.Add(SyntheticCloth.Pose(at.X, at.Y, at.Z));
+                planes.Add(SpherePlane(0, node++, axis));
+            }
+
+            foreach (var axis in axes.Take(5))
+            {
+                var at = bigB + (axis * 7f);
+                poses.Add(SyntheticCloth.Pose(at.X, at.Y, at.Z));
+                planes.Add(SpherePlane(1, node++, axis));
+            }
+
+            return SyntheticCloth.Parse($$"""
+                {
+                    m_CtrlName = [ "boneA", "boneB", {{string.Join(", ", Enumerable.Range(2, 11).Select(static i => $"\"n{i}\""))}} ]
+                    m_SkelParents = [ -1, -1, {{string.Join(", ", Enumerable.Repeat("0", 6).Concat(Enumerable.Repeat("1", 5)))}} ]
+                    m_nNodeCount = 13
+                    m_nStaticNodes = 0
+                    m_NodeInvMasses = [ {{string.Join(", ", Enumerable.Repeat("1.0", 13))}} ]
+                    m_InitPose = [ {{string.Concat(poses)}} ]
+                    m_CollisionPlanes = [ {{string.Concat(planes)}} ]
+                    m_VertexMapValues = [ {{string.Join(", ", Enumerable.Repeat("255", 11))}} ]
+                    m_VertexMaps =
+                    [
+                        { sName = "setA" nNameHash = 1 nVertexBase = 2 nVertexCount = 6 nMapOffset = 0 nScaleSourceNode = -1 flVolumetricSolveStrength = 0.0 vCenterOfMass = [ 0.0, 0.0, 0.0 ] },
+                        { sName = "setB" nNameHash = 2 nVertexBase = 8 nVertexCount = 5 nMapOffset = 6 nScaleSourceNode = -1 flVolumetricSolveStrength = 0.0 vCenterOfMass = [ 0.0, 0.0, 0.0 ] },
+                    ]
+                }
+                """);
+        }
+
+        private static string SpherePlane(int parent, int node, Vector3 normal)
+            => $"{{ nCtrlParent = {parent} nChildNode = {node} flStickiness = 0.0 flStrength = 0.0 "
+                + $"m_Plane = {{ m_vNormal = [ {SyntheticCloth.Num(normal.X)}, {SyntheticCloth.Num(normal.Y)}, "
+                + $"{SyntheticCloth.Num(normal.Z)} ] m_flOffset = {SyntheticCloth.Num(5f)} }} }},";
+
     }
 }

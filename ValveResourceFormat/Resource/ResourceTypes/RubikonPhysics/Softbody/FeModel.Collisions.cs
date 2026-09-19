@@ -35,6 +35,20 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             /// leaves no rigid of its own behind, only <c>m_CollisionPlanes</c>.
             /// </summary>
             public bool Planarize { get; init; }
+
+            /// <summary>
+            /// Gets how many <c>m_CollisionPlanes</c> entries the original gives the FIT this planarized
+            /// capsule came from, which is what orders the declarations (see
+            /// <see cref="BuildPlanarizeCapsules"/>). Both copies of a fit split across two selections carry
+            /// the whole fit's count, since they share one capsule's geometry and reach the same nodes.
+            /// </summary>
+            internal int PlanarizePlanes { get; init; }
+
+            /// <summary>
+            /// Gets how many of <see cref="PlanarizePlanes"/> fall in THIS copy's own selection, which
+            /// separates the copies of one split fit.
+            /// </summary>
+            internal int PlanarizeOwnPlanes { get; init; }
             /// <summary>Gets the authored collision priority, recovered by <see cref="ColliderPriority"/>.</summary>
             public int Priority { get; init; }
         }
@@ -62,6 +76,17 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             /// Gets whether the shape keeps the cloth INSIDE it rather than out of it.
             /// </summary>
             public bool Inverted { get; init; }
+            /// <summary>
+            /// Gets how many <c>m_CollisionPlanes</c> entries the original gives this planarized box,
+            /// which is what orders the declarations (see <see cref="BuildPlanarizeCapsules"/>).
+            /// </summary>
+            internal int PlanarizePlanes { get; init; }
+
+            /// <summary>
+            /// Gets how many of <see cref="PlanarizePlanes"/> fall in this box's own selection. A box is
+            /// never split, so it is the same count.
+            /// </summary>
+            internal int PlanarizeOwnPlanes { get; init; }
             /// <summary>
             /// Gets whether the box collides as a per-node plane rather than as a volume. Such a box leaves no
             /// rigid of its own behind, only <c>m_CollisionPlanes</c>.
@@ -365,6 +390,8 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                             CollisionMask = 0xF,
                             VertexMap = vertexMap,
                             Planarize = true,
+                            PlanarizePlanes = members.Count,
+                            PlanarizeOwnPlanes = members.Count,
                             Priority = priority,
                         });
                         continue;
@@ -379,7 +406,9 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                         break;
                     }
 
-                    foreach (var (splitMap, _) in split)
+                    // Both copies carry the WHOLE fit's plane count: they share one capsule's geometry, so
+                    // each reaches everything it reaches, whatever its own selection holds.
+                    foreach (var (splitMap, splitMembers) in split)
                     {
                         recovered.Add(new CollisionCapsule
                         {
@@ -391,6 +420,8 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                             CollisionMask = 0xF,
                             VertexMap = splitMap,
                             Planarize = true,
+                            PlanarizePlanes = members.Count,
+                            PlanarizeOwnPlanes = splitMembers.Count,
                             Priority = priority,
                         });
                     }
@@ -447,6 +478,8 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                     CollisionMask = 0xF,
                     VertexMap = vertexMap,
                     Planarize = true,
+                    PlanarizePlanes = samples.Count,
+                    PlanarizeOwnPlanes = samples.Count,
                     Priority = ColliderPriority(RigidColliderKind.CollisionPlane, group.Min(static e => e.index)),
                 });
             }
