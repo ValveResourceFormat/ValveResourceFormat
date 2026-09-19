@@ -319,18 +319,15 @@ namespace Tests
         }
 
         [Test]
-        public void TestPhysicsCollisionMesh()
+        public async Task TestPhysicsCollisionMesh()
         {
-            using var resource = new Resource();
-            var physPath = Path.Combine(TestContext.TestDirectory!, "Files", "juggernaut.vphys_c");
-            resource.Read(physPath);
-
-            var gltf = new GltfModelExporter(new NullFileLoader())
+            await WithExportedGlb("juggernaut.vphys_c", async root =>
             {
-                ExportMaterials = true,
-                ProgressReporter = new Progress<string>(progress => { }),
-            };
-            gltf.Export(resource, null);
+                var physicsNodes = root.LogicalNodes.Where(node => node.Mesh != null).ToArray();
+
+                await Assert.That(physicsNodes).IsNotEmpty();
+                await Assert.That(physicsNodes.All(node => node.Extras?["CollisionGroup"]?.GetValue<string>() == "default")).IsTrue();
+            });
         }
     }
 }
