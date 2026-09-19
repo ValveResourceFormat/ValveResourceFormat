@@ -326,6 +326,16 @@ public sealed class PhysicsSimulation : IDisposable
             ? BodyDefinition.Dynamic(origin, rotation) with { StartAwake = !startAsleep }
             : BodyDefinition.Static(origin, rotation);
 
+        // Props author their energy loss per part too, most of them as zero
+        if (motionEnabled && phys.Parts.Length > 0)
+        {
+            definition = definition with
+            {
+                LinearDamping = phys.Parts[0].LinearDamping,
+                AngularDamping = phys.Parts[0].AngularDamping,
+            };
+        }
+
         var body = World.CreateBody(definition);
 
         AddAggregateShapes(body, phys, PropCategory);
@@ -360,8 +370,18 @@ public sealed class PhysicsSimulation : IDisposable
     /// <returns>The created body, or <see langword="null"/> when the part offers no shapes.</returns>
     public Body? CreateRagdollBody(PhysAggregateData phys, int partIndex, Vector3 position, Quaternion rotation, BaseEntity owner)
     {
-        var body = World.CreateBody(BodyDefinition.Dynamic(position, rotation));
-        var shape = phys.Parts[partIndex].Shape;
+        var part = phys.Parts[partIndex];
+
+        // The authored per-part damping is the ragdoll's energy loss. Without it a held ragdoll
+        // spins forever about the grip: rigid whole-body rotation moves no joint, so joint
+        // friction never sees it, and only body damping can bleed it.
+        var body = World.CreateBody(BodyDefinition.Dynamic(position, rotation) with
+        {
+            LinearDamping = part.LinearDamping,
+            AngularDamping = part.AngularDamping,
+        });
+
+        var shape = part.Shape;
 
         // Ragdoll parts never meet the player's pushing body in the solver: a fast overlap with
         // the kinematic box resolves out its nearest face, which for anything lying on the floor
