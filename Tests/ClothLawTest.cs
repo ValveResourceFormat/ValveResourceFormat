@@ -8005,5 +8005,45 @@ namespace Tests
             }
             """;
 
+        /// <summary>
+        /// A static chain root states its relaxless twist link from its OWN entry alone: the far end does not
+        /// have to state one back. The compiler writes a flat 0.0 on an entry whose orient node merely allows
+        /// rotation, and a static root that authored a twist gets exactly that one entry when the child it
+        /// orients states no twist of its own - which is dl <c>bookworm2</c>'s <c>BreastRoot_R</c> and
+        /// <c>BreastRoot_L</c>, the two <c>m_Twists</c> records that row was missing. The CONTROL is the same
+        /// one-directional link carrying a real relaxation, which is the child's authored value and not a
+        /// relaxless link at all.
+        /// </summary>
+        [Test]
+        public async Task AStaticRootStatesARelaxlessTwistFromItsOwnEntryAlone()
+        {
+            var oneWay = TwistOneWay("0.0");
+            var relaxed = TwistOneWay("0.309");
+            var root = ModelExtract.MakeClothJoint(oneWay, StaticRootJoint());
+            var control = ModelExtract.MakeClothJoint(relaxed, StaticRootJoint());
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(oneWay.HasRelaxlessTwistLink(0)).IsFalse();
+                await Assert.That(root.GetFloatProperty("twist_relax")).IsEqualTo(1f);
+                await Assert.That(root.GetBooleanProperty("simulate")).IsFalse();
+                await Assert.That(control.GetFloatProperty("twist_relax")).IsNotEqualTo(1f);
+            }
+        }
+
+        private static FeModel TwistOneWay(string toChild) => SyntheticCloth.Parse($$"""
+            {
+                m_CtrlName = [ "coattail_0_L", "coattail_1_L" ]
+                m_SkelParents = [ -1, 0 ]
+                m_nNodeCount = 2
+                m_nStaticNodes = 1
+                m_NodeInvMasses = [ 0.0, 1.0 ]
+                m_Twists =
+                [
+                    { nNodeOrient = 0 nNodeEnd = 1 flTwistRelax = {{toChild}} flSwingRelax = 1.0 },
+                ]
+            }
+            """);
+
     }
 }
