@@ -57,8 +57,8 @@ public sealed class PlayerEntity : BaseEntity
     /// <summary>Gets the controller whose state this entity reflects.</summary>
     public IPlayerController Controller { get; }
 
-    /// <summary>Gets the prop the player is carrying, or <see langword="null"/> when their hands are free.</summary>
-    public PropPhysics? CarriedProp { get; private set; }
+    /// <summary>Gets what the player is carrying, or <see langword="null"/> when their hands are free.</summary>
+    public ICarryable? Carried { get; private set; }
 
     /// <summary>
     /// Gets the buttons as of the current tick: what is held, and what changed since the tick before.
@@ -137,7 +137,7 @@ public sealed class PlayerEntity : BaseEntity
         {
             // The engine's +use order: hands full means let go, a usable entity in reach wins the
             // press, and only a press nothing answered becomes a pickup attempt
-            if (CarriedProp != null)
+            if (Carried != null)
             {
                 Drop();
             }
@@ -209,20 +209,20 @@ public sealed class PlayerEntity : BaseEntity
     {
         // A zero-length frame has no step to steer for, and dividing by it would hand the
         // solver a NaN it can never recover from
-        if (deltaTime <= 1e-6f || CarriedProp is not { } prop)
+        if (deltaTime <= 1e-6f || Carried is not { } carried)
         {
             return;
         }
 
-        if (prop.IsRemoved)
+        if (carried.IsRemoved)
         {
             // Gone from the world mid-carry; nothing left to restore state on
-            CarriedProp = null;
+            Carried = null;
             return;
         }
 
-        var body = prop.Body;
-        var (holdPosition, holdRotation) = prop.ComputeHoldPose();
+        var body = carried.CarryBody;
+        var (holdPosition, holdRotation) = carried.ComputeHoldPose();
 
         // A prop that stays far from its hold pose is wedged somewhere it cannot leave; the
         // engine drops what it cannot keep hold of, but only after a strain the flick of a
@@ -243,20 +243,29 @@ public sealed class PlayerEntity : BaseEntity
             carryStrainTime = 0f;
         }
 
-        var disturbed = (body.LinearVelocity - carryCommandedVelocity).Length() > ContactVelocityTolerance
-            || (body.AngularVelocity - carryCommandedAngularVelocity).Length() > ContactAngularTolerance;
+        // A carry without orientation - a grabbed ragdoll part - skips the contact softness
+        // altogether: the rest of the ragdoll hangs off the held part through its joints, which
+        // reads as a permanent contact, and a chase capped to the soft acceleration could never
+        // hold that weight up. The chain itself is the compliance a wall needs.
+        var soft = false;
 
-        carrySoftTime = disturbed ? CarrySoftDuration : MathF.Max(carrySoftTime - deltaTime, 0f);
-        var soft = carrySoftTime > 0f;
-
-        // The world re-shaping the grip: while contacts are acting, the grip continuously
-        // relaxes toward the orientation the world is forcing, rather than springing back
-        // forever. Continuous rather than threshold-triggered on purpose: a threshold re-latch
-        // fired repeatedly during a turn and stepped the prop's rotation in visible quanta.
-        if (soft)
+        if (carried.CarriesOrientation)
         {
-            prop.AdoptCarryRotation(1f - MathF.Exp(-deltaTime / GripRelaxTime));
-            (_, holdRotation) = prop.ComputeHoldPose();
+            var disturbed = (body.LinearVelocity - carryCommandedVelocity).Length() > ContactVelocityTolerance
+                || (body.AngularVelocity - carryCommandedAngularVelocity).Length() > ContactAngularTolerance;
+
+            carrySoftTime = disturbed ? CarrySoftDuration : MathF.Max(carrySoftTime - deltaTime, 0f);
+            soft = carrySoftTime > 0f;
+
+            // The world re-shaping the grip: while contacts are acting, the grip continuously
+            // relaxes toward the orientation the world is forcing, rather than springing back
+            // forever. Continuous rather than threshold-triggered on purpose: a threshold re-latch
+            // fired repeatedly during a turn and stepped the prop's rotation in visible quanta.
+            if (soft)
+            {
+                carried.AdoptCarryRotation(1f - MathF.Exp(-deltaTime / GripRelaxTime));
+                (_, holdRotation) = carried.ComputeHoldPose();
+            }
         }
 
         carryCommandedVelocity = SteerVelocity(
@@ -265,14 +274,18 @@ public sealed class PlayerEntity : BaseEntity
             deltaTime, MaxCarrySpeed,
             soft ? MaxCarryAcceleration : float.PositiveInfinity);
 
-        carryCommandedAngularVelocity = SteerVelocity(
-            body.AngularVelocity,
-            RotationError(body.Rotation, holdRotation),
-            deltaTime, MaxCarryAngularSpeed,
-            soft ? MaxCarryAngularAcceleration : float.PositiveInfinity);
-
         body.LinearVelocity = carryCommandedVelocity;
-        body.AngularVelocity = carryCommandedAngularVelocity;
+
+        if (carried.CarriesOrientation)
+        {
+            carryCommandedAngularVelocity = SteerVelocity(
+                body.AngularVelocity,
+                RotationError(body.Rotation, holdRotation),
+                deltaTime, MaxCarryAngularSpeed,
+                soft ? MaxCarryAngularAcceleration : float.PositiveInfinity);
+
+            body.AngularVelocity = carryCommandedAngularVelocity;
+        }
     }
 
     // One axis of the shadow controller: the velocity that lands the body on the pose within the
@@ -342,34 +355,44 @@ public sealed class PlayerEntity : BaseEntity
             new QueryFilter(PhysicsSimulation.PlayerCategory,
                 PhysicsSimulation.StaticCategory | PhysicsSimulation.PropCategory | PhysicsSimulation.MoverCategory));
 
-        if (!hit.Hit || physics.GetOwner(hit.Shape.Body) is not PropPhysics prop || prop.IsRemoved || !prop.CanBeCarried)
+        if (!hit.Hit)
+        {
+            return;
+        }
+
+        var grabbedBody = hit.Shape.Body;
+
+        if (physics.GetOwner(grabbedBody) is not ICarryable carryable || carryable.IsRemoved || !carryable.CanBeCarried)
         {
             return;
         }
 
         // The sandbox gravgun's hold distance: a fixed reach plus how far the grabbed surface sits
         // from the mass center, so a big crate hangs further out than a soda can and neither clips
-        // the player's hull
-        CarriedProp = prop;
+        // the player's hull. The grabbed body's own center, which for a ragdoll is the one part
+        // under the crosshair rather than the whole body.
+        Carried = carryable;
         carryStrainTime = 0f;
         carrySoftTime = 0f;
-        carryCommandedVelocity = prop.Body.LinearVelocity;
-        carryCommandedAngularVelocity = prop.Body.AngularVelocity;
-        prop.BeginCarry(this, HoldDistance + Vector3.Distance(hit.Point, prop.Body.CenterOfMass));
+        carryable.BeginCarry(this, HoldDistance + Vector3.Distance(hit.Point, grabbedBody.CenterOfMass), grabbedBody);
+
+        var body = carryable.CarryBody;
+        carryCommandedVelocity = body.LinearVelocity;
+        carryCommandedAngularVelocity = body.AngularVelocity;
     }
 
     private void Drop()
     {
-        if (CarriedProp is { IsRemoved: false } prop)
+        if (Carried is { IsRemoved: false } carried)
         {
             // Lets go rather than throws: the body keeps the chase velocity it was carried with -
             // the player's own motion plus whatever a view flick added - which the carry's speed
             // cap already bounds
-            prop.EndCarry();
+            carried.EndCarry();
         }
 
         carryStrainTime = 0f;
-        CarriedProp = null;
+        Carried = null;
     }
 
     /// <inheritdoc/>

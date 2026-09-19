@@ -9,7 +9,7 @@ namespace ValveResourceFormat.Renderer.Entities;
 /// collision shape come from <see cref="BaseModelEntity"/>; the movement comes from a dynamic body in
 /// <see cref="PhysicsSimulation"/> whose pose the entity adopts every tick.
 /// </summary>
-public class PropPhysics : BaseModelEntity
+public class PropPhysics : BaseModelEntity, ICarryable
 {
     /// <summary>The <c>spawnflags</c> a physics prop reads, Source's <c>SF_PHYSPROP_*</c>.</summary>
     [Flags]
@@ -47,6 +47,17 @@ public class PropPhysics : BaseModelEntity
 
     /// <summary>Gets the player carrying this prop, or <see langword="null"/> when nobody is.</summary>
     public PlayerEntity? Carrier { get; private set; }
+
+    // The carry steers the whole prop: its one body, orientation and all
+    Body ICarryable.CarryBody => body;
+    bool ICarryable.CarriesOrientation => true;
+
+    void ICarryable.BeginCarry(PlayerEntity carrier, float carryDistance, Body grabbedBody)
+        => BeginCarry(carrier, carryDistance);
+
+    (Vector3 Position, Quaternion Rotation) ICarryable.ComputeHoldPose() => ComputeHoldPose();
+
+    void ICarryable.AdoptCarryRotation(float fraction) => AdoptCarryRotation(fraction);
 
     /// <summary>Gets whether the player is carrying this prop right now.</summary>
     public bool IsCarried => Carrier != null;
