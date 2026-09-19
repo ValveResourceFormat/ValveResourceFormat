@@ -166,7 +166,7 @@ public class SampleProvider3D : SampleProviderSpatial
         }
         else if (deltaTime > 0f)
         {
-            occlusion = float.Lerp(occlusion, OcclusionTarget, Smoothing(deltaTime, OcclusionSmoothingSeconds));
+            occlusion = float.Lerp(occlusion, OcclusionTarget, MathUtils.ExponentialSmoothing(deltaTime, OcclusionSmoothingSeconds));
         }
     }
 
@@ -185,7 +185,7 @@ public class SampleProvider3D : SampleProviderSpatial
         {
             var instantVelocity = hasLastPosition ? (Position - lastPosition) / listener.DeltaTime : Vector3.Zero;
 
-            velocity = Vector3.Lerp(velocity, instantVelocity, Smoothing(listener.DeltaTime, VelocitySmoothingSeconds));
+            velocity = Vector3.Lerp(velocity, instantVelocity, MathUtils.ExponentialSmoothing(listener.DeltaTime, VelocitySmoothingSeconds));
         }
 
         lastPosition = Position;
@@ -211,14 +211,5 @@ public class SampleProvider3D : SampleProviderSpatial
         // Anything below this is inaudible as a pitch change, and it is worth snapping to exactly 1:
         // that is what lets a still listener keep streaming samples straight through instead of resampling
         dopplerTarget.DopplerShift = MathF.Abs(shift - 1f) < 0.001f ? 1f : shift;
-    }
-
-    /// <summary>
-    /// Returns the lerp factor that reaches a fixed fraction of the way to the target in
-    /// <paramref name="timeConstant"/> seconds no matter how <paramref name="deltaTime"/> is chopped up.
-    /// </summary>
-    private static float Smoothing(float deltaTime, float timeConstant)
-    {
-        return 1f - MathF.Exp(-deltaTime / timeConstant);
     }
 }

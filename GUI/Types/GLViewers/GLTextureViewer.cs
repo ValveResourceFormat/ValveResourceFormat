@@ -323,12 +323,12 @@ namespace GUI.Types.GLViewers
                 {
                     string GetMipLevelSizeString(int mipLevel)
                     {
-                        var mipWidth = Math.Max(1, textureData.Width >> mipLevel);
-                        var mipHeight = Math.Max(1, textureData.Height >> mipLevel);
+                        var mipWidth = MathUtils.MipLevelSize(textureData.Width, mipLevel);
+                        var mipHeight = MathUtils.MipLevelSize(textureData.Height, mipLevel);
 
                         if ((textureData.Flags & VTexFlags.VOLUME_TEXTURE) != 0)
                         {
-                            var mipDepth = Math.Max(1, textureData.Depth >> mipLevel);
+                            var mipDepth = MathUtils.MipLevelSize(textureData.Depth, mipLevel);
                             return $"(#{mipLevel}) {mipWidth}x{mipHeight}x{mipDepth}";
                         }
 
@@ -662,8 +662,8 @@ namespace GUI.Types.GLViewers
             }
 
             var mipLevel = Math.Max(textureData.NumMipLevels - 1, 0);
-            var width = Math.Max(textureData.Width >> mipLevel, 1);
-            var height = Math.Max(textureData.Height >> mipLevel, 1);
+            var width = MathUtils.MipLevelSize(textureData.Width, mipLevel);
+            var height = MathUtils.MipLevelSize(textureData.Height, mipLevel);
 
             if (width * height > TranslucencyScanPixelLimit)
             {
@@ -1299,18 +1299,16 @@ namespace GUI.Types.GLViewers
 
             IsZoomedIn = GLControl.Height < height || GLControl.Width < width;
 
-            if (IsZoomedIn)
+            if (IsZoomedIn || MovedFromOrigin_Unzoomed)
             {
                 // The far bound is negative on an axis where the texture is smaller than the control
                 Position.X = MathUtils.Clamp(Position.X, 0, width - GLControl.Width);
                 Position.Y = MathUtils.Clamp(Position.Y, 0, height - GLControl.Height);
 
-                MovedFromOrigin_Unzoomed = false;
-            }
-            else if (MovedFromOrigin_Unzoomed)
-            {
-                Position.X = MathUtils.Clamp(Position.X, 0, width - GLControl.Width);
-                Position.Y = MathUtils.Clamp(Position.Y, 0, height - GLControl.Height);
+                if (IsZoomedIn)
+                {
+                    MovedFromOrigin_Unzoomed = false;
+                }
             }
             else
             {

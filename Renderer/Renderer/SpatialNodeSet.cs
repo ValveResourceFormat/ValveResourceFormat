@@ -89,7 +89,7 @@ namespace ValveResourceFormat.Renderer
 
             // Rounded up to a whole vector so the SIMD pass never reads past the end of a live lane
             var capacity = Math.Max(required, nodes.Length == 0 ? 64 : nodes.Length * 2);
-            capacity = (capacity + Vector<float>.Count - 1) / Vector<float>.Count * Vector<float>.Count;
+            capacity = MathUtils.AlignUp(capacity, Vector<float>.Count);
 
             Array.Resize(ref nodes, capacity);
             Array.Resize(ref centerX, capacity);

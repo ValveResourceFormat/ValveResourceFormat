@@ -90,7 +90,7 @@ namespace ValveResourceFormat.IO
                 var b = positions[indices[t + 1]];
                 var c = positions[indices[t + 2]];
 
-                var normal = Vector3.Cross(b - a, c - a);
+                var normal = MathUtils.TriangleCross(a, b, c);
                 var doubleArea = normal.Length();
 
                 if (doubleArea < 1e-6f)

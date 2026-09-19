@@ -409,7 +409,7 @@ namespace ValveResourceFormat.Renderer
 
             // Forward is the matrix's first row. The helper is scale invariant, which matters because an
             // entity's "scales" is baked in here, but it cannot answer for a row that is entirely zero.
-            var dir = new Vector3(matrix.M11, matrix.M12, matrix.M13);
+            var dir = matrix.GetRow(0).AsVector3();
 
             if (dir == Vector3.Zero)
             {

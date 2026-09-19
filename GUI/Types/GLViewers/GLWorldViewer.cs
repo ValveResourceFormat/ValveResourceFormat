@@ -645,7 +645,7 @@ namespace GUI.Types.GLViewers
         private static AABB SelectionBounds(SceneNode node)
         {
             var bbox = node.BoundingBox;
-            var maxSpan = Math.Max(Math.Max(bbox.Size.X, bbox.Size.Y), bbox.Size.Z);
+            var maxSpan = bbox.Size.MaxComponent();
 
             // Empty or degenerate bounds (e.g. a particle system that finished playing)
             // would put the camera inside the node or at a garbage position.
@@ -661,7 +661,7 @@ namespace GUI.Types.GLViewers
         {
             var center = bbox.Center;
             var size = bbox.Size;
-            var maxDimension = Math.Max(Math.Max(size.X, size.Y), size.Z);
+            var maxDimension = size.MaxComponent();
 
             if (!float.IsFinite(maxDimension) || maxDimension < 1f)
             {
@@ -988,7 +988,7 @@ namespace GUI.Types.GLViewers
             foundFile.Context.GLPostLoadAction = (viewerControl) =>
             {
                 // The inverse of a view matrix, so its third row is the camera's backward direction
-                var forward = -new Vector3(transform.M31, transform.M32, transform.M33);
+                var forward = -transform.GetRow(2).AsVector3();
 
                 if (viewerControl is GLSceneViewer sceneViewer)
                 {

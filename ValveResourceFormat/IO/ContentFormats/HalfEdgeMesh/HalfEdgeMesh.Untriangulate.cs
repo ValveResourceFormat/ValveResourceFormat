@@ -128,10 +128,10 @@ partial class HalfEdgeMesh
         var e3 = Vector3.Normalize(v4 - v1);
 
         // every corner of the quad must stay within the shape angle limit of 90 degrees, inverted comparisons so nan also fails
-        if (!(MathF.Abs(AngleNormalized(e0, e1) - HalfPi) <= angleShape) ||
-            !(MathF.Abs(AngleNormalized(e1, e2) - HalfPi) <= angleShape) ||
-            !(MathF.Abs(AngleNormalized(e2, e3) - HalfPi) <= angleShape) ||
-            !(MathF.Abs(AngleNormalized(e3, e0) - HalfPi) <= angleShape))
+        if (!(MathF.Abs(MathUtils.AngleBetween(e0, e1) - HalfPi) <= angleShape) ||
+            !(MathF.Abs(MathUtils.AngleBetween(e1, e2) - HalfPi) <= angleShape) ||
+            !(MathF.Abs(MathUtils.AngleBetween(e2, e3) - HalfPi) <= angleShape) ||
+            !(MathF.Abs(MathUtils.AngleBetween(e3, e0) - HalfPi) <= angleShape))
         {
             return false;
         }
@@ -148,10 +148,10 @@ partial class HalfEdgeMesh
 
         // normal difference, planarity of the quad measured across both diagonals
         {
-            var angleA = AngleNormalized(TriangleNormal(v1, v2, v3), TriangleNormal(v1, v3, v4));
-            var angleB = AngleNormalized(TriangleNormal(v2, v3, v4), TriangleNormal(v4, v1, v2));
+            var angleA = MathUtils.AngleBetween(TriangleNormal(v1, v2, v3), TriangleNormal(v1, v3, v4));
+            var angleB = MathUtils.AngleBetween(TriangleNormal(v2, v3, v4), TriangleNormal(v4, v1, v2));
 
-            error += (angleA + angleB) / (MathF.PI * 2f);
+            error += (angleA + angleB) / MathF.Tau;
         }
 
         // colinearity, how far the corners deviate from 90 degrees
@@ -161,10 +161,10 @@ partial class HalfEdgeMesh
             var e2 = Vector3.Normalize(v3 - v4);
             var e3 = Vector3.Normalize(v4 - v1);
 
-            error += (MathF.Abs(AngleNormalized(e0, e1) - HalfPi) +
-                      MathF.Abs(AngleNormalized(e1, e2) - HalfPi) +
-                      MathF.Abs(AngleNormalized(e2, e3) - HalfPi) +
-                      MathF.Abs(AngleNormalized(e3, e0) - HalfPi)) / (MathF.PI * 2f);
+            error += (MathF.Abs(MathUtils.AngleBetween(e0, e1) - HalfPi) +
+                      MathF.Abs(MathUtils.AngleBetween(e1, e2) - HalfPi) +
+                      MathF.Abs(MathUtils.AngleBetween(e2, e3) - HalfPi) +
+                      MathF.Abs(MathUtils.AngleBetween(e3, e0) - HalfPi)) / MathF.Tau;
         }
 
         // concavity, area imbalance between the two diagonal splits
@@ -204,16 +204,11 @@ partial class HalfEdgeMesh
 
     private static Vector3 TriangleNormal(Vector3 a, Vector3 b, Vector3 c)
     {
-        return Vector3.Normalize(Vector3.Cross(b - a, c - a));
+        return Vector3.Normalize(MathUtils.TriangleCross(a, b, c));
     }
 
     private static float TriangleArea(Vector3 a, Vector3 b, Vector3 c)
     {
-        return Vector3.Cross(b - a, c - a).Length() * 0.5f;
-    }
-
-    private static float AngleNormalized(Vector3 a, Vector3 b)
-    {
-        return MathF.Acos(Math.Clamp(Vector3.Dot(a, b), -1f, 1f));
+        return MathUtils.TriangleCross(a, b, c).Length() * 0.5f;
     }
 }

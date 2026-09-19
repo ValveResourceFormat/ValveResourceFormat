@@ -246,7 +246,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             for (var i = 0; i < segmentCount; i++)
             {
                 var direction = positions[i + 1] - positions[i];
-                directions[i] = direction.LengthSquared() > ParticleMath.MinimumLengthSquared ? Vector3.Normalize(direction) : Vector3.UnitX;
+                directions[i] = MathUtils.SafeNormalize(direction, Vector3.UnitX, ParticleMath.MinimumLengthSquared);
             }
 
             for (var i = 0; i < segmentCount; i++)

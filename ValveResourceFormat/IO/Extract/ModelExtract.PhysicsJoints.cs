@@ -323,7 +323,7 @@ partial class ModelExtract
         {
             foreach (var (a, b, c) in Hull.GetFaceTriangles(edges, face))
             {
-                area += Vector3.Cross(positions[b] - positions[a], positions[c] - positions[a]).Length() * 0.5d;
+                area += MathUtils.TriangleCross(positions[a], positions[b], positions[c]).Length() * 0.5d;
             }
         }
 

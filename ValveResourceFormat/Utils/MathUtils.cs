@@ -1,9 +1,10 @@
+using System.Diagnostics;
 using System.Runtime.CompilerServices;
 
 namespace ValveResourceFormat.Utils
 {
     /// <summary>
-    /// Common math utility functions for rendering and animation.
+    /// Shared scalar, vector and integer math helpers.
     /// </summary>
     public static class MathUtils
     {
@@ -87,6 +88,130 @@ namespace ValveResourceFormat.Utils
             var lengthSquared = value.LengthSquared();
 
             return lengthSquared == 0f ? Vector3.Zero : value / MathF.Sqrt(lengthSquared);
+        }
+
+        /// <summary>
+        /// Scales <paramref name="value"/> to unit length, returning <paramref name="fallback"/> when its
+        /// squared length does not exceed <paramref name="minimumLengthSquared"/>.
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static Vector3 SafeNormalize(Vector3 value, Vector3 fallback, float minimumLengthSquared = 0f)
+        {
+            var lengthSquared = value.LengthSquared();
+
+            return lengthSquared > minimumLengthSquared ? value / MathF.Sqrt(lengthSquared) : fallback;
+        }
+
+        /// <summary>
+        /// Removes from <paramref name="value"/> its component along <paramref name="unitNormal"/>, leaving
+        /// the part that lies in the plane the normal describes.
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static Vector3 ProjectOntoPlane(Vector3 value, Vector3 unitNormal)
+        {
+            return value - (unitNormal * Vector3.Dot(value, unitNormal));
+        }
+
+        /// <summary>
+        /// The cross product of a triangle's two edges leaving <paramref name="a"/>: its face normal, with
+        /// a length of twice the triangle's area.
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static Vector3 TriangleCross(Vector3 a, Vector3 b, Vector3 c)
+        {
+            return Vector3.Cross(b - a, c - a);
+        }
+
+        /// <summary>
+        /// The largest of a vector's three components.
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static float MaxComponent(this Vector3 v)
+        {
+            return MathF.Max(v.X, MathF.Max(v.Y, v.Z));
+        }
+
+        /// <summary>
+        /// The smallest of a vector's three components.
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static float MinComponent(this Vector3 v)
+        {
+            return MathF.Min(v.X, MathF.Min(v.Y, v.Z));
+        }
+
+        /// <summary>
+        /// Arc cosine that clamps its input to [-1, 1] first, so a cosine that drifted just outside the
+        /// range through rounding gives an angle rather than NaN.
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static float SafeAcos(float cosine)
+        {
+            return MathF.Acos(Math.Clamp(cosine, -1f, 1f));
+        }
+
+        /// <summary>
+        /// The angle in radians between two unit vectors.
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static float AngleBetween(Vector3 a, Vector3 b)
+        {
+            return SafeAcos(Vector3.Dot(a, b));
+        }
+
+        /// <summary>
+        /// Moves <paramref name="value"/> toward <paramref name="target"/> by at most <paramref name="step"/>,
+        /// without overshooting.
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static float Approach(float value, float target, float step)
+        {
+            var delta = target - value;
+
+            return delta > step ? value + step
+                : delta < -step ? value - step
+                : target;
+        }
+
+        /// <summary>
+        /// The lerp factor that closes a fixed fraction of the distance to a target every
+        /// <paramref name="timeConstant"/> seconds, no matter how <paramref name="deltaTime"/> is chopped up.
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static float ExponentialSmoothing(float deltaTime, float timeConstant)
+        {
+            return 1f - MathF.Exp(-deltaTime / timeConstant);
+        }
+
+        /// <summary>
+        /// Divides two positive integers, rounding the result up.
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static int DivideRoundUp(int value, int divisor)
+        {
+            return (value + divisor - 1) / divisor;
+        }
+
+        /// <summary>
+        /// Rounds <paramref name="value"/> up to a multiple of <paramref name="alignment"/>, which must be
+        /// a power of two.
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static int AlignUp(int value, int alignment)
+        {
+            Debug.Assert(BitOperations.IsPow2(alignment));
+
+            return (value + alignment - 1) & ~(alignment - 1);
+        }
+
+        /// <summary>
+        /// The size of a mip level: <paramref name="size"/> halved <paramref name="level"/> times, never
+        /// less than 1.
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static int MipLevelSize(int size, int level)
+        {
+            return Math.Max(1, size >> level);
         }
 
         /// <summary>
@@ -182,9 +307,9 @@ namespace ValveResourceFormat.Utils
         /// </summary>
         public static float AxisScale(this Matrix4x4 m, int axis) => axis switch
         {
-            0 => new Vector3(m.M11, m.M12, m.M13).Length(),
-            1 => new Vector3(m.M21, m.M22, m.M23).Length(),
-            _ => new Vector3(m.M31, m.M32, m.M33).Length(),
+            0 => m.GetRow(0).AsVector3().Length(),
+            1 => m.GetRow(1).AsVector3().Length(),
+            _ => m.GetRow(2).AsVector3().Length(),
         };
 
         /// <summary>

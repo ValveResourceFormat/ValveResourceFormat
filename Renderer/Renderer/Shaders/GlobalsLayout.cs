@@ -218,7 +218,7 @@ public sealed class GlobalsLayout
 
         void Place(GlobalsDeclaration declaration)
         {
-            offset = Align(offset, GetBaseAlignment(declaration.Type));
+            offset = MathUtils.AlignUp(offset, GetBaseAlignment(declaration.Type));
 
             members.Add(declaration.Name, new GlobalsMember(declaration.Name, declaration.Type, offset));
 
@@ -266,7 +266,7 @@ public sealed class GlobalsLayout
         builder.Append("};\n");
 
         BlockSource = builder.ToString();
-        Size = Align(offset, 16);
+        Size = MathUtils.AlignUp(offset, 16);
 
         if (Size > MaxBlockSize)
         {
@@ -443,8 +443,6 @@ public sealed class GlobalsLayout
 
         return negative ? -value : value;
     }
-
-    private static int Align(int offset, int alignment) => (offset + alignment - 1) & ~(alignment - 1);
 
     /// <summary>Returns the number of scalar components in the given type, 16 for <see cref="GlobalsType.Mat4"/>.</summary>
     internal static int GetComponentCount(GlobalsType type) => type switch

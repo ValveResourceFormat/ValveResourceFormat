@@ -442,16 +442,6 @@ public class ViewmodelSceneNode : ModelSceneNode
         grenadeInHand = true;
     }
 
-    /// <summary>Moves <paramref name="value"/> toward <paramref name="target"/> without overshooting.</summary>
-    private static float Approach(float target, float value, float speed)
-    {
-        var delta = target - value;
-
-        return delta > speed ? value + speed
-            : delta < -speed ? value - speed
-            : target;
-    }
-
     /// <summary>Which of the three charge poses the current throw strength holds.</summary>
     private int ChargeState => throwStrength switch
     {
@@ -535,7 +525,7 @@ public class ViewmodelSceneNode : ModelSceneNode
 
             // Walks rather than snaps, so a tap only bends the throw as far as it was held.
             var previousCharge = ChargeState;
-            throwStrength = Approach(idealStrength, throwStrength, dt * ThrowStrengthTransition);
+            throwStrength = MathUtils.Approach(throwStrength, idealStrength, dt * ThrowStrengthTransition);
 
             // Only re-enter on a pose change; the strength itself moves every frame.
             if (State == AnimationState.ThrowCharge && ChargeState != previousCharge)

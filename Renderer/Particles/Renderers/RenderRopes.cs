@@ -474,7 +474,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             var radius = CatmullRom(n0.Radius, n1.Radius, n2.Radius, n3.Radius, t);
 
             var tangent = CatmullRomTangent(n0.Position, n1.Position, n2.Position, n3.Position, t);
-            tangent = tangent.LengthSquared() > ParticleMath.MinimumLengthSquared ? Vector3.Normalize(tangent) : Vector3.UnitX;
+            tangent = MathUtils.SafeNormalize(tangent, Vector3.UnitX, ParticleMath.MinimumLengthSquared);
 
             var planeNormal = orientationType switch
             {

@@ -697,7 +697,7 @@ public sealed partial class MapExtract
             var a = positions[indices[t]];
             var b = positions[indices[t + 1]];
             var c = positions[indices[t + 2]];
-            var faceNormal = Vector3.Cross(b - a, c - a);
+            var faceNormal = MathUtils.TriangleCross(a, b, c);
             var centroid = (a + b + c) / 3f;
             var dot = Vector3.Dot(faceNormal, centroid - rings[ringOfVertex[indices[t]]].Centre);
 

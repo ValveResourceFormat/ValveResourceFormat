@@ -399,8 +399,8 @@ public class Framebuffer
     /// <param name="level">Zero-based mip level.</param>
     public Vector2i GetMipSize(int level)
     {
-        var mipWidth = Math.Max(1, Width >> level);
-        var mipHeight = Math.Max(1, Height >> level);
+        var mipWidth = MathUtils.MipLevelSize(Width, level);
+        var mipHeight = MathUtils.MipLevelSize(Height, level);
 
         return new(mipWidth, mipHeight);
     }

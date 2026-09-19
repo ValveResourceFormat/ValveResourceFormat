@@ -304,7 +304,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             }
 
             var face = Vector3.Cross(right, up);
-            face = face.LengthSquared() > ParticleMath.MinimumLengthSquared ? Vector3.Normalize(face) : Vector3.UnitZ;
+            face = MathUtils.SafeNormalize(face, Vector3.UnitZ, ParticleMath.MinimumLengthSquared);
             return new Matrix4x4(
                 right.X, right.Y, right.Z, 0f,
                 up.X, up.Y, up.Z, 0f,
@@ -314,14 +314,14 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
 
         // World-space camera forward (into the scene): the billboard maps local +Z to the toward-camera axis.
         private static Vector3 CameraForward(Matrix4x4 billboard)
-            => -new Vector3(billboard.M31, billboard.M32, billboard.M33);
+            => -billboard.GetRow(2).AsVector3();
 
         // SCREEN_ALIGNED: the plain camera billboard, built from the camera's own right and up axes. The
         // particle's pitch never enters, so a normal-setting operator cannot tilt the card out of plane.
         private static Matrix4x4 ScreenAlignedBasis(Matrix4x4 billboard, float roll, float yaw)
             => QuadBasis(
-                new Vector3(billboard.M11, billboard.M12, billboard.M13),
-                new Vector3(billboard.M21, billboard.M22, billboard.M23), roll, yaw);
+                billboard.GetRow(0).AsVector3(),
+                billboard.GetRow(1).AsVector3(), roll, yaw);
 
         // SCREEN_Z_ALIGNED: up locked to world +Z, right = cross(worldZ, forward) left un-normalized, so the
         // sprite yaws about vertical to face the camera and foreshortens as the view tilts off-horizontal.
@@ -468,8 +468,8 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
                     // The corner map is corner.x * row0 + corner.y * row1 + translation, so the first two
                     // rows are already the card's axes with the radius folded in. Handing those over
                     // replaces four Vector4.Transform calls here and three duplicate vertices.
-                    var right = new Vector3(modelMatrix.M11, modelMatrix.M12, modelMatrix.M13);
-                    var up = new Vector3(modelMatrix.M21, modelMatrix.M22, modelMatrix.M23);
+                    var right = modelMatrix.GetRow(0).AsVector3();
+                    var up = modelMatrix.GetRow(1).AsVector3();
 
                     // The centre offset shifts the corners before the model matrix scales them, so it is
                     // measured in half-widths and folds into the origin along those same two axes.

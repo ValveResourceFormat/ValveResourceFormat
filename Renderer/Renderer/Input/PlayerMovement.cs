@@ -1570,7 +1570,7 @@ public partial class PlayerMovement : IPlayerController
             if (horizontalSpeed > 0.001f)
             {
                 var horizontalDir = horizontalVel / horizontalSpeed;
-                var projectedDir = horizontalDir - normal * Vector3.Dot(horizontalDir, normal);
+                var projectedDir = MathUtils.ProjectOntoPlane(horizontalDir, normal);
 
                 if (projectedDir.LengthSquared() > 0.001f)
                 {
@@ -1584,7 +1584,7 @@ public partial class PlayerMovement : IPlayerController
             if (deltaLength > 0.001f)
             {
                 var deltaDir = horizontalDelta / deltaLength;
-                var projectedDeltaDir = deltaDir - normal * Vector3.Dot(deltaDir, normal);
+                var projectedDeltaDir = MathUtils.ProjectOntoPlane(deltaDir, normal);
 
                 if (projectedDeltaDir.LengthSquared() > 0.001f)
                 {
@@ -1596,8 +1596,8 @@ public partial class PlayerMovement : IPlayerController
         }
         else
         {
-            delta -= normal * Vector3.Dot(delta, normal);
-            velocity -= normal * Vector3.Dot(velocity, normal);
+            delta = MathUtils.ProjectOntoPlane(delta, normal);
+            velocity = MathUtils.ProjectOntoPlane(velocity, normal);
             return 1f;
         }
     }

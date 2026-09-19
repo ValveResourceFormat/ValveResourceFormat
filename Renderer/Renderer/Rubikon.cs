@@ -682,7 +682,7 @@ public class Rubikon
     {
         if (axis == 0)
         {
-            axisVector = Vector3.Cross(triangle[1] - triangle[0], triangle[2] - triangle[0]);
+            axisVector = MathUtils.TriangleCross(triangle[0], triangle[1], triangle[2]);
 
             if (skipDegenerateFace && axisVector.LengthSquared() < Epsilon * Epsilon)
             {
@@ -1025,8 +1025,8 @@ public class Rubikon
         var tNear = Vector3.Min(t1, t2);
         var tFar = Vector3.Max(t1, t2);
 
-        var tNearMax = MathF.Max(tNear.X, MathF.Max(tNear.Y, tNear.Z));
-        var tFarMin = MathF.Min(tFar.X, MathF.Min(tFar.Y, tFar.Z));
+        var tNearMax = tNear.MaxComponent();
+        var tFarMin = tFar.MinComponent();
 
         // Negative when the ray starts inside the box
         entryDistance = tNearMax;
@@ -1203,9 +1203,7 @@ public class Rubikon
         // so report start-solid and let the callers early-exit
         if (trace.DetectStartSolid && enter < 0 && exit >= 0)
         {
-            var startNormal = Vector3.Cross(v1 - v0, v2 - v0);
-            var startNormalLength = startNormal.Length();
-            startNormal = startNormalLength > Epsilon ? startNormal / startNormalLength : Vector3.UnitZ;
+            var startNormal = MathUtils.SafeNormalize(MathUtils.TriangleCross(v0, v1, v2), Vector3.UnitZ, Epsilon * Epsilon);
 
             if (Vector3.Dot(startNormal, trace.Direction) > 0)
             {

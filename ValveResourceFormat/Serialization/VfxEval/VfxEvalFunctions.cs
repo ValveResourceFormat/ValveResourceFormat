@@ -10,8 +10,8 @@ namespace ValveResourceFormat.Serialization.VfxEval
 
         private static float RgbSaturation(Vector3 rgb)
         {
-            var max = MathF.Max(MathF.Max(rgb.X, rgb.Y), rgb.Z);
-            var min = MathF.Min(MathF.Min(rgb.X, rgb.Y), rgb.Z);
+            var max = rgb.MaxComponent();
+            var min = rgb.MinComponent();
             return max == 0f ? 0f : (max - min) / max;
         }
 

@@ -857,9 +857,9 @@ public class SceneLight(Scene scene) : SceneNode(scene)
 
     private static float SphericalTriangleArea(Vector3 p1, Vector3 p2, Vector3 p3)
     {
-        var a = MathF.Acos(Math.Clamp(Vector3.Dot(p2, p3), -1f, 1f));
-        var b = MathF.Acos(Math.Clamp(Vector3.Dot(p1, p3), -1f, 1f));
-        var c = MathF.Acos(Math.Clamp(Vector3.Dot(p1, p2), -1f, 1f));
+        var a = MathUtils.AngleBetween(p2, p3);
+        var b = MathUtils.AngleBetween(p1, p3);
+        var c = MathUtils.AngleBetween(p1, p2);
 
         if (a == 0f || b == 0f || c == 0f)
         {
@@ -904,9 +904,9 @@ public class SceneLight(Scene scene) : SceneNode(scene)
     {
         var rotMatrix = EntityTransformHelper.EulerAnglesToRotationMatrix(angles);
 
-        var axis0 = new Vector3(rotMatrix.M11, rotMatrix.M12, rotMatrix.M13);
-        var axis1 = new Vector3(rotMatrix.M21, rotMatrix.M22, rotMatrix.M23);
-        var axis2 = new Vector3(rotMatrix.M31, rotMatrix.M32, rotMatrix.M33);
+        var axis0 = rotMatrix.GetRow(0).AsVector3();
+        var axis1 = rotMatrix.GetRow(1).AsVector3();
+        var axis2 = rotMatrix.GetRow(2).AsVector3();
 
         const float Shrink = 0.999f;
 

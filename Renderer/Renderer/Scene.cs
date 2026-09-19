@@ -1613,7 +1613,7 @@ namespace ValveResourceFormat.Renderer
             }
             FrustumCullShader.SetUniform("g_bOcclusionDebugEnabled", occlusionDebugEnabled);
 
-            var workGroups = (SceneMeshletCount + 63) / 64;
+            var workGroups = MathUtils.DivideRoundUp(SceneMeshletCount, 64);
             GL.DispatchCompute(workGroups, 1, 1);
 
             GL.MemoryBarrier(MemoryBarrierFlags.ShaderStorageBarrierBit);
@@ -1647,7 +1647,7 @@ namespace ValveResourceFormat.Renderer
             CompactionRequestsGpu.BindBufferBase();
 
             var aggregateCount = CompactionRequestsGpu.Size / sizeof(uint) / 2; // 2 uints per aggregate
-            var workGroups = (aggregateCount + 3) / 4; // 4 requests per workgroup (local_size_x = 4)
+            var workGroups = MathUtils.DivideRoundUp(aggregateCount, 4); // 4 requests per workgroup (local_size_x = 4)
             GL.DispatchCompute(workGroups, 1, 1);
 
         }
@@ -1681,8 +1681,8 @@ namespace ValveResourceFormat.Renderer
 
                 GL.BindImageTexture(2, DepthPyramid.Handle, 0, false, 0, TextureAccess.WriteOnly, SizedInternalFormat.R32f);
 
-                var groupsX = (DepthPyramid.Width + 7) / 8;
-                var groupsY = (DepthPyramid.Height + 7) / 8;
+                var groupsX = MathUtils.DivideRoundUp(DepthPyramid.Width, 8);
+                var groupsY = MathUtils.DivideRoundUp(DepthPyramid.Height, 8);
                 GL.DispatchCompute(groupsX, groupsY, 1);
 
                 GL.MemoryBarrier(MemoryBarrierFlags.ShaderImageAccessBarrierBit);
@@ -1693,8 +1693,8 @@ namespace ValveResourceFormat.Renderer
 
             for (var mipLevel = startMipLevel; mipLevel < DepthPyramid.NumMipLevels; mipLevel++)
             {
-                var destWidth = Math.Max(1, DepthPyramid.Width >> mipLevel);
-                var destHeight = Math.Max(1, DepthPyramid.Height >> mipLevel);
+                var destWidth = MathUtils.MipLevelSize(DepthPyramid.Width, mipLevel);
+                var destHeight = MathUtils.MipLevelSize(DepthPyramid.Height, mipLevel);
                 var sourceMip = mipLevel - 1;
 
                 DepthPyramidShader.SetUniform("g_nDestDepthWidth", destWidth);
@@ -1707,8 +1707,8 @@ namespace ValveResourceFormat.Renderer
                 GL.BindImageTexture(2, DepthPyramid.Handle, mipLevel, false, 0, TextureAccess.WriteOnly, SizedInternalFormat.R32f);
 
                 // Dispatch compute shader
-                var groupsX = (destWidth + 7) / 8;
-                var groupsY = (destHeight + 7) / 8;
+                var groupsX = MathUtils.DivideRoundUp(destWidth, 8);
+                var groupsY = MathUtils.DivideRoundUp(destHeight, 8);
                 GL.DispatchCompute(groupsX, groupsY, 1);
 
                 GL.MemoryBarrier(MemoryBarrierFlags.ShaderImageAccessBarrierBit);

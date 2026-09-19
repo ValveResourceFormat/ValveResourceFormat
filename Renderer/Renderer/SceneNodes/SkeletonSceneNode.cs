@@ -128,9 +128,9 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             var origin = matrix.Translation;
             var axisLength = 0.04f * MathF.Min(distance, sizeCap);
 
-            ShapeSceneNode.AddLine(vertices, origin, origin + Vector3.Normalize(new Vector3(matrix.M11, matrix.M12, matrix.M13)) * axisLength, new(1.0f, 0.2f, 0.2f, 1.0f));
-            ShapeSceneNode.AddLine(vertices, origin, origin + Vector3.Normalize(new Vector3(matrix.M21, matrix.M22, matrix.M23)) * axisLength, new(0.2f, 0.8f, 0.2f, 1.0f));
-            ShapeSceneNode.AddLine(vertices, origin, origin + Vector3.Normalize(new Vector3(matrix.M31, matrix.M32, matrix.M33)) * axisLength, new(0.2f, 0.2f, 1.0f, 1.0f));
+            ShapeSceneNode.AddLine(vertices, origin, origin + Vector3.Normalize(matrix.GetRow(0).AsVector3()) * axisLength, new(1.0f, 0.2f, 0.2f, 1.0f));
+            ShapeSceneNode.AddLine(vertices, origin, origin + Vector3.Normalize(matrix.GetRow(1).AsVector3()) * axisLength, new(0.2f, 0.8f, 0.2f, 1.0f));
+            ShapeSceneNode.AddLine(vertices, origin, origin + Vector3.Normalize(matrix.GetRow(2).AsVector3()) * axisLength, new(0.2f, 0.2f, 1.0f, 1.0f));
         }
 
         private void DrawAttachment(Attachment attachment, List<SimpleVertex> vertices, Camera camera, TextRenderer textRenderer)

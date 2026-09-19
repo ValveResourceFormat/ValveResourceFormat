@@ -419,7 +419,7 @@ public sealed class TiledCullFeeder
         for (var batch = 0; batch < BatchCount; batch++)
         {
             var count = batchItemCount[batch];
-            var masks = (count + ItemsPerMask - 1) / ItemsPerMask;
+            var masks = MathUtils.DivideRoundUp(count, ItemsPerMask);
             var source = batch * MaxItemsPerBatch;
 
             if (source != itemCursor)
@@ -468,8 +468,8 @@ public sealed class TiledCullFeeder
 
     /// <summary>Gets the tile pass dispatch size.</summary>
     public (int X, int Y, int Z) TileDispatch => (
-        (tileCols + TileGroupSizeX - 1) / TileGroupSizeX,
-        (tileRows + TileGroupSizeY - 1) / TileGroupSizeY,
+        MathUtils.DivideRoundUp(tileCols, TileGroupSizeX),
+        MathUtils.DivideRoundUp(tileRows, TileGroupSizeY),
         maskCount);
 
     /// <summary>Gets the depth bin pass dispatch size.</summary>
@@ -842,7 +842,7 @@ public sealed class TiledCullFeeder
         return hullCount >= 3 ? hullCount : 0;
 
         static float Cross(Vector2 o, Vector2 a, Vector2 b)
-            => ((a.X - o.X) * (b.Y - o.Y)) - ((a.Y - o.Y) * (b.X - o.X));
+            => Vector2.Cross(a - o, b - o);
     }
 
     /// <summary>
@@ -892,10 +892,10 @@ public sealed class TiledCullFeeder
 
         var dilated = radius + (tileHalfSize * MathF.Sqrt(2f) * (radius / projectedRadius));
 
-        var rowX = new Vector4(projectionToWorld.M11, projectionToWorld.M12, projectionToWorld.M13, projectionToWorld.M14);
-        var rowY = new Vector4(projectionToWorld.M21, projectionToWorld.M22, projectionToWorld.M23, projectionToWorld.M24);
-        var rowZ = new Vector4(projectionToWorld.M31, projectionToWorld.M32, projectionToWorld.M33, projectionToWorld.M34);
-        var rowW = new Vector4(projectionToWorld.M41, projectionToWorld.M42, projectionToWorld.M43, projectionToWorld.M44);
+        var rowX = projectionToWorld.GetRow(0);
+        var rowY = projectionToWorld.GetRow(1);
+        var rowZ = projectionToWorld.GetRow(2);
+        var rowW = projectionToWorld.GetRow(3);
 
         static Vector3 Column(Vector4 axis, Vector4 z)
             => (z.AsVector3() * axis.W) - (axis.AsVector3() * z.W);

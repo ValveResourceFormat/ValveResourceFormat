@@ -474,7 +474,7 @@ public sealed class EntitySystem
                 }
 
                 var move = to - from;
-                var normal = move.LengthSquared() > 1e-12f ? Vector3.Normalize(-move) : Vector3.UnitZ;
+                var normal = MathUtils.SafeNormalize(-move, Vector3.UnitZ, 1e-12f);
 
                 var blocked = new Rubikon.TraceResult(true, from, normal, 0f, -1)
                 {

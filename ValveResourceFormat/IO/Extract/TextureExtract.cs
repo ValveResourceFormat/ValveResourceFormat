@@ -932,7 +932,7 @@ public sealed class TextureExtract
 
         // determine which face the direction vector intersects and get the corresponding UV coordinates
         var absDir = Vector3.Abs(dir);
-        var maxAxis = Math.Max(absDir.X, Math.Max(absDir.Y, absDir.Z));
+        var maxAxis = absDir.MaxComponent();
 
         int faceIndex;
         float uc, vc;

@@ -87,7 +87,7 @@ public sealed class AudioMixer : IDisposable
             // A jump leaves the running average behind entirely rather than smoothing towards the spike
             if (instantVelocity.LengthSquared() <= MaxListenerSpeed * MaxListenerSpeed)
             {
-                velocity = Vector3.Lerp(listener.Velocity, instantVelocity, 1f - MathF.Exp(-deltaTime / VelocitySmoothingSeconds));
+                velocity = Vector3.Lerp(listener.Velocity, instantVelocity, MathUtils.ExponentialSmoothing(deltaTime, VelocitySmoothingSeconds));
             }
         }
 

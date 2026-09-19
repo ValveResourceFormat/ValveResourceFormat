@@ -119,7 +119,7 @@ internal sealed class SpectralCueFilters
     public bool Update(int sampleRate, int frames)
     {
         var elapsed = (float)frames / Math.Max(sampleRate, 1);
-        var smoothing = 1f - MathF.Exp(-elapsed / SmoothingSeconds);
+        var smoothing = MathUtils.ExponentialSmoothing(elapsed, SmoothingSeconds);
 
         notchHz = float.Lerp(notchHz, targetNotchHz, smoothing);
         notchDecibels = float.Lerp(notchDecibels, targetNotchDecibels, smoothing);

@@ -159,8 +159,8 @@ public sealed class LightBinner(Scene scene) : IDisposable
         var width = Math.Max(viewportWidth, 1);
         var height = Math.Max(viewportHeight, 1);
 
-        TileCols = (width + tileSize - 1) >> TileShift;
-        TileRows = (height + tileSize - 1) >> TileShift;
+        TileCols = MathUtils.DivideRoundUp(width, tileSize);
+        TileRows = MathUtils.DivideRoundUp(height, tileSize);
 
         Feeder.Begin(
             TileCols, TileRows, tileSize,

@@ -147,7 +147,7 @@ namespace ValveResourceFormat.Compression
             }
 
             // round number of groups to 4 to get number of header bytes
-            var headerSize = ((buffer.Length / ByteGroupSize) + 3) / 4;
+            var headerSize = MathUtils.DivideRoundUp(buffer.Length / ByteGroupSize, 4);
 
             if (data.Length < headerSize)
             {
@@ -296,7 +296,7 @@ namespace ValveResourceFormat.Compression
                 throw new ArgumentException("Expected vertexCount to be between 0 and VertexMaxBlockSize");
             }
 
-            var vertexCountAligned = (vertexCount + ByteGroupSize - 1) & ~(ByteGroupSize - 1);
+            var vertexCountAligned = MathUtils.AlignUp(vertexCount, ByteGroupSize);
             var controlSize = version == 0 ? 0 : vertexSize / 4;
 
             if (data.Length < controlSize)

@@ -117,8 +117,8 @@ namespace ValveResourceFormat.Renderer.PostProcess
         {
             Debug.Assert(shaderMsaaResolve != null && shaderDepthResolve != null);
 
-            var groupsX = (destColor.Width + 7) / 8;
-            var groupsY = (destColor.Height + 7) / 8;
+            var groupsX = MathUtils.DivideRoundUp(destColor.Width, 8);
+            var groupsY = MathUtils.DivideRoundUp(destColor.Height, 8);
 
             if (resolveColor)
             {
@@ -201,7 +201,7 @@ namespace ValveResourceFormat.Renderer.PostProcess
 
             GL.BindImageTexture(0, combinedLut.Handle, 0, true, 0, TextureAccess.WriteOnly, SizedInternalFormat.Rgba8);
 
-            var groups = (dimensions + 3) / 4;
+            var groups = MathUtils.DivideRoundUp(dimensions, 4);
             GL.DispatchCompute(groups, groups, groups);
             GL.MemoryBarrier(MemoryBarrierFlags.TextureFetchBarrierBit);
 
@@ -264,8 +264,8 @@ namespace ValveResourceFormat.Renderer.PostProcess
                     DOF.SetDofResolveShaderUniforms(msaaResolveShader, camera, colorBufferRead.Depth!);
                 }
 
-                var groupsX = (resolveTarget.Width + 7) / 8;
-                var groupsY = (resolveTarget.Height + 7) / 8;
+                var groupsX = MathUtils.DivideRoundUp(resolveTarget.Width, 8);
+                var groupsY = MathUtils.DivideRoundUp(resolveTarget.Height, 8);
                 GL.DispatchCompute(groupsX, groupsY, 1);
                 GL.MemoryBarrier(MemoryBarrierFlags.ShaderImageAccessBarrierBit | MemoryBarrierFlags.TextureFetchBarrierBit);
             }

@@ -24,7 +24,7 @@ public class ShadowAtlasPacker
     public void Begin(int atlasSize)
     {
         gridCells = Math.Max(atlasSize / CellSize, 0);
-        wordsPerRow = (gridCells + 63) >> 6;
+        wordsPerRow = MathUtils.DivideRoundUp(gridCells, 64);
 
         if (combinedRow.Length < wordsPerRow)
         {
@@ -55,8 +55,8 @@ public class ShadowAtlasPacker
             return false;
         }
 
-        var wCells = (width + CellSize - 1) / CellSize;
-        var hCells = (height + CellSize - 1) / CellSize;
+        var wCells = MathUtils.DivideRoundUp(width, CellSize);
+        var hCells = MathUtils.DivideRoundUp(height, CellSize);
 
         if (wCells > gridCells || hCells > gridCells)
         {

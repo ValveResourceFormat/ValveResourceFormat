@@ -1383,7 +1383,7 @@ public sealed partial class MapExtract
                 hEdge = hEdge.NextEdge;
                 var c = geometry.Positions[hEdge.Vertex];
                 var centre = (a + b + c) / 3f;
-                var triangleNormal = Vector3.Cross(b - a, c - a);
+                var triangleNormal = MathUtils.TriangleCross(a, b, c);
 
                 if (triangleNormal.LengthSquared() < 1e-10f || !grid.TryGetValue(Cell(centre), out var cellFaces))
                 {

@@ -1058,9 +1058,7 @@ namespace ValveResourceFormat.ResourceTypes
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static void Align(ref int offset, int alignment)
         {
-            alignment -= 1;
-            offset += alignment;
-            offset &= ~alignment;
+            offset = MathUtils.AlignUp(offset, alignment);
         }
 
         /// <summary>

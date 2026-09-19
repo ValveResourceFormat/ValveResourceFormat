@@ -445,8 +445,8 @@ namespace ValveResourceFormat.Renderer
                     return;
                 }
 
-                var from = Vector3.Normalize(up - twistAxis * Vector3.Dot(up, twistAxis));
-                var to = Vector3.Normalize(rotatedUp - twistAxis * Vector3.Dot(rotatedUp, twistAxis));
+                var from = Vector3.Normalize(MathUtils.ProjectOntoPlane(up, twistAxis));
+                var to = Vector3.Normalize(MathUtils.ProjectOntoPlane(rotatedUp, twistAxis));
                 var cosine = Vector3.Dot(from, to);
 
                 // A twist near 0 or 180 degrees leaves the base orientations as they are.
@@ -455,7 +455,7 @@ namespace ValveResourceFormat.Renderer
                     return;
                 }
 
-                var angle = MathF.Acos(Math.Clamp(cosine, -1f, 1f));
+                var angle = MathUtils.SafeAcos(cosine);
                 if (Vector3.Dot(Vector3.Normalize(Vector3.Cross(from, to)), twistAxis) < 0f)
                 {
                     angle = -angle;
@@ -541,7 +541,7 @@ namespace ValveResourceFormat.Renderer
             private static Quaternion LookRotation(Vector3 forward, Vector3 up)
             {
                 forward = MathUtils.SafeNormalize(forward);
-                up = MathUtils.SafeNormalize(up - forward * Vector3.Dot(forward, up));
+                up = MathUtils.SafeNormalize(MathUtils.ProjectOntoPlane(up, forward));
                 var side = MathUtils.SafeNormalize(Vector3.Cross(forward, up));
 
                 var basis = new Matrix4x4(
@@ -854,7 +854,7 @@ namespace ValveResourceFormat.Renderer
                 var boneRotation = FrameBone.FromMatrix(pose[bone]).Angle;
                 var direction = MathUtils.SafeNormalize(pose[target].Translation - pose[bone].Translation);
 
-                var angle = float.RadiansToDegrees(MathF.Acos(Math.Clamp(Vector3.Dot(direction, Vector3.Transform(Vector3.UnitZ, boneRotation)), -1f, 1f)));
+                var angle = float.RadiansToDegrees(MathUtils.AngleBetween(direction, Vector3.Transform(Vector3.UnitZ, boneRotation)));
 
                 var value = MathUtils.RemapValClamped(angle, definition.InputMin, definition.InputMax, definition.OutputMin, definition.OutputMax);
 
@@ -1007,7 +1007,7 @@ namespace ValveResourceFormat.Renderer
                             var r = rotations[i];
                             var c = Quaternion.Dot(new Quaternion(r[k * 4], r[k * 4 + 1], r[k * 4 + 2], r[k * 4 + 3]), inputPose[i].Rotation);
                             var cosine = 2f * c * c - 1f;
-                            var a = MathF.Acos(Math.Clamp(cosine, -1f, 1f));
+                            var a = MathUtils.SafeAcos(cosine);
                             distance += (a <= rotationThreshold ? 0f : a) / rotationScales[i];
                         }
 

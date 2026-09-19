@@ -18,8 +18,8 @@ namespace ValveResourceFormat.TextureDecoders
             using var pixels = bitmap.PeekPixels();
             var output = pixels.GetPixelSpan<SKColor>();
 
-            var blocksWide = (width + 3) / 4;
-            var blocksHigh = (height + 3) / 4;
+            var blocksWide = MathUtils.DivideRoundUp(width, 4);
+            var blocksHigh = MathUtils.DivideRoundUp(height, 4);
 
             Span<byte> red = stackalloc byte[16];
 

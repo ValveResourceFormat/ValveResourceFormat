@@ -54,6 +54,6 @@ internal static class GraphSegmentGeometry
             && ((d3 > 0f && d4 < 0f) || (d3 < 0f && d4 > 0f));
 
         static float Cross(Vector2 a, Vector2 b, Vector2 point)
-            => (b.X - a.X) * (point.Y - a.Y) - (b.Y - a.Y) * (point.X - a.X);
+            => Vector2.Cross(b - a, point - a);
     }
 }

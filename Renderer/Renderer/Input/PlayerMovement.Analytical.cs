@@ -187,7 +187,7 @@ public partial class PlayerMovement
         {
             var exitCos = MathF.Sqrt(1f - frictionAccelRatio);
             var slideEnd = MathF.Min(MathF.Min(MathF.Log(startSpeed * exitCos / wishspeed) / frictionRate, envelopeEnd), deltaTime);
-            absAngle = MathF.Acos(Math.Clamp(wishspeed / (startSpeed * MathF.Exp(-frictionRate * slideEnd)), -1f, 1f));
+            absAngle = MathUtils.SafeAcos(wishspeed / (startSpeed * MathF.Exp(-frictionRate * slideEnd)));
             time = slideEnd;
         }
 

@@ -973,8 +973,8 @@ public class Renderer
         var inputTex = ResolvedSceneColor;
 
         // Build histogram
-        var groupsX = Math.Max(1, (width + 15) / 16);
-        var groupsY = Math.Max(1, (height + 15) / 16);
+        var groupsX = Math.Max(1, MathUtils.DivideRoundUp(width, 16));
+        var groupsY = Math.Max(1, MathUtils.DivideRoundUp(height, 16));
         Dispatch(histogramShaders[0], inputTex, groupsX, groupsY);
         GL.MemoryBarrier(MemoryBarrierFlags.ShaderStorageBarrierBit);
 
@@ -1066,8 +1066,8 @@ public class Renderer
         using var _ = new GLDebugGroup("Fancy Water Effects");
 
         var (downsampleX, downsampleY) = WaterEffectsDownsample;
-        var width = Math.Max(1, (renderContext.Framebuffer.Width + downsampleX - 1) / downsampleX);
-        var height = Math.Max(1, (renderContext.Framebuffer.Height + downsampleY - 1) / downsampleY);
+        var width = Math.Max(1, MathUtils.DivideRoundUp(renderContext.Framebuffer.Width, downsampleX));
+        var height = Math.Max(1, MathUtils.DivideRoundUp(renderContext.Framebuffer.Height, downsampleY));
 
         if (WaterEffectsBuffer.Resize(width, height))
         {

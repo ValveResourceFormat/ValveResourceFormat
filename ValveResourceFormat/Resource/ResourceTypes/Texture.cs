@@ -2,7 +2,6 @@ using System.Buffers;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
-using System.Runtime.CompilerServices;
 using System.Text;
 using K4os.Compression.LZ4;
 using SkiaSharp;
@@ -718,7 +717,7 @@ namespace ValveResourceFormat.ResourceTypes
             Debug.Assert(Reader is not null);
             ArgumentOutOfRangeException.ThrowIfGreaterThanOrEqual(mipLevel, NumMipLevels, nameof(mipLevel));
 
-            var depthMip = (Flags & VTexFlags.VOLUME_TEXTURE) == 0 ? Depth : MipLevelSize(Depth, mipLevel);
+            var depthMip = (Flags & VTexFlags.VOLUME_TEXTURE) == 0 ? Depth : MathUtils.MipLevelSize(Depth, (int)mipLevel);
             ArgumentOutOfRangeException.ThrowIfGreaterThanOrEqual(depth, (uint)depthMip, nameof(depth));
 
             if (face > 0)
@@ -731,8 +730,8 @@ namespace ValveResourceFormat.ResourceTypes
                 ArgumentOutOfRangeException.ThrowIfGreaterThanOrEqual((int)face, 6, nameof(face));
             }
 
-            var width = MipLevelSize(ActualWidth, mipLevel);
-            var height = MipLevelSize(ActualHeight, mipLevel);
+            var width = MathUtils.MipLevelSize(ActualWidth, (int)mipLevel);
+            var height = MathUtils.MipLevelSize(ActualHeight, (int)mipLevel);
 
             switch (Format)
             {
@@ -860,8 +859,8 @@ namespace ValveResourceFormat.ResourceTypes
 
         private ITextureDecoder CreateDecoder(uint mipLevel)
         {
-            var blockWidth = MipLevelSize(Width, mipLevel);
-            var blockHeight = MipLevelSize(Height, mipLevel);
+            var blockWidth = MathUtils.MipLevelSize(Width, (int)mipLevel);
+            var blockHeight = MathUtils.MipLevelSize(Height, (int)mipLevel);
 
             return Format switch
             {
@@ -950,9 +949,9 @@ namespace ValveResourceFormat.ResourceTypes
 
         private (int Width, int Height, int Depth) CalculateTextureSizesForMipLevel(uint mipLevel)
         {
-            var width = MipLevelSize(Width, mipLevel);
-            var height = MipLevelSize(Height, mipLevel);
-            var depth = (Flags & VTexFlags.VOLUME_TEXTURE) == 0 ? Depth : MipLevelSize(Depth, mipLevel);
+            var width = MathUtils.MipLevelSize(Width, (int)mipLevel);
+            var height = MathUtils.MipLevelSize(Height, (int)mipLevel);
+            var depth = (Flags & VTexFlags.VOLUME_TEXTURE) == 0 ? Depth : MathUtils.MipLevelSize(Depth, (int)mipLevel);
 
             if ((Flags & VTexFlags.CUBE_TEXTURE) != 0)
             {
@@ -1280,12 +1279,6 @@ namespace ValveResourceFormat.ResourceTypes
             {
                 Reader.BaseStream.Position = originalPosition;
             }
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static int MipLevelSize(int size, uint level)
-        {
-            return Math.Max(size >> (int)level, 1);
         }
 
         /// <summary>

@@ -44,8 +44,8 @@ public class QuadOverdraw(RendererContext rendererContext)
     public void Prepare(int width, int height)
     {
         // one entry per 2x2 pixel quad
-        var quadWidth = (width + 1) / 2;
-        var quadHeight = (height + 1) / 2;
+        var quadWidth = MathUtils.DivideRoundUp(width, 2);
+        var quadHeight = MathUtils.DivideRoundUp(height, 2);
         var elementCount = quadWidth * quadHeight * 2;
 
         if (quadBuffer == null || quadBuffer.Size != elementCount * sizeof(uint))

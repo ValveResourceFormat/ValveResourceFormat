@@ -734,8 +734,8 @@ public sealed class PolygonMesh
 
         if (Matrix4x4.Invert(mTextureToWorld, out var mWorldToTexture))
         {
-            vOutU = new Vector3(mWorldToTexture.M11, mWorldToTexture.M12, mWorldToTexture.M13);
-            vOutV = new Vector3(mWorldToTexture.M21, mWorldToTexture.M22, mWorldToTexture.M23);
+            vOutU = mWorldToTexture.GetRow(0).AsVector3();
+            vOutV = mWorldToTexture.GetRow(1).AsVector3();
             return true;
         }
 

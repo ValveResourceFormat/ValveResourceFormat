@@ -65,7 +65,7 @@ public sealed class ParallelDispatch : IDisposable
         workers ??= CreateWorkers();
 
         activeWork = work;
-        chunkCount = (count + chunkSize - 1) / chunkSize;
+        chunkCount = MathUtils.DivideRoundUp(count, chunkSize);
         completedChunks = 0;
         exception = null;
         done.Reset();
