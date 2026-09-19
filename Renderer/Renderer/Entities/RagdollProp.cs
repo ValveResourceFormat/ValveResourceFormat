@@ -27,6 +27,11 @@ public class RagdollProp : BaseModelEntity
     private int[] boneToPart = [];
     private Matrix4x4[] boneLocalBind = [];
 
+    // The constant frame correction from each physics part to its render bone: the phys bind
+    // pose is the SHAPE's frame, not the bone's, and they disagree wildly (70 units, half a
+    // turn); a body pose pushed into the skinning without this correction shreds the mesh
+    private Matrix4x4[] partToBone = [];
+
     private Matrix4x4 inverseSpawnTransform = Matrix4x4.Identity;
     private bool simulating;
 
@@ -120,6 +125,7 @@ public class RagdollProp : BaseModelEntity
         partBones = new int[phys.Parts.Length];
         boneToPart = new int[skeleton.Bones.Length];
         boneLocalBind = new Matrix4x4[skeleton.Bones.Length];
+        partToBone = new Matrix4x4[phys.Parts.Length];
         Array.Fill(partBones, -1);
         Array.Fill(boneToPart, -1);
 
@@ -137,12 +143,16 @@ public class RagdollProp : BaseModelEntity
                 : Matrix4x4.Identity;
         }
 
+        var physBind = phys.BindPose;
+
         for (var i = 0; i < phys.Parts.Length && i < names.Length; i++)
         {
-            if (hasBody[i] && byName.TryGetValue(names[i], out var boneIndex))
+            if (hasBody[i] && byName.TryGetValue(names[i], out var boneIndex)
+                && Matrix4x4.Invert(physBind.Length > i ? physBind[i] : Matrix4x4.Identity, out var inversePartBind))
             {
                 partBones[i] = boneIndex;
                 boneToPart[boneIndex] = i;
+                partToBone[i] = bindPose[boneIndex] * inversePartBind;
             }
         }
     }
@@ -199,7 +209,7 @@ public class RagdollProp : BaseModelEntity
             var world = Matrix4x4.CreateFromQuaternion(body.Rotation)
                 * Matrix4x4.CreateTranslation(body.Position);
 
-            modelPose = world * inverseSpawnTransform;
+            modelPose = partToBone[part] * world * inverseSpawnTransform;
         }
         else
         {
