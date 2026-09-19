@@ -8045,5 +8045,41 @@ namespace Tests
             }
             """);
 
+        /// <summary>
+        /// A selection the model carries as an <c>m_VertexMaps</c> entry without REGISTERING it in
+        /// <c>m_VertexSetNames</c> is one no <c>cloth_vertex_set</c> paint may state: the compiler registers the
+        /// name of every such stream it reads, so painting it hands the recompile a set the original never had.
+        /// The fixture is dl <c>wraith_default</c>'s own shape - one registered set (the model-name set the
+        /// compiler makes itself) beside two selections it does not register - and the export declares those two
+        /// as their own containers instead, which is what took both wraith rows from DEFECT to EQUIVALENT.
+        /// </summary>
+        [Test]
+        public async Task ASelectionTheModelRegistersNoSetForIsNotPainted()
+        {
+            var wraithShape = SyntheticCloth.Parse(UnregisteredSelectionText);
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(wraithShape.RegistersVertexSet(3027761651)).IsTrue();
+                await Assert.That(wraithShape.RegistersVertexSet(4042757229)).IsFalse();
+                await Assert.That(wraithShape.VertexMaps.Count).IsEqualTo(1);
+                await Assert.That(wraithShape.RegistersVertexSet(wraithShape.VertexMaps[0].NameHash)).IsFalse();
+            }
+        }
+
+        private const string UnregisteredSelectionText = """
+            {
+                m_CtrlName = [ "root", "$cloth_m0p0", "$cloth_m0p1", "$cloth_m0p2" ]
+                m_nNodeCount = 4
+                m_nStaticNodes = 1
+                m_NodeInvMasses = [ 0.0, 1.0, 1.0, 1.0 ]
+                m_VertexSetNames = [ 3027761651 ]
+                m_VertexMaps =
+                [
+                    { m_Name = "coat_clothVertMap" m_nNameHash = 4042757229 m_nVertexBase = 1 m_nVertexCount = 3 m_Weights = [ 255, 255, 0 ] },
+                ]
+            }
+            """;
+
     }
 }
