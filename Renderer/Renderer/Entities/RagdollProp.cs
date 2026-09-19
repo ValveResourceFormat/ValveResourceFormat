@@ -23,6 +23,10 @@ public class RagdollProp : BaseModelEntity, ICarryable
     private Body[] bodies = [];
     private bool[] hasBody = [];
     private int[] partBones = [];
+
+    // Each part's center as of the last tick, for the tunnel catch: a squeezed part can be
+    // pushed straight through the one-sided mesh world between two looks
+    private Vector3[] previousPositions = [];
     private readonly List<Joint> joints = [];
 
     // The skeleton bone driven by each part, resolved once, and each bone's bind transform local
@@ -115,6 +119,7 @@ public class RagdollProp : BaseModelEntity, ICarryable
 
         bodies = new Body[phys.Parts.Length];
         hasBody = new bool[phys.Parts.Length];
+        previousPositions = new Vector3[phys.Parts.Length];
 
         for (var i = 0; i < phys.Parts.Length; i++)
         {
@@ -128,6 +133,27 @@ public class RagdollProp : BaseModelEntity, ICarryable
             {
                 bodies[i] = body;
                 hasBody[i] = true;
+                previousPositions[i] = body.Position;
+            }
+        }
+    }
+
+    /// <inheritdoc/>
+    protected override void PhysicsSimulate(float tickInterval)
+    {
+        base.PhysicsSimulate(tickInterval);
+
+        if (!simulating)
+        {
+            return;
+        }
+
+        for (var i = 0; i < bodies.Length; i++)
+        {
+            if (hasBody[i])
+            {
+                EntitySystem.Physics.CatchTunneledBody(bodies[i], previousPositions[i]);
+                previousPositions[i] = bodies[i].Position;
             }
         }
     }
@@ -207,13 +233,12 @@ public class RagdollProp : BaseModelEntity, ICarryable
         this.carryDistance = carryDistance;
 
         // Gravity off on the grabbed part only: the held part floats where it is steered while
-        // everything hanging off it keeps its full weight
+        // everything hanging off it keeps its full weight. No collision to suspend - ragdoll
+        // parts never collide with the player's pushing body in the first place.
         var body = bodies[carriedPart];
         body.GravityScale = 0f;
         body.CanSleep = false;
         body.IsAwake = true;
-
-        SetCollidesWithPlayer(false);
     }
 
     void ICarryable.EndCarry()
@@ -228,8 +253,6 @@ public class RagdollProp : BaseModelEntity, ICarryable
 
         carriedPart = -1;
         carrier = null;
-
-        SetCollidesWithPlayer(true);
     }
 
     (Vector3 Position, Quaternion Rotation) ICarryable.ComputeHoldPose()
@@ -276,30 +299,6 @@ public class RagdollProp : BaseModelEntity, ICarryable
         }
 
         return Array.IndexOf(hasBody, true);
-    }
-
-    private void SetCollidesWithPlayer(bool collide)
-    {
-        var collidesWith = collide
-            ? ulong.MaxValue
-            : ulong.MaxValue & ~PhysicsSimulation.PlayerCategory;
-
-        // Grabs happen at user rate, so a heap allocation per body beats a stackalloc in a loop
-        for (var i = 0; i < bodies.Length; i++)
-        {
-            if (!hasBody[i])
-            {
-                continue;
-            }
-
-            var shapes = new Shape[bodies[i].ShapeCount];
-            var count = bodies[i].GetShapes(shapes);
-
-            for (var s = 0; s < count; s++)
-            {
-                shapes[s].SetFilter(new CollisionFilter(PhysicsSimulation.PropCategory, collidesWith, 0), recomputeContacts: true);
-            }
-        }
     }
 
     /// <summary>

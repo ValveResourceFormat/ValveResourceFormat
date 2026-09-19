@@ -166,7 +166,7 @@ public sealed class PhysicsSimulation : IDisposable
     /// The shape properties a surface hash dictates: the table's friction, elasticity and density,
     /// and the hash itself riding along as the material id so a contact can find the surface again.
     /// </summary>
-    private ShapeDefinition MakeShapeDefinition(uint surfaceHash, ulong categories)
+    private ShapeDefinition MakeShapeDefinition(uint surfaceHash, ulong categories, ulong collidesWith = ulong.MaxValue)
     {
         var surface = (surfaces?.Find(surfaceHash)) ?? SurfaceProperties.Fallback;
 
@@ -179,7 +179,7 @@ public sealed class PhysicsSimulation : IDisposable
                 Restitution = ToRestitution(surface.Elasticity),
                 UserMaterialId = surfaceHash,
             },
-            Filter = new CollisionFilter(categories, ulong.MaxValue, 0),
+            Filter = new CollisionFilter(categories, collidesWith, 0),
         };
     }
 
@@ -363,17 +363,24 @@ public sealed class PhysicsSimulation : IDisposable
         var body = World.CreateBody(BodyDefinition.Dynamic(position, rotation));
         var shape = phys.Parts[partIndex].Shape;
 
+        // Ragdoll parts never meet the player's pushing body in the solver: a fast overlap with
+        // the kinematic box resolves out its nearest face, which for anything lying on the floor
+        // is the bottom - measured ejecting hands and shins straight through the one-sided mesh
+        // world. The player shoves ragdolls with a horizontal velocity instead, which cannot
+        // press anything into the ground; corpses are debris to a Source player anyway.
+        const ulong collidesWith = ulong.MaxValue & ~PlayerCategory;
+
         foreach (var sphere in shape.Spheres)
         {
             body.AddSphere(new Sphere(sphere.Shape.Center, sphere.Shape.Radius),
-                MakeShapeDefinition(GetSurfaceHash(phys, sphere.SurfacePropertyIndex), PropCategory));
+                MakeShapeDefinition(GetSurfaceHash(phys, sphere.SurfacePropertyIndex), PropCategory, collidesWith));
         }
 
         foreach (var capsule in shape.Capsules)
         {
             var center = capsule.Shape.Center;
             body.AddCapsule(new Capsule(center[0], center[1], capsule.Shape.Radius),
-                MakeShapeDefinition(GetSurfaceHash(phys, capsule.SurfacePropertyIndex), PropCategory));
+                MakeShapeDefinition(GetSurfaceHash(phys, capsule.SurfacePropertyIndex), PropCategory, collidesWith));
         }
 
         foreach (var hullDesc in shape.Hulls)
@@ -383,7 +390,7 @@ public sealed class PhysicsSimulation : IDisposable
                 using (hull)
                 {
                     body.AddHull(hull,
-                        MakeShapeDefinition(GetSurfaceHash(phys, hullDesc.SurfacePropertyIndex), PropCategory));
+                        MakeShapeDefinition(GetSurfaceHash(phys, hullDesc.SurfacePropertyIndex), PropCategory, collidesWith));
                 }
             }
         }
@@ -410,6 +417,47 @@ public sealed class PhysicsSimulation : IDisposable
 
         Register(body, owner);
         return body;
+    }
+
+    // How far in front of the crossed surface a caught body is placed
+    private const float TunnelRescueMargin = 0.25f;
+
+    /// <summary>
+    /// Catches a body whose center crossed a static surface since the last look and puts it back
+    /// on the near side, killing the velocity into the surface. Contact push-out moves positions
+    /// directly, so a small shape squeezed hard - a ragdoll hand under a shove - can be ejected
+    /// straight through the one-sided mesh world with no sweep test ever running; this is the
+    /// sweep, at tick rate. One-sided on purpose: a body climbing back out of geometry crosses
+    /// backfaces, which the ray does not hit, so recovery is never fought.
+    /// </summary>
+    /// <param name="body">The body to check.</param>
+    /// <param name="previousPosition">The body's center as of the last check.</param>
+    public void CatchTunneledBody(Body body, Vector3 previousPosition)
+    {
+        var delta = body.Position - previousPosition;
+
+        if (delta.LengthSquared() < 0.01f)
+        {
+            return;
+        }
+
+        var hit = World.RaycastClosest(previousPosition, delta,
+            new QueryFilter(PropCategory, StaticCategory));
+
+        if (!hit.Hit || Vector3.Dot(hit.Normal, delta) >= 0f)
+        {
+            return;
+        }
+
+        body.SetTransform(hit.Point + hit.Normal * TunnelRescueMargin, null);
+
+        var velocity = body.LinearVelocity;
+        var into = Vector3.Dot(velocity, hit.Normal);
+
+        if (into < 0f)
+        {
+            body.LinearVelocity = velocity - hit.Normal * into;
+        }
     }
 
     /// <summary>

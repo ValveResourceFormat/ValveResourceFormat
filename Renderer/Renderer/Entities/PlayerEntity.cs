@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using Box3D;
 using ValveResourceFormat.Renderer.Input;
 
@@ -68,6 +69,13 @@ public sealed class PlayerEntity : BaseEntity
     // The kinematic body standing where the player stands, so walking into props shoves them
     private Body presenceBody;
     private bool hasPresenceBody;
+
+    // The debris shove: ragdoll parts never meet the pushing body in the solver (a fast overlap
+    // ejects thin parts through the mesh floor), so walking through them applies a horizontal
+    // velocity instead, which cannot press anything into the ground
+    private const float MinShoveSpeed = 20f;
+    private const float MaxShoveSpeed = 350f;
+    private const float ShoveMargin = 2f;
 
     // How long the carried prop has been stuck far from its hold pose; a flick spikes this for a
     // tick or two, a wedged prop keeps it climbing until the carry gives up
@@ -192,6 +200,86 @@ public sealed class PlayerEntity : BaseEntity
         else
         {
             presenceBody.MoveTowards(Origin, Quaternion.Identity, tickInterval, wake: true);
+        }
+
+        ShoveDebris(physics);
+    }
+
+    /// <summary>
+    /// Shoves ragdoll parts the player's hull overlaps with a purely horizontal velocity, away
+    /// from the player at the player's own speed. This replaces solver contact for ragdolls: a
+    /// kinematic box overlapping a part lying on the floor resolves out the box's nearest face,
+    /// which at running speed is the bottom, ejecting the part through the one-sided mesh world.
+    /// A horizontal velocity can never press anything into the ground.
+    /// </summary>
+    private void ShoveDebris(PhysicsSimulation physics)
+    {
+        var horizontalVelocity = Velocity with { Z = 0f };
+        var speed = horizontalVelocity.Length();
+
+        // A still player is not a jitter source for whatever they stand in
+        if (speed < MinShoveSpeed)
+        {
+            return;
+        }
+
+        var halfExtents = Controller.HullHalfExtents + new Vector3(ShoveMargin, ShoveMargin, 0f);
+        var center = Origin + new Vector3(0f, 0f, Controller.HullHalfExtents.Z);
+
+        // Collected first, shoved after: the world is locked while a query runs. Queried as a
+        // prop rather than as the player, whose category the ragdoll shapes filter out.
+        var overlapped = new DebrisOverlap { Physics = physics };
+        physics.World.OverlapBox(center, halfExtents, ref overlapped,
+            new QueryFilter(PhysicsSimulation.PropCategory, PhysicsSimulation.PropCategory));
+
+        var heldBody = Carried?.CarryBody;
+        var pushSpeed = MathF.Min(speed, MaxShoveSpeed);
+
+        foreach (var body in overlapped.Bodies)
+        {
+            // The carried body is the carry's to steer, not the hull's to shove
+            if (body.UserData == heldBody?.UserData)
+            {
+                continue;
+            }
+
+            var direction = (body.Position - center) with { Z = 0f };
+            var distance = direction.Length();
+
+            // Radially away from the player, or along the motion when standing dead centered
+            direction = distance > 0.5f ? direction / distance : horizontalVelocity / speed;
+
+            var current = Vector3.Dot(body.LinearVelocity, direction);
+
+            if (current < pushSpeed)
+            {
+                var pushed = body;
+                pushed.LinearVelocity += direction * (pushSpeed - current);
+                pushed.IsAwake = true;
+            }
+        }
+    }
+
+    private struct DebrisOverlap : IOverlapCallback
+    {
+        public required PhysicsSimulation Physics;
+        public List<Body> Bodies { get; } = [];
+
+        public DebrisOverlap()
+        {
+        }
+
+        public readonly bool OnOverlap(Shape shape)
+        {
+            var body = shape.Body;
+
+            // Only ragdolls: props still collide with the pushing body and need no shove
+            if (Physics.GetOwner(body) is RagdollProp && !Bodies.Contains(body))
+            {
+                Bodies.Add(body);
+            }
+
+            return true;
         }
     }
 
