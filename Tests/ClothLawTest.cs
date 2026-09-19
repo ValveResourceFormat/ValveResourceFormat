@@ -7783,5 +7783,118 @@ namespace Tests
                 ]
             }
             """);
+
+        /// <summary>
+        /// A banded rod between two of one chain's own extruded ring nodes, beside the chain's rigid span on
+        /// the same pair, is that pair's two-member <c>ClothSelfCollisionCluster</c>, and its emitted node
+        /// name carries no <c>$</c>. Both surplus emitters used to gate every rod on both endpoints being
+        /// chain JOINTS, so a ring-ring tie was dropped and its rod lost; and a softbody child whose
+        /// <c>name</c> holds a <c>$</c> - which a name composed from ring names always would - is discarded
+        /// by the compiler with no error at all.
+        /// <para>
+        /// The fixture is the compiled synthetic original of corpus row
+        /// <c>w37wt_probe_ring2_cluster_span</c>: an <c>extrude_sides 2</c> chain whose authored
+        /// <c>ClothSelfCollisionCluster</c> over <c>$cccoattail_1_L_0</c> and <c>$cccoattail_2_L_0</c>
+        /// compiled the 12 to 48 band on that pair. Two controls carry the same band where it is NOT a
+        /// cluster: closed onto the pair's own rest length (an <c>antishrink</c> span), and between the two
+        /// rings of one joint (that joint's own ring rod, which the emitted chain regenerates).
+        /// </para>
+        /// </summary>
+        [Test]
+        public async Task ARingRingClusterTieIsItsTwoMemberClusterUnderANameWithoutADollar()
+        {
+            var tiedModel = SyntheticCloth.Parse(RingClusterTieText);
+            var tied = KVObject.Array();
+            ModelExtract.AddClothChainSurplusRods(tied, tiedModel, tiedModel.BuildBoneChains());
+
+            // CONTROL: the band closed onto the pair's own rest distance, an antishrink span.
+            var restBandModel = SyntheticCloth.Parse(RingClusterTieText.Replace(
+                "{ nNode = [ 2, 4 ] flMaxDist = 48.0 flMinDist = 12.0",
+                "{ nNode = [ 2, 4 ] flMaxDist = 8.503419 flMinDist = 8.4",
+                StringComparison.Ordinal));
+            var restBand = KVObject.Array();
+            ModelExtract.AddClothChainSurplusRods(restBand, restBandModel, restBandModel.BuildBoneChains());
+
+            // CONTROL: the same band between two rings of ONE joint (2 and 3, both from coattail_1_L),
+            // which is that joint's own ring rod and the emitted chain regenerates it.
+            var sameJointModel = SyntheticCloth.Parse(RingClusterTieText.Replace(
+                "{ nNode = [ 2, 4 ] flMaxDist = 48.0 flMinDist = 12.0",
+                "{ nNode = [ 2, 3 ] flMaxDist = 48.0 flMinDist = 12.0",
+                StringComparison.Ordinal));
+            var sameJoint = KVObject.Array();
+            ModelExtract.AddClothChainSurplusRods(sameJoint, sameJointModel, sameJointModel.BuildBoneChains());
+
+            var emitted = tied.Select(static child => child.Value).ToArray();
+
+            static IEnumerable<KVObject> Members(IEnumerable<KVObject> nodes)
+                => nodes.SelectMany(static node => node.GetSubCollection("chain").GetArray("joints")!);
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(emitted.Select(static node => node.GetStringProperty("_class")).ToArray())
+                    .IsEquivalentTo(RingClusterTieClasses, CollectionOrdering.Matching);
+                await Assert.That(emitted.Select(static node => node.GetStringProperty("name")).ToArray())
+                    .IsEquivalentTo(RingClusterTieNames, CollectionOrdering.Matching);
+                await Assert.That(Members(emitted).Select(static joint => joint.GetStringProperty("joint_name")).ToArray())
+                    .IsEquivalentTo(RingClusterTieMembers, CollectionOrdering.Matching);
+                await Assert.That(Members(emitted).Select(static joint => joint.GetFloatProperty("collision_radius")).ToArray())
+                    .IsEquivalentTo(RingClusterTieRadii, CollectionOrdering.Matching);
+                await Assert.That(Members(emitted).Select(static joint => joint.GetFloatProperty("stray_radius")).ToArray())
+                    .IsEquivalentTo(RingClusterTieStrays, CollectionOrdering.Matching);
+
+                await Assert.That(restBand.Count).IsEqualTo(0);
+                await Assert.That(sameJoint.Count).IsEqualTo(0);
+            }
+        }
+
+        private static readonly string[] RingClusterTieClasses = ["ClothSelfCollisionCluster"];
+        private static readonly string[] RingClusterTieNames = ["cluster_cccoattail_1_L_0_cccoattail_2_L_0"];
+        private static readonly string[] RingClusterTieMembers = ["$cccoattail_1_L_0", "$cccoattail_2_L_0"];
+        private static readonly float[] RingClusterTieRadii = [6f, 6f];
+        private static readonly float[] RingClusterTieStrays = [24f, 24f];
+
+        private const string RingClusterTieText = """
+            {
+            m_CtrlName = [ "coattail_0_L", "$cccoattail_0_L_0", "$cccoattail_1_L_0", "$cccoattail_1_L_1", "$cccoattail_2_L_0", "$cccoattail_2_L_1", "$cccoattail_end_L_0", "$cccoattail_end_L_1", "coattail_1_L", "coattail_2_L", "coattail_end_L" ]
+            m_SkelParents = [ -1, 0, 8, 8, 9, 9, 10, 10, 0, 8, 9 ]
+            m_nNodeCount = 11
+            m_nStaticNodes = 2
+            m_NodeInvMasses = [ 0.0, 0.0, 0.002634, 0.003111, 0.002588, 0.003142, 0.005709, 0.005709, 1.0, 1.0, 1.0 ]
+            m_InitPose =
+            [
+                [ -8.915481, 4.000124, 65.447983, 1.0, 0.337553, -0.646323, -0.495776, -0.471731 ],
+                [ -10.723646, 4.561181, 66.092773, 1.0, 0.337553, -0.646323, -0.495776, -0.471731 ],
+                [ -13.473376, 4.824905, 58.146507, 1.0, -0.323373, 0.653533, 0.505948, 0.460804 ],
+                [ -9.917552, 3.709337, 56.693367, 1.0, -0.323373, 0.653533, 0.505948, 0.460804 ],
+                [ -16.587204, 5.195801, 50.242416, 1.0, -0.323943, 0.653251, 0.505547, 0.461245 ],
+                [ -13.028829, 4.079931, 48.795761, 1.0, -0.323943, 0.653251, 0.505547, 0.461245 ],
+                [ -19.686529, 5.562407, 42.336063, 1.0, -0.323943, 0.653251, 0.505547, 0.461245 ],
+                [ -16.128153, 4.446536, 40.889408, 1.0, -0.323943, 0.653251, 0.505547, 0.461245 ],
+                [ -11.695464, 4.267121, 57.419937, 1.0, -0.323373, 0.653533, 0.505948, 0.460804 ],
+                [ -14.808016, 4.637866, 49.519089, 1.0, -0.323943, 0.653251, 0.505547, 0.461245 ],
+                [ -17.907341, 5.004471, 41.612736, 1.0, -0.323943, 0.653251, 0.505547, 0.461245 ],
+            ]
+            m_Rods =
+            [
+                { nNode = [ 0, 2 ] flMaxDist = 8.646747 flMinDist = 8.646747 flWeight0 = 0.0 flRelaxationFactor = 1.0 },
+                { nNode = [ 0, 3 ] flMaxDist = 8.816575 flMinDist = 8.816575 flWeight0 = 0.0 flRelaxationFactor = 1.0 },
+                { nNode = [ 1, 2 ] flMaxDist = 8.412711 flMinDist = 8.412711 flWeight0 = 0.0 flRelaxationFactor = 1.0 },
+                { nNode = [ 1, 3 ] flMaxDist = 9.472289 flMinDist = 9.472289 flWeight0 = 0.0 flRelaxationFactor = 1.0 },
+                { nNode = [ 2, 3 ] flMaxDist = 4.0 flMinDist = 4.0 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
+                { nNode = [ 2, 4 ] flMaxDist = 8.503419 flMinDist = 8.503419 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
+                { nNode = [ 2, 5 ] flMaxDist = 9.390903 flMinDist = 9.390903 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
+                { nNode = [ 3, 4 ] flMaxDist = 9.397265 flMinDist = 9.397265 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
+                { nNode = [ 3, 5 ] flMaxDist = 8.496444 flMinDist = 8.496444 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
+                { nNode = [ 4, 5 ] flMaxDist = 4.000001 flMinDist = 4.000001 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
+                { nNode = [ 4, 6 ] flMaxDist = 8.500037 flMinDist = 8.500037 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
+                { nNode = [ 4, 7 ] flMaxDist = 9.394195 flMinDist = 9.394195 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
+                { nNode = [ 5, 6 ] flMaxDist = 9.394169 flMinDist = 9.394169 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
+                { nNode = [ 5, 7 ] flMaxDist = 8.500037 flMinDist = 8.500037 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
+                { nNode = [ 6, 7 ] flMaxDist = 4.000002 flMinDist = 4.000002 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
+                { nNode = [ 2, 4 ] flMaxDist = 48.0 flMinDist = 12.0 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
+            ]
+            }
+            """;
+
     }
 }
