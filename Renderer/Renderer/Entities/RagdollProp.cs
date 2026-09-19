@@ -10,10 +10,13 @@ namespace ValveResourceFormat.Renderer.Entities;
 /// <see cref="PhysicsSimulation"/>. The rendered skeleton adopts the body poses every frame - the
 /// physics bones directly, everything else riding along on its bind-local offset.
 /// </summary>
-public class RagdollProp : BaseModelEntity
+public class RagdollProp : BaseModelEntity, ICarryable
 {
     /// <inheritdoc/>
     protected override bool UsesMoverBody => false;
+
+    /// <inheritdoc/>
+    protected override bool CreatesPhysDebugNodes => false;
 
     // One body per physics part, and which skeleton bone each drives; -1 for a part whose bone
     // name the render skeleton does not carry
@@ -32,8 +35,17 @@ public class RagdollProp : BaseModelEntity
     // turn); a body pose pushed into the skinning without this correction shreds the mesh
     private Matrix4x4[] partToBone = [];
 
+    // One debug node per part, in part-local space, moved with its body every frame; the bind-posed
+    // statue BaseModelEntity would build cannot follow a ragdoll
+    private SceneNodes.PhysSceneNode?[] partPhysNodes = [];
+
     private Matrix4x4 inverseSpawnTransform = Matrix4x4.Identity;
     private bool simulating;
+
+    // The carry: which part the player grabbed, who is holding it, and how far out it is held
+    private int carriedPart = -1;
+    private PlayerEntity? carrier;
+    private float carryDistance;
 
     /// <summary>
     /// Initializes the ragdoll from its keyvalues.
@@ -71,9 +83,30 @@ public class RagdollProp : BaseModelEntity
         CreateBodies(phys, spawnTransform);
         CreateJoints(phys);
         ResolveBones(phys, modelNode);
+        CreatePartPhysNodes(phys);
 
         simulating = true;
         modelNode.PoseDrivenExternally = true;
+    }
+
+    private void CreatePartPhysNodes(PhysAggregateData phys)
+    {
+        partPhysNodes = new SceneNodes.PhysSceneNode?[phys.Parts.Length];
+
+        for (var i = 0; i < phys.Parts.Length; i++)
+        {
+            if (!hasBody[i])
+            {
+                continue;
+            }
+
+            var node = SceneNodes.PhysSceneNode.CreatePartPhysSceneNode(Scene, phys, i, ModelName, Classname);
+            node.LayerName ??= LayerName;
+            node.EntityInstance = this;
+
+            partPhysNodes[i] = node;
+            Scene.Add(node, dynamic: true);
+        }
     }
 
     private void CreateBodies(PhysAggregateData phys, in Matrix4x4 spawnTransform)
@@ -158,6 +191,118 @@ public class RagdollProp : BaseModelEntity
     }
 
     /// <summary>
+    /// Gets whether the player can grab a part of this ragdoll: only once it actually simulates.
+    /// </summary>
+    public bool CanBeCarried => simulating;
+
+    // The carry holds the one grabbed part by position alone; its orientation and the whole rest
+    // of the ragdoll swing free on the joints, which is what makes a carried ragdoll dangle
+    bool ICarryable.CarriesOrientation => false;
+    Body ICarryable.CarryBody => bodies[carriedPart];
+
+    void ICarryable.BeginCarry(PlayerEntity carrier, float carryDistance, Body grabbedBody)
+    {
+        carriedPart = FindPart(grabbedBody);
+        this.carrier = carrier;
+        this.carryDistance = carryDistance;
+
+        // Gravity off on the grabbed part only: the held part floats where it is steered while
+        // everything hanging off it keeps its full weight
+        var body = bodies[carriedPart];
+        body.GravityScale = 0f;
+        body.CanSleep = false;
+        body.IsAwake = true;
+
+        SetCollidesWithPlayer(false);
+    }
+
+    void ICarryable.EndCarry()
+    {
+        if (carriedPart >= 0 && hasBody[carriedPart])
+        {
+            var body = bodies[carriedPart];
+            body.GravityScale = 1f;
+            body.CanSleep = true;
+            body.IsAwake = true;
+        }
+
+        carriedPart = -1;
+        carrier = null;
+
+        SetCollidesWithPlayer(true);
+    }
+
+    (Vector3 Position, Quaternion Rotation) ICarryable.ComputeHoldPose()
+    {
+        var body = bodies[carriedPart];
+
+        Vector3 eyePosition;
+        Vector3 forward;
+
+        // The camera the frame is drawn with when there is one, exactly as the prop carry does:
+        // view smoothing sits between the input camera and the drawn view
+        if (EntitySystem.RenderCamera is { } camera)
+        {
+            eyePosition = camera.Location;
+            forward = camera.Forward;
+        }
+        else
+        {
+            var controller = carrier!.Controller;
+            eyePosition = controller.EyePosition;
+            forward = controller.ViewForward;
+        }
+
+        var position = eyePosition + forward * carryDistance
+            - Vector3.Transform(body.LocalCenterOfMass, body.Rotation);
+
+        // The body's own rotation as the target leaves no rotation error to steer against
+        return (position, body.Rotation);
+    }
+
+    void ICarryable.AdoptCarryRotation(float fraction)
+    {
+        // Never called: the carry does not steer this ragdoll's orientation
+    }
+
+    private int FindPart(Body grabbedBody)
+    {
+        for (var i = 0; i < bodies.Length; i++)
+        {
+            if (hasBody[i] && bodies[i].UserData == grabbedBody.UserData)
+            {
+                return i;
+            }
+        }
+
+        return Array.IndexOf(hasBody, true);
+    }
+
+    private void SetCollidesWithPlayer(bool collide)
+    {
+        var collidesWith = collide
+            ? ulong.MaxValue
+            : ulong.MaxValue & ~PhysicsSimulation.PlayerCategory;
+
+        // Grabs happen at user rate, so a heap allocation per body beats a stackalloc in a loop
+        for (var i = 0; i < bodies.Length; i++)
+        {
+            if (!hasBody[i])
+            {
+                continue;
+            }
+
+            var shapes = new Shape[bodies[i].ShapeCount];
+            var count = bodies[i].GetShapes(shapes);
+
+            for (var s = 0; s < count; s++)
+            {
+                shapes[s].SetFilter(new CollisionFilter(PhysicsSimulation.PropCategory, collidesWith, 0), recomputeContacts: true);
+            }
+        }
+    }
+
+    /// <summary>
     /// Hands every body of the ragdoll the same velocity, for a spawn that arrives moving.
     /// </summary>
     public void SetVelocity(Vector3 velocity)
@@ -195,6 +340,17 @@ public class RagdollProp : BaseModelEntity
         {
             WriteBonePose(root, Matrix4x4.Identity, pose);
         }
+
+        for (var i = 0; i < partPhysNodes.Length; i++)
+        {
+            if (partPhysNodes[i] is { } node)
+            {
+                var body = bodies[i];
+                node.Transform = Matrix4x4.CreateFromQuaternion(body.Rotation)
+                    * Matrix4x4.CreateTranslation(body.Position);
+                Scene.DynamicOctree.Update(node);
+            }
+        }
     }
 
     private void WriteBonePose(ResourceTypes.ModelAnimation.Bone bone, in Matrix4x4 parentPose, Matrix4x4[] pose)
@@ -228,6 +384,17 @@ public class RagdollProp : BaseModelEntity
     protected override void OnRemove()
     {
         base.OnRemove();
+
+        foreach (var node in partPhysNodes)
+        {
+            if (node != null)
+            {
+                Scene.Remove(node, dynamic: true);
+                node.Delete();
+            }
+        }
+
+        partPhysNodes = [];
 
         foreach (var joint in joints)
         {
