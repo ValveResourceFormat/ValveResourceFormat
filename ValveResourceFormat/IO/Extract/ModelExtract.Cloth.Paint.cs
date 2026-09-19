@@ -279,6 +279,34 @@ partial class ModelExtract
     }
 
     /// <summary>
+    /// The per-vertex collision-layer paints a sheet's compiled masks state, keyed by layer. Each layer is
+    /// its own paint and a vertex painted 0 on layer k compiles with bit k CLEARED in its tree collision
+    /// mask, so a layer is stated only where some vertex of the sheet clears it: without the stream the
+    /// compiler leaves every layer set, which is what an unpainted sheet means.
+    /// </summary>
+    internal static IEnumerable<(int Layer, float[] Painted)> ClothCollisionLayerPaints(FeModel feModel,
+        int[] nodeIndices, int vertexCount)
+    {
+        for (var layer = 0; layer < ClothCollisionLayers; layer++)
+        {
+            var bit = 1 << layer;
+            var painted = new float[vertexCount];
+            var anyCleared = false;
+            for (var v = 0; v < vertexCount; v++)
+            {
+                var set = v >= nodeIndices.Length || (feModel.GetNodeCollisionMask(nodeIndices[v]) & bit) != 0;
+                painted[v] = set ? 1f : 0f;
+                anyCleared |= !set;
+            }
+
+            if (anyCleared)
+            {
+                yield return (layer, painted);
+            }
+        }
+    }
+
+    /// <summary>
     /// Builds the cloth proxy-mesh DMX (the cloth "sheet") from the soft-body <see cref="FeModel"/>.
     /// Vertices are the FeModel surface control nodes (positions = their rest pose), faces come from the
     /// quad/tri surface, each vertex carries a <c>cloth_enable$0</c> paint value (1 = simulated, 0 = pinned)
@@ -385,28 +413,11 @@ partial class ModelExtract
         // Without the stream the compiler gives every vertex 360.
         vertexData.AddIndexedStream("cloth_gravity$0", proxy.Gravity, vertexIndices);
 
-        // The per-vertex collision layers. Each layer is its own paint, and a vertex painted 0 on layer k
-        // compiles with bit k CLEARED in its tree collision mask; without the stream every layer stays set,
-        // so a layer is written only where some vertex of the sheet clears it.
         if (physAggregateData?.FeModel is { } feLayers)
         {
-            for (var layer = 0; layer < ClothCollisionLayers; layer++)
+            foreach (var (layer, painted) in ClothCollisionLayerPaints(feLayers, proxy.NodeIndices, vertexCount))
             {
-                var bit = 1 << layer;
-                var painted = new float[vertexCount];
-                var anyCleared = false;
-                for (var v = 0; v < vertexCount; v++)
-                {
-                    var set = v >= proxy.NodeIndices.Length
-                        || (feLayers.GetNodeCollisionMask(proxy.NodeIndices[v]) & bit) != 0;
-                    painted[v] = set ? 1f : 0f;
-                    anyCleared |= !set;
-                }
-
-                if (anyCleared)
-                {
-                    vertexData.AddIndexedStream($"cloth_collision_layer_{layer}$0", painted, vertexIndices);
-                }
+                vertexData.AddIndexedStream($"cloth_collision_layer_{layer}$0", painted, vertexIndices);
             }
         }
 

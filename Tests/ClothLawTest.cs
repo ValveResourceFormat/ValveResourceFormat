@@ -7957,5 +7957,53 @@ namespace Tests
             }
             """);
 
+        /// <summary>
+        /// A sheet vertex whose compiled tree collision mask has layer k cleared was painted 0 on that layer,
+        /// and the export states it: <c>cloth_collision_layer_k$0</c> carries 0 on that vertex and 1 on the
+        /// rest. Only a layer some vertex clears is stated at all, because an unpainted sheet is what leaves
+        /// every layer set, so a sheet whose masks are all 0xFFFF writes no layer stream - which is the
+        /// CONTROL here and is what the export did for every sheet before this law.
+        /// </summary>
+        [Test]
+        public async Task ASheetStatesTheCollisionLayersItsCompiledMasksClear()
+        {
+            var cleared = ModelExtract.ClothCollisionLayerPaints(SyntheticCloth.Parse(LayerMaskText("65533")),
+                [1, 2, 3], 3).ToList();
+            var whole = ModelExtract.ClothCollisionLayerPaints(SyntheticCloth.Parse(LayerMaskText("65535")),
+                [1, 2, 3], 3).ToList();
+            var lowFour = ModelExtract.ClothCollisionLayerPaints(SyntheticCloth.Parse(LayerMaskText("65520")),
+                [1, 2, 3], 3).ToList();
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(cleared.Count).IsEqualTo(1);
+                await Assert.That(cleared[0].Layer).IsEqualTo(1);
+                await Assert.That(cleared[0].Painted).IsEquivalentTo(ClearedLayerPaint, CollectionOrdering.Matching);
+                await Assert.That(whole.Count).IsEqualTo(0);
+                await Assert.That(lowFour.Select(static paint => paint.Layer).ToArray())
+                    .IsEquivalentTo(LowFourLayers, CollectionOrdering.Matching);
+            }
+        }
+
+        private static readonly float[] ClearedLayerPaint = [0f, 1f, 1f];
+        private static readonly int[] LowFourLayers = [0, 1, 2, 3];
+
+        private static string LayerMaskText(string firstMask) => $$"""
+            {
+                m_CtrlName = [ "root", "$cloth_m0p0", "$cloth_m0p1", "$cloth_m0p2" ]
+                m_nNodeCount = 4
+                m_nStaticNodes = 1
+                m_NodeInvMasses = [ 0.0, 1.0, 1.0, 1.0 ]
+                m_InitPose =
+                [
+                    {{SyntheticCloth.Pose(0f, 0f, 0f)}}
+                    {{SyntheticCloth.Pose(10f, 0f, 0f)}}
+                    {{SyntheticCloth.Pose(20f, 0f, 0f)}}
+                    {{SyntheticCloth.Pose(30f, 0f, 0f)}}
+                ]
+                m_TreeCollisionMasks = [ {{firstMask}}, 65535, 65535, 65535, 65535 ]
+            }
+            """;
+
     }
 }
