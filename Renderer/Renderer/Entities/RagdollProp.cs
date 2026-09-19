@@ -59,17 +59,29 @@ public class RagdollProp : BaseModelEntity, ICarryable
     // outright until the solver's own island sleep closes - the island, not the doll, so a
     // pile of ragdolls goes down together instead of freezing one doll against a moving
     // neighbor. Active motion - falls, throws, swings - sits above the thresholds untouched.
-    private const float DrainLinearSpeed = 15f;
-    private const float DrainAngularSpeed = 5f;
+    // Wide enough to cover the worst measured limit-cycle floor (an HL:A grunt's wrist holds
+    // 18 u/s and 12 rad/s against the ground forever), still far below thrown or falling speeds
+    private const float DrainLinearSpeed = 25f;
+    private const float DrainAngularSpeed = 15f;
     private const float DrainRate = 4f;
+
+    // The extra drain stage once nothing moves beyond a crawl, pushing the chatter floor down
+    private const float DeepRestLinearSpeed = 5f;
+    private const float DeepRestAngularSpeed = 1.5f;
+    private const float DeepDrainRate = 12f;
 
     // The terminal state is still sleep - the solver's island sleep never fires for a pile,
     // where one of dozens of bodies always spikes over its threshold inside the shared timer's
-    // window - but it is forced only at speeds below what an eye can see, which the drain
-    // guarantees every doll in a pile reaches, and reaches together.
-    private const float ForcedSleepLinearSpeed = 2f;
-    private const float ForcedSleepAngularSpeed = 0.4f;
+    // window - but it is judged by what the eye can see: displacement, not velocity. A limit
+    // cycle buzzes a wrist at 2.5 u/s inside a half-unit envelope forever, which no velocity
+    // gate ever passes and no eye ever notices. If no part leaves its anchor by this distance
+    // or angle for the whole window, the doll is visually still and is frozen; a doll creeping
+    // anywhere keeps re-anchoring and stays awake.
+    private const float SleepDriftDistance = 0.75f;
+    private const float SleepDriftDot = 0.99966f; // cos of half of ~3 degrees
     private const float ForcedSleepAfter = 0.75f;
+    private Vector3[] anchorPositions = [];
+    private Quaternion[] anchorRotations = [];
     private float stillTime;
 
     /// <summary>
@@ -141,6 +153,8 @@ public class RagdollProp : BaseModelEntity, ICarryable
         bodies = new Body[phys.Parts.Length];
         hasBody = new bool[phys.Parts.Length];
         previousPositions = new Vector3[phys.Parts.Length];
+        anchorPositions = new Vector3[phys.Parts.Length];
+        anchorRotations = new Quaternion[phys.Parts.Length];
 
         for (var i = 0; i < phys.Parts.Length; i++)
         {
@@ -155,6 +169,8 @@ public class RagdollProp : BaseModelEntity, ICarryable
                 bodies[i] = body;
                 hasBody[i] = true;
                 previousPositions[i] = body.Position;
+                anchorPositions[i] = body.Position;
+                anchorRotations[i] = body.Rotation;
             }
         }
     }
@@ -171,7 +187,8 @@ public class RagdollProp : BaseModelEntity, ICarryable
 
         var anyAwake = false;
         var nearRest = true;
-        var belowSleep = true;
+        var deepRest = true;
+        var visiblyStill = true;
 
         for (var i = 0; i < bodies.Length; i++)
         {
@@ -191,39 +208,71 @@ public class RagdollProp : BaseModelEntity, ICarryable
                 var angularSpeed = bodies[i].AngularVelocity.Length();
 
                 nearRest &= linearSpeed <= DrainLinearSpeed && angularSpeed <= DrainAngularSpeed;
-                belowSleep &= linearSpeed <= ForcedSleepLinearSpeed && angularSpeed <= ForcedSleepAngularSpeed;
+                deepRest &= linearSpeed <= DeepRestLinearSpeed && angularSpeed <= DeepRestAngularSpeed;
+
+                visiblyStill &= Vector3.DistanceSquared(bodies[i].Position, anchorPositions[i])
+                        <= SleepDriftDistance * SleepDriftDistance
+                    && MathF.Abs(Quaternion.Dot(bodies[i].Rotation, anchorRotations[i])) >= SleepDriftDot;
             }
         }
 
         // A held doll never rests, and a sleeping one has nothing to drain
-        if (carriedPart >= 0 || !anyAwake || !nearRest)
+        if (carriedPart >= 0 || !anyAwake)
         {
             stillTime = 0f;
+            ReanchorParts();
             return;
         }
 
-        var drain = MathF.Exp(-DrainRate * tickInterval);
-
-        for (var i = 0; i < bodies.Length; i++)
+        if (nearRest)
         {
-            if (hasBody[i])
-            {
-                var body = bodies[i];
-                body.LinearVelocity *= drain;
-                body.AngularVelocity *= drain;
-            }
-        }
+            var drain = MathF.Exp(-(deepRest ? DeepDrainRate : DrainRate) * tickInterval);
 
-        stillTime = belowSleep ? stillTime + tickInterval : 0f;
-
-        if (stillTime >= ForcedSleepAfter)
-        {
             for (var i = 0; i < bodies.Length; i++)
             {
                 if (hasBody[i])
                 {
-                    bodies[i].IsAwake = false;
+                    var body = bodies[i];
+                    body.LinearVelocity *= drain;
+                    body.AngularVelocity *= drain;
                 }
+            }
+        }
+
+        if (!visiblyStill)
+        {
+            stillTime = 0f;
+            ReanchorParts();
+            return;
+        }
+
+        stillTime += tickInterval;
+
+        if (stillTime >= ForcedSleepAfter)
+        {
+            // Frozen where it visibly already was: the buzz velocities go too, so a later wake
+            // resumes from stillness rather than mid-vibration
+            for (var i = 0; i < bodies.Length; i++)
+            {
+                if (hasBody[i])
+                {
+                    var body = bodies[i];
+                    body.LinearVelocity = Vector3.Zero;
+                    body.AngularVelocity = Vector3.Zero;
+                    body.IsAwake = false;
+                }
+            }
+        }
+    }
+
+    private void ReanchorParts()
+    {
+        for (var i = 0; i < bodies.Length; i++)
+        {
+            if (hasBody[i])
+            {
+                anchorPositions[i] = bodies[i].Position;
+                anchorRotations[i] = bodies[i].Rotation;
             }
         }
     }
