@@ -610,7 +610,7 @@ public sealed partial class MapExtract
 
         if (phys != null)
         {
-            foreach (var hammermesh in PhysToHammerMeshes(phys))
+            foreach (var hammermesh in PhysToHammerMeshes(phys, Matrix4x4.Identity))
             {
                 MapDocument.World.Children.Add(hammermesh);
             }
@@ -1605,7 +1605,7 @@ public sealed partial class MapExtract
         return tint.Count > 3 ? tint.ToVector4() : new Vector4(tint.ToVector3(), 255f);
     }
 
-    internal List<CMapMesh> PhysToHammerMeshes(PhysAggregateData phys, Vector3 positionOffset = new Vector3(), string? entityClassname = null)
+    internal List<CMapMesh> PhysToHammerMeshes(PhysAggregateData phys, Matrix4x4 transform, string? entityClassname = null)
     {
         var cMapMeshesToReturn = new List<CMapMesh>();
 
@@ -1640,7 +1640,7 @@ public sealed partial class MapExtract
             foreach (var hull in shape.Hulls)
             {
                 var hammerMeshBuilder = new HammerMeshBuilder { Untriangulate = true, TextureSizeProvider = GetMaterialTextureSize };
-                hammerMeshBuilder.AddPhysHull(hull, phys, GetAndExportAutoPhysicsMaterialName, positionOffset, materialOverride);
+                hammerMeshBuilder.AddPhysHull(hull, phys, GetAndExportAutoPhysicsMaterialName, transform, materialOverride);
                 var meshData = hammerMeshBuilder.GenerateMesh();
 
                 if (meshData.FaceEdgeIndices.Count == 0)
@@ -1669,7 +1669,7 @@ public sealed partial class MapExtract
             foreach (var mesh in shape.Meshes)
             {
                 var deletedTriangles = PhysTriangleMatcher?.PhysicsMeshes.FirstOrDefault(physicsMesh => physicsMesh.Mesh == mesh)?.DeletedTriangles;
-                physicsMeshBuilder.AddPhysMesh(mesh, phys, GetAndExportAutoPhysicsMaterialName, deletedTriangles, positionOffset, materialOverride);
+                physicsMeshBuilder.AddPhysMesh(mesh, phys, GetAndExportAutoPhysicsMaterialName, deletedTriangles, transform, materialOverride);
             }
 
             if (shape.Meshes.Length > 0)
@@ -2369,7 +2369,7 @@ public sealed partial class MapExtract
                         $"model = {modelName} {className} != {otherClass}");
                 }
 
-                ExtractEntityModel(mapEntity, modelName, worldTransform.Translation);
+                ExtractEntityModel(mapEntity, modelName, worldTransform);
 
                 ReadOnlySpan<char> entityIdFull = Path.GetFileNameWithoutExtension(modelName);
                 var nameCutoff = entityIdFull.Length;
@@ -2424,7 +2424,7 @@ public sealed partial class MapExtract
         return !TemplateChildEntities.Add(hammerUniqueId);
     }
 
-    private void ExtractEntityModel(CMapEntity mapEntity, string modelName, Vector3 offset)
+    private void ExtractEntityModel(CMapEntity mapEntity, string modelName, Matrix4x4 worldTransform)
     {
         using var model = FileLoader.LoadFileCompiled(modelName);
         if (model is null || model.DataBlock is null)
@@ -2448,7 +2448,7 @@ public sealed partial class MapExtract
                 var phys = data.GetEmbeddedPhys();
                 if (phys != null)
                 {
-                    foreach (var hammermesh in PhysToHammerMeshes(phys, offset, associatedEntityClass))
+                    foreach (var hammermesh in PhysToHammerMeshes(phys, worldTransform, associatedEntityClass))
                     {
                         mapEntity.Children.Add(hammermesh);
                     }
@@ -2456,7 +2456,7 @@ public sealed partial class MapExtract
             }
             else
             {
-                foreach (var hammermesh in RenderMeshToHammerMesh(data, model, associatedEntityClass, Matrix4x4.CreateTranslation(offset)))
+                foreach (var hammermesh in RenderMeshToHammerMesh(data, model, associatedEntityClass, worldTransform))
                 {
                     mapEntity.Children.Add(hammermesh);
                 }

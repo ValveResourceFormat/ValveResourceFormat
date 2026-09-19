@@ -195,7 +195,7 @@ namespace ValveResourceFormat.IO
     /// 
     /// <remarks>
     /// <para>
-    /// Add vertices with <see cref="AddVertices"/> and faces with <see cref="AddFace"/> (or use one of the adders for
+    /// Add vertices with <see cref="AddVertices(ReadOnlySpan{Vector3})"/> and faces with <see cref="AddFace"/> (or use one of the adders for
     /// render and physics meshes), then write the result with <see cref="GenerateMesh"/>.
     ///
     /// There are options for features such as <see cref="Untriangulate"/> to join
@@ -505,20 +505,24 @@ namespace ValveResourceFormat.IO
         /// the returned base index when several source meshes are added to one builder.
         /// </summary>
         /// <param name="positions">Vertex positions.</param>
-        /// <param name="positionOffset">Offset added to every position.</param>
         /// <returns>Index of the first added vertex, to add to the indices handed to <see cref="AddFace"/>.</returns>
-        public int AddVertices(ReadOnlySpan<Vector3> positions, Vector3 positionOffset = new Vector3())
+        public int AddVertices(ReadOnlySpan<Vector3> positions) => AddVertices(positions, Matrix4x4.Identity);
+
+        /// <inheritdoc cref="AddVertices(ReadOnlySpan{Vector3})"/>
+        /// <param name="positions">Vertex positions.</param>
+        /// <param name="transform">Transform applied to every position.</param>
+        public int AddVertices(ReadOnlySpan<Vector3> positions, Matrix4x4 transform)
         {
             var baseVertex = Vertices.Count;
 
             var hVertices = Mesh.AddVertices(positions);
             Vertices.AddRange(hVertices);
 
-            if (positionOffset != Vector3.Zero)
+            if (!transform.IsIdentity)
             {
                 foreach (var hVertex in hVertices)
                 {
-                    Mesh.Positions[hVertex] += positionOffset;
+                    Mesh.Positions[hVertex] = Vector3.Transform(Mesh.Positions[hVertex], transform);
                 }
             }
 
@@ -717,9 +721,9 @@ namespace ValveResourceFormat.IO
         /// <param name="desc">Hull to add.</param>
         /// <param name="phys">Physics data the hull belongs to, read for its collision attributes.</param>
         /// <param name="materialNameProvider">Maps a surface property to the material to use.</param>
-        /// <param name="positionOffset">Offset added to every position.</param>
+        /// <param name="transform">Transform applied to every position.</param>
         /// <param name="materialOverride">Material to use instead of the one the surface property picks.</param>
-        public void AddPhysHull(HullDescriptor desc, PhysAggregateData phys, Func<string, string> materialNameProvider, Vector3 positionOffset = new Vector3(), string? materialOverride = null)
+        public void AddPhysHull(HullDescriptor desc, PhysAggregateData phys, Func<string, string> materialNameProvider, Matrix4x4 transform, string? materialOverride = null)
         {
             var attributes = phys.CollisionAttributes[desc.CollisionAttributeIndex];
             var tags = PhysAggregateData.GetInteractAsTags(attributes);
@@ -735,7 +739,7 @@ namespace ValveResourceFormat.IO
             }
 
             var hull = desc.Shape;
-            var baseVertex = AddVertices(hull.GetVertexPositions(), positionOffset);
+            var baseVertex = AddVertices(hull.GetVertexPositions(), transform);
 
             var hullFaces = hull.GetFaces();
             var hullEdges = hull.GetEdges();
@@ -768,10 +772,10 @@ namespace ValveResourceFormat.IO
         /// <param name="phys">Physics data the mesh belongs to, read for its collision attributes.</param>
         /// <param name="materialNameProvider">Maps a surface property to the material to use.</param>
         /// <param name="deletedTriangles">Triangles to leave out, by index, usually the ones render geometry already covers.</param>
-        /// <param name="positionOffset">Offset added to every position.</param>
+        /// <param name="transform">Transform applied to every position.</param>
         /// <param name="materialOverride">Material to use instead of the one the surface property picks.</param>
-        public void AddPhysMesh(MeshDescriptor desc, PhysAggregateData phys, Func<string, string> materialNameProvider, IReadOnlySet<int>? deletedTriangles = null,
-            Vector3 positionOffset = new Vector3(), string? materialOverride = null)
+        public void AddPhysMesh(MeshDescriptor desc, PhysAggregateData phys, Func<string, string> materialNameProvider, IReadOnlySet<int>? deletedTriangles,
+            Matrix4x4 transform, string? materialOverride = null)
         {
             var attributes = phys.CollisionAttributes[desc.CollisionAttributeIndex];
             var tags = PhysAggregateData.GetInteractAsTags(attributes);
@@ -812,7 +816,7 @@ namespace ValveResourceFormat.IO
             }
 
             var newMesh = ReindexTriangleMesh(mesh.GetVertices(), keptTriangles.ToArray(), 0, keptTriangles.Count);
-            var baseVertex = AddVertices(CollectionsMarshal.AsSpan(newMesh.NewVertices), positionOffset);
+            var baseVertex = AddVertices(CollectionsMarshal.AsSpan(newMesh.NewVertices), transform);
 
             Span<int> inds = stackalloc int[3];
 
