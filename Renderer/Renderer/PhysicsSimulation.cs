@@ -422,6 +422,18 @@ public sealed class PhysicsSimulation : IDisposable
             with
         { CollideConnected = joint.EnableCollision };
 
+        // Only override the solver's own constraint stiffness when the harness asks: zero hertz
+        // is not "rigid" but an unconstrained spring, and stomping the default with it lets the
+        // limbs stretch apart
+        if (RagdollConstraintHertz > 0f)
+        {
+            baseDefinition = baseDefinition with
+            {
+                ConstraintHertz = RagdollConstraintHertz,
+                ConstraintDampingRatio = RagdollConstraintDamping,
+            };
+        }
+
         var withFriction = joint.HasFriction && joint.Friction > 0f;
 
         switch (joint.Type)
@@ -473,6 +485,15 @@ public sealed class PhysicsSimulation : IDisposable
     // it into the resisting torque of the zero-velocity motor, sized against limb masses in
     // kilograms so a ragdoll settles rather than swinging like pendulums
     private const float RagdollFrictionTorque = 100f;
+
+    /// <summary>
+    /// How stiffly ragdoll joints hold, as the solver's constraint softness: zero hertz is the
+    /// rigid path, where limbs never stretch. Mutable so the stability harness can sweep it.
+    /// </summary>
+    public static float RagdollConstraintHertz { get; set; }
+
+    /// <summary>Damping ratio for <see cref="RagdollConstraintHertz"/> when it is soft.</summary>
+    public static float RagdollConstraintDamping { get; set; }
 
     /// <summary>
     /// Creates the kinematic body mirroring a solid entity's collision - a door, or one of the
