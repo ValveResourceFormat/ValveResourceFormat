@@ -270,11 +270,13 @@ partial class ModelExtract
 
         var version = ClothChainVersion(feModel, chain, hasOtherChains);
 
+        var chainMass = feModel.RecoverChainMassDefault(chain);
+
         var joints = KVObject.Array();
         foreach (var joint in walk ?? chain.Joints)
         {
             var jointNode = MakeClothJoint(feModel, joint, chainExtrudes: chain.ExtrudeSides >= 1, softHinge, version,
-                rollTies: relandedJoints?.Contains(joint.Name) != true, chain: chain);
+                rollTies: relandedJoints?.Contains(joint.Name) != true, chain: chain, chainMass: chainMass);
 
             // A rigid hinge is the one shape whose sibling set the chain reconstruction cannot read a
             // value off, so it keeps the flat 1.0 it has always been given.
@@ -291,7 +293,8 @@ partial class ModelExtract
 
         var chainData = KVObject.Collection();
         chainData.Add("joints", joints);
-        chainData.Add("attrs", MakeClothChainAttrs(chain.ExtrudeSides, chain.ExtrudeRadius, chain.ExtrudeTwist));
+        chainData.Add("attrs", MakeClothChainAttrs(chain.ExtrudeSides, chain.ExtrudeRadius, chain.ExtrudeTwist,
+            chainMass));
         chainData.Add("selection", KVObject.Array());
 
         chainData.Add("version", version);
@@ -449,7 +452,7 @@ partial class ModelExtract
 
     internal static KVObject MakeClothJoint(FeModel feModel, FeModel.BoneChainJoint joint, bool chainExtrudes = false,
         bool softHinge = false, int chainVersion = 2, bool rollTies = true, FeModel.BoneChain? chain = null,
-        bool secondDeclaration = false)
+        bool secondDeclaration = false, float chainMass = 1f)
     {
         var kv = KVObject.Collection();
         kv.Add("joint_name", joint.Name);
@@ -573,7 +576,7 @@ partial class ModelExtract
         kv.Add("stray_radius_stretchiness", feModel.GetStrayStretchiness(strayNode));
         kv.Add("friction", feModel.GetNodeFriction(joint.Node));
 
-        if (feModel.RecoverJointMassMultiplier(joint.Node) is { } massMultiplier)
+        if (feModel.RecoverJointMass(joint.Node, chainMass) is { } massMultiplier)
         {
             kv.Add("mass", massMultiplier);
         }
@@ -694,7 +697,8 @@ partial class ModelExtract
     // The cloth-chain joint datatable schema: per-column UI metadata and defaults, matching the editable
     // ModelDoc source the tools produce. The compiler takes the "default" value of any joint field the
     // joint rows above do not write.
-    internal static KVObject MakeClothChainAttrs(int extrudeSides = 0, float extrudeRadius = 0f, float extrudeTwist = 0f)
+    internal static KVObject MakeClothChainAttrs(int extrudeSides = 0, float extrudeRadius = 0f,
+        float extrudeTwist = 0f, float mass = 1f)
     {
         var attrs = KVObject.Collection();
 
@@ -758,7 +762,10 @@ partial class ModelExtract
         FloatAttr("goal_strength", "Goal Strength", true, 12, 0.0f, 0.0f, 1.0f);
         FloatAttr("goal_damping", "Goal Damping", true, 13, 0.0f, 0.0f, 1.0f);
         FloatAttr("drag", "Extra Drag", false, 14, 0.0f, 0.0f, 1.0f);
-        FloatAttr("mass", "Mass", false, 15, 1.0f, 0.0f);
+        // The compiler takes this default for every joint row that omits the key, and 02_IMPORT 3.3 zeroes
+        // flMassMultiplier on a node that does not simulate, so it is read on exactly the chain's
+        // simulating joints. It states the multiplier most of them carry; the rest state their own.
+        FloatAttr("mass", "Mass", false, 15, mass, 0.0f);
         FloatAttr("gravity_z", "Gravity", true, 16, 1.0f);
         FloatAttr("collision_radius", "Collision Radius", true, 17, 0.0f, 0.0f);
         BoolAttr("lock_translation", "Lock Translation", false, 18, false);

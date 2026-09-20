@@ -2251,9 +2251,11 @@ namespace Tests
 
             using (Assert.Multiple())
             {
-                await Assert.That(feModel.RecoverJointMassMultiplier(13)).IsNull();
-                await Assert.That(feModel.RecoverJointMassMultiplier(14)).IsNull();
-                await Assert.That(feModel.RecoverJointMassMultiplier(15)).IsNull();
+                foreach (var joint in (int[])[13, 14, 15])
+                {
+                    await Assert.That(feModel.RecoverJointMassMultiplier(joint)!.Value).IsEqualTo(1f).Within(1e-3f);
+                    await Assert.That(feModel.RecoverJointMass(joint, 1f)).IsNull();
+                }
             }
         }
 
@@ -8902,6 +8904,104 @@ namespace Tests
                 await Assert.That(Shape(Padded(evenCorners))).IsEqualTo("0123 0123");
                 await Assert.That(Shape(Padded(faceless))).IsEqualTo(string.Empty);
                 await Assert.That(Shape(Padded(twoPins))).IsEqualTo("0123");
+            }
+        }
+
+        /// <summary>
+        /// A chain states as its <c>attrs</c> <c>mass</c> default the multiplier most of its simulating
+        /// joints carry, and only the joints that carry a different one state the key themselves. The
+        /// multiplier is read over the rod mass pass even on a cloth that also carries a proxy sheet,
+        /// which is the case the per-NODE reader declines. CONTROLS: a chain no value is shared by more
+        /// than half of states the schema's own 1 and every joint states its own, and a static joint
+        /// contributes no reading either way.
+        /// </summary>
+        /// <remarks>
+        /// READ 2026-09-20: `sub_1818DA270` reads <c>mass</c> through `sub_1818E12D0` into `auth+76`, and
+        /// that getter has no built-in default - on a miss it falls back to the document's own
+        /// <c>attrs["mass"]["default"]</c> (02_IMPORT 5.1d). 3.3's converter then takes `auth+76` only
+        /// under `auth+48`, so the default reaches exactly the joints that omit the key AND simulate.
+        /// MEASURED on dl `bookworm`, which omits <c>mass</c> on all 101 of its joints: the nodes whose
+        /// inverse mass differs from the original go from 69 to 3, with no node made worse and no new
+        /// difference, and `m_NodeInvMasses` leaves the row's defect key set.
+        /// The refusal the reading widens is correct for a sheet VERTEX, whose own element term cannot be
+        /// told from the rod pass, and over-broad for a chain JOINT's bone node, whose whole term is its
+        /// rods: 68 of bookworm's 70 simulating joint nodes recover their authored value exactly.
+        /// </remarks>
+        [Test]
+        public async Task AChainStatesTheMassMostOfItsJointsCarry()
+        {
+            // Four joints hanging off a static root on rods of length 3, which credit each end 8 per unit,
+            // so an interior node weighs 48 and the tip 24 before the multiplier squares into it. The
+            // sheet vertex carries no rod and is there only to make the cloth one with a proxy sheet.
+            static FeModel Sheeted(params float[] multipliers) => Chain(true, multipliers);
+
+            static FeModel Chain(bool sheet, params float[] multipliers) => SyntheticCloth.Parse($$"""
+                {
+                    m_CtrlName = [ "root", "j1", "j2", "j3", "j4", {{(sheet ? "\"$cloth_m0p0\"" : "\"spare\"")}} ]
+                    m_SkelParents = [ -1, 0, 1, 2, 3, -1 ]
+                    m_nNodeCount = 6
+                    m_nStaticNodes = 1
+                    m_NodeInvMasses = [ 0.0, {{string.Join(", ", multipliers.Select((m, i) =>
+                        (1f / ((i == multipliers.Length - 1 ? 24f : 48f) * m * m))
+                            .ToString("R", System.Globalization.CultureInfo.InvariantCulture)))}}, 0.5 ]
+                    m_InitPose =
+                    [
+                        {{SyntheticCloth.Pose(0f, 0f, 0f)}}
+                        {{SyntheticCloth.Pose(3f, 0f, 0f)}}
+                        {{SyntheticCloth.Pose(6f, 0f, 0f)}}
+                        {{SyntheticCloth.Pose(9f, 0f, 0f)}}
+                        {{SyntheticCloth.Pose(12f, 0f, 0f)}}
+                        {{SyntheticCloth.Pose(0f, 20f, 0f)}}
+                    ]
+                    m_Rods =
+                    [
+                        {{SyntheticCloth.RigidRod(0, 1, 3f, 1f)}}
+                        {{SyntheticCloth.RigidRod(1, 2, 3f, 1f)}}
+                        {{SyntheticCloth.RigidRod(2, 3, 3f, 1f)}}
+                        {{SyntheticCloth.RigidRod(3, 4, 3f, 1f)}}
+                    ]
+                }
+                """);
+
+            static float Default(FeModel feModel)
+                => feModel.RecoverChainMassDefault(feModel.BuildBoneChains()[0]);
+
+            // The joints whose own row has to state the key, by name, against the chain's own default.
+            static string Stated(FeModel feModel)
+            {
+                var chain = feModel.BuildBoneChains()[0];
+                var chainDefault = feModel.RecoverChainMassDefault(chain);
+                return string.Join(" ", chain.Joints
+                    .Where(joint => feModel.RecoverJointMass(joint.Node, chainDefault) is not null)
+                    .Select(joint => joint.Name));
+            }
+
+            using (Assert.Multiple())
+            {
+                // THE LAW, over three multipliers spanning the key's range. Every joint agrees, so the
+                // chain states the value and no joint row repeats it.
+                await Assert.That(Default(Sheeted(0.5f, 0.5f, 0.5f, 0.5f))).IsEqualTo(0.5f).Within(1e-3f);
+                await Assert.That(Default(Sheeted(1f, 1f, 1f, 1f))).IsEqualTo(1f).Within(1e-3f);
+                await Assert.That(Default(Sheeted(2f, 2f, 2f, 2f))).IsEqualTo(2f).Within(1e-3f);
+                await Assert.That(Stated(Sheeted(0.5f, 0.5f, 0.5f, 0.5f))).IsEqualTo(string.Empty);
+                await Assert.That(Stated(Sheeted(2f, 2f, 2f, 2f))).IsEqualTo(string.Empty);
+
+                // A MAJORITY, which is dl `bookworm`'s `hair` shape: the odd joint out states its own key
+                // and the other three read the chain's.
+                await Assert.That(Default(Sheeted(0.5f, 0.5f, 0.5f, 2f))).IsEqualTo(0.5f).Within(1e-3f);
+                await Assert.That(Stated(Sheeted(0.5f, 0.5f, 0.5f, 2f))).IsEqualTo("j4");
+
+                // CONTROL: an even split shares no value with more than half the chain, so the chain
+                // states the schema's own 1 and every joint states its own.
+                await Assert.That(Default(Sheeted(0.5f, 0.5f, 2f, 2f))).IsEqualTo(1f).Within(1e-3f);
+                await Assert.That(Stated(Sheeted(0.5f, 0.5f, 2f, 2f))).IsEqualTo("j1 j2 j3 j4");
+
+                // CONTROL: the same chain WITHOUT a proxy sheet reads the same value. The widening adds
+                // the sheeted case and leaves the case the node reader already handled exactly as it was.
+                await Assert.That(Default(Chain(false, 0.5f, 0.5f, 0.5f, 0.5f))).IsEqualTo(0.5f).Within(1e-3f);
+
+                // CONTROL: a static node carries no reading, so the root contributes none.
+                await Assert.That(Sheeted(1f, 1f, 1f, 1f).RecoverJointMassMultiplier(0)).IsNull();
             }
         }
 

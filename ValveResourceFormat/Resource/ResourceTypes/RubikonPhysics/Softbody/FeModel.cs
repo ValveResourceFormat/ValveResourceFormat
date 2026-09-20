@@ -2271,9 +2271,9 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
 
         /// <summary>
         /// Recovers the authored <c>mass</c> of a chain joint from the joint's own node and the ring nodes
-        /// the compiler extrudes from it, which take the joint's multiplier. Null when it is the default 1,
-        /// when no node of the joint can be read, or when the nodes that can disagree. Under explicit masses
-        /// the value is the nodes' own mass rather than a multiplier over the geometric term.
+        /// the compiler extrudes from it, which take the joint's multiplier. Null when no node of the joint
+        /// can be read or when the nodes that can disagree. Under explicit masses the value is the nodes'
+        /// own mass rather than a multiplier over the geometric term.
         /// </summary>
         public float? RecoverJointMassMultiplier(int joint)
         {
@@ -2285,7 +2285,8 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                     continue;
                 }
 
-                if ((HasExplicitMasses ? ExplicitMassOf(node) : MassMultiplierOf(node)) is not { } nodeMultiplier)
+                if ((HasExplicitMasses ? ExplicitMassOf(node) : ChainMassMultiplierOf(node))
+                    is not { } nodeMultiplier)
                 {
                     return null;
                 }
@@ -2298,7 +2299,85 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                 multiplier ??= nodeMultiplier;
             }
 
-            return multiplier is { } value && MathF.Abs(value - 1f) > MassMultiplierTolerance ? value : null;
+            return multiplier;
+        }
+
+        /// <summary>
+        /// The <c>mass</c> a chain joint's own row has to state, or null where the chain's
+        /// <paramref name="chainDefault"/> already states it and the row may omit the key.
+        /// </summary>
+        public float? RecoverJointMass(int joint, float chainDefault)
+            => RecoverJointMassMultiplier(joint) is { } value
+                && MathF.Abs(value - chainDefault) > MassMultiplierTolerance * chainDefault
+                ? value
+                : null;
+
+        /// <summary>
+        /// The <c>mass</c> a chain's <c>attrs</c> table states as its default, which the compiler reads for
+        /// every joint row that omits the key. It is the multiplier MOST of the chain's readable joints
+        /// carry; where no value is shared by more than half of them the chain states the schema's own 1
+        /// and every joint states its own.
+        /// </summary>
+        public float RecoverChainMassDefault(BoneChain chain)
+        {
+            var readings = new List<float>();
+            foreach (var joint in chain.Joints)
+            {
+                if (RecoverJointMassMultiplier(joint.Node) is { } value)
+                {
+                    readings.Add(value);
+                }
+            }
+
+            var common = 1f;
+            var best = 0;
+            foreach (var candidate in readings)
+            {
+                var shared = 0;
+                foreach (var value in readings)
+                {
+                    if (MathF.Abs(value - candidate) <= MassMultiplierTolerance * candidate)
+                    {
+                        shared++;
+                    }
+                }
+
+                if (shared > best)
+                {
+                    (best, common) = (shared, candidate);
+                }
+            }
+
+            return best * 2 > readings.Count ? common : 1f;
+        }
+
+        /// <summary>
+        /// The mass multiplier a CHAIN JOINT's node carries. A joint's node is a bone node whose whole
+        /// geometric term is the rods that weighed it, so the rod pass reads it exactly even on a cloth
+        /// that also carries a proxy sheet - the case <see cref="MassMultiplierOf"/> declines, because a
+        /// sheet VERTEX's own element term cannot be told from the pass there.
+        /// </summary>
+        float? ChainMassMultiplierOf(int node)
+        {
+            if (node < 0 || node >= NodeInvMasses.Length)
+            {
+                return null;
+            }
+
+            var invMass = NodeInvMasses[node];
+            if (invMass <= 0f || invMass == 1f)
+            {
+                return null;
+            }
+
+            var geometric = RodEndpoints.Contains(node) ? RodMassPass : GeometricMasses;
+            if (node >= geometric.Length || geometric[node] <= 0f)
+            {
+                return null;
+            }
+
+            var ratio = 1f / invMass / geometric[node];
+            return ratio > 0f ? MathF.Sqrt(ratio) : null;
         }
 
         float? MassMultiplierOf(int node)
