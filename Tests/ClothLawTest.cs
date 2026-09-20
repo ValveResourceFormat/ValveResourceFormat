@@ -8796,5 +8796,64 @@ namespace Tests
                 await Assert.That(Numbers(chain.GetSubCollection("attrs"))).IsEquivalentTo(expectedNumbers);
             }
         }
+
+        /// <summary>
+        /// A chain ROOT several children hang off states its <c>extra_iterations</c> through its
+        /// <c>child_sibling_spring</c> rods, which no other construct lands on.
+        /// </summary>
+        /// <remarks>
+        /// The compiler builds one sibling rod per unordered pair of a joint's children FROM THAT
+        /// JOINT'S OWN call site, carrying the joint's own <c>extra_iterations</c> (02_IMPORT 5.1g), and
+        /// the CRod transfer writes each rod <c>1 + extra_iterations</c> times. A root has no upward span
+        /// of its own, and each child's span down to it is built by that CHILD and carries the child's
+        /// multiplier, so <c>JointCopies</c>' single-child fallback cannot stand in for a root with
+        /// several. dl <c>bookworm_bikini</c> is the shape: its <c>hair</c> joint has seven children and
+        /// the authored file states <c>extra_iterations = 16</c>, which is the seventeen copies its
+        /// sibling pairs ship.
+        /// This is NOT W38-R1's refuted predicate: that one compared a joint's SPAN count against its own
+        /// RING count, which a suspender companion or a floor surplus also moves. A child-to-child pair
+        /// carries no suspender, no ring rod and no chain span.
+        /// CONTROLS: sibling pairs at a single copy state nothing, and one pair a second construct also
+        /// declares does not lift the reading off the floor the others agree on.
+        /// </remarks>
+        [Test]
+        public async Task ARootReadsItsIterationsFromItsChildrensSiblingRods()
+        {
+            static FeModel Fan(int copies, int extraOnOnePair) => SyntheticCloth.Parse($$"""
+                {
+                    m_CtrlName = [ "root", "c1", "c2", "c3" ]
+                    m_SkelParents = [ -1, 0, 0, 0 ]
+                    m_nNodeCount = 4
+                    m_nStaticNodes = 1
+                    m_NodeInvMasses = [ 0.0, 1.0, 1.0, 1.0 ]
+                    m_InitPose =
+                    [
+                        {{SyntheticCloth.Pose(0f, 0f, 0f)}}
+                        {{SyntheticCloth.Pose(-10f, 0f, -10f)}}
+                        {{SyntheticCloth.Pose(0f, 0f, -10f)}}
+                        {{SyntheticCloth.Pose(10f, 0f, -10f)}}
+                    ]
+                    m_Rods =
+                    [
+                        {{SyntheticCloth.RigidRod(0, 1, 14.142136f, 1f)}}
+                        {{SyntheticCloth.RigidRod(0, 2, 10f, 1f)}}
+                        {{SyntheticCloth.RigidRod(0, 3, 14.142136f, 1f)}}
+                        {{string.Concat(Enumerable.Repeat(SyntheticCloth.RigidRod(1, 2, 10f, 0.5f), copies))}}
+                        {{string.Concat(Enumerable.Repeat(SyntheticCloth.RigidRod(1, 3, 20f, 0.5f), copies + extraOnOnePair))}}
+                        {{string.Concat(Enumerable.Repeat(SyntheticCloth.RigidRod(2, 3, 10f, 0.5f), copies))}}
+                    ]
+                }
+                """);
+
+            static int Iterations(FeModel feModel)
+                => feModel.BuildBoneChains()[0].Joints.Find(static joint => joint.Name == "root")!.ExtraIterations;
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(Iterations(Fan(3, 0))).IsEqualTo(2);
+                await Assert.That(Iterations(Fan(1, 0))).IsEqualTo(0);
+                await Assert.That(Iterations(Fan(3, 1))).IsEqualTo(2);
+            }
+        }
     }
 }

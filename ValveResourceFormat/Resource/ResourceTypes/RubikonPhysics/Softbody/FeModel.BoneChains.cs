@@ -2477,7 +2477,53 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                         }
                     }
 
+                    // A root SEVERAL children hang off has no unambiguous span either way - each child's
+                    // span down to it is built by that CHILD's declaration and carries the child's own
+                    // multiplier. Its `child_sibling_spring` rods do not: the compiler builds one per
+                    // unordered pair of the joint's children from the JOINT's own call site, with the
+                    // joint's own `extra_iterations` (02_IMPORT 5.1g), so a sibling pair's copy count is
+                    // this joint's multiplier and nothing else's. The count every pair of them shares is
+                    // the reading, since a second construct declaring one of the pairs adds to that pair
+                    // alone - the same floor the `floor` parameter above applies to the spans.
+                    // `joint.ChildSiblingSpring` is not assigned until after this pass, so the spring is
+                    // read here rather than off the field.
+                    if (copies == 0 && ChildSiblingValue(joint) != 0f)
+                    {
+                        copies = SiblingCopies(joint);
+                    }
+
                     return Math.Max(copies, 1);
+                }
+
+                // The copy count every CHILD-SIBLING pair of the joint carries, or 0 where fewer than two
+                // of its children are joined at all. Read as the minimum rather than a uniform count,
+                // because one pair the children are ALSO joined by for some other reason carries that
+                // rod beside the spring's copies.
+                int SiblingCopies(BoneChainJoint joint)
+                {
+                    var kids = chain.Joints.FindAll(kid => kid.ParentNode == joint.Node);
+                    var common = 0;
+                    for (var i = 0; i < kids.Count; i++)
+                    {
+                        for (var j = 0; j < i; j++)
+                        {
+                            foreach (var a in Side(kids[j].Node))
+                            {
+                                foreach (var b in Side(kids[i].Node))
+                                {
+                                    if (!repeatRodRelaxationsByPair.TryGetValue(a < b ? (a, b) : (b, a),
+                                        out var repeat))
+                                    {
+                                        continue;
+                                    }
+
+                                    common = common == 0 ? repeat.Count : Math.Min(common, repeat.Count);
+                                }
+                            }
+                        }
+                    }
+
+                    return common;
                 }
 
                 // Every upward pair this joint generates must carry EXACTLY baseCopies rods at
