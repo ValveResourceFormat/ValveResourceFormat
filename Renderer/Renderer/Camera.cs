@@ -64,6 +64,12 @@ namespace ValveResourceFormat.Renderer
         public Matrix4x4 ViewProjectionMatrix { get; private set; }
 
         /// <summary>
+        /// Turns a quad in the view plane to face the camera: the rotation half of
+        /// <see cref="CameraViewMatrix"/>, inverted.
+        /// </summary>
+        public Matrix4x4 BillboardMatrix { get; private set; }
+
+        /// <summary>
         /// Frustum derived from the current view-projection matrix, used for culling.
         /// </summary>
         public Frustum ViewFrustum { get; } = new Frustum();
@@ -101,6 +107,13 @@ namespace ValveResourceFormat.Renderer
 
             CameraViewMatrix = Matrix4x4.CreateLookAt(location, location + Forward, Up);
             ViewProjectionMatrix = CameraViewMatrix * ProjectionMatrix;
+
+            // The view is a rotation and a translation, so inverting its rotation is transposing it
+            BillboardMatrix = new Matrix4x4(
+                CameraViewMatrix.M11, CameraViewMatrix.M21, CameraViewMatrix.M31, 0f,
+                CameraViewMatrix.M12, CameraViewMatrix.M22, CameraViewMatrix.M32, 0f,
+                CameraViewMatrix.M13, CameraViewMatrix.M23, CameraViewMatrix.M33, 0f,
+                0f, 0f, 0f, 1f);
             ViewFrustum.Update(ViewProjectionMatrix);
         }
 

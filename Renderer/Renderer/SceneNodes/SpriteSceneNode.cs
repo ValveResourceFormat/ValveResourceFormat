@@ -81,17 +81,8 @@ namespace ValveResourceFormat.Renderer.SceneNodes
 
             VertexArray.Bind(vao, renderShader);
 
-            // Create billboarding rotation (always facing camera)
-            if (!Matrix4x4.Decompose(context.Camera.CameraViewMatrix, out _, out var modelViewRotation, out _))
-            {
-                throw new InvalidOperationException("Matrix decompose failed");
-            }
-
-            modelViewRotation = Quaternion.Inverse(modelViewRotation);
-            var billboardMatrix = Matrix4x4.CreateFromQuaternion(modelViewRotation);
-
             var transform = Matrix4x4.CreateScale(spriteSize)
-                * billboardMatrix
+                * context.Camera.BillboardMatrix
                 * Matrix4x4.CreateTranslation(Transform.Translation);
             renderShader.SetUniform3x4("transform", transform);
 

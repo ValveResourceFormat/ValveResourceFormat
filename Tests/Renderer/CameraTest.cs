@@ -276,6 +276,42 @@ namespace Tests.Renderer
             await Assert.That(cross.Z).IsEqualTo(camera.Right.Z).Within(Tolerance).Because($"right is Cross(forward, up), Z, for {context}");
         }
 
+        /// <summary>
+        /// The billboard matrix turns a quad in the view plane to face the camera, which is the rotation
+        /// half of the view matrix inverted. Transposing that block is the same thing, so pin the two
+        /// against each other for every angle, the straight up and down ones included.
+        /// </summary>
+        [Test]
+        public async Task BillboardMatrixInvertsTheViewRotation()
+        {
+            foreach (var angles in Angles)
+            {
+                var camera = MakeCamera(angles);
+                camera.RecalculateMatrices();
+
+                var decomposed = Matrix4x4.Decompose(camera.CameraViewMatrix, out _, out var viewRotation, out _);
+
+                await Assert.That(decomposed).IsTrue().Because($"the view is decomposable for {angles}");
+
+                var expected = Matrix4x4.CreateFromQuaternion(Quaternion.Inverse(viewRotation));
+                var actual = camera.BillboardMatrix;
+
+                await AssertMatrixClose(actual, expected, $"billboard for {angles}");
+            }
+        }
+
+        private static async Task AssertMatrixClose(Matrix4x4 actual, Matrix4x4 expected, string context)
+        {
+            for (var row = 0; row < 4; row++)
+            {
+                for (var column = 0; column < 4; column++)
+                {
+                    await Assert.That(actual[row, column]).IsEqualTo(expected[row, column]).Within(Tolerance)
+                        .Because($"{context}, element {row}{column}");
+                }
+            }
+        }
+
         private static float NormalizeDegrees(float degrees)
         {
             var wrapped = degrees % 360f;

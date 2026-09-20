@@ -361,16 +361,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         /// <summary>Fills and uploads the quad buffer, returning the number of quads actually emitted.</summary>
         private int UpdateVertices(ParticleCollection particles, ParticleSystemState systemState, Camera camera)
         {
-            var modelViewMatrix = camera.CameraViewMatrix;
-
-            // Create billboarding rotation (always facing camera)
-            if (!Matrix4x4.Decompose(modelViewMatrix, out _, out var modelViewRotation, out _))
-            {
-                throw new InvalidOperationException("Matrix decompose failed");
-            }
-
-            modelViewRotation = Quaternion.Inverse(modelViewRotation);
-            var billboardMatrix = Matrix4x4.CreateFromQuaternion(modelViewRotation);
+            var billboardMatrix = camera.BillboardMatrix;
 
             // All four bounds are a radius per unit of camera distance
             var minSizeSlope = minSize.NextNumber(systemState);
