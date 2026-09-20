@@ -8855,5 +8855,73 @@ namespace Tests
                 await Assert.That(Iterations(Fan(3, 1))).IsEqualTo(2);
             }
         }
+        /// A proxy sheet whose vertex SLOT range is wider than its face-corner count is given all-pinned
+        /// filler triangles until every slot has a corner ordinal of its own. The compiler fills a sheet's
+        /// per-vertex rest-normal array by ordinal out of the flattened per-corner stream, so the slots past
+        /// the corner count would otherwise keep the array's zero fill and their rest frames degenerate; an
+        /// all-pinned face belongs to a fully-static region the solver discards, so it adds the corners and
+        /// nothing else. CONTROLS: a sheet with at least as many corners as slots is left exactly as it is,
+        /// so is one with no faces at all, and so is one whose faced vertices include fewer than three pins.
+        /// </summary>
+        /// <remarks>
+        /// READ 2026-09-20: `sub_180303F30` takes a vertex's normal from the `CUtlVector&lt;Vector3&gt;` at
+        /// the per-mesh context's `+248`/`+256`, whose count `sub_181820200` returns from the POSITION
+        /// field's data attribute (accepted only at Datamodel type 42, a Vector3 array). MEASURED on dl
+        /// `nano_mecha`, whose mesh 0 carries 431 slots against 410 corners: its ten failing orientations
+        /// are all at slot 410 or above, and the filler takes the row to EXACT. Padding the stream's values
+        /// or index arrays instead is inert - the flatten is bounded by the face set.
+        /// </remarks>
+        [Test]
+        public async Task ASheetShortOfCornersIsGivenAllPinnedFillerFaces()
+        {
+            // Six vertices, two of them simulated, over one quad: 4 corners against 6 slots.
+            var shortOfCorners = CornerSheet([0, 0, 0, 0, 4, 5], [[0, 1, 2, 3]]);
+            var evenCorners = CornerSheet([0, 0, 0, 0, 4, 5], [[0, 1, 2, 3], [0, 1, 2, 3]]);
+            var faceless = CornerSheet([0, 0, 0, 0, 4, 5], []);
+            var twoPins = CornerSheet([0, 0, 4, 5, 4, 5], [[0, 1, 2, 3]]);
+
+            static List<int[]> Padded(FeModel.ProxyMesh sheet)
+                => ModelExtract.PadSheetCornersToSlotCount(sheet, sheet.Positions.Length);
+
+            static string Shape(List<int[]> faces)
+                => string.Join(" ", faces.Select(f => string.Concat(f)));
+
+            using (Assert.Multiple())
+            {
+                // The law: one filler triangle over PINNED vertices the sheet already faces, taking 4
+                // corners to 7 and so past the 6 slots. Every added face is all-pinned.
+                var padded = Padded(shortOfCorners);
+                await Assert.That(padded.Count).IsEqualTo(2);
+                await Assert.That(padded.Sum(f => f.Length)).IsGreaterThanOrEqualTo(shortOfCorners.Positions.Length);
+                await Assert.That(padded.Skip(1).SelectMany(f => f)
+                    .All(c => shortOfCorners.ClothEnable[c] == 0f)).IsTrue();
+                await Assert.That(Shape(padded).StartsWith("0123 ", StringComparison.Ordinal)).IsTrue();
+
+                // CONTROLS: each of the three refusals returns the sheet's own face list unchanged.
+                await Assert.That(Shape(Padded(evenCorners))).IsEqualTo("0123 0123");
+                await Assert.That(Shape(Padded(faceless))).IsEqualTo(string.Empty);
+                await Assert.That(Shape(Padded(twoPins))).IsEqualTo("0123");
+            }
+        }
+
+        // A bare sheet carrying only what the corner padding reads: a cloth_enable pattern and a face list.
+        private static FeModel.ProxyMesh CornerSheet(float[] enable, List<int[]> faces)
+            => new()
+            {
+                NodeIndices = [.. Enumerable.Range(0, enable.Length)],
+                ClothEnable = enable,
+                Positions = [.. enable.Select(static _ => Vector3.Zero)],
+                GoalStrength = new float[enable.Length],
+                GoalDamping = new float[enable.Length],
+                CollisionRadius = new float[enable.Length],
+                Friction = new float[enable.Length],
+                Drag = new float[enable.Length],
+                GroundCollision = new float[enable.Length],
+                GroundFriction = new float[enable.Length],
+                Gravity = new float[enable.Length],
+                VertexAttraction = new float[enable.Length],
+                SkinInfluences = [.. enable.Select(static _ => Array.Empty<(string, float)>())],
+                Faces = faces,
+            };
     }
 }

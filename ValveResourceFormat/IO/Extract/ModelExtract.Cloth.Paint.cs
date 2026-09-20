@@ -279,6 +279,59 @@ partial class ModelExtract
     }
 
     /// <summary>
+    /// The sheet's faces, with enough all-pinned filler triangles appended to give every vertex slot a
+    /// face corner of its own.
+    /// </summary>
+    /// <remarks>
+    /// The compiler fills a sheet's per-vertex rest-normal array by ORDINAL out of the flattened
+    /// per-corner stream, so a sheet whose slot range is wider than its face-corner count leaves its last
+    /// vertices on the array's zero fill and their rest frames come back degenerate. A sheet reaches that
+    /// state through <c>PadToAuthoredSlots</c>, which restores the authored slot range while only the
+    /// rod-generating faces are recoverable.
+    /// <para>
+    /// The filler is a triangle over PINNED vertices the sheet already faces: a face whose corners are all
+    /// static belongs to a fully-static region the solver discards, so it adds no rod, no element and no
+    /// node, and the original's own face set is left exactly as recovered. That is also why the compiled
+    /// file carries no trace of such a face and the shortfall cannot be closed by reading one back.
+    /// </para>
+    /// </remarks>
+    internal static List<int[]> PadSheetCornersToSlotCount(FeModel.ProxyMesh proxy, int vertexCount)
+    {
+        var corners = 0;
+        foreach (var face in proxy.Faces)
+        {
+            corners += face.Length;
+        }
+
+        if (corners == 0 || corners >= vertexCount)
+        {
+            return proxy.Faces;
+        }
+
+        var pinned = new List<int>();
+        foreach (var corner in proxy.Faces.SelectMany(static face => face).Distinct())
+        {
+            if (proxy.ClothEnable[corner] == 0f)
+            {
+                pinned.Add(corner);
+            }
+        }
+
+        if (pinned.Count < 3)
+        {
+            return proxy.Faces;
+        }
+
+        var padded = new List<int[]>(proxy.Faces);
+        for (var at = 0; corners < vertexCount; at += 3, corners += 3)
+        {
+            padded.Add([pinned[at % pinned.Count], pinned[(at + 1) % pinned.Count], pinned[(at + 2) % pinned.Count]]);
+        }
+
+        return padded;
+    }
+
+    /// <summary>
     /// The <c>cloth_anchor_free_rotate</c> paint a sheet needs, or null where it states nothing.
     /// <para>
     /// The paint is the per-vertex rot-lock release. On a sheet the export re-emits
@@ -381,7 +434,8 @@ partial class ModelExtract
         // Indexed one face corner at a time, the way authored proxies are: the face set names corner
         // ordinals and every stream's index array maps corner -> vertex. A sheet with no faces has no
         // corners and stays indexed per vertex.
-        var cornerVertices = proxy.Faces.SelectMany(static face => face).ToArray();
+        var emittedFaces = PadSheetCornersToSlotCount(proxy, vertexCount);
+        var cornerVertices = emittedFaces.SelectMany(static face => face).ToArray();
         var identity = Enumerable.Range(0, vertexCount).ToArray();
         var vertexIndices = cornerVertices.Length > 0 ? cornerVertices : identity;
 
@@ -710,7 +764,7 @@ partial class ModelExtract
         }
 
         var cornerOrdinal = 0;
-        foreach (var face in proxy.Faces)
+        foreach (var face in emittedFaces)
         {
             foreach (var _ in face)
             {
