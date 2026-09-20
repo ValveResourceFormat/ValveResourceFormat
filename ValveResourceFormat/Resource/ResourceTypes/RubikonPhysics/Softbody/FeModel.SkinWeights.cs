@@ -492,6 +492,36 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         }
 
         /// <summary>
+        /// Returns whether the original shape-fits a bone over <paramref name="proxy"/>'s own vertices
+        /// while leaving that bone OUT of the position-driven suffix.
+        /// <para>
+        /// <c>back_solve_joints</c> and <c>back_solve_joints_drive_meshes</c> are two gates on the same
+        /// back-solve, and only the first promotes: <c>AddFitWeights</c> registers every bone it claims
+        /// as position-driven, so a fit taken over a sheet's vertices for a bone the compile left
+        /// undriven was asked for by the second flag alone. False for a compile that states no
+        /// position-driven boundary of its own, which cannot tell the two apart.
+        /// </para>
+        /// </summary>
+        public bool ProxyFitsUndrivenBone(ProxyMesh proxy)
+        {
+            if (!HasCompiledFirstPositionDrivenNode || FitMatrixTargets.Count == 0)
+            {
+                return false;
+            }
+
+            var own = new HashSet<int>(proxy.NodeIndices);
+            foreach (var (bone, targets) in FitMatrixTargets)
+            {
+                if (!IsPositionDriven(bone) && Array.Exists(targets, own.Contains))
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        /// <summary>
         /// The ModelDoc default for <c>ClothProxyMeshFile.back_solve_influence_threshold</c>.
         /// </summary>
         public const float DefaultBackSolveInfluenceThreshold = 0.05f;

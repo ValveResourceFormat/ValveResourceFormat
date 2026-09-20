@@ -13,11 +13,11 @@ partial class ModelExtract
     // emitted, or the bones would be driven twice). Generated chain grids use backSolveJoints=false:
     // there the ClothChains simulate the bones and the sheet only drives the render mesh between them.
     //
-    // back_solve_joints_drive_meshes tracks backSolveJoints rather than being a blanket true or false: the
-    // flag is not scoped to this proxy's own nodes when it disagrees with back_solve_joints, and the
-    // compiler then back-solves fit matrices for unrelated bones elsewhere in the model. The disabled
-    // ready-made grid is the exception: it passes backSolveJoints=false but driveMeshes=true, so a
-    // re-author can enable it to drive the mesh directly.
+    // back_solve_joints_drive_meshes is the second gate on the same back-solve and does not promote the
+    // bones it claims to position-driven, so it goes on with backSolveJoints and also alone, for a sheet
+    // the original fits a bone over while leaving that bone undriven (FeModel.ProxyFitsUndrivenBone).
+    // The disabled ready-made grid passes backSolveJoints=false but driveMeshes=true, so a re-author can
+    // enable it to drive the mesh directly.
     //
     // back_solve_influence_threshold is the minimum skin weight at which a vertex contributes to a joint's
     // back-solved fit. The value is derived per proxy from the original's own compiled fit data (see
@@ -420,6 +420,10 @@ partial class ModelExtract
             // skin paint that parents its vertices without driving a bone through it.
             var proxyBackSolve = backSolveJoints && ProxyDrivesUnchainedBone(proxyFile.Proxy)
                 && !feModel.IsUnbackSolvedProxyMesh(proxyFile.Proxy);
+            // The two back-solve keys are separate gates on the same solve and only back_solve_joints
+            // promotes the bones it claims, so a sheet the original fits a bone over while leaving that
+            // bone out of the position-driven suffix states back_solve_joints_drive_meshes on its own.
+            var proxyDrivesMeshes = proxyBackSolve || feModel.ProxyFitsUndrivenBone(proxyFile.Proxy);
             var proxyFlexes = ProxyFlexesClothBorders(proxyFile.Proxy, proxyBackSolve);
             if (proxyFlexes)
             {
@@ -427,7 +431,7 @@ partial class ModelExtract
             }
 
             var proxyNode = MakeClothProxyMeshFile(proxyFile.Name, proxyFile.FileName, proxyBackSolve,
-                driveMeshes: proxyBackSolve, ProxyAddsBonesToRenderMesh(proxyFile.Proxy),
+                driveMeshes: proxyDrivesMeshes, ProxyAddsBonesToRenderMesh(proxyFile.Proxy),
                 backSolveInfluenceThreshold: feModel.GetBackSolveInfluenceThreshold(proxyFile.Proxy),
                 flexClothBorders: proxyFlexes);
 

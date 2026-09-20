@@ -8489,5 +8489,95 @@ namespace Tests
                     .IsEqualTo(2);
             }
         }
+
+        /// <summary>
+        /// A proxy sheet the original shape-fits a bone over while leaving that bone OUT of the
+        /// position-driven suffix was compiled with <c>back_solve_joints_drive_meshes</c> alone. The two
+        /// keys gate the same back-solve and only <c>back_solve_joints</c> registers the bones it claims as
+        /// position-driven, so a fit with no promotion behind it names the second key. The fixture is two
+        /// sheets over one tip bone, fit over mesh 1's three vertices. CONTROLS: the same model with the tip
+        /// bone inside the position-driven suffix is the ordinary <c>back_solve_joints</c> case, mesh 0
+        /// carries no fit target of its own, and a compile stating no position-driven boundary at all cannot
+        /// tell the two keys apart.
+        /// </summary>
+        /// <remarks>
+        /// PROBED 2026-09-20 on dl <c>pestilence_v2_anim_model</c>, whose authored source is pinned. It
+        /// declares no ClothChain at all and authors its hat sheet <c>back_solve_joints = false</c> with
+        /// <c>back_solve_joints_drive_meshes = true</c>; the compile ships one fit matrix over that sheet's
+        /// 530 vertices with nothing position-driven. Turning the second key on in our recovered document,
+        /// one key and nothing else, closes <c>m_FitMatrices</c>, <c>m_FitWeights</c> and
+        /// <c>m_LockToGoal</c> on the row.
+        /// </remarks>
+        [Test]
+        public async Task ASheetFittingAnUndrivenBoneStatesDriveMeshesAlone()
+        {
+            var undriven = SheetFitOverTipBone("m_nFirstPositionDrivenNode = 8");
+            var driven = SheetFitOverTipBone("m_nFirstPositionDrivenNode = 7");
+            var unbounded = SheetFitOverTipBone("");
+
+            static FeModel.ProxyMesh Sheet(FeModel feModel, int mesh)
+                => feModel.BuildProxyMeshes().First(proxy => Array.Exists(proxy.NodeIndices,
+                    node => feModel.CtrlNames[node].StartsWith($"$cloth_m{mesh}p", StringComparison.Ordinal)));
+
+            using (Assert.Multiple())
+            {
+                // The fixture has to carry the fit at all, or every reading below is vacuously false.
+                await Assert.That(undriven.FitMatrixTargets.Count).IsEqualTo(1);
+                await Assert.That(string.Join(",", undriven.FitMatrixTargets[7])).IsEqualTo("4,5,6");
+                await Assert.That(undriven.IsPositionDriven(7)).IsFalse();
+
+                await Assert.That(undriven.ProxyFitsUndrivenBone(Sheet(undriven, 1))).IsTrue();
+                await Assert.That(undriven.ProxyFitsUndrivenBone(Sheet(undriven, 0))).IsFalse();
+
+                await Assert.That(driven.IsPositionDriven(7)).IsTrue();
+                await Assert.That(driven.ProxyFitsUndrivenBone(Sheet(driven, 1))).IsFalse();
+
+                await Assert.That(unbounded.HasCompiledFirstPositionDrivenNode).IsFalse();
+                await Assert.That(unbounded.ProxyFitsUndrivenBone(Sheet(unbounded, 1))).IsFalse();
+            }
+        }
+
+        // Two proxy sheets and one tip bone, with the tip fit over mesh 1's three vertices and nothing fit
+        // over mesh 0's three. The hole carries m_nFirstPositionDrivenNode, which is what decides whether
+        // the fit came with the promotion back_solve_joints performs.
+        private static FeModel SheetFitOverTipBone(string firstPositionDriven) => SyntheticCloth.Parse($$"""
+            {
+                m_CtrlName = [ "bone_0", "$cloth_m0p0", "$cloth_m0p1", "$cloth_m0p2", "$cloth_m1p0", "$cloth_m1p1", "$cloth_m1p2", "tip" ]
+                m_SkelParents = [ -1, 0, 0, 0, 7, 7, 7, 0 ]
+                m_nNodeCount = 8
+                m_nStaticNodes = 1
+                m_nRotLockStaticNodes = 1
+                {{firstPositionDriven}}
+                m_NodeInvMasses = [ 0.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0 ]
+                m_InitPose =
+                [
+                    {{SyntheticCloth.Pose(0f, 0f, 0f)}}
+                    {{SyntheticCloth.Pose(4f, 0f, -10f)}}
+                    {{SyntheticCloth.Pose(8f, 0f, -10f)}}
+                    {{SyntheticCloth.Pose(4f, 0f, -20f)}}
+                    {{SyntheticCloth.Pose(-4f, 0f, -10f)}}
+                    {{SyntheticCloth.Pose(-8f, 0f, -10f)}}
+                    {{SyntheticCloth.Pose(-4f, 0f, -20f)}}
+                    {{SyntheticCloth.Pose(0f, 0f, -8f)}}
+                ]
+                m_Tris = [ { nNode = [ 1, 2, 3 ] }, { nNode = [ 4, 5, 6 ] } ]
+                m_CtrlOffsets =
+                [
+                    { vOffset = [ 4.0, 0.0, -10.0 ] nCtrlParent = 0 nCtrlChild = 1 },
+                    { vOffset = [ 8.0, 0.0, -10.0 ] nCtrlParent = 0 nCtrlChild = 2 },
+                    { vOffset = [ 4.0, 0.0, -20.0 ] nCtrlParent = 0 nCtrlChild = 3 },
+                    { vOffset = [ -4.0, 0.0, -2.0 ] nCtrlParent = 7 nCtrlChild = 4 },
+                    { vOffset = [ -8.0, 0.0, -2.0 ] nCtrlParent = 7 nCtrlChild = 5 },
+                    { vOffset = [ -4.0, 0.0, -12.0 ] nCtrlParent = 7 nCtrlChild = 6 },
+                ]
+                m_FitMatrices = [ { nEnd = 3 nNode = 7 nBeginDynamic = 0 } ]
+                m_FitWeights =
+                [
+                    { flWeight = 1.0 nNode = 4 nDummy = 0 },
+                    { flWeight = 1.0 nNode = 5 nDummy = 0 },
+                    { flWeight = 1.0 nNode = 6 nDummy = 0 },
+                ]
+            }
+            """);
     }
 }
