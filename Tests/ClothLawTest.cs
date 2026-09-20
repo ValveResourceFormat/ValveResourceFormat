@@ -8646,5 +8646,37 @@ namespace Tests
                 await Assert.That(split.GetFloatProperty("twist_relax")).IsEqualTo(0.8f).Within(1e-3f);
             }
         }
+
+        /// <summary>
+        /// A chain's <c>attrs</c> table states <c>extrude_twist</c> in the same terms its joint rows do,
+        /// because the compiler takes that default for any joint row that omits the key.
+        /// </summary>
+        /// <remarks>
+        /// An unrolled ring sits on the joint frame's +Y, so a document counts the key down from 90 while
+        /// the value recovered off the compiled proxies is the roll itself. Every joint row already states
+        /// the complement; the attrs default stated the raw roll, so a chain whose ring is unrolled
+        /// declared a fallback of 90 degrees where its own rows declare none. MEASURED 2026-09-20 with
+        /// <c>tools\w40authdiff.py</c> against the authored sources: 350 of 470 synth rows and 40 dl rows
+        /// carry the difference, the synth generator writing 0 where we wrote 90.
+        /// </remarks>
+        [Test]
+        public async Task AChainsAttrsStateItsTwistTheWayItsJointsDo()
+        {
+            const float Roll = 70f;
+            var extruding = ModelExtract.MakeClothChainAttrs(2, 1.5f, Roll);
+            var rope = ModelExtract.MakeClothChainAttrs();
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(extruding.GetSubCollection("extrude_sides").GetFloatProperty("default"))
+                    .IsEqualTo(2f);
+                await Assert.That(extruding.GetSubCollection("extrude_radius").GetFloatProperty("default"))
+                    .IsEqualTo(1.5f);
+                await Assert.That(rope.GetSubCollection("extrude_twist").GetFloatProperty("default"))
+                    .IsEqualTo(0f);
+                await Assert.That(extruding.GetSubCollection("extrude_twist").GetFloatProperty("default"))
+                    .IsEqualTo(90f - Roll);
+            }
+        }
     }
 }

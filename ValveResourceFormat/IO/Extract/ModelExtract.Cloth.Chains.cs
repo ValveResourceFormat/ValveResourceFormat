@@ -10,6 +10,13 @@ partial class ModelExtract
     // An unrolled proxy ring sits on the joint frame's +Y, so an authored twist counts down from 90 degrees.
     const float ClothExtrudeTwistBase = 90f;
 
+    /// <summary>
+    /// The <c>extrude_twist</c> a document states for a ring measured at <paramref name="measuredTwist"/>
+    /// degrees of roll. Every statement of the key goes through this: a joint's own row and the chain
+    /// <c>attrs</c> default the compiler falls back to for a joint that omits it.
+    /// </summary>
+    internal static float ClothExtrudeTwistKey(float measuredTwist) => ClothExtrudeTwistBase - measuredTwist;
+
     // A twist a static chain root authored compiles to the same pair of relaxation-free entries at every
     // value above zero, so the re-declaration names the top of the key's range.
     const float ClothStaticRootTwistRelax = 1f;
@@ -595,7 +602,7 @@ partial class ModelExtract
             if (joint.ExtrudeSides > 0)
             {
                 kv.Add("extrude_radius", joint.ExtrudeRadius);
-                kv.Add("extrude_twist", ClothExtrudeTwistBase - joint.ExtrudeTwist + (rollTies ? joint.ExtrudeTwistTieNudge : 0f));
+                kv.Add("extrude_twist", ClothExtrudeTwistKey(joint.ExtrudeTwist) + (rollTies ? joint.ExtrudeTwistTieNudge : 0f));
 
                 // 'x' is the compiler's own default and needs no explicit key.
                 if (joint.ForwardAxis != 'x')
@@ -681,7 +688,7 @@ partial class ModelExtract
     // The cloth-chain joint datatable schema: per-column UI metadata and defaults, matching the editable
     // ModelDoc source the tools produce. The compiler takes the "default" value of any joint field the
     // joint rows above do not write.
-    static KVObject MakeClothChainAttrs(int extrudeSides = 0, float extrudeRadius = 0f, float extrudeTwist = 0f)
+    internal static KVObject MakeClothChainAttrs(int extrudeSides = 0, float extrudeRadius = 0f, float extrudeTwist = 0f)
     {
         var attrs = KVObject.Collection();
 
@@ -766,7 +773,10 @@ partial class ModelExtract
         // extrudeSides 0 keeps the stock default, a plain rope.
         IntAttr("extrude_sides", "Extrude Sides", false, 31, extrudeSides, 0, 4);
         FloatAttr("extrude_radius", "Extrude Radius", false, 32, extrudeSides >= 1 ? extrudeRadius : 5.0f, 0.0f);
-        FloatAttr("extrude_twist", "Extrude Twist", false, 33, extrudeSides >= 1 ? extrudeTwist : 0.0f);
+        // The compiler takes this default for a joint that omits the key, so it states the chain's twist
+        // in the same terms the joint rows do. A chain that does not extrude states the schema's own 0.
+        FloatAttr("extrude_twist", "Extrude Twist", false, 33,
+            extrudeSides >= 1 ? ClothExtrudeTwistKey(extrudeTwist) : 0.0f);
         StringAttr("extrude_forward_axis", "Extrude Forward Axis", false, 34).Add("verify", "extrude_forward_axis");
         FloatAttr("world_friction", "Ground Softness (\"world friction\" in Source1)", false, 35, 0.0f, 0.0f, 1.0f);
         FloatAttr("ground_friction", "Ground Friction", false, 36, 0.0f, 0.0f, 1.0f);
