@@ -8752,5 +8752,49 @@ namespace Tests
                 SkinInfluences = [.. nodes.Select(_ => Array.Empty<(string, float)>())],
                 Faces = sheet.Faces,
             };
+        /// <summary>
+        /// A self-collision cluster's member table states its own schema defaults, the way its sibling
+        /// rigid-cloud cluster's does, because the compiler falls back to them for a member row that
+        /// omits a key.
+        /// </summary>
+        /// <remarks>
+        /// Both clusters carry a dense KV3 member table and the compiler reads `attrs[key].default` on a
+        /// miss for each. <c>MakeClothRigidCloudCluster</c> emitted its table and this one emitted none
+        /// at all, so a member omitting a key had nothing to fall back to. The four defaults are the
+        /// schema's own, read out of <c>CAuthClothDataTable::ctor_dtor_1</c> into
+        /// <c>datamodel\evidence\modeldoc_cloth_attrs.json</c>, and the eleven synth rows that ship a
+        /// cluster carry exactly this table - one spelling across all eleven, checked with
+        /// <c>tools\w40authdiff.py</c>.
+        /// </remarks>
+        [Test]
+        public async Task AClusterMemberTableStatesItsOwnDefaults()
+        {
+            var cluster = ModelExtract.MakeClothSelfCollisionCluster(
+                "cluster_0", ["j1", "j2"], radius: 6f, strayRadius: 24f);
+            var chain = cluster.GetSubCollection("chain");
+
+            // Projections, not indexed reads: with the table absent both come back EMPTY and the
+            // assertions FAIL, where indexing into it would throw and skip every control beside it.
+            static string[] Keys(KVObject table) => table is null ? [] : [.. table.Select(a => a.Key)];
+            static float[] Numbers(KVObject table) => table is null
+                ? []
+                : [table.GetSubCollection("stiffness").GetFloatProperty("default"),
+                   table.GetSubCollection("stray_radius").GetFloatProperty("default"),
+                   table.GetSubCollection("collision_radius").GetFloatProperty("default")];
+
+            string[] expectedMembers = ["j1", "j2"];
+            string[] expectedKeys = ["joint_name", "stiffness", "stray_radius", "collision_radius"];
+            float[] expectedNumbers = [1f, 2f, 2f];
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(chain.GetSubCollection("joints")
+                    .Select(j => ((KVObject)j.Value!).GetStringProperty("joint_name")))
+                    .IsEquivalentTo(expectedMembers);
+                await Assert.That(chain.GetInt32Property("version")).IsEqualTo(0);
+                await Assert.That(Keys(chain.GetSubCollection("attrs"))).IsEquivalentTo(expectedKeys);
+                await Assert.That(Numbers(chain.GetSubCollection("attrs"))).IsEquivalentTo(expectedNumbers);
+            }
+        }
     }
 }

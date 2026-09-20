@@ -43,7 +43,7 @@ partial class ModelExtract
     // ClothSpring it registers no m_SourceElems entry, so it is the node to re-emit for a rod between two
     // chain joints that a chain does not itself regenerate. The per-member radius split the compiled rod
     // does not preserve (only the sum reaches m_Rods) is recovered as an even split.
-    static KVObject MakeClothSelfCollisionCluster(string name, List<string> members, float radius,
+    internal static KVObject MakeClothSelfCollisionCluster(string name, List<string> members, float radius,
         float strayRadius, float[]? stiffness = null)
     {
         KVObject MakeJoint(string jointName, float jointStiffness)
@@ -62,8 +62,29 @@ partial class ModelExtract
             joints.Add(MakeJoint(members[i], stiffness is not null && i < stiffness.Length ? stiffness[i] : 1.0f));
         }
 
+        // The member table's own schema, which the compiler falls back to for any member row that omits
+        // a key, exactly as a ClothChain's attrs table does. Its four defaults are the dense-KV3
+        // schema's own (CAuthClothDataTable::ctor_dtor_1).
+        var attrs = KVObject.Collection();
+
+        KVObject Attr(string key, string display, int uiOrder)
+        {
+            var attr = KVObject.Collection();
+            attr.Add("display", display);
+            attr.Add("show", true);
+            attr.Add("ui_order", uiOrder);
+            attrs.Add(key, attr);
+            return attr;
+        }
+
+        Attr("joint_name", "Joint Name", 0).Add("default", string.Empty);
+        Attr("stiffness", "Stiffness", 4).Add("default", 1f);
+        Attr("stray_radius", "Max Range/Radius", 20).Add("default", 2f);
+        Attr("collision_radius", "Collision Radius", 27).Add("default", 2f);
+
         var chainData = KVObject.Collection();
         chainData.Add("joints", joints);
+        chainData.Add("attrs", attrs);
         chainData.Add("selection", KVObject.Array());
         chainData.Add("version", 0);
 
