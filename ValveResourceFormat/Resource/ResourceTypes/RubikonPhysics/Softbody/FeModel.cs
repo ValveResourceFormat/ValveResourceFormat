@@ -2280,7 +2280,10 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             float? multiplier = null;
             foreach (var node in JointMassNodes(joint))
             {
-                if (IsStatic(node) || NodeInvMasses[node] == 1f)
+                // An inverse mass of exactly 1 is the compiler's sentinel for a node that weighed
+                // nothing, and only on the geometric path. Under explicit masses it is a node the source
+                // gave a mass of 1, which is a value the chain has to state like any other.
+                if (IsStatic(node) || (!HasExplicitMasses && NodeInvMasses[node] == 1f))
                 {
                     continue;
                 }

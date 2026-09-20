@@ -2397,7 +2397,8 @@ namespace Tests
         /// Under <c>explicit_masses</c> a node's inverse mass is the reciprocal of its authored mass and the
         /// rod pass weighs each rod by the final masses, <c>invA / (invA + invB)</c>. The fixture is the
         /// compiled synthetic chain with mass 0.5 on its second joint: that joint reads back as 0.5 and its
-        /// mass-1 neighbour as the default. The same masses over flat 0.5 rod weights are a geometric chain.
+        /// mass-1 neighbour as 1, which is a value the chain states like any other rather than a node that
+        /// weighed nothing. The same masses over flat 0.5 rod weights are a geometric chain.
         /// </summary>
         [Test]
         public async Task AnExplicitMassChainIsReadOffItsMassProportionalRodWeights()
@@ -2411,7 +2412,11 @@ namespace Tests
             {
                 await Assert.That(explicitChain.HasExplicitMasses).IsTrue();
                 await Assert.That(explicitChain.RecoverJointMassMultiplier(4)!.Value).IsEqualTo(0.5f).Within(1e-4f);
-                await Assert.That(explicitChain.RecoverJointMassMultiplier(2)).IsNull();
+
+                // The mass-1 neighbour reads 1 rather than being skipped as the weighed-nothing sentinel,
+                // and states no key of its own only because the chain's own default is 1.
+                await Assert.That(explicitChain.RecoverJointMassMultiplier(2)!.Value).IsEqualTo(1f).Within(1e-4f);
+                await Assert.That(explicitChain.RecoverJointMass(2, 1f)).IsNull();
                 await Assert.That(flatChain.HasExplicitMasses).IsFalse();
             }
         }
@@ -9127,6 +9132,45 @@ namespace Tests
 
                 // CONTROL: a static node carries no reading, so the root contributes none.
                 await Assert.That(Sheeted(1f, 1f, 1f, 1f).RecoverJointMassMultiplier(0)).IsNull();
+            }
+        }
+
+        /// <summary>
+        /// Under <c>explicit_masses</c> an inverse mass of exactly 1 is a node the source gave a mass of
+        /// 1, not the weighed-nothing sentinel, so the chain reads it as a value and states it like any
+        /// other. CONTROL: on the geometric path the same inverse mass IS the sentinel and stays unread.
+        /// </summary>
+        /// <remarks>
+        /// The sentinel test predates the chain-level default and was masked by it: while every chain
+        /// stated a flat 1, a joint skipped as a sentinel omitted the key and read back 1 by accident.
+        /// Once the chain states the value its joints agree on, a skipped joint reads the CHAIN's default
+        /// instead, and synth `kexplicit_mass_split` (authored 1 / 0.5 / 1) recovers 0.5 on all three.
+        /// </remarks>
+        [Test]
+        public async Task AnExplicitMassOfOneIsAValueAndNotTheWeighedNothingSentinel()
+        {
+            // The compiled explicit-mass chain of `AnExplicitMassChainIsReadOffItsMassProportionalRodWeights`:
+            // authored masses 1 / 0.5 / 1 over joints 2, 4 and 6, which is synth `kexplicit_mass_split`.
+            var explicitChain = SyntheticCloth.Parse(ExplicitMassChainText);
+            var geometric = SyntheticCloth.Parse(ExplicitMassChainText
+                .Replace("flWeight0 = 0.333333", "flWeight0 = 0.5", StringComparison.Ordinal)
+                .Replace("flWeight0 = 0.666667", "flWeight0 = 0.5", StringComparison.Ordinal));
+
+            using (Assert.Multiple())
+            {
+                // The two mass-1 joints are READ rather than skipped, so the chain's own default is the 1
+                // that two of its three joints carry and only the 0.5 joint states a key.
+                await Assert.That(explicitChain.RecoverJointMassMultiplier(2)!.Value).IsEqualTo(1f).Within(1e-4f);
+                await Assert.That(explicitChain.RecoverJointMassMultiplier(6)!.Value).IsEqualTo(1f).Within(1e-4f);
+                await Assert.That(explicitChain.RecoverChainMassDefault(explicitChain.BuildBoneChains()[0]))
+                    .IsEqualTo(1f).Within(1e-4f);
+                await Assert.That(explicitChain.RecoverJointMass(4, 1f)!.Value).IsEqualTo(0.5f).Within(1e-4f);
+                await Assert.That(explicitChain.RecoverJointMass(2, 1f)).IsNull();
+
+                // CONTROL: the same inverse masses on a GEOMETRIC chain, where 1 IS the sentinel for a
+                // node that weighed nothing and stays unread.
+                await Assert.That(geometric.HasExplicitMasses).IsFalse();
+                await Assert.That(geometric.RecoverJointMassMultiplier(2)).IsNull();
             }
         }
 
