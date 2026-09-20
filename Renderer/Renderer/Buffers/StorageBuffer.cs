@@ -18,6 +18,18 @@ namespace ValveResourceFormat.Renderer.Buffers
             _ => BufferStorageFlags.DynamicStorageBit,
         };
 
+        private const BufferAccessMask ReadbackAccess = BufferAccessMask.MapPersistentBit
+            | BufferAccessMask.MapReadBit
+            | BufferAccessMask.MapCoherentBit;
+
+        /// <summary>Create an empty storage buffer.</summary>
+        private void AllocateEmpty(BufferUsage usage)
+        {
+            Debug.Assert(Size == 0);
+
+            GL.NamedBufferData(Handle, 0, IntPtr.Zero, usage.ToGLBufferUsageHint());
+        }
+
         /// <summary>Initializes a new storage buffer bound to the given reserved slot.</summary>
         /// <param name="bindingPoint">The reserved slot to bind the buffer to.</param>
         /// <param name="name">Debug name for the buffer. Named explicitly because <see cref="ReservedBufferSlots"/>
@@ -42,11 +54,18 @@ namespace ValveResourceFormat.Renderer.Buffers
         public static StorageBuffer Allocate<T>(ReservedBufferSlots bindingPoint, string name, int elements, BufferUsage usage)
         {
             var buffer = new StorageBuffer(bindingPoint, name) { Size = elements * Unsafe.SizeOf<T>() };
+
+            if (buffer.Size == 0)
+            {
+                buffer.AllocateEmpty(usage);
+                return buffer;
+            }
+
             GL.NamedBufferStorage(buffer.Handle, buffer.Size, IntPtr.Zero, StorageFlagsFor(usage));
 
             if (usage == BufferUsage.Readback)
             {
-                buffer.PersistentPtr = GL.MapNamedBuffer(buffer.Handle, BufferAccess.ReadOnly);
+                buffer.PersistentPtr = GL.MapNamedBufferRange(buffer.Handle, IntPtr.Zero, buffer.Size, ReadbackAccess);
             }
 
             return buffer;
@@ -70,7 +89,8 @@ namespace ValveResourceFormat.Renderer.Buffers
 
             if (totalSizeInBytes == 0)
             {
-                return; // Storage cannot be allocated empty
+                AllocateEmpty(usage);
+                return;
             }
 
             Size = totalSizeInBytes;
@@ -86,7 +106,8 @@ namespace ValveResourceFormat.Renderer.Buffers
 
             if (data.IsEmpty)
             {
-                return; // Storage cannot be allocated empty
+                AllocateEmpty(usage);
+                return;
             }
 
             Size = data.Length * Unsafe.SizeOf<T>();
@@ -138,6 +159,11 @@ namespace ValveResourceFormat.Renderer.Buffers
         /// <summary>Zeroes the entire contents of this buffer.</summary>
         public unsafe void Clear()
         {
+            if (Size == 0)
+            {
+                return;
+            }
+
             if (PersistentPtr != IntPtr.Zero)
             {
                 // For mapped buffers, write directly to mapped memory
@@ -152,6 +178,11 @@ namespace ValveResourceFormat.Renderer.Buffers
         /// <param name="value">The value written to every 32 bit word.</param>
         public unsafe void Fill(uint value)
         {
+            if (Size == 0)
+            {
+                return;
+            }
+
             if (PersistentPtr != IntPtr.Zero)
             {
                 new Span<uint>((void*)PersistentPtr, Size / sizeof(uint)).Fill(value);
