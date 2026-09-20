@@ -8678,5 +8678,79 @@ namespace Tests
                     .IsEqualTo(90f - Roll);
             }
         }
+
+        /// <summary>
+        /// A sheet carrying a vertex the original compiled SIMULATED and rotation-locked paints every vertex
+        /// its recorded class through <c>cloth_anchor_free_rotate</c>, whether or not the sheet re-emits
+        /// <c>flex_cloth_borders</c>. No flag can state that class: the vertex node creator gives a proxy
+        /// vertex free rotation from the same flag as its simulated bit, so the paint is the only route.
+        /// CONTROLS: a sheet with no such vertex keeps the old reading exactly - it paints only the pins the
+        /// original records rotation-free, and paints nothing at all when it re-emits the flag or when every
+        /// pin is already locked.
+        /// </summary>
+        /// <remarks>
+        /// READ 2026-09-20 in `cs2/resourcecompiler` `sub_180303F30`, the proxy-vertex node creator: its
+        /// stack `CBone` takes `auth+48` (simulate) and `auth+50` (free rotation) from the SAME argument, and
+        /// the per-vertex paint table's row 544 is the only later writer of `auth+50`. MEASURED on dl
+        /// `pestilence_v2_anim_model`, whose hat sheet carries 251 such vertices: 24 rot-locked static nodes
+        /// against the original's 275, and painting them closes the row's last key.
+        /// </remarks>
+        [Test]
+        public async Task ASheetPaintsTheRotationLockNoFlagCanState()
+        {
+            var feModel = SheetFitOverTipBone("m_nFirstPositionDrivenNode = 8");
+            var sheet = feModel.BuildProxyMeshes().First(proxy => Array.Exists(proxy.NodeIndices,
+                node => feModel.CtrlNames[node].StartsWith("$cloth_m1p", StringComparison.Ordinal)));
+
+            // Node 0 is the model's one static, and the fixture locks it. A sheet that SIMULATES it is the
+            // shape no flag can state; the same sheet pinning it is the ordinary one.
+            var lockedSimulated = RotationSheet(sheet, [0, 4, 5, 6], [1f, 1f, 1f, 1f]);
+            var pinnedInstead = RotationSheet(sheet, [0, 4, 5, 6], [0f, 1f, 1f, 1f]);
+            var allSimulated = RotationSheet(sheet, [4, 5, 6, 4], [1f, 1f, 1f, 1f]);
+
+            using (Assert.Multiple())
+            {
+                // The fixture has to hold a locked static at all, or every reading below is vacuous.
+                await Assert.That(feModel.AllowsRotation(0)).IsFalse();
+                await Assert.That(feModel.StaticNodeCount).IsEqualTo(1);
+
+                // The law: stated on both sheets, flag or no flag, and vertex 0 is the one it locks.
+                var flexed = ModelExtract.ClothAnchorFreeRotatePaint(feModel, lockedSimulated, sheetFlexes: true);
+                var unflexed = ModelExtract.ClothAnchorFreeRotatePaint(feModel, lockedSimulated, sheetFlexes: false);
+                await Assert.That(string.Join(",", flexed ?? [])).IsEqualTo("0,1,1,1");
+                await Assert.That(string.Join(",", unflexed ?? [])).IsEqualTo("0,1,1,1");
+
+                // CONTROLS. The same static PINNED is the old reading: it is rotation-locked, so nothing is
+                // freed and no stream goes out, and a flexed sheet states nothing either way.
+                await Assert.That(ModelExtract.ClothAnchorFreeRotatePaint(feModel, pinnedInstead, sheetFlexes: false)).IsNull();
+                await Assert.That(ModelExtract.ClothAnchorFreeRotatePaint(feModel, pinnedInstead, sheetFlexes: true)).IsNull();
+
+                // A sheet holding no static node at all states nothing on a flexed sheet and nothing on an
+                // unflexed one, since it has no pin to free.
+                await Assert.That(ModelExtract.ClothAnchorFreeRotatePaint(feModel, allSimulated, sheetFlexes: true)).IsNull();
+                await Assert.That(ModelExtract.ClothAnchorFreeRotatePaint(feModel, allSimulated, sheetFlexes: false)).IsNull();
+            }
+        }
+
+        // The fixture sheet re-bound to a chosen node set and cloth_enable pattern, which is what the paint
+        // reads; every other stream is along for the ride.
+        private static FeModel.ProxyMesh RotationSheet(FeModel.ProxyMesh sheet, int[] nodes, float[] enable)
+            => new()
+            {
+                NodeIndices = nodes,
+                ClothEnable = enable,
+                Positions = [.. nodes.Select(_ => Vector3.Zero)],
+                GoalStrength = new float[nodes.Length],
+                GoalDamping = new float[nodes.Length],
+                CollisionRadius = new float[nodes.Length],
+                Friction = new float[nodes.Length],
+                Drag = new float[nodes.Length],
+                GroundCollision = new float[nodes.Length],
+                GroundFriction = new float[nodes.Length],
+                Gravity = new float[nodes.Length],
+                VertexAttraction = new float[nodes.Length],
+                SkinInfluences = [.. nodes.Select(_ => Array.Empty<(string, float)>())],
+                Faces = sheet.Faces,
+            };
     }
 }

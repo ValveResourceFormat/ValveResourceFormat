@@ -279,6 +279,52 @@ partial class ModelExtract
     }
 
     /// <summary>
+    /// The <c>cloth_anchor_free_rotate</c> paint a sheet needs, or null where it states nothing.
+    /// <para>
+    /// The paint is the per-vertex rot-lock release. On a sheet the export re-emits
+    /// <c>flex_cloth_borders</c> for, the flag frees the border pins and the paint has nothing to add -
+    /// EXCEPT where the original compiled a vertex SIMULATED and rotation-locked, which no flag can
+    /// state: the vertex node creator gives a proxy vertex free rotation from the same flag as its
+    /// simulated bit, so only this paint can lock one. Such a sheet paints every vertex its recorded
+    /// class. Every other sheet paints only the pins the original records rotation-free, which is what
+    /// the flag it does not carry would otherwise have done.
+    /// </para>
+    /// </summary>
+    internal static float[]? ClothAnchorFreeRotatePaint(FeModel feModel, FeModel.ProxyMesh proxy, bool sheetFlexes)
+    {
+        var vertexCount = Math.Min(proxy.Positions.Length, proxy.NodeIndices.Length);
+        var lockedSimulated = false;
+        for (var v = 0; v < vertexCount; v++)
+        {
+            var node = proxy.NodeIndices[v];
+            lockedSimulated |= proxy.ClothEnable[v] != 0f && node < feModel.StaticNodeCount
+                && !feModel.AllowsRotation(node);
+        }
+
+        if (!lockedSimulated && sheetFlexes)
+        {
+            return null;
+        }
+
+        var freeRotate = new float[proxy.Positions.Length];
+        var anyFreed = false;
+        for (var v = 0; v < vertexCount; v++)
+        {
+            var node = proxy.NodeIndices[v];
+            var free = lockedSimulated
+                ? node >= feModel.StaticNodeCount || feModel.AllowsRotation(node)
+                : proxy.ClothEnable[v] == 0f && node < feModel.StaticNodeCount && feModel.AllowsRotation(node);
+            if (free)
+            {
+                freeRotate[v] = 1f;
+                anyFreed = true;
+            }
+        }
+
+        return anyFreed ? freeRotate : null;
+    }
+
+    /// <summary>
     /// The per-vertex collision-layer paints a sheet's compiled masks state, keyed by layer. Each layer is
     /// its own paint and a vertex painted 0 on layer k compiles with bit k CLEARED in its tree collision
     /// mask, so a layer is stated only where some vertex of the sheet clears it: without the stream the
@@ -425,24 +471,10 @@ partial class ModelExtract
         // paint (or the sheet-level flex_cloth_borders, which frees every pin at once) releases
         // it, so each pin the original records as rotation-free is painted 1.0 on sheets the
         // flag is not re-emitted for.
-        if (physAggregateData?.FeModel is { } feRotate && !clothProxiesFlexed.Contains(proxy))
+        if (physAggregateData?.FeModel is { } feRotate
+            && ClothAnchorFreeRotatePaint(feRotate, proxy, clothProxiesFlexed.Contains(proxy)) is { } freeRotate)
         {
-            var freeRotate = new float[vertexCount];
-            var anyFreed = false;
-            for (var v = 0; v < vertexCount && v < proxy.NodeIndices.Length; v++)
-            {
-                var node = proxy.NodeIndices[v];
-                if (proxy.ClothEnable[v] == 0f && node < feRotate.StaticNodeCount && feRotate.AllowsRotation(node))
-                {
-                    freeRotate[v] = 1f;
-                    anyFreed = true;
-                }
-            }
-
-            if (anyFreed)
-            {
-                vertexData.AddIndexedStream("cloth_anchor_free_rotate$0", freeRotate, vertexIndices);
-            }
+            vertexData.AddIndexedStream("cloth_anchor_free_rotate$0", freeRotate, vertexIndices);
         }
 
         // Per-vertex mass paint. The compiler adds expf(cloth_mass * cloth_mass_scale) on top of the mass
