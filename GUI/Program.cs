@@ -60,6 +60,8 @@ namespace GUI
             Application.SetUnhandledExceptionMode(UnhandledExceptionMode.CatchException);
             Application.SetHighDpiMode(HighDpiMode.PerMonitorV2);
 
+            Automation.Automation.TakeSwitch(ref args);
+
             if (args.Length > 0 && Ipc.TryForwardToExistingInstance(args))
             {
                 return;

@@ -9,7 +9,7 @@ using GUI.Controls;
 
 namespace GUI.Utils
 {
-    internal class ConsoleTab : IDisposable
+    internal partial class ConsoleTab : IDisposable
     {
         private class MyLogger : TextWriter
         {
@@ -104,6 +104,9 @@ namespace GUI.Utils
             }
         }
 
+        private static string FormatPrefix(LogLine line)
+            => $"[{line.Time.ToString("HH:mm:ss.fff", CultureInfo.InvariantCulture)}] [{line.Component}] ";
+
         private void DrainQueue()
         {
             if (control == null || LogQueue.IsEmpty)
@@ -120,7 +123,7 @@ namespace GUI.Utils
 
                 while (LogQueue.TryDequeue(out var line))
                 {
-                    sb.Append(CultureInfo.InvariantCulture, $"[{line.Time:HH:mm:ss.fff}] [{line.Component}] ");
+                    sb.Append(FormatPrefix(line));
                     sb.Append(string.Concat(line.Message, Environment.NewLine));
                 }
 
@@ -134,7 +137,7 @@ namespace GUI.Utils
             {
                 var lastLine = control.Lines.Count;
 
-                control.AppendText($"[{line.Time:HH:mm:ss.fff}] [{line.Component}] ", TextStyleTime);
+                control.AppendText(FormatPrefix(line), TextStyleTime);
                 control.AppendText(string.Concat(line.Message, Environment.NewLine), line.Style);
 
                 // Add fold for multi line strings

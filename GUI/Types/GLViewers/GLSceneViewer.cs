@@ -16,7 +16,7 @@ using static ValveResourceFormat.Renderer.PickingTexture;
 
 namespace GUI.Types.GLViewers
 {
-    internal abstract class GLSceneViewer : GLBaseControl
+    internal abstract partial class GLSceneViewer : GLBaseControl
     {
         public ValveResourceFormat.Renderer.Renderer Renderer { get; internal set; }
         public UserInput Input { get; protected set; }

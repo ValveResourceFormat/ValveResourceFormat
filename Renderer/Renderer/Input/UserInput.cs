@@ -411,6 +411,25 @@ public class UserInput
         TransitionEndTime = -1f;
     }
 
+    /// <summary>
+    /// Puts the camera exactly where it is asked to go, with no transition, cancelling one that is
+    /// already running.
+    /// </summary>
+    /// <param name="location">World position for the camera.</param>
+    /// <param name="anglesDegrees">Pitch, yaw and roll in degrees, pitch positive downwards.</param>
+    public void SetCameraImmediate(Vector3 location, Vector3 anglesDegrees)
+    {
+        WalkMode = false;
+        TransitionEndTime = -1f;
+
+        // Nothing is moving the mouse over the viewport, and without a tick the render camera would
+        // keep showing the pose the view was left at.
+        ForceUpdate = true;
+
+        Camera.SetLocation(location);
+        Camera.SetFromQAngle(anglesDegrees);
+    }
+
     private void TransitionCamera(float transitionDuration = 1.5f)
     {
         StartingCamera = GetInterpolatedCamera();

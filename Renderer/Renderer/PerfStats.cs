@@ -64,6 +64,30 @@ public class PerfStats
     /// <summary>Gets or sets whether statistics are actively collected this frame.</summary>
     public bool Capture { get; set; }
 
+    /// <summary>
+    /// Returns the counters and metrics of the last frame completed while <see cref="Capture"/> was
+    /// on, keyed by name. All zero until a captured frame has finished.
+    /// </summary>
+    /// <returns>Counter names mapped to their count, and metric names to their value.</returns>
+    public Dictionary<string, double> Snapshot()
+    {
+        using var _ = threadLock.EnterScope();
+
+        var snapshot = new Dictionary<string, double>(publishedCounts.Length + publishedMetrics.Length);
+
+        foreach (var counter in Enum.GetValues<Counter>())
+        {
+            snapshot[counter.ToString()] = publishedCounts[(int)counter];
+        }
+
+        foreach (var metric in Enum.GetValues<Metric>())
+        {
+            snapshot[metric.ToString()] = publishedMetrics[(int)metric];
+        }
+
+        return snapshot;
+    }
+
     /// <summary>Gets the CPU and GPU timings for the same frame. Captured independently of <see cref="Capture"/>.</summary>
     public Timings Timings { get; } = new();
 
@@ -90,6 +114,11 @@ public class PerfStats
 
     private readonly int[] counts = new int[Enum.GetValues<Counter>().Length];
     private readonly float[] floatMetrics = new float[Enum.GetValues<Metric>().Length];
+
+    // Copied at frame end so Snapshot can be read off the render thread without racing the reset
+    // at the start of the next frame.
+    private readonly int[] publishedCounts = new int[Enum.GetValues<Counter>().Length];
+    private readonly float[] publishedMetrics = new float[Enum.GetValues<Metric>().Length];
     /// <summary>Lights that passed culling this frame, indexed by <see cref="SceneLight.LightCost"/> then <see cref="LightGroup"/>.</summary>
     private readonly int[][] lightsInView = CreateLightCounters();
 
@@ -572,6 +601,12 @@ public class PerfStats
         timingFrame = false;
         Timings.MarkFrameEnd();
         Allocations.MarkFrameEnd();
+
+        if (Capture)
+        {
+            Array.Copy(counts, publishedCounts, counts.Length);
+            Array.Copy(floatMetrics, publishedMetrics, floatMetrics.Length);
+        }
     }
 
     /// <summary>Begins a timing query for a debug group, or returns 0 if this frame is not being timed.</summary>
