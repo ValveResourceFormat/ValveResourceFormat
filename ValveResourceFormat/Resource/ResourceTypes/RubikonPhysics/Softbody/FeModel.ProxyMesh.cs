@@ -681,7 +681,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             var faces = new List<int[]>();
             foreach (var face in Quads)
             {
-                if (!IsRigidHingeFace(face) && IsAuthoredElementFace(face))
+                if (!IsHingeFanFace(face) && IsAuthoredElementFace(face))
                 {
                     faces.Add(face);
                 }
@@ -689,7 +689,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
 
             foreach (var face in Tris)
             {
-                if (!IsRigidHingeFace(face) && IsAuthoredElementFace(face))
+                if (!IsHingeFanFace(face) && IsAuthoredElementFace(face))
                 {
                     faces.Add(face);
                 }
@@ -711,14 +711,14 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             }
 
             // Collect the control nodes actually used by the surface, in ascending order. These are the
-            // proxy-mesh ("sheet") nodes; a rigid hinge's fan is chain geometry the ClothChain rebuilds.
+            // proxy-mesh ("sheet") nodes; a chain hinge's fan is chain geometry the ClothChain rebuilds.
             var chainJoints = IndependentChainJointNodes();
             var referenced = new SortedSet<int>();
             void Collect(int[][] faces)
             {
                 foreach (var face in faces)
                 {
-                    if (IsRigidHingeFace(face) || IsAuthoredElementFace(face)
+                    if (IsHingeFanFace(face) || IsAuthoredElementFace(face)
                         || IsChainJointFace(face, chainJoints))
                     {
                         continue;

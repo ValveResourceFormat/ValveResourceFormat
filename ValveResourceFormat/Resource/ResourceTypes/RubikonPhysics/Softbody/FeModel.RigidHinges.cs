@@ -5,6 +5,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
     public sealed partial class FeModel
     {
         Dictionary<int, Vector3>? rigidHingeJoints;
+        Dictionary<int, Vector3>? hingeFanJoints;
 
         /// <summary>
         /// Gets the chain joints a rigid <c>ClothChainHinge</c> constrains, each with its authored
@@ -14,20 +15,28 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// or one with limits leaves an <c>$ha_</c> anchor or an <c>m_HingeLimits</c> entry behind instead
         /// and is not listed here.
         /// </summary>
-        public IReadOnlyDictionary<int, Vector3> RigidHingeJoints => rigidHingeJoints ??= BuildRigidHingeJoints();
+        public IReadOnlyDictionary<int, Vector3> RigidHingeJoints => rigidHingeJoints ??= CollectHingeFanJoints(rigidOnly: true);
 
         /// <summary>
-        /// Gets whether a compiled quad or triangle is one element of a rigid hinge's fan: no sheet vertex
-        /// among its corners, and the ring pair of a <see cref="RigidHingeJoints"/> joint across them.
+        /// Gets every chain joint whose hinge the compiler fanned out over a surface element, limited and
+        /// anchored hinges included. The fan is emitted from the hinge flag alone and carries no limits, so
+        /// a face test keys on this set while <see cref="RigidHingeJoints"/> keys on the narrower set a
+        /// rigid <c>ClothChainHinge</c> can be re-declared from.
         /// </summary>
-        public bool IsRigidHingeFace(int[] face)
+        IReadOnlyDictionary<int, Vector3> HingeFanJoints => hingeFanJoints ??= CollectHingeFanJoints(rigidOnly: false);
+
+        /// <summary>
+        /// Gets whether a compiled quad or triangle is one element of a chain hinge's fan: no sheet vertex
+        /// among its corners, and the ring pair of a hinged joint across them.
+        /// </summary>
+        public bool IsHingeFanFace(int[] face)
         {
-            if (RigidHingeJoints.Count == 0 || !IsChainOnlyFace(face))
+            if (HingeFanJoints.Count == 0 || !IsChainOnlyFace(face))
             {
                 return false;
             }
 
-            foreach (var joint in RigidHingeJoints.Keys)
+            foreach (var joint in HingeFanJoints.Keys)
             {
                 var ring = ProxyRingOf(joint);
                 if (ring.Count == 2 && SpansRing(face, ring))
@@ -92,7 +101,8 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         static bool SpansRing(int[] face, List<int> ring)
             => Array.IndexOf(face, ring[0]) >= 0 && Array.IndexOf(face, ring[1]) >= 0;
 
-        Dictionary<int, Vector3> BuildRigidHingeJoints()
+        // The two sets differ by nothing but the two exclusion terms, so the fan set contains the rigid one.
+        Dictionary<int, Vector3> CollectHingeFanJoints(bool rigidOnly)
         {
             var joints = new Dictionary<int, Vector3>();
             foreach (var face in Quads.Concat(Tris))
@@ -117,8 +127,8 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                     if (ring.Count != 2 || !SpansRing(face, ring)
                         || !Array.TrueForAll(face, other => ring.Contains(other)
                             || (ChainJointOf(other) is { } child && ParentJointOf(child) == joint))
-                        || HingeLimitOverRing(ring) is not null
-                        || Array.IndexOf(CtrlNames, HingeAnchorPrefix + CtrlNames[joint]) >= 0
+                        || (rigidOnly && HingeLimitOverRing(ring) is not null)
+                        || (rigidOnly && Array.IndexOf(CtrlNames, HingeAnchorPrefix + CtrlNames[joint]) >= 0)
                         || RigidHingeVector(joint, ring) is not { } vector)
                     {
                         continue;

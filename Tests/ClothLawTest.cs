@@ -8923,5 +8923,85 @@ namespace Tests
                 SkinInfluences = [.. enable.Select(static _ => Array.Empty<(string, float)>())],
                 Faces = faces,
             };
+
+        /// <summary>
+        /// A hinge's fan element is kept out of the sheet recovery whether or not the hinge carries limits
+        /// or an anchor, while the set a rigid <c>ClothChainHinge</c> is re-declared from keeps excluding
+        /// both. The compiler emits the fan from the hinge flag alone, so a limited hinge's fan is chain
+        /// geometry exactly as a rigid one's is. CONTROLS: a hinge with neither term stays in both sets,
+        /// and a face naming a sheet vertex is no hinge fan on any of them.
+        /// </summary>
+        /// <remarks>
+        /// READ 2026-09-20: `sub_1818DF340` sets the fan flag `joint+137` for a
+        /// `hinge_constraint_vector_worldspace` of length &gt;= 0.001 with `hinge_constraint_soft` unset,
+        /// and nothing on `sub_1818DEC20`'s bit-4 branch reads a limit. The two exclusion terms come from
+        /// `sub_1818DB870`, whose limits record is built for every child inside
+        /// `max(0, limit_cw) + max(0, limit_ccw) &lt; 355` while the `$ha_` anchor needs a chain ROOT with a
+        /// two-member ring besides, so the anchor never appears without the record on a ring of two.
+        /// </remarks>
+        [Test]
+        public async Task AHingesFanIsChainGeometryWhetherOrNotItIsLimited()
+        {
+            int[] fan = [1, 0, 3, 4];
+            int[] overSheet = [1, 0, 3, 6];
+
+            var plain = HingeFanGate(limits: false, anchor: false);
+            var limited = HingeFanGate(limits: true, anchor: false);
+            var anchored = HingeFanGate(limits: false, anchor: true);
+            var both = HingeFanGate(limits: true, anchor: true);
+
+            using (Assert.Multiple())
+            {
+                // CONTROLS: the hinge the old set already held is still a fan face and still re-declarable,
+                // and a face standing on a sheet vertex is no fan on any arm.
+                await Assert.That(plain.IsHingeFanFace(fan)).IsTrue();
+                await Assert.That(plain.RigidHingeJoints.ContainsKey(2)).IsTrue();
+                await Assert.That(plain.IsHingeFanFace(overSheet)).IsFalse();
+
+                // CONTROL: the re-authoring set is untouched - a limited or anchored hinge is not rigid.
+                await Assert.That(limited.RigidHingeJoints.ContainsKey(2)).IsFalse();
+                await Assert.That(anchored.RigidHingeJoints.ContainsKey(2)).IsFalse();
+                await Assert.That(both.RigidHingeJoints.ContainsKey(2)).IsFalse();
+
+                // The law: each exclusion term on its own, and the two together, still leave a fan face.
+                await Assert.That(limited.IsHingeFanFace(fan)).IsTrue();
+                await Assert.That(anchored.IsHingeFanFace(fan)).IsTrue();
+                await Assert.That(both.IsHingeFanFace(fan)).IsTrue();
+            }
+        }
+
+        // The hinge fan of "hat" over its child "hat_end", with either exclusion term switchable. Index 6
+        // is a sheet vertex the fan never names, so a face reaching it is the predicate-false control.
+        private static FeModel HingeFanGate(bool limits, bool anchor) => SyntheticCloth.Parse($$"""
+            {
+                m_CtrlName = [ "$cchat_0", "$cchat_1", "hat", "$cchat_end_0", "$cchat_end_1", "hat_end",
+                               "$cloth_m0p0"{{(anchor ? ", \"$ha_hat\"" : string.Empty)}} ]
+                m_SkelParents = [ 2, 2, -1, 5, 5, 2, -1{{(anchor ? ", -1" : string.Empty)}} ]
+                m_nNodeCount = {{(anchor ? 8 : 7)}}
+                m_nStaticNodes = 3
+                m_NodeInvMasses = [ 0.0, 0.0, 0.0, 1.0, 1.0, 1.0, 1.0{{(anchor ? ", 0.0" : string.Empty)}} ]
+                m_InitPose =
+                [
+                    {{SyntheticCloth.Pose(0f, -10f, 0f)}}
+                    {{SyntheticCloth.Pose(0f, 10f, 0f)}}
+                    {{SyntheticCloth.Pose(0f, 0f, 0f)}}
+                    {{SyntheticCloth.Pose(8f, 0f, -20f)}}
+                    {{SyntheticCloth.Pose(8f, 0f, 20f)}}
+                    {{SyntheticCloth.Pose(8f, 0f, 0f)}}
+                    {{SyntheticCloth.Pose(16f, 0f, 0f)}}
+                    {{(anchor ? SyntheticCloth.Pose(0f, 0f, 0f) : string.Empty)}}
+                ]
+                m_CtrlOffsets =
+                [
+                    { vOffset = [ 0.0, -10.0, 0.000001 ] nCtrlParent = 2 nCtrlChild = 0 },
+                    { vOffset = [ 0.0, 10.0, -0.000001 ] nCtrlParent = 2 nCtrlChild = 1 },
+                    { vOffset = [ 0.0, 0.0, -20.0 ] nCtrlParent = 5 nCtrlChild = 3 },
+                    { vOffset = [ 0.0, 0.0, 20.0 ] nCtrlParent = 5 nCtrlChild = 4 },
+                ]
+                m_Quads = [ { nNode = [ 1, 0, 3, 4 ] } ]
+                m_Rods = [ {{SyntheticCloth.RigidRod(3, 4, 40f, 1f)}} ]
+                {{(limits ? "m_HingeLimits = [ { nNode = [ 0, 1, 2, 5, 2, 5 ] flAngleCenter = 0.0 flAngleExtents = 0.785398 } ]" : string.Empty)}}
+            }
+            """);
     }
 }
