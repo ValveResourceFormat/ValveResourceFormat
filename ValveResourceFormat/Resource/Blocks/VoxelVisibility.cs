@@ -142,7 +142,44 @@ namespace ValveResourceFormat.Blocks
         /// </summary>
         public byte[] VisBlocks { get; private set; } = [];
 
+        /// <summary>
+        /// Gets whether this block holds visibility that can be queried. Files from before the octree
+        /// format, and maps compiled without visibility, have none.
+        /// </summary>
+        public bool HasVisibilityData => BaseClusterCount > 0 && PVSBytesPerCluster > 0 && Nodes.Length > 0;
+
+        /// <summary>
+        /// Gets the visibility row listing the clusters sunlight reaches, empty when there is no sun row.
+        /// Nothing outside it can be lit by the sun, so nothing outside it casts a sun shadow.
+        /// </summary>
+        public ReadOnlyMemory<byte> SunVisibility => GetVisibilityRow(SunVisibilityCluster);
+
+        /// <summary>
+        /// Gets the visibility row listing the clusters the sky reaches, empty when there is no sky row.
+        /// </summary>
+        public ReadOnlyMemory<byte> SkyVisibility => GetVisibilityRow(SkyVisibilityCluster);
+
+        /// <summary>
+        /// The maximum number of clusters a visibility query can report.
+        /// </summary>
+        public const int MaxClusters = 4096;
+
+        /// <summary>
+        /// The number of 32 bit words in a cluster bitfield.
+        /// </summary>
+        public const int ClusterBitfieldWords = MaxClusters / 32;
+
+        // Queries grow by a fraction of a unit so a box flush against a cell boundary still reaches the far side
+        private const float QueryEpsilon = 1f / 32f;
+
+        // Above this extent in more than one axis a box walks too many leaves to be worth an exact answer
+        private const float LargeBoxExtent = 1024f;
+
         private byte[]? pvsBuffer;
+
+        private static readonly ulong[] SpatialMaskX = CreateAxisMasks(1);
+        private static readonly ulong[] SpatialMaskY = CreateAxisMasks(4);
+        private static readonly ulong[] SpatialMaskZ = CreateAxisMasks(16);
 
         private static ReadOnlySpan<byte> SubGridLevel1 => [0, 2, 8, 10, 32, 34, 40, 42];
         private static ReadOnlySpan<byte> SubGridLevel2 => [0, 1, 4, 5, 16, 17, 20, 21];
@@ -264,17 +301,14 @@ namespace ValveResourceFormat.Blocks
                 }
             }
 
-            var halfGrid = GridSize * 0.5f + 0.03125f;
-            var boxMin = position - new Vector3(halfGrid);
-            var boxMax = position + new Vector3(halfGrid);
+            var halfGrid = new Vector3(GridSize * 0.5f);
 
-            Span<uint> bitfield = stackalloc uint[128];
-            bitfield.Clear();
-            QueryOctreeBox(0, MinBounds, MaxBounds, boxMin, boxMax, bitfield, halfGrid * 2f >= 1024f);
+            Span<uint> clusterBits = stackalloc uint[ClusterBitfieldWords];
+            GetVisClustersForBox(position - halfGrid, position + halfGrid, clusterBits);
 
-            for (var i = 0; i < 128; i++)
+            for (var i = 0; i < ClusterBitfieldWords; i++)
             {
-                var word = bitfield[i];
+                var word = clusterBits[i];
                 if (word != 0)
                 {
                     return BitOperations.TrailingZeroCount(word) + 32 * i;
@@ -282,6 +316,103 @@ namespace ValveResourceFormat.Blocks
             }
 
             return 0;
+        }
+
+        // The sky and sun rows are stored past the addressable clusters, so they are only reachable this way
+        private ReadOnlyMemory<byte> GetVisibilityRow(uint cluster)
+        {
+            var offset = (long)cluster * PVSBytesPerCluster;
+
+            if (PVSBytesPerCluster == 0 || offset + PVSBytesPerCluster > VisBlocks.Length)
+            {
+                return default;
+            }
+
+            return VisBlocks.AsMemory((int)offset, (int)PVSBytesPerCluster);
+        }
+
+        /// <summary>
+        /// Fills a bitfield with every cluster the given box overlaps, one bit per cluster id.
+        /// </summary>
+        /// <param name="min">Minimum corner of the box.</param>
+        /// <param name="max">Maximum corner of the box.</param>
+        /// <param name="clusterBits">Destination bitfield, at least <see cref="ClusterBitfieldWords"/> words long.</param>
+        /// <param name="exact">Visit every leaf rather than taking the precomputed cluster list of a fully enclosed octree node.</param>
+        public void GetVisClustersForBox(Vector3 min, Vector3 max, Span<uint> clusterBits, bool exact = false)
+        {
+            ArgumentOutOfRangeException.ThrowIfLessThan(clusterBits.Length, ClusterBitfieldWords);
+
+            clusterBits = clusterBits[..ClusterBitfieldWords];
+            clusterBits.Clear();
+
+            // Cluster 0 stands in wherever the octree cannot answer, and is a member of every pvs row
+            if (Nodes.Length == 0)
+            {
+                clusterBits[0] = 1;
+                return;
+            }
+
+            var center = (min + max) * 0.5f;
+            var halfSize = Vector3.Max(max - center, Vector3.Zero) + new Vector3(QueryEpsilon);
+            var queryMin = center - halfSize;
+            var queryMax = center + halfSize;
+
+            if (queryMin.X <= MinBounds.X && queryMin.Y <= MinBounds.Y && queryMin.Z <= MinBounds.Z
+                && queryMax.X >= MaxBounds.X && queryMax.Y >= MaxBounds.Y && queryMax.Z >= MaxBounds.Z)
+            {
+                clusterBits[0] = 1;
+                return;
+            }
+
+            var size = halfSize * 2f;
+            var largeAxes = (size.X >= LargeBoxExtent ? 1 : 0)
+                + (size.Y >= LargeBoxExtent ? 1 : 0)
+                + (size.Z >= LargeBoxExtent ? 1 : 0);
+
+            QueryOctreeBox(0, MinBounds, MaxBounds, queryMin, queryMax, clusterBits, !exact && largeAxes > 1);
+        }
+
+        /// <summary>
+        /// Writes the id of every cluster the given box overlaps.
+        /// </summary>
+        /// <param name="min">Minimum corner of the box.</param>
+        /// <param name="max">Maximum corner of the box.</param>
+        /// <param name="clusters">
+        /// Destination for the cluster ids. When more clusters overlap than fit, the result collapses to the
+        /// catch-all cluster 0 instead of an arbitrary subset.
+        /// </param>
+        /// <param name="exact">Visit every leaf rather than taking the precomputed cluster list of a fully enclosed octree node.</param>
+        /// <returns>The number of cluster ids written.</returns>
+        public int GetVisClusterList(Vector3 min, Vector3 max, Span<ushort> clusters, bool exact = false)
+        {
+            Span<uint> clusterBits = stackalloc uint[ClusterBitfieldWords];
+            GetVisClustersForBox(min, max, clusterBits, exact);
+
+            var count = 0;
+
+            for (var i = 0; i < ClusterBitfieldWords; i++)
+            {
+                var word = clusterBits[i];
+
+                while (word != 0)
+                {
+                    if (count < clusters.Length)
+                    {
+                        clusters[count] = (ushort)(i * 32 + BitOperations.TrailingZeroCount(word));
+                    }
+
+                    count++;
+                    word &= word - 1;
+                }
+            }
+
+            if (count > clusters.Length)
+            {
+                clusters[0] = 0;
+                return 1;
+            }
+
+            return count;
         }
 
         /// <summary>
@@ -393,12 +524,12 @@ namespace ValveResourceFormat.Blocks
             var midY = (nodeMin.Y + nodeMax.Y) * 0.5f;
             var midZ = (nodeMin.Z + nodeMax.Z) * 0.5f;
 
-            var xLow = boxMin.X <= midX;
-            var xHigh = boxMax.X >= midX;
-            var yLow = boxMin.Y <= midY;
-            var yHigh = boxMax.Y >= midY;
-            var zLow = boxMin.Z <= midZ;
-            var zHigh = boxMax.Z >= midZ;
+            var xLow = nodeMin.X <= boxMax.X && boxMin.X <= midX;
+            var xHigh = boxMin.X <= nodeMax.X && midX <= boxMax.X;
+            var yLow = nodeMin.Y <= boxMax.Y && boxMin.Y <= midY;
+            var yHigh = boxMin.Y <= nodeMax.Y && midY <= boxMax.Y;
+            var zLow = nodeMin.Z <= boxMax.Z && boxMin.Z <= midZ;
+            var zHigh = boxMin.Z <= nodeMax.Z && midZ <= boxMax.Z;
 
             for (uint octant = 0; octant < 8; octant++)
             {
@@ -541,18 +672,65 @@ namespace ValveResourceFormat.Blocks
                 return 0;
             }
 
-            var xMin = Math.Clamp((int)((boxMin.X - leafMin.X) / cellSize), 0, 3);
-            var xMax = Math.Clamp((int)((boxMax.X - leafMin.X) / cellSize), 0, 3);
-            var yMin = Math.Clamp((int)((boxMin.Y - leafMin.Y) / cellSize), 0, 3);
-            var yMax = Math.Clamp((int)((boxMax.Y - leafMin.Y) / cellSize), 0, 3);
-            var zMin = Math.Clamp((int)((boxMin.Z - leafMin.Z) / cellSize), 0, 3);
-            var zMax = Math.Clamp((int)((boxMax.Z - leafMin.Z) / cellSize), 0, 3);
-
-            var xMask = (ulong)((1 << (xMax + 1)) - (1 << xMin)) * 0x1111111111111111UL;
-            var yMask = ((1UL << (4 * (yMax + 1))) - (1UL << (4 * yMin))) * 0x0001000100010001UL;
-            var zMask = (zMax >= 3 ? 0UL : 1UL << (16 * (zMax + 1))) - (1UL << (16 * zMin));
+            var xMask = SpatialMaskX[OverlappedCells(boxMin.X, boxMax.X, leafMin.X, cellSize)];
+            var yMask = SpatialMaskY[OverlappedCells(boxMin.Y, boxMax.Y, leafMin.Y, cellSize)];
+            var zMask = SpatialMaskZ[OverlappedCells(boxMin.Z, boxMax.Z, leafMin.Z, cellSize)];
 
             return xMask & yMask & zMask;
+        }
+
+        /// <summary>
+        /// Returns which of the four cells along one axis the box reaches into, as a four bit set.
+        /// Cells are half open, so a box that only touches a cell edge does not enter it, and a box
+        /// that misses the leaf entirely reaches nothing.
+        /// </summary>
+        private static int OverlappedCells(float boxMin, float boxMax, float leafMin, float cellSize)
+        {
+            var cells = 0;
+
+            for (var cell = 0; cell < 4; cell++)
+            {
+                var low = leafMin + cellSize * cell;
+
+                if (low < boxMax && boxMin < low + cellSize)
+                {
+                    cells |= 1 << cell;
+                }
+            }
+
+            return cells;
+        }
+
+        /// <summary>
+        /// Builds the 16 masks that turn a four bit set of cells on one axis into occupancy grid bits.
+        /// Cell (x, y, z) sits at bit x + 4y + 16z, so a set on one axis repeats with that axis' stride.
+        /// </summary>
+        private static ulong[] CreateAxisMasks(int stride)
+        {
+            var masks = new ulong[16];
+            var unit = (1UL << stride) - 1;
+
+            for (var cells = 0; cells < masks.Length; cells++)
+            {
+                var mask = 0UL;
+
+                for (var cell = 0; cell < 4; cell++)
+                {
+                    if ((cells & (1 << cell)) != 0)
+                    {
+                        mask |= unit << (cell * stride);
+                    }
+                }
+
+                for (var shift = stride * 4; shift < 64; shift *= 2)
+                {
+                    mask |= mask << shift;
+                }
+
+                masks[cells] = mask;
+            }
+
+            return masks;
         }
 
         /// <summary>

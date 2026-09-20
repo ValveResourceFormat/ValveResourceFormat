@@ -58,6 +58,36 @@ namespace Tests
         }
 
         [Test]
+        public async Task ResolvesClustersForBoxes()
+        {
+            using var resource = new Resource();
+            var vis = LoadVis(resource);
+
+            var center = (vis.MinBounds + vis.MaxBounds) / 2f;
+            var clusters = new ushort[VoxelVisibility.MaxClusters];
+
+            var inside = vis.GetVisClusterList(center - Vector3.One, center + Vector3.One, clusters);
+            var insideCluster = clusters[0];
+
+            var outside = vis.GetVisClusterList(vis.MaxBounds + new Vector3(10000f), vis.MaxBounds + new Vector3(10100f), clusters);
+
+            // A box swallowing the whole octree reports the catch-all cluster instead of walking it
+            var everything = vis.GetVisClusterList(vis.MinBounds - new Vector3(1f), vis.MaxBounds + new Vector3(1f), clusters);
+            var everythingCluster = clusters[0];
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(inside).IsEqualTo(1);
+                await Assert.That((int)insideCluster).IsEqualTo(vis.GetClusterForPosition(center));
+
+                await Assert.That(outside).IsEqualTo(0);
+
+                await Assert.That(everything).IsEqualTo(1);
+                await Assert.That((int)everythingCluster).IsEqualTo(0);
+            }
+        }
+
+        [Test]
         public async Task ClusterBoundsStayInsideTheOctree()
         {
             using var resource = new Resource();

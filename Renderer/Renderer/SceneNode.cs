@@ -1,3 +1,4 @@
+using ValveResourceFormat.Blocks;
 using ValveResourceFormat.Renderer.SceneEnvironment;
 using ValveResourceFormat.ResourceTypes;
 
@@ -181,10 +182,61 @@ namespace ValveResourceFormat.Renderer
         private AABB localBoundingBox;
         private Matrix4x4 transform = Matrix4x4.Identity;
 
+        private ushort[]? visClusters;
+        private int visClusterCount;
+        private AABB visClusterBounds;
+
         /// <summary>
         /// This node's slot in the scene's <see cref="Scene.DynamicOctree"/>, or -1 when it is not in one.
         /// </summary>
         internal int DynamicSetIndex { get; set; } = -1;
+
+        /// <summary>
+        /// Gets the visibility clusters this node's bounding box overlaps, recomputing them when it has moved
+        /// or grown since the last query. A node with no clusters at all sits outside the visibility volume.
+        /// </summary>
+        /// <param name="voxelVisibility">The scene's visibility data.</param>
+        internal ReadOnlySpan<ushort> GetVisClusters(VoxelVisibility voxelVisibility)
+        {
+            if (visClusters != null && visClusterBounds.Equals(BoundingBox))
+            {
+                return visClusters.AsSpan(0, visClusterCount);
+            }
+
+            Span<uint> clusterBits = stackalloc uint[VoxelVisibility.ClusterBitfieldWords];
+            voxelVisibility.GetVisClustersForBox(BoundingBox.Min, BoundingBox.Max, clusterBits);
+
+            var count = 0;
+
+            foreach (var word in clusterBits)
+            {
+                count += BitOperations.PopCount(word);
+            }
+
+            // Anything that moves requeries every frame, so grow the list rather than replacing it
+            if (visClusters == null || visClusters.Length < count)
+            {
+                visClusters = new ushort[count];
+            }
+
+            visClusterCount = count;
+            count = 0;
+
+            for (var i = 0; i < clusterBits.Length; i++)
+            {
+                var word = clusterBits[i];
+
+                while (word != 0)
+                {
+                    visClusters[count++] = (ushort)(i * 32 + BitOperations.TrailingZeroCount(word));
+                    word &= word - 1;
+                }
+            }
+
+            visClusterBounds = BoundingBox;
+
+            return visClusters.AsSpan(0, visClusterCount);
+        }
 
         /// <summary>
         /// Initializes a new instance of the <see cref="SceneNode"/> class.

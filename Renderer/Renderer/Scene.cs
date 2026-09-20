@@ -107,8 +107,8 @@ namespace ValveResourceFormat.Renderer
         /// <summary>Gets or sets the voxel visibility data.</summary>
         public VoxelVisibility? VoxelVisibility { get; set; }
 
-        /// <summary>Gets or sets whether PVS culling is enabled for this scene.</summary>
-        public bool EnablePvsCulling { get; set; }
+        /// <summary>Gets or sets whether PVS culling is enabled for this scene. Has no effect without <see cref="VoxelVisibility"/>.</summary>
+        public bool EnablePvsCulling { get; set; } = true;
 
         /// <summary>Gets or sets the PVS bitfield for the cluster at the current camera position.</summary>
         public byte[]? CurrentFramePvs { get; set; }
@@ -1061,6 +1061,46 @@ namespace ValveResourceFormat.Renderer
             return CullResults;
         }
 
+        /// <summary>
+        /// Tests a node against this frame's pvs. A node belongs to every visibility cluster its bounding box
+        /// touches and survives as long as one of them is visible.
+        /// </summary>
+        /// <param name="node">The node to test.</param>
+        /// <returns>Whether the node may draw this frame.</returns>
+        public bool IsNodeInPvs(SceneNode node) => IsNodeInPvs(node, CurrentFramePvs);
+
+        /// <summary>
+        /// Tests a node against an arbitrary visibility row, such as the sun row that says where sunlight
+        /// reaches. An empty row means the scene has nothing to cull with and everything passes.
+        /// </summary>
+        /// <param name="node">The node to test.</param>
+        /// <param name="visibilityRow">A cluster bitfield, one bit per cluster id.</param>
+        /// <returns>Whether the node may draw.</returns>
+        public bool IsNodeInPvs(SceneNode node, ReadOnlySpan<byte> visibilityRow)
+        {
+            if (visibilityRow.IsEmpty || VoxelVisibility == null)
+            {
+                return true;
+            }
+
+            var clusters = node.GetVisClusters(VoxelVisibility);
+
+            if (clusters.IsEmpty)
+            {
+                return true;
+            }
+
+            foreach (var cluster in clusters)
+            {
+                if (cluster < visibilityRow.Length * 8 && (visibilityRow[cluster >> 3] & (1 << (cluster & 7))) != 0)
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
         /// <summary>Gets or sets whether any translucent material in the collected draw calls samples the scene color texture.</summary>
         public bool WantsSceneColor { get; set; }
 
@@ -1249,6 +1289,12 @@ namespace ValveResourceFormat.Renderer
                     continue;
                 }
 
+                if (node is MeshCollectionNode or SceneAggregate or SceneAggregate.Fragment or ParticleSceneNode && !IsNodeInPvs(node))
+                {
+                    PerfStats.Active.Count(Counter.SceneObjectCulledByPvs, 1);
+                    continue;
+                }
+
                 if (node is MeshCollectionNode meshCollection)
                 {
                     foreach (var mesh in meshCollection.RenderableMeshes)
@@ -1408,6 +1454,10 @@ namespace ValveResourceFormat.Renderer
 
             LightingInfo.UpdateSunLightFrustum(camera, shadowMapSize);
 
+            var sunVisibility = EnablePvsCulling && VoxelVisibility != null
+                ? VoxelVisibility.SunVisibility
+                : default;
+
             for (var cascade = 0; cascade < WorldLightingInfo.SunCascadeCount; cascade++)
             {
                 if (cascade >= LightingInfo.ActiveSunCascadeCount)
@@ -1429,7 +1479,8 @@ namespace ValveResourceFormat.Renderer
                     includeStatic: !LightingInfo.HasBakedShadowsFromLightmap,
                     includeDynamic: true, skipFlags: ObjectTypeFlags.NoShadows,
                     CulledShadowDrawCallsCascades[cascade],
-                    LightingInfo.SunCastDirection, out var casterDepthMin, out var casterDepthMax);
+                    LightingInfo.SunCastDirection, out var casterDepthMin, out var casterDepthMax,
+                    sunVisibility);
 
                 LightingInfo.FitSunLightDepthRange(cascade, casterDepthMin, casterDepthMax);
             }
@@ -1452,10 +1503,10 @@ namespace ValveResourceFormat.Renderer
         }
 
         private void CollectShadowDrawCalls(Frustum frustum, bool includeStatic, bool includeDynamic, ObjectTypeFlags skipFlags, Dictionary<DepthOnlyBucket, List<MeshBatchRenderer.Request>> drawBuckets)
-            => CollectShadowDrawCalls(frustum, includeStatic, includeDynamic, skipFlags, drawBuckets, Vector3.Zero, out _, out _);
+            => CollectShadowDrawCalls(frustum, includeStatic, includeDynamic, skipFlags, drawBuckets, Vector3.Zero, out _, out _, default);
 
         private void CollectShadowDrawCalls(Frustum frustum, bool includeStatic, bool includeDynamic, ObjectTypeFlags skipFlags, Dictionary<DepthOnlyBucket, List<MeshBatchRenderer.Request>> drawBuckets,
-            Vector3 depthFitAxis, out float casterDepthMin, out float casterDepthMax)
+            Vector3 depthFitAxis, out float casterDepthMin, out float casterDepthMax, ReadOnlyMemory<byte> casterVisibility)
         {
             // Extent of the accepted casters along the fit axis, for tightening the light's depth range
             var depthMin = float.MaxValue;
@@ -1495,6 +1546,12 @@ namespace ValveResourceFormat.Renderer
             {
                 if (!node.Visible)
                 {
+                    continue;
+                }
+
+                if (!IsNodeInPvs(node, casterVisibility.Span))
+                {
+                    PerfStats.Active.Count(Counter.ShadowCasterCulledByPvs, 1);
                     continue;
                 }
 
