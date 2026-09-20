@@ -40,8 +40,8 @@ namespace ValveResourceFormat.Renderer
         /// <summary>Gets all draw calls across all render buckets.</summary>
         public IEnumerable<DrawCall> DrawCalls => DrawCallsOpaque.Concat(DrawCallsOverlay).Concat(DrawCallsBlended);
 
-        /// <summary>Gets the GPU storage buffer holding the bone matrices for skeletal animation, or <see langword="null"/> if not animated.</summary>
-        public StorageBuffer? BoneMatricesGpu { get; private set; }
+        /// <summary>Gets whether this mesh is currently skinned.</summary>
+        public bool IsSkinningActive { get; private set; }
 
         /// <summary>Gets the starting bone index in the model-space bone array for this mesh.</summary>
         public int MeshBoneOffset { get; private set; }
@@ -56,7 +56,7 @@ namespace ValveResourceFormat.Renderer
         public MeshSkinning Skinning { get; private set; }
 
         /// <summary>Gets the variant to draw with now. Bind pose does not need skinning.</summary>
-        public MeshSkinning ActiveSkinning => BoneMatricesGpu != null ? Skinning : MeshSkinning.None;
+        public MeshSkinning ActiveSkinning => IsSkinningActive ? Skinning : MeshSkinning.None;
 
         /// <summary>Gets the name of the source mesh resource.</summary>
         public string Name { get; }
@@ -124,11 +124,10 @@ namespace ValveResourceFormat.Renderer
         }
 #endif
 
-        /// <summary>Assigns the GPU bone matrices buffer and resets flex controllers.</summary>
-        /// <param name="buffer">The storage buffer holding bone matrices, or <see langword="null"/> to disable skinning.</param>
-        public void SetBoneMatricesBuffer(StorageBuffer? buffer)
+        /// <summary>Turns skinning on or off for this mesh and resets flex controllers.</summary>
+        public void SetSkinningActive(bool active)
         {
-            BoneMatricesGpu = buffer;
+            IsSkinningActive = active;
 
             FlexStateManager?.ResetControllers();
         }

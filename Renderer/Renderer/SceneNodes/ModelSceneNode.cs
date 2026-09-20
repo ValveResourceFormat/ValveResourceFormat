@@ -199,7 +199,8 @@ namespace ValveResourceFormat.Renderer.SceneNodes
 
             if (IsAnimated)
             {
-                UploadBoneMatrices();
+                Scene.UpdateSkinningTransforms(this);
+                UpdateAnimatedBoundingBox();
             }
 
             if (AnimationController.AnimationFrame != null)
@@ -306,7 +307,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
 
             if (Animations.Count != 0)
             {
-                SetupBoneMatrixBuffers();
+                SetupSkinning();
             }
         }
 
@@ -332,7 +333,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             var anim = new ClipAnimation(clip);
             Animations[anim.Name] = anim;
             AnimationPlayer.PrewarmAnimationSounds(anim);
-            SetupBoneMatrixBuffers();
+            SetupSkinning();
         }
 
         /// <summary>
@@ -436,14 +437,14 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             {
                 foreach (var renderer in meshRenderers)
                 {
-                    renderer.SetBoneMatricesBuffer(boneMatricesGpu);
+                    renderer.SetSkinningActive(IsAnimated);
                 }
             }
             else
             {
                 foreach (var renderer in meshRenderers)
                 {
-                    renderer.SetBoneMatricesBuffer(null);
+                    renderer.SetSkinningActive(false);
                 }
             }
         }
@@ -458,11 +459,5 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             }
         }
 #endif
-
-        /// <inheritdoc/>
-        public override void Delete()
-        {
-            boneMatricesGpu?.Delete();
-        }
     }
 }

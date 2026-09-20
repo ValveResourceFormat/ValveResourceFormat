@@ -84,6 +84,11 @@ ObjectData_t GetObjectData()
     return object;
 }
 
+uint GetObjectBoneOffset()
+{
+    return objects[gl_BaseInstance].TransformIndex + 2u;
+}
+
 mat3x4 CalculateObjectToWorldMatrix()
 {
     ObjectDataStandard objectData = objects[gl_BaseInstance];

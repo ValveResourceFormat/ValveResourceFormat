@@ -275,8 +275,6 @@ namespace ValveResourceFormat.Renderer
                         context.Scene.TransformBufferGpu.BindBufferBase();
                         context.Scene.InstanceBufferGpu.BindBufferBase();
 
-                        context.Scene.TransformBufferGpu.BindBufferBase(ReservedBufferSlots.BoneTransforms);
-
                         if (config.IndirectDraw)
                         {
                             GL.ProgramUniform1((uint)shader.Program, uniforms.IsInstancing, 1);
@@ -319,21 +317,9 @@ namespace ValveResourceFormat.Renderer
 
             if (uniforms.AnimationData != -1)
             {
-                var bAnimated = request.Mesh.BoneMatricesGpu != null;
-                var numBones = 0u;
-                var boneStart = 0u;
-
-                if (bAnimated)
-                {
-                    request.Mesh.BoneMatricesGpu!.BindBufferBase();
-                    numBones = (uint)request.Mesh.MeshBoneCount;
-                    boneStart = (uint)request.Mesh.MeshBoneOffset;
-                }
-                else
-                {
-                    // todo: this is not resetting when there are no aggregates in scene
-                    request.Node.Scene.TransformBufferGpu?.BindBufferBase(ReservedBufferSlots.BoneTransforms);
-                }
+                var bAnimated = request.Mesh.IsSkinningActive;
+                var numBones = bAnimated ? (uint)request.Mesh.MeshBoneCount : 0u;
+                var boneStart = bAnimated ? (uint)request.Mesh.MeshBoneOffset : 0u;
 
                 GL.ProgramUniform3((uint)shader.Program, uniforms.AnimationData, bAnimated ? 1u : 0u, boneStart, numBones);
             }

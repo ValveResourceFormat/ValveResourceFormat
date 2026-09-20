@@ -50,8 +50,8 @@ public enum ReservedBufferSlots
     CompactedDraws = 8,
     /// <summary>Compacted draw counts SSBO slot.</summary>
     CompactedCounts = 9,
-    /// <summary>Bone transform matrices SSBO slot.</summary>
-    BoneTransforms = 10,
+    /// <summary>Scratch slot for buffers.</summary>
+    BufferSlot10 = 10,
     /// <summary>Barn light constants SSBO slot.</summary>
     BarnLights = 11,
     /// <summary>Tile and depth slice bit masks the cull passes produce.</summary>

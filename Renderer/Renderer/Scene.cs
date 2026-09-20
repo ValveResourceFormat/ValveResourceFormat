@@ -233,6 +233,10 @@ namespace ValveResourceFormat.Renderer
         private readonly List<RenderableMesh> listWithSingleMesh = [null!];
 
         private ObjectDataStandard[]? instanceDataCpu;
+        private ObjectLodInfo[]? lodDataCpu;
+        private readonly List<SceneNode> nodeScratch = [];
+        private List<OpenTK.Mathematics.Matrix3x4>? transformDataCpu;
+        private int transformUploadStart = int.MaxValue;
         private readonly List<SceneAggregate> lodAggregates = [];
         private uint[] activeLodBits = [];
 
@@ -269,7 +273,7 @@ namespace ValveResourceFormat.Renderer
             CreateBuffers();
             CalculateLightProbeBindings();
             CalculateEnvironmentMaps();
-            CreateInstanceTransformBuffers(deletePrevious: true); // after calculating envmap and lpv
+            CreateInstanceTransformBuffers(); // after calculating envmap and lpv
 
             UpdateBuffers();
 
@@ -558,6 +562,7 @@ namespace ValveResourceFormat.Renderer
             }
 
             UpdateDynamicInstanceData();
+            UploadDirtyTransforms();
 
             if (StaticOctree.Dirty || DynamicOctree.Dirty)
             {
@@ -566,7 +571,7 @@ namespace ValveResourceFormat.Renderer
 
                 UpdateOctrees();
                 UpdateNodeIndices();
-                CreateInstanceTransformBuffers(deletePrevious: true);
+                CreateInstanceTransformBuffers();
 
                 if (staticDirty)
                 {
@@ -592,24 +597,27 @@ namespace ValveResourceFormat.Renderer
             CreateIndirectDrawBuffers();
         }
 
-        private void CreateInstanceTransformBuffers(bool deletePrevious = false)
-        {
-            if (deletePrevious)
-            {
-                InstanceBufferGpu?.Delete();
-                TransformBufferGpu?.Delete();
-                ObjectLodGpu?.Delete();
-                ActiveLodBitsGpu?.Delete();
-            }
+        private static int CapacityFor(int count) => (int)BitOperations.RoundUpToPowerOf2((uint)Math.Max(64, count + (count / 10)));
 
-            var nodes = AllNodes.ToList();
+        private void CreateInstanceTransformBuffers()
+        {
+            nodeScratch.Clear();
+            nodeScratch.AddRange(staticNodes);
+            nodeScratch.AddRange(dynamicNodes);
+
+            var nodes = nodeScratch;
 
             if (nodes.Count == 0)
             {
                 return;
             }
 
-            var maxId = nodes.Max(n => n.Id);
+            var maxId = 0u;
+
+            foreach (var node in nodes)
+            {
+                maxId = Math.Max(maxId, node.Id);
+            }
 
             // Setups are numbered scene wide so a fragment can name its own with a single index
             lodAggregates.Clear();
@@ -625,13 +633,26 @@ namespace ValveResourceFormat.Renderer
                 }
             }
 
-            var instanceData = new ObjectDataStandard[maxId + 1];
-            var lodData = new ObjectLodInfo[maxId + 1];
-            var transformData = new List<OpenTK.Mathematics.Matrix3x4>(capacity: (int)maxId + 2)
+            var entryCount = (int)maxId + 1;
+
+            if (instanceDataCpu == null || instanceDataCpu.Length < entryCount)
             {
-                // Reserve index 0 for identity transform
-                Matrix4x4.Identity.To3x4()
-            };
+                instanceDataCpu = new ObjectDataStandard[CapacityFor(entryCount)];
+                lodDataCpu = new ObjectLodInfo[instanceDataCpu.Length];
+            }
+
+            var instanceData = instanceDataCpu;
+            var lodData = lodDataCpu!;
+
+            Array.Clear(instanceData, 0, entryCount);
+            Array.Clear(lodData, 0, entryCount);
+
+            transformDataCpu ??= new List<OpenTK.Mathematics.Matrix3x4>(capacity: CapacityFor(entryCount + 1));
+            var transformData = transformDataCpu;
+            transformData.Clear();
+
+            // Reserve index 0 for identity transform
+            transformData.Add(Matrix4x4.Identity.To3x4());
 
             foreach (var node in nodes)
             {
@@ -653,7 +674,7 @@ namespace ValveResourceFormat.Renderer
                         transformData.Add(instanceTransform);
                     }
                 }
-                else if (node.Transform.IsIdentity)
+                else if (node.Transform.IsIdentity && node is not ModelSceneNode { SkinningTransformCount: > 0 })
                 {
                     transformIndex = 0; // Reuse identity transform at index 0
                 }
@@ -661,6 +682,11 @@ namespace ValveResourceFormat.Renderer
                 {
                     transformIndex = (uint)transformData.Count;
                     transformData.Add(node.Transform.To3x4());
+                }
+
+                if (node is ModelSceneNode skinnedModel)
+                {
+                    AppendSkinningTransforms(skinnedModel, transformIndex, transformData);
                 }
 
                 // Everything else keeps a zero mask, which the cull shader reads as always drawn
@@ -684,22 +710,95 @@ namespace ValveResourceFormat.Renderer
                 };
             }
 
-            InstanceBufferGpu = new StorageBuffer(ReservedBufferSlots.Objects, nameof(ReservedBufferSlots.Objects));
-            TransformBufferGpu = new StorageBuffer(ReservedBufferSlots.Transforms, nameof(ReservedBufferSlots.Transforms));
+            InstanceBufferGpu = Upload<ObjectDataStandard>(InstanceBufferGpu, instanceData.AsSpan(0, entryCount),
+                ReservedBufferSlots.Objects, nameof(ReservedBufferSlots.Objects));
+            TransformBufferGpu = Upload<OpenTK.Mathematics.Matrix3x4>(TransformBufferGpu, CollectionsMarshal.AsSpan(transformData),
+                ReservedBufferSlots.Transforms, nameof(ReservedBufferSlots.Transforms));
+            ObjectLodGpu = Upload<ObjectLodInfo>(ObjectLodGpu, lodData.AsSpan(0, entryCount),
+                ReservedBufferSlots.BufferSlot2, "ObjectLod");
 
-            InstanceBufferGpu.Create(instanceData, BufferUsage.Static);
-            TransformBufferGpu.Create(CollectionsMarshal.AsSpan(transformData), BufferUsage.Static);
+            var setupCount = Math.Max(1, lodSetupCount);
 
-            activeLodBits = new uint[Math.Max(1, lodSetupCount)];
+            if (activeLodBits.Length != setupCount)
+            {
+                activeLodBits = new uint[setupCount];
+            }
+
             Array.Fill(activeLodBits, 1u);
 
-            ObjectLodGpu = new StorageBuffer(ReservedBufferSlots.BufferSlot2, "ObjectLod");
-            ActiveLodBitsGpu = new StorageBuffer(ReservedBufferSlots.BufferSlot3, "ActiveLodBits");
+            ActiveLodBitsGpu = Upload<uint>(ActiveLodBitsGpu, activeLodBits, ReservedBufferSlots.BufferSlot3, "ActiveLodBits");
 
-            ObjectLodGpu.Create(lodData, BufferUsage.Static);
-            ActiveLodBitsGpu.Create(activeLodBits, BufferUsage.Dynamic);
+            transformUploadStart = int.MaxValue;
+        }
 
-            instanceDataCpu = instanceData;
+        // Kept between rebuilds, and only replaced by a bigger one once the scene outgrows it
+        private static StorageBuffer Upload<T>(StorageBuffer? buffer, ReadOnlySpan<T> data, ReservedBufferSlots slot, string name)
+            where T : struct
+        {
+            if (buffer == null || buffer.Size < data.Length * Unsafe.SizeOf<T>())
+            {
+                buffer?.Delete();
+                buffer = StorageBuffer.Allocate<T>(slot, name, CapacityFor(data.Length), BufferUsage.Dynamic);
+            }
+
+            buffer.Update(data, 0);
+
+            return buffer;
+        }
+
+        private static void AppendSkinningTransforms(ModelSceneNode model, uint transformIndex,
+            List<OpenTK.Mathematics.Matrix3x4> transformData)
+        {
+            model.TransformSlot = transformIndex;
+
+            var skinningSlots = model.SkinningTransformCount;
+
+            if (skinningSlots == 0)
+            {
+                return;
+            }
+
+            var runStart = (int)transformIndex + 1;
+            CollectionsMarshal.SetCount(transformData, runStart + skinningSlots);
+
+            var run = CollectionsMarshal.AsSpan(transformData).Slice(runStart, skinningSlots);
+            run.Clear();
+
+            model.WriteSkinningTransforms(run);
+        }
+
+        internal void UpdateSkinningTransforms(ModelSceneNode model)
+        {
+            var skinningSlots = model.SkinningTransformCount;
+
+            if (transformDataCpu == null || skinningSlots == 0 || model.TransformSlot == 0)
+            {
+                return; // The table has not been laid out for this model yet
+            }
+
+            var boneStart = (int)model.TransformSlot + 1;
+            var transforms = CollectionsMarshal.AsSpan(transformDataCpu);
+
+            Debug.Assert(boneStart + skinningSlots <= transforms.Length);
+
+            model.WriteSkinningTransforms(transforms.Slice(boneStart, skinningSlots));
+
+            transformUploadStart = Math.Min(transformUploadStart, boneStart);
+        }
+
+        private void UploadDirtyTransforms()
+        {
+            if (transformUploadStart == int.MaxValue || transformDataCpu == null || TransformBufferGpu == null)
+            {
+                return;
+            }
+
+            var stride = Unsafe.SizeOf<OpenTK.Mathematics.Matrix3x4>();
+            var transforms = CollectionsMarshal.AsSpan(transformDataCpu)[transformUploadStart..];
+
+            TransformBufferGpu.Update<OpenTK.Mathematics.Matrix3x4>(transforms, transformUploadStart * stride);
+
+            transformUploadStart = int.MaxValue;
         }
 
         /// <summary>
