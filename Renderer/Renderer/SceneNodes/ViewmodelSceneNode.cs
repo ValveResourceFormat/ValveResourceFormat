@@ -1004,9 +1004,9 @@ public class ViewmodelSceneNode : ModelSceneNode
             {
                 LayerName = ViewmodelLayerName,
                 Flags = ObjectTypeFlags.DisableVisCulling,
-                LayerEnabled = false,
             };
 
+            viewmodel.molotovHeldParticle.Stop();
             viewmodel.molotovHeldParticle.RenderPasses |= CustomRenderPasses.Viewmodel;
 
             scene.Add(viewmodel.molotovHeldParticle, true);

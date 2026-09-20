@@ -256,17 +256,17 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         public void Restart() => pendingRestart = true;
 
         /// <summary>Whether the system is switched on. A stopped system neither simulates nor draws.</summary>
-        public bool IsPlaying => LayerEnabled;
+        public bool IsPlaying { get; private set; } = true;
 
         /// <summary>Switches the system on and replays it from its current transform.</summary>
         public void Play()
         {
-            LayerEnabled = true;
+            IsPlaying = true;
             Restart();
         }
 
         /// <summary>Switches the system off, dropping whatever it had alive.</summary>
-        public void Stop() => LayerEnabled = false;
+        public void Stop() => IsPlaying = false;
 
         private bool pendingRestart;
 
@@ -514,7 +514,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         public override void Update(Scene.UpdateContext context)
         {
             // Visible too: a layer toggle re-enabling a sleeping effect must not have it simulate unseen
-            if (!LayerEnabled || !Visible)
+            if (!IsPlaying || !LayerEnabled || !Visible)
             {
                 return;
             }
@@ -684,7 +684,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         /// <inheritdoc/>
         public override void UpdateBuffers(Camera camera)
         {
-            if (LayerEnabled)
+            if (IsPlaying && LayerEnabled)
             {
                 particleRenderer.UpdateBuffers(camera);
             }
@@ -693,7 +693,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         /// <inheritdoc/>
         public override void Render(Scene.RenderContext context)
         {
-            if (context.ReplacementShader is not null)
+            if (!IsPlaying || context.ReplacementShader is not null)
             {
                 return;
             }

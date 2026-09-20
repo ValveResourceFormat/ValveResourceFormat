@@ -154,10 +154,10 @@ public sealed class CS2Projectile : BaseEntity
         var effectNode = new ParticleSceneNode(Scene, effect)
         {
             LayerName = EntitiesLayerName,
-            LayerEnabled = false,
             Visible = false,
         };
 
+        effectNode.Stop();
         Scene.Add(effectNode, true);
         return effectNode;
     }

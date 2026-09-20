@@ -88,7 +88,7 @@ public abstract class BaseModelEntity : BaseEntity
 
         foreach (var particleNode in particleNodes)
         {
-            particleNode.LayerName = "Particles";
+            particleNode.LayerName = Scene.ParticlesLayerName;
             Scene.Add(particleNode, true);
         }
 

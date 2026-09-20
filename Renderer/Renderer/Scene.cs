@@ -232,6 +232,10 @@ namespace ValveResourceFormat.Renderer
         private List<SceneNode> CulledShadowNodes { get; } = [];
         private readonly List<RenderableMesh> listWithSingleMesh = [null!];
 
+        /// <summary>The layer the map's own particle systems are put on.</summary>
+        public const string ParticlesLayerName = "Particles";
+
+        private HashSet<string>? enabledLayers;
         private ObjectDataStandard[]? instanceDataCpu;
         private ObjectLodInfo[]? lodDataCpu;
         private readonly List<SceneNode> nodeScratch = [];
@@ -296,6 +300,8 @@ namespace ValveResourceFormat.Renderer
         /// <param name="dynamic">When <see langword="true"/>, the node is placed in <see cref="DynamicOctree"/>; otherwise in <see cref="StaticOctree"/>.</param>
         public void Add(SceneNode node, bool dynamic)
         {
+            ApplyLayerVisibility(node);
+
             if (dynamic)
             {
                 dynamicNodes.Add(node);
@@ -2093,21 +2099,35 @@ namespace ValveResourceFormat.Renderer
         /// <param name="layers">The set of layer names that should be visible.</param>
         public void SetEnabledLayers(HashSet<string> layers)
         {
+            ArgumentNullException.ThrowIfNull(layers);
+
+            enabledLayers = [.. layers];
+
             foreach (var renderer in AllNodes)
             {
-                if (renderer.LayerName == null)
-                {
-                    renderer.LayerEnabled = false;
-                    continue;
-                }
-
-                if (renderer.LayerName.StartsWith("Internal -", StringComparison.Ordinal))
-                {
-                    continue;
-                }
-
-                renderer.LayerEnabled = layers.Contains(renderer.LayerName);
+                ApplyLayerVisibility(renderer);
             }
+        }
+
+        private void ApplyLayerVisibility(SceneNode node)
+        {
+            if (enabledLayers == null)
+            {
+                return;
+            }
+
+            if (node.LayerName == null)
+            {
+                node.LayerEnabled = false;
+                return;
+            }
+
+            if (node.LayerName.StartsWith("Internal -", StringComparison.Ordinal))
+            {
+                return;
+            }
+
+            node.LayerEnabled = enabledLayers.Contains(node.LayerName);
         }
 
         /// <summary>

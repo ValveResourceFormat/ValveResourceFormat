@@ -54,7 +54,7 @@ namespace ValveResourceFormat.Renderer.World
         private const string PhysicsDebugLayerName = "Physics Visualization Layer";
 
         /// <summary>Layer names that should be visible by default, populated during loading.</summary>
-        public HashSet<string> DefaultEnabledLayers { get; } = ["No layer", "Entities", EditorEntityNode.LayerName, "Particles", PhysicsDebugLayerName];
+        public HashSet<string> DefaultEnabledLayers { get; } = ["No layer", "Entities", EditorEntityNode.LayerName, Scene.ParticlesLayerName, PhysicsDebugLayerName];
 
         /// <summary>Names of info_camera_link entities found in the world.</summary>
         public List<string> CameraNames { get; } = [];
@@ -1065,7 +1065,7 @@ namespace ValveResourceFormat.Renderer.World
                         {
                             // The snapshot positions are already world-space (pathnodes placed by the parent
                             // transform), so the node keeps an identity transform.
-                            cable.LayerName = "Particles";
+                            cable.LayerName = Scene.ParticlesLayerName;
                             cable.EntityData = entity;
                             scene.Add(cable, true);
                         }
@@ -1137,7 +1137,7 @@ namespace ValveResourceFormat.Renderer.World
                             var moverParticleNode = new ParticleSceneNode(scene, moverParticleSystem)
                             {
                                 Name = moverParticleName,
-                                LayerName = "Particles",
+                                LayerName = Scene.ParticlesLayerName,
                             };
 
                             scene.Add(moverParticleNode, true);
@@ -1174,7 +1174,7 @@ namespace ValveResourceFormat.Renderer.World
                             {
                                 Name = particle,
                                 Transform = ResolveControlPoint0Transform(entity, transformationMatrix),
-                                LayerName = "Particles",
+                                LayerName = Scene.ParticlesLayerName,
                                 EntityData = entity,
                             };
 
@@ -1399,7 +1399,7 @@ namespace ValveResourceFormat.Renderer.World
 
                     foreach (var modelParticleNode in modelParticleNodes)
                     {
-                        modelParticleNode.LayerName = "Particles";
+                        modelParticleNode.LayerName = Scene.ParticlesLayerName;
                         scene.Add(modelParticleNode, true);
                     }
                 }
