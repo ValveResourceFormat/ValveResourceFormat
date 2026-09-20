@@ -847,10 +847,16 @@ namespace GUI.Types.GLViewers
                     cluster <= 1 ? new Color32(255, 0, 0) : Color32.White
                 );
 
-                if (Scene.CurrentFramePvs != null)
+                if (!Scene.CurrentFramePvs.IsEmpty)
                 {
-                    var visCount = Scene.CurrentFramePvs.Sum(b => BitOperations.PopCount(b));
-                    AddLine($"PVS visible: {visCount}/{Scene.VoxelVisibility.BaseClusterCount} clusters", Color32.White);
+                    var visCount = 0;
+
+                    foreach (var b in Scene.CurrentFramePvs.Span)
+                    {
+                        visCount += BitOperations.PopCount(b);
+                    }
+
+                    AddLine($"PVS visible: {visCount}/{Scene.VoxelVisibility.ClusterCount} clusters", Color32.White);
                 }
             }
 

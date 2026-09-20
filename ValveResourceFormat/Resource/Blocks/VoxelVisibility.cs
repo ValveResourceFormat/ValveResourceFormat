@@ -7,11 +7,57 @@ using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.Blocks
 {
+    /// <summary>World VIS query.</summary>
+    public interface IWorldVisibility
+    {
+        /// <summary>Gets whether this holds visibility that can be queried.</summary>
+        bool HasVisibilityData { get; }
+
+        /// <summary>Gets the minimum bounds of the visibility volume.</summary>
+        Vector3 MinBounds { get; }
+
+        /// <summary>Gets the maximum bounds of the visibility volume.</summary>
+        Vector3 MaxBounds { get; }
+
+        /// <summary>Gets the number of clusters, excluding any rows stored past them.</summary>
+        int ClusterCount { get; }
+
+        /// <summary>Gets how many 32 bit words a cluster bitfield needs.</summary>
+        int ClusterBitfieldWordCount { get; }
+
+        /// <summary>
+        /// Gets the visibility row listing the clusters sunlight reaches, empty when the format has none.
+        /// </summary>
+        ReadOnlyMemory<byte> SunVisibility { get; }
+
+        /// <summary>Gets the cluster containing a point, or a value below zero when there is none.</summary>
+        /// <param name="position">World-space point.</param>
+        int GetClusterForPosition(Vector3 position);
+
+        /// <summary>
+        /// Gets the visibility row for the cluster at a point, empty when the point resolves to nothing.
+        /// </summary>
+        /// <param name="point">World-space point.</param>
+        ReadOnlyMemory<byte> GetVisibilityRowForPoint(Vector3 point);
+
+        /// <summary>Fills a bitfield with every cluster the given box overlaps.</summary>
+        /// <param name="min">Minimum corner of the box.</param>
+        /// <param name="max">Maximum corner of the box.</param>
+        /// <param name="clusterBits">Destination bitfield, at least <see cref="ClusterBitfieldWordCount"/> words long.</param>
+        void GetVisClustersForBox(Vector3 min, Vector3 max, Span<uint> clusterBits);
+
+        /// <summary>Builds the list of boxes making up each cluster, for debug drawing.</summary>
+        Dictionary<ushort, List<(Vector3 Min, Vector3 Max)>> BuildClusterChildBounds();
+    }
+
     /// <summary>
-    /// "VXVS" block.
+    /// "VXVS" block. Three layouts, differing in how space is cut into clusters:
+    /// <para><see cref="VoxelVisibility"/>, latest: an octree that dices each leaf into a 4x4x4 grid of cells, where every cluster reaching that leaf owns a 64 bit mask of the cells it covers.</para>
+    /// <para><see cref="RegionBoxVoxelVisibility"/>, until 2022: an octree whose leaves list boxes, each box tagged with the cluster that owns it.</para>
+    /// <para><see cref="BspVoxelVisibility"/>, until 2018: a binary tree of arbitrary split planes, where a leaf is a cluster outright and nothing subdivides it further.</para>
     /// </summary>
     /// <seealso href="https://s2v.app/SchemaExplorer/cs2/worldrenderer/CVoxelVisibility">CVoxelVisibility</seealso>
-    public class VoxelVisibility : Block
+    public class VoxelVisibility : Block, IWorldVisibility
     {
         /// <inheritdoc/>
         public override BlockType Type => BlockType.VXVS;
@@ -149,6 +195,56 @@ namespace ValveResourceFormat.Blocks
         public bool HasVisibilityData => BaseClusterCount > 0 && PVSBytesPerCluster > 0 && Nodes.Length > 0;
 
         /// <summary>
+        /// Gets the region box tree this file holds instead, or <see langword="null"/> when it uses the
+        /// mask octree. Everything else on this class stays empty when it is set.
+        /// </summary>
+        public RegionBoxVoxelVisibility? RegionBoxTree { get; private set; }
+
+        /// <summary>
+        /// Gets the world visibility a resource holds, whichever of the three layouts it was written in,
+        /// or <see langword="null"/> when it holds none that can be queried.
+        /// </summary>
+        /// <param name="resource">A <c>.vvis_c</c> resource.</param>
+        public static IWorldVisibility? GetWorldVisibility(Resource resource)
+        {
+            ArgumentNullException.ThrowIfNull(resource);
+
+            if (resource.GetBlockByType(BlockType.VXVS) is VoxelVisibility block)
+            {
+                if (block.HasVisibilityData)
+                {
+                    return block;
+                }
+
+                return block.RegionBoxTree is { HasVisibilityData: true } ? block.RegionBoxTree : null;
+            }
+
+            var data = resource.DataBlock?.AsKeyValueCollection();
+
+            if (data == null || !data.ContainsKey("m_visDataDwords"))
+            {
+                return null;
+            }
+
+            var bsp = new BspVoxelVisibility();
+            bsp.Read(data);
+
+            return bsp.HasVisibilityData ? bsp : null;
+        }
+
+        /// <inheritdoc/>
+        public int ClusterCount => (int)BaseClusterCount;
+
+        /// <inheritdoc/>
+        public int ClusterBitfieldWordCount => MathUtils.DivideRoundUp(Math.Max(ClusterCount, 1), MathUtils.BitsPerWord);
+
+        /// <inheritdoc/>
+        public ReadOnlyMemory<byte> GetVisibilityRowForPoint(Vector3 point) => GetPVSForPoint(point) ?? default(ReadOnlyMemory<byte>);
+
+        void IWorldVisibility.GetVisClustersForBox(Vector3 min, Vector3 max, Span<uint> clusterBits)
+            => GetVisClustersForBox(min, max, clusterBits, exact: false);
+
+        /// <summary>
         /// Gets the visibility row listing the clusters sunlight reaches, empty when there is no sun row.
         /// Nothing outside it can be lit by the sun, so nothing outside it casts a sun shadow.
         /// </summary>
@@ -199,7 +295,9 @@ namespace ValveResourceFormat.Blocks
 
             if (data.ContainsKey("m_clusters"))
             {
-                return; // Older type of file
+                RegionBoxTree = new RegionBoxVoxelVisibility();
+                RegionBoxTree.Read(data, reader, Offset);
+                return;
             }
 
             BaseClusterCount = data.GetUInt32Property("m_nBaseClusterCount");
@@ -304,9 +402,10 @@ namespace ValveResourceFormat.Blocks
             var halfGrid = new Vector3(GridSize * 0.5f);
 
             Span<uint> clusterBits = stackalloc uint[ClusterBitfieldWords];
+            clusterBits = clusterBits[..ClusterBitfieldWordCount];
             GetVisClustersForBox(position - halfGrid, position + halfGrid, clusterBits);
 
-            for (var i = 0; i < ClusterBitfieldWords; i++)
+            for (var i = 0; i < clusterBits.Length; i++)
             {
                 var word = clusterBits[i];
                 if (word != 0)
@@ -336,13 +435,13 @@ namespace ValveResourceFormat.Blocks
         /// </summary>
         /// <param name="min">Minimum corner of the box.</param>
         /// <param name="max">Maximum corner of the box.</param>
-        /// <param name="clusterBits">Destination bitfield, at least <see cref="ClusterBitfieldWords"/> words long.</param>
+        /// <param name="clusterBits">Destination bitfield, at least <see cref="ClusterBitfieldWordCount"/> words long.</param>
         /// <param name="exact">Visit every leaf rather than taking the precomputed cluster list of a fully enclosed octree node.</param>
         public void GetVisClustersForBox(Vector3 min, Vector3 max, Span<uint> clusterBits, bool exact = false)
         {
-            ArgumentOutOfRangeException.ThrowIfLessThan(clusterBits.Length, ClusterBitfieldWords);
+            ArgumentOutOfRangeException.ThrowIfLessThan(clusterBits.Length, ClusterBitfieldWordCount);
 
-            clusterBits = clusterBits[..ClusterBitfieldWords];
+            clusterBits = clusterBits[..ClusterBitfieldWordCount];
             clusterBits.Clear();
 
             // Cluster 0 stands in wherever the octree cannot answer, and is a member of every pvs row
@@ -357,8 +456,7 @@ namespace ValveResourceFormat.Blocks
             var queryMin = center - halfSize;
             var queryMax = center + halfSize;
 
-            if (queryMin.X <= MinBounds.X && queryMin.Y <= MinBounds.Y && queryMin.Z <= MinBounds.Z
-                && queryMax.X >= MaxBounds.X && queryMax.Y >= MaxBounds.Y && queryMax.Z >= MaxBounds.Z)
+            if (new AABB(queryMin, queryMax).Contains(new AABB(MinBounds, MaxBounds)))
             {
                 clusterBits[0] = 1;
                 return;
@@ -386,11 +484,12 @@ namespace ValveResourceFormat.Blocks
         public int GetVisClusterList(Vector3 min, Vector3 max, Span<ushort> clusters, bool exact = false)
         {
             Span<uint> clusterBits = stackalloc uint[ClusterBitfieldWords];
+            clusterBits = clusterBits[..ClusterBitfieldWordCount];
             GetVisClustersForBox(min, max, clusterBits, exact);
 
             var count = 0;
 
-            for (var i = 0; i < ClusterBitfieldWords; i++)
+            for (var i = 0; i < clusterBits.Length; i++)
             {
                 var word = clusterBits[i];
 
@@ -476,14 +575,19 @@ namespace ValveResourceFormat.Blocks
             }
 
             var node = Nodes[nodeIndex];
+            var capacity = bitfield.Length * MathUtils.BitsPerWord;
 
             if (useEnclosedShortcut && node.IsEnclosedCluster)
             {
                 var (offset, count) = EnclosedClusterList[node.EnclosedListIndex];
                 for (var i = 0; i < count; i++)
                 {
-                    var clusterId = (uint)EnclosedClusters[offset + i];
-                    MathUtils.SetBit(bitfield, (int)clusterId);
+                    var clusterId = (int)EnclosedClusters[offset + i];
+
+                    if (clusterId < capacity)
+                    {
+                        MathUtils.SetBit(bitfield, clusterId);
+                    }
                 }
 
                 return;
@@ -512,8 +616,10 @@ namespace ValveResourceFormat.Blocks
                         continue;
                     }
 
-                    var clusterId = (uint)region.ClusterId;
-                    MathUtils.SetBit(bitfield, (int)clusterId);
+                    if (region.ClusterId < capacity)
+                    {
+                        MathUtils.SetBit(bitfield, region.ClusterId);
+                    }
                 }
 
                 return;
@@ -896,7 +1002,7 @@ namespace ValveResourceFormat.Blocks
             {
                 if (BaseClusterCount == 0)
                 {
-                    writer.WriteLine("No voxel visibility data (older format or empty)");
+                    writer.WriteLine("No voxel visibility data (another layout or empty)");
                 }
                 return;
             }

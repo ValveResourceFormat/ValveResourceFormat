@@ -1248,11 +1248,11 @@ public class Renderer
         if (!DisableAllCulling && Scene is { EnablePvsCulling: true, VoxelVisibility: not null })
         {
             var pvsPosition = LockedCullPosition ?? updateContext.Camera.Location;
-            Scene.CurrentFramePvs = Scene.VoxelVisibility.GetPVSForPoint(pvsPosition);
+            Scene.CurrentFramePvs = Scene.VoxelVisibility.GetVisibilityRowForPoint(pvsPosition);
         }
         else
         {
-            Scene.CurrentFramePvs = null;
+            Scene.CurrentFramePvs = default;
         }
 
         Scene.UpdateIndirectRenderingState();

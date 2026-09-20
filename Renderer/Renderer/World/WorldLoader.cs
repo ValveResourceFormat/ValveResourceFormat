@@ -457,7 +457,9 @@ namespace ValveResourceFormat.Renderer.World
                 return;
             }
 
-            if (visResource.GetBlockByType(BlockType.VXVS) is not VoxelVisibility { HasVisibilityData: true } voxelVisibility)
+            var voxelVisibility = VoxelVisibility.GetWorldVisibility(visResource);
+
+            if (voxelVisibility == null)
             {
                 return;
             }

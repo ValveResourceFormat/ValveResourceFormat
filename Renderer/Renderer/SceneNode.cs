@@ -196,14 +196,18 @@ namespace ValveResourceFormat.Renderer
         /// or grown since the last query. A node with no clusters at all sits outside the visibility volume.
         /// </summary>
         /// <param name="voxelVisibility">The scene's visibility data.</param>
-        internal ReadOnlySpan<ushort> GetVisClusters(VoxelVisibility voxelVisibility)
+        internal ReadOnlySpan<ushort> GetVisClusters(IWorldVisibility voxelVisibility)
         {
             if (visClusters != null && visClusterBounds.Equals(BoundingBox))
             {
                 return visClusters.AsSpan(0, visClusterCount);
             }
 
-            Span<uint> clusterBits = stackalloc uint[VoxelVisibility.ClusterBitfieldWords];
+            var wordCount = voxelVisibility.ClusterBitfieldWordCount;
+            Span<uint> scratch = stackalloc uint[VoxelVisibility.ClusterBitfieldWords];
+
+            var clusterBits = wordCount <= scratch.Length ? scratch[..wordCount] : new uint[wordCount];
+
             voxelVisibility.GetVisClustersForBox(BoundingBox.Min, BoundingBox.Max, clusterBits);
 
             var count = 0;

@@ -8,9 +8,9 @@ namespace GUI.Types.GLViewers
 {
     class GLVoxelVisibilityViewer : GLSceneViewer
     {
-        private readonly VoxelVisibility voxelVisibility;
+        private readonly IWorldVisibility voxelVisibility;
 
-        public GLVoxelVisibilityViewer(VrfGuiContext vrfGuiContext, RendererContext rendererContext, VoxelVisibility voxelVisibility)
+        public GLVoxelVisibilityViewer(VrfGuiContext vrfGuiContext, RendererContext rendererContext, IWorldVisibility voxelVisibility)
             : base(vrfGuiContext, rendererContext)
         {
             this.voxelVisibility = voxelVisibility;

@@ -105,13 +105,13 @@ namespace ValveResourceFormat.Renderer
         public EntitySystem EntitySystem { get; set; }
 
         /// <summary>Gets or sets the voxel visibility data.</summary>
-        public VoxelVisibility? VoxelVisibility { get; set; }
+        public IWorldVisibility? VoxelVisibility { get; set; }
 
         /// <summary>Gets or sets whether PVS culling is enabled for this scene. Has no effect without <see cref="VoxelVisibility"/>.</summary>
         public bool EnablePvsCulling { get; set; } = true;
 
         /// <summary>Gets or sets the PVS bitfield for the cluster at the current camera position.</summary>
-        public byte[]? CurrentFramePvs { get; set; }
+        public ReadOnlyMemory<byte> CurrentFramePvs { get; set; }
 
         /// <summary>Gets the per-object bits the GPU cull reads, one per node id, set for the nodes PVS rejected.</summary>
         public StorageBuffer? PvsHiddenGpu { get; private set; }
@@ -1072,7 +1072,7 @@ namespace ValveResourceFormat.Renderer
 
         private void ResetPvsHiddenBits()
         {
-            PvsCullActive = CurrentFramePvs != null && VoxelVisibility != null && objectEntryCount > 0;
+            PvsCullActive = !CurrentFramePvs.IsEmpty && VoxelVisibility != null && objectEntryCount > 0;
 
             if (!PvsCullActive)
             {
@@ -1103,7 +1103,7 @@ namespace ValveResourceFormat.Renderer
         /// </summary>
         /// <param name="node">The node to test.</param>
         /// <returns>Whether the node may draw this frame.</returns>
-        public bool IsNodeInPvs(SceneNode node) => IsNodeInPvs(node, CurrentFramePvs);
+        public bool IsNodeInPvs(SceneNode node) => IsNodeInPvs(node, CurrentFramePvs.Span);
 
         /// <summary>
         /// Tests a node against an arbitrary visibility row, such as the sun row that says where sunlight

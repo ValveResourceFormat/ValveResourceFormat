@@ -236,7 +236,7 @@ namespace GUI.Types.Viewers
                     break;
 
                 case ResourceType.WorldVisibility:
-                    if (resource.GetBlockByType(BlockType.VXVS) is VoxelVisibility { HasVisibilityData: true } vxvs)
+                    if (VoxelVisibility.GetWorldVisibility(resource) is { } vxvs)
                     {
                         GLViewer = new GLVoxelVisibilityViewer(vrfGuiContext, rendererContext, vxvs);
                         GLViewerTabName = "VISIBILITY";
