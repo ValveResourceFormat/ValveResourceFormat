@@ -146,6 +146,13 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             /// is what lets the compiler stage its fit influences.
             /// </summary>
             public bool SpringsWithSiblings { get; set; }
+            /// <summary>
+            /// Gets the bone rooting the second <c>ClothChain</c> that re-declares this joint, or null
+            /// where only one declaration covers it. The first declaration states the joint
+            /// <c>simulate = false</c> and the second one wins the node, which is how a joint that
+            /// simulates comes to carry a twist entry the compiler relaxed by zero.
+            /// </summary>
+            public string? SecondDeclarationRoot { get; set; }
             /// <summary>Gets a value indicating whether this joint is simulated (invMass &gt; 0).</summary>
             public bool Simulated => InvMass > 0f;
             /// <summary>Gets a value indicating whether this joint is the chain root.</summary>
@@ -3059,6 +3066,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             }
 
             MergeSiblingHubs(chains);
+            MarkSecondDeclarations(chains);
 
             return [.. chains.OrderBy(ChainFirstNode)];
 
@@ -3083,6 +3091,98 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                 }
 
                 return first;
+            }
+        }
+
+        /// <summary>
+        /// Marks the joints a SECOND <c>ClothChain</c> re-declares, and the bone that chain is rooted at.
+        /// </summary>
+        /// <remarks>
+        /// The compiler runs its twist builder once per chain and appends each entry with no duplicate
+        /// check, so a joint's own entries say which declaration wrote them. A simulating joint states its
+        /// <c>twist_relax</c> scaled by <see cref="TwistRelaxToParentFactor"/> toward its parent and by
+        /// <see cref="TwistRelaxToChildFactor"/> toward each child, and the child-ward one is zeroed only
+        /// where the joint did NOT simulate at that pass. A relaxed parent-ward entry beside a zeroed
+        /// child-ward one on a joint that simulates therefore cannot come from a single declaration: the
+        /// first stated <c>simulate = false</c> and a later one won the node.
+        /// The second declaration is rooted at the nearest STATIC ancestor, which is the joint the run
+        /// hangs from and the only endpoint that can carry the run's own parent rod.
+        /// </remarks>
+        /// <param name="chains">The reconstructed chains, edited in place.</param>
+        void MarkSecondDeclarations(List<BoneChain> chains)
+        {
+            foreach (var chain in chains)
+            {
+                // Re-declaring a RINGED joint extrudes a second ring and invents control nodes, so only a
+                // ringless chain can carry a second declaration without changing the node set.
+                if (chain.ExtrudeSides >= 1)
+                {
+                    continue;
+                }
+
+                var byNode = new Dictionary<int, BoneChainJoint>();
+                var children = new Dictionary<int, List<BoneChainJoint>>();
+                foreach (var joint in chain.Joints)
+                {
+                    byNode[joint.Node] = joint;
+                    if (joint.ParentNode >= 0)
+                    {
+                        if (!children.TryGetValue(joint.ParentNode, out var siblings))
+                        {
+                            siblings = [];
+                            children[joint.ParentNode] = siblings;
+                        }
+
+                        siblings.Add(joint);
+                    }
+                }
+
+                var roots = new List<BoneChainJoint>();
+                foreach (var joint in chain.Joints)
+                {
+                    // ONE copy each way: the run was twisted by a single pass, so the declaration that
+                    // wrote nothing states twist_relax 0 and built no constraint of its own. Where the
+                    // second pass also wrote entries it ran its whole builder, and re-declaring the run
+                    // then doubles the rods and bends the first declaration already makes.
+                    if (!joint.Simulated || joint.ParentNode < 0
+                        || !TwistRelaxCopies.TryGetValue((joint.Node, joint.ParentNode), out var toParent)
+                        || toParent.Count != 1 || toParent[0] <= 0f
+                        || !children.TryGetValue(joint.Node, out var kids)
+                        || !kids.Exists(kid => TwistRelaxCopies.TryGetValue((joint.Node, kid.Node), out var toChild)
+                            && toChild.Count == 1 && toChild[0] == 0f))
+                    {
+                        continue;
+                    }
+
+                    var root = joint;
+                    while (root.Simulated && root.ParentNode >= 0 && byNode.TryGetValue(root.ParentNode, out var above))
+                    {
+                        root = above;
+                    }
+
+                    if (!root.Simulated && !roots.Contains(root))
+                    {
+                        roots.Add(root);
+                    }
+                }
+
+                foreach (var root in roots)
+                {
+                    var pending = new Queue<BoneChainJoint>();
+                    pending.Enqueue(root);
+                    while (pending.Count > 0)
+                    {
+                        var joint = pending.Dequeue();
+                        joint.SecondDeclarationRoot = root.Name;
+                        if (children.TryGetValue(joint.Node, out var kids))
+                        {
+                            foreach (var kid in kids)
+                            {
+                                pending.Enqueue(kid);
+                            }
+                        }
+                    }
+                }
             }
         }
 

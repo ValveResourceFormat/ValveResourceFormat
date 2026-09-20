@@ -387,13 +387,63 @@ partial class ModelExtract
             ("chain", chainData));
     }
 
+    /// <summary>
+    /// The SECOND declaration of the sub-chain <c>BuildBoneChains</c> marked, or null where the chain has
+    /// none. The source states such a run twice - once inside the parent chain at <c>simulate = false</c>
+    /// and once in a chain of its own - and the later declaration wins the node, so this one carries the
+    /// members' whole attribute set. It states neither <c>stiff_hinge</c> nor <c>child_sibling_spring</c>:
+    /// each is written once per DECLARATION, so restating one doubles the bends or the sibling rods the
+    /// first declaration already made.
+    /// </summary>
+    static List<KVObject> MakeClothChainSecondDeclarations(FeModel feModel, FeModel.BoneChain chain, int version)
+    {
+        var runs = new List<string>();
+        foreach (var joint in chain.Joints)
+        {
+            if (joint.SecondDeclarationRoot is { } root && !runs.Contains(root))
+            {
+                runs.Add(root);
+            }
+        }
+
+        var declarations = new List<KVObject>(runs.Count);
+        foreach (var rootBone in runs)
+        {
+            var joints = KVObject.Array();
+            foreach (var joint in chain.Joints)
+            {
+                if (string.Equals(joint.SecondDeclarationRoot, rootBone, StringComparison.OrdinalIgnoreCase))
+                {
+                    joints.Add(MakeClothJoint(feModel, joint, chainExtrudes: false, softHinge: false, version,
+                        rollTies: true, chain, secondDeclaration: true));
+                }
+            }
+
+            var chainData = KVObject.Collection();
+            chainData.Add("joints", joints);
+            chainData.Add("attrs", MakeClothChainAttrs());
+            chainData.Add("selection", KVObject.Array());
+            chainData.Add("version", version);
+
+            declarations.Add(MakeNode("ClothChain",
+                ("name", rootBone + "_second"),
+                ("root_bone", rootBone),
+                ("chain", chainData)));
+        }
+
+        return declarations;
+    }
+
     internal static KVObject MakeClothJoint(FeModel feModel, FeModel.BoneChainJoint joint, bool chainExtrudes = false,
-        bool softHinge = false, int chainVersion = 2, bool rollTies = true, FeModel.BoneChain? chain = null)
+        bool softHinge = false, int chainVersion = 2, bool rollTies = true, FeModel.BoneChain? chain = null,
+        bool secondDeclaration = false)
     {
         var kv = KVObject.Collection();
         kv.Add("joint_name", joint.Name);
 
-        if (joint.ParentName is not null)
+        var secondRoot = joint.SecondDeclarationRoot;
+        if (joint.ParentName is not null
+            && !(secondDeclaration && string.Equals(joint.Name, secondRoot, StringComparison.OrdinalIgnoreCase)))
         {
             kv.Add("joint_parent", joint.ParentName);
         }
@@ -422,7 +472,19 @@ partial class ModelExtract
         // the original gives a non-zero entry of its own was authored as a SIMULATED joint, and it
         // is pinned into the static block by lock_translation rather than by simulate = false.
         var pinnedSimulatedRoot = (joint.IsRoot && !joint.Simulated && twistRelax > 0f) || joint.SpringsWithSiblings;
-        kv.Add("simulate", joint.Simulated || pinnedSimulatedRoot);
+
+        // A joint two chains declare simulates only in the second declaration; the first states
+        // `simulate = false`, which is what zeroes the twist entry that declaration writes.
+        var firstOfTwo = secondRoot is not null && !secondDeclaration
+            && !string.Equals(joint.Name, secondRoot, StringComparison.OrdinalIgnoreCase);
+        kv.Add("simulate", !firstOfTwo && (joint.Simulated || pinnedSimulatedRoot));
+
+        // The run's second declaration wrote no twist entry of its own, which is the whole evidence that
+        // it exists: its own pass would otherwise have left a second copy on the same pairs.
+        if (secondDeclaration)
+        {
+            twistRelax = 0f;
+        }
 
         // A STATIC joint's own entries carry no relaxation at all, so its authored twist_relax survives
         // only as the twist link it made. The magnitude is gone with it: every value above zero compiles
@@ -431,7 +493,7 @@ partial class ModelExtract
         // sits: a chain we root one bone higher than the source did leaves such a joint interior, and
         // dropping its twist there costs it the goal lock the compiler writes for a node whose parent has
         // neither simulation nor rotation to offset from.
-        if (twistRelax == 0f && !joint.Simulated
+        if (twistRelax == 0f && !joint.Simulated && !secondDeclaration
             && (feModel.HasRelaxlessTwistLink(joint.Node) || feModel.OrientsRelaxlessTwist(joint.Node)))
         {
             twistRelax = ClothStaticRootTwistRelax;
@@ -582,11 +644,15 @@ partial class ModelExtract
         }
 
         // A stiff hinge compiles to a three-node bend rather than a rod, so it is recovered from the bend
-        // centred on this joint (see FeModel.GetStiffHinge).
+        // centred on this joint (see FeModel.GetStiffHinge). The record is written once per DECLARATION,
+        // so a second declaration restating the key doubles every bend the first one made.
         if (feModel.GetStiffHinge(joint.Node) is { } stiffHinge)
         {
-            kv.Add("stiff_hinge", stiffHinge.Stiffness);
-            kv.Add("stiff_hinge_angle", stiffHinge.Angle);
+            if (!secondDeclaration)
+            {
+                kv.Add("stiff_hinge", stiffHinge.Stiffness);
+                kv.Add("stiff_hinge_angle", stiffHinge.Angle);
+            }
 
             var stiffBias = stiffHinge.MotionBias != 0f ? stiffHinge.MotionBias : feModel.GetMotionBias(joint) ?? 0f;
             if (stiffBias != 0f)
@@ -760,6 +826,12 @@ partial class ModelExtract
             if (MakeClothChainRestatement(feModel, boneChain) is { } restated)
             {
                 clothFolderChildren.Add(restated);
+            }
+
+            foreach (var second in MakeClothChainSecondDeclarations(feModel, boneChain,
+                ClothChainVersion(feModel, boneChain, hasOtherChains)))
+            {
+                clothFolderChildren.Add(second);
             }
         }
 

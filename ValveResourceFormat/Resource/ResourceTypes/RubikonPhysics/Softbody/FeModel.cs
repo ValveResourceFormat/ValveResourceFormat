@@ -430,6 +430,15 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// </summary>
         public IReadOnlyDictionary<(int Orient, int End), float> TwistRelaxByLink { get; }
 
+        /// <summary>
+        /// Gets every <c>flTwistRelax</c> a directed twist pair carries, in array order, where
+        /// <see cref="TwistRelaxByLink"/> keeps only the last. The compiler runs the twist builder once
+        /// per <c>ClothChain</c> and appends each entry without any duplicate check, so a pair carrying
+        /// more than one entry was written by more than one declaration of the same bone, and each
+        /// value is that declaration's own <c>twist_relax</c> scaled by the branch factor.
+        /// </summary>
+        public IReadOnlyDictionary<(int Orient, int End), IReadOnlyList<float>> TwistRelaxCopies { get; }
+
         // The two branch factors sum to 1.
         internal const float TwistRelaxToParentFactor = 0.618f;
         internal const float TwistRelaxToChildFactor = 0.382f;
@@ -4748,6 +4757,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             var twistNodes = new Dictionary<int, float>();
             var twistLinks = new HashSet<(int, int)>();
             var twistRelaxByLink = new Dictionary<(int, int), float>();
+            var twistRelaxCopies = new Dictionary<(int, int), IReadOnlyList<float>>();
             if (data.GetArray("m_Twists") is { } twistsArray)
             {
                 foreach (var entry in twistsArray)
@@ -4760,6 +4770,14 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                     twistLinks.Add(orient < end ? (orient, end) : (end, orient));
                     twistRelaxByLink[(orient, end)] = relax;
                     twistOrientFallback.TryAdd(orient, relax);
+
+                    if (!twistRelaxCopies.TryGetValue((orient, end), out var copies))
+                    {
+                        copies = new List<float>();
+                        twistRelaxCopies[(orient, end)] = copies;
+                    }
+
+                    ((List<float>)copies).Add(relax);
                 }
 
                 foreach (var ((orient, end), relax) in twistRelaxByLink)
@@ -4786,6 +4804,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             TwistNodes = twistNodes;
             TwistLinks = twistLinks;
             TwistRelaxByLink = twistRelaxByLink;
+            TwistRelaxCopies = twistRelaxCopies;
 
             var nodeBases = new Dictionary<int, NodeBasis>();
             if (data.GetArray("m_NodeBases") is { } nodeBasesArray)

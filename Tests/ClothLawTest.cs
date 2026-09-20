@@ -8579,5 +8579,72 @@ namespace Tests
                 ]
             }
             """);
+        /// <summary>
+        /// A joint that SIMULATES and whose child-ward twist entry carries no relaxation at all was stated
+        /// twice: the first declaration said <c>simulate = false</c>, so that pass zeroed the entry, and a
+        /// later one won the node. The first declaration is emitted stating it.
+        /// </summary>
+        /// <remarks>
+        /// READ 2026-09-20: <c>sub_1818DE410</c> runs the twist builder once per <c>ClothChain</c> and
+        /// <c>sub_1818D9790</c> appends each entry with no duplicate check, so a joint's own entries say
+        /// which declaration wrote them - its <c>twist_relax</c> reaches the parent-ward entry scaled by
+        /// 0.618 unconditionally and the child-ward one by 0.382 only where the joint simulated at that
+        /// pass. dl <c>bookworm_bikini</c> is the shape: its authored <c>Hair</c> chain declares
+        /// <c>back_1_2 .. back_2_5_end</c> unsimulated and <c>TwinTailR</c> / <c>TwinTailL</c> re-declare
+        /// them simulating, and the row shipped eight entries at 0.0 where we wrote 0.3056.
+        /// Controls: the same fixture with the child-ward entry RELAXED, which one declaration explains,
+        /// and with the parent-ward entry DOUBLED, which is a second declaration that ran its own builder
+        /// and whose constructs our single declaration already makes.
+        /// </remarks>
+        [Test]
+        public async Task ASimulatingJointsRelaxlessChildTwistStatesASecondDeclaration()
+        {
+            static FeModel Chain(string toChild, string extraToParent) => SyntheticCloth.Parse($$"""
+                {
+                    m_CtrlName = [ "root", "j1", "j2" ]
+                    m_SkelParents = [ -1, 0, 1 ]
+                    m_nNodeCount = 3
+                    m_nStaticNodes = 1
+                    m_NodeInvMasses = [ 0.0, 1.0, 1.0 ]
+                    m_InitPose =
+                    [
+                        {{SyntheticCloth.Pose(0f, 0f, 0f)}}
+                        {{SyntheticCloth.Pose(0f, 0f, -10f)}}
+                        {{SyntheticCloth.Pose(0f, 0f, -20f)}}
+                    ]
+                    m_Rods =
+                    [
+                        {{SyntheticCloth.RigidRod(0, 1, 10f, 1f)}}
+                        {{SyntheticCloth.RigidRod(1, 2, 10f, 1f)}}
+                    ]
+                    m_Twists =
+                    [
+                        { nNodeOrient = 1 nNodeEnd = 0 flTwistRelax = 0.4944 flSwingRelax = 0.0 },
+                        { nNodeOrient = 1 nNodeEnd = 2 flTwistRelax = {{toChild}} flSwingRelax = 1.0 },
+                        {{extraToParent}}
+                    ]
+                }
+                """);
+
+            static KVObject FirstDeclaration(FeModel feModel)
+            {
+                var chain = feModel.BuildBoneChains()[0];
+                return ModelExtract.MakeClothJoint(feModel, chain.Joints.Find(static joint => joint.Name == "j1")!,
+                    chain: chain);
+            }
+
+            var split = FirstDeclaration(Chain("0.0", string.Empty));
+            var relaxed = FirstDeclaration(Chain("0.3056", string.Empty));
+            var doubled = FirstDeclaration(Chain("0.0",
+                "{ nNodeOrient = 1 nNodeEnd = 0 flTwistRelax = 0.2163 flSwingRelax = 0.0 },"));
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(split.GetBooleanProperty("simulate")).IsFalse();
+                await Assert.That(relaxed.GetBooleanProperty("simulate")).IsTrue();
+                await Assert.That(doubled.GetBooleanProperty("simulate")).IsTrue();
+                await Assert.That(split.GetFloatProperty("twist_relax")).IsEqualTo(0.8f).Within(1e-3f);
+            }
+        }
     }
 }
