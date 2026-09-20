@@ -2446,7 +2446,18 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                         || (joint.BendSpring && !Repeats(grand))
                         || (joint.TorsionSpring && !Repeats(greatGrand)))
                     {
-                        return 1;
+                        // A span carrying NO rod is one the joint does not generate, so it says nothing
+                        // about the sibling rods the joint builds from its OWN call site with its OWN
+                        // multiplier - the reading below takes nothing from the span. Only a joint NO
+                        // upward pair gave a count for falls through: a pair whose count DISAGREES needs
+                        // an earlier count to disagree with, so that case keeps returning 1, and it is
+                        // the suspender companion and floor surplus W38-R1 refuted reading.
+                        if (copies != 0 || ChildSiblingValue(joint) == 0f)
+                        {
+                            return 1;
+                        }
+
+                        return Math.Max(SiblingCopies(joint), 1);
                     }
 
                     // A chain ROOT has no span of its own to count, so the reading comes from the only

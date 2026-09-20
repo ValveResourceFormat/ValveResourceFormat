@@ -8908,6 +8908,131 @@ namespace Tests
         }
 
         /// <summary>
+        /// A joint whose own upward span carries NO rod reads its <c>extra_iterations</c> off the
+        /// child-sibling rods it builds from its own call site, the way a joint with no chain parent at
+        /// all already does. A span whose counts DISAGREE is the other case and still reads nothing.
+        /// CONTROLS: a span that DOES carry a rod is read off the span and not off the siblings, a span
+        /// whose counts disagree keeps returning 1, and a joint with one child has no sibling pair to
+        /// read.
+        /// </summary>
+        /// <remarks>
+        /// `JointCopies` returned 1 the moment any upward pair carried no rod, because `Repeats` treats a
+        /// rodless pair as fatal - right about the SPAN, which the joint then does not generate, and
+        /// silent about the sibling pairs, which the reading never takes from the span. The compiler
+        /// builds one sibling rod per unordered pair of a joint's children from the JOINT's own call site
+        /// with the JOINT's own <c>extra_iterations</c> (02_IMPORT 5.1g), so that count is this joint's
+        /// multiplier and no one else's.
+        /// The disagreeing case is left alone deliberately: a suspender companion and a floor surplus both
+        /// move one pair's count, and gating on that is the predicate 07_REFUTED W38-R1 destroyed, whose
+        /// three tests still pass.
+        /// MEASURED on dl: the six joints whose sibling pairs are multiplied go from MATCH 3 / MISS 3 to
+        /// MATCH 6, recovering x4, x7 and x17 - `unicorn_celeste` `Front_Hair`, `bookworm` `RibbonRoot`
+        /// and `YM_OuterRibbon` are the three the landed reading declined.
+        /// </remarks>
+        [Test]
+        public async Task AJointWhoseSpanCarriesNoRodStillReadsItsSiblingRods()
+        {
+            // root - p1 - j, all three static, which is dl `bookworm`'s `RibbonRoot`: the compiler builds
+            // no rod between two static nodes, so j's own upward span carries none while j still has a
+            // chain parent. Its two simulated children are joined by `siblings` sibling rods.
+            static FeModel Rodless(int siblings, bool twoChildren = true) => SyntheticCloth.Parse($$"""
+                {
+                    m_CtrlName = [ "root", "p", "j", "c1", "c2", "sibling_of_j" ]
+                    m_SkelParents = [ -1, 0, 1, 2, 2, 1 ]
+                    m_nNodeCount = 6
+                    m_nStaticNodes = 3
+                    m_NodeInvMasses = [ 0.0, 0.0, 0.0, 1.0, 1.0, 1.0 ]
+                    m_InitPose =
+                    [
+                        {{SyntheticCloth.Pose(0f, 0f, 0f)}}
+                        {{SyntheticCloth.Pose(0f, 0f, -10f)}}
+                        {{SyntheticCloth.Pose(0f, 0f, -20f)}}
+                        {{SyntheticCloth.Pose(-10f, 0f, -30f)}}
+                        {{SyntheticCloth.Pose(10f, 0f, -30f)}}
+                        {{SyntheticCloth.Pose(30f, 0f, -20f)}}
+                    ]
+                    m_Rods =
+                    [
+                        {{SyntheticCloth.RigidRod(1, 5, 30f, 1f)}}
+                        {{SyntheticCloth.RigidRod(1, 3, 22.36068f, 1f)}}
+                        {{SyntheticCloth.RigidRod(2, 3, 14.142136f, 1f)}}
+                        {{(twoChildren ? SyntheticCloth.RigidRod(2, 4, 14.142136f, 1f) : string.Empty)}}
+                        {{(twoChildren
+                            ? string.Concat(Enumerable.Repeat(SyntheticCloth.RigidRod(3, 4, 20f, 0.5f), siblings))
+                            : string.Empty)}}
+                    ]
+                }
+                """);
+
+            // The same two children under a SIMULATED j whose span to p2 carries `spanRods` and whose bend
+            // span to the grandparent p1 carries `bendRods`. The grandparent is p1 rather than the chain
+            // root, so the root-suspender reading cannot halve the count.
+            static FeModel Spanned(int spanRods, int bendRods, int siblings) => SyntheticCloth.Parse($$"""
+                {
+                    m_CtrlName = [ "root", "p1", "p2", "j", "c1", "c2" ]
+                    m_SkelParents = [ -1, 0, 1, 2, 3, 3 ]
+                    m_nNodeCount = 6
+                    m_nStaticNodes = 1
+                    m_NodeInvMasses = [ 0.0, 1.0, 1.0, 1.0, 1.0, 1.0 ]
+                    m_InitPose =
+                    [
+                        {{SyntheticCloth.Pose(0f, 0f, 0f)}}
+                        {{SyntheticCloth.Pose(0f, 0f, -10f)}}
+                        {{SyntheticCloth.Pose(0f, 0f, -20f)}}
+                        {{SyntheticCloth.Pose(0f, 0f, -30f)}}
+                        {{SyntheticCloth.Pose(-10f, 0f, -40f)}}
+                        {{SyntheticCloth.Pose(10f, 0f, -40f)}}
+                    ]
+                    m_Rods =
+                    [
+                        {{SyntheticCloth.RigidRod(0, 1, 10f, 1f)}}
+                        {{SyntheticCloth.RigidRod(1, 2, 10f, 1f)}}
+                        {{string.Concat(Enumerable.Repeat(SyntheticCloth.RigidRod(2, 3, 10f, 1f), spanRods))}}
+                        {{string.Concat(Enumerable.Repeat(SyntheticCloth.RigidRod(1, 3, 20f, 1f), bendRods))}}
+                        {{SyntheticCloth.RigidRod(3, 4, 14.142136f, 1f)}}
+                        {{SyntheticCloth.RigidRod(3, 5, 14.142136f, 1f)}}
+                        {{string.Concat(Enumerable.Repeat(SyntheticCloth.RigidRod(4, 5, 20f, 0.5f), siblings))}}
+                    ]
+                }
+                """);
+
+            static int Iterations(FeModel feModel)
+            {
+                foreach (var chain in feModel.BuildBoneChains())
+                {
+                    if (chain.Joints.Find(static joint => joint.Name == "j") is { } joint)
+                    {
+                        return joint.ExtraIterations;
+                    }
+                }
+
+                return -1;
+            }
+
+            using (Assert.Multiple())
+            {
+                // THE LAW, over three sibling multiplicities. j has a chain parent and its span to it
+                // carries no rod, which is exactly where the landed reading returned 1.
+                await Assert.That(Iterations(Rodless(2))).IsEqualTo(1);
+                await Assert.That(Iterations(Rodless(4))).IsEqualTo(3);
+                await Assert.That(Iterations(Rodless(7))).IsEqualTo(6);
+
+                // CONTROL, the predicate false: the span DOES carry a rod, so the reading comes off the
+                // span and the four sibling copies beside it are never consulted.
+                await Assert.That(Iterations(Spanned(1, 0, 4))).IsEqualTo(0);
+
+                // CONTROL: the span counts DISAGREE - two rods to the parent against three on the bend
+                // span to the grandparent. That reads the FLOOR the pairs agree on, 2, and never the five
+                // copies the siblings carry, which would read 4. A disagreement is a suspender companion
+                // or a floor surplus rather than a multiplier (W38-R1).
+                await Assert.That(Iterations(Spanned(2, 3, 5))).IsEqualTo(1);
+
+                // CONTROL: a rodless span and a single child, so there is no sibling pair to read at all.
+                await Assert.That(Iterations(Rodless(4, twoChildren: false))).IsEqualTo(0);
+            }
+        }
+
+        /// <summary>
         /// A chain states as its <c>attrs</c> <c>mass</c> default the multiplier most of its simulating
         /// joints carry, and only the joints that carry a different one state the key themselves. The
         /// multiplier is read over the rod mass pass even on a cloth that also carries a proxy sheet,
