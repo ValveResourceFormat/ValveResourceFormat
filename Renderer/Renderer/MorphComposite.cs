@@ -76,7 +76,7 @@ namespace ValveResourceFormat.Renderer
 
             FillVertices(morph);
 
-            GL.NamedBufferData(bufferHandle, allVertices.Length * MorphRectVertex.InputLayout.Stride, IntPtr.Zero, BufferUsageHint.DynamicDraw);
+            GL.NamedBufferStorage(bufferHandle, allVertices.Length * MorphRectVertex.InputLayout.Stride, IntPtr.Zero, BufferStorageFlags.DynamicStorageBit);
         }
 
         private static int GetMorphDataBundleCount(KVObject morphData)

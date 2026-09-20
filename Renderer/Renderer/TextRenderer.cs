@@ -225,7 +225,7 @@ namespace ValveResourceFormat.Renderer
 
         private RenderTexture? fontTexture;
         private Shader? shader;
-        private int bufferHandle;
+        private StreamingVertexBuffer? textVertices;
         private int vao;
 
         /// <summary>Initializes the text renderer.</summary>
@@ -250,8 +250,9 @@ namespace ValveResourceFormat.Renderer
             GL.TextureStorage2D(fontTexture.Handle, 1, SizedInternalFormat.Rgba8, bitmap.Width, bitmap.Height);
             GL.TextureSubImage2D(fontTexture.Handle, 0, 0, 0, bitmap.Width, bitmap.Height, PixelFormat.Bgra, PixelType.UnsignedByte, bitmap.GetPixels());
 
-            bufferHandle = GraphicsDevice.CreateBuffer(nameof(TextRenderer));
-            vao = Vertex.InputLayout.CreateVertexArray(nameof(TextRenderer), bufferHandle, RendererContext.MeshBufferCache.QuadIndices.GLHandle);
+            textVertices = new StreamingVertexBuffer(nameof(TextRenderer));
+            vao = Vertex.InputLayout.CreateVertexArray(nameof(TextRenderer), textVertices.Handle, RendererContext.MeshBufferCache.QuadIndices.GLHandle);
+            textVertices.AttachTo(vao, Vertex.InputLayout.Stride);
         }
 
         /// <summary>Projects a 3D world position to screen space and queues the text for rendering.</summary>
@@ -458,7 +459,8 @@ namespace ValveResourceFormat.Renderer
                 }
 
                 verticesSize = i * Vertex.Size * sizeof(float);
-                GL.NamedBufferData(bufferHandle, verticesSize, vertexBuffer.ByteArray, BufferUsageHint.DynamicDraw);
+
+                textVertices!.Upload(vertexBuffer.ByteArray.AsSpan(0, verticesSize));
             }
 
             Debug.Assert(shader != null);

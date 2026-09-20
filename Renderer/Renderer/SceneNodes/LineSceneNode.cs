@@ -39,7 +39,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             LocalBoundingBox = new AABB(boundsMin, boundsMax);
 
             lineBuffer = new LineBuffer(Scene.RendererContext, nameof(LineSceneNode));
-            lineBuffer.Upload(vertices, BufferUsage.Static);
+            lineBuffer.Upload(vertices);
         }
 
         /// <inheritdoc/>

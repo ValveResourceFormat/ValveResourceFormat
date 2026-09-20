@@ -18,7 +18,7 @@ namespace ValveResourceFormat.Renderer
         private readonly RendererContext RendererContext;
 
         private Shader? shader;
-        private int bufferHandle;
+        private StreamingVertexBuffer? crosshairVertices;
         private int vao;
 
         // 4 bars, each with an outline rect behind it
@@ -53,8 +53,9 @@ namespace ValveResourceFormat.Renderer
             if (shader == null)
             {
                 shader = RendererContext.ShaderLoader.LoadShader("crosshair");
-                bufferHandle = GraphicsDevice.CreateBuffer(nameof(CrosshairRenderer));
-                vao = SimpleVertex.InputLayout.CreateVertexArray(nameof(CrosshairRenderer), bufferHandle, RendererContext.MeshBufferCache.QuadIndices.GLHandle);
+                crosshairVertices = new StreamingVertexBuffer(nameof(CrosshairRenderer));
+                vao = SimpleVertex.InputLayout.CreateVertexArray(nameof(CrosshairRenderer), crosshairVertices.Handle, RendererContext.MeshBufferCache.QuadIndices.GLHandle);
+                crosshairVertices.AttachTo(vao, SimpleVertex.InputLayout.Stride);
             }
 
             if (builtForWindowSize != camera.WindowSize)
@@ -104,7 +105,7 @@ namespace ValveResourceFormat.Renderer
             AddBar(vertices, ref i, xLo, yLo - Gap - size, xHi, yLo - Gap);
             AddBar(vertices, ref i, xLo, yHi + Gap, xHi, yHi + Gap + size);
 
-            GL.NamedBufferData(bufferHandle, VertexCount * SimpleVertex.InputLayout.Stride, vertexBuffer.ByteArray, BufferUsageHint.StaticDraw);
+            crosshairVertices!.Upload(vertexBuffer.ByteArray.AsSpan(0, VertexCount * SimpleVertex.InputLayout.Stride));
         }
     }
 }
