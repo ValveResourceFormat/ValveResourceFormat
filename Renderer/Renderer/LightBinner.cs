@@ -355,7 +355,7 @@ public sealed class LightBinner(Scene scene) : IDisposable
 
             while (i < count && ReferenceEquals(snapshot[i].Light, light))
             {
-                if ((words[i >> 5] & (1u << (i & 31))) != 0u)
+                if (MathUtils.GetBit(words, i))
                 {
                     visibleFaces |= 1u << snapshot[i].FaceIndex;
                 }

@@ -483,7 +483,7 @@ namespace ValveResourceFormat.Blocks
                 for (var i = 0; i < count; i++)
                 {
                     var clusterId = (uint)EnclosedClusters[offset + i];
-                    bitfield[(int)(clusterId >> 5)] |= 1u << (int)(clusterId & 0x1F);
+                    MathUtils.SetBit(bitfield, (int)clusterId);
                 }
 
                 return;
@@ -513,7 +513,7 @@ namespace ValveResourceFormat.Blocks
                     }
 
                     var clusterId = (uint)region.ClusterId;
-                    bitfield[(int)(clusterId >> 5)] |= 1u << (int)(clusterId & 0x1F);
+                    MathUtils.SetBit(bitfield, (int)clusterId);
                 }
 
                 return;

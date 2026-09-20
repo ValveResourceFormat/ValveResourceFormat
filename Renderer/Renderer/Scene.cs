@@ -113,6 +113,12 @@ namespace ValveResourceFormat.Renderer
         /// <summary>Gets or sets the PVS bitfield for the cluster at the current camera position.</summary>
         public byte[]? CurrentFramePvs { get; set; }
 
+        /// <summary>Gets the per-object bits the GPU cull reads, one per node id, set for the nodes PVS rejected.</summary>
+        public StorageBuffer? PvsHiddenGpu { get; private set; }
+
+        /// <summary>Gets whether <see cref="PvsHiddenGpu"/> holds bits for this frame.</summary>
+        public bool PvsCullActive { get; private set; }
+
         private UniformBuffer<LightingConstants>? lightingBuffer;
         private UniformBuffer<EnvMapArray>? envMapBuffer;
         private UniformBuffer<LightProbeVolumeArray>? lpvBuffer;
@@ -244,6 +250,8 @@ namespace ValveResourceFormat.Renderer
         private int transformUploadStart = int.MaxValue;
         private readonly List<SceneAggregate> lodAggregates = [];
         private uint[] activeLodBits = [];
+        private uint[] pvsHiddenBits = [];
+        private int objectEntryCount;
 
         private Dictionary<DepthOnlyBucket, List<MeshBatchRenderer.Request>>? barnShadowDrawCalls;
 
@@ -641,6 +649,7 @@ namespace ValveResourceFormat.Renderer
             }
 
             var entryCount = (int)maxId + 1;
+            objectEntryCount = entryCount;
 
             if (instanceDataCpu == null || instanceDataCpu.Length < entryCount)
             {
@@ -1061,6 +1070,33 @@ namespace ValveResourceFormat.Renderer
             return CullResults;
         }
 
+        private void ResetPvsHiddenBits()
+        {
+            PvsCullActive = CurrentFramePvs != null && VoxelVisibility != null && objectEntryCount > 0;
+
+            if (!PvsCullActive)
+            {
+                return;
+            }
+
+            var bitWords = MathUtils.DivideRoundUp(objectEntryCount, 32);
+
+            if (pvsHiddenBits.Length < bitWords)
+            {
+                pvsHiddenBits = new uint[bitWords];
+            }
+
+            Array.Clear(pvsHiddenBits, 0, bitWords);
+        }
+
+        private void MarkNodeHiddenGpu(SceneNode node)
+        {
+            if (PvsCullActive && node is SceneAggregate.Fragment && node.Id < (uint)objectEntryCount)
+            {
+                MathUtils.SetBit(pvsHiddenBits, (int)node.Id);
+            }
+        }
+
         /// <summary>
         /// Tests a node against this frame's pvs. A node belongs to every visibility cluster its bounding box
         /// touches and survives as long as one of them is visible.
@@ -1092,7 +1128,7 @@ namespace ValveResourceFormat.Renderer
 
             foreach (var cluster in clusters)
             {
-                if (cluster < visibilityRow.Length * 8 && (visibilityRow[cluster >> 3] & (1 << (cluster & 7))) != 0)
+                if (cluster < visibilityRow.Length * 8 && MathUtils.GetBit(visibilityRow, cluster))
                 {
                     return true;
                 }
@@ -1268,6 +1304,8 @@ namespace ValveResourceFormat.Renderer
             WantsSceneColor = false;
             WantsSceneDepth = false;
 
+            ResetPvsHiddenBits();
+
             var frustum = cullFrustum ??= camera.ViewFrustum;
             var cullResults = GetFrustumCullResults(frustum);
 
@@ -1292,6 +1330,7 @@ namespace ValveResourceFormat.Renderer
                 if (node is MeshCollectionNode or SceneAggregate or SceneAggregate.Fragment or ParticleSceneNode && !IsNodeInPvs(node))
                 {
                     PerfStats.Active.Count(Counter.SceneObjectCulledByPvs, 1);
+                    MarkNodeHiddenGpu(node);
                     continue;
                 }
 
@@ -1765,6 +1804,19 @@ namespace ValveResourceFormat.Renderer
             // Scratch slots, rebound by the compaction and light cull dispatches that follow
             ObjectLodGpu.BindBufferBase();
             ActiveLodBitsGpu.BindBufferBase();
+
+            var pvsWords = PvsCullActive ? MathUtils.DivideRoundUp(Math.Max(objectEntryCount, 1), 32) : 1;
+
+            if (pvsHiddenBits.Length < pvsWords)
+            {
+                pvsHiddenBits = new uint[pvsWords];
+            }
+
+            PvsHiddenGpu = Upload<uint>(PvsHiddenGpu, pvsHiddenBits.AsSpan(0, pvsWords),
+                ReservedBufferSlots.BufferSlot10, "PvsHidden");
+            PvsHiddenGpu.BindBufferBase();
+
+            FrustumCullShader.SetUniform("g_bPvsCullEnabled", PvsCullActive);
 
             var occlusionDebugEnabled = OcclusionDebugEnabled && OcclusionDebug != null;
 

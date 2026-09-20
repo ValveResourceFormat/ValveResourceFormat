@@ -78,7 +78,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             {
                 foreach (var range in clusterDrawRanges)
                 {
-                    if (range.ClusterId < (uint)(Scene.CurrentFramePvs.Length * 8) && (Scene.CurrentFramePvs[range.ClusterId >> 3] & (1 << (range.ClusterId & 7))) != 0)
+                    if (range.ClusterId < (uint)(Scene.CurrentFramePvs.Length * 8) && MathUtils.GetBit(Scene.CurrentFramePvs, range.ClusterId))
                     {
                         GL.DrawArraysInstancedBaseInstance(PrimitiveType.Lines, range.Start, range.Count, 1, Id);
                     }

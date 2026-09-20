@@ -301,6 +301,33 @@ namespace ValveResourceFormat.Utils
             return (uu * u * p0) + (3.0f * uu * t * p1) + (3.0f * u * tt * p2) + (tt * t * p3);
         }
 
+        /// <summary>Number of bits held by one word of a <see cref="uint"/> bitfield.</summary>
+        public const int BitsPerWord = 32;
+
+        /// <summary>
+        /// Gets whether bit <paramref name="index"/> of a packed bitfield is set.
+        /// </summary>
+        /// <param name="bits">The bitfield, 32 bits per word.</param>
+        /// <param name="index">Index of the bit, counted across the whole field.</param>
+        public static bool GetBit(ReadOnlySpan<uint> bits, int index)
+            => (bits[index / BitsPerWord] & (1u << (index % BitsPerWord))) != 0;
+
+        /// <summary>
+        /// Sets bit <paramref name="index"/> of a packed bitfield.
+        /// </summary>
+        /// <param name="bits">The bitfield, 32 bits per word.</param>
+        /// <param name="index">Index of the bit, counted across the whole field.</param>
+        public static void SetBit(Span<uint> bits, int index)
+            => bits[index / BitsPerWord] |= 1u << (index % BitsPerWord);
+
+        /// <summary>
+        /// Gets whether bit <paramref name="index"/> of a packed bitfield is set.
+        /// </summary>
+        /// <param name="bits">The bitfield, 8 bits per byte.</param>
+        /// <param name="index">Index of the bit, counted across the whole field.</param>
+        public static bool GetBit(ReadOnlySpan<byte> bits, int index)
+            => (bits[index / 8] & (1 << (index % 8))) != 0;
+
         /// <summary>
         /// The length of one of a transform's basis vectors: how much it scales along that axis.
         /// <paramref name="axis"/> is 0 for X, 1 for Y, 2 for Z.
