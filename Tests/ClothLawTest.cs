@@ -8648,19 +8648,19 @@ namespace Tests
         }
 
         /// <summary>
-        /// A chain's <c>attrs</c> table states <c>extrude_twist</c> in the same terms its joint rows do,
-        /// because the compiler takes that default for any joint row that omits the key.
+        /// A chain's <c>attrs</c> table states the <c>extrude_twist</c> schema default whatever its ring
+        /// measures, while its joint rows keep stating the complement of the measured roll.
+        /// CONTROLS: the table's <c>extrude_sides</c> and <c>extrude_radius</c> defaults still carry the
+        /// chain's own measurements, a chain that does not extrude is unchanged, and the joint rows' key
+        /// is unchanged.
         /// </summary>
         /// <remarks>
-        /// An unrolled ring sits on the joint frame's +Y, so a document counts the key down from 90 while
-        /// the value recovered off the compiled proxies is the roll itself. Every joint row already states
-        /// the complement; the attrs default stated the raw roll, so a chain whose ring is unrolled
-        /// declared a fallback of 90 degrees where its own rows declare none. MEASURED 2026-09-20 with
-        /// <c>tools\w40authdiff.py</c> against the authored sources: 350 of 470 synth rows and 40 dl rows
-        /// carry the difference, the synth generator writing 0 where we wrote 90.
+        /// MEASURED 2026-09-20 over the authored sources of both corpora that ship one: of 830
+        /// <c>attrs extrude_twist default</c> statements in 119 authored documents, 825 are exactly 0 and
+        /// none is further than 0.001 from it, at every ring roll those documents carry.
         /// </remarks>
         [Test]
-        public async Task AChainsAttrsStateItsTwistTheWayItsJointsDo()
+        public async Task AChainsAttrsStateTheExtrudeTwistSchemaDefault()
         {
             const float Roll = 70f;
             var extruding = ModelExtract.MakeClothChainAttrs(2, 1.5f, Roll);
@@ -8674,8 +8674,9 @@ namespace Tests
                     .IsEqualTo(1.5f);
                 await Assert.That(rope.GetSubCollection("extrude_twist").GetFloatProperty("default"))
                     .IsEqualTo(0f);
+                await Assert.That(ModelExtract.ClothExtrudeTwistKey(Roll)).IsEqualTo(90f - Roll);
                 await Assert.That(extruding.GetSubCollection("extrude_twist").GetFloatProperty("default"))
-                    .IsEqualTo(90f - Roll);
+                    .IsEqualTo(0f);
             }
         }
 
