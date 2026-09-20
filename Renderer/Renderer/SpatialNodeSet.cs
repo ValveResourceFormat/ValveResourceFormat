@@ -169,6 +169,51 @@ namespace ValveResourceFormat.Renderer
         }
 
         /// <summary>
+        /// Returns the node with the lowest index whose bounds contain the point, or <see langword="null"/>
+        /// when none do. Insert in priority order and that is the highest priority hit.
+        /// </summary>
+        /// <param name="point">The point to test against every node's bounds.</param>
+        public SceneNode? FindContaining(Vector3 point)
+        {
+            var width = Vector<float>.Count;
+            var px = new Vector<float>(point.X);
+            var py = new Vector<float>(point.Y);
+            var pz = new Vector<float>(point.Z);
+            var i = 0;
+
+            for (; i <= Count - width; i += width)
+            {
+                // A box holds the point when it is inside the extent on every axis
+                var inside = Vector.LessThanOrEqual(Vector.Abs(new Vector<float>(centerX, i) - px), new Vector<float>(extentX, i))
+                    & Vector.LessThanOrEqual(Vector.Abs(new Vector<float>(centerY, i) - py), new Vector<float>(extentY, i))
+                    & Vector.LessThanOrEqual(Vector.Abs(new Vector<float>(centerZ, i) - pz), new Vector<float>(extentZ, i));
+
+                if (Vector.EqualsAll(inside, Vector<int>.Zero))
+                {
+                    continue; // whole vector missed
+                }
+
+                for (var lane = 0; lane < width; lane++)
+                {
+                    if (inside[lane] != 0)
+                    {
+                        return nodes[i + lane];
+                    }
+                }
+            }
+
+            for (; i < Count; i++)
+            {
+                if (GetBounds(i).Contains(point))
+                {
+                    return nodes[i];
+                }
+            }
+
+            return null;
+        }
+
+        /// <summary>
         /// Appends every node whose bounds intersect the given box.
         /// </summary>
         public void Query(in AABB bounds, List<SceneNode> results)

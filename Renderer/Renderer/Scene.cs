@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using System.Runtime.Intrinsics;
 using Microsoft.Extensions.Logging;
 using OpenTK.Graphics.OpenGL;
 using ValveResourceFormat.Blocks;
@@ -737,7 +738,6 @@ namespace ValveResourceFormat.Renderer
             transformUploadStart = int.MaxValue;
         }
 
-        // Kept between rebuilds, and only replaced by a bigger one once the scene outgrows it
         private static StorageBuffer Upload<T>(StorageBuffer? buffer, ReadOnlySpan<T> data, ReservedBufferSlots slot, string name)
             where T : struct
         {
@@ -2328,33 +2328,84 @@ namespace ValveResourceFormat.Renderer
                     continue;
                 }
 
-                node.LightProbeBinding ??= FindLightProbe(node.BoundingBox.Center) ?? globalProbe;
+                node.LightProbeBinding ??= ChooseLightProbeVolume(node.BoundingBox.Center);
             }
         }
 
         internal IReadOnlyList<SceneLightProbe> ProbeAtlasVolumes
             => LightingInfo.LightProbeType == LightProbeType.ProbeAtlas && boundLightProbes != null ? boundLightProbes : [];
 
+        internal static bool VolumeContains(SceneLightProbe probe, Vector3 position)
+        {
+            return probe.BoundingBox.Contains(position)
+                && probe.LocalBoundingBox.Contains(Vector3.Transform(position, probe.WorldToLocal));
+        }
+
         /// <summary>
         /// Returns the best probe volume containing the given position, or <see langword="null"/> when
         /// none does.
         /// </summary>
-        public SceneLightProbe? FindLightProbe(Vector3 position)
+        public SceneLightProbe? ChooseLightProbeVolume(Vector3 position)
         {
             if (boundLightProbes == null)
             {
                 return null;
             }
 
-            foreach (var probe in boundLightProbes)
+            SceneLightProbe? best = null;
+            var bestPriority = int.MinValue;
+            var bestScore = float.MaxValue;
+
+            foreach (var probe in CollectionsMarshal.AsSpan(boundLightProbes))
             {
-                if (probe.BoundingBox.Contains(position))
+                if (!probe.BoundingBox.Contains(position))
                 {
-                    return probe;
+                    continue;
                 }
+
+                var local = Vector3.Transform(position, probe.WorldToLocal);
+                var bounds = probe.LocalBoundingBox;
+
+                if (!bounds.Contains(local))
+                {
+                    continue;
+                }
+
+                var score = (local - bounds.Center).LengthSquared();
+
+                if (probe.IndoorOutdoorLevel < bestPriority
+                    || (probe.IndoorOutdoorLevel == bestPriority && score >= bestScore))
+                {
+                    continue;
+                }
+
+                best = probe;
+                bestPriority = probe.IndoorOutdoorLevel;
+                bestScore = score;
             }
 
-            return null;
+            if (best != null)
+            {
+                return best;
+            }
+
+            // Choose a nearby volume
+            foreach (var probe in CollectionsMarshal.AsSpan(boundLightProbes))
+            {
+                var score = probe.BoundingBox.DistanceSquared(position);
+
+                if (probe.IndoorOutdoorLevel < bestPriority
+                    || (probe.IndoorOutdoorLevel == bestPriority && score >= bestScore))
+                {
+                    continue;
+                }
+
+                best = probe;
+                bestPriority = probe.IndoorOutdoorLevel;
+                bestScore = score;
+            }
+
+            return best;
         }
 
         /// <summary>
@@ -2367,8 +2418,6 @@ namespace ValveResourceFormat.Renderer
             {
                 return;
             }
-
-            var globalProbe = boundLightProbes[^1];
 
             if (instanceDataCpu == null || InstanceBufferGpu == null)
             {
@@ -2388,20 +2437,31 @@ namespace ValveResourceFormat.Renderer
                     continue;
                 }
 
-                node.LightProbeBinding = FindLightProbe(node.BoundingBox.Center) ?? globalProbe;
+                var probe = node.LightProbeBinding;
+
+                if (probe == null || !VolumeContains(probe, node.BoundingBox.Center))
+                {
+                    probe = ChooseLightProbeVolume(node.BoundingBox.Center)!;
+                    node.LightProbeBinding = probe;
+                }
 
                 ref var entry = ref instanceDataCpu[node.Id];
-                entry.VisibleLPV = (uint)node.LightProbeBinding.ShaderIndex
-                    | (node.ShaderEnvMapVisibility.GetFirstShaderIndex() << 16);
-                entry.EnvMapVisibility = node.ShaderEnvMapVisibility;
+
+                var updated = entry;
+                updated.VisibleLPV = (uint)probe.ShaderIndex | (node.ShaderEnvMapVisibility.GetFirstShaderIndex() << 16);
+                updated.EnvMapVisibility = node.ShaderEnvMapVisibility;
 
                 if (node is MeshCollectionNode meshNode)
                 {
-                    entry.TintAlpha = Color32.FromVector4Clamped(meshNode.Tint).PackedValue;
+                    updated.TintAlpha = Color32.FromVector4Clamped(meshNode.Tint).PackedValue;
                 }
 
-                minId = Math.Min(minId, node.Id);
-                maxId = Math.Max(maxId, node.Id);
+                if (ObjectDataChanged(entry, updated))
+                {
+                    entry = updated;
+                    minId = Math.Min(minId, node.Id);
+                    maxId = Math.Max(maxId, node.Id);
+                }
             }
 
             if (minId <= maxId)
@@ -2409,6 +2469,14 @@ namespace ValveResourceFormat.Renderer
                 var stride = Unsafe.SizeOf<ObjectDataStandard>();
                 InstanceBufferGpu.Update<ObjectDataStandard>(
                     instanceDataCpu.AsSpan((int)minId, (int)(maxId - minId + 1)), (int)minId * stride);
+            }
+
+            static bool ObjectDataChanged(in ObjectDataStandard a, in ObjectDataStandard b)
+            {
+                Debug.Assert(Unsafe.SizeOf<ObjectDataStandard>() == Vector256<byte>.Count);
+
+                return Vector256.LoadUnsafe(in Unsafe.As<ObjectDataStandard, byte>(ref Unsafe.AsRef(in a)))
+                    != Vector256.LoadUnsafe(in Unsafe.As<ObjectDataStandard, byte>(ref Unsafe.AsRef(in b)));
             }
         }
 

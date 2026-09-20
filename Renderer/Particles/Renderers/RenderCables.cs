@@ -347,7 +347,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
 
             if (scene.LightingInfo.LightProbeType == LightProbeType.IndividualProbes)
             {
-                lightProbe = scene.FindLightProbe(cablePosition);
+                lightProbe = scene.ChooseLightProbeVolume(cablePosition);
             }
 
             lightProbe ??= OwnerNode?.LightProbeBinding;

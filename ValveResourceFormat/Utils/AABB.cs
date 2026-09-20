@@ -82,6 +82,14 @@ namespace ValveResourceFormat.Utils
                 Min.Z <= point.Z && point.Z <= Max.Z;
         }
 
+        /// <summary>Returns the squared distance from the point to this box, zero if contained. </summary>
+        public readonly float DistanceSquared(Vector3 point)
+        {
+            var outside = Vector3.Max(Min - point, Vector3.Zero) + Vector3.Max(point - Max, Vector3.Zero);
+
+            return outside.LengthSquared();
+        }
+
         /// <summary>
         /// Tests if another bounding box intersects this one.
         /// </summary>
