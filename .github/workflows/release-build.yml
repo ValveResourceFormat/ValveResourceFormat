@@ -63,10 +63,10 @@ jobs:
     - name: Upload GUI artifact
       uses: actions/upload-artifact@v7
       with:
-        # Uploaded as a bare file so that the artifact can be served as a direct download,
-        # the artifact is named after the file
-        archive: false
-        path: 'GUI/bin/Release/win-x64/publish/Source2Viewer.exe'
+        name: gui-windows-x64
+        path: |
+          GUI/bin/Release/win-x64/publish
+          !**/*.pdb
 
   release:
     name: Create release
@@ -89,7 +89,7 @@ jobs:
         chmod +x artifacts/cli-linux-x64/Source2Viewer-CLI
         zip -9j release/cli-windows-x64.zip artifacts/cli-windows-x64/*
         zip -9j release/cli-linux-x64.zip artifacts/cli-linux-x64/*
-        mv artifacts/Source2Viewer.exe release/Source2Viewer.exe
+        zip -9j release/gui-windows-x64.zip artifacts/gui-windows-x64/*
 
     - name: Release
       uses: softprops/action-gh-release@v3
