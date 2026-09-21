@@ -1,0 +1,80 @@
+name: Release CLI
+
+permissions:
+  contents: read
+
+on:
+  push:
+    tags:
+    - '*'
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  SKIP_ANALYSIS: -p:RunAnalyzersDuringBuild=false
+  PUBLISH_ARGS: -p:PublishReadyToRun=true
+
+jobs:
+  build:
+    name: CLI (${{ matrix.rid }})
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+        - os: windows-latest
+          rid: win-x64
+          artifact: cli-windows-x64
+        - os: ubuntu-latest
+          rid: linux-x64
+          artifact: cli-linux-x64
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+    - uses: actions/checkout@v7
+    - uses: ./.github/actions/setup-dotnet-cache
+
+    - name: Publish CLI
+      run: dotnet publish --configuration Release --self-contained --runtime ${{ matrix.rid }} ${{ env.SKIP_ANALYSIS }} ${{ env.PUBLISH_ARGS }} CLI/CLI.csproj
+
+    - name: Upload CLI artifact
+      uses: actions/upload-artifact@v7
+      with:
+        name: ${{ matrix.artifact }}
+        path: |
+          CLI/bin/Release/${{ matrix.rid }}/publish
+          !**/*.pdb
+
+  release:
+    name: Create release
+    needs: build
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write
+
+    steps:
+    - name: Download artifacts
+      uses: actions/download-artifact@v8
+      with:
+        path: artifacts
+
+    - name: Create release archives
+      run: |
+        set -eux
+        mkdir release
+        chmod +x artifacts/cli-linux-x64/Source2Viewer-CLI
+        zip -9j release/cli-windows-x64.zip artifacts/cli-windows-x64/*
+        zip -9j release/cli-linux-x64.zip artifacts/cli-linux-x64/*
+
+    - name: Release
+      uses: softprops/action-gh-release@v3
+      with:
+        draft: true
+        files: release/*
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
