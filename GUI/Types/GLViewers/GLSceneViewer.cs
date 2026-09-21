@@ -157,9 +157,10 @@ namespace GUI.Types.GLViewers
                 UiControl.AddCheckBox("Show Dynamic Octree", showDynamicOctree, (v) => showDynamicOctree = v);
                 UiControl.AddCheckBox("Show Tool Materials", Scene.ShowToolsMaterials, (v) =>
                 {
-                    Scene.ShowToolsMaterials = v;
-
-                    SkyboxScene?.ShowToolsMaterials = v;
+                    foreach (var scene in Renderer.Scenes)
+                    {
+                        scene.ShowToolsMaterials = v;
+                    }
                 });
 
                 if (this is GLWorldViewer)
@@ -172,7 +173,7 @@ namespace GUI.Types.GLViewers
                     }
                 }
 
-                if (Scene.PhysicsWorld != null)
+                if (Renderer.EntitySystem.PhysicsWorld != null)
                 {
                     UiControl.AddCheckBox("Debug Physics Traces", showPhysicsTraces, v => showPhysicsTraces = v);
                 }
@@ -224,13 +225,12 @@ namespace GUI.Types.GLViewers
 
         public virtual void PostSceneLoad()
         {
-            Scene.Initialize();
-            if (Scene.PhysicsWorld != null)
+            foreach (var scene in Renderer.Scenes)
             {
-                Input.PhysicsWorld = Scene.PhysicsWorld;
+                scene.Initialize();
             }
 
-            SkyboxScene?.Initialize();
+            Input.PhysicsWorld = Renderer.EntitySystem.PhysicsWorld;
 
             if (Scene.FogInfo.CubeFogActive)
             {
@@ -559,7 +559,7 @@ namespace GUI.Types.GLViewers
                     if (!roundStarted)
                     {
                         roundStarted = true;
-                        Scene.EntitySystem.StartRound();
+                        Renderer.EntitySystem.StartRound();
                     }
                 }
 
@@ -740,10 +740,10 @@ namespace GUI.Types.GLViewers
                     Scene.OcclusionDebug.Render();
                 }
 
-                if (showPhysicsTraces && Scene.PhysicsWorld != null)
+                if (showPhysicsTraces && Renderer.EntitySystem.PhysicsWorld != null)
                 {
                     physicsTraceRenderer ??= new PhysicsTraceDebugRenderer(Scene.RendererContext);
-                    physicsTraceRenderer.Render(Scene.PhysicsWorld, Input, Renderer.Camera);
+                    physicsTraceRenderer.Render(Renderer.EntitySystem.PhysicsWorld, Input, Renderer.Camera);
                 }
 
                 if (ShowBaseGrid && baseGrid != null)
@@ -1019,8 +1019,10 @@ namespace GUI.Types.GLViewers
 
         protected void SetEnabledLayers(HashSet<string> layers)
         {
-            Scene.SetEnabledLayers(layers);
-            SkyboxScene?.SetEnabledLayers(layers);
+            foreach (var scene in Renderer.Scenes)
+            {
+                scene.SetEnabledLayers(layers);
+            }
         }
 
         private void SetRenderMode(string renderMode)
@@ -1032,24 +1034,18 @@ namespace GUI.Types.GLViewers
 
             Renderer.Postprocess.Enabled = Renderer.ViewBuffer.Data.RenderMode == 0;
 
-            Scene.EnableCompaction = renderMode != "Meshlets";
-            SkyboxScene?.EnableCompaction = Scene.EnableCompaction;
+            foreach (var scene in Renderer.Scenes)
+            {
+                scene.EnableCompaction = renderMode != "Meshlets";
+            }
 
             Picker.SetRenderMode(renderMode);
             QuadOverdrawRenderer?.SetRenderMode(renderMode);
             SelectedNodeRenderer.SetRenderMode(renderMode);
 
-            foreach (var node in Scene.AllNodes)
+            foreach (var node in Renderer.Scenes.SelectMany(static scene => scene.AllNodes))
             {
                 node.SetRenderMode(renderMode);
-            }
-
-            if (SkyboxScene != null)
-            {
-                foreach (var node in SkyboxScene.AllNodes)
-                {
-                    node.SetRenderMode(renderMode);
-                }
             }
         }
 
@@ -1088,17 +1084,9 @@ namespace GUI.Types.GLViewers
                 SetAvailableRenderModes(true);
             }
 
-            foreach (var node in Scene.AllNodes)
+            foreach (var node in Renderer.Scenes.SelectMany(static scene => scene.AllNodes))
             {
                 node.UpdateVertexArrayObjects();
-            }
-
-            if (SkyboxScene != null)
-            {
-                foreach (var node in SkyboxScene.AllNodes)
-                {
-                    node.UpdateVertexArrayObjects();
-                }
             }
 
             GLControl?.Invalidate();

@@ -89,8 +89,8 @@ namespace ValveResourceFormat.Renderer.World
         private const float PlayerEyeHeight = 64f;
         private int spawnCameraPriority = int.MaxValue;
 
-        /// <summary>The 3D skybox scene, if one was found during entity loading.</summary>
-        public Scene? SkyboxScene { get; set; }
+        /// <summary>The 3D sky of this map, if it has one. Populated during entity loading.</summary>
+        public Skybox3D? Skybox3D { get; private set; }
         /// <summary>The 2D skybox, if one was found during entity loading.</summary>
         public SceneSkybox2D? Skybox2D { get; set; }
         /// <summary>The loaded navigation mesh, populated by <see cref="LoadNavigationMesh"/>.</summary>
@@ -98,18 +98,31 @@ namespace ValveResourceFormat.Renderer.World
         /// <summary>Baked bomb damage data for CS2, null if it doesn't exist. Populated by <see cref="LoadBombDamageData"/>.</summary>
         public BombDamage? BombDamage { get; set; }
 
-        /// <summary>Translation offset applied to the world, used when compositing multiple maps.</summary>
-        public Vector3 WorldOffset { get; set; } = Vector3.Zero;
-        /// <summary>Uniform scale applied to the world.</summary>
-        public float WorldScale { get; set; } = 1.0f;
-        // TODO: also store skybox reference rotation
+        /// <summary>The first <c>sky_camera</c> in this map, used when it is loaded as another map's 3D sky.</summary>
+        private (Vector3 Origin, float Scale)? skyCamera;
+
+        /// <summary>Applied to everything this map loads.</summary>
+        private readonly Matrix4x4 rootTransform;
+
+        private readonly EntitySystem entitySystem;
+
+        /// <summary>
+        /// Whether this load is a spawn group placed inside another map, such as a 3D sky. Only the
+        /// outermost load gets a physics world and activates the entities, once every group has spawned.
+        /// </summary>
+        private readonly bool isNestedSpawnGroup;
 
         /// <summary>
         /// Loads a map by name, performing a full load of all world components.
         /// </summary>
         /// <param name="mapResourceName">Path to the <c>.vmap</c> or <c>.vmap_c</c> resource.</param>
         /// <param name="scene">The scene to load the world into.</param>
-        public static WorldLoader LoadMap(string mapResourceName, Scene scene)
+        /// <param name="entitySystem">The entity world this map's entities spawn into.</param>
+        /// <param name="rootTransform">Transform applied to the whole map, identity when <see langword="null"/>.</param>
+        public static WorldLoader LoadMap(string mapResourceName, Scene scene, EntitySystem entitySystem, Matrix4x4? rootTransform = null)
+            => LoadMap(mapResourceName, scene, entitySystem, rootTransform, nestedSpawnGroup: false);
+
+        private static WorldLoader LoadMap(string mapResourceName, Scene scene, EntitySystem entitySystem, Matrix4x4? rootTransform, bool nestedSpawnGroup)
         {
             var renderContext = scene.RendererContext;
             Resource? mapResource = null;
@@ -131,7 +144,7 @@ namespace ValveResourceFormat.Renderer.World
             var worldPath = GetWorldNameFromMap(mapResourceName);
             var worldResource = renderContext.FileLoader.LoadFileCompiled(worldPath) ?? throw new FileNotFoundException($"Failed to load world file '{worldPath}'.");
 
-            var loader = new WorldLoader((WorldResource)worldResource.DataBlock!, scene);
+            var loader = new WorldLoader((WorldResource)worldResource.DataBlock!, scene, entitySystem, rootTransform, nestedSpawnGroup);
             loader.Load(mapResource.ExternalReferences);
             return loader;
         }
@@ -142,11 +155,21 @@ namespace ValveResourceFormat.Renderer.World
         /// </summary>
         /// <param name="world">The world data block to load.</param>
         /// <param name="scene">The scene to load the world into.</param>
-        public WorldLoader(WorldResource world, Scene scene)
+        /// <param name="entitySystem">The entity world this map's entities spawn into.</param>
+        /// <param name="rootTransform">Transform applied to the whole map, identity when <see langword="null"/>.</param>
+        public WorldLoader(WorldResource world, Scene scene, EntitySystem entitySystem, Matrix4x4? rootTransform = null)
+            : this(world, scene, entitySystem, rootTransform, nestedSpawnGroup: false)
         {
+        }
+
+        private WorldLoader(WorldResource world, Scene scene, EntitySystem entitySystem, Matrix4x4? rootTransform, bool nestedSpawnGroup)
+        {
+            this.isNestedSpawnGroup = nestedSpawnGroup;
             MapName = Path.GetDirectoryName(world.Resource!.FileName!)!.Replace('\\', '/');
             World = world;
             this.scene = scene;
+            this.entitySystem = entitySystem;
+            this.rootTransform = rootTransform ?? Matrix4x4.Identity;
             RendererContext = scene.RendererContext;
         }
 
@@ -287,18 +310,18 @@ namespace ValveResourceFormat.Renderer.World
                     continue;
                 }
 
-                LoadEntitiesFromLump(entityLump, "Entities", Matrix4x4.Identity);
+                LoadEntitiesFromLump(entityLump, "Entities");
             }
 
             ResolveAttachmentParenting();
             ResolveParticleControlPoints();
 
-            // Every entity exists now, so the simulated ones can resolve each other by name. The skybox
-            // loads part way through the map's own lump, so its loader leaves activation to the owning
-            // scene's, which runs once everything - both spawn groups - has spawned.
-            if (scene.EntitySystem.Scene == scene)
+            // Every entity exists now, so the simulated ones can resolve each other by name. A nested
+            // group loads part way through the outer map's own lump, so it leaves activation to that
+            // load, which runs once everything - every spawn group - has spawned.
+            if (!isNestedSpawnGroup)
             {
-                scene.EntitySystem.Activate();
+                entitySystem.Activate();
             }
 
             scene.LightingInfo.StoreLights(
@@ -392,7 +415,7 @@ namespace ValveResourceFormat.Renderer.World
                     MainWorldNode ??= worldNodeData;
 
                     var subloader = new WorldNodeLoader(RendererContext, worldNodeData);
-                    subloader.Load(scene);
+                    subloader.Load(scene, rootTransform);
 
                     foreach (var layer in subloader.LayerNames)
                     {
@@ -433,13 +456,15 @@ namespace ValveResourceFormat.Renderer.World
 
                 foreach (var physSceneNode in PhysSceneNode.CreatePhysSceneNodes(scene, phys, physResource.FileName[..^2]))
                 {
+                    physSceneNode.Transform = rootTransform;
                     physSceneNode.LayerName = PhysicsDebugLayerName;
                     scene.Add(physSceneNode, true);
                 }
 
-                if (phys.Parts.Length > 0)
+                // Only the player's world needs collision
+                if (phys.Parts.Length > 0 && !isNestedSpawnGroup)
                 {
-                    scene.PhysicsWorld = new Rubikon(phys);
+                    entitySystem.PhysicsWorld = new Rubikon(phys);
                 }
             }
         }
@@ -469,6 +494,7 @@ namespace ValveResourceFormat.Renderer.World
             var visNode = new VisibilitySceneNode(scene, voxelVisibility)
             {
                 LayerName = "Visibility clusters",
+                Transform = rootTransform,
             };
             scene.Add(visNode, false);
         }
@@ -560,7 +586,7 @@ namespace ValveResourceFormat.Renderer.World
             scene.RenderAttributes.TryAdd("S_LIGHTMAP_VERSION_MINOR", (byte)scene.LightingInfo.LightmapGameVersionNumber);
         }
 
-        private void LoadEntitiesFromLump(EntityLump entityLump, string originalLayerName, Matrix4x4 rootTransform)
+        private void LoadEntitiesFromLump(EntityLump entityLump, string originalLayerName)
         {
             static bool IsCubemapOrProbe(string cls)
                 => cls == "env_combined_light_probe_volume"
@@ -638,7 +664,14 @@ namespace ValveResourceFormat.Renderer.World
                 // whatever scene nodes they need.
                 if (EntityFactory.IsRegistered(classname))
                 {
-                    scene.EntitySystem.CreateEntity(entity, parentTransform, layerName, scene);
+                    var created = entitySystem.CreateEntity(entity, parentTransform, layerName, scene);
+
+                    // A nested group carries a worldspawn of its own, which stays an ordinary inert entity
+                    if (created is WorldEntity worldspawn && !isNestedSpawnGroup)
+                    {
+                        entitySystem.SetWorld(worldspawn);
+                    }
+
                     return;
                 }
 
@@ -653,7 +686,7 @@ namespace ValveResourceFormat.Renderer.World
                 else if (light.Accepted)
                 {
                     var lightNode = SceneLight.FromEntityProperties(scene, light.Type, entity);
-                    lightNode.Transform = transformationMatrix;
+                    lightNode.PlaceAt(transformationMatrix);
                     lightNode.LayerName = layerName;
                     lightNode.Flags |= ObjectTypeFlags.NoShadows;
                     scene.Add(lightNode, true);
@@ -695,16 +728,17 @@ namespace ValveResourceFormat.Renderer.World
                     if (classname == "env_global_light")
                     {
                         var angles = new Vector3(50, 43, 0);
-                        scene.Add(new SceneLight(scene)
+                        var dynamicSun = new SceneLight(scene)
                         {
                             Type = SceneLight.LightType.Directional,
-                            Transform = EntityTransformHelper.EulerAnglesToRotationMatrix(angles),
-                            Direction = EntityTransformHelper.EulerAnglesToForwardDirection(angles),
                             Color = new Vector3(1.0f, 1.0f, 1.0f),
                             Brightness = 1.0f,
                             LayerName = "world_layer_base",
                             Name = "Source 2 Viewer dynamic sunlight for Dota",
-                        }, false);
+                        };
+
+                        dynamicSun.PlaceAt(EntityTransformHelper.EulerAnglesToRotationMatrix(angles) * rootTransform);
+                        scene.Add(dynamicSun, false);
 
                         scene.LightingInfo.EnableDynamicShadows = true;
                         scene.LightingInfo.SunLightShadowCoverageScale = 4f;
@@ -944,6 +978,11 @@ namespace ValveResourceFormat.Renderer.World
 
                     var indoorOutdoorLevel = entity.GetInt32Property("indoor_outdoor_level");
 
+                    // The entity scale does not shrink the volume: its baked probe grid is the unscaled
+                    // box over the voxel size, and the objects bound to it by their precomputed
+                    // handshake only fall inside it while it keeps that size
+                    var volumeTransform = EntityTransformHelper.ToRigidTransformationMatrix(entity) * parentTransform;
+
                     if (classname != "env_light_probe_volume")
                     {
                         var cubemapTextureName = entity.GetStringProperty("cubemaptexture");
@@ -960,7 +999,7 @@ namespace ValveResourceFormat.Renderer.World
                             var envMap = new SceneEnvMap(scene, bounds)
                             {
                                 LayerName = layerName,
-                                Transform = transformationMatrix,
+                                Transform = volumeTransform,
                                 EntityData = entity,
                                 HandShake = handShake,
                                 ArrayIndex = arrayIndex,
@@ -988,7 +1027,7 @@ namespace ValveResourceFormat.Renderer.World
                         var lightProbe = new SceneLightProbe(scene, bounds)
                         {
                             LayerName = layerName,
-                            Transform = transformationMatrix,
+                            Transform = volumeTransform,
                             EntityData = entity,
                             HandShake = handShake,
                             Irradiance = irradianceTexture,
@@ -1051,12 +1090,13 @@ namespace ValveResourceFormat.Renderer.World
                 var animation = entity.GetStringProperty("startinganim") ?? entity.GetStringProperty("defaultanim") ?? entity.GetStringProperty("idleanim");
 
                 var skin = entity.GetStringProperty("skin");
-                var positionVector = transformationMatrix.Translation;
 
-                if (classname == "sky_camera")
+                // Only the first one is used
+                if (classname == "sky_camera" && skyCamera == null)
                 {
-                    WorldScale = entity.GetFloatProperty("scale");
-                    WorldOffset = positionVector;
+                    var skyScale = entity.GetFloatProperty("scale");
+
+                    skyCamera = (transformationMatrix.Translation, skyScale > 0f ? skyScale : 1f);
                 }
 
                 if (classname is "path_particle_rope" or "path_particle_rope_clientside")
@@ -1470,6 +1510,12 @@ namespace ValveResourceFormat.Renderer.World
                 return;
             }
 
+            if (Skybox3D != null)
+            {
+                RendererContext.Logger.LogWarning("Not loading skybox '{Targetmapname}' because this map already placed one", targetmapname);
+                return;
+            }
+
             // Maps have to be packed in a vpk?
             var vpkFile = Path.ChangeExtension(targetmapname, ".vpk");
             var vpkFound = RendererContext.FileLoader.FindFile(vpkFile);
@@ -1514,70 +1560,53 @@ namespace ValveResourceFormat.Renderer.World
                 return; // Not found logged by FindFile
             }
 
-            var worldName = Path.Join(
-                Path.GetDirectoryName(targetmapname),
-                Path.GetFileNameWithoutExtension(targetmapname),
-                "world.vwrld_c"
-            );
+            // Origin and angles only: a 3D sky is not scaled, the sky camera applies the scale instead
+            var reference = EntityTransformHelper.ToRigidTransformationMatrix(entity);
 
-            SkyboxScene = new Scene(RendererContext);
-            SkyboxScene.LightingInfo.LightingData.IsSkybox = 1u;
+            if (entityParentTransforms.TryGetValue(entity, out var referenceParentTransform))
+            {
+                reference *= referenceParentTransform;
+            }
 
             // Entities are global: the skybox is another spawn group
-            SkyboxScene.EntitySystem = scene.EntitySystem;
+            // Scenery: nothing can reach the sky, so its entities never build a collider
+            var skyScene = new Scene(RendererContext) { EntitiesCollide = false };
 
             LoadingProgress?.Report("Loading 3D sky…");
 
-            var skyboxResult = LoadMap(targetmapname, SkyboxScene);
+            var skyLoader = LoadMap(targetmapname, skyScene, entitySystem, reference, nestedSpawnGroup: true);
 
             if (currentLoadingPhase != null)
             {
                 LoadingProgress?.Report(currentLoadingPhase);
             }
 
-            // Take origin and angles from skybox_reference
-            var skyboxReference = EntityTransformHelper.ToRigidTransformationMatrix(entity);
+            var (skyOrigin, skyScale) = skyLoader.skyCamera ?? (Vector3.Zero, 1f);
 
-            if (entityParentTransforms.TryGetValue(entity, out var skyboxParentTransform))
-            {
-                skyboxReference *= skyboxParentTransform;
-            }
+            Skybox3D = new Skybox3D(skyScene, reference, skyOrigin, skyScale, scene.FogInfo, skyLoader.Entities.ToHashSet());
 
-            var offsetTransform = Matrix4x4.CreateTranslation(-skyboxResult.WorldOffset);
-            var offsetAndScaleTransform = offsetTransform;
-
-            // Apply skybox_reference transform after scaling
-            offsetAndScaleTransform *= Matrix4x4.CreateScale(skyboxResult.WorldScale) * skyboxReference;
-            offsetTransform *= skyboxReference;
-
-            foreach (var node in SkyboxScene.AllNodes)
-            {
-                if (node.LayerName == EditorEntityNode.LayerName)
-                {
-                    node.Transform *= offsetTransform;
-                }
-                else
-                {
-                    node.Transform *= offsetAndScaleTransform;
-                }
-            }
-
-            foreach (var envmap in SkyboxScene.LightingInfo.EnvMaps)
-            {
-                envmap.Transform *= offsetAndScaleTransform;
-            }
-
-            foreach (var skyboxEntity in scene.EntitySystem.Entities)
-            {
-                if (skyboxEntity.Scene == SkyboxScene)
-                {
-                    skyboxEntity.ApplySpawnGroupTransform(offsetAndScaleTransform);
-                }
-            }
+            PlaceSkyboxEditorMarkers(Skybox3D);
 
             if (package != null)
             {
                 RendererContext.FileLoader.RemovePackageFromSearch(package);
+            }
+        }
+
+        /// <summary>
+        /// Shrinks the editor markers of the 3D sky's entities by the sky scale, so the camera the sky is
+        /// drawn through magnifies them back to the size of any other marker.
+        /// </summary>
+        private static void PlaceSkyboxEditorMarkers(Skybox3D skybox)
+        {
+            // The scale is only known once the sky map has loaded, so the nodes it applies to are
+            // already placed. Whatever an entity owns it re-places itself from here on.
+            foreach (var marker in skybox.Scene.AllNodes)
+            {
+                if (marker.PlacementScale != 1f)
+                {
+                    marker.Transform = marker.ApplyPlacementScale(marker.Transform);
+                }
             }
         }
 

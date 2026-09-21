@@ -707,9 +707,9 @@ public class UserInput
     /// <summary>
     /// Try and load a game viewmodel to display in walk mode.
     /// </summary>
-    public bool TryLoadViewmodel(Scene scene)
+    public bool TryLoadViewmodel(Scene scene, EntitySystem entitySystem)
     {
-        Viewmodel = ViewmodelSceneNode.TryLoadCs2Viewmodel(scene);
+        Viewmodel = ViewmodelSceneNode.TryLoadCs2Viewmodel(scene, entitySystem);
         OrbitFollowProvider = Viewmodel is null ? null : Viewmodel.GetOrbitFollow;
         return Viewmodel != null;
     }

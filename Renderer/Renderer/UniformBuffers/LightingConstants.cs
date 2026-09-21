@@ -13,8 +13,8 @@ namespace ValveResourceFormat.Renderer.Buffers
 
         /// <summary>UV scale applied when sampling the lightmap atlas.</summary>
         public Vector2 LightmapUvScale;
-        /// <summary>Non-zero when the current draw is part of the skybox.</summary>
-        public uint IsSkybox;
+        /// <summary>Padding to maintain 16-byte struct alignment.</summary>
+        public uint _LightingPadding1;
         /// <summary>Number of active barn lights in the scene.</summary>
         public uint NumBarnLights;
         /// <summary>Per-type light counts (index matches light type enum).</summary>

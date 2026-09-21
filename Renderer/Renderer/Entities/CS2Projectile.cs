@@ -107,8 +107,8 @@ public sealed class CS2Projectile : BaseEntity
     private float effectTimeLeft;
 
     /// <summary>Creates a grenade projectile and its scene node; put it in the world with <see cref="EntitySystem.AddEntity"/>.</summary>
-    public CS2Projectile(EntitySystem system, Model model, GrenadeKind kind, ParticleSystem? detonationEffect, ParticleSystem? flightEffect = null)
-        : base(system, ClassnameFor(kind))
+    public CS2Projectile(EntitySystem system, Scene scene, Model model, GrenadeKind kind, ParticleSystem? detonationEffect, ParticleSystem? flightEffect = null)
+        : base(system, scene, ClassnameFor(kind))
     {
         Kind = kind;
 
@@ -348,7 +348,7 @@ public sealed class CS2Projectile : BaseEntity
 
     private Rubikon.TraceResult PushEntity(Vector3 move)
     {
-        var trace = SweepHull(Scene.PhysicsWorld, EntitySystem, Origin, Origin + move);
+        var trace = SweepHull(EntitySystem.PhysicsWorld, EntitySystem, Origin, Origin + move);
 
         if (!trace.IsValid)
         {

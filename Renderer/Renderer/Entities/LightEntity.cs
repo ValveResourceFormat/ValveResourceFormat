@@ -50,6 +50,8 @@ public sealed class LightEntity : BaseEntity
         // leave its old slot data lit
         light.Enabled = true;
 
+        light.PlaceAt(Transform);
+
         // The light-store sweep after entity load picks the node up from the scene like a loader one
         AddNode(light);
 
@@ -63,8 +65,7 @@ public sealed class LightEntity : BaseEntity
 
         if (light != null)
         {
-            light.Position = Origin;
-            light.Direction = EntityTransformHelper.EulerAnglesToForwardDirection(Angles);
+            light.PlaceAt(Transform);
             Changed();
         }
     }

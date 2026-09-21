@@ -171,7 +171,7 @@ internal abstract class ThumbnailRenderer : IDisposable
 
         NativeWindow.MakeCurrent();
 
-        SceneRenderer.Scene.Clear();
+        SceneRenderer.Clear();
 
         var size = (int)thumbnailSize;
 

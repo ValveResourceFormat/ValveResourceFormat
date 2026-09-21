@@ -21,16 +21,14 @@ public sealed class EnvSoundscape : BaseEntity
     public override void Spawn()
     {
         var radius = KeyValues.GetFloatProperty("radius");
+        var position = Transform.Translation;
 
         region = KeyValues.GetBooleanProperty("enablesoundevent")
-            ? Sound.AddSoundscape(Origin, radius, KeyValues.GetStringProperty("soundevent"))
-            : Sound.AddScriptedSoundscape(Origin, radius, KeyValues.GetStringProperty("soundscape"));
+            ? Sound.AddSoundscape(position, radius, KeyValues.GetStringProperty("soundevent"))
+            : Sound.AddScriptedSoundscape(position, radius, KeyValues.GetStringProperty("soundscape"));
 
         region?.Enabled = !KeyValues.GetBooleanProperty("startdisabled");
     }
-
-    /// <summary>The region was registered before the 3D sky placement was known; recenter it.</summary>
-    protected override void OnSpawnGroupTransformApplied() => region?.Position = Transform.Translation;
 
     /// <inheritdoc/>
     protected override void OnRemove()

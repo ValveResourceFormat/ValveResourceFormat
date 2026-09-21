@@ -25,7 +25,7 @@ public readonly record struct EntitySpawnInfo(Entity Data, Matrix4x4 ParentTrans
 /// engine at any framerate. An entity is not a scene node; it owns one, <see cref="RootNode"/>, and places
 /// it each frame. That node defaults to the editor box, and a class with real geometry replaces it.
 /// </remarks>
-public class BaseEntity
+public abstract class BaseEntity
 {
     /// <summary>Gets the scene this entity's nodes live in: the map's, or the 3D skybox's for one spawned there.</summary>
     public Scene Scene { get; }
@@ -69,7 +69,7 @@ public class BaseEntity
     public uint SpawnFlags { get; }
 
     /// <summary>Gets the transform of whatever spawned this entity; identity for plain map entities.</summary>
-    public Matrix4x4 ParentTransform { get; private set; }
+    public Matrix4x4 ParentTransform { get; }
 
     /// <summary>
     /// Gets or sets the owning entity, Source's <c>m_hOwnerEntity</c>. Null only on the root <see cref="WorldEntity"/>.
@@ -232,14 +232,8 @@ public class BaseEntity
         }
     } = true;
 
-    /// <summary>
-    /// Gets whether the entity is in the playable world rather than a 3D sky spawn group. Sky entities
-    /// render but never collide with, push, or answer use from the player.
-    /// </summary>
-    public bool InPlayableWorld => Scene == EntitySystem.Scene;
-
     /// <summary>Gets whether the entity currently takes part in collision traces.</summary>
-    public bool IsCollidable => IsSolid && !IsTrigger && Collider is { IsEmpty: false } && !IsRemoved && InPlayableWorld;
+    public bool IsCollidable => IsSolid && !IsTrigger && Collider is { IsEmpty: false } && !IsRemoved;
 
     /// <summary>Gets the entities currently inside this one's volume.</summary>
     public IReadOnlyCollection<BaseEntity> TouchingEntities => touching;
@@ -295,10 +289,13 @@ public class BaseEntity
     /// Initializes an entity created at runtime rather than loaded from a map, so it has no keyvalues to
     /// read and starts at the world origin.
     /// </summary>
-    protected BaseEntity(EntitySystem system, string classname)
+    /// <param name="system">The entity world it lives in.</param>
+    /// <param name="scene">The scene its nodes render into.</param>
+    /// <param name="classname">The classname it reports.</param>
+    protected BaseEntity(EntitySystem system, Scene scene, string classname)
     {
         EntitySystem = system;
-        Scene = system.Scene;
+        Scene = scene;
         ParentTransform = Matrix4x4.Identity;
         EntityScale = Vector3.One;
 
@@ -615,7 +612,7 @@ public class BaseEntity
         if (EntitySystem.Player is not { IsRemoved: false } player
             || !player.Controller.IsActive
             || Collider is not { IsEmpty: false } collider
-            || !IsSolid || IsTrigger || !InPlayableWorld
+            || !IsSolid || IsTrigger || Scene != player.Scene
             || !player.TryGetTouchBounds(out var center, out var halfExtents))
         {
             return;
@@ -844,7 +841,7 @@ public class BaseEntity
 
         foreach (var node in ownedNodes)
         {
-            node.Transform = Transform;
+            node.Transform = node.ApplyPlacementScale(Transform);
             Scene.DynamicOctree.Update(node);
         }
     }
@@ -965,25 +962,6 @@ public class BaseEntity
         previousAngles = Angles;
         isInterpolating = false;
         UpdateTransform();
-    }
-
-    /// <summary>
-    /// Bakes a spawn group's placement into the entity, the way the loader places the 3D skybox: the
-    /// origin and angles stay in the group's own coordinates, and the placement rides on top.
-    /// </summary>
-    internal void ApplySpawnGroupTransform(in Matrix4x4 placement)
-    {
-        ParentTransform *= placement;
-        SnapInterpolation();
-        OnSpawnGroupTransformApplied();
-    }
-
-    /// <summary>
-    /// Called after <see cref="ApplySpawnGroupTransform"/> has moved the entity, for anything that took
-    /// a world position before the placement was known, such as a registered sound region.
-    /// </summary>
-    protected virtual void OnSpawnGroupTransformApplied()
-    {
     }
 
     private void SetTransform(Vector3 origin, Vector3 angles)
