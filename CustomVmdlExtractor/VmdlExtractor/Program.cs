@@ -1,21 +1,21 @@
-// VmdlExtractor v5.3 вЂ” full ModelDoc compile-pass extraction.
+// VmdlExtractor v5.3 — full ModelDoc compile-pass extraction.
 //
-// РџРѕРІРµСЂС… v5.2 (strip empty resource refs + broken AutoLayer) РґРѕР±Р°РІР»РµРЅС‹ РґРІР° РЅРѕРІС‹С…
-// РїРѕСЃС‚-РїСЂРѕС…РѕРґР° С‡С‚РѕР±С‹ РјРѕРґРµР»СЊ РЅРµ С‚РѕР»СЊРєРѕ РєРѕРјРїРёР»РёСЂРѕРІР°Р»Р°СЃСЊ, РЅРѕ Рё РєРѕСЂСЂРµРєС‚РЅРѕ СЂРµРЅРґРµСЂРёР»Р°СЃСЊ
-// РїРѕРґ Р°РЅРёРјР°С†РёСЏРјРё:
+// Поверх v5.2 (strip empty resource refs + broken AutoLayer) добавлены два новых
+// пост-прохода чтобы модель не только компилировалась, но и корректно рендерилась
+// под анимациями:
 //
-//   4. Rewrite bogus `tag = resource:"X"` в†’ `tag = "X"`.
-//      РЎРѕР±С‹С‚РёРµ AE_CL_SUPPRESS_EVENTS_WITH_TAG РІ VRF-РІС‹РІРѕРґРµ РјРёСЃСЃ-С‚РёРїРёР·РёСЂСѓРµС‚ РїРѕР»Рµ
-//      `tag` РєР°Рє resource reference, С…РѕС‚СЏ СЌС‚Рѕ СЃС‚СЂРѕРєРѕРІС‹Р№ РёРґРµРЅС‚РёС„РёРєР°С‚РѕСЂ. ModelDoc
-//      РїС‹С‚Р°РµС‚СЃСЏ Р·Р°СЂРµРіРёСЃС‚СЂРёСЂРѕРІР°С‚СЊ РЅРµСЃСѓС‰РµСЃС‚РІСѓСЋС‰РёР№ resource в†’ "Bad resource reference"
-//      в†’ "Tried to register an empty resource reference" в†’ Compile Failed.
+//   4. Rewrite bogus `tag = resource:"X"` → `tag = "X"`.
+//      Событие AE_CL_SUPPRESS_EVENTS_WITH_TAG в VRF-выводе мисс-типизирует поле
+//      `tag` как resource reference, хотя это строковый идентификатор. ModelDoc
+//      пытается зарегистрировать несуществующий resource → "Bad resource reference"
+//      → "Tried to register an empty resource reference" → Compile Failed.
 //
-//   5. Patch DMX mesh jointIndices: -1 в†’ 0 w=0.
-//      VRF `ToDmxMesh` РѕСЃС‚Р°РІР»СЏРµС‚ "РїСѓСЃС‚С‹Рµ" weight-СЃР»РѕС‚С‹ СЃ jointIndex=-1. ModelDoc
-//      warning'РёС‚ ("Invalid skinning bone index :: -1") Рё РєР»Р°РјРїРёС‚ -1в†’root, РёР·-Р·Р°
-//      С‡РµРіРѕ С‡Р°СЃС‚СЊ РІРµСЂС‚РµРєСЃРѕРІ РїР°СЂР°Р·РёС‚РЅРѕ С‚СЏРЅРµС‚СЃСЏ Р·Р° root-Р°РЅРёРјР°С†РёРµР№ (turns_anim Рё
-//      РїСЂРѕС‡РёРµ root-РїРѕРІРѕСЂРѕС‚С‹). РћР±РЅСѓР»СЏРµРј jointIndex=0 Рё jointWeight=0 вЂ” РІРµСЂС‚РµРєСЃ
-//      Р±РѕР»СЊС€Рµ РЅРµ СЂРµР°РіРёСЂСѓРµС‚ РЅР° root, СЃС‚СЂРµС‚С‡РёРЅРі РёСЃС‡РµР·Р°РµС‚.
+//   5. Patch DMX mesh jointIndices: -1 → 0 w=0.
+//      VRF `ToDmxMesh` оставляет "пустые" weight-слоты с jointIndex=-1. ModelDoc
+//      warning'ит ("Invalid skinning bone index :: -1") и клампит -1→root, из-за
+//      чего часть вертексов паразитно тянется за root-анимацией (turns_anim и
+//      прочие root-повороты). Обнуляем jointIndex=0 и jointWeight=0 — вертекс
+//      больше не реагирует на root, стретчинг исчезает.
 
 using System.Numerics;
 using System.Reflection;
@@ -45,45 +45,45 @@ internal static class Program
     private static readonly string[] ModelDepExts =
         [".vmesh", ".vmorf", ".vphys", ".vagrp", ".vanim", ".vmodel", ".vseq", ".vpulse"];
 
-    // A/B-toggles РґР»СЏ РѕС‚Р»Р°РґРєРё in-game animation behaviour.
-    // РЈРїСЂР°РІР»СЏСЋС‚СЃСЏ CLI-С„Р»Р°РіР°РјРё:
-    //   --activity-modifier-inject   вЂ” РІРєР»СЋС‡Р°РµС‚ ActivityModifier child inject.
-    //   --no-framerate-inject        вЂ” РІС‹РєР»СЋС‡Р°РµС‚ framerate/start_frame/end_frame inject.
-    //   --no-dedup                   вЂ” РІС‹РєР»СЋС‡Р°РµС‚ РґРµРґСѓРїР»РёРєР°С†РёСЋ РєР°РЅРґРёРґР°С‚РѕРІ РїРѕ (activity, modifier).
+    // A/B-toggles для отладки in-game animation behaviour.
+    // Управляются CLI-флагами:
+    //   --activity-modifier-inject   — включает ActivityModifier child inject.
+    //   --no-framerate-inject        — выключает framerate/start_frame/end_frame inject.
+    //   --no-dedup                   — выключает дедупликацию кандидатов по (activity, modifier).
     //
-    // ActivityModifier child inject РџРћ РЈРњРћР›Р§РђРќРР® Р’Р«РљР›Р®Р§Р•Рќ РїРѕСЃР»Рµ СЌРјРїРёСЂРёРєРё:
-    // вњ“ ROOT FIX РїРѕРґС‚РІРµСЂР¶РґС‘РЅ Р±Р°Р№С‚РѕРІС‹Рј diff'РѕРј СЃРєРѕРјРїРёР»РёСЂРѕРІР°РЅРЅРѕРіРѕ .vmdl_c СЃ РѕСЂРёРіРёРЅР°Р»РѕРј
-    // Valve: child-node `_class = "ActivityModifier"` СЃ `activity_name = "<modifier>"`
-    // Рё `activity_weight = N` Р’РќРЈРўР Р `children = [...]` РјР°СЃСЃРёРІР° AnimFile.
+    // ActivityModifier child inject ПО УМОЛЧАНИЮ ВЫКЛЮЧЕН после эмпирики:
+    // ✓ ROOT FIX подтверждён байтовым diff'ом скомпилированного .vmdl_c с оригиналом
+    // Valve: child-node `_class = "ActivityModifier"` с `activity_name = "<modifier>"`
+    // и `activity_weight = N` ВНУТРИ `children = [...]` массива AnimFile.
     //
-    // ModelDoc compile РєРѕСЂСЂРµРєС‚РЅРѕ РјРµСЂРґР¶РёС‚ СЌС‚РѕС‚ child-node РІ `m_activityArray` ASEQ вЂ”
-    // РїРѕР»СѓС‡Р°РµРј 1:1 СЃС‚СЂСѓРєС‚СѓСЂСѓ РѕСЂРёРіРёРЅР°Р»Р°. РђР»СЊС‚РµСЂРЅР°С‚РёРІРЅС‹Рµ СЃРёРЅС‚Р°РєСЃРёСЃС‹ РќР• СЂР°Р±РѕС‚Р°СЋС‚:
-    //   - field-level `activity_modifiers = [...]` вЂ” РёРіРЅРѕСЂРёСЂСѓРµС‚СЃСЏ compile'РѕРј
-    //   - field-level `activities = [{name=...,weight=...}]` вЂ” РёРіРЅРѕСЂРёСЂСѓРµС‚СЃСЏ
+    // ModelDoc compile корректно мерджит этот child-node в `m_activityArray` ASEQ —
+    // получаем 1:1 структуру оригинала. Альтернативные синтаксисы НЕ работают:
+    //   - field-level `activity_modifiers = [...]` — игнорируется compile'ом
+    //   - field-level `activities = [{name=...,weight=...}]` — игнорируется
     //
-    // РџРѕСЌС‚РѕРјСѓ: child-node injection Р’РљР›Р®Р§РЃРќ РїРѕ СѓРјРѕР»С‡Р°РЅРёСЋ, РѕСЃС‚Р°Р»СЊРЅС‹Рµ injection-РєРѕСЃС‚С‹Р»Рё
-    // Р’Р«РљР›Р®Р§Р•РќР« (РѕРЅРё РЅСѓР¶РЅС‹ Р±С‹Р»Рё РєР°Рє СЃРёРјРїС‚РѕРјР°С‚РёС‡РµСЃРєРѕРµ Р»РµС‡РµРЅРёРµ, РєРѕРіРґР° РјС‹ РЅРµ Р·РЅР°Р»Рё
-    // РїСЂР°РІРёР»СЊРЅРѕРіРѕ СЃРёРЅС‚Р°РєСЃРёСЃР°).
-    internal static bool SkipActivityModInject;          // child-node inject вЂ” ENABLED
-    internal static bool SkipFramerateInject;            // framerate inject вЂ” ENABLED
-    internal static bool SkipDedup = true;               // dedup hack вЂ” DISABLED (РІСЂРµРґРёР» РєРѕСЂСЂРµРєС‚РЅРѕРјСѓ inject)
-    internal static bool SkipDisableNonWhitelistedMods = true;  // prune hack вЂ” DISABLED
-    internal static bool SkipFieldLevelModifierInject = true;   // field-level inject вЂ” DISABLED (РЅРµ СЂР°Р±РѕС‚Р°РµС‚)
-    internal static bool SkipExtractMotionSanitize;             // ExtractMotion neutralizer вЂ” ENABLED (С„РёРєСЃ 10x speed)
+    // Поэтому: child-node injection ВКЛЮЧЁН по умолчанию, остальные injection-костыли
+    // ВЫКЛЮЧЕНЫ (они нужны были как симптоматическое лечение, когда мы не знали
+    // правильного синтаксиса).
+    internal static bool SkipActivityModInject;          // child-node inject — ENABLED
+    internal static bool SkipFramerateInject;            // framerate inject — ENABLED
+    internal static bool SkipDedup = true;               // dedup hack — DISABLED (вредил корректному inject)
+    internal static bool SkipDisableNonWhitelistedMods = true;  // prune hack — DISABLED
+    internal static bool SkipFieldLevelModifierInject = true;   // field-level inject — DISABLED (не работает)
+    internal static bool SkipExtractMotionSanitize;             // ExtractMotion neutralizer — ENABLED (фикс 10x speed)
     // Multipose-layer strip neutralizer. ENABLED by default since v5.3.1
     // (fixes systematic in-match body flipping during run+turn). Opt-out
     // via --keep-multipose-layers if a specific model relies on the broken
     // overlay (none observed in 7.28c+ heroes - Pudge/CM/Old SF/SFA all
     // exhibit identical VRF behaviour: turns.dmx === @turns_lookFrame_0.dmx).
     internal static bool SkipMultiposeLayerStrip;
-    // Hardcoded whitelist (СЃРёРЅС…СЂРѕРЅРёР·РёСЂРѕРІР°РЅ СЃ scripts/activity_modifier_weights.txt
-    // РІ Dota 2 7.28c). РСЃРїРѕР»СЊР·СѓРµС‚СЃСЏ РєР°Рє fallback, РµСЃР»Рё С„Р°Р№Р» РЅРµ РґРѕСЃС‚СѓРїРµРЅ.
+    // Hardcoded whitelist (синхронизирован с scripts/activity_modifier_weights.txt
+    // в Dota 2 7.28c). Используется как fallback, если файл не доступен.
     private static readonly string[] BuiltinModifierWhitelist =
         ["aggressive", "injured", "injured_aggressive", "haste"];
 
     internal delegate byte[]? RawReader(string compiledPath);
 
-    // в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ CLI в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ
+    // ───────────────────────────── CLI ─────────────────────────────
 
     private static int Main(string[] args)
     {
@@ -117,8 +117,8 @@ internal static class Program
         bool noRawDeps = false;
         bool noSanitize = false;
         bool noIncludeDeps = false;
-        // Diagnostic toggles вЂ” СЃС‚Р°С‚РёС‡РµСЃРєРёРµ РїРѕР»СЏ, С‡РёС‚Р°СЋС‚СЃСЏ inject-РјРµС‚РѕРґР°РјРё РЅР°РїСЂСЏРјСѓСЋ.
-        // РСЃРїРѕР»СЊР·СѓСЋС‚СЃСЏ С‚РѕР»СЊРєРѕ РґР»СЏ A/B-СЃСЂР°РІРЅРµРЅРёСЏ РїСЂРё РѕС‚Р»Р°РґРєРµ. Р”РµС„РѕР»С‚С‹ СЃРј. РІ РѕР±СЉСЏРІР»РµРЅРёСЏС… РїРѕР»РµР№.
+        // Diagnostic toggles — статические поля, читаются inject-методами напрямую.
+        // Используются только для A/B-сравнения при отладке. Дефолты см. в объявлениях полей.
         var srcExts = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { ".vmdl_c" };
 
         for (int i = 0; i < args.Length; i++)
@@ -208,10 +208,10 @@ internal static class Program
             : RunFolderMode(input, output, srcExts, gameRoot, isFile,
                             noModelFolder, noRawDeps, noSanitize, noIncludeDeps, verbose);
 
-        // Auto-copy СЂРµР·СѓР»СЊС‚Р°С‚Р° РІ СѓРєР°Р·Р°РЅРЅСѓСЋ РґРёСЂРµРєС‚РѕСЂРёСЋ (РЅР°РїСЂРёРјРµСЂ, РІ content/dota_addons/<addon>).
-        // РџРѕ СѓРјРѕР»С‡Р°РЅРёСЋ (РµСЃР»Рё --copy-from РЅРµ СѓРєР°Р·Р°РЅ) РєРѕРїРёСЂСѓРµС‚СЃСЏ Р’РЎРЃ СЃРѕРґРµСЂР¶РёРјРѕРµ output РІ copyTo.
-        // Р•СЃР»Рё СѓРєР°Р·Р°РЅ --copy-from <relSubdir>, С‚Рѕ РєРѕРїРёСЂСѓРµС‚СЃСЏ РЎРћР”Р•Р Р–РРњРћР• СЌС‚РѕР№ РїРѕРґРїР°РїРєРё РІ copyTo
-        // (Р±РµР· РІР»РѕР¶РµРЅРёСЏ СЃР°РјРѕР№ РїРѕРґРїР°РїРєРё) вЂ” СѓРґРѕР±РЅРѕ РґР»СЏ РїРѕРґРјРµРЅС‹ РєРѕРЅРєСЂРµС‚РЅРѕР№ РјРѕРґРµР»Рё РІ addon.
+        // Auto-copy результата в указанную директорию (например, в content/dota_addons/<addon>).
+        // По умолчанию (если --copy-from не указан) копируется ВСЁ содержимое output в copyTo.
+        // Если указан --copy-from <relSubdir>, то копируется СОДЕРЖИМОЕ этой подпапки в copyTo
+        // (без вложения самой подпапки) — удобно для подмены конкретной модели в addon.
         if (rc == 0 && !string.IsNullOrWhiteSpace(copyTo))
         {
             var srcRoot = string.IsNullOrWhiteSpace(copyFrom)
@@ -220,28 +220,28 @@ internal static class Program
             CopyExtractToTarget(srcRoot, copyTo, verbose);
         }
 
-        // вњ“ ROOT-FIX BYPASS: --vmdlc-target РєРѕРїРёСЂСѓРµС‚ РћР РР“РРќРђР›Р¬РќР«Р™ .vmdl_c РёР· VPK
-        // РїСЂСЏРјРѕ РІ game-dir addon'Р°. Р­С‚Рѕ РѕР±С…РѕРґРёС‚ ModelDoc compile (РєРѕС‚РѕСЂС‹Р№ С‚РµСЂСЏРµС‚
-        // m_activityArray РјРѕРґРёС„РёРєР°С‚РѕСЂС‹ РїСЂРё РїРµСЂРµРєРѕРјРїРёР»СЏС†РёРё вЂ” РґРѕРєР°Р·Р°РЅРѕ Р±Р°Р№С‚РѕРІС‹Рј diff'РѕРј).
-        // Р“Р°СЂР°РЅС‚РёСЏ 100% identity СЃ РѕСЂРёРіРёРЅР°Р»РѕРј Valve вЂ” РІСЃРµ sequences РёРіСЂР°СЋС‚СЃСЏ РєР°Рє РІ
+        // ✓ ROOT-FIX BYPASS: --vmdlc-target копирует ОРИГИНАЛЬНЫЙ .vmdl_c из VPK
+        // прямо в game-dir addon'а. Это обходит ModelDoc compile (который теряет
+        // m_activityArray модификаторы при перекомпиляции — доказано байтовым diff'ом).
+        // Гарантия 100% identity с оригиналом Valve — все sequences играются как в
         // vanilla Dota 2.
         //
-        // РРЎРџРћР›Р¬Р—РћР’РђРќРР•:
+        // ИСПОЛЬЗОВАНИЕ:
         //   --vmdlc-target "...\game\dota_addons\witchblades"
-        // РЎС‚СЂСѓРєС‚СѓСЂР° /models/heroes/.../*.vmdl_c СЃРѕС…СЂР°РЅСЏРµС‚СЃСЏ РѕС‚РЅРѕСЃРёС‚РµР»СЊРЅРѕ VPK prefix.
+        // Структура /models/heroes/.../*.vmdl_c сохраняется относительно VPK prefix.
         if (rc == 0 && isVpk && !string.IsNullOrWhiteSpace(vmdlcTarget))
             CopyOriginalVmdlcFromVpk(input, vpkPrefix, vmdlcTarget, verbose);
 
-        // вњ“ AUTO-BUILD: Р·Р°РїСѓСЃРєР°РµС‚ resourcecompiler.exe РЅР° СЃРєРѕРїРёСЂРѕРІР°РЅРЅС‹С… .vmdl Рё
-        // РїСЂРёРјРµРЅСЏРµС‚ post-compile motion patch (Р·Р°РјРµРЅСЏРµС‚ per-frame m_movementArray
-        // РЅР° single zero entry вЂ” С„РёРєСЃ 10x speed РґР»СЏ locomotion-Р°РЅРёРјР°С†РёР№).
+        // ✓ AUTO-BUILD: запускает resourcecompiler.exe на скопированных .vmdl и
+        // применяет post-compile motion patch (заменяет per-frame m_movementArray
+        // на single zero entry — фикс 10x speed для locomotion-анимаций).
         //
-        // Р—Р°РјРµРЅСЏРµС‚ СЂСѓС‡РЅРѕР№ workflow "ModelDoc в†’ Save & Build" вЂ” РґР°С‘С‚ РєРѕСЂСЂРµРєС‚РЅС‹Р№
-        // .vmdl_c Р·Р° РѕРґРёРЅ Р·Р°РїСѓСЃРє VmdlExtractor.
+        // Заменяет ручной workflow "ModelDoc → Save & Build" — даёт корректный
+        // .vmdl_c за один запуск VmdlExtractor.
         //
-        // РђРІС‚Рѕ-РѕРїСЂРµРґРµР»СЏРµС‚: 
-        //   - resourcecompiler.exe (С‡РµСЂРµР· --resourcecompiler РёР»Рё РёР· --copy-to РїСѓС‚Рё)
-        //   - game-dir (РёР· content-dir Р·Р°РјРµРЅРѕР№ "content/" в†’ "game/")
+        // Авто-определяет: 
+        //   - resourcecompiler.exe (через --resourcecompiler или из --copy-to пути)
+        //   - game-dir (из content-dir заменой "content/" → "game/")
         if (rc == 0 && autoBuild && !string.IsNullOrWhiteSpace(copyTo))
         {
             // Pass the source VPK so AutoBuildAndPatch can transplant fidelity
@@ -287,7 +287,7 @@ internal static class Program
             return 3;
         }
 
-        // Step 2: derive game-dir from content-dir (content/X/Y в†’ game/X/Y)
+        // Step 2: derive game-dir from content-dir (content/X/Y → game/X/Y)
         var gameDir = ContentToGameDir(contentDir);
         if (gameDir == null)
         {
@@ -326,7 +326,7 @@ internal static class Program
         Console.WriteLine($"[build] vmdl files: {vmdlFiles.Length}");
 
         // Open donor VPK once (for fidelity-block transplant). Skip silently if
-        // missing/inaccessible вЂ” transplant becomes a no-op then.
+        // missing/inaccessible — transplant becomes a no-op then.
         Package? donorPkg = null;
         if (!string.IsNullOrEmpty(donorVpk))
         {
@@ -346,10 +346,10 @@ internal static class Program
         // Block types we attempt to transplant from the donor when missing in
         // our compiled output. These are exactly the blocks the source-rebuild
         // path cannot fully reconstruct from .vmdl text alone:
-        //   MRPH вЂ” morph (face flexes / lip-sync atlas references)
-        //   PHYS вЂ” full ragdoll/cloth physics (m_pFeModel, joints)
+        //   MRPH — morph (face flexes / lip-sync atlas references)
+        //   PHYS — full ragdoll/cloth physics (m_pFeModel, joints)
         // Other blocks (MBUF/MIDX/MVTX/REDI/RED2) are format-migration
-        // duplicates вЂ” newer Source 2 compiler emits MIDX+MVTX in place of MBUF
+        // duplicates — newer Source 2 compiler emits MIDX+MVTX in place of MBUF
         // and RED2 in place of REDI; both are functionally equivalent.
         var fidelityBlocks = new[] { ValveResourceFormat.BlockType.MRPH, ValveResourceFormat.BlockType.PHYS };
 
@@ -417,7 +417,7 @@ internal static class Program
             int patchCount = PatchVmdlcMotionArray(compiledPath, donorPkg, donorVpkRel, verbose);
             if (patchCount > 0) patched++;
 
-            // Fidelity transplant LAST вЂ” splice fully-formed blocks (MRPH,
+            // Fidelity transplant LAST — splice fully-formed blocks (MRPH,
             // full PHYS with cloth/joints) from the donor VPK into our
             // compiled .vmdl_c. Byte-level surgery preserves whatever motion
             // patch produced and just appends new entries with their own
@@ -470,7 +470,7 @@ internal static class Program
         return contentDir.Substring(0, idx) + "\\game\\" + contentDir.Substring(idx + "\\content\\".Length);
     }
 
-    /// <summary>Find addon root: ".../content/dota_addons/<addon>/" вЂ” walk up until parent name is "dota_addons".</summary>
+    /// <summary>Find addon root: ".../content/dota_addons/<addon>/" — walk up until parent name is "dota_addons".</summary>
     private static string? FindAddonRoot(string startDir)
     {
         var d = new DirectoryInfo(startDir);
@@ -497,7 +497,7 @@ internal static class Program
             float angle = entry.GetFloatProperty("angle");
             if (v0 != 0f || v1 != 0f || angle != 0f) return false;
             var pos = entry["position"];
-            if (pos == null || pos.Count < 3) return true; // missing в†’ considered zero
+            if (pos == null || pos.Count < 3) return true; // missing → considered zero
             foreach (var p in pos)
             {
                 try
@@ -505,7 +505,7 @@ internal static class Program
                     float f = Convert.ToSingle(p.Value, System.Globalization.CultureInfo.InvariantCulture);
                     if (f != 0f) return false;
                 }
-                catch { /* non-convertible в†’ treat as zero */ }
+                catch { /* non-convertible → treat as zero */ }
             }
             return true;
         }
@@ -793,9 +793,9 @@ internal static class Program
         catch { return false; }
     }
 
-    // РљРѕРїРёСЂСѓРµС‚ Р’РЎР• .vmdl_c РёР· VPK (РїРѕРґ СѓРєР°Р·Р°РЅРЅС‹Рј prefix'РѕРј) РІ game-dir.
-    // Р­С‚Рѕ РЅР°РјРµСЂРµРЅРЅС‹Р№ bypass ModelDoc compile вЂ” РґР»СЏ СЃР»СѓС‡Р°РµРІ РєРѕРіРґР° compile С‚РµСЂСЏРµС‚
-    // РґР°РЅРЅС‹Рµ (РєР°Рє m_activityArray РјРѕРґРёС„РёРєР°С‚РѕСЂС‹). Р“Р°СЂР°РЅС‚РёСЂСѓРµС‚ 100% Valve-fidelity.
+    // Копирует ВСЕ .vmdl_c из VPK (под указанным prefix'ом) в game-dir.
+    // Это намеренный bypass ModelDoc compile — для случаев когда compile теряет
+    // данные (как m_activityArray модификаторы). Гарантирует 100% Valve-fidelity.
     private static void CopyOriginalVmdlcFromVpk(
         string vpkPath, string? vpkPrefix, string targetDir, bool verbose)
     {
@@ -807,7 +807,7 @@ internal static class Program
 
             int copied = 0;
             string normalizedPrefix = vpkPrefix?.Replace('\\', '/').Trim('/') ?? "";
-            // Р‘РµСЂС‘Рј С‚РѕР»СЊРєРѕ vmdl_c (РіРѕС‚РѕРІС‹Рµ СЂРµСЃСѓСЂСЃС‹ РґР»СЏ РґРІРёР¶РєР°).
+            // Берём только vmdl_c (готовые ресурсы для движка).
             if (!pkg.Entries.TryGetValue("vmdl_c", out var list)) return;
             foreach (var entry in list)
             {
@@ -816,13 +816,13 @@ internal static class Program
                     continue;
 
                 pkg.ReadEntry(entry, out var bytes);
-                // РРјСЏ С„Р°Р№Р»Р° РІРЅСѓС‚СЂРё VPK вЂ” entry.GetFullPath() (РЅР°РїСЂРёРјРµСЂ models/heroes/sf/sf_arcana.vmdl_c).
+                // Имя файла внутри VPK — entry.GetFullPath() (например models/heroes/sf/sf_arcana.vmdl_c).
                 var rel = entry.GetFullPath().Replace('/', Path.DirectorySeparatorChar);
                 var dst = Path.Combine(targetDir, rel);
                 Directory.CreateDirectory(Path.GetDirectoryName(dst)!);
                 File.WriteAllBytes(dst, bytes);
                 copied++;
-                if (verbose) Console.WriteLine($"      в†’ {rel}");
+                if (verbose) Console.WriteLine($"      → {rel}");
             }
             Console.WriteLine($"[vmdlc-bypass] Copied {copied} ORIGINAL .vmdl_c from VPK to: {targetDir}");
         }
@@ -832,8 +832,8 @@ internal static class Program
         }
     }
 
-    // РљРѕРїРёСЂСѓРµС‚ РІСЃС‘ СЃРѕРґРµСЂР¶РёРјРѕРµ srcDir СЂРµРєСѓСЂСЃРёРІРЅРѕ РІ dstDir СЃ РїРµСЂРµР·Р°РїРёСЃСЊСЋ.
-    // РСЃРїРѕР»СЊР·СѓРµС‚СЃСЏ CLI-С„Р»Р°РіРѕРј `--copy-to` РґР»СЏ Р°РІС‚РѕРјР°С‚РёР·Р°С†РёРё workflow extract в†’ addon.
+    // Копирует всё содержимое srcDir рекурсивно в dstDir с перезаписью.
+    // Используется CLI-флагом `--copy-to` для автоматизации workflow extract → addon.
     private static void CopyExtractToTarget(string srcDir, string dstDir, bool verbose)
     {
         if (!Directory.Exists(srcDir))
@@ -851,7 +851,7 @@ internal static class Program
                 Directory.CreateDirectory(Path.GetDirectoryName(dstFile)!);
                 File.Copy(srcFile, dstFile, overwrite: true);
                 copied++;
-                if (verbose) Console.WriteLine($"      в†’ {relPath}");
+                if (verbose) Console.WriteLine($"      → {relPath}");
             }
             Console.WriteLine($"[copy] Copied {copied} file(s) to: {dstDir}");
         }
@@ -861,7 +861,7 @@ internal static class Program
         }
     }
 
-    // в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ VPK mode в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ
+    // ───────────────────────────── VPK mode ─────────────────────────────
 
     private static int RunVpkMode(
         string vpkPath, string outputRoot,
@@ -1026,7 +1026,7 @@ internal static class Program
         return fail == 0 ? 0 : 1;
     }
 
-    // в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ Folder/File mode в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ
+    // ───────────────────────────── Folder/File mode ─────────────────────────────
 
     private static int RunFolderMode(
         string input, string outputRoot,
@@ -1148,7 +1148,7 @@ internal static class Program
         return fail == 0 ? 0 : 1;
     }
 
-    // в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ Per-model pipeline в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ
+    // ───────────────────────────── Per-model pipeline ─────────────────────────────
 
     private sealed class MergeSummary
     {
@@ -1227,24 +1227,24 @@ internal static class Program
         if (!noSanitize && !string.IsNullOrEmpty(baseVmdlText))
             baseVmdlText = SanitizeVmdlText(baseVmdlText, resource, summary, verbose);
 
-        // VRF РІ `19.1.6199` С‡РёС‚Р°РµС‚ С‚РѕР»СЊРєРѕ РїРµСЂРІС‹Р№ СЌР»РµРјРµРЅС‚ `m_activityArray`
-        // (С‚РѕР»СЊРєРѕ m_name + m_nWeight) Рё РїРёС€РµС‚ AnimFile.activity_name/activity_weight.
-        // РќРѕ РІ Source 2 РєР°Р¶РґР°СЏ sequence РјРѕР¶РµС‚ РёРјРµС‚СЊ РњРћР”РР¤РРљРђРўРћР : РІС‚РѕСЂРѕР№ СЌР»РµРјРµРЅС‚ СЃ
-        // РёРјРµРЅРµРј Р±РµР· РїСЂРµС„РёРєСЃР° `ACT_` (e.g. "desolation", "injured"). Р‘РµР· РЅРµРіРѕ ModelDoc
-        // РЅРµ СЂР°Р·Р»РёС‡Р°РµС‚ Р±Р°Р·РѕРІСѓСЋ Р°РЅРёРјР°С†РёСЋ Рё item/state-Р°Р»СЊС‚РµСЂРЅР°С‚РёРІС‹ вЂ” СЂР°РЅРґРѕРјРёС‚ РјРµР¶РґСѓ
-        // run_anim / run_desolation / run_injured РїСЂРё ACT_DOTA_RUN. в†’ SF РґС‘СЂРіР°РµС‚СЃСЏ,
-        // Р·Р°РїСѓСЃРєР°РµС‚ Р°РЅРёРјР°С†РёРё РґРµСЃРѕР»СЏС‚РѕСЂ-Р±РµРіР° Рё low-HP-idle Р±РµР· РѕСЃРЅРѕРІР°РЅРёР№.
-        // (legacy) Child-СѓР·РµР» inject вЂ” РѕСЃС‚Р°РІР»РµРЅ С‚РѕР»СЊРєРѕ РґР»СЏ РѕС‚Р»Р°РґРєРё (--activity-modifier-inject).
+        // VRF в `19.1.6199` читает только первый элемент `m_activityArray`
+        // (только m_name + m_nWeight) и пишет AnimFile.activity_name/activity_weight.
+        // Но в Source 2 каждая sequence может иметь МОДИФИКАТОР: второй элемент с
+        // именем без префикса `ACT_` (e.g. "desolation", "injured"). Без него ModelDoc
+        // не различает базовую анимацию и item/state-альтернативы — рандомит между
+        // run_anim / run_desolation / run_injured при ACT_DOTA_RUN. → SF дёргается,
+        // запускает анимации десолятор-бега и low-HP-idle без оснований.
+        // (legacy) Child-узел inject — оставлен только для отладки (--activity-modifier-inject).
         if (!noSanitize && !SkipActivityModInject && !string.IsNullOrEmpty(baseVmdlText))
             baseVmdlText = EnrichVmdlActivityModifiers(baseVmdlText, resource, summary, verbose);
         else if (SkipActivityModInject && verbose)
-            Console.WriteLine($"    вЉ activity-modifier child-node inject SKIPPED (legacy, off by default)");
+            Console.WriteLine($"    ⊘ activity-modifier child-node inject SKIPPED (legacy, off by default)");
 
-        // вњ“ ROOT-FIX: Valve-canonical field-level inject РјРѕРґРёС„РёРєР°С‚РѕСЂРѕРІ
-        // (РїРѕР»Рµ `activity_modifiers = [ ... ]` РЅР° СѓСЂРѕРІРЅРµ AnimFile).
-        // Р­С‚Рѕ С‚Рѕ, С‡С‚Рѕ РґРµР»Р°РµС‚ ModelDoc UI вЂ” СЂР°СЃС€РёС„СЂРѕРІР°РЅРѕ РёР· СЃС‚СЂРѕРє modeldoc_editor.dll.
-        // ModelDoc compile РєРѕСЂСЂРµРєС‚РЅРѕ Р·Р°РїРёСЃС‹РІР°РµС‚ m_activityArray РІ ASEQ РёС‚РѕРіРѕРІРѕРіРѕ
-        // .vmdl_c. РџР°СЂР°Р»Р»РµР»СЊРЅРѕ: СЃС‚Р°РІРёРј delta=true РґР»СЏ legacy-delta sequence.
+        // ✓ ROOT-FIX: Valve-canonical field-level inject модификаторов
+        // (поле `activity_modifiers = [ ... ]` на уровне AnimFile).
+        // Это то, что делает ModelDoc UI — расшифровано из строк modeldoc_editor.dll.
+        // ModelDoc compile корректно записывает m_activityArray в ASEQ итогового
+        // .vmdl_c. Параллельно: ставим delta=true для legacy-delta sequence.
         // ✓ ROOT-FIX: VRF doesn't reconstruct MaterialGroupList from compiled
         // m_materialGroups, causing skin/persona variants (e.g. axe Fall20,
         // sven_calavera, lina arcanas, pudge_cute calavera) to be lost on
@@ -1256,12 +1256,12 @@ internal static class Program
         if (!noSanitize && !SkipFieldLevelModifierInject && !string.IsNullOrEmpty(baseVmdlText))
             baseVmdlText = InjectActivityModifierFields(baseVmdlText, resource, summary, verbose);
         else if (SkipFieldLevelModifierInject && verbose)
-            Console.WriteLine($"    вЉ field-level activity_modifiers inject SKIPPED (--no-field-mod-inject)");
+            Console.WriteLine($"    ⊘ field-level activity_modifiers inject SKIPPED (--no-field-mod-inject)");
 
-        // (DEPRECATED-style РєРѕСЃС‚С‹Р»СЊ) Disable sequences СЃ РЅРµ-whitelisted РјРѕРґРёС„РёРєР°С‚РѕСЂР°РјРё.
-        // Р’РљР›Р®Р§РђР•РўРЎРЇ РўРћР›Р¬РљРћ РµСЃР»Рё field-level inject РІС‹РєР»СЋС‡РµРЅ вЂ” СЌС‚Рѕ СЂРµР·РµСЂРІРЅР°СЏ СЃС‚СЂР°С‚РµРіРёСЏ.
-        // РљРѕРіРґР° field-level inject СЂР°Р±РѕС‚Р°РµС‚, РґРІРёР¶РѕРє СЃР°Рј РєРѕСЂСЂРµРєС‚РЅРѕ С„РёР»СЊС‚СЂСѓРµС‚ РєР°РЅРґРёРґР°С‚РѕРІ
-        // С‡РµСЂРµР· m_activityArray, Рё pruning РЅРµ РЅСѓР¶РµРЅ.
+        // (DEPRECATED-style костыль) Disable sequences с не-whitelisted модификаторами.
+        // ВКЛЮЧАЕТСЯ ТОЛЬКО если field-level inject выключен — это резервная стратегия.
+        // Когда field-level inject работает, движок сам корректно фильтрует кандидатов
+        // через m_activityArray, и pruning не нужен.
         if (!noSanitize && SkipFieldLevelModifierInject && !SkipDisableNonWhitelistedMods && !string.IsNullOrEmpty(baseVmdlText))
         {
             var whitelist = LoadActivityModifierWhitelist(rawReader, verbose);
@@ -1269,12 +1269,12 @@ internal static class Program
                 baseVmdlText, resource, whitelist, summary, verbose);
         }
         else if (!SkipFieldLevelModifierInject && verbose)
-            Console.WriteLine($"    вЉ non-whitelisted modifier prune SKIPPED (field-level inject is active)");
+            Console.WriteLine($"    ⊘ non-whitelisted modifier prune SKIPPED (field-level inject is active)");
         else if (SkipDisableNonWhitelistedMods && verbose)
-            Console.WriteLine($"    вЉ non-whitelisted modifier prune SKIPPED (--no-prune-modifiers)");
+            Console.WriteLine($"    ⊘ non-whitelisted modifier prune SKIPPED (--no-prune-modifiers)");
 
-        // вњ“ ROOT-FIX: VRF skips animation entries for "@@" autolayer-compressed and
-        // "@*lookFrame*" pose anims when generating .vmdl source вЂ” even though it
+        // ✓ ROOT-FIX: VRF skips animation entries for "@@" autolayer-compressed and
+        // "@*lookFrame*" pose anims when generating .vmdl source — even though it
         // does extract their .dmx files. ModelDoc compile then produces a .vmdl_c
         // with fewer embedded animations than Valve original (e.g. shadow_fiend_arcana:
         // missing 13 anims including all `@@run_*` and `@turns_arcana_lookFrame_*`).
@@ -1283,28 +1283,28 @@ internal static class Program
         if (!noSanitize && !string.IsNullOrEmpty(baseVmdlText))
             baseVmdlText = InjectMissingAnimations(baseVmdlText, resource, summary, verbose);
 
-        // вљ  РљР РРўРР§РќРћ: VRF РЅРµ РїРёС€РµС‚ `framerate`/`start_frame`/`end_frame` РІ AnimFile.
-        // ModelDoc compile fallback'РёС‚СЃСЏ РЅР° default fps (~30) Рё СЃС‡РёС‚Р°РµС‚ frame count
-        // РїРѕ embedded .dmx duration. РЈ РјРЅРѕРіРёС… Р°РЅРёРјР°С†РёР№ fps РЅРµСЃС‚Р°РЅРґР°СЂС‚РЅС‹Р№ (33, 37,
-        // РґР°Р¶Рµ 0.2 РґР»СЏ versus_attack). Р‘РµР· СЏРІРЅРѕРіРѕ framerate Р°РЅРёРјР°С†РёСЏ СѓСЃРєРѕСЂСЏРµС‚СЃСЏ/
-        // Р·Р°РјРµРґР»СЏРµС‚СЃСЏ РІ РёРіСЂРµ вЂ” С‚РёРїРёС‡РЅС‹Р№ РєРµР№СЃ: SF run_alt_desolation_anim, run_haste_*,
-        // run_fast_*. РР·РІР»РµРєР°РµРј СЂРµР°Р»СЊРЅС‹Рµ fps/frameCount РёР· VRF-Animation API Рё
-        // СЏРІРЅРѕ РїСЂРѕРїРёСЃС‹РІР°РµРј РІ .vmdl.
+        // ⚠ КРИТИЧНО: VRF не пишет `framerate`/`start_frame`/`end_frame` в AnimFile.
+        // ModelDoc compile fallback'ится на default fps (~30) и считает frame count
+        // по embedded .dmx duration. У многих анимаций fps нестандартный (33, 37,
+        // даже 0.2 для versus_attack). Без явного framerate анимация ускоряется/
+        // замедляется в игре — типичный кейс: SF run_alt_desolation_anim, run_haste_*,
+        // run_fast_*. Извлекаем реальные fps/frameCount из VRF-Animation API и
+        // явно прописываем в .vmdl.
         if (!noSanitize && !SkipFramerateInject && !string.IsNullOrEmpty(baseVmdlText) && resource.DataBlock is Model fpsModel)
             baseVmdlText = InjectAnimFrameRates(baseVmdlText, fpsModel, fileLoader, summary, verbose);
         else if (SkipFramerateInject && verbose)
-            Console.WriteLine($"    вЉ framerate inject SKIPPED (--no-framerate-inject)");
+            Console.WriteLine($"    ⊘ framerate inject SKIPPED (--no-framerate-inject)");
 
-        // вњ“ ROOT-FIX: ExtractMotion sanitize. VRF РїСЂРё decompile РґРѕР±Р°РІР»СЏРµС‚
+        // ✓ ROOT-FIX: ExtractMotion sanitize. VRF при decompile добавляет
         //   ExtractMotion { extract_tx=true, motion_type="uniform", ... }
-        //   РЅР° РљРђР–Р”Р«Р™ AnimFile, С‡С‚Рѕ Р·Р°СЃС‚Р°РІР»СЏРµС‚ ModelDoc compile РёР·РІР»РµРєР°С‚СЊ per-frame
-        //   X-translation РёР· root joint Рё РїРёСЃР°С‚СЊ m_movementArray=[33 entries]
-        //   СЃ СЂРµР°Р»СЊРЅС‹РјРё Р·РЅР°С‡РµРЅРёСЏРјРё. Engine РІРёРґРёС‚ motion в†’ РјР°СЃС€С‚Р°Р±РёСЂСѓРµС‚ cycle_rate
-        //   РѕС‚РЅРѕСЃРёС‚РµР»СЊРЅРѕ СЃРєРѕСЂРѕСЃС‚Рё РіРµСЂРѕСЏ в†’ run РёРіСЂР°РµС‚СЃСЏ РІ ~10x СЃРєРѕСЂРѕСЃС‚Рё.
-        // Valve РІ РѕСЂРёРіРёРЅР°Р»Рµ РќР• РёРјРµРµС‚ СЌС‚РёС… ExtractMotion РЅР° in-place locomotion,
-        // РїРѕСЌС‚РѕРјСѓ m_movementArray=[{zeros}] Рё Р°РЅРёРјР°С†РёСЏ РёРіСЂР°РµС‚ РІ native fps.
-        // Р РµС€РµРЅРёРµ: Р·Р°РЅСѓР»РёС‚СЊ extract_t* С„Р»Р°РіРё РІРѕ РІСЃРµС… ExtractMotion (compile С‚РѕРіРґР°
-        // РЅРµ РёР·РІР»РµРєР°РµС‚ translation, m_movementArray РѕСЃС‚Р°С‘С‚СЃСЏ РїСѓСЃС‚С‹Рј/zero).
+        //   на КАЖДЫЙ AnimFile, что заставляет ModelDoc compile извлекать per-frame
+        //   X-translation из root joint и писать m_movementArray=[33 entries]
+        //   с реальными значениями. Engine видит motion → масштабирует cycle_rate
+        //   относительно скорости героя → run играется в ~10x скорости.
+        // Valve в оригинале НЕ имеет этих ExtractMotion на in-place locomotion,
+        // поэтому m_movementArray=[{zeros}] и анимация играет в native fps.
+        // Решение: занулить extract_t* флаги во всех ExtractMotion (compile тогда
+        // не извлекает translation, m_movementArray остаётся пустым/zero).
         if (!noSanitize && !SkipExtractMotionSanitize && !string.IsNullOrEmpty(baseVmdlText))
             // Pass `resource` so we can derive per-anim motion profiles from
             // the source ANIM block — this preserves locomotion motion on
@@ -1312,11 +1312,11 @@ internal static class Program
             // anims (the original 10× speed bug fix).
             baseVmdlText = SanitizeExtractMotion(baseVmdlText, summary, verbose, resource);
         else if (SkipExtractMotionSanitize && verbose)
-            Console.WriteLine($"    вЉ ExtractMotion sanitize SKIPPED (--no-motion-sanitize)");
+            Console.WriteLine($"    ⊘ ExtractMotion sanitize SKIPPED (--no-motion-sanitize)");
 
         // Bump KV3 schema header to modeldoc41 + inject ModelDoc default
         // fields that VRF doesn't emit but ModelDoc always writes back on
-        // Save. Done unconditionally вЂ” no functional effect on compile, just
+        // Save. Done unconditionally — no functional effect on compile, just
         // closes a cosmetic diff round-trip with ModelDoc UI.
         if (!string.IsNullOrEmpty(baseVmdlText))
         {
@@ -1344,20 +1344,20 @@ internal static class Program
             File.WriteAllBytes(subPath, subData);
             writtenDmx.Add(Path.GetFileName(sub.FileName));
             subWritten++;
-            if (verbose) Console.WriteLine($"    в†і DMX  {Path.GetFileName(subPath)} ({subData.Length / 1024} KB)");
+            if (verbose) Console.WriteLine($"    ↳ DMX  {Path.GetFileName(subPath)} ({subData.Length / 1024} KB)");
 
             if (!noSanitize && subPath.EndsWith(".dmx", StringComparison.OrdinalIgnoreCase))
             {
-                // VRF 19.1.6199 РЅРµ РІС‹Р·С‹РІР°РµС‚ BuildDmeDagSkeleton РІ ConvertMeshToDatamodelMesh,
-                // Рё СЃР°РјР° BuildDmeDagSkeleton С‚Р°Рј С‚РѕР¶Рµ СЃР»РѕРјР°РЅР° (РґРѕР±Р°РІР»СЏРµС‚ DmeModel РІ JointList).
-                // РР·-Р·Р° СЌС‚РѕРіРѕ DmeModel.JointList РІС‹С…РѕРґРёС‚ = [DmeDag(mesh)] (1 СЌР»РµРјРµРЅС‚),
-                // Рё blendindices$0 СЃРѕ Р·РЅР°С‡РµРЅРёСЏРјРё 0..N-1 (РіРґРµ N = bone count) СЃСЃС‹Р»Р°СЋС‚СЃСЏ РјРёРјРѕ
-                // РїР°Р»РёС‚СЂС‹ в†’ ModelDoc warning'РёС‚ "Invalid skinning bone index :: -1, valid range [0, 0]"
-                // Рё РєР»Р°РјРїРёС‚ в†’ СЃС‚СЂРµС‚С‡РёРЅРі.
+                // VRF 19.1.6199 не вызывает BuildDmeDagSkeleton в ConvertMeshToDatamodelMesh,
+                // и сама BuildDmeDagSkeleton там тоже сломана (добавляет DmeModel в JointList).
+                // Из-за этого DmeModel.JointList выходит = [DmeDag(mesh)] (1 элемент),
+                // и blendindices$0 со значениями 0..N-1 (где N = bone count) ссылаются мимо
+                // палитры → ModelDoc warning'ит "Invalid skinning bone index :: -1, valid range [0, 0]"
+                // и клампит → стретчинг.
                 //
-                // Р§РёРЅРёРј: РІРЅРµРґСЂСЏРµРј РїСЂР°РІРёР»СЊРЅС‹Р№ DmeJoint per bone РІ DmeModel.JointList,
-                // СЃС‚СЂРѕРёРј РёРµСЂР°СЂС…РёСЋ parentв†’children, РѕСЃС‚Р°РІР»СЏРµРј mesh DmeDag РІ РєРѕРЅС†Рµ JointList.
-                // Р›РѕРіРёРєР° 1:1 РїРѕРІС‚РѕСЂСЏРµС‚ master VRF BuildDmeDagSkeleton + ConvertMeshToDatamodelMesh.
+                // Чиним: внедряем правильный DmeJoint per bone в DmeModel.JointList,
+                // строим иерархию parent→children, оставляем mesh DmeDag в конце JointList.
+                // Логика 1:1 повторяет master VRF BuildDmeDagSkeleton + ConvertMeshToDatamodelMesh.
                 Skeleton? skeletonForPatch = (resource.DataBlock as Model)?.Skeleton;
                 PatchDmxMeshBoneIndices(subPath, skeletonForPatch, summary, verbose);
 
@@ -1370,7 +1370,7 @@ internal static class Program
                     var basename = Path.GetFileNameWithoutExtension(subPath);
                     markerDmxBasenames.Add(basename);
                     try { File.Delete(subPath); } catch { }
-                    if (verbose) Console.WriteLine($"    вЉ DMX  {Path.GetFileName(subPath)} dropped (marker-only, no normals/texcoords)");
+                    if (verbose) Console.WriteLine($"    ⊘ DMX  {Path.GetFileName(subPath)} dropped (marker-only, no normals/texcoords)");
                 }
             }
         }
@@ -1380,7 +1380,7 @@ internal static class Program
         {
             baseVmdlText = StripMarkerRenderMeshFiles(baseVmdlText, markerDmxBasenames, out int strippedRmf);
             if (verbose && strippedRmf > 0)
-                Console.WriteLine($"    вњ“ stripped {strippedRmf} marker-only RenderMeshFile node(s) from .vmdl");
+                Console.WriteLine($"    ✓ stripped {strippedRmf} marker-only RenderMeshFile node(s) from .vmdl");
         }
 
         // Final write of .vmdl after marker-stripping.
@@ -1403,20 +1403,20 @@ internal static class Program
             if (add.Data == null) continue;
             var addPath = Path.Combine(modelFolder, Path.GetFileName(add.FileName));
             File.WriteAllBytes(addPath, add.Data);
-            if (verbose) Console.WriteLine($"    в†і ADD  {Path.GetFileName(addPath)}");
+            if (verbose) Console.WriteLine($"    ↳ ADD  {Path.GetFileName(addPath)}");
         }
 
         if (verbose) Console.WriteLine($"    VRF pipeline subfiles: written={subWritten}, empty={subEmpty}");
 
-        // вњ“ ROOT-FIX: VRF's SubFile pipeline announces all m_anims but its Extract
+        // ✓ ROOT-FIX: VRF's SubFile pipeline announces all m_anims but its Extract
         // callback returns null/empty for "@@" (autolayer-compressed) and "@*lookFrame*"
         // (multipose pose-frame) animations. Bypass the broken filter and call
         // ModelExtract.ToDmxAnim directly to recover their .dmx files. Without this,
         // ModelDoc compile cannot find source for the AnimFile nodes we inject below
-        // and skips them вЂ” producing a .vmdl_c missing 13+ embedded animations.
+        // and skips them — producing a .vmdl_c missing 13+ embedded animations.
         int recoveredAnims = ExtractMissingAnimDmx(resource, modelFolder, writtenDmx, verbose);
         if (verbose && recoveredAnims > 0)
-            Console.WriteLine($"    вњ“ recovered {recoveredAnims} animation .dmx file(s) skipped by VRF");
+            Console.WriteLine($"    ✓ recovered {recoveredAnims} animation .dmx file(s) skipped by VRF");
 
         if (!noRawDeps)
             ExtractDepsRecursive(resource, modelFolder, fileLoader, rawReader, writtenDmx, verbose);
@@ -1433,7 +1433,7 @@ internal static class Program
         return includeRefs;
     }
 
-    // в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ External-mesh merge в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ
+    // ───────────────────────────── External-mesh merge ─────────────────────────────
 
     private static void MergeExternalMeshDataIntoModel(
         Model model, Resource modelResource, IFileLoader fileLoader,
@@ -1555,7 +1555,7 @@ internal static class Program
             summary.HitboxesMerged = mergedHitboxes.Values.Sum(a => a.Length);
             if (verbose)
                 Console.WriteLine(
-                    $"    вњ“ merged HitboxSets: {mergedHitboxes.Count} set(s), " +
+                    $"    ✓ merged HitboxSets: {mergedHitboxes.Count} set(s), " +
                     $"{summary.HitboxesMerged} hitbox(es) total");
         }
         if (mergedAttachments != null)
@@ -1563,7 +1563,7 @@ internal static class Program
             SetPrivateProperty(model, nameof(Model.Attachments), mergedAttachments);
             summary.AttachmentsMerged = mergedAttachments.Count;
             if (verbose)
-                Console.WriteLine($"    вњ“ merged Attachments: {mergedAttachments.Count} entry/entries");
+                Console.WriteLine($"    ✓ merged Attachments: {mergedAttachments.Count} entry/entries");
         }
 
         if (needsSkeleton && meshSkeletonForFallback != null)
@@ -1577,7 +1577,7 @@ internal static class Program
                     summary.SyntheticSkeletonBones = synth.GetArray("m_boneName")?.Count ?? 0;
                     if (verbose)
                         Console.WriteLine(
-                            $"    вњ“ synthesized m_modelSkeleton from .vmesh_c: " +
+                            $"    ✓ synthesized m_modelSkeleton from .vmesh_c: " +
                             $"{summary.SyntheticSkeletonBones} bone(s)");
                 }
             }
@@ -1588,7 +1588,7 @@ internal static class Program
         }
     }
 
-    // в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ Skeleton synthesis в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ
+    // ───────────────────────────── Skeleton synthesis ─────────────────────────────
 
     private static bool HasNonEmptyModelSkeleton(KVObject? modelData)
     {
@@ -1705,7 +1705,7 @@ internal static class Program
         SetPrivateField(model, "cachedSkeleton", null);
     }
 
-    // в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ Multi-phys merge в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ
+    // ───────────────────────────── Multi-phys merge ─────────────────────────────
 
     private static string MergeAdditionalPhysics(
         Model model, string modelFolder, IFileLoader fileLoader,
@@ -1771,7 +1771,7 @@ internal static class Program
                         {
                             auxChildrenChunks.Add(children);
                             summary.AdditionalPhysShapes += CountTopLevelObjects(children);
-                            if (verbose) Console.WriteLine($"    вњ“ aux phys '{auxRef}': merged shapes");
+                            if (verbose) Console.WriteLine($"    ✓ aux phys '{auxRef}': merged shapes");
                         }
                         else if (verbose)
                         {
@@ -1789,7 +1789,7 @@ internal static class Program
                             if (writtenDmx.Contains(name)) continue;
                             File.WriteAllBytes(Path.Combine(modelFolder, name), data);
                             writtenDmx.Add(name);
-                            if (verbose) Console.WriteLine($"    в†і DMX  {name} ({data.Length / 1024} KB) (aux phys)");
+                            if (verbose) Console.WriteLine($"    ↳ DMX  {name} ({data.Length / 1024} KB) (aux phys)");
                         }
                         catch { }
                     }
@@ -1803,7 +1803,7 @@ internal static class Program
         return InjectIntoClassChildren(baseVmdlText, "PhysicsShapeList", combined, verbose);
     }
 
-    // в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ KV3 text splicing в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ
+    // ───────────────────────────── KV3 text splicing ─────────────────────────────
 
     private static string ExtractClassChildrenContent(string text, string className)
     {
@@ -1880,18 +1880,18 @@ internal static class Program
         return count;
     }
 
-    // в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ Sanitizer (v5.3) в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ
+    // ───────────────────────────── Sanitizer (v5.3) ─────────────────────────────
 
     /// <summary>
-    /// РќРµР№С‚СЂР°Р»РёР·СѓРµС‚ ExtractMotion-СѓР·Р»С‹ РІ .vmdl: СЃС‚Р°РІРёС‚ РІСЃРµ extract_t*=false Рё
-    /// motion_type="none". Р­С‚Рѕ Р»РµС‡РёС‚ Р±Р°Рі decompileв†’compile, РїСЂРё РєРѕС‚РѕСЂРѕРј
-    /// VRF РґРѕР±Р°РІР»СЏРµС‚ ExtractMotion СЃ extract_tx=true РЅР° РєР°Р¶РґС‹Р№ AnimFile,
-    /// Рё ModelDoc compile РёР·РІР»РµРєР°РµС‚ per-frame X-translation root joint'Р° РІ
-    /// m_movementArray. Engine С‚РѕРіРґР° РјР°СЃС€С‚Р°Р±РёСЂСѓРµС‚ cycle_rate РѕС‚РЅРѕСЃРёС‚РµР»СЊРЅРѕ
-    /// СЃРєРѕСЂРѕСЃС‚Рё РїРµСЂСЃРѕРЅР°Р¶Р° в†’ run-Р°РЅРёРјР°С†РёСЏ РёРіСЂР°РµС‚ РІ ~10x.
+    /// Нейтрализует ExtractMotion-узлы в .vmdl: ставит все extract_t*=false и
+    /// motion_type="none". Это лечит баг decompile→compile, при котором
+    /// VRF добавляет ExtractMotion с extract_tx=true на каждый AnimFile,
+    /// и ModelDoc compile извлекает per-frame X-translation root joint'а в
+    /// m_movementArray. Engine тогда масштабирует cycle_rate относительно
+    /// скорости персонажа → run-анимация играет в ~10x.
     /// 
-    /// РџРѕСЃР»Рµ sanitize: m_movementArray=[{zeros}] РёР»Рё [] вЂ” engine РЅРµ РјР°СЃС€С‚Р°Р±РёСЂСѓРµС‚
-    /// cycle_rate, character РїРµСЂРµРјРµС‰Р°РµС‚СЃСЏ С‡РµСЂРµР· locomotion (РІРЅРµС€РЅРёР№ motion).
+    /// После sanitize: m_movementArray=[{zeros}] или [] — engine не масштабирует
+    /// cycle_rate, character перемещается через locomotion (внешний motion).
     /// </summary>
     /// <summary>
     /// Per-animation motion-extraction profile derived from the source
@@ -2219,7 +2219,7 @@ internal static class Program
     /// <summary>
     /// Inject the modeldoc41 default fields that ModelDoc itself writes back
     /// on Save & Compile but VRF omits during decompile. These are pure
-    /// metadata вЂ” no semantic effect on the compiled .vmdl_c вЂ” but writing
+    /// metadata — no semantic effect on the compiled .vmdl_c — but writing
     /// them up-front means our extracted source matches ModelDoc's canonical
     /// form, so opening the file in ModelDoc and saving produces a near-0
     /// line diff. Keeps round-trips reviewable.
@@ -2231,8 +2231,8 @@ internal static class Program
     ///   * `AnimFile` 9 schema defaults (is_default_idle_anim, weight_list_name,
     ///     anim_markup_ordered, disable_compression, animgraph_additive,
     ///     delete_from_compiled_model, import_bone_scales, reverse,
-    ///     additional_anim_files) вЂ” closes ~870 of the 1100-line round-trip diff.
-    ///   * `AnimEvent.event_end_frame` вЂ” MD writes -1 default per event.
+    ///     additional_anim_files) — closes ~870 of the 1100-line round-trip diff.
+    ///   * `AnimEvent.event_end_frame` — MD writes -1 default per event.
     /// </summary>
     private static string InjectModelDocDefaults(string vmdlText)
     {
@@ -2282,15 +2282,15 @@ internal static class Program
     /// <summary>
     /// Inject the 9 AnimFile schema-default fields that modeldoc41 emits but
     /// VRF omits. Each AnimFile node gets the missing fields appended right
-    /// before its closing brace. Idempotent вЂ” skips fields already present.
+    /// before its closing brace. Idempotent — skips fields already present.
     /// Closes ~870 lines of the round-trip diff with ModelDoc on a typical
-    /// hero (e.g. SF arcana: 96 AnimFile nodes Г— up to 9 missing each).
+    /// hero (e.g. SF arcana: 96 AnimFile nodes × up to 9 missing each).
     /// </summary>
     private static string InjectAnimFileSchemaDefaults(string vmdlText)
     {
         // Default values, ordered to match ModelDoc's canonical field order
         // when it Save-and-Compiles (see SF arcana sample at lines 217-233).
-        // We append at end-of-node вЂ” order doesn't affect compile, just diff
+        // We append at end-of-node — order doesn't affect compile, just diff
         // legibility.
         var defaults = new (string Key, string Value)[]
         {
@@ -2334,7 +2334,7 @@ internal static class Program
             {
                 // Match key at top level of this block (not inside nested children).
                 // We approximate: the indent on its own line. Children would have
-                // deeper indentation вЂ” so a regex anchored to this exact indent is
+                // deeper indentation — so a regex anchored to this exact indent is
                 // sufficient.
                 var keyRx = new System.Text.RegularExpressions.Regex(
                     @"^" + System.Text.RegularExpressions.Regex.Escape(indent) + System.Text.RegularExpressions.Regex.Escape(key) + @"\s*=",
@@ -2369,7 +2369,7 @@ internal static class Program
     /// <summary>
     /// Inject `event_end_frame = -1` default into every AnimEvent node that
     /// doesn't already carry it. ModelDoc adds this field on Save (modeldoc41
-    /// schema). -1 means "use start frame" вЂ” single-frame event.
+    /// schema). -1 means "use start frame" — single-frame event.
     /// </summary>
     private static string InjectAnimEventEndFrame(string vmdlText)
     {
@@ -2545,7 +2545,7 @@ internal static class Program
     /// Inject ExtractMotion modeldoc41 defaults: `extract_initial_offset = false`
     /// and `root_bone_name = ""`. Both are written by ModelDoc on every Save
     /// but VRF doesn't emit them. Adding here closes 40 diff lines on a typical
-    /// hero (20 ExtractMotion nodes Г— 2 fields).
+    /// hero (20 ExtractMotion nodes × 2 fields).
     /// </summary>
     private static string InjectExtractMotionDefaults(string vmdlText)
     {
@@ -2560,7 +2560,7 @@ internal static class Program
     /// <summary>
     /// Inject WeightList modeldoc41 morph-related defaults: `master_morph_weight`
     /// and `morph_weights`. ModelDoc adds these on Save when the model has
-    /// any morph data вЂ” VRF doesn't emit them. Also ensures `default_weight`
+    /// any morph data — VRF doesn't emit them. Also ensures `default_weight`
     /// is present (MD writes 0.0 when not specified).
     /// </summary>
     private static string InjectWeightListDefaults(string vmdlText)
@@ -2612,13 +2612,13 @@ internal static class Program
     /// formatting (G9-equivalent). VRF emits 6-decimal padded floats while
     /// ModelDoc uses shortest-roundtrip representation, producing benign but
     /// noisy diffs (e.g. `77.108414` vs `77.10841`). Reformatting through a
-    /// float round-trip closes ~60 lines per typical hero with zero risk вЂ”
+    /// float round-trip closes ~60 lines per typical hero with zero risk —
     /// the underlying float value stays bit-identical.
     /// </summary>
     private static string NormalizeFloatPrecision(string vmdlText)
     {
         // Match fields whose values are float Vector3 arrays. The negative
-        // lookbehind on `_class` would be redundant вЂ” these field names never
+        // lookbehind on `_class` would be redundant — these field names never
         // collide with class names. Capture the leading key+`= [` and the
         // trailing `]` so we can reformat just the inner numbers.
         // Word boundary on the LEFT prevents matching e.g. `relative_angles`
@@ -2737,7 +2737,7 @@ internal static class Program
     /// Strip empty `children = [  ]` from BoneMarkupList nodes. VRF emits the
     /// empty array but ModelDoc removes it on Save (since BoneMarkupList holds
     /// markup metadata, not child nodes). Single-line regex; safe because it
-    /// only targets the literal empty form вЂ” populated children arrays are
+    /// only targets the literal empty form — populated children arrays are
     /// untouched.
     /// </summary>
     private static string StripEmptyBoneMarkupChildren(string vmdlText)
@@ -2755,14 +2755,14 @@ internal static class Program
     /// notation (no scientific), at least one digit before and after the dot,
     /// and shortest representation that round-trips losslessly to the same
     /// 32-bit float. Examples:
-    ///   * `0f`           в†’ "0.0"
-    ///   * `77.108414f`   в†’ "77.10841" (.NET shortest-roundtrip)
-    ///   * `2e-5f`        в†’ "0.00002"  (force decimal even for tiny values)
-    ///   * `30f`          в†’ "30.0"     (always trailing ".0")
+    ///   * `0f`           → "0.0"
+    ///   * `77.108414f`   → "77.10841" (.NET shortest-roundtrip)
+    ///   * `2e-5f`        → "0.00002"  (force decimal even for tiny values)
+    ///   * `30f`          → "30.0"     (always trailing ".0")
     /// </summary>
     private static string FormatFloatLikeModelDoc(float f)
     {
-        // Collapse В±0 to canonical "0.0".
+        // Collapse ±0 to canonical "0.0".
         if (f == 0f) return "0.0";
 
         // .NET 5+ default float ToString produces the shortest representation
@@ -2777,7 +2777,7 @@ internal static class Program
             s = f.ToString("0.0##########", System.Globalization.CultureInfo.InvariantCulture);
         }
 
-        // Force at least one decimal digit (e.g. "30" в†’ "30.0").
+        // Force at least one decimal digit (e.g. "30" → "30.0").
         if (s.IndexOf('.') < 0) s += ".0";
 
         return s;
@@ -2880,7 +2880,7 @@ internal static class Program
     /// <summary>
     /// Inject RenderMeshFile modeldoc41 defaults: `import_scale = 1.0` and a
     /// nested `import_filter` struct with the canonical empty filter. ModelDoc
-    /// writes both on Save вЂ” adds 8 diff lines per RenderMeshFile (typically
+    /// writes both on Save — adds 8 diff lines per RenderMeshFile (typically
     /// 2 nodes per model: main + LOD1).
     /// </summary>
     private static string InjectRenderMeshFileImportFilter(string vmdlText)
@@ -3045,7 +3045,7 @@ internal static class Program
 
         if (verbose && (invalid > 0 || broken > 0 || emptyLines > 0 || bogusTags > 0 || bgcFixed > 0 || strippedBoneRefs > 0))
             Console.WriteLine(
-                $"    вњ“ sanitized: {invalid} invalid node(s), {broken} broken AutoLayer(s), " +
+                $"    ✓ sanitized: {invalid} invalid node(s), {broken} broken AutoLayer(s), " +
                 $"{emptyLines} empty resource line(s), {bogusTags} bogus resource tag(s), " +
                 $"{bgcFixed} BodyGroupChoice name(s) injected, " +
                 $"{strippedBoneRefs} hitbox/attachment node(s) with unknown bones stripped");
@@ -3062,32 +3062,32 @@ internal static class Program
         return newText;
     }
 
-    // VRF РІ `19.1.6199` (СЃРј. AnimationActivity.cs) С‡РёС‚Р°РµС‚ С‚РѕР»СЊРєРѕ m_name + m_nWeight
-    // Сѓ РїРµСЂРІРѕРіРѕ СЌР»РµРјРµРЅС‚Р° m_activityArray. РЈ Dota-РјРѕРґРµР»РµР№ (SF, Рё С‚.Рї.) РєР°Р¶РґР°СЏ sequence
-    // С‡Р°СЃС‚Рѕ РёРјРµРµС‚ РІС‚РѕСЂСѓСЋ Р·Р°РїРёСЃСЊ вЂ” РјРѕРґРёС„РёРєР°С‚РѕСЂ Р±РµР· РїСЂРµС„РёРєСЃР° `ACT_`:
+    // VRF в `19.1.6199` (см. AnimationActivity.cs) читает только m_name + m_nWeight
+    // у первого элемента m_activityArray. У Dota-моделей (SF, и т.п.) каждая sequence
+    // часто имеет вторую запись — модификатор без префикса `ACT_`:
     //
     //   m_activityArray = [
     //     { m_name = "ACT_DOTA_RUN", m_nWeight = 3 },
-    //     { m_name = "desolation",   m_nWeight = 1 }   в†ђ VRF С‚РµСЂСЏРµС‚
+    //     { m_name = "desolation",   m_nWeight = 1 }   ← VRF теряет
     //   ]
     //
-    // ModelDoc (СЃРј. СЃС‚СЂРѕРєРё РІ `modeldoc_editor.dll`) РёСЃРїРѕР»СЊР·СѓРµС‚ РїРѕР»Рµ `activity_modifiers`
-    // (РњРђРЎРЎРР’ СЃС‚СЂРѕРє, РЅРµ singular!) Рё РѕРїС†РёРѕРЅР°Р»СЊРЅРѕ `activity_modifier_weights`. Р­С‚Рѕ С„РёР»СЊС‚СЂ:
-    // run_desolation Р°РєС‚РёРІРёСЂСѓРµС‚СЃСЏ С‚РѕР»СЊРєРѕ РєРѕРіРґР° Сѓ СЋРЅРёС‚Р° РµСЃС‚СЊ РјРѕРґРёС„РёРєР°С‚РѕСЂ "desolation"
-    // (РѕС‚ Desolator-Р°Р№С‚РµРјР°). Р‘РµР· РЅРµРіРѕ ModelDoc СЃС‡РёС‚Р°РµС‚ РІСЃРµ РІР°СЂРёР°РЅС‚С‹ ACT_DOTA_RUN
-    // СЂР°РІРЅРѕРїСЂР°РІРЅС‹РјРё Рё СЂР°РЅРґРѕРјРёС‚ РїРѕ РІРµСЃР°Рј в†’ SF РёРіСЂР°РµС‚ run_desolation/run_injured Р±РµР·
-    // РѕСЃРЅРѕРІР°РЅРёР№, РґС‘СЂРіР°РµС‚СЃСЏ.
+    // ModelDoc (см. строки в `modeldoc_editor.dll`) использует поле `activity_modifiers`
+    // (МАССИВ строк, не singular!) и опционально `activity_modifier_weights`. Это фильтр:
+    // run_desolation активируется только когда у юнита есть модификатор "desolation"
+    // (от Desolator-айтема). Без него ModelDoc считает все варианты ACT_DOTA_RUN
+    // равноправными и рандомит по весам → SF играет run_desolation/run_injured без
+    // оснований, дёргается.
     //
-    // ALSO: VRF С‚РµСЂСЏРµС‚ `m_bLegacyDelta` вЂ” РїРёС€РµС‚ РІСЃРµРіРґР° `delta = false`. РЈ Dota-РјРѕРґРµР»РµР№
-    // sequence `turns` РѕР±С‹С‡РЅРѕ РёРјРµРµС‚ m_bLegacyDelta=true (additive overlay РґР»СЏ РїРѕРІРѕСЂРѕС‚РѕРІ).
-    // РљРѕРіРґР° delta-С„Р»Р°Рі РѕС‚СЃСѓС‚СЃС‚РІСѓРµС‚, ModelDoc РїСЂРѕРёРіСЂС‹РІР°РµС‚ РґРµР»СЊС‚Сѓ РєР°Рє РѕР±С‹С‡РЅСѓСЋ Р°РЅРёРјР°С†РёСЋ,
-    // С‡С‚Рѕ РґР°С‘С‚ РЅРµРїСЂР°РІРёР»СЊРЅС‹Рµ СѓРіР»С‹ РїРѕРІРµСЂС… run/idle в†’ РґС‘СЂРіР°РЅРёРµ РјРѕРґРµР»Рё.
+    // ALSO: VRF теряет `m_bLegacyDelta` — пишет всегда `delta = false`. У Dota-моделей
+    // sequence `turns` обычно имеет m_bLegacyDelta=true (additive overlay для поворотов).
+    // Когда delta-флаг отсутствует, ModelDoc проигрывает дельту как обычную анимацию,
+    // что даёт неправильные углы поверх run/idle → дёргание модели.
     //
-    // Р§РёРЅРёРј:
-    //   1) РџР°СЂСЃРёРј ASEQ.m_localS1SeqDescArray Рё СЃРѕР±РёСЂР°РµРј РјРѕРґРёС„РёРєР°С‚РѕСЂС‹ РєР°Р¶РґРѕР№ sequence
-    //      Рё С„Р»Р°Рі m_bLegacyDelta.
-    //   2) Р РµРіРµРєСЃРѕРј РёРЅР¶РµРєС‚РёРј СЃС‚СЂРѕРєРё `activity_modifiers = [ "..." ]` РІ AnimFile.
-    //   3) РњРµРЅСЏРµРј `delta = false` в†’ `delta = true` РґР»СЏ РґРµР»СЊС‚-СЃРёРєРІРµРЅСЃРѕРІ.
+    // Чиним:
+    //   1) Парсим ASEQ.m_localS1SeqDescArray и собираем модификаторы каждой sequence
+    //      и флаг m_bLegacyDelta.
+    //   2) Регексом инжектим строки `activity_modifiers = [ "..." ]` в AnimFile.
+    //   3) Меняем `delta = false` → `delta = true` для дельт-сиквенсов.
     private static string EnrichVmdlActivityModifiers(string vmdlText, Resource resource, MergeSummary summary, bool verbose)
     {
         if (resource.GetBlockByType(BlockType.ASEQ) is not KeyValuesOrNTRO aseq) return vmdlText;
@@ -3098,11 +3098,11 @@ internal static class Program
         catch { return vmdlText; }
         if (sequences == null || sequences.Count == 0) return vmdlText;
 
-        // Map: anim name в†’ РјРѕРґРёС„РёРєР°С‚РѕСЂС‹ (РЅР°Р·РІР°РЅРёРµ + weight РёР· РѕСЂРёРіРёРЅР°Р»СЊРЅРѕРіРѕ ASEQ).
-        // Weight РїСЂРёРЅС†РёРїРёР°Р»РµРЅ вЂ” РІР»РёСЏРµС‚ РЅР° РІС‹Р±РѕСЂ sequence РґРІРёР¶РєРѕРј, С…Р°СЂРґРєРѕРґРёР»Рё 1
-        // вЂ” СЌС‚Рѕ Р»РѕРјР°Р»Рѕ СЂР°СЃРїСЂРµРґРµР»РµРЅРёРµ.
+        // Map: anim name → модификаторы (название + weight из оригинального ASEQ).
+        // Weight принципиален — влияет на выбор sequence движком, хардкодили 1
+        // — это ломало распределение.
         var modsByName = new Dictionary<string, List<(string Name, int Weight)>>(StringComparer.OrdinalIgnoreCase);
-        // Set: anim name в†’ РЅСѓР¶РЅРѕ `delta = true`.
+        // Set: anim name → нужно `delta = true`.
         var deltaByName = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         // v5.3.1: Set of multipose sequences (m_bMulti=1). VRF cannot
         // reconstruct multipose blend graphs from compiled .vmdl_c, so it
@@ -3123,7 +3123,7 @@ internal static class Program
             try { animName = seq.GetStringProperty("m_sName"); } catch { continue; }
             if (string.IsNullOrEmpty(animName)) continue;
 
-            // m_bLegacyDelta Рё m_bMulti Р»РµР¶Р°С‚ РІРѕ РІР»РѕР¶РµРЅРЅРѕРј `m_flags` Р±Р»РѕРєРµ.
+            // m_bLegacyDelta и m_bMulti лежат во вложенном `m_flags` блоке.
             try
             {
                 var flags = seq.GetSubCollection("m_flags");
@@ -3166,10 +3166,10 @@ internal static class Program
 
         if (modsByName.Count == 0 && deltaByName.Count == 0) return vmdlText;
 
-        // РРЅР¶РµРєС‚РёРј РџРћ-Р‘Р›РћР§РќРћ С‡РµСЂРµР· FindBalancedBracePairs (СЃРј. РЅРёР¶Рµ РїРѕС‡РµРјСѓ).
-        // РљР РРўРР§РќРћ: ModelDoc С…СЂР°РЅРёС‚ РјРѕРґРёС„РёРєР°С‚РѕСЂС‹ РќР• РєР°Рє РїРѕР»Рµ AnimFile, Р° РєР°Рє РћРўР”Р•Р›Р¬РќР«Р™
-        // child-СѓР·РµР» `_class = "ActivityModifier"` РІРЅСѓС‚СЂРё `children = [...]`. РћР±СЂР°Р·РµС†
-        // РІР·СЏС‚ РёР· СЂРµР°Р»СЊРЅС‹С… Dota .vmdl (overthrow/midas_throne/kobold_*.vmdl):
+        // Инжектим ПО-БЛОЧНО через FindBalancedBracePairs (см. ниже почему).
+        // КРИТИЧНО: ModelDoc хранит модификаторы НЕ как поле AnimFile, а как ОТДЕЛЬНЫЙ
+        // child-узел `_class = "ActivityModifier"` внутри `children = [...]`. Образец
+        // взят из реальных Dota .vmdl (overthrow/midas_throne/kobold_*.vmdl):
         //
         //   {
         //       _class = "AnimFile"
@@ -3187,14 +3187,14 @@ internal static class Program
         //       ...
         //   }
         //
-        // Р•СЃР»Рё AnimFile СѓР¶Рµ РёРјРµРµС‚ `children = [...]` вЂ” РґРѕР±Р°РІР»СЏРµРј ActivityModifier-СѓР·РµР»
-        // РІ Р’Р•Р РҐ РјР°СЃСЃРёРІР° (РїРµСЂРµРґ СЃСѓС‰РµСЃС‚РІСѓСЋС‰РёРјРё СЃРѕР±С‹С‚РёСЏРјРё). Р•СЃР»Рё РЅРµС‚ вЂ” СЃРѕР·РґР°С‘Рј РЅРѕРІС‹Р№
-        // Р±Р»РѕРє `children = [ ... ]` СЃСЂР°Р·Сѓ РїРѕСЃР»Рµ СЃС‚СЂРѕРєРё `name = "..."`.
+        // Если AnimFile уже имеет `children = [...]` — добавляем ActivityModifier-узел
+        // в ВЕРХ массива (перед существующими событиями). Если нет — создаём новый
+        // блок `children = [ ... ]` сразу после строки `name = "..."`.
         var injections = new List<(int InsertAt, string TextToInsert)>();
         var replacements = new List<(int Start, int Length, string Replacement)>();
         var ownClassRx = new Regex(@"\A\{\s*_class\s*=\s*""AnimFile""", RegexOptions.Compiled);
         var nameRx = new Regex(@"^([ \t]*)name\s*=\s*""([^""]+)""\s*$", RegexOptions.Multiline);
-        // children = [   (РЅР° РѕС‚РґРµР»СЊРЅРѕР№ СЃС‚СЂРѕРєРµ, РјРѕР¶РµС‚ Р±С‹С‚СЊ РѕРґРёРЅ РїСЂРѕР±РµР»/С‚Р°Р± + РїРµСЂРµРІРѕРґ СЃС‚СЂРѕРєРё)
+        // children = [   (на отдельной строке, может быть один пробел/таб + перевод строки)
         var childrenOpenRx = new Regex(@"^([ \t]*)children\s*=\s*\r?\n[ \t]*\[\s*\r?\n", RegexOptions.Multiline);
         var deltaFalseRx = new Regex(@"^([ \t]*)delta\s*=\s*false([ \t]*\r?\n)", RegexOptions.Multiline);
 
@@ -3210,22 +3210,22 @@ internal static class Program
             var animName = nameMatch.Groups[2].Value;
             var nameIndent = nameMatch.Groups[1].Value;
 
-            // 1) ActivityModifier child-СѓР·Р»С‹. ModelDoc-СЃС…РµРјР° (СЃРј. РїСЂРёРјРµСЂС‹ РІ Dota SDK).
+            // 1) ActivityModifier child-узлы. ModelDoc-схема (см. примеры в Dota SDK).
             if (modsByName.TryGetValue(animName, out var mods))
             {
-                // РРґРµРјРїРѕС‚РµРЅС‚РЅРѕСЃС‚СЊ: РµСЃР»Рё СѓР¶Рµ РµСЃС‚СЊ ActivityModifier вЂ” РїСЂРѕРїСѓСЃРєР°РµРј.
+                // Идемпотентность: если уже есть ActivityModifier — пропускаем.
                 if (block.Contains("\"ActivityModifier\"", StringComparison.Ordinal))
                 {
-                    // РЅРёС‡РµРіРѕ РЅРµ РґРµР»Р°РµРј
+                    // ничего не делаем
                 }
                 else
                 {
-                    // РџРѕРёСЃРє СЃСѓС‰РµСЃС‚РІСѓСЋС‰РµРіРѕ Р±Р»РѕРєР° children = [ ... ].
+                    // Поиск существующего блока children = [ ... ].
                     var chMatch = childrenOpenRx.Match(block);
                     if (chMatch.Success)
                     {
-                        // Р’СЃС‚Р°РІРєР° РЎР РђР—РЈ РїРѕСЃР»Рµ `[\n` вЂ” РґРѕР±Р°РІР»СЏРµРј СѓР·Р»С‹ РІ РЅР°С‡Р°Р»Рѕ РјР°СЃСЃРёРІР°.
-                        // РћС‚СЃС‚СѓРї child-СѓР·Р»Р° = РѕС‚СЃС‚СѓРї `children` + 1 СѓСЂРѕРІРµРЅСЊ (\t).
+                        // Вставка СРАЗУ после `[\n` — добавляем узлы в начало массива.
+                        // Отступ child-узла = отступ `children` + 1 уровень (\t).
                         var baseIndent = chMatch.Groups[1].Value;
                         var childIndent = baseIndent + "\t";
                         var sb2 = new StringBuilder();
@@ -3243,11 +3243,11 @@ internal static class Program
                     }
                     else
                     {
-                        // РќРµС‚ children вЂ” СЃРѕР·РґР°С‘Рј РЅРѕРІС‹Р№ Р±Р»РѕРє СЃСЂР°Р·Сѓ РїРѕСЃР»Рµ СЃС‚СЂРѕРєРё `name = "..."`.
+                        // Нет children — создаём новый блок сразу после строки `name = "..."`.
                         var nameLineEnd = bStart + nameMatch.Index + nameMatch.Length;
-                        // РќР°Р№РґС‘Рј РєРѕРЅРµС† СЃС‚СЂРѕРєРё (РІРєР»СЋС‡Р°СЏ \r\n).
+                        // Найдём конец строки (включая \r\n).
                         while (nameLineEnd < vmdlText.Length && vmdlText[nameLineEnd] != '\n') nameLineEnd++;
-                        if (nameLineEnd < vmdlText.Length) nameLineEnd++; // Р·Р°РіР»Р°С‚С‹РІР°РµРј \n
+                        if (nameLineEnd < vmdlText.Length) nameLineEnd++; // заглатываем \n
                         var childIndent = nameIndent + "\t";
                         var sb2 = new StringBuilder();
                         sb2.Append(nameIndent).Append("children = \r\n");
@@ -3267,7 +3267,7 @@ internal static class Program
                 }
             }
 
-            // 2) delta = true вЂ” РґР»СЏ sequence c m_bLegacyDelta=true.
+            // 2) delta = true — для sequence c m_bLegacyDelta=true.
             // Note: m_bLegacyDelta=1 is set ONLY on the user-facing
             // multipose sequence (e.g. 'turns_arcana'); the @-prefixed
             // source AnimFiles (@turns_arcana, @turns_arcana_lookFrame_*)
@@ -3289,7 +3289,7 @@ internal static class Program
 
         if (injections.Count == 0 && replacements.Count == 0) return vmdlText;
 
-        // РџСЂРёРјРµРЅСЏРµРј РІСЃРµ РїСЂР°РІРєРё СЃ РєРѕРЅС†Р° Рє РЅР°С‡Р°Р»Сѓ, С‡С‚РѕР±С‹ РЅРµ СЃРґРІРёРЅСѓС‚СЊ РёРЅРґРµРєСЃС‹.
+        // Применяем все правки с конца к началу, чтобы не сдвинуть индексы.
         var ops = new List<(int Pos, int Len, string Text)>();
         foreach (var (at, txt) in injections) ops.Add((at, 0, txt));
         foreach (var (start, len, repl) in replacements) ops.Add((start, len, repl));
@@ -3305,9 +3305,9 @@ internal static class Program
         if (verbose)
         {
             if (modInjected > 0)
-                Console.WriteLine($"    вњ“ injected ActivityModifier child node(s) into {modInjected} AnimFile(s)");
+                Console.WriteLine($"    ✓ injected ActivityModifier child node(s) into {modInjected} AnimFile(s)");
             if (deltaPatched > 0)
-                Console.WriteLine($"    вњ“ patched delta=true on {deltaPatched} legacy-delta AnimFile node(s)");
+                Console.WriteLine($"    ✓ patched delta=true on {deltaPatched} legacy-delta AnimFile node(s)");
         }
 
         // v5.3.1: strip AnimAddLayer/AnimAdd{Pose,World}Layer references to
@@ -3321,36 +3321,36 @@ internal static class Program
         }
         else if (SkipMultiposeLayerStrip && multiposeNames.Count > 0 && verbose)
         {
-            Console.WriteLine($"    вЉ multipose AnimAddLayer strip SKIPPED (--keep-multipose-layers)");
+            Console.WriteLine($"    ⊘ multipose AnimAddLayer strip SKIPPED (--keep-multipose-layers)");
         }
         sb = new StringBuilder(afterInject);
 
-        // Р’С‚РѕСЂРѕР№ РїСЂРѕС…РѕРґ: РґРµРґСѓРїР»РёРєР°С†РёСЏ Р°РєС‚РёРІРёС‚Рё-РєР°РЅРґРёРґР°С‚РѕРІ.
-        // РљРѕРіРґР° РЅРµСЃРєРѕР»СЊРєРѕ AnimFile РІ .vmdl РёРјРµСЋС‚ РѕРґРёРЅР°РєРѕРІС‹Р№ РєР»СЋС‡
-        // (activity_name + РѕС‚СЃРѕСЂС‚РёСЂРѕРІР°РЅРЅС‹Р№ РЅР°Р±РѕСЂ РјРѕРґРёС„РёРєР°С‚РѕСЂРѕРІ), РґРІРёР¶РѕРє Source 2
-        // РІ СЂРµР°Р»С‚Р°Р№РјРµ РїРµСЂРµРєР»СЋС‡Р°РµС‚СЃСЏ РјРµР¶РґСѓ РЅРёРјРё РїРѕ weighted-random вЂ” Сѓ РЅРµ-AnimGraph
-        // РјРѕРґРµР»РµР№ СЌС‚Рѕ РґР°С‘С‚ В«С‡РµС‡С‘С‚РєСѓВ» (РѕСЃРѕР±РµРЅРЅРѕ Р·Р°РјРµС‚РЅР° Сѓ SF+arcana СЃ РґРµСЃРѕР»СЏС‚РѕСЂРѕРј).
-        // РћСЂРёРіРёРЅР°Р»СЊРЅС‹Р№ Dota AnimGraph (РЅРµ РёР·РІР»РµРєР°РµС‚СЃСЏ VRF) РґРµР»Р°РµС‚ РґРµС‚РµСЂРјРёРЅРёСЃС‚РёС‡РµСЃРєРёР№
-        // РІС‹Р±РѕСЂ. Р­РјСѓР»РёСЂСѓРµРј: РІ РєР°Р¶РґРѕР№ РіСЂСѓРїРїРµ РѕСЃС‚Р°РІР»СЏРµРј РєР°РЅРґРёРґР°С‚Р° СЃ MAX activity_weight
-        // (СЌС‚Рѕ Valve-intended РІР°СЂРёР°РЅС‚). РЈ РѕСЃС‚Р°Р»СЊРЅС‹С… вЂ” РѕС‡РёС‰Р°РµРј activity_name Рё
-        // СѓРґР°Р»СЏРµРј ActivityModifier-РґРµС‚РµР№, С‡С‚РѕР±С‹ РѕРЅРё РІС‹РїР°Р»Рё РёР· Р°РєС‚РёРІРёС‚Рё-РІС‹Р±РѕСЂР°.
+        // Второй проход: дедупликация активити-кандидатов.
+        // Когда несколько AnimFile в .vmdl имеют одинаковый ключ
+        // (activity_name + отсортированный набор модификаторов), движок Source 2
+        // в реалтайме переключается между ними по weighted-random — у не-AnimGraph
+        // моделей это даёт «чечётку» (особенно заметна у SF+arcana с десолятором).
+        // Оригинальный Dota AnimGraph (не извлекается VRF) делает детерминистический
+        // выбор. Эмулируем: в каждой группе оставляем кандидата с MAX activity_weight
+        // (это Valve-intended вариант). У остальных — очищаем activity_name и
+        // удаляем ActivityModifier-детей, чтобы они выпали из активити-выбора.
         if (SkipDedup)
         {
-            if (verbose) Console.WriteLine($"    вЉ activity-modifier dedup SKIPPED (--no-dedup)");
+            if (verbose) Console.WriteLine($"    ⊘ activity-modifier dedup SKIPPED (--no-dedup)");
             return sb.ToString();
         }
         return DedupActivityCandidates(sb.ToString(), verbose, summary);
     }
 
-    // Р“СЂСѓР·РёРј whitelist СЂР°Р·СЂРµС€С‘РЅРЅС‹С… activity-РјРѕРґРёС„РёРєР°С‚РѕСЂРѕРІ РёР·
-    // `scripts/activity_modifier_weights.txt` (Dota 2). Р­С‚Рѕ РјР°Р»РµРЅСЊРєРёР№ KeyValues-С„Р°Р№Р»:
+    // Грузим whitelist разрешённых activity-модификаторов из
+    // `scripts/activity_modifier_weights.txt` (Dota 2). Это маленький KeyValues-файл:
     //   "weights" {
     //       "aggressive"          "1"
     //       "injured"             "2"
     //       "injured_aggressive"  "4"
     //       "haste"               "5"
     //   }
-    // Р•СЃР»Рё С„Р°Р№Р» РЅРµРґРѕСЃС‚СѓРїРµРЅ (extract РёР· folder Р±РµР· VPK) вЂ” fallback РЅР° BuiltinModifierWhitelist.
+    // Если файл недоступен (extract из folder без VPK) — fallback на BuiltinModifierWhitelist.
     private static HashSet<string> LoadActivityModifierWhitelist(RawReader rawReader, bool verbose)
     {
         var set = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -3360,11 +3360,11 @@ internal static class Program
             if (bytes != null && bytes.Length > 0)
             {
                 var text = Encoding.UTF8.GetString(bytes);
-                // РџСЂРѕСЃС‚РѕР№ РїР°СЂСЃРµСЂ: "<key>"  "<value>" pairs РІРЅСѓС‚СЂРё { ... }
+                // Простой парсер: "<key>"  "<value>" pairs внутри { ... }
                 foreach (Match m in Regex.Matches(text, @"""([a-zA-Z_][a-zA-Z0-9_]*)""\s*""\d+"""))
                     set.Add(m.Groups[1].Value);
                 if (verbose && set.Count > 0)
-                    Console.WriteLine($"    вњ“ loaded {set.Count} modifier(s) from scripts/activity_modifier_weights.txt: [{string.Join(", ", set)}]");
+                    Console.WriteLine($"    ✓ loaded {set.Count} modifier(s) from scripts/activity_modifier_weights.txt: [{string.Join(", ", set)}]");
             }
         }
         catch { /* fall through */ }
@@ -3372,33 +3372,33 @@ internal static class Program
         if (set.Count == 0)
         {
             foreach (var m in BuiltinModifierWhitelist) set.Add(m);
-            if (verbose) Console.WriteLine($"    в“ using built-in modifier whitelist: [{string.Join(", ", set)}]");
+            if (verbose) Console.WriteLine($"    ⓘ using built-in modifier whitelist: [{string.Join(", ", set)}]");
         }
         return set;
     }
 
-    // ROOT CAUSE В«РґС‘СЂРіР°РЅРёСЏВ» SF arcana РІ custom-Р°РґРґРѕРЅР°С…:
-    // VRF РёР·РІР»РµРєР°РµС‚ РІСЃРµ sequences РёР· ASEQ РєР°Рє СЃР°РјРѕСЃС‚РѕСЏС‚РµР»СЊРЅС‹Рµ AnimFile-СѓР·Р»С‹. Р§Р°СЃС‚СЊ
-    // РёР· РЅРёС… РёРјРµРµС‚ `m_activityArray = [{ACT_DOTA_RUN, w}, {<modifier>, w}]`, РіРґРµ
-    // <modifier> вЂ” РћР”РРќ РР—:
-    //   вЂў `aggressive` / `injured` / `injured_aggressive` / `haste` вЂ” РіР»РѕР±Р°Р»СЊРЅС‹Рµ
-    //     РјРѕРґРёС„РёРєР°С‚РѕСЂС‹ РёР· `scripts/activity_modifier_weights.txt`. РђРєС‚РёРІРёСЂСѓСЋС‚СЃСЏ
-    //     РѕР±С‹С‡РЅРѕР№ РёРіСЂРѕРІРѕР№ Р»РѕРіРёРєРѕР№ (low HP в†’ injured, BattleFury speed в†’ haste).
-    //   вЂў `desolation` / `fast_run` / `spawn_arcana` / `swag_gesture` вЂ” РјРѕРґРёС„РёРєР°С‚РѕСЂС‹,
-    //     Р°РєС‚РёРІРёСЂСѓРµРјС‹Рµ РўРћР›Р¬РљРћ С‡РµСЂРµР· cosmetic-items РІ `scripts/items/items_game.txt`
-    //     (РЅР°РїСЂРёРјРµСЂ, item 8259 "Arms of Desolation" в†’ "type=activity", "modifier=desolation").
+    // ROOT CAUSE «дёргания» SF arcana в custom-аддонах:
+    // VRF извлекает все sequences из ASEQ как самостоятельные AnimFile-узлы. Часть
+    // из них имеет `m_activityArray = [{ACT_DOTA_RUN, w}, {<modifier>, w}]`, где
+    // <modifier> — ОДИН ИЗ:
+    //   • `aggressive` / `injured` / `injured_aggressive` / `haste` — глобальные
+    //     модификаторы из `scripts/activity_modifier_weights.txt`. Активируются
+    //     обычной игровой логикой (low HP → injured, BattleFury speed → haste).
+    //   • `desolation` / `fast_run` / `spawn_arcana` / `swag_gesture` — модификаторы,
+    //     активируемые ТОЛЬКО через cosmetic-items в `scripts/items/items_game.txt`
+    //     (например, item 8259 "Arms of Desolation" → "type=activity", "modifier=desolation").
     //
-    // Р’ custom-Р°РґРґРѕРЅРµ (witchblades Рё С‚.Рї.) cosmetic-РёРЅС„СЂР°СЃС‚СЂСѓРєС‚СѓСЂР° РќР• СѓС‡Р°СЃС‚РІСѓРµС‚.
-    // РњРѕРґРёС„РёРєР°С‚РѕСЂ `desolation` РќРРљРћР“Р”Рђ РЅРµ Р°РєС‚РёРІРµРЅ в†’ РЅРѕ 8 sequences СЃ СЌС‚РёРј РјРѕРґРёС„РёРєР°С‚РѕСЂРѕРј
-    // РѕСЃС‚Р°СЋС‚СЃСЏ РєР°РЅРґРёРґР°С‚Р°РјРё РґР»СЏ ACT_DOTA_RUN. Р”РІРёР¶РѕРє Source 2 СЂР°РЅРґРѕРјРёС‚ РјРµР¶РґСѓ РЅРёРјРё,
-    // РІРєР»СЋС‡Р°СЏ run_alt_desolation_anim/run_haste_desolation_anim вЂ” РѕС‚СЃСЋРґР° В«20Г— СѓСЃРєРѕСЂРµРЅРёРµ
-    // Рё РїРµСЂРµСЃР±РѕСЂРєР°В» РІ running.
+    // В custom-аддоне (witchblades и т.п.) cosmetic-инфраструктура НЕ участвует.
+    // Модификатор `desolation` НИКОГДА не активен → но 8 sequences с этим модификатором
+    // остаются кандидатами для ACT_DOTA_RUN. Движок Source 2 рандомит между ними,
+    // включая run_alt_desolation_anim/run_haste_desolation_anim — отсюда «20× ускорение
+    // и пересборка» в running.
     //
-    // Р¤РёРєСЃ: РґР»СЏ РІСЃРµС… sequences СЃ modifier'РѕРј РќР• РёР· whitelist вЂ” РІС‹СЃС‚Р°РІР»СЏРµРј
+    // Фикс: для всех sequences с modifier'ом НЕ из whitelist — выставляем
     //   activity_weight = 0
     //   hidden = true
-    // Р­С‚Рѕ СѓР±РёСЂР°РµС‚ РёС… РёР· weighted-random pool. Sequence СЃР°Рј РѕСЃС‚Р°С‘С‚СЃСЏ РІ .vmdl
-    // (РЅР° СЃР»СѓС‡Р°Р№ СЂСѓС‡РЅРѕРіРѕ РІС‹Р·РѕРІР° РїРѕ РёРјРµРЅРё РёР· game logic), РЅРѕ РЅРµ РІС‹Р±РёСЂР°РµС‚СЃСЏ РґРІРёР¶РєРѕРј.
+    // Это убирает их из weighted-random pool. Sequence сам остаётся в .vmdl
+    // (на случай ручного вызова по имени из game logic), но не выбирается движком.
     private static string DisableNonWhitelistedModifierSequences(
         string vmdlText, Resource resource, HashSet<string> whitelist,
         MergeSummary summary, bool verbose)
@@ -3411,7 +3411,7 @@ internal static class Program
         catch { return vmdlText; }
         if (sequences == null || sequences.Count == 0) return vmdlText;
 
-        // РРјРµРЅР° sequence'РѕРІ СЃ РЅРµ-whitelisted РјРѕРґРёС„РёРєР°С‚РѕСЂР°РјРё.
+        // Имена sequence'ов с не-whitelisted модификаторами.
         var disableNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var firstFewExamples = new List<string>();
         foreach (var seq in sequences)
@@ -3425,7 +3425,7 @@ internal static class Program
             catch { continue; }
             if (activities == null || activities.Count < 2) continue;
 
-            // РџСЂРѕРІРµСЂСЏРµРј РІСЃРµ РјРѕРґРёС„РёРєР°С‚РѕСЂС‹. Р•СЃР»Рё РҐРћРўРЇ Р‘Р« РћР”РРќ вЂ” РЅРµ whitelisted, РѕС‚РєР»СЋС‡Р°РµРј sequence.
+            // Проверяем все модификаторы. Если ХОТЯ БЫ ОДИН — не whitelisted, отключаем sequence.
             bool hasNonWhitelisted = false;
             string? offendingMod = null;
             for (int i = 1; i < activities.Count; i++)
@@ -3450,7 +3450,7 @@ internal static class Program
 
         if (disableNames.Count == 0) return vmdlText;
 
-        // РРґС‘Рј РїРѕ AnimFile Р±Р»РѕРєР°Рј Рё РґР»СЏ disableNames РјРµРЅСЏРµРј РїРѕР»СЏ.
+        // Идём по AnimFile блокам и для disableNames меняем поля.
         var ownClassRx = new Regex(@"\A\{\s*_class\s*=\s*""AnimFile""", RegexOptions.Compiled);
         var nameRx = new Regex(@"^([ \t]*)name\s*=\s*""([^""]+)""\s*$", RegexOptions.Multiline);
         var weightRx = new Regex(@"^([ \t]*)activity_weight\s*=\s*\d+([ \t]*\r?\n)", RegexOptions.Multiline);
@@ -3468,7 +3468,7 @@ internal static class Program
             var animName = nm.Groups[2].Value;
             if (!disableNames.Contains(animName)) continue;
 
-            // 1) activity_weight = N в†’ activity_weight = 0
+            // 1) activity_weight = N → activity_weight = 0
             var wMatch = weightRx.Match(block);
             if (wMatch.Success)
             {
@@ -3478,7 +3478,7 @@ internal static class Program
                 replacements.Add((absStart, wMatch.Length, $"{ind}activity_weight = 0{trail}"));
             }
 
-            // 2) hidden = false в†’ hidden = true
+            // 2) hidden = false → hidden = true
             var hMatch = hiddenFalseRx.Match(block);
             if (hMatch.Success)
             {
@@ -3506,38 +3506,38 @@ internal static class Program
         {
             var sample = string.Join(", ", firstFewExamples);
             if (disableNames.Count > firstFewExamples.Count) sample += ", ...";
-            Console.WriteLine($"    вњ“ disabled {affected} non-whitelisted-modifier sequence(s): [{sample}]");
+            Console.WriteLine($"    ✓ disabled {affected} non-whitelisted-modifier sequence(s): [{sample}]");
         }
         return sb.ToString();
     }
 
-    // РџСЂР°РІРёР»СЊРЅС‹Р№ (Valve-canonical) inject РјРѕРґРёС„РёРєР°С‚РѕСЂРѕРІ вЂ” РїРѕР»Рµ `activity_modifiers`
-    // РЅР° СѓСЂРѕРІРЅРµ AnimFile-СѓР·Р»Р°. РќРµ РїСѓС‚Р°С‚СЊ СЃ `_class = "ActivityModifier"` child-СѓР·Р»РѕРј
-    // (РєРѕС‚РѕСЂС‹Р№ СЃР»СѓР¶РёС‚ РґР»СЏ РґСЂСѓРіРѕРіРѕ вЂ” UI tree Р°СЂС‚РµС„Р°РєС‚).
+    // Правильный (Valve-canonical) inject модификаторов — поле `activity_modifiers`
+    // на уровне AnimFile-узла. Не путать с `_class = "ActivityModifier"` child-узлом
+    // (который служит для другого — UI tree артефакт).
     //
-    // РРЎРҐРћР”РќРРљ РРќР¤Р«: СЃС‚СЂРѕРєРё РІ `tools/modeldoc_editor.dll`:
-    //   "Activity (Primary)"   в†ђ РїРѕР»Рµ `activity_name`
-    //   "Activity Modifiers"   в†ђ РїРѕР»Рµ `activity_modifiers` (РјР°СЃСЃРёРІ, РјРЅРѕР¶.С‡РёСЃР»Рѕ)
-    //   "Frame Count"          в†ђ РїРѕР»Рµ `frame_count`
-    //   "Frames Per Second"    в†ђ РїРѕР»Рµ `framerate`
+    // ИСХОДНИК ИНФЫ: строки в `tools/modeldoc_editor.dll`:
+    //   "Activity (Primary)"   ← поле `activity_name`
+    //   "Activity Modifiers"   ← поле `activity_modifiers` (массив, множ.число)
+    //   "Frame Count"          ← поле `frame_count`
+    //   "Frames Per Second"    ← поле `framerate`
     //
-    // Р§С‚Рѕ РёРјРµРЅРЅРѕ РёР·РІР»РµРєР°РµРј РёР· ASEQ:
+    // Что именно извлекаем из ASEQ:
     //   m_activityArray = [
-    //     { m_name = "ACT_DOTA_RUN", m_nWeight = 4 },     в†ђ РѕСЃРЅРѕРІРЅР°СЏ Р°РєС‚РёРІРёС‚Рё  (UI: "Activity Primary")
-    //     { m_name = "desolation",   m_nWeight = 1 },     в†ђ РјРѕРґРёС„РёРєР°С‚РѕСЂ #1     (UI: "Activity Modifiers")
-    //     { m_name = "haste",        m_nWeight = 1 }      в†ђ РјРѕРґРёС„РёРєР°С‚РѕСЂ #2
+    //     { m_name = "ACT_DOTA_RUN", m_nWeight = 4 },     ← основная активити  (UI: "Activity Primary")
+    //     { m_name = "desolation",   m_nWeight = 1 },     ← модификатор #1     (UI: "Activity Modifiers")
+    //     { m_name = "haste",        m_nWeight = 1 }      ← модификатор #2
     //   ]
     //
-    // Р§С‚Рѕ РёРЅР¶РµРєС‚РёРј РІ .vmdl (РїРѕСЃР»Рµ СЃС‚СЂРѕРєРё `activity_weight = N`):
+    // Что инжектим в .vmdl (после строки `activity_weight = N`):
     //   activity_modifiers = [ "desolation", "haste" ]
     //
-    // РўР°РєР¶Рµ СЃС‚Р°РІРёРј `delta = true` РґР»СЏ sequences СЃ `m_bLegacyDelta=true`
-    // (turns/look-around вЂ” VRF С‚РµСЂСЏРµС‚ СЌС‚РѕС‚ С„Р»Р°Рі в†’ РѕРЅРё РїСЂРѕРёРіСЂС‹РІР°СЋС‚СЃСЏ РєР°Рє РѕР±С‹С‡РЅС‹Рµ
-    // Р°РЅРёРјР°С†РёРё РїРѕРІРµСЂС… РґРІРёР¶РµРЅРёР№ Рё РЅР°РєР»Р°РґС‹РІР°СЋС‚ РЅРµРІРµСЂРЅС‹Р№ РїРѕРІРѕСЂРѕС‚ РєРѕСЂРїСѓСЃР°).
+    // Также ставим `delta = true` для sequences с `m_bLegacyDelta=true`
+    // (turns/look-around — VRF теряет этот флаг → они проигрываются как обычные
+    // анимации поверх движений и накладывают неверный поворот корпуса).
     //
-    // РљРѕРіРґР° СЌС‚РѕС‚ inject РІРєР»СЋС‡С‘РЅ, ModelDoc compile РєРѕСЂСЂРµРєС‚РЅРѕ Р·Р°РїРёСЃС‹РІР°РµС‚ m_activityArray
-    // РІ ASEQ РёС‚РѕРіРѕРІРѕРіРѕ .vmdl_c вЂ” СЃС‚СЂСѓРєС‚СѓСЂР° СЃРѕРІРїР°РґР°РµС‚ СЃ РѕСЂРёРіРёРЅР°Р»СЊРЅРѕР№ Valve. Р­С‚Рѕ
-    // root-fix, Р±РµР· РєРѕСЃС‚С‹Р»РµР№ РІСЂРѕРґРµ DisableNonWhitelistedModifierSequences.
+    // Когда этот inject включён, ModelDoc compile корректно записывает m_activityArray
+    // в ASEQ итогового .vmdl_c — структура совпадает с оригинальной Valve. Это
+    // root-fix, без костылей вроде DisableNonWhitelistedModifierSequences.
     private static string InjectActivityModifierFields(
         string vmdlText, Resource resource, MergeSummary summary, bool verbose)
     {
@@ -3549,9 +3549,9 @@ internal static class Program
         catch { return vmdlText; }
         if (sequences == null || sequences.Count == 0) return vmdlText;
 
-        // animName в†’ list of modifier names (РїРѕСЂСЏРґРѕРє РІР°Р¶РµРЅ вЂ” Valve РїРёС€РµС‚ РІ С‚РѕРј Р¶Рµ).
+        // animName → list of modifier names (порядок важен — Valve пишет в том же).
         var modsByName = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
-        // animName в†’ РЅСѓР¶РЅРѕ Р»Рё delta=true.
+        // animName → нужно ли delta=true.
         var deltaByName = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
         foreach (var seq in sequences)
@@ -3590,7 +3590,7 @@ internal static class Program
 
         var ownClassRx = new Regex(@"\A\{\s*_class\s*=\s*""AnimFile""", RegexOptions.Compiled);
         var nameRx = new Regex(@"^([ \t]*)name\s*=\s*""([^""]+)""\s*$", RegexOptions.Multiline);
-        // РўРѕС‡РєР° РІСЃС‚Р°РІРєРё: РїРѕСЃР»Рµ СЃС‚СЂРѕРєРё `activity_weight = N` (РµСЃР»Рё РµСЃС‚СЊ) РёР»Рё РїРѕСЃР»Рµ `activity_name`.
+        // Точка вставки: после строки `activity_weight = N` (если есть) или после `activity_name`.
         var actWeightRx = new Regex(@"^([ \t]*)activity_weight\s*=\s*\d+([ \t]*\r?\n)", RegexOptions.Multiline);
         var actNameRx = new Regex(@"^([ \t]*)activity_name\s*=\s*""[^""]*""([ \t]*\r?\n)", RegexOptions.Multiline);
         var deltaFalseRx = new Regex(@"^([ \t]*)delta\s*=\s*false([ \t]*\r?\n)", RegexOptions.Multiline);
@@ -3606,14 +3606,14 @@ internal static class Program
             if (!nm.Success) continue;
             var animName = nm.Groups[2].Value;
 
-            // РРґРµРјРїРѕС‚РµРЅС‚РЅРѕСЃС‚СЊ: РїСЂРѕРїСѓСЃРєР°РµРј РµСЃР»Рё СѓР¶Рµ РµСЃС‚СЊ activity_modifiers.
+            // Идемпотентность: пропускаем если уже есть activity_modifiers.
             bool alreadyHas = block.Contains("activity_modifiers", StringComparison.Ordinal);
 
-            // 1) Field-level inject РјРѕРґРёС„РёРєР°С‚РѕСЂРѕРІ.
+            // 1) Field-level inject модификаторов.
             if (!alreadyHas && modsByName.TryGetValue(animName, out var mods))
             {
-                // РўРѕС‡РєР° РІСЃС‚Р°РІРєРё вЂ” СЃСЂР°Р·Сѓ РїРѕСЃР»Рµ `activity_weight = N` СЃС‚СЂРѕРєРё (РµСЃР»Рё РµСЃС‚СЊ),
-                // РёРЅР°С‡Рµ РїРѕСЃР»Рµ `activity_name = "..."` СЃС‚СЂРѕРєРё.
+                // Точка вставки — сразу после `activity_weight = N` строки (если есть),
+                // иначе после `activity_name = "..."` строки.
                 Match anchor = actWeightRx.Match(block);
                 if (!anchor.Success) anchor = actNameRx.Match(block);
                 if (anchor.Success)
@@ -3627,7 +3627,7 @@ internal static class Program
                 }
             }
 
-            // 2) delta = false в†’ delta = true РґР»СЏ РґРµР»СЊС‚-sequence.
+            // 2) delta = false → delta = true для дельт-sequence.
             // Note: only patch ASEQ-flagged names (e.g. 'turns_arcana');
             // do NOT propagate to @-prefixed helpers - they are NOT delta
             // in Valve ASEQ (verified via m_bLegacyDelta=0).
@@ -3658,25 +3658,25 @@ internal static class Program
         if (verbose)
         {
             if (modInjected > 0)
-                Console.WriteLine($"    вњ“ injected activity_modifiers field into {modInjected} AnimFile node(s)");
+                Console.WriteLine($"    ✓ injected activity_modifiers field into {modInjected} AnimFile node(s)");
             if (deltaPatched > 0)
-                Console.WriteLine($"    вњ“ flipped delta=falseв†’true on {deltaPatched} legacy-delta sequence(s)");
+                Console.WriteLine($"    ✓ flipped delta=false→true on {deltaPatched} legacy-delta sequence(s)");
         }
         return sb.ToString();
     }
 
-    // VRF РїСЂРё decompile С‚РµСЂСЏРµС‚ frame-rate metadata (framerate, frame count, range)
-    // РІ AnimFile-СѓР·Р»Р°С…. Р‘РµР· СЌС‚РёС… РїРѕР»РµР№ ModelDoc compile РёСЃРїРѕР»СЊР·СѓРµС‚ defaults
-    // (РІРµСЂРѕСЏС‚РЅРѕ 30 fps), С‡С‚Рѕ РїСЂРёРІРѕРґРёС‚ Рє СѓСЃРєРѕСЂРµРЅРЅС‹Рј/Р·Р°РјРµРґР»РµРЅРЅС‹Рј Р°РЅРёРјР°С†РёСЏРј РІ РёРіСЂРµ,
-    // РµСЃР»Рё РѕСЂРёРіРёРЅР°Р» Р±С‹Р» СЃ РЅРµСЃС‚Р°РЅРґР°СЂС‚РЅС‹Рј fps (Dota РіРµСЂРѕРµРІ РЅРµСЂРµРґРєРѕ РёРјРµРµС‚ 33/37 fps).
-    // Р‘РµСЂС‘Рј СЂРµР°Р»СЊРЅС‹Рµ fps/frame count РёР· VRF Animation API (СЃР°Рј СЃС‡РёС‚Р°РµС‚ РёР· anim
-    // group/embedded data) Рё СЏРІРЅРѕ РёРЅР¶РµРєС‚РёРј РІ AnimFile.
+    // VRF при decompile теряет frame-rate metadata (framerate, frame count, range)
+    // в AnimFile-узлах. Без этих полей ModelDoc compile использует defaults
+    // (вероятно 30 fps), что приводит к ускоренным/замедленным анимациям в игре,
+    // если оригинал был с нестандартным fps (Dota героев нередко имеет 33/37 fps).
+    // Берём реальные fps/frame count из VRF Animation API (сам считает из anim
+    // group/embedded data) и явно инжектим в AnimFile.
     private static string InjectAnimFrameRates(
         string vmdlText, Model model, IFileLoader fileLoader,
         MergeSummary summary, bool verbose)
     {
-        // РЎРѕР±РёСЂР°РµРј СЃР»РѕРІР°СЂСЊ name в†’ (fps, frameCount).
-        // РСЃРїРѕР»СЊР·СѓРµРј GetAllAnimations: РІ С‚.С‡. embedded Рё referenced (anim groups).
+        // Собираем словарь name → (fps, frameCount).
+        // Используем GetAllAnimations: в т.ч. embedded и referenced (anim groups).
         Dictionary<string, (float Fps, int FrameCount)> animMeta = new(StringComparer.OrdinalIgnoreCase);
         try
         {
@@ -3696,8 +3696,8 @@ internal static class Program
 
         var animFileClassRx = new Regex(@"\A\{\s*_class\s*=\s*""AnimFile""", RegexOptions.Compiled);
         var nameRx = new Regex(@"^([ \t]*)name\s*=\s*""([^""]+)""\s*$", RegexOptions.Multiline | RegexOptions.Compiled);
-        // РљР°РєРѕРµ-РЅРёР±СѓРґСЊ РїРѕР»Рµ `hidden = ...` РЅР° РІРµСЂС…РЅРµРј СѓСЂРѕРІРЅРµ вЂ” РїРѕСЃР»Рµ РЅРµРіРѕ СѓРґРѕР±РЅРѕ
-        // РІСЃС‚Р°РІР»СЏС‚СЊ framerate/start_frame/end_frame. Р•СЃР»Рё РЅРµС‚ вЂ” РїРѕСЃР»Рµ `name = ...`.
+        // Какое-нибудь поле `hidden = ...` на верхнем уровне — после него удобно
+        // вставлять framerate/start_frame/end_frame. Если нет — после `name = ...`.
         var hiddenRx = new Regex(@"^([ \t]*)hidden\s*=\s*(?:true|false)([ \t]*\r?\n)", RegexOptions.Multiline | RegexOptions.Compiled);
 
         var injections = new List<(int InsertAt, string Text)>();
@@ -3715,16 +3715,16 @@ internal static class Program
 
             if (!animMeta.TryGetValue(animName, out var meta)) continue;
 
-            // РРґРµРјРїРѕС‚РµРЅС‚РЅРѕСЃС‚СЊ: РїСЂРѕРїСѓСЃРєР°РµРј, РµСЃР»Рё РїРѕР»СЏ СѓР¶Рµ РµСЃС‚СЊ.
+            // Идемпотентность: пропускаем, если поля уже есть.
             if (Regex.IsMatch(block, @"^[ \t]*framerate\s*=", RegexOptions.Multiline)) continue;
 
-            // end_frame вЂ” РёРЅРґРµРєСЃ РџРћРЎР›Р•Р”РќР•Р“Рћ РєР°РґСЂР° (frames 0..N-1 в†’ end_frame = N-1).
-            // Р•СЃР»Рё FrameCount == 0 (СЃС‚Р°С‚РёС‡РЅР°СЏ РїРѕР·Р° РёР»Рё РѕС€РёР±РєР°) вЂ” РїСЂРѕРїСѓСЃРєР°РµРј.
+            // end_frame — индекс ПОСЛЕДНЕГО кадра (frames 0..N-1 → end_frame = N-1).
+            // Если FrameCount == 0 (статичная поза или ошибка) — пропускаем.
             if (meta.FrameCount <= 0) continue;
             int endFrame = meta.FrameCount - 1;
 
             // Sub-1 FPS values (e.g. SF "versus_attack02" has m_flFps = 0.2
-            // in the original Valve compile) are kept verbatim вЂ” ModelDoc
+            // in the original Valve compile) are kept verbatim — ModelDoc
             // round-trips them unchanged, so emitting the same value keeps
             // diffs closed. We only refuse FrameCount <= 0 (handled above).
             // Format: integer-style if close to whole, otherwise 2 decimals.
@@ -3732,8 +3732,8 @@ internal static class Program
                 ? ((int)Math.Round(meta.Fps)).ToString() + ".0"
                 : meta.Fps.ToString("F1", System.Globalization.CultureInfo.InvariantCulture);
 
-            // РќР°Р№РґС‘Рј РїРѕР·РёС†РёСЋ РґР»СЏ РІСЃС‚Р°РІРєРё вЂ” РїРѕСЃР»Рµ СЃС‚СЂРѕРєРё `hidden = ...` РµСЃР»Рё РµСЃС‚СЊ,
-            // РёРЅР°С‡Рµ СЃСЂР°Р·Сѓ РїРѕСЃР»Рµ `name = "..."`.
+            // Найдём позицию для вставки — после строки `hidden = ...` если есть,
+            // иначе сразу после `name = "..."`.
             var hM = hiddenRx.Match(block);
             int insertOffsetInBlock;
             string trailing;
@@ -3744,7 +3744,7 @@ internal static class Program
             }
             else
             {
-                // РќР°Р№С‚Рё РєРѕРЅРµС† СЃС‚СЂРѕРєРё name = "..."
+                // Найти конец строки name = "..."
                 insertOffsetInBlock = nameM.Index + nameM.Length;
                 while (insertOffsetInBlock < block.Length && block[insertOffsetInBlock] != '\n') insertOffsetInBlock++;
                 if (insertOffsetInBlock < block.Length) insertOffsetInBlock++; // step past \n
@@ -3768,7 +3768,7 @@ internal static class Program
 
         summary.FrameRatesInjected += injected;
         if (verbose)
-            Console.WriteLine($"    вњ“ injected framerate/start_frame/end_frame into {injected} AnimFile node(s)");
+            Console.WriteLine($"    ✓ injected framerate/start_frame/end_frame into {injected} AnimFile node(s)");
         return sb.ToString();
     }
 
@@ -3777,7 +3777,7 @@ internal static class Program
     /// VRF announces all m_anims as SubFiles but its <c>Extract</c> callback returns
     /// null/empty for autolayer-compressed (<c>@@</c>) and multipose pose-frame
     /// (<c>@*lookFrame*</c>) anims. We bypass the broken extractor by calling
-    /// <c>ModelExtract.ToDmxAnim(model, anim)</c> directly вЂ” this gives us a valid
+    /// <c>ModelExtract.ToDmxAnim(model, anim)</c> directly — this gives us a valid
     /// DMX byte stream for ANY animation in the model, including the ones VRF skips.
     ///
     /// Files are written into <paramref name="modelFolder"/> using the animation's
@@ -3814,7 +3814,7 @@ internal static class Program
                 File.WriteAllBytes(subPath, bytes);
                 writtenDmx.Add(fileName);
                 written++;
-                if (verbose) Console.WriteLine($"    вњ“ DMX (recovered) {fileName} ({bytes.Length / 1024} KB)");
+                if (verbose) Console.WriteLine($"    ✓ DMX (recovered) {fileName} ({bytes.Length / 1024} KB)");
             }
             catch (Exception ex)
             {
@@ -3828,7 +3828,7 @@ internal static class Program
     /// Inject AnimFile nodes for animations that exist in Valve's m_anims (embedded
     /// animations of DATA block) but are not referenced in the .vmdl source.
     ///
-    /// VRF's decompiler is known to skip certain animation names вЂ” typically those
+    /// VRF's decompiler is known to skip certain animation names — typically those
     /// with "@@" prefix (compressed motion-only variants used by autolayer references)
     /// and "@*lookFrame*" pose anims used by BlendList multipose sequences. Without
     /// these AnimFile nodes ModelDoc compile produces a .vmdl_c with fewer embedded
@@ -3889,7 +3889,7 @@ internal static class Program
         string containerIndent = fieldIndent.Length > 0 ? fieldIndent.Substring(0, fieldIndent.Length - 1) : "";
 
         // Derive directory prefix from template's source_filename:
-        // e.g. "models/heroes/shadow_fiend/foo.dmx" в†’ "models/heroes/shadow_fiend/"
+        // e.g. "models/heroes/shadow_fiend/foo.dmx" → "models/heroes/shadow_fiend/"
         string srcDir = "";
         if (!string.IsNullOrEmpty(tpl.SourceFilename))
         {
@@ -3922,7 +3922,7 @@ internal static class Program
         }
 
         if (verbose)
-            Console.WriteLine($"    вњ“ injected {missing.Count} missing AnimFile node(s): {string.Join(", ", missing.Take(5))}{(missing.Count > 5 ? $" +{missing.Count - 5} more" : "")}");
+            Console.WriteLine($"    ✓ injected {missing.Count} missing AnimFile node(s): {string.Join(", ", missing.Take(5))}{(missing.Count > 5 ? $" +{missing.Count - 5} more" : "")}");
 
         return vmdlText.Substring(0, insertAt) + sb.ToString() + vmdlText.Substring(insertAt);
     }
@@ -3946,11 +3946,11 @@ internal static class Program
             if (!nameM.Success) continue;
             var animName = nameM.Groups[1].Value;
 
-            // activity_name РЅР° РІРµСЂС…РЅРµРј СѓСЂРѕРІРЅРµ AnimFile (РЅРµ Сѓ РґРѕС‡РµСЂРЅРµРіРѕ ActivityModifier).
-            // Р‘РµСЂС‘Рј Р’РЎР• activity_name РјР°С‚С‡Рё Рё С„РёР»СЊС‚СЂСѓРµРј РїРѕ indent < indent ActivityModifier'РѕРІ.
-            // РџСЂРѕС‰Рµ: РёС‰РµРј С‚РѕС‚ activity_name, РєРѕС‚РѕСЂС‹Р№ РЅРµ РІС…РѕРґРёС‚ РЅРё РІ РѕРґРёРЅ child-Р±Р»РѕРє.
-            // РџРѕСЃРєРѕР»СЊРєСѓ child-Р±Р»РѕРєРё РёРјРµСЋС‚ Р±РѕР»СЊС€РёР№ indent, top-level activity_name СЃС‚РѕРёС‚
-            // РЅР° С‚РѕРј Р¶Рµ СѓСЂРѕРІРЅРµ РєР°Рє `name = "..."`. РЎСЂР°РІРЅРёРј РїРѕ indent СЃ nameM.
+            // activity_name на верхнем уровне AnimFile (не у дочернего ActivityModifier).
+            // Берём ВСЕ activity_name матчи и фильтруем по indent < indent ActivityModifier'ов.
+            // Проще: ищем тот activity_name, который не входит ни в один child-блок.
+            // Поскольку child-блоки имеют больший indent, top-level activity_name стоит
+            // на том же уровне как `name = "..."`. Сравним по indent с nameM.
             var topIndent = Regex.Match(nameM.Value, @"^([ \t]*)").Groups[1].Value;
             string? topActName = null;
             int topActWeight = 0;
@@ -3973,12 +3973,12 @@ internal static class Program
                 }
             }
 
-            // Р•СЃР»Рё activity_name РїСѓСЃС‚ РёР»Рё СЌС‚Рѕ РЅРµ ACT_-Р°РєС‚РёРІРёС‚Рё (e.g. "" СѓР¶Рµ РѕС‚РєР»СЋС‡С‘РЅ) вЂ”
-            // СЌС‚Р° sequence РЅРµ СѓС‡Р°СЃС‚РІСѓРµС‚ РІ Р°РєС‚РёРІРёС‚Рё-РІС‹Р±РѕСЂРµ, РЅРµ РґРµРґСѓРїР»РёС†РёСЂСѓРµРј.
+            // Если activity_name пуст или это не ACT_-активити (e.g. "" уже отключён) —
+            // эта sequence не участвует в активити-выборе, не дедуплицируем.
             if (string.IsNullOrEmpty(topActName) || !topActName.StartsWith("ACT_", StringComparison.Ordinal))
                 continue;
 
-            // РЎРѕР±РёСЂР°РµРј РјРѕРґРёС„РёРєР°С‚РѕСЂС‹ РёР· ActivityModifier-РґРµС‚РµР№.
+            // Собираем модификаторы из ActivityModifier-детей.
             var modifiers = new List<string>();
             foreach (Match m in modInChildRx.Matches(block))
             {
@@ -3990,7 +3990,7 @@ internal static class Program
             metas.Add((bStart, bEnd, animName, topActName, topActWeight, modifiers));
         }
 
-        // Р“СЂСѓРїРїРёСЂРѕРІРєР° РїРѕ (activity, modifiers).
+        // Группировка по (activity, modifiers).
         var groups = metas
             .GroupBy(a => $"{a.Activity}|{string.Join(",", a.Modifiers)}")
             .Where(g => g.Count() > 1)
@@ -3998,7 +3998,7 @@ internal static class Program
 
         if (groups.Count == 0) return vmdlText;
 
-        // РЎРїРёСЃРѕРє РёР·РјРµРЅРµРЅРёР№ РґР»СЏ Р»СѓР·РµСЂРѕРІ (СЃ РєРѕРЅС†Р° Рє РЅР°С‡Р°Р»Сѓ).
+        // Список изменений для лузеров (с конца к началу).
         var edits = new List<(int Pos, int Len, string Text)>();
         int losersCount = 0;
         var losersInfo = new List<(string Group, string Keeper, List<string> Losers)>();
@@ -4015,7 +4015,7 @@ internal static class Program
                 losersCount++;
                 var block = vmdlText.Substring(loser.Start, loser.End - loser.Start + 1);
 
-                // 1) Р—Р°РјРµРЅРёС‚СЊ activity_name = "ACT_..." в†’ activity_name = "" (С‚РѕР»СЊРєРѕ top-level).
+                // 1) Заменить activity_name = "ACT_..." → activity_name = "" (только top-level).
                 var actNameMatchInBlock = actNameRx.Matches(block);
                 Match? topActNameM = null;
                 var topIndent = Regex.Match(nameRx.Match(block).Value, @"^([ \t]*)").Groups[1].Value;
@@ -4031,11 +4031,11 @@ internal static class Program
                     edits.Add((absStart, topActNameM.Length, replacement));
                 }
 
-                // 1b) Top-level activity_weight = N в†’ activity_weight = 0 (HARD-СЃРёРіРЅР°Р»
-                //     РґРІРёР¶РєСѓ: В«РЅРµ РІС‹Р±РёСЂР°С‚СЊВ»). Р‘РµР· СЌС‚РѕРіРѕ Source 2 random-selector РјРѕР¶РµС‚
-                //     РІСЃС‘ СЂР°РІРЅРѕ РїРѕРґС…РІР°С‚РёС‚СЊ РєР°РЅРґРёРґР°С‚Р°, РµСЃР»Рё weight > 0 Рё РµСЃС‚СЊ РёРјСЏ
-                //     activity-РјРѕРґРёС„РёРєР°С‚РѕСЂР° РІ child-СѓР·Р»Рµ, РєРѕС‚РѕСЂС‹Р№ РјС‹ СѓР¶Рµ СѓРґР°Р»РёР»Рё.
-                //     Р”РµР»Р°РµРј weight = 0 РґР»СЏ РЅР°РґС‘Р¶РЅРѕСЃС‚Рё.
+                // 1b) Top-level activity_weight = N → activity_weight = 0 (HARD-сигнал
+                //     движку: «не выбирать»). Без этого Source 2 random-selector может
+                //     всё равно подхватить кандидата, если weight > 0 и есть имя
+                //     activity-модификатора в child-узле, который мы уже удалили.
+                //     Делаем weight = 0 для надёжности.
                 Match? topActWeightM = null;
                 foreach (Match m in actWeightRx.Matches(block))
                 {
@@ -4049,9 +4049,9 @@ internal static class Program
                     edits.Add((absStart, topActWeightM.Length, replacement));
                 }
 
-                // 1c) hidden = false в†’ hidden = true (СѓР±РёСЂР°РµРј РёР· СЃРїРёСЃРєР° РѕР±С‹С‡РЅС‹С…
-                //     sequences РґР»СЏ СЃР»СѓС‡Р°РµРІ, РєРѕРіРґР° РґРІРёР¶РѕРє С…РѕРґРёС‚ РїРѕ РІСЃРµРј
-                //     non-hidden anim'Р°Рј Рё РїС‹С‚Р°РµС‚СЃСЏ В«СѓРіР°РґР°С‚СЊВ» ACT_DOTA_RUN).
+                // 1c) hidden = false → hidden = true (убираем из списка обычных
+                //     sequences для случаев, когда движок ходит по всем
+                //     non-hidden anim'ам и пытается «угадать» ACT_DOTA_RUN).
                 var hiddenRx = new Regex(@"^[ \t]*hidden\s*=\s*false\s*$", RegexOptions.Multiline);
                 Match? topHiddenM = null;
                 foreach (Match m in hiddenRx.Matches(block))
@@ -4066,15 +4066,15 @@ internal static class Program
                     edits.Add((absStart, topHiddenM.Length, replacement));
                 }
 
-                // 2) РЈРґР°Р»РёС‚СЊ РІСЃРµ child-СѓР·Р»С‹ _class = "ActivityModifier" РІРЅСѓС‚СЂРё Р±Р»РѕРєР°.
-                // РљР°Р¶РґС‹Р№ ActivityModifier вЂ” СЌС‚Рѕ `{ ... },` Р±Р»РѕРє (СЃ РІРѕР·РјРѕР¶РЅРѕР№ Р·Р°РїСЏС‚РѕР№ Рё РїРµСЂРµРІРѕРґРѕРј СЃС‚СЂРѕРєРё РїРѕСЃР»Рµ).
-                // РСЃРїРѕР»СЊР·СѓРµРј FindBalancedBracePairs РІРЅСѓС‚СЂРё loser-Р±Р»РѕРєР°.
+                // 2) Удалить все child-узлы _class = "ActivityModifier" внутри блока.
+                // Каждый ActivityModifier — это `{ ... },` блок (с возможной запятой и переводом строки после).
+                // Используем FindBalancedBracePairs внутри loser-блока.
                 foreach (var (cStart, cEnd, _) in FindBalancedBracePairs(block))
                 {
                     var childBlock = block.Substring(cStart, cEnd - cStart + 1);
                     if (!Regex.IsMatch(childBlock, @"\A\{\s*_class\s*=\s*""ActivityModifier""")) continue;
 
-                    // РџРѕРіР»РѕС‰Р°РµРј trailing `,` + horizontal whitespace + РѕРґРёРЅ \r\n (РёР»Рё \n).
+                    // Поглощаем trailing `,` + horizontal whitespace + один \r\n (или \n).
                     int blockEndIdx = cEnd + 1;
                     if (blockEndIdx < block.Length && block[blockEndIdx] == ',') blockEndIdx++;
                     while (blockEndIdx < block.Length && (block[blockEndIdx] == ' ' || block[blockEndIdx] == '\t'))
@@ -4082,7 +4082,7 @@ internal static class Program
                     if (blockEndIdx < block.Length && block[blockEndIdx] == '\r') blockEndIdx++;
                     if (blockEndIdx < block.Length && block[blockEndIdx] == '\n') blockEndIdx++;
 
-                    // РўР°РєР¶Рµ Р·Р°С…РІР°С‚С‹РІР°РµРј leading whitespace (РѕС‚СЃС‚СѓРї СЃС‚СЂРѕРєРё СЌС‚РѕРіРѕ Р±Р»РѕРєР°).
+                    // Также захватываем leading whitespace (отступ строки этого блока).
                     int blockStartIdx = cStart;
                     while (blockStartIdx > 0 && (block[blockStartIdx - 1] == ' ' || block[blockStartIdx - 1] == '\t'))
                         blockStartIdx--;
@@ -4094,7 +4094,7 @@ internal static class Program
             }
         }
 
-        // РџСЂРёРјРµРЅСЏРµРј РїСЂР°РІРєРё СЃ РєРѕРЅС†Р° Рє РЅР°С‡Р°Р»Сѓ.
+        // Применяем правки с конца к началу.
         edits.Sort((a, b) => b.Pos.CompareTo(a.Pos));
         var sb = new StringBuilder(vmdlText);
         foreach (var (pos, len, txt) in edits)
@@ -4105,7 +4105,7 @@ internal static class Program
 
         if (verbose)
         {
-            Console.WriteLine($"    вњ“ deduped {losersCount} duplicate activity-modifier candidate(s) across {groups.Count} group(s)");
+            Console.WriteLine($"    ✓ deduped {losersCount} duplicate activity-modifier candidate(s) across {groups.Count} group(s)");
             foreach (var (key, keeper, losers) in losersInfo)
             {
                 Console.WriteLine($"        [{key}] keep: {keeper}; disable: {string.Join(", ", losers)}");
@@ -4165,7 +4165,7 @@ internal static class Program
     /// <summary>
     /// Strip Hitbox/HitboxCapsule/HitboxSphere/Attachment nodes that reference
     /// `parent_bone` names not present in the skeleton. ModelDoc compile prints
-    /// "Unknown bone 'X'" warnings and drops these nodes anyway вЂ” doing it
+    /// "Unknown bone 'X'" warnings and drops these nodes anyway — doing it
     /// upstream gives a cleaner build log and prevents downstream tooling
     /// confusion. Common case: `cp_*` collision-proxy bones referenced by
     /// hitboxes but missing from the source skeleton (they live in animgraph
@@ -4183,11 +4183,11 @@ internal static class Program
         foreach (Match m in Regex.Matches(text, @"name\s*=\s*""([^""]+)""\s*\r?\n[ \t]*_class\s*=\s*""Bone""", RegexOptions.Singleline))
             bones.Add(m.Groups[1].Value);
 
-        // Note: even with 0 bones we still strip вЂ” props/static models lack a
+        // Note: even with 0 bones we still strip — props/static models lack a
         // skeleton, and any hitbox/attachment they carry references nothing
         // valid (compile would warn and drop them). Exception: ModelDoc treats
-        // empty string `""` as "no parent" вЂ” attachments mounted to model
-        // origin вЂ” which is always valid.
+        // empty string `""` as "no parent" — attachments mounted to model
+        // origin — which is always valid.
 
         int c = 0;
         var result = RemoveMatchingNodes(text, (cls, nodeText) =>
@@ -4210,10 +4210,10 @@ internal static class Program
 
     private static string FixBogusResourceTags(string text, out int count)
     {
-        // VRF РјРёСЃСЃ-С‚РёРїРёР·РёСЂСѓРµС‚ РїРѕР»Рµ `tag` СЃРѕР±С‹С‚РёСЏ AE_CL_SUPPRESS_EVENTS_WITH_TAG РєР°Рє
-        // resource:"name", РЅРѕ СЌС‚Рѕ РїСЂРѕСЃС‚Рѕ СЃС‚СЂРѕРєРѕРІС‹Р№ РёРґРµРЅС‚РёС„РёРєР°С‚РѕСЂ, РЅРµ РїСѓС‚СЊ Рє Р°СЃСЃРµС‚Сѓ.
-        // ModelDoc РІР°Р»РёС‚СЃСЏ СЃ "Bad resource reference" в†’ "Tried to register an empty
-        // resource reference" в†’ Compile Failed. РџРµСЂРµРїРёСЃС‹РІР°РµРј РєР°Рє plain string.
+        // VRF мисс-типизирует поле `tag` события AE_CL_SUPPRESS_EVENTS_WITH_TAG как
+        // resource:"name", но это просто строковый идентификатор, не путь к ассету.
+        // ModelDoc валится с "Bad resource reference" → "Tried to register an empty
+        // resource reference" → Compile Failed. Переписываем как plain string.
         var pattern = @"^([ \t]*tag[ \t]*=[ \t]*)resource:""([^""]*)""([ \t]*\r?\n)";
         int c = 0;
         var newText = Regex.Replace(text, pattern, m =>
@@ -4227,9 +4227,9 @@ internal static class Program
 
     private static bool IsInvalidResourceNode(string cls, string nodeText)
     {
-        // VRF РІС‹РІРѕРґРёС‚ resource-СЃСЃС‹Р»РѕС‡РЅС‹Рµ РїРѕР»СЏ РґР°Р¶Рµ РµСЃР»Рё РѕРЅРё РїСѓСЃС‚С‹Рµ вЂ” ModelDoc РЅР° СЌС‚Рѕ
-        // СЂСѓРіР°РµС‚СЃСЏ "Tried to register an empty resource reference" Рё РІР°Р»РёС‚ РєРѕРјРїРёР»СЏС†РёСЋ.
-        // Р Р°Р·РЅС‹Рµ РєР»Р°СЃСЃС‹ РёСЃРїРѕР»СЊР·СѓСЋС‚ СЂР°Р·РЅС‹Рµ РёРјРµРЅР° РїРѕР»СЏ.
+        // VRF выводит resource-ссылочные поля даже если они пустые — ModelDoc на это
+        // ругается "Tried to register an empty resource reference" и валит компиляцию.
+        // Разные классы используют разные имена поля.
         var field = cls switch
         {
             "AnimGraph2" or "DefaultAnimGraph2" or "NmSkeletonReference" or "MorphFile" => "filename",
@@ -4243,31 +4243,31 @@ internal static class Program
 
     private static bool IsBrokenAutoLayer(string cls, string nodeText, HashSet<string> validAnims)
     {
-        // AnimAddLayer / AnimSubtractLayer СЃСЃС‹Р»Р°СЋС‚СЃСЏ РЅР° Р°РЅРёРјР°С†РёСЋ РїРѕ РёРјРµРЅРё.
+        // AnimAddLayer / AnimSubtractLayer ссылаются на анимацию по имени.
         //
-        // РРЎРўРћР РРЇ Р’РћРџР РћРЎРђ:
-        // VRF (19.1.6199) РќР• РёР·РІР»РµРєР°РµС‚ multi-pose AnimSequence (m_b1D/m_b2D/m_bMulti)
-        // РєР°Рє .vmdl-СѓР·Р»С‹ вЂ” РЅР°РїСЂРёРјРµСЂ `turns_arcana` Сѓ SF arcana вЂ” СЌС‚Рѕ AnimSequence СЃ
-        // 1D-pose-param `turn` Рё С‚СЂРµРјСЏ sub-references. Р’ .vmdl source С‚Р°РєРѕР№ sequence
-        // РѕС‚СЃСѓС‚СЃС‚РІСѓРµС‚, РїРѕСЌС‚РѕРјСѓ AnimAddLayer-СЃСЃС‹Р»РєРё РЅР° РЅРµРіРѕ СЃС‚Р°РЅРѕРІСЏС‚СЃСЏ "orphan" Рё
-        // ModelDoc UI РїРѕРєР°Р·С‹РІР°РµС‚ "Invalid animation reference" warning'Рё.
+        // ИСТОРИЯ ВОПРОСА:
+        // VRF (19.1.6199) НЕ извлекает multi-pose AnimSequence (m_b1D/m_b2D/m_bMulti)
+        // как .vmdl-узлы — например `turns_arcana` у SF arcana — это AnimSequence с
+        // 1D-pose-param `turn` и тремя sub-references. В .vmdl source такой sequence
+        // отсутствует, поэтому AnimAddLayer-ссылки на него становятся "orphan" и
+        // ModelDoc UI показывает "Invalid animation reference" warning'и.
         //
-        // РџР РћР’Р•Р Р•РќРћ (08.05.2026):
-        // ModelDoc compile DROP'Р°РµС‚ orphan AnimAddLayer-references вЂ” РІ РЅР°С€РµРј compiled
-        // .vmdl_c РќР•Рў SeqDesc РґР»СЏ turns_arcana (0 mentions vs 10 Сѓ Valve original).
-        // Р­С‚Рѕ Р·РЅР°С‡РёС‚ layer'С‹ СѓР¶Рµ С„Р°РєС‚РёС‡РµСЃРєРё РќР• СЂР°Р±РѕС‚Р°СЋС‚ РІ РёРіСЂРµ вЂ” РїСЂРѕСЃС‚Рѕ warning'Рё РІ
-        // UI РѕСЃС‚Р°СЋС‚СЃСЏ РѕС‚ unresolved string references.
+        // ПРОВЕРЕНО (08.05.2026):
+        // ModelDoc compile DROP'ает orphan AnimAddLayer-references — в нашем compiled
+        // .vmdl_c НЕТ SeqDesc для turns_arcana (0 mentions vs 10 у Valve original).
+        // Это значит layer'ы уже фактически НЕ работают в игре — просто warning'и в
+        // UI остаются от unresolved string references.
         //
-        // Р Р•РЁР•РќРР•:
-        // РЈРґР°Р»СЏРµРј AnimAddLayer/AnimSubtractLayer СѓР·Р»С‹ СЃРѕ СЃСЃС‹Р»РєРѕР№ РЅР° animation,
-        // РєРѕС‚РѕСЂРѕР№ РЅРµС‚ РІ .vmdl source. Р­С‚Рѕ РёРґРµРЅС‚РёС‡РЅРѕ С‚РµРєСѓС‰РµРјСѓ РїРѕРІРµРґРµРЅРёСЋ (compile
-        // Рё С‚Р°Рє РёС… РІС‹РєРёРґС‹РІР°РµС‚), РЅРѕ СѓР±РёСЂР°РµС‚ warning'Рё РІ ModelDoc UI.
+        // РЕШЕНИЕ:
+        // Удаляем AnimAddLayer/AnimSubtractLayer узлы со ссылкой на animation,
+        // которой нет в .vmdl source. Это идентично текущему поведению (compile
+        // и так их выкидывает), но убирает warning'и в ModelDoc UI.
         if (cls != "AnimAddLayer" && cls != "AnimSubtractLayer") return false;
         var match = Regex.Match(nodeText, @"\b(?:anim_name|anim)\s*=\s*""([^""]*)""");
-        if (!match.Success) return true; // РІРѕРѕР±С‰Рµ РЅРµС‚ РїРѕР»СЏ anim_name вЂ” Р»РѕРјР°РЅРЅС‹Р№
+        if (!match.Success) return true; // вообще нет поля anim_name — ломанный
         var animName = match.Groups[1].Value;
-        if (string.IsNullOrWhiteSpace(animName)) return true; // РїСѓСЃС‚РѕРµ РёРјСЏ
-        // Orphan reference: anim_name СѓРєР°Р·Р°РЅ, РЅРѕ С‚Р°РєРѕР№ AnimFile/AnimAlias РЅРµС‚ РІ .vmdl.
+        if (string.IsNullOrWhiteSpace(animName)) return true; // пустое имя
+        // Orphan reference: anim_name указан, но такой AnimFile/AnimAlias нет в .vmdl.
         return !validAnims.Contains(animName);
     }
 
@@ -4391,8 +4391,8 @@ internal static class Program
             if (!match.Success) continue;
             if (!shouldRemove(match.Groups[1].Value, nodeText)) continue;
 
-            // Р—Р°С…РІР°С‚С‹РІР°РµРј РІРµРґСѓС‰РёРµ РїСЂРѕР±РµР»С‹/С‚Р°Р±С‹ Рё С…РІРѕСЃС‚РѕРІСѓСЋ Р·Р°РїСЏС‚СѓСЋ+РїРµСЂРµРІРѕРґ СЃС‚СЂРѕРєРё,
-            // С‡С‚РѕР±С‹ РЅРµ РѕСЃС‚Р°РІРёС‚СЊ Р·Р° СЃРѕР±РѕР№ РІРёСЃСЏС‡РёРµ "," Рё РїСѓСЃС‚С‹Рµ СЃС‚СЂРѕРєРё.
+            // Захватываем ведущие пробелы/табы и хвостовую запятую+перевод строки,
+            // чтобы не оставить за собой висячие "," и пустые строки.
             int s = start;
             while (s > 0 && (text[s - 1] == ' ' || text[s - 1] == '\t')) s--;
             int e = end + 1;
@@ -4406,8 +4406,8 @@ internal static class Program
 
         if (ranges.Count == 0) return text;
 
-        // РЎРѕСЂС‚РёСЂСѓРµРј Рё СЃС…Р»РѕРїС‹РІР°РµРј РІР»РѕР¶РµРЅРЅС‹Рµ РґРёР°РїР°Р·РѕРЅС‹ (РІРЅРµС€РЅРёР№ РїРѕРіР»РѕС‰Р°РµС‚ РІРЅСѓС‚СЂРµРЅРЅРёРµ),
-        // С‡С‚РѕР±С‹ StringBuilder.Remove РЅРµ СЂР°Р±РѕС‚Р°Р» РїРѕ СѓР¶Рµ СѓРґР°Р»С‘РЅРЅРѕР№ РѕР±Р»Р°СЃС‚Рё.
+        // Сортируем и схлопываем вложенные диапазоны (внешний поглощает внутренние),
+        // чтобы StringBuilder.Remove не работал по уже удалённой области.
         ranges.Sort((a, b) => a.Start - b.Start);
         var merged = new List<(int Start, int End)>();
         int lastEnd = -1;
@@ -4497,10 +4497,10 @@ internal static class Program
             {
                 Directory.CreateDirectory(Path.GetDirectoryName(target)!);
                 File.WriteAllText(target,
-                    "// stub vmat generated by VmdlExtractor вЂ” missing-material warning suppression\n" +
+                    "// stub vmat generated by VmdlExtractor — missing-material warning suppression\n" +
                     "Layer0\n{\n\tshader \"error.vfx\"\n}\n");
                 created++;
-                if (verbose) Console.WriteLine($"    в†і STUB {rel}");
+                if (verbose) Console.WriteLine($"    ↳ STUB {rel}");
             }
             catch { }
         }
@@ -4540,7 +4540,7 @@ internal static class Program
     /// <summary>
     /// Remove every RenderMeshFile node whose `filename` (or `name`) basename
     /// matches one of <paramref name="markerBasenames"/>. Used after marker DMX
-    /// detection вЂ” the corresponding mesh file no longer exists on disk so the
+    /// detection — the corresponding mesh file no longer exists on disk so the
     /// reference must be pruned to keep ModelDoc compile happy.
     /// </summary>
     private static string StripMarkerRenderMeshFiles(string text, HashSet<string> markerBasenames, out int count)
@@ -4567,25 +4567,25 @@ internal static class Program
 
     private static void PatchDmxMeshBoneIndices(string dmxPath, Skeleton? skeleton, MergeSummary summary, bool verbose)
     {
-        // === Р§С‚Рѕ С‡РёРЅРёРј ===
-        // VRF 19.1.6199 РІ ConvertMeshToDatamodelMesh РќР• РІС‹Р·С‹РІР°РµС‚ BuildDmeDagSkeleton
-        // (Р° СЃР°РјР° BuildDmeDagSkeleton С‚Р°Рј СЃР»РѕРјР°РЅР°: РґРѕР±Р°РІР»СЏРµС‚ DmeModel РІ JointList).
-        // РР·-Р·Р° СЌС‚РѕРіРѕ DmeModel.JointList РІ РІС‹С…РѕРґРЅС‹С… DMX = [DmeDag(mesh)] (1 СЌР»РµРјРµРЅС‚),
-        // Р° blendindices$0 СЃРѕРґРµСЂР¶РёС‚ РіР»РѕР±Р°Р»СЊРЅС‹Рµ РёРЅРґРµРєСЃС‹ РєРѕСЃС‚РµР№ 0..N-1.
-        // ModelDoc РІР°Р»РёРґРёСЂСѓРµС‚ blendindices в€€ [0, JointList.Count-1] = [0, 0],
-        // РєР»Р°РјРїРёС‚ РІСЃС‘, С‡С‚Рѕ РІРЅРµ РґРёР°РїР°Р·РѕРЅР°, РІ -1 Рё РїРёС€РµС‚ warning
+        // === Что чиним ===
+        // VRF 19.1.6199 в ConvertMeshToDatamodelMesh НЕ вызывает BuildDmeDagSkeleton
+        // (а сама BuildDmeDagSkeleton там сломана: добавляет DmeModel в JointList).
+        // Из-за этого DmeModel.JointList в выходных DMX = [DmeDag(mesh)] (1 элемент),
+        // а blendindices$0 содержит глобальные индексы костей 0..N-1.
+        // ModelDoc валидирует blendindices ∈ [0, JointList.Count-1] = [0, 0],
+        // клампит всё, что вне диапазона, в -1 и пишет warning
         //   "Invalid skinning bone index :: -1, valid range [0, 0]".
-        // Р’ СЂР°РЅС‚Р°Р№РјРµ РєР»Р°РјРїРёРЅРі РёРґС‘С‚ РІ bone 0 (root) в†’ РІРµСЂС€РёРЅС‹ РїР°СЂР°Р·РёС‚РЅРѕ С‚СЏРЅСѓС‚СЃСЏ
-        // Р·Р° root_motion РІ turns_anim / idle в†’ РІРёР·СѓР°Р»СЊРЅС‹Р№ СЃС‚СЂРµС‚С‡РёРЅРі.
+        // В рантайме клампинг идёт в bone 0 (root) → вершины паразитно тянутся
+        // за root_motion в turns_anim / idle → визуальный стретчинг.
         //
-        // === РљР°Рє С‡РёРЅРёРј ===
-        // 1) Р’РЅРµРґСЂСЏРµРј РїСЂР°РІРёР»СЊРЅС‹Р№ СЃРєРµР»РµС‚ РІ DmeModel: DmeJoint per bone РІ bone.Index
-        //    РїРѕСЂСЏРґРєРµ (1:1 РїРѕРІС‚РѕСЂСЏРµС‚ master VRF BuildDmeDagSkeleton), СЃС‚СЂРѕРёРј
-        //    parentв†’Children РёРµСЂР°СЂС…РёСЋ, mesh DmeDag РѕСЃС‚Р°РІР»СЏРµРј РІ РєРѕРЅС†Рµ JointList Рё
-        //    РІ DmeModel.Children. РџРѕСЃР»Рµ СЌС‚РѕРіРѕ blendindices$0[i] РЅР°РїСЂСЏРјСѓСЋ РёРЅРґРµРєСЃРёСЂСѓРµС‚
-        //    JointList[i] = bone i. ModelDoc Р±РѕР»СЊС€Рµ РЅРµ РєР»Р°РјРїРёС‚, СЃС‚СЂРµС‚С‡РёРЅРі РёСЃС‡РµР·Р°РµС‚.
-        // 2) Р”РµС„РµРЅСЃРёРІРЅРѕ: РµСЃР»Рё РІ blendindices$0 РІСЃС‘ Р¶Рµ РѕСЃС‚Р°Р»РёСЃСЊ -1 (РЅРµРєРѕС‚РѕСЂС‹Рµ
-        //    СѓСЃС‚Р°СЂРµРІС€РёРµ СЃС‚СЂРёРјС‹ Сѓ С„РёР·.РїСЂРѕРєСЃРё), Р·Р°РЅСѓР»СЏРµРј index=0, weight=0.
+        // === Как чиним ===
+        // 1) Внедряем правильный скелет в DmeModel: DmeJoint per bone в bone.Index
+        //    порядке (1:1 повторяет master VRF BuildDmeDagSkeleton), строим
+        //    parent→Children иерархию, mesh DmeDag оставляем в конце JointList и
+        //    в DmeModel.Children. После этого blendindices$0[i] напрямую индексирует
+        //    JointList[i] = bone i. ModelDoc больше не клампит, стретчинг исчезает.
+        // 2) Дефенсивно: если в blendindices$0 всё же остались -1 (некоторые
+        //    устаревшие стримы у физ.прокси), зануляем index=0, weight=0.
         Datamodel.Datamodel? dm = null;
         try
         {
@@ -4651,7 +4651,7 @@ internal static class Program
                     var parts = new List<string>(2);
                     if (jointsInjected > 0) parts.Add($"+skeleton({jointsInjected} joints)");
                     if (weightsPatched > 0) parts.Add($"-1 weights={weightsPatched} in {streamsTouched} stream(s)");
-                    Console.WriteLine($"    вњ“ dmx fix {Path.GetFileName(dmxPath)}: {string.Join(", ", parts)}");
+                    Console.WriteLine($"    ✓ dmx fix {Path.GetFileName(dmxPath)}: {string.Join(", ", parts)}");
                 }
             }
         }
@@ -4665,14 +4665,14 @@ internal static class Program
         }
     }
 
-    // Р’РЅРµРґСЂСЏРµС‚ РІ DmeModel РІРЅСѓС‚СЂРё СѓР¶Рµ Р·Р°РіСЂСѓР¶РµРЅРЅРѕРіРѕ `dm` РїСЂР°РІРёР»СЊРЅС‹Р№ СЃРєРµР»РµС‚:
+    // Внедряет в DmeModel внутри уже загруженного `dm` правильный скелет:
     //   JointList = [DmeJoint(bone0), ..., DmeJoint(boneN-1), <existing mesh DmeDag(s)>]
     //   Children  = [<root DmeJoint>..., <existing mesh DmeDag(s)>]
-    // РњСѓС‚РёСЂСѓРµС‚ СЃСѓС‰РµСЃС‚РІСѓСЋС‰РёР№ DmeModel.JointList / Children. Р’РѕР·РІСЂР°С‰Р°РµС‚ РєРѕР»-РІРѕ
-    // РґРѕР±Р°РІР»РµРЅРЅС‹С… DmeJoint, РёР»Рё 0 РµСЃР»Рё DMX СѓР¶Рµ РїСЂРѕРїР°С‚С‡РµРЅ / DmeModel РЅРµ РЅР°Р№РґРµРЅ.
+    // Мутирует существующий DmeModel.JointList / Children. Возвращает кол-во
+    // добавленных DmeJoint, или 0 если DMX уже пропатчен / DmeModel не найден.
     private static int InjectSkeletonIntoDmeModel(Datamodel.Datamodel dm, Skeleton skeleton)
     {
-        // РќР°С…РѕРґРёРј DmeModel РІ РґРµСЂРµРІРµ. РЈ DMX-mesh РѕРЅ РѕРґРёРЅ Рё РµРґРёРЅСЃС‚РІРµРЅРЅС‹Р№.
+        // Находим DmeModel в дереве. У DMX-mesh он один и единственный.
         Element? dmeModel = null;
         foreach (var elem in dm.AllElements)
         {
@@ -4682,13 +4682,13 @@ internal static class Program
         if (dmeModel["jointList"] is not ElementArray jointList) return 0;
         if (dmeModel["children"] is not ElementArray children) return 0;
 
-        // РРґРµРјРїРѕС‚РµРЅС‚РЅРѕСЃС‚СЊ: РµСЃР»Рё С…РѕС‚СЊ РѕРґРёРЅ DmeJoint СѓР¶Рµ РІ JointList вЂ” DMX СѓР¶Рµ РїР°С‚С‡РµРЅ.
+        // Идемпотентность: если хоть один DmeJoint уже в JointList — DMX уже патчен.
         for (int i = 0; i < jointList.Count; i++)
         {
             if (jointList[i] != null && jointList[i].ClassName == "DmeJoint") return 0;
         }
 
-        // РЎРѕС…СЂР°РЅСЏРµРј "РЅРµ-joint" entries (mesh DmeDag-Рё) вЂ” РёС… РІРµСЂРЅС‘Рј РїРѕСЃР»Рµ РєРѕСЃС‚РµР№.
+        // Сохраняем "не-joint" entries (mesh DmeDag-и) — их вернём после костей.
         var preservedJoints = new List<Element>(jointList.Count);
         for (int i = 0; i < jointList.Count; i++)
         {
@@ -4700,8 +4700,8 @@ internal static class Program
             if (children[i] != null) preservedChildren.Add(children[i]);
         }
 
-        // РЎС‚СЂРѕРёРј DmeJoint per bone вЂ” С‚РёРїС‹ public, .NET-РЅР°СЏ С„Р°Р±СЂРёРєР° СЃР°РјР°
-        // Р·Р°СЂРµРіРёСЃС‚СЂРёСЂСѓРµС‚ СЌР»РµРјРµРЅС‚С‹ РІ `dm` РїСЂРё РґРѕР±Р°РІР»РµРЅРёРё РІ ElementArray.
+        // Строим DmeJoint per bone — типы public, .NET-ная фабрика сама
+        // зарегистрирует элементы в `dm` при добавлении в ElementArray.
         var bones = skeleton.Bones;
         var jointByIndex = new DmeJoint[bones.Length];
         for (int i = 0; i < bones.Length; i++)
@@ -4711,12 +4711,12 @@ internal static class Program
             joint.Transform.Name = bone.Name;
             joint.Transform.Position = bone.Position;
             joint.Transform.Orientation = bone.Angle;
-            // Shape вЂ” РѕСЃС‚Р°РІР»СЏРµРј default (DmeShape), РѕРЅ РЅРµ РјРµС€Р°РµС‚ СЃРєРёРЅРЅРёРЅРіСѓ.
+            // Shape — оставляем default (DmeShape), он не мешает скиннингу.
             jointByIndex[bone.Index] = joint;
         }
 
-        // РРµСЂР°СЂС…РёСЏ: child bone в†’ parent.Children, root bone в†’ dmeModel.Children.
-        // РЎРЅР°С‡Р°Р»Р° СЃРѕР±РёСЂР°РµРј root bones РґР»СЏ children, parented bones вЂ” РІ parent.Children.
+        // Иерархия: child bone → parent.Children, root bone → dmeModel.Children.
+        // Сначала собираем root bones для children, parented bones — в parent.Children.
         var rootJoints = new List<DmeJoint>();
         for (int i = 0; i < bones.Length; i++)
         {
@@ -4732,12 +4732,12 @@ internal static class Program
             }
         }
 
-        // РџРµСЂРµР·Р°РїРёСЃС‹РІР°РµРј JointList: bones first (in bone.Index order), РїРѕС‚РѕРј mesh dags.
+        // Перезаписываем JointList: bones first (in bone.Index order), потом mesh dags.
         jointList.Clear();
         for (int i = 0; i < bones.Length; i++) jointList.Add(jointByIndex[i]);
         foreach (var meshDag in preservedJoints) jointList.Add(meshDag);
 
-        // РџРµСЂРµР·Р°РїРёСЃС‹РІР°РµРј Children: roots first, РїРѕС‚РѕРј СЃСѓС‰РµСЃС‚РІСѓСЋС‰РёРµ mesh dags.
+        // Перезаписываем Children: roots first, потом существующие mesh dags.
         children.Clear();
         foreach (var root in rootJoints) children.Add(root);
         foreach (var existing in preservedChildren) children.Add(existing);
@@ -4745,16 +4745,16 @@ internal static class Program
         return bones.Length;
     }
 
-    // Р—Р°РјРµРЅСЏРµС‚ РІ РїР°СЂРµ blendindices$N / blendweights$N РІСЃРµ РѕС‚СЂРёС†Р°С‚РµР»СЊРЅС‹Рµ РёРЅРґРµРєСЃС‹
-    // РЅР° 0 СЃ РѕР±РЅСѓР»РµРЅРёРµРј СЃРѕРѕС‚РІРµС‚СЃС‚РІСѓСЋС‰РµРіРѕ РІРµСЃР°. Р’РѕР·РІСЂР°С‰Р°РµС‚ РєРѕР»-РІРѕ РёР·РјРµРЅС‘РЅРЅС‹С… СЃР»РѕС‚РѕРІ.
-    // Datamodel.NET РјРѕР¶РµС‚ С…СЂР°РЅРёС‚СЊ РјР°СЃСЃРёРІС‹ РєР°Рє IntArray/FloatArray (CodecBinary 9)
-    // РР›Р РєР°Рє РіРѕР»С‹Рµ int[]/float[] (KV2/KV3 С‚РµРєСЃС‚), РїРѕСЌС‚РѕРјСѓ Р»РѕРІРёРј РѕР±Р° СЃР»СѓС‡Р°СЏ.
+    // Заменяет в паре blendindices$N / blendweights$N все отрицательные индексы
+    // на 0 с обнулением соответствующего веса. Возвращает кол-во изменённых слотов.
+    // Datamodel.NET может хранить массивы как IntArray/FloatArray (CodecBinary 9)
+    // ИЛИ как голые int[]/float[] (KV2/KV3 текст), поэтому ловим оба случая.
     private static int TryPatchBlendStream(Datamodel.Element elem, string indicesKey, string weightsKey)
     {
         var indicesObj = elem[indicesKey];
         var weightsObj = elem[weightsKey];
 
-        // РЎР»СѓС‡Р°Р№ 1: С‚РёРїРёР·РёСЂРѕРІР°РЅРЅС‹Рµ РѕР±С‘СЂС‚РєРё Datamodel.NET (binary 9 / model 22).
+        // Случай 1: типизированные обёртки Datamodel.NET (binary 9 / model 22).
         if (indicesObj is IntArray ia && weightsObj is FloatArray fa)
         {
             if (ia.Count != fa.Count) return 0;
@@ -4771,7 +4771,7 @@ internal static class Program
             return n;
         }
 
-        // РЎР»СѓС‡Р°Р№ 2: РіРѕР»С‹Рµ РјР°СЃСЃРёРІС‹ (РЅРµРєРѕС‚РѕСЂС‹Рµ РєРѕРґРµРєРё РёСЃРїРѕР»СЊР·СѓСЋС‚ int[]/float[]).
+        // Случай 2: голые массивы (некоторые кодеки используют int[]/float[]).
         if (indicesObj is int[] iarr && weightsObj is float[] farr)
         {
             if (iarr.Length != farr.Length) return 0;
@@ -4785,15 +4785,15 @@ internal static class Program
                     n++;
                 }
             }
-            // Р“РѕР»С‹Рµ РјР°СЃСЃРёРІС‹ вЂ” value type РЅР° СѓСЂРѕРІРЅРµ Element.SetValue РґРѕР»Р¶РµРЅ СЃРѕС…СЂР°РЅРёС‚СЊСЃСЏ,
-            // С‚.Рє. РјС‹ РјСѓС‚РёСЂРѕРІР°Р»Рё СЌР»РµРјРµРЅС‚С‹ РјР°СЃСЃРёРІР° РїРѕ РёРЅРґРµРєСЃСѓ in-place.
+            // Голые массивы — value type на уровне Element.SetValue должен сохраниться,
+            // т.к. мы мутировали элементы массива по индексу in-place.
             return n;
         }
 
         return 0;
     }
 
-    // в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ Include-deps (v5.1) в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ
+    // ───────────────────────────── Include-deps (v5.1) ─────────────────────────────
 
     private static List<string> GetAnimIncludeModelRefs(Model m)
     {
@@ -4846,7 +4846,7 @@ internal static class Program
         return result;
     }
 
-    // в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ Reflection / KV helpers в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ
+    // ───────────────────────────── Reflection / KV helpers ─────────────────────────────
 
     private static void SetPrivateProperty<T>(object target, string propertyName, T value)
     {
@@ -4889,11 +4889,11 @@ internal static class Program
         catch { return string.Empty; }
     }
 
-    // в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ Verbose summary в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ
+    // ───────────────────────────── Verbose summary ─────────────────────────────
 
     private static void PrintMergeSummary(MergeSummary s)
     {
-        Console.WriteLine("    в”Ђв”Ђ merge summary в”Ђв”Ђ");
+        Console.WriteLine("    ── merge summary ──");
         Console.WriteLine($"      .vmesh_c loaded         : {s.VmeshLoaded}");
         Console.WriteLine($"      .vmorf_c loaded         : {s.VmorfLoaded}");
         Console.WriteLine($"      hitboxes merged         : {s.HitboxesMerged}");
@@ -4915,7 +4915,7 @@ internal static class Program
         Console.WriteLine($"      framerate injects       : {s.FrameRatesInjected}");
     }
 
-    // в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ Deep dep extraction в”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђв”Ђ
+    // ───────────────────────────── Deep dep extraction ─────────────────────────────
 
     private static void ExtractDepsRecursive(
         Resource topResource, string modelFolder,
@@ -4937,13 +4937,13 @@ internal static class Program
             if (bytes == null)
             {
                 rawMissing++;
-                if (verbose) Console.Error.WriteLine($"    в†і RAW  miss {compiledPath}");
+                if (verbose) Console.Error.WriteLine($"    ↳ RAW  miss {compiledPath}");
                 continue;
             }
 
             File.WriteAllBytes(Path.Combine(modelFolder, Path.GetFileName(compiledPath)), bytes);
             rawCopied++;
-            if (verbose) Console.WriteLine($"    в†і RAW  {Path.GetFileName(compiledPath)} ({bytes.Length / 1024} KB)");
+            if (verbose) Console.WriteLine($"    ↳ RAW  {Path.GetFileName(compiledPath)} ({bytes.Length / 1024} KB)");
 
             Resource? depResource = null;
             try
@@ -4974,7 +4974,7 @@ internal static class Program
                     var srcName = Path.GetFileNameWithoutExtension(compiledPath) + "." + srcExt;
                     File.WriteAllBytes(Path.Combine(modelFolder, srcName), depContent.Data);
                     sourceTexts++;
-                    if (verbose) Console.WriteLine($"          в†і SRC  {srcName} ({depContent.Data.Length / 1024} KB)");
+                    if (verbose) Console.WriteLine($"          ↳ SRC  {srcName} ({depContent.Data.Length / 1024} KB)");
                 }
                 foreach (var dsub in depContent.SubFiles)
                 {
@@ -4987,7 +4987,7 @@ internal static class Program
                         File.WriteAllBytes(Path.Combine(modelFolder, dsubName), dsubData);
                         writtenDmx.Add(dsubName);
                         deepDmx++;
-                        if (verbose) Console.WriteLine($"          в†і DMX  {dsubName} ({dsubData.Length / 1024} KB) (deep)");
+                        if (verbose) Console.WriteLine($"          ↳ DMX  {dsubName} ({dsubData.Length / 1024} KB) (deep)");
                     }
                     catch (Exception ex)
                     {
@@ -5016,7 +5016,7 @@ internal static class Program
                                 File.WriteAllBytes(Path.Combine(modelFolder, dmxName), dmxBytes);
                                 writtenDmx.Add(dmxName);
                                 deepDmx++;
-                                if (verbose) Console.WriteLine($"          в†і DMX* {dmxName} ({dmxBytes.Length / 1024} KB) (direct ToDmxMesh)");
+                                if (verbose) Console.WriteLine($"          ↳ DMX* {dmxName} ({dmxBytes.Length / 1024} KB) (direct ToDmxMesh)");
                             }
                         }
                     }
@@ -5046,7 +5046,7 @@ internal static class Program
                                 File.WriteAllBytes(Path.Combine(modelFolder, psubName), psubData);
                                 writtenDmx.Add(psubName);
                                 deepDmx++;
-                                if (verbose) Console.WriteLine($"          в†і DMX* {psubName} ({psubData.Length / 1024} KB) (direct phys)");
+                                if (verbose) Console.WriteLine($"          ↳ DMX* {psubName} ({psubData.Length / 1024} KB) (direct phys)");
                             }
                             catch { }
                         }
@@ -5120,11 +5120,11 @@ internal static class Program
     private static void PrintHelp()
     {
         Console.WriteLine(
-            "VmdlExtractor v5.3 вЂ” full ModelDoc-compatible decompilation of Source 2 .vmdl_c models.\n" +
+            "VmdlExtractor v5.3 — full ModelDoc-compatible decompilation of Source 2 .vmdl_c models.\n" +
             "Merges Skeleton (with .vmesh_c m_skeleton fallback), HitboxSetList, AttachmentList,\n" +
             "FlexControllers (incl. external .vmorf_c) and PhysicsShapeList (incl. additional\n" +
             ".vphys_c). Sanitizes empty resource refs and broken AutoLayer references, and\n" +
-            "recursively decompiles m_refAnimIncludeModels вЂ” so ModelDoc compile passes cleanly.\n\n" +
+            "recursively decompiles m_refAnimIncludeModels — so ModelDoc compile passes cleanly.\n\n" +
             "Modes (auto-detected by --input):\n" +
             "  VPK mode:    --input ends with .vpk\n" +
             "  Folder mode: --input is a directory (game root with extracted compiled assets)\n" +
@@ -5195,7 +5195,7 @@ internal static class Program
             "    --copy-from \"models/heroes/shadow_fiend/shadow_fiend_arcana\" ^\n" +
             "    --build -v\n" +
             "\n" +
-            "  This single command: extracts в†’ copies в†’ compiles в†’ motion-patches в†’ ready in game.\n" +
-            "  Do NOT open ModelDoc afterwards вЂ” its Save & Build will overwrite the motion patch.");
+            "  This single command: extracts → copies → compiles → motion-patches → ready in game.\n" +
+            "  Do NOT open ModelDoc afterwards — its Save & Build will overwrite the motion patch.");
     }
 }
