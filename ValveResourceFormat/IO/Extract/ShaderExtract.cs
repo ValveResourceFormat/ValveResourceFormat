@@ -1026,6 +1026,11 @@ public sealed class ShaderExtract
                 : string.Empty;
 
             writer.WriteLine($"Feature( {feature.Name}, {feature.RangeMin}..{feature.RangeMax}{stateNames}, \"{feature.AliasName}\" );");
+
+            if (feature.IsFeatureUpgrade)
+            {
+                writer.WriteLine($"FeatureUpgrade( {feature.Name}, {feature.FeatureUpgradeValue} );");
+            }
         }
 
         HandleRules(VfxRuleType.Feature,

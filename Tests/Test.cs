@@ -175,6 +175,7 @@ namespace Tests
         [
             "dota.vmap_c",
             "empty_data.vjs_c",
+            "sbox66_fur.shader_c",
             "sbox_visualize_quad_overdraw.shader_c",
         ];
 

@@ -6,6 +6,7 @@ using TUnit.Assertions.Enums;
 using ValveResourceFormat;
 using ValveResourceFormat.CompiledShader;
 using ValveResourceFormat.IO;
+using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Utils;
 using static ValveResourceFormat.CompiledShader.ShaderUtilHelpers;
 
@@ -483,6 +484,33 @@ namespace Tests
                 await Assert.That(vfx.VfxContent).Contains("Description = \"Error shader\"");
                 await Assert.That(vfx.VfxContent).Contains("DevShader = true");
             }
+        }
+
+        [Test]
+        public async Task SboxShaderVersion66()
+        {
+            var path = Path.Combine(TestContext.TestDirectory!, "Files", "sbox66_fur.shader_c");
+            using var resource = new Resource();
+            resource.Read(path);
+
+            var shaderBlock = (SboxShader)resource.GetBlockByType(BlockType.SPRV)!;
+            var features = shaderBlock.Shaders.Features;
+
+            await Assert.That(features).IsNotNull();
+
+            var upgradeFeature = features!.StaticComboArray.Single(c => c.Name == "F_NEW_TEXTURE_PACKING");
+            await Assert.That(upgradeFeature.IsFeatureUpgrade).IsTrue();
+            await Assert.That(upgradeFeature.FeatureUpgradeValue).IsEqualTo(1);
+
+            var normalFeature = features.StaticComboArray.Single(c => c.Name == "F_DO_NOT_CAST_SHADOWS");
+            await Assert.That(normalFeature.AliasName).IsEqualTo("Rendering");
+            await Assert.That(normalFeature.IsFeatureUpgrade).IsFalse();
+
+            var extract = new ShaderExtract(shaderBlock.Shaders);
+            var vfx = extract.ToVFX(ShaderExtract.ShaderExtractParams.Inspect);
+
+            await Assert.That(vfx.VfxContent).Contains("FeatureUpgrade( F_NEW_TEXTURE_PACKING, 1 );");
+            await Assert.That(vfx.VfxContent).Contains("Feature( F_DO_NOT_CAST_SHADOWS, 0..1, \"Rendering\" );");
         }
 
         public static IEnumerable<(string, int, int)> SpirvReflectionTestCases()
