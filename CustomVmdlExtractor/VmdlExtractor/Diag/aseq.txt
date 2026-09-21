@@ -1,0 +1,5455 @@
+<!-- kv3 encoding:text:version{e21c7f3c-8a33-41c5-9977-a76d3a32aa0d} format:generic:version{7412167c-06e9-4698-aff2-e63eb59037e7} -->
+{
+	m_sName = "!embedded_sequence_data!models/heroes/shadow_fiend/shadow_fiend.vmdl"
+	m_nFlags = 0
+	m_localSequenceNameArray = 
+	[
+		"bindpose",
+		"portrait",
+		"attack01_injured",
+		"attack02_injured",
+		"death",
+		"loadout",
+		"spawn",
+		"teleport_end",
+		"forcestaff_enemy",
+		"forcestaff_end",
+		"forcestaff_end_injured",
+		"attack01_anim",
+		"attack01_fast",
+		"attack01_faster",
+		"attack01_fastest",
+		"attack02_anim",
+		"attack02_fast",
+		"attack02_faster",
+		"attack02_fastest",
+		"defeat",
+		"pose01",
+		"versus_attack",
+		"idle_anim",
+		"idle_rare_anim",
+		"idle_injured_anim",
+		"cast1_shadowraze_a_anim",
+		"cast1_shadowraze_b_anim",
+		"cast1_shadowraze_c_anim",
+		"cast6_requiem_anim",
+		"stun_anim",
+		"flail_anim",
+		"loadout_spawn_anim",
+		"teleport_anim",
+		"forcestaff_anim",
+		"victory_anim",
+		"@turns",
+		"@run_anim",
+		"@run_haste_anim",
+		"@run_injured_anim",
+		"generic_channel",
+		"@turns_lookframe_0",
+		"@turns_lookframe_1",
+		"@turns_lookframe_2",
+		"run_anim",
+		"@@run_anim",
+		"run_haste_anim",
+		"@@run_haste_anim",
+		"run_injured_anim",
+		"@@run_injured_anim",
+		"cast1_shadowraze_a_desolation",
+		"cast1_shadowraze_b_desolation",
+		"cast1_shadowraze_c_desolation",
+		"@run_injured_desolation",
+		"@run_fast_desolation_base",
+		"@run_alt_fast_desolation",
+		"@run_fast_desolation",
+		"@run_haste_desolation_anim",
+		"@run_alt_desolation_anim",
+		"@run_desolation",
+		"taunt_fiendish_swag_anim",
+		"loadout_desolation",
+		"loadout_spawn_desolation",
+		"run_desolation",
+		"@@run_desolation",
+		"run_alt_desolation_anim",
+		"@@run_alt_desolation_anim",
+		"run_haste_desolation_anim",
+		"@@run_haste_desolation_anim",
+		"run_fast_desolation",
+		"@@run_fast_desolation",
+		"run_alt_fast_desolation",
+		"@@run_alt_fast_desolation",
+		"run_fast_desolation_base",
+		"@@run_fast_desolation_base",
+		"run_injured_desolation",
+		"@@run_injured_desolation",
+		"run",
+		"run_haste",
+		"run_injured",
+		"idle",
+		"idle_rare",
+		"idle_injured",
+		"cast1_shadowraze_a",
+		"cast1_shadowraze_b",
+		"cast1_shadowraze_c",
+		"cast6_requiem",
+		"attack01",
+		"attack02",
+		"stun",
+		"flail",
+		"loadout_spawn",
+		"teleport",
+		"forcestaff",
+		"victory",
+		"taunt_fiendish_swag",
+		"run_alt_desolation",
+		"run_haste_desolation",
+		"turns",
+	]
+	m_localS1SeqDescArray = 
+	[
+		{
+			m_sName = "bindPose"
+			m_flags = 
+			{
+				m_bLooping = false
+				m_bSnap = false
+				m_bAutoplay = false
+				m_bPost = false
+				m_bHidden = false
+				m_bMulti = false
+				m_bLegacyDelta = false
+				m_bLegacyWorldspace = false
+				m_bLegacyCyclepose = false
+				m_bLegacyRealtime = false
+				m_bModelDoc = true
+			}
+			m_fetch = 
+			{
+				m_flags = 
+				{
+					m_bRealtime = false
+					m_bCylepose = false
+					m_b0D = true
+					m_b1D = false
+					m_b2D = false
+					m_b2D_TRI = false
+				}
+				m_localReferenceArray = [  ]
+				m_nGroupSize = [ 0, 0 ]
+				m_nLocalPose = [ -1, -1 ]
+				m_poseKeyArray0 = [  ]
+				m_poseKeyArray1 = [  ]
+				m_nLocalCyclePoseParameter = -1
+				m_bCalculatePoseParameters = false
+			}
+			m_nLocalWeightlist = 2
+			m_autoLayerArray = [  ]
+			m_IKLockArray = [  ]
+			m_transition = 
+			{
+				m_flFadeInTime = 0.2
+				m_flFadeOutTime = 0.2
+			}
+			m_SequenceKeys = 
+			{
+				keyvalues = 
+				{
+					numframes = 1
+					fps = 30.0
+				}
+			}
+			m_keyValueText = ""
+			m_activityArray = [  ]
+			m_footMotion = [  ]
+		},
+		{
+			m_sName = "portrait"
+			m_flags = 
+			{
+				m_bLooping = true
+				m_bSnap = false
+				m_bAutoplay = false
+				m_bPost = false
+				m_bHidden = false
+				m_bMulti = false
+				m_bLegacyDelta = false
+				m_bLegacyWorldspace = false
+				m_bLegacyCyclepose = false
+				m_bLegacyRealtime = false
+				m_bModelDoc = true
+			}
+			m_fetch = 
+			{
+				m_flags = 
+				{
+					m_bRealtime = false
+					m_bCylepose = false
+					m_b0D = true
+					m_b1D = false
+					m_b2D = false
+					m_b2D_TRI = false
+				}
+				m_localReferenceArray = [ 1 ]
+				m_nGroupSize = [ 1, 1 ]
+				m_nLocalPose = [ -1, -1 ]
+				m_poseKeyArray0 = [ 0.0 ]
+				m_poseKeyArray1 = [ 0.0 ]
+				m_nLocalCyclePoseParameter = -1
+				m_bCalculatePoseParameters = false
+			}
+			m_nLocalWeightlist = 0
+			m_autoLayerArray = [  ]
+			m_IKLockArray = [  ]
+			m_transition = 
+			{
+				m_flFadeInTime = 0.2
+				m_flFadeOutTime = 0.2
+			}
+			m_SequenceKeys = null
+			m_keyValueText = ""
+			m_activityArray = 
+			[
+				{
+					m_name = "ACT_DOTA_CAPTURE"
+					m_nActivity = 0
+					m_nFlags = 0
+					m_nWeight = 1
+				},
+			]
+			m_footMotion = [  ]
+		},
+		{
+			m_sName = "attack01_injured"
+			m_flags = 
+			{
+				m_bLooping = false
+				m_bSnap = false
+				m_bAutoplay = false
+				m_bPost = false
+				m_bHidden = false
+				m_bMulti = false
+				m_bLegacyDelta = false
+				m_bLegacyWorldspace = false
+				m_bLegacyCyclepose = false
+				m_bLegacyRealtime = false
+				m_bModelDoc = true
+			}
+			m_fetch = 
+			{
+				m_flags = 
+				{
+					m_bRealtime = false
+					m_bCylepose = false
+					m_b0D = true
+					m_b1D = false
+					m_b2D = false
+					m_b2D_TRI = false
+				}
+				m_localReferenceArray = [ 2 ]
+				m_nGroupSize = [ 1, 1 ]
+				m_nLocalPose = [ -1, -1 ]
+				m_poseKeyArray0 = [ 0.0 ]
+				m_poseKeyArray1 = [ 0.0 ]
+				m_nLocalCyclePoseParameter = -1
+				m_bCalculatePoseParameters = false
+			}
+			m_nLocalWeightlist = 0
+			m_autoLayerArray = [  ]
+			m_IKLockArray = [  ]
+			m_transition = 
+			{
+				m_flFadeInTime = 0.2
+				m_flFadeOutTime = 0.2
+			}
+			m_SequenceKeys = null
+			m_keyValueText = ""
+			m_activityArray = 
+			[
+				{
+					m_name = "ACT_DOTA_ATTACK"
+					m_nActivity = 0
+					m_nFlags = 0
+					m_nWeight = 1
+				},
+				{
+					m_name = "injured"
+					m_nActivity = 0
+					m_nFlags = 0
+					m_nWeight = 1
+				},
+			]
+			m_footMotion = [  ]
+		},
+		{
+			m_sName = "attack02_injured"
+			m_flags = 
+			{
+				m_bLooping = false
+				m_bSnap = false
+				m_bAutoplay = false
+				m_bPost = false
+				m_bHidden = false
+				m_bMulti = false
+				m_bLegacyDelta = false
+				m_bLegacyWorldspace = false
+				m_bLegacyCyclepose = false
+				m_bLegacyRealtime = false
+				m_bModelDoc = true
+			}
+			m_fetch = 
+			{
+				m_flags = 
+				{
+					m_bRealtime = false
+					m_bCylepose = false
+					m_b0D = true
+					m_b1D = false
+					m_b2D = false
+					m_b2D_TRI = false
+				}
+				m_localReferenceArray = [ 3 ]
+				m_nGroupSize = [ 1, 1 ]
+				m_nLocalPose = [ -1, -1 ]
+				m_poseKeyArray0 = [ 0.0 ]
+				m_poseKeyArray1 = [ 0.0 ]
+				m_nLocalCyclePoseParameter = -1
+				m_bCalculatePoseParameters = false
+			}
+			m_nLocalWeightlist = 0
+			m_autoLayerArray = [  ]
+			m_IKLockArray = [  ]
+			m_transition = 
+			{
+				m_flFadeInTime = 0.2
+				m_flFadeOutTime = 0.2
+			}
+			m_SequenceKeys = null
+			m_keyValueText = ""
+			m_activityArray = 
+			[
+				{
+					m_name = "ACT_DOTA_ATTACK2"
+					m_nActivity = 0
+					m_nFlags = 0
+					m_nWeight = 1
+				},
+				{
+					m_name = "injured"
+					m_nActivity = 0
+					m_nFlags = 0
+					m_nWeight = 1
+				},
+			]
+			m_footMotion = [  ]
+		},
+		{
+			m_sName = "death"
+			m_flags = 
+			{
+				m_bLooping = false
+				m_bSnap = false
+				m_bAutoplay = false
+				m_bPost = false
+				m_bHidden = false
+				m_bMulti = false
+				m_bLegacyDelta = false
+				m_bLegacyWorldspace = false
+				m_bLegacyCyclepose = false
+				m_bLegacyRealtime = false
+				m_bModelDoc = true
+			}
+			m_fetch = 
+			{
+				m_flags = 
+				{
+					m_bRealtime = false
+					m_bCylepose = false
+					m_b0D = true
+					m_b1D = false
+					m_b2D = false
+					m_b2D_TRI = false
+				}
+				m_localReferenceArray = [ 4 ]
+				m_nGroupSize = [ 1, 1 ]
+				m_nLocalPose = [ -1, -1 ]
+				m_poseKeyArray0 = [ 0.0 ]
+				m_poseKeyArray1 = [ 0.0 ]
+				m_nLocalCyclePoseParameter = -1
+				m_bCalculatePoseParameters = false
+			}
+			m_nLocalWeightlist = 0
+			m_autoLayerArray = [  ]
+			m_IKLockArray = [  ]
+			m_transition = 
+			{
+				m_flFadeInTime = 0.2
+				m_flFadeOutTime = 0.2
+			}
+			m_SequenceKeys = null
+			m_keyValueText = ""
+			m_activityArray = 
+			[
+				{
+					m_name = "ACT_DOTA_DIE"
+					m_nActivity = 0
+					m_nFlags = 0
+					m_nWeight = 1
+				},
+			]
+			m_footMotion = [  ]
+		},
+		{
+			m_sName = "loadout"
+			m_flags = 
+			{
+				m_bLooping = true
+				m_bSnap = false
+				m_bAutoplay = false
+				m_bPost = false
+				m_bHidden = false
+				m_bMulti = false
+				m_bLegacyDelta = false
+				m_bLegacyWorldspace = false
+				m_bLegacyCyclepose = false
+				m_bLegacyRealtime = false
+				m_bModelDoc = true
+			}
+			m_fetch = 
+			{
+				m_flags = 
+				{
+					m_bRealtime = false
+					m_bCylepose = false
+					m_b0D = true
+					m_b1D = false
+					m_b2D = false
+					m_b2D_TRI = false
+				}
+				m_localReferenceArray = [ 5 ]
+				m_nGroupSize = [ 1, 1 ]
+				m_nLocalPose = [ -1, -1 ]
+				m_poseKeyArray0 = [ 0.0 ]
+				m_poseKeyArray1 = [ 0.0 ]
+				m_nLocalCyclePoseParameter = -1
+				m_bCalculatePoseParameters = false
+			}
+			m_nLocalWeightlist = 0
+			m_autoLayerArray = [  ]
+			m_IKLockArray = [  ]
+			m_transition = 
+			{
+				m_flFadeInTime = 0.2
+				m_flFadeOutTime = 0.2
+			}
+			m_SequenceKeys = null
+			m_keyValueText = ""
+			m_activityArray = 
+			[
+				{
+					m_name = "ACT_DOTA_LOADOUT"
+					m_nActivity = 0
+					m_nFlags = 0
+					m_nWeight = 1
+				},
+			]
+			m_footMotion = [  ]
+		},
+		{
+			m_sName = "spawn"
+			m_flags = 
+			{
+				m_bLooping = false
+				m_bSnap = false
+				m_bAutoplay = false
+				m_bPost = false
+				m_bHidden = false
+				m_bMulti = false
+				m_bLegacyDelta = false
+				m_bLegacyWorldspace = false
+				m_bLegacyCyclepose = false
+				m_bLegacyRealtime = false
+				m_bModelDoc = true
+			}
+			m_fetch = 
+			{
+				m_flags = 
+				{
+					m_bRealtime = false
+					m_bCylepose = false
+					m_b0D = true
+					m_b1D = false
+					m_b2D = false
+					m_b2D_TRI = false
+				}
+				m_localReferenceArray = [ 6 ]
+				m_nGroupSize = [ 1, 1 ]
+				m_nLocalPose = [ -1, -1 ]
+				m_poseKeyArray0 = [ 0.0 ]
+				m_poseKeyArray1 = [ 0.0 ]
+				m_nLocalCyclePoseParameter = -1
+				m_bCalculatePoseParameters = false
+			}
+			m_nLocalWeightlist = 0
+			m_autoLayerArray = [  ]
+			m_IKLockArray = [  ]
+			m_transition = 
+			{
+				m_flFadeInTime = 0.2
+				m_flFadeOutTime = 0.2
+			}
+			m_SequenceKeys = null
+			m_keyValueText = ""
+			m_activityArray = 
+			[
+				{
+					m_name = "ACT_DOTA_SPAWN"
+					m_nActivity = 0
+					m_nFlags = 0
+					m_nWeight = 1
+				},
+			]
+			m_footMotion = [  ]
+		},
+		{
+			m_sName = "teleport_end"
+			m_flags = 
+			{
+				m_bLooping = false
+				m_bSnap = false
+				m_bAutoplay = false
+				m_bPost = false
+				m_bHidden = false
+				m_bMulti = false
+				m_bLegacyDelta = false
+				m_bLegacyWorldspace = false
+				m_bLegacyCyclepose = false
+				m_bLegacyRealtime = false
+				m_bModelDoc = true
+			}
+			m_fetch = 
+			{
+				m_flags = 
+				{
+					m_bRealtime = false
+					m_bCylepose = false
+					m_b0D = true
+					m_b1D = false
+					m_b2D = false
+					m_b2D_TRI = false
+				}
+				m_localReferenceArray = [ 7 ]
+				m_nGroupSize = [ 1, 1 ]
+				m_nLocalPose = [ -1, -1 ]
+				m_poseKeyArray0 = [ 0.0 ]
+				m_poseKeyArray1 = [ 0.0 ]
+				m_nLocalCyclePoseParameter = -1
+				m_bCalculatePoseParameters = false
+			}
+			m_nLocalWeightlist = 0
+			m_autoLayerArray = [  ]
+			m_IKLockArray = [  ]
+			m_transition = 
+			{
+				m_flFadeInTime = 0.2
+				m_flFadeOutTime = 0.2
+			}
+			m_SequenceKeys = null
+			m_keyValueText = ""
+			m_activityArray = 
+			[
+				{
+					m_name = "ACT_DOTA_TELEPORT_END"
+					m_nActivity = 0
+					m_nFlags = 0
+					m_nWeight = 1
+				},
+			]
+			m_footMotion = [  ]
+		},
+		{
+			m_sName = "forcestaff_enemy"
+			m_flags = 
+			{
+				m_bLooping = true
+				m_bSnap = false
+				m_bAutoplay = false
+				m_bPost = false
+				m_bHidden = false
+				m_bMulti = false
+				m_bLegacyDelta = false
+				m_bLegacyWorldspace = false
+				m_bLegacyCyclepose = false
+				m_bLegacyRealtime = false
+				m_bModelDoc = true
+			}
+			m_fetch = 
+			{
+				m_flags = 
+				{
+					m_bRealtime = false
+					m_bCylepose = false
+					m_b0D = true
+					m_b1D = false
+					m_b2D = false
+					m_b2D_TRI = false
+				}
+				m_localReferenceArray = [ 8 ]
+				m_nGroupSize = [ 1, 1 ]
+				m_nLocalPose = [ -1, -1 ]
+				m_poseKeyArray0 = [ 0.0 ]
+				m_poseKeyArray1 = [ 0.0 ]
+				m_nLocalCyclePoseParameter = -1
+				m_bCalculatePoseParameters = false
+			}
+			m_nLocalWeightlist = 0
+			m_autoLayerArray = [  ]
+			m_IKLockArray = [  ]
+			m_transition = 
+			{
+				m_flFadeInTime = 0.2
+				m_flFadeOutTime = 0.2
+			}
+			m_SequenceKeys = null
+			m_keyValueText = ""
+			m_activityArray = 
+			[
+				{
+					m_name = "ACT_DOTA_FLAIL"
+					m_nActivity = 0
+					m_nFlags = 0
+					m_nWeight = 1
+				},
+				{
+					m_name = "forcestaff_enemy"
+					m_nActivity = 0
+					m_nFlags = 0
+					m_nWeight = 1
+				},
+			]
+			m_footMotion = [  ]
+		},
+		{
+			m_sName = "forcestaff_end"
+			m_flags = 
+			{
+				m_bLooping = false
+				m_bSnap = false
+				m_bAutoplay = false
+				m_bPost = false
+				m_bHidden = false
+				m_bMulti = false
+				m_bLegacyDelta = false
+				m_bLegacyWorldspace = false
+				m_bLegacyCyclepose = false
+				m_bLegacyRealtime = false
+				m_bModelDoc = true
+			}
+			m_fetch = 
+			{
+				m_flags = 
+				{
+					m_bRealtime = false
+					m_bCylepose = false
+					m_b0D = true
+					m_b1D = false
+					m_b2D = false
+					m_b2D_TRI = false
+				}
+				m_localReferenceArray = [ 9 ]
+				m_nGroupSize = [ 1, 1 ]
+				m_nLocalPose = [ -1, -1 ]
+				m_poseKeyArray0 = [ 0.0 ]
+				m_poseKeyArray1 = [ 0.0 ]
+				m_nLocalCyclePoseParameter = -1
+				m_bCalculatePoseParameters = false
+			}
+			m_nLocalWeightlist = 0
+			m_autoLayerArray = [  ]
+			m_IKLockArray = [  ]
+			m_transition = 
+			{
+				m_flFadeInTime = 0.2
+				m_flFadeOutTime = 0.2
+			}
+			m_SequenceKeys = null
+			m_keyValueText = ""
+			m_activityArray = 
+			[
+				{
+					m_name = "ACT_DOTA_FORCESTAFF_END"
+					m_nActivity = 0
+					m_nFlags = 0
+					m_nWeight = 1
+				},
+			]
+			m_footMotion = [  ]
+		},
+		{
+			m_sName = "forcestaff_end_injured"
+			m_flags = 
+			{
+				m_bLooping = false
+				m_bSnap = false
+				m_bAutoplay = false
+				m_bPost = false
+				m_bHidden = false
+				m_bMulti = false
+				m_bLegacyDelta = false
+				m_bLegacyWorldspace = false
+				m_bLegacyCyclepose = false
+				m_bLegacyRealtime = false
+				m_bModelDoc = true
+			}
+			m_fetch = 
+			{
+				m_flags = 
+				{
+					m_bRealtime = false
+					m_bCylepose = false
+					m_b0D = true
+					m_b1D = false
+					m_b2D = false
+					m_b2D_TRI = false
+				}
+				m_localReferenceArray = [ 10 ]
+				m_nGroupSize = [ 1, 1 ]
+				m_nLocalPose = [ -1, -1 ]
+				m_poseKeyArray0 = [ 0.0 ]
+				m_poseKeyArray1 = [ 0.0 ]
+				m_nLocalCyclePoseParameter = -1
+				m_bCalculatePoseParameters = false
+			}
+			m_nLocalWeightlist = 0
+			m_autoLayerArray = [  ]
+			m_IKLockArray = [  ]
+			m_transition = 
+			{
+				m_flFadeInTime = 0.2
+				m_flFadeOutTime = 0.2
+			}
+			m_SequenceKeys = null
+			m_keyValueText = ""
+			m_activityArray = 
+			[
+				{
+					m_name = "ACT_DOTA_FORCESTAFF_END"
+					m_nActivity = 0
+					m_nFlags = 0
+					m_nWeight = 1
+				},
+				{
+					m_name = "injured"
+					m_nActivity = 0
+					m_nFlags = 0
+					m_nWeight = 1
+				},
+			]
+			m_footMotion = [  ]
+		},
+		{
+			m_sName = "attack01_anim"
+			m_flags = 
+			{
+				m_bLooping = false
+				m_bSnap = false
+				m_bAutoplay = false
+				m_bPost = false
+				m_bHidden = false
+				m_bMulti = false
+				m_bLegacyDelta = false
+				m_bLegacyWorldspace = false
+				m_bLegacyCyclepose = false
+				m_bLegacyRealtime = false
+				m_bModelDoc = true
+			}
+			m_fetch = 
+			{
+				m_flags = 
+				{
+					m_bRealtime = false
+					m_bCylepose = false
+					m_b0D = true
+					m_b1D = false
+					m_b2D = false
+					m_b2D_TRI = false
+				}
+				m_localReferenceArray = [ 11 ]
+				m_nGroupSize = [ 1, 1 ]
+				m_nLocalPose = [ -1, -1 ]
+				m_poseKeyArray0 = [ 0.0 ]
+				m_poseKeyArray1 = [ 0.0 ]
+				m_nLocalCyclePoseParameter = -1
+				m_bCalculatePoseParameters = false
+			}
+			m_nLocalWeightlist = 0
+			m_autoLayerArray = [  ]
+			m_IKLockArray = [  ]
+			m_transition = 
+			{
+				m_flFadeInTime = 0.2
+				m_flFadeOutTime = 0.2
+			}
+			m_SequenceKeys = null
+			m_keyValueText = ""
+			m_activityArray = 
+			[
+				{
+					m_name = "ACT_DOTA_ATTACK"
+					m_nActivity = 0
+					m_nFlags = 0
+					m_nWeight = 1
+				},
+			]
+			m_footMotion = [  ]
+		},
+		{
+			m_sName = "attack01_fast"
+			m_flags = 
+			{
+				m_bLooping = false
+				m_bSnap = false
+				m_bAutoplay = false
+				m_bPost = false
+				m_bHidden = false
+				m_bMulti = false
+				m_bLegacyDelta = false
+				m_bLegacyWorldspace = false
+				m_bLegacyCyclepose = false
+				m_bLegacyRealtime = false
+				m_bModelDoc = true
+			}
+			m_fetch = 
+			{
+				m_flags = 
+				{
+					m_bRealtime = false
+					m_bCylepose = false
+					m_b0D = true
+					m_b1D = false
+					m_b2D = false
+					m_b2D_TRI = false
+				}
+				m_localReferenceArray = [ 12 ]
+				m_nGroupSize = [ 1, 1 ]
+				m_nLocalPose = [ -1, -1 ]
+				m_poseKeyArray0 = [ 0.0 ]
+				m_poseKeyArray1 = [ 0.0 ]
+				m_nLocalCyclePoseParameter = -1
+				m_bCalculatePoseParameters = false
+			}
+			m_nLocalWeightlist = 0
+			m_autoLayerArray = [  ]
+			m_IKLockArray = [  ]
+			m_transition = 
+			{
+				m_flFadeInTime = 0.2
+				m_flFadeOutTime = 0.2
+			}
+			m_SequenceKeys = null
+			m_keyValueText = ""
+			m_activityArray = 
+			[
+				{
+					m_name = "ACT_DOTA_ATTACK"
+					m_nActivity = 0
+					m_nFlags = 0
+					m_nWeight = 1
+				},
+				{
+					m_name = "fast"
+					m_nActivity = 0
+					m_nFlags = 0
+					m_nWeight = 1
+				},
+			]
+			m_footMotion = [  ]
+		},
+		{
+			m_sName = "attack01_faster"
+			m_flags = 
+			{
+				m_bLooping = false
+				m_bSnap = false
+				m_bAutoplay = false
+				m_bPost = false
+				m_bHidden = false
+				m_bMulti = false
+				m_bLegacyDelta = false
+				m_bLegacyWorldspace = false
+				m_bLegacyCyclepose = false
+				m_bLegacyRealtime = false
+				m_bModelDoc = true
+			}
+			m_fetch = 
+			{
+				m_flags = 
+				{
+					m_bRealtime = false
+					m_bCylepose = false
+					m_b0D = true
+					m_b1D = false
+					m_b2D = false
+					m_b2D_TRI = false
+				}
+				m_localReferenceArray = [ 13 ]
+				m_nGroupSize = [ 1, 1 ]
+				m_nLocalPose = [ -1, -1 ]
+				m_poseKeyArray0 = [ 0.0 ]
+				m_poseKeyArray1 = [ 0.0 ]
+				m_nLocalCyclePoseParameter = -1
+				m_bCalculatePoseParameters = false
+			}
+			m_nLocalWeightlist = 0
+			m_autoLayerArray = [  ]
+			m_IKLockArray = [  ]
+			m_transition = 
+			{
+				m_flFadeInTime = 0.2
+				m_flFadeOutTime = 0.2
+			}
+			m_SequenceKeys = null
+			m_keyValueText = ""
+			m_activityArray = 
+			[
+				{
+					m_name = "ACT_DOTA_ATTACK"
+					m_nActivity = 0
+					m_nFlags = 0
+					m_nWeight = 1
+				},
+				{
+					m_name = "faster"
+					m_nActivity = 0
+					m_nFlags = 0
+					m_nWeight = 1
+				},
+			]
+			m_footMotion = [  ]
+		},
+		{
+			m_sName = "attack01_fastest"
+			m_flags = 
+			{
+				m_bLooping = false
+				m_bSnap = false
+				m_bAutoplay = false
+				m_bPost = false
+				m_bHidden = false
+				m_bMulti = false
+				m_bLegacyDelta = false
+				m_bLegacyWorldspace = false
+				m_bLegacyCyclepose = false
+				m_bLegacyRealtime = false
+				m_bModelDoc = true
+			}
+			m_fetch = 
+			{
+				m_flags = 
+				{
+					m_bRealtime = false
+					m_bCylepose = false
+					m_b0D = true
+					m_b1D = false
+					m_b2D = false
+					m_b2D_TRI = false
+				}
+				m_localReferenceArray = [ 14 ]
+				m_nGroupSize = [ 1, 1 ]
+				m_nLocalPose = [ -1, -1 ]
+				m_poseKeyArray0 = [ 0.0 ]
+				m_poseKeyArray1 = [ 0.0 ]
+				m_nLocalCyclePoseParameter = -1
+				m_bCalculatePoseParameters = false
+			}
+			m_nLocalWeightlist = 0
+			m_autoLayerArray = [  ]
+			m_IKLockArray = [  ]
+			m_transition = 
+			{
+				m_flFadeInTime = 0.2
+				m_flFadeOutTime = 0.2
+			}
+			m_SequenceKeys = null
+			m_keyValueText = ""
+			m_activityArray = 
+			[
+				{
+					m_name = "ACT_DOTA_ATTACK"
+					m_nActivity = 0
+					m_nFlags = 0
+					m_nWeight = 1
+				},
+				{
+					m_name = "fastest"
+					m_nActivity = 0
+					m_nFlags = 0
+					m_nWeight = 1
+				},
+			]
+			m_footMotion = [  ]
+		},
+		{
+			m_sName = "attack02_anim"
+			m_flags = 
+			{
+				m_bLooping = false
+				m_bSnap = false
+				m_bAutoplay = false
+				m_bPost = false
+				m_bHidden = false
+				m_bMulti = false
+				m_bLegacyDelta = false
+				m_bLegacyWorldspace = false
+				m_bLegacyCyclepose = false
+				m_bLegacyRealtime = false
+				m_bModelDoc = true
+			}
+			m_fetch = 
+			{
+				m_flags = 
+				{
+					m_bRealtime = false
+					m_bCylepose = false
+					m_b0D = true
+					m_b1D = false
+					m_b2D = false
+					m_b2D_TRI = false
+				}
+				m_localReferenceArray = [ 15 ]
+				m_nGroupSize = [ 1, 1 ]
+				m_nLocalPose = [ -1, -1 ]
+				m_poseKeyArray0 = [ 0.0 ]
+				m_poseKeyArray1 = [ 0.0 ]
+				m_nLocalCyclePoseParameter = -1
+				m_bCalculatePoseParameters = false
+			}
+			m_nLocalWeightlist = 0
+			m_autoLayerArray = [  ]
+			m_IKLockArray = [  ]
+			m_transition = 
+			{
+				m_flFadeInTime = 0.2
+				m_flFadeOutTime = 0.2
+			}
+			m_SequenceKeys = null
+			m_keyValueText = ""
+			m_activityArray = 
+			[
+				{
+					m_name = "ACT_DOTA_ATTACK2"
+					m_nActivity = 0
+					m_nFlags = 0
+					m_nWeight = 1
+				},
+			]
+			m_footMotion = [  ]
+		},
+		{
+			m_sName = "attack02_fast"
+			m_flags = 
+			{
+				m_bLooping = false
+				m_bSnap = false
+				m_bAutoplay = false
+				m_bPost = false
+				m_bHidden = false
+				m_bMulti = false
+				m_bLegacyDelta = false
+				m_bLegacyWorldspace = false
+				m_bLegacyCyclepose = false
+				m_bLegacyRealtime = false
+				m_bModelDoc = true
+			}
+			m_fetch = 
+			{
+				m_flags = 
+				{
+					m_bRealtime = false
+					m_bCylepose = false
+					m_b0D = true
+					m_b1D = false
+					m_b2D = false
+					m_b2D_TRI = false
+				}
+				m_localReferenceArray = [ 16 ]
+				m_nGroupSize = [ 1, 1 ]
+				m_nLocalPose = [ -1, -1 ]
+				m_poseKeyArray0 = [ 0.0 ]
+				m_poseKeyArray1 = [ 0.0 ]
+				m_nLocalCyclePoseParameter = -1
+				m_bCalculatePoseParameters = false
+			}
+			m_nLocalWeightlist = 0
+			m_autoLayerArray = [  ]
+			m_IKLockArray = [  ]
+			m_transition = 
+			{
+				m_flFadeInTime = 0.2
+				m_flFadeOutTime = 0.2
+			}
+			m_SequenceKeys = null
+			m_keyValueText = ""
+			m_activityArray = 
+			[
+				{
+					m_name = "ACT_DOTA_ATTACK2"
+					m_nActivity = 0
+					m_nFlags = 0
+					m_nWeight = 1
+				},
+				{
+					m_name = "fast"
+					m_nActivity = 0
+					m_nFlags = 0
+					m_nWeight = 1
+				},
+			]
+			m_footMotion = [  ]
+		},
+		{
+			m_sName = "attack02_faster"
+			m_flags = 
+			{
+				m_bLooping = false
+				m_bSnap = false
+				m_bAutoplay = false
+				m_bPost = false
+				m_bHidden = false
+				m_bMulti = false
+				m_bLegacyDelta = false
+				m_bLegacyWorldspace = false
+				m_bLegacyCyclepose = false
+				m_bLegacyRealtime = false
+				m_bModelDoc = true
+			}
+			m_fetch = 
+			{
+				m_flags = 
+				{
+					m_bRealtime = false
+					m_bCylepose = false
+					m_b0D = true
+					m_b1D = false
+					m_b2D = false
+					m_b2D_TRI = false
+				}
+				m_localReferenceArray = [ 17 ]
+				m_nGroupSize = [ 1, 1 ]
+				m_nLocalPose = [ -1, -1 ]
+				m_poseKeyArray0 = [ 0.0 ]
+				m_poseKeyArray1 = [ 0.0 ]
+				m_nLocalCyclePoseParameter = -1
+				m_bCalculatePoseParameters = false
+			}
+			m_nLocalWeightlist = 0
+			m_autoLayerArray = [  ]
+			m_IKLockArray = [  ]
+			m_transition = 
+			{
+				m_flFadeInTime = 0.2
+				m_flFadeOutTime = 0.2
+			}
+			m_SequenceKeys = null
+			m_keyValueText = ""
+			m_activityArray = 
+			[
+				{
+					m_name = "ACT_DOTA_ATTACK2"
+					m_nActivity = 0
+					m_nFlags = 0
+					m_nWeight = 1
+				},
+				{
+					m_name = "faster"
+					m_nActivity = 0
+					m_nFlags = 0
+					m_nWeight = 1
+				},
+			]
+			m_footMotion = [  ]
+		},
+		{
+			m_sName = "attack02_fastest"
+			m_flags = 
+			{
+				m_bLooping = false
+				m_bSnap = false
+				m_bAutoplay = false
+				m_bPost = false
+				m_bHidden = false
+				m_bMulti = false
+				m_bLegacyDelta = false
+				m_bLegacyWorldspace = false
+				m_bLegacyCyclepose = false
+				m_bLegacyRealtime = false
+				m_bModelDoc = true
+			}
+			m_fetch = 
+			{
+				m_flags = 
+				{
+					m_bRealtime = false
+					m_bCylepose = false
+					m_b0D = true
+					m_b1D = false
+					m_b2D = false
+					m_b2D_TRI = false
+				}
+				m_localReferenceArray = [ 18 ]
+				m_nGroupSize = [ 1, 1 ]
+				m_nLocalPose = [ -1, -1 ]
+				m_poseKeyArray0 = [ 0.0 ]
+				m_poseKeyArray1 = [ 0.0 ]
+				m_nLocalCyclePoseParameter = -1
+				m_bCalculatePoseParameters = false
+			}
+			m_nLocalWeightlist = 0
+			m_autoLayerArray = [  ]
+			m_IKLockArray = [  ]
+			m_transition = 
+			{
+				m_flFadeInTime = 0.2
+				m_flFadeOutTime = 0.2
+			}
+			m_SequenceKeys = null
+			m_keyValueText = ""
+			m_activityArray = 
+			[
+				{
+					m_name = "ACT_DOTA_ATTACK2"
+					m_nActivity = 0
+					m_nFlags = 0
+					m_nWeight = 1
+				},
+				{
+					m_name = "fastest"
+					m_nActivity = 0
+					m_nFlags = 0
+					m_nWeight = 1
+				},
+			]
+			m_footMotion = [  ]
+		},
+		{
+			m_sName = "defeat"
+			m_flags = 
+			{
+				m_bLooping = true
+				m_bSnap = false
+				m_bAutoplay = false
+				m_bPost = false
+				m_bHidden = false
+				m_bMulti = false
+				m_bLegacyDelta = false
+				m_bLegacyWorldspace = false
+				m_bLegacyCyclepose = false
+				m_bLegacyRealtime = false
+				m_bModelDoc = true
+			}
+			m_fetch = 
+			{
+				m_flags = 
+				{
+					m_bRealtime = false
+					m_bCylepose = false
+					m_b0D = true
+					m_b1D = false
+					m_b2D = false
+					m_b2D_TRI = false
+				}
+				m_localReferenceArray = [ 19 ]
+				m_nGroupSize = [ 1, 1 ]
+				m_nLocalPose = [ -1, -1 ]
+				m_poseKeyArray0 = [ 0.0 ]
+				m_poseKeyArray1 = [ 0.0 ]
+				m_nLocalCyclePoseParameter = -1
+				m_bCalculatePoseParameters = false
+			}
+			m_nLocalWeightlist = 0
+			m_autoLayerArray = [  ]
+			m_IKLockArray = [  ]
+			m_transition = 
+			{
+				m_flFadeInTime = 0.2
+				m_flFadeOutTime = 0.2
+			}
+			m_SequenceKeys = null
+			m_keyValueText = ""
+			m_activityArray = 
+			[
+				{
+					m_name = "ACT_DOTA_DEFEAT"
+					m_nActivity = 0
+					m_nFlags = 0
+					m_nWeight = 1
+				},
+			]
+			m_footMotion = [  ]
+		},
+		{
+			m_sName = "pose01"
+			m_flags = 
+			{
+				m_bLooping = false
+				m_bSnap = false
+				m_bAutoplay = false
+				m_bPost = false
+				m_bHidden = false
+				m_bMulti = false
+				m_bLegacyDelta = false
+				m_bLegacyWorldspace = false
+				m_bLegacyCyclepose = false
+				m_bLegacyRealtime = false
+				m_bModelDoc = true
+			}
+			m_fetch = 
+			{
+				m_flags = 
+				{
+					m_bRealtime = false
+					m_bCylepose = false
+					m_b0D = true
+					m_b1D = false
+					m_b2D = false
+					m_b2D_TRI = false
+				}
+				m_localReferenceArray = [ 20 ]
+				m_nGroupSize = [ 1, 1 ]
+				m_nLocalPose = [ -1, -1 ]
+				m_poseKeyArray0 = [ 0.0 ]
+				m_poseKeyArray1 = [ 0.0 ]
+				m_nLocalCyclePoseParameter = -1
+				m_bCalculatePoseParameters = false
+			}
+			m_nLocalWeightlist = 0
+			m_autoLayerArray = [  ]
+			m_IKLockArray = [  ]
+			m_transition = 
+			{
+				m_flFadeInTime = 0.2
+				m_flFadeOutTime = 0.2
+			}
+			m_SequenceKeys = null
+			m_keyValueText = ""
+			m_activityArray = [  ]
+			m_footMotion = [  ]
+		},
+		{
+			m_sName = "versus_attack"
+			m_flags = 
+			{
+				m_bLooping = false
+				m_bSnap = false
+				m_bAutoplay = false
+				m_bPost = false
+				m_bHidden = false
+				m_bMulti = false
+				m_bLegacyDelta = false
+				m_bLegacyWorldspace = false
+				m_bLegacyCyclepose = false
+				m_bLegacyRealtime = false
+				m_bModelDoc = true
+			}
+			m_fetch = 
+			{
+				m_flags = 
+				{
+					m_bRealtime = false
+					m_bCylepose = false
+					m_b0D = true
+					m_b1D = false
+					m_b2D = false
+					m_b2D_TRI = false
+				}
+				m_localReferenceArray = [ 21 ]
+				m_nGroupSize = [ 1, 1 ]
+				m_nLocalPose = [ -1, -1 ]
+				m_poseKeyArray0 = [ 0.0 ]
+				m_poseKeyArray1 = [ 0.0 ]
+				m_nLocalCyclePoseParameter = -1
+				m_bCalculatePoseParameters = false
+			}
+			m_nLocalWeightlist = 0
+			m_autoLayerArray = [  ]
+			m_IKLockArray = [  ]
+			m_transition = 
+			{
+				m_flFadeInTime = 0.2
+				m_flFadeOutTime = 0.2
+			}
+			m_SequenceKeys = null
+			m_keyValueText = ""
+			m_activityArray = 
+			[
+				{
+					m_name = "ACT_DOTA_VERSUS"
+					m_nActivity = 0
+					m_nFlags = 0
+					m_nWeight = 1
+				},
+			]
+			m_footMotion = [  ]
+		},
+		{
+			m_sName = "idle_anim"
+			m_flags = 
+			{
+				m_bLooping = true
+				m_bSnap = false
+				m_bAutoplay = false
+				m_bPost = false
+				m_bHidden = false
+				m_bMulti = false
+				m_bLegacyDelta = false
+				m_bLegacyWorldspace = false
+				m_bLegacyCyclepose = false
+				m_bLegacyRealtime = false
+				m_bModelDoc = true
+			}
+			m_fetch = 
+			{
+				m_flags = 
+				{
+					m_bRealtime = false
+					m_bCylepose = false
+					m_b0D = true
+					m_b1D = false
+					m_b2D = false
+					m_b2D_TRI = false
+				}
+				m_localReferenceArray = [ 22 ]
+				m_nGroupSize = [ 1, 1 ]
+				m_nLocalPose = [ -1, -1 ]
+				m_poseKeyArray0 = [ 0.0 ]
+				m_poseKeyArray1 = [ 0.0 ]
+				m_nLocalCyclePoseParameter = -1
+				m_bCalculatePoseParameters = false
+			}
+			m_nLocalWeightlist = 0
+			m_autoLayerArray = [  ]
+			m_IKLockArray = [  ]
+			m_transition = 
+			{
+				m_flFadeInTime = 0.2
+				m_flFadeOutTime = 0.2
+			}
+			m_SequenceKeys = null
+			m_keyValueText = ""
+			m_activityArray = 
+			[
+				{
+					m_name = "ACT_DOTA_IDLE"
+					m_nActivity = 0
+					m_nFlags = 0
+					m_nWeight = 1
+				},
+			]
+			m_footMotion = [  ]
+		},
+		{
+			m_sName = "idle_rare_anim"
+			m_flags = 
+			{
+				m_bLooping = true
+				m_bSnap = false
+				m_bAutoplay = false
+				m_bPost = false
+				m_bHidden = false
+				m_bMulti = false
+				m_bLegacyDelta = false
+				m_bLegacyWorldspace = false
+				m_bLegacyCyclepose = false
+				m_bLegacyRealtime = false
+				m_bModelDoc = true
+			}
+			m_fetch = 
+			{
+				m_flags = 
+				{
+					m_bRealtime = false
+					m_bCylepose = false
+					m_b0D = true
+					m_b1D = false
+					m_b2D = false
+					m_b2D_TRI = false
+				}
+				m_localReferenceArray = [ 23 ]
+				m_nGroupSize = [ 1, 1 ]
+				m_nLocalPose = [ -1, -1 ]
+				m_poseKeyArray0 = [ 0.0 ]
+				m_poseKeyArray1 = [ 0.0 ]
+				m_nLocalCyclePoseParameter = -1
+				m_bCalculatePoseParameters = false
+			}
+			m_nLocalWeightlist = 0
+			m_autoLayerArray = [  ]
+			m_IKLockArray = [  ]
+			m_transition = 
+			{
+				m_flFadeInTime = 0.2
+				m_flFadeOutTime = 0.2
+			}
+			m_SequenceKeys = null
+			m_keyValueText = ""
+			m_activityArray = 
+			[
+				{
+					m_name = "ACT_DOTA_IDLE_RARE"
+					m_nActivity = 0
+					m_nFlags = 0
+					m_nWeight = 1
+				},
+			]
+			m_footMotion = [  ]
+		},
+		{
+			m_sName = "idle_injured_anim"
+			m_flags = 
+			{
+				m_bLooping = true
+				m_bSnap = false
+				m_bAutoplay = false
+				m_bPost = false
+				m_bHidden = false
+				m_bMulti = false
+				m_bLegacyDelta = false
+				m_bLegacyWorldspace = false
+				m_bLegacyCyclepose = false
+				m_bLegacyRealtime = false
+				m_bModelDoc = true
+			}
+			m_fetch = 
+			{
+				m_flags = 
+				{
+					m_bRealtime = false
+					m_bCylepose = false
+					m_b0D = true
+					m_b1D = false
+					m_b2D = false
+					m_b2D_TRI = false
+				}
+				m_localReferenceArray = [ 24 ]
+				m_nGroupSize = [ 1, 1 ]
+				m_nLocalPose = [ -1, -1 ]
+				m_poseKeyArray0 = [ 0.0 ]
+				m_poseKeyArray1 = [ 0.0 ]
+				m_nLocalCyclePoseParameter = -1
+				m_bCalculatePoseParameters = false
+			}
+			m_nLocalWeightlist = 0
+			m_autoLayerArray = [  ]
+			m_IKLockArray = [  ]
+			m_transition = 
+			{
+				m_flFadeInTime = 0.2
+				m_flFadeOutTime = 0.2
+			}
+			m_SequenceKeys = null
+			m_keyValueText = ""
+			m_activityArray = 
+			[
+				{
+					m_name = "ACT_DOTA_IDLE"
+					m_nActivity = 0
+					m_nFlags = 0
+					m_nWeight = 1
+				},
+				{
+					m_name = "injured"
+					m_nActivity = 0
+					m_nFlags = 0
+					m_nWeight = 1
+				},
+			]
+			m_footMotion = [  ]
+		},
+		{
+			m_sName = "cast1_shadowraze_a_anim"
+			m_flags = 
+			{
+				m_bLooping = false
+				m_bSnap = false
+				m_bAutoplay = false
+				m_bPost = false
+				m_bHidden = false
+				m_bMulti = false
+				m_bLegacyDelta = false
+				m_bLegacyWorldspace = false
+				m_bLegacyCyclepose = false
+				m_bLegacyRealtime = false
+				m_bModelDoc = true
+			}
+			m_fetch = 
+			{
+				m_flags = 
+				{
+					m_bRealtime = false
+					m_bCylepose = false
+					m_b0D = true
+					m_b1D = false
+					m_b2D = false
+					m_b2D_TRI = false
+				}
+				m_localReferenceArray = [ 25 ]
+				m_nGroupSize = [ 1, 1 ]
+				m_nLocalPose = [ -1, -1 ]
+				m_poseKeyArray0 = [ 0.0 ]
+				m_poseKeyArray1 = [ 0.0 ]
+				m_nLocalCyclePoseParameter = -1
+				m_bCalculatePoseParameters = false
+			}
+			m_nLocalWeightlist = 0
+			m_autoLayerArray = [  ]
+			m_IKLockArray = [  ]
+			m_transition = 
+			{
+				m_flFadeInTime = 0.05
+				m_flFadeOutTime = 0.2
+			}
+			m_SequenceKeys = null
+			m_keyValueText = ""
+			m_activityArray = 
+			[
+				{
+					m_name = "ACT_DOTA_RAZE_1"
+					m_nActivity = 0
+					m_nFlags = 0
+					m_nWeight = 1
+				},
+			]
+			m_footMotion = [  ]
+		},
+		{
+			m_sName = "cast1_shadowraze_b_anim"
+			m_flags = 
+			{
+				m_bLooping = false
+				m_bSnap = false
+				m_bAutoplay = false
+				m_bPost = false
+				m_bHidden = false
+				m_bMulti = false
+				m_bLegacyDelta = false
+				m_bLegacyWorldspace = false
+				m_bLegacyCyclepose = false
+				m_bLegacyRealtime = false
+				m_bModelDoc = true
+			}
+			m_fetch = 
+			{
+				m_flags = 
+				{
+					m_bRealtime = false
+					m_bCylepose = false
+					m_b0D = true
+					m_b1D = false
+					m_b2D = false
+					m_b2D_TRI = false
+				}
+				m_localReferenceArray = [ 26 ]
+				m_nGroupSize = [ 1, 1 ]
+				m_nLocalPose = [ -1, -1 ]
+				m_poseKeyArray0 = [ 0.0 ]
+				m_poseKeyArray1 = [ 0.0 ]
+				m_nLocalCyclePoseParameter = -1
+				m_bCalculatePoseParameters = false
+			}
+			m_nLocalWeightlist = 0
+			m_autoLayerArray = [  ]
+			m_IKLockArray = [  ]
+			m_transition = 
+			{
+				m_flFadeInTime = 0.05
+				m_flFadeOutTime = 0.2
+			}
+			m_SequenceKeys = null
+			m_keyValueText = ""
+			m_activityArray = 
+			[
+				{
+					m_name = "ACT_DOTA_RAZE_2"
+					m_nActivity = 0
+					m_nFlags = 0
+					m_nWeight = 1
+				},
+			]
+			m_footMotion = [  ]
+		},
+		{
+			m_sName = "cast1_shadowraze_c_anim"
+			m_flags = 
+			{
+				m_bLooping = false
+				m_bSnap = false
+				m_bAutoplay = false
+				m_bPost = false
+				m_bHidden = false
+				m_bMulti = false
+				m_bLegacyDelta = false
+				m_bLegacyWorldspace = false
+				m_bLegacyCyclepose = false
+				m_bLegacyRealtime = false
+				m_bModelDoc = true
+			}
+			m_fetch = 
+			{
+				m_flags = 
+				{
+					m_bRealtime = false
+					m_bCylepose = false
+					m_b0D = true
+					m_b1D = false
+					m_b2D = false
+					m_b2D_TRI = false
+				}
+				m_localReferenceArray = [ 27 ]
+				m_nGroupSize = [ 1, 1 ]
+				m_nLocalPose = [ -1, -1 ]
+				m_poseKeyArray0 = [ 0.0 ]
+				m_poseKeyArray1 = [ 0.0 ]
+				m_nLocalCyclePoseParameter = -1
+				m_bCalculatePoseParameters = false
+			}
+			m_nLocalWeightlist = 0
+			m_autoLayerArray = [  ]
+			m_IKLockArray = [  ]
+			m_transition = 
+			{
+				m_flFadeInTime = 0.05
+				m_flFadeOutTime = 0.2
+			}
+			m_SequenceKeys = null
+			m_keyValueText = ""
+			m_activityArray = 
+			[
+				{
+					m_name = "ACT_DOTA_RAZE_3"
+					m_nActivity = 0
+					m_nFlags = 0
+					m_nWeight = 1
+				},
+			]
+			m_footMotion = [  ]
+		},
+		{
+			m_sName = "cast6_requiem_anim"
+			m_flags = 
+			{
+				m_bLooping = false
+				m_bSnap = false
+				m_bAutoplay = false
+				m_bPost = false
+				m_bHidden = false
+				m_bMulti = false
+				m_bLegacyDelta = false
+				m_bLegacyWorldspace = false
+				m_bLegacyCyclepose = false
+				m_bLegacyRealtime = false
+				m_bModelDoc = true
+			}
+			m_fetch = 
+			{
+				m_flags = 
+				{
+					m_bRealtime = false
+					m_bCylepose = false
+					m_b0D = true
+					m_b1D = false
+					m_b2D = false
+					m_b2D_TRI = false
+				}
+				m_localReferenceArray = [ 28 ]
+				m_nGroupSize = [ 1, 1 ]
+				m_nLocalPose = [ -1, -1 ]
+				m_poseKeyArray0 = [ 0.0 ]
+				m_poseKeyArray1 = [ 0.0 ]
+				m_nLocalCyclePoseParameter = -1
+				m_bCalculatePoseParameters = false
+			}
+			m_nLocalWeightlist = 0
+			m_autoLayerArray = [  ]
+			m_IKLockArray = [  ]
+			m_transition = 
+			{
+				m_flFadeInTime = 0.2
+				m_flFadeOutTime = 0.2
+			}
+			m_SequenceKeys = null
+			m_keyValueText = ""
+			m_activityArray = 
+			[
+				{
+					m_name = "ACT_DOTA_CAST_ABILITY_6"
+					m_nActivity = 0
+					m_nFlags = 0
+					m_nWeight = 1
+				},
+			]
+			m_footMotion = [  ]
+		},
+		{
+			m_sName = "stun_anim"
+			m_flags = 
+			{
+				m_bLooping = true
+				m_bSnap = false
+				m_bAutoplay = false
+				m_bPost = false
+				m_bHidden = false
+				m_bMulti = false
+				m_bLegacyDelta = false
+				m_bLegacyWorldspace = false
+				m_bLegacyCyclepose = false
+				m_bLegacyRealtime = false
+				m_bModelDoc = true
+			}
+			m_fetch = 
+			{
+				m_flags = 
+				{
+					m_bRealtime = false
+					m_bCylepose = false
+					m_b0D = true
+					m_b1D = false
+					m_b2D = false
+					m_b2D_TRI = false
+				}
+				m_localReferenceArray = [ 29 ]
+				m_nGroupSize = [ 1, 1 ]
+				m_nLocalPose = [ -1, -1 ]
+				m_poseKeyArray0 = [ 0.0 ]
+				m_poseKeyArray1 = [ 0.0 ]
+				m_nLocalCyclePoseParameter = -1
+				m_bCalculatePoseParameters = false
+			}
+			m_nLocalWeightlist = 0
+			m_autoLayerArray = [  ]
+			m_IKLockArray = [  ]
+			m_transition = 
+			{
+				m_flFadeInTime = 0.2
+				m_flFadeOutTime = 0.2
+			}
+			m_SequenceKeys = null
+			m_keyValueText = ""
+			m_activityArray = 
+			[
+				{
+					m_name = "ACT_DOTA_DISABLED"
+					m_nActivity = 0
+					m_nFlags = 0
+					m_nWeight = 1
+				},
+			]
+			m_footMotion = [  ]
+		},
+		{
+			m_sName = "flail_anim"
+			m_flags = 
+			{
+				m_bLooping = true
+				m_bSnap = false
+				m_bAutoplay = false
+				m_bPost = false
+				m_bHidden = false
+				m_bMulti = false
+				m_bLegacyDelta = false
+				m_bLegacyWorldspace = false
+				m_bLegacyCyclepose = false
+				m_bLegacyRealtime = false
+				m_bModelDoc = true
+			}
+			m_fetch = 
+			{
+				m_flags = 
+				{
+					m_bRealtime = false
+					m_bCylepose = false
+					m_b0D = true
+					m_b1D = false
+					m_b2D = false
+					m_b2D_TRI = false
+				}
+				m_localReferenceArray = [ 30 ]
+				m_nGroupSize = [ 1, 1 ]
+				m_nLocalPose = [ -1, -1 ]
+				m_poseKeyArray0 = [ 0.0 ]
+				m_poseKeyArray1 = [ 0.0 ]
+				m_nLocalCyclePoseParameter = -1
+				m_bCalculatePoseParameters = false
+			}
+			m_nLocalWeightlist = 0
+			m_autoLayerArray = [  ]
+			m_IKLockArray = [  ]
+			m_transition = 
+			{
+				m_flFadeInTime = 0.2
+				m_flFadeOutTime = 0.2
+			}
+			m_SequenceKeys = null
+			m_keyValueText = ""
+			m_activityArray = 
+			[
+				{
+					m_name = "ACT_DOTA_FLAIL"
+					m_nActivity = 0
+					m_nFlags = 0
+					m_nWeight = 1
+				},
+			]
+			m_footMotion = [  ]
+		},
+		{
+			m_sName = "loadout_spawn_anim"
+			m_flags = 
+			{
+				m_bLooping = false
+				m_bSnap = false
+				m_bAutoplay = false
+				m_bPost = false
+				m_bHidden = false
+				m_bMulti = false
+				m_bLegacyDelta = false
+				m_bLegacyWorldspace = false
+				m_bLegacyCyclepose = false
+				m_bLegacyRealtime = false
+				m_bModelDoc = true
+			}
+			m_fetch = 
+			{
+				m_flags = 
+				{
+					m_bRealtime = false
+					m_bCylepose = false
+					m_b0D = true
+					m_b1D = false
+					m_b2D = false
+					m_b2D_TRI = false
+				}
+				m_localReferenceArray = [ 31 ]
+				m_nGroupSize = [ 1, 1 ]
+				m_nLocalPose = [ -1, -1 ]
+				m_poseKeyArray0 = [ 0.0 ]
+				m_poseKeyArray1 = [ 0.0 ]
+				m_nLocalCyclePoseParameter = -1
+				m_bCalculatePoseParameters = false
+			}
+			m_nLocalWeightlist = 0
+			m_autoLayerArray = [  ]
+			m_IKLockArray = [  ]
+			m_transition = 
+			{
+				m_flFadeInTime = 0.2
+				m_flFadeOutTime = 0.2
+			}
+			m_SequenceKeys = null
+			m_keyValueText = ""
+			m_activityArray = 
+			[
+				{
+					m_name = "ACT_DOTA_SPAWN"
+					m_nActivity = 0
+					m_nFlags = 0
+					m_nWeight = 1
+				},
+				{
+					m_name = "loadout"
+					m_nActivity = 0
+					m_nFlags = 0
+					m_nWeight = 1
+				},
+			]
+			m_footMotion = [  ]
+		},
+		{
+			m_sName = "teleport_anim"
+			m_flags = 
+			{
+				m_bLooping = true
+				m_bSnap = false
+				m_bAutoplay = false
+				m_bPost = false
+				m_bHidden = false
+				m_bMulti = false
+				m_bLegacyDelta = false
+				m_bLegacyWorldspace = false
+				m_bLegacyCyclepose = false
+				m_bLegacyRealtime = false
+				m_bModelDoc = true
+			}
+			m_fetch = 
+			{
+				m_flags = 
+				{
+					m_bRealtime = false
+					m_bCylepose = false
+					m_b0D = true
+					m_b1D = false
+					m_b2D = false
+					m_b2D_TRI = false
+				}
+				m_localReferenceArray = [ 32 ]
+				m_nGroupSize = [ 1, 1 ]
+				m_nLocalPose = [ -1, -1 ]
+				m_poseKeyArray0 = [ 0.0 ]
+				m_poseKeyArray1 = [ 0.0 ]
+				m_nLocalCyclePoseParameter = -1
+				m_bCalculatePoseParameters = false
+			}
+			m_nLocalWeightlist = 0
+			m_autoLayerArray = [  ]
+			m_IKLockArray = [  ]
+			m_transition = 
+			{
+				m_flFadeInTime = 0.2
+				m_flFadeOutTime = 0.2
+			}
+			m_SequenceKeys = null
+			m_keyValueText = ""
+			m_activityArray = 
+			[
+				{
+					m_name = "ACT_DOTA_TELEPORT"
+					m_nActivity = 0
+					m_nFlags = 0
+					m_nWeight = 1
+				},
+			]
+			m_footMotion = [  ]
+		},
+		{
+			m_sName = "forcestaff_anim"
+			m_flags = 
+			{
+				m_bLooping = false
+				m_bSnap = false
+				m_bAutoplay = false
+				m_bPost = false
+				m_bHidden = false
+				m_bMulti = false
+				m_bLegacyDelta = false
+				m_bLegacyWorldspace = false
+				m_bLegacyCyclepose = false
+				m_bLegacyRealtime = false
+				m_bModelDoc = true
+			}
+			m_fetch = 
+			{
+				m_flags = 
+				{
+					m_bRealtime = false
+					m_bCylepose = false
+					m_b0D = true
+					m_b1D = false
+					m_b2D = false
+					m_b2D_TRI = false
+				}
+				m_localReferenceArray = [ 33 ]
+				m_nGroupSize = [ 1, 1 ]
+				m_nLocalPose = [ -1, -1 ]
+				m_poseKeyArray0 = [ 0.0 ]
+				m_poseKeyArray1 = [ 0.0 ]
+				m_nLocalCyclePoseParameter = -1
+				m_bCalculatePoseParameters = false
+			}
+			m_nLocalWeightlist = 0
+			m_autoLayerArray = [  ]
+			m_IKLockArray = [  ]
+			m_transition = 
+			{
+				m_flFadeInTime = 0.2
+				m_flFadeOutTime = 0.2
+			}
+			m_SequenceKeys = null
+			m_keyValueText = ""
+			m_activityArray = 
+			[
+				{
+					m_name = "ACT_DOTA_FLAIL"
+					m_nActivity = 0
+					m_nFlags = 0
+					m_nWeight = 1
+				},
+				{
+					m_name = "forcestaff_friendly"
+					m_nActivity = 0
+					m_nFlags = 0
+					m_nWeight = 1
+				},
+			]
+			m_footMotion = [  ]
+		},
+		{
+			m_sName = "victory_anim"
+			m_flags = 
+			{
+				m_bLooping = true
+				m_bSnap = false
+				m_bAutoplay = false
+				m_bPost = false
+				m_bHidden = false
+				m_bMulti = false
+				m_bLegacyDelta = false
+				m_bLegacyWorldspace = false
+				m_bLegacyCyclepose = false
+				m_bLegacyRealtime = false
+				m_bModelDoc = true
+			}
+			m_fetch = 
+			{
+				m_flags = 
+				{
+					m_bRealtime = false
+					m_bCylepose = false
+					m_b0D = true
+					m_b1D = false
+					m_b2D = false
+					m_b2D_TRI = false
+				}
+				m_localReferenceArray = [ 34 ]
+				m_nGroupSize = [ 1, 1 ]
+				m_nLocalPose = [ -1, -1 ]
+				m_poseKeyArray0 = [ 0.0 ]
+				m_poseKeyArray1 = [ 0.0 ]
+				m_nLocalCyclePoseParameter = -1
+				m_bCalculatePoseParameters = false
+			}
+			m_nLocalWeightlist = 0
+			m_autoLayerArray = [  ]
+			m_IKLockArray = [  ]
+			m_transition = 
+			{
+				m_flFadeInTime = 0.2
+				m_flFadeOutTime = 0.2
+			}
+			m_SequenceKeys = null
+			m_keyValueText = ""
+			m_activityArray = 
+			[
+				{
+					m_name = "ACT_DOTA_VICTORY"
+					m_nActivity = 0
+					m_nFlags = 0
+					m_nWeight = 1
+				},
+			]
+			m_footMotion = [  ]
+		},
+		{
+			m_sName = "@turns"
+			m_flags = 
+			{
+				m_bLooping = false
+				m_bSnap = false
+				m_bAutoplay = false
+				m_bPost = false
+				m_bHidden = true
+				m_bMulti = false
+				m_bLegacyDelta = false
+				m_bLegacyWorldspace = false
+				m_bLegacyCyclepose = false
+				m_bLegacyRealtime = false
+				m_bModelDoc = true
+			}
+			m_fetch = 
+			{
+				m_flags = 
+				{
+					m_bRealtime = false
+					m_bCylepose = false
+					m_b0D = true
+					m_b1D = false
+					m_b2D = false
+					m_b2D_TRI = false
+				}
+				m_localReferenceArray = [ 35 ]
+				m_nGroupSize = [ 1, 1 ]
+				m_nLocalPose = [ -1, -1 ]
+				m_poseKeyArray0 = [ 0.0 ]
+				m_poseKeyArray1 = [ 0.0 ]
+				m_nLocalCyclePoseParameter = -1
+				m_bCalculatePoseParameters = false
+			}
+			m_nLocalWeightlist = 0
+			m_autoLayerArray = [  ]
+			m_IKLockArray = [  ]
+			m_transition = 
+			{
+				m_flFadeInTime = 0.2
+				m_flFadeOutTime = 0.2
+			}
+			m_SequenceKeys = null
+			m_keyValueText = ""
+			m_activityArray = [  ]
+			m_footMotion = [  ]
+		},
+		{
+			m_sName = "@run_anim"
+			m_flags = 
+			{
+				m_bLooping = true
+				m_bSnap = false
+				m_bAutoplay = false
+				m_bPost = false
+				m_bHidden = true
+				m_bMulti = false
+				m_bLegacyDelta = false
+				m_bLegacyWorldspace = false
+				m_bLegacyCyclepose = false
+				m_bLegacyRealtime = false
+				m_bModelDoc = true
+			}
+			m_fetch = 
+			{
+				m_flags = 
+				{
+					m_bRealtime = false
+					m_bCylepose = false
+					m_b0D = true
+					m_b1D = false
+					m_b2D = false
+					m_b2D_TRI = false
+				}
+				m_localReferenceArray = [ 36 ]
+				m_nGroupSize = [ 1, 1 ]
+				m_nLocalPose = [ -1, -1 ]
+				m_poseKeyArray0 = [ 0.0 ]
+				m_poseKeyArray1 = [ 0.0 ]
+				m_nLocalCyclePoseParameter = -1
+				m_bCalculatePoseParameters = false
+			}
+			m_nLocalWeightlist = 0
+			m_autoLayerArray = [  ]
+			m_IKLockArray = [  ]
+			m_transition = 
+			{
+				m_flFadeInTime = 0.2
+				m_flFadeOutTime = 0.2
+			}
+			m_SequenceKeys = null
+			m_keyValueText = ""
+			m_activityArray = [  ]
+			m_footMotion = [  ]
+		},
+		{
+			m_sName = "@run_haste_anim"
+			m_flags = 
+			{
+				m_bLooping = true
+				m_bSnap = false
+				m_bAutoplay = false
+				m_bPost = false
+				m_bHidden = true
+				m_bMulti = false
+				m_bLegacyDelta = false
+				m_bLegacyWorldspace = false
+				m_bLegacyCyclepose = false
+				m_bLegacyRealtime = false
+				m_bModelDoc = true
+			}
+			m_fetch = 
+			{
+				m_flags = 
+				{
+					m_bRealtime = false
+					m_bCylepose = false
+					m_b0D = true
+					m_b1D = false
+					m_b2D = false
+					m_b2D_TRI = false
+				}
+				m_localReferenceArray = [ 37 ]
+				m_nGroupSize = [ 1, 1 ]
+				m_nLocalPose = [ -1, -1 ]
+				m_poseKeyArray0 = [ 0.0 ]
+				m_poseKeyArray1 = [ 0.0 ]
+				m_nLocalCyclePoseParameter = -1
+				m_bCalculatePoseParameters = false
+			}
+			m_nLocalWeightlist = 0
+			m_autoLayerArray = [  ]
+			m_IKLockArray = [  ]
+			m_transition = 
+			{
+				m_flFadeInTime = 0.2
+				m_flFadeOutTime = 0.2
+			}
+			m_SequenceKeys = null
+			m_keyValueText = ""
+			m_activityArray = [  ]
+			m_footMotion = [  ]
+		},
+		{
+			m_sName = "@run_injured_anim"
+			m_flags = 
+			{
+				m_bLooping = true
+				m_bSnap = false
+				m_bAutoplay = false
+				m_bPost = false
+				m_bHidden = true
+				m_bMulti = false
+				m_bLegacyDelta = false
+				m_bLegacyWorldspace = false
+				m_bLegacyCyclepose = false
+				m_bLegacyRealtime = false
+				m_bModelDoc = true
+			}
+			m_fetch = 
+			{
+				m_flags = 
+				{
+					m_bRealtime = false
+					m_bCylepose = false
+					m_b0D = true
+					m_b1D = false
+					m_b2D = false
+					m_b2D_TRI = false
+				}
+				m_localReferenceArray = [ 38 ]
+				m_nGroupSize = [ 1, 1 ]
+				m_nLocalPose = [ -1, -1 ]
+				m_poseKeyArray0 = [ 0.0 ]
+				m_poseKeyArray1 = [ 0.0 ]
+				m_nLocalCyclePoseParameter = -1
+				m_bCalculatePoseParameters = false
+			}
+			m_nLocalWeightlist = 0
+			m_autoLayerArray = [  ]
+			m_IKLockArray = [  ]
+			m_transition = 
+			{
+				m_flFadeInTime = 0.2
+				m_flFadeOutTime = 0.2
+			}
+			m_SequenceKeys = null
+			m_keyValueText = ""
+			m_activityArray = [  ]
+			m_footMotion = [  ]
+		},
+		{
+			m_sName = "generic_channel"
+			m_flags = 
+			{
+				m_bLooping = true
+				m_bSnap = false
+				m_bAutoplay = false
+				m_bPost = false
+				m_bHidden = false
+				m_bMulti = false
+				m_bLegacyDelta = false
+				m_bLegacyWorldspace = false
+				m_bLegacyCyclepose = false
+				m_bLegacyRealtime = false
+				m_bModelDoc = true
+			}
+			m_fetch = 
+			{
+				m_flags = 
+				{
+					m_bRealtime = false
+					m_bCylepose = false
+					m_b0D = true
+					m_b1D = false
+					m_b2D = false
+					m_b2D_TRI = false
+				}
+				m_localReferenceArray = [ 39 ]
+				m_nGroupSize = [ 1, 1 ]
+				m_nLocalPose = [ -1, -1 ]
+				m_poseKeyArray0 = [ 0.0 ]
+				m_poseKeyArray1 = [ 0.0 ]
+				m_nLocalCyclePoseParameter = -1
+				m_bCalculatePoseParameters = false
+			}
+			m_nLocalWeightlist = 0
+			m_autoLayerArray = [  ]
+			m_IKLockArray = [  ]
+			m_transition = 
+			{
+				m_flFadeInTime = 0.2
+				m_flFadeOutTime = 0.2
+			}
+			m_SequenceKeys = null
+			m_keyValueText = ""
+			m_activityArray = 
+			[
+				{
+					m_name = "ACT_DOTA_GENERIC_CHANNEL_1"
+					m_nActivity = 0
+					m_nFlags = 0
+					m_nWeight = 1
+				},
+			]
+			m_footMotion = [  ]
+		},
+		{
+			m_sName = "@turns_lookFrame_0"
+			m_flags = 
+			{
+				m_bLooping = false
+				m_bSnap = true
+				m_bAutoplay = false
+				m_bPost = false
+				m_bHidden = true
+				m_bMulti = false
+				m_bLegacyDelta = false
+				m_bLegacyWorldspace = false
+				m_bLegacyCyclepose = false
+				m_bLegacyRealtime = false
+				m_bModelDoc = true
+			}
+			m_fetch = 
+			{
+				m_flags = 
+				{
+					m_bRealtime = false
+					m_bCylepose = false
+					m_b0D = true
+					m_b1D = false
+					m_b2D = false
+					m_b2D_TRI = false
+				}
+				m_localReferenceArray = [ 40 ]
+				m_nGroupSize = [ 1, 1 ]
+				m_nLocalPose = [ -1, -1 ]
+				m_poseKeyArray0 = [ 0.0 ]
+				m_poseKeyArray1 = [ 0.0 ]
+				m_nLocalCyclePoseParameter = -1
+				m_bCalculatePoseParameters = false
+			}
+			m_nLocalWeightlist = 0
+			m_autoLayerArray = [  ]
+			m_IKLockArray = [  ]
+			m_transition = 
+			{
+				m_flFadeInTime = 0.0
+				m_flFadeOutTime = 0.0
+			}
+			m_SequenceKeys = null
+			m_keyValueText = ""
+			m_activityArray = [  ]
+			m_footMotion = [  ]
+		},
+		{
+			m_sName = "@turns_lookFrame_1"
+			m_flags = 
+			{
+				m_bLooping = false
+				m_bSnap = true
+				m_bAutoplay = false
+				m_bPost = false
+				m_bHidden = true
+				m_bMulti = false
+				m_bLegacyDelta = false
+				m_bLegacyWorldspace = false
+				m_bLegacyCyclepose = false
+				m_bLegacyRealtime = false
+				m_bModelDoc = true
+			}
+			m_fetch = 
+			{
+				m_flags = 
+				{
+					m_bRealtime = false
+					m_bCylepose = false
+					m_b0D = true
+					m_b1D = false
+					m_b2D = false
+					m_b2D_TRI = false
+				}
+				m_localReferenceArray = [ 41 ]
+				m_nGroupSize = [ 1, 1 ]
+				m_nLocalPose = [ -1, -1 ]
+				m_poseKeyArray0 = [ 0.0 ]
+				m_poseKeyArray1 = [ 0.0 ]
+				m_nLocalCyclePoseParameter = -1
+				m_bCalculatePoseParameters = false
+			}
+			m_nLocalWeightlist = 0
+			m_autoLayerArray = [  ]
+			m_IKLockArray = [  ]
+			m_transition = 
+			{
+				m_flFadeInTime = 0.0
+				m_flFadeOutTime = 0.0
+			}
+			m_SequenceKeys = null
+			m_keyValueText = ""
+			m_activityArray = [  ]
+			m_footMotion = [  ]
+		},
+		{
+			m_sName = "@turns_lookFrame_2"
+			m_flags = 
+			{
+				m_bLooping = false
+				m_bSnap = true
+				m_bAutoplay = false
+				m_bPost = false
+				m_bHidden = true
+				m_bMulti = false
+				m_bLegacyDelta = false
+				m_bLegacyWorldspace = false
+				m_bLegacyCyclepose = false
+				m_bLegacyRealtime = false
+				m_bModelDoc = true
+			}
+			m_fetch = 
+			{
+				m_flags = 
+				{
+					m_bRealtime = false
+					m_bCylepose = false
+					m_b0D = true
+					m_b1D = false
+					m_b2D = false
+					m_b2D_TRI = false
+				}
+				m_localReferenceArray = [ 42 ]
+				m_nGroupSize = [ 1, 1 ]
+				m_nLocalPose = [ -1, -1 ]
+				m_poseKeyArray0 = [ 0.0 ]
+				m_poseKeyArray1 = [ 0.0 ]
+				m_nLocalCyclePoseParameter = -1
+				m_bCalculatePoseParameters = false
+			}
+			m_nLocalWeightlist = 0
+			m_autoLayerArray = [  ]
+			m_IKLockArray = [  ]
+			m_transition = 
+			{
+				m_flFadeInTime = 0.0
+				m_flFadeOutTime = 0.0
+			}
+			m_SequenceKeys = null
+			m_keyValueText = ""
+			m_activityArray = [  ]
+			m_footMotion = [  ]
+		},
+		{
+			m_sName = "run_anim"
+			m_flags = 
+			{
+				m_bLooping = true
+				m_bSnap = false
+				m_bAutoplay = false
+				m_bPost = false
+				m_bHidden = true
+				m_bMulti = false
+				m_bLegacyDelta = false
+				m_bLegacyWorldspace = false
+				m_bLegacyCyclepose = false
+				m_bLegacyRealtime = false
+				m_bModelDoc = true
+			}
+			m_fetch = 
+			{
+				m_flags = 
+				{
+					m_bRealtime = false
+					m_bCylepose = false
+					m_b0D = true
+					m_b1D = false
+					m_b2D = false
+					m_b2D_TRI = false
+				}
+				m_localReferenceArray = [ 44 ]
+				m_nGroupSize = [ 1, 1 ]
+				m_nLocalPose = [ -1, -1 ]
+				m_poseKeyArray0 = [ 0.0 ]
+				m_poseKeyArray1 = [ 0.0 ]
+				m_nLocalCyclePoseParameter = -1
+				m_bCalculatePoseParameters = false
+			}
+			m_nLocalWeightlist = 0
+			m_autoLayerArray = 
+			[
+				{
+					m_nLocalReference = 97
+					m_nLocalPose = 0
+					m_flags = 
+					{
+						m_bPost = false
+						m_bSpline = false
+						m_bXFade = false
+						m_bNoBlend = false
+						m_bLocal = false
+						m_bPose = false
+						m_bFetchFrame = false
+						m_bSubtract = false
+					}
+					m_start = 0.0
+					m_peak = 0.0
+					m_tail = 0.0
+					m_end = 0.0
+				},
+			]
+			m_IKLockArray = [  ]
+			m_transition = 
+			{
+				m_flFadeInTime = 0.2
+				m_flFadeOutTime = 0.2
+			}
+			m_SequenceKeys = null
+			m_keyValueText = ""
+			m_activityArray = 
+			[
+				{
+					m_name = "ACT_DOTA_RUN"
+					m_nActivity = 0
+					m_nFlags = 0
+					m_nWeight = 11
+				},
+			]
+			m_footMotion = [  ]
+		},
+		{
+			m_sName = "run_haste_anim"
+			m_flags = 
+			{
+				m_bLooping = true
+				m_bSnap = false
+				m_bAutoplay = false
+				m_bPost = false
+				m_bHidden = true
+				m_bMulti = false
+				m_bLegacyDelta = false
+				m_bLegacyWorldspace = false
+				m_bLegacyCyclepose = false
+				m_bLegacyRealtime = false
+				m_bModelDoc = true
+			}
+			m_fetch = 
+			{
+				m_flags = 
+				{
+					m_bRealtime = false
+					m_bCylepose = false
+					m_b0D = true
+					m_b1D = false
+					m_b2D = false
+					m_b2D_TRI = false
+				}
+				m_localReferenceArray = [ 46 ]
+				m_nGroupSize = [ 1, 1 ]
+				m_nLocalPose = [ -1, -1 ]
+				m_poseKeyArray0 = [ 0.0 ]
+				m_poseKeyArray1 = [ 0.0 ]
+				m_nLocalCyclePoseParameter = -1
+				m_bCalculatePoseParameters = false
+			}
+			m_nLocalWeightlist = 0
+			m_autoLayerArray = 
+			[
+				{
+					m_nLocalReference = 97
+					m_nLocalPose = 0
+					m_flags = 
+					{
+						m_bPost = false
+						m_bSpline = false
+						m_bXFade = false
+						m_bNoBlend = false
+						m_bLocal = false
+						m_bPose = false
+						m_bFetchFrame = false
+						m_bSubtract = false
+					}
+					m_start = 0.0
+					m_peak = 0.0
+					m_tail = 0.0
+					m_end = 0.0
+				},
+			]
+			m_IKLockArray = [  ]
+			m_transition = 
+			{
+				m_flFadeInTime = 0.2
+				m_flFadeOutTime = 0.2
+			}
+			m_SequenceKeys = null
+			m_keyValueText = ""
+			m_activityArray = 
+			[
+				{
+					m_name = "ACT_DOTA_RUN"
+					m_nActivity = 0
+					m_nFlags = 0
+					m_nWeight = 1
+				},
+				{
+					m_name = "haste"
+					m_nActivity = 0
+					m_nFlags = 0
+					m_nWeight = 1
+				},
+			]
+			m_footMotion = [  ]
+		},
+		{
+			m_sName = "run_injured_anim"
+			m_flags = 
+			{
+				m_bLooping = true
+				m_bSnap = false
+				m_bAutoplay = false
+				m_bPost = false
+				m_bHidden = true
+				m_bMulti = false
+				m_bLegacyDelta = false
+				m_bLegacyWorldspace = false
+				m_bLegacyCyclepose = false
+				m_bLegacyRealtime = false
+				m_bModelDoc = true
+			}
+			m_fetch = 
+			{
+				m_flags = 
+				{
+					m_bRealtime = false
+					m_bCylepose = false
+					m_b0D = true
+					m_b1D = false
+					m_b2D = false
+					m_b2D_TRI = false
+				}
+				m_localReferenceArray = [ 48 ]
+				m_nGroupSize = [ 1, 1 ]
+				m_nLocalPose = [ -1, -1 ]
+				m_poseKeyArray0 = [ 0.0 ]
+				m_poseKeyArray1 = [ 0.0 ]
+				m_nLocalCyclePoseParameter = -1
+				m_bCalculatePoseParameters = false
+			}
+			m_nLocalWeightlist = 0
+			m_autoLayerArray = 
+			[
+				{
+					m_nLocalReference = 97
+					m_nLocalPose = 0
+					m_flags = 
+					{
+						m_bPost = false
+						m_bSpline = false
+						m_bXFade = false
+						m_bNoBlend = false
+						m_bLocal = false
+						m_bPose = false
+						m_bFetchFrame = false
+						m_bSubtract = false
+					}
+					m_start = 0.0
+					m_peak = 0.0
+					m_tail = 0.0
+					m_end = 0.0
+				},
+			]
+			m_IKLockArray = [  ]
+			m_transition = 
+			{
+				m_flFadeInTime = 0.2
+				m_flFadeOutTime = 0.2
+			}
+			m_SequenceKeys = null
+			m_keyValueText = ""
+			m_activityArray = 
+			[
+				{
+					m_name = "ACT_DOTA_RUN"
+					m_nActivity = 0
+					m_nFlags = 0
+					m_nWeight = 1
+				},
+				{
+					m_name = "injured"
+					m_nActivity = 0
+					m_nFlags = 0
+					m_nWeight = 1
+				},
+			]
+			m_footMotion = [  ]
+		},
+		{
+			m_sName = "cast1_shadowraze_a_desolation"
+			m_flags = 
+			{
+				m_bLooping = false
+				m_bSnap = false
+				m_bAutoplay = false
+				m_bPost = false
+				m_bHidden = false
+				m_bMulti = false
+				m_bLegacyDelta = false
+				m_bLegacyWorldspace = false
+				m_bLegacyCyclepose = false
+				m_bLegacyRealtime = false
+				m_bModelDoc = true
+			}
+			m_fetch = 
+			{
+				m_flags = 
+				{
+					m_bRealtime = false
+					m_bCylepose = false
+					m_b0D = true
+					m_b1D = false
+					m_b2D = false
+					m_b2D_TRI = false
+				}
+				m_localReferenceArray = [ 49 ]
+				m_nGroupSize = [ 1, 1 ]
+				m_nLocalPose = [ -1, -1 ]
+				m_poseKeyArray0 = [ 0.0 ]
+				m_poseKeyArray1 = [ 0.0 ]
+				m_nLocalCyclePoseParameter = -1
+				m_bCalculatePoseParameters = false
+			}
+			m_nLocalWeightlist = 0
+			m_autoLayerArray = [  ]
+			m_IKLockArray = [  ]
+			m_transition = 
+			{
+				m_flFadeInTime = 0.05
+				m_flFadeOutTime = 0.2
+			}
+			m_SequenceKeys = null
+			m_keyValueText = ""
+			m_activityArray = 
+			[
+				{
+					m_name = "ACT_DOTA_RAZE_1"
+					m_nActivity = 0
+					m_nFlags = 0
+					m_nWeight = 1
+				},
+				{
+					m_name = "desolation"
+					m_nActivity = 0
+					m_nFlags = 0
+					m_nWeight = 1
+				},
+			]
+			m_footMotion = [  ]
+		},
+		{
+			m_sName = "cast1_shadowraze_b_desolation"
+			m_flags = 
+			{
+				m_bLooping = false
+				m_bSnap = false
+				m_bAutoplay = false
+				m_bPost = false
+				m_bHidden = false
+				m_bMulti = false
+				m_bLegacyDelta = false
+				m_bLegacyWorldspace = false
+				m_bLegacyCyclepose = false
+				m_bLegacyRealtime = false
+				m_bModelDoc = true
+			}
+			m_fetch = 
+			{
+				m_flags = 
+				{
+					m_bRealtime = false
+					m_bCylepose = false
+					m_b0D = true
+					m_b1D = false
+					m_b2D = false
+					m_b2D_TRI = false
+				}
+				m_localReferenceArray = [ 50 ]
+				m_nGroupSize = [ 1, 1 ]
+				m_nLocalPose = [ -1, -1 ]
+				m_poseKeyArray0 = [ 0.0 ]
+				m_poseKeyArray1 = [ 0.0 ]
+				m_nLocalCyclePoseParameter = -1
+				m_bCalculatePoseParameters = false
+			}
+			m_nLocalWeightlist = 0
+			m_autoLayerArray = [  ]
+			m_IKLockArray = [  ]
+			m_transition = 
+			{
+				m_flFadeInTime = 0.05
+				m_flFadeOutTime = 0.2
+			}
+			m_SequenceKeys = null
+			m_keyValueText = ""
+			m_activityArray = 
+			[
+				{
+					m_name = "ACT_DOTA_RAZE_2"
+					m_nActivity = 0
+					m_nFlags = 0
+					m_nWeight = 1
+				},
+				{
+					m_name = "desolation"
+					m_nActivity = 0
+					m_nFlags = 0
+					m_nWeight = 1
+				},
+			]
+			m_footMotion = [  ]
+		},
+		{
+			m_sName = "cast1_shadowraze_c_desolation"
+			m_flags = 
+			{
+				m_bLooping = false
+				m_bSnap = false
+				m_bAutoplay = false
+				m_bPost = false
+				m_bHidden = false
+				m_bMulti = false
+				m_bLegacyDelta = false
+				m_bLegacyWorldspace = false
+				m_bLegacyCyclepose = false
+				m_bLegacyRealtime = false
+				m_bModelDoc = true
+			}
+			m_fetch = 
+			{
+				m_flags = 
+				{
+					m_bRealtime = false
+					m_bCylepose = false
+					m_b0D = true
+					m_b1D = false
+					m_b2D = false
+					m_b2D_TRI = false
+				}
+				m_localReferenceArray = [ 51 ]
+				m_nGroupSize = [ 1, 1 ]
+				m_nLocalPose = [ -1, -1 ]
+				m_poseKeyArray0 = [ 0.0 ]
+				m_poseKeyArray1 = [ 0.0 ]
+				m_nLocalCyclePoseParameter = -1
+				m_bCalculatePoseParameters = false
+			}
+			m_nLocalWeightlist = 0
+			m_autoLayerArray = [  ]
+			m_IKLockArray = [  ]
+			m_transition = 
+			{
+				m_flFadeInTime = 0.05
+				m_flFadeOutTime = 0.2
+			}
+			m_SequenceKeys = null
+			m_keyValueText = ""
+			m_activityArray = 
+			[
+				{
+					m_name = "ACT_DOTA_RAZE_3"
+					m_nActivity = 0
+					m_nFlags = 0
+					m_nWeight = 1
+				},
+				{
+					m_name = "desolation"
+					m_nActivity = 0
+					m_nFlags = 0
+					m_nWeight = 1
+				},
+			]
+			m_footMotion = [  ]
+		},
+		{
+			m_sName = "@run_injured_desolation"
+			m_flags = 
+			{
+				m_bLooping = true
+				m_bSnap = false
+				m_bAutoplay = false
+				m_bPost = false
+				m_bHidden = true
+				m_bMulti = false
+				m_bLegacyDelta = false
+				m_bLegacyWorldspace = false
+				m_bLegacyCyclepose = false
+				m_bLegacyRealtime = false
+				m_bModelDoc = true
+			}
+			m_fetch = 
+			{
+				m_flags = 
+				{
+					m_bRealtime = false
+					m_bCylepose = false
+					m_b0D = true
+					m_b1D = false
+					m_b2D = false
+					m_b2D_TRI = false
+				}
+				m_localReferenceArray = [ 52 ]
+				m_nGroupSize = [ 1, 1 ]
+				m_nLocalPose = [ -1, -1 ]
+				m_poseKeyArray0 = [ 0.0 ]
+				m_poseKeyArray1 = [ 0.0 ]
+				m_nLocalCyclePoseParameter = -1
+				m_bCalculatePoseParameters = false
+			}
+			m_nLocalWeightlist = 0
+			m_autoLayerArray = [  ]
+			m_IKLockArray = [  ]
+			m_transition = 
+			{
+				m_flFadeInTime = 0.2
+				m_flFadeOutTime = 0.2
+			}
+			m_SequenceKeys = null
+			m_keyValueText = ""
+			m_activityArray = [  ]
+			m_footMotion = [  ]
+		},
+		{
+			m_sName = "@run_fast_desolation_base"
+			m_flags = 
+			{
+				m_bLooping = true
+				m_bSnap = false
+				m_bAutoplay = false
+				m_bPost = false
+				m_bHidden = true
+				m_bMulti = false
+				m_bLegacyDelta = false
+				m_bLegacyWorldspace = false
+				m_bLegacyCyclepose = false
+				m_bLegacyRealtime = false
+				m_bModelDoc = true
+			}
+			m_fetch = 
+			{
+				m_flags = 
+				{
+					m_bRealtime = false
+					m_bCylepose = false
+					m_b0D = true
+					m_b1D = false
+					m_b2D = false
+					m_b2D_TRI = false
+				}
+				m_localReferenceArray = [ 53 ]
+				m_nGroupSize = [ 1, 1 ]
+				m_nLocalPose = [ -1, -1 ]
+				m_poseKeyArray0 = [ 0.0 ]
+				m_poseKeyArray1 = [ 0.0 ]
+				m_nLocalCyclePoseParameter = -1
+				m_bCalculatePoseParameters = false
+			}
+			m_nLocalWeightlist = 0
+			m_autoLayerArray = [  ]
+			m_IKLockArray = [  ]
+			m_transition = 
+			{
+				m_flFadeInTime = 0.2
+				m_flFadeOutTime = 0.2
+			}
+			m_SequenceKeys = null
+			m_keyValueText = ""
+			m_activityArray = [  ]
+			m_footMotion = [  ]
+		},
+		{
+			m_sName = "@run_alt_fast_desolation"
+			m_flags = 
+			{
+				m_bLooping = true
+				m_bSnap = false
+				m_bAutoplay = false
+				m_bPost = false
+				m_bHidden = true
+				m_bMulti = false
+				m_bLegacyDelta = false
+				m_bLegacyWorldspace = false
+				m_bLegacyCyclepose = false
+				m_bLegacyRealtime = false
+				m_bModelDoc = true
+			}
+			m_fetch = 
+			{
+				m_flags = 
+				{
+					m_bRealtime = false
+					m_bCylepose = false
+					m_b0D = true
+					m_b1D = false
+					m_b2D = false
+					m_b2D_TRI = false
+				}
+				m_localReferenceArray = [ 54 ]
+				m_nGroupSize = [ 1, 1 ]
+				m_nLocalPose = [ -1, -1 ]
+				m_poseKeyArray0 = [ 0.0 ]
+				m_poseKeyArray1 = [ 0.0 ]
+				m_nLocalCyclePoseParameter = -1
+				m_bCalculatePoseParameters = false
+			}
+			m_nLocalWeightlist = 0
+			m_autoLayerArray = [  ]
+			m_IKLockArray = [  ]
+			m_transition = 
+			{
+				m_flFadeInTime = 0.2
+				m_flFadeOutTime = 0.2
+			}
+			m_SequenceKeys = null
+			m_keyValueText = ""
+			m_activityArray = [  ]
+			m_footMotion = [  ]
+		},
+		{
+			m_sName = "@run_fast_desolation"
+			m_flags = 
+			{
+				m_bLooping = true
+				m_bSnap = false
+				m_bAutoplay = false
+				m_bPost = false
+				m_bHidden = true
+				m_bMulti = false
+				m_bLegacyDelta = false
+				m_bLegacyWorldspace = false
+				m_bLegacyCyclepose = false
+				m_bLegacyRealtime = false
+				m_bModelDoc = true
+			}
+			m_fetch = 
+			{
+				m_flags = 
+				{
+					m_bRealtime = false
+					m_bCylepose = false
+					m_b0D = true
+					m_b1D = false
+					m_b2D = false
+					m_b2D_TRI = false
+				}
+				m_localReferenceArray = [ 55 ]
+				m_nGroupSize = [ 1, 1 ]
+				m_nLocalPose = [ -1, -1 ]
+				m_poseKeyArray0 = [ 0.0 ]
+				m_poseKeyArray1 = [ 0.0 ]
+				m_nLocalCyclePoseParameter = -1
+				m_bCalculatePoseParameters = false
+			}
+			m_nLocalWeightlist = 0
+			m_autoLayerArray = [  ]
+			m_IKLockArray = [  ]
+			m_transition = 
+			{
+				m_flFadeInTime = 0.2
+				m_flFadeOutTime = 0.2
+			}
+			m_SequenceKeys = null
+			m_keyValueText = ""
+			m_activityArray = [  ]
+			m_footMotion = [  ]
+		},
+		{
+			m_sName = "@run_haste_desolation_anim"
+			m_flags = 
+			{
+				m_bLooping = true
+				m_bSnap = false
+				m_bAutoplay = false
+				m_bPost = false
+				m_bHidden = true
+				m_bMulti = false
+				m_bLegacyDelta = false
+				m_bLegacyWorldspace = false
+				m_bLegacyCyclepose = false
+				m_bLegacyRealtime = false
+				m_bModelDoc = true
+			}
+			m_fetch = 
+			{
+				m_flags = 
+				{
+					m_bRealtime = false
+					m_bCylepose = false
+					m_b0D = true
+					m_b1D = false
+					m_b2D = false
+					m_b2D_TRI = false
+				}
+				m_localReferenceArray = [ 56 ]
+				m_nGroupSize = [ 1, 1 ]
+				m_nLocalPose = [ -1, -1 ]
+				m_poseKeyArray0 = [ 0.0 ]
+				m_poseKeyArray1 = [ 0.0 ]
+				m_nLocalCyclePoseParameter = -1
+				m_bCalculatePoseParameters = false
+			}
+			m_nLocalWeightlist = 0
+			m_autoLayerArray = [  ]
+			m_IKLockArray = [  ]
+			m_transition = 
+			{
+				m_flFadeInTime = 0.2
+				m_flFadeOutTime = 0.2
+			}
+			m_SequenceKeys = null
+			m_keyValueText = ""
+			m_activityArray = [  ]
+			m_footMotion = [  ]
+		},
+		{
+			m_sName = "@run_alt_desolation_anim"
+			m_flags = 
+			{
+				m_bLooping = true
+				m_bSnap = false
+				m_bAutoplay = false
+				m_bPost = false
+				m_bHidden = true
+				m_bMulti = false
+				m_bLegacyDelta = false
+				m_bLegacyWorldspace = false
+				m_bLegacyCyclepose = false
+				m_bLegacyRealtime = false
+				m_bModelDoc = true
+			}
+			m_fetch = 
+			{
+				m_flags = 
+				{
+					m_bRealtime = false
+					m_bCylepose = false
+					m_b0D = true
+					m_b1D = false
+					m_b2D = false
+					m_b2D_TRI = false
+				}
+				m_localReferenceArray = [ 57 ]
+				m_nGroupSize = [ 1, 1 ]
+				m_nLocalPose = [ -1, -1 ]
+				m_poseKeyArray0 = [ 0.0 ]
+				m_poseKeyArray1 = [ 0.0 ]
+				m_nLocalCyclePoseParameter = -1
+				m_bCalculatePoseParameters = false
+			}
+			m_nLocalWeightlist = 0
+			m_autoLayerArray = [  ]
+			m_IKLockArray = [  ]
+			m_transition = 
+			{
+				m_flFadeInTime = 0.2
+				m_flFadeOutTime = 0.2
+			}
+			m_SequenceKeys = null
+			m_keyValueText = ""
+			m_activityArray = [  ]
+			m_footMotion = [  ]
+		},
+		{
+			m_sName = "@run_desolation"
+			m_flags = 
+			{
+				m_bLooping = true
+				m_bSnap = false
+				m_bAutoplay = false
+				m_bPost = false
+				m_bHidden = true
+				m_bMulti = false
+				m_bLegacyDelta = false
+				m_bLegacyWorldspace = false
+				m_bLegacyCyclepose = false
+				m_bLegacyRealtime = false
+				m_bModelDoc = true
+			}
+			m_fetch = 
+			{
+				m_flags = 
+				{
+					m_bRealtime = false
+					m_bCylepose = false
+					m_b0D = true
+					m_b1D = false
+					m_b2D = false
+					m_b2D_TRI = false
+				}
+				m_localReferenceArray = [ 58 ]
+				m_nGroupSize = [ 1, 1 ]
+				m_nLocalPose = [ -1, -1 ]
+				m_poseKeyArray0 = [ 0.0 ]
+				m_poseKeyArray1 = [ 0.0 ]
+				m_nLocalCyclePoseParameter = -1
+				m_bCalculatePoseParameters = false
+			}
+			m_nLocalWeightlist = 0
+			m_autoLayerArray = [  ]
+			m_IKLockArray = [  ]
+			m_transition = 
+			{
+				m_flFadeInTime = 0.2
+				m_flFadeOutTime = 0.2
+			}
+			m_SequenceKeys = null
+			m_keyValueText = ""
+			m_activityArray = [  ]
+			m_footMotion = [  ]
+		},
+		{
+			m_sName = "taunt_fiendish_swag_anim"
+			m_flags = 
+			{
+				m_bLooping = false
+				m_bSnap = false
+				m_bAutoplay = false
+				m_bPost = false
+				m_bHidden = false
+				m_bMulti = false
+				m_bLegacyDelta = false
+				m_bLegacyWorldspace = false
+				m_bLegacyCyclepose = false
+				m_bLegacyRealtime = false
+				m_bModelDoc = true
+			}
+			m_fetch = 
+			{
+				m_flags = 
+				{
+					m_bRealtime = false
+					m_bCylepose = false
+					m_b0D = true
+					m_b1D = false
+					m_b2D = false
+					m_b2D_TRI = false
+				}
+				m_localReferenceArray = [ 59 ]
+				m_nGroupSize = [ 1, 1 ]
+				m_nLocalPose = [ -1, -1 ]
+				m_poseKeyArray0 = [ 0.0 ]
+				m_poseKeyArray1 = [ 0.0 ]
+				m_nLocalCyclePoseParameter = -1
+				m_bCalculatePoseParameters = false
+			}
+			m_nLocalWeightlist = 0
+			m_autoLayerArray = [  ]
+			m_IKLockArray = [  ]
+			m_transition = 
+			{
+				m_flFadeInTime = 0.2
+				m_flFadeOutTime = 0.2
+			}
+			m_SequenceKeys = null
+			m_keyValueText = ""
+			m_activityArray = 
+			[
+				{
+					m_name = "ACT_DOTA_TAUNT"
+					m_nActivity = 0
+					m_nFlags = 0
+					m_nWeight = 1
+				},
+				{
+					m_name = "swag_gesture"
+					m_nActivity = 0
+					m_nFlags = 0
+					m_nWeight = 1
+				},
+			]
+			m_footMotion = [  ]
+		},
+		{
+			m_sName = "loadout_desolation"
+			m_flags = 
+			{
+				m_bLooping = true
+				m_bSnap = false
+				m_bAutoplay = false
+				m_bPost = false
+				m_bHidden = false
+				m_bMulti = false
+				m_bLegacyDelta = false
+				m_bLegacyWorldspace = false
+				m_bLegacyCyclepose = false
+				m_bLegacyRealtime = false
+				m_bModelDoc = true
+			}
+			m_fetch = 
+			{
+				m_flags = 
+				{
+					m_bRealtime = false
+					m_bCylepose = false
+					m_b0D = true
+					m_b1D = false
+					m_b2D = false
+					m_b2D_TRI = false
+				}
+				m_localReferenceArray = [ 60 ]
+				m_nGroupSize = [ 1, 1 ]
+				m_nLocalPose = [ -1, -1 ]
+				m_poseKeyArray0 = [ 0.0 ]
+				m_poseKeyArray1 = [ 0.0 ]
+				m_nLocalCyclePoseParameter = -1
+				m_bCalculatePoseParameters = false
+			}
+			m_nLocalWeightlist = 0
+			m_autoLayerArray = [  ]
+			m_IKLockArray = [  ]
+			m_transition = 
+			{
+				m_flFadeInTime = 0.2
+				m_flFadeOutTime = 0.2
+			}
+			m_SequenceKeys = null
+			m_keyValueText = ""
+			m_activityArray = 
+			[
+				{
+					m_name = "ACT_DOTA_LOADOUT"
+					m_nActivity = 0
+					m_nFlags = 0
+					m_nWeight = 1
+				},
+				{
+					m_name = "desolation"
+					m_nActivity = 0
+					m_nFlags = 0
+					m_nWeight = 1
+				},
+			]
+			m_footMotion = [  ]
+		},
+		{
+			m_sName = "loadout_spawn_desolation"
+			m_flags = 
+			{
+				m_bLooping = false
+				m_bSnap = false
+				m_bAutoplay = false
+				m_bPost = false
+				m_bHidden = false
+				m_bMulti = false
+				m_bLegacyDelta = false
+				m_bLegacyWorldspace = false
+				m_bLegacyCyclepose = false
+				m_bLegacyRealtime = false
+				m_bModelDoc = true
+			}
+			m_fetch = 
+			{
+				m_flags = 
+				{
+					m_bRealtime = false
+					m_bCylepose = false
+					m_b0D = true
+					m_b1D = false
+					m_b2D = false
+					m_b2D_TRI = false
+				}
+				m_localReferenceArray = [ 61 ]
+				m_nGroupSize = [ 1, 1 ]
+				m_nLocalPose = [ -1, -1 ]
+				m_poseKeyArray0 = [ 0.0 ]
+				m_poseKeyArray1 = [ 0.0 ]
+				m_nLocalCyclePoseParameter = -1
+				m_bCalculatePoseParameters = false
+			}
+			m_nLocalWeightlist = 0
+			m_autoLayerArray = [  ]
+			m_IKLockArray = [  ]
+			m_transition = 
+			{
+				m_flFadeInTime = 0.2
+				m_flFadeOutTime = 0.2
+			}
+			m_SequenceKeys = null
+			m_keyValueText = ""
+			m_activityArray = 
+			[
+				{
+					m_name = "ACT_DOTA_SPAWN"
+					m_nActivity = 0
+					m_nFlags = 0
+					m_nWeight = 1
+				},
+				{
+					m_name = "loadout"
+					m_nActivity = 0
+					m_nFlags = 0
+					m_nWeight = 1
+				},
+				{
+					m_name = "desolation"
+					m_nActivity = 0
+					m_nFlags = 0
+					m_nWeight = 1
+				},
+			]
+			m_footMotion = [  ]
+		},
+		{
+			m_sName = "run_desolation"
+			m_flags = 
+			{
+				m_bLooping = true
+				m_bSnap = false
+				m_bAutoplay = false
+				m_bPost = false
+				m_bHidden = true
+				m_bMulti = false
+				m_bLegacyDelta = false
+				m_bLegacyWorldspace = false
+				m_bLegacyCyclepose = false
+				m_bLegacyRealtime = false
+				m_bModelDoc = true
+			}
+			m_fetch = 
+			{
+				m_flags = 
+				{
+					m_bRealtime = false
+					m_bCylepose = false
+					m_b0D = true
+					m_b1D = false
+					m_b2D = false
+					m_b2D_TRI = false
+				}
+				m_localReferenceArray = [ 63 ]
+				m_nGroupSize = [ 1, 1 ]
+				m_nLocalPose = [ -1, -1 ]
+				m_poseKeyArray0 = [ 0.0 ]
+				m_poseKeyArray1 = [ 0.0 ]
+				m_nLocalCyclePoseParameter = -1
+				m_bCalculatePoseParameters = false
+			}
+			m_nLocalWeightlist = 0
+			m_autoLayerArray = 
+			[
+				{
+					m_nLocalReference = 97
+					m_nLocalPose = 0
+					m_flags = 
+					{
+						m_bPost = false
+						m_bSpline = false
+						m_bXFade = false
+						m_bNoBlend = false
+						m_bLocal = false
+						m_bPose = false
+						m_bFetchFrame = false
+						m_bSubtract = false
+					}
+					m_start = 0.0
+					m_peak = 0.0
+					m_tail = 0.0
+					m_end = 0.0
+				},
+			]
+			m_IKLockArray = [  ]
+			m_transition = 
+			{
+				m_flFadeInTime = 0.2
+				m_flFadeOutTime = 0.2
+			}
+			m_SequenceKeys = null
+			m_keyValueText = ""
+			m_activityArray = 
+			[
+				{
+					m_name = "ACT_DOTA_RUN"
+					m_nActivity = 0
+					m_nFlags = 0
+					m_nWeight = 3
+				},
+				{
+					m_name = "desolation"
+					m_nActivity = 0
+					m_nFlags = 0
+					m_nWeight = 1
+				},
+			]
+			m_footMotion = [  ]
+		},
+		{
+			m_sName = "run_alt_desolation_anim"
+			m_flags = 
+			{
+				m_bLooping = true
+				m_bSnap = false
+				m_bAutoplay = false
+				m_bPost = false
+				m_bHidden = true
+				m_bMulti = false
+				m_bLegacyDelta = false
+				m_bLegacyWorldspace = false
+				m_bLegacyCyclepose = false
+				m_bLegacyRealtime = false
+				m_bModelDoc = true
+			}
+			m_fetch = 
+			{
+				m_flags = 
+				{
+					m_bRealtime = false
+					m_bCylepose = false
+					m_b0D = true
+					m_b1D = false
+					m_b2D = false
+					m_b2D_TRI = false
+				}
+				m_localReferenceArray = [ 65 ]
+				m_nGroupSize = [ 1, 1 ]
+				m_nLocalPose = [ -1, -1 ]
+				m_poseKeyArray0 = [ 0.0 ]
+				m_poseKeyArray1 = [ 0.0 ]
+				m_nLocalCyclePoseParameter = -1
+				m_bCalculatePoseParameters = false
+			}
+			m_nLocalWeightlist = 0
+			m_autoLayerArray = 
+			[
+				{
+					m_nLocalReference = 97
+					m_nLocalPose = 0
+					m_flags = 
+					{
+						m_bPost = false
+						m_bSpline = false
+						m_bXFade = false
+						m_bNoBlend = false
+						m_bLocal = false
+						m_bPose = false
+						m_bFetchFrame = false
+						m_bSubtract = false
+					}
+					m_start = 0.0
+					m_peak = 0.0
+					m_tail = 0.0
+					m_end = 0.0
+				},
+			]
+			m_IKLockArray = [  ]
+			m_transition = 
+			{
+				m_flFadeInTime = 0.2
+				m_flFadeOutTime = 0.2
+			}
+			m_SequenceKeys = null
+			m_keyValueText = ""
+			m_activityArray = 
+			[
+				{
+					m_name = "ACT_DOTA_RUN"
+					m_nActivity = 0
+					m_nFlags = 0
+					m_nWeight = 4
+				},
+				{
+					m_name = "desolation"
+					m_nActivity = 0
+					m_nFlags = 0
+					m_nWeight = 1
+				},
+			]
+			m_footMotion = [  ]
+		},
+		{
+			m_sName = "run_haste_desolation_anim"
+			m_flags = 
+			{
+				m_bLooping = true
+				m_bSnap = false
+				m_bAutoplay = false
+				m_bPost = false
+				m_bHidden = true
+				m_bMulti = false
+				m_bLegacyDelta = false
+				m_bLegacyWorldspace = false
+				m_bLegacyCyclepose = false
+				m_bLegacyRealtime = false
+				m_bModelDoc = true
+			}
+			m_fetch = 
+			{
+				m_flags = 
+				{
+					m_bRealtime = false
+					m_bCylepose = false
+					m_b0D = true
+					m_b1D = false
+					m_b2D = false
+					m_b2D_TRI = false
+				}
+				m_localReferenceArray = [ 67 ]
+				m_nGroupSize = [ 1, 1 ]
+				m_nLocalPose = [ -1, -1 ]
+				m_poseKeyArray0 = [ 0.0 ]
+				m_poseKeyArray1 = [ 0.0 ]
+				m_nLocalCyclePoseParameter = -1
+				m_bCalculatePoseParameters = false
+			}
+			m_nLocalWeightlist = 0
+			m_autoLayerArray = 
+			[
+				{
+					m_nLocalReference = 97
+					m_nLocalPose = 0
+					m_flags = 
+					{
+						m_bPost = false
+						m_bSpline = false
+						m_bXFade = false
+						m_bNoBlend = false
+						m_bLocal = false
+						m_bPose = false
+						m_bFetchFrame = false
+						m_bSubtract = false
+					}
+					m_start = 0.0
+					m_peak = 0.0
+					m_tail = 0.0
+					m_end = 0.0
+				},
+			]
+			m_IKLockArray = [  ]
+			m_transition = 
+			{
+				m_flFadeInTime = 0.2
+				m_flFadeOutTime = 0.2
+			}
+			m_SequenceKeys = null
+			m_keyValueText = ""
+			m_activityArray = 
+			[
+				{
+					m_name = "ACT_DOTA_RUN"
+					m_nActivity = 0
+					m_nFlags = 0
+					m_nWeight = 1
+				},
+				{
+					m_name = "desolation"
+					m_nActivity = 0
+					m_nFlags = 0
+					m_nWeight = 1
+				},
+				{
+					m_name = "haste"
+					m_nActivity = 0
+					m_nFlags = 0
+					m_nWeight = 1
+				},
+				{
+					m_name = "fast_run"
+					m_nActivity = 0
+					m_nFlags = 0
+					m_nWeight = 1
+				},
+			]
+			m_footMotion = [  ]
+		},
+		{
+			m_sName = "run_fast_desolation"
+			m_flags = 
+			{
+				m_bLooping = true
+				m_bSnap = false
+				m_bAutoplay = false
+				m_bPost = false
+				m_bHidden = true
+				m_bMulti = false
+				m_bLegacyDelta = false
+				m_bLegacyWorldspace = false
+				m_bLegacyCyclepose = false
+				m_bLegacyRealtime = false
+				m_bModelDoc = true
+			}
+			m_fetch = 
+			{
+				m_flags = 
+				{
+					m_bRealtime = false
+					m_bCylepose = false
+					m_b0D = true
+					m_b1D = false
+					m_b2D = false
+					m_b2D_TRI = false
+				}
+				m_localReferenceArray = [ 69 ]
+				m_nGroupSize = [ 1, 1 ]
+				m_nLocalPose = [ -1, -1 ]
+				m_poseKeyArray0 = [ 0.0 ]
+				m_poseKeyArray1 = [ 0.0 ]
+				m_nLocalCyclePoseParameter = -1
+				m_bCalculatePoseParameters = false
+			}
+			m_nLocalWeightlist = 0
+			m_autoLayerArray = 
+			[
+				{
+					m_nLocalReference = 97
+					m_nLocalPose = 0
+					m_flags = 
+					{
+						m_bPost = false
+						m_bSpline = false
+						m_bXFade = false
+						m_bNoBlend = false
+						m_bLocal = false
+						m_bPose = false
+						m_bFetchFrame = false
+						m_bSubtract = false
+					}
+					m_start = 0.0
+					m_peak = 0.0
+					m_tail = 0.0
+					m_end = 0.0
+				},
+			]
+			m_IKLockArray = [  ]
+			m_transition = 
+			{
+				m_flFadeInTime = 0.2
+				m_flFadeOutTime = 0.2
+			}
+			m_SequenceKeys = null
+			m_keyValueText = ""
+			m_activityArray = 
+			[
+				{
+					m_name = "ACT_DOTA_RUN"
+					m_nActivity = 0
+					m_nFlags = 0
+					m_nWeight = 3
+				},
+				{
+					m_name = "desolation"
+					m_nActivity = 0
+					m_nFlags = 0
+					m_nWeight = 1
+				},
+				{
+					m_name = "fast_run"
+					m_nActivity = 0
+					m_nFlags = 0
+					m_nWeight = 1
+				},
+			]
+			m_footMotion = [  ]
+		},
+		{
+			m_sName = "run_alt_fast_desolation"
+			m_flags = 
+			{
+				m_bLooping = true
+				m_bSnap = false
+				m_bAutoplay = false
+				m_bPost = false
+				m_bHidden = true
+				m_bMulti = false
+				m_bLegacyDelta = false
+				m_bLegacyWorldspace = false
+				m_bLegacyCyclepose = false
+				m_bLegacyRealtime = false
+				m_bModelDoc = true
+			}
+			m_fetch = 
+			{
+				m_flags = 
+				{
+					m_bRealtime = false
+					m_bCylepose = false
+					m_b0D = true
+					m_b1D = false
+					m_b2D = false
+					m_b2D_TRI = false
+				}
+				m_localReferenceArray = [ 71 ]
+				m_nGroupSize = [ 1, 1 ]
+				m_nLocalPose = [ -1, -1 ]
+				m_poseKeyArray0 = [ 0.0 ]
+				m_poseKeyArray1 = [ 0.0 ]
+				m_nLocalCyclePoseParameter = -1
+				m_bCalculatePoseParameters = false
+			}
+			m_nLocalWeightlist = 0
+			m_autoLayerArray = 
+			[
+				{
+					m_nLocalReference = 97
+					m_nLocalPose = 0
+					m_flags = 
+					{
+						m_bPost = false
+						m_bSpline = false
+						m_bXFade = false
+						m_bNoBlend = false
+						m_bLocal = false
+						m_bPose = false
+						m_bFetchFrame = false
+						m_bSubtract = false
+					}
+					m_start = 0.0
+					m_peak = 0.0
+					m_tail = 0.0
+					m_end = 0.0
+				},
+			]
+			m_IKLockArray = [  ]
+			m_transition = 
+			{
+				m_flFadeInTime = 0.2
+				m_flFadeOutTime = 0.2
+			}
+			m_SequenceKeys = null
+			m_keyValueText = ""
+			m_activityArray = 
+			[
+				{
+					m_name = "ACT_DOTA_RUN"
+					m_nActivity = 0
+					m_nFlags = 0
+					m_nWeight = 4
+				},
+				{
+					m_name = "desolation"
+					m_nActivity = 0
+					m_nFlags = 0
+					m_nWeight = 1
+				},
+				{
+					m_name = "fast_run"
+					m_nActivity = 0
+					m_nFlags = 0
+					m_nWeight = 1
+				},
+			]
+			m_footMotion = [  ]
+		},
+		{
+			m_sName = "run_fast_desolation_base"
+			m_flags = 
+			{
+				m_bLooping = true
+				m_bSnap = false
+				m_bAutoplay = false
+				m_bPost = false
+				m_bHidden = true
+				m_bMulti = false
+				m_bLegacyDelta = false
+				m_bLegacyWorldspace = false
+				m_bLegacyCyclepose = false
+				m_bLegacyRealtime = false
+				m_bModelDoc = true
+			}
+			m_fetch = 
+			{
+				m_flags = 
+				{
+					m_bRealtime = false
+					m_bCylepose = false
+					m_b0D = true
+					m_b1D = false
+					m_b2D = false
+					m_b2D_TRI = false
+				}
+				m_localReferenceArray = [ 73 ]
+				m_nGroupSize = [ 1, 1 ]
+				m_nLocalPose = [ -1, -1 ]
+				m_poseKeyArray0 = [ 0.0 ]
+				m_poseKeyArray1 = [ 0.0 ]
+				m_nLocalCyclePoseParameter = -1
+				m_bCalculatePoseParameters = false
+			}
+			m_nLocalWeightlist = 0
+			m_autoLayerArray = 
+			[
+				{
+					m_nLocalReference = 97
+					m_nLocalPose = 0
+					m_flags = 
+					{
+						m_bPost = false
+						m_bSpline = false
+						m_bXFade = false
+						m_bNoBlend = false
+						m_bLocal = false
+						m_bPose = false
+						m_bFetchFrame = false
+						m_bSubtract = false
+					}
+					m_start = 0.0
+					m_peak = 0.0
+					m_tail = 0.0
+					m_end = 0.0
+				},
+			]
+			m_IKLockArray = [  ]
+			m_transition = 
+			{
+				m_flFadeInTime = 0.2
+				m_flFadeOutTime = 0.2
+			}
+			m_SequenceKeys = null
+			m_keyValueText = ""
+			m_activityArray = 
+			[
+				{
+					m_name = "ACT_DOTA_RUN"
+					m_nActivity = 0
+					m_nFlags = 0
+					m_nWeight = 3
+				},
+				{
+					m_name = "desolation"
+					m_nActivity = 0
+					m_nFlags = 0
+					m_nWeight = 1
+				},
+				{
+					m_name = "fast_run"
+					m_nActivity = 0
+					m_nFlags = 0
+					m_nWeight = 1
+				},
+			]
+			m_footMotion = [  ]
+		},
+		{
+			m_sName = "run_injured_desolation"
+			m_flags = 
+			{
+				m_bLooping = true
+				m_bSnap = false
+				m_bAutoplay = false
+				m_bPost = false
+				m_bHidden = true
+				m_bMulti = false
+				m_bLegacyDelta = false
+				m_bLegacyWorldspace = false
+				m_bLegacyCyclepose = false
+				m_bLegacyRealtime = false
+				m_bModelDoc = true
+			}
+			m_fetch = 
+			{
+				m_flags = 
+				{
+					m_bRealtime = false
+					m_bCylepose = false
+					m_b0D = true
+					m_b1D = false
+					m_b2D = false
+					m_b2D_TRI = false
+				}
+				m_localReferenceArray = [ 75 ]
+				m_nGroupSize = [ 1, 1 ]
+				m_nLocalPose = [ -1, -1 ]
+				m_poseKeyArray0 = [ 0.0 ]
+				m_poseKeyArray1 = [ 0.0 ]
+				m_nLocalCyclePoseParameter = -1
+				m_bCalculatePoseParameters = false
+			}
+			m_nLocalWeightlist = 0
+			m_autoLayerArray = 
+			[
+				{
+					m_nLocalReference = 97
+					m_nLocalPose = 0
+					m_flags = 
+					{
+						m_bPost = false
+						m_bSpline = false
+						m_bXFade = false
+						m_bNoBlend = false
+						m_bLocal = false
+						m_bPose = false
+						m_bFetchFrame = false
+						m_bSubtract = false
+					}
+					m_start = 0.0
+					m_peak = 0.0
+					m_tail = 0.0
+					m_end = 0.0
+				},
+			]
+			m_IKLockArray = [  ]
+			m_transition = 
+			{
+				m_flFadeInTime = 0.2
+				m_flFadeOutTime = 0.2
+			}
+			m_SequenceKeys = null
+			m_keyValueText = ""
+			m_activityArray = 
+			[
+				{
+					m_name = "ACT_DOTA_RUN"
+					m_nActivity = 0
+					m_nFlags = 0
+					m_nWeight = 1
+				},
+				{
+					m_name = "injured"
+					m_nActivity = 0
+					m_nFlags = 0
+					m_nWeight = 1
+				},
+				{
+					m_name = "desolation"
+					m_nActivity = 0
+					m_nFlags = 0
+					m_nWeight = 1
+				},
+			]
+			m_footMotion = [  ]
+		},
+		{
+			m_sName = "run"
+			m_flags = 
+			{
+				m_bLooping = true
+				m_bSnap = false
+				m_bAutoplay = false
+				m_bPost = false
+				m_bHidden = false
+				m_bMulti = false
+				m_bLegacyDelta = false
+				m_bLegacyWorldspace = false
+				m_bLegacyCyclepose = false
+				m_bLegacyRealtime = false
+				m_bModelDoc = true
+			}
+			m_fetch = 
+			{
+				m_flags = 
+				{
+					m_bRealtime = false
+					m_bCylepose = false
+					m_b0D = true
+					m_b1D = false
+					m_b2D = false
+					m_b2D_TRI = false
+				}
+				m_localReferenceArray = [ 76 ]
+				m_nGroupSize = [ 1, 1 ]
+				m_nLocalPose = [ -1, -1 ]
+				m_poseKeyArray0 = [ 0.0 ]
+				m_poseKeyArray1 = [ 0.0 ]
+				m_nLocalCyclePoseParameter = -1
+				m_bCalculatePoseParameters = false
+			}
+			m_nLocalWeightlist = 0
+			m_autoLayerArray = [  ]
+			m_IKLockArray = [  ]
+			m_transition = 
+			{
+				m_flFadeInTime = 0.2
+				m_flFadeOutTime = 0.2
+			}
+			m_SequenceKeys = null
+			m_keyValueText = ""
+			m_activityArray = 
+			[
+				{
+					m_name = "ACT_DOTA_RUN_STATUE"
+					m_nActivity = 0
+					m_nFlags = 0
+					m_nWeight = 1
+				},
+			]
+			m_footMotion = [  ]
+		},
+		{
+			m_sName = "run_haste"
+			m_flags = 
+			{
+				m_bLooping = true
+				m_bSnap = false
+				m_bAutoplay = false
+				m_bPost = false
+				m_bHidden = false
+				m_bMulti = false
+				m_bLegacyDelta = false
+				m_bLegacyWorldspace = false
+				m_bLegacyCyclepose = false
+				m_bLegacyRealtime = false
+				m_bModelDoc = true
+			}
+			m_fetch = 
+			{
+				m_flags = 
+				{
+					m_bRealtime = false
+					m_bCylepose = false
+					m_b0D = true
+					m_b1D = false
+					m_b2D = false
+					m_b2D_TRI = false
+				}
+				m_localReferenceArray = [ 77 ]
+				m_nGroupSize = [ 1, 1 ]
+				m_nLocalPose = [ -1, -1 ]
+				m_poseKeyArray0 = [ 0.0 ]
+				m_poseKeyArray1 = [ 0.0 ]
+				m_nLocalCyclePoseParameter = -1
+				m_bCalculatePoseParameters = false
+			}
+			m_nLocalWeightlist = 0
+			m_autoLayerArray = [  ]
+			m_IKLockArray = [  ]
+			m_transition = 
+			{
+				m_flFadeInTime = 0.2
+				m_flFadeOutTime = 0.2
+			}
+			m_SequenceKeys = null
+			m_keyValueText = ""
+			m_activityArray = 
+			[
+				{
+					m_name = "ACT_DOTA_RUN_STATUE"
+					m_nActivity = 0
+					m_nFlags = 0
+					m_nWeight = 1
+				},
+			]
+			m_footMotion = [  ]
+		},
+		{
+			m_sName = "run_injured"
+			m_flags = 
+			{
+				m_bLooping = true
+				m_bSnap = false
+				m_bAutoplay = false
+				m_bPost = false
+				m_bHidden = false
+				m_bMulti = false
+				m_bLegacyDelta = false
+				m_bLegacyWorldspace = false
+				m_bLegacyCyclepose = false
+				m_bLegacyRealtime = false
+				m_bModelDoc = true
+			}
+			m_fetch = 
+			{
+				m_flags = 
+				{
+					m_bRealtime = false
+					m_bCylepose = false
+					m_b0D = true
+					m_b1D = false
+					m_b2D = false
+					m_b2D_TRI = false
+				}
+				m_localReferenceArray = [ 78 ]
+				m_nGroupSize = [ 1, 1 ]
+				m_nLocalPose = [ -1, -1 ]
+				m_poseKeyArray0 = [ 0.0 ]
+				m_poseKeyArray1 = [ 0.0 ]
+				m_nLocalCyclePoseParameter = -1
+				m_bCalculatePoseParameters = false
+			}
+			m_nLocalWeightlist = 0
+			m_autoLayerArray = [  ]
+			m_IKLockArray = [  ]
+			m_transition = 
+			{
+				m_flFadeInTime = 0.2
+				m_flFadeOutTime = 0.2
+			}
+			m_SequenceKeys = null
+			m_keyValueText = ""
+			m_activityArray = 
+			[
+				{
+					m_name = "ACT_DOTA_RUN_STATUE"
+					m_nActivity = 0
+					m_nFlags = 0
+					m_nWeight = 1
+				},
+			]
+			m_footMotion = [  ]
+		},
+		{
+			m_sName = "idle"
+			m_flags = 
+			{
+				m_bLooping = true
+				m_bSnap = false
+				m_bAutoplay = false
+				m_bPost = false
+				m_bHidden = false
+				m_bMulti = false
+				m_bLegacyDelta = false
+				m_bLegacyWorldspace = false
+				m_bLegacyCyclepose = false
+				m_bLegacyRealtime = false
+				m_bModelDoc = true
+			}
+			m_fetch = 
+			{
+				m_flags = 
+				{
+					m_bRealtime = false
+					m_bCylepose = false
+					m_b0D = true
+					m_b1D = false
+					m_b2D = false
+					m_b2D_TRI = false
+				}
+				m_localReferenceArray = [ 79 ]
+				m_nGroupSize = [ 1, 1 ]
+				m_nLocalPose = [ -1, -1 ]
+				m_poseKeyArray0 = [ 0.0 ]
+				m_poseKeyArray1 = [ 0.0 ]
+				m_nLocalCyclePoseParameter = -1
+				m_bCalculatePoseParameters = false
+			}
+			m_nLocalWeightlist = 0
+			m_autoLayerArray = [  ]
+			m_IKLockArray = [  ]
+			m_transition = 
+			{
+				m_flFadeInTime = 0.2
+				m_flFadeOutTime = 0.2
+			}
+			m_SequenceKeys = null
+			m_keyValueText = ""
+			m_activityArray = 
+			[
+				{
+					m_name = "ACT_DOTA_IDLE_STATUE"
+					m_nActivity = 0
+					m_nFlags = 0
+					m_nWeight = 1
+				},
+			]
+			m_footMotion = [  ]
+		},
+		{
+			m_sName = "idle_rare"
+			m_flags = 
+			{
+				m_bLooping = true
+				m_bSnap = false
+				m_bAutoplay = false
+				m_bPost = false
+				m_bHidden = false
+				m_bMulti = false
+				m_bLegacyDelta = false
+				m_bLegacyWorldspace = false
+				m_bLegacyCyclepose = false
+				m_bLegacyRealtime = false
+				m_bModelDoc = true
+			}
+			m_fetch = 
+			{
+				m_flags = 
+				{
+					m_bRealtime = false
+					m_bCylepose = false
+					m_b0D = true
+					m_b1D = false
+					m_b2D = false
+					m_b2D_TRI = false
+				}
+				m_localReferenceArray = [ 80 ]
+				m_nGroupSize = [ 1, 1 ]
+				m_nLocalPose = [ -1, -1 ]
+				m_poseKeyArray0 = [ 0.0 ]
+				m_poseKeyArray1 = [ 0.0 ]
+				m_nLocalCyclePoseParameter = -1
+				m_bCalculatePoseParameters = false
+			}
+			m_nLocalWeightlist = 0
+			m_autoLayerArray = [  ]
+			m_IKLockArray = [  ]
+			m_transition = 
+			{
+				m_flFadeInTime = 0.2
+				m_flFadeOutTime = 0.2
+			}
+			m_SequenceKeys = null
+			m_keyValueText = ""
+			m_activityArray = 
+			[
+				{
+					m_name = "ACT_DOTA_IDLE_STATUE"
+					m_nActivity = 0
+					m_nFlags = 0
+					m_nWeight = 1
+				},
+			]
+			m_footMotion = [  ]
+		},
+		{
+			m_sName = "idle_injured"
+			m_flags = 
+			{
+				m_bLooping = true
+				m_bSnap = false
+				m_bAutoplay = false
+				m_bPost = false
+				m_bHidden = false
+				m_bMulti = false
+				m_bLegacyDelta = false
+				m_bLegacyWorldspace = false
+				m_bLegacyCyclepose = false
+				m_bLegacyRealtime = false
+				m_bModelDoc = true
+			}
+			m_fetch = 
+			{
+				m_flags = 
+				{
+					m_bRealtime = false
+					m_bCylepose = false
+					m_b0D = true
+					m_b1D = false
+					m_b2D = false
+					m_b2D_TRI = false
+				}
+				m_localReferenceArray = [ 81 ]
+				m_nGroupSize = [ 1, 1 ]
+				m_nLocalPose = [ -1, -1 ]
+				m_poseKeyArray0 = [ 0.0 ]
+				m_poseKeyArray1 = [ 0.0 ]
+				m_nLocalCyclePoseParameter = -1
+				m_bCalculatePoseParameters = false
+			}
+			m_nLocalWeightlist = 0
+			m_autoLayerArray = [  ]
+			m_IKLockArray = [  ]
+			m_transition = 
+			{
+				m_flFadeInTime = 0.2
+				m_flFadeOutTime = 0.2
+			}
+			m_SequenceKeys = null
+			m_keyValueText = ""
+			m_activityArray = 
+			[
+				{
+					m_name = "ACT_DOTA_IDLE_STATUE"
+					m_nActivity = 0
+					m_nFlags = 0
+					m_nWeight = 1
+				},
+			]
+			m_footMotion = [  ]
+		},
+		{
+			m_sName = "cast1_shadowraze_a"
+			m_flags = 
+			{
+				m_bLooping = false
+				m_bSnap = false
+				m_bAutoplay = false
+				m_bPost = false
+				m_bHidden = false
+				m_bMulti = false
+				m_bLegacyDelta = false
+				m_bLegacyWorldspace = false
+				m_bLegacyCyclepose = false
+				m_bLegacyRealtime = false
+				m_bModelDoc = true
+			}
+			m_fetch = 
+			{
+				m_flags = 
+				{
+					m_bRealtime = false
+					m_bCylepose = false
+					m_b0D = true
+					m_b1D = false
+					m_b2D = false
+					m_b2D_TRI = false
+				}
+				m_localReferenceArray = [ 82 ]
+				m_nGroupSize = [ 1, 1 ]
+				m_nLocalPose = [ -1, -1 ]
+				m_poseKeyArray0 = [ 0.0 ]
+				m_poseKeyArray1 = [ 0.0 ]
+				m_nLocalCyclePoseParameter = -1
+				m_bCalculatePoseParameters = false
+			}
+			m_nLocalWeightlist = 0
+			m_autoLayerArray = [  ]
+			m_IKLockArray = [  ]
+			m_transition = 
+			{
+				m_flFadeInTime = 0.2
+				m_flFadeOutTime = 0.2
+			}
+			m_SequenceKeys = null
+			m_keyValueText = ""
+			m_activityArray = 
+			[
+				{
+					m_name = "ACT_DOTA_CAST_RAZE_STATUE"
+					m_nActivity = 0
+					m_nFlags = 0
+					m_nWeight = 1
+				},
+			]
+			m_footMotion = [  ]
+		},
+		{
+			m_sName = "cast1_shadowraze_b"
+			m_flags = 
+			{
+				m_bLooping = false
+				m_bSnap = false
+				m_bAutoplay = false
+				m_bPost = false
+				m_bHidden = false
+				m_bMulti = false
+				m_bLegacyDelta = false
+				m_bLegacyWorldspace = false
+				m_bLegacyCyclepose = false
+				m_bLegacyRealtime = false
+				m_bModelDoc = true
+			}
+			m_fetch = 
+			{
+				m_flags = 
+				{
+					m_bRealtime = false
+					m_bCylepose = false
+					m_b0D = true
+					m_b1D = false
+					m_b2D = false
+					m_b2D_TRI = false
+				}
+				m_localReferenceArray = [ 83 ]
+				m_nGroupSize = [ 1, 1 ]
+				m_nLocalPose = [ -1, -1 ]
+				m_poseKeyArray0 = [ 0.0 ]
+				m_poseKeyArray1 = [ 0.0 ]
+				m_nLocalCyclePoseParameter = -1
+				m_bCalculatePoseParameters = false
+			}
+			m_nLocalWeightlist = 0
+			m_autoLayerArray = [  ]
+			m_IKLockArray = [  ]
+			m_transition = 
+			{
+				m_flFadeInTime = 0.2
+				m_flFadeOutTime = 0.2
+			}
+			m_SequenceKeys = null
+			m_keyValueText = ""
+			m_activityArray = 
+			[
+				{
+					m_name = "ACT_DOTA_CAST_RAZE_STATUE"
+					m_nActivity = 0
+					m_nFlags = 0
+					m_nWeight = 1
+				},
+			]
+			m_footMotion = [  ]
+		},
+		{
+			m_sName = "cast1_shadowraze_c"
+			m_flags = 
+			{
+				m_bLooping = false
+				m_bSnap = false
+				m_bAutoplay = false
+				m_bPost = false
+				m_bHidden = false
+				m_bMulti = false
+				m_bLegacyDelta = false
+				m_bLegacyWorldspace = false
+				m_bLegacyCyclepose = false
+				m_bLegacyRealtime = false
+				m_bModelDoc = true
+			}
+			m_fetch = 
+			{
+				m_flags = 
+				{
+					m_bRealtime = false
+					m_bCylepose = false
+					m_b0D = true
+					m_b1D = false
+					m_b2D = false
+					m_b2D_TRI = false
+				}
+				m_localReferenceArray = [ 84 ]
+				m_nGroupSize = [ 1, 1 ]
+				m_nLocalPose = [ -1, -1 ]
+				m_poseKeyArray0 = [ 0.0 ]
+				m_poseKeyArray1 = [ 0.0 ]
+				m_nLocalCyclePoseParameter = -1
+				m_bCalculatePoseParameters = false
+			}
+			m_nLocalWeightlist = 0
+			m_autoLayerArray = [  ]
+			m_IKLockArray = [  ]
+			m_transition = 
+			{
+				m_flFadeInTime = 0.2
+				m_flFadeOutTime = 0.2
+			}
+			m_SequenceKeys = null
+			m_keyValueText = ""
+			m_activityArray = 
+			[
+				{
+					m_name = "ACT_DOTA_CAST_RAZE_STATUE"
+					m_nActivity = 0
+					m_nFlags = 0
+					m_nWeight = 1
+				},
+			]
+			m_footMotion = [  ]
+		},
+		{
+			m_sName = "cast6_requiem"
+			m_flags = 
+			{
+				m_bLooping = false
+				m_bSnap = false
+				m_bAutoplay = false
+				m_bPost = false
+				m_bHidden = false
+				m_bMulti = false
+				m_bLegacyDelta = false
+				m_bLegacyWorldspace = false
+				m_bLegacyCyclepose = false
+				m_bLegacyRealtime = false
+				m_bModelDoc = true
+			}
+			m_fetch = 
+			{
+				m_flags = 
+				{
+					m_bRealtime = false
+					m_bCylepose = false
+					m_b0D = true
+					m_b1D = false
+					m_b2D = false
+					m_b2D_TRI = false
+				}
+				m_localReferenceArray = [ 85 ]
+				m_nGroupSize = [ 1, 1 ]
+				m_nLocalPose = [ -1, -1 ]
+				m_poseKeyArray0 = [ 0.0 ]
+				m_poseKeyArray1 = [ 0.0 ]
+				m_nLocalCyclePoseParameter = -1
+				m_bCalculatePoseParameters = false
+			}
+			m_nLocalWeightlist = 0
+			m_autoLayerArray = [  ]
+			m_IKLockArray = [  ]
+			m_transition = 
+			{
+				m_flFadeInTime = 0.2
+				m_flFadeOutTime = 0.2
+			}
+			m_SequenceKeys = null
+			m_keyValueText = ""
+			m_activityArray = 
+			[
+				{
+					m_name = "ACT_DOTA_CAST_REQUIEM_STATUE"
+					m_nActivity = 0
+					m_nFlags = 0
+					m_nWeight = 1
+				},
+			]
+			m_footMotion = [  ]
+		},
+		{
+			m_sName = "attack01"
+			m_flags = 
+			{
+				m_bLooping = false
+				m_bSnap = false
+				m_bAutoplay = false
+				m_bPost = false
+				m_bHidden = false
+				m_bMulti = false
+				m_bLegacyDelta = false
+				m_bLegacyWorldspace = false
+				m_bLegacyCyclepose = false
+				m_bLegacyRealtime = false
+				m_bModelDoc = true
+			}
+			m_fetch = 
+			{
+				m_flags = 
+				{
+					m_bRealtime = false
+					m_bCylepose = false
+					m_b0D = true
+					m_b1D = false
+					m_b2D = false
+					m_b2D_TRI = false
+				}
+				m_localReferenceArray = [ 86 ]
+				m_nGroupSize = [ 1, 1 ]
+				m_nLocalPose = [ -1, -1 ]
+				m_poseKeyArray0 = [ 0.0 ]
+				m_poseKeyArray1 = [ 0.0 ]
+				m_nLocalCyclePoseParameter = -1
+				m_bCalculatePoseParameters = false
+			}
+			m_nLocalWeightlist = 0
+			m_autoLayerArray = [  ]
+			m_IKLockArray = [  ]
+			m_transition = 
+			{
+				m_flFadeInTime = 0.2
+				m_flFadeOutTime = 0.2
+			}
+			m_SequenceKeys = null
+			m_keyValueText = ""
+			m_activityArray = 
+			[
+				{
+					m_name = "ACT_DOTA_ATTACK_STATUE"
+					m_nActivity = 0
+					m_nFlags = 0
+					m_nWeight = 1
+				},
+			]
+			m_footMotion = [  ]
+		},
+		{
+			m_sName = "attack02"
+			m_flags = 
+			{
+				m_bLooping = false
+				m_bSnap = false
+				m_bAutoplay = false
+				m_bPost = false
+				m_bHidden = false
+				m_bMulti = false
+				m_bLegacyDelta = false
+				m_bLegacyWorldspace = false
+				m_bLegacyCyclepose = false
+				m_bLegacyRealtime = false
+				m_bModelDoc = true
+			}
+			m_fetch = 
+			{
+				m_flags = 
+				{
+					m_bRealtime = false
+					m_bCylepose = false
+					m_b0D = true
+					m_b1D = false
+					m_b2D = false
+					m_b2D_TRI = false
+				}
+				m_localReferenceArray = [ 87 ]
+				m_nGroupSize = [ 1, 1 ]
+				m_nLocalPose = [ -1, -1 ]
+				m_poseKeyArray0 = [ 0.0 ]
+				m_poseKeyArray1 = [ 0.0 ]
+				m_nLocalCyclePoseParameter = -1
+				m_bCalculatePoseParameters = false
+			}
+			m_nLocalWeightlist = 0
+			m_autoLayerArray = [  ]
+			m_IKLockArray = [  ]
+			m_transition = 
+			{
+				m_flFadeInTime = 0.2
+				m_flFadeOutTime = 0.2
+			}
+			m_SequenceKeys = null
+			m_keyValueText = ""
+			m_activityArray = 
+			[
+				{
+					m_name = "ACT_DOTA_ATTACK_STATUE"
+					m_nActivity = 0
+					m_nFlags = 0
+					m_nWeight = 1
+				},
+			]
+			m_footMotion = [  ]
+		},
+		{
+			m_sName = "stun"
+			m_flags = 
+			{
+				m_bLooping = true
+				m_bSnap = false
+				m_bAutoplay = false
+				m_bPost = false
+				m_bHidden = false
+				m_bMulti = false
+				m_bLegacyDelta = false
+				m_bLegacyWorldspace = false
+				m_bLegacyCyclepose = false
+				m_bLegacyRealtime = false
+				m_bModelDoc = true
+			}
+			m_fetch = 
+			{
+				m_flags = 
+				{
+					m_bRealtime = false
+					m_bCylepose = false
+					m_b0D = true
+					m_b1D = false
+					m_b2D = false
+					m_b2D_TRI = false
+				}
+				m_localReferenceArray = [ 88 ]
+				m_nGroupSize = [ 1, 1 ]
+				m_nLocalPose = [ -1, -1 ]
+				m_poseKeyArray0 = [ 0.0 ]
+				m_poseKeyArray1 = [ 0.0 ]
+				m_nLocalCyclePoseParameter = -1
+				m_bCalculatePoseParameters = false
+			}
+			m_nLocalWeightlist = 0
+			m_autoLayerArray = [  ]
+			m_IKLockArray = [  ]
+			m_transition = 
+			{
+				m_flFadeInTime = 0.2
+				m_flFadeOutTime = 0.2
+			}
+			m_SequenceKeys = null
+			m_keyValueText = ""
+			m_activityArray = 
+			[
+				{
+					m_name = "ACT_DOTA_STUN_STATUE"
+					m_nActivity = 0
+					m_nFlags = 0
+					m_nWeight = 1
+				},
+			]
+			m_footMotion = [  ]
+		},
+		{
+			m_sName = "flail"
+			m_flags = 
+			{
+				m_bLooping = true
+				m_bSnap = false
+				m_bAutoplay = false
+				m_bPost = false
+				m_bHidden = false
+				m_bMulti = false
+				m_bLegacyDelta = false
+				m_bLegacyWorldspace = false
+				m_bLegacyCyclepose = false
+				m_bLegacyRealtime = false
+				m_bModelDoc = true
+			}
+			m_fetch = 
+			{
+				m_flags = 
+				{
+					m_bRealtime = false
+					m_bCylepose = false
+					m_b0D = true
+					m_b1D = false
+					m_b2D = false
+					m_b2D_TRI = false
+				}
+				m_localReferenceArray = [ 89 ]
+				m_nGroupSize = [ 1, 1 ]
+				m_nLocalPose = [ -1, -1 ]
+				m_poseKeyArray0 = [ 0.0 ]
+				m_poseKeyArray1 = [ 0.0 ]
+				m_nLocalCyclePoseParameter = -1
+				m_bCalculatePoseParameters = false
+			}
+			m_nLocalWeightlist = 0
+			m_autoLayerArray = [  ]
+			m_IKLockArray = [  ]
+			m_transition = 
+			{
+				m_flFadeInTime = 0.2
+				m_flFadeOutTime = 0.2
+			}
+			m_SequenceKeys = null
+			m_keyValueText = ""
+			m_activityArray = 
+			[
+				{
+					m_name = "ACT_DOTA_FLAIL_STATUE"
+					m_nActivity = 0
+					m_nFlags = 0
+					m_nWeight = 1
+				},
+			]
+			m_footMotion = [  ]
+		},
+		{
+			m_sName = "loadout_spawn"
+			m_flags = 
+			{
+				m_bLooping = false
+				m_bSnap = false
+				m_bAutoplay = false
+				m_bPost = false
+				m_bHidden = false
+				m_bMulti = false
+				m_bLegacyDelta = false
+				m_bLegacyWorldspace = false
+				m_bLegacyCyclepose = false
+				m_bLegacyRealtime = false
+				m_bModelDoc = true
+			}
+			m_fetch = 
+			{
+				m_flags = 
+				{
+					m_bRealtime = false
+					m_bCylepose = false
+					m_b0D = true
+					m_b1D = false
+					m_b2D = false
+					m_b2D_TRI = false
+				}
+				m_localReferenceArray = [ 90 ]
+				m_nGroupSize = [ 1, 1 ]
+				m_nLocalPose = [ -1, -1 ]
+				m_poseKeyArray0 = [ 0.0 ]
+				m_poseKeyArray1 = [ 0.0 ]
+				m_nLocalCyclePoseParameter = -1
+				m_bCalculatePoseParameters = false
+			}
+			m_nLocalWeightlist = 0
+			m_autoLayerArray = [  ]
+			m_IKLockArray = [  ]
+			m_transition = 
+			{
+				m_flFadeInTime = 0.2
+				m_flFadeOutTime = 0.2
+			}
+			m_SequenceKeys = null
+			m_keyValueText = ""
+			m_activityArray = 
+			[
+				{
+					m_name = "ACT_DOTA_SPAWN_STATUE"
+					m_nActivity = 0
+					m_nFlags = 0
+					m_nWeight = 1
+				},
+			]
+			m_footMotion = [  ]
+		},
+		{
+			m_sName = "teleport"
+			m_flags = 
+			{
+				m_bLooping = true
+				m_bSnap = false
+				m_bAutoplay = false
+				m_bPost = false
+				m_bHidden = false
+				m_bMulti = false
+				m_bLegacyDelta = false
+				m_bLegacyWorldspace = false
+				m_bLegacyCyclepose = false
+				m_bLegacyRealtime = false
+				m_bModelDoc = true
+			}
+			m_fetch = 
+			{
+				m_flags = 
+				{
+					m_bRealtime = false
+					m_bCylepose = false
+					m_b0D = true
+					m_b1D = false
+					m_b2D = false
+					m_b2D_TRI = false
+				}
+				m_localReferenceArray = [ 91 ]
+				m_nGroupSize = [ 1, 1 ]
+				m_nLocalPose = [ -1, -1 ]
+				m_poseKeyArray0 = [ 0.0 ]
+				m_poseKeyArray1 = [ 0.0 ]
+				m_nLocalCyclePoseParameter = -1
+				m_bCalculatePoseParameters = false
+			}
+			m_nLocalWeightlist = 0
+			m_autoLayerArray = [  ]
+			m_IKLockArray = [  ]
+			m_transition = 
+			{
+				m_flFadeInTime = 0.2
+				m_flFadeOutTime = 0.2
+			}
+			m_SequenceKeys = null
+			m_keyValueText = ""
+			m_activityArray = 
+			[
+				{
+					m_name = "ACT_DOTA_TELEPORT_STATUE"
+					m_nActivity = 0
+					m_nFlags = 0
+					m_nWeight = 1
+				},
+			]
+			m_footMotion = [  ]
+		},
+		{
+			m_sName = "forcestaff"
+			m_flags = 
+			{
+				m_bLooping = false
+				m_bSnap = false
+				m_bAutoplay = false
+				m_bPost = false
+				m_bHidden = false
+				m_bMulti = false
+				m_bLegacyDelta = false
+				m_bLegacyWorldspace = false
+				m_bLegacyCyclepose = false
+				m_bLegacyRealtime = false
+				m_bModelDoc = true
+			}
+			m_fetch = 
+			{
+				m_flags = 
+				{
+					m_bRealtime = false
+					m_bCylepose = false
+					m_b0D = true
+					m_b1D = false
+					m_b2D = false
+					m_b2D_TRI = false
+				}
+				m_localReferenceArray = [ 92 ]
+				m_nGroupSize = [ 1, 1 ]
+				m_nLocalPose = [ -1, -1 ]
+				m_poseKeyArray0 = [ 0.0 ]
+				m_poseKeyArray1 = [ 0.0 ]
+				m_nLocalCyclePoseParameter = -1
+				m_bCalculatePoseParameters = false
+			}
+			m_nLocalWeightlist = 0
+			m_autoLayerArray = [  ]
+			m_IKLockArray = [  ]
+			m_transition = 
+			{
+				m_flFadeInTime = 0.2
+				m_flFadeOutTime = 0.2
+			}
+			m_SequenceKeys = null
+			m_keyValueText = ""
+			m_activityArray = 
+			[
+				{
+					m_name = "ACT_DOTA_FORCESTAFF_STATUE"
+					m_nActivity = 0
+					m_nFlags = 0
+					m_nWeight = 1
+				},
+			]
+			m_footMotion = [  ]
+		},
+		{
+			m_sName = "victory"
+			m_flags = 
+			{
+				m_bLooping = true
+				m_bSnap = false
+				m_bAutoplay = false
+				m_bPost = false
+				m_bHidden = false
+				m_bMulti = false
+				m_bLegacyDelta = false
+				m_bLegacyWorldspace = false
+				m_bLegacyCyclepose = false
+				m_bLegacyRealtime = false
+				m_bModelDoc = true
+			}
+			m_fetch = 
+			{
+				m_flags = 
+				{
+					m_bRealtime = false
+					m_bCylepose = false
+					m_b0D = true
+					m_b1D = false
+					m_b2D = false
+					m_b2D_TRI = false
+				}
+				m_localReferenceArray = [ 93 ]
+				m_nGroupSize = [ 1, 1 ]
+				m_nLocalPose = [ -1, -1 ]
+				m_poseKeyArray0 = [ 0.0 ]
+				m_poseKeyArray1 = [ 0.0 ]
+				m_nLocalCyclePoseParameter = -1
+				m_bCalculatePoseParameters = false
+			}
+			m_nLocalWeightlist = 0
+			m_autoLayerArray = [  ]
+			m_IKLockArray = [  ]
+			m_transition = 
+			{
+				m_flFadeInTime = 0.2
+				m_flFadeOutTime = 0.2
+			}
+			m_SequenceKeys = null
+			m_keyValueText = ""
+			m_activityArray = 
+			[
+				{
+					m_name = "ACT_DOTA_VICTORY_STATUE"
+					m_nActivity = 0
+					m_nFlags = 0
+					m_nWeight = 1
+				},
+			]
+			m_footMotion = [  ]
+		},
+		{
+			m_sName = "taunt_fiendish_swag"
+			m_flags = 
+			{
+				m_bLooping = false
+				m_bSnap = false
+				m_bAutoplay = false
+				m_bPost = false
+				m_bHidden = false
+				m_bMulti = false
+				m_bLegacyDelta = false
+				m_bLegacyWorldspace = false
+				m_bLegacyCyclepose = false
+				m_bLegacyRealtime = false
+				m_bModelDoc = true
+			}
+			m_fetch = 
+			{
+				m_flags = 
+				{
+					m_bRealtime = false
+					m_bCylepose = false
+					m_b0D = true
+					m_b1D = false
+					m_b2D = false
+					m_b2D_TRI = false
+				}
+				m_localReferenceArray = [ 94 ]
+				m_nGroupSize = [ 1, 1 ]
+				m_nLocalPose = [ -1, -1 ]
+				m_poseKeyArray0 = [ 0.0 ]
+				m_poseKeyArray1 = [ 0.0 ]
+				m_nLocalCyclePoseParameter = -1
+				m_bCalculatePoseParameters = false
+			}
+			m_nLocalWeightlist = 0
+			m_autoLayerArray = [  ]
+			m_IKLockArray = [  ]
+			m_transition = 
+			{
+				m_flFadeInTime = 0.2
+				m_flFadeOutTime = 0.2
+			}
+			m_SequenceKeys = null
+			m_keyValueText = ""
+			m_activityArray = 
+			[
+				{
+					m_name = "ACT_DOTA_TAUNT_STATUE"
+					m_nActivity = 0
+					m_nFlags = 0
+					m_nWeight = 1
+				},
+				{
+					m_name = "swag_gesture"
+					m_nActivity = 0
+					m_nFlags = 0
+					m_nWeight = 1
+				},
+			]
+			m_footMotion = [  ]
+		},
+		{
+			m_sName = "run_alt_desolation"
+			m_flags = 
+			{
+				m_bLooping = true
+				m_bSnap = false
+				m_bAutoplay = false
+				m_bPost = false
+				m_bHidden = true
+				m_bMulti = false
+				m_bLegacyDelta = false
+				m_bLegacyWorldspace = false
+				m_bLegacyCyclepose = false
+				m_bLegacyRealtime = false
+				m_bModelDoc = true
+			}
+			m_fetch = 
+			{
+				m_flags = 
+				{
+					m_bRealtime = false
+					m_bCylepose = false
+					m_b0D = true
+					m_b1D = false
+					m_b2D = false
+					m_b2D_TRI = false
+				}
+				m_localReferenceArray = [ 95 ]
+				m_nGroupSize = [ 1, 1 ]
+				m_nLocalPose = [ -1, -1 ]
+				m_poseKeyArray0 = [ 0.0 ]
+				m_poseKeyArray1 = [ 0.0 ]
+				m_nLocalCyclePoseParameter = -1
+				m_bCalculatePoseParameters = false
+			}
+			m_nLocalWeightlist = 0
+			m_autoLayerArray = [  ]
+			m_IKLockArray = [  ]
+			m_transition = 
+			{
+				m_flFadeInTime = 0.2
+				m_flFadeOutTime = 0.2
+			}
+			m_SequenceKeys = null
+			m_keyValueText = ""
+			m_activityArray = 
+			[
+				{
+					m_name = "ACT_DOTA_RUN_STATUE"
+					m_nActivity = 0
+					m_nFlags = 0
+					m_nWeight = 1
+				},
+			]
+			m_footMotion = [  ]
+		},
+		{
+			m_sName = "run_haste_desolation"
+			m_flags = 
+			{
+				m_bLooping = true
+				m_bSnap = false
+				m_bAutoplay = false
+				m_bPost = false
+				m_bHidden = true
+				m_bMulti = false
+				m_bLegacyDelta = false
+				m_bLegacyWorldspace = false
+				m_bLegacyCyclepose = false
+				m_bLegacyRealtime = false
+				m_bModelDoc = true
+			}
+			m_fetch = 
+			{
+				m_flags = 
+				{
+					m_bRealtime = false
+					m_bCylepose = false
+					m_b0D = true
+					m_b1D = false
+					m_b2D = false
+					m_b2D_TRI = false
+				}
+				m_localReferenceArray = [ 96 ]
+				m_nGroupSize = [ 1, 1 ]
+				m_nLocalPose = [ -1, -1 ]
+				m_poseKeyArray0 = [ 0.0 ]
+				m_poseKeyArray1 = [ 0.0 ]
+				m_nLocalCyclePoseParameter = -1
+				m_bCalculatePoseParameters = false
+			}
+			m_nLocalWeightlist = 0
+			m_autoLayerArray = [  ]
+			m_IKLockArray = [  ]
+			m_transition = 
+			{
+				m_flFadeInTime = 0.2
+				m_flFadeOutTime = 0.2
+			}
+			m_SequenceKeys = null
+			m_keyValueText = ""
+			m_activityArray = 
+			[
+				{
+					m_name = "ACT_DOTA_RUN_STATUE"
+					m_nActivity = 0
+					m_nFlags = 0
+					m_nWeight = 1
+				},
+			]
+			m_footMotion = [  ]
+		},
+		{
+			m_sName = "turns"
+			m_flags = 
+			{
+				m_bLooping = false
+				m_bSnap = false
+				m_bAutoplay = false
+				m_bPost = false
+				m_bHidden = false
+				m_bMulti = true
+				m_bLegacyDelta = true
+				m_bLegacyWorldspace = false
+				m_bLegacyCyclepose = false
+				m_bLegacyRealtime = false
+				m_bModelDoc = true
+			}
+			m_fetch = 
+			{
+				m_flags = 
+				{
+					m_bRealtime = false
+					m_bCylepose = false
+					m_b0D = false
+					m_b1D = true
+					m_b2D = false
+					m_b2D_TRI = false
+				}
+				m_localReferenceArray = [ 40, 41, 42 ]
+				m_nGroupSize = [ 3, 1 ]
+				m_nLocalPose = [ 0, -1 ]
+				m_poseKeyArray0 = [ -1.0, 0.0, 1.0 ]
+				m_poseKeyArray1 = [ 0.0, 0.0, 0.0 ]
+				m_nLocalCyclePoseParameter = -1
+				m_bCalculatePoseParameters = false
+			}
+			m_nLocalWeightlist = 0
+			m_autoLayerArray = [  ]
+			m_IKLockArray = [  ]
+			m_transition = 
+			{
+				m_flFadeInTime = 0.2
+				m_flFadeOutTime = 0.2
+			}
+			m_SequenceKeys = null
+			m_keyValueText = ""
+			m_activityArray = [  ]
+			m_footMotion = [  ]
+		},
+	]
+	m_localMultiSeqDescArray = [  ]
+	m_localSynthAnimDescArray = [  ]
+	m_localCmdSeqDescArray = [  ]
+	m_localBoneMaskArray = 
+	[
+		{
+			m_sName = "default"
+			m_nLocalBoneArray = [  ]
+			m_flBoneWeightArray = [  ]
+			m_flDefaultMorphCtrlWeight = 1.0
+			m_morphCtrlWeightArray = [  ]
+		},
+		{
+			m_sName = "upperBody"
+			m_nLocalBoneArray = [ 0, 1, 2, 3 ]
+			m_flBoneWeightArray = [ 0.0, 0.5, 0.75, 1.0 ]
+			m_flDefaultMorphCtrlWeight = 0.0
+			m_morphCtrlWeightArray = [  ]
+		},
+		{
+			m_sName = "_empty_anim_weightlist"
+			m_nLocalBoneArray = [  ]
+			m_flBoneWeightArray = [  ]
+			m_flDefaultMorphCtrlWeight = 1.0
+			m_morphCtrlWeightArray = [  ]
+		},
+	]
+	m_localBoneNameArray = 
+	[
+		"Tail0_JNT",
+		"Spine0_JNT",
+		"Spine1_JNT",
+		"Spine2_JNT",
+	]
+	m_localNodeName = ""
+	m_localPoseParamArray = 
+	[
+		{
+			m_sName = "turn"
+			m_flStart = -1.0
+			m_flEnd = 1.0
+			m_flLoop = 0.0
+			m_bLooping = false
+		},
+	]
+	m_keyValues = 
+	{
+		faceposer_folders = 
+		{
+			base = 
+			[
+				"portrait",
+				"attack01_injured",
+				"attack02_injured",
+				"death",
+				"loadout",
+				"spawn",
+				"teleport_end",
+				"forcestaff_enemy",
+				"forcestaff_end",
+				"forcestaff_end_injured",
+				"attack01_anim",
+				"attack01_fast",
+				"attack01_faster",
+				"attack01_fastest",
+				"attack02_anim",
+				"attack02_fast",
+				"attack02_faster",
+				"attack02_fastest",
+				"defeat",
+				"pose01",
+				"versus_attack",
+				"idle_anim",
+				"idle_rare_anim",
+				"idle_injured_anim",
+				"cast1_shadowraze_a_anim",
+				"cast1_shadowraze_b_anim",
+				"cast1_shadowraze_c_anim",
+				"cast6_requiem_anim",
+				"stun_anim",
+				"flail_anim",
+				"loadout_spawn_anim",
+				"teleport_anim",
+				"forcestaff_anim",
+				"victory_anim",
+				"generic_channel",
+			]
+			item = 
+			[
+				"cast1_shadowraze_a_desolation",
+				"cast1_shadowraze_b_desolation",
+				"cast1_shadowraze_c_desolation",
+				"taunt_fiendish_swag_anim",
+				"loadout_desolation",
+				"loadout_spawn_desolation",
+			]
+			effigy = 
+			[
+				"run",
+				"run_haste",
+				"run_injured",
+				"idle",
+				"idle_rare",
+				"idle_injured",
+				"cast1_shadowraze_a",
+				"cast1_shadowraze_b",
+				"cast1_shadowraze_c",
+				"cast6_requiem",
+				"attack01",
+				"attack02",
+				"stun",
+				"flail",
+				"loadout_spawn",
+				"teleport",
+				"forcestaff",
+				"victory",
+				"taunt_fiendish_swag",
+			]
+		}
+	}
+	m_localIKAutoplayLockArray = [  ]
+}

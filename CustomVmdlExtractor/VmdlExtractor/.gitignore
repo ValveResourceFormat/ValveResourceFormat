@@ -1,0 +1,49 @@
+# ---------------------------------------------------------------------------
+# Build / IDE artefacts
+# ---------------------------------------------------------------------------
+bin/
+obj/
+publish/
+*.user
+*.suo
+.vs/
+.vscode/
+.idea/
+
+# NuGet
+*.nupkg
+*.snupkg
+.nuget/
+packages/
+
+# ---------------------------------------------------------------------------
+# Workspace scratch — keep the repo lean
+# ---------------------------------------------------------------------------
+# Valve game content extracted for local testing
+valve_pure/
+valve_pure_extract/
+out/
+out_*/
+test_out_*/
+test_valve_orig/
+_xtest/
+_scratch/
+progress.txt
+
+# Tooling logs / scanner dumps
+all_files.txt
+*.log
+*.tmp
+Diag/bin/
+Diag/obj/
+
+# ---------------------------------------------------------------------------
+# OS junk
+# ---------------------------------------------------------------------------
+Thumbs.db
+Desktop.ini
+.DS_Store
+*~
+
+# Regression-sweep local outputs
+Diag/RegressionSweep/*.json

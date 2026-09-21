@@ -74,6 +74,7 @@ namespace GUI
             vpkContextMenu = new ThemedContextMenuStrip(components);
             extractToolStripMenuItem = new ThemedToolStripMenuItem();
             decompileToolStripMenuItem = new ThemedToolStripMenuItem();
+            decompileCustomVmdlToolStripMenuItem = new ThemedToolStripMenuItem();
             toolStripSeparator1 = new ToolStripSeparator();
             copyFileNameToolStripMenuItem = new ThemedToolStripMenuItem();
             copyFileNameOnDiskToolStripMenuItem = new ThemedToolStripMenuItem();
@@ -330,26 +331,34 @@ namespace GUI
             // 
             vpkContextMenu.BackColor = System.Drawing.Color.FromArgb(231, 236, 236);
             vpkContextMenu.ImageScalingSize = new System.Drawing.Size(24, 24);
-            vpkContextMenu.Items.AddRange(new ToolStripItem[] { extractToolStripMenuItem, decompileToolStripMenuItem, toolStripSeparator1, copyFileNameToolStripMenuItem, copyFileNameOnDiskToolStripMenuItem, toolStripSeparator3, openWithoutViewerToolStripMenuItem, openWithDefaultAppToolStripMenuItem, viewAssetInfoToolStripMenuItem, verifyPackageContentsToolStripMenuItem, recoverDeletedToolStripMenuItem });
+            vpkContextMenu.Items.AddRange(new ToolStripItem[] { extractToolStripMenuItem, decompileToolStripMenuItem, decompileCustomVmdlToolStripMenuItem, toolStripSeparator1, copyFileNameToolStripMenuItem, copyFileNameOnDiskToolStripMenuItem, toolStripSeparator3, openWithoutViewerToolStripMenuItem, openWithDefaultAppToolStripMenuItem, viewAssetInfoToolStripMenuItem, verifyPackageContentsToolStripMenuItem, recoverDeletedToolStripMenuItem });
             vpkContextMenu.Name = "vpkContextMenu";
             vpkContextMenu.Size = new System.Drawing.Size(208, 286);
-            // 
+            //
             // extractToolStripMenuItem
-            // 
+            //
             extractToolStripMenuItem.Name = "extractToolStripMenuItem";
             extractToolStripMenuItem.Size = new System.Drawing.Size(207, 30);
             extractToolStripMenuItem.SVGImageResourceName = "GUI.Icons.Export.svg";
             extractToolStripMenuItem.Text = "Export as is";
             extractToolStripMenuItem.Click += ExtractToolStripMenuItem_Click;
-            // 
+            //
             // decompileToolStripMenuItem
-            // 
+            //
             decompileToolStripMenuItem.Name = "decompileToolStripMenuItem";
             decompileToolStripMenuItem.Size = new System.Drawing.Size(207, 30);
             decompileToolStripMenuItem.SVGImageResourceName = "GUI.Icons.Decompile.svg";
             decompileToolStripMenuItem.Text = "Decompile && export";
             decompileToolStripMenuItem.Click += DecompileToolStripMenuItem_Click;
-            // 
+            //
+            // decompileCustomVmdlToolStripMenuItem
+            //
+            decompileCustomVmdlToolStripMenuItem.Name = "decompileCustomVmdlToolStripMenuItem";
+            decompileCustomVmdlToolStripMenuItem.Size = new System.Drawing.Size(207, 30);
+            decompileCustomVmdlToolStripMenuItem.SVGImageResourceName = "GUI.Icons.Decompile.svg";
+            decompileCustomVmdlToolStripMenuItem.Text = "Decompile && export (custom VMDL extractor)";
+            decompileCustomVmdlToolStripMenuItem.Click += DecompileCustomVmdlToolStripMenuItem_Click;
+            //
             // toolStripSeparator1
             // 
             toolStripSeparator1.Name = "toolStripSeparator1";
@@ -537,7 +546,7 @@ namespace GUI
             Name = "MainForm";
             SizeGripStyle = SizeGripStyle.Show;
             StartPosition = FormStartPosition.CenterScreen;
-            Text = "Source 2 Viewer";
+            Text = "Source2Viewer - d2pfx";
             Load += MainForm_Load;
             DragDrop += MainForm_DragDrop;
             DragEnter += MainForm_DragEnter;
@@ -567,6 +576,7 @@ namespace GUI
         private ThemedToolStripMenuItem openWithoutViewerToolStripMenuItem;
         private ThemedToolStripMenuItem openWithDefaultAppToolStripMenuItem;
         private ThemedToolStripMenuItem decompileToolStripMenuItem;
+        private ThemedToolStripMenuItem decompileCustomVmdlToolStripMenuItem;
         private ToolStripSeparator toolStripSeparator1;
         private ThemedToolStripMenuItem settingsToolStripMenuItem;
         private ThemedToolStripMenuItem aboutToolStripMenuItem;

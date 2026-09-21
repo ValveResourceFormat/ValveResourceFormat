@@ -1,0 +1,38 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>VmdlExtractor</RootNamespace>
+    <AssemblyName>VmdlExtractor</AssemblyName>
+    <InvariantGlobalization>true</InvariantGlobalization>
+    <LangVersion>latest</LangVersion>
+    <!-- Vendored third-party decompiler, adapted to build against the in-repo
+         ValveResourceFormat project. Not held to the repo-wide analyzer/warnings
+         gate that applies to first-party library and app code. -->
+    <AnalysisMode>Recommended</AnalysisMode>
+    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+    <EnforceCodeStyleInBuild>false</EnforceCodeStyleInBuild>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\ValveResourceFormat\ValveResourceFormat.csproj" />
+    <PackageReference Include="ValvePak" Version="6.0.0.182" />
+  </ItemGroup>
+
+  <!-- Diag/ — отдельные проекты диагностики (Probe/MotionDiff/RegressionSweep/etc).
+       Исключаем, чтобы default-glob SDK не тянул их в основной EXE.
+       test_out_*/, _xtest/, _xstage/ — workspace scratch (могут содержать
+       свои obj/AssemblyInfo от sub-проектов, которые ломают сборку). -->
+  <ItemGroup>
+    <Compile Remove="Diag\**\*.cs" />
+    <Compile Remove="test_out_*\**\*.cs" />
+    <Compile Remove="_xtest\**\*.cs" />
+    <Compile Remove="_xstage\**\*.cs" />
+    <None Remove="Diag\**" />
+    <None Remove="test_out_*\**" />
+  </ItemGroup>
+
+</Project>

@@ -46,6 +46,7 @@
     <EmbeddedResource Include="Utils\industrial_sunset_puresky.vtex_c" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\CustomVmdlExtractor\VmdlExtractor\VmdlExtractor.csproj" />
     <ProjectReference Include="..\Renderer\Renderer.csproj" />
     <ProjectReference Include="..\ValveResourceFormat\ValveResourceFormat.csproj" />
     <EmbeddedResource Include="..\THIRD_PARTY_NOTICES.txt" Link="Utils\THIRD_PARTY_NOTICES.txt" />

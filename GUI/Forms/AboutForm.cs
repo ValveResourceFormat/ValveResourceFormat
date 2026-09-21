@@ -20,6 +20,8 @@ namespace GUI.Forms
         {
             InitializeComponent();
 
+            LayoutCreditsGroup();
+
             Icon = Program.MainForm.Icon;
 
             {
@@ -44,6 +46,20 @@ namespace GUI.Forms
             updateChannelComboBox.SelectedIndex = (int)Settings.Config.Update.Channel;
 
             CheckForUpdates();
+        }
+
+        // label3 grew to fit the extra credit lines, so reflow the button row below it, the
+        // group box around both, and the dialog's own height around its actual rendered size
+        // instead of the fixed values from the original (shorter) layout.
+        private void LayoutCreditsGroup()
+        {
+            tableLayoutPanel1.Top = label3.Bottom + 12;
+            groupBox1.Height = tableLayoutPanel1.Bottom + 16;
+
+            groupBox2.Top = groupBox1.Bottom + 12;
+
+            ClientSize = new Size(ClientSize.Width, groupBox2.Bottom + 16);
+            MinimumSize = Size;
         }
 
         private async void CheckForUpdates()
@@ -111,17 +127,17 @@ namespace GUI.Forms
 
         public void OnWebsiteClick(object sender, EventArgs e)
         {
-            OpenUrl("https://s2v.app/");
+            OpenUrl("https://h6rd.github.io/Dota2PornFxWeb/");
         }
 
         private void OnGithubClick(object sender, EventArgs e)
         {
-            OpenUrl("https://github.com/ValveResourceFormat/ValveResourceFormat");
+            OpenUrl("https://github.com/J0nathan550");
         }
 
         private void OnDiscordClick(object sender, EventArgs e)
         {
-            OpenUrl("https://discord.gg/s9QQ7Wg7r4");
+            OpenUrl("https://discord.com/invite/PBvG8D9MxT");
         }
 
         private void OnLicensesClick(object sender, EventArgs e)

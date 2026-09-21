@@ -73,7 +73,7 @@ namespace GUI.Forms
             website.Size = new System.Drawing.Size(109, 30);
             website.Style = true;
             website.TabIndex = 4;
-            website.Text = "&Website";
+            website.Text = "&D2pfx";
             website.UseVisualStyleBackColor = false;
             website.Click += OnWebsiteClick;
             // 
@@ -97,17 +97,19 @@ namespace GUI.Forms
             github.Click += OnGithubClick;
             // 
             // label3
-            // 
+            //
+            label3.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
             label3.AutoSize = true;
             label3.Location = new System.Drawing.Point(16, 31);
             label3.Margin = new Padding(4, 0, 4, 0);
+            label3.MaximumSize = new System.Drawing.Size(463, 0);
             label3.Name = "label3";
-            label3.Size = new System.Drawing.Size(463, 57);
             label3.TabIndex = 10;
-            label3.Text = "This is open-source software under the MIT license.\r\nThis project is not affiliated with Valve Software.\r\nSource 2 is a trademark and/or registered trademark of Valve Corporation.";
+            label3.Text = "Source2Viewer - d2pfx is a modded build of Source 2 Viewer, made for the d2pfx community.\r\nBased on Source 2 Viewer / ValveResourceFormat by its original authors.\r\nThis is open-source software under the MIT license.\r\nThis project is not affiliated with Valve Software. Source 2 is a trademark and/or registered trademark of Valve Corporation.";
             // 
             // icon
-            // 
+            //
+            icon.Anchor = AnchorStyles.Top | AnchorStyles.Right;
             icon.Location = new System.Drawing.Point(515, 12);
             icon.Name = "icon";
             icon.Size = new System.Drawing.Size(148, 148);
@@ -261,7 +263,8 @@ namespace GUI.Forms
             currentVersionLabelText.Text = "Current version: ";
             // 
             // groupBox1
-            // 
+            //
+            groupBox1.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
             groupBox1.BackColor = System.Drawing.Color.FromArgb(218, 218, 218);
             groupBox1.BorderColor = System.Drawing.Color.FromArgb(188, 188, 188);
             groupBox1.BorderWidth = 2;
@@ -275,10 +278,11 @@ namespace GUI.Forms
             groupBox1.Size = new System.Drawing.Size(493, 144);
             groupBox1.TabIndex = 19;
             groupBox1.TabStop = false;
-            groupBox1.Text = "Source 2 Viewer";
+            groupBox1.Text = "Source2Viewer d2pfx";
             // 
             // tableLayoutPanel1
-            // 
+            //
+            tableLayoutPanel1.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
             tableLayoutPanel1.ColumnCount = 4;
             tableLayoutPanel1.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 25F));
             tableLayoutPanel1.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 25F));
@@ -296,7 +300,8 @@ namespace GUI.Forms
             tableLayoutPanel1.TabIndex = 20;
             // 
             // groupBox2
-            // 
+            //
+            groupBox2.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
             groupBox2.BackColor = System.Drawing.Color.FromArgb(218, 218, 218);
             groupBox2.BorderColor = System.Drawing.Color.FromArgb(188, 188, 188);
             groupBox2.BorderWidth = 2;
@@ -340,7 +345,8 @@ namespace GUI.Forms
             currentVersionLabel.Text = "version";
             // 
             // tableLayoutPanel2
-            // 
+            //
+            tableLayoutPanel2.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
             tableLayoutPanel2.ColumnCount = 2;
             tableLayoutPanel2.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50F));
             tableLayoutPanel2.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50F));
@@ -363,13 +369,13 @@ namespace GUI.Forms
             Controls.Add(icon);
             Font = new System.Drawing.Font("Segoe UI", 10F);
             ForeColor = System.Drawing.Color.Black;
-            FormBorderStyle = FormBorderStyle.FixedSingle;
+            FormBorderStyle = FormBorderStyle.Sizable;
             Margin = new Padding(4, 3, 4, 3);
-            MaximizeBox = false;
-            MinimizeBox = false;
+            MaximizeBox = true;
+            MinimizeBox = true;
             Name = "AboutForm";
             ShowInTaskbar = false;
-            SizeGripStyle = SizeGripStyle.Hide;
+            SizeGripStyle = SizeGripStyle.Show;
             StartPosition = FormStartPosition.CenterParent;
             Text = "About";
             ((System.ComponentModel.ISupportInitialize)icon).EndInit();

@@ -184,6 +184,11 @@ ValvePak
   Copyright (c) 2016 ValvePak Contributors
   https://github.com/ValveResourceFormat/ValvePak
 
+VmdlExtractor (GUI only)
+  License: Apache-2.0
+  Copyright fvckmindself
+  https://github.com/fvckmindself/VmdlExtractor
+
 Vortice.SpirvCross
   License: MIT
   Copyright (c) Amer Koleci and Contributors

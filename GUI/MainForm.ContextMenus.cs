@@ -407,6 +407,11 @@ namespace GUI
             await ExtractFiles(sender, false).ConfigureAwait(true);
         }
 
+        private async void DecompileCustomVmdlToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            await CustomVmdlExporter.ExtractSelection(sender).ConfigureAwait(true);
+        }
+
         private static async Task ExtractFiles(object sender, bool decompile)
         {
             if (sender is not ToolStripMenuItem { Owner: ContextMenuStrip { SourceControl: var owner } })

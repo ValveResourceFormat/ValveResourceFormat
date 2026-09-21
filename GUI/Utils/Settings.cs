@@ -111,6 +111,10 @@ namespace GUI.Utils
             public int PackageGridView { get; set; }
             /// <summary>Gets or sets the grid thumbnail size index (0-4, mapping to <see cref="GUI.Types.PackageViewer.ThumbnailRenderers.ThumbnailSizes"/> enum).</summary>
             public int PackageGridSize { get; set; }
+            /// <summary>Gets or sets the remembered resourcecompiler.exe path used by the custom VMDL extractor's auto-build option.</summary>
+            public string CustomVmdlResourceCompilerPath { get; set; } = string.Empty;
+            /// <summary>Gets or sets the remembered "-game" directory used by the custom VMDL extractor's auto-build option.</summary>
+            public string CustomVmdlGameDir { get; set; } = string.Empty;
             /// <summary>Internal settings file version used to apply migrations when upgrading from older versions. Do not modify manually.</summary>
             public int _VERSION_DO_NOT_MODIFY { get; set; }
             /// <summary>Gets or sets the application update check state.</summary>
