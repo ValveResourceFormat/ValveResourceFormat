@@ -659,18 +659,15 @@ namespace GUI.Types.GLViewers
         private void FocusCameraOnBounds(in AABB bbox)
         {
             var center = bbox.Center;
-            var size = bbox.Size;
-            var maxDimension = size.MaxComponent();
 
-            if (!float.IsFinite(maxDimension) || maxDimension < 1f)
-            {
-                maxDimension = 64f;
-            }
+            var size = bbox.Size * 1.25f;
 
-            // Orbit far enough out to frame the bounds, then let the physics probe move the camera
-            // off any wall or ceiling it would otherwise be spawned inside of.
-            var distance = Math.Max(maxDimension * 2.5f, 64f);
-            var location = CameraPlacement.FindOrbitPosition(Scene.PhysicsWorld, center, distance, maxDimension * 0.5f);
+            // Framed by what the bounds cover from where the camera will be: their longest axis would
+            // stand a cable or a trigger brush off by its own length. The floor keeps something player
+            // sized from filling the view with nothing around it to place it by.
+            var framing = Input.Camera.GetFramingDistance(size, -CameraPlacement.PreferredDirection(size));
+            var distance = Math.Max(framing, 192f);
+            var location = CameraPlacement.FindOrbitPosition(Scene.PhysicsWorld, center, distance, size);
 
             Input.SaveCameraForTransition();
             Input.Camera.SetLocation(location);
