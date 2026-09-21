@@ -1,34 +1,48 @@
-<h1 align="center"><img src="./Misc/Icons/source2viewer.png" width="64" height="64" align="center"> Source 2 Viewer</h1>
+<h1 align="center">
+  <img src="./Misc/Icons/source2viewer.png" alt="Logo" width="128">
+  <br>Source 2 Viewer
+</h1>
 
 <p align="center">
-    <a href="https://github.com/ValveResourceFormat/ValveResourceFormat/actions" title="Build Status"><img alt="Build Status" src="https://img.shields.io/github/actions/workflow/status/ValveResourceFormat/ValveResourceFormat/build.yml?logo=github&label=Build&logoColor=ffffff&style=for-the-badge&branch=master"></a>
-    <a href="https://www.nuget.org/packages/ValveResourceFormat/" title="NuGet Library Downloads"><img alt="NuGet Library Downloads" src="https://img.shields.io/nuget/dt/ValveResourceFormat.svg?logo=nuget&label=Library&logoColor=ffffff&color=004880&style=for-the-badge"></a>
-    <a href="https://www.nuget.org/packages/ValveResourceFormat.Renderer/" title="NuGet Renderer Downloads"><img alt="NuGet Renderer Downloads" src="https://img.shields.io/nuget/dt/ValveResourceFormat.Renderer.svg?logo=nuget&label=Renderer&logoColor=ffffff&color=004880&style=for-the-badge"></a>
-    <a href="https://app.codecov.io/gh/ValveResourceFormat/ValveResourceFormat" title="Code Coverage"><img alt="Code Coverage" src="https://img.shields.io/codecov/c/github/ValveResourceFormat/ValveResourceFormat/master?logo=codecov&label=Coverage&logoColor=ffffff&color=F01F7A&style=for-the-badge"></a>
-    <a href="https://discord.gg/s9QQ7Wg7r4" title="Discord"><img alt="Discord" src="https://img.shields.io/discord/1408482312060145725?logo=discord&label=Discord&logoColor=ffffff&color=5865F2&style=for-the-badge"></a>
+  Parser, renderer, decompiler, and exporter for Valve's Source 2 resource formats.
+  <br />
+  A viewer application, a command line decompiler, and the <code>ValveResourceFormat</code> library.
+  <br />
+  <a href="https://s2v.app/">Download</a>
+  ·
+  <a href="https://s2v.app/ValveResourceFormat/">Documentation</a>
+  ·
+  <a href="CONTRIBUTING.md">Contributing</a>
+  ·
+  <a href="https://discord.gg/s9QQ7Wg7r4">Discord</a>
 </p>
 
-Valve's Source 2 resource file format parser, renderer, decompiler, and exporter.
-The library component is called **ValveResourceFormat (VRF)**.
+## About
 
-> [!IMPORTANT]
-> [**For more information and downloads of _Source 2 Viewer_, visit the website.**](https://s2v.app/)
->
-> [View Library API documentation here.](https://s2v.app/ValveResourceFormat/api/ValveResourceFormat.html) [View guide on getting started with parsing resources.](https://s2v.app/ValveResourceFormat/guides/read-resource.html)
+Every Source 2 game ships its assets as compiled resource files: models, materials,
+textures, maps, sounds, particles, and more. Source 2 Viewer opens them, previews them,
+and exports them to formats other tools understand. The
+[format support reference](https://s2v.app/ValveResourceFormat/guides/format-support.html)
+covers what can be viewed, decompiled, and exported, and which data is lost on the way out.
 
-<img src="./Misc/Icons/readme_screenshot.webp" width="1100" height="700" align="center">
+**ValveResourceFormat (VRF)** is the library behind it, published to NuGet as
+[ValveResourceFormat](https://www.nuget.org/packages/ValveResourceFormat/) for parsing and
+exporting, and [ValveResourceFormat.Renderer](https://www.nuget.org/packages/ValveResourceFormat.Renderer/)
+for the OpenGL renderer. See the [getting started guide](https://s2v.app/ValveResourceFormat/guides/read-resource.html)
+and the [API reference](https://s2v.app/ValveResourceFormat/api/ValveResourceFormat.html).
+
+<p align="center">
+  <img src="./Misc/Icons/readme_screenshot.webp" width="1100" height="700">
+</p>
 
 ## Contributing
 
-This tool is based entirely on reverse engineering
-as Valve does not provide Source 2 documentation or code.
-Not all formats are fully supported, see the
-[format support and export fidelity reference](https://s2v.app/ValveResourceFormat/guides/format-support.html)
-for a detailed breakdown of what can be viewed, decompiled, and exported, and which data is lost.
-If you are interested in helping, take a look at the
-[open issues](https://github.com/ValveResourceFormat/ValveResourceFormat/issues)
-and join our Discord. See [CONTRIBUTING.md](CONTRIBUTING.md)
-and [AGENTS.md](AGENTS.md) for more information.
+This tool is based entirely on reverse engineering as Valve does not provide Source 2
+documentation or code, so not all formats are fully supported. If you are interested in
+helping, take a look at the [open issues](https://github.com/ValveResourceFormat/ValveResourceFormat/issues)
+and join our [Discord](https://discord.gg/s9QQ7Wg7r4). See [CONTRIBUTING.md](CONTRIBUTING.md)
+and [AGENTS.md](AGENTS.md) for more information, and
+[code coverage](https://app.codecov.io/gh/ValveResourceFormat/ValveResourceFormat) for where tests are missing.
 
 ## License
 
