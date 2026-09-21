@@ -274,7 +274,11 @@ namespace ValveResourceFormat.Renderer
             LightingInfo = new(this);
             LightBinner = new(this);
             EntitySystem = new(this);
+            ProjectedDecals = new(this);
         }
+
+        /// <summary>Gets the decals projected onto the scene's depth, such as bullet impacts.</summary>
+        public ProjectedDecalSystem ProjectedDecals { get; }
 
         /// <summary>
         /// Performs one-time GPU setup: builds acceleration structures, allocates buffers, computes light probe and environment map bindings, and loads internal shaders.
@@ -406,6 +410,7 @@ namespace ValveResourceFormat.Renderer
             StaticOctree.Clear();
             DynamicOctree.Clear();
 
+            ProjectedDecals.Clear();
             RendererContext.MaterialLoader.Clear();
             RendererContext.MeshBufferCache.Clear();
         }
@@ -1187,6 +1192,16 @@ namespace ValveResourceFormat.Renderer
         /// <inheritdoc cref="alphaTestAggregateDraws"/>
         private readonly List<MeshBatchRenderer.Request> alphaTestOpaqueDraws = [];
 
+        /// <summary>Surfaces drawn over the resolved opaque scene, for <see cref="RenderTranslucentDepthLayer"/>.</summary>
+        private readonly List<MeshBatchRenderer.Request> translucentDepthDraws = [];
+
+        /// <summary>Gets whether any surface is queued for <see cref="RenderTranslucentDepthLayer"/> this frame.</summary>
+        public bool HasTranslucentDepthDraws => translucentDepthDraws.Count > 0;
+
+        // Mesh surfaces only: particles draw themselves and never reach this list, and additive glows hide nothing behind them
+        private static bool WritesTranslucentDepth(RenderMaterial material)
+            => material is { IsCs2Water: false, CanPrimeDepth: true, IsAdditive: false };
+
         private void Add(in MeshBatchRenderer.Request request, RenderPass renderPass)
         {
             Debug.Assert(request.Call is not null);
@@ -1264,6 +1279,11 @@ namespace ValveResourceFormat.Renderer
                 queueList = alphaTestOpaqueDraws;
             }
 
+            if (isLatePass && !isViewmodelLayer && WritesTranslucentDepth(request.Call.Material))
+            {
+                translucentDepthDraws.Add(request);
+            }
+
             // Only draws that happen after the grab can make use of the resolved copies.
             if (isLatePass)
             {
@@ -1295,6 +1315,7 @@ namespace ValveResourceFormat.Renderer
             customBufferNodes.Clear();
             alphaTestAggregateDraws.Clear();
             alphaTestOpaqueDraws.Clear();
+            translucentDepthDraws.Clear();
 
             foreach (var bucket in depthOnlyDraws.Values)
             {
@@ -1302,7 +1323,7 @@ namespace ValveResourceFormat.Renderer
             }
 
             WantsSceneColor = false;
-            WantsSceneDepth = false;
+            WantsSceneDepth = ProjectedDecals.Count > 0;
 
             ResetPvsHiddenBits();
 
@@ -2093,6 +2114,28 @@ namespace ValveResourceFormat.Renderer
         }
 
         /// <summary>
+        /// Lays down the depth of the surfaces the refract, water and translucent layers draw over the opaque scene,
+        /// collected during <see cref="CollectSceneDrawCalls"/>, each through its material's own depth mode where it has one.
+        /// </summary>
+        /// <param name="renderContext">The render context for this pass, bound to a depth buffer that already holds the opaque depth.</param>
+        /// <param name="depthOnlyShader">The shader for materials without a depth mode of their own.</param>
+        public void RenderTranslucentDepthLayer(RenderContext renderContext, Shader depthOnlyShader)
+        {
+            using var _ = new GLDebugGroup("Translucent Depth");
+
+            PerfStats.Active.SuspendTriangleCounter();
+
+            translucentDepthDraws.Sort(MeshBatchRenderer.CompareCustomPipeline);
+
+            renderContext.RenderPass = RenderPass.DepthOnly;
+            renderContext.DepthOnlyShader = depthOnlyShader;
+            MeshBatchRenderer.Render(translucentDepthDraws, renderContext);
+            renderContext.DepthOnlyShader = null;
+
+            PerfStats.Active.ResumeTriangleCounter();
+        }
+
+        /// <summary>
         /// Renders the opaque first-person viewmodel layer collected during <see cref="CollectSceneDrawCalls"/>.
         /// Rendered before the main scene so its reserved near depth range can never be overtaken by world geometry.
         /// </summary>
@@ -2813,6 +2856,7 @@ namespace ValveResourceFormat.Renderer
         {
             if (disposing)
             {
+                ProjectedDecals.Delete();
                 frustumBuffer?.Dispose();
                 LightBinner.Dispose();
                 lightingBuffer?.Dispose();

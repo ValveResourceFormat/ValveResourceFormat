@@ -6,9 +6,10 @@ layout(local_size_x = 32, local_size_y = 1, local_size_z = 1) in;
 
 void main()
 {
-    uint nBatch = (gl_WorkGroupID.y >= g_nFirstMaskForBatch.z)
-                ? 2u
-                : uint(gl_WorkGroupID.y >= g_nFirstMaskForBatch.y);
+    // Batch 0 always starts at mask 0, and an empty batch shares its first mask with the next one
+    uint nBatch = uint(gl_WorkGroupID.y >= g_nFirstMaskForBatch.y)
+                + uint(gl_WorkGroupID.y >= g_nFirstMaskForBatch.z)
+                + uint(gl_WorkGroupID.y >= g_nFirstMaskForBatch.w);
     uint nMaskIndex = gl_WorkGroupID.y - g_nFirstMaskForBatch[nBatch];
     CullBatch_t batch = g_BinBatches[nBatch];
 

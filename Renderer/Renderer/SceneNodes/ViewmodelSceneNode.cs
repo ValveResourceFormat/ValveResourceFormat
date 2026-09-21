@@ -332,24 +332,27 @@ public class ViewmodelSceneNode : ModelSceneNode
         {
             case 1:
                 Sound.Play(RifleAttackSound, volume: AttackSoundVolume);
+                SpawnBulletImpactDecal(input);
                 return false;
 
             case 2:
                 Sound.Play(PistolAttackSound, volume: AttackSoundVolume);
+                SpawnBulletImpactDecal(input);
                 return false;
 
             case KnifeItemIndex:
                 var camera = input.Camera;
                 var range = (heavyKnifeAttack ? KnifeHeavyRange : KnifeLightRange) + KnifeRangePadding;
 
-                if (TraceKnifeSwing(input.PhysicsWorld, camera.Location, camera.Forward, range) is not { } hitPosition)
+                if (TraceKnifeSwing(input, camera.Location, camera.Forward, range) is not { } hit)
                 {
                     return false;
                 }
 
                 // this is played in-ear but i'd like to keep it positional
-                Sound.Play(KnifeHitWallSound, hitPosition - new Vector3(0, 0, 60), volume: AttackSoundVolume);
+                Sound.Play(KnifeHitWallSound, hit.HitPosition - new Vector3(0, 0, 60), volume: AttackSoundVolume);
                 Sound.Play(heavyKnifeAttack ? KnifeHeavyHitSound : KnifeLightHitSound);
+                SpawnKnifeDecal(input, hit.ContactPoint);
                 return true;
 
             default:
@@ -357,36 +360,88 @@ public class ViewmodelSceneNode : ModelSceneNode
         }
     }
 
-    private static Vector3? TraceKnifeSwing(Rubikon? physics, Vector3 from, Vector3 forward, float range)
+    private static Rubikon.TraceResult? TraceKnifeSwing(UserInput input, Vector3 from, Vector3 forward, float range)
     {
-        if (physics == null)
-        {
-            return null;
-        }
-
         var to = from + forward * range;
-        var trace = physics.TraceRay(from, to);
+        var trace = TraceWorldAndEntities(input, from, to);
 
         if (trace.Hit)
         {
-            return trace.HitPosition;
+            trace.ContactPoint = trace.HitPosition;
+            return trace;
         }
 
-        Vector3? hitPosition = null;
+        Rubikon.TraceResult? hit = null;
 
         for (var radius = KnifeSweepMaxRadius; radius > 0f; radius -= KnifeSweepRadiusStep)
         {
-            var sweep = physics.TraceAABB(from, to - forward * radius, new Vector3(radius), string.Empty);
+            var sweepTo = to - forward * radius;
+            var halfExtents = new Vector3(radius);
+
+            var sweep = input.PhysicsWorld?.TraceAABB(from, sweepTo, halfExtents, string.Empty, computeContactPoint: true)
+                ?? new Rubikon.TraceResult();
+
+            input.EntitySystem?.TraceAABB(from, sweepTo, halfExtents, detectStartSolid: false, ref sweep);
 
             if (!sweep.Hit)
             {
                 break;
             }
 
-            hitPosition = sweep.HitPosition;
+            hit = sweep;
         }
 
-        return hitPosition;
+        return hit;
+    }
+
+    // How far past the contact point the scuff trace reaches. An entity sweep reports the swept box's centre
+    // rather than the touch, so this covers the largest box as well as a surface met at an angle.
+    private const float KnifeDecalTraceOvershoot = KnifeSweepMaxRadius + 4f;
+
+    private void SpawnKnifeDecal(UserInput input, Vector3 contactPoint)
+    {
+        var from = input.Camera.Location;
+        var toContact = contactPoint - from;
+
+        if (toContact.LengthSquared() < 1e-4f)
+        {
+            return;
+        }
+
+        // Swept hits carry no surface property, so find the struck surface with a ray toward the contact
+        var direction = Vector3.Normalize(toContact);
+        var surface = TraceWorldAndEntities(input, from, contactPoint + direction * KnifeDecalTraceOvershoot);
+
+        if (!surface.Hit)
+        {
+            return;
+        }
+
+        Scene.ProjectedDecals.SpawnKnifeDecal(surface.HitPosition, surface.HitNormal, input.Camera.Forward, surface.SurfacePropertyHash, surface.HitEntity);
+    }
+
+    private const float BulletRange = 8192f;
+
+    private void SpawnBulletImpactDecal(UserInput input)
+    {
+        var camera = input.Camera;
+        var trace = TraceWorldAndEntities(input, camera.Location, camera.Location + camera.Forward * BulletRange);
+
+        if (!trace.Hit)
+        {
+            return;
+        }
+
+        Scene.ProjectedDecals.SpawnImpactDecal(trace.HitPosition, trace.HitNormal, camera.Forward, trace.SurfacePropertyHash, trace.HitEntity);
+    }
+
+    // Brush and prop entities carry their own colliders, which move with them, so the world alone misses doors
+    private static Rubikon.TraceResult TraceWorldAndEntities(UserInput input, Vector3 from, Vector3 to)
+    {
+        var trace = input.PhysicsWorld?.TraceRay(from, to) ?? new Rubikon.TraceResult();
+        input.EntitySystem?.TraceRay(from, to, ref trace);
+
+        return trace;
     }
 
     private void SetKnifeCooldown(float delay, bool connected)

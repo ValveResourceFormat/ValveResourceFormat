@@ -60,6 +60,10 @@ public enum ReservedBufferSlots
     QuadOverdraw = 13,
     /// <summary>Meshlet index of each aggregate indirect draw command SSBO slot.</summary>
     AggregateCommandMeshlets = 14,
+    /// <summary>Projected decal instances SSBO slot.</summary>
+    ProjectedDecals = 15,
+    /// <summary>Projected decal materials SSBO slot.</summary>
+    ProjectedDecalMaterials = 16,
 
     /// <summary>Guaranteed minimum binding point count in OpenGL 4.6.</summary>
     Max = 8,
