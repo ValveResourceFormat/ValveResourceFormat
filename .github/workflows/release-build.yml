@@ -1,4 +1,4 @@
-name: Release CLI
+name: Release Build
 
 permissions:
   contents: read
@@ -18,7 +18,7 @@ env:
   PUBLISH_ARGS: -p:PublishReadyToRun=true
 
 jobs:
-  build:
+  cli:
     name: CLI (${{ matrix.rid }})
 
     strategy:
@@ -49,9 +49,28 @@ jobs:
           CLI/bin/Release/${{ matrix.rid }}/publish
           !**/*.pdb
 
+  gui:
+    name: GUI (win-x64)
+    runs-on: windows-latest
+
+    steps:
+    - uses: actions/checkout@v7
+    - uses: ./.github/actions/setup-dotnet-cache
+
+    - name: Publish GUI
+      run: dotnet publish --configuration Release --self-contained --runtime win-x64 ${{ env.SKIP_ANALYSIS }} ${{ env.PUBLISH_ARGS }} GUI/GUI.csproj
+
+    - name: Upload GUI artifact
+      uses: actions/upload-artifact@v7
+      with:
+        # Uploaded as a bare file so that the artifact can be served as a direct download,
+        # the artifact is named after the file
+        archive: false
+        path: 'GUI/bin/Release/win-x64/publish/Source2Viewer.exe'
+
   release:
     name: Create release
-    needs: build
+    needs: [cli, gui]
     runs-on: ubuntu-latest
 
     permissions:
@@ -70,6 +89,7 @@ jobs:
         chmod +x artifacts/cli-linux-x64/Source2Viewer-CLI
         zip -9j release/cli-windows-x64.zip artifacts/cli-windows-x64/*
         zip -9j release/cli-linux-x64.zip artifacts/cli-linux-x64/*
+        mv artifacts/Source2Viewer.exe release/Source2Viewer.exe
 
     - name: Release
       uses: softprops/action-gh-release@v3
