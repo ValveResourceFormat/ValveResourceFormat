@@ -94,6 +94,7 @@ jobs:
     - name: Release
       uses: softprops/action-gh-release@v3
       with:
+        tag_name: ${{ github.ref_type == 'tag' && github.ref_name || format('build-{0}', github.run_number) }}
         files: release/*
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
