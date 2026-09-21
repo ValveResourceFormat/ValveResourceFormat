@@ -62,7 +62,7 @@ namespace Tests.IO
         [Test]
         public async Task TestVmatExtract()
         {
-            var file = Path.Combine(TestContext.TestDirectory!, "Files", "point_worldtext_default.vmat_c");
+            var file = TestFixtures.Path("point_worldtext_default.vmat_c");
             using var resource = new Resource
             {
                 FileName = file,
@@ -78,7 +78,7 @@ namespace Tests.IO
         [MatrixDataSource]
         public async Task ToMaterialMapsHdrCubemap([Matrix] bool withUnpackInfo)
         {
-            var file = Path.Combine(TestContext.TestDirectory!, "Files", "Textures", "cubemap.vtex_c");
+            var file = TestFixtures.Path("Textures", "cubemap.vtex_c");
             using var resource = new Resource
             {
                 FileName = file,

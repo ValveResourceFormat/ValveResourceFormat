@@ -15,17 +15,7 @@ namespace Tests.Formats
     {
         public static string ShadersDir => TestFixtures.Path("Shaders");
 
-        public static IEnumerable<string> ShaderFiles()
-        {
-            var files = Directory.GetFiles(ShadersDir, "*.vcs");
-
-            if (files.Length == 0)
-            {
-                throw new InvalidOperationException($"There are no shaders to test in {ShadersDir}.");
-            }
-
-            return [.. files.Select(file => Path.GetFileName(file))];
-        }
+        public static IEnumerable<string> ShaderFiles() => TestFixtures.FilesIn("Shaders", "*.vcs");
 
         [Test]
         [MethodDataSource(nameof(ShaderFiles))]

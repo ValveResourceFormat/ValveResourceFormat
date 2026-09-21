@@ -18,7 +18,7 @@ namespace Tests.Resources
         [Test]
         public async Task TestEmbeddedAnimations()
         {
-            var file = Path.Combine(TestContext.TestDirectory!, "Files", "box_creature_ik_model.vmdl_c");
+            var file = TestFixtures.Path("box_creature_ik_model.vmdl_c");
             using var resource = new Resource
             {
                 FileName = file,
@@ -53,7 +53,7 @@ namespace Tests.Resources
         [Test]
         public async Task LoadsExternalAnimationGroupAndDecodesPose()
         {
-            var vpkPath = Path.Combine(TestContext.TestDirectory!, "Files", "hand_l_v3_anim_group.vpk");
+            var vpkPath = TestFixtures.Path("hand_l_v3_anim_group.vpk");
 
             using var package = new Package();
             package.Read(vpkPath);
@@ -105,7 +105,7 @@ namespace Tests.Resources
         public async Task MovementOffsetReachesFullDisplacement()
         {
             using var resource = new Resource();
-            resource.Read(Path.Combine(TestContext.TestDirectory!, "Files", "box_creature_ik_model.vmdl_c"));
+            resource.Read(TestFixtures.Path("box_creature_ik_model.vmdl_c"));
             var model = (Model)resource.DataBlock!;
             var anim = model.GetAllAnimations(new NullFileLoader()).First(a => a.Name == "box_creature_leggy_walk");
 

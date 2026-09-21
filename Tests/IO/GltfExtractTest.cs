@@ -18,7 +18,7 @@ namespace Tests.IO
         public void TestModel()
         {
             using var resource = new Resource();
-            var worldPath = Path.Combine(TestContext.TestDirectory!, "Files", "box_creature_ik_model.vmdl_c");
+            var worldPath = TestFixtures.Path("box_creature_ik_model.vmdl_c");
             resource.Read(worldPath);
 
             var gltf = new GltfModelExporter(new NullFileLoader())
@@ -33,7 +33,7 @@ namespace Tests.IO
         public async Task TestSkinnedAnimatedExport()
         {
             using var resource = new Resource();
-            var modelPath = Path.Combine(TestContext.TestDirectory!, "Files", "box_creature_ik_model.vmdl_c");
+            var modelPath = TestFixtures.Path("box_creature_ik_model.vmdl_c");
             resource.Read(modelPath);
 
             var dir = Path.Combine(Path.GetTempPath(), "vrf_skinned_" + Guid.NewGuid().ToString("N"));
@@ -213,7 +213,7 @@ namespace Tests.IO
         private static async Task WithExportedGlb(string fileName, Func<ModelRoot, Task> assert)
         {
             using var resource = new Resource();
-            resource.Read(Path.Combine(TestContext.TestDirectory!, "Files", fileName));
+            resource.Read(TestFixtures.Path(fileName));
 
             var dir = Path.Combine(Path.GetTempPath(), "vrf_gltf_" + Guid.NewGuid().ToString("N"));
             Directory.CreateDirectory(dir);
@@ -239,7 +239,7 @@ namespace Tests.IO
         public async Task TestExportSucceedsWithoutClothAnchor()
         {
             using var resource = new Resource();
-            resource.Read(Path.Combine(TestContext.TestDirectory!, "Files", "box_creature_ik_model.vmdl_c"));
+            resource.Read(TestFixtures.Path("box_creature_ik_model.vmdl_c"));
 
             // This fixture has no procedural cloth, so the cloth-follow path is a no-op and export is unaffected.
             var model = (Model)resource.DataBlock!;
@@ -257,7 +257,7 @@ namespace Tests.IO
         public void TestMesh()
         {
             using var resource = new Resource();
-            var worldPath = Path.Combine(TestContext.TestDirectory!, "Files", "chen_weapon.vmesh_c");
+            var worldPath = TestFixtures.Path("chen_weapon.vmesh_c");
             resource.Read(worldPath);
 
             var gltf = new GltfModelExporter(new NullFileLoader())
@@ -272,7 +272,7 @@ namespace Tests.IO
         public void TestWorld()
         {
             using var resource = new Resource();
-            var worldPath = Path.Combine(TestContext.TestDirectory!, "Files", "world.vwrld_c");
+            var worldPath = TestFixtures.Path("world.vwrld_c");
             resource.Read(worldPath);
 
             var gltf = new GltfModelExporter(new NullFileLoader())
@@ -287,7 +287,7 @@ namespace Tests.IO
         public async Task TestNmSkeleton()
         {
             using var resource = new Resource();
-            resource.Read(Path.Combine(TestContext.TestDirectory!, "Files", "chicken.vnmskel_c"));
+            resource.Read(TestFixtures.Path("chicken.vnmskel_c"));
 
             ValveKeyValue.KVObject kv = ((BinaryKV3)resource.DataBlock!).Data;
             var boneIds = kv.GetArray<string>("m_boneIDs")!;
@@ -306,7 +306,7 @@ namespace Tests.IO
         [Test]
         public void TestNavMesh()
         {
-            var navPath = Path.Combine(TestContext.TestDirectory!, "Files", "workshop_example_tilemesh.nav");
+            var navPath = TestFixtures.Path("workshop_example_tilemesh.nav");
             var navMeshFile = new NavMeshFile();
             navMeshFile.Read(navPath);
 

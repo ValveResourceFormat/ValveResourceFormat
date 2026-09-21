@@ -19,7 +19,7 @@ namespace Tests.Resources
         public async Task ReadsChildResourceIds()
         {
             using var resource = new Resource();
-            resource.Read(Path.Combine(TestContext.TestDirectory!, "Files", "alchemist.vmdl_c"));
+            resource.Read(TestFixtures.Path("alchemist.vmdl_c"));
 
             var editInfo = (ResourceEditInfo)resource.GetBlockByType(BlockType.REDI)!;
 
@@ -36,7 +36,7 @@ namespace Tests.Resources
         public async Task ChildResourceIdsAreEmptyForKeyValuesEditInfo()
         {
             using var resource = new Resource();
-            resource.Read(Path.Combine(TestContext.TestDirectory!, "Files", "dynamic_images_ui_misc.vpdi_c"));
+            resource.Read(TestFixtures.Path("dynamic_images_ui_misc.vpdi_c"));
 
             var editInfo = (ResourceEditInfo2)resource.GetBlockByType(BlockType.RED2)!;
 

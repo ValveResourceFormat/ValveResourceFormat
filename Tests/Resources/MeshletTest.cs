@@ -51,7 +51,7 @@ namespace Tests.Resources
 
         private static async Task<(Resource Resource, List<MeshletDesc> Meshlets, byte[] Mslt)> Read()
         {
-            var file = Path.Combine(TestContext.TestDirectory!, "Files", "n0_lr0_agg_prop_plants001_0.vmdl_c");
+            var file = TestFixtures.Path("n0_lr0_agg_prop_plants001_0.vmdl_c");
             var resource = new Resource
             {
                 FileName = file,

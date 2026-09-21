@@ -11,7 +11,7 @@ namespace Tests.Formats
         [Test]
         public async Task ExtractProducesTextContentFile()
         {
-            var file = Path.Combine(TestContext.TestDirectory!, "Files", "subtitles_announcer_killing_spree_english.dat");
+            var file = TestFixtures.Path("subtitles_announcer_killing_spree_english.dat");
 
             await using var stream = File.OpenRead(file);
             var extract = new ClosedCaptionsExtract(stream, Path.GetFileName(file));
@@ -27,7 +27,7 @@ namespace Tests.Formats
         [Test]
         public async Task ParseClosedCaptions()
         {
-            var file = Path.Combine(TestContext.TestDirectory!, "Files", "subtitles_announcer_killing_spree_english.dat");
+            var file = TestFixtures.Path("subtitles_announcer_killing_spree_english.dat");
 
             var captions = new ClosedCaptions();
             captions.Read(file);

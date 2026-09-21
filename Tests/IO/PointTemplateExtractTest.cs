@@ -329,7 +329,7 @@ namespace Tests.IO
 
         public Task InitializeAsync()
         {
-            var vpkPath = Path.Combine(TestContext.TestDirectory!, "Files", "point_template_test.vpk");
+            var vpkPath = TestFixtures.Path("point_template_test.vpk");
 
             Package = new Package();
             Package.Read(vpkPath);

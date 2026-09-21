@@ -141,7 +141,7 @@ namespace Tests.Resources
 
         private static Resource GetTestResource(string resourceName)
         {
-            var file = Path.Combine(TestContext.TestDirectory!, "Files", resourceName);
+            var file = TestFixtures.Path(resourceName);
             var resource = new Resource
             {
                 FileName = file,

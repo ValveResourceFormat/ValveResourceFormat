@@ -16,7 +16,7 @@ namespace Tests.Resources
     {
         private static Resource ReadChoreo(string filename, out ChoreoSceneFileData scene)
         {
-            var file = Path.Combine(TestContext.TestDirectory!, "Files", filename);
+            var file = TestFixtures.Path(filename);
             var resource = new Resource
             {
                 FileName = file,

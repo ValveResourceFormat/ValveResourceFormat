@@ -10,7 +10,7 @@ namespace Tests.Resources
     {
         private static VoxelVisibility LoadVis(Resource resource)
         {
-            resource.Read(Path.Combine(TestContext.TestDirectory!, "Files", "world_visibility.vvis_c"));
+            resource.Read(TestFixtures.Path("world_visibility.vvis_c"));
             return (VoxelVisibility)resource.GetBlockByType(BlockType.VXVS)!;
         }
 

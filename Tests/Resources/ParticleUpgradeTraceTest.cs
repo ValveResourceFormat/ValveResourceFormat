@@ -11,7 +11,7 @@ namespace Tests.Resources
     {
         private static ParticleSystem Load(Resource resource, string name)
         {
-            resource.Read(Path.Combine(TestContext.TestDirectory!, "Files", name));
+            resource.Read(TestFixtures.Path(name));
             return (ParticleSystem)resource.DataBlock!;
         }
 

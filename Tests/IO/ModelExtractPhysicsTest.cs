@@ -22,7 +22,7 @@ public class ModelExtractPhysicsTest
 
     private static TestPhysics LoadJointFixture(string fileName)
     {
-        var document = KVDocumentExtensions.ParseKV3(Path.Combine(TestContext.TestDirectory!, "Files", "Physics", fileName));
+        var document = KVDocumentExtensions.ParseKV3(TestFixtures.Path("Physics", fileName));
         return new TestPhysics(document.Root) { Resource = null! };
     }
 
@@ -30,7 +30,7 @@ public class ModelExtractPhysicsTest
     public async Task PreservesBodyPropertiesWithGameMarkup()
     {
         using var resource = new Resource();
-        resource.Read(Path.Combine(TestContext.TestDirectory!, "Files", "ctm_sas.vmdl_c"));
+        resource.Read(TestFixtures.Path("ctm_sas.vmdl_c"));
         var model = (Model)resource.DataBlock!;
         var physics = model.GetEmbeddedPhys()!;
         var gameData = model.KeyValues.GetSubCollection("CPhysicsBodyGameMarkupData");
@@ -91,7 +91,7 @@ public class ModelExtractPhysicsTest
     public async Task ExportsLegacyJointRecords()
     {
         using var resource = new Resource();
-        resource.Read(Path.Combine(TestContext.TestDirectory!, "Files", "juggernaut.vphys_c"));
+        resource.Read(TestFixtures.Path("juggernaut.vphys_c"));
         var physics = (PhysAggregateData)resource.DataBlock!;
         foreach (var joint in physics.Joints)
         {

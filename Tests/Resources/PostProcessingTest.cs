@@ -11,7 +11,7 @@ namespace Tests.Resources
         [Test]
         public async Task TestPostProcessing()
         {
-            var file = Path.Combine(TestContext.TestDirectory!, "Files", "a1_intro_world_courtyard.vpost_c");
+            var file = TestFixtures.Path("a1_intro_world_courtyard.vpost_c");
             using var resource = new Resource
             {
                 FileName = file,

@@ -11,13 +11,13 @@ namespace Tests.Formats
         [Test]
         public async Task ExtractProducesTextContentFile()
         {
-            var vfeFilePath = Path.Combine(TestContext.TestDirectory!, "Files", "phonemes.vfe");
+            var vfeFilePath = TestFixtures.Path("phonemes.vfe");
 
             await using var stream = File.OpenRead(vfeFilePath);
             var extract = new FlexSceneExtract(stream);
             using var contentFile = extract.ToContentFile();
 
-            var expected = await File.ReadAllTextAsync(Path.Combine(TestContext.TestDirectory!, "Files", "phonemes.txt"));
+            var expected = await File.ReadAllTextAsync(TestFixtures.Path("phonemes.txt"));
 
             using (Assert.Multiple())
             {
@@ -29,7 +29,7 @@ namespace Tests.Formats
         [Test]
         public async Task TestFlexSceneFile()
         {
-            var vfeFilePath = Path.Combine(TestContext.TestDirectory!, "Files", "phonemes.vfe");
+            var vfeFilePath = TestFixtures.Path("phonemes.vfe");
             var vfe = new FlexSceneFile();
             vfe.Read(vfeFilePath);
 
@@ -44,8 +44,8 @@ namespace Tests.Formats
         [Test]
         public async Task TestFlexSceneFileDecompile()
         {
-            var vfeFilePath = Path.Combine(TestContext.TestDirectory!, "Files", "phonemes.vfe");
-            var vfeOutputFilePath = Path.Combine(TestContext.TestDirectory!, "Files", "phonemes.txt");
+            var vfeFilePath = TestFixtures.Path("phonemes.vfe");
+            var vfeOutputFilePath = TestFixtures.Path("phonemes.txt");
 
             var expectedOutput = (await File.ReadAllTextAsync(vfeOutputFilePath)).ReplaceLineEndings();
 

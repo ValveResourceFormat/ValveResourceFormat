@@ -18,6 +18,10 @@ namespace Tests
         public static string Path(string fileName)
             => System.IO.Path.Combine(FilesDirectory, fileName);
 
+        /// <summary>The full path of a fixture in one of the <c>Files/</c> subdirectories.</summary>
+        public static string Path(string directory, string fileName)
+            => System.IO.Path.Combine(FilesDirectory, directory, fileName);
+
         /// <summary>The fixtures as they were copied next to the test binary.</summary>
         private static string FilesDirectory { get; } = System.IO.Path.Combine(TestContext.TestDirectory!, "Files");
 
@@ -32,24 +36,27 @@ namespace Tests
             => System.IO.Path.Combine(System.IO.Path.GetDirectoryName(sourceFile)!, "Files", "ValidOutput");
 
         /// <summary>Every compiled resource under <c>Files/</c>, including the ones in subdirectories.</summary>
-        public static IEnumerable<string> CompiledFiles() => EnumerateCompiledFiles(recursive: true);
+        public static IEnumerable<string> CompiledFiles() => Enumerate(FilesDirectory, "*.*_c", recursive: true);
 
         /// <summary>The compiled resources directly in <c>Files/</c>.</summary>
-        public static IEnumerable<string> TopLevelCompiledFiles() => EnumerateCompiledFiles(recursive: false);
+        public static IEnumerable<string> TopLevelCompiledFiles() => Enumerate(FilesDirectory, "*.*_c", recursive: false);
 
-        private static List<string> EnumerateCompiledFiles(bool recursive)
+        /// <summary>The names of the matching fixtures in one of the <c>Files/</c> subdirectories.</summary>
+        public static IEnumerable<string> FilesIn(string directory, string pattern) => Enumerate(Path(directory), pattern, recursive: false);
+
+        private static List<string> Enumerate(string directory, string pattern, bool recursive)
         {
-            var files = Directory.GetFiles(FilesDirectory, "*.*_c", new EnumerationOptions
+            var files = Directory.GetFiles(directory, pattern, new EnumerationOptions
             {
                 RecurseSubdirectories = recursive,
             });
 
             if (files.Length == 0)
             {
-                throw new InvalidOperationException($"There are no files to test in {FilesDirectory}.");
+                throw new InvalidOperationException($"There are no files matching {pattern} to test in {directory}.");
             }
 
-            return [.. files.Select(file => System.IO.Path.GetRelativePath(FilesDirectory, file))];
+            return [.. files.Select(file => System.IO.Path.GetRelativePath(directory, file))];
         }
 
         /// <summary>Reads a compiled resource.</summary>

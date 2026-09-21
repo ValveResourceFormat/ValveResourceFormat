@@ -17,7 +17,7 @@ namespace Tests.Formats
         [Test]
         public async Task TestKeyValues3_LF()
         {
-            var file = KVDocumentExtensions.ParseKV3(Path.Combine(TestContext.TestDirectory!, "Files", "KeyValues", "KeyValues3_LF.kv3"));
+            var file = KVDocumentExtensions.ParseKV3(TestFixtures.Path("KeyValues", "KeyValues3_LF.kv3"));
             await Assert.That(file.Header!.Encoding.ToString()).IsEqualTo("text:version{e21c7f3c-8a33-41c5-9977-a76d3a32aa0d}");
             await AssertKV3Properties(file);
         }
@@ -25,7 +25,7 @@ namespace Tests.Formats
         [Test]
         public async Task TestBinaryKV3_Serialization()
         {
-            var originalFile = KVDocumentExtensions.ParseKV3(Path.Combine(TestContext.TestDirectory!, "Files", "KeyValues", "KeyValues3_LF.kv3"));
+            var originalFile = KVDocumentExtensions.ParseKV3(TestFixtures.Path("KeyValues", "KeyValues3_LF.kv3"));
 
             var binaryKV3 = new BinaryKV3(originalFile.Root, KV3IDLookup.Get("generic"))
             {
@@ -43,7 +43,7 @@ namespace Tests.Formats
             [Matrix(4, 5)] int version,
             [Matrix] KV3BinaryCompressionMethod compressionMethod)
         {
-            var originalFile = KVDocumentExtensions.ParseKV3(Path.Combine(TestContext.TestDirectory!, "Files", "KeyValues", "KeyValues3_LF.kv3"));
+            var originalFile = KVDocumentExtensions.ParseKV3(TestFixtures.Path("KeyValues", "KeyValues3_LF.kv3"));
             var smallBlob = new byte[100];
             var largeBlob = new byte[32769];
 
@@ -112,7 +112,7 @@ namespace Tests.Formats
             int version,
             KV3BinaryCompressionMethod compressionMethod)
         {
-            var file = Path.Combine(TestContext.TestDirectory!, "Files", fileName);
+            var file = TestFixtures.Path(fileName);
             using var resource = new Resource();
             resource.Read(file);
 
@@ -266,7 +266,7 @@ namespace Tests.Formats
             BlockType blockType,
             KV3BinaryCompressionMethod expectedCompressionMethod)
         {
-            var file = Path.Combine(TestContext.TestDirectory!, "Files", fileName);
+            var file = TestFixtures.Path(fileName);
             using var resource = new Resource();
             resource.Read(file);
 
@@ -282,7 +282,7 @@ namespace Tests.Formats
         [Test]
         public async Task TestBinaryKV3Version5ZstdSourceSettingsArePreserved()
         {
-            var file = Path.Combine(TestContext.TestDirectory!, "Files", "abilities_kv3_v5_zstd.vdata_c");
+            var file = TestFixtures.Path("abilities_kv3_v5_zstd.vdata_c");
             using var resource = new Resource();
             resource.Read(file);
 
@@ -301,7 +301,7 @@ namespace Tests.Formats
         [Test]
         public async Task TestDeadlockBinaryKV3Version5SourceSettingsArePreserved()
         {
-            var file = Path.Combine(TestContext.TestDirectory!, "Files", "deadlock_tracked_stats_player_staging_kv3_v5.vdata_c");
+            var file = TestFixtures.Path("deadlock_tracked_stats_player_staging_kv3_v5.vdata_c");
             using var resource = new Resource();
             resource.Read(file);
             var expectedCompressions = new Dictionary<BlockType, KV3BinaryCompressionMethod>
@@ -526,7 +526,7 @@ namespace Tests.Formats
         [Test]
         public async Task TestKV3StringEscaping()
         {
-            var expectedFilePath = Path.Combine(TestContext.TestDirectory!, "Files", "KeyValues", "StringEscaping.kv3");
+            var expectedFilePath = TestFixtures.Path("KeyValues", "StringEscaping.kv3");
 
             var parsedFile = KVDocumentExtensions.ParseKV3(expectedFilePath);
             var serializedOutput = parsedFile.ToKV3String().Trim().ReplaceLineEndings();

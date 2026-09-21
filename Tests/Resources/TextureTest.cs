@@ -14,8 +14,7 @@ namespace Tests.Resources
     {
         private static string TexturesDir => TestFixtures.Path("Textures");
 
-        public static IEnumerable<string> GetTextureFiles()
-            => Directory.EnumerateFiles(TexturesDir, "*.vtex_c").Select(Path.GetFileName)!;
+        public static IEnumerable<string> GetTextureFiles() => TestFixtures.FilesIn("Textures", "*.vtex_c");
 
         [Test, MethodDataSource(nameof(GetTextureFiles))]
         public void ExportTexture(string fileName)

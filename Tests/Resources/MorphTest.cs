@@ -12,7 +12,7 @@ namespace Tests.Resources
         [Test]
         public async Task LoadsFlexDataFromAtlasTexture()
         {
-            var vpkPath = Path.Combine(TestContext.TestDirectory!, "Files", "rubick_head_morph.vpk");
+            var vpkPath = TestFixtures.Path("rubick_head_morph.vpk");
 
             using var package = new Package();
             package.Read(vpkPath);

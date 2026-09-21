@@ -13,7 +13,7 @@ namespace Tests.Resources
     {
         private static EntityLump LoadLump(Resource resource, string name)
         {
-            resource.Read(Path.Combine(TestContext.TestDirectory!, "Files", name));
+            resource.Read(TestFixtures.Path(name));
             return (EntityLump)resource.DataBlock!;
         }
 
@@ -78,7 +78,7 @@ namespace Tests.Resources
         [Test]
         public async Task TestEntityLump()
         {
-            var file = Path.Combine(TestContext.TestDirectory!, "Files", "default_ents.vents_c");
+            var file = TestFixtures.Path("default_ents.vents_c");
             using var resource = new Resource
             {
                 FileName = file,

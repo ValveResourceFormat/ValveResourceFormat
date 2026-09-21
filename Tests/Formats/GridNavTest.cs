@@ -9,7 +9,7 @@ namespace Tests.Formats
         [Test]
         public async Task ParsesGridNavFile()
         {
-            var path = Path.Combine(TestContext.TestDirectory!, "Files", "test_basic.gnv");
+            var path = TestFixtures.Path("test_basic.gnv");
             var nav = new GridNavFile();
             nav.Read(path);
 

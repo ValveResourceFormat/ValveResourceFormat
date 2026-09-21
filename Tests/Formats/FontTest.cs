@@ -11,7 +11,7 @@ namespace Tests.Formats
         [Test]
         public async Task DecryptFonts()
         {
-            var path = Path.Combine(TestContext.TestDirectory!, "Files", "Fonts");
+            var path = TestFixtures.Path("Fonts");
             var files = Directory.GetFiles(path, "*.vfont");
 
             foreach (var file in files)
@@ -27,7 +27,7 @@ namespace Tests.Formats
         [Test]
         public async Task DecryptUIFonts()
         {
-            var path = Path.Combine(TestContext.TestDirectory!, "Files", "Fonts", "broadcast.uifont");
+            var path = TestFixtures.Path("Fonts", "broadcast.uifont");
 
             var fontPackage = new UIFontFilePackage();
             fontPackage.Read(path);

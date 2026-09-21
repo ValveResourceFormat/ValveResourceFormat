@@ -9,7 +9,7 @@ namespace Tests.Formats
     {
         private static NavMeshFile GetNavMesh(string navMeshName)
         {
-            var navMeshPath = Path.Combine(TestContext.TestDirectory!, "Files", navMeshName);
+            var navMeshPath = TestFixtures.Path(navMeshName);
             var navMeshFile = new NavMeshFile();
             navMeshFile.Read(navMeshPath);
             return navMeshFile;

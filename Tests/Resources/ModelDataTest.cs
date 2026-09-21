@@ -191,7 +191,7 @@ namespace Tests.Resources
         public async Task FixtureLodInfoMatchesData()
         {
             using var resource = new Resource();
-            resource.Read(Path.Combine(TestContext.TestDirectory!, "Files", "lod_test.vmdl_c"));
+            resource.Read(TestFixtures.Path("lod_test.vmdl_c"));
 
             var lod = ((Model)resource.DataBlock!).LodInfo;
 

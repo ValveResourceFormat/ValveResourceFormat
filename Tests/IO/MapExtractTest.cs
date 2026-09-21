@@ -13,7 +13,7 @@ namespace Tests.IO
         public async Task TestMapExtractVmapInit()
         {
             using var vmapResource = new Resource();
-            vmapResource.Read(Path.Combine(TestContext.TestDirectory!, "Files", "dota.vmap_c"));
+            vmapResource.Read(TestFixtures.Path("dota.vmap_c"));
 
             var exception = Assert.ThrowsExactly<FileNotFoundException>(() => _ = new MapExtract(vmapResource, new NullFileLoader()));
             Debug.Assert(exception != null);
@@ -28,7 +28,7 @@ namespace Tests.IO
         public async Task TestMapExtractVwrldInit()
         {
             using var worldResource = new Resource();
-            var worldPath = Path.Combine(TestContext.TestDirectory!, "Files", "world.vwrld_c");
+            var worldPath = TestFixtures.Path("world.vwrld_c");
             worldResource.Read(worldPath);
 
             var exception = Assert.ThrowsExactly<ArgumentNullException>(() => _ = new MapExtract(worldResource, null));
@@ -50,7 +50,7 @@ namespace Tests.IO
         [Test]
         public async Task TestMapExtractFromVpk()
         {
-            var vpkPath = Path.Combine(TestContext.TestDirectory!, "Files", "small_map_with_material.vpk");
+            var vpkPath = TestFixtures.Path("small_map_with_material.vpk");
 
             using var package = new Package();
             package.Read(vpkPath);
@@ -71,7 +71,7 @@ namespace Tests.IO
         [Test]
         public async Task TestMapExtractFromVpkWithPhys()
         {
-            var vpkPath = Path.Combine(TestContext.TestDirectory!, "Files", "dota_riverflow_fx.vpk");
+            var vpkPath = TestFixtures.Path("dota_riverflow_fx.vpk");
 
             using var package = new Package();
             package.Read(vpkPath);

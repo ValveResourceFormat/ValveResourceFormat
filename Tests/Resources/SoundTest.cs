@@ -14,7 +14,7 @@ namespace Tests.Resources
         [Test]
         public async Task TestSound()
         {
-            var file = Path.Combine(TestContext.TestDirectory!, "Files", "beep.vsnd_c");
+            var file = TestFixtures.Path("beep.vsnd_c");
             using var resource = new Resource();
             resource.Read(file);
 
@@ -37,7 +37,7 @@ namespace Tests.Resources
         [Test]
         public async Task TestSoundPhonemesWithEmphasis()
         {
-            var file = Path.Combine(TestContext.TestDirectory!, "Files", "primal_anger_03.vsnd_c");
+            var file = TestFixtures.Path("primal_anger_03.vsnd_c");
             using var resource = new Resource();
             resource.Read(file);
 
@@ -151,7 +151,7 @@ namespace Tests.Resources
         [Test]
         public async Task TestSoundNoFileName()
         {
-            var file = Path.Combine(TestContext.TestDirectory!, "Files", "beep.vsnd_c");
+            var file = TestFixtures.Path("beep.vsnd_c");
             using var fs = File.OpenRead(file);
             using var resource = new Resource();
             resource.Read(fs, verifyFileSize: false);
@@ -175,7 +175,7 @@ namespace Tests.Resources
         [Test]
         public async Task TestSoundNoFileNameVerifySize()
         {
-            var file = Path.Combine(TestContext.TestDirectory!, "Files", "beep.vsnd_c");
+            var file = TestFixtures.Path("beep.vsnd_c");
             using var fs = File.OpenRead(file);
             using var resource = new Resource();
             resource.Read(fs);
