@@ -296,6 +296,15 @@ public class ViewmodelSceneNode : ModelSceneNode
     // Both knife buttons share one timer, which a swing that connects pushes back further
     private const float KnifeHitDelay = 0.1f;
 
+    // What the weapons do to physics props: a bullet punches the first prop on its way, a
+    // connecting knife swing shoves what it hit. Impulses are in prop-mass units (roughly
+    // kilograms) times units per second: a rifle round blasts light props away and gives a
+    // 60 kg planter a solid 200 u/s shove.
+    private const float BulletRange = 8192f;
+    private const float RifleBulletImpulse = 12000f;
+    private const float PistolBulletImpulse = 6000f;
+    private const float KnifeImpulse = 25000f;
+
     // A missed line trace is retried with swept spheres shrinking from 14 to 2 units, each ending that much
     // short, keeping the smallest that still connects. We are currently missing sphere traces, so cubes stand in.
     private const float KnifeSweepMaxRadius = 14f;
@@ -328,23 +337,37 @@ public class ViewmodelSceneNode : ModelSceneNode
     // Returns whether a knife swing connected
     private bool PlayAttackSound(UserInput input, bool heavyKnifeAttack)
     {
+        var rigidBodies = Scene.EntitySystem.PhysicsOrNull;
+
         switch (SelectedItemIndex)
         {
             case 1:
                 Sound.Play(RifleAttackSound, volume: AttackSoundVolume);
+                rigidBodies?.ApplyImpactImpulse(input.Camera.Location, input.Camera.Forward, BulletRange, RifleBulletImpulse);
                 return false;
 
             case 2:
                 Sound.Play(PistolAttackSound, volume: AttackSoundVolume);
+                rigidBodies?.ApplyImpactImpulse(input.Camera.Location, input.Camera.Forward, BulletRange, PistolBulletImpulse);
                 return false;
 
             case KnifeItemIndex:
                 var camera = input.Camera;
                 var range = (heavyKnifeAttack ? KnifeHeavyRange : KnifeLightRange) + KnifeRangePadding;
 
+                // A swing can connect with a prop the world trace cannot see, and shoving it is a
+                // hit of its own
+                var hitProp = rigidBodies?.ApplyImpactImpulse(camera.Location, camera.Forward, range, KnifeImpulse) == true;
+
                 if (TraceKnifeSwing(input.PhysicsWorld, camera.Location, camera.Forward, range) is not { } hitPosition)
                 {
-                    return false;
+                    if (!hitProp)
+                    {
+                        return false;
+                    }
+
+                    Sound.Play(heavyKnifeAttack ? KnifeHeavyHitSound : KnifeLightHitSound);
+                    return true;
                 }
 
                 // this is played in-ear but i'd like to keep it positional
@@ -923,28 +946,87 @@ public class ViewmodelSceneNode : ModelSceneNode
         }
     }
 
+    // The arms, the stattrak module, then the items in slot order; the item entries double as
+    // the models dropped weapons spawn with
+    private static readonly string[] ViewmodelResources = [
+        "agents/models/ctm_st6/ctm_st6_varianti.vmdl",
+        "weapons/models/shared/stattrak/stattrak_module.vmdl",
+        "weapons/models/m4a1_silencer/weapon_rif_m4a1_silencer.vmdl",
+        "weapons/models/usp_silencer/weapon_pist_usp_silencer.vmdl",
+        "weapons/models/knife/knife_karambit/weapon_knife_karambit.vmdl",
+        "weapons/models/grenade/smokegrenade/weapon_smokegrenade.vmdl",
+        "weapons/models/grenade/hegrenade/weapon_hegrenade.vmdl",
+        "weapons/models/grenade/molotov/weapon_molotov.vmdl",
+    ];
+
+    private static string? ItemModelPath(int itemIndex)
+        => itemIndex >= 1 && itemIndex + 1 < ViewmodelResources.Length ? ViewmodelResources[itemIndex + 1] : null;
+
+    // The weapon drop: the toss leaves from the torso, a couple of hands below the eyes, so it
+    // reads as let go rather than thrown from the face - with a bit more forward push to reach
+    // as far as an eye-level toss would. Plus the flat spin it leaves the hand with.
+    private const float DropSpawnDistance = 24f;
+    private const float DropSpawnBelowEyes = 10f;
+    private const float DropTossSpeed = 300f;
+    private const float DropSpinSpeed = 2f;
+
+    /// <summary>
+    /// Drops the held item as a physics prop, CS2's G: the weapon model spawns tossed ahead of
+    /// the view in its dropped ground state, and the hands draw the item anew. Being an ordinary
+    /// physics prop, the dropped weapon can be picked up with +USE, shot and blasted around.
+    /// </summary>
+    private void DropHeldItem(UserInput input)
+    {
+        if (ItemModelPath(SelectedItemIndex) is not { } modelPath)
+        {
+            return;
+        }
+
+        var entities = Scene.EntitySystem;
+        var camera = input.Camera;
+        var origin = camera.Location - new Vector3(0f, 0f, DropSpawnBelowEyes) + camera.Forward * DropSpawnDistance;
+
+        // A synthesized prop_physics_override, as if the map had authored one here; defaultanim
+        // is the ground state the game's dropped weapons rest in
+        var data = new EntityLump.Entity { ParentLump = new EntityLump { Resource = new Resource() } };
+        data.Add("classname", "prop_physics_override");
+        data.Add("model", modelPath);
+        data.Add("origin", FormattableString.Invariant($"{origin.X} {origin.Y} {origin.Z}"));
+
+        // A quarter turn counter-clockwise off the view, so the weapon leaves the hand side-on
+        // to the player the way the game presents a dropped gun
+        data.Add("angles", FormattableString.Invariant($"0 {float.RadiansToDegrees(camera.Yaw) + 90f} 0"));
+        data.Add("defaultanim", "dropped");
+
+        var dropped = new PropPhysics(entities, new EntitySpawnInfo(data, Matrix4x4.Identity, "Entities", Scene));
+        dropped.Spawn();
+        entities.AddEntity(dropped);
+
+        if (dropped.HasBody)
+        {
+            // Thrown as if shoved on the stock: the push at the rear end of a side-on weapon
+            // torques it flat about up, so it spins like a bottle rather than tumbling end
+            // over end
+            var body = dropped.Body;
+            body.LinearVelocity = camera.Forward * DropTossSpeed + input.Velocity;
+            body.AngularVelocity = Vector3.UnitZ * DropSpinSpeed;
+        }
+
+        // The hands come back up with the same item, endless-armory style
+        CancelGrenadeThrow();
+        deployTimeLeft = DeployDuration;
+        SetState(AnimationState.Draw);
+    }
+
     /// <summary>
     /// Try to load the CS2 viewmodel, returning null if the necessary resources are not found.
     /// </summary>
-    /// <param name="scene"></param>
-    /// <returns></returns>
     public static ViewmodelSceneNode? TryLoadCs2Viewmodel(Scene scene)
     {
         var loader = scene.RendererContext.FileLoader;
 
-        Span<string> resources = [
-            "agents/models/ctm_st6/ctm_st6_varianti.vmdl",
-            "weapons/models/shared/stattrak/stattrak_module.vmdl",
-            "weapons/models/m4a1_silencer/weapon_rif_m4a1_silencer.vmdl",
-            "weapons/models/usp_silencer/weapon_pist_usp_silencer.vmdl",
-            "weapons/models/knife/knife_karambit/weapon_knife_karambit.vmdl",
-            "weapons/models/grenade/smokegrenade/weapon_smokegrenade.vmdl",
-            "weapons/models/grenade/hegrenade/weapon_hegrenade.vmdl",
-            "weapons/models/grenade/molotov/weapon_molotov.vmdl",
-        ];
-
         List<Model> models = [];
-        foreach (var name in resources)
+        foreach (var name in ViewmodelResources)
         {
             var resource = loader.LoadFileCompiled(name);
             if (resource?.DataBlock is not Model model)
@@ -1348,6 +1430,11 @@ public class ViewmodelSceneNode : ModelSceneNode
         else if (input.Pressed(TrackedKeys.Q))
         {
             SelectPreviousItem();
+        }
+        else if (input.Pressed(TrackedKeys.G))
+        {
+            // Never gated on the deploy timer or any other action: dropping is always allowed
+            DropHeldItem(input);
         }
 
         if (input.Pressed(TrackedKeys.F) && CanInspect)

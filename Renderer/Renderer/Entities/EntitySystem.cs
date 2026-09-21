@@ -68,6 +68,18 @@ public sealed class EntitySystem
     /// <summary>Gets the <c>worldspawn</c> at the root of the entity hierarchy. Always exists.</summary>
     public WorldEntity World { get; private set; }
 
+    /// <summary>
+    /// Gets the rigid body world, creating it on first use. The world loader pushes the static
+    /// geometry through here, physics props add their bodies, and <see cref="Tick"/> steps it.
+    /// </summary>
+    public PhysicsSimulation Physics => physics ??= new PhysicsSimulation(FileLoader);
+
+    /// <summary>
+    /// Gets the rigid body world if anything has created one, without creating it: the player's
+    /// pickup logic has nothing to do in a scene with no simulated physics.
+    /// </summary>
+    public PhysicsSimulation? PhysicsOrNull => physics;
+
     /// <summary>Gets the current simulation time in seconds, the engine's <c>curtime</c>.</summary>
     public float CurrentTime { get; private set; }
 
@@ -101,6 +113,7 @@ public sealed class EntitySystem
     private long sequence;
     private float tickAccumulator;
     private bool hasRemovedEntities;
+    private PhysicsSimulation? physics;
 
     /// <summary>
     /// Initializes an entity system for a scene. Prefer <see cref="Scene.EntitySystem"/> over constructing
@@ -350,6 +363,8 @@ public sealed class EntitySystem
         World = CreateDefaultWorld();
         Player = null;
         activatedCount = 0;
+        physics?.Dispose();
+        physics = null;
         inputQueue.Clear();
         firedCounts.Clear();
         hasRemovedEntities = false;
@@ -359,10 +374,25 @@ public sealed class EntitySystem
     }
 
     /// <summary>
+    /// Gets the camera the current frame is drawn with, or <see langword="null"/> outside a frame.
+    /// The input camera and this can differ - view smoothing and view punch sit between them - so
+    /// anything drawn relative to the view must read this one, not the controller's.
+    /// </summary>
+    public Camera? RenderCamera { get; private set; }
+
+    /// <summary>Gets the duration of the frame being drawn, for per-frame smoothing in render paths.</summary>
+    public float FrameInterval { get; private set; }
+
+    /// <summary>
     /// Advances the world by a rendered frame's worth of time, running whole ticks.
     /// </summary>
-    public void Update(float frameTime)
+    /// <param name="frameTime">Elapsed time in seconds since the last frame.</param>
+    /// <param name="renderCamera">The camera the frame is drawn with, for <see cref="RenderCamera"/>.</param>
+    public void Update(float frameTime, Camera? renderCamera = null)
     {
+        RenderCamera = renderCamera;
+        FrameInterval = frameTime;
+
         if (entities.Count <= 1)
         {
             return;
@@ -394,12 +424,35 @@ public sealed class EntitySystem
             tickAccumulator = 0f;
         }
 
+        if (Enabled)
+        {
+            // The rigid body world steps with the rendered frame, like the player movement does:
+            // physics that only ever saw the camera at the tick rate reads back quantized however
+            // it is drawn. Steering runs first and drawing happens after, so what the carry asks
+            // for this frame is on screen this frame. The entity tick above stays the cadence of
+            // game logic; this is only the integrator.
+            for (var i = 0; i < entities.Count; i++)
+            {
+                var entity = entities[i];
+
+                if (!entity.IsRemoved)
+                {
+                    entity.FrameSimulate(frameTime);
+                }
+            }
+
+            physics?.Step(MathF.Min(frameTime, MaxPhysicsFrameStep));
+        }
+
         // Entities are not scene nodes, so nothing else would place what they own
         foreach (var entity in entities)
         {
             entity.Update();
         }
     }
+
+    // Load stalls and breakpoints must not become one giant integration step
+    private const float MaxPhysicsFrameStep = 0.1f;
 
     private void Tick()
     {

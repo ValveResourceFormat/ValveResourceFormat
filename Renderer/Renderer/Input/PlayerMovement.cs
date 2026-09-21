@@ -168,6 +168,9 @@ public partial class PlayerMovement : IPlayerController
     /// <inheritdoc/>
     public Vector3 ViewForward => Input.Camera.Forward;
 
+    /// <inheritdoc/>
+    public Vector3 ViewAngles => Input.Camera.GetQAngle();
+
     // Buttons seen since the entity tick last collected them, and what it collected that time. Frames
     // are folded together rather than replaced so a tap between two ticks survives to be reported.
     private TrackedKeys PendingButtons;

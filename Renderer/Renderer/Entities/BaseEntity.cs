@@ -206,7 +206,24 @@ public class BaseEntity
     /// leaves the shape built but takes the entity out of traces, which is what Source's
     /// <c>SOLID_NONE</c> amounts to here.
     /// </summary>
-    public bool IsSolid { get; set; } = true;
+    public bool IsSolid
+    {
+        get;
+        set
+        {
+            if (field == value)
+            {
+                return;
+            }
+
+            field = value;
+
+            // The collider update also carries solidity into the rigid body world. Without it,
+            // a blocker the map makes non-solid keeps its mover body pushing props until the
+            // entity next moves - which a static blocker never does.
+            UpdateColliderTransform();
+        }
+    } = true;
 
     /// <summary>
     /// Gets or sets whether the entity is a trigger volume: something passes through it and it reports
@@ -521,6 +538,15 @@ public class BaseEntity
         => MoveDoneTime = delay >= 0f ? EntitySystem.CurrentTime + delay : -1f;
 
     /// <summary>
+    /// Runs once per rendered frame while the world is simulating, before the rigid body world
+    /// steps by that frame. For steering that must see every frame's camera - the +USE carry -
+    /// while game logic stays on the tick in <see cref="PhysicsSimulate"/>.
+    /// </summary>
+    internal virtual void FrameSimulate(float frameTime)
+    {
+    }
+
+    /// <summary>
     /// Runs one entity tick: think, move, then move-done, the order Source's pusher physics uses.
     /// </summary>
     internal void Simulate(float tickInterval)
@@ -827,7 +853,7 @@ public class BaseEntity
         // the tick it last started rather than where it stands, re-dirtying the transform every frame
         var isMoving = EntitySystem.Enabled && (previousOrigin != origin || previousAngles != angles);
 
-        if (isMoving || isInterpolating)
+        if (isMoving || isInterpolating || UpdatesRenderTransformEveryFrame)
         {
             // Once it stops moving, one last frame at the far end lands on the tick state exactly
             UpdateRenderTransform(isMoving ? EntitySystem.InterpolationFraction : 1f);
@@ -911,7 +937,8 @@ public class BaseEntity
     }
 
     /// <summary>
-    /// Moves the collision shape onto the entity's current tick state.
+    /// Moves the collision shape onto the entity's current tick state. Virtual so a model entity
+    /// can carry its kinematic mirror in the rigid body world along with it.
     /// </summary>
     /// <remarks>
     /// Uses the tick state, not the interpolated one drawn this frame, because collision answers where
@@ -919,7 +946,7 @@ public class BaseEntity
     /// The transform stays rigid, leaving <see cref="EntityScale"/> out, because the shape's sweeps
     /// assume distances do not change in its local space.
     /// </remarks>
-    protected void UpdateColliderTransform()
+    protected virtual void UpdateColliderTransform()
     {
         if (Collider == null)
         {
@@ -928,6 +955,13 @@ public class BaseEntity
 
         Collider.Transform = EntityTransformHelper.ToRigidTransformationMatrix(Angles, Origin) * ParentTransform;
     }
+
+    /// <summary>
+    /// Whether <see cref="UpdateRenderTransform"/> runs every rendered frame even while the tick
+    /// state stands still. For an entity drawn against something that moves per frame - a prop
+    /// carried in front of the camera - the tick state going quiet does not mean the drawing may.
+    /// </summary>
+    protected virtual bool UpdatesRenderTransformEveryFrame => false;
 
     /// <summary>
     /// Rebuilds <see cref="Transform"/> for drawing, somewhere between the last two ticks.
@@ -940,12 +974,33 @@ public class BaseEntity
     /// </remarks>
     protected virtual void UpdateRenderTransform(float fraction)
     {
+        var (origin, rotation) = InterpolateTickPose(fraction);
+
+        SetRenderTransform(origin, rotation);
+    }
+
+    /// <summary>
+    /// The pose between the last two tick states that plain interpolation draws at, for an
+    /// <see cref="UpdateRenderTransform"/> override that builds on it rather than replacing it.
+    /// </summary>
+    protected (Vector3 Origin, Quaternion Rotation) InterpolateTickPose(float fraction)
+    {
         var origin = Vector3.Lerp(previousOrigin, Origin, fraction);
         var rotation = Quaternion.Slerp(
             EntityTransformHelper.EulerAnglesToQuaternion(previousAngles),
             EntityTransformHelper.EulerAnglesToQuaternion(Angles),
             fraction);
 
+        return (origin, rotation);
+    }
+
+    /// <summary>
+    /// Puts the drawn <see cref="Transform"/> at a pose directly, for an
+    /// <see cref="UpdateRenderTransform"/> override drawing somewhere other than between the ticks.
+    /// The tick state is untouched; this is only where the entity is drawn this frame.
+    /// </summary>
+    protected void SetRenderTransform(Vector3 origin, Quaternion rotation)
+    {
         Transform = Matrix4x4.CreateScale(EntityScale)
             * Matrix4x4.CreateFromQuaternion(rotation)
             * Matrix4x4.CreateTranslation(origin)
