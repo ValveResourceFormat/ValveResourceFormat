@@ -81,7 +81,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
 
             VertexArray.Bind(vao, renderShader);
 
-            var transform = Matrix4x4.CreateScale(spriteSize)
+            var transform = Matrix4x4.CreateScale(spriteSize * Transform.MaxAxisScale())
                 * context.Camera.BillboardMatrix
                 * Matrix4x4.CreateTranslation(Transform.Translation);
             renderShader.SetUniform3x4("transform", transform);

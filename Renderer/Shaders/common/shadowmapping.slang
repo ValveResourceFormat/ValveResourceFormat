@@ -33,6 +33,12 @@ float SampleSunCascadePCF(vec3 projCoords, int cascade)
 
 float CalculateSunShadowMapVisibility(vec3 vPosition)
 {
+    // The cascades only cover the main scene
+    if (!g_bSunShadowsEnabled)
+    {
+        return 1.0;
+    }
+
     for (int cascade = 0; cascade < SUN_CASCADE_COUNT; cascade++)
     {
         vec4 projCoordsW = g_matWorldToShadow[cascade] * vec4(vPosition, 1.0);
@@ -71,6 +77,11 @@ float CalculateSunShadowMapVisibility(vec3 vPosition)
 // Should be a NoCmp depth read; the comparison sampler only answers "is the occluder nearer than this?".
 float CalculateSunShadowThickness(vec3 vPosition)
 {
+    if (!g_bSunShadowsEnabled)
+    {
+        return 1.0;
+    }
+
     vec4 projCoordsW = g_matWorldToShadow[0] * vec4(vPosition, 1.0);
     vec3 projCoords = projCoordsW.xyz / projCoordsW.w;
 

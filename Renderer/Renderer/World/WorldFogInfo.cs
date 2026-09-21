@@ -75,28 +75,51 @@ namespace ValveResourceFormat.Renderer.World
         }*/
 
         /// <summary>
+        /// The fog a 3D sky view draws with: the sky map's own gradient fog when it has an active one,
+        /// otherwise the world's, and always the world's cubemap fog.
+        /// </summary>
+        /// <param name="world">The fog of the map the sky belongs to.</param>
+        /// <param name="sky">The fog of the sky map.</param>
+        internal static WorldFogInfo ForSkyView(WorldFogInfo world, WorldFogInfo sky)
+        {
+            ArgumentNullException.ThrowIfNull(world);
+            ArgumentNullException.ThrowIfNull(sky);
+
+            var ownGradientFog = sky.GradientFogActive;
+
+            return new WorldFogInfo
+            {
+                GradientFogActive = ownGradientFog || world.GradientFogActive,
+                GradientFog = ownGradientFog ? sky.GradientFog : world.GradientFog,
+                CubeFogActive = world.CubeFogActive,
+                CubemapFog = world.CubemapFog,
+            };
+        }
+
+        /// <summary>
         /// Copies the active fog state into the provided view constants buffer.
         /// </summary>
         /// <param name="viewConstants">The view constants buffer to update.</param>
         /// <param name="viewerFogEnabled">Whether fog rendering is enabled in the viewer settings.</param>
-        public void SetFogUniforms(Buffers.ViewConstants viewConstants, bool viewerFogEnabled)
+        /// <param name="fogSpace">Converts authored distances and heights into the view's space.</param>
+        public void SetFogUniforms(Buffers.ViewConstants viewConstants, bool viewerFogEnabled, FogSpace fogSpace)
         {
             viewConstants.GradientFogActive = viewerFogEnabled && GradientFogActive;
             viewConstants.CubeFogActive = viewerFogEnabled && CubeFogActive;
 
             if (GradientFogActive && GradientFog != null)
             {
-                viewConstants.GradientFogBiasAndScale = GradientFog.GetBiasAndScale();
+                viewConstants.GradientFogBiasAndScale = GradientFog.GetBiasAndScale(fogSpace);
                 viewConstants.GradientFogColor_Opacity = GradientFog.Color_Opacity;
                 viewConstants.GradientFogExponents = GradientFog.Exponents;
-                viewConstants.GradientFogCullingParams = GradientFog.CullingParams;
+                viewConstants.GradientFogCullingParams = GradientFog.CullingParams(fogSpace);
             }
 
             if (CubeFogActive && CubemapFog != null)
             {
-                viewConstants.CubeFog_Offset_Scale_Bias_Exponent = CubemapFog.OffsetScaleBiasExponent();
-                viewConstants.CubeFog_Height_Offset_Scale_Exponent_Log2Mip = CubemapFog.Height_OffsetScaleExponentLog2Mip();
-                viewConstants.CubeFogCullingParams_ExposureBias_MaxOpacity = CubemapFog.CullingParams_Opacity();
+                viewConstants.CubeFog_Offset_Scale_Bias_Exponent = CubemapFog.OffsetScaleBiasExponent(fogSpace);
+                viewConstants.CubeFog_Height_Offset_Scale_Exponent_Log2Mip = CubemapFog.Height_OffsetScaleExponentLog2Mip(fogSpace);
+                viewConstants.CubeFogCullingParams_ExposureBias_MaxOpacity = CubemapFog.CullingParams_Opacity(fogSpace);
                 viewConstants.CubeFogSkyWsToOs = CubemapFog.Transform;
             }
         }

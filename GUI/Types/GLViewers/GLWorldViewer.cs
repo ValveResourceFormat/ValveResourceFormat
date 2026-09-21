@@ -202,16 +202,16 @@ namespace GUI.Types.GLViewers
 
             if (world != null)
             {
-                LoadedWorld = new WorldLoader(world, Scene)
+                LoadedWorld = new WorldLoader(world, Scene, Renderer.EntitySystem)
                 {
                     LoadingProgress = GuiContext.LoadingProgress,
                 };
 
                 LoadedWorld.Load(mapExternalReferences);
 
-                if (LoadedWorld.SkyboxScene != null)
+                if (LoadedWorld.Skybox3D != null)
                 {
-                    Renderer.SkyboxScene = LoadedWorld.SkyboxScene;
+                    Renderer.Skybox3D = LoadedWorld.Skybox3D;
                 }
 
                 if (LoadedWorld.Skybox2D != null)
@@ -235,7 +235,7 @@ namespace GUI.Types.GLViewers
 
                 ReportLoadingStatus("Loading player model…");
 
-                Input.TryLoadViewmodel(Scene);
+                Input.TryLoadViewmodel(Scene, Renderer.EntitySystem);
 
                 var kzMapPrefixes = new[] { "bhop", "surf", "kz", "dr" };
                 var mapName = Path.GetFileName(LoadedWorld.MapName);
@@ -248,8 +248,8 @@ namespace GUI.Types.GLViewers
                     ? PlayerMovement.AirAccelerateMovementMaps
                     : PlayerMovement.AirAccelerateCompetitive;
 
-                Input.EntitySystem = Scene.EntitySystem;
-                Scene.EntitySystem.SpawnPlayer(Input.PlayerMovement);
+                Input.EntitySystem = Renderer.EntitySystem;
+                Renderer.EntitySystem.SpawnPlayer(Input.PlayerMovement, Scene);
             }
 
             if (!cameraSet)
@@ -376,8 +376,7 @@ namespace GUI.Types.GLViewers
 
                     worldLayersComboBox.EndUpdate();
 
-                    Scene.SetEnabledLayers(LoadedWorld.DefaultEnabledLayers);
-                    SkyboxScene?.SetEnabledLayers(LoadedWorld.DefaultEnabledLayers);
+                    SetEnabledLayers(LoadedWorld.DefaultEnabledLayers);
                 }
 
                 if (uniquePhysicsGroups.Count > 0)
@@ -394,7 +393,7 @@ namespace GUI.Types.GLViewers
 
                     UiControl.AddCheckBox("Show Fog", Scene.FogEnabled, v => Scene.FogEnabled = v);
 
-                    UiControl.AddCheckBox("Entity System", Scene.EntitySystem.Enabled, v => Scene.EntitySystem.Enabled = v);
+                    UiControl.AddCheckBox("Entity System", Renderer.EntitySystem.Enabled, v => Renderer.EntitySystem.Enabled = v);
 
                     UiControl.AddCheckBox("Color Correction", Renderer.Postprocess.ColorCorrectionEnabled, v => Renderer.Postprocess.ColorCorrectionEnabled = v);
 
@@ -407,14 +406,18 @@ namespace GUI.Types.GLViewers
 
                     if (GLEnvironment.SlowMultiDrawIndirect)
                     {
-                        Scene.EnableIndirectDraws = false;
-                        SkyboxScene?.EnableIndirectDraws = false;
+                        foreach (var scene in Renderer.Scenes)
+                        {
+                            scene.EnableIndirectDraws = false;
+                        }
                     }
 
                     UiControl.AddCheckBox("GPU Culling", Scene.EnableIndirectDraws, v =>
                     {
-                        Scene.EnableIndirectDraws = v;
-                        SkyboxScene?.EnableIndirectDraws = v;
+                        foreach (var scene in Renderer.Scenes)
+                        {
+                            scene.EnableIndirectDraws = v;
+                        }
 
                         if (occlusionCullingCheckBox != null)
                         {
@@ -555,19 +558,13 @@ namespace GUI.Types.GLViewers
                 tabControl.SelectTab(tabPage);
             }
 
-            var node = Scene.Find(entity);
-
-            if (node == null && SkyboxScene != null)
-            {
-                node = SkyboxScene.Find(entity);
-            }
+            var node = Renderer.FindNode(entity);
 
             if (node == null)
             {
                 // Tool entities (logic, sounds, finished particles) have no renderable
                 // scene node; fly to the entity origin instead.
-                var origin = entity.GetVector3Property("origin");
-                FocusCameraOnBounds(new AABB(origin - new Vector3(32f), origin + new Vector3(32f)));
+                FocusCameraOnBounds(EntityOriginBounds(entity));
                 return;
             }
 
@@ -595,7 +592,7 @@ namespace GUI.Types.GLViewers
 
             foreach (var entity in entities)
             {
-                var node = Scene.Find(entity) ?? SkyboxScene?.Find(entity);
+                var node = Renderer.FindNode(entity);
 
                 AABB entityBounds;
 
@@ -616,8 +613,7 @@ namespace GUI.Types.GLViewers
                 }
                 else
                 {
-                    var origin = entity.GetVector3Property("origin");
-                    entityBounds = new AABB(origin - new Vector3(32f), origin + new Vector3(32f));
+                    entityBounds = EntityOriginBounds(entity);
                 }
 
                 bounds = hasBounds ? bounds.Union(entityBounds) : entityBounds;
@@ -650,11 +646,27 @@ namespace GUI.Types.GLViewers
             // would put the camera inside the node or at a garbage position.
             if (!float.IsFinite(maxSpan) || maxSpan < 1f)
             {
-                bbox = new AABB(node.Transform.Translation - new Vector3(32f), node.Transform.Translation + new Vector3(32f));
+                bbox = PointBounds(node.Transform.Translation);
             }
 
-            return bbox;
+            // Bounds of a 3D sky node are mapped to where the sky appears in the world
+            return bbox.Transform(node.Scene.ToViewerWorld);
         }
+
+        /// <summary>Bounds to focus on for an entity that has no scene node, from its authored origin.</summary>
+        private AABB EntityOriginBounds(EntityLump.Entity entity)
+        {
+            var origin = entity.GetVector3Property("origin");
+
+            if (Renderer.Skybox3D is { } skybox && skybox.Entities.Contains(entity))
+            {
+                origin = skybox.EntityOriginToWorld(origin);
+            }
+
+            return PointBounds(origin);
+        }
+
+        private static AABB PointBounds(Vector3 point) => new(point - new Vector3(32f), point + new Vector3(32f));
 
         private void FocusCameraOnBounds(in AABB bbox)
         {
@@ -667,7 +679,7 @@ namespace GUI.Types.GLViewers
             // sized from filling the view with nothing around it to place it by.
             var framing = Input.Camera.GetFramingDistance(size, -CameraPlacement.PreferredDirection(size));
             var distance = Math.Max(framing, 192f);
-            var location = CameraPlacement.FindOrbitPosition(Scene.PhysicsWorld, center, distance, size);
+            var location = CameraPlacement.FindOrbitPosition(Renderer.EntitySystem.PhysicsWorld, center, distance, size);
 
             Input.SaveCameraForTransition();
             Input.Camera.SetLocation(location);
@@ -801,7 +813,7 @@ namespace GUI.Types.GLViewers
                 entityInfoForm.EntityInfoControl.AddProperty("Layer", sceneNode.LayerName ?? string.Empty);
             }
 
-            if (SkyboxScene != null && sceneNode.Scene == SkyboxScene)
+            if (sceneNode.Scene == Renderer.SkyboxScene)
             {
                 entityInfoForm.Text += " (in 3D skybox)";
             }
@@ -829,12 +841,7 @@ namespace GUI.Types.GLViewers
                 return;
             }
 
-            var node = Scene.FindNodeByTargetName(entityName);
-
-            if (node == null && SkyboxScene != null)
-            {
-                node = SkyboxScene.FindNodeByTargetName(entityName);
-            }
+            var node = Renderer.FindNodeByTargetName(entityName);
 
             if (node == null)
             {
@@ -862,12 +869,7 @@ namespace GUI.Types.GLViewers
                 return;
             }
 
-            var node = Scene.Find(sourceEntity);
-
-            if (node == null && SkyboxScene != null)
-            {
-                node = SkyboxScene.Find(sourceEntity);
-            }
+            var node = Renderer.FindNode(sourceEntity);
 
             if (node == null)
             {
@@ -1127,8 +1129,10 @@ namespace GUI.Types.GLViewers
 
             using var lockedGl = MakeCurrent();
 
-            Scene.UpdateOctrees();
-            SkyboxScene?.UpdateOctrees();
+            foreach (var scene in Renderer.Scenes)
+            {
+                scene.UpdateOctrees();
+            }
         }
     }
 }

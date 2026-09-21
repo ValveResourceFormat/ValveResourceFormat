@@ -209,9 +209,13 @@ namespace ValveResourceFormat.Renderer
             {
                 var nodeName = node.Name ?? node.GetType().Name;
 
+                // Drawn with the main camera, so 3D sky nodes are outlined where they appear in the world
+                var toWorld = node.Scene.ToViewerWorld;
+                var bounds = node.BoundingBox.Transform(toWorld);
+
                 if (node is not SimpleBoxSceneNode and not SpriteSceneNode)
                 {
-                    AddBox(renderContext.Camera, updateContext.TextRenderer, vertices, node.Transform, node.LocalBoundingBox, Color32.White, showSize: true);
+                    AddBox(renderContext.Camera, updateContext.TextRenderer, vertices, node.Transform * toWorld, node.LocalBoundingBox, Color32.White, showSize: true);
                 }
 
                 if (debugCubeMaps)
@@ -235,26 +239,30 @@ namespace ValveResourceFormat.Renderer
 
                     foreach (var tiedEnvMap in tiedEnvmaps)
                     {
-                        AddBox(renderContext.Camera, updateContext.TextRenderer, vertices, tiedEnvMap.Transform, tiedEnvMap.LocalBoundingBox, new(0.7f, 0.0f, 1.0f, 1.0f));
+                        var envMapTransform = tiedEnvMap.Transform * toWorld;
+
+                        AddBox(renderContext.Camera, updateContext.TextRenderer, vertices, envMapTransform, tiedEnvMap.LocalBoundingBox, new(0.7f, 0.0f, 1.0f, 1.0f));
 
                         if (renderContext.Scene.LightingInfo.CubemapType is CubemapType.IndividualCubemaps && i == 0)
                         {
-                            ShapeSceneNode.AddLine(vertices, tiedEnvMap.Transform.Translation, node.BoundingBox.Center, new(0.0f, 1.0f, 0.0f, 1.0f));
+                            ShapeSceneNode.AddLine(vertices, envMapTransform.Translation, bounds.Center, new(0.0f, 1.0f, 0.0f, 1.0f));
                             i++;
                             continue;
                         }
 
                         var fractionToTen = Math.Min((float)i / 10, 1.0f);
                         var color = new Color32(1.0f, fractionToTen, fractionToTen, 1.0f);
-                        ShapeSceneNode.AddLine(vertices, tiedEnvMap.Transform.Translation, node.BoundingBox.Center, color);
+                        ShapeSceneNode.AddLine(vertices, envMapTransform.Translation, bounds.Center, color);
                         i++;
                     }
                 }
 
                 if (debugLightProbes && node.LightProbeBinding is not null)
                 {
-                    AddBox(renderContext.Camera, updateContext.TextRenderer, vertices, node.LightProbeBinding.Transform, node.LightProbeBinding.LocalBoundingBox, new(1.0f, 0.0f, 1.0f, 1.0f));
-                    ShapeSceneNode.AddLine(vertices, node.LightProbeBinding.Transform.Translation, node.BoundingBox.Center, new(1.0f, 0.0f, 1.0f, 1.0f));
+                    var probeTransform = node.LightProbeBinding.Transform * toWorld;
+
+                    AddBox(renderContext.Camera, updateContext.TextRenderer, vertices, probeTransform, node.LightProbeBinding.LocalBoundingBox, new(1.0f, 0.0f, 1.0f, 1.0f));
+                    ShapeSceneNode.AddLine(vertices, probeTransform.Translation, bounds.Center, new(1.0f, 0.0f, 1.0f, 1.0f));
 
                     node.LightProbeBinding.CreateDebugGridSpheres();
                 }
@@ -269,22 +277,22 @@ namespace ValveResourceFormat.Renderer
 
                     if (classname is "env_combined_light_probe_volume" or "env_light_probe_volume" or "env_volumetric_fog_volume" or "env_wind_volume" or "steampal_kill_volume" or "env_cubemap_box" or "env_cubemap")
                     {
-                        AABB bounds = default;
+                        AABB volumeBounds;
 
                         if (classname == "env_cubemap")
                         {
                             var radius = node.EntityData.GetFloatProperty("influenceradius");
-                            bounds = new AABB(-radius, -radius, -radius, radius, radius, radius);
+                            volumeBounds = new AABB(-radius, -radius, -radius, radius, radius, radius);
                         }
                         else
                         {
-                            bounds = new AABB(
+                            volumeBounds = new AABB(
                                 node.EntityData.GetVector3Property("box_mins"),
                                 node.EntityData.GetVector3Property("box_maxs")
                             );
                         }
 
-                        AddBox(renderContext.Camera, updateContext.TextRenderer, vertices, node.Transform, bounds, new(0.0f, 1.0f, 0.0f, 1.0f));
+                        AddBox(renderContext.Camera, updateContext.TextRenderer, vertices, node.Transform * toWorld, volumeBounds, new(0.0f, 1.0f, 0.0f, 1.0f));
 
                         disableDepth = true;
                     }
@@ -297,18 +305,19 @@ namespace ValveResourceFormat.Renderer
 
                         if (boundsMins != null && boundsMaxs != null && obbExtent != null && obbOrigin != null)
                         {
-                            var bounds = new AABB(
+                            var precomputedBounds = new AABB(
                                 EntityTransformHelper.ParseVector3(boundsMins),
                                 EntityTransformHelper.ParseVector3(boundsMaxs)
                             );
 
-                            var origin = EntityTransformHelper.ParseVector3(obbExtent);
-                            var extent = EntityTransformHelper.ParseVector3(obbOrigin);
+                            var origin = Vector3.Transform(EntityTransformHelper.ParseVector3(obbExtent), toWorld);
+                            var extent = Vector3.Transform(EntityTransformHelper.ParseVector3(obbOrigin), toWorld);
+                            var lightPosition = Vector3.Transform(node.Transform.Translation, toWorld);
 
-                            AddBox(renderContext.Camera, updateContext.TextRenderer, vertices, Matrix4x4.Identity, bounds, new(0.0f, 1.0f, 0.0f, 1.0f));
+                            AddBox(renderContext.Camera, updateContext.TextRenderer, vertices, toWorld, precomputedBounds, new(0.0f, 1.0f, 0.0f, 1.0f));
 
-                            ShapeSceneNode.AddLine(vertices, node.Transform.Translation, origin, new(0.0f, 0.0f, 1.0f, 1.0f));
-                            ShapeSceneNode.AddLine(vertices, node.Transform.Translation, extent, new(1.0f, 1.0f, 0.0f, 1.0f));
+                            ShapeSceneNode.AddLine(vertices, lightPosition, origin, new(0.0f, 0.0f, 1.0f, 1.0f));
+                            ShapeSceneNode.AddLine(vertices, lightPosition, extent, new(1.0f, 1.0f, 0.0f, 1.0f));
                         }
 
                         disableDepth = true;
@@ -316,8 +325,8 @@ namespace ValveResourceFormat.Renderer
                 }
 
                 // draw node name above the bounding box
-                var position = node.BoundingBox.Center;
-                position.Z = node.BoundingBox.Max.Z;
+                var position = bounds.Center;
+                position.Z = bounds.Max.Z;
 
                 updateContext.TextRenderer.AddTextBillboard(position, new TextRenderer.TextRenderRequest
                 {

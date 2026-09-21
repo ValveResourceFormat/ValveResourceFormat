@@ -131,8 +131,11 @@ public abstract class BaseModelEntity : BaseEntity
 
         if (EntityCollider.LoadPhysics(model, fileLoader) is { } physics)
         {
-            Collider = new EntityCollider(physics);
-            UpdateColliderTransform();
+            if (Scene.EntitiesCollide)
+            {
+                Collider = new EntityCollider(physics);
+                UpdateColliderTransform();
+            }
 
             // Owned outright rather than hung off the model: a brush compiled for collision alone has no
             // model node to hang them from, and its hulls are then the only thing there is to show.

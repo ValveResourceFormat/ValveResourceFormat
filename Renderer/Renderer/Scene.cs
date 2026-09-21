@@ -98,11 +98,20 @@ namespace ValveResourceFormat.Renderer
         /// <summary>Gets or sets the post-processing parameters for this scene.</summary>
         public WorldPostProcessInfo PostProcessInfo { get; set; } = new();
 
-        /// <summary>Gets or sets the physics simulation world associated with this scene.</summary>
-        public Rubikon? PhysicsWorld { get; set; }
+        /// <summary>
+        /// Whether the entities drawn here take part in collision. A spawn group placed inside a map, such
+        /// as a 3D sky, is scenery: nothing can reach it, so its entities never build a collider.
+        /// </summary>
+        internal bool EntitiesCollide { get; set; } = true;
 
-        /// <summary>The entity world this scene takes part in.</summary>
-        public EntitySystem EntitySystem { get; set; }
+        /// <summary>
+        /// How large an editor marker is drawn here next to the entity it marks. A 3D sky is magnified by
+        /// the camera it is drawn through, so its markers shrink to come back out at their normal size.
+        /// </summary>
+        internal float MarkerScale { get; set; } = 1f;
+
+        /// <summary>Maps this scene's space to where the main camera sees it. Identity, except for a 3D sky.</summary>
+        public Matrix4x4 ToViewerWorld { get; internal set; } = Matrix4x4.Identity;
 
         /// <summary>Gets or sets the voxel visibility data.</summary>
         public IWorldVisibility? VoxelVisibility { get; set; }
@@ -207,9 +216,6 @@ namespace ValveResourceFormat.Renderer
         /// <summary>Gets or sets whether GPU indirect drawing is used for eligible aggregate scene nodes.</summary>
         public bool EnableIndirectDraws { get; set; } = true;
 
-        /// <summary>Whether this is the 3d sky scene, which draws behind everything the main scene draws.</summary>
-        internal bool IsSkybox => LightingInfo.LightingData.IsSkybox != 0u;
-
         /// <summary>Gets or sets whether GPU draw compaction is applied after frustum culling to remove empty indirect draw commands.</summary>
         public bool EnableCompaction { get; set; } = true;
 
@@ -273,7 +279,6 @@ namespace ValveResourceFormat.Renderer
 
             LightingInfo = new(this);
             LightBinner = new(this);
-            EntitySystem = new(this);
         }
 
         /// <summary>
@@ -396,12 +401,6 @@ namespace ValveResourceFormat.Renderer
                 item.Delete();
             }
             staticNodes.Clear();
-
-            // The shared entity world is its owning scene's to clear
-            if (EntitySystem.Scene == this)
-            {
-                EntitySystem.Clear();
-            }
 
             StaticOctree.Clear();
             DynamicOctree.Clear();
@@ -548,12 +547,6 @@ namespace ValveResourceFormat.Renderer
         /// <param name="updateContext">Per-frame context data including camera and timestep.</param>
         public void Update(Scene.UpdateContext updateContext)
         {
-            // Entities simulate on their own fixed tick, then their scene nodes pick the result up below
-            if (EntitySystem.Scene == this)
-            {
-                EntitySystem.Update(updateContext.Timestep);
-            }
-
             foreach (var node in staticNodes)
             {
                 node.Update(updateContext);
@@ -1747,7 +1740,6 @@ namespace ValveResourceFormat.Renderer
             var enabled = DepthPyramidValid && pyramid != null;
 
             shader.SetUniform("g_bOcclusionCullEnabled", enabled ? 1 : 0);
-            shader.SetUniform("g_bSkyOcclusion", IsSkybox ? 1 : 0);
 
             if (!enabled)
             {
@@ -2347,8 +2339,20 @@ namespace ValveResourceFormat.Renderer
         /// <summary>Writes the scene's fog and weather parameters into the provided view constants structure.</summary>
         /// <param name="viewConstants">The view constants to update.</param>
         public void SetFogConstants(ViewConstants viewConstants)
+            => SetFogConstants(viewConstants, FogInfo, FogSpace.World);
+
+        /// <summary>
+        /// Writes the scene's weather parameters and the fog a view of it draws with into the provided
+        /// view constants structure.
+        /// </summary>
+        /// <param name="viewConstants">The view constants to update.</param>
+        /// <param name="fog">The fog the view draws with.</param>
+        /// <param name="fogSpace">Converts authored fog distances and heights into the view's space.</param>
+        internal void SetFogConstants(ViewConstants viewConstants, WorldFogInfo fog, FogSpace fogSpace)
         {
-            FogInfo.SetFogUniforms(viewConstants, FogEnabled);
+            ArgumentNullException.ThrowIfNull(fog);
+
+            fog.SetFogUniforms(viewConstants, FogEnabled, fogSpace);
 
             viewConstants.EnvWetness = EnvironmentWetness;
             viewConstants.EnvWetnessRipple = new Vector4(PuddleWindDirection, 0f, 0f, 0f);

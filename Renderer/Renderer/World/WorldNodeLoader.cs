@@ -36,8 +36,11 @@ namespace ValveResourceFormat.Renderer.World
         /// Loads all scene objects and aggregates from the world node into the given scene.
         /// </summary>
         /// <param name="scene">The scene to add loaded objects to.</param>
-        public void Load(Scene scene)
+        /// <param name="rootTransform">Transform applied to the whole node, identity when <see langword="null"/>.</param>
+        public void Load(Scene scene, Matrix4x4? rootTransform = null)
         {
+            var root = rootTransform ?? Matrix4x4.Identity;
+
             if (externalReferences is not null)
             {
                 Parallel.ForEach(externalReferences.ResourceRefInfoList, resourceReference =>
@@ -69,7 +72,7 @@ namespace ValveResourceFormat.Renderer.World
 
                 // sceneObject is SceneObject_t
                 var renderableModel = sceneObject.GetStringProperty("m_renderableModel");
-                var matrix = sceneObject.GetArray("m_vTransform").ToMatrix4x4();
+                var matrix = sceneObject.GetArray("m_vTransform").ToMatrix4x4() * root;
                 var flags = sceneObject.GetEnumValue<ObjectTypeFlags>("m_nObjectTypeFlags", normalize: true);
 
                 // Per-placement forced LoD baked by the compiler (-1 = automatic).
@@ -101,7 +104,7 @@ namespace ValveResourceFormat.Renderer.World
                         Tint = tintColor,
                         LayerName = layerIndex > -1 ? LayerNames[layerIndex] : "No layer",
                         Name = renderableModel,
-                        LightingOrigin = lightingOrigin == defaultLightingOrigin ? null : lightingOrigin,
+                        LightingOrigin = lightingOrigin == defaultLightingOrigin ? null : Vector3.Transform(lightingOrigin, root),
                         OverlayRenderOrder = overlayRenderOrder,
                         CubeMapPrecomputedHandshake = cubeMapPrecomputedHandshake,
                         LightProbeVolumePrecomputedHandshake = lightProbeVolumePrecomputedHandshake,
@@ -169,7 +172,7 @@ namespace ValveResourceFormat.Renderer.World
                     };
 
                     scene.Add(aggregate, false);
-                    aggregate.LoadFragments(sceneObject);
+                    aggregate.LoadFragments(sceneObject, root);
                 }
             }
         }

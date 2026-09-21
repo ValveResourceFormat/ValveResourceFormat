@@ -13,7 +13,6 @@ out vec3 vTangentOut;
 out vec3 vBitangentOut;
 out vec4 vColorBlendValues;
 
-uniform float g_flSkyBoxScale;
 uniform float g_flWaterPlaneOffset;
 
 #include "common/features.slang"

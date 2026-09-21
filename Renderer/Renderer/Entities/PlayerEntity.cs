@@ -28,7 +28,7 @@ public sealed class PlayerEntity : BaseEntity
     /// <summary>
     /// Creates the player entity for a movement controller.
     /// </summary>
-    public PlayerEntity(EntitySystem system, IPlayerController controller) : base(system, "player")
+    public PlayerEntity(EntitySystem system, Scene scene, IPlayerController controller) : base(system, scene, "player")
     {
         Controller = controller;
 
