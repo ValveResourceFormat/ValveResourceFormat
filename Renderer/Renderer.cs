@@ -605,7 +605,10 @@ public class Renderer
 
         var isMainFramebuffer = ReferenceEquals(renderContext.Framebuffer, MainFramebuffer);
         var isMaterialPass = renderContext.ReplacementShader == null && isMainFramebuffer;
-        var isStandardPass = isMaterialPass && renderContext.OverdrawShader == null;
+
+        // The outline has its own program and its own mask, so a replacement shader does not stop it
+        var drawsOutline = isMainFramebuffer && renderContext.OverdrawShader == null;
+        var isStandardPass = isMaterialPass && drawsOutline;
 
         if (!isStandardPass)
         {
@@ -676,11 +679,6 @@ public class Renderer
             var (copyColor, copyDepth) = (Scene.WantsSceneColor, Scene.WantsSceneDepth);
             copyDepth |= ForceResolveSceneDepth;
 
-            if (isStandardPass)
-            {
-                Postprocess.HasOutlineObjects = Scene.HasOutlineObjects;
-            }
-
             if (render3DSkybox)
             {
                 Debug.Assert(skyboxScene is not null); // analyzer is failing here
@@ -690,11 +688,6 @@ public class Renderer
 
                 copyColor |= skyboxScene.WantsSceneColor;
                 copyDepth |= skyboxScene.WantsSceneDepth;
-
-                if (isStandardPass)
-                {
-                    Postprocess.HasOutlineObjects |= skyboxScene.HasOutlineObjects;
-                }
 
                 using var _ = new GLDebugGroup("3D Sky Scene");
                 skyboxScene.RenderOpaqueLayer(renderContext);
@@ -798,18 +791,23 @@ public class Renderer
 
         wireframeScope.Dispose();
 
-        if (isStandardPass)
+        if (isStandardPass && computeFramebufferLuminance)
         {
-            if (computeFramebufferLuminance)
-            {
-                ComputeAverageLuminance(renderContext);
-            }
+            ComputeAverageLuminance(renderContext);
+        }
+
+        if (drawsOutline)
+        {
+            Postprocess.HasOutlineObjects = Scene.HasOutlineObjects || SkyboxScene?.HasOutlineObjects == true;
 
             if (Postprocess.HasOutlineObjects)
             {
                 RenderOutlineLayer(renderContext);
             }
+        }
 
+        if (isStandardPass)
+        {
             var overlayBatch = ValveResourceFormat.Renderer.LightTilesOverlay.BatchFor(ViewBuffer!.Data.RenderMode);
 
             if (overlayBatch != ValveResourceFormat.Renderer.LightTilesOverlay.Batch.None)

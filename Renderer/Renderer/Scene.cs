@@ -2172,12 +2172,14 @@ namespace ValveResourceFormat.Renderer
         /// <param name="renderContext">The render context for this pass.</param>
         public void RenderOutlineLayer(RenderContext renderContext)
         {
+            var passShader = renderContext.ReplacementShader;
+
             renderContext.RenderPass = RenderPass.Outline;
             renderContext.ReplacementShader = OutlineShader;
 
             MeshBatchRenderer.Render(renderLists[RenderPass.Outline], renderContext);
 
-            renderContext.ReplacementShader = null;
+            renderContext.ReplacementShader = passShader;
         }
 
         internal void ActivateLayer(string layerName)

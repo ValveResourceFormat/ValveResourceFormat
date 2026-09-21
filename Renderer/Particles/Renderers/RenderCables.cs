@@ -226,6 +226,13 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             }
         }
 
+        /// <inheritdoc/>
+        public override bool CanRenderReplacement => true;
+
+        /// <inheritdoc/>
+        public override void RenderReplacement(Shader replacement, uint objectId)
+            => DrawReplacement(replacement, objectId, vaoHandle, indexCount, DrawElementsType.UnsignedInt);
+
         /// <summary>
         /// Per-segment length tessellation: the apparent on-screen radius scaled by m_flTessScale picks a
         /// power-of-two subdivision count within [m_nMinTesselation, m_nMaxTesselation], bumped one or two
