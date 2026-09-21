@@ -1,9 +1,10 @@
 using System.IO;
+using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Text;
 using ValveKeyValue;
 using ValveResourceFormat;
 using ValveResourceFormat.IO;
-using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization.KeyValues;
 
 namespace Tests
@@ -13,8 +14,43 @@ namespace Tests
     /// </summary>
     internal static class TestFixtures
     {
+        /// <summary>The full path of a fixture, given its name relative to <c>Files/</c>.</summary>
         public static string Path(string fileName)
-            => System.IO.Path.Combine(TestContext.TestDirectory!, "Files", fileName);
+            => System.IO.Path.Combine(FilesDirectory, fileName);
+
+        /// <summary>The fixtures as they were copied next to the test binary.</summary>
+        private static string FilesDirectory { get; } = System.IO.Path.Combine(TestContext.TestDirectory!, "Files");
+
+        /// <summary>The expected block dumps that were copied next to the test binary.</summary>
+        public static string ValidOutputDirectory { get; } = System.IO.Path.Combine(FilesDirectory, "ValidOutput");
+
+        /// <summary>The same dumps in the source tree, which is where regenerating them has to write.</summary>
+        public static string SourceValidOutputDirectory { get; } = GetSourceValidOutputDirectory();
+
+        // Only resolves to the source tree when called from a file that sits in the Tests folder itself
+        private static string GetSourceValidOutputDirectory([CallerFilePath] string sourceFile = "")
+            => System.IO.Path.Combine(System.IO.Path.GetDirectoryName(sourceFile)!, "Files", "ValidOutput");
+
+        /// <summary>Every compiled resource under <c>Files/</c>, including the ones in subdirectories.</summary>
+        public static IEnumerable<string> CompiledFiles() => EnumerateCompiledFiles(recursive: true);
+
+        /// <summary>The compiled resources directly in <c>Files/</c>.</summary>
+        public static IEnumerable<string> TopLevelCompiledFiles() => EnumerateCompiledFiles(recursive: false);
+
+        private static List<string> EnumerateCompiledFiles(bool recursive)
+        {
+            var files = Directory.GetFiles(FilesDirectory, "*.*_c", new EnumerationOptions
+            {
+                RecurseSubdirectories = recursive,
+            });
+
+            if (files.Length == 0)
+            {
+                throw new InvalidOperationException($"There are no files to test in {FilesDirectory}.");
+            }
+
+            return [.. files.Select(file => System.IO.Path.GetRelativePath(FilesDirectory, file))];
+        }
 
         /// <summary>Reads a compiled resource.</summary>
         public static Resource Load(string fileName)
@@ -37,6 +73,7 @@ namespace Tests
         public static KVObject ExtractValveModelDocument(string fileName)
             => ParseKV3(ExtractValveModel(fileName));
 
+        /// <summary>Parses KV3 text into a document.</summary>
         public static KVObject ParseKV3(string text)
         {
             using var ms = new MemoryStream(Encoding.UTF8.GetBytes(text));
