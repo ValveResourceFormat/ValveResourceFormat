@@ -3667,8 +3667,10 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         }
 
         /// <summary>
-        /// Returns whether a quad joins a hinged joint of <paramref name="chain"/> to one of its children,
-        /// which is how a rigid hinge link compiles in place of that link's rods.
+        /// Returns whether a surface element joins a hinged joint of <paramref name="chain"/> to one of
+        /// its children, which is how a rigid hinge link compiles in place of that link's rods. The
+        /// element is a QUAD where the child extrudes a ring and a TRIANGLE where it does not, so a
+        /// hinge whose children are all ringless leaves only triangles behind.
         /// </summary>
         public bool HasRigidHingeLink(BoneChain chain)
         {
@@ -3687,10 +3689,10 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                 .Select(static joint => (joint.ParentNode, joint.Node))
                 .ToList();
 
-            foreach (var quad in Quads)
+            bool JoinsAHingedLink(int[] face, bool overTheRing)
             {
                 var groups = new HashSet<int>();
-                foreach (var node in quad)
+                foreach (var node in face)
                 {
                     if (groupOf.TryGetValue(node, out var group))
                     {
@@ -3698,7 +3700,26 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                     }
                 }
 
-                if (hingedLinks.Exists(link => groups.Contains(link.ParentNode) && groups.Contains(link.Node)))
+                return hingedLinks.Exists(link => groups.Contains(link.ParentNode) && groups.Contains(link.Node)
+                    && (!overTheRing || (ProxyRingOf(link.ParentNode) is { Count: 2 } ring && SpansRing(face, ring))));
+            }
+
+            foreach (var quad in Quads)
+            {
+                if (JoinsAHingedLink(quad, overTheRing: false))
+                {
+                    return true;
+                }
+            }
+
+            // A triangle counts only where it spans the hinge's own two-node ring. An authored
+            // ClothTri cannot name a generated ring node, so a spanning triangle is the compiler's own
+            // fan element, and a fan element is emitted for a HARD hinge alone - which is what this
+            // predicate is asked. A triangle declared over the chain's bones is an authored element
+            // and says nothing about the hinge.
+            foreach (var tri in Tris)
+            {
+                if (JoinsAHingedLink(tri, overTheRing: true))
                 {
                     return true;
                 }

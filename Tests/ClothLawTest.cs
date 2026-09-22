@@ -9518,5 +9518,87 @@ namespace Tests
                 await Assert.That(ModelExtract.FlexedPinsStateClothBorders(flexed, unreached)).IsFalse();
             }
         }
+
+        /// <summary>
+        /// A hinge whose child extrudes no ring fans out over a TRIANGLE rather than a quad, and that
+        /// triangle is as much a rigid hinge link as a quad is - so the chain is re-declared with a HARD
+        /// hinge link and keeps its fan. CONTROLS: a quad still counts (the path this law does not
+        /// touch); a triangle authored over the chain's own BONES, which does not span the hinge's ring,
+        /// counts for nothing; and a chain with no surface element at all has no rigid hinge link.
+        /// </summary>
+        /// <remarks>
+        /// READ 2026-09-22: `sub_1818DEC20`'s bit-4 branch (the branch the hard-hinge flag `joint+137`
+        /// selects) builds its record from `2 + (v15 != 0) + (v16 != 0)` corners, so a two-node hinge ring
+        /// against a two-node child ring gives four and against a RINGLESS child's single-member list
+        /// gives three, with the last corner repeated. It appends no rod on either. `sub_1818DF340` sets
+        /// `joint+137` only where `hinge_constraint_soft` is absent or false, so a hinge re-declared soft
+        /// emits no fan element at all and its spans build ordinary rods instead.
+        /// </remarks>
+        [Test]
+        public async Task AHingeOverARinglessChildFansOutOverATriangleAndIsStillARigidHingeLink()
+        {
+            var fan = HingeTriGate(tris: "[ { nNode = [ 2, 1, 4 ] } ]", quads: string.Empty);
+            var authoredOverBones = HingeTriGate(tris: "[ { nNode = [ 3, 4, 5 ] } ]", quads: string.Empty);
+            var noSurface = HingeTriGate(tris: string.Empty, quads: string.Empty);
+            var quad = HingeTriGate(tris: string.Empty, quads: "[ { nNode = [ 2, 1, 4, 5 ] } ]");
+
+            using (Assert.Multiple())
+            {
+                // The fixture has to reach the predicate at all: one chain, the hinge at its root with a
+                // two-node ring, a ringless child under it, and rods the hinge did not replace.
+                var chain = fan.BuildBoneChains()[0];
+                await Assert.That(string.Join(",", chain.Joints.Select(static joint => joint.Name)))
+                    .IsEqualTo("hat,hat_end,hat_tip");
+                await Assert.That(fan.IsHingedJoint(3)).IsTrue();
+                await Assert.That(fan.ProxyCountOf(4)).IsEqualTo(0);
+                await Assert.That(fan.HasChainRods(chain)).IsTrue();
+
+                // THE LAW: the triangle over the hinge's own ring is a rigid hinge link.
+                await Assert.That(fan.HasRigidHingeLink(chain)).IsTrue();
+
+                // CONTROL: a triangle the document authored over three chain BONES reaches the same two
+                // joints and does NOT span the ring, so it says nothing about the hinge.
+                await Assert.That(authoredOverBones.HasRigidHingeLink(
+                    authoredOverBones.BuildBoneChains()[0])).IsFalse();
+
+                // CONTROL: no surface element at all, which is a genuinely soft hinge link.
+                await Assert.That(noSurface.HasRigidHingeLink(noSurface.BuildBoneChains()[0])).IsFalse();
+
+                // CONTROL: the quad path is untouched.
+                await Assert.That(quad.HasRigidHingeLink(quad.BuildBoneChains()[0])).IsTrue();
+            }
+        }
+
+        // A limited hinge on the chain root "hat" whose child "hat_end" extrudes nothing, so the fan the
+        // compiler builds over it is a triangle. The rod on the lower link is what keeps the chain's own
+        // rods visible, as a hard hinge replaces only the link it spans.
+        private static FeModel HingeTriGate(string tris, string quads) => SyntheticCloth.Parse($$"""
+            {
+                m_CtrlName = [ "$ha_hat", "$cchat_0", "$cchat_1", "hat", "hat_end", "hat_tip" ]
+                m_SkelParents = [ 3, 3, 3, -1, 3, 4 ]
+                m_nNodeCount = 6
+                m_nStaticNodes = 4
+                m_NodeInvMasses = [ 0.0, 0.0, 0.0, 0.0, 1.0, 1.0 ]
+                m_InitPose =
+                [
+                    {{SyntheticCloth.Pose(0f, 0f, 0f)}}
+                    {{SyntheticCloth.Pose(0f, -10f, 0f)}}
+                    {{SyntheticCloth.Pose(0f, 10f, 0f)}}
+                    {{SyntheticCloth.Pose(0f, 0f, 0f)}}
+                    {{SyntheticCloth.Pose(8f, 0f, 0f)}}
+                    {{SyntheticCloth.Pose(16f, 0f, 0f)}}
+                ]
+                m_CtrlOffsets =
+                [
+                    { vOffset = [ 0.0, -10.0, 0.000001 ] nCtrlParent = 3 nCtrlChild = 1 },
+                    { vOffset = [ 0.0, 10.0, -0.000001 ] nCtrlParent = 3 nCtrlChild = 2 },
+                ]
+                m_Rods = [ {{SyntheticCloth.RigidRod(4, 5, 8f, 1f)}} ]
+                {{(quads.Length > 0 ? "m_Quads = " + quads : string.Empty)}}
+                {{(tris.Length > 0 ? "m_Tris = " + tris : string.Empty)}}
+                m_HingeLimits = [ { nNode = [ 1, 2, 3, 4, 3, 4 ] flAngleCenter = 0.0 flAngleExtents = 0.785398 } ]
+            }
+            """);
+
     }
 }
