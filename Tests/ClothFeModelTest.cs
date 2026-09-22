@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Reflection;
@@ -308,9 +309,10 @@ namespace Tests
         /// above capable of failing.
         /// </summary>
         [Test]
+        [NotInParallel]
         public async Task AnUnknownCompiledKeyIsReportedAsUnaccountedFor()
         {
-            var feModel = SyntheticCloth.Parse("""
+            var feModel = ParseUnaccountedCloth("""
                 {
                     m_CtrlName = [ "a" ]
                     m_nNodeCount = 1
@@ -320,6 +322,29 @@ namespace Tests
                 """);
 
             await Assert.That(UnaccountedKeys(feModel)).IsEquivalentTo(OneUnknownKey);
+        }
+
+        /// <summary>
+        /// Parses cloth carrying a key the reader does not account for. <see cref="FeModel"/> asserts that
+        /// accounting in its constructor under DEBUG and the test host turns a failed assertion into an
+        /// exception, so the trace listeners are detached for the duration; otherwise the constructor
+        /// throws before the test can inspect what it built, and the test passes only in RELEASE.
+        /// The test holding this is <c>[NotInParallel]</c> because the listener collection is global.
+        /// </summary>
+        private static FeModel ParseUnaccountedCloth(string feModelBody)
+        {
+            var listeners = new TraceListener[Trace.Listeners.Count];
+            Trace.Listeners.CopyTo(listeners, 0);
+            Trace.Listeners.Clear();
+
+            try
+            {
+                return SyntheticCloth.Parse(feModelBody);
+            }
+            finally
+            {
+                Trace.Listeners.AddRange(listeners);
+            }
         }
 
         /// <summary>
