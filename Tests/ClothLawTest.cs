@@ -9600,5 +9600,103 @@ namespace Tests
             }
             """);
 
+        /// <summary>
+        /// An authored <c>ClothSpring</c> over a pair the chain ALSO spans does not replace that span: the
+        /// compiler appends both rods and merges neither, so the joint keeps its stretch slider and the
+        /// spring re-declares only the SURPLUS copy. CONTROL: a spring on a pair carrying its own rod
+        /// alone still switches the chain's span off and still takes the whole count, which is the shape
+        /// the reading was written for.
+        /// </summary>
+        /// <remarks>
+        /// MEASURED 2026-09-22 on synth `w41hi_probe_cluster_two_member_sprung`: its original carries the
+        /// pair `coattail_1_L / coattail_2_L` TWICE, field for field, where the same chain with a cluster
+        /// in place of the spring carries it once. Zeroing the slider there cost four rods - the joint's
+        /// own ring-circumference rod and its three cross-span rods - and none of them was the span the
+        /// zero was aimed at.
+        /// </remarks>
+        [Test]
+        public async Task ASpringOverAChainSpanAddsARodRatherThanReplacingIt()
+        {
+            var doubled = SpringOverASpan(secondRodOnThePair: true);
+            var single = SpringOverASpan(secondRodOnThePair: false);
+
+            var doubledChain = doubled.BuildBoneChains()[0];
+            var singleChain = single.BuildBoneChains()[0];
+
+            using (Assert.Multiple())
+            {
+                // The fixture has to reach the predicate: one chain of three joints, with the spring on
+                // the LAST joint's parent link.
+                await Assert.That(string.Join(",", doubledChain.Joints.Select(static joint => joint.Name)))
+                    .IsEqualTo("j0,j1,j2,j3");
+                await Assert.That(doubled.SourceSprings.Length).IsEqualTo(1);
+
+                // THE LAW: the chain keeps its own span on a doubled pair, and the spring takes only the
+                // surplus copy rather than the whole count.
+                await Assert.That(doubledChain.Joints[2].StretchStiffness).IsNotEqualTo(0f);
+                await Assert.That(doubled.GetAuthoredSourceSprings([doubledChain])
+                    .Select(static spring => spring.Copies).Sum()).IsEqualTo(1);
+
+                // CONTROL: one rod on the pair is the spring's own, so the chain's span still goes and the
+                // spring still declares every copy.
+                await Assert.That(singleChain.Joints[2].StretchStiffness).IsEqualTo(0f);
+                await Assert.That(single.GetAuthoredSourceSprings([singleChain])
+                    .Select(static spring => spring.Copies).Sum()).IsEqualTo(1);
+            }
+        }
+
+        // The reproducer's own compiled shape at synth scale: four chain joints each extruding a
+        // one-node ring, the full cross-product rod set between consecutive extrusions, and a two-corner
+        // source element on the bone pair (j1, j2). The rings are what make this fixture able to express
+        // the law at all - a bare three-node chain lets the joint's OWN extra_iterations recovery absorb
+        // the second rod, and then no surplus is left for the spring to declare.
+        private static FeModel SpringOverASpan(bool secondRodOnThePair) => SyntheticCloth.Parse($$"""
+            {
+                m_CtrlName = [ "j0", "$ccj0_0", "j1", "$ccj1_0", "j2", "$ccj2_0", "j3", "$ccj3_0" ]
+                m_SkelParents = [ -1, 0, 0, 2, 2, 4, 4, 6 ]
+                m_nNodeCount = 8
+                m_nStaticNodes = 2
+                m_NodeInvMasses = [ 0.0, 0.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0 ]
+                m_InitPose =
+                [
+                    {{SyntheticCloth.Pose(0f, 0f, 0f)}}
+                    {{SyntheticCloth.Pose(0f, 2f, 0f)}}
+                    {{SyntheticCloth.Pose(0f, 0f, -8f)}}
+                    {{SyntheticCloth.Pose(0f, 2f, -8f)}}
+                    {{SyntheticCloth.Pose(0f, 0f, -16f)}}
+                    {{SyntheticCloth.Pose(0f, 2f, -16f)}}
+                    {{SyntheticCloth.Pose(0f, 0f, -24f)}}
+                    {{SyntheticCloth.Pose(0f, 2f, -24f)}}
+                ]
+                m_CtrlOffsets =
+                [
+                    { vOffset = [ 0.0, 2.0, 0.0 ] nCtrlParent = 0 nCtrlChild = 1 },
+                    { vOffset = [ 0.0, 2.0, 0.0 ] nCtrlParent = 2 nCtrlChild = 3 },
+                    { vOffset = [ 0.0, 2.0, 0.0 ] nCtrlParent = 4 nCtrlChild = 5 },
+                    { vOffset = [ 0.0, 2.0, 0.0 ] nCtrlParent = 6 nCtrlChild = 7 },
+                ]
+                m_SourceElems = [ 0, 1, 0, 0, 2, 4 ]
+                m_Rods =
+                [
+                    {{SyntheticCloth.RigidRod(0, 2, 8f, 1f)}}
+                    {{SyntheticCloth.RigidRod(0, 3, 8.246211f, 1f)}}
+                    {{SyntheticCloth.RigidRod(1, 2, 8.246211f, 1f)}}
+                    {{SyntheticCloth.RigidRod(1, 3, 8f, 1f)}}
+                    {{SyntheticCloth.RigidRod(2, 3, 2f, 1f)}}
+                    {{SyntheticCloth.RigidRod(2, 4, 8f, 1f)}}
+                    {{SyntheticCloth.RigidRod(2, 5, 8.246211f, 1f)}}
+                    {{SyntheticCloth.RigidRod(3, 4, 8.246211f, 1f)}}
+                    {{SyntheticCloth.RigidRod(3, 5, 8f, 1f)}}
+                    {{SyntheticCloth.RigidRod(4, 5, 2f, 1f)}}
+                    {{SyntheticCloth.RigidRod(4, 6, 8f, 1f)}}
+                    {{SyntheticCloth.RigidRod(4, 7, 8.246211f, 1f)}}
+                    {{SyntheticCloth.RigidRod(5, 6, 8.246211f, 1f)}}
+                    {{SyntheticCloth.RigidRod(5, 7, 8f, 1f)}}
+                    {{SyntheticCloth.RigidRod(6, 7, 2f, 1f)}}
+                    {{(secondRodOnThePair ? SyntheticCloth.RigidRod(2, 4, 8f, 1f) : string.Empty)}}
+                ]
+            }
+            """);
+
     }
 }

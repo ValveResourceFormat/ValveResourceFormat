@@ -927,7 +927,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             var occurrences = new Dictionary<(int, int), int>();
             foreach (var (a, b) in SourceSprings)
             {
-                if (IsEndpoint(a) && IsEndpoint(b) && !spanned.ContainsKey(a < b ? (a, b) : (b, a)))
+                if (IsEndpoint(a) && IsEndpoint(b))
                 {
                     authored.Add((a, b));
                     var key = a < b ? (a, b) : (b, a);
@@ -952,7 +952,26 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             foreach (var (a, b) in authored)
             {
                 var key = a < b ? (a, b) : (b, a);
-                springs.Add((a, b, occurrences[key] > 1 ? 1 : Math.Max(1, copies.GetValueOrDefault(key))));
+
+                // The chain's own spans on the pair are not the spring's copies: where both declared it
+                // the spring takes only the SURPLUS, and where the chain accounts for every rod there is
+                // nothing left for a spring to declare and it is dropped, as it always has been.
+                var generated = spanned.TryGetValue(key, out var spans) ? spans.Count : 0;
+                if (occurrences[key] > 1)
+                {
+                    if (generated == 0)
+                    {
+                        springs.Add((a, b, 1));
+                    }
+
+                    continue;
+                }
+
+                var surplus = Math.Max(1, copies.GetValueOrDefault(key)) - generated;
+                if (surplus > 0)
+                {
+                    springs.Add((a, b, surplus));
+                }
             }
 
             return springs;

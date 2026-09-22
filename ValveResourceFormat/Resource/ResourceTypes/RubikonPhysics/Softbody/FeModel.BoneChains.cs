@@ -2824,6 +2824,27 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
 
                 static (int, int) SpanPair(int a, int b) => a < b ? (a, b) : (b, a);
 
+                // How many rods the compile left on a pair, which is how many constructs declared it.
+                int SpanRodCopies(int a, int b)
+                    => repeatRodRelaxationsByPair.TryGetValue(SpanPair(a, b), out var repeats) ? repeats.Count : 0;
+
+                // The multiplicity of the joint's OWN ring-circumference rod, which nothing but the chain
+                // declares, so it is how many copies of every span this joint generates. Zero where the
+                // joint extrudes nothing, and then the chain's own count has no independent witness.
+                int RingRodCopies(int node)
+                {
+                    var most = 0;
+                    if (jointRingOf.TryGetValue(node, out var ring))
+                    {
+                        foreach (var member in ring)
+                        {
+                            most = Math.Max(most, SpanRodCopies(node, member));
+                        }
+                    }
+
+                    return most;
+                }
+
                 bool DeclaresNoStretch(BoneChainJoint joint)
                 {
                     if (joint.IsRoot || joint.ParentNode < 0 || !Simulates(joint.Node) || IsPositionDriven(joint.Node)
@@ -2905,7 +2926,17 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                         && (Array.IndexOf(SourceSprings, (joint.Node, other)) >= 0
                             || Array.IndexOf(SourceSprings, (other, joint.Node)) >= 0);
 
-                    if (AuthoredSpring(parent))
+                    // A spring on the pair does not REPLACE the chain's own span. The two are built in
+                    // different passes and neither merges nor dedups, so a pair carrying MORE rods than
+                    // the chain's own copy count was declared by both, and zeroing the slider there takes
+                    // the joint's whole stretch family with it - its own ring-circumference rod and its
+                    // cross-span rods, none of which the spring replaces.
+                    // The copy count is read off the joint's own ring rod, which nothing but the chain
+                    // declares. A joint that extrudes nothing leaves no such witness, and there the whole
+                    // multiplicity is the spring's as it has always been read.
+                    var ringCopies = RingRodCopies(joint.Node);
+                    if (AuthoredSpring(parent)
+                        && !(ringCopies > 0 && SpanRodCopies(joint.Node, parent) > ringCopies))
                     {
                         joint.StretchStiffness = 0f;
                     }
