@@ -1,4 +1,5 @@
 using System.Collections;
+using System.Diagnostics.CodeAnalysis;
 using Microsoft.Extensions.Logging;
 using ValveResourceFormat.Blocks;
 using ValveResourceFormat.ResourceTypes;
@@ -60,7 +61,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         /// radius or spacing), in which case the entity should be ignored. The node must be placed at the
         /// entity, see <see cref="BuildSnapshot"/>.
         /// </summary>
-        public static bool TryCreate(Scene scene, Entity entity, out ParticleSceneNode? node)
+        public static bool TryCreate(Scene scene, Entity entity, [NotNullWhen(true)] out ParticleSceneNode? node)
         {
             node = null;
 

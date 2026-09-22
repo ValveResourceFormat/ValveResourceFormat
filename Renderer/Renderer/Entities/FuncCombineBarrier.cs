@@ -1,7 +1,6 @@
 using System.Globalization;
 using Microsoft.Extensions.Logging;
 using ValveResourceFormat.Renderer.SceneNodes;
-using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.Renderer.Entities;
@@ -63,37 +62,34 @@ public sealed class FuncCombineBarrier : FuncBrush
             return;
         }
 
-        IsSolid = BarrierState == State.BlocksHumans;
-
         if (Effect == null)
         {
-            CreateEffect();
+            CreateBarrierEffect();
         }
         else
         {
             Effect.Play();
         }
 
-        ApplyStateColors();
+        ApplyState();
     }
 
     /// <summary>
     /// Builds the effect, sized to the brush: control points 1 and 2 at the two ends of the field along
     /// its width, 18 the number of cells, which drives how much it emits, and 19 the cell grid.
     /// </summary>
-    private void CreateEffect()
+    private void CreateBarrierEffect()
     {
-        var effectName = KeyValues.GetStringProperty("effect_name");
-
-        if (string.IsNullOrEmpty(effectName)
-            || EntitySystem.FileLoader.LoadFileCompiled(effectName)?.DataBlock is not ParticleSystem particleSystem)
-        {
-            return;
-        }
-
         if ((Collider?.LocalBounds ?? ModelNode?.LocalBoundingBox) is not { } bounds)
         {
             EntitySystem.Logger.LogWarning("{Classname} '{TargetName}' has no bounds to size its effect by", Classname, TargetName);
+            return;
+        }
+
+        Effect = CreateEffect(KeyValues.GetStringProperty("effect_name"));
+
+        if (Effect == null)
+        {
             return;
         }
 
@@ -102,17 +98,11 @@ public sealed class FuncCombineBarrier : FuncBrush
         var columns = (int)(width / CellSpacing);
         var rows = (int)(size.Z / CellSpacing);
 
-        var placement = EntityTransformHelper.ToRigidTransformationMatrix(Angles, Origin) * ParentTransform;
+        var placement = RigidTransform;
 
         // Control point 0 follows the centre of the barrier rather than its origin, so the effect is not
         // one the entity places
-        Effect = new ParticleSceneNode(Scene, particleSystem, playedByEntity: true)
-        {
-            Name = effectName,
-            Transform = placement with { Translation = Vector3.Transform(bounds.Center, placement) },
-            LayerName = Scene.ParticlesLayerName,
-        };
-
+        Effect.Transform = placement with { Translation = Vector3.Transform(bounds.Center, placement) };
         Effect.GetControlPoint(1).Position = Vector3.Transform(new Vector3(0f, width * 0.5f, 0f), placement);
         Effect.GetControlPoint(2).Position = Vector3.Transform(new Vector3(0f, width * -0.5f, 0f), placement);
         Effect.GetControlPoint(18).Position = new Vector3(columns * rows, 0f, 0f);
@@ -121,15 +111,20 @@ public sealed class FuncCombineBarrier : FuncBrush
         AddNode(Effect, followsEntity: false);
     }
 
-    /// <summary>Colours the effect by what the barrier blocks: control point 16 the field, 17 its accent.</summary>
-    private void ApplyStateColors()
+    /// <summary>
+    /// Makes the barrier solid when it blocks humans, and colours the effect by what it blocks: control
+    /// point 16 the field, 17 its accent.
+    /// </summary>
+    private void ApplyState()
     {
+        var blocksHumans = BarrierState == State.BlocksHumans;
+
+        IsSolid = blocksHumans;
+
         if (Effect == null)
         {
             return;
         }
-
-        var blocksHumans = BarrierState == State.BlocksHumans;
 
         Effect.GetControlPoint(16).Position = blocksHumans ? HumanBlockerColor : CombineBlockerColor;
         Effect.GetControlPoint(17).Position = blocksHumans ? CombineBlockerColor : HumanBlockerColor;
@@ -143,8 +138,7 @@ public sealed class FuncCombineBarrier : FuncBrush
 
         if (IsEnabled)
         {
-            IsSolid = BarrierState == State.BlocksHumans;
-            ApplyStateColors();
+            ApplyState();
         }
     }
 

@@ -4,7 +4,10 @@ namespace ValveResourceFormat.Renderer.Entities;
 public sealed class EnvCubemap : EnvLightingVolume
 {
     /// <summary>Initializes a cubemap from its keyvalues.</summary>
-    public EnvCubemap(EntitySystem system, EntitySpawnInfo spawnInfo) : base(system, spawnInfo)
+    /// <param name="system">The entity system the cubemap belongs to.</param>
+    /// <param name="spawnInfo">The cubemap's keyvalues and placement.</param>
+    /// <param name="isSphere">Whether it is an <c>env_cubemap</c> rather than an <c>env_cubemap_box</c>.</param>
+    public EnvCubemap(EntitySystem system, EntitySpawnInfo spawnInfo, bool isSphere) : base(system, spawnInfo, isSphere)
     {
     }
 

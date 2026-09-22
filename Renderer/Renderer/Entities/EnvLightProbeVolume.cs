@@ -6,9 +6,15 @@ namespace ValveResourceFormat.Renderer.Entities;
 /// </summary>
 public sealed class EnvLightProbeVolume : EnvLightingVolume
 {
+    private readonly bool bakesCubemap;
+
     /// <summary>Initializes a light probe volume from its keyvalues.</summary>
-    public EnvLightProbeVolume(EntitySystem system, EntitySpawnInfo spawnInfo) : base(system, spawnInfo)
+    /// <param name="system">The entity system the volume belongs to.</param>
+    /// <param name="spawnInfo">The volume's keyvalues and placement.</param>
+    /// <param name="bakesCubemap">Whether it is an <c>env_combined_light_probe_volume</c>.</param>
+    public EnvLightProbeVolume(EntitySystem system, EntitySpawnInfo spawnInfo, bool bakesCubemap) : base(system, spawnInfo, isSphere: false)
     {
+        this.bakesCubemap = bakesCubemap;
     }
 
     /// <inheritdoc/>
@@ -16,7 +22,7 @@ public sealed class EnvLightProbeVolume : EnvLightingVolume
     {
         base.Spawn();
 
-        if (Classname.Equals("env_combined_light_probe_volume", StringComparison.OrdinalIgnoreCase))
+        if (bakesCubemap)
         {
             AddEnvironmentMap();
         }

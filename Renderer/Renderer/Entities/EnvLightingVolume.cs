@@ -13,51 +13,47 @@ namespace ValveResourceFormat.Renderer.Entities;
 /// <remarks>
 /// They have to spawn before anything with a model: whether a scene has cubemaps, and of which kind, is
 /// compiled into every mesh's shaders as it is built.
+/// <para>
+/// The entity scale does not shrink a volume: its baked probe grid is the unscaled box over the voxel size,
+/// and the objects bound to it by their precomputed handshake only fall inside it while it keeps that size.
+/// </para>
 /// </remarks>
 public abstract class EnvLightingVolume : BaseEntity
 {
-    /// <summary>Gets the handshake baked objects name this volume by, 0 when it has none.</summary>
-    public int HandShake { get; private set; }
+    private readonly bool isSphere;
 
-    /// <summary>Gets the volume's bounds in its own space.</summary>
-    public AABB Bounds { get; private set; }
-
-    /// <summary>Gets the indoor/outdoor level, which decides between overlapping volumes.</summary>
-    public int IndoorOutdoorLevel { get; private set; }
-
-    /// <summary>
-    /// Gets the volume's placement. The entity scale does not shrink it: its baked probe grid is the
-    /// unscaled box over the voxel size, and the objects bound to it by their precomputed handshake only
-    /// fall inside it while it keeps that size.
-    /// </summary>
-    protected Matrix4x4 VolumeTransform => EntityTransformHelper.ToRigidTransformationMatrix(Angles, Origin) * ParentTransform;
+    // The handshake baked objects name this volume by, 0 when it has none
+    private int handShake;
+    private int indoorOutdoorLevel;
+    private AABB bounds;
 
     /// <summary>Initializes a lighting volume from its keyvalues.</summary>
-    protected EnvLightingVolume(EntitySystem system, EntitySpawnInfo spawnInfo) : base(system, spawnInfo)
+    /// <param name="system">The entity system the volume belongs to.</param>
+    /// <param name="spawnInfo">The volume's keyvalues and placement.</param>
+    /// <param name="isSphere">Whether the volume is a sphere of <c>influenceradius</c> rather than a box.</param>
+    protected EnvLightingVolume(EntitySystem system, EntitySpawnInfo spawnInfo, bool isSphere) : base(system, spawnInfo)
     {
+        this.isSphere = isSphere;
     }
 
     /// <inheritdoc/>
     public override void Spawn()
     {
-        var handShakeString = KeyValues.GetStringProperty("handshake");
-
-        if (!int.TryParse(handShakeString, out var handShake))
+        if (!int.TryParse(KeyValues.GetStringProperty("handshake"), out handShake))
         {
             handShake = KeyValues.GetInt32Property("handshake");
         }
 
-        HandShake = handShake;
-        IndoorOutdoorLevel = KeyValues.GetInt32Property("indoor_outdoor_level");
+        indoorOutdoorLevel = KeyValues.GetInt32Property("indoor_outdoor_level");
 
-        if (Classname.Equals("env_cubemap", StringComparison.OrdinalIgnoreCase))
+        if (isSphere)
         {
             var radius = KeyValues.GetFloatProperty("influenceradius");
-            Bounds = new AABB(-radius, -radius, -radius, radius, radius, radius);
+            bounds = new AABB(-radius, -radius, -radius, radius, radius, radius);
         }
         else
         {
-            Bounds = new AABB(KeyValues.GetVector3Property("box_mins"), KeyValues.GetVector3Property("box_maxs"));
+            bounds = new AABB(KeyValues.GetVector3Property("box_mins"), KeyValues.GetVector3Property("box_maxs"));
         }
     }
 
@@ -74,16 +70,16 @@ public abstract class EnvLightingVolume : BaseEntity
         var envMapTexture = Scene.RendererContext.MaterialLoader.GetTexture(cubemapTextureName, true);
         var arrayIndex = KeyValues.GetInt32Property("array_index");
 
-        var envMap = new SceneEnvMap(Scene, Bounds)
+        var envMap = new SceneEnvMap(Scene, bounds)
         {
             LayerName = LayerName,
-            Transform = VolumeTransform,
+            Transform = RigidTransform,
             EntityData = Data,
-            HandShake = HandShake,
+            HandShake = handShake,
             ArrayIndex = arrayIndex,
-            IndoorOutdoorLevel = IndoorOutdoorLevel,
+            IndoorOutdoorLevel = indoorOutdoorLevel,
             EdgeFadeDists = KeyValues.GetVector3Property("edge_fade_dists"), // TODO: Not available on all entities
-            ProjectionMode = Classname.Equals("env_cubemap", StringComparison.OrdinalIgnoreCase) ? 0 : 1,
+            ProjectionMode = isSphere ? 0 : 1,
             EnvMapTexture = envMapTexture,
             NormalizationSH = SceneEnvMap.CalculateNormalizationSH(envMapTexture.RadianceCoefficients, arrayIndex),
         };
@@ -100,14 +96,14 @@ public abstract class EnvLightingVolume : BaseEntity
         var materialLoader = Scene.RendererContext.MaterialLoader;
         var lightProbeTextureName = KeyValues.GetStringProperty("lightprobetexture");
 
-        var lightProbe = new SceneLightProbe(Scene, Bounds)
+        var lightProbe = new SceneLightProbe(Scene, bounds)
         {
             LayerName = LayerName,
-            Transform = VolumeTransform,
+            Transform = RigidTransform,
             EntityData = Data,
-            HandShake = HandShake,
+            HandShake = handShake,
             Irradiance = lightProbeTextureName != null ? materialLoader.GetTexture(lightProbeTextureName, srgbRead: true) : null,
-            IndoorOutdoorLevel = IndoorOutdoorLevel,
+            IndoorOutdoorLevel = indoorOutdoorLevel,
             VoxelSize = KeyValues.GetFloatProperty("voxel_size"),
         };
 

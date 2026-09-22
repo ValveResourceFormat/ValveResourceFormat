@@ -41,12 +41,13 @@ public sealed class PostProcessingVolume : BaseModelEntity
         return base.CreateRootNode();
     }
 
+    // The model only bounds the volume, it must never block the player
+    /// <inheritdoc/>
+    protected override bool BuildsCollider => false;
+
     /// <inheritdoc/>
     public override void Spawn()
     {
-        // The model only bounds the volume, it must never block the player
-        IsSolid = false;
-
         var transform = Transform;
 
         var postProcess = new ScenePostProcessVolume(Scene)

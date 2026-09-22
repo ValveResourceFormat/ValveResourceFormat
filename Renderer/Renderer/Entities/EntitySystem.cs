@@ -212,11 +212,6 @@ public sealed class EntitySystem
 
         for (var i = activatedCount; i < entities.Count; i++)
         {
-            entities[i].AttachToParentModel();
-        }
-
-        for (var i = activatedCount; i < entities.Count; i++)
-        {
             entities[i].Activate();
         }
 
@@ -646,6 +641,21 @@ public sealed class EntitySystem
         }
     }
 
+    /// <summary>
+    /// Finds every entity of one spawn group whose targetname matches. A 3D sky shares its names with the
+    /// map it is placed in, so anything an entity names in its own keyvalues is looked up this way.
+    /// </summary>
+    public IEnumerable<BaseEntity> FindAllByTargetName(string pattern, Scene scene)
+    {
+        foreach (var entity in entities)
+        {
+            if (entity.Scene == scene && Matches(entity, pattern))
+            {
+                yield return entity;
+            }
+        }
+    }
+
     private static bool Matches(BaseEntity entity, string pattern)
         => !entity.IsRemoved
         && entity.TargetName != null
@@ -801,8 +811,8 @@ public sealed class EntitySystem
             }
         }
 
-        // A name that matches nothing falls back to the classname, as the loader's resolver does: the
-        // combined type is the map saying "whichever of the two this turns out to be"
+        // A name that matches nothing falls back to the classname: the combined type is the map saying
+        // "whichever of the two this turns out to be"
         if (!byClass || matchedName)
         {
             yield break;

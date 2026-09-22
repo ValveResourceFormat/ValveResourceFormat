@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Linq;
 using Microsoft.Extensions.Logging;
 using ValveResourceFormat.Blocks;
 using ValveResourceFormat.Renderer.SceneNodes;
@@ -22,9 +23,6 @@ public class InfoParticleSystem : BaseEntity
     /// <summary>Gets the effect, or <see langword="null"/> when <c>effect_name</c> did not load.</summary>
     public ParticleSceneNode? Effect { get; private set; }
 
-    /// <summary>Gets whether the effect is playing, which <c>start_active</c> and the inputs decide.</summary>
-    public bool IsActive { get; private set; }
-
     /// <summary>Initializes a particle system from its keyvalues.</summary>
     public InfoParticleSystem(EntitySystem system, EntitySpawnInfo spawnInfo) : base(system, spawnInfo)
     {
@@ -33,44 +31,22 @@ public class InfoParticleSystem : BaseEntity
     /// <inheritdoc/>
     public override void Spawn()
     {
-        var effectName = KeyValues.GetStringProperty("effect_name");
+        var snapshotFile = KeyValues.GetStringProperty("snapshot_file");
+        var snapshot = string.IsNullOrEmpty(snapshotFile)
+            ? null
+            : EntitySystem.FileLoader.LoadFileCompiled(snapshotFile)?.GetBlockByType(BlockType.SNAP) as ParticleSnapshot;
 
-        if (string.IsNullOrEmpty(effectName)
-            || EntitySystem.FileLoader.LoadFileCompiled(effectName)?.DataBlock is not ParticleSystem particleSystem)
+        Effect = CreateEffect(KeyValues.GetStringProperty("effect_name"), snapshot);
+
+        if (Effect == null)
         {
             return;
         }
 
-        try
-        {
-            ParticleSnapshot? snapshot = null;
-            var snapshotFile = KeyValues.GetStringProperty("snapshot_file");
+        // Control point 0 is the effect's placement, so one handed to another entity is not the entity's to place
+        AddNode(Effect, followsEntity: string.IsNullOrEmpty(KeyValues.GetStringProperty(ControlPointKeys[0])));
 
-            if (!string.IsNullOrEmpty(snapshotFile)
-                && EntitySystem.FileLoader.LoadFileCompiled(snapshotFile)?.GetBlockByType(BlockType.SNAP) is ParticleSnapshot loadedSnapshot)
-            {
-                snapshot = loadedSnapshot;
-            }
-
-            Effect = new ParticleSceneNode(Scene, particleSystem, snapshot, playedByEntity: true)
-            {
-                Name = effectName,
-                Transform = Transform,
-                LayerName = Scene.ParticlesLayerName,
-            };
-
-            // Control point 0 is the effect's placement, so one handed to another entity is not the entity's to place
-            AddNode(Effect, followsEntity: string.IsNullOrEmpty(KeyValues.GetStringProperty(ControlPointKeys[0])));
-        }
-        catch (Exception e)
-        {
-            EntitySystem.Logger.LogError(e, "Failed to setup particle '{Particle}'", effectName);
-            return;
-        }
-
-        IsActive = KeyValues.GetBooleanProperty("start_active", true);
-
-        if (!IsActive)
+        if (!KeyValues.GetBooleanProperty("start_active", true))
         {
             Effect.Stop();
         }
@@ -100,11 +76,12 @@ public class InfoParticleSystem : BaseEntity
 
     /// <summary>
     /// Places a control point at the entity a <c>cpointN</c> key names, following it when it can move.
-    /// Control point 0 is the effect's own placement, so naming one moves the whole effect there.
+    /// Control point 0 is the effect's own placement, so naming one moves the whole effect there, and
+    /// along with the entity it names.
     /// </summary>
     private void BindControlPoint(ParticleSceneNode effect, int index, string targetName)
     {
-        BaseEntity? target = null;
+        BaseEntity? target;
 
         if (targetName[0] == '!')
         {
@@ -120,14 +97,7 @@ public class InfoParticleSystem : BaseEntity
         else
         {
             // Only in this entity's own spawn group: a 3D sky shares names with the map it is placed in
-            foreach (var candidate in EntitySystem.FindAllByTargetName(targetName))
-            {
-                if (candidate.Scene == Scene)
-                {
-                    target = candidate;
-                    break;
-                }
-            }
+            target = EntitySystem.FindAllByTargetName(targetName, Scene).FirstOrDefault();
         }
 
         if (target == null)
@@ -140,7 +110,6 @@ public class InfoParticleSystem : BaseEntity
         if (index == 0)
         {
             effect.Transform = target.Transform;
-            return;
         }
 
         if (target.RootNode is { } targetNode)
@@ -189,47 +158,27 @@ public class InfoParticleSystem : BaseEntity
     }
 
     /// <summary>
-    /// Reads a literal control point index, clamped the way the engine clamps it at spawn. Returns -1 when
-    /// unused, which is also what an index past the last control point resolves to.
+    /// Reads a literal control point index. Returns -1 when unused, which is also what an index outside
+    /// the control points resolves to.
     /// </summary>
     private int LiteralControlPointIndex(string key)
-    {
-        var index = Math.Clamp(KeyValues.GetInt32Property(key, -1), -1, 64);
-
-        return index < ControlPointKeys.Length ? index : -1;
-    }
+        => KeyValues.GetInt32Property(key, -1) is var index && index >= 0 && index < ControlPointKeys.Length ? index : -1;
 
     /// <summary>Starts the effect over.</summary>
     [EntityInput("Start")]
-    protected void InputStart(EntityInputData data)
-    {
-        IsActive = true;
-        Effect?.Play();
-    }
+    protected void InputStart(EntityInputData data) => Effect?.Play();
 
     /// <summary>Stops emitting, leaving the particles already alive to finish.</summary>
     [EntityInput("Stop")]
-    protected void InputStop(EntityInputData data)
-    {
-        IsActive = false;
-        Effect?.StopEmission();
-    }
+    protected void InputStop(EntityInputData data) => Effect?.StopEmission();
 
     /// <summary>Stops emitting and plays the effect's endcap.</summary>
     [EntityInput("StopPlayEndCap")]
-    protected void InputStopPlayEndCap(EntityInputData data)
-    {
-        IsActive = false;
-        Effect?.PlayEndCap();
-    }
+    protected void InputStopPlayEndCap(EntityInputData data) => Effect?.PlayEndCap();
 
     /// <summary>Removes every particle at once.</summary>
     [EntityInput("DestroyImmediately")]
-    protected void InputDestroyImmediately(EntityInputData data)
-    {
-        IsActive = false;
-        Effect?.Stop();
-    }
+    protected void InputDestroyImmediately(EntityInputData data) => Effect?.Stop();
 
     private static string[] CreateKeys(string format)
     {

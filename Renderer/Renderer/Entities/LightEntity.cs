@@ -23,7 +23,7 @@ public sealed class LightEntity : BaseEntity
     {
     }
 
-    // NoShadows like the loader gives light icons, so a light's own icon cannot shadow the light
+    // NoShadows so a light's own icon cannot shadow the light
     /// <inheritdoc/>
     protected override SceneNode? CreateRootNode() => CreateEditorNode(ObjectTypeFlags.NoShadows);
 
@@ -51,7 +51,7 @@ public sealed class LightEntity : BaseEntity
 
         light.PlaceAt(Transform);
 
-        // The light-store sweep after entity load picks the node up from the scene like a loader one
+        // The light-store sweep after entity load picks the node up from the scene
         AddNode(light);
 
         Apply();

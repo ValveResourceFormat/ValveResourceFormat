@@ -16,8 +16,6 @@ public delegate BaseEntity EntityCreator(EntitySystem system, EntitySpawnInfo sp
 /// </summary>
 /// <remarks>
 /// The table is filled in statically rather than by scanning types, to stay trim-safe and AOT-compatible.
-/// Add a classname here and <see cref="World.WorldLoader"/> hands it to <see cref="EntitySystem"/> instead
-/// of loading it as a static scene node.
 /// </remarks>
 public static class EntityFactory
 {
@@ -60,21 +58,33 @@ public static class EntityFactory
         Register<LightEntity>("light_spot", static (system, spawnInfo) => new LightEntity(system, spawnInfo));
 
         // environment
-        Register<EnvCubemap>("env_cubemap", static (system, spawnInfo) => new EnvCubemap(system, spawnInfo));
-        Register<EnvCubemap>("env_cubemap_box", static (system, spawnInfo) => new EnvCubemap(system, spawnInfo));
+        Register<EnvCubemap>("env_cubemap", static (system, spawnInfo) => new EnvCubemap(system, spawnInfo, isSphere: true));
+        Register<EnvCubemap>("env_cubemap_box", static (system, spawnInfo) => new EnvCubemap(system, spawnInfo, isSphere: false));
         Register<EnvCubemapFog>("env_cubemap_fog", static (system, spawnInfo) => new EnvCubemapFog(system, spawnInfo));
-        Register<EnvLightProbeVolume>("env_combined_light_probe_volume", static (system, spawnInfo) => new EnvLightProbeVolume(system, spawnInfo));
-        Register<EnvLightProbeVolume>("env_light_probe_volume", static (system, spawnInfo) => new EnvLightProbeVolume(system, spawnInfo));
+        Register<EnvLightProbeVolume>("env_combined_light_probe_volume", static (system, spawnInfo) => new EnvLightProbeVolume(system, spawnInfo, bakesCubemap: true));
+        Register<EnvLightProbeVolume>("env_light_probe_volume", static (system, spawnInfo) => new EnvLightProbeVolume(system, spawnInfo, bakesCubemap: false));
         Register<EnvGradientFog>("env_gradient_fog", static (system, spawnInfo) => new EnvGradientFog(system, spawnInfo));
-        Register<EnvSky>("env_global_light", static (system, spawnInfo) => new EnvSky(system, spawnInfo));
-        Register<EnvSky>("env_sky", static (system, spawnInfo) => new EnvSky(system, spawnInfo));
+        Register<EnvSky>("env_global_light", static (system, spawnInfo) => new EnvSky(system, spawnInfo, isGlobalLight: true));
+        Register<EnvSky>("env_sky", static (system, spawnInfo) => new EnvSky(system, spawnInfo, isGlobalLight: false));
         Register<EnvTonemapController>("env_tonemap_controller", static (system, spawnInfo) => new EnvTonemapController(system, spawnInfo));
         Register<InfoMapParameters>("info_map_parameters", static (system, spawnInfo) => new InfoMapParameters(system, spawnInfo));
 
         // particles
+        Register<EnvExplosion>("env_explosion", static (system, spawnInfo) => new EnvExplosion(system, spawnInfo));
         Register<InfoParticleSystem>("info_particle_system", static (system, spawnInfo) => new InfoParticleSystem(system, spawnInfo));
         Register<InfoParticleSystem>("dota_world_particle_system", static (system, spawnInfo) => new InfoParticleSystem(system, spawnInfo));
         Register<EnvParticleGlow>("env_particle_glow", static (system, spawnInfo) => new EnvParticleGlow(system, spawnInfo));
+
+        // models with an ambient effect
+        Register<AmbientEffectEntity>("dcg_game_board_attachment", static (system, spawnInfo) => new AmbientEffectEntity(system, spawnInfo));
+        Register<AmbientEffectEntity>("ent_dota_fountain", static (system, spawnInfo) => new AmbientEffectEntity(system, spawnInfo));
+        Register<AmbientEffectEntity>("ent_dota_tree", static (system, spawnInfo) => new AmbientEffectEntity(system, spawnInfo));
+        Register<AmbientEffectEntity>("npc_dota_barracks", static (system, spawnInfo) => new AmbientEffectEntity(system, spawnInfo));
+        Register<AmbientEffectEntity>("npc_dota_building", static (system, spawnInfo) => new AmbientEffectEntity(system, spawnInfo));
+        Register<AmbientEffectEntity>("npc_dota_fort", static (system, spawnInfo) => new AmbientEffectEntity(system, spawnInfo));
+        Register<AmbientEffectEntity>("npc_dota_lotus_pool", static (system, spawnInfo) => new AmbientEffectEntity(system, spawnInfo));
+        Register<AmbientEffectEntity>("npc_dota_mango_tree", static (system, spawnInfo) => new AmbientEffectEntity(system, spawnInfo));
+        Register<AmbientEffectEntity>("npc_dota_tower", static (system, spawnInfo) => new AmbientEffectEntity(system, spawnInfo));
 
         // A rope's effect_name is the cable effect, which drawn without the rope's own snapshot is an
         // editor placeholder at the world origin, so ropes must never be treated as plain particle entities

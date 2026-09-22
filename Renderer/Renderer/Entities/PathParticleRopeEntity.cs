@@ -9,9 +9,6 @@ namespace ValveResourceFormat.Renderer.Entities;
 /// </summary>
 public sealed class PathParticleRopeEntity : BaseEntity
 {
-    /// <summary>Gets the cable, or <see langword="null"/> when the rope was degenerate or failed to load.</summary>
-    public ParticleSceneNode? Cable { get; private set; }
-
     /// <summary>Initializes a rope from its keyvalues.</summary>
     public PathParticleRopeEntity(EntitySystem system, EntitySpawnInfo spawnInfo) : base(system, spawnInfo)
     {
@@ -23,14 +20,13 @@ public sealed class PathParticleRopeEntity : BaseEntity
     {
         try
         {
-            if (!CableSceneNode.TryCreate(Scene, KeyValues, out var cable) || cable == null)
+            if (!CableSceneNode.TryCreate(Scene, KeyValues, out var cable))
             {
                 EntitySystem.Logger.LogWarning("Skipped degenerate {Classname} '{Target}' at ({Origin})", Classname, TargetName, Origin);
                 return null;
             }
 
             cable.LayerName = Scene.ParticlesLayerName;
-            Cable = cable;
 
             return cable;
         }

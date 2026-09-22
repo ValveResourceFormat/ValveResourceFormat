@@ -11,36 +11,44 @@ namespace ValveResourceFormat.Renderer.Entities;
 /// </summary>
 public sealed class EnvSky : BaseEntity
 {
+    private readonly bool isGlobalLight;
+
     /// <summary>Gets the sky material, or <see langword="null"/> when the entity names none.</summary>
     public string? SkyMaterialName { get; private set; }
 
-    /// <summary>Gets whether the entity starts disabled.</summary>
-    public bool IsStartDisabled { get; private set; }
-
-    /// <summary>Gets the authored <c>brightnessscale</c>; zero or less means it was left unset.</summary>
+    /// <summary>Gets the authored <c>brightnessscale</c>, or 1 when it was left unset.</summary>
     public float BrightnessScale { get; private set; } = 1f;
 
-    private bool IsGlobalLight => Classname.Equals("env_global_light", StringComparison.OrdinalIgnoreCase);
-
     /// <summary>Initializes an <c>env_sky</c> or <c>env_global_light</c> from its keyvalues.</summary>
-    public EnvSky(EntitySystem system, EntitySpawnInfo spawnInfo) : base(system, spawnInfo)
+    /// <param name="system">The entity system the sky belongs to.</param>
+    /// <param name="spawnInfo">The sky's keyvalues and placement.</param>
+    /// <param name="isGlobalLight">Whether it is an <c>env_global_light</c>.</param>
+    public EnvSky(EntitySystem system, EntitySpawnInfo spawnInfo, bool isGlobalLight) : base(system, spawnInfo)
     {
+        this.isGlobalLight = isGlobalLight;
     }
 
     /// <inheritdoc/>
     public override void Spawn()
     {
         SkyMaterialName = KeyValues.GetStringProperty("skyname") ?? KeyValues.GetStringProperty("skybox_material_day");
-        IsStartDisabled = KeyValues.GetBooleanProperty("startdisabled") || !KeyValues.GetBooleanProperty("enabled", true);
-        BrightnessScale = KeyValues.GetFloatProperty("brightnessscale", 1.0f);
 
-        if (IsGlobalLight && !IsStartDisabled)
+        // Zero or less leaves it unset
+        var brightnessScale = KeyValues.GetFloatProperty("brightnessscale", 1f);
+        BrightnessScale = brightnessScale > 0f ? brightnessScale : 1f;
+
+        // Off until an Enable input, which is not simulated. de_inferno has a disabled lighting-only sky.
+        if (KeyValues.GetBooleanProperty("startdisabled") || !KeyValues.GetBooleanProperty("enabled", true))
+        {
+            return;
+        }
+
+        if (isGlobalLight)
         {
             AddDynamicSun();
         }
 
-        // Off until an Enable input, which is not simulated. de_inferno has a disabled lighting-only sky.
-        if (SkyMaterialName == null || IsStartDisabled)
+        if (SkyMaterialName == null)
         {
             return;
         }
@@ -51,18 +59,7 @@ public sealed class EnvSky : BaseEntity
 
     private SceneSkybox2D CreateSkybox2D(string materialName)
     {
-        var tint = Vector3.One;
-
-        if (!IsGlobalLight)
-        {
-            tint = KeyValues.GetColor32Property("tint_color");
-
-            if (BrightnessScale > 0f)
-            {
-                tint *= BrightnessScale;
-            }
-        }
-
+        var tint = isGlobalLight ? Vector3.One : KeyValues.GetColor32Property("tint_color") * BrightnessScale;
         var rendererContext = Scene.RendererContext;
 
         using var skyMaterial = rendererContext.FileLoader.LoadFileCompiled(materialName);
@@ -89,10 +86,9 @@ public sealed class EnvSky : BaseEntity
             Name = "Source 2 Viewer dynamic sunlight for Dota",
         };
 
-        // Placed by the spawn group rather than by the entity, so it is added to the scene directly: a node
-        // the entity owned would be moved onto the entity's own transform
+        // Fixed in the spawn group rather than at the entity
         dynamicSun.PlaceAt(EntityTransformHelper.EulerAnglesToRotationMatrix(angles) * ParentTransform);
-        Scene.Add(dynamicSun, false);
+        AddNode(dynamicSun, followsEntity: false);
 
         Scene.LightingInfo.EnableDynamicShadows = true;
         Scene.LightingInfo.SunLightShadowCoverageScale = 4f;

@@ -1,6 +1,5 @@
 using System.Linq;
 using Microsoft.Extensions.Logging;
-using ValveResourceFormat.Renderer.SceneNodes;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization.KeyValues;
 
@@ -19,7 +18,7 @@ public sealed class XenFloraAnimatedMover : BaseModelEntity
     private readonly record struct PathNode(Vector3 Position, float Speed, float Wait);
 
     private readonly List<PathNode> path = [];
-    private int loopBackIndex = -1;
+    private int loopBackIndex;
     private bool loop;
     private bool faceForward;
     private float speed;
@@ -70,17 +69,10 @@ public sealed class XenFloraAnimatedMover : BaseModelEntity
             modelNode.SetAnimation(animation);
         }
 
-        var effectName = KeyValues.GetStringProperty("particle_effect");
-
-        if (!string.IsNullOrEmpty(effectName) && EntitySystem.FileLoader.LoadFileCompiled(effectName)?.DataBlock is ParticleSystem particleSystem)
+        // The model carries the trail, keeping the effect's own orientation
+        if (CreateEffect(KeyValues.GetStringProperty("particle_effect"), playedByEntity: false) is { } effect)
         {
-            var effect = new ParticleSceneNode(Scene, particleSystem)
-            {
-                Name = effectName,
-                LayerName = Scene.ParticlesLayerName,
-            };
-
-            Scene.Add(effect, true);
+            AddNode(effect, followsEntity: false);
             modelNode.AttachNode(effect, rotation: Quaternion.Identity);
         }
     }
@@ -136,7 +128,7 @@ public sealed class XenFloraAnimatedMover : BaseModelEntity
                 return;
             }
 
-            toIndex = loopBackIndex >= 0 ? loopBackIndex : 0;
+            toIndex = loopBackIndex;
         }
 
         var toNode = path[toIndex];
@@ -159,7 +151,7 @@ public sealed class XenFloraAnimatedMover : BaseModelEntity
         }
 
         var angles = faceForward
-            ? EntityTransformHelper.ToEulerAngles(Quaternion.CreateFromRotationMatrix(EntityTransformHelper.ForwardDirectionToRotationMatrix(segment)))
+            ? EntityTransformHelper.ForwardDirectionToEulerAngles(segment)
             : Angles;
 
         SetOriginAndAngles(Vector3.Lerp(fromNode.Position, toNode.Position, distanceIntoSegment / segmentLength) + localOffset, angles);
@@ -215,14 +207,8 @@ public sealed class XenFloraAnimatedMover : BaseModelEntity
             return null;
         }
 
-        foreach (var candidate in EntitySystem.FindAllByTargetName(targetName))
-        {
-            if (candidate.Scene == Scene)
-            {
-                return candidate.Classname.Equals("path_corner", StringComparison.OrdinalIgnoreCase) ? candidate : null;
-            }
-        }
+        var candidate = EntitySystem.FindAllByTargetName(targetName, Scene).FirstOrDefault();
 
-        return null;
+        return candidate?.Classname.Equals("path_corner", StringComparison.OrdinalIgnoreCase) == true ? candidate : null;
     }
 }

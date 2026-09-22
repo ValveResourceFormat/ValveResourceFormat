@@ -1,3 +1,4 @@
+using System.Linq;
 using Microsoft.Extensions.Logging;
 using ValveResourceFormat.Renderer.SceneEnvironment;
 using ValveResourceFormat.Serialization.KeyValues;
@@ -104,7 +105,8 @@ public sealed class EnvCubemapFog : BaseEntity
                     break;
                 }
 
-                if (FindSky(skyEntTargetName) is not { } sky)
+                // Only in this entity's own spawn group: a 3D sky shares names with the map it is placed in
+                if (EntitySystem.FindAllByTargetName(skyEntTargetName, Scene).OfType<EnvSky>().FirstOrDefault() is not { } sky)
                 {
                     EntitySystem.Logger.LogWarning("Disabling cubemap fog because failed to find env_sky of target name {SkyEntTargetName}", skyEntTargetName);
                     return;
@@ -112,12 +114,7 @@ public sealed class EnvCubemapFog : BaseEntity
 
                 material = sky.SkyMaterialName;
                 transform = sky.Transform with { Translation = transform.Translation }; // steal rotation from env_sky
-
-                if (sky.BrightnessScale > 0f)
-                {
-                    skyBrightnessScale = sky.BrightnessScale;
-                }
-
+                skyBrightnessScale = sky.BrightnessScale;
                 break;
 
             case FogSource.Material:
@@ -163,19 +160,5 @@ public sealed class EnvCubemapFog : BaseEntity
 
         fogInfo.CubemapFog = Fog;
         fogInfo.CubeFogActive = fogTexture != null;
-    }
-
-    // Only in this entity's own spawn group: a 3D sky shares names with the map it is placed in
-    private EnvSky? FindSky(string targetName)
-    {
-        foreach (var candidate in EntitySystem.FindAllByTargetName(targetName))
-        {
-            if (candidate is EnvSky sky && candidate.Scene == Scene)
-            {
-                return sky;
-            }
-        }
-
-        return null;
     }
 }

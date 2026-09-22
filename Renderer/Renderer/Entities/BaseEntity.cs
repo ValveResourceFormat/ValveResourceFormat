@@ -1,5 +1,7 @@
 using System.Runtime.CompilerServices;
 using Microsoft.Extensions.Logging;
+using ValveResourceFormat.Blocks;
+using ValveResourceFormat.Renderer.SceneNodes;
 using ValveResourceFormat.Renderer.Utils;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization.KeyValues;
@@ -40,6 +42,12 @@ public abstract class BaseEntity
 
     /// <summary>Gets the world transform the entity is drawn at, interpolated between ticks.</summary>
     public Matrix4x4 Transform { get; private set; } = Matrix4x4.Identity;
+
+    /// <summary>
+    /// Gets where the entity is in the world at its current tick, without its <see cref="EntityScale"/>:
+    /// the placement of anything the scale must not stretch, such as collision or a baked volume.
+    /// </summary>
+    public Matrix4x4 RigidTransform => EntityTransformHelper.ToRigidTransformationMatrix(Angles, Origin) * ParentTransform;
 
     /// <summary>Gets the visibility layer this entity's nodes belong to.</summary>
     public string? LayerName { get; }
@@ -90,7 +98,10 @@ public abstract class BaseEntity
     /// </summary>
     internal bool IsMoveParentResolved { get; private set; }
 
-    /// <summary>Resolves <c>parentname</c> once everything has spawned; the loader parents plain scene nodes itself.</summary>
+    /// <summary>
+    /// Resolves <c>parentname</c> once everything has spawned, and hangs the entity's nodes off the parent's
+    /// attachment or bone when it names one.
+    /// </summary>
     internal void ResolveMoveParent()
     {
         IsMoveParentResolved = true;
@@ -102,22 +113,33 @@ public abstract class BaseEntity
             return;
         }
 
-        // "name,attachment" addresses an attachment point; the name half is all an entity follows
+        var attachmentName = Data?.GetStringProperty("parentattachmentname");
+
+        // "name,attachment" addresses an attachment point as part of the parent
         var comma = parentName.IndexOf(',', StringComparison.Ordinal);
 
         if (comma >= 0)
         {
+            if (string.IsNullOrEmpty(attachmentName))
+            {
+                attachmentName = parentName[(comma + 1)..];
+            }
+
             parentName = parentName[..comma];
         }
 
-        foreach (var candidate in EntitySystem.FindAllByTargetName(parentName))
+        foreach (var candidate in EntitySystem.FindAllByTargetName(parentName, Scene))
         {
-            // Only within its own spawn group: a 3D sky shares names with the map it is placed in
-            if (candidate != this && candidate.Scene == Scene)
+            if (candidate != this)
             {
                 MoveParent = candidate;
                 break;
             }
+        }
+
+        if (!string.IsNullOrEmpty(attachmentName))
+        {
+            AttachToParentModel(attachmentName);
         }
     }
 
@@ -127,7 +149,7 @@ public abstract class BaseEntity
     /// </summary>
     internal void FollowMoveParent()
     {
-        if (IsAttachedToParentModel
+        if (isAttachedToParentModel
             || MoveParent is not { IsRemoved: false } parent
             || (parent.previousOrigin == parent.Origin && parent.previousAngles == parent.Angles))
         {
@@ -338,13 +360,50 @@ public abstract class BaseEntity
         // On the editor-only layer, so it hides with the other markers rather than with the world, except a
         // template and what it spawns, which are grouped together. An icon the Hammer class draws as a
         // studio model stands in for real geometry, so it stays on the entity's own layer.
-        var layerName = LayerName == World.EditorEntityNode.TemplateLayerName || Classname == "point_template"
+        var layerName = LayerName == World.EditorEntityNode.TemplateLayerName
             ? World.EditorEntityNode.TemplateLayerName
             : HammerEntities.Get(Classname)?.Studio == true && LayerName != null
                 ? LayerName
                 : World.EditorEntityNode.LayerName;
 
-        return World.EditorEntityNode.Create(Scene, Data, Classname, Transform, flags, layerName, ParentTransform);
+        return World.EditorEntityNode.Create(Scene, Data, Classname, Transform, RigidTransform, flags, layerName);
+    }
+
+    /// <summary>
+    /// Loads an effect for the entity to play, at the entity and on the particles layer. The caller decides
+    /// whether the entity owns and places it, through <see cref="AddNode"/>.
+    /// </summary>
+    /// <param name="effectName">The effect, or <see langword="null"/> or empty for none.</param>
+    /// <param name="snapshot">A snapshot the effect starts from, such as a rope's points.</param>
+    /// <param name="playedByEntity">Whether the entity sets the control points, rather than the effect's own configuration.</param>
+    /// <returns>The effect, or <see langword="null"/> when there is none or it failed to load.</returns>
+    protected ParticleSceneNode? CreateEffect(string? effectName, ParticleSnapshot? snapshot = null, bool playedByEntity = true)
+    {
+        if (string.IsNullOrEmpty(effectName))
+        {
+            return null;
+        }
+
+        if (EntitySystem.FileLoader.LoadFileCompiled(effectName)?.DataBlock is not ParticleSystem particleSystem)
+        {
+            EntitySystem.Logger.LogWarning("{Classname} '{TargetName}' failed to load effect \"{Effect}\"", Classname, TargetName, effectName);
+            return null;
+        }
+
+        try
+        {
+            return new ParticleSceneNode(Scene, particleSystem, snapshot, playedByEntity: playedByEntity)
+            {
+                Name = effectName,
+                Transform = Transform,
+                LayerName = Scene.ParticlesLayerName,
+            };
+        }
+        catch (Exception e)
+        {
+            EntitySystem.Logger.LogError(e, "{Classname} '{TargetName}' failed to set up effect \"{Effect}\"", Classname, TargetName, effectName);
+            return null;
+        }
     }
 
     /// <summary>
@@ -903,29 +962,17 @@ public abstract class BaseEntity
         Scene.Add(node, dynamic: true);
     }
 
-    /// <summary>
-    /// Gets whether the entity's nodes hang off an attachment or bone of its move parent's model, which
-    /// then places them rather than the entity.
-    /// </summary>
-    public bool IsAttachedToParentModel { get; private set; }
+    // The move parent's model then places the entity's nodes, rather than the entity following it
+    private bool isAttachedToParentModel;
 
     /// <summary>
-    /// Hangs the nodes this entity places off the attachment or bone its <c>parentattachmentname</c> names
-    /// on the move parent's model, snapping them onto it. Plain parenting is left to the move parent,
-    /// which the entity follows by itself. <c>uselocaloffset</c> is ignored, as the engine does here too.
+    /// Hangs the nodes this entity places off an attachment or bone of the move parent's model, snapping
+    /// them onto it. Plain parenting is left to the move parent, which the entity follows by itself.
+    /// <c>uselocaloffset</c> is ignored, as the engine does here too.
     /// </summary>
-    internal void AttachToParentModel()
+    private void AttachToParentModel(string attachmentName)
     {
-        var parentName = Data?.GetStringProperty("parentname");
-        var attachmentName = Data?.GetStringProperty("parentattachmentname");
-
-        // "name,attachment" names the attachment as part of the parent
-        if (string.IsNullOrEmpty(attachmentName) && parentName?.IndexOf(',', StringComparison.Ordinal) is >= 0 and var comma)
-        {
-            attachmentName = parentName[(comma + 1)..];
-        }
-
-        if (string.IsNullOrEmpty(attachmentName) || MoveParent is not BaseModelEntity { ModelNode: { } parentModel })
+        if (MoveParent is not BaseModelEntity { ModelNode: { } parentModel })
         {
             return;
         }
@@ -943,7 +990,7 @@ public abstract class BaseEntity
         }
 
         placedNodes.Clear();
-        IsAttachedToParentModel = true;
+        isAttachedToParentModel = true;
     }
 
     /// <summary>
@@ -999,7 +1046,7 @@ public abstract class BaseEntity
             return;
         }
 
-        Collider.Transform = EntityTransformHelper.ToRigidTransformationMatrix(Angles, Origin) * ParentTransform;
+        Collider.Transform = RigidTransform;
     }
 
     /// <summary>

@@ -560,7 +560,8 @@ namespace ValveResourceFormat.Renderer.World
 
                 try
                 {
-                    var layerName = fromTemplate ? EditorEntityNode.TemplateLayerName : originalLayerName;
+                    // A point_template shares its layer with what it spawns
+                    var layerName = fromTemplate || classname == "point_template" ? EditorEntityNode.TemplateLayerName : originalLayerName;
 
                     var disabled = entity.GetBooleanProperty("startdisabled");
 
@@ -700,7 +701,7 @@ namespace ValveResourceFormat.Renderer.World
             }
 
             // Origin and angles only: a 3D sky is not scaled, the sky camera applies the scale instead
-            var reference = EntityTransformHelper.ToRigidTransformationMatrix(skyboxReference.Angles, skyboxReference.Origin) * skyboxReference.ParentTransform;
+            var reference = skyboxReference.RigidTransform;
 
             // Entities are global: the skybox is another spawn group
             // Scenery: nothing can reach the sky, so its entities never build a collider
@@ -845,10 +846,7 @@ namespace ValveResourceFormat.Renderer.World
                 return;
             }
 
-            // group the point_template marker and its spawned children under the same layer
-            var layerName = entity.LayerName == EditorEntityNode.TemplateLayerName || entity.Classname == "point_template"
-                ? EditorEntityNode.TemplateLayerName
-                : EditorEntityNode.LayerName;
+            var layerName = entity.LayerName == EditorEntityNode.TemplateLayerName ? EditorEntityNode.TemplateLayerName : EditorEntityNode.LayerName;
 
             foreach (var line in hammerEntity.Lines)
             {
@@ -942,23 +940,9 @@ namespace ValveResourceFormat.Renderer.World
         /// address AI nodes by <c>nodeid</c> instead do not appear in compiled maps.
         /// </summary>
         private BaseEntity? FindHelperLineEnd(string key, string name)
-        {
-            if (!key.Equals("targetname", StringComparison.OrdinalIgnoreCase))
-            {
-                return null;
-            }
-
-            foreach (var entity in entitySystem.FindAllByTargetName(name))
-            {
-                // A 3D sky shares names with the map it is placed in
-                if (entity.Scene == scene)
-                {
-                    return entity;
-                }
-            }
-
-            return null;
-        }
+            => key.Equals("targetname", StringComparison.OrdinalIgnoreCase)
+                ? entitySystem.FindAllByTargetName(name, scene).FirstOrDefault()
+                : null;
 
         /// <summary>
         /// Returns the path to the world resource (<c>.vwrld</c>) for a given map name.
