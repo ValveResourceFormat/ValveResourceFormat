@@ -1187,16 +1187,10 @@ public class Renderer
         return OutlineMaskBuffer;
     }
 
-    // Run after every scene update
-    private void UpdateMorphAtlas(ReadOnlySpan<SceneView> views)
+    private void UpdateMorphAtlas()
     {
         var atlas = RendererContext.MorphAtlas;
         atlas.Render();
-
-        foreach (var view in views)
-        {
-            view.Scene.UpdateMorphAtlasRects();
-        }
 
         // Growing the atlas replaces its texture
         if (atlas.Texture is { } texture && texture != morphAtlasTexture)
@@ -1415,7 +1409,12 @@ public class Renderer
             view.Scene.Update(updateContext with { Camera = view.Camera });
         }
 
-        UpdateMorphAtlas(views);
+        UpdateMorphAtlas();
+
+        foreach (var view in views)
+        {
+            view.Scene.UpdateInstanceTransformBuffers();
+        }
 
         Scene.PostProcessInfo.UpdatePostProcessing(updateContext.Camera, updateContext.Timestep);
 
