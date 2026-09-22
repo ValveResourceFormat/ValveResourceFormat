@@ -9443,5 +9443,80 @@ namespace Tests
                 {{(limits ? "m_HingeLimits = [ { nNode = [ 0, 1, 2, 5, 2, 5 ] flAngleCenter = 0.0 flAngleExtents = 0.785398 } ]" : string.Empty)}}
             }
             """);
+
+        /// <summary>
+        /// A proxy vertex is a virtual node, so the compiler admits a PINNED one to <c>m_NodeBases</c> only through the
+        /// border pass, which runs under <c>flex_cloth_borders</c> and writes the basis flag only when
+        /// <c>add_bones_to_render_mesh</c> is set too; the <c>cloth_anchor_free_rotate</c> paint frees the same pin
+        /// without a basis. A back-solving sheet whose freed pins carry bases therefore states the flag outright, and
+        /// the anchor-parent chain has nothing to add to it - here the pins anchor on a static control whose skeleton
+        /// parent is no control node at all, which is the shape that otherwise refuses the flag. The controls: the same
+        /// sheet with no pin bases stays refused, a sheet whose face reaches no pin has no witness to state, and the
+        /// non-back-solving arm is unchanged.
+        /// </summary>
+        [Test]
+        public async Task ABackSolvedSheetTakesFlexClothBordersFromItsPinsOwnNodeBases()
+        {
+            static FeModel Model(string bases)
+            {
+                var model = SyntheticCloth.Parse($$"""
+                    {
+                        m_CtrlName = [ "anchor", "$cloth_m0p0", "$cloth_m0p1", "$cloth_m0p2", "$cloth_m0p3" ]
+                        m_SkelParents = [ -1, 0, 0, 0, 0 ]
+                        m_nNodeCount = 5
+                        m_nStaticNodes = 3
+                        m_nRotLockStaticNodes = 1
+                        m_NodeInvMasses = [ 0.0, 0.0, 0.0, 1.0, 1.0 ]
+                        m_InitPose =
+                        [
+                            {{SyntheticCloth.Pose(0f, 0f, 0f)}}
+                            {{SyntheticCloth.Pose(0f, 0f, 0f)}}
+                            {{SyntheticCloth.Pose(0f, 2f, 0f)}}
+                            {{SyntheticCloth.Pose(0f, 0f, -8f)}}
+                            {{SyntheticCloth.Pose(0f, 2f, -8f)}}
+                        ]
+                        m_NodeBases = [ {{bases}} ]
+                    }
+                    """);
+                model.SkeletonBoneParents = new Dictionary<string, string?> { ["anchor"] = "spine" };
+                return model;
+            }
+            static string Base(int node)
+                => $"{{ nNode = {node} nDummy = [ 0, 0, 0 ] nNodeX0 = 3 nNodeX1 = 4 nNodeY0 = 1 nNodeY1 = 2 qAdjust = [ 0.0, 0.0, 0.0, 1.0 ] }},";
+            static FeModel.ProxyMesh Sheet(List<int[]> faces) => new()
+            {
+                NodeIndices = [1, 2, 3, 4],
+                Positions = [new(0f, 0f, 0f), new(0f, 2f, 0f), new(0f, 0f, -8f), new(0f, 2f, -8f)],
+                ClothEnable = [0f, 0f, 1f, 1f],
+                GoalStrength = new float[4],
+                GoalDamping = new float[4],
+                CollisionRadius = new float[4],
+                Friction = new float[4],
+                Drag = new float[4],
+                GroundCollision = new float[4],
+                GroundFriction = new float[4],
+                Gravity = new float[4],
+                VertexAttraction = new float[4],
+                SkinInfluences = [[], [], [], []],
+                Faces = faces,
+            };
+
+            var quad = Sheet([[0, 1, 3, 2]]);
+            var flexed = Model(Base(1) + Base(2));
+            var painted = Model(string.Empty);
+            // One simulated corner, so the flag reaches no pin and the pins' bases speak for nothing.
+            var unreached = Sheet([[0, 1, 2]]);
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(ModelExtract.ProxyFlexesClothBorders(flexed, quad, true, true)).IsTrue();
+                await Assert.That(ModelExtract.ProxyFlexesClothBorders(painted, quad, true, true)).IsFalse();
+                await Assert.That(ModelExtract.ProxyFlexesClothBorders(flexed, unreached, true, true)).IsFalse();
+                await Assert.That(ModelExtract.ProxyFlexesClothBorders(flexed, quad, false, true)).IsTrue();
+                await Assert.That(ModelExtract.FlexedPinsStateClothBorders(flexed, quad)).IsTrue();
+                await Assert.That(ModelExtract.FlexedPinsStateClothBorders(painted, quad)).IsFalse();
+                await Assert.That(ModelExtract.FlexedPinsStateClothBorders(flexed, unreached)).IsFalse();
+            }
+        }
     }
 }
