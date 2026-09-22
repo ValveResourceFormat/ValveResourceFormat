@@ -663,13 +663,14 @@ partial class ModelExtract
 
         // A stiff hinge compiles to a three-node bend rather than a rod, so it is recovered from the bend
         // centred on this joint (see FeModel.GetStiffHinge). The record is written once per DECLARATION,
-        // so a second declaration restating the key doubles every bend the first one made.
+        // so a declaration states the bend of its own rank and states nothing where the original carries
+        // no bend for that rank.
         if (feModel.GetStiffHinge(joint.Node) is { } stiffHinge)
         {
-            if (!secondDeclaration)
+            if (feModel.GetStiffHinge(joint.Node, secondDeclaration ? 1 : 0) is { } declared)
             {
-                kv.Add("stiff_hinge", stiffHinge.Stiffness);
-                kv.Add("stiff_hinge_angle", stiffHinge.Angle);
+                kv.Add("stiff_hinge", declared.Stiffness);
+                kv.Add("stiff_hinge_angle", declared.Angle);
             }
 
             var stiffBias = stiffHinge.MotionBias != 0f ? stiffHinge.MotionBias : feModel.GetMotionBias(joint) ?? 0f;

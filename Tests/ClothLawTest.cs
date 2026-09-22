@@ -9892,5 +9892,61 @@ namespace Tests
                 ]
             }
             """);
+
+        /// <summary>
+        /// A stiff hinge's bend is written once per DECLARATION, in declaration order, so a doubly
+        /// declared joint carries one bend per declaration and each declaration states the angle of its
+        /// OWN rank. CONTROL: rank 0 is unchanged, and a joint the original gives one bend has no rank 1,
+        /// which is what leaves a second declaration over a singly bent run stating nothing.
+        /// </summary>
+        /// <remarks>
+        /// MEASURED 2026-09-22 on dl `bookworm`, whose original carries eight node triples TWICE with
+        /// identical weights and different heights. Its authored source declares the back bones in `Hair`
+        /// at `stiff_hinge_angle` 35 and again in `TwinTailR` / `TwinTailL` at 120, and the two compiled
+        /// heights stand in the ratio sin(60)/sin(17.5) = 2.8800 against a measured 2.881712 / 1.000603.
+        /// </remarks>
+        [Test]
+        public async Task EachDeclarationStatesTheBendOfItsOwnRank()
+        {
+            var doubled = TwiceBentKelagerModel(0.2044406f, 0.5887841f);
+            var once = TwiceBentKelagerModel(0.2044406f, null);
+
+            using (Assert.Multiple())
+            {
+                // CONTROL: rank 0 is the first declaration's bend on both fixtures.
+                await Assert.That(doubled.GetStiffHinge(1)?.Angle ?? float.NaN).IsEqualTo(35f).Within(0.05f);
+                await Assert.That(once.GetStiffHinge(1)?.Angle ?? float.NaN).IsEqualTo(35f).Within(0.05f);
+
+                // CONTROL: one bend means no rank 1, so a second declaration over it states nothing.
+                await Assert.That(once.GetStiffHinge(1, 1)).IsNull();
+
+                // THE LAW.
+                await Assert.That(doubled.GetStiffHinge(1, 1)?.Angle ?? float.NaN).IsEqualTo(120f).Within(0.05f);
+            }
+        }
+
+        // One joint bent once or twice over the same triple, the second bend at the wider angle: the
+        // compiled shape of a bone two chains both declare.
+        private static FeModel TwiceBentKelagerModel(float first, float? second) => SyntheticCloth.Parse($$"""
+            {
+                m_CtrlName = [ "mid", "joint", "end1" ]
+                m_SkelParents = [ -1, 0, 0 ]
+                m_nNodeCount = 3
+                m_nStaticNodes = 0
+                m_NodeInvMasses = [ 1.0, 1.0, 1.0 ]
+                m_InitPose =
+                [
+                    {{SyntheticCloth.Pose(0f, 0.2f, 0f)}}
+                    {{SyntheticCloth.Pose(-1f, 0f, 0f)}}
+                    {{SyntheticCloth.Pose(1f, 0f, 0f)}}
+                ]
+                m_KelagerBends =
+                [
+                    { nNode = [ 0, 1, 2 ] flWeight = [ -1.0, 0.5, 0.5 ] flHeight0 = {{SyntheticCloth.Num(first)}} },
+                    {{(second is { } h ? $"{{ nNode = [ 0, 1, 2 ] flWeight = [ -1.0, 0.5, 0.5 ] flHeight0 = {SyntheticCloth.Num(h)} }}," : string.Empty)}}
+                ]
+            }
+            """);
+
     }
 }

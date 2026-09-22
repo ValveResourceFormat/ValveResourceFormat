@@ -3029,9 +3029,17 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// zero, which recompiles to the same floor. The joint's <c>motion_bias</c> comes back with it:
         /// a fully biased joint replaces the
         /// mass shares with the whole stiffness on one end, leaving the bent node weightless.
+        /// <para>
+        /// The record is written once per DECLARATION, in declaration order, so a doubly declared joint
+        /// carries one bend per declaration and <paramref name="rank"/> selects the declaration's own.
+        /// </para>
         /// </summary>
-        public (float Stiffness, float Angle, float MotionBias)? GetStiffHinge(int jointNode)
+        /// <param name="jointNode">The node of the joint whose stiff hinge to recover.</param>
+        /// <param name="rank">Which of the joint's bends to read, in declaration order.</param>
+        public (float Stiffness, float Angle, float MotionBias)? GetStiffHinge(int jointNode, int rank = 0)
         {
+            var seen = 0;
+
             foreach (var bend in KelagerBends)
             {
                 var owner = bend.End0 >= 0 && bend.End0 < CtrlNames.Length && IsProxyNodeName(CtrlNames[bend.End0])
@@ -3059,6 +3067,11 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                 // end, which is the only way a bend leaves a simulated node weightless.
                 var fullBias = midMass > 0f && MathF.Abs(bend.MidWeight) < FullMotionBiasEpsilon
                     && MathF.Abs(bend.End0Weight) > FullMotionBiasEpsilon;
+
+                if (seen++ < rank)
+                {
+                    continue;
+                }
 
                 return (Math.Clamp(stiffness, 0f, 1f), BendAngle(bend), fullBias ? 1f : 0f);
             }
