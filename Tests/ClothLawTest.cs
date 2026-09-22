@@ -9240,6 +9240,78 @@ namespace Tests
             }
         }
 
+        private static readonly string[] SecondDeclarationRunMembers =
+            ["coattail_1_L", "coattail_2_L", "coattail_end_L"];
+        private static readonly string[] SecondDeclarationRunSimulating = ["true", "true", "true"];
+
+        /// <summary>
+        /// A run declared twice is re-declared on the PROXY SHEET route as well as on the chain route.
+        /// The first declaration states <c>simulate = false</c> on every member below the root, so a
+        /// route that marks the run and emits no second declaration compiles it STATIC.
+        /// CONTROL: the same sheet with ONE declaration of the run emits no second declaration at all.
+        /// </summary>
+        /// <remarks>
+        /// `EmitCloth` routes a model carrying proxy meshes to `EmitProxySheetClothPhase`, which emitted
+        /// `MakeClothChainNode` and `MakeClothChainRestatement` and never `MakeClothChainSecondDeclarations`.
+        /// MEASURED on the fixture's own round trip: m_nStaticNodes 10 in the original, 13 without the
+        /// second declaration, 10 with it; rods 54 / 51 / 54; three node masses reading 0.000000 against
+        /// the original's 0.007353 / 0.007353 / 0.014706.
+        /// </remarks>
+        [Test]
+        public async Task AMarkedRunIsReDeclaredOnTheSheetRouteToo()
+        {
+            static string Extract(string fixture)
+            {
+                using var resource = new Resource();
+                resource.Read(Path.Combine(TestContext.TestDirectory!, "Files", fixture));
+                return new ModelExtract(resource, new NullFileLoader()).ToValveModel();
+            }
+
+            // The LAST declaration of a bone wins its node, so the run simulates only if the second
+            // declaration exists and states it.
+            static string LastSimulate(string document, string bone)
+            {
+                var simulate = "<no declaration>";
+                for (var at = document.IndexOf("joint_name = \"" + bone + "\"", StringComparison.Ordinal);
+                    at >= 0;
+                    at = document.IndexOf("joint_name = \"" + bone + "\"", at + 1, StringComparison.Ordinal))
+                {
+                    var key = document.IndexOf("simulate = ", at, StringComparison.Ordinal);
+                    if (key < 0)
+                    {
+                        break;
+                    }
+
+                    var end = document.IndexOfAny(['\n', '\r'], key);
+                    simulate = document[(key + "simulate = ".Length)..end].Trim();
+                }
+
+                return simulate;
+            }
+
+            var redeclared = Extract("cloth_sheet_redeclared_run.vmdl_c");
+            var single = Extract("cloth_sheet_single_run.vmdl_c");
+            var members = SecondDeclarationRunMembers;
+            var simulating = SecondDeclarationRunSimulating;
+
+            using (Assert.Multiple())
+            {
+                // THE LAW: the sheet route emits the run's second declaration, and the run simulates.
+                await Assert.That(redeclared).Contains("coattail_0_L_second");
+                await Assert.That(members.Select(bone => LastSimulate(redeclared, bone)))
+                    .IsEquivalentTo(simulating, CollectionOrdering.Matching);
+
+                // The run's ROOT is static in both declarations, which is what carries the run's own
+                // parent rod: the law re-declares the run, it does not simulate everything in it.
+                await Assert.That(LastSimulate(redeclared, "coattail_0_L")).IsEqualTo("false");
+
+                // CONTROL, predicate false: one declaration of the same run beside the same sheet.
+                await Assert.That(single).DoesNotContain("_second");
+                await Assert.That(members.Select(bone => LastSimulate(single, bone)))
+                    .IsEquivalentTo(simulating, CollectionOrdering.Matching);
+            }
+        }
+
         // The hinge fan of "hat" over its child "hat_end", with either exclusion term switchable. Index 6
         // is a sheet vertex the fan never names, so a face reaching it is the predicate-false control.
         private static FeModel HingeFanGate(bool limits, bool anchor) => SyntheticCloth.Parse($$"""

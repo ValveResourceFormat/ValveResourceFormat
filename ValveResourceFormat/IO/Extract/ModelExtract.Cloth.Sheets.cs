@@ -683,6 +683,14 @@ partial class ModelExtract
                 {
                     clothFolderChildren.Add(restated);
                 }
+
+                // A marked run is declared twice: the first declaration states simulate = false on
+                // every member below the root, so without the second one the run compiles static.
+                foreach (var second in MakeClothChainSecondDeclarations(feModel, boneChain,
+                    ClothChainVersion(feModel, boneChain, hasOtherChains)))
+                {
+                    clothFolderChildren.Add(second);
+                }
             }
 
             AddClothRigidCloudClusterLocks(softbodyChildren, feModel, independentChains);
