@@ -86,6 +86,18 @@ public struct ObjectDataStandard
     public uint Identification;
     /// <summary>Bitmask of which environment maps are visible to this object.</summary>
     public SceneEnvMap.EnvMapVisibility128 EnvMapVisibility;
+
+    /// <summary>Skinning of the mesh drawn: bit 31: enabled, bits 16-30: bone count, bits 0-15: mesh bone offset.</summary>
+    public uint MeshBoneData;
+    private readonly uint padding0;
+    private readonly uint padding1;
+    private readonly uint padding2;
+
+    /// <summary>Packs <see cref="MeshBoneData"/> for a mesh.</summary>
+    /// <param name="mesh">The mesh a draw call belongs to.</param>
+    public static uint PackMeshBoneData(RenderableMesh mesh) => mesh.IsSkinningActive
+        ? 0x80000000u | ((uint)mesh.MeshBoneCount << 16) | (uint)mesh.MeshBoneOffset
+        : 0u;
 };
 
 /// <summary>Arguments for a <c>glDrawElementsIndirect</c> GPU draw call.</summary>

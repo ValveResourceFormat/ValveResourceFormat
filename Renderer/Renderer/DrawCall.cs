@@ -33,6 +33,8 @@ namespace ValveResourceFormat.Renderer
         /// <summary>Gets or sets the optional bounding box used for draw-level culling.</summary>
         public AABB? DrawBounds { get; set; }
 
+        internal uint InstanceBufferIndex { get; set; }
+
         /// <summary>Gets or sets the mesh identifier used for picking.</summary>
         public int MeshId { get; set; }
 

@@ -702,19 +702,6 @@ namespace ValveResourceFormat.Renderer.Shaders
         /// <summary>Gets this shader built for what a mesh supplies, for passes that replace material shaders.</summary>
         public Shader WithSkinning(MeshSkinning skinning) => WithCombo("D_SKINNING", (byte)skinning);
 
-        /// <summary>Sets the <c>uAnimationData</c> uniform used by skinned mesh shaders.</summary>
-        /// <param name="animated">Whether skeletal animation is active.</param>
-        /// <param name="boneOffset">Offset into the bone transform buffer.</param>
-        /// <param name="boneCount">Number of bones influencing this draw call.</param>
-        public void SetBoneAnimationData(bool animated, int boneOffset = 0, int boneCount = 0)
-        {
-            var uniformLocation = GetUniformLocation("uAnimationData");
-            if (uniformLocation > -1)
-            {
-                GL.ProgramUniform3((uint)Program, uniformLocation, animated ? 1u : 0u, (uint)boneOffset, (uint)boneCount);
-            }
-        }
-
         /// <summary>Sets an array of four-component float vector uniforms on this program.</summary>
         /// <param name="name">The uniform array name.</param>
         /// <param name="count">Number of vec4 elements to upload.</param>

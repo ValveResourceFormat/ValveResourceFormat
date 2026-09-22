@@ -5,9 +5,6 @@
 
 #include "instancing_base.slang"
 
-uniform uint vTint;
-uniform bool bIsInstancing = false;
-
 #if (S_SCENE_CUBEMAP_TYPE == 1)
     flat out uint g_nEnvMapIndex;
 #elif (S_SCENE_CUBEMAP_TYPE == 2)
@@ -78,7 +75,7 @@ ObjectData_t GetObjectData()
     SetObjectInterpolators(objectData);
 
     ObjectData_t object;
-    object.vTint = UnpackColor32(bIsInstancing ? objectData.TintAlpha : vTint);
+    object.vTint = UnpackColor32(objectData.TintAlpha);
 
     return object;
 }

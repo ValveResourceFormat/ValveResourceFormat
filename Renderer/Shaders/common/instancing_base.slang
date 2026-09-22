@@ -10,6 +10,10 @@ struct ObjectDataStandard
     uint VisibleLPV;
     uint Identification;
     uvec4 EnvMapVisibility;
+    uint MeshBoneData; // skinned flag in bit 31, bone count in bits 16-30, the mesh's first bone in 0-15
+    uint Padding0;
+    uint Padding1;
+    uint Padding2;
 };
 
 layout(std430, binding = 0) readonly buffer g_objectBuffer

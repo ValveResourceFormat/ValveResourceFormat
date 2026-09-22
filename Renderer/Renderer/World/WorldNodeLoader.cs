@@ -101,7 +101,7 @@ namespace ValveResourceFormat.Renderer.World
                     var modelNode = new ModelSceneNode(scene, model, skin)
                     {
                         Transform = matrix,
-                        Tint = tintColor,
+                        TintAlpha = tintColor,
                         LayerName = layerIndex > -1 ? LayerNames[layerIndex] : "No layer",
                         Name = renderableModel,
                         LightingOrigin = lightingOrigin == defaultLightingOrigin ? null : Vector3.Transform(lightingOrigin, root),
@@ -135,7 +135,7 @@ namespace ValveResourceFormat.Renderer.World
                     var meshNode = new MeshSceneNode(scene, mesh, 0)
                     {
                         Transform = matrix,
-                        Tint = tintColor,
+                        TintAlpha = tintColor,
                         LayerName = layerIndex > -1 ? LayerNames[layerIndex] : "No layer",
                         Name = renderable,
                         CubeMapPrecomputedHandshake = cubeMapPrecomputedHandshake,

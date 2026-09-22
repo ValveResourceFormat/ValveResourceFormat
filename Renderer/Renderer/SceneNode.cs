@@ -16,6 +16,20 @@ namespace ValveResourceFormat.Renderer
         Parallel,
     }
 
+    /// <summary>Additional flags for <see cref="SceneNode"/>s.</summary>
+    [Flags]
+    public enum SceneNodeFlags
+    {
+        /// <summary>No flags set.</summary>
+        None = 0,
+
+        /// <summary>
+        /// The node's vertices are already in world space, so it draws with the identity transform while its
+        /// <see cref="SceneNode.Transform"/> only places it.
+        /// </summary>
+        PreTransformedVertices = 1 << 0,
+    }
+
     /// <summary>
     /// Base class for all objects in the scene graph.
     /// </summary>
@@ -24,6 +38,23 @@ namespace ValveResourceFormat.Renderer
 #endif
     public abstract class SceneNode
     {
+        /// <summary>Gets or sets the color multiplier this node draws with, in gamma space.</summary>
+        public Vector3 Tint { get; set; } = Vector3.One;
+
+        /// <summary>Gets or sets the opacity this node draws with.</summary>
+        public float Alpha { get; set; } = 1f;
+
+        /// <summary>Gets or sets <see cref="Tint"/> in XYZ and <see cref="Alpha"/> in W.</summary>
+        public Vector4 TintAlpha
+        {
+            get => new(Tint, Alpha);
+            set
+            {
+                Tint = new Vector3(value.X, value.Y, value.Z);
+                Alpha = value.W;
+            }
+        }
+
         /// <summary>
         /// Gets or sets the world transform. Setting this also updates <see cref="BoundingBox"/>.
         /// </summary>
@@ -100,9 +131,14 @@ namespace ValveResourceFormat.Renderer
         public bool IsSelected { get; set; }
 
         /// <summary>
-        /// Gets or sets the object type flags used for filtering.
+        /// Gets or sets the object type flags.
         /// </summary>
         public ObjectTypeFlags Flags { get; set; }
+
+        /// <summary>
+        /// Gets or sets additional non-standard flags.
+        /// </summary>
+        public SceneNodeFlags AdditionalFlags { get; set; }
 
         /// <summary>
         /// Flags for when should this node be drawn and where.

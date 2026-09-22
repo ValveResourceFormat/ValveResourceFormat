@@ -85,6 +85,9 @@ namespace ValveResourceFormat.Renderer.SceneNodes
 
             Simulation = NodeSimulation.Parallel;
 
+            // Stop standard shaders from transforming the vertices again
+            AdditionalFlags |= SceneNodeFlags.PreTransformedVertices;
+
             if (preview)
             {
                 Preview = true;
@@ -727,11 +730,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
 
             replacement.Use();
 
-            // Particles simulate in world space, so the object transform is identity.
-            replacement.SetUniform3x4("transform", Matrix4x4.Identity);
-            replacement.SetUniform1("bIsInstancing", 0u);
             replacement.SetUniform1("meshId", 0u);
-            replacement.SetBoneAnimationData(false);
 
             // A tube or a card can turn either face toward the camera.
             using var _ = GraphicsContext.RenderState.Scope(cullMode: RsCullMode.None);

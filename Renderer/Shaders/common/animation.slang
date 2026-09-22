@@ -19,11 +19,11 @@
     in vec4 vBLENDWEIGHT2;
 #endif
 
-uniform uvec3 uAnimationData;
+#define meshBoneData (objects[gl_BaseInstance].MeshBoneData)
 
-#define bAnimated (uAnimationData.x != 0u)
-#define meshBoneOffset uAnimationData.y
-#define meshBoneCount uAnimationData.z
+#define bAnimated ((meshBoneData & 0x80000000u) != 0u)
+#define meshBoneOffset (meshBoneData & 0xFFFFu)
+#define meshBoneCount ((meshBoneData >> 16u) & 0x7FFFu)
 
 mat3x4 getMatrix(uint boneIndex, uint objectBoneOffset)
 {

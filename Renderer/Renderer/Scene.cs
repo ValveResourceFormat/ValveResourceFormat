@@ -261,6 +261,8 @@ namespace ValveResourceFormat.Renderer
         private uint[] activeLodBits = [];
         private uint[] pvsHiddenBits = [];
         private int objectEntryCount;
+        private int dynamicDrawEntryStart;
+        private int drawEntryEnd;
 
         private Dictionary<DepthOnlyBucket, List<MeshBatchRenderer.Request>>? barnShadowDrawCalls;
 
@@ -580,6 +582,7 @@ namespace ValveResourceFormat.Renderer
             }
 
             UpdateDynamicInstanceData();
+            UpdateDynamicDrawEntries();
             UpdateDynamicTransforms();
             UploadDirtyTransforms();
 
@@ -655,16 +658,25 @@ namespace ValveResourceFormat.Renderer
             var entryCount = (int)maxId + 1;
             objectEntryCount = entryCount;
 
-            if (instanceDataCpu == null || instanceDataCpu.Length < entryCount)
+            // Mesh draw calls get entries of their own behind the node entries, since tint and skinning differ
+            // per draw. The dynamic nodes' come last, so the per frame refresh uploads one span.
+            var totalEntryCount = entryCount;
+
+            AssignObjectIndices(staticNodes, ref totalEntryCount);
+            dynamicDrawEntryStart = totalEntryCount;
+            AssignObjectIndices(dynamicNodes, ref totalEntryCount);
+            drawEntryEnd = totalEntryCount;
+
+            if (instanceDataCpu == null || instanceDataCpu.Length < totalEntryCount)
             {
-                instanceDataCpu = new ObjectDataStandard[CapacityFor(entryCount)];
+                instanceDataCpu = new ObjectDataStandard[CapacityFor(totalEntryCount)];
                 lodDataCpu = new ObjectLodInfo[instanceDataCpu.Length];
             }
 
             var instanceData = instanceDataCpu;
             var lodData = lodDataCpu!;
 
-            Array.Clear(instanceData, 0, entryCount);
+            Array.Clear(instanceData, 0, totalEntryCount);
             Array.Clear(lodData, 0, entryCount);
 
             transformDataCpu ??= new List<OpenTK.Mathematics.Matrix3x4>(capacity: CapacityFor(entryCount + 1));
@@ -677,13 +689,6 @@ namespace ValveResourceFormat.Renderer
             for (var nodeIndex = 0; nodeIndex < nodes.Count; nodeIndex++)
             {
                 var node = nodes[nodeIndex];
-
-                var instanceTint = Vector4.One;
-                if (node is SceneAggregate.Fragment fragment)
-                {
-                    // Content can author out-of-range tints; the packed byte color can only represent [0, 1].
-                    instanceTint = Vector4.Clamp(fragment.RenderMesh.Tint * fragment.DrawCall.TintColor * fragment.Tint, Vector4.Zero, Vector4.One);
-                }
 
                 var neverChangesTransform = nodeIndex < staticNodes.Count && node is not ModelSceneNode { SkinningTransformCount: > 0 };
 
@@ -698,7 +703,7 @@ namespace ValveResourceFormat.Renderer
                         transformData.Add(instanceTransform);
                     }
                 }
-                else if (neverChangesTransform && node.Transform.IsIdentity)
+                else if (node.AdditionalFlags.HasFlag(SceneNodeFlags.PreTransformedVertices) || (neverChangesTransform && node.Transform.IsIdentity))
                 {
                     transformIndex = 0; // Reuse identity transform at index 0
                 }
@@ -725,16 +730,21 @@ namespace ValveResourceFormat.Renderer
 
                 instanceData[node.Id] = new ObjectDataStandard
                 {
-                    TintAlpha = Color32.FromVector4(instanceTint).PackedValue,
+                    TintAlpha = EntryTint(node),
                     TransformIndex = transformIndex,
                     VisibleLPV = (uint)(node.LightProbeBinding?.ShaderIndex ?? 0)
                         | (node.ShaderEnvMapVisibility.GetFirstShaderIndex() << 16),
                     EnvMapVisibility = node.ShaderEnvMapVisibility,
                     Identification = node.Id,
                 };
+
+                if (node is MeshCollectionNode meshNode)
+                {
+                    WriteDrawEntries(meshNode);
+                }
             }
 
-            InstanceBufferGpu = Upload<ObjectDataStandard>(InstanceBufferGpu, instanceData.AsSpan(0, entryCount),
+            InstanceBufferGpu = Upload<ObjectDataStandard>(InstanceBufferGpu, instanceData.AsSpan(0, totalEntryCount),
                 ReservedBufferSlots.Objects, nameof(ReservedBufferSlots.Objects));
             TransformBufferGpu = Upload<OpenTK.Mathematics.Matrix3x4>(TransformBufferGpu, CollectionsMarshal.AsSpan(transformData),
                 ReservedBufferSlots.Transforms, nameof(ReservedBufferSlots.Transforms));
@@ -768,6 +778,112 @@ namespace ValveResourceFormat.Renderer
 
             return buffer;
         }
+
+        // Gives each draw call of the mesh nodes an object entry of its own, from nextIndex on
+        private static void AssignObjectIndices(List<SceneNode> nodes, ref int nextIndex)
+        {
+            foreach (var node in nodes)
+            {
+                if (node is not MeshCollectionNode meshNode)
+                {
+                    continue;
+                }
+
+                foreach (var mesh in meshNode.AllRenderableMeshes)
+                {
+                    Assign(mesh.DrawCallsOpaque, ref nextIndex);
+                    Assign(mesh.DrawCallsOverlay, ref nextIndex);
+                    Assign(mesh.DrawCallsBlended, ref nextIndex);
+                }
+            }
+
+            static void Assign(List<DrawCall> calls, ref int nextIndex)
+            {
+                foreach (var call in calls)
+                {
+                    call.InstanceBufferIndex = (uint)nextIndex++;
+                }
+            }
+        }
+
+        // Fills a mesh node's draw entries from its own entry, with the tint and skinning of each draw. Says
+        // whether any entry changed.
+        private bool WriteDrawEntries(MeshCollectionNode node)
+        {
+            var entries = instanceDataCpu!;
+            var changed = false;
+
+            foreach (var mesh in node.AllRenderableMeshes)
+            {
+                var entry = entries[node.Id];
+                entry.MeshBoneData = ObjectDataStandard.PackMeshBoneData(mesh);
+
+                changed |= Write(entries, node.TintAlpha, mesh.DrawCallsOpaque, entry);
+                changed |= Write(entries, node.TintAlpha, mesh.DrawCallsOverlay, entry);
+                changed |= Write(entries, node.TintAlpha, mesh.DrawCallsBlended, entry);
+            }
+
+            return changed;
+
+            static bool Write(ObjectDataStandard[] entries, Vector4 tint, List<DrawCall> calls, ObjectDataStandard entry)
+            {
+                var changed = false;
+
+                foreach (var call in calls)
+                {
+                    entry.TintAlpha = PackTint(tint * call.TintColor);
+
+                    ref var target = ref entries[call.InstanceBufferIndex];
+
+                    if (!ObjectDataEquals(target, entry))
+                    {
+                        target = entry;
+                        changed = true;
+                    }
+                }
+
+                return changed;
+            }
+        }
+
+        // Draw entries hold what the uniforms used to be set from every draw, so a dynamic node's have to follow
+        // its tint, skinning and probe as they change
+        private void UpdateDynamicDrawEntries()
+        {
+            if (instanceDataCpu == null || InstanceBufferGpu == null)
+            {
+                return;
+            }
+
+            var changed = false;
+
+            foreach (var node in dynamicNodes)
+            {
+                // Nodes added since the last layout have no entries yet; the relayout later in this update gives them one
+                if (node is MeshCollectionNode meshNode && node.Id != 0 && node.Id < objectEntryCount)
+                {
+                    changed |= WriteDrawEntries(meshNode);
+                }
+            }
+
+            if (changed)
+            {
+                InstanceBufferGpu.Update<ObjectDataStandard>(
+                    instanceDataCpu.AsSpan(dynamicDrawEntryStart, drawEntryEnd - dynamicDrawEntryStart),
+                    dynamicDrawEntryStart * Unsafe.SizeOf<ObjectDataStandard>());
+            }
+        }
+
+        // A fragment is a single draw call, so its node entry carries that draw's tint along with its own
+        private static uint EntryTint(SceneNode node)
+            => PackTint(node is SceneAggregate.Fragment fragment ? node.TintAlpha * fragment.DrawCall.TintColor : node.TintAlpha);
+
+        // Content can author out-of-range tints; the packed byte color can only represent [0, 1]
+        private static uint PackTint(Vector4 tint) => Color32.FromVector4Clamped(tint).PackedValue;
+
+        private static bool ObjectDataEquals(in ObjectDataStandard a, in ObjectDataStandard b)
+            => MemoryMarshal.AsBytes(new ReadOnlySpan<ObjectDataStandard>(in a))
+                .SequenceEqual(MemoryMarshal.AsBytes(new ReadOnlySpan<ObjectDataStandard>(in b)));
 
         private static void AppendSkinningTransforms(ModelSceneNode model, uint transformIndex,
             List<OpenTK.Mathematics.Matrix3x4> transformData)
@@ -2616,12 +2732,9 @@ namespace ValveResourceFormat.Renderer
                 updated.VisibleLPV = (uint)probe.ShaderIndex | (node.ShaderEnvMapVisibility.GetFirstShaderIndex() << 16);
                 updated.EnvMapVisibility = node.ShaderEnvMapVisibility;
 
-                if (node is MeshCollectionNode meshNode)
-                {
-                    updated.TintAlpha = Color32.FromVector4Clamped(meshNode.Tint).PackedValue;
-                }
+                updated.TintAlpha = EntryTint(node);
 
-                if (ObjectDataChanged(entry, updated))
+                if (!ObjectDataEquals(entry, updated))
                 {
                     entry = updated;
                     minId = Math.Min(minId, node.Id);
@@ -2634,14 +2747,6 @@ namespace ValveResourceFormat.Renderer
                 var stride = Unsafe.SizeOf<ObjectDataStandard>();
                 InstanceBufferGpu.Update<ObjectDataStandard>(
                     instanceDataCpu.AsSpan((int)minId, (int)(maxId - minId + 1)), (int)minId * stride);
-            }
-
-            static bool ObjectDataChanged(in ObjectDataStandard a, in ObjectDataStandard b)
-            {
-                Debug.Assert(Unsafe.SizeOf<ObjectDataStandard>() == Vector256<byte>.Count);
-
-                return Vector256.LoadUnsafe(in Unsafe.As<ObjectDataStandard, byte>(ref Unsafe.AsRef(in a)))
-                    != Vector256.LoadUnsafe(in Unsafe.As<ObjectDataStandard, byte>(ref Unsafe.AsRef(in b)));
             }
         }
 

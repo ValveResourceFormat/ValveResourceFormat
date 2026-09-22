@@ -17,12 +17,6 @@ namespace ValveResourceFormat.Renderer
         /// <summary>Gets the axis-aligned bounding box of the mesh in local space.</summary>
         public AABB BoundingBox { get; }
 
-        /// <summary>Gets or sets the tint color multiplier applied to the entire mesh.</summary>
-        public Vector4 Tint { get; set; } = Vector4.One;
-
-        /// <summary>Gets or sets the alpha component of <see cref="Tint"/>.</summary>
-        public float Alpha { get => Tint.W; set => Tint = Tint with { W = value }; }
-
         private readonly RendererContext renderContext;
 
         /// <summary>Gets the list of meshlets for GPU-driven indirect culling.</summary>
@@ -589,9 +583,6 @@ namespace ValveResourceFormat.Renderer
     /// </summary>
     public abstract class MeshCollectionNode : SceneNode
     {
-        /// <summary>Gets or sets the tint color applied to all meshes in this node.</summary>
-        public abstract Vector4 Tint { get; set; }
-
         /// <inheritdoc/>
         protected MeshCollectionNode(Scene scene) : base(scene)
         {
@@ -599,5 +590,7 @@ namespace ValveResourceFormat.Renderer
 
         /// <summary>Gets the list of renderable meshes owned by this node.</summary>
         public List<RenderableMesh> RenderableMeshes { get; protected init; } = [];
+
+        internal virtual List<RenderableMesh> AllRenderableMeshes => RenderableMeshes;
     }
 }

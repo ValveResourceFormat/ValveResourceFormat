@@ -38,9 +38,6 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         private readonly RenderMaterial material;
         private readonly float spriteSize;
 
-        /// <summary>Color multiplier applied to the sprite, in gamma space.</summary>
-        public Vector4 Tint { get; set; } = Vector4.One;
-
         public SpriteSceneNode(Scene scene, RendererContext renderContext, Resource resource, Vector3 position)
             : base(scene)
         {
@@ -88,10 +85,6 @@ namespace ValveResourceFormat.Renderer.SceneNodes
 
             VertexArray.Bind(vao, renderShader);
 
-            renderShader.SetUniform1("bIsInstancing", 0u);
-
-            renderShader.SetBoneAnimationData(false);
-            renderShader.SetUniform1("vTint", Color32.FromVector4Clamped(Tint).PackedValue);
             renderShader.SetUniform1("shaderId", material.Shader.NameHash);
             renderShader.SetUniform1("shaderProgramId", (uint)material.Shader.Program);
 

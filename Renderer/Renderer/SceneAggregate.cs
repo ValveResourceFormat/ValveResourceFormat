@@ -71,9 +71,6 @@ namespace ValveResourceFormat.Renderer
             /// <summary>Gets the specific draw call within the mesh that renders this fragment.</summary>
             public required DrawCall DrawCall { get; init; }
 
-            /// <summary>Gets or sets the per-fragment tint color.</summary>
-            public Vector4 Tint { get; set; } = Vector4.One;
-
             /// <summary>Gets the LOD levels this fragment belongs to, one bit per level; 0 means always drawn.</summary>
             public uint LodGroupMask { get; init; }
 
@@ -349,7 +346,7 @@ namespace ValveResourceFormat.Renderer
                 {
                     DrawCall = drawCall,
                     RenderMesh = RenderMesh,
-                    Tint = new Vector4(tintColor / 255f, 1f),
+                    Tint = tintColor / 255f,
                     Parent = this,
                     LightProbeVolumePrecomputedHandshake = lightProbeVolumePrecomputedHandshake,
                     Flags = flags,

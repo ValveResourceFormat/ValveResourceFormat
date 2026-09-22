@@ -781,17 +781,17 @@ namespace GUI.Types.GLViewers
                     entityInfoForm.EntityInfoControl.AddProperty("Model Tint", ToRenderColor(sceneFragment.DrawCall.TintColor));
                     entityInfoForm.EntityInfoControl.AddProperty("Model Alpha", $"{sceneFragment.DrawCall.TintColor.W:F6}");
 
-                    if (sceneFragment.Tint != Vector4.One)
+                    if (sceneFragment.TintAlpha != Vector4.One)
                     {
-                        entityInfoForm.EntityInfoControl.AddProperty("Instance Tint", ToRenderColor(sceneFragment.Tint));
-                        entityInfoForm.EntityInfoControl.AddProperty("Final Tint", ToRenderColor(sceneFragment.DrawCall.TintColor * sceneFragment.Tint));
+                        entityInfoForm.EntityInfoControl.AddProperty("Instance Tint", ToRenderColor(sceneFragment.TintAlpha));
+                        entityInfoForm.EntityInfoControl.AddProperty("Final Tint", ToRenderColor(sceneFragment.DrawCall.TintColor * sceneFragment.TintAlpha));
                     }
                 }
                 else if (sceneNode is ModelSceneNode modelSceneNode)
                 {
                     entityInfoForm.EntityInfoControl.AddProperty("Model", modelSceneNode.Name!);
-                    entityInfoForm.EntityInfoControl.AddProperty("Model Tint", ToRenderColor(modelSceneNode.Tint));
-                    entityInfoForm.EntityInfoControl.AddProperty("Model Alpha", $"{modelSceneNode.Tint.W:F6}");
+                    entityInfoForm.EntityInfoControl.AddProperty("Model Tint", ToRenderColor(modelSceneNode.TintAlpha));
+                    entityInfoForm.EntityInfoControl.AddProperty("Model Alpha", $"{modelSceneNode.Alpha:F6}");
 
                     if (modelSceneNode.LightingOrigin.HasValue)
                     {

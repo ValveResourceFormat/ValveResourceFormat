@@ -17,9 +17,6 @@ class CameraSceneNode : ModelSceneNode
         var distanceFromCamera = Vector3.Distance(Transform.Translation, context.Camera.Location);
         var fadeOutCloseUp = MathUtils.Saturate(MathUtils.Remap(distanceFromCamera, 0f, FadeOutStartDistance));
 
-        foreach (var mesh in RenderableMeshes)
-        {
-            mesh.Alpha = fadeOutCloseUp;
-        }
+        Alpha = fadeOutCloseUp;
     }
 }

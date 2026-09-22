@@ -12,6 +12,6 @@ flat out uint meshletId;
 
 void main(void) {
     gl_Position = g_matWorldToProjection * vec4(vec4(vPOSITION, 1.0) * CalculateSkinTransform(), 1.0);
-    sceneObjectId = gl_BaseInstance + gl_InstanceID;
+    sceneObjectId = objects[gl_BaseInstance].Identification + gl_InstanceID;
     meshletId = gl_DrawID;
 }

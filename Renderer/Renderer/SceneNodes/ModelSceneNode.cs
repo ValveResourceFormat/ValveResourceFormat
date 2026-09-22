@@ -15,27 +15,6 @@ namespace ValveResourceFormat.Renderer.SceneNodes
     /// </summary>
     public partial class ModelSceneNode : MeshCollectionNode
     {
-        /// <inheritdoc/>
-        public override Vector4 Tint
-        {
-            get
-            {
-                if (meshRenderers.Count > 0)
-                {
-                    return meshRenderers[0].Tint;
-                }
-
-                return Vector4.One;
-            }
-            set
-            {
-                foreach (var renderer in meshRenderers)
-                {
-                    renderer.Tint = value;
-                }
-            }
-        }
-
         /// <summary>Gets the animation controller managing skeletal pose and flex data for this model.</summary>
         public AnimationController AnimationController { get; }
 
@@ -51,6 +30,8 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         public bool HasMeshes => meshRenderers.Count > 0;
 
         private readonly List<RenderableMesh> meshRenderers = [];
+
+        internal override List<RenderableMesh> AllRenderableMeshes => meshRenderers;
 
         private (string Name, string[] Materials) activeMaterialGroup;
         private Dictionary<string, string>? materialTable;
