@@ -34,7 +34,18 @@ public sealed class Skybox3D
     /// Gets the fog the sky is drawn with: the sky map's own gradient fog when it has an active one,
     /// otherwise the world's, and always the world's cubemap fog.
     /// </summary>
-    public WorldFogInfo FogInfo { get; }
+    public WorldFogInfo FogInfo
+    {
+        get
+        {
+            // Read through rather than taken once: the sky loads part way through the map, before the
+            // map's own fog may have spawned
+            field.SetToSkyView(worldFog, Scene.FogInfo);
+            return field;
+        }
+    } = new();
+
+    private readonly WorldFogInfo worldFog;
 
     /// <summary>Gets the entities of the sky map.</summary>
     public IReadOnlySet<Entity> Entities { get; }
@@ -50,9 +61,11 @@ public sealed class Skybox3D
     {
         ArgumentNullException.ThrowIfNull(scene);
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(scale);
+        ArgumentNullException.ThrowIfNull(worldFog);
         ArgumentNullException.ThrowIfNull(entities);
 
         Scene = scene;
+        this.worldFog = worldFog;
         ReferenceTransform = referenceTransform;
         Origin = origin;
         Scale = scale;
@@ -65,7 +78,6 @@ public sealed class Skybox3D
             * Matrix4x4.CreateTranslation(reference);
 
         FogSpace = new FogSpace(1f / scale, origin.Z - reference.Z / scale);
-        FogInfo = WorldFogInfo.ForSkyView(worldFog, scene.FogInfo);
 
         scene.ToViewerWorld = SkyToWorld;
         scene.MarkerScale = 1f / scale;

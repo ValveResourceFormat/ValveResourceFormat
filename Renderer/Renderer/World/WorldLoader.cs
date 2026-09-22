@@ -91,8 +91,11 @@ namespace ValveResourceFormat.Renderer.World
 
         /// <summary>The 3D sky of this map, if it has one. Populated during entity loading.</summary>
         public Skybox3D? Skybox3D { get; private set; }
-        /// <summary>The 2D skybox, if one was found during entity loading.</summary>
-        public SceneSkybox2D? Skybox2D { get; set; }
+        /// <summary>
+        /// The 2D skybox, if one was found during entity loading. A map can leave its own <c>env_sky</c>
+        /// disabled and carry the enabled one in its 3D sky, as de_vertigo does.
+        /// </summary>
+        public SceneSkybox2D? Skybox2D => scene.Skybox2D ?? Skybox3D?.Scene.Skybox2D;
         /// <summary>The loaded navigation mesh, populated by <see cref="LoadNavigationMesh"/>.</summary>
         public NavMeshFile? NavMesh { get; set; }
         /// <summary>Baked bomb damage data for CS2, null if it doesn't exist. Populated by <see cref="LoadBombDamageData"/>.</summary>
@@ -588,14 +591,18 @@ namespace ValveResourceFormat.Renderer.World
 
         private void LoadEntitiesFromLump(EntityLump entityLump, string originalLayerName)
         {
+            // Cubemaps and probes spawn before everything else. Meshes copy the scene's render attributes into
+            // their shader combos as they are built, and three of those come from these entities:
+            // S_SCENE_CUBEMAP_TYPE from the first cubemap's texture (a cube or a cube array),
+            // S_SCENE_PROBE_TYPE from whether a probe volume is an atlas, and HasValidLightProbes, which
+            // picks D_BAKED_LIGHTING_FROM_PROBE. A model spawned before them compiles the wrong combos.
+            // Everything else about them binds after load, in Scene.Initialize, so only this order matters.
+            // A read-only pass settling those three values from the keyvalues first would make it unneeded.
             static bool IsCubemapOrProbe(string cls)
                 => cls == "env_combined_light_probe_volume"
                 || cls == "env_light_probe_volume"
                 || cls == "env_cubemap_box"
                 || cls == "env_cubemap";
-
-            static bool IsFog(string cls)
-                => cls is "env_cubemap_fog" or "env_gradient_fog";
 
             var traversed = EntityLumpTraversal.EnumerateEntities(
                 entityLump,
@@ -608,7 +615,7 @@ namespace ValveResourceFormat.Renderer.World
                 .Select(t => (t.Entity, t.ParentTransform, t.FromTemplate, Classname: t.Entity.GetStringProperty("classname")))
                 .Where(x => x.Classname != null)
                 .Select(x => (x.Entity, x.ParentTransform, x.FromTemplate, Classname: x.Classname!))
-                .OrderByDescending(x => IsCubemapOrProbe(x.Classname) || IsFog(x.Classname));
+                .OrderByDescending(x => IsCubemapOrProbe(x.Classname));
 
             Entities.AddRange(traversed.Select(t => t.Entity));
 
@@ -624,7 +631,6 @@ namespace ValveResourceFormat.Renderer.World
             void LoadEntity(string classname, Entity entity, Matrix4x4 parentTransform, bool fromTemplate)
             {
                 var transformationMatrix = EntityTransformHelper.ToTransformationMatrix(entity) * parentTransform;
-                var light = SceneLight.IsAccepted(classname);
 
                 if (entity.Connections != null)
                 {
@@ -648,28 +654,36 @@ namespace ValveResourceFormat.Renderer.World
                     layerName = "Entities (disabled)";
                 }
 
-                if (classname == "info_world_layer")
-                {
-                    var spawnflags = entity.GetUInt32Property("spawnflags");
-                    var layername = entity.GetStringProperty("layername");
-
-                    // Visible on spawn flag
-                    if ((spawnflags & 1) == 1 && layername != null)
-                    {
-                        DefaultEnabledLayers.Add(layername);
-                    }
-                }
-
                 // Classnames the entity system implements are spawned as simulated entities, which own
                 // whatever scene nodes they need.
                 if (EntityFactory.IsRegistered(classname))
                 {
-                    var created = entitySystem.CreateEntity(entity, parentTransform, layerName, scene);
-
-                    // A nested group carries a worldspawn of its own, which stays an ordinary inert entity
-                    if (created is WorldEntity worldspawn && !isNestedSpawnGroup)
+                    switch (entitySystem.CreateEntity(entity, parentTransform, layerName, scene))
                     {
-                        entitySystem.SetWorld(worldspawn);
+                        // A nested group carries a worldspawn of its own, which stays an ordinary inert entity
+                        case WorldEntity worldspawn when !isNestedSpawnGroup:
+                            entitySystem.SetWorld(worldspawn);
+                            break;
+
+                        case InfoWorldLayer { IsVisibleOnSpawn: true, WorldLayerName: { } worldLayerName }:
+                            DefaultEnabledLayers.Add(worldLayerName);
+                            break;
+
+                        case PointCamera camera:
+                            // Only the first one is used
+                            if (camera is SkyCamera sky)
+                            {
+                                skyCamera ??= (sky.Transform.Translation, sky.SkyScale);
+                            }
+
+                            CameraNames.Add(camera.CameraName);
+                            CameraMatrices.Add(camera.Transform);
+                            OfferSpawnCamera(camera, isMaster: false);
+                            break;
+
+                        case SpawnPoint spawnPoint:
+                            OfferSpawnCamera(spawnPoint, spawnPoint.IsMasterPlayerStart);
+                            break;
                     }
 
                     return;
@@ -683,402 +697,6 @@ namespace ValveResourceFormat.Renderer.World
                 {
                     LoadSkybox(entity);
                 }
-                else if (light.Accepted)
-                {
-                    var lightNode = SceneLight.FromEntityProperties(scene, light.Type, entity);
-                    lightNode.PlaceAt(transformationMatrix);
-                    lightNode.LayerName = layerName;
-                    lightNode.Flags |= ObjectTypeFlags.NoShadows;
-                    scene.Add(lightNode, true);
-                }
-                else if (classname == "env_sky" || classname == "env_global_light")
-                {
-                    var skyname = entity.GetStringProperty("skyname") ?? entity.GetStringProperty("skybox_material_day");
-                    var tintColor = Vector3.One;
-
-                    if (classname == "env_sky")
-                    {
-                        // If it has "startdisabled", only take it if we haven't found any others yet.
-                        disabled = disabled && Skybox2D != null;
-
-                        tintColor = entity.GetColor32Property("tint_color");
-
-                        var skyBrightnessScale = entity.GetFloatProperty("brightnessscale", 1.0f);
-                        if (skyBrightnessScale > 0f)
-                        {
-                            tintColor *= skyBrightnessScale;
-                        }
-                    }
-
-                    if (!disabled && skyname != null)
-                    {
-                        var rotation = transformationMatrix with
-                        {
-                            Translation = Vector3.Zero
-                        };
-                        using var skyMaterial = RendererContext.FileLoader.LoadFileCompiled(skyname);
-
-                        Skybox2D = new SceneSkybox2D(RendererContext.MaterialLoader.LoadMaterial(skyMaterial))
-                        {
-                            Tint = tintColor,
-                            Transform = rotation,
-                        };
-                    }
-
-                    if (classname == "env_global_light")
-                    {
-                        var angles = new Vector3(50, 43, 0);
-                        var dynamicSun = new SceneLight(scene)
-                        {
-                            Type = SceneLight.LightType.Directional,
-                            Color = new Vector3(1.0f, 1.0f, 1.0f),
-                            Brightness = 1.0f,
-                            LayerName = "world_layer_base",
-                            Name = "Source 2 Viewer dynamic sunlight for Dota",
-                        };
-
-                        dynamicSun.PlaceAt(EntityTransformHelper.EulerAnglesToRotationMatrix(angles) * rootTransform);
-                        scene.Add(dynamicSun, false);
-
-                        scene.LightingInfo.EnableDynamicShadows = true;
-                        scene.LightingInfo.SunLightShadowCoverageScale = 4f;
-                    }
-                }
-                else if (classname == "info_map_parameters")
-                {
-                    scene.EnvironmentWetness = new Vector4(
-                        entity.GetFloatProperty("envwetnesscoverage", 1f),
-                        entity.GetFloatProperty("envwetnessdryingamount", 0f),
-                        entity.GetFloatProperty("envrainstrength", 1f),
-                        entity.GetFloatProperty("envpuddleripplestrength", 1f));
-
-                    // raintracetoskyenabled
-
-                    scene.PuddleWindDirection = entity.GetFloatProperty("envpuddlerippledirection", 0f);
-                }
-                else if (classname == "env_gradient_fog")
-                {
-                    // If it has "start_disabled", only take it if we haven't found any others yet.
-                    if (!entity.GetBooleanProperty("start_disabled") || scene.FogInfo.GradientFogActive)
-                    {
-                        scene.FogInfo.GradientFogActive = true;
-
-                        var distExponent = entity.GetFloatProperty("fogfalloffexponent");
-                        var startDist = entity.GetFloatProperty("fogstart");
-                        var endDist = entity.GetFloatProperty("fogend");
-
-                        // Some maps don't have these properties.
-                        var useHeightFog = entity.ContainsKey("fogverticalexponent"); // The oldest versions lack these values, so disable it there
-                        var useHeightFog2 = entity.ContainsKey("fogstartheight"); // Robot Repair lacks these values, so disable it there
-                        useHeightFog = entity.GetBooleanProperty("heightfog", useHeightFog); // New in CS2
-
-                        // TODO: find the correct behavior under this condition
-                        var startHeight = entity.GetFloatProperty("fogstartheight");
-                        var endHeight = entity.GetFloatProperty("fogendheight");
-                        var heightExponent = entity.GetFloatProperty("fogverticalexponent");
-
-                        var strength = entity.GetFloatProperty("fogstrength");
-                        var color = entity.GetColor32Property("fogcolor");
-                        var maxOpacity = entity.GetFloatProperty("fogmaxopacity");
-
-                        if (!useHeightFog && !useHeightFog2)
-                        {
-                            heightExponent = 1.0f; // Need the value for Robot Repair
-                            startHeight = startDist; // Assuming it's similar to the horizontal distances
-                            endHeight = endDist; // Assuming it's similar to the horizontal distances
-                            strength = 1.0f; // Need the value for Robot Repair
-                            //color = entity.GetColor32Property("fogcolor"); // Need to get from `gradientfogtexture` key value and combine with `color` keyvalue
-                            maxOpacity = 0.5f; // Need the value for Robot Repair
-                            distExponent = 2.0f;
-                        }
-                        else if (!useHeightFog && useHeightFog2)
-                        {
-                            heightExponent = 1.0f; // Need the value for SteamVR
-                            strength = 1.0f; // Need the value for SteamVR
-                            //color = entity.GetColor32Property("fogcolor"); // Need to get from `gradientfogtexture` key value
-                            maxOpacity = 0.5f; // Need the value for SteamVR
-                            distExponent = 2.0f; // Need the value for SteamVR
-                        }
-
-                        scene.FogInfo.GradientFog = new SceneGradientFog(scene)
-                        {
-                            StartDist = startDist,
-                            EndDist = endDist,
-                            FalloffExponent = distExponent,
-                            HeightStart = startHeight,
-                            HeightEnd = endHeight,
-                            VerticalExponent = heightExponent,
-                            Color = color,
-                            Strength = strength,
-                            MaxOpacity = maxOpacity,
-                        };
-                    }
-                }
-                else if (classname == "env_cubemap_fog")
-                {
-                    // If it has "start_disabled", only take it if it's the first one in the map.
-                    // this might not be right, and the first env_cubemap_fog found might take priority, like with post processing
-                    if (!entity.GetBooleanProperty("start_disabled") || scene.FogInfo.CubeFogActive)
-                    {
-                        scene.FogInfo.CubeFogActive = true;
-
-                        var lodBias = entity.GetFloatProperty("cubemapfoglodbiase");
-
-                        var falloffExponent = entity.GetFloatProperty("cubemapfogfalloffexponent");
-                        var startDist = entity.GetFloatProperty("cubemapfogstartdistance");
-                        var endDist = entity.GetFloatProperty("cubemapfogenddistance");
-
-                        var hasHeightEnd = entity.ContainsKey("cubemapfogheightend");
-
-                        var useHeightFog = entity.ContainsKey("cubemapfogheightexponent"); // the oldest versions have these values missing, so disable it there
-                        useHeightFog = entity.GetBooleanProperty("cubemapheightfog", useHeightFog); // New in CS2
-
-                        var heightExponent = 1.0f;
-                        var heightStart = float.PositiveInfinity; // is this right?
-                        var heightEnd = float.PositiveInfinity;
-                        if (useHeightFog)
-                        {
-                            heightExponent = entity.GetFloatProperty("cubemapfogheightexponent");
-                            heightStart = entity.GetFloatProperty("cubemapfogheightstart");
-                            if (hasHeightEnd)
-                            {
-                                // New in CS2
-                                heightEnd = entity.GetFloatProperty("cubemapfogheightend");
-                            }
-                            else
-                            {
-                                var heightWidth = entity.GetFloatProperty("cubemapfogheightwidth");
-                                heightEnd = heightStart + heightWidth;
-                            }
-                        }
-
-                        var opacity = entity.GetFloatProperty("cubemapfogmaxopacity", 1f);
-                        var fogSource = entity.GetUInt32Property("cubemapfogsource");
-
-                        RenderTexture? fogTexture = null;
-                        var exposureBias = 0.0f;
-
-                        if (fogSource == 0) // Cubemap From Texture, Disabled in CS2
-                        {
-                            var textureName = entity.GetStringProperty("cubemapfogtexture");
-                            if (textureName != null)
-                            {
-                                fogTexture = RendererContext.MaterialLoader.GetTexture(textureName);
-                            }
-                        }
-                        else
-                        {
-                            string? material = null;
-                            var skyBrightnessScale = 1.0f;
-
-                            if (fogSource == 1) // Cubemap From Env_Sky
-                            {
-                                var skyEntTargetName = entity.GetStringProperty("cubemapfogskyentity");
-                                if (skyEntTargetName != null)
-                                {
-                                    var skyEntity = FindEntityByTargetName(skyEntTargetName);
-
-                                    // env_sky target //  && (scene.Sky.TargetName == skyEntTargetName)
-                                    if (skyEntity != null)
-                                    {
-                                        material = skyEntity.GetStringProperty("skyname") ?? skyEntity.GetStringProperty("skybox_material_day");
-                                        var rotationOnly = GetEntityWorldTransform(skyEntity) with { Translation = transformationMatrix.Translation };
-                                        transformationMatrix = rotationOnly;  // steal rotation from env_sky
-
-                                        var scale = skyEntity.GetFloatProperty("brightnessscale", 1.0f);
-                                        if (scale > 0f)
-                                        {
-                                            skyBrightnessScale = scale;
-                                        }
-                                    }
-                                    else
-                                    {
-                                        RendererContext.Logger.LogWarning("Disabling cubemap fog because failed to find env_sky of target name {SkyEntTargetName}", skyEntTargetName);
-                                        scene.FogInfo.CubeFogActive = false;
-                                    }
-                                }
-                            }
-                            else if (fogSource == 2) // Cubemap From Material
-                            {
-                                material = entity.GetStringProperty("cubemapfogskymaterial");
-                            }
-                            else
-                            {
-                                throw new NotImplementedException($"Cubemap fog source {fogSource} is not recognized.");
-                            }
-
-                            if (!string.IsNullOrEmpty(material))
-                            {
-                                using var matFile = RendererContext.FileLoader.LoadFileCompiled(material);
-                                var mat = RendererContext.MaterialLoader.LoadMaterial(matFile);
-
-                                if (mat != null && mat.Textures.TryGetValue("g_tSkyTexture", out fogTexture))
-                                {
-                                    var brightnessExposureBias = mat.FloatParams.GetValueOrDefault("g_flBrightnessExposureBias", 0f);
-                                    // todo: make sure this matches with scene post process
-                                    var renderOnlyExposureBias = mat.FloatParams.GetValueOrDefault("g_flRenderOnlyExposureBias", 0f);
-
-                                    // These are both logarithms, so this is equivalent to a multiply of the raw value
-                                    exposureBias = brightnessExposureBias + renderOnlyExposureBias + MathF.Log2(skyBrightnessScale);
-                                }
-                            }
-                        }
-
-                        if (fogTexture == null)
-                        {
-                            scene.FogInfo.CubeFogActive = false;
-                        }
-
-                        scene.FogInfo.CubemapFog = new SceneCubemapFog(scene)
-                        {
-                            StartDist = startDist,
-                            EndDist = endDist,
-                            FalloffExponent = falloffExponent,
-                            HeightStart = heightStart,
-                            HeightEnd = heightEnd,
-                            HeightExponent = heightExponent,
-                            LodBias = lodBias,
-                            Transform = transformationMatrix,
-                            CubemapFogTexture = fogTexture,
-                            Opacity = opacity,
-                            ExposureBias = exposureBias,
-                            UseHeightFog = useHeightFog,
-                        };
-                    }
-                }
-                /*else if (classname == "env_volumetric_fog_controller" && entity.GetBooleanProperty("ismaster"))
-                {
-                    scene.FogInfo.LoadVolumetricFogController(entity);
-                }
-                else if (classname == "env_volumetric_fog_volume" && !entity.GetBooleanProperty("start_disabled"))
-                {
-                    scene.FogInfo.LoadFogVolume(entity);
-                }*/
-                else if (IsCubemapOrProbe(classname))
-                {
-                    var handShakeString = entity.GetStringProperty("handshake");
-                    if (!int.TryParse(handShakeString, out var handShake))
-                    {
-                        handShake = entity.GetInt32Property("handshake");
-                    }
-
-                    AABB bounds = default;
-                    if (classname == "env_cubemap")
-                    {
-                        var radius = entity.GetFloatProperty("influenceradius");
-                        bounds = new AABB(-radius, -radius, -radius, radius, radius, radius);
-                    }
-                    else
-                    {
-                        bounds = new AABB(
-                            entity.GetVector3Property("box_mins"),
-                            entity.GetVector3Property("box_maxs")
-                        );
-                    }
-
-                    var indoorOutdoorLevel = entity.GetInt32Property("indoor_outdoor_level");
-
-                    // The entity scale does not shrink the volume: its baked probe grid is the unscaled
-                    // box over the voxel size, and the objects bound to it by their precomputed
-                    // handshake only fall inside it while it keeps that size
-                    var volumeTransform = EntityTransformHelper.ToRigidTransformationMatrix(entity) * parentTransform;
-
-                    if (classname != "env_light_probe_volume")
-                    {
-                        var cubemapTextureName = entity.GetStringProperty("cubemaptexture");
-                        var envMapTexture = cubemapTextureName != null
-                            ? RendererContext.MaterialLoader.GetTexture(cubemapTextureName, true)
-                            : null;
-
-                        if (envMapTexture != null)
-                        {
-                            var arrayIndex = entity.GetInt32Property("array_index");
-                            var edgeFadeDists = entity.GetVector3Property("edge_fade_dists"); // TODO: Not available on all entities
-                            var isCustomTexture = entity.GetStringProperty("customcubemaptexture") != null;
-
-                            var envMap = new SceneEnvMap(scene, bounds)
-                            {
-                                LayerName = layerName,
-                                Transform = volumeTransform,
-                                EntityData = entity,
-                                HandShake = handShake,
-                                ArrayIndex = arrayIndex,
-                                IndoorOutdoorLevel = indoorOutdoorLevel,
-                                EdgeFadeDists = edgeFadeDists,
-                                ProjectionMode = classname == "env_cubemap" ? 0 : 1,
-                                EnvMapTexture = envMapTexture,
-                                NormalizationSH = SceneEnvMap.CalculateNormalizationSH(envMapTexture.RadianceCoefficients, arrayIndex),
-                            };
-
-                            if (!isCustomTexture)
-                            {
-                                scene.LightingInfo.AddEnvironmentMap(envMap);
-                            }
-                        }
-                    }
-
-                    if (classname == "env_combined_light_probe_volume" || classname == "env_light_probe_volume")
-                    {
-                        var lightProbeTextureName = entity.GetStringProperty("lightprobetexture");
-                        var irradianceTexture = lightProbeTextureName != null
-                            ? RendererContext.MaterialLoader.GetTexture(lightProbeTextureName, srgbRead: true)
-                            : null;
-
-                        var lightProbe = new SceneLightProbe(scene, bounds)
-                        {
-                            LayerName = layerName,
-                            Transform = volumeTransform,
-                            EntityData = entity,
-                            HandShake = handShake,
-                            Irradiance = irradianceTexture,
-                            IndoorOutdoorLevel = indoorOutdoorLevel,
-                            VoxelSize = entity.GetFloatProperty("voxel_size")
-                        };
-
-                        var dliName = entity.GetStringProperty("lightprobetexture_dli");
-                        var dlsName = entity.GetStringProperty("lightprobetexture_dls");
-                        var dlsdName = entity.GetStringProperty("lightprobetexture_dlshd");
-
-                        if (dlsName != null)
-                        {
-                            lightProbe.DirectLightScalars = RendererContext.MaterialLoader.GetTexture(dlsName);
-                            lightProbe.DirectLightScalars.SetWrapMode(RsTextureAddressMode.Clamp);
-                        }
-
-                        if (dliName != null)
-                        {
-                            lightProbe.DirectLightIndices = RendererContext.MaterialLoader.GetTexture(dliName);
-                            lightProbe.DirectLightIndices.SetFiltering(TextureMinFilter.Nearest, TextureMagFilter.Nearest);
-                            lightProbe.DirectLightIndices.SetWrapMode(RsTextureAddressMode.Clamp);
-                        }
-
-                        scene.LightingInfo.LightProbeType = entity.ContainsKey("light_probe_atlas_x") switch
-                        {
-                            false => LightProbeType.IndividualProbes,
-                            true => LightProbeType.ProbeAtlas,
-                        };
-
-                        if (dlsdName != null)
-                        {
-                            lightProbe.DirectLightShadows = RendererContext.MaterialLoader.GetTexture(dlsdName);
-                            lightProbe.DirectLightShadows.SetWrapMode(RsTextureAddressMode.Clamp);
-
-                            lightProbe.AtlasSize = new Vector3(
-                                entity.GetFloatProperty("light_probe_size_x"),
-                                entity.GetFloatProperty("light_probe_size_y"),
-                                entity.GetFloatProperty("light_probe_size_z")
-                            );
-
-                            lightProbe.AtlasOffset = new Vector3(
-                                entity.GetFloatProperty("light_probe_atlas_x"),
-                                entity.GetFloatProperty("light_probe_atlas_y"),
-                                entity.GetFloatProperty("light_probe_atlas_z")
-                            );
-                        }
-
-                        scene.LightingInfo.AddProbe(lightProbe);
-                    }
-                }
 
                 if (transformationMatrix == default)
                 {
@@ -1090,14 +708,6 @@ namespace ValveResourceFormat.Renderer.World
                 var animation = entity.GetStringProperty("startinganim") ?? entity.GetStringProperty("defaultanim") ?? entity.GetStringProperty("idleanim");
 
                 var skin = entity.GetStringProperty("skin");
-
-                // Only the first one is used
-                if (classname == "sky_camera" && skyCamera == null)
-                {
-                    var skyScale = entity.GetFloatProperty("scale");
-
-                    skyCamera = (transformationMatrix.Translation, skyScale > 0f ? skyScale : 1f);
-                }
 
                 if (classname is "path_particle_rope" or "path_particle_rope_clientside")
                 {
@@ -1230,143 +840,9 @@ namespace ValveResourceFormat.Renderer.World
                     }
                 }
 
-                if (EditorEntityNode.IsCamera(classname))
-                {
-                    var cameraName = entity.GetStringProperty("cameraname") ?? entity.TargetName ?? classname;
-                    CameraNames.Add(cameraName);
-                    CameraMatrices.Add(transformationMatrix);
-                }
-
-                var spawnPriority = Array.IndexOf(SpawnCameraClasses, classname) * 2;
-                if (spawnPriority >= 0)
-                {
-                    // HLA maps can have several info_player_start entities; spawnflag 1 marks the active one.
-                    if (classname == "info_player_start" && (entity.GetUInt32Property("spawnflags") & 1) != 0)
-                    {
-                        spawnPriority--;
-                    }
-
-                    if (spawnPriority < spawnCameraPriority)
-                    {
-                        var spawnMatrix = transformationMatrix;
-
-                        if (!EditorEntityNode.IsCamera(classname))
-                        {
-                            spawnMatrix.Translation += new Vector3(0, 0, PlayerEyeHeight);
-                        }
-
-                        spawnCameraPriority = spawnPriority;
-                        SpawnCameraMatrix = spawnMatrix;
-                    }
-                }
-
-                if (classname == "post_processing_volume")
-                {
-                    var exposureParams = ExposureSettings.LoadFromEntity(entity);
-
-                    var isMaster = entity.GetBooleanProperty("master");
-                    var useExposure = entity.GetBooleanProperty("enableexposure");
-                    var fadeTime = entity.GetFloatProperty("fadetime", 1.0f);
-
-                    var postProcess = new ScenePostProcessVolume(scene)
-                    {
-                        ExposureSettings = exposureParams,
-                        FadeTime = fadeTime,
-                        UseExposure = useExposure,
-                        IsMaster = isMaster,
-                        StartDisabled = entity.GetBooleanProperty("startdisabled"),
-                        Transform = transformationMatrix, // needed if model is used
-                    };
-
-                    var postProcessResourceFilename = entity.GetStringProperty("postprocessing");
-
-                    if (postProcessResourceFilename != null)
-                    {
-                        var postProcessResource = RendererContext.FileLoader.LoadFileCompiled(postProcessResourceFilename);
-
-                        if (postProcessResource?.DataBlock is PostProcessing postProcessAsset)
-                        {
-                            postProcess.LoadPostProcessResource(postProcessAsset);
-                        }
-                    }
-
-                    var postProcessHasModel = false;
-
-                    if (model != null)
-                    {
-                        var postProcessModel = RendererContext.FileLoader.LoadFileCompiled(model);
-
-                        if (postProcessModel?.DataBlock is Model ppModelResource)
-                        {
-                            postProcess.ModelVolume = ppModelResource;
-
-                            // Local volumes apply while the camera is inside their trigger shape
-                            var volumePhysics = EntityCollider.LoadPhysics(ppModelResource, RendererContext.FileLoader);
-                            if (volumePhysics != null)
-                            {
-                                postProcess.Collider = new EntityCollider(volumePhysics)
-                                {
-                                    Transform = transformationMatrix,
-                                };
-                            }
-
-                            var ppModelNode = new ModelSceneNode(scene, ppModelResource, skin)
-                            {
-                                Transform = transformationMatrix,
-                                LayerName = layerName,
-                                Name = model,
-                                EntityData = entity,
-                            };
-
-                            postProcessHasModel = true; // for collision we'd need to collect phys data within the class
-
-                            scene.Add(ppModelNode, true);
-                        }
-                        else
-                        {
-                            RendererContext.Logger.LogWarning("Post Process model failed to load file \"{Model}\"", model);
-                        }
-                    }
-
-                    scene.PostProcessInfo.AddPostProcessVolume(postProcess);
-
-                    // If the post process model exists, we hackily let it add the model to the scene nodes
-                    if (!postProcessHasModel)
-                    {
-                        return;
-                    }
-                }
-                else if (classname == "env_tonemap_controller")
-                {
-                    var minExposureTC = entity.GetFloatProperty("minexposure");
-                    var maxExposureTC = entity.GetFloatProperty("maxexposure");
-                    var exposureRate = entity.GetFloatProperty("rate");
-                    //var isMasterTC = entity.GetBooleanProperty("master"); // master actually doesn't do anything
-
-                    var exposureSettings = new ExposureSettings()
-                    {
-                        ExposureMin = minExposureTC,
-                        ExposureMax = maxExposureTC,
-                        ExposureSpeedDown = exposureRate,
-                        ExposureSpeedUp = exposureRate,
-                    };
-
-                    var tonemapController = new SceneTonemapController(scene)
-                    {
-                        ControllerExposureSettings = exposureSettings,
-                    };
-
-                    if (scene.PostProcessInfo.MasterTonemapController == null)
-                    {
-                        scene.PostProcessInfo.MasterTonemapController = tonemapController;
-                    }
-                }
-
-                var entityFlags = light.Accepted ? ObjectTypeFlags.NoShadows : ObjectTypeFlags.None;
-
                 if (model == null)
                 {
-                    CreateDefaultEntity(entity, classname, transformationMatrix, entityFlags, defaultEntityLayer);
+                    CreateDefaultEntity(entity, classname, transformationMatrix, defaultEntityLayer);
                     return;
                 }
 
@@ -1405,8 +881,6 @@ namespace ValveResourceFormat.Renderer.World
                     Name = model,
                     EntityData = entity,
                 };
-
-                modelNode.Flags |= entityFlags;
 
                 if (modelNode.HasMeshes)
                 {
@@ -1474,7 +948,7 @@ namespace ValveResourceFormat.Renderer.World
                 else if (!modelNode.HasMeshes && modelParticleNodes.Count == 0)
                 {
                     // If the loaded model has no meshes, particles, or physics, fallback to default entity
-                    CreateDefaultEntity(entity, classname, transformationMatrix, layerName: defaultEntityLayer);
+                    CreateDefaultEntity(entity, classname, transformationMatrix, defaultEntityLayer);
                 }
             }
 
@@ -1665,12 +1139,47 @@ namespace ValveResourceFormat.Renderer.World
             }
         }
 
-        private void CreateDefaultEntity(Entity entity, string classname, Matrix4x4 transformationMatrix, ObjectTypeFlags flags = ObjectTypeFlags.None, string layerName = EditorEntityNode.LayerName)
+        /// <summary>
+        /// Takes the entity as <see cref="SpawnCameraMatrix"/> when its classname ranks above the best one
+        /// so far in <see cref="SpawnCameraClasses"/>. Ground markers are raised to eye height.
+        /// </summary>
+        private void OfferSpawnCamera(BaseEntity entity, bool isMaster)
+        {
+            var priority = Array.IndexOf(SpawnCameraClasses, entity.Classname) * 2;
+
+            if (priority < 0)
+            {
+                return;
+            }
+
+            // A marker flagged as the one to use beats the others of its class
+            if (isMaster)
+            {
+                priority--;
+            }
+
+            if (priority >= spawnCameraPriority)
+            {
+                return;
+            }
+
+            var spawnMatrix = entity.Transform;
+
+            if (entity is not PointCamera)
+            {
+                spawnMatrix.Translation += new Vector3(0, 0, PlayerEyeHeight);
+            }
+
+            spawnCameraPriority = priority;
+            SpawnCameraMatrix = spawnMatrix;
+        }
+
+        private void CreateDefaultEntity(Entity entity, string classname, Matrix4x4 transformationMatrix, string layerName)
         {
             entityParentTransforms.TryGetValue(entity, out var entityParentTransform);
 
-            var createdNode = EditorEntityNode.Create(scene, entity, classname, transformationMatrix, flags, layerName,
-                entityParentTransform == default ? null : entityParentTransform);
+            var createdNode = EditorEntityNode.Create(scene, entity, classname, transformationMatrix, ObjectTypeFlags.None, layerName,
+                parentTransform: entityParentTransform == default ? null : entityParentTransform);
 
             scene.Add(createdNode, true);
 

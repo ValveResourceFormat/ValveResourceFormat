@@ -5,8 +5,19 @@ namespace ValveResourceFormat.Renderer.Entities;
 /// <summary><c>info_world_layer</c>. Shows and hides one world layer by entity I/O.</summary>
 public sealed class InfoWorldLayer : BaseEntity
 {
+    /// <summary>Spawn flags for world layers.</summary>
+    [Flags]
+    public enum SpawnFlag : uint
+    {
+        /// <summary>The layer is shown when the map loads.</summary>
+        VisibleOnSpawn = 1,
+    }
+
     /// <summary>Gets the name of the world layer this entity controls.</summary>
     public string? WorldLayerName { get; private set; }
+
+    /// <summary>Gets whether the controlled layer is shown when the map loads.</summary>
+    public bool IsVisibleOnSpawn => HasSpawnFlags(SpawnFlag.VisibleOnSpawn);
 
     /// <summary>Initializes an <c>info_world_layer</c> from its keyvalues.</summary>
     public InfoWorldLayer(EntitySystem system, EntitySpawnInfo spawnInfo) : base(system, spawnInfo)

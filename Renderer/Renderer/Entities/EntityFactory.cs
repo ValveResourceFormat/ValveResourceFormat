@@ -53,6 +53,32 @@ public static class EntityFactory
         Register<LightEntity>("light_rect", static (system, spawnInfo) => new LightEntity(system, spawnInfo));
         Register<LightEntity>("light_spot", static (system, spawnInfo) => new LightEntity(system, spawnInfo));
 
+        // environment
+        Register<EnvCubemap>("env_cubemap", static (system, spawnInfo) => new EnvCubemap(system, spawnInfo));
+        Register<EnvCubemap>("env_cubemap_box", static (system, spawnInfo) => new EnvCubemap(system, spawnInfo));
+        Register<EnvCubemapFog>("env_cubemap_fog", static (system, spawnInfo) => new EnvCubemapFog(system, spawnInfo));
+        Register<EnvLightProbeVolume>("env_combined_light_probe_volume", static (system, spawnInfo) => new EnvLightProbeVolume(system, spawnInfo));
+        Register<EnvLightProbeVolume>("env_light_probe_volume", static (system, spawnInfo) => new EnvLightProbeVolume(system, spawnInfo));
+        Register<EnvGradientFog>("env_gradient_fog", static (system, spawnInfo) => new EnvGradientFog(system, spawnInfo));
+        Register<EnvSky>("env_global_light", static (system, spawnInfo) => new EnvSky(system, spawnInfo));
+        Register<EnvSky>("env_sky", static (system, spawnInfo) => new EnvSky(system, spawnInfo));
+        Register<EnvTonemapController>("env_tonemap_controller", static (system, spawnInfo) => new EnvTonemapController(system, spawnInfo));
+        Register<InfoMapParameters>("info_map_parameters", static (system, spawnInfo) => new InfoMapParameters(system, spawnInfo));
+        Register<PostProcessingVolume>("post_processing_volume", static (system, spawnInfo) => new PostProcessingVolume(system, spawnInfo));
+
+        // cameras and spawn points
+        Register<PointCamera>("point_camera", static (system, spawnInfo) => new PointCamera(system, spawnInfo));
+        Register<PointCamera>("point_camera_vertical_fov", static (system, spawnInfo) => new PointCamera(system, spawnInfo));
+        Register<PointCamera>("point_devshot_camera", static (system, spawnInfo) => new PointCamera(system, spawnInfo));
+        Register<SkyCamera>("sky_camera", static (system, spawnInfo) => new SkyCamera(system, spawnInfo));
+        Register<SpawnPoint>("info_player_counterterrorist", static (system, spawnInfo) => new SpawnPoint(system, spawnInfo));
+        Register<SpawnPoint>("info_player_start", static (system, spawnInfo) => new SpawnPoint(system, spawnInfo));
+        Register<SpawnPoint>("info_player_start_badguys", static (system, spawnInfo) => new SpawnPoint(system, spawnInfo));
+        Register<SpawnPoint>("info_player_start_goodguys", static (system, spawnInfo) => new SpawnPoint(system, spawnInfo));
+        Register<SpawnPoint>("info_player_terrorist", static (system, spawnInfo) => new SpawnPoint(system, spawnInfo));
+        Register<SpawnPoint>("info_team_spawn", static (system, spawnInfo) => new SpawnPoint(system, spawnInfo));
+        Register<SpawnPoint>("team_select", static (system, spawnInfo) => new SpawnPoint(system, spawnInfo));
+
         // logic
         Register<LogicAuto>("logic_auto", static (system, spawnInfo) => new LogicAuto(system, spawnInfo));
         Register<LogicCase>("logic_case", static (system, spawnInfo) => new LogicCase(system, spawnInfo));

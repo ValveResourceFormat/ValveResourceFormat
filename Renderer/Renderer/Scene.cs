@@ -98,6 +98,9 @@ namespace ValveResourceFormat.Renderer
         /// <summary>Gets or sets the post-processing parameters for this scene.</summary>
         public WorldPostProcessInfo PostProcessInfo { get; set; } = new();
 
+        /// <summary>Gets or sets the 2D sky the map's sky entities provide, or <see langword="null"/> when it has none.</summary>
+        public SceneSkybox2D? Skybox2D { get; set; }
+
         /// <summary>
         /// Whether the entities drawn here take part in collision. A spawn group placed inside a map, such
         /// as a 3D sky, is scenery: nothing can reach it, so its entities never build a collider.
