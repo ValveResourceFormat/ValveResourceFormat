@@ -3024,9 +3024,10 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// the spread is linear and the stiffness comes back off the weights alone as
         /// <c>(End0Weight + End1Weight - 2*MidWeight) / 3</c>, with no mass and no bias in it; the angle becomes
         /// the distance the bent node may reach from the triple's centroid,
-        /// <c>sqrt(l0^2 + l1^2 - 2*l0*l1*cos(angle)) / 3</c>, floored at the rest distance - an angle the
-        /// rest pose already exceeds leaves no trace and recovers as zero, which recompiles to the same
-        /// floor. The joint's <c>motion_bias</c> comes back with it: a fully biased joint replaces the
+        /// <c>sqrt(l0^2 + l1^2 - 2*l0*l1*cos(angle)) / 3</c>, floored at the rest distance and again at
+        /// <see cref="KelagerHeightFloor"/> - a height on either floor states no angle and recovers as
+        /// zero, which recompiles to the same floor. The joint's <c>motion_bias</c> comes back with it:
+        /// a fully biased joint replaces the
         /// mass shares with the whole stiffness on one end, leaving the bent node weightless.
         /// </summary>
         public (float Stiffness, float Angle, float MotionBias)? GetStiffHinge(int jointNode)
@@ -3067,6 +3068,10 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
 
         // Below this a bend weight is the compiler's own signed zero rather than a small real share.
         const float FullMotionBiasEpsilon = 1e-6f;
+
+        // Every compiled bend height is raised to this floor, so a height sitting on it states an upper
+        // bound and not a measurement.
+        const float KelagerHeightFloor = 0.001f;
 
         // Two span rods of one joint have to agree this closely before their shared bias is believed,
         // and a bias under it is the unbiased default and needs no key.
@@ -3164,7 +3169,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             var restHeight = (toEnd0 + toEnd1).Length() / 3f;
             var l0 = toEnd0.Length();
             var l1 = toEnd1.Length();
-            if (bend.Height <= restHeight * 1.0001f || l0 <= 0f || l1 <= 0f)
+            if (bend.Height <= MathF.Max(restHeight * 1.0001f, KelagerHeightFloor) || l0 <= 0f || l1 <= 0f)
             {
                 return 0f;
             }

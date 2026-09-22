@@ -9759,5 +9759,60 @@ namespace Tests
             }
             """);
 
+        /// <summary>
+        /// Every compiled bend height is raised to a 0.001 floor, so a height sitting on that floor states
+        /// no angle: it recovers as zero and recompiles to the same floor. CONTROL: the same near-collinear
+        /// triple with a height above the floor still recovers its angle.
+        /// </summary>
+        /// <remarks>
+        /// MEASURED 2026-09-22 on dotaout `nightstalker_night_slaughter_head_night`, whose third bend is
+        /// collinear to a rest height of 0.000011 and compiles `flHeight0` 0.001. Inverting an angle out of
+        /// that floor emitted `stiff_hinge_angle` 0.019782, which recompiled the height to 0.002302 instead
+        /// of 0.001 - the row's only differing scalar. That row's arms are 20 units long, where `9*h*h` is
+        /// below the float32 resolution of `l0*l0 + l1*l1` and the cosine is decided by rounding alone; the
+        /// fixture below uses unit arms instead, so the floored height inverts to a real angle and the
+        /// assertion is about the floor rather than about float noise.
+        /// </remarks>
+        [Test]
+        public async Task ABendHeightOnTheCompilerFloorStatesNoAngle()
+        {
+            var onTheFloor = FlatKelagerModel(0.001f).GetStiffHinge(1);
+            var aboveTheFloor = FlatKelagerModel(0.01f).GetStiffHinge(1);
+
+            using (Assert.Multiple())
+            {
+                // CONTROL: above the floor the same triple still states its angle, and neither fixture's
+                // stiffness moves with the height.
+                await Assert.That(aboveTheFloor?.Angle ?? float.NaN).IsGreaterThan(0f);
+                await Assert.That(onTheFloor?.Stiffness ?? float.NaN).IsEqualTo(1f).Within(1e-4f);
+                await Assert.That(aboveTheFloor?.Stiffness ?? float.NaN).IsEqualTo(1f).Within(1e-4f);
+
+                // THE LAW.
+                await Assert.That(onTheFloor?.Angle ?? float.NaN).IsEqualTo(0f);
+            }
+        }
+
+        // Three collinear nodes, so the triple's rest height is zero and the only floor the compiled height
+        // can be sitting on is the 0.001 one.
+        private static FeModel FlatKelagerModel(float height) => SyntheticCloth.Parse($$"""
+            {
+                m_CtrlName = [ "mid", "end0", "end1" ]
+                m_SkelParents = [ -1, 0, 0 ]
+                m_nNodeCount = 3
+                m_nStaticNodes = 0
+                m_NodeInvMasses = [ 1.0, 1.0, 1.0 ]
+                m_InitPose =
+                [
+                    {{SyntheticCloth.Pose(0f, 0f, 0f)}}
+                    {{SyntheticCloth.Pose(-1f, 0f, 0f)}}
+                    {{SyntheticCloth.Pose(1f, 0f, 0f)}}
+                ]
+                m_KelagerBends =
+                [
+                    { nNode = [ 0, 1, 2 ] flWeight = [ -1.0, 0.5, 0.5 ] flHeight0 = {{SyntheticCloth.Num(height)}} },
+                ]
+            }
+            """);
+
     }
 }
