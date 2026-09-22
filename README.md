@@ -4,6 +4,8 @@ Source2Viewer - d2pfx is a modded build of [Source 2 Viewer](https://github.com/
 
 It adds a custom VMDL extraction option to the package viewer's right-click menu, built on top of [VmdlExtractor](https://github.com/fvckmindself/VmdlExtractor) by [fvckmindself](https://github.com/fvckmindself).
 
+It also adds a custom VMAT extraction option for `.vmat_c` materials. The option writes every texture the material uses next to the `.vmat` and points the `.vmat` at them by their path inside your addon (for example `j0nathan550/materials/razor_arcana_head_color.png`), so the material compiles without any red, missing textures. Cubemaps are stitched into one 4:3 cross `.png`, the layout Dota 2's own cubemap sources use, instead of six separate face images. Each custom option only appears when the selection contains files of its type.
+
 ## Credits
 
 - [Source 2 Viewer / ValveResourceFormat](https://github.com/ValveResourceFormat/ValveResourceFormat) and its original authors and contributors, whose work this fork is built entirely on top of.

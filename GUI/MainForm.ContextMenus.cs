@@ -28,6 +28,11 @@ namespace GUI
             verifyPackageContentsToolStripMenuItem.Visible = isRootNode;
             recoverDeletedToolStripMenuItem.Visible = isRootNode && !deletedFilesRecovered;
 
+            // Type specific exporters are only offered when the selection holds files they can export
+            var selectedItems = ContextMenuSelection.GetSelectedItems(control);
+            decompileCustomVmdlToolStripMenuItem.Visible = ContextMenuSelection.ContainsFileType(selectedItems, "vmdl_c");
+            decompileCustomVmatToolStripMenuItem.Visible = ContextMenuSelection.ContainsFileType(selectedItems, CustomVmatExporter.MaterialTypeName);
+
             vpkContextMenu.Show(control, position);
         }
 
@@ -410,6 +415,11 @@ namespace GUI
         private async void DecompileCustomVmdlToolStripMenuItem_Click(object sender, EventArgs e)
         {
             await CustomVmdlExporter.ExtractSelection(sender).ConfigureAwait(true);
+        }
+
+        private async void DecompileCustomVmatToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            await CustomVmatExporter.ExtractSelection(sender).ConfigureAwait(true);
         }
 
         private static async Task ExtractFiles(object sender, bool decompile)

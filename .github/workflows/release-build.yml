@@ -9,8 +9,9 @@ on:
     - '*'
   workflow_dispatch:
 
+# Releases run one at a time, so each one sees the tag of the previous one when picking its build number
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: ${{ github.workflow }}
   cancel-in-progress: false
 
 env:
@@ -18,8 +19,74 @@ env:
   PUBLISH_ARGS: -p:PublishReadyToRun=true
 
 jobs:
+  version:
+    name: Determine version
+    runs-on: ubuntu-latest
+
+    outputs:
+      base: ${{ steps.version.outputs.base }}
+      build: ${{ steps.version.outputs.build }}
+      version: ${{ steps.version.outputs.version }}
+      tag: ${{ steps.version.outputs.tag }}
+
+    steps:
+    - uses: actions/checkout@v7
+
+    # A pushed "1.2.3.4" tag is used as the version and a pushed "build-4" tag as build number 4.
+    # Anything else gets the number after the highest "build-N" or "x.y.z.N" tag in the repository,
+    # on top of ProjectBaseVersion from Directory.Build.props, and is released as "build-N".
+    - name: Determine version from git tags
+      id: version
+      env:
+        REF_TYPE: ${{ github.ref_type }}
+        REF_NAME: ${{ github.ref_name }}
+      run: |
+        set -euo pipefail
+
+        base=$(sed -n 's:.*<ProjectBaseVersion>\(.*\)</ProjectBaseVersion>.*:\1:p' Directory.Build.props)
+
+        if [[ "$REF_TYPE" == "tag" && "$REF_NAME" =~ ^v?([0-9]+\.[0-9]+\.[0-9]+)\.([0-9]+)$ ]]; then
+          base="${BASH_REMATCH[1]}"
+          build="${BASH_REMATCH[2]}"
+          tag="$REF_NAME"
+        elif [[ "$REF_TYPE" == "tag" && "$REF_NAME" =~ ^build-([0-9]+)$ ]]; then
+          build="${BASH_REMATCH[1]}"
+          tag="$REF_NAME"
+        else
+          last=$(git ls-remote --tags --refs origin \
+            | sed -nE 's#^.*refs/tags/(build-|v?[0-9]+\.[0-9]+\.[0-9]+\.)([0-9]+)$#\2#p' \
+            | sort -n | tail -n 1)
+          build=$(( 10#${last:-0} + 1 ))
+          tag=$([[ "$REF_TYPE" == "tag" ]] && echo "$REF_NAME" || echo "build-$build")
+        fi
+
+        if [[ ! "$base" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+          echo "::error::ProjectBaseVersion '$base' in Directory.Build.props must be major.minor.patch"
+          exit 1
+        fi
+
+        build=$(( 10#$build ))
+
+        # Each version part is stored as a 16-bit number in the exe and dll metadata
+        if (( build > 65534 )); then
+          echo "::error::Build number $build is too large"
+          exit 1
+        fi
+
+        version="$base.$build"
+
+        {
+          echo "base=$base"
+          echo "build=$build"
+          echo "version=$version"
+          echo "tag=$tag"
+        } >> "$GITHUB_OUTPUT"
+
+        echo "Version **$version**, released as \`$tag\`" >> "$GITHUB_STEP_SUMMARY"
+
   cli:
     name: CLI (${{ matrix.rid }})
+    needs: version
 
     strategy:
       fail-fast: false
@@ -39,7 +106,7 @@ jobs:
     - uses: ./.github/actions/setup-dotnet-cache
 
     - name: Publish CLI
-      run: dotnet publish --configuration Release --self-contained --runtime ${{ matrix.rid }} ${{ env.SKIP_ANALYSIS }} ${{ env.PUBLISH_ARGS }} CLI/CLI.csproj
+      run: dotnet publish --configuration Release --self-contained --runtime ${{ matrix.rid }} ${{ env.SKIP_ANALYSIS }} ${{ env.PUBLISH_ARGS }} -p:ProjectBaseVersion=${{ needs.version.outputs.base }} -p:ProjectBuildNumber=${{ needs.version.outputs.build }} CLI/CLI.csproj
 
     - name: Upload CLI artifact
       uses: actions/upload-artifact@v7
@@ -51,6 +118,7 @@ jobs:
 
   gui:
     name: GUI (win-x64)
+    needs: version
     runs-on: windows-latest
 
     steps:
@@ -58,7 +126,7 @@ jobs:
     - uses: ./.github/actions/setup-dotnet-cache
 
     - name: Publish GUI
-      run: dotnet publish --configuration Release --self-contained --runtime win-x64 ${{ env.SKIP_ANALYSIS }} ${{ env.PUBLISH_ARGS }} GUI/GUI.csproj
+      run: dotnet publish --configuration Release --self-contained --runtime win-x64 ${{ env.SKIP_ANALYSIS }} ${{ env.PUBLISH_ARGS }} -p:ProjectBaseVersion=${{ needs.version.outputs.base }} -p:ProjectBuildNumber=${{ needs.version.outputs.build }} GUI/GUI.csproj
 
     - name: Upload GUI artifact
       uses: actions/upload-artifact@v7
@@ -70,7 +138,7 @@ jobs:
 
   release:
     name: Create release
-    needs: [cli, gui]
+    needs: [version, cli, gui]
     runs-on: ubuntu-latest
 
     permissions:
@@ -94,7 +162,10 @@ jobs:
     - name: Release
       uses: softprops/action-gh-release@v3
       with:
-        tag_name: ${{ github.ref_type == 'tag' && github.ref_name || format('build-{0}', github.run_number) }}
+        tag_name: ${{ needs.version.outputs.tag }}
+        name: Build ${{ needs.version.outputs.build }} (${{ needs.version.outputs.version }})
+        # Tag the commit that was built, not whatever the branch points at by the time this runs
+        target_commitish: ${{ github.sha }}
         files: release/*
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
