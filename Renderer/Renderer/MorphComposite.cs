@@ -1,5 +1,3 @@
-using System.Diagnostics.CodeAnalysis;
-using System.Linq;
 using System.Runtime.InteropServices;
 using OpenTK.Graphics.OpenGL;
 using ValveKeyValue;
@@ -14,7 +12,7 @@ namespace ValveResourceFormat.Renderer
     /// <remarks>
     /// The rect is the size of the morph set, laid out row by row at its width. Both of the atlas' fields hold it:
     /// position/speed is accumulated into the left one and normal/wrinkle into the right, matching Valve's compositor.
-    /// Both fields are accumulated additively over every active morph rect.
+    /// Every active morph adds its weighted deltas on top of the others'.
     /// </remarks>
     public class MorphComposite
     {
@@ -35,103 +33,18 @@ namespace ValveResourceFormat.Renderer
 
         internal bool IsQueued { get; set; }
 
-        private int vao;
-        private int bufferHandle;
-        private MorphRectVertex[] allVertices;
-        private MorphRectVertex[] usedVertices;
-        private readonly RenderTexture morphAtlas;
-        private List<int>[] morphRects;
-        private readonly HashSet<int> usedRects = [];
-        private bool hasNormalWrinkleBundle;
+        private readonly RenderTexture sourceAtlas;
+        private readonly int vao;
+        private readonly int bufferHandle;
 
-        struct MorphCompositeRectData
-        {
-            public float LeftX;
-            public float TopY;
-            public float WidthU;
-            public float HeightV;
+        // Four vertices per rect. A morph's rects are contiguous, so a morph names its range of them.
+        private readonly MorphRectVertex[] allVertices;
+        private readonly MorphRectVertex[] usedVertices;
+        private readonly (int Start, int Count)[] morphRects;
+        private readonly HashSet<int> activeMorphs = [];
+        private readonly bool hasNormalWrinkleBundle;
 
-            public float LeftU;
-            public float TopV;
-            public Vector4 Offsets;
-            public Vector4 Ranges;
-
-            public float LeftUNormalWrinkle;
-            public float TopVNormalWrinkle;
-            public Vector4 OffsetsNormalWrinkle;
-            public Vector4 RangesNormalWrinkle;
-        }
-
-        /// <summary>Initializes the morph composite for the given morph data, uploading the atlas and building the vertex buffer.</summary>
-        /// <param name="renderContext">Renderer context for loading textures.</param>
-        /// <param name="morph">Morph data describing the morph targets and atlas layout.</param>
-        public MorphComposite(RendererContext renderContext, Morph morph)
-        {
-            ArgumentNullException.ThrowIfNull(morph.TextureResource);
-            morphAtlas = renderContext.MaterialLoader.LoadTexture(morph.TextureResource);
-
-            // The atlas is addressed texel by texel, so the filtering the vtex flags asked for must not apply.
-            morphAtlas.SetFiltering(TextureMinFilter.Nearest, TextureMagFilter.Nearest);
-
-            Width = morph.Data.GetInt32Property("m_nWidth");
-            Height = morph.Data.GetInt32Property("m_nHeight");
-            var label = $"{nameof(MorphComposite)}: {System.IO.Path.GetFileName(morph.TextureResource.FileName)}";
-
-            InitVertexBuffer(renderContext, label);
-
-            FillVertices(morph);
-
-            GL.NamedBufferStorage(bufferHandle, allVertices.Length * MorphRectVertex.InputLayout.Stride, IntPtr.Zero, BufferStorageFlags.DynamicStorageBit);
-        }
-
-        private static int GetMorphDataBundleCount(KVObject morphData)
-        {
-            var rectDatas = morphData.GetSubCollection("m_morphRectDatas");
-            return rectDatas.Count;
-        }
-
-        /// <summary>Draws the active morph rects into this composite's rect of the atlas, whose framebuffer is bound.</summary>
-        internal void Draw(Shader shader)
-        {
-            var usedVertexCount = usedRects.Count * 4;
-
-            if (usedVertexCount == 0)
-            {
-                return;
-            }
-
-            BuildVertexBuffer();
-
-            GL.NamedBufferSubData(bufferHandle, IntPtr.Zero, usedVertexCount * MorphRectVertex.InputLayout.Stride, usedVertices);
-
-            shader.SetUniform2("vAtlasOrigin", new Vector2(AtlasX, AtlasY));
-            shader.SetTexture(0, "morphAtlas", morphAtlas);
-
-            VertexArray.Bind(vao, shader);
-
-            var indexCount = usedRects.Count * 6;
-
-            shader.SetUniform1("bCompositeNormals", 0);
-            GL.DrawElements(PrimitiveType.Triangles, indexCount, DrawElementsType.UnsignedShort, 0);
-
-            if (hasNormalWrinkleBundle)
-            {
-                shader.SetUniform1("bCompositeNormals", 1);
-                GL.DrawElements(PrimitiveType.Triangles, indexCount, DrawElementsType.UnsignedShort, 0);
-            }
-        }
-
-        /// <summary>Deactivates every morph, so the next draw leaves the rect empty and the mesh in its bind pose.</summary>
-        public void Clear() => usedRects.Clear();
-
-        /// <summary>Deletes the composite's vertex buffer. Its rect is given up through <see cref="MorphCompositeAtlas.Release"/>.</summary>
-        public void Delete()
-        {
-            GL.DeleteVertexArray(vao);
-            GL.DeleteBuffer(bufferHandle);
-        }
-
-        // Mutable because SetVertexMorphValue pokes the current weight into PositionWeights in place.
+        // Mutable because SetMorphValue pokes the current weight into PositionWeights in place.
         [StructLayout(LayoutKind.Sequential)]
         private struct MorphRectVertex
         {
@@ -146,176 +59,184 @@ namespace ValveResourceFormat.Renderer
             public static readonly VertexInputLayout InputLayout = VertexInputLayout.FromStruct<MorphRectVertex>();
         }
 
-        private void InitVertexBuffer(RendererContext renderContext, string label)
+        /// <summary>Initializes the morph composite for the given morph data, uploading the atlas and building the vertex buffer.</summary>
+        /// <param name="renderContext">Renderer context for loading textures.</param>
+        /// <param name="morph">Morph data describing the morph targets and atlas layout.</param>
+        public MorphComposite(RendererContext renderContext, Morph morph)
         {
+            ArgumentNullException.ThrowIfNull(morph.TextureResource);
+            sourceAtlas = renderContext.MaterialLoader.LoadTexture(morph.TextureResource);
+
+            // The atlas is addressed texel by texel, so the filtering the vtex flags asked for must not apply.
+            sourceAtlas.SetFiltering(TextureMinFilter.Nearest, TextureMagFilter.Nearest);
+
+            Width = morph.Data.GetInt32Property("m_nWidth");
+            Height = morph.Data.GetInt32Property("m_nHeight");
+
+            var morphDatas = morph.GetMorphDatas();
+            morphRects = new (int, int)[Math.Max(morph.GetMorphCount(), morphDatas.Count)];
+
+            var vertices = new List<MorphRectVertex>();
+            hasNormalWrinkleBundle = FillVertices(morph, morphDatas, vertices);
+
+            allVertices = [.. vertices];
+            usedVertices = new MorphRectVertex[allVertices.Length];
+
+            var label = $"{nameof(MorphComposite)}: {System.IO.Path.GetFileName(morph.TextureResource.FileName)}";
+
             bufferHandle = GraphicsDevice.CreateBuffer(label);
             vao = MorphRectVertex.InputLayout.CreateVertexArray(label, bufferHandle, renderContext.MeshBufferCache.QuadIndices.GLHandle);
+
+            // Immutable storage cannot be empty
+            GL.NamedBufferStorage(bufferHandle, Math.Max(1, allVertices.Length) * MorphRectVertex.InputLayout.Stride, IntPtr.Zero, BufferStorageFlags.DynamicStorageBit);
         }
 
-        [MemberNotNull(nameof(allVertices), nameof(usedVertices), nameof(morphRects))]
-        private void FillVertices(Morph morph)
+        /// <summary>Sets the blend weight for the specified morph target and marks it as active or inactive.</summary>
+        /// <param name="morphId">Morph target identifier.</param>
+        /// <param name="value">Blend weight to apply.</param>
+        public void SetMorphValue(int morphId, float value)
         {
-            var morphDatas = morph.GetMorphDatas();
+            var (start, count) = morphRects[morphId];
 
-            if (morphDatas == null || morphDatas.Count == 0)
+            foreach (ref var vertex in allVertices.AsSpan(start * 4, count * 4))
             {
-                allVertices = [];
-                usedVertices = [];
-                morphRects = [];
+                vertex.PositionWeights.Z = value;
+                vertex.PositionWeights.W = value;
+            }
+
+            if (Math.Abs(value) > 0.001f)
+            {
+                activeMorphs.Add(morphId);
+            }
+            else
+            {
+                activeMorphs.Remove(morphId);
+            }
+        }
+
+        /// <summary>Deactivates every morph, so the next draw leaves the rect empty and the mesh in its bind pose.</summary>
+        public void Clear() => activeMorphs.Clear();
+
+        /// <summary>Draws the active morphs into this composite's rect of the atlas, whose framebuffer is bound.</summary>
+        internal void Draw(Shader shader)
+        {
+            var vertexCount = 0;
+
+            foreach (var morphId in activeMorphs)
+            {
+                var (start, count) = morphRects[morphId];
+
+                Array.Copy(allVertices, start * 4, usedVertices, vertexCount, count * 4);
+                vertexCount += count * 4;
+            }
+
+            if (vertexCount == 0)
+            {
                 return;
             }
 
+            GL.NamedBufferSubData(bufferHandle, IntPtr.Zero, vertexCount * MorphRectVertex.InputLayout.Stride, usedVertices);
+
+            shader.SetUniform2("vAtlasOrigin", new Vector2(AtlasX, AtlasY));
+            shader.SetTexture(0, "g_tSourceMorphAtlas", sourceAtlas);
+
+            VertexArray.Bind(vao, shader);
+
+            var indexCount = vertexCount / 4 * 6;
+
+            shader.SetUniform1("bCompositeNormals", 0);
+            GL.DrawElements(PrimitiveType.Triangles, indexCount, DrawElementsType.UnsignedShort, 0);
+
+            if (hasNormalWrinkleBundle)
+            {
+                shader.SetUniform1("bCompositeNormals", 1);
+                GL.DrawElements(PrimitiveType.Triangles, indexCount, DrawElementsType.UnsignedShort, 0);
+            }
+        }
+
+        /// <summary>Deletes the composite's vertex buffer. Its rect is given up through <see cref="MorphCompositeAtlas.Release"/>.</summary>
+        public void Delete()
+        {
+            GL.DeleteVertexArray(vao);
+            GL.DeleteBuffer(bufferHandle);
+        }
+
+        // Adds a quad per rect of every morph, and says whether any rect carries a normal/wrinkle bundle
+        private bool FillVertices(Morph morph, IReadOnlyList<KVObject> morphDatas, List<MorphRectVertex> vertices)
+        {
             var bundleTypes = morph.GetBundleTypes();
 
             // Older morph sets do not name their bundles, and put the position/speed one first like the named ones do
             var positionSpeedBundle = bundleTypes.Length > 0 ? Array.IndexOf(bundleTypes, MorphBundleType.PositionSpeed) : 0;
             var normalWrinkleBundle = Array.IndexOf(bundleTypes, MorphBundleType.NormalWrinkle);
 
-            var bundleCount = morphDatas.Sum(morphData => GetMorphDataBundleCount(morphData));
+            var hasNormalWrinkle = false;
 
-            allVertices = new MorphRectVertex[bundleCount * 4];
-            usedVertices = new MorphRectVertex[allVertices.Length];
-            morphRects = new List<int>[morph.GetMorphCount()];
-
-            var rectCount = 0;
             for (var morphId = 0; morphId < morphDatas.Count; morphId++)
             {
-                var morphDataChild = morphDatas[morphId];
-                morphRects[morphId] = new List<int>(10);
+                var morphData = morphDatas[morphId];
 
-                if (morphDataChild.ValueType != KVValueType.Collection)
+                if (morphData.ValueType != KVValueType.Collection)
                 {
                     continue;
                 }
 
-                var morphRectDatas = morphDataChild.GetArray("m_morphRectDatas") ?? [];
+                var rectDatas = morphData.GetArray("m_morphRectDatas");
+                morphRects[morphId] = (vertices.Count / 4, rectDatas.Count);
 
-                foreach (var rectPair in morphRectDatas)
+                foreach (var rectData in rectDatas)
                 {
-                    morphRects[morphId].Add(rectCount);
+                    var bundleDatas = rectData.GetArray("m_bundleDatas");
 
-                    var bundleDatas = rectPair.GetArray("m_bundleDatas") ?? [];
+                    // The destination rect is shared, each bundle only brings its own source rect and encoding
+                    var positionSpeed = positionSpeedBundle >= 0 && positionSpeedBundle < bundleDatas.Count ? bundleDatas[positionSpeedBundle] : null;
+                    var normalWrinkle = normalWrinkleBundle >= 0 && normalWrinkleBundle < bundleDatas.Count ? bundleDatas[normalWrinkleBundle] : null;
 
-                    var vertexData = new MorphCompositeRectData
-                    {
-                        LeftX = rectPair.GetInt32Property("m_nXLeftDst"),
-                        TopY = rectPair.GetInt32Property("m_nYTopDst"),
-                        WidthU = rectPair.GetFloatProperty("m_flUWidthSrc"),
-                        HeightV = rectPair.GetFloatProperty("m_flVHeightSrc"),
-                    };
+                    hasNormalWrinkle |= normalWrinkle != null;
 
-                    // The destination rect is shared, each bundle only brings its own source rect and encoding.
-                    if (positionSpeedBundle >= 0 && positionSpeedBundle < bundleDatas.Count)
-                    {
-                        var bundleData = bundleDatas[positionSpeedBundle];
-
-                        vertexData.LeftU = bundleData.GetFloatProperty("m_flULeftSrc");
-                        vertexData.TopV = bundleData.GetFloatProperty("m_flVTopSrc");
-                        vertexData.Offsets = new Vector4(bundleData.GetFloatArray("m_offsets"));
-                        vertexData.Ranges = new Vector4(bundleData.GetFloatArray("m_ranges"));
-                    }
-
-                    if (normalWrinkleBundle >= 0 && normalWrinkleBundle < bundleDatas.Count)
-                    {
-                        var bundleData = bundleDatas[normalWrinkleBundle];
-
-                        vertexData.LeftUNormalWrinkle = bundleData.GetFloatProperty("m_flULeftSrc");
-                        vertexData.TopVNormalWrinkle = bundleData.GetFloatProperty("m_flVTopSrc");
-                        vertexData.OffsetsNormalWrinkle = new Vector4(bundleData.GetFloatArray("m_offsets"));
-                        vertexData.RangesNormalWrinkle = new Vector4(bundleData.GetFloatArray("m_ranges"));
-
-                        hasNormalWrinkleBundle = true;
-                    }
-
-                    SetRectData(rectCount, vertexData);
-                    rectCount++;
+                    AddRectVertices(vertices, rectData, positionSpeed, normalWrinkle);
                 }
             }
+
+            return hasNormalWrinkle;
         }
 
-        private void BuildVertexBuffer()
+        private void AddRectVertices(List<MorphRectVertex> vertices, KVObject rectData, KVObject? positionSpeed, KVObject? normalWrinkle)
         {
-            var addedRects = 0;
-            foreach (var rect in usedRects)
-            {
-                Array.Copy(allVertices, rect * 4, usedVertices, addedRects * 4, 4);
-                addedRects++;
-            }
-        }
-
-        private void SetRectData(int rectI, MorphCompositeRectData data)
-        {
-            var stride = rectI * 4;
+            var widthU = rectData.GetFloatProperty("m_flUWidthSrc");
+            var heightV = rectData.GetFloatProperty("m_flVHeightSrc");
 
             // Placed in texels of the morph set, whose rows are texel rows of the atlas rect; the vertex shader adds
             // the rect's origin
-            var topLeftX = data.LeftX;
-            var topLeftY = data.TopY;
-            var bottomRightX = topLeftX + (morphAtlas.Width * data.WidthU);
-            var bottomRightY = topLeftY + (morphAtlas.Height * data.HeightV);
+            float left = rectData.GetInt32Property("m_nXLeftDst");
+            float top = rectData.GetInt32Property("m_nYTopDst");
+            var right = left + (sourceAtlas.Width * widthU);
+            var bottom = top + (sourceAtlas.Height * heightV);
 
-            // Both bundles read the same sized rect out of the atlas, only their origin differs
-            var leftU = data.LeftU;
-            var topV = data.TopV;
-            var rightU = leftU + data.WidthU;
-            var bottomV = topV + data.HeightV;
+            // Both bundles read the same sized rect out of the source atlas, only their origin differs
+            var (leftU, topV) = SourceOrigin(positionSpeed);
+            var (leftUNormal, topVNormal) = SourceOrigin(normalWrinkle);
+            var (rightU, bottomV) = (leftU + widthU, topV + heightV);
+            var (rightUNormal, bottomVNormal) = (leftUNormal + widthU, topVNormal + heightV);
 
-            var leftUNormal = data.LeftUNormalWrinkle;
-            var topVNormal = data.TopVNormalWrinkle;
-            var rightUNormal = leftUNormal + data.WidthU;
-            var bottomVNormal = topVNormal + data.HeightV;
-
-            SetVertex(stride + 0, topLeftX, topLeftY, new Vector4(leftU, topV, leftUNormal, topVNormal), data);
-            SetVertex(stride + 1, bottomRightX, topLeftY, new Vector4(rightU, topV, rightUNormal, topVNormal), data);
-            SetVertex(stride + 2, bottomRightX, bottomRightY, new Vector4(rightU, bottomV, rightUNormal, bottomVNormal), data);
-            SetVertex(stride + 3, topLeftX, bottomRightY, new Vector4(leftU, bottomV, leftUNormal, bottomVNormal), data);
-        }
-
-        private void SetVertex(int vertex, float x, float y, Vector4 texCoords, MorphCompositeRectData data)
-        {
-            allVertices[vertex] = new MorphRectVertex
+            var vertex = new MorphRectVertex
             {
-                PositionWeights = new Vector4(x, y, 0f, 0f),
-                TexCoords = texCoords,
-                OffsetsPositionSpeed = data.Offsets,
-                RangesPositionSpeed = data.Ranges,
-                OffsetsNormalWrinkle = data.OffsetsNormalWrinkle,
-                RangesNormalWrinkle = data.RangesNormalWrinkle,
+                OffsetsPositionSpeed = BundleVector(positionSpeed, "m_offsets"),
+                RangesPositionSpeed = BundleVector(positionSpeed, "m_ranges"),
+                OffsetsNormalWrinkle = BundleVector(normalWrinkle, "m_offsets"),
+                RangesNormalWrinkle = BundleVector(normalWrinkle, "m_ranges"),
             };
-        }
 
-        private void SetVertexMorphValue(int vertex, float val)
-        {
-            ref var positionWeights = ref allVertices[vertex].PositionWeights;
+            vertices.Add(vertex with { PositionWeights = new(left, top, 0f, 0f), TexCoords = new(leftU, topV, leftUNormal, topVNormal) });
+            vertices.Add(vertex with { PositionWeights = new(right, top, 0f, 0f), TexCoords = new(rightU, topV, rightUNormal, topVNormal) });
+            vertices.Add(vertex with { PositionWeights = new(right, bottom, 0f, 0f), TexCoords = new(rightU, bottomV, rightUNormal, bottomVNormal) });
+            vertices.Add(vertex with { PositionWeights = new(left, bottom, 0f, 0f), TexCoords = new(leftU, bottomV, leftUNormal, bottomVNormal) });
 
-            positionWeights.Z = val;
-            positionWeights.W = val;
-        }
+            static (float U, float V) SourceOrigin(KVObject? bundle)
+                => bundle == null ? default : (bundle.GetFloatProperty("m_flULeftSrc"), bundle.GetFloatProperty("m_flVTopSrc"));
 
-        /// <summary>Sets the blend weight for the specified morph target and marks its rects as active or inactive.</summary>
-        /// <param name="morphId">Morph target identifier.</param>
-        /// <param name="value">Blend weight to apply.</param>
-        public void SetMorphValue(int morphId, float value)
-        {
-            var isUsed = Math.Abs(value) > 0.001f;
-
-            foreach (var rect in morphRects[morphId])
-            {
-                var stride = rect * 4;
-                SetVertexMorphValue(stride + 0, value);
-                SetVertexMorphValue(stride + 1, value);
-                SetVertexMorphValue(stride + 2, value);
-                SetVertexMorphValue(stride + 3, value);
-
-                if (isUsed)
-                {
-                    usedRects.Add(rect);
-                }
-                else
-                {
-                    usedRects.Remove(rect);
-                }
-            }
+            static Vector4 BundleVector(KVObject? bundle, string name)
+                => bundle == null ? default : new Vector4(bundle.GetFloatArray(name));
         }
     }
 }

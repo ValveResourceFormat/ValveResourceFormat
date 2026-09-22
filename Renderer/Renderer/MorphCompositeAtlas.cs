@@ -77,6 +77,8 @@ namespace ValveResourceFormat.Renderer
                 return;
             }
 
+            using var _ = new GLDebugGroup("Morph Composites");
+
             var needsRepack = false;
 
             foreach (var composite in queued)
