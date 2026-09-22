@@ -730,6 +730,43 @@ partial class ModelExtract
     /// </summary>
     internal static (Dictionary<int, float>? Paint, float AddCurvature) ClothBendStiffnessOverFold(FeModel feModel,
         List<int[]> faces, HashSet<(int, int)> network, float addCurvature, bool keepsCurvature)
+        => ClothCurvatureMeetsItsCappedRods(feModel, faces, network,
+            ClothBendStiffnessRead(feModel, faces, network, addCurvature, keepsCurvature), keepsCurvature);
+
+    /// <summary>
+    /// A bend rod held at its own rest span states a lower bound on the fold at every hinge that generates it, and
+    /// that fold is the model-wide <c>add_curvature</c> plus the hinge's own paint. Where a paint is recovered it
+    /// carries the bound itself, and where a suspender or chain-ring reading pins the model-wide value the sheet
+    /// does not own it - but where every paint solve declines and nothing else states the value, the model-wide
+    /// value is all there is to meet the bound with, and a sheet that states less than its own capped rods allow
+    /// asks the compiler to fold them past their compiled minimum.
+    /// </summary>
+    static (Dictionary<int, float>? Paint, float AddCurvature) ClothCurvatureMeetsItsCappedRods(FeModel feModel,
+        List<int[]> faces, HashSet<(int, int)> network,
+        (Dictionary<int, float>? Paint, float AddCurvature) read, bool keepsCurvature)
+    {
+        if (read.Paint is not null || keepsCurvature || feModel.ChainRingCurvature > 0f)
+        {
+            return read;
+        }
+
+        var (_, capped) = ClothCurvatureReadings(feModel, faces, network);
+        if (capped.Count == 0)
+        {
+            return read;
+        }
+
+        // Both sides in the sin^2(half angle) the minimum length is linear in, which is the unit the readings
+        // are taken in and the only one the agreement is calibrated for.
+        var stated = MathF.Sin(MathF.PI * read.AddCurvature / 2f);
+        var bound = capped.Max();
+        return bound > (stated * stated) + ClothCurvatureAgreement
+            ? (read.Paint, 2f / MathF.PI * MathF.Asin(MathF.Sqrt(bound)))
+            : read;
+    }
+
+    static (Dictionary<int, float>? Paint, float AddCurvature) ClothBendStiffnessRead(FeModel feModel,
+        List<int[]> faces, HashSet<(int, int)> network, float addCurvature, bool keepsCurvature)
     {
         var paint = ClothBendStiffnessFromHinges(feModel, faces, network,
             addCurvature > 0f ? addCurvature : feModel.ChainRingCurvature);

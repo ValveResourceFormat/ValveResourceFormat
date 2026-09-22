@@ -9814,5 +9814,83 @@ namespace Tests
             }
             """);
 
+        /// <summary>
+        /// A sheet whose bend network states no paint at all still has to state a fold its own capped rods allow. This
+        /// grid's lower vertical hinge carries a rod at its rest span, which needs that hinge's two vertices painted to
+        /// 1 each, while its upper vertical hinge reads a fold of zero and pins the vertex the two share to 0 - so no
+        /// paint satisfies both and the model-wide value is the only thing left to meet the bound with. CONTROLS: with
+        /// that rod short of its rest span there is no bound to meet and the sheet keeps its zero; a sheet whose
+        /// suspenders read the model-wide value keeps it whatever its rods say; and a sheet whose paint solve does
+        /// recover something carries the bound in the paint and keeps its zero too.
+        /// </summary>
+        [Test]
+        public async Task ASheetWithNoPaintStatesAFoldItsCappedRodsAllow()
+        {
+            List<int[]> faces = [[0, 1, 5, 4], [1, 2, 6, 5], [2, 3, 7, 6], [4, 5, 9, 8], [5, 6, 10, 9], [6, 7, 11, 10]];
+            HashSet<(int, int)> network = [(0, 2), (1, 3), (4, 6), (5, 7), (8, 10), (9, 11), (0, 8), (1, 9), (2, 10), (3, 11)];
+
+            var (bounded, boundedCurvature) = ModelExtract.ClothBendStiffnessOverFold(
+                CappedAgainstFlatHingeGrid(20f), faces, network, 0f, keepsCurvature: false);
+            var (loose, looseCurvature) = ModelExtract.ClothBendStiffnessOverFold(
+                CappedAgainstFlatHingeGrid(0f), faces, network, 0f, keepsCurvature: false);
+            var (suspended, suspendedCurvature) = ModelExtract.ClothBendStiffnessOverFold(
+                CappedAgainstFlatHingeGrid(20f), faces, network, 0f, keepsCurvature: true);
+            var (painted, paintedCurvature) = ModelExtract.ClothBendStiffnessOverFold(
+                LeastFoldedHingeGrid, faces, network, 0.375f, keepsCurvature: false);
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(bounded).IsNull();
+                await Assert.That(boundedCurvature).IsEqualTo(1f).Within(0.01f);
+                await Assert.That(loose).IsNull();
+                await Assert.That(looseCurvature).IsEqualTo(0f);
+                await Assert.That(suspended).IsNull();
+                await Assert.That(suspendedCurvature).IsEqualTo(0f);
+                await Assert.That(painted).IsNotNull();
+                await Assert.That(paintedCurvature).IsEqualTo(0f);
+            }
+        }
+
+        /// <summary>
+        /// The 4x3 grid of <see cref="LeastFoldedHingeGrid"/> with every hinge read flat except the lower vertical one,
+        /// whose rod (8, 10) sits at <paramref name="lowerHingeMinDist"/>. At its rest span of 20 that rod is capped and
+        /// bounds its hinge from below; short of it the hinge states a fold of its own instead.
+        /// </summary>
+        private static FeModel CappedAgainstFlatHingeGrid(float lowerHingeMinDist) => SyntheticCloth.Parse($$"""
+            {
+                m_CtrlName = [ "$cloth_m0p0", "$cloth_m0p1", "$cloth_m0p2", "$cloth_m0p3", "$cloth_m0p4", "$cloth_m0p5", "$cloth_m0p6", "$cloth_m0p7", "$cloth_m0p8", "$cloth_m0p9", "$cloth_m0p10", "$cloth_m0p11" ]
+                m_nNodeCount = 12
+                m_nStaticNodes = 0
+                m_NodeInvMasses = [ 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0 ]
+                m_InitPose =
+                [
+                    {{SyntheticCloth.Pose(0f, 0f, 0f)}}
+                    {{SyntheticCloth.Pose(10f, 0f, 0f)}}
+                    {{SyntheticCloth.Pose(20f, 0f, 0f)}}
+                    {{SyntheticCloth.Pose(30f, 0f, 0f)}}
+                    {{SyntheticCloth.Pose(0f, 0f, -10f)}}
+                    {{SyntheticCloth.Pose(10f, 0f, -10f)}}
+                    {{SyntheticCloth.Pose(20f, 0f, -10f)}}
+                    {{SyntheticCloth.Pose(30f, 0f, -10f)}}
+                    {{SyntheticCloth.Pose(0f, 0f, -20f)}}
+                    {{SyntheticCloth.Pose(10f, 0f, -20f)}}
+                    {{SyntheticCloth.Pose(20f, 0f, -20f)}}
+                    {{SyntheticCloth.Pose(30f, 0f, -20f)}}
+                ]
+                m_Rods =
+                [
+                    { nNode = [ 0, 2 ] flMaxDist = 20.0 flMinDist = 0.0 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
+                    { nNode = [ 1, 3 ] flMaxDist = 20.0 flMinDist = 0.0 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
+                    { nNode = [ 4, 6 ] flMaxDist = 20.0 flMinDist = 0.0 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
+                    { nNode = [ 5, 7 ] flMaxDist = 20.0 flMinDist = 0.0 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
+                    { nNode = [ 8, 10 ] flMaxDist = 20.0 flMinDist = {{SyntheticCloth.Num(lowerHingeMinDist)}} flWeight0 = 0.5 flRelaxationFactor = 1.0 },
+                    { nNode = [ 9, 11 ] flMaxDist = 20.0 flMinDist = 0.0 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
+                    { nNode = [ 0, 8 ] flMaxDist = 20.0 flMinDist = 0.0 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
+                    { nNode = [ 1, 9 ] flMaxDist = 20.0 flMinDist = 0.0 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
+                    { nNode = [ 2, 10 ] flMaxDist = 20.0 flMinDist = 0.0 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
+                    { nNode = [ 3, 11 ] flMaxDist = 20.0 flMinDist = 0.0 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
+                ]
+            }
+            """);
     }
 }
