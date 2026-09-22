@@ -9243,6 +9243,104 @@ namespace Tests
         private static readonly string[] SecondDeclarationRunMembers =
             ["coattail_1_L", "coattail_2_L", "coattail_end_L"];
         private static readonly string[] SecondDeclarationRunSimulating = ["true", "true", "true"];
+        private static readonly string[] VoicedRunMembers = ["root", "a", "b", "c", "d"];
+
+        /// <summary>
+        /// A run whose second declaration VOICED a <c>twist_relax</c> of its own is re-declared whole:
+        /// its members are the bones a DOUBLED twist pair names, its root is the member no other member
+        /// parents, and a STATIC INTERMEDIATE inside it does not split it into two declarations.
+        /// Each declaration then states the twist of its OWN rank.
+        /// CONTROLS: a run BOTH declarations simulated is left alone, and an undoubled run keeps the
+        /// landed silent reading.
+        /// </summary>
+        /// <remarks>
+        /// The compiler appends one twist entry per declaration with no duplicate check, so rank 0 is
+        /// the first declaration's value and rank 1 the second's (02_IMPORT W41AT-1).
+        /// The static intermediate is what `1543967dc` got wrong: rooting at the nearest STATIC
+        /// ANCESTOR fragmented dl `unicorn_celeste`'s two authored chains into six, and each fragment's
+        /// first member lost the bend rod it states toward a grandparent outside its own chain
+        /// (`sub_1818DCC40`'s ancestor walk is confined to the declaring chain, guarded by `v115 > 2`).
+        /// MEASURED: 25 joints per declaration against the authored PonyR / PonyL, and 6 against
+        /// bookworm's TwinTailR / TwinTailL.
+        /// </remarks>
+        [Test]
+        public async Task AVoicedRunIsReDeclaredWholeAndEachDeclarationStatesItsOwnRank()
+        {
+            // root and `b` are static, so `b` is an intermediate INSIDE the run - the shape that
+            // fragmented unicorn. The static nodes lead, as a compiled file orders them.
+            static FeModel Run(float firstChildWard) => SyntheticCloth.Parse($$"""
+                {
+                    m_CtrlName = [ "root", "b", "a", "c", "d" ]
+                    m_SkelParents = [ -1, 2, 0, 1, 3 ]
+                    m_nNodeCount = 5
+                    m_nStaticNodes = 2
+                    m_NodeInvMasses = [ 0.0, 0.0, 1.0, 1.0, 1.0 ]
+                    m_InitPose =
+                    [
+                        {{SyntheticCloth.Pose(0f, 0f, 0f)}}
+                        {{SyntheticCloth.Pose(0f, 0f, -20f)}}
+                        {{SyntheticCloth.Pose(0f, 0f, -10f)}}
+                        {{SyntheticCloth.Pose(0f, 0f, -30f)}}
+                        {{SyntheticCloth.Pose(0f, 0f, -40f)}}
+                    ]
+                    m_Rods =
+                    [
+                        {{SyntheticCloth.RigidRod(0, 2, 10f, 1f)}}
+                        {{SyntheticCloth.RigidRod(2, 1, 10f, 1f)}}
+                        {{SyntheticCloth.RigidRod(1, 3, 10f, 1f)}}
+                        {{SyntheticCloth.RigidRod(3, 4, 10f, 1f)}}
+                    ]
+                    m_Twists =
+                    [
+                        { nNodeOrient = 2 nNodeEnd = 0 flTwistRelax = 0.4944 flSwingRelax = 0.0 },
+                        { nNodeOrient = 2 nNodeEnd = 1 flTwistRelax = {{SyntheticCloth.Num(firstChildWard)}} flSwingRelax = 0.5 },
+                        { nNodeOrient = 3 nNodeEnd = 1 flTwistRelax = 0.4944 flSwingRelax = 0.0 },
+                        { nNodeOrient = 3 nNodeEnd = 4 flTwistRelax = {{SyntheticCloth.Num(firstChildWard)}} flSwingRelax = 0.5 },
+                        { nNodeOrient = 2 nNodeEnd = 0 flTwistRelax = 0.2163 flSwingRelax = 0.0 },
+                        { nNodeOrient = 2 nNodeEnd = 1 flTwistRelax = 0.1337 flSwingRelax = 0.25 },
+                        { nNodeOrient = 3 nNodeEnd = 1 flTwistRelax = 0.2163 flSwingRelax = 0.0 },
+                        { nNodeOrient = 3 nNodeEnd = 4 flTwistRelax = 0.1337 flSwingRelax = 0.25 },
+                    ]
+                }
+                """);
+
+            static IEnumerable<string> Roots(FeModel feModel)
+                => feModel.BuildBoneChains()[0].Joints.Select(static joint =>
+                    joint.SecondDeclarationRoot ?? "<unmarked>");
+
+            static float Declared(FeModel feModel, string bone, bool second)
+            {
+                var chain = feModel.BuildBoneChains()[0];
+                return ModelExtract.MakeClothJoint(feModel,
+                    chain.Joints.Find(joint => joint.Name == bone)!,
+                    chain: chain, secondDeclaration: second).GetFloatProperty("twist_relax");
+            }
+
+            // The first declaration did not simulate the run, so its own child-ward copy is 0.
+            var voiced = Run(0f);
+            // CONTROL: both declarations simulated, so the first's child-ward copy carries its value.
+            var bothSimulating = Run(0.3056f);
+
+            using (Assert.Multiple())
+            {
+                // THE LAW, membership: every member carries the SAME root, the topmost one - the static
+                // intermediate `b` does not start a declaration of its own.
+                await Assert.That(Roots(voiced)).IsEquivalentTo(
+                    ["root", "root", "root", "root", "root"], CollectionOrdering.Matching);
+                await Assert.That(voiced.BuildBoneChains()[0].Joints.Select(static joint => joint.Name))
+                    .IsEquivalentTo(VoicedRunMembers, CollectionOrdering.Any);
+
+                // THE LAW, ranks: the first declaration states rank 0 and the second states rank 1.
+                await Assert.That(Declared(voiced, "a", second: false)).IsEqualTo(0.8f).Within(1e-3f);
+                await Assert.That(Declared(voiced, "a", second: true)).IsEqualTo(0.35f).Within(1e-3f);
+
+                // CONTROL: a run both declarations simulated is NOT re-declared - re-declaring it under
+                // `firstOfTwo` would halve the rods the two passes build.
+                await Assert.That(Roots(bothSimulating)).IsEquivalentTo(
+                    ["<unmarked>", "<unmarked>", "<unmarked>", "<unmarked>", "<unmarked>"],
+                    CollectionOrdering.Matching);
+            }
+        }
 
         /// <summary>
         /// A run declared twice is re-declared on the PROXY SHEET route as well as on the chain route.

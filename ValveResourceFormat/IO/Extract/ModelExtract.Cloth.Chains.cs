@@ -495,11 +495,13 @@ partial class ModelExtract
             && !string.Equals(joint.Name, secondRoot, StringComparison.OrdinalIgnoreCase);
         kv.Add("simulate", !firstOfTwo && (joint.Simulated || pinnedSimulatedRoot));
 
-        // The run's second declaration wrote no twist entry of its own, which is the whole evidence that
-        // it exists: its own pass would otherwise have left a second copy on the same pairs.
-        if (secondDeclaration)
+        // Each declaration of a doubled run states the twist of its OWN rank: rank 0 is the first
+        // declaration's and rank 1 the second's. Where the pair carries a single copy the second
+        // declaration wrote none and states 0, which is the silent case.
+        if (secondRoot is not null)
         {
-            twistRelax = 0f;
+            twistRelax = feModel.TwistRelaxDeclaredAt(joint.Node, joint.ParentNode,
+                secondDeclaration ? 1 : 0) ?? 0f;
         }
 
         // A STATIC joint's own entries carry no relaxation at all, so its authored twist_relax survives

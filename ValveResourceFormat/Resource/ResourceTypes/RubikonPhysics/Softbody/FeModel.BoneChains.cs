@@ -3240,7 +3240,109 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                         }
                     }
                 }
+
+                MarkVoicedSecondDeclarations(chain, byNode);
             }
+        }
+
+        /// <summary>
+        /// Marks the runs whose second declaration stated a <c>twist_relax</c> of its own, which the
+        /// silent predicate above cannot see: its pairs carry TWO copies rather than one.
+        /// </summary>
+        /// <remarks>
+        /// The compiler appends one twist entry per chain declaration with no duplicate check, so the
+        /// bones a DOUBLED pair names at either end are exactly the re-declared run, and the member no
+        /// other member parents is the bone the second declaration is rooted at. Reading membership from
+        /// the doubled pairs rather than from the nearest static ancestor is what keeps a run carrying
+        /// STATIC INTERMEDIATES in one declaration: rooting each of those separately drops the bend rod
+        /// every fragment's first member states toward a grandparent outside it.
+        /// The first declaration is recognised by its own child-ward copy being 0, which says it did not
+        /// simulate the joint; a run BOTH declarations simulate is a different construct and is left
+        /// alone, because re-declaring it under <c>firstOfTwo</c> would halve the rods it builds.
+        /// </remarks>
+        void MarkVoicedSecondDeclarations(BoneChain chain, Dictionary<int, BoneChainJoint> byNode)
+        {
+            var doubled = new HashSet<int>();
+            foreach (var (link, copies) in TwistRelaxCopies)
+            {
+                if (copies.Count == 2)
+                {
+                    doubled.Add(link.Orient);
+                    doubled.Add(link.End);
+                }
+            }
+
+            if (doubled.Count == 0)
+            {
+                return;
+            }
+
+            var members = chain.Joints.FindAll(joint => joint.SecondDeclarationRoot is null
+                && doubled.Contains(joint.Node));
+            var memberNodes = members.Select(static joint => joint.Node).ToHashSet();
+
+            foreach (var root in members)
+            {
+                // The run's own root: no other member parents it, it is static so it carries the run's
+                // parent rod, and at least one member below it simulates or there is nothing to restate.
+                if (memberNodes.Contains(root.ParentNode) || root.Simulated)
+                {
+                    continue;
+                }
+
+                var run = new List<BoneChainJoint>();
+                var pending = new Queue<BoneChainJoint>();
+                pending.Enqueue(root);
+                while (pending.Count > 0)
+                {
+                    var joint = pending.Dequeue();
+                    run.Add(joint);
+                    foreach (var kid in members)
+                    {
+                        if (kid.ParentNode == joint.Node)
+                        {
+                            pending.Enqueue(kid);
+                        }
+                    }
+                }
+
+                if (!run.Exists(static joint => joint.Simulated) || !FirstDeclarationIsStatic(run, byNode))
+                {
+                    continue;
+                }
+
+                foreach (var joint in run)
+                {
+                    joint.SecondDeclarationRoot = root.Name;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Whether the FIRST of a doubled run's two declarations left its members unsimulated, which is
+        /// what a child-ward copy of 0 at rank 0 records.
+        /// </summary>
+        bool FirstDeclarationIsStatic(List<BoneChainJoint> run, Dictionary<int, BoneChainJoint> byNode)
+        {
+            foreach (var joint in run)
+            {
+                if (!joint.Simulated || !byNode.ContainsKey(joint.ParentNode))
+                {
+                    continue;
+                }
+
+                foreach (var kid in run)
+                {
+                    if (kid.ParentNode == joint.Node
+                        && TwistRelaxCopies.TryGetValue((joint.Node, kid.Node), out var toChild)
+                        && toChild.Count == 2)
+                    {
+                        return toChild[0] == 0f;
+                    }
+                }
+            }
+
+            return false;
         }
 
         readonly HashSet<string> siblingSpringHubs = new(StringComparer.OrdinalIgnoreCase);

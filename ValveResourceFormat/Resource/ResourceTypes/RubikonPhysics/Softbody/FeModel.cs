@@ -490,6 +490,23 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                 : 0f;
         }
 
+        /// <summary>
+        /// The <c>twist_relax</c> the declaration at <paramref name="rank"/> stated toward the joint's
+        /// own parent, or null where the pair carries no entry at that rank.
+        /// </summary>
+        /// <remarks>
+        /// The compiler appends one entry per chain declaration in declaration order and never
+        /// de-duplicates, so rank 0 is the first declaration's value and rank 1 the second's.
+        /// <see cref="TwistRelaxByLink"/> keeps only the LAST entry of a directed pair, so reading a
+        /// doubly declared run through <see cref="GetAuthoredTwistRelax"/> gives the FIRST declaration
+        /// the SECOND's value.
+        /// </remarks>
+        public float? TwistRelaxDeclaredAt(int node, int parent, int rank)
+            => parent >= 0 && TwistRelaxCopies.TryGetValue((node, parent), out var copies)
+                && rank >= 0 && rank < copies.Count
+                ? copies[rank] / TwistRelaxToParentFactor
+                : null;
+
         private readonly Dictionary<int, float> twistOrientFallback = [];
 
         // The cloth_drag paint compiles to flPointDamping = paint * 30.
