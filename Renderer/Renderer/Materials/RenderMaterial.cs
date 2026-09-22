@@ -76,8 +76,8 @@ namespace ValveResourceFormat.Renderer.Materials
         /// <summary>Screen space water effects map written by the water effects layer.</summary>
         [SamplerName("g_tWaterEffectsMap")]
         WaterEffectsMap,
-        /// <summary>Morph composite texture for vertex animation.</summary>
-        [SamplerName("morphCompositeTexture")]
+        /// <summary>The scene's morph composite atlas, see <see cref="MorphCompositeAtlas"/>.</summary>
+        [SamplerName("g_tCompositeMorphTextureAtlas")]
         MorphCompositeTexture,
         /// <summary>Last reserved slot; equal to <see cref="MorphCompositeTexture"/>.</summary>
         Last = MorphCompositeTexture,

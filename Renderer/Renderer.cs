@@ -463,6 +463,7 @@ public class Renderer
 
     /// <summary>Slots out of <see cref="MaterialLoader.ShaderTextures"/> that have been resolved.</summary>
     private readonly HashSet<ReservedTextureSlots> loadedShaderTextures = [];
+    private RenderTexture? morphAtlasTexture;
 
     /// <summary>
     /// Loads any used texture from the <see cref="MaterialLoader.ShaderTextures"/> list.
@@ -1186,6 +1187,26 @@ public class Renderer
         return OutlineMaskBuffer;
     }
 
+    // Run after every scene update
+    private void UpdateMorphAtlas(ReadOnlySpan<SceneView> views)
+    {
+        var atlas = RendererContext.MorphAtlas;
+        atlas.Render();
+
+        foreach (var view in views)
+        {
+            view.Scene.UpdateMorphAtlasRects();
+        }
+
+        // Growing the atlas replaces its texture
+        if (atlas.Texture is { } texture && texture != morphAtlasTexture)
+        {
+            morphAtlasTexture = texture;
+            Textures.RemoveAll(static t => t.Slot == ReservedTextureSlots.MorphCompositeTexture);
+            Textures.Add(new(ReservedTextureSlots.MorphCompositeTexture, "g_tCompositeMorphTextureAtlas", texture));
+        }
+    }
+
     /// <summary>Points the reserved <c>g_tWaterEffectsMap</c> slot at the current color attachment.</summary>
     private void SetupWaterEffectsTexture()
     {
@@ -1393,6 +1414,8 @@ public class Renderer
         {
             view.Scene.Update(updateContext with { Camera = view.Camera });
         }
+
+        UpdateMorphAtlas(views);
 
         Scene.PostProcessInfo.UpdatePostProcessing(updateContext.Camera, updateContext.Timestep);
 

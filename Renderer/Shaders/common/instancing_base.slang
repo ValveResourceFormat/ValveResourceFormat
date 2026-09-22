@@ -9,6 +9,10 @@ struct InstanceDataStandard
     uint TransformIndex;
     uint Identification; // the scene node, which also indexes g_objectBuffer[]
     uint MeshBoneData; // skinned flag in bit 31, bone count in bits 16-30, the mesh's first bone in 0-15
+    int MorphVertexIdOffset; 
+    uint MorphAtlasOrigin;
+    uint MorphAtlasStride;
+    uint Padding0;
 };
 
 struct ObjectDataStandard

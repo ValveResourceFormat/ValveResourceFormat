@@ -130,7 +130,6 @@ namespace ValveResourceFormat.Renderer
             public int MeshId = -1;
             public int ShaderId = -1;
             public int ShaderProgramId = -1;
-            public int MorphVertexIdOffset = -1;
 
             public Uniforms() { }
         }
@@ -154,13 +153,13 @@ namespace ValveResourceFormat.Renderer
         {
             if (context.ReplacementShader is { } replacement)
             {
-                return replacement.WithSkinning(mesh.ActiveSkinning).WithAlphaTest(material.IsAlphaTest);
+                return replacement.WithSkinning(mesh.ActiveSkinning).WithAlphaTest(material.IsAlphaTest).WithMorph(material.Shader);
             }
 
             if (context.DepthOnlyShader is { } depthOnly)
             {
                 return material.Shader.DepthMode
-                    ?? depthOnly.WithSkinning(mesh.ActiveSkinning).WithAlphaTest(material.IsAlphaTest);
+                    ?? depthOnly.WithSkinning(mesh.ActiveSkinning).WithAlphaTest(material.IsAlphaTest).WithMorph(material.Shader);
             }
 
             if (context.OverdrawShader is { } overdraw)
@@ -240,11 +239,6 @@ namespace ValveResourceFormat.Renderer
                         if (shader.Parameters.ContainsKey("S_SCENE_CUBEMAP_TYPE"))
                         {
                             uniforms.EnvmapTexture = shader.GetUniformLocation("g_tEnvironmentMap");
-                        }
-
-                        if (shader.Parameters.ContainsKey("F_MORPH_SUPPORTED"))
-                        {
-                            uniforms.MorphVertexIdOffset = shader.GetUniformLocation("morphVertexIdOffset");
                         }
 
                         if (shader.Parameters.ContainsKey("D_BAKED_LIGHTING_FROM_PROBE"))
@@ -335,16 +329,6 @@ namespace ValveResourceFormat.Renderer
                 && request.Node.LightProbeBinding is { } lightProbe)
             {
                 request.Node.Scene.LightingInfo.BindInstanceLightProbeTextures(lightProbe);
-            }
-
-            if (uniforms.MorphVertexIdOffset != -1)
-            {
-                var morphComposite = request.Mesh.FlexStateManager?.MorphComposite;
-
-                BindInstanceTexture(ReservedTextureSlots.MorphCompositeTexture,
-                    morphComposite?.CompositeTexture ?? request.Node.Scene.RendererContext.MaterialLoader.GetDefaultColor());
-
-                GL.ProgramUniform1(shader.Program, uniforms.MorphVertexIdOffset, morphComposite != null ? request.Call.VertexIdOffset : -1);
             }
 
             var instanceCount = 1;

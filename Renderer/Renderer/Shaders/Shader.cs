@@ -129,6 +129,10 @@ namespace ValveResourceFormat.Renderer.Shaders
         public Shader WithAlphaTest(bool alphaTest)
             => alphaTest && DeclaresCombo(AlphaTestCombo) ? WithCombo(AlphaTestCombo, 1) : this;
 
+        /// <summary>Gets this shader's morphing variant when it has one and the material's shader morphs, and this shader otherwise.</summary>
+        public Shader WithMorph(Shader materialShader)
+            => materialShader.Parameters.GetValueOrDefault(MorphCombo) == 1 && DeclaresCombo(MorphCombo) ? WithCombo(MorphCombo, 1) : this;
+
         /// <summary>Gets this shader's quad overdraw counting mode, or <see langword="null"/> when it has none.</summary>
         public Shader? OverdrawMode => DeclaresCombo(OverdrawModeCombo) ? WithCombo(OverdrawModeCombo, 1) : null;
 
@@ -140,6 +144,9 @@ namespace ValveResourceFormat.Renderer.Shaders
 
         /// <summary>The static combo that turns on alpha testing.</summary>
         public const string AlphaTestCombo = "F_ALPHA_TEST";
+
+        /// <summary>The static combo that reads the morph composite atlas.</summary>
+        public const string MorphCombo = "F_MORPH_SUPPORTED";
 
         private readonly ShaderLoader shaderLoader;
         private Dictionary<(string Combo, byte Value), Shader>? variants;

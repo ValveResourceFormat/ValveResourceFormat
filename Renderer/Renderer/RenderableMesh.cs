@@ -123,7 +123,18 @@ namespace ValveResourceFormat.Renderer
         {
             IsSkinningActive = active;
 
-            FlexStateManager?.ResetControllers();
+            if (FlexStateManager is { } flexStateManager)
+            {
+                flexStateManager.ResetControllers();
+
+                var composite = flexStateManager.MorphComposite;
+
+                if (composite.IsPlaced)
+                {
+                    composite.Clear();
+                    renderContext.MorphAtlas.Queue(composite);
+                }
+            }
         }
 
         /// <summary>Recompiles all draw call materials with a modified shader static combo value.</summary>

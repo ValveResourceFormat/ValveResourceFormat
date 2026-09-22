@@ -9,20 +9,32 @@ using ValveResourceFormat.Serialization.KeyValues;
 namespace ValveResourceFormat.Renderer
 {
     /// <summary>
-    /// Combines morph target deformations into GPU texture for facial animation rendering.
+    /// Combines morph target deformations for one mesh into its rect of the <see cref="RendererContext.MorphAtlas"/>.
     /// </summary>
     /// <remarks>
-    /// The composite is twice as wide as the morph set: the position/speed field is accumulated into
-    /// the left half and the normal/wrinkle field into the right half, matching Valve's compositor.
+    /// The rect is the size of the morph set, laid out row by row at its width. Both of the atlas' fields hold it:
+    /// position/speed is accumulated into the left one and normal/wrinkle into the right, matching Valve's compositor.
     /// Both fields are accumulated additively over every active morph rect.
     /// </remarks>
     public class MorphComposite
     {
-        /// <summary>Gets the GPU texture containing the composited morph target offsets.</summary>
-        public RenderTexture CompositeTexture { get; }
+        /// <summary>Width of the morph set in texels, which is also the row stride vertices are laid out at.</summary>
+        public int Width { get; }
 
-        private readonly int frameBuffer;
-        private readonly Shader shader;
+        /// <summary>Height of the morph set in texels.</summary>
+        public int Height { get; }
+
+        /// <summary>Left edge of the rect within an atlas field, valid when <see cref="IsPlaced"/>.</summary>
+        public int AtlasX { get; internal set; }
+
+        /// <summary>Bottom edge of the rect within an atlas field, valid when <see cref="IsPlaced"/>.</summary>
+        public int AtlasY { get; internal set; }
+
+        /// <summary>Whether the composite has a rect in the atlas, which it gets the first time it renders.</summary>
+        public bool IsPlaced { get; internal set; }
+
+        internal bool IsQueued { get; set; }
+
         private int vao;
         private int bufferHandle;
         private MorphRectVertex[] allVertices;
@@ -31,7 +43,6 @@ namespace ValveResourceFormat.Renderer
         private List<int>[] morphRects;
         private readonly HashSet<int> usedRects = [];
         private bool hasNormalWrinkleBundle;
-        private bool renderTargetInitialized;
 
         struct MorphCompositeRectData
         {
@@ -52,7 +63,7 @@ namespace ValveResourceFormat.Renderer
         }
 
         /// <summary>Initializes the morph composite for the given morph data, uploading the atlas and building the vertex buffer.</summary>
-        /// <param name="renderContext">Renderer context for loading shaders and textures.</param>
+        /// <param name="renderContext">Renderer context for loading textures.</param>
         /// <param name="morph">Morph data describing the morph targets and atlas layout.</param>
         public MorphComposite(RendererContext renderContext, Morph morph)
         {
@@ -62,15 +73,9 @@ namespace ValveResourceFormat.Renderer
             // The atlas is addressed texel by texel, so the filtering the vtex flags asked for must not apply.
             morphAtlas.SetFiltering(TextureMinFilter.Nearest, TextureMagFilter.Nearest);
 
-            shader = renderContext.ShaderLoader.LoadShader("morph_composite");
-
-            var width = morph.Data.GetInt32Property("m_nWidth");
-            var height = morph.Data.GetInt32Property("m_nHeight");
+            Width = morph.Data.GetInt32Property("m_nWidth");
+            Height = morph.Data.GetInt32Property("m_nHeight");
             var label = $"{nameof(MorphComposite)}: {System.IO.Path.GetFileName(morph.TextureResource.FileName)}";
-
-            CompositeTexture = new(TextureTarget.Texture2D, width * 2, height, 1, 1, label);
-
-            frameBuffer = GraphicsDevice.CreateFramebuffer(label);
 
             InitVertexBuffer(renderContext, label);
 
@@ -85,41 +90,21 @@ namespace ValveResourceFormat.Renderer
             return rectDatas.Count;
         }
 
-        private void InitRenderTarget()
+        /// <summary>Draws the active morph rects into this composite's rect of the atlas, whose framebuffer is bound.</summary>
+        internal void Draw(Shader shader)
         {
-            CompositeTexture.SetFiltering(TextureMinFilter.Nearest, TextureMagFilter.Nearest);
-            CompositeTexture.SetWrapMode(RsTextureAddressMode.Clamp);
+            var usedVertexCount = usedRects.Count * 4;
 
-            GL.TextureStorage2D(CompositeTexture.Handle, 1, SizedInternalFormat.Rgba16f, CompositeTexture.Width, CompositeTexture.Height);
-            GL.NamedFramebufferTexture(frameBuffer, FramebufferAttachment.ColorAttachment0, CompositeTexture.Handle, 0);
-        }
-
-        /// <summary>Composites all active morph targets into <see cref="CompositeTexture"/>.</summary>
-        public void Render()
-        {
-            if (!renderTargetInitialized)
+            if (usedVertexCount == 0)
             {
-                InitRenderTarget();
-                renderTargetInitialized = true;
+                return;
             }
 
-            var usedVertexCount = usedRects.Count * 4;
             BuildVertexBuffer();
 
             GL.NamedBufferSubData(bufferHandle, IntPtr.Zero, usedVertexCount * MorphRectVertex.InputLayout.Stride, usedVertices);
 
-            // Every rect adds its weighted deltas on top of the ones already accumulated, alpha included.
-            using var _ = GraphicsContext.RenderState.Scope(cullMode: RsCullMode.None, multisampleEnable: false,
-                depthTest: false, depthWrite: false,
-                blend: true, srcBlend: RsBlendMode.One, dstBlend: RsBlendMode.One);
-
-            GL.BindFramebuffer(FramebufferTarget.Framebuffer, frameBuffer);
-            GL.Viewport(0, 0, CompositeTexture.Width, CompositeTexture.Height);
-
-            GL.ClearColor(0, 0, 0, 0);
-            GL.Clear(ClearBufferMask.ColorBufferBit);
-
-            shader.Use();
+            shader.SetUniform2("vAtlasOrigin", new Vector2(AtlasX, AtlasY));
             shader.SetTexture(0, "morphAtlas", morphAtlas);
 
             VertexArray.Bind(vao, shader);
@@ -134,6 +119,16 @@ namespace ValveResourceFormat.Renderer
                 shader.SetUniform1("bCompositeNormals", 1);
                 GL.DrawElements(PrimitiveType.Triangles, indexCount, DrawElementsType.UnsignedShort, 0);
             }
+        }
+
+        /// <summary>Deactivates every morph, so the next draw leaves the rect empty and the mesh in its bind pose.</summary>
+        public void Clear() => usedRects.Clear();
+
+        /// <summary>Deletes the composite's vertex buffer. Its rect is given up through <see cref="MorphCompositeAtlas.Release"/>.</summary>
+        public void Delete()
+        {
+            GL.DeleteVertexArray(vao);
+            GL.DeleteBuffer(bufferHandle);
         }
 
         // Mutable because SetVertexMorphValue pokes the current weight into PositionWeights in place.
@@ -252,19 +247,12 @@ namespace ValveResourceFormat.Renderer
         {
             var stride = rectI * 4;
 
-            var compositeWidth = (float)CompositeTexture.Width;
-            var compositeHeight = (float)CompositeTexture.Height;
-
-            var rectWidth = morphAtlas.Width * data.WidthU;
-            var rectHeight = morphAtlas.Height * data.HeightV;
-
-            // The whole [-1, 1] range spans both fields, so a rect placed by its pixel coordinates
-            // covers the left half and the second pass shifts it into the right one.
-            // Y grows downwards like the source data, the vertex shader negates it.
-            var topLeftX = (data.LeftX * 2f / compositeWidth) - 1f;
-            var topLeftY = (data.TopY * 2f / compositeHeight) - 1f;
-            var bottomRightX = topLeftX + (rectWidth * 2f / compositeWidth);
-            var bottomRightY = topLeftY + (rectHeight * 2f / compositeHeight);
+            // Placed in texels of the morph set, whose rows are texel rows of the atlas rect; the vertex shader adds
+            // the rect's origin
+            var topLeftX = data.LeftX;
+            var topLeftY = data.TopY;
+            var bottomRightX = topLeftX + (morphAtlas.Width * data.WidthU);
+            var bottomRightY = topLeftY + (morphAtlas.Height * data.HeightV);
 
             // Both bundles read the same sized rect out of the atlas, only their origin differs
             var leftU = data.LeftU;

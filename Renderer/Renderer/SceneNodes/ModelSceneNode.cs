@@ -167,6 +167,21 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         }
 
         /// <inheritdoc/>
+        public override void Delete()
+        {
+            foreach (var mesh in meshRenderers)
+            {
+                if (mesh.FlexStateManager is { } flexStateManager)
+                {
+                    Scene.RendererContext.MorphAtlas.Release(flexStateManager.MorphComposite);
+                    flexStateManager.MorphComposite.Delete();
+                }
+            }
+
+            base.Delete();
+        }
+
+        /// <inheritdoc/>
         public override void Update(Scene.UpdateContext context)
         {
             UpdateAutoLod(context.Camera);
@@ -207,7 +222,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
                 if (renderableMesh.FlexStateManager.SetControllerValues(datas))
                 {
                     renderableMesh.FlexStateManager.UpdateComposite();
-                    renderableMesh.FlexStateManager.MorphComposite.Render();
+                    Scene.RendererContext.MorphAtlas.Queue(renderableMesh.FlexStateManager.MorphComposite);
                 }
             }
         }

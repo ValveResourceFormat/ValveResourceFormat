@@ -8,6 +8,8 @@ in vec4 vTEXCOORD3;
 in vec4 vTEXCOORD4;
 
 uniform int bCompositeNormals;
+uniform vec2 vAtlasOrigin; // the composite's rect within an atlas field, in texels
+uniform vec2 vAtlasFieldSize;
 
 out vec4 offsetsPositionSpeed;
 out vec4 rangesPositionSpeed;
@@ -25,7 +27,8 @@ void main()
     weights = vPOSITION.zw;
     texCoords = vTEXCOORD;
 
-    // A rect is placed within the left half of the composite, which is one unit of the [-1, 1]
-    // range wide, so shifting by one lands the normal/wrinkle field beside the position/speed one.
-    gl_Position = vec4(vPOSITION.x + float(bCompositeNormals), -vPOSITION.y, 1.0, 1.0);
+    // Positions are texels of the morph set, whose rows are the rect's texel rows. Both fields together span
+    // [-1, 1], so the left one is one unit wide and shifting by one lands the normal/wrinkle field beside it.
+    vec2 texel = vPOSITION.xy + vAtlasOrigin;
+    gl_Position = vec4(texel.x / vAtlasFieldSize.x - 1.0 + float(bCompositeNormals), texel.y / vAtlasFieldSize.y * 2.0 - 1.0, 1.0, 1.0);
 }

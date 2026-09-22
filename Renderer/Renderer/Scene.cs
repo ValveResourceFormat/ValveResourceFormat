@@ -267,6 +267,7 @@ namespace ValveResourceFormat.Renderer
         private int objectEntryCount;
         private int dynamicDrawEntryStart;
         private int drawEntryEnd;
+        private int morphAtlasLayoutVersion;
 
         private Dictionary<DepthOnlyBucket, List<MeshBatchRenderer.Request>>? barnShadowDrawCalls;
 
@@ -744,6 +745,7 @@ namespace ValveResourceFormat.Renderer
                     TintAlpha = EntryTint(node),
                     TransformIndex = transformIndex,
                     Identification = node.Id,
+                    MorphVertexIdOffset = -1,
                 };
 
                 objectData[node.Id] = ObjectEntry(node);
@@ -830,20 +832,30 @@ namespace ValveResourceFormat.Renderer
                 var entry = entries[node.Id];
                 entry.MeshBoneData = InstanceDataStandard.PackMeshBoneData(mesh);
 
-                changed |= Write(entries, node.TintAlpha, mesh.DrawCallsOpaque, entry);
-                changed |= Write(entries, node.TintAlpha, mesh.DrawCallsOverlay, entry);
-                changed |= Write(entries, node.TintAlpha, mesh.DrawCallsBlended, entry);
+                var composite = mesh.FlexStateManager?.MorphComposite;
+                var morphed = composite is { IsPlaced: true };
+
+                if (morphed)
+                {
+                    entry.MorphAtlasOrigin = (uint)composite!.AtlasX | ((uint)composite.AtlasY << 16);
+                    entry.MorphAtlasStride = (uint)composite.Width;
+                }
+
+                changed |= Write(entries, node.TintAlpha, mesh.DrawCallsOpaque, entry, morphed);
+                changed |= Write(entries, node.TintAlpha, mesh.DrawCallsOverlay, entry, morphed);
+                changed |= Write(entries, node.TintAlpha, mesh.DrawCallsBlended, entry, morphed);
             }
 
             return changed;
 
-            static bool Write(InstanceDataStandard[] entries, Vector4 tint, List<DrawCall> calls, InstanceDataStandard entry)
+            static bool Write(InstanceDataStandard[] entries, Vector4 tint, List<DrawCall> calls, InstanceDataStandard entry, bool morphed)
             {
                 var changed = false;
 
                 foreach (var call in calls)
                 {
                     entry.TintAlpha = PackTint(tint * call.TintColor);
+                    entry.MorphVertexIdOffset = morphed ? call.VertexIdOffset : -1;
 
                     ref var target = ref entries[call.InstanceBufferIndex];
 
@@ -867,9 +879,45 @@ namespace ValveResourceFormat.Renderer
                 return;
             }
 
+            if (WriteLaidOutDrawEntries(dynamicNodes))
+            {
+                InstanceBufferGpu.Update<InstanceDataStandard>(
+                    instanceDataCpu.AsSpan(dynamicDrawEntryStart, drawEntryEnd - dynamicDrawEntryStart),
+                    dynamicDrawEntryStart * Unsafe.SizeOf<InstanceDataStandard>());
+            }
+        }
+
+        /// <summary>
+        /// Rewrites the draw entries of every node after the renderer context's morph atlas placed or moved a rect.
+        /// Static nodes' entries are otherwise only written at layout.
+        /// </summary>
+        public void UpdateMorphAtlasRects()
+        {
+            var atlas = RendererContext.MorphAtlas;
+
+            if (morphAtlasLayoutVersion == atlas.LayoutVersion || instanceDataCpu == null || InstanceBufferGpu == null)
+            {
+                return;
+            }
+
+            morphAtlasLayoutVersion = atlas.LayoutVersion;
+
+            var changed = WriteLaidOutDrawEntries(staticNodes);
+            changed |= WriteLaidOutDrawEntries(dynamicNodes);
+
+            if (changed)
+            {
+                InstanceBufferGpu.Update<InstanceDataStandard>(
+                    instanceDataCpu.AsSpan(objectEntryCount, drawEntryEnd - objectEntryCount),
+                    objectEntryCount * Unsafe.SizeOf<InstanceDataStandard>());
+            }
+        }
+
+        private bool WriteLaidOutDrawEntries(List<SceneNode> nodes)
+        {
             var changed = false;
 
-            foreach (var node in dynamicNodes)
+            foreach (var node in nodes)
             {
                 // Nodes added since the last layout have no entries yet; the relayout later in this update gives them one
                 if (node is MeshCollectionNode meshNode && node.Id != 0 && node.Id < objectEntryCount)
@@ -878,12 +926,7 @@ namespace ValveResourceFormat.Renderer
                 }
             }
 
-            if (changed)
-            {
-                InstanceBufferGpu.Update<InstanceDataStandard>(
-                    instanceDataCpu.AsSpan(dynamicDrawEntryStart, drawEntryEnd - dynamicDrawEntryStart),
-                    dynamicDrawEntryStart * Unsafe.SizeOf<InstanceDataStandard>());
-            }
+            return changed;
         }
 
         private static ObjectDataStandard ObjectEntry(SceneNode node) => new()

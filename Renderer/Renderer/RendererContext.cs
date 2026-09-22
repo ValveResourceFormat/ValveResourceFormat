@@ -65,6 +65,11 @@ public class RendererContext : IDisposable
     public float ViewmodelFieldOfView { get; set; } = 64.0f;
 
     /// <summary>
+    /// Holds the morph composites of every mesh loaded through this context.
+    /// </summary>
+    public MorphCompositeAtlas MorphAtlas { get; }
+
+    /// <summary>
     /// Whether scene nodes simulate across the thread pool, published by the renderer each frame.
     /// </summary>
     public bool ParallelSimulation { get; set; } = true;
@@ -84,6 +89,7 @@ public class RendererContext : IDisposable
         MaterialLoader = new MaterialLoader(this);
         ShaderLoader = new ShaderLoader(this);
         MeshBufferCache = new GPUMeshBufferCache(this);
+        MorphAtlas = new MorphCompositeAtlas(this);
     }
 
     /// <inheritdoc/>
@@ -111,6 +117,7 @@ public class RendererContext : IDisposable
         TextureStreaming.CancelAllStreaming();
 
         ShaderLoader?.Dispose();
+        MorphAtlas.Dispose();
     }
 
     // Deliberately outlive Dispose: teardown disposes the context on the UI thread and only then waits

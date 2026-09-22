@@ -82,6 +82,13 @@ public struct InstanceDataStandard
     public uint Identification;
     /// <summary>Skinning of the mesh drawn: bit 31: enabled, bits 16-30: bone count, bits 0-15: mesh bone offset.</summary>
     public uint MeshBoneData;
+    /// <summary>Where the mesh drawn starts in its morph composite, or -1 when it has none.</summary>
+    public int MorphVertexIdOffset;
+    /// <summary>The mesh's rect in the morph composite atlas, x in the low 16 bits and y in the high 16.</summary>
+    public uint MorphAtlasOrigin;
+    /// <summary>Row width of the mesh's rect in the morph composite atlas.</summary>
+    public uint MorphAtlasStride;
+    private readonly uint padding0;
 
     /// <summary>Packs <see cref="MeshBoneData"/> for a mesh.</summary>
     /// <param name="mesh">The mesh a draw call belongs to.</param>
