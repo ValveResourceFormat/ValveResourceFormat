@@ -1,6 +1,8 @@
 #if DEBUG
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Threading;
 using System.Threading.Tasks;
@@ -8,9 +10,8 @@ using System.Windows.Forms;
 using GUI.Types.GLViewers;
 using SkiaSharp;
 using ValveResourceFormat.IO;
-using ValveResourceFormat.Renderer;
 using ValveResourceFormat.Renderer.Shaders;
-using ValveResourceFormat.Serialization.KeyValues;
+using ValveResourceFormat.ResourceTypes;
 
 namespace GUI.Automation;
 
@@ -18,6 +19,10 @@ namespace GUI.Automation;
 internal sealed partial class McpTools
 {
     private static readonly TimeSpan FrameTimeout = TimeSpan.FromSeconds(30);
+
+    // Reloading every shader takes a while, and it holds the UI thread the whole time because the
+    // reload rebuilds the render mode list, so it does not get the usual marshal timeout.
+    private static readonly TimeSpan ShaderReloadTimeout = TimeSpan.FromMinutes(5);
 
     // A full resolution frame is megabytes of base64, so the inline copy is downscaled and JPEG
     // encoded. The file written to 'path' stays full resolution and lossless.
@@ -44,113 +49,87 @@ internal sealed partial class McpTools
         Add("screenshot", "Capture the rendered frame of a tab. Returns a downscaled JPEG to look at; pass 'path' to also get the full resolution PNG on disk. Selects the tab and renders a fresh frame first, so it works while the window is in the background.",
             Schema(new JsonObject
             {
-                ["tab"] = Prop("integer", "Tab id from list_tabs. Defaults to the active tab."),
+                ["tab"] = TabProp(),
                 ["settle_frames"] = Prop("integer", "Extra frames to render before capturing, for auto exposure to settle. Defaults to 2."),
                 ["path"] = Prop("string", "Absolute path to write the full resolution PNG to. The inline image is a JPEG, so do not save that as .png."),
             }),
             Screenshot);
 
-        Add("clear_selection", "Drop the current selection. A selected light probe volume or envmap keeps drawing its debug geometry over the scene until this is called.",
+        Add("clear_selection", "Drop the current selection. The outline of a selected node, and the debug geometry of a selected light probe volume or envmap, stay in every screenshot until this is called.",
             Schema(new JsonObject
             {
-                ["tab"] = Prop("integer", "Tab id from list_tabs. Defaults to the active tab."),
+                ["tab"] = TabProp(),
             }),
-            (args, ct) => WithSceneViewer(args, viewer =>
+            (args, ct) => WithViewer<GLSceneViewer>(args, viewer =>
             {
                 viewer.ClearSelection();
-                return McpToolResult.Ok();
+                return McpToolResult.Json(new JsonObject());
             }, ct));
 
-        Add("get_camera", "Read the camera position and angles of a tab.",
+        Add("get_camera", "Read the camera position, angles and field of view of a tab.",
             Schema(new JsonObject
             {
-                ["tab"] = Prop("integer", "Tab id from list_tabs. Defaults to the active tab."),
+                ["tab"] = TabProp(),
             }),
-            (args, ct) => WithSceneViewer(args, viewer =>
-            {
-                // The input camera is the authoritative one. Renderer.Camera is the interpolated
-                // view, which lags behind it and does not update at all while the app is paused.
-                var camera = viewer.Input.Camera;
-                var angles = camera.GetQAngle();
+            // The input camera is the authoritative one. Renderer.Camera is the interpolated view,
+            // which lags behind it and does not update at all while the app is paused.
+            (args, ct) => WithViewer<GLSceneViewer>(args, viewer => McpToolResult.Json(DescribeCamera(viewer.Input.Camera)), ct));
 
-                return McpToolResult.Json(new JsonObject
-                {
-                    ["x"] = camera.Location.X,
-                    ["y"] = camera.Location.Y,
-                    ["z"] = camera.Location.Z,
-                    ["pitch"] = angles.X,
-                    ["yaw"] = angles.Y,
-                    ["roll"] = angles.Z,
-                    ["fov"] = camera.FieldOfView,
-                });
-            }, ct));
-
-        Add("set_camera", "Move the camera instantly, with no fly-in transition. Pitch is positive downwards.",
+        Add("set_camera", "Move the camera instantly, with no fly-in transition. Takes the same shape get_camera returns.",
             Schema(new JsonObject
             {
-                ["tab"] = Prop("integer", "Tab id from list_tabs. Defaults to the active tab."),
-                ["x"] = Prop("number", "World X."),
-                ["y"] = Prop("number", "World Y."),
-                ["z"] = Prop("number", "World Z."),
-                ["pitch"] = Prop("number", "Pitch in degrees, positive downwards. Defaults to the current pitch."),
-                ["yaw"] = Prop("number", "Yaw in degrees. Defaults to the current yaw."),
-                ["roll"] = Prop("number", "Roll in degrees. Defaults to 0."),
+                ["tab"] = TabProp(),
+                ["position"] = VectorProp("World position [x, y, z]."),
+                ["angles"] = VectorProp("[pitch, yaw, roll] in degrees, pitch positive downwards. Defaults to the current pitch and yaw with no roll."),
+                ["look_at"] = VectorProp("World point [x, y, z] to face, instead of 'angles'."),
                 ["fov"] = Prop("number", "Field of view in degrees. Left alone when omitted."),
-            }, "x", "y", "z"),
+            }, "position"),
             SetCamera);
 
-        Add("list_layers", "List the world layers of a map and whether each is enabled.",
+        Add("list_layers", "List the world layers and physics groups of a map, each with whether it is drawn.",
             Schema(new JsonObject
             {
-                ["tab"] = Prop("integer", "Tab id from list_tabs. Defaults to the active tab."),
+                ["tab"] = TabProp(),
             }),
-            (args, ct) => WithWorldViewer(args, viewer =>
+            (args, ct) => WithViewer<GLWorldViewer>(args, viewer =>
             {
-                var layers = new JsonArray();
-
-                foreach (var (name, enabled) in viewer.GetWorldLayers())
+                var result = new JsonObject
                 {
-                    layers.Add(new JsonObject
-                    {
-                        ["name"] = name,
-                        ["enabled"] = enabled,
-                    });
+                    ["layers"] = CheckedMap(viewer.GetWorldLayers()),
+                };
+
+                if (viewer.GetPhysicsGroups() is { Count: > 0 } groups)
+                {
+                    result["physics_groups"] = CheckedMap(groups);
                 }
 
-                return McpToolResult.Json(new JsonObject
-                {
-                    ["layers"] = layers,
-                });
+                return McpToolResult.Json(result);
             }, ct));
 
-        Add("set_layer", "Enable or disable one world layer. The 3D sky scene follows.",
+        Add("set_layer", "Show or hide one world layer. The 3D sky scene follows.",
             Schema(new JsonObject
             {
-                ["tab"] = Prop("integer", "Tab id from list_tabs. Defaults to the active tab."),
+                ["tab"] = TabProp(),
                 ["name"] = Prop("string", "Layer name from list_layers."),
                 ["enabled"] = Prop("boolean", "Whether the layer should be drawn."),
             }, "name", "enabled"),
-            (args, ct) =>
+            (args, ct) => SetChecked(args, "layer", (viewer, name, enabled) => viewer.TrySetWorldLayer(name, enabled), ct));
+
+        Add("set_physics_group", "Show or hide one physics group, such as the collision hulls of triggers or player clips.",
+            Schema(new JsonObject
             {
-                var name = GetString(args, "name");
-                var enabled = GetBool(args, "enabled");
-
-                if (name == null || enabled == null)
-                {
-                    return Task.FromResult(MissingArgument("name and enabled", args));
-                }
-
-                return WithWorldViewer(args, viewer => viewer.TrySetWorldLayer(name, enabled.Value)
-                    ? McpToolResult.Ok()
-                    : McpToolResult.Error($"No world layer named '{name}'."), ct);
-            });
+                ["tab"] = TabProp(),
+                ["name"] = Prop("string", "Physics group name from list_layers."),
+                ["enabled"] = Prop("boolean", "Whether the group should be drawn."),
+            }, "name", "enabled"),
+            (args, ct) => SetChecked(args, "physics_group", (viewer, name, enabled) => viewer.TrySetPhysicsGroup(name, enabled), ct));
 
         Add("list_render_modes", "List the debug render modes available for a tab, and which one is active.",
             Schema(new JsonObject
             {
-                ["tab"] = Prop("integer", "Tab id from list_tabs. Defaults to the active tab."),
+                ["tab"] = TabProp(),
             }),
-            (args, ct) => WithSceneViewer(args, viewer =>
+            (args, ct) => WithViewer<GLSceneViewer>(args, viewer =>
             {
                 var modes = new JsonArray();
 
@@ -159,17 +138,23 @@ internal sealed partial class McpTools
                     modes.Add(mode);
                 }
 
-                return McpToolResult.Json(new JsonObject
+                var result = new JsonObject
                 {
                     ["render_modes"] = modes,
-                    ["current"] = viewer.CurrentRenderMode,
-                });
+                };
+
+                if (viewer.CurrentRenderMode is { } current)
+                {
+                    result["render_mode"] = current;
+                }
+
+                return McpToolResult.Json(result);
             }, ct));
 
         Add("set_render_mode", "Switch the debug render mode, for isolating lighting, specular, overdraw and similar.",
             Schema(new JsonObject
             {
-                ["tab"] = Prop("integer", "Tab id from list_tabs. Defaults to the active tab."),
+                ["tab"] = TabProp(),
                 ["name"] = Prop("string", "Render mode name from list_render_modes."),
             }, "name"),
             (args, ct) =>
@@ -181,68 +166,55 @@ internal sealed partial class McpTools
                     return Task.FromResult(MissingArgument("name", args));
                 }
 
-                return WithSceneViewer(args, viewer => viewer.TrySetRenderMode(name)
-                    ? McpToolResult.Ok()
+                return WithViewer<GLSceneViewer>(args, viewer => viewer.TrySetRenderMode(name)
+                    ? McpToolResult.Json(new JsonObject { ["render_mode"] = viewer.CurrentRenderMode })
                     : McpToolResult.Error($"No render mode named '{name}' is available here."), ct);
             });
 
-        Add("get_info", "Describe what a tab has loaded: viewer kind, file, map name and 3D sky presence.",
+        Add("get_info", "Describe what a tab has loaded: viewer kind, file, render mode, node counts, and for a map its name, entity counts and 3D sky.",
             Schema(new JsonObject
             {
-                ["tab"] = Prop("integer", "Tab id from list_tabs. Defaults to the active tab."),
+                ["tab"] = TabProp(),
             }),
-            (args, ct) => WithSceneViewer(args, viewer =>
+            (args, ct) => WithViewer<GLSceneViewer>(args, viewer =>
             {
                 var info = new JsonObject
                 {
                     ["viewer"] = viewer.GetType().Name,
                     ["file"] = viewer.GuiContext.FileName,
-                    ["render_mode"] = viewer.CurrentRenderMode,
-                    ["scene_nodes"] = viewer.Scene.AllNodes.Count(),
-                    ["has_3d_sky"] = viewer.SkyboxScene != null,
                 };
+
+                if (viewer.CurrentRenderMode is { } renderMode)
+                {
+                    info["render_mode"] = renderMode;
+                }
+
+                info["scene_nodes"] = viewer.Scene.AllNodes.Count();
+
+                if (viewer.SkyboxScene is { } skyboxScene)
+                {
+                    info["sky_nodes"] = skyboxScene.AllNodes.Count();
+                }
 
                 if (viewer is GLWorldViewer { LoadedWorld: { } world })
                 {
-                    info["map_name"] = world.MapName;
-                    info["entity_count"] = world.Entities.Count;
+                    info["map"] = world.MapName;
+                    info["entities"] = world.Entities.Count;
+
+                    if (world.SkyboxWorld is { } sky)
+                    {
+                        info["sky_map"] = sky.MapName;
+                        info["sky_entities"] = sky.Entities.Count;
+                    }
                 }
 
                 return McpToolResult.Json(info);
             }, ct));
 
-        Add("find_entities", "Search the map's entities by classname or targetname.",
-            Schema(new JsonObject
-            {
-                ["tab"] = Prop("integer", "Tab id from list_tabs. Defaults to the active tab."),
-                ["classname"] = Prop("string", "Match entities whose classname contains this."),
-                ["targetname"] = Prop("string", "Match entities whose targetname contains this."),
-                ["limit"] = Prop("integer", "Most matches to return. Defaults to 50."),
-            }),
-            FindEntities);
-
-        Add("select_entity", "Select an entity and move the camera to it, as double clicking it in the entity list does.",
-            Schema(new JsonObject
-            {
-                ["tab"] = Prop("integer", "Tab id from list_tabs. Defaults to the active tab."),
-                ["id"] = Prop("integer", "Entity id from find_entities."),
-                ["instant"] = Prop("boolean", "Skip the fly-in and jump straight there. Defaults to true."),
-            }, "id"),
-            SelectEntity);
-
-        Add("pick", "Identify the scene node or entity under a viewport pixel, as clicking it would. Coordinates are from the top left of the render area.",
-            Schema(new JsonObject
-            {
-                ["tab"] = Prop("integer", "Tab id from list_tabs. Defaults to the active tab."),
-                ["x"] = Prop("integer", "Pixel X in the render area."),
-                ["y"] = Prop("integer", "Pixel Y in the render area."),
-            }, "x", "y"),
-            Pick);
-
         Add("set_viewport", "Render at an exact pixel size regardless of the window size, so screenshots from two builds can be compared. Pass no size to go back to following the window.",
             Schema(new JsonObject
             {
-                ["tab"] = Prop("integer", "Tab id from list_tabs. Defaults to the active tab."),
+                ["tab"] = TabProp(),
                 ["width"] = Prop("integer", "Render width. Omit along with height to follow the window again."),
                 ["height"] = Prop("integer", "Render height."),
             }),
@@ -251,129 +223,53 @@ internal sealed partial class McpTools
         Add("reload_shaders", "Recompile shaders from the source tree and redraw, without restarting the viewer. A compile failure comes back as the compiler's own error text.",
             Schema(new JsonObject
             {
-                ["tab"] = Prop("integer", "Tab id from list_tabs. Defaults to the active tab."),
+                ["tab"] = TabProp(),
                 ["name"] = Prop("string", "Only reload shaders derived from this file, for example complex.frag.slang. Omit to reload every shader, which is much slower."),
             }),
             ReloadShaders);
 
-        Add("get_render_stats", "Per frame draw counts and renderer metrics, the numbers behind the performance overlay.",
+        Add("get_render_stats", "Per frame draw counts and renderer metrics of a fresh frame, the numbers behind the performance overlay. Counters that are zero are left out.",
             Schema(new JsonObject
             {
-                ["tab"] = Prop("integer", "Tab id from list_tabs. Defaults to the active tab."),
+                ["tab"] = TabProp(),
             }),
             RenderStats);
     }
 
-    private async Task<McpToolResult> Pick(JsonObject args, CancellationToken cancellationToken)
+    private static JsonObject CheckedMap(List<(string Name, bool Enabled)> items)
     {
-        var x = GetInt(args, "x");
-        var y = GetInt(args, "y");
+        var map = new JsonObject();
 
-        if (x == null || y == null)
+        foreach (var (name, enabled) in items)
         {
-            return MissingArgument("x and y", args);
+            map[name] = enabled;
         }
 
-        var viewer = await ActivateViewer(args, cancellationToken).ConfigureAwait(false);
-
-        if (viewer is not GLSceneViewer scene)
-        {
-            return McpToolResult.Error("That tab has no 3D scene viewer.");
-        }
-
-        var picker = await OnUi(() => scene.PickingTexture, cancellationToken).ConfigureAwait(false);
-
-        if (picker == null)
-        {
-            return McpToolResult.Error("This viewer has no picker.");
-        }
-
-        var answered = new TaskCompletionSource<PickingTexture.PixelInfo>(TaskCreationOptions.RunContinuationsAsynchronously);
-
-        void OnPicked(object? sender, PickingTexture.PickingResponse response) => answered.TrySetResult(response.PixelInfo);
-
-        picker.OnPicked += OnPicked;
-
-        try
-        {
-            using var rendering = RenderLoopThread.BeginAutomationRendering();
-
-            // Select intent leaves the entity info window closed; the answer arrives a frame later.
-            picker.RequestNextFrame(x.Value, y.Value, PickingTexture.PickingIntent.Select);
-
-            PickingTexture.PixelInfo pixel;
-
-            try
-            {
-                pixel = await answered.Task.WaitAsync(FrameTimeout, cancellationToken).ConfigureAwait(false);
-            }
-            catch (TimeoutException)
-            {
-                return McpToolResult.Error("The picker did not answer within the frame timeout.");
-            }
-
-            return await OnUi(() => DescribePick(scene, pixel), cancellationToken).ConfigureAwait(false);
-        }
-        finally
-        {
-            picker.OnPicked -= OnPicked;
-        }
+        return map;
     }
 
-    private static McpToolResult DescribePick(GLSceneViewer scene, PickingTexture.PixelInfo pixel)
+    private Task<McpToolResult> SetChecked(JsonObject args, string kind, Func<GLWorldViewer, string, bool, bool> set, CancellationToken cancellationToken)
     {
-        if (pixel.ObjectId == 0)
+        var name = GetString(args, "name");
+        var enabled = GetBool(args, "enabled");
+
+        if (name == null || enabled == null)
         {
-            return McpToolResult.Json(new JsonObject
-            {
-                ["hit"] = false,
-            });
+            return Task.FromResult(MissingArgument("name and enabled", args));
         }
 
-        var inSkybox = pixel.IsSkybox > 0;
-        var node = inSkybox ? scene.SkyboxScene?.Find(pixel.ObjectId) : scene.Scene.Find(pixel.ObjectId);
-
-        var result = new JsonObject
-        {
-            ["hit"] = true,
-            ["object_id"] = pixel.ObjectId,
-            ["mesh_id"] = pixel.MeshId,
-            ["in_3d_sky"] = inSkybox,
-        };
-
-        if (node == null)
-        {
-            return McpToolResult.Json(result);
-        }
-
-        result["node"] = node.GetType().Name;
-        result["name"] = node.Name;
-        result["layer"] = node.LayerName;
-        result["x"] = node.BoundingBox.Center.X;
-        result["y"] = node.BoundingBox.Center.Y;
-        result["z"] = node.BoundingBox.Center.Z;
-
-        if (node.EntityData != null)
-        {
-            result["classname"] = node.EntityData.GetStringProperty("classname");
-            result["targetname"] = node.EntityData.TargetName;
-        }
-
-        return McpToolResult.Json(result);
+        return WithViewer<GLWorldViewer>(args, viewer => set(viewer, name, enabled.Value)
+            ? McpToolResult.Json(new JsonObject { [kind] = name, ["enabled"] = enabled.Value })
+            : McpToolResult.Error($"No {kind.Replace('_', ' ')} named '{name}'. Call list_layers for the names."), cancellationToken);
     }
-
-#if DEBUG
-    // Reloading every shader takes a while, and it holds the UI thread the whole time because the
-    // reload rebuilds the render mode list, so it does not get the usual marshal timeout.
-    private static readonly TimeSpan ShaderReloadTimeout = TimeSpan.FromMinutes(5);
 
     private async Task<McpToolResult> ReloadShaders(JsonObject args, CancellationToken cancellationToken)
     {
-        var viewer = await ActivateViewer(args, cancellationToken).ConfigureAwait(false);
+        var (viewer, error) = await ActivateViewer<GLBaseControl>(args, cancellationToken).ConfigureAwait(false);
 
-        if (viewer == null)
+        if (error != null)
         {
-            return McpToolResult.Error("That tab has no GL viewer.");
+            return error;
         }
 
         var name = GetString(args, "name");
@@ -384,7 +280,7 @@ internal sealed partial class McpTools
             {
                 // Same path as the Reload shaders button and the file watcher, except a compile
                 // failure is handed back to the caller rather than opening a modal error dialog.
-                viewer.ShaderHotReload.ReloadShaders(name);
+                viewer!.ShaderHotReload.ReloadShaders(name);
                 return null;
             }
             catch (ShaderLoader.ShaderCompilerException e)
@@ -406,37 +302,41 @@ internal sealed partial class McpTools
             }
         }
 
-        return McpToolResult.Text(name == null ? "Reloaded all shaders." : $"Reloaded shaders from {name}.");
+        return McpToolResult.Json(new JsonObject
+        {
+            ["reloaded"] = name ?? "all",
+        });
     }
-#endif
 
     private async Task<McpToolResult> SetViewport(JsonObject args, CancellationToken cancellationToken)
     {
-        var viewer = await ActivateViewer(args, cancellationToken).ConfigureAwait(false);
-
-        if (viewer == null)
-        {
-            return McpToolResult.Error("That tab has no GL viewer.");
-        }
-
         var width = GetInt(args, "width");
         var height = GetInt(args, "height");
 
-        if (width == null && height == null)
-        {
-            viewer.RestoreViewportSize();
-        }
-        else if (width == null || height == null)
+        if ((width == null) != (height == null))
         {
             return McpToolResult.Error("Pass both 'width' and 'height', or neither to follow the window.");
         }
-        else if (width < 1 || height < 1 || width > 8192 || height > 8192)
+
+        if (width is < 1 or > 8192 || height is < 1 or > 8192)
         {
             return McpToolResult.Error("Width and height must be between 1 and 8192.");
         }
+
+        var (viewer, error) = await ActivateViewer<GLBaseControl>(args, cancellationToken).ConfigureAwait(false);
+
+        if (error != null)
+        {
+            return error;
+        }
+
+        if (width == null || height == null)
+        {
+            viewer!.RestoreViewportSize();
+        }
         else
         {
-            viewer.SetViewportSize(width.Value, height.Value);
+            viewer!.SetViewportSize(width.Value, height.Value);
         }
 
         using (RenderLoopThread.BeginAutomationRendering())
@@ -467,16 +367,16 @@ internal sealed partial class McpTools
 
     private async Task<McpToolResult> RenderStats(JsonObject args, CancellationToken cancellationToken)
     {
-        var viewer = await ActivateViewer(args, cancellationToken).ConfigureAwait(false);
+        var (scene, error) = await ActivateViewer<GLSceneViewer>(args, cancellationToken).ConfigureAwait(false);
 
-        if (viewer is not GLSceneViewer scene)
+        if (error != null)
         {
-            return McpToolResult.Error("That tab has no 3D scene viewer.");
+            return error;
         }
 
         var previous = await OnUi(() =>
         {
-            var current = scene.PerfDisplayMode;
+            var current = scene!.PerfDisplayMode;
             scene.PerfDisplayMode = GLSceneViewer.PerfDisplayStats;
             return current;
         }, cancellationToken).ConfigureAwait(false);
@@ -494,187 +394,118 @@ internal sealed partial class McpTools
 
             var stats = new JsonObject();
 
-            foreach (var (name, value) in scene.Renderer.PerfStats.Snapshot())
+            foreach (var (name, value) in scene!.Renderer.PerfStats.Snapshot())
             {
-                stats[name] = value;
+                if (value != 0)
+                {
+                    stats[JsonNamingPolicy.SnakeCaseLower.ConvertName(name)] = Math.Round(value, 3);
+                }
             }
 
             return McpToolResult.Json(stats);
         }
         finally
         {
-            await OnUi(() => scene.PerfDisplayMode = previous, CancellationToken.None).ConfigureAwait(false);
+            await OnUi(() => scene!.PerfDisplayMode = previous, CancellationToken.None).ConfigureAwait(false);
         }
     }
 
     private async Task<McpToolResult> SetCamera(JsonObject args, CancellationToken cancellationToken)
     {
-        var x = GetFloat(args, "x");
-        var y = GetFloat(args, "y");
-        var z = GetFloat(args, "z");
+        var position = GetVector(args, "position");
 
-        if (x == null || y == null || z == null)
+        if (position == null)
         {
-            return MissingArgument("x, y and z", args);
+            return MissingArgument("position", args);
         }
 
-        return await WithSceneViewer(args, viewer =>
+        var angles = GetVector(args, "angles");
+        var lookAt = GetVector(args, "look_at");
+        var fov = GetFloat(args, "fov");
+
+        if (angles != null && lookAt != null)
         {
-            var current = viewer.Input.Camera.GetQAngle();
-
-            var angles = new Vector3(
-                GetFloat(args, "pitch") ?? current.X,
-                GetFloat(args, "yaw") ?? current.Y,
-                GetFloat(args, "roll") ?? 0f);
-
-            viewer.Input.SetCameraImmediate(new Vector3(x.Value, y.Value, z.Value), angles);
-
-            if (GetFloat(args, "fov") is { } fov)
-            {
-                viewer.Input.Camera.FieldOfView = fov;
-                viewer.Input.Camera.CreateProjectionMatrix();
-            }
-
-            return McpToolResult.Ok();
-        }, cancellationToken).ConfigureAwait(false);
-    }
-
-    private async Task<McpToolResult> FindEntities(JsonObject args, CancellationToken cancellationToken)
-    {
-        var classname = GetString(args, "classname");
-        var targetname = GetString(args, "targetname");
-        var limit = Math.Clamp(GetInt(args, "limit") ?? 50, 1, 1000);
-
-        return await WithWorldViewer(args, viewer =>
-        {
-            if (viewer.LoadedWorld is not { } world)
-            {
-                return McpToolResult.Error("This tab has no loaded world.");
-            }
-
-            var matches = new JsonArray();
-
-            for (var i = 0; i < world.Entities.Count && matches.Count < limit; i++)
-            {
-                var entity = world.Entities[i];
-                var entityClass = entity.GetStringProperty("classname") ?? string.Empty;
-                var entityName = entity.TargetName ?? string.Empty;
-
-                if (classname != null && !entityClass.Contains(classname, StringComparison.OrdinalIgnoreCase))
-                {
-                    continue;
-                }
-
-                if (targetname != null && !entityName.Contains(targetname, StringComparison.OrdinalIgnoreCase))
-                {
-                    continue;
-                }
-
-                var origin = world.GetEntityWorldTransform(entity).Translation;
-
-                matches.Add(new JsonObject
-                {
-                    ["id"] = i,
-                    ["classname"] = entityClass,
-                    ["targetname"] = entityName,
-                    ["x"] = origin.X,
-                    ["y"] = origin.Y,
-                    ["z"] = origin.Z,
-                });
-            }
-
-            return McpToolResult.Json(new JsonObject
-            {
-                ["entities"] = matches,
-                ["searched"] = world.Entities.Count,
-            });
-        }, cancellationToken).ConfigureAwait(false);
-    }
-
-    private async Task<McpToolResult> SelectEntity(JsonObject args, CancellationToken cancellationToken)
-    {
-        var id = GetInt(args, "id");
-
-        if (id == null)
-        {
-            return MissingArgument("id", args);
+            return McpToolResult.Error("Pass either 'angles' or 'look_at', not both.");
         }
 
-        var instant = GetBool(args, "instant") ?? true;
-
-        return await WithWorldViewer(args, viewer =>
+        return await WithViewer<GLSceneViewer>(args, viewer =>
         {
-            if (viewer.LoadedWorld is not { } world)
+            var camera = viewer.Input.Camera;
+
+            if (lookAt != null)
             {
-                return McpToolResult.Error("This tab has no loaded world.");
+                var direction = lookAt.Value - position.Value;
+
+                if (direction.LengthSquared() < 1e-6f)
+                {
+                    return McpToolResult.Error("'look_at' is the same point as 'position'.");
+                }
+
+                angles = EntityTransformHelper.ForwardDirectionToEulerAngles(Vector3.Normalize(direction));
+            }
+            else if (angles == null)
+            {
+                var current = camera.GetQAngle();
+                angles = current with { Z = 0f };
             }
 
-            if (id.Value < 0 || id.Value >= world.Entities.Count)
+            viewer.Input.SetCameraImmediate(position.Value, angles.Value);
+
+            if (fov != null)
             {
-                return McpToolResult.Error($"No entity with id {id}, the map has {world.Entities.Count}.");
+                camera.FieldOfView = fov.Value;
+                camera.CreateProjectionMatrix();
             }
 
-            viewer.SelectAndFocusEntity(world.Entities[id.Value]);
-
-            if (instant)
-            {
-                // SelectAndFocusEntity flies the camera in; land it now so a screenshot taken
-                // straight after shows the destination rather than the journey.
-                var camera = viewer.Input.Camera;
-                viewer.Input.SetCameraImmediate(camera.Location, camera.GetQAngle());
-            }
-
-            var result = viewer.Input.Camera;
-            var angles = result.GetQAngle();
-
-            return McpToolResult.Json(new JsonObject
-            {
-                ["x"] = result.Location.X,
-                ["y"] = result.Location.Y,
-                ["z"] = result.Location.Z,
-                ["pitch"] = angles.X,
-                ["yaw"] = angles.Y,
-                ["roll"] = angles.Z,
-            });
+            return McpToolResult.Json(DescribeCamera(camera));
         }, cancellationToken).ConfigureAwait(false);
     }
-
-    private Task<McpToolResult> WithSceneViewer(JsonObject args, Func<GLSceneViewer, McpToolResult> action, CancellationToken cancellationToken)
-        => WithViewer(args, action, "That tab has no 3D scene viewer.", cancellationToken);
-
-    private Task<McpToolResult> WithWorldViewer(JsonObject args, Func<GLWorldViewer, McpToolResult> action, CancellationToken cancellationToken)
-        => WithViewer(args, action, "That tab has no map loaded.", cancellationToken);
 
     /// <summary>Runs <paramref name="action"/> on the UI thread with the tab's viewer, if it is a <typeparamref name="T"/>.</summary>
-    private async Task<McpToolResult> WithViewer<T>(JsonObject args, Func<T, McpToolResult> action, string notFound, CancellationToken cancellationToken)
+    private async Task<McpToolResult> WithViewer<T>(JsonObject args, Func<T, McpToolResult> action, CancellationToken cancellationToken)
         where T : GLBaseControl
     {
-        var viewer = await ActivateViewer(args, cancellationToken).ConfigureAwait(false);
+        var (viewer, error) = await ActivateViewer<T>(args, cancellationToken).ConfigureAwait(false);
 
-        if (viewer is not T typed)
+        if (error != null)
         {
-            return McpToolResult.Error(notFound);
+            return error;
         }
 
-        return await OnUi(() => action(typed), cancellationToken).ConfigureAwait(false);
+        return await OnUi(() => action(viewer!), cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>
-    /// Resolves the GL viewer for the requested tab, selecting that tab first because only the
-    /// active control renders.
+    /// Resolves the viewer of the tab the arguments name, or of the active tab, and makes that tab
+    /// active because only the active control renders. When it is not a <typeparamref name="T"/>,
+    /// the error names the tab that was looked at, so a caller that relied on the active tab can
+    /// tell it was not the one it meant.
     /// </summary>
-    private async Task<GLBaseControl?> ActivateViewer(JsonObject args, CancellationToken cancellationToken)
+    private async Task<(T? Viewer, McpToolResult? Error)> ActivateViewer<T>(JsonObject args, CancellationToken cancellationToken)
+        where T : GLBaseControl
     {
         var id = GetInt(args, "tab");
 
-        return await OnUi(() =>
+        return await OnUi<(T?, McpToolResult?)>(() =>
         {
             var form = Program.MainForm;
             var page = id == null ? form.Tabs.SelectedTab : PageFor(id.Value);
 
             if (page == null)
             {
-                return null;
+                return (null, id == null ? McpToolResult.Error("No tab is open.") : NoSuchTab(id.Value));
+            }
+
+            if (GLBaseControl.FindHostedIn(page) is not T viewer)
+            {
+                var needs = typeof(T) == typeof(GLWorldViewer) ? "has no map loaded"
+                    : typeof(T) == typeof(GLSceneViewer) ? "has no 3D scene"
+                    : "has no GL viewer";
+
+                var kind = DescribeViewer(page) is { } described ? $" ({described})" : string.Empty;
+                var how = id == null ? " No 'tab' was given, so the active tab was used." : string.Empty;
+
+                return (null, McpToolResult.Error($"Tab {IdFor(page)} '{page.Text}'{kind} {needs}.{how}"));
             }
 
             if (form.Tabs.SelectedTab != page)
@@ -682,14 +513,20 @@ internal sealed partial class McpTools
                 form.Tabs.SelectTab(page);
             }
 
-            var viewer = GLBaseControl.FindHostedIn(page);
-
             // Minimizing takes the control off the render loop, and only a repaint puts it back,
             // so without this a capture after the window was restored waits for frames forever.
-            viewer?.EnsureAttachedToRenderLoop();
+            viewer.EnsureAttachedToRenderLoop();
 
-            return viewer;
+            return (viewer, null);
         }, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>A minimized window draws nothing at all, so say so rather than sitting out the frame timeout.</summary>
+    private static async Task<string?> CheckCanRender(CancellationToken cancellationToken)
+    {
+        return await OnUi(() => Program.MainForm.WindowState == FormWindowState.Minimized, cancellationToken).ConfigureAwait(false)
+            ? "The viewer window is minimized, which stops rendering. Restore it and try again."
+            : null;
     }
 
     /// <summary>
@@ -698,11 +535,9 @@ internal sealed partial class McpTools
     /// </summary>
     private static async Task<string?> PresentFrames(int count, CancellationToken cancellationToken)
     {
-        // A minimized window draws nothing at all: the control is off the render loop, and the GL
-        // surface has no size to draw into. Say so rather than sitting out the frame timeout.
-        if (await OnUi(() => Program.MainForm.WindowState == FormWindowState.Minimized, cancellationToken).ConfigureAwait(false))
+        if (await CheckCanRender(cancellationToken).ConfigureAwait(false) is { } error)
         {
-            return "The viewer window is minimized, which stops rendering. Restore it and try again.";
+            return error;
         }
 
         return RenderLoopThread.WaitForFrames(count, FrameTimeout)
@@ -710,13 +545,43 @@ internal sealed partial class McpTools
             : $"Timed out waiting for a rendered frame after {FrameTimeout.TotalSeconds:F0}s.";
     }
 
+    /// <summary>
+    /// Waits for something the render loop completes, waking the loop again whenever it goes quiet.
+    /// Returns false after the timeout, <see cref="FrameTimeout"/> unless given.
+    /// </summary>
+    private static Task<bool> WaitOnRenderLoop(Task task, CancellationToken cancellationToken)
+        => WaitOnRenderLoop(task, FrameTimeout, cancellationToken);
+
+    private static async Task<bool> WaitOnRenderLoop(Task task, TimeSpan timeout, CancellationToken cancellationToken)
+    {
+        var started = Stopwatch.GetTimestamp();
+
+        while (true)
+        {
+            try
+            {
+                await task.WaitAsync(RenderLoopThread.NudgeInterval, cancellationToken).ConfigureAwait(false);
+                return true;
+            }
+            catch (TimeoutException)
+            {
+                if (Stopwatch.GetElapsedTime(started) >= timeout)
+                {
+                    return false;
+                }
+
+                RenderLoopThread.Nudge();
+            }
+        }
+    }
+
     private async Task<McpToolResult> Screenshot(JsonObject args, CancellationToken cancellationToken)
     {
-        var viewer = await ActivateViewer(args, cancellationToken).ConfigureAwait(false);
+        var (viewer, error) = await ActivateViewer<GLBaseControl>(args, cancellationToken).ConfigureAwait(false);
 
-        if (viewer == null)
+        if (error != null)
         {
-            return McpToolResult.Error("That tab has no GL viewer to capture.");
+            return error;
         }
 
         var settle = Math.Clamp(GetInt(args, "settle_frames") ?? 2, 1, 120);
@@ -741,7 +606,7 @@ internal sealed partial class McpTools
                 return McpToolResult.Error(frameError);
             }
 
-            viewer.FinishTextureStreaming(cancellationToken);
+            viewer!.FinishTextureStreaming(cancellationToken);
 
             if (await PresentFrames(settle, cancellationToken).ConfigureAwait(false) is { } settleError)
             {
@@ -769,16 +634,20 @@ internal sealed partial class McpTools
             inline = Encode(downscaled ?? bitmap, SKEncodedImageFormat.Jpeg, InlineJpegQuality);
         }
 
-        var description = $"{width}x{height} frame";
+        var result = new JsonObject
+        {
+            ["width"] = width,
+            ["height"] = height,
+        };
 
         if (full != null)
         {
             await File.WriteAllBytesAsync(path!, full, cancellationToken).ConfigureAwait(false);
 
-            description += $", full resolution PNG written to {path}";
+            result["path"] = path;
         }
 
-        return McpToolResult.Text(description + ".").WithImage(inline, "image/jpeg");
+        return McpToolResult.Json(result).WithImage(inline, "image/jpeg");
     }
 }
 #endif

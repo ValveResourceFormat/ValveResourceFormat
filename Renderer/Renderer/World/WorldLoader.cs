@@ -91,6 +91,10 @@ namespace ValveResourceFormat.Renderer.World
 
         /// <summary>The 3D skybox scene, if one was found during entity loading.</summary>
         public Scene? SkyboxScene { get; set; }
+        /// <summary>The loader of the 3D skybox map, holding its entities, if one was found during entity loading.</summary>
+        public WorldLoader? SkyboxWorld { get; private set; }
+        /// <summary>Places the 3D skybox map's content where it renders in this world.</summary>
+        public Matrix4x4 SkyboxTransform { get; private set; } = Matrix4x4.Identity;
         /// <summary>The 2D skybox, if one was found during entity loading.</summary>
         public SceneSkybox2D? Skybox2D { get; set; }
         /// <summary>The loaded navigation mesh, populated by <see cref="LoadNavigationMesh"/>.</summary>
@@ -1547,6 +1551,9 @@ namespace ValveResourceFormat.Renderer.World
             // Apply skybox_reference transform after scaling
             offsetAndScaleTransform *= Matrix4x4.CreateScale(skyboxResult.WorldScale) * skyboxReference;
             offsetTransform *= skyboxReference;
+
+            SkyboxWorld = skyboxResult;
+            SkyboxTransform = offsetAndScaleTransform;
 
             foreach (var node in SkyboxScene.AllNodes)
             {

@@ -385,7 +385,13 @@ internal sealed class McpServer : IDisposable
         {
             ["tools"] = new JsonObject(),
         },
-        ["instructions"] = "Drives the Source 2 Viewer window: open files, move the camera, toggle layers and render modes, pick, read render stats and screenshot what it draws.",
+        ["instructions"] = """
+            Drives the Source 2 Viewer window: open files, move the camera, toggle layers and render modes, inspect entities, pick, read the log and render stats, and screenshot what it draws.
+            Successful calls answer with compact JSON; failures answer with plain text and isError. Optional fields are left out when they would be false, null or empty.
+            Positions are [x, y, z] world units and angles are [pitch, yaw, roll] degrees with pitch positive downwards, rounded to two decimals.
+            Calls that change the view draw a frame before answering, so the window shows the result even in the background. For repeatable screenshots, pause and then step exact amounts of time.
+            Tools that take 'tab' use the active tab when it is omitted. Pass the id from open_file or list_tabs, because a failed load or the user can change which tab is active.
+            """,
         ["ttlMs"] = ListCacheTtlMs,
         ["cacheScope"] = "public",
     };
@@ -468,7 +474,7 @@ internal sealed class McpServer : IDisposable
         // of the payload as a string. Screenshot replies are megabytes of base64.
         var buffer = new ArrayBufferWriter<byte>();
 
-        using (var writer = new Utf8JsonWriter(buffer))
+        using (var writer = new Utf8JsonWriter(buffer, new JsonWriterOptions { Encoder = McpToolResult.SerializerOptions.Encoder }))
         {
             node.WriteTo(writer);
         }

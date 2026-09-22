@@ -1,11 +1,13 @@
 #if DEBUG
+using System.Text.Encodings.Web;
+using System.Text.Json;
 using System.Text.Json.Nodes;
 
 namespace GUI.Automation;
 
 /// <summary>
-/// The result of one MCP tool call: content items (text or an inline PNG) plus whether the call
-/// failed. Tool failures are reported this way rather than as JSON-RPC errors, which are reserved
+/// The result of one MCP tool call: content items (JSON text or an inline image) plus whether the
+/// call failed. Tool failures are reported this way rather than as JSON-RPC errors, which are reserved
 /// for protocol problems.
 /// </summary>
 internal sealed class McpToolResult
@@ -16,24 +18,30 @@ internal sealed class McpToolResult
 
     private bool isError;
 
-    public static McpToolResult Text(string text)
+    private static McpToolResult Text(string text)
     {
         var result = new McpToolResult();
         result.Items.Add(new Item(text, null, null));
         return result;
     }
 
-    /// <summary>Serializes <paramref name="node"/> as the tool's text content.</summary>
-    public static McpToolResult Json(JsonNode node) => Text(node.ToJsonString());
+    // The text is read by a model, not put in a page, so there is nothing to gain from escaping
+    // quotes, angle brackets or non-ASCII, and every escape costs tokens.
+    internal static readonly JsonSerializerOptions SerializerOptions = new()
+    {
+        Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
+    };
 
+    /// <summary>Serializes <paramref name="node"/> as the tool's text content. Every successful call answers this way.</summary>
+    public static McpToolResult Json(JsonNode node) => Text(node.ToJsonString(SerializerOptions));
+
+    /// <summary>A failed call, answered with plain text that says what went wrong.</summary>
     public static McpToolResult Error(string message)
     {
         var result = Text(message);
         result.isError = true;
         return result;
     }
-
-    public static McpToolResult Ok() => Text("ok");
 
     /// <summary>Appends an inline image to the content list.</summary>
     public McpToolResult WithImage(byte[] bytes, string mimeType)

@@ -1,12 +1,14 @@
 #if DEBUG
 using System.Diagnostics;
 using System.Text.Json.Nodes;
+using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using GUI.Types.Exporter;
 using GUI.Types.GLViewers;
 using GUI.Utils;
+using ValveResourceFormat.Renderer;
 
 namespace GUI.Automation;
 
@@ -28,6 +30,21 @@ internal sealed partial class McpTools
     /// </summary>
     private static readonly TimeSpan UiTimeout = TimeSpan.FromSeconds(20);
 
+    private static readonly TimeSpan RegexTimeout = TimeSpan.FromSeconds(1);
+
+    /// <summary>
+    /// Tools that change what the active viewer shows without drawing a frame themselves. The loop
+    /// parks while the window is in the background, so without a redraw the window would keep
+    /// showing the old frame to anyone watching.
+    /// </summary>
+    private static readonly HashSet<string> ChangesView =
+    [
+        "select_tab", "close_tab", "open_file", "clear_selection", "set_camera", "set_layer",
+        "set_physics_group", "set_render_mode", "select_entity", "pick", "pause", "resume",
+    ];
+
+    private static readonly TimeSpan RedrawTimeout = TimeSpan.FromSeconds(2);
+
     private readonly Dictionary<string, Tool> Table = [];
     private readonly Dictionary<int, TabPage> TabIds = [];
     private readonly long StartedAt = Stopwatch.GetTimestamp();
@@ -38,6 +55,8 @@ internal sealed partial class McpTools
     {
         RegisterCoreTools();
         RegisterViewerTools();
+        RegisterEntityTools();
+        RegisterSimulationTools();
     }
 
     public JsonObject List()
@@ -72,7 +91,23 @@ internal sealed partial class McpTools
 
         try
         {
-            return await tool.Handler(arguments, cancellationToken).ConfigureAwait(false);
+            var result = await tool.Handler(arguments, cancellationToken).ConfigureAwait(false);
+
+            if (ChangesView.Contains(name))
+            {
+                await Redraw(cancellationToken).ConfigureAwait(false);
+            }
+
+            return result;
+        }
+        catch (ArgumentException e)
+        {
+            // Thrown by the argument readers, and already worded for the caller.
+            return McpToolResult.Error(e.Message);
+        }
+        catch (RegexMatchTimeoutException)
+        {
+            return McpToolResult.Error("A regular expression took too long to match. Simplify 'include' or 'exclude'.");
         }
         catch (TimeoutException)
         {
@@ -85,6 +120,50 @@ internal sealed partial class McpTools
         }
     }
 
+    /// <summary>
+    /// Draws the active tab, if it has a GL viewer and the window is not minimized, with every
+    /// texture it needs streamed in, so the window settles on what the next screenshot will show.
+    /// Best effort: the call already succeeded, so a frame that does not come is not an error.
+    /// </summary>
+    private static async Task Redraw(CancellationToken cancellationToken)
+    {
+        var viewer = await OnUi(() =>
+        {
+            var form = Program.MainForm;
+
+            if (form.WindowState == FormWindowState.Minimized
+                || form.Tabs.SelectedTab is not { } page
+                || GLBaseControl.FindHostedIn(page) is not { } viewer)
+            {
+                return null;
+            }
+
+            viewer.EnsureAttachedToRenderLoop();
+            return viewer;
+        }, cancellationToken).ConfigureAwait(false);
+
+        if (viewer == null)
+        {
+            return;
+        }
+
+        using (RenderLoopThread.BeginAutomationRendering())
+        {
+            await Task.Run(() =>
+            {
+                // The first frame asks for the textures the new view needs. A frame after the loop
+                // was parked streams nothing on its own, because it counts as taking no time.
+                if (!RenderLoopThread.WaitForFrames(1, RedrawTimeout))
+                {
+                    return;
+                }
+
+                viewer.FinishTextureStreaming(cancellationToken);
+                RenderLoopThread.WaitForFrames(1, RedrawTimeout);
+            }, cancellationToken).ConfigureAwait(false);
+        }
+    }
+
     private void Add(string name, string description, JsonObject schema, Func<JsonObject, CancellationToken, Task<McpToolResult>> handler)
     {
         Table.Add(name, new Tool(name, description, schema, handler));
@@ -92,7 +171,7 @@ internal sealed partial class McpTools
 
     private void RegisterCoreTools()
     {
-        Add("get_status", "Server and application status: process id, version, uptime and the active tab.",
+        Add("get_status", "Server and application status: process id, version, uptime, the active tab and whether the simulation is paused.",
             Schema(),
             (_, ct) => GetStatus(ct));
 
@@ -100,14 +179,23 @@ internal sealed partial class McpTools
             Schema(),
             (_, _) => Quit());
 
-        Add("get_log", "Lines from the viewer's console, oldest first. Shader compile errors, load failures and renderer warnings all go here.",
+        Add("get_log", "Read the viewer's console, oldest first: shader compile errors, load failures and renderer warnings. Each line is 'time level [component] message', level being D, I, W or E. Returns a 'cursor'; pass it back as 'since' to read only what was logged after this call.",
             Schema(new JsonObject
             {
-                ["limit"] = Prop("integer", "Most recent lines to return. Defaults to 200."),
+                ["since"] = Prop("integer", "Only lines logged after this cursor, from an earlier get_log or clear_log."),
+                ["level"] = Prop("string", "Lowest level to include. Defaults to info, which leaves out debug lines such as OpenGL performance notes.", "debug", "info", "warn", "error"),
+                ["include"] = Prop("string", "Case insensitive regular expression; only lines matching it are returned. Matched against '[component] message'."),
+                ["exclude"] = Prop("string", "Case insensitive regular expression; lines matching it are left out."),
+                ["dedupe"] = Prop("boolean", "Collapse repeats of the same line into its first occurrence with an (xN) count. Defaults to true."),
+                ["limit"] = Prop("integer", "Most lines to return, keeping the newest. Defaults to 200, at most 5000."),
             }),
             GetLog);
 
-        Add("list_tabs", "List open tabs with their id, title, viewer kind and which one is active.",
+        Add("clear_log", "Empty the viewer's console. Returns the cursor to pass to get_log as 'since'.",
+            Schema(),
+            ClearLog);
+
+        Add("list_tabs", "List open tabs with their id, title, file and viewer kind, marking the active one.",
             Schema(),
             (_, ct) => ListTabs(ct));
 
@@ -125,7 +213,7 @@ internal sealed partial class McpTools
             }, "tab"),
             CloseTab);
 
-        Add("open_file", "Open a file and wait until its tab has finished loading. Accepts the same paths as the command line, including vpk:outer_dir.vpk:inner/file.",
+        Add("open_file", "Open a file and wait until its tab has finished loading. Accepts the same paths as the command line. A file inside a package is vpk:outer_dir.vpk:inner/file, so a map is vpk:game/pak01_dir.vpk:maps/name.vmap_c; a bare .vpk only opens the package browser.",
             Schema(new JsonObject
             {
                 ["path"] = Prop("string", "File path, or vpk:package.vpk:inner/file for a file inside a package."),
@@ -142,21 +230,27 @@ internal sealed partial class McpTools
         {
             var page = Program.MainForm.Tabs.SelectedTab;
 
-            return page == null ? null : new JsonObject
-            {
-                ["tab"] = IdFor(page),
-                ["title"] = page.Text,
-                ["viewer"] = DescribeViewer(page),
-            };
+            return page == null ? null : DescribeTab(page);
         }, cancellationToken).ConfigureAwait(false);
 
-        return McpToolResult.Json(new JsonObject
+        var status = new JsonObject
         {
             ["pid"] = process.Id,
             ["version"] = Program.ProductVersion,
-            ["uptime_seconds"] = Math.Round(Stopwatch.GetElapsedTime(StartedAt).TotalSeconds, 1),
-            ["active_tab"] = active,
-        });
+            ["uptime_seconds"] = Math.Round(Stopwatch.GetElapsedTime(StartedAt).TotalSeconds),
+        };
+
+        if (active != null)
+        {
+            status["active_tab"] = active;
+        }
+
+        if (AutomationClock.IsPaused)
+        {
+            status["paused"] = true;
+        }
+
+        return McpToolResult.Json(status);
     }
 
     private static Task<McpToolResult> Quit()
@@ -174,17 +268,93 @@ internal sealed partial class McpTools
             }
         });
 
-        return Task.FromResult(McpToolResult.Text("Closing."));
+        return Task.FromResult(McpToolResult.Json(new JsonObject
+        {
+            ["closing"] = true,
+        }));
     }
 
-    private static async Task<McpToolResult> GetLog(JsonObject args, CancellationToken cancellationToken)
+    private static Task<McpToolResult> GetLog(JsonObject args, CancellationToken cancellationToken)
     {
+        var since = GetLong(args, "since") ?? 0;
         var limit = Math.Clamp(GetInt(args, "limit") ?? 200, 1, 5000);
-        var lines = await OnUi(() => Log.GetLines(limit), cancellationToken).ConfigureAwait(false);
+        var dedupe = GetBool(args, "dedupe") ?? true;
+        var include = GetRegex(args, "include");
+        var exclude = GetRegex(args, "exclude");
 
-        return lines.Count == 0
-            ? McpToolResult.Text("The console is empty.")
-            : McpToolResult.Text(string.Join(Environment.NewLine, lines));
+        var level = GetString(args, "level")?.ToLowerInvariant() switch
+        {
+            null or "info" => Log.Category.INFO,
+            "debug" => Log.Category.DEBUG,
+            "warn" or "warning" => Log.Category.WARN,
+            "error" => Log.Category.ERROR,
+            var other => throw new ArgumentException($"Unknown level '{other}'. Use debug, info, warn or error."),
+        };
+
+        var (entries, cursor) = AutomationLog.Read(since, level, include, exclude);
+
+        var lines = new List<(AutomationLog.Entry Entry, int Repeats)>(entries.Count);
+
+        if (dedupe)
+        {
+            var firstIndex = new Dictionary<(Log.Category, string, string), int>();
+
+            foreach (var entry in entries)
+            {
+                var key = (entry.Category, entry.Component, entry.Message);
+
+                if (firstIndex.TryGetValue(key, out var index))
+                {
+                    lines[index] = (lines[index].Entry, lines[index].Repeats + 1);
+                    continue;
+                }
+
+                firstIndex[key] = lines.Count;
+                lines.Add((entry, 1));
+            }
+        }
+        else
+        {
+            foreach (var entry in entries)
+            {
+                lines.Add((entry, 1));
+            }
+        }
+
+        var omitted = Math.Max(0, lines.Count - limit);
+        var text = new JsonArray();
+
+        for (var i = omitted; i < lines.Count; i++)
+        {
+            text.Add(AutomationLog.Format(lines[i].Entry, lines[i].Repeats));
+        }
+
+        var result = new JsonObject
+        {
+            ["cursor"] = cursor,
+            ["lines"] = text,
+        };
+
+        if (omitted > 0)
+        {
+            result["omitted"] = omitted;
+        }
+
+        return Task.FromResult(McpToolResult.Json(result));
+    }
+
+    private static async Task<McpToolResult> ClearLog(JsonObject args, CancellationToken cancellationToken)
+    {
+        var cursor = await OnUi(() =>
+        {
+            Log.ClearConsole();
+            return AutomationLog.Clear();
+        }, cancellationToken).ConfigureAwait(false);
+
+        return McpToolResult.Json(new JsonObject
+        {
+            ["cursor"] = cursor,
+        });
     }
 
     private async Task<McpToolResult> ListTabs(CancellationToken cancellationToken)
@@ -194,18 +364,10 @@ internal sealed partial class McpTools
             PruneTabIds();
 
             var list = new JsonArray();
-            var selected = Program.MainForm.Tabs.SelectedTab;
 
             foreach (TabPage page in Program.MainForm.Tabs.TabPages)
             {
-                list.Add(new JsonObject
-                {
-                    ["tab"] = IdFor(page),
-                    ["title"] = page.Text,
-                    ["file"] = page.ToolTipText,
-                    ["viewer"] = DescribeViewer(page),
-                    ["active"] = page == selected,
-                });
+                list.Add(DescribeTab(page));
             }
 
             return list;
@@ -222,15 +384,25 @@ internal sealed partial class McpTools
         {
             Program.MainForm.Tabs.SelectTab(page);
 
-            return McpToolResult.Ok();
+            return McpToolResult.Json(DescribeTab(page));
         }, cancellationToken);
 
     private Task<McpToolResult> CloseTab(JsonObject args, CancellationToken cancellationToken)
         => WithTab(args, page =>
         {
+            var id = IdFor(page);
+
             Program.MainForm.Tabs.CloseTab(page);
 
-            return McpToolResult.Ok();
+            if (page.Parent != null)
+            {
+                return McpToolResult.Error($"Tab {id} '{page.Text}' cannot be closed.");
+            }
+
+            return McpToolResult.Json(new JsonObject
+            {
+                ["closed"] = id,
+            });
         }, cancellationToken);
 
     /// <summary>Runs <paramref name="action"/> on the UI thread with the tab the arguments name.</summary>
@@ -247,7 +419,7 @@ internal sealed partial class McpTools
         {
             var page = PageFor(id.Value);
 
-            return page == null ? McpToolResult.Error($"No tab with id {id}.") : action(page);
+            return page == null ? NoSuchTab(id.Value) : action(page);
         }, cancellationToken).ConfigureAwait(false);
     }
 
@@ -262,6 +434,7 @@ internal sealed partial class McpTools
 
         var timeout = TimeSpan.FromSeconds(GetInt(args, "timeout_seconds") ?? 180);
         var completion = new TaskCompletionSource<Exception?>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var logCursor = AutomationLog.Cursor;
 
         TabPage? tab = null;
 
@@ -278,6 +451,7 @@ internal sealed partial class McpTools
         var opened = await OnUi(() =>
         {
             var form = Program.MainForm;
+            var previous = form.Tabs.SelectedTab;
 
             // Looking for a tab that was not there before, rather than for the selection changing:
             // a path that does not exist selects the console tab instead of opening anything, and
@@ -301,6 +475,13 @@ internal sealed partial class McpTools
                 }
             }
 
+            // Put back the tab that was active, so that later calls without 'tab' still reach it
+            // rather than the console.
+            if (previous != null && !previous.IsDisposed && previous.Parent != null)
+            {
+                form.Tabs.SelectTab(previous);
+            }
+
             return false;
         }, cancellationToken).ConfigureAwait(false);
 
@@ -308,7 +489,7 @@ internal sealed partial class McpTools
         {
             if (!opened)
             {
-                return McpToolResult.Error($"Nothing was opened for '{path}'. Call get_log for the reason, usually that the file or the path inside the package does not exist.");
+                return McpToolResult.Error($"Nothing was opened for '{path}'.{LoggedErrorsSince(logCursor)}");
             }
 
             Exception? failure;
@@ -336,16 +517,92 @@ internal sealed partial class McpTools
             }, CancellationToken.None).ConfigureAwait(false);
         }
 
-        return await OnUi(() => McpToolResult.Json(new JsonObject
+        return await OnUi(() =>
         {
-            ["tab"] = IdFor(tab!),
-            ["title"] = tab!.Text,
-            ["file"] = tab.ToolTipText,
-            ["viewer"] = DescribeViewer(tab),
-        }), cancellationToken).ConfigureAwait(false);
+            var result = DescribeTab(tab!);
+
+            if (!path.StartsWith("vpk:", StringComparison.OrdinalIgnoreCase)
+                && path.EndsWith(".vpk", StringComparison.OrdinalIgnoreCase))
+            {
+                result["hint"] = "This opened the package browser, not a map. Open a file inside it as vpk:package.vpk:inner/file.";
+
+                if (MapsInPackage(tab!) is { } maps)
+                {
+                    result["maps"] = maps;
+                }
+            }
+
+            return McpToolResult.Json(result);
+        }, cancellationToken).ConfigureAwait(false);
     }
 
-    private static string DescribeViewer(TabPage page)
+    /// <summary>Paths that would open each map in a package tab, ready to pass to open_file.</summary>
+    private static JsonArray? MapsInPackage(TabPage page)
+    {
+        if (page.Tag is not ExportData { VrfGuiContext: { CurrentPackage: { } package } context }
+            || package.Entries?.GetValueOrDefault("vmap_c") is not { Count: > 0 } maps)
+        {
+            return null;
+        }
+
+        var paths = new JsonArray();
+
+        foreach (var map in maps)
+        {
+            paths.Add($"vpk:{context.FileName}:{map.GetFullPath()}");
+        }
+
+        return paths;
+    }
+
+    /// <summary>Warnings and errors logged since <paramref name="cursor"/>, as a sentence to append to an error.</summary>
+    private static string LoggedErrorsSince(long cursor)
+    {
+        var (entries, _) = AutomationLog.Read(cursor, Log.Category.WARN, null, null);
+
+        if (entries.Count == 0)
+        {
+            return string.Empty;
+        }
+
+        var messages = new List<string>(entries.Count);
+
+        foreach (var entry in entries)
+        {
+            messages.Add(entry.Message);
+        }
+
+        return " The log says: " + string.Join(" ", messages);
+    }
+
+    private JsonObject DescribeTab(TabPage page)
+    {
+        var tab = new JsonObject
+        {
+            ["tab"] = IdFor(page),
+            ["title"] = page.Text,
+        };
+
+        // The tooltip is the full path, followed by the packages it came from.
+        if (!string.IsNullOrEmpty(page.ToolTipText) && page.ToolTipText != page.Text)
+        {
+            tab["file"] = page.ToolTipText;
+        }
+
+        if (DescribeViewer(page) is { } viewer)
+        {
+            tab["viewer"] = viewer;
+        }
+
+        if (page == Program.MainForm.Tabs.SelectedTab)
+        {
+            tab["active"] = true;
+        }
+
+        return tab;
+    }
+
+    private static string? DescribeViewer(TabPage page)
     {
         if (GLBaseControl.FindHostedIn(page) is { } glViewer)
         {
@@ -357,7 +614,7 @@ internal sealed partial class McpTools
             return contents.GetType().Name;
         }
 
-        return "none";
+        return null;
     }
 
     private int IdFor(TabPage page)
@@ -395,6 +652,8 @@ internal sealed partial class McpTools
         }
     }
 
+    private static McpToolResult NoSuchTab(int id) => McpToolResult.Error($"No tab with id {id}. Call list_tabs for the open ones.");
+
     private static Task<T> OnUi<T>(Func<T> callback, CancellationToken cancellationToken)
         => OnUi(callback, UiTimeout, cancellationToken);
 
@@ -409,6 +668,17 @@ internal sealed partial class McpTools
 
         return await form.InvokeAsync(callback, cancellationToken).WaitAsync(timeout, cancellationToken).ConfigureAwait(false);
     }
+
+    private static JsonArray Round(Vector3 vector) => [Round(vector.X), Round(vector.Y), Round(vector.Z)];
+
+    private static double Round(float value) => Math.Round(value, 2);
+
+    private static JsonObject DescribeCamera(Camera camera) => new()
+    {
+        ["position"] = Round(camera.Location),
+        ["angles"] = Round(camera.GetQAngle()),
+        ["fov"] = Round(camera.FieldOfView),
+    };
 
     private static JsonObject Schema(JsonObject? properties = null, params string[] required)
     {
@@ -433,9 +703,37 @@ internal sealed partial class McpTools
         return schema;
     }
 
-    private static JsonObject Prop(string type, string description) => new()
+    private static JsonObject Prop(string type, string description, params string[] allowed)
     {
-        ["type"] = type,
+        var prop = new JsonObject
+        {
+            ["type"] = type,
+            ["description"] = description,
+        };
+
+        if (allowed.Length > 0)
+        {
+            var values = new JsonArray();
+
+            foreach (var value in allowed)
+            {
+                values.Add(value);
+            }
+
+            prop["enum"] = values;
+        }
+
+        return prop;
+    }
+
+    private static JsonObject TabProp() => Prop("integer", "Tab id from open_file or list_tabs. Defaults to the active tab.");
+
+    private static JsonObject VectorProp(string description) => new()
+    {
+        ["type"] = "array",
+        ["items"] = new JsonObject { ["type"] = "number" },
+        ["minItems"] = 3,
+        ["maxItems"] = 3,
         ["description"] = description,
     };
 
@@ -458,16 +756,74 @@ internal sealed partial class McpTools
         return McpToolResult.Error($"Missing '{name}'. Received {string.Join(", ", received)}.");
     }
 
+    private static T? Get<T>(JsonObject args, string name, string expected)
+        where T : struct
+    {
+        if (!args.TryGetPropertyValue(name, out var node) || node == null)
+        {
+            return null;
+        }
+
+        return node is JsonValue value && value.TryGetValue<T>(out var result)
+            ? result
+            : throw new ArgumentException($"'{name}' must be {expected}, got {node.ToJsonString()}.");
+    }
+
     private static string? GetString(JsonObject args, string name)
-        => args.TryGetPropertyValue(name, out var node) && node != null ? node.GetValue<string>() : null;
+    {
+        if (!args.TryGetPropertyValue(name, out var node) || node == null)
+        {
+            return null;
+        }
 
-    private static int? GetInt(JsonObject args, string name)
-        => args.TryGetPropertyValue(name, out var node) && node != null ? node.GetValue<int>() : null;
+        return node is JsonValue value && value.TryGetValue<string>(out var result)
+            ? result
+            : throw new ArgumentException($"'{name}' must be a string, got {node.ToJsonString()}.");
+    }
 
-    private static float? GetFloat(JsonObject args, string name)
-        => args.TryGetPropertyValue(name, out var node) && node != null ? node.GetValue<float>() : null;
+    private static int? GetInt(JsonObject args, string name) => Get<int>(args, name, "an integer");
 
-    private static bool? GetBool(JsonObject args, string name)
-        => args.TryGetPropertyValue(name, out var node) && node != null ? node.GetValue<bool>() : null;
+    private static long? GetLong(JsonObject args, string name) => Get<long>(args, name, "an integer");
+
+    private static float? GetFloat(JsonObject args, string name) => Get<float>(args, name, "a number");
+
+    private static bool? GetBool(JsonObject args, string name) => Get<bool>(args, name, "true or false");
+
+    private static Vector3? GetVector(JsonObject args, string name)
+    {
+        if (!args.TryGetPropertyValue(name, out var node) || node == null)
+        {
+            return null;
+        }
+
+        if (node is JsonArray { Count: 3 } array
+            && array[0] is JsonValue x && x.TryGetValue<float>(out var vx)
+            && array[1] is JsonValue y && y.TryGetValue<float>(out var vy)
+            && array[2] is JsonValue z && z.TryGetValue<float>(out var vz))
+        {
+            return new Vector3(vx, vy, vz);
+        }
+
+        throw new ArgumentException($"'{name}' must be an array of three numbers, got {node.ToJsonString()}.");
+    }
+
+    private static Regex? GetRegex(JsonObject args, string name)
+    {
+        var pattern = GetString(args, name);
+
+        if (string.IsNullOrEmpty(pattern))
+        {
+            return null;
+        }
+
+        try
+        {
+            return new Regex(pattern, RegexOptions.IgnoreCase | RegexOptions.CultureInvariant, RegexTimeout);
+        }
+        catch (ArgumentException e)
+        {
+            throw new ArgumentException($"'{name}' is not a valid regular expression: {e.Message}", e);
+        }
+    }
 }
 #endif

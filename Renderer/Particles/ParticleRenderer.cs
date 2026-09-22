@@ -22,6 +22,7 @@ namespace ValveResourceFormat.Renderer.Particles
 
         private readonly List<ParticleFunctionRenderer> renderers = [];
         private readonly List<ParticleRenderer> childRenderers = [];
+        private readonly List<string> skippedRendererClasses = [];
         private readonly RendererContext rendererContext;
 
         /// <summary>The system this draws.</summary>
@@ -106,6 +107,7 @@ namespace ValveResourceFormat.Renderer.Particles
                 if (renderer == null)
                 {
                     rendererContext.Logger.LogUniqueWarningFor(["renderer", rendererClass], UnsupportedClassWarning, "renderer", rendererClass, Simulation.Name);
+                    skippedRendererClasses.Add(rendererClass);
                     continue;
                 }
 
@@ -174,6 +176,13 @@ namespace ValveResourceFormat.Renderer.Particles
         /// <summary>The renderers of this system and the systems nested under it.</summary>
         public IEnumerable<ParticleFunctionRenderer> EnumerateRenderers()
             => renderers.Concat(childRenderers.SelectMany(static child => child.EnumerateRenderers()));
+
+        /// <summary>
+        /// The renderer classes of this system and the systems nested under it that are not
+        /// implemented, and so draw nothing.
+        /// </summary>
+        public IEnumerable<string> EnumerateSkippedRendererClasses()
+            => skippedRendererClasses.Concat(childRenderers.SelectMany(static child => child.EnumerateSkippedRendererClasses()));
 
         /// <inheritdoc/>
         public void OnFrameSimulated(ParticleCollection particles, ParticleSystemState state)

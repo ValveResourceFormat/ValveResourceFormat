@@ -25,6 +25,12 @@ namespace ValveResourceFormat.Renderer.PostProcess
         public RenderTexture? BlueNoise { get; set; }
         private readonly Random random = new();
 
+        /// <summary>
+        /// Gets or sets whether the dither pattern moves every frame. When off it holds still, so two
+        /// renders of the same scene produce the same pixels.
+        /// </summary>
+        public bool AnimateDither { get; set; } = true;
+
         /// <summary>Gets or sets the scene average luminance used for auto-exposure calculations.</summary>
         public float AverageLuminance { get; set; }
         /// <summary>Gets or sets the current post-processing state (tonemap, bloom, exposure settings).</summary>
@@ -216,7 +222,7 @@ namespace ValveResourceFormat.Renderer.PostProcess
         private void SetPostProcessUniforms(Shader shader, TonemapSettings TonemapSettings)
         {
             // Randomize dither offset every frame
-            var ditherOffset = new Vector2(random.NextSingle(), random.NextSingle());
+            var ditherOffset = AnimateDither ? new Vector2(random.NextSingle(), random.NextSingle()) : new Vector2(0.5f);
 
             // Dither by one 255th of frame color originally. Modified to be twice that, because it looks better.
             shader.SetUniform("g_vBlueNoiseDitherParams", new Vector4(ditherOffset, 1.0f / 256.0f, 2.0f / 255.0f));

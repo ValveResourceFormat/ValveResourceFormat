@@ -1,8 +1,9 @@
 #if DEBUG
-using System.Globalization;
 using System.Threading;
+using System.Windows.Forms;
 using SkiaSharp;
 using ValveResourceFormat.Renderer;
+using ValveResourceFormat.ResourceTypes;
 
 // Everything the automation server needs to reach into the viewers lives here rather than in the
 // viewers themselves, so that the feature stays in one place and leaves nothing behind in a build
@@ -79,6 +80,13 @@ namespace GUI.Types.GLViewers
             RendererContext.TextureStreaming.FinishAllStreaming(cancellationToken);
         }
 
+        /// <summary>
+        /// Holds the render thread off between frames, so scene state it mutates, such as particle
+        /// simulations, can be read consistently. Do not take this on the UI thread: a frame can wait
+        /// on the UI thread, which would then deadlock.
+        /// </summary>
+        internal Lock.Scope HoldFrame() => glLock.EnterScope();
+
         /// <summary>Reaches the viewers' own capture path, which is otherwise protected.</summary>
         internal SKBitmap? CaptureBitmap() => ReadPixelsToBitmap();
     }
@@ -87,6 +95,30 @@ namespace GUI.Types.GLViewers
     {
         /// <summary>The picking framebuffer.</summary>
         internal PickingTexture? PickingTexture => Picker;
+
+        partial void ApplyAutomationTimestep(ref float timestep)
+        {
+            var controlled = Automation.AutomationClock.Advance(ref timestep);
+
+            // Moving dither alone makes every pixel of two otherwise identical frames differ.
+            Renderer.Postprocess.AnimateDither = !controlled;
+        }
+
+        /// <summary>
+        /// Stops the viewer acting on picks until disposed, so a pick only reports what is under the
+        /// pixel instead of selecting it the way a click would.
+        /// </summary>
+        internal IDisposable IgnorePicks()
+        {
+            Picker?.OnPicked -= OnPicked;
+
+            return new PickScope(this);
+        }
+
+        private sealed class PickScope(GLSceneViewer viewer) : IDisposable
+        {
+            public void Dispose() => viewer.Picker?.OnPicked += viewer.OnPicked;
+        }
 
         /// <summary>Selectable render mode names, headers excluded.</summary>
         internal List<string> AvailableRenderModes
@@ -168,39 +200,70 @@ namespace GUI.Types.GLViewers
     partial class GLWorldViewer
     {
         /// <summary>World layer names with their current checked state.</summary>
-        internal List<(string Name, bool Enabled)> GetWorldLayers()
-        {
-            var layers = new List<(string, bool)>();
+        internal List<(string Name, bool Enabled)> GetWorldLayers() => GetChecked(worldLayersComboBox);
 
-            if (worldLayersComboBox == null)
-            {
-                return layers;
-            }
-
-            for (var i = 0; i < worldLayersComboBox.Items.Count; i++)
-            {
-                layers.Add((worldLayersComboBox.Items[i].ToString() ?? string.Empty, worldLayersComboBox.GetItemChecked(i)));
-            }
-
-            return layers;
-        }
+        /// <summary>Physics group names with their current checked state.</summary>
+        internal List<(string Name, bool Enabled)> GetPhysicsGroups() => GetChecked(physicsGroupsComboBox);
 
         // Goes through the checkbox so the UI and the 3D sky scene follow the same path as a click.
-        internal bool TrySetWorldLayer(string name, bool enabled)
+        internal bool TrySetWorldLayer(string name, bool enabled) => TrySetChecked(worldLayersComboBox, name, enabled);
+
+        internal bool TrySetPhysicsGroup(string name, bool enabled) => TrySetChecked(physicsGroupsComboBox, name, enabled);
+
+        /// <summary>
+        /// Selects the entity's node and frames it, as the entity list does, turning on its layer and
+        /// physics group when they are off. An entity with nothing drawn is framed at
+        /// <paramref name="worldOrigin"/>, which the caller has already placed in the world, so a 3D sky
+        /// entity is looked at where it renders rather than at its origin in the sky map.
+        /// </summary>
+        /// <returns>The selected node, or null when the entity has none.</returns>
+        internal SceneNode? SelectAndFocusEntity(EntityLump.Entity entity, Vector3 worldOrigin)
         {
-            if (worldLayersComboBox == null)
+            var node = Scene.Find(entity) ?? SkyboxScene?.Find(entity);
+
+            if (node == null)
+            {
+                SelectedNodeRenderer?.SelectNode(null);
+                FocusCameraOnBounds(new AABB(worldOrigin - new Vector3(32f), worldOrigin + new Vector3(32f)));
+                return null;
+            }
+
+            SelectAndFocusNode(node);
+            return node;
+        }
+
+        private static List<(string Name, bool Enabled)> GetChecked(CheckedListBox? listBox)
+        {
+            var items = new List<(string, bool)>();
+
+            if (listBox == null)
+            {
+                return items;
+            }
+
+            for (var i = 0; i < listBox.Items.Count; i++)
+            {
+                items.Add((listBox.Items[i].ToString() ?? string.Empty, listBox.GetItemChecked(i)));
+            }
+
+            return items;
+        }
+
+        private static bool TrySetChecked(CheckedListBox? listBox, string name, bool enabled)
+        {
+            if (listBox == null)
             {
                 return false;
             }
 
-            var index = worldLayersComboBox.FindStringExact(name);
+            var index = listBox.FindStringExact(name);
 
             if (index < 0)
             {
                 return false;
             }
 
-            worldLayersComboBox.SetItemChecked(index, enabled);
+            listBox.SetItemChecked(index, enabled);
 
             return true;
         }
@@ -243,16 +306,28 @@ namespace GUI.Types.GLViewers
             {
                 framePresented.Reset();
 
-                var remaining = deadline - DateTime.UtcNow;
-
-                if (remaining <= TimeSpan.Zero || !framePresented.Wait(remaining))
+                while (!framePresented.Wait(NudgeInterval))
                 {
-                    return false;
+                    if (DateTime.UtcNow >= deadline)
+                    {
+                        return false;
+                    }
+
+                    Nudge();
                 }
             }
 
             return true;
         }
+
+        /// <summary>How long a wait on the loop goes before waking it again.</summary>
+        public static readonly TimeSpan NudgeInterval = TimeSpan.FromMilliseconds(250);
+
+        /// <summary>
+        /// Wakes the loop again. It decides to park itself before it rechecks whether automation
+        /// holds it, so a scope that begins in between is missed and the loop sleeps through it.
+        /// </summary>
+        public static void Nudge() => renderSignal.Set();
 
         static partial void KeepRenderingWhileInBackground(ref bool keepRendering)
             => keepRendering = Volatile.Read(ref automationHolders) > 0;
@@ -265,46 +340,13 @@ namespace GUI.Utils
 {
     partial class ConsoleTab
     {
-        /// <summary>
-        /// Console contents, oldest first, capped to the newest <paramref name="limit"/> lines.
-        /// Reads the queue as well as the text box, because the queue is only drained while the tab
-        /// is on screen. Does not consume it, so the tab still fills in later. Call on the UI thread.
-        /// </summary>
-        internal List<string> GetLines(int limit)
+        static partial void RecordLine(Log.Category category, string component, string message)
         {
-            var lines = new List<string>();
-
-            if (control is { IsDisposed: false })
+            if (Automation.Automation.IsEnabled)
             {
-                foreach (var line in control.Text.Split('\n'))
-                {
-                    lines.Add(line.TrimEnd('\r'));
-                }
-
-                if (lines.Count > 0 && lines[^1].Length == 0)
-                {
-                    lines.RemoveAt(lines.Count - 1);
-                }
+                Automation.AutomationLog.Add(category, component, message);
             }
-
-            foreach (var line in LogQueue)
-            {
-                lines.Add(FormatPrefix(line) + line.Message);
-            }
-
-            if (lines.Count > limit)
-            {
-                lines.RemoveRange(0, lines.Count - limit);
-            }
-
-            return lines;
         }
-    }
-
-    partial class Log
-    {
-        /// <summary>Recent console lines. Call on the UI thread.</summary>
-        public static List<string> GetLines(int limit) => console?.GetLines(limit) ?? [];
     }
 }
 #endif

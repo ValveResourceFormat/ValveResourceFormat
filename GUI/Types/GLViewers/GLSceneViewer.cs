@@ -635,6 +635,9 @@ namespace GUI.Types.GLViewers
             Renderer.PerfStats.Timings.SetBufferSwapTime(blockedMs, framePeriodMs);
         }
 
+        /// <summary>Lets automation pause the simulation or step it by fixed amounts. Not compiled in otherwise.</summary>
+        partial void ApplyAutomationTimestep(ref float timestep);
+
         protected override void OnPaint(float frameTime)
         {
             Debug.Assert(MainFramebuffer != null);
@@ -658,10 +661,14 @@ namespace GUI.Types.GLViewers
 
             using (new GLDebugGroup("Update Loop"))
             {
+                var timestep = frameTime;
+                ApplyAutomationTimestep(ref timestep);
+
                 var updateContext = new Scene.UpdateContext
                 {
                     TextRenderer = TextRenderer,
-                    Timestep = frameTime,
+                    Timestep = timestep,
+                    FrameTime = frameTime,
                     Camera = Renderer.Camera,
                 };
 

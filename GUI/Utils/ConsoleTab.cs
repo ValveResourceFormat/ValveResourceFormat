@@ -71,8 +71,13 @@ namespace GUI.Utils
             }
         }
 
+        /// <summary>Keeps a structured copy of every line for automation. Not compiled in otherwise.</summary>
+        static partial void RecordLine(Log.Category category, string component, string message);
+
         public void WriteLine(Log.Category category, string component, string message)
         {
+            RecordLine(category, component, message);
+
             if (control == null || control.IsDisposed)
             {
                 return;
