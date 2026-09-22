@@ -270,6 +270,9 @@ namespace ValveResourceFormat.Renderer.SceneNodes
 
         private bool pendingRestart;
 
+        /// <summary>Stops emission and leaves the particles already alive to finish their lives.</summary>
+        public void StopEmission() => particleRenderer.Stop();
+
         /// <summary>
         /// Stops emission and plays the system's endcap, which is what the engine does when something
         /// tells a running effect to end.

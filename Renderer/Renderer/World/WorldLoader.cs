@@ -1,5 +1,4 @@
 using System.Diagnostics;
-using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Threading;
@@ -30,13 +29,6 @@ namespace ValveResourceFormat.Renderer.World
         private readonly RendererContext RendererContext;
 
         private CancellationToken CancellationToken => RendererContext.CancellationToken;
-
-        // A template child's own keyvalues are in template space, so the spawning point_template's
-        // transform is kept here to compose a world transform for entities looked up by name.
-        private readonly Dictionary<Entity, Matrix4x4> entityParentTransforms = [];
-        private readonly List<ParticleSceneNode> entityParticleNodes = [];
-
-        private static readonly string[] ControlPointKeys = CreateControlPointKeys();
 
         /// <summary>The directory path of the map, e.g. <c>maps/de_dust2</c>.</summary>
         public string MapName { get; }
@@ -316,9 +308,6 @@ namespace ValveResourceFormat.Renderer.World
                 LoadEntitiesFromLump(entityLump, "Entities");
             }
 
-            ResolveAttachmentParenting();
-            ResolveParticleControlPoints();
-
             // Every entity exists now, so the simulated ones can resolve each other by name. A nested
             // group loads part way through the outer map's own lump, so it leaves activation to that
             // load, which runs once everything - every spawn group - has spawned.
@@ -330,62 +319,6 @@ namespace ValveResourceFormat.Renderer.World
             scene.LightingInfo.StoreLights(
                 scene.AllNodes.OfType<SceneLight>().ToList()
             );
-        }
-
-        /// <summary>
-        /// Parents entities with a <c>parentname</c> to that parent each frame, snapping onto the
-        /// <c>parentattachmentname</c> attachment (or the bone with that name when no attachment matches)
-        /// when one is given, otherwise following the parent's transform. <c>uselocaloffset</c> is ignored,
-        /// as the engine does here too. Done after all entities are loaded so the parent is registered
-        /// regardless of spawn order.
-        /// </summary>
-        private void ResolveAttachmentParenting()
-        {
-            var modelsByTargetName = new Dictionary<string, ModelSceneNode>(StringComparer.OrdinalIgnoreCase);
-
-            foreach (var model in scene.AllNodes.OfType<ModelSceneNode>())
-            {
-                var targetName = model.EntityData?.TargetName;
-
-                if (targetName != null)
-                {
-                    // first registered wins, matching the previous FirstOrDefault lookup
-                    modelsByTargetName.TryAdd(targetName, model);
-                }
-            }
-
-            foreach (var node in scene.AllNodes)
-            {
-                if (node.Parent != null || node.EntityInstance != null)
-                {
-                    continue; // already driven by a simulated entity, which owns its transform
-                }
-
-                var parentName = node.EntityData?.GetStringProperty("parentname");
-
-                if (parentName is null || !modelsByTargetName.TryGetValue(parentName, out var parentNode))
-                {
-                    continue;
-                }
-
-                var attachmentName = node.EntityData!.GetStringProperty("parentattachmentname");
-
-                if (attachmentName is null)
-                {
-                    // plain parenting keeps the child where it is, so it only moves if the parent does
-                    parentNode.AttachNodeKeepingTransform(node);
-                    continue;
-                }
-
-                if (!parentNode.HasAttachmentOrBone(attachmentName))
-                {
-                    RendererContext.Logger.LogWarning("Parent {ParentName} has no attachment or bone {AttachmentName} to parent {NodeName} to", parentName, attachmentName, node.Name);
-                    continue;
-                }
-
-                // attachment parenting snaps the child onto the attachment point or bone
-                parentNode.AttachNode(node, attachmentName);
-            }
         }
 
         /// <summary>
@@ -619,46 +552,32 @@ namespace ValveResourceFormat.Renderer.World
 
             Entities.AddRange(traversed.Select(t => t.Entity));
 
-            foreach (var t in traversed)
+            var firstSpawned = entitySystem.Entities.Count;
+
+            foreach (var (entity, parentTransform, fromTemplate, classname) in entitiesReordered)
             {
-                if (t.ParentTransform != Matrix4x4.Identity)
+                CancellationToken.ThrowIfCancellationRequested();
+
+                try
                 {
-                    entityParentTransforms[t.Entity] = t.ParentTransform;
-                }
-            }
-            var connectionTargets = new EntityIOTargetResolver(Entities);
+                    var layerName = fromTemplate ? EditorEntityNode.TemplateLayerName : originalLayerName;
 
-            void LoadEntity(string classname, Entity entity, Matrix4x4 parentTransform, bool fromTemplate)
-            {
-                var transformationMatrix = EntityTransformHelper.ToTransformationMatrix(entity) * parentTransform;
+                    var disabled = entity.GetBooleanProperty("startdisabled");
 
-                if (entity.Connections != null)
-                {
-                    CreateEntityConnectionLines(entity, transformationMatrix.Translation, connectionTargets);
-                }
+                    if (!disabled)
+                    {
+                        disabled = !entity.GetBooleanProperty("enabled", true);
+                    }
 
-                var layerName = fromTemplate ? "Template Entities" : originalLayerName;
+                    if (disabled && layerName == "Entities")
+                    {
+                        layerName = "Entities (disabled)";
+                    }
 
-                // group the point_template marker and its spawned children under the same layer
-                var toolEntityLayer = fromTemplate || classname == "point_template" ? "Template Entities" : EditorEntityNode.LayerName;
+                    // Every entity joins the entity system, so it can be named and targeted, and draws itself
+                    var created = entitySystem.CreateEntity(entity, parentTransform, layerName, scene);
 
-                var disabled = entity.GetBooleanProperty("startdisabled");
-
-                if (!disabled)
-                {
-                    disabled = !entity.GetBooleanProperty("enabled", true);
-                }
-
-                if (disabled && layerName == "Entities")
-                {
-                    layerName = "Entities (disabled)";
-                }
-
-                // Classnames the entity system implements are spawned as simulated entities, which own
-                // whatever scene nodes they need.
-                if (EntityFactory.IsRegistered(classname))
-                {
-                    switch (entitySystem.CreateEntity(entity, parentTransform, layerName, scene))
+                    switch (created)
                     {
                         // A nested group carries a worldspawn of its own, which stays an ordinary inert entity
                         case WorldEntity worldspawn when !isNestedSpawnGroup:
@@ -686,279 +605,10 @@ namespace ValveResourceFormat.Renderer.World
                             break;
                     }
 
-                    return;
-                }
-
-                var defaultEntityLayer = toolEntityLayer == EditorEntityNode.LayerName && HammerEntities.Get(classname)?.Studio == true
-                    ? layerName
-                    : toolEntityLayer;
-
-                if (classname == "skybox_reference")
-                {
-                    LoadSkybox(entity);
-                }
-
-                if (transformationMatrix == default)
-                {
-                    return;
-                }
-
-                var model = entity.GetStringProperty("model");
-                var particle = entity.GetStringProperty("effect_name");
-                var animation = entity.GetStringProperty("startinganim") ?? entity.GetStringProperty("defaultanim") ?? entity.GetStringProperty("idleanim");
-
-                var skin = entity.GetStringProperty("skin");
-
-                if (classname is "path_particle_rope" or "path_particle_rope_clientside")
-                {
-                    try
+                    if (classname == "skybox_reference" && created != null)
                     {
-                        if (CableSceneNode.TryCreate(scene, entity, parentTransform, out var cable) && cable != null)
-                        {
-                            // The snapshot positions are already world-space (pathnodes placed by the parent
-                            // transform), so the node keeps an identity transform.
-                            cable.LayerName = Scene.ParticlesLayerName;
-                            cable.EntityData = entity;
-                            scene.Add(cable, true);
-                        }
-                        else
-                        {
-                            RendererContext.Logger.LogWarning("Skipped degenerate path_particle_rope '{Target}' at ({Origin})",
-                                entity.TargetName, entity.GetStringProperty("origin"));
-                        }
+                        LoadSkybox(created);
                     }
-                    catch (Exception e)
-                    {
-                        RendererContext.Logger.LogError(e, "Failed to setup path_particle_rope '{Target}'", entity.TargetName);
-                    }
-
-                    // A degenerate or failed cable renders nothing. Never fall through to the
-                    // generic effect_name path: without a runtime snapshot the cable vpcf loads its m_hSnapshot
-                    // editor-preview placeholder and draws a rope at the world origin.
-                    return;
-                }
-
-                if (classname == "xen_flora_animatedmover" && model != null)
-                {
-                    var moverResource = RendererContext.FileLoader.LoadFileCompiled(model);
-
-                    if (moverResource?.DataBlock is not Model moverModel)
-                    {
-                        RendererContext.Logger.LogWarning("xen_flora_animatedmover '{Target}' failed to load model \"{Model}\"",
-                            entity.GetStringProperty("targetname"), model);
-                        return;
-                    }
-
-                    var (moverPath, moverLoopBackIndex) = ResolveFloraMoverPath(entity.GetStringProperty("path_start"));
-
-                    if (moverPath.Count == 0)
-                    {
-                        RendererContext.Logger.LogWarning("xen_flora_animatedmover '{Target}' has no valid path starting at '{PathStart}', it will not move",
-                            entity.GetStringProperty("targetname"), entity.GetStringProperty("path_start"));
-                    }
-
-                    var moverNode = new XenFloraAnimatedMoverSceneNode(
-                        scene,
-                        moverModel,
-                        skin,
-                        entity,
-                        moverPath,
-                        moverLoopBackIndex,
-                        authoredTransform: transformationMatrix)
-                    {
-                        Tint = entity.GetRenderTint(),
-                        LayerName = layerName,
-                        Name = model,
-                    };
-
-                    if (entity.GetBooleanProperty("disable_shadows"))
-                    {
-                        moverNode.Flags |= ObjectTypeFlags.NoShadows;
-                    }
-
-                    scene.Add(moverNode, true);
-
-                    var moverParticleName = entity.GetStringProperty("particle_effect");
-
-                    if (moverParticleName != null)
-                    {
-                        var moverParticleResource = RendererContext.FileLoader.LoadFileCompiled(moverParticleName);
-
-                        if (moverParticleResource?.DataBlock is ParticleSystem moverParticleSystem)
-                        {
-                            var moverParticleNode = new ParticleSceneNode(scene, moverParticleSystem)
-                            {
-                                Name = moverParticleName,
-                                LayerName = Scene.ParticlesLayerName,
-                            };
-
-                            scene.Add(moverParticleNode, true);
-                            moverNode.AttachNode(moverParticleNode, rotation: Quaternion.Identity);
-                        }
-                    }
-
-                    return;
-                }
-
-                if (particle != null)
-                {
-                    var particleResource = RendererContext.FileLoader.LoadFileCompiled(particle);
-                    var particleSystem = (ParticleSystem?)particleResource?.DataBlock;
-
-                    if (particleSystem != null)
-                    {
-                        try
-                        {
-                            ParticleSnapshot? particleSnapshot = null;
-                            var snapshotFile = entity.GetStringProperty("snapshot_file");
-
-                            if (!string.IsNullOrEmpty(snapshotFile))
-                            {
-                                var snapshotResource = RendererContext.FileLoader.LoadFileCompiled(snapshotFile);
-
-                                if (snapshotResource?.GetBlockByType(BlockType.SNAP) is ParticleSnapshot snapshot)
-                                {
-                                    particleSnapshot = snapshot;
-                                }
-                            }
-
-                            var particleNode = new ParticleSceneNode(scene, particleSystem, particleSnapshot, playedByEntity: true)
-                            {
-                                Name = particle,
-                                Transform = ResolveControlPoint0Transform(entity, transformationMatrix),
-                                LayerName = Scene.ParticlesLayerName,
-                                EntityData = entity,
-                            };
-
-                            entityParticleNodes.Add(particleNode);
-                            scene.Add(particleNode, true);
-                        }
-                        catch (Exception e)
-                        {
-                            RendererContext.Logger.LogError(e, "Failed to setup particle '{Particle}'", particle);
-                        }
-                    }
-                }
-
-                if (model == null)
-                {
-                    CreateDefaultEntity(entity, classname, transformationMatrix, defaultEntityLayer);
-                    return;
-                }
-
-                var newEntity = RendererContext.FileLoader.LoadFileCompiled(model);
-
-                if (newEntity == null)
-                {
-                    var errorModelResource = RendererContext.FileLoader.LoadFile("models/dev/error.vmdl_c");
-
-                    if (errorModelResource?.DataBlock is Model errorModelData)
-                    {
-                        var errorModel = new ModelSceneNode(scene, errorModelData, skin)
-                        {
-                            Name = "error",
-                            Transform = transformationMatrix,
-                            LayerName = layerName,
-                            EntityData = entity,
-                        };
-
-                        scene.Add(errorModel, true);
-                    }
-
-                    return;
-                }
-
-                if (newEntity.DataBlock is not Model newModel)
-                {
-                    return;
-                }
-
-                var modelNode = new ModelSceneNode(scene, newModel, skin)
-                {
-                    Transform = transformationMatrix,
-                    Tint = entity.GetRenderTint(),
-                    LayerName = layerName,
-                    Name = model,
-                    EntityData = entity,
-                };
-
-                if (modelNode.HasMeshes)
-                {
-                    if (animation != null)
-                    {
-                        var isAnimated = modelNode.SetAnimationForWorldPreview(animation);
-                        if (isAnimated)
-                        {
-                            var holdAnimationOn = entity.GetBooleanProperty("holdanimation");
-                            if (holdAnimationOn)
-                            {
-                                modelNode.AnimationController.PauseLastFrame();
-                            }
-                        }
-                    }
-
-                    var body = entity.GetIntegerProperty("body", -1L);
-                    if (body != -1L)
-                    {
-                        var groups = modelNode.GetMeshGroups();
-                        modelNode.SetActiveMeshGroups(groups.Skip((int)body).Take(1));
-                    }
-                }
-
-                // Model-referenced particles spawn regardless of meshes; a particle-only model is
-                // still added so its follow attachments get updated (the scene skips parented nodes).
-                var modelParticleNodes = ParticleSceneNode.CreateModelParticles(scene, newModel, modelNode);
-
-                if (modelNode.HasMeshes || modelParticleNodes.Count > 0)
-                {
-                    scene.Add(modelNode, true);
-
-                    foreach (var modelParticleNode in modelParticleNodes)
-                    {
-                        modelParticleNode.LayerName = Scene.ParticlesLayerName;
-                        scene.Add(modelParticleNode, true);
-                    }
-                }
-
-                var phys = newModel?.GetEmbeddedPhys();
-                if (newModel != null && phys == null)
-                {
-                    var refPhysicsPaths = newModel.GetReferencedPhysNames().ToArray();
-                    if (refPhysicsPaths.Length != 0)
-                    {
-                        var newResource = RendererContext.FileLoader.LoadFileCompiled(refPhysicsPaths.First());
-                        if (newResource != null)
-                        {
-                            phys = (PhysAggregateData?)newResource.DataBlock;
-                        }
-                    }
-                }
-
-                if (phys != null)
-                {
-                    foreach (var physSceneNode in PhysSceneNode.CreatePhysSceneNodes(scene, phys, model, classname))
-                    {
-                        physSceneNode.Transform = transformationMatrix;
-                        physSceneNode.LayerName = layerName;
-                        physSceneNode.EntityData = entity;
-
-                        scene.Add(physSceneNode, true);
-                    }
-                }
-                else if (!modelNode.HasMeshes && modelParticleNodes.Count == 0)
-                {
-                    // If the loaded model has no meshes, particles, or physics, fallback to default entity
-                    CreateDefaultEntity(entity, classname, transformationMatrix, defaultEntityLayer);
-                }
-            }
-
-            foreach (var (entity, parentTransform, fromTemplate, classname) in entitiesReordered)
-            {
-                CancellationToken.ThrowIfCancellationRequested();
-
-                try
-                {
-                    LoadEntity(classname, entity, parentTransform, fromTemplate);
                 }
                 catch (Exception e)
                 {
@@ -967,11 +617,26 @@ namespace ValveResourceFormat.Renderer.World
                     throw new InvalidDataException($"Failed to process entity '{classname}' (hammeruniqueid={id})", e);
                 }
             }
+
+            // Once the whole lump has spawned, so a line can end at an entity authored after the one it starts at.
+            // A 3D sky loaded part way through adds its own entities, which draw their own lines.
+            for (var i = firstSpawned; i < entitySystem.Entities.Count; i++)
+            {
+                var spawned = entitySystem.Entities[i];
+
+                if (spawned.Scene != scene || spawned.Data == null)
+                {
+                    continue;
+                }
+
+                CreateEntityConnectionLines(spawned);
+                CreateHelperLines(spawned);
+            }
         }
 
-        private void LoadSkybox(Entity entity)
+        private void LoadSkybox(BaseEntity skyboxReference)
         {
-            var targetmapname = entity.GetStringProperty("targetmapname");
+            var targetmapname = skyboxReference.Data?.GetStringProperty("targetmapname");
 
             if (targetmapname == null)
             {
@@ -1035,12 +700,7 @@ namespace ValveResourceFormat.Renderer.World
             }
 
             // Origin and angles only: a 3D sky is not scaled, the sky camera applies the scale instead
-            var reference = EntityTransformHelper.ToRigidTransformationMatrix(entity);
-
-            if (entityParentTransforms.TryGetValue(entity, out var referenceParentTransform))
-            {
-                reference *= referenceParentTransform;
-            }
+            var reference = EntityTransformHelper.ToRigidTransformationMatrix(skyboxReference.Angles, skyboxReference.Origin) * skyboxReference.ParentTransform;
 
             // Entities are global: the skybox is another spawn group
             // Scenery: nothing can reach the sky, so its entities never build a collider
@@ -1174,380 +834,124 @@ namespace ValveResourceFormat.Renderer.World
             SpawnCameraMatrix = spawnMatrix;
         }
 
-        private void CreateDefaultEntity(Entity entity, string classname, Matrix4x4 transformationMatrix, string layerName)
+        /// <summary>
+        /// Draws the helper lines the entity's Hammer class declares, from the entity to the ones its
+        /// keyvalues name, as the editor shows them.
+        /// </summary>
+        private void CreateHelperLines(BaseEntity entity)
         {
-            entityParentTransforms.TryGetValue(entity, out var entityParentTransform);
-
-            var createdNode = EditorEntityNode.Create(scene, entity, classname, transformationMatrix, ObjectTypeFlags.None, layerName,
-                parentTransform: entityParentTransform == default ? null : entityParentTransform);
-
-            scene.Add(createdNode, true);
-
-            var hammerEntity = HammerEntities.Get(classname);
-
-            if (hammerEntity?.Lines.Length > 0)
-            {
-                foreach (var line in hammerEntity.Lines)
-                {
-                    if (!entity.TryGetValue(line.StartValueKey, out var startKeyValue))
-                    {
-                        continue;
-                    }
-
-                    var startEntity = FindEntityByKeyValue(line.StartKey, (string)startKeyValue);
-
-                    if (startEntity == null)
-                    {
-                        continue;
-                    }
-
-                    var end = transformationMatrix.Translation;
-                    var start = GetEntityWorldTransform(startEntity).Translation;
-
-                    if (line.EndKey != null && line.EndValueKey != null)
-                    {
-                        if (!entity.TryGetValue(line.EndValueKey, out var endKeyValue))
-                        {
-                            continue;
-                        }
-
-                        var endEntity = FindEntityByKeyValue(line.EndKey, (string)endKeyValue);
-
-                        if (endEntity == null)
-                        {
-                            continue;
-                        }
-
-                        end = GetEntityWorldTransform(endEntity).Translation;
-                    }
-
-                    var origin = (start + end) / 2f;
-                    end -= origin;
-                    start -= origin;
-
-                    var lineNode = new LineSceneNode(scene, start, end, line.Color, line.Color)
-                    {
-                        LayerName = layerName,
-                        Transform = Matrix4x4.CreateTranslation(origin)
-                    };
-                    scene.Add(lineNode, true);
-                }
-            }
-        }
-
-        private void CreateEntityConnectionLines(Entity entity, Vector3 start, EntityIOTargetResolver connectionTargets)
-        {
-            if (entity.Connections == null)
+            if (entity.Data is not { } data || HammerEntities.Get(entity.Classname) is not { Lines.Length: > 0 } hammerEntity)
             {
                 return;
             }
 
-            var alreadySeen = new HashSet<Entity>(entity.Connections.Count);
-            var targets = new List<Entity>();
+            // group the point_template marker and its spawned children under the same layer
+            var layerName = entity.LayerName == EditorEntityNode.TemplateLayerName || entity.Classname == "point_template"
+                ? EditorEntityNode.TemplateLayerName
+                : EditorEntityNode.LayerName;
 
-            foreach (var connectionData in entity.Connections)
+            foreach (var line in hammerEntity.Lines)
             {
-                targets.Clear();
-                var outcome = connectionTargets.Resolve(connectionData, targets);
-
-                if (outcome != EntityIOTargetOutcome.Matched)
+                if (data.GetStringProperty(line.StartValueKey) is not { } startValue
+                    || FindHelperLineEnd(line.StartKey, startValue) is not { } startEntity)
                 {
-                    RendererContext.Logger.LogDebug("Skipping entity i/o output {TargetName}: {Outcome}", connectionData.TargetName, outcome);
                     continue;
                 }
 
-                foreach (var endEntity in targets)
+                var start = startEntity.Transform.Translation;
+                var end = entity.Transform.Translation;
+
+                if (line.EndKey != null && line.EndValueKey != null)
                 {
-                    if (!alreadySeen.Add(endEntity))
+                    if (data.GetStringProperty(line.EndValueKey) is not { } endValue
+                        || FindHelperLineEnd(line.EndKey, endValue) is not { } endEntity)
                     {
                         continue;
                     }
 
-                    var end = GetEntityWorldTransform(endEntity).Translation;
+                    end = endEntity.Transform.Translation;
+                }
 
+                var origin = (start + end) / 2f;
+
+                var lineNode = new LineSceneNode(scene, start - origin, end - origin, line.Color, line.Color)
+                {
+                    LayerName = layerName,
+                    Transform = Matrix4x4.CreateTranslation(origin),
+                };
+
+                scene.Add(lineNode, true);
+            }
+        }
+
+        /// <summary>Draws a line from the entity to every entity its entity I/O connections reach.</summary>
+        private void CreateEntityConnectionLines(BaseEntity entity)
+        {
+            if (entity.Data?.Connections is not { } connections)
+            {
+                return;
+            }
+
+            var start = entity.Transform.Translation;
+            var alreadySeen = new HashSet<BaseEntity>(connections.Count);
+
+            foreach (var connection in connections)
+            {
+                var matched = false;
+
+                // The entity as the caller, so a connection aimed at !self reaches it
+                foreach (var target in entitySystem.FindTargets(new EntityIOTarget(connection.TargetName, connection.TargetType), caller: entity))
+                {
+                    // A 3D sky shares names with the map it is placed in
+                    if (target.Scene != scene)
+                    {
+                        continue;
+                    }
+
+                    matched = true;
+
+                    if (!alreadySeen.Add(target))
+                    {
+                        continue;
+                    }
+
+                    var end = target.Transform.Translation;
                     var origin = (start + end) / 2f;
-                    end -= origin;
-                    var lineStart = start - origin;
 
-                    var lineNode = new LineSceneNode(scene, lineStart, end, new Color32(0, 255, 0), new Color32(255, 0, 0))
+                    var lineNode = new LineSceneNode(scene, start - origin, end - origin, new Color32(0, 255, 0), new Color32(255, 0, 0))
                     {
                         LayerName = "Entity Connections",
                         Transform = Matrix4x4.CreateTranslation(origin),
 #if DEBUG
-                        Name = $"Line from {entity.GetStringProperty("hammeruniqueid")} to {endEntity.GetStringProperty("hammeruniqueid")}"
+                        Name = $"Line from {entity.Data.GetStringProperty("hammeruniqueid")} to {target.Data?.GetStringProperty("hammeruniqueid")}"
 #endif
                     };
+
                     scene.Add(lineNode, true);
                 }
-            }
-        }
 
-        // Walks the target chain starting at the path_corner named startName, in the same way path_track/
-        // func_tracktrain follow theirs. LoopBackIndex is set when the chain itself points back to an
-        // already-visited node (an authored closed loop), so a looping mover can honor that entry point
-        // instead of always restarting from the first node.
-        private (List<FloraMoverPathNode> Nodes, int LoopBackIndex) ResolveFloraMoverPath(string? startName)
-        {
-            var nodes = new List<FloraMoverPathNode>();
-            var loopBackIndex = -1;
-
-            if (string.IsNullOrEmpty(startName))
-            {
-                return (nodes, loopBackIndex);
-            }
-
-            var visited = new Dictionary<Entity, int>();
-            var current = FindEntityByTargetName(startName);
-
-            while (current != null && current.GetStringProperty("classname") == "path_corner")
-            {
-                if (visited.TryGetValue(current, out var existingIndex))
+                if (!matched)
                 {
-                    loopBackIndex = existingIndex;
-                    break;
-                }
-
-                visited[current] = nodes.Count;
-                nodes.Add(new FloraMoverPathNode(
-                    GetEntityWorldTransform(current).Translation,
-                    current.GetFloatProperty("speed"),
-                    current.GetFloatProperty("wait")));
-
-                var nextName = current.GetStringProperty("target");
-                current = string.IsNullOrEmpty(nextName) ? null : FindEntityByTargetName(nextName);
-            }
-
-            return (nodes, loopBackIndex);
-        }
-
-        // cpoint0 hands the effect's placement to another entity: control point 0 sits at that entity's
-        // location rather than at the particle entity's own origin.
-        private Matrix4x4 ResolveControlPoint0Transform(Entity entity, Matrix4x4 transformationMatrix)
-        {
-            var controlPoint0 = entity.GetStringProperty("cpoint0");
-
-            if (string.IsNullOrEmpty(controlPoint0))
-            {
-                return transformationMatrix;
-            }
-
-            var target = FindEntityByTargetName(controlPoint0);
-
-            if (target == null)
-            {
-                RendererContext.Logger.LogWarning("Particle entity '{Target}' points cpoint0 at '{ControlPoint0}', which does not exist",
-                    entity.TargetName, controlPoint0);
-                return transformationMatrix;
-            }
-
-            return GetEntityWorldTransform(target);
-        }
-
-        private static void ApplyParticleGlowProperties(Entity entity, ParticleSceneNode particleNode)
-        {
-            particleNode.GetControlPoint(16).Position = entity.GetVector3Property("colortint", new Vector3(255f));
-            particleNode.GetControlPoint(17).Position = new Vector3(
-                entity.GetFloatProperty("alphascale", 1f),
-                entity.GetFloatProperty("scale", 1f),
-                entity.GetFloatProperty("selfillumscale", 1f));
-
-            var textureOverride = entity.GetStringProperty("effect_textureOverride");
-
-            if (!string.IsNullOrEmpty(textureOverride))
-            {
-                particleNode.SetTextureOverride(textureOverride);
-            }
-        }
-
-        private static string[] CreateControlPointKeys()
-        {
-            var keys = new string[64];
-
-            for (var i = 0; i < keys.Length; i++)
-            {
-                keys[i] = string.Concat("cpoint", i.ToString(CultureInfo.InvariantCulture));
-            }
-
-            return keys;
-        }
-
-        /// <summary>
-        /// Applies the control point overrides authored on particle entities: <c>cpoint1</c> to
-        /// <c>cpoint63</c> each name an entity whose transform that control point takes. Runs once
-        /// every lump is loaded, so a target in another lump resolves regardless of load order.
-        /// </summary>
-        private void ResolveParticleControlPoints()
-        {
-            if (entityParticleNodes.Count == 0)
-            {
-                return;
-            }
-
-            var entitiesByTargetName = new Dictionary<string, Entity>(Entities.Count, StringComparer.OrdinalIgnoreCase);
-
-            foreach (var entity in Entities)
-            {
-                var targetName = entity.TargetName;
-
-                if (!string.IsNullOrEmpty(targetName))
-                {
-                    entitiesByTargetName.TryAdd(targetName, entity);
-                }
-            }
-
-            var nodesByEntity = new Dictionary<Entity, SceneNode>();
-
-            foreach (var node in scene.AllNodes)
-            {
-                // A particle entity also spawns its own effect node, whose transform follows the
-                // simulation rather than staying at the origin the entity was authored at.
-                if (node.EntityData != null && node is not ParticleSceneNode)
-                {
-                    nodesByEntity.TryAdd(node.EntityData, node);
-                }
-            }
-
-            foreach (var particleNode in entityParticleNodes)
-            {
-                var entity = particleNode.EntityData!;
-
-                for (var index = 1; index < ControlPointKeys.Length; index++)
-                {
-                    var targetName = entity.GetStringProperty(ControlPointKeys[index]);
-
-                    if (string.IsNullOrEmpty(targetName))
-                    {
-                        continue;
-                    }
-
-                    if (targetName[0] == '!')
-                    {
-                        if (string.Equals(targetName, "!self", StringComparison.OrdinalIgnoreCase))
-                        {
-                            particleNode.SetControlPoint(index, GetEntityWorldTransform(entity));
-                        }
-                        else
-                        {
-                            RendererContext.Logger.LogDebug("Particle entity '{Target}' points {Key} at '{ControlPointTarget}', which only exists at runtime",
-                                entity.TargetName, ControlPointKeys[index], targetName);
-                        }
-
-                        continue;
-                    }
-
-                    if (!entitiesByTargetName.TryGetValue(targetName, out var target))
-                    {
-                        RendererContext.Logger.LogWarning("Particle entity '{Target}' points {Key} at '{ControlPointTarget}', which does not exist",
-                            entity.TargetName, ControlPointKeys[index], targetName);
-                        continue;
-                    }
-
-                    var transform = GetEntityWorldTransform(target);
-
-                    if (nodesByEntity.TryGetValue(target, out var targetNode))
-                    {
-                        particleNode.BindControlPoint(index, targetNode, transform);
-                    }
-                    else
-                    {
-                        particleNode.SetControlPoint(index, transform);
-                    }
-                }
-
-                ApplyLiteralControlPointValues(entity, particleNode);
-
-                if (entity.GetStringProperty("classname") == "env_particle_glow")
-                {
-                    ApplyParticleGlowProperties(entity, particleNode);
+                    RendererContext.Logger.LogDebug("Skipping entity i/o output {TargetName}: no entity matches it", connection.TargetName);
                 }
             }
         }
 
         /// <summary>
-        /// Pins control points to the literal values authored on the entity: <c>data_cp</c> takes a
-        /// vector and <c>tint_cp</c> a colour, both fed through as authored. Applied after the
-        /// <c>cpointN</c> bindings, which is the order the engine resolves the two in.
+        /// Finds the entity a helper line ends at. Lines address entities by name; the few Hammer classes that
+        /// address AI nodes by <c>nodeid</c> instead do not appear in compiled maps.
         /// </summary>
-        private static void ApplyLiteralControlPointValues(Entity entity, ParticleSceneNode particleNode)
+        private BaseEntity? FindHelperLineEnd(string key, string name)
         {
-            var dataControlPoint = LiteralControlPointIndex(entity, "data_cp");
-
-            if (dataControlPoint >= 0)
-            {
-                particleNode.GetControlPoint(dataControlPoint).Position = entity.GetVector3Property("data_cp_value");
-            }
-
-            var tintControlPoint = LiteralControlPointIndex(entity, "tint_cp");
-
-            if (tintControlPoint >= 0)
-            {
-                particleNode.GetControlPoint(tintControlPoint).Position = entity.GetVector3Property("tint_cp_color", new Vector3(255f));
-            }
-        }
-
-        /// <summary>
-        /// Reads a literal control point index, clamped the way the engine clamps it at spawn. Returns
-        /// -1 when unused, which is also what an index past the last control point resolves to.
-        /// </summary>
-        private static int LiteralControlPointIndex(Entity entity, string key)
-        {
-            var index = Math.Clamp(entity.GetInt32Property(key, -1), -1, 64);
-
-            return index < ControlPointKeys.Length ? index : -1;
-        }
-
-        /// <summary>
-        /// Gets the world transform of an entity, composing the transform of the
-        /// <c>point_template</c> that spawned it when it came from a template child lump.
-        /// </summary>
-        /// <param name="entity">The entity to place.</param>
-        /// <returns>The entity's transform in world space.</returns>
-        public Matrix4x4 GetEntityWorldTransform(Entity entity)
-        {
-            var transform = EntityTransformHelper.ToTransformationMatrix(entity);
-
-            return entityParentTransforms.TryGetValue(entity, out var parentTransform)
-                ? transform * parentTransform
-                : transform;
-        }
-
-        private Entity? FindEntityByKeyValue(string keyToFind, string valueToFind)
-        {
-            if (valueToFind == null)
+            if (!key.Equals("targetname", StringComparison.OrdinalIgnoreCase))
             {
                 return null;
             }
 
-            foreach (var entity in Entities)
+            foreach (var entity in entitySystem.FindAllByTargetName(name))
             {
-                if (entity.TryGetValue(keyToFind, out var propertyValue)
-                    && propertyValue.ValueType == ValveKeyValue.KVValueType.String
-                    && valueToFind.Equals((string)propertyValue, StringComparison.OrdinalIgnoreCase))
-                {
-                    return entity;
-                }
-            }
-
-            return null;
-        }
-
-        /// <summary>
-        /// Finds the first entity which matches its name with the given pattern.
-        /// </summary>
-        /// <param name="pattern">Targetname to match against, may contain wildcards: `*` and `?` (e.g. <c>door_*</c>).</param>
-        /// <returns>The matching <see cref="Entity"/>, or <see langword="null"/> if not found.</returns>
-        public Entity? FindEntityByTargetName(string pattern)
-        {
-            if (pattern == null)
-            {
-                return null;
-            }
-
-            foreach (var entity in Entities)
-            {
-                if (entity.TryGetValue("targetname", out var propertyValue)
-                    && propertyValue.ValueType == ValveKeyValue.KVValueType.String
-                    && EntityNameMatches(pattern, (string)propertyValue))
+                // A 3D sky shares names with the map it is placed in
+                if (entity.Scene == scene)
                 {
                     return entity;
                 }

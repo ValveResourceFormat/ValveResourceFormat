@@ -74,6 +74,16 @@ public abstract class BaseModelEntity : BaseEntity
         if (fileLoader.LoadFileCompiled(modelName)?.DataBlock is not Model model)
         {
             EntitySystem.Logger.LogWarning("{Classname} '{TargetName}' failed to load model \"{Model}\"", Classname, TargetName, modelName);
+
+            // Shown in place of the missing model, the way the engine does, so the gap is visible
+            if (fileLoader.LoadFile("models/dev/error.vmdl_c")?.DataBlock is Model errorModel)
+            {
+                return new ModelSceneNode(Scene, errorModel, Data?.GetStringProperty("skin"))
+                {
+                    Name = "error",
+                };
+            }
+
             return base.CreateRootNode();
         }
 
@@ -83,7 +93,7 @@ public abstract class BaseModelEntity : BaseEntity
             Tint = Data?.GetRenderTint() ?? Vector4.One,
         };
 
-        // Model-referenced particles spawn regardless of meshes, as the plain loader path does
+        // Model-referenced particles spawn regardless of meshes
         var particleNodes = ParticleSceneNode.CreateModelParticles(Scene, model, modelNode);
 
         foreach (var particleNode in particleNodes)
@@ -131,7 +141,7 @@ public abstract class BaseModelEntity : BaseEntity
 
         if (EntityCollider.LoadPhysics(model, fileLoader) is { } physics)
         {
-            if (Scene.EntitiesCollide)
+            if (Scene.EntitiesCollide && BuildsCollider)
             {
                 Collider = new EntityCollider(physics);
                 UpdateColliderTransform();
@@ -150,6 +160,12 @@ public abstract class BaseModelEntity : BaseEntity
 
         return ModelNode ?? base.CreateRootNode();
     }
+
+    /// <summary>
+    /// Gets whether the model's physics becomes a <see cref="BaseEntity.Collider"/>. Its hulls are drawn
+    /// either way. Read while the entity is constructed, so an override must not depend on its own state.
+    /// </summary>
+    protected virtual bool BuildsCollider => true;
 
     /// <summary>Tints the model with <c>"R G B"</c> in 0-255.</summary>
     [EntityInput("Color")]

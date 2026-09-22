@@ -11,14 +11,16 @@ namespace ValveResourceFormat.Renderer.World;
 /// falling back to a coloured box. What Hammer itself shows for an entity that has no geometry of its own.
 /// </summary>
 /// <remarks>
-/// The loader draws these for classnames the entity system does not implement, and
-/// <see cref="Entities.BaseEntity"/> draws one for an entity with nothing else to show, so implementing a
-/// classname does not make it invisible.
+/// <see cref="Entities.BaseEntity"/> draws one for an entity with nothing else to show, so an entity without
+/// geometry, implemented or not, is still seen and can be picked.
 /// </remarks>
 internal static class EditorEntityNode
 {
     /// <summary>Visibility layer these are drawn on, so they can be hidden apart from the world.</summary>
     internal const string LayerName = "Entities (editor only)";
+
+    /// <summary>Visibility layer of the entities a <c>point_template</c> spawns, and of the template itself.</summary>
+    internal const string TemplateLayerName = "Template Entities";
 
     /// <summary>
     /// Builds the node for an entity, without adding it to the scene: the caller owns it, and decides

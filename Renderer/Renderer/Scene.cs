@@ -434,7 +434,14 @@ namespace ValveResourceFormat.Renderer
         }
 
         /// <summary>
-        /// Finds the first scene node whose entity data matches the given entity.
+        /// An entity can own several nodes, such as its model and the collision hulls drawn for it, and the
+        /// one to hand out for it is the one it is drawn as, whichever was added to the scene first.
+        /// </summary>
+        private static SceneNode? PreferRootNode(SceneNode? node) => node?.EntityInstance?.RootNode ?? node;
+
+        /// <summary>
+        /// Finds the scene node of the given entity: the node a spawned entity is drawn as, otherwise the
+        /// first node carrying its data.
         /// </summary>
         /// <param name="entity">The entity to search for.</param>
         /// <returns>The matching <see cref="SceneNode"/>, or <see langword="null"/> if not found.</returns>
@@ -442,7 +449,7 @@ namespace ValveResourceFormat.Renderer
         {
             bool IsMatchingEntity(SceneNode node) => node.EntityData == entity;
 
-            return staticNodes.Find(IsMatchingEntity) ?? dynamicNodes.Find(IsMatchingEntity);
+            return PreferRootNode(staticNodes.Find(IsMatchingEntity) ?? dynamicNodes.Find(IsMatchingEntity));
         }
 
         /// <summary>
@@ -465,7 +472,7 @@ namespace ValveResourceFormat.Renderer
                     && valueToFind.Equals((string)value, StringComparison.OrdinalIgnoreCase);
             }
 
-            return staticNodes.Find(IsMatchingEntity) ?? dynamicNodes.Find(IsMatchingEntity);
+            return PreferRootNode(staticNodes.Find(IsMatchingEntity) ?? dynamicNodes.Find(IsMatchingEntity));
         }
 
         /// <summary>
@@ -487,7 +494,7 @@ namespace ValveResourceFormat.Renderer
                     && EntityLump.EntityNameMatches(pattern, (string)value);
             }
 
-            return staticNodes.Find(IsMatchingEntity) ?? dynamicNodes.Find(IsMatchingEntity);
+            return PreferRootNode(staticNodes.Find(IsMatchingEntity) ?? dynamicNodes.Find(IsMatchingEntity));
         }
 
         /// <summary>

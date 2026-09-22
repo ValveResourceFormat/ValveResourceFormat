@@ -28,10 +28,15 @@ public static class EntityFactory
 
     static EntityFactory()
     {
+        // Not registered to a classname, but they still answer the inputs every entity has
+        EntityInputTable.Bind<GenericEntity>();
+        EntityInputTable.Bind<GenericModelEntity>();
+
         Register<WorldEntity>("worldspawn", static (system, spawnInfo) => new WorldEntity(system, spawnInfo));
         Register<InfoWorldLayer>("info_world_layer", static (system, spawnInfo) => new InfoWorldLayer(system, spawnInfo));
 
         Register<FuncBrush>("func_brush", static (system, spawnInfo) => new FuncBrush(system, spawnInfo));
+        Register<FuncCombineBarrier>("func_combine_barrier", static (system, spawnInfo) => new FuncCombineBarrier(system, spawnInfo));
         Register<FuncButton>("func_button", static (system, spawnInfo) => new FuncButton(system, spawnInfo));
         Register<FuncDoor>("func_door", static (system, spawnInfo) => new FuncDoor(system, spawnInfo));
         Register<FuncDoorRotating>("func_door_rotating", static (system, spawnInfo) => new FuncDoorRotating(system, spawnInfo));
@@ -42,6 +47,7 @@ public static class EntityFactory
         Register<PropDynamic>("prop_dynamic", static (system, spawnInfo) => new PropDynamic(system, spawnInfo));
         Register<PropDynamic>("prop_dynamic_override", static (system, spawnInfo) => new PropDynamic(system, spawnInfo));
         Register<FuncBreakable>("func_breakable", static (system, spawnInfo) => new FuncBreakable(system, spawnInfo));
+        Register<XenFloraAnimatedMover>("xen_flora_animatedmover", static (system, spawnInfo) => new XenFloraAnimatedMover(system, spawnInfo));
         Register<TriggerTeleport>("trigger_teleport", static (system, spawnInfo) => new TriggerTeleport(system, spawnInfo));
 
         // lights
@@ -64,6 +70,17 @@ public static class EntityFactory
         Register<EnvSky>("env_sky", static (system, spawnInfo) => new EnvSky(system, spawnInfo));
         Register<EnvTonemapController>("env_tonemap_controller", static (system, spawnInfo) => new EnvTonemapController(system, spawnInfo));
         Register<InfoMapParameters>("info_map_parameters", static (system, spawnInfo) => new InfoMapParameters(system, spawnInfo));
+
+        // particles
+        Register<InfoParticleSystem>("info_particle_system", static (system, spawnInfo) => new InfoParticleSystem(system, spawnInfo));
+        Register<InfoParticleSystem>("dota_world_particle_system", static (system, spawnInfo) => new InfoParticleSystem(system, spawnInfo));
+        Register<EnvParticleGlow>("env_particle_glow", static (system, spawnInfo) => new EnvParticleGlow(system, spawnInfo));
+
+        // A rope's effect_name is the cable effect, which drawn without the rope's own snapshot is an
+        // editor placeholder at the world origin, so ropes must never be treated as plain particle entities
+        Register<PathParticleRopeEntity>("path_particle_rope", static (system, spawnInfo) => new PathParticleRopeEntity(system, spawnInfo));
+        Register<PathParticleRopeEntity>("path_particle_rope_clientside", static (system, spawnInfo) => new PathParticleRopeEntity(system, spawnInfo));
+        Register<PathParticleRopeEntity>("citadel_zipline_path", static (system, spawnInfo) => new PathParticleRopeEntity(system, spawnInfo));
         Register<PostProcessingVolume>("post_processing_volume", static (system, spawnInfo) => new PostProcessingVolume(system, spawnInfo));
 
         // cameras and spawn points
@@ -96,11 +113,6 @@ public static class EntityFactory
     }
 
     /// <summary>
-    /// Whether this classname is simulated by the entity system.
-    /// </summary>
-    public static bool IsRegistered(string classname) => Creators.ContainsKey(classname);
-
-    /// <summary>
     /// Registers a classname the entity system should simulate, and builds the entity class's table of
     /// <see cref="EntityInputAttribute"/> handlers. Safe to call while maps are loading, though the static
     /// constructor below is where the entity system's own classnames are declared.
@@ -118,19 +130,35 @@ public static class EntityFactory
 
     /// <summary>
     /// Creates and spawns the entity for a classname. The entity is fully set up when this returns, but
-    /// is not in the world yet; <see cref="EntitySystem.CreateEntity"/> is what puts it there.
+    /// is not in the world yet; <see cref="EntitySystem.CreateEntity"/> is what puts it there. A classname
+    /// that is not implemented spawns a <see cref="GenericModelEntity"/> when it has a model, and a
+    /// <see cref="GenericEntity"/> when it does not.
     /// </summary>
-    /// <returns>The spawned entity, or <see langword="null"/> when the classname is not implemented.</returns>
+    /// <returns>The spawned entity, or <see langword="null"/> when the keyvalues name no classname.</returns>
     public static BaseEntity? Create(EntitySystem system, EntitySpawnInfo spawnInfo)
     {
         var classname = spawnInfo.Data.GetStringProperty("classname");
 
-        if (classname == null || !Creators.TryGetValue(classname, out var creator))
+        if (classname == null)
         {
             return null;
         }
 
-        var entity = creator(system, spawnInfo);
+        BaseEntity entity;
+
+        if (Creators.TryGetValue(classname, out var creator))
+        {
+            entity = creator(system, spawnInfo);
+        }
+        else if (string.IsNullOrEmpty(spawnInfo.Data.GetStringProperty("model")))
+        {
+            entity = new GenericEntity(system, spawnInfo);
+        }
+        else
+        {
+            entity = new GenericModelEntity(system, spawnInfo);
+        }
+
         entity.Spawn();
 
         return entity;

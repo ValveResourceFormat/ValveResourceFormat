@@ -124,15 +124,15 @@ public sealed class EntitySystem
     }
 
     /// <summary>
-    /// Creates the entity for a map entity's keyvalues and puts it in the world. Returns
-    /// <see langword="null"/> when the classname is not one the entity system implements, in which case
-    /// the caller keeps ownership of it.
+    /// Creates the entity for a map entity's keyvalues and puts it in the world. A classname the entity
+    /// system does not implement becomes a <see cref="GenericModelEntity"/> or a <see cref="GenericEntity"/>,
+    /// which draw themselves but do nothing else.
     /// </summary>
     /// <param name="data">The entity's keyvalues.</param>
     /// <param name="parentTransform">Transform of whatever spawned it.</param>
     /// <param name="layerName">Visibility layer for its nodes.</param>
     /// <param name="intoScene">Scene the entity's nodes render into.</param>
-    /// <returns>The spawned entity, or <see langword="null"/> if the classname is not implemented.</returns>
+    /// <returns>The spawned entity, or <see langword="null"/> if the keyvalues name no classname.</returns>
     public BaseEntity? CreateEntity(Entity data, Matrix4x4 parentTransform, string? layerName, Scene intoScene)
     {
         var entity = EntityFactory.Create(this, new EntitySpawnInfo(data, parentTransform, layerName, intoScene));
@@ -208,6 +208,11 @@ public sealed class EntitySystem
         for (var i = activatedCount; i < entities.Count; i++)
         {
             ResolveMoveParentChain(entities[i]);
+        }
+
+        for (var i = activatedCount; i < entities.Count; i++)
+        {
+            entities[i].AttachToParentModel();
         }
 
         for (var i = activatedCount; i < entities.Count; i++)
