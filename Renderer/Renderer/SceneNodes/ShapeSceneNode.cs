@@ -348,7 +348,6 @@ namespace ValveResourceFormat.Renderer.SceneNodes
 
             var renderShader = context.ReplacementShader ?? shader;
             renderShader.Use();
-            renderShader.SetUniform3x4("transform", Transform);
             renderShader.SetBoneAnimationData(false);
 
             renderShader.SetUniform("g_bNormalShaded", Shaded);

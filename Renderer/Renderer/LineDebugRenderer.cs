@@ -31,7 +31,6 @@ namespace ValveResourceFormat.Renderer
             using var _ = GraphicsContext.RenderState.Scope(depthTest: disableDepthTest ? false : null, depthWrite: false, blend: true);
 
             lineBuffer.Shader.Use();
-            lineBuffer.Shader.SetUniform3x4("transform", Matrix4x4.Identity);
 
             lineBuffer.Draw();
         }

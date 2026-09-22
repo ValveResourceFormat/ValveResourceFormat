@@ -198,7 +198,6 @@ public class CS2BombDamageSceneNode : SceneNode
         renderShader.Use();
         VertexArray.Bind(vao, renderShader);
         material.Render(renderShader);
-        renderShader.SetUniform3x4("transform", Matrix4x4.Identity);
 
         GL.DrawElementsInstancedBaseInstance(PrimitiveType.Triangles, indicesCount, DrawElementsType.UnsignedInt, 0, 1, Id);
 

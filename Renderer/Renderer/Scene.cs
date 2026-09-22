@@ -580,6 +580,7 @@ namespace ValveResourceFormat.Renderer
             }
 
             UpdateDynamicInstanceData();
+            UpdateDynamicTransforms();
             UploadDirtyTransforms();
 
             if (StaticOctree.Dirty || DynamicOctree.Dirty)
@@ -673,14 +674,18 @@ namespace ValveResourceFormat.Renderer
             // Reserve index 0 for identity transform
             transformData.Add(Matrix4x4.Identity.To3x4());
 
-            foreach (var node in nodes)
+            for (var nodeIndex = 0; nodeIndex < nodes.Count; nodeIndex++)
             {
+                var node = nodes[nodeIndex];
+
                 var instanceTint = Vector4.One;
                 if (node is SceneAggregate.Fragment fragment)
                 {
                     // Content can author out-of-range tints; the packed byte color can only represent [0, 1].
                     instanceTint = Vector4.Clamp(fragment.RenderMesh.Tint * fragment.DrawCall.TintColor * fragment.Tint, Vector4.Zero, Vector4.One);
                 }
+
+                var neverChangesTransform = nodeIndex < staticNodes.Count && node is not ModelSceneNode { SkinningTransformCount: > 0 };
 
                 uint transformIndex;
 
@@ -693,7 +698,7 @@ namespace ValveResourceFormat.Renderer
                         transformData.Add(instanceTransform);
                     }
                 }
-                else if (node.Transform.IsIdentity && node is not ModelSceneNode { SkinningTransformCount: > 0 })
+                else if (neverChangesTransform && node.Transform.IsIdentity)
                 {
                     transformIndex = 0; // Reuse identity transform at index 0
                 }
@@ -802,6 +807,41 @@ namespace ValveResourceFormat.Renderer
             model.WriteSkinningTransforms(transforms.Slice(boneStart, skinningSlots));
 
             transformUploadStart = Math.Min(transformUploadStart, boneStart);
+        }
+
+        private void UpdateDynamicTransforms()
+        {
+            if (instanceDataCpu == null || transformDataCpu == null)
+            {
+                return;
+            }
+
+            var transforms = CollectionsMarshal.AsSpan(transformDataCpu);
+
+            foreach (var node in dynamicNodes)
+            {
+                if (node.Id == 0 || node.Id >= objectEntryCount || node is SceneAggregate { InstanceTransforms.Count: > 0 })
+                {
+                    continue;
+                }
+
+                var slot = (int)instanceDataCpu[node.Id].TransformIndex;
+
+                if (slot == 0 || slot >= transforms.Length)
+                {
+                    continue;
+                }
+
+                var transform = node.Transform.To3x4();
+
+                if (transforms[slot] == transform)
+                {
+                    continue;
+                }
+
+                transforms[slot] = transform;
+                transformUploadStart = Math.Min(transformUploadStart, slot);
+            }
         }
 
         private void UploadDirtyTransforms()
