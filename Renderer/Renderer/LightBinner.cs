@@ -297,7 +297,7 @@ public sealed class LightBinner(Scene scene) : IDisposable
         }
 
         VisibilityReadback ??= new ReadbackRing(MaxBatchWords);
-        VisibleBitsGpu ??= StorageBuffer.Allocate<uint>(ReservedBufferSlots.BufferSlot2, "VisibleCullBits", MaxBatchWords, BufferUsage.GpuOnly);
+        VisibleBitsGpu ??= StorageBuffer.Allocate<uint>(ReservedBufferSlots.BufferSlot15, "VisibleCullBits", MaxBatchWords, BufferUsage.GpuOnly);
 
         if (VisibilityReadback.InFlight == ReadbackRing.Depth)
         {
@@ -376,9 +376,9 @@ public sealed class LightBinner(Scene scene) : IDisposable
         CullParamsGpu ??= new UniformBuffer<CullParams>(ReservedBufferSlots.CullParams);
         ConstantsGpu ??= new UniformBuffer<LightCullConstants>(ReservedBufferSlots.LightCull);
 
-        CullItemsGpu ??= StorageBuffer.Allocate<CullItem>(ReservedBufferSlots.BufferSlot2, "CullItems", Feeder.ItemArray.Length, BufferUsage.Dynamic);
+        CullItemsGpu ??= StorageBuffer.Allocate<CullItem>(ReservedBufferSlots.BufferSlot15, "CullItems", Feeder.ItemArray.Length, BufferUsage.Dynamic);
 
-        CullPlanesGpu ??= StorageBuffer.Allocate<Vector2>(ReservedBufferSlots.BufferSlot3, "CullPlanes", Feeder.PlaneArray.Length, BufferUsage.Dynamic);
+        CullPlanesGpu ??= StorageBuffer.Allocate<Vector2>(ReservedBufferSlots.BufferSlot11, "CullPlanes", Feeder.PlaneArray.Length, BufferUsage.Dynamic);
 
         if (CullBits == null || CullBitsWords < Feeder.TotalWords)
         {

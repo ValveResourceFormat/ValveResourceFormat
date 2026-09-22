@@ -13,7 +13,7 @@ struct DrawCommand
     uint baseInstance;
 };
 
-layout(std430, binding = 4) readonly buffer DrawCommands
+layout(std430, binding = 12) readonly buffer DrawCommands
 {
     DrawCommand draws[];
 };
@@ -29,7 +29,7 @@ layout(std430, binding = 9) buffer DrawCommandCounts
 };
 
 // Each request is a pair of uints: [drawCount, startIndex]
-layout(std430, binding = 2) readonly buffer CompactionRequests
+layout(std430, binding = 15) readonly buffer CompactionRequests
 {
     uint compactRequests[];
 };

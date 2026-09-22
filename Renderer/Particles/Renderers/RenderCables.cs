@@ -26,11 +26,6 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         private int vertexBufferHandle;
         private int indexBufferHandle;
 
-        // The probe volume the cable's scene node is bound to, resolved on first draw because the
-        // scene computes the bindings after all nodes are loaded.
-        private SceneLightProbe? lightProbe;
-        private bool lightProbeResolved;
-
         private const int MaxTessellationLevel = 7;
         private const int MaxTubeRings = 8192;
 
@@ -132,11 +127,6 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             }
 
             chain.Sort(ChainComparer);
-
-            if (!lightProbeResolved)
-            {
-                ResolveLightProbe(systemState, chain[count / 2].Position);
-            }
 
             positionsScratch = EnsureCapacity(positionsScratch, count);
             radiiScratch = EnsureCapacity(radiiScratch, count);
@@ -340,26 +330,6 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             ringSamples[cursor] = new RopeSample(positions[last], chain[last].Radius, chain[last].Color, last * repeats, false);
         }
 
-        // Prefers the probe volume containing the cable midpoint, falling back to the binding the
-        // scene assigned to the owning node. Failing to find one is a lighting problem and the
-        // cable renders unlit, the same way a model with a bad probe binding would.
-        private void ResolveLightProbe(ParticleSystemState systemState, Vector3 cablePosition)
-        {
-            lightProbeResolved = true;
-
-            if (!scene.LightingInfo.HasValidLightProbes)
-            {
-                return;
-            }
-
-            if (scene.LightingInfo.LightProbeType == LightProbeType.IndividualProbes)
-            {
-                lightProbe = scene.ChooseLightProbeVolume(cablePosition);
-            }
-
-            lightProbe ??= OwnerNode?.LightProbeBinding;
-        }
-
         private bool GeometryChanged(ReadOnlySpan<Vector3> positions, ReadOnlySpan<int> levels, ReadOnlySpan<float> radii, ReadOnlySpan<Vector3> colors)
         {
             // The count check guards the slices below: when it passes, lastCount >= 2.
@@ -387,17 +357,18 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             if (!depthOnly)
             {
                 // todo: batch tube draws and call this less often
+                // todo: should be a scene node drawn with standard pass
                 scene.LightingInfo.BindLightmapTextures();
 
-                if (lightProbe is not null)
+                if (OwnerNode?.LightProbeBinding is { } lightProbe)
                 {
-                    drawShader.SetUniform1("uLightProbeIndex", (uint)lightProbe.ShaderIndex);
                     scene.LightingInfo.BindInstanceLightProbeTextures(lightProbe);
                 }
             }
 
             PerfStats.Active.Count(Counter.ParticleDraw);
-            GL.DrawElements(PrimitiveType.Triangles, indexCount, DrawElementsType.UnsignedInt, 0);
+
+            GL.DrawElementsInstancedBaseInstance(PrimitiveType.Triangles, indexCount, DrawElementsType.UnsignedInt, 0, 1, OwnerNode?.Id ?? 0);
 
             material.PostRender();
         }

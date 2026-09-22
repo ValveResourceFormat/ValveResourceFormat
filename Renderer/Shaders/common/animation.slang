@@ -19,7 +19,7 @@
     in vec4 vBLENDWEIGHT2;
 #endif
 
-#define meshBoneData (objects[gl_BaseInstance].MeshBoneData)
+#define meshBoneData (g_instanceBuffer[gl_BaseInstance].MeshBoneData)
 
 #define bAnimated ((meshBoneData & 0x80000000u) != 0u)
 #define meshBoneOffset (meshBoneData & 0xFFFFu)
@@ -36,7 +36,7 @@ mat3x4 getMatrix(uint boneIndex, uint objectBoneOffset)
 
     boneIndex += objectBoneOffset + meshBoneOffset;
 
-    return transforms[boneIndex];
+    return g_transformBuffer[boneIndex];
 }
 
 #if (D_SKINNING > 0)

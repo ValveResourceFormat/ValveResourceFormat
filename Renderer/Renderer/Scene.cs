@@ -136,8 +136,11 @@ namespace ValveResourceFormat.Renderer
         private UniformBuffer<LightProbeVolumeArray>? lpvBuffer;
         private UniformBuffer<FrustumPlanesGpu>? frustumBuffer;
 
-        /// <summary>Gets or sets the GPU buffer containing per-instance object data (tint, transform index, env map visibility).</summary>
+        /// <summary>Gets or sets the GPU buffer each draw reads at its base instance (tint, transform index, skinning).</summary>
         public StorageBuffer? InstanceBufferGpu { get; set; }
+
+        /// <summary>Gets or sets the GPU buffer holding each scene node's lighting (light probe, env map visibility).</summary>
+        public StorageBuffer? ObjectBufferGpu { get; set; }
 
         /// <summary>Gets or sets the GPU buffer containing world-space transform matrices for all scene nodes.</summary>
         public StorageBuffer? TransformBufferGpu { get; set; }
@@ -252,7 +255,8 @@ namespace ValveResourceFormat.Renderer
         public const string ParticlesLayerName = "Particles";
 
         private HashSet<string>? enabledLayers;
-        private ObjectDataStandard[]? instanceDataCpu;
+        private InstanceDataStandard[]? instanceDataCpu;
+        private ObjectDataStandard[]? objectDataCpu;
         private ObjectLodInfo[]? lodDataCpu;
         private readonly List<SceneNode> nodeScratch = [];
         private List<OpenTK.Mathematics.Matrix3x4>? transformDataCpu;
@@ -669,14 +673,21 @@ namespace ValveResourceFormat.Renderer
 
             if (instanceDataCpu == null || instanceDataCpu.Length < totalEntryCount)
             {
-                instanceDataCpu = new ObjectDataStandard[CapacityFor(totalEntryCount)];
-                lodDataCpu = new ObjectLodInfo[instanceDataCpu.Length];
+                instanceDataCpu = new InstanceDataStandard[CapacityFor(totalEntryCount)];
+            }
+
+            if (objectDataCpu == null || objectDataCpu.Length < entryCount)
+            {
+                objectDataCpu = new ObjectDataStandard[CapacityFor(entryCount)];
+                lodDataCpu = new ObjectLodInfo[objectDataCpu.Length];
             }
 
             var instanceData = instanceDataCpu;
+            var objectData = objectDataCpu;
             var lodData = lodDataCpu!;
 
             Array.Clear(instanceData, 0, totalEntryCount);
+            Array.Clear(objectData, 0, entryCount);
             Array.Clear(lodData, 0, entryCount);
 
             transformDataCpu ??= new List<OpenTK.Mathematics.Matrix3x4>(capacity: CapacityFor(entryCount + 1));
@@ -728,15 +739,14 @@ namespace ValveResourceFormat.Renderer
                     };
                 }
 
-                instanceData[node.Id] = new ObjectDataStandard
+                instanceData[node.Id] = new InstanceDataStandard
                 {
                     TintAlpha = EntryTint(node),
                     TransformIndex = transformIndex,
-                    VisibleLPV = (uint)(node.LightProbeBinding?.ShaderIndex ?? 0)
-                        | (node.ShaderEnvMapVisibility.GetFirstShaderIndex() << 16),
-                    EnvMapVisibility = node.ShaderEnvMapVisibility,
                     Identification = node.Id,
                 };
+
+                objectData[node.Id] = ObjectEntry(node);
 
                 if (node is MeshCollectionNode meshNode)
                 {
@@ -744,12 +754,14 @@ namespace ValveResourceFormat.Renderer
                 }
             }
 
-            InstanceBufferGpu = Upload<ObjectDataStandard>(InstanceBufferGpu, instanceData.AsSpan(0, totalEntryCount),
+            InstanceBufferGpu = Upload<InstanceDataStandard>(InstanceBufferGpu, instanceData.AsSpan(0, totalEntryCount),
+                ReservedBufferSlots.Instances, nameof(ReservedBufferSlots.Instances));
+            ObjectBufferGpu = Upload<ObjectDataStandard>(ObjectBufferGpu, objectData.AsSpan(0, entryCount),
                 ReservedBufferSlots.Objects, nameof(ReservedBufferSlots.Objects));
             TransformBufferGpu = Upload<OpenTK.Mathematics.Matrix3x4>(TransformBufferGpu, CollectionsMarshal.AsSpan(transformData),
                 ReservedBufferSlots.Transforms, nameof(ReservedBufferSlots.Transforms));
             ObjectLodGpu = Upload<ObjectLodInfo>(ObjectLodGpu, lodData.AsSpan(0, entryCount),
-                ReservedBufferSlots.BufferSlot2, "ObjectLod");
+                ReservedBufferSlots.BufferSlot15, "ObjectLod");
 
             var setupCount = Math.Max(1, lodSetupCount);
 
@@ -760,7 +772,7 @@ namespace ValveResourceFormat.Renderer
 
             Array.Fill(activeLodBits, 1u);
 
-            ActiveLodBitsGpu = Upload<uint>(ActiveLodBitsGpu, activeLodBits, ReservedBufferSlots.BufferSlot3, "ActiveLodBits");
+            ActiveLodBitsGpu = Upload<uint>(ActiveLodBitsGpu, activeLodBits, ReservedBufferSlots.BufferSlot11, "ActiveLodBits");
 
             transformUploadStart = int.MaxValue;
         }
@@ -816,7 +828,7 @@ namespace ValveResourceFormat.Renderer
             foreach (var mesh in node.AllRenderableMeshes)
             {
                 var entry = entries[node.Id];
-                entry.MeshBoneData = ObjectDataStandard.PackMeshBoneData(mesh);
+                entry.MeshBoneData = InstanceDataStandard.PackMeshBoneData(mesh);
 
                 changed |= Write(entries, node.TintAlpha, mesh.DrawCallsOpaque, entry);
                 changed |= Write(entries, node.TintAlpha, mesh.DrawCallsOverlay, entry);
@@ -825,7 +837,7 @@ namespace ValveResourceFormat.Renderer
 
             return changed;
 
-            static bool Write(ObjectDataStandard[] entries, Vector4 tint, List<DrawCall> calls, ObjectDataStandard entry)
+            static bool Write(InstanceDataStandard[] entries, Vector4 tint, List<DrawCall> calls, InstanceDataStandard entry)
             {
                 var changed = false;
 
@@ -835,7 +847,7 @@ namespace ValveResourceFormat.Renderer
 
                     ref var target = ref entries[call.InstanceBufferIndex];
 
-                    if (!ObjectDataEquals(target, entry))
+                    if (!BytesEqual(target, entry))
                     {
                         target = entry;
                         changed = true;
@@ -847,7 +859,7 @@ namespace ValveResourceFormat.Renderer
         }
 
         // Draw entries hold what the uniforms used to be set from every draw, so a dynamic node's have to follow
-        // its tint, skinning and probe as they change
+        // its tint and skinning as they change
         private void UpdateDynamicDrawEntries()
         {
             if (instanceDataCpu == null || InstanceBufferGpu == null)
@@ -868,11 +880,17 @@ namespace ValveResourceFormat.Renderer
 
             if (changed)
             {
-                InstanceBufferGpu.Update<ObjectDataStandard>(
+                InstanceBufferGpu.Update<InstanceDataStandard>(
                     instanceDataCpu.AsSpan(dynamicDrawEntryStart, drawEntryEnd - dynamicDrawEntryStart),
-                    dynamicDrawEntryStart * Unsafe.SizeOf<ObjectDataStandard>());
+                    dynamicDrawEntryStart * Unsafe.SizeOf<InstanceDataStandard>());
             }
         }
+
+        private static ObjectDataStandard ObjectEntry(SceneNode node) => new()
+        {
+            VisibleLPV = (uint)(node.LightProbeBinding?.ShaderIndex ?? 0) | (node.ShaderEnvMapVisibility.GetFirstShaderIndex() << 16),
+            EnvMapVisibility = node.ShaderEnvMapVisibility,
+        };
 
         // A fragment is a single draw call, so its node entry carries that draw's tint along with its own
         private static uint EntryTint(SceneNode node)
@@ -881,9 +899,13 @@ namespace ValveResourceFormat.Renderer
         // Content can author out-of-range tints; the packed byte color can only represent [0, 1]
         private static uint PackTint(Vector4 tint) => Color32.FromVector4Clamped(tint).PackedValue;
 
-        private static bool ObjectDataEquals(in ObjectDataStandard a, in ObjectDataStandard b)
-            => MemoryMarshal.AsBytes(new ReadOnlySpan<ObjectDataStandard>(in a))
-                .SequenceEqual(MemoryMarshal.AsBytes(new ReadOnlySpan<ObjectDataStandard>(in b)));
+        private static bool BytesEqual<T>(in T a, in T b) where T : unmanaged
+        {
+            Debug.Assert(Unsafe.SizeOf<T>() == Vector256<byte>.Count);
+
+            return Vector256.LoadUnsafe(in Unsafe.As<T, byte>(ref Unsafe.AsRef(in a)))
+                == Vector256.LoadUnsafe(in Unsafe.As<T, byte>(ref Unsafe.AsRef(in b)));
+        }
 
         private static void AppendSkinningTransforms(ModelSceneNode model, uint transformIndex,
             List<OpenTK.Mathematics.Matrix3x4> transformData)
@@ -1169,7 +1191,7 @@ namespace ValveResourceFormat.Renderer
                 CompactedCountsGpu = new StorageBuffer(ReservedBufferSlots.CompactedCounts, nameof(ReservedBufferSlots.CompactedCounts));
                 CompactedCountsGpu.Create(compactedCounts, BufferUsage.GpuOnly);
 
-                CompactionRequestsGpu = new StorageBuffer(ReservedBufferSlots.BufferSlot2, "CompactionRequests");
+                CompactionRequestsGpu = new StorageBuffer(ReservedBufferSlots.BufferSlot15, "CompactionRequests");
                 CompactionRequestsGpu.Create(compactionRequestList, BufferUsage.Static);
             }
 
@@ -1195,6 +1217,7 @@ namespace ValveResourceFormat.Renderer
             lightingBuffer.BindBufferBase();
             envMapBuffer.BindBufferBase();
             lpvBuffer.BindBufferBase();
+            ObjectBufferGpu?.BindBufferBase();
             LightingInfo.BindBarnLightBuffer();
 
             LightBinner.Bind();
@@ -2690,8 +2713,8 @@ namespace ValveResourceFormat.Renderer
         }
 
         /// <summary>
-        /// Refreshes the instance buffer entries of the dynamic nodes: the probe volume they are
-        /// currently inside, their envmap visibility and their tint.
+        /// Refreshes the dynamic nodes' own entries: the probe volume they are currently inside and their
+        /// envmap visibility in the object buffer, and their tint in the instance buffer.
         /// </summary>
         private void UpdateDynamicInstanceData()
         {
@@ -2700,12 +2723,13 @@ namespace ValveResourceFormat.Renderer
                 return;
             }
 
-            if (instanceDataCpu == null || InstanceBufferGpu == null)
+            if (instanceDataCpu == null || objectDataCpu == null || InstanceBufferGpu == null || ObjectBufferGpu == null)
             {
                 return;
             }
 
-            // Dynamic node ids are assigned after the statics, so the touched entries form one span
+            // Dynamic node ids are assigned after the statics, so the touched entries form one span, the same
+            // in both buffers since both are indexed by node id
             var minId = uint.MaxValue;
             var maxId = 0u;
 
@@ -2713,7 +2737,7 @@ namespace ValveResourceFormat.Renderer
             {
                 if (node.LightProbeVolumePrecomputedHandshake != 0
                     || node.Id == 0
-                    || node.Id >= instanceDataCpu.Length)
+                    || node.Id >= objectEntryCount)
                 {
                     continue;
                 }
@@ -2722,21 +2746,19 @@ namespace ValveResourceFormat.Renderer
 
                 if (probe == null || !VolumeContains(probe, node.BoundingBox.Center))
                 {
-                    probe = ChooseLightProbeVolume(node.BoundingBox.Center)!;
-                    node.LightProbeBinding = probe;
+                    node.LightProbeBinding = ChooseLightProbeVolume(node.BoundingBox.Center)!;
                 }
 
-                ref var entry = ref instanceDataCpu[node.Id];
+                ref var objectEntry = ref objectDataCpu[node.Id];
+                ref var instanceEntry = ref instanceDataCpu[node.Id];
 
-                var updated = entry;
-                updated.VisibleLPV = (uint)probe.ShaderIndex | (node.ShaderEnvMapVisibility.GetFirstShaderIndex() << 16);
-                updated.EnvMapVisibility = node.ShaderEnvMapVisibility;
+                var updatedObject = ObjectEntry(node);
+                var updatedInstance = instanceEntry with { TintAlpha = EntryTint(node) };
 
-                updated.TintAlpha = EntryTint(node);
-
-                if (!ObjectDataEquals(entry, updated))
+                if (!BytesEqual(objectEntry, updatedObject) || !BytesEqual(instanceEntry, updatedInstance))
                 {
-                    entry = updated;
+                    objectEntry = updatedObject;
+                    instanceEntry = updatedInstance;
                     minId = Math.Min(minId, node.Id);
                     maxId = Math.Max(maxId, node.Id);
                 }
@@ -2744,9 +2766,12 @@ namespace ValveResourceFormat.Renderer
 
             if (minId <= maxId)
             {
-                var stride = Unsafe.SizeOf<ObjectDataStandard>();
-                InstanceBufferGpu.Update<ObjectDataStandard>(
-                    instanceDataCpu.AsSpan((int)minId, (int)(maxId - minId + 1)), (int)minId * stride);
+                var count = (int)(maxId - minId + 1);
+
+                ObjectBufferGpu.Update<ObjectDataStandard>(
+                    objectDataCpu.AsSpan((int)minId, count), (int)minId * Unsafe.SizeOf<ObjectDataStandard>());
+                InstanceBufferGpu.Update<InstanceDataStandard>(
+                    instanceDataCpu.AsSpan((int)minId, count), (int)minId * Unsafe.SizeOf<InstanceDataStandard>());
             }
         }
 

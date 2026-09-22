@@ -11,12 +11,12 @@ layout(binding = 4, std140) uniform FrustumPlanes
     vec4 planes[6]; // left, right, top, bottom, near, far
 };
 
-layout(binding = 4, std430) buffer DrawCommands
+layout(binding = 12, std430) buffer DrawCommands
 {
     DrawCommand drawCommands[];
 };
 
-layout(binding = 5, std430) readonly buffer DrawCallBounds
+layout(binding = 13, std430) readonly buffer DrawCallBounds
 {
     DrawBounds drawBounds[];
 };
@@ -32,12 +32,12 @@ layout(binding = 14, std430) readonly buffer CommandMeshletBuffer
     uint commandMeshlets[];
 };
 
-layout(binding = 2, std430) readonly buffer ObjectLodBuffer
+layout(binding = 15, std430) readonly buffer ObjectLodBuffer
 {
     uvec2 objectLod[]; // lod group mask, index into activeLodBits
 };
 
-layout(binding = 3, std430) readonly buffer ActiveLodBitsBuffer
+layout(binding = 11, std430) readonly buffer ActiveLodBitsBuffer
 {
     uint activeLodBits[]; // per setup, the bit of the level it picked this frame
 };
@@ -298,11 +298,11 @@ void main()
 
     // Shared cull data is stored in the aggregate's own space, so each instance moves it into
     // world space with its own transform. Index zero is reserved for the identity transform.
-    uint transformIndex = objects[objectId].TransformIndex;
+    uint transformIndex = g_instanceBuffer[objectId].TransformIndex;
 
     if (transformIndex != 0)
     {
-        mat3x4 objectToWorld = transforms[transformIndex];
+        mat3x4 objectToWorld = g_transformBuffer[transformIndex];
 
         vec3 center = (meshletMin + meshletMax) * 0.5;
         vec3 extents = (meshletMax - meshletMin) * 0.5;

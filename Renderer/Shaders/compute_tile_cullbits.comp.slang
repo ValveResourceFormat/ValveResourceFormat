@@ -10,7 +10,7 @@ layout(local_size_x = D_GROUP_TILES_X, local_size_y = D_GROUP_TILES_Y, local_siz
 
 #include "common/light_cull_structures.slang"
 
-layout(binding = 3, std430) readonly buffer CullPlanesBuffer
+layout(binding = 11, std430) readonly buffer CullPlanesBuffer
 {
     vec2 g_CullPlanes[];
 };

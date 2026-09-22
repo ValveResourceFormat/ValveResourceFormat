@@ -68,36 +68,43 @@ public struct OccludedBoundDebug
     public float _Padding2;
 };
 
-/// <summary>Per-object GPU data including tint, transform, and environment map visibility.</summary>
+/// <summary>
+/// Draw or instance uniforms.
+/// </summary>
 [StructLayout(LayoutKind.Sequential)]
-public struct ObjectDataStandard
+public struct InstanceDataStandard
 {
-    /// <summary>Packed tint color and alpha for the object.</summary>
+    /// <summary>Packed tint color and alpha.</summary>
     public uint TintAlpha;
-    /// <summary>Index into the transform buffer for this object.</summary>
+    /// <summary>Index into the transform buffer.</summary>
     public uint TransformIndex;
-    /// <summary>
-    /// Light probe volume index in the low 16 bits, env map index in the high 16. Both arrays cap far
-    /// below 65535, so sharing a word keeps this struct at 16 bytes. Only the legacy per batch cube map
-    /// path reads the env map half; the array path culls probes per screen tile instead.
-    /// </summary>
-    public uint VisibleLPV;
-    /// <summary>Unique identifier for this object used in selection and highlighting.</summary>
+    /// <summary>The scene node drawn, used in selection and highlighting, and the index of its <see cref="ObjectDataStandard"/>.</summary>
     public uint Identification;
-    /// <summary>Bitmask of which environment maps are visible to this object.</summary>
-    public SceneEnvMap.EnvMapVisibility128 EnvMapVisibility;
-
     /// <summary>Skinning of the mesh drawn: bit 31: enabled, bits 16-30: bone count, bits 0-15: mesh bone offset.</summary>
     public uint MeshBoneData;
-    private readonly uint padding0;
-    private readonly uint padding1;
-    private readonly uint padding2;
 
     /// <summary>Packs <see cref="MeshBoneData"/> for a mesh.</summary>
     /// <param name="mesh">The mesh a draw call belongs to.</param>
     public static uint PackMeshBoneData(RenderableMesh mesh) => mesh.IsSkinningActive
         ? 0x80000000u | ((uint)mesh.MeshBoneCount << 16) | (uint)mesh.MeshBoneOffset
         : 0u;
+};
+
+/// <summary>Scene node uniforms.</summary>
+[StructLayout(LayoutKind.Sequential)]
+public struct ObjectDataStandard
+{
+    /// <summary>
+    /// Light probe volume index in the low 16 bits, env map index in the high 16. Both arrays cap far
+    /// below 65535, so they share a word. Only the legacy per batch cube map path reads the env map half;
+    /// the array path culls probes per screen tile instead.
+    /// </summary>
+    public uint VisibleLPV;
+    private readonly uint padding0;
+    private readonly uint padding1;
+    private readonly uint padding2;
+    /// <summary>Bitmask of which environment maps are visible to this object.</summary>
+    public SceneEnvMap.EnvMapVisibility128 EnvMapVisibility;
 };
 
 /// <summary>Arguments for a <c>glDrawElementsIndirect</c> GPU draw call.</summary>

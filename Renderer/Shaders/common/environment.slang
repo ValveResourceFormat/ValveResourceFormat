@@ -10,6 +10,7 @@
 #include "LightingConstants.slang"
 #include "lighting_common.slang"
 #include "pbr.slang"
+#include "object_data.slang"
 
 #include "light_cull.slang"
 
@@ -53,11 +54,8 @@ vec4 g_vEnvMapNormalizationSH = vec4(0.0);
     // ...
 #elif (S_SCENE_CUBEMAP_TYPE == 1)
     uniform samplerCube g_tEnvironmentMap; // SrgbRead(true) reserved
-
-    flat in uint g_nEnvMapIndex;
 #elif (S_SCENE_CUBEMAP_TYPE == 2)
     uniform samplerCubeArray g_tEnvironmentMap; // SrgbRead(true) reserved
-    flat in uvec4 g_nEnvMapVisibility;
 #endif
 
 vec3 CubemapParallaxCorrection(vec3 envMapLocalPos, vec3 localReflectionVector, vec3 envMapBoxMin, vec3 envMapBoxMax)
@@ -226,7 +224,7 @@ vec3 GetEnvironmentNoBRDF(MaterialProperties_t mat, float reflectionCorrectionAm
     #if (S_SCENE_CUBEMAP_TYPE == 0)
         envMap = vec3(0.3, 0.3, 0.3);
     #elif (S_SCENE_CUBEMAP_TYPE == 1)
-        EnvMapData envData = envMaps[g_nEnvMapIndex];
+        EnvMapData envData = envMaps[GetObjectLightingData().VisibleLPV >> 16u];
         bool isBoxProjection = envData.ProjectionType == 1u;
         vec3 envMapBoxMin = envData.BoxMins;
         vec3 envMapBoxMax = envData.BoxMaxs;
@@ -247,9 +245,11 @@ vec3 GetEnvironmentNoBRDF(MaterialProperties_t mat, float reflectionCorrectionAm
     vec4 normalizationSH = vec4(0.0);
 
     CullMasks_t masks = GetEnvMapCullMasks(vFragPosition);
+    uvec4 objectEnvMaps = GetObjectLightingData().EnvMapVisibility;
+
     for (uint word = 0u; word < masks.m_nWords && AnyLaneWantsMore(bContinueLoop); word++)
     {
-        uint objectMask = word < 4u ? g_nEnvMapVisibility[word] : 0xFFFFFFFFu;
+        uint objectMask = word < 4u ? objectEnvMaps[word] : 0xFFFFFFFFu;
 
         uint mask = GetCullMaskWord(masks, word, objectMask & GetEnvMapLiveMask(word));
 

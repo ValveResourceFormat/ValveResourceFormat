@@ -7,6 +7,8 @@
 
 #include "light_cull.slang"
 
+#include "object_data.slang"
+
 #define S_SCENE_PROBE_TYPE 0 // 1 = Individual, 2 = Atlas
 
 #define renderMode_Illumination 0

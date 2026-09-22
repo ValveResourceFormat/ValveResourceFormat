@@ -5,7 +5,7 @@
 
 #include "ViewConstants.slang"
 
-layout(std430, binding = 13) buffer QuadOverdrawBuffer
+layout(std430, binding = 5) buffer QuadOverdrawBuffer
 {
     // Two uints per 2x2 pixel quad: a scoreboard lock and the primitive count.
     uint g_quadOverdraw[];

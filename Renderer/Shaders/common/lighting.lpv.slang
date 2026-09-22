@@ -5,6 +5,7 @@
 
 #include "texturing.slang"
 #include "light_cull.slang"
+#include "object_data.slang"
 
 #define MAX_LIGHT_PROBES 128
 
@@ -16,8 +17,6 @@ struct LightProbeVolume
     vec4 AtlasScale;
     vec4 AtlasOffset;
 };
-
-flat in uint g_nVisibleLPV;
 
 layout(std140, binding = 3) uniform LightProbeVolumeArray
 {
@@ -77,7 +76,7 @@ uint GetFragmentLPV(vec3 fragPosition)
         }
     #endif
 
-    return g_nVisibleLPV;
+    return GetObjectLightingData().VisibleLPV & 0xFFFFu;
 }
 
 vec3 CalculateProbeShadowCoords(vec3 fragPosition)
