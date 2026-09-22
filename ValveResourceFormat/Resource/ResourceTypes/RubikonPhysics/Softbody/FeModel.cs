@@ -3019,7 +3019,10 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// the joint at <paramref name="jointNode"/>, or null when it carries no bend. A joint's stiff hinge
         /// bends its PARENT: the joint (or a proxy extruded from it) is the bend's first end, its parent the
         /// bent node and its grandparent the other end. The stiffness is spread over the bend weights
-        /// as <c>stiffness * 3 * [-2*mMid, mEnd0, mEnd1] / (4*mMid + mEnd0 + mEnd1)</c>; the angle becomes
+        /// as <c>stiffness * 3 * [-2*w0, w1, w2] / (4*w0 + w1 + w2)</c>, each <c>w</c> the node's inverse
+        /// mass times the role weight the joint's <c>motion_bias</c> and its parent's give that role, so
+        /// the spread is linear and the stiffness comes back off the weights alone as
+        /// <c>(End0Weight + End1Weight - 2*MidWeight) / 3</c>, with no mass and no bias in it; the angle becomes
         /// the distance the bent node may reach from the triple's centroid,
         /// <c>sqrt(l0^2 + l1^2 - 2*l0*l1*cos(angle)) / 3</c>, floored at the rest distance - an angle the
         /// rest pose already exceeds leaves no trace and recovers as zero, which recompiles to the same
@@ -3040,41 +3043,23 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                 }
 
                 var midMass = InverseMassOf(bend.MidNode);
-                var end0Mass = InverseMassOf(bend.End0);
-                var end1Mass = InverseMassOf(bend.End1);
-                var total = (4f * midMass) + end0Mass + end1Mass;
-                if (total <= 0f)
+                if ((4f * midMass) + InverseMassOf(bend.End0) + InverseMassOf(bend.End1) <= 0f)
+                {
+                    continue;
+                }
+
+                var stiffness = (bend.End0Weight + bend.End1Weight - (2f * bend.MidWeight)) / 3f;
+                if (stiffness <= 0f)
                 {
                     continue;
                 }
 
                 // A fully biased joint drops the mass share entirely and puts the whole stiffness on one
                 // end, which is the only way a bend leaves a simulated node weightless.
-                if (midMass > 0f && MathF.Abs(bend.MidWeight) < FullMotionBiasEpsilon
-                    && MathF.Abs(bend.End0Weight) > FullMotionBiasEpsilon)
-                {
-                    return (Math.Clamp(bend.End0Weight / 3f, 0f, 1f), BendAngle(bend), 1f);
-                }
+                var fullBias = midMass > 0f && MathF.Abs(bend.MidWeight) < FullMotionBiasEpsilon
+                    && MathF.Abs(bend.End0Weight) > FullMotionBiasEpsilon;
 
-                // Read the stiffness off the largest weight: a share whose node is pinned carries none of it.
-                var shares = new[] { (-2f * midMass, bend.MidWeight), (end0Mass, bend.End0Weight), (end1Mass, bend.End1Weight) };
-                var stiffness = 0f;
-                var strongest = 0f;
-                foreach (var (share, weight) in shares)
-                {
-                    if (MathF.Abs(share) > 1e-9f && MathF.Abs(weight) > strongest)
-                    {
-                        strongest = MathF.Abs(weight);
-                        stiffness = weight * total / (3f * share);
-                    }
-                }
-
-                if (stiffness <= 0f)
-                {
-                    continue;
-                }
-
-                return (Math.Clamp(stiffness, 0f, 1f), BendAngle(bend), 0f);
+                return (Math.Clamp(stiffness, 0f, 1f), BendAngle(bend), fullBias ? 1f : 0f);
             }
 
             return null;

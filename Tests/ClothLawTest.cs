@@ -9698,5 +9698,66 @@ namespace Tests
             }
             """);
 
+        /// <summary>
+        /// A stiff hinge's stiffness is the bend weights' own linear combination,
+        /// <c>(End0Weight + End1Weight - 2*MidWeight) / 3</c>, not the largest weight over its node's mass
+        /// share. The two agree only where the three role weights are equal, which is where the joint's
+        /// <c>motion_bias</c> and its parent's are both zero. CONTROL: an unbiased bend over the same
+        /// unequal masses recovers the same stiffness either way.
+        /// </summary>
+        /// <remarks>
+        /// The compiler spreads the stiffness as <c>3 * relax * [-2*w0, w1, w2] / (4*w0 + w1 + w2)</c> with
+        /// each <c>w</c> an inverse mass times its role weight, so the combination cancels both. MEASURED
+        /// 2026-09-22 on deadlock `wraith`, whose joints carry `motion_bias` 0.25: all 13 records state
+        /// `stiff_hinge` 0.2 on the ponytail and 0.1 on the sleeves, and the mass-share reading gives
+        /// 0.190987 to 0.256787 across them.
+        /// </remarks>
+        [Test]
+        public async Task AStiffHingeStiffnessIsTheBendWeightsLinearCombination()
+        {
+            // motion_bias 0.5 on the joint and its parent gives the role weights (0.5, 1, 0.25), which
+            // against the inverse masses (2, 1, 4) make all three products 1 and the weights (-0.5, 0.25,
+            // 0.25) at a stiffness of 0.5.
+            var biased = BiasedKelagerModel("-0.5, 0.25, 0.25").GetStiffHinge(1);
+            var unbiased = BiasedKelagerModel("-0.4615385, 0.1153846, 0.4615385").GetStiffHinge(1);
+
+            using (Assert.Multiple())
+            {
+                // CONTROL: equal role weights, the same unequal masses, the same stiffness either way.
+                await Assert.That(unbiased?.Stiffness ?? float.NaN).IsEqualTo(0.5f).Within(1e-4f);
+
+                // CONTROL: neither the angle nor the full-bias reading moves with the stiffness.
+                await Assert.That(biased?.Angle ?? float.NaN).IsEqualTo(120f).Within(0.01f);
+                await Assert.That(unbiased?.Angle ?? float.NaN).IsEqualTo(120f).Within(0.01f);
+                await Assert.That(biased?.MotionBias ?? float.NaN).IsEqualTo(0f);
+                await Assert.That(unbiased?.MotionBias ?? float.NaN).IsEqualTo(0f);
+
+                // THE LAW.
+                await Assert.That(biased?.Stiffness ?? float.NaN).IsEqualTo(0.5f).Within(1e-4f);
+            }
+        }
+
+        // One bend over three nodes of UNEQUAL inverse mass, so a reading that divides by a node's own
+        // share cannot agree with one that does not.
+        private static FeModel BiasedKelagerModel(string weights) => SyntheticCloth.Parse($$"""
+            {
+                m_CtrlName = [ "mid", "end0", "end1" ]
+                m_SkelParents = [ -1, 0, 0 ]
+                m_nNodeCount = 3
+                m_nStaticNodes = 0
+                m_NodeInvMasses = [ 2.0, 1.0, 4.0 ]
+                m_InitPose =
+                [
+                    {{SyntheticCloth.Pose(0f, 1f, 0f)}}
+                    {{SyntheticCloth.Pose(-1f, 0f, 0f)}}
+                    {{SyntheticCloth.Pose(1f, 0f, 0f)}}
+                ]
+                m_KelagerBends =
+                [
+                    { nNode = [ 0, 1, 2 ] flWeight = [ {{weights}} ] flHeight0 = 0.8164966 },
+                ]
+            }
+            """);
+
     }
 }
