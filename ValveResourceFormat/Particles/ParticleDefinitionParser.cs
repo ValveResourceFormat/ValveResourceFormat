@@ -250,6 +250,8 @@ internal record struct ParticleDefinitionParser(KVObject Data, ILogger Logger, i
                     return new PerParticleCountNormalizedNumberProvider(parse);
                 case "PF_TYPE_CONTROL_POINT_SPEED":
                     return new ControlPointSpeedNumberProvider(parse);
+                case "PF_TYPE_CONTROL_POINT_DISTANCE":
+                    return new ControlPointDistanceNumberProvider(parse);
                 case "PF_TYPE_PARTICLE_NOISE":
                     return new NoiseNumberProvider(parse);
                 // KNOWN TYPES WE DON'T SUPPORT:
