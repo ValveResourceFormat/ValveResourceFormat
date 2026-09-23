@@ -1,12 +1,15 @@
+using GUI.Forms;
+using GUI.Types.PackageViewer;
+using GUI.Types.Viewers;
+using GUI.Utils;
+using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
-using GUI.Forms;
-using GUI.Types.PackageViewer;
-using GUI.Utils;
 using ValvePak;
 using ValveResourceFormat;
 using ValveResourceFormat.IO;
@@ -22,7 +25,6 @@ namespace GUI.Types.Exporter.CharacterAssets
     /// </summary>
     static class CharacterAssetsExporter
     {
-        // Suffixes the compiler appends to an image's name when compiling it to a texture
         private static readonly string[] ImageSuffixes = ["_png", "_jpg", "_jpeg", "_webp", "_tga", "_psd"];
 
         public static bool CanExport(Control? owner)
@@ -42,10 +44,9 @@ namespace GUI.Types.Exporter.CharacterAssets
                 return;
             }
 
-            // Package.FileName is the base name used to find the archive parts, the path it was opened from is the context's
             var vpkPath = context.FileName;
 
-            if (!File.Exists(vpkPath))
+            if (string.IsNullOrEmpty(vpkPath) || !File.Exists(vpkPath))
             {
                 await AppMessageDialogs.ShowMessageAsync(
                     "Character assets can only be exported from a package opened from disk.",
@@ -54,13 +55,20 @@ namespace GUI.Types.Exporter.CharacterAssets
                 return;
             }
 
-            // Opened fresh so reading it on worker threads does not race the package viewer
             using var package = new Package();
             package.OptimizeEntriesForBinarySearch(StringComparison.OrdinalIgnoreCase);
-            package.Read(vpkPath);
 
-            var catalog = LoadCatalog(package, out var loadCompletion);
-            await loadCompletion.ConfigureAwait(true);
+            try
+            {
+                package.Read(vpkPath);
+            }
+            catch (Exception ex)
+            {
+                Log.Error(nameof(CharacterAssetsExporter), $"Failed to open VPK: {ex.Message}");
+                return;
+            }
+
+            var catalog = await LoadCatalogAsync(package).ConfigureAwait(true);
 
             if (catalog == null)
             {
@@ -99,8 +107,7 @@ namespace GUI.Types.Exporter.CharacterAssets
                 return;
             }
 
-            RunInDialog(vpkPath, package, loadout, options, outputRoot, out var workCompletion);
-            await workCompletion.ConfigureAwait(true);
+            await RunInDialogAsync(vpkPath, package, loadout, options, outputRoot).ConfigureAwait(true);
         }
 
         private static VrfGuiContext? GetContext(Control? owner) => owner switch
@@ -110,10 +117,7 @@ namespace GUI.Types.Exporter.CharacterAssets
             _ => null,
         };
 
-        /// <summary>
-        /// Reads the catalog behind a progress dialog. Returns null when cancelled or failed, which the dialog reports.
-        /// </summary>
-        private static ItemsGameCatalog? LoadCatalog(Package package, out Task workCompletion)
+        private static async Task<ItemsGameCatalog?> LoadCatalogAsync(Package package)
         {
             ItemsGameCatalog? catalog = null;
 
@@ -121,20 +125,23 @@ namespace GUI.Types.Exporter.CharacterAssets
 
             dialog.OnProcess = cancellationToken =>
             {
-                catalog = ItemsGameCatalog.Load(package, dialog, cancellationToken);
+                try
+                {
+                    catalog = ItemsGameCatalog.Load(package, dialog, cancellationToken);
+                }
+                catch (OperationCanceledException)
+                {
+                    catalog = null;
+                }
                 return Task.CompletedTask;
             };
 
-            dialog.ShowDialog();
+            await dialog.ShowDialogAsync().ConfigureAwait(true);
 
-            workCompletion = dialog.WorkCompletion;
-
-            // The dialog closes once the work is done, or right away when cancelled, before the work gets to set this
             return catalog;
         }
 
-        private static void RunInDialog(string vpkPath, Package package, CharacterLoadout loadout, CharacterExportOptions options,
-            string outputRoot, out Task workCompletion)
+        private static async Task RunInDialogAsync(string vpkPath, Package package, CharacterLoadout loadout, CharacterExportOptions options, string outputRoot)
         {
             var hero = loadout.Hero;
             var items = loadout.Items;
@@ -158,14 +165,9 @@ namespace GUI.Types.Exporter.CharacterAssets
                 return Task.CompletedTask;
             };
 
-            dialog.ShowDialog();
-
-            workCompletion = dialog.WorkCompletion;
+            await dialog.ShowDialogAsync().ConfigureAwait(true);
         }
 
-        /// <summary>
-        /// Collects everything the hero and items need and writes it under <paramref name="outputRoot"/>.
-        /// </summary>
         internal static void Export(string vpkPath, Package package, CharacterLoadout loadout, CharacterExportOptions options,
             string outputRoot, IProgress<string> progress, CancellationToken cancellationToken)
         {
@@ -173,7 +175,6 @@ namespace GUI.Types.Exporter.CharacterAssets
 
             Log.Info(nameof(CharacterAssetsExporter), $"Character export of {loadout.Hero.Name} started to \"{outputRoot}\"");
 
-            // The model extractor reports through the console
             var originalOut = Console.Out;
             var originalError = Console.Error;
             using var stdOutWriter = new CustomVmdlExporter.LogTextWriter(isError: false, progress);
@@ -277,15 +278,18 @@ namespace GUI.Types.Exporter.CharacterAssets
             {
                 foreach (var (_, resource) in targets)
                 {
-                    resource.Dispose();
+                    try
+                    {
+                        resource?.Dispose();
+                    }
+                    catch
+                    {
+                        // Игнорируем ошибки при закрытии уже освобожденных ресурсов
+                    }
                 }
             }
         }
 
-        /// <summary>
-        /// Writes the exported sources of the equipped models and particles over the default ones they stand in for,
-        /// see <see cref="CharacterExportOptions.ReplaceDefaults"/>.
-        /// </summary>
         private static int ApplyReplacements(CharacterExportPlan plan, string outputRoot, IFileLoader fileLoader, IProgress<string> progress)
         {
             if (plan.ModelReplacements.Count == 0 && plan.ParticleReplacements.Count == 0 && plan.SkippedSharedParticles.Count == 0 && plan.UnplacedModels.Count == 0)
@@ -301,7 +305,8 @@ namespace GUI.Types.Exporter.CharacterAssets
             {
                 try
                 {
-                    var vmdl = File.ReadAllText(GetExportedPath(outputRoot, replacement.Source, "vmdl"));
+                    var vmdlPath = GetExportedPath(outputRoot, replacement.Source, "vmdl");
+                    var vmdl = File.ReadAllText(vmdlPath);
                     var details = new List<string>();
 
                     if (replacement.Skin != 0)
@@ -317,17 +322,28 @@ namespace GUI.Types.Exporter.CharacterAssets
                         }
                     }
 
-                    if (replacement.Particles.Count > 0)
+                    // Привязываем партиклы, относящиеся к этой модели
+                    if (replacement.Particles != null && replacement.Particles.Count > 0)
                     {
                         try
                         {
-                            var particles = replacement.Particles.Select(particle => ModelDocEditor.ResolveParticle(fileLoader, particle)).ToList();
-                            vmdl = ModelDocEditor.AddParticles(vmdl, particles);
+                            var modelName = Path.GetFileNameWithoutExtension(replacement.Source);
 
-                            foreach (var particle in particles)
+                            var targetParticles = replacement.Particles
+                                .Where(p => IsParticleForModel(p, modelName, replacement.Target) || replacement.Particles.Count == 1)
+                                .Select(p => ModelDocEditor.ResolveParticle(fileLoader, p))
+                                .Where(p => p != null)
+                                .ToList();
+
+                            if (targetParticles.Count > 0)
                             {
-                                var attachment = particle.AttachmentPoint.Length > 0 ? particle.AttachmentPoint : "origin";
-                                details.Add($"creates {particle.Name} on {attachment}");
+                                vmdl = ModelDocEditor.AddParticles(vmdl, targetParticles);
+
+                                foreach (var particle in targetParticles)
+                                {
+                                    var attachment = !string.IsNullOrEmpty(particle.AttachmentPoint) ? particle.AttachmentPoint : "origin";
+                                    details.Add($"creates {particle.Name} on {attachment}");
+                                }
                             }
                         }
                         catch (Exception e)
@@ -368,9 +384,53 @@ namespace GUI.Types.Exporter.CharacterAssets
                 }
             }
 
-            foreach (var model in plan.UnplacedModels)
+            // Обработка моделей без стандартного слота замены (Arcana Head, кастомные дополнительные меши и т.д.)
+            foreach (var unplacedModel in plan.UnplacedModels)
             {
-                progress.Report($"  - {model} was exported, but its slot has no default model to write it over");
+                try
+                {
+                    var vmdlPath = GetExportedPath(outputRoot, unplacedModel, "vmdl");
+
+                    if (File.Exists(vmdlPath))
+                    {
+                        var vmdl = File.ReadAllText(vmdlPath);
+                        var details = new List<string>();
+                        var modelName = Path.GetFileNameWithoutExtension(unplacedModel);
+
+                        // Собираем кандидаты партиклов из плана
+                        var candidateParticles = plan.ParticleReplacements.Select(p => p.Source)
+                            .Concat(plan.ModelReplacements.SelectMany(m => m.Particles))
+                            .Distinct();
+
+                        var targetParticles = candidateParticles
+                            .Where(p => IsParticleForModel(p, modelName, unplacedModel))
+                            .Select(p => ModelDocEditor.ResolveParticle(fileLoader, p))
+                            .Where(p => p != null)
+                            .ToList();
+
+                        if (targetParticles.Count > 0)
+                        {
+                            vmdl = ModelDocEditor.AddParticles(vmdl, targetParticles);
+                            File.WriteAllText(vmdlPath, vmdl);
+
+                            foreach (var particle in targetParticles)
+                            {
+                                var attachment = !string.IsNullOrEmpty(particle.AttachmentPoint) ? particle.AttachmentPoint : "origin";
+                                details.Add($"creates {particle.Name} on {attachment}");
+                            }
+                        }
+
+                        progress.Report($"  + {unplacedModel}{(details.Count > 0 ? $" (standalone model with {string.Join(", ", details)})" : " (standalone model)")}");
+                    }
+                    else
+                    {
+                        progress.Report($"  - {unplacedModel} was exported, but its slot has no default model to write it over");
+                    }
+                }
+                catch (Exception e)
+                {
+                    progress.Report($"  ! {unplacedModel}: failed to process standalone model: {e.Message}");
+                }
             }
 
             foreach (var skipped in plan.SkippedSharedParticles)
@@ -382,8 +442,51 @@ namespace GUI.Types.Exporter.CharacterAssets
         }
 
         /// <summary>
-        /// Where an asset exported earlier in this export was written, failing when it was not.
+        /// Проверяет, относится ли партикл к модели предмета по совпадению имён файлов или названию сета/слота.
         /// </summary>
+        private static bool IsParticleForModel(string particlePath, string sourceModelName, string targetModelPath)
+        {
+            if (string.IsNullOrEmpty(particlePath))
+            {
+                return false;
+            }
+
+            var particleFileName = Path.GetFileNameWithoutExtension(particlePath);
+            var targetFileName = Path.GetFileNameWithoutExtension(targetModelPath);
+
+            // 1. Прямое совпадение по имени файла или пути
+            if (particleFileName.Contains(sourceModelName, StringComparison.OrdinalIgnoreCase) ||
+                particleFileName.Contains(targetFileName, StringComparison.OrdinalIgnoreCase) ||
+                particlePath.Contains(sourceModelName, StringComparison.OrdinalIgnoreCase) ||
+                particlePath.Contains(targetFileName, StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+
+            // 2. Сравнение по ключевым токенам путей (папки сетов, стили и названия предметов)
+            var commonIgnored = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+            {
+                "particles", "models", "econ", "items", "dota", "heroes", "equipment", "attachments", "character", "vmdl", "vpcf"
+            };
+
+            var particleTokens = particlePath.Split(['/', '\\', '_'], StringSplitOptions.RemoveEmptyEntries)
+                .Where(t => t.Length > 2 && !commonIgnored.Contains(t))
+                .ToList();
+
+            var modelTokens = (sourceModelName + "/" + targetModelPath).Split(['/', '\\', '_'], StringSplitOptions.RemoveEmptyEntries)
+                .Where(t => t.Length > 2 && !commonIgnored.Contains(t))
+                .ToList();
+
+            // Поиск пересечений токенов сета (например: ti9, arcana, totem, head)
+            var matchingTokens = particleTokens
+                .Where(pt => modelTokens.Any(mt => mt.Equals(pt, StringComparison.OrdinalIgnoreCase) ||
+                                                   mt.Contains(pt, StringComparison.OrdinalIgnoreCase) ||
+                                                   pt.Contains(mt, StringComparison.OrdinalIgnoreCase)))
+                .ToList();
+
+            return matchingTokens.Count > 0;
+        }
+
         private static string GetExportedPath(string outputRoot, string sourcePath, string extension)
         {
             var path = GetOutputPath(outputRoot, Path.ChangeExtension(sourcePath, extension));
@@ -414,7 +517,6 @@ namespace GUI.Types.Exporter.CharacterAssets
                     var vmatPath = GetOutputPath(outputRoot, Path.ChangeExtension(StripCompiledSuffix(material), "vmat"));
                     progress.Report(material);
 
-                    // The export folder is laid out like the package, so texture paths are relative to its root
                     CustomVmatExporter.ExportMaterial(resource, vmatPath, outputRoot, fileLoader, progress, writtenFiles, cancellationToken);
                 }
                 catch (OperationCanceledException)
@@ -472,8 +574,6 @@ namespace GUI.Types.Exporter.CharacterAssets
         private static void ExportResource(Resource resource, string sourcePath, string outputRoot, IFileLoader fileLoader,
             IProgress<string> progress, HashSet<string> writtenFiles)
         {
-            // Panorama compiles images straight from the image file, so they are written back as the image they were
-            // compiled from, without a vtex
             if (resource.DataBlock is Texture texture
                 && (texture.IsRawAnyImage || IsPanoramaImage(sourcePath, texture))
                 && GetImageData(resource, texture) is { Length: > 0 } imageData)
@@ -543,6 +643,10 @@ namespace GUI.Types.Exporter.CharacterAssets
 
                     WriteFile(outputRoot, path, buffer.ToArray(), progress, writtenFiles);
                 }
+                catch (OperationCanceledException)
+                {
+                    throw;
+                }
                 catch (Exception e)
                 {
                     failed++;
@@ -568,9 +672,6 @@ namespace GUI.Types.Exporter.CharacterAssets
             progress.Report($"+ {relativePath}");
         }
 
-        /// <summary>
-        /// Where a package relative path is written, refusing paths that would land outside of the export folder.
-        /// </summary>
         private static string GetOutputPath(string outputRoot, string relativePath)
         {
             var outputPath = Path.GetFullPath(Path.Combine(outputRoot, relativePath.Replace('/', Path.DirectorySeparatorChar)));
@@ -592,7 +693,6 @@ namespace GUI.Types.Exporter.CharacterAssets
         {
             if (texture.IsRawAnyImage)
             {
-                // The image the texture was compiled from, stored as is
                 using var contentFile = new TextureExtract(resource).ToContentFile();
                 return contentFile.Data;
             }
