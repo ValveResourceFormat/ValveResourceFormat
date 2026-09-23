@@ -700,14 +700,7 @@ namespace GUI
 
             try
             {
-                var parentContext = vrfGuiContext.ParentGuiContext;
-
-                while (parentContext != null)
-                {
-                    tab.ToolTipText = $"{tab.ToolTipText} ← {parentContext.FileName}";
-
-                    parentContext = parentContext.ParentGuiContext;
-                }
+                tab.ToolTipText = vrfGuiContext.FullPath;
 
                 var extension = Path.GetExtension(vrfGuiContext.FileName.AsSpan());
 
