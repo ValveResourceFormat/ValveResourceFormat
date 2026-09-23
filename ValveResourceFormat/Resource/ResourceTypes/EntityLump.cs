@@ -189,7 +189,7 @@ namespace ValveResourceFormat.ResourceTypes
             /// </summary>
             public required EntityIOTargetType TargetType { get; init; }
             /// <summary>
-            /// Gets the input parameter mapping (m_paramMap), or null when the connection has none.
+            /// Gets the input parameter mapping (m_paramMap), or null when the connection has none. An empty table maps nothing.
             /// </summary>
             /// <remarks>
             /// Keyed by the input's parameter name, each entry is either <c>{ value = literal }</c> or
@@ -255,7 +255,7 @@ namespace ValveResourceFormat.ResourceTypes
                     Delay = connection.GetFloatProperty("m_flDelay"),
                     TimesToFire = connection.GetInt32Property("m_nTimesToFire"),
                     TargetType = connection.GetEnumValue<EntityIOTargetType>("m_targetType"),
-                    ParamMap = connection.TryGetValue("m_paramMap", out var paramMap) && paramMap.ValueType == KVValueType.Collection && paramMap.Count > 0
+                    ParamMap = connection.TryGetValue("m_paramMap", out var paramMap) && paramMap.ValueType == KVValueType.Collection
                         ? paramMap
                         : null,
                 }).ToList();
@@ -443,7 +443,7 @@ namespace ValveResourceFormat.ResourceTypes
                             builder.Append(param);
                         }
 
-                        if (connection.ParamMap != null)
+                        if (connection.ParamMap is { Count: > 0 })
                         {
                             builder.Append(' ');
                             builder.Append(FormatParamMap(connection.ParamMap));
@@ -604,18 +604,14 @@ namespace ValveResourceFormat.ResourceTypes
                     continue;
                 }
 
-                if (entry.ValueType == KVValueType.Collection && entry.TryGetValue("src", out var source))
+                if (entry.IsCollection && entry.TryGetValue("src", out var source))
                 {
                     parts.Add($"{name}<-{source}");
+                    continue;
                 }
-                else if (entry.ValueType == KVValueType.Collection && entry.TryGetValue("value", out var literal))
-                {
-                    parts.Add($"{name}={CollapseWhitespace(StringifyValue(literal))}");
-                }
-                else
-                {
-                    parts.Add($"{name}={CollapseWhitespace(StringifyValue(entry))}");
-                }
+
+                var literal = entry.IsCollection && entry.TryGetValue("value", out var value) ? value : entry;
+                parts.Add($"{name}={CollapseWhitespace(StringifyValue(literal))}");
             }
 
             return $"{{{string.Join(", ", parts)}}}";

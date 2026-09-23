@@ -58,7 +58,7 @@ internal static class EntityIOGraphBuilder
             parts.Add($"({connection.OverrideParam})");
         }
 
-        if (connection.ParamMap != null)
+        if (connection.ParamMap is { Count: > 0 })
         {
             parts.Add("(mapped params)");
         }
