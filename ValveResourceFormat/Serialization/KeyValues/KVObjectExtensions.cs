@@ -164,6 +164,11 @@ namespace ValveResourceFormat.Serialization.KeyValues
                 return defaultValue;
             }
 
+            if (value.ValueType == KVValueType.String && bool.TryParse((string)value, out var parsed))
+            {
+                return parsed;
+            }
+
             return (bool)value;
         }
 

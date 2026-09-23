@@ -209,14 +209,9 @@ namespace GUI.Types.GLViewers
 
                 LoadedWorld.Load(mapExternalReferences);
 
-                if (LoadedWorld.Skybox3D != null)
+                foreach (var spawnGroup in LoadedWorld.SpawnGroups)
                 {
-                    Renderer.Skybox3D = LoadedWorld.Skybox3D;
-                }
-
-                if (LoadedWorld.Skybox2D != null)
-                {
-                    Renderer.Skybox2D = LoadedWorld.Skybox2D;
+                    Renderer.AddSpawnGroup(spawnGroup);
                 }
 
                 NavMeshSceneNode.AddNavNodesToScene(LoadedWorld.NavMesh, Scene);
@@ -386,7 +381,7 @@ namespace GUI.Types.GLViewers
 
                 using (UiControl.BeginGroup("World"))
                 {
-                    if (Renderer.SkyboxScene != null)
+                    if (Renderer.SkyGroup != null)
                     {
                         UiControl.AddCheckBox("Show Skybox", Renderer.ShowSkybox, (v) => Renderer.ShowSkybox = v);
                     }
@@ -669,9 +664,10 @@ namespace GUI.Types.GLViewers
         {
             var origin = entity.GetVector3Property("origin");
 
-            if (Renderer.Skybox3D is { } skybox && skybox.Entities.Contains(entity))
+            // An entity of a spawn group is placed with the group, and one of the 3D sky shows up magnified
+            if (Renderer.SpawnGroups.FirstOrDefault(group => group.Entities.Contains(entity)) is { } spawnGroup)
             {
-                origin = skybox.EntityOriginToWorld(origin);
+                origin = spawnGroup.EntityOriginToWorld(origin);
             }
 
             return PointBounds(origin);
@@ -797,9 +793,9 @@ namespace GUI.Types.GLViewers
             info.AddProperty("Flags", sceneNode.Flags.ToString());
             info.AddProperty("Layer", sceneNode.LayerName ?? string.Empty);
 
-            if (sceneNode.Scene == Renderer.SkyboxScene)
+            if (Renderer.SpawnGroups.FirstOrDefault(group => group.Scene == sceneNode.Scene) is { } spawnGroup)
             {
-                form.Text += " (in 3D skybox)";
+                form.Text += SpawnGroupSuffix(spawnGroup);
             }
 
             info.ShowPopulatedTabs();
@@ -817,13 +813,16 @@ namespace GUI.Types.GLViewers
                 ? $"Entity: {classname}"
                 : $"Entity: {classname} ({targetName})";
 
-            if (LoadedWorld?.Skybox3D?.Entities.Contains(entity) == true)
+            if (Renderer.SpawnGroups.FirstOrDefault(group => group.Entities.Contains(entity)) is { } spawnGroup)
             {
-                form.Text += " (in 3D skybox)";
+                form.Text += SpawnGroupSuffix(spawnGroup);
             }
 
             form.EntityInfoControl.ShowPopulatedTabs();
         }
+
+        private static string SpawnGroupSuffix(SpawnGroup spawnGroup)
+            => spawnGroup.WorldGroup != null ? " (in 3D skybox)" : $" (in {spawnGroup.MapName})";
 
         /// <summary>
         /// Opens the details window if it is not open yet, and empties it for <paramref name="entity"/>,
@@ -860,7 +859,8 @@ namespace GUI.Types.GLViewers
         }
 
         /// <summary>
-        /// Every entity a connection can reach, the 3D sky's included: entities are global across spawn groups.
+        /// Every entity a connection can reach, those of the 3D sky and loaded stages included: entities are
+        /// global across spawn groups.
         /// </summary>
         private List<EntityLump.Entity> GetLinkableEntities()
         {
@@ -869,12 +869,12 @@ namespace GUI.Types.GLViewers
                 return [];
             }
 
-            if (LoadedWorld.Skybox3D is not { } skybox)
+            if (Renderer.SpawnGroups.Count == 0)
             {
                 return LoadedWorld.Entities;
             }
 
-            return [.. LoadedWorld.Entities, .. skybox.Entities];
+            return [.. LoadedWorld.Entities, .. Renderer.SpawnGroups.SelectMany(static group => group.Entities)];
         }
 
         private void OnLinkedResourceActivated(object? sender, LinkedResource link)
@@ -928,8 +928,8 @@ namespace GUI.Types.GLViewers
                 return;
             }
 
-            var isInSkybox = pixelInfo.IsSkybox > 0;
-            var sceneNode = isInSkybox ? SkyboxScene?.Find(pixelInfo.ObjectId) : Scene.Find(pixelInfo.ObjectId);
+            var scenes = Renderer.Scenes;
+            var sceneNode = pixelInfo.SceneIndex < scenes.Count ? scenes[(int)pixelInfo.SceneIndex].Find(pixelInfo.ObjectId) : null;
 
             if (sceneNode == null)
             {
