@@ -182,15 +182,23 @@ namespace ValveResourceFormat.ResourceTypes
         }
 
         /// <summary>
-        /// Populates cached flex controller data from an external mesh resource's morph data.
+        /// Populates flex controllers, hitbox sets and attachments the model does not have from an external mesh resource.
         /// </summary>
         /// <param name="mesh">The mesh providing supplemental data.</param>
         public void SetExternalMeshData(Mesh mesh)
         {
             SetExternalMorphData(mesh.MorphData);
 
-            HitboxSets ??= mesh.HitboxSets;
-            Attachments ??= mesh.Attachments;
+            // Like the embedded MDAT case, the first mesh that carries hitboxes or attachments supplies them.
+            if (HitboxSets.Count == 0)
+            {
+                HitboxSets = mesh.HitboxSets;
+            }
+
+            if (Attachments.Count == 0)
+            {
+                Attachments = mesh.Attachments;
+            }
         }
 
         /// <summary>

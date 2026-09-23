@@ -361,5 +361,42 @@ namespace Tests.Resources
                     .Intersect(embedded.Select(mesh => mesh.MeshIndex))).IsEmpty();
             }
         }
+
+        /// <summary>
+        /// A model without an embedded mesh block takes its hitbox sets and attachments from the first
+        /// external mesh that has them.
+        /// </summary>
+        [Test]
+        public async Task ExternalMeshesSupplyHitboxesAndAttachments()
+        {
+            using var resource = TestFixtures.Load("alchemist.vmdl_c");
+            var model = (Model)resource.DataBlock!;
+
+            // Has hitboxes but no attachments.
+            using var firstResource = TestFixtures.Load("chen_weapon.vmesh_c");
+            var first = (Mesh)firstResource.DataBlock!;
+
+            // Has both.
+            using var secondResource = TestFixtures.Load("ghostanim_bg_ghostanim_lod0.vmesh_c");
+            var second = (Mesh)secondResource.DataBlock!;
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(model.HitboxSets).IsEmpty();
+                await Assert.That(model.Attachments).IsEmpty();
+
+                model.SetExternalMeshData(first);
+
+                await Assert.That(model.HitboxSets).IsSameReferenceAs(first.HitboxSets);
+                await Assert.That(model.HitboxSets).IsNotEmpty();
+                await Assert.That(model.Attachments).IsEmpty();
+
+                model.SetExternalMeshData(second);
+
+                await Assert.That(model.HitboxSets).IsSameReferenceAs(first.HitboxSets);
+                await Assert.That(model.Attachments).IsSameReferenceAs(second.Attachments);
+                await Assert.That(model.Attachments).IsNotEmpty();
+            }
+        }
     }
 }

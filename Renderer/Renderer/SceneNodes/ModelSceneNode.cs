@@ -71,13 +71,14 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             }
 
             Name = model.Name;
-            Attachments = model.Attachments;
 
             LoadMeshes(model);
             UpdateBoundingBox();
             LoadAnimations(model, embeddedAnimationsOnly: isWorldPreview);
 
             SetCharacterEyeRenderParams();
+
+            // Read after LoadMeshes, which fills them in from external meshes.
             Attachments = model.Attachments;
             AnimationController.BoneConstraints = new BoneConstraintSolver(model);
 
