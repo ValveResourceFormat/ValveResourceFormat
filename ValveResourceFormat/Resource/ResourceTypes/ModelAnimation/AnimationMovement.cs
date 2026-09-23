@@ -70,6 +70,11 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
         public Vector3 Position { get; }
 
         /// <summary>
+        /// Gets a value indicating whether every motion parameter of this segment is zero, so it moves nothing.
+        /// </summary>
+        public bool IsZero => V0 == 0f && V1 == 0f && Angle == 0f && Vector == Vector3.Zero && Position == Vector3.Zero;
+
+        /// <summary>
         /// Initializes a new instance of the <see cref="AnimationMovement"/> class.
         /// </summary>
         public AnimationMovement(KVObject frameBlock)

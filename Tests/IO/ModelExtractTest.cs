@@ -268,6 +268,33 @@ namespace Tests.IO
         }
 
         /// <summary>
+        /// Movement entries that are all zero move nothing, so they must not ask the compiler to extract
+        /// motion, which would turn the root bone's sway into real movement. Real movement still does.
+        /// </summary>
+        [Test]
+        public async Task ExtractsMotionOnlyForNonZeroMovement()
+        {
+            using var resource = TestFixtures.Load("aw_ti9_gargoyle_collision_kv3_v3_zstd.vmdl_c");
+            var model = (Model)resource.DataBlock!;
+
+            var attack = (SequenceAnimation)model.GetAllAnimations(new NullFileLoader()).First(anim => anim.Name == "aw_ti9_grgl_ability_attack");
+            var attackChannels = DmxAnimationChannels(model, attack.Name);
+            var attackNode = TestFixtures.FindNamed(TestFixtures.ParseKV3(new ModelExtract(resource, new NullFileLoader()).ToValveModel()), attack.Name)!;
+
+            var run = TestFixtures.FindNamed(TestFixtures.ExtractValveModelDocument("sw_donkey_10th_anniversary_kv3_v3_zstd.vmdl_c"), "run")!;
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(attack.HasMovementData()).IsTrue();
+                await Assert.That(attack.HasNonZeroMovementData()).IsFalse();
+                await Assert.That(TestFixtures.FindNode(attackNode, "ExtractMotion")).IsNull();
+                await Assert.That(attackChannels.Cast<Datamodel.Element>().Any(channel => channel.Name is "_p" or "_o")).IsFalse();
+
+                await Assert.That(TestFixtures.FindNode(run, "ExtractMotion")).IsNotNull();
+            }
+        }
+
+        /// <summary>
         /// The LOD structure comes back as one LODGroup per declared level, carrying that level's switch
         /// threshold.
         /// </summary>

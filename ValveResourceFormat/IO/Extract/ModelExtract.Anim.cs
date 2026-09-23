@@ -314,12 +314,21 @@ partial class ModelExtract
         flexLayer.LayerValues[frame.FrameIndex] = flexValue;
     }
 
+    /// <summary>
+    /// Whether the animation's root motion should be written out for recompiling. All-zero movement
+    /// is skipped, since extracting motion from it on recompile would turn the root bone's sway into
+    /// real movement.
+    /// </summary>
+    private static bool ShouldExtractMotion(Animation anim)
+        => anim.HasMovementData() && (anim is not SequenceAnimation sequence || sequence.HasNonZeroMovementData());
+
     private static void ProcessRootMotionChannel(Animation anim, DmeModel skeleton, DmeChannelsClip clip)
     {
-        if (!anim.HasMovementData())
+        if (!ShouldExtractMotion(anim))
         {
             return;
         }
+
         var rootPositionLayer = new DmeVector3LogLayer { LayerValues = new Vector3[anim.FrameCount] };
         var rootPositionChannel = BuildDmeChannel("_p", skeleton.Transform, "position", new DmeVector3Log(), rootPositionLayer);
 
