@@ -50,6 +50,7 @@ in the Dump column.
 | vcss     | Panorama Style             | text                          | yes     | `.css` (prettified minified text)                                                                            |
 | vdata    | Data                       | text (3D for CS2 bomb damage) | generic | KV3 text                                                                                                     |
 | vdpn     | Dota Patch Notes           | text                          | generic | KV3 text                                                                                                     |
+| vdsp     | DSP Presets                | text                          | generic | KV3 text                                                                                                     |
 | vdvn     | Dota Visual Novels         | text                          | generic | KV3 text                                                                                                     |
 | vents    | Entity Lump                | graph, text                   | yes     | entity dump; glTF/GLB; included in map exports                                                               |
 | vjs      | Panorama Script            | text                          | yes     | `.js` (byte-exact; see [Panorama](#choreo-captions-and-ui))                                                  |

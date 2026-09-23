@@ -176,6 +176,12 @@ namespace ValveResourceFormat
         VMix,
 
         /// <summary>
+        /// DSP effect presets and their processor chains.
+        /// </summary>
+        [Extension("vdsp")]
+        DspPresets,
+
+        /// <summary>
         /// Sound stack script with rules and operators for sound events.
         /// </summary>
         [Extension("vsndstck")]
