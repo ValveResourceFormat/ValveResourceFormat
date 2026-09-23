@@ -132,6 +132,16 @@ public abstract class BaseToggle : BaseModelEntity
         return true;
     }
 
+    /// <summary>Abandons a travel where it is, without arriving.</summary>
+    protected void StopMoving()
+    {
+        IsLinearMoving = false;
+        isAngularMoving = false;
+        Velocity = Vector3.Zero;
+        AngularVelocity = Vector3.Zero;
+        SetMoveDoneTime(-1f);
+    }
+
     /// <summary>
     /// Reads the axis a rotating brush turns about from its spawnflags. Source's
     /// <c>CBaseToggle::AxisDir</c>, whose flag names are for the QAngle component they set, so its "roll"

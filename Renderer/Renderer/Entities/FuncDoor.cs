@@ -3,7 +3,7 @@ using ValveResourceFormat.Serialization.KeyValues;
 namespace ValveResourceFormat.Renderer.Entities;
 
 /// <summary>
-/// <c>func_door</c> and <c>func_movelinear</c>. A brush that slides open along its <c>movedir</c> and back
+/// <c>func_door</c>. A brush that slides open along its <c>movedir</c> and back
 /// again, Source's <c>CBaseDoor</c>. Not simulated: the blocking behaviour that reverses a door onto
 /// whoever stands in it, and the door groups that open together.
 /// </summary>
@@ -51,7 +51,7 @@ public class FuncDoor : BaseToggle
     public float Wait { get; protected set; }
 
     /// <summary>Gets where the door is in its travel.</summary>
-    protected ToggleState State { get; private set; }
+    protected ToggleState State { get; set; }
 
     /// <summary>Gets the place the door rests when closed.</summary>
     protected Vector3 PositionClosed { get; set; }

@@ -38,7 +38,7 @@ public static class EntityFactory
         Register<FuncButton>("func_button", static (system, spawnInfo) => new FuncButton(system, spawnInfo));
         Register<FuncDoor>("func_door", static (system, spawnInfo) => new FuncDoor(system, spawnInfo));
         Register<FuncDoorRotating>("func_door_rotating", static (system, spawnInfo) => new FuncDoorRotating(system, spawnInfo));
-        Register<FuncDoor>("func_movelinear", static (system, spawnInfo) => new FuncDoor(system, spawnInfo));
+        Register<FuncMoveLinear>("func_movelinear", static (system, spawnInfo) => new FuncMoveLinear(system, spawnInfo));
         Register<FuncRotating>("func_rotating", static (system, spawnInfo) => new FuncRotating(system, spawnInfo));
         Register<PropDoorRotating>("prop_door_rotating", static (system, spawnInfo) => new PropDoorRotating(system, spawnInfo));
         Register<PropDoorRotating>("prop_door_rotating_physics", static (system, spawnInfo) => new PropDoorRotating(system, spawnInfo));
