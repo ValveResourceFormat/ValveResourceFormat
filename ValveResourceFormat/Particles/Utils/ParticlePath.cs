@@ -11,6 +11,7 @@ namespace ValveResourceFormat.Particles.Utils
     readonly struct ParticlePathParameters
     {
         public readonly int StartControlPointNumber;
+        public readonly int MidControlPointNumber = -1;
         public readonly int EndControlPointNumber;
         public readonly int BulgeControl;
         public readonly float Bulge;
@@ -36,6 +37,7 @@ namespace ValveResourceFormat.Particles.Utils
             parse = parse.Nested(pathParams);
 
             StartControlPointNumber = parse.Int32("m_nStartControlPointNumber", StartControlPointNumber);
+            MidControlPointNumber = parse.Int32("m_nMidControlPointNumber", MidControlPointNumber);
             EndControlPointNumber = parse.Int32("m_nEndControlPointNumber", EndControlPointNumber);
             BulgeControl = parse.Int32("m_nBulgeControl", BulgeControl);
             Bulge = parse.Float("m_flBulge", Bulge);
@@ -52,6 +54,7 @@ namespace ValveResourceFormat.Particles.Utils
         private ParticlePathParameters(int start, int end, in ParticlePathParameters source)
         {
             StartControlPointNumber = start;
+            MidControlPointNumber = source.MidControlPointNumber;
             EndControlPointNumber = end;
             BulgeControl = source.BulgeControl;
             Bulge = source.Bulge;
@@ -93,13 +96,21 @@ namespace ValveResourceFormat.Particles.Utils
         /// control point's forward direction scaled by how perpendicular that direction is to the
         /// path; without a bulge control point the displacement is instead drawn per world axis in
         /// <c>[-bulge, +bulge)</c> from the system's random seed alone, so it stays fixed for the
-        /// lifetime of the system instance; the midpoint offset applies last.
+        /// lifetime of the system instance. A mid control point replaces the midpoint bias and bulge
+        /// with a control that makes the curve pass through that point at half way. The midpoint
+        /// offset applies last.
         /// </summary>
         public static (Vector3 Start, Vector3 Mid, Vector3 End) CalculatePathValues(
             ParticleSystemState state, in ParticlePathParameters path, float timeStamp)
         {
             var start = GetControlPointAtTime(state, path.StartControlPointNumber, timeStamp) + path.StartPointOffset;
             var end = GetControlPointAtTime(state, path.EndControlPointNumber, timeStamp) + path.EndOffset;
+
+            if (path.MidControlPointNumber > -1)
+            {
+                var through = GetControlPointAtTime(state, path.MidControlPointNumber, timeStamp);
+                return (start, (2f * through) - (0.5f * (start + end)) + path.MidPointOffset, end);
+            }
 
             var mid = Vector3.Lerp(start, end, path.MidPoint);
 

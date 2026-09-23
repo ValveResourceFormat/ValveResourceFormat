@@ -372,6 +372,12 @@ internal record struct ParticleDefinitionParser(KVObject Data, ILogger Logger, i
             }
         }
 
+        // Fields that became transform inputs without a format bump still hold a bare control point number in older content.
+        if (!transformParameters.IsNull)
+        {
+            return new ControlPointTransformProvider(Data.GetInt32Property(key), true);
+        }
+
         return new IdentityTransformProvider();
     }
 }
