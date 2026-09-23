@@ -33,6 +33,19 @@ namespace ValveResourceFormat.Renderer.SceneNodes
 
         protected override bool Shaded => false;
 
+        /// <inheritdoc/>
+        public override void Render(Scene.RenderContext context)
+        {
+            // Drawn through the model and kept out of picking
+            if (context.RenderPass != RenderPass.Translucent || context.ReplacementShader != null)
+            {
+                return;
+            }
+
+            using var _ = GraphicsContext.RenderState.Scope(depthTest: false);
+            base.Render(context);
+        }
+
         private static Color32 GetHitboxGroupColor(int group)
         {
             if (group < 0 || group >= HitboxColors.Length)
