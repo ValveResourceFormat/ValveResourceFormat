@@ -60,6 +60,7 @@ namespace ValveResourceFormat.Particles
                 ["C_INIT_CreateSequentialPath"] = initializerInfo => new CreateSequentialPath(initializerInfo),
                 ["C_INIT_CreateSequentialPathV2"] = initializerInfo => new CreateSequentialPathV2(initializerInfo),
                 ["C_INIT_CreateWithinBox"] = initializerInfo => new CreateWithinBox(initializerInfo),
+                ["C_INIT_CreateWithinCone"] = initializerInfo => new CreateWithinCone(initializerInfo),
                 ["C_INIT_CreateWithinSphereTransform"] = initializerInfo => new CreateWithinSphereTransform(initializerInfo),
                 ["C_INIT_CreateFromCPs"] = initializerInfo => new CreateFromCPs(initializerInfo),
                 ["C_INIT_CreateFromParentParticles"] = initializerInfo => new CreateFromParentParticles(initializerInfo),
