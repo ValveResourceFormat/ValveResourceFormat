@@ -19,10 +19,11 @@ namespace GUI.Forms
 
         // Remembered for the next time the dialog opens
         private static string? lastHeroName;
+        private static CharacterExportOptions? lastOptions;
 
         private readonly ItemsGameCatalog catalog;
         private readonly VrfGuiContext guiContext;
-        private readonly List<(HeroSlot Slot, ComboBox ComboBox)> slotRows = [];
+        private readonly List<(HeroSlot Slot, ComboBox ComboBox, ComboBox StyleComboBox)> slotRows = [];
         private GLCharacterPreviewViewer? previewViewer;
         private int heroIndex = -1;
         private bool updatingSelection;
@@ -40,7 +41,10 @@ namespace GUI.Forms
             ItemSounds = itemSoundsCheckBox.Checked,
             HeroSounds = heroSoundsCheckBox.Checked,
             HeroVoice = heroVoiceCheckBox.Checked,
+            IncludeAudio = includeAudioCheckBox.Checked,
             Icons = iconsCheckBox.Checked,
+            ReplaceDefaults = replaceDefaultsCheckBox.Checked,
+            ReplaceSharedParticles = replaceSharedParticlesCheckBox.Checked,
         };
 
         public CharacterSelectForm(ItemsGameCatalog catalog, VrfGuiContext guiContext)
@@ -51,8 +55,23 @@ namespace GUI.Forms
             InitializeComponent();
 
             toolTip.SetToolTip(heroParticlesCheckBox, "Every particle in the hero's particle folder, which covers the effects of its abilities");
-            toolTip.SetToolTip(heroSoundsCheckBox, "The hero's game sound events and the sounds they play");
             toolTip.SetToolTip(iconsCheckBox, "Hero portraits, ability icons and item icons from panorama/images");
+            toolTip.SetToolTip(heroSoundsCheckBox, "The hero's game_sounds file, which points at the sounds in the game");
+            toolTip.SetToolTip(heroVoiceCheckBox, "The hero's game_sounds_vo file, which points at the voice lines in the game");
+            toolTip.SetToolTip(itemSoundsCheckBox, "The files the sound events the items swap in are defined in");
+            toolTip.SetToolTip(includeAudioCheckBox, "Also export every sound the exported sound events play, which is most of the export's size");
+            toolTip.SetToolTip(replaceDefaultsCheckBox,
+                "Write the chosen look over the hero's default assets, so it shows without the items being equipped:\n" +
+                "the arcana or persona model as the hero's model, chosen items over the default items' models,\n" +
+                "particles the items swap in over the ones they replace, and particles items create added to their models");
+            toolTip.SetToolTip(replaceSharedParticlesCheckBox, "Also replace particles every hero uses, like the blink dagger, stun and status effects");
+
+            if (lastOptions != null)
+            {
+                ApplyOptions(lastOptions);
+            }
+
+            replaceSharedParticlesCheckBox.Enabled = replaceDefaultsCheckBox.Checked;
 
             var searchNames = new AutoCompleteStringCollection();
             searchNames.AddRange([.. catalog.Heroes.Select(static hero => hero.DisplayName)]);
@@ -65,10 +84,45 @@ namespace GUI.Forms
         }
 
         /// <summary>
-        /// The item chosen in every slot, skipping slots left empty.
+        /// The item chosen in every slot and its style, skipping slots left empty.
         /// </summary>
-        public List<EconItem> GetSelectedItems()
-            => [.. slotRows.Select(static row => GetItem(row.ComboBox)).OfType<EconItem>()];
+        public List<EquippedItem> GetEquippedItems()
+        {
+            var items = new List<EquippedItem>();
+
+            foreach (var (_, comboBox, styleComboBox) in slotRows)
+            {
+                if (GetItem(comboBox) is { } item)
+                {
+                    items.Add(new EquippedItem(item, (styleComboBox.SelectedItem as ItemStyle)?.Index ?? 0));
+                }
+            }
+
+            return items;
+        }
+
+        public CharacterLoadout CreateLoadout()
+            => CharacterLoadout.Create(catalog, SelectedHero ?? throw new InvalidOperationException("No hero is selected"), GetEquippedItems());
+
+        private void ApplyOptions(CharacterExportOptions options)
+        {
+            heroModelCheckBox.Checked = options.HeroModel;
+            itemModelsCheckBox.Checked = options.ItemModels;
+            itemParticlesCheckBox.Checked = options.ItemParticles;
+            heroParticlesCheckBox.Checked = options.HeroParticles;
+            itemSoundsCheckBox.Checked = options.ItemSounds;
+            heroSoundsCheckBox.Checked = options.HeroSounds;
+            heroVoiceCheckBox.Checked = options.HeroVoice;
+            includeAudioCheckBox.Checked = options.IncludeAudio;
+            iconsCheckBox.Checked = options.Icons;
+            replaceDefaultsCheckBox.Checked = options.ReplaceDefaults;
+            replaceSharedParticlesCheckBox.Checked = options.ReplaceSharedParticles;
+        }
+
+        private void ReplaceDefaultsCheckBox_CheckedChanged(object? sender, EventArgs e)
+        {
+            replaceSharedParticlesCheckBox.Enabled = replaceDefaultsCheckBox.Checked;
+        }
 
         protected override void OnShown(EventArgs e)
         {
@@ -95,6 +149,8 @@ namespace GUI.Forms
             {
                 lastHeroName = SelectedHero.Name;
             }
+
+            lastOptions = Options;
 
             base.OnFormClosed(e);
         }
@@ -243,12 +299,26 @@ namespace GUI.Forms
                 comboBox.SelectedIndex = 0;
                 comboBox.SelectedIndexChanged += SlotComboBox_SelectedIndexChanged;
 
+                var styleComboBox = new ThemedComboBox
+                {
+                    Anchor = AnchorStyles.Left | AnchorStyles.Right,
+                    DropDownStyle = ComboBoxStyle.DropDownList,
+                    DisplayMember = nameof(ItemStyle.Name),
+                    Width = this.AdjustForDPI(110),
+                    DropDownWidth = this.AdjustForDPI(240),
+                    Visible = false,
+                };
+
+                styleComboBox.SelectedIndexChanged += StyleComboBox_SelectedIndexChanged;
+                toolTip.SetToolTip(styleComboBox, "Item style");
+
                 var row = slotsTable.RowCount++;
                 slotsTable.RowStyles.Add(new RowStyle(SizeType.AutoSize));
                 slotsTable.Controls.Add(label, 0, row);
                 slotsTable.Controls.Add(comboBox, 1, row);
+                slotsTable.Controls.Add(styleComboBox, 2, row);
 
-                slotRows.Add((slot, comboBox));
+                slotRows.Add((slot, comboBox, styleComboBox));
             }
 
             // Keeps the last row from stretching when there are only a few slots
@@ -282,7 +352,7 @@ namespace GUI.Forms
         /// <param name="keepPersonaSelector">Leave the persona selector as the user picked it.</param>
         private void ResetLoadout(bool persona, bool keepPersonaSelector = false)
         {
-            foreach (var (slot, comboBox) in slotRows)
+            foreach (var (slot, comboBox, _) in slotRows)
             {
                 if (slot.Name.Equals(PersonaSelectorSlot, StringComparison.OrdinalIgnoreCase))
                 {
@@ -361,7 +431,7 @@ namespace GUI.Forms
                 {
                     foreach (var item in set.Items)
                     {
-                        var (_, comboBox) = slotRows.FirstOrDefault(row => row.Slot.Name.Equals(item.Slot, StringComparison.OrdinalIgnoreCase));
+                        var (_, comboBox, _) = slotRows.FirstOrDefault(row => row.Slot.Name.Equals(item.Slot, StringComparison.OrdinalIgnoreCase));
 
                         if (comboBox != null)
                         {
@@ -381,6 +451,11 @@ namespace GUI.Forms
 
         private void SlotComboBox_SelectedIndexChanged(object? sender, EventArgs e)
         {
+            if (sender is ComboBox changedComboBox)
+            {
+                UpdateStyles(changedComboBox);
+            }
+
             if (updatingSelection)
             {
                 return;
@@ -405,6 +480,38 @@ namespace GUI.Forms
             }
 
             UpdateSummary();
+            SchedulePreviewUpdate();
+        }
+
+        /// <summary>
+        /// Offers the styles of the item the slot's combo box now shows, starting from the first one.
+        /// </summary>
+        private void UpdateStyles(ComboBox comboBox)
+        {
+            var (_, _, styleComboBox) = slotRows.FirstOrDefault(row => row.ComboBox == comboBox);
+
+            if (styleComboBox == null)
+            {
+                return;
+            }
+
+            var styles = GetItem(comboBox)?.Styles ?? [];
+
+            styleComboBox.BeginUpdate();
+            styleComboBox.Items.Clear();
+
+            foreach (var style in styles)
+            {
+                styleComboBox.Items.Add(style);
+            }
+
+            styleComboBox.SelectedIndex = styles.Count > 0 ? 0 : -1;
+            styleComboBox.Visible = styles.Count > 1;
+            styleComboBox.EndUpdate();
+        }
+
+        private void StyleComboBox_SelectedIndexChanged(object? sender, EventArgs e)
+        {
             SchedulePreviewUpdate();
         }
 
@@ -466,7 +573,7 @@ namespace GUI.Forms
 
         private void UpdateSummary()
         {
-            var count = GetSelectedItems().Count;
+            var count = slotRows.Count(static row => GetItem(row.ComboBox) != null);
             summaryLabel.Text = $"{count} item{(count == 1 ? "" : "s")} equipped";
         }
 
@@ -491,41 +598,28 @@ namespace GUI.Forms
         }
 
         /// <summary>
-        /// The hero's model, or the one an equipped item swaps it for, followed by the models of the equipped items.
+        /// The hero's model, or the one an equipped item swaps it for, followed by the models the equipped items show.
         /// </summary>
-        private List<string> GetPreviewModels()
+        private List<PreviewModel> GetPreviewModels()
         {
-            var hero = SelectedHero;
-
-            if (hero == null)
+            if (SelectedHero == null)
             {
                 return [];
             }
 
-            var items = GetSelectedItems();
-            var heroModel = hero.Model;
+            var loadout = CreateLoadout();
+            var models = new List<PreviewModel>();
 
-            foreach (var modifier in items.SelectMany(static item => item.AssetModifiers))
+            if (loadout.HeroModel != null)
             {
-                if (modifier is { Type: "entity_model", Modifier: not null, Style: null or 0 }
-                    && hero.Name.Equals(modifier.Asset, StringComparison.OrdinalIgnoreCase))
-                {
-                    heroModel = modifier.Modifier;
-                }
+                models.Add(new PreviewModel(loadout.HeroModel, loadout.HeroSkin));
             }
 
-            var models = new List<string>();
-
-            if (heroModel != null)
+            foreach (var item in loadout.Items)
             {
-                models.Add(heroModel);
-            }
-
-            foreach (var item in items)
-            {
-                if (item.ModelPlayer != null && !models.Contains(item.ModelPlayer, StringComparer.OrdinalIgnoreCase))
+                if (loadout.GetItemModel(item) is { } model && !models.Any(existing => CharacterLoadout.IsSamePath(existing.Path, model)))
                 {
-                    models.Add(item.ModelPlayer);
+                    models.Add(new PreviewModel(model, item.Skin));
                 }
             }
 

@@ -61,6 +61,9 @@ namespace GUI.Forms
             heroSoundsCheckBox = new System.Windows.Forms.CheckBox();
             heroVoiceCheckBox = new System.Windows.Forms.CheckBox();
             iconsCheckBox = new System.Windows.Forms.CheckBox();
+            includeAudioCheckBox = new System.Windows.Forms.CheckBox();
+            replaceDefaultsCheckBox = new System.Windows.Forms.CheckBox();
+            replaceSharedParticlesCheckBox = new System.Windows.Forms.CheckBox();
             buttonsTable = new System.Windows.Forms.TableLayoutPanel();
             summaryLabel = new System.Windows.Forms.Label();
             cancelButton = new ThemedButton();
@@ -81,7 +84,7 @@ namespace GUI.Forms
             //
             mainTable.ColumnCount = 2;
             mainTable.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 100F));
-            mainTable.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Absolute, 440F));
+            mainTable.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Absolute, 500F));
             mainTable.Controls.Add(previewPanel, 0, 0);
             mainTable.Controls.Add(controlsTable, 1, 0);
             mainTable.Dock = System.Windows.Forms.DockStyle.Fill;
@@ -235,9 +238,10 @@ namespace GUI.Forms
             // slotsTable
             //
             slotsTable.AutoScroll = true;
-            slotsTable.ColumnCount = 2;
+            slotsTable.ColumnCount = 3;
             slotsTable.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle());
             slotsTable.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 100F));
+            slotsTable.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle());
             slotsTable.Dock = System.Windows.Forms.DockStyle.Fill;
             slotsTable.Location = new System.Drawing.Point(3, 21);
             slotsTable.Name = "slotsTable";
@@ -272,10 +276,16 @@ namespace GUI.Forms
             includeTable.Controls.Add(heroSoundsCheckBox, 1, 2);
             includeTable.Controls.Add(heroVoiceCheckBox, 0, 3);
             includeTable.Controls.Add(iconsCheckBox, 1, 3);
+            includeTable.Controls.Add(includeAudioCheckBox, 0, 4);
+            includeTable.SetColumnSpan(includeAudioCheckBox, 2);
+            includeTable.Controls.Add(replaceDefaultsCheckBox, 0, 5);
+            includeTable.Controls.Add(replaceSharedParticlesCheckBox, 1, 5);
             includeTable.Dock = System.Windows.Forms.DockStyle.Top;
             includeTable.Location = new System.Drawing.Point(3, 21);
             includeTable.Name = "includeTable";
-            includeTable.RowCount = 4;
+            includeTable.RowCount = 6;
+            includeTable.RowStyles.Add(new System.Windows.Forms.RowStyle());
+            includeTable.RowStyles.Add(new System.Windows.Forms.RowStyle());
             includeTable.RowStyles.Add(new System.Windows.Forms.RowStyle());
             includeTable.RowStyles.Add(new System.Windows.Forms.RowStyle());
             includeTable.RowStyles.Add(new System.Windows.Forms.RowStyle());
@@ -328,7 +338,7 @@ namespace GUI.Forms
             itemSoundsCheckBox.CheckState = System.Windows.Forms.CheckState.Checked;
             itemSoundsCheckBox.Name = "itemSoundsCheckBox";
             itemSoundsCheckBox.TabIndex = 4;
-            itemSoundsCheckBox.Text = "Item sounds";
+            itemSoundsCheckBox.Text = "Item sound events";
             itemSoundsCheckBox.UseVisualStyleBackColor = true;
             //
             // heroSoundsCheckBox
@@ -338,7 +348,7 @@ namespace GUI.Forms
             heroSoundsCheckBox.CheckState = System.Windows.Forms.CheckState.Checked;
             heroSoundsCheckBox.Name = "heroSoundsCheckBox";
             heroSoundsCheckBox.TabIndex = 5;
-            heroSoundsCheckBox.Text = "Hero sounds";
+            heroSoundsCheckBox.Text = "Hero sound events";
             heroSoundsCheckBox.UseVisualStyleBackColor = true;
             //
             // heroVoiceCheckBox
@@ -348,7 +358,7 @@ namespace GUI.Forms
             heroVoiceCheckBox.CheckState = System.Windows.Forms.CheckState.Checked;
             heroVoiceCheckBox.Name = "heroVoiceCheckBox";
             heroVoiceCheckBox.TabIndex = 6;
-            heroVoiceCheckBox.Text = "Voice lines";
+            heroVoiceCheckBox.Text = "Voice line events";
             heroVoiceCheckBox.UseVisualStyleBackColor = true;
             //
             // iconsCheckBox
@@ -360,6 +370,33 @@ namespace GUI.Forms
             iconsCheckBox.TabIndex = 7;
             iconsCheckBox.Text = "Panorama icons";
             iconsCheckBox.UseVisualStyleBackColor = true;
+            //
+            // includeAudioCheckBox
+            //
+            includeAudioCheckBox.AutoSize = true;
+            includeAudioCheckBox.Name = "includeAudioCheckBox";
+            includeAudioCheckBox.TabIndex = 8;
+            includeAudioCheckBox.Text = "Include the sounds they play (.mp3, .wav)";
+            includeAudioCheckBox.UseVisualStyleBackColor = true;
+            //
+            // replaceDefaultsCheckBox
+            //
+            replaceDefaultsCheckBox.AutoSize = true;
+            replaceDefaultsCheckBox.Checked = true;
+            replaceDefaultsCheckBox.CheckState = System.Windows.Forms.CheckState.Checked;
+            replaceDefaultsCheckBox.Name = "replaceDefaultsCheckBox";
+            replaceDefaultsCheckBox.TabIndex = 9;
+            replaceDefaultsCheckBox.Text = "Replace default assets";
+            replaceDefaultsCheckBox.UseVisualStyleBackColor = true;
+            replaceDefaultsCheckBox.CheckedChanged += ReplaceDefaultsCheckBox_CheckedChanged;
+            //
+            // replaceSharedParticlesCheckBox
+            //
+            replaceSharedParticlesCheckBox.AutoSize = true;
+            replaceSharedParticlesCheckBox.Name = "replaceSharedParticlesCheckBox";
+            replaceSharedParticlesCheckBox.TabIndex = 10;
+            replaceSharedParticlesCheckBox.Text = "Also shared particles";
+            replaceSharedParticlesCheckBox.UseVisualStyleBackColor = true;
             //
             // buttonsTable
             //
@@ -464,6 +501,9 @@ namespace GUI.Forms
         private System.Windows.Forms.CheckBox heroSoundsCheckBox;
         private System.Windows.Forms.CheckBox heroVoiceCheckBox;
         private System.Windows.Forms.CheckBox iconsCheckBox;
+        private System.Windows.Forms.CheckBox includeAudioCheckBox;
+        private System.Windows.Forms.CheckBox replaceDefaultsCheckBox;
+        private System.Windows.Forms.CheckBox replaceSharedParticlesCheckBox;
         private System.Windows.Forms.TableLayoutPanel buttonsTable;
         private System.Windows.Forms.Label summaryLabel;
         private ThemedButton cancelButton;

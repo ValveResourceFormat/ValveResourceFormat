@@ -10,12 +10,19 @@ using ValveResourceFormat.ResourceTypes.ModelAnimation;
 namespace GUI.Types.GLViewers
 {
     /// <summary>
+    /// A model the character preview shows.
+    /// </summary>
+    /// <param name="Path">The model as named in scripts, e.g. "models/heroes/axe/axe.vmdl".</param>
+    /// <param name="Skin">Index of the material group to show it with.</param>
+    sealed record PreviewModel(string Path, int Skin);
+
+    /// <summary>
     /// Previews a hero playing its idle while wearing a set of item models, which follow the hero's skeleton.
     /// </summary>
     class GLCharacterPreviewViewer : GLSingleNodeViewer
     {
         private readonly List<ModelSceneNode> modelNodes = [];
-        private IReadOnlyList<string> models = [];
+        private IReadOnlyList<PreviewModel> models = [];
         private int requestedVersion;
 
         public GLCharacterPreviewViewer(VrfGuiContext vrfGuiContext, RendererContext rendererContext)
@@ -37,15 +44,15 @@ namespace GUI.Types.GLViewers
         }
 
         /// <summary>
-        /// Replaces the shown models with the given compiled model paths, loading them on a worker thread. When called
-        /// again before a load finishes, only the latest set is shown.
+        /// Replaces the shown models, loading them on a worker thread. The first one is the hero, which the others follow.
+        /// When called again before a load finishes, only the latest set is shown.
         /// </summary>
-        /// <param name="modelPaths">Model paths as named in scripts, e.g. "models/heroes/axe/axe.vmdl".</param>
+        /// <param name="previewModels">The models to show.</param>
         /// <param name="frameCamera">Whether to move the camera to fit the new models, rather than keeping the user's view.</param>
-        public void SetModels(IReadOnlyList<string> modelPaths, bool frameCamera)
+        public void SetModels(IReadOnlyList<PreviewModel> previewModels, bool frameCamera)
         {
             var version = Interlocked.Increment(ref requestedVersion);
-            models = modelPaths;
+            models = previewModels;
 
             // Before the viewer is loaded, the models are picked up by LoadScene
             if (GraphicsContext == null)
@@ -76,7 +83,7 @@ namespace GUI.Types.GLViewers
 
                     modelNodes.Clear();
 
-                    AddModels(modelPaths);
+                    AddModels(previewModels);
                     Scene.Initialize();
 
                     if (frameCamera)
@@ -91,20 +98,25 @@ namespace GUI.Types.GLViewers
             });
         }
 
-        private void AddModels(IReadOnlyList<string> modelPaths)
+        private void AddModels(IReadOnlyList<PreviewModel> previewModels)
         {
-            foreach (var modelPath in modelPaths)
+            foreach (var previewModel in previewModels)
             {
                 // Owned by the context's resource cache
-                var resource = GuiContext.LoadFileCompiled(modelPath);
+                var resource = GuiContext.LoadFileCompiled(previewModel.Path);
 
                 if (resource?.DataBlock is not Model model)
                 {
-                    Log.Warn(nameof(GLCharacterPreviewViewer), $"Could not load \"{modelPath}\" for the preview");
+                    Log.Warn(nameof(GLCharacterPreviewViewer), $"Could not load \"{previewModel.Path}\" for the preview");
                     continue;
                 }
 
                 var node = new ModelSceneNode(Scene, model);
+
+                if (previewModel.Skin > 0 && model.GetMaterialGroups().ElementAtOrDefault(previewModel.Skin).Name is { } skin)
+                {
+                    node.SetMaterialGroup(skin);
+                }
 
                 if (modelNodes.Count == 0)
                 {

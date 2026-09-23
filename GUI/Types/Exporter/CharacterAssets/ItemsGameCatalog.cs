@@ -17,7 +17,16 @@ namespace GUI.Types.Exporter.CharacterAssets
     /// <param name="Asset">What is being replaced (a path, an entity class, an ability or a sound event).</param>
     /// <param name="Modifier">What it is replaced with.</param>
     /// <param name="Style">The item style this applies to, or null when it applies to every style.</param>
-    sealed record AssetModifier(string Type, string? Asset, string? Modifier, int? Style);
+    /// <param name="LoadoutOnly">Whether this only applies while the hero is shown in the loadout screen.</param>
+    sealed record AssetModifier(string Type, string? Asset, string? Modifier, int? Style, bool LoadoutOnly);
+
+    /// <summary>
+    /// One of an item's styles, which picks which of its asset modifiers apply.
+    /// </summary>
+    /// <param name="Index">The style number the asset modifiers refer to.</param>
+    /// <param name="Name">The localized style name.</param>
+    /// <param name="Skin">The material group the style shows the model with.</param>
+    sealed record ItemStyle(int Index, string Name, int Skin);
 
     /// <summary>
     /// A cosmetic item from items_game.txt that can be equipped on a hero.
@@ -34,7 +43,9 @@ namespace GUI.Types.Exporter.CharacterAssets
         /// <summary>Whether this is the item a hero wears in this slot when nothing else is equipped.</summary>
         public bool IsDefault { get; init; }
 
-        public int StyleCount { get; init; }
+        /// <summary>The item's styles, empty when it has only the one look.</summary>
+        public List<ItemStyle> Styles { get; } = [];
+
         public List<string> Heroes { get; } = [];
         public List<AssetModifier> AssetModifiers { get; } = [];
 
@@ -201,7 +212,7 @@ namespace GUI.Types.Exporter.CharacterAssets
                         continue;
                     }
 
-                    var item = ReadItem(defIndex, itemData, prefabs, heroNames);
+                    var item = ReadItem(defIndex, itemData, prefabs, heroNames, localization);
 
                     if (item == null)
                     {
@@ -231,7 +242,7 @@ namespace GUI.Types.Exporter.CharacterAssets
             return new ItemsGameCatalog(heroes, itemsByHero, setsByHero);
         }
 
-        private static EconItem? ReadItem(string defIndex, KVObject itemData, KVObject? prefabs, HashSet<string> heroNames)
+        private static EconItem? ReadItem(string defIndex, KVObject itemData, KVObject? prefabs, HashSet<string> heroNames, Dictionary<string, string> localization)
         {
             var usedByHeroes = itemData.GetSubCollection("used_by_heroes");
 
@@ -261,7 +272,6 @@ namespace GUI.Types.Exporter.CharacterAssets
                 ImageInventory = NullIfEmpty(GetValue(itemData, "image_inventory")),
                 Rarity = GetValue(itemData, "item_rarity") ?? GetPrefabValue(prefabs, prefab, "item_rarity", 0),
                 IsDefault = isDefault,
-                StyleCount = visuals?.GetSubCollection("styles") is { ValueType: KVValueType.Collection } styles ? styles.Count : 0,
             };
 
             foreach (var (heroName, value) in usedByHeroes)
@@ -278,37 +288,67 @@ namespace GUI.Types.Exporter.CharacterAssets
                 return null;
             }
 
-            if (visuals?.ValueType == KVValueType.Collection)
+            if (visuals?.ValueType != KVValueType.Collection)
             {
-                foreach (var (key, modifier) in visuals)
+                return item;
+            }
+
+            // Styles can also pick their skin through a "model_skin" modifier instead of in the style itself
+            var styleSkins = new Dictionary<int, int>();
+
+            foreach (var (key, modifier) in visuals)
+            {
+                // Usually a repeated "asset_modifier" key, but numbered keys ("asset_modifier0") are used too
+                if (!key.StartsWith("asset_modifier", StringComparison.OrdinalIgnoreCase) || modifier.ValueType != KVValueType.Collection)
                 {
-                    // Usually a repeated "asset_modifier" key, but numbered keys ("asset_modifier0") are used too
-                    if (!key.StartsWith("asset_modifier", StringComparison.OrdinalIgnoreCase) || modifier.ValueType != KVValueType.Collection)
-                    {
-                        continue;
-                    }
-
-                    var type = GetValue(modifier, "type");
-
-                    if (string.IsNullOrEmpty(type))
-                    {
-                        continue;
-                    }
-
-                    int? style = int.TryParse(GetValue(modifier, "style"), NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsedStyle)
-                        ? parsedStyle
-                        : null;
-
-                    item.AssetModifiers.Add(new AssetModifier(
-                        type,
-                        NullIfEmpty(GetValue(modifier, "asset")),
-                        NullIfEmpty(GetValue(modifier, "modifier")),
-                        style));
+                    continue;
                 }
+
+                var type = GetValue(modifier, "type");
+
+                if (string.IsNullOrEmpty(type))
+                {
+                    continue;
+                }
+
+                var style = ParseInt(GetValue(modifier, "style"));
+
+                if (type == "model_skin" && style != null && ParseInt(GetValue(modifier, "skin")) is { } modifierSkin)
+                {
+                    styleSkins[style.Value] = modifierSkin;
+                }
+
+                item.AssetModifiers.Add(new AssetModifier(
+                    type,
+                    NullIfEmpty(GetValue(modifier, "asset")),
+                    NullIfEmpty(GetValue(modifier, "modifier")),
+                    style,
+                    GetValue(modifier, "spawn_in_loadout_only") == "1" || GetValue(modifier, "spawn_in_alternate_loadout_only") == "1"));
+            }
+
+            if (visuals.GetSubCollection("styles") is { ValueType: KVValueType.Collection } styles)
+            {
+                foreach (var (key, styleData) in styles)
+                {
+                    if (styleData.ValueType != KVValueType.Collection || ParseInt(key) is not { } index)
+                    {
+                        continue;
+                    }
+
+                    item.Styles.Add(new ItemStyle(
+                        index,
+                        Localize(localization, GetValue(styleData, "name")) ?? $"Style {index}",
+                        ParseInt(GetValue(styleData, "skin")) ?? styleSkins.GetValueOrDefault(index)));
+                }
+
+                item.Styles.Sort(static (a, b) => a.Index.CompareTo(b.Index));
             }
 
             return item;
         }
+
+        private static int? ParseInt(string? value)
+            => int.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var result) ? result : null;
 
         /// <summary>
         /// Looks a key up through an item's prefabs. An item may name several prefabs, and prefabs may have prefabs themselves.

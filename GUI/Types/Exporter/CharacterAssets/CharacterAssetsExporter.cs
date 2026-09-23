@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
@@ -75,8 +76,7 @@ namespace GUI.Types.Exporter.CharacterAssets
                 return;
             }
 
-            HeroDefinition hero;
-            List<EconItem> items;
+            CharacterLoadout loadout;
             CharacterExportOptions options;
 
             using (var form = new CharacterSelectForm(catalog, context))
@@ -86,8 +86,7 @@ namespace GUI.Types.Exporter.CharacterAssets
                     return;
                 }
 
-                hero = form.SelectedHero;
-                items = form.GetSelectedItems();
+                loadout = form.CreateLoadout();
                 options = form.Options;
             }
 
@@ -100,7 +99,7 @@ namespace GUI.Types.Exporter.CharacterAssets
                 return;
             }
 
-            RunInDialog(vpkPath, package, hero, items, options, outputRoot, out var workCompletion);
+            RunInDialog(vpkPath, package, loadout, options, outputRoot, out var workCompletion);
             await workCompletion.ConfigureAwait(true);
         }
 
@@ -134,9 +133,12 @@ namespace GUI.Types.Exporter.CharacterAssets
             return catalog;
         }
 
-        private static void RunInDialog(string vpkPath, Package package, HeroDefinition hero, List<EconItem> items, CharacterExportOptions options,
+        private static void RunInDialog(string vpkPath, Package package, CharacterLoadout loadout, CharacterExportOptions options,
             string outputRoot, out Task workCompletion)
         {
+            var hero = loadout.Hero;
+            var items = loadout.Items;
+
             using var dialog = new CustomVmdlExtractProgressForm
             {
                 StayOpenOnCompletion = true,
@@ -147,12 +149,12 @@ namespace GUI.Types.Exporter.CharacterAssets
 
             foreach (var item in items)
             {
-                dialog.AppendLine($"  [{item.Slot}] {item.Name}");
+                dialog.AppendLine($"  [{item.Item.Slot}] {item.Item.Name}{(item.StyleName != null ? $" ({item.StyleName})" : string.Empty)}");
             }
 
             dialog.OnProcess = cancellationToken =>
             {
-                Export(vpkPath, package, hero, items, options, outputRoot, dialog, cancellationToken);
+                Export(vpkPath, package, loadout, options, outputRoot, dialog, cancellationToken);
                 return Task.CompletedTask;
             };
 
@@ -164,12 +166,12 @@ namespace GUI.Types.Exporter.CharacterAssets
         /// <summary>
         /// Collects everything the hero and items need and writes it under <paramref name="outputRoot"/>.
         /// </summary>
-        internal static void Export(string vpkPath, Package package, HeroDefinition hero, List<EconItem> items, CharacterExportOptions options,
+        internal static void Export(string vpkPath, Package package, CharacterLoadout loadout, CharacterExportOptions options,
             string outputRoot, IProgress<string> progress, CancellationToken cancellationToken)
         {
             var startTimestamp = Stopwatch.GetTimestamp();
 
-            Log.Info(nameof(CharacterAssetsExporter), $"Character export of {hero.Name} started to \"{outputRoot}\"");
+            Log.Info(nameof(CharacterAssetsExporter), $"Character export of {loadout.Hero.Name} started to \"{outputRoot}\"");
 
             // The model extractor reports through the console
             var originalOut = Console.Out;
@@ -185,7 +187,7 @@ namespace GUI.Types.Exporter.CharacterAssets
 
                 progress.Report("Collecting dependencies...");
 
-                var plan = new CharacterDependencyCollector(package, fileLoader, progress).Collect(hero, items, options, cancellationToken);
+                var plan = new CharacterDependencyCollector(package, fileLoader, progress).Collect(loadout, options, cancellationToken);
 
                 progress.Report($"Found {plan.Models.Count} models, {plan.Materials.Count} materials, {plan.Resources.Count} other resources and {plan.RawFiles.Count} other files");
 
@@ -201,6 +203,7 @@ namespace GUI.Types.Exporter.CharacterAssets
                 failed += ExportMaterials(plan.Materials, outputRoot, fileLoader, progress, writtenFiles, cancellationToken);
                 failed += ExportResources(plan.Resources, outputRoot, fileLoader, progress, writtenFiles, cancellationToken);
                 failed += ExportRawFiles(plan.RawFiles, outputRoot, fileLoader, progress, writtenFiles, cancellationToken);
+                failed += ApplyReplacements(plan, outputRoot, fileLoader, progress);
 
                 var completedText = $"Export completed in {GenericProgressForm.FormatTime(Stopwatch.GetElapsedTime(startTimestamp))}";
 
@@ -277,6 +280,115 @@ namespace GUI.Types.Exporter.CharacterAssets
                     resource.Dispose();
                 }
             }
+        }
+
+        /// <summary>
+        /// Writes the exported sources of the equipped models and particles over the default ones they stand in for,
+        /// see <see cref="CharacterExportOptions.ReplaceDefaults"/>.
+        /// </summary>
+        private static int ApplyReplacements(CharacterExportPlan plan, string outputRoot, IFileLoader fileLoader, IProgress<string> progress)
+        {
+            if (plan.ModelReplacements.Count == 0 && plan.ParticleReplacements.Count == 0 && plan.SkippedSharedParticles.Count == 0 && plan.UnplacedModels.Count == 0)
+            {
+                return 0;
+            }
+
+            progress.Report("Replacing the hero's default assets...");
+
+            var failed = 0;
+
+            foreach (var replacement in plan.ModelReplacements)
+            {
+                try
+                {
+                    var vmdl = File.ReadAllText(GetExportedPath(outputRoot, replacement.Source, "vmdl"));
+                    var details = new List<string>();
+
+                    if (replacement.Skin != 0)
+                    {
+                        try
+                        {
+                            vmdl = ModelDocEditor.MakeMaterialGroupDefault(vmdl, replacement.Skin);
+                            details.Add($"skin {replacement.Skin} as default");
+                        }
+                        catch (Exception e)
+                        {
+                            progress.Report($"  ! {replacement.Target}: skin {replacement.Skin} was not made the default: {e.Message}");
+                        }
+                    }
+
+                    if (replacement.Particles.Count > 0)
+                    {
+                        try
+                        {
+                            var particles = replacement.Particles.Select(particle => ModelDocEditor.ResolveParticle(fileLoader, particle)).ToList();
+                            vmdl = ModelDocEditor.AddParticles(vmdl, particles);
+
+                            foreach (var particle in particles)
+                            {
+                                var attachment = particle.AttachmentPoint.Length > 0 ? particle.AttachmentPoint : "origin";
+                                details.Add($"creates {particle.Name} on {attachment}");
+                            }
+                        }
+                        catch (Exception e)
+                        {
+                            progress.Report($"  ! {replacement.Target}: particles were not added: {e.Message}");
+                        }
+                    }
+
+                    var targetPath = GetOutputPath(outputRoot, Path.ChangeExtension(replacement.Target, "vmdl"));
+                    Directory.CreateDirectory(Path.GetDirectoryName(targetPath)!);
+                    File.WriteAllText(targetPath, vmdl);
+
+                    progress.Report($"  {replacement.Target} <- {replacement.Source}{(details.Count > 0 ? $" ({string.Join(", ", details)})" : string.Empty)}");
+                }
+                catch (Exception e)
+                {
+                    failed++;
+                    progress.Report($"  FAILED {replacement.Target} <- {replacement.Source}: {e.Message}");
+                    Log.Error(nameof(CharacterAssetsExporter), $"Failed to replace '{replacement.Target}': {e}");
+                }
+            }
+
+            foreach (var replacement in plan.ParticleReplacements)
+            {
+                try
+                {
+                    var targetPath = GetOutputPath(outputRoot, replacement.Target);
+                    Directory.CreateDirectory(Path.GetDirectoryName(targetPath)!);
+                    File.Copy(GetExportedPath(outputRoot, replacement.Source, "vpcf"), targetPath, overwrite: true);
+
+                    progress.Report($"  {replacement.Target} <- {replacement.Source}");
+                }
+                catch (Exception e)
+                {
+                    failed++;
+                    progress.Report($"  FAILED {replacement.Target} <- {replacement.Source}: {e.Message}");
+                    Log.Error(nameof(CharacterAssetsExporter), $"Failed to replace '{replacement.Target}': {e}");
+                }
+            }
+
+            foreach (var model in plan.UnplacedModels)
+            {
+                progress.Report($"  - {model} was exported, but its slot has no default model to write it over");
+            }
+
+            foreach (var skipped in plan.SkippedSharedParticles)
+            {
+                progress.Report($"  - left {skipped.Target} alone, every hero uses it (it would become {skipped.Source})");
+            }
+
+            return failed;
+        }
+
+        /// <summary>
+        /// Where an asset exported earlier in this export was written, failing when it was not.
+        /// </summary>
+        private static string GetExportedPath(string outputRoot, string sourcePath, string extension)
+        {
+            var path = GetOutputPath(outputRoot, Path.ChangeExtension(sourcePath, extension));
+
+            return File.Exists(path) ? path : throw new FileNotFoundException($"\"{Path.ChangeExtension(sourcePath, extension)}\" was not exported");
         }
 
         private static int ExportMaterials(List<string> materials, string outputRoot, GameFileLoader fileLoader,
