@@ -76,6 +76,7 @@ namespace GUI
             decompileToolStripMenuItem = new ThemedToolStripMenuItem();
             decompileCustomVmdlToolStripMenuItem = new ThemedToolStripMenuItem();
             decompileCustomVmatToolStripMenuItem = new ThemedToolStripMenuItem();
+            exportCharacterAssetsToolStripMenuItem = new ThemedToolStripMenuItem();
             toolStripSeparator1 = new ToolStripSeparator();
             copyFileNameToolStripMenuItem = new ThemedToolStripMenuItem();
             copyFileNameOnDiskToolStripMenuItem = new ThemedToolStripMenuItem();
@@ -332,7 +333,7 @@ namespace GUI
             // 
             vpkContextMenu.BackColor = System.Drawing.Color.FromArgb(231, 236, 236);
             vpkContextMenu.ImageScalingSize = new System.Drawing.Size(24, 24);
-            vpkContextMenu.Items.AddRange(new ToolStripItem[] { extractToolStripMenuItem, decompileToolStripMenuItem, decompileCustomVmdlToolStripMenuItem, decompileCustomVmatToolStripMenuItem, toolStripSeparator1, copyFileNameToolStripMenuItem, copyFileNameOnDiskToolStripMenuItem, toolStripSeparator3, openWithoutViewerToolStripMenuItem, openWithDefaultAppToolStripMenuItem, viewAssetInfoToolStripMenuItem, verifyPackageContentsToolStripMenuItem, recoverDeletedToolStripMenuItem });
+            vpkContextMenu.Items.AddRange(new ToolStripItem[] { extractToolStripMenuItem, decompileToolStripMenuItem, decompileCustomVmdlToolStripMenuItem, decompileCustomVmatToolStripMenuItem, exportCharacterAssetsToolStripMenuItem, toolStripSeparator1, copyFileNameToolStripMenuItem, copyFileNameOnDiskToolStripMenuItem, toolStripSeparator3, openWithoutViewerToolStripMenuItem, openWithDefaultAppToolStripMenuItem, viewAssetInfoToolStripMenuItem, verifyPackageContentsToolStripMenuItem, recoverDeletedToolStripMenuItem });
             vpkContextMenu.Name = "vpkContextMenu";
             vpkContextMenu.Size = new System.Drawing.Size(208, 286);
             //
@@ -367,6 +368,14 @@ namespace GUI
             decompileCustomVmatToolStripMenuItem.SVGImageResourceName = "GUI.Icons.Decompile.svg";
             decompileCustomVmatToolStripMenuItem.Text = "Decompile && export (custom VMAT extractor)";
             decompileCustomVmatToolStripMenuItem.Click += DecompileCustomVmatToolStripMenuItem_Click;
+            //
+            // exportCharacterAssetsToolStripMenuItem
+            //
+            exportCharacterAssetsToolStripMenuItem.Name = "exportCharacterAssetsToolStripMenuItem";
+            exportCharacterAssetsToolStripMenuItem.Size = new System.Drawing.Size(207, 30);
+            exportCharacterAssetsToolStripMenuItem.SVGImageResourceName = "GUI.Icons.Decompile.svg";
+            exportCharacterAssetsToolStripMenuItem.Text = "Export character assets (items_game.txt)...";
+            exportCharacterAssetsToolStripMenuItem.Click += ExportCharacterAssetsToolStripMenuItem_Click;
             //
             // toolStripSeparator1
             // 
@@ -587,6 +596,7 @@ namespace GUI
         private ThemedToolStripMenuItem decompileToolStripMenuItem;
         private ThemedToolStripMenuItem decompileCustomVmdlToolStripMenuItem;
         private ThemedToolStripMenuItem decompileCustomVmatToolStripMenuItem;
+        private ThemedToolStripMenuItem exportCharacterAssetsToolStripMenuItem;
         private ToolStripSeparator toolStripSeparator1;
         private ThemedToolStripMenuItem settingsToolStripMenuItem;
         private ThemedToolStripMenuItem aboutToolStripMenuItem;

@@ -6,6 +6,8 @@ It adds a custom VMDL extraction option to the package viewer's right-click menu
 
 It also adds a custom VMAT extraction option for `.vmat_c` materials. The option writes every texture the material uses next to the `.vmat` and points the `.vmat` at them by their path inside your addon (for example `j0nathan550/materials/razor_arcana_head_color.png`), so the material compiles without any red, missing textures. Cubemaps are stitched into one 4:3 cross `.png`, the layout Dota 2's own cubemap sources use, instead of six separate face images. Each custom option only appears when the selection contains files of its type.
 
+It also adds an "Export character assets (items_game.txt)" option to the right-click menu of Dota 2's `pak01_dir.vpk`. It reads `scripts/items/items_game.txt` and the hero scripts from the package every time it opens, so it always matches the current game. Pick a hero, an item set or the item for each loadout slot, and see the result in a live preview. Heroes with a persona switch their whole loadout when the persona is picked. The export then collects everything the hero and items use: models, materials, textures, particles, sound events and their sounds, voice lines and panorama icons, following every resource's references. It writes them into one folder laid out like the package. Models go through the custom VMDL extractor and materials through the custom VMAT exporter, with texture paths relative to the export folder. Everything else goes through the built-in decompiler.
+
 ## Credits
 
 - [Source 2 Viewer / ValveResourceFormat](https://github.com/ValveResourceFormat/ValveResourceFormat) and its original authors and contributors, whose work this fork is built entirely on top of.

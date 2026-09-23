@@ -239,8 +239,8 @@ namespace GUI.Types.Exporter
             progress.AppendLine(completedText);
         }
 
-        private static void ExportMaterial(Package package, PackageEntry entry, string vmatPath, string contentRoot, VrfGuiContext fileLoader,
-            CustomVmdlExtractProgressForm progress, HashSet<string> writtenFiles, CancellationToken cancellationToken)
+        private static void ExportMaterial(Package package, PackageEntry entry, string vmatPath, string contentRoot, IFileLoader fileLoader,
+            IProgress<string> progress, HashSet<string> writtenFiles, CancellationToken cancellationToken)
         {
             using var resource = new Resource
             {
@@ -248,6 +248,17 @@ namespace GUI.Types.Exporter
             };
             resource.Read(GameFileLoader.GetPackageEntryStream(package, entry));
 
+            ExportMaterial(resource, vmatPath, contentRoot, fileLoader, progress, writtenFiles, cancellationToken);
+        }
+
+        /// <summary>
+        /// Writes <paramref name="resource"/> to <paramref name="vmatPath"/> with its textures next to it, referenced
+        /// relative to <paramref name="contentRoot"/>.
+        /// </summary>
+        /// <param name="writtenFiles">Files already written in this export, which are not written again.</param>
+        internal static void ExportMaterial(Resource resource, string vmatPath, string contentRoot, IFileLoader fileLoader,
+            IProgress<string> progress, HashSet<string> writtenFiles, CancellationToken cancellationToken)
+        {
             if (resource.DataBlock is not Material material)
             {
                 throw new InvalidDataException("File is not a material");
@@ -299,7 +310,7 @@ namespace GUI.Types.Exporter
 
                     if (textureResource?.DataBlock is not Texture texture)
                     {
-                        progress.AppendLine($"  ! {textureType}: \"{texturePath}\" was not found, it keeps pointing at the game");
+                        progress.Report($"  ! {textureType}: \"{texturePath}\" was not found, it keeps pointing at the game");
                         continue;
                     }
 
@@ -315,7 +326,7 @@ namespace GUI.Types.Exporter
                     {
                         if (!CubemapCrossLayout.CanCreate(texture))
                         {
-                            progress.AppendLine($"  ! {textureType}: \"{texturePath}\" is a cubemap array, which cannot be written as a single image");
+                            progress.Report($"  ! {textureType}: \"{texturePath}\" is a cubemap array, which cannot be written as a single image");
                             continue;
                         }
 
@@ -330,7 +341,7 @@ namespace GUI.Types.Exporter
                         foreach (var map in maps)
                         {
                             addonPaths[map.FileName] = ToAddonPath(cubemapFileName);
-                            progress.AppendLine($"  {map.TextureType} -> {ToAddonPath(cubemapFileName)} (cubemap cross)");
+                            progress.Report($"  {map.TextureType} -> {ToAddonPath(cubemapFileName)} (cubemap cross)");
                         }
 
                         RemoveLeftoverCubemapFaces(outputFolder, texturePath, progress);
@@ -339,7 +350,7 @@ namespace GUI.Types.Exporter
 
                     if (texture.Depth > 1)
                     {
-                        progress.AppendLine($"  ! {textureType}: \"{texturePath}\" is a texture array, which cannot be written as a single image");
+                        progress.Report($"  ! {textureType}: \"{texturePath}\" is a texture array, which cannot be written as a single image");
                         continue;
                     }
 
@@ -357,7 +368,7 @@ namespace GUI.Types.Exporter
                         foreach (var map in maps)
                         {
                             addonPaths[map.FileName] = ToAddonPath(hdrFileName);
-                            progress.AppendLine($"  {map.TextureType} -> {ToAddonPath(hdrFileName)}");
+                            progress.Report($"  {map.TextureType} -> {ToAddonPath(hdrFileName)}");
                         }
 
                         continue;
@@ -377,7 +388,7 @@ namespace GUI.Types.Exporter
                     {
                         var fileName = Path.GetFileName(map.FileName);
                         addonPaths[map.FileName] = ToAddonPath(fileName);
-                        progress.AppendLine($"  {map.TextureType} -> {ToAddonPath(fileName)}");
+                        progress.Report($"  {map.TextureType} -> {ToAddonPath(fileName)}");
                     }
                 }
             }
@@ -402,7 +413,7 @@ namespace GUI.Types.Exporter
         /// <summary>
         /// Deletes the per face images a built-in export of this cubemap left in the folder, now replaced by the cross.
         /// </summary>
-        private static void RemoveLeftoverCubemapFaces(string outputFolder, string texturePath, CustomVmdlExtractProgressForm progress)
+        private static void RemoveLeftoverCubemapFaces(string outputFolder, string texturePath, IProgress<string> progress)
         {
             var baseName = Path.GetFileNameWithoutExtension(texturePath);
 
@@ -415,7 +426,7 @@ namespace GUI.Types.Exporter
                     if (File.Exists(facePath))
                     {
                         File.Delete(facePath);
-                        progress.AppendLine($"  - removed leftover face {Path.GetFileName(facePath)}");
+                        progress.Report($"  - removed leftover face {Path.GetFileName(facePath)}");
                     }
                 }
             }

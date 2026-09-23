@@ -189,7 +189,20 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         public override void Update(Scene.UpdateContext context)
         {
             UpdateAutoLod(context.Camera);
-            var animationUpdated = AnimationController.Update(context.Timestep);
+
+            bool animationUpdated;
+
+            if (boneMergeTarget != null)
+            {
+                // The target moves on its own, so the pose is taken from it every update
+                UpdateBoneMergePose();
+                animationUpdated = true;
+            }
+            else
+            {
+                animationUpdated = AnimationController.Update(context.Timestep);
+            }
+
             UpdateAttachments(context);
 
             if (!animationUpdated)

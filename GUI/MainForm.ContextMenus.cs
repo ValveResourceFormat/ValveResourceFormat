@@ -8,6 +8,7 @@ using System.Windows.Forms;
 using GUI.Controls;
 using GUI.Forms;
 using GUI.Types.Exporter;
+using GUI.Types.Exporter.CharacterAssets;
 using GUI.Types.GLViewers;
 using GUI.Types.PackageViewer;
 using GUI.Utils;
@@ -32,6 +33,7 @@ namespace GUI
             var selectedItems = ContextMenuSelection.GetSelectedItems(control);
             decompileCustomVmdlToolStripMenuItem.Visible = ContextMenuSelection.ContainsFileType(selectedItems, "vmdl_c");
             decompileCustomVmatToolStripMenuItem.Visible = ContextMenuSelection.ContainsFileType(selectedItems, CustomVmatExporter.MaterialTypeName);
+            exportCharacterAssetsToolStripMenuItem.Visible = CharacterAssetsExporter.CanExport(control);
 
             vpkContextMenu.Show(control, position);
         }
@@ -420,6 +422,11 @@ namespace GUI
         private async void DecompileCustomVmatToolStripMenuItem_Click(object sender, EventArgs e)
         {
             await CustomVmatExporter.ExtractSelection(sender).ConfigureAwait(true);
+        }
+
+        private async void ExportCharacterAssetsToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            await CharacterAssetsExporter.ExportFromContextMenu(sender).ConfigureAwait(true);
         }
 
         private static async Task ExtractFiles(object sender, bool decompile)

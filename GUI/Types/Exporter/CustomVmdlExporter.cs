@@ -310,7 +310,10 @@ namespace GUI.Types.Exporter
             }
         }
 
-        private sealed class LogTextWriter(bool isError, CustomVmdlExtractProgressForm progress) : TextWriter
+        /// <summary>
+        /// Forwards what the extractor writes to the console into the progress log and the app log.
+        /// </summary>
+        internal sealed class LogTextWriter(bool isError, IProgress<string> progress) : TextWriter
         {
             public override Encoding Encoding => Encoding.UTF8;
 
@@ -321,7 +324,7 @@ namespace GUI.Types.Exporter
                     return;
                 }
 
-                progress.AppendLine(value);
+                progress.Report(value);
 
                 if (isError)
                 {
