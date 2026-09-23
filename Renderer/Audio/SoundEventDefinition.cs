@@ -24,7 +24,7 @@ public sealed class SoundEventDefinition
 
     /// <summary>
     /// Gets whether child events play at this event's position ("set_child_position", e.g. a footstep's gear
-    /// rustle follows the player). When false - the common case - children use their own authored positions.
+    /// rustle follows the player), on by default for "csgo_mega". When false, children use their own authored positions.
     /// Read by the base <see cref="SoundEvent.StartAsChild"/>, so it lives here regardless of event type.
     /// </summary>
     public bool SetChildPosition { get; }
@@ -102,40 +102,39 @@ public sealed class SoundEventDefinition
         Data = data;
 
         Type = data.GetStringProperty("type", string.Empty);
-        SetChildPosition = data.GetBooleanProperty("set_child_position");
+        SetChildPosition = data.GetSoundBool("set_child_position", defaultValue: Type == "csgo_mega");
 
-        if (data.ContainsKey("position"))
+        // An all-zero position is an authoring placeholder (see "position_N" metadata) that the
+        // map or game code is expected to fill in, not a real world position
+        var position = data.GetSoundVector3("position");
+
+        if (position != Vector3.Zero)
         {
-            var position = new Vector3(data.GetFloatArray("position"));
-
-            // An all-zero position is an authoring placeholder (see "position_N" metadata) that the
-            // map or game code is expected to fill in, not a real world position
-            if (position != Vector3.Zero)
-            {
-                Position = position;
-            }
+            Position = position;
         }
 
-        if (data.ContainsKey("position_offset"))
-        {
-            PositionOffset = new Vector3(data.GetFloatArray("position_offset"));
-        }
+        PositionOffset = data.GetSoundVector3("position_offset");
 
-        Volume = data.GetFloatProperty("volume", 1f);
-        Pitch = data.GetFloatProperty("pitch", 1f);
-        Delay = data.GetFloatProperty("delay");
-        FadeIn = data.GetFloatProperty("volume_fade_in");
-        FadeOut = data.GetFloatProperty("volume_fade_out");
+        Volume = data.GetSoundFloat("volume", 1f);
+        Pitch = data.GetSoundFloat("pitch", 1f);
+        Delay = data.GetSoundFloat("delay");
+        FadeIn = data.GetSoundFloat("volume_fade_in");
+        FadeOut = data.GetSoundFloat("volume_fade_out");
+        // TODO: Deadlock types and "hlvr_2d_w_occlusion" default "occlusion_scale" to 1, which is not applied
+        // because a blocked trace here mutes fully; confirm how strongly those types attenuate when occluded
         OcclusionIntensity = data.ContainsKey("occlusion_intensity")
-            ? data.GetFloatProperty("occlusion_intensity")
-            : data.GetFloatProperty("occlusion_scale");
+            ? data.GetSoundFloat("occlusion_intensity")
+            : data.GetSoundFloat("occlusion_scale");
 
-        BlockMatchingEvents = data.GetBooleanProperty("block_matching_events") || data.GetBooleanProperty("block_match_this_event");
-        BlockDuration = data.GetFloatProperty("block_duration");
+        // TODO: "csgo_mega" and "choreo_3d" default "block_matching_events" to on (for 0.01s and 1s), which is
+        // not applied: the block only matches the same entity or position, while this one is per definition
+        // and would drop the same event playing at two places at once
+        BlockMatchingEvents = data.GetSoundBool("block_matching_events") || data.GetSoundBool("block_match_this_event");
+        BlockDuration = data.GetSoundFloat("block_duration");
 
-        EnableRetrigger = data.GetBooleanProperty("enable_retrigger");
-        RetriggerIntervalMin = data.GetFloatProperty("retrigger_interval_min");
-        RetriggerIntervalMax = data.GetFloatProperty("retrigger_interval_max");
+        EnableRetrigger = data.GetSoundBool("enable_retrigger");
+        RetriggerIntervalMin = data.GetSoundFloat("retrigger_interval_min", 1f);
+        RetriggerIntervalMax = data.GetSoundFloat("retrigger_interval_max", 1f);
     }
 
     /// <inheritdoc/>

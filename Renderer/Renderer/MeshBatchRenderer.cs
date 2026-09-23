@@ -125,16 +125,11 @@ namespace ValveResourceFormat.Renderer
 
         private ref struct Uniforms
         {
-            public int AnimationData = -1;
             public int EnvmapTexture = -1;
             public int LPVIrradianceTexture = -1;
-            public int Transform = -1;
-            public int IsInstancing = -1;
-            public int Tint = -1;
             public int MeshId = -1;
             public int ShaderId = -1;
             public int ShaderProgramId = -1;
-            public int MorphVertexIdOffset = -1;
 
             public Uniforms() { }
         }
@@ -158,13 +153,13 @@ namespace ValveResourceFormat.Renderer
         {
             if (context.ReplacementShader is { } replacement)
             {
-                return replacement.WithSkinning(mesh.ActiveSkinning).WithAlphaTest(material.IsAlphaTest);
+                return replacement.WithSkinning(mesh.ActiveSkinning).WithAlphaTest(material.IsAlphaTest).WithMorph(material.Shader);
             }
 
             if (context.DepthOnlyShader is { } depthOnly)
             {
                 return material.Shader.DepthMode
-                    ?? depthOnly.WithSkinning(mesh.ActiveSkinning).WithAlphaTest(material.IsAlphaTest);
+                    ?? depthOnly.WithSkinning(mesh.ActiveSkinning).WithAlphaTest(material.IsAlphaTest).WithMorph(material.Shader);
             }
 
             if (context.OverdrawShader is { } overdraw)
@@ -239,22 +234,11 @@ namespace ValveResourceFormat.Renderer
                     if (shader != requestShader)
                     {
                         shader = requestShader;
-                        uniforms = new Uniforms
-                        {
-                            AnimationData = shader.GetUniformLocation("uAnimationData"),
-                            Transform = shader.GetUniformLocation("transform"),
-                            IsInstancing = shader.GetUniformLocation("bIsInstancing"),
-                            Tint = shader.GetUniformLocation("vTint"),
-                        };
+                        uniforms = new Uniforms();
 
                         if (shader.Parameters.ContainsKey("S_SCENE_CUBEMAP_TYPE"))
                         {
                             uniforms.EnvmapTexture = shader.GetUniformLocation("g_tEnvironmentMap");
-                        }
-
-                        if (shader.Parameters.ContainsKey("F_MORPH_SUPPORTED"))
-                        {
-                            uniforms.MorphVertexIdOffset = shader.GetUniformLocation("morphVertexIdOffset");
                         }
 
                         if (shader.Parameters.ContainsKey("D_BAKED_LIGHTING_FROM_PROBE"))
@@ -274,13 +258,7 @@ namespace ValveResourceFormat.Renderer
                         Debug.Assert(context.Scene.InstanceBufferGpu != null && context.Scene.TransformBufferGpu != null);
                         context.Scene.TransformBufferGpu.BindBufferBase();
                         context.Scene.InstanceBufferGpu.BindBufferBase();
-
-                        context.Scene.TransformBufferGpu.BindBufferBase(ReservedBufferSlots.BoneTransforms);
-
-                        if (config.IndirectDraw)
-                        {
-                            GL.ProgramUniform1((uint)shader.Program, uniforms.IsInstancing, 1);
-                        }
+                        context.Scene.ObjectBufferGpu?.BindBufferBase();
                     }
 
                     material = requestMaterial;
@@ -317,37 +295,10 @@ namespace ValveResourceFormat.Renderer
                 GL.ProgramUniform1((uint)shader.Program, uniforms.ShaderProgramId, (uint)request.Call.Material.Shader.Program);
             }
 
-            if (uniforms.AnimationData != -1)
-            {
-                var bAnimated = request.Mesh.BoneMatricesGpu != null;
-                var numBones = 0u;
-                var boneStart = 0u;
-
-                if (bAnimated)
-                {
-                    request.Mesh.BoneMatricesGpu!.BindBufferBase();
-                    numBones = (uint)request.Mesh.MeshBoneCount;
-                    boneStart = (uint)request.Mesh.MeshBoneOffset;
-                }
-                else
-                {
-                    // todo: this is not resetting when there are no aggregates in scene
-                    request.Node.Scene.TransformBufferGpu?.BindBufferBase(ReservedBufferSlots.BoneTransforms);
-                }
-
-                GL.ProgramUniform3((uint)shader.Program, uniforms.AnimationData, bAnimated ? 1u : 0u, boneStart, numBones);
-            }
-
             if (config.IndirectDraw)
             {
                 if (request.Node is SceneAggregate agg && agg.IndirectDrawCount > 0)
                 {
-                    // Non-indirect draws below reset this program uniform
-                    if (uniforms.IsInstancing > -1)
-                    {
-                        GL.ProgramUniform1((uint)shader.Program, uniforms.IsInstancing, 1);
-                    }
-
                     PerfStats.Active.CountIndirectDraw(agg.IndirectDrawCount);
 
                     var scene = agg.Scene;
@@ -380,43 +331,11 @@ namespace ValveResourceFormat.Renderer
                 request.Node.Scene.LightingInfo.BindInstanceLightProbeTextures(lightProbe);
             }
 
-            if (uniforms.MorphVertexIdOffset != -1)
-            {
-                var morphComposite = request.Mesh.FlexStateManager?.MorphComposite;
-
-                BindInstanceTexture(ReservedTextureSlots.MorphCompositeTexture,
-                    morphComposite?.CompositeTexture ?? request.Node.Scene.RendererContext.MaterialLoader.GetDefaultColor());
-
-                GL.ProgramUniform1(shader.Program, uniforms.MorphVertexIdOffset, morphComposite != null ? request.Call.VertexIdOffset : -1);
-            }
-
-            if (uniforms.Transform > -1)
-            {
-                var transform = request.Node.Transform.To3x4();
-                GL.ProgramUniformMatrix3x4(shader.Program, uniforms.Transform, false, ref transform);
-            }
-
-            if (uniforms.Tint > -1)
-            {
-                var instanceTint = (request.Node is SceneAggregate.Fragment fragment) ? fragment.Tint : Vector4.One;
-
-                // Content can author out-of-range tints (e.g. renderamt above 255 baked into the draw call
-                // alpha); the packed byte color can only represent [0, 1].
-                var tint = Color32.FromVector4Clamped(request.Mesh.Tint * request.Call.TintColor * instanceTint);
-
-                GL.ProgramUniform1((uint)shader.Program, uniforms.Tint, tint.PackedValue);
-            }
-
             var instanceCount = 1;
 
             if (request.Node is SceneAggregate { InstanceTransforms.Count: > 0 } aggregate)
             {
                 instanceCount = aggregate.InstanceTransforms.Count;
-            }
-
-            if (uniforms.IsInstancing > -1)
-            {
-                GL.ProgramUniform1((uint)shader.Program, uniforms.IsInstancing, instanceCount > 1 ? 1 : 0);
             }
 
             PerfStats.Active.CountDrawCall(request.Node);
@@ -428,7 +347,7 @@ namespace ValveResourceFormat.Renderer
                 request.Call.StartIndex,
                 instanceCount,
                 request.Call.BaseVertex,
-                request.Node.Id
+                request.Node is MeshCollectionNode ? request.Call.InstanceBufferIndex : request.Node.Id
             );
         }
     }

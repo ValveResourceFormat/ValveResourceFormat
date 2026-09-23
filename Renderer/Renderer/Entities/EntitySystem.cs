@@ -16,7 +16,7 @@ namespace ValveResourceFormat.Renderer.Entities;
 public readonly record struct EntityIOTarget(string Name, EntityIOTargetType Type);
 
 /// <summary>
-/// The entity context for a <see cref="Scene"/>: the world every simulated entity lives in. It owns the
+/// The world every simulated entity lives in. It owns the
 /// list of living entities, runs them on a fixed tick, and carries the entity I/O queue between them.
 /// </summary>
 /// <remarks>
@@ -43,14 +43,20 @@ public sealed class EntitySystem
     /// <summary>The most ticks one frame may run before the leftover time is dropped.</summary>
     public const int MaxTicksPerFrame = 8;
 
-    /// <summary>Gets the main scene, the one that owns and ticks this world. Entities spawned into the 3D skybox carry their own <see cref="BaseEntity.Scene"/>.</summary>
-    public Scene Scene { get; }
+    /// <summary>Gets the shared renderer context this world loads and logs through.</summary>
+    public RendererContext RendererContext { get; }
+
+    /// <summary>
+    /// Gets or sets the static collision every entity is simulated against. There is one, from the map
+    /// the player is in; a spawn group placed inside it, such as a 3D sky, brings no collision of its own.
+    /// </summary>
+    public Rubikon? PhysicsWorld { get; set; }
 
     /// <summary>Gets the loader entities use to pull their models and physics.</summary>
-    public IFileLoader FileLoader => Scene.RendererContext.FileLoader;
+    public IFileLoader FileLoader => RendererContext.FileLoader;
 
     /// <summary>Gets the logger for entity problems.</summary>
-    public ILogger Logger => Scene.RendererContext.Logger;
+    public ILogger Logger => RendererContext.Logger;
 
     /// <summary>Gets every living entity, in spawn order.</summary>
     public IReadOnlyList<BaseEntity> Entities => entities;
@@ -65,8 +71,11 @@ public sealed class EntitySystem
     /// <summary>Gets the player, once one has been spawned into this world.</summary>
     public PlayerEntity? Player { get; private set; }
 
-    /// <summary>Gets the <c>worldspawn</c> at the root of the entity hierarchy. Always exists.</summary>
-    public WorldEntity World { get; private set; }
+    /// <summary>
+    /// Gets the <c>worldspawn</c> at the root of the entity hierarchy, once a map has supplied one.
+    /// A trace that hits the static world reports it as the entity it hit.
+    /// </summary>
+    public WorldEntity? World { get; private set; }
 
     /// <summary>Gets the current simulation time in seconds, the engine's <c>curtime</c>.</summary>
     public float CurrentTime { get; private set; }
@@ -103,35 +112,30 @@ public sealed class EntitySystem
     private bool hasRemovedEntities;
 
     /// <summary>
-    /// Initializes an entity system for a scene. Prefer <see cref="Scene.EntitySystem"/> over constructing
-    /// one directly; a scene has exactly one world.
+    /// Initializes an entity world. Prefer <see cref="Renderer.EntitySystem"/> over constructing one
+    /// directly.
     /// </summary>
-    public EntitySystem(Scene scene)
+    /// <param name="context">The shared renderer context entities load and log through.</param>
+    public EntitySystem(RendererContext context)
     {
-        Scene = scene;
-        World = CreateDefaultWorld();
-    }
+        ArgumentNullException.ThrowIfNull(context);
 
-    private WorldEntity CreateDefaultWorld()
-    {
-        var world = new WorldEntity(this);
-        entities.Add(world);
-        return world;
+        RendererContext = context;
     }
 
     /// <summary>
-    /// Creates the entity for a map entity's keyvalues and puts it in the world. Returns
-    /// <see langword="null"/> when the classname is not one the entity system implements, in which case
-    /// the caller keeps ownership of it.
+    /// Creates the entity for a map entity's keyvalues and puts it in the world. A classname the entity
+    /// system does not implement becomes a <see cref="GenericModelEntity"/> or a <see cref="GenericEntity"/>,
+    /// which draw themselves but do nothing else.
     /// </summary>
     /// <param name="data">The entity's keyvalues.</param>
     /// <param name="parentTransform">Transform of whatever spawned it.</param>
     /// <param name="layerName">Visibility layer for its nodes.</param>
-    /// <param name="intoScene">Scene the entity's nodes render into; the main scene when omitted.</param>
-    /// <returns>The spawned entity, or <see langword="null"/> if the classname is not implemented.</returns>
-    public BaseEntity? CreateEntity(Entity data, Matrix4x4 parentTransform, string? layerName, Scene? intoScene = null)
+    /// <param name="intoScene">Scene the entity's nodes render into.</param>
+    /// <returns>The spawned entity, or <see langword="null"/> if the keyvalues name no classname.</returns>
+    public BaseEntity? CreateEntity(Entity data, Matrix4x4 parentTransform, string? layerName, Scene intoScene)
     {
-        var entity = EntityFactory.Create(this, new EntitySpawnInfo(data, parentTransform, layerName, intoScene ?? Scene));
+        var entity = EntityFactory.Create(this, new EntitySpawnInfo(data, parentTransform, layerName, intoScene));
 
         if (entity == null)
         {
@@ -148,7 +152,7 @@ public sealed class EntitySystem
     /// spawned.
     /// </summary>
     /// <returns>The player entity.</returns>
-    public PlayerEntity SpawnPlayer(IPlayerController controller)
+    public PlayerEntity SpawnPlayer(IPlayerController controller, Scene scene)
     {
         if (Player != null)
         {
@@ -158,7 +162,7 @@ public sealed class EntitySystem
         // Registration is what usually binds a class's inputs; the player never goes through the factory
         EntityInputTable.Bind<PlayerEntity>();
 
-        Player = new PlayerEntity(this, controller);
+        Player = new PlayerEntity(this, scene, controller);
         Player.Spawn();
         Add(Player);
 
@@ -167,31 +171,23 @@ public sealed class EntitySystem
 
     private void Add(BaseEntity entity)
     {
-        // Only the main scene's authored worldspawn takes over as the root; the 3D skybox lump carries
-        // one of its own, which joins the world as an ordinary inert entity
-        if (entity is WorldEntity world && world.Scene == Scene)
-        {
-            ReplaceWorld(world);
-        }
-        else
-        {
-            entity.Owner ??= World;
-        }
+        entity.Owner ??= World;
 
         entities.Add(entity);
     }
 
-    /// <summary>The map's authored worldspawn takes over from the default, adopting its children.</summary>
-    private void ReplaceWorld(WorldEntity world)
+    /// <summary>
+    /// Takes a map's authored <c>worldspawn</c> as the root of the hierarchy, adopting everything spawned
+    /// before it. A spawn group placed inside another map carries one of its own, which stays an
+    /// ordinary inert entity, so only the outermost load calls this.
+    /// </summary>
+    internal void SetWorld(WorldEntity world)
     {
-        var previous = World;
         World = world;
-
-        entities.Remove(previous);
 
         foreach (var entity in entities)
         {
-            if (entity.Owner == previous)
+            if (entity.Owner == null && entity != world)
             {
                 entity.Owner = world;
             }
@@ -308,8 +304,7 @@ public sealed class EntitySystem
         {
             var entity = entities[i];
 
-            if (!entity.IsTrigger || entity.IsRemoved || !entity.InPlayableWorld
-                || entity.Collider is not { IsEmpty: false } volume)
+            if (!entity.IsTrigger || entity.IsRemoved || entity.Collider is not { IsEmpty: false } volume)
             {
                 continue;
             }
@@ -322,6 +317,12 @@ public sealed class EntitySystem
                 return;
             }
 
+            // Entities of the 3D sky share coordinates with the map but must not touch it
+            if (entity.Scene != player.Scene)
+            {
+                continue;
+            }
+
             // Against the volume rather than its surface: a player standing well inside a big trigger is
             // still touching it. Rejects on world bounds first, so a trigger nowhere near costs one box test.
             var isOverlapping = volume.OverlapsVolume(center, halfExtents);
@@ -332,8 +333,8 @@ public sealed class EntitySystem
     }
 
     /// <summary>
-    /// Drops every entity and resets the clock. The scene nodes themselves are the scene's to clean up;
-    /// this is what <see cref="Scene.Clear"/> calls once it has done that.
+    /// Drops every entity and resets the clock. The scene nodes themselves are the scene's to clean up,
+    /// which <see cref="Renderer.Clear"/> does before calling this.
     /// </summary>
     public void Clear()
     {
@@ -347,7 +348,7 @@ public sealed class EntitySystem
 
         entities.Clear();
         parented.Clear();
-        World = CreateDefaultWorld();
+        World = null;
         Player = null;
         activatedCount = 0;
         inputQueue.Clear();
@@ -503,13 +504,12 @@ public sealed class EntitySystem
     public BaseEntity? FindUseTarget(Vector3 from, Vector3 to)
     {
         // Seeded with the world, so a wall between the player and a button wins the trace
-        var nearest = Scene.PhysicsWorld?.TraceRay(from, to) ?? new Rubikon.TraceResult();
+        var nearest = PhysicsWorld?.TraceRay(from, to) ?? new Rubikon.TraceResult();
         BaseEntity? target = null;
 
         foreach (var entity in entities)
         {
             if (entity.IsRemoved
-                || !entity.InPlayableWorld
                 || (entity.ObjectCaps & EntityCapability.UsableMask) == 0
                 || entity.Collider is not { IsEmpty: false } collider)
             {
@@ -635,6 +635,21 @@ public sealed class EntitySystem
         foreach (var entity in entities)
         {
             if (Matches(entity, pattern))
+            {
+                yield return entity;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Finds every entity of one spawn group whose targetname matches. A 3D sky shares its names with the
+    /// map it is placed in, so anything an entity names in its own keyvalues is looked up this way.
+    /// </summary>
+    public IEnumerable<BaseEntity> FindAllByTargetName(string pattern, Scene scene)
+    {
+        foreach (var entity in entities)
+        {
+            if (entity.Scene == scene && Matches(entity, pattern))
             {
                 yield return entity;
             }
@@ -796,8 +811,8 @@ public sealed class EntitySystem
             }
         }
 
-        // A name that matches nothing falls back to the classname, as the loader's resolver does: the
-        // combined type is the map saying "whichever of the two this turns out to be"
+        // A name that matches nothing falls back to the classname: the combined type is the map saying
+        // "whichever of the two this turns out to be"
         if (!byClass || matchedName)
         {
             yield break;

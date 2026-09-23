@@ -721,7 +721,7 @@ partial class ModelExtract
                     }
                 }
 
-                if (animation.Anim.HasMovementData())
+                if (ShouldExtractMotion(animation.Anim))
                 {
                     var flags = animation.Anim.Movements[0].MotionFlags;
                     var extractMotion = MakeNode("ExtractMotion",

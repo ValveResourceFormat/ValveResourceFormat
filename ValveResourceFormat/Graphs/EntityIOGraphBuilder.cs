@@ -58,6 +58,11 @@ internal static class EntityIOGraphBuilder
             parts.Add($"({connection.OverrideParam})");
         }
 
+        if (connection.ParamMap is { Count: > 0 })
+        {
+            parts.Add("(mapped params)");
+        }
+
         return parts.Count > 0 ? string.Join(" ", parts) : null;
     }
 

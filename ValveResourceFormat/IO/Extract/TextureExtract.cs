@@ -250,7 +250,7 @@ public sealed class TextureExtract
     public ContentFile ToMaterialMaps(IEnumerable<MaterialExtract.UnpackInfo> mapsToUnpack)
     {
         // unpacking not supported in these scenarios
-        if (isCubeMap || isArray || ExportExr)
+        if (isCubeMap || isArray)
         {
             var vtexContent = ToContentFile();
 
@@ -276,6 +276,19 @@ public sealed class TextureExtract
             Bitmap = bitmap,
             FileName = fileName!,
         };
+
+        if (ExportExr)
+        {
+            // Channels are not unpacked from HDR images, the whole image is written under the first name the material uses
+            var firstUnpackInfo = mapsToUnpack.FirstOrDefault();
+
+            if (firstUnpackInfo.FileName != null)
+            {
+                vtex.AddImageSubFile(Path.GetFileName(firstUnpackInfo.FileName), ToExrImage);
+            }
+
+            return vtex;
+        }
 
         foreach (var unpackInfo in mapsToUnpack)
         {

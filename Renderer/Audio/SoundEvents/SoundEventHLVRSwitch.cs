@@ -20,7 +20,7 @@ internal sealed class SoundEventHLVRSwitch : SoundEvent
         // Empty resolves to no definition, same as a name the bank does not know
         childEventNames[0] = data.GetStringProperty("soundevent_01", string.Empty);
         childEventNames[1] = data.GetStringProperty("soundevent_02", string.Empty);
-        split = data.GetFloatProperty("soundevent_split", 0.5f);
+        split = data.GetSoundFloat("soundevent_split", 0.5f);
     }
 
     protected override void DoStart()

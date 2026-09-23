@@ -19,9 +19,10 @@ layout(std140, binding = 0) uniform ViewConstants
     vec3 g_vCameraUpDirWs;
     float g_flTime;
     mat4 g_matWorldToShadow[2]; // one per sun shadow cascade
-    vec2 _viewPadding1;
+    float _viewPadding1;
+    bool g_bIsSkybox;
     float g_flSunShadowBias;
-    float _viewPadding2;
+    bool g_bSunShadowsEnabled;
 
     bvec3 g_bFogTypeEnabled;
     int g_iRenderMode;

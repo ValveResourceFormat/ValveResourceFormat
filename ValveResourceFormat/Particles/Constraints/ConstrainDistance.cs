@@ -2,8 +2,8 @@ namespace ValveResourceFormat.Particles.Constraints
 {
     /// <summary>
     /// Keeps every particle within a distance band around a center point, snapping any particle outside
-    /// the band onto the nearer shell along its direction from the center. The center is a control point
-    /// plus an offset rotated into that control point's frame, or the bare offset in world space when
+    /// the band onto the nearer shell along its direction from the center. The center is an offset placed
+    /// in the frame of the transform input (a control point), or the bare offset in world space when
     /// <c>m_bGlobalCenter</c> is set. A negative <c>m_fMaxDistance</c> disables the outer shell, and a
     /// particle sitting exactly on the center has no direction to snap along so it is left where it is.
     ///
@@ -15,24 +15,25 @@ namespace ValveResourceFormat.Particles.Constraints
     {
         private readonly INumberProvider minDistance = new LiteralNumberProvider(0f);
         private readonly INumberProvider maxDistance = new LiteralNumberProvider(100f);
-        private readonly int controlPoint;
-        private readonly Vector3 centerOffset;
+        private readonly ITransformProvider transformInput = new ControlPointTransformProvider();
+        private readonly IVectorProvider centerOffset = new LiteralVectorProvider(Vector3.Zero);
         private readonly bool globalCenter;
 
         public ConstrainDistance(ParticleDefinitionParser parse) : base(parse)
         {
             minDistance = parse.NumberProvider("m_fMinDistance", minDistance);
             maxDistance = parse.NumberProvider("m_fMaxDistance", maxDistance);
-            controlPoint = parse.Int32("m_nControlPointNumber", controlPoint);
-            centerOffset = parse.Vector3("m_CenterOffset", centerOffset);
+            transformInput = parse.TransformInput("m_nControlPointNumber", transformInput);
+            centerOffset = parse.VectorProvider("m_CenterOffset", centerOffset);
             globalCenter = parse.Boolean("m_bGlobalCenter", globalCenter);
         }
 
         public override bool ApplyConstraint(ParticleCollection particles, float frameTime, ParticleSystemState particleSystemState)
         {
+            var offset = centerOffset.NextVector(particleSystemState);
             var center = globalCenter
-                ? centerOffset
-                : ControlPointTransformProvider.TransformPosition(particleSystemState, controlPoint, centerOffset);
+                ? offset
+                : Vector3.Transform(offset, transformInput.NextTransform(particleSystemState));
 
             var min = minDistance.NextNumber(particleSystemState);
             var max = maxDistance.NextNumber(particleSystemState);

@@ -61,7 +61,7 @@ namespace ValveResourceFormat.Particles.Initializers
                 MapComponent(noise.Y, absVal.Y != 0f, absValInv.Y != 0f, anyInverted, min.Y, max.Y),
                 MapComponent(noise.Z, absVal.Z != 0f, absValInv.Z != 0f, anyInverted, min.Z, max.Z));
 
-            var transform = transformInput.NextTransform(ref particle, particleSystemState);
+            var transform = transformInput.NextTransformAtTime(ref particle, particleSystemState, particle.CreationTime);
             var transformed = Vector3.TransformNormal(velocity, transform);
 
             // The engine skips the timestep multiply on its previous-position subtraction, which in

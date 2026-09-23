@@ -250,6 +250,8 @@ internal record struct ParticleDefinitionParser(KVObject Data, ILogger Logger, i
                     return new PerParticleCountNormalizedNumberProvider(parse);
                 case "PF_TYPE_CONTROL_POINT_SPEED":
                     return new ControlPointSpeedNumberProvider(parse);
+                case "PF_TYPE_CONTROL_POINT_DISTANCE":
+                    return new ControlPointDistanceNumberProvider(parse);
                 case "PF_TYPE_PARTICLE_NOISE":
                     return new NoiseNumberProvider(parse);
                 // KNOWN TYPES WE DON'T SUPPORT:
@@ -370,6 +372,12 @@ internal record struct ParticleDefinitionParser(KVObject Data, ILogger Logger, i
                     Logger.LogWarning("Transform type {Type} not supported, using identity transform", type);
                     return new IdentityTransformProvider();
             }
+        }
+
+        // Fields that became transform inputs without a format bump still hold a bare control point number in older content.
+        if (!transformParameters.IsNull)
+        {
+            return new ControlPointTransformProvider(Data.GetInt32Property(key), true);
         }
 
         return new IdentityTransformProvider();

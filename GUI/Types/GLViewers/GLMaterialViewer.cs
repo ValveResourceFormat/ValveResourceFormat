@@ -852,7 +852,7 @@ namespace GUI.Types.GLViewers
                 {
                     if (previewNode != null)
                     {
-                        previewNode.Tint = ColorToVector4(pickedColor);
+                        previewNode.TintAlpha = ColorToVector4(pickedColor);
                     }
 
                     colorButton.BackColor = pickedColor;

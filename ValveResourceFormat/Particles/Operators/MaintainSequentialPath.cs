@@ -11,9 +11,9 @@ namespace ValveResourceFormat.Particles.Operators
     /// <seealso href="https://s2v.app/SchemaExplorer/cs2/particles/C_OP_MaintainSequentialPath">C_OP_MaintainSequentialPath</seealso>
     class MaintainSequentialPath : ParticleFunctionOperator
     {
-        private readonly float maxDistance;
-        private readonly float numToAssign = 100f;
-        private readonly float cohesionStrength = 1f;
+        private readonly INumberProvider maxDistance = new LiteralNumberProvider(0f);
+        private readonly INumberProvider numToAssign = new LiteralNumberProvider(100f);
+        private readonly INumberProvider cohesionStrength = new LiteralNumberProvider(1f);
         private readonly float tolerance;
         private readonly bool loop = true;
         private readonly bool useParticleCount;
@@ -21,15 +21,14 @@ namespace ValveResourceFormat.Particles.Operators
 
         private int slotIndex;
         private int slotStep;
-        private float parameterStep;
         private Vector3 lastStartPosition;
         private Vector3 lastEndPosition;
 
         public MaintainSequentialPath(ParticleDefinitionParser parse) : base(parse)
         {
-            maxDistance = parse.Float("m_fMaxDistance", maxDistance);
-            numToAssign = parse.Float("m_flNumToAssign", numToAssign);
-            cohesionStrength = parse.Float("m_flCohesionStrength", cohesionStrength);
+            maxDistance = parse.NumberProvider("m_fMaxDistance", maxDistance);
+            numToAssign = parse.NumberProvider("m_flNumToAssign", numToAssign);
+            cohesionStrength = parse.NumberProvider("m_flCohesionStrength", cohesionStrength);
             loop = parse.Boolean("m_bLoop", loop);
             useParticleCount = parse.Boolean("m_bUseParticleCount", useParticleCount);
             pathParams = new ParticlePathParameters(parse);
@@ -43,7 +42,6 @@ namespace ValveResourceFormat.Particles.Operators
         {
             slotIndex = 0;
             slotStep = 1;
-            parameterStep = numToAssign <= 1f ? 0f : 1f / (numToAssign - 1f);
             lastStartPosition = new Vector3(float.MaxValue);
             lastEndPosition = new Vector3(float.MaxValue);
         }
@@ -66,14 +64,10 @@ namespace ValveResourceFormat.Particles.Operators
                 lastEndPosition = endNow;
             }
 
-            var assignCount = numToAssign;
-            if (useParticleCount)
-            {
-                assignCount = particles.Count;
-                parameterStep = assignCount <= 1f ? 0f : 1f / (assignCount - 1f);
-            }
-
-            var offsetRetention = 1f - cohesionStrength;
+            var assignCount = useParticleCount ? particles.Count : numToAssign.NextNumber(particleSystemState);
+            var parameterStep = assignCount <= 1f ? 0f : 1f / (assignCount - 1f);
+            var maxOffset = maxDistance.NextNumber(particleSystemState);
+            var offsetRetention = 1f - cohesionStrength.NextNumber(particleSystemState);
 
             var (start, mid, end) = ParticlePath.CalculatePathValues(particleSystemState, pathParams, particleSystemState.Age);
 
@@ -98,14 +92,14 @@ namespace ValveResourceFormat.Particles.Operators
 
                 var target = ParticlePath.Evaluate(start, mid, end, index * parameterStep);
 
-                particle.Position = PullTowards(particle.Position, target, offsetRetention);
-                particle.PositionPrevious = PullTowards(particle.PositionPrevious, target, offsetRetention);
+                particle.Position = PullTowards(particle.Position, target, maxOffset, offsetRetention);
+                particle.PositionPrevious = PullTowards(particle.PositionPrevious, target, maxOffset, offsetRetention);
 
                 slotIndex += slotStep;
             }
         }
 
-        private Vector3 PullTowards(Vector3 position, Vector3 target, float offsetRetention)
+        private static Vector3 PullTowards(Vector3 position, Vector3 target, float maxDistance, float offsetRetention)
         {
             var offset = position - target;
             var distance = offset.Length();

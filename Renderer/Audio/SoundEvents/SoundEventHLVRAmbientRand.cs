@@ -31,11 +31,11 @@ internal sealed class SoundEventHLVRAmbientRand : SoundEvent
         var data = definition.Data;
 
         childEventName = data.GetStringProperty("random_soundevent_01_name", string.Empty);
-        timerMin = data.GetFloatProperty("random_soundevent_01_timer_min", 6f);
-        timerMax = data.GetFloatProperty("random_soundevent_01_timer_max", 12f);
-        radiusMin = data.GetFloatProperty("rand_radius_min");
-        radiusMax = data.GetFloatProperty("rand_radius_max");
-        positionRandom = data.GetFloatProperty("position_random") != 0f;
+        timerMin = data.GetSoundFloat("random_soundevent_01_timer_min", 4f);
+        timerMax = data.GetSoundFloat("random_soundevent_01_timer_max", 10f);
+        radiusMin = data.GetSoundFloat("rand_radius_min");
+        radiusMax = data.GetSoundFloat("rand_radius_max", 250f);
+        positionRandom = data.GetSoundFloat("position_random") > 0f;
     }
 
     protected override void DoStart()

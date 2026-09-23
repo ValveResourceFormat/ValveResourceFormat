@@ -71,9 +71,6 @@ namespace ValveResourceFormat.Renderer
             /// <summary>Gets the specific draw call within the mesh that renders this fragment.</summary>
             public required DrawCall DrawCall { get; init; }
 
-            /// <summary>Gets or sets the per-fragment tint color.</summary>
-            public Vector4 Tint { get; set; } = Vector4.One;
-
             /// <summary>Gets the LOD levels this fragment belongs to, one bit per level; 0 means always drawn.</summary>
             public uint LodGroupMask { get; init; }
 
@@ -142,10 +139,11 @@ namespace ValveResourceFormat.Renderer
 
         /// <summary>Parses fragment data from the scene object and adds each fragment to the scene.</summary>
         /// <param name="aggregateSceneObject">KV3 object describing the aggregate's fragment list.</param>
-        public void LoadFragments(KVObject aggregateSceneObject)
+        /// <param name="rootTransform">Where the world node this aggregate belongs to is placed.</param>
+        public void LoadFragments(KVObject aggregateSceneObject, Matrix4x4 rootTransform)
         {
-            LoadLodSetups(aggregateSceneObject);
-            Fragments.AddRange(CreateFragments(aggregateSceneObject));
+            LoadLodSetups(aggregateSceneObject, rootTransform);
+            Fragments.AddRange(CreateFragments(aggregateSceneObject, rootTransform));
             foreach (var fragment in Fragments)
             {
                 Scene.Add(fragment, false);
@@ -153,6 +151,7 @@ namespace ValveResourceFormat.Renderer
 
             if (Fragments.Count > 0)
             {
+                // The root transform is applied to the fragments, this node only provides culling bounds
                 var bounds = Fragments[0].BoundingBox;
 
                 foreach (var fragment in Fragments)
@@ -164,7 +163,7 @@ namespace ValveResourceFormat.Renderer
             }
         }
 
-        private void LoadLodSetups(KVObject aggregateSceneObject)
+        private void LoadLodSetups(KVObject aggregateSceneObject, Matrix4x4 rootTransform)
         {
             if (!aggregateSceneObject.ContainsKey("m_lodSetups"))
             {
@@ -183,7 +182,7 @@ namespace ValveResourceFormat.Renderer
             for (var i = 0; i < lodSetups.Count; i++)
             {
                 LodSetups[i] = new LodSetup(
-                    lodSetups[i].GetSubCollection("m_vLODOrigin").ToVector3(),
+                    Vector3.Transform(lodSetups[i].GetSubCollection("m_vLODOrigin").ToVector3(), rootTransform),
                     (float)lodSetups[i].GetFloatProperty("m_fMaxObjectScale"),
                     lodSetups[i].GetFloatArray("m_fSwitchDistances")
                 );
@@ -283,7 +282,7 @@ namespace ValveResourceFormat.Renderer
             });
         }
 
-        private IEnumerable<Fragment> CreateFragments(KVObject aggregateSceneObject)
+        private IEnumerable<Fragment> CreateFragments(KVObject aggregateSceneObject, Matrix4x4 rootTransform)
         {
             var aggregateMeshes = aggregateSceneObject.GetArray("m_aggregateMeshes");
 
@@ -314,6 +313,7 @@ namespace ValveResourceFormat.Renderer
                         Parent = this,
                         LightProbeVolumePrecomputedHandshake = lightProbeVolumePrecomputedHandshake,
                         Flags = flags,
+                        Transform = rootTransform,
                     };
 
                     yield return fragment;
@@ -346,18 +346,16 @@ namespace ValveResourceFormat.Renderer
                 {
                     DrawCall = drawCall,
                     RenderMesh = RenderMesh,
-                    Tint = new Vector4(tintColor / 255f, 1f),
+                    Tint = tintColor / 255f,
                     Parent = this,
                     LightProbeVolumePrecomputedHandshake = lightProbeVolumePrecomputedHandshake,
                     Flags = flags,
                     LodGroupMask = lodGroupMask,
                     LodSetupIndex = lodSetupIndex,
+                    Transform = fragmentTransform != null
+                        ? fragmentTransform.ToMatrix4x4() * rootTransform
+                        : rootTransform,
                 };
-
-                if (fragmentTransform != null)
-                {
-                    fragment.Transform *= fragmentTransform.ToMatrix4x4();
-                }
 
                 yield return fragment;
             }

@@ -12,6 +12,7 @@ using SkiaSharp;
 using ValveResourceFormat.IO;
 using ValveResourceFormat.Renderer.Shaders;
 using ValveResourceFormat.ResourceTypes;
+using ValveResourceFormat.Serialization.KeyValues;
 
 namespace GUI.Automation;
 
@@ -201,9 +202,11 @@ internal sealed partial class McpTools
                     info["map"] = world.MapName;
                     info["entities"] = world.Entities.Count;
 
-                    if (world.SkyboxWorld is { } sky)
+                    if (world.Skybox3D is { } sky)
                     {
-                        info["sky_map"] = sky.MapName;
+                        info["sky_map"] = world.Entities
+                            .FirstOrDefault(entity => entity.GetStringProperty("classname") == "skybox_reference")?
+                            .GetStringProperty("targetmapname");
                         info["sky_entities"] = sky.Entities.Count;
                     }
                 }

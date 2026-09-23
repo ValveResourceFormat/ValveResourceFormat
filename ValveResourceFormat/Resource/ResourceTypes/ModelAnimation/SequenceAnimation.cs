@@ -583,6 +583,15 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
             return Movements.Length > 0;
         }
 
+        /// <summary>
+        /// Determines whether any movement segment actually moves. Compiled animations often carry
+        /// segments that are all zero, which behave the same as having no movement at all.
+        /// </summary>
+        public bool HasNonZeroMovementData()
+        {
+            return Array.Exists(Movements, static movement => !movement.IsZero);
+        }
+
         /// <inheritdoc/>
         public override AnimationMovement.MovementData GetMovementOffsetData(float time)
         {

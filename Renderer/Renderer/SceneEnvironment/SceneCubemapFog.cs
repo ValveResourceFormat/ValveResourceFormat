@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using ValveResourceFormat.Renderer.World;
 
 namespace ValveResourceFormat.Renderer.SceneEnvironment;
 
@@ -43,10 +44,13 @@ public class SceneCubemapFog(Scene scene) : SceneNode(scene)
     /// <summary>
     /// Returns a <see cref="Vector4"/> encoding the distance fog offset, scale, LOD bias, and falloff exponent for shader use.
     /// </summary>
-    public Vector4 OffsetScaleBiasExponent()
+    /// <param name="fogSpace">Converts authored distances and heights into the view's space.</param>
+    public Vector4 OffsetScaleBiasExponent(FogSpace fogSpace)
     {
-        var scale = 1f / (EndDist - StartDist);
-        var offset = -(StartDist * scale);
+        var startDist = fogSpace.Distance(StartDist);
+
+        var scale = 1f / (fogSpace.Distance(EndDist) - startDist);
+        var offset = -(startDist * scale);
 
         return new Vector4(offset, scale, LodBias, FalloffExponent);
     }
@@ -56,7 +60,8 @@ public class SceneCubemapFog(Scene scene) : SceneNode(scene)
     /// <summary>
     /// Returns a <see cref="Vector4"/> encoding the height fog offset, scale, exponent, and log2 mip level for shader use.
     /// </summary>
-    public Vector4 Height_OffsetScaleExponentLog2Mip()
+    /// <param name="fogSpace">Converts authored distances and heights into the view's space.</param>
+    public Vector4 Height_OffsetScaleExponentLog2Mip(FogSpace fogSpace)
     {
         Debug.Assert(CubemapFogTexture != null);
 
@@ -66,8 +71,10 @@ public class SceneCubemapFog(Scene scene) : SceneNode(scene)
 
         if (HeightEnd - HeightStart > 0) // width = 0 is a substitution for UseHeightFog
         {
-            scale = 1f / (HeightStart - HeightEnd);
-            offset = 1f - (HeightStart * scale);
+            var heightStart = fogSpace.Height(HeightStart);
+
+            scale = 1f / (heightStart - fogSpace.Height(HeightEnd));
+            offset = 1f - (heightStart * scale);
             exponent = HeightExponent;
         }
 
@@ -79,10 +86,12 @@ public class SceneCubemapFog(Scene scene) : SceneNode(scene)
     /// <summary>
     /// Returns a <see cref="Vector4"/> encoding the distance culling squared, height culling, linear exposure, and opacity for shader use.
     /// </summary>
-    public Vector4 CullingParams_Opacity()
+    /// <param name="fogSpace">Converts authored distances and heights into the view's space.</param>
+    public Vector4 CullingParams_Opacity(FogSpace fogSpace)
     {
-        var distCull = StartDist * StartDist;
-        var heightCull = (UseHeightFog || ((HeightEnd - HeightStart) > 0)) ? HeightStart : float.PositiveInfinity;
+        var startDist = fogSpace.Distance(StartDist);
+        var distCull = startDist * startDist;
+        var heightCull = (UseHeightFog || ((HeightEnd - HeightStart) > 0)) ? fogSpace.Height(HeightStart) : float.PositiveInfinity;
 
         return new Vector4(distCull, heightCull, MathF.Pow(2f, ExposureBias), Opacity);
     }

@@ -9,13 +9,6 @@ namespace ValveResourceFormat.Renderer.SceneNodes
     /// </summary>
     public class MeshSceneNode : MeshCollectionNode
     {
-        /// <inheritdoc/>
-        public override Vector4 Tint
-        {
-            get => RenderableMeshes[0].Tint;
-            set => RenderableMeshes[0].Tint = value;
-        }
-
         /// <summary>
         /// Initializes a new instance of the <see cref="MeshSceneNode"/> class from a raw mesh resource.
         /// </summary>

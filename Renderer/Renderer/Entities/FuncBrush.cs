@@ -8,7 +8,7 @@ namespace ValveResourceFormat.Renderer.Entities;
 /// <c>SetSolid</c> and <c>SetNonsolid</c> leave what is drawn alone. The authored <c>solidity</c>
 /// decides what "solid" means for a given brush.
 /// </summary>
-public sealed class FuncBrush : BaseModelEntity
+public class FuncBrush : BaseModelEntity
 {
     /// <summary>What a <c>func_brush</c>'s <c>solidity</c> keyvalue means.</summary>
     public enum SolidityMode
@@ -42,20 +42,30 @@ public sealed class FuncBrush : BaseModelEntity
         SetEnabled(!KeyValues.GetBooleanProperty("startdisabled"));
     }
 
+    /// <summary>Switches the brush on.</summary>
     [EntityInput("Enable")]
-    private void InputEnable(EntityInputData data) => SetEnabled(true);
+    protected void InputEnable(EntityInputData data) => SetEnabled(true);
 
+    /// <summary>Switches the brush off.</summary>
     [EntityInput("Disable")]
-    private void InputDisable(EntityInputData data) => SetEnabled(false);
+    protected void InputDisable(EntityInputData data) => SetEnabled(false);
 
+    /// <summary>Switches the brush on or off.</summary>
     [EntityInput("Toggle")]
-    private void InputToggle(EntityInputData data) => SetEnabled(!IsEnabled);
+    protected void InputToggle(EntityInputData data) => SetEnabled(!IsEnabled);
 
+    /// <summary>Makes the brush solid.</summary>
     [EntityInput("SetSolid")]
-    private void InputSetSolid(EntityInputData data) => IsSolid = true;
+    protected void InputSetSolid(EntityInputData data) => IsSolid = true;
 
+    /// <summary>Makes the brush not solid.</summary>
     [EntityInput("SetNonsolid")]
-    private void InputSetNonsolid(EntityInputData data) => IsSolid = false;
+    protected void InputSetNonsolid(EntityInputData data) => IsSolid = false;
+
+    /// <summary>Called after the brush was switched on or off, and once as it spawns.</summary>
+    protected virtual void OnEnabledChanged()
+    {
+    }
 
     private void SetEnabled(bool enabled)
     {
@@ -68,5 +78,7 @@ public sealed class FuncBrush : BaseModelEntity
             SolidityMode.AlwaysSolid => true,
             _ => enabled,
         };
+
+        OnEnabledChanged();
     }
 }

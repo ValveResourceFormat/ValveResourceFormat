@@ -23,10 +23,9 @@ public sealed class LightEntity : BaseEntity
     {
     }
 
-    // NoShadows like the loader gives light icons, so a light's own icon cannot shadow the light
+    // NoShadows so a light's own icon cannot shadow the light
     /// <inheritdoc/>
-    protected override SceneNode? CreateRootNode()
-        => World.EditorEntityNode.Create(Scene, KeyValues, Classname, Transform, ObjectTypeFlags.NoShadows);
+    protected override SceneNode? CreateRootNode() => CreateEditorNode(ObjectTypeFlags.NoShadows);
 
     /// <inheritdoc/>
     public override void Spawn()
@@ -50,7 +49,9 @@ public sealed class LightEntity : BaseEntity
         // leave its old slot data lit
         light.Enabled = true;
 
-        // The light-store sweep after entity load picks the node up from the scene like a loader one
+        light.PlaceAt(Transform);
+
+        // The light-store sweep after entity load picks the node up from the scene
         AddNode(light);
 
         Apply();
@@ -63,8 +64,7 @@ public sealed class LightEntity : BaseEntity
 
         if (light != null)
         {
-            light.Position = Origin;
-            light.Direction = EntityTransformHelper.EulerAnglesToForwardDirection(Angles);
+            light.PlaceAt(Transform);
             Changed();
         }
     }

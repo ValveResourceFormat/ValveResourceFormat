@@ -18,6 +18,7 @@ namespace ValveResourceFormat.Renderer.Audio;
 internal sealed class SoundEventCitadel : SoundEvent
 {
     private readonly string[] trackNames;
+    private readonly float volumeDecibels;
     private readonly float volumeMult;
     private readonly float volumeFadeIn;
     private readonly string mixGroup;
@@ -59,11 +60,14 @@ internal sealed class SoundEventCitadel : SoundEvent
             }
         }
 
-        volumeMult = data.GetFloatProperty("volume_mult", 1f);
-        volumeFadeIn = data.GetFloatProperty("volume_fade_in");
+        // In decibels for this event family, so an absent volume is unity gain rather than the shared linear 1
+        volumeDecibels = data.GetSoundFloat("volume");
+        volumeMult = data.GetSoundFloat("volume_mult", 1f);
+        volumeFadeIn = data.GetSoundFloat("volume_fade_in");
         mixGroup = data.GetStringProperty("mixer_mixgroup", string.Empty);
-        playAtListener = data.GetBooleanProperty("position_force_from_player");
-        volumeOffsetDecibels = data.GetFloatProperty("volume_offset_player");
+        playAtListener = data.GetSoundBool("position_force_from_player",
+            defaultValue: definition.Type is "citadel_default_2d" or "citadel_music");
+        volumeOffsetDecibels = data.GetSoundFloat("volume_offset_player");
 
         var falloffCurve = SoundEventCurve.Parse(data, "volume_falloff_curve_db", decibels: true);
 
@@ -76,28 +80,31 @@ internal sealed class SoundEventCitadel : SoundEvent
             volumeCurveGain = falloffCurve.Evaluate(0f);
         }
 
+        // TODO: When the event and its base fragments leave these out, the types default to a falloff
+        // (800 to 3000 for most, 100 to 1200 for ambient_3d, a 250 minimum for hit_confirm and damage) and to
+        // a spread of 0 at 250 to 0.1 at 500, neither of which is applied; confirm the curve shapes they drive
         var falloffMax = GetPerspectiveFloat(data, "volume_falloff_max");
 
         if (distanceVolumeCurve == null && falloffMax > 0f)
         {
             distanceVolumeCurve = SoundEventCurve.Linear(
                 GetPerspectiveFloat(data, "volume_falloff_min"), 1f,
-                falloffMax, data.GetFloatProperty("volume_falloff_floor"));
+                falloffMax, data.GetSoundFloat("volume_falloff_floor"));
         }
 
         // "spread_*" maps distance to stereo width, not to volume
         if (data.ContainsKey("spread_min") && data.ContainsKey("spread_max"))
         {
             stereoMixCurve = SoundEventCurve.Linear(
-                data.GetFloatProperty("spread_min"), GetPerspectiveFloat(data, "spread_min_value", 1f),
-                data.GetFloatProperty("spread_max"), GetPerspectiveFloat(data, "spread_max_value", 1f));
+                data.GetSoundFloat("spread_min"), GetPerspectiveFloat(data, "spread_min_value", 1f),
+                data.GetSoundFloat("spread_max"), GetPerspectiveFloat(data, "spread_max_value", 1f));
         }
 
         // An authored cull distance is the hard limit and wins over the curve's own extent. Each only
         // counts when positive: "max_distance_recipient_filter" is authored as -1 for "no limit", and a
         // zero would silence the event outright.
-        var cullDistance = data.GetFloatProperty("cull_at_distance");
-        var recipientDistance = data.GetFloatProperty("max_distance_recipient_filter");
+        var cullDistance = data.GetSoundFloat("cull_at_distance");
+        var recipientDistance = data.GetSoundFloat("max_distance_recipient_filter");
         var audibleLimit = cullDistance > 0f ? cullDistance : recipientDistance > 0f ? recipientDistance : 0f;
 
         if (audibleLimit > 0f && distanceVolumeCurve != null)
@@ -119,8 +126,8 @@ internal sealed class SoundEventCitadel : SoundEvent
         var playerName = $"{name}_player";
 
         return data.ContainsKey(playerName)
-            ? data.GetFloatProperty(playerName)
-            : data.GetFloatProperty(name, fallback);
+            ? data.GetSoundFloat(playerName)
+            : data.GetSoundFloat(name, fallback);
     }
 
     protected override void DoStart()
@@ -141,8 +148,7 @@ internal sealed class SoundEventCitadel : SoundEvent
             return;
         }
 
-        // Definition.Volume is in decibels for this event family
-        var decibels = (VolumeOverride ?? Definition.Volume) + volumeOffsetDecibels;
+        var decibels = (VolumeOverride ?? volumeDecibels) + volumeOffsetDecibels;
         var baseVolume = MathUtils.Saturate(MathUtils.DecibelsToLinear(decibels));
         var mixGroupVolume = Mixer.Player.GetMixGroupVolume(mixGroup);
         targetVolume = baseVolume * volumeMult * volumeCurveGain * mixGroupVolume * VolumeScale;

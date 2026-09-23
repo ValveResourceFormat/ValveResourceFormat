@@ -69,7 +69,8 @@ public class VfxVariableDescription : ShaderDataBlock
     public bool SrgbRead => (TypeSpecificBits & 0x01) == 1;
 
     /// <summary>
-    /// Gets bits whose meaning depends on the variable type, such as the external constant buffer ID.
+    /// Gets bits whose meaning depends on the variable type, such as the external constant buffer ID
+    /// or the specialization constant ID.
     /// It is -1 for variables that carry no type specific data.
     /// </summary>
     public int TypeSpecificBits { get; }

@@ -41,6 +41,8 @@ public class SceneLightProbe : SceneNode
     /// <summary>Gets or sets the shader-side index assigned to this probe for UBO packing.</summary>
     public int ShaderIndex { get; set; }
 
+    internal Matrix4x4 WorldToLocal = Matrix4x4.Identity;
+
     /// <summary>
     /// Initializes a new instance of the <see cref="SceneLightProbe"/> class with the given local-space bounds.
     /// </summary>
@@ -135,6 +137,8 @@ public class SceneLightProbe : SceneNode
         {
             throw new InvalidOperationException("Matrix invert failed");
         }
+
+        WorldToLocal = worldToLocal;
 
         var data = new LightProbeVolume
         {

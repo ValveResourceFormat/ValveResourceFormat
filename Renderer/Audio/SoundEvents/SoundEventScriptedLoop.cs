@@ -26,8 +26,8 @@ internal sealed class SoundEventScriptedLoop : SoundEvent
         var singleWave = data.GetStringProperty("wave");
         trackNames = !string.IsNullOrEmpty(singleWave) ? [singleWave] : SoundscapeOperatorParsing.GetRandomWaveFiles(data);
 
-        volume = data.GetFloatProperty("volume", 1f);
-        pitch = data.GetFloatProperty("pitch", 100f) / 100f;
+        volume = data.GetSoundFloat("volume", 1f);
+        pitch = data.GetSoundFloat("pitch", 100f) / 100f;
         origin = SoundscapeOperatorParsing.ParseOrigin(data);
         distanceMult = SoundscapeOperatorParsing.SoundLevelToDistanceMult(data.GetStringProperty("soundlevel"));
     }

@@ -32,31 +32,48 @@ namespace ValveResourceFormat.Renderer.Utils
         private static readonly float[] Elevations = [30f * MathF.PI / 180f, 15f * MathF.PI / 180f, 60f * MathF.PI / 180f];
 
         /// <summary>
+        /// Direction from the target to the first candidate, which is where the camera ends up unless
+        /// geometry is in the way. Callers sizing the orbit radius frame the target against this one.
+        /// </summary>
+        /// <param name="boundsSize">Dimensions of what is being framed.</param>
+        public static Vector3 PreferredDirection(Vector3 boundsSize) => OrbitDirection(PreferredYaw(boundsSize), Elevations[0]);
+
+        /// <summary>
+        /// Stands off across the bounds' longer horizontal axis rather than down it, so something long
+        /// and thin, a cable or a trigger brush, is seen along its length instead of end-on.
+        /// </summary>
+        private static float PreferredYaw(Vector3 boundsSize) => boundsSize.X > boundsSize.Y ? MathF.PI / 2f : 0f;
+
+        /// <summary>
         /// Finds a camera position orbiting <paramref name="center"/> that is not embedded in world
         /// geometry and has a clear line to the target.
         /// </summary>
         /// <param name="physics">Physics world to probe against; when <see langword="null"/> the preferred position is returned as-is.</param>
         /// <param name="center">World-space point the camera should look at.</param>
         /// <param name="distance">Orbit radius that frames the target.</param>
-        /// <param name="targetRadius">Radius of the focused object, so probes start outside its own collision.</param>
+        /// <param name="boundsSize">Dimensions of what is being framed, which decide where the orbit
+        /// starts and how far out the probes begin.</param>
         /// <returns>The chosen camera position, falling back to the preferred one when the target cannot be seen from anywhere.</returns>
-        public static Vector3 FindOrbitPosition(Rubikon? physics, Vector3 center, float distance, float targetRadius = 0f)
+        public static Vector3 FindOrbitPosition(Rubikon? physics, Vector3 center, float distance, Vector3 boundsSize)
         {
-            var preferred = OrbitPosition(center, distance, Yaws[0], Elevations[0]);
+            var preferredYaw = PreferredYaw(boundsSize);
+            var preferred = center + PreferredDirection(boundsSize) * distance;
+
+            var targetRadius = boundsSize.MaxComponent() * 0.5f;
 
             if (physics == null)
             {
                 return preferred;
             }
 
-            if (TryFindOrbitPosition(physics, center, distance, targetRadius, PlayerHalfExtents, preferred, out var playerFit))
+            if (TryFindOrbitPosition(physics, center, distance, targetRadius, preferredYaw, PlayerHalfExtents, preferred, out var playerFit))
             {
                 return playerFit;
             }
 
             // Tight interiors and clutter can leave the player hull nowhere to go, so a second pass
             // shrinks the camera to a box that only has to avoid clipping through a surface.
-            TryFindOrbitPosition(physics, center, distance, targetRadius, SmallHalfExtents, playerFit, out var smallFit);
+            TryFindOrbitPosition(physics, center, distance, targetRadius, preferredYaw, SmallHalfExtents, playerFit, out var smallFit);
 
             return smallFit;
         }
@@ -67,7 +84,7 @@ namespace ValveResourceFormat.Renderer.Utils
         /// non-solid spot found, or <paramref name="fallback"/> when there was not even one of those.
         /// </summary>
         private static bool TryFindOrbitPosition(Rubikon physics, Vector3 center, float distance, float targetRadius,
-            Vector3 halfExtents, Vector3 fallback, out Vector3 position)
+            float preferredYaw, Vector3 halfExtents, Vector3 fallback, out Vector3 position)
         {
             var padding = MathF.Max(halfExtents.X, halfExtents.Z);
 
@@ -89,7 +106,10 @@ namespace ValveResourceFormat.Renderer.Utils
             for (var i = 0; i < candidateCount; i++)
             {
                 var elevation = Elevations[i / Yaws.Length];
-                var yaw = Yaws[i % Yaws.Length];
+
+                // The set is symmetric under a quarter turn, so offsetting it reorders the same
+                // directions rather than adding new ones, with the preferred one leading.
+                var yaw = Yaws[i % Yaws.Length] + preferredYaw;
 
                 var direction = OrbitDirection(yaw, elevation);
                 var candidate = center + direction * distance;
@@ -145,8 +165,5 @@ namespace ValveResourceFormat.Renderer.Utils
 
             return new Vector3(cosElevation * MathF.Cos(yaw), cosElevation * MathF.Sin(yaw), MathF.Sin(elevation));
         }
-
-        private static Vector3 OrbitPosition(Vector3 center, float distance, float yaw, float elevation)
-            => center + OrbitDirection(yaw, elevation) * distance;
     }
 }

@@ -92,6 +92,8 @@ Source 2 Viewer is the result of years of reverse engineering by many contributo
 Source 2 Viewer is currently a .NET WinForms application, as a result it only works on Windows. However you can run it using Wine.
 The command-line utility is completely cross-platform.
 
+If it crashes on startup under Wine or Proton with a `stack overflow` error, check whether `DOTNET_BUNDLE_EXTRACT_BASE_DIR` is set in your environment. Wine passes it to the app as a Linux path, which the .NET host fails to create. Create the directory it points to, for example `mkdir -p ~/.cache/dotnet_bundle_extract`.
+
 ### How do I open VPK files?
 
 Simply launch Source 2 Viewer and use the Game Explorer to automatically detect installed games, or use File > Open to manually browse for .vpk files.

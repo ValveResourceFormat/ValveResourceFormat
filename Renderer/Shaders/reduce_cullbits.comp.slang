@@ -4,12 +4,12 @@
 
 layout(local_size_x = D_GROUP_SIZE, local_size_y = 1, local_size_z = 1) in;
 
-layout(binding = 12, std430) readonly buffer LightCullBitsBuffer
+layout(binding = 4, std430) readonly buffer LightCullBitsBuffer
 {
     uint g_CullBits[];
 };
 
-layout(binding = 2, std430) writeonly buffer VisibleCullBitsBuffer
+layout(binding = 15, std430) writeonly buffer VisibleCullBitsBuffer
 {
     uint g_VisibleCullBits[];
 };

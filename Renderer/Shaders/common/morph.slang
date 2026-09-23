@@ -3,32 +3,31 @@
 #ifndef VRF_MORPH_INCLUDE
 #define VRF_MORPH_INCLUDE
 
+#include "instancing_base.slang"
+
 #define F_MORPH_SUPPORTED 0 // most shaders
-#define bMorphed (morphVertexIdOffset != -1)
+#define bMorphed (g_instanceBuffer[gl_BaseInstance].MorphVertexIdOffset != -1)
 
 #if (F_MORPH_SUPPORTED == 1)
-    uniform sampler2D morphCompositeTexture; // reserved
-    uniform int morphVertexIdOffset;
+    uniform sampler2D g_tCompositeMorphTextureAtlas; // reserved
 
     #define MORPH_FIELD_POSITION_SPEED 0
     #define MORPH_FIELD_NORMAL_WRINKLE 1
 
-    // The composite holds two fields of the same size side by side: position/speed on the left,
-    // normal/wrinkle on the right. A field is therefore half of the composite wide, and that is
-    // also the row stride the morph set was laid out with.
-    vec2 getMorphUV(int field)
+    // The atlas holds two fields of the same size side by side: position/speed on the left, normal/wrinkle on the
+    // right. A mesh's composite is a rect at the same place in both, laid out row by row at the morph set's width.
+    ivec2 getMorphTexel(int field)
     {
-        vec2 compositeSize = vec2(textureSize(morphCompositeTexture, 0));
-        float fieldWidth = compositeSize.x * 0.5;
+        InstanceDataStandard instance = g_instanceBuffer[gl_BaseInstance];
 
-        float vertexId = float(gl_VertexID + morphVertexIdOffset);
-        float column = mod(vertexId, fieldWidth);
-        float row = floor(vertexId / fieldWidth);
+        int vertexId = gl_VertexID + instance.MorphVertexIdOffset;
+        int stride = int(instance.MorphAtlasStride);
+        ivec2 origin = ivec2(instance.MorphAtlasOrigin & 0xFFFFu, instance.MorphAtlasOrigin >> 16u);
 
-        return vec2(
-            (0.5 + column) / compositeSize.x + 0.5 * float(field),
-            1.0 - ((0.5 + row) / compositeSize.y)
-        );
+        ivec2 texel = origin + ivec2(vertexId % stride, vertexId / stride);
+        texel.x += field * (textureSize(g_tCompositeMorphTextureAtlas, 0).x / 2);
+
+        return texel;
     }
 #endif
 
@@ -37,7 +36,7 @@ vec3 getMorphOffset()
     #if (F_MORPH_SUPPORTED == 1)
         if (bMorphed)
         {
-            return textureLod(morphCompositeTexture, getMorphUV(MORPH_FIELD_POSITION_SPEED), 0).xyz;
+            return texelFetch(g_tCompositeMorphTextureAtlas, getMorphTexel(MORPH_FIELD_POSITION_SPEED), 0).xyz;
         }
     #endif
 
@@ -51,7 +50,7 @@ vec3 applyMorphNormal(vec3 normal)
     #if (F_MORPH_SUPPORTED == 1)
         if (bMorphed)
         {
-            return normalize(normal + textureLod(morphCompositeTexture, getMorphUV(MORPH_FIELD_NORMAL_WRINKLE), 0).xyz);
+            return normalize(normal + texelFetch(g_tCompositeMorphTextureAtlas, getMorphTexel(MORPH_FIELD_NORMAL_WRINKLE), 0).xyz);
         }
     #endif
 

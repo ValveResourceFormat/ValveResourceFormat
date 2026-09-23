@@ -14,7 +14,7 @@ namespace ValveResourceFormat.Renderer
         /// <summary>Number of vertices currently uploaded.</summary>
         public int VertexCount { get; private set; }
 
-        private readonly int vboHandle;
+        private readonly StreamingVertexBuffer vertexBuffer;
         private readonly int vao;
 
         /// <summary>Creates the GL objects and binds the default shader layout.</summary>
@@ -22,23 +22,21 @@ namespace ValveResourceFormat.Renderer
         {
             Shader = rendererContext.ShaderLoader.LoadShader("default");
 
-            vboHandle = GraphicsDevice.CreateBuffer(label);
-            vao = SimpleVertex.InputLayout.CreateVertexArray(label, vboHandle);
+            vertexBuffer = new StreamingVertexBuffer(label);
+            vao = SimpleVertex.InputLayout.CreateVertexArray(label, vertexBuffer.Handle);
+            vertexBuffer.AttachTo(vao, SimpleVertex.InputLayout.Stride);
         }
 
         /// <summary>Uploads the line vertices, two per segment.</summary>
-        public void Upload(List<SimpleVertex> vertices, BufferUsage usage = BufferUsage.Dynamic)
-            => Upload(CollectionsMarshal.AsSpan(vertices), usage);
+        public void Upload(List<SimpleVertex> vertices)
+            => Upload(CollectionsMarshal.AsSpan(vertices));
 
         /// <summary>Uploads the line vertices, two per segment.</summary>
-        public unsafe void Upload(ReadOnlySpan<SimpleVertex> vertices, BufferUsage usage = BufferUsage.Dynamic)
+        public void Upload(ReadOnlySpan<SimpleVertex> vertices)
         {
             VertexCount = vertices.Length;
 
-            fixed (SimpleVertex* data = vertices)
-            {
-                GL.NamedBufferData(vboHandle, VertexCount * SimpleVertex.InputLayout.Stride, (nint)data, usage.ToGLBufferUsageHint());
-            }
+            vertexBuffer.Upload(MemoryMarshal.AsBytes(vertices));
         }
 
         /// <summary>Drops the uploaded vertices.</summary>
@@ -59,7 +57,7 @@ namespace ValveResourceFormat.Renderer
         public void Delete()
         {
             VertexArray.Delete(vao);
-            GL.DeleteBuffer(vboHandle);
+            vertexBuffer.Delete();
         }
     }
 }

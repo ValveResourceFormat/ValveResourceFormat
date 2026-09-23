@@ -1,3 +1,4 @@
+using ValveResourceFormat.Blocks;
 using ValveResourceFormat.Renderer.SceneEnvironment;
 using ValveResourceFormat.ResourceTypes;
 
@@ -15,6 +16,20 @@ namespace ValveResourceFormat.Renderer
         Parallel,
     }
 
+    /// <summary>Additional flags for <see cref="SceneNode"/>s.</summary>
+    [Flags]
+    public enum SceneNodeFlags
+    {
+        /// <summary>No flags set.</summary>
+        None = 0,
+
+        /// <summary>
+        /// The node's vertices are already in world space, so it draws with the identity transform while its
+        /// <see cref="SceneNode.Transform"/> only places it.
+        /// </summary>
+        PreTransformedVertices = 1 << 0,
+    }
+
     /// <summary>
     /// Base class for all objects in the scene graph.
     /// </summary>
@@ -23,6 +38,23 @@ namespace ValveResourceFormat.Renderer
 #endif
     public abstract class SceneNode
     {
+        /// <summary>Gets or sets the color multiplier this node draws with, in gamma space.</summary>
+        public Vector3 Tint { get; set; } = Vector3.One;
+
+        /// <summary>Gets or sets the opacity this node draws with.</summary>
+        public float Alpha { get; set; } = 1f;
+
+        /// <summary>Gets or sets <see cref="Tint"/> in XYZ and <see cref="Alpha"/> in W.</summary>
+        public Vector4 TintAlpha
+        {
+            get => new(Tint, Alpha);
+            set
+            {
+                Tint = new Vector3(value.X, value.Y, value.Z);
+                Alpha = value.W;
+            }
+        }
+
         /// <summary>
         /// Gets or sets the world transform. Setting this also updates <see cref="BoundingBox"/>.
         /// </summary>
@@ -99,9 +131,14 @@ namespace ValveResourceFormat.Renderer
         public bool IsSelected { get; set; }
 
         /// <summary>
-        /// Gets or sets the object type flags used for filtering.
+        /// Gets or sets the object type flags.
         /// </summary>
         public ObjectTypeFlags Flags { get; set; }
+
+        /// <summary>
+        /// Gets or sets additional non-standard flags.
+        /// </summary>
+        public SceneNodeFlags AdditionalFlags { get; set; }
 
         /// <summary>
         /// Flags for when should this node be drawn and where.
@@ -125,6 +162,19 @@ namespace ValveResourceFormat.Renderer
         /// Gets the scene this node belongs to.
         /// </summary>
         public Scene Scene { get; }
+
+        /// <summary>
+        /// How large this node is drawn next to whatever places it. Only an editor marker differs, and
+        /// only where its scene is magnified; a line joining two markers keeps the magnification, since
+        /// it has to span the distance between them.
+        /// </summary>
+        internal float PlacementScale => LayerName == World.EditorEntityNode.LayerName && this is not SceneNodes.LineSceneNode
+            ? Scene.MarkerScale
+            : 1f;
+
+        /// <summary>Shrinks a transform this node is placed at by <see cref="PlacementScale"/>.</summary>
+        internal Matrix4x4 ApplyPlacementScale(in Matrix4x4 transform)
+            => PlacementScale == 1f ? transform : Matrix4x4.CreateScale(PlacementScale) * transform;
 
         /// <summary>
         /// The parent node.
@@ -181,10 +231,65 @@ namespace ValveResourceFormat.Renderer
         private AABB localBoundingBox;
         private Matrix4x4 transform = Matrix4x4.Identity;
 
+        private ushort[]? visClusters;
+        private int visClusterCount;
+        private AABB visClusterBounds;
+
         /// <summary>
         /// This node's slot in the scene's <see cref="Scene.DynamicOctree"/>, or -1 when it is not in one.
         /// </summary>
         internal int DynamicSetIndex { get; set; } = -1;
+
+        /// <summary>
+        /// Gets the visibility clusters this node's bounding box overlaps, recomputing them when it has moved
+        /// or grown since the last query. A node with no clusters at all sits outside the visibility volume.
+        /// </summary>
+        /// <param name="voxelVisibility">The scene's visibility data.</param>
+        internal ReadOnlySpan<ushort> GetVisClusters(IWorldVisibility voxelVisibility)
+        {
+            if (visClusters != null && visClusterBounds.Equals(BoundingBox))
+            {
+                return visClusters.AsSpan(0, visClusterCount);
+            }
+
+            var wordCount = voxelVisibility.ClusterBitfieldWordCount;
+            Span<uint> scratch = stackalloc uint[VoxelVisibility.ClusterBitfieldWords];
+
+            var clusterBits = wordCount <= scratch.Length ? scratch[..wordCount] : new uint[wordCount];
+
+            voxelVisibility.GetVisClustersForBox(BoundingBox.Min, BoundingBox.Max, clusterBits);
+
+            var count = 0;
+
+            foreach (var word in clusterBits)
+            {
+                count += BitOperations.PopCount(word);
+            }
+
+            // Anything that moves requeries every frame, so grow the list rather than replacing it
+            if (visClusters == null || visClusters.Length < count)
+            {
+                visClusters = new ushort[count];
+            }
+
+            visClusterCount = count;
+            count = 0;
+
+            for (var i = 0; i < clusterBits.Length; i++)
+            {
+                var word = clusterBits[i];
+
+                while (word != 0)
+                {
+                    visClusters[count++] = (ushort)(i * 32 + BitOperations.TrailingZeroCount(word));
+                    word &= word - 1;
+                }
+            }
+
+            visClusterBounds = BoundingBox;
+
+            return visClusters.AsSpan(0, visClusterCount);
+        }
 
         /// <summary>
         /// Initializes a new instance of the <see cref="SceneNode"/> class.

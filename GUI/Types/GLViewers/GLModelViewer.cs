@@ -10,8 +10,8 @@ using ValveResourceFormat.Renderer;
 using ValveResourceFormat.Renderer.SceneEnvironment;
 using ValveResourceFormat.Renderer.SceneNodes;
 using ValveResourceFormat.ResourceTypes;
-using ValveResourceFormat.ResourceTypes.ModelData;
 using ValveResourceFormat.ResourceTypes.ModelAnimation;
+using ValveResourceFormat.ResourceTypes.ModelData;
 
 namespace GUI.Types.GLViewers
 {
@@ -296,7 +296,7 @@ namespace GUI.Types.GLViewers
             {
                 if (phys.Parts.Length > 0)
                 {
-                    Scene.PhysicsWorld = new Rubikon(phys);
+                    Renderer.EntitySystem.PhysicsWorld = new Rubikon(phys);
 
                     var isMapPhysics = Path.GetFileNameWithoutExtension(GuiContext.FileName)
                         .Equals("world_physics", StringComparison.OrdinalIgnoreCase);
@@ -687,8 +687,10 @@ namespace GUI.Types.GLViewers
 
             using var lockedGl = MakeCurrent();
 
-            Scene.UpdateOctrees();
-            SkyboxScene?.UpdateOctrees();
+            foreach (var scene in Renderer.Scenes)
+            {
+                scene.UpdateOctrees();
+            }
         }
 
         private Matrix4x4 rootMotionBase = Matrix4x4.Identity;

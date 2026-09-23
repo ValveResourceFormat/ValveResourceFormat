@@ -2517,6 +2517,11 @@ public sealed partial class MapExtract
                     TimesToFire = connection.TimesToFire,
                 };
 
+                if (connection.ParamMap != null)
+                {
+                    dmeConnection.Add("paramMap", ToDmeKeyValues3(connection.ParamMap, "paramMap"));
+                }
+
                 mapEntity.ConnectionsData.Add(dmeConnection);
             }
         }
@@ -2589,6 +2594,118 @@ public sealed partial class MapExtract
 
     static string StringBool(bool value)
         => value ? "1" : "0";
+
+    // Hammer stores KV3 inside DMX as nested elements: a table is an element whose attributes are its keys,
+    // and array items that do not fit a typed DMX array are wrapped in elements holding a "value" attribute.
+    // Hammer names each table element after its key.
+    private static object? ToDmeKeyValues3(KVObject value, string name)
+    {
+        switch (value.ValueType)
+        {
+            case KVValueType.Collection:
+                var element = new Datamodel.Element { Name = name, ClassName = "DmElement" };
+
+                foreach (var (key, child) in value.Children)
+                {
+                    var converted = ToDmeKeyValues3(child, key);
+
+                    if (converted != null)
+                    {
+                        // An attribute called "name" would clash with the element's own name
+                        element.Add(key == "name" ? "__dmekv3_attribute_will_be_name__" : key, converted);
+                    }
+                }
+
+                return element;
+
+            case KVValueType.Array:
+                var items = (IReadOnlyList<KVObject>)value.Values;
+
+                if (items.All(static item => item.ValueType == KVValueType.Boolean))
+                {
+                    return new Datamodel.BoolArray(items.Select(static item => (bool)item));
+                }
+
+                if (items.All(static item => IsKeyValues3Integer(item.ValueType)))
+                {
+                    return new Datamodel.IntArray(items.Select(static item => Convert.ToInt32(item, CultureInfo.InvariantCulture)));
+                }
+
+                if (items.All(static item => IsKeyValues3Float(item.ValueType) || IsKeyValues3Integer(item.ValueType)))
+                {
+                    return new Datamodel.FloatArray(items.Select(static item => Convert.ToSingle(item, CultureInfo.InvariantCulture)));
+                }
+
+                if (items.All(static item => item.ValueType == KVValueType.String))
+                {
+                    return new Datamodel.StringArray(items.Select(static item => (string)item));
+                }
+
+                var elements = new Datamodel.ElementArray(items.Count);
+
+                foreach (var item in items)
+                {
+                    var wrapper = new Datamodel.Element { ClassName = "DmElement" };
+                    var converted = ToDmeKeyValues3(item, "value");
+
+                    if (converted != null)
+                    {
+                        wrapper.Add("value", converted);
+                    }
+
+                    elements.Add(wrapper);
+                }
+
+                return elements;
+
+            case KVValueType.Boolean:
+                return (bool)value;
+
+            case KVValueType.String:
+                // The compiler prefixes entity names used as literals, like it does targetnames
+                var text = RemoveTargetnamePrefix((string)value);
+
+                if (value.Flag == KVFlag.None)
+                {
+                    return text;
+                }
+
+                // Typed strings such as entity names are wrapped in an element carrying the type
+                var typed = new Datamodel.Element { Name = "value_with_specific_type", ClassName = "DmElement" };
+
+                // TODO: Use value.Flag.SerializeFlagName() once ValveKeyValue with KVFlagExtensions is released
+                typed.Add("specific_type", value.Flag switch
+                {
+                    KVFlag.Resource => "resource",
+                    KVFlag.ResourceName => "resource_name",
+                    KVFlag.Panorama => "panorama",
+                    KVFlag.SoundEvent => "soundevent",
+                    KVFlag.SubClass => "subclass",
+                    KVFlag.EntityName => "entity_name",
+                    _ => throw new UnexpectedMagicException("Unknown KV3 string flag", (int)value.Flag, nameof(value.Flag)),
+                });
+                typed.Add("value", text);
+                return typed;
+
+            case KVValueType.UInt64:
+                return Convert.ToUInt64(value, CultureInfo.InvariantCulture);
+
+            case var type when IsKeyValues3Float(type):
+                return Convert.ToSingle(value, CultureInfo.InvariantCulture);
+
+            case var type when IsKeyValues3Integer(type):
+                return Convert.ToInt32(value, CultureInfo.InvariantCulture);
+
+            default:
+                return null;
+        }
+
+        static bool IsKeyValues3Float(KVValueType type)
+            => type is KVValueType.FloatingPoint or KVValueType.FloatingPoint64;
+
+        static bool IsKeyValues3Integer(KVValueType type)
+            => type is KVValueType.Int16 or KVValueType.Int32 or KVValueType.Int64 or KVValueType.UInt16 or KVValueType.UInt32;
+    }
 
     private static string? ToEditString(object? data)
     {

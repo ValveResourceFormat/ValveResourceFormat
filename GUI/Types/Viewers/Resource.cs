@@ -80,7 +80,7 @@ namespace GUI.Types.Viewers
                 }
                 catch (Exception ex)
                 {
-                    GLViewerError = CodeTextBox.CreateFromException(ex);
+                    GLViewerError = CodeTextBox.CreateFromException(ex, vrfGuiContext.FullPath);
                 }
             }
         }
@@ -236,7 +236,7 @@ namespace GUI.Types.Viewers
                     break;
 
                 case ResourceType.WorldVisibility:
-                    if (resource.GetBlockByType(BlockType.VXVS) is VoxelVisibility { BaseClusterCount: > 0 } vxvs)
+                    if (VoxelVisibility.GetWorldVisibility(resource) is { } vxvs)
                     {
                         GLViewer = new GLVoxelVisibilityViewer(vrfGuiContext, rendererContext, vxvs);
                         GLViewerTabName = "VISIBILITY";
@@ -297,7 +297,7 @@ namespace GUI.Types.Viewers
                     }
                     catch (Exception ex)
                     {
-                        GLViewerError = CodeTextBox.CreateFromException(ex);
+                        GLViewerError = CodeTextBox.CreateFromException(ex, vrfGuiContext.FullPath);
                     }
                 }
 
@@ -456,7 +456,7 @@ namespace GUI.Types.Viewers
             }
             catch (Exception ex)
             {
-                var control = CodeTextBox.CreateFromException(ex);
+                var control = CodeTextBox.CreateFromException(ex, vrfGuiContext.FullPath);
 
                 var tabEx = new ThemedTabPage("Decompile Error");
                 tabEx.Controls.Add(control);

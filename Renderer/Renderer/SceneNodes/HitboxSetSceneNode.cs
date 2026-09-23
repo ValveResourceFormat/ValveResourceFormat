@@ -50,7 +50,14 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             for (var i = 0; i < hitboxSet.Length; i++)
             {
                 var hitbox = hitboxSet[i];
-                sceneNodes[i] = HitboxSceneNode.Create(Scene, hitbox);
+                var sceneNode = HitboxSceneNode.Create(Scene, hitbox);
+
+                // Registered with the scene so it gets an instance slot for its transform, updated and shown by this node
+                sceneNode.Parent = this;
+                sceneNode.Visible = false;
+                Scene.Add(sceneNode, true);
+
+                sceneNodes[i] = sceneNode;
 
                 if (string.IsNullOrEmpty(hitbox.BoneName) || !boneIndexes.TryGetValue(hitbox.BoneName.ToLowerInvariant(), out var boneIndex))
                 {
@@ -77,16 +84,25 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         /// </summary>
         public void SetHitboxSet(string? set)
         {
-            if (set == null)
+            SetVisible(currentSet, false);
+            currentSet = set == null ? null : hitboxSets[set];
+            SetVisible(currentSet, true);
+        }
+
+        private static void SetVisible(HitboxSetData? hitboxSetData, bool visible)
+        {
+            if (hitboxSetData == null)
             {
-                currentSet = null;
                 return;
             }
 
-            currentSet = hitboxSets[set];
+            foreach (var node in hitboxSetData.SceneNodes)
+            {
+                node.Visible = visible;
+            }
         }
 
-        private static void UpdateHitboxSet(HitboxSetData hitboxSetData, ReadOnlySpan<Matrix4x4> boneMatrices)
+        private static void UpdateHitboxSet(HitboxSetData hitboxSetData, ReadOnlySpan<Matrix4x4> boneMatrices, in Matrix4x4 worldTransform)
         {
             var hitboxSet = hitboxSetData.HitboxSet;
             for (var i = 0; i < hitboxSet.Length; i++)
@@ -98,12 +114,10 @@ namespace ValveResourceFormat.Renderer.SceneNodes
 
                 if (hitbox.TranslationOnly)
                 {
-                    shape.Transform = Matrix4x4.CreateTranslation(targetTransform.Translation);
+                    targetTransform = Matrix4x4.CreateTranslation(targetTransform.Translation);
                 }
-                else
-                {
-                    shape.Transform = targetTransform;
-                }
+
+                shape.Transform = targetTransform * worldTransform;
             }
         }
 
@@ -115,25 +129,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
                 return;
             }
 
-            LocalBoundingBox = new AABB(new Vector3(float.MinValue), new Vector3(float.MaxValue));
-
-            UpdateHitboxSet(currentSet, animationController.Pose);
-        }
-
-        /// <inheritdoc/>
-        public override void Render(Scene.RenderContext context)
-        {
-            if (currentSet == null || context.RenderPass != RenderPass.Translucent)
-            {
-                return;
-            }
-
-            using var _ = GraphicsContext.RenderState.Scope(depthTest: false);
-
-            foreach (var node in currentSet.SceneNodes)
-            {
-                node.Render(context);
-            }
+            UpdateHitboxSet(currentSet, animationController.Pose, Transform);
         }
     }
 }

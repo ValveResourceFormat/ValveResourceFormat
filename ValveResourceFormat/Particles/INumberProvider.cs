@@ -347,6 +347,25 @@ namespace ValveResourceFormat.Particles
         }
     }
 
+    // Distance from the particle to a control point
+    class ControlPointDistanceNumberProvider : INumberProvider
+    {
+        private readonly AttributeMapping attributeMapping;
+        private readonly int cp;
+
+        public ControlPointDistanceNumberProvider(ParticleDefinitionParser parse)
+        {
+            attributeMapping = new AttributeMapping(parse);
+            cp = parse.Int32("m_nControlPoint");
+        }
+
+        public float NextNumber(ref Particle particle, ParticleSystemState renderState)
+        {
+            var distance = Vector3.Distance(particle.Position, renderState.GetControlPoint(cp).Position);
+            return attributeMapping.ApplyMapping(distance);
+        }
+    }
+
     /* Unaccounted for params:
      * m_NamedValue
      */

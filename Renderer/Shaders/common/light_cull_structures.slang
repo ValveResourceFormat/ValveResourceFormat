@@ -49,12 +49,12 @@ layout(binding = 5, std140) uniform CullParams_t
     CullBatch_t g_BinBatches[3];
 };
 
-layout(binding = 2, std430) readonly buffer CullItemsBuffer
+layout(binding = 15, std430) readonly buffer CullItemsBuffer
 {
     CullItem_t g_CullItems[];
 };
 
-layout(binding = 12, std430) writeonly buffer OutputCullBitsBuffer
+layout(binding = 4, std430) writeonly buffer OutputCullBitsBuffer
 {
     uint g_OutputCullBits[];
 };

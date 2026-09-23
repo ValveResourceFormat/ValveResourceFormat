@@ -10,7 +10,7 @@ namespace ValveResourceFormat.Renderer.Buffers
         /// <summary>Gets the OpenGL buffer target type.</summary>
         public BufferTarget Target { get; }
         /// <summary>Gets the OpenGL buffer object handle.</summary>
-        public int Handle { get; }
+        public int Handle { get; private set; }
         /// <summary>Gets the shader binding point index.</summary>
         public int BindingPoint { get; }
         /// <summary>Gets the debug name for this buffer.</summary>
@@ -43,6 +43,13 @@ namespace ValveResourceFormat.Renderer.Buffers
         public void BindBufferBase(ReservedBufferSlots bindingPoint)
         {
             GL.BindBufferBase(bindTarget, (int)bindingPoint, Handle);
+        }
+
+        /// <summary>Replaces the buffer object.</summary>
+        protected void RecreateHandle()
+        {
+            GL.DeleteBuffer(Handle);
+            Handle = GraphicsDevice.CreateBuffer(Name);
         }
 
         /// <summary>Deletes the underlying OpenGL buffer object.</summary>

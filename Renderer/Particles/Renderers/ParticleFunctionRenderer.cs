@@ -1,3 +1,4 @@
+using OpenTK.Graphics.OpenGL;
 using ValveResourceFormat.Particles;
 using ValveResourceFormat.ResourceTypes;
 
@@ -216,6 +217,35 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         /// <summary>Draws depth only.</summary>
         public virtual void RenderDepth(ParticleCollection particles, ParticleSystemState systemState, Camera camera)
         {
+        }
+
+        /// <summary>
+        /// Whether <see cref="RenderReplacement"/> draws anything. Only the renderers that hand over
+        /// world space vertices can; the rest expand their geometry in their own vertex shader.
+        /// </summary>
+        public virtual bool CanRenderReplacement => false;
+
+        /// <summary>
+        /// Draws with a pass replacement shader, for the picking buffer and the outline mask.
+        /// </summary>
+        /// <param name="replacement">The program the pass replaced the material shaders with.</param>
+        /// <param name="objectId">The owning scene node's id, drawn as the instancing base.</param>
+        public virtual void RenderReplacement(Shader replacement, uint objectId)
+        {
+        }
+
+        /// <summary>Draws indexed geometry with the object id as the instancing base, which is how the
+        /// picking and outline programs read it.</summary>
+        protected static void DrawReplacement(Shader replacement, uint objectId, int vaoHandle, int indexCount, DrawElementsType indexType)
+        {
+            if (indexCount == 0)
+            {
+                return;
+            }
+
+            VertexArray.Bind(vaoHandle, replacement);
+
+            GL.DrawElementsInstancedBaseInstance(PrimitiveType.Triangles, indexCount, indexType, 0, 1, objectId);
         }
 
         /// <summary>

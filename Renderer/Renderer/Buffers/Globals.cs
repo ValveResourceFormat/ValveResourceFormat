@@ -34,6 +34,7 @@ public sealed class Globals : Buffer
     public void BeginFill(GlobalsLayout layout)
     {
         var allocate = Size != layout.Size;
+        var hadStorage = Size != 0;
 
         if (allocate)
         {
@@ -47,7 +48,15 @@ public sealed class Globals : Buffer
 
         if (allocate)
         {
-            GL.NamedBufferData(Handle, Size, bytes, BufferUsageHint.DynamicDraw);
+            if (hadStorage)
+            {
+                RecreateHandle();
+            }
+
+            if (Size > 0)
+            {
+                GL.NamedBufferStorage(Handle, Size, bytes, BufferStorageFlags.DynamicStorageBit);
+            }
 
             dirtyStart = int.MaxValue;
             dirtyEnd = 0;

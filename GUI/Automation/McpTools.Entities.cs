@@ -74,11 +74,13 @@ internal sealed partial class McpTools
             yield return new MapEntity(i, world.Entities[i], InSky: false);
         }
 
-        if (world.SkyboxWorld is { } sky)
+        if (world.Skybox3D is { } sky)
         {
-            for (var i = 0; i < sky.Entities.Count; i++)
+            var id = world.Entities.Count;
+
+            foreach (var entity in sky.Entities)
             {
-                yield return new MapEntity(world.Entities.Count + i, sky.Entities[i], InSky: true);
+                yield return new MapEntity(id++, entity, InSky: true);
             }
         }
     }
@@ -92,9 +94,9 @@ internal sealed partial class McpTools
 
         var skyIndex = id - world.Entities.Count;
 
-        if (world.SkyboxWorld is { } sky && skyIndex >= 0 && skyIndex < sky.Entities.Count)
+        if (world.Skybox3D is { } sky && skyIndex >= 0 && skyIndex < sky.Entities.Count)
         {
-            return new MapEntity(id, sky.Entities[skyIndex], InSky: true);
+            return new MapEntity(id, sky.Entities.ElementAt(skyIndex), InSky: true);
         }
 
         return null;
@@ -115,7 +117,7 @@ internal sealed partial class McpTools
 
     private static McpToolResult NoSuchEntity(WorldLoader world, int id)
     {
-        var count = world.Entities.Count + (world.SkyboxWorld?.Entities.Count ?? 0);
+        var count = world.Entities.Count + (world.Skybox3D?.Entities.Count ?? 0);
 
         return McpToolResult.Error($"No entity with id {id}. Ids run from 0 to {count - 1}.");
     }
@@ -123,12 +125,14 @@ internal sealed partial class McpTools
     /// <summary>Where the entity renders: a 3D sky entity is placed in the world the way its sky scene is.</summary>
     private static Vector3 RenderedPosition(WorldLoader world, MapEntity entity)
     {
-        if (entity.InSky && world.SkyboxWorld is { } sky)
+        var origin = entity.Data.GetVector3Property("origin");
+
+        if (entity.InSky && world.Skybox3D is { } sky)
         {
-            return Vector3.Transform(sky.GetEntityWorldTransform(entity.Data).Translation, world.SkyboxTransform);
+            return sky.EntityOriginToWorld(origin);
         }
 
-        return world.GetEntityWorldTransform(entity.Data).Translation;
+        return origin;
     }
 
     private static JsonObject DescribeEntity(WorldLoader world, MapEntity entity)
@@ -206,8 +210,10 @@ internal sealed partial class McpTools
             result["materials"] = materialList;
         }
 
-        result["center"] = Round(node.BoundingBox.Center);
-        result["size"] = Round(node.BoundingBox.Size);
+        var bounds = node.BoundingBox.Transform(node.Scene.ToViewerWorld);
+
+        result["center"] = Round(bounds.Center);
+        result["size"] = Round(bounds.Size);
 
         return result;
     }
@@ -329,12 +335,12 @@ internal sealed partial class McpTools
                 result["outputs"] = outputs;
             }
 
-            if (viewer.Scene.EntitySystem.Entities.FirstOrDefault(spawned => ReferenceEquals(spawned.Data, entity.Data)) is { } instance)
+            if (viewer.Renderer.EntitySystem.Entities.FirstOrDefault(spawned => ReferenceEquals(spawned.Data, entity.Data)) is { } instance)
             {
                 var spawned = new JsonObject
                 {
                     ["class"] = instance.GetType().Name,
-                    ["position"] = Round(instance.Transform.Translation),
+                    ["position"] = Round(Vector3.Transform(instance.Transform.Translation, instance.Scene.ToViewerWorld)),
                     ["angles"] = Round(instance.Angles),
                 };
 

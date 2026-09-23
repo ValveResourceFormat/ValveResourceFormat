@@ -490,8 +490,8 @@ namespace ValveResourceFormat.Renderer.SceneEnvironment
         /// <summary>Gets whether this is the global master post-process volume.</summary>
         public bool IsMaster { get; init; }
 
-        /// <summary>Gets whether this volume starts disabled and contributes nothing.</summary>
-        public bool StartDisabled { get; init; }
+        /// <summary>Gets or sets whether this volume is enabled. A disabled volume contributes nothing.</summary>
+        public bool IsEnabled { get; set; } = true;
 
         // Don't skip if no postprocess resource. Could still affect exposure
         /// <summary>Gets or sets the parsed post-processing resource for this volume.</summary>

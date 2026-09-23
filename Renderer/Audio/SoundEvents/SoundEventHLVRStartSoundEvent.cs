@@ -24,9 +24,11 @@ internal sealed class SoundEventHLVRStartSoundEvent : SoundEvent
         var data = definition.Data;
 
         childEventNames = GetStringOrArrayProperty(data, "soundevents");
-        sequential = !string.Equals(data.GetStringProperty("sequence_type"), "random", StringComparison.OrdinalIgnoreCase);
-        restartOnFinish = data.GetBooleanProperty("restart_on_finish");
-        volumeAttenuation = data.GetFloatProperty("volume_atten", 1f);
+        // "random", "random_exclusive" (the default) and "random_weighted" pick at random; "forward",
+        // "backward" and "index" step through the list, all approximated as forward
+        sequential = !data.GetStringProperty("sequence_type", "random_exclusive").StartsWith("random", StringComparison.OrdinalIgnoreCase);
+        restartOnFinish = data.GetSoundFloat("restart_on_finish") > 0f;
+        volumeAttenuation = data.GetSoundFloat("volume_atten", 1f);
     }
 
     protected override void DoStart()

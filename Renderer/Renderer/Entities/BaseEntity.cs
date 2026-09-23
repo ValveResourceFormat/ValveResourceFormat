@@ -1,4 +1,8 @@
 using System.Runtime.CompilerServices;
+using Microsoft.Extensions.Logging;
+using ValveResourceFormat.Blocks;
+using ValveResourceFormat.Renderer.SceneNodes;
+using ValveResourceFormat.Renderer.Utils;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization.KeyValues;
 using Entity = ValveResourceFormat.ResourceTypes.EntityLump.Entity;
@@ -25,7 +29,7 @@ public readonly record struct EntitySpawnInfo(Entity Data, Matrix4x4 ParentTrans
 /// engine at any framerate. An entity is not a scene node; it owns one, <see cref="RootNode"/>, and places
 /// it each frame. That node defaults to the editor box, and a class with real geometry replaces it.
 /// </remarks>
-public class BaseEntity
+public abstract class BaseEntity
 {
     /// <summary>Gets the scene this entity's nodes live in: the map's, or the 3D skybox's for one spawned there.</summary>
     public Scene Scene { get; }
@@ -38,6 +42,12 @@ public class BaseEntity
 
     /// <summary>Gets the world transform the entity is drawn at, interpolated between ticks.</summary>
     public Matrix4x4 Transform { get; private set; } = Matrix4x4.Identity;
+
+    /// <summary>
+    /// Gets where the entity is in the world at its current tick, without its <see cref="EntityScale"/>:
+    /// the placement of anything the scale must not stretch, such as collision or a baked volume.
+    /// </summary>
+    public Matrix4x4 RigidTransform => EntityTransformHelper.ToRigidTransformationMatrix(Angles, Origin) * ParentTransform;
 
     /// <summary>Gets the visibility layer this entity's nodes belong to.</summary>
     public string? LayerName { get; }
@@ -69,7 +79,7 @@ public class BaseEntity
     public uint SpawnFlags { get; }
 
     /// <summary>Gets the transform of whatever spawned this entity; identity for plain map entities.</summary>
-    public Matrix4x4 ParentTransform { get; private set; }
+    public Matrix4x4 ParentTransform { get; }
 
     /// <summary>
     /// Gets or sets the owning entity, Source's <c>m_hOwnerEntity</c>. Null only on the root <see cref="WorldEntity"/>.
@@ -88,7 +98,10 @@ public class BaseEntity
     /// </summary>
     internal bool IsMoveParentResolved { get; private set; }
 
-    /// <summary>Resolves <c>parentname</c> once everything has spawned; the loader parents plain scene nodes itself.</summary>
+    /// <summary>
+    /// Resolves <c>parentname</c> once everything has spawned, and hangs the entity's nodes off the parent's
+    /// attachment or bone when it names one.
+    /// </summary>
     internal void ResolveMoveParent()
     {
         IsMoveParentResolved = true;
@@ -100,21 +113,33 @@ public class BaseEntity
             return;
         }
 
-        // "name,attachment" addresses an attachment point; the name half is all an entity follows
+        var attachmentName = Data?.GetStringProperty("parentattachmentname");
+
+        // "name,attachment" addresses an attachment point as part of the parent
         var comma = parentName.IndexOf(',', StringComparison.Ordinal);
 
         if (comma >= 0)
         {
+            if (string.IsNullOrEmpty(attachmentName))
+            {
+                attachmentName = parentName[(comma + 1)..];
+            }
+
             parentName = parentName[..comma];
         }
 
-        foreach (var candidate in EntitySystem.FindAllByTargetName(parentName))
+        foreach (var candidate in EntitySystem.FindAllByTargetName(parentName, Scene))
         {
             if (candidate != this)
             {
                 MoveParent = candidate;
                 break;
             }
+        }
+
+        if (!string.IsNullOrEmpty(attachmentName))
+        {
+            AttachToParentModel(attachmentName);
         }
     }
 
@@ -124,7 +149,8 @@ public class BaseEntity
     /// </summary>
     internal void FollowMoveParent()
     {
-        if (MoveParent is not { IsRemoved: false } parent
+        if (isAttachedToParentModel
+            || MoveParent is not { IsRemoved: false } parent
             || (parent.previousOrigin == parent.Origin && parent.previousAngles == parent.Angles))
         {
             return;
@@ -232,20 +258,17 @@ public class BaseEntity
         }
     } = true;
 
-    /// <summary>
-    /// Gets whether the entity is in the playable world rather than a 3D sky spawn group. Sky entities
-    /// render but never collide with, push, or answer use from the player.
-    /// </summary>
-    public bool InPlayableWorld => Scene == EntitySystem.Scene;
-
     /// <summary>Gets whether the entity currently takes part in collision traces.</summary>
-    public bool IsCollidable => IsSolid && !IsTrigger && Collider is { IsEmpty: false } && !IsRemoved && InPlayableWorld;
+    public bool IsCollidable => IsSolid && !IsTrigger && Collider is { IsEmpty: false } && !IsRemoved;
 
     /// <summary>Gets the entities currently inside this one's volume.</summary>
     public IReadOnlyCollection<BaseEntity> TouchingEntities => touching;
 
     private readonly HashSet<BaseEntity> touching = [];
     private readonly List<SceneNode> ownedNodes = [];
+
+    // The owned nodes the entity also places; the rest are placed by something else
+    private readonly List<SceneNode> placedNodes = [];
     private Vector3 origin;
     private Vector3 angles;
     private bool transformDirty = true;
@@ -295,10 +318,13 @@ public class BaseEntity
     /// Initializes an entity created at runtime rather than loaded from a map, so it has no keyvalues to
     /// read and starts at the world origin.
     /// </summary>
-    protected BaseEntity(EntitySystem system, string classname)
+    /// <param name="system">The entity world it lives in.</param>
+    /// <param name="scene">The scene its nodes render into.</param>
+    /// <param name="classname">The classname it reports.</param>
+    protected BaseEntity(EntitySystem system, Scene scene, string classname)
     {
         EntitySystem = system;
-        Scene = system.Scene;
+        Scene = scene;
         ParentTransform = Matrix4x4.Identity;
         EntityScale = Vector3.One;
 
@@ -311,21 +337,73 @@ public class BaseEntity
     /// Builds the node this entity is drawn as, or returns <see langword="null"/> for one that draws nothing.
     /// </summary>
     /// <remarks>
-    /// The default is what the loader draws for an unimplemented classname: the icon the entity's Hammer
-    /// class names, or a box in its colour. A class with real geometry overrides this, so the icon is
-    /// never built for one that has geometry.
+    /// The default is the editor marker, <see cref="CreateEditorNode"/>: the icon the entity's Hammer class
+    /// names, or a box in its colour. A class with real geometry overrides this, so the icon is never built
+    /// for one that has geometry.
     /// </remarks>
     /// <returns>The node, or <see langword="null"/> to own none.</returns>
-    protected virtual SceneNode? CreateRootNode()
+    protected virtual SceneNode? CreateRootNode() => CreateEditorNode();
+
+    /// <summary>
+    /// Builds the node the editor draws this entity as: the icon its Hammer class names, or a box in its
+    /// colour. <see langword="null"/> for an entity created at runtime, which has no Hammer class.
+    /// </summary>
+    /// <param name="flags">Flags for the node.</param>
+    /// <returns>The node, or <see langword="null"/>.</returns>
+    protected SceneNode? CreateEditorNode(ObjectTypeFlags flags = ObjectTypeFlags.None)
     {
         if (Data == null)
         {
             return null;
         }
 
-        // On the editor-only layer, so it hides with the other markers rather than with the world. Geometry
-        // an entity really has stays on the entity's own layer.
-        return World.EditorEntityNode.Create(Scene, Data, Classname, Transform);
+        // On the editor-only layer, so it hides with the other markers rather than with the world, except a
+        // template and what it spawns, which are grouped together. An icon the Hammer class draws as a
+        // studio model stands in for real geometry, so it stays on the entity's own layer.
+        var layerName = LayerName == World.EditorEntityNode.TemplateLayerName
+            ? World.EditorEntityNode.TemplateLayerName
+            : HammerEntities.Get(Classname)?.Studio == true && LayerName != null
+                ? LayerName
+                : World.EditorEntityNode.LayerName;
+
+        return World.EditorEntityNode.Create(Scene, Data, Classname, Transform, RigidTransform, flags, layerName);
+    }
+
+    /// <summary>
+    /// Loads an effect for the entity to play, at the entity and on the particles layer. The caller decides
+    /// whether the entity owns and places it, through <see cref="AddNode"/>.
+    /// </summary>
+    /// <param name="effectName">The effect, or <see langword="null"/> or empty for none.</param>
+    /// <param name="snapshot">A snapshot the effect starts from, such as a rope's points.</param>
+    /// <param name="playedByEntity">Whether the entity sets the control points, rather than the effect's own configuration.</param>
+    /// <returns>The effect, or <see langword="null"/> when there is none or it failed to load.</returns>
+    protected ParticleSceneNode? CreateEffect(string? effectName, ParticleSnapshot? snapshot = null, bool playedByEntity = true)
+    {
+        if (string.IsNullOrEmpty(effectName))
+        {
+            return null;
+        }
+
+        if (EntitySystem.FileLoader.LoadFileCompiled(effectName)?.DataBlock is not ParticleSystem particleSystem)
+        {
+            EntitySystem.Logger.LogWarning("{Classname} '{TargetName}' failed to load effect \"{Effect}\"", Classname, TargetName, effectName);
+            return null;
+        }
+
+        try
+        {
+            return new ParticleSceneNode(Scene, particleSystem, snapshot, playedByEntity: playedByEntity)
+            {
+                Name = effectName,
+                Transform = Transform,
+                LayerName = Scene.ParticlesLayerName,
+            };
+        }
+        catch (Exception e)
+        {
+            EntitySystem.Logger.LogError(e, "{Classname} '{TargetName}' failed to set up effect \"{Effect}\"", Classname, TargetName, effectName);
+            return null;
+        }
     }
 
     /// <summary>
@@ -615,7 +693,7 @@ public class BaseEntity
         if (EntitySystem.Player is not { IsRemoved: false } player
             || !player.Controller.IsActive
             || Collider is not { IsEmpty: false } collider
-            || !IsSolid || IsTrigger || !InPlayableWorld
+            || !IsSolid || IsTrigger || Scene != player.Scene
             || !player.TryGetTouchBounds(out var center, out var halfExtents))
         {
             return;
@@ -842,19 +920,24 @@ public class BaseEntity
 
         transformDirty = false;
 
-        foreach (var node in ownedNodes)
+        foreach (var node in placedNodes)
         {
-            node.Transform = Transform;
+            node.Transform = node.ApplyPlacementScale(Transform);
             Scene.DynamicOctree.Update(node);
         }
     }
 
     /// <summary>
-    /// Puts a node this entity owns into the scene, and takes responsibility for its lifetime and its
-    /// placement. <see cref="RootNode"/> is the one the entity is drawn as; a model entity also owns the
-    /// collision hulls its model was compiled with.
+    /// Puts a node this entity owns into the scene, and takes responsibility for its lifetime, whether it
+    /// is drawn, and by default its placement. <see cref="RootNode"/> is the one the entity is drawn as; a
+    /// model entity also owns the collision hulls its model was compiled with.
     /// </summary>
-    protected void AddNode(SceneNode node)
+    /// <param name="node">The node to own.</param>
+    /// <param name="followsEntity">
+    /// Whether the entity places the node at itself. Pass <see langword="false"/> for a node placed some
+    /// other way, such as an effect whose control point 0 belongs to another entity.
+    /// </param>
+    protected void AddNode(SceneNode node, bool followsEntity = true)
     {
         node.EntityData = Data;
         node.EntityInstance = this;
@@ -862,7 +945,12 @@ public class BaseEntity
         // A node that came with a layer keeps it: the editor box is built on the editor-only layer so it
         // hides with the other markers, while geometry an entity really has belongs on the entity's own
         node.LayerName ??= LayerName;
-        node.Transform = Transform;
+
+        if (followsEntity)
+        {
+            node.Transform = Transform;
+            placedNodes.Add(node);
+        }
 
         // Only the hidden state is imposed, so a node that manages its own Visible keeps it while drawn
         if (!IsDrawn)
@@ -872,6 +960,37 @@ public class BaseEntity
 
         ownedNodes.Add(node);
         Scene.Add(node, dynamic: true);
+    }
+
+    // The move parent's model then places the entity's nodes, rather than the entity following it
+    private bool isAttachedToParentModel;
+
+    /// <summary>
+    /// Hangs the nodes this entity places off an attachment or bone of the move parent's model, snapping
+    /// them onto it. Plain parenting is left to the move parent, which the entity follows by itself.
+    /// <c>uselocaloffset</c> is ignored, as the engine does here too.
+    /// </summary>
+    private void AttachToParentModel(string attachmentName)
+    {
+        if (MoveParent is not BaseModelEntity { ModelNode: { } parentModel })
+        {
+            return;
+        }
+
+        if (!parentModel.HasAttachmentOrBone(attachmentName))
+        {
+            EntitySystem.Logger.LogWarning("{Classname} '{TargetName}' is parented to {AttachmentName} on '{ParentName}', which has no such attachment or bone",
+                Classname, TargetName, attachmentName, MoveParent.TargetName);
+            return;
+        }
+
+        foreach (var node in placedNodes)
+        {
+            parentModel.AttachNode(node, attachmentName);
+        }
+
+        placedNodes.Clear();
+        isAttachedToParentModel = true;
     }
 
     /// <summary>
@@ -893,6 +1012,7 @@ public class BaseEntity
         }
 
         ownedNodes.Clear();
+        placedNodes.Clear();
     }
 
     /// <summary>
@@ -926,7 +1046,7 @@ public class BaseEntity
             return;
         }
 
-        Collider.Transform = EntityTransformHelper.ToRigidTransformationMatrix(Angles, Origin) * ParentTransform;
+        Collider.Transform = RigidTransform;
     }
 
     /// <summary>
@@ -965,25 +1085,6 @@ public class BaseEntity
         previousAngles = Angles;
         isInterpolating = false;
         UpdateTransform();
-    }
-
-    /// <summary>
-    /// Bakes a spawn group's placement into the entity, the way the loader places the 3D skybox: the
-    /// origin and angles stay in the group's own coordinates, and the placement rides on top.
-    /// </summary>
-    internal void ApplySpawnGroupTransform(in Matrix4x4 placement)
-    {
-        ParentTransform *= placement;
-        SnapInterpolation();
-        OnSpawnGroupTransformApplied();
-    }
-
-    /// <summary>
-    /// Called after <see cref="ApplySpawnGroupTransform"/> has moved the entity, for anything that took
-    /// a world position before the placement was known, such as a registered sound region.
-    /// </summary>
-    protected virtual void OnSpawnGroupTransformApplied()
-    {
     }
 
     private void SetTransform(Vector3 origin, Vector3 angles)

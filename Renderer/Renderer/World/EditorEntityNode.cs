@@ -11,21 +11,28 @@ namespace ValveResourceFormat.Renderer.World;
 /// falling back to a coloured box. What Hammer itself shows for an entity that has no geometry of its own.
 /// </summary>
 /// <remarks>
-/// The loader draws these for classnames the entity system does not implement, and
-/// <see cref="Entities.BaseEntity"/> draws one for an entity with nothing else to show, so implementing a
-/// classname does not make it invisible.
+/// <see cref="Entities.BaseEntity"/> draws one for an entity with nothing else to show, so an entity without
+/// geometry, implemented or not, is still seen and can be picked.
 /// </remarks>
 internal static class EditorEntityNode
 {
     /// <summary>Visibility layer these are drawn on, so they can be hidden apart from the world.</summary>
     internal const string LayerName = "Entities (editor only)";
 
+    /// <summary>Visibility layer of the entities a <c>point_template</c> spawns, and of the template itself.</summary>
+    internal const string TemplateLayerName = "Template Entities";
+
     /// <summary>
     /// Builds the node for an entity, without adding it to the scene: the caller owns it, and decides
-    /// where it goes and what drives it. The transform is ignored for the box, which drops scale, see below;
-    /// the box instead composes <c>parentTransform</c>, the transform of the <c>point_template</c> that
-    /// spawned the entity, onto keyvalues that are in template space.
+    /// where it goes and what drives it.
     /// </summary>
+    /// <param name="scene">The scene the node is for.</param>
+    /// <param name="entity">The entity keyvalues.</param>
+    /// <param name="classname">The classname whose Hammer icon to draw.</param>
+    /// <param name="transform">Where an icon goes.</param>
+    /// <param name="boxTransform">Where the box goes when there is no icon, without the scale a box must not take.</param>
+    /// <param name="flags">Flags for the node.</param>
+    /// <param name="layerName">The layer for the node.</param>
     /// <returns>The node, which is never <see langword="null"/> but may be a plain box.</returns>
     /// <exception cref="InvalidDataException">The Hammer class names an icon of a type not handled here.</exception>
     internal static SceneNode Create(
@@ -33,9 +40,9 @@ internal static class EditorEntityNode
         Entity entity,
         string classname,
         Matrix4x4 transform,
-        ObjectTypeFlags flags = ObjectTypeFlags.None,
-        string layerName = LayerName,
-        Matrix4x4? parentTransform = null)
+        Matrix4x4 boxTransform,
+        ObjectTypeFlags flags,
+        string layerName)
     {
         var hammerEntity = HammerEntities.Get(classname);
         string? filename = null;
@@ -60,15 +67,6 @@ internal static class EditorEntityNode
         {
             var color = hammerEntity?.Color ?? new Color32(128, 0, 128, 255);
 
-            // Do not use transform because scales need to be ignored
-            EntityTransformHelper.GetTransformComponents(entity, out _, out var rotationMatrix, out var positionVector);
-            var boxTransform = rotationMatrix * Matrix4x4.CreateTranslation(positionVector);
-
-            if (parentTransform.HasValue)
-            {
-                boxTransform *= parentTransform.Value;
-            }
-
             return new SimpleBoxSceneNode(scene, color, new Vector3(16f))
             {
                 Transform = boxTransform,
@@ -92,7 +90,7 @@ internal static class EditorEntityNode
 
             if (SceneLight.IsAccepted(classname).Accepted)
             {
-                modelNode.Tint = new Vector4(SceneLight.GetEditorTint(entity), 1f);
+                modelNode.TintAlpha = new Vector4(SceneLight.GetEditorTint(entity), 1f);
             }
 
             modelNode.SetAnimationForWorldPreview("tools_preview");
@@ -114,7 +112,7 @@ internal static class EditorEntityNode
             {
                 // light_omni2 has no editor model in the fgd, only an icon, so the cost tint has
                 // to go on the sprite for it to show up at all.
-                spriteNode.Tint = new Vector4(SceneLight.GetEditorTint(entity), 1f);
+                spriteNode.TintAlpha = new Vector4(SceneLight.GetEditorTint(entity), 1f);
             }
 
             return spriteNode;

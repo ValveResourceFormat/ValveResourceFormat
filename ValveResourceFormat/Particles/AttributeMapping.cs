@@ -42,6 +42,12 @@ namespace ValveResourceFormat.Particles
             Notched,
             /// <summary>Rounds the input value using the configured rounding mode.</summary>
             Round,
+            /// <summary>Takes the smaller of the input value and the compare value.</summary>
+            Min,
+            /// <summary>Takes the larger of the input value and the compare value.</summary>
+            Max,
+            /// <summary>Takes the remainder of the input value divided by the compare value.</summary>
+            Mod,
         };
 
         /// <summary>
@@ -79,6 +85,8 @@ namespace ValveResourceFormat.Particles
         private readonly float biasParameter;
 
         private readonly PiecewiseCurve? curve;
+
+        private readonly float compareValue;
 
         public AttributeMapping(ParticleDefinitionParser parse)
         {
@@ -135,6 +143,12 @@ namespace ValveResourceFormat.Particles
                     roundType = parse.EnumNormalized<PfRoundType>("m_nRoundType", roundType);
                     break;
 
+                case PfMapType.Min:
+                case PfMapType.Max:
+                case PfMapType.Mod:
+                    compareValue = parse.Float("m_flCompareValue");
+                    break;
+
                 default:
                     break;
 
@@ -185,6 +199,16 @@ namespace ValveResourceFormat.Particles
                         PfRoundType.Ceil => MathF.Ceiling(value),
                         _ => MathF.Round(value),
                     };
+
+                case PfMapType.Min:
+                    return MathF.Min(value, compareValue);
+
+                case PfMapType.Max:
+                    return MathF.Max(value, compareValue);
+
+                case PfMapType.Mod:
+                    // Truncated remainder, keeping the sign of the input
+                    return value % compareValue;
 
                 default:
                     return value;

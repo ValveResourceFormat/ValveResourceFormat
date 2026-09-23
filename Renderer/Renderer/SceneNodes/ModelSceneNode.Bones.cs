@@ -4,15 +4,11 @@ using System.Runtime.InteropServices;
 namespace ValveResourceFormat.Renderer.SceneNodes
 {
     /// <summary>
-    /// Carries the posed skeleton to the GPU: the bone matrix buffer the vertex shader skins against,
-    /// and the bounding box that follows the pose.
+    /// Carries the posed skeleton to the GPU, and the bounding box that follows the pose.
     /// </summary>
     public partial class ModelSceneNode
     {
-        /// <summary>Whether this model has an active GPU bone matrix buffer, i.e. has animations loaded.</summary>
-        private bool IsAnimated => boneMatricesGpu != null;
-
-        private StorageBuffer? boneMatricesGpu;
+        private bool IsAnimated { get; set; }
 
         private readonly int boneCount;
 
@@ -25,52 +21,50 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         private int GetMeshBoneIndex(int modelBoneIndex, RenderableMesh mesh)
             => remappingTable.Span.Slice(mesh.MeshBoneOffset, mesh.MeshBoneCount).IndexOf(modelBoneIndex);
 
-        /// <summary>
-        /// Writes the current pose into the GPU bone matrix buffer, remapped from model bone order into
-        /// the mesh bone order the vertex shader indexes, and refits the bounding box to it.
-        /// </summary>
-        private void UploadBoneMatrices()
+        // Slots from a model's transform to its first bone: Source 2 keeps a CTransform in between
+        internal const int BoneTransformStart = 2;
+
+        internal int SkinningTransformCount
+            => remappingTable.Length == 0 ? 0 : BoneTransformStart - 1 + remappingTable.Length;
+
+        internal uint TransformSlot { get; set; }
+
+        internal void WriteSkinningTransforms(Span<OpenTK.Mathematics.Matrix3x4> destination)
         {
-            Debug.Assert(boneMatricesGpu != null, "boneMatricesGpu should not be null when IsAnimated is true");
+            if (!IsAnimated)
+            {
+                return;
+            }
 
             var meshBoneCount = remappingTable.Length;
 
-            var floatBufferSizeMeshBones = meshBoneCount * 12;
-            var floatBufferSizeModelBones = boneCount * 16;
+            Debug.Assert(destination.Length == BoneTransformStart - 1 + meshBoneCount);
 
-            using var floatBuffer = new RentedBuffer<float>(floatBufferSizeMeshBones + floatBufferSizeModelBones);
+            var boneTransforms = destination[(BoneTransformStart - 1)..];
 
-            var meshBones = MemoryMarshal.Cast<float, OpenTK.Mathematics.Matrix3x4>(floatBuffer.Span[..floatBufferSizeMeshBones]);
-            var modelBones = MemoryMarshal.Cast<float, Matrix4x4>(floatBuffer.Span[floatBufferSizeMeshBones..]);
+            using var floatBuffer = new RentedBuffer<float>(boneCount * 16);
+            var modelBones = MemoryMarshal.Cast<float, Matrix4x4>(floatBuffer.Span);
 
             AnimationController.GetSkinningMatrices(modelBones);
 
             var meshBoneRemap = remappingTable.Span;
+
+            var identity = Matrix4x4.Identity.To3x4();
 
             for (var i = 0; i < meshBoneCount; i++)
             {
                 var modelBoneIndex = meshBoneRemap[i];
                 var modelBoneExists = modelBoneIndex < boneCount && modelBoneIndex != -1;
 
-                if (modelBoneExists)
-                {
-                    meshBones[i] = modelBones[modelBoneIndex].To3x4();
-                }
+                boneTransforms[i] = modelBoneExists
+                    ? modelBones[modelBoneIndex].To3x4()
+                    : identity;
             }
-
-            boneMatricesGpu.Update(floatBuffer.ByteArray, 0, floatBufferSizeMeshBones * sizeof(float));
-
-            UpdateAnimatedBoundingBox();
         }
 
-        private void SetupBoneMatrixBuffers()
+        private void SetupSkinning()
         {
-            if (boneCount == 0 || boneMatricesGpu != null)
-            {
-                return;
-            }
-
-            boneMatricesGpu = new StorageBuffer(ReservedBufferSlots.BoneTransforms, nameof(ReservedBufferSlots.BoneTransforms));
+            IsAnimated = boneCount > 0;
         }
 
         private void UpdateBoundingBox()

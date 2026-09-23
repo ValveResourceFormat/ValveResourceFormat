@@ -17,8 +17,8 @@ namespace ValveResourceFormat.Renderer
         protected void Clear() => lineBuffer.Clear();
 
         /// <summary>Uploads the line vertices, two per segment.</summary>
-        protected void Upload(List<SimpleVertex> vertices, BufferUsage usage = BufferUsage.Dynamic)
-            => lineBuffer.Upload(vertices, usage);
+        protected void Upload(List<SimpleVertex> vertices)
+            => lineBuffer.Upload(vertices);
 
         /// <summary>Draws the uploaded lines, on top of everything when depth test is disabled.</summary>
         protected void RenderLines(bool disableDepthTest = false)
@@ -31,7 +31,6 @@ namespace ValveResourceFormat.Renderer
             using var _ = GraphicsContext.RenderState.Scope(depthTest: disableDepthTest ? false : null, depthWrite: false, blend: true);
 
             lineBuffer.Shader.Use();
-            lineBuffer.Shader.SetUniform3x4("transform", Matrix4x4.Identity);
 
             lineBuffer.Draw();
         }

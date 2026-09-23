@@ -94,11 +94,17 @@ public class VfxCombo : ShaderDataBlock
 
     private int NormalizeComboSourceType(int comboSourceType, int vcsVersion)
     {
-        if (vcsVersion >= 71 && ComboType == VfxComboType.Static && comboSourceType >= (int)VfxStaticComboSourceType.S_BINDLESS_RUNTIME)
+        if (vcsVersion >= 71 && ComboType == VfxComboType.Static)
         {
-            comboSourceType += 2;
+            return NormalizeStaticComboSourceType(comboSourceType);
         }
 
         return comboSourceType;
     }
+
+    /// <summary>
+    /// Maps a static combo source type from version 71 and newer, which dropped two entries, onto <see cref="VfxStaticComboSourceType"/>.
+    /// </summary>
+    internal static int NormalizeStaticComboSourceType(int comboSourceType)
+        => comboSourceType >= (int)VfxStaticComboSourceType.S_BINDLESS_RUNTIME ? comboSourceType + 2 : comboSourceType;
 }

@@ -180,7 +180,7 @@ internal sealed partial class McpTools
                         continue;
                     }
 
-                    var distance = near == null ? 0f : Vector3.Distance(node.Transform.Translation, near.Value);
+                    var distance = near == null ? 0f : Vector3.Distance(Vector3.Transform(node.Transform.Translation, scene.ToViewerWorld), near.Value);
 
                     if (distance > radius)
                     {
@@ -256,13 +256,15 @@ internal sealed partial class McpTools
 
         result["age"] = Math.Round(simulation.RenderState.Age, 3);
         result["particles"] = CountParticles(simulation);
-        result["position"] = Round(node.Transform.Translation);
+        result["position"] = Round(Vector3.Transform(node.Transform.Translation, node.Scene.ToViewerWorld));
 
         var bounds = node.BoundingBox;
 
         // An effect that has not simulated yet has unbounded or inverted bounds.
         if (float.IsFinite(bounds.Size.X + bounds.Size.Y + bounds.Size.Z) && bounds.Size.X >= 0f && bounds.Size.MaxComponent() < 1e6f)
         {
+            bounds = bounds.Transform(node.Scene.ToViewerWorld);
+
             result["center"] = Round(bounds.Center);
             result["size"] = Round(bounds.Size);
         }

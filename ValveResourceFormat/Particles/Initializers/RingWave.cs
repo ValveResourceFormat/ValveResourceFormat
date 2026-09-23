@@ -62,7 +62,7 @@ namespace ValveResourceFormat.Particles.Initializers
             var angle = GetNextAngle(particlesPerOrbit, particles.Capacity, particleSystemState);
             var radialDirection = new Vector3(MathF.Cos(angle), MathF.Sin(angle), 0);
 
-            var transform = transformInput.NextTransform(ref particle, particleSystemState);
+            var transform = transformInput.NextTransformAtTime(ref particle, particleSystemState, particle.CreationTime);
 
             particle.Position = Vector3.Transform((radius * radialDirection) + thicknessOffset, transform);
 

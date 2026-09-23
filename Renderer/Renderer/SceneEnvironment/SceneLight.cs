@@ -107,6 +107,18 @@ public class SceneLight(Scene scene) : SceneNode(scene)
     /// <summary>Gets or sets the normalized direction the light faces.</summary>
     public Vector3 Direction { get; set; }
 
+    /// <summary>
+    /// Places the light, setting <see cref="SceneNode.Transform"/>, <see cref="Position"/> and
+    /// <see cref="Direction"/> from one transform so a parent transform applies to all three.
+    /// </summary>
+    /// <param name="transform">The light's world transform; its first row is the direction it faces.</param>
+    public void PlaceAt(in Matrix4x4 transform)
+    {
+        Transform = transform;
+        Position = transform.Translation;
+        Direction = MathUtils.SafeNormalize(transform.GetRow(0).AsVector3());
+    }
+
     /// <summary>Gets or sets the sRGB color of the light.</summary>
     public Vector3 Color { get; set; } = Vector3.One;
 
@@ -407,8 +419,7 @@ public class SceneLight(Scene scene) : SceneNode(scene)
             }
         }
 
-        light.Position = entity.GetVector3Property("origin");
-        light.Direction = EntityTransformHelper.EulerAnglesToForwardDirection(entity.GetVector3Property("angles"));
+        // The caller places the light with PlaceAt, the keyvalues are in the entity's local space
         return light;
     }
 

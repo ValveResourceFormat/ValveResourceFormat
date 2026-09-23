@@ -15,27 +15,6 @@ namespace ValveResourceFormat.Renderer.SceneNodes
     /// </summary>
     public partial class ModelSceneNode : MeshCollectionNode
     {
-        /// <inheritdoc/>
-        public override Vector4 Tint
-        {
-            get
-            {
-                if (meshRenderers.Count > 0)
-                {
-                    return meshRenderers[0].Tint;
-                }
-
-                return Vector4.One;
-            }
-            set
-            {
-                foreach (var renderer in meshRenderers)
-                {
-                    renderer.Tint = value;
-                }
-            }
-        }
-
         /// <summary>Gets the animation controller managing skeletal pose and flex data for this model.</summary>
         public AnimationController AnimationController { get; }
 
@@ -51,6 +30,8 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         public bool HasMeshes => meshRenderers.Count > 0;
 
         private readonly List<RenderableMesh> meshRenderers = [];
+
+        internal override List<RenderableMesh> AllRenderableMeshes => meshRenderers;
 
         private (string Name, string[] Materials) activeMaterialGroup;
         private Dictionary<string, string>? materialTable;
@@ -90,13 +71,14 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             }
 
             Name = model.Name;
-            Attachments = model.Attachments;
 
             LoadMeshes(model);
             UpdateBoundingBox();
             LoadAnimations(model, embeddedAnimationsOnly: isWorldPreview);
 
             SetCharacterEyeRenderParams();
+
+            // Read after LoadMeshes, which fills them in from external meshes.
             Attachments = model.Attachments;
             AnimationController.BoneConstraints = new BoneConstraintSolver(model);
 
@@ -186,6 +168,21 @@ namespace ValveResourceFormat.Renderer.SceneNodes
         }
 
         /// <inheritdoc/>
+        public override void Delete()
+        {
+            foreach (var mesh in meshRenderers)
+            {
+                if (mesh.FlexStateManager is { } flexStateManager)
+                {
+                    Scene.RendererContext.MorphAtlas.Release(flexStateManager.MorphComposite);
+                    flexStateManager.MorphComposite.Delete();
+                }
+            }
+
+            base.Delete();
+        }
+
+        /// <inheritdoc/>
         public override void Update(Scene.UpdateContext context)
         {
             UpdateAutoLod(context.Camera);
@@ -199,7 +196,8 @@ namespace ValveResourceFormat.Renderer.SceneNodes
 
             if (IsAnimated)
             {
-                UploadBoneMatrices();
+                Scene.UpdateSkinningTransforms(this);
+                UpdateAnimatedBoundingBox();
             }
 
             if (AnimationController.AnimationFrame != null)
@@ -225,7 +223,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
                 if (renderableMesh.FlexStateManager.SetControllerValues(datas))
                 {
                     renderableMesh.FlexStateManager.UpdateComposite();
-                    renderableMesh.FlexStateManager.MorphComposite.Render();
+                    Scene.RendererContext.MorphAtlas.Queue(renderableMesh.FlexStateManager.MorphComposite);
                 }
             }
         }
@@ -306,7 +304,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
 
             if (Animations.Count != 0)
             {
-                SetupBoneMatrixBuffers();
+                SetupSkinning();
             }
         }
 
@@ -332,7 +330,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             var anim = new ClipAnimation(clip);
             Animations[anim.Name] = anim;
             AnimationPlayer.PrewarmAnimationSounds(anim);
-            SetupBoneMatrixBuffers();
+            SetupSkinning();
         }
 
         /// <summary>
@@ -436,14 +434,14 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             {
                 foreach (var renderer in meshRenderers)
                 {
-                    renderer.SetBoneMatricesBuffer(boneMatricesGpu);
+                    renderer.SetSkinningActive(IsAnimated);
                 }
             }
             else
             {
                 foreach (var renderer in meshRenderers)
                 {
-                    renderer.SetBoneMatricesBuffer(null);
+                    renderer.SetSkinningActive(false);
                 }
             }
         }
@@ -458,11 +456,5 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             }
         }
 #endif
-
-        /// <inheritdoc/>
-        public override void Delete()
-        {
-            boneMatricesGpu?.Delete();
-        }
     }
 }

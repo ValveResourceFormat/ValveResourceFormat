@@ -129,6 +129,10 @@ namespace ValveResourceFormat.Renderer.Shaders
         public Shader WithAlphaTest(bool alphaTest)
             => alphaTest && DeclaresCombo(AlphaTestCombo) ? WithCombo(AlphaTestCombo, 1) : this;
 
+        /// <summary>Gets this shader's morphing variant when it has one and the material's shader morphs, and this shader otherwise.</summary>
+        public Shader WithMorph(Shader materialShader)
+            => materialShader.Parameters.GetValueOrDefault(MorphCombo) == 1 && DeclaresCombo(MorphCombo) ? WithCombo(MorphCombo, 1) : this;
+
         /// <summary>Gets this shader's quad overdraw counting mode, or <see langword="null"/> when it has none.</summary>
         public Shader? OverdrawMode => DeclaresCombo(OverdrawModeCombo) ? WithCombo(OverdrawModeCombo, 1) : null;
 
@@ -140,6 +144,9 @@ namespace ValveResourceFormat.Renderer.Shaders
 
         /// <summary>The static combo that turns on alpha testing.</summary>
         public const string AlphaTestCombo = "F_ALPHA_TEST";
+
+        /// <summary>The static combo that reads the morph composite atlas.</summary>
+        public const string MorphCombo = "F_MORPH_SUPPORTED";
 
         private readonly ShaderLoader shaderLoader;
         private Dictionary<(string Combo, byte Value), Shader>? variants;
@@ -701,19 +708,6 @@ namespace ValveResourceFormat.Renderer.Shaders
 
         /// <summary>Gets this shader built for what a mesh supplies, for passes that replace material shaders.</summary>
         public Shader WithSkinning(MeshSkinning skinning) => WithCombo("D_SKINNING", (byte)skinning);
-
-        /// <summary>Sets the <c>uAnimationData</c> uniform used by skinned mesh shaders.</summary>
-        /// <param name="animated">Whether skeletal animation is active.</param>
-        /// <param name="boneOffset">Offset into the bone transform buffer.</param>
-        /// <param name="boneCount">Number of bones influencing this draw call.</param>
-        public void SetBoneAnimationData(bool animated, int boneOffset = 0, int boneCount = 0)
-        {
-            var uniformLocation = GetUniformLocation("uAnimationData");
-            if (uniformLocation > -1)
-            {
-                GL.ProgramUniform3((uint)Program, uniformLocation, animated ? 1u : 0u, (uint)boneOffset, (uint)boneCount);
-            }
-        }
 
         /// <summary>Sets an array of four-component float vector uniforms on this program.</summary>
         /// <param name="name">The uniform array name.</param>

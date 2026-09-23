@@ -203,8 +203,6 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             using var _ = GraphicsContext.RenderState.Scope(depthFunc: RsComparison.Always);
 
             renderShader.Use();
-            renderShader.SetUniform3x4("transform", Transform);
-            renderShader.SetBoneAnimationData(false);
 
             lineBuffer.Draw(Id);
         }

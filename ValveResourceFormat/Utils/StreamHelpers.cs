@@ -1,5 +1,6 @@
 using System.Buffers;
 using System.IO;
+using System.Runtime.CompilerServices;
 using System.Text;
 
 namespace ValveResourceFormat.Utils
@@ -17,7 +18,7 @@ namespace ValveResourceFormat.Utils
         {
             if (encoding == Encoding.UTF8)
             {
-                return ReadNullTermUtf8String(stream, bufferLengthHint);
+                return ReadNullTermUtf8String(stream);
             }
 
             var characterSize = encoding.GetByteCount("e");
@@ -68,9 +69,12 @@ namespace ValveResourceFormat.Utils
             return str;
         }
 
-        private static string ReadNullTermUtf8String(BinaryReader stream, int bufferLengthHint)
+        [SkipLocalsInit]
+        private static string ReadNullTermUtf8String(BinaryReader stream)
         {
-            var buffer = ArrayPool<byte>.Shared.Rent(bufferLengthHint);
+            // Most strings fit on the stack, the pool is only rented from for the ones that do not
+            Span<byte> buffer = stackalloc byte[256];
+            byte[]? rented = null;
 
             try
             {
@@ -85,12 +89,17 @@ namespace ValveResourceFormat.Utils
                         break;
                     }
 
-                    if (position >= buffer.Length)
+                    if (position == buffer.Length)
                     {
                         var newBuffer = ArrayPool<byte>.Shared.Rent(buffer.Length * 2);
-                        Buffer.BlockCopy(buffer, 0, newBuffer, 0, buffer.Length);
-                        ArrayPool<byte>.Shared.Return(buffer);
-                        buffer = newBuffer;
+                        buffer.CopyTo(newBuffer);
+
+                        if (rented != null)
+                        {
+                            ArrayPool<byte>.Shared.Return(rented);
+                        }
+
+                        buffer = rented = newBuffer;
                     }
 
                     buffer[position++] = b;
@@ -101,7 +110,10 @@ namespace ValveResourceFormat.Utils
             }
             finally
             {
-                ArrayPool<byte>.Shared.Return(buffer);
+                if (rented != null)
+                {
+                    ArrayPool<byte>.Shared.Return(rented);
+                }
             }
         }
     }

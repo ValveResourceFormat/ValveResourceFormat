@@ -5,19 +5,7 @@
 
 #include "instancing_base.slang"
 
-uniform mat3x4 transform;
-uniform uint vTint;
-uniform bool bIsInstancing = false;
-
-#if (S_SCENE_CUBEMAP_TYPE == 1)
-    flat out uint g_nEnvMapIndex;
-#elif (S_SCENE_CUBEMAP_TYPE == 2)
-    flat out uvec4 g_nEnvMapVisibility;
-#endif
-
-#if (D_BAKED_LIGHTING_FROM_PROBE > 0)
-    flat out uint g_nVisibleLPV;
-#endif
+flat out uint g_nObjectIndex;
 
 struct ObjectData_t
 {
@@ -59,38 +47,30 @@ mat3x4 ConcatTransforms(mat3x4 first, mat3x4 second)
     return result;
 }
 
-void SetObjectInterpolators(ObjectDataStandard objectData)
-{
-    #if (S_SCENE_CUBEMAP_TYPE == 1)
-        g_nEnvMapIndex = objectData.VisibleLPV >> 16u;
-    #elif (S_SCENE_CUBEMAP_TYPE == 2)
-        g_nEnvMapVisibility = objectData.EnvMapVisibility;
-    #endif
-
-    #if (D_BAKED_LIGHTING_FROM_PROBE > 0)
-        g_nVisibleLPV = objectData.VisibleLPV & 0xFFFFu;
-    #endif
-}
-
 ObjectData_t GetObjectData()
 {
-    ObjectDataStandard objectData = objects[gl_BaseInstance];
+    InstanceDataStandard instanceData = g_instanceBuffer[gl_BaseInstance];
 
-    SetObjectInterpolators(objectData);
+    g_nObjectIndex = instanceData.Identification;
 
     ObjectData_t object;
-    object.vTint = UnpackColor32(bIsInstancing ? objectData.TintAlpha : vTint);
+    object.vTint = UnpackColor32(instanceData.TintAlpha);
 
     return object;
 }
 
+uint GetObjectBoneOffset()
+{
+    return g_instanceBuffer[gl_BaseInstance].TransformIndex + 2u;
+}
+
 mat3x4 CalculateObjectToWorldMatrix()
 {
-    ObjectDataStandard objectData = objects[gl_BaseInstance];
+    InstanceDataStandard instanceData = g_instanceBuffer[gl_BaseInstance];
 
-    SetObjectInterpolators(objectData);
+    g_nObjectIndex = instanceData.Identification;
 
-    return bIsInstancing ? transforms[objectData.TransformIndex + gl_InstanceID] : transform;
+    return g_transformBuffer[instanceData.TransformIndex + gl_InstanceID];
 }
 
 vec4 GetObjectTintSrgb()

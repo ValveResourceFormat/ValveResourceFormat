@@ -179,6 +179,97 @@ namespace ValveResourceFormat.Renderer
             }
         }
 
+        private enum VolumeSpace
+        {
+            /// <summary>Relative to the entity's origin, rotated with its angles.</summary>
+            Oriented,
+
+            /// <summary>Relative to the entity's origin, along the world axes.</summary>
+            WorldAligned,
+
+            /// <summary>In world coordinates, independent of where the entity is.</summary>
+            World,
+        }
+
+        /// <summary>Gets the volume a box-shaped point entity covers, the box its Hammer helper draws.</summary>
+        /// <param name="classname">The entity's classname.</param>
+        /// <param name="entity">The entity keyvalues.</param>
+        /// <param name="bounds">The volume, in the space <paramref name="space"/> names.</param>
+        /// <param name="space">What the volume is relative to.</param>
+        /// <returns><see langword="true"/> when the class is a box volume.</returns>
+        private static bool TryGetVolumeBounds(string? classname, EntityLump.Entity entity, out AABB bounds, out VolumeSpace space)
+        {
+            space = VolumeSpace.Oriented;
+
+            switch (classname)
+            {
+                case "env_cubemap":
+                    var radius = entity.GetFloatProperty("influenceradius");
+                    bounds = new AABB(-radius, -radius, -radius, radius, radius, radius);
+                    return true;
+
+                case "info_visibility_box"
+                    or "info_cull_triangles":
+                    bounds = AABB.FromCenteredSize(entity.GetVector3Property("box_size"));
+                    return true;
+
+                case "env_combined_light_probe_volume"
+                    or "env_light_probe_volume"
+                    or "env_volumetric_fog_volume"
+                    or "env_wind_volume"
+                    or "steampal_kill_volume"
+                    or "env_cubemap_box"
+                    or "sky_camera_volume"
+                    or "env_shake_volume"
+                    or "point_deathcam_bounds"
+                    or "light_importance_volume"
+                    or "info_dynamic_shadow_hint_box"
+                    or "snd_event_alignedbox"
+                    or "snd_event_orientedbox"
+                    or "snd_event_box_helper"
+                    or "snd_opvar_set_wind_obb"
+                    or "citadel_snd_obb"
+                    or "citadel_snd_base_music_obb"
+                    or "citadel_snd_stack_field_obb":
+                    bounds = new AABB(entity.GetVector3Property("box_mins"), entity.GetVector3Property("box_maxs"));
+                    return true;
+
+                case "snd_opvar_set_obb"
+                    or "logic_npc_counter_obb":
+                    bounds = new AABB(entity.GetVector3Property("box_outer_mins"), entity.GetVector3Property("box_outer_maxs"));
+                    return true;
+
+                case "snd_sound_area_obb":
+                    bounds = new AABB(entity.GetVector3Property("areamin"), entity.GetVector3Property("areamax"));
+                    return true;
+
+                case "point_grabbable":
+                    bounds = new AABB(entity.GetVector3Property("limit_mins"), entity.GetVector3Property("limit_maxs"));
+                    return true;
+
+                case "env_volumetric_fog_controller"
+                    or "visibility_hint":
+                    space = VolumeSpace.WorldAligned;
+                    bounds = new AABB(entity.GetVector3Property("box_mins"), entity.GetVector3Property("box_maxs"));
+                    return true;
+
+                case "snd_opvar_set_aabb"
+                    or "logic_npc_counter_aabb":
+                    space = VolumeSpace.WorldAligned;
+                    bounds = new AABB(entity.GetVector3Property("box_outer_mins"), entity.GetVector3Property("box_outer_maxs"));
+                    return true;
+
+                case "world_bounds":
+                    space = VolumeSpace.World;
+                    bounds = new AABB(entity.GetVector3Property("min"), entity.GetVector3Property("max"));
+                    return true;
+
+                default:
+                    bounds = default;
+                    return false;
+            }
+        }
+
         /// <summary>Rebuilds the wireframe geometry and text labels for all selected nodes.</summary>
         /// <param name="renderContext">Render context providing camera and scene state.</param>
         /// <param name="updateContext">Update context providing the text renderer.</param>
@@ -209,9 +300,13 @@ namespace ValveResourceFormat.Renderer
             {
                 var nodeName = node.Name ?? node.GetType().Name;
 
+                // Drawn with the main camera, so 3D sky nodes are outlined where they appear in the world
+                var toWorld = node.Scene.ToViewerWorld;
+                var bounds = node.BoundingBox.Transform(toWorld);
+
                 if (node is not SimpleBoxSceneNode and not SpriteSceneNode)
                 {
-                    AddBox(renderContext.Camera, updateContext.TextRenderer, vertices, node.Transform, node.LocalBoundingBox, Color32.White, showSize: true);
+                    AddBox(renderContext.Camera, updateContext.TextRenderer, vertices, node.Transform * toWorld, node.LocalBoundingBox, Color32.White, showSize: true);
                 }
 
                 if (debugCubeMaps)
@@ -235,26 +330,30 @@ namespace ValveResourceFormat.Renderer
 
                     foreach (var tiedEnvMap in tiedEnvmaps)
                     {
-                        AddBox(renderContext.Camera, updateContext.TextRenderer, vertices, tiedEnvMap.Transform, tiedEnvMap.LocalBoundingBox, new(0.7f, 0.0f, 1.0f, 1.0f));
+                        var envMapTransform = tiedEnvMap.Transform * toWorld;
+
+                        AddBox(renderContext.Camera, updateContext.TextRenderer, vertices, envMapTransform, tiedEnvMap.LocalBoundingBox, new(0.7f, 0.0f, 1.0f, 1.0f));
 
                         if (renderContext.Scene.LightingInfo.CubemapType is CubemapType.IndividualCubemaps && i == 0)
                         {
-                            ShapeSceneNode.AddLine(vertices, tiedEnvMap.Transform.Translation, node.BoundingBox.Center, new(0.0f, 1.0f, 0.0f, 1.0f));
+                            ShapeSceneNode.AddLine(vertices, envMapTransform.Translation, bounds.Center, new(0.0f, 1.0f, 0.0f, 1.0f));
                             i++;
                             continue;
                         }
 
                         var fractionToTen = Math.Min((float)i / 10, 1.0f);
                         var color = new Color32(1.0f, fractionToTen, fractionToTen, 1.0f);
-                        ShapeSceneNode.AddLine(vertices, tiedEnvMap.Transform.Translation, node.BoundingBox.Center, color);
+                        ShapeSceneNode.AddLine(vertices, envMapTransform.Translation, bounds.Center, color);
                         i++;
                     }
                 }
 
                 if (debugLightProbes && node.LightProbeBinding is not null)
                 {
-                    AddBox(renderContext.Camera, updateContext.TextRenderer, vertices, node.LightProbeBinding.Transform, node.LightProbeBinding.LocalBoundingBox, new(1.0f, 0.0f, 1.0f, 1.0f));
-                    ShapeSceneNode.AddLine(vertices, node.LightProbeBinding.Transform.Translation, node.BoundingBox.Center, new(1.0f, 0.0f, 1.0f, 1.0f));
+                    var probeTransform = node.LightProbeBinding.Transform * toWorld;
+
+                    AddBox(renderContext.Camera, updateContext.TextRenderer, vertices, probeTransform, node.LightProbeBinding.LocalBoundingBox, new(1.0f, 0.0f, 1.0f, 1.0f));
+                    ShapeSceneNode.AddLine(vertices, probeTransform.Translation, bounds.Center, new(1.0f, 0.0f, 1.0f, 1.0f));
 
                     node.LightProbeBinding.CreateDebugGridSpheres();
                 }
@@ -267,24 +366,20 @@ namespace ValveResourceFormat.Renderer
                         nodeName = classname;
                     }
 
-                    if (classname is "env_combined_light_probe_volume" or "env_light_probe_volume" or "env_volumetric_fog_volume" or "env_wind_volume" or "steampal_kill_volume" or "env_cubemap_box" or "env_cubemap")
+                    if (TryGetVolumeBounds(classname, node.EntityData, out var volumeBounds, out var volumeSpace))
                     {
-                        AABB bounds = default;
+                        var placement = node is SpriteSceneNode or SimpleBoxSceneNode
+                            ? node.EntityInstance?.RigidTransform ?? EntityTransformHelper.ToRigidTransformationMatrix(node.EntityData)
+                            : node.Transform;
 
-                        if (classname == "env_cubemap")
+                        var volumeTransform = volumeSpace switch
                         {
-                            var radius = node.EntityData.GetFloatProperty("influenceradius");
-                            bounds = new AABB(-radius, -radius, -radius, radius, radius, radius);
-                        }
-                        else
-                        {
-                            bounds = new AABB(
-                                node.EntityData.GetVector3Property("box_mins"),
-                                node.EntityData.GetVector3Property("box_maxs")
-                            );
-                        }
+                            VolumeSpace.Oriented => placement,
+                            VolumeSpace.WorldAligned => Matrix4x4.CreateTranslation(placement.Translation),
+                            _ => Matrix4x4.Identity,
+                        };
 
-                        AddBox(renderContext.Camera, updateContext.TextRenderer, vertices, node.Transform, bounds, new(0.0f, 1.0f, 0.0f, 1.0f));
+                        AddBox(renderContext.Camera, updateContext.TextRenderer, vertices, volumeTransform * toWorld, volumeBounds, new(0.0f, 1.0f, 0.0f, 1.0f));
 
                         disableDepth = true;
                     }
@@ -297,18 +392,19 @@ namespace ValveResourceFormat.Renderer
 
                         if (boundsMins != null && boundsMaxs != null && obbExtent != null && obbOrigin != null)
                         {
-                            var bounds = new AABB(
+                            var precomputedBounds = new AABB(
                                 EntityTransformHelper.ParseVector3(boundsMins),
                                 EntityTransformHelper.ParseVector3(boundsMaxs)
                             );
 
-                            var origin = EntityTransformHelper.ParseVector3(obbExtent);
-                            var extent = EntityTransformHelper.ParseVector3(obbOrigin);
+                            var origin = Vector3.Transform(EntityTransformHelper.ParseVector3(obbExtent), toWorld);
+                            var extent = Vector3.Transform(EntityTransformHelper.ParseVector3(obbOrigin), toWorld);
+                            var lightPosition = Vector3.Transform(node.Transform.Translation, toWorld);
 
-                            AddBox(renderContext.Camera, updateContext.TextRenderer, vertices, Matrix4x4.Identity, bounds, new(0.0f, 1.0f, 0.0f, 1.0f));
+                            AddBox(renderContext.Camera, updateContext.TextRenderer, vertices, toWorld, precomputedBounds, new(0.0f, 1.0f, 0.0f, 1.0f));
 
-                            ShapeSceneNode.AddLine(vertices, node.Transform.Translation, origin, new(0.0f, 0.0f, 1.0f, 1.0f));
-                            ShapeSceneNode.AddLine(vertices, node.Transform.Translation, extent, new(1.0f, 1.0f, 0.0f, 1.0f));
+                            ShapeSceneNode.AddLine(vertices, lightPosition, origin, new(0.0f, 0.0f, 1.0f, 1.0f));
+                            ShapeSceneNode.AddLine(vertices, lightPosition, extent, new(1.0f, 1.0f, 0.0f, 1.0f));
                         }
 
                         disableDepth = true;
@@ -316,8 +412,8 @@ namespace ValveResourceFormat.Renderer
                 }
 
                 // draw node name above the bounding box
-                var position = node.BoundingBox.Center;
-                position.Z = node.BoundingBox.Max.Z;
+                var position = bounds.Center;
+                position.Z = bounds.Max.Z;
 
                 updateContext.TextRenderer.AddTextBillboard(position, new TextRenderer.TextRenderRequest
                 {

@@ -666,6 +666,13 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
         }
 
         /// <inheritdoc/>
+        public override bool CanRenderReplacement => true;
+
+        /// <inheritdoc/>
+        public override void RenderReplacement(Shader replacement, uint objectId)
+            => DrawReplacement(replacement, objectId, vaoHandle, quadCount * 6, DrawElementsType.UnsignedShort);
+
+        /// <inheritdoc/>
         public override IEnumerable<string> GetSupportedRenderModes() => shader.RenderModes;
 
         /// <inheritdoc/>

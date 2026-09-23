@@ -35,6 +35,24 @@ namespace GUI.Utils
 
         public VrfGuiContext? ParentGuiContext { get; }
         public ToolsAssetInfo? ToolsAssetInfo { get; private set; }
+
+        /// <summary>File name followed by the chain of parent files it was opened from.</summary>
+        public string FullPath
+        {
+            get
+            {
+                var path = FileName;
+                var parentContext = ParentGuiContext;
+
+                while (parentContext != null)
+                {
+                    path = $"{path} ← {parentContext.FileName}";
+                    parentContext = parentContext.ParentGuiContext;
+                }
+
+                return path;
+            }
+        }
         private bool ToolsAssetInfoLoaded;
 
         // This is a hack to set camera and properties when clicking a mesh from a model or map
