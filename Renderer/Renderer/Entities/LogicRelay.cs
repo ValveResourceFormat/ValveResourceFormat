@@ -35,6 +35,13 @@ public sealed class LogicRelay : BaseEntity
         IsEnabled = !KeyValues.GetBooleanProperty("startdisabled");
     }
 
+    /// <inheritdoc/>
+    public override void Activate()
+    {
+        // Queued like any output, so it reaches entities of the spawn group that activate alongside it
+        EntitySystem.TriggerOutput(this, "OnSpawn");
+    }
+
     [EntityInput("Trigger")]
     private void InputTrigger(EntityInputData data)
     {

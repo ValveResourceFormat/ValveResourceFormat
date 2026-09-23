@@ -12,7 +12,7 @@ namespace ValveResourceFormat.Renderer.Entities;
 /// <summary>
 /// Everything <see cref="EntityFactory"/> needs to bring an entity into the world: its keyvalues, the
 /// transform of whatever spawned it, the visibility layer its scene nodes belong to, and the scene those
-/// nodes go into - the map's, or the 3D skybox's, since both are spawn groups of one entity world.
+/// nodes go into - the map's, or that of a spawn group placed in it, since they all share one entity world.
 /// </summary>
 /// <param name="Data">The entity's keyvalues, as authored in the map.</param>
 /// <param name="ParentTransform">Transform of the spawner (a template, or identity for map entities).</param>
@@ -31,7 +31,7 @@ public readonly record struct EntitySpawnInfo(Entity Data, Matrix4x4 ParentTrans
 /// </remarks>
 public abstract class BaseEntity
 {
-    /// <summary>Gets the scene this entity's nodes live in: the map's, or the 3D skybox's for one spawned there.</summary>
+    /// <summary>Gets the scene this entity's nodes live in: the map's, or its spawn group's for one spawned there.</summary>
     public Scene Scene { get; }
 
     /// <summary>

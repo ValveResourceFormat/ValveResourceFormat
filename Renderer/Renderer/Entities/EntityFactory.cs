@@ -113,6 +113,7 @@ public static class EntityFactory
         Register<LogicTimer>("logic_timer", static (system, spawnInfo) => new LogicTimer(system, spawnInfo));
         Register<MathCounter>("math_counter", static (system, spawnInfo) => new MathCounter(system, spawnInfo));
         Register<FilterActivatorModel>("filter_activator_model", static (system, spawnInfo) => new FilterActivatorModel(system, spawnInfo));
+        Register<InfoSpawnGroupLoadUnload>("info_spawngroup_load_unload", static (system, spawnInfo) => new InfoSpawnGroupLoadUnload(system, spawnInfo));
 
         // sounds
         Register<EnvSoundscape>("env_soundscape", static (system, spawnInfo) => new EnvSoundscape(system, spawnInfo));

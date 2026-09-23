@@ -68,7 +68,9 @@ namespace ValveResourceFormat.Renderer.SceneNodes
 
             VertexArray.Bind(vao, renderShader);
 
-            if (Scene.CurrentFramePvs.IsEmpty)
+            var pvs = context.View?.Pvs ?? default;
+
+            if (pvs.IsEmpty)
             {
                 GL.DrawArraysInstancedBaseInstance(PrimitiveType.Lines, 0, totalVertexCount, 1, Id);
             }
@@ -76,7 +78,7 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             {
                 foreach (var range in clusterDrawRanges)
                 {
-                    if (range.ClusterId < (uint)(Scene.CurrentFramePvs.Length * 8) && MathUtils.GetBit(Scene.CurrentFramePvs.Span, range.ClusterId))
+                    if (range.ClusterId < (uint)(pvs.Length * 8) && MathUtils.GetBit(pvs.Span, range.ClusterId))
                     {
                         GL.DrawArraysInstancedBaseInstance(PrimitiveType.Lines, range.Start, range.Count, 1, Id);
                     }

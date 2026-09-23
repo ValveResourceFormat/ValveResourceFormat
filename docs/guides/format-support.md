@@ -210,6 +210,18 @@ collision lands in the companion physics file), baked lighting (lightmaps, probe
 exported, and a placed prop that names an animation via its entity properties exports only
 that one, while props naming none export their full animation set.
 
+In the viewer, maps that a map places into itself load as spawn groups, each with its own
+lighting and visibility: the 3D sky a `skybox_reference` names, prefabs left for the game to
+load (`point_prefab` and classes flagged `ispointprefab`, such as the CS2 team intros), and the
+stages an `info_spawngroup_load_unload` loads and unloads when its entity I/O fires.
+
+| What                         | Details                                                                                                              |
+| ---------------------------- | -------------------------------------------------------------------------------------------------------------------- |
+| Runtime spawn group physics  | A stage loaded through `info_spawngroup_load_unload` brings no world collision, so walking on it is not possible.    |
+| Runtime spawn group lights   | Realtime barn lights of a loaded stage are not drawn; its baked lighting and its sun are.                            |
+| Translucents across groups   | Each spawn group sorts its own translucent geometry, so translucents of two groups can overlap in the wrong order.  |
+| `sky_camera_volume`          | Not implemented; the 3D sky always comes from the `skybox_reference` and its `sky_camera`.                           |
+
 ## Materials (vmat)
 
 `.vmat` reconstruction recovers the shader name, all int/float/vector parameters (including

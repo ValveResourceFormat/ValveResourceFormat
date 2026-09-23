@@ -29,7 +29,6 @@ namespace GUI.Types.GLViewers
         protected QuadOverdraw? QuadOverdrawRenderer { get; set; }
 
         public Scene Scene { get; }
-        public Scene? SkyboxScene => Renderer.SkyboxScene;
         public VrfGuiContext GuiContext;
 
         /// <summary>Optional sound event player, created by viewers that play scene audio.</summary>
@@ -611,7 +610,6 @@ namespace GUI.Types.GLViewers
 
         protected void DrawWorldSpaceText(string text, float size, Vector3 position, Color32 color, Scene.RenderContext renderContext)
         {
-            Scene.WantsSceneDepth = true;
             TextRenderer.AddTextBillboard(position, new ValveResourceFormat.Renderer.TextRenderer.TextRenderRequest
             {
                 Scale = size,
@@ -847,11 +845,13 @@ namespace GUI.Types.GLViewers
                     cluster <= 1 ? new Color32(255, 0, 0) : Color32.White
                 );
 
-                if (!Scene.CurrentFramePvs.IsEmpty)
+                var pvs = Renderer.MainViewState?.Pvs ?? default;
+
+                if (!pvs.IsEmpty)
                 {
                     var visCount = 0;
 
-                    foreach (var b in Scene.CurrentFramePvs.Span)
+                    foreach (var b in pvs.Span)
                     {
                         visCount += BitOperations.PopCount(b);
                     }
@@ -862,7 +862,7 @@ namespace GUI.Types.GLViewers
 
             if (perfDisplay == PerfDisplay.Stats)
             {
-                Renderer.PerfStats.DisplayStats(TextRenderer, Renderer.Camera, Scene, SkyboxScene);
+                Renderer.PerfStats.DisplayStats(TextRenderer, Renderer.Camera, [.. Renderer.Scenes], Renderer.MainViewState?.LightBinner);
             }
             else if (perfDisplay == PerfDisplay.Timings)
             {

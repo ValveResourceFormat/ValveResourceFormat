@@ -1,11 +1,12 @@
+using System.Globalization;
 using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.Renderer.Entities;
 
 /// <summary>
-/// <c>math_counter</c>. Holds a number, clamped to an authored range, and reports when it reaches the
-/// ends of that range. <c>OutValue</c> fires with no value attached: outputs do not carry one yet, so a
-/// target sees the firing but not the number.
+/// <c>math_counter</c>. Holds a number, clamped to an authored range, reports every change through
+/// <c>OutValue</c> and the number on request through <c>OnGetValue</c>, and tells when it reaches the ends
+/// of that range.
 /// </summary>
 public sealed class MathCounter : BaseEntity
 {
@@ -68,7 +69,10 @@ public sealed class MathCounter : BaseEntity
     }
 
     [EntityInput("GetValue")]
-    private void InputGetValue(EntityInputData data) => EntitySystem.TriggerOutput(this, "OutValue", data.Activator);
+    private void InputGetValue(EntityInputData data) => EntitySystem.TriggerOutput(this, "OnGetValue", data.Activator, FormattedValue);
+
+    /// <summary>The value as outputs carry it, which a <c>logic_case</c> compares its cases against.</summary>
+    private string FormattedValue => Value.ToString(CultureInfo.InvariantCulture);
 
     [EntityInput("Enable")]
     private void InputEnable(EntityInputData data) => IsEnabled = true;
@@ -85,7 +89,7 @@ public sealed class MathCounter : BaseEntity
 
         Value = Clamp(value);
 
-        EntitySystem.TriggerOutput(this, "OutValue", activator);
+        EntitySystem.TriggerOutput(this, "OutValue", activator, FormattedValue);
 
         // The engine reports hitting a limit every time it lands there, not only on the way in
         if (Max != 0f && Value >= Max)

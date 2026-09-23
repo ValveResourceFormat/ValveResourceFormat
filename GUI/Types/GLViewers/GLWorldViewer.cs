@@ -209,14 +209,9 @@ namespace GUI.Types.GLViewers
 
                 LoadedWorld.Load(mapExternalReferences);
 
-                if (LoadedWorld.Skybox3D != null)
+                foreach (var spawnGroup in LoadedWorld.SpawnGroups)
                 {
-                    Renderer.Skybox3D = LoadedWorld.Skybox3D;
-                }
-
-                if (LoadedWorld.Skybox2D != null)
-                {
-                    Renderer.Skybox2D = LoadedWorld.Skybox2D;
+                    Renderer.AddSpawnGroup(spawnGroup);
                 }
 
                 NavMeshSceneNode.AddNavNodesToScene(LoadedWorld.NavMesh, Scene);
@@ -386,7 +381,7 @@ namespace GUI.Types.GLViewers
 
                 using (UiControl.BeginGroup("World"))
                 {
-                    if (Renderer.SkyboxScene != null)
+                    if (Renderer.SkyGroup != null)
                     {
                         UiControl.AddCheckBox("Show Skybox", Renderer.ShowSkybox, (v) => Renderer.ShowSkybox = v);
                     }
@@ -658,9 +653,10 @@ namespace GUI.Types.GLViewers
         {
             var origin = entity.GetVector3Property("origin");
 
-            if (Renderer.Skybox3D is { } skybox && skybox.Entities.Contains(entity))
+            // An entity of a spawn group is placed with the group, and one of the 3D sky shows up magnified
+            if (Renderer.SpawnGroups.FirstOrDefault(group => group.Entities.Contains(entity)) is { } spawnGroup)
             {
-                origin = skybox.EntityOriginToWorld(origin);
+                origin = spawnGroup.EntityOriginToWorld(origin);
             }
 
             return PointBounds(origin);
@@ -813,9 +809,9 @@ namespace GUI.Types.GLViewers
                 entityInfoForm.EntityInfoControl.AddProperty("Layer", sceneNode.LayerName ?? string.Empty);
             }
 
-            if (sceneNode.Scene == Renderer.SkyboxScene)
+            if (Renderer.SpawnGroups.FirstOrDefault(group => group.Scene == sceneNode.Scene) is { } spawnGroup)
             {
-                entityInfoForm.Text += " (in 3D skybox)";
+                entityInfoForm.Text += spawnGroup.WorldGroup != null ? " (in 3D skybox)" : $" (in {spawnGroup.MapName})";
             }
 
             entityInfoForm.EntityInfoControl.ShowPopulatedTabs();
@@ -914,8 +910,8 @@ namespace GUI.Types.GLViewers
                 return;
             }
 
-            var isInSkybox = pixelInfo.IsSkybox > 0;
-            var sceneNode = isInSkybox ? SkyboxScene?.Find(pixelInfo.ObjectId) : Scene.Find(pixelInfo.ObjectId);
+            var scenes = Renderer.Scenes;
+            var sceneNode = pixelInfo.SceneIndex < scenes.Count ? scenes[(int)pixelInfo.SceneIndex].Find(pixelInfo.ObjectId) : null;
 
             if (sceneNode == null)
             {

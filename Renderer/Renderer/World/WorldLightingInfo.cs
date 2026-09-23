@@ -601,6 +601,49 @@ namespace ValveResourceFormat.Renderer.World
             LightingData.SunDirection = new Vector4(-envLight.Direction, 0f);
             LightingData.SunColor = new Vector4(premultipliedColor, envLight.RenderSpecular ? 1f : 0f);
             LightingData.SunLightBakedShadowMask = bakedShadowData;
+
+            HasOwnSun = true;
+            isSunBorrowed = false;
+        }
+
+        /// <summary>Gets whether the map this lighting came from has an environment light of its own.</summary>
+        public bool HasOwnSun { get; private set; }
+
+        private bool isSunBorrowed;
+
+        /// <summary>
+        /// Lights the scene with another scene's sun, or stops doing so when <paramref name="donor"/> is
+        /// <see langword="null"/>. The engine lights a view with the first sun among the worlds it draws, so a
+        /// map without one, such as a stage loaded into another map, is lit by the sun of what it is drawn
+        /// with. Does nothing to a scene that has a sun of its own.
+        /// </summary>
+        /// <param name="donor">The lighting whose sun to use, or <see langword="null"/> for none.</param>
+        public void BorrowSun(WorldLightingInfo? donor)
+        {
+            if (HasOwnSun)
+            {
+                return;
+            }
+
+            if (donor == null)
+            {
+                if (isSunBorrowed)
+                {
+                    LightingData.SunDirection = Vector4.Zero;
+                    LightingData.SunColor = Vector4.Zero;
+                    isSunBorrowed = false;
+                }
+
+                return;
+            }
+
+            LightingData.SunDirection = donor.LightingData.SunDirection;
+            LightingData.SunColor = donor.LightingData.SunColor;
+
+            // This scene's lightmaps know nothing of the sun, so nothing of it is baked in shadow
+            LightingData.SunLightBakedShadowMask = new Vector4(-1f, 0f, 0f, 0f);
+
+            isSunBorrowed = true;
         }
 
         /// <summary>
@@ -645,10 +688,12 @@ namespace ValveResourceFormat.Renderer.World
             BarnLightShadowAtlasSize = atlasSize;
             LightingData.NumBarnLights = 0;
 
-            scene.LightBinner.PollBarnLightVisibility();
+            // Visibility comes back from the view the scene is shaded for, which no other view overwrites
+            var binner = scene.ShadingLightBinner;
+            binner?.PollBarnLightVisibility();
 
             ShadowMapper.Bin(BarnLights, camera, atlasSize, BarnLightCookiePaths,
-                scene.LightBinner.VisibilitySequence);
+                binner?.VisibilitySequence ?? 0);
 
             foreach (ref readonly var binned in ShadowMapper.BinnedLights)
             {
