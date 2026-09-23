@@ -37,34 +37,40 @@ internal sealed class SoundEventHLVRDefault : SoundEvent
         trackNames = GetStringOrArrayProperty(data, "vsnd_files");
         mixGroup = data.GetStringProperty("mixgroup", string.Empty);
 
-        volumeRandMin = data.GetFloatProperty("volume_rand_min");
-        volumeRandMax = data.GetFloatProperty("volume_rand_max");
-        pitchRandMin = data.GetFloatProperty("pitch_rand_min");
-        pitchRandMax = data.GetFloatProperty("pitch_rand_max");
+        volumeRandMin = data.GetSoundFloat("volume_rand_min");
+        volumeRandMax = data.GetSoundFloat("volume_rand_max");
+        pitchRandMin = data.GetSoundFloat("pitch_rand_min");
+        pitchRandMax = data.GetSoundFloat("pitch_rand_max");
 
         // VO lines author the falloff as a curve instead of a min/max pair
         distanceVolumeCurve = SoundEventCurve.Parse(data, "volume_falloff_curve");
 
+        // TODO: The 3d types default to a 100 to 2500 falloff when the keys are absent, which is not applied;
+        // confirm the falloff curve shape they drive before defaulting to a linear curve
+
         if (distanceVolumeCurve == null && data.ContainsKey("volume_falloff_max"))
         {
             distanceVolumeCurve = SoundEventCurve.Linear(
-                data.GetFloatProperty("volume_falloff_min"), 1f,
-                data.GetFloatProperty("volume_falloff_max"), 0f);
+                data.GetSoundFloat("volume_falloff_min"), 1f,
+                data.GetSoundFloat("volume_falloff_max"), 0f);
         }
 
         // Only positive values are a limit: a zero (or a missing key read as zero) would silence the event
-        var distanceMax = data.GetFloatProperty("distance_max");
-        var cullDistance = data.GetFloatProperty("cull_at_distance");
+        var distanceMax = data.GetSoundFloat("distance_max");
+        var cullDistance = data.GetSoundFloat("cull_at_distance");
 
         range = distanceVolumeCurve is { MaxX: > 0f } ? distanceVolumeCurve.MaxX
             : distanceMax > 0f ? distanceMax
             : cullDistance > 0f ? cullDistance
             : 1000f;
 
-        limiterMax = (int)data.GetFloatProperty("limiter_max");
-        limiterEnabled = data.GetBooleanProperty("limiter_on") && limiterMax > 0 && !data.GetBooleanProperty("limiter_match_entity");
+        // TODO: "src1_3d" and "src1_2d" default the limiter on with a maximum of 0, which is skipped here as no
+        // limit; confirm what a zero maximum does
+        limiterMax = (int)data.GetSoundFloat("limiter_max");
+        // These toggles are float fields on the hlvr stacks, enabled by any positive value
+        limiterEnabled = data.GetSoundFloat("limiter_on") > 0f && limiterMax > 0 && data.GetSoundFloat("limiter_match_entity") <= 0f;
         limiterKey = data.GetStringProperty("limiter_event_name", definition.Name);
-        limiterStopOldest = data.GetBooleanProperty("limiter_stop_oldest");
+        limiterStopOldest = data.GetSoundBool("limiter_stop_oldest", defaultValue: true);
     }
 
     protected override void DoStart()

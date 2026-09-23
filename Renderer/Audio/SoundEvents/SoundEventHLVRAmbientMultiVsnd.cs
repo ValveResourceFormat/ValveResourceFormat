@@ -42,7 +42,7 @@ internal sealed class SoundEventHLVRAmbientMultiVsnd : SoundEvent
         {
             var suffix = i.ToString("D2", CultureInfo.InvariantCulture);
             var file = data.GetStringProperty($"vsnd_file_{suffix}");
-            var weight = data.GetFloatProperty($"vsnd_vol_{suffix}");
+            var weight = data.GetSoundFloat($"vsnd_vol_{suffix}");
 
             if (!string.IsNullOrEmpty(file) && weight > 0f)
             {
@@ -52,8 +52,8 @@ internal sealed class SoundEventHLVRAmbientMultiVsnd : SoundEvent
 
         layers = [.. list];
         mixGroup = data.GetStringProperty("mixgroup", string.Empty);
-        falloffMin = data.GetFloatProperty("volume_falloff_min");
-        falloffMax = data.ContainsKey("volume_falloff_max") ? data.GetFloatProperty("volume_falloff_max") : data.GetFloatProperty("radius", 1000f);
+        falloffMin = data.GetSoundFloat("volume_falloff_min");
+        falloffMax = data.ContainsKey("volume_falloff_max") ? data.GetSoundFloat("volume_falloff_max") : data.GetSoundFloat("radius", 1000f);
     }
 
     protected override void DoStart()

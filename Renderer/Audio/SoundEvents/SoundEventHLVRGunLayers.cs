@@ -41,16 +41,16 @@ internal sealed class SoundEventHLVRGunLayers : SoundEvent
             {
                 list.Add((
                     file,
-                    data.GetFloatProperty($"volume_{layer}", 1f),
-                    data.GetFloatProperty($"volume_falloff_{layer}_min"),
-                    data.GetFloatProperty($"volume_falloff_{layer}_max")));
+                    data.GetSoundFloat($"volume_{layer}", 1f),
+                    data.GetSoundFloat($"volume_falloff_{layer}_min"),
+                    data.GetSoundFloat($"volume_falloff_{layer}_max", 500f)));
             }
         }
 
         layers = [.. list];
         mixGroup = data.GetStringProperty("mixgroup", string.Empty);
-        pitchRandMin = data.GetFloatProperty("pitch_rand_min");
-        pitchRandMax = data.GetFloatProperty("pitch_rand_max");
+        pitchRandMin = data.GetSoundFloat("pitch_rand_min");
+        pitchRandMax = data.GetSoundFloat("pitch_rand_max");
     }
 
     protected override void DoStart()
