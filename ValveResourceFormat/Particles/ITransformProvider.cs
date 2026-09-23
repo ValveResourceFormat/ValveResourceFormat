@@ -20,6 +20,14 @@ namespace ValveResourceFormat.Particles
             => NextTransform(ref Particle.Default, renderState);
 
         /// <summary>
+        /// Returns the transform as it stood at <paramref name="time"/> within the last simulation step, so a
+        /// particle spawned part way through a step starts from where its source was at that moment.
+        /// Providers without a history answer with their current transform.
+        /// </summary>
+        Matrix4x4 NextTransformAtTime(ref Particle particle, ParticleSystemState renderState, float time)
+            => NextTransform(ref particle, renderState);
+
+        /// <summary>
         /// Gets just the position component of the transform.
         /// </summary>
         Vector3 GetPosition(ref Particle particle, ParticleSystemState renderState)
@@ -91,6 +99,28 @@ namespace ValveResourceFormat.Particles
                 : EntityTransformHelper.ForwardDirectionToRotationMatrix(cp.Orientation);
 
             return rotation * Matrix4x4.CreateTranslation(position);
+        }
+
+        /// <inheritdoc/>
+        public Matrix4x4 NextTransformAtTime(ref Particle particle, ParticleSystemState renderState, float time)
+        {
+            var cp = renderState.GetControlPoint(controlPoint);
+            var fraction = cp.StepFraction(renderState.Age, time);
+
+            if (fraction >= 1f)
+            {
+                return NextTransform(ref particle, renderState);
+            }
+
+            var position = Vector3.Lerp(cp.PositionPrevious, cp.Position, fraction);
+
+            if (!HasOrientation(cp))
+            {
+                return Matrix4x4.CreateTranslation(position);
+            }
+
+            var rotation = Quaternion.Slerp(cp.GetPreviousRotation(), cp.GetRotation(), fraction);
+            return Matrix4x4.CreateFromQuaternion(rotation) * Matrix4x4.CreateTranslation(position);
         }
 
         /// <inheritdoc/>

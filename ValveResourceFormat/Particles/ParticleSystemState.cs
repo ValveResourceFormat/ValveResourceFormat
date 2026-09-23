@@ -359,6 +359,15 @@ namespace ValveResourceFormat.Particles
             => PreviousStepTime > 0f ? StepDelta / PreviousStepTime : Vector3.Zero;
 
         /// <summary>
+        /// How far through the last recorded step <paramref name="time"/> falls, from 0 at the previous
+        /// step to 1 at the current one. Before any step has been recorded every time reads as current.
+        /// </summary>
+        /// <param name="age">The asking system's current age, the clock <paramref name="time"/> is on.</param>
+        /// <param name="time">The time to locate, such as a particle's creation time.</param>
+        public float StepFraction(float age, float time)
+            => PreviousStepTime > 0f ? Math.Clamp((PreviousStepTime - (age - time)) / PreviousStepTime, 0f, 1f) : 1f;
+
+        /// <summary>
         /// The orientation/direction of this control point.
         /// </summary>
         public Vector3 Orientation { get; set; }

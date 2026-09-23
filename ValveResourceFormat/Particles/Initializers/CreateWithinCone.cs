@@ -43,7 +43,7 @@ namespace ValveResourceFormat.Particles.Initializers
 
             var (sin, cos) = MathF.SinCos(particleSystemState.Random.Next() * MathF.Tau);
 
-            var transform = transformInput.NextTransform(ref particle, particleSystemState);
+            var transform = transformInput.NextTransformAtTime(ref particle, particleSystemState, particle.CreationTime);
             var forward = Vector3.TransformNormal(Vector3.UnitX, transform);
             var ringOffset = Vector3.TransformNormal(new Vector3(0f, radius * cos, radius * sin), transform);
 
