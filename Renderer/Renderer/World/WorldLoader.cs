@@ -368,21 +368,20 @@ namespace ValveResourceFormat.Renderer.World
         {
             ReportLoadingPhase("Loading world physics…");
 
-            // TODO: Ideally we would use the vrman files to find relevant files.
             PhysAggregateData? phys = null;
-            var physResource = RendererContext.FileLoader.LoadFile($"{MapName}/world_physics.vmdl_c");
+            var physResource = RendererContext.FileLoader.LoadFile($"{MapName}/world_physics.vphys_c");
 
             if (physResource != null)
             {
-                phys = (PhysAggregateData?)physResource.GetBlockByType(BlockType.PHYS);
+                phys = (PhysAggregateData?)physResource.DataBlock;
             }
             else
             {
-                physResource = RendererContext.FileLoader.LoadFile($"{MapName}/world_physics.vphys_c");
+                physResource = RendererContext.FileLoader.LoadFile($"{MapName}/world_physics.vmdl_c");
 
                 if (physResource != null)
                 {
-                    phys = (PhysAggregateData?)physResource.DataBlock;
+                    phys = (PhysAggregateData?)physResource.GetBlockByType(BlockType.PHYS);
                 }
             }
 
