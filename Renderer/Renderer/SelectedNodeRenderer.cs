@@ -179,6 +179,98 @@ namespace ValveResourceFormat.Renderer
             }
         }
 
+        private enum VolumeSpace
+        {
+            /// <summary>Relative to the entity's origin, rotated with its angles.</summary>
+            Oriented,
+
+            /// <summary>Relative to the entity's origin, along the world axes.</summary>
+            WorldAligned,
+
+            /// <summary>In world coordinates, independent of where the entity is.</summary>
+            World,
+        }
+
+        /// <summary>Gets the volume a box-shaped point entity covers, the box its Hammer helper draws.</summary>
+        /// <param name="classname">The entity's classname.</param>
+        /// <param name="entity">The entity keyvalues.</param>
+        /// <param name="bounds">The volume, in the space <paramref name="space"/> names.</param>
+        /// <param name="space">What the volume is relative to.</param>
+        /// <returns><see langword="true"/> when the class is a box volume.</returns>
+        private static bool TryGetVolumeBounds(string? classname, EntityLump.Entity entity, out AABB bounds, out VolumeSpace space)
+        {
+            space = VolumeSpace.Oriented;
+
+            switch (classname)
+            {
+                case "env_cubemap":
+                    var radius = entity.GetFloatProperty("influenceradius");
+                    bounds = new AABB(-radius, -radius, -radius, radius, radius, radius);
+                    return true;
+
+                case "info_visibility_box"
+                    or "info_cull_triangles":
+                    var halfSize = entity.GetVector3Property("box_size") * 0.5f;
+                    bounds = new AABB(-halfSize, halfSize);
+                    return true;
+
+                case "env_combined_light_probe_volume"
+                    or "env_light_probe_volume"
+                    or "env_volumetric_fog_volume"
+                    or "env_wind_volume"
+                    or "steampal_kill_volume"
+                    or "env_cubemap_box"
+                    or "sky_camera_volume"
+                    or "env_shake_volume"
+                    or "point_deathcam_bounds"
+                    or "light_importance_volume"
+                    or "info_dynamic_shadow_hint_box"
+                    or "snd_event_alignedbox"
+                    or "snd_event_orientedbox"
+                    or "snd_event_box_helper"
+                    or "snd_opvar_set_wind_obb"
+                    or "citadel_snd_obb"
+                    or "citadel_snd_base_music_obb"
+                    or "citadel_snd_stack_field_obb":
+                    bounds = new AABB(entity.GetVector3Property("box_mins"), entity.GetVector3Property("box_maxs"));
+                    return true;
+
+                case "snd_opvar_set_obb"
+                    or "logic_npc_counter_obb":
+                    bounds = new AABB(entity.GetVector3Property("box_outer_mins"), entity.GetVector3Property("box_outer_maxs"));
+                    return true;
+
+                case "snd_sound_area_obb":
+                    bounds = new AABB(entity.GetVector3Property("areamin"), entity.GetVector3Property("areamax"));
+                    return true;
+
+                case "point_grabbable":
+                    bounds = new AABB(entity.GetVector3Property("limit_mins"), entity.GetVector3Property("limit_maxs"));
+                    return true;
+
+                case "env_volumetric_fog_controller"
+                    or "visibility_hint":
+                    space = VolumeSpace.WorldAligned;
+                    bounds = new AABB(entity.GetVector3Property("box_mins"), entity.GetVector3Property("box_maxs"));
+                    return true;
+
+                case "snd_opvar_set_aabb"
+                    or "logic_npc_counter_aabb":
+                    space = VolumeSpace.WorldAligned;
+                    bounds = new AABB(entity.GetVector3Property("box_outer_mins"), entity.GetVector3Property("box_outer_maxs"));
+                    return true;
+
+                case "world_bounds":
+                    space = VolumeSpace.World;
+                    bounds = new AABB(entity.GetVector3Property("min"), entity.GetVector3Property("max"));
+                    return true;
+
+                default:
+                    bounds = default;
+                    return false;
+            }
+        }
+
         /// <summary>Rebuilds the wireframe geometry and text labels for all selected nodes.</summary>
         /// <param name="renderContext">Render context providing camera and scene state.</param>
         /// <param name="updateContext">Update context providing the text renderer.</param>
@@ -275,24 +367,20 @@ namespace ValveResourceFormat.Renderer
                         nodeName = classname;
                     }
 
-                    if (classname is "env_combined_light_probe_volume" or "env_light_probe_volume" or "env_volumetric_fog_volume" or "env_wind_volume" or "steampal_kill_volume" or "env_cubemap_box" or "env_cubemap")
+                    if (TryGetVolumeBounds(classname, node.EntityData, out var volumeBounds, out var volumeSpace))
                     {
-                        AABB volumeBounds;
+                        var placement = node is SpriteSceneNode or SimpleBoxSceneNode
+                            ? node.EntityInstance?.RigidTransform ?? EntityTransformHelper.ToRigidTransformationMatrix(node.EntityData)
+                            : node.Transform;
 
-                        if (classname == "env_cubemap")
+                        var volumeTransform = volumeSpace switch
                         {
-                            var radius = node.EntityData.GetFloatProperty("influenceradius");
-                            volumeBounds = new AABB(-radius, -radius, -radius, radius, radius, radius);
-                        }
-                        else
-                        {
-                            volumeBounds = new AABB(
-                                node.EntityData.GetVector3Property("box_mins"),
-                                node.EntityData.GetVector3Property("box_maxs")
-                            );
-                        }
+                            VolumeSpace.Oriented => placement,
+                            VolumeSpace.WorldAligned => Matrix4x4.CreateTranslation(placement.Translation),
+                            _ => Matrix4x4.Identity,
+                        };
 
-                        AddBox(renderContext.Camera, updateContext.TextRenderer, vertices, node.Transform * toWorld, volumeBounds, new(0.0f, 1.0f, 0.0f, 1.0f));
+                        AddBox(renderContext.Camera, updateContext.TextRenderer, vertices, volumeTransform * toWorld, volumeBounds, new(0.0f, 1.0f, 0.0f, 1.0f));
 
                         disableDepth = true;
                     }
