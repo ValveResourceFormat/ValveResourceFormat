@@ -91,6 +91,19 @@ namespace ValveResourceFormat.Renderer.World
         }
 
         /// <summary>
+        /// Sets this to the fog a <c>sky_camera_volume</c> sky is drawn with: the world's cubemap fog only. Gradient
+        /// fog is found by the world groups a view draws, and a volume sky has none of its own.
+        /// </summary>
+        /// <param name="world">The fog of the map the sky belongs to.</param>
+        internal void SetToVolumeSkyView(WorldFogInfo world)
+        {
+            GradientFogActive = false;
+            GradientFog = null;
+            CubeFogActive = world.CubeFogActive;
+            CubemapFog = world.CubemapFog;
+        }
+
+        /// <summary>
         /// Copies the active fog state into the provided view constants buffer.
         /// </summary>
         /// <param name="viewConstants">The view constants buffer to update.</param>

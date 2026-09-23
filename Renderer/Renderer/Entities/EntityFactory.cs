@@ -98,6 +98,8 @@ public static class EntityFactory
         Register<PointCamera>("point_camera_vertical_fov", static (system, spawnInfo) => new PointCamera(system, spawnInfo));
         Register<PointCamera>("point_devshot_camera", static (system, spawnInfo) => new PointCamera(system, spawnInfo));
         Register<SkyCamera>("sky_camera", static (system, spawnInfo) => new SkyCamera(system, spawnInfo));
+        Register<SkyCameraVolume>("sky_camera_volume", static (system, spawnInfo) => new SkyCameraVolume(system, spawnInfo));
+        Register<SkyCameraVolumeTarget>("sky_camera_volume_target", static (system, spawnInfo) => new SkyCameraVolumeTarget(system, spawnInfo));
         Register<SpawnPoint>("info_player_counterterrorist", static (system, spawnInfo) => new SpawnPoint(system, spawnInfo));
         Register<SpawnPoint>("info_player_start", static (system, spawnInfo) => new SpawnPoint(system, spawnInfo));
         Register<SpawnPoint>("info_player_start_badguys", static (system, spawnInfo) => new SpawnPoint(system, spawnInfo));

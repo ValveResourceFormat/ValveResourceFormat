@@ -1,3 +1,4 @@
+using ValveResourceFormat.Renderer.SceneEnvironment;
 using ValveResourceFormat.Renderer.World;
 
 namespace ValveResourceFormat.Renderer;
@@ -28,6 +29,9 @@ internal readonly record struct SceneView
 
     /// <summary>The camera whose light binning this view reuses, or <see langword="null"/> when it has its own.</summary>
     public Camera? BinnedFor { get; init; }
+
+    /// <summary>The 2D sky this view replaces its scenes' own with, or <see langword="null"/> to keep theirs.</summary>
+    public SceneSkybox2D? SkyOverride { get; init; }
 
     public FogSpace FogSpace => Sky?.FogSpace ?? FogSpace.World;
 }

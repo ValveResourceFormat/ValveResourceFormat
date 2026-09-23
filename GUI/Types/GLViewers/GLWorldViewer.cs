@@ -381,7 +381,7 @@ namespace GUI.Types.GLViewers
 
                 using (UiControl.BeginGroup("World"))
                 {
-                    if (Renderer.SkyGroup != null)
+                    if (Renderer.SkyGroup != null || Renderer.EntitySystem.Entities.Any(static entity => entity is ValveResourceFormat.Renderer.Entities.SkyCameraVolume))
                     {
                         UiControl.AddCheckBox("Show Skybox", Renderer.ShowSkybox, (v) => Renderer.ShowSkybox = v);
                     }

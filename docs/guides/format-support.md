@@ -220,7 +220,7 @@ stages an `info_spawngroup_load_unload` loads and unloads when its entity I/O fi
 | Runtime spawn group physics  | A stage loaded through `info_spawngroup_load_unload` brings no world collision, so walking on it is not possible.    |
 | Runtime spawn group lights   | Realtime barn lights of a loaded stage are not drawn; its baked lighting and its sun are.                            |
 | Translucents across groups   | Each spawn group sorts its own translucent geometry, so translucents of two groups can overlap in the wrong order.  |
-| `sky_camera_volume`          | Not implemented; the 3D sky always comes from the `skybox_reference` and its `sky_camera`.                           |
+| `sky_camera_volume`          | The sky it points at is drawn, but not its blur, its sun shadow sharing, or the `info_visibility_box` that hides it. |
 
 ## Materials (vmat)
 

@@ -288,6 +288,7 @@ public class Renderer : ISpawnGroupHost
 
     private readonly HashSet<Scene> scenesUpdated = [];
     private readonly Dictionary<SpawnGroup, Entities.SkyCamera?> skyCameras = [];
+    private readonly Dictionary<string, SceneSkybox2D> skyOverrides = [];
     private readonly List<Scene> sunCasters = [];
 
     // options
@@ -420,7 +421,32 @@ public class Renderer : ISpawnGroupHost
             LockedCullFrustum = LockedCullFrustum,
         };
 
-        if (SkyGroup is { } skyGroup)
+        if (SkyCameraVolume.FindActive(EntitySystem.Entities, camera.Location) is { Target: { } target } volume)
+        {
+            // The map's own world seen from the target: the sky view draws what the main view draws
+            var sky = new SkyTransform(volume.Transform.Translation, target.Transform.Translation, target.SkyScale);
+
+            sky.ConfigureCamera(SkyCamera, camera);
+            skyFog.SetToVolumeSkyView(Scene.FogInfo);
+
+            skyViewSceneStates.Clear();
+
+            foreach (var state in mainViewSceneStates)
+            {
+                skyViewSceneStates.Add(ViewStateFor(skyViewStates, state.Scene));
+            }
+
+            frameViews[count++] = new SceneView
+            {
+                States = skyViewSceneStates,
+                Camera = SkyCamera,
+                Sky = sky,
+                Fog = skyFog,
+                LockedCullFrustum = lockedSkyCullFrustum,
+                SkyOverride = target.SkyMaterialName is { } skyMaterial ? SkyOverrideFor(skyMaterial) : null,
+            };
+        }
+        else if (SkyGroup is { } skyGroup)
         {
             // Worked out every frame from the entities, as the game does, so a reference that moves takes the
             // sky camera with it
@@ -477,6 +503,32 @@ public class Renderer : ISpawnGroupHost
         skyCameras.Add(group, skyCamera);
 
         return skyCamera;
+    }
+
+    /// <summary>The 2D sky drawn with <paramref name="materialName"/>, loaded the first time it is asked for.</summary>
+    private SceneSkybox2D SkyOverrideFor(string materialName)
+    {
+        if (skyOverrides.TryGetValue(materialName, out var skybox))
+        {
+            return skybox;
+        }
+
+        using var material = RendererContext.FileLoader.LoadFileCompiled(materialName);
+
+        skybox = new SceneSkybox2D(RendererContext.MaterialLoader.LoadMaterial(material));
+        skyOverrides.Add(materialName, skybox);
+
+        return skybox;
+    }
+
+    private void DeleteSkyOverrides()
+    {
+        foreach (var skybox in skyOverrides.Values)
+        {
+            skybox.Delete();
+        }
+
+        skyOverrides.Clear();
     }
 
     /// <summary>Returns the state a view keeps of <paramref name="scene"/>, starting one the first time the view draws it.</summary>
@@ -569,6 +621,11 @@ public class Renderer : ISpawnGroupHost
     {
         for (var i = views.Length - 1; i >= 0; i--)
         {
+            if (views[i].SkyOverride is { } skyOverride)
+            {
+                return skyOverride;
+            }
+
             foreach (var state in views[i].States)
             {
                 if (state.Scene.Skybox2D is { } skybox)
@@ -927,6 +984,7 @@ public class Renderer : ISpawnGroupHost
         EntitySystem.Clear();
 
         DisposeViewStates();
+        DeleteSkyOverrides();
 
         // The spawn groups came with the map, so they go with it rather than outliving the next load
         foreach (var group in spawnGroups)
@@ -1672,6 +1730,7 @@ public class Renderer : ISpawnGroupHost
         ViewBuffer?.Dispose();
 
         DisposeViewStates();
+        DeleteSkyOverrides();
         depthPyramid.Delete();
 
         foreach (var group in spawnGroups)
