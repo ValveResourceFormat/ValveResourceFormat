@@ -65,7 +65,7 @@ public class VfxVariableDescription : ShaderDataBlock
     /// <summary>Gets a value indicating whether hardware sRGB reads are enabled for this variable.</summary>
     public bool SrgbRead => (ExtConstantBufferId & 0x01) == 1;
 
-    /// <summary>Gets the external constant buffer ID.</summary>
+    /// <summary>Gets the external constant buffer ID, or the specialization constant ID for specialization constants.</summary>
     public int ExtConstantBufferId { get; }
 
     /// <summary>Gets the default input texture name.</summary>

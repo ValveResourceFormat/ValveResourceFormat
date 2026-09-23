@@ -573,7 +573,7 @@ namespace ValveResourceFormat.CompiledShader
         private static void ThrowIfNotSupported(int vcsFileVersion)
         {
             const int earliest = 59;
-            const int latest = 71;
+            const int latest = 72;
 
             if (vcsFileVersion < earliest || vcsFileVersion > latest)
             {

@@ -1111,7 +1111,7 @@ public sealed class ShaderExtract
 
                 if (Value != -1)
                 {
-                    constrainedNames.Add($"{name}={Value}");
+                    constrainedNames.Add($"{name}=={Value}");
                 }
                 else
                 {
@@ -1120,7 +1120,7 @@ public sealed class ShaderExtract
             }
 
             // By value constraint
-            // e.g. FeatureRule( Requires( F_REFRACT, F_TEXTURE_LAYERS=0, F_TEXTURE_LAYERS=1 ), "Refract requires Less than 2 Layers due to DX9" );
+            // e.g. FeatureRule( Requires( F_REFRACT, F_TEXTURE_LAYERS==0, F_TEXTURE_LAYERS==1 ), "Refract requires Less than 2 Layers due to DX9" );
 
             var ruleName = constraint.Rule == VfxRuleMethod.AllowNum
                 ? $"Allow{constraint.ExtraRuleData[0]}"
@@ -1192,15 +1192,19 @@ public sealed class ShaderExtract
         {
             WriteState(writer, param);
         }
-        else if (param.RegisterType is VfxRegisterType.SamplerState)
+        else if (param.RegisterType is VfxRegisterType.SamplerState or VfxRegisterType.SamplerIndex)
         {
             //WriteState(writer, param);
+        }
+        else if (param.RegisterType is VfxRegisterType.ConstantBuffer or VfxRegisterType.PushConstantBuffer)
+        {
+            // Declared in the shader code itself, not as a parameter
         }
         else if (param.RegisterType is VfxRegisterType.InputTexture)
         {
             WriteInputTexture(writer, param);
         }
-        else if (param.ExtConstantBufferId == -1)
+        else if (param.ExtConstantBufferId == -1 || param.RegisterType is VfxRegisterType.SpecConstant)
         {
             WriteVariable(param, paramBlocks, writer, annotations);
         }
@@ -1213,6 +1217,10 @@ public sealed class ShaderExtract
             }
 
             WriteTexture(param, paramBlocks, channelBlocks, writer, annotations);
+        }
+        else
+        {
+            throw new UnexpectedMagicException($"Unhandled register type for parameter {param.Name}", (int)param.RegisterType, nameof(param.RegisterType));
         }
     }
 
@@ -1383,7 +1391,24 @@ public sealed class ShaderExtract
             annotations.Add($"UiVisibility({dynEx});");
         }
 
-        writer.WriteLine($"{ShaderUtilHelpers.GetVfxVariableTypeString(param.VfxType)} {param.Name}{GetVfxAttributes(annotations)};");
+        writer.WriteLine($"{GetDeclarationAttributes(param)}{ShaderUtilHelpers.GetVfxVariableTypeString(param.VfxType)} {param.Name}{GetVfxAttributes(annotations)};");
+    }
+
+    private static string GetDeclarationAttributes(VfxVariableDescription param)
+    {
+        var attributes = string.Empty;
+
+        if (param.IsLayerConstant)
+        {
+            attributes += "[[layer_constant]] ";
+        }
+
+        if (param.RegisterType is VfxRegisterType.SpecConstant)
+        {
+            attributes += $"[[vk::constant_id({param.ExtConstantBufferId})]] ";
+        }
+
+        return attributes;
     }
 
     private static void WriteInputTexture(IndentedTextWriter writer, VfxVariableDescription param)
@@ -1459,7 +1484,7 @@ public sealed class ShaderExtract
             typeString = typeString[..^Index.Length];
         }
 
-        writer.WriteLine($"{typeString} {param.Name}{GetVfxAttributes(annotations)};");
+        writer.WriteLine($"{GetDeclarationAttributes(param)}{typeString} {param.Name}{GetVfxAttributes(annotations)};");
     }
 
     private static void HandleParameterAttribute(VfxVariableDescription param, VfxVariableDescription[] paramBlocks, List<string> annotations)
