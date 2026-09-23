@@ -2517,6 +2517,11 @@ public sealed partial class MapExtract
                     TimesToFire = connection.TimesToFire,
                 };
 
+                if (connection.ParamMap != null)
+                {
+                    dmeConnection.Add("paramMap", ToDmeKeyValues3(connection.ParamMap));
+                }
+
                 mapEntity.ConnectionsData.Add(dmeConnection);
             }
         }
@@ -2589,6 +2594,91 @@ public sealed partial class MapExtract
 
     static string StringBool(bool value)
         => value ? "1" : "0";
+
+    // Hammer stores KV3 inside DMX as nested elements: a table is an element whose attributes are its keys,
+    // and array items that do not fit a typed DMX array are wrapped in elements holding a "value" attribute.
+    private static object? ToDmeKeyValues3(KVObject value)
+    {
+        switch (value.ValueType)
+        {
+            case KVValueType.Collection:
+                var element = new Datamodel.Element();
+
+                foreach (var (key, child) in value.Children)
+                {
+                    var converted = ToDmeKeyValues3(child);
+
+                    if (converted != null)
+                    {
+                        // An attribute called "name" would clash with the element's own name
+                        element.Add(key == "name" ? "__dmekv3_attribute_will_be_name__" : key, converted);
+                    }
+                }
+
+                return element;
+
+            case KVValueType.Array:
+                var items = value.Values.ToList();
+
+                if (items.All(static item => item.ValueType == KVValueType.Boolean))
+                {
+                    return new Datamodel.BoolArray(items.Select(static item => (bool)item));
+                }
+
+                if (items.All(static item => IsKeyValues3Integer(item.ValueType)))
+                {
+                    return new Datamodel.IntArray(items.Select(static item => Convert.ToInt32(item, CultureInfo.InvariantCulture)));
+                }
+
+                if (items.All(static item => item.ValueType is KVValueType.FloatingPoint or KVValueType.FloatingPoint64 || IsKeyValues3Integer(item.ValueType)))
+                {
+                    return new Datamodel.FloatArray(items.Select(static item => Convert.ToSingle(item, CultureInfo.InvariantCulture)));
+                }
+
+                if (items.All(static item => item.ValueType == KVValueType.String))
+                {
+                    return new Datamodel.StringArray(items.Select(static item => (string)item));
+                }
+
+                var elements = new Datamodel.ElementArray(items.Count);
+
+                foreach (var item in items)
+                {
+                    var wrapper = new Datamodel.Element();
+                    var converted = ToDmeKeyValues3(item);
+
+                    if (converted != null)
+                    {
+                        wrapper.Add("value", converted);
+                    }
+
+                    elements.Add(wrapper);
+                }
+
+                return elements;
+
+            case KVValueType.Boolean:
+                return (bool)value;
+
+            case KVValueType.String:
+                return (string)value;
+
+            case KVValueType.UInt64:
+                return Convert.ToUInt64(value, CultureInfo.InvariantCulture);
+
+            case KVValueType.FloatingPoint or KVValueType.FloatingPoint64:
+                return Convert.ToSingle(value, CultureInfo.InvariantCulture);
+
+            case var type when IsKeyValues3Integer(type):
+                return Convert.ToInt32(value, CultureInfo.InvariantCulture);
+
+            default:
+                return null;
+        }
+
+        static bool IsKeyValues3Integer(KVValueType type)
+            => type is KVValueType.Int16 or KVValueType.Int32 or KVValueType.Int64 or KVValueType.UInt16 or KVValueType.UInt32;
+    }
 
     private static string? ToEditString(object? data)
     {

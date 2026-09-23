@@ -188,6 +188,15 @@ namespace ValveResourceFormat.ResourceTypes
             /// Gets the connection target type (m_targetType).
             /// </summary>
             public required EntityIOTargetType TargetType { get; init; }
+            /// <summary>
+            /// Gets the input parameter mapping (m_paramMap), or null when the connection has none.
+            /// </summary>
+            /// <remarks>
+            /// Keyed by the input's parameter name, each entry is either <c>{ value = literal }</c> or
+            /// <c>{ src = "output param name" }</c>. A <c>--forward-all-args--</c> boolean forwards output
+            /// params to input params of the same name.
+            /// </remarks>
+            public KVObject? ParamMap { get; init; }
         }
 
         /// <summary>
@@ -246,6 +255,9 @@ namespace ValveResourceFormat.ResourceTypes
                     Delay = connection.GetFloatProperty("m_flDelay"),
                     TimesToFire = connection.GetInt32Property("m_nTimesToFire"),
                     TargetType = connection.GetEnumValue<EntityIOTargetType>("m_targetType"),
+                    ParamMap = connection.TryGetValue("m_paramMap", out var paramMap) && paramMap.ValueType == KVValueType.Collection && paramMap.Count > 0
+                        ? paramMap
+                        : null,
                 }).ToList();
             }
 
@@ -431,6 +443,12 @@ namespace ValveResourceFormat.ResourceTypes
                             builder.Append(param);
                         }
 
+                        if (connection.ParamMap != null)
+                        {
+                            builder.Append(' ');
+                            builder.Append(FormatParamMap(connection.ParamMap));
+                        }
+
                         builder.AppendLine();
                     }
                 }
@@ -568,6 +586,42 @@ namespace ValveResourceFormat.ResourceTypes
             }
 
             return builder.ToString();
+        }
+
+        private static string FormatParamMap(KVObject paramMap)
+        {
+            var parts = new List<string>();
+
+            foreach (var (name, entry) in paramMap.Children)
+            {
+                if (name == "--forward-all-args--")
+                {
+                    if (entry.ValueType == KVValueType.Boolean && (bool)entry)
+                    {
+                        parts.Add("forward-all-args");
+                    }
+
+                    continue;
+                }
+
+                if (entry.ValueType == KVValueType.Collection && entry.TryGetValue("src", out var source))
+                {
+                    parts.Add($"{name}<-{source}");
+                }
+                else if (entry.ValueType == KVValueType.Collection && entry.TryGetValue("value", out var literal))
+                {
+                    parts.Add($"{name}={CollapseWhitespace(StringifyValue(literal))}");
+                }
+                else
+                {
+                    parts.Add($"{name}={CollapseWhitespace(StringifyValue(entry))}");
+                }
+            }
+
+            return $"{{{string.Join(", ", parts)}}}";
+
+            static string CollapseWhitespace(string value)
+                => string.Join(' ', value.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries));
         }
 
         /// <summary>
