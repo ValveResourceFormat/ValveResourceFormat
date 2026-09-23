@@ -250,6 +250,12 @@ internal sealed partial class McpTools
             status["paused"] = true;
         }
 
+        if (UnhandledExceptions.Latest is { } latest)
+        {
+            status["unhandled_exceptions"] = UnhandledExceptions.Count;
+            status["last_unhandled_exception"] = UnhandledExceptions.Summarize(latest);
+        }
+
         return McpToolResult.Json(status);
     }
 
@@ -435,6 +441,7 @@ internal sealed partial class McpTools
         var timeout = TimeSpan.FromSeconds(GetInt(args, "timeout_seconds") ?? 180);
         var completion = new TaskCompletionSource<Exception?>(TaskCreationOptions.RunContinuationsAsynchronously);
         var logCursor = AutomationLog.Cursor;
+        var crash = UnhandledExceptions.NextAsync();
 
         TabPage? tab = null;
 
@@ -496,7 +503,14 @@ internal sealed partial class McpTools
 
             try
             {
-                failure = await completion.Task.WaitAsync(timeout, cancellationToken).ConfigureAwait(false);
+                var finished = await Task.WhenAny(completion.Task, crash).WaitAsync(timeout, cancellationToken).ConfigureAwait(false);
+
+                if (finished == crash)
+                {
+                    return McpToolResult.Error($"Unhandled exception while loading '{path}': {UnhandledExceptions.Summarize(await crash.ConfigureAwait(false))}");
+                }
+
+                failure = await completion.Task.ConfigureAwait(false);
             }
             catch (TimeoutException)
             {

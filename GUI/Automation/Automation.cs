@@ -90,6 +90,23 @@ internal static class Automation
         return null;
     }
 
+    /// <summary>
+    /// Records an unhandled exception for the automation server in place of the error dialog.
+    /// Returns false when no agent is driving the viewer, so the caller shows the dialog as usual.
+    /// </summary>
+    public static bool TryReportUnhandledException(Exception exception)
+    {
+#if DEBUG
+        if (IsEnabled)
+        {
+            UnhandledExceptions.Report(exception);
+            return true;
+        }
+#endif
+
+        return false;
+    }
+
     [DoesNotReturn]
     private static void Fail(string message)
     {

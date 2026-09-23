@@ -558,12 +558,20 @@ internal sealed partial class McpTools
     private static async Task<bool> WaitOnRenderLoop(Task task, TimeSpan timeout, CancellationToken cancellationToken)
     {
         var started = Stopwatch.GetTimestamp();
+        var crash = UnhandledExceptions.NextAsync();
 
         while (true)
         {
             try
             {
-                await task.WaitAsync(RenderLoopThread.NudgeInterval, cancellationToken).ConfigureAwait(false);
+                var finished = await Task.WhenAny(task, crash).WaitAsync(RenderLoopThread.NudgeInterval, cancellationToken).ConfigureAwait(false);
+
+                if (finished == crash)
+                {
+                    throw new InvalidOperationException($"Unhandled exception while rendering: {UnhandledExceptions.Summarize(await crash.ConfigureAwait(false))}");
+                }
+
+                await task.ConfigureAwait(false);
                 return true;
             }
             catch (TimeoutException)
