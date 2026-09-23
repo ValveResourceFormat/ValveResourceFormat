@@ -1,6 +1,7 @@
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.IO;
+using ValveResourceFormat.CompiledShader;
 
 namespace ValveResourceFormat.Serialization.VfxEval
 {
@@ -122,6 +123,7 @@ namespace ValveResourceFormat.Serialization.VfxEval
             EXISTS,             // 1F
             MATERIAL_PARAM_IDX, // 20
             FLOAT4,             // 21
+            SYSTEM_VALUE,       // 22
         };
 
         // How tightly an expression binds, listed loosest first. An operand is bracketed only where
@@ -364,6 +366,14 @@ namespace ValveResourceFormat.Serialization.VfxEval
                     Push(Features is not null && featureId < Features.Count
                         ? Features[(int)featureId]
                         : $"FEAT[{featureId}]");
+                    return;
+                }
+
+                case OPCODE.SYSTEM_VALUE:
+                {
+                    var index = dataReader.ReadByte();
+                    var sourceType = (VfxStaticComboSourceType)VfxCombo.NormalizeStaticComboSourceType(index);
+                    Push(Enum.IsDefined(sourceType) ? sourceType.ToString() : $"SYS[{index}]");
                     return;
                 }
 

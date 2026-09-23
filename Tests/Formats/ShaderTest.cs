@@ -485,6 +485,7 @@ namespace Tests.Formats
             yield return ("vcs69_zstd5_npr_dummy_vulkan_50_vs.vcs", 0, 0);
             yield return ("vcs69_bloom_vulkan_40_ps.vcs", 0, 0);
             yield return ("vcs70_resource_bloom_vulkan_40_ps.vcs", 0, 0);
+            yield return ("vcs72_test_vulkan_60_ps.vcs", 0, 0);
         }
 
         [Test, MethodDataSource(nameof(SpirvReflectionTestCases))]

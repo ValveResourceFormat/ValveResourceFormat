@@ -9,6 +9,7 @@ public enum VfxRuleMethod
     Unknown = 0,
     ChildOf,
     Requires,
-    AllowNum
+    AllowNum,
+    Suppress,
 #pragma warning restore CS1591
 }

@@ -235,6 +235,8 @@ public static partial class ShaderSpirvReflection
 
                 RenameResource(compiler, resources, SpirvResourceType.StageInput, vulkanSource);
                 RenameResource(compiler, resources, SpirvResourceType.StageOutput, vulkanSource);
+
+                RenameSpecializationConstants(compiler, vulkanSource);
             }
 
             result = SpirvCrossApi.spvc_compiler_compile(compiler, out var compiledCode);
@@ -337,6 +339,38 @@ public static partial class ShaderSpirvReflection
             if (parts.Count > 0)
             {
                 buffer.WriteLine($"// Dynamic combos: {string.Join(", ", parts)}");
+            }
+        }
+    }
+
+    private static unsafe void RenameSpecializationConstants(spvc_compiler compiler, VfxShaderFile shaderFile)
+    {
+        var program = shaderFile.ParentCombo?.ParentProgramData;
+
+        if (program is null)
+        {
+            return;
+        }
+
+        spvc_specialization_constant* constants;
+        nuint count;
+
+        if (SpirvCrossApi.spvc_compiler_get_specialization_constants(compiler, &constants, &count) != Result.Success)
+        {
+            return;
+        }
+
+        for (nuint i = 0; i < count; i++)
+        {
+            var constant = constants[i];
+
+            // The constant id is stored in the type specific bits of the variable
+            var variable = Array.Find(program.VariableDescriptions,
+                v => v.RegisterType is VfxRegisterType.SpecConstant && (uint)v.TypeSpecificBits == constant.constant_id);
+
+            if (variable is not null)
+            {
+                SpirvCrossApi.spvc_compiler_set_name(compiler, constant.id, variable.Name);
             }
         }
     }

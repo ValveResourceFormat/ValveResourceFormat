@@ -925,6 +925,17 @@ namespace Tests.Formats
         }
 
         [Test]
+        public async Task TestSystemValue()
+        {
+            using (Assert.Multiple())
+            {
+                await Assert.That(new VfxEval(ParseString("22 0C 00")).DynamicExpressionResult).IsEqualTo("return S_GPU_VENDOR_ID;");
+                await Assert.That(new VfxEval(ParseString("22 0C 07 00 F0 86 45 0D 00")).DynamicExpressionResult).IsEqualTo("return S_GPU_VENDOR_ID==4318;");
+                await Assert.That(new VfxEval(ParseString("22 02 00")).DynamicExpressionResult).IsEqualTo("return S_SHADER_QUALITY;");
+            }
+        }
+
+        [Test]
         public void TestReturnWithRemainingDataThrows()
         {
             // RETURN but there's still data after
