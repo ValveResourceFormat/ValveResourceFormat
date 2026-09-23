@@ -28,6 +28,7 @@ internal sealed class PulseGraphBuilder
         variables = graphDefinition.GetArray("m_Vars");
         publicOutputs = graphDefinition.GetArray("m_PublicOutputs");
         callInfos = graphDefinition.GetArray("m_CallInfos");
+        tempVarBanks = graphDefinition.GetArray("m_TempVarBanks") ?? [];
     }
 
     /// <summary>Fills <paramref name="document"/> with the graph and lays it out.</summary>
@@ -54,6 +55,7 @@ internal sealed class PulseGraphBuilder
         IMMEDIATE_HALT,
         RETURN_VOID,
         RETURN_VALUE,
+        LOOP_BREAK,
         NOP,
         JUMP,
         JUMP_COND,
@@ -68,6 +70,9 @@ internal sealed class PulseGraphBuilder
         LIBRARY_INVOKE,
         GET_VAR,
         SET_VAR,
+        GET_TEMPVAR,
+        SET_TEMPVAR,
+        SET_TEMPVAR_OBSERVABLE,
 
         // More exist, but we don't need any specific code for them.
     }
@@ -118,6 +123,7 @@ internal sealed class PulseGraphBuilder
         InstructionCode.IMMEDIATE_HALT,
         InstructionCode.RETURN_VOID,
         InstructionCode.RETURN_VALUE,
+        InstructionCode.LOOP_BREAK,
         InstructionCode.NOP,
         InstructionCode.JUMP,
         InstructionCode.JUMP_COND,
@@ -133,6 +139,7 @@ internal sealed class PulseGraphBuilder
     private readonly IReadOnlyList<KVObject> variables;
     private readonly IReadOnlyList<KVObject> publicOutputs;
     private readonly IReadOnlyList<KVObject> callInfos;
+    private readonly IReadOnlyList<KVObject> tempVarBanks;
     private readonly List<RemoteNodeInfo> remoteNodesToResolve = [];
     private readonly HashSet<string> reportedUnknownCellClasses = [];
     private Dictionary<int, HashSet<List<int>>> loopInstructionMap = [];
@@ -395,6 +402,44 @@ internal sealed class PulseGraphBuilder
         return node;
     }
 
+    private readonly Dictionary<(int Bank, int Index), Node> tempVariableNodes = [];
+
+    // Temporaries live in a bank named by the chunk that uses them, so the same index means
+    // different values in different banks.
+    private Node TempVariableNodeFor(GraphDocument document, int bankIndex, int tempVarIndex, string name)
+    {
+        if (!tempVariableNodes.TryGetValue((bankIndex, tempVarIndex), out var node))
+        {
+            node = new Node(null)
+            {
+                Name = name,
+                NodeType = "Temporary Variable",
+                Category = PulseHues.HueOf(PulseCategory.Variable),
+            };
+            document.AddNode(node);
+            tempVariableNodes[(bankIndex, tempVarIndex)] = node;
+        }
+
+        return node;
+    }
+
+    private bool TryGetTempVariableName(int bankIndex, int tempVarIndex, out string value)
+    {
+        if (bankIndex >= 0 && bankIndex < tempVarBanks.Count)
+        {
+            var tempVars = tempVarBanks[bankIndex].GetArray("m_TempVars");
+
+            if (tempVars != null && tempVarIndex >= 0 && tempVarIndex < tempVars.Count)
+            {
+                value = tempVars[tempVarIndex].GetStringProperty("m_Name");
+                return true;
+            }
+        }
+
+        value = "";
+        return false;
+    }
+
     private bool TryGetVariableNameFromId(int variableId, out string value)
     {
         if ((variableId >= 0 && variableId < variables.Count))
@@ -594,7 +639,7 @@ internal sealed class PulseGraphBuilder
                     FindGraphCyclesRecursive(instructions, instruction.GetInt32Property("m_nDestInstruction"), instructionStack, loopInstructionRanges, chunkIdx);
                 }
             }
-            else if (instrType == InstructionCode.RETURN_VOID || instrType == InstructionCode.RETURN_VALUE)
+            else if (instrType is InstructionCode.RETURN_VOID or InstructionCode.RETURN_VALUE or InstructionCode.LOOP_BREAK)
             {
                 break;
             }
@@ -1256,6 +1301,79 @@ internal sealed class PulseGraphBuilder
                     var variableHub = VariableNodeFor(document, varIndex, name);
                     var writesInput = variableHub.GetOrAddInput("writes", PulseHues.VariableLinkHue);
                     document.Connect(node.AddOutput("var", PulseHues.VariableLinkHue), writesInput, dashed: true);
+                    break;
+                }
+                case InstructionCode.GET_TEMPVAR:
+                {
+                    var bankIndex = chunks[chunkIndex].GetInt32Property("m_nTempVarBank", -1);
+                    var tempVarIndex = instruction.GetInt32Property("m_nTempVarIdx", -1);
+                    var regIndex = instruction.GetInt32Property("m_nReg0");
+                    var node = new Node(null)
+                    {
+                        Name = "Get Temporary Variable",
+                        NodeType = "Instruction",
+                        Category = PulseHues.HueOf(PulseCategory.Instruction),
+                    };
+
+                    if (!TryGetTempVariableName(bankIndex, tempVarIndex, out var name))
+                    {
+                        name = $"<UNKNOWN m_nTempVarIdx={tempVarIndex}>";
+                        ProgressReporter?.Report($"Failed to retrieve temporary variable {tempVarIndex} from bank {bankIndex}. Invalid graph definition?");
+                    }
+
+                    node.AddText(name);
+                    var outSocket = node.CreateSocketOutFromValueType("retval", GetValueTypeFromRegister(chunkIndex, regIndex));
+                    registerOutputSocketMap[regIndex] = outSocket;
+
+                    document.AddNode(node);
+
+                    var variableHub = TempVariableNodeFor(document, bankIndex, tempVarIndex, name);
+                    var readsOutput = variableHub.GetOrAddOutput("reads", PulseHues.VariableLinkHue);
+                    document.Connect(readsOutput, node.AddInput("var", PulseHues.VariableLinkHue, allowMultiple: true), dashed: true);
+                    break;
+                }
+                case InstructionCode.SET_TEMPVAR:
+                case InstructionCode.SET_TEMPVAR_OBSERVABLE:
+                {
+                    var bankIndex = chunks[chunkIndex].GetInt32Property("m_nTempVarBank", -1);
+                    var tempVarIndex = instruction.GetInt32Property("m_nTempVarIdx", -1);
+                    var regIndex = instruction.GetInt32Property("m_nReg0");
+                    var node = new Node(null)
+                    {
+                        Name = "Set Temporary Variable",
+                        NodeType = "Instruction",
+                        Category = PulseHues.HueOf(PulseCategory.Instruction),
+                    };
+                    previousActionOutSocket = CreateSequentialActionSockets(document, node, previousActionOutSocket);
+
+                    if (!TryGetTempVariableName(bankIndex, tempVarIndex, out var name))
+                    {
+                        name = $"<UNKNOWN m_nTempVarIdx={tempVarIndex}>";
+                        ProgressReporter?.Report($"Failed to retrieve temporary variable {tempVarIndex} from bank {bankIndex}. Invalid graph definition?");
+                    }
+
+                    node.AddText(name);
+                    AddNodeRegisterInput(document, node, chunkIndex, registerConstValueMap, registerOutputSocketMap, regIndex, "value");
+
+                    document.AddNode(node);
+
+                    var variableHub = TempVariableNodeFor(document, bankIndex, tempVarIndex, name);
+                    var writesInput = variableHub.GetOrAddInput("writes", PulseHues.VariableLinkHue);
+                    document.Connect(node.AddOutput("var", PulseHues.VariableLinkHue), writesInput, dashed: true);
+                    break;
+                }
+                case InstructionCode.LOOP_BREAK:
+                {
+                    // Leaves the nearest enclosing loop, resuming where the call into its body says to
+                    var node = new Node(null)
+                    {
+                        Name = "Break",
+                        NodeType = "Flow",
+                        Category = PulseHues.HueOf(PulseCategory.FlowControl),
+                    };
+                    CreateSequentialActionSockets(document, node, previousActionOutSocket);
+                    document.AddNode(node);
+                    stopProcessing = true;
                     break;
                 }
                 case InstructionCode.PULSE_CALL_SYNC:

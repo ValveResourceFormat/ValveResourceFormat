@@ -98,7 +98,11 @@ internal static class PulseHues
             or "CPulseCell_Inflow_Method"
             or "CPulseCell_Inflow_ObservableVariableListener" => PulseCategory.EntryPoint,
 
-        "CPulseCell_BaseLerp" or "CPulseCell_BaseState" or "CPulseCell_BaseYieldingInflow"
+        "CPulseCell_ApplyAnimGraphParam" or "CPulseCell_ApplyDynamicAttributeBase"
+            or "CPulseCell_ApplyDynamicAttributeEHandle" or "CPulseCell_ApplyDynamicAttributeInt"
+            or "CPulseCell_ApplyDynamicAttributeString" or "CPulseCell_ApplyEntityFlags"
+            or "CPulseCell_ApplyParent"
+            or "CPulseCell_BaseLerp" or "CPulseCell_BaseState" or "CPulseCell_BaseYieldingInflow"
             or "CPulseCell_BooleanSwitchState" or "CPulseCell_CursorQueue"
             or "CPulseCell_FireCursors" or "CPulseCell_Inflow_Wait" or "CPulseCell_Inflow_Yield"
             or "CPulseCell_IntervalTimer" or "CPulseCell_LerpCameraSettings"
@@ -107,7 +111,7 @@ internal static class PulseHues
             or "CPulseCell_Outflow_PlaySceneBase" or "CPulseCell_Outflow_PlaySequence"
             or "CPulseCell_Outflow_PlayVCD" or "CPulseCell_Outflow_PlayVCDBase"
             or "CPulseCell_Outflow_PlayVOLine" or "CPulseCell_Outflow_ScriptedSequence"
-            or "CPulseCell_PlaySequence" or "CPulseCell_ShmupWaitForDuration"
+            or "CPulseCell_PlaySequence" or "CPulseCell_RaceCursors" or "CPulseCell_ShmupWaitForDuration"
             or "CPulseCell_Step_CallExternalMethod" or "CPulseCell_TestWaitWithAutoTracepoints"
             or "CPulseCell_TestWaitWithCursorState" or "CPulseCell_TestYieldForever"
             or "CPulseCell_TestYieldWithObservables"
@@ -130,6 +134,7 @@ internal static class PulseHues
             or "CPulseCell_IsRequirementValid" or "CPulseCell_LimitCount" => PulseCategory.Requirement,
 
         "CPulseCell_Outflow_TestExplicitYesNo" or "CPulseCell_Outflow_TestRandomYesNo"
+            or "CPulseCell_ReturnValues"
             or "CPulseCell_SoundEventStart" or "CPulseCell_Step_DebugLog"
             or "CPulseCell_Step_EntFire" or "CPulseCell_Step_FollowEntity"
             or "CPulseCell_Step_PublicOutput" or "CPulseCell_Step_SetAnimGraphParam"
