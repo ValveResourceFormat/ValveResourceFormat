@@ -103,6 +103,48 @@ namespace Tests.IO
             await Assert.That(extracted).IsNotEmpty();
         }
 
+        [Test]
+        [MatrixDataSource]
+        public async Task ToMaterialMapsHdrTexture2D([Matrix] bool withUnpackInfo)
+        {
+            var file = TestFixtures.Path("Textures", "R32F.vtex_c");
+            using var resource = new Resource
+            {
+                FileName = file,
+            };
+            resource.Read(file);
+
+            var texture = (Texture)resource.DataBlock!;
+            await Assert.That(texture.IsHighDynamicRange).IsTrue();
+            await Assert.That(texture.Flags.HasFlag(VTexFlags.CUBE_TEXTURE)).IsFalse();
+            await Assert.That(texture.Depth).IsEqualTo((ushort)1);
+
+            MaterialExtract.UnpackInfo[] mapsToUnpack = withUnpackInfo
+                ? [new MaterialExtract.UnpackInfo
+                {
+                    TextureType = "TextureNormal",
+                    FileName = "materials/flat_normal.exr",
+                    Channel = ChannelMapping.RGBA,
+                }]
+                : [];
+
+            using var contentFile = new TextureExtract(resource).ToMaterialMaps(mapsToUnpack);
+
+            await Assert.That(contentFile.Data).IsNull();
+
+            if (!withUnpackInfo)
+            {
+                await Assert.That(contentFile.SubFiles).IsEmpty();
+                return;
+            }
+
+            await Assert.That(contentFile.SubFiles).Count().IsEqualTo(1);
+            await Assert.That(contentFile.SubFiles[0].FileName).IsEqualTo("flat_normal.exr");
+            var extracted = contentFile.SubFiles[0].Extract?.Invoke();
+            await Assert.That(extracted).IsNotNull();
+            await Assert.That(extracted).IsNotEmpty();
+        }
+
         public static IEnumerable<(SKColor, ChannelMapping, SKColor)> PngImageChannelsSource()
         {
             var c1234 = new SKColor(1, 2, 3, 4);
