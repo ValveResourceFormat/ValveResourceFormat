@@ -210,8 +210,7 @@ namespace ValveResourceFormat.Renderer
 
                 case "info_visibility_box"
                     or "info_cull_triangles":
-                    var halfSize = entity.GetVector3Property("box_size") * 0.5f;
-                    bounds = new AABB(-halfSize, halfSize);
+                    bounds = AABB.FromCenteredSize(entity.GetVector3Property("box_size"));
                     return true;
 
                 case "env_combined_light_probe_volume"
