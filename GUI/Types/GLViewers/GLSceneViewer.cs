@@ -116,6 +116,10 @@ namespace GUI.Types.GLViewers
 
         public override void Dispose()
         {
+            // The render loop thread may be mid-frame on this viewer, and only stops drawing it once the base
+            // unregisters it, so the renderer must not be torn down until that frame is done
+            using var lockedGl = glLock.EnterScope();
+
             // Delete GL resources before the base disposes the GL context
             physicsTraceRenderer?.Delete();
             physicsTraceRenderer = null;
