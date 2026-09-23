@@ -313,10 +313,22 @@ namespace GUI.Controls
                                 }
                             }
 
-                            using var stream = File.OpenRead(publishDataPath);
-                            var publishData = kvDeserializer.Deserialize(stream);
-                            var addonTitle = publishData["title"];
-                            var displayTitle = $"[Workshop {item.Key}] {addonTitle}";
+                            var displayTitle = $"[Workshop {item.Key}]";
+
+                            try
+                            {
+                                using var stream = File.OpenRead(publishDataPath);
+                                var publishData = kvDeserializer.Deserialize(stream);
+
+                                if (publishData.Root.TryGetValue("title", out var addonTitle))
+                                {
+                                    displayTitle = $"{displayTitle} {addonTitle}";
+                                }
+                            }
+                            catch (Exception e) when (e is IOException or KeyValueException)
+                            {
+                                //
+                            }
 
                             foundFiles.Add(new TreeNode(displayTitle)
                             {
