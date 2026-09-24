@@ -47,7 +47,7 @@ namespace GUI.Utils
             [ViewerType.ModelViewer] =
             [
                 //new("WASD", "Move"),
-                new("Q/Z", "Up/Down (hold mouse)"),
+                new("Q/Z", "Up/Down"),
                 new("Z", "Mouselook"),
                 //new("Mouse", "Rotate"),
                 new("Alt", "Orbit"),
@@ -61,7 +61,7 @@ namespace GUI.Utils
 
             [ViewerType.WorldViewer] =
             [
-                new("Q/Z", "Up/Down (hold mouse)"),
+                new("Q/Z", "Up/Down"),
                 new("Z", "Mouselook"),
                 new("X", "Walk"),
                 //new("WASD", "Move"),
@@ -78,7 +78,7 @@ namespace GUI.Utils
             [ViewerType.ParticleViewer] =
             [
                 new("WASD", "Move"),
-                new("Q/Z", "Up/Down (hold mouse)"),
+                new("Q/Z", "Up/Down"),
                 new("Z", "Mouselook"),
                 //new("Mouse", "Rotate"),
                 new("Alt", "Orbit"),
