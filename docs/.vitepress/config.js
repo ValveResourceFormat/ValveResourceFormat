@@ -80,6 +80,10 @@ export default defineConfig({
                             text: "VPK Management",
                             link: "/guides/vpk-management",
                         },
+                        {
+                            text: "MCP Automation Server",
+                            link: "/guides/mcp-server",
+                        },
                     ],
                 },
                 {
