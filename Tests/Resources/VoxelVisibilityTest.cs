@@ -48,7 +48,7 @@ namespace Tests.Resources
             using (Assert.Multiple())
             {
                 await Assert.That(centerCluster).IsEqualTo(0);
-                await Assert.That(outsideCluster).IsEqualTo(0);
+                await Assert.That(outsideCluster).IsEqualTo(-1);
 
                 await Assert.That(centerPvs).IsNotNull();
                 await Assert.That(centerPvs!.Length).IsEqualTo(4);

@@ -74,6 +74,7 @@ namespace ValveResourceFormat.Renderer.World
                 var renderableModel = sceneObject.GetStringProperty("m_renderableModel");
                 var matrix = sceneObject.GetArray("m_vTransform").ToMatrix4x4() * root;
                 var flags = sceneObject.GetEnumValue<ObjectTypeFlags>("m_nObjectTypeFlags", normalize: true);
+                var visClusters = node.GetSceneObjectVisClusters(sceneObject);
 
                 // Per-placement forced LoD baked by the compiler (-1 = automatic).
                 var lodOverride = sceneObject.ContainsKey("m_nLODOverride") ? sceneObject.GetInt32Property("m_nLODOverride") : -1;
@@ -109,6 +110,7 @@ namespace ValveResourceFormat.Renderer.World
                         CubeMapPrecomputedHandshake = cubeMapPrecomputedHandshake,
                         LightProbeVolumePrecomputedHandshake = lightProbeVolumePrecomputedHandshake,
                         Flags = flags,
+                        PrecomputedVisClusters = visClusters,
                     };
 
                     if (lodOverride >= 0)
@@ -141,6 +143,7 @@ namespace ValveResourceFormat.Renderer.World
                         CubeMapPrecomputedHandshake = cubeMapPrecomputedHandshake,
                         LightProbeVolumePrecomputedHandshake = lightProbeVolumePrecomputedHandshake,
                         Flags = flags,
+                        PrecomputedVisClusters = visClusters,
                     };
 
                     scene.Add(meshNode, false);
@@ -172,7 +175,7 @@ namespace ValveResourceFormat.Renderer.World
                     };
 
                     scene.Add(aggregate, false);
-                    aggregate.LoadFragments(sceneObject, root);
+                    aggregate.LoadFragments(sceneObject, root, node);
                 }
             }
         }

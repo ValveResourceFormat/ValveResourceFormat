@@ -86,6 +86,9 @@ public sealed class Skybox3D
     /// <summary>Maps a position in sky space to where the viewer sees it in the world.</summary>
     public Vector3 ToWorld(Vector3 position) => Vector3.Transform(position, SkyToWorld);
 
+    /// <summary>Maps a position in the world to the matching position in sky space.</summary>
+    public Vector3 ToSky(Vector3 position) => (position - ReferenceTransform.Translation) / Scale + Origin;
+
     /// <summary>Maps the authored origin of one of <see cref="Entities"/> to where the viewer sees it in the world.</summary>
     public Vector3 EntityOriginToWorld(Vector3 origin) => ToWorld(Vector3.Transform(origin, ReferenceTransform));
 
@@ -104,7 +107,7 @@ public sealed class Skybox3D
 
         camera.CopyFrom(from);
         camera.FieldOfView = from.FieldOfView;
-        camera.Location = (from.Location - ReferenceTransform.Translation) / Scale + Origin;
+        camera.Location = ToSky(from.Location);
         camera.NearPlane = from.NearPlane / Scale;
         camera.FarPlane = from.FarPlane / Scale;
 

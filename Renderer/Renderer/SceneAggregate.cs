@@ -140,10 +140,11 @@ namespace ValveResourceFormat.Renderer
         /// <summary>Parses fragment data from the scene object and adds each fragment to the scene.</summary>
         /// <param name="aggregateSceneObject">KV3 object describing the aggregate's fragment list.</param>
         /// <param name="rootTransform">Where the world node this aggregate belongs to is placed.</param>
-        public void LoadFragments(KVObject aggregateSceneObject, Matrix4x4 rootTransform)
+        /// <param name="worldNode">The world node this aggregate belongs to, which holds precomputed fragment visibility.</param>
+        public void LoadFragments(KVObject aggregateSceneObject, Matrix4x4 rootTransform, WorldNode? worldNode = null)
         {
             LoadLodSetups(aggregateSceneObject, rootTransform);
-            Fragments.AddRange(CreateFragments(aggregateSceneObject, rootTransform));
+            Fragments.AddRange(CreateFragments(aggregateSceneObject, rootTransform, worldNode));
             foreach (var fragment in Fragments)
             {
                 Scene.Add(fragment, false);
@@ -282,7 +283,7 @@ namespace ValveResourceFormat.Renderer
             });
         }
 
-        private IEnumerable<Fragment> CreateFragments(KVObject aggregateSceneObject, Matrix4x4 rootTransform)
+        private IEnumerable<Fragment> CreateFragments(KVObject aggregateSceneObject, Matrix4x4 rootTransform, WorldNode? worldNode)
         {
             var aggregateMeshes = aggregateSceneObject.GetArray("m_aggregateMeshes");
 
@@ -314,6 +315,7 @@ namespace ValveResourceFormat.Renderer
                         LightProbeVolumePrecomputedHandshake = lightProbeVolumePrecomputedHandshake,
                         Flags = flags,
                         Transform = rootTransform,
+                        PrecomputedVisClusters = worldNode?.GetAggregateMeshVisClusters(fragmentData),
                     };
 
                     yield return fragment;
@@ -352,6 +354,7 @@ namespace ValveResourceFormat.Renderer
                     Flags = flags,
                     LodGroupMask = lodGroupMask,
                     LodSetupIndex = lodSetupIndex,
+                    PrecomputedVisClusters = worldNode?.GetAggregateMeshVisClusters(fragmentData),
                     Transform = fragmentTransform != null
                         ? fragmentTransform.ToMatrix4x4() * rootTransform
                         : rootTransform,

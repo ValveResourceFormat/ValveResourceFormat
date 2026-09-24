@@ -137,9 +137,13 @@ namespace ValveResourceFormat.Blocks
                 MaxBounds = max;
             }
 
-            Nodes = new Node[nodes.Count];
+            var nodeCount = data.ContainsKey("m_nNodeCount")
+                ? (int)Math.Clamp(data.GetIntegerProperty("m_nNodeCount"), 0, nodes.Count)
+                : nodes.Count;
 
-            for (var i = 0; i < nodes.Count; i++)
+            Nodes = new Node[nodeCount];
+
+            for (var i = 0; i < nodeCount; i++)
             {
                 var node = nodes[i];
                 var children = node.GetIntegerArray("m_nChildren");
@@ -151,6 +155,11 @@ namespace ValveResourceFormat.Blocks
                     children.Length > 1 ? (int)children[1] : 0);
             }
 
+            if (!IsTree())
+            {
+                Nodes = [];
+            }
+
             var dwords = data.GetIntegerArray("m_visDataDwords");
             VisData = new byte[dwords.Length * sizeof(uint)];
 
@@ -158,6 +167,44 @@ namespace ValveResourceFormat.Blocks
             {
                 BitConverter.TryWriteBytes(VisData.AsSpan(i * sizeof(uint)), (uint)dwords[i]);
             }
+        }
+
+        /// <summary>
+        /// Checks that every node hangs off the root exactly once, so no walk can revisit a node.
+        /// </summary>
+        private bool IsTree()
+        {
+            if (Nodes.Length == 0)
+            {
+                return true;
+            }
+
+            var reached = new bool[Nodes.Length];
+            var pending = new Stack<int>();
+
+            reached[0] = true;
+            pending.Push(0);
+
+            while (pending.TryPop(out var index))
+            {
+                foreach (var child in (ReadOnlySpan<int>)[Nodes[index].Front, Nodes[index].Back])
+                {
+                    if (child < 0 || child >= Nodes.Length)
+                    {
+                        continue;
+                    }
+
+                    if (reached[child])
+                    {
+                        return false;
+                    }
+
+                    reached[child] = true;
+                    pending.Push(child);
+                }
+            }
+
+            return true;
         }
 
         /// <summary>
@@ -232,49 +279,47 @@ namespace ValveResourceFormat.Blocks
         {
             clusterBits.Clear();
 
-            if (Nodes.Length > 0)
-            {
-                Descend(0, new AABB(min, max), clusterBits);
-            }
-        }
-
-        private void Descend(int index, AABB box, Span<uint> clusterBits)
-        {
-            if ((uint)index >= (uint)Nodes.Length)
+            if (Nodes.Length == 0)
             {
                 return;
             }
 
-            var node = Nodes[index];
+            var pending = new Stack<int>();
+            pending.Push(0);
 
-            // The corner furthest along the normal is the last part of the box to leave the front side,
-            // and its opposite the last to leave the back. Written out rather than derived from a centre
-            // and extent, because these planes sit flush on box faces and rounding decides the result
-            var front = new Vector3(
-                node.Normal.X < 0f ? box.Min.X : box.Max.X,
-                node.Normal.Y < 0f ? box.Min.Y : box.Max.Y,
-                node.Normal.Z < 0f ? box.Min.Z : box.Max.Z);
-
-            if (node.DistanceTo(front) >= 0f)
+            while (pending.TryPop(out var index))
             {
-                Visit(node.Front, box, clusterBits);
-            }
+                var node = Nodes[index];
 
-            if (node.DistanceTo(box.Min + box.Max - front) <= 0f)
-            {
-                Visit(node.Back, box, clusterBits);
+                // The corner furthest along the normal is the last part of the box to leave the front side,
+                // and its opposite the last to leave the back
+                var front = new Vector3(
+                    node.Normal.X < 0f ? min.X : max.X,
+                    node.Normal.Y < 0f ? min.Y : max.Y,
+                    node.Normal.Z < 0f ? min.Z : max.Z);
+
+                if (node.DistanceTo(front) >= 0f)
+                {
+                    Visit(node.Front, pending, clusterBits);
+                }
+
+                if (node.DistanceTo(min + max - front) <= 0f)
+                {
+                    Visit(node.Back, pending, clusterBits);
+                }
             }
         }
 
-        private void Visit(int child, AABB box, Span<uint> clusterBits)
+        private void Visit(int child, Stack<int> pending, Span<uint> clusterBits)
         {
             if (IsCluster(child, out var cluster))
             {
                 SetCluster(cluster, clusterBits);
-                return;
             }
-
-            Descend(child, box, clusterBits);
+            else if ((uint)child < (uint)Nodes.Length)
+            {
+                pending.Push(child);
+            }
         }
 
         private void SetCluster(int cluster, Span<uint> clusterBits)

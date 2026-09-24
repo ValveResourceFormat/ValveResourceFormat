@@ -402,6 +402,17 @@ namespace GUI.Types.GLViewers
                         UiControl.AddCheckBox("PVS Culling", Scene.EnablePvsCulling, v => Scene.EnablePvsCulling = v);
                     }
 
+                    if (Renderer.Scenes.Any(static scene => scene.VisibilityBoxes.Count > 0))
+                    {
+                        UiControl.AddCheckBox("Visibility Boxes", Scene.VisibilityBoxes.Enabled, v =>
+                        {
+                            foreach (var scene in Renderer.Scenes)
+                            {
+                                scene.VisibilityBoxes.Enabled = v;
+                            }
+                        });
+                    }
+
                     CheckBox? occlusionCullingCheckBox = null;
 
                     if (GLEnvironment.SlowMultiDrawIndirect)

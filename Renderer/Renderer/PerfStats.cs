@@ -13,6 +13,8 @@ internal enum Counter
     SceneObjectInView,
     SceneObjectCulledByPvs,
     ShadowCasterCulledByPvs,
+    SceneObjectCulledByVisibilityBox,
+    ShadowCasterCulledByVisibilityBox,
     DrawCall,
     MeshletDispatch,
     MaterialChange,
@@ -415,8 +417,14 @@ public class PerfStats
         AddLine("Render Stats", new Color32(255, 200, 0));
 
         AddLine($"Triangles:        rendered {trianglesRendered:N0} of {totalTriangles:N0}", valueColor);
-        AddLine($"Scene objects:    drawn {counts[(int)Counter.SceneObjectInView] - counts[(int)Counter.SceneObjectCulledByPvs]:N0} of {totalSceneObjects:N0} scene objects ({counts[(int)Counter.SceneObjectCulledByPvs]:N0} vis) in {counts[(int)Counter.DrawCall]:N0} draw calls and {counts[(int)Counter.MeshletDispatch]:N0} meshlet dispatches ({totalDrawCalls:N0} total draw calls)", valueColor);
+        AddLine($"Scene objects:    drawn {counts[(int)Counter.SceneObjectInView] - counts[(int)Counter.SceneObjectCulledByPvs] - counts[(int)Counter.SceneObjectCulledByVisibilityBox]:N0} of {totalSceneObjects:N0} scene objects ({counts[(int)Counter.SceneObjectCulledByPvs]:N0} vis) in {counts[(int)Counter.DrawCall]:N0} draw calls and {counts[(int)Counter.MeshletDispatch]:N0} meshlet dispatches ({totalDrawCalls:N0} total draw calls)", valueColor);
         AddLine($"Shadow casters:   {counts[(int)Counter.ShadowCasterCulledByPvs]:N0} rejected by the sun visibility row", valueColor);
+
+        if (scene.VisibilityBoxes.Count > 0 || skyboxScene?.VisibilityBoxes.Count > 0)
+        {
+            AddLine($"Visibility boxes: {counts[(int)Counter.SceneObjectCulledByVisibilityBox]:N0} scene objects and {counts[(int)Counter.ShadowCasterCulledByVisibilityBox]:N0} shadow casters culled by {scene.VisibilityBoxes.View.InsideCount:N0} inside and {scene.VisibilityBoxes.View.OutsideCount:N0} outside boxes", valueColor);
+        }
+
         AddLine($"Materials:        {counts[(int)Counter.MaterialChange]:N0} changes between drawcalls, {totalMaterials:N0} total materials in scene", valueColor);
         AddLine($"VAOs:             {counts[(int)Counter.VaoChange]:N0} binds this frame, {scene.RendererContext.MeshBufferCache.VertexArrayObjectCount:N0} cached", valueColor);
         AddLine($"Render state:     {counts[(int)Counter.RenderStateApply]:N0} applies, {counts[(int)Counter.RenderStateGroupEmit]:N0} actual changes, {counts[(int)Counter.RenderStateDriverCall]:N0} driver calls this frame", valueColor);
