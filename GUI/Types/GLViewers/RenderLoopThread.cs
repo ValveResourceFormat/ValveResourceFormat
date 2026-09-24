@@ -97,7 +97,8 @@ namespace GUI.Types.GLViewers
 
             glControl.OnDetachedFromRenderLoop();
 
-            if (currentGLControl == null)
+            // With no instances left the loop has been told to quit.
+            if (currentGLControl == null && Volatile.Read(ref instances) > 0)
             {
                 renderSignal.Reset();
 
@@ -142,35 +143,16 @@ namespace GUI.Types.GLViewers
 
             while (threadHash == localHash)
             {
-                var control = currentGLControl;
-
-                if (control == null)
+                if (currentGLControl == null)
                 {
                     renderSignal.Wait();
                     continue;
                 }
 
-                if (control.TryPrewarm())
+                if (DrawCurrentControl() is not { } presented)
                 {
                     continue;
                 }
-
-                if (control.GLControl is not { } glControl || !glControl.Visible)
-                {
-                    // Work around the issue that VisibleChanged is not raised when control becomes invisible
-                    UnsetCurrentGLControl(control);
-                    continue;
-                }
-
-                var isPaused = !renderSignal.IsSet;
-
-                if (!isPaused && Form.ActiveForm == null)
-                {
-                    isPaused = true;
-                    renderSignal.Reset();
-                }
-
-                var presented = control.Draw(isPaused);
 
                 if (!renderSignal.IsSet)
                 {
@@ -201,6 +183,37 @@ namespace GUI.Types.GLViewers
 #if DEBUG
             GUI.Utils.Log.Debug(nameof(RenderLoop), $"Thread quit (#{localHash})");
 #endif
+        }
+
+        /// <summary>
+        /// Draws one frame of the current control, returning whether it was presented, or null when
+        /// there was nothing to draw. The control is only referenced for the duration of this call.
+        /// </summary>
+        private static bool? DrawCurrentControl()
+        {
+            var control = currentGLControl;
+
+            if (control == null || control.TryPrewarm())
+            {
+                return null;
+            }
+
+            if (control.GLControl is not { } glControl || !glControl.Visible)
+            {
+                // Work around the issue that VisibleChanged is not raised when control becomes invisible
+                UnsetCurrentGLControl(control);
+                return null;
+            }
+
+            var isPaused = !renderSignal.IsSet;
+
+            if (!isPaused && Form.ActiveForm == null)
+            {
+                isPaused = true;
+                renderSignal.Reset();
+            }
+
+            return control.Draw(isPaused);
         }
     }
 }

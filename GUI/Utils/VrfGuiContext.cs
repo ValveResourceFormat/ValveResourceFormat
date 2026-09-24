@@ -64,7 +64,7 @@ namespace GUI.Utils
         private int Children;
         private bool WantsToBeDisposed;
         private readonly ConcurrentDictionary<string, Resource> CachedResources = [];
-        private readonly ConcurrentBag<RendererContext> rendererContexts = [];
+        private readonly ConcurrentQueue<RendererContext> rendererContexts = [];
 
 #if DEBUG
         private int TotalChildren;
@@ -227,7 +227,7 @@ namespace GUI.Utils
                 MaxTextureSize = Settings.Config.MaxTextureSize,
             };
 
-            rendererContexts.Add(context);
+            rendererContexts.Enqueue(context);
 
             return context;
         }
