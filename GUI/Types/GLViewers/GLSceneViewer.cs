@@ -73,8 +73,6 @@ namespace GUI.Types.GLViewers
         private PerfDisplay perfDisplay;
         private ComboBox? perfDisplayComboBox;
 
-        /// <summary>Set by escape to release the mouse in walk mode or mouselook, cleared by clicking back into the viewport.</summary>
-        public bool MouseReleased { get; set; }
         private bool roundStarted;
 
         private readonly List<RenderModes.RenderMode> renderModes = new(RenderModes.Items.Count);
@@ -333,8 +331,6 @@ namespace GUI.Types.GLViewers
         {
             base.OnMouseDown(sender, e);
 
-            MouseReleased = false;
-
             if (Input.WalkMode)
             {
                 return;
@@ -563,8 +559,8 @@ namespace GUI.Types.GLViewers
                     }
                 }
 
-                // Walk mode and mouse look mode aim with the mouse, so they hold the cursor. Leaving
-                // both, pausing, or pressing escape hands it back.
+                // Walk mode and mouse look aim with the mouse, so they hold the cursor. Leaving both,
+                // pausing, escape, or the viewport losing focus hands it back.
                 var wantsMouseLook = (Input.WalkMode || Input.MouseLook) && !Paused && !MouseReleased;
 
                 // Taking the cursor needs it over the viewport, but keeping it does not, or a fast

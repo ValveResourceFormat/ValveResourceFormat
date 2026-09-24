@@ -948,8 +948,6 @@ namespace GUI.Types.GLViewers
 
             if (pickingResponse.Intent == PickingIntent.Details)
             {
-                // temporarily release mouselook when opening entity details
-                MouseReleased = true;
                 Program.MainForm.Invoke(() =>
                 {
                     ShowSceneNodeDetails(sceneNode);
@@ -1046,7 +1044,6 @@ namespace GUI.Types.GLViewers
                 }
             };
 
-            Input.MouseLook = false;
             Program.MainForm.Invoke(() =>
             {
                 Program.MainForm.OpenFile(foundFile.Context, foundFile.PackageEntry);

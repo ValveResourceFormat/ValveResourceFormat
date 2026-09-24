@@ -94,11 +94,8 @@ public class UserInput
     /// <summary>Gets a value indicating whether the camera is in noclip (free-flight) mode rather than FPS movement mode.</summary>
     public bool NoClip => !WalkMode;
 
-    /// <summary>
-    /// Gets a value indicating whether mouse look mode is on: the mouse turns the camera without holding
-    /// a button.
-    /// </summary>
-    public bool MouseLook { get; set; }
+    /// <summary>Gets whether the mouse turns the camera without a button held. Toggled with Z, off with escape.</summary>
+    public bool MouseLook { get; private set; }
 
     /// <summary>
     /// Gets a value indicating whether the walk mode crosshair should be drawn. The viewmodel already
@@ -284,16 +281,13 @@ public class UserInput
             }
         }
 
-        if (!WalkMode)
+        if (!WalkMode && Pressed(TrackedKeys.Z))
         {
-            if (Pressed(TrackedKeys.Z))
-            {
-                MouseLook = !MouseLook;
-            }
-            else if (MouseLook && Pressed(TrackedKeys.Escape))
-            {
-                MouseLook = false;
-            }
+            MouseLook = !MouseLook;
+        }
+        else if (Pressed(TrackedKeys.Escape))
+        {
+            MouseLook = false;
         }
 
         if (wasWalking && !WalkMode)

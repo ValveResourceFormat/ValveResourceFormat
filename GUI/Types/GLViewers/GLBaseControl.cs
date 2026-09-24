@@ -37,6 +37,12 @@ internal abstract class GLBaseControl : IDisposable, IMessageFilter
     /// <summary>Whether the mouse has moved while a button was held since the last mouse down.</summary>
     protected bool MouseDragged;
 
+    /// <summary>
+    /// Set when the viewport lets go of the cursor (focus lost, or escape in walk mode) so mouse look
+    /// does not take it straight back; cleared by clicking back into the viewport.
+    /// </summary>
+    protected bool MouseReleased;
+
     private readonly Lock inputStateLock = new();
     private Point pendingMouseDelta;
     private int pendingMouseWheelDelta;
@@ -362,6 +368,7 @@ internal abstract class GLBaseControl : IDisposable, IMessageFilter
         MouseDelta = Point.Empty;
         currentDragIsTouch = false;
         mouseLookNeedsRebase = true;
+        MouseReleased = true;
         GrabbedMouse = false;
         RestoreCursorAfterDrag();
     }
@@ -467,6 +474,7 @@ internal abstract class GLBaseControl : IDisposable, IMessageFilter
         InitialMousePosition = new Point(e.X, e.Y);
         MouseDelta = Point.Empty;
         MouseDragged = false;
+        MouseReleased = false;
         currentDragIsTouch = IsTouchOrPenInput();
         mouseLookNeedsRebase = true;
 
