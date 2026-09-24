@@ -1233,7 +1233,7 @@ namespace ValveResourceFormat.Renderer
             lpvBuffer.Update();
         }
 
-        /// <summary>Updates the lighting buffer, then binds the lighting, environment map, light probe, and barn light buffers to their reserved GPU binding slots.</summary>
+        /// <summary>Updates the lighting buffer, then binds the lighting, environment map, light probe, instance, transform, object and barn light buffers to their reserved GPU binding slots.</summary>
         public void SetSceneBuffers()
         {
             Debug.Assert(lightingBuffer is not null && envMapBuffer is not null && lpvBuffer is not null);
@@ -1242,8 +1242,20 @@ namespace ValveResourceFormat.Renderer
             lightingBuffer.BindBufferBase();
             envMapBuffer.BindBufferBase();
             lpvBuffer.BindBufferBase();
-            ObjectBufferGpu?.BindBufferBase();
+            BindDrawBuffers();
             LightingInfo.BindBarnLightBuffer();
+        }
+
+        /// <summary>
+        /// Binds the instance, transform and object buffers draws index by base instance. Nodes that draw
+        /// themselves index them by their id without binding them, so every switch between scenes must rebind
+        /// these, or such a node reads the buffers of whichever scene drew last.
+        /// </summary>
+        internal void BindDrawBuffers()
+        {
+            InstanceBufferGpu?.BindBufferBase();
+            TransformBufferGpu?.BindBufferBase();
+            ObjectBufferGpu?.BindBufferBase();
         }
 
         /// <summary>
