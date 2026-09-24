@@ -1315,6 +1315,7 @@ public class Renderer : ISpawnGroupHost
                 foreach (var state in mainViewSceneStates)
                 {
                     renderContext.Scene = state.Scene;
+                    state.Scene.BindDrawBuffers();
                     Scene.RenderOpaqueShadows(renderContext, depthOnlyShader, state.Scene.CulledShadowDrawCallsCascades[cascade]);
                 }
             }
