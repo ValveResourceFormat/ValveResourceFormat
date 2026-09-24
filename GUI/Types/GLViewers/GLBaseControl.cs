@@ -64,6 +64,7 @@ internal abstract class GLBaseControl : IDisposable, IMessageFilter
                 if (value)
                 {
                     mouseLookNeedsRebase = true;
+                    GLControl?.BeginInvoke(() => HideCursorForMouseLook(Cursor.Position, touch: false));
                 }
                 else
                 {
@@ -521,6 +522,26 @@ internal abstract class GLBaseControl : IDisposable, IMessageFilter
         }
     }
 
+    private void HideCursorForMouseLook(Point restorePosition, bool touch)
+    {
+        if (cursorHiddenForDrag || GLControl == null)
+        {
+            return;
+        }
+
+        cursorHiddenForDrag = true;
+        mouseLookRestorePosition = restorePosition;
+        mouseLookNeedsRebase = true;
+
+        if (!touch)
+        {
+            Cursor.Clip = GLControl.RectangleToScreen(GLControl.ClientRectangle);
+            BeginRawMouseLook();
+        }
+
+        SetCursorVisible(false);
+    }
+
     private void RestoreCursorAfterDrag()
     {
         if (!cursorHiddenForDrag)
@@ -698,21 +719,7 @@ internal abstract class GLBaseControl : IDisposable, IMessageFilter
         if (delta != Point.Empty)
         {
             MouseDragged = true;
-
-            if (!cursorHiddenForDrag)
-            {
-                cursorHiddenForDrag = true;
-                mouseLookRestorePosition = MousePreviousPosition;
-                mouseLookNeedsRebase = true;
-
-                if (!touch)
-                {
-                    Cursor.Clip = GLControl.RectangleToScreen(GLControl.ClientRectangle);
-                    BeginRawMouseLook();
-                }
-
-                SetCursorVisible(false);
-            }
+            HideCursorForMouseLook(MousePreviousPosition, touch);
         }
 
         // Touch and pen are absolute digitizers: warping the cursor doesn't move the contact point
