@@ -16,10 +16,11 @@ namespace ValveResourceFormat.Particles
         /// ONLY use this in emitters and renderers, where per-particle values can't be accessed. Otherwise, use the other version.
         /// </summary>
         public float NextNumber()
-            => NextNumber(ref Particle.Default, ParticleSystemState.Default);
+            => NextNumber(ParticleSystemState.Default);
 
         /// <summary>
-        /// Returns the next number value using system-level state only.
+        /// Returns the next number value using system-level state only. Inputs that read a particle
+        /// return 0 here.
         /// </summary>
         public float NextNumber(ParticleSystemState renderState)
             => NextNumber(ref Particle.Default, renderState);
@@ -65,12 +66,17 @@ namespace ValveResourceFormat.Particles
 
         private readonly int sampleOffset;
 
-        public RandomNumberProvider(ParticleDefinitionParser parse, bool isBiased = false)
+        /// <param name="parse">The input block.</param>
+        /// <param name="isBiased">Whether the draw goes through a bias curve.</param>
+        /// <param name="defaultMax">The upper end of the range when the block omits it.</param>
+        /// <param name="defaultMode">The random mode when the block omits it.</param>
+        public RandomNumberProvider(ParticleDefinitionParser parse, bool isBiased = false, float defaultMax = 0f,
+            ParticleFloatRandomMode defaultMode = ParticleFloatRandomMode.PF_RANDOM_MODE_CONSTANT)
         {
             minRange = parse.Float("m_flRandomMin");
-            maxRange = parse.Float("m_flRandomMax");
+            maxRange = parse.Float("m_flRandomMax", defaultMax);
             hasRandomSignFlip = parse.Boolean("m_bHasRandomSignFlip", hasRandomSignFlip);
-            randomMode = parse.Enum<ParticleFloatRandomMode>("m_nRandomMode", randomMode);
+            randomMode = parse.Enum("m_nRandomMode", defaultMode);
 
             this.isBiased = isBiased;
 
@@ -169,6 +175,7 @@ namespace ValveResourceFormat.Particles
         private readonly AttributeMapping attributeMapping;
         public ParticleAgeNumberProvider(ParticleDefinitionParser parse) { attributeMapping = new AttributeMapping(parse); }
         public float NextNumber(ref Particle particle, ParticleSystemState renderState) => attributeMapping.ApplyMapping(particle.Age);
+        public float NextNumber(ParticleSystemState renderState) => 0f;
     }
 
     // Particle Age (0-1)
@@ -177,6 +184,7 @@ namespace ValveResourceFormat.Particles
         private readonly AttributeMapping attributeMapping;
         public ParticleAgeNormalizedNumberProvider(ParticleDefinitionParser parse) { attributeMapping = new AttributeMapping(parse); }
         public float NextNumber(ref Particle particle, ParticleSystemState renderState) => attributeMapping.ApplyMapping(particle.NormalizedAge);
+        public float NextNumber(ParticleSystemState renderState) => 0f;
     }
 
     // Particle Float
@@ -193,6 +201,7 @@ namespace ValveResourceFormat.Particles
             mapping = new AttributeMapping(parse);
         }
         public float NextNumber(ref Particle particle, ParticleSystemState renderState) => mapping.ApplyMapping(particle.GetScalar(field));
+        public float NextNumber(ParticleSystemState renderState) => 0f;
     }
 
     /// <summary>
@@ -212,6 +221,7 @@ namespace ValveResourceFormat.Particles
             mapping = new AttributeMapping(parse);
         }
         public float NextNumber(ref Particle particle, ParticleSystemState renderState) => mapping.ApplyMapping(particle.GetScalar(field));
+        public float NextNumber(ParticleSystemState renderState) => 0f;
     }
 
     // Particle Vector Component
@@ -232,6 +242,8 @@ namespace ValveResourceFormat.Particles
         {
             return mapping.ApplyMapping(particle.GetVectorComponent(field, component));
         }
+
+        public float NextNumber(ParticleSystemState renderState) => 0f;
     }
 
     // Particle Speed
@@ -240,6 +252,7 @@ namespace ValveResourceFormat.Particles
         private readonly AttributeMapping attributeMapping;
         public PerParticleSpeedNumberProvider(ParticleDefinitionParser parse) { attributeMapping = new AttributeMapping(parse); }
         public float NextNumber(ref Particle particle, ParticleSystemState renderState) => attributeMapping.ApplyMapping(particle.Speed);
+        public float NextNumber(ParticleSystemState renderState) => 0f;
     }
 
     // Particle Count
@@ -248,6 +261,7 @@ namespace ValveResourceFormat.Particles
         private readonly AttributeMapping attributeMapping;
         public PerParticleCountNumberProvider(ParticleDefinitionParser parse) { attributeMapping = new AttributeMapping(parse); }
         public float NextNumber(ref Particle particle, ParticleSystemState renderState) => attributeMapping.ApplyMapping(particle.UniqueParticleId);
+        public float NextNumber(ParticleSystemState renderState) => 0f;
     }
 
     // Particle Count Percent of Total Count (0-1)
@@ -265,6 +279,8 @@ namespace ValveResourceFormat.Particles
                 : Math.Max(renderState.ParticleCount, 1);
             return attributeMapping.ApplyMapping(particle.Index / (float)divisor);
         }
+
+        public float NextNumber(ParticleSystemState renderState) => 0f;
     }
 
     // Control Point Component
@@ -289,13 +305,31 @@ namespace ValveResourceFormat.Particles
         }
     }
 
-    /// <summary>PF_TYPE_RENDERER_CAMERA_DISTANCE. Distance from the render camera to the particle.</summary>
+    /// <summary>
+    /// PF_TYPE_RENDERER_CAMERA_DISTANCE. Distance from the render camera to the control point, or to
+    /// the centre of the system's bounds, shared by every particle.
+    /// </summary>
     class RendererCameraDistanceNumberProvider : INumberProvider
     {
         private readonly AttributeMapping attributeMapping;
-        public RendererCameraDistanceNumberProvider(ParticleDefinitionParser parse) { attributeMapping = new AttributeMapping(parse); }
+        private readonly int cp;
+        private readonly bool useBoundsCenter;
+
+        public RendererCameraDistanceNumberProvider(ParticleDefinitionParser parse)
+        {
+            attributeMapping = new AttributeMapping(parse);
+            cp = parse.Int32("m_nControlPoint");
+            useBoundsCenter = parse.Boolean("m_bUseBoundsCenter");
+        }
+
         public float NextNumber(ref Particle particle, ParticleSystemState renderState)
-            => attributeMapping.ApplyMapping(Vector3.Distance(renderState.CameraPosition, particle.Position));
+        {
+            var target = useBoundsCenter && renderState.Data is { } system
+                ? system.LocalBoundingBox.Center + system.MainControlPoint.Position
+                : renderState.GetControlPoint(cp).Position;
+
+            return attributeMapping.ApplyMapping(Vector3.Distance(renderState.CameraPosition, target));
+        }
     }
 
     /// <summary>
@@ -347,6 +381,60 @@ namespace ValveResourceFormat.Particles
         }
     }
 
+    /// <summary>PF_TYPE_CONTROL_POINT_CHANGE_AGE. How long ago the control point last changed, see <see cref="ControlPoint.ChangeAge"/>.</summary>
+    class ControlPointChangeAgeNumberProvider : INumberProvider
+    {
+        private readonly AttributeMapping attributeMapping;
+        private readonly int cp;
+
+        public ControlPointChangeAgeNumberProvider(ParticleDefinitionParser parse)
+        {
+            attributeMapping = new AttributeMapping(parse);
+            cp = parse.Int32("m_nControlPoint");
+        }
+
+        public float NextNumber(ref Particle particle, ParticleSystemState renderState)
+            => attributeMapping.ApplyMapping(renderState.GetControlPoint(cp).ChangeAge);
+    }
+
+    /// <summary>PF_TYPE_CONTROL_POINT_IS_SET. 1 once the control point has changed, see <see cref="ControlPoint.ChangeTime"/>, and 0 before that.</summary>
+    class ControlPointIsSetNumberProvider : INumberProvider
+    {
+        private readonly AttributeMapping attributeMapping;
+        private readonly int cp;
+
+        public ControlPointIsSetNumberProvider(ParticleDefinitionParser parse)
+        {
+            attributeMapping = new AttributeMapping(parse);
+            cp = parse.Int32("m_nControlPoint");
+        }
+
+        public float NextNumber(ref Particle particle, ParticleSystemState renderState)
+        {
+            var isSet = cp != -1 && renderState.GetControlPoint(cp).ChangeTime != -1f;
+            return attributeMapping.ApplyMapping(isSet ? 1f : 0f);
+        }
+    }
+
+    /// <summary>
+    /// PF_TYPE_SNAPSHOT_COUNT. How many particles the snapshot on the control point holds, 0 when it
+    /// carries none or a subset is authored.
+    /// </summary>
+    class SnapshotCountNumberProvider : INumberProvider
+    {
+        private readonly AttributeMapping attributeMapping;
+        private readonly SnapshotBinding snapshot;
+
+        public SnapshotCountNumberProvider(ParticleDefinitionParser parse)
+        {
+            attributeMapping = new AttributeMapping(parse);
+            snapshot = new SnapshotBinding(parse, "m_nControlPoint", 0);
+        }
+
+        public float NextNumber(ref Particle particle, ParticleSystemState renderState)
+            => attributeMapping.ApplyMapping(snapshot.Count(renderState));
+    }
+
     // Distance from the particle to a control point
     class ControlPointDistanceNumberProvider : INumberProvider
     {
@@ -364,6 +452,8 @@ namespace ValveResourceFormat.Particles
             var distance = Vector3.Distance(particle.Position, renderState.GetControlPoint(cp).Position);
             return attributeMapping.ApplyMapping(distance);
         }
+
+        public float NextNumber(ParticleSystemState renderState) => 0f;
     }
 
     /* Unaccounted for params:

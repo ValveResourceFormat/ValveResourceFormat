@@ -46,7 +46,7 @@ namespace ValveResourceFormat.Particles
             Min,
             /// <summary>Takes the larger of the input value and the compare value.</summary>
             Max,
-            /// <summary>Takes the remainder of the input value divided by the compare value.</summary>
+            /// <summary>Takes the remainder of the input value divided by the compare value, or the input itself when that is 0.</summary>
             Mod,
         };
 
@@ -208,7 +208,7 @@ namespace ValveResourceFormat.Particles
 
                 case PfMapType.Mod:
                     // Truncated remainder, keeping the sign of the input
-                    return value % compareValue;
+                    return compareValue == 0f ? value : value % compareValue;
 
                 default:
                     return value;
