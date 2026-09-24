@@ -1,5 +1,5 @@
 // VRF-TEST
-// SPIR-V source (12464 bytes), HLSL reflection with SPIRV-Cross by KhronosGroup
+// SPIR-V source, HLSL reflection with SPIRV-Cross by KhronosGroup
 // Dynamic combos: D_RESAMPLE, D_MIP_COUNT, D_MSAA_DEPTH
 
 static const float _462[4] = { 0.0f, 0.0f, 0.0f, 0.0f };

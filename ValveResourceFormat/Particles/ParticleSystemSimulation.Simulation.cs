@@ -317,6 +317,7 @@ namespace ValveResourceFormat.Particles
             // identity along with a rewound clock; no particle survives it
             systemState.Random.Reseed();
             systemState.Age = 0f;
+            systemState.RewindControlPointChanges();
             targetDrawTime = 0f;
             previousSimTime = 1e23f;
 
@@ -406,11 +407,20 @@ namespace ValveResourceFormat.Particles
                 remaining = 0f;
             }
 
+            var frameLength = 0f;
+
+            for (var left = remaining; left > 0f;)
+            {
+                var step = SubstepLength(left, maximumStep);
+                frameLength += step;
+                left -= step;
+            }
+
+            systemState.BeginFrame(frameLength);
+
             while (remaining > 0f)
             {
-                var step = remaining > maximumStep
-                    ? maximumStep
-                    : MathF.Max(remaining, minimumTimeStep);
+                var step = SubstepLength(remaining, maximumStep);
 
                 remaining -= step;
 
@@ -439,6 +449,9 @@ namespace ValveResourceFormat.Particles
                 childSimulation.UpdateFrame(frameTime, presimulating);
             }
         }
+
+        private float SubstepLength(float remaining, float maximumStep)
+            => remaining > maximumStep ? maximumStep : MathF.Max(remaining, minimumTimeStep);
 
         private void Simulate(float frameTime, bool presimulating)
         {

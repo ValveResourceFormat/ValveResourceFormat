@@ -1,5 +1,5 @@
 // VRF-TEST
-// SPIR-V source (2540 bytes), HLSL reflection with SPIRV-Cross by KhronosGroup
+// SPIR-V source, HLSL reflection with SPIRV-Cross by KhronosGroup
 
 struct anon_g_Batches
 {

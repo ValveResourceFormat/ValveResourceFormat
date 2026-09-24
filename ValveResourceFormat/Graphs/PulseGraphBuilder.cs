@@ -157,6 +157,10 @@ internal sealed class PulseGraphBuilder
     // Per chunk, the last instruction of each loop keyed by its first
     private Dictionary<int, int>[] loopsByChunk = [];
 
+    // Instructions on the flow currently being walked, with the flow entering each and the wire count at that point
+    private readonly Dictionary<(int Chunk, int Instruction), (FlowContinuation Entry, int WireCount)> walkPath = [];
+    private readonly Stack<(int Chunk, int Instruction)> walkPathOrder = [];
+
     // A call or leap node, labelled with its target chunk's name once every chunk is named
     private readonly record struct RemoteNodeInfo(int TargetChunk, Node Node, string TargetNamePrefix);
 
@@ -243,7 +247,7 @@ internal sealed class PulseGraphBuilder
 
     // Adds a flow output to node and draws the flow it leads to. The outflow's own out params are
     // registers of the destination chunk, set when the flow starts there.
-    private void TraverseOutflow(
+    private FlowContinuation TraverseOutflow(
         GraphDocument document,
         Node node,
         string socketLabel,
@@ -267,10 +271,10 @@ internal sealed class PulseGraphBuilder
         var outputSocket = node.CreateFlowOut(socketLabel);
         if (destChunk == -1)
         {
-            return;
+            return FlowContinuation.Of(outputSocket);
         }
 
-        TraverseNodesForChunk(
+        return TraverseNodesForChunk(
             document,
             destChunk,
             FlowContinuation.Of(outputSocket),
@@ -477,9 +481,12 @@ internal sealed class PulseGraphBuilder
     }
 
     /// <summary>The port a flow continues into, created on first use.</summary>
-    private sealed class FlowContinuation(Func<GraphSocket> create)
+    private sealed class FlowContinuation(Func<GraphSocket> create, Node? breakNode = null)
     {
         private GraphSocket? socket;
+
+        /// <summary>The loop break the flow stopped at, if it did.</summary>
+        public Node? BreakNode { get; } = breakNode;
 
         /// <summary>A port the node only grows once a flow continues into it.</summary>
         /// <param name="node">The node the port would belong to.</param>
@@ -489,8 +496,15 @@ internal sealed class PulseGraphBuilder
         /// <param name="existing">The port to continue from.</param>
         public static FlowContinuation Of(GraphSocket existing) => new(() => existing);
 
+        /// <summary>A flow that left its loop at a break, resuming where the loop completes.</summary>
+        /// <param name="node">The break node.</param>
+        public static FlowContinuation Break(Node node) => new(() => node.CreateFlowOut(""), node);
+
         /// <summary>The port itself.</summary>
         public GraphSocket Socket => socket ??= create();
+
+        /// <summary>Whether <see cref="Socket"/> has been used.</summary>
+        public bool IsCreated => socket != null;
     }
 
     private static FlowContinuation CreateSequentialActionSockets(GraphDocument document, Node node, FlowContinuation previousActionOutSocket)
@@ -1026,6 +1040,55 @@ internal sealed class PulseGraphBuilder
         int startingInstructionIdx = 0,
         int endingInstructionIdx = int.MaxValue /* non-inclusive */)
     {
+        var walkDepth = walkPathOrder.Count;
+        var flow = WalkChunk(document, chunkIndex, sourceActionOutSocket, registerValues, startingInstructionIdx, endingInstructionIdx);
+
+        while (walkPathOrder.Count > walkDepth)
+        {
+            walkPath.Remove(walkPathOrder.Pop());
+        }
+
+        return flow;
+    }
+
+    // An instruction already on the walk is not walked again, the flow is wired back into the first
+    // node drawn at or after it instead
+    private bool TryJumpBack(GraphDocument document, int chunkIndex, int instructionIdx, FlowContinuation previousActionOutSocket)
+    {
+        if (!walkPath.TryGetValue((chunkIndex, instructionIdx), out var target))
+        {
+            return false;
+        }
+
+        var targetInput = target.Entry.IsCreated
+            ? document.Wires.Skip(target.WireCount).FirstOrDefault(wire => wire.From == target.Entry.Socket)?.To
+            : null;
+
+        if (targetInput != null)
+        {
+            var source = previousActionOutSocket.Socket;
+            if (!targetInput.Wires.Any(wire => wire.From == source))
+            {
+                document.Connect(source, targetInput, label: "Jump back");
+            }
+
+            return true;
+        }
+
+        var node = CreateNode("Jump Back", "Flow", PulseCategory.FlowControl);
+        CreateSequentialActionSockets(document, node, previousActionOutSocket);
+        node.AddText($"To instruction {instructionIdx}");
+        document.AddNode(node);
+        return true;
+    }
+
+    private FlowContinuation WalkChunk(GraphDocument document,
+        int chunkIndex,
+        FlowContinuation sourceActionOutSocket,
+        Dictionary<int, RegisterValue> registerValues,
+        int startingInstructionIdx,
+        int endingInstructionIdx)
+    {
         if (chunkIndex < 0)
         {
             return sourceActionOutSocket;
@@ -1038,6 +1101,11 @@ internal sealed class PulseGraphBuilder
         var previousActionOutSocket = sourceActionOutSocket;
         for (var instructionIdx = startingInstructionIdx; instructionIdx < finalEndingInstructionIdx; instructionIdx++)
         {
+            if (TryJumpBack(document, chunkIndex, instructionIdx, previousActionOutSocket))
+            {
+                return previousActionOutSocket;
+            }
+
             // A loop ending past the range being walked is not the one currently being drawn
             while (chunkLoops.TryGetValue(instructionIdx, out var loopEnd) && finalEndingInstructionIdx > loopEnd)
             {
@@ -1051,6 +1119,14 @@ internal sealed class PulseGraphBuilder
             {
                 break;
             }
+
+            if (TryJumpBack(document, chunkIndex, instructionIdx, previousActionOutSocket))
+            {
+                return previousActionOutSocket;
+            }
+
+            walkPath.Add((chunkIndex, instructionIdx), (previousActionOutSocket, document.WireCount));
+            walkPathOrder.Push((chunkIndex, instructionIdx));
 
             var instruction = instructions[instructionIdx];
             var instrType = GetInstructionType(instruction);
@@ -1190,7 +1266,7 @@ internal sealed class PulseGraphBuilder
                         node.AddMessage("No enclosing loop, halts the cursor");
                     }
                     document.AddNode(node);
-                    return previousActionOutSocket;
+                    return FlowContinuation.Break(node);
                 }
                 case InstructionCode.PULSE_CALL_SYNC:
                 case InstructionCode.PULSE_CALL_ASYNC_FIRE:
@@ -1207,8 +1283,25 @@ internal sealed class PulseGraphBuilder
                         else
                         {
                             // A call within the same chunk runs inline, e.g. a loop body, and comes back to the next instruction
-                            previousActionOutSocket = TraverseNodesForChunk(document, chunkIndex, previousActionOutSocket,
+                            var body = TraverseNodesForChunk(document, chunkIndex, previousActionOutSocket,
                                 new Dictionary<int, RegisterValue>(registerValues), callDestInstructionIdx);
+
+                            if (body.BreakNode is not { } breakNode)
+                            {
+                                previousActionOutSocket = body;
+                                break;
+                            }
+
+                            // A break leaves the loop at the break destination of the nearest call carrying one
+                            var loopCallInfo = callInfos.ElementAtOrDefault(instruction.GetInt32Property("m_nCallInfoIndex"));
+                            var breakDestChunk = loopCallInfo?.GetInt32Property("m_nBreakDestChunk", -1) ?? -1;
+                            if (loopCallInfo == null || breakDestChunk == -1)
+                            {
+                                return body;
+                            }
+
+                            return TraverseOutflow(document, breakNode, "Loop completed", chunkIndex, breakDestChunk,
+                                loopCallInfo.GetInt32Property("m_nBreakDestInstruction"), finalEndingInstructionIdx, registerValues);
                         }
                         break;
                     }
@@ -1245,14 +1338,14 @@ internal sealed class PulseGraphBuilder
                 }
                 case InstructionCode.JUMP:
                 {
-                    TraverseNodesForChunk(
+                    var jumped = TraverseNodesForChunk(
                         document,
                         chunkIndex,
                         previousActionOutSocket,
                         new Dictionary<int, RegisterValue>(registerValues),
                         instruction.GetInt32Property("m_nDestInstruction"),
                         finalEndingInstructionIdx);
-                    return previousActionOutSocket;
+                    return jumped.BreakNode != null ? jumped : previousActionOutSocket;
                 }
                 case InstructionCode.JUMP_COND:
                 {

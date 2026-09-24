@@ -15,7 +15,7 @@ namespace ValveResourceFormat.ToolsAssetInfo
         /// <summary>
         /// The root an asset path is relative to.
         /// </summary>
-        public enum AssetLocation
+        public enum AssetLocation : byte
         {
             /// <summary>The game root, containing the compiled assets.</summary>
             Game = 0,
@@ -25,6 +25,24 @@ namespace ValveResourceFormat.ToolsAssetInfo
 
             /// <summary>No specific root, used by location agnostic paths and by resource names.</summary>
             None = 7,
+        }
+
+        /// <summary>
+        /// The state of an asset's stored dependency information.
+        /// </summary>
+        public enum DependencyInfoState
+        {
+            /// <summary>The dependency information is valid.</summary>
+            Valid = 0,
+
+            /// <summary>The dependency information is invalid.</summary>
+            InvalidDependencyInfo = 1,
+
+            /// <summary>The compiled game file does not exist.</summary>
+            NoGameFile = 2,
+
+            /// <summary>The compiled game file is corrupt.</summary>
+            CorruptGameFile = 3,
         }
 
         /// <summary>
@@ -41,6 +59,12 @@ namespace ValveResourceFormat.ToolsAssetInfo
                 /// Gets the filename.
                 /// </summary>
                 public string Filename { get; init; }
+
+                /// <summary>
+                /// Gets the root the filename is relative to, <see cref="AssetLocation.Game"/> for compiled game files.
+                /// The engine treats <see cref="AssetLocation.None"/> as <see cref="AssetLocation.Content"/> for additional input dependencies.
+                /// </summary>
+                public AssetLocation Location { get; init; }
 
                 /// <summary>
                 /// Gets the file CRC.
@@ -69,13 +93,23 @@ namespace ValveResourceFormat.ToolsAssetInfo
                 public string Filename { get; init; }
 
                 /// <summary>
-                /// Gets the CRC32 of the file, or zero when it was not computed.
+                /// Gets the CRC32 of the file, only meaningful when <see cref="HasCRC"/> is set.
                 /// </summary>
                 public uint FileCRC { get; init; }
 
                 /// <summary>
+                /// Gets a value indicating whether <see cref="FileCRC"/> was computed.
+                /// </summary>
+                public bool HasCRC { get; init; }
+
+                /// <summary>
+                /// Gets a value indicating whether the file was writable, as opposed to read-only.
+                /// </summary>
+                public bool Writable { get; init; }
+
+                /// <summary>
                 /// Gets the last modification time of the file as a FILETIME. It has a resolution
-                /// of 25.6 microseconds because the low 8 bits are not stored.
+                /// of 102.4 microseconds because the low 10 bits are not stored.
                 /// </summary>
                 [KVIgnore]
                 public long ModificationTimeFileTime { get; init; }
@@ -143,28 +177,34 @@ namespace ValveResourceFormat.ToolsAssetInfo
                 public string Filename { get; init; }
 
                 /// <summary>
+                /// Gets the root the filename is relative to, <see cref="AssetLocation.Game"/> for compiled game files.
+                /// </summary>
+                public AssetLocation Location { get; init; }
+
+                /// <summary>
                 /// Gets the fingerprint.
                 /// </summary>
                 public uint Fingerprint { get; init; }
             }
 
             /// <summary>
-            /// Gets or sets a value indicating whether the file needs refresh.
+            /// Gets or sets a value indicating whether the dependency information needs to be refreshed.
             /// </summary>
             public bool NeedsRefresh { get; set; }
 
             /// <summary>
-            /// Gets or sets a value indicating whether the file is invalid.
+            /// Gets or sets the state of the stored dependency information.
             /// </summary>
-            public bool Invalid { get; set; }
+            public DependencyInfoState DependencyInfo { get; set; }
 
             /// <summary>
-            /// Gets or sets a value indicating whether the file is up to date.
+            /// Gets or sets a value indicating whether the compiled asset is always treated as up to date,
+            /// which is the case for read-only compiled asset information.
             /// </summary>
-            public bool UpToDate { get; set; }
+            public bool ForcedUpToDate { get; set; }
 
             /// <summary>
-            /// Gets or sets a value indicating whether compilation failed.
+            /// Gets or sets a value indicating whether compilation failed. The engine discards this on load.
             /// </summary>
             public bool CompileFailed { get; set; }
 
@@ -287,7 +327,7 @@ namespace ValveResourceFormat.ToolsAssetInfo
 
             if (magic == MAGIC2)
             {
-                if (Version < 11 || Version > 15)
+                if (Version < 11 || Version > 16)
                 {
                     throw new UnexpectedMagicException("Unexpected version", Version, nameof(Version));
                 }
@@ -306,33 +346,17 @@ namespace ValveResourceFormat.ToolsAssetInfo
 
             var fileCount = reader.ReadInt32();
 
-            // Whether the edit info and misc string tables are stored, files without them are not supported here
-            var hasEditInfoAndMiscStrings = reader.ReadUInt32();
-
-            if (hasEditInfoAndMiscStrings != 1)
-            {
-                throw new UnexpectedMagicException("Unexpected", hasEditInfoAndMiscStrings, nameof(hasEditInfoAndMiscStrings));
-            }
+            var hasEditInfoAndMiscStrings = reader.ReadUInt32() != 0;
+            var hasSubassetStrings = hasEditInfoAndMiscStrings && Version >= 12;
 
             var mods = ReadStringsBlock(reader);
             var directories = ReadStringsBlock(reader);
             var flenames = ReadStringsBlock(reader);
             var extensions = ReadStringsBlock(reader);
-            var editInfoKeys = ReadStringsBlock(reader);
-            var miscStrings = ReadStringsBlock(reader);
-            List<string> subassetDefinitions;
-            List<string> subassetValues;
-
-            if (Version >= 12)
-            {
-                subassetDefinitions = ReadStringsBlock(reader);
-                subassetValues = ReadStringsBlock(reader);
-            }
-            else
-            {
-                subassetDefinitions = [];
-                subassetValues = [];
-            }
+            var editInfoKeys = hasEditInfoAndMiscStrings ? ReadStringsBlock(reader) : [];
+            var miscStrings = hasEditInfoAndMiscStrings ? ReadStringsBlock(reader) : [];
+            var subassetDefinitions = hasSubassetStrings ? ReadStringsBlock(reader) : [];
+            var subassetValues = hasSubassetStrings ? ReadStringsBlock(reader) : [];
 
             var path = new StringBuilder(128);
 
@@ -372,7 +396,42 @@ namespace ValveResourceFormat.ToolsAssetInfo
                 return path.ToString();
             }
 
+            static AssetLocation GetLocation(ulong hash) => (AssetLocation)(hash >> 61);
             string GetMiscString(int index) => index >= 0 ? miscStrings[index] : string.Empty;
+            string GetEditInfoKey(ushort index) => index != 0xFFFF ? editInfoKeys[index] : string.Empty;
+
+            // Subasset strings are packed as an 8-bit definition index and a 24-bit value index, all bits set means none
+            string GetSubassetDefinition(uint packed)
+            {
+                var index = packed >> 24;
+                return index != 0xFF ? subassetDefinitions[(int)index] : string.Empty;
+            }
+
+            string GetSubassetValue(uint packed)
+            {
+                var index = packed & 0xFFFFFF;
+                return index != 0xFFFFFF ? subassetValues[(int)index] : string.Empty;
+            }
+
+            void ReadInputDependencies(List<File.InputDependency> list)
+            {
+                var count = reader.ReadInt32();
+                list.Capacity = count;
+
+                while (count-- > 0)
+                {
+                    var hash = reader.ReadUInt64();
+
+                    list.Add(new File.InputDependency
+                    {
+                        Filename = ConstructFilePath(hash),
+                        Location = GetLocation(hash),
+                        FileCRC = reader.ReadUInt32(),
+                        Optional = reader.ReadBoolean(),
+                        FileExists = reader.ReadBoolean(),
+                    });
+                }
+            }
 
             Files.EnsureCapacity(fileCount);
 
@@ -409,16 +468,18 @@ namespace ValveResourceFormat.ToolsAssetInfo
                 var kv3magic = reader.ReadUInt32();
                 reader.BaseStream.Position -= 4; // rewind
 
-                if (BinaryKV3.IsBinaryKV3(kv3magic))
+                if (!BinaryKV3.IsBinaryKV3(kv3magic))
                 {
-                    var kv3 = new BinaryKV3(BlockType.Undefined)
-                    {
-                        Resource = null!
-                    };
-                    kv3.Read(reader);
-
-                    KV3Segment = kv3.Data;
+                    throw new UnexpectedMagicException("Unexpected KV3 segment magic", kv3magic, nameof(kv3magic));
                 }
+
+                var kv3 = new BinaryKV3(BlockType.Undefined)
+                {
+                    Resource = null!
+                };
+                kv3.Read(reader);
+
+                KV3Segment = kv3.Data;
             }
 
             // These blocks quite closely match RERL and REDI blocks in the individual files
@@ -438,20 +499,21 @@ namespace ValveResourceFormat.ToolsAssetInfo
                         var hash = reader.ReadUInt64();
 
                         // The location bits of the hash always match the search path type
-                        Debug.Assert((AssetLocation)(hash >> 61) == (searchPathType == 0 ? AssetLocation.Game : AssetLocation.Content));
+                        Debug.Assert(GetLocation(hash) == (searchPathType == 0 ? AssetLocation.Game : AssetLocation.Content));
 
-                        // One 128-bit record: crc32 (bits 0-31), modification time (bits 32-87),
-                        // file size (bits 88-126), and a runtime only marker that is always zero on disk (bit 127).
+                        // One 128-bit record: crc32 (bits 0-31), has crc (bit 32), writable (bit 33),
+                        // modification time >> 10 (bits 34-87), file size (bits 88-126), and a maybe stale
+                        // marker (bit 127) which is saved as is but forced on when loading.
                         var packedLow = reader.ReadUInt64();
                         var packedHigh = reader.ReadUInt64();
-
-                        Debug.Assert((packedHigh >> 63) == 0);
 
                         var searchPath = new File.SearchPath
                         {
                             Filename = ConstructFilePath(hash),
                             FileCRC = (uint)packedLow,
-                            ModificationTimeFileTime = (long)(((packedLow >> 32) | ((packedHigh & 0xFFFFFF) << 32)) << 8),
+                            HasCRC = ((packedLow >> 32) & 1) != 0,
+                            Writable = ((packedLow >> 33) & 1) != 0,
+                            ModificationTimeFileTime = (long)(((packedLow >> 34) | ((packedHigh & 0xFFFFFF) << 30)) << 10),
                             FileSize = (long)((packedHigh >> 24) & 0x7F_FFFF_FFFF),
                         };
 
@@ -469,29 +531,12 @@ namespace ValveResourceFormat.ToolsAssetInfo
                     continue;
                 }
 
-                file.Invalid = reader.ReadBoolean();
-                file.UpToDate = reader.ReadBoolean();
+                file.DependencyInfo = (DependencyInfoState)(reader.ReadByte() & 7);
+                file.ForcedUpToDate = reader.ReadBoolean();
                 file.CompileFailed = reader.ReadBoolean();
 
                 // m_InputDependencies
-                count = reader.ReadInt32();
-                file.InputDependencies.Capacity = count;
-
-                while (count-- > 0)
-                {
-                    var hash = reader.ReadUInt64();
-                    var fileCRC = reader.ReadUInt32();
-                    var isOptional = reader.ReadBoolean();
-                    var fileExists = reader.ReadBoolean();
-
-                    file.InputDependencies.Add(new File.InputDependency
-                    {
-                        Filename = ConstructFilePath(hash),
-                        FileCRC = fileCRC,
-                        Optional = isOptional,
-                        FileExists = fileExists,
-                    });
-                }
+                ReadInputDependencies(file.InputDependencies);
 
                 // RERL
                 count = reader.ReadInt32();
@@ -551,8 +596,8 @@ namespace ValveResourceFormat.ToolsAssetInfo
 
                     file.SpecialDependencies.Add(new File.SpecialDependency
                     {
-                        String = miscStrings[stringId],
-                        CompilerIdentifier = miscStrings[compilerIdentifierId],
+                        String = GetMiscString(stringId),
+                        CompilerIdentifier = GetMiscString(compilerIdentifierId),
                         UserData = userData,
                         Fingerprint = fingerprint,
                     });
@@ -571,13 +616,21 @@ namespace ValveResourceFormat.ToolsAssetInfo
                         var userDataId = reader.ReadInt32();
                         var fileHash = reader.ReadUInt64();
                         var fingerprint = reader.ReadUInt32();
+                        var filename = ConstructFilePath(fileHash);
+
+                        // Version 15 did not normalize these paths, version 16 always uses forward slashes
+                        if (Version == 15)
+                        {
+                            filename = filename.Replace('\\', '/');
+                        }
 
                         file.SpecialInputDependencies.Add(new File.SpecialInputDependency
                         {
                             CompilerIdentifier = GetMiscString(compilerIdentifierId),
                             Special = GetMiscString(specialId),
                             UserData = GetMiscString(userDataId),
-                            Filename = ConstructFilePath(fileHash),
+                            Filename = filename,
+                            Location = GetLocation(fileHash),
                             Fingerprint = fingerprint,
                         });
                     }
@@ -620,28 +673,11 @@ namespace ValveResourceFormat.ToolsAssetInfo
                     }
 
                     // Possible to have duplicates here!
-                    file.SearchableUserData[editInfoKeys[keyId]] = value;
+                    file.SearchableUserData[GetEditInfoKey(keyId)] = value;
                 }
 
                 // m_AdditionalInputDependencies
-                count = reader.ReadInt32();
-                file.AdditionalInputDependencies.Capacity = count;
-
-                while (count-- > 0)
-                {
-                    var hash = reader.ReadUInt64();
-                    var fileCRC = reader.ReadUInt32();
-                    var isOptional = reader.ReadBoolean();
-                    var fileExists = reader.ReadBoolean();
-
-                    file.AdditionalInputDependencies.Add(new File.InputDependency
-                    {
-                        Filename = ConstructFilePath(hash),
-                        FileCRC = fileCRC,
-                        Optional = isOptional,
-                        FileExists = fileExists,
-                    });
-                }
+                ReadInputDependencies(file.AdditionalInputDependencies);
 
                 if (Version >= 12)
                 {
@@ -651,11 +687,8 @@ namespace ValveResourceFormat.ToolsAssetInfo
 
                     while (count-- > 0)
                     {
-                        var hash = reader.ReadInt32();
-                        var definition = hash >> 24;
-                        var value = hash & 0xFFFFFF;
-
-                        var definitionKey = subassetDefinitions[definition];
+                        var packed = reader.ReadUInt32();
+                        var definitionKey = GetSubassetDefinition(packed);
 
                         if (!file.SubassetDefinitions.TryGetValue(definitionKey, out var list))
                         {
@@ -663,7 +696,7 @@ namespace ValveResourceFormat.ToolsAssetInfo
                             file.SubassetDefinitions[definitionKey] = list;
                         }
 
-                        list.Add(subassetValues[value]);
+                        list.Add(GetSubassetValue(packed));
                     }
 
                     // m_SubassetReferences
@@ -672,12 +705,9 @@ namespace ValveResourceFormat.ToolsAssetInfo
 
                     while (count-- > 0)
                     {
-                        var hash = reader.ReadInt32();
-                        var definition = hash >> 24;
-                        var value = hash & 0xFFFFFF;
+                        var packed = reader.ReadUInt32();
                         var references = reader.ReadUInt16();
-
-                        var definitionKey = subassetDefinitions[definition];
+                        var definitionKey = GetSubassetDefinition(packed);
 
                         if (!file.SubassetReferences.TryGetValue(definitionKey, out var list))
                         {
@@ -685,7 +715,7 @@ namespace ValveResourceFormat.ToolsAssetInfo
                             file.SubassetReferences[definitionKey] = list;
                         }
 
-                        list[subassetValues[value]] = references;
+                        list[GetSubassetValue(packed)] = references;
                     }
                 }
 

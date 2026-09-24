@@ -38,19 +38,19 @@ namespace Tests.Renderer
         }
 
         [Test]
-        public async Task StringBooleansParseLeniently()
+        public async Task StringBooleansArePositiveNumbers()
         {
             var data = KVObject.Collection();
             data.Add("set_child_position", "true");
-            data.Add("enable_retrigger", "1.0");
-            data.Add("block_matching_events", "yes");
-            data.Add("block_match_this_event", -1f);
+            data.Add("enable_retrigger", " 0.5 ");
+            data.Add("block_matching_events", "-1.0");
+            data.Add("block_match_this_event", "1.0,1.0");
 
             var definition = Define(data);
 
             using (Assert.Multiple())
             {
-                await Assert.That(definition.SetChildPosition).IsTrue();
+                await Assert.That(definition.SetChildPosition).IsFalse();
                 await Assert.That(definition.EnableRetrigger).IsTrue();
                 await Assert.That(definition.BlockMatchingEvents).IsFalse();
             }

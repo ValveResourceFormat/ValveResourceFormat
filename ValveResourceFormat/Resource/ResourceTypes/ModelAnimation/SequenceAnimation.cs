@@ -375,6 +375,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
                     nameof(CCompressedStaticVector3) => new CCompressedStaticVector3(),
                     nameof(CCompressedStaticQuaternion) => new CCompressedStaticQuaternion(),
                     nameof(CCompressedStaticFloat) => new CCompressedStaticFloat(),
+                    nameof(CCompressedStaticBool) => new CCompressedStaticBool(),
 
                     nameof(CCompressedFullVector3) => new CCompressedFullVector3(),
                     nameof(CCompressedDeltaVector3) => new CCompressedDeltaVector3(),
@@ -382,6 +383,7 @@ namespace ValveResourceFormat.ResourceTypes.ModelAnimation
                     nameof(CCompressedAnimQuaternion) => new CCompressedAnimQuaternion(),
                     nameof(CCompressedFullQuaternion) => new CCompressedFullQuaternion(),
                     nameof(CCompressedFullFloat) => new CCompressedFullFloat(),
+                    nameof(CCompressedFullBool) => new CCompressedFullBool(),
                     _ => null,
                 };
 

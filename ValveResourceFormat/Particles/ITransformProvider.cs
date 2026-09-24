@@ -20,8 +20,8 @@ namespace ValveResourceFormat.Particles
             => NextTransform(ref Particle.Default, renderState);
 
         /// <summary>
-        /// Returns the transform as it stood at <paramref name="time"/> within the last simulation step, so a
-        /// particle spawned part way through a step starts from where its source was at that moment.
+        /// Returns the transform as it stood at <paramref name="time"/> within the frame being simulated, so a
+        /// particle spawned part way through a frame starts from where its source was at that moment.
         /// Providers without a history answer with their current transform.
         /// </summary>
         Matrix4x4 NextTransformAtTime(ref Particle particle, ParticleSystemState renderState, float time)
@@ -105,7 +105,7 @@ namespace ValveResourceFormat.Particles
         public Matrix4x4 NextTransformAtTime(ref Particle particle, ParticleSystemState renderState, float time)
         {
             var cp = renderState.GetControlPoint(controlPoint);
-            var fraction = cp.StepFraction(renderState.Age, time);
+            var fraction = cp.StepFraction(renderState, time);
 
             if (fraction >= 1f)
             {
@@ -119,7 +119,9 @@ namespace ValveResourceFormat.Particles
                 return Matrix4x4.CreateTranslation(position);
             }
 
-            var rotation = Quaternion.Slerp(cp.GetPreviousRotation(), cp.GetRotation(), fraction);
+            var rotation = cp.HasPreviousOrientation
+                ? Quaternion.Slerp(cp.GetPreviousRotation(), cp.GetRotation(), fraction)
+                : cp.GetRotation();
             return Matrix4x4.CreateFromQuaternion(rotation) * Matrix4x4.CreateTranslation(position);
         }
 

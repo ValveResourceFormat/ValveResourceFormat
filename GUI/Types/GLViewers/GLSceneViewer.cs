@@ -850,8 +850,8 @@ namespace GUI.Types.GLViewers
                 }
 
                 AddLine(
-                    cluster <= 1 ? "No PVS at this position" : $"PVS cluster {cluster}",
-                    cluster <= 1 ? new Color32(255, 0, 0) : Color32.White
+                    cluster < 0 ? "No PVS at this position" : $"PVS cluster {cluster}",
+                    cluster < 0 ? new Color32(255, 0, 0) : Color32.White
                 );
 
                 if (!Scene.CurrentFramePvs.IsEmpty)

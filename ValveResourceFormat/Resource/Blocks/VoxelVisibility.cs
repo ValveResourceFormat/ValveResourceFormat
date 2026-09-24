@@ -35,12 +35,14 @@ namespace ValveResourceFormat.Blocks
         int GetClusterForPosition(Vector3 position);
 
         /// <summary>
-        /// Gets the visibility row for the cluster at a point, empty when the point resolves to nothing.
+        /// Gets the visibility row seen from a point, or an empty row when there is none to cull with.
         /// </summary>
         /// <param name="point">World-space point.</param>
         ReadOnlyMemory<byte> GetVisibilityRowForPoint(Vector3 point);
 
-        /// <summary>Fills a bitfield with every cluster the given box overlaps.</summary>
+        /// <summary>
+        /// Fills a bitfield with the clusters the given box belongs to. A box that belongs to none is never visible.
+        /// </summary>
         /// <param name="min">Minimum corner of the box.</param>
         /// <param name="max">Maximum corner of the box.</param>
         /// <param name="clusterBits">Destination bitfield, at least <see cref="ClusterBitfieldWordCount"/> words long.</param>
@@ -202,7 +204,8 @@ namespace ValveResourceFormat.Blocks
 
         /// <summary>
         /// Gets the world visibility a resource holds, whichever of the three layouts it was written in,
-        /// or <see langword="null"/> when it holds none that can be queried.
+        /// or <see langword="null"/> when it holds none that can be queried. An octree of two clusters or
+        /// fewer counts as none and culls nothing.
         /// </summary>
         /// <param name="resource">A <c>.vvis_c</c> resource.</param>
         public static IWorldVisibility? GetWorldVisibility(Resource resource)
@@ -213,7 +216,7 @@ namespace ValveResourceFormat.Blocks
             {
                 if (block.HasVisibilityData)
                 {
-                    return block;
+                    return block.BaseClusterCount > MinCullingClusters ? block : null;
                 }
 
                 return block.RegionBoxTree is { HasVisibilityData: true } ? block.RegionBoxTree : null;
@@ -239,7 +242,24 @@ namespace ValveResourceFormat.Blocks
         public int ClusterBitfieldWordCount => MathUtils.DivideRoundUp(Math.Max(ClusterCount, 1), MathUtils.BitsPerWord);
 
         /// <inheritdoc/>
-        public ReadOnlyMemory<byte> GetVisibilityRowForPoint(Vector3 point) => GetPVSForPoint(point) ?? default(ReadOnlyMemory<byte>);
+        /// <remarks>A point no region claims, or one outside the octree, sees every cluster.</remarks>
+        public ReadOnlyMemory<byte> GetVisibilityRowForPoint(Vector3 point)
+        {
+            var row = GetPVSForPoint(point);
+
+            if (row != null || !HasVisibilityData)
+            {
+                return row;
+            }
+
+            if (allVisibleRow == null)
+            {
+                allVisibleRow = new byte[PVSBytesPerCluster];
+                allVisibleRow.AsSpan().Fill(0xFF);
+            }
+
+            return allVisibleRow;
+        }
 
         void IWorldVisibility.GetVisClustersForBox(Vector3 min, Vector3 max, Span<uint> clusterBits)
             => GetVisClustersForBox(min, max, clusterBits, exact: false);
@@ -265,6 +285,8 @@ namespace ValveResourceFormat.Blocks
         /// </summary>
         public const int ClusterBitfieldWords = MaxClusters / 32;
 
+        private const int MinCullingClusters = 2;
+
         // Queries grow by a fraction of a unit so a box flush against a cell boundary still reaches the far side
         private const float QueryEpsilon = 1f / 32f;
 
@@ -272,6 +294,7 @@ namespace ValveResourceFormat.Blocks
         private const float LargeBoxExtent = 1024f;
 
         private byte[]? pvsBuffer;
+        private byte[]? allVisibleRow;
 
         private static readonly ulong[] SpatialMaskX = CreateAxisMasks(1);
         private static readonly ulong[] SpatialMaskY = CreateAxisMasks(4);
@@ -361,13 +384,14 @@ namespace ValveResourceFormat.Blocks
         }
 
         /// <summary>
-        /// Gets the cluster id for a given world-space position.
+        /// Gets the cluster id for a given world-space position, falling back to the first cluster within half
+        /// a grid cell of it, or -1 when there is none.
         /// </summary>
         public int GetClusterForPosition(Vector3 position)
         {
             if (Nodes.Length == 0)
             {
-                return 0;
+                return -1;
             }
 
             var min = MinBounds;
@@ -414,7 +438,7 @@ namespace ValveResourceFormat.Blocks
                 }
             }
 
-            return 0;
+            return -1;
         }
 
         // The sky and sun rows are stored past the addressable clusters, so they are only reachable this way
@@ -451,10 +475,8 @@ namespace ValveResourceFormat.Blocks
                 return;
             }
 
-            var center = (min + max) * 0.5f;
-            var halfSize = Vector3.Max(max - center, Vector3.Zero) + new Vector3(QueryEpsilon);
-            var queryMin = center - halfSize;
-            var queryMax = center + halfSize;
+            var queryMin = Vector3.Min(min, max) - new Vector3(QueryEpsilon);
+            var queryMax = Vector3.Max(min, max) + new Vector3(QueryEpsilon);
 
             if (new AABB(queryMin, queryMax).Contains(new AABB(MinBounds, MaxBounds)))
             {
@@ -462,7 +484,7 @@ namespace ValveResourceFormat.Blocks
                 return;
             }
 
-            var size = halfSize * 2f;
+            var size = queryMax - queryMin;
             var largeAxes = (size.X >= LargeBoxExtent ? 1 : 0)
                 + (size.Y >= LargeBoxExtent ? 1 : 0)
                 + (size.Z >= LargeBoxExtent ? 1 : 0);

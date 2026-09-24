@@ -47,7 +47,7 @@ namespace ValveResourceFormat.Renderer.Particles.Renderers
             range = parse.NumberProvider("m_flRange", range);
             innerConeAngle = parse.NumberProvider("m_flInnerConeAngle", innerConeAngle);
             outerConeAngle = parse.NumberProvider("m_flOuterConeAngle", outerConeAngle);
-            cookiePath = parse.Data.GetStringProperty("m_hLightCookie");
+            cookiePath = parse.Data.GetStringProperty("m_hLightCookie") is { Length: > 0 } cookie ? cookie : null;
             sphericalCookie = parse.Boolean("m_bSphericalCookie", sphericalCookie);
 
             light = CreateLight();

@@ -210,6 +210,14 @@ collision lands in the companion physics file), baked lighting (lightmaps, probe
 exported, and a placed prop that names an animation via its entity properties exports only
 that one, while props naming none export their full animation set.
 
+The viewer culls a map with its world visibility (`vvis_c`) the way the game's engine does.
+Visibility data it leaves unused:
+
+| What                         | Details                                                                                                                               |
+| ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| Older region box tree layout | Found only in some Dota 2 scene maps, whose engine ignores it too; it is not parsed and those maps render without visibility culling. |
+| Two cluster octrees          | Visibility with two clusters or fewer culls nothing, as in the game.                                                                  |
+
 ## Materials (vmat)
 
 `.vmat` reconstruction recovers the shader name, all int/float/vector parameters (including

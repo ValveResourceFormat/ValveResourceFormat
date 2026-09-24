@@ -4,7 +4,7 @@ using ValveKeyValue;
 namespace ValveResourceFormat.Renderer.Audio;
 
 /// <summary>
-/// Reads sound event fields. Typed values are used as they are, while string values
+/// Reads sound event fields. Typed values are used as they are, while string values of float and vector fields
 /// are split on brackets, commas and spaces and each token is parsed leniently, so authoring leftovers such as
 /// a "1.0,1.0" range do not fail the whole event.
 /// </summary>
@@ -37,8 +37,8 @@ internal static class SoundEventFields
     }
 
     /// <summary>
-    /// Gets a boolean field. Strings are true for "true", "1" or anything containing "1.0";
-    /// other values are true when positive.
+    /// Gets a boolean field, true when its value is positive. A string is parsed whole as one number
+    /// and is false when it is not one.
     /// </summary>
     public static bool GetSoundBool(this KVObject data, string name, bool defaultValue = false)
     {
@@ -49,11 +49,7 @@ internal static class SoundEventFields
 
         if (value.ValueType == KVValueType.String)
         {
-            var text = (string)value;
-
-            return text.Equals("true", StringComparison.OrdinalIgnoreCase)
-                || text == "1"
-                || text.Contains("1.0", StringComparison.Ordinal);
+            return float.TryParse((string)value, NumberStyles.Float, CultureInfo.InvariantCulture, out var number) && number > 0f;
         }
 
         if (value.IsArray)

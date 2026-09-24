@@ -1,4 +1,4 @@
-using System.IO;
+using System.Linq;
 using System.Threading.Tasks;
 using ValveResourceFormat.ToolsAssetInfo;
 
@@ -6,6 +6,27 @@ namespace Tests.Formats
 {
     public class ToolsAssetInfoTest
     {
+        [Test]
+        public async Task ParseToolsAssetV16()
+        {
+            var file = TestFixtures.Path("readonly_tools_asset_info_v16.bin");
+
+            var assetsInfo = new ToolsAssetInfo();
+            assetsInfo.Read(file);
+            assetsInfo.ToString();
+
+            await Assert.That(assetsInfo.Version).IsEqualTo(16u);
+
+            var map = assetsInfo.Files["maps/cs_script_demo.vmap"];
+            var vmap = map.SearchPathsContentRoot.Single();
+
+            await Assert.That(vmap.Filename).IsEqualTo("csgo_addons/cs_script_demo/maps/cs_script_demo.vmap");
+            await Assert.That(vmap.HasCRC).IsEqualTo(vmap.FileCRC != 0);
+            await Assert.That(map.InputDependencies).Contains(d => d.Filename == "csgo_addons/cs_script_demo/maps/cs_script_demo.vmap"
+                && d.FileCRC == 153883759
+                && d.Location == ToolsAssetInfo.AssetLocation.Content);
+        }
+
         [Test]
         public async Task ParseToolsAssetV15()
         {

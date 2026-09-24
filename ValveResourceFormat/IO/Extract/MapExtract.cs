@@ -2621,32 +2621,17 @@ public sealed partial class MapExtract
             case KVValueType.Array:
                 var items = (IReadOnlyList<KVObject>)value.Values;
 
-                if (items.All(static item => item.ValueType == KVValueType.Boolean))
+                if (ToDmeTypedArray(items) is { } typedArray)
                 {
-                    return new Datamodel.BoolArray(items.Select(static item => (bool)item));
-                }
-
-                if (items.All(static item => IsKeyValues3Integer(item.ValueType)))
-                {
-                    return new Datamodel.IntArray(items.Select(static item => Convert.ToInt32(item, CultureInfo.InvariantCulture)));
-                }
-
-                if (items.All(static item => IsKeyValues3Float(item.ValueType) || IsKeyValues3Integer(item.ValueType)))
-                {
-                    return new Datamodel.FloatArray(items.Select(static item => Convert.ToSingle(item, CultureInfo.InvariantCulture)));
-                }
-
-                if (items.All(static item => item.ValueType == KVValueType.String))
-                {
-                    return new Datamodel.StringArray(items.Select(static item => (string)item));
+                    return typedArray;
                 }
 
                 var elements = new Datamodel.ElementArray(items.Count);
 
-                foreach (var item in items)
+                for (var i = 0; i < items.Count; i++)
                 {
-                    var wrapper = new Datamodel.Element { ClassName = "DmElement" };
-                    var converted = ToDmeKeyValues3(item, "value");
+                    var wrapper = new Datamodel.Element { Name = $"array_{i}", ClassName = "DmElement" };
+                    var converted = ToDmeKeyValues3(items[i], "value");
 
                     if (converted != null)
                     {
@@ -2665,16 +2650,8 @@ public sealed partial class MapExtract
                 // The compiler prefixes entity names used as literals, like it does targetnames
                 var text = RemoveTargetnamePrefix((string)value);
 
-                if (value.Flag == KVFlag.None)
-                {
-                    return text;
-                }
-
-                // Typed strings such as entity names are wrapped in an element carrying the type
-                var typed = new Datamodel.Element { Name = "value_with_specific_type", ClassName = "DmElement" };
-
                 // TODO: Use value.Flag.SerializeFlagName() once ValveKeyValue with KVFlagExtensions is released
-                typed.Add("specific_type", value.Flag switch
+                var specificType = value.Flag switch
                 {
                     KVFlag.Resource => "resource",
                     KVFlag.ResourceName => "resource_name",
@@ -2682,30 +2659,105 @@ public sealed partial class MapExtract
                     KVFlag.SoundEvent => "soundevent",
                     KVFlag.SubClass => "subclass",
                     KVFlag.EntityName => "entity_name",
-                    _ => throw new UnexpectedMagicException("Unknown KV3 string flag", (int)value.Flag, nameof(value.Flag)),
-                });
+                    _ => null,
+                };
+
+                if (specificType == null)
+                {
+                    return text;
+                }
+
+                // Typed strings such as entity names are wrapped in an element carrying the type
+                var typed = new Datamodel.Element { Name = "value_with_specific_type", ClassName = "DmElement" };
+                typed.Add("specific_type", specificType);
                 typed.Add("value", text);
                 return typed;
 
-            case KVValueType.UInt64:
+            case var type when IsKeyValues3Unsigned(type):
                 return Convert.ToUInt64(value, CultureInfo.InvariantCulture);
 
             case var type when IsKeyValues3Float(type):
                 return Convert.ToSingle(value, CultureInfo.InvariantCulture);
 
-            case var type when IsKeyValues3Integer(type):
-                return Convert.ToInt32(value, CultureInfo.InvariantCulture);
+            case var type when IsKeyValues3Signed(type):
+                var integer = Convert.ToInt64(value, CultureInfo.InvariantCulture);
+                return integer is >= int.MinValue and <= int.MaxValue ? (int)integer : 0;
 
             default:
                 return null;
         }
-
-        static bool IsKeyValues3Float(KVValueType type)
-            => type is KVValueType.FloatingPoint or KVValueType.FloatingPoint64;
-
-        static bool IsKeyValues3Integer(KVValueType type)
-            => type is KVValueType.Int16 or KVValueType.Int32 or KVValueType.Int64 or KVValueType.UInt16 or KVValueType.UInt32;
     }
+
+    // A typed DMX array holds items of one type with no string flag, or 2 to 4 component float vectors.
+    // Anything else is written as an element array.
+    private static object? ToDmeTypedArray(IReadOnlyList<KVObject> items)
+    {
+        if (items.Count == 0)
+        {
+            return null;
+        }
+
+        var first = items[0];
+
+        if (first.ValueType == KVValueType.Array)
+        {
+            return ToDmeVectorArray(items);
+        }
+
+        if (first.Flag != KVFlag.None || items.Any(item => item.ValueType != first.ValueType || item.Flag != KVFlag.None))
+        {
+            return null;
+        }
+
+        return first.ValueType switch
+        {
+            KVValueType.Boolean => new Datamodel.BoolArray(items.Select(static item => (bool)item)),
+            KVValueType.String => new Datamodel.StringArray(items.Select(static item => RemoveTargetnamePrefix((string)item))),
+            var type when IsKeyValues3Unsigned(type) => new Datamodel.UInt64Array(items.Select(static item => Convert.ToUInt64(item, CultureInfo.InvariantCulture))),
+            var type when IsKeyValues3Float(type) => new Datamodel.FloatArray(items.Select(static item => Convert.ToSingle(item, CultureInfo.InvariantCulture))),
+            var type when IsKeyValues3Signed(type) => new Datamodel.IntArray(items.Select(static item => unchecked((int)Convert.ToInt64(item, CultureInfo.InvariantCulture)))),
+            _ => null,
+        };
+    }
+
+    private static object? ToDmeVectorArray(IReadOnlyList<KVObject> items)
+    {
+        var vectors = new List<float[]>(items.Count);
+
+        foreach (var item in items)
+        {
+            if (item.ValueType != KVValueType.Array)
+            {
+                return null;
+            }
+
+            var components = (IReadOnlyList<KVObject>)item.Values;
+
+            if ((vectors.Count > 0 && components.Count != vectors[0].Length) || !components.All(static component => IsKeyValues3Float(component.ValueType)))
+            {
+                return null;
+            }
+
+            vectors.Add([.. components.Select(static component => Convert.ToSingle(component, CultureInfo.InvariantCulture))]);
+        }
+
+        return vectors[0].Length switch
+        {
+            2 => new Datamodel.Vector2Array(vectors.Select(static v => new Vector2(v[0], v[1]))),
+            3 => new Datamodel.Vector3Array(vectors.Select(static v => new Vector3(v[0], v[1], v[2]))),
+            4 => new Datamodel.Vector4Array(vectors.Select(static v => new Vector4(v[0], v[1], v[2], v[3]))),
+            _ => null,
+        };
+    }
+
+    private static bool IsKeyValues3Float(KVValueType type)
+        => type is KVValueType.FloatingPoint or KVValueType.FloatingPoint64;
+
+    private static bool IsKeyValues3Signed(KVValueType type)
+        => type is KVValueType.Int16 or KVValueType.Int32 or KVValueType.Int64;
+
+    private static bool IsKeyValues3Unsigned(KVValueType type)
+        => type is KVValueType.UInt16 or KVValueType.UInt32 or KVValueType.UInt64;
 
     private static string? ToEditString(object? data)
     {

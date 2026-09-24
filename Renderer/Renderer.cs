@@ -1418,6 +1418,13 @@ public class Renderer
 
         Scene.PostProcessInfo.UpdatePostProcessing(updateContext.Camera, updateContext.Timestep);
 
+        var boxEye = LockedCullPosition ?? updateContext.Camera.Location;
+
+        foreach (var view in views)
+        {
+            view.Scene.VisibilityBoxes.PrepareView(DisableAllCulling ? null : view.Skybox?.ToSky(boxEye) ?? boxEye);
+        }
+
         Scene.SetupSceneShadows(updateContext.Camera, DisableAllCulling ? -1 : ShadowDepthBuffer.Width);
 
         if (EnableBarnLights)

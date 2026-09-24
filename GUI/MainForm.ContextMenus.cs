@@ -171,7 +171,7 @@ namespace GUI
                             sb.Append(':');
                         }
 
-                        sb.Append(segment.Replace('\\', '/'));
+                        sb.Append(EscapeVpkLinkPath(segment.Replace('\\', '/')));
                         firstSegment = false;
                     }
                 }
@@ -186,7 +186,8 @@ namespace GUI
                     var packageEntry = selectedNode.PackageEntry;
                     if (packageEntry != null)
                     {
-                        sb.Append(packageEntry.GetFullPath());
+                        var entryPath = packageEntry.GetFullPath();
+                        sb.Append(wantsFullPath ? EscapeVpkLinkPath(entryPath) : entryPath);
                     }
                 }
                 else
@@ -218,7 +219,7 @@ namespace GUI
 
                     while (stack.TryPop(out var name))
                     {
-                        sb.Append(name);
+                        sb.Append(wantsFullPath ? EscapeVpkLinkPath(name) : name);
                         sb.Append(Package.DirectorySeparatorChar);
                     }
                 }

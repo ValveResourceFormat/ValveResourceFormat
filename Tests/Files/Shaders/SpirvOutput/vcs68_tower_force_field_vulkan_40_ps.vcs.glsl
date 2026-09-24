@@ -4,7 +4,7 @@
 // Re-attempting reflection with the GLSL backend.
 
 // VRF-TEST
-// SPIR-V source (24200 bytes), GLSL reflection with SPIRV-Cross by KhronosGroup
+// SPIR-V source, GLSL reflection with SPIRV-Cross by KhronosGroup
 // Static combos: S_TRANSLUCENT
 // Dynamic combos: D_DEPTH_FEATHERING
 

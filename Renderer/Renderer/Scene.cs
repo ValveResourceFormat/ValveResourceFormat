@@ -128,14 +128,20 @@ namespace ValveResourceFormat.Renderer
         /// <summary>Gets or sets whether PVS culling is enabled for this scene. Has no effect without <see cref="VoxelVisibility"/>.</summary>
         public bool EnablePvsCulling { get; set; } = true;
 
+        /// <summary>Gets the <c>info_visibility_box</c> volumes spawned in this scene.</summary>
+        public VisibilityBoxSet VisibilityBoxes { get; } = new();
+
         /// <summary>Gets or sets the PVS bitfield for the cluster at the current camera position.</summary>
         public ReadOnlyMemory<byte> CurrentFramePvs { get; set; }
 
-        /// <summary>Gets the per-object bits the GPU cull reads, one per node id, set for the nodes PVS rejected.</summary>
+        /// <summary>Gets the per-object bits the GPU cull reads, one per node id, set for the nodes PVS or a visibility box rejected.</summary>
         public StorageBuffer? PvsHiddenGpu { get; private set; }
 
-        /// <summary>Gets whether <see cref="PvsHiddenGpu"/> holds bits for this frame.</summary>
+        /// <summary>Gets whether PVS culls this frame.</summary>
         public bool PvsCullActive { get; private set; }
+
+        /// <summary>Whether <see cref="PvsHiddenGpu"/> holds bits for this frame.</summary>
+        private bool cpuHiddenActive;
 
         private UniformBuffer<LightingConstants>? lightingBuffer;
         private UniformBuffer<EnvMapArray>? envMapBuffer;
@@ -278,6 +284,9 @@ namespace ValveResourceFormat.Renderer
         private int morphAtlasLayoutVersion;
 
         private Dictionary<DepthOnlyBucket, List<MeshBatchRenderer.Request>>? barnShadowDrawCalls;
+
+        /// <summary>The boxes the shadow being collected culls its casters with, when its eye is not the scene view's.</summary>
+        private VisibilityBoxCuller? shadowCasterBoxes;
 
         // Bound probes in precedence order: most indoor first, then smallest, so the first volume
         // containing a point is the best one
@@ -1264,8 +1273,9 @@ namespace ValveResourceFormat.Renderer
         private void ResetPvsHiddenBits()
         {
             PvsCullActive = !CurrentFramePvs.IsEmpty && VoxelVisibility != null && objectEntryCount > 0;
+            cpuHiddenActive = (PvsCullActive || VisibilityBoxes.View.IsActive) && objectEntryCount > 0;
 
-            if (!PvsCullActive)
+            if (!cpuHiddenActive)
             {
                 return;
             }
@@ -1282,7 +1292,7 @@ namespace ValveResourceFormat.Renderer
 
         private void MarkNodeHiddenGpu(SceneNode node)
         {
-            if (PvsCullActive && node is SceneAggregate.Fragment && node.Id < (uint)objectEntryCount)
+            if (cpuHiddenActive && node is SceneAggregate.Fragment && node.Id < (uint)objectEntryCount)
             {
                 MathUtils.SetBit(pvsHiddenBits, (int)node.Id);
             }
@@ -1290,7 +1300,7 @@ namespace ValveResourceFormat.Renderer
 
         /// <summary>
         /// Tests a node against this frame's pvs. A node belongs to every visibility cluster its bounding box
-        /// touches and survives as long as one of them is visible.
+        /// touches and survives as long as one of them is visible, so a node that belongs to none never does.
         /// </summary>
         /// <param name="node">The node to test.</param>
         /// <returns>Whether the node may draw this frame.</returns>
@@ -1298,24 +1308,20 @@ namespace ValveResourceFormat.Renderer
 
         /// <summary>
         /// Tests a node against an arbitrary visibility row, such as the sun row that says where sunlight
-        /// reaches. An empty row means the scene has nothing to cull with and everything passes.
+        /// reaches. An empty row means the scene has nothing to cull with and everything passes, and so does
+        /// a node flagged <see cref="ObjectTypeFlags.DisableVisCulling"/>.
         /// </summary>
         /// <param name="node">The node to test.</param>
         /// <param name="visibilityRow">A cluster bitfield, one bit per cluster id.</param>
         /// <returns>Whether the node may draw.</returns>
         public bool IsNodeInPvs(SceneNode node, ReadOnlySpan<byte> visibilityRow)
         {
-            if (visibilityRow.IsEmpty || VoxelVisibility == null)
+            if (visibilityRow.IsEmpty || VoxelVisibility == null || (node.Flags & ObjectTypeFlags.DisableVisCulling) != 0)
             {
                 return true;
             }
 
             var clusters = node.GetVisClusters(VoxelVisibility);
-
-            if (clusters.IsEmpty)
-            {
-                return true;
-            }
 
             foreach (var cluster in clusters)
             {
@@ -1525,6 +1531,13 @@ namespace ValveResourceFormat.Renderer
                     continue;
                 }
 
+                if (node is MeshCollectionNode or SceneAggregate or SceneAggregate.Fragment or ParticleSceneNode && VisibilityBoxes.View.IsCulled(node.BoundingBox))
+                {
+                    PerfStats.Active.Count(Counter.SceneObjectCulledByVisibilityBox, 1);
+                    MarkNodeHiddenGpu(node);
+                    continue;
+                }
+
                 if (node is MeshCollectionNode meshCollection)
                 {
                     foreach (var mesh in meshCollection.RenderableMeshes)
@@ -1674,7 +1687,7 @@ namespace ValveResourceFormat.Renderer
 
         /// <summary>Updates the sun light shadow cascades and collects shadow draw calls for each of them, if dynamic shadows are enabled.</summary>
         /// <param name="camera">The main camera used to fit the shadow cascades.</param>
-        /// <param name="shadowMapSize">The shadow map resolution; pass -1 to produce empty frustums (pre-warm pass).</param>
+        /// <param name="shadowMapSize">The shadow map resolution; pass -1 to produce empty frustums and skip the sun row (pre-warm pass, or all culling disabled).</param>
         public void SetupSceneShadows(Camera camera, int shadowMapSize)
         {
             if (!LightingInfo.EnableDynamicShadows)
@@ -1684,7 +1697,7 @@ namespace ValveResourceFormat.Renderer
 
             LightingInfo.UpdateSunLightFrustum(camera, shadowMapSize);
 
-            var sunVisibility = EnablePvsCulling && VoxelVisibility != null
+            var sunVisibility = shadowMapSize != -1 && EnablePvsCulling && VoxelVisibility != null
                 ? VoxelVisibility.SunVisibility
                 : default;
 
@@ -1726,8 +1739,12 @@ namespace ValveResourceFormat.Renderer
         {
             barnShadowDrawCalls ??= CreateDepthOnlyDrawCallCollection();
 
+            shadowCasterBoxes = VisibilityBoxes.PrepareSecondaryView(light.Position);
+
             // Skip static geo for stationary lights
             CollectShadowDrawCalls(lightFrustum, includeStatic: light.DirectLight != SceneLight.DirectLightType.Stationary, includeDynamic: true, skipFlags: ObjectTypeFlags.None, barnShadowDrawCalls);
+
+            shadowCasterBoxes = null;
 
             return barnShadowDrawCalls;
         }
@@ -1782,6 +1799,12 @@ namespace ValveResourceFormat.Renderer
                 if (!IsNodeInPvs(node, casterVisibility.Span))
                 {
                     PerfStats.Active.Count(Counter.ShadowCasterCulledByPvs, 1);
+                    continue;
+                }
+
+                if ((shadowCasterBoxes ?? VisibilityBoxes.View).IsCulled(node.BoundingBox))
+                {
+                    PerfStats.Active.Count(Counter.ShadowCasterCulledByVisibilityBox, 1);
                     continue;
                 }
 
@@ -1995,7 +2018,7 @@ namespace ValveResourceFormat.Renderer
             ObjectLodGpu.BindBufferBase();
             ActiveLodBitsGpu.BindBufferBase();
 
-            var pvsWords = PvsCullActive ? MathUtils.DivideRoundUp(Math.Max(objectEntryCount, 1), 32) : 1;
+            var pvsWords = cpuHiddenActive ? MathUtils.DivideRoundUp(Math.Max(objectEntryCount, 1), 32) : 1;
 
             if (pvsHiddenBits.Length < pvsWords)
             {
@@ -2006,7 +2029,7 @@ namespace ValveResourceFormat.Renderer
                 ReservedBufferSlots.BufferSlot10, "PvsHidden");
             PvsHiddenGpu.BindBufferBase();
 
-            FrustumCullShader.SetUniform("g_bPvsCullEnabled", PvsCullActive);
+            FrustumCullShader.SetUniform("g_bCpuHiddenEnabled", cpuHiddenActive);
 
             var occlusionDebugEnabled = OcclusionDebugEnabled && OcclusionDebug != null;
 

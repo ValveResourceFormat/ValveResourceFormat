@@ -593,7 +593,7 @@ namespace ValveResourceFormat.IO
         /// </summary>
         public void FindAndLoadSearchPaths(string? modIdentifierPath = null)
         {
-            modIdentifierPath ??= GetModIdentifierFile();
+            modIdentifierPath ??= GetModIdentifierFile() ?? FindGameInfoMountingCurrentFolder();
 
             HashSet<string> folders;
 
@@ -718,6 +718,88 @@ namespace ValveResourceFormat.IO
             }
 
             return null;
+        }
+
+        /// <summary>
+        /// Finds the <c>gameinfo.gi</c> of a sibling mod that lists one of the folders the current file is in as a
+        /// search path or addon root, for mod folders that have no mod identifier of their own.
+        /// </summary>
+        private string? FindGameInfoMountingCurrentFolder()
+        {
+            var childDirectory = CurrentFileName!;
+
+            if (!Path.IsPathFullyQualified(childDirectory) && !childDirectory.StartsWith('/'))
+            {
+                return null;
+            }
+
+            childDirectory = Path.GetDirectoryName(childDirectory);
+
+            for (var i = 0; i < 10 && childDirectory != null; i++)
+            {
+                var directory = Path.GetDirectoryName(childDirectory);
+
+                if (directory == null || Path.GetFileName(directory) == "steamapps")
+                {
+                    return null;
+                }
+
+                var childName = Path.GetFileName(childDirectory);
+                childDirectory = directory;
+
+                IEnumerable<string> modFolders;
+
+                try
+                {
+                    modFolders = Directory.EnumerateDirectories(directory);
+                }
+                catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+                {
+                    continue;
+                }
+
+                foreach (var modFolder in modFolders)
+                {
+                    var gameInfo = Path.Join(modFolder, GameinfoGi);
+
+                    if (File.Exists(gameInfo) && GameInfoMountsFolder(gameInfo, childName))
+                    {
+                        return gameInfo;
+                    }
+                }
+            }
+
+            return null;
+        }
+
+        private static bool GameInfoMountsFolder(string gameinfoPath, string folderName)
+        {
+            KVObject gameInfo;
+
+            try
+            {
+                using var stream = File.OpenRead(gameinfoPath);
+                gameInfo = KVSerializer.Create(KVSerializationFormat.KeyValues1Text).Deserialize(stream);
+            }
+            catch (Exception e) when (e is IOException or UnauthorizedAccessException or KeyValueException)
+            {
+                return false;
+            }
+
+            if (!gameInfo.TryGetValue("FileSystem", out var fileSystem) || !fileSystem.TryGetValue("SearchPaths", out var searchPaths))
+            {
+                return false;
+            }
+
+            foreach (var (_, searchPath) in searchPaths)
+            {
+                if (string.Equals(searchPath.ToString(), folderName, StringComparison.OrdinalIgnoreCase))
+                {
+                    return true;
+                }
+            }
+
+            return false;
         }
 
         private void FindAndLoadOfficialGameAddonPackage()

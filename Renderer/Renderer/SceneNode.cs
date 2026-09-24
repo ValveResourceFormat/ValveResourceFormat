@@ -241,12 +241,24 @@ namespace ValveResourceFormat.Renderer
         internal int DynamicSetIndex { get; set; } = -1;
 
         /// <summary>
-        /// Gets the visibility clusters this node's bounding box overlaps, recomputing them when it has moved
-        /// or grown since the last query. A node with no clusters at all sits outside the visibility volume.
+        /// Gets or sets the visibility clusters the map compiler assigned to this node, which replace the
+        /// clusters its bounding box overlaps. <see langword="null"/> when it has none.
+        /// </summary>
+        internal ushort[]? PrecomputedVisClusters { get; set; }
+
+        /// <summary>
+        /// Gets the precomputed visibility clusters of this node when it has them, otherwise the clusters its
+        /// bounding box overlaps, recomputing them when it has moved or grown since the last query. A node
+        /// with no clusters at all is never visible.
         /// </summary>
         /// <param name="voxelVisibility">The scene's visibility data.</param>
         internal ReadOnlySpan<ushort> GetVisClusters(IWorldVisibility voxelVisibility)
         {
+            if (PrecomputedVisClusters != null)
+            {
+                return PrecomputedVisClusters;
+            }
+
             if (visClusters != null && visClusterBounds.Equals(BoundingBox))
             {
                 return visClusters.AsSpan(0, visClusterCount);

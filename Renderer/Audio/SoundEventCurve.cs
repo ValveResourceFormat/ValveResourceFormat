@@ -18,6 +18,7 @@ public sealed class SoundEventCurve
         Free = 2,
         Mirror = 3,
         Sine = 4,
+        Flat = 5,
     }
 
     private struct Knot
@@ -236,6 +237,7 @@ public sealed class SoundEventCurve
                 CurveTangentType.Spline => spanSlope,
                 CurveTangentType.Mirror => 0f,
                 CurveTangentType.Sine => SineTangent(knot.Y > prev.Y ? -SineShallow : -SineSteep, knot.X - prev.X),
+                CurveTangentType.Flat => 0f,
                 _ => knot.InTangent,
             };
 
@@ -245,6 +247,7 @@ public sealed class SoundEventCurve
                 CurveTangentType.Spline => spanSlope,
                 CurveTangentType.Mirror => inTangent,
                 CurveTangentType.Sine => SineTangent(next.Y > knot.Y ? SineSteep : SineShallow, next.X - knot.X),
+                CurveTangentType.Flat => 0f,
                 _ => knot.OutTangent,
             };
 
