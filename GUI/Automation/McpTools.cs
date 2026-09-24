@@ -645,7 +645,7 @@ internal sealed partial class McpTools
 
         foreach (var map in maps)
         {
-            paths.Add($"vpk:{context.FileName}:{map.GetFullPath()}");
+            paths.Add($"vpk:{MainForm.EscapeVpkLinkPath(context.FileName)}:{MainForm.EscapeVpkLinkPath(map.GetFullPath())}");
         }
 
         return paths;
