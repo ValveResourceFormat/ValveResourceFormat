@@ -48,7 +48,6 @@ namespace GUI.Utils
             [
                 //new("WASD", "Move"),
                 new("Q/Z", "Up/Down"),
-                new("Z", "Mouselook"),
                 //new("Mouse", "Rotate"),
                 new("Alt", "Orbit"),
                 new("Shift", "Pan"),
@@ -62,7 +61,6 @@ namespace GUI.Utils
             [ViewerType.WorldViewer] =
             [
                 new("Q/Z", "Up/Down"),
-                new("Z", "Mouselook"),
                 new("X", "Walk"),
                 //new("WASD", "Move"),
                 new("Alt", "Orbit"),
@@ -79,7 +77,6 @@ namespace GUI.Utils
             [
                 new("WASD", "Move"),
                 new("Q/Z", "Up/Down"),
-                new("Z", "Mouselook"),
                 //new("Mouse", "Rotate"),
                 new("Alt", "Orbit"),
                 new("Shift", "Pan"),
