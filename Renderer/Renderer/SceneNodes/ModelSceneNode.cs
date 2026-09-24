@@ -53,17 +53,8 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             lod = new ModelLodSelector(model.LodInfo);
             referenceMeshes = model.GetReferenceMeshNamesAndLoD().ToList();
 
-            AnimationController = new(model.Skeleton, model.FlexControllers);
             boneCount = model.Skeleton.Bones.Length;
             remappingTable = model.BoneRemapTable.Table;
-
-            foreach (var skeletonName in model.NmSkeletonRefs)
-            {
-                if (Skeleton.FromSkeletonResource(Scene.RendererContext.FileLoader, skeletonName) is { } skeleton)
-                {
-                    AnimationController.RegisterExternalSkeleton(skeletonName, skeleton);
-                }
-            }
 
             if (skin != null)
             {
@@ -73,6 +64,17 @@ namespace ValveResourceFormat.Renderer.SceneNodes
             Name = model.Name;
 
             LoadMeshes(model);
+
+            AnimationController = new(model.Skeleton, model.FlexControllers);
+
+            foreach (var skeletonName in model.NmSkeletonRefs)
+            {
+                if (Skeleton.FromSkeletonResource(Scene.RendererContext.FileLoader, skeletonName) is { } skeleton)
+                {
+                    AnimationController.RegisterExternalSkeleton(skeletonName, skeleton);
+                }
+            }
+
             UpdateBoundingBox();
             LoadAnimations(model, embeddedAnimationsOnly: isWorldPreview);
 
