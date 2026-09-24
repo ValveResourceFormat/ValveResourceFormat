@@ -37,6 +37,12 @@ internal abstract class GLBaseControl : IDisposable, IMessageFilter
     /// <summary>Whether the mouse has moved while a button was held since the last mouse down.</summary>
     protected bool MouseDragged;
 
+    /// <summary>
+    /// Set when the viewport lets go of the cursor (focus lost, or escape in walk mode) so mouse look
+    /// does not take it straight back; cleared by clicking back into the viewport.
+    /// </summary>
+    protected bool MouseReleased;
+
     private readonly Lock inputStateLock = new();
     private Point pendingMouseDelta;
     private int pendingMouseWheelDelta;
@@ -58,6 +64,7 @@ internal abstract class GLBaseControl : IDisposable, IMessageFilter
                 if (value)
                 {
                     mouseLookNeedsRebase = true;
+                    GLControl?.BeginInvoke(() => HideCursorForMouseLook(Cursor.Position, touch: false));
                 }
                 else
                 {
@@ -362,6 +369,7 @@ internal abstract class GLBaseControl : IDisposable, IMessageFilter
         MouseDelta = Point.Empty;
         currentDragIsTouch = false;
         mouseLookNeedsRebase = true;
+        MouseReleased = true;
         GrabbedMouse = false;
         RestoreCursorAfterDrag();
     }
@@ -467,6 +475,7 @@ internal abstract class GLBaseControl : IDisposable, IMessageFilter
         InitialMousePosition = new Point(e.X, e.Y);
         MouseDelta = Point.Empty;
         MouseDragged = false;
+        MouseReleased = false;
         currentDragIsTouch = IsTouchOrPenInput();
         mouseLookNeedsRebase = true;
 
@@ -511,6 +520,26 @@ internal abstract class GLBaseControl : IDisposable, IMessageFilter
                 RestoreCursorAfterDrag();
             }
         }
+    }
+
+    private void HideCursorForMouseLook(Point restorePosition, bool touch)
+    {
+        if (cursorHiddenForDrag || GLControl == null)
+        {
+            return;
+        }
+
+        cursorHiddenForDrag = true;
+        mouseLookRestorePosition = restorePosition;
+        mouseLookNeedsRebase = true;
+
+        if (!touch)
+        {
+            Cursor.Clip = GLControl.RectangleToScreen(GLControl.ClientRectangle);
+            BeginRawMouseLook();
+        }
+
+        SetCursorVisible(false);
     }
 
     private void RestoreCursorAfterDrag()
@@ -690,21 +719,7 @@ internal abstract class GLBaseControl : IDisposable, IMessageFilter
         if (delta != Point.Empty)
         {
             MouseDragged = true;
-
-            if (!cursorHiddenForDrag)
-            {
-                cursorHiddenForDrag = true;
-                mouseLookRestorePosition = MousePreviousPosition;
-                mouseLookNeedsRebase = true;
-
-                if (!touch)
-                {
-                    Cursor.Clip = GLControl.RectangleToScreen(GLControl.ClientRectangle);
-                    BeginRawMouseLook();
-                }
-
-                SetCursorVisible(false);
-            }
+            HideCursorForMouseLook(MousePreviousPosition, touch);
         }
 
         // Touch and pen are absolute digitizers: warping the cursor doesn't move the contact point
