@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using ValveKeyValue;
+using ValveResourceFormat.IO;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.Serialization.KeyValues;
 
@@ -99,6 +100,13 @@ namespace ValveResourceFormat.Particles
                 }
 
                 var childName = childInfo.GetStringProperty("m_ChildRef");
+
+                if (IsSelfOrAncestor(childName))
+                {
+                    logger.LogUniqueWarning("Child {Child} nests inside itself, skipped {File}", childName, Name);
+                    continue;
+                }
+
                 var childResource = fileLoader.LoadFileCompiled(childName);
 
                 if (childResource == null)
@@ -119,6 +127,27 @@ namespace ValveResourceFormat.Particles
 
                 childSimulations.Add(childSystem);
             }
+        }
+
+        private bool IsSelfOrAncestor(string childName)
+        {
+            var compiledName = string.Concat(childName, GameFileLoader.CompiledFileSuffix).Replace('\\', '/');
+
+            for (var state = systemState; state != null; state = state.ParentSystem)
+            {
+                if (state.Data?.Name.Replace('\\', '/') is not { } name)
+                {
+                    continue;
+                }
+
+                if (name.Equals(compiledName, StringComparison.OrdinalIgnoreCase)
+                    || name.EndsWith(string.Concat("/", compiledName), StringComparison.OrdinalIgnoreCase))
+                {
+                    return true;
+                }
+            }
+
+            return false;
         }
 
         /// <summary>
