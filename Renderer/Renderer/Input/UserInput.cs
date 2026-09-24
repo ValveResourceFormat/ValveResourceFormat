@@ -94,7 +94,7 @@ public class UserInput
     /// <summary>Gets a value indicating whether the camera is in noclip (free-flight) mode rather than FPS movement mode.</summary>
     public bool NoClip => !WalkMode;
 
-    /// <summary>Gets whether the mouse turns the camera without a button held. Toggled with Z, off with escape.</summary>
+    /// <summary>Gets whether the mouse turns the camera without a button held. Toggled with Z while no mouse button is held, off with escape.</summary>
     public bool MouseLook { get; private set; }
 
     /// <summary>
@@ -281,7 +281,8 @@ public class UserInput
             }
         }
 
-        if (!WalkMode && Pressed(TrackedKeys.Z))
+        // Z moves down while dragging to look, so it only toggles mouse look with the buttons up
+        if (!WalkMode && Pressed(TrackedKeys.Z) && (keyboardState & TrackedKeys.MouseLeftOrRight) == 0)
         {
             MouseLook = !MouseLook;
         }
@@ -672,6 +673,16 @@ public class UserInput
         if ((keyboardState & TrackedKeys.A) != 0)
         {
             targetVelocity -= Camera.Right * maxSpeed;
+        }
+
+        if ((keyboardState & TrackedKeys.Z) != 0 && (keyboardState & TrackedKeys.MouseLeftOrRight) != 0)
+        {
+            targetVelocity += new Vector3(0, 0, -maxSpeed);
+        }
+
+        if ((keyboardState & TrackedKeys.Q) != 0)
+        {
+            targetVelocity += new Vector3(0, 0, maxSpeed);
         }
 
         // Apply acceleration or deceleration
