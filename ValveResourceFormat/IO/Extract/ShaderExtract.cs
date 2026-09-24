@@ -274,7 +274,6 @@ public sealed class ShaderExtract
             .Where(s => s.VcsProgramType != VcsProgramType.Features)
             .Select(s => ShaderUtilHelpers.ComputeVcsProgramType(s.VcsProgramType));
         writer.WriteLine();
-        writer.WriteLine($"// VcsVersion: {Features.VcsVersion}");
         writer.WriteLine($"// Platform: {Features.VcsPlatformType}_SM{Features.VcsShaderModelType}");
         writer.WriteLine($"// Programs: {string.Join(", ", programs)}");
 
