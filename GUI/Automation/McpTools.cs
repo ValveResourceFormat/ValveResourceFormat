@@ -1,5 +1,6 @@
 #if DEBUG
 using System.Diagnostics;
+using System.Runtime;
 using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
 using System.Threading;
@@ -220,6 +221,13 @@ internal sealed partial class McpTools
             Schema(),
             (_, _) => Quit());
 
+        Add("get_memory", "Memory use of the viewer process in MB: private bytes and working set, the managed heap (live objects, fragmentation and committed), and garbage collection counts per generation. Pass collect=true to first run a full blocking collection that also compacts the large object heap and runs finalizers, which tells a leak (the heap stays up) from memory that is merely not yet collected. Pooled buffers are only released by collections after sitting unused for 30 to 60 seconds, so a heap that stays up right after closing a large file should be measured again a minute later.",
+            Schema(new JsonObject
+            {
+                ["collect"] = Prop("boolean", "Run a full compacting collection before measuring. Defaults to false."),
+            }),
+            GetMemory);
+
         Add("get_log", "Read the viewer's console, oldest first: shader compile errors, load failures and renderer warnings. Each line is 'time level [component] message', level being D, I, W or E. Returns a 'cursor'; pass it back as 'since' to read only what was logged after this call.",
             Schema(new JsonObject
             {
@@ -319,6 +327,37 @@ internal sealed partial class McpTools
         {
             ["closing"] = true,
         }));
+    }
+
+    private static async Task<McpToolResult> GetMemory(JsonObject args, CancellationToken cancellationToken)
+    {
+        var collect = GetBool(args, "collect") ?? false;
+        var tabs = await OnUi(() => Program.MainForm.Tabs.TabCount, cancellationToken).ConfigureAwait(false);
+
+        if (collect)
+        {
+            GCSettings.LargeObjectHeapCompactionMode = GCLargeObjectHeapCompactionMode.CompactOnce;
+            GC.Collect(GC.MaxGeneration, GCCollectionMode.Forced, blocking: true, compacting: true);
+            GC.WaitForPendingFinalizers();
+            GC.Collect(GC.MaxGeneration, GCCollectionMode.Forced, blocking: true, compacting: true);
+        }
+
+        using var process = Process.GetCurrentProcess();
+        var info = GC.GetGCMemoryInfo(GCKind.Any);
+
+        static double Megabytes(long bytes) => Math.Round(bytes / (1024.0 * 1024.0), 1);
+
+        return McpToolResult.Json(new JsonObject
+        {
+            ["tabs"] = tabs,
+            ["private_mb"] = Megabytes(process.PrivateMemorySize64),
+            ["working_set_mb"] = Megabytes(process.WorkingSet64),
+            ["managed_live_mb"] = Megabytes(GC.GetTotalMemory(forceFullCollection: false)),
+            ["managed_heap_mb"] = Megabytes(info.HeapSizeBytes),
+            ["managed_fragmented_mb"] = Megabytes(info.FragmentedBytes),
+            ["managed_committed_mb"] = Megabytes(info.TotalCommittedBytes),
+            ["gc_counts"] = new JsonArray(GC.CollectionCount(0), GC.CollectionCount(1), GC.CollectionCount(2)),
+        });
     }
 
     private static Task<McpToolResult> GetLog(JsonObject args, CancellationToken cancellationToken)
@@ -445,6 +484,8 @@ internal sealed partial class McpTools
             {
                 return McpToolResult.Error($"Tab {id} '{page.Text}' cannot be closed.");
             }
+
+            TabIds.Remove(id);
 
             return McpToolResult.Json(new JsonObject
             {
@@ -686,6 +727,8 @@ internal sealed partial class McpTools
                 return id;
             }
         }
+
+        PruneTabIds();
 
         var newId = ++nextTabId;
         TabIds[newId] = page;

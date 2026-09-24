@@ -10,7 +10,8 @@ namespace GUI.Automation;
 internal static class UnhandledExceptions
 {
     private static readonly object Sync = new();
-    private static readonly List<string> Reports = [];
+    private static int count;
+    private static string? latest;
     private static TaskCompletionSource<string> next = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
     public static int Count
@@ -19,7 +20,7 @@ internal static class UnhandledExceptions
         {
             lock (Sync)
             {
-                return Reports.Count;
+                return count;
             }
         }
     }
@@ -30,7 +31,7 @@ internal static class UnhandledExceptions
         {
             lock (Sync)
             {
-                return Reports.Count > 0 ? Reports[^1] : null;
+                return latest;
             }
         }
     }
@@ -42,7 +43,8 @@ internal static class UnhandledExceptions
 
         lock (Sync)
         {
-            Reports.Add(text);
+            count++;
+            latest = text;
             signal = next;
             next = new(TaskCreationOptions.RunContinuationsAsynchronously);
         }
