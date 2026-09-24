@@ -270,9 +270,9 @@ per slice.
 ## Animation
 
 Legacy embedded sequences decode through all common per-bone compression types (unknown
-decoder types are skipped silently), and Animgraph 2 clips (`vnmclip`) decode fully:
-compressed poses, 3D root motion (position plus yaw; the root track's pitch and roll are
-dropped), float curves, events, and secondary skeleton tracks.
+decoder types are skipped with a logged error), and Animgraph 2 clips (`vnmclip`) decode
+fully: compressed poses, 3D root motion (position plus yaw; the root track's pitch and roll
+are dropped), float curves, events, and secondary skeleton tracks.
 Both feed viewer playback, glTF export, and DMX reconstruction, including retargeting of
 clips authored on a different skeleton.
 
@@ -301,8 +301,9 @@ Joints (`m_joints`) and their bodies' mass, inertia, damping, drag, center of ma
 export into decompiled models; joint motors do not. Not parsed anywhere: constraints
 (`m_constraints2`) and the `FeModel` cloth/softbody block; both are visible only in the raw
 text dump. Surface properties are resolved by name only; their physical values (friction,
-density, sounds) are not consumed or exported. Text-dumping the PHYS block of gigabyte-class
-maps can run out of memory; dump the block to a file via the CLI instead
+density, sounds) are not consumed or exported. KeyValues blocks over 64 MiB, such as the
+PHYS block of gigabyte-class maps, are too large to show as text; the viewer offers **Save
+as text...** for them instead
 ([#840](https://github.com/ValveResourceFormat/ValveResourceFormat/issues/840)).
 
 ## Particles (vpcf)
