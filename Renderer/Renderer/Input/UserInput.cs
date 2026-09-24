@@ -675,14 +675,17 @@ public class UserInput
             targetVelocity -= Camera.Right * maxSpeed;
         }
 
-        if ((keyboardState & TrackedKeys.Z) != 0 && (keyboardState & TrackedKeys.MouseLeftOrRight) != 0)
+        if ((keyboardState & TrackedKeys.MouseLeftOrRight) != 0)
         {
-            targetVelocity += new Vector3(0, 0, -maxSpeed);
-        }
+            if ((keyboardState & TrackedKeys.Z) != 0)
+            {
+                targetVelocity += new Vector3(0, 0, -maxSpeed);
+            }
 
-        if ((keyboardState & TrackedKeys.Q) != 0)
-        {
-            targetVelocity += new Vector3(0, 0, maxSpeed);
+            if ((keyboardState & TrackedKeys.Q) != 0)
+            {
+                targetVelocity += new Vector3(0, 0, maxSpeed);
+            }
         }
 
         // Apply acceleration or deceleration
