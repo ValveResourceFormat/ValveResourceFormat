@@ -279,6 +279,11 @@ namespace GUI.Controls
 
         private void UpdateCachedMetrics()
         {
+            if (IsDisposed || Disposing)
+            {
+                return;
+            }
+
             // Cache padding and gap values by examining actual tab positions
             if (TabPages.Count >= 1)
             {

@@ -143,6 +143,12 @@ namespace GUI
             mainLogo.Image = Themer.SvgToBitmap(AppIcons.ExtensionSVGS["Logo"], mainLogo.Width, mainLogo.Height);
         }
 
+        /// <summary>
+        /// Escapes a package or inner file path for a <c>vpk:</c> link, so that
+        /// <see cref="OpenCommandLineArgFiles"/> reads it back unchanged.
+        /// </summary>
+        public static string EscapeVpkLinkPath(string path) => path.Replace("%", "%25", StringComparison.Ordinal);
+
         public void OpenCommandLineArgFiles(string[] args)
         {
             for (var i = 0; i < args.Length; i++)
@@ -152,7 +158,7 @@ namespace GUI
                 // Handle vpk: protocol
                 if (file.StartsWith("vpk:", StringComparison.InvariantCulture))
                 {
-                    file = System.Net.WebUtility.UrlDecode(file[4..]);
+                    file = Uri.UnescapeDataString(file[4..]);
 
                     // Every ".vpk:" separates a package from the path inside it, so nested packages
                     // can be addressed as "outer_dir.vpk:maps/inner.vpk:models/file.vmdl_c"
@@ -784,6 +790,11 @@ namespace GUI
                 {
                     BeginInvoke(() =>
                     {
+                        if (tab.IsDisposed)
+                        {
+                            return;
+                        }
+
                         var control = CodeTextBox.CreateFromException(ex, tab.ToolTipText);
 
                         tab.Controls.Add(control);
@@ -819,7 +830,20 @@ namespace GUI
                             Debug.Assert(false);
                         }
 
-                        viewer.Create(tab);
+                        try
+                        {
+                            viewer.Create(tab);
+                        }
+                        catch (Exception) when (tab.IsDisposed)
+                        {
+                            return;
+                        }
+
+                        if (tab.IsDisposed)
+                        {
+                            return;
+                        }
+
                         createdViewer = viewer;
 
                         if (mainTabs.SelectedTab == tab)
@@ -845,6 +869,11 @@ namespace GUI
                     {
                         BeginInvoke(() =>
                         {
+                            if (tab.IsDisposed)
+                            {
+                                return;
+                            }
+
                             var control = CodeTextBox.CreateFromException(ex, tab.ToolTipText);
 
                             tab.Controls.Add(control);
@@ -870,7 +899,11 @@ namespace GUI
                 {
                     vrfGuiContext.LoadingProgress = null;
 
-                    if (keepFrozen)
+                    if (tab.IsDisposed)
+                    {
+                        loadingFile?.Dispose();
+                    }
+                    else if (keepFrozen)
                     {
                         // Same-type preview: swap the frozen previous view for the newly loaded viewer.
                         Debug.Assert(packageTreeView != null);
