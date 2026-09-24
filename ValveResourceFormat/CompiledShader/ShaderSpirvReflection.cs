@@ -265,8 +265,7 @@ public static partial class ShaderSpirvReflection
             code = ReplaceCommonPatterns(code);
 
             buffer.WriteLine($"// {StringToken.VRF_GENERATOR}");
-            buffer.WriteLine(
-                $"// SPIR-V source ({vulkanSource.BytecodeSize} bytes), {backend} reflection with SPIRV-Cross by KhronosGroup");
+            buffer.WriteLine($"// SPIR-V source, {backend} reflection with SPIRV-Cross by KhronosGroup");
 
             BuildComboComment(vulkanSource, buffer);
 

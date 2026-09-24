@@ -4,7 +4,7 @@
 // Re-attempting reflection with the GLSL backend.
 
 // VRF-TEST
-// SPIR-V source (3364 bytes), GLSL reflection with SPIRV-Cross by KhronosGroup
+// SPIR-V source, GLSL reflection with SPIRV-Cross by KhronosGroup
 
 #version 460
 #extension GL_EXT_buffer_reference2 : require

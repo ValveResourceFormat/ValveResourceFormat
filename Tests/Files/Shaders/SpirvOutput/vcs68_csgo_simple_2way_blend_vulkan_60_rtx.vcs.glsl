@@ -4,7 +4,7 @@
 // Re-attempting reflection with the GLSL backend.
 
 // VRF-TEST
-// SPIR-V source (53296 bytes), GLSL reflection with SPIRV-Cross by KhronosGroup
+// SPIR-V source, GLSL reflection with SPIRV-Cross by KhronosGroup
 // Static combos: S_PAINT_VERTEX_COLORS, S_ENABLE_TINT_MASKS
 
 #version 460
