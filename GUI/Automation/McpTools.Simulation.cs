@@ -37,16 +37,16 @@ internal sealed partial class McpTools
                 return Task.FromResult(McpToolResult.Json(new JsonObject { ["paused"] = false }));
             });
 
-        Add("step", "Pause, then advance the simulation of a tab by exactly this many seconds in fixed frames, and stay paused. Two runs stepped the same way show the same thing. Returns the scene time afterwards.",
+        Add("step", "Pause, then advance the simulation of a 3D tab by exactly this many seconds in fixed frames, and stay paused. Two runs stepped the same way show the same thing. Returns the scene time afterwards.",
             Schema(new JsonObject
             {
                 ["tab"] = TabProp(),
                 ["seconds"] = Prop("number", $"Seconds to simulate, at most {MaxStepSeconds:F0}."),
                 ["timestep"] = Prop("number", "Seconds per simulated frame. Defaults to 1/64, one entity tick; at most 0.125."),
             }, "seconds"),
-            Step);
+            Step, SceneViewer);
 
-        Add("get_particles", "Inspect particle systems: whether each is paused or finished, its age and live particle count including child systems, its control points, bounds, and the renderer classes it uses that are not implemented and so draw nothing.",
+        Add("get_particles", "Inspect the particle systems of a 3D tab: whether each is paused or finished, its age and live particle count including child systems, its control points, bounds, and the renderer classes it uses that are not implemented and so draw nothing.",
             Schema(new JsonObject
             {
                 ["tab"] = TabProp(),
@@ -55,7 +55,7 @@ internal sealed partial class McpTools
                 ["radius"] = Prop("number", "Distance from 'near'. Defaults to 512."),
                 ["limit"] = Prop("integer", "Most systems to return. Defaults to 20, at most 500."),
             }),
-            GetParticles);
+            GetParticles, SceneViewer);
     }
 
     private async Task<McpToolResult> Step(JsonObject args, CancellationToken cancellationToken)

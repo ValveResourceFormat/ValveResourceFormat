@@ -47,16 +47,16 @@ internal sealed partial class McpTools
 
     private void RegisterViewerTools()
     {
-        Add("screenshot", "Capture the rendered frame of a tab. Returns a downscaled JPEG to look at; pass 'path' to also get the full resolution PNG on disk. Selects the tab and renders a fresh frame first, so it works while the window is in the background.",
+        Add("screenshot", "Capture what a rendered tab shows: a 3D view, texture, image or graph. Returns a downscaled JPEG to look at; pass 'path' to also get the full resolution PNG on disk. Selects the tab and renders a fresh frame first, so it works while the window is in the background. A 3D tab captures the frame as the window shows it; a texture or image tab captures the whole image at its selected mip, and a graph tab the whole graph, regardless of pan and zoom.",
             Schema(new JsonObject
             {
                 ["tab"] = TabProp(),
                 ["settle_frames"] = Prop("integer", "Extra frames to render before capturing, for auto exposure to settle. Defaults to 2."),
                 ["path"] = Prop("string", "Absolute path to write the full resolution PNG to. The inline image is a JPEG, so do not save that as .png."),
             }),
-            Screenshot);
+            Screenshot, AnyViewer);
 
-        Add("clear_selection", "Drop the current selection. The outline of a selected node, and the debug geometry of a selected light probe volume or envmap, stay in every screenshot until this is called.",
+        Add("clear_selection", "Drop the current selection of a 3D tab. The outline of a selected node, and the debug geometry of a selected light probe volume or envmap, stay in every screenshot until this is called.",
             Schema(new JsonObject
             {
                 ["tab"] = TabProp(),
@@ -65,18 +65,20 @@ internal sealed partial class McpTools
             {
                 viewer.ClearSelection();
                 return McpToolResult.Json(new JsonObject());
-            }, ct));
+            }, ct),
+            SceneViewer);
 
-        Add("get_camera", "Read the camera position, angles and field of view of a tab.",
+        Add("get_camera", "Read the camera position, angles and field of view of a 3D tab.",
             Schema(new JsonObject
             {
                 ["tab"] = TabProp(),
             }),
             // The input camera is the authoritative one. Renderer.Camera is the interpolated view,
             // which lags behind it and does not update at all while the app is paused.
-            (args, ct) => WithViewer<GLSceneViewer>(args, viewer => McpToolResult.Json(DescribeCamera(viewer.Input.Camera)), ct));
+            (args, ct) => WithViewer<GLSceneViewer>(args, viewer => McpToolResult.Json(DescribeCamera(viewer.Input.Camera)), ct),
+            SceneViewer);
 
-        Add("set_camera", "Move the camera instantly, with no fly-in transition. Takes the same shape get_camera returns.",
+        Add("set_camera", "Move the camera of a 3D tab instantly, with no fly-in transition. Takes the same shape get_camera returns.",
             Schema(new JsonObject
             {
                 ["tab"] = TabProp(),
@@ -85,7 +87,7 @@ internal sealed partial class McpTools
                 ["look_at"] = VectorProp("World point [x, y, z] to face, instead of 'angles'."),
                 ["fov"] = Prop("number", "Field of view in degrees. Left alone when omitted."),
             }, "position"),
-            SetCamera);
+            SetCamera, SceneViewer);
 
         Add("list_layers", "List the world layers and physics groups of a map, each with whether it is drawn.",
             Schema(new JsonObject
@@ -105,7 +107,8 @@ internal sealed partial class McpTools
                 }
 
                 return McpToolResult.Json(result);
-            }, ct));
+            }, ct),
+            WorldViewer);
 
         Add("set_layer", "Show or hide one world layer. The 3D sky scene follows.",
             Schema(new JsonObject
@@ -114,7 +117,8 @@ internal sealed partial class McpTools
                 ["name"] = Prop("string", "Layer name from list_layers."),
                 ["enabled"] = Prop("boolean", "Whether the layer should be drawn."),
             }, "name", "enabled"),
-            (args, ct) => SetChecked(args, "layer", (viewer, name, enabled) => viewer.TrySetWorldLayer(name, enabled), ct));
+            (args, ct) => SetChecked(args, "layer", (viewer, name, enabled) => viewer.TrySetWorldLayer(name, enabled), ct),
+            WorldViewer);
 
         Add("set_physics_group", "Show or hide one physics group, such as the collision hulls of triggers or player clips.",
             Schema(new JsonObject
@@ -123,9 +127,10 @@ internal sealed partial class McpTools
                 ["name"] = Prop("string", "Physics group name from list_layers."),
                 ["enabled"] = Prop("boolean", "Whether the group should be drawn."),
             }, "name", "enabled"),
-            (args, ct) => SetChecked(args, "physics_group", (viewer, name, enabled) => viewer.TrySetPhysicsGroup(name, enabled), ct));
+            (args, ct) => SetChecked(args, "physics_group", (viewer, name, enabled) => viewer.TrySetPhysicsGroup(name, enabled), ct),
+            WorldViewer);
 
-        Add("list_render_modes", "List the debug render modes available for a tab, and which one is active.",
+        Add("list_render_modes", "List the debug render modes available for a 3D tab, and which one is active.",
             Schema(new JsonObject
             {
                 ["tab"] = TabProp(),
@@ -150,9 +155,10 @@ internal sealed partial class McpTools
                 }
 
                 return McpToolResult.Json(result);
-            }, ct));
+            }, ct),
+            SceneViewer);
 
-        Add("set_render_mode", "Switch the debug render mode, for isolating lighting, specular, overdraw and similar.",
+        Add("set_render_mode", "Switch the debug render mode of a 3D tab, for isolating lighting, specular, overdraw and similar.",
             Schema(new JsonObject
             {
                 ["tab"] = TabProp(),
@@ -170,49 +176,15 @@ internal sealed partial class McpTools
                 return WithViewer<GLSceneViewer>(args, viewer => viewer.TrySetRenderMode(name)
                     ? McpToolResult.Json(new JsonObject { ["render_mode"] = viewer.CurrentRenderMode })
                     : McpToolResult.Error($"No render mode named '{name}' is available here."), ct);
-            });
+            },
+            SceneViewer);
 
-        Add("get_info", "Describe what a tab has loaded: viewer kind, file, render mode, node counts, and for a map its name, entity counts and 3D sky.",
+        Add("get_info", "Describe any tab: its viewer kind and file, and which of the tools that act on a tab work on it. A 3D tab adds its render mode and node counts, and a map its name, entity counts and 3D sky.",
             Schema(new JsonObject
             {
                 ["tab"] = TabProp(),
             }),
-            (args, ct) => WithViewer<GLSceneViewer>(args, viewer =>
-            {
-                var info = new JsonObject
-                {
-                    ["viewer"] = viewer.GetType().Name,
-                    ["file"] = viewer.GuiContext.FileName,
-                };
-
-                if (viewer.CurrentRenderMode is { } renderMode)
-                {
-                    info["render_mode"] = renderMode;
-                }
-
-                info["scene_nodes"] = viewer.Scene.AllNodes.Count();
-
-                if (viewer.SkyboxScene is { } skyboxScene)
-                {
-                    info["sky_nodes"] = skyboxScene.AllNodes.Count();
-                }
-
-                if (viewer is GLWorldViewer { LoadedWorld: { } world })
-                {
-                    info["map"] = world.MapName;
-                    info["entities"] = world.Entities.Count;
-
-                    if (world.Skybox3D is { } sky)
-                    {
-                        info["sky_map"] = world.Entities
-                            .FirstOrDefault(entity => entity.GetStringProperty("classname") == "skybox_reference")?
-                            .GetStringProperty("targetmapname");
-                        info["sky_entities"] = sky.Entities.Count;
-                    }
-                }
-
-                return McpToolResult.Json(info);
-            }, ct));
+            GetInfo);
 
         Add("set_viewport", "Render at an exact pixel size regardless of the window size, so screenshots from two builds can be compared. Pass no size to go back to following the window.",
             Schema(new JsonObject
@@ -221,7 +193,7 @@ internal sealed partial class McpTools
                 ["width"] = Prop("integer", "Render width. Omit along with height to follow the window again."),
                 ["height"] = Prop("integer", "Render height."),
             }),
-            SetViewport);
+            SetViewport, AnyViewer);
 
         Add("reload_shaders", "Recompile shaders from the source tree and redraw, without restarting the viewer. A compile failure comes back as the compiler's own error text.",
             Schema(new JsonObject
@@ -229,14 +201,14 @@ internal sealed partial class McpTools
                 ["tab"] = TabProp(),
                 ["name"] = Prop("string", "Only reload shaders derived from this file, for example complex.frag.slang. Omit to reload every shader, which is much slower."),
             }),
-            ReloadShaders);
+            ReloadShaders, ShaderViewer);
 
-        Add("get_render_stats", "Per frame draw counts and renderer metrics of a fresh frame, the numbers behind the performance overlay. Counters that are zero are left out.",
+        Add("get_render_stats", "Per frame draw counts and renderer metrics of a fresh frame of a 3D tab, the numbers behind the performance overlay. Counters that are zero are left out.",
             Schema(new JsonObject
             {
                 ["tab"] = TabProp(),
             }),
-            RenderStats);
+            RenderStats, SceneViewer);
     }
 
     private static JsonObject CheckedMap(List<(string Name, bool Enabled)> items)
@@ -266,6 +238,62 @@ internal sealed partial class McpTools
             : McpToolResult.Error($"No {kind.Replace('_', ' ')} named '{name}'. Call list_layers for the names."), cancellationToken);
     }
 
+    private async Task<McpToolResult> GetInfo(JsonObject args, CancellationToken cancellationToken)
+    {
+        var id = GetInt(args, "tab");
+
+        return await OnUi(() =>
+        {
+            var page = id == null ? Program.MainForm.Tabs.SelectedTab : PageFor(id.Value);
+
+            if (page == null)
+            {
+                return id == null ? McpToolResult.Error("No tab is open.") : NoSuchTab(id.Value);
+            }
+
+            var info = DescribeTab(page);
+            var viewer = GLBaseControl.FindHostedIn(page);
+
+            if (ToolsFor(viewer) is { } tools)
+            {
+                info["tools"] = tools;
+            }
+
+            if (viewer is not GLSceneViewer scene)
+            {
+                return McpToolResult.Json(info);
+            }
+
+            if (scene.CurrentRenderMode is { } renderMode)
+            {
+                info["render_mode"] = renderMode;
+            }
+
+            info["scene_nodes"] = scene.Scene.AllNodes.Count();
+
+            if (scene.SkyboxScene is { } skyboxScene)
+            {
+                info["sky_nodes"] = skyboxScene.AllNodes.Count();
+            }
+
+            if (scene is GLWorldViewer { LoadedWorld: { } world })
+            {
+                info["map"] = world.MapName;
+                info["entities"] = world.Entities.Count;
+
+                if (world.Skybox3D is { } sky)
+                {
+                    info["sky_map"] = world.Entities
+                        .FirstOrDefault(entity => entity.GetStringProperty("classname") == "skybox_reference")?
+                        .GetStringProperty("targetmapname");
+                    info["sky_entities"] = sky.Entities.Count;
+                }
+            }
+
+            return McpToolResult.Json(info);
+        }, cancellationToken).ConfigureAwait(false);
+    }
+
     private async Task<McpToolResult> ReloadShaders(JsonObject args, CancellationToken cancellationToken)
     {
         var (viewer, error) = await ActivateViewer<GLBaseControl>(args, cancellationToken).ConfigureAwait(false);
@@ -273,6 +301,11 @@ internal sealed partial class McpTools
         if (error != null)
         {
             return error;
+        }
+
+        if (!viewer!.OffersShaderReload)
+        {
+            return McpToolResult.Error($"{viewer.GetType().Name} draws no shaders of its own, so there is nothing to reload.");
         }
 
         var name = GetString(args, "name");
@@ -480,48 +513,80 @@ internal sealed partial class McpTools
 
     /// <summary>
     /// Resolves the viewer of the tab the arguments name, or of the active tab, and makes that tab
-    /// active because only the active control renders. When it is not a <typeparamref name="T"/>,
-    /// the error names the tab that was looked at, so a caller that relied on the active tab can
-    /// tell it was not the one it meant.
+    /// active because only the active control renders. A tab that is still loading is waited for.
+    /// When it is not a <typeparamref name="T"/>, the error names the tab that was looked at, so a
+    /// caller that relied on the active tab can tell it was not the one it meant.
     /// </summary>
     private async Task<(T? Viewer, McpToolResult? Error)> ActivateViewer<T>(JsonObject args, CancellationToken cancellationToken)
         where T : GLBaseControl
     {
         var id = GetInt(args, "tab");
 
-        return await OnUi<(T?, McpToolResult?)>(() =>
+        while (true)
         {
-            var form = Program.MainForm;
-            var page = id == null ? form.Tabs.SelectedTab : PageFor(id.Value);
+            var (viewer, error, loading, tab) = await OnUi(() => TryActivateViewer<T>(id), cancellationToken).ConfigureAwait(false);
 
-            if (page == null)
+            if (loading == null)
             {
-                return (null, id == null ? McpToolResult.Error("No tab is open.") : NoSuchTab(id.Value));
+                return (viewer, error);
             }
 
-            if (GLBaseControl.FindHostedIn(page) is not T viewer)
+            try
             {
-                var needs = typeof(T) == typeof(GLWorldViewer) ? "has no map loaded"
-                    : typeof(T) == typeof(GLSceneViewer) ? "has no 3D scene"
-                    : "has no GL viewer";
-
-                var kind = DescribeViewer(page) is { } described ? $" ({described})" : string.Empty;
-                var how = id == null ? " No 'tab' was given, so the active tab was used." : string.Empty;
-
-                return (null, McpToolResult.Error($"Tab {IdFor(page)} '{page.Text}'{kind} {needs}.{how}"));
+                await loading.WaitAsync(LoadTimeout, cancellationToken).ConfigureAwait(false);
             }
-
-            if (form.Tabs.SelectedTab != page)
+            catch (TimeoutException)
             {
-                form.Tabs.SelectTab(page);
+                return (null, McpToolResult.Error($"{tab} is still loading after {LoadTimeout.TotalSeconds:F0}s."));
             }
+        }
+    }
 
-            // Minimizing takes the control off the render loop, and only a repaint puts it back,
-            // so without this a capture after the window was restored waits for frames forever.
-            viewer.EnsureAttachedToRenderLoop();
+    /// <summary>The UI thread half of <see cref="ActivateViewer{T}"/>, which hands back the load to wait for instead of waiting.</summary>
+    private (T? Viewer, McpToolResult? Error, Task? Loading, string Tab) TryActivateViewer<T>(int? id)
+        where T : GLBaseControl
+    {
+        var form = Program.MainForm;
+        var page = id == null ? form.Tabs.SelectedTab : PageFor(id.Value);
 
-            return (viewer, null);
-        }, cancellationToken).ConfigureAwait(false);
+        if (page == null)
+        {
+            return (null, id == null ? McpToolResult.Error("No tab is open.") : NoSuchTab(id.Value), null, string.Empty);
+        }
+
+        var tab = $"Tab {IdFor(page)} '{page.Text}'";
+
+        if (TabLoads.Of(page) is { } loading)
+        {
+            return (null, null, loading, tab);
+        }
+
+        var hosted = GLBaseControl.FindHostedIn(page);
+
+        if (hosted is not T viewer)
+        {
+            var needs = typeof(T) == typeof(GLWorldViewer) ? "has no map loaded"
+                : typeof(T) == typeof(GLSceneViewer) ? "has no 3D scene"
+                : "has no rendered view";
+
+            var kind = DescribeViewer(page) is { } described ? $" ({described})" : string.Empty;
+            var how = id == null ? " No 'tab' was given, so the active tab was used." : string.Empty;
+            var instead = ToolsFor(hosted) is { } tools
+                ? $" Tools that work on it: {string.Join(", ", tools.Select(tool => (string?)tool))}."
+                : string.Empty;
+
+            return (null, McpToolResult.Error($"{tab}{kind} {needs}.{how}{instead}"), null, tab);
+        }
+
+        if (form.Tabs.SelectedTab != page)
+        {
+            form.Tabs.SelectTab(page);
+        }
+
+        // Minimizing takes the control off the render loop and only a repaint puts it back.
+        viewer.EnsureAttachedToRenderLoop();
+
+        return (viewer, null, null, tab);
     }
 
     /// <summary>A minimized window draws nothing at all, so say so rather than sitting out the frame timeout.</summary>

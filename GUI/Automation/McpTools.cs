@@ -18,17 +18,25 @@ namespace GUI.Automation;
 /// </summary>
 internal sealed partial class McpTools
 {
+    /// <param name="AppliesTo">For a tool that acts on one tab's viewer, which viewers it works on.</param>
     private sealed record Tool(
         string Name,
         string Description,
         JsonObject InputSchema,
-        Func<JsonObject, CancellationToken, Task<McpToolResult>> Handler);
+        Func<JsonObject, CancellationToken, Task<McpToolResult>> Handler,
+        Func<GLBaseControl, bool>? AppliesTo);
 
     /// <summary>
     /// How long a call may wait for the UI thread. A modal dialog blocks it for as long as it is
     /// up, so without this the whole server would stop answering behind one message box.
     /// </summary>
     private static readonly TimeSpan UiTimeout = TimeSpan.FromSeconds(20);
+
+    /// <summary>
+    /// How long a call waits for a tab to finish loading, both for the tab it acts on and for the
+    /// UI thread while a load holds it.
+    /// </summary>
+    private static readonly TimeSpan LoadTimeout = TimeSpan.FromSeconds(180);
 
     private static readonly TimeSpan RegexTimeout = TimeSpan.FromSeconds(1);
 
@@ -53,6 +61,8 @@ internal sealed partial class McpTools
 
     public McpTools()
     {
+        TabLoads.Track(Program.MainForm);
+
         RegisterCoreTools();
         RegisterViewerTools();
         RegisterEntityTools();
@@ -109,10 +119,10 @@ internal sealed partial class McpTools
         {
             return McpToolResult.Error("A regular expression took too long to match. Simplify 'include' or 'exclude'.");
         }
-        catch (TimeoutException)
+        catch (TimeoutException e)
         {
-            return McpToolResult.Error(
-                "Timed out waiting for the UI thread. A modal dialog may be open in the viewer.");
+            // Thrown by OnUi, and already worded for the caller.
+            return McpToolResult.Error(e.Message);
         }
         catch (OperationCanceledException)
         {
@@ -164,9 +174,40 @@ internal sealed partial class McpTools
         }
     }
 
-    private void Add(string name, string description, JsonObject schema, Func<JsonObject, CancellationToken, Task<McpToolResult>> handler)
+    private void Add(string name, string description, JsonObject schema, Func<JsonObject, CancellationToken, Task<McpToolResult>> handler, Func<GLBaseControl, bool>? appliesTo = null)
     {
-        Table.Add(name, new Tool(name, description, schema, handler));
+        Table.Add(name, new Tool(name, description, schema, handler, appliesTo));
+    }
+
+    private static bool AnyViewer(GLBaseControl viewer) => true;
+
+    private static bool ShaderViewer(GLBaseControl viewer) => viewer.OffersShaderReload;
+
+    private static bool SceneViewer(GLBaseControl viewer) => viewer is GLSceneViewer;
+
+    private static bool WorldViewer(GLBaseControl viewer) => viewer is GLWorldViewer;
+
+    private static bool MapViewer(GLBaseControl viewer) => viewer is GLWorldViewer { LoadedWorld: not null };
+
+    /// <summary>The tools that act on a tab's viewer and work on this one, or null when none do.</summary>
+    private JsonArray? ToolsFor(GLBaseControl? viewer)
+    {
+        if (viewer == null)
+        {
+            return null;
+        }
+
+        var names = new JsonArray();
+
+        foreach (var tool in Table.Values)
+        {
+            if (tool.AppliesTo?.Invoke(viewer) == true)
+            {
+                names.Add(tool.Name);
+            }
+        }
+
+        return names.Count > 0 ? names : null;
     }
 
     private void RegisterCoreTools()
@@ -613,6 +654,11 @@ internal sealed partial class McpTools
             tab["active"] = true;
         }
 
+        if (TabLoads.Of(page) != null)
+        {
+            tab["loading"] = true;
+        }
+
         return tab;
     }
 
@@ -671,6 +717,11 @@ internal sealed partial class McpTools
     private static Task<T> OnUi<T>(Func<T> callback, CancellationToken cancellationToken)
         => OnUi(callback, UiTimeout, cancellationToken);
 
+    /// <summary>
+    /// Runs <paramref name="callback"/> on the UI thread. A load can hold the UI thread for longer
+    /// than <paramref name="timeout"/>, so the wait goes on while any tab is loading, up to
+    /// <see cref="LoadTimeout"/>. A callback that timed out is dropped rather than run later.
+    /// </summary>
     private static async Task<T> OnUi<T>(Func<T> callback, TimeSpan timeout, CancellationToken cancellationToken)
     {
         var form = Program.MainForm;
@@ -680,7 +731,33 @@ internal sealed partial class McpTools
             throw new InvalidOperationException("The main window is not available.");
         }
 
-        return await form.InvokeAsync(callback, cancellationToken).WaitAsync(timeout, cancellationToken).ConfigureAwait(false);
+        using var abandon = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+
+        var call = form.InvokeAsync(callback, abandon.Token);
+        var started = Stopwatch.GetTimestamp();
+
+        while (true)
+        {
+            try
+            {
+                return await call.WaitAsync(timeout, cancellationToken).ConfigureAwait(false);
+            }
+            catch (TimeoutException)
+            {
+                var loading = TabLoads.AnyTitle();
+
+                if (loading != null && Stopwatch.GetElapsedTime(started) < LoadTimeout)
+                {
+                    continue;
+                }
+
+                await abandon.CancelAsync().ConfigureAwait(false);
+
+                throw new TimeoutException(loading != null
+                    ? $"The UI thread is still busy loading '{loading}' after {LoadTimeout.TotalSeconds:F0}s. Try again once it has loaded."
+                    : "Timed out waiting for the UI thread. A modal dialog may be open in the viewer.");
+            }
+        }
     }
 
     private static JsonArray Round(Vector3 vector) => [Round(vector.X), Round(vector.Y), Round(vector.Z)];

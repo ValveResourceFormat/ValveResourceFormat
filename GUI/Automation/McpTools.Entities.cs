@@ -37,7 +37,7 @@ internal sealed partial class McpTools
                 ["offset"] = Prop("integer", "Matches to skip, from an earlier 'next_offset'."),
                 ["limit"] = Prop("integer", "Most matches to return. Defaults to 50, at most 1000."),
             }),
-            FindEntities);
+            FindEntities, MapViewer);
 
         Add("get_entity", "Everything about one entity: its keyvalues and outputs, where it renders, the class it spawned as with its live transform, and its scene nodes with their layer, physics group, materials and whether they are hidden.",
             Schema(new JsonObject
@@ -45,7 +45,7 @@ internal sealed partial class McpTools
                 ["tab"] = TabProp(),
                 ["id"] = Prop("integer", "Entity id from find_entities or pick."),
             }, "id"),
-            GetEntity);
+            GetEntity, MapViewer);
 
         Add("select_entity", "Select an entity and move the camera to it, as double clicking it in the entity list does. Like that, it turns on the layer and physics group of the entity's node when they are off, and reports which it turned on. The selection outline stays until clear_selection.",
             Schema(new JsonObject
@@ -54,9 +54,9 @@ internal sealed partial class McpTools
                 ["id"] = Prop("integer", "Entity id from find_entities or pick."),
                 ["instant"] = Prop("boolean", "Skip the fly-in and jump straight there. Defaults to true."),
             }, "id"),
-            SelectEntity);
+            SelectEntity, MapViewer);
 
-        Add("pick", "Identify the scene node and entity under a viewport pixel. Coordinates are from the top left of the render area. Only reads by default; pass 'select' to select it as clicking would.",
+        Add("pick", "Identify the scene node and entity under a viewport pixel of a 3D tab. Coordinates are from the top left of the render area. Only reads by default; pass 'select' to select it as clicking would.",
             Schema(new JsonObject
             {
                 ["tab"] = TabProp(),
@@ -64,7 +64,7 @@ internal sealed partial class McpTools
                 ["y"] = Prop("integer", "Pixel Y in the render area."),
                 ["select"] = Prop("boolean", "Also select what was hit, drawing its outline until clear_selection. Defaults to false."),
             }, "x", "y"),
-            Pick);
+            Pick, SceneViewer);
     }
 
     private static IEnumerable<MapEntity> MapEntities(WorldLoader world)
@@ -114,6 +114,8 @@ internal sealed partial class McpTools
 
         return null;
     }
+
+    private const string NoMapEntities = "This tab shows world geometry without a map, so it has no entities.";
 
     private static McpToolResult NoSuchEntity(WorldLoader world, int id)
     {
@@ -232,7 +234,7 @@ internal sealed partial class McpTools
         {
             if (viewer.LoadedWorld is not { } world)
             {
-                return McpToolResult.Error("This tab has no loaded world.");
+                return McpToolResult.Error(NoMapEntities);
             }
 
             var matches = new JsonArray();
@@ -296,7 +298,7 @@ internal sealed partial class McpTools
         {
             if (viewer.LoadedWorld is not { } world)
             {
-                return McpToolResult.Error("This tab has no loaded world.");
+                return McpToolResult.Error(NoMapEntities);
             }
 
             if (EntityById(world, id.Value) is not { } entity)
@@ -402,7 +404,7 @@ internal sealed partial class McpTools
         {
             if (viewer.LoadedWorld is not { } world)
             {
-                return McpToolResult.Error("This tab has no loaded world.");
+                return McpToolResult.Error(NoMapEntities);
             }
 
             if (EntityById(world, id.Value) is not { } entity)

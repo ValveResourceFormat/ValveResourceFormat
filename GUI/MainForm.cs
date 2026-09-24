@@ -34,6 +34,9 @@ namespace GUI
         /// <summary>The main tab control.</summary>
         internal MainTabs Tabs => mainTabs;
 
+        /// <summary>Raised on the UI thread when a tab opened by <see cref="OpenFile(string)"/> starts loading.</summary>
+        internal event Action<TabPage>? TabLoadStarted;
+
         /// <summary>
         /// Raised on the UI thread once a tab opened by <see cref="OpenFile(string)"/> has finished
         /// loading, with the exception that stopped it or null when it succeeded.
@@ -366,6 +369,8 @@ namespace GUI
             }
 #endif
 
+            automationServer = Automation.Automation.Start();
+
             // Automation opens what it is told to and nothing else. The explorer also focuses its
             // filter box on load, which would activate the window.
             var forAutomation = Automation.Automation.IsEnabled;
@@ -394,8 +399,6 @@ namespace GUI
 
                 Activate();
             }));
-
-            automationServer = Automation.Automation.Start();
         }
 
         protected override void OnFormClosing(FormClosingEventArgs e)
@@ -802,6 +805,8 @@ namespace GUI
             }
 
             Types.Viewers.IViewer? createdViewer = null;
+
+            TabLoadStarted?.Invoke(tab);
 
             var taskLoad = Task.Run(() => Types.Viewers.ViewerFactory.CreateAndLoadAsync(vrfGuiContext, file, viewMode));
 

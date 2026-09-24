@@ -72,6 +72,17 @@ namespace GUI.Types.GLViewers
         /// <summary>Puts this control back on the render loop, which minimizing the window takes it off.</summary>
         internal void EnsureAttachedToRenderLoop() => AttachToRenderLoop();
 
+        /// <summary>Whether the viewer offers the Reload shaders button.</summary>
+        internal bool OffersShaderReload => ShowReloadShadersButton;
+
+        /// <summary>
+        /// Makes the next frame draw and present even when nothing it shows has changed. Viewers
+        /// that present every frame they are asked for need nothing here.
+        /// </summary>
+        internal virtual void ForceNextFrame()
+        {
+        }
+
         /// <summary>Blocks until every requested texture mip is in, so a capture is not of low mips.</summary>
         internal void FinishTextureStreaming(CancellationToken cancellationToken)
         {
@@ -89,6 +100,12 @@ namespace GUI.Types.GLViewers
 
         /// <summary>Reaches the viewers' own capture path, which is otherwise protected.</summary>
         internal SKBitmap? CaptureBitmap() => ReadPixelsToBitmap();
+    }
+
+    partial class GLTextureViewer
+    {
+        /// <summary>This viewer otherwise skips drawing and presenting while nothing it shows has changed.</summary>
+        internal override void ForceNextFrame() => InvalidateRender();
     }
 
     partial class GLSceneViewer
@@ -296,7 +313,8 @@ namespace GUI.Types.GLViewers
 
         /// <summary>
         /// Blocks until <paramref name="count"/> more frames have been presented, or the timeout
-        /// expires. Callers must hold a scope from <see cref="BeginAutomationRendering"/>.
+        /// expires. Each frame is drawn in full, even by a viewer that would otherwise skip it as
+        /// unchanged. Callers must hold a scope from <see cref="BeginAutomationRendering"/>.
         /// </summary>
         public static bool WaitForFrames(int count, TimeSpan timeout)
         {
@@ -305,6 +323,7 @@ namespace GUI.Types.GLViewers
             for (var i = 0; i < count; i++)
             {
                 framePresented.Reset();
+                RequestFrame();
 
                 while (!framePresented.Wait(NudgeInterval))
                 {
@@ -313,11 +332,17 @@ namespace GUI.Types.GLViewers
                         return false;
                     }
 
-                    Nudge();
+                    RequestFrame();
                 }
             }
 
             return true;
+        }
+
+        private static void RequestFrame()
+        {
+            currentGLControl?.ForceNextFrame();
+            Nudge();
         }
 
         /// <summary>How long a wait on the loop goes before waking it again.</summary>

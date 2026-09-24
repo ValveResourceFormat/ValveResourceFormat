@@ -390,7 +390,8 @@ internal sealed class McpServer : IDisposable
             Successful calls answer with compact JSON; failures answer with plain text and isError. Optional fields are left out when they would be false, null or empty.
             Positions are [x, y, z] world units and angles are [pitch, yaw, roll] degrees with pitch positive downwards, rounded to two decimals.
             Calls that change the view draw a frame before answering, so the window shows the result even in the background. For repeatable screenshots, pause and then step exact amounts of time.
-            Tools that take 'tab' use the active tab when it is omitted. Pass the id from open_file or list_tabs, because a failed load or the user can change which tab is active.
+            Tools that take 'tab' use the active tab when it is omitted. Pass the id from open_file or list_tabs, because a failed load or the user can change which tab is active. A tool that acts on a tab that is still loading waits for the load to finish.
+            A 3D tab is a model, map, material, particle system or other scene; texture, image and graph tabs render too but have no scene. get_info on a tab lists which of the tools that act on a tab work on it.
             """,
         ["ttlMs"] = ListCacheTtlMs,
         ["cacheScope"] = "public",
