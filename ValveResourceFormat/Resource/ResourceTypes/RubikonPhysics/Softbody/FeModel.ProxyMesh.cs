@@ -72,7 +72,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// Fills the gaps in a proxy's <c>$cloth_m{N}p{SLOT}</c> numbering with pinned, unfaced copies of the nearest
         /// preceding vertex, so every vertex sits at its original slot.
         /// </summary>
-        ProxyMesh PadToAuthoredSlots(ProxyMesh mesh)
+        private ProxyMesh PadToAuthoredSlots(ProxyMesh mesh)
         {
             var n = mesh.NodeIndices.Length;
             if (n == 0)
@@ -147,12 +147,12 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                 mesh.SimulatedCount, mesh.PinnedCount + (total - n), mesh.IsDropRisk, mesh.IsFreeFloating);
         }
 
-        static T[] GatherSlots<T>(T[] source, int[] sourceOf) => [.. sourceOf.Select(index => source[index])];
+        private static T[] GatherSlots<T>(T[] source, int[] sourceOf) => [.. sourceOf.Select(index => source[index])];
 
         /// <summary>
         /// Builds a proxy mesh whose vertex <c>i</c> copies vertex <c>sourceOf[i]</c> of <paramref name="source"/>.
         /// </summary>
-        static ProxyMesh GatherProxyMesh(ProxyMesh source, int[] sourceOf, float[] clothEnable, List<int[]> faces,
+        private static ProxyMesh GatherProxyMesh(ProxyMesh source, int[] sourceOf, float[] clothEnable, List<int[]> faces,
             int simulatedCount, int pinnedCount, bool isDropRisk, bool isFreeFloating)
             => new()
             {
@@ -185,7 +185,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// Reconstructs the cloth proxy sheets, one per connected island and <c>$cloth_m&lt;N&gt;</c> index, ordered by that
         /// index. Empty when the FeModel has no sheet.
         /// </summary>
-        public List<ProxyMesh> BuildProxyMeshes()
+        internal List<ProxyMesh> BuildProxyMeshes()
         {
             var result = new List<ProxyMesh>();
             var coveredNodes = new HashSet<int>();
@@ -295,7 +295,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
 
         /// <summary>Gets the smallest <c>$cloth_m&lt;N&gt;</c> index among the mesh's nodes, or -1.</summary>
         /// <summary>Finds the root of <paramref name="x"/> in a union-find forest, halving the path on the way.</summary>
-        static int FindRoot(int[] parent, int x)
+        private static int FindRoot(int[] parent, int x)
         {
             while (parent[x] != x)
             {
@@ -305,14 +305,14 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             return x;
         }
 
-        int ProxyMeshOriginalIndex(ProxyMesh mesh) => mesh.NodeIndices
+        private int ProxyMeshOriginalIndex(ProxyMesh mesh) => mesh.NodeIndices
             .Select(node => ParseProxyMeshIndex(CtrlNames[node]))
             .Where(m => m >= 0)
             .DefaultIfEmpty(-1)
             .Min();
 
         /// <summary>Merges two meshes of one <c>$cloth_m&lt;N&gt;</c> index into one, in authored vertex order.</summary>
-        ProxyMesh MergeSameIndexProxyMeshes(ProxyMesh a, ProxyMesh b)
+        private ProxyMesh MergeSameIndexProxyMeshes(ProxyMesh a, ProxyMesh b)
         {
             var an = a.NodeIndices.Length;
             var bn = b.NodeIndices.Length;
@@ -390,7 +390,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// Gets the bone chains exported as a standalone <c>ClothChain</c>: no joint is back-solved by a proxy sheet and the
         /// chain is not sheet-driven.
         /// </summary>
-        List<BoneChain> IndependentBoneChains()
+        private List<BoneChain> IndependentBoneChains()
             => [.. BuildBoneChains()
                 .Where(chain => !chain.Joints.Any(joint => ProxyFitMatrixNodes.Contains(joint.Node))
                     && !IsSheetDrivenChain(chain))];
@@ -399,7 +399,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// Gets whether a proxy sheet drives this chain's bones: every dynamic joint is position-driven, a <c>$cloth_m</c>
         /// vertex hangs off one of them, and no <c>$cc</c> ring does.
         /// </summary>
-        public bool IsSheetDrivenChain(BoneChain chain)
+        internal bool IsSheetDrivenChain(BoneChain chain)
         {
             var anyPositionDriven = false;
             foreach (var joint in chain.Joints)
@@ -468,19 +468,19 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// <summary>
         /// The control nodes of every bone chain the export emits as a standalone <c>ClothChain</c>.
         /// </summary>
-        HashSet<int> IndependentChainJointNodes()
+        private HashSet<int> IndependentChainJointNodes()
             => [.. IndependentBoneChains().SelectMany(static chain => chain.Joints)
                 .Select(static joint => joint.Node)];
 
         /// <summary>Gets whether every corner of a face is a joint of an independent chain.</summary>
-        static bool IsChainJointFace(int[] face, HashSet<int> chainJoints)
+        private static bool IsChainJointFace(int[] face, HashSet<int> chainJoints)
             => face.Length >= 3 && chainJoints.Count > 0
             && Array.TrueForAll(face, chainJoints.Contains);
 
         /// <summary>
         /// Gets whether a face comes from a <c>ClothTri</c> or <c>ClothQuad</c> declaration rather than a proxy sheet.
         /// </summary>
-        bool IsAuthoredElementFace(int[] face)
+        private bool IsAuthoredElementFace(int[] face)
         {
             if (face.Length < 3)
             {
@@ -514,7 +514,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// element over already-declared cloth nodes, quads before triangles. Corners are control-node
         /// indices in the compiled cycle order.
         /// </summary>
-        public List<int[]> GetAuthoredElementFaces()
+        internal List<int[]> GetAuthoredElementFaces()
         {
             var faces = new List<int[]>();
             foreach (var face in Quads)
@@ -541,7 +541,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// Returns null when the FeModel has no surface (no quads/tris) - e.g. a pure bone-chain cloth
         /// that only needs ClothChain.
         /// </summary>
-        public ProxyMesh? BuildProxyMesh()
+        internal ProxyMesh? BuildProxyMesh()
         {
             if ((Quads.Length == 0 && Tris.Length == 0) || InitPosePositions.Length == 0)
             {
@@ -712,13 +712,13 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// Gets the <c>quad_bend_tolerance</c> the compiler split quads against: 0.05, unless a split quad bends by less,
         /// then the largest bend among the dynamic quads kept whole, or 0.
         /// </summary>
-        public float QuadBendTolerance => quadBendTolerance ??= ComputeQuadBendTolerance();
+        internal float QuadBendTolerance => quadBendTolerance ??= ComputeQuadBendTolerance();
 
         private float? quadBendTolerance;
 
-        const float DefaultQuadBendTolerance = 0.05f;
+        private const float DefaultQuadBendTolerance = 0.05f;
 
-        float ComputeQuadBendTolerance()
+        private float ComputeQuadBendTolerance()
         {
             bool Dynamic(int node) => node >= 0 && node < InitPosePositions.Length && node < NodeInvMasses.Length
                 && NodeInvMasses[node] != 0f;
@@ -779,7 +779,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             return highestKept < lowestSplit ? highestKept : DefaultQuadBendTolerance;
         }
 
-        static (int, int, int) SortedTriKey(int[] tri)
+        private static (int, int, int) SortedTriKey(int[] tri)
         {
             var (a, b, c) = (tri[0], tri[1], tri[2]);
             if (a > b) { (a, b) = (b, a); }
@@ -793,7 +793,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// <see cref="SortedTriKey"/>: the quad to export instead of the half that stayed in place, and the appended half to
         /// drop.
         /// </summary>
-        (Dictionary<(int, int, int), int[]> Quads, HashSet<(int, int, int)> Halves) MergeSplitQuads()
+        private (Dictionary<(int, int, int), int[]> Quads, HashSet<(int, int, int)> Halves) MergeSplitQuads()
         {
             var quads = new Dictionary<(int, int, int), int[]>();
             var halves = new HashSet<(int, int, int)>();
@@ -939,7 +939,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// <c>(order[0], order[1], order[2])</c> and <c>(order[0], order[2], order[3])</c>. Null when the quad is
         /// kept whole.
         /// </summary>
-        static int[]? PredictQuadSplit(Vector3[] corners, int staticCorners, float tolerance)
+        private static int[]? PredictQuadSplit(Vector3[] corners, int staticCorners, float tolerance)
         {
             if (staticCorners != 0)
             {
@@ -954,7 +954,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// The quad rotated onto its shorter diagonal, with the two lengths the compiler's bend test compares: the
         /// cross product of the two half normals, and the product of their lengths.
         /// </summary>
-        static (int[] Order, float Cross, float Normals) QuadBend(Vector3[] corners, int[] order)
+        private static (int[] Order, float Cross, float Normals) QuadBend(Vector3[] corners, int[] order)
         {
             if (Vector3.Distance(corners[order[0]], corners[order[2]])
                 > Vector3.Distance(corners[order[1]], corners[order[3]]))
@@ -969,13 +969,13 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         }
 
         /// <summary>The sine of a fully dynamic quad's bend across its shorter diagonal, zero when degenerate.</summary>
-        static float QuadBendSine(Vector3[] corners)
+        private static float QuadBendSine(Vector3[] corners)
         {
             var bend = QuadBend(corners, MaximalQuadPairing(corners));
             return bend.Normals > 0f ? bend.Cross / bend.Normals : 0f;
         }
 
-        static int[] MaximalQuadPairing(Vector3[] corners)
+        private static int[] MaximalQuadPairing(Vector3[] corners)
         {
             int[][] pairings = [[0, 1, 2, 3], [0, 2, 3, 1], [0, 3, 1, 2]];
             var best = pairings[0];
@@ -997,7 +997,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// Rotates each quad with one or two adjacent static corners into the declared corner order whose predicted bend
         /// rods best match the model's rods.
         /// </summary>
-        void RestoreStaticQuadCornerOrder(List<int[]> faces, List<int[]> rodFaces, int[] nodeIndices)
+        private void RestoreStaticQuadCornerOrder(List<int[]> faces, List<int[]> rodFaces, int[] nodeIndices)
         {
             bool IsStatic(int local) => local >= 0 && local < nodeIndices.Length
                 && nodeIndices[local] < NodeInvMasses.Length && NodeInvMasses[nodeIndices[local]] == 0f;
@@ -1101,7 +1101,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// Gets the corner orders a quad with one or two adjacent static corners can be declared in: its own, then the
         /// ones with its static corners in the middle.
         /// </summary>
-        static int[][] StaticQuadCornerOrders(int[] face, Func<int, bool> isStatic)
+        private static int[][] StaticQuadCornerOrders(int[] face, Func<int, bool> isStatic)
         {
             if (face.Length != 4)
             {
@@ -1282,7 +1282,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                 ?? candidates[0];
         }
 
-        static readonly Comparer<int[]> ShippedNodeComparer = Comparer<int[]>.Create(static (x, y) =>
+        private static readonly Comparer<int[]> ShippedNodeComparer = Comparer<int[]>.Create(static (x, y) =>
         {
             for (var i = 0; i < x.Length && i < y.Length; i++)
             {
@@ -1417,7 +1417,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// Rotates each surface face's declared corner order so the sheet hands the compiler its static
         /// vertices in the order the shipped node array numbers them.
         /// </summary>
-        void DeclareFacesInStaticNodeOrder(List<int[]> faces, int rotatableFaceCount, IReadOnlyList<int> nodeIndices)
+        private void DeclareFacesInStaticNodeOrder(List<int[]> faces, int rotatableFaceCount, IReadOnlyList<int> nodeIndices)
         {
             bool IsStatic(int local) => local >= 0 && local < nodeIndices.Count
                 && nodeIndices[local] < NodeInvMasses.Length && NodeInvMasses[nodeIndices[local]] == 0f;
@@ -1455,7 +1455,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// Gets the rotation of a face that introduces its new static corners in ascending node order without changing its
         /// <see cref="CompilerCornerCycle"/>, or null when there is none or none is needed.
         /// </summary>
-        int[]? RotateToStaticNodeOrder(int[] face, HashSet<int> created, IReadOnlyList<int> nodeIndices, Func<int, bool> isStatic)
+        private int[]? RotateToStaticNodeOrder(int[] face, HashSet<int> created, IReadOnlyList<int> nodeIndices, Func<int, bool> isStatic)
         {
             var introduced = new List<int>(2);
             foreach (var corner in face)
@@ -1510,7 +1510,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// The corner order a declared face reaches the compiler's own element array in: the import
         /// canonicalisation and the mass pass's static-first partition.
         /// </summary>
-        static int[] CompilerCornerCycle(int[] face, Func<int, bool> isStatic)
+        private static int[] CompilerCornerCycle(int[] face, Func<int, bool> isStatic)
         {
             var n = face.Length;
 
@@ -1568,7 +1568,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// <see cref="CompilerCornerCycle"/> models, and then the convexity swap it applies to a quad whose
         /// two leading corners are static.
         /// </summary>
-        static int[] CompiledElementOrder(int[] face, Func<int, bool> isStatic, Func<int, Vector3> positionOf)
+        private static int[] CompiledElementOrder(int[] face, Func<int, bool> isStatic, Func<int, Vector3> positionOf)
         {
             var cycle = CompilerCornerCycle(face, isStatic);
             if (cycle.Length != 4 || !isStatic(cycle[0]) || !isStatic(cycle[1])
@@ -1601,7 +1601,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         internal static HashSet<(int, int)> BendRodsFromDeclaredFaces(IEnumerable<int[]> faces, Func<int, bool> isStatic)
             => PredictBendRods([.. faces.Select(face => CompilerCornerCycle(face.Length > 4 ? face[..4] : face, isStatic))], isStatic);
 
-        static HashSet<(int, int)> PredictBendRods(List<int[]> elements, Func<int, bool> isStatic)
+        private static HashSet<(int, int)> PredictBendRods(List<int[]> elements, Func<int, bool> isStatic)
         {
             var rods = new HashSet<(int, int)>();
             foreach (var (_, nodeA, nodeB) in BendRodGenerators(elements))
@@ -1654,7 +1654,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// Makes an uncovered sheet vertex the fourth corner of the nearest same-mesh triangle, diagonal to the corner it
         /// is farthest from.
         /// </summary>
-        static void AttachStrayToTriangle(int stray, Vector3[] positions, List<int[]> faces, int[] meshOf)
+        private static void AttachStrayToTriangle(int stray, Vector3[] positions, List<int[]> faces, int[] meshOf)
         {
             var best = -1;
             var bestSpan = float.MaxValue;
@@ -1698,7 +1698,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// </summary>
         internal const float SubQuantumMembershipWeight = 0.001f;
 
-        (string Name, float[] Weights)[] BuildVertexMapWeights(int[] nodeIndices)
+        private (string Name, float[] Weights)[] BuildVertexMapWeights(int[] nodeIndices)
         {
             var maps = new List<(string, float[])>();
             foreach (var map in VertexMaps)
@@ -1730,7 +1730,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// <paramref name="nameHash"/>. False for a static node, and for every node of a model that ships no per-node
         /// set array.
         /// </summary>
-        bool InRecordedVertexSet(int node, uint nameHash)
+        private bool InRecordedVertexSet(int node, uint nameHash)
         {
             var dynamic = node - StaticNodeCount;
             return dynamic >= 0 && dynamic < DynNodeVertexSet.Length
@@ -1742,7 +1742,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// Gets the nodes compiled on the raw integrator, or empty when re-authoring the rest as goal-damped would change
         /// whether the dynamic nodes hold both integrator kinds.
         /// </summary>
-        bool[] BuildRawGoalPaintNodes()
+        private bool[] BuildRawGoalPaintNodes()
         {
             var raw = new bool[NodeCount];
             var any = false;
@@ -1788,7 +1788,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
 
         /// <summary>The per-node paint values of one proxy vertex.</summary>
         /// <summary>The per-vertex arrays of a proxy mesh under construction.</summary>
-        sealed class ProxyVertexArrays(int count)
+        private sealed class ProxyVertexArrays(int count)
         {
             public Vector3[] Positions { get; } = new Vector3[count];
             public float[] ClothEnable { get; } = new float[count];
@@ -1809,7 +1809,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         }
 
         /// <summary>Fills the per-vertex arrays of the given nodes from <see cref="ComputeProxyVertexData"/>.</summary>
-        ProxyVertexArrays ComputeProxyVertexArrays(IReadOnlyList<int> nodeIndices)
+        private ProxyVertexArrays ComputeProxyVertexArrays(IReadOnlyList<int> nodeIndices)
         {
             var arrays = new ProxyVertexArrays(nodeIndices.Count);
             for (var i = 0; i < nodeIndices.Count; i++)
@@ -1845,7 +1845,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             return arrays;
         }
 
-        ProxyMesh AssembleProxyMesh(ProxyVertexArrays vertices, int[] nodeIndices, List<int[]> faces, float[] rodsDriven,
+        private ProxyMesh AssembleProxyMesh(ProxyVertexArrays vertices, int[] nodeIndices, List<int[]> faces, float[] rodsDriven,
             bool usesAuthoredFaces, bool isDropRisk, bool isFreeFloating)
             => new()
             {
@@ -1874,7 +1874,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                 IsFreeFloating = isFreeFloating,
             };
 
-        readonly record struct ProxyVertexData(
+        private readonly record struct ProxyVertexData(
             bool IsSim,
             float GoalStrength,
             float GoalDamping,
@@ -1889,7 +1889,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             float GroundFriction,
             (string Bone, float Weight)[] SkinInfluences);
 
-        ProxyVertexData ComputeProxyVertexData(int node)
+        private ProxyVertexData ComputeProxyVertexData(int node)
         {
             var isSim = node < NodeInvMasses.Length && NodeInvMasses[node] != 0f;
 
@@ -1940,7 +1940,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         }
 
         /// <summary>Gets the mesh index of a <c>$cloth_m&lt;N&gt;p&lt;S&gt;</c> name, or -1.</summary>
-        static int ParseProxyMeshIndex(string name)
+        private static int ParseProxyMeshIndex(string name)
         {
             const string Prefix = "$cloth_m";
             if (!name.StartsWith(Prefix, StringComparison.Ordinal))
@@ -1958,11 +1958,11 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         }
 
         /// <summary>Gets whether <paramref name="node"/> is a proxy-sheet vertex (<c>$cloth_m&lt;N&gt;p&lt;S&gt;</c>).</summary>
-        public bool IsProxyMeshNode(int node)
+        internal bool IsProxyMeshNode(int node)
             => node >= 0 && node < CtrlNames.Length && ParseProxyMeshIndex(CtrlNames[node]) >= 0;
 
         /// <summary>Gets the vertex slot of a <c>$cloth_m&lt;N&gt;p&lt;S&gt;</c> name, or <see cref="int.MaxValue"/>.</summary>
-        static int ParseProxyVertexIndex(string name)
+        private static int ParseProxyVertexIndex(string name)
         {
             const string Prefix = "$cloth_m";
             if (!name.StartsWith(Prefix, StringComparison.Ordinal))
@@ -1982,7 +1982,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// <summary>
         /// Reorders faces to their SIMD lane order, each in its lane's node order; faces without a lane follow in array order.
         /// </summary>
-        int[][] OrderFacesBySimdLanes(int[][] faces, string simdKey)
+        private int[][] OrderFacesBySimdLanes(int[][] faces, string simdKey)
         {
             var simd = Data.GetArray(simdKey);
             if (simd is null || simd.Count == 0 || faces.Length == 0)
@@ -2049,7 +2049,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// <summary>
         /// Flattens a SIMD <c>nNode</c> block, stored either as rows of four lanes or as one row-major array.
         /// </summary>
-        static List<int> FlattenSimdNodes(KVObject nNode, int capacity)
+        private static List<int> FlattenSimdNodes(KVObject nNode, int capacity)
         {
             var flat = new List<int>(capacity);
             foreach (var row in nNode.AsArraySpan())
@@ -2070,7 +2070,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             return flat;
         }
 
-        void SortByAuthoredVertexOrder(int[] nodeIndices)
+        private void SortByAuthoredVertexOrder(int[] nodeIndices)
         {
             Array.Sort(nodeIndices, (x, y) =>
             {
@@ -2096,7 +2096,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// Reconstructs sheets for the uncovered proxy nodes that no solve element covers, grouped by rods, source faces and
         /// mesh index, with authored faces where they fit and a triangulation otherwise.
         /// </summary>
-        List<ProxyMesh> BuildProxyMeshesFromRodsOnly(HashSet<int> coveredNodes)
+        private List<ProxyMesh> BuildProxyMeshesFromRodsOnly(HashSet<int> coveredNodes)
         {
             var result = new List<ProxyMesh>();
             if (InitPosePositions.Length == 0)
@@ -2214,7 +2214,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             return result;
         }
 
-        ProxyMesh? BuildProxyMeshFromNodeSet(List<int> nodeIndices)
+        private ProxyMesh? BuildProxyMeshFromNodeSet(List<int> nodeIndices)
         {
             var sorted = nodeIndices.ToArray();
             SortByAuthoredVertexOrder(sorted);
@@ -2258,7 +2258,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                     && vertices.SkinInfluences.All(static v => v.All(static i => IsProxyNodeName(i.Bone))));
         }
 
-        List<int[]> TakeAuthoredFaces(Dictionary<int, int> localOf, List<int> nodeIndices,
+        private List<int[]> TakeAuthoredFaces(Dictionary<int, int> localOf, List<int> nodeIndices,
             out List<int> truncatedTail)
         {
             truncatedTail = [];
@@ -2331,13 +2331,13 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// <summary>
         /// The inverse-mass sum at or below which the rod importer drops a rod outright.
         /// </summary>
-        const float RodMassFloor = 1e-6f;
+        private const float RodMassFloor = 1e-6f;
 
         /// <summary>
         /// The edges of the given faces: each face's consecutive corner pairs in its declared cycle. A
         /// quad's two diagonals are not among them.
         /// </summary>
-        static HashSet<(int, int)> FaceEdges(IEnumerable<int[]> faces)
+        private static HashSet<(int, int)> FaceEdges(IEnumerable<int[]> faces)
         {
             var edges = new HashSet<(int, int)>();
             foreach (var face in faces)
@@ -2360,7 +2360,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// declared them, placing an already-faced node as an extra corner where the sheet's own wider
         /// polygon named it early.
         /// </summary>
-        void MergeFacesInNodeCreationOrder(List<int[]> faces, int triangleCount)
+        private void MergeFacesInNodeCreationOrder(List<int[]> faces, int triangleCount)
         {
             var quadCount = faces.Count - triangleCount;
             if (quadCount <= 0 || triangleCount <= 0)
@@ -2384,7 +2384,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             faces.AddRange(merged);
         }
 
-        Dictionary<int, List<int>> CompiledRunsByRank(IEnumerable<int[]> faces, int[] rank)
+        private Dictionary<int, List<int>> CompiledRunsByRank(IEnumerable<int[]> faces, int[] rank)
         {
             var runs = new Dictionary<int, List<int>>();
             var covered = new SortedSet<int>();
@@ -2410,7 +2410,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// <summary>
         /// The pinned nodes the surface introduces, in the order the compiled node array numbers them.
         /// </summary>
-        List<int> CompiledPinnedRun(List<int[]> faces)
+        private List<int> CompiledPinnedRun(List<int[]> faces)
         {
             var covered = new SortedSet<int>();
             foreach (var face in faces)
@@ -2424,7 +2424,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             return [.. covered];
         }
 
-        IEnumerable<int> PinnedRunCorners(int[] face)
+        private IEnumerable<int> PinnedRunCorners(int[] face)
         {
             var corners = face.Length > 4 ? face[..4] : face;
             return Array.TrueForAll(corners, static corner => corner < 0)
@@ -2438,7 +2438,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// numbers them, in BOTH of the compiler's walks: the simulated nodes per rank, taking each face's
         /// own corners as a set, and the rotation-locked pinned nodes in one run.
         /// </summary>
-        bool IntroducesInCompiledOrder(List<int[]> faces, int[] rank)
+        private bool IntroducesInCompiledOrder(List<int[]> faces, int[] rank)
         {
             var pending = CompiledRunsByRank(faces, rank);
             var pinned = CompiledPinnedRun(faces);
@@ -2491,7 +2491,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             return true;
         }
 
-        List<int[]> MergeRuns(List<int[]> faces, int quadCount, int[] rank, bool allowExtraCorners,
+        private List<int[]> MergeRuns(List<int[]> faces, int quadCount, int[] rank, bool allowExtraCorners,
             out int extraCorners)
         {
             var pending = CompiledRunsByRank(faces, rank);
@@ -2676,10 +2676,10 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// Each node's BFS layer from the static set over the surface, which is the <c>nRank</c> the builder
         /// lays the dynamic node block out by.
         /// </summary>
-        int[] SurfaceNodeRanks => surfaceNodeRanks ??= BuildSurfaceNodeRanks();
-        int[]? surfaceNodeRanks;
+        private int[] SurfaceNodeRanks => surfaceNodeRanks ??= BuildSurfaceNodeRanks();
+        private int[]? surfaceNodeRanks;
 
-        int[] BuildSurfaceNodeRanks()
+        private int[] BuildSurfaceNodeRanks()
         {
             var count = CtrlNames.Length;
             var neighbours = new HashSet<int>[count];
@@ -2751,7 +2751,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             return rank;
         }
 
-        int SourceTriangleElementCount
+        private int SourceTriangleElementCount
         {
             get
             {
@@ -2780,7 +2780,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// Appends each unfaced, unrodded vertex past the fourth corner of the nearest quad, the corners the compiler
         /// truncates from a larger polygon. Returns false when a vertex cannot be placed that way.
         /// </summary>
-        bool AppendTruncatedCorners(List<int[]> faces, List<int> nodeIndices, HashSet<int> covered,
+        private bool AppendTruncatedCorners(List<int[]> faces, List<int> nodeIndices, HashSet<int> covered,
             HashSet<(int, int)> shipped, List<int> truncatedTail)
         {
             var unfaced = nodeIndices.FindAll(node => !covered.Contains(node));
@@ -2847,7 +2847,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             return true;
         }
 
-        bool SpansProxyMeshes(int[] face)
+        private bool SpansProxyMeshes(int[] face)
         {
             var meshIndex = int.MinValue;
             foreach (var corner in face)
@@ -2871,7 +2871,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             return false;
         }
 
-        static Vector2[] ProjectToDominantPlane(Vector3[] positions)
+        private static Vector2[] ProjectToDominantPlane(Vector3[] positions)
         {
             var min = positions.Aggregate(Vector3.Min);
             var max = positions.Aggregate(Vector3.Max);
@@ -2890,7 +2890,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         }
 
         /// <summary>Adds a triangle to the two nearest non-collinear vertices for each vertex no face covers.</summary>
-        static void EnsureAllVerticesFaced(Vector3[] positions, List<int[]> faces)
+        private static void EnsureAllVerticesFaced(Vector3[] positions, List<int[]> faces)
         {
             var n = positions.Length;
             if (n < 3)
@@ -2952,7 +2952,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// Gets whether a pinned vertex has no simulated neighbour, or two vertices lie closer than a quarter of the
         /// median edge.
         /// </summary>
-        static bool ComputeDropRisk(Vector3[] positions, float[] clothEnable, List<int[]> faces)
+        private static bool ComputeDropRisk(Vector3[] positions, float[] clothEnable, List<int[]> faces)
         {
             var n = positions.Length;
             if (n == 0)
@@ -3033,7 +3033,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         }
 
         /// <summary>Triangulates the positions by Delaunay over their two widest axes.</summary>
-        static List<int[]> TriangulateDominantPlane(Vector3[] positions)
+        private static List<int[]> TriangulateDominantPlane(Vector3[] positions)
         {
             var faces = new List<int[]>();
             var n = positions.Length;
@@ -3101,12 +3101,12 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             return faces;
         }
 
-        static bool HasEdge((int A, int B, int C) tri, int a, int b)
+        private static bool HasEdge((int A, int B, int C) tri, int a, int b)
             => (tri.A == a && tri.B == b) || (tri.A == b && tri.B == a)
             || (tri.B == a && tri.C == b) || (tri.B == b && tri.C == a)
             || (tri.C == a && tri.A == b) || (tri.C == b && tri.A == a);
 
-        static bool InCircumcircle(Vector2 a, Vector2 b, Vector2 c, Vector2 p)
+        private static bool InCircumcircle(Vector2 a, Vector2 b, Vector2 c, Vector2 p)
         {
             var ax = a.X - p.X; var ay = a.Y - p.Y;
             var bx = b.X - p.X; var by = b.Y - p.Y;

@@ -10,7 +10,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// Recovers the authored skin weights of the proxy-sheet vertices, the vertices left to the offset network, and the
         /// proxy meshes compiled without back-solving.
         /// </summary>
-        Dictionary<int, (string Bone, float Weight)[]> RecoverAuthoredSkinWeights(
+        private Dictionary<int, (string Bone, float Weight)[]> RecoverAuthoredSkinWeights(
             out Dictionary<int, (string Bone, float Weight)[]> deferred, out HashSet<int> unbackSolvedMeshes)
         {
             var recovered = new Dictionary<int, (string Bone, float Weight)[]>();
@@ -385,12 +385,12 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// Gets the proxy mesh indices compiled without back-solving: no <c>m_FitWeights</c> range names their vertices, and
         /// every position-driven bone their simulated vertices bind to is fit over another mesh.
         /// </summary>
-        public IReadOnlySet<int> UnbackSolvedProxyMeshes { get; }
+        internal IReadOnlySet<int> UnbackSolvedProxyMeshes { get; }
 
         /// <summary>
         /// Gets whether <paramref name="proxy"/> has sheet vertices and all of them belong to <see cref="UnbackSolvedProxyMeshes"/>.
         /// </summary>
-        public bool IsUnbackSolvedProxyMesh(ProxyMesh proxy)
+        internal bool IsUnbackSolvedProxyMesh(ProxyMesh proxy)
         {
             var sheetVertices = 0;
             foreach (var node in proxy.NodeIndices)
@@ -416,7 +416,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// Gets whether a bone outside the position-driven suffix is fit over <paramref name="proxy"/>'s vertices. False when
         /// the compile states no position-driven boundary.
         /// </summary>
-        public bool ProxyFitsUndrivenBone(ProxyMesh proxy)
+        internal bool ProxyFitsUndrivenBone(ProxyMesh proxy)
         {
             if (!HasCompiledFirstPositionDrivenNode || FitMatrixTargets.Count == 0)
             {
@@ -438,28 +438,28 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// <summary>
         /// The ModelDoc default for <c>ClothProxyMeshFile.back_solve_influence_threshold</c>.
         /// </summary>
-        public const float DefaultBackSolveInfluenceThreshold = 0.05f;
+        internal const float DefaultBackSolveInfluenceThreshold = 0.05f;
 
         /// <summary>
         /// The number of surviving influence vertices from which the compiler fits a bone with an <c>m_FitMatrices</c> solve.
         /// </summary>
-        public const int FitMatrixMinInfluences = 8;
+        internal const int FitMatrixMinInfluences = 8;
 
         /// <summary>
         /// The smallest per-vertex skin influence count a cloth proxy DMX is written with.
         /// </summary>
-        public const int ClothProxyInfluenceSlots = 4;
+        internal const int ClothProxyInfluenceSlots = 4;
 
         /// <summary>
         /// The most <c>m_CtrlSoftOffsets</c> records the compiler writes for one proxy vertex.
         /// </summary>
-        public const int ClothProxySoftOffsetSlots = 8;
+        internal const int ClothProxySoftOffsetSlots = 8;
 
         /// <summary>
         /// Gets the <c>back_solve_influence_threshold</c> for <paramref name="proxy"/>: the default, unless the proxy's fit
         /// data keeps a lighter weight, then between that weight and the heaviest weight a fit drops.
         /// </summary>
-        public float GetBackSolveInfluenceThreshold(ProxyMesh proxy)
+        internal float GetBackSolveInfluenceThreshold(ProxyMesh proxy)
         {
             var ctrlIndex = new Dictionary<string, int>(CtrlNames.Length, StringComparer.OrdinalIgnoreCase);
             for (var i = 0; i < CtrlNames.Length; i++)
@@ -549,7 +549,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             return dropped < kept ? (dropped + kept) * 0.5f : kept * 0.5f;
         }
 
-        int FindStaticRealAncestor(int node)
+        private int FindStaticRealAncestor(int node)
         {
             var p = node >= 0 && node < SkelParents.Length ? SkelParents[node] : -1;
             var guard = 0;
@@ -567,12 +567,12 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         }
 
         /// <summary>Relative gap under which two recovered influence weights are one authored value.</summary>
-        const float TiedWeightEpsilon = 1e-4f;
+        private const float TiedWeightEpsilon = 1e-4f;
 
         /// <summary>
         /// Orders influences by descending weight, keeping the existing order for weights within <see cref="TiedWeightEpsilon"/>.
         /// </summary>
-        static void OrderByWeightKeepingTies(List<(string Bone, float Weight)> influences)
+        private static void OrderByWeightKeepingTies(List<(string Bone, float Weight)> influences)
         {
             var source = influences.ToArray();
             var order = new int[source.Length];
@@ -600,7 +600,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// Moves the anchor bone first, one float step above its heaviest rival, where it trails that rival by at most a
         /// relative 1e-5.
         /// </summary>
-        static void EnsureAnchorMostBound(List<(string Bone, float Weight)> influences, string anchor)
+        private static void EnsureAnchorMostBound(List<(string Bone, float Weight)> influences, string anchor)
         {
             var primaryIndex = influences.FindIndex(i => i.Bone == anchor);
             if (primaryIndex < 0)
@@ -628,7 +628,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// <summary>
         /// Snaps the weights onto whole 1/255 steps where each lies within 0.01 of one and the steps sum to 255.
         /// </summary>
-        static void SnapToBytePartition(List<(string Bone, float Weight)> influences)
+        private static void SnapToBytePartition(List<(string Bone, float Weight)> influences)
         {
             var bytes = new int[influences.Count];
             var total = 0;
@@ -656,7 +656,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             }
         }
 
-        static int[][] ReadNodeIndexArray(KVObject data, string key, int expectedLength)
+        private static int[][] ReadNodeIndexArray(KVObject data, string key, int expectedLength)
         {
             var arr = data.GetArray(key);
             if (arr is null)
@@ -677,7 +677,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             return [.. faces];
         }
 
-        static (int[][] Faces, (int, int)[] Springs) ReadSourceElems(KVObject data)
+        private static (int[][] Faces, (int, int)[] Springs) ReadSourceElems(KVObject data)
         {
             if (!data.ContainsKey("m_SourceElems") || !data.IsNotBlobType("m_SourceElems"))
             {
@@ -751,7 +751,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             return ([.. faces], [.. springs]);
         }
 
-        const int SourceElemArities = 4;
+        private const int SourceElemArities = 4;
 
         /// <summary>
         /// Gets the authored proxy-mesh faces recovered from <c>m_SourceElems</c>, as control-node index
@@ -759,7 +759,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// </summary>
         public int[][] SourceFaces { get; } = [];
 
-        bool DrivesProxySheetVertex(int node)
+        private bool DrivesProxySheetVertex(int node)
         {
             foreach (var offset in CtrlOffsets)
             {
@@ -773,7 +773,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             return false;
         }
 
-        static string SurfaceElementKey(IEnumerable<int> corners)
+        private static string SurfaceElementKey(IEnumerable<int> corners)
         {
             var sorted = corners.ToArray();
             Array.Sort(sorted);
@@ -788,15 +788,15 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// <summary>
         /// Gets whether the compiler created its own <c>$cloth_root</c> node, which it does for an unskinned proxy mesh.
         /// </summary>
-        public bool HasGeneratedClothRoot => Array.Exists(CtrlNames, static n => n == ClothRootNodeName);
+        internal bool HasGeneratedClothRoot => Array.Exists(CtrlNames, static n => n == ClothRootNodeName);
 
-        const string ClothRootNodeName = "$cloth_root";
+        private const string ClothRootNodeName = "$cloth_root";
 
         /// <summary>
         /// Returns the node pairs the compiler regenerates as <c>m_Rods</c> from <paramref name="faces"/>:
         /// every face edge plus every face diagonal, deduplicated.
         /// </summary>
-        public static HashSet<(int, int)> DeriveRodsFromFaces(IEnumerable<int[]> faces)
+        internal static HashSet<(int, int)> DeriveRodsFromFaces(IEnumerable<int[]> faces)
         {
             var derived = new HashSet<(int, int)>();
             foreach (var face in faces)
@@ -818,7 +818,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// Gets the authored <c>additional_shear_stretch</c> from the slackest rod between two sheet vertices, or from the
         /// <see cref="ShearResistance"/> base relaxation where the diagonals disagree.
         /// </summary>
-        public float AdditionalShearStretch
+        internal float AdditionalShearStretch
         {
             get
             {
@@ -877,26 +877,26 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// <summary>
         /// Gets or sets the names of the skeleton's real bones, used to tell generated nodes without a <c>$</c> prefix apart.
         /// </summary>
-        public IReadOnlySet<string>? SkeletonBoneNames { get; set; }
+        internal IReadOnlySet<string>? SkeletonBoneNames { get; set; }
 
         /// <summary>
         /// Gets or sets the <see cref="GetCulledBoneCtrls"/> nodes, captured before their names join <see cref="SkeletonBoneNames"/>.
         /// </summary>
-        public IReadOnlySet<int>? CulledBoneCtrlNodes { get; set; }
+        internal IReadOnlySet<int>? CulledBoneCtrlNodes { get; set; }
 
         /// <summary>Gets or sets each skeleton bone's parent bone name.</summary>
-        public IReadOnlyDictionary<string, string?>? SkeletonBoneParents { get; set; }
+        internal IReadOnlyDictionary<string, string?>? SkeletonBoneParents { get; set; }
 
         /// <summary>
         /// Gets or sets the bind position a chain joint's ring is measured from, for bones a scaled proxy skeleton moved.
         /// </summary>
-        public IReadOnlyDictionary<string, Vector3>? ChainExtrudeOrigins { get; set; }
+        internal IReadOnlyDictionary<string, Vector3>? ChainExtrudeOrigins { get; set; }
 
         /// <summary>
         /// Rebuilds <see cref="SkelParents"/> from the bone hierarchy when the compile carries none: each node takes its
         /// nearest ancestor bone that is a control node.
         /// </summary>
-        public void SetSkeletonParents(IReadOnlyDictionary<string, string?> boneParents)
+        internal void SetSkeletonParents(IReadOnlyDictionary<string, string?> boneParents)
         {
             if (SkelParents.Length > 0 || CtrlNames.Length == 0 || NodeCount <= 0)
             {
@@ -947,7 +947,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// Returns whether a control node is generated by the cloth compiler rather than being a skeleton
         /// bone the chain can name as a joint.
         /// </summary>
-        public bool IsGeneratedNodeName(string? name)
+        internal bool IsGeneratedNodeName(string? name)
             => IsProxyNodeName(name)
                 || (SkeletonBoneNames is not null && !SkeletonBoneNames.Contains(name!));
 
@@ -955,7 +955,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// Gets the control nodes named after bones the compiled skeleton does not contain, excluding generated ring and
         /// strip members.
         /// </summary>
-        public List<(int Node, string Name)> GetCulledBoneCtrls()
+        internal List<(int Node, string Name)> GetCulledBoneCtrls()
         {
             var result = new List<(int Node, string Name)>();
             if (SkeletonBoneNames is null)
@@ -992,7 +992,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// <summary>
         /// Gets whether a position-driven control node carries a real bone name.
         /// </summary>
-        public bool DrivesRealBones
+        internal bool DrivesRealBones
         {
             get
             {
@@ -1017,13 +1017,13 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// <summary>
         /// Gets the first ancestor of <paramref name="node"/> with a real bone name.
         /// </summary>
-        public string? ResolveSkinBone(int node)
+        internal string? ResolveSkinBone(int node)
         {
             var index = ResolveSkinBoneNode(node);
             return index >= 0 ? CtrlNames[index] : null;
         }
 
-        int ResolveSkinBoneNode(int node)
+        private int ResolveSkinBoneNode(int node)
         {
             var p = node >= 0 && node < SkelParents.Length ? SkelParents[node] : -1;
             var guard = 0;
@@ -1044,7 +1044,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// Gets inverse-square distance weights over the four nearest joints of the anchor's chain, dropping those below
         /// 0.16 of the heaviest.
         /// </summary>
-        (string Bone, float Weight)[] BuildChainSkinInfluences(int node)
+        private (string Bone, float Weight)[] BuildChainSkinInfluences(int node)
         {
             var anchor = ResolveSkinBoneNode(node);
             if (anchor < 0)
@@ -1100,7 +1100,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             return [.. influences.Select(i => (i.Bone, i.Weight / total))];
         }
 
-        List<int> GetChainComponent(int bone)
+        private List<int> GetChainComponent(int bone)
         {
             var n = CtrlNames.Length;
 

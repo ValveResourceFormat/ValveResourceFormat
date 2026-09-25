@@ -100,7 +100,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// Gets the unordered node pairs of <c>m_SimdRodsAnim</c>, the rods of chain joints declared with
         /// <c>animated_length</c>. These rods appear nowhere else in the file.
         /// </summary>
-        public IReadOnlySet<(int, int)> AnimRodPairs => animRodPairs ??= AnimRods
+        internal IReadOnlySet<(int, int)> AnimRodPairs => animRodPairs ??= AnimRods
             .Select(static rod => UnorderedPair(rod.NodeA, rod.NodeB))
             .ToHashSet();
 
@@ -173,7 +173,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// Gets the <c>transform_alignment</c> and <c>node_base</c> references that compile to the node's
         /// <c>m_NodeBases</c> entry, or null when it has none. Alignment 3 returns X0 and Y0 as -1.
         /// </summary>
-        public (int TransformAlignment, NodeBasis References)? ClothNodeBasisPreset(int node)
+        internal (int TransformAlignment, NodeBasis References)? ClothNodeBasisPreset(int node)
         {
             if (!NodeBases.TryGetValue(node, out var basis))
             {
@@ -217,7 +217,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// Reads a per-dynamic-node array at control node <paramref name="node"/>, or 0 when the node has
         /// no entry. The static nodes lead the control-node array, so these arrays start past them.
         /// </summary>
-        internal float DynamicNodeValue(float[] values, int node)
+        private float DynamicNodeValue(float[] values, int node)
         {
             var dynamicIndex = node - StaticNodeCount;
             return dynamicIndex >= 0 && dynamicIndex < values.Length ? values[dynamicIndex] : 0f;
@@ -283,7 +283,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// Gets the subset of <see cref="FitMatrixNodes"/> whose fit covers a proxy sheet vertex
         /// (<c>$cloth_m&lt;N&gt;p&lt;S&gt;</c>), i.e. the bones a proxy sheet back-solves.
         /// </summary>
-        public IReadOnlySet<int> ProxyFitMatrixNodes { get; }
+        internal IReadOnlySet<int> ProxyFitMatrixNodes { get; }
 
         /// <summary>
         /// Gets the control nodes each <c>m_FitMatrices</c> entry is fit over, from its own
@@ -295,13 +295,13 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// Gets the authored skin weights of back-solved proxy-sheet vertices, keyed by control node, recovered from
         /// <c>m_FitWeights</c>, <c>m_CtrlOffsets</c> and <c>m_CtrlSoftOffsets</c>.
         /// </summary>
-        public IReadOnlyDictionary<int, (string Bone, float Weight)[]> RecoveredSkinWeights { get; }
+        internal IReadOnlyDictionary<int, (string Bone, float Weight)[]> RecoveredSkinWeights { get; }
 
         /// <summary>
         /// Gets the offset-network skin weights of the proxy-sheet vertices <see cref="RecoveredSkinWeights"/> leaves out,
         /// keyed by control node.
         /// </summary>
-        public IReadOnlyDictionary<int, (string Bone, float Weight)[]> DeferredOffsetSkinWeights { get; }
+        internal IReadOnlyDictionary<int, (string Bone, float Weight)[]> DeferredOffsetSkinWeights { get; }
 
         /// <summary>Gets the control nodes named by any twist constraint (<c>m_Twists</c>).</summary>
         public IReadOnlySet<int> TwistNodes { get; }
@@ -320,29 +320,29 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         public readonly record struct TwistRecord(int Orient, int End, float TwistRelax, float SwingRelax);
 
         /// <summary>Gets the unordered node pairs a twist constraint spans.</summary>
-        public IReadOnlySet<(int, int)> TwistLinks { get; }
+        internal IReadOnlySet<(int, int)> TwistLinks { get; }
 
         /// <summary>
         /// Gets the <c>flTwistRelax</c> of each directed (<c>nNodeOrient</c>, <c>nNodeEnd</c>) pair; the last entry wins
         /// where a pair has several.
         /// </summary>
-        public IReadOnlyDictionary<(int Orient, int End), float> TwistRelaxByLink { get; }
+        internal IReadOnlyDictionary<(int Orient, int End), float> TwistRelaxByLink { get; }
 
         /// <summary>
         /// Gets every <c>flTwistRelax</c> of each directed pair in array order, one per chain declaration that wrote it.
         /// </summary>
-        public IReadOnlyDictionary<(int Orient, int End), IReadOnlyList<float>> TwistRelaxCopies { get; }
+        internal IReadOnlyDictionary<(int Orient, int End), IReadOnlyList<float>> TwistRelaxCopies { get; }
 
-        internal const float TwistRelaxToParentFactor = 0.618f;
-        internal const float TwistRelaxToChildFactor = 0.382f;
+        private const float TwistRelaxToParentFactor = 0.618f;
+        private const float TwistRelaxToChildFactor = 0.382f;
 
         /// <summary>
         /// Gets whether a twist link naming <paramref name="node"/> carries a zero <c>flTwistRelax</c> in both directions.
         /// </summary>
-        public bool HasRelaxlessTwistLink(int node) => relaxlessTwistNodes.Contains(node);
+        internal bool HasRelaxlessTwistLink(int node) => relaxlessTwistNodes.Contains(node);
 
         /// <summary>Gets whether <paramref name="node"/> orients a twist entry with a zero <c>flTwistRelax</c>.</summary>
-        public bool OrientsRelaxlessTwist(int node) => relaxlessTwistOrients.Contains(node);
+        internal bool OrientsRelaxlessTwist(int node) => relaxlessTwistOrients.Contains(node);
 
         private readonly HashSet<int> relaxlessTwistNodes = [];
 
@@ -352,7 +352,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// Recovers the joint's authored <c>twist_relax</c> from its entry toward its ring node
         /// <paramref name="proxyNode"/>, else toward <paramref name="parent"/>, else from any entry it orients.
         /// </summary>
-        public float GetAuthoredTwistRelax(int node, int parent, int proxyNode)
+        internal float GetAuthoredTwistRelax(int node, int parent, int proxyNode)
         {
             if (proxyNode >= 0 && TwistRelaxByLink.TryGetValue((node, proxyNode), out var toRing))
             {
@@ -373,7 +373,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// The <c>twist_relax</c> the declaration at <paramref name="rank"/> stated toward the joint's
         /// own parent, or null where the pair carries no entry at that rank.
         /// </summary>
-        public float? TwistRelaxDeclaredAt(int node, int parent, int rank)
+        internal float? TwistRelaxDeclaredAt(int node, int parent, int rank)
             => parent >= 0 && TwistRelaxCopies.TryGetValue((node, parent), out var copies)
                 && rank >= 0 && rank < copies.Count
                 ? copies[rank] / TwistRelaxToParentFactor
@@ -385,21 +385,21 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
 
         internal const float ClothSourceBaseGravity = 360f;
 
-        internal const float GoalDampingSolveMaxAttraction = 0.9999f;
-        internal const float GoalDampingSolveMinAttraction = 0.0001f;
+        private const float GoalDampingSolveMaxAttraction = 0.9999f;
+        private const float GoalDampingSolveMinAttraction = 0.0001f;
 
         /// <summary>
         /// Recovers the source <c>goal_strength</c> from a node's compiled
         /// <c>flAnimationForceAttraction</c>, which the compiler writes as the cube of it.
         /// </summary>
-        public static float GoalStrengthFromAttraction(float forceAttraction)
+        internal static float GoalStrengthFromAttraction(float forceAttraction)
             => MathF.Cbrt(Math.Clamp(forceAttraction, 0f, 1f));
 
         /// <summary>
         /// Gets the authored <c>ClothParams.goal_strength_bias</c>: the gap between the cube roots of the force and vertex
         /// attractions shared by most goal-damped nodes, or 0 when no such majority exists.
         /// </summary>
-        public float GoalStrengthBias => goalStrengthBias ??= ComputeGoalStrengthBias();
+        internal float GoalStrengthBias => goalStrengthBias ??= ComputeGoalStrengthBias();
 
         private float? goalStrengthBias;
 
@@ -461,7 +461,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// Gets the <c>cloth_goal_strength_v2</c> paint for a compiled force attraction: its cube root less
         /// <see cref="GoalStrengthBias"/>. A saturated attraction keeps the plain cube root.
         /// </summary>
-        public float GoalStrengthPaint(float forceAttraction)
+        internal float GoalStrengthPaint(float forceAttraction)
             => GoalStrengthBias <= 0f || forceAttraction >= 1f
                 ? GoalStrengthFromAttraction(forceAttraction)
                 : forceAttraction <= 0f
@@ -472,7 +472,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// Gets the <c>cloth_goal_damping</c> paint that goes with <see cref="GoalStrengthPaint"/>, solved against the
         /// unbiased goal strength.
         /// </summary>
-        public float GoalDampingPaint(float forceAttraction, float vertexAttraction)
+        internal float GoalDampingPaint(float forceAttraction, float vertexAttraction)
         {
             if (GoalStrengthBias <= 0f || forceAttraction >= 1f)
             {
@@ -486,7 +486,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// <summary>
         /// Recovers the source <c>goal_damping</c> by inverting <c>va = 1 - ((1-fa) / (sqrt((1-fa)*fa + d*d) + d))^2 * fa</c>.
         /// </summary>
-        public static float GoalDampingFromAttraction(float forceAttraction, float vertexAttraction)
+        internal static float GoalDampingFromAttraction(float forceAttraction, float vertexAttraction)
         {
             if (forceAttraction is >= GoalDampingSolveMaxAttraction or < GoalDampingSolveMinAttraction)
             {
@@ -503,16 +503,16 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             return Math.Clamp((s * s - (1f - forceAttraction) * forceAttraction) / (2f * s), 0f, 1f);
         }
 
-        internal const float ClothRawGoalScale = 30f;
+        private const float ClothRawGoalScale = 30f;
 
-        const uint NodeFlagGoalAttraction = 0x80;
-        const uint NodeFlagRawForceAttraction = 0x200;
-        const uint NodeFlagRawVertexAttraction = 0x400;
+        private const uint NodeFlagGoalAttraction = 0x80;
+        private const uint NodeFlagRawForceAttraction = 0x200;
+        private const uint NodeFlagRawVertexAttraction = 0x400;
 
         /// <summary>
         /// Gets whether <paramref name="node"/> compiled on the goal-damped spring integrator rather than the raw one.
         /// </summary>
-        public bool UsesGoalDampedIntegrator(int node)
+        internal bool UsesGoalDampedIntegrator(int node)
         {
             var dynamicIndex = node - StaticNodeCount;
             if (dynamicIndex >= 0 && (dynamicIndex >> 5) < GoalDampedSpringIntegrators.Length)
@@ -536,7 +536,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         }
 
         /// <summary>Gets whether the goal-damped solve can produce this pair of attractions.</summary>
-        static bool GoalSolveCanProduce(float forceAttraction, float vertexAttraction)
+        private static bool GoalSolveCanProduce(float forceAttraction, float vertexAttraction)
         {
             if (forceAttraction is < 0f or > 1f || vertexAttraction is < 0f or > 1f)
             {
@@ -547,7 +547,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                 || vertexAttraction >= forceAttraction - 1e-4f;
         }
 
-        static int[] BuildRopeParents(KVObject data, IReadOnlyList<int[]> ropeRuns)
+        private static int[] BuildRopeParents(KVObject data, IReadOnlyList<int[]> ropeRuns)
         {
             var nodeCount = data.GetInt32Property("m_nNodeCount");
             if (nodeCount <= 0)
@@ -614,7 +614,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// <summary>Gets the pair with its lower node first.</summary>
         internal static (int, int) UnorderedPair(int a, int b) => a < b ? (a, b) : (b, a);
 
-        static void ExpectPair(Dictionary<(int, int), List<float>> expectations, int a, int b, float relaxation)
+        private static void ExpectPair(Dictionary<(int, int), List<float>> expectations, int a, int b, float relaxation)
         {
             if (a < 0 || b < 0)
             {
@@ -634,7 +634,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// Gets the rods <paramref name="chains"/> regenerate by themselves, keyed by unordered pair, each entry the rod's
         /// expected relaxation factor.
         /// </summary>
-        Dictionary<(int, int), List<float>> ChainGeneratedSpans(List<BoneChain> chains)
+        private Dictionary<(int, int), List<float>> ChainGeneratedSpans(List<BoneChain> chains)
         {
             var generated = new Dictionary<(int, int), List<float>>();
             var sliderScale = MathF.Exp(-DefaultSurfaceStretch);
@@ -697,7 +697,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// Gets the two-corner source elements between chain joints or <c>$cc</c> ring nodes that the chains do not span,
         /// with how many rod copies each one has to declare.
         /// </summary>
-        public List<(int A, int B, int Copies)> GetAuthoredSourceSprings(List<BoneChain> chains)
+        internal List<(int A, int B, int Copies)> GetAuthoredSourceSprings(List<BoneChain> chains)
         {
             if (SourceSprings.Length == 0)
             {
@@ -771,7 +771,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// <summary>Returns the rods that <paramref name="chains"/> and the authored source springs do not regenerate.</summary>
         /// <param name="chains">The chains the export emits.</param>
         /// <param name="surfaceFansRegenerate">Whether the rods folded across shared face edges are regenerated.</param>
-        public List<Rod> GetUngeneratedRods(List<BoneChain> chains, bool surfaceFansRegenerate = false)
+        internal List<Rod> GetUngeneratedRods(List<BoneChain> chains, bool surfaceFansRegenerate = false)
         {
             var generated = ChainGeneratedSpans(chains);
 
@@ -864,14 +864,14 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// Gets whether every simulated node collides with the world, which is how the source's
         /// force-world-collision-on-all-nodes switch shows up (the switch itself leaves no flag bit).
         /// </summary>
-        public bool ForcesWorldCollisionOnAllNodes
+        internal bool ForcesWorldCollisionOnAllNodes
             => NodeCount > StaticNodeCount && WorldCollisionNodes.Count == NodeCount - StaticNodeCount;
 
         /// <summary>
         /// Gets the ground friction shared by the world-colliding nodes, which is what the source authored
         /// as the cloth's default. Zero when the model has no world collision params.
         /// </summary>
-        public float DefaultGroundFriction => WorldCollisionFriction.Count > 0
+        internal float DefaultGroundFriction => WorldCollisionFriction.Count > 0
             ? WorldCollisionFriction.Values.GroupBy(static f => f.Ground).OrderByDescending(static g => g.Count()).First().Key
             : 0f;
 
@@ -882,25 +882,25 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// Gets the scale every compiled <c>flRelaxationFactor</c> of <c>m_AnimStrayRadii</c> carries:
         /// <c>exp(-m_flDefaultThreadStretch)</c>, and 1 for a model that authors no thread stretch.
         /// </summary>
-        float StrayRelaxationScale => DefaultThreadStretch <= 0f ? 1f : MathF.Exp(-DefaultThreadStretch);
+        private float StrayRelaxationScale => DefaultThreadStretch <= 0f ? 1f : MathF.Exp(-DefaultThreadStretch);
 
         /// <summary>
         /// Gets the authored relaxation factor of <paramref name="node"/>'s stray radius, or 1 for a node with none.
         /// </summary>
-        public float GetStrayRelaxationFactor(int node)
+        internal float GetStrayRelaxationFactor(int node)
             => AnimStrayRadii.TryGetValue(node, out var stray)
                 ? Math.Clamp(stray.RelaxationFactor / StrayRelaxationScale, 0f, 1f)
                 : 1f;
 
         /// <summary>Gets the authored stray-radius stretchiness of <paramref name="node"/>, 0 for a node with none.</summary>
-        public float GetStrayStretchiness(int node)
+        internal float GetStrayStretchiness(int node)
             => AnimStrayRadii.ContainsKey(node) ? 1f - GetStrayRelaxationFactor(node) : 0f;
 
         /// <summary>
         /// Gets the node a chain joint's stray radius is recorded on: the joint node itself, else the first of its
         /// extruded proxies that carries one.
         /// </summary>
-        public int StrayRadiusNode(int node, string jointName)
+        internal int StrayRadiusNode(int node, string jointName)
         {
             if (AnimStrayRadii.ContainsKey(node))
             {
@@ -921,7 +921,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// <summary>
         /// Gets whether <paramref name="ctrlName"/> is <c>$cc&lt;joint&gt;_Ctr</c> or <c>$cc&lt;joint&gt;_&lt;index&gt;</c>.
         /// </summary>
-        static bool IsChainProxyOf(string ctrlName, string jointName)
+        private static bool IsChainProxyOf(string ctrlName, string jointName)
         {
             if (!ctrlName.StartsWith("$cc", StringComparison.Ordinal))
             {
@@ -962,7 +962,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// <summary>Gets whether the node is position-driven (back-solved rather than simulated).</summary>
         public bool IsPositionDriven(int node) => node >= FirstPositionDrivenNode;
 
-        static int DeriveFirstPositionDrivenNode(KVObject data, string[] ctrlNames, int nodeCount, int staticNodes)
+        private static int DeriveFirstPositionDrivenNode(KVObject data, string[] ctrlNames, int nodeCount, int staticNodes)
         {
             var driven = new HashSet<int>();
 
@@ -1028,12 +1028,12 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// Gets whether <paramref name="node"/> was authored with <c>lock_translation</c>: its parent or goal lock is one
         /// that the fit-influence pass could not have written for it.
         /// </summary>
-        public bool LocksTranslation(int node, int chainVersion = 2, BoneChain? chain = null)
+        internal bool LocksTranslation(int node, int chainVersion = 2, BoneChain? chain = null)
             => (IsLockedToParent(node) && !((chainVersion < 2 || !ChainPresetsJoint(node, chain))
                     && ReachesParentLockUnkeyed(node) && ChainStagesFitGroup(node, chainVersion, chain)))
                 || (IsLockedToGoal(node) && !IsStatic(node));
 
-        bool ChainPresetsJoint(int node, BoneChain? chain)
+        private bool ChainPresetsJoint(int node, BoneChain? chain)
         {
             var joint = chain?.Joints.Find(candidate => candidate.Node == node);
             if (chain is null || joint is null)
@@ -1045,7 +1045,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             return child is not null && ChainNodeBaseCandidates(joint, child) is not null;
         }
 
-        bool ChainStagesFitGroup(int node, int chainVersion, BoneChain? chain)
+        private bool ChainStagesFitGroup(int node, int chainVersion, BoneChain? chain)
         {
             var joint = chain?.Joints.Find(candidate => candidate.Node == node);
             if (chain is null || joint is null || ProxyFitMatrixNodes.Contains(node))
@@ -1077,7 +1077,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// joint itself when its ring is narrower than two nodes. Rings are matched by name, so a compile without <c>m_SkelParents</c>
         /// reads them too.
         /// </summary>
-        HashSet<int> FitListOf(int jointNode)
+        private HashSet<int> FitListOf(int jointNode)
         {
             var list = new HashSet<int>();
             var prefix = "$cc" + CtrlNames[jointNode] + "_";
@@ -1106,7 +1106,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             return list;
         }
 
-        bool ReachesParentLockUnkeyed(int node)
+        private bool ReachesParentLockUnkeyed(int node)
         {
             if (!IsStatic(node) || !AllowsRotation(node) || (!NodeBases.ContainsKey(node) && !FitMatrixNodes.Contains(node)))
             {
@@ -1118,7 +1118,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                 && !FitsOverInfluencesOf(link.CtrlParent, node));
         }
 
-        bool FitsOverInfluencesOf(int parent, int child)
+        private bool FitsOverInfluencesOf(int parent, int child)
         {
             if (!FitMatrixTargets.TryGetValue(parent, out var targets))
             {
@@ -1132,7 +1132,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                 || own is not null && HoldsOneWideEntryOf(targets, child);
         }
 
-        bool HoldsOneWideEntryOf(int[] targets, int node)
+        private bool HoldsOneWideEntryOf(int[] targets, int node)
         {
             if (Array.IndexOf(targets, node) < 0)
             {
@@ -1159,7 +1159,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         }
 
         /// <summary>Recovers each proxy vertex's normal as the local +Z of its rest orientation.</summary>
-        public Vector3[] RecoverRestNormals(ProxyMesh proxy)
+        internal Vector3[] RecoverRestNormals(ProxyMesh proxy)
         {
             var normals = new Vector3[proxy.Positions.Length];
             for (var v = 0; v < normals.Length; v++)
@@ -1180,7 +1180,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// Recovers the <c>cloth_mass</c> paint of an authored-face proxy sheet from what each node's mass carries beyond
         /// its geometric term, or null when the sheet carries none.
         /// </summary>
-        public float[]? RecoverMassPaint(ProxyMesh proxy)
+        internal float[]? RecoverMassPaint(ProxyMesh proxy)
         {
             if (!proxy.UsesAuthoredFaces || HasExplicitMasses)
             {
@@ -1341,7 +1341,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             return refined;
         }
 
-        const int MassPaintRefineSweeps = 400;
+        private const int MassPaintRefineSweeps = 400;
 
         /// <summary>
         /// Gets the median of the <c>cloth_mass</c> readings when every reading lies within
@@ -1367,13 +1367,13 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             return median;
         }
 
-        const float UniformMassPaintSteps = 16f;
+        private const float UniformMassPaintSteps = 16f;
 
         /// <summary>
         /// Gets the rod of each edge and diagonal of the authored faces within <paramref name="nodes"/>: the record on
         /// that pair whose maximum is the endpoints' rest distance.
         /// </summary>
-        List<((int A, int B) Pair, bool Diagonal, Rod Rod)> AuthoredFaceRods(HashSet<int> nodes)
+        private List<((int A, int B) Pair, bool Diagonal, Rod Rod)> AuthoredFaceRods(HashSet<int> nodes)
         {
             var byPair = new Dictionary<(int, int), List<Rod>>();
             foreach (var rod in Rods)
@@ -1431,7 +1431,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             }
         }
 
-        const float FaceRodRestTolerance = 1e-3f;
+        private const float FaceRodRestTolerance = 1e-3f;
 
         /// <summary>
         /// Solves a per-node paint from pair sums <c>p[a] + p[b] = stated</c>, or null when they contradict each other
@@ -1444,7 +1444,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// Picks a component's free parameter from each node's sign and offset (<c>value = sign * free + offset</c>), or
         /// returns null to take the choice closest to <paramref name="fallback"/>.
         /// </param>
-        static Dictionary<int, float>? SolvePairSumPaint(Dictionary<(int A, int B), float> stated,
+        private static Dictionary<int, float>? SolvePairSumPaint(Dictionary<(int A, int B), float> stated,
             float fallback, float upper,
             Func<IReadOnlyDictionary<int, float>, IReadOnlyDictionary<int, float>, float?>? chooseFree = null)
         {
@@ -1528,10 +1528,10 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             return solved;
         }
 
-        const float PaintSolveTolerance = 2e-3f;
+        private const float PaintSolveTolerance = 2e-3f;
 
         /// <summary>Gets the control nodes that are proxy-sheet vertices.</summary>
-        HashSet<int> SheetNodes()
+        private HashSet<int> SheetNodes()
         {
             var sheetNodes = new HashSet<int>();
             for (var node = 0; node < CtrlNames.Length; node++)
@@ -1549,7 +1549,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// Maps a per-node value onto <paramref name="proxy"/>'s vertices, or returns null when no vertex counts as
         /// <paramref name="painted"/>.
         /// </summary>
-        static float[]? PaintPerVertex(ProxyMesh proxy, Func<int, float> valueOf, Func<float, bool> painted)
+        private static float[]? PaintPerVertex(ProxyMesh proxy, Func<int, float> valueOf, Func<float, bool> painted)
         {
             var paint = new float[proxy.NodeIndices.Length];
             var count = 0;
@@ -1566,15 +1566,15 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         }
 
         /// <summary>Gets the bones <c>m_ReverseOffsets</c> names (<c>nBoneCtrl</c>).</summary>
-        HashSet<int> ReverseOffsetBones => reverseOffsetBones ??= [.. (Data.GetArray("m_ReverseOffsets") ?? []).Select(static entry => entry.GetInt32Property("nBoneCtrl"))];
+        private HashSet<int> ReverseOffsetBones => reverseOffsetBones ??= [.. (Data.GetArray("m_ReverseOffsets") ?? []).Select(static entry => entry.GetInt32Property("nBoneCtrl"))];
 
-        HashSet<int>? reverseOffsetBones;
+        private HashSet<int>? reverseOffsetBones;
 
         /// <summary>
         /// Recovers the <c>cloth_antishrink</c> paint of a proxy sheet from its face rods, or null when it is uniformly
         /// <see cref="SheetAntishrinkDefault"/> or the rods contradict each other.
         /// </summary>
-        public float[]? RecoverAntishrinkPaint(ProxyMesh proxy)
+        internal float[]? RecoverAntishrinkPaint(ProxyMesh proxy)
         {
             var nodes = new HashSet<int>(proxy.NodeIndices);
             var stated = new Dictionary<(int A, int B), float>();
@@ -1596,7 +1596,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         }
 
         /// <summary>The <c>cloth_antishrink</c> of a proxy-sheet vertex that is not painted.</summary>
-        public const float SheetAntishrinkDefault = 0.75f;
+        internal const float SheetAntishrinkDefault = 0.75f;
 
         /// <summary>
         /// Gets the per-node <c>cloth_shear_resistance</c> of the proxy sheets relative to the stiffest face diagonal's
@@ -1616,10 +1616,10 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             }
         }
 
-        (Dictionary<int, float> Paint, float BaseRelaxation)? shearResistance;
-        bool hasShearResistance;
+        private (Dictionary<int, float> Paint, float BaseRelaxation)? shearResistance;
+        private bool hasShearResistance;
 
-        (Dictionary<int, float>, float)? SolveShearResistance()
+        private (Dictionary<int, float>, float)? SolveShearResistance()
         {
             var sheetNodes = SheetNodes();
 
@@ -1676,7 +1676,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// The diagonals of the proxy quads that made their four edges but carry no rod at all along the diagonal. A span between two
         /// static nodes constrains nothing and is never built, so it neither counts against the face nor states anything itself.
         /// </summary>
-        IEnumerable<(int A, int B)> UnbuiltFaceDiagonals(HashSet<int> nodes,
+        private IEnumerable<(int A, int B)> UnbuiltFaceDiagonals(HashSet<int> nodes,
             List<((int A, int B) Pair, bool Diagonal, Rod Rod)> faceRods)
         {
             var edges = faceRods.Where(static entry => !entry.Diagonal).Select(static entry => entry.Pair).ToHashSet();
@@ -1704,13 +1704,13 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         }
 
         /// <summary>The largest <c>cloth_shear_resistance</c> a vertex can state.</summary>
-        const float MaxStatedShearResistance = 2f;
+        private const float MaxStatedShearResistance = 2f;
 
         /// <summary>
         /// Recovers the per-vertex <c>cloth_shear_resistance</c> paint of a proxy sheet, or null when the
         /// sheet's diagonals state one uniform value. See <see cref="ShearResistance"/>.
         /// </summary>
-        public float[]? RecoverShearResistancePaint(ProxyMesh proxy)
+        internal float[]? RecoverShearResistancePaint(ProxyMesh proxy)
         {
             if (ShearResistance is not { } shear)
             {
@@ -1739,10 +1739,10 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             }
         }
 
-        Dictionary<int, float>? stretchPaint;
-        bool hasStretchPaint;
+        private Dictionary<int, float>? stretchPaint;
+        private bool hasStretchPaint;
 
-        Dictionary<int, float>? SolveStretchPaint()
+        private Dictionary<int, float>? SolveStretchPaint()
         {
             var sheetNodes = SheetNodes();
 
@@ -1775,7 +1775,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// Reads the free parameter the face edges leave on the stretch paint off the face diagonals, or null unless
         /// diagonals of both colours state one consistent value.
         /// </summary>
-        static float? DiagonalStretchFree(List<(int A, int B, float Relaxation)> diagonals,
+        private static float? DiagonalStretchFree(List<(int A, int B, float Relaxation)> diagonals,
             IReadOnlyDictionary<int, float> sign, IReadOnlyDictionary<int, float> offset)
         {
             double aa = 0, ab = 0, bb = 0, ay = 0, by = 0;
@@ -1828,13 +1828,13 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// The largest <c>cloth_stretch</c> a compiled sheet can state. The compiler clamps the cube of one minus the
         /// endpoints' MEAN, so one vertex may sit above 1 as long as its partner sits below.
         /// </summary>
-        const float MaxStatedStretch = 2f;
+        private const float MaxStatedStretch = 2f;
 
         /// <summary>
         /// A sheet rod's relaxation with the recovered <c>cloth_stretch</c> factor taken back out, which is what its
         /// shear terms and the model's own stretch scalars left on it.
         /// </summary>
-        float UnstretchedRelaxation(Rod rod)
+        private float UnstretchedRelaxation(Rod rod)
         {
             if (StretchPaint is not { } paint)
             {
@@ -1850,7 +1850,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// Recovers the per-vertex <c>cloth_stretch</c> paint of a proxy sheet, or null when the sheet carries none.
         /// See <see cref="StretchPaint"/>.
         /// </summary>
-        public float[]? RecoverStretchPaint(ProxyMesh proxy)
+        internal float[]? RecoverStretchPaint(ProxyMesh proxy)
         {
             if (StretchPaint is not { } byNode)
             {
@@ -1863,7 +1863,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// <summary>
         /// Recovers the authored <c>mass</c> multiplier of a cloth node, or null when it is the default 1 or cannot be read.
         /// </summary>
-        public float? RecoverMassMultiplier(int node)
+        internal float? RecoverMassMultiplier(int node)
         {
             var multiplier = HasExplicitMasses ? ExplicitMassOf(node) : MassMultiplierOf(node);
             return multiplier is { } value && MathF.Abs(value - 1f) > MassMultiplierTolerance
@@ -1874,10 +1874,10 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// <summary>
         /// Gets whether the model was compiled with <c>ClothParams explicit_masses</c>.
         /// </summary>
-        public bool HasExplicitMasses => hasExplicitMasses ??= ComputeHasExplicitMasses();
-        bool? hasExplicitMasses;
+        internal bool HasExplicitMasses => hasExplicitMasses ??= ComputeHasExplicitMasses();
+        private bool? hasExplicitMasses;
 
-        bool ComputeHasExplicitMasses()
+        private bool ComputeHasExplicitMasses()
         {
             var end = FirstPositionDrivenNode > 0 && FirstPositionDrivenNode <= NodeInvMasses.Length
                 ? FirstPositionDrivenNode
@@ -1939,14 +1939,14 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             return simulated > 0 && anyRod && (unequal > 0 ? proportional > 0 : uniform);
         }
 
-        float? ExplicitMassOf(int node)
+        private float? ExplicitMassOf(int node)
             => node >= 0 && node < NodeInvMasses.Length && NodeInvMasses[node] > 0f ? 1f / NodeInvMasses[node] : null;
 
         /// <summary>
         /// Recovers the authored <c>mass</c> of a chain joint from its node and ring nodes, or null when none can be read
         /// or they disagree.
         /// </summary>
-        public float? RecoverJointMassMultiplier(int joint)
+        internal float? RecoverJointMassMultiplier(int joint)
         {
             float? multiplier = null;
             foreach (var node in JointMassNodes(joint))
@@ -1977,7 +1977,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// The <c>mass</c> a chain joint's own row has to state, or null where the chain's
         /// <paramref name="chainDefault"/> already states it and the row may omit the key.
         /// </summary>
-        public float? RecoverJointMass(int joint, float chainDefault)
+        internal float? RecoverJointMass(int joint, float chainDefault)
             => RecoverJointMassMultiplier(joint) is { } value
                 && MathF.Abs(value - chainDefault) > MassMultiplierTolerance * chainDefault
                 ? value
@@ -1986,7 +1986,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// <summary>
         /// Gets the <c>mass</c> shared by more than half of the chain's readable joints, else 1.
         /// </summary>
-        public float RecoverChainMassDefault(BoneChain chain)
+        internal float RecoverChainMassDefault(BoneChain chain)
         {
             var readings = new List<float>();
             foreach (var joint in chain.Joints)
@@ -2020,13 +2020,13 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         }
 
         /// <summary>Gets the mass multiplier of a chain joint's node.</summary>
-        float? ChainMassMultiplierOf(int node) => MassMultiplierOf(node, chainJoint: true);
+        private float? ChainMassMultiplierOf(int node) => MassMultiplierOf(node, chainJoint: true);
 
         /// <summary>
         /// Gets the mass multiplier of a node over its geometric mass. A rod endpoint is read against the rod mass pass
         /// only for a chain joint or on a cloth without proxy-sheet nodes.
         /// </summary>
-        float? MassMultiplierOf(int node, bool chainJoint = false)
+        private float? MassMultiplierOf(int node, bool chainJoint = false)
         {
             if (node < 0 || node >= NodeInvMasses.Length)
             {
@@ -2062,7 +2062,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             return ratio > 0f ? MathF.Sqrt(ratio) : null;
         }
 
-        IEnumerable<int> JointMassNodes(int joint)
+        private IEnumerable<int> JointMassNodes(int joint)
         {
             yield return joint;
             for (var node = 0; node < CtrlNames.Length; node++)
@@ -2074,27 +2074,27 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             }
         }
 
-        float[] GeometricMasses => geometricMasses ??= GeometricNodeMasses();
-        float[]? geometricMasses;
+        private float[] GeometricMasses => geometricMasses ??= GeometricNodeMasses();
+        private float[]? geometricMasses;
 
-        float[] RodMassPass => rodMassPass ??= GeometricNodeMassesWithRods();
-        float[]? rodMassPass;
+        private float[] RodMassPass => rodMassPass ??= GeometricNodeMassesWithRods();
+        private float[]? rodMassPass;
 
-        bool HasProxyMeshNodes => hasProxyMeshNodes ??= CtrlNames.Any(static name => name.StartsWith("$cloth_m", StringComparison.Ordinal));
-        bool? hasProxyMeshNodes;
+        private bool HasProxyMeshNodes => hasProxyMeshNodes ??= CtrlNames.Any(static name => name.StartsWith("$cloth_m", StringComparison.Ordinal));
+        private bool? hasProxyMeshNodes;
 
-        HashSet<int> RodEndpoints => rodEndpoints ??= Rods
+        private HashSet<int> RodEndpoints => rodEndpoints ??= Rods
             .SelectMany(static rod => new[] { rod.NodeA, rod.NodeB })
             .ToHashSet();
-        HashSet<int>? rodEndpoints;
+        private HashSet<int>? rodEndpoints;
 
-        const float MassMultiplierTolerance = 1e-3f;
+        private const float MassMultiplierTolerance = 1e-3f;
 
         /// <summary>
         /// Gets the mass the compiler derives from the cloth's geometry per control node: the solve elements, the rods
         /// built from the authored elements that did not stay solve elements, and the volumetric selections.
         /// </summary>
-        float[] GeometricNodeMasses()
+        private float[] GeometricNodeMasses()
         {
             var mass = new float[InitPosePositions.Length];
             var elements = MassElements();
@@ -2104,7 +2104,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             return mass;
         }
 
-        void AddElementNodeMasses(float[] mass, List<int[]> elements)
+        private void AddElementNodeMasses(float[] mass, List<int[]> elements)
         {
             foreach (var element in elements)
             {
@@ -2131,7 +2131,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// Gets the geometric masses of a cloth with no proxy sheet, where every shipped rod weighs except those the
         /// compiler folded across shared edges or left unbounded.
         /// </summary>
-        float[] GeometricNodeMassesWithRods()
+        private float[] GeometricNodeMassesWithRods()
         {
             var mass = new float[InitPosePositions.Length];
             AddElementNodeMasses(mass, MassElements());
@@ -2191,7 +2191,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// <summary>
         /// Gets the solve elements in the corner order the compiler's fold walk meets them.
         /// </summary>
-        List<int[]> FoldWalkSolveElements()
+        private List<int[]> FoldWalkSolveElements()
         {
             var rings = new Dictionary<string, Dictionary<int, int>>(StringComparer.Ordinal);
             for (var node = 0; node < CtrlNames.Length; node++)
@@ -2233,7 +2233,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// The faces the importer built into rods, in the order and corner order the compiler walks them for its
         /// fold rods. <c>m_SourceElems</c> packs each corner-count group from its end, so every group is read backwards.
         /// </summary>
-        IEnumerable<int[]> SourceElementWalk()
+        private IEnumerable<int[]> SourceElementWalk()
             => SourceFaces.Where(static face => face.Length == 3).Reverse()
                 .Concat(SourceFaces.Where(static face => face.Length == 4).Reverse());
 
@@ -2241,7 +2241,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// Credits both ends of every distinct corner pair of the authored elements that are not solve elements with
         /// <see cref="RodMassPerUnitLength"/> per unit of rest length.
         /// </summary>
-        void AddAuthoredRodNodeMasses(float[] mass, List<int[]> elements)
+        private void AddAuthoredRodNodeMasses(float[] mass, List<int[]> elements)
         {
             var solved = new HashSet<(int, int, int, int)>(elements.Count);
             foreach (var element in elements)
@@ -2283,7 +2283,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             }
         }
 
-        static (int, int, int, int) CornerKey(int[] corners)
+        private static (int, int, int, int) CornerKey(int[] corners)
         {
             var sorted = corners.Distinct().Order().ToArray();
             return (sorted.Length > 0 ? sorted[0] : -1, sorted.Length > 1 ? sorted[1] : -1,
@@ -2295,7 +2295,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// one, rebuilt from the compiled surface by merging every triangle pair the compiler split an
         /// over-bent quad into back into that quad.
         /// </summary>
-        List<int[]> MassElements()
+        private List<int[]> MassElements()
         {
             var elements = new List<int[]>(Quads.Length + Tris.Length);
             elements.AddRange(Quads);
@@ -2320,7 +2320,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// extent of that selection's own nodes, scaled by how strongly the node belongs to it. A
         /// selection the solver does not solve volumetrically weighs nothing.
         /// </summary>
-        void AddVolumetricNodeMasses(float[] mass)
+        private void AddVolumetricNodeMasses(float[] mass)
         {
             foreach (var map in VertexMaps)
             {
@@ -2367,7 +2367,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// Recovers the <c>cloth_stray_radius</c> paint of a proxy sheet, or null when none of its vertices has one.
         /// Vertices owned by an independent chain are skipped.
         /// </summary>
-        public float[]? RecoverStrayRadiusPaint(ProxyMesh proxy)
+        internal float[]? RecoverStrayRadiusPaint(ProxyMesh proxy)
         {
             if (AnimStrayRadii.Count == 0)
             {
@@ -2400,13 +2400,13 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// The largest <c>cloth_stray_radius_stretchiness</c> a proxy vertex can carry and keep its
         /// stray radius: at or above it the compiler cancels the radius instead of relaxing it.
         /// </summary>
-        const float MaxProxyStrayStretchiness = 0.9999998f;
+        private const float MaxProxyStrayStretchiness = 0.9999998f;
 
         /// <summary>
         /// Recovers the <c>cloth_stray_radius_stretchiness</c> paint of a proxy sheet, or null when none of its vertices
         /// has one. Vertices owned by an independent chain are skipped.
         /// </summary>
-        public float[]? RecoverStrayStretchinessPaint(ProxyMesh proxy)
+        internal float[]? RecoverStrayStretchinessPaint(ProxyMesh proxy)
         {
             if (AnimStrayRadii.Count == 0)
             {
@@ -2443,7 +2443,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// <summary>
         /// Gets the joints of the <see cref="IndependentBoneChains"/> and the <c>$cc</c> nodes parented to them.
         /// </summary>
-        HashSet<int> IndependentChainCoveredNodes()
+        private HashSet<int> IndependentChainCoveredNodes()
         {
             var chainBoneNodes = IndependentBoneChains().SelectMany(static c => c.Joints).Select(static j => j.Node).ToHashSet();
             if (chainBoneNodes.Count == 0)
@@ -2467,7 +2467,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// Gets the parent control node of <paramref name="node"/>, or -1 for a root: its skeleton parent,
         /// or on an original that ships no <c>m_SkelParents</c> the parent its ctrl offset names.
         /// </summary>
-        int ParentNodeOf(int node)
+        private int ParentNodeOf(int node)
         {
             var parent = node >= 0 && node < SkelParents.Length ? SkelParents[node] : -1;
             if (parent >= 0 || HasCompiledSkelParents)
@@ -2487,18 +2487,18 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             return offsetParentByNode.GetValueOrDefault(node, -1);
         }
 
-        Dictionary<int, int>? offsetParentByNode;
+        private Dictionary<int, int>? offsetParentByNode;
 
-        const float ElementMassPerUnitLength = 4f;
+        private const float ElementMassPerUnitLength = 4f;
 
-        const float RodMassPerUnitLength = 8f;
+        private const float RodMassPerUnitLength = 8f;
 
-        const float VolumetricMassPerUnitExtent = 12f;
+        private const float VolumetricMassPerUnitExtent = 12f;
 
-        const float MinVolumetricSolveStrength = 1.1920929e-7f;
+        private const float MinVolumetricSolveStrength = 1.1920929e-7f;
 
-        const float MinRecoverableMassPaintTerm = 0.05f;
-        const float MaxRecoverableMassPaintTerm = 1e6f;
+        private const float MinRecoverableMassPaintTerm = 0.05f;
+        private const float MaxRecoverableMassPaintTerm = 1e6f;
 
         /// <summary>Gets the friction painted on <paramref name="node"/>, or 0 when it has none.</summary>
         public float GetNodeFriction(int node) => DynamicNodeValue(DynNodeFriction, node);
@@ -2627,7 +2627,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// Gets whether <paramref name="bend"/> is a ring bend laid over a chain: its hub's joint lies between the joints
         /// owning its first and second ends.
         /// </summary>
-        public bool IsChainRingBend(KelagerBend bend)
+        internal bool IsChainRingBend(KelagerBend bend)
         {
             var hub = BendOwner(bend.MidNode);
             var first = BendOwner(bend.End0);
@@ -2641,9 +2641,9 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// Gets whether any <see cref="KelagerBends"/> record is a chain ring bend (<see cref="IsChainRingBend"/>), which only
         /// <c>rigid_edge_hinges</c> builds.
         /// </summary>
-        public bool HasChainRingBends => KelagerBends.Any(IsChainRingBend);
+        internal bool HasChainRingBends => KelagerBends.Any(IsChainRingBend);
 
-        int BendOwner(int node)
+        private int BendOwner(int node)
             => node < 0 || node >= CtrlNames.Length ? -1
                 : !IsProxyNodeName(CtrlNames[node]) ? node
                 : node < SkelParents.Length ? SkelParents[node] : -1;
@@ -2655,7 +2655,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// </summary>
         /// <param name="jointNode">The node of the joint whose stiff hinge to recover.</param>
         /// <param name="rank">Which of the joint's bends to read, in declaration order.</param>
-        public (float Stiffness, float Angle, float MotionBias)? GetStiffHinge(int jointNode, int rank = 0)
+        internal (float Stiffness, float Angle, float MotionBias)? GetStiffHinge(int jointNode, int rank = 0)
         {
             var seen = 0;
 
@@ -2696,17 +2696,17 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             return null;
         }
 
-        const float FullMotionBiasEpsilon = 1e-6f;
+        private const float FullMotionBiasEpsilon = 1e-6f;
 
-        const float KelagerHeightFloor = 0.001f;
+        private const float KelagerHeightFloor = 0.001f;
 
-        const float MotionBiasTolerance = 1e-3f;
+        private const float MotionBiasTolerance = 1e-3f;
 
         /// <summary>
         /// Recovers the <c>motion_bias</c> of a chain joint from the weights of the rods between it and its parent, or
         /// null where they carry no reading.
         /// </summary>
-        public float? GetMotionBias(BoneChainJoint joint)
+        internal float? GetMotionBias(BoneChainJoint joint)
         {
             if (joint.ParentNode < 0)
             {
@@ -2757,10 +2757,10 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             }
         }
 
-        float InverseMassOf(int node)
+        private float InverseMassOf(int node)
             => node >= 0 && node < NodeInvMasses.Length ? NodeInvMasses[node] : 0f;
 
-        float BendAngle(KelagerBend bend)
+        private float BendAngle(KelagerBend bend)
         {
             if (bend.MidNode >= InitPosePositions.Length || bend.End0 >= InitPosePositions.Length
                 || bend.End1 >= InitPosePositions.Length || bend.MidNode < 0 || bend.End0 < 0 || bend.End1 < 0)
@@ -2786,7 +2786,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// Gets the <c>add_curvature</c> of a model compiled with <c>rigid_edge_hinges</c>, read off the heights of its
         /// sheet-hub <see cref="KelagerBends"/>; <see cref="SaturatedCurvature"/> when they do not agree.
         /// </summary>
-        public float RigidHingeCurvature
+        internal float RigidHingeCurvature
         {
             get
             {
@@ -2826,7 +2826,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// Gets the per-hub <c>cloth_bend_stiffness</c> of a rigid-hinged model whose hubs fold by different angles, or
         /// null when <see cref="RigidHingeCurvature"/> accounts for every hub.
         /// </summary>
-        public Dictionary<int, float>? RigidHingeBendPaint
+        internal Dictionary<int, float>? RigidHingeBendPaint
         {
             get
             {
@@ -2880,7 +2880,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// Reads a sheet-hub bend's fold as a fraction of pi, or marks it shut where its height has fallen to its rest
         /// distance. Null for a bend whose hub is not a generated node or whose arms are degenerate.
         /// </summary>
-        (bool Shut, float Reading)? HubFold(KelagerBend bend)
+        private (bool Shut, float Reading)? HubFold(KelagerBend bend)
         {
             if (bend.MidNode < 0 || bend.End0 < 0 || bend.End1 < 0
                 || bend.MidNode >= InitPosePositions.Length
@@ -2912,7 +2912,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// Recovers the per-vertex <c>cloth_bend_stiffness</c> paint of a rigid-hinged proxy sheet, or null when the
         /// sheet's hubs state none. See <see cref="RigidHingeBendPaint"/>.
         /// </summary>
-        public float[]? RecoverRigidHingeBendPaint(ProxyMesh proxy)
+        internal float[]? RecoverRigidHingeBendPaint(ProxyMesh proxy)
         {
             if (RigidHingeBendPaint is not { } byNode)
             {
@@ -2922,7 +2922,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             return PaintPerVertex(proxy, byNode.GetValueOrDefault, static value => value > 0f);
         }
 
-        const string HingeAnchorPrefix = "$ha_";
+        private const string HingeAnchorPrefix = "$ha_";
 
         /// <summary>
         /// The hinge constraint a chain joint was authored with. <see cref="Vector"/> spans the joint to
@@ -2932,10 +2932,10 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// <param name="Vector">World-space hinge axis, its length the ring half-width.</param>
         /// <param name="LimitCw">Clockwise angular limit.</param>
         /// <param name="LimitCcw">Counter-clockwise angular limit.</param>
-        public readonly record struct ChainHinge(Vector3 Vector, float LimitCw, float LimitCcw);
+        internal readonly record struct ChainHinge(Vector3 Vector, float LimitCw, float LimitCcw);
 
         /// <summary>Gets the hinge authored on the joint, or null when it carries none.</summary>
-        public ChainHinge? GetChainHinge(string boneName, int jointNode)
+        internal ChainHinge? GetChainHinge(string boneName, int jointNode)
         {
             var ring = ProxyRingOf(jointNode);
             if (ring.Count < 2 || ring[0] >= InitPosePositions.Length || ring[1] >= InitPosePositions.Length)
@@ -2961,7 +2961,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             return new ChainHinge(axis, cw, ccw);
         }
 
-        KVObject? HingeLimitOverRing(List<int> ring)
+        private KVObject? HingeLimitOverRing(List<int> ring)
         {
             foreach (var hinge in Data.GetArray("m_HingeLimits") ?? [])
             {
@@ -2975,7 +2975,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             return null;
         }
 
-        (float Cw, float Ccw) HingeLimitsOf(KVObject hinge)
+        private (float Cw, float Ccw) HingeLimitsOf(KVObject hinge)
         {
             var extents = hinge.GetFloatProperty("flAngleExtents");
             var span = float.RadiansToDegrees(extents) * 2f;
@@ -2991,7 +2991,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             return MathF.Abs(cw - solved) < 0.01f ? (cw, span - cw) : (0f, span);
         }
 
-        float? HingeRestAngle(KVObject hinge)
+        private float? HingeRestAngle(KVObject hinge)
         {
             var nodes = hinge.GetIntegerArray("nNode");
             if (nodes.Length < 6 || nodes.Any(node => node < 0 || node >= InitPosePositions.Length))
@@ -3026,7 +3026,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             return WrapAngle(angle - (MathF.PI / 2f));
         }
 
-        static float WrapAngle(float angle)
+        private static float WrapAngle(float angle)
         {
             var wrapped = angle % MathF.Tau;
             if (wrapped > MathF.PI)
@@ -3041,7 +3041,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             return wrapped;
         }
 
-        Vector3 BreakEndEffectorQuadTie(List<int> ring, Vector3 axis)
+        private Vector3 BreakEndEffectorQuadTie(List<int> ring, Vector3 axis)
         {
             if (ring.Count < 4 || ring[2] >= InitPosePositions.Length || ring[3] >= InitPosePositions.Length)
             {
@@ -3078,7 +3078,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// Tilts a two-node hinge ring's vector along the child quad's diagonals where the quad's four ring-to-ring spans
         /// tie. <paramref name="toVectorFrame"/> maps model space into the vector's frame.
         /// </summary>
-        Vector3 BreakHingeFanQuadTie(List<int> ring, Vector3 vector, Quaternion toVectorFrame)
+        private Vector3 BreakHingeFanQuadTie(List<int> ring, Vector3 vector, Quaternion toVectorFrame)
         {
             if (ring.Count != 2)
             {
@@ -3136,16 +3136,16 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         }
 
         /// <summary>Gets how many auto-generated proxy nodes the compiler extruded from a joint.</summary>
-        public int ProxyCountOf(int jointNode) => ProxyRingOf(jointNode).Count;
+        internal int ProxyCountOf(int jointNode) => ProxyRingOf(jointNode).Count;
 
         /// <summary>Gets whether a chain joint carries a hinge constraint.</summary>
-        public bool IsHingedJoint(int jointNode)
+        internal bool IsHingedJoint(int jointNode)
         {
             var ring = ProxyRingOf(jointNode);
             return ring.Count >= 2 && HingeLimitOverRing(ring) is not null;
         }
 
-        bool IsHingeRegeneratedProxy(int node)
+        private bool IsHingeRegeneratedProxy(int node)
         {
             if (node >= CtrlNames.Length || !IsProxyNodeName(CtrlNames[node]))
             {
@@ -3166,7 +3166,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             return IsHingedJoint(parent) || RigidHingeJoints.ContainsKey(parent);
         }
 
-        List<int> ProxyRingOf(int jointNode)
+        private List<int> ProxyRingOf(int jointNode)
         {
             var ring = new List<int>();
             for (var node = 0; node < CtrlNames.Length; node++)
@@ -3185,7 +3185,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// <summary>
         /// Gets the <c>$cc</c> nodes joined to another <c>$cc</c> node by a source face edge or diagonal.
         /// </summary>
-        HashSet<int> SourceFaceRingNodes()
+        private HashSet<int> SourceFaceRingNodes()
         {
             bool IsChainRing(int node) => node >= 0 && node < CtrlNames.Length
                 && CtrlNames[node].StartsWith("$cc", StringComparison.Ordinal);
@@ -3206,7 +3206,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// <summary>
         /// Gets whether a surface element joins a hinged joint of <paramref name="chain"/> to one of its children.
         /// </summary>
-        public bool HasRigidHingeLink(BoneChain chain)
+        internal bool HasRigidHingeLink(BoneChain chain)
         {
             var groupOf = ChainNodeGroups(chain);
 
@@ -3252,7 +3252,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// <summary>
         /// Gets whether a bounded rod spans a parent-child link of <paramref name="chain"/>.
         /// </summary>
-        public bool HasChainRods(BoneChain chain)
+        internal bool HasChainRods(BoneChain chain)
         {
             var groupOf = ChainNodeGroups(chain);
 
@@ -3277,7 +3277,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// <summary>
         /// Gets whether an unbounded rod joins two of the chains' generated nodes, which only <c>add_bend_only_rods</c> builds.
         /// </summary>
-        public bool HasChainBendOnlyRods(List<BoneChain> chains)
+        internal bool HasChainBendOnlyRods(List<BoneChain> chains)
         {
             var generated = ChainGeneratedNodes(chains);
 
@@ -3289,7 +3289,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// Gets whether a banded rod joins two of the chains' generated nodes or a surface fold exists, which only
         /// <c>add_stiffness_rods</c> builds.
         /// </summary>
-        public bool HasChainStiffnessRods(List<BoneChain> chains)
+        internal bool HasChainStiffnessRods(List<BoneChain> chains)
         {
             var generated = ChainGeneratedNodes(chains);
 
@@ -3299,7 +3299,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         }
 
         /// <summary>Maps each joint of <paramref name="chain"/> and each of its ring nodes to the joint's node.</summary>
-        Dictionary<int, int> ChainNodeGroups(BoneChain chain)
+        private Dictionary<int, int> ChainNodeGroups(BoneChain chain)
         {
             var groupOf = new Dictionary<int, int>();
             foreach (var joint in chain.Joints)
@@ -3317,7 +3317,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// <summary>
         /// Gets the ring nodes of the chains' joints, or the <see cref="SourceFaceRingNodes"/> when they have none.
         /// </summary>
-        HashSet<int> ChainGeneratedNodes(List<BoneChain> chains)
+        private HashSet<int> ChainGeneratedNodes(List<BoneChain> chains)
         {
             var generated = chains
                 .SelectMany(static chain => chain.Joints)
@@ -3331,9 +3331,9 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// Gets whether the compiler folded rods across this model's own faces: some banded rod on a folded pair carries its
         /// endpoints' final inverse-mass ratio as its weight, which only a rod the compiler built itself does.
         /// </summary>
-        public bool HasSurfaceFolds => hasSurfaceFolds ??= Rods.Any(rod => IsSurfaceFanRod(rod, banded: true));
+        internal bool HasSurfaceFolds => hasSurfaceFolds ??= Rods.Any(rod => IsSurfaceFanRod(rod, banded: true));
 
-        bool? hasSurfaceFolds;
+        private bool? hasSurfaceFolds;
 
         /// <summary>
         /// Returns whether <paramref name="rod"/> is a banded rod the compiler folded across a face edge on its own: it carries its
@@ -3346,28 +3346,28 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// share, in the order its fold walk meets them: the solve elements (see <see cref="FoldWalkSolveElements"/>),
         /// then the faces that were built into rods instead (see <see cref="SourceElementWalk"/>).
         /// </summary>
-        HashSet<(int, int)> SurfaceFanPairs => surfaceFanPairs ??= PredictBendRods(
+        private HashSet<(int, int)> SurfaceFanPairs => surfaceFanPairs ??= PredictBendRods(
             [.. FoldWalkSolveElements(), .. SourceElementWalk()], IsStatic);
 
-        HashSet<(int, int)>? surfaceFanPairs;
+        private HashSet<(int, int)>? surfaceFanPairs;
 
         /// <summary>
         /// The node pairs whose every rod is one the compiler folded across a face edge on its own (see
         /// <see cref="IsSurfaceFanRod"/>), so that no declaration put any rod there.
         /// </summary>
-        HashSet<(int, int)> SurfaceFoldOnlyPairs => surfaceFoldOnlyPairs ??= Rods
+        private HashSet<(int, int)> SurfaceFoldOnlyPairs => surfaceFoldOnlyPairs ??= Rods
             .GroupBy(static rod => UnorderedPair(rod.NodeA, rod.NodeB))
             .Where(group => group.All(rod => IsSurfaceFanRod(rod, banded: true)))
             .Select(static group => group.Key)
             .ToHashSet();
 
-        HashSet<(int, int)>? surfaceFoldOnlyPairs;
+        private HashSet<(int, int)>? surfaceFoldOnlyPairs;
 
         /// <summary>
         /// Gets whether <paramref name="rod"/> lies on a surface fold pair and carries its endpoints' final inverse-mass
         /// ratio as its weight. With <paramref name="banded"/>, the rod must also be banded.
         /// </summary>
-        bool IsSurfaceFanRod(Rod rod, bool banded)
+        private bool IsSurfaceFanRod(Rod rod, bool banded)
         {
             if (rod.MaxDist >= UnboundedRodDistance
                 || (banded && rod.MinDist >= rod.MaxDist - SurfaceFanBandTolerance * MathF.Max(1f, rod.MaxDist))
@@ -3395,7 +3395,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// <summary>
         /// Gets whether a rod on a surface fold pair joined the network after the mass pass.
         /// </summary>
-        bool FoldedAfterMass(Rod rod)
+        private bool FoldedAfterMass(Rod rod)
         {
             var sum = rod.NodeA < NodeInvMasses.Length && rod.NodeB < NodeInvMasses.Length
                 ? NodeInvMasses[rod.NodeA] + NodeInvMasses[rod.NodeB]
@@ -3408,9 +3408,9 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             return !(surfaceFoldsAbsent ??= Rods.Any(IsUnequalFoldedPair) && !Rods.Any(other => IsSurfaceFanRod(other, banded: false)));
         }
 
-        bool? surfaceFoldsAbsent;
+        private bool? surfaceFoldsAbsent;
 
-        bool IsUnequalFoldedPair(Rod rod)
+        private bool IsUnequalFoldedPair(Rod rod)
         {
             if (rod.NodeA >= NodeInvMasses.Length || rod.NodeB >= NodeInvMasses.Length)
             {
@@ -3422,9 +3422,9 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                 && SurfaceFanPairs.Contains(UnorderedPair(rod.NodeA, rod.NodeB));
         }
 
-        const float SurfaceFanBandTolerance = 1e-4f;
+        private const float SurfaceFanBandTolerance = 1e-4f;
 
-        const float SurfaceFanWeightTolerance = 2e-4f;
+        private const float SurfaceFanWeightTolerance = 2e-4f;
 
         /// <summary>The maximum length a rod that is not length-limited at all is given.</summary>
         public const float UnboundedRodDistance = 16384f;
@@ -3436,7 +3436,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// Orders <paramref name="proxy"/>'s selections so each node's <c>m_DynNodeVertexSet</c> winner precedes every
         /// other selection painting it at the same weight. Returns the proxy's own order when that is not possible.
         /// </summary>
-        public string[] VertexSetStreamOrder(ProxyMesh proxy)
+        internal string[] VertexSetStreamOrder(ProxyMesh proxy)
         {
             var names = proxy.VertexMaps.Select(static map => map.Name).ToArray();
             if (names.Length < 2 || DynNodeVertexSet.Length == 0)
@@ -3549,16 +3549,16 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         }
 
         /// <summary>Gets the names of the <c>m_VertexMaps</c> records that cover no vertex.</summary>
-        public IReadOnlyList<string> ZeroVertexSelectionNames { get; private set; } = [];
+        internal IReadOnlyList<string> ZeroVertexSelectionNames { get; private set; } = [];
 
         /// <summary>Gets the name a selection rebuilt from <see cref="VertexSetNames"/> is exported under.</summary>
-        static string SynthesizedVertexSetName(int set)
+        private static string SynthesizedVertexSetName(int set)
             => string.Create(CultureInfo.InvariantCulture, $"vertex_set_{set}");
 
         /// <summary>
         /// Rebuilds the named selections from <see cref="VertexSetNames"/> and <see cref="DynNodeVertexSet"/>.
         /// </summary>
-        List<VertexMap> BuildVertexMapsFromSets()
+        private List<VertexMap> BuildVertexMapsFromSets()
         {
             var sets = new List<VertexMap>();
             for (var set = 0; set < VertexSetNames.Length; set++)
@@ -3584,14 +3584,14 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             return sets;
         }
 
-        bool vertexMapsFromSets;
+        private bool vertexMapsFromSets;
 
         /// <summary>
         /// Drops the selection rebuilt from the vertex set named after the model's file. Selections read from
         /// <c>m_VertexMaps</c> are kept.
         /// </summary>
         /// <param name="modelFileName">The model's file name without directory or extension.</param>
-        public void DropModelNameVertexSet(string modelFileName)
+        internal void DropModelNameVertexSet(string modelFileName)
         {
             if (!vertexMapsFromSets)
             {
@@ -3605,7 +3605,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// <summary>
         /// Drops the selection rebuilt from the vertex set with name hash 0. Selections read from <c>m_VertexMaps</c> are kept.
         /// </summary>
-        public void DropUnnamedVertexSet()
+        internal void DropUnnamedVertexSet()
         {
             if (!vertexMapsFromSets)
             {
@@ -3639,7 +3639,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// Gets the selections <paramref name="node"/> belongs to as <c>name[=weight],...</c>, or null when it belongs to
         /// none. A weight of 1 is written as the bare name.
         /// </summary>
-        public string? GetVertexMapNames(int node)
+        internal string? GetVertexMapNames(int node)
         {
             var names = new List<string>();
             foreach (var map in VertexMaps)
@@ -3662,7 +3662,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// Gets how strongly <paramref name="node"/> belongs to the selection named
         /// <paramref name="mapName"/>, 0 when the selection does not exist or does not cover it.
         /// </summary>
-        public float VertexMapWeight(string mapName, int node)
+        internal float VertexMapWeight(string mapName, int node)
         {
             foreach (var map in VertexMaps)
             {
@@ -3678,7 +3678,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// <summary>
         /// Gets the one partial weight every node covered by the selection shares, or null when there is none.
         /// </summary>
-        public float? UniformVertexMapWeight(string mapName)
+        internal float? UniformVertexMapWeight(string mapName)
         {
             float? shared = null;
             foreach (var map in VertexMaps)
@@ -3711,7 +3711,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         }
 
         /// <summary>Strips the optional <c>=weight</c> suffix off one entry of a <see cref="GetVertexMapNames"/> list.</summary>
-        public static string VertexMapName(string entry)
+        internal static string VertexMapName(string entry)
         {
             var weight = entry.IndexOf('=', StringComparison.Ordinal);
             return weight < 0 ? entry : entry[..weight];
@@ -3721,7 +3721,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// Gets the selection that covers exactly the simulated nodes of <paramref name="proxy"/> (or of the sheets of
         /// <paramref name="group"/> it overlaps) and is not registered as a vertex set, or null when no single one does.
         /// </summary>
-        public string? GetProxyVertexMapName(ProxyMesh proxy, IReadOnlyList<ProxyMesh>? group = null)
+        internal string? GetProxyVertexMapName(ProxyMesh proxy, IReadOnlyList<ProxyMesh>? group = null)
         {
             var simulated = SimulatedProxyNodes(proxy);
             if (simulated.Count == 0)
@@ -3781,13 +3781,13 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         }
 
         /// <summary>Gets whether <paramref name="nameHash"/> is registered in <see cref="VertexSetNames"/>.</summary>
-        public bool RegistersVertexSet(uint nameHash) => Array.IndexOf(VertexSetNames, nameHash) >= 0;
+        internal bool RegistersVertexSet(uint nameHash) => Array.IndexOf(VertexSetNames, nameHash) >= 0;
 
         /// <summary>
         /// Gets every selection, not registered as a vertex set, with the same membership as <paramref name="mapName"/>,
         /// in compiled order and including it. Empty when no selection has that name.
         /// </summary>
-        public IReadOnlyList<string> VertexMapAliases(string mapName)
+        internal IReadOnlyList<string> VertexMapAliases(string mapName)
         {
             var source = VertexMaps.FirstOrDefault(map => map.Name == mapName);
             if (source.Name != mapName)
@@ -3801,7 +3801,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                 .Select(static map => map.Name)];
         }
 
-        static bool HasSameMembership(VertexMap a, VertexMap b)
+        private static bool HasSameMembership(VertexMap a, VertexMap b)
         {
             var first = Math.Min(a.VertexBase, b.VertexBase);
             var last = Math.Max(a.VertexBase + a.VertexCount, b.VertexBase + b.VertexCount);
@@ -3817,7 +3817,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         }
 
         /// <summary>The control nodes of <paramref name="proxy"/> whose vertices its sheet simulates.</summary>
-        public static HashSet<int> SimulatedProxyNodes(ProxyMesh proxy)
+        internal static HashSet<int> SimulatedProxyNodes(ProxyMesh proxy)
         {
             var simulated = new HashSet<int>();
             for (var v = 0; v < proxy.NodeIndices.Length; v++)
@@ -3873,7 +3873,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// Gets, per control node, whether its goal values are exported through the raw attraction paints instead of the
         /// goal-strength pair.
         /// </summary>
-        public bool[] RawGoalPaintNodes { get; }
+        internal bool[] RawGoalPaintNodes { get; }
 
         /// <summary>
         /// A named cloth effect (from <c>m_Effects</c>). <see cref="Params"/> is the unparsed per-type parameter block.
@@ -3975,7 +3975,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// Gets whether the cloth was authored as ModelDoc's <c>ImportedCloth</c> node: it carries a field only an imported
         /// node row writes and none of the ring, sheet or fit data other constructs produce.
         /// </summary>
-        public bool IsImportedCloth
+        internal bool IsImportedCloth
             => (CtrlOsOffsets.Length > 0 || HasImportedNodeFields)
                 && CtrlOffsets.Length == 0
                 && Quads.Length == 0 && Tris.Length == 0
@@ -3987,7 +3987,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// Gets both columns of every <c>m_CtrlOsOffsets</c> pair on a model without a surface that is not
         /// <see cref="IsImportedCloth"/> as a whole.
         /// </summary>
-        public IReadOnlySet<int> ImportedStripNodes => importedStripNodes ??= BuildImportedStripNodes();
+        internal IReadOnlySet<int> ImportedStripNodes => importedStripNodes ??= BuildImportedStripNodes();
 
         private HashSet<int>? importedStripNodes;
 
@@ -4012,7 +4012,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             return strip;
         }
 
-        bool HasImportedNodeFields
+        private bool HasImportedNodeFields
         {
             get
             {
@@ -4023,7 +4023,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             }
         }
 
-        static bool IsCompilerGeneratedNodeName(string? name)
+        private static bool IsCompilerGeneratedNodeName(string? name)
             => string.IsNullOrEmpty(name)
                 || name.StartsWith("$cc", StringComparison.Ordinal)
                 || name.StartsWith("$cloth_m", StringComparison.Ordinal)
@@ -4055,11 +4055,11 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// <summary>
         /// Gets the node runs of <c>m_Ropes</c>, whose first <c>m_nRopeCount</c> entries are the runs' exclusive end offsets.
         /// </summary>
-        IReadOnlyList<int[]> RopeRuns => ropeRuns ??= ReadRopeRuns(Data);
+        private IReadOnlyList<int[]> RopeRuns => ropeRuns ??= ReadRopeRuns(Data);
 
-        List<int[]>? ropeRuns;
+        private List<int[]>? ropeRuns;
 
-        static List<int[]> ReadRopeRuns(KVObject data)
+        private static List<int[]> ReadRopeRuns(KVObject data)
         {
             var runs = new List<int[]>();
             var ropeCount = data.GetInt32Property("m_nRopeCount");
@@ -4090,7 +4090,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// Gets whether a node lies on an <c>m_Ropes</c> run of two or more nodes. The rope pass never starts or keeps a
         /// run on a node whose class byte is 1, which is what a <c>ClothNode</c> at the default alignment compiles to.
         /// </summary>
-        public bool IsRopeNode(int node)
+        internal bool IsRopeNode(int node)
         {
             if (ropeNodes is null)
             {
@@ -4107,7 +4107,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             return ropeNodes.Contains(node);
         }
 
-        HashSet<int>? ropeNodes;
+        private HashSet<int>? ropeNodes;
 
         /// <summary>Gets each follower node's leader and follow weight (<c>m_FollowNodes</c>).</summary>
         public IReadOnlyDictionary<int, (int Parent, float Weight)> FollowNodeLinks
@@ -4149,7 +4149,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// <summary>Gets the raw, uninterpreted <c>m_CollisionSpheres</c> entries.</summary>
         public IReadOnlyList<KVObject> CollisionSpheres { get; }
 
-        static T[] ReadArray<T>(KVObject data, string key, Func<KVObject, T> map)
+        private static T[] ReadArray<T>(KVObject data, string key, Func<KVObject, T> map)
         {
             var arr = data.GetArray(key);
             return arr is null ? [] : arr.Select(map).ToArray();

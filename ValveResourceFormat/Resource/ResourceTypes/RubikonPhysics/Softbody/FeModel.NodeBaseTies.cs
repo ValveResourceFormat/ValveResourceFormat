@@ -6,36 +6,36 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
     public sealed partial class FeModel
     {
         /// <summary>The margin a node-base scan decision has to clear to count as settled.</summary>
-        const float NodeBaseTieMargin = 1e-4f;
+        private const float NodeBaseTieMargin = 1e-4f;
 
         /// <summary>The ring rolls in degrees tried to settle a node-base tie, widest first.</summary>
-        static readonly float[] NodeBaseNudgeLadder =
+        private static readonly float[] NodeBaseNudgeLadder =
         [
             0.016f, -0.016f, 0.012f, -0.012f, 0.008f, -0.008f, 0.004f, -0.004f,
             0.002f, -0.002f, 0.001f, -0.001f, 0.0005f, -0.0005f,
         ];
 
         /// <summary>The furthest a roll may move a node or change a rod's rest length.</summary>
-        const float NodeBaseCostBudget = 5e-4f;
+        private const float NodeBaseCostBudget = 5e-4f;
 
         /// <summary>
         /// A joint's compiled node base with the candidate list scanned for it and the two joints the list is drawn from.
         /// </summary>
-        readonly record struct NodeBaseTarget(int Node, List<int> Candidates, NodeBasis Want,
+        private readonly record struct NodeBaseTarget(int Node, List<int> Candidates, NodeBasis Want,
             BoneChainJoint First, BoneChainJoint Second);
 
         /// <summary>
         /// Gets whether a proxy-sheet vertex of <paramref name="proxy"/> carries an <c>m_NodeBases</c> entry, which only a
         /// sheet imported with <c>add_bones_to_render_mesh</c> gives it.
         /// </summary>
-        public bool ProxyOwnsNodeBases(ProxyMesh proxy)
+        internal bool ProxyOwnsNodeBases(ProxyMesh proxy)
             => Array.Exists(proxy.NodeIndices, node => IsProxyMeshNode(node) && NodeBases.ContainsKey(node));
 
         /// <summary>
         /// Gets whether the chain's <c>m_NodeBases</c> entries are the bulk grade over each joint's neighbours (true) or the
         /// version-2 preset grade (false), or null when nothing tells them apart.
         /// </summary>
-        public bool? ChainBasesAreBulkGraded(BoneChain chain)
+        internal bool? ChainBasesAreBulkGraded(BoneChain chain)
         {
             var bulk = 0;
             var preset = 0;
@@ -92,7 +92,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// both a preset basis and a reverse offset, which puts the joint in both of the fit pass's skip sets and discards its
         /// group, so the chain compiled below version 2.
         /// </summary>
-        public bool ChainFitsAPresetJoint(BoneChain chain)
+        internal bool ChainFitsAPresetJoint(BoneChain chain)
         {
             var unmoved = new Dictionary<int, Vector3>();
             foreach (var joint in chain.Joints)
@@ -125,7 +125,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// or above records against its joints' preset bases: true when every read joint names the Y1 node of the preset
         /// basis graded over its own extrusion vector and its child's, false when one names none, null when no joint is read.
         /// </summary>
-        public bool? ChainReverseOffsetsArePreset(BoneChain chain)
+        internal bool? ChainReverseOffsetsArePreset(BoneChain chain)
         {
             var targets = new Dictionary<int, HashSet<int>>();
             foreach (var entry in Data.GetArray("m_ReverseOffsets") ?? [])
@@ -178,18 +178,18 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// Whether the original's own basis for <paramref name="node"/> is <paramref name="scan"/>'s basis with its Y pair swapped,
         /// with the handedness that orders the pair inside <see cref="NodeBaseTieMargin"/>.
         /// </summary>
-        bool NodeBaseYPairTies(int node, NodeBaseScan scan)
+        private bool NodeBaseYPairTies(int node, NodeBaseScan scan)
             => scan.Handedness < NodeBaseTieMargin && NodeBases.TryGetValue(node, out var want)
                 && want == new NodeBasis(scan.Basis.NodeX0, scan.Basis.NodeX1, scan.Basis.NodeY1, scan.Basis.NodeY0);
 
-        static bool NodeBaseDenotes(NodeBasis basis, NodeBasis want)
+        private static bool NodeBaseDenotes(NodeBasis basis, NodeBasis want)
             => basis == want || NodeBaseFoldReaches(basis, want);
 
         /// <summary>
         /// Gets whether a chain joint with a chain child carries an ungraded <c>m_DynNodeWindBases</c> hint whose X pair its
         /// twist or rope wrote, which marks a chain of version 0.
         /// </summary>
-        public bool ChainHintsAreTwistWritten(BoneChain chain)
+        internal bool ChainHintsAreTwistWritten(BoneChain chain)
         {
             var hints = Data.GetArray("m_DynNodeWindBases");
             if (hints is null || hints.Count == 0)
@@ -236,7 +236,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// <summary>
         /// Gets the hint X pair the rope source writes for each <c>m_Ropes</c> node; a node on two runs keeps the first.
         /// </summary>
-        Dictionary<int, (int X0, int X1)> RopeSourceHintPairs()
+        private Dictionary<int, (int X0, int X1)> RopeSourceHintPairs()
         {
             var pairs = new Dictionary<int, (int X0, int X1)>();
             foreach (var run in RopeRuns)
@@ -268,14 +268,14 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// Gets whether the chain's non-root joints read as <see cref="ThinJointStaging.Unstaged"/>, which separates version 0
         /// from version 1.
         /// </summary>
-        public bool ChainHasUnstagedThinJoint(BoneChain chain)
+        internal bool ChainHasUnstagedThinJoint(BoneChain chain)
             => ThinJointStagingOf(chain.Joints.Skip(1)) == ThinJointStaging.Unstaged;
 
         /// <summary>
         /// Gets whether a two-sided chain has a simulated leaf with no node base, reverse offset, lock or fit matrix that
         /// too few neighbours reach to be graded.
         /// </summary>
-        public bool ChainHasUnbasedLeaf(BoneChain chain)
+        internal bool ChainHasUnbasedLeaf(BoneChain chain)
         {
             if (chain.ExtrudeSides != 2)
             {
@@ -337,7 +337,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// The root bones of <paramref name="merged"/> whose one reconstructed declaration was compiled as two,
         /// each mapped to the children the second, ringless declaration keeps.
         /// </summary>
-        Dictionary<int, HashSet<int>> VersionSplitRoots(List<BoneChain> merged, Func<BoneChain, bool, int> chainVersion,
+        private Dictionary<int, HashSet<int>> VersionSplitRoots(List<BoneChain> merged, Func<BoneChain, bool, int> chainVersion,
             bool hasOtherChains)
         {
             var splits = new Dictionary<int, HashSet<int>>();
@@ -417,7 +417,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             return splits;
         }
 
-        int NumberedRingCount(int jointNode)
+        private int NumberedRingCount(int jointNode)
             => ProxyRingOf(jointNode).Count(node => RingSuffixIndex(CtrlNames[node]) >= 0);
 
         /// <summary>
@@ -425,7 +425,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// onto the axis pair the original kept, recording the roll in
         /// <see cref="BoneChainJoint.ExtrudeTwistTieNudge"/>.
         /// </summary>
-        void SteerNodeBaseTies(BoneChain chain)
+        private void SteerNodeBaseTies(BoneChain chain)
         {
             if (NodeBases.Count == 0)
             {
@@ -488,7 +488,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             }
         }
 
-        bool TryNudgeNodeBase(BoneChainJoint joint, NodeBaseTarget target, List<NodeBaseTarget> targets,
+        private bool TryNudgeNodeBase(BoneChainJoint joint, NodeBaseTarget target, List<NodeBaseTarget> targets,
             Dictionary<int, Vector3> moved, NodeBaseScan before)
         {
             var ring = ProxyRingOf(joint.Node);
@@ -538,7 +538,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             return false;
         }
 
-        bool NodeBaseRollAffordable(Dictionary<int, Vector3> probe)
+        private bool NodeBaseRollAffordable(Dictionary<int, Vector3> probe)
         {
             foreach (var (node, position) in probe)
             {
@@ -571,7 +571,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             return true;
         }
 
-        bool NodeBaseRingIsReadElsewhere(List<int> ring, List<NodeBaseTarget> targets)
+        private bool NodeBaseRingIsReadElsewhere(List<int> ring, List<NodeBaseTarget> targets)
         {
             foreach (var (node, basis) in NodeBases)
             {
@@ -590,7 +590,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             return false;
         }
 
-        bool NodeBaseRollRegresses(List<NodeBaseTarget> targets,
+        private bool NodeBaseRollRegresses(List<NodeBaseTarget> targets,
             Dictionary<int, Vector3> moved, Dictionary<int, Vector3> probe)
         {
             foreach (var target in targets)
@@ -607,14 +607,14 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             return false;
         }
 
-        static bool NodeBaseContains(List<int> candidates, NodeBasis want)
+        private static bool NodeBaseContains(List<int> candidates, NodeBasis want)
             => candidates.Contains(want.NodeX0) && candidates.Contains(want.NodeX1)
             && candidates.Contains(want.NodeY0) && candidates.Contains(want.NodeY1);
 
         /// <summary>
         /// Gets the node vector the extrusion pushes for a joint: its ring when two or more wide, else its node and ring.
         /// </summary>
-        List<int>? NodeBaseVector(BoneChainJoint joint)
+        private List<int>? NodeBaseVector(BoneChainJoint joint)
         {
             var ring = ProxyRingOf(joint.Node);
             if (joint.ExtrudeSides >= 2)
@@ -631,15 +631,15 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// Gets the sorted neighbour set a node's basis is graded against: the node and every corner of each source
         /// element it belongs to.
         /// </summary>
-        List<int> NodeNeighbours(int node)
+        private List<int> NodeNeighbours(int node)
         {
             nodeNeighbours ??= BuildNodeNeighbours();
             return nodeNeighbours.TryGetValue(node, out var neighbours) ? neighbours : [];
         }
 
-        Dictionary<int, List<int>>? nodeNeighbours;
+        private Dictionary<int, List<int>>? nodeNeighbours;
 
-        Dictionary<int, List<int>> BuildNodeNeighbours()
+        private Dictionary<int, List<int>> BuildNodeNeighbours()
         {
             var sets = new Dictionary<int, SortedSet<int>>();
 
@@ -691,7 +691,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// index, which puts the higher node index of the winning pair in X0 and settles which pair an exact tie keeps.
         /// The chain preset scans its own list unsorted (<see cref="ChainNodeBaseCandidates"/>).
         /// </summary>
-        List<int>? NodeBaseCandidates(params BoneChainJoint[] joints)
+        private List<int>? NodeBaseCandidates(params BoneChainJoint[] joints)
         {
             var candidates = new List<int>();
             foreach (var joint in joints)
@@ -717,7 +717,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// A joint's ring by its skeleton parents, or, where the compiled data parents none of the joint's
         /// <c>$cc</c> nodes to it, the ring the chain reconstruction assigned to the joint's declaration.
         /// </summary>
-        List<int> ChainJointRing(BoneChainJoint joint)
+        private List<int> ChainJointRing(BoneChainJoint joint)
             => ProxyRingOf(joint.Node) is { Count: > 0 } ring ? ring : [.. joint.RingNodes];
 
         /// <summary>
@@ -725,7 +725,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// the chain importer hands it to the scan: the joint's own vector, then the child's, each as the extrusion pushes it and
         /// neither sorted. Where two pairs tie, the scan keeps the later one in this order and writes its later node as X0.
         /// </summary>
-        List<int>? ChainNodeBaseCandidates(BoneChainJoint joint, BoneChainJoint child)
+        private List<int>? ChainNodeBaseCandidates(BoneChainJoint joint, BoneChainJoint child)
         {
             var candidates = new List<int>();
             foreach (var member in (ReadOnlySpan<BoneChainJoint>)[joint, child])
@@ -754,14 +754,14 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             return candidates.TrueForAll(node => node < InitPosePositions.Length) ? candidates : null;
         }
 
-        Vector3 RestPosition(int node, Dictionary<int, Vector3> moved)
+        private Vector3 RestPosition(int node, Dictionary<int, Vector3> moved)
             => moved.TryGetValue(node, out var position) ? position : InitPosePositions[node];
 
         /// <summary>
         /// The basis the compiler's scans write for one joint, with the signed margin of each of the four decisions behind
         /// it (X pair, Y pair, handedness, fold), positive towards the compiled basis.
         /// </summary>
-        readonly record struct NodeBaseScan(NodeBasis Basis, float XMargin, float YMargin, float Handedness, float Fold)
+        private readonly record struct NodeBaseScan(NodeBasis Basis, float XMargin, float YMargin, float Handedness, float Fold)
         {
             public const int Decisions = 4;
             public int Decided => State(XMargin) + State(YMargin) + State(Handedness) + State(Fold);
@@ -770,18 +770,18 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                 && State(Handedness) >= State(other.Handedness) && State(Fold) >= State(other.Fold);
             public bool DecidedAgainst
                 => State(XMargin) < 0 || State(YMargin) < 0 || State(Handedness) < 0 || State(Fold) < 0;
-            static int State(float margin) => margin >= NodeBaseTieMargin ? 1 : margin <= -NodeBaseTieMargin ? -1 : 0;
+            private static int State(float margin) => margin >= NodeBaseTieMargin ? 1 : margin <= -NodeBaseTieMargin ? -1 : 0;
         }
 
-        const float NodeBaseDegenerateAxis = 0.05f;
-        const float NodeBaseFoldResidual = 1e-4f;
+        private const float NodeBaseDegenerateAxis = 0.05f;
+        private const float NodeBaseFoldResidual = 1e-4f;
 
         /// <summary>
         /// Runs the compiler's own two axis scans, the handedness flip that follows them and the pair swaps
         /// it folds a near-half-turn residual into over <paramref name="candidates"/>, scoring the result
         /// against the basis <paramref name="want"/> the original wrote for <paramref name="node"/>.
         /// </summary>
-        NodeBaseScan PredictNodeBase(List<int> candidates, int node, Dictionary<int, Vector3> moved, NodeBasis want)
+        private NodeBaseScan PredictNodeBase(List<int> candidates, int node, Dictionary<int, Vector3> moved, NodeBasis want)
         {
             var (xOuter, xInner, xMargin) = ScanNodeBasePair(candidates, moved,
                 static (a, b) => NodeBaseSpan(a, b), want.NodeX1, want.NodeX0);
@@ -808,7 +808,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// Applies Gram-Schmidt and the half-turn folds to a scanned basis. Returns the basis written and the smallest
         /// residual tested.
         /// </summary>
-        (NodeBasis Basis, float Residual) FoldNodeBase(NodeBasis basis, Vector3 xAxis, Vector3 yAxis,
+        private (NodeBasis Basis, float Residual) FoldNodeBase(NodeBasis basis, Vector3 xAxis, Vector3 yAxis,
             bool swapped, int node)
         {
             var up = node < InitPoseRotations.Length
@@ -870,10 +870,10 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             return (basis, residual);
         }
 
-        static float NodeBaseResidual(Quaternion q)
+        private static float NodeBaseResidual(Quaternion q)
             => MathF.Sqrt((q.X * q.X) + (q.Y * q.Y) + (q.Z * q.Z));
 
-        static bool NodeBaseFoldReaches(NodeBasis basis, NodeBasis want)
+        private static bool NodeBaseFoldReaches(NodeBasis basis, NodeBasis want)
             => want == basis
             || want == new NodeBasis(basis.NodeX1, basis.NodeX0, basis.NodeY1, basis.NodeY0)
             || want == new NodeBasis(basis.NodeX1, basis.NodeX0, basis.NodeY0, basis.NodeY1)
@@ -883,7 +883,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// Scans every pair in list order keeping the last maximum, and returns it with the margin by which the wanted pair
         /// beats the pairs that could take the scan from it.
         /// </summary>
-        (int Outer, int Inner, float Margin) ScanNodeBasePair(List<int> candidates, Dictionary<int, Vector3> moved,
+        private (int Outer, int Inner, float Margin) ScanNodeBasePair(List<int> candidates, Dictionary<int, Vector3> moved,
             Func<Vector3, Vector3, float> score, int wantOuter, int wantInner)
         {
             var lowWanted = Math.Min(wantOuter, wantInner);
@@ -925,14 +925,14 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         }
 
         /// <summary>Gets the distance between two nodes, summed in the compiler's term order.</summary>
-        static float NodeBaseSpan(Vector3 a, Vector3 b)
+        private static float NodeBaseSpan(Vector3 a, Vector3 b)
         {
             var d = a - b;
             return MathF.Sqrt((d.X * d.X) + (d.Y * d.Y) + (d.Z * d.Z));
         }
 
         /// <summary>Gets the length of <c>axis x d</c>, summed in the compiler's term order.</summary>
-        static float NodeBasePerpendicular(Vector3 axis, Vector3 d)
+        private static float NodeBasePerpendicular(Vector3 axis, Vector3 d)
         {
             var y = (axis.X * d.Z) - (axis.Z * d.X);
             var z = (axis.Y * d.X) - (axis.X * d.Y);
@@ -941,7 +941,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         }
 
         /// <summary>Gets the scalar triple product of X, unit Y and the node's up axis, summed in the compiler's term order.</summary>
-        float NodeBaseHandedness(Vector3 xAxis, Vector3 yAxis, int node)
+        private float NodeBaseHandedness(Vector3 xAxis, Vector3 yAxis, int node)
         {
             var length = MathF.Sqrt((yAxis.Y * yAxis.Y) + (yAxis.Z * yAxis.Z) + (yAxis.X * yAxis.X));
             var y = length > 0f ? yAxis * (1f / length) : new Vector3(0f, 0f, -1f);

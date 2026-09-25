@@ -4,25 +4,25 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
 {
     public sealed partial class FeModel
     {
-        Dictionary<int, Vector3>? rigidHingeJoints;
-        Dictionary<int, Vector3>? hingeFanJoints;
+        private Dictionary<int, Vector3>? rigidHingeJoints;
+        private Dictionary<int, Vector3>? hingeFanJoints;
 
         /// <summary>
         /// Gets the chain joints a rigid <c>ClothChainHinge</c> constrains, with each <c>hinge_vector</c> in the joint's bone
         /// frame. Hinges with limits or an <c>$ha_</c> anchor are not listed.
         /// </summary>
-        public IReadOnlyDictionary<int, Vector3> RigidHingeJoints => rigidHingeJoints ??= CollectHingeFanJoints(rigidOnly: true);
+        internal IReadOnlyDictionary<int, Vector3> RigidHingeJoints => rigidHingeJoints ??= CollectHingeFanJoints(rigidOnly: true);
 
         /// <summary>
         /// Gets every chain joint whose hinge the compiler fanned out over surface elements, limited and anchored hinges included.
         /// </summary>
-        IReadOnlyDictionary<int, Vector3> HingeFanJoints => hingeFanJoints ??= CollectHingeFanJoints(rigidOnly: false);
+        private IReadOnlyDictionary<int, Vector3> HingeFanJoints => hingeFanJoints ??= CollectHingeFanJoints(rigidOnly: false);
 
         /// <summary>
         /// Gets whether a compiled quad or triangle is one element of a chain hinge's fan: no sheet vertex
         /// among its corners, and the ring pair of a hinged joint across them.
         /// </summary>
-        public bool IsHingeFanFace(int[] face)
+        internal bool IsHingeFanFace(int[] face)
         {
             if (HingeFanJoints.Count == 0 || !IsChainOnlyFace(face))
             {
@@ -44,7 +44,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// <summary>
         /// Gets whether a rod joins the rings of two different children of a rigid hinge joint (<c>child_sibling_spring</c>).
         /// </summary>
-        public bool SpringsHingeChildren(BoneChain chain, int joint)
+        internal bool SpringsHingeChildren(BoneChain chain, int joint)
         {
             if (!RigidHingeJoints.ContainsKey(joint))
             {
@@ -84,13 +84,13 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             return false;
         }
 
-        bool IsChainOnlyFace(int[] face)
+        private bool IsChainOnlyFace(int[] face)
             => !Array.Exists(face, corner => corner < 0 || corner >= CtrlNames.Length || IsProxyMeshNode(corner));
 
-        static bool SpansRing(int[] face, List<int> ring)
+        private static bool SpansRing(int[] face, List<int> ring)
             => Array.IndexOf(face, ring[0]) >= 0 && Array.IndexOf(face, ring[1]) >= 0;
 
-        Dictionary<int, Vector3> CollectHingeFanJoints(bool rigidOnly)
+        private Dictionary<int, Vector3> CollectHingeFanJoints(bool rigidOnly)
         {
             var joints = new Dictionary<int, Vector3>();
             foreach (var face in Quads.Concat(Tris))
@@ -128,7 +128,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             return joints;
         }
 
-        int? ChainJointOf(int node)
+        private int? ChainJointOf(int node)
         {
             if (!CtrlNames[node].StartsWith("$cc", StringComparison.Ordinal))
             {
@@ -139,9 +139,9 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             return owner >= 0 ? owner : null;
         }
 
-        int ParentJointOf(int joint) => joint < SkelParents.Length ? SkelParents[joint] : -1;
+        private int ParentJointOf(int joint) => joint < SkelParents.Length ? SkelParents[joint] : -1;
 
-        Vector3? RigidHingeVector(int joint, List<int> ring)
+        private Vector3? RigidHingeVector(int joint, List<int> ring)
         {
             foreach (var offset in CtrlOffsets)
             {

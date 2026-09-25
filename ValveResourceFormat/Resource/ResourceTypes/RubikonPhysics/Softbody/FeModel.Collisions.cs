@@ -86,7 +86,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         }
 
         /// <summary>Which per-type array of <c>m_RigidColliderPriorities</c> a collider is indexed by.</summary>
-        enum RigidColliderKind
+        private enum RigidColliderKind
         {
             TaperedCapsule,
             Sphere,
@@ -98,7 +98,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// Gets the rank of the <c>m_RigidColliderPriorities</c> group the collider at <paramref name="index"/> of its own
         /// array falls in.
         /// </summary>
-        int ColliderPriority(RigidColliderKind kind, int index)
+        private int ColliderPriority(RigidColliderKind kind, int index)
         {
             var priority = 0;
 
@@ -125,7 +125,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         }
 
         /// <summary>Gets the bone a rigid's node resolves to, following a proxy node up to its skin bone.</summary>
-        string? ResolveRigidBone(int node)
+        private string? ResolveRigidBone(int node)
         {
             if (node < 0 || node >= CtrlNames.Length)
             {
@@ -135,13 +135,13 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             return IsProxyNodeName(CtrlNames[node]) ? ResolveSkinBone(node) : CtrlNames[node];
         }
 
-        string? RigidVertexMap(int index)
+        private string? RigidVertexMap(int index)
             => index >= 0 && index < VertexMaps.Count ? VertexMaps[index].Name : null;
 
-        const uint RigidFlagInverted = 1;
+        private const uint RigidFlagInverted = 1;
 
         /// <summary>The collision-layer mask a planarized shape is recovered with: all four layers.</summary>
-        const int PlanarizeCollisionMask = 0xF;
+        private const int PlanarizeCollisionMask = 0xF;
 
         /// <summary>Reconstructs the cloth collision capsules (<c>m_TaperedCapsuleRigids</c>).</summary>
         public List<CollisionCapsule> BuildCollisionCapsules()
@@ -206,7 +206,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// Gets the plane a planarized capsule imposes on a node: the capsule surface at that node, in the parent bone's
         /// local space.
         /// </summary>
-        static (Vector3 Normal, float Offset) PlanarizedSurfaceAt(Vector3 x, Vector3 c0, float r0, Vector3 c1,
+        private static (Vector3 Normal, float Offset) PlanarizedSurfaceAt(Vector3 x, Vector3 c0, float r0, Vector3 c1,
             float r1)
         {
             var axis = c1 - c0;
@@ -250,7 +250,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// <summary>
         /// Fits the sphere the tangent points lie on, each satisfying <c>tangent = centre + radius * normal</c>.
         /// </summary>
-        static bool FitCapSphere(List<(Vector3 Tangent, Vector3 Normal)> samples, out Vector3 centre,
+        private static bool FitCapSphere(List<(Vector3 Tangent, Vector3 Normal)> samples, out Vector3 centre,
             out float radius)
         {
             centre = default;
@@ -286,7 +286,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// Reconstructs the collision capsules authored with <c>planarize</c> from their <c>m_CollisionPlanes</c>,
         /// keeping only a group of planes the recovered capsules reproduce in full.
         /// </summary>
-        public List<CollisionCapsule> BuildPlanarizeCapsules()
+        internal List<CollisionCapsule> BuildPlanarizeCapsules()
         {
             var result = new List<CollisionCapsule>();
             if (CollisionPlanes.Length == 0 || InitPosePositions.Length == 0)
@@ -360,7 +360,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// Reconstructs the collision boxes authored with <c>planarize</c> from the plane groups no planarized capsule
         /// explains, keeping only a box that reproduces every plane it owns.
         /// </summary>
-        public List<CollisionBox> BuildPlanarizeBoxes()
+        internal List<CollisionBox> BuildPlanarizeBoxes()
         {
             var result = new List<CollisionBox>();
             if (CollisionPlanes.Length == 0 || InitPosePositions.Length == 0)
@@ -402,7 +402,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             return result;
         }
 
-        List<PlanarizeSample> PlanarizeSamples(int parent, IEnumerable<int> planeIndices)
+        private List<PlanarizeSample> PlanarizeSamples(int parent, IEnumerable<int> planeIndices)
         {
             var toLocal = Quaternion.Conjugate(InitPoseRotations[parent]);
             var origin = InitPosePositions[parent];
@@ -429,7 +429,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// <summary>
         /// Gets the axis-aligned box whose planes are <paramref name="samples"/>, or null when none exists.
         /// </summary>
-        static (Vector3 Min, Vector3 Max)? FitPlanarizedBox(List<PlanarizeSample> samples)
+        private static (Vector3 Min, Vector3 Max)? FitPlanarizedBox(List<PlanarizeSample> samples)
         {
             var free = samples.FindAll(static sample => sample.Gap > PlanarizeGeometryGap);
             if (free.Count < PlanarizeMinShapePlanes)
@@ -511,7 +511,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// <summary>
         /// Gets the plane a planarized box writes for one node, in the box's frame.
         /// </summary>
-        static (Vector3 Normal, float Offset) PlanarizedBoxPlaneAt(PlanarizeSample sample, Vector3 min, Vector3 max)
+        private static (Vector3 Normal, float Offset) PlanarizedBoxPlaneAt(PlanarizeSample sample, Vector3 min, Vector3 max)
         {
             var contact = Vector3.Clamp(sample.Local, min, max);
             var toNode = sample.Local - contact;
@@ -539,7 +539,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// Gets the box whose planes are <paramref name="samples"/>, in the parent's axes or the first frame from
         /// <see cref="PlanarizedBoxFrames"/> that reproduces every plane.
         /// </summary>
-        static (Quaternion Rotation, Vector3 Min, Vector3 Max)? FitOrientedPlanarizedBox(List<PlanarizeSample> samples)
+        private static (Quaternion Rotation, Vector3 Min, Vector3 Max)? FitOrientedPlanarizedBox(List<PlanarizeSample> samples)
         {
             if (FitPlanarizedBox(samples) is { } aligned)
             {
@@ -573,7 +573,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// Gets candidate frames for a planarized box, built from the plane normals, as rotations from the box's axes
         /// into the parent's.
         /// </summary>
-        static IEnumerable<Quaternion> PlanarizedBoxFrames(List<PlanarizeSample> samples)
+        private static IEnumerable<Quaternion> PlanarizedBoxFrames(List<PlanarizeSample> samples)
         {
             var normals = DistinctAxes(samples.Select(static s => s.Normal));
             var firstAxes = new List<Vector3>(normals);
@@ -633,7 +633,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             }
         }
 
-        static List<Vector3> DistinctAxes(IEnumerable<Vector3> axes)
+        private static List<Vector3> DistinctAxes(IEnumerable<Vector3> axes)
         {
             var distinct = new List<Vector3>();
             foreach (var axis in axes)
@@ -651,7 +651,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// Gets the two end-cap positions of a recovered shape; coinciding caps get a short axis pointing away from the
         /// nodes they own.
         /// </summary>
-        static (Vector3 Point0, Vector3 Point1) PlanarizedAxis(CapsuleFit fit,
+        private static (Vector3 Point0, Vector3 Point1) PlanarizedAxis(CapsuleFit fit,
             List<PlanarizeSample> samples, List<int> members)
         {
             if ((fit.C1 - fit.C0).Length() > PlanarizeCapAxisMinimum)
@@ -678,31 +678,31 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// One collision plane prepared for the planarized-shape fit. <c>Gap</c> is how far the node stands in front of
         /// its plane.
         /// </summary>
-        readonly record struct PlanarizeSample(int Node, Vector3 Local, Vector3 Normal, float Offset,
+        private readonly record struct PlanarizeSample(int Node, Vector3 Local, Vector3 Normal, float Offset,
             float Gap, float Radius);
 
         /// <summary>A recovered planarized shape. Its two end caps coincide when the shape is a sphere.</summary>
-        readonly record struct CapsuleFit(Vector3 C0, float R0, Vector3 C1, float R1);
+        private readonly record struct CapsuleFit(Vector3 C0, float R0, Vector3 C1, float R1);
 
-        const float PlanarizeGeometryGap = 1e-4f;
-        const float PlanarizeNormalTolerance = 1e-3f;
-        const float PlanarizeOffsetTolerance = 1e-2f;
-        const float PlanarizeAxisTolerance = 2e-3f;
-        const int PlanarizeSphereRounds = 4;
-        const int PlanarizeAxisPicks = 16;
-        const int PlanarizeCandidateLimit = 4096;
-        const float PlanarizeCandidateGrid = 1e4f;
-        const float PlanarizeFrameMinimumPart = 1e-2f;
-        const float PlanarizeFrameAxisSlack = 1e-5f;
+        private const float PlanarizeGeometryGap = 1e-4f;
+        private const float PlanarizeNormalTolerance = 1e-3f;
+        private const float PlanarizeOffsetTolerance = 1e-2f;
+        private const float PlanarizeAxisTolerance = 2e-3f;
+        private const int PlanarizeSphereRounds = 4;
+        private const int PlanarizeAxisPicks = 16;
+        private const int PlanarizeCandidateLimit = 4096;
+        private const float PlanarizeCandidateGrid = 1e4f;
+        private const float PlanarizeFrameMinimumPart = 1e-2f;
+        private const float PlanarizeFrameAxisSlack = 1e-5f;
 
-        const int PlanarizeMinShapePlanes = 3;
-        const int PlanarizeMaxShapes = 4;
+        private const int PlanarizeMinShapePlanes = 3;
+        private const int PlanarizeMaxShapes = 4;
 
         /// <summary>
         /// Splits a control parent's collision planes into the shapes that produced them, or null unless the shapes
         /// account for every plane.
         /// </summary>
-        static List<(CapsuleFit Fit, List<int> Members)>? FitPlanarizedShapes(List<PlanarizeSample> samples)
+        private static List<(CapsuleFit Fit, List<int> Members)>? FitPlanarizedShapes(List<PlanarizeSample> samples)
         {
             if (samples.Count < 3)
             {
@@ -729,7 +729,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         }
 
         /// <summary>Gets band capsules and cap spheres on every distinct consensus of the plane normals.</summary>
-        static List<CapsuleFit> EveryConsensusAxisCandidates(List<PlanarizeSample> samples)
+        private static List<CapsuleFit> EveryConsensusAxisCandidates(List<PlanarizeSample> samples)
         {
             var candidates = new CandidateSet();
             var all = Enumerable.Range(0, samples.Count).ToList();
@@ -758,7 +758,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         }
 
         /// <summary>Gets capsules whose axis is the common perpendicular of two plane normals.</summary>
-        static List<CapsuleFit> SideNormalAxisCandidates(List<PlanarizeSample> samples)
+        private static List<CapsuleFit> SideNormalAxisCandidates(List<PlanarizeSample> samples)
         {
             var candidates = new CandidateSet();
             var all = Enumerable.Range(0, samples.Count).ToList();
@@ -791,9 +791,9 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             return candidates.Fits;
         }
 
-        const float PlanarizeSideAxisSpan = 1e-2f;
+        private const float PlanarizeSideAxisSpan = 1e-2f;
 
-        static List<(CapsuleFit Fit, List<int> Members)>? CoverGroup(List<PlanarizeSample> samples,
+        private static List<(CapsuleFit Fit, List<int> Members)>? CoverGroup(List<PlanarizeSample> samples,
             List<CapsuleFit> fits)
         {
             var scored = new List<(CapsuleFit Fit, List<int> Members)>();
@@ -844,7 +844,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             return chosen;
         }
 
-        static List<int> ReproducedPlanes(List<PlanarizeSample> samples, CapsuleFit fit)
+        private static List<int> ReproducedPlanes(List<PlanarizeSample> samples, CapsuleFit fit)
         {
             var members = new List<int>();
             for (var i = 0; i < samples.Count; i++)
@@ -871,7 +871,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             return members;
         }
 
-        string? SmallestVertexMapCovering(List<PlanarizeSample> samples, List<int> members)
+        private string? SmallestVertexMapCovering(List<PlanarizeSample> samples, List<int> members)
         {
             var owned = members.Select(i => samples[i].Node).ToHashSet();
             string? name = null;
@@ -898,7 +898,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// <summary>
         /// Groups a shape's planes by the smallest selection covering each plane's node, or null when a node has none.
         /// </summary>
-        List<(string Map, List<int> Members)>? SplitByVertexMap(List<PlanarizeSample> samples, List<int> members)
+        private List<(string Map, List<int> Members)>? SplitByVertexMap(List<PlanarizeSample> samples, List<int> members)
         {
             var groups = new Dictionary<string, List<int>>();
             foreach (var member in members)
@@ -924,7 +924,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// them as a capsule, each sphere extended along the axis its remaining planes imply, and, when no
         /// cap is witnessed at all, a capsule built from the cone band alone.
         /// </summary>
-        static List<CapsuleFit> PlanarizeCandidates(List<PlanarizeSample> samples)
+        private static List<CapsuleFit> PlanarizeCandidates(List<PlanarizeSample> samples)
         {
             var far = new List<int>();
             for (var i = 0; i < samples.Count; i++)
@@ -985,22 +985,22 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             return candidates.Fits;
         }
 
-        static float TaperFromCosine(float cosine)
+        private static float TaperFromCosine(float cosine)
             => -cosine / MathF.Sqrt(1f - (cosine * cosine));
 
-        static readonly float[] PlanarizeCapMargins = [0.25f, 1f, 4f];
-        static readonly float[] PlanarizeRadiusMargins = [0.05f, 0.5f, 2f];
+        private static readonly float[] PlanarizeCapMargins = [0.25f, 1f, 4f];
+        private static readonly float[] PlanarizeRadiusMargins = [0.05f, 0.5f, 2f];
 
-        const float PlanarizeCapAxisMinimum = 1e-4f;
-        const float PlanarizeCapAxisLength = 0.01f;
-        const int PlanarizeCapPicks = 4;
-        const int PlanarizeSubsetRounds = 3;
+        private const float PlanarizeCapAxisMinimum = 1e-4f;
+        private const float PlanarizeCapAxisLength = 0.01f;
+        private const int PlanarizeCapPicks = 4;
+        private const int PlanarizeSubsetRounds = 3;
 
         /// <summary>
         /// Gets the shapes the planes could come from when read through their normals, searching the whole group and then
         /// the planes the first axis did not claim.
         /// </summary>
-        static List<CapsuleFit> NormalCandidates(List<PlanarizeSample> samples)
+        private static List<CapsuleFit> NormalCandidates(List<PlanarizeSample> samples)
         {
             var candidates = new CandidateSet();
             var remaining = new List<int>(samples.Count);
@@ -1046,7 +1046,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// <see cref="ConeAxisCandidates"/> over the plane normals with an exact axis refit, and a
         /// consensus that is only ever allowed to grow.
         /// </summary>
-        static List<(Vector3 Axis, float Cosine, List<int> Inliers)> NormalAxisCandidates(
+        private static List<(Vector3 Axis, float Cosine, List<int> Inliers)> NormalAxisCandidates(
             List<PlanarizeSample> samples, List<int> subset)
         {
             var results = new List<(Vector3 Axis, float Cosine, List<int> Inliers)>();
@@ -1087,7 +1087,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             return results;
         }
 
-        static bool RefitAxisExact(List<PlanarizeSample> samples, List<int> inliers, out Vector3 axis,
+        private static bool RefitAxisExact(List<PlanarizeSample> samples, List<int> inliers, out Vector3 axis,
             out float cosine)
         {
             axis = Vector3.UnitX;
@@ -1113,7 +1113,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// the eigenvalue from the trigonometric solution of its characteristic cubic, the vector from
         /// the longest cross product of two rows of the shifted matrix.
         /// </summary>
-        static bool SmallestEigenvector(double xx, double xy, double xz, double yy, double yz, double zz,
+        private static bool SmallestEigenvector(double xx, double xy, double xz, double yy, double yz, double zz,
             out Vector3 vector)
         {
             vector = Vector3.UnitX;
@@ -1176,7 +1176,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             return true;
         }
 
-        static bool RadialDirection(Vector3 normal, Vector3 unit, float taper, out Vector3 radial)
+        private static bool RadialDirection(Vector3 normal, Vector3 unit, float taper, out Vector3 radial)
         {
             radial = (normal * MathF.Sqrt(1f + (taper * taper))) + (taper * unit);
             radial -= Vector3.Dot(radial, unit) * unit;
@@ -1193,7 +1193,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// <summary>
         /// Gets where the capsule axis crosses the plane through the origin perpendicular to it, from the plane normals.
         /// </summary>
-        static bool AxisLineFromNormals(List<PlanarizeSample> samples, List<int> subset, Vector3 unit,
+        private static bool AxisLineFromNormals(List<PlanarizeSample> samples, List<int> subset, Vector3 unit,
             float taper, out Vector3 centre)
         {
             centre = default;
@@ -1243,7 +1243,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// <summary>
         /// Adds capsules whose cone band carries every plane of <paramref name="subset"/>.
         /// </summary>
-        static void AddBandCapsules(CandidateSet candidates, List<PlanarizeSample> samples,
+        private static void AddBandCapsules(CandidateSet candidates, List<PlanarizeSample> samples,
             List<int> subset, Vector3 unit, float taper)
         {
             if (!AxisLineFromNormals(samples, subset, unit, taper, out var line))
@@ -1362,7 +1362,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             }
         }
 
-        static bool CapPositionOnAxis(PlanarizeSample sample, Vector3 line, Vector3 unit,
+        private static bool CapPositionOnAxis(PlanarizeSample sample, Vector3 line, Vector3 unit,
             out float position)
         {
             position = 0f;
@@ -1389,7 +1389,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// <summary>
         /// Adds the sphere at the point closest to every ray the normals of <paramref name="subset"/> run back along.
         /// </summary>
-        static void AddCapSpheres(CandidateSet candidates, List<PlanarizeSample> samples, List<int> subset)
+        private static void AddCapSpheres(CandidateSet candidates, List<PlanarizeSample> samples, List<int> subset)
         {
             double m00 = 0, m01 = 0, m02 = 0, m11 = 0, m12 = 0, m22 = 0, b0 = 0, b1 = 0, b2 = 0;
             foreach (var i in subset)
@@ -1470,7 +1470,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             }
         }
 
-        static List<(Vector3 Centre, float Radius)> CapSphereCandidates(List<PlanarizeSample> samples,
+        private static List<(Vector3 Centre, float Radius)> CapSphereCandidates(List<PlanarizeSample> samples,
             List<int> far)
         {
             var tangents = new List<(Vector3 Tangent, Vector3 Normal)>(far.Count);
@@ -1506,10 +1506,10 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             return spheres;
         }
 
-        const int NonlinearMaxIterations = 60;
-        const double NonlinearConvergedCost = 1e-8;
+        private const int NonlinearMaxIterations = 60;
+        private const double NonlinearConvergedCost = 1e-8;
 
-        static bool BandSurfaceAt(Vector3 x, Vector3 c0, float r0, Vector3 c1, float r1, out Vector3 normal,
+        private static bool BandSurfaceAt(Vector3 x, Vector3 c0, float r0, Vector3 c1, float r1, out Vector3 normal,
             out float offset)
         {
             normal = default;
@@ -1543,7 +1543,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// Fits a capsule to one known end-cap sphere and one or two band planes by damped Gauss-Newton on the
         /// <see cref="BandSurfaceAt"/> residual.
         /// </summary>
-        static CapsuleFit? NonlinearAnchoredFit(List<PlanarizeSample> samples, List<int> unexplained,
+        private static CapsuleFit? NonlinearAnchoredFit(List<PlanarizeSample> samples, List<int> unexplained,
             Vector3 capCentre, float capRadius)
         {
             if (unexplained.Count == 0)
@@ -1718,7 +1718,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// <summary>
         /// Adds capsules extending one recovered cap sphere along <paramref name="axis"/> at several lengths.
         /// </summary>
-        static void AddAnchoredCandidates(CandidateSet candidates, List<PlanarizeSample> samples,
+        private static void AddAnchoredCandidates(CandidateSet candidates, List<PlanarizeSample> samples,
             Vector3 centre, float radius, Vector3 axis, float taper)
         {
             var shortest = 0f;
@@ -1751,7 +1751,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// <summary>
         /// Adds capsules built from the cone band alone, with the caps just outside the planes they own.
         /// </summary>
-        static void AddBandCandidates(CandidateSet candidates, List<PlanarizeSample> samples,
+        private static void AddBandCandidates(CandidateSet candidates, List<PlanarizeSample> samples,
             List<int> far, Vector3 axis, float taper, List<int> inliers)
         {
             var band = inliers.Where(far.Contains).ToList();
@@ -1795,7 +1795,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             }
         }
 
-        static void AddLengthCandidates(List<float> lengths, List<PlanarizeSample> samples, Vector3 centre,
+        private static void AddLengthCandidates(List<float> lengths, List<PlanarizeSample> samples, Vector3 centre,
             float radius, Vector3 axis, float taper)
         {
             var origin = Vector3.Dot(centre, axis);
@@ -1821,7 +1821,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// Gets the axis the cone-band planes of <paramref name="subset"/> share, with its normal cosine, in both
         /// directions.
         /// </summary>
-        static List<(Vector3 Axis, float Cosine, List<int> Inliers)> ConeAxisCandidates(
+        private static List<(Vector3 Axis, float Cosine, List<int> Inliers)> ConeAxisCandidates(
             List<PlanarizeSample> samples, List<int> subset)
         {
             var results = new List<(Vector3 Axis, float Cosine, List<int> Inliers)>();
@@ -1865,7 +1865,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// <summary>
         /// Gets the largest set of at least three normals that one seed triple's axis explains, or null.
         /// </summary>
-        static List<int>? BestAxisSeed(List<PlanarizeSample> samples, List<int> subset)
+        private static List<int>? BestAxisSeed(List<PlanarizeSample> samples, List<int> subset)
         {
             List<int>? best = null;
             foreach (var (a, b, c) in AxisSeedTriples(subset))
@@ -1889,7 +1889,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// Gets the axis normal to the plane through three samples' normals and its cosine to them, or false when the
         /// normals are collinear or the axis lies along them.
         /// </summary>
-        static bool SeedAxis(List<PlanarizeSample> samples, int a, int b, int c, out Vector3 axis, out float cosine)
+        private static bool SeedAxis(List<PlanarizeSample> samples, int a, int b, int c, out Vector3 axis, out float cosine)
         {
             var span = Vector3.Cross(samples[b].Normal - samples[a].Normal,
                 samples[c].Normal - samples[a].Normal);
@@ -1906,7 +1906,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         }
 
         /// <summary>Gets the mean of the inliers' normals and the entries of their covariance about it.</summary>
-        static (Vector3 Mean, double Xx, double Xy, double Xz, double Yy, double Yz, double Zz) NormalCovariance(
+        private static (Vector3 Mean, double Xx, double Xy, double Xz, double Yy, double Yz, double Zz) NormalCovariance(
             List<PlanarizeSample> samples, List<int> inliers)
         {
             var mean = Vector3.Zero;
@@ -1932,7 +1932,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             return (mean, xx, xy, xz, yy, yz, zz);
         }
 
-        static IEnumerable<(int A, int B, int C)> AxisSeedTriples(List<int> subset)
+        private static IEnumerable<(int A, int B, int C)> AxisSeedTriples(List<int> subset)
         {
             var picks = new List<int>();
             if (subset.Count <= PlanarizeAxisPicks)
@@ -1969,7 +1969,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             }
         }
 
-        static List<int> AxisInliers(List<PlanarizeSample> samples, List<int> subset, Vector3 axis,
+        private static List<int> AxisInliers(List<PlanarizeSample> samples, List<int> subset, Vector3 axis,
             float cosine)
         {
             var inliers = new List<int>();
@@ -1984,7 +1984,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             return inliers;
         }
 
-        static bool RefitAxis(List<PlanarizeSample> samples, List<int> inliers, out Vector3 axis,
+        private static bool RefitAxis(List<PlanarizeSample> samples, List<int> inliers, out Vector3 axis,
             out float cosine)
         {
             axis = Vector3.UnitX;
@@ -2027,7 +2027,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// <summary>
         /// Gets where the capsule axis passes through the plane perpendicular to it, and the first cap radius.
         /// </summary>
-        static bool PerpendicularCentre(List<PlanarizeSample> samples, List<int> band, Vector3 axis,
+        private static bool PerpendicularCentre(List<PlanarizeSample> samples, List<int> band, Vector3 axis,
             float taper, out Vector3 centre, out float beta)
         {
             centre = default;
@@ -2080,7 +2080,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             return IsFinite(centre) && float.IsFinite(beta);
         }
 
-        static bool SolveInPlace(double[,] matrix, out double[] solution)
+        private static bool SolveInPlace(double[,] matrix, out double[] solution)
         {
             solution = new double[4];
             for (var column = 0; column < 4; column++)
@@ -2131,12 +2131,12 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             return solution.All(double.IsFinite);
         }
 
-        static bool IsFinite(Vector3 value)
+        private static bool IsFinite(Vector3 value)
             => float.IsFinite(value.X) && float.IsFinite(value.Y) && float.IsFinite(value.Z);
 
-        sealed class CandidateSet
+        private sealed class CandidateSet
         {
-            readonly HashSet<(int, int, int, int, int, int, int, int)> seen = [];
+            private readonly HashSet<(int, int, int, int, int, int, int, int)> seen = [];
 
             public List<CapsuleFit> Fits { get; } = [];
 
@@ -2159,13 +2159,13 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             }
         }
 
-        static List<(Vector3 Tangent, Vector3 Normal)> Pick(List<(Vector3 Tangent, Vector3 Normal)> samples,
+        private static List<(Vector3 Tangent, Vector3 Normal)> Pick(List<(Vector3 Tangent, Vector3 Normal)> samples,
             HashSet<int> which)
             => [.. which.Order().Select(i => samples[i])];
 
-        const int CapConsensusSeeds = 48;
+        private const int CapConsensusSeeds = 48;
 
-        static HashSet<int>? FindCapConsensus(List<(Vector3 Tangent, Vector3 Normal)> samples,
+        private static HashSet<int>? FindCapConsensus(List<(Vector3 Tangent, Vector3 Normal)> samples,
             HashSet<int> exclude)
         {
             var pool = new List<int>(samples.Count);

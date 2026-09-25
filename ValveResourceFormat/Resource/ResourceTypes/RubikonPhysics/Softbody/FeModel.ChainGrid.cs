@@ -34,15 +34,15 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         }
 
         /// <summary>How close chain roots must rest, in inches, to share one grid.</summary>
-        const float ChainGridRootDistance = 30f;
+        private const float ChainGridRootDistance = 30f;
         /// <summary>The number of interpolated columns between adjacent chains.</summary>
-        const int ChainGridSubdivisions = 3;
+        private const int ChainGridSubdivisions = 3;
 
         /// <summary>
         /// Generates grids over the root-to-leaf paths of three or more joints whose roots rest within
         /// <see cref="ChainGridRootDistance"/>; empty when no two such paths group.
         /// </summary>
-        public List<ChainGrid> BuildChainGrids()
+        internal List<ChainGrid> BuildChainGrids()
         {
             var grids = new List<ChainGrid>();
             var paths = new List<List<BoneChainJoint>>();
@@ -108,7 +108,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             return grids;
         }
 
-        ChainGrid BuildGridForChains(List<List<BoneChainJoint>> members)
+        private ChainGrid BuildGridForChains(List<List<BoneChainJoint>> members)
         {
             var centroid = Vector3.Zero;
             foreach (var path in members)

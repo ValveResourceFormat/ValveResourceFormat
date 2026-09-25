@@ -8,7 +8,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// <summary>
         /// A single joint within a reconstructed bone chain.
         /// </summary>
-        public sealed class BoneChainJoint
+        internal sealed class BoneChainJoint
         {
             /// <summary>Gets the control-node index of this joint.</summary>
             public int Node { get; init; }
@@ -102,7 +102,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// <summary>
         /// A reconstructed bone chain: a static anchor bone plus all of its simulated descendants.
         /// </summary>
-        public sealed class BoneChain
+        internal sealed class BoneChain
         {
             /// <summary>Gets the anchor (root) bone name.</summary>
             public required string RootBone { get; set; }
@@ -121,7 +121,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         }
 
         /// <summary>One chain declaration before its joints are walked.</summary>
-        sealed class ChainSpec
+        private sealed class ChainSpec
         {
             public int Root { get; init; }
             public bool RinglessRoot { get; init; }
@@ -133,10 +133,10 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         }
 
         /// <summary>How far apart along a joint's forward axis two proxies must be to lie on separate rings.</summary>
-        const float EndEffectorRingTolerance = 0.05f;
+        private const float EndEffectorRingTolerance = 0.05f;
 
         /// <summary>Gets the trailing <c>_&lt;n&gt;</c> index of a ring node's name, or -1 when it has none.</summary>
-        static int RingSuffixIndex(string name)
+        private static int RingSuffixIndex(string name)
         {
             var underscore = name.LastIndexOf('_');
             return underscore >= 0 && underscore + 1 < name.Length
@@ -149,7 +149,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// Splits one bone's generated ring nodes into the declarations that built them, or null when a
         /// single ClothChain declared the bone.
         /// </summary>
-        static List<List<int>>? SplitRingDeclarations(List<int> proxies, string[] names)
+        private static List<List<int>>? SplitRingDeclarations(List<int> proxies, string[] names)
         {
             var groups = new List<List<int>>();
             var current = new List<int>();
@@ -179,7 +179,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// Splits every chain spec whose bones were declared by more than one ClothChain into one spec per
         /// declaration, each carrying that declaration's own ring and the children hanging off it.
         /// </summary>
-        void SplitRingDeclarations(List<ChainSpec> specs, List<int>?[] children, int[] realParent,
+        private void SplitRingDeclarations(List<ChainSpec> specs, List<int>?[] children, int[] realParent,
             Dictionary<int, List<int>> proxyChildrenOf, HashSet<(int, int)> rodPairs)
         {
             var declarations = new Dictionary<int, List<List<int>>>();
@@ -452,23 +452,23 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             }
         }
 
-        static readonly Quaternion ExtrudeAxisSelectY = new(0f, 0f, 0.70710677f, 0.70710677f);
-        static readonly Quaternion ExtrudeAxisSelectZ = new(0f, -0.70710677f, 0f, 0.70710677f);
+        private static readonly Quaternion ExtrudeAxisSelectY = new(0f, 0f, 0.70710677f, 0.70710677f);
+        private static readonly Quaternion ExtrudeAxisSelectZ = new(0f, -0.70710677f, 0f, 0.70710677f);
 
-        static Quaternion ExtrudeAxisSelectQuaternion(char axis) => axis switch
+        private static Quaternion ExtrudeAxisSelectQuaternion(char axis) => axis switch
         {
             'y' => ExtrudeAxisSelectY,
             'z' => ExtrudeAxisSelectZ,
             _ => Quaternion.Identity,
         };
 
-        const float ExtrudeForwardAxisTolerance = 0.02f;
+        private const float ExtrudeForwardAxisTolerance = 0.02f;
 
         /// <summary>
         /// Detects the forward axis a joint's ring was laid out around: the local axis its points have no extent along,
         /// preferring <c>'x'</c>.
         /// </summary>
-        static char DetectExtrudeForwardAxis(Vector3 jointPos, Quaternion jointRot, List<int> ring, Vector3[] positions)
+        private static char DetectExtrudeForwardAxis(Vector3 jointPos, Quaternion jointRot, List<int> ring, Vector3[] positions)
         {
             float sumX = 0f, sumY = 0f, sumZ = 0f;
             foreach (var proxy in ring)
@@ -505,7 +505,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         }
 
         /// <summary>Gets the control nodes a proxy-sheet vertex hangs off through its ctrl offsets or soft offsets.</summary>
-        HashSet<int> SheetSkinnedNodes()
+        private HashSet<int> SheetSkinnedNodes()
         {
             var result = new HashSet<int>();
             foreach (var offset in CtrlOffsets)
@@ -534,12 +534,12 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// A recovered <c>ClothSelfCollisionCluster</c>: its member nodes, the length band of its pairwise rods, and each
         /// member's stiffness, whose product over a pair is that pair's relaxation.
         /// </summary>
-        public readonly record struct SelfCollisionCluster(int[] Nodes, float MinDist, float MaxDist, float[]? Stiffness = null);
+        internal readonly record struct SelfCollisionCluster(int[] Nodes, float MinDist, float MaxDist, float[]? Stiffness = null);
 
         /// <summary>
         /// The smallest rod clique read as a cluster without <see cref="IsRadiusBandTriangle"/>.
         /// </summary>
-        internal const int SelfCollisionClusterMinMembers = 4;
+        private const int SelfCollisionClusterMinMembers = 4;
 
         private List<SelfCollisionCluster>? selfCollisionClusters;
 
@@ -548,7 +548,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         private HashSet<(int, int)>? selfCollisionClusterPairs;
 
         /// <summary>Gets the node pairs a recovered cluster puts one of its own rods on.</summary>
-        public IReadOnlySet<(int, int)> SelfCollisionClusterPairs
+        internal IReadOnlySet<(int, int)> SelfCollisionClusterPairs
         {
             get
             {
@@ -577,11 +577,11 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// Gets the self-collision clusters: cliques whose rods share one length band, weight 0.5 and pairwise-product
         /// relaxations, and register no source element.
         /// </summary>
-        public IReadOnlyList<SelfCollisionCluster> SelfCollisionClusters
+        internal IReadOnlyList<SelfCollisionCluster> SelfCollisionClusters
             => selfCollisionClusters ??= BuildSelfCollisionClusters();
 
         /// <summary>Gets the index into <see cref="Rods"/> of every rod a <see cref="SelfCollisionClusters"/> entry accounts for.</summary>
-        public IReadOnlySet<int> SelfCollisionClusterRods
+        internal IReadOnlySet<int> SelfCollisionClusterRods
             => selfCollisionClusterRods ??= BuildSelfCollisionClusterRods();
 
         private List<SelfCollisionCluster> BuildSelfCollisionClusters()
@@ -716,7 +716,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// Gets whether a three-node rod triangle is a self-collision cluster: every member is authored and the band's
         /// maximum is none of the pairs' rest distances.
         /// </summary>
-        bool IsRadiusBandTriangle(List<int> members, float bandMax)
+        private bool IsRadiusBandTriangle(List<int> members, float bandMax)
         {
             foreach (var node in members)
             {
@@ -784,7 +784,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// Gets the rod graph without cluster rods: the rodded pairs, every rod's relaxation per pair, the same for rigid
         /// rods alone, the relaxations a repeat could have written, and each rod's <c>flMinDist / flMaxDist</c>.
         /// </summary>
-        (HashSet<(int, int)> Pairs, Dictionary<(int, int), List<float>> RelaxationsByPair,
+        private (HashSet<(int, int)> Pairs, Dictionary<(int, int), List<float>> RelaxationsByPair,
             Dictionary<(int, int), List<float>> RigidRelaxationsByPair,
             Dictionary<(int, int), List<float>> RepeatRelaxationsByPair,
             Dictionary<(int, int), List<float>> ContractionsByPair) BuildRodGraph()
@@ -868,7 +868,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// <summary>
         /// Gets each real bone's <c>$cc</c> proxy nodes, and the inverse map from ring node to owning bone.
         /// </summary>
-        (Dictionary<int, List<int>> ChildrenOf, Dictionary<int, int> OwnerOf) BuildProxyRings()
+        private (Dictionary<int, List<int>> ChildrenOf, Dictionary<int, int> OwnerOf) BuildProxyRings()
         {
             var childrenOf = new Dictionary<int, List<int>>();
 
@@ -911,7 +911,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// Gets the authored <c>add_curvature</c> from the bend rods across each chain ring, whose minimum is
         /// <c>flMaxDist * sin(add_curvature * pi / 2)</c>; 0 when the rods disagree or there are none.
         /// </summary>
-        public float ChainRingCurvature
+        internal float ChainRingCurvature
         {
             get
             {
@@ -955,7 +955,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             }
         }
 
-        static bool ReachesByParents(int[] realParent, int from, int to)
+        private static bool ReachesByParents(int[] realParent, int from, int to)
         {
             var guard = 0;
             for (var node = from; node >= 0 && guard++ < 256; node = realParent[node])
@@ -973,7 +973,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// Reconstructs the bone chains from the control-node topology, ordered by the lowest simulated node each one
         /// occupies (or its lowest static node when it has none).
         /// </summary>
-        public List<BoneChain> BuildBoneChains() => BuildBoneChains(null, null);
+        internal List<BoneChain> BuildBoneChains() => BuildBoneChains(null, null);
 
         /// <summary>
         /// Reconstructs the bone chains as <see cref="BuildBoneChains()"/> does, and declares a merged root twice where
@@ -981,13 +981,13 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// version 1.
         /// </summary>
         /// <param name="chainVersion">The <c>ClothChain</c> version a chain reads as, given whether the model declares another chain.</param>
-        public List<BoneChain> BuildBoneChains(Func<BoneChain, bool, int> chainVersion) => BuildBoneChains(chainVersion, null);
+        internal List<BoneChain> BuildBoneChains(Func<BoneChain, bool, int> chainVersion) => BuildBoneChains(chainVersion, null);
 
         /// <summary>
         /// Builds the chains with each root bone <paramref name="ringlessKids"/> names declared twice: once
         /// extruding it over its other children, and once restating it ringless over the children listed.
         /// </summary>
-        List<BoneChain> BuildBoneChains(Func<BoneChain, bool, int>? chainVersion, Dictionary<int, HashSet<int>>? ringlessKids)
+        private List<BoneChain> BuildBoneChains(Func<BoneChain, bool, int>? chainVersion, Dictionary<int, HashSet<int>>? ringlessKids)
         {
             var chains = new List<BoneChain>();
             var mergedChains = new List<BoneChain>();
@@ -2694,7 +2694,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// Marks the joints a SECOND <c>ClothChain</c> re-declares, and the bone that chain is rooted at.
         /// </summary>
         /// <param name="chains">The reconstructed chains, edited in place.</param>
-        void MarkSecondDeclarations(List<BoneChain> chains)
+        private void MarkSecondDeclarations(List<BoneChain> chains)
         {
             foreach (var chain in chains)
             {
@@ -2770,7 +2770,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// <summary>
         /// Marks the runs whose second declaration stated its own <c>twist_relax</c>, whose pairs carry two twist copies.
         /// </summary>
-        void MarkVoicedSecondDeclarations(BoneChain chain, Dictionary<int, BoneChainJoint> byNode)
+        private void MarkVoicedSecondDeclarations(BoneChain chain, Dictionary<int, BoneChainJoint> byNode)
         {
             var doubled = new HashSet<int>();
             foreach (var (link, copies) in TwistRelaxCopies)
@@ -2829,7 +2829,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// <summary>
         /// Gets whether the first of a doubled run's declarations left it unsimulated: a child-ward copy of 0 at rank 0.
         /// </summary>
-        bool FirstDeclarationIsStatic(List<BoneChainJoint> run, Dictionary<int, BoneChainJoint> byNode)
+        private bool FirstDeclarationIsStatic(List<BoneChainJoint> run, Dictionary<int, BoneChainJoint> byNode)
         {
             foreach (var joint in run)
             {
@@ -2852,20 +2852,20 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             return false;
         }
 
-        readonly HashSet<string> siblingSpringHubs = new(StringComparer.OrdinalIgnoreCase);
+        private readonly HashSet<string> siblingSpringHubs = new(StringComparer.OrdinalIgnoreCase);
 
         /// <summary>
         /// Gets the bones a chain declares only to spring its siblings together. Such a bone anchors no
         /// chain of its own, so a cloth node parented to it still needs its own static declaration.
         /// </summary>
-        public IReadOnlySet<string> SiblingSpringHubs => siblingSpringHubs;
+        internal IReadOnlySet<string> SiblingSpringHubs => siblingSpringHubs;
 
         /// <summary>
         /// Gathers the chains of a ringless sibling group under the bone that parents them, and marks the
         /// hub as springing its children together.
         /// </summary>
         /// <param name="chains">The reconstructed chains, edited in place.</param>
-        void MergeSiblingHubs(List<BoneChain> chains)
+        private void MergeSiblingHubs(List<BoneChain> chains)
         {
             siblingSpringHubs.Clear();
             if (SkeletonBoneParents is null)
