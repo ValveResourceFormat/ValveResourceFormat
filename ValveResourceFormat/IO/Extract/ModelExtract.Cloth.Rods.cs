@@ -1487,7 +1487,7 @@ partial class ModelExtract
 
         // One spring per surplus rod OCCURRENCE, numbered like AddFreeClothNodesAndSprings' copies.
         var occurrence = new Dictionary<(int, int), int>();
-        var surplus = feModel.GetUngeneratedRods(chains);
+        var surplus = feModel.GetUngeneratedRods(chains, feModel.HasChainStiffnessRods(chains));
         var clusterTies = ClusterTiesBesideChainSpans(feModel, surplus);
         var ringTies = RingClusterTies(feModel, surplus, ringOwner);
         foreach (var rod in surplus)

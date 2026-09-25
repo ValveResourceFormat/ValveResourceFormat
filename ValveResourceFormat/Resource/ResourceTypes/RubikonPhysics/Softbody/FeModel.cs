@@ -992,7 +992,10 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// worth recovering is dropped. Rigidity outranks the relaxation match, and equally good candidates
         /// keep array order, so a pair whose copies are identical is attributed exactly as before.
         /// </remarks>
-        public List<Rod> GetUngeneratedRods(List<BoneChain> chains)
+        /// <param name="chains">The chains the export emits.</param>
+        /// <param name="surfaceFansRegenerate">Whether the export switches <c>add_stiffness_rods</c> on, so the rods the
+        /// compiler folds across the faces' shared edges come back without being declared.</param>
+        public List<Rod> GetUngeneratedRods(List<BoneChain> chains, bool surfaceFansRegenerate = false)
         {
             var generated = ChainGeneratedSpans(chains);
 
@@ -1026,6 +1029,14 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             foreach (var index in SelfCollisionClusterRods)
             {
                 claimed[index] = true;
+            }
+
+            if (surfaceFansRegenerate)
+            {
+                for (var i = 0; i < Rods.Length; i++)
+                {
+                    claimed[i] |= IsSurfaceFanRod(Rods[i], banded: false);
+                }
             }
 
             foreach (var (key, expectations) in generated)
@@ -3830,8 +3841,55 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
 
             return Rods.Any(rod => rod.MaxDist < UnboundedRodDistance && rod.MinDist < rod.MaxDist
                 && rod.NodeA != rod.NodeB
-                && generated.Contains(rod.NodeA) && generated.Contains(rod.NodeB));
+                && generated.Contains(rod.NodeA) && generated.Contains(rod.NodeB))
+                || Rods.Any(rod => IsSurfaceFanRod(rod, banded: true));
         }
+
+        /// <summary>
+        /// The pairs <c>add_stiffness_rods</c> makes the compiler fold across the edges this model's own faces
+        /// share: the compiled quads and triangles, then the faces that were built into rods instead.
+        /// </summary>
+        HashSet<(int, int)> SurfaceFanPairs => surfaceFanPairs ??= BendRodsFromSurface(
+            [.. Quads, .. Tris, .. SourceFaces.Where(static face => face.Length >= 3)], IsStatic);
+
+        HashSet<(int, int)>? surfaceFanPairs;
+
+        /// <summary>
+        /// Returns whether <paramref name="rod"/> is one the compiler folded across a face edge on its own rather than
+        /// one the document declared. A declared rod carries the weight fixed when it was imported, while a folded one
+        /// carries its endpoints' FINAL inverse-mass ratio, so a banded rod on a fan pair whose weight is exactly that
+        /// ratio, and not the even split every declaration between equal import masses gets, was built by the switch.
+        /// A fold that leaves the rod at its rest length is still the switch's; only the switch's presence is read off a
+        /// <paramref name="banded"/> one, which no fixed-length chain span can be.
+        /// </summary>
+        bool IsSurfaceFanRod(Rod rod, bool banded)
+        {
+            if (rod.NodeA == rod.NodeB || rod.MaxDist >= UnboundedRodDistance
+                || (banded && rod.MinDist >= rod.MaxDist - SurfaceFanBandTolerance * MathF.Max(1f, rod.MaxDist))
+                || rod.NodeA < 0 || rod.NodeA >= NodeInvMasses.Length || rod.NodeB < 0 || rod.NodeB >= NodeInvMasses.Length)
+            {
+                return false;
+            }
+
+            var sum = NodeInvMasses[rod.NodeA] + NodeInvMasses[rod.NodeB];
+            if (sum <= 0f)
+            {
+                return false;
+            }
+
+            var ratio = NodeInvMasses[rod.NodeA] / sum;
+            if (MathF.Abs(ratio - 0.5f) <= SurfaceFanWeightTolerance
+                || MathF.Abs(rod.Weight0 - ratio) > SurfaceFanWeightTolerance)
+            {
+                return false;
+            }
+
+            return SurfaceFanPairs.Contains(rod.NodeA < rod.NodeB ? (rod.NodeA, rod.NodeB) : (rod.NodeB, rod.NodeA));
+        }
+
+        const float SurfaceFanBandTolerance = 1e-4f;
+
+        const float SurfaceFanWeightTolerance = 2e-4f;
 
         /// <summary>The maximum length a rod that is not length-limited at all is given.</summary>
         public const float UnboundedRodDistance = 16384f;

@@ -9948,5 +9948,66 @@ namespace Tests
             }
             """);
 
+        /// <summary>
+        /// A rod the compiler folds across an edge two faces share carries its endpoints' final inverse-mass ratio as
+        /// its weight, where a declared rod carries the one fixed at import. Such a rod between two chain joints says the
+        /// model was built with <c>add_stiffness_rods</c>, and with the switch on it comes back without being declared,
+        /// so it is no surplus: declaring it as a spring would add it to the mass pass and leave both endpoints heavier.
+        /// CONTROL: the same banded pair at the even split a declaration gets stays surplus, and a fan-weighted rod on a
+        /// pair no two faces fold is never read as the switch's.
+        /// </summary>
+        /// <remarks>
+        /// MEASURED 2026-09-25 on dota `ringmaster_wheel_decoy`: its fans join joint bones, the chain phase stated
+        /// <c>add_stiffness_rods = false</c> and re-declared 26 of them as springs, and every differing node mass is
+        /// the original's plus eight times the length of the springs at it, on 22 of 22 nodes.
+        /// </remarks>
+        [Test]
+        public async Task ASurfaceFoldBetweenChainJointsIsTheSwitchsAndNoSurplus()
+        {
+            var folded = FoldedChainModel(0.666667f, fanPair: true);
+            var declared = FoldedChainModel(0.5f, fanPair: true);
+            var elsewhere = FoldedChainModel(0.666667f, fanPair: false);
+
+            static bool Holds(List<FeModel.Rod> rods, int a, int b)
+                => rods.Exists(rod => (rod.NodeA == a && rod.NodeB == b) || (rod.NodeA == b && rod.NodeB == a));
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(declared.HasChainStiffnessRods(declared.BuildBoneChains())).IsFalse();
+                await Assert.That(Holds(declared.GetUngeneratedRods(declared.BuildBoneChains(), true), 1, 3)).IsTrue();
+                await Assert.That(elsewhere.HasChainStiffnessRods(elsewhere.BuildBoneChains())).IsFalse();
+
+                await Assert.That(folded.HasChainStiffnessRods(folded.BuildBoneChains())).IsTrue();
+                await Assert.That(Holds(folded.GetUngeneratedRods(folded.BuildBoneChains(), true), 1, 3)).IsFalse();
+            }
+        }
+
+        // A static root with a chain of two joints under it and a third under the second, two triangles over
+        // (root, a, b) and (root, b, c) folding across root-b, and one banded rod between a and c at the given weight.
+        // Without the fan pair the second triangle is (root, c, a) instead, which folds nothing onto a-c.
+        private static FeModel FoldedChainModel(float weight, bool fanPair) => SyntheticCloth.Parse($$"""
+            {
+                m_CtrlName = [ "root", "a", "b", "c" ]
+                m_SkelParents = [ -1, 0, 0, 2 ]
+                m_nNodeCount = 4
+                m_nStaticNodes = 1
+                m_NodeInvMasses = [ 0.0, 1.0, 1.0, 0.5 ]
+                m_InitPose =
+                [
+                    {{SyntheticCloth.Pose(0f, 0f, 0f)}}
+                    {{SyntheticCloth.Pose(-1f, 0f, -2f)}}
+                    {{SyntheticCloth.Pose(0f, 0f, -2f)}}
+                    {{SyntheticCloth.Pose(1f, 0f, -4f)}}
+                ]
+                m_SourceElems = {{(fanPair ? "[ 0, 0, 2, 0, 0, 1, 2, 0, 2, 3 ]" : "[ 0, 0, 2, 0, 0, 1, 2, 0, 3, 1 ]")}}
+                m_Rods =
+                [
+                    {{SyntheticCloth.RigidRod(0, 1, 2.236068f, 1f)}}
+                    {{SyntheticCloth.RigidRod(0, 2, 2f, 1f)}}
+                    {{SyntheticCloth.RigidRod(2, 3, 2.236068f, 1f)}}
+                    { nNode = [ 1, 3 ] flMinDist = 1.5 flMaxDist = 2.828427 flWeight0 = {{SyntheticCloth.Num(weight)}} flRelaxationFactor = 1.0 },
+                ]
+            }
+            """);
     }
 }
