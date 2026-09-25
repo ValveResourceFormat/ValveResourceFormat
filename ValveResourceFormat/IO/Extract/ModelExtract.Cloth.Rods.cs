@@ -44,14 +44,14 @@ partial class ModelExtract
     // chain joints that a chain does not itself regenerate. The per-member radius split the compiled rod
     // does not preserve (only the sum reaches m_Rods) is recovered as an even split.
     internal static KVObject MakeClothSelfCollisionCluster(string name, List<string> members, float radius,
-        float strayRadius, float[]? stiffness = null)
+        float strayRadius, float[]? stiffness = null, float[]? radii = null, float[]? strayRadii = null)
     {
-        KVObject MakeJoint(string jointName, float jointStiffness)
+        KVObject MakeJoint(string jointName, float jointStiffness, float jointRadius, float jointStrayRadius)
         {
             var joint = KVObject.Collection();
             joint.Add("joint_name", jointName);
-            joint.Add("collision_radius", radius);
-            joint.Add("stray_radius", strayRadius);
+            joint.Add("collision_radius", jointRadius);
+            joint.Add("stray_radius", jointStrayRadius);
             joint.Add("stiffness", jointStiffness);
             return joint;
         }
@@ -59,7 +59,9 @@ partial class ModelExtract
         var joints = KVObject.Array();
         for (var i = 0; i < members.Count; i++)
         {
-            joints.Add(MakeJoint(members[i], stiffness is not null && i < stiffness.Length ? stiffness[i] : 1.0f));
+            joints.Add(MakeJoint(members[i], stiffness is not null && i < stiffness.Length ? stiffness[i] : 1.0f,
+                radii is not null && i < radii.Length ? radii[i] : radius,
+                strayRadii is not null && i < strayRadii.Length ? strayRadii[i] : strayRadius));
         }
 
         // The member table's own schema, which the compiler falls back to for any member row that omits
@@ -1824,6 +1826,8 @@ partial class ModelExtract
         var surplus = feModel.GetUngeneratedRods(chains, feModel.HasChainStiffnessRods(chains));
         var clusterTies = ClusterTiesBesideChainSpans(feModel, surplus);
         var ringTies = RingClusterTies(feModel, surplus, ringOwner);
+        var cliquePairs = AddRingClusterCliques(softbodyChildren, feModel, ringOwner);
+        declaredPairs.UnionWith(cliquePairs);
         foreach (var rod in surplus)
         {
             if (rod.NodeA < 0 || rod.NodeA >= controlNames.Length
@@ -1833,6 +1837,11 @@ partial class ModelExtract
             }
 
             var pair = rod.NodeA < rod.NodeB ? (rod.NodeA, rod.NodeB) : (rod.NodeB, rod.NodeA);
+            if (cliquePairs.Contains(pair) && IsBandedRod(rod))
+            {
+                continue;
+            }
+
             var tie = clusterTies.Contains(pair) || (ringTies.Contains(pair) && IsBandedRod(rod));
             if (!Nameable(rod.NodeA, tie) || !Nameable(rod.NodeB, tie))
             {
@@ -1905,6 +1914,16 @@ partial class ModelExtract
 
         var surplus = feModel.GetUngeneratedRods(chains);
         var clusterTies = ClusterTiesBesideChainSpans(feModel, surplus);
+        var ringOwner = new Dictionary<int, int>();
+        foreach (var joint in chains.SelectMany(static chain => chain.Joints))
+        {
+            foreach (var ring in joint.RingNodes)
+            {
+                ringOwner[ring] = joint.Node;
+            }
+        }
+
+        AddRingClusterCliques(softbodyChildren, feModel, ringOwner);
         foreach (var rod in surplus)
         {
             if (rod.NodeA < 0 || rod.NodeA >= controlNames.Length
@@ -1993,6 +2012,143 @@ partial class ModelExtract
         var rest = Vector3.Distance(poses[rod.NodeA], poses[rod.NodeB]);
         return IsBandedRod(rod) || MathF.Abs(rod.MaxDist - rest) > MathF.Max(1e-3f, 1e-4f * rest);
     }
+
+    /// <summary>
+    /// Emits one <c>ClothSelfCollisionCluster</c> per clique of three or more extruded ring nodes, owned by at least two
+    /// different chain joints, whose every pair carries exactly one banded rod at relaxation 1 and weight 0.5 off its rest
+    /// length, where those bands solve as per-member radii: a cluster compiles a rod on every member pair, its minimum the
+    /// two members' collision radii summed and its maximum their stray radii summed. No chain span is banded off its rest
+    /// length, so the clique is read off every shipped rod. Returns the pairs the clusters cover.
+    /// </summary>
+    internal static HashSet<(int, int)> AddRingClusterCliques(KVObject softbodyChildren, FeModel feModel, Dictionary<int, int> ringOwner)
+    {
+        var covered = new HashSet<(int, int)>();
+        var poses = feModel.InitPosePositions;
+        var bandedOnPair = new Dictionary<(int, int), int>();
+        foreach (var rod in feModel.Rods)
+        {
+            if (IsBandedRod(rod))
+            {
+                var key = rod.NodeA < rod.NodeB ? (rod.NodeA, rod.NodeB) : (rod.NodeB, rod.NodeA);
+                bandedOnPair[key] = bandedOnPair.GetValueOrDefault(key) + 1;
+            }
+        }
+
+        var band = new Dictionary<(int, int), (float Min, float Max)>();
+        var neighbours = new Dictionary<int, HashSet<int>>();
+        foreach (var rod in feModel.Rods)
+        {
+            var key = rod.NodeA < rod.NodeB ? (rod.NodeA, rod.NodeB) : (rod.NodeB, rod.NodeA);
+            if (rod.NodeA == rod.NodeB || !IsBandedRod(rod) || rod.RelaxationFactor != 1f || rod.Weight0 != 0.5f
+                || !ringOwner.ContainsKey(rod.NodeA) || !ringOwner.ContainsKey(rod.NodeB)
+                || bandedOnPair.GetValueOrDefault(key) != 1 || rod.NodeA >= poses.Length || rod.NodeB >= poses.Length
+                || MathF.Abs(rod.MaxDist - Vector3.Distance(poses[rod.NodeA], poses[rod.NodeB])) <= ClusterRestTolerance)
+            {
+                continue;
+            }
+
+            band[key] = (rod.MinDist, rod.MaxDist);
+            (neighbours.TryGetValue(key.Item1, out var na) ? na : neighbours[key.Item1] = []).Add(key.Item2);
+            (neighbours.TryGetValue(key.Item2, out var nb) ? nb : neighbours[key.Item2] = []).Add(key.Item1);
+        }
+
+        foreach (var clique in MaximalCliques(neighbours))
+        {
+            if (clique.Count < 3 || clique.Select(node => ringOwner[node]).Distinct().Count() < 2
+                || SolveMemberRadii(clique, band) is not var (radii, strayRadii))
+            {
+                continue;
+            }
+
+            var names = clique.Select(node => feModel.CtrlNames[node]).ToList();
+            softbodyChildren.Add(MakeClothSelfCollisionCluster(NodeNameSafe($"cluster_{string.Join("_", names)}"), names,
+                radii[0], strayRadii[0], radii: radii, strayRadii: strayRadii));
+            foreach (var a in clique)
+            {
+                foreach (var b in clique)
+                {
+                    if (a < b)
+                    {
+                        covered.Add((a, b));
+                    }
+                }
+            }
+        }
+
+        return covered;
+    }
+
+    // How far a cluster band's maximum has to sit from the pair's rest length before it is read as summed stray radii.
+    const float ClusterRestTolerance = 1e-3f;
+
+    // Maximal cliques of an undirected graph, each in ascending node order.
+    static List<List<int>> MaximalCliques(Dictionary<int, HashSet<int>> neighbours)
+    {
+        var cliques = new List<List<int>>();
+
+        void Extend(List<int> clique, HashSet<int> candidates, HashSet<int> excluded)
+        {
+            if (candidates.Count == 0 && excluded.Count == 0)
+            {
+                cliques.Add([.. clique.Order()]);
+                return;
+            }
+
+            foreach (var node in candidates.Order().ToList())
+            {
+                var around = neighbours[node];
+                Extend([.. clique, node], [.. candidates.Where(around.Contains)], [.. excluded.Where(around.Contains)]);
+                candidates.Remove(node);
+                excluded.Add(node);
+            }
+        }
+
+        Extend([], [.. neighbours.Keys], []);
+        return cliques;
+    }
+
+    // Per-member collision and stray radii that sum to every pair's band, read off one triangle and checked on every
+    // pair; null where no such split exists.
+    static (float[] Radii, float[] StrayRadii)? SolveMemberRadii(List<int> members,
+        Dictionary<(int, int), (float Min, float Max)> band)
+    {
+        (float Min, float Max) Band(int a, int b) => band[a < b ? (a, b) : (b, a)];
+
+        var radii = new float[members.Count];
+        var strayRadii = new float[members.Count];
+        for (var i = 0; i < members.Count; i++)
+        {
+            var j = (i + 1) % members.Count;
+            var k = (i + 2) % members.Count;
+            var (minIj, maxIj) = Band(members[i], members[j]);
+            var (minIk, maxIk) = Band(members[i], members[k]);
+            var (minJk, maxJk) = Band(members[j], members[k]);
+            radii[i] = (minIj + minIk - minJk) / 2f;
+            strayRadii[i] = (maxIj + maxIk - maxJk) / 2f;
+            if (radii[i] < 0f || strayRadii[i] < radii[i])
+            {
+                return null;
+            }
+        }
+
+        for (var i = 0; i < members.Count; i++)
+        {
+            for (var j = i + 1; j < members.Count; j++)
+            {
+                var (min, max) = Band(members[i], members[j]);
+                if (MathF.Abs(radii[i] + radii[j] - min) > ClusterRadiusTolerance * MathF.Max(1f, min)
+                    || MathF.Abs(strayRadii[i] + strayRadii[j] - max) > ClusterRadiusTolerance * MathF.Max(1f, max))
+                {
+                    return null;
+                }
+            }
+        }
+
+        return (radii, strayRadii);
+    }
+
+    // How closely the solved radii have to reproduce every band of the clique, relative to the band.
+    const float ClusterRadiusTolerance = 1e-4f;
 
     /// <summary>Whether a rod's length band is open: a cluster's separation constraint rather than a span.</summary>
     static bool IsBandedRod(FeModel.Rod rod)

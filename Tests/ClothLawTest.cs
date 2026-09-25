@@ -11675,5 +11675,69 @@ namespace Tests
                 ]
             }
             """);
+
+        /// <summary>
+        /// A self-collision cluster compiles one rod on every member pair, its band the two members' collision radii summed
+        /// up to their stray radii summed, whatever the pair's rest length. So a clique of such bands over the rings of two
+        /// chains, solving as one radius per member, is ONE cluster of all its members.
+        /// CONTROL: the same clique over the rings of a single joint, which its own ring bands account for, is no cluster.
+        /// </summary>
+        /// <remarks>
+        /// MEASURED 2026-09-25 on dota <c>mh_palico_courier_rathalos</c>: six 8 / 16 bands over four skirt ring nodes of two
+        /// chains; its document plus one four-member cluster at 4 / 8 compiled with m_Rods and every node mass as the original.
+        /// </remarks>
+        [Test]
+        public async Task AClusterCliqueAcrossTwoChainsRingsIsOneCluster()
+        {
+            var model = ClusterCliqueRings;
+            var across = KVObject.Array();
+            var covered = ModelExtract.AddRingClusterCliques(across, model, new Dictionary<int, int> { [2] = 0, [3] = 0, [4] = 1, [5] = 1 });
+            var single = KVObject.Array();
+            var none = ModelExtract.AddRingClusterCliques(single, model, new Dictionary<int, int> { [2] = 0, [3] = 0, [4] = 0, [5] = 0 });
+
+            using (Assert.Multiple())
+            {
+                // CONTROL.
+                await Assert.That(single.Count).IsEqualTo(0);
+                await Assert.That(none.Count).IsEqualTo(0);
+
+                // THE LAW.
+                await Assert.That(covered.Count).IsEqualTo(6);
+                await Assert.That(across.Select(static child => string.Join("|", child.Value.GetSubCollection("chain").GetArray("joints")
+                    .Select(static joint => $"{joint.GetStringProperty("joint_name")}:{joint.GetFloatProperty("collision_radius")}:{joint.GetFloatProperty("stray_radius")}"))).ToArray())
+                    .IsEquivalentTo(ClusterCliqueMembers, CollectionOrdering.Matching);
+            }
+        }
+
+        private static readonly string[] ClusterCliqueMembers = ["$cca_0:4:8|$cca_1:4:8|$ccb_0:4:8|$ccb_1:4:8"];
+
+        // Joints a and b with two ring nodes each, and the six 8 / 16 bands a four-member cluster at 4 / 8 compiles.
+        private static FeModel ClusterCliqueRings => SyntheticCloth.Parse($$"""
+            {
+                m_CtrlName = [ "a", "b", "$cca_0", "$cca_1", "$ccb_0", "$ccb_1" ]
+                m_SkelParents = [ -1, -1, 0, 0, 1, 1 ]
+                m_nNodeCount = 6
+                m_nStaticNodes = 2
+                m_NodeInvMasses = [ 0.0, 0.0, 0.01, 0.01, 0.01, 0.01 ]
+                m_InitPose =
+                [
+                    {{SyntheticCloth.Pose(0f, 0f, 0f)}}
+                    {{SyntheticCloth.Pose(10f, 0f, 0f)}}
+                    {{SyntheticCloth.Pose(0f, 3f, -5f)}}
+                    {{SyntheticCloth.Pose(0f, -3f, -5f)}}
+                    {{SyntheticCloth.Pose(10f, 3f, -5f)}}
+                    {{SyntheticCloth.Pose(10f, -3f, -5f)}}
+                ]
+                m_Rods =
+                [
+                    {{SyntheticCloth.BandedRod(2, 3, 8f, 16f, 1f)}}
+                    {{SyntheticCloth.BandedRod(2, 4, 8f, 16f, 1f)}}
+                    {{SyntheticCloth.BandedRod(2, 5, 8f, 16f, 1f)}}
+                    {{SyntheticCloth.BandedRod(3, 4, 8f, 16f, 1f)}}
+                    {{SyntheticCloth.BandedRod(3, 5, 8f, 16f, 1f)}}
+                    {{SyntheticCloth.BandedRod(4, 5, 8f, 16f, 1f)}}
+                ]
+            }
+            """);
     }
 }
