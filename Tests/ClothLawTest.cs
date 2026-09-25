@@ -12200,5 +12200,44 @@ namespace Tests
                 ]
             }
             """);
+
+        /// <summary>
+        /// An authored <c>ClothSpring</c> between two chain joints is re-declared on the PROXY SHEET route as well as on the chain
+        /// route. The spring leaves a two-corner source element and a rod; the sheet route's own spring writer skips every rod
+        /// touching an independent chain, so without the source-spring pass the spring is simply lost.
+        /// CONTROL: the same sheet and chains with no spring declare none.
+        /// </summary>
+        /// <remarks>
+        /// MEASURED 2026-09-25 at `76a2826bf`: dotaout wr_arcana_base and wr_arcana_zinogre_mail carry 30 two-corner source
+        /// elements each and the rebuild none; 25 of the 30 name two chain joints. The fixtures are synth `w42gr_mix_two_chains`
+        /// with and without a `ClothSpring` from `coattail_1_L` to `coattail_1_R` at stiffness 0.4, compiled by the frozen CS2
+        /// compiler.
+        /// </remarks>
+        [Test]
+        public async Task AnAuthoredSpringBetweenChainJointsIsReDeclaredOnTheSheetRoute()
+        {
+            static string Extract(string fixture)
+            {
+                using var resource = new Resource();
+                resource.Read(Path.Combine(TestContext.TestDirectory!, "Files", fixture));
+                return new ModelExtract(resource, new NullFileLoader()).ToValveModel();
+            }
+
+            var sprung = Extract("cloth_sheet_chain_spring.vmdl_c");
+            var plain = Extract("cloth_sheet_chain_nospring.vmdl_c");
+
+            using (Assert.Multiple())
+            {
+                // CONTROL: both documents take the sheet route, and the one with no spring declares none.
+                await Assert.That(sprung).Contains("ClothProxyMeshFile");
+                await Assert.That(plain).Contains("ClothProxyMeshFile");
+                await Assert.That(plain).DoesNotContain("_class = \"ClothSpring\"");
+
+                // THE LAW.
+                await Assert.That(sprung).Contains("_class = \"ClothSpring\"");
+                await Assert.That(sprung).Contains("cloth_node_0 = \"coattail_1_L\"");
+                await Assert.That(sprung).Contains("cloth_node_1 = \"coattail_1_R\"");
+            }
+        }
     }
 }

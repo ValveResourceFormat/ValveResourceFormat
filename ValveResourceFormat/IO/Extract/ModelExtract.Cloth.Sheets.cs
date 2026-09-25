@@ -786,6 +786,7 @@ partial class ModelExtract
             .ToHashSet();
         AddClothProxySprings(softbodyChildren, feModel, ClothProxyMeshesToExtract, independentChainNodes,
             authoredClothNodes, freeClothNodeNames, surfaceRods, proxyNodeNameMap);
+        AddClothSourceSprings(softbodyChildren, feModel, independentChains);
         AddClothChainSurplusClusters(softbodyChildren, feModel, independentChains);
         AddClothChainVolumetricMaps(softbodyChildren, feModel, independentChains);
 
