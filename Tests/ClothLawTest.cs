@@ -10144,5 +10144,56 @@ namespace Tests
                 m_SourceElems = [ {{sourceElems}} ]
             }
             """);
+
+        /// <summary>
+        /// A rod on a pair the surface folds weighed in the mass pass unless the compiler folded it: a fold between unequal
+        /// masses carries their final inverse-mass ratio as its weight, a declared rod does not. So a declared rod there
+        /// is part of its endpoints' geometric term, and reading it as a fold over-reads their mass multiplier.
+        /// CONTROL: the same pair carrying the fold's own weight, over masses that never counted it, still reads 1.
+        /// </summary>
+        /// <remarks>
+        /// MEASURED 2026-09-25 on dl `abrams_default`: its tail rings weigh exactly the sum of every rod they carry,
+        /// the export read 1.073767 for the chain's authored `mass` 1.0, and 1.073767 squared is the 1.153 the rebuilt
+        /// rings came back heavy by.
+        /// </remarks>
+        [Test]
+        public async Task ADeclaredRodOnAFoldedPairIsInTheMassPass()
+        {
+            var declared = FoldedPairMassModel(folded: false);
+            var folded = FoldedPairMassModel(folded: true);
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(folded.RecoverMassMultiplier(1)).IsNull();
+                await Assert.That(declared.RecoverMassMultiplier(1)).IsNull();
+            }
+        }
+
+        // The FoldedChainModel layout with the far joint moved so the fold pair's masses differ. Declared: a-c weighed,
+        // at weight 0.5. Folded: a-c did not weigh, and carries the ratio of the masses that result.
+        private static FeModel FoldedPairMassModel(bool folded) => SyntheticCloth.Parse($$"""
+            {
+                m_CtrlName = [ "root", "a", "b", "c" ]
+                m_SkelParents = [ -1, 0, 0, 2 ]
+                m_nNodeCount = 4
+                m_nStaticNodes = 1
+                m_NodeInvMasses = {{(folded ? "[ 0.0, 0.0559017, 0.02421412, 0.03952847 ]" : "[ 0.0, 0.02139819, 0.02421412, 0.01846971 ]")}}
+                m_InitPose =
+                [
+                    {{SyntheticCloth.Pose(0f, 0f, 0f)}}
+                    {{SyntheticCloth.Pose(-1f, 0f, -2f)}}
+                    {{SyntheticCloth.Pose(0f, 0f, -2f)}}
+                    {{SyntheticCloth.Pose(1f, 0f, -5f)}}
+                ]
+                m_SourceElems = [ 0, 0, 2, 0, 0, 1, 2, 0, 2, 3 ]
+                m_Rods =
+                [
+                    {{SyntheticCloth.RigidRod(0, 1, 2.236068f, 1f)}}
+                    {{SyntheticCloth.RigidRod(0, 2, 2f, 1f)}}
+                    {{SyntheticCloth.RigidRod(2, 3, 3.1622777f, 1f)}}
+                    { nNode = [ 1, 3 ] flMinDist = 2.0 flMaxDist = 3.6055512 flWeight0 = {{(folded ? "0.585786" : "0.5")}} flRelaxationFactor = 1.0 },
+                ]
+            }
+            """);
     }
 }

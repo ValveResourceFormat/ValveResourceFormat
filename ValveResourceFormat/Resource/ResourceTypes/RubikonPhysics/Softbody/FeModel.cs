@@ -2605,7 +2605,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             {
                 var (a, b) = rod.NodeA < rod.NodeB ? (rod.NodeA, rod.NodeB) : (rod.NodeB, rod.NodeA);
                 if (a == b || a < 0 || b >= mass.Length
-                    || rod.MaxDist >= UnboundedRodDistance || derived.Remove((a, b)))
+                    || rod.MaxDist >= UnboundedRodDistance || (FoldedAfterMass(rod) && derived.Remove((a, b))))
                 {
                     continue;
                 }
@@ -3885,6 +3885,40 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             }
 
             return SurfaceFanPairs.Contains(rod.NodeA < rod.NodeB ? (rod.NodeA, rod.NodeB) : (rod.NodeB, rod.NodeA));
+        }
+
+        /// <summary>
+        /// Returns whether <paramref name="rod"/>, on a pair the surface folds, joined the network after the mass pass. A
+        /// fold between unequal masses is told by its weight (see <see cref="IsSurfaceFanRod"/>); one between equal masses
+        /// cannot be, and is taken as a fold unless the model shows folds are off: a folded pair between unequal masses
+        /// whose every record keeps a declared weight.
+        /// </summary>
+        bool FoldedAfterMass(Rod rod)
+        {
+            var sum = rod.NodeA >= 0 && rod.NodeA < NodeInvMasses.Length && rod.NodeB >= 0 && rod.NodeB < NodeInvMasses.Length
+                ? NodeInvMasses[rod.NodeA] + NodeInvMasses[rod.NodeB]
+                : 0f;
+            if (sum > 0f && MathF.Abs(NodeInvMasses[rod.NodeA] / sum - 0.5f) > SurfaceFanWeightTolerance)
+            {
+                return IsSurfaceFanRod(rod, banded: false);
+            }
+
+            return !(surfaceFoldsAbsent ??= Rods.Any(IsUnequalFoldedPair) && !Rods.Any(other => IsSurfaceFanRod(other, banded: false)));
+        }
+
+        bool? surfaceFoldsAbsent;
+
+        bool IsUnequalFoldedPair(Rod rod)
+        {
+            if (rod.NodeA == rod.NodeB || rod.NodeA < 0 || rod.NodeA >= NodeInvMasses.Length
+                || rod.NodeB < 0 || rod.NodeB >= NodeInvMasses.Length)
+            {
+                return false;
+            }
+
+            var sum = NodeInvMasses[rod.NodeA] + NodeInvMasses[rod.NodeB];
+            return sum > 0f && MathF.Abs(NodeInvMasses[rod.NodeA] / sum - 0.5f) > SurfaceFanWeightTolerance
+                && SurfaceFanPairs.Contains(rod.NodeA < rod.NodeB ? (rod.NodeA, rod.NodeB) : (rod.NodeB, rod.NodeA));
         }
 
         const float SurfaceFanBandTolerance = 1e-4f;
