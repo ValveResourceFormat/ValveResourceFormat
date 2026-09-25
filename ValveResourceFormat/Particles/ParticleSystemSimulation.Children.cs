@@ -106,6 +106,12 @@ namespace ValveResourceFormat.Particles
                     continue;
                 }
 
+                if (IsSelfOrAncestor(childResource.FileName))
+                {
+                    logger.LogUniqueWarning("Skipped child {Child} of particle system {File}, because it is that system or one of its parents", childName, Name);
+                    continue;
+                }
+
                 var childSystemDefinition = (ParticleSystem?)childResource.DataBlock;
                 Debug.Assert(childSystemDefinition != null);
 
@@ -119,6 +125,19 @@ namespace ValveResourceFormat.Particles
 
                 childSimulations.Add(childSystem);
             }
+        }
+
+        private bool IsSelfOrAncestor(string? fileName)
+        {
+            for (var state = systemState; state != null; state = state.ParentSystem)
+            {
+                if (string.Equals(state.Data?.Name, fileName, StringComparison.OrdinalIgnoreCase))
+                {
+                    return true;
+                }
+            }
+
+            return false;
         }
 
         /// <summary>

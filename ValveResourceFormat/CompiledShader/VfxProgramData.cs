@@ -232,7 +232,7 @@ namespace ValveResourceFormat.CompiledShader
                 };
 
                 input.Position -= 4;
-                resource.Read(input, false, leaveOpen: true);
+                resource.Read(input, leaveOpen: true);
 
                 VfxCreateFromResource(resource);
             }

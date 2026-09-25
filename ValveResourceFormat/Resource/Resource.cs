@@ -170,13 +170,12 @@ namespace ValveResourceFormat
         /// Reads the given <see cref="Stream"/>.
         /// </summary>
         /// <param name="input">The input <see cref="Stream"/> to read from.</param>
-        /// <param name="verifyFileSize">Whether to verify that the stream was correctly consumed.</param>
         /// <param name="leaveOpen">Whether to leave the stream open after the object is disposed.</param>
         /// <remarks>
         /// The input stream must remain open while accessing data from this resource,
         /// as some operations may perform reads lazily from the stream at call time.
         /// </remarks>
-        public void Read(Stream input, bool verifyFileSize = true, bool leaveOpen = false)
+        public void Read(Stream input, bool leaveOpen = false)
         {
             Reader = new BinaryReader(input, Encoding.UTF8, leaveOpen);
 
@@ -319,40 +318,6 @@ namespace ValveResourceFormat
                 && GenericData.Construct(vdataBlock) is { } specializedData)
             {
                 Blocks[Blocks.IndexOf(vdataBlock)] = specializedData;
-            }
-
-            var fullFileSize = FullFileSize;
-
-            if (verifyFileSize && Reader.BaseStream.Length != fullFileSize)
-            {
-                if (ResourceType == ResourceType.Texture)
-                {
-                    var data = (Texture?)DataBlock;
-
-                    // TODO: We do not currently have a way of calculating buffer size for these types
-                    // Texture.GenerateBitmap also just reads until end of the buffer
-                    if (data == null || data.IsRawJpeg)
-                    {
-                        return;
-                    }
-
-                    // TODO: Valve added null bytes after the png for whatever reason,
-                    // so assume we have the full file if the buffer is bigger than the size we calculated
-                    if (data.IsRawPng)
-                    {
-                        if (Reader.BaseStream.Length > fullFileSize)
-                        {
-                            return;
-                        }
-                    }
-                }
-
-                if (ResourceType == ResourceType.Shader)
-                {
-                    return;
-                }
-
-                throw new InvalidDataException($"File size ({Reader.BaseStream.Length}) does not match size specified in file ({fullFileSize}) ({ResourceType}).");
             }
         }
 
