@@ -3,6 +3,7 @@ using System.Globalization;
 using System.Linq;
 using ValveKeyValue;
 using ValveResourceFormat.ResourceTypes;
+using ValveResourceFormat.ResourceTypes.ModelAnimation;
 using ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody;
 using static ValveResourceFormat.IO.KVHelpers;
 
@@ -14,7 +15,7 @@ internal sealed partial class ClothExtract
     /// The name the document references a control node by: the exported <c>$cloth_m{N}p{L}</c> name for a proxy vertex,
     /// the element name for a free <c>ClothNode</c>, and the control name for anything else.
     /// </summary>
-    private static string? ResolveAntiTunnelNodeName(FeModel feModel, int node, IReadOnlyDictionary<int, string>? proxyNodeNames)
+    private static string? AuthoredNodeName(FeModel feModel, int node, IReadOnlyDictionary<int, string>? proxyNodeNames)
     {
         if (node < 0 || node >= feModel.CtrlNames.Length)
         {
@@ -137,13 +138,7 @@ internal sealed partial class ClothExtract
                 continue;
             }
 
-            var edge = rod.NodeA < rod.NodeB ? (rod.NodeA, rod.NodeB) : (rod.NodeB, rod.NodeA);
-            if (!rodsByEdge.TryGetValue(edge, out var list))
-            {
-                rodsByEdge[edge] = list = [];
-            }
-
-            list.Add(rod);
+            GetOrAdd(rodsByEdge, RodPair(rod)).Add(rod);
         }
 
         foreach (var (edge, rods) in rodsByEdge)
@@ -208,8 +203,7 @@ internal sealed partial class ClothExtract
             return false;
         }
 
-        if (rods.Count != 1 || Array.IndexOf(feModel.SourceSprings, (edge.A, edge.B)) >= 0
-            || Array.IndexOf(feModel.SourceSprings, (edge.B, edge.A)) >= 0)
+        if (rods.Count != 1 || HasSourceSpring(feModel, edge.A, edge.B))
         {
             return false;
         }
@@ -221,9 +215,7 @@ internal sealed partial class ClothExtract
     /// <summary>Builds the test for whether a bone has an ancestor that is a cloth control node.</summary>
     private Func<string, bool> ClothControlAncestorTest(FeModel feModel)
     {
-        var controlNames = new HashSet<string>(feModel.CtrlNames, StringComparer.Ordinal);
-        var boneByName = model?.Skeleton.Bones.ToDictionary(static b => b.Name, StringComparer.Ordinal);
-
+        var (controlNames, boneByName) = ClothControlLookups(feModel);
         return name =>
         {
             if (boneByName is null || !boneByName.TryGetValue(name, out var bone))
@@ -246,12 +238,14 @@ internal sealed partial class ClothExtract
     /// <summary>Builds the test for whether a bone's parent bone is a cloth control node.</summary>
     private Func<string, bool> ClothControlParentTest(FeModel feModel)
     {
-        var controlNames = new HashSet<string>(feModel.CtrlNames, StringComparer.Ordinal);
-        var boneByName = model?.Skeleton.Bones.ToDictionary(static b => b.Name, StringComparer.Ordinal);
-
+        var (controlNames, boneByName) = ClothControlLookups(feModel);
         return name => boneByName is not null && boneByName.TryGetValue(name, out var bone)
             && bone.Parent is not null && controlNames.Contains(bone.Parent.Name);
     }
+
+    private (HashSet<string> ControlNames, Dictionary<string, Bone>? BoneByName) ClothControlLookups(FeModel feModel)
+        => (new HashSet<string>(feModel.CtrlNames, StringComparer.Ordinal),
+            model?.Skeleton.Bones.ToDictionary(static b => b.Name, StringComparer.Ordinal));
 
     /// <summary>
     /// Whether a node's stray radius record can only be stated by a <c>ClothNode</c>: a chain joint's stretchiness at or
@@ -338,7 +332,7 @@ internal sealed partial class ClothExtract
                 return string.Empty;
             }
 
-            return ResolveAntiTunnelNodeName(feModel, basisNode, proxyNodeNames) ?? string.Empty;
+            return AuthoredNodeName(feModel, basisNode, proxyNodeNames) ?? string.Empty;
         }
 
         // A basis preset is written only where the default alignment would drop the original's basis.
@@ -347,47 +341,106 @@ internal sealed partial class ClothExtract
             : null;
         var references = preset?.References ?? basis;
 
-        var layers = ClothNodeCollisionLayers(feModel.GetNodeCollisionMask(node));
+        var collisionMask = feModel.GetNodeCollisionMask(node);
 
-        return MakeNode("ClothNode",
-            ("name", elementName ?? boneName),
-            ("origin", ToKVArray(origin)),
-            ("angles", ToKVArray(angles)),
-            ("cloth_node_root_bone", boneName),
-            ("has_stray_radius", strayRadius > 0f),
-            ("has_world_collision", feModel.IsWorldCollisionNode(node)),
-            ("cloth_collision_layer0", layers.Layer0),
-            ("cloth_collision_layer1", layers.Layer1),
-            ("cloth_collision_layer2", layers.Layer2),
-            ("cloth_collision_layer3", layers.Layer3),
-            ("transform_alignment", preset?.TransformAlignment ?? RopeClothNodeAlignment(feModel, node, elementName is not null, hasBasis)),
-            ("node_base_y1", BasisName(references.NodeY1)),
-            ("node_base_x1", BasisName(references.NodeX1)),
-            ("node_base_y0", BasisName(references.NodeY0)),
-            ("node_base_x0", BasisName(references.NodeX0)),
-            ("lock_translation", feModel.LocksTranslation(node)),
-            ("gravity_z", integrator.Gravity / FeModel.ClothSourceBaseGravity),
-            ("goal_strength", goalStrength),
-            ("goal_damping", goalDamping),
-            ("mass", feModel.RecoverMassMultiplier(node) ?? 1.0f),
-            ("friction", feModel.GetNodeFriction(node)),
-            ("stray_radius", strayRadius),
-            ("stray_radius_relaxation_factor", feModel.GetStrayRelaxationFactor(node)),
-            ("collision_radius", feModel.GetCollisionRadius(node)),
-            ("is_static_node", isStaticNode),
-            ("allow_rotation", feModel.AllowsRotation(node)),
-            ("super_damping", Math.Clamp(integrator.PointDamping / FeModel.ClothDragPointDampingScale, 0f, 1f)));
+        return BuildClothNode(new ClothNodeFields
+        {
+            Name = elementName ?? boneName,
+            Origin = origin,
+            Angles = angles,
+            RootBone = boneName,
+            HasStrayRadius = strayRadius > 0f,
+            HasWorldCollision = feModel.IsWorldCollisionNode(node),
+            CollisionMask = collisionMask,
+            TransformAlignment = preset?.TransformAlignment ?? RopeClothNodeAlignment(feModel, node, elementName is not null, hasBasis),
+            NodeBaseY1 = BasisName(references.NodeY1),
+            NodeBaseX1 = BasisName(references.NodeX1),
+            NodeBaseY0 = BasisName(references.NodeY0),
+            NodeBaseX0 = BasisName(references.NodeX0),
+            LockTranslation = feModel.LocksTranslation(node),
+            GravityZ = integrator.Gravity / FeModel.ClothSourceBaseGravity,
+            GoalStrength = goalStrength,
+            GoalDamping = goalDamping,
+            Mass = feModel.RecoverMassMultiplier(node) ?? 1.0f,
+            Friction = feModel.GetNodeFriction(node),
+            StrayRadius = strayRadius,
+            StrayRadiusRelaxationFactor = feModel.GetStrayRelaxationFactor(node),
+            CollisionRadius = feModel.GetCollisionRadius(node),
+            IsStaticNode = isStaticNode,
+            AllowRotation = feModel.AllowsRotation(node),
+            SuperDamping = Math.Clamp(integrator.PointDamping / FeModel.ClothDragPointDampingScale, 0f, 1f),
+        });
+    }
+
+    /// <summary>The keys of a declared <c>ClothNode</c>, each defaulting to its neutral value.</summary>
+    private readonly record struct ClothNodeFields()
+    {
+        public required string Name { get; init; }
+        public required string RootBone { get; init; }
+        public Vector3 Origin { get; init; }
+        public Vector3 Angles { get; init; }
+        public bool HasStrayRadius { get; init; }
+        public bool HasWorldCollision { get; init; }
+        public int CollisionMask { get; init; }
+        public int TransformAlignment { get; init; }
+        public string NodeBaseY1 { get; init; } = string.Empty;
+        public string NodeBaseX1 { get; init; } = string.Empty;
+        public string NodeBaseY0 { get; init; } = string.Empty;
+        public string NodeBaseX0 { get; init; } = string.Empty;
+        public bool LockTranslation { get; init; }
+        public float GravityZ { get; init; } = 1.0f;
+        public float GoalStrength { get; init; }
+        public float GoalDamping { get; init; }
+        public float Mass { get; init; } = 1.0f;
+        public float Friction { get; init; }
+        public float StrayRadius { get; init; }
+        public float StrayRadiusRelaxationFactor { get; init; } = 1.0f;
+        public float CollisionRadius { get; init; }
+        public bool IsStaticNode { get; init; }
+        public bool AllowRotation { get; init; }
+        public float? SuperDamping { get; init; }
+    }
+
+    /// <summary>A <c>ClothNode</c> with every key of <paramref name="fields"/>, in the order the editor writes them.</summary>
+    private static KVObject BuildClothNode(ClothNodeFields fields)
+    {
+        var node = MakeNode("ClothNode",
+            ("name", fields.Name),
+            ("origin", ToKVArray(fields.Origin)),
+            ("angles", ToKVArray(fields.Angles)),
+            ("cloth_node_root_bone", fields.RootBone),
+            ("has_stray_radius", fields.HasStrayRadius),
+            ("has_world_collision", fields.HasWorldCollision));
+        AddCollisionLayerFlags(node, "cloth_collision_layer", ClothNodeLayerMask(fields.CollisionMask));
+        node.Add("transform_alignment", fields.TransformAlignment);
+        node.Add("node_base_y1", fields.NodeBaseY1);
+        node.Add("node_base_x1", fields.NodeBaseX1);
+        node.Add("node_base_y0", fields.NodeBaseY0);
+        node.Add("node_base_x0", fields.NodeBaseX0);
+        node.Add("lock_translation", fields.LockTranslation);
+        node.Add("gravity_z", fields.GravityZ);
+        node.Add("goal_strength", fields.GoalStrength);
+        node.Add("goal_damping", fields.GoalDamping);
+        node.Add("mass", fields.Mass);
+        node.Add("friction", fields.Friction);
+        node.Add("stray_radius", fields.StrayRadius);
+        node.Add("stray_radius_relaxation_factor", fields.StrayRadiusRelaxationFactor);
+        node.Add("collision_radius", fields.CollisionRadius);
+        node.Add("is_static_node", fields.IsStaticNode);
+        node.Add("allow_rotation", fields.AllowRotation);
+        if (fields.SuperDamping is { } superDamping)
+        {
+            node.Add("super_damping", superDamping);
+        }
+
+        return node;
     }
 
     /// <summary>
-    /// The four <c>cloth_collision_layer</c> booleans a <c>ClothNode</c> declares for <paramref name="mask"/>. All four
-    /// set compiles to the all-layers default, which is also what a mask outside 0..14 falls back to.
+    /// The layer mask a <c>ClothNode</c> declares for a compiled <paramref name="mask"/>: all four layers stand for the
+    /// default mask, which is also what a mask outside 0..14 falls back to.
     /// </summary>
-    private static (bool Layer0, bool Layer1, bool Layer2, bool Layer3) ClothNodeCollisionLayers(int mask)
-    {
-        var bits = mask is >= 0 and <= 14 ? mask : 0xF;
-        return ((bits & 1) != 0, (bits & 2) != 0, (bits & 4) != 0, (bits & 8) != 0);
-    }
+    private static int ClothNodeLayerMask(int mask) => mask is >= 0 and <= 14 ? mask : 0xF;
 
     /// <summary>
     /// The name a <c>ClothTri</c> or <c>ClothQuad</c> corner references a control node by: the element name for a free

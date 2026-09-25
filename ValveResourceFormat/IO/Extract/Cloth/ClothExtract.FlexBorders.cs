@@ -5,39 +5,36 @@ namespace ValveResourceFormat.IO;
 
 internal sealed partial class ClothExtract
 {
-    /// <summary>
-    /// Whether every pin <c>flex_cloth_borders</c> would free on <paramref name="proxy"/>, a static corner of a face with
-    /// two or more simulated corners, carries an <c>m_NodeBases</c> entry.
-    /// </summary>
+    /// <summary>Whether every pin <c>flex_cloth_borders</c> would free on <paramref name="proxy"/> carries an <c>m_NodeBases</c> entry.</summary>
     internal static bool FlexedPinsCarryNodeBases(FeModel feModel, FeModel.ProxyMesh proxy)
-    {
-        foreach (var face in proxy.Faces)
-        {
-            if (face.Distinct().Count(corner => proxy.ClothEnable[corner] != 0f) < 2)
-            {
-                continue;
-            }
-
-            foreach (var corner in face)
-            {
-                var node = proxy.NodeIndices[corner];
-                if (proxy.ClothEnable[corner] == 0f && node < feModel.StaticNodeCount && !feModel.NodeBases.ContainsKey(node))
-                {
-                    return false;
-                }
-            }
-        }
-
-        return true;
-    }
+        => FlexedPinNodes(feModel, proxy).All(feModel.NodeBases.ContainsKey);
 
     /// <summary>
-    /// Whether the pins <c>flex_cloth_borders</c> would free on <paramref name="proxy"/> all carry an <c>m_NodeBases</c>
-    /// entry, which only that flag gives a pinned proxy vertex.
+    /// Whether there are pins <c>flex_cloth_borders</c> would free on <paramref name="proxy"/> and all of them carry an
+    /// <c>m_NodeBases</c> entry, which only that flag gives a pinned proxy vertex.
     /// </summary>
     internal static bool FlexedPinsStateClothBorders(FeModel feModel, FeModel.ProxyMesh proxy)
     {
         var stated = false;
+        foreach (var node in FlexedPinNodes(feModel, proxy))
+        {
+            if (!feModel.NodeBases.ContainsKey(node))
+            {
+                return false;
+            }
+
+            stated = true;
+        }
+
+        return stated;
+    }
+
+    /// <summary>
+    /// The static pins <c>flex_cloth_borders</c> would free on <paramref name="proxy"/>: the pinned corners of every face
+    /// with two or more simulated corners.
+    /// </summary>
+    private static IEnumerable<int> FlexedPinNodes(FeModel feModel, FeModel.ProxyMesh proxy)
+    {
         foreach (var face in proxy.Faces)
         {
             if (face.Distinct().Count(corner => proxy.ClothEnable[corner] != 0f) < 2)
@@ -48,21 +45,12 @@ internal sealed partial class ClothExtract
             foreach (var corner in face)
             {
                 var node = proxy.NodeIndices[corner];
-                if (proxy.ClothEnable[corner] != 0f || node >= feModel.StaticNodeCount)
+                if (proxy.ClothEnable[corner] == 0f && node < feModel.StaticNodeCount)
                 {
-                    continue;
+                    yield return node;
                 }
-
-                if (!feModel.NodeBases.ContainsKey(node))
-                {
-                    return false;
-                }
-
-                stated = true;
             }
         }
-
-        return stated;
     }
 
     /// <summary>

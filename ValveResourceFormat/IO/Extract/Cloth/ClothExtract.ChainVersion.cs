@@ -101,8 +101,7 @@ internal sealed partial class ClothExtract
     private static bool ChainLocksJointsToParent(FeModel feModel, FeModel.BoneChain chain)
         => chain.ExtrudeSides >= 1
             && chain.Joints.Exists(joint => !joint.Simulated && feModel.AllowsRotation(joint.Node)
-                && (joint.RingNodes.Count > 0 || chain.Joints.Exists(child => child.ParentNode == joint.Node && child.RingNodes.Count > 0))
-                && LocksToParent(feModel, joint.Node));
+                && StagesFitTable(chain, joint) && LocksToParent(feModel, joint.Node));
 
     private static bool LocksToParent(FeModel feModel, int node)
     {
@@ -117,7 +116,7 @@ internal sealed partial class ClothExtract
     internal static bool ChainLocksOnlyParentLockedJoints(FeModel feModel, FeModel.BoneChain chain)
         => chain.ExtrudeSides >= 1
             && chain.Joints.TrueForAll(joint => joint.Simulated || !feModel.AllowsRotation(joint.Node)
-                || !(joint.RingNodes.Count > 0 || chain.Joints.Exists(child => child.ParentNode == joint.Node && child.RingNodes.Count > 0))
+                || !StagesFitTable(chain, joint)
                 || feModel.IsLockedToParent(joint.Node));
 
     /// <summary>
@@ -127,5 +126,9 @@ internal sealed partial class ClothExtract
     internal static bool ChainLocksJoints(FeModel feModel, FeModel.BoneChain chain)
         => chain.ExtrudeSides >= 1
             && chain.Joints.Exists(joint => !joint.Simulated && feModel.AllowsRotation(joint.Node)
-                && (joint.RingNodes.Count > 0 || chain.Joints.Exists(child => child.ParentNode == joint.Node && child.RingNodes.Count > 0)));
+                && StagesFitTable(chain, joint));
+
+    // A joint stages fit influences where it has a ring of its own or a chain child with one.
+    private static bool StagesFitTable(FeModel.BoneChain chain, FeModel.BoneChainJoint joint)
+        => joint.RingNodes.Count > 0 || chain.Joints.Exists(child => child.ParentNode == joint.Node && child.RingNodes.Count > 0);
 }

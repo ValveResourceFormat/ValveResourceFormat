@@ -82,8 +82,6 @@ internal sealed partial class ClothExtract
         }
     }
 
-    private const int ClothCollisionLayers = 4;
-
     // The only leader_type that compiles to an m_DynKinLinks entry.
     private const int ClothFollowBoneLeaderTypeBone = 0;
 
@@ -137,8 +135,7 @@ internal sealed partial class ClothExtract
 
             if (parent is null)
             {
-                parent = MakeNode("ClothNode", ("name", bone + "_effects"), ("cloth_node_root_bone", bone),
-                    ("is_static_node", true));
+                parent = MakeStaticClothNode(bone + "_effects", bone);
                 softbodyChildren.Add(parent);
             }
 
@@ -184,8 +181,7 @@ internal sealed partial class ClothExtract
 
         foreach (var (_, bone) in bones.OrderBy(static entry => entry.Node))
         {
-            softbodyChildren.Add(MakeNode("ClothNode", ("name", bone), ("cloth_node_root_bone", bone),
-                ("is_static_node", true)));
+            softbodyChildren.Add(MakeStaticClothNode(bone, bone));
         }
     }
 
@@ -200,9 +196,26 @@ internal sealed partial class ClothExtract
                 - ClothNodeDefaultGoalDamping) <= ClothNodeDefaultTolerance;
     }
 
-    private static void CollectChainJointNames(KVObject children, HashSet<string> joints)
+    /// <summary>Every node of a KV node tree, each before its own children.</summary>
+    private static IEnumerable<KVObject> EnumerateTree(KVObject children)
     {
         foreach (var (_, child) in children)
+        {
+            yield return child;
+
+            if (child.TryGetValue("children", out var nested))
+            {
+                foreach (var descendant in EnumerateTree(nested))
+                {
+                    yield return descendant;
+                }
+            }
+        }
+    }
+
+    private static void CollectChainJointNames(KVObject children, HashSet<string> joints)
+    {
+        foreach (var child in EnumerateTree(children))
         {
             if (child.GetStringProperty("_class") == "ClothChain" && child.TryGetValue("chain", out var chain)
                 && chain.TryGetValue("joints", out var list))
@@ -215,11 +228,6 @@ internal sealed partial class ClothExtract
                     }
                 }
             }
-
-            if (child.TryGetValue("children", out var nested))
-            {
-                CollectChainJointNames(nested, joints);
-            }
         }
     }
 
@@ -229,7 +237,7 @@ internal sealed partial class ClothExtract
     /// </summary>
     private static void CollectDeclaredVertexMaps(KVObject children, HashSet<string> maps)
     {
-        foreach (var (_, child) in children)
+        foreach (var child in EnumerateTree(children))
         {
             var kind = child.GetStringProperty("_class");
             if (kind == "ClothVertexMap" && child.GetStringProperty("name") is { Length: > 0 } name)
@@ -249,37 +257,18 @@ internal sealed partial class ClothExtract
                     }
                 }
             }
-
-            if (child.TryGetValue("children", out var nested))
-            {
-                CollectDeclaredVertexMaps(nested, maps);
-            }
         }
     }
 
+    /// <summary>The static <c>ClothNode</c> on <paramref name="rootBone"/>, preferring one named otherwise than the bone.</summary>
     private static KVObject? FindStaticClothNode(KVObject children, string rootBone)
     {
-        var matches = new List<KVObject>();
-        CollectStaticClothNodes(children, rootBone, matches);
+        var matches = EnumerateTree(children)
+            .Where(child => child.GetStringProperty("_class") == "ClothNode" && child.GetBooleanProperty("is_static_node")
+                && string.Equals(child.GetStringProperty("cloth_node_root_bone"), rootBone, StringComparison.OrdinalIgnoreCase))
+            .ToList();
         return matches.Find(node => !string.Equals(node.GetStringProperty("name"), rootBone, StringComparison.OrdinalIgnoreCase))
             ?? matches.FirstOrDefault();
-    }
-
-    private static void CollectStaticClothNodes(KVObject children, string rootBone, List<KVObject> matches)
-    {
-        foreach (var (_, child) in children)
-        {
-            if (child.GetStringProperty("_class") == "ClothNode" && child.GetBooleanProperty("is_static_node")
-                && string.Equals(child.GetStringProperty("cloth_node_root_bone"), rootBone, StringComparison.OrdinalIgnoreCase))
-            {
-                matches.Add(child);
-            }
-
-            if (child.TryGetValue("children", out var nested))
-            {
-                CollectStaticClothNodes(nested, rootBone, matches);
-            }
-        }
     }
 
     /// <summary>

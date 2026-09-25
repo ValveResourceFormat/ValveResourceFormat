@@ -99,11 +99,7 @@ internal sealed partial class ClothExtract
         // A colliding bone with no layer keys collides with all four.
         if ((flags & FeJiggleBoneFlags.Collision) != 0 && jiggleBone.CollisionMask is >= 0 and < 0xF)
         {
-            var (layer0, layer1, layer2, layer3) = ClothNodeCollisionLayers(jiggleBone.CollisionMask);
-            node.Add("cloth_collision_layer0", layer0);
-            node.Add("cloth_collision_layer1", layer1);
-            node.Add("cloth_collision_layer2", layer2);
-            node.Add("cloth_collision_layer3", layer3);
+            AddCollisionLayerFlags(node, "cloth_collision_layer", jiggleBone.CollisionMask);
         }
 
         return node;

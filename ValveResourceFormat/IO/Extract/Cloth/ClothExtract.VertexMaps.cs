@@ -19,7 +19,7 @@ internal sealed partial class ClothExtract
 
         mapNode.Add("volumetric_solve", map.VolumetricSolveStrength);
 
-        if (ResolveAntiTunnelNodeName(feModel, map.ScaleSourceNode, proxyNodeNames) is { } scaleSource)
+        if (AuthoredNodeName(feModel, map.ScaleSourceNode, proxyNodeNames) is { } scaleSource)
         {
             mapNode.Add("scale_source_node", scaleSource);
         }
@@ -51,16 +51,7 @@ internal sealed partial class ClothExtract
                     continue;
                 }
 
-                if (weight >= 1f)
-                {
-                    members.Add(joint.Name, true);
-                }
-                else
-                {
-                    var member = KVObject.Collection();
-                    member.Add("weight", weight);
-                    members.Add(joint.Name, member);
-                }
+                AddNodeTableMember(members, joint.Name, weight);
             }
 
             if (listed.Count == 0)
@@ -71,9 +62,7 @@ internal sealed partial class ClothExtract
             var (mapNode, _) = MakeListNode("ClothVertexMap");
             mapNode.Add("name", map.Name);
             AddClothVertexMapAttributes(mapNode, feModel, map.Name, proxyNodeNames: null);
-            var data = KVObject.Collection();
-            data.Add("nodes", members);
-            mapNode.Add("data", data);
+            mapNode.Add("data", MakeNodeTable(members));
             softbodyChildren.Add(mapNode);
         }
     }
@@ -110,9 +99,7 @@ internal sealed partial class ClothExtract
                 mapNode.Add("name", mapName);
                 AddClothVertexMapAttributes(mapNode, feModel, mapName, proxyNodeNames: null);
                 var members = KVObject.Collection();
-                var data = KVObject.Collection();
-                data.Add("nodes", members);
-                mapNode.Add("data", data);
+                mapNode.Add("data", MakeNodeTable(members));
                 clothFolderChildren.Add(mapNode);
                 groups[mapName] = group = (mapChildren, members);
             }
@@ -128,7 +115,7 @@ internal sealed partial class ClothExtract
                 return clothFolderChildren;
             }
 
-            var memberName = ResolveAntiTunnelNodeName(feModel, node, proxyNodeNames: null);
+            var memberName = AuthoredNodeName(feModel, node, proxyNodeNames: null);
             if (memberName is null || memberName.StartsWith('$'))
             {
                 return parentUnderMap && !maps.Contains(',', StringComparison.Ordinal)
@@ -141,18 +128,7 @@ internal sealed partial class ClothExtract
             {
                 var mapName = FeModel.VertexMapName(entry);
                 var group = GroupFor(mapName);
-                var weight = feModel.VertexMapWeight(mapName, node);
-                if (weight >= 1f)
-                {
-                    group.Members.Add(memberName, true);
-                }
-                else
-                {
-                    var member = KVObject.Collection();
-                    member.Add("weight", weight);
-                    group.Members.Add(memberName, member);
-                }
-
+                AddNodeTableMember(group.Members, memberName, feModel.VertexMapWeight(mapName, node));
                 home = home is null ? group.Children : clothFolderChildren;
             }
 

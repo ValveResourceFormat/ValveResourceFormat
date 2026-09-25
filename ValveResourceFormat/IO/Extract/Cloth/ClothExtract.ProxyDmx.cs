@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using ValveResourceFormat.IO.ContentFormats.DmxModel;
+using ValveResourceFormat.ResourceTypes.ModelAnimation;
 using ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody;
 
 namespace ValveResourceFormat.IO;
@@ -157,13 +158,12 @@ internal sealed partial class ClothExtract
         Debug.Assert(model is not null, "model required for cloth proxy mesh");
 
         var skeleton = model.Skeleton;
+        var feModel = physAggregateData?.FeModel;
 
         using var dmx = new Datamodel.Datamodel("model", 22);
 
-        var dmeModel = ModelExtract.BuildDmeDagSkeleton(skeleton, out _, bonePositions: ProxyRestBonePositions,
-            boneRotations: ProxyRestBoneRotations);
-        dmeModel.Name = name;
-        RespellJointsAsClothControlNodes(dmeModel, physAggregateData?.FeModel);
+        var dmeModel = CreateClothDmxSkeleton(skeleton, name);
+        RespellJointsAsClothControlNodes(dmeModel, feModel);
 
         var (dag, vertexData) = DmxScaffolding.CreateDagVertexData(dmeModel, name);
         dag.Shape!.Name = name;
@@ -179,7 +179,7 @@ internal sealed partial class ClothExtract
         vertexData.AddIndexedStream("position$0", proxy.Positions, vertexIndices);
 
         // The importer reads vertex v's rest normal from corner ordinal v.
-        var restNormals = physAggregateData?.FeModel?.RecoverRestNormals(proxy)
+        var restNormals = feModel?.RecoverRestNormals(proxy)
             ?? [.. Enumerable.Repeat(Vector3.UnitZ, vertexCount)];
         var cornerNormals = new Vector3[vertexIndices.Length];
         for (var corner = 0; corner < cornerNormals.Length; corner++)
@@ -233,30 +233,29 @@ internal sealed partial class ClothExtract
 
         vertexData.AddIndexedStream("cloth_gravity$0", proxy.Gravity, vertexIndices);
 
-        if (physAggregateData?.FeModel is { } feLayers)
+        if (feModel is not null)
         {
-            foreach (var (layer, painted) in ClothCollisionLayerPaints(feLayers, proxy.NodeIndices, vertexCount))
+            foreach (var (layer, painted) in ClothCollisionLayerPaints(feModel, proxy.NodeIndices, vertexCount))
             {
                 vertexData.AddIndexedStream($"cloth_collision_layer_{layer}$0", painted, vertexIndices);
             }
         }
 
-        if (physAggregateData?.FeModel is { } feRotate
-            && ClothAnchorFreeRotatePaint(feRotate, proxy, flexedProxies.Contains(proxy)) is { } freeRotate)
+        if (feModel is not null
+            && ClothAnchorFreeRotatePaint(feModel, proxy, flexedProxies.Contains(proxy)) is { } freeRotate)
         {
             vertexData.AddIndexedStream("cloth_anchor_free_rotate$0", freeRotate, vertexIndices);
         }
 
-        if (physAggregateData?.FeModel?.RecoverMassPaint(proxy) is { } mass)
+        if (feModel?.RecoverMassPaint(proxy) is { } mass)
         {
             vertexData.AddIndexedStream("cloth_mass$0", mass, vertexIndices);
         }
 
         // The selections this sheet's ClothVertexMap container stands for are not painted.
-        IReadOnlyList<string> containerMaps = physAggregateData?.FeModel is { } proxyFeModel
-            && proxyFeModel.GetProxyVertexMapName(proxy, ProxyMeshes.ConvertAll(static entry => entry.Proxy))
-                is { } containerMap
-            ? proxyFeModel.VertexMapAliases(containerMap)
+        IReadOnlyList<string> containerMaps = feModel is not null
+            && feModel.GetProxyVertexMapName(proxy, ProxyMeshes.ConvertAll(static entry => entry.Proxy)) is { } containerMap
+            ? feModel.VertexMapAliases(containerMap)
             : [];
         var selectionWeights = new Dictionary<string, float[]>(proxy.VertexMaps.Length, StringComparer.Ordinal);
         foreach (var (mapName, weights) in proxy.VertexMaps)
@@ -264,8 +263,8 @@ internal sealed partial class ClothExtract
             selectionWeights[mapName] = weights;
         }
 
-        var selectionOrder = physAggregateData?.FeModel is { } orderFeModel
-            ? orderFeModel.VertexSetStreamOrder(proxy)
+        var selectionOrder = feModel is not null
+            ? feModel.VertexSetStreamOrder(proxy)
             : proxy.VertexMaps.Select(static map => map.Name).ToArray();
         // A selection the original does not register as a vertex set is declared as a container instead.
         foreach (var mapName in selectionOrder)
@@ -275,9 +274,9 @@ internal sealed partial class ClothExtract
                 continue;
             }
 
-            if (physAggregateData?.FeModel is { } setFeModel
-                && setFeModel.VertexMaps.FirstOrDefault(map => map.Name == mapName) is { } selection
-                && selection.Name == mapName && !setFeModel.RegistersVertexSet(selection.NameHash))
+            if (feModel is not null
+                && feModel.VertexMaps.FirstOrDefault(map => map.Name == mapName) is { } selection
+                && selection.Name == mapName && !feModel.RegistersVertexSet(selection.NameHash))
             {
                 continue;
             }
@@ -286,8 +285,7 @@ internal sealed partial class ClothExtract
         }
 
         // A selection registered over no vertex is an all-zero stream on the first sheet.
-        if (physAggregateData?.FeModel is { } ghostFeModel
-            && ProxyMeshes.Count > 0 && ProxyMeshes[0].Proxy == proxy)
+        if (feModel is not null && ProxyMeshes.Count > 0 && ProxyMeshes[0].Proxy == proxy)
         {
             var painted = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             foreach (var (mapName, _) in proxy.VertexMaps)
@@ -295,7 +293,7 @@ internal sealed partial class ClothExtract
                 painted.Add(mapName);
             }
 
-            foreach (var mapName in ghostFeModel.ZeroVertexSelectionNames)
+            foreach (var mapName in feModel.ZeroVertexSelectionNames)
             {
                 if (!painted.Contains(mapName) && !containerMaps.Contains(mapName))
                 {
@@ -305,12 +303,12 @@ internal sealed partial class ClothExtract
             }
         }
 
-        if (physAggregateData?.FeModel?.RecoverStrayRadiusPaint(proxy) is { } strayRadius)
+        if (feModel?.RecoverStrayRadiusPaint(proxy) is { } strayRadius)
         {
             vertexData.AddIndexedStream("cloth_stray_radius$0", strayRadius, vertexIndices);
         }
 
-        if (physAggregateData?.FeModel?.RecoverStrayStretchinessPaint(proxy) is { } strayStretchiness)
+        if (feModel?.RecoverStrayStretchinessPaint(proxy) is { } strayStretchiness)
         {
             vertexData.AddIndexedStream("cloth_stray_radius_stretchiness$0", strayStretchiness, vertexIndices);
         }
@@ -325,17 +323,17 @@ internal sealed partial class ClothExtract
             vertexData.AddIndexedStream("cloth_bend_stiffness$0", bendStiffness, vertexIndices);
         }
 
-        if (physAggregateData?.FeModel?.RecoverAntishrinkPaint(proxy) is { } antishrink)
+        if (feModel?.RecoverAntishrinkPaint(proxy) is { } antishrink)
         {
             vertexData.AddIndexedStream("cloth_antishrink$0", antishrink, vertexIndices);
         }
 
-        if (physAggregateData?.FeModel?.RecoverShearResistancePaint(proxy) is { } shearResistance)
+        if (feModel?.RecoverShearResistancePaint(proxy) is { } shearResistance)
         {
             vertexData.AddIndexedStream("cloth_shear_resistance$0", shearResistance, vertexIndices);
         }
 
-        if (physAggregateData?.FeModel?.RecoverStretchPaint(proxy) is { } stretch)
+        if (feModel?.RecoverStretchPaint(proxy) is { } stretch)
         {
             vertexData.AddIndexedStream("cloth_stretch$0", stretch, vertexIndices);
         }
@@ -346,41 +344,26 @@ internal sealed partial class ClothExtract
         {
             vertexData.AddIndexedStream("cloth_make_rods$0", proxy.RodsDriven, vertexIndices);
         }
-        else if (!proxy.UsesAuthoredFaces && physAggregateData?.FeModel is { HasSurfaceElements: true })
+        else if (!proxy.UsesAuthoredFaces && feModel is { HasSurfaceElements: true })
         {
             vertexData.AddIndexedStream("cloth_use_rods$0", Enumerable.Repeat(1f, vertexCount).ToArray(), vertexIndices);
             vertexData.AddIndexedStream("cloth_make_rods$0",
                 Enumerable.Repeat(ClothSuppressedMakeRods, vertexCount).ToArray(), vertexIndices);
 
-            if (ClothFaceKeptBendStiffness(physAggregateData.FeModel, ProxyMeshes) is { } faceKeptBend)
+            if (ClothFaceKeptBendStiffness(feModel, ProxyMeshes) is { } faceKeptBend)
             {
                 vertexData.AddIndexedStream("cloth_bend_stiffness$0", Enumerable.Repeat(faceKeptBend, vertexCount).ToArray(), vertexIndices);
             }
         }
 
-        // Bone names resolve case-insensitively, as the compiler matches them.
-        var clothCompaction = ModelExtract.BuildClothBoneCompaction(skeleton);
-        var boneIndexByName = new Dictionary<string, int>(skeleton.Bones.Length * 2, StringComparer.OrdinalIgnoreCase);
-        foreach (var bone in skeleton.Bones)
-        {
-            if (ModelExtract.IsGeneratedClothProxyBone(bone))
-            {
-                continue;
-            }
-
-            var emitted = clothCompaction[bone.Index];
-            boneIndexByName.TryAdd(bone.Name, emitted);
-            boneIndexByName.TryAdd(ModelExtract.GetExportBoneName(bone), emitted);
-        }
-
-        AppendCulledClothBoneJoints(dmeModel, boneIndexByName);
+        var boneIndexByName = ClothBoneIndexByName(skeleton, dmeModel);
 
         // A sheet no real bone drives ships unskinned.
         if (!proxy.IsFreeFloating)
         {
             // Widened past the default slot count to hold every recovered influence.
             var jointCount = FeModel.ClothProxyInfluenceSlots;
-            if (physAggregateData?.FeModel is { } feModel)
+            if (feModel is not null)
             {
                 for (var v = 0; v < vertexCount; v++)
                 {
@@ -391,36 +374,11 @@ internal sealed partial class ClothExtract
                 }
             }
 
-            var blendIndices = new int[vertexCount * jointCount];
-            var blendWeights = new float[vertexCount * jointCount];
-            for (var v = 0; v < vertexCount; v++)
-            {
-                var slot = 0;
-                foreach (var (boneName, weight) in SeparateTiedInfluenceWeights(proxy.SkinInfluences[v]))
-                {
-                    if (slot >= jointCount || !boneIndexByName.TryGetValue(boneName, out var bi))
-                    {
-                        continue;
-                    }
-
-                    blendIndices[v * jointCount + slot] = bi;
-                    blendWeights[v * jointCount + slot] = weight;
-                    slot++;
-                }
-            }
-
-            vertexData.JointCount = jointCount;
-            vertexData.AddStream("blendindices$0", blendIndices);
-            vertexData.AddStream("blendweights$0", blendWeights);
+            AddClothBlendStreams(vertexData, vertexCount, jointCount, boneIndexByName,
+                v => SeparateTiedInfluenceWeights(proxy.SkinInfluences[v]));
         }
 
-        var faceSet = new DmeFaceSet { Name = "cloth" };
-        faceSet.Material.MaterialName = "cloth";
-        if (dag.Shape is DmeMesh dmeMesh)
-        {
-            dmeMesh.FaceSets.Add(faceSet);
-        }
-
+        var faceSet = AddClothFaceSet(dag);
         var cornerOrdinal = 0;
         foreach (var face in emittedFaces)
         {
@@ -434,13 +392,10 @@ internal sealed partial class ClothExtract
 
         if (dag.Shape is DmeMesh morphTarget)
         {
-            AddClothProxyMorphLayers(morphTarget, proxy, physAggregateData?.FeModel);
+            AddClothProxyMorphLayers(morphTarget, proxy, feModel);
         }
 
-        DmxScaffolding.TieElementRoot(dmx, dmeModel);
-        using var stream = new MemoryStream();
-        dmx.SaveDeterministic(stream, "binary", 9);
-        return stream.ToArray();
+        return SaveClothDmx(dmx, dmeModel);
     }
 
     /// <summary>Re-emits the sheet's <c>m_MorphLayers</c> as sparse DMX delta states.</summary>
@@ -494,9 +449,7 @@ internal sealed partial class ClothExtract
 
         using var dmx = new Datamodel.Datamodel("model", 22);
 
-        var dmeModel = ModelExtract.BuildDmeDagSkeleton(skeleton, out _, bonePositions: ProxyRestBonePositions,
-            boneRotations: ProxyRestBoneRotations);
-        dmeModel.Name = name;
+        var dmeModel = CreateClothDmxSkeleton(skeleton, name);
 
         var (dag, vertexData) = DmxScaffolding.CreateDagVertexData(dmeModel, name);
         dag.Shape!.Name = name;
@@ -527,6 +480,39 @@ internal sealed partial class ClothExtract
             vertexData.AddIndexedStream("cloth_bend_stiffness$0", Enumerable.Repeat(ClothFaceKeptBendStiffnessDefault, vertexCount).ToArray(), identity);
         }
 
+        var boneIndexByName = ClothBoneIndexByName(skeleton, dmeModel);
+        AddClothBlendStreams(vertexData, vertexCount, FeModel.ClothProxyInfluenceSlots, boneIndexByName,
+            v => grid.SkinInfluences[v]);
+
+        var faceSet = AddClothFaceSet(dag);
+        foreach (var face in grid.Faces)
+        {
+            foreach (var index in face)
+            {
+                faceSet.Faces.Add(index);
+            }
+
+            faceSet.Faces.Add(-1);
+        }
+
+        return SaveClothDmx(dmx, dmeModel);
+    }
+
+    /// <summary>A cloth DMX's model: the whole skeleton at the proxy rest pose, so blend indices resolve.</summary>
+    private DmeModel CreateClothDmxSkeleton(Skeleton skeleton, string name)
+    {
+        var dmeModel = ModelExtract.BuildDmeDagSkeleton(skeleton, out _, bonePositions: ProxyRestBonePositions,
+            boneRotations: ProxyRestBoneRotations);
+        dmeModel.Name = name;
+        return dmeModel;
+    }
+
+    /// <summary>
+    /// The emitted joint index of every bone of a cloth DMX by name, matched case-insensitively, after appending the
+    /// culled cloth bones.
+    /// </summary>
+    private Dictionary<string, int> ClothBoneIndexByName(Skeleton skeleton, DmeModel dmeModel)
+    {
         var clothCompaction = ModelExtract.BuildClothBoneCompaction(skeleton);
         var boneIndexByName = new Dictionary<string, int>(skeleton.Bones.Length * 2, StringComparer.OrdinalIgnoreCase);
         foreach (var bone in skeleton.Bones)
@@ -542,30 +528,42 @@ internal sealed partial class ClothExtract
         }
 
         AppendCulledClothBoneJoints(dmeModel, boneIndexByName);
+        return boneIndexByName;
+    }
 
-        const int JointCount = FeModel.ClothProxyInfluenceSlots;
-        var blendIndices = new int[vertexCount * JointCount];
-        var blendWeights = new float[vertexCount * JointCount];
+    /// <summary>
+    /// Adds the blend index and weight streams, <paramref name="jointCount"/> slots per vertex filled in order by the
+    /// influences whose bone the DMX carries.
+    /// </summary>
+    private static void AddClothBlendStreams(DmeVertexData vertexData, int vertexCount, int jointCount,
+        Dictionary<string, int> boneIndexByName, Func<int, IEnumerable<(string Bone, float Weight)>> influences)
+    {
+        var blendIndices = new int[vertexCount * jointCount];
+        var blendWeights = new float[vertexCount * jointCount];
         for (var v = 0; v < vertexCount; v++)
         {
             var slot = 0;
-            foreach (var (boneName, weight) in grid.SkinInfluences[v])
+            foreach (var (boneName, weight) in influences(v))
             {
-                if (slot >= JointCount || !boneIndexByName.TryGetValue(boneName, out var bi))
+                if (slot >= jointCount || !boneIndexByName.TryGetValue(boneName, out var bi))
                 {
                     continue;
                 }
 
-                blendIndices[v * JointCount + slot] = bi;
-                blendWeights[v * JointCount + slot] = weight;
+                blendIndices[v * jointCount + slot] = bi;
+                blendWeights[v * jointCount + slot] = weight;
                 slot++;
             }
         }
 
-        vertexData.JointCount = JointCount;
+        vertexData.JointCount = jointCount;
         vertexData.AddStream("blendindices$0", blendIndices);
         vertexData.AddStream("blendweights$0", blendWeights);
+    }
 
+    /// <summary>Adds the <c>cloth</c> face set to the mesh of <paramref name="dag"/> and returns it.</summary>
+    private static DmeFaceSet AddClothFaceSet(DmeDag dag)
+    {
         var faceSet = new DmeFaceSet { Name = "cloth" };
         faceSet.Material.MaterialName = "cloth";
         if (dag.Shape is DmeMesh dmeMesh)
@@ -573,16 +571,11 @@ internal sealed partial class ClothExtract
             dmeMesh.FaceSets.Add(faceSet);
         }
 
-        foreach (var face in grid.Faces)
-        {
-            foreach (var index in face)
-            {
-                faceSet.Faces.Add(index);
-            }
+        return faceSet;
+    }
 
-            faceSet.Faces.Add(-1);
-        }
-
+    private static byte[] SaveClothDmx(Datamodel.Datamodel dmx, DmeModel dmeModel)
+    {
         DmxScaffolding.TieElementRoot(dmx, dmeModel);
         using var stream = new MemoryStream();
         dmx.SaveDeterministic(stream, "binary", 9);

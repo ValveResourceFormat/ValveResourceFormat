@@ -59,14 +59,14 @@ internal sealed partial class ClothExtract
         var generators = new Dictionary<(int, int), List<(int, int)>>();
         foreach (var (hinge, nodeA, nodeB) in FeModel.BendRodGenerators(faces))
         {
-            var pair = nodeA < nodeB ? (nodeA, nodeB) : (nodeB, nodeA);
-            (generators.TryGetValue(pair, out var known) ? known : generators[pair] = []).Add(hinge);
+            var pair = Pair(nodeA, nodeB);
+            GetOrAdd(generators, pair).Add(hinge);
         }
 
         var misses = 0;
         foreach (var rod in feModel.Rods)
         {
-            var pair = rod.NodeA < rod.NodeB ? (rod.NodeA, rod.NodeB) : (rod.NodeB, rod.NodeA);
+            var pair = RodPair(rod);
             if (!network.Contains(pair) || pair.Item2 >= positions.Length)
             {
                 continue;
@@ -205,7 +205,7 @@ internal sealed partial class ClothExtract
                 continue;
             }
 
-            var generated = nodeA < nodeB ? (nodeA, nodeB) : (nodeB, nodeA);
+            var generated = Pair(nodeA, nodeB);
             var about = generators.TryGetValue(generated, out var known) ? known : generators[generated] = [];
             if (!about.Contains(hinge))
             {
@@ -216,7 +216,7 @@ internal sealed partial class ClothExtract
         var readings = new List<((int, int) Hinge, float Fraction, bool Capped, float Error, ((int, int) Hinge, float Fraction)[] Candidates)>();
         foreach (var rod in feModel.Rods)
         {
-            var edge = rod.NodeA < rod.NodeB ? (rod.NodeA, rod.NodeB) : (rod.NodeB, rod.NodeA);
+            var edge = RodPair(rod);
             if (!beyondSurface.Contains(edge) || edge.Item2 >= positions.Length)
             {
                 continue;
@@ -567,8 +567,8 @@ internal sealed partial class ClothExtract
         var adjacency = new Dictionary<int, List<(int Node, float Sum)>>();
         foreach (var (u, v, sum) in equations)
         {
-            (adjacency.TryGetValue(u, out var fromU) ? fromU : adjacency[u] = []).Add((v, sum));
-            (adjacency.TryGetValue(v, out var fromV) ? fromV : adjacency[v] = []).Add((u, sum));
+            GetOrAdd(adjacency, u).Add((v, sum));
+            GetOrAdd(adjacency, v).Add((u, sum));
         }
 
         var sign = new Dictionary<int, float>();

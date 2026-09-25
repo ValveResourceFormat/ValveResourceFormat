@@ -140,9 +140,7 @@ internal sealed partial class ClothExtract
 
             var (position, rotation) = world[joint];
             var (parentPosition, parentRotation) = world[parentJoint];
-            var inverse = Quaternion.Conjugate(parentRotation);
-            joint.Transform.Position = Vector3.Transform(position - parentPosition, inverse);
-            joint.Transform.Orientation = Quaternion.Normalize(inverse * rotation);
+            (joint.Transform.Position, joint.Transform.Orientation) = RelativePose(position, rotation, parentPosition, parentRotation);
             parentJoint.Children.Add(joint);
             parentOf[joint] = parentJoint;
         }
@@ -205,9 +203,8 @@ internal sealed partial class ClothExtract
                 continue;
             }
 
-            var inverse = Quaternion.Conjugate(parentWorld.Rotation);
-            joint.Transform.Position = Vector3.Transform(world[joint].Position - parentWorld.Position, inverse);
-            joint.Transform.Orientation = Quaternion.Normalize(inverse * world[joint].Rotation);
+            (joint.Transform.Position, joint.Transform.Orientation) = RelativePose(world[joint].Position, world[joint].Rotation,
+                parentWorld.Position, parentWorld.Rotation);
             parentJoint.Children.Add(joint);
         }
     }

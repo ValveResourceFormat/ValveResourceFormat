@@ -115,9 +115,6 @@ internal sealed partial class ClothExtract
             nodes.Add(name, true);
         }
 
-        var data = KVObject.Collection();
-        data.Add("nodes", nodes);
-
         softbodyChildren.Add(MakeNode("ClothAntiTunnelColliderGroup",
             ("name", "cloth_antitunnel_group0"),
             ("vertex_map", string.Empty),
@@ -125,7 +122,7 @@ internal sealed partial class ClothExtract
             ("import_cloth_collision_layer1", false),
             ("import_cloth_collision_layer2", false),
             ("import_cloth_collision_layer3", false),
-            ("data", data)));
+            ("data", MakeNodeTable(nodes))));
     }
 
     // A shape parent bone's control node, or int.MaxValue where it is not one.
@@ -145,7 +142,7 @@ internal sealed partial class ClothExtract
             .OrderBy(i => feModel.AntiTunnelProbes[i].Begin))
         {
             var probe = feModel.AntiTunnelProbes[i];
-            var sourceName = ResolveAntiTunnelNodeName(feModel, probe.ProbeNode, proxyNodeNames);
+            var sourceName = AuthoredNodeName(feModel, probe.ProbeNode, proxyNodeNames);
             if (sourceName is null)
             {
                 continue;
@@ -154,7 +151,7 @@ internal sealed partial class ClothExtract
             var targetNames = new List<string>();
             for (var t = probe.Begin; t < probe.Begin + probe.Count && t < feModel.AntiTunnelTargetNodes.Length; t++)
             {
-                if (ResolveAntiTunnelNodeName(feModel, feModel.AntiTunnelTargetNodes[t], proxyNodeNames) is { } targetName)
+                if (AuthoredNodeName(feModel, feModel.AntiTunnelTargetNodes[t], proxyNodeNames) is { } targetName)
                 {
                     targetNames.Add(targetName);
                 }
@@ -179,9 +176,6 @@ internal sealed partial class ClothExtract
             nodes.Add(targetName, true);
         }
 
-        var data = KVObject.Collection();
-        data.Add("nodes", nodes);
-
         return MakeNode("ClothAntiTunnelProbe",
             ("name", name),
             ("source_node", sourceNode),
@@ -193,7 +187,7 @@ internal sealed partial class ClothExtract
             ("curvature_drop_distance", 0.0f),
             ("curvature_drop_amount", 0.0f),
             ("activation_distance", activationDistance),
-            ("data", data));
+            ("data", MakeNodeTable(nodes)));
     }
 
     private static KVObject MakeClothShapeBox(FeModel.CollisionBox box)
@@ -251,11 +245,5 @@ internal sealed partial class ClothExtract
 
     // A mask of zero means all layers.
     private static void AddClothCollisionLayers(KVObject node, int collisionMask)
-    {
-        var mask = collisionMask == 0 ? 0xF : collisionMask;
-        node.Add("cloth_collision_layer0", (mask & 1) != 0);
-        node.Add("cloth_collision_layer1", (mask & 2) != 0);
-        node.Add("cloth_collision_layer2", (mask & 4) != 0);
-        node.Add("cloth_collision_layer3", (mask & 8) != 0);
-    }
+        => AddCollisionLayerFlags(node, "cloth_collision_layer", collisionMask == 0 ? 0xF : collisionMask);
 }

@@ -73,31 +73,15 @@ internal sealed partial class ClothExtract
             joints.Add(joint);
         }
 
-        var jointName = KVObject.Collection();
-        jointName.Add("display", "Joint Name");
-        jointName.Add("show", true);
-        jointName.Add("ui_order", 0);
-        jointName.Add("default", string.Empty);
-        var stiffness = KVObject.Collection();
-        stiffness.Add("display", "Stiffness");
-        stiffness.Add("show", true);
-        stiffness.Add("ui_order", 1);
-        stiffness.Add("default", 1f);
         var attrs = KVObject.Collection();
-        attrs.Add("joint_name", jointName);
-        attrs.Add("stiffness", stiffness);
-
-        var chainData = KVObject.Collection();
-        chainData.Add("joints", joints);
-        chainData.Add("attrs", attrs);
-        chainData.Add("selection", KVObject.Array());
-        chainData.Add("version", 0);
+        AddColumn(attrs, "joint_name", "Joint Name", true, 0).Add("default", string.Empty);
+        AddColumn(attrs, "stiffness", "Stiffness", true, 1).Add("default", 1f);
 
         return MakeNode("ClothRigidCloudCluster",
             ("name", parentNode + "_rigid_cloud"),
             ("algorithm", 0),
             ("parent_node", parentNode),
-            ("chain", chainData));
+            ("chain", MakeChainData(joints, attrs, version: 0)));
     }
 
     /// <summary>
@@ -106,7 +90,7 @@ internal sealed partial class ClothExtract
     /// </summary>
     internal static IEnumerable<KVObject> ChainJointClothNodes(FeModel feModel, IReadOnlyList<FeModel.BoneChain> chains)
     {
-        var joints = chains.SelectMany(static chain => chain.Joints).Select(static joint => joint.Node).ToHashSet();
+        var joints = ChainJointNodes(chains);
         var names = feModel.CtrlNames;
         bool NamesClothNode(int node) => node >= 0 && node < names.Length && names[node].StartsWith(FeModel.FreeClothNodePrefix, StringComparison.Ordinal);
 
@@ -129,7 +113,7 @@ internal sealed partial class ClothExtract
         {
             if (!presets.TryGetValue(node, out var references))
             {
-                yield return MakeNode("ClothNode", ("name", names[node]), ("cloth_node_root_bone", names[node]), ("is_static_node", true));
+                yield return MakeStaticClothNode(names[node], names[node]);
                 continue;
             }
 
@@ -137,8 +121,8 @@ internal sealed partial class ClothExtract
                 ("name", names[node]),
                 ("cloth_node_root_bone", names[node]),
                 ("transform_alignment", 3),
-                ("node_base_x1", ResolveAntiTunnelNodeName(feModel, references.NodeX1, null) ?? string.Empty),
-                ("node_base_y1", ResolveAntiTunnelNodeName(feModel, references.NodeY1, null) ?? string.Empty),
+                ("node_base_x1", AuthoredNodeName(feModel, references.NodeX1, null) ?? string.Empty),
+                ("node_base_y1", AuthoredNodeName(feModel, references.NodeY1, null) ?? string.Empty),
                 ("is_static_node", true));
         }
     }
@@ -170,17 +154,10 @@ internal sealed partial class ClothExtract
             joints.Add(jointNode);
         }
 
-        var chainData = KVObject.Collection();
-        chainData.Add("joints", joints);
-        chainData.Add("attrs", MakeClothChainAttrs(chain.ExtrudeSides, chain.ExtrudeRadius, chainMass));
-        chainData.Add("selection", KVObject.Array());
-
-        chainData.Add("version", version);
-
         var chainNode = MakeNode("ClothChain",
             ("name", chain.RootBone + chain.DeclarationSuffix),
             ("root_bone", chain.RootBone),
-            ("chain", chainData));
+            ("chain", MakeChainData(joints, MakeClothChainAttrs(chain.ExtrudeSides, chain.ExtrudeRadius, chainMass), version)));
 
         var hinges = KVObject.Array();
         foreach (var joint in chain.Joints)
@@ -265,16 +242,11 @@ internal sealed partial class ClothExtract
             joints.Add(kv);
         }
 
-        var chainData = KVObject.Collection();
-        chainData.Add("joints", joints);
-        chainData.Add("attrs", MakeClothChainAttrs());
-        chainData.Add("selection", KVObject.Array());
-
         rootBone ??= restated[0].Name;
         return MakeNode("ClothChain",
             ("name", rootBone + "_restated"),
             ("root_bone", rootBone),
-            ("chain", chainData));
+            ("chain", MakeChainData(joints, MakeClothChainAttrs())));
     }
 
     /// <summary>
@@ -305,16 +277,10 @@ internal sealed partial class ClothExtract
                 }
             }
 
-            var chainData = KVObject.Collection();
-            chainData.Add("joints", joints);
-            chainData.Add("attrs", MakeClothChainAttrs());
-            chainData.Add("selection", KVObject.Array());
-            chainData.Add("version", version);
-
             declarations.Add(MakeNode("ClothChain",
                 ("name", rootBone + "_second"),
                 ("root_bone", rootBone),
-                ("chain", chainData)));
+                ("chain", MakeChainData(joints, MakeClothChainAttrs(), version))));
         }
 
         return declarations;
@@ -395,10 +361,7 @@ internal sealed partial class ClothExtract
         var collisionMask = feModel.GetNodeCollisionMask(joint.Node);
         if (collisionMask is >= 0 and < 0xF)
         {
-            kv.Add("collision_layer_0", (collisionMask & 1) != 0);
-            kv.Add("collision_layer_1", (collisionMask & 2) != 0);
-            kv.Add("collision_layer_2", (collisionMask & 4) != 0);
-            kv.Add("collision_layer_3", (collisionMask & 8) != 0);
+            AddCollisionLayerFlags(kv, "collision_layer_", collisionMask);
         }
 
         var (worldFriction, groundFriction) = feModel.GetWorldFriction(joint.Node);
@@ -507,105 +470,65 @@ internal sealed partial class ClothExtract
     {
         var attrs = KVObject.Collection();
 
-        KVObject AddAttr(string key, string display, bool show, int uiOrder)
+        KVObject Column(string key, string display, bool show, int uiOrder, KVObject def, KVObject? min = null,
+            KVObject? max = null)
         {
-            var attr = KVObject.Collection();
-            attr.Add("display", display);
-            attr.Add("show", show);
-            attr.Add("ui_order", uiOrder);
-            attrs.Add(key, attr);
-            return attr;
-        }
-
-        KVObject FloatAttr(string key, string display, bool show, int uiOrder, float def, float? min = null, float? max = null)
-        {
-            var attr = AddAttr(key, display, show, uiOrder);
+            var attr = AddColumn(attrs, key, display, show, uiOrder);
             attr.Add("default", def);
-            if (min.HasValue)
+            if (min is not null)
             {
-                attr.Add("min", min.Value);
+                attr.Add("min", min);
             }
 
-            if (max.HasValue)
+            if (max is not null)
             {
-                attr.Add("max", max.Value);
-            }
-
-            return attr;
-        }
-
-        KVObject IntAttr(string key, string display, bool show, int uiOrder, int def, int? min = null, int? max = null)
-        {
-            var attr = AddAttr(key, display, show, uiOrder);
-            attr.Add("default", def);
-            if (min.HasValue)
-            {
-                attr.Add("min", min.Value);
-            }
-
-            if (max.HasValue)
-            {
-                attr.Add("max", max.Value);
+                attr.Add("max", max);
             }
 
             return attr;
         }
 
-        KVObject BoolAttr(string key, string display, bool show, int uiOrder, bool def)
-        {
-            var attr = AddAttr(key, display, show, uiOrder);
-            attr.Add("default", def);
-            return attr;
-        }
-
-        KVObject StringAttr(string key, string display, bool show, int uiOrder)
-        {
-            var attr = AddAttr(key, display, show, uiOrder);
-            attr.Add("default", string.Empty);
-            return attr;
-        }
-
-        StringAttr("joint_name", "Joint Name", true, 1).Add("lock", true);
-        StringAttr("joint_parent", "Parent Joint", false, 2);
-        BoolAttr("simulate", "Simulate", true, 3, true);
-        BoolAttr("allow_rotation", "Allow Rotation", false, 4, true);
-        FloatAttr("stretch_spring", "Stretch Stiffness", false, 5, 1.0f, 0.0f, 1.0f);
-        FloatAttr("child_sibling_spring", "Spring Between Children", false, 6, 0.0f, 0.0f, 1.0f);
-        FloatAttr("bend_spring", "Bend Stiffness", false, 7, 1.0f, 0.0f, 1.0f);
-        FloatAttr("torsion_spring", "Torsion Stiffness", false, 8, 0.0f, 0.0f, 1.0f);
-        FloatAttr("explicit_length", "Explicit Length", false, 9, 0.0f, 0.0f);
-        BoolAttr("world_collision", "World Ground Collision", true, 10, false);
-        BoolAttr("animated_length", "Animated Length", false, 11, false);
-        FloatAttr("goal_strength", "Goal Strength", true, 12, 0.0f, 0.0f, 1.0f);
-        FloatAttr("goal_damping", "Goal Damping", true, 13, 0.0f, 0.0f, 1.0f);
-        FloatAttr("drag", "Extra Drag", false, 14, 0.0f, 0.0f, 1.0f);
-        FloatAttr("mass", "Mass", false, 15, mass, 0.0f);
-        FloatAttr("gravity_z", "Gravity", true, 16, 1.0f);
-        FloatAttr("collision_radius", "Collision Radius", true, 17, 0.0f, 0.0f);
-        BoolAttr("lock_translation", "Lock Translation", false, 18, false);
-        FloatAttr("suspender", "Suspender Spring", false, 19, 0.0f);
-        FloatAttr("antishrink", "Antishrink Strength", false, 20, 1.0f, 0.0f, 1.0f);
-        FloatAttr("stray_radius", "Stray Radius", true, 21, 0.0f, 0.0f);
-        FloatAttr("stray_radius_stretchiness", "Stray Radius Stretchiness", false, 22, 0.0f, 0.0f);
-        FloatAttr("friction", "Friction", false, 23, 0.0f, 0.0f, 1.0f);
-        StringAttr("vertex_map", "Vertex Map", false, 24).Add("verify", "vertex_map");
-        FloatAttr("end_effector", "End Effector", false, 25, 0.0f).Add("lock_default_value", true);
-        FloatAttr("stiff_hinge", "Stiff Hinge", true, 26, 0.0f, 0.0f, 1.0f).Add("lock_root2", true);
-        FloatAttr("stiff_hinge_angle", "Stiff Hinge Angle", true, 27, 0.0f, 0.0f, 180.0f).Add("lock_root2", true);
-        FloatAttr("motion_bias", "Motion Bias", true, 28, 0.0f, -1.0f, 1.0f).Add("lock_root", true);
-        IntAttr("extra_iterations", "Extra Iterations", true, 29, 0, 0, 1000);
-        FloatAttr("twist_relax", "Twist Relax", true, 30, 0.0f, 0.0f, 1.0f);
-        IntAttr("extrude_sides", "Extrude Sides", false, 31, extrudeSides, 0, 4);
-        FloatAttr("extrude_radius", "Extrude Radius", false, 32, extrudeSides >= 1 ? extrudeRadius : 5.0f, 0.0f);
-        FloatAttr("extrude_twist", "Extrude Twist", false, 33, ClothExtrudeTwistAttrDefault);
-        StringAttr("extrude_forward_axis", "Extrude Forward Axis", false, 34).Add("verify", "extrude_forward_axis");
-        FloatAttr("world_friction", "Ground Softness (\"world friction\" in Source1)", false, 35, 0.0f, 0.0f, 1.0f);
-        FloatAttr("ground_friction", "Ground Friction", false, 36, 0.0f, 0.0f, 1.0f);
-        StringAttr("stray_box", "Stray Box", false, 37).Add("verify", "stray_box");
-        BoolAttr("collision_layer_0", "Collision Layer 0", false, 38, true);
-        BoolAttr("collision_layer_1", "Collision Layer 1", false, 39, true);
-        BoolAttr("collision_layer_2", "Collision Layer 2", false, 40, true);
-        BoolAttr("collision_layer_3", "Collision Layer 3", false, 41, true);
+        Column("joint_name", "Joint Name", true, 1, string.Empty).Add("lock", true);
+        Column("joint_parent", "Parent Joint", false, 2, string.Empty);
+        Column("simulate", "Simulate", true, 3, true);
+        Column("allow_rotation", "Allow Rotation", false, 4, true);
+        Column("stretch_spring", "Stretch Stiffness", false, 5, 1.0f, 0.0f, 1.0f);
+        Column("child_sibling_spring", "Spring Between Children", false, 6, 0.0f, 0.0f, 1.0f);
+        Column("bend_spring", "Bend Stiffness", false, 7, 1.0f, 0.0f, 1.0f);
+        Column("torsion_spring", "Torsion Stiffness", false, 8, 0.0f, 0.0f, 1.0f);
+        Column("explicit_length", "Explicit Length", false, 9, 0.0f, 0.0f);
+        Column("world_collision", "World Ground Collision", true, 10, false);
+        Column("animated_length", "Animated Length", false, 11, false);
+        Column("goal_strength", "Goal Strength", true, 12, 0.0f, 0.0f, 1.0f);
+        Column("goal_damping", "Goal Damping", true, 13, 0.0f, 0.0f, 1.0f);
+        Column("drag", "Extra Drag", false, 14, 0.0f, 0.0f, 1.0f);
+        Column("mass", "Mass", false, 15, mass, 0.0f);
+        Column("gravity_z", "Gravity", true, 16, 1.0f);
+        Column("collision_radius", "Collision Radius", true, 17, 0.0f, 0.0f);
+        Column("lock_translation", "Lock Translation", false, 18, false);
+        Column("suspender", "Suspender Spring", false, 19, 0.0f);
+        Column("antishrink", "Antishrink Strength", false, 20, 1.0f, 0.0f, 1.0f);
+        Column("stray_radius", "Stray Radius", true, 21, 0.0f, 0.0f);
+        Column("stray_radius_stretchiness", "Stray Radius Stretchiness", false, 22, 0.0f, 0.0f);
+        Column("friction", "Friction", false, 23, 0.0f, 0.0f, 1.0f);
+        Column("vertex_map", "Vertex Map", false, 24, string.Empty).Add("verify", "vertex_map");
+        Column("end_effector", "End Effector", false, 25, 0.0f).Add("lock_default_value", true);
+        Column("stiff_hinge", "Stiff Hinge", true, 26, 0.0f, 0.0f, 1.0f).Add("lock_root2", true);
+        Column("stiff_hinge_angle", "Stiff Hinge Angle", true, 27, 0.0f, 0.0f, 180.0f).Add("lock_root2", true);
+        Column("motion_bias", "Motion Bias", true, 28, 0.0f, -1.0f, 1.0f).Add("lock_root", true);
+        Column("extra_iterations", "Extra Iterations", true, 29, 0, 0, 1000);
+        Column("twist_relax", "Twist Relax", true, 30, 0.0f, 0.0f, 1.0f);
+        Column("extrude_sides", "Extrude Sides", false, 31, extrudeSides, 0, 4);
+        Column("extrude_radius", "Extrude Radius", false, 32, extrudeSides >= 1 ? extrudeRadius : 5.0f, 0.0f);
+        Column("extrude_twist", "Extrude Twist", false, 33, ClothExtrudeTwistAttrDefault);
+        Column("extrude_forward_axis", "Extrude Forward Axis", false, 34, string.Empty).Add("verify", "extrude_forward_axis");
+        Column("world_friction", "Ground Softness (\"world friction\" in Source1)", false, 35, 0.0f, 0.0f, 1.0f);
+        Column("ground_friction", "Ground Friction", false, 36, 0.0f, 0.0f, 1.0f);
+        Column("stray_box", "Stray Box", false, 37, string.Empty).Add("verify", "stray_box");
+        Column("collision_layer_0", "Collision Layer 0", false, 38, true);
+        Column("collision_layer_1", "Collision Layer 1", false, 39, true);
+        Column("collision_layer_2", "Collision Layer 2", false, 40, true);
+        Column("collision_layer_3", "Collision Layer 3", false, 41, true);
 
         return attrs;
     }

@@ -37,7 +37,7 @@ internal sealed partial class ClothExtract
         var beyondSurface = new HashSet<(int, int)>();
         foreach (var rod in feModel.Rods)
         {
-            var edge = rod.NodeA < rod.NodeB ? (rod.NodeA, rod.NodeB) : (rod.NodeB, rod.NodeA);
+            var edge = RodPair(rod);
             if (surfaceNodes.Contains(edge.Item1) && surfaceNodes.Contains(edge.Item2) && !derived.Contains(edge))
             {
                 beyondSurface.Add(edge);
@@ -48,16 +48,15 @@ internal sealed partial class ClothExtract
         var neighbours = new Dictionary<int, HashSet<int>>();
         foreach (var (a, b) in derived)
         {
-            (neighbours.TryGetValue(a, out var na) ? na : neighbours[a] = []).Add(b);
-            (neighbours.TryGetValue(b, out var nb) ? nb : neighbours[b] = []).Add(a);
+            GetOrAdd(neighbours, a).Add(b);
+            GetOrAdd(neighbours, b).Add(a);
         }
 
         var regenerable = beyondSurface.Count > 0 && beyondSurface.All(edge =>
             neighbours.TryGetValue(edge.Item1, out var near)
             && near.Any(step => neighbours.TryGetValue(step, out var beyond) && beyond.Contains(edge.Item2)));
 
-        var boundedBeyondSurface = feModel.Rods.Any(rod => rod.MaxDist < FeModel.UnboundedRodDistance
-            && beyondSurface.Contains(rod.NodeA < rod.NodeB ? (rod.NodeA, rod.NodeB) : (rod.NodeB, rod.NodeA)));
+        var boundedBeyondSurface = HasBoundedRod(feModel, beyondSurface);
 
         // Only the bend-only network leaves the maximum length unbounded.
         generatesBendOnlyRods = regenerable && !boundedBeyondSurface;
@@ -98,8 +97,7 @@ internal sealed partial class ClothExtract
             bend.ExceptWith(derived);
             if (bend.Count > 0 && bend.IsSubsetOf(beyondSurface))
             {
-                var boundedBend = feModel.Rods.Any(rod => rod.MaxDist < FeModel.UnboundedRodDistance
-                    && bend.Contains(rod.NodeA < rod.NodeB ? (rod.NodeA, rod.NodeB) : (rod.NodeB, rod.NodeA)));
+                var boundedBend = HasBoundedRod(feModel, bend);
                 generatesBendRods = boundedBend;
                 generatesBendOnlyRods = !boundedBend;
                 addCurvature = ClothCurvatureFromBendNetwork(feModel, surfaceFaces, bend);
@@ -120,15 +118,14 @@ internal sealed partial class ClothExtract
                 }
             }
 
-            var shipped = feModel.Rods.Select(static rod => rod.NodeA < rod.NodeB ? (rod.NodeA, rod.NodeB) : (rod.NodeB, rod.NodeA))
+            var shipped = feModel.Rods.Select(RodPair)
                 .ToHashSet();
             var folds = FeModel.BendRodsFromDeclaredFaces(keptFaces, feModel.IsStatic);
             folds.ExceptWith(derived);
             if (folds.Count > 0 && folds.All(fold => shipped.Contains(fold)
                 || feModel.IsStatic(fold.Item1) || feModel.IsStatic(fold.Item2)))
             {
-                var boundedFolds = feModel.Rods.Any(rod => rod.MaxDist < FeModel.UnboundedRodDistance
-                    && folds.Contains(rod.NodeA < rod.NodeB ? (rod.NodeA, rod.NodeB) : (rod.NodeB, rod.NodeA)));
+                var boundedFolds = HasBoundedRod(feModel, folds);
                 generatesBendRods = boundedFolds;
                 generatesBendOnlyRods = !boundedFolds;
                 addCurvature = ClothCurvatureFromBendNetwork(feModel, keptFaces, folds);
@@ -220,7 +217,7 @@ internal sealed partial class ClothExtract
         var shipped = new HashSet<(int, int)>();
         foreach (var rod in feModel.Rods)
         {
-            shipped.Add(rod.NodeA < rod.NodeB ? (rod.NodeA, rod.NodeB) : (rod.NodeB, rod.NodeA));
+            shipped.Add(RodPair(rod));
         }
 
         if (network.Count == 0 || !network.IsSubsetOf(shipped))
@@ -259,19 +256,12 @@ internal sealed partial class ClothExtract
             curvature = suspenderCurvature;
         }
 
-        var bounded = false;
-        foreach (var rod in feModel.Rods)
-        {
-            var edge = rod.NodeA < rod.NodeB ? (rod.NodeA, rod.NodeB) : (rod.NodeB, rod.NodeA);
-            if (bend.Contains(edge) && rod.MaxDist < FeModel.UnboundedRodDistance)
-            {
-                bounded = true;
-                break;
-            }
-        }
-
-        return (bend, suspenders, curvature, bendStiffness, bounded);
+        return (bend, suspenders, curvature, bendStiffness, HasBoundedRod(feModel, bend));
     }
+
+    /// <summary>Whether any rod on a pair of <paramref name="pairs"/> has a bounded maximum length.</summary>
+    private static bool HasBoundedRod(FeModel feModel, HashSet<(int, int)> pairs)
+        => feModel.Rods.Any(rod => rod.MaxDist < FeModel.UnboundedRodDistance && pairs.Contains(RodPair(rod)));
 
     /// <summary>
     /// The uniform <c>cloth_bend_stiffness</c> of a face-kept sheet, or null where the compiler folds rods across the
@@ -356,7 +346,7 @@ internal sealed partial class ClothExtract
         var shaped = new List<((int, int) Edge, float Reading)>();
         foreach (var rod in feModel.Rods)
         {
-            var edge = rod.NodeA < rod.NodeB ? (rod.NodeA, rod.NodeB) : (rod.NodeB, rod.NodeA);
+            var edge = RodPair(rod);
             if (!beyondSurface.Contains(edge) || edge.Item1 < 0
                 || edge.Item2 >= positions.Length || edge.Item2 >= invMasses.Length)
             {

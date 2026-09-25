@@ -389,18 +389,8 @@ internal sealed partial class ClothExtract
                         continue;
                     }
 
-                    var sp = pitchSin[ip];
-                    var cp = pitchCos[ip];
-                    var sy = yawSin[iy];
-                    var cy = yawCos[iy];
-                    var sr = rollSin[ir];
-                    var cr = rollCos[ir];
-                    var srXcp = sr * cp;
-                    var crXsp = cr * sp;
-                    var crXcp = cr * cp;
-                    var srXsp = sr * sp;
-                    var local = new Quaternion(srXcp * cy - crXsp * sy, crXsp * cy + srXcp * sy, crXcp * sy - srXsp * cy,
-                        crXcp * cy + srXsp * sy);
+                    var local = CompilerHalfAngleQuaternion(pitchSin[ip], pitchCos[ip], yawSin[iy], yawCos[iy], rollSin[ir],
+                        rollCos[ir]);
                     var candidate = new Vector3(pitches[ip], yaws[iy], rolls[ir]);
                     if (SameRotationBits(CompilerComposeRotation(parent, local), target)
                         && CompilerTextFloat(candidate) == candidate)
@@ -416,13 +406,11 @@ internal sealed partial class ClothExtract
 
         static (float[] Values, float[] Sin, float[] Cos) AngleCandidates(double centre)
         {
-            var middle = (long)Math.Round(centre * 1e6);
-            var values = new float[2 * ClothChainOriginSearchSteps + 1];
+            var values = GridCandidates(centre);
             var sin = new float[values.Length];
             var cos = new float[values.Length];
             for (var i = 0; i < values.Length; i++)
             {
-                values[i] = (float)((middle + i - ClothChainOriginSearchSteps) / 1e6);
                 var half = values[i] * CompilerHalfDegreesToRadians;
                 sin[i] = (float)Math.Sin(half);
                 cos[i] = (float)Math.Cos(half);
@@ -449,12 +437,13 @@ internal sealed partial class ClothExtract
         var halfPitch = degrees.X * CompilerHalfDegreesToRadians;
         var halfYaw = degrees.Y * CompilerHalfDegreesToRadians;
         var halfRoll = degrees.Z * CompilerHalfDegreesToRadians;
-        var sp = (float)Math.Sin(halfPitch);
-        var cp = (float)Math.Cos(halfPitch);
-        var sy = (float)Math.Sin(halfYaw);
-        var cy = (float)Math.Cos(halfYaw);
-        var sr = (float)Math.Sin(halfRoll);
-        var cr = (float)Math.Cos(halfRoll);
+        return CompilerHalfAngleQuaternion((float)Math.Sin(halfPitch), (float)Math.Cos(halfPitch), (float)Math.Sin(halfYaw),
+            (float)Math.Cos(halfYaw), (float)Math.Sin(halfRoll), (float)Math.Cos(halfRoll));
+    }
+
+    /// <summary>The compiler's AngleQuaternion product over the sines and cosines of the three half angles.</summary>
+    private static Quaternion CompilerHalfAngleQuaternion(float sp, float cp, float sy, float cy, float sr, float cr)
+    {
         var srXcp = sr * cp;
         var crXsp = cr * sp;
         var crXcp = cr * cp;
@@ -558,17 +547,18 @@ internal sealed partial class ClothExtract
         }
 
         return bestDistance != int.MaxValue;
+    }
 
-        static float[] GridCandidates(double centre)
+    /// <summary>The six-decimal values within <see cref="ClothChainOriginSearchSteps"/> grid steps of <paramref name="centre"/>.</summary>
+    private static float[] GridCandidates(double centre)
+    {
+        var middle = (long)Math.Round(centre * 1e6);
+        var values = new float[2 * ClothChainOriginSearchSteps + 1];
+        for (var i = 0; i < values.Length; i++)
         {
-            var middle = (long)Math.Round(centre * 1e6);
-            var values = new float[2 * ClothChainOriginSearchSteps + 1];
-            for (var i = 0; i < values.Length; i++)
-            {
-                values[i] = (float)((middle + i - ClothChainOriginSearchSteps) / 1e6);
-            }
-
-            return values;
+            values[i] = (float)((middle + i - ClothChainOriginSearchSteps) / 1e6);
         }
+
+        return values;
     }
 }

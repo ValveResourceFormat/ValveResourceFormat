@@ -230,9 +230,15 @@ internal sealed partial class ClothExtract
     {
         var parentRotation = parent < feModel.InitPoseRotations.Length ? feModel.InitPoseRotations[parent] : Quaternion.Identity;
         var rotation = node < feModel.InitPoseRotations.Length ? feModel.InitPoseRotations[node] : Quaternion.Identity;
+        return RelativePose(feModel.InitPosePositions[node], rotation, feModel.InitPosePositions[parent], parentRotation);
+    }
+
+    /// <summary>A pose relative to its parent's pose.</summary>
+    private static (Vector3 Position, Quaternion Rotation) RelativePose(Vector3 position, Quaternion rotation,
+        Vector3 parentPosition, Quaternion parentRotation)
+    {
         var inverse = Quaternion.Conjugate(parentRotation);
-        return (Vector3.Transform(feModel.InitPosePositions[node] - feModel.InitPosePositions[parent], inverse),
-            Quaternion.Normalize(inverse * rotation));
+        return (Vector3.Transform(position - parentPosition, inverse), Quaternion.Normalize(inverse * rotation));
     }
 
     /// <summary>

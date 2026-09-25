@@ -192,12 +192,7 @@ internal sealed partial class ClothExtract
                     deferred.Add(joint.Node);
                 }
 
-                if (!occurrences.TryGetValue(joint.Node, out var list))
-                {
-                    occurrences[joint.Node] = list = [];
-                }
-
-                list.Add(joints.Count);
+                GetOrAdd(occurrences, joint.Node).Add(joints.Count);
                 joints.Add((c, joint, rings));
             }
         }
@@ -342,11 +337,7 @@ internal sealed partial class ClothExtract
 
             void Own(int node, int index)
             {
-                if (!owners.TryGetValue(node, out var list))
-                {
-                    owners[node] = list = [];
-                }
-
+                var list = GetOrAdd(owners, node);
                 if (!list.Contains(index))
                 {
                     list.Add(index);
@@ -619,21 +610,9 @@ internal sealed partial class ClothExtract
                 }
             }
 
-            if (natural >= 0)
+            if (natural >= 0 && TryStep(natural))
             {
-                var previousChain = currentChain;
-                var wasStarted = started;
-                if (StartJoint(natural))
-                {
-                    if (Search())
-                    {
-                        return true;
-                    }
-
-                    UndoJoint(natural);
-                    currentChain = previousChain;
-                    started = wasStarted;
-                }
+                return true;
             }
 
             for (var band = 0; band < lanes.Count; band++)
@@ -646,26 +625,10 @@ internal sealed partial class ClothExtract
                 var head = lanes[band][lanePos[band]];
                 foreach (var index in owners.GetValueOrDefault(head, []))
                 {
-                    if (index == natural)
-                    {
-                        continue;
-                    }
-
-                    var previousChain = currentChain;
-                    var wasStarted = started;
-                    if (!StartJoint(index))
-                    {
-                        continue;
-                    }
-
-                    if (Search())
+                    if (index != natural && TryStep(index))
                     {
                         return true;
                     }
-
-                    UndoJoint(index);
-                    currentChain = previousChain;
-                    started = wasStarted;
                 }
 
                 if (started || !pureBands.Contains(band) || !CanPreDeclare(head) || !TakeHead(head))
@@ -695,23 +658,33 @@ internal sealed partial class ClothExtract
                     continue;
                 }
 
-                var previousChain = currentChain;
-                var wasStarted = started;
-                if (!StartJoint(index))
-                {
-                    continue;
-                }
-
-                if (Search())
+                if (TryStep(index))
                 {
                     return true;
                 }
-
-                UndoJoint(index);
-                currentChain = previousChain;
-                started = wasStarted;
             }
 
+            return false;
+        }
+
+        // Walks joint index next and searches on from there, undoing the step where that fails.
+        private bool TryStep(int index)
+        {
+            var previousChain = currentChain;
+            var wasStarted = started;
+            if (!StartJoint(index))
+            {
+                return false;
+            }
+
+            if (Search())
+            {
+                return true;
+            }
+
+            UndoJoint(index);
+            currentChain = previousChain;
+            started = wasStarted;
             return false;
         }
 
@@ -742,34 +715,13 @@ internal sealed partial class ClothExtract
     /// </summary>
     private static KVObject MakeClothChainJointDeclaration(FeModel feModel, string boneName, int node)
     {
-        var layers = ClothNodeCollisionLayers(feModel.GetNodeCollisionMask(node));
-
-        return MakeNode("ClothNode",
-            ("name", boneName),
-            ("origin", ToKVArray(Vector3.Zero)),
-            ("angles", ToKVArray(Vector3.Zero)),
-            ("cloth_node_root_bone", boneName),
-            ("has_stray_radius", false),
-            ("has_world_collision", false),
-            ("cloth_collision_layer0", layers.Layer0),
-            ("cloth_collision_layer1", layers.Layer1),
-            ("cloth_collision_layer2", layers.Layer2),
-            ("cloth_collision_layer3", layers.Layer3),
-            ("transform_alignment", 0),
-            ("node_base_y1", string.Empty),
-            ("node_base_x1", string.Empty),
-            ("node_base_y0", string.Empty),
-            ("node_base_x0", string.Empty),
-            ("lock_translation", false),
-            ("gravity_z", 1.0f),
-            ("goal_strength", 0.0f),
-            ("goal_damping", 0.0f),
-            ("mass", 1.0f),
-            ("friction", 0.0f),
-            ("stray_radius", 0.0f),
-            ("stray_radius_relaxation_factor", 1.0f),
-            ("collision_radius", 0.0f),
-            ("is_static_node", node < feModel.StaticNodeCount),
-            ("allow_rotation", feModel.AllowsRotation(node)));
+        return BuildClothNode(new ClothNodeFields
+        {
+            Name = boneName,
+            RootBone = boneName,
+            CollisionMask = feModel.GetNodeCollisionMask(node),
+            IsStaticNode = node < feModel.StaticNodeCount,
+            AllowRotation = feModel.AllowsRotation(node),
+        });
     }
 }

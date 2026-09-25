@@ -88,12 +88,12 @@ internal sealed partial class ClothExtract
             .Where(static b => b.IsClothControlNode)
             .Select(static b => b.Name)
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
-        var chainSurface = feModel.Quads.Length > 0 || feModel.Tris.Length > 0;
+        var chainSurface = feModel.HasSurfaceElements;
         AddFreeClothNodesAndSprings(clothFolderChildren, softbodyChildren, feModel, chainCoveredNodes,
             name => chainSurface || (clothControlBones?.Contains(name) ?? false),
             clothBones, ClothVertexMapFolders(feModel, clothFolderChildren), hasOtherChains: true,
             ClothControlAncestorTest(feModel), sourceSprings,
-            chainJoints: [.. boneChains.SelectMany(static chain => chain.Joints).Select(static joint => joint.Node)]);
+            chainJoints: ChainJointNodes(boneChains));
         AddClothStiffHinges(softbodyChildren, feModel);
         AddClothRigidCloudClusterLocks(softbodyChildren, feModel, declaredChains);
         AddClothChainVolumetricMaps(softbodyChildren, feModel, boneChains);

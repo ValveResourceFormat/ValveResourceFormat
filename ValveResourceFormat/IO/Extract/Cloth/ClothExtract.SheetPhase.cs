@@ -261,17 +261,7 @@ internal sealed partial class ClothExtract
                     continue;
                 }
 
-                if (weight >= 1f)
-                {
-                    members.Add(memberName, true);
-                }
-                else
-                {
-                    var member = KVObject.Collection();
-                    member.Add("weight", weight);
-                    members.Add(memberName, member);
-                }
-
+                AddNodeTableMember(members, memberName, weight);
                 listed++;
             }
 
@@ -283,9 +273,7 @@ internal sealed partial class ClothExtract
             var (unregisteredNode, _) = MakeListNode("ClothVertexMap");
             unregisteredNode.Add("name", map.Name);
             AddClothVertexMapAttributes(unregisteredNode, feModel, map.Name, sheetNodeNames);
-            var unregisteredData = KVObject.Collection();
-            unregisteredData.Add("nodes", members);
-            unregisteredNode.Add("data", unregisteredData);
+            unregisteredNode.Add("data", MakeNodeTable(members));
             clothProxyChildren.Add(unregisteredNode);
         }
 
@@ -306,11 +294,8 @@ internal sealed partial class ClothExtract
         softbodyChildren.Add(MakeClothParams(feModel, generatesBendRods, generatesBendOnlyRods,
             addCurvature > 0f ? addCurvature : feModel.ChainRingCurvature, feModel.HasExplicitMasses));
 
-        var chainNodes = boneChains.SelectMany(static chain => chain.Joints).Select(static joint => joint.Node).ToHashSet();
-        var independentChainNodes = independentChains
-            .SelectMany(static chain => chain.Joints)
-            .Select(static joint => joint.Node)
-            .ToHashSet();
+        var chainNodes = ChainJointNodes(boneChains);
+        var independentChainNodes = ChainJointNodes(independentChains);
         var loneClothNodes = new List<(string Name, int Node)>();
 
         var boneByName = model?.Skeleton.Bones
