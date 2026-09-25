@@ -1383,8 +1383,12 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
 
                 var ropeLinked = ropeParents.TryGetValue(i, out var ropeParent) && ropeParent == p;
 
+                // Only a chain's twist builder writes a twist between two bones, and only across a joint's
+                // link to its parent.
+                var twistLinked = TwistLinks.Contains(p < i ? (p, i) : (i, p));
+
                 if ((rodLinked || bothDrivenSim || proxyRibbon || hingedRoot || bendLinked
-                    || bendRodLinked || ringLinked || ropeLinked) && !RinglessLinkUnrecorded(p, i) && !RingLinkUnrecorded(p, i))
+                    || bendRodLinked || ringLinked || ropeLinked || twistLinked) && !RinglessLinkUnrecorded(p, i) && !RingLinkUnrecorded(p, i))
                 {
                     realParent[i] = p;
                 }

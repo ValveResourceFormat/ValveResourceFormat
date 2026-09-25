@@ -779,6 +779,35 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                 Adopt(follow.GetInt32Property("nChildNode"), follow.GetInt32Property("nParentNode"));
             }
 
+            // The rope pass skips every node a twist names, so a twisted chain leaves its links in m_Twists
+            // alone. Each link writes a parent-to-joint entry, then a joint-to-parent one, and drops the first
+            // where the parent is rotation-locked, so a lone entry is oriented joint to parent.
+            var names = data.GetArray<string>("m_CtrlName") ?? [];
+            var twists = data.GetArray("m_Twists") ?? [];
+            for (var k = 0; k < twists.Count; k++)
+            {
+                var orient = twists[k].GetInt32Property("nNodeOrient");
+                var end = twists[k].GetInt32Property("nNodeEnd");
+                var paired = k + 1 < twists.Count && twists[k + 1].GetInt32Property("nNodeOrient") == end
+                    && twists[k + 1].GetInt32Property("nNodeEnd") == orient;
+                if (orient < names.Length && end < names.Length && !IsProxyNodeName(names[orient]) && !IsProxyNodeName(names[end]))
+                {
+                    if (paired)
+                    {
+                        Adopt(end, orient);
+                    }
+                    else
+                    {
+                        Adopt(orient, end);
+                    }
+                }
+
+                if (paired)
+                {
+                    k++;
+                }
+            }
+
             return parented ? parents : [];
         }
 

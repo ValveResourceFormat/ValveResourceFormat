@@ -10806,5 +10806,51 @@ namespace Tests
                 ]
             }
             """);
+
+        /// <summary>
+        /// A twist between two bones is a chain link. The rope pass skips every node a twist names, so a twisted run
+        /// leaves its links in <c>m_Twists</c> alone: on a compile with no <c>m_SkelParents</c> the rope trail gives it no
+        /// parents, and on one with them a run declared without stretch springs carries no rod for the link rules to read.
+        /// CONTROLS: the same runs with no twists stay loose nodes.
+        /// </summary>
+        /// <remarks>
+        /// MEASURED 2026-09-25 over 3369 originals: nine carry a twist link between two bones that no rebuilt chain links,
+        /// every one a board <c>m_Twists</c> row (dotaout <c>dark_spirit_shoulder</c>'s <c>wing_L</c> run, deadlock
+        /// <c>werewolf</c>'s tail).
+        /// </remarks>
+        [Test]
+        public async Task ATwistBetweenTwoBonesIsAChainLink()
+        {
+            static bool Chained(FeModel model) => model.BuildBoneChains().Exists(chain => chain.Joints.Count == 3);
+
+            using (Assert.Multiple())
+            {
+                // CONTROL: nothing links the runs.
+                await Assert.That(Chained(TwistedRun(skelParents: false, twisted: false))).IsFalse();
+                await Assert.That(Chained(TwistedRun(skelParents: true, twisted: false))).IsFalse();
+
+                // THE LAW.
+                await Assert.That(Chained(TwistedRun(skelParents: false, twisted: true))).IsTrue();
+                await Assert.That(Chained(TwistedRun(skelParents: true, twisted: true))).IsTrue();
+            }
+        }
+
+        // A static root w0 over w1 and w2, rodless; where twisted, the twist builder's four entries at twist_relax 1.0.
+        private static FeModel TwistedRun(bool skelParents, bool twisted) => SyntheticCloth.Parse($$"""
+            {
+                m_CtrlName = [ "w0", "w1", "w2" ]
+                {{(skelParents ? "m_SkelParents = [ -1, 0, 1 ]" : string.Empty)}}
+                m_nNodeCount = 3
+                m_nStaticNodes = 1
+                m_NodeInvMasses = [ 0.0, 1.0, 1.0 ]
+                m_InitPose =
+                [
+                    {{SyntheticCloth.Pose(0f, 0f, 0f)}}
+                    {{SyntheticCloth.Pose(-8.5f, 0f, 0f)}}
+                    {{SyntheticCloth.Pose(-17f, 0f, 0f)}}
+                ]
+                m_Twists = [ {{(twisted ? "{ nNodeOrient = 0 nNodeEnd = 1 flTwistRelax = 0.0 flSwingRelax = 1.0 }, { nNodeOrient = 1 nNodeEnd = 0 flTwistRelax = 0.618 flSwingRelax = 0.0 }, { nNodeOrient = 1 nNodeEnd = 2 flTwistRelax = 0.382 flSwingRelax = 0.5 }, { nNodeOrient = 2 nNodeEnd = 1 flTwistRelax = 0.618 flSwingRelax = 1.0 }" : string.Empty)}} ]
+            }
+            """);
     }
 }
