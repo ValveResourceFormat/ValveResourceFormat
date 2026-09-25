@@ -262,6 +262,114 @@ partial class ModelExtract
         if (physAggregateData?.FeModel is { } feModel)
         {
             AppendCulledClothBoneJoints(dmeModel, boneIndexByName, feModel, CulledClothBones);
+            NestProxyJointsUnderCompiledParents(dmeModel, feModel);
+        }
+    }
+
+    /// <summary>
+    /// Moves every joint of a cloth DMX whose control node has a compiled parent that is another joint of the same
+    /// DMX, but not one of its DAG ancestors, under that parent's joint at the local transform that keeps its
+    /// model-space transform. A joint whose compiled parent sits in its own subtree is left where it is.
+    /// </summary>
+    /// <remarks>
+    /// The compiler parents a proxy joint's node to the nearest DAG ancestor joint of the same file that has a node,
+    /// so a joint the skeleton hangs elsewhere compiles with the wrong parent or none.
+    /// </remarks>
+    internal static void NestProxyJointsUnderCompiledParents(DmeModel dmeModel, FeModel feModel)
+    {
+        if (!feModel.HasCompiledSkelParents)
+        {
+            return;
+        }
+
+        var nodeByName = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        for (var node = 0; node < feModel.CtrlNames.Length; node++)
+        {
+            nodeByName.TryAdd(feModel.CtrlNames[node], node);
+        }
+
+        var jointByName = new Dictionary<string, DmeJoint>(StringComparer.OrdinalIgnoreCase);
+        foreach (var element in dmeModel.JointList)
+        {
+            if (element is DmeJoint joint)
+            {
+                jointByName.TryAdd(joint.Name, joint);
+            }
+        }
+
+        var parentOf = new Dictionary<DmeJoint, object>();
+        var pending = new Stack<object>();
+        pending.Push(dmeModel);
+        while (pending.Count > 0)
+        {
+            var dag = pending.Pop();
+            var children = dag is DmeModel model ? model.Children : ((DmeDag)dag).Children;
+            foreach (var child in children)
+            {
+                if (child is DmeJoint childJoint && parentOf.TryAdd(childJoint, dag))
+                {
+                    pending.Push(childJoint);
+                }
+            }
+        }
+
+        bool IsAncestor(DmeJoint candidate, DmeJoint joint)
+        {
+            for (var at = parentOf.GetValueOrDefault(joint); at is DmeJoint up; at = parentOf.GetValueOrDefault(up))
+            {
+                if (up == candidate)
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        var moves = new List<(DmeJoint Joint, DmeJoint Parent)>();
+        foreach (var (name, joint) in jointByName)
+        {
+            if (!nodeByName.TryGetValue(name, out var node) || node >= feModel.SkelParents.Length)
+            {
+                continue;
+            }
+
+            var parent = feModel.SkelParents[node];
+            if (parent < 0 || parent >= feModel.CtrlNames.Length
+                || !jointByName.TryGetValue(feModel.CtrlNames[parent], out var parentJoint)
+                || parentJoint == joint || !parentOf.ContainsKey(joint) || !parentOf.ContainsKey(parentJoint)
+                || IsAncestor(parentJoint, joint) || IsAncestor(joint, parentJoint))
+            {
+                continue;
+            }
+
+            moves.Add((joint, parentJoint));
+        }
+
+        if (moves.Count == 0)
+        {
+            return;
+        }
+
+        var world = DmeJointWorldTransforms(dmeModel);
+        foreach (var (joint, parentJoint) in moves)
+        {
+            if (IsAncestor(joint, parentJoint))
+            {
+                continue;
+            }
+
+            var oldParent = parentOf[joint];
+            var siblings = oldParent is DmeModel model ? model.Children : ((DmeDag)oldParent).Children;
+            siblings.Remove(joint);
+
+            var (position, rotation) = world[joint];
+            var (parentPosition, parentRotation) = world[parentJoint];
+            var inverse = Quaternion.Conjugate(parentRotation);
+            joint.Transform.Position = Vector3.Transform(position - parentPosition, inverse);
+            joint.Transform.Orientation = Quaternion.Normalize(inverse * rotation);
+            parentJoint.Children.Add(joint);
+            parentOf[joint] = parentJoint;
         }
     }
 

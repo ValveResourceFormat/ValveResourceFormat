@@ -11071,5 +11071,72 @@ namespace Tests
                 await Assert.That(Joined(centre: true)).IsFalse();
             }
         }
+
+        /// <summary>
+        /// A proxy joint whose compiled parent is another joint of the DMX, but not one of its DAG ancestors, is moved
+        /// under that joint at an unchanged model-space transform, so the compiler's walk up the DAG reaches it.
+        /// CONTROLS: nothing moves without compiled <c>m_SkelParents</c>, when the compiled parent is already an
+        /// ancestor, or when it sits in the joint's own subtree.
+        /// </summary>
+        [Test]
+        public async Task AProxyJointIsNestedUnderItsCompiledParentJoint()
+        {
+            static (DmeModel Model, DmeJoint Pelvis, DmeJoint Upper, DmeJoint Lower) Nest(string skelParents)
+            {
+                var feModel = SyntheticCloth.Parse($$"""
+                    {
+                        m_CtrlName = [ "pelvis", "leg_upper", "leg_lower" ]
+                        {{skelParents}}
+                        m_nNodeCount = 3
+                        m_nStaticNodes = 3
+                        m_NodeInvMasses = [ 0.0, 0.0, 0.0 ]
+                        m_InitPose =
+                        [
+                            {{SyntheticCloth.Pose(0f, 0f, 40f)}}
+                            {{SyntheticCloth.Pose(0f, 5f, 38f)}}
+                            {{SyntheticCloth.Pose(0f, 5f, 18f)}}
+                        ]
+                    }
+                    """);
+
+                var dmeModel = new DmeModel();
+                var pelvis = new DmeJoint { Name = "pelvis" };
+                pelvis.Transform.Position = new Vector3(0f, 0f, 40f);
+                pelvis.Transform.Orientation = Quaternion.CreateFromAxisAngle(Vector3.UnitX, MathF.PI / 2f);
+                var upper = new DmeJoint { Name = "leg_upper" };
+                upper.Transform.Position = new Vector3(0f, -2f, 5f);
+                var lower = new DmeJoint { Name = "leg_lower" };
+                lower.Transform.Position = new Vector3(0f, -22f, 5f);
+                pelvis.Children.Add(upper);
+                pelvis.Children.Add(lower);
+                dmeModel.Children.Add(pelvis);
+                dmeModel.JointList.Add(pelvis);
+                dmeModel.JointList.Add(upper);
+                dmeModel.JointList.Add(lower);
+
+                ModelExtract.NestProxyJointsUnderCompiledParents(dmeModel, feModel);
+                return (dmeModel, pelvis, upper, lower);
+            }
+
+            var unparented = Nest(string.Empty);
+            var ancestral = Nest("m_SkelParents = [ -1, 0, 0 ]");
+            var cyclic = Nest("m_SkelParents = [ 2, 0, 0 ]");
+            var nested = Nest("m_SkelParents = [ -1, 0, 1 ]");
+
+            using (Assert.Multiple())
+            {
+                // CONTROL: no compiled parents, a compiled parent that is already the DAG parent, and a joint whose
+                // compiled parent hangs below it.
+                await Assert.That(unparented.Pelvis.Children.Select(static c => c.Name)).IsEquivalentTo(["leg_upper", "leg_lower"]);
+                await Assert.That(ancestral.Pelvis.Children.Select(static c => c.Name)).IsEquivalentTo(["leg_upper", "leg_lower"]);
+                await Assert.That(cyclic.Model.Children.Select(static c => c.Name)).IsEquivalentTo(["pelvis"]);
+                await Assert.That(cyclic.Pelvis.Children.Select(static c => c.Name)).IsEquivalentTo(["leg_upper", "leg_lower"]);
+
+                // THE LAW.
+                await Assert.That(nested.Pelvis.Children.Select(static c => c.Name)).IsEquivalentTo(["leg_upper"]);
+                await Assert.That(nested.Upper.Children.Select(static c => c.Name)).IsEquivalentTo(["leg_lower"]);
+                await Assert.That(Vector3.Distance(nested.Lower.Transform.Position, new Vector3(0f, -20f, 0f))).IsLessThan(1e-4f);
+            }
+        }
     }
 }
