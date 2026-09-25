@@ -249,17 +249,28 @@ partial class ModelExtract
 
     /// <summary>
     /// Adds the culled cloth bones the vmdl re-declares (<see cref="AddCulledClothBones"/>) to a cloth
-    /// DMX's joint list, as root joints at their control node's rest transform, and registers them in
+    /// DMX's joint list at their control node's rest transform, and registers them in
     /// <paramref name="boneIndexByName"/> so the sheet's skin weights can reference them.
     /// </summary>
+    /// <remarks>
+    /// The compiler parents a proxy joint's node to the nearest DAG ancestor joint of the same file that
+    /// has a node, so a culled bone whose compiled parent is a joint of this DMX is nested under that
+    /// joint; the rest stay root joints.
+    /// </remarks>
     void AppendCulledClothBoneJoints(DmeModel dmeModel, Dictionary<string, int> boneIndexByName)
     {
-        if (physAggregateData?.FeModel is not { } feModel)
+        if (physAggregateData?.FeModel is { } feModel)
         {
-            return;
+            AppendCulledClothBoneJoints(dmeModel, boneIndexByName, feModel, CulledClothBones);
         }
+    }
 
-        foreach (var (node, culledName) in CulledClothBones)
+    /// <inheritdoc cref="AppendCulledClothBoneJoints(DmeModel, Dictionary{string, int})"/>
+    internal static void AppendCulledClothBoneJoints(DmeModel dmeModel, Dictionary<string, int> boneIndexByName,
+        FeModel feModel, IEnumerable<(int Node, string Name)> culledClothBones)
+    {
+        var appended = new List<(int Node, DmeJoint Joint)>();
+        foreach (var (node, culledName) in culledClothBones)
         {
             if (node >= feModel.InitPosePositions.Length || boneIndexByName.ContainsKey(culledName))
             {
@@ -274,8 +285,83 @@ partial class ModelExtract
                 : Quaternion.Identity;
             boneIndexByName[culledName] = dmeModel.JointList.Count;
             dmeModel.JointList.Add(joint);
-            dmeModel.Children.Add(joint);
+            appended.Add((node, joint));
         }
+
+        if (appended.Count == 0)
+        {
+            return;
+        }
+
+        var world = feModel.HasCompiledSkelParents ? DmeJointWorldTransforms(dmeModel) : [];
+        var jointByName = new Dictionary<string, DmeJoint>(StringComparer.OrdinalIgnoreCase);
+        foreach (var element in dmeModel.JointList)
+        {
+            if (element is DmeJoint joint)
+            {
+                jointByName.TryAdd(joint.Name, joint);
+            }
+        }
+
+        foreach (var (_, joint) in appended)
+        {
+            world[joint] = (joint.Transform.Position, joint.Transform.Orientation);
+        }
+
+        foreach (var (node, joint) in appended)
+        {
+            var parent = feModel.HasCompiledSkelParents && node < feModel.SkelParents.Length ? feModel.SkelParents[node] : -1;
+            if (parent < 0 || parent >= feModel.CtrlNames.Length
+                || !jointByName.TryGetValue(feModel.CtrlNames[parent], out var parentJoint)
+                || parentJoint == joint || !world.TryGetValue(parentJoint, out var parentWorld))
+            {
+                dmeModel.Children.Add(joint);
+                continue;
+            }
+
+            var inverse = Quaternion.Conjugate(parentWorld.Rotation);
+            joint.Transform.Position = Vector3.Transform(world[joint].Position - parentWorld.Position, inverse);
+            joint.Transform.Orientation = Quaternion.Normalize(inverse * world[joint].Rotation);
+            parentJoint.Children.Add(joint);
+        }
+    }
+
+    /// <summary>
+    /// The model-space transform of every joint reachable from <paramref name="dmeModel"/>'s DAG roots,
+    /// composed from the joints' local transforms.
+    /// </summary>
+    static Dictionary<DmeJoint, (Vector3 Position, Quaternion Rotation)> DmeJointWorldTransforms(DmeModel dmeModel)
+    {
+        var world = new Dictionary<DmeJoint, (Vector3 Position, Quaternion Rotation)>();
+        var pending = new Stack<(DmeDag Dag, Vector3 Position, Quaternion Rotation)>();
+        foreach (var child in dmeModel.Children)
+        {
+            if (child is DmeJoint joint)
+            {
+                pending.Push((joint, Vector3.Zero, Quaternion.Identity));
+            }
+        }
+
+        while (pending.Count > 0)
+        {
+            var (dag, parentPosition, parentRotation) = pending.Pop();
+            var position = parentPosition + Vector3.Transform(dag.Transform.Position, parentRotation);
+            var rotation = Quaternion.Normalize(parentRotation * dag.Transform.Orientation);
+            if (dag is not DmeJoint joint || !world.TryAdd(joint, (position, rotation)))
+            {
+                continue;
+            }
+
+            foreach (var child in dag.Children)
+            {
+                if (child is DmeJoint childJoint)
+                {
+                    pending.Push((childJoint, position, rotation));
+                }
+            }
+        }
+
+        return world;
     }
 
     /// <summary>

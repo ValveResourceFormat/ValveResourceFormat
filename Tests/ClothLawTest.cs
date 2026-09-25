@@ -7,6 +7,7 @@ using TUnit.Assertions.Enums;
 using ValveKeyValue;
 using ValveResourceFormat;
 using ValveResourceFormat.IO;
+using ValveResourceFormat.IO.ContentFormats.DmxModel;
 using ValveResourceFormat.ResourceTypes;
 using ValveResourceFormat.ResourceTypes.ModelAnimation;
 using ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody;
@@ -10955,6 +10956,69 @@ namespace Tests
                 await Assert.That(into.GetValueOrDefault("cape")).IsEqualTo(new Vector3(0f, 0f, -10.5f));
                 await Assert.That(into.ContainsKey("root")).IsFalse();
                 await Assert.That(into.ContainsKey("tip")).IsFalse();
+            }
+        }
+
+        /// <summary>
+        /// A culled cloth bone is nested in the proxy DMX under the joint of its compiled parent. The compiler parents a
+        /// proxy joint's node to the nearest DAG ancestor joint of the same file that has a node, so a culled bone written
+        /// as a root joint compiles with no parent at all.
+        /// CONTROLS: with no compiled <c>m_SkelParents</c>, or a compiled parent that is no joint of the DMX, it stays a
+        /// root joint.
+        /// </summary>
+        [Test]
+        public async Task ACulledClothBoneIsNestedUnderItsCompiledParentJoint()
+        {
+            static (DmeModel Model, DmeJoint Parent, DmeJoint Culled) Append(string skelParents, string parentName)
+            {
+                var feModel = SyntheticCloth.Parse($$"""
+                    {
+                        m_CtrlName = [ "root", "{{parentName}}", "collar_1" ]
+                        {{skelParents}}
+                        m_nNodeCount = 3
+                        m_nStaticNodes = 3
+                        m_NodeInvMasses = [ 0.0, 0.0, 0.0 ]
+                        m_InitPose =
+                        [
+                            {{SyntheticCloth.Pose(0f, 0f, 10f)}}
+                            {{SyntheticCloth.Pose(0f, 5f, 10f)}}
+                            {{SyntheticCloth.Pose(0f, 9f, 10f)}}
+                        ]
+                    }
+                    """);
+
+                var dmeModel = new DmeModel();
+                var root = new DmeJoint { Name = "root" };
+                root.Transform.Position = new Vector3(0f, 0f, 10f);
+                root.Transform.Orientation = Quaternion.CreateFromAxisAngle(Vector3.UnitZ, MathF.PI / 2f);
+                var parent = new DmeJoint { Name = "collar_0" };
+                parent.Transform.Position = new Vector3(5f, 0f, 0f);
+                root.Children.Add(parent);
+                dmeModel.Children.Add(root);
+                dmeModel.JointList.Add(root);
+                dmeModel.JointList.Add(parent);
+
+                var boneIndexByName = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase) { ["root"] = 0, ["collar_0"] = 1 };
+                ModelExtract.AppendCulledClothBoneJoints(dmeModel, boneIndexByName, feModel, [(2, "collar_1")]);
+                return (dmeModel, parent, dmeModel.JointList.OfType<DmeJoint>().Single(joint => joint.Name == "collar_1"));
+            }
+
+            var unparented = Append(string.Empty, "collar_0");
+            var foreign = Append("m_SkelParents = [ -1, 0, 1 ]", "ghost");
+            var nested = Append("m_SkelParents = [ -1, 0, 1 ]", "collar_0");
+
+            using (Assert.Multiple())
+            {
+                // CONTROL: no compiled parents, and a compiled parent the DMX has no joint for.
+                await Assert.That(unparented.Model.Children.Select(static c => c.Name)).Contains("collar_1");
+                await Assert.That(unparented.Culled.Transform.Position).IsEqualTo(new Vector3(0f, 9f, 10f));
+                await Assert.That(foreign.Model.Children.Select(static c => c.Name)).Contains("collar_1");
+                await Assert.That(foreign.Parent.Children.Count).IsEqualTo(0);
+
+                // THE LAW.
+                await Assert.That(nested.Model.Children.Select(static c => c.Name)).DoesNotContain("collar_1");
+                await Assert.That(nested.Parent.Children.Select(static c => c.Name)).IsEquivalentTo(["collar_1"]);
+                await Assert.That(Vector3.Distance(nested.Culled.Transform.Position, new Vector3(4f, 0f, 0f))).IsLessThan(1e-4f);
             }
         }
     }
