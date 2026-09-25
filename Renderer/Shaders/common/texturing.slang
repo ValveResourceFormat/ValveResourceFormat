@@ -171,6 +171,17 @@ vec3 calculateIridescence(float hueAngle, float intensity)
     }
 }
 
+T ContrastBrightness<T : IFloat>(T value, float contrast, float brightness)
+{
+    return saturate(((value - T(0.5)) * T(contrast) + T(0.5)) * T(brightness));
+}
+
+vec3 RotateHue(vec3 color, float angle)
+{
+    const vec3 greyAxis = vec3(0.57735); // normalize(vec3(1.0))
+    float cosAngle = cos(angle);
+    return color * cosAngle + cross(greyAxis, color) * sin(angle) + greyAxis * dot(greyAxis, color) * (1.0 - cosAngle);
+}
 
 #if defined(DIFFUSE_AO_COLOR_BLEED)
 
@@ -268,11 +279,7 @@ vec3 calculateWorldNormal(vec3 normalMap, vec3 normal, vec3 tangent, vec3 bitang
 //                              DETAIL TEXTURING
 //-------------------------------------------------------------------------
 
-#if (F_DETAIL_TEXTURE > 0)
-
-#define DETAIL_COLOR_MOD2X (F_DETAIL_TEXTURE == 1) && !detailAlwaysColorAndNormal
-#define DETAIL_COLOR_OVERLAY ((F_DETAIL_TEXTURE == 2) || (F_DETAIL_TEXTURE == 4)) || detailAlwaysColorAndNormal
-#define DETAIL_NORMALS ((F_DETAIL_TEXTURE == 3) || (F_DETAIL_TEXTURE == 4)) || detailAlwaysColorAndNormal
+#if defined(detail_texture_vfx_common)
 
 uniform float g_flDetailBlendFactor = 1.0;
 uniform float g_flDetailBlendToFull = 0.0;
@@ -280,30 +287,36 @@ uniform float g_flDetailNormalStrength = 1.0;
 in vec2 vDetailTexCoords;
 
 uniform sampler2D g_tDetailMask;
-#if DETAIL_COLOR_MOD2X || DETAIL_COLOR_OVERLAY
-    uniform sampler2D g_tDetail;
-#endif
-#if DETAIL_NORMALS
-    uniform sampler2D g_tNormalDetail;
-#endif
+uniform sampler2D g_tDetail;
+uniform sampler2D g_tNormalDetail;
 
 #define MOD2X_MUL 1.9922
 #define DETAIL_CONST 0.9961
 
+// F_DETAIL_TEXTURE: 1 = mod2x, 2 = overlay, 3 = normals, 4 = overlay and normals
 void applyDetailTexture(inout vec3 Albedo, inout vec3 NormalMap, vec2 detailMaskCoords)
 {
+    if (F_DETAIL_TEXTURE == 0)
+    {
+        return;
+    }
+
+    bool colorMod2x = (F_DETAIL_TEXTURE == 1) && !detailAlwaysColorAndNormal;
+    bool colorOverlay = (F_DETAIL_TEXTURE == 2) || (F_DETAIL_TEXTURE == 4) || detailAlwaysColorAndNormal;
+    bool normals = (F_DETAIL_TEXTURE == 3) || (F_DETAIL_TEXTURE == 4) || detailAlwaysColorAndNormal;
+
     float detailMask = texture(g_tDetailMask, detailMaskCoords).x;
     detailMask = g_flDetailBlendFactor * max(detailMask, g_flDetailBlendToFull);
 
     // MOD2X
-    #if (DETAIL_COLOR_MOD2X)
-
+    if (colorMod2x)
+    {
         vec3 DetailTexture = texture(g_tDetail, vDetailTexCoords).rgb * MOD2X_MUL;
         Albedo *= mix(vec3(1.0), DetailTexture, detailMask);
-
+    }
     // OVERLAY
-    #elif (DETAIL_COLOR_OVERLAY)
-
+    else if (colorOverlay)
+    {
         vec3 DetailTexture = DETAIL_CONST * texture(g_tDetail, vDetailTexCoords).rgb;
 
         // blend in linear space! this is actually in the code, so we're doing the right thing!
@@ -315,16 +328,16 @@ void applyDetailTexture(inout vec3 Albedo, inout vec3 NormalMap, vec2 detailMask
         vec3 gammaBlendedOverlay = SrgbGammaToLinear(linearBlendedOverlay);
 
         Albedo = mix(Albedo, gammaBlendedOverlay, detailMask);
-
-    #endif
+    }
 
     // NORMALS
-    #if (DETAIL_NORMALS)
+    if (normals)
+    {
         vec3 DetailNormal = DecodeHemiOctahedronNormal(texture(g_tNormalDetail, vDetailTexCoords).xy);
         DetailNormal = mix(vec3(0, 0, 1), DetailNormal, detailMask * g_flDetailNormalStrength);
         // literally i don't even know
         NormalMap = NormalMap * DetailNormal.z + vec3(NormalMap.z * DetailNormal.z * DetailNormal.xy, 0.0);
-    #endif
+    }
 }
 
 #endif

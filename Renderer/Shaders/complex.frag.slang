@@ -198,7 +198,7 @@ uniform sampler2D g_tTintMask;
     #if F_TINT_MASK
         uniform bool g_bUseSecondaryUvForTintMask = true;
     #endif
-    #if F_DETAIL_TEXTURE > 0
+    #if defined(detail_texture_vfx_common)
         uniform bool g_bUseSecondaryUvForDetailMask = true;
     #endif
     #if (selfillum)
@@ -342,6 +342,7 @@ uniform float g_flNormalMapScaleFactor = 1.0;
 #include "common/lighting.slang"
 
 #include "features/csgo_character_eyes_ps.slang"
+#include "features/csgo_character_adjustments_ps.slang"
 
 MaterialProperties_t GetMaterial(vec2 texCoord, vec3 vertexNormals)
 {
@@ -574,7 +575,7 @@ MaterialProperties_t GetMaterial(vec2 texCoord, vec3 vertexNormals)
     mat.NormalMap = normalize(mix(vec3(0, 0, 1), mat.NormalMap, (F_SCALE_NORMAL_MAP == 1) ? g_flNormalMapScaleFactor : g_flBumpStrength));
 
     // Detail texture
-#if (F_DETAIL_TEXTURE > 0)
+#if defined(detail_texture_vfx_common)
     #if (F_SECONDARY_UV == 1) || (F_FORCE_UV2 == 1)
         vec2 detailMaskCoords = (g_bUseSecondaryUvForDetailMask || (F_FORCE_UV2 == 1)) ? vTexCoord2 : texCoord;
     #else
@@ -651,6 +652,13 @@ MaterialProperties_t GetMaterial(vec2 texCoord, vec3 vertexNormals)
 
 #if (GameVfx_vr_complex != 0)
     mat.ClothMask = F_CLOTH_SHADING == 1 ? 1.0 : 0.0;
+#endif
+
+#if CS2_CHARACTER_ADJUSTMENTS
+    #if (F_TINT_MASK == 0)
+        float tintStrength = 1.0;
+    #endif
+    ApplyCharacterAdjustments(mat, tintStrength);
 #endif
 
     AdjustRoughnessByGeometricNormal(mat);

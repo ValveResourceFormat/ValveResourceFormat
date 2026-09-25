@@ -764,9 +764,9 @@ MaterialProperties_t GetMaterial(vec3 vertexNormals)
 
     vec3 aoLevels = g_vAmbientOcclusionLevels1.xyz;
 
-    float tintMask1 = saturate(((height.g - 0.5) * g_fTintMaskContrast1 + 0.5) * g_fTintMaskBrightness1);
+    float tintMask1 = ContrastBrightness(height.g, g_fTintMaskContrast1, g_fTintMaskBrightness1);
     height.a = g_bMetalness1 ? height.a : 0.0;
-    float roughness = saturate(((normal.b - 0.5) * g_fTextureRoughnessContrast1 + 0.5) * g_fTextureRoughnessBrightness1);
+    float roughness = ContrastBrightness(normal.b, g_fTextureRoughnessContrast1, g_fTextureRoughnessBrightness1);
 
     vec3 normalTs = LayerNormal(normal.rg, g_tNormal1, g_nUVSet1, g_vTexCoordScale1,
         g_fTextureNormalContrast1, g_flTexCoordRotation1, biplanar, mat.GeometricNormal, mat.Tangent, mat.Bitangent);
@@ -797,9 +797,9 @@ MaterialProperties_t GetMaterial(vec3 vertexNormals)
     vec4 height2 = SampleMaterialTexture(g_tHeight2, g_nUVSet2, vTexCoord2.xy, g_vTexCoordScale2, biplanar);
     vec4 normal2 = SampleMaterialTexture(g_tNormal2, g_nUVSet2, vTexCoord2.xy, g_vTexCoordScale2, biplanar);
 
-    float tintMask2 = saturate(((height2.g - 0.5) * g_fTintMaskContrast2 + 0.5) * g_fTintMaskBrightness2);
+    float tintMask2 = ContrastBrightness(height2.g, g_fTintMaskContrast2, g_fTintMaskBrightness2);
     height2.a = g_bMetalness2 ? height2.a : 0.0;
-    float roughness2 = saturate(((normal2.b - 0.5) * g_fTextureRoughnessContrast2 + 0.5) * g_fTextureRoughnessBrightness2);
+    float roughness2 = ContrastBrightness(normal2.b, g_fTextureRoughnessContrast2, g_fTextureRoughnessBrightness2);
 
     vec4 color2MaybeColorCorrected = mix(color2, vec4((color2 * g_mTextureAdjust2).rgb, color2.a), bvec4(g_nColorCorrectionMode2 == 1));
     vec4 color2ColorCorrectedTinted = color2 * g_mTextureColorAdjust2;
@@ -902,9 +902,9 @@ MaterialProperties_t GetMaterial(vec3 vertexNormals)
         vec4 height3 = SampleMaterialTexture(g_tHeight3, g_nUVSet3, vTexCoord3.xy, g_vTexCoordScale3, biplanar);
         vec4 normal3 = SampleMaterialTexture(g_tNormal3, g_nUVSet3, vTexCoord3.xy, g_vTexCoordScale3, biplanar);
 
-        float tintMask3 = saturate(((height3.g - 0.5) * g_fTintMaskContrast3 + 0.5) * g_fTintMaskBrightness3);
+        float tintMask3 = ContrastBrightness(height3.g, g_fTintMaskContrast3, g_fTintMaskBrightness3);
         height3.a = g_bMetalness3 ? height3.a : 0.0;
-        float roughness3 = saturate(((normal3.b - 0.5) * g_fTextureRoughnessContrast3 + 0.5) * g_fTextureRoughnessBrightness3);
+        float roughness3 = ContrastBrightness(normal3.b, g_fTextureRoughnessContrast3, g_fTextureRoughnessBrightness3);
 
         vec4 color3MaybeColorCorrected = mix(color3, vec4((color3 * g_mTextureAdjust3).rgb, color3.a), bvec4(g_nColorCorrectionMode3 == 1));
         vec4 color3ColorCorrectedTinted = color3 * g_mTextureColorAdjust3;
