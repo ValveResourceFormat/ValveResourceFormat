@@ -5,6 +5,25 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
 {
     public sealed partial class FeModel
     {
+        /// <summary>Gets how many auto-generated proxy nodes the compiler extruded from a joint.</summary>
+        internal int ProxyCountOf(int jointNode) => ProxyRingOf(jointNode).Count;
+
+        private List<int> ProxyRingOf(int jointNode)
+        {
+            var ring = new List<int>();
+            for (var node = 0; node < CtrlNames.Length; node++)
+            {
+                if (node < SkelParents.Length && SkelParents[node] == jointNode
+                    && CtrlNames[node].StartsWith("$cc", StringComparison.Ordinal))
+                {
+                    ring.Add(node);
+                }
+            }
+
+            ring.Sort((a, b) => string.CompareOrdinal(CtrlNames[a], CtrlNames[b]));
+            return ring;
+        }
+
         /// <summary>
         /// A single joint within a reconstructed bone chain.
         /// </summary>
@@ -453,6 +472,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         }
 
         private static readonly Quaternion ExtrudeAxisSelectY = new(0f, 0f, 0.70710677f, 0.70710677f);
+
         private static readonly Quaternion ExtrudeAxisSelectZ = new(0f, -0.70710677f, 0f, 0.70710677f);
 
         private static Quaternion ExtrudeAxisSelectQuaternion(char axis) => axis switch
@@ -528,256 +548,6 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             }
 
             return result;
-        }
-
-        /// <summary>
-        /// A recovered <c>ClothSelfCollisionCluster</c>: its member nodes, the length band of its pairwise rods, and each
-        /// member's stiffness, whose product over a pair is that pair's relaxation.
-        /// </summary>
-        internal readonly record struct SelfCollisionCluster(int[] Nodes, float MinDist, float MaxDist, float[]? Stiffness = null);
-
-        /// <summary>
-        /// The smallest rod clique read as a cluster without <see cref="IsRadiusBandTriangle"/>.
-        /// </summary>
-        private const int SelfCollisionClusterMinMembers = 4;
-
-        private List<SelfCollisionCluster>? selfCollisionClusters;
-
-        private HashSet<int>? selfCollisionClusterRods;
-
-        private HashSet<(int, int)>? selfCollisionClusterPairs;
-
-        /// <summary>Gets the node pairs a recovered cluster puts one of its own rods on.</summary>
-        internal IReadOnlySet<(int, int)> SelfCollisionClusterPairs
-        {
-            get
-            {
-                if (selfCollisionClusterPairs is null)
-                {
-                    selfCollisionClusterPairs = [];
-                    foreach (var cluster in SelfCollisionClusters)
-                    {
-                        for (var i = 0; i < cluster.Nodes.Length; i++)
-                        {
-                            for (var j = i + 1; j < cluster.Nodes.Length; j++)
-                            {
-                                var a = cluster.Nodes[i];
-                                var b = cluster.Nodes[j];
-                                selfCollisionClusterPairs.Add(UnorderedPair(a, b));
-                            }
-                        }
-                    }
-                }
-
-                return selfCollisionClusterPairs;
-            }
-        }
-
-        /// <summary>
-        /// Gets the self-collision clusters: cliques whose rods share one length band, weight 0.5 and pairwise-product
-        /// relaxations, and register no source element.
-        /// </summary>
-        internal IReadOnlyList<SelfCollisionCluster> SelfCollisionClusters
-            => selfCollisionClusters ??= BuildSelfCollisionClusters();
-
-        /// <summary>Gets the index into <see cref="Rods"/> of every rod a <see cref="SelfCollisionClusters"/> entry accounts for.</summary>
-        internal IReadOnlySet<int> SelfCollisionClusterRods
-            => selfCollisionClusterRods ??= BuildSelfCollisionClusterRods();
-
-        private List<SelfCollisionCluster> BuildSelfCollisionClusters()
-        {
-            var found = new List<SelfCollisionCluster>();
-            const int minMembers = 3;
-            if (IsImportedCloth || Rods.Length < minMembers)
-            {
-                return found;
-            }
-
-            var sprung = new HashSet<(int, int)>();
-            foreach (var (a, b) in SourceSprings)
-            {
-                sprung.Add(UnorderedPair(a, b));
-            }
-
-            var byBand = new Dictionary<(float, float), Dictionary<(int, int), (int Copies, float Relaxation)>>();
-            foreach (var rod in Rods)
-            {
-                var pair = UnorderedPair(rod.NodeA, rod.NodeB);
-                if (rod.MaxDist <= rod.MinDist || rod.RelaxationFactor <= 0f
-                    || rod.Weight0 != 0.5f || sprung.Contains(pair)
-                    || ImportedStripNodes.Contains(rod.NodeA) || ImportedStripNodes.Contains(rod.NodeB))
-                {
-                    continue;
-                }
-
-                var band = (rod.MinDist, rod.MaxDist);
-                if (!byBand.TryGetValue(band, out var counts))
-                {
-                    byBand[band] = counts = [];
-                }
-
-                counts[pair] = (counts.GetValueOrDefault(pair).Copies + 1, rod.RelaxationFactor);
-            }
-
-            var taken = new HashSet<int>();
-            foreach (var (band, counts) in byBand.OrderBy(static entry => entry.Key.Item1)
-                .ThenBy(static entry => entry.Key.Item2))
-            {
-                var neighbours = new Dictionary<int, HashSet<int>>();
-                foreach (var ((a, b), (copies, _)) in counts)
-                {
-                    if (copies != 1)
-                    {
-                        continue;
-                    }
-
-                    Neighbours(neighbours, a).Add(b);
-                    Neighbours(neighbours, b).Add(a);
-                }
-
-                var seen = new HashSet<int>();
-                foreach (var start in neighbours.Keys.Order())
-                {
-                    if (!seen.Add(start))
-                    {
-                        continue;
-                    }
-
-                    var members = new List<int> { start };
-                    for (var read = 0; read < members.Count; read++)
-                    {
-                        foreach (var next in neighbours[members[read]])
-                        {
-                            if (seen.Add(next))
-                            {
-                                members.Add(next);
-                            }
-                        }
-                    }
-
-                    members.Sort();
-                    if (members.Count < minMembers || members.Exists(taken.Contains)
-                        || members.Exists(node => neighbours[node].Count != members.Count - 1)
-                        || (members.Count < SelfCollisionClusterMinMembers && !IsRadiusBandTriangle(members, band.Item2)))
-                    {
-                        continue;
-                    }
-
-                    if (MemberStiffness(members, counts) is not { } stiffness)
-                    {
-                        continue;
-                    }
-
-                    taken.UnionWith(members);
-                    found.Add(new SelfCollisionCluster([.. members], band.Item1, band.Item2, stiffness));
-                }
-            }
-
-            return found;
-
-            static float[]? MemberStiffness(List<int> members, Dictionary<(int, int), (int Copies, float Relaxation)> counts)
-            {
-                float RelaxationOf(int a, int b) => counts[UnorderedPair(a, b)].Relaxation;
-
-                var stiffness = new float[members.Count];
-                for (var i = 0; i < members.Count; i++)
-                {
-                    var j = members[(i + 1) % members.Count];
-                    var k = members[(i + 2) % members.Count];
-                    stiffness[i] = MathF.Sqrt(RelaxationOf(members[i], j) * RelaxationOf(members[i], k) / RelaxationOf(j, k));
-                }
-
-                for (var i = 0; i < members.Count; i++)
-                {
-                    for (var j = i + 1; j < members.Count; j++)
-                    {
-                        if (MathF.Abs(RelaxationOf(members[i], members[j]) - stiffness[i] * stiffness[j]) > 1e-4f)
-                        {
-                            return null;
-                        }
-                    }
-                }
-
-                return stiffness;
-            }
-
-            static HashSet<int> Neighbours(Dictionary<int, HashSet<int>> map, int node)
-            {
-                if (!map.TryGetValue(node, out var set))
-                {
-                    map[node] = set = [];
-                }
-
-                return set;
-            }
-        }
-
-        /// <summary>
-        /// Gets whether a three-node rod triangle is a self-collision cluster: every member is authored and the band's
-        /// maximum is none of the pairs' rest distances.
-        /// </summary>
-        private bool IsRadiusBandTriangle(List<int> members, float bandMax)
-        {
-            foreach (var node in members)
-            {
-                if (node >= CtrlNames.Length || node >= InitPosePositions.Length || IsGeneratedNodeName(CtrlNames[node]))
-                {
-                    return false;
-                }
-            }
-
-            for (var i = 0; i < members.Count; i++)
-            {
-                for (var j = i + 1; j < members.Count; j++)
-                {
-                    var rest = Vector3.Distance(InitPosePositions[members[i]], InitPosePositions[members[j]]);
-                    if (MathF.Abs(bandMax - rest) <= MathF.Max(1e-3f, 1e-4f * rest))
-                    {
-                        return false;
-                    }
-                }
-            }
-
-            return true;
-        }
-
-        private HashSet<int> BuildSelfCollisionClusterRods()
-        {
-            var claimed = new HashSet<int>();
-            if (SelfCollisionClusters.Count == 0)
-            {
-                return claimed;
-            }
-
-            var wanted = new Dictionary<(int, int), (float Min, float Max, float Relaxation)>();
-            foreach (var cluster in SelfCollisionClusters)
-            {
-                for (var i = 0; i < cluster.Nodes.Length; i++)
-                {
-                    for (var j = i + 1; j < cluster.Nodes.Length; j++)
-                    {
-                        var a = cluster.Nodes[i];
-                        var b = cluster.Nodes[j];
-                        var relaxation = cluster.Stiffness is { } stiffness ? stiffness[i] * stiffness[j] : 1f;
-                        wanted[UnorderedPair(a, b)] = (cluster.MinDist, cluster.MaxDist, relaxation);
-                    }
-                }
-            }
-
-            for (var i = 0; i < Rods.Length; i++)
-            {
-                var rod = Rods[i];
-                var pair = UnorderedPair(rod.NodeA, rod.NodeB);
-                if (wanted.TryGetValue(pair, out var band) && rod.MinDist == band.Min
-                    && rod.MaxDist == band.Max && MathF.Abs(rod.RelaxationFactor - band.Relaxation) <= 1e-4f
-                    && rod.Weight0 == 0.5f)
-                {
-                    claimed.Add(i);
-                    wanted.Remove(pair);
-                }
-            }
-
-            return claimed;
         }
 
         /// <summary>
@@ -2690,272 +2460,25 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             }
         }
 
-        /// <summary>
-        /// Marks the joints a SECOND <c>ClothChain</c> re-declares, and the bone that chain is rooted at.
-        /// </summary>
-        /// <param name="chains">The reconstructed chains, edited in place.</param>
-        private void MarkSecondDeclarations(List<BoneChain> chains)
+        private bool DrivesProxySheetVertex(int node)
         {
-            foreach (var chain in chains)
+            foreach (var offset in CtrlOffsets)
             {
-                if (chain.ExtrudeSides >= 1)
+                if (offset.CtrlParent == node && offset.CtrlChild >= 0 && offset.CtrlChild < CtrlNames.Length
+                    && ParseProxyMeshIndex(CtrlNames[offset.CtrlChild]) >= 0)
                 {
-                    continue;
-                }
-
-                var byNode = new Dictionary<int, BoneChainJoint>();
-                var children = new Dictionary<int, List<BoneChainJoint>>();
-                foreach (var joint in chain.Joints)
-                {
-                    byNode[joint.Node] = joint;
-                    if (joint.ParentNode >= 0)
-                    {
-                        if (!children.TryGetValue(joint.ParentNode, out var siblings))
-                        {
-                            siblings = [];
-                            children[joint.ParentNode] = siblings;
-                        }
-
-                        siblings.Add(joint);
-                    }
-                }
-
-                var roots = new List<BoneChainJoint>();
-                foreach (var joint in chain.Joints)
-                {
-                    if (!joint.Simulated || joint.ParentNode < 0
-                        || !TwistRelaxCopies.TryGetValue((joint.Node, joint.ParentNode), out var toParent)
-                        || toParent.Count != 1 || toParent[0] <= 0f
-                        || !children.TryGetValue(joint.Node, out var kids)
-                        || !kids.Exists(kid => TwistRelaxCopies.TryGetValue((joint.Node, kid.Node), out var toChild)
-                            && toChild.Count == 1 && toChild[0] == 0f))
-                    {
-                        continue;
-                    }
-
-                    var root = joint;
-                    while (root.Simulated && root.ParentNode >= 0 && byNode.TryGetValue(root.ParentNode, out var above))
-                    {
-                        root = above;
-                    }
-
-                    if (!root.Simulated && !roots.Contains(root))
-                    {
-                        roots.Add(root);
-                    }
-                }
-
-                foreach (var root in roots)
-                {
-                    var pending = new Queue<BoneChainJoint>();
-                    pending.Enqueue(root);
-                    while (pending.Count > 0)
-                    {
-                        var joint = pending.Dequeue();
-                        joint.SecondDeclarationRoot = root.Name;
-                        if (children.TryGetValue(joint.Node, out var kids))
-                        {
-                            foreach (var kid in kids)
-                            {
-                                pending.Enqueue(kid);
-                            }
-                        }
-                    }
-                }
-
-                MarkVoicedSecondDeclarations(chain, byNode);
-            }
-        }
-
-        /// <summary>
-        /// Marks the runs whose second declaration stated its own <c>twist_relax</c>, whose pairs carry two twist copies.
-        /// </summary>
-        private void MarkVoicedSecondDeclarations(BoneChain chain, Dictionary<int, BoneChainJoint> byNode)
-        {
-            var doubled = new HashSet<int>();
-            foreach (var (link, copies) in TwistRelaxCopies)
-            {
-                if (copies.Count == 2)
-                {
-                    doubled.Add(link.Orient);
-                    doubled.Add(link.End);
-                }
-            }
-
-            if (doubled.Count == 0)
-            {
-                return;
-            }
-
-            var members = chain.Joints.FindAll(joint => joint.SecondDeclarationRoot is null
-                && doubled.Contains(joint.Node));
-            var memberNodes = members.Select(static joint => joint.Node).ToHashSet();
-
-            foreach (var root in members)
-            {
-                if (memberNodes.Contains(root.ParentNode) || root.Simulated)
-                {
-                    continue;
-                }
-
-                var run = new List<BoneChainJoint>();
-                var pending = new Queue<BoneChainJoint>();
-                pending.Enqueue(root);
-                while (pending.Count > 0)
-                {
-                    var joint = pending.Dequeue();
-                    run.Add(joint);
-                    foreach (var kid in members)
-                    {
-                        if (kid.ParentNode == joint.Node)
-                        {
-                            pending.Enqueue(kid);
-                        }
-                    }
-                }
-
-                if (!run.Exists(static joint => joint.Simulated) || !FirstDeclarationIsStatic(run, byNode))
-                {
-                    continue;
-                }
-
-                foreach (var joint in run)
-                {
-                    joint.SecondDeclarationRoot = root.Name;
-                }
-            }
-        }
-
-        /// <summary>
-        /// Gets whether the first of a doubled run's declarations left it unsimulated: a child-ward copy of 0 at rank 0.
-        /// </summary>
-        private bool FirstDeclarationIsStatic(List<BoneChainJoint> run, Dictionary<int, BoneChainJoint> byNode)
-        {
-            foreach (var joint in run)
-            {
-                if (!joint.Simulated || !byNode.ContainsKey(joint.ParentNode))
-                {
-                    continue;
-                }
-
-                foreach (var kid in run)
-                {
-                    if (kid.ParentNode == joint.Node
-                        && TwistRelaxCopies.TryGetValue((joint.Node, kid.Node), out var toChild)
-                        && toChild.Count == 2)
-                    {
-                        return toChild[0] == 0f;
-                    }
+                    return true;
                 }
             }
 
             return false;
         }
 
-        private readonly HashSet<string> siblingSpringHubs = new(StringComparer.OrdinalIgnoreCase);
-
-        /// <summary>
-        /// Gets the bones a chain declares only to spring its siblings together. Such a bone anchors no
-        /// chain of its own, so a cloth node parented to it still needs its own static declaration.
-        /// </summary>
-        internal IReadOnlySet<string> SiblingSpringHubs => siblingSpringHubs;
-
-        /// <summary>
-        /// Gathers the chains of a ringless sibling group under the bone that parents them, and marks the
-        /// hub as springing its children together.
-        /// </summary>
-        /// <param name="chains">The reconstructed chains, edited in place.</param>
-        private void MergeSiblingHubs(List<BoneChain> chains)
+        private static string SurfaceElementKey(IEnumerable<int> corners)
         {
-            siblingSpringHubs.Clear();
-            if (SkeletonBoneParents is null)
-            {
-                return;
-            }
-
-            var nodeOf = new Dictionary<string, int>(CtrlNames.Length, StringComparer.OrdinalIgnoreCase);
-            for (var i = 0; i < CtrlNames.Length; i++)
-            {
-                nodeOf.TryAdd(CtrlNames[i], i);
-            }
-
-            var groups = new Dictionary<string, List<BoneChain>>(StringComparer.OrdinalIgnoreCase);
-            foreach (var chain in chains)
-            {
-                if (chain.ExtrudeSides >= 1 || chain.Joints.Exists(static joint => joint.RingNodes.Count > 0))
-                {
-                    continue;
-                }
-
-                if (chain.Joints.Find(static joint => joint.IsRoot) is not { Simulated: false } root
-                    || !IsLockedToGoal(root.Node))
-                {
-                    continue;
-                }
-
-                if (SkeletonBoneParents.GetValueOrDefault(root.Name) is not { } hub
-                    || !nodeOf.TryGetValue(hub, out var hubNode)
-                    || chain.Joints.Exists(joint => joint.Node == hubNode))
-                {
-                    continue;
-                }
-
-                if (!groups.TryGetValue(hub, out var members))
-                {
-                    groups[hub] = members = [];
-                }
-
-                members.Add(chain);
-            }
-
-            foreach (var (hub, members) in groups)
-            {
-                if (members.Count < 2)
-                {
-                    continue;
-                }
-
-                var hubNode = nodeOf[hub];
-                var host = chains.Find(chain => chain.Joints.Exists(joint => joint.Node == hubNode));
-                if (host is null)
-                {
-                    host = members[0];
-                    host.RootBone = hub;
-                    host.Joints.Insert(0, new BoneChainJoint
-                    {
-                        Node = hubNode,
-                        Name = CtrlNames[hubNode],
-                        ParentNode = -1,
-                        InvMass = hubNode < NodeInvMasses.Length ? NodeInvMasses[hubNode] : 0f,
-                    });
-                }
-
-                host.Joints.Find(joint => joint.Node == hubNode)!.ChildSiblingSpring = 1f;
-                siblingSpringHubs.Add(CtrlNames[hubNode]);
-
-                foreach (var member in members)
-                {
-                    foreach (var joint in member.Joints)
-                    {
-                        if (joint.IsRoot && joint.Node != hubNode)
-                        {
-                            joint.ParentNode = hubNode;
-                            joint.ParentName = hub;
-                            joint.SpringsWithSiblings = true;
-                        }
-
-                        if (member != host)
-                        {
-                            host.Joints.Add(joint);
-                        }
-                    }
-
-                    if (member != host)
-                    {
-                        chains.Remove(member);
-                    }
-                }
-            }
+            var sorted = corners.ToArray();
+            Array.Sort(sorted);
+            return string.Join(',', sorted);
         }
     }
 }

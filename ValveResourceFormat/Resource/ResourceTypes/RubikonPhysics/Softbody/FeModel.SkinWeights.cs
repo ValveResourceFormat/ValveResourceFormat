@@ -1,5 +1,4 @@
 using System.Linq;
-using ValveKeyValue;
 using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
@@ -656,223 +655,12 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             }
         }
 
-        private static int[][] ReadNodeIndexArray(KVObject data, string key, int expectedLength)
-        {
-            var arr = data.GetArray(key);
-            if (arr is null)
-            {
-                return [];
-            }
-
-            var faces = new List<int[]>(arr.Count);
-            foreach (var face in arr)
-            {
-                var nodes = face.GetIntegerArray("nNode");
-                if (nodes.Length >= expectedLength)
-                {
-                    faces.Add(nodes.Take(expectedLength).Select(static v => (int)v).ToArray());
-                }
-            }
-
-            return [.. faces];
-        }
-
-        private static (int[][] Faces, (int, int)[] Springs) ReadSourceElems(KVObject data)
-        {
-            if (!data.ContainsKey("m_SourceElems") || !data.IsNotBlobType("m_SourceElems"))
-            {
-                return ([], []);
-            }
-
-            var elems = data.GetIntegerArray("m_SourceElems");
-            if (elems.Length < SourceElemArities)
-            {
-                return ([], []);
-            }
-
-            var counted = SourceElemArities;
-            for (var arity = 1; arity <= SourceElemArities; arity++)
-            {
-                var count = elems[arity - 1];
-                if (count < 0 || count > elems.Length)
-                {
-                    return ([], []);
-                }
-
-                counted += arity * (int)count;
-            }
-
-            if (counted != elems.Length)
-            {
-                return ([], []);
-            }
-
-            var faces = new List<int[]>();
-            var springs = new List<(int, int)>();
-            var read = SourceElemArities;
-            for (var arity = 1; arity <= SourceElemArities; arity++)
-            {
-                for (var remaining = (int)elems[arity - 1]; remaining > 0; remaining--, read += arity)
-                {
-                    if (arity == 2)
-                    {
-                        var a = (int)elems[read];
-                        var b = (int)elems[read + 1];
-                        if (a != b)
-                        {
-                            springs.Add((a, b));
-                        }
-
-                        continue;
-                    }
-
-                    if (arity < 3)
-                    {
-                        continue;
-                    }
-
-                    var corners = new List<int>(arity);
-                    for (var c = 0; c < arity; c++)
-                    {
-                        var node = (int)elems[read + c];
-                        if (!corners.Contains(node))
-                        {
-                            corners.Add(node);
-                        }
-                    }
-
-                    if (corners.Count >= 3)
-                    {
-                        faces.Add([.. corners]);
-                    }
-                }
-            }
-
-            return ([.. faces], [.. springs]);
-        }
-
-        private const int SourceElemArities = 4;
-
-        /// <summary>
-        /// Gets the authored proxy-mesh faces recovered from <c>m_SourceElems</c>, as control-node index
-        /// lists in winding order (four corners for a quad, three for a triangle).
-        /// </summary>
-        public int[][] SourceFaces { get; } = [];
-
-        private bool DrivesProxySheetVertex(int node)
-        {
-            foreach (var offset in CtrlOffsets)
-            {
-                if (offset.CtrlParent == node && offset.CtrlChild >= 0 && offset.CtrlChild < CtrlNames.Length
-                    && ParseProxyMeshIndex(CtrlNames[offset.CtrlChild]) >= 0)
-                {
-                    return true;
-                }
-            }
-
-            return false;
-        }
-
-        private static string SurfaceElementKey(IEnumerable<int> corners)
-        {
-            var sorted = corners.ToArray();
-            Array.Sort(sorted);
-            return string.Join(',', sorted);
-        }
-
-        /// <summary>
-        /// Gets the two-corner elements of <c>m_SourceElems</c>, one per authored <c>ClothSpring</c>.
-        /// </summary>
-        public (int, int)[] SourceSprings { get; } = [];
-
         /// <summary>
         /// Gets whether the compiler created its own <c>$cloth_root</c> node, which it does for an unskinned proxy mesh.
         /// </summary>
         internal bool HasGeneratedClothRoot => Array.Exists(CtrlNames, static n => n == ClothRootNodeName);
 
         private const string ClothRootNodeName = "$cloth_root";
-
-        /// <summary>
-        /// Returns the node pairs the compiler regenerates as <c>m_Rods</c> from <paramref name="faces"/>:
-        /// every face edge plus every face diagonal, deduplicated.
-        /// </summary>
-        internal static HashSet<(int, int)> DeriveRodsFromFaces(IEnumerable<int[]> faces)
-        {
-            var derived = new HashSet<(int, int)>();
-            foreach (var face in faces)
-            {
-                for (var a = 0; a < face.Length; a++)
-                {
-                    for (var b = a + 1; b < face.Length; b++)
-                    {
-                        var (x, y) = UnorderedPair(face[a], face[b]);
-                        derived.Add((x, y));
-                    }
-                }
-            }
-
-            return derived;
-        }
-
-        /// <summary>
-        /// Gets the authored <c>additional_shear_stretch</c> from the slackest rod between two sheet vertices, or from the
-        /// <see cref="ShearResistance"/> base relaxation where the diagonals disagree.
-        /// </summary>
-        internal float AdditionalShearStretch
-        {
-            get
-            {
-                var slackest = float.MaxValue;
-                if (ShearResistance is { } shear)
-                {
-                    slackest = shear.BaseRelaxation;
-                }
-                else
-                {
-                    foreach (var rod in Rods)
-                    {
-                        if (!IsProxyMeshNode(rod.NodeA) || !IsProxyMeshNode(rod.NodeB))
-                        {
-                            continue;
-                        }
-
-                        var relaxation = UnstretchedRelaxation(rod);
-                        if (relaxation > 0f && relaxation < slackest)
-                        {
-                            slackest = relaxation;
-                        }
-                    }
-                }
-
-                if (slackest is float.MaxValue or >= 1f)
-                {
-                    return 0f;
-                }
-
-                return Math.Max(0f, -MathF.Log(slackest) - DefaultSurfaceStretch);
-            }
-        }
-
-        /// <summary>
-        /// Gets a value indicating whether this FeModel carries any control nodes.
-        /// </summary>
-        public bool HasData => CtrlNames.Length > 0;
-
-        /// <summary>
-        /// Gets a value indicating whether <c>m_SkelParents</c> was present in the compiled data. False on
-        /// old-era compiles (and rope cloth), where <see cref="SkelParents"/> is synthesized from
-        /// <c>m_Ropes</c>/<c>m_FollowNodes</c> or the skeleton instead.
-        /// </summary>
-        public bool HasCompiledSkelParents { get; }
-
-        /// <summary>
-        /// Returns whether a control-node name is an auto-generated cloth proxy node (not a real skeleton bone).
-        /// </summary>
-        public static bool IsProxyNodeName(string? name)
-            => string.IsNullOrEmpty(name) || name.StartsWith('$');
-
-        /// <summary>The prefix of a control node created for an authored free-standing <c>ClothNode</c>.</summary>
-        public const string FreeClothNodePrefix = "$cloth_node_";
 
         /// <summary>
         /// Gets or sets the names of the skeleton's real bones, used to tell generated nodes without a <c>$</c> prefix apart.
@@ -1007,12 +795,6 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                 return false;
             }
         }
-
-        /// <summary>
-        /// Returns whether the node at <paramref name="node"/> is a static (pinned, invMass == 0) anchor.
-        /// </summary>
-        public bool IsStatic(int node)
-            => node >= 0 && node < NodeInvMasses.Length && NodeInvMasses[node] == 0f;
 
         /// <summary>
         /// Gets the first ancestor of <paramref name="node"/> with a real bone name.

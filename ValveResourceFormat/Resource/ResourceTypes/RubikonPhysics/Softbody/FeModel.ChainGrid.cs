@@ -1,5 +1,4 @@
 using System.Linq;
-using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
 {
@@ -35,6 +34,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
 
         /// <summary>How close chain roots must rest, in inches, to share one grid.</summary>
         private const float ChainGridRootDistance = 30f;
+
         /// <summary>The number of interpolated columns between adjacent chains.</summary>
         private const int ChainGridSubdivisions = 3;
 
