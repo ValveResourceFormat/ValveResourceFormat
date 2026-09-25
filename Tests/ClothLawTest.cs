@@ -18,9 +18,8 @@ namespace Tests
     public class ClothLawTest
     {
         /// <summary>
-        /// A chain rod's compiled relaxation factor is the authored slider scaled by
-        /// <c>exp(-default_stretch)</c>, so recovering the slider divides that scale back out.
-        /// exp(-0.985) = 0.3734400, and 0.5 * 0.3734400 = 0.1867200.
+        /// A chain rod's relaxation is the slider scaled by <c>exp(-default_stretch)</c>, which the reading divides
+        /// back out: 0.5 * exp(-0.985) = 0.18672.
         /// </summary>
         [Test]
         public async Task ChainRodRelaxationDividesOutTheDefaultStretch()
@@ -50,8 +49,7 @@ namespace Tests
         }
 
         /// <summary>
-        /// With no <c>default_stretch</c> the scale is exp(0) = 1 and the slider is the compiled factor
-        /// verbatim, which is what tells the two halves of the law apart.
+        /// Without <c>default_stretch</c> the slider is the compiled relaxation verbatim.
         /// </summary>
         [Test]
         public async Task ChainRodRelaxationIsVerbatimWithoutDefaultStretch()
@@ -68,9 +66,8 @@ namespace Tests
         }
 
         /// <summary>
-        /// A bend rod across a joint's own extrude ring carries
-        /// <c>flMinDist = flMaxDist * sin(add_curvature * pi / 2)</c>.
-        /// sin(0.15 * pi / 2) = 0.23344536, so a rod at maximum 10 carries minimum 2.3344536.
+        /// A ring bend rod carries <c>flMinDist = flMaxDist * sin(add_curvature * pi / 2)</c>: minimum 2.3344536 at
+        /// maximum 10 reads 0.15.
         /// </summary>
         [Test]
         public async Task ChainRingCurvatureInvertsTheHalfSineLaw()
@@ -81,9 +78,7 @@ namespace Tests
         }
 
         /// <summary>
-        /// Two ring rods reading different values are not one authored curvature, so the reading is
-        /// refused. sin(0.4 * pi / 2) = 0.58778525, which reads back as 0.4 rather than the other rod's
-        /// 0.15.
+        /// Two ring rods reading different curvatures (0.4 and 0.15) are refused.
         /// </summary>
         [Test]
         public async Task ChainRingCurvatureRefusesADisagreeingRing()
@@ -103,10 +98,8 @@ namespace Tests
                 """);
 
         /// <summary>
-        /// Every element credits both ends of each of its own corner pairs with 4 per unit of rest
-        /// length, and the authored <c>mass</c> multiplier is squared into the result. On a 3x4
-        /// rectangle every corner owns a side of 3, a side of 4 and the diagonal of 5, so its geometric
-        /// term is 4 * 12 = 48; at multiplier 1.5 the node weighs 48 * 2.25 = 108.
+        /// Every element credits both ends of each corner pair with 4 per unit of rest length, times the squared
+        /// <c>mass</c> multiplier: a 3x4 rectangle's corner weighs 4 * 12 * 1.5^2 = 108.
         /// </summary>
         [Test]
         public async Task ElementMassCreditsFourPerUnitOfEachCornerPair()
@@ -130,8 +123,8 @@ namespace Tests
         }
 
         /// <summary>
-        /// On a cloth with no proxy sheet a shipped rod credits both its ends with 8 per unit of rest
-        /// length: a rod of length 3 gives 24, and at multiplier 1.5 the node weighs 24 * 2.25 = 54.
+        /// Without a proxy sheet a rod credits both ends 8 per unit of rest length: a rod of 3 gives 24, and 54 at
+        /// multiplier 1.5.
         /// </summary>
         [Test]
         public async Task RodMassCreditsEightPerUnitOfLength()
@@ -147,8 +140,7 @@ namespace Tests
         }
 
         /// <summary>
-        /// A rod carrying the unbounded maximum joins the network after the mass pass, so it weighs
-        /// nothing and the same shipped mass is no longer explained by a multiplier.
+        /// A rod with the unbounded maximum weighs nothing, so the same mass reads no multiplier.
         /// </summary>
         [Test]
         public async Task AnUnboundedRodDoesNotWeigh()
@@ -166,9 +158,8 @@ namespace Tests
                 """);
 
         /// <summary>
-        /// A volumetrically solved selection credits every node it covers with 12 per unit of the summed
-        /// bounding-box extent of its own members. The two nodes span (1, 2, 3), so the extent sums to 6
-        /// and the term is 72; at multiplier 1.5 the node weighs 72 * 2.25 = 162.
+        /// A volume-solved selection credits each covered node 12 per unit of its members' summed extent: 72 for extent
+        /// 6, and 162 at multiplier 1.5.
         /// </summary>
         [Test]
         public async Task VolumetricSelectionCreditsTwelvePerUnitOfExtent()
@@ -202,9 +193,8 @@ namespace Tests
         }
 
         /// <summary>
-        /// Where one node pair carries both a chain's own rod and a separate constraint, the chain claims
-        /// the copy whose rigidity and relaxation factor match what it generates, whatever order the two
-        /// stand in. The banded copy is listed first here and is still the one handed back as surplus.
+        /// On a pair holding the chain's rod and a banded constraint, the chain keeps its matching rod and the banded
+        /// copy comes back as surplus in either order.
         /// </summary>
         [Test]
         public async Task GetUngeneratedRodsKeepsTheChainRodAndReturnsTheBandedCopy()
@@ -232,9 +222,7 @@ namespace Tests
         }
 
         /// <summary>
-        /// A planarized shape leaves one collision plane per node of its selection and no rigid, and each
-        /// plane is the shape surface at that node. Six nodes six units out from a sphere of centre
-        /// (1, 2, 3) and radius 4 therefore recover that sphere exactly.
+        /// Six planarized planes around a sphere recover its centre (1, 2, 3) and radius 4.
         /// </summary>
         [Test]
         public async Task PlanarizedSphereRecoversItsCentreAndRadius()
@@ -292,9 +280,7 @@ namespace Tests
                 + $"m_Plane = {{ m_vNormal = [ {normal} ] m_flOffset = {SyntheticCloth.Num(offset)} }} }},";
 
         /// <summary>
-        /// Chains come back ordered by the lowest SIMULATED control node any of their joints occupies,
-        /// which is the order the compiler lays their simulated nodes out in. Here the chain rooted at
-        /// the HIGHER static node owns the lower simulated node, so it must come first.
+        /// Chains are ordered by the lowest simulated node their joints occupy, not by their root.
         /// </summary>
         [Test]
         public async Task ChainsAreOrderedByTheirLowestSimulatedNode()
@@ -319,16 +305,13 @@ namespace Tests
                 await Assert.That(chains[0].RootBone).IsEqualTo("rootB");
                 await Assert.That(chains[1].RootBone).IsEqualTo("rootA");
 
-                // The root node indices run the other way, so this cannot pass by accident.
                 await Assert.That(chains[0].Joints[0].Node).IsEqualTo(1);
                 await Assert.That(chains[1].Joints[0].Node).IsEqualTo(0);
             }
         }
 
         /// <summary>
-        /// One declaration numbers its rings continuously, so a suffix index at or below one already seen
-        /// starts a second declaration of the same bone and the chain splits in two, each carrying its
-        /// own ring.
+        /// A ring suffix index that restarts starts a second declaration of the bone, splitting the chain in two.
         /// </summary>
         [Test]
         public async Task ARingSuffixRestartSplitsOneBoneIntoTwoDeclarations()
@@ -354,9 +337,7 @@ namespace Tests
         }
 
         /// <summary>
-        /// Each declaration carries the ring IT extruded, which is what says how many nodes it created
-        /// and in what order. Read by name instead, both declarations of the bone would claim all four
-        /// ring nodes, and one ring of four is not the same creation order as two rings of two.
+        /// Each declaration of a bone carries only the ring nodes it extruded.
         /// </summary>
         [Test]
         public async Task EachDeclarationOfABoneCarriesItsOwnRingNodes()
@@ -393,8 +374,7 @@ namespace Tests
             """);
 
         /// <summary>
-        /// The compiler writes a node's <c>flAnimationForceAttraction</c> as the cube of the authored
-        /// goal strength: 0.7 cubed is 0.343 and 0.2 cubed is 0.008.
+        /// Goal strength is the cube root of <c>flAnimationForceAttraction</c>: 0.343 reads 0.7 and 0.008 reads 0.2.
         /// </summary>
         [Test]
         public async Task GoalStrengthIsTheCubeRootOfTheForceAttraction()
@@ -408,9 +388,8 @@ namespace Tests
         }
 
         /// <summary>
-        /// The vertex attraction is the builder's solve over the force attraction and the authored
-        /// damping, so the damping comes back out of the pair. A force attraction of 0.343 with a damping
-        /// of 0.01 compiles to a vertex attraction of 0.370103, which is what the donkey fixture ships.
+        /// The damping comes back out of the force and vertex attraction pair: 0.343 with a vertex attraction of
+        /// 0.370103 was authored at 0.01.
         /// </summary>
         [Test]
         public async Task GoalDampingInvertsTheAttractionSolve()
@@ -420,8 +399,7 @@ namespace Tests
         }
 
         /// <summary>
-        /// Outside the solve range the compiler writes the damping through unchanged, so the inverse is
-        /// the identity rather than the solve.
+        /// Outside the solve range goal damping reads back unchanged.
         /// </summary>
         [Test]
         public async Task GoalDampingPassesThroughOutsideTheSolveRange()
@@ -466,10 +444,8 @@ namespace Tests
                 """);
 
         /// <summary>
-        /// A stiff hinge spreads its stiffness over the bend as
-        /// <c>stiffness * 3 * [-2 * mMid, mEnd0, mEnd1] / (4 * mMid + mEnd0 + mEnd1)</c>. With equal
-        /// inverse masses that is <c>stiffness * [-1, 0.5, 0.5]</c>, and the height inverts to the
-        /// authored angle: sqrt(2 + 2 - 2 * 2 * cos(120 degrees)) / 3 = 0.8164966.
+        /// A stiff hinge's bend weights are <c>stiffness * [-1, 0.5, 0.5]</c> at equal inverse masses, and its height
+        /// inverts to the angle: sqrt(4 - 4 cos 120) / 3 = 0.8164966.
         /// </summary>
         [Test]
         public async Task StiffHingeInvertsTheKelagerWeightSpread()
@@ -487,8 +463,7 @@ namespace Tests
         }
 
         /// <summary>
-        /// A fully biased joint drops the mass share and puts the whole stiffness on one end, leaving the
-        /// bent node weightless: an end weight of 1.5 is a stiffness of 0.5 at full bias.
+        /// A bend with a zero mid weight reads a full motion bias, an end weight of 1.5 being a stiffness of 0.5.
         /// </summary>
         [Test]
         public async Task StiffHingeReadsAFullMotionBiasOffAZeroedMidWeight()
@@ -526,8 +501,7 @@ namespace Tests
                 """);
 
         /// <summary>
-        /// Each extra solver iteration repeats the rods a joint generates upward, so three rigid copies
-        /// of the parent span are two extra iterations.
+        /// Three rigid copies of a joint's parent span read two extra iterations.
         /// </summary>
         [Test]
         public async Task ExtraIterationsCountsTheRigidCopiesOfASpan()
@@ -552,9 +526,7 @@ namespace Tests
         }
 
         /// <summary>
-        /// A chain whose joints hold an <c>antishrink</c> below one repeats SLACK spans, so the copies
-        /// of one are counted the same way: three identical slack rods on the parent span are two extra
-        /// iterations, exactly as three rigid ones are.
+        /// Three identical slack copies of a parent span read two extra iterations, as rigid copies do.
         /// </summary>
         [Test]
         public async Task ExtraIterationsCountsIdenticalSlackCopiesOfASpan()
@@ -579,8 +551,7 @@ namespace Tests
         }
 
         /// <summary>
-        /// The compiler copies a chain joint's <c>antishrink</c> into the contraction factor of every rod
-        /// its own spans generate, so a span rod holding a quarter of its rest span states 0.25.
+        /// A span rod holding a quarter of its rest span reads <c>antishrink</c> 0.25.
         /// </summary>
         [Test]
         public async Task ChainJointAntishrinkIsTheSlackItsOwnSpanKeeps()
@@ -599,10 +570,7 @@ namespace Tests
         }
 
         /// <summary>
-        /// Slack rods sharing a pair count as repeats of one another only when they are the same record:
-        /// the importer copies one authored rod verbatim, so a pair whose slack rods disagree carries two
-        /// different constraints rather than a repeated one, and states neither an extra iteration nor an
-        /// antishrink.
+        /// Slack rods on one pair that are not the same record state neither an extra iteration nor an antishrink.
         /// </summary>
         [Test]
         public async Task SlackRodsThatDisagreeAreNotExtraIterations()
@@ -626,8 +594,7 @@ namespace Tests
         }
 
         /// <summary>
-        /// A joint's <c>child_sibling_spring</c> ties its own children to each other, one rod per
-        /// unordered pair of them, and that rod carries the slider as its relaxation.
+        /// The rods between every pair of a joint's children read as its <c>child_sibling_spring</c>.
         /// </summary>
         [Test]
         public async Task ChildSiblingSpringIsTheRodBetweenTwoChildrenOfOneJoint()
@@ -645,8 +612,7 @@ namespace Tests
         }
 
         /// <summary>
-        /// The compiler springs EVERY pair of a joint's children or none of them, so a set missing one
-        /// of its pairs was tied by something else and states no slider at all.
+        /// A sibling set missing one of its pairs states no <c>child_sibling_spring</c>.
         /// </summary>
         [Test]
         public async Task AnIncompleteSiblingSetIsNotAChildSiblingSpring()
@@ -671,9 +637,8 @@ namespace Tests
                 ]
                 """).BuildBoneChains()[0].Joints.Find(j => j.Name == "root");
 
-        /// The compiler splits a solve-element quad whose two halves are not coplanar enough and gives the
-        /// diagonal it discards a rod of its own, so the exporter must not declare that pair a second time.
-        /// The rod spans the LONGER diagonal, hinged about the shorter one the split keeps.
+        /// <summary>
+        /// A solve-element quad too bent to keep whole gets a split rod across its longer diagonal.
         /// </summary>
         [Test]
         public async Task ABentQuadLosesItsLongerDiagonalToASplitRod()
@@ -696,8 +661,7 @@ namespace Tests
         }
 
         /// <summary>
-        /// A flat quad is kept whole and a quad with a static corner is never split at all, so neither
-        /// hands the exporter a pair to leave undeclared.
+        /// A flat quad and a quad with a static corner yield no bent-quad split rod.
         /// </summary>
         [Test]
         public async Task AFlatOrPartlyStaticQuadKeepsBothDiagonals()
@@ -727,8 +691,7 @@ namespace Tests
         }
 
         /// <summary>
-        /// A rod joining a node to itself constrains nothing and cannot be re-authored, and one missing
-        /// an endpoint index is not a rod at all, so neither survives the parse.
+        /// Rods joining a node to itself or missing an endpoint are dropped at parse.
         /// </summary>
         [Test]
         public async Task SelfRodsAndDegenerateRodsAreDropped()
@@ -753,8 +716,7 @@ namespace Tests
         }
 
         /// <summary>
-        /// A vertex belongs to every selection covering it, and a membership below the full 1.0 the bare
-        /// name already means is written out with its weight.
+        /// A vertex lists every selection covering it, with the weight where membership is below 1.
         /// </summary>
         [Test]
         public async Task VertexMapNamesCarryAPartialMembershipWeight()
@@ -786,9 +748,8 @@ namespace Tests
         }
 
         /// <summary>
-        /// A chain root generates no span of its own, so its iteration count is read off the only other
-        /// rods that cross it: its child's span down to it. Three rigid copies of that span are two extra
-        /// iterations. A root with two children has no unambiguous stand-in and stays at one copy.
+        /// A chain root reads its iterations off its only child's span, three copies reading two; a root with two
+        /// children keeps zero.
         /// </summary>
         [Test]
         public async Task AChainRootCountsItsIterationsOnItsOnlyChildsSpan()
@@ -834,9 +795,7 @@ namespace Tests
             => feModel.BuildBoneChains()[0].Joints.Find(static joint => joint.IsRoot)!;
 
         /// <summary>
-        /// A chain whose root is one of a joint's own upward targets carries the suspender companion as a
-        /// single surplus rod on that pair: the parent span holds two rigid copies and the span to the root
-        /// holds three, the odd one of which is the authored suspender.
+        /// A joint whose upward span reaches the root reads the odd rod on that span as its suspender companion.
         /// </summary>
         [Test]
         public async Task ASuspenderCompanionIsTheSurplusRodOnTheRootSpan()
@@ -866,9 +825,7 @@ namespace Tests
         }
 
         /// <summary>
-        /// Nothing but a suspender reaches a joint further from the chain root than its own torsion span,
-        /// so every rigid rod on that pair is a copy of the one companion and they all carry its value.
-        /// Two agreeing copies name a suspender of 0.42 rather than refusing the pair for being doubled.
+        /// Past the torsion span every rigid rod on the pair is a suspender copy, so two agreeing copies read 0.42.
         /// </summary>
         [Test]
         public async Task ASuspenderPastTheTorsionSpanIsReadFromItsRepeatedCopies()
@@ -884,8 +841,7 @@ namespace Tests
         }
 
         /// <summary>
-        /// The suspender companion is an iterated span like the parent, bend and torsion ones, so a joint
-        /// at two iterations regenerates BOTH copies of it and neither is left over to be re-declared.
+        /// At two iterations both suspender companion copies are regenerated and none is surplus.
         /// </summary>
         [Test]
         public async Task ASuspenderCompanionIsRegeneratedOncePerIteration()
@@ -912,9 +868,8 @@ namespace Tests
                 """);
 
         /// <summary>
-        /// A two-corner source element between two chain JOINTS is an authored spring like one between two
-        /// extrude rings, so it is re-declared with the rod's own fields and the chain's own copy of that
-        /// span is removed by zeroing the joint's stretch slider.
+        /// A two-corner source element between two chain joints is re-declared as a spring with the rod's fields, and
+        /// the joint's stretch slider is zeroed.
         /// </summary>
         [Test]
         public async Task ASourceElementBetweenTwoChainJointsIsAnAuthoredSpring()
@@ -933,9 +888,8 @@ namespace Tests
         }
 
         /// <summary>
-        /// A compile that wrote no node base at all had its basis hint pairs filled by its ropes, so a
-        /// roped node keeps the chain rods that carry the rope and the same two-corner element is left to
-        /// the chain's own span rather than re-declared as a spring.
+        /// On a compile with no node bases a roped node keeps its chain span, and its two-corner element is not a
+        /// spring.
         /// </summary>
         [Test]
         public async Task ARopedChainKeepsItsOwnSpanWhereTheCompileWroteNoNodeBase()
@@ -968,10 +922,8 @@ namespace Tests
                 """);
 
         /// <summary>
-        /// A planarized shape whose two end caps coincide compiles as a sphere, which loses every node a
-        /// capsule covers, so it is emitted with a short axis pointing away from the nodes it owns. Five
-        /// nodes six units out from a sphere of centre (1, 2, 3) leave a summed normal of +Z, so the axis
-        /// runs 0.01 along -Z from the recovered centre.
+        /// A planarized shape whose end caps coincide gets a 0.01 axis pointing away from the nodes it owns: here along
+        /// -Z from the recovered centre (1, 2, 3).
         /// </summary>
         [Test]
         public async Task APlanarizedEndCapIsGivenAShortAxisAwayFromItsNodes()
@@ -1020,9 +972,8 @@ namespace Tests
         }
 
         /// <summary>
-        /// A compiled surface face every corner of which is a declared cloth node, at least one of them a
-        /// free <c>$cloth_node_</c>, comes from an authored ClothTri or ClothQuad rather than from a proxy
-        /// sheet, so the sheet reconstruction leaves it alone. A face over a sheet vertex still builds one.
+        /// A face over declared cloth nodes including a free <c>$cloth_node_</c> is no sheet face; a face over a sheet
+        /// vertex is.
         /// </summary>
         [Test]
         public async Task ASurfaceFaceOverAFreeClothNodeIsNotASheetFace()
@@ -1035,10 +986,8 @@ namespace Tests
         }
 
         /// <summary>
-        /// A proxy-sheet vertex the back-solve recovery defers, on a compile that ships no
-        /// <c>m_SkelParents</c>, keeps the bones its own offset network names: the skeleton walk resolves
-        /// no anchor for it, so the synthesised fallback has nothing and the vertex would otherwise be
-        /// written unskinned. $cloth_m0p3 is bound 0.7 to bone_a and 0.3 to bone_c.
+        /// A deferred sheet vertex on a compile without <c>m_SkelParents</c> keeps the bones its offset network names:
+        /// $cloth_m0p3 at 0.7 on bone_a and 0.3 on bone_c.
         /// </summary>
         [Test]
         public async Task AnUnanchoredSheetVertexKeepsItsOffsetNetworkPaint()
@@ -1061,8 +1010,7 @@ namespace Tests
         }
 
         /// <summary>
-        /// The same vertex on a compile that DOES ship <c>m_SkelParents</c> keeps the synthesised chain
-        /// paint, so the offset network is a last resort rather than a second recovery.
+        /// With <c>m_SkelParents</c> the sheet vertex keeps the synthesised chain paint.
         /// </summary>
         [Test]
         public async Task ASheetVertexWithASkeletonAnchorKeepsTheSynthesisedPaint()
@@ -1078,8 +1026,9 @@ namespace Tests
             }
         }
 
-        // A sheet whose $cloth_m0p3 is fitless, carries a soft offset onto a bone no other vertex anchors,
-        // and is therefore deferred by RecoverAuthoredSkinWeights.
+        /// <summary>
+        /// A sheet whose fitless $cloth_m0p3 carries a soft offset onto a bone no other vertex anchors.
+        /// </summary>
         private static FeModel DeferredOffsetSheet(string? skelParents) => SyntheticCloth.Parse($$"""
             {
                 m_CtrlName = [ "root", "bone_a", "bone_b", "bone_c",
@@ -1143,9 +1092,8 @@ namespace Tests
             """);
 
         /// <summary>
-        /// The anti-tunnelling probes are declared in the order their target slices are concatenated
-        /// into <c>m_AntiTunnelTargetNodes</c>, which on this model is the reverse of the order
-        /// <c>m_AntiTunnelProbes</c> ships in.
+        /// Anti-tunnel probes are declared in the order of their target slices in <c>m_AntiTunnelTargetNodes</c>, here
+        /// the reverse of <c>m_AntiTunnelProbes</c>.
         /// </summary>
         [Test]
         public async Task AntiTunnelProbesAreDeclaredInTheOrderTheirTargetsAreConcatenated()
@@ -1165,7 +1113,7 @@ namespace Tests
         }
 
         /// <summary>
-        /// A probe's own target list keeps the compiled slice order rather than being sorted by node.
+        /// A probe's targets keep their compiled slice order.
         /// </summary>
         [Test]
         public async Task AnAntiTunnelProbeKeepsTheSliceOrderOfItsTargets()
@@ -1189,8 +1137,7 @@ namespace Tests
             => children.ElementAt(index).Value.GetSubCollection("data").GetSubCollection("nodes")
                 .Select(static n => n.Key).ToArray();
 
-        // Two probes whose target slices are laid out in the reverse of the compiled probe order: the
-        // tip probe ships first and owns the LAST target slot.
+        /// <summary>Two probes whose target slices are laid out in the reverse of the probe order.</summary>
         private static FeModel SwappedAntiTunnelProbes() => SyntheticCloth.Model(
             ["root", "a", "b", "c", "body", "tip"], staticNodes: 1, parents: [-1, 0, 0, 0, 0, 0],
             poses: [new(0f, 0f, 0f), new(0f, 0f, -10f), new(0f, 0f, -20f), new(0f, 0f, -30f), new(0f, 4f, -30f), new(0f, 8f, -30f)],
@@ -1205,7 +1152,7 @@ namespace Tests
                 ]
                 """);
 
-        // One probe whose slice is not in ascending node order.
+        /// <summary>One probe whose target slice is not in ascending node order.</summary>
         private static FeModel ShuffledAntiTunnelTargets() => SyntheticCloth.Model(
             ["root", "a", "b", "c", "body"], staticNodes: 1, parents: [-1, 0, 0, 0, 0],
             poses: [new(0f, 0f, 0f), new(0f, 0f, -10f), new(0f, 0f, -20f), new(0f, 0f, -30f), new(0f, 4f, -30f)],
@@ -1219,12 +1166,8 @@ namespace Tests
                 """);
 
         /// <summary>
-        /// A ClothChain of version 2 grades a preset basis for every joint with a child over the joint's own
-        /// extrusion vector and its child's, where version 1 leaves the joint to the bulk pass and its
-        /// neighbour set, which on a one-wide rope reaches the parent's ring as well. On the synthetic rope
-        /// below the bulk grade of j2 is X = (j3, $ccj1_0), Y = ($ccj3_0, j1): the two diagonals across the
-        /// parent-to-child span tie and the later pair wins. The preset grade over j2, $ccj2_0, j3, $ccj3_0
-        /// is X = (j3, $ccj2_0), Y = ($ccj3_0, j2). The entry the original carries says which pass wrote it.
+        /// A chain joint's node base tells the version-1 bulk grade (reaching the parent's ring) from the version-2
+        /// preset grade over the joint's own extrusion and its child's.
         /// </summary>
         [Test]
         public async Task AChainJointBasisNamingTheParentRingWasBulkGraded()
@@ -1240,7 +1183,7 @@ namespace Tests
         }
 
         /// <summary>
-        /// A rope whose only entry is on a leaf joint, which no version presets, decides nothing.
+        /// A rope whose only node base is on a leaf joint decides no chain version.
         /// </summary>
         [Test]
         public async Task ALeafJointBasisDecidesNoChainVersion()
@@ -1262,11 +1205,8 @@ namespace Tests
                 """);
 
         /// <summary>
-        /// A chain ROOT has no parent span, so its <c>stretch_spring</c> is only recorded by the rods
-        /// inside its own extrusion. The compiler's ring rod spans the two ring vertices at their rest
-        /// distance, so it is rigid on a joint that does not shrink, while a surface rod across the same
-        /// two vertices measures a fan and is not. Here the ring pair carries both, at 0.6 and at 1.0:
-        /// the full reading is contradictory and the rigid rods alone name the slider.
+        /// A chain root whose ring pair carries a rigid rod at 0.6 beside a banded surface rod at 1.0 reads its
+        /// <c>stretch_spring</c> off the rigid rod alone.
         /// </summary>
         [Test]
         public async Task AChainRootReadsItsStretchSpringOffItsOwnRigidRingRod()
@@ -1277,8 +1217,7 @@ namespace Tests
         }
 
         /// <summary>
-        /// The rigid set is a fallback, not an override: where every rod inside the extrusion already
-        /// agrees, that reading stands and the rigid rods add nothing.
+        /// Where every rod inside the root's extrusion agrees, that reading stands over the rigid rods.
         /// </summary>
         [Test]
         public async Task AChainRootWhoseExtrusionAgreesKeepsTheWholeReading()
@@ -1288,8 +1227,10 @@ namespace Tests
             await Assert.That(joint.StretchStiffness).IsEqualTo(0.6f).Within(1e-4f);
         }
 
-        // A chain root extruding one two-vertex ring, whose ring pair carries the chain's own rigid rod
-        // at 0.6 beside a banded rod at the caller's relaxation.
+        /// <summary>
+        /// A chain root with a two-node ring whose pair carries a rigid rod at 0.6 beside a banded rod at <paramref
+        /// name="surfaceRelaxation"/>.
+        /// </summary>
         private static FeModel RingWithASurfaceRod(float surfaceRelaxation) => SyntheticCloth.Model(
             ["root", "$ccroot_0", "$ccroot_1"], staticNodes: 1, parents: [-1, 0, 0],
             poses: [new(0f, 0f, 0f), new(0f, 2f, 0f), new(0f, -2f, 0f)],
@@ -1302,11 +1243,8 @@ namespace Tests
                 """);
 
         /// <summary>
-        /// A PINNED proxy-sheet vertex whose soft-offset expansion leaves its <c>m_CtrlOffsets</c> anchor
-        /// TIED with its heaviest rival keeps the whole authored influence list, with the anchor lifted to
-        /// a strict maximum. An author who paints two bones the same weight produces exactly that tie, and
-        /// collapsing it to the single rigid anchor loses every <c>m_CtrlSoftOffsets</c> record the
-        /// compiler wrote for the vertex.
+        /// A pinned sheet vertex whose soft offset ties its anchor with another bone keeps both influences, the anchor
+        /// first.
         /// </summary>
         [Test]
         public async Task ATiedPinnedSheetVertexKeepsBothItsBones()
@@ -1322,8 +1260,9 @@ namespace Tests
             }
         }
 
-        // A sheet whose pinned $cloth_m0p0 is covered by no fit weights and carries one soft offset at
-        // flAlpha 0.5, so its expansion is 0.5 on the anchor bone_a and 0.5 on bone_c.
+        /// <summary>
+        /// A sheet whose pinned $cloth_m0p0 has no fit weight and one soft offset at 0.5, tying bone_a and bone_c.
+        /// </summary>
         private static FeModel TiedPinSheet() => SyntheticCloth.Parse($$"""
             {
                 m_CtrlName = [ "$cloth_m0p0", "root", "bone_a", "bone_b", "bone_c",
@@ -1370,9 +1309,7 @@ namespace Tests
             """);
 
         /// <summary>
-        /// The hint pass writes a twisted joint's X pair from its twist record and grades the rest only for a
-        /// joint that has fit influences, which a chain stages from version 1 on. A hint left at
-        /// {joint, twist end, 0, 0} therefore says the chain compiled at version 0; a graded hint says nothing.
+        /// A twisted joint's hint left at {joint, twist end, 0, 0} reads as version 0; a graded hint does not.
         /// </summary>
         [Test]
         public async Task AnUngradedTwistHintSaysTheChainCompiledAtVersionZero()
@@ -1439,42 +1376,28 @@ namespace Tests
                 """);
 
         /// <summary>
-        /// With <c>rigid_edge_hinges</c> on, every rod the compiler generates comes back with its minimum
-        /// equal to its maximum whatever the sheet was authored with, so the curvature has to be read off
-        /// the ring bends the same switch turns on: an empty bend array states a curvature below the
-        /// builder's own pi/8 gate, and a non-empty one is inverted from the height each hub records.
+        /// With <c>rigid_edge_hinges</c> the curvature is read off the ring bends' heights: none means zero, a folded
+        /// hub inverts to its angle, and a saturated or disagreeing set reads 1.
         /// </summary>
         [Test]
         public async Task RigidHingeSheetReadsItsCurvatureFromTheRingBends()
         {
             using (Assert.Multiple())
             {
-                // No bends at all: the builder's pi/8 gate turned every hub away, which on a sheet with no
-                // bend paint is a curvature of zero.
                 await Assert.That(RigidSheet(bends: "").RigidHingeCurvature).IsEqualTo(0f);
-                // The fixture's hub sits between two ring members ten units away on opposite sides, so
-                // (3h)^2 = 200 + 200*cos(angle): a right angle records sqrt(200)/3 = 4.714045 ...
                 await Assert.That(RigidSheet(bends: Bend(4.714045f)).RigidHingeCurvature)
                     .IsEqualTo(0.5f).Within(0.001f);
-                // ... and an unfolded hub records 20/3 = 6.666667.
                 await Assert.That(RigidSheet(bends: Bend(6.666667f)).RigidHingeCurvature)
                     .IsEqualTo(0f).Within(0.001f);
-                // A fold that reaches pi opens all the way, and every authored value at or above one
-                // compiles the same, so the reading saturates instead of reporting the fraction.
                 await Assert.That(RigidSheet(bends: Bend(0.1f)).RigidHingeCurvature).IsEqualTo(1f);
-                // A hub whose height has fallen to its own rest distance has stopped tracking the angle,
-                // and a sheet with nothing left tracking keeps the saturating value.
                 await Assert.That(RigidSheet(bends: Bend(0f)).RigidHingeCurvature).IsEqualTo(1f);
-                // Two hubs that disagree name no single value, so the sheet keeps it too.
                 await Assert.That(RigidSheet(bends: Bend(4.714045f) + Bend(6.666667f)).RigidHingeCurvature)
                     .IsEqualTo(1f);
             }
         }
 
         /// <summary>
-        /// The repeats an <c>extra_iterations</c> reading rests on are the count every pair of a span
-        /// reaches, not a count they all have to share: a pair some other construct declares as well
-        /// carries a rod on top of the repeats, and the joint's own iteration count is still the floor.
+        /// A span with one pair carrying an extra rod reads <c>extra_iterations</c> off the count every pair reaches.
         /// </summary>
         [Test]
         public async Task ExtraIterationsIsTheFloorOfASpanWhoseOnePairCarriesASurplusRod()
@@ -1517,10 +1440,8 @@ namespace Tests
         }
 
         /// <summary>
-        /// The compiler adds <c>goal_strength_bias</c> to a node's goal strength before cubing it into
-        /// the force attraction, while the vertex attraction keeps the unbiased cube, so a model whose
-        /// two attractions sit a constant cube root apart names the bias. Only a goal-damped node says
-        /// anything: a raw-integrator node ships an unrelated pair.
+        /// <c>goal_strength_bias</c> is the constant cube-root gap between the goal-damped nodes' force and vertex
+        /// attractions; raw-integrator nodes state none, and the paint takes the bias back out below saturation.
         /// </summary>
         [Test]
         public async Task GoalStrengthBiasIsTheCubeRootGapTheGoalDampedNodesShare()
@@ -1529,14 +1450,9 @@ namespace Tests
             {
                 await Assert.That(BiasedGoals(bias: 0.02f, flags: "128").GoalStrengthBias)
                     .IsEqualTo(0.02f).Within(0.0001f);
-                // No gap at all is no bias, and it has to recover EXACTLY zero or every paint moves.
                 await Assert.That(BiasedGoals(bias: 0f, flags: "128").GoalStrengthBias).IsEqualTo(0f);
-                // The same numbers on the RAW integrator constrain nothing.
                 await Assert.That(BiasedGoals(bias: 0.02f, flags: "1024").GoalStrengthBias).IsEqualTo(0f);
 
-                // The paint takes the bias back out below saturation, and leaves a SATURATED attraction
-                // alone: the compiler clamped the sum before cubing it, so the bias is not in there to
-                // take back out, and the node's own vertex attraction still pins the strength.
                 var biased = BiasedGoals(bias: 0.02f, flags: "128");
                 await Assert.That(biased.GoalStrengthPaint(0.140608f)).IsEqualTo(0.5f).Within(0.0005f);
                 await Assert.That(biased.GoalStrengthPaint(1f)).IsEqualTo(1f);
@@ -1596,9 +1512,8 @@ namespace Tests
                 """);
 
         /// <summary>
-        /// A chain authored with <c>stretch_spring = 0</c> compiles no rod between consecutive joints. Its
-        /// top link is then recorded only by the bend rod that SPANS the second joint, running from that
-        /// joint's own skeleton parent to its child.
+        /// A stretchless chain's top link is read off the bend rod spanning its second joint, rooting the chain at that
+        /// parent.
         /// </summary>
         [Test]
         public async Task ASpanningBendRodRootsAStretchlessChainAtTheParentItSpansTo()
@@ -1629,9 +1544,7 @@ namespace Tests
                 """);
 
         /// <summary>
-        /// A <c>ClothSelfCollisionCluster</c> puts one rod on every member pair, all of them sharing one
-        /// length band and carrying the builder's own relaxation and weight. A complete clique of those is
-        /// read back as the cluster; a triangle sits below the member floor and stays plain rods.
+        /// A complete clique of banded rods reads as a <c>ClothSelfCollisionCluster</c>; a triangle stays plain rods.
         /// </summary>
         [Test]
         public async Task ACompleteBandedRodCliqueIsReadBackAsASelfCollisionCluster()
@@ -1651,9 +1564,8 @@ namespace Tests
         }
 
         /// <summary>
-        /// The compiler builds a chain joint's parent rod only for a non-zero stretch slider, so a chain
-        /// every span of which a self-collision cluster owns declared none. A chain with no cluster on it
-        /// keeps the neutral default, whatever its spans read.
+        /// A chain whose every span a cluster owns reads <c>stretch_spring</c> 0; without a cluster it keeps the
+        /// default.
         /// </summary>
         [Test]
         public async Task AChainWhoseSpansACollisionClusterOwnsRecoversAZeroStretchSlider()
@@ -1735,9 +1647,7 @@ namespace Tests
         }
 
         /// <summary>
-        /// One authored proxy sheet is exported as one mesh per island, so a selection wrapping the whole
-        /// sheet covers the UNION of the islands rather than any single one. Matched against one island
-        /// alone it is not the sheet's container and the export paints it as a vertex set instead.
+        /// A selection covering the union of a sheet's exported islands is still the sheet's container.
         /// </summary>
         [Test]
         public async Task ASelectionOverSeveralExportedProxiesIsStillTheSheetsContainer()
@@ -1773,10 +1683,7 @@ namespace Tests
             """);
 
         /// <summary>
-        /// A suspender puts one companion rod on the chain ROOT. On the joint whose parent IS the root
-        /// that lands on the parent span, so the pair carries two rods - which is also what one extra
-        /// iteration looks like, except that an iteration repeats every span and a suspender repeats
-        /// only this one. Reading it as an iteration emits a second copy of every other span too.
+        /// A joint whose parent is the root reads a doubled parent span as a suspender, not an extra iteration.
         /// </summary>
         [Test]
         public async Task AJointOnTheChainRootReadsItsDoubledRootPairAsASuspender()
@@ -1806,11 +1713,8 @@ namespace Tests
                 """);
 
         /// <summary>
-        /// A ring three nodes wide closes into a triangle, so the bend rods predicted across the tube's
-        /// shared edges land on the ring's own sides. Where a side carries only its one authored rod the
-        /// compiler added no derived copy and that rod weighs, so the chain's geometric masses already
-        /// match the shipped ones and no joint carries a mass multiplier. The fixture is the compiled
-        /// synthetic chain of four joints at <c>extrude_sides 3</c> and default mass.
+        /// On a three-wide ring whose sides each carry one rod, the chain's geometric masses match the shipped ones and
+        /// no joint states a mass multiplier.
         /// </summary>
         [Test]
         public async Task AThreeWideRingWeighsItsOwnSidesWhenEachCarriesOneRod()
@@ -1830,9 +1734,8 @@ namespace Tests
         private static FeModel RingThreeWideChain() => SyntheticCloth.Load("cloth_chain_three_wide_ring.kv3");
 
         /// <summary>
-        /// A <c>ClothVertexMap</c> container's own weight compiles into every value of the selection it
-        /// wraps, so a selection whose covered nodes all share one partial value carries that weight.
-        /// Full coverage and a mixed selection carry none.
+        /// A selection whose covered nodes share one partial value carries it as the container weight; full coverage or
+        /// mixed values carry none.
         /// </summary>
         [Test]
         public async Task AContainerWeightIsTheOnePartialWeightItsSelectionShares()
@@ -1864,9 +1767,8 @@ namespace Tests
             """);
 
         /// <summary>
-        /// A bone chain compiles no surface faces, so in a model without a single proxy sheet node a
-        /// quad over declared cloth nodes can only come from an authored <c>ClothQuad</c>. The same quad
-        /// in a model that also carries a sheet node stays with the sheet.
+        /// A quad over declared cloth nodes in a model with no sheet node is an authored <c>ClothQuad</c>; beside a
+        /// sheet node it stays with the sheet.
         /// </summary>
         [Test]
         public async Task AQuadOverDeclaredNodesInASheetlessModelIsAnAuthoredElement()
@@ -1895,11 +1797,8 @@ namespace Tests
             """);
 
         /// <summary>
-        /// Under <c>explicit_masses</c> a node's inverse mass is the reciprocal of its authored mass and the
-        /// rod pass weighs each rod by the final masses, <c>invA / (invA + invB)</c>. The fixture is the
-        /// compiled synthetic chain with mass 0.5 on its second joint: that joint reads back as 0.5 and its
-        /// mass-1 neighbour as 1, which is a value the chain states like any other rather than a node that
-        /// weighed nothing. The same masses over flat 0.5 rod weights are a geometric chain.
+        /// An <c>explicit_masses</c> chain is read off its mass-proportional rod weights: the mass 0.5 joint reads 0.5
+        /// and its neighbour 1, while flat 0.5 weights read as a geometric chain.
         /// </summary>
         [Test]
         public async Task AnExplicitMassChainIsReadOffItsMassProportionalRodWeights()
@@ -1914,8 +1813,6 @@ namespace Tests
                 await Assert.That(explicitChain.HasExplicitMasses).IsTrue();
                 await Assert.That(explicitChain.RecoverJointMassMultiplier(4)!.Value).IsEqualTo(0.5f).Within(1e-4f);
 
-                // The mass-1 neighbour reads 1 rather than being skipped as the weighed-nothing sentinel,
-                // and states no key of its own only because the chain's own default is 1.
                 await Assert.That(explicitChain.RecoverJointMassMultiplier(2)!.Value).IsEqualTo(1f).Within(1e-4f);
                 await Assert.That(explicitChain.RecoverJointMass(2, 1f)).IsNull();
                 await Assert.That(flatChain.HasExplicitMasses).IsFalse();
@@ -1925,11 +1822,8 @@ namespace Tests
         private static string ExplicitMassChainText => SyntheticCloth.Fixture("cloth_chain_explicit_mass.kv3");
 
         /// <summary>
-        /// A three-member <c>ClothSelfCollisionCluster</c> compiles to one rod triangle whose shared band is
-        /// the members' summed collision and stray radii, whatever distance each pair sits apart. The fixture
-        /// is the compiled synthetic cluster over three chain joints with radii 6 and 24, a 12 to 48 band over
-        /// pairs 8.5, 17 and 8.5 apart. The same triangle banded at one pair's own rest distance is a
-        /// stretched surface, not a cluster.
+        /// A three-member cluster is read off a shared 12 to 48 band no pair rests at; the same triangle banded at a
+        /// pair's rest distance is a surface, not a cluster.
         /// </summary>
         [Test]
         public async Task AThreeMemberClusterIsReadOffABandNoPairRestsAt()
@@ -1950,10 +1844,8 @@ namespace Tests
         }
 
         /// <summary>
-        /// A cluster pair's rod carries the product of its two members' own <c>stiffness</c> as its relaxation,
-        /// so a cluster is read at any relaxation that factors that way and each member's stiffness comes back.
-        /// The fixture is the compiled synthetic three-member cluster: members at 0.5 put 0.25 on every pair, and
-        /// a pair set of 0.25 / 0.5 / 0.5 reads as two members at 0.5 and one at 1.0.
+        /// A cluster member's stiffness is read off the products its pair rods carry: 0.25 on every pair is three
+        /// members at 0.5, and 0.25 / 0.5 / 0.5 is 0.5, 0.5 and 1.0.
         /// </summary>
         [Test]
         public async Task AClusterMembersStiffnessIsReadOffTheProductsItsPairRodsCarry()
@@ -1981,10 +1873,8 @@ namespace Tests
         private static string ThreeMemberClusterText => SyntheticCloth.Fixture("cloth_chain_three_member_cluster.kv3");
 
         /// <summary>
-        /// A geometric chain's rod pass weights every node the same, so a joint's <c>motion_bias</c> is read
-        /// off its span weights even where the final masses of the span's ends differ. The fixture is the
-        /// compiled synthetic chain with bias 0.5 on every joint: the tip joint's span joins inverse masses
-        /// 0.0034 and 0.0065 and still carries 1/3, which reads back as 0.5, and 2/3 reads back as -0.5.
+        /// A joint's <c>motion_bias</c> is read off its span weights whatever its ends weigh: 1/3 reads 0.5 and 2/3
+        /// reads -0.5.
         /// </summary>
         [Test]
         public async Task AJointsMotionBiasIsReadOffItsSpanWhateverItsEndsWeigh()
@@ -2004,10 +1894,8 @@ namespace Tests
         private static string BiasedChainText => SyntheticCloth.Fixture("cloth_chain_motion_bias.kv3");
 
         /// <summary>
-        /// A joint authored at <c>stretch_spring</c> 0 compiles no rod on its span to its parent and none to
-        /// its own ring. The fixture is the compiled synthetic chain with the spring off on coattail_1_L and
-        /// coattail_end_L, with coattail_2_L between them left on. Putting coattail_1_L's ring rod back is
-        /// no longer a switched-off joint.
+        /// A joint with no rod on its span and none on its ring reads <c>stretch_spring</c> 0; putting its ring rod
+        /// back reads 1.
         /// </summary>
         [Test]
         public async Task AJointsZeroStretchSpringIsReadOffItsRodlessSpanAndRing()
@@ -2030,12 +1918,8 @@ namespace Tests
         private static string AlternatingStretchText => SyntheticCloth.Fixture("cloth_chain_alternating_stretch.kv3");
 
         /// <summary>
-        /// A joint authored with <c>animated_length</c> moves the rods on its span to its parent, on its own
-        /// ring and on its children's spans to it out of <c>m_Rods</c> and into <c>m_SimdRodsAnim</c>, while
-        /// each child keeps its own ring rod. The fixture is the compiled synthetic chain with it on
-        /// coattail_2_L only. A childless joint loses the same rods from <c>m_Rods</c> to a zero
-        /// <c>stretch_spring</c>, and there the node base the animated joint keeps tells the two apart: the
-        /// second fixture is the chain with it on every joint.
+        /// A joint's <c>animated_length</c> is read off the rods it and its children move into <c>m_SimdRodsAnim</c>;
+        /// on a childless tip only a node base tells it from a zero <c>stretch_spring</c>.
         /// </summary>
         [Test]
         public async Task AJointsAnimatedLengthIsReadOffTheRodsItAndItsChildrenLose()
@@ -2065,10 +1949,8 @@ namespace Tests
         private static string AnimatedEveryJointText => SyntheticCloth.Fixture("cloth_chain_animated_every_joint.kv3");
 
         /// <summary>
-        /// A cloth model compiled with <c>explicit_masses</c> keeps its masses where a joint's <c>motion_bias</c>
-        /// moves its span off the proportional weight. The fixture is the compiled synthetic chain with mass 2
-        /// and bias 0.5 on coattail_2_L: that span reads a flat 0.5 while the tip span stays proportional at 1/3.
-        /// The same chain with the tip span flattened too carries no proportional rod at all.
+        /// <c>explicit_masses</c> is read past a span a <c>motion_bias</c> flattens, as long as another span stays
+        /// proportional.
         /// </summary>
         [Test]
         public async Task ExplicitMassesAreReadPastASpanAMotionBiasMoves()
@@ -2087,11 +1969,8 @@ namespace Tests
         private static string ExplicitBiasedChainText => SyntheticCloth.Fixture("cloth_chain_explicit_mass_bias.kv3");
 
         /// <summary>
-        /// A suspender on a joint whose parent is the chain root is read off the root span's copies even where
-        /// every span of the chain is repeated, so that no single rod is left to name the chain's own
-        /// relaxation: the repeats compile at a flat 1.0. The fixture is the compiled synthetic chain with
-        /// suspender 0.5 and extra_iterations 2 on every joint, where coattail_1_L's span to the root carries
-        /// three copies at 0.5 and three at 1.0.
+        /// A suspender on a joint next to the root is read off the root span's copies even where every span is
+        /// repeated: suspender 0.5 at two extra iterations.
         /// </summary>
         [Test]
         public async Task ARootAdjacentSuspenderIsReadWhereEverySpanIsRepeated()
@@ -2109,10 +1988,8 @@ namespace Tests
         private static string RepeatedSuspenderChainText => SyntheticCloth.Fixture("cloth_chain_repeated_suspender.kv3");
 
         /// <summary>
-        /// Under chain version 1 a zero <c>stretch_spring</c> drops a joint's node base and <c>animated_length</c>
-        /// keeps it, so a joint whose children are cut off from it reads as animated wherever it keeps a base. The
-        /// fixture is the compiled synthetic version 1 chain with <c>animated_length</c> on every joint, which carries
-        /// no <c>m_Rods</c> entry at all; without a base on the tip, the tip reads as a zero stretch spring instead.
+        /// Under version 1 a joint cut off from its children reads as animated where it keeps a node base, and as a
+        /// zero <c>stretch_spring</c> where it does not.
         /// </summary>
         [Test]
         public async Task AnAnimatedLengthJointIsReadOffTheNodeBaseItKeeps()
@@ -2135,10 +2012,8 @@ namespace Tests
         }
 
         /// <summary>
-        /// Damping only raises a node's vertex attraction, so no goal-damped node's cube-root gap exceeds the
-        /// <c>goal_strength_bias</c> and an undamped node sits exactly on it. Where damping spreads most of a sheet's
-        /// gaps below the bias, the largest gap three nodes share still names it; a node the compiler ships at zero
-        /// attraction is painted at minus the bias's cube root, since below zero the bias is added to the strength's cube.
+        /// Under damping, <c>goal_strength_bias</c> is the largest cube-root gap three nodes share, and a
+        /// zero-attraction node paints at minus its cube root.
         /// </summary>
         [Test]
         public async Task GoalStrengthBiasIsTheLargestGapThreeNodesShareUnderDamping()
@@ -2186,8 +2061,7 @@ namespace Tests
         }
 
         /// <summary>
-        /// A cloth effect's <c>cloth_effect_version</c> compiles to its <c>Version</c> parameter, and an effect
-        /// compiled without one declares none.
+        /// An effect declares <c>cloth_effect_version</c> from its <c>Version</c> parameter, and none without it.
         /// </summary>
         [Test]
         public async Task AClothEffectVersionIsItsVersionParameter()
@@ -2232,9 +2106,8 @@ namespace Tests
             """);
 
         /// <summary>
-        /// A <c>leader_type</c> 1 follower compiles to an <c>m_BoneMergeLinks</c> entry that names its leader only by
-        /// the string token of the leader's bone name, so the leader is the known bone whose token matches; a link
-        /// whose hash names no known bone declares nothing.
+        /// A <c>leader_type</c> 1 follower names the known bone whose string token is its parent hash; an unmatched
+        /// hash declares nothing.
         /// </summary>
         [Test]
         public async Task ABoneMergeFollowerNamesTheBoneWhoseTokenIsItsParentHash()
@@ -2267,9 +2140,8 @@ namespace Tests
         }
 
         /// <summary>
-        /// A suspender of 1.0 on a joint whose parent is the chain root compiles every root span copy at the chain's own
-        /// relaxation, so no copy stands apart; the joint's ring rod carrying as many copies as its base span is what
-        /// names the suspender, not a repeat. The fixture is the compiled synthetic chain with suspender 1.0 on every joint.
+        /// A suspender of 1.0 next to the root is read off the ring rod carrying as many copies as the base span, not
+        /// as a repeat.
         /// </summary>
         [Test]
         public async Task ASuspenderAtTheChainsOwnRelaxationIsReadOffItsRingCopies()
@@ -2287,9 +2159,8 @@ namespace Tests
         private static string SuspenderAtNaturalRelaxationText => SyntheticCloth.Fixture("cloth_chain_natural_suspender.kv3");
 
         /// <summary>
-        /// Selections covering the same nodes at the same weights are aliases of one <c>ClothVertexMap</c>, whose
-        /// <c>aliases</c> list compiles to one entry per alias in place of the container's name. A selection at other
-        /// weights, and one registered as a vertex set by the sheet's paint, are not aliases.
+        /// Selections over the same nodes at the same weights are aliases of one container; other weights and
+        /// registered vertex sets are not.
         /// </summary>
         [Test]
         public async Task SelectionsOverTheSameNodesAndWeightsAreAliasesOfOneContainer()
@@ -2329,9 +2200,8 @@ namespace Tests
         private static readonly string[] HalfOnly = ["half"];
 
         /// <summary>
-        /// A selection solved as a volume over chain joints is declared as a container whose <c>data.nodes</c> table
-        /// lists every covered joint, the static root included, at its membership weight: the compiler reads
-        /// <c>volumetric_solve</c> only through that table. A selection solved as a surface declares no container.
+        /// A volume-solved selection over chain joints is declared as a container listing every covered joint at its
+        /// weight; a surface-solved one declares none.
         /// </summary>
         [Test]
         public async Task AVolumetricSelectionOverChainJointsListsThemInItsNodeTable()
@@ -2359,8 +2229,7 @@ namespace Tests
         private static readonly string[] VolumetricMembers = ["coattail_0_L", "coattail_1_L", "coattail_2_L", "coattail_end_L"];
 
         /// <summary>
-        /// A stiffen effect's <c>BoneOverlay</c> compiles to its own parameter beside <c>Stiffness</c>, and an effect
-        /// compiled without one declares none.
+        /// A stiffen effect declares its <c>BoneOverlay</c> parameter beside <c>Stiffness</c>, and none without it.
         /// </summary>
         [Test]
         public async Task AStiffenEffectsBoneOverlayIsItsOwnParameter()
@@ -2402,9 +2271,8 @@ namespace Tests
             """);
 
         /// <summary>
-        /// <c>stiffness_on_ragdoll</c> and <c>cloth_sleep_enabled</c> compile into the model's key values as
-        /// <c>cloth_stiffness_on_ragdoll</c> and <c>cloth_sleep_enabled</c>, and nowhere in the FeModel, so the
-        /// Softbody node reads them back from there; a model whose key values carry neither declares neither.
+        /// <c>stiffness_on_ragdoll</c> and <c>cloth_sleep_enabled</c> come back from the model's key values, and
+        /// neither is declared without them.
         /// </summary>
         [Test]
         public async Task SoftbodyKeysComeBackFromTheModelKeyValues()
@@ -2426,9 +2294,8 @@ namespace Tests
         }
 
         /// <summary>
-        /// A joint a proxy sheet back-solves has no construct of its own to carry <c>lock_translation</c>, so a lock
-        /// on it (in <c>m_LockToGoal</c> or <c>m_LockToParent</c>) is declared as a <c>ClothJointLock</c> naming it.
-        /// A generated node and an unlocked joint get none, and a joint the caller declares elsewhere is left out.
+        /// A locked back-solved joint is declared as a <c>ClothJointLock</c>; generated nodes, unlocked joints and
+        /// joints declared elsewhere are not.
         /// </summary>
         [Test]
         public async Task ALockedBackSolvedJointIsDeclaredAsAJointLock()
@@ -2451,10 +2318,8 @@ namespace Tests
         private static readonly string[] LockedJoints = ["locked_goal", "locked_parent"];
 
         /// <summary>
-        /// The compiler sorts a rigid array into its priority groups, so a capsule declared first at a higher
-        /// priority lands after a later one; the order the parent bones were numbered in still carries the
-        /// declaration. The fixture is the compiled synthetic pair spine_2 at priority 2, pelvis at priority 0.
-        /// Without priority groups the array's own order is the declaration order and is kept.
+        /// Capsules sorted into priority groups are declared in their parent bones' node order; without groups the
+        /// array order is kept.
         /// </summary>
         [Test]
         public async Task ShapesSortedIntoPriorityGroupsAreDeclaredInTheirParentBonesOrder()
@@ -2493,10 +2358,8 @@ namespace Tests
                 + $"vCenterOfMass = [ 0.0, 0.0, 0.0 ] flVolumetricSolveStrength = {SyntheticCloth.Num(volumetric)} nScaleSourceNode = -1 }},";
 
         /// <summary>
-        /// A twist link a STATIC chain root authored carries no relaxation in either direction: the
-        /// compiler scales an entry by the orient node's own value only where that node simulates. The
-        /// control is the same link made by the simulated child instead, whose own entry carries
-        /// 0.5 * 0.618 = 0.309.
+        /// A twist link a static root authored carries no relaxation either way, while the simulated child's link
+        /// carries 0.5 * 0.618 = 0.309.
         /// </summary>
         [Test]
         public async Task ARelaxlessTwistLinkIsTheStaticEndsOwnTwist()
@@ -2513,9 +2376,7 @@ namespace Tests
         }
 
         /// <summary>
-        /// The static root's own twist_relax is re-declared at the top of the key's range, since every
-        /// value above zero compiles the same pair of entries, and the root stays unsimulated: only a
-        /// root carrying a non-zero entry of its own is one the source simulated and pinned.
+        /// A static root re-declares the twist its relaxation-free link records at 1.0 and stays unsimulated.
         /// </summary>
         [Test]
         public async Task AStaticRootRedeclaresTheTwistItsLinkRecords()
@@ -2544,11 +2405,8 @@ namespace Tests
                 """);
 
         /// <summary>
-        /// A joint's <c>animated_length</c> routes its rods to <c>m_SimdRodsAnim</c> and does nothing else,
-        /// so a joint whose extrusion carries no entry there had no rod built for it at all - a zero
-        /// <c>stretch_spring</c>, not an animated length the rods would have recorded. The fixture is the
-        /// compiled synthetic chain with <c>animated_length</c> on every joint and its animated rods taken
-        /// away; the control is the same chain, node bases included, with them.
+        /// A joint whose extrusion has no <c>m_SimdRodsAnim</c> entry reads a zero <c>stretch_spring</c>, not an
+        /// animated length.
         /// </summary>
         [Test]
         public async Task AJointWithNoAnimatedRodDeclaresNoStretchInstead()
@@ -2574,11 +2432,8 @@ namespace Tests
                 + text[text.IndexOf("m_Rods =", StringComparison.Ordinal)..];
 
         /// <summary>
-        /// A <c>ClothSpring</c>'s <c>extra_iterations</c> is its rod's multiplicity: the compile appends the
-        /// rod <c>1 + extra_iterations</c> times and records ONE source element, so the copies a pair carries
-        /// belong to the one spring on it and leave no rod for anything else to re-declare. The spring also
-        /// keeps the corner order the source element names, which the rod's own endpoints reverse. The
-        /// control is the same chain with a single copy.
+        /// A source spring's rod copies are its <c>extra_iterations</c> and leave no surplus rod, and the spring keeps
+        /// its source element's corner order.
         /// </summary>
         [Test]
         public async Task ASourceSpringsRodCopiesAreItsExtraIterations()
@@ -2609,12 +2464,8 @@ namespace Tests
                 """);
 
         /// <summary>
-        /// A compiled skeleton is a lossy re-expression of the pose the model was authored in, while the
-        /// same file's <c>m_InitPose</c> keeps the authored world position of every cloth control node.
-        /// The exported skeleton is therefore posed from the rest pose, so that accumulating the emitted
-        /// joint chain puts every control bone back where the file records it rather than where its own
-        /// bone table accumulates to. The control is a model with no cloth, whose bones are emitted
-        /// exactly as compiled.
+        /// The exported skeleton puts every cloth control bone on its <c>m_InitPose</c> position, where the compiled
+        /// bone table alone does not.
         /// </summary>
         [Test]
         public async Task AClothControlBoneIsEmittedOnItsRecordedRestPosition()
@@ -2628,7 +2479,9 @@ namespace Tests
             }
         }
 
-        /// <summary>The control: a model with no cloth registers no correction at all.</summary>
+        /// <summary>
+        /// A model with no cloth registers no rest-position correction.
+        /// </summary>
         [Test]
         public async Task AModelWithoutClothEmitsItsCompiledSkeleton()
         {
@@ -2697,10 +2550,8 @@ namespace Tests
         }
 
         /// <summary>
-        /// A joint's <c>motion_bias</c> weights the rods of its span to its parent, and where the parent declared
-        /// <c>animated_length</c> those rods compile into <c>m_SimdRodsAnim</c> alone, with the same weights. The
-        /// fixture is the compiled synthetic chain with <c>animated_length</c> on coattail_2_L and bias 0.5 on
-        /// coattail_end_L, whose two span lanes read 2/3; the control is the same chain with the bias left off.
+        /// A <c>motion_bias</c> under an animated parent is read off the <c>m_SimdRodsAnim</c> weights of its span: 2/3
+        /// reads 0.5.
         /// </summary>
         [Test]
         public async Task AMotionBiasIsReadOffTheAnimatedRodsOfItsSpan()
@@ -2721,10 +2572,8 @@ namespace Tests
             => feModel.BuildBoneChains()[0].Joints.First(static joint => joint.Name == "coattail_end_L");
 
         /// <summary>
-        /// A two-member self-collision cluster over two chain joints compiles one banded rod beside the chain's
-        /// own rigid span and records no source element, so the banded rod left once the chain claims the rigid
-        /// one is re-declared as that cluster, half its band per member. The control carries two banded copies
-        /// beside the span, which no single cluster accounts for, and stays two springs.
+        /// A banded rod beside a chain's rigid span is re-declared as a two-member cluster at half its band per member;
+        /// two banded copies stay springs.
         /// </summary>
         [Test]
         public async Task AClusterTieBesideAChainSpanIsItsTwoMemberCluster()
@@ -2768,13 +2617,8 @@ namespace Tests
                 """);
 
         /// <summary>
-        /// From <c>chain.version</c> 1 on, the chain importer tops up a joint whose fit-influence table holds
-        /// one or two entries, so a one-wide chain's tip joint owns a fit group and compiles to a reverse
-        /// offset against its own ring node. At version 0 the tip's influences fall under the compiler's
-        /// three-entry floor and the record is missing, which is the only difference between the two
-        /// compiled synthetic originals. The controls are the version-1 original, which carries the record,
-        /// and the version-0 chain with a second, two-wide leaf: a version-0 compile drops that leaf's group
-        /// too, so a reverse offset on it rules version 0 out, while the same leaf without one reads version 0 as well.
+        /// A thin chain tip without a reverse offset reads as an unstaged thin joint (version 0); with the offset it is
+        /// staged. A second two-wide leaf is unstaged only when it also lacks its offset.
         /// </summary>
         [Test]
         public async Task AThinChainTipWithoutAReverseOffsetWasStagedAtVersionZero()
@@ -2832,11 +2676,8 @@ namespace Tests
             """, StringComparison.Ordinal);
 
         /// <summary>
-        /// A planarized box writes no rigid, only one collision plane per node of its selection: in the
-        /// parent's frame the plane passes through the node's nearest point on the box and faces the node.
-        /// Nodes on the box's upper x face, its y and z faces, one edge and one corner recover the box, and the
-        /// lower x face no node reaches is mirrored about the parent. The control is planes at a sphere's six
-        /// axis points, which a box reproduces as well and the planarized capsule fit keeps.
+        /// Planarized planes standing off a box's faces, edges and corner recover that box, not a capsule; planes at a
+        /// sphere's six axis points recover a capsule instead.
         /// </summary>
         [Test]
         public async Task APlanarizedBoxIsRecoveredFromItsContactPoints()
@@ -2916,12 +2757,8 @@ namespace Tests
         }
 
         /// <summary>
-        /// A rotation-locked static ClothNode keeps the preset node base no neighbour scan would grade for it. An
-        /// entry whose X0 and one Y reference are the node itself declares <c>transform_alignment</c> 3 with the
-        /// other two references, whichever side of the Y pair the compiler's handedness flip left the node on;
-        /// any other entry declares 4 with its references as stored. The controls are a static node free to
-        /// rotate, which the scan can grade and which keeps alignment 0, and an entry whose X1 is the node, which
-        /// alignment 3 cannot compile.
+        /// A rotation-locked static ClothNode declares its node-base preset: <c>transform_alignment</c> 3 when X0 and a
+        /// Y reference are the node itself, otherwise 4 with the stored references; a free static node keeps 0.
         /// </summary>
         [Test]
         public async Task AStaticClothNodeDeclaresThePresetItsNodeBaseCompiledFrom()
@@ -2971,10 +2808,8 @@ namespace Tests
         }
 
         /// <summary>
-        /// An effect authored under a static <c>ClothNode</c> records the node's root bone as its <c>Node</c> and keeps its
-        /// direction unrotated, so it is declared under the static node rooted on that bone, here inside a folder. An
-        /// AddGravity effect declares its <c>strength</c> and the <c>angles</c> of its direction. The control is an
-        /// effect with no <c>Node</c>: it stays at the top level.
+        /// An effect recording a <c>Node</c> is declared under the static ClothNode rooted on that bone, with its
+        /// <c>strength</c> and <c>angles</c>; an effect with no <c>Node</c> stays at the top level.
         /// </summary>
         [Test]
         public async Task AnEffectRecordingANodeIsDeclaredUnderThatStaticClothNode()
@@ -3019,10 +2854,8 @@ namespace Tests
             ("name", bone), ("cloth_node_root_bone", bone), ("is_static_node", isStatic));
 
         /// <summary>
-        /// A planarized box turned in its parent's frame is recovered in its own axes. One group stands off faces,
-        /// edges and a corner of a (2, 3, 4) half-extent box; a second touches only one edge and the corner below
-        /// it, so its axes come from the edge normals alone. Each recovered box reproduces every plane. The control
-        /// is the first group unturned, which keeps the parent's own axes.
+        /// A planarized box turned in its parent's frame is recovered in its own axes, also from one edge and a corner
+        /// alone; the unturned box keeps the parent's axes.
         /// </summary>
         [Test]
         public async Task ATurnedPlanarizedBoxIsRecoveredInItsOwnFrame()
@@ -3087,12 +2920,8 @@ namespace Tests
         }
 
         /// <summary>
-        /// A static <c>ClothNode</c> on a bone a chain claims compiles onto that bone's own node and still gives its
-        /// effects that bone as <c>Node</c>, even on a simulated joint, while the export emits no static node for it.
-        /// Such an effect is declared under a bare static <c>ClothNode</c> rooted on the bone, one per bone, whether the
-        /// bone has no ClothNode at all or only a dynamic one. The controls: an effect whose bone has an emitted static
-        /// node joins it and adds no bare node, one with no <c>Node</c> stays at the top level, and one naming a
-        /// generated node gets no parent.
+        /// An effect whose bone has no emitted static ClothNode is declared under a bare static one per bone; effects
+        /// on an emitted static node join it, and effects with no or a generated <c>Node</c> stay at the top level.
         /// </summary>
         [Test]
         public async Task AnEffectWhoseNodeHasNoStaticClothNodeGetsABareStaticOne()
@@ -3142,13 +2971,8 @@ namespace Tests
         }
 
         /// <summary>
-        /// A <c>ClothNode</c> with <c>angles</c> of its own compiles to a <c>$cloth_node_</c> element whose rest rotation
-        /// is its root bone's times those angles, and it is not folded into the bone even at a zero origin. The angles
-        /// come back as the rotation relative to the bone, with the origin left at zero. The compiler also turns an
-        /// effect's Strength by its parent node's angles, so an effect recorded on that bone is declared under the
-        /// element with its direction expressed in the element's frame. The controls: an unrotated element keeps angles 0
-        /// and has its zero origin pushed off the bone, and an effect on a bone with only an unrotated node keeps the
-        /// compiled direction.
+        /// A rotated <c>$cloth_node_</c> element gets its <c>angles</c> back relative to its bone with a zero origin,
+        /// and its effects are declared in its frame; an unrotated element keeps angles 0 and an offset origin.
         /// </summary>
         [Test]
         public async Task ARotatedClothNodeGetsItsAnglesBackAndItsEffectsInItsFrame()
@@ -3218,10 +3042,8 @@ namespace Tests
         }
 
         /// <summary>
-        /// A proxy sheet painted with one <c>cloth_mass</c> value reads back scattered by the float32 step of each
-        /// shipped inverse mass, as <c>s4_mapfilter_mass_bias_2p0</c> does (2.0 painted, read 1.9999976 to
-        /// 2.0000057 against a step of about 6.6e-6). Such readings collapse to their median. The controls are a
-        /// painted gradient, whose readings stay as read, and a sheet with a single painted vertex.
+        /// Mass readings scattered within the float32 step collapse to their median; a gradient or a single reading
+        /// does not.
         /// </summary>
         [Test]
         public async Task AUniformMassPaintIsEmittedAsOneValue()
@@ -3239,10 +3061,8 @@ namespace Tests
         }
 
         /// <summary>
-        /// A colliding jiggle bone compiles its four <c>cloth_collision_layer</c> booleans into <c>m_nCollisionMask</c>:
-        /// <c>s12_jiggle_collision_tip_mass</c> leaves layer 1 out and ships 13 (flags 802, rigid, length-limited,
-        /// colliding), so the bone declares that layer false and the other three true. The controls are a colliding bone
-        /// with all four layers (15), and a bone that does not collide, whose mask is 0.
+        /// A colliding jiggle bone declares false for each <c>cloth_collision_layer</c> its mask leaves out; a full
+        /// mask or a non-colliding bone declares no layers.
         /// </summary>
         [Test]
         public async Task AJiggleBoneDeclaresTheCollisionLayersItsMaskLeavesOut()
@@ -3269,11 +3089,8 @@ namespace Tests
         }
 
         /// <summary>
-        /// A compile with no named selection ships only the vertex-set registration, which VRF rebuilds into
-        /// selections. The S12 jiggle rows register two sets: hash 0 for the jiggle bone and the hash of the model's own
-        /// file name, the compiler's default set, for the chain. The default set is dropped, so nothing re-declares it.
-        /// The controls: another file name keeps both sets, and a selection read from <c>m_VertexMaps</c> is kept even
-        /// under the matching hash.
+        /// A rebuilt vertex set whose hash is the model's file name is dropped; another file name keeps it, and a
+        /// selection read from <c>m_VertexMaps</c> is kept.
         /// </summary>
         [Test]
         public async Task TheVertexSetNamedAfterTheModelIsNotRedeclared()
@@ -3308,10 +3125,8 @@ namespace Tests
         }
 
         /// <summary>
-        /// A <c>ClothAntiTunnelColliderGroup</c> naming a capsule and a chain compiles to <c>m_AntiTunnelBytecode</c> on a
-        /// model with no proxy sheet (<c>s12_antitunnel_group_capsule_chain</c>: capsule 0, mask 0, then the chain's own
-        /// joint and ring pairs), so the chain phase declares the group with its chains as the cloth members, each chain
-        /// named once. The control: a model with no bytecode declares no group.
+        /// Anti-tunnel bytecode on a sheetless model declares a <c>ClothAntiTunnelColliderGroup</c> naming the capsule
+        /// and each chain once; no bytecode declares no group.
         /// </summary>
         [Test]
         public async Task AChainModelWithAntiTunnelBytecodeDeclaresItsColliderGroup()
@@ -3342,10 +3157,8 @@ namespace Tests
         }
 
         /// <summary>
-        /// A <c>ClothStiffHinge</c> over three free cloth nodes compiles one <c>m_KelagerBends</c> record in its authored node
-        /// order, measured from the hinge: <c>s12_stiffhinge_max_angle_30p0</c> hangs its nodes 4 and 8 below the hinge and
-        /// ships flHeight0 1.652419, and the 90 degree row ships 2.981424. Both come back as the hinge over those element
-        /// names with their angle. The control: a bend over chain joints declares no ClothStiffHinge.
+        /// A Kelager bend over three free cloth nodes comes back as a <c>ClothStiffHinge</c> with its <c>max_angle</c>;
+        /// a bend over chain joints does not.
         /// </summary>
         [Test]
         public async Task ABendOverFreeClothNodesComesBackAsAStiffHinge()
@@ -3383,11 +3196,8 @@ namespace Tests
         }
 
         /// <summary>
-        /// A jiggle bone beside a <c>Softbody</c> that holds only a <c>ClothParams</c> has no cloth node for the export to
-        /// declare, and the ClothParams survives only as its iteration counts: <c>s12_jiggle_only_params</c> ships
-        /// <c>m_nExtraIterations</c> and <c>m_nExtraGoalIterations</c> 1, so the model keeps its Softbody. The controls: the
-        /// pak jiggle-bone models (cs2 <c>bomb_site_tarp</c>, <c>tarp_a</c>, <c>pedestal_patch</c>) ship 0 and 0, and a model
-        /// with those counts but no jiggle bone is not this case.
+        /// A jiggle-bone model with nonzero extra iterations keeps its ClothParams; zero counts or no jiggle bone do
+        /// not.
         /// </summary>
         [Test]
         public async Task AJiggleBoneModelKeepsTheClothParamsItsIterationCountsRecord()
@@ -3409,10 +3219,8 @@ namespace Tests
         }
 
         /// <summary>
-        /// The vertex set registered with no name (hash 0) holds the jiggle bones' nodes: the one jiggle node of the S12
-        /// jiggle rows, and on dl's <c>tf2medic</c> exactly its three jiggle bones, which are also chain joints there. Rebuilt
-        /// into a selection, the joints would declare <c>vertex_set_0</c> and register a named set the original does not
-        /// ship, so it is dropped. The control: a selection read from <c>m_VertexMaps</c> under hash 0 is kept.
+        /// The rebuilt vertex set with hash 0 is dropped; a selection read from <c>m_VertexMaps</c> under hash 0 is
+        /// kept.
         /// </summary>
         [Test]
         public async Task TheUnnamedJiggleBoneVertexSetIsNotRedeclared()
@@ -3440,11 +3248,8 @@ namespace Tests
         }
 
         /// <summary>
-        /// A <c>ClothRigidCloudCluster</c> of algorithm 0 compiles its <c>parent_node</c> into <c>m_LockToGoal</c> and nothing
-        /// else: <c>s12_rigid_cloud_algorithm_0_fork_children</c> equals its fork control but for <c>m_LockToGoal = [ 0 ]</c>. A
-        /// lock beside version 2's preset-graded bases is therefore the cluster's, and it is declared back over the locked
-        /// joint's chain children. The controls: a lock whose bases say nothing (no <c>m_NodeBases</c>, so neither grade
-        /// can be read) stays format evidence, and a chain without a lock has no locked joint to declare.
+        /// A goal lock is declared as a <c>ClothRigidCloudCluster</c> over the locked joint's children, and the chain
+        /// version reads such a lock beside preset-graded bases as 2.
         /// </summary>
         [Test]
         public async Task ALockBesidePresetBasesIsDeclaredAsARigidCloudCluster()
@@ -3476,8 +3281,6 @@ namespace Tests
                 await Assert.That(ClothExtract.IsRigidCloudClusterLock(locked, chain)).IsFalse();
                 await Assert.That(ClothExtract.LockedJointsWithChildren(Model(string.Empty), chain).Any()).IsFalse();
 
-                // chainver reads chain_version_1 as a lock beside a root base and bulk-graded bases, and the
-                // cluster row as the same lock beside preset-graded ones.
                 await Assert.That(ClothExtract.ClothChainVersion(jointCount: 4, hasOtherChains: false, rootAllowsRotation: true,
                     rootHasBase: true, lockedJoint: true, rigidCloudClusterLock: false, locksJoints: false, basesBulkGraded: true,
                     hintsTwistWritten: false, hasUnstagedThinJoint: false)).IsEqualTo(1);
@@ -3491,16 +3294,9 @@ namespace Tests
         }
 
         /// <summary>
-        /// The fit pass locks a static joint that owns a fit group to a parent that is simulated or free-rotating
-        /// whether or not the joint carries <c>lock_translation</c>, and a second pass locks every keyed joint to its
-        /// parent, so a static joint's parent lock proves the key only where the fit pass could not have written
-        /// it, or where the parent's fit covers every node the joint's own group reads, since a keyed joint stages
-        /// its influences into its parent's group as well. A chain of version 2 stages no group for a static joint,
-        /// so there the parent lock proves the key. The fixture's two static first joints hang off a free-rotating
-        /// static root in a version-1 chain: the one owning a node base reads no key, the one owning no group reads
-        /// the key. The controls: the same joint in a version-2 chain reads the key, a root fit over the first
-        /// joint's basis nodes reads the key on it, and a rotation-locked root, which the fit pass never locks a
-        /// child to, proves the key on both.
+        /// A static joint's parent lock reads as <c>lock_translation</c> only where the fit pass could not have written
+        /// it: not on a free root's fit-owning joint below version 2, but under a covering root fit or a
+        /// rotation-locked root.
         /// </summary>
         [Test]
         public async Task AStaticJointsFitGroupParentLockIsNotLockTranslation()
@@ -3589,10 +3385,7 @@ namespace Tests
         }
 
         /// <summary>
-        /// A joint two rings wide lists its ring alone in the fit stager, so a simulated two-ring leaf's influence
-        /// table holds its two ring nodes and nothing else, like a one-wide leaf's joint and ring, and falls under the
-        /// three-entry floor unless the version-1 top-up reaches it. The fixture's two-ring leaf without a reverse
-        /// offset reads as staged at version 0; the control, the same leaf owning one, as staged at version 1.
+        /// A two-ring leaf without a reverse offset reads as unstaged, and with one as staged.
         /// </summary>
         [Test]
         public async Task ATwoRingLeafHoldsTwoFitTableEntries()
@@ -3614,14 +3407,8 @@ namespace Tests
         }
 
         /// <summary>
-        /// Two sub-chains under one static root, each starting at a static joint, so no rod joins either to the root:
-        /// a one-wide sub-chain whose thin tip owns no group, staged at version 0, and a two-wide one whose two-ring
-        /// leaf owns a reverse offset, staged at version 1. One declaration cannot compile both, so the root is
-        /// declared twice, extruding it over the sub-chain whose ring was created right after the root's and
-        /// restating it ringless over the other. The controls: with the root's ring created after the thin
-        /// sub-chain's ring the extruding declaration moves to the wide sub-chain; with the root rotation-locked its
-        /// ring sorts apart from both and the sub-chain whose ring comes first extrudes it; with the groups swapped the
-        /// ungrouped two-ring leaf reads version 0; with both ungrouped the tree stays one declaration.
+        /// Sub-chains staged at versions 0 and 1 under one root are declared as two chains, the root's ring going to
+        /// the sub-chain whose ring follows it; with both ungrouped the tree stays one version-0 chain.
         /// </summary>
         [Test]
         public async Task SubChainsStagedAtTwoVersionsAreDeclaredApart()
@@ -3675,11 +3462,8 @@ namespace Tests
         private static readonly string[] WideSubChain = ["root", "b0", "b1"];
 
         /// <summary>
-        /// A keyed joint that owns a fit group stages its one-wide entry, the joint and its direct children, into its
-        /// parent's group, while its own group also reads its second ring. So below version 2 a parent fit holding a
-        /// fit-owning static joint and each of its direct children proves <c>lock_translation</c> although it misses the
-        /// joint's grandchildren. The fixture's free-rotating static root holds a0 and a1 but, of the other sub-chain,
-        /// only b0: a0 reads the key, b0 reads none, and b0 in a version-2 chain reads the key.
+        /// Below version 2 a parent fit holding a fit-owning static joint and its direct children reads
+        /// <c>lock_translation</c>; one holding only the joint does not, except at version 2.
         /// </summary>
         [Test]
         public async Task AParentFitHoldingAFitJointsOneWideEntryIsLockTranslation()
@@ -3737,11 +3521,8 @@ namespace Tests
         }
 
         /// <summary>
-        /// <c>flex_cloth_borders</c> frees the pins a face joins to two or more simulated corners and, on a sheet that adds
-        /// bones to the render mesh, gives each of them a node base; the <c>cloth_anchor_free_rotate</c> paint frees the
-        /// same pins without one. The S16 row paints its pinned row free, so those pins carry no base and the flag is
-        /// refused. The controls: the same pins with bases (an authored flex sheet) keep it, and a face with a single
-        /// simulated corner reaches no pin at all.
+        /// <c>flex_cloth_borders</c> holds only where the pins a face frees carry node bases; a face with one simulated
+        /// corner frees no pin.
         /// </summary>
         [Test]
         public async Task FlexClothBordersNeedsItsFreedPinsToCarryNodeBases()
@@ -3771,10 +3552,8 @@ namespace Tests
         }
 
         /// <summary>
-        /// The compiled cloth keeps no <c>quad_bend_tolerance</c>, so it is read off the split: a nearly planar quad split
-        /// into a triangle pair whose discarded diagonal ships as a rigid rod was compiled below the 0.05 default (the S16
-        /// make_rods row authors 0.0), and its split rod is then predicted at the recovered tolerance. The controls: the
-        /// same pair without its rod, and a quad bent well past the default, keep 0.05.
+        /// A nearly planar quad whose diagonal ships as a rigid rod reads <c>quad_bend_tolerance</c> 0; without the
+        /// rod, or bent past the default, it reads 0.05.
         /// </summary>
         [Test]
         public async Task TheQuadBendToleranceIsReadOffTheSplit()
@@ -3805,12 +3584,8 @@ namespace Tests
         }
 
         /// <summary>
-        /// The importer creates a sheet's simulated vertices by first appearance over the declared faces and its pins by the
-        /// faces that introduce them, and the node sort breaks ties within each distance from the pins by that creation
-        /// order. The SIMD lanes the faces are read back in do not keep the authored order: the S16 make_rods grid, declared
-        /// with its pins already in order, still creates p2 before p6 and p14 before p10. Its faces sorted by their shipped
-        /// node indices reproduce the shipped order. The controls: a node-sorted order stays as it is, and an order no face
-        /// sort can fix (a face holding pins 0 and 4 together) keeps the lane order.
+        /// Faces are reordered so the importer's creation order reproduces the shipped node order; a sorted order is
+        /// stable and an unfixable one keeps the lane order.
         /// </summary>
         [Test]
         public async Task FacesAreDeclaredInTheShippedNodeOrder()
@@ -3853,12 +3628,8 @@ namespace Tests
         }
 
         /// <summary>
-        /// A ClothChain of version 2 records a simulated joint's reverse offset against the Y1 node of the preset basis it
-        /// grades over the joint's extrusion vector and its child's, where version 1 records it from the joint's fit group
-        /// alone. On the two-wide rope below the two ring diagonals tie for X and the later pair wins, so j0's preset basis
-        /// is X = ($ccj1_0, $ccj0_1), Y = ($ccj1_1, $ccj0_0), and j1's is the same one ring along. Offsets naming each
-        /// joint's ring node _0 read as version 2, offsets naming node _1 as version 1, and a rope without reverse offsets
-        /// keeps version 2.
+        /// Reverse offsets naming each joint's preset-basis Y1 node read as version 2, offsets off the fit group as
+        /// version 1, and no offsets as 2.
         /// </summary>
         [Test]
         public async Task AReverseOffsetOffItsPresetBasisY1IsBelowChainVersion2()
@@ -3881,8 +3652,10 @@ namespace Tests
             }
         }
 
-        // A simulated rope of three joints 8.5 apart, each extruding a two-node ring across Y, whose joints' reverse
-        // offsets name node _ringNode of their own ring, or which carries none.
+        /// <summary>
+        /// A simulated rope of three joints 8.5 apart, each with a two-node ring across Y, whose reverse offsets name
+        /// ring node <paramref name="ringNode"/> of their own ring, or none.
+        /// </summary>
         private static FeModel TwoWideRope(int? ringNode)
         {
             var offsets = ringNode is { } side
@@ -3902,11 +3675,8 @@ namespace Tests
         }
 
         /// <summary>
-        /// A rigid-hinged sheet whose hubs fold by different angles states a <c>cloth_bend_stiffness</c> per hub. One
-        /// hub records a right angle (paint 0.5), one a quarter turn (0.25), and one has fallen to its rest distance
-        /// (the full fold), so no single <c>add_curvature</c> accounts for them and each hub's reading is its paint.
-        /// The CONTROL is the same sheet with its two tracking hubs agreeing, which keeps the one model-wide value and
-        /// no paint.
+        /// Rigid-hinge hubs folding by different angles read a <c>cloth_bend_stiffness</c> paint per hub and a
+        /// saturated curvature; hubs that agree keep one model-wide value and no paint.
         /// </summary>
         [Test]
         public async Task ARigidHingeSheetWhoseHubsFoldApartReadsItsBendPaintPerHub()
@@ -3943,10 +3713,8 @@ namespace Tests
                 """);
 
         /// <summary>
-        /// A proxy sheet painted with one <c>cloth_stretch</c> of 0.5 compiles every face rod, edges and diagonals
-        /// alike, to a relaxation of (1 - 0.5)^3 = 0.125. The edges state the paint, and with its factor taken back
-        /// out the diagonals carry no shear stretch of their own. The CONTROL is the same quad with rigid edges and
-        /// 0.125 on the diagonals alone, which is <c>additional_shear_stretch = ln 8</c> and no stretch paint.
+        /// A sheet whose edges and diagonals both relax to 0.125 reads a <c>cloth_stretch</c> paint of 0.5 and no shear
+        /// stretch; rigid edges with relaxed diagonals read <c>additional_shear_stretch</c> ln 8 and no paint.
         /// </summary>
         [Test]
         public async Task AStretchPaintedSheetRelaxesItsEdgesAndDiagonalsAlike()
@@ -3984,12 +3752,8 @@ namespace Tests
                 """);
 
         /// <summary>
-        /// A bend network whose hinges fold apart carries every fold in its <c>cloth_bend_stiffness</c> paint. The strip's
-        /// first hinge lies flat and its second folds a right angle, so a model-wide value read off the second (0.5)
-        /// leaves the first a negative residual; the paint then states both folds with <c>add_curvature</c> at zero, a
-        /// pair sum of 0 across the flat hinge and 1 across the folded one. CONTROLS: with both hinges folded alike
-        /// the model-wide value accounts for the sheet and no paint is written, and a sheet whose suspenders read the
-        /// same value keeps it.
+        /// Hinges that fold apart put every fold into the <c>cloth_bend_stiffness</c> paint with <c>add_curvature</c>
+        /// 0; hinges folded alike, or a sheet that keeps its curvature, write no paint.
         /// </summary>
         [Test]
         public async Task ABendNetworkWhoseHingesFoldApartCarriesEveryFoldInItsPaint()
@@ -4032,17 +3796,14 @@ namespace Tests
                 """);
 
         /// <summary>
-        /// A bend rod that several hinges generate keeps the shortest minimum any of them builds, so it states the fold of
-        /// the most folded one. The grid's middle-row rods each cross a vertical hinge above them (sum 0.25) and one below
-        /// (sum 0.75), and read 0.25; the bottom row's rods cross only the lower hinges and read 0.75. Taking every hinge
-        /// at the largest reading its rods give it recovers all three hinge sums with <c>add_curvature</c> at zero,
-        /// where a model-wide 0.25 leaves nothing to paint and the rods below keep their negative residual.
+        /// A bend rod several hinges generate states the most folded one, so each hinge taken at its largest reading
+        /// recovers every hinge's pair sum with <c>add_curvature</c> 0.
         /// </summary>
         [Test]
         public async Task ARodSeveralHingesGenerateStatesTheMostFoldedOne()
         {
-            List<int[]> faces = [[0, 1, 5, 4], [1, 2, 6, 5], [2, 3, 7, 6], [4, 5, 9, 8], [5, 6, 10, 9], [6, 7, 11, 10]];
-            HashSet<(int, int)> network = [(0, 2), (1, 3), (4, 6), (5, 7), (8, 10), (9, 11), (0, 8), (1, 9), (2, 10), (3, 11)];
+            var faces = HingeGridFaces;
+            var network = HingeGridNetwork;
             var (paint, curvature) = ClothExtract.ClothBendStiffnessOverFold(LeastFoldedHingeGrid, faces, network, 0.375f,
                 keepsCurvature: false);
 
@@ -4055,6 +3816,10 @@ namespace Tests
                 await Assert.That(paint.GetValueOrDefault(4) + paint.GetValueOrDefault(5)).IsEqualTo(0.5f).Within(0.02f);
             }
         }
+
+        private static List<int[]> HingeGridFaces => [[0, 1, 5, 4], [1, 2, 6, 5], [2, 3, 7, 6], [4, 5, 9, 8], [5, 6, 10, 9], [6, 7, 11, 10]];
+
+        private static HashSet<(int, int)> HingeGridNetwork => [(0, 2), (1, 3), (4, 6), (5, 7), (8, 10), (9, 11), (0, 8), (1, 9), (2, 10), (3, 11)];
 
         private static FeModel LeastFoldedHingeGrid => SyntheticCloth.Model(
             ["$cloth_m0p0", "$cloth_m0p1", "$cloth_m0p2", "$cloth_m0p3", "$cloth_m0p4", "$cloth_m0p5", "$cloth_m0p6", "$cloth_m0p7", "$cloth_m0p8", "$cloth_m0p9", "$cloth_m0p10", "$cloth_m0p11"],
@@ -4079,11 +3844,8 @@ namespace Tests
                 """);
 
         /// <summary>
-        /// A painted <c>cloth_mass</c> gradient reads back from the shipped inverse masses only to their float32 step, while
-        /// the face rods weigh their endpoints by the painted biases to the precision of their own weights. A 1.0 / 1.4 /
-        /// 2.0 chain whose readings drifted by a few millionths comes back with the rods' own differences, 0.4 and 0.6,
-        /// anchored on the readings' mean. CONTROL: with a tolerance far below that drift the rods' answer leaves the band
-        /// and the readings are kept as read.
+        /// A drifted mass gradient takes its differences from the face rod weights, anchored on the readings' mean;
+        /// with a tolerance below the drift the readings are kept.
         /// </summary>
         [Test]
         public async Task AMassPaintGradientTakesItsShapeFromTheFaceRodWeights()
@@ -4109,12 +3871,8 @@ namespace Tests
         }
 
         /// <summary>
-        /// The mass pass sums each node's corner-pair terms in declared corner order, and the quad split rotates a fully
-        /// dynamic quad one corner onto its shorter diagonal, so VRF reads such a quad back one corner past the corner it
-        /// was declared from. The S16 make_rods grid's last two faces, declared from the read-back corner, miss the shipped
-        /// inverse masses of nodes 25 to 27 by one or two ulps, and declared one corner back they match all fifteen. The
-        /// controls: the masses the read-back declaration compiles to keep the faces, and so does a shipped mass no
-        /// rotation reaches, though a flip would still fix the other two nodes.
+        /// Fully dynamic quads are rotated to the corner whose mass sums reproduce the shipped inverse masses; masses
+        /// already matched, or unreachable by any rotation, keep the declared faces.
         /// </summary>
         [Test]
         public async Task FullyDynamicQuadsAreDeclaredFromTheCornerTheShippedMassesWitness()
@@ -4275,13 +4033,8 @@ namespace Tests
                 && BitConverter.SingleToUInt32Bits(a.Z) == BitConverter.SingleToUInt32Bits(b.Z);
 
         /// <summary>
-        /// A ClothChain joint's rest pose is not the compiled skeleton accumulated. The compiler reads each Bone's
-        /// printed <c>origin</c> and <c>angles</c> back as float32, makes the quaternion from float32 half angles with
-        /// double sine and cosine, and composes the chain with its CTransform concat. Over the document text of
-        /// <c>s12_rigid_cloud_algorithm_1_chain_stiffness_0p5</c>, that chain puts all four coattail joints on their
-        /// compiled <c>m_InitPose</c> positions bit for bit, for the authored document and for VRF's rebuild alike. The
-        /// control accumulates the same text as <c>System.Numerics</c> transforms, as the rest-pose correction did, and
-        /// misses.
+        /// The compiler's transform chain over the printed Bone text reproduces each coattail joint's rest position and
+        /// rotation bit for bit, for the authored and rebuilt documents; accumulating with System.Numerics does not.
         /// </summary>
         [Test]
         public async Task AClothChainJointRestPoseIsTheCompilersTransformChainOverTheDocumentText()
@@ -4317,22 +4070,8 @@ namespace Tests
         }
 
         /// <summary>
-        /// VRF's rebuild misses the original's coattail rest pose by a few ulps. That is enough to swing an algorithm-1
-        /// tri built over three of the joints, whose <c>v2.y</c> moves by up to 3.8e-3 per ulp, and a collision tree
-        /// built over the joints and their rings. Keeping every ancestor as printed, six-decimal <c>angles</c> and then a
-        /// six-decimal <c>origin</c> a few grid steps away land each joint on the original's rotation and position
-        /// exactly, and every landed value survives the six-decimal print. Of several exact candidates the one fewest
-        /// grid steps from the real-valued solution wins, the first in ascending step order on a tie. Controls:
-        /// <list type="bullet">
-        /// <item>coattail_0_L, whose rotation no grid angle within the search reaches under the unlanded spine, keeps its
-        /// printed angles, and its position still lands, since no grid origin under its children reaches their positions
-        /// from its printed one;</item>
-        /// <item>coattail_end_L, whose printed angles already give the original's rotation once coattail_2_L is turned,
-        /// keeps them;</item>
-        /// <item>the rebuild against its own compiled rest pose, where every joint is already there, moves nothing;</item>
-        /// <item>a target one ulp off the original's coattail_1_L position, which no grid origin reaches, keeps that
-        /// joint's printed origin.</item>
-        /// </list>
+        /// Six-decimal <c>angles</c> and <c>origin</c> land each rebuilt joint on the recorded rest pose exactly; an
+        /// unreachable rotation or position keeps the printed value, and a rebuild already there moves nothing.
         /// </summary>
         [Test]
         public async Task AClothChainJointOriginIsLandedOnItsRecordedPositionOnTheSixDecimalGrid()
@@ -4383,11 +4122,8 @@ namespace Tests
         }
 
         /// <summary>
-        /// The node-base tie roll (<see cref="FeModel.BoneChainJoint.ExtrudeTwistTieNudge"/>) is chosen against the drift a
-        /// rebuilt ring carries. A chain joint whose Bone origin or angles were re-solved onto the compiler's own rest pose
-        /// carries no such drift, so its extrude_twist is written without the roll: order_ring_root2_joints0 prints -0.012008
-        /// with it and 0.0 without, and only the latter reproduces the original's ring and wind bases. The control is the
-        /// same joint left unresolved, which keeps its roll.
+        /// A joint re-solved onto the rest pose writes <c>extrude_twist</c> without its tie roll; an unresolved joint
+        /// keeps it.
         /// </summary>
         [Test]
         public async Task AChainJointReSolvedOntoTheRestPoseIsWrittenWithoutItsTieRoll()
@@ -4417,11 +4153,8 @@ namespace Tests
         }
 
         /// <summary>
-        /// A rope's hint pass writes each run node's X pair (an interior node's two neighbours, the tail its own node
-        /// and the previous) and grades the rest only for a joint with fit influences, which a chain stages from version 1
-        /// on. A hint left at that pair with Y (0, 0) therefore says version 0, as a twist-written one does. Controls: the
-        /// same run graded, and a Y (0, 0) hint whose X pair is not the rope's, say nothing; and version 0 locks the
-        /// joints format 1 locks, so an extruding chain whose original locks none of them keeps version 2.
+        /// A rope hint left at its X pair with Y (0, 0) reads as twist-written (version 0); a graded run or a foreign X
+        /// pair does not, and a chain whose original locks no joints keeps version 2.
         /// </summary>
         [Test]
         public async Task AnUngradedRopeHintSaysTheChainCompiledAtVersionZero()
@@ -4462,11 +4195,8 @@ namespace Tests
                 """);
 
         /// <summary>
-        /// A two-sided chain's leaf joint sits in none of its rings' elements, so the bulk grade never bases it, and
-        /// from version 1 on the chain bases and stages it itself. A simulated leaf with no entry and no reverse offset
-        /// therefore says version 0. Controls: a based leaf, a leaf that owns a reverse offset, and a leaf whose zero
-        /// <c>stretch_spring</c> drops its base at every version, say nothing; and version 0 locks the joints format 1
-        /// locks, so an original that locks none of them keeps version 2.
+        /// A simulated two-sided leaf with no node base and no reverse offset reads version 0; a based, staged or
+        /// zero-stretch leaf does not, and a chain whose original locks no joints keeps version 2.
         /// </summary>
         [Test]
         public async Task ATwoSidedLeafWithNoNodeBaseSaysTheChainCompiledAtVersionZero()
@@ -4515,12 +4245,8 @@ namespace Tests
                 """);
 
         /// <summary>
-        /// A version-2 preset over a one-wide joint scans only the joint, its ring, its child and the child's ring, so an
-        /// entry naming the parent or the parent's ring was written by the bulk pass even where its scan is not predicted
-        /// exactly: the parent-ring entry below is not the pair the bulk scan picks, and it still says bulk. The same holds
-        /// where the compiled data carries no skeleton parents for the ring nodes, as old-era originals do: the rings are
-        /// the ones the chain reconstruction assigned. Control: an entry inside the preset's candidates that no scan
-        /// predicts says nothing.
+        /// A one-wide joint's base naming the parent ring reads as bulk graded even when the scan does not predict it
+        /// and with no skeleton parents; an entry inside the preset's candidates reads neither.
         /// </summary>
         [Test]
         public async Task AJointBasisNamingTheParentRingIsBulkGradedWithoutItsScan()
@@ -4546,15 +4272,9 @@ namespace Tests
         }
 
         /// <summary>
-        /// Below version 2 the fit pass writes a static joint's parent lock only through a group its chain stages for it, and the
-        /// chain stages one only where the joint's fit table (its own node lists and its children's) holds three entries, or where
-        /// version 1 tops a smaller table up from the joint's parent. A joint narrower than two ring nodes lists itself. A one-wide
-        /// static joint alone in its chain at version 0 (new_years_gift_shoudler's AlchNewYearsGiftStarBase_end, table 2) and a
-        /// ringless static joint over one ringless child at version 0 (lion_dungeon_poacher_shoulder's tag_base, table 2) therefore
-        /// hold their parent locks by <c>lock_translation</c> although they own node bases. The fit pass locks only a node that does
-        /// not simulate, so a declaration simulating the joint (ds_manipulator_of_warsituation_back's clothA0_decl3) holds the lock
-        /// by the key whatever its table. Controls: the lone joint at version 1 (topped up), the joint with its one-wide child at
-        /// version 0 (table 4), and no chain given, each read the lock as the fit pass's.
+        /// A static joint whose chain stages it no fit group, or which the declaration simulates, holds its parent lock
+        /// by <c>lock_translation</c>; a version-1 lone joint, a table of four, or no chain reads the lock as the fit
+        /// pass's.
         /// </summary>
         [Test]
         public async Task AStaticJointItsChainGivesNoFitGroupHoldsItsParentLockByTheKey()
@@ -4637,9 +4357,8 @@ namespace Tests
         }
 
         /// <summary>
-        /// A reverse offset states its chain's version against the preset basis over the joint's ring and its child's, so
-        /// the reading needs those rings. Where the compiled data parents none of the <c>$cc</c> nodes, as old-era originals
-        /// do, the chain's own rings give the same reading as the parented rope gives.
+        /// A reverse offset's version reading without <c>m_SkelParents</c> uses the chain's own rings and matches the
+        /// parented rope's reading.
         /// </summary>
         [Test]
         public async Task AReverseOffsetIsReadOverTheChainsOwnRingsWithoutSkeletonParents()
@@ -4666,11 +4385,8 @@ namespace Tests
         }
 
         /// <summary>
-        /// The preset scan orders a joint's Y pair by the handedness of its scanned axes. On the two-wide rope extruded along
-        /// Z every scanned axis lies in the plane that holds the joints' up axis, the handedness is zero, and j0's preset basis
-        /// is X = ($ccj1_0, $ccj0_1), Y = ($ccj1_1, $ccj0_0), j1's the same one ring along. An original that bases each joint
-        /// with that Y pair swapped and records its reverse offset against the swapped Y1 reads as version 2. The controls read
-        /// below version 2: the same offsets without those bases, and the rope extruded along Y, whose handedness is decided.
+        /// Where the preset scan's handedness ties, reverse offsets on the swapped Y1 of a swapped base read version 2;
+        /// without those bases, or with decided handedness, they read version 1.
         /// </summary>
         [Test]
         public async Task AReverseOffsetOnTheSwappedYNodeOfAHandednessTieIsChainVersion2()
@@ -4733,13 +4449,8 @@ namespace Tests
         }
 
         /// <summary>
-        /// The compiler keeps each bend rod's shortest minimum over the hinges that generate it, so a rod can be set by a hinge
-        /// other than the one whose flat span matches its maximum length. This sheet is the synth grid with one vertex pushed out
-        /// of the plane, painted 0.5 on its two top rows and folded by <c>add_curvature</c> 0.25: the rod along row 1 past the
-        /// column-1 vertex is set by the less painted hinge below it while the wider hinge above states more. Read hinge by hinge
-        /// the rods recover nothing; solved over every hinge that generates each rod on top of the model-wide 0.25 the paint keeps
-        /// that value and reproduces them, 1 across the row-1 hinge of column 0, 0.5 across the setting hinge and 0 below.
-        /// CONTROL: the same sheet folded by <c>add_curvature</c> alone writes no paint and keeps the value.
+        /// Solving each bend rod over every hinge that generates it keeps the model-wide <c>add_curvature</c> 0.25
+        /// under the paint and recovers each hinge's sum; the sheet folded by curvature alone writes no paint.
         /// </summary>
         [Test]
         public async Task ARodSetByANarrowerHingeKeepsTheModelWideCurvatureUnderItsPaint()
@@ -4766,10 +4477,8 @@ namespace Tests
         }
 
         /// <summary>
-        /// An old-era compile ships no <c>m_SkelParents</c>, so a joint's chain parent is read off the skeleton and the rods. Where the
-        /// model records its chain surfaces, an extruded joint and its extruded chain parent share a source element: k's skeleton parent
-        /// j2 carries rods to k's ring but no element, and the one ring k's elements join is j3's, so k continues the tube under j3. A ring
-        /// no element joins to any other stays a chain root. Control: with compiled <c>m_SkelParents</c> the compiled parent stands.
+        /// Without <c>m_SkelParents</c> a ring joint hangs under the joint its source elements join it to; with no such
+        /// element it stays a chain root, and compiled parents stand as given.
         /// </summary>
         [Test]
         public async Task AnOldEraRingNoSourceElementJoinsToItsSkeletonParentHangsUnderTheRingItsElementsName()
@@ -4821,9 +4530,8 @@ namespace Tests
         }
 
         /// <summary>
-        /// A chain declared with no stretch spring compiles no rod between its joints, and its only link record is the rope the
-        /// compiler builds over the chain's parents, which it builds for chain joints alone. The rope therefore links the joints,
-        /// and a link no rod or ring spans declares no stretch. Control: the same joints without the rope stay unlinked.
+        /// A rope with no rods between its joints reads as a chain with <c>stretch_spring</c> 0; without the rope the
+        /// joints stay unlinked.
         /// </summary>
         [Test]
         public async Task ARopeWithNoRodsBetweenItsJointsIsAChainWithNoStretchSpring()
@@ -4850,8 +4558,7 @@ namespace Tests
                 """);
 
         /// <summary>
-        /// A wind effect's <c>local_space</c> compiles to its <c>LocalSpace</c> parameter, which reads as zero where the
-        /// parameter is absent. Control: a zero parameter declares no key.
+        /// A wind effect declares <c>local_space</c> from its <c>LocalSpace</c> parameter; zero declares no key.
         /// </summary>
         [Test]
         public async Task AWindEffectsLocalSpaceIsItsLocalSpaceParameter()
@@ -4895,9 +4602,8 @@ namespace Tests
             """);
 
         /// <summary>
-        /// An effect names a selection the document declares, whether a <c>ClothVertexMap</c> container inside a folder declares
-        /// it or a <c>ClothChain</c> joint's <c>vertex_map</c> lists it at a partial weight. Control: a selection the document
-        /// declares nowhere is not named.
+        /// An effect names a selection the document declares in a <c>ClothVertexMap</c> or a joint's <c>vertex_map</c>;
+        /// one declared nowhere is not named.
         /// </summary>
         [Test]
         public async Task AnEffectNamesASelectionTheDocumentDeclares()
@@ -4975,10 +4681,8 @@ namespace Tests
             """);
 
         /// <summary>
-        /// A <c>ClothRigidCloudCluster</c> of algorithm 0 compiles no member and refuses fewer than two ("Rigid Point Cloud must
-        /// have at least 2 nodes"), while any two members compile the same lock: <c>w36sb_lockgoal_cloud_ringed</c>, whose locked
-        /// root has one chain child, reads EXACT over five member sets and loses its lock with no cluster. A linear chain names the
-        /// child and the grandchild, a fork keeps its two children, and a locked joint over one leaf pairs the leaf with itself.
+        /// A <c>ClothRigidCloudCluster</c> declares at least two members: a line's child and grandchild, a fork's two
+        /// children, or a lone leaf paired with its locked parent.
         /// </summary>
         [Test]
         public async Task ARigidCloudClusterDeclaresAtLeastTwoMembers()
@@ -5012,10 +4716,8 @@ namespace Tests
         }
 
         /// <summary>
-        /// An imported fx node table with no paired column is still an imported cloth: a raw-integrator flag bit on a model
-        /// with no goal-attraction bit, a follow link or a legacy stretch force is written by no ClothChain joint or ClothNode.
-        /// Controls: the same nodes on the goal integrator with neither field are not, nor are raw static nodes beside goal
-        /// dynamic nodes, nor is a proxy sheet's raw-integrator vertex.
+        /// Raw-integrator flags with no goal bit, a follow link or a legacy stretch force mark an imported cloth;
+        /// goal-integrator nodes, raw static nodes or a proxy sheet vertex do not.
         /// </summary>
         [Test]
         public async Task AnFxTableWithNoPairedColumnIsAnImportedCloth()
@@ -5060,9 +4762,8 @@ namespace Tests
             """);
 
         /// <summary>
-        /// A strip's paired columns beside a ringed chain are an imported strip of their own: the chain reconstruction reads
-        /// neither column as a joint or a ring. Control: the same strip with no ring is an imported cloth as a whole, and has
-        /// no strip set.
+        /// Paired columns beside a ringed chain are an imported strip the chain reconstruction skips; without the ring
+        /// the whole model is an imported cloth with no strip set.
         /// </summary>
         [Test]
         public async Task AStripBesideARingedChainIsAnImportedStripOfItsOwn()
@@ -5115,11 +4816,8 @@ namespace Tests
             """);
 
         /// <summary>
-        /// A joint whose bend span lands on the chain root carries that span's rod and the suspender's companion on the root
-        /// pair, one copy each, in whichever order the compiler's rod sort leaves them. The companion is the rod away from the
-        /// joint's own bend reading in either order: <c>w36sa_rp_ring0_bend_susp</c> (suspender 0.21, sorted after the bend
-        /// rod) read back 1.0, and the ringed <c>w36sa_min_hop2_noparams</c>, whose four ring pairs do not all sort alike,
-        /// read no suspender and lost four rods. Either document reads EXACT with the authored suspender restored.
+        /// On a root pair holding one bend rod and one suspender companion, the suspender is the rod away from the bend
+        /// reading in either order.
         /// </summary>
         [Test]
         public async Task ASuspenderBesideASingleBendRodIsTheRodAwayFromTheBendReading()
@@ -5158,9 +4856,8 @@ namespace Tests
         }
 
         /// <summary>
-        /// A rigid hinge ring perpendicular to its child ring ties all four spans of the quad it builds, and the compiler makes
-        /// the two longest the diagonals, so the recovered hinge vector is tilted along the compiled quad's own diagonals.
-        /// Controls: the swapped corner order tilts the other way, and a child ring off the tie leaves the vector as compiled.
+        /// A hinge ring perpendicular to its child ring tilts the recovered hinge vector along the quad's diagonals,
+        /// the other way for the swapped corner order; an untied child ring leaves it as compiled.
         /// </summary>
         [Test]
         public async Task ATiedHingeFanQuadTiltsTheHingeVectorAlongItsDiagonals()
@@ -5195,9 +4892,8 @@ namespace Tests
                 """);
 
         /// <summary>
-        /// A simulated bone beside a proxy sheet that only a <c>JiggleBone</c> declares is left to the jiggle bone: it compiles
-        /// into the vertex set with no name, and a lone cloth node on it moves it into the model's default set
-        /// (<c>w36c_vset_jiggle_sheet</c>). The control: a simulated bone with no jiggle bone is still a lone cloth node.
+        /// A simulated bone in the unnamed vertex set with a jiggle bone is left to the jiggle bone; without one it
+        /// stays a lone cloth node.
         /// </summary>
         [Test]
         public async Task ABoneOnlyItsJiggleBoneDeclaresIsNotALoneClothNode()
@@ -5217,12 +4913,8 @@ namespace Tests
         }
 
         /// <summary>
-        /// A rod from a free <c>ClothNode</c> to a chain joint is re-declared, since no chain and no chain-ring source spring
-        /// does: <c>w36sa_min_spring_noparams</c> lost the rod, and its tip's inverse mass with it, until its authored
-        /// <c>ClothSpring</c> was restored (EXACT). Where the original records the pair as a two-corner source element the
-        /// tie is that spring; where it records none the tie is a two-member <c>ClothSelfCollisionCluster</c>, since a spring's
-        /// element grades a basis hint the original left ungraded (<c>frostivus_mug</c>: EQUIVALENT as clusters,
-        /// <c>m_DynNodeWindBases</c> off as springs). The joint is an endpoint only for a node declared beside it.
+        /// A rod from a free node to a chain joint is re-declared as a <c>ClothSpring</c> where a two-corner source
+        /// element records it and as a two-member cluster where none does; without chain joints nothing is declared.
         /// </summary>
         [Test]
         public async Task ASpringFromAFreeNodeToAChainJointIsDeclared()
@@ -5265,11 +4957,8 @@ namespace Tests
         }
 
         /// <summary>
-        /// Where the chain's own rods sit at a relaxation both values on the root pair differ from, the bend rod and the
-        /// suspender's companion share that pair and the bend reading is lost with them: <c>w36sa_min_scattered_noparams</c>
-        /// (stretch 0.9, bend 1.0, suspender 0.2) read back bend 0.9 and no suspender, losing four rods. Either assignment
-        /// of the two values to the two keys compiles the same pair, so the higher is the span's and the lower the
-        /// suspender's, in either record order.
+        /// Where both root-pair rods differ from the chain's own relaxation, the higher is read as the bend and the
+        /// lower as the suspender, in either record order.
         /// </summary>
         [Test]
         public async Task ASuspenderAndABendRodOffTheChainRateAreSplitByValue()
@@ -5307,10 +4996,8 @@ namespace Tests
         }
 
         /// <summary>
-        /// A planarized capsule whose nearest sheet column sits inside its reach clamps that column's planes through their nodes,
-        /// and the two geometric columns left share a steep cone about their mean normal that holds more inliers than the
-        /// capsule's own axis. The capsule is still recovered, from the consensus on its own axis (<c>w36c_planes_one_shape</c>,
-        /// radius 14 on bone z -4 to +4). Control: at radius 8 no column is clamped.
+        /// A planarized capsule whose nearest column is clamped through its nodes is still recovered at its radius on
+        /// its own axis; an unclamped capsule is recovered as well.
         /// </summary>
         [Test]
         public async Task APlanarizedCapsuleOverAClampedColumnIsFitOnItsOwnAxis()
@@ -5379,10 +5066,8 @@ namespace Tests
         }
 
         /// <summary>
-        /// A <c>cloth_stretch</c> graded across a quad sheet is recovered whole. The face edges fix the paint only up to an offset
-        /// alternating over the grid's two colours; a diagonal joins two vertices of one colour under the shear factor every
-        /// diagonal shares, so the diagonals decide that offset (<c>w36sd_diag_stretch_gradient</c>). Control: a uniform paint,
-        /// which the offset closest to zero already reads.
+        /// A graded <c>cloth_stretch</c> across a quad sheet is recovered whole, the diagonals deciding the edge
+        /// offset; a uniform paint reads its value.
         /// </summary>
         [Test]
         public async Task AStretchGradientTakesTheOffsetItsDiagonalsState()
@@ -5439,11 +5124,8 @@ namespace Tests
         }
 
         /// <summary>
-        /// The rigid-edge-hinge ring bend (03_FINISH 2.7) and an authored stiff hinge (2.8) compile to the same record, a ring
-        /// bend at curvature c matching a stiffness-1 hinge at (1 - c) * 180 degrees, so they separate by ownership: a ring
-        /// bend's hub lies between its ends (first end its parent, second end its child), a stiff hinge bends the parent of
-        /// its first end. <c>w36sa_min_kel_3joints</c>' two ring bends were read as a 90 degree stiff hinge on the chain root,
-        /// which bends nothing, and lost both bends and <c>rigid_edge_hinges</c>.
+        /// A Kelager bend whose hub lies between its ends is a chain ring bend, not a stiff hinge; one bending its
+        /// first end's parent is a stiff hinge.
         /// </summary>
         [Test]
         public async Task ARingBendOverAJointIsNotAStiffHingeOnItsParent()
@@ -5473,11 +5155,8 @@ namespace Tests
         }
 
         /// <summary>
-        /// A lone simulated root whose stray radius record is relaxed to zero is a <c>ClothNode</c>, not a one-joint chain: a chain
-        /// joint's relaxation is <c>1 - stray_radius_stretchiness</c> and a stretchiness that high cancels the radius, so the chain
-        /// form drops the record, and with it the node's own 0xFFFF collision mask for the four bits (<c>w36c_stray_node_only</c>).
-        /// Control: a record a chain joint does state, a node with no stray radius, and a root with a control-node ancestor, which a
-        /// <c>ClothNode</c> would compile onto that ancestor.
+        /// A lone simulated root whose stray radius is relaxed to zero is a <c>ClothNode</c>; a partly relaxed record,
+        /// no record, or a control-node ancestor keeps a <c>ClothChain</c>.
         /// </summary>
         [Test]
         public async Task AStrayRecordRelaxedToZeroIsALoneClothNode()
@@ -5509,11 +5188,8 @@ namespace Tests
         }
 
         /// <summary>
-        /// A chain extruding a one-sided ring builds the rod from each joint to its parent itself, so that rod does not make a
-        /// position-driven joint a second declaration: a proxy sheet back-solving the chain's joints drives them without a ring
-        /// of two sides, and <c>w36sb_fit_sheet_backsolve</c> came back with its chain restated, every parent rod doubled.
-        /// Control: a position-driven joint inside a two-sided ring, which the chain ties through the ring only, is still
-        /// restated where a parent rod joins it (both fixtures are the compiled <c>chain_extrude_sides_1</c> / <c>_2</c> rows).
+        /// A position-driven joint in a one-sided ring chain is not restated by its parent rod; one inside a two-sided
+        /// ring is.
         /// </summary>
         [Test]
         public async Task AParentRodBesideAOneSidedRingIsNotARestatement()
@@ -5533,9 +5209,8 @@ namespace Tests
         }
 
         /// <summary>
-        /// A planarized box writes its plane through a node whose collision radius reaches the box, and a node inside the box
-        /// faces out of its nearest face through itself (dl <c>pestilence_v2</c>, <c>w37wt_box_planarize_clamped</c>). The planes
-        /// that stand clear of their nodes pin the box and every plane is checked against it. Control: the clear planes alone.
+        /// A planarized box is recovered with planes drawn through nodes that reach or sit inside it; the clear planes
+        /// alone recover it too.
         /// </summary>
         [Test]
         public async Task APlanarizedBoxKeepsThePlanesItsNodesReachThrough()
@@ -5615,12 +5290,8 @@ namespace Tests
         }
 
         /// <summary>
-        /// A joint's fit table takes its own ring and every ring its chain children extruded (03_FINISH 2.37a, the stager adds
-        /// each list member to the parent's table too), so a non-simulated joint with neither stages no influence and no chain
-        /// format can lock it to its goal. <c>w36sb_hint_ring_on_leaf_v0</c> extrudes only its leaf, two joints below a static
-        /// rotation-free root: that root read as a lock the original's empty <c>m_LockToGoal</c> ruled out, which blocked the
-        /// rope-head hint's version-0 reading and compiled the chain at 2. A ringless root over a ringed child is locked from
-        /// version 1 on (dota <c>aa_frozen_crown_tail</c>).
+        /// A chain whose non-simulated joint has no ring on itself or its children locks no joint to its goal; giving
+        /// the child a ring does.
         /// </summary>
         [Test]
         public async Task AChainJointWithNoRingOnItselfOrItsChildrenIsNoGoalLock()
@@ -5650,10 +5321,8 @@ namespace Tests
         }
 
         /// <summary>
-        /// Only a chain joint compiles into <c>m_LockToGoal</c>. <c>w36sb_twist_free_node_end_static</c> declares a one-joint,
-        /// non-simulated chain on <c>tophat</c> with a free node sprung to it: the original locks <c>tophat</c>, and the
-        /// rod-touched static root re-declared as a merged <c>ClothNode</c> lost the lock. A static root the original leaves
-        /// unlocked stays a ClothNode.
+        /// A static root in <c>m_LockToGoal</c> is declared as a one-joint chain; an unlocked root or a free node stays
+        /// a ClothNode.
         /// </summary>
         [Test]
         public async Task AStaticRootTheOriginalLocksToItsGoalIsASingleJointChain()
@@ -5678,10 +5347,8 @@ namespace Tests
         }
 
         /// <summary>
-        /// A quad that made its edges but no diagonal painted both diagonals' corners at zero <c>cloth_shear_resistance</c>, since a
-        /// zero mean creates no diagonal rod at all; read as unstated, those corners took the default 1 and the rebuild grew the
-        /// diagonals (<c>w37sm_shear_step_zero</c>, the antimage_female witnesses). Control: a quad with no edges either made no rods
-        /// through its <c>cloth_make_rods</c> gate and states nothing.
+        /// A quad with edge rods but no diagonal paints its corners at zero <c>cloth_shear_resistance</c>; a sheet with
+        /// no such quad states no paint.
         /// </summary>
         [Test]
         public async Task AQuadWithEdgesButNoDiagonalPaintsItsCornersAtZeroShear()
@@ -5743,11 +5410,8 @@ namespace Tests
         }
 
         /// <summary>
-        /// <c>tp_w35ft_7b_new_years_lock</c> declares a one-joint chain on a static ringed bone under a ringed chain root with
-        /// no rod between the two, and a model with no compiled skeleton keeps that parent only in <c>m_SkelParents</c>.
-        /// Folded into the root's chain it staged a ring quad, a node base and two fit weights the original never had; split
-        /// out on a flat skeleton it lost its parent. The split chain root and its bone nested under the parent's bone in
-        /// local space compile the original. A rod tying the child to the root keeps one chain.
+        /// A static ringed child with no rod to its root is a chain of its own, declared in its parent's local space; a
+        /// tying rod keeps one chain.
         /// </summary>
         [Test]
         public async Task AStaticRingedChildNoRodTiesToItsRootIsAChainOfItsOwn()
@@ -5799,9 +5463,7 @@ namespace Tests
         }
 
         /// <summary>
-        /// A free ClothNode's spring to a ClothChain joint that is not the node's root bone names the joint by its bone name, since a chain
-        /// joint is a valid ClothSpring endpoint, and its corners keep the order of the original's source element. The fixture is the
-        /// compiled synth chain with a ClothNode on spine_2 sprung to coattail_1_L. CONTROL: without the chain joints the rod is not declared.
+        /// A free node's spring to a chain joint names the joint once; without chain joints the rod is not declared.
         /// </summary>
         [Test]
         public async Task AFreeNodesSpringToAChainJointNamesTheJoint()
@@ -5831,13 +5493,8 @@ namespace Tests
         private static FeModel FreeNodeSprungToJoint => SyntheticCloth.Load("cloth_chain_free_node_spring.kv3");
 
         /// <summary>
-        /// A proxy sheet whose own vertices no <c>m_FitWeights</c> range names, on a model whose other sheet's vertices ARE named and
-        /// whose every position-driven bone that sheet is bound to is fit over the other sheet, was compiled with its own
-        /// <c>back_solve_joints</c> off: its vertices carry the authored skin paint in the offset network without driving a bone through
-        /// it, so the fitless-soft veto has no fit of that sheet's to protect and the paint is recovered verbatim. The fixture is two
-        /// sheets over one two-bone chain, mesh 0 fit-covered and mesh 1 not. CONTROLS: with one of mesh 1's own vertices in a fit range
-        /// the sheet does back-solve, the veto stands and the paint is deferred; with no fit matrix anywhere the set is empty and the
-        /// no-fit-matrices branch recovers the paint regardless of this law.
+        /// A proxy sheet no fit range names, beside a fit-covered one, is not back-solved and keeps its skin paint
+        /// verbatim; a fit-named sheet defers it, and with no fits the paint is recovered anyway.
         /// </summary>
         [Test]
         public async Task ASheetTheOriginalDidNotBackSolveKeepsItsAuthoredProxyPaint()
@@ -5896,11 +5553,8 @@ namespace Tests
         }
 
         /// <summary>
-        /// A proxy sheet's <c>cloth_vertex_set</c> streams go out in an order that satisfies the original's own per-node
-        /// winners: the compiler gives a node to the FIRST stream painting it at its maximum weight, so a selection some node
-        /// records as its winner has to be written before every selection covering that node at the same weight. CONTROLS:
-        /// with no constraint at all the sheet's own order is kept, and a set of constraints holding a CYCLE keeps it too,
-        /// since no single order can satisfy those and the fallback must not invent one.
+        /// Vertex-set streams are ordered so each node's recorded winner precedes its rivals; no constraints or a
+        /// cyclic set keep the input order.
         /// </summary>
         [Test]
         public async Task AVertexSetStreamOrderPutsEveryNodesWinnerBeforeItsRivals()
@@ -5915,8 +5569,6 @@ namespace Tests
             string[] winnersFirst = ["alpha", "bravo", "charlie"];
             string[] charlieLast = ["bravo", "alpha", "charlie"];
 
-            // The assertions compare the SEQUENCE: the law is an order, so an order-insensitive compare on the same
-            // three names would pass against the unordered input and could not fail.
             using (Assert.Multiple())
             {
                 await Assert.That(ordered).IsEquivalentTo(winnersFirst, CollectionOrdering.Matching);
@@ -5928,11 +5580,8 @@ namespace Tests
         }
 
         /// <summary>
-        /// A selection the original registers over NO vertex - an <c>m_VertexMaps</c> record with a name and
-        /// <c>nVertexCount</c> 0 - is one the export has to re-paint as an all-zero <c>cloth_vertex_set</c> stream, since the
-        /// compiler registers a stream's name and then admits only the vertices whose weight clears its floor. The fixture is
-        /// three records on one sheet. CONTROLS: a record WITH vertices is not one of these (it is painted from its own weights),
-        /// and a zero-vertex record with no name is not either (there is no stream to name).
+        /// A named <c>m_VertexMaps</c> record with no vertices is listed for an all-zero paint; a record with vertices
+        /// or without a name is not.
         /// </summary>
         [Test]
         public async Task ASelectionRegisteredOverNoVertexIsNamedByAnAllZeroPaint()
@@ -5948,8 +5597,10 @@ namespace Tests
             }
         }
 
-        // One sheet carrying three m_VertexMaps records: 'ghost' named with no vertices, 'real' with two, and an unnamed record
-        // with no vertices. m_VertexMapValues holds only 'real''s run, which is what a zero-vertex record looks like compiled.
+        /// <summary>
+        /// Three <c>m_VertexMaps</c> records: "ghost" named over no vertex, "real" over two, and an unnamed one over
+        /// none.
+        /// </summary>
         private static FeModel SelectionsOverNoVertex => SyntheticCloth.Model(
             ["bone_0", "$cloth_m0p0", "$cloth_m0p1", "$cloth_m0p2"], staticNodes: 2, parents: [-1, 0, 0, 0],
             poses: [new(0f, 0f, 0f), new(1f, 0f, 0f), new(1f, 0f, -8f), new(1f, 0f, -16f)],
@@ -5963,9 +5614,10 @@ namespace Tests
                 ]
                 """);
 
-        // Two proxy sheets over one two-bone chain. Mesh 0's vertices 2 and 3 are the fit targets; mesh 1's vertex 4 carries a two-bone
-        // authored paint (bone_1 0.75, bone_2 0.25) in the offset network and no fit entry, and its vertex 5 is single-bound. The hole
-        // carries the fit arrays, which is what decides whether mesh 1 is named by a fit range at all.
+        /// <summary>
+        /// Two proxy sheets over a two-bone chain: mesh 0's vertices are fit targets, and mesh 1's vertex 4 has a
+        /// two-bone paint and no fit entry. <paramref name="fits"/> holds the fit arrays.
+        /// </summary>
         private static FeModel TwoProxySheets(string fits) => SyntheticCloth.Model(
             ["bone_0", "$cloth_m0p0", "$cloth_m0p1", "$cloth_m0p2", "$cloth_m1p1", "$cloth_m1p2", "bone_1", "bone_2"],
                 staticNodes: 2, parents: [-1, 0, 6, 7, 6, 6, 0, 6],
@@ -5988,12 +5640,9 @@ namespace Tests
                 """);
 
         /// <summary>
-        /// A proxy sheet node the original records in a vertex set while that selection's own compiled weight for it is 0 is
-        /// painted into the selection at <see cref="FeModel.SubQuantumMembershipWeight"/>, a weight that wins the node its set
-        /// and still compiles to byte 0. Both shapes a compile leaves are covered: a member before the selection's first covered
-        /// node, and a member inside its range at weight 0. CONTROLS: a node at 0 in a selection it is not a member of stays 0,
-        /// a static node stays 0, a member with a positive weight keeps it, and a model that ships no per-node set array gains
-        /// no paint at all.
+        /// A recorded set member its selection weighs 0 is painted at <see cref="FeModel.SubQuantumMembershipWeight"/>,
+        /// which still rounds to byte 0; non-members, static nodes, positive weights and models without a set array are
+        /// unchanged.
         /// </summary>
         [Test]
         public async Task ASetMemberItsSelectionWeighsZeroIsPaintedBelowAQuantum()
@@ -6022,9 +5671,10 @@ namespace Tests
             }
         }
 
-        // A two-row sheet pinned along its top row ($cloth_m0p0 / p1, nodes 1 and 2) over dynamic nodes 3-6. 'qb' covers nodes
-        // 4-6 at 255 / 0 / 128 and 'qz' nodes 5-6 at 0 / 255. The hole carries m_DynNodeVertexSet, which puts nodes 3, 4 and 5
-        // in 'qb' and node 6 in 'qz': node 3 lies before 'qb''s range and node 5 inside it at 0.
+        /// <summary>
+        /// A two-row sheet with selections "qb" (255 / 0 / 128 over nodes 4-6) and "qz" (0 / 255 over nodes 5-6);
+        /// <paramref name="sets"/> holds <c>m_DynNodeVertexSet</c>.
+        /// </summary>
         private static FeModel SubQuantumMembers(string sets) => SyntheticCloth.Model(
             ["root", "$cloth_m0p0", "$cloth_m0p1", "$cloth_m0p2", "$cloth_m0p3", "$cloth_m0p4", "$cloth_m0p5"], staticNodes: 3,
                 parents: [-1, 0, 0, 0, 0, 0, 0],
@@ -6047,12 +5697,9 @@ namespace Tests
                 """);
 
         /// <summary>
-        /// A collision-shape parent bone whose compiled goal pair and gravity are the <c>ClothNode</c> defaults (goal strength
-        /// 0.6, goal damping 0.3, gravity 360) is declared as a bare static <c>ClothNode</c>: a shape registers its parent bone
-        /// with no goal attraction, so the defaults came from a declaration of its own. CONTROLS: a shape parent at no goal
-        /// attraction, one at goal values that are not the defaults, one the document already declares a static
-        /// <c>ClothNode</c> on, one a <c>ClothChain</c> joint names, and a bone at the defaults that no shape names all get
-        /// no declaration.
+        /// A capsule parent bone at the ClothNode goal and gravity defaults is declared as a bare static
+        /// <c>ClothNode</c>; other goal values, bones already declared or chain joints, and bones no shape names are
+        /// not.
         /// </summary>
         [Test]
         public async Task AShapeParentAtTheClothNodeDefaultsIsDeclaredABareStaticClothNode()
@@ -6091,9 +5738,10 @@ namespace Tests
             }
         }
 
-        // Six static bones. pelvis, spine_2, clavicle_L, head and neck_0 each parent a capsule; hand_R parents none. pelvis,
-        // head, neck_0 and hand_R compile the ClothNode defaults (0, 0.216 = 0.6^3, 0.797273, 360); spine_2 compiles a shape
-        // parent's plain (0, 0, 0, 360) and clavicle_L goal strength 0.5 at damping 0.3.
+        /// <summary>
+        /// Six static bones, five parenting a capsule: pelvis, head, neck_0 and hand_R at the ClothNode goal defaults,
+        /// spine_2 at no goal and clavicle_L at other goal values.
+        /// </summary>
         private static FeModel ShapeParentIntegrators => SyntheticCloth.Model(
             ["pelvis", "spine_2", "clavicle_L", "head", "neck_0", "hand_R"], staticNodes: 6, parents: [-1, 0, 1, 1, 1, 2],
             poses: [new(0f, 0f, 30f), new(0f, 0f, 40f), new(4f, 0f, 50f), new(0f, 0f, 60f), new(0f, 0f, 55f), new(8f, 0f, 45f)],
@@ -6119,11 +5767,8 @@ namespace Tests
                 """);
 
         /// <summary>
-        /// A face diagonal the compile never built weighs nothing in the geometric node mass the <c>cloth_mass</c> paint is read against:
-        /// crediting it left every corner of the unbuilt diagonals with a negative residual, out of the readable band, and the paint
-        /// came back at 0 against the sheet's 1 (the antimage_female witnesses' mesh m2). The fixture's masses are the geometry of the
-        /// rods that exist plus <c>expf(1)</c>, so every vertex reads 1. CONTROL: the same sheet with all four quads' diagonals built,
-        /// which the credit always reproduced.
+        /// A face diagonal with no rod adds no geometric mass, so a sheet missing some diagonals still reads its
+        /// uniform <c>cloth_mass</c> of 1, as the fully built sheet does.
         /// </summary>
         [Test]
         public async Task AnUnbuiltFaceDiagonalAddsNoGeometricMassToItsCorners()
@@ -6142,8 +5787,10 @@ namespace Tests
             }
         }
 
-        // The 3 x 3 sheet of ShearedSheet with every edge built, the right-hand quads' diagonals built, and the left-hand quads' diagonals
-        // built only with leftDiagonals. Each node's inverse mass is 1 / (8 per unit rest length of every rod at it + e).
+        /// <summary>
+        /// A 3x3 sheet whose left-hand diagonals are built only with <paramref name="leftDiagonals"/>, each inverse mass
+        /// 1 / (8 per unit of rod length + e).
+        /// </summary>
         private static FeModel MassedSheet(bool leftDiagonals)
         {
             var built = new List<(int A, int B, bool Diagonal)>();
@@ -6200,13 +5847,8 @@ namespace Tests
         }
 
         /// <summary>
-        /// A bend rod held at its rest span states a lower bound through every hinge that generates it. This sheet is the synth
-        /// grid corrugated so that every hinge folds, compiled under <c>add_curvature</c> 0.5 with a painted gradient, its nodes in
-        /// the compiled order: all its bend rods sit at their rest span. The rod (5, 15) crosses the hinge (10, 11), whose flat
-        /// span matches its maximum, and the hinge (10, 12); it keeps its rest span only while those hinges sum at least 0.5615 and
-        /// 0.5673 on top of the curvature. The paint solved on top of 0.5 meets both, asserted to within 1e-3 below each bound
-        /// (0.5605 and 0.5663). CONTROL: the matched hinge's own bound, which the paint met before any other hinge was bounded,
-        /// and the model-wide value it keeps.
+        /// A bend rod held at its rest span bounds every hinge that generates it from below, and the solved paint meets
+        /// each bound on top of the model-wide curvature.
         /// </summary>
         [Test]
         public async Task ACappedBendRodBoundsEveryHingeThatGeneratesIt()
@@ -6229,20 +5871,9 @@ namespace Tests
         private static FeModel CorrugatedSheet => SyntheticCloth.Load("cloth_sheet_corrugated.kv3");
 
         /// <summary>
-        /// A banded rod between two of one chain's own extruded ring nodes, beside the chain's rigid span on
-        /// the same pair, is that pair's two-member <c>ClothSelfCollisionCluster</c>, and its emitted node
-        /// name carries no <c>$</c>. Both surplus emitters used to gate every rod on both endpoints being
-        /// chain JOINTS, so a ring-ring tie was dropped and its rod lost; and a softbody child whose
-        /// <c>name</c> holds a <c>$</c> - which a name composed from ring names always would - is discarded
-        /// by the compiler with no error at all.
-        /// <para>
-        /// The fixture is the compiled synthetic original of corpus row
-        /// <c>w37wt_probe_ring2_cluster_span</c>: an <c>extrude_sides 2</c> chain whose authored
-        /// <c>ClothSelfCollisionCluster</c> over <c>$cccoattail_1_L_0</c> and <c>$cccoattail_2_L_0</c>
-        /// compiled the 12 to 48 band on that pair. Two controls carry the same band where it is NOT a
-        /// cluster: closed onto the pair's own rest length (an <c>antishrink</c> span), and between the two
-        /// rings of one joint (that joint's own ring rod, which the emitted chain regenerates).
-        /// </para>
+        /// A banded rod between two joints' ring nodes is declared as a two-member <c>ClothSelfCollisionCluster</c>
+        /// whose name has no <c>$</c>; the band closed onto the rest length or between one joint's rings declares
+        /// nothing.
         /// </summary>
         [Test]
         public async Task ARingRingClusterTieIsItsTwoMemberClusterUnderANameWithoutADollar()
@@ -6251,7 +5882,6 @@ namespace Tests
             var tied = KVObject.Array();
             ClothExtract.AddClothChainSurplusRods(tied, tiedModel, tiedModel.BuildBoneChains());
 
-            // CONTROL: the band closed onto the pair's own rest distance, an antishrink span.
             var restBandModel = SyntheticCloth.Parse(RingClusterTieText.Replace(
                 "{ nNode = [ 2, 4 ] flMaxDist = 48.0 flMinDist = 12.0",
                 "{ nNode = [ 2, 4 ] flMaxDist = 8.503419 flMinDist = 8.4",
@@ -6259,8 +5889,6 @@ namespace Tests
             var restBand = KVObject.Array();
             ClothExtract.AddClothChainSurplusRods(restBand, restBandModel, restBandModel.BuildBoneChains());
 
-            // CONTROL: the same band between two rings of ONE joint (2 and 3, both from coattail_1_L),
-            // which is that joint's own ring rod and the emitted chain regenerates it.
             var sameJointModel = SyntheticCloth.Parse(RingClusterTieText.Replace(
                 "{ nNode = [ 2, 4 ] flMaxDist = 48.0 flMinDist = 12.0",
                 "{ nNode = [ 2, 3 ] flMaxDist = 48.0 flMinDist = 12.0",
@@ -6300,19 +5928,8 @@ namespace Tests
         private static string RingClusterTieText => SyntheticCloth.Fixture("cloth_chain_ring_cluster_tie.kv3");
 
         /// <summary>
-        /// A bend rod is read only through the hinges the compiler's own element pairing builds it from, and not
-        /// through every edge two faces share with one of its ends in each. The compiler pairs an edge with the
-        /// earliest unpaired element that lists it and joins the two far corners by position when both walks agree
-        /// on the edge's direction and CROSSWISE when they oppose, so a neighbouring edge whose pairing joins other
-        /// corners never folds this rod at all.
-        /// <para>
-        /// The fixture is the neighbourhood of dl <c>dynamo_default</c>'s rod <c>(427, 452)</c>, renumbered: the
-        /// triangle and quad that share the generating hinge <c>(3, 4)</c>, and the quad that shares edge
-        /// <c>(2, 3)</c> with the second of them. <c>(2, 3)</c> carries node 0 in one face and node 5 in the other,
-        /// so the old reading took it as a candidate and read the rod 12.5 % shorter than the compiler ever folds
-        /// it - 0.9198679 against the rod's own 1.0513982, which is one of the 50 rods of 1815 that made this
-        /// EXACT model read as a paint it does not carry.
-        /// </para>
+        /// A bend rod is read only through the hinge its element pairing builds it from: at its own fold it writes no
+        /// paint, and held further open it paints the generating hinge's vertices only.
         /// </summary>
         [Test]
         public async Task ABendRodIsReadOnlyThroughTheHingesItsElementPairingBuildsItFrom()
@@ -6322,8 +5939,6 @@ namespace Tests
             var (paint, curvature) = ClothExtract.ClothBendStiffnessOverFold(PairedHingeSheet(1.0513982f), faces,
                 network, 0.64999986f, keepsCurvature: false);
 
-            // The same rod held further open than the model-wide curvature alone leaves it: the residual has to be
-            // painted on the generating hinge's own vertices, which node 4 is on and node 2 is not.
             var (folded, foldedCurvature) = ClothExtract.ClothBendStiffnessOverFold(PairedHingeSheet(1.06f),
                 faces, network, 0.64999986f, keepsCurvature: false);
 
@@ -6351,11 +5966,8 @@ namespace Tests
                 """);
 
         /// <summary>
-        /// A sheet vertex whose compiled tree collision mask has layer k cleared was painted 0 on that layer,
-        /// and the export states it: <c>cloth_collision_layer_k$0</c> carries 0 on that vertex and 1 on the
-        /// rest. Only a layer some vertex clears is stated at all, because an unpainted sheet is what leaves
-        /// every layer set, so a sheet whose masks are all 0xFFFF writes no layer stream - which is the
-        /// CONTROL here and is what the export did for every sheet before this law.
+        /// A sheet paints <c>cloth_collision_layer</c> streams only for the layers some vertex's tree mask clears, 0 on
+        /// that vertex; all-set masks paint none.
         /// </summary>
         [Test]
         public async Task ASheetStatesTheCollisionLayersItsCompiledMasksClear()
@@ -6389,13 +6001,8 @@ namespace Tests
                 """);
 
         /// <summary>
-        /// A static chain root states its relaxless twist link from its OWN entry alone: the far end does not
-        /// have to state one back. The compiler writes a flat 0.0 on an entry whose orient node merely allows
-        /// rotation, and a static root that authored a twist gets exactly that one entry when the child it
-        /// orients states no twist of its own - which is dl <c>bookworm2</c>'s <c>BreastRoot_R</c> and
-        /// <c>BreastRoot_L</c>, the two <c>m_Twists</c> records that row was missing. The CONTROL is the same
-        /// one-directional link carrying a real relaxation, which is the child's authored value and not a
-        /// relaxless link at all.
+        /// A static root with a one-way relaxation-free twist entry declares <c>twist_relax</c> 1 and stays
+        /// unsimulated; a relaxed entry does not.
         /// </summary>
         [Test]
         public async Task AStaticRootStatesARelaxlessTwistFromItsOwnEntryAlone()
@@ -6423,24 +6030,20 @@ namespace Tests
                 """);
 
         /// <summary>
-        /// A selection the model carries as an <c>m_VertexMaps</c> entry without REGISTERING it in
-        /// <c>m_VertexSetNames</c> is one no <c>cloth_vertex_set</c> paint may state: the compiler registers the
-        /// name of every such stream it reads, so painting it hands the recompile a set the original never had.
-        /// The fixture is dl <c>wraith_default</c>'s own shape - one registered set (the model-name set the
-        /// compiler makes itself) beside two selections it does not register - and the export declares those two
-        /// as their own containers instead, which is what took both wraith rows from DEFECT to EQUIVALENT.
+        /// <c>RegistersVertexSet</c> is true only for hashes in <c>m_VertexSetNames</c>, not for a selection's own
+        /// unregistered hash.
         /// </summary>
         [Test]
         public async Task ASelectionTheModelRegistersNoSetForIsNotPainted()
         {
-            var wraithShape = SyntheticCloth.Parse(UnregisteredSelectionText);
+            var feModel = SyntheticCloth.Parse(UnregisteredSelectionText);
 
             using (Assert.Multiple())
             {
-                await Assert.That(wraithShape.RegistersVertexSet(3027761651)).IsTrue();
-                await Assert.That(wraithShape.RegistersVertexSet(4042757229)).IsFalse();
-                await Assert.That(wraithShape.VertexMaps.Count).IsEqualTo(1);
-                await Assert.That(wraithShape.RegistersVertexSet(wraithShape.VertexMaps[0].NameHash)).IsFalse();
+                await Assert.That(feModel.RegistersVertexSet(3027761651)).IsTrue();
+                await Assert.That(feModel.RegistersVertexSet(4042757229)).IsFalse();
+                await Assert.That(feModel.VertexMaps.Count).IsEqualTo(1);
+                await Assert.That(feModel.RegistersVertexSet(feModel.VertexMaps[0].NameHash)).IsFalse();
             }
         }
 
@@ -6454,13 +6057,7 @@ namespace Tests
                 """);
 
         /// <summary>
-        /// Two planarized shapes over one selection can both reach a node, and only one plane per node
-        /// survives the compile. Measured over every ordering of one model's contesting shapes: the FIRST
-        /// shape declared claims every node it reaches, and among the rest the LAST shape reaching a node
-        /// owns it. So the smallest shape leads and the others follow largest first, which is what leaves
-        /// each of them the planes the original gives it. The fixture is two spheres on two bones, six
-        /// planes against five; declaring them by control node, as the stock order does, puts the six-plane
-        /// shape first.
+        /// Contesting planarized shapes are declared smallest first: the five-plane sphere precedes the six-plane one.
         /// </summary>
         [Test]
         public async Task ThePlanarizedShapeOwningFewestPlanesIsDeclaredFirst()
@@ -6523,12 +6120,7 @@ namespace Tests
                 + $"{SyntheticCloth.Num(normal.Z)} ] m_flOffset = {SyntheticCloth.Num(5f)} }} }},";
 
         /// <summary>
-        /// A node resting against a capsule's SIDE takes a plane normal square to the capsule axis, so two
-        /// such normals cross to the axis itself. Every other axis seed spans the normals' own TIPS, which
-        /// for a set of square normals is noise, so a group whose planes are all side contacts raises no
-        /// candidate at all and the collider is dropped. The fixture is the synthetic row
-        /// <c>w37wt_probe_chain_capsule_noring_3planes</c>, whose three planes are its own: two square to the
-        /// axis and one over the end cap, in the parent's frame, around a capsule of radius 4.
+        /// A capsule whose planes are side contacts square to its axis is still recovered, at radius 4.
         /// </summary>
         [Test]
         public async Task ACapsuleIsRecoveredFromSideContactsWhoseNormalsSpanNoCone()
@@ -6555,16 +6147,9 @@ namespace Tests
         }
 
         /// <summary>
-        /// Two ringless chains whose static roots the original locks to its goal and whose bone parent is
-        /// the same cloth node are one chain under that bone, which springs them together.
+        /// Goal-locked ringless static roots under one bone are one chain under that bone with a
+        /// <c>child_sibling_spring</c>; unlocked roots or ringed chains are not merged.
         /// </summary>
-        /// <remarks>
-        /// A joint's <c>child_sibling_spring</c> rods its own children to each other, and those rods stage
-        /// each child's fit influences and lock it to its goal. Where every child is static the rods
-        /// themselves are dropped, so the group's only compiled trace is the locks - and each child reads
-        /// as a chain root of its own. Controls: the same roots with no lock, and a group whose chains
-        /// extrude rings, whose locks the chain format already accounts for.
-        /// </remarks>
         [Test]
         public async Task LockedRinglessRootsUnderOneBoneAreOneSprungChain()
         {
@@ -6596,8 +6181,8 @@ namespace Tests
         }
 
         /// <summary>
-        /// Two static roots under one bone, each carrying a simulated child, with no rod between the roots:
-        /// haze's own shape. <paramref name="locked"/> puts the roots in <c>m_LockToGoal</c> and
+        /// Two static roots under one bone, each carrying a simulated child, with no rod between the roots.
+        /// <paramref name="locked"/> puts the roots in <c>m_LockToGoal</c> and
         /// <paramref name="rings"/> gives each root an extruded proxy ring.
         /// </summary>
         private static FeModel SiblingHubs(bool locked, bool rings)
@@ -6652,17 +6237,9 @@ namespace Tests
         }
 
         /// <summary>
-        /// A pair of children the compiler ALSO joined for some other reason carries that rod beside the
-        /// sibling spring's, so the slider is the relaxation every pair has in common rather than the one
-        /// every rod agrees on.
+        /// The sibling spring is the relaxation every child pair shares, so an extra rod on one pair does not refute
+        /// it; pairs sharing no value or two values state none.
         /// </summary>
-        /// <remarks>
-        /// dl `unicorn_celeste`: nineteen children of `Front_Hair`, seven pairs examined, six of them
-        /// carrying the spring's four copies of 0.3 and the seventh carrying those four and a rigid rod at
-        /// 1.0. Demanding that every rod agree read the whole set as no spring at all, and with it went
-        /// twenty fit matrices and 429 fit weights. Controls: a pair carrying no value the others do, and a
-        /// set whose pairs share two values, both of which state nothing.
-        /// </remarks>
         [Test]
         public async Task AForeignRodOnOnePairDoesNotRefuteTheSiblingSpring()
         {
@@ -6706,18 +6283,9 @@ namespace Tests
         }
 
         /// <summary>
-        /// A static joint's relaxless twist is its own whatever its place in the chain, so an INTERIOR
-        /// static joint re-declares it exactly as a root does.
+        /// An interior static joint re-declares its relaxation-free twist at <c>twist_relax</c> 1 as a root does; a
+        /// simulating joint does not.
         /// </summary>
-        /// <remarks>
-        /// dl `unicorn_celeste`: the source roots its Breast chain at `BreastRoot_R` and we root it one
-        /// bone higher at `spine_3`, which leaves that joint interior. Gated on the root, the recovery
-        /// dropped its twist - and a node whose parent offers neither simulation nor rotation to offset
-        /// from is then locked to its goal by the compiler (`CFeModelBuilder::PreprocessInput` clears such
-        /// a parent, and `BuildFitMatrices` writes `m_LockToGoal`), which cost the row that key and an
-        /// `m_NodeBases` entry. Control: the same joint SIMULATING, which explains its own entry and
-        /// states nothing.
-        /// </remarks>
         [Test]
         public async Task AnInteriorStaticJointRedeclaresItsRelaxlessTwistToo()
         {
@@ -6745,17 +6313,8 @@ namespace Tests
                 ]
                 """);
         /// <summary>
-        /// A one-joint chain carries its own version like any other: the compiler takes it at 1 and at 2
-        /// alike, so nothing forces such a chain to 0.
+        /// A one-joint chain reads the same version as a longer chain, with or without other chains.
         /// </summary>
-        /// <remarks>
-        /// The rule this replaces read a one-joint chain in a multi-chain model as version 0 to dodge an
-        /// access violation. MEASURED 2026-09-20 on dl <c>haze</c> (30 chains, six of them one joint) and
-        /// <c>unicorn_celeste</c> (eleven chains, four): every chain forced to version 1, then to version
-        /// 2, compiles - no access violation either way. The wave-26 crash was a LONE one-joint chain,
-        /// which that condition never covered, and the authored sources ship one-joint chains at version
-        /// 2 beside eighteen others (twelve such chains, every one authored v2).
-        /// </remarks>
         [Test]
         public async Task AOneJointChainIsNotForcedToVersionZero()
         {
@@ -6772,18 +6331,8 @@ namespace Tests
             }
         }
         /// <summary>
-        /// A LEAF joint's ungraded basis hint states no version: it stages influences from its own ring
-        /// alone, so it carries none whatever the chain was authored at. Only an ungraded hint on a joint
-        /// WITH A CHAIN CHILD says version 0.
+        /// An ungraded twist-written hint reads as version 0 only on a joint with a chain child, not on a leaf.
         /// </summary>
-        /// <remarks>
-        /// Both arms read the SAME compiled data, with the same ungraded twist-written hint on <c>j2</c>;
-        /// only whether the chain gives <c>j2</c> a child differs. MEASURED 2026-09-20 against the
-        /// authored sources: bookworm's Breast chains are authored version 2 with every interior joint
-        /// graded and only the leaf ungraded, while haze's, which carry no version key at all, leave the
-        /// interior joint ungraded too. Reading a leaf as evidence took eleven authored-version-2 chains
-        /// to version 0.
-        /// </remarks>
         [Test]
         public async Task ALeafsUngradedHintStatesNoVersion()
         {
@@ -6806,19 +6355,8 @@ namespace Tests
             }
         }
         /// <summary>
-        /// A rotation-locked root's ABSENT node base states format 1 only where the chain EXTRUDES. A
-        /// ringless chain raises no version-2 preset candidates at all, so it compiles the same at either
-        /// version and its root's missing entry states nothing.
+        /// A ringless chain's rotation-locked root without a node base keeps version 2.
         /// </summary>
-        /// <remarks>
-        /// PROBED 2026-09-20 on both sides. dl <c>bookworm2</c>'s ringless <c>hair</c> chain, whose own
-        /// authored version is 2, forced from 1 to 2 emits the same 6 node bases on the same owners, the
-        /// same 6 reverse offsets and the same 1092 rods - the version is unobservable there. dl
-        /// <c>hornet_new_default</c>, whose chains extrude, gains bases on <c>hat_base</c> and three
-        /// <c>hat_flap_*</c> joints the original bases not at all, so its absent entries are real evidence
-        /// of format 1. Reading the two alike took twelve authored-version-2 chains to version 1, and
-        /// correcting it without this test regressed seven dl rows.
-        /// </remarks>
         [Test]
         public async Task ARinglessChainsAbsentRootBaseStatesNoFormat()
         {
@@ -6847,23 +6385,9 @@ namespace Tests
         }
 
         /// <summary>
-        /// A proxy sheet the original shape-fits a bone over while leaving that bone OUT of the
-        /// position-driven suffix was compiled with <c>back_solve_joints_drive_meshes</c> alone. The two
-        /// keys gate the same back-solve and only <c>back_solve_joints</c> registers the bones it claims as
-        /// position-driven, so a fit with no promotion behind it names the second key. The fixture is two
-        /// sheets over one tip bone, fit over mesh 1's three vertices. CONTROLS: the same model with the tip
-        /// bone inside the position-driven suffix is the ordinary <c>back_solve_joints</c> case, mesh 0
-        /// carries no fit target of its own, and a compile stating no position-driven boundary at all cannot
-        /// tell the two keys apart.
+        /// A proxy sheet fit over a bone outside the position-driven suffix reads as
+        /// <c>back_solve_joints_drive_meshes</c> alone; a driven bone, an unfit sheet, or no compiled boundary do not.
         /// </summary>
-        /// <remarks>
-        /// PROBED 2026-09-20 on dl <c>pestilence_v2_anim_model</c>, whose authored source is pinned. It
-        /// declares no ClothChain at all and authors its hat sheet <c>back_solve_joints = false</c> with
-        /// <c>back_solve_joints_drive_meshes = true</c>; the compile ships one fit matrix over that sheet's
-        /// 530 vertices with nothing position-driven. Turning the second key on in our recovered document,
-        /// one key and nothing else, closes <c>m_FitMatrices</c>, <c>m_FitWeights</c> and
-        /// <c>m_LockToGoal</c> on the row.
-        /// </remarks>
         [Test]
         public async Task ASheetFittingAnUndrivenBoneStatesDriveMeshesAlone()
         {
@@ -6877,7 +6401,6 @@ namespace Tests
 
             using (Assert.Multiple())
             {
-                // The fixture has to carry the fit at all, or every reading below is vacuously false.
                 await Assert.That(undriven.FitMatrixTargets.Count).IsEqualTo(1);
                 await Assert.That(string.Join(",", undriven.FitMatrixTargets[7])).IsEqualTo("4,5,6");
                 await Assert.That(undriven.IsPositionDriven(7)).IsFalse();
@@ -6893,9 +6416,10 @@ namespace Tests
             }
         }
 
-        // Two proxy sheets and one tip bone, with the tip fit over mesh 1's three vertices and nothing fit
-        // over mesh 0's three. The hole carries m_nFirstPositionDrivenNode, which is what decides whether
-        // the fit came with the promotion back_solve_joints performs.
+        /// <summary>
+        /// Two proxy sheets and a tip bone fit over mesh 1's vertices; <paramref name="firstPositionDriven"/> holds
+        /// <c>m_nFirstPositionDrivenNode</c>.
+        /// </summary>
         private static FeModel SheetFitOverTipBone(string firstPositionDriven) => SyntheticCloth.Model(
             ["bone_0", "$cloth_m0p0", "$cloth_m0p1", "$cloth_m0p2", "$cloth_m1p0", "$cloth_m1p1", "$cloth_m1p2", "tip"],
                 staticNodes: 1, parents: [-1, 0, 0, 0, 7, 7, 7, 0],
@@ -6923,22 +6447,9 @@ namespace Tests
                 ]
                 """);
         /// <summary>
-        /// A joint that SIMULATES and whose child-ward twist entry carries no relaxation at all was stated
-        /// twice: the first declaration said <c>simulate = false</c>, so that pass zeroed the entry, and a
-        /// later one won the node. The first declaration is emitted stating it.
+        /// A simulating joint whose child-ward twist carries no relaxation is first declared unsimulated; a relaxed
+        /// entry or a doubled parent-ward entry keeps it simulating.
         /// </summary>
-        /// <remarks>
-        /// READ 2026-09-20: <c>sub_1818DE410</c> runs the twist builder once per <c>ClothChain</c> and
-        /// <c>sub_1818D9790</c> appends each entry with no duplicate check, so a joint's own entries say
-        /// which declaration wrote them - its <c>twist_relax</c> reaches the parent-ward entry scaled by
-        /// 0.618 unconditionally and the child-ward one by 0.382 only where the joint simulated at that
-        /// pass. dl <c>bookworm_bikini</c> is the shape: its authored <c>Hair</c> chain declares
-        /// <c>back_1_2 .. back_2_5_end</c> unsimulated and <c>TwinTailR</c> / <c>TwinTailL</c> re-declare
-        /// them simulating, and the row shipped eight entries at 0.0 where we wrote 0.3056.
-        /// Controls: the same fixture with the child-ward entry RELAXED, which one declaration explains,
-        /// and with the parent-ward entry DOUBLED, which is a second declaration that ran its own builder
-        /// and whose constructs our single declaration already makes.
-        /// </remarks>
         [Test]
         public async Task ASimulatingJointsRelaxlessChildTwistStatesASecondDeclaration()
         {
@@ -6981,17 +6492,9 @@ namespace Tests
         }
 
         /// <summary>
-        /// A chain's <c>attrs</c> table states the <c>extrude_twist</c> schema default whatever its ring
-        /// measures, while its joint rows keep stating the complement of the measured roll.
-        /// CONTROLS: the table's <c>extrude_sides</c> and <c>extrude_radius</c> defaults still carry the
-        /// chain's own measurements, a chain that does not extrude is unchanged, and the joint rows' key
-        /// is unchanged.
+        /// A chain's <c>attrs</c> state <c>extrude_twist</c> default 0 while <c>extrude_sides</c> and
+        /// <c>extrude_radius</c> carry the chain's values; the joint key is the complement of the roll.
         /// </summary>
-        /// <remarks>
-        /// MEASURED 2026-09-20 over the authored sources of both corpora that ship one: of 830
-        /// <c>attrs extrude_twist default</c> statements in 119 authored documents, 825 are exactly 0 and
-        /// none is further than 0.001 from it, at every ring roll those documents carry.
-        /// </remarks>
         [Test]
         public async Task AChainsAttrsStateTheExtrudeTwistSchemaDefault()
         {
@@ -7014,21 +6517,9 @@ namespace Tests
         }
 
         /// <summary>
-        /// A sheet carrying a vertex the original compiled SIMULATED and rotation-locked paints every vertex
-        /// its recorded class through <c>cloth_anchor_free_rotate</c>, whether or not the sheet re-emits
-        /// <c>flex_cloth_borders</c>. No flag can state that class: the vertex node creator gives a proxy
-        /// vertex free rotation from the same flag as its simulated bit, so the paint is the only route.
-        /// CONTROLS: a sheet with no such vertex keeps the old reading exactly - it paints only the pins the
-        /// original records rotation-free, and paints nothing at all when it re-emits the flag or when every
-        /// pin is already locked.
+        /// A sheet simulating a rotation-locked static node paints <c>cloth_anchor_free_rotate</c> with or without
+        /// <c>flex_cloth_borders</c>; a sheet pinning it or holding no static node paints nothing.
         /// </summary>
-        /// <remarks>
-        /// READ 2026-09-20 in `cs2/resourcecompiler` `sub_180303F30`, the proxy-vertex node creator: its
-        /// stack `CBone` takes `auth+48` (simulate) and `auth+50` (free rotation) from the SAME argument, and
-        /// the per-vertex paint table's row 544 is the only later writer of `auth+50`. MEASURED on dl
-        /// `pestilence_v2_anim_model`, whose hat sheet carries 251 such vertices: 24 rot-locked static nodes
-        /// against the original's 275, and painting them closes the row's last key.
-        /// </remarks>
         [Test]
         public async Task ASheetPaintsTheRotationLockNoFlagCanState()
         {
@@ -7036,54 +6527,35 @@ namespace Tests
             var sheet = feModel.BuildProxyMeshes().First(proxy => Array.Exists(proxy.NodeIndices,
                 node => feModel.CtrlNames[node].StartsWith("$cloth_m1p", StringComparison.Ordinal)));
 
-            // Node 0 is the model's one static, and the fixture locks it. A sheet that SIMULATES it is the
-            // shape no flag can state; the same sheet pinning it is the ordinary one.
             var lockedSimulated = RotationSheet(sheet, [0, 4, 5, 6], [1f, 1f, 1f, 1f]);
             var pinnedInstead = RotationSheet(sheet, [0, 4, 5, 6], [0f, 1f, 1f, 1f]);
             var allSimulated = RotationSheet(sheet, [4, 5, 6, 4], [1f, 1f, 1f, 1f]);
 
             using (Assert.Multiple())
             {
-                // The fixture has to hold a locked static at all, or every reading below is vacuous.
                 await Assert.That(feModel.AllowsRotation(0)).IsFalse();
                 await Assert.That(feModel.StaticNodeCount).IsEqualTo(1);
 
-                // The law: stated on both sheets, flag or no flag, and vertex 0 is the one it locks.
                 var flexed = ClothExtract.ClothAnchorFreeRotatePaint(feModel, lockedSimulated, sheetFlexes: true);
                 var unflexed = ClothExtract.ClothAnchorFreeRotatePaint(feModel, lockedSimulated, sheetFlexes: false);
                 await Assert.That(string.Join(",", flexed ?? [])).IsEqualTo("0,1,1,1");
                 await Assert.That(string.Join(",", unflexed ?? [])).IsEqualTo("0,1,1,1");
 
-                // CONTROLS. The same static PINNED is the old reading: it is rotation-locked, so nothing is
-                // freed and no stream goes out, and a flexed sheet states nothing either way.
                 await Assert.That(ClothExtract.ClothAnchorFreeRotatePaint(feModel, pinnedInstead, sheetFlexes: false)).IsNull();
                 await Assert.That(ClothExtract.ClothAnchorFreeRotatePaint(feModel, pinnedInstead, sheetFlexes: true)).IsNull();
 
-                // A sheet holding no static node at all states nothing on a flexed sheet and nothing on an
-                // unflexed one, since it has no pin to free.
                 await Assert.That(ClothExtract.ClothAnchorFreeRotatePaint(feModel, allSimulated, sheetFlexes: true)).IsNull();
                 await Assert.That(ClothExtract.ClothAnchorFreeRotatePaint(feModel, allSimulated, sheetFlexes: false)).IsNull();
             }
         }
 
-        // The fixture sheet re-bound to a chosen node set and cloth_enable pattern, which is what the paint
-        // reads; every other stream is along for the ride.
+        /// <summary><paramref name="sheet"/>'s faces over the given nodes and <c>cloth_enable</c> pattern.</summary>
         private static FeModel.ProxyMesh RotationSheet(FeModel.ProxyMesh sheet, int[] nodes, float[] enable)
             => SyntheticCloth.Proxy(nodes, enable, sheet.Faces);
         /// <summary>
-        /// A self-collision cluster's member table states its own schema defaults, the way its sibling
-        /// rigid-cloud cluster's does, because the compiler falls back to them for a member row that
-        /// omits a key.
+        /// A <c>ClothSelfCollisionCluster</c>'s member table states its members, version 0 and its own <c>attrs</c>
+        /// defaults.
         /// </summary>
-        /// <remarks>
-        /// Both clusters carry a dense KV3 member table and the compiler reads `attrs[key].default` on a
-        /// miss for each. <c>MakeClothRigidCloudCluster</c> emitted its table and this one emitted none
-        /// at all, so a member omitting a key had nothing to fall back to. The four defaults are the
-        /// schema's own, read out of <c>CAuthClothDataTable::ctor_dtor_1</c> into
-        /// <c>datamodel\evidence\modeldoc_cloth_attrs.json</c>, and the eleven synth rows that ship a
-        /// cluster carry exactly this table - one spelling across all eleven, checked with
-        /// <c>tools\w40authdiff.py</c>.
-        /// </remarks>
         [Test]
         public async Task AClusterMemberTableStatesItsOwnDefaults()
         {
@@ -7091,8 +6563,6 @@ namespace Tests
                 "cluster_0", ["j1", "j2"], radius: 6f, strayRadius: 24f);
             var chain = cluster.GetSubCollection("chain");
 
-            // Projections, not indexed reads: with the table absent both come back EMPTY and the
-            // assertions FAIL, where indexing into it would throw and skip every control beside it.
             static string[] Keys(KVObject table) => table is null ? [] : [.. table.Select(a => a.Key)];
             static float[] Numbers(KVObject table) => table is null
                 ? []
@@ -7116,24 +6586,9 @@ namespace Tests
         }
 
         /// <summary>
-        /// A chain ROOT several children hang off states its <c>extra_iterations</c> through its
-        /// <c>child_sibling_spring</c> rods, which no other construct lands on.
+        /// A chain root reads <c>extra_iterations</c> from its children's sibling rod copies; single copies read 0, and
+        /// one extra copy on one pair does not lift the reading.
         /// </summary>
-        /// <remarks>
-        /// The compiler builds one sibling rod per unordered pair of a joint's children FROM THAT
-        /// JOINT'S OWN call site, carrying the joint's own <c>extra_iterations</c> (02_IMPORT 5.1g), and
-        /// the CRod transfer writes each rod <c>1 + extra_iterations</c> times. A root has no upward span
-        /// of its own, and each child's span down to it is built by that CHILD and carries the child's
-        /// multiplier, so <c>JointCopies</c>' single-child fallback cannot stand in for a root with
-        /// several. dl <c>bookworm_bikini</c> is the shape: its <c>hair</c> joint has seven children and
-        /// the authored file states <c>extra_iterations = 16</c>, which is the seventeen copies its
-        /// sibling pairs ship.
-        /// This is NOT W38-R1's refuted predicate: that one compared a joint's SPAN count against its own
-        /// RING count, which a suspender companion or a floor surplus also moves. A child-to-child pair
-        /// carries no suspender, no ring rod and no chain span.
-        /// CONTROLS: sibling pairs at a single copy state nothing, and one pair a second construct also
-        /// declares does not lift the reading off the floor the others agree on.
-        /// </remarks>
         [Test]
         public async Task ARootReadsItsIterationsFromItsChildrensSiblingRods()
         {
@@ -7162,26 +6617,13 @@ namespace Tests
                 await Assert.That(Iterations(Fan(3, 1))).IsEqualTo(2);
             }
         }
-        /// A proxy sheet whose vertex SLOT range is wider than its face-corner count is given all-pinned
-        /// filler triangles until every slot has a corner ordinal of its own. The compiler fills a sheet's
-        /// per-vertex rest-normal array by ordinal out of the flattened per-corner stream, so the slots past
-        /// the corner count would otherwise keep the array's zero fill and their rest frames degenerate; an
-        /// all-pinned face belongs to a fully-static region the solver discards, so it adds the corners and
-        /// nothing else. CONTROLS: a sheet with at least as many corners as slots is left exactly as it is,
-        /// so is one with no faces at all, and so is one whose faced vertices include fewer than three pins.
+        /// <summary>
+        /// A sheet with fewer face corners than vertex slots gets all-pinned filler triangles until every slot has a
+        /// corner; enough corners, no faces, or fewer than three pins leave the faces unchanged.
         /// </summary>
-        /// <remarks>
-        /// READ 2026-09-20: `sub_180303F30` takes a vertex's normal from the `CUtlVector&lt;Vector3&gt;` at
-        /// the per-mesh context's `+248`/`+256`, whose count `sub_181820200` returns from the POSITION
-        /// field's data attribute (accepted only at Datamodel type 42, a Vector3 array). MEASURED on dl
-        /// `nano_mecha`, whose mesh 0 carries 431 slots against 410 corners: its ten failing orientations
-        /// are all at slot 410 or above, and the filler takes the row to EXACT. Padding the stream's values
-        /// or index arrays instead is inert - the flatten is bounded by the face set.
-        /// </remarks>
         [Test]
         public async Task ASheetShortOfCornersIsGivenAllPinnedFillerFaces()
         {
-            // Six vertices, two of them simulated, over one quad: 4 corners against 6 slots.
             var shortOfCorners = CornerSheet([0, 0, 0, 0, 4, 5], [[0, 1, 2, 3]]);
             var evenCorners = CornerSheet([0, 0, 0, 0, 4, 5], [[0, 1, 2, 3], [0, 1, 2, 3]]);
             var faceless = CornerSheet([0, 0, 0, 0, 4, 5], []);
@@ -7195,8 +6637,6 @@ namespace Tests
 
             using (Assert.Multiple())
             {
-                // The law: one filler triangle over PINNED vertices the sheet already faces, taking 4
-                // corners to 7 and so past the 6 slots. Every added face is all-pinned.
                 var padded = Padded(shortOfCorners);
                 await Assert.That(padded.Count).IsEqualTo(2);
                 await Assert.That(padded.Sum(f => f.Length)).IsGreaterThanOrEqualTo(shortOfCorners.Positions.Length);
@@ -7204,7 +6644,6 @@ namespace Tests
                     .All(c => shortOfCorners.ClothEnable[c] == 0f)).IsTrue();
                 await Assert.That(Shape(padded).StartsWith("0123 ", StringComparison.Ordinal)).IsTrue();
 
-                // CONTROLS: each of the three refusals returns the sheet's own face list unchanged.
                 await Assert.That(Shape(Padded(evenCorners))).IsEqualTo("0123 0123");
                 await Assert.That(Shape(Padded(faceless))).IsEqualTo(string.Empty);
                 await Assert.That(Shape(Padded(twoPins))).IsEqualTo("0123");
@@ -7212,33 +6651,12 @@ namespace Tests
         }
 
         /// <summary>
-        /// A joint whose own upward span carries NO rod reads its <c>extra_iterations</c> off the
-        /// child-sibling rods it builds from its own call site, the way a joint with no chain parent at
-        /// all already does. A span whose counts DISAGREE is the other case and still reads nothing.
-        /// CONTROLS: a span that DOES carry a rod is read off the span and not off the siblings, a span
-        /// whose counts disagree keeps returning 1, and a joint with one child has no sibling pair to
-        /// read.
+        /// A joint whose upward span carries no rod reads <c>extra_iterations</c> off its children's sibling rods; a
+        /// rod on the span, disagreeing span counts, or a single child do not read the siblings.
         /// </summary>
-        /// <remarks>
-        /// `JointCopies` returned 1 the moment any upward pair carried no rod, because `Repeats` treats a
-        /// rodless pair as fatal - right about the SPAN, which the joint then does not generate, and
-        /// silent about the sibling pairs, which the reading never takes from the span. The compiler
-        /// builds one sibling rod per unordered pair of a joint's children from the JOINT's own call site
-        /// with the JOINT's own <c>extra_iterations</c> (02_IMPORT 5.1g), so that count is this joint's
-        /// multiplier and no one else's.
-        /// The disagreeing case is left alone deliberately: a suspender companion and a floor surplus both
-        /// move one pair's count, and gating on that is the predicate 07_REFUTED W38-R1 destroyed, whose
-        /// three tests still pass.
-        /// MEASURED on dl: the six joints whose sibling pairs are multiplied go from MATCH 3 / MISS 3 to
-        /// MATCH 6, recovering x4, x7 and x17 - `unicorn_celeste` `Front_Hair`, `bookworm` `RibbonRoot`
-        /// and `YM_OuterRibbon` are the three the landed reading declined.
-        /// </remarks>
         [Test]
         public async Task AJointWhoseSpanCarriesNoRodStillReadsItsSiblingRods()
         {
-            // root - p1 - j, all three static, which is dl `bookworm`'s `RibbonRoot`: the compiler builds
-            // no rod between two static nodes, so j's own upward span carries none while j still has a
-            // chain parent. Its two simulated children are joined by `siblings` sibling rods.
             static FeModel Rodless(int siblings, bool twoChildren = true) => SyntheticCloth.Model(
                 ["root", "p", "j", "c1", "c2", "sibling_of_j"], staticNodes: 3, parents: [-1, 0, 1, 2, 2, 1],
                 poses: [new(0f, 0f, 0f), new(0f, 0f, -10f), new(0f, 0f, -20f), new(-10f, 0f, -30f), new(10f, 0f, -30f),
@@ -7256,9 +6674,6 @@ namespace Tests
                     ]
                     """);
 
-            // The same two children under a SIMULATED j whose span to p2 carries `spanRods` and whose bend
-            // span to the grandparent p1 carries `bendRods`. The grandparent is p1 rather than the chain
-            // root, so the root-suspender reading cannot halve the count.
             static FeModel Spanned(int spanRods, int bendRods, int siblings) => SyntheticCloth.Model(
                 ["root", "p1", "p2", "j", "c1", "c2"], staticNodes: 1, parents: [-1, 0, 1, 2, 3, 3],
                 poses: [new(0f, 0f, 0f), new(0f, 0f, -10f), new(0f, 0f, -20f), new(0f, 0f, -30f), new(-10f, 0f, -40f),
@@ -7291,53 +6706,25 @@ namespace Tests
 
             using (Assert.Multiple())
             {
-                // THE LAW, over three sibling multiplicities. j has a chain parent and its span to it
-                // carries no rod, which is exactly where the landed reading returned 1.
                 await Assert.That(Iterations(Rodless(2))).IsEqualTo(1);
                 await Assert.That(Iterations(Rodless(4))).IsEqualTo(3);
                 await Assert.That(Iterations(Rodless(7))).IsEqualTo(6);
 
-                // CONTROL, the predicate false: the span DOES carry a rod, so the reading comes off the
-                // span and the four sibling copies beside it are never consulted.
                 await Assert.That(Iterations(Spanned(1, 0, 4))).IsEqualTo(0);
 
-                // CONTROL: the span counts DISAGREE - two rods to the parent against three on the bend
-                // span to the grandparent. That reads the FLOOR the pairs agree on, 2, and never the five
-                // copies the siblings carry, which would read 4. A disagreement is a suspender companion
-                // or a floor surplus rather than a multiplier (W38-R1).
                 await Assert.That(Iterations(Spanned(2, 3, 5))).IsEqualTo(1);
 
-                // CONTROL: a rodless span and a single child, so there is no sibling pair to read at all.
                 await Assert.That(Iterations(Rodless(4, twoChildren: false))).IsEqualTo(0);
             }
         }
 
         /// <summary>
-        /// A chain states as its <c>attrs</c> <c>mass</c> default the multiplier most of its simulating
-        /// joints carry, and only the joints that carry a different one state the key themselves. The
-        /// multiplier is read over the rod mass pass even on a cloth that also carries a proxy sheet,
-        /// which is the case the per-NODE reader declines. CONTROLS: a chain no value is shared by more
-        /// than half of states the schema's own 1 and every joint states its own, and a static joint
-        /// contributes no reading either way.
+        /// A chain's <c>mass</c> default is the multiplier most of its simulating joints carry, sheet or no sheet, and
+        /// only the others state their own; an even split states 1 and every joint's own value.
         /// </summary>
-        /// <remarks>
-        /// READ 2026-09-20: `sub_1818DA270` reads <c>mass</c> through `sub_1818E12D0` into `auth+76`, and
-        /// that getter has no built-in default - on a miss it falls back to the document's own
-        /// <c>attrs["mass"]["default"]</c> (02_IMPORT 5.1d). 3.3's converter then takes `auth+76` only
-        /// under `auth+48`, so the default reaches exactly the joints that omit the key AND simulate.
-        /// MEASURED on dl `bookworm`, which omits <c>mass</c> on all 101 of its joints: the nodes whose
-        /// inverse mass differs from the original go from 69 to 3, with no node made worse and no new
-        /// difference, and `m_NodeInvMasses` leaves the row's defect key set.
-        /// The refusal the reading widens is correct for a sheet VERTEX, whose own element term cannot be
-        /// told from the rod pass, and over-broad for a chain JOINT's bone node, whose whole term is its
-        /// rods: 68 of bookworm's 70 simulating joint nodes recover their authored value exactly.
-        /// </remarks>
         [Test]
         public async Task AChainStatesTheMassMostOfItsJointsCarry()
         {
-            // Four joints hanging off a static root on rods of length 3, which credit each end 8 per unit,
-            // so an interior node weighs 48 and the tip 24 before the multiplier squares into it. The
-            // sheet vertex carries no rod and is there only to make the cloth one with a proxy sheet.
             static FeModel Sheeted(params float[] multipliers) => Chain(true, multipliers);
 
             static FeModel Chain(bool sheet, params float[] multipliers) => SyntheticCloth.Parse($$"""
@@ -7371,7 +6758,6 @@ namespace Tests
             static float Default(FeModel feModel)
                 => feModel.RecoverChainMassDefault(feModel.BuildBoneChains()[0]);
 
-            // The joints whose own row has to state the key, by name, against the chain's own default.
             static string Stated(FeModel feModel)
             {
                 var chain = feModel.BuildBoneChains()[0];
@@ -7383,49 +6769,31 @@ namespace Tests
 
             using (Assert.Multiple())
             {
-                // THE LAW, over three multipliers spanning the key's range. Every joint agrees, so the
-                // chain states the value and no joint row repeats it.
                 await Assert.That(Default(Sheeted(0.5f, 0.5f, 0.5f, 0.5f))).IsEqualTo(0.5f).Within(1e-3f);
                 await Assert.That(Default(Sheeted(1f, 1f, 1f, 1f))).IsEqualTo(1f).Within(1e-3f);
                 await Assert.That(Default(Sheeted(2f, 2f, 2f, 2f))).IsEqualTo(2f).Within(1e-3f);
                 await Assert.That(Stated(Sheeted(0.5f, 0.5f, 0.5f, 0.5f))).IsEqualTo(string.Empty);
                 await Assert.That(Stated(Sheeted(2f, 2f, 2f, 2f))).IsEqualTo(string.Empty);
 
-                // A MAJORITY, which is dl `bookworm`'s `hair` shape: the odd joint out states its own key
-                // and the other three read the chain's.
                 await Assert.That(Default(Sheeted(0.5f, 0.5f, 0.5f, 2f))).IsEqualTo(0.5f).Within(1e-3f);
                 await Assert.That(Stated(Sheeted(0.5f, 0.5f, 0.5f, 2f))).IsEqualTo("j4");
 
-                // CONTROL: an even split shares no value with more than half the chain, so the chain
-                // states the schema's own 1 and every joint states its own.
                 await Assert.That(Default(Sheeted(0.5f, 0.5f, 2f, 2f))).IsEqualTo(1f).Within(1e-3f);
                 await Assert.That(Stated(Sheeted(0.5f, 0.5f, 2f, 2f))).IsEqualTo("j1 j2 j3 j4");
 
-                // CONTROL: the same chain WITHOUT a proxy sheet reads the same value. The widening adds
-                // the sheeted case and leaves the case the node reader already handled exactly as it was.
                 await Assert.That(Default(Chain(false, 0.5f, 0.5f, 0.5f, 0.5f))).IsEqualTo(0.5f).Within(1e-3f);
 
-                // CONTROL: a static node carries no reading, so the root contributes none.
                 await Assert.That(Sheeted(1f, 1f, 1f, 1f).RecoverJointMassMultiplier(0)).IsNull();
             }
         }
 
         /// <summary>
-        /// Under <c>explicit_masses</c> an inverse mass of exactly 1 is a node the source gave a mass of
-        /// 1, not the weighed-nothing sentinel, so the chain reads it as a value and states it like any
-        /// other. CONTROL: on the geometric path the same inverse mass IS the sentinel and stays unread.
+        /// Under <c>explicit_masses</c> an inverse mass of 1 reads as a mass of 1; on a geometric chain it stays
+        /// unread.
         /// </summary>
-        /// <remarks>
-        /// The sentinel test predates the chain-level default and was masked by it: while every chain
-        /// stated a flat 1, a joint skipped as a sentinel omitted the key and read back 1 by accident.
-        /// Once the chain states the value its joints agree on, a skipped joint reads the CHAIN's default
-        /// instead, and synth `kexplicit_mass_split` (authored 1 / 0.5 / 1) recovers 0.5 on all three.
-        /// </remarks>
         [Test]
         public async Task AnExplicitMassOfOneIsAValueAndNotTheWeighedNothingSentinel()
         {
-            // The compiled explicit-mass chain of `AnExplicitMassChainIsReadOffItsMassProportionalRodWeights`:
-            // authored masses 1 / 0.5 / 1 over joints 2, 4 and 6, which is synth `kexplicit_mass_split`.
             var explicitChain = SyntheticCloth.Parse(ExplicitMassChainText);
             var geometric = SyntheticCloth.Parse(ExplicitMassChainText
                 .Replace("flWeight0 = 0.333333", "flWeight0 = 0.5", StringComparison.Ordinal)
@@ -7433,8 +6801,6 @@ namespace Tests
 
             using (Assert.Multiple())
             {
-                // The two mass-1 joints are READ rather than skipped, so the chain's own default is the 1
-                // that two of its three joints carry and only the 0.5 joint states a key.
                 await Assert.That(explicitChain.RecoverJointMassMultiplier(2)!.Value).IsEqualTo(1f).Within(1e-4f);
                 await Assert.That(explicitChain.RecoverJointMassMultiplier(6)!.Value).IsEqualTo(1f).Within(1e-4f);
                 await Assert.That(explicitChain.RecoverChainMassDefault(explicitChain.BuildBoneChains()[0]))
@@ -7442,32 +6808,19 @@ namespace Tests
                 await Assert.That(explicitChain.RecoverJointMass(4, 1f)!.Value).IsEqualTo(0.5f).Within(1e-4f);
                 await Assert.That(explicitChain.RecoverJointMass(2, 1f)).IsNull();
 
-                // CONTROL: the same inverse masses on a GEOMETRIC chain, where 1 IS the sentinel for a
-                // node that weighed nothing and stays unread.
                 await Assert.That(geometric.HasExplicitMasses).IsFalse();
                 await Assert.That(geometric.RecoverJointMassMultiplier(2)).IsNull();
             }
         }
 
-        // A bare sheet carrying only what the corner padding reads: a cloth_enable pattern and a face list.
+        /// <summary>A sheet with only a <c>cloth_enable</c> pattern and faces.</summary>
         private static FeModel.ProxyMesh CornerSheet(float[] enable, List<int[]> faces)
             => SyntheticCloth.Proxy([.. Enumerable.Range(0, enable.Length)], enable, faces);
 
         /// <summary>
-        /// A hinge's fan element is kept out of the sheet recovery whether or not the hinge carries limits
-        /// or an anchor, while the set a rigid <c>ClothChainHinge</c> is re-declared from keeps excluding
-        /// both. The compiler emits the fan from the hinge flag alone, so a limited hinge's fan is chain
-        /// geometry exactly as a rigid one's is. CONTROLS: a hinge with neither term stays in both sets,
-        /// and a face naming a sheet vertex is no hinge fan on any of them.
+        /// A hinge's fan face is chain geometry with or without limits or an anchor, while only a plain hinge stays in
+        /// the rigid hinge set; a face on a sheet vertex is no fan.
         /// </summary>
-        /// <remarks>
-        /// READ 2026-09-20: `sub_1818DF340` sets the fan flag `joint+137` for a
-        /// `hinge_constraint_vector_worldspace` of length &gt;= 0.001 with `hinge_constraint_soft` unset,
-        /// and nothing on `sub_1818DEC20`'s bit-4 branch reads a limit. The two exclusion terms come from
-        /// `sub_1818DB870`, whose limits record is built for every child inside
-        /// `max(0, limit_cw) + max(0, limit_ccw) &lt; 355` while the `$ha_` anchor needs a chain ROOT with a
-        /// two-member ring besides, so the anchor never appears without the record on a ring of two.
-        /// </remarks>
         [Test]
         public async Task AHingesFanIsChainGeometryWhetherOrNotItIsLimited()
         {
@@ -7481,18 +6834,14 @@ namespace Tests
 
             using (Assert.Multiple())
             {
-                // CONTROLS: the hinge the old set already held is still a fan face and still re-declarable,
-                // and a face standing on a sheet vertex is no fan on any arm.
                 await Assert.That(plain.IsHingeFanFace(fan)).IsTrue();
                 await Assert.That(plain.RigidHingeJoints.ContainsKey(2)).IsTrue();
                 await Assert.That(plain.IsHingeFanFace(overSheet)).IsFalse();
 
-                // CONTROL: the re-authoring set is untouched - a limited or anchored hinge is not rigid.
                 await Assert.That(limited.RigidHingeJoints.ContainsKey(2)).IsFalse();
                 await Assert.That(anchored.RigidHingeJoints.ContainsKey(2)).IsFalse();
                 await Assert.That(both.RigidHingeJoints.ContainsKey(2)).IsFalse();
 
-                // The law: each exclusion term on its own, and the two together, still leave a fan face.
                 await Assert.That(limited.IsHingeFanFace(fan)).IsTrue();
                 await Assert.That(anchored.IsHingeFanFace(fan)).IsTrue();
                 await Assert.That(both.IsHingeFanFace(fan)).IsTrue();
@@ -7505,28 +6854,13 @@ namespace Tests
         private static readonly string[] VoicedRunMembers = ["root", "a", "b", "c", "d"];
 
         /// <summary>
-        /// A run whose second declaration VOICED a <c>twist_relax</c> of its own is re-declared whole:
-        /// its members are the bones a DOUBLED twist pair names, its root is the member no other member
-        /// parents, and a STATIC INTERMEDIATE inside it does not split it into two declarations.
-        /// Each declaration then states the twist of its OWN rank.
-        /// CONTROLS: a run BOTH declarations simulated is left alone, and an undoubled run keeps the
-        /// landed silent reading.
+        /// A doubled twist run is marked for a second declaration under its topmost root despite a static intermediate,
+        /// and each declaration states its own rank's <c>twist_relax</c>; a run both declarations simulated is not
+        /// marked.
         /// </summary>
-        /// <remarks>
-        /// The compiler appends one twist entry per declaration with no duplicate check, so rank 0 is
-        /// the first declaration's value and rank 1 the second's (02_IMPORT W41AT-1).
-        /// The static intermediate is what `1543967dc` got wrong: rooting at the nearest STATIC
-        /// ANCESTOR fragmented dl `unicorn_celeste`'s two authored chains into six, and each fragment's
-        /// first member lost the bend rod it states toward a grandparent outside its own chain
-        /// (`sub_1818DCC40`'s ancestor walk is confined to the declaring chain, guarded by `v115 > 2`).
-        /// MEASURED: 25 joints per declaration against the authored PonyR / PonyL, and 6 against
-        /// bookworm's TwinTailR / TwinTailL.
-        /// </remarks>
         [Test]
         public async Task AVoicedRunIsReDeclaredWholeAndEachDeclarationStatesItsOwnRank()
         {
-            // root and `b` are static, so `b` is an intermediate INSIDE the run - the shape that
-            // fragmented unicorn. The static nodes lead, as a compiled file orders them.
             static FeModel Run(float firstChildWard) => SyntheticCloth.Model(
                 ["root", "b", "a", "c", "d"], staticNodes: 2, parents: [-1, 2, 0, 1, 3],
                 poses: [new(0f, 0f, 0f), new(0f, 0f, -20f), new(0f, 0f, -10f), new(0f, 0f, -30f), new(0f, 0f, -40f)],
@@ -7563,26 +6897,19 @@ namespace Tests
                     chain: chain, secondDeclaration: second).GetFloatProperty("twist_relax");
             }
 
-            // The first declaration did not simulate the run, so its own child-ward copy is 0.
             var voiced = Run(0f);
-            // CONTROL: both declarations simulated, so the first's child-ward copy carries its value.
             var bothSimulating = Run(0.3056f);
 
             using (Assert.Multiple())
             {
-                // THE LAW, membership: every member carries the SAME root, the topmost one - the static
-                // intermediate `b` does not start a declaration of its own.
                 await Assert.That(Roots(voiced)).IsEquivalentTo(
                     ["root", "root", "root", "root", "root"], CollectionOrdering.Matching);
                 await Assert.That(voiced.BuildBoneChains()[0].Joints.Select(static joint => joint.Name))
                     .IsEquivalentTo(VoicedRunMembers, CollectionOrdering.Any);
 
-                // THE LAW, ranks: the first declaration states rank 0 and the second states rank 1.
                 await Assert.That(Declared(voiced, "a", second: false)).IsEqualTo(0.8f).Within(1e-3f);
                 await Assert.That(Declared(voiced, "a", second: true)).IsEqualTo(0.35f).Within(1e-3f);
 
-                // CONTROL: a run both declarations simulated is NOT re-declared - re-declaring it under
-                // `firstOfTwo` would halve the rods the two passes build.
                 await Assert.That(Roots(bothSimulating)).IsEquivalentTo(
                     ["<unmarked>", "<unmarked>", "<unmarked>", "<unmarked>", "<unmarked>"],
                     CollectionOrdering.Matching);
@@ -7590,18 +6917,9 @@ namespace Tests
         }
 
         /// <summary>
-        /// A run declared twice is re-declared on the PROXY SHEET route as well as on the chain route.
-        /// The first declaration states <c>simulate = false</c> on every member below the root, so a
-        /// route that marks the run and emits no second declaration compiles it STATIC.
-        /// CONTROL: the same sheet with ONE declaration of the run emits no second declaration at all.
+        /// On the proxy sheet route a run declared twice gets its second declaration and simulates, its root staying
+        /// static; a single declaration emits none.
         /// </summary>
-        /// <remarks>
-        /// `EmitCloth` routes a model carrying proxy meshes to `EmitProxySheetClothPhase`, which emitted
-        /// `MakeClothChainNode` and `MakeClothChainRestatement` and never `MakeClothChainSecondDeclarations`.
-        /// MEASURED on the fixture's own round trip: m_nStaticNodes 10 in the original, 13 without the
-        /// second declaration, 10 with it; rods 54 / 51 / 54; three node masses reading 0.000000 against
-        /// the original's 0.007353 / 0.007353 / 0.014706.
-        /// </remarks>
         [Test]
         public async Task AMarkedRunIsReDeclaredOnTheSheetRouteToo()
         {
@@ -7612,8 +6930,6 @@ namespace Tests
                 return new ModelExtract(resource, new NullFileLoader()).ToValveModel();
             }
 
-            // The LAST declaration of a bone wins its node, so the run simulates only if the second
-            // declaration exists and states it.
             static string LastSimulate(string document, string bone)
             {
                 var simulate = "<no declaration>";
@@ -7641,24 +6957,22 @@ namespace Tests
 
             using (Assert.Multiple())
             {
-                // THE LAW: the sheet route emits the run's second declaration, and the run simulates.
                 await Assert.That(redeclared).Contains("coattail_0_L_second");
                 await Assert.That(members.Select(bone => LastSimulate(redeclared, bone)))
                     .IsEquivalentTo(simulating, CollectionOrdering.Matching);
 
-                // The run's ROOT is static in both declarations, which is what carries the run's own
-                // parent rod: the law re-declares the run, it does not simulate everything in it.
                 await Assert.That(LastSimulate(redeclared, "coattail_0_L")).IsEqualTo("false");
 
-                // CONTROL, predicate false: one declaration of the same run beside the same sheet.
                 await Assert.That(single).DoesNotContain("_second");
                 await Assert.That(members.Select(bone => LastSimulate(single, bone)))
                     .IsEquivalentTo(simulating, CollectionOrdering.Matching);
             }
         }
 
-        // The hinge fan of "hat" over its child "hat_end", with either exclusion term switchable. Index 6
-        // is a sheet vertex the fan never names, so a face reaching it is the predicate-false control.
+        /// <summary>
+        /// The hinge fan of "hat" over "hat_end" with switchable limits and anchor; node 6 is a sheet vertex the fan
+        /// never names.
+        /// </summary>
         private static FeModel HingeFanGate(bool limits, bool anchor) => SyntheticCloth.Parse($$"""
             {
                 m_CtrlName = [ "$cchat_0", "$cchat_1", "hat", "$cchat_end_0", "$cchat_end_1", "hat_end",
@@ -7692,14 +7006,8 @@ namespace Tests
             """);
 
         /// <summary>
-        /// A proxy vertex is a virtual node, so the compiler admits a PINNED one to <c>m_NodeBases</c> only through the
-        /// border pass, which runs under <c>flex_cloth_borders</c> and writes the basis flag only when
-        /// <c>add_bones_to_render_mesh</c> is set too; the <c>cloth_anchor_free_rotate</c> paint frees the same pin
-        /// without a basis. A back-solving sheet whose freed pins carry bases therefore states the flag outright, and
-        /// the anchor-parent chain has nothing to add to it - here the pins anchor on a static control whose skeleton
-        /// parent is no control node at all, which is the shape that otherwise refuses the flag. The controls: the same
-        /// sheet with no pin bases stays refused, a sheet whose face reaches no pin has no witness to state, and the
-        /// non-back-solving arm is unchanged.
+        /// A back-solving sheet whose freed pins carry node bases states <c>flex_cloth_borders</c>; pins without bases,
+        /// or a face reaching no pin, do not.
         /// </summary>
         [Test]
         public async Task ABackSolvedSheetTakesFlexClothBordersFromItsPinsOwnNodeBases()
@@ -7725,7 +7033,6 @@ namespace Tests
             var quad = Sheet([[0, 1, 3, 2]]);
             var flexed = Model(Base(1) + Base(2));
             var painted = Model(string.Empty);
-            // One simulated corner, so the flag reaches no pin and the pins' bases speak for nothing.
             var unreached = Sheet([[0, 1, 2]]);
 
             using (Assert.Multiple())
@@ -7741,20 +7048,9 @@ namespace Tests
         }
 
         /// <summary>
-        /// A hinge whose child extrudes no ring fans out over a TRIANGLE rather than a quad, and that
-        /// triangle is as much a rigid hinge link as a quad is - so the chain is re-declared with a HARD
-        /// hinge link and keeps its fan. CONTROLS: a quad still counts (the path this law does not
-        /// touch); a triangle authored over the chain's own BONES, which does not span the hinge's ring,
-        /// counts for nothing; and a chain with no surface element at all has no rigid hinge link.
+        /// A hinge over a ringless child fanning over a triangle is a rigid hinge link, as a quad is; a triangle over
+        /// bones only, or no surface element, is not.
         /// </summary>
-        /// <remarks>
-        /// READ 2026-09-22: `sub_1818DEC20`'s bit-4 branch (the branch the hard-hinge flag `joint+137`
-        /// selects) builds its record from `2 + (v15 != 0) + (v16 != 0)` corners, so a two-node hinge ring
-        /// against a two-node child ring gives four and against a RINGLESS child's single-member list
-        /// gives three, with the last corner repeated. It appends no rod on either. `sub_1818DF340` sets
-        /// `joint+137` only where `hinge_constraint_soft` is absent or false, so a hinge re-declared soft
-        /// emits no fan element at all and its spans build ordinary rods instead.
-        /// </remarks>
         [Test]
         public async Task AHingeOverARinglessChildFansOutOverATriangleAndIsStillARigidHingeLink()
         {
@@ -7765,8 +7061,6 @@ namespace Tests
 
             using (Assert.Multiple())
             {
-                // The fixture has to reach the predicate at all: one chain, the hinge at its root with a
-                // two-node ring, a ringless child under it, and rods the hinge did not replace.
                 var chain = fan.BuildBoneChains()[0];
                 await Assert.That(string.Join(",", chain.Joints.Select(static joint => joint.Name)))
                     .IsEqualTo("hat,hat_end,hat_tip");
@@ -7774,25 +7068,20 @@ namespace Tests
                 await Assert.That(fan.ProxyCountOf(4)).IsEqualTo(0);
                 await Assert.That(fan.HasChainRods(chain)).IsTrue();
 
-                // THE LAW: the triangle over the hinge's own ring is a rigid hinge link.
                 await Assert.That(fan.HasRigidHingeLink(chain)).IsTrue();
 
-                // CONTROL: a triangle the document authored over three chain BONES reaches the same two
-                // joints and does NOT span the ring, so it says nothing about the hinge.
                 await Assert.That(authoredOverBones.HasRigidHingeLink(
                     authoredOverBones.BuildBoneChains()[0])).IsFalse();
 
-                // CONTROL: no surface element at all, which is a genuinely soft hinge link.
                 await Assert.That(noSurface.HasRigidHingeLink(noSurface.BuildBoneChains()[0])).IsFalse();
 
-                // CONTROL: the quad path is untouched.
                 await Assert.That(quad.HasRigidHingeLink(quad.BuildBoneChains()[0])).IsTrue();
             }
         }
 
-        // A limited hinge on the chain root "hat" whose child "hat_end" extrudes nothing, so the fan the
-        // compiler builds over it is a triangle. The rod on the lower link is what keeps the chain's own
-        // rods visible, as a hard hinge replaces only the link it spans.
+        /// <summary>
+        /// A limited hinge on the chain root "hat" over a ringless "hat_end", so its fan is a triangle.
+        /// </summary>
         private static FeModel HingeTriGate(string tris, string quads) => SyntheticCloth.Model(
             ["$ha_hat", "$cchat_0", "$cchat_1", "hat", "hat_end", "hat_tip"], staticNodes: 4, parents: [3, 3, 3, -1, 3, 4],
             poses: [new(0f, 0f, 0f), new(0f, -10f, 0f), new(0f, 10f, 0f), new(0f, 0f, 0f), new(8f, 0f, 0f), new(16f, 0f, 0f)],
@@ -7809,19 +7098,9 @@ namespace Tests
                 """);
 
         /// <summary>
-        /// An authored <c>ClothSpring</c> over a pair the chain ALSO spans does not replace that span: the
-        /// compiler appends both rods and merges neither, so the joint keeps its stretch slider and the
-        /// spring re-declares only the SURPLUS copy. CONTROL: a spring on a pair carrying its own rod
-        /// alone still switches the chain's span off and still takes the whole count, which is the shape
-        /// the reading was written for.
+        /// A spring over a pair the chain also spans keeps the joint's stretch and declares only the surplus copy; a
+        /// spring on a pair with its own rod alone zeroes the span.
         /// </summary>
-        /// <remarks>
-        /// MEASURED 2026-09-22 on synth `w41hi_probe_cluster_two_member_sprung`: its original carries the
-        /// pair `coattail_1_L / coattail_2_L` TWICE, field for field, where the same chain with a cluster
-        /// in place of the spring carries it once. Zeroing the slider there cost four rods - the joint's
-        /// own ring-circumference rod and its three cross-span rods - and none of them was the span the
-        /// zero was aimed at.
-        /// </remarks>
         [Test]
         public async Task ASpringOverAChainSpanAddsARodRatherThanReplacingIt()
         {
@@ -7833,31 +7112,24 @@ namespace Tests
 
             using (Assert.Multiple())
             {
-                // The fixture has to reach the predicate: one chain of three joints, with the spring on
-                // the LAST joint's parent link.
                 await Assert.That(string.Join(",", doubledChain.Joints.Select(static joint => joint.Name)))
                     .IsEqualTo("j0,j1,j2,j3");
                 await Assert.That(doubled.SourceSprings.Length).IsEqualTo(1);
 
-                // THE LAW: the chain keeps its own span on a doubled pair, and the spring takes only the
-                // surplus copy rather than the whole count.
                 await Assert.That(doubledChain.Joints[2].StretchStiffness).IsNotEqualTo(0f);
                 await Assert.That(doubled.GetAuthoredSourceSprings([doubledChain])
                     .Select(static spring => spring.Copies).Sum()).IsEqualTo(1);
 
-                // CONTROL: one rod on the pair is the spring's own, so the chain's span still goes and the
-                // spring still declares every copy.
                 await Assert.That(singleChain.Joints[2].StretchStiffness).IsEqualTo(0f);
                 await Assert.That(single.GetAuthoredSourceSprings([singleChain])
                     .Select(static spring => spring.Copies).Sum()).IsEqualTo(1);
             }
         }
 
-        // The reproducer's own compiled shape at synth scale: four chain joints each extruding a
-        // one-node ring, the full cross-product rod set between consecutive extrusions, and a two-corner
-        // source element on the bone pair (j1, j2). The rings are what make this fixture able to express
-        // the law at all - a bare three-node chain lets the joint's OWN extra_iterations recovery absorb
-        // the second rod, and then no surplus is left for the spring to declare.
+        /// <summary>
+        /// Four chain joints with one-node rings, rods between consecutive extrusions and a two-corner source element on
+        /// (j1, j2); <paramref name="secondRodOnThePair"/> doubles that pair's rod.
+        /// </summary>
         private static FeModel SpringOverASpan(bool secondRodOnThePair) => SyntheticCloth.Model(
             ["j0", "$ccj0_0", "j1", "$ccj1_0", "j2", "$ccj2_0", "j3", "$ccj3_0"], staticNodes: 2,
                 parents: [-1, 0, 0, 2, 2, 4, 4, 6],
@@ -7894,46 +7166,29 @@ namespace Tests
                 """);
 
         /// <summary>
-        /// A stiff hinge's stiffness is the bend weights' own linear combination,
-        /// <c>(End0Weight + End1Weight - 2*MidWeight) / 3</c>, not the largest weight over its node's mass
-        /// share. The two agree only where the three role weights are equal, which is where the joint's
-        /// <c>motion_bias</c> and its parent's are both zero. CONTROL: an unbiased bend over the same
-        /// unequal masses recovers the same stiffness either way.
+        /// A stiff hinge's stiffness is <c>(End0Weight + End1Weight - 2 * MidWeight) / 3</c>, biased or not, with the
+        /// angle and motion bias unchanged.
         /// </summary>
-        /// <remarks>
-        /// The compiler spreads the stiffness as <c>3 * relax * [-2*w0, w1, w2] / (4*w0 + w1 + w2)</c> with
-        /// each <c>w</c> an inverse mass times its role weight, so the combination cancels both. MEASURED
-        /// 2026-09-22 on deadlock `wraith`, whose joints carry `motion_bias` 0.25: all 13 records state
-        /// `stiff_hinge` 0.2 on the ponytail and 0.1 on the sleeves, and the mass-share reading gives
-        /// 0.190987 to 0.256787 across them.
-        /// </remarks>
         [Test]
         public async Task AStiffHingeStiffnessIsTheBendWeightsLinearCombination()
         {
-            // motion_bias 0.5 on the joint and its parent gives the role weights (0.5, 1, 0.25), which
-            // against the inverse masses (2, 1, 4) make all three products 1 and the weights (-0.5, 0.25,
-            // 0.25) at a stiffness of 0.5.
             var biased = BiasedKelagerModel("-0.5, 0.25, 0.25").GetStiffHinge(1);
             var unbiased = BiasedKelagerModel("-0.4615385, 0.1153846, 0.4615385").GetStiffHinge(1);
 
             using (Assert.Multiple())
             {
-                // CONTROL: equal role weights, the same unequal masses, the same stiffness either way.
                 await Assert.That(unbiased?.Stiffness ?? float.NaN).IsEqualTo(0.5f).Within(1e-4f);
 
-                // CONTROL: neither the angle nor the full-bias reading moves with the stiffness.
                 await Assert.That(biased?.Angle ?? float.NaN).IsEqualTo(120f).Within(0.01f);
                 await Assert.That(unbiased?.Angle ?? float.NaN).IsEqualTo(120f).Within(0.01f);
                 await Assert.That(biased?.MotionBias ?? float.NaN).IsEqualTo(0f);
                 await Assert.That(unbiased?.MotionBias ?? float.NaN).IsEqualTo(0f);
 
-                // THE LAW.
                 await Assert.That(biased?.Stiffness ?? float.NaN).IsEqualTo(0.5f).Within(1e-4f);
             }
         }
 
-        // One bend over three nodes of UNEQUAL inverse mass, so a reading that divides by a node's own
-        // share cannot agree with one that does not.
+        /// <summary>One bend over three nodes of unequal inverse mass.</summary>
         private static FeModel BiasedKelagerModel(string weights) => SyntheticCloth.Model(
             ["mid", "end0", "end1"], staticNodes: 0, parents: [-1, 0, 0], invMasses: "2.0, 1.0, 4.0",
             poses: [new(0f, 1f, 0f), new(-1f, 0f, 0f), new(1f, 0f, 0f)],
@@ -7945,19 +7200,9 @@ namespace Tests
                 """);
 
         /// <summary>
-        /// Every compiled bend height is raised to a 0.001 floor, so a height sitting on that floor states
-        /// no angle: it recovers as zero and recompiles to the same floor. CONTROL: the same near-collinear
-        /// triple with a height above the floor still recovers its angle.
+        /// A bend height on the 0.001 floor recovers a zero angle; a height above it recovers its angle, at the same
+        /// stiffness.
         /// </summary>
-        /// <remarks>
-        /// MEASURED 2026-09-22 on dotaout `nightstalker_night_slaughter_head_night`, whose third bend is
-        /// collinear to a rest height of 0.000011 and compiles `flHeight0` 0.001. Inverting an angle out of
-        /// that floor emitted `stiff_hinge_angle` 0.019782, which recompiled the height to 0.002302 instead
-        /// of 0.001 - the row's only differing scalar. That row's arms are 20 units long, where `9*h*h` is
-        /// below the float32 resolution of `l0*l0 + l1*l1` and the cosine is decided by rounding alone; the
-        /// fixture below uses unit arms instead, so the floored height inverts to a real angle and the
-        /// assertion is about the floor rather than about float noise.
-        /// </remarks>
         [Test]
         public async Task ABendHeightOnTheCompilerFloorStatesNoAngle()
         {
@@ -7966,19 +7211,15 @@ namespace Tests
 
             using (Assert.Multiple())
             {
-                // CONTROL: above the floor the same triple still states its angle, and neither fixture's
-                // stiffness moves with the height.
                 await Assert.That(aboveTheFloor?.Angle ?? float.NaN).IsGreaterThan(0f);
                 await Assert.That(onTheFloor?.Stiffness ?? float.NaN).IsEqualTo(1f).Within(1e-4f);
                 await Assert.That(aboveTheFloor?.Stiffness ?? float.NaN).IsEqualTo(1f).Within(1e-4f);
 
-                // THE LAW.
                 await Assert.That(onTheFloor?.Angle ?? float.NaN).IsEqualTo(0f);
             }
         }
 
-        // Three collinear nodes, so the triple's rest height is zero and the only floor the compiled height
-        // can be sitting on is the 0.001 one.
+        /// <summary>One bend over three collinear nodes.</summary>
         private static FeModel FlatKelagerModel(float height) => SyntheticCloth.Model(
             ["mid", "end0", "end1"], staticNodes: 0, parents: [-1, 0, 0],
             poses: [new(0f, 0f, 0f), new(-1f, 0f, 0f), new(1f, 0f, 0f)],
@@ -7990,19 +7231,14 @@ namespace Tests
                 """);
 
         /// <summary>
-        /// A sheet whose bend network states no paint at all still has to state a fold its own capped rods allow. This
-        /// grid's lower vertical hinge carries a rod at its rest span, which needs that hinge's two vertices painted to
-        /// 1 each, while its upper vertical hinge reads a fold of zero and pins the vertex the two share to 0 - so no
-        /// paint satisfies both and the model-wide value is the only thing left to meet the bound with. CONTROLS: with
-        /// that rod short of its rest span there is no bound to meet and the sheet keeps its zero; a sheet whose
-        /// suspenders read the model-wide value keeps it whatever its rods say; and a sheet whose paint solve does
-        /// recover something carries the bound in the paint and keeps its zero too.
+        /// A sheet whose capped rods no paint can satisfy states the fold they allow as its model-wide value; a loose
+        /// rod, kept curvature, or a recoverable paint keep it at zero.
         /// </summary>
         [Test]
         public async Task ASheetWithNoPaintStatesAFoldItsCappedRodsAllow()
         {
-            List<int[]> faces = [[0, 1, 5, 4], [1, 2, 6, 5], [2, 3, 7, 6], [4, 5, 9, 8], [5, 6, 10, 9], [6, 7, 11, 10]];
-            HashSet<(int, int)> network = [(0, 2), (1, 3), (4, 6), (5, 7), (8, 10), (9, 11), (0, 8), (1, 9), (2, 10), (3, 11)];
+            var faces = HingeGridFaces;
+            var network = HingeGridNetwork;
 
             var (bounded, boundedCurvature) = ClothExtract.ClothBendStiffnessOverFold(
                 CappedAgainstFlatHingeGrid(20f), faces, network, 0f, keepsCurvature: false);
@@ -8054,17 +7290,8 @@ namespace Tests
                 """);
 
         /// <summary>
-        /// A stiff hinge's bend is written once per DECLARATION, in declaration order, so a doubly
-        /// declared joint carries one bend per declaration and each declaration states the angle of its
-        /// OWN rank. CONTROL: rank 0 is unchanged, and a joint the original gives one bend has no rank 1,
-        /// which is what leaves a second declaration over a singly bent run stating nothing.
+        /// A joint bent twice states each declaration's own angle by rank; a joint bent once has no rank 1.
         /// </summary>
-        /// <remarks>
-        /// MEASURED 2026-09-22 on dl `bookworm`, whose original carries eight node triples TWICE with
-        /// identical weights and different heights. Its authored source declares the back bones in `Hair`
-        /// at `stiff_hinge_angle` 35 and again in `TwinTailR` / `TwinTailL` at 120, and the two compiled
-        /// heights stand in the ratio sin(60)/sin(17.5) = 2.8800 against a measured 2.881712 / 1.000603.
-        /// </remarks>
         [Test]
         public async Task EachDeclarationStatesTheBendOfItsOwnRank()
         {
@@ -8073,20 +7300,16 @@ namespace Tests
 
             using (Assert.Multiple())
             {
-                // CONTROL: rank 0 is the first declaration's bend on both fixtures.
                 await Assert.That(doubled.GetStiffHinge(1)?.Angle ?? float.NaN).IsEqualTo(35f).Within(0.05f);
                 await Assert.That(once.GetStiffHinge(1)?.Angle ?? float.NaN).IsEqualTo(35f).Within(0.05f);
 
-                // CONTROL: one bend means no rank 1, so a second declaration over it states nothing.
                 await Assert.That(once.GetStiffHinge(1, 1)).IsNull();
 
-                // THE LAW.
                 await Assert.That(doubled.GetStiffHinge(1, 1)?.Angle ?? float.NaN).IsEqualTo(120f).Within(0.05f);
             }
         }
 
-        // One joint bent once or twice over the same triple, the second bend at the wider angle: the
-        // compiled shape of a bone two chains both declare.
+        /// <summary>One joint bent once, or twice at a wider second angle.</summary>
         private static FeModel TwiceBentKelagerModel(float first, float? second) => SyntheticCloth.Model(
             ["mid", "joint", "end1"], staticNodes: 0, parents: [-1, 0, 0],
             poses: [new(0f, 0.2f, 0f), new(-1f, 0f, 0f), new(1f, 0f, 0f)],
@@ -8099,18 +7322,9 @@ namespace Tests
                 """);
 
         /// <summary>
-        /// A rod the compiler folds across an edge two faces share carries its endpoints' final inverse-mass ratio as
-        /// its weight, where a declared rod carries the one fixed at import. Such a rod between two chain joints says the
-        /// model was built with <c>add_stiffness_rods</c>, and with the switch on it comes back without being declared,
-        /// so it is no surplus: declaring it as a spring would add it to the mass pass and leave both endpoints heavier.
-        /// CONTROL: the same banded pair at the even split a declaration gets stays surplus, and a fan-weighted rod on a
-        /// pair no two faces fold is never read as the switch's.
+        /// A fold-weighted rod between chain joints reads as <c>add_stiffness_rods</c> and is no surplus; the
+        /// even-split rod, or a fan-weighted rod on an unfolded pair, is not the switch's.
         /// </summary>
-        /// <remarks>
-        /// MEASURED 2026-09-25 on dota `ringmaster_wheel_decoy`: its fans join joint bones, the chain phase stated
-        /// <c>add_stiffness_rods = false</c> and re-declared 26 of them as springs, and every differing node mass is
-        /// the original's plus eight times the length of the springs at it, on 22 of 22 nodes.
-        /// </remarks>
         [Test]
         public async Task ASurfaceFoldBetweenChainJointsIsTheSwitchsAndNoSurplus()
         {
@@ -8132,9 +7346,10 @@ namespace Tests
             }
         }
 
-        // A static root with a chain of two joints under it and a third under the second, two triangles over
-        // (root, a, b) and (root, b, c) folding across root-b, and one banded rod between a and c at the given weight.
-        // Without the fan pair the second triangle is (root, c, a) instead, which folds nothing onto a-c.
+        /// <summary>
+        /// A static root over joints a, b and c, two triangles folding across root-b, and a banded rod a-c at <paramref
+        /// name="weight"/>; without <paramref name="fanPair"/> nothing folds onto a-c.
+        /// </summary>
         private static FeModel FoldedChainModel(float weight, bool fanPair) => SyntheticCloth.Model(
             ["root", "a", "b", "c"], staticNodes: 1, parents: [-1, 0, 0, 2], invMasses: "0.0, 1.0, 1.0, 0.5",
             poses: [new(0f, 0f, 0f), new(-1f, 0f, -2f), new(0f, 0f, -2f), new(1f, 0f, -4f)],
@@ -8150,12 +7365,8 @@ namespace Tests
                 """);
 
         /// <summary>
-        /// The chain preset scans the joint's own vector and then its child's in the order the importer pushed them, unsorted,
-        /// and the scan keeps the later of two tied pairs. On the two-wide rope below j0's ring is compiled AFTER j1's, so a
-        /// sorted list meets the tied ring diagonals the other way round. In the importer's order j0's preset basis is
-        /// X = ($ccj1_0, $ccj0_1), Y = ($ccj1_1, $ccj0_0); sorted it would be X = ($ccj0_0, $ccj1_1), Y = ($ccj1_0, $ccj0_1). A
-        /// reverse offset on $ccj0_0 is therefore the version-2 record. CONTROL: the rope with its rings in creation order, and
-        /// the rope with no reverse offsets.
+        /// The version-2 preset scans rings in the importer's order, so a permuted rope's reverse offsets still read as
+        /// preset (version 2); the ordered rope reads the same and a bare rope reads nothing.
         /// </summary>
         [Test]
         public async Task ThePresetScansItsListInTheImportersOrder()
@@ -8169,17 +7380,15 @@ namespace Tests
 
             using (Assert.Multiple())
             {
-                // CONTROL: a list the sort leaves in place, and a chain with nothing to read.
                 await Assert.That(ordered.ChainReverseOffsetsArePreset(orderedChain)).IsTrue();
                 await Assert.That(bare.ChainReverseOffsetsArePreset(bareChain)).IsNull();
 
-                // THE LAW.
                 await Assert.That(permuted.ChainReverseOffsetsArePreset(permutedChain)).IsTrue();
                 await Assert.That(ClothExtract.ClothChainVersion(permuted, permutedChain, hasOtherChains: false)).IsEqualTo(2);
             }
         }
 
-        // TwoWideRope with j0's ring compiled after j1's; each joint's reverse offset names its own ring node _0.
+        /// <summary><see cref="TwoWideRope"/> with j0's ring compiled after j1's.</summary>
         private static FeModel PermutedTwoWideRope(bool offsets) => SyntheticCloth.Model(
             ["j0", "$ccj1_0", "$ccj1_1", "j1", "$ccj0_0", "$ccj0_1", "j2", "$ccj2_0", "$ccj2_1"], staticNodes: 0,
                 parents: [-1, 3, 3, 0, 0, 0, 3, 6, 6],
@@ -8191,18 +7400,9 @@ namespace Tests
                 """);
 
         /// <summary>
-        /// A surplus rod between two chains' joints that is the only rod on its pair, at relaxation 1.0 and weight 0.5,
-        /// with no two-corner source element on the pair and a length off the pair's rest distance, is a two-member
-        /// <c>ClothSelfCollisionCluster</c>'s rod (its summed radii) and is re-declared as one, not as a
-        /// <c>ClothSpring</c>. CONTROLS: the same rod with its two-corner source element is never a cluster, and a
-        /// rod at the pair's rest distance stays a spring.
+        /// A cross-chain surplus rod off its rest distance with no two-corner source element is a two-member cluster,
+        /// members reversed; a recorded pair or a rod at rest distance stays a spring.
         /// </summary>
-        /// <remarks>
-        /// MEASURED 2026-09-25 on synth `w41hi_probe_cluster_cross_chain`, whose authored cluster (collision radius
-        /// 6, stray radius 24 per member) compiles one rod 12 / 48 and no source element, and PROBED on dota
-        /// `phantom_assassin_emerald_kunoichi_back` and `tinker_cosmic_back`: a cluster in place of our spring
-        /// reproduces the rod set and drops the source element that made 2.18 grade the rope node.
-        /// </remarks>
         [Test]
         public async Task AnUnrecordedOffRestSurplusRodIsAClusterNotASpring()
         {
@@ -8212,13 +7412,10 @@ namespace Tests
 
             using (Assert.Multiple())
             {
-                // CONTROL: a declared spring is never re-declared as a cluster (the source-spring pass owns it).
                 await Assert.That(SurplusClasses(recorded)).DoesNotContain("ClothSelfCollisionCluster");
 
-                // CONTROL: a rod at the pair's rest distance keeps its ClothSpring.
                 await Assert.That(SurplusClasses(rest)).IsEquivalentTo(SpringOnly, CollectionOrdering.Matching);
 
-                // THE LAW, members listed rod-second-node first as the compiler reverses them.
                 await Assert.That(SurplusClasses(law)).IsEquivalentTo(ClusterOnly, CollectionOrdering.Matching);
                 await Assert.That(SurplusClusterMembers(law)).IsEquivalentTo(ReversedTie, CollectionOrdering.Matching);
             }
@@ -8244,8 +7441,9 @@ namespace Tests
             return children.Select(static c => c.Value.GetStringProperty("_class")).ToArray();
         }
 
-        // Two one-joint chains 20 apart with a rod between their joints; the source-element array is the four
-        // arity counts followed by the two-corner record, when one is given.
+        /// <summary>
+        /// Two one-joint chains 20 apart with a banded rod between their joints and the given source elements.
+        /// </summary>
         private static FeModel CrossChainTieModel(float min, float max, string sourceElems) => SyntheticCloth.Model(
             ["rootA", "rootB", "a1", "b1"], staticNodes: 2, parents: [-1, -1, 0, 1],
             poses: [new(0f, 0f, 0f), new(20f, 0f, 0f), new(0f, 0f, -10f), new(20f, 0f, -10f)],
@@ -8260,16 +7458,8 @@ namespace Tests
                 """);
 
         /// <summary>
-        /// A rod on a pair the surface folds weighed in the mass pass unless the compiler folded it: a fold between unequal
-        /// masses carries their final inverse-mass ratio as its weight, a declared rod does not. So a declared rod there
-        /// is part of its endpoints' geometric term, and reading it as a fold over-reads their mass multiplier.
-        /// CONTROL: the same pair carrying the fold's own weight, over masses that never counted it, still reads 1.
+        /// A rod on a folded pair, declared or folded, reads no mass multiplier on its endpoint.
         /// </summary>
-        /// <remarks>
-        /// MEASURED 2026-09-25 on dl `abrams_default`: its tail rings weigh exactly the sum of every rod they carry,
-        /// the export read 1.073767 for the chain's authored `mass` 1.0, and 1.073767 squared is the 1.153 the rebuilt
-        /// rings came back heavy by.
-        /// </remarks>
         [Test]
         public async Task ADeclaredRodOnAFoldedPairIsInTheMassPass()
         {
@@ -8283,8 +7473,10 @@ namespace Tests
             }
         }
 
-        // The FoldedChainModel layout with the far joint moved so the fold pair's masses differ. Declared: a-c weighed,
-        // at weight 0.5. Folded: a-c did not weigh, and carries the ratio of the masses that result.
+        /// <summary>
+        /// <see cref="FoldedChainModel"/> with unequal fold-pair masses: declared, a-c weighs at 0.5; folded, it carries
+        /// the mass ratio.
+        /// </summary>
         private static FeModel FoldedPairMassModel(bool folded) => SyntheticCloth.Parse($$"""
             {
                 m_CtrlName = [ "root", "a", "b", "c" ]
@@ -8311,18 +7503,9 @@ namespace Tests
             """);
 
         /// <summary>
-        /// A joint whose end_effector extrudes only a centre node keeps its own node on its first node list and
-        /// the centre on its second, so its bend and torsion spans run from the joint's own node to its
-        /// grandparent and great-grandparent, while the centre's run one joint nearer. CONTROL: the stretch
-        /// span reads the same either way.
+        /// A centre-only end effector's bend and torsion spans run from the joint's own node, reading 0.6 and 0.8; its
+        /// stretch reads 0.6.
         /// </summary>
-        /// <remarks>
-        /// READ: cs2 `sub_181962A60` (2026-09-23 index) pushes a joint below two sides onto its list at +0 and
-        /// its `$cc&lt;joint&gt;_Ctr` onto the list at +64; `sub_181960360` spans list +0 to the parent at
-        /// stretch_spring and to the grandparent at bend_spring, and list +64 to the parent at bend_spring and to
-        /// the grandparent at torsion_spring. The shape is dota `axe_lava_legion_commander_head`'s beard braids:
-        /// bend 0.6 and torsion 0.8 were read back as 0.8 and 1.0.
-        /// </remarks>
         [Test]
         public async Task ACentreOnlyEndEffectorsSpansRunFromTheJointsOwnNode()
         {
@@ -8347,19 +7530,16 @@ namespace Tests
 
             using (Assert.Multiple())
             {
-                // THE LAW.
                 await Assert.That(tip?.BendStiffness ?? -1f).IsEqualTo(0.6f).Within(1e-4f);
                 await Assert.That(tip?.TorsionStiffness ?? -1f).IsEqualTo(0.8f).Within(1e-4f);
 
-                // CONTROL.
                 await Assert.That(tip?.StretchStiffness ?? -1f).IsEqualTo(0.6f).Within(1e-4f);
             }
         }
 
         /// <summary>
-        /// A chain the original fits a joint of, where a version-2 preset would have given that joint a basis and a reverse
-        /// offset and so discarded its fit group, was compiled below version 2. The CONTROLS are the same rope with no fit
-        /// matrix and with the fit on its leaf, which no preset reaches, both still read at version 2.
+        /// A fit matrix on a joint the version-2 preset would offset reads below version 2; no fit, or a fit on the
+        /// leaf, keeps 2.
         /// </summary>
         [Test]
         public async Task AFitMatrixOnAJointThePresetWouldOffsetRulesOutVersion2()
@@ -8373,16 +7553,17 @@ namespace Tests
 
             using (Assert.Multiple())
             {
-                // CONTROLS: nothing fitted, and a fit only on the leaf.
                 await Assert.That(ClothExtract.ClothChainVersion(bare, bareChain, hasOtherChains: false)).IsEqualTo(2);
                 await Assert.That(ClothExtract.ClothChainVersion(leaf, leafChain, hasOtherChains: false)).IsEqualTo(2);
 
-                // THE LAW.
                 await Assert.That(ClothExtract.ClothChainVersion(fitted, fittedChain, hasOtherChains: false)).IsLessThan(2);
             }
         }
 
-        // TwoWideRope with no reverse offsets and, where named, a fit matrix on that node over the rope's eight ring nodes.
+        /// <summary>
+        /// <see cref="TwoWideRope"/> without reverse offsets and, where given, a fit matrix on <paramref name="fitNode"/>
+        /// over the ring nodes.
+        /// </summary>
         private static FeModel TwoWideRopeFitting(int? fitNode) => SyntheticCloth.Model(
             ["j0", "$ccj0_0", "$ccj0_1", "j1", "$ccj1_0", "$ccj1_1", "j2", "$ccj2_0", "$ccj2_1"], staticNodes: 0,
                 parents: [-1, 0, 0, 0, 3, 3, 3, 6, 6],
@@ -8397,16 +7578,9 @@ namespace Tests
                 """);
 
         /// <summary>
-        /// A face-kept sheet whose own faces the compiler folded across carries the folds' final inverse-mass ratios as
-        /// their weights, so the sheet was built with <c>add_stiffness_rods</c> on: the switch is stated and the folded
-        /// pairs are left to the compiler rather than declared as springs, which would weigh in the mass pass.
-        /// CONTROL: the same banded pairs at the even split a declaration gets leave the switch off and stay declared.
+        /// Fold-weighted rods on a face-kept sheet read as <c>add_stiffness_rods</c> and are derived; even-split rods
+        /// leave the switch off.
         /// </summary>
-        /// <remarks>
-        /// MEASURED 2026-09-25 on dotaout `spectre`: 150 face-kept quads, `add_stiffness_rods = false`, 256 declared
-        /// springs whose every original record is a fold, and 208 of 208 differing node masses exactly the original's
-        /// plus eight times the springs' length at them.
-        /// </remarks>
         [Test]
         public async Task AFaceKeptSheetsFoldsAreTheSwitchsAndNoSprings()
         {
@@ -8433,8 +7607,10 @@ namespace Tests
             }
         }
 
-        // Three quads down a two-wide sheet under a static top row, kept as solve elements, and a banded rod across the
-        // middle quad's two far rows at the given weight on each side.
+        /// <summary>
+        /// Three face-kept quads under a static top row and banded rods across the middle quad at <paramref
+        /// name="weight"/>.
+        /// </summary>
         private static FeModel FoldedSheetModel(float weight) => SyntheticCloth.Model(
             ["$cloth_m0p0", "$cloth_m0p1", "$cloth_m0p2", "$cloth_m0p3", "$cloth_m0p4", "$cloth_m0p5", "$cloth_m0p6", "$cloth_m0p7"],
                 staticNodes: 2, invMasses: "0.0, 0.0, 0.1, 0.1, 0.08, 0.08, 0.05, 0.05",
@@ -8455,24 +7631,19 @@ namespace Tests
                 """);
 
         /// <summary>
-        /// A bend rod reaches its minimum through ONE of the hinges that generate it and sits at or above it through the rest, so
-        /// the paint solve has to choose which hinge sets each rod. Holding every hinge at the largest sum any rod states through
-        /// it over-constrains a sheet where two rods share hinges; holding only the hinges that cover every rod and bounding the
-        /// rest from below recovers a paint that folds every rod back to its minimum. The sheet is dota
-        /// `blue_wintermoon_mount`'s, copied from the compiled original: 27 network rods, 25 of them capped. CONTROLS: a sheet
-        /// whose first solve already recovers a paint keeps it, and a sheet no paint can explain still states a fold its capped
-        /// rods allow and no paint.
+        /// The paint solve holds only the hinges that set each rod, so every capped network rod folds back to its
+        /// minimum; recoverable and unexplainable sheets behave as before.
         /// </summary>
         [Test]
         public async Task APaintSolveHoldsOnlyTheHingesThatSetItsRods()
         {
             List<int[]> faces = [[6, 0, 7], [16, 6, 7, 17], [1, 8, 9], [18, 17, 9, 8], [16, 17, 18], [2, 10, 11], [16, 19, 11, 10], [18, 12, 13, 19], [12, 3, 13], [16, 18, 19], [20, 22, 23, 21], [4, 14, 15, 5], [14, 20, 21, 15], [22, 24, 25, 23], [24, 26, 27, 25], [26, 28, 27]];
             HashSet<(int, int)> network = [(0, 16), (0, 17), (1, 17), (1, 18), (2, 16), (2, 19), (3, 18), (3, 19), (4, 20), (5, 21), (6, 18), (7, 18), (8, 16), (9, 16), (10, 18), (11, 18), (12, 16), (13, 16), (14, 22), (15, 23), (17, 19), (20, 24), (21, 25), (22, 26), (23, 27), (24, 28), (25, 28)];
-            var sheet = WintermoonSheet;
+            var sheet = PaintSolveSheet;
             var (paint, curvature) = ClothExtract.ClothBendStiffnessOverFold(sheet, faces, network, 0.9939643f, keepsCurvature: false);
 
-            List<int[]> gridFaces = [[0, 1, 5, 4], [1, 2, 6, 5], [2, 3, 7, 6], [4, 5, 9, 8], [5, 6, 10, 9], [6, 7, 11, 10]];
-            HashSet<(int, int)> gridNetwork = [(0, 2), (1, 3), (4, 6), (5, 7), (8, 10), (9, 11), (0, 8), (1, 9), (2, 10), (3, 11)];
+            var gridFaces = HingeGridFaces;
+            var gridNetwork = HingeGridNetwork;
             var (painted, paintedCurvature) = ClothExtract.ClothBendStiffnessOverFold(
                 LeastFoldedHingeGrid, gridFaces, gridNetwork, 0.375f, keepsCurvature: false);
             var (bounded, boundedCurvature) = ClothExtract.ClothBendStiffnessOverFold(
@@ -8480,20 +7651,20 @@ namespace Tests
 
             using (Assert.Multiple())
             {
-                // CONTROL: a paint the existing solve recovers, and a sheet no paint explains.
                 await Assert.That(painted).IsNotNull();
                 await Assert.That(paintedCurvature).IsEqualTo(0f);
                 await Assert.That(bounded).IsNull();
                 await Assert.That(boundedCurvature).IsEqualTo(1f).Within(0.01f);
 
-                // THE LAW: every network rod folds back to its own minimum.
                 await Assert.That(FoldedRodMisses(sheet, faces, network, paint, curvature)).IsEmpty();
             }
         }
 
-        // The network rods whose minimum the compiler would not rebuild from the paint and add_curvature: the fold of each
-        // generating hinge is clamp((paint[u] + paint[v]) * pi / 2 + add_curvature * pi, 0, pi), the rod takes the smallest
-        // span any of them folds it to, and never more than its own rest span.
+        /// <summary>
+        /// The network rods whose minimum the paint and <paramref name="curvature"/> do not rebuild: each generating
+        /// hinge folds by clamp((paint[u] + paint[v]) * pi / 2 + curvature * pi, 0, pi), and the rod takes the smallest
+        /// fold, capped at its rest span.
+        /// </summary>
         private static List<(int, int)> FoldedRodMisses(FeModel sheet, List<int[]> faces, HashSet<(int, int)> network,
             Dictionary<int, float>? paint, float curvature, bool tight = false)
         {
@@ -8541,17 +7712,12 @@ namespace Tests
             return misses;
         }
 
-        private static FeModel WintermoonSheet => SyntheticCloth.Load("cloth_sheet_paint_solve.kv3");
+        private static FeModel PaintSolveSheet => SyntheticCloth.Load("cloth_sheet_paint_solve.kv3");
 
         /// <summary>
-        /// A <c>ClothNode</c> on an <c>m_Ropes</c> run cannot have compiled at the default alignment, whose class byte the rope
-        /// pass excludes: an element node on a run states alignment 2 (the only class a virtual node starts a run from), a bone
-        /// node alignment 1. CONTROLS: a node on no run keeps 0, and a model with no ropes states 0 everywhere.
+        /// A ClothNode on an <c>m_Ropes</c> run states alignment 2 for an element node and 1 for a bone node; nodes on
+        /// no run, or a model with no ropes, keep 0.
         /// </summary>
-        /// <remarks>
-        /// PROBED 2026-09-25 on dota `models/test/cloth_min_mesh`: the element node at 2 and the bone at 1 or 2 compile the
-        /// original's `m_Ropes` [0, 2] and `m_FreeNodes` [1] exactly, where alignment 0 on both compiles no rope at all.
-        /// </remarks>
         [Test]
         public async Task AClothNodeOnARopeRunStatesTheAlignmentThatLetsItRope()
         {
@@ -8560,10 +7726,8 @@ namespace Tests
 
             using (Assert.Multiple())
             {
-                // CONTROL: no rope, no alignment.
                 await Assert.That(RopeAlignments(bare)).IsEquivalentTo(NoRopeAlignments, CollectionOrdering.Matching);
 
-                // THE LAW, with the node on no run as its control.
                 await Assert.That(RopeAlignments(roped)).IsEquivalentTo(RopedAlignments, CollectionOrdering.Matching);
             }
         }
@@ -8578,7 +7742,7 @@ namespace Tests
             ClothExtract.MakeClothNode(feModel, "joint1", 2, elementName: "clothNode_joint3").GetInt32Property("transform_alignment"),
         ];
 
-        // cloth_min_mesh's shape: a static bone and two element nodes under it, the second roped to the bone.
+        /// <summary>A static bone and two element nodes under it, the second on a rope to the bone.</summary>
         private static FeModel RopeClothNodeModel(string ropes, int ropeCount) => SyntheticCloth.Model(
             ["joint1", "$cloth_node_clothNode_joint2", "$cloth_node_clothNode_joint3"], staticNodes: 1,
             poses: [new(0f, 0f, 0f), new(0f, 0f, -10f), new(10f, 0f, -10f)],
@@ -8588,10 +7752,8 @@ namespace Tests
                 """);
 
         /// <summary>
-        /// The downgrade's lock guard holds a chain at version 2 when format 1 would lock a joint the original leaves free.
-        /// A non-simulated joint whose parent is free is locked to that PARENT by the fit pass, so an original carrying that
-        /// joint's parent lock does not leave it free, and the fit evidence then moves the chain below version 2. The CONTROL
-        /// is the same rope with the parent lock absent, which the guard still holds at version 2.
+        /// A static joint the original locks to its parent does not hold a fitted chain at version 2; without that lock
+        /// the guard keeps version 2.
         /// </summary>
         [Test]
         public async Task AParentLockedJointDoesNotHoldAFittedChainAtVersion2()
@@ -8603,15 +7765,16 @@ namespace Tests
 
             using (Assert.Multiple())
             {
-                // CONTROL: nothing in the original locks the static root, so format 1 would add a lock and the guard holds.
                 await Assert.That(ClothExtract.ClothChainVersion(free, freeChain, hasOtherChains: false)).IsEqualTo(2);
 
-                // THE LAW.
                 await Assert.That(ClothExtract.ClothChainVersion(locked, lockedChain, hasOtherChains: false)).IsLessThan(2);
             }
         }
 
-        // TwoWideRopeFitting(3) with j0 and its ring a non-simulated, rotation-free static prefix; where named, j0 is locked to j1.
+        /// <summary>
+        /// <see cref="TwoWideRopeFitting"/> on node 3 with j0 and its ring static; <paramref name="parentLocked"/> locks
+        /// j0 to j1.
+        /// </summary>
         private static FeModel StaticRootRopeFitting(bool parentLocked) => SyntheticCloth.Model(
             ["j0", "$ccj0_0", "$ccj0_1", "j1", "$ccj1_0", "$ccj1_1", "j2", "$ccj2_0", "$ccj2_1"], staticNodes: 3,
                 parents: [-1, 0, 0, 0, 3, 3, 3, 6, 6],
@@ -8626,15 +7789,9 @@ namespace Tests
                 """);
 
         /// <summary>
-        /// A fitless proxy vertex whose offset network names a bone the original back-solved off the sheet keeps its
-        /// authored paint even where another kept vertex also paints that bone. CONTROL: with no <c>m_ReverseOffsets</c>
-        /// record the same bone anchors no kept vertex and the paint stays deferred.
+        /// A fitless vertex whose offset network names a bone with a reverse offset keeps its paint although another
+        /// vertex paints that bone; without the reverse offset it stays deferred.
         /// </summary>
-        /// <remarks>
-        /// MEASURED 2026-09-25 on dotaout `troll_warlord`: `$cloth_m3p0` / `p4` expand to armCloth_07 0.487, armCloth_06
-        /// 0.487, armCloth_05 0.026, and armCloth_07 is also on `p18` / `p19` at 0.084; the deferred fallback rebinds them
-        /// to armCloth_07 alone plus armCloth_06 at 0.188, losing the armCloth_05 soft offset.
-        /// </remarks>
         [Test]
         public async Task AFitlessVertexOnABackSolvedBoneKeepsItsPaintWhereAnotherVertexPaintsIt()
         {
@@ -8655,8 +7812,10 @@ namespace Tests
             }
         }
 
-        // A sheet over three bones fit on bone_3: vertex 2 is anchored on bone_1, vertex 3 on bone_3 with 0.1 on bone_2, and
-        // vertex 4 has no fit row and paints bone_2 0.6 and bone_1 0.4. The hole carries the m_ReverseOffsets records.
+        /// <summary>
+        /// A sheet fit on bone_3 whose vertex 4 has no fit row and paints bone_2 0.6 and bone_1 0.4; <paramref
+        /// name="reverseOffsets"/> holds <c>m_ReverseOffsets</c>.
+        /// </summary>
         private static FeModel FitlessOnPaintedBone(string reverseOffsets) => SyntheticCloth.Model(
             ["bone_0", "$cloth_m0p0", "$cloth_m0p1", "$cloth_m0p2", "$cloth_m0p3", "bone_1", "bone_2", "bone_3"], staticNodes: 2,
                 parents: [-1, 0, 5, 7, 6, 0, 5, 6],
@@ -8687,17 +7846,9 @@ namespace Tests
                 """);
 
         /// <summary>
-        /// The cloth proxy's joint list carries each control bone at the rest ROTATION the compiled model records for it,
-        /// not only at its rest position: a bone turned away from its bind rotation is written at its recorded one, and a
-        /// bone below it with no record of its own keeps its compiled world rotation. CONTROL: a bone whose record
-        /// already agrees with its bind rotation writes nothing.
+        /// A proxy control bone turned from its bind rotation is written at its recorded rotation, its child turned
+        /// back to keep its world rotation; a bone whose record agrees writes nothing.
         /// </summary>
-        /// <remarks>
-        /// PROBED on dotaout `drow_arcana_back`: five sheet-driven cape bones sit at their bind positions and
-        /// rotations in the skeleton while `m_InitPose` records them turned up to 6.2 degrees (and so moved, down the
-        /// chain); the compile of the document with the proxy joints turned onto the record matches `m_InitPose` on
-        /// every node, against 5 differing nodes before.
-        /// </remarks>
         [Test]
         public async Task AProxyControlBoneIsWrittenAtItsRecordedRestRotation()
         {
@@ -8714,22 +7865,18 @@ namespace Tests
 
             using (Assert.Multiple())
             {
-                // THE LAW: the turned bone is written at its recorded rotation, and its child is turned back so it keeps
-                // its compiled world rotation.
                 await Assert.That(into.Keys.Order()).IsEquivalentTo(["cape", "tip"]);
                 await Assert.That(MathF.Abs(Quaternion.Dot(turned.GetValueOrDefault("cape"), turn))).IsEqualTo(1f).Within(1e-6f);
                 await Assert.That(MathF.Abs(Quaternion.Dot(turn * into.GetValueOrDefault("tip"), Quaternion.Identity)))
                     .IsEqualTo(1f).Within(1e-6f);
 
-                // CONTROL: the root's record already agrees with its bind rotation.
                 await Assert.That(into.ContainsKey("root")).IsFalse();
             }
         }
 
         /// <summary>
-        /// A wind effect compiles its vortices only at a positive max speed and scales every speed by its time multiplier,
-        /// so vortices compiled at zero speed are authored with a zero time multiplier and a positive vortex speed. The
-        /// CONTROL is the same effect with moving vortices, which keeps a time multiplier of 1.
+        /// Vortices compiled at zero speed read <c>time_multiplier</c> 0 with a positive vortex speed; moving vortices
+        /// keep 1.
         /// </summary>
         [Test]
         public async Task VorticesCompiledAtZeroSpeedAreAZeroTimeMultiplier()
@@ -8742,11 +7889,9 @@ namespace Tests
 
             using (Assert.Multiple())
             {
-                // CONTROL.
                 await Assert.That(movingNode.GetFloatProperty("time_multiplier")).IsEqualTo(1f);
                 await Assert.That(movingNode.GetFloatProperty("vortex_max_speed_mph")).IsEqualTo(7f).Within(1e-4f);
 
-                // THE LAW.
                 await Assert.That(stilledNode.GetFloatProperty("time_multiplier")).IsEqualTo(0f);
                 await Assert.That(stilledNode.GetFloatProperty("vortex_max_speed_mph")).IsGreaterThan(0f);
                 await Assert.That(stilledNode.GetInt32Property("vortex_count")).IsEqualTo(2);
@@ -8778,16 +7923,9 @@ namespace Tests
             """);
 
         /// <summary>
-        /// A twist between two bones is a chain link. The rope pass skips every node a twist names, so a twisted run
-        /// leaves its links in <c>m_Twists</c> alone: on a compile with no <c>m_SkelParents</c> the rope trail gives it no
-        /// parents, and on one with them a run declared without stretch springs carries no rod for the link rules to read.
-        /// CONTROLS: the same runs with no twists stay loose nodes.
+        /// A twist between two bones links them into a chain with or without <c>m_SkelParents</c>; without twists the
+        /// run stays loose.
         /// </summary>
-        /// <remarks>
-        /// MEASURED 2026-09-25 over 3369 originals: nine carry a twist link between two bones that no rebuilt chain links,
-        /// every one a board <c>m_Twists</c> row (dotaout <c>dark_spirit_shoulder</c>'s <c>wing_L</c> run, deadlock
-        /// <c>werewolf</c>'s tail).
-        /// </remarks>
         [Test]
         public async Task ATwistBetweenTwoBonesIsAChainLink()
         {
@@ -8795,17 +7933,17 @@ namespace Tests
 
             using (Assert.Multiple())
             {
-                // CONTROL: nothing links the runs.
                 await Assert.That(Chained(TwistedRun(skelParents: false, twisted: false))).IsFalse();
                 await Assert.That(Chained(TwistedRun(skelParents: true, twisted: false))).IsFalse();
 
-                // THE LAW.
                 await Assert.That(Chained(TwistedRun(skelParents: false, twisted: true))).IsTrue();
                 await Assert.That(Chained(TwistedRun(skelParents: true, twisted: true))).IsTrue();
             }
         }
 
-        // A static root w0 over w1 and w2, rodless; where twisted, the twist builder's four entries at twist_relax 1.0.
+        /// <summary>
+        /// A static w0 over w1 and w2 with no rods; <paramref name="twisted"/> adds four twist entries.
+        /// </summary>
         private static FeModel TwistedRun(bool skelParents, bool twisted) => SyntheticCloth.Model(
             ["w0", "w1", "w2"], staticNodes: 1, poses: [new(0f, 0f, 0f), new(-8.5f, 0f, 0f), new(-17f, 0f, 0f)], body: $$"""
                 {{(skelParents ? "m_SkelParents = [ -1, 0, 1 ]" : string.Empty)}}
@@ -8813,15 +7951,9 @@ namespace Tests
                 """);
 
         /// <summary>
-        /// Every <c>m_Twists</c> and <c>m_NodeBases</c> record is kept in array order, including a repeated directed twist
-        /// pair and a node carrying two bases, and a twist record keeps its <c>flSwingRelax</c>.
-        /// CONTROLS: <c>NodeBases</c> still keeps the node's last record and <c>TwistNodes</c> still names every node a twist
-        /// names.
+        /// <c>TwistRecords</c> and <c>NodeBaseRecords</c> keep every record in array order with its swing relaxation,
+        /// while <c>NodeBases</c> keeps each node's last record and <c>TwistNodes</c> every named node.
         /// </summary>
-        /// <remarks>
-        /// MEASURED 2026-09-22 over 35 210 cached originals: 1190 carry a node that orients twist records with differing
-        /// relaxations, and 294, every one old-era, carry a node with two consecutive node base records.
-        /// </remarks>
         [Test]
         public async Task EveryTwistAndNodeBaseRecordIsKept()
         {
@@ -8845,12 +7977,10 @@ namespace Tests
 
             using (Assert.Multiple())
             {
-                // CONTROL: the readers' dictionaries are unchanged.
                 await Assert.That(feModel.NodeBases.Count).IsEqualTo(2);
                 await Assert.That(feModel.NodeBases[1]).IsEqualTo(new FeModel.NodeBasis(1, 0, 2, 0));
                 await Assert.That(feModel.TwistNodes.Order()).IsEquivalentTo([0, 1, 2], CollectionOrdering.Matching);
 
-                // THE LAW.
                 await Assert.That(feModel.TwistRecords).IsEquivalentTo(
                     [
                         new FeModel.TwistRecord(1, 0, 0.618f, 0f),
@@ -8867,15 +7997,9 @@ namespace Tests
         }
 
         /// <summary>
-        /// The cloth proxy's control bones are written at their recorded rest positions at any distance. A lone bone
-        /// whose rest position sits units away from its bind position is the pose the original compiled from, not a
-        /// disagreement to leave out. CONTROLS: a near bone is put on its rest position too, a bone already on it and a
-        /// bone with no recorded rest position keep their compiled offsets.
+        /// Proxy control bones are written at their recorded rest positions at any distance; bones already there or
+        /// without a record keep their offsets.
         /// </summary>
-        /// <remarks>
-        /// MEASURED 2026-09-25 over 680 proxy-sheet originals: the 1-unit cap refused 171 bones on 35 rows, every one
-        /// DEFECT with <c>m_InitPose</c> (dota <c>ti9_crocodilian_dire_melee</c>'s lone <c>tail_0</c>, 7.57 units).
-        /// </remarks>
         [Test]
         public async Task ALoneProxyControlBoneFarFromItsBindPoseIsWrittenAtItsRestPosition()
         {
@@ -8897,10 +8021,8 @@ namespace Tests
 
             using (Assert.Multiple())
             {
-                // THE LAW: the lone far bone is on its rest position.
                 await Assert.That(into.GetValueOrDefault("tail")).IsEqualTo(new Vector3(5f, 0f, -7.5f));
 
-                // CONTROLS.
                 await Assert.That(into.GetValueOrDefault("cape")).IsEqualTo(new Vector3(0f, 0f, -10.5f));
                 await Assert.That(into.ContainsKey("root")).IsFalse();
                 await Assert.That(into.ContainsKey("tip")).IsFalse();
@@ -8908,11 +8030,8 @@ namespace Tests
         }
 
         /// <summary>
-        /// A culled cloth bone is nested in the proxy DMX under the joint of its compiled parent. The compiler parents a
-        /// proxy joint's node to the nearest DAG ancestor joint of the same file that has a node, so a culled bone written
-        /// as a root joint compiles with no parent at all.
-        /// CONTROLS: with no compiled <c>m_SkelParents</c>, or a compiled parent that is no joint of the DMX, it stays a
-        /// root joint.
+        /// A culled cloth bone is nested under its compiled parent's DMX joint in that joint's frame; without compiled
+        /// parents, or with a parent that is no joint, it stays a root joint.
         /// </summary>
         [Test]
         public async Task ACulledClothBoneIsNestedUnderItsCompiledParentJoint()
@@ -8957,13 +8076,11 @@ namespace Tests
 
             using (Assert.Multiple())
             {
-                // CONTROL: no compiled parents, and a compiled parent the DMX has no joint for.
                 await Assert.That(unparented.Model.Children.Select(static c => c.Name)).Contains("collar_1");
                 await Assert.That(unparented.Culled.Transform.Position).IsEqualTo(new Vector3(0f, 9f, 10f));
                 await Assert.That(foreign.Model.Children.Select(static c => c.Name)).Contains("collar_1");
                 await Assert.That(foreign.Parent.Children.Count).IsEqualTo(0);
 
-                // THE LAW.
                 await Assert.That(nested.Model.Children.Select(static c => c.Name)).DoesNotContain("collar_1");
                 await Assert.That(nested.Parent.Children.Select(static c => c.Name)).IsEquivalentTo(["collar_1"]);
                 await Assert.That(Vector3.Distance(nested.Culled.Transform.Position, new Vector3(4f, 0f, 0f))).IsLessThan(1e-4f);
@@ -8971,15 +8088,9 @@ namespace Tests
         }
 
         /// <summary>
-        /// A rope run that carries on past a joint owning an end-effector centre is no chain link: the rope pass walks
-        /// <c>m_SkelParents</c> to the root without stopping at a chain, and only a declaration's last joint owns a centre.
-        /// CONTROL: the same run with no centre on the joint still links through the rope.
+        /// A rope run past a joint owning an end-effector centre does not link into a chain; without the centre it
+        /// does.
         /// </summary>
-        /// <remarks>
-        /// MEASURED 2026-09-25: dota <c>demon_head</c>'s runs start at <c>hair_R2C0</c> (a leaf with
-        /// <c>$cchair_R2C0_Ctr</c>) and walk into three chains it is only the skeleton parent of. Over the 2825 pak and dl
-        /// originals and 544 synth rows it is the one document the rule changes.
-        /// </remarks>
         [Test]
         public async Task ARopeRunPastAnEndEffectorCentreIsNoChainLink()
         {
@@ -9012,19 +8123,15 @@ namespace Tests
 
             using (Assert.Multiple())
             {
-                // CONTROL: no centre, so the run's link is the chain's.
                 await Assert.That(Joined(centre: false)).IsTrue();
 
-                // THE LAW.
                 await Assert.That(Joined(centre: true)).IsFalse();
             }
         }
 
         /// <summary>
-        /// A proxy joint whose compiled parent is another joint of the DMX, but not one of its DAG ancestors, is moved
-        /// under that joint at an unchanged model-space transform, so the compiler's walk up the DAG reaches it.
-        /// CONTROLS: nothing moves without compiled <c>m_SkelParents</c>, when the compiled parent is already an
-        /// ancestor, or when it sits in the joint's own subtree.
+        /// A proxy joint whose compiled parent is another joint but not a DAG ancestor is moved under it at the same
+        /// model-space transform; no compiled parents, an ancestor parent, or a descendant parent move nothing.
         /// </summary>
         [Test]
         public async Task AProxyJointIsNestedUnderItsCompiledParentJoint()
@@ -9064,14 +8171,11 @@ namespace Tests
 
             using (Assert.Multiple())
             {
-                // CONTROL: no compiled parents, a compiled parent that is already the DAG parent, and a joint whose
-                // compiled parent hangs below it.
                 await Assert.That(unparented.Pelvis.Children.Select(static c => c.Name)).IsEquivalentTo(["leg_upper", "leg_lower"]);
                 await Assert.That(ancestral.Pelvis.Children.Select(static c => c.Name)).IsEquivalentTo(["leg_upper", "leg_lower"]);
                 await Assert.That(cyclic.Model.Children.Select(static c => c.Name)).IsEquivalentTo(["pelvis"]);
                 await Assert.That(cyclic.Pelvis.Children.Select(static c => c.Name)).IsEquivalentTo(["leg_upper", "leg_lower"]);
 
-                // THE LAW.
                 await Assert.That(nested.Pelvis.Children.Select(static c => c.Name)).IsEquivalentTo(["leg_upper"]);
                 await Assert.That(nested.Upper.Children.Select(static c => c.Name)).IsEquivalentTo(["leg_lower"]);
                 await Assert.That(Vector3.Distance(nested.Lower.Transform.Position, new Vector3(0f, -20f, 0f))).IsLessThan(1e-4f);
@@ -9079,14 +8183,9 @@ namespace Tests
         }
 
         /// <summary>
-        /// A cloth proxy control bone turns onto its recorded rest rotation from 0.3 degrees off its bind rotation. At
-        /// round-trip precision the cloth originals keep their control bones within 0.001 degrees of the bind rotation,
-        /// and nothing sits between 0.19 and 0.57 degrees. CONTROL: a bone 0.18 degrees off keeps its bind rotation.
+        /// A proxy control bone 0.57 degrees off its bind rotation is turned onto its record; one 0.18 degrees off is
+        /// not.
         /// </summary>
-        /// <remarks>
-        /// MEASURED 2026-09-25 over 2786 cloth originals: dotaout <c>ti9_chameleon_radiant_ranged</c>'s <c>neck_0</c> sits
-        /// 0.5717 degrees off, the tidehunter family's fish bones 0.1835.
-        /// </remarks>
         [Test]
         public async Task AProxyControlBoneHalfADegreeOffItsBindRotationIsTurned()
         {
@@ -9106,24 +8205,16 @@ namespace Tests
 
             using (Assert.Multiple())
             {
-                // THE LAW.
                 await Assert.That(turned.Keys.Order()).IsEquivalentTo(["neck"]);
 
-                // CONTROL.
                 await Assert.That(into.ContainsKey("fish")).IsFalse();
             }
         }
 
         /// <summary>
-        /// A fit-covered vertex whose eight soft slots are full paints the weight its fit scale leaves unrecorded on the
-        /// primary's nearest static ancestor it does not already name. On an ancestor it names, the overflow raises a
-        /// recorded influence and the recompile's soft alphas move. CONTROLS: the fit bone keeps its scaled weight and the
-        /// paint still sums to one.
+        /// A full-slot vertex paints its unrecorded fit remainder on the nearest static ancestor it does not already
+        /// name; the fit bone keeps its weight and the paint sums to 1.
         /// </summary>
-        /// <remarks>
-        /// MEASURED 2026-09-25 over every original with fit matrices: dotaout <c>mars</c> and <c>mars_diretide</c>'s
-        /// <c>$cloth_m3p15</c> are the only vertices whose nearest static ancestor (<c>neck_0</c>) is already an influence.
-        /// </remarks>
         [Test]
         public async Task AFullSlotRemainderGoesToAStaticAncestorTheVertexDoesNotName()
         {
@@ -9133,19 +8224,17 @@ namespace Tests
 
             using (Assert.Multiple())
             {
-                // THE LAW.
                 await Assert.That(WeightOf("spine")).IsEqualTo(0.02f).Within(1e-4f);
                 await Assert.That(WeightOf("neck")).IsEqualTo(0.98f * 0.0531441f).Within(1e-4f);
 
-                // CONTROLS.
                 await Assert.That(WeightOf("dyn")).IsEqualTo(0.2343655f).Within(1e-4f);
                 await Assert.That(recovered.Sum(influence => influence.Weight)).IsEqualTo(1f).Within(1e-4f);
             }
         }
 
-        // Static root > spine > neck > hair, six more static bones s1..s6 and a simulated fit bone dyn. Vertex 11 is anchored
-        // on hair with eight soft slots (dyn 0.5, neck 0.9, s1..s6 0.9), expanding to hair and dyn 0.2391, neck 0.0531 and
-        // s1..s6; its fit row on dyn is 0.98 of that, leaving 0.02 unrecorded.
+        /// <summary>
+        /// A vertex anchored on hair with eight soft slots and a fit row on dyn at 0.98 of its expansion.
+        /// </summary>
         private static FeModel FullSlotRemainder() => SyntheticCloth.Model(
             ["root", "spine", "neck", "hair", "s1", "s2", "s3", "s4", "s5", "s6", "dyn", "$cloth_m0p0"], staticNodes: 10,
                 parents: [-1, 0, 1, 2, 0, 0, 0, 0, 0, 0, 3, -1],
@@ -9170,27 +8259,17 @@ namespace Tests
                 """);
 
         /// <summary>
-        /// The compiler folds rods across shared edges walking its solve elements first and the rod-making faces after
-        /// them, in the corner order the file records. A 2-wide ring's two link quads wind opposite ways, so alone they
-        /// fold nothing; a compiled quad on the same corners pairs with the first of them and folds the far ring across
-        /// the near one after the mass pass. That fold weighs nothing, and reading it as a declared rod over-reads the
-        /// ring's multiplier by the square root of (element term + two rods) over (element term + one rod).
-        /// CONTROL: the link quads with no compiled quad, where both records on the far ring weighed.
+        /// A ring rod folded across a compiled quad weighs nothing in the mass pass, so the ring reads a multiplier of
+        /// 1, as it does with no compiled quad.
         /// </summary>
-        /// <remarks>
-        /// MEASURED 2026-09-25 on dota <c>baron_of_the_minotaur_arms</c>: the end ring's banded record replays as that fold to
-        /// the printed digit (43.821274 / 20.000004), and the chain stated <c>mass</c> 0.850655 for an authored 1.0.
-        /// </remarks>
         [Test]
         public async Task ARingFoldedAcrossItsCompiledQuadIsNoMassTimeRod()
         {
             using (Assert.Multiple())
             {
-                // CONTROL.
                 await Assert.That(RingLinkQuads(compiledQuad: false).RecoverJointMassMultiplier(3) ?? float.NaN)
                     .IsEqualTo(1f).Within(1e-3f);
 
-                // THE LAW, with the far ring as the walk met it and with the convexity swap since applied.
                 await Assert.That(RingLinkQuads(compiledQuad: true).RecoverJointMassMultiplier(3) ?? float.NaN)
                     .IsEqualTo(1f).Within(1e-3f);
                 await Assert.That(RingLinkQuads(compiledQuad: true, swapped: true).RecoverJointMassMultiplier(3) ?? float.NaN)
@@ -9198,10 +8277,10 @@ namespace Tests
             }
         }
 
-        // A static root ring a = 1, b = 2 over the end ring c = 4, d = 5, which sits turned half a turn: the two link quads
-        // (b,a,c,d) and (a,b,d,c) as m_SourceElems prints them. With the compiled quad (b,a,d,c) the rings weigh its element
-        // term and the rigid record only; without it both records. Swapped, the end ring is not turned, so the quad the walk
-        // met as (b,a,d,c) compiles as (b,a,c,d).
+        /// <summary>
+        /// A static root ring over an end ring turned half a turn, linked by two quads; <paramref name="compiledQuad"/>
+        /// adds a compiled quad and <paramref name="swapped"/> leaves the end ring unturned.
+        /// </summary>
         private static FeModel RingLinkQuads(bool compiledQuad, bool swapped = false) => SyntheticCloth.Parse($$"""
             {
                 m_CtrlName = [ "root", "$ccroot_0", "$ccroot_1", "end", "$ccend_0", "$ccend_1" ]
@@ -9229,17 +8308,9 @@ namespace Tests
             """);
 
         /// <summary>
-        /// The compiler pairs a hinge's far corners in the corner order a face reaches its element array in, before the
-        /// quad pass swaps a two-static quad back to a convex order, so a face whose statics sit mid-cycle folds across its
-        /// hinge crosswise to its own outline. Predicting a face-kept sheet's folds off the outline misses those pairs, and
-        /// the sheet then declares them as springs on top of the folds the compiler builds anyway.
-        /// CONTROL: the folds both orders agree on.
+        /// A face-kept sheet's folds are predicted in the corner order the compiler meets its faces in, including the
+        /// crosswise pairs a mid-cycle static order folds.
         /// </summary>
-        /// <remarks>
-        /// MEASURED 2026-09-25 on dotaout <c>spectre</c>: four static-to-dynamic folds (<c>$cloth_m2p45</c> to <c>p48</c> is one)
-        /// came back as declared springs beside the compiler's own fold, the sheet's only remaining rod difference.
-        /// The fixture is that sheet's corner around <c>p51</c>, copied from the compiled original.
-        /// </remarks>
         [Test]
         public async Task AFaceKeptSheetFoldsInTheCornerOrderTheCompilerMeetsItsFacesIn()
         {
@@ -9250,11 +8321,9 @@ namespace Tests
 
             using (Assert.Multiple())
             {
-                // CONTROL.
                 await Assert.That(bend).IsTrue();
                 await Assert.That(derived.Contains((2, 5)) && derived.Contains((0, 3))).IsTrue();
 
-                // THE LAW.
                 await Assert.That(derived.Contains((1, 5)) && derived.Contains((2, 4))).IsTrue();
             }
         }
@@ -9262,15 +8331,8 @@ namespace Tests
         private static FeModel FaceKeptSheetCorner => SyntheticCloth.Load("cloth_sheet_face_kept_corner.kv3");
 
         /// <summary>
-        /// Every fold the compiler builds across a sheet opens by the mean <c>cloth_bend_stiffness</c> over its hinge on top of
-        /// <c>add_curvature</c>, so a face-kept sheet whose folds are regenerated states no bend paint of its own: the flat 0.2
-        /// it states otherwise folds every hinge of the sheet by a fifth of a half turn.
-        /// CONTROL: the same sheet with its pairs declared, where nothing folds and the paint has no reader.
+        /// A face-kept sheet whose folds are regenerated states no bend paint; with declared pairs it states 0.2.
         /// </summary>
-        /// <remarks>
-        /// MEASURED 2026-09-25 on dotaout <c>spectre</c>: the 252 folds its original ships at their fully folded minimum came
-        /// back at the 0.2-paint minimum (<c>$cloth_m2p43</c> to <c>p44</c>: 0.0 shipped, 2.321 rebuilt, 7.510 * sin(0.1 pi)).
-        /// </remarks>
         [Test]
         public async Task AFaceKeptSheetWhoseFoldsAreRegeneratedStatesNoBendPaint()
         {
@@ -9280,24 +8342,16 @@ namespace Tests
 
             using (Assert.Multiple())
             {
-                // CONTROL.
                 await Assert.That(Read(FoldedSheetModel(0.5f))).IsEqualTo(0.2f);
 
-                // THE LAW.
                 await Assert.That(Read(FoldedSheetModel(0.666667f))).IsNull();
             }
         }
 
         /// <summary>
-        /// A rod the compiler folded across a face edge on its own carries its endpoints' final inverse-mass ratio, which no
-        /// declaration does, so a joint whose span to its grandparent is only such a fold declares no bend spring: stating one
-        /// builds a rigid rod beside the fold, and that rod weighs in the mass pass.
-        /// CONTROL: the same span at the even split a declaration gets is the joint's bend spring.
+        /// A joint whose grandparent span is only a fold-weighted rod declares no bend spring; the even-split rod is
+        /// its bend spring.
         /// </summary>
-        /// <remarks>
-        /// MEASURED 2026-09-25 on dota <c>cm_screeauk_back</c>: eight skirt joints stated <c>bend_spring 1.0</c> off the folds
-        /// between two chains' quads, and the rebuild shipped eight rigid 30.685 rods the original does not.
-        /// </remarks>
         [Test]
         public async Task ABendSpanThatIsOnlyASurfaceFoldIsNoBendSpring()
         {
@@ -9324,23 +8378,16 @@ namespace Tests
 
             using (Assert.Multiple())
             {
-                // CONTROL.
                 await Assert.That(Bends(0.5f)).IsTrue();
 
-                // THE LAW.
                 await Assert.That(Bends(0.666667f)).IsFalse();
             }
         }
 
         /// <summary>
-        /// A fitless vertex keeps the paint its offset network records when its only simulated influence is a sub-threshold
-        /// weight on a bone the original fits with its own fit matrix: the recompile prunes that weight again and the bone's
-        /// solve is the original's. CONTROL: the same bone with no fit matrix of its own still defers the vertex.
+        /// A fitless vertex keeps its recorded paint when its only simulated influence is a small weight on a bone with
+        /// its own fit matrix; without that fit matrix it stays deferred.
         /// </summary>
-        /// <remarks>
-        /// MEASURED 2026-09-25 over every original with fit matrices: 9 vertices on 5 rows, among them dotaout
-        /// <c>fatsnake</c>'s <c>$cloth_m0p1</c> / <c>m0p2</c> (neck_04_JNT 0.042).
-        /// </remarks>
         [Test]
         public async Task AFitlessVertexKeepsASubThresholdWeightOnABoneTheOriginalFits()
         {
@@ -9350,18 +8397,18 @@ namespace Tests
 
             using (Assert.Multiple())
             {
-                // CONTROL.
                 await Assert.That(unfitted.RecoveredSkinWeights.ContainsKey(Fitless)).IsFalse();
                 await Assert.That(unfitted.DeferredOffsetSkinWeights.ContainsKey(Fitless)).IsTrue();
 
-                // THE LAW.
                 await Assert.That(fitted.RecoveredSkinWeights.GetValueOrDefault(Fitless, []).Select(static influence => influence.Bone))
                     .IsEquivalentTo(["bone_1", "bone_2"]);
             }
         }
 
-        // Static bone_0 and bone_1, simulated bone_2 and bone_3. Vertex 2 is anchored on bone_3 with 0.3 on bone_2 and fit on
-        // bone_3 (and on bone_2 where it owns a fit matrix); vertex 3 has no fit row and paints bone_1 0.96 and bone_2 0.04.
+        /// <summary>
+        /// A sheet whose vertex 3 has no fit row and paints bone_1 0.96 and bone_2 0.04; <paramref name="boneOwnsFit"/>
+        /// gives bone_2 its own fit matrix.
+        /// </summary>
         private static FeModel FitlessOnFitBone(bool boneOwnsFit) => SyntheticCloth.Model(
             ["bone_0", "bone_1", "$cloth_m0p0", "$cloth_m0p1", "bone_2", "bone_3"], staticNodes: 2, parents: [-1, 0, 5, 1, 1, 4],
             poses: [new(0f, 0f, 0f), new(0f, 0f, -8f), new(1f, 0f, -24f), new(1f, 0f, -10f), new(0f, 0f, -16f), new(0f, 0f, -24f)],
@@ -9382,12 +8429,8 @@ namespace Tests
                 """);
 
         /// <summary>
-        /// A version-2 chain grades a joint's preset basis at import and stages no fit group for a static joint it presets, so there
-        /// a parent lock proves <c>lock_translation</c>. A joint the preset cannot take (no chain child, or fewer than three preset
-        /// candidates) stages its group as below version 2, and the fit pass then writes the same parent lock without the key; the key
-        /// would also carry the joint's influences into its parent's group and give the parent a fit the original lacks.
-        /// CONTROLS: a ringed joint over a ringed child (preset), no chain given, and a ringless joint over two ringless children (no
-        /// group of its own, no top-up) still read the lock as the key's.
+        /// At version 2 a static joint the preset cannot take holds its parent lock without <c>lock_translation</c>; a
+        /// preset joint, no chain, or a ringless joint over two ringless children read the key.
         /// </summary>
         [Test]
         public async Task AVersion2JointThePresetCannotTakeHoldsItsParentLockWithoutTheKey()
@@ -9435,41 +8478,29 @@ namespace Tests
 
             using (Assert.Multiple())
             {
-                // CONTROL: the preset takes a ringed joint over its ringed child, and no chain given reads as before. A ringless joint
-                // lists only itself and stages nothing of its own, so two ringless children fill its table to three without a group
-                // and no top-up runs: the lock is the key's.
                 await Assert.That(ringed.LocksTranslation(ringedTip, chainVersion: 2, chain: Chain(ringed, withKid: true, sides: 1))).IsTrue();
                 await Assert.That(ringless.LocksTranslation(ringlessTip, chainVersion: 2)).IsTrue();
                 await Assert.That(ringless.LocksTranslation(ringlessTip, chainVersion: 2, chain: TwoKids(ringless))).IsTrue();
 
-                // THE LAW.
                 await Assert.That(ringless.LocksTranslation(ringlessTip, chainVersion: 2, chain: Chain(ringless, withKid: false, sides: 0))).IsFalse();
                 await Assert.That(ringless.LocksTranslation(ringlessTip, chainVersion: 2, chain: Chain(ringless, withKid: true, sides: 0))).IsFalse();
             }
         }
 
         /// <summary>
-        /// Where the paint an earlier solve settled on leaves network rods off their compiled minimum, the covering-hinge solve,
-        /// exact by construction, is taken when it rebuilds strictly more of them. The sheet is dota
-        /// `ti9_cache_drow_goddess_of_woods_head`'s, copied from the compiled original: 16 network rods, one of which the settled
-        /// paint folds to the wrong span. CONTROLS: a sheet whose settled paint already rebuilds every rod keeps it, and a sheet
-        /// no paint can explain keeps its stated fold and no paint.
+        /// The covering-hinge paint replaces a settled paint that misses network rods, so every rod folds back to its
+        /// minimum; a settled paint that rebuilds every rod is kept.
         /// </summary>
-        /// <remarks>
-        /// MEASURED 2026-09-25 at `33a7678bb`: on twelve shipped sheets a paint within 7.3e-06 of every reading exists while the
-        /// exported paint misses one to eighteen rods, because an earlier solve succeeds loosely and the covering solve only ran
-        /// where every earlier one declined.
-        /// </remarks>
         [Test]
         public async Task ACoveringPaintReplacesASettledPaintThatMissesRods()
         {
-            List<int[]> faces = [[15, 12, 13], [14, 15, 13], [6, 7, 3, 4], [5, 8, 6, 4], [0, 5, 4, 1], [3, 2, 1, 4], [9, 10, 7, 6], [8, 11, 9, 6], [11, 14, 13, 9], [12, 10, 9, 13]];
-            HashSet<(int, int)> network = [(0, 8), (1, 6), (2, 7), (3, 5), (3, 10), (4, 9), (5, 11), (6, 13), (7, 8), (7, 12), (8, 14), (9, 15), (10, 11), (10, 15), (11, 15), (12, 14)];
-            var sheet = DrowGoddessHeadSheet;
+            var faces = CoveringPaintFaces;
+            var network = CoveringPaintNetwork;
+            var sheet = CoveringPaintSheet;
             var (paint, curvature) = ClothExtract.ClothBendStiffnessOverFold(sheet, faces, network, 0.7383068f, keepsCurvature: false);
 
-            List<int[]> gridFaces = [[0, 1, 5, 4], [1, 2, 6, 5], [2, 3, 7, 6], [4, 5, 9, 8], [5, 6, 10, 9], [6, 7, 11, 10]];
-            HashSet<(int, int)> gridNetwork = [(0, 2), (1, 3), (4, 6), (5, 7), (8, 10), (9, 11), (0, 8), (1, 9), (2, 10), (3, 11)];
+            var gridFaces = HingeGridFaces;
+            var gridNetwork = HingeGridNetwork;
             var (painted, paintedCurvature) = ClothExtract.ClothBendStiffnessOverFold(
                 LeastFoldedHingeGrid, gridFaces, gridNetwork, 0.375f, keepsCurvature: false);
             var (bounded, boundedCurvature) = ClothExtract.ClothBendStiffnessOverFold(
@@ -9477,29 +8508,26 @@ namespace Tests
 
             using (Assert.Multiple())
             {
-                // CONTROL: a settled paint that rebuilds every rod, and a sheet no paint explains.
                 await Assert.That(FoldedRodMisses(LeastFoldedHingeGrid, gridFaces, gridNetwork, painted, paintedCurvature)).IsEmpty();
                 await Assert.That(paintedCurvature).IsEqualTo(0f);
                 await Assert.That(bounded).IsNull();
                 await Assert.That(boundedCurvature).IsEqualTo(1f).Within(0.01f);
 
-                // THE LAW: every network rod folds back to its own minimum.
                 await Assert.That(FoldedRodMisses(sheet, faces, network, paint, curvature)).IsEmpty();
             }
         }
 
-        private static FeModel DrowGoddessHeadSheet => SyntheticCloth.Load("cloth_sheet_covering_paint.kv3");
+        private static List<int[]> CoveringPaintFaces => [[15, 12, 13], [14, 15, 13], [6, 7, 3, 4], [5, 8, 6, 4], [0, 5, 4, 1], [3, 2, 1, 4], [9, 10, 7, 6], [8, 11, 9, 6], [11, 14, 13, 9], [12, 10, 9, 13]];
+
+        private static HashSet<(int, int)> CoveringPaintNetwork =>
+            [(0, 8), (1, 6), (2, 7), (3, 5), (3, 10), (4, 9), (5, 11), (6, 13), (7, 8), (7, 12), (8, 14), (9, 15), (10, 11), (10, 15), (11, 15), (12, 14)];
+
+        private static FeModel CoveringPaintSheet => SyntheticCloth.Load("cloth_sheet_covering_paint.kv3");
 
         /// <summary>
-        /// A self-collision cluster compiles one rod on every member pair, its band the two members' collision radii summed
-        /// up to their stray radii summed, whatever the pair's rest length. So a clique of such bands over the rings of two
-        /// chains, solving as one radius per member, is ONE cluster of all its members.
-        /// CONTROL: the same clique over the rings of a single joint, which its own ring bands account for, is no cluster.
+        /// A clique of equal bands over two chains' ring nodes is declared as one cluster of all its members at half
+        /// the band; the same clique within one joint declares none.
         /// </summary>
-        /// <remarks>
-        /// MEASURED 2026-09-25 on dota <c>mh_palico_courier_rathalos</c>: six 8 / 16 bands over four skirt ring nodes of two
-        /// chains; its document plus one four-member cluster at 4 / 8 compiled with m_Rods and every node mass as the original.
-        /// </remarks>
         [Test]
         public async Task AClusterCliqueAcrossTwoChainsRingsIsOneCluster()
         {
@@ -9511,11 +8539,9 @@ namespace Tests
 
             using (Assert.Multiple())
             {
-                // CONTROL.
                 await Assert.That(single.Count).IsEqualTo(0);
                 await Assert.That(none.Count).IsEqualTo(0);
 
-                // THE LAW.
                 await Assert.That(covered.Count).IsEqualTo(6);
                 await Assert.That(across.Select(static child => string.Join("|", child.Value.GetSubCollection("chain").GetArray("joints")
                     .Select(static joint => $"{joint.GetStringProperty("joint_name")}:{joint.GetFloatProperty("collision_radius")}:{joint.GetFloatProperty("stray_radius")}"))).ToArray())
@@ -9525,7 +8551,7 @@ namespace Tests
 
         private static readonly string[] ClusterCliqueMembers = ["$cca_0:4:8|$cca_1:4:8|$ccb_0:4:8|$ccb_1:4:8"];
 
-        // Joints a and b with two ring nodes each, and the six 8 / 16 bands a four-member cluster at 4 / 8 compiles.
+        /// <summary>Joints a and b with two ring nodes each and the six 8 / 16 bands of a four-member cluster.</summary>
         private static FeModel ClusterCliqueRings => SyntheticCloth.Model(
             ["a", "b", "$cca_0", "$cca_1", "$ccb_0", "$ccb_1"], staticNodes: 2, parents: [-1, -1, 0, 0, 1, 1],
                 invMasses: "0.0, 0.0, 0.01, 0.01, 0.01, 0.01",
@@ -9543,10 +8569,8 @@ namespace Tests
                 """);
 
         /// <summary>
-        /// A chain whose joint bases are the bulk grade was authored below version 2, and the lock format 1 adds on its static,
-        /// rotation-free first joint does not hold it at 2 when that joint's compiled parent is a rotation-locked static node:
-        /// the lock then lands on the goal, which the static joint already holds. A parent that rotates freely would take the
-        /// lock instead, and that parent lock still holds the chain at 2.
+        /// A bulk-graded chain whose static first joint hangs off a rotation-locked parent reads below version 2; a
+        /// free parent keeps version 2.
         /// </summary>
         [Test]
         public async Task AGoalOnlyLockDoesNotHoldABulkGradedChainAtVersion2()
@@ -9561,15 +8585,15 @@ namespace Tests
                 await Assert.That(goalLocked.ChainBasesAreBulkGraded(goalChain)).IsTrue();
                 await Assert.That(ClothExtract.ChainLocksJoints(goalLocked, goalChain)).IsTrue();
 
-                // CONTROL: the lock goes to the free parent, a real key, so the guard holds the chain at version 2.
                 await Assert.That(ClothExtract.ClothChainVersion(parentLocked, parentChain, hasOtherChains: false)).IsEqualTo(2);
 
-                // THE LAW.
                 await Assert.That(ClothExtract.ClothChainVersion(goalLocked, goalChain, hasOtherChains: false)).IsLessThan(2);
             }
         }
 
-        // OneWideRope's bulk-graded rope with j1 a static, rotation-free first joint; root rotation-locked or free.
+        /// <summary>
+        /// The bulk-graded one-wide rope with j1 a static first joint under a rotation-locked or free root.
+        /// </summary>
         private static FeModel StaticFirstJointRope(bool rootRotationLocked) => SyntheticCloth.Parse(
             OneWideRopeDocument("nNode = 3 nNodeX0 = 5 nNodeX1 = 2 nNodeY0 = 6 nNodeY1 = 1")
                 .Replace("m_nStaticNodes = 1", "m_nStaticNodes = 2" + (rootRotationLocked ? " m_nRotLockStaticNodes = 1" : string.Empty),
@@ -9577,9 +8601,8 @@ namespace Tests
                 .Replace("m_NodeInvMasses = [ 0.0, 1.0,", "m_NodeInvMasses = [ 0.0, 0.0,", StringComparison.Ordinal));
 
         /// <summary>
-        /// A chain joint based through a free cloth node was declared a <c>ClothNode</c> at <c>transform_alignment</c> 3, and
-        /// every chain joint of that model a plain static <c>ClothNode</c> in node order, since those create the joint nodes
-        /// before the chains run. A model whose joints name no free cloth node declares none.
+        /// A chain joint whose node base names a free cloth node is declared a <c>ClothNode</c> at alignment 3, with
+        /// every joint a static ClothNode in node order; bases naming no free cloth node declare none.
         /// </summary>
         [Test]
         public async Task AChainJointBasedThroughAFreeClothNodeIsDeclaredAClothNode()
@@ -9606,8 +8629,10 @@ namespace Tests
             }
         }
 
-        // Static head and the free cloth node $cloth_node_side, then the chain a0 - a1 - a2. The a0 and a1 bases read X from the
-        // joint to node xNode, Y from the child to the joint.
+        /// <summary>
+        /// A chain a0 - a1 - a2 under a static head and a free cloth node, with a0 and a1 based through node <paramref
+        /// name="xNode"/>.
+        /// </summary>
         private static FeModel ChainOverFreeClothNode(int xNode) => SyntheticCloth.Model(
             ["head", "$cloth_node_side", "a0", "a1", "a2"], staticNodes: 2, parents: [-1, 0, 0, 2, 3],
             poses: [new(0f, 0f, 0f), new(0f, -50f, 0f), new(0f, 0f, -5f), new(0f, 0f, -10f), new(0f, 0f, -15f)],
@@ -9621,47 +8646,35 @@ namespace Tests
                 """);
 
         /// <summary>
-        /// A settled bend paint is replaced only where it misses rods by more than the replay's own float agreement of 1e-4 of the
-        /// span, not by more than a thousandth of it: a rod a few thousandths off its compiled minimum is still one the compiler
-        /// rebuilds differently. The sheet is dota `mirana_persona_base`'s, copied from the compiled original: 126 network rods, 20
-        /// of them within 0.003 of their minimum under the settled paint. CONTROL: the covering answer on the drow goddess sheet
-        /// still rebuilds every rod at the tight rule.
+        /// A settled paint missing rods by more than 1e-4 of the span is replaced, so every rod folds back under the
+        /// tight rule, also on the covering answer's sheet.
         /// </summary>
-        /// <remarks>
-        /// MEASURED 2026-09-25 on `6cf751d5a`: at the loose rule `queenofpain_arcana_sfm` (0.0102 off at a 22.49 span) and both
-        /// mirana_persona rows kept their settled paint and stayed DEFECT on m_Rods; at this rule all three leave DEFECT.
-        /// </remarks>
         [Test]
         public async Task ASettledPaintMissingRodsByThousandthsIsReplaced()
         {
             List<int[]> faces = [[66, 67, 72, 73], [30, 31, 36, 37], [18, 19, 24, 25], [25, 24, 31, 30], [48, 49, 54, 55], [37, 36, 42, 43], [43, 42, 49, 48], [55, 54, 60, 61], [61, 60, 67, 66], [12, 13, 19, 18], [6, 7, 13, 12], [0, 1, 7, 6], [68, 74, 75, 69], [32, 38, 39, 33], [20, 26, 27, 21], [26, 32, 33, 27], [50, 56, 57, 51], [38, 44, 45, 39], [44, 50, 51, 45], [56, 62, 63, 57], [62, 68, 69, 63], [14, 20, 21, 15], [8, 14, 15, 9], [9, 2, 3, 8], [82, 83, 84, 85], [40, 46, 47, 41], [22, 28, 29, 23], [10, 16, 17, 11], [16, 22, 23, 17], [28, 34, 35, 29], [34, 40, 41, 35], [58, 64, 65, 59], [46, 52, 53, 47], [52, 58, 59, 53], [70, 76, 77, 71], [64, 70, 71, 65], [76, 82, 85, 77], [4, 5, 10, 11], [10, 5, 2, 9], [15, 21, 22, 16], [27, 33, 34, 28], [39, 45, 46, 40], [51, 57, 58, 52], [63, 69, 70, 64], [78, 79, 83, 82], [72, 67, 80, 81], [67, 60, 65, 71], [54, 49, 53, 59], [42, 36, 41, 47], [31, 24, 29, 35], [19, 13, 17, 23], [7, 1, 4, 11], [69, 75, 79, 78], [81, 80, 85, 84]];
             HashSet<(int, int)> network = [(0, 12), (1, 13), (2, 15), (3, 14), (4, 17), (5, 16), (6, 11), (6, 18), (7, 10), (7, 19), (8, 10), (8, 20), (9, 11), (9, 21), (10, 22), (11, 23), (12, 17), (12, 25), (13, 16), (13, 24), (14, 16), (14, 26), (15, 17), (15, 27), (16, 28), (17, 29), (18, 23), (18, 30), (19, 22), (19, 31), (20, 22), (20, 32), (21, 23), (21, 33), (22, 34), (23, 35), (24, 28), (24, 36), (25, 29), (25, 37), (26, 28), (26, 38), (27, 29), (27, 39), (28, 40), (29, 41), (30, 35), (30, 43), (31, 34), (31, 42), (32, 34), (32, 44), (33, 35), (33, 45), (34, 46), (35, 47), (36, 40), (36, 49), (37, 41), (37, 48), (38, 40), (38, 50), (39, 41), (39, 51), (40, 52), (41, 53), (42, 46), (42, 54), (43, 47), (43, 55), (44, 46), (44, 56), (45, 47), (45, 57), (46, 58), (47, 59), (48, 53), (48, 61), (49, 52), (49, 60), (50, 52), (50, 62), (51, 53), (51, 63), (52, 64), (53, 65), (54, 58), (54, 67), (55, 59), (55, 66), (56, 58), (56, 68), (57, 59), (57, 69), (58, 70), (59, 71), (60, 64), (60, 72), (61, 65), (61, 73), (62, 64), (62, 74), (63, 65), (63, 75), (64, 76), (65, 77), (66, 71), (66, 80), (67, 70), (67, 85), (68, 70), (68, 78), (69, 71), (69, 82), (70, 82), (71, 85), (72, 84), (73, 81), (74, 79), (75, 83), (76, 83), (77, 84), (78, 85), (79, 84), (80, 82), (81, 83)];
-            var sheet = MiranaPersonaSheet;
+            var sheet = SettledPaintSheet;
             var (paint, curvature) = ClothExtract.ClothBendStiffnessOverFold(sheet, faces, network, 0.800064f, keepsCurvature: false);
 
-            List<int[]> drowFaces = [[15, 12, 13], [14, 15, 13], [6, 7, 3, 4], [5, 8, 6, 4], [0, 5, 4, 1], [3, 2, 1, 4], [9, 10, 7, 6], [8, 11, 9, 6], [11, 14, 13, 9], [12, 10, 9, 13]];
-            HashSet<(int, int)> drowNetwork = [(0, 8), (1, 6), (2, 7), (3, 5), (3, 10), (4, 9), (5, 11), (6, 13), (7, 8), (7, 12), (8, 14), (9, 15), (10, 11), (10, 15), (11, 15), (12, 14)];
-            var (drowPaint, drowCurvature) = ClothExtract.ClothBendStiffnessOverFold(DrowGoddessHeadSheet, drowFaces, drowNetwork,
+            var coveringFaces = CoveringPaintFaces;
+            var coveringNetwork = CoveringPaintNetwork;
+            var (coveringPaint, coveringCurvature) = ClothExtract.ClothBendStiffnessOverFold(CoveringPaintSheet, coveringFaces, coveringNetwork,
                 0.7383068f, keepsCurvature: false);
 
             using (Assert.Multiple())
             {
-                // CONTROL: the drow sheet's covering answer at the tight rule.
-                await Assert.That(FoldedRodMisses(DrowGoddessHeadSheet, drowFaces, drowNetwork, drowPaint, drowCurvature, tight: true)).IsEmpty();
+                await Assert.That(FoldedRodMisses(CoveringPaintSheet, coveringFaces, coveringNetwork, coveringPaint, coveringCurvature, tight: true)).IsEmpty();
 
-                // THE LAW.
                 await Assert.That(FoldedRodMisses(sheet, faces, network, paint, curvature, tight: true)).IsEmpty();
             }
         }
 
-        private static FeModel MiranaPersonaSheet => SyntheticCloth.Load("cloth_sheet_settled_paint.kv3");
+        private static FeModel SettledPaintSheet => SyntheticCloth.Load("cloth_sheet_settled_paint.kv3");
 
         /// <summary>
-        /// A second rigid copy of a span at the pair's rest distance, at relaxation 1.0 and weight 0.5, on a pair the original
-        /// records no two-corner source element for, is a copy no <c>ClothSpring</c> made: the exporter re-declares it as a
-        /// two-member cluster, which compiles the same rod without the element.
-        /// CONTROLS: the same pair with the spring's source element, with a banded copy, with a single rod, and in a model that
-        /// compiled no <c>m_SkelParents</c>.
+        /// A second rigid copy of a span with no two-corner source element is an unrecorded span copy; a recorded
+        /// spring, a banded copy, a lone rod, or a model without <c>m_SkelParents</c> is not.
         /// </summary>
         [Test]
         public async Task ASecondRigidSpanCopyWithNoSourceElementIsAClusterRod()
@@ -9682,27 +8695,19 @@ namespace Tests
 
             using (Assert.Multiple())
             {
-                // CONTROL: a spring's element, a banded copy, a lone rod, no compiled skeleton parents.
                 await Assert.That(ClothExtract.IsUnrecordedSpanCopy(sprung, sprung.Rods[1])).IsFalse();
                 await Assert.That(ClothExtract.IsUnrecordedSpanCopy(banded, banded.Rods[1])).IsFalse();
                 await Assert.That(ClothExtract.IsUnrecordedSpanCopy(single, single.Rods[0])).IsFalse();
                 await Assert.That(ClothExtract.IsUnrecordedSpanCopy(unparented, unparented.Rods[1])).IsFalse();
 
-                // THE LAW.
                 await Assert.That(ClothExtract.IsUnrecordedSpanCopy(doubled, doubled.Rods[1])).IsTrue();
             }
         }
 
         /// <summary>
-        /// A fold the compiler builds across a cluster pair on its own sits beside the cluster's band as a second banded record,
-        /// told apart by its weight: its endpoints' final inverse-mass ratio, which a cluster's rod never carries. The clique is
-        /// still one cluster.
-        /// CONTROL: the same two extra records on pairs no face folds, which are no compiler folds, break the clique.
+        /// A fold-weighted record beside a cluster band leaves the clique one cluster; the same records on unfolded
+        /// pairs break it.
         /// </summary>
-        /// <remarks>
-        /// MEASURED 2026-09-25 on deadlock <c>doorman</c>: four key-ring cliques at 1.6 / 8.0, three pairs of each also carrying a
-        /// compiler fold (w0 0.494924, 0.514656, 0.486904), were left undeclared.
-        /// </remarks>
         [Test]
         public async Task AFoldBesideAClusterBandLeavesTheCliqueOneCluster()
         {
@@ -9714,10 +8719,8 @@ namespace Tests
 
             using (Assert.Multiple())
             {
-                // CONTROL.
                 await Assert.That(unfolded.Count).IsEqualTo(0);
 
-                // THE LAW.
                 await Assert.That(folded.Select(static child => string.Join("|", child.Value.GetSubCollection("chain").GetArray("joints")
                     .Select(static joint => joint.GetStringProperty("joint_name")))).ToArray())
                     .IsEquivalentTo(FoldedCliqueMembers, CollectionOrdering.Matching);
@@ -9726,8 +8729,10 @@ namespace Tests
 
         private static readonly string[] FoldedCliqueMembers = ["$cca_0|$cca_1|$ccb_0|$ccb_1"];
 
-        // ClusterCliqueRings with unequal ring masses, two quads over the joints folding each ring's own pair, and a fold record
-        // on each of those pairs at the ratio of its endpoints' inverse masses.
+        /// <summary>
+        /// <see cref="ClusterCliqueRings"/> with unequal ring masses and a fold-weighted record on each ring pair;
+        /// <paramref name="faces"/> adds the quads that fold them.
+        /// </summary>
         private static FeModel FoldedClusterClique(bool faces) => SyntheticCloth.Model(
             ["a", "b", "$cca_0", "$cca_1", "$ccb_0", "$ccb_1"], staticNodes: 2, parents: [-1, -1, 0, 0, 1, 1],
                 invMasses: "0.0, 0.0, 0.01, 0.02, 0.01, 0.02",
@@ -9748,17 +8753,9 @@ namespace Tests
                 """);
 
         /// <summary>
-        /// An authored <c>ClothSpring</c> between two chain joints is re-declared on the PROXY SHEET route as well as on the chain
-        /// route. The spring leaves a two-corner source element and a rod; the sheet route's own spring writer skips every rod
-        /// touching an independent chain, so without the source-spring pass the spring is simply lost.
-        /// CONTROL: the same sheet and chains with no spring declare none.
+        /// On the proxy sheet route an authored <c>ClothSpring</c> between two chain joints is re-declared; the model
+        /// without it declares none.
         /// </summary>
-        /// <remarks>
-        /// MEASURED 2026-09-25 at `76a2826bf`: dotaout wr_arcana_base and wr_arcana_zinogre_mail carry 30 two-corner source
-        /// elements each and the rebuild none; 25 of the 30 name two chain joints. The fixtures are synth `w42gr_mix_two_chains`
-        /// with and without a `ClothSpring` from `coattail_1_L` to `coattail_1_R` at stiffness 0.4, compiled by the frozen CS2
-        /// compiler.
-        /// </remarks>
         [Test]
         public async Task AnAuthoredSpringBetweenChainJointsIsReDeclaredOnTheSheetRoute()
         {
@@ -9774,12 +8771,10 @@ namespace Tests
 
             using (Assert.Multiple())
             {
-                // CONTROL: both documents take the sheet route, and the one with no spring declares none.
                 await Assert.That(sprung).Contains("ClothProxyMeshFile");
                 await Assert.That(plain).Contains("ClothProxyMeshFile");
                 await Assert.That(plain).DoesNotContain("_class = \"ClothSpring\"");
 
-                // THE LAW.
                 await Assert.That(sprung).Contains("_class = \"ClothSpring\"");
                 await Assert.That(sprung).Contains("cloth_node_0 = \"coattail_1_L\"");
                 await Assert.That(sprung).Contains("cloth_node_1 = \"coattail_1_R\"");
@@ -9787,11 +8782,8 @@ namespace Tests
         }
 
         /// <summary>
-        /// A ClothNode on a bone the original bases through four other nodes but that shares no rod with two of them declares the
-        /// preset its basis compiled from: the bulk scan grades only a node with two rod neighbours, so at alignment 0 the stated
-        /// references are ignored and the node compiles with no basis at all. The shape is an old sheet-driven bone, based on four
-        /// proxy vertices, that the export declares instead of back-solving. CONTROL: the same basis on a bone two rods tie to the
-        /// sheet keeps alignment 0, since the scan grades it.
+        /// A ClothNode with a node base but fewer than two rod neighbours declares alignment 4 with its references; a
+        /// node two rods tie to keeps 0.
         /// </summary>
         [Test]
         public async Task ADynamicClothNodeNoRodTiesToTwoNodesDeclaresItsBasisPreset()
@@ -9821,11 +8813,9 @@ namespace Tests
 
             using (Assert.Multiple())
             {
-                // CONTROL: two rods tie the node to the sheet, so the scan grades it.
                 await Assert.That(ClothExtract.RodNeighbourCount(feModel, 6)).IsEqualTo(2);
                 await Assert.That(strap.GetInt32Property("transform_alignment")).IsEqualTo(0);
 
-                // THE LAW.
                 await Assert.That(flap.GetInt32Property("transform_alignment")).IsEqualTo(4);
                 await Assert.That(flap.GetStringProperty("node_base_x0")).IsEqualTo("d");
                 await Assert.That(flap.GetStringProperty("node_base_x1")).IsEqualTo("a");
@@ -9835,16 +8825,9 @@ namespace Tests
         }
 
         /// <summary>
-        /// A bone cloud's folds are the pairs the compiler's own fold walk names (solve elements, then the source faces with
-        /// each corner-count group backwards), so a fold built after the mass pass is neither weighed in the joint mass nor
-        /// re-declared as a spring. CONTROL: folds that keep a declared even weight were in the network when the masses were
-        /// taken, and weigh.
+        /// A bone cloud's folds are read in the compiler's fold walk, so folds built after the mass pass neither weigh
+        /// in the joint mass nor stay surplus; declared folds weigh.
         /// </summary>
-        /// <remarks>
-        /// MEASURED 2026-09-25 on dotaout <c>donkey_2022</c>: every cloud joint's compiled mass is its rigid rod term alone,
-        /// multiplier 1. Read in declaration order the faces name one of its three folds, so two came back as springs and
-        /// gave <c>hair_01</c> 0.8806.
-        /// </remarks>
         [Test]
         public async Task ABoneCloudFoldIsReadInTheCompilersFoldWalk()
         {
@@ -9854,11 +8837,9 @@ namespace Tests
 
             using (Assert.Multiple())
             {
-                // CONTROL.
                 await Assert.That(declared.RecoverJointMassMultiplier(1) ?? -1f).IsEqualTo(1f).Within(1e-3f);
                 await Assert.That(declared.RecoverJointMassMultiplier(4) ?? -1f).IsEqualTo(1f).Within(1e-3f);
 
-                // THE LAW.
                 await Assert.That(after.RecoverJointMassMultiplier(1) ?? -1f).IsEqualTo(1f).Within(1e-3f);
                 await Assert.That(after.RecoverJointMassMultiplier(2) ?? -1f).IsEqualTo(1f).Within(1e-3f);
                 await Assert.That(after.RecoverJointMassMultiplier(4) ?? -1f).IsEqualTo(1f).Within(1e-3f);
@@ -9866,10 +8847,10 @@ namespace Tests
             }
         }
 
-        // A static head and four simulated cloud members (hair 1, ear_L 2, ear_R 3, muzzle 4) with a rigid rod on every pair
-        // and three folds among hair, ear_L and muzzle over the six triangles (member, member, head). Built after the mass pass
-        // the folds carry the final inverse-mass ratio and the masses are the rigid term alone; declared, they carry 0.5 and
-        // the masses count them.
+        /// <summary>
+        /// A static head and four cloud members with rigid rods on every pair and three folds, built after the mass pass
+        /// or declared.
+        /// </summary>
         private static FeModel BoneCloud(bool afterMass)
         {
             var inv = afterMass
