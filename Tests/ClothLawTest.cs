@@ -10377,5 +10377,164 @@ namespace Tests
                 ]
             }
             """);
+
+        /// <summary>
+        /// A bend rod reaches its minimum through ONE of the hinges that generate it and sits at or above it through the rest, so
+        /// the paint solve has to choose which hinge sets each rod. Holding every hinge at the largest sum any rod states through
+        /// it over-constrains a sheet where two rods share hinges; holding only the hinges that cover every rod and bounding the
+        /// rest from below recovers a paint that folds every rod back to its minimum. The sheet is dota
+        /// `blue_wintermoon_mount`'s, copied from the compiled original: 27 network rods, 25 of them capped. CONTROLS: a sheet
+        /// whose first solve already recovers a paint keeps it, and a sheet no paint can explain still states a fold its capped
+        /// rods allow and no paint.
+        /// </summary>
+        [Test]
+        public async Task APaintSolveHoldsOnlyTheHingesThatSetItsRods()
+        {
+            List<int[]> faces = [[6, 0, 7], [16, 6, 7, 17], [1, 8, 9], [18, 17, 9, 8], [16, 17, 18], [2, 10, 11], [16, 19, 11, 10], [18, 12, 13, 19], [12, 3, 13], [16, 18, 19], [20, 22, 23, 21], [4, 14, 15, 5], [14, 20, 21, 15], [22, 24, 25, 23], [24, 26, 27, 25], [26, 28, 27]];
+            HashSet<(int, int)> network = [(0, 16), (0, 17), (1, 17), (1, 18), (2, 16), (2, 19), (3, 18), (3, 19), (4, 20), (5, 21), (6, 18), (7, 18), (8, 16), (9, 16), (10, 18), (11, 18), (12, 16), (13, 16), (14, 22), (15, 23), (17, 19), (20, 24), (21, 25), (22, 26), (23, 27), (24, 28), (25, 28)];
+            var sheet = WintermoonSheet;
+            var (paint, curvature) = ModelExtract.ClothBendStiffnessOverFold(sheet, faces, network, 0.9939643f, keepsCurvature: false);
+
+            List<int[]> gridFaces = [[0, 1, 5, 4], [1, 2, 6, 5], [2, 3, 7, 6], [4, 5, 9, 8], [5, 6, 10, 9], [6, 7, 11, 10]];
+            HashSet<(int, int)> gridNetwork = [(0, 2), (1, 3), (4, 6), (5, 7), (8, 10), (9, 11), (0, 8), (1, 9), (2, 10), (3, 11)];
+            var (painted, paintedCurvature) = ModelExtract.ClothBendStiffnessOverFold(
+                LeastFoldedHingeGrid, gridFaces, gridNetwork, 0.375f, keepsCurvature: false);
+            var (bounded, boundedCurvature) = ModelExtract.ClothBendStiffnessOverFold(
+                CappedAgainstFlatHingeGrid(20f), gridFaces, gridNetwork, 0f, keepsCurvature: false);
+
+            using (Assert.Multiple())
+            {
+                // CONTROL: a paint the existing solve recovers, and a sheet no paint explains.
+                await Assert.That(painted).IsNotNull();
+                await Assert.That(paintedCurvature).IsEqualTo(0f);
+                await Assert.That(bounded).IsNull();
+                await Assert.That(boundedCurvature).IsEqualTo(1f).Within(0.01f);
+
+                // THE LAW: every network rod folds back to its own minimum.
+                await Assert.That(FoldedRodMisses(sheet, faces, network, paint, curvature)).IsEmpty();
+            }
+        }
+
+        // The network rods whose minimum the compiler would not rebuild from the paint and add_curvature: the fold of each
+        // generating hinge is clamp((paint[u] + paint[v]) * pi / 2 + add_curvature * pi, 0, pi), the rod takes the smallest
+        // span any of them folds it to, and never more than its own rest span.
+        private static List<(int, int)> FoldedRodMisses(FeModel sheet, List<int[]> faces, HashSet<(int, int)> network,
+            Dictionary<int, float>? paint, float curvature)
+        {
+            var positions = sheet.InitPosePositions;
+            var generators = new Dictionary<(int, int), List<(int, int)>>();
+            foreach (var (hinge, a, b) in FeModel.BendRodGenerators(faces))
+            {
+                var pair = a < b ? (a, b) : (b, a);
+                (generators.TryGetValue(pair, out var known) ? known : generators[pair] = []).Add(hinge);
+            }
+
+            var misses = new List<(int, int)>();
+            foreach (var rod in sheet.Rods)
+            {
+                var pair = rod.NodeA < rod.NodeB ? (rod.NodeA, rod.NodeB) : (rod.NodeB, rod.NodeA);
+                if (!network.Contains(pair))
+                {
+                    continue;
+                }
+
+                var rest = Vector3.Distance(positions[rod.NodeA], positions[rod.NodeB]);
+                var span = rest;
+                foreach (var hinge in generators.GetValueOrDefault(pair) ?? [])
+                {
+                    var axis = Vector3.Normalize(positions[hinge.Item2] - positions[hinge.Item1]);
+                    var toA = positions[rod.NodeA] - positions[hinge.Item1];
+                    var toB = positions[rod.NodeB] - positions[hinge.Item1];
+                    var alongA = Vector3.Dot(toA, axis);
+                    var alongB = Vector3.Dot(toB, axis);
+                    var riseA = (toA - (alongA * axis)).Length();
+                    var riseB = (toB - (alongB * axis)).Length();
+                    var sum = (paint?.GetValueOrDefault(hinge.Item1) ?? 0f) + (paint?.GetValueOrDefault(hinge.Item2) ?? 0f);
+                    var fold = Math.Clamp((sum * MathF.PI / 2f) + (curvature * MathF.PI), 0f, MathF.PI);
+                    var folded = MathF.Sqrt(((alongA - alongB) * (alongA - alongB)) + (riseA * riseA) + (riseB * riseB)
+                        - (2f * riseA * riseB * MathF.Cos(fold)));
+                    span = MathF.Min(span, folded);
+                }
+
+                if (MathF.Abs(span - rod.MinDist) > 1e-3f * MathF.Max(1f, rod.MinDist))
+                {
+                    misses.Add(pair);
+                }
+            }
+
+            return misses;
+        }
+
+        // models/items/mirana/blue_wintermoon_mount/blue_wintermoon_mount.vmdl_c: 29 nodes, 27 network rods, 16 faces, surface add_curvature 0.9939643; the sheet's face nodes renumbered from 0.
+        private static FeModel WintermoonSheet => SyntheticCloth.Parse($$"""
+            {
+                m_CtrlName = [ "$cloth_m0p0", "$cloth_m0p1", "$cloth_m0p2", "$cloth_m0p3", "$cloth_m0p4", "$cloth_m0p5", "$cloth_m0p6", "$cloth_m0p7", "$cloth_m0p8", "$cloth_m0p9", "$cloth_m0p10", "$cloth_m0p11", "$cloth_m0p12", "$cloth_m0p13", "$cloth_m0p14", "$cloth_m0p15", "$cloth_m0p16", "$cloth_m0p17", "$cloth_m0p18", "$cloth_m0p19", "$cloth_m0p20", "$cloth_m0p21", "$cloth_m0p22", "$cloth_m0p23", "$cloth_m0p24", "$cloth_m0p25", "$cloth_m0p26", "$cloth_m0p27", "$cloth_m0p28" ]
+                m_nNodeCount = 29
+                m_nStaticNodes = 0
+                m_NodeInvMasses = [ 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0 ]
+                m_InitPose =
+                [
+                    {{SyntheticCloth.Pose(96.23977f, -21.352524f, 193.65706f)}}
+                    {{SyntheticCloth.Pose(101.10704f, -12.243159f, 155.27309f)}}
+                    {{SyntheticCloth.Pose(96.23977f, 21.352524f, 193.65706f)}}
+                    {{SyntheticCloth.Pose(101.10704f, 12.243159f, 155.27309f)}}
+                    {{SyntheticCloth.Pose(-86.62791f, 7.855209f, 90.85877f)}}
+                    {{SyntheticCloth.Pose(-86.62791f, -7.855209f, 90.85877f)}}
+                    {{SyntheticCloth.Pose(101.527275f, -8.785593f, 187.25053f)}}
+                    {{SyntheticCloth.Pose(98.7905f, -17.215473f, 177.5718f)}}
+                    {{SyntheticCloth.Pose(104.68011f, -4.0255046f, 154.1219f)}}
+                    {{SyntheticCloth.Pose(101.48694f, -12.619385f, 162.70032f)}}
+                    {{SyntheticCloth.Pose(101.527275f, 8.785593f, 187.25053f)}}
+                    {{SyntheticCloth.Pose(98.7905f, 17.215473f, 177.5718f)}}
+                    {{SyntheticCloth.Pose(104.68011f, 4.0255046f, 154.1219f)}}
+                    {{SyntheticCloth.Pose(101.48694f, 12.619385f, 162.70032f)}}
+                    {{SyntheticCloth.Pose(-98.67452f, 10.1297655f, 73.70374f)}}
+                    {{SyntheticCloth.Pose(-98.67452f, -10.1297655f, 73.70374f)}}
+                    {{SyntheticCloth.Pose(102.20527f, 8.774978E-30f, 177.97769f)}}
+                    {{SyntheticCloth.Pose(102.544426f, -10.05127f, 165.99724f)}}
+                    {{SyntheticCloth.Pose(104.51593f, 7.777337E-30f, 157.74313f)}}
+                    {{SyntheticCloth.Pose(102.544426f, 10.05127f, 165.99724f)}}
+                    {{SyntheticCloth.Pose(-113.71193f, 13.470117f, 59.25505f)}}
+                    {{SyntheticCloth.Pose(-113.71193f, -13.470117f, 59.25505f)}}
+                    {{SyntheticCloth.Pose(-132.6082f, 15.324176f, 50.38886f)}}
+                    {{SyntheticCloth.Pose(-132.6082f, -15.324176f, 50.38886f)}}
+                    {{SyntheticCloth.Pose(-153.33545f, 11.337616f, 49.07927f)}}
+                    {{SyntheticCloth.Pose(-153.33545f, -11.337616f, 49.07927f)}}
+                    {{SyntheticCloth.Pose(-173.14297f, 5.5178976f, 55.008205f)}}
+                    {{SyntheticCloth.Pose(-173.14297f, -5.5178976f, 55.008205f)}}
+                    {{SyntheticCloth.Pose(-190.56068f, -2.4031326E-15f, 66.387886f)}}
+                ]
+                m_Rods =
+                [
+                    {{SyntheticCloth.BandedRod(0, 16, 27.154373f, 27.351889f, 1f)}}
+                    {{SyntheticCloth.BandedRod(0, 17, 30.5374f, 30.538563f, 1f)}}
+                    {{SyntheticCloth.BandedRod(1, 17, 11.039832f, 11.044836f, 1f)}}
+                    {{SyntheticCloth.BandedRod(1, 18, 12.946683f, 13.106691f, 1f)}}
+                    {{SyntheticCloth.BandedRod(2, 16, 27.154373f, 27.351889f, 1f)}}
+                    {{SyntheticCloth.BandedRod(2, 19, 30.5374f, 30.538563f, 1f)}}
+                    {{SyntheticCloth.BandedRod(3, 18, 12.946683f, 13.106691f, 1f)}}
+                    {{SyntheticCloth.BandedRod(3, 19, 11.039832f, 11.044836f, 1f)}}
+                    {{SyntheticCloth.BandedRod(4, 20, 41.998413f, 42.191517f, 1f)}}
+                    {{SyntheticCloth.BandedRod(5, 21, 41.998413f, 42.191517f, 1f)}}
+                    {{SyntheticCloth.BandedRod(9, 16, 19.828339f, 19.952848f, 1f)}}
+                    {{SyntheticCloth.BandedRod(13, 16, 19.828339f, 19.95285f, 1f)}}
+                    {{SyntheticCloth.BandedRod(8, 16, 24.319298f, 24.320848f, 1f)}}
+                    {{SyntheticCloth.BandedRod(12, 16, 24.319298f, 24.320848f, 1f)}}
+                    {{SyntheticCloth.BandedRod(7, 18, 26.876177f, 26.927683f, 1f)}}
+                    {{SyntheticCloth.BandedRod(11, 18, 26.876177f, 26.927685f, 1f)}}
+                    {{SyntheticCloth.BandedRod(6, 18, 30.932272f, 30.959124f, 1f)}}
+                    {{SyntheticCloth.BandedRod(10, 18, 30.932272f, 30.959124f, 1f)}}
+                    {{SyntheticCloth.BandedRod(14, 22, 41.497715f, 42.048958f, 1f)}}
+                    {{SyntheticCloth.BandedRod(15, 23, 41.497715f, 42.048958f, 1f)}}
+                    {{SyntheticCloth.BandedRod(20, 24, 40.964832f, 41.69606f, 1f)}}
+                    {{SyntheticCloth.BandedRod(21, 25, 40.964832f, 41.69606f, 1f)}}
+                    {{SyntheticCloth.BandedRod(19, 17, 20.10254f, 20.206247f, 1f)}}
+                    {{SyntheticCloth.BandedRod(22, 26, 41.95914f, 42.588764f, 1f)}}
+                    {{SyntheticCloth.BandedRod(23, 27, 41.95914f, 42.588764f, 1f)}}
+                    {{SyntheticCloth.BandedRod(24, 28, 35.4227f, 43.00294f, 1f)}}
+                    {{SyntheticCloth.BandedRod(25, 28, 35.422703f, 43.002945f, 1f)}}
+                ]
+            }
+            """);
     }
 }

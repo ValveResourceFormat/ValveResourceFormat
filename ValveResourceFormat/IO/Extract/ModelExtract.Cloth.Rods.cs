@@ -807,7 +807,8 @@ partial class ModelExtract
         {
             return (ClothBendStiffnessFromHinges(feModel, faces, network, 0f, generatorBound: true, out _, out _, out _)
                 ?? ClothBendStiffnessFromHinges(feModel, faces, network, 0f, generatorBound: true, out _, out _, out _,
-                    relaxSetters: true), addCurvature);
+                    relaxSetters: true)
+                ?? ClothBendStiffnessCoveringHinges(feModel, faces, network, 0f), addCurvature);
         }
 
         var residual = ClothBendStiffnessFromHinges(feModel, faces, network, addCurvature, generatorBound: true,
@@ -828,6 +829,11 @@ partial class ModelExtract
 
         residual ??= ClothBendStiffnessFromHinges(feModel, faces, network, addCurvature, generatorBound: true, out _, out _,
             out residualSlack, relaxSetters: true);
+        if (residual is null && !overFolds && sharedSlack > ClothBendStiffnessAgreement
+            && ClothBendStiffnessCoveringHinges(feModel, faces, network, addCurvature) is { } coveredResidual)
+        {
+            return (coveredResidual, addCurvature);
+        }
         if (residual is { Count: > 0 } && sharedSlack > residualSlack + ClothBendStiffnessAgreement)
         {
             return (residual, addCurvature);
@@ -837,6 +843,12 @@ partial class ModelExtract
             && relaxedSpread > ClothBendStiffnessAgreement && sharedSlack > relaxedSlack + ClothBendStiffnessAgreement)
         {
             return (relaxed, 0f);
+        }
+
+        if (overFolds && sharedSlack > ClothBendStiffnessAgreement
+            && ClothBendStiffnessCoveringHinges(feModel, faces, network, 0f) is { } covered)
+        {
+            return (covered, 0f);
         }
 
         return (paint, addCurvature);
@@ -1386,6 +1398,183 @@ partial class ModelExtract
         }
 
         return solved;
+    }
+
+    /// <summary>
+    /// The per-vertex <c>cloth_bend_stiffness</c> that folds a bend network on top of <paramref name="addCurvature"/>, where
+    /// the rods do not say which of their hinges built them. Each rod reaches its minimum through ONE hinge and sits at or
+    /// above it through the rest, so each hinge's sum is at least the largest any of its rods states, and every rod needs
+    /// one hinge held exactly there. The rods only one hinge can set hold it; the rest are covered by the fewest further
+    /// hinges, the one covering most first and the lowest pair on a tie. A reading pinned at the fully shut span, where
+    /// another hinge of the same rod reads it open, is the rod sitting below that hinge's reach: that hinge cannot have
+    /// built it and bounds nothing.
+    /// </summary>
+    /// <remarks>
+    /// Every constraint is a sum or difference of at most two paints, so the system is solved exactly as a shortest-path
+    /// problem over each paint and its negation, from the tightest tolerance up; null where no tolerance up to the
+    /// agreement admits one.
+    /// </remarks>
+    static Dictionary<int, float>? ClothBendStiffnessCoveringHinges(FeModel feModel, List<int[]> faces,
+        HashSet<(int, int)> network, float addCurvature)
+    {
+        var readings = ClothHingeReadings(feModel, faces, network);
+        float Sum(float fraction) => (4f / MathF.PI * MathF.Asin(MathF.Sqrt(fraction))) - (2f * addCurvature);
+
+        static ((int, int) Hinge, float Fraction)[] Usable(bool capped, ((int, int) Hinge, float Fraction)[] candidates)
+            => capped || !Array.Exists(candidates, static candidate => candidate.Fraction > 0f)
+                ? candidates
+                : Array.FindAll(candidates, static candidate => candidate.Fraction > 0f);
+
+        var least = new Dictionary<(int, int), float>();
+        foreach (var (_, _, capped, _, candidates) in readings)
+        {
+            foreach (var (hinge, fraction) in Usable(capped, candidates))
+            {
+                least[hinge] = MathF.Max(least.GetValueOrDefault(hinge, float.MinValue), Sum(fraction));
+            }
+        }
+
+        foreach (var tolerance in ClothBendStiffnessCoverTolerances)
+        {
+            var held = new HashSet<(int, int)>();
+            var open = new List<List<(int, int)>>();
+            var explained = true;
+            foreach (var (_, _, capped, _, candidates) in readings)
+            {
+                if (capped || candidates.Length == 0)
+                {
+                    continue;
+                }
+
+                var setters = Usable(capped, candidates)
+                    .Where(candidate => Sum(candidate.Fraction) >= least[candidate.Hinge] - tolerance)
+                    .Select(static candidate => candidate.Hinge)
+                    .Distinct()
+                    .Order()
+                    .ToList();
+                if (setters.Count == 0)
+                {
+                    explained = false;
+                    break;
+                }
+
+                if (setters.Count == 1)
+                {
+                    held.Add(setters[0]);
+                }
+                else
+                {
+                    open.Add(setters);
+                }
+            }
+
+            if (!explained)
+            {
+                continue;
+            }
+
+            open.RemoveAll(setters => setters.Exists(held.Contains));
+            while (open.Count > 0)
+            {
+                var covers = new Dictionary<(int, int), int>();
+                foreach (var setters in open)
+                {
+                    foreach (var hinge in setters)
+                    {
+                        covers[hinge] = covers.GetValueOrDefault(hinge) + 1;
+                    }
+                }
+
+                var next = covers.OrderByDescending(static entry => entry.Value).ThenBy(static entry => entry.Key).First().Key;
+                held.Add(next);
+                open.RemoveAll(setters => setters.Contains(next));
+            }
+
+            var constraints = new List<(int U, float SignU, int V, float SignV, float Most)>();
+            foreach (var (hinge, sum) in least)
+            {
+                constraints.Add((hinge.Item1, -1f, hinge.Item2, -1f, tolerance - sum));
+                if (held.Contains(hinge))
+                {
+                    constraints.Add((hinge.Item1, 1f, hinge.Item2, 1f, sum + tolerance));
+                }
+            }
+
+            if (SolvePairwiseBounds(constraints) is { } paint)
+            {
+                return paint.Values.Any(static value => value > ClothBendStiffnessAgreement) ? paint : null;
+            }
+        }
+
+        return null;
+    }
+
+    static readonly float[] ClothBendStiffnessCoverTolerances = [1e-5f, 1e-4f, 1e-3f, ClothBendStiffnessAgreement];
+
+    /// <summary>
+    /// Values in [0, 1] for every node the constraints name, each constraint <c>SignU * x[U] + SignV * x[V] &lt;= Most</c>
+    /// with unit signs, or null where none exist. Every node stands as itself and as its negation, a constraint becomes two
+    /// shortest-path edges between them, and the values are half the distance between the two; a negative cycle means the
+    /// system has no solution.
+    /// </summary>
+    static Dictionary<int, float>? SolvePairwiseBounds(List<(int U, float SignU, int V, float SignV, float Most)> constraints)
+    {
+        var nodes = constraints.SelectMany(static c => new[] { c.U, c.V }).Distinct().Order().ToList();
+        var index = new Dictionary<int, int>();
+        for (var i = 0; i < nodes.Count; i++)
+        {
+            index[nodes[i]] = i;
+        }
+
+        // Vertex 2i stands for x[i] and 2i+1 for -x[i]; an edge a -> b of weight w states value(b) - value(a) <= w.
+        static int Term(int node, float sign) => (2 * node) + (sign > 0f ? 0 : 1);
+        static int Negated(int term) => term ^ 1;
+        var edges = new List<(int From, int To, double Weight)>();
+        void Bound(int u, float signU, int v, float signV, double most)
+        {
+            var a = Term(u, signU);
+            var b = Term(v, signV);
+            edges.Add((Negated(b), a, most));
+            edges.Add((Negated(a), b, most));
+        }
+
+        foreach (var (u, signU, v, signV, most) in constraints)
+        {
+            Bound(index[u], signU, index[v], signV, most);
+        }
+
+        for (var i = 0; i < nodes.Count; i++)
+        {
+            Bound(i, 1f, i, 1f, 2.0);
+            Bound(i, -1f, i, -1f, 0.0);
+        }
+
+        var distance = new double[2 * nodes.Count];
+        for (var pass = 0; pass <= distance.Length; pass++)
+        {
+            var changed = false;
+            foreach (var (from, to, weight) in edges)
+            {
+                if (distance[from] + weight < distance[to] - 1e-12)
+                {
+                    distance[to] = distance[from] + weight;
+                    changed = true;
+                }
+            }
+
+            if (!changed)
+            {
+                var solved = new Dictionary<int, float>();
+                for (var i = 0; i < nodes.Count; i++)
+                {
+                    solved[nodes[i]] = (float)Math.Clamp((distance[2 * i] - distance[(2 * i) + 1]) / 2.0, 0.0, 1.0);
+                }
+
+                return solved;
+            }
+        }
+
+        return null;
     }
 
     // How far two hinges' stated sums may sit apart and still count as the same paint, in the
