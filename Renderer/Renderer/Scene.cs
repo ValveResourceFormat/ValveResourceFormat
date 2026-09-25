@@ -1505,7 +1505,7 @@ namespace ValveResourceFormat.Renderer
 
                     scene.CollectShadowDrawCalls(sun.SunLightFrustums[cascade],
                         includeStatic: !scene.LightingInfo.HasBakedShadowsFromLightmap || !scene.LightingInfo.IsSunShadowBaked,
-                        includeDynamic: true, skipFlags: ObjectTypeFlags.NoShadows,
+                        includeDynamic: true, skipFlags: ObjectTypeFlags.NoShadows | ObjectTypeFlags.NoSunShadows,
                         scene.CulledShadowDrawCallsCascades[cascade],
                         sun.SunCastDirection, out var sceneDepthMin, out var sceneDepthMax,
                         sunVisibility);
