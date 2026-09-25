@@ -317,6 +317,21 @@ partial class ModelExtract
     // node_base_x0/x1/y0/y1 are read straight out of feModel.NodeBases and re-declared by NAME. A node
     // left without them registers as position-driven and is driven through a synthesized m_Ropes fallback
     // rather than simulated.
+    /// <summary>
+    /// The <c>transform_alignment</c> a <c>ClothNode</c> on an <c>m_Ropes</c> run compiled from. Alignment 0 gives the node
+    /// class byte 1, which the rope pass excludes; 1 gives 2 and 2 gives 3, and only 3 lets a virtual element node start a
+    /// run. A bone node takes 1 unless the original bases it, since class 2 is what keeps the bulk node-base pass off it.
+    /// </summary>
+    internal static int RopeClothNodeAlignment(FeModel feModel, int node, bool isElement, bool hasBasis)
+    {
+        if (!feModel.IsRopeNode(node))
+        {
+            return 0;
+        }
+
+        return isElement || hasBasis ? 2 : 1;
+    }
+
     internal static KVObject MakeClothNode(FeModel feModel, string boneName, int node, bool isStaticNode = false,
         string? elementName = null, Vector3 origin = default, Vector3 angles = default,
         IReadOnlyDictionary<int, string>? proxyNodeNames = null)
@@ -362,7 +377,7 @@ partial class ModelExtract
             ("cloth_collision_layer1", layers.Layer1),
             ("cloth_collision_layer2", layers.Layer2),
             ("cloth_collision_layer3", layers.Layer3),
-            ("transform_alignment", preset?.TransformAlignment ?? 0),
+            ("transform_alignment", preset?.TransformAlignment ?? RopeClothNodeAlignment(feModel, node, elementName is not null, hasBasis)),
             ("node_base_y1", BasisName(references.NodeY1)),
             ("node_base_x1", BasisName(references.NodeX1)),
             ("node_base_y0", BasisName(references.NodeY0)),

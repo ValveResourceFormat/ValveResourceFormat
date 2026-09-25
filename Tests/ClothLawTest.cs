@@ -10536,5 +10536,58 @@ namespace Tests
                 ]
             }
             """);
+
+        /// <summary>
+        /// A <c>ClothNode</c> on an <c>m_Ropes</c> run cannot have compiled at the default alignment, whose class byte the rope
+        /// pass excludes: an element node on a run states alignment 2 (the only class a virtual node starts a run from), a bone
+        /// node alignment 1. CONTROLS: a node on no run keeps 0, and a model with no ropes states 0 everywhere.
+        /// </summary>
+        /// <remarks>
+        /// PROBED 2026-09-25 on dota `models/test/cloth_min_mesh`: the element node at 2 and the bone at 1 or 2 compile the
+        /// original's `m_Ropes` [0, 2] and `m_FreeNodes` [1] exactly, where alignment 0 on both compiles no rope at all.
+        /// </remarks>
+        [Test]
+        public async Task AClothNodeOnARopeRunStatesTheAlignmentThatLetsItRope()
+        {
+            var roped = RopeClothNodeModel("[ 3, 0, 2 ]", 1);
+            var bare = RopeClothNodeModel("[ ]", 0);
+
+            using (Assert.Multiple())
+            {
+                // CONTROL: no rope, no alignment.
+                await Assert.That(RopeAlignments(bare)).IsEquivalentTo(NoRopeAlignments, CollectionOrdering.Matching);
+
+                // THE LAW, with the node on no run as its control.
+                await Assert.That(RopeAlignments(roped)).IsEquivalentTo(RopedAlignments, CollectionOrdering.Matching);
+            }
+        }
+
+        private static readonly int[] NoRopeAlignments = [0, 0, 0];
+        private static readonly int[] RopedAlignments = [1, 0, 2];
+
+        private static int[] RopeAlignments(FeModel feModel) =>
+        [
+            ModelExtract.MakeClothNode(feModel, "joint1", 0, isStaticNode: true).GetInt32Property("transform_alignment"),
+            ModelExtract.MakeClothNode(feModel, "joint1", 1, elementName: "clothNode_joint2").GetInt32Property("transform_alignment"),
+            ModelExtract.MakeClothNode(feModel, "joint1", 2, elementName: "clothNode_joint3").GetInt32Property("transform_alignment"),
+        ];
+
+        // cloth_min_mesh's shape: a static bone and two element nodes under it, the second roped to the bone.
+        private static FeModel RopeClothNodeModel(string ropes, int ropeCount) => SyntheticCloth.Parse($$"""
+            {
+                m_CtrlName = [ "joint1", "$cloth_node_clothNode_joint2", "$cloth_node_clothNode_joint3" ]
+                m_nNodeCount = 3
+                m_nStaticNodes = 1
+                m_NodeInvMasses = [ 0.0, 1.0, 1.0 ]
+                m_InitPose =
+                [
+                    {{SyntheticCloth.Pose(0f, 0f, 0f)}}
+                    {{SyntheticCloth.Pose(0f, 0f, -10f)}}
+                    {{SyntheticCloth.Pose(10f, 0f, -10f)}}
+                ]
+                m_nRopeCount = {{ropeCount}}
+                m_Ropes = {{ropes}}
+            }
+            """);
     }
 }

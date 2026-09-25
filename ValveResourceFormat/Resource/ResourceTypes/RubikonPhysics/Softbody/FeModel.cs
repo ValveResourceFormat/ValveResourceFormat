@@ -4683,6 +4683,38 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             }
         }
 
+        /// <summary>
+        /// Gets whether a node lies on an <c>m_Ropes</c> run of two or more nodes. The rope pass never starts or keeps a
+        /// run on a node whose class byte is 1, which is what a <c>ClothNode</c> at the default alignment compiles to.
+        /// </summary>
+        public bool IsRopeNode(int node)
+        {
+            if (ropeNodes is null)
+            {
+                ropeNodes = [];
+                var ropeCount = Data.GetInt32Property("m_nRopeCount");
+                var ropes = Data.GetIntegerArray("m_Ropes");
+                if (ropeCount > 0 && ropes.Length > ropeCount)
+                {
+                    var begin = ropeCount;
+                    for (var rope = 0; rope < ropeCount; rope++)
+                    {
+                        var end = Math.Min((int)ropes[rope], ropes.Length);
+                        for (var i = begin; i < end && end - begin >= 2; i++)
+                        {
+                            ropeNodes.Add((int)ropes[i]);
+                        }
+
+                        begin = end;
+                    }
+                }
+            }
+
+            return ropeNodes.Contains(node);
+        }
+
+        HashSet<int>? ropeNodes;
+
         /// <summary>Gets each follower node's leader and follow weight (<c>m_FollowNodes</c>).</summary>
         public IReadOnlyDictionary<int, (int Parent, float Weight)> FollowNodeLinks
         {
