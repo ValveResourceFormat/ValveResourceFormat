@@ -409,14 +409,16 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             };
         }
 
-        /// <summary>
-        /// Gets the bone chains exported as a standalone <c>ClothChain</c>: no joint is back-solved by a proxy sheet and the
-        /// chain is not sheet-driven.
-        /// </summary>
+        /// <summary>The bone chains <see cref="IsIndependentChain"/> accepts.</summary>
         private List<BoneChain> IndependentBoneChains()
-            => [.. BuildBoneChains()
-                .Where(chain => !chain.Joints.Any(joint => ProxyFitMatrixNodes.Contains(joint.Node))
-                    && !IsSheetDrivenChain(chain))];
+            => [.. BuildBoneChains().Where(IsIndependentChain)];
+
+        /// <summary>
+        /// Gets whether a chain is exported as a standalone <c>ClothChain</c>: no joint is back-solved by a proxy sheet and
+        /// the chain is not sheet-driven.
+        /// </summary>
+        internal bool IsIndependentChain(BoneChain chain)
+            => !chain.Joints.Any(joint => ProxyFitMatrixNodes.Contains(joint.Node)) && !IsSheetDrivenChain(chain);
 
         /// <summary>
         /// Gets whether a proxy sheet drives this chain's bones: every dynamic joint is position-driven, a <c>$cloth_m</c>

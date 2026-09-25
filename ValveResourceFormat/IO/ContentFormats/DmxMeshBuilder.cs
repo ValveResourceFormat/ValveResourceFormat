@@ -394,7 +394,6 @@ internal static class DmxMeshBuilder
         }
 
         var grown = new List<int>();
-
         var reached = new bool[paint.Length];
 
         for (var vertex = 0; vertex < paint.Length; vertex++)

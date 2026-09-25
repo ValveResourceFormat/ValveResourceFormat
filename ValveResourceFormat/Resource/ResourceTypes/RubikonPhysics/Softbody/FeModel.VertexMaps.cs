@@ -336,14 +336,29 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// <summary>Gets whether <paramref name="nameHash"/> is registered in <see cref="VertexSetNames"/>.</summary>
         internal bool RegistersVertexSet(uint nameHash) => Array.IndexOf(VertexSetNames, nameHash) >= 0;
 
+        /// <summary>Gets the first selection named <paramref name="name"/>.</summary>
+        internal bool TryGetVertexMap(string name, out VertexMap map)
+        {
+            foreach (var candidate in VertexMaps)
+            {
+                if (candidate.Name == name)
+                {
+                    map = candidate;
+                    return true;
+                }
+            }
+
+            map = default;
+            return false;
+        }
+
         /// <summary>
         /// Gets every selection, not registered as a vertex set, with the same membership as <paramref name="mapName"/>,
         /// in compiled order and including it. Empty when no selection has that name.
         /// </summary>
         internal IReadOnlyList<string> VertexMapAliases(string mapName)
         {
-            var source = VertexMaps.FirstOrDefault(map => map.Name == mapName);
-            if (source.Name != mapName)
+            if (!TryGetVertexMap(mapName, out var source))
             {
                 return [];
             }

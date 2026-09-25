@@ -360,7 +360,7 @@ internal sealed partial class ClothExtract
         kv.Add("world_collision", feModel.IsWorldCollisionNode(joint.Node));
 
         var collisionMask = feModel.GetNodeCollisionMask(joint.Node);
-        if (collisionMask is >= 0 and < 0xF)
+        if (collisionMask is >= 0 and < ClothAllCollisionLayers)
         {
             AddCollisionLayerFlags(kv, "collision_layer_", collisionMask);
         }

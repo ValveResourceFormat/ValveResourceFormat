@@ -37,7 +37,7 @@ internal sealed partial class ClothExtract
     /// Adds the <see cref="CulledBones"/> to a cloth DMX's joint list at their rest transforms and registers them in
     /// <paramref name="boneIndexByName"/>, then nests the joints under their compiled parents.
     /// </summary>
-    private void AppendCulledClothBoneJoints(DmeModel dmeModel, Dictionary<string, int> boneIndexByName)
+    private void AppendAndNestCulledClothBoneJoints(DmeModel dmeModel, Dictionary<string, int> boneIndexByName)
     {
         if (physAggregateData?.FeModel is { } feModel)
         {
@@ -63,14 +63,7 @@ internal sealed partial class ClothExtract
             nodeByName.TryAdd(feModel.CtrlNames[node], node);
         }
 
-        var jointByName = new Dictionary<string, DmeJoint>(StringComparer.OrdinalIgnoreCase);
-        foreach (var element in dmeModel.JointList)
-        {
-            if (element is DmeJoint joint)
-            {
-                jointByName.TryAdd(joint.Name, joint);
-            }
-        }
+        var jointByName = JointsByName(dmeModel);
 
         var parentOf = new Dictionary<DmeJoint, object>();
         var pending = new Stack<object>();
@@ -178,14 +171,7 @@ internal sealed partial class ClothExtract
         }
 
         var world = feModel.HasCompiledSkelParents ? DmeJointWorldTransforms(dmeModel) : [];
-        var jointByName = new Dictionary<string, DmeJoint>(StringComparer.OrdinalIgnoreCase);
-        foreach (var element in dmeModel.JointList)
-        {
-            if (element is DmeJoint joint)
-            {
-                jointByName.TryAdd(joint.Name, joint);
-            }
-        }
+        var jointByName = JointsByName(dmeModel);
 
         foreach (var (_, joint) in appended)
         {
@@ -242,5 +228,20 @@ internal sealed partial class ClothExtract
         }
 
         return world;
+    }
+
+    /// <summary>The joints of a DMX model by name, the first of each name winning.</summary>
+    private static Dictionary<string, DmeJoint> JointsByName(DmeModel dmeModel)
+    {
+        var jointByName = new Dictionary<string, DmeJoint>(StringComparer.OrdinalIgnoreCase);
+        foreach (var element in dmeModel.JointList)
+        {
+            if (element is DmeJoint joint)
+            {
+                jointByName.TryAdd(joint.Name, joint);
+            }
+        }
+
+        return jointByName;
     }
 }

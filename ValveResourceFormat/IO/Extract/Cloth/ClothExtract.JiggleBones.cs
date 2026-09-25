@@ -98,7 +98,7 @@ internal sealed partial class ClothExtract
         );
 
         // A colliding bone with no layer keys collides with all four.
-        if ((flags & FeJiggleBoneFlags.Collision) != 0 && jiggleBone.CollisionMask is >= 0 and < 0xF)
+        if ((flags & FeJiggleBoneFlags.Collision) != 0 && jiggleBone.CollisionMask is >= 0 and < ClothAllCollisionLayers)
         {
             AddCollisionLayerFlags(node, "cloth_collision_layer", jiggleBone.CollisionMask);
         }
@@ -119,7 +119,7 @@ internal sealed partial class ClothExtract
         foreach (var indexedJiggleBone in feModel.JiggleBones)
         {
             var node = ProcessJiggleBone(indexedJiggleBone, feModel.CtrlNames);
-            if (node != null)
+            if (node is not null)
             {
                 children.Add(node);
             }
@@ -127,4 +127,8 @@ internal sealed partial class ClothExtract
 
         return children.Count > 0 ? MakeNode("JiggleBoneList", ("children", children)) : null;
     }
+
+    /// <summary>Whether a control node is a jiggle bone's, which its <c>JiggleBone</c> declares on its own.</summary>
+    internal static bool IsDeclaredByItsJiggleBone(FeModel feModel, int node)
+        => Array.Exists(feModel.JiggleBones, jiggle => jiggle.Node == node);
 }

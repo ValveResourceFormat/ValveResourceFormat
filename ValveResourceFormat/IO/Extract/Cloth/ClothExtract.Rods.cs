@@ -161,8 +161,7 @@ internal sealed partial class ClothExtract
         declaredPairs.UnionWith(cliquePairs);
         foreach (var rod in surplus)
         {
-            if (rod.NodeA < 0 || rod.NodeA >= controlNames.Length
-            || rod.NodeB < 0 || rod.NodeB >= controlNames.Length)
+            if (rod.NodeA >= controlNames.Length || rod.NodeB >= controlNames.Length)
             {
                 continue;
             }
@@ -233,8 +232,7 @@ internal sealed partial class ClothExtract
         AddRingClusterCliques(softbodyChildren, feModel, RingOwners(chains));
         foreach (var rod in surplus)
         {
-            if (rod.NodeA < 0 || rod.NodeA >= controlNames.Length
-            || rod.NodeB < 0 || rod.NodeB >= controlNames.Length)
+            if (rod.NodeA >= controlNames.Length || rod.NodeB >= controlNames.Length)
             {
                 continue;
             }
@@ -319,7 +317,7 @@ internal sealed partial class ClothExtract
         foreach (var rod in feModel.Rods)
         {
             var key = RodPair(rod);
-            if (rod.NodeA == rod.NodeB || !IsBandedRod(rod) || !HasClusterSignature(rod)
+            if (!IsBandedRod(rod) || !HasClusterSignature(rod)
                 || !ringOwner.ContainsKey(rod.NodeA) || !ringOwner.ContainsKey(rod.NodeB)
                 || bandedOnPair.GetValueOrDefault(key) != 1 || rod.NodeA >= poses.Length || rod.NodeB >= poses.Length
                 || MathF.Abs(rod.MaxDist - Vector3.Distance(poses[rod.NodeA], poses[rod.NodeB])) <= ClusterRestTolerance)
@@ -396,7 +394,7 @@ internal sealed partial class ClothExtract
     private static (float[] Radii, float[] StrayRadii)? SolveMemberRadii(List<int> members,
         Dictionary<(int, int), (float Min, float Max)> band)
     {
-        (float Min, float Max) Band(int a, int b) => band[Pair(a, b)];
+        (float Min, float Max) Band(int a, int b) => band[FeModel.UnorderedPair(a, b)];
 
         var radii = new float[members.Count];
         var strayRadii = new float[members.Count];
@@ -587,24 +585,23 @@ internal sealed partial class ClothExtract
                 continue;
             }
 
-            if (!rodByEdge.TryGetValue(Pair(a, b), out var rod))
+            if (!rodByEdge.TryGetValue(FeModel.UnorderedPair(a, b), out var rod))
             {
                 continue;
             }
 
             softbodyChildren.Add(MakeClothSpring($"spring_{a}_{b}", names[a], names[b], rod.MinDist,
                 rod.MaxDist, rod.RelaxationFactor, copies - 1));
-            emitted.Add(Pair(a, b));
+            emitted.Add(FeModel.UnorderedPair(a, b));
         }
 
         return emitted;
     }
 
     /// <summary>The unordered pair of two nodes, lower node first.</summary>
-    private static (int, int) Pair(int a, int b) => a < b ? (a, b) : (b, a);
 
     /// <summary>The node pair of <paramref name="rod"/>, lower node first.</summary>
-    private static (int, int) RodPair(FeModel.Rod rod) => Pair(rod.NodeA, rod.NodeB);
+    private static (int, int) RodPair(FeModel.Rod rod) => FeModel.UnorderedPair(rod.NodeA, rod.NodeB);
 
     /// <summary>Whether the original records a two-corner source element on the pair, in either order.</summary>
     private static bool HasSourceSpring(FeModel feModel, int a, int b)

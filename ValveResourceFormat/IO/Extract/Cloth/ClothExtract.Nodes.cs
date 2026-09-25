@@ -60,11 +60,8 @@ internal sealed partial class ClothExtract
         var rodTouched = new HashSet<int>();
         foreach (var rod in feModel.Rods)
         {
-            if (rod.NodeA != rod.NodeB)
-            {
-                rodTouched.Add(rod.NodeA);
-                rodTouched.Add(rod.NodeB);
-            }
+            rodTouched.Add(rod.NodeA);
+            rodTouched.Add(rod.NodeB);
         }
 
         var springName = new Dictionary<int, string>();
@@ -144,7 +141,7 @@ internal sealed partial class ClothExtract
         var rodsByEdge = new Dictionary<(int, int), List<FeModel.Rod>>();
         foreach (var rod in feModel.Rods)
         {
-            if (rod.NodeA == rod.NodeB || !IsEndpoint(rod.NodeA, rod.NodeB) || !IsEndpoint(rod.NodeB, rod.NodeA))
+            if (!IsEndpoint(rod.NodeA, rod.NodeB) || !IsEndpoint(rod.NodeB, rod.NodeA))
             {
                 continue;
             }
@@ -310,11 +307,11 @@ internal sealed partial class ClothExtract
         var neighbours = new HashSet<int>();
         foreach (var rod in feModel.Rods)
         {
-            if (rod.NodeA == node && rod.NodeB != node)
+            if (rod.NodeA == node)
             {
                 neighbours.Add(rod.NodeB);
             }
-            else if (rod.NodeB == node && rod.NodeA != node)
+            else if (rod.NodeB == node)
             {
                 neighbours.Add(rod.NodeA);
             }
@@ -451,7 +448,7 @@ internal sealed partial class ClothExtract
     /// The layer mask a <c>ClothNode</c> declares for a compiled <paramref name="mask"/>: all four layers stand for the
     /// default mask, which is also what a mask outside 0..14 falls back to.
     /// </summary>
-    private static int ClothNodeLayerMask(int mask) => mask is >= 0 and <= 14 ? mask : 0xF;
+    private static int ClothNodeLayerMask(int mask) => mask is >= 0 and <= 14 ? mask : ClothAllCollisionLayers;
 
     /// <summary>
     /// The name a <c>ClothTri</c> or <c>ClothQuad</c> corner references a control node by: the element name for a free
@@ -598,7 +595,7 @@ internal sealed partial class ClothExtract
         if (rootBone is not null && angles == Vector3.Zero && origin.Length() < ClothNodeMergeRadius)
         {
             var direction = origin == Vector3.Zero ? Vector3.One : origin;
-            origin = Vector3.Normalize(direction) * (ClothNodeMergeRadius * 1.25f);
+            origin = Vector3.Normalize(direction) * (ClothNodeMergeRadius * ClothNodeMergeClearance);
         }
 
         return rootBone is not null && !FeModel.IsProxyNodeName(rootBone);
@@ -608,6 +605,9 @@ internal sealed partial class ClothExtract
     /// Bone-local distance under which the compiler merges a free ClothNode into its root bone's control node.
     /// </summary>
     private const float ClothNodeMergeRadius = 1e-3f;
+
+    /// <summary>The multiple of <see cref="ClothNodeMergeRadius"/> a node too close to its root bone is pushed out to.</summary>
+    private const float ClothNodeMergeClearance = 1.25f;
 
     /// <summary>Radians of rest rotation under which a free ClothNode counts as unrotated.</summary>
     private const float ClothNodeRotationTolerance = 1e-4f;

@@ -202,7 +202,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// Maps a per-node value onto <paramref name="proxy"/>'s vertices, or returns null when no vertex counts as
         /// <paramref name="painted"/>.
         /// </summary>
-        private static float[]? PaintPerVertex(ProxyMesh proxy, Func<int, float> valueOf, Func<float, bool> painted)
+        internal static float[]? PaintPerVertex(ProxyMesh proxy, Func<int, float> valueOf, Func<float, bool> painted)
         {
             var paint = new float[proxy.NodeIndices.Length];
             var count = 0;

@@ -245,5 +245,5 @@ internal sealed partial class ClothExtract
 
     /// <summary>Adds the collision layer keys of a shape mask, where zero means all layers.</summary>
     private static void AddClothCollisionLayers(KVObject node, int collisionMask)
-        => AddCollisionLayerFlags(node, "cloth_collision_layer", collisionMask == 0 ? 0xF : collisionMask);
+        => AddCollisionLayerFlags(node, "cloth_collision_layer", collisionMask == 0 ? ClothAllCollisionLayers : collisionMask);
 }

@@ -113,7 +113,7 @@ internal sealed partial class ClothExtract
             }
 
             (string Bone, float Weight)[] influences = feModel.RecoveredSkinWeights.TryGetValue(node, out var recovered) && recovered.Length > 0
-                ? [.. recovered]
+                ? recovered
                 : feModel.ResolveSkinBone(node) is { } skinBone ? [(skinBone, 1f)] : [];
 
             var registeredAnchors = influences
@@ -171,8 +171,4 @@ internal sealed partial class ClothExtract
 
         return freesAny;
     }
-
-    /// <summary>Whether a control node is a jiggle bone's, which its <c>JiggleBone</c> declares on its own.</summary>
-    internal static bool IsDeclaredByItsJiggleBone(FeModel feModel, int node)
-        => Array.Exists(feModel.JiggleBones, jiggle => jiggle.Node == node);
 }

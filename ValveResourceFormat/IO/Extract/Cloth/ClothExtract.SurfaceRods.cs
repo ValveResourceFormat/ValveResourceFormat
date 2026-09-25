@@ -322,18 +322,7 @@ internal sealed partial class ClothExtract
             return null;
         }
 
-        var paint = new float[proxy.NodeIndices.Length];
-        var painted = 0;
-        for (var v = 0; v < paint.Length; v++)
-        {
-            paint[v] = bendStiffnessByNode.GetValueOrDefault(proxy.NodeIndices[v]);
-            if (paint[v] > 0f)
-            {
-                painted++;
-            }
-        }
-
-        return painted > 0 ? paint : null;
+        return FeModel.PaintPerVertex(proxy, bendStiffnessByNode.GetValueOrDefault, static value => value > 0f);
     }
 
     /// <summary>
@@ -355,7 +344,7 @@ internal sealed partial class ClothExtract
         foreach (var rod in feModel.Rods)
         {
             var edge = RodPair(rod);
-            if (!beyondSurface.Contains(edge) || edge.Item1 < 0
+            if (!beyondSurface.Contains(edge)
                 || edge.Item2 >= positions.Length || edge.Item2 >= invMasses.Length)
             {
                 continue;
@@ -448,18 +437,7 @@ internal sealed partial class ClothExtract
             return null;
         }
 
-        var paint = new float[proxy.NodeIndices.Length];
-        var painted = 0;
-        for (var v = 0; v < paint.Length; v++)
-        {
-            if (suspenderNodes.Contains(proxy.NodeIndices[v]))
-            {
-                paint[v] = 1f;
-                painted++;
-            }
-        }
-
-        return painted > 0 ? paint : null;
+        return FeModel.PaintPerVertex(proxy, node => suspenderNodes.Contains(node) ? 1f : 0f, static value => value > 0f);
     }
 
     /// <summary>

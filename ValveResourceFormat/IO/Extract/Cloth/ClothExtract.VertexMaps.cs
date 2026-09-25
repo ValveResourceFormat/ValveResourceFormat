@@ -11,8 +11,7 @@ internal sealed partial class ClothExtract
     private static void AddClothVertexMapAttributes(KVObject mapNode, FeModel feModel, string mapName,
         IReadOnlyDictionary<int, string>? proxyNodeNames)
     {
-        var map = feModel.VertexMaps.FirstOrDefault(m => m.Name == mapName);
-        if (map.Name != mapName || map.VolumetricSolveStrength <= 0f)
+        if (!feModel.TryGetVertexMap(mapName, out var map) || map.VolumetricSolveStrength <= 0f)
         {
             return;
         }

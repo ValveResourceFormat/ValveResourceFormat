@@ -179,7 +179,7 @@ internal sealed partial class ClothExtract
 
         // The importer reads vertex v's rest normal from corner ordinal v.
         var restNormals = feModel?.RecoverRestNormals(proxy)
-            ?? [.. Enumerable.Repeat(Vector3.UnitZ, vertexCount)];
+            ?? Filled(vertexCount, Vector3.UnitZ);
         var cornerNormals = new Vector3[vertexIndices.Length];
         for (var corner = 0; corner < cornerNormals.Length; corner++)
         {
@@ -317,8 +317,7 @@ internal sealed partial class ClothExtract
             }
 
             if (feModel is not null
-                && feModel.VertexMaps.FirstOrDefault(map => map.Name == mapName) is { } selection
-                && selection.Name == mapName && !feModel.RegistersVertexSet(selection.NameHash))
+                && feModel.TryGetVertexMap(mapName, out var selection) && !feModel.RegistersVertexSet(selection.NameHash))
             {
                 continue;
             }
@@ -385,13 +384,13 @@ internal sealed partial class ClothExtract
         }
         else if (!proxy.UsesAuthoredFaces && feModel is { HasSurfaceElements: true })
         {
-            vertexData.AddIndexedStream("cloth_use_rods$0", Enumerable.Repeat(1f, vertexCount).ToArray(), vertexIndices);
+            vertexData.AddIndexedStream("cloth_use_rods$0", Filled(vertexCount, 1f), vertexIndices);
             vertexData.AddIndexedStream("cloth_make_rods$0",
-                Enumerable.Repeat(ClothSuppressedMakeRods, vertexCount).ToArray(), vertexIndices);
+                Filled(vertexCount, ClothSuppressedMakeRods), vertexIndices);
 
             if (ClothFaceKeptBendStiffness(feModel, SurfaceRods(feModel)) is { } faceKeptBend)
             {
-                vertexData.AddIndexedStream("cloth_bend_stiffness$0", Enumerable.Repeat(faceKeptBend, vertexCount).ToArray(), vertexIndices);
+                vertexData.AddIndexedStream("cloth_bend_stiffness$0", Filled(vertexCount, faceKeptBend), vertexIndices);
             }
         }
     }
@@ -456,14 +455,14 @@ internal sealed partial class ClothExtract
         var identity = Enumerable.Range(0, vertexCount).ToArray();
 
         vertexData.AddIndexedStream("position$0", grid.Positions, identity);
-        vertexData.AddIndexedStream("normal$0", Enumerable.Repeat(Vector3.UnitZ, vertexCount).ToArray(), identity);
+        vertexData.AddIndexedStream("normal$0", Filled(vertexCount, Vector3.UnitZ), identity);
         vertexData.AddIndexedStream("texcoord$0", grid.Texcoords, identity);
 
         vertexData.AddIndexedStream("cloth_enable$0", grid.ClothEnable, identity);
         vertexData.AddIndexedStream("cloth_goal_strength_v2$0", grid.GoalStrength, identity);
         vertexData.AddIndexedStream("cloth_goal_damping$0", grid.GoalDamping, identity);
         vertexData.AddIndexedStream("cloth_collision_radius$0", grid.CollisionRadius, identity);
-        vertexData.AddIndexedStream("cloth_ground_collision$0", Enumerable.Repeat(0f, vertexCount).ToArray(), identity);
+        vertexData.AddIndexedStream("cloth_ground_collision$0", Filled(vertexCount, 0f), identity);
         vertexData.AddIndexedStream("cloth_drag$0", grid.Drag, identity);
 
         if (Array.Exists(grid.Friction, static value => value != 0f))
@@ -473,9 +472,9 @@ internal sealed partial class ClothExtract
 
         if (physAggregateData?.FeModel is { HasSurfaceElements: true })
         {
-            vertexData.AddIndexedStream("cloth_use_rods$0", Enumerable.Repeat(1f, vertexCount).ToArray(), identity);
-            vertexData.AddIndexedStream("cloth_make_rods$0", Enumerable.Repeat(ClothSuppressedMakeRods, vertexCount).ToArray(), identity);
-            vertexData.AddIndexedStream("cloth_bend_stiffness$0", Enumerable.Repeat(ClothFaceKeptBendStiffnessDefault, vertexCount).ToArray(), identity);
+            vertexData.AddIndexedStream("cloth_use_rods$0", Filled(vertexCount, 1f), identity);
+            vertexData.AddIndexedStream("cloth_make_rods$0", Filled(vertexCount, ClothSuppressedMakeRods), identity);
+            vertexData.AddIndexedStream("cloth_bend_stiffness$0", Filled(vertexCount, ClothFaceKeptBendStiffnessDefault), identity);
         }
 
         var boneIndexByName = ClothBoneIndexByName(skeleton, dmeModel);
@@ -525,7 +524,7 @@ internal sealed partial class ClothExtract
             boneIndexByName.TryAdd(ModelExtract.GetExportBoneName(bone), emitted);
         }
 
-        AppendCulledClothBoneJoints(dmeModel, boneIndexByName);
+        AppendAndNestCulledClothBoneJoints(dmeModel, boneIndexByName);
         return boneIndexByName;
     }
 
@@ -578,5 +577,13 @@ internal sealed partial class ClothExtract
         using var stream = new MemoryStream();
         dmx.SaveDeterministic(stream, "binary", 9);
         return stream.ToArray();
+    }
+
+    /// <summary>An array of <paramref name="count"/> copies of <paramref name="value"/>.</summary>
+    private static T[] Filled<T>(int count, T value)
+    {
+        var array = new T[count];
+        Array.Fill(array, value);
+        return array;
     }
 }

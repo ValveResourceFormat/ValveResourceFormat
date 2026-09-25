@@ -119,10 +119,7 @@ internal sealed partial class ClothExtract
     private bool EmitProxySheetClothPhase(FeModel feModel, List<FeModel.BoneChain> boneChains, KVObject rootChildren)
     {
         var backSolveJoints = feModel.FitMatrixNodes.Count > 0 || feModel.DrivesRealBones;
-        var independentChains = boneChains
-            .Where(chain => !chain.Joints.Any(joint => feModel.ProxyFitMatrixNodes.Contains(joint.Node))
-                && !feModel.IsSheetDrivenChain(chain))
-            .ToList();
+        var independentChains = boneChains.Where(feModel.IsIndependentChain).ToList();
         var proxyNodeNames = BuildProxyNodeNameMap(ProxyMeshes);
 
         rootChildren.Add(MakeClothProxyMeshList(feModel, independentChains, backSolveJoints, proxyNodeNames));

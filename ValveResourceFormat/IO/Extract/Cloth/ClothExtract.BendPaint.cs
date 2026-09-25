@@ -61,7 +61,7 @@ internal sealed partial class ClothExtract
         var generators = new Dictionary<(int, int), List<(int, int)>>();
         foreach (var (hinge, nodeA, nodeB) in FeModel.BendRodGenerators(faces))
         {
-            var pair = Pair(nodeA, nodeB);
+            var pair = FeModel.UnorderedPair(nodeA, nodeB);
             GetOrAdd(generators, pair).Add(hinge);
         }
 
@@ -199,9 +199,14 @@ internal sealed partial class ClothExtract
     }
 
     /// <summary>
-    /// The curvature readings keyed by the hinge each rod was folded about, with every generating hinge's own reading.
+    /// A network rod's curvature reading: the hinge it was folded about, the fraction of the fold, whether its minimum is
+    /// capped at its rest span, the fit error, and every generating hinge's own reading.
     /// </summary>
-    private static List<((int, int) Hinge, float Fraction, bool Capped, float Error, ((int, int) Hinge, float Fraction)[] Candidates)> ClothHingeReadings(
+    private readonly record struct HingeReading((int, int) Hinge, float Fraction, bool Capped, float Error,
+        ((int, int) Hinge, float Fraction)[] Candidates);
+
+    /// <summary>The curvature readings of the network rods beyond the faces, one per rod.</summary>
+    private static List<HingeReading> ClothHingeReadings(
         FeModel feModel, List<int[]> faces, HashSet<(int, int)> beyondSurface)
     {
         var positions = feModel.InitPosePositions;
@@ -213,15 +218,15 @@ internal sealed partial class ClothExtract
                 continue;
             }
 
-            var generated = Pair(nodeA, nodeB);
-            var about = generators.TryGetValue(generated, out var known) ? known : generators[generated] = [];
+            var generated = FeModel.UnorderedPair(nodeA, nodeB);
+            var about = GetOrAdd(generators, generated);
             if (!about.Contains(hinge))
             {
                 about.Add(hinge);
             }
         }
 
-        var readings = new List<((int, int) Hinge, float Fraction, bool Capped, float Error, ((int, int) Hinge, float Fraction)[] Candidates)>();
+        var readings = new List<HingeReading>();
         foreach (var rod in feModel.Rods)
         {
             var edge = RodPair(rod);
@@ -257,12 +262,12 @@ internal sealed partial class ClothExtract
                 var open = MathF.Sqrt(slide + ((riseA + riseB) * (riseA + riseB)));
                 var shut = MathF.Sqrt(slide + ((riseA - riseB) * (riseA - riseB)));
                 var error = MathF.Abs(open - coplanar);
-                if (open - shut >= 0.02f * open)
+                if (open - shut >= ClothHingeMinimumFold * open)
                 {
                     fits.Add((hinge, error, open, shut));
                 }
 
-                if (error < closest && open - shut >= 0.02f * open)
+                if (error < closest && open - shut >= ClothHingeMinimumFold * open)
                 {
                     closest = error;
                     flat = open;
@@ -271,19 +276,19 @@ internal sealed partial class ClothExtract
                 }
             }
 
-            if (closest > 0.005f * MathF.Max(1f, coplanar))
+            if (closest > ClothHingeFitTolerance * MathF.Max(1f, coplanar))
             {
                 continue;
             }
 
             var reach = (flat * flat) - (folded * folded);
-            var span = rod.MinDist >= rest - (2e-4f * MathF.Max(1f, rest)) ? rest : rod.MinDist;
+            var span = rod.MinDist >= rest - (ClothRodCapTolerance * MathF.Max(1f, rest)) ? rest : rod.MinDist;
             var fraction = Math.Clamp(((span * span) - (folded * folded)) / reach, 0f, 1f);
             var candidates = fits
                 .Select(fit => (fit.Hinge, Math.Clamp(((span * span) - (fit.Shut * fit.Shut))
                     / ((fit.Open * fit.Open) - (fit.Shut * fit.Shut)), 0f, 1f)))
                 .ToArray();
-            readings.Add((about, fraction, span == rest, closest, candidates));
+            readings.Add(new HingeReading(about, fraction, span == rest, closest, candidates));
         }
 
         return readings;
@@ -894,4 +899,13 @@ internal sealed partial class ClothExtract
 
     /// <summary>How many times the bound repair may raise vertices before the solve gives up.</summary>
     private const int ClothBendStiffnessRepairPasses = 8;
+
+    /// <summary>The fraction of its open span a hinge has to fold a rod by to count as generating it.</summary>
+    private const float ClothHingeMinimumFold = 0.02f;
+
+    /// <summary>How far a rod's flat span may sit from its closest hinge's open span, relative to the span.</summary>
+    private const float ClothHingeFitTolerance = 0.005f;
+
+    /// <summary>How close to its rest span, relative to the span, a rod's minimum reads as capped there.</summary>
+    private const float ClothRodCapTolerance = 2e-4f;
 }

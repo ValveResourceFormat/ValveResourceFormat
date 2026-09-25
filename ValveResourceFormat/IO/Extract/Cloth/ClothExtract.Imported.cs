@@ -73,10 +73,6 @@ internal sealed partial class ClothExtract
             {
                 row.Add("m_bVirtual", true);
                 row.Add("m_bOsOffset", true);
-            }
-
-            if (isOsOffsetChild)
-            {
                 if (rowOf.TryGetValue(osOffsetParent, out var osOffsetParentRow))
                 {
                     row.Add("m_nParent", osOffsetParentRow);

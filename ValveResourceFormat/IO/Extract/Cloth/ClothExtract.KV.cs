@@ -9,6 +9,9 @@ internal sealed partial class ClothExtract
     /// <summary>The collision layers a node's mask carries its own bit for.</summary>
     private const int ClothCollisionLayers = 4;
 
+    /// <summary>The collision mask with all four layer bits set.</summary>
+    private const int ClothAllCollisionLayers = 0xF;
+
     /// <summary>Adds a column to a datatable's <c>attrs</c> schema and returns it, for its default.</summary>
     private static KVObject AddColumn(KVObject attrs, string key, string display, bool show, int uiOrder)
     {
