@@ -11520,5 +11520,72 @@ namespace Tests
                 m_FitWeights = [ { flWeight = 0.7 nNode = 2 nDummy = 0 }{{(boneOwnsFit ? ", { flWeight = 0.3 nNode = 2 nDummy = 0 }" : string.Empty)}} ]
             }
             """);
+
+        /// <summary>
+        /// A version-2 chain grades a joint's preset basis at import and stages no fit group for a static joint it presets, so there
+        /// a parent lock proves <c>lock_translation</c>. A joint the preset cannot take (no chain child, or fewer than three preset
+        /// candidates) stages its group as below version 2, and the fit pass then writes the same parent lock without the key; the key
+        /// would also carry the joint's influences into its parent's group and give the parent a fit the original lacks.
+        /// CONTROLS: a ringed joint over a ringed child (preset), no chain given, and a ringless joint over two ringless children (no
+        /// group of its own, no top-up) still read the lock as the key's.
+        /// </summary>
+        [Test]
+        public async Task AVersion2JointThePresetCannotTakeHoldsItsParentLockWithoutTheKey()
+        {
+            static FeModel.BoneChain Chain(FeModel feModel, bool withKid, int sides)
+            {
+                var chain = new FeModel.BoneChain { RootBone = "tip" };
+                var tip = Array.IndexOf(feModel.CtrlNames, "tip");
+                chain.Joints.Add(new FeModel.BoneChainJoint { Node = tip, Name = "tip", ParentNode = -1, InvMass = 0f, ExtrudeSides = sides });
+                if (withKid)
+                {
+                    chain.Joints.Add(new FeModel.BoneChainJoint
+                    {
+                        Node = Array.IndexOf(feModel.CtrlNames, "kid"),
+                        Name = "kid",
+                        ParentNode = tip,
+                        ParentName = "tip",
+                        InvMass = 1f,
+                        ExtrudeSides = sides,
+                    });
+                }
+
+                return chain;
+            }
+
+            static FeModel.BoneChain TwoKids(FeModel feModel)
+            {
+                var chain = Chain(feModel, withKid: true, sides: 0);
+                var tip = Array.IndexOf(feModel.CtrlNames, "tip");
+                chain.Joints.Add(new FeModel.BoneChainJoint
+                {
+                    Node = Array.IndexOf(feModel.CtrlNames, "root"),
+                    Name = "root",
+                    ParentNode = tip,
+                    ParentName = "tip",
+                    InvMass = 1f,
+                });
+                return chain;
+            }
+
+            var ringed = ParentLockedTip(rings: true);
+            var ringless = ParentLockedTip(rings: false);
+            var ringedTip = Array.IndexOf(ringed.CtrlNames, "tip");
+            var ringlessTip = Array.IndexOf(ringless.CtrlNames, "tip");
+
+            using (Assert.Multiple())
+            {
+                // CONTROL: the preset takes a ringed joint over its ringed child, and no chain given reads as before. A ringless joint
+                // lists only itself and stages nothing of its own, so two ringless children fill its table to three without a group
+                // and no top-up runs: the lock is the key's.
+                await Assert.That(ringed.LocksTranslation(ringedTip, chainVersion: 2, chain: Chain(ringed, withKid: true, sides: 1))).IsTrue();
+                await Assert.That(ringless.LocksTranslation(ringlessTip, chainVersion: 2)).IsTrue();
+                await Assert.That(ringless.LocksTranslation(ringlessTip, chainVersion: 2, chain: TwoKids(ringless))).IsTrue();
+
+                // THE LAW.
+                await Assert.That(ringless.LocksTranslation(ringlessTip, chainVersion: 2, chain: Chain(ringless, withKid: false, sides: 0))).IsFalse();
+                await Assert.That(ringless.LocksTranslation(ringlessTip, chainVersion: 2, chain: Chain(ringless, withKid: true, sides: 0))).IsFalse();
+            }
+        }
     }
 }

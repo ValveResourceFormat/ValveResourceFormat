@@ -1340,10 +1340,14 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// no fit group, or its parent is neither simulated nor free-rotating. A keyed node also stages its
         /// influences into its parent's group, so a parent fit over every node the node's own group reads proves
         /// the key as well; a node owning a fit group stages only its one-wide entry, itself and its direct
-        /// children, so for it a parent fit over that entry proves the key. A chain of version 2 grades its joints' bases at import and stages no group for a
-        /// static joint, so there the parent lock proves the key whatever the node owns. Below version 2 the chain stages a group for a
-        /// joint only where the joint's fit table, its own node lists and its children's, holds three entries, or where version 1 tops a
-        /// smaller table up from the joint's parent; a joint its chain gives no group and no sheet fits holds its parent lock by the key,
+        /// children, so for it a parent fit over that entry proves the key. A chain of version 2 grades a joint's preset basis at import
+        /// and stages no group for a static joint it presets, so there the parent lock proves the key whatever the node owns; a joint
+        /// the preset cannot take (no chain child, or fewer than three preset candidates) stages its group as below version 2. Below
+        /// version 2 the chain stages a group for a
+        /// joint only where the joint stages nodes of its own lists and its fit table, its own node lists and its children's, holds
+        /// three entries, or where version 1 tops a table of one or two up from the joint's parent; a ringless joint lists only itself,
+        /// which stages nothing, so its children's entries alone give it no group. A joint its chain gives no group and no sheet fits
+        /// holds its parent lock by the key,
         /// and so does a joint the declaration simulates, which the fit pass does not lock.
         /// </para>
         /// </summary>
@@ -1351,8 +1355,21 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// <param name="chainVersion">The version of the chain declaring the node; 2 for a node no chain declares.</param>
         /// <param name="chain">The chain declaring the node, or null to leave its fit table unread.</param>
         public bool LocksTranslation(int node, int chainVersion = 2, BoneChain? chain = null)
-            => (IsLockedToParent(node) && !(chainVersion < 2 && ReachesParentLockUnkeyed(node) && ChainStagesFitGroup(node, chainVersion, chain)))
+            => (IsLockedToParent(node) && !((chainVersion < 2 || !ChainPresetsJoint(node, chain))
+                    && ReachesParentLockUnkeyed(node) && ChainStagesFitGroup(node, chainVersion, chain)))
                 || (IsLockedToGoal(node) && !IsStatic(node));
+
+        bool ChainPresetsJoint(int node, BoneChain? chain)
+        {
+            var joint = chain?.Joints.Find(candidate => candidate.Node == node);
+            if (chain is null || joint is null)
+            {
+                return true;
+            }
+
+            var child = chain.Joints.Find(candidate => candidate.ParentNode == node);
+            return child is not null && ChainNodeBaseCandidates(joint, child) is not null;
+        }
 
         bool ChainStagesFitGroup(int node, int chainVersion, BoneChain? chain)
         {
@@ -1368,6 +1385,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             }
 
             var table = FitListOf(node);
+            var stagesOwnList = table.Count > 1 || !table.Contains(node);
             foreach (var child in chain.Joints)
             {
                 if (child.ParentNode == node)
@@ -1377,7 +1395,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             }
 
             var hasParent = joint.ParentNode >= 0 || (node < SkelParents.Length && SkelParents[node] >= 0);
-            return table.Count >= 3 || (chainVersion >= 1 && table.Count > 0 && hasParent);
+            return (stagesOwnList && table.Count >= 3) || (chainVersion >= 1 && table.Count is > 0 and < 3 && hasParent);
         }
 
         /// <summary>
