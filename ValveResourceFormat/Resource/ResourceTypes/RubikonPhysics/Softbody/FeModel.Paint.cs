@@ -244,7 +244,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         }
 
         /// <summary>The <c>cloth_antishrink</c> of a proxy-sheet vertex that is not painted.</summary>
-        internal const float SheetAntishrinkDefault = 0.75f;
+        private const float SheetAntishrinkDefault = 0.75f;
 
         /// <summary>
         /// Gets the per-node <c>cloth_shear_resistance</c> of the proxy sheets relative to the stiffest face diagonal's

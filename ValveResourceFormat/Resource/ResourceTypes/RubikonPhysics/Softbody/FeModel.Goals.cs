@@ -138,7 +138,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// <summary>
         /// Gets whether <paramref name="node"/> compiled on the goal-damped spring integrator rather than the raw one.
         /// </summary>
-        internal bool UsesGoalDampedIntegrator(int node)
+        private bool UsesGoalDampedIntegrator(int node)
         {
             var dynamicIndex = node - StaticNodeCount;
             if (dynamicIndex >= 0 && (dynamicIndex >> 5) < GoalDampedSpringIntegrators.Length)

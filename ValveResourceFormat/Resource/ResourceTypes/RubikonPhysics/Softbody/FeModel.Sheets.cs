@@ -9,7 +9,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// <summary>
         /// A cloth proxy mesh (sheet) reconstructed from the FeModel surface, with its per-vertex paint.
         /// </summary>
-        public sealed class ProxyMesh
+        internal sealed class ProxyMesh
         {
             /// <summary>Gets the original FeModel control-node index of each proxy vertex.</summary>
             public required int[] NodeIndices { get; init; }

@@ -385,7 +385,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         }
 
         /// <summary>The control nodes of <paramref name="proxy"/> whose vertices its sheet simulates.</summary>
-        internal static HashSet<int> SimulatedProxyNodes(ProxyMesh proxy)
+        private static HashSet<int> SimulatedProxyNodes(ProxyMesh proxy)
         {
             var simulated = new HashSet<int>();
             for (var v = 0; v < proxy.NodeIndices.Length; v++)

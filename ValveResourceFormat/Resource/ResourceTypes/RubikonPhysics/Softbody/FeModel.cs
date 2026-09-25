@@ -91,7 +91,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// Gets the unordered node pairs of <c>m_SimdRodsAnim</c>, the rods of chain joints declared with
         /// <c>animated_length</c>. These rods appear nowhere else in the file.
         /// </summary>
-        internal IReadOnlySet<(int, int)> AnimRodPairs => animRodPairs ??= AnimRods
+        private IReadOnlySet<(int, int)> AnimRodPairs => animRodPairs ??= AnimRods
             .Select(static rod => UnorderedPair(rod.NodeA, rod.NodeB))
             .ToHashSet();
 
@@ -260,18 +260,18 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         public IReadOnlyList<TwistRecord> TwistRecords { get; }
 
         /// <summary>Gets the unordered node pairs a twist constraint spans.</summary>
-        internal IReadOnlySet<(int, int)> TwistLinks { get; }
+        private HashSet<(int, int)> TwistLinks { get; }
 
         /// <summary>
         /// Gets the <c>flTwistRelax</c> of each directed (<c>nNodeOrient</c>, <c>nNodeEnd</c>) pair; the last entry wins
         /// where a pair has several.
         /// </summary>
-        internal IReadOnlyDictionary<(int Orient, int End), float> TwistRelaxByLink { get; }
+        private Dictionary<(int Orient, int End), float> TwistRelaxByLink { get; }
 
         /// <summary>
         /// Gets every <c>flTwistRelax</c> of each directed pair in array order, one per chain declaration that wrote it.
         /// </summary>
-        internal IReadOnlyDictionary<(int Orient, int End), IReadOnlyList<float>> TwistRelaxCopies { get; }
+        private Dictionary<(int Orient, int End), IReadOnlyList<float>> TwistRelaxCopies { get; }
 
         private static int[] BuildRopeParents(KVObject data, IReadOnlyList<int[]> ropeRuns)
         {
@@ -589,7 +589,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// Gets, per control node, whether its goal values are exported through the raw attraction paints instead of the
         /// goal-strength pair.
         /// </summary>
-        internal bool[] RawGoalPaintNodes { get; }
+        private bool[] RawGoalPaintNodes { get; }
 
         /// <summary>Gets the named cloth effects (<c>m_Effects</c>).</summary>
         public Effect[] Effects { get; }

@@ -483,7 +483,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// <summary>
         /// The number of surviving influence vertices from which the compiler fits a bone with an <c>m_FitMatrices</c> solve.
         /// </summary>
-        internal const int FitMatrixMinInfluences = 8;
+        private const int FitMatrixMinInfluences = 8;
 
         /// <summary>
         /// The smallest per-vertex skin influence count a cloth proxy DMX is written with.
@@ -493,7 +493,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// <summary>
         /// The most <c>m_CtrlSoftOffsets</c> records the compiler writes for one proxy vertex.
         /// </summary>
-        internal const int ClothProxySoftOffsetSlots = 8;
+        private const int ClothProxySoftOffsetSlots = 8;
 
         /// <summary>
         /// Gets the <c>back_solve_influence_threshold</c> for <paramref name="proxy"/>: the default, unless the proxy's fit
@@ -699,7 +699,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// <summary>
         /// Gets whether the compiler created its own <c>$cloth_root</c> node, which it does for an unskinned proxy mesh.
         /// </summary>
-        internal bool HasGeneratedClothRoot => Array.Exists(CtrlNames, static n => n == ClothRootNodeName);
+        private bool HasGeneratedClothRoot => Array.Exists(CtrlNames, static n => n == ClothRootNodeName);
 
         private const string ClothRootNodeName = "$cloth_root";
 

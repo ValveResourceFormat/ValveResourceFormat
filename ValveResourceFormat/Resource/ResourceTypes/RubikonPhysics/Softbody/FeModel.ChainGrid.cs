@@ -8,7 +8,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// A cloth sheet generated over a group of neighbouring bone chains: rows run along the chains, columns across them,
         /// with interpolated columns between neighbours.
         /// </summary>
-        public sealed class ChainGrid
+        internal sealed class ChainGrid
         {
             /// <summary>Gets the model-space rest position of each grid vertex.</summary>
             public required Vector3[] Positions { get; init; }

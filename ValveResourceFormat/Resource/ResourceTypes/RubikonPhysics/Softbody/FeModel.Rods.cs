@@ -466,7 +466,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         private HashSet<(int, int)>? selfCollisionClusterPairs;
 
         /// <summary>Gets the node pairs a recovered cluster puts one of its own rods on.</summary>
-        internal IReadOnlySet<(int, int)> SelfCollisionClusterPairs
+        private IReadOnlySet<(int, int)> SelfCollisionClusterPairs
         {
             get
             {
