@@ -11246,5 +11246,64 @@ namespace Tests
                 m_FitWeights = [ { flWeight = 0.2343655 nNode = 11 nDummy = 0 } ]
             }
             """);
+
+        /// <summary>
+        /// The compiler folds rods across shared edges walking its solve elements first and the rod-making faces after
+        /// them, in the corner order the file records. A 2-wide ring's two link quads wind opposite ways, so alone they
+        /// fold nothing; a compiled quad on the same corners pairs with the first of them and folds the far ring across
+        /// the near one after the mass pass. That fold weighs nothing, and reading it as a declared rod over-reads the
+        /// ring's multiplier by the square root of (element term + two rods) over (element term + one rod).
+        /// CONTROL: the link quads with no compiled quad, where both records on the far ring weighed.
+        /// </summary>
+        /// <remarks>
+        /// MEASURED 2026-09-25 on dota <c>baron_of_the_minotaur_arms</c>: the end ring's banded record replays as that fold to
+        /// the printed digit (43.821274 / 20.000004), and the chain stated <c>mass</c> 0.850655 for an authored 1.0.
+        /// </remarks>
+        [Test]
+        public async Task ARingFoldedAcrossItsCompiledQuadIsNoMassTimeRod()
+        {
+            using (Assert.Multiple())
+            {
+                // CONTROL.
+                await Assert.That(RingLinkQuads(compiledQuad: false).RecoverJointMassMultiplier(3) ?? float.NaN)
+                    .IsEqualTo(1f).Within(1e-3f);
+
+                // THE LAW, with the far ring as the walk met it and with the convexity swap since applied.
+                await Assert.That(RingLinkQuads(compiledQuad: true).RecoverJointMassMultiplier(3) ?? float.NaN)
+                    .IsEqualTo(1f).Within(1e-3f);
+                await Assert.That(RingLinkQuads(compiledQuad: true, swapped: true).RecoverJointMassMultiplier(3) ?? float.NaN)
+                    .IsEqualTo(1f).Within(1e-3f);
+            }
+        }
+
+        // A static root ring a = 1, b = 2 over the end ring c = 4, d = 5, which sits turned half a turn: the two link quads
+        // (b,a,c,d) and (a,b,d,c) as m_SourceElems prints them. With the compiled quad (b,a,d,c) the rings weigh its element
+        // term and the rigid record only; without it both records. Swapped, the end ring is not turned, so the quad the walk
+        // met as (b,a,d,c) compiles as (b,a,c,d).
+        private static FeModel RingLinkQuads(bool compiledQuad, bool swapped = false) => SyntheticCloth.Parse($$"""
+            {
+                m_CtrlName = [ "root", "$ccroot_0", "$ccroot_1", "end", "$ccend_0", "$ccend_1" ]
+                m_SkelParents = [ -1, 0, 0, 0, 3, 3 ]
+                m_nNodeCount = 6
+                m_nStaticNodes = 3
+                m_NodeInvMasses = [ 0.0, 0.0, 0.0, 1.0, {{(compiledQuad ? "0.0023670762, 0.0023670762" : "0.003125, 0.003125")}} ]
+                m_InitPose =
+                [
+                    {{SyntheticCloth.Pose(0f, 0f, 0f)}}
+                    {{SyntheticCloth.Pose(5f, 0f, 0f)}}
+                    {{SyntheticCloth.Pose(-5f, 0f, 0f)}}
+                    {{SyntheticCloth.Pose(0f, 0f, -20f)}}
+                    {{SyntheticCloth.Pose(swapped ? 10f : -10f, 0f, -20f)}}
+                    {{SyntheticCloth.Pose(swapped ? -10f : 10f, 0f, -20f)}}
+                ]
+                m_Quads = [ {{(compiledQuad ? (swapped ? "{ nNode = [ 2, 1, 4, 5 ] }" : "{ nNode = [ 2, 1, 5, 4 ] }") : string.Empty)}} ]
+                m_SourceElems = [ 0, 0, 0, 2, 2, 1, 4, 5, 1, 2, 5, 4 ]
+                m_Rods =
+                [
+                    {{SyntheticCloth.BandedRod(5, 4, 20f, 44.72136f, 1f)}}
+                    {{SyntheticCloth.RigidRod(4, 5, 20f, 1f)}}
+                ]
+            }
+            """);
     }
 }

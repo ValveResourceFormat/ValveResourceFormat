@@ -2625,7 +2625,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                 }
             }
 
-            var derived = PredictBendRods(cycles, IsStatic);
+            var derived = PredictBendRods([.. FoldWalkSolveElements(), .. SourceElementWalk()], IsStatic);
 
             var rodsOnPair = new Dictionary<(int, int), int>();
             foreach (var rod in Rods)
@@ -2669,6 +2669,57 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             Vector3 RestPositionOf(int node)
                 => node >= 0 && node < InitPosePositions.Length ? InitPosePositions[node] : Vector3.Zero;
         }
+
+        /// <summary>
+        /// The solve elements as the compiler's fold walk meets them, before the quad pass reorders their corners. A quad
+        /// joining two 2-wide chain rings reaches the walk with the far ring's member 1 before its member 0, which the
+        /// convexity swap may since have reversed.
+        /// </summary>
+        List<int[]> FoldWalkSolveElements()
+        {
+            var rings = new Dictionary<string, Dictionary<int, int>>(StringComparer.Ordinal);
+            for (var node = 0; node < CtrlNames.Length; node++)
+            {
+                var name = CtrlNames[node];
+                var index = RingSuffixIndex(name);
+                if (index >= 0 && name.StartsWith("$cc", StringComparison.Ordinal))
+                {
+                    var ring = name[..name.LastIndexOf('_')];
+                    (rings.TryGetValue(ring, out var members) ? members : rings[ring] = [])[index] = node;
+                }
+            }
+
+            Dictionary<int, int>? TwoWideRingOf(int a, int b)
+            {
+                var name = CtrlNames[a];
+                return RingSuffixIndex(name) >= 0 && rings.TryGetValue(name[..name.LastIndexOf('_')], out var members)
+                    && members.Count == 2 && members.ContainsKey(0) && members.ContainsKey(1)
+                    && members.ContainsValue(a) && members.ContainsValue(b) && a != b
+                    ? members
+                    : null;
+            }
+
+            var elements = MassElements();
+            for (var i = 0; i < elements.Count; i++)
+            {
+                var quad = elements[i];
+                if (quad.Length == 4 && quad.Distinct().Count() == 4 && quad.All(node => node >= 0 && node < CtrlNames.Length)
+                    && TwoWideRingOf(quad[0], quad[1]) is not null && TwoWideRingOf(quad[2], quad[3]) is { } far)
+                {
+                    elements[i] = [quad[0], quad[1], far[1], far[0]];
+                }
+            }
+
+            return elements;
+        }
+
+        /// <summary>
+        /// The faces the importer built into rods, in the order and corner order the compiler walks them for its
+        /// fold rods. <c>m_SourceElems</c> packs each corner-count group from its end, so every group is read backwards.
+        /// </summary>
+        IEnumerable<int[]> SourceElementWalk()
+            => SourceFaces.Where(static face => face.Length == 3).Reverse()
+                .Concat(SourceFaces.Where(static face => face.Length == 4).Reverse());
 
         /// <summary>
         /// Credits both ends of every authored rod with 8 per unit of rest length. The authored rods are
