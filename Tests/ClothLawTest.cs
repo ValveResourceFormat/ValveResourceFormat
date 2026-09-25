@@ -11138,5 +11138,41 @@ namespace Tests
                 await Assert.That(Vector3.Distance(nested.Lower.Transform.Position, new Vector3(0f, -20f, 0f))).IsLessThan(1e-4f);
             }
         }
+
+        /// <summary>
+        /// A cloth proxy control bone turns onto its recorded rest rotation from 0.3 degrees off its bind rotation. At
+        /// round-trip precision the cloth originals keep their control bones within 0.001 degrees of the bind rotation,
+        /// and nothing sits between 0.19 and 0.57 degrees. CONTROL: a bone 0.18 degrees off keeps its bind rotation.
+        /// </summary>
+        /// <remarks>
+        /// MEASURED 2026-09-25 over 2786 cloth originals: dotaout <c>ti9_chameleon_radiant_ranged</c>'s <c>neck_0</c> sits
+        /// 0.5717 degrees off, the tidehunter family's fish bones 0.1835.
+        /// </remarks>
+        [Test]
+        public async Task AProxyControlBoneHalfADegreeOffItsBindRotationIsTurned()
+        {
+            var root = new Bone(0, "root", Vector3.Zero, Quaternion.Identity, ModelSkeletonBoneFlags.NoBoneFlags);
+            var neck = new Bone(1, "neck", new Vector3(0f, 0f, 10f), Quaternion.Identity, ModelSkeletonBoneFlags.NoBoneFlags);
+            var fish = new Bone(2, "fish", new Vector3(5f, 0f, 0f), Quaternion.Identity, ModelSkeletonBoneFlags.NoBoneFlags);
+            neck.SetParent(root);
+            fish.SetParent(root);
+
+            var into = new Dictionary<string, Quaternion>(StringComparer.OrdinalIgnoreCase);
+            var turned = ModelExtract.ProxyRestRotations([root], new Dictionary<string, Quaternion>
+            {
+                ["root"] = Quaternion.Identity,
+                ["neck"] = Quaternion.CreateFromAxisAngle(Vector3.UnitX, float.DegreesToRadians(0.5717f)),
+                ["fish"] = Quaternion.CreateFromAxisAngle(Vector3.UnitX, float.DegreesToRadians(0.1835f)),
+            }, into);
+
+            using (Assert.Multiple())
+            {
+                // THE LAW.
+                await Assert.That(turned.Keys.Order()).IsEquivalentTo(["neck"]);
+
+                // CONTROL.
+                await Assert.That(into.ContainsKey("fish")).IsFalse();
+            }
+        }
     }
 }

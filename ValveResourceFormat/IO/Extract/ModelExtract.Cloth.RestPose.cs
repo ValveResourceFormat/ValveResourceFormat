@@ -246,9 +246,9 @@ partial class ModelExtract
         return turned;
     }
 
-    // cos of half of one degree. A proxy-sheet original's recorded rest rotation sits within 0.3 degrees of its bind
-    // rotation on nearly every control bone, the compiler's own drift, and a turned bone sits a degree or more away.
-    const float ClothProxyRestRotationTurn = 0.99996192f;
+    // cos of half of 0.3 degrees. A cloth original's recorded rest rotation sits within 0.001 degrees of its bind rotation
+    // on nearly every control bone; no bone sits between 0.19 and 0.57 degrees, and a turned bone sits past that gap.
+    const float ClothProxyRestRotationTurn = 0.99999657f;
 
     /// <summary>
     /// Gets the Bone <c>origin</c> of each ClothChain joint re-solved so that the compiler's own chain rest pose puts
