@@ -1,4 +1,5 @@
 using System.Linq;
+using ValveKeyValue;
 using ValveResourceFormat.Serialization.KeyValues;
 
 namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
@@ -123,9 +124,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                 }
             }
 
-            T[] Pad<T>(T[] source) => [.. Enumerable.Range(0, total).Select(slot => source[srcOf[slot]])];
-
-            var clothEnable = Pad(mesh.ClothEnable);
+            var clothEnable = GatherSlots(mesh.ClothEnable, srcOf);
             for (var slot = 0; slot < total; slot++)
             {
                 if (dummy[slot])
@@ -143,33 +142,44 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                 }
             }
 
-            return new ProxyMesh
-            {
-                NodeIndices = Pad(mesh.NodeIndices),
-                Positions = Pad(mesh.Positions),
-                ClothEnable = clothEnable,
-                GoalStrength = Pad(mesh.GoalStrength),
-                GoalDamping = Pad(mesh.GoalDamping),
-                AnimationForceAttract = Pad(mesh.AnimationForceAttract),
-                AnimationAttract = Pad(mesh.AnimationAttract),
-                CollisionRadius = Pad(mesh.CollisionRadius),
-                Friction = Pad(mesh.Friction),
-                Drag = Pad(mesh.Drag),
-                GroundCollision = Pad(mesh.GroundCollision),
-                GroundFriction = Pad(mesh.GroundFriction),
-                Gravity = Pad(mesh.Gravity),
-                VertexAttraction = Pad(mesh.VertexAttraction),
-                SkinInfluences = Pad(mesh.SkinInfluences),
-                VertexMaps = [.. mesh.VertexMaps.Select(m => (m.Name, Pad(m.Weights)))],
-                Faces = [.. mesh.Faces.Select(f => f.Select(v => localToSlot[v]).ToArray())],
-                RodsDriven = mesh.RodsDriven.Length == 0 ? [] : Pad(mesh.RodsDriven),
-                SimulatedCount = mesh.SimulatedCount,
-                PinnedCount = mesh.PinnedCount + (total - n),
-                IsDropRisk = mesh.IsDropRisk,
-                UsesAuthoredFaces = mesh.UsesAuthoredFaces,
-                IsFreeFloating = mesh.IsFreeFloating,
-            };
+            return GatherProxyMesh(mesh, srcOf, clothEnable,
+                [.. mesh.Faces.Select(f => f.Select(v => localToSlot[v]).ToArray())],
+                mesh.SimulatedCount, mesh.PinnedCount + (total - n), mesh.IsDropRisk, mesh.IsFreeFloating);
         }
+
+        static T[] GatherSlots<T>(T[] source, int[] sourceOf) => [.. sourceOf.Select(index => source[index])];
+
+        /// <summary>
+        /// Builds a proxy mesh whose vertex <c>i</c> copies vertex <c>sourceOf[i]</c> of <paramref name="source"/>.
+        /// </summary>
+        static ProxyMesh GatherProxyMesh(ProxyMesh source, int[] sourceOf, float[] clothEnable, List<int[]> faces,
+            int simulatedCount, int pinnedCount, bool isDropRisk, bool isFreeFloating)
+            => new()
+            {
+                NodeIndices = GatherSlots(source.NodeIndices, sourceOf),
+                Positions = GatherSlots(source.Positions, sourceOf),
+                ClothEnable = clothEnable,
+                GoalStrength = GatherSlots(source.GoalStrength, sourceOf),
+                GoalDamping = GatherSlots(source.GoalDamping, sourceOf),
+                AnimationForceAttract = GatherSlots(source.AnimationForceAttract, sourceOf),
+                AnimationAttract = GatherSlots(source.AnimationAttract, sourceOf),
+                CollisionRadius = GatherSlots(source.CollisionRadius, sourceOf),
+                Friction = GatherSlots(source.Friction, sourceOf),
+                Drag = GatherSlots(source.Drag, sourceOf),
+                GroundCollision = GatherSlots(source.GroundCollision, sourceOf),
+                GroundFriction = GatherSlots(source.GroundFriction, sourceOf),
+                Gravity = GatherSlots(source.Gravity, sourceOf),
+                VertexAttraction = GatherSlots(source.VertexAttraction, sourceOf),
+                SkinInfluences = GatherSlots(source.SkinInfluences, sourceOf),
+                VertexMaps = [.. source.VertexMaps.Select(m => (m.Name, GatherSlots(m.Weights, sourceOf)))],
+                Faces = faces,
+                RodsDriven = source.RodsDriven.Length == 0 ? [] : GatherSlots(source.RodsDriven, sourceOf),
+                SimulatedCount = simulatedCount,
+                PinnedCount = pinnedCount,
+                IsDropRisk = isDropRisk,
+                UsesAuthoredFaces = source.UsesAuthoredFaces,
+                IsFreeFloating = isFreeFloating,
+            };
 
         /// <summary>
         /// Reconstructs the cloth proxy sheets, one per connected island and <c>$cloth_m&lt;N&gt;</c> index, ordered by that
@@ -189,7 +199,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
 
                 var count = merged.NodeIndices.Length;
                 var groupOf = Enumerable.Range(0, count).ToArray();
-                int Find(int x) { while (groupOf[x] != x) { x = groupOf[x] = groupOf[groupOf[x]]; } return x; }
+                int Find(int x) => FindRoot(groupOf, x);
                 foreach (var face in merged.Faces)
                 {
                     for (var i = 1; i < face.Length; i++)
@@ -234,32 +244,10 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                             remap[vertices[i]] = i;
                         }
 
-                        T[] Take<T>(T[] source) => [.. vertices.Select(v => source[v])];
-
-                        pending.Add(new ProxyMesh
-                        {
-                            NodeIndices = Take(merged.NodeIndices),
-                            Positions = Take(merged.Positions),
-                            ClothEnable = Take(merged.ClothEnable),
-                            GoalStrength = Take(merged.GoalStrength),
-                            GoalDamping = Take(merged.GoalDamping),
-                            AnimationForceAttract = Take(merged.AnimationForceAttract),
-                            AnimationAttract = Take(merged.AnimationAttract),
-                            CollisionRadius = Take(merged.CollisionRadius),
-                            Friction = Take(merged.Friction),
-                            Drag = Take(merged.Drag),
-                            GroundCollision = Take(merged.GroundCollision),
-                            GroundFriction = Take(merged.GroundFriction),
-                            Gravity = Take(merged.Gravity),
-                            VertexAttraction = Take(merged.VertexAttraction),
-                            SkinInfluences = Take(merged.SkinInfluences),
-                            VertexMaps = [.. merged.VertexMaps.Select(m => (m.Name, Take(m.Weights)))],
-                            Faces = [.. merged.Faces.Where(f => remap.ContainsKey(f[0])).Select(f => f.Select(v => remap[v]).ToArray())],
-                            RodsDriven = merged.RodsDriven.Length == 0 ? [] : Take(merged.RodsDriven),
-                            SimulatedCount = vertices.Count(v => merged.ClothEnable[v] != 0f),
-                            PinnedCount = vertices.Count(v => merged.ClothEnable[v] == 0f),
-                            UsesAuthoredFaces = merged.UsesAuthoredFaces,
-                        });
+                        pending.Add(GatherProxyMesh(merged, vertices, GatherSlots(merged.ClothEnable, vertices),
+                            [.. merged.Faces.Where(f => remap.ContainsKey(f[0])).Select(f => f.Select(v => remap[v]).ToArray())],
+                            vertices.Count(v => merged.ClothEnable[v] != 0f), vertices.Count(v => merged.ClothEnable[v] == 0f),
+                            isDropRisk: false, isFreeFloating: false));
                     }
                 }
             }
@@ -268,24 +256,6 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             var chainBoneNodes = independentChains.SelectMany(static c => c.Joints).Select(static j => j.Node).ToHashSet();
             if (chainBoneNodes.Count > 0)
             {
-                Dictionary<int, int>? offsetParents = null;
-                if (!HasCompiledSkelParents && CtrlOffsets.Length > 0)
-                {
-                    offsetParents = new Dictionary<int, int>(CtrlOffsets.Length);
-                    foreach (var off in CtrlOffsets)
-                    {
-                        offsetParents[off.CtrlChild] = off.CtrlParent;
-                    }
-                }
-
-                int ParentOf(int node)
-                {
-                    var parent = node < SkelParents.Length ? SkelParents[node] : -1;
-                    return parent < 0 && offsetParents is not null
-                        ? offsetParents.GetValueOrDefault(node, -1)
-                        : parent;
-                }
-
                 for (var node = 0; node < CtrlNames.Length; node++)
                 {
                     if (!IsProxyNodeName(CtrlNames[node]) || ParseProxyMeshIndex(CtrlNames[node]) >= 0)
@@ -293,7 +263,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                         continue;
                     }
 
-                    var parent = ParentOf(node);
+                    var parent = ParentNodeOf(node);
                     if (parent >= 0 && chainBoneNodes.Contains(parent))
                     {
                         coveredNodes.Add(node);
@@ -324,6 +294,17 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         }
 
         /// <summary>Gets the smallest <c>$cloth_m&lt;N&gt;</c> index among the mesh's nodes, or -1.</summary>
+        /// <summary>Finds the root of <paramref name="x"/> in a union-find forest, halving the path on the way.</summary>
+        static int FindRoot(int[] parent, int x)
+        {
+            while (parent[x] != x)
+            {
+                x = parent[x] = parent[parent[x]];
+            }
+
+            return x;
+        }
+
         int ProxyMeshOriginalIndex(ProxyMesh mesh) => mesh.NodeIndices
             .Select(node => ParseProxyMeshIndex(CtrlNames[node]))
             .Where(m => m >= 0)
@@ -658,44 +639,8 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                 remap[nodeIndices[i]] = i;
             }
 
-            var positions = new Vector3[nodeIndices.Length];
-            var clothEnable = new float[nodeIndices.Length];
-            var goalStrength = new float[nodeIndices.Length];
-            var goalDamping = new float[nodeIndices.Length];
-            var animationForceAttract = new float[nodeIndices.Length];
-            var animationAttract = new float[nodeIndices.Length];
-            var collisionRadius = new float[nodeIndices.Length];
-            var friction = new float[nodeIndices.Length];
-            var drag = new float[nodeIndices.Length];
-            var groundCollision = new float[nodeIndices.Length];
-            var groundFriction = new float[nodeIndices.Length];
-            var gravity = new float[nodeIndices.Length];
-            var vertexAttraction = new float[nodeIndices.Length];
-            var skinInfluences = new (string Bone, float Weight)[nodeIndices.Length][];
-            var simulated = 0;
-            var pinned = 0;
-
-            for (var i = 0; i < nodeIndices.Length; i++)
-            {
-                var node = nodeIndices[i];
-                positions[i] = InitPosePositions[node];
-
-                var vertex = ComputeProxyVertexData(node);
-                clothEnable[i] = vertex.IsSim ? 1f : 0f;
-                if (vertex.IsSim) { simulated++; } else { pinned++; }
-                skinInfluences[i] = vertex.SkinInfluences;
-                goalStrength[i] = vertex.GoalStrength;
-                goalDamping[i] = vertex.GoalDamping;
-                animationForceAttract[i] = vertex.AnimationForceAttract;
-                animationAttract[i] = vertex.AnimationAttract;
-                collisionRadius[i] = vertex.CollisionRadius;
-                friction[i] = vertex.Friction;
-                drag[i] = vertex.Drag;
-                groundCollision[i] = vertex.GroundCollision;
-                groundFriction[i] = vertex.GroundFriction;
-                gravity[i] = vertex.Gravity;
-                vertexAttraction[i] = vertex.VertexAttraction;
-            }
+            var vertices = ComputeProxyVertexArrays(nodeIndices);
+            var positions = vertices.Positions;
 
             var faces = new List<int[]>(Quads.Length + Tris.Length);
             bool Kept(int[] face) => Array.TrueForAll(face, corner => remap.ContainsKey(corner));
@@ -759,30 +704,8 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                 rodsDriven[i] = surfaceNodes.Contains(nodeIndices[i]) ? 0f : 1f;
             }
 
-            return new ProxyMesh
-            {
-                NodeIndices = nodeIndices,
-                Positions = positions,
-                ClothEnable = clothEnable,
-                GoalStrength = goalStrength,
-                GoalDamping = goalDamping,
-                AnimationForceAttract = animationForceAttract,
-                AnimationAttract = animationAttract,
-                CollisionRadius = collisionRadius,
-                Friction = friction,
-                Drag = drag,
-                GroundCollision = groundCollision,
-                GroundFriction = groundFriction,
-                Gravity = gravity,
-                VertexAttraction = vertexAttraction,
-                SkinInfluences = skinInfluences,
-                VertexMaps = BuildVertexMapWeights(nodeIndices),
-                Faces = faces,
-                SimulatedCount = simulated,
-                PinnedCount = pinned,
-                RodsDriven = rodsFaces.Count > 0 ? rodsDriven : [],
-                UsesAuthoredFaces = rodsFaces.Count > 0,
-            };
+            return AssembleProxyMesh(vertices, nodeIndices, faces, rodsFaces.Count > 0 ? rodsDriven : [],
+                usesAuthoredFaces: rodsFaces.Count > 0, isDropRisk: false, isFreeFloating: false);
         }
 
         /// <summary>
@@ -805,7 +728,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             {
                 if (rod.MinDist == rod.MaxDist)
                 {
-                    rigid.Add(rod.NodeA < rod.NodeB ? (rod.NodeA, rod.NodeB) : (rod.NodeB, rod.NodeA));
+                    rigid.Add(UnorderedPair(rod.NodeA, rod.NodeB));
                 }
             }
 
@@ -823,7 +746,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                     foreach (var first in firsts)
                     {
                         int[] quad = [first[0], first[1], first[2], tri[2]];
-                        var far = quad[1] < quad[3] ? (quad[1], quad[3]) : (quad[3], quad[1]);
+                        var far = UnorderedPair(quad[1], quad[3]);
                         if (quad.Distinct().Count() == 4 && Array.TrueForAll(quad, Dynamic) && rigid.Contains(far))
                         {
                             lowestSplit = Math.Min(lowestSplit, QuadBendSine(Array.ConvertAll(quad, node => InitPosePositions[node])));
@@ -910,7 +833,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                 {
                     for (var b = a + 1; b < 3; b++)
                     {
-                        var edge = tri[a] < tri[b] ? (tri[a], tri[b]) : (tri[b], tri[a]);
+                        var edge = UnorderedPair(tri[a], tri[b]);
                         if (!byEdge.TryGetValue(edge, out var sharing))
                         {
                             byEdge[edge] = sharing = [];
@@ -951,7 +874,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                         }
 
                         var (d0, d1) = (quad[order[0]], quad[order[2]]);
-                        if ((d0 < d1 ? (d0, d1) : (d1, d0)) != edge)
+                        if (UnorderedPair(d0, d1) != edge)
                         {
                             continue;
                         }
@@ -1004,7 +927,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                 }
 
                 var (a, b) = (face[order[1]], face[order[3]]);
-                rods.Add(a < b ? (a, b) : (b, a));
+                rods.Add(UnorderedPair(a, b));
             }
 
             return rods;
@@ -1105,7 +1028,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             {
                 if (localOf.TryGetValue(rod.NodeA, out var a) && localOf.TryGetValue(rod.NodeB, out var b) && a != b)
                 {
-                    shipped.Add(a < b ? (a, b) : (b, a));
+                    shipped.Add(UnorderedPair(a, b));
                 }
             }
 
@@ -1685,7 +1608,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             {
                 if (nodeA != nodeB && !(isStatic(nodeA) && isStatic(nodeB)))
                 {
-                    rods.Add(nodeA < nodeB ? (nodeA, nodeB) : (nodeB, nodeA));
+                    rods.Add(UnorderedPair(nodeA, nodeB));
                 }
             }
 
@@ -1708,7 +1631,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                     var n1 = e[(j + 1) % n];
                     var n2 = n == 3 ? e[(j + 2) % 3] : e[(j + 2) % 4];
                     var n3 = n == 3 ? n2 : e[(j + 3) % 4];
-                    var hinge = n0 < n1 ? (n0, n1) : (n1, n0);
+                    var hinge = UnorderedPair(n0, n1);
                     if (open.Remove((n0, n1), out var same))
                     {
                         yield return (hinge, n2, same.Near);
@@ -1775,14 +1698,14 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// </summary>
         internal const float SubQuantumMembershipWeight = 0.001f;
 
-        (string Name, float[] Weights)[] BuildVertexMapWeights(IReadOnlyList<int> nodeIndices)
+        (string Name, float[] Weights)[] BuildVertexMapWeights(int[] nodeIndices)
         {
             var maps = new List<(string, float[])>();
             foreach (var map in VertexMaps)
             {
-                var weights = new float[nodeIndices.Count];
+                var weights = new float[nodeIndices.Length];
                 var covers = false;
-                for (var i = 0; i < nodeIndices.Count; i++)
+                for (var i = 0; i < nodeIndices.Length; i++)
                 {
                     weights[i] = map.WeightOf(nodeIndices[i]);
                     if (weights[i] <= 0f && InRecordedVertexSet(nodeIndices[i], map.NameHash))
@@ -1864,6 +1787,93 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         }
 
         /// <summary>The per-node paint values of one proxy vertex.</summary>
+        /// <summary>The per-vertex arrays of a proxy mesh under construction.</summary>
+        sealed class ProxyVertexArrays(int count)
+        {
+            public Vector3[] Positions { get; } = new Vector3[count];
+            public float[] ClothEnable { get; } = new float[count];
+            public float[] GoalStrength { get; } = new float[count];
+            public float[] GoalDamping { get; } = new float[count];
+            public float[] AnimationForceAttract { get; } = new float[count];
+            public float[] AnimationAttract { get; } = new float[count];
+            public float[] CollisionRadius { get; } = new float[count];
+            public float[] Friction { get; } = new float[count];
+            public float[] Drag { get; } = new float[count];
+            public float[] GroundCollision { get; } = new float[count];
+            public float[] GroundFriction { get; } = new float[count];
+            public float[] Gravity { get; } = new float[count];
+            public float[] VertexAttraction { get; } = new float[count];
+            public (string Bone, float Weight)[][] SkinInfluences { get; } = new (string Bone, float Weight)[count][];
+            public int Simulated { get; set; }
+            public int Pinned { get; set; }
+        }
+
+        /// <summary>Fills the per-vertex arrays of the given nodes from <see cref="ComputeProxyVertexData"/>.</summary>
+        ProxyVertexArrays ComputeProxyVertexArrays(IReadOnlyList<int> nodeIndices)
+        {
+            var arrays = new ProxyVertexArrays(nodeIndices.Count);
+            for (var i = 0; i < nodeIndices.Count; i++)
+            {
+                var node = nodeIndices[i];
+                arrays.Positions[i] = InitPosePositions[node];
+
+                var vertex = ComputeProxyVertexData(node);
+                arrays.ClothEnable[i] = vertex.IsSim ? 1f : 0f;
+                if (vertex.IsSim)
+                {
+                    arrays.Simulated++;
+                }
+                else
+                {
+                    arrays.Pinned++;
+                }
+
+                arrays.SkinInfluences[i] = vertex.SkinInfluences;
+                arrays.GoalStrength[i] = vertex.GoalStrength;
+                arrays.GoalDamping[i] = vertex.GoalDamping;
+                arrays.AnimationForceAttract[i] = vertex.AnimationForceAttract;
+                arrays.AnimationAttract[i] = vertex.AnimationAttract;
+                arrays.CollisionRadius[i] = vertex.CollisionRadius;
+                arrays.Friction[i] = vertex.Friction;
+                arrays.Drag[i] = vertex.Drag;
+                arrays.GroundCollision[i] = vertex.GroundCollision;
+                arrays.GroundFriction[i] = vertex.GroundFriction;
+                arrays.Gravity[i] = vertex.Gravity;
+                arrays.VertexAttraction[i] = vertex.VertexAttraction;
+            }
+
+            return arrays;
+        }
+
+        ProxyMesh AssembleProxyMesh(ProxyVertexArrays vertices, int[] nodeIndices, List<int[]> faces, float[] rodsDriven,
+            bool usesAuthoredFaces, bool isDropRisk, bool isFreeFloating)
+            => new()
+            {
+                NodeIndices = nodeIndices,
+                Positions = vertices.Positions,
+                ClothEnable = vertices.ClothEnable,
+                GoalStrength = vertices.GoalStrength,
+                GoalDamping = vertices.GoalDamping,
+                AnimationForceAttract = vertices.AnimationForceAttract,
+                AnimationAttract = vertices.AnimationAttract,
+                CollisionRadius = vertices.CollisionRadius,
+                Friction = vertices.Friction,
+                Drag = vertices.Drag,
+                GroundCollision = vertices.GroundCollision,
+                GroundFriction = vertices.GroundFriction,
+                Gravity = vertices.Gravity,
+                VertexAttraction = vertices.VertexAttraction,
+                SkinInfluences = vertices.SkinInfluences,
+                VertexMaps = BuildVertexMapWeights(nodeIndices),
+                Faces = faces,
+                SimulatedCount = vertices.Simulated,
+                PinnedCount = vertices.Pinned,
+                RodsDriven = rodsDriven,
+                IsDropRisk = isDropRisk,
+                UsesAuthoredFaces = usesAuthoredFaces,
+                IsFreeFloating = isFreeFloating,
+            };
+
         readonly record struct ProxyVertexData(
             bool IsSim,
             float GoalStrength,
@@ -2004,22 +2014,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                     return faces;
                 }
 
-                var flat = new List<int>(rows * 4);
-                foreach (var row in nNodeValue.AsArraySpan())
-                {
-                    if (row.IsArray)
-                    {
-                        foreach (var lane in row.AsArraySpan())
-                        {
-                            flat.Add((int)(long)lane);
-                        }
-                    }
-                    else
-                    {
-                        flat.Add((int)(long)row);
-                    }
-                }
-
+                var flat = FlattenSimdNodes(nNodeValue, rows * 4);
                 if (flat.Count < rows * 4)
                 {
                     return faces;
@@ -2051,6 +2046,30 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         }
 
         /// <summary>Sorts nodes by mesh index, then vertex slot, then node index.</summary>
+        /// <summary>
+        /// Flattens a SIMD <c>nNode</c> block, stored either as rows of four lanes or as one row-major array.
+        /// </summary>
+        static List<int> FlattenSimdNodes(KVObject nNode, int capacity)
+        {
+            var flat = new List<int>(capacity);
+            foreach (var row in nNode.AsArraySpan())
+            {
+                if (row.IsArray)
+                {
+                    foreach (var lane in row.AsArraySpan())
+                    {
+                        flat.Add((int)(long)lane);
+                    }
+                }
+                else
+                {
+                    flat.Add((int)(long)row);
+                }
+            }
+
+            return flat;
+        }
+
         void SortByAuthoredVertexOrder(int[] nodeIndices)
         {
             Array.Sort(nodeIndices, (x, y) =>
@@ -2100,15 +2119,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                 parent[i] = i;
             }
 
-            int Find(int x)
-            {
-                while (parent[x] != x)
-                {
-                    x = parent[x] = parent[parent[x]];
-                }
-
-                return x;
-            }
+            int Find(int x) => FindRoot(parent, x);
 
             foreach (var rod in Rods)
             {
@@ -2210,44 +2221,9 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             nodeIndices = [.. sorted];
 
             var count = nodeIndices.Count;
-            var positions = new Vector3[count];
-            var clothEnable = new float[count];
-            var goalStrength = new float[count];
-            var goalDamping = new float[count];
-            var animationForceAttract = new float[count];
-            var animationAttract = new float[count];
-            var collisionRadius = new float[count];
-            var friction = new float[count];
-            var drag = new float[count];
-            var groundCollision = new float[count];
-            var groundFriction = new float[count];
-            var gravity = new float[count];
-            var vertexAttraction = new float[count];
-            var skinInfluences = new (string Bone, float Weight)[count][];
-            var simulated = 0;
-            var pinned = 0;
-
-            for (var i = 0; i < count; i++)
-            {
-                var node = nodeIndices[i];
-                positions[i] = InitPosePositions[node];
-
-                var vertex = ComputeProxyVertexData(node);
-                clothEnable[i] = vertex.IsSim ? 1f : 0f;
-                if (vertex.IsSim) { simulated++; } else { pinned++; }
-                skinInfluences[i] = vertex.SkinInfluences;
-                goalStrength[i] = vertex.GoalStrength;
-                goalDamping[i] = vertex.GoalDamping;
-                animationForceAttract[i] = vertex.AnimationForceAttract;
-                animationAttract[i] = vertex.AnimationAttract;
-                collisionRadius[i] = vertex.CollisionRadius;
-                friction[i] = vertex.Friction;
-                drag[i] = vertex.Drag;
-                groundCollision[i] = vertex.GroundCollision;
-                groundFriction[i] = vertex.GroundFriction;
-                gravity[i] = vertex.Gravity;
-                vertexAttraction[i] = vertex.VertexAttraction;
-            }
+            var vertices = ComputeProxyVertexArrays(nodeIndices);
+            var positions = vertices.Positions;
+            var clothEnable = vertices.ClothEnable;
 
             var localOf = new Dictionary<int, int>(count);
             for (var i = 0; i < count; i++)
@@ -2277,32 +2253,9 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
 
             var isDropRisk = !usesAuthoredFaces && ComputeDropRisk(positions, clothEnable, faces);
 
-            return new ProxyMesh
-            {
-                NodeIndices = [.. nodeIndices],
-                Positions = positions,
-                ClothEnable = clothEnable,
-                GoalStrength = goalStrength,
-                GoalDamping = goalDamping,
-                AnimationForceAttract = animationForceAttract,
-                AnimationAttract = animationAttract,
-                CollisionRadius = collisionRadius,
-                Friction = friction,
-                Drag = drag,
-                GroundCollision = groundCollision,
-                GroundFriction = groundFriction,
-                Gravity = gravity,
-                VertexAttraction = vertexAttraction,
-                SkinInfluences = skinInfluences,
-                VertexMaps = BuildVertexMapWeights(nodeIndices),
-                Faces = faces,
-                SimulatedCount = simulated,
-                PinnedCount = pinned,
-                IsDropRisk = isDropRisk,
-                UsesAuthoredFaces = usesAuthoredFaces,
-                IsFreeFloating = usesAuthoredFaces && HasGeneratedClothRoot
-                    && skinInfluences.All(static v => v.All(static i => IsProxyNodeName(i.Bone))),
-            };
+            return AssembleProxyMesh(vertices, [.. nodeIndices], faces, [], usesAuthoredFaces, isDropRisk,
+                usesAuthoredFaces && HasGeneratedClothRoot
+                    && vertices.SkinInfluences.All(static v => v.All(static i => IsProxyNodeName(i.Bone))));
         }
 
         List<int[]> TakeAuthoredFaces(Dictionary<int, int> localOf, List<int> nodeIndices,
@@ -2348,7 +2301,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             var shipped = new HashSet<(int, int)>();
             foreach (var rod in Rods)
             {
-                shipped.Add(rod.NodeA < rod.NodeB ? (rod.NodeA, rod.NodeB) : (rod.NodeB, rod.NodeA));
+                shipped.Add(UnorderedPair(rod.NodeA, rod.NodeB));
             }
 
             foreach (var (a, b) in FaceEdges(faces))
@@ -2394,7 +2347,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                     var (a, b) = (face[k], face[(k + 1) % face.Length]);
                     if (a != b)
                     {
-                        edges.Add(a < b ? (a, b) : (b, a));
+                        edges.Add(UnorderedPair(a, b));
                     }
                 }
             }

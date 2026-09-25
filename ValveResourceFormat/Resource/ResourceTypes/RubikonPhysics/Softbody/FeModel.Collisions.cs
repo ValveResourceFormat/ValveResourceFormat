@@ -140,6 +140,9 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
 
         const uint RigidFlagInverted = 1;
 
+        /// <summary>The collision-layer mask a planarized shape is recovered with: all four layers.</summary>
+        const int PlanarizeCollisionMask = 0xF;
+
         /// <summary>Reconstructs the cloth collision capsules (<c>m_TaperedCapsuleRigids</c>).</summary>
         public List<CollisionCapsule> BuildCollisionCapsules()
         {
@@ -314,23 +317,24 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                 foreach (var (fit, members) in shapes)
                 {
                     var (point0, point1) = PlanarizedAxis(fit, samples, members);
+                    CollisionCapsule Capsule(string vertexMap, int ownPlanes) => new()
+                    {
+                        ParentBone = bone,
+                        Point0 = point0,
+                        Radius0 = fit.R0,
+                        Point1 = point1,
+                        Radius1 = fit.R1,
+                        CollisionMask = PlanarizeCollisionMask,
+                        VertexMap = vertexMap,
+                        Planarize = true,
+                        PlanarizePlanes = members.Count,
+                        PlanarizeOwnPlanes = ownPlanes,
+                        Priority = priority,
+                    };
 
                     if (SmallestVertexMapCovering(samples, members) is { } vertexMap)
                     {
-                        recovered.Add(new CollisionCapsule
-                        {
-                            ParentBone = bone,
-                            Point0 = point0,
-                            Radius0 = fit.R0,
-                            Point1 = point1,
-                            Radius1 = fit.R1,
-                            CollisionMask = 0xF,
-                            VertexMap = vertexMap,
-                            Planarize = true,
-                            PlanarizePlanes = members.Count,
-                            PlanarizeOwnPlanes = members.Count,
-                            Priority = priority,
-                        });
+                        recovered.Add(Capsule(vertexMap, members.Count));
                         continue;
                     }
 
@@ -342,20 +346,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
 
                     foreach (var (splitMap, splitMembers) in split)
                     {
-                        recovered.Add(new CollisionCapsule
-                        {
-                            ParentBone = bone,
-                            Point0 = point0,
-                            Radius0 = fit.R0,
-                            Point1 = point1,
-                            Radius1 = fit.R1,
-                            CollisionMask = 0xF,
-                            VertexMap = splitMap,
-                            Planarize = true,
-                            PlanarizePlanes = members.Count,
-                            PlanarizeOwnPlanes = splitMembers.Count,
-                            Priority = priority,
-                        });
+                        recovered.Add(Capsule(splitMap, splitMembers.Count));
                     }
                 }
 
@@ -399,7 +390,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                     Origin = Vector3.Transform((box.Min + box.Max) * 0.5f, box.Rotation),
                     Rotation = box.Rotation,
                     Size = (box.Max - box.Min) * 0.5f,
-                    CollisionMask = 0xF,
+                    CollisionMask = PlanarizeCollisionMask,
                     VertexMap = vertexMap,
                     Planarize = true,
                     PlanarizePlanes = samples.Count,
@@ -746,15 +737,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
 
             foreach (var (a, b, c) in AxisSeedTriples(all))
             {
-                var span = Vector3.Cross(samples[b].Normal - samples[a].Normal, samples[c].Normal - samples[a].Normal);
-                if (span.Length() < 1e-4f)
-                {
-                    continue;
-                }
-
-                var seedAxis = Vector3.Normalize(span);
-                var seedCosine = Vector3.Dot(samples[a].Normal, seedAxis);
-                if (MathF.Abs(seedCosine) >= 0.999f)
+                if (!SeedAxis(samples, a, b, c, out var seedAxis, out var seedCosine))
                 {
                     continue;
                 }
@@ -1072,31 +1055,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                 return results;
             }
 
-            List<int>? best = null;
-            foreach (var (a, b, c) in AxisSeedTriples(subset))
-            {
-                var span = Vector3.Cross(samples[b].Normal - samples[a].Normal,
-                    samples[c].Normal - samples[a].Normal);
-                if (span.Length() < 1e-4f)
-                {
-                    continue;
-                }
-
-                var axis = Vector3.Normalize(span);
-                var cosine = Vector3.Dot(samples[a].Normal, axis);
-                if (MathF.Abs(cosine) >= 0.999f)
-                {
-                    continue;
-                }
-
-                var inliers = AxisInliers(samples, subset, axis, cosine);
-                if (inliers.Count >= 3 && inliers.Count > (best?.Count ?? 2))
-                {
-                    best = inliers;
-                }
-            }
-
-            if (best is null)
+            if (BestAxisSeed(samples, subset) is not { } best)
             {
                 return results;
             }
@@ -1138,25 +1097,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                 return false;
             }
 
-            var mean = Vector3.Zero;
-            foreach (var i in inliers)
-            {
-                mean += samples[i].Normal;
-            }
-
-            mean /= inliers.Count;
-
-            double xx = 0, xy = 0, xz = 0, yy = 0, yz = 0, zz = 0;
-            foreach (var i in inliers)
-            {
-                var d = samples[i].Normal - mean;
-                xx += (double)d.X * d.X;
-                xy += (double)d.X * d.Y;
-                xz += (double)d.X * d.Z;
-                yy += (double)d.Y * d.Y;
-                yz += (double)d.Y * d.Z;
-                zz += (double)d.Z * d.Z;
-            }
+            var (mean, xx, xy, xz, yy, yz, zz) = NormalCovariance(samples, inliers);
 
             if (!SmallestEigenvector(xx, xy, xz, yy, yz, zz, out axis))
             {
@@ -1889,31 +1830,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                 return results;
             }
 
-            List<int>? best = null;
-            foreach (var (a, b, c) in AxisSeedTriples(subset))
-            {
-                var span = Vector3.Cross(samples[b].Normal - samples[a].Normal,
-                    samples[c].Normal - samples[a].Normal);
-                if (span.Length() < 1e-4f)
-                {
-                    continue;
-                }
-
-                var axis = Vector3.Normalize(span);
-                var cosine = Vector3.Dot(samples[a].Normal, axis);
-                if (MathF.Abs(cosine) >= 0.999f)
-                {
-                    continue;
-                }
-
-                var inliers = AxisInliers(samples, subset, axis, cosine);
-                if (inliers.Count >= 3 && inliers.Count > (best?.Count ?? 2))
-                {
-                    best = inliers;
-                }
-            }
-
-            if (best is null)
+            if (BestAxisSeed(samples, subset) is not { } best)
             {
                 return results;
             }
@@ -1943,6 +1860,76 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             results.Add((finalAxis, finalCosine, best));
             results.Add((-finalAxis, -finalCosine, best));
             return results;
+        }
+
+        /// <summary>
+        /// Gets the largest set of at least three normals that one seed triple's axis explains, or null.
+        /// </summary>
+        static List<int>? BestAxisSeed(List<PlanarizeSample> samples, List<int> subset)
+        {
+            List<int>? best = null;
+            foreach (var (a, b, c) in AxisSeedTriples(subset))
+            {
+                if (!SeedAxis(samples, a, b, c, out var axis, out var cosine))
+                {
+                    continue;
+                }
+
+                var inliers = AxisInliers(samples, subset, axis, cosine);
+                if (inliers.Count >= 3 && inliers.Count > (best?.Count ?? 2))
+                {
+                    best = inliers;
+                }
+            }
+
+            return best;
+        }
+
+        /// <summary>
+        /// Gets the axis normal to the plane through three samples' normals and its cosine to them, or false when the
+        /// normals are collinear or the axis lies along them.
+        /// </summary>
+        static bool SeedAxis(List<PlanarizeSample> samples, int a, int b, int c, out Vector3 axis, out float cosine)
+        {
+            var span = Vector3.Cross(samples[b].Normal - samples[a].Normal,
+                samples[c].Normal - samples[a].Normal);
+            axis = default;
+            cosine = 0f;
+            if (span.Length() < 1e-4f)
+            {
+                return false;
+            }
+
+            axis = Vector3.Normalize(span);
+            cosine = Vector3.Dot(samples[a].Normal, axis);
+            return MathF.Abs(cosine) < 0.999f;
+        }
+
+        /// <summary>Gets the mean of the inliers' normals and the entries of their covariance about it.</summary>
+        static (Vector3 Mean, double Xx, double Xy, double Xz, double Yy, double Yz, double Zz) NormalCovariance(
+            List<PlanarizeSample> samples, List<int> inliers)
+        {
+            var mean = Vector3.Zero;
+            foreach (var i in inliers)
+            {
+                mean += samples[i].Normal;
+            }
+
+            mean /= inliers.Count;
+
+            double xx = 0, xy = 0, xz = 0, yy = 0, yz = 0, zz = 0;
+            foreach (var i in inliers)
+            {
+                var d = samples[i].Normal - mean;
+                xx += (double)d.X * d.X;
+                xy += (double)d.X * d.Y;
+                xz += (double)d.X * d.Z;
+                yy += (double)d.Y * d.Y;
+                yz += (double)d.Y * d.Z;
+                zz += (double)d.Z * d.Z;
+            }
+
+            return (mean, xx, xy, xz, yy, yz, zz);
         }
 
         static IEnumerable<(int A, int B, int C)> AxisSeedTriples(List<int> subset)
@@ -2007,25 +1994,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                 return false;
             }
 
-            var mean = Vector3.Zero;
-            foreach (var i in inliers)
-            {
-                mean += samples[i].Normal;
-            }
-
-            mean /= inliers.Count;
-
-            double xx = 0, xy = 0, xz = 0, yy = 0, yz = 0, zz = 0;
-            foreach (var i in inliers)
-            {
-                var d = samples[i].Normal - mean;
-                xx += (double)d.X * d.X;
-                xy += (double)d.X * d.Y;
-                xz += (double)d.X * d.Z;
-                yy += (double)d.Y * d.Y;
-                yz += (double)d.Y * d.Z;
-                zz += (double)d.Z * d.Z;
-            }
+            var (mean, xx, xy, xz, yy, yz, zz) = NormalCovariance(samples, inliers);
 
             var trace = xx + yy + zz;
             double vx = 0.5773502691896258, vy = 0.5773502691896258, vz = 0.5773502691896258;

@@ -333,12 +333,6 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                 drivenDynamicBones.Add(parent);
             }
 
-            var backSolvedBones = new HashSet<int>();
-            foreach (var entry in Data.GetArray("m_ReverseOffsets") ?? [])
-            {
-                backSolvedBones.Add(entry.GetInt32Property("nBoneCtrl"));
-            }
-
             foreach (var (node, primary) in fitlessSoft)
             {
                 var painted = new List<(string Bone, float Weight)>();
@@ -360,7 +354,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                     }
 
                     if (prunable && !IsStatic(bone) && !drivenDynamicBones.Contains(bone)
-                        && !backSolvedBones.Contains(bone) && !FitMatrixNodes.Contains(bone))
+                        && !ReverseOffsetBones.Contains(bone) && !FitMatrixNodes.Contains(bone))
                     {
                         prunable = false;
                     }
@@ -811,7 +805,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                 {
                     for (var b = a + 1; b < face.Length; b++)
                     {
-                        var (x, y) = face[a] < face[b] ? (face[a], face[b]) : (face[b], face[a]);
+                        var (x, y) = UnorderedPair(face[a], face[b]);
                         derived.Add((x, y));
                     }
                 }

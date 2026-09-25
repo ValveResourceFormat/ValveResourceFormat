@@ -206,7 +206,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                 {
                     foreach (var b in rhs)
                     {
-                        if (rodPairs.Contains(a < b ? (a, b) : (b, a)))
+                        if (rodPairs.Contains(UnorderedPair(a, b)))
                         {
                             hits++;
                         }
@@ -563,7 +563,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                             {
                                 var a = cluster.Nodes[i];
                                 var b = cluster.Nodes[j];
-                                selfCollisionClusterPairs.Add(a < b ? (a, b) : (b, a));
+                                selfCollisionClusterPairs.Add(UnorderedPair(a, b));
                             }
                         }
                     }
@@ -596,13 +596,13 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             var sprung = new HashSet<(int, int)>();
             foreach (var (a, b) in SourceSprings)
             {
-                sprung.Add(a < b ? (a, b) : (b, a));
+                sprung.Add(UnorderedPair(a, b));
             }
 
             var byBand = new Dictionary<(float, float), Dictionary<(int, int), (int Copies, float Relaxation)>>();
             foreach (var rod in Rods)
             {
-                var pair = rod.NodeA < rod.NodeB ? (rod.NodeA, rod.NodeB) : (rod.NodeB, rod.NodeA);
+                var pair = UnorderedPair(rod.NodeA, rod.NodeB);
                 if (rod.MaxDist <= rod.MinDist || rod.RelaxationFactor <= 0f
                     || rod.Weight0 != 0.5f || sprung.Contains(pair)
                     || ImportedStripNodes.Contains(rod.NodeA) || ImportedStripNodes.Contains(rod.NodeB))
@@ -677,7 +677,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
 
             static float[]? MemberStiffness(List<int> members, Dictionary<(int, int), (int Copies, float Relaxation)> counts)
             {
-                float RelaxationOf(int a, int b) => counts[a < b ? (a, b) : (b, a)].Relaxation;
+                float RelaxationOf(int a, int b) => counts[UnorderedPair(a, b)].Relaxation;
 
                 var stiffness = new float[members.Count];
                 for (var i = 0; i < members.Count; i++)
@@ -759,7 +759,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                         var a = cluster.Nodes[i];
                         var b = cluster.Nodes[j];
                         var relaxation = cluster.Stiffness is { } stiffness ? stiffness[i] * stiffness[j] : 1f;
-                        wanted[a < b ? (a, b) : (b, a)] = (cluster.MinDist, cluster.MaxDist, relaxation);
+                        wanted[UnorderedPair(a, b)] = (cluster.MinDist, cluster.MaxDist, relaxation);
                     }
                 }
             }
@@ -767,7 +767,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             for (var i = 0; i < Rods.Length; i++)
             {
                 var rod = Rods[i];
-                var pair = rod.NodeA < rod.NodeB ? (rod.NodeA, rod.NodeB) : (rod.NodeB, rod.NodeA);
+                var pair = UnorderedPair(rod.NodeA, rod.NodeB);
                 if (wanted.TryGetValue(pair, out var band) && rod.MinDist == band.Min
                     && rod.MaxDist == band.Max && MathF.Abs(rod.RelaxationFactor - band.Relaxation) <= 1e-4f
                     && rod.Weight0 == 0.5f)
@@ -809,7 +809,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                 }
 
                 var rod = Rods[index];
-                var pair = rod.NodeA < rod.NodeB ? (rod.NodeA, rod.NodeB) : (rod.NodeB, rod.NodeA);
+                var pair = UnorderedPair(rod.NodeA, rod.NodeB);
                 pairs.Add(pair);
                 if (!relaxationsByPair.TryGetValue(pair, out var relaxations))
                 {
@@ -872,16 +872,6 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         {
             var childrenOf = new Dictionary<int, List<int>>();
 
-            Dictionary<int, int>? ctrlOffsetParents = null;
-            if (!HasCompiledSkelParents && CtrlOffsets.Length > 0)
-            {
-                ctrlOffsetParents = new Dictionary<int, int>(CtrlOffsets.Length);
-                foreach (var off in CtrlOffsets)
-                {
-                    ctrlOffsetParents[off.CtrlChild] = off.CtrlParent;
-                }
-            }
-
             for (var node = 0; node < CtrlNames.Length; node++)
             {
                 if ((!CtrlNames[node].StartsWith("$cc", StringComparison.Ordinal)
@@ -891,11 +881,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                     continue;
                 }
 
-                var pp = node < SkelParents.Length ? SkelParents[node] : -1;
-                if (pp < 0 && ctrlOffsetParents is not null)
-                {
-                    pp = ctrlOffsetParents.GetValueOrDefault(node, -1);
-                }
+                var pp = ParentNodeOf(node);
                 if (pp >= 0)
                 {
                     if (!childrenOf.TryGetValue(pp, out var list))
@@ -1136,7 +1122,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                     continue;
                 }
 
-                var rodLinked = rodPairs.Contains(p < i ? (p, i) : (i, p));
+                var rodLinked = rodPairs.Contains(UnorderedPair(p, i));
 
                 var bothDrivenSim = i >= FirstPositionDrivenNode && p >= FirstPositionDrivenNode
                     && i < NodeInvMasses.Length && NodeInvMasses[i] != 0f
@@ -1159,14 +1145,14 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
 
                 var grandParent = p < SkelParents.Length ? SkelParents[p] : -1;
                 var bendRodLinked = grandParent >= 0 && grandParent < n && isReal[grandParent]
-                    && rodPairs.Contains(grandParent < i ? (grandParent, i) : (i, grandParent));
+                    && rodPairs.Contains(UnorderedPair(grandParent, i));
 
                 var ringLinked = false;
                 if (proxyChildrenOf.TryGetValue(p, out var parentRing))
                 {
                     foreach (var ring in parentRing)
                     {
-                        if (rodPairs.Contains(ring < i ? (ring, i) : (i, ring)))
+                        if (rodPairs.Contains(UnorderedPair(ring, i)))
                         {
                             ringLinked = true;
                             break;
@@ -1176,7 +1162,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
 
                 var ropeLinked = ropeParents.TryGetValue(i, out var ropeParent) && ropeParent == p && !EndsItsChain(p);
 
-                var twistLinked = TwistLinks.Contains(p < i ? (p, i) : (i, p));
+                var twistLinked = TwistLinks.Contains(UnorderedPair(p, i));
 
                 if ((rodLinked || bothDrivenSim || proxyRibbon || hingedRoot || bendLinked
                     || bendRodLinked || ringLinked || ropeLinked || twistLinked) && !RinglessLinkUnrecorded(p, i) && !RingLinkUnrecorded(p, i))
@@ -1204,7 +1190,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                     for (var child = 0; child < n && realParent[i] < 0; child++)
                     {
                         if (child != p && realParent[child] == i
-                            && rodPairs.Contains(p < child ? (p, child) : (child, p)))
+                            && rodPairs.Contains(UnorderedPair(p, child)))
                         {
                             realParent[i] = p;
                             linked = true;
@@ -1292,7 +1278,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                         continue;
                     }
 
-                    var key = a > b ? (b, a) : (a, b);
+                    var key = UnorderedPair(a, b);
                     linkCounts[key] = linkCounts.GetValueOrDefault(key) + 1;
                 }
 
@@ -1320,7 +1306,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                         {
                             if (nodeByName.TryGetValue(ancestor, out var p) && p != i)
                             {
-                                var key = p > i ? (i, p) : (p, i);
+                                var key = UnorderedPair(p, i);
                                 if (linkCounts.ContainsKey(key))
                                 {
                                     if (!RingLinkUnrecorded(p, i))
@@ -1416,7 +1402,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                 {
                     foreach (var y in b)
                     {
-                        if (rodPairs.Contains(x < y ? (x, y) : (y, x)))
+                        if (rodPairs.Contains(UnorderedPair(x, y)))
                         {
                             return true;
                         }
@@ -1826,7 +1812,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                     {
                         foreach (var b in (int[])[rootNode, .. Side(rootNode)])
                         {
-                            crossesRoot.Add(a < b ? (a, b) : (b, a));
+                            crossesRoot.Add(UnorderedPair(a, b));
                         }
                     }
                 }
@@ -1878,7 +1864,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                         {
                             foreach (var b in Side(other))
                             {
-                                if (!byPair.TryGetValue(a < b ? (a, b) : (b, a), out var relaxations))
+                                if (!byPair.TryGetValue(UnorderedPair(a, b), out var relaxations))
                                 {
                                     return null;
                                 }
@@ -1943,10 +1929,10 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                 bool Declared((int, int) pair) => rodPairs.Contains(pair) && !SurfaceFoldOnlyPairs.Contains(pair);
 
                 bool SpannedByDeclaredRod(int node, int other)
-                    => other >= 0 && (Declared(node < other ? (node, other) : (other, node)) || AllDeclared(Side(node), other));
+                    => other >= 0 && (Declared(UnorderedPair(node, other)) || AllDeclared(Side(node), other));
 
                 bool AllDeclared(List<int> lhs, int other)
-                    => other >= 0 && lhs.Count > 0 && lhs.All(a => Side(other).All(b => Declared(a < b ? (a, b) : (b, a))));
+                    => other >= 0 && lhs.Count > 0 && lhs.All(a => Side(other).All(b => Declared(UnorderedPair(a, b))));
 
                 bool AllSpanned(List<int> lhs, int other)
                 {
@@ -1959,7 +1945,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                     {
                         foreach (var b in Side(other))
                         {
-                            if (!rodPairs.Contains(a < b ? (a, b) : (b, a)))
+                            if (!rodPairs.Contains(UnorderedPair(a, b)))
                             {
                                 return false;
                             }
@@ -1976,7 +1962,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                         return false;
                     }
 
-                    if (rodPairs.Contains(node < other ? (node, other) : (other, node)))
+                    if (rodPairs.Contains(UnorderedPair(node, other)))
                     {
                         return true;
                     }
@@ -1999,7 +1985,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                     {
                         foreach (var b in Side(other))
                         {
-                            var count = repeatRodRelaxationsByPair.TryGetValue(a < b ? (a, b) : (b, a), out var repeat)
+                            var count = repeatRodRelaxationsByPair.TryGetValue(UnorderedPair(a, b), out var repeat)
                                 ? repeat.Count
                                 : 0;
                             if (count == 0 || (copies != 0 && count != copies))
@@ -2029,7 +2015,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                         {
                             foreach (var b in Side(other))
                             {
-                                if (!rodContractionsByPair.TryGetValue(a < b ? (a, b) : (b, a),
+                                if (!rodContractionsByPair.TryGetValue(UnorderedPair(a, b),
                                     out var contractions))
                                 {
                                     continue;
@@ -2066,7 +2052,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                         {
                             foreach (var b in Side(other))
                             {
-                                var count = repeatRodRelaxationsByPair.TryGetValue(a < b ? (a, b) : (b, a),
+                                var count = repeatRodRelaxationsByPair.TryGetValue(UnorderedPair(a, b),
                                     out var repeat)
                                     ? repeat.Count
                                     : 0;
@@ -2143,7 +2129,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                             {
                                 foreach (var b in Side(kids[i].Node))
                                 {
-                                    if (!repeatRodRelaxationsByPair.TryGetValue(a < b ? (a, b) : (b, a),
+                                    if (!repeatRodRelaxationsByPair.TryGetValue(UnorderedPair(a, b),
                                         out var repeat))
                                     {
                                         continue;
@@ -2189,6 +2175,11 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                     return value;
                 }
 
+                bool RootIsUpwardTarget(BoneChainJoint joint, int parentNode, int grand, int greatGrand)
+                    => rootNode == parentNode
+                        || (joint.BendSpring && rootNode == grand)
+                        || (joint.TorsionSpring && rootNode == greatGrand);
+
                 float? RootSuspenderValue(BoneChainJoint joint, int parentNode, int grand, int greatGrand)
                 {
                     if (joint.Node == rootNode)
@@ -2196,11 +2187,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                         return null;
                     }
 
-                    var rootIsUpwardTarget = rootNode == parentNode
-                        || (joint.BendSpring && rootNode == grand)
-                        || (joint.TorsionSpring && rootNode == greatGrand);
-
-                    if (rootIsUpwardTarget)
+                    if (RootIsUpwardTarget(joint, parentNode, grand, greatGrand))
                     {
                         var naturalRf = chainNaturalRf ?? 1f;
                         var totalCopies = JointCopies(joint);
@@ -2211,7 +2198,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
 
                         var baseCopies = totalCopies / 2;
                         var ringCopies = jointRingOf.TryGetValue(joint.Node, out var ownRing) && ownRing.Count > 0
-                            && rodRelaxationsByPair.TryGetValue(SpanPair(joint.Node, ownRing[0]), out var ringRods)
+                            && rodRelaxationsByPair.TryGetValue(UnorderedPair(joint.Node, ownRing[0]), out var ringRods)
                             ? ringRods.Count
                             : 0;
                         float? suspender = null;
@@ -2219,7 +2206,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                         {
                             foreach (var b in Side(rootNode))
                             {
-                                var pair = a < b ? (a, b) : (b, a);
+                                var pair = UnorderedPair(a, b);
                                 if (!rodRelaxationsByPair.TryGetValue(pair, out var relaxations)
                                     || relaxations.Count != baseCopies * 2
                                     || (SplitEvenly(relaxations, naturalRf, baseCopies)
@@ -2244,7 +2231,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                         {
                             foreach (var b in Side(rootNode))
                             {
-                                var pair = a < b ? (a, b) : (b, a);
+                                var pair = UnorderedPair(a, b);
                                 if (Array.IndexOf(SourceSprings, pair) >= 0
                                     || Array.IndexOf(SourceSprings, (pair.Item2, pair.Item1)) >= 0
                                     || !rigidRodRelaxationsByPair.TryGetValue(pair, out var relaxations)
@@ -2301,7 +2288,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                     {
                         foreach (var b in Side(rootTarget))
                         {
-                            var pair = a < b ? (a, b) : (b, a);
+                            var pair = UnorderedPair(a, b);
                             if (Array.IndexOf(SourceSprings, pair) >= 0
                                 || Array.IndexOf(SourceSprings, (pair.Item2, pair.Item1)) >= 0
                                 || !rigidRodRelaxationsByPair.TryGetValue(pair, out var relaxations))
@@ -2394,16 +2381,14 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                 var clusterPairs = SelfCollisionClusterPairs;
                 var chainDeclaresNoStretch = chain.Joints.Count > 1
                     && chain.Joints.Exists(joint => !joint.IsRoot
-                        && clusterPairs.Contains(SpanPair(joint.Node, joint.ParentNode)))
+                        && clusterPairs.Contains(UnorderedPair(joint.Node, joint.ParentNode)))
                     && chain.Joints.TrueForAll(joint => joint.IsRoot
-                        || clusterPairs.Contains(SpanPair(joint.Node, joint.ParentNode))
+                        || clusterPairs.Contains(UnorderedPair(joint.Node, joint.ParentNode))
                         || (!SpannedByRod(joint.Node, joint.ParentNode)
                             && RingInternalRelaxation(joint.Node) is null));
 
-                static (int, int) SpanPair(int a, int b) => a < b ? (a, b) : (b, a);
-
                 int SpanRodCopies(int a, int b)
-                    => repeatRodRelaxationsByPair.TryGetValue(SpanPair(a, b), out var repeats) ? repeats.Count : 0;
+                    => repeatRodRelaxationsByPair.TryGetValue(UnorderedPair(a, b), out var repeats) ? repeats.Count : 0;
 
                 int RingRodCopies(int node)
                 {
@@ -2442,7 +2427,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                     {
                         foreach (var b in rhs)
                         {
-                            if (a != b && rodPairs.Contains(SpanPair(a, b)))
+                            if (a != b && rodPairs.Contains(UnorderedPair(a, b)))
                             {
                                 return true;
                             }
@@ -2512,10 +2497,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                     if (RootSuspenderValue(joint, parent, grandParent, greatGrandParent) is { } suspender)
                     {
                         joint.Suspender = suspender;
-                        var rootIsUpwardTarget = rootNode == parent
-                            || (joint.BendSpring && rootNode == grandParent)
-                            || (joint.TorsionSpring && rootNode == greatGrandParent);
-                        joint.ExtraIterations = rootIsUpwardTarget ? JointCopies(joint) / 2 - 1 : JointCopies(joint) - 1;
+                        joint.ExtraIterations = RootIsUpwardTarget(joint, parent, grandParent, greatGrandParent) ? JointCopies(joint) / 2 - 1 : JointCopies(joint) - 1;
                     }
                     else if (RootCompanionValue(joint, parent, grandParent, greatGrandParent, out var spanReading) is { } companion)
                     {
@@ -2586,7 +2568,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                                         continue;
                                     }
 
-                                    var pair = a < b ? (a, b) : (b, a);
+                                    var pair = UnorderedPair(a, b);
                                     if (Array.IndexOf(SourceSprings, pair) >= 0
                                         || Array.IndexOf(SourceSprings, (pair.Item2, pair.Item1)) >= 0
                                         || !rodRelaxationsByPair.TryGetValue(pair, out var relaxations))
@@ -2631,9 +2613,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                 foreach (var joint in chain.Joints)
                 {
                     if (joint.IsRoot || joint.ProxyNode < 0 || joint.ExtrudeSides < 2 || !IsPositionDriven(joint.Node)
-                        || !rodPairs.Contains(joint.Node < joint.ParentNode
-                            ? (joint.Node, joint.ParentNode)
-                            : (joint.ParentNode, joint.Node)))
+                        || !rodPairs.Contains(UnorderedPair(joint.Node, joint.ParentNode)))
                     {
                         continue;
                     }

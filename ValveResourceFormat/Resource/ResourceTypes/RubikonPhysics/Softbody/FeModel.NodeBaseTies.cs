@@ -239,26 +239,15 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         Dictionary<int, (int X0, int X1)> RopeSourceHintPairs()
         {
             var pairs = new Dictionary<int, (int X0, int X1)>();
-            var ropeCount = Data.GetInt32Property("m_nRopeCount");
-            var ropes = Data.GetIntegerArray("m_Ropes");
-            if (ropeCount <= 0 || ropes.Length <= ropeCount)
+            foreach (var run in RopeRuns)
             {
-                return pairs;
-            }
-
-            var begin = ropeCount;
-            for (var rope = 0; rope < ropeCount; rope++)
-            {
-                var end = Math.Min((int)ropes[rope], ropes.Length);
-                for (var i = begin; i < end && end - begin >= 2; i++)
+                for (var i = 0; i < run.Length && run.Length >= 2; i++)
                 {
-                    var pair = i == begin ? ((int)ropes[i], (int)ropes[i + 1])
-                        : i == end - 1 ? ((int)ropes[i], (int)ropes[i - 1])
-                        : ((int)ropes[i - 1], (int)ropes[i + 1]);
-                    pairs.TryAdd((int)ropes[i], pair);
+                    var pair = i == 0 ? (run[i], run[i + 1])
+                        : i == run.Length - 1 ? (run[i], run[i - 1])
+                        : (run[i - 1], run[i + 1]);
+                    pairs.TryAdd(run[i], pair);
                 }
-
-                begin = end;
             }
 
             return pairs;
@@ -293,18 +282,12 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                 return false;
             }
 
-            var reverseOffsetBones = new HashSet<int>();
-            foreach (var entry in Data.GetArray("m_ReverseOffsets") ?? [])
-            {
-                reverseOffsetBones.Add(entry.GetInt32Property("nBoneCtrl"));
-            }
-
             return chain.Joints.Exists(joint => !joint.IsRoot && joint.Simulated
                 && joint.ExtrudeSides == 2
                 && !chain.Joints.Exists(child => child.ParentNode == joint.Node)
                 && !NodeBases.ContainsKey(joint.Node)
                 && !FitMatrixNodes.Contains(joint.Node)
-                && !reverseOffsetBones.Contains(joint.Node)
+                && !ReverseOffsetBones.Contains(joint.Node)
                 && !IsLockedToGoal(joint.Node) && !IsLockedToParent(joint.Node)
                 && (joint.StretchStiffness != 0f || joint.AnimatedLength)
                 && NodeNeighbours(joint.Node).Count < 3);
@@ -317,12 +300,6 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         internal ThinJointStaging ThinJointStagingOf(IEnumerable<BoneChainJoint> joints)
         {
             var list = joints as IReadOnlyList<BoneChainJoint> ?? [.. joints];
-            var reverseOffsetBones = new HashSet<int>();
-            foreach (var entry in Data.GetArray("m_ReverseOffsets") ?? [])
-            {
-                reverseOffsetBones.Add(entry.GetInt32Property("nBoneCtrl"));
-            }
-
             var unstaged = false;
             foreach (var joint in list)
             {
@@ -343,7 +320,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
 
                 if (table is >= 1 and <= 2)
                 {
-                    if (reverseOffsetBones.Contains(joint.Node) || IsLockedToGoal(joint.Node)
+                    if (ReverseOffsetBones.Contains(joint.Node) || IsLockedToGoal(joint.Node)
                         || IsLockedToParent(joint.Node) || FitMatrixNodes.Contains(joint.Node))
                     {
                         return ThinJointStaging.Staged;

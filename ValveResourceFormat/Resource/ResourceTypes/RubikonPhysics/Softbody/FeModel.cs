@@ -101,7 +101,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// <c>animated_length</c>. These rods appear nowhere else in the file.
         /// </summary>
         public IReadOnlySet<(int, int)> AnimRodPairs => animRodPairs ??= AnimRods
-            .Select(static rod => rod.NodeA < rod.NodeB ? (rod.NodeA, rod.NodeB) : (rod.NodeB, rod.NodeA))
+            .Select(static rod => UnorderedPair(rod.NodeA, rod.NodeB))
             .ToHashSet();
 
         /// <summary>
@@ -129,22 +129,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                     continue;
                 }
 
-                var flat = new List<int>(8);
-                foreach (var row in nNodeValue.AsArraySpan())
-                {
-                    if (row.IsArray)
-                    {
-                        foreach (var lane in row.AsArraySpan())
-                        {
-                            flat.Add((int)(long)lane);
-                        }
-                    }
-                    else
-                    {
-                        flat.Add((int)(long)row);
-                    }
-                }
-
+                var flat = FlattenSimdNodes(nNodeValue, 8);
                 if (flat.Count < 8)
                 {
                     continue;
@@ -562,7 +547,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                 || vertexAttraction >= forceAttraction - 1e-4f;
         }
 
-        static int[] BuildRopeParents(KVObject data)
+        static int[] BuildRopeParents(KVObject data, IReadOnlyList<int[]> ropeRuns)
         {
             var nodeCount = data.GetInt32Property("m_nNodeCount");
             if (nodeCount <= 0)
@@ -584,20 +569,11 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                 }
             }
 
-            var ropeCount = data.GetInt32Property("m_nRopeCount");
-            var ropes = data.GetIntegerArray("m_Ropes");
-            if (ropeCount > 0 && ropes.Length > ropeCount)
+            foreach (var run in ropeRuns)
             {
-                var begin = ropeCount;
-                for (var rope = 0; rope < ropeCount; rope++)
+                for (var i = 1; i < run.Length; i++)
                 {
-                    var end = Math.Min((int)ropes[rope], ropes.Length);
-                    for (var i = begin + 1; i < end; i++)
-                    {
-                        Adopt((int)ropes[i], (int)ropes[i - 1]);
-                    }
-
-                    begin = end;
+                    Adopt(run[i], run[i - 1]);
                 }
             }
 
@@ -635,6 +611,9 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             return parented ? parents : [];
         }
 
+        /// <summary>Gets the pair with its lower node first.</summary>
+        internal static (int, int) UnorderedPair(int a, int b) => a < b ? (a, b) : (b, a);
+
         static void ExpectPair(Dictionary<(int, int), List<float>> expectations, int a, int b, float relaxation)
         {
             if (a < 0 || b < 0)
@@ -642,7 +621,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                 return;
             }
 
-            var key = a < b ? (a, b) : (b, a);
+            var key = UnorderedPair(a, b);
             if (!expectations.TryGetValue(key, out var values))
             {
                 expectations[key] = values = [];
@@ -747,7 +726,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                 if (IsEndpoint(a) && IsEndpoint(b))
                 {
                     authored.Add((a, b));
-                    var key = a < b ? (a, b) : (b, a);
+                    var key = UnorderedPair(a, b);
                     occurrences[key] = occurrences.GetValueOrDefault(key) + 1;
                 }
             }
@@ -756,9 +735,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             var clusterRods = SelfCollisionClusterRods;
             for (var i = 0; i < Rods.Length; i++)
             {
-                var key = Rods[i].NodeA < Rods[i].NodeB
-                    ? (Rods[i].NodeA, Rods[i].NodeB)
-                    : (Rods[i].NodeB, Rods[i].NodeA);
+                var key = UnorderedPair(Rods[i].NodeA, Rods[i].NodeB);
                 if (!clusterRods.Contains(i) && occurrences.ContainsKey(key))
                 {
                     copies[key] = copies.GetValueOrDefault(key) + 1;
@@ -768,7 +745,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             var springs = new List<(int, int, int)>(authored.Count);
             foreach (var (a, b) in authored)
             {
-                var key = a < b ? (a, b) : (b, a);
+                var key = UnorderedPair(a, b);
 
                 var generated = spanned.TryGetValue(key, out var spans) ? spans.Count : 0;
                 if (occurrences[key] > 1)
@@ -809,9 +786,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             var entriesByPair = new Dictionary<(int, int), List<int>>();
             for (var i = 0; i < Rods.Length; i++)
             {
-                var key = Rods[i].NodeA < Rods[i].NodeB
-                    ? (Rods[i].NodeA, Rods[i].NodeB)
-                    : (Rods[i].NodeB, Rods[i].NodeA);
+                var key = UnorderedPair(Rods[i].NodeA, Rods[i].NodeB);
                 if (!entriesByPair.TryGetValue(key, out var entries))
                 {
                     entriesByPair[key] = entries = [];
@@ -1403,7 +1378,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             var byPair = new Dictionary<(int, int), List<Rod>>();
             foreach (var rod in Rods)
             {
-                var key = rod.NodeA < rod.NodeB ? (rod.NodeA, rod.NodeB) : (rod.NodeB, rod.NodeA);
+                var key = UnorderedPair(rod.NodeA, rod.NodeB);
                 (byPair.TryGetValue(key, out var list) ? list : byPair[key] = []).Add(rod);
             }
 
@@ -1451,7 +1426,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             {
                 if (x != y && x >= 0 && y >= 0 && x < InitPosePositions.Length && y < InitPosePositions.Length)
                 {
-                    kinds[x < y ? (x, y) : (y, x)] = diagonal;
+                    kinds[UnorderedPair(x, y)] = diagonal;
                 }
             }
         }
@@ -1555,6 +1530,46 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
 
         const float PaintSolveTolerance = 2e-3f;
 
+        /// <summary>Gets the control nodes that are proxy-sheet vertices.</summary>
+        HashSet<int> SheetNodes()
+        {
+            var sheetNodes = new HashSet<int>();
+            for (var node = 0; node < CtrlNames.Length; node++)
+            {
+                if (IsProxyMeshNode(node))
+                {
+                    sheetNodes.Add(node);
+                }
+            }
+
+            return sheetNodes;
+        }
+
+        /// <summary>
+        /// Maps a per-node value onto <paramref name="proxy"/>'s vertices, or returns null when no vertex counts as
+        /// <paramref name="painted"/>.
+        /// </summary>
+        static float[]? PaintPerVertex(ProxyMesh proxy, Func<int, float> valueOf, Func<float, bool> painted)
+        {
+            var paint = new float[proxy.NodeIndices.Length];
+            var count = 0;
+            for (var v = 0; v < paint.Length; v++)
+            {
+                paint[v] = valueOf(proxy.NodeIndices[v]);
+                if (painted(paint[v]))
+                {
+                    count++;
+                }
+            }
+
+            return count > 0 ? paint : null;
+        }
+
+        /// <summary>Gets the bones <c>m_ReverseOffsets</c> names (<c>nBoneCtrl</c>).</summary>
+        HashSet<int> ReverseOffsetBones => reverseOffsetBones ??= [.. (Data.GetArray("m_ReverseOffsets") ?? []).Select(static entry => entry.GetInt32Property("nBoneCtrl"))];
+
+        HashSet<int>? reverseOffsetBones;
+
         /// <summary>
         /// Recovers the <c>cloth_antishrink</c> paint of a proxy sheet from its face rods, or null when it is uniformly
         /// <see cref="SheetAntishrinkDefault"/> or the rods contradict each other.
@@ -1576,18 +1591,8 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                 return null;
             }
 
-            var paint = new float[proxy.NodeIndices.Length];
-            var painted = 0;
-            for (var v = 0; v < paint.Length; v++)
-            {
-                paint[v] = solved.TryGetValue(proxy.NodeIndices[v], out var value) ? value : SheetAntishrinkDefault;
-                if (MathF.Abs(paint[v] - SheetAntishrinkDefault) > PaintSolveTolerance)
-                {
-                    painted++;
-                }
-            }
-
-            return painted > 0 ? paint : null;
+            return PaintPerVertex(proxy, node => solved.TryGetValue(node, out var value) ? value : SheetAntishrinkDefault,
+                static value => MathF.Abs(value - SheetAntishrinkDefault) > PaintSolveTolerance);
         }
 
         /// <summary>The <c>cloth_antishrink</c> of a proxy-sheet vertex that is not painted.</summary>
@@ -1616,14 +1621,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
 
         (Dictionary<int, float>, float)? SolveShearResistance()
         {
-            var sheetNodes = new HashSet<int>();
-            for (var node = 0; node < CtrlNames.Length; node++)
-            {
-                if (IsProxyMeshNode(node))
-                {
-                    sheetNodes.Add(node);
-                }
-            }
+            var sheetNodes = SheetNodes();
 
             var faceRods = AuthoredFaceRods(sheetNodes);
             var diagonals = faceRods.Where(static entry => entry.Diagonal).ToList();
@@ -1682,21 +1680,20 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             List<((int A, int B) Pair, bool Diagonal, Rod Rod)> faceRods)
         {
             var edges = faceRods.Where(static entry => !entry.Diagonal).Select(static entry => entry.Pair).ToHashSet();
-            var rodPairs = Rods.Select(static rod => rod.NodeA < rod.NodeB ? (rod.NodeA, rod.NodeB) : (rod.NodeB, rod.NodeA)).ToHashSet();
-            static (int, int) Key(int x, int y) => x < y ? (x, y) : (y, x);
+            var rodPairs = Rods.Select(static rod => UnorderedPair(rod.NodeA, rod.NodeB)).ToHashSet();
             bool BothStatic((int A, int B) pair) => IsStatic(pair.A) && IsStatic(pair.B);
             bool Spans((int, int) pair) => edges.Contains(pair) || BothStatic(pair);
 
             foreach (var face in SourceFaces)
             {
                 if (face.Length != 4 || !Array.TrueForAll(face, nodes.Contains)
-                    || !Spans(Key(face[0], face[1])) || !Spans(Key(face[1], face[2]))
-                    || !Spans(Key(face[2], face[3])) || !Spans(Key(face[3], face[0])))
+                    || !Spans(UnorderedPair(face[0], face[1])) || !Spans(UnorderedPair(face[1], face[2]))
+                    || !Spans(UnorderedPair(face[2], face[3])) || !Spans(UnorderedPair(face[3], face[0])))
                 {
                     continue;
                 }
 
-                foreach (var diagonal in new[] { Key(face[0], face[2]), Key(face[1], face[3]) })
+                foreach (var diagonal in new[] { UnorderedPair(face[0], face[2]), UnorderedPair(face[1], face[3]) })
                 {
                     if (!rodPairs.Contains(diagonal) && !BothStatic(diagonal))
                     {
@@ -1720,18 +1717,8 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                 return null;
             }
 
-            var paint = new float[proxy.NodeIndices.Length];
-            var painted = 0;
-            for (var v = 0; v < paint.Length; v++)
-            {
-                paint[v] = shear.Paint.TryGetValue(proxy.NodeIndices[v], out var value) ? value : 1f;
-                if (MathF.Abs(paint[v] - 1f) > PaintSolveTolerance)
-                {
-                    painted++;
-                }
-            }
-
-            return painted > 0 ? paint : null;
+            return PaintPerVertex(proxy, node => shear.Paint.TryGetValue(node, out var value) ? value : 1f,
+                static value => MathF.Abs(value - 1f) > PaintSolveTolerance);
         }
 
         /// <summary>
@@ -1757,14 +1744,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
 
         Dictionary<int, float>? SolveStretchPaint()
         {
-            var sheetNodes = new HashSet<int>();
-            for (var node = 0; node < CtrlNames.Length; node++)
-            {
-                if (IsProxyMeshNode(node))
-                {
-                    sheetNodes.Add(node);
-                }
-            }
+            var sheetNodes = SheetNodes();
 
             var thread = DefaultSurfaceStretch > 0f ? MathF.Exp(-DefaultSurfaceStretch) : 1f;
             var stated = new Dictionary<(int A, int B), float>();
@@ -1877,18 +1857,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                 return null;
             }
 
-            var paint = new float[proxy.NodeIndices.Length];
-            var painted = 0;
-            for (var v = 0; v < paint.Length; v++)
-            {
-                paint[v] = byNode.GetValueOrDefault(proxy.NodeIndices[v]);
-                if (paint[v] > PaintSolveTolerance)
-                {
-                    painted++;
-                }
-            }
-
-            return painted > 0 ? paint : null;
+            return PaintPerVertex(proxy, byNode.GetValueOrDefault, static value => value > PaintSolveTolerance);
         }
 
         /// <summary>
@@ -2051,30 +2020,13 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         }
 
         /// <summary>Gets the mass multiplier of a chain joint's node.</summary>
-        float? ChainMassMultiplierOf(int node)
-        {
-            if (node < 0 || node >= NodeInvMasses.Length)
-            {
-                return null;
-            }
+        float? ChainMassMultiplierOf(int node) => MassMultiplierOf(node, chainJoint: true);
 
-            var invMass = NodeInvMasses[node];
-            if (invMass <= 0f || invMass == 1f)
-            {
-                return null;
-            }
-
-            var geometric = RodEndpoints.Contains(node) ? RodMassPass : GeometricMasses;
-            if (node >= geometric.Length || geometric[node] <= 0f)
-            {
-                return null;
-            }
-
-            var ratio = 1f / invMass / geometric[node];
-            return ratio > 0f ? MathF.Sqrt(ratio) : null;
-        }
-
-        float? MassMultiplierOf(int node)
+        /// <summary>
+        /// Gets the mass multiplier of a node over its geometric mass. A rod endpoint is read against the rod mass pass
+        /// only for a chain joint or on a cloth without proxy-sheet nodes.
+        /// </summary>
+        float? MassMultiplierOf(int node, bool chainJoint = false)
         {
             if (node < 0 || node >= NodeInvMasses.Length)
             {
@@ -2092,7 +2044,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             {
                 geometric = GeometricMasses;
             }
-            else if (!HasProxyMeshNodes)
+            else if (chainJoint || !HasProxyMeshNodes)
             {
                 geometric = RodMassPass;
             }
@@ -2199,7 +2151,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             var rodsOnPair = new Dictionary<(int, int), int>();
             foreach (var rod in Rods)
             {
-                var pair = rod.NodeA < rod.NodeB ? (rod.NodeA, rod.NodeB) : (rod.NodeB, rod.NodeA);
+                var pair = UnorderedPair(rod.NodeA, rod.NodeB);
                 rodsOnPair[pair] = rodsOnPair.GetValueOrDefault(pair) + 1;
             }
 
@@ -2208,7 +2160,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                 for (var j = 0; j < cycle.Length; j++)
                 {
                     var (p, q) = (cycle[j], cycle[(j + 1) % cycle.Length]);
-                    var edge = p < q ? (p, q) : (q, p);
+                    var edge = UnorderedPair(p, q);
                     if (rodsOnPair.GetValueOrDefault(edge) == 1)
                     {
                         derived.Remove(edge);
@@ -2218,7 +2170,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
 
             foreach (var rod in Rods)
             {
-                var (a, b) = rod.NodeA < rod.NodeB ? (rod.NodeA, rod.NodeB) : (rod.NodeB, rod.NodeA);
+                var (a, b) = UnorderedPair(rod.NodeA, rod.NodeB);
                 if (b >= mass.Length
                     || rod.MaxDist >= UnboundedRodDistance || (FoldedAfterMass(rod) && derived.Remove((a, b))))
                 {
@@ -2297,14 +2249,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                 solved.Add(CornerKey(element));
             }
 
-            var sheetNodes = new HashSet<int>();
-            for (var node = 0; node < CtrlNames.Length; node++)
-            {
-                if (IsProxyMeshNode(node))
-                {
-                    sheetNodes.Add(node);
-                }
-            }
+            var sheetNodes = SheetNodes();
 
             var unbuilt = UnbuiltFaceDiagonals(sheetNodes, AuthoredFaceRods(sheetNodes)).ToHashSet();
             var rods = new Dictionary<(int A, int B), float>();
@@ -2319,7 +2264,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                 {
                     for (var j = i + 1; j < face.Length; j++)
                     {
-                        var (a, b) = face[i] < face[j] ? (face[i], face[j]) : (face[j], face[i]);
+                        var (a, b) = UnorderedPair(face[i], face[j]);
                         if (a == b || a < 0 || b >= mass.Length || unbuilt.Contains((a, b)))
                         {
                             continue;
@@ -2854,26 +2799,12 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                 var highest = 0f;
                 foreach (var bend in KelagerBends)
                 {
-                    if (bend.MidNode < 0 || bend.End0 < 0 || bend.End1 < 0
-                        || bend.MidNode >= InitPosePositions.Length
-                        || bend.End0 >= InitPosePositions.Length || bend.End1 >= InitPosePositions.Length
-                        || bend.MidNode >= CtrlNames.Length || !IsProxyNodeName(CtrlNames[bend.MidNode]))
+                    if (HubFold(bend) is not { Shut: false } fold)
                     {
                         continue;
                     }
 
-                    var toEnd0 = InitPosePositions[bend.End0] - InitPosePositions[bend.MidNode];
-                    var toEnd1 = InitPosePositions[bend.End1] - InitPosePositions[bend.MidNode];
-                    var l0 = toEnd0.Length();
-                    var l1 = toEnd1.Length();
-                    if (l0 <= 0f || l1 <= 0f
-                        || bend.Height <= (toEnd0 + toEnd1).Length() / 3f * 1.0001f)
-                    {
-                        continue;
-                    }
-
-                    var cosine = ((9f * bend.Height * bend.Height) - (l0 * l0) - (l1 * l1)) / (2f * l0 * l1);
-                    var reading = MathF.Acos(Math.Clamp(cosine, -1f, 1f)) / MathF.PI;
+                    var reading = fold.Reading;
                     lowest = MathF.Min(lowest, reading);
                     highest = MathF.Max(highest, reading);
                 }
@@ -2909,31 +2840,18 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                 var shut = new HashSet<int>();
                 foreach (var bend in KelagerBends)
                 {
-                    if (bend.MidNode < 0 || bend.End0 < 0 || bend.End1 < 0
-                        || bend.MidNode >= InitPosePositions.Length
-                        || bend.End0 >= InitPosePositions.Length || bend.End1 >= InitPosePositions.Length
-                        || bend.MidNode >= CtrlNames.Length || !IsProxyNodeName(CtrlNames[bend.MidNode]))
+                    if (HubFold(bend) is not { } fold)
                     {
                         continue;
                     }
 
-                    var toEnd0 = InitPosePositions[bend.End0] - InitPosePositions[bend.MidNode];
-                    var toEnd1 = InitPosePositions[bend.End1] - InitPosePositions[bend.MidNode];
-                    var l0 = toEnd0.Length();
-                    var l1 = toEnd1.Length();
-                    if (l0 <= 0f || l1 <= 0f)
-                    {
-                        continue;
-                    }
-
-                    if (bend.Height <= (toEnd0 + toEnd1).Length() / 3f * 1.0001f)
+                    if (fold.Shut)
                     {
                         shut.Add(bend.MidNode);
                         continue;
                     }
 
-                    var cosine = ((9f * bend.Height * bend.Height) - (l0 * l0) - (l1 * l1)) / (2f * l0 * l1);
-                    var reading = MathF.Acos(Math.Clamp(cosine, -1f, 1f)) / MathF.PI;
+                    var reading = fold.Reading;
                     lowest[bend.MidNode] = MathF.Min(lowest.GetValueOrDefault(bend.MidNode, float.MaxValue), reading);
                     highest[bend.MidNode] = MathF.Max(highest.GetValueOrDefault(bend.MidNode), reading);
                 }
@@ -2959,6 +2877,38 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         }
 
         /// <summary>
+        /// Reads a sheet-hub bend's fold as a fraction of pi, or marks it shut where its height has fallen to its rest
+        /// distance. Null for a bend whose hub is not a generated node or whose arms are degenerate.
+        /// </summary>
+        (bool Shut, float Reading)? HubFold(KelagerBend bend)
+        {
+            if (bend.MidNode < 0 || bend.End0 < 0 || bend.End1 < 0
+                || bend.MidNode >= InitPosePositions.Length
+                || bend.End0 >= InitPosePositions.Length || bend.End1 >= InitPosePositions.Length
+                || bend.MidNode >= CtrlNames.Length || !IsProxyNodeName(CtrlNames[bend.MidNode]))
+            {
+                return null;
+            }
+
+            var toEnd0 = InitPosePositions[bend.End0] - InitPosePositions[bend.MidNode];
+            var toEnd1 = InitPosePositions[bend.End1] - InitPosePositions[bend.MidNode];
+            var l0 = toEnd0.Length();
+            var l1 = toEnd1.Length();
+            if (l0 <= 0f || l1 <= 0f)
+            {
+                return null;
+            }
+
+            if (bend.Height <= (toEnd0 + toEnd1).Length() / 3f * 1.0001f)
+            {
+                return (true, 0f);
+            }
+
+            var cosine = ((9f * bend.Height * bend.Height) - (l0 * l0) - (l1 * l1)) / (2f * l0 * l1);
+            return (false, MathF.Acos(Math.Clamp(cosine, -1f, 1f)) / MathF.PI);
+        }
+
+        /// <summary>
         /// Recovers the per-vertex <c>cloth_bend_stiffness</c> paint of a rigid-hinged proxy sheet, or null when the
         /// sheet's hubs state none. See <see cref="RigidHingeBendPaint"/>.
         /// </summary>
@@ -2969,18 +2919,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                 return null;
             }
 
-            var paint = new float[proxy.NodeIndices.Length];
-            var painted = 0;
-            for (var v = 0; v < paint.Length; v++)
-            {
-                paint[v] = byNode.GetValueOrDefault(proxy.NodeIndices[v]);
-                if (paint[v] > 0f)
-                {
-                    painted++;
-                }
-            }
-
-            return painted > 0 ? paint : null;
+            return PaintPerVertex(proxy, byNode.GetValueOrDefault, static value => value > 0f);
         }
 
         const string HingeAnchorPrefix = "$ha_";
@@ -3269,15 +3208,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// </summary>
         public bool HasRigidHingeLink(BoneChain chain)
         {
-            var groupOf = new Dictionary<int, int>();
-            foreach (var joint in chain.Joints)
-            {
-                groupOf[joint.Node] = joint.Node;
-                foreach (var proxy in ProxyRingOf(joint.Node))
-                {
-                    groupOf[proxy] = joint.Node;
-                }
-            }
+            var groupOf = ChainNodeGroups(chain);
 
             var hingedLinks = chain.Joints
                 .Where(joint => !joint.IsRoot && IsHingedJoint(joint.ParentNode))
@@ -3323,15 +3254,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// </summary>
         public bool HasChainRods(BoneChain chain)
         {
-            var groupOf = new Dictionary<int, int>();
-            foreach (var joint in chain.Joints)
-            {
-                groupOf[joint.Node] = joint.Node;
-                foreach (var proxy in ProxyRingOf(joint.Node))
-                {
-                    groupOf[proxy] = joint.Node;
-                }
-            }
+            var groupOf = ChainNodeGroups(chain);
 
             var links = chain.Joints
                 .Where(static joint => !joint.IsRoot)
@@ -3356,15 +3279,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// </summary>
         public bool HasChainBendOnlyRods(List<BoneChain> chains)
         {
-            var generated = chains
-                .SelectMany(static chain => chain.Joints)
-                .SelectMany(joint => ProxyRingOf(joint.Node))
-                .ToHashSet();
-
-            if (generated.Count == 0)
-            {
-                generated = SourceFaceRingNodes();
-            }
+            var generated = ChainGeneratedNodes(chains);
 
             return Rods.Any(rod => rod.MaxDist >= UnboundedRodDistance
                 && generated.Contains(rod.NodeA) && generated.Contains(rod.NodeB));
@@ -3376,19 +3291,40 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// </summary>
         public bool HasChainStiffnessRods(List<BoneChain> chains)
         {
+            var generated = ChainGeneratedNodes(chains);
+
+            return Rods.Any(rod => rod.MaxDist < UnboundedRodDistance && rod.MinDist < rod.MaxDist
+                && generated.Contains(rod.NodeA) && generated.Contains(rod.NodeB))
+                || Rods.Any(rod => IsSurfaceFanRod(rod, banded: true));
+        }
+
+        /// <summary>Maps each joint of <paramref name="chain"/> and each of its ring nodes to the joint's node.</summary>
+        Dictionary<int, int> ChainNodeGroups(BoneChain chain)
+        {
+            var groupOf = new Dictionary<int, int>();
+            foreach (var joint in chain.Joints)
+            {
+                groupOf[joint.Node] = joint.Node;
+                foreach (var proxy in ProxyRingOf(joint.Node))
+                {
+                    groupOf[proxy] = joint.Node;
+                }
+            }
+
+            return groupOf;
+        }
+
+        /// <summary>
+        /// Gets the ring nodes of the chains' joints, or the <see cref="SourceFaceRingNodes"/> when they have none.
+        /// </summary>
+        HashSet<int> ChainGeneratedNodes(List<BoneChain> chains)
+        {
             var generated = chains
                 .SelectMany(static chain => chain.Joints)
                 .SelectMany(joint => ProxyRingOf(joint.Node))
                 .ToHashSet();
 
-            if (generated.Count == 0)
-            {
-                generated = SourceFaceRingNodes();
-            }
-
-            return Rods.Any(rod => rod.MaxDist < UnboundedRodDistance && rod.MinDist < rod.MaxDist
-                && generated.Contains(rod.NodeA) && generated.Contains(rod.NodeB))
-                || Rods.Any(rod => IsSurfaceFanRod(rod, banded: true));
+            return generated.Count == 0 ? SourceFaceRingNodes() : generated;
         }
 
         /// <summary>
@@ -3420,7 +3356,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// <see cref="IsSurfaceFanRod"/>), so that no declaration put any rod there.
         /// </summary>
         HashSet<(int, int)> SurfaceFoldOnlyPairs => surfaceFoldOnlyPairs ??= Rods
-            .GroupBy(static rod => rod.NodeA < rod.NodeB ? (rod.NodeA, rod.NodeB) : (rod.NodeB, rod.NodeA))
+            .GroupBy(static rod => UnorderedPair(rod.NodeA, rod.NodeB))
             .Where(group => group.All(rod => IsSurfaceFanRod(rod, banded: true)))
             .Select(static group => group.Key)
             .ToHashSet();
@@ -3453,7 +3389,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                 return false;
             }
 
-            return SurfaceFanPairs.Contains(rod.NodeA < rod.NodeB ? (rod.NodeA, rod.NodeB) : (rod.NodeB, rod.NodeA));
+            return SurfaceFanPairs.Contains(UnorderedPair(rod.NodeA, rod.NodeB));
         }
 
         /// <summary>
@@ -3483,7 +3419,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
 
             var sum = NodeInvMasses[rod.NodeA] + NodeInvMasses[rod.NodeB];
             return sum > 0f && MathF.Abs(NodeInvMasses[rod.NodeA] / sum - 0.5f) > SurfaceFanWeightTolerance
-                && SurfaceFanPairs.Contains(rod.NodeA < rod.NodeB ? (rod.NodeA, rod.NodeB) : (rod.NodeB, rod.NodeA));
+                && SurfaceFanPairs.Contains(UnorderedPair(rod.NodeA, rod.NodeB));
         }
 
         const float SurfaceFanBandTolerance = 1e-4f;
@@ -4104,27 +4040,50 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             get
             {
                 var parents = new Dictionary<int, int>();
-                var ropeCount = Data.GetInt32Property("m_nRopeCount");
-                var ropes = Data.GetIntegerArray("m_Ropes");
-                if (ropeCount <= 0 || ropes.Length <= ropeCount)
+                foreach (var run in RopeRuns)
                 {
-                    return parents;
-                }
-
-                var begin = ropeCount;
-                for (var rope = 0; rope < ropeCount; rope++)
-                {
-                    var end = Math.Min((int)ropes[rope], ropes.Length);
-                    for (var i = begin + 1; i < end; i++)
+                    for (var i = 1; i < run.Length; i++)
                     {
-                        parents.TryAdd((int)ropes[i], (int)ropes[i - 1]);
+                        parents.TryAdd(run[i], run[i - 1]);
                     }
-
-                    begin = end;
                 }
 
                 return parents;
             }
+        }
+
+        /// <summary>
+        /// Gets the node runs of <c>m_Ropes</c>, whose first <c>m_nRopeCount</c> entries are the runs' exclusive end offsets.
+        /// </summary>
+        IReadOnlyList<int[]> RopeRuns => ropeRuns ??= ReadRopeRuns(Data);
+
+        List<int[]>? ropeRuns;
+
+        static List<int[]> ReadRopeRuns(KVObject data)
+        {
+            var runs = new List<int[]>();
+            var ropeCount = data.GetInt32Property("m_nRopeCount");
+            var ropes = data.GetIntegerArray("m_Ropes");
+            if (ropeCount <= 0 || ropes.Length <= ropeCount)
+            {
+                return runs;
+            }
+
+            var begin = ropeCount;
+            for (var rope = 0; rope < ropeCount; rope++)
+            {
+                var end = Math.Min((int)ropes[rope], ropes.Length);
+                var run = new int[Math.Max(end - begin, 0)];
+                for (var i = 0; i < run.Length; i++)
+                {
+                    run[i] = (int)ropes[begin + i];
+                }
+
+                runs.Add(run);
+                begin = end;
+            }
+
+            return runs;
         }
 
         /// <summary>
@@ -4136,20 +4095,11 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             if (ropeNodes is null)
             {
                 ropeNodes = [];
-                var ropeCount = Data.GetInt32Property("m_nRopeCount");
-                var ropes = Data.GetIntegerArray("m_Ropes");
-                if (ropeCount > 0 && ropes.Length > ropeCount)
+                foreach (var run in RopeRuns)
                 {
-                    var begin = ropeCount;
-                    for (var rope = 0; rope < ropeCount; rope++)
+                    if (run.Length >= 2)
                     {
-                        var end = Math.Min((int)ropes[rope], ropes.Length);
-                        for (var i = begin; i < end && end - begin >= 2; i++)
-                        {
-                            ropeNodes.Add((int)ropes[i]);
-                        }
-
-                        begin = end;
+                        ropeNodes.UnionWith(run);
                     }
                 }
             }
@@ -4216,7 +4166,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             HasCompiledSkelParents = SkelParents.Length > 0;
             if (SkelParents.Length == 0)
             {
-                SkelParents = BuildRopeParents(data);
+                SkelParents = BuildRopeParents(data, RopeRuns);
             }
             NodeInvMasses = data.GetFloatArray("m_NodeInvMasses");
             NodeCount = data.GetInt32Property("m_nNodeCount");
@@ -4400,7 +4350,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                     twistNodes.Add(orient);
                     twistNodes.Add(end);
                     twistRecords.Add(new TwistRecord(orient, end, relax, entry.GetFloatProperty("flSwingRelax")));
-                    twistLinks.Add(orient < end ? (orient, end) : (end, orient));
+                    twistLinks.Add(UnorderedPair(orient, end));
                     twistRelaxByLink[(orient, end)] = relax;
                     twistOrientFallback.TryAdd(orient, relax);
 

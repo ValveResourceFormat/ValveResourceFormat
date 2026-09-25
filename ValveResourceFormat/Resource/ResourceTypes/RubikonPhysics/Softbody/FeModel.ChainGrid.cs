@@ -80,7 +80,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             }
 
             var groupOf = Enumerable.Range(0, paths.Count).ToArray();
-            int Find(int x) { while (groupOf[x] != x) { x = groupOf[x] = groupOf[groupOf[x]]; } return x; }
+            int Find(int x) => FindRoot(groupOf, x);
             for (var a = 0; a < paths.Count; a++)
             {
                 for (var b = a + 1; b < paths.Count; b++)
