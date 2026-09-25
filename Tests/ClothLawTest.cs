@@ -15,48 +15,6 @@ using ValveResourceFormat.Serialization.KeyValues;
 
 namespace Tests
 {
-    /// <summary>
-    /// Builds an <see cref="FeModel"/> out of hand-written KV3, so a compiler law can be exercised on
-    /// inputs whose expected result is computed by hand rather than read off a shipped model.
-    /// </summary>
-    internal static class SyntheticCloth
-    {
-        private const string Header =
-            "<!-- kv3 encoding:text:version{e21c7f3c-8a33-41c5-9977-a76d3a32aa0d} "
-            + "format:generic:version{7412167c-06e9-4698-aff2-e63eb59037e7} -->\n";
-
-        public static FeModel Parse(string feModelBody)
-        {
-            using var stream = new MemoryStream(Encoding.UTF8.GetBytes(Header + feModelBody));
-            return new FeModel(KVDocumentExtensions.ParseKV3(stream).Root);
-        }
-
-        /// <summary>Formats a float so KV3 always reads it back as a floating point value.</summary>
-        public static string Num(float value)
-        {
-            var text = value.ToString("R", CultureInfo.InvariantCulture);
-            return text.Contains('.', StringComparison.Ordinal) || text.Contains('E', StringComparison.Ordinal)
-                ? text
-                : text + ".0";
-        }
-
-        /// <summary>An identity <c>m_InitPose</c> row at the given position.</summary>
-        public static string Pose(float x, float y, float z)
-            => $"[ {Num(x)}, {Num(y)}, {Num(z)}, 1.0, 0.0, 0.0, 0.0, 1.0 ],";
-
-        /// <summary>A rigid rod, whose minimum equals its maximum.</summary>
-        public static string RigidRod(int a, int b, float length, float relaxation)
-            => Rod(a, b, length, length, relaxation);
-
-        /// <summary>A length-banded rod, free to move between its two bounds.</summary>
-        public static string BandedRod(int a, int b, float min, float max, float relaxation)
-            => Rod(a, b, min, max, relaxation);
-
-        private static string Rod(int a, int b, float min, float max, float relaxation)
-            => $"{{ nNode = [ {a}, {b} ] flMinDist = {Num(min)} flMaxDist = {Num(max)} "
-                + $"flWeight0 = 0.5 flRelaxationFactor = {Num(relaxation)} }},";
-    }
-
     public class ClothLawTest
     {
         /// <summary>
@@ -67,27 +25,17 @@ namespace Tests
         [Test]
         public async Task ChainRodRelaxationDividesOutTheDefaultStretch()
         {
-            var feModel = SyntheticCloth.Parse($$"""
-                {
-                    m_CtrlName = [ "root", "j1", "j2" ]
-                    m_SkelParents = [ -1, 0, 1 ]
-                    m_nNodeCount = 3
-                    m_nStaticNodes = 1
+            var feModel = SyntheticCloth.Model(
+                ["root", "j1", "j2"], staticNodes: 1, parents: [-1, 0, 1],
+                poses: [new(0f, 0f, 0f), new(0f, 0f, -10f), new(0f, 0f, -20f)],
+                body: $$"""
                     m_flDefaultSurfaceStretch = 0.985
-                    m_NodeInvMasses = [ 0.0, 1.0, 1.0 ]
-                    m_InitPose =
-                    [
-                        {{SyntheticCloth.Pose(0f, 0f, 0f)}}
-                        {{SyntheticCloth.Pose(0f, 0f, -10f)}}
-                        {{SyntheticCloth.Pose(0f, 0f, -20f)}}
-                    ]
                     m_Rods =
                     [
                         {{SyntheticCloth.RigidRod(0, 1, 10f, 0.18672f)}}
                         {{SyntheticCloth.RigidRod(1, 2, 10f, 0.18672f)}}
                     ]
-                }
-                """);
+                    """);
 
             var chains = feModel.BuildBoneChains();
             await Assert.That(chains.Count).IsEqualTo(1);
@@ -108,21 +56,10 @@ namespace Tests
         [Test]
         public async Task ChainRodRelaxationIsVerbatimWithoutDefaultStretch()
         {
-            var feModel = SyntheticCloth.Parse($$"""
-                {
-                    m_CtrlName = [ "root", "j1" ]
-                    m_SkelParents = [ -1, 0 ]
-                    m_nNodeCount = 2
-                    m_nStaticNodes = 1
-                    m_NodeInvMasses = [ 0.0, 1.0 ]
-                    m_InitPose =
-                    [
-                        {{SyntheticCloth.Pose(0f, 0f, 0f)}}
-                        {{SyntheticCloth.Pose(0f, 0f, -10f)}}
-                    ]
+            var feModel = SyntheticCloth.Model(
+                ["root", "j1"], staticNodes: 1, parents: [-1, 0], poses: [new(0f, 0f, 0f), new(0f, 0f, -10f)], body: $$"""
                     m_Rods = [ {{SyntheticCloth.RigidRod(0, 1, 10f, 0.8f)}} ]
-                }
-                """);
+                    """);
 
             var joint = feModel.BuildBoneChains()[0].Joints.Find(j => j.Name == "j1");
 
@@ -158,23 +95,12 @@ namespace Tests
             await Assert.That(feModel.ChainRingCurvature).IsEqualTo(0f);
         }
 
-        private static FeModel RingCurvatureModel(string rods) => SyntheticCloth.Parse($$"""
-            {
-                m_CtrlName = [ "j", "$ccj_0", "$ccj_1", "$ccj_2" ]
-                m_SkelParents = [ -1, 0, 0, 0 ]
-                m_nNodeCount = 4
-                m_nStaticNodes = 0
-                m_NodeInvMasses = [ 1.0, 1.0, 1.0, 1.0 ]
-                m_InitPose =
-                [
-                    {{SyntheticCloth.Pose(0f, 0f, 0f)}}
-                    {{SyntheticCloth.Pose(0f, 1f, 0f)}}
-                    {{SyntheticCloth.Pose(0f, 0f, 1f)}}
-                    {{SyntheticCloth.Pose(0f, -1f, 0f)}}
-                ]
+        private static FeModel RingCurvatureModel(string rods) => SyntheticCloth.Model(
+            ["j", "$ccj_0", "$ccj_1", "$ccj_2"], staticNodes: 0, parents: [-1, 0, 0, 0],
+            poses: [new(0f, 0f, 0f), new(0f, 1f, 0f), new(0f, 0f, 1f), new(0f, -1f, 0f)],
+            body: $$"""
                 m_Rods = [ {{rods}} ]
-            }
-            """);
+                """);
 
         /// <summary>
         /// Every element credits both ends of each of its own corner pairs with 4 per unit of rest
@@ -185,22 +111,12 @@ namespace Tests
         [Test]
         public async Task ElementMassCreditsFourPerUnitOfEachCornerPair()
         {
-            var feModel = SyntheticCloth.Parse($$"""
-                {
-                    m_CtrlName = [ "v0", "v1", "v2", "v3" ]
-                    m_nNodeCount = 4
-                    m_nStaticNodes = 0
-                    m_NodeInvMasses = [ 0.009259259, 0.009259259, 0.009259259, 0.009259259 ]
-                    m_InitPose =
-                    [
-                        {{SyntheticCloth.Pose(0f, 0f, 0f)}}
-                        {{SyntheticCloth.Pose(3f, 0f, 0f)}}
-                        {{SyntheticCloth.Pose(3f, 4f, 0f)}}
-                        {{SyntheticCloth.Pose(0f, 4f, 0f)}}
-                    ]
+            var feModel = SyntheticCloth.Model(
+                ["v0", "v1", "v2", "v3"], staticNodes: 0, invMasses: "0.009259259, 0.009259259, 0.009259259, 0.009259259",
+                poses: [new(0f, 0f, 0f), new(3f, 0f, 0f), new(3f, 4f, 0f), new(0f, 4f, 0f)],
+                body: """
                     m_Quads = [ { nNode = [ 0, 1, 2, 3 ] } ]
-                }
-                """);
+                    """);
 
             using (Assert.Multiple())
             {
@@ -242,21 +158,12 @@ namespace Tests
             await Assert.That(feModel.RecoverMassMultiplier(0)).IsNull();
         }
 
-        private static FeModel RodMassModel(string rod) => SyntheticCloth.Parse($$"""
-            {
-                m_CtrlName = [ "a", "b" ]
-                m_SkelParents = [ -1, -1 ]
-                m_nNodeCount = 2
-                m_nStaticNodes = 0
-                m_NodeInvMasses = [ 0.018518519, 0.018518519 ]
-                m_InitPose =
-                [
-                    {{SyntheticCloth.Pose(0f, 0f, 0f)}}
-                    {{SyntheticCloth.Pose(3f, 0f, 0f)}}
-                ]
+        private static FeModel RodMassModel(string rod) => SyntheticCloth.Model(
+            ["a", "b"], staticNodes: 0, parents: [-1, -1], invMasses: "0.018518519, 0.018518519",
+            poses: [new(0f, 0f, 0f), new(3f, 0f, 0f)],
+            body: $$"""
                 m_Rods = [ {{rod}} ]
-            }
-            """);
+                """);
 
         /// <summary>
         /// A volumetrically solved selection credits every node it covers with 12 per unit of the summed
@@ -266,17 +173,10 @@ namespace Tests
         [Test]
         public async Task VolumetricSelectionCreditsTwelvePerUnitOfExtent()
         {
-            var feModel = SyntheticCloth.Parse($$"""
-                {
-                    m_CtrlName = [ "a", "b" ]
-                    m_nNodeCount = 2
-                    m_nStaticNodes = 0
-                    m_NodeInvMasses = [ 0.006172839, 0.006172839 ]
-                    m_InitPose =
-                    [
-                        {{SyntheticCloth.Pose(0f, 0f, 0f)}}
-                        {{SyntheticCloth.Pose(1f, 2f, 3f)}}
-                    ]
+            var feModel = SyntheticCloth.Model(
+                ["a", "b"], staticNodes: 0, invMasses: "0.006172839, 0.006172839",
+                poses: [new(0f, 0f, 0f), new(1f, 2f, 3f)],
+                body: """
                     m_VertexMapValues = [ 255, 255 ]
                     m_VertexMaps =
                     [
@@ -291,8 +191,7 @@ namespace Tests
                             vCenterOfMass = [ 0.0, 0.0, 0.0 ]
                         },
                     ]
-                }
-                """);
+                    """);
 
             using (Assert.Multiple())
             {
@@ -310,25 +209,14 @@ namespace Tests
         [Test]
         public async Task GetUngeneratedRodsKeepsTheChainRodAndReturnsTheBandedCopy()
         {
-            var feModel = SyntheticCloth.Parse($$"""
-                {
-                    m_CtrlName = [ "root", "j1" ]
-                    m_SkelParents = [ -1, 0 ]
-                    m_nNodeCount = 2
-                    m_nStaticNodes = 1
-                    m_NodeInvMasses = [ 0.0, 1.0 ]
-                    m_InitPose =
-                    [
-                        {{SyntheticCloth.Pose(0f, 0f, 0f)}}
-                        {{SyntheticCloth.Pose(0f, 0f, -3f)}}
-                    ]
+            var feModel = SyntheticCloth.Model(
+                ["root", "j1"], staticNodes: 1, parents: [-1, 0], poses: [new(0f, 0f, 0f), new(0f, 0f, -3f)], body: $$"""
                     m_Rods =
                     [
                         {{SyntheticCloth.BandedRod(0, 1, 1f, 5f, 1f)}}
                         {{SyntheticCloth.RigidRod(0, 1, 3f, 0.6f)}}
                     ]
-                }
-                """);
+                    """);
 
             var chains = feModel.BuildBoneChains();
             var surplus = feModel.GetUngeneratedRods(chains);
@@ -351,23 +239,11 @@ namespace Tests
         [Test]
         public async Task PlanarizedSphereRecoversItsCentreAndRadius()
         {
-            var feModel = SyntheticCloth.Parse($$"""
-                {
-                    m_CtrlName = [ "bone", "n0", "n1", "n2", "n3", "n4", "n5" ]
-                    m_SkelParents = [ -1, 0, 0, 0, 0, 0, 0 ]
-                    m_nNodeCount = 7
-                    m_nStaticNodes = 0
-                    m_NodeInvMasses = [ 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0 ]
-                    m_InitPose =
-                    [
-                        {{SyntheticCloth.Pose(0f, 0f, 0f)}}
-                        {{SyntheticCloth.Pose(7f, 2f, 3f)}}
-                        {{SyntheticCloth.Pose(-5f, 2f, 3f)}}
-                        {{SyntheticCloth.Pose(1f, 8f, 3f)}}
-                        {{SyntheticCloth.Pose(1f, -4f, 3f)}}
-                        {{SyntheticCloth.Pose(1f, 2f, 9f)}}
-                        {{SyntheticCloth.Pose(1f, 2f, -3f)}}
-                    ]
+            var feModel = SyntheticCloth.Model(
+                ["bone", "n0", "n1", "n2", "n3", "n4", "n5"], staticNodes: 0, parents: [-1, 0, 0, 0, 0, 0, 0],
+                poses: [new(0f, 0f, 0f), new(7f, 2f, 3f), new(-5f, 2f, 3f), new(1f, 8f, 3f), new(1f, -4f, 3f), new(1f, 2f, 9f),
+                    new(1f, 2f, -3f)],
+                body: $$"""
                     m_CollisionPlanes =
                     [
                         {{Plane(1, "1.0, 0.0, 0.0", 5f)}}
@@ -391,8 +267,7 @@ namespace Tests
                             vCenterOfMass = [ 0.0, 0.0, 0.0 ]
                         },
                     ]
-                }
-                """);
+                    """);
 
             var shapes = feModel.BuildPlanarizeCapsules();
 
@@ -424,27 +299,16 @@ namespace Tests
         [Test]
         public async Task ChainsAreOrderedByTheirLowestSimulatedNode()
         {
-            var feModel = SyntheticCloth.Parse($$"""
-                {
-                    m_CtrlName = [ "rootA", "rootB", "jB", "jA" ]
-                    m_SkelParents = [ -1, -1, 1, 0 ]
-                    m_nNodeCount = 4
-                    m_nStaticNodes = 2
-                    m_NodeInvMasses = [ 0.0, 0.0, 1.0, 1.0 ]
-                    m_InitPose =
-                    [
-                        {{SyntheticCloth.Pose(0f, 0f, 0f)}}
-                        {{SyntheticCloth.Pose(10f, 0f, 0f)}}
-                        {{SyntheticCloth.Pose(10f, 0f, -5f)}}
-                        {{SyntheticCloth.Pose(0f, 0f, -5f)}}
-                    ]
+            var feModel = SyntheticCloth.Model(
+                ["rootA", "rootB", "jB", "jA"], staticNodes: 2, parents: [-1, -1, 1, 0],
+                poses: [new(0f, 0f, 0f), new(10f, 0f, 0f), new(10f, 0f, -5f), new(0f, 0f, -5f)],
+                body: $$"""
                     m_Rods =
                     [
                         {{SyntheticCloth.RigidRod(0, 3, 5f, 1f)}}
                         {{SyntheticCloth.RigidRod(1, 2, 5f, 1f)}}
                     ]
-                }
-                """);
+                    """);
 
             var chains = feModel.BuildBoneChains();
 
@@ -593,19 +457,13 @@ namespace Tests
             await Assert.That(feModel.GetAuthoredTwistRelax(1, 0, -1)).IsEqualTo(0.5f).Within(1e-4f);
         }
 
-        private static FeModel TwistModel(int orient, int end, float relax) => SyntheticCloth.Parse($$"""
-            {
-                m_CtrlName = [ "root", "j1", "$ccj1_0" ]
-                m_SkelParents = [ -1, 0, 1 ]
-                m_nNodeCount = 3
-                m_nStaticNodes = 1
-                m_NodeInvMasses = [ 0.0, 1.0, 1.0 ]
+        private static FeModel TwistModel(int orient, int end, float relax) => SyntheticCloth.Model(
+            ["root", "j1", "$ccj1_0"], staticNodes: 1, parents: [-1, 0, 1], body: $$"""
                 m_Twists =
                 [
                     { nNodeOrient = {{orient}} nNodeEnd = {{end}} flTwistRelax = {{SyntheticCloth.Num(relax)}} },
                 ]
-            }
-            """);
+                """);
 
         /// <summary>
         /// A stiff hinge spreads its stiffness over the bend as
@@ -657,25 +515,15 @@ namespace Tests
             await Assert.That(hinge!.Value.Angle).IsEqualTo(0f);
         }
 
-        private static FeModel KelagerModel(string weights, float height) => SyntheticCloth.Parse($$"""
-            {
-                m_CtrlName = [ "mid", "end0", "end1" ]
-                m_SkelParents = [ -1, 0, 0 ]
-                m_nNodeCount = 3
-                m_nStaticNodes = 0
-                m_NodeInvMasses = [ 1.0, 1.0, 1.0 ]
-                m_InitPose =
-                [
-                    {{SyntheticCloth.Pose(0f, 1f, 0f)}}
-                    {{SyntheticCloth.Pose(-1f, 0f, 0f)}}
-                    {{SyntheticCloth.Pose(1f, 0f, 0f)}}
-                ]
+        private static FeModel KelagerModel(string weights, float height) => SyntheticCloth.Model(
+            ["mid", "end0", "end1"], staticNodes: 0, parents: [-1, 0, 0],
+            poses: [new(0f, 1f, 0f), new(-1f, 0f, 0f), new(1f, 0f, 0f)],
+            body: $$"""
                 m_KelagerBends =
                 [
                     { nNode = [ 0, 1, 2 ] flWeight = [ {{weights}} ] flHeight0 = {{SyntheticCloth.Num(height)}} },
                 ]
-            }
-            """);
+                """);
 
         /// <summary>
         /// Each extra solver iteration repeats the rods a joint generates upward, so three rigid copies
@@ -684,26 +532,15 @@ namespace Tests
         [Test]
         public async Task ExtraIterationsCountsTheRigidCopiesOfASpan()
         {
-            var feModel = SyntheticCloth.Parse($$"""
-                {
-                    m_CtrlName = [ "root", "j1" ]
-                    m_SkelParents = [ -1, 0 ]
-                    m_nNodeCount = 2
-                    m_nStaticNodes = 1
-                    m_NodeInvMasses = [ 0.0, 1.0 ]
-                    m_InitPose =
-                    [
-                        {{SyntheticCloth.Pose(0f, 0f, 0f)}}
-                        {{SyntheticCloth.Pose(0f, 0f, -3f)}}
-                    ]
+            var feModel = SyntheticCloth.Model(
+                ["root", "j1"], staticNodes: 1, parents: [-1, 0], poses: [new(0f, 0f, 0f), new(0f, 0f, -3f)], body: $$"""
                     m_Rods =
                     [
                         {{SyntheticCloth.RigidRod(0, 1, 3f, 1f)}}
                         {{SyntheticCloth.RigidRod(0, 1, 3f, 1f)}}
                         {{SyntheticCloth.RigidRod(0, 1, 3f, 1f)}}
                     ]
-                }
-                """);
+                    """);
 
             var joint = feModel.BuildBoneChains()[0].Joints.Find(j => j.Name == "j1");
 
@@ -722,26 +559,15 @@ namespace Tests
         [Test]
         public async Task ExtraIterationsCountsIdenticalSlackCopiesOfASpan()
         {
-            var feModel = SyntheticCloth.Parse($$"""
-                {
-                    m_CtrlName = [ "root", "j1" ]
-                    m_SkelParents = [ -1, 0 ]
-                    m_nNodeCount = 2
-                    m_nStaticNodes = 1
-                    m_NodeInvMasses = [ 0.0, 1.0 ]
-                    m_InitPose =
-                    [
-                        {{SyntheticCloth.Pose(0f, 0f, 0f)}}
-                        {{SyntheticCloth.Pose(0f, 0f, -3f)}}
-                    ]
+            var feModel = SyntheticCloth.Model(
+                ["root", "j1"], staticNodes: 1, parents: [-1, 0], poses: [new(0f, 0f, 0f), new(0f, 0f, -3f)], body: $$"""
                     m_Rods =
                     [
                         {{SyntheticCloth.BandedRod(0, 1, 0f, 3f, 1f)}}
                         {{SyntheticCloth.BandedRod(0, 1, 0f, 3f, 1f)}}
                         {{SyntheticCloth.BandedRod(0, 1, 0f, 3f, 1f)}}
                     ]
-                }
-                """);
+                    """);
 
             var joint = feModel.BuildBoneChains()[0].Joints.Find(j => j.Name == "j1");
 
@@ -759,24 +585,13 @@ namespace Tests
         [Test]
         public async Task ChainJointAntishrinkIsTheSlackItsOwnSpanKeeps()
         {
-            var feModel = SyntheticCloth.Parse($$"""
-                {
-                    m_CtrlName = [ "root", "j1" ]
-                    m_SkelParents = [ -1, 0 ]
-                    m_nNodeCount = 2
-                    m_nStaticNodes = 1
-                    m_NodeInvMasses = [ 0.0, 1.0 ]
-                    m_InitPose =
-                    [
-                        {{SyntheticCloth.Pose(0f, 0f, 0f)}}
-                        {{SyntheticCloth.Pose(0f, 0f, -3f)}}
-                    ]
+            var feModel = SyntheticCloth.Model(
+                ["root", "j1"], staticNodes: 1, parents: [-1, 0], poses: [new(0f, 0f, 0f), new(0f, 0f, -3f)], body: $$"""
                     m_Rods =
                     [
                         {{SyntheticCloth.BandedRod(0, 1, 0.75f, 3f, 1f)}}
                     ]
-                }
-                """);
+                    """);
 
             var joint = feModel.BuildBoneChains()[0].Joints.Find(j => j.Name == "j1");
 
@@ -792,25 +607,14 @@ namespace Tests
         [Test]
         public async Task SlackRodsThatDisagreeAreNotExtraIterations()
         {
-            var feModel = SyntheticCloth.Parse($$"""
-                {
-                    m_CtrlName = [ "root", "j1" ]
-                    m_SkelParents = [ -1, 0 ]
-                    m_nNodeCount = 2
-                    m_nStaticNodes = 1
-                    m_NodeInvMasses = [ 0.0, 1.0 ]
-                    m_InitPose =
-                    [
-                        {{SyntheticCloth.Pose(0f, 0f, 0f)}}
-                        {{SyntheticCloth.Pose(0f, 0f, -3f)}}
-                    ]
+            var feModel = SyntheticCloth.Model(
+                ["root", "j1"], staticNodes: 1, parents: [-1, 0], poses: [new(0f, 0f, 0f), new(0f, 0f, -3f)], body: $$"""
                     m_Rods =
                     [
                         {{SyntheticCloth.BandedRod(0, 1, 0f, 3f, 1f)}}
                         {{SyntheticCloth.BandedRod(0, 1, 1f, 3f, 1f)}}
                     ]
-                }
-                """);
+                    """);
 
             var joint = feModel.BuildBoneChains()[0].Joints.Find(j => j.Name == "j1");
 
@@ -857,25 +661,14 @@ namespace Tests
             await Assert.That(joint!.ChildSiblingSpring).IsEqualTo(0f);
         }
 
-        private static FeModel.BoneChainJoint? SiblingChain(string rods) => SyntheticCloth.Parse($$"""
-                {
-                    m_CtrlName = [ "root", "j1", "j2", "j3" ]
-                    m_SkelParents = [ -1, 0, 0, 0 ]
-                    m_nNodeCount = 4
-                    m_nStaticNodes = 1
-                    m_NodeInvMasses = [ 0.0, 1.0, 1.0, 1.0 ]
-                    m_InitPose =
-                    [
-                        {{SyntheticCloth.Pose(0f, 0f, 0f)}}
-                        {{SyntheticCloth.Pose(3f, 0f, 0f)}}
-                        {{SyntheticCloth.Pose(0f, 3f, 0f)}}
-                        {{SyntheticCloth.Pose(0f, 0f, 3f)}}
-                    ]
-                    m_Rods =
-                    [
-                        {{rods}}
-                    ]
-                }
+        private static FeModel.BoneChainJoint? SiblingChain(string rods) => SyntheticCloth.Model(
+            ["root", "j1", "j2", "j3"], staticNodes: 1, parents: [-1, 0, 0, 0],
+            poses: [new(0f, 0f, 0f), new(3f, 0f, 0f), new(0f, 3f, 0f), new(0f, 0f, 3f)],
+            body: $$"""
+                m_Rods =
+                [
+                    {{rods}}
+                ]
                 """).BuildBoneChains()[0].Joints.Find(j => j.Name == "root");
 
         /// The compiler splits a solve-element quad whose two halves are not coplanar enough and gives the
@@ -940,20 +733,14 @@ namespace Tests
         [Test]
         public async Task SelfRodsAndDegenerateRodsAreDropped()
         {
-            var feModel = SyntheticCloth.Parse($$"""
-                {
-                    m_CtrlName = [ "a", "b", "c", "d" ]
-                    m_nNodeCount = 4
-                    m_nStaticNodes = 0
-                    m_NodeInvMasses = [ 1.0, 1.0, 1.0, 1.0 ]
+            var feModel = SyntheticCloth.Model(["a", "b", "c", "d"], staticNodes: 0, body: $$"""
                     m_Rods =
                     [
                         {{SyntheticCloth.RigidRod(3, 3, 1f, 1f)}}
                         { nNode = [ 2 ] flMinDist = 1.0 flMaxDist = 1.0 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
                         {{SyntheticCloth.RigidRod(0, 1, 2f, 1f)}}
                     ]
-                }
-                """);
+                    """);
 
             await Assert.That(feModel.Rods.Length).IsEqualTo(1);
 
@@ -972,12 +759,7 @@ namespace Tests
         [Test]
         public async Task VertexMapNamesCarryAPartialMembershipWeight()
         {
-            var feModel = SyntheticCloth.Parse("""
-                {
-                    m_CtrlName = [ "a", "b" ]
-                    m_nNodeCount = 2
-                    m_nStaticNodes = 0
-                    m_NodeInvMasses = [ 1.0, 1.0 ]
+            var feModel = SyntheticCloth.Model(["a", "b"], staticNodes: 0, body: """
                     m_VertexMapValues = [ 255, 128 ]
                     m_VertexMaps =
                     [
@@ -992,8 +774,7 @@ namespace Tests
                             vCenterOfMass = [ 0.0, 0.0, 0.0 ]
                         },
                     ]
-                }
-                """);
+                    """);
 
             using (Assert.Multiple())
             {
@@ -1012,19 +793,10 @@ namespace Tests
         [Test]
         public async Task AChainRootCountsItsIterationsOnItsOnlyChildsSpan()
         {
-            var oneChild = SyntheticCloth.Parse($$"""
-                {
-                    m_CtrlName = [ "root", "j1", "j2" ]
-                    m_SkelParents = [ -1, 0, 1 ]
-                    m_nNodeCount = 3
-                    m_nStaticNodes = 1
-                    m_NodeInvMasses = [ 0.0, 1.0, 1.0 ]
-                    m_InitPose =
-                    [
-                        {{SyntheticCloth.Pose(0f, 0f, 0f)}}
-                        {{SyntheticCloth.Pose(0f, 0f, -10f)}}
-                        {{SyntheticCloth.Pose(0f, 0f, -20f)}}
-                    ]
+            var oneChild = SyntheticCloth.Model(
+                ["root", "j1", "j2"], staticNodes: 1, parents: [-1, 0, 1],
+                poses: [new(0f, 0f, 0f), new(0f, 0f, -10f), new(0f, 0f, -20f)],
+                body: $$"""
                     m_Rods =
                     [
                         {{SyntheticCloth.RigidRod(0, 1, 10f, 1f)}}
@@ -1034,22 +806,12 @@ namespace Tests
                         {{SyntheticCloth.RigidRod(1, 2, 10f, 1f)}}
                         {{SyntheticCloth.RigidRod(1, 2, 10f, 1f)}}
                     ]
-                }
-                """);
+                    """);
 
-            var twoChildren = SyntheticCloth.Parse($$"""
-                {
-                    m_CtrlName = [ "root", "j1", "j2" ]
-                    m_SkelParents = [ -1, 0, 0 ]
-                    m_nNodeCount = 3
-                    m_nStaticNodes = 1
-                    m_NodeInvMasses = [ 0.0, 1.0, 1.0 ]
-                    m_InitPose =
-                    [
-                        {{SyntheticCloth.Pose(0f, 0f, 0f)}}
-                        {{SyntheticCloth.Pose(0f, 0f, -10f)}}
-                        {{SyntheticCloth.Pose(10f, 0f, 0f)}}
-                    ]
+            var twoChildren = SyntheticCloth.Model(
+                ["root", "j1", "j2"], staticNodes: 1, parents: [-1, 0, 0],
+                poses: [new(0f, 0f, 0f), new(0f, 0f, -10f), new(10f, 0f, 0f)],
+                body: $$"""
                     m_Rods =
                     [
                         {{SyntheticCloth.RigidRod(0, 1, 10f, 1f)}}
@@ -1059,8 +821,7 @@ namespace Tests
                         {{SyntheticCloth.RigidRod(0, 2, 10f, 1f)}}
                         {{SyntheticCloth.RigidRod(0, 2, 10f, 1f)}}
                     ]
-                }
-                """);
+                    """);
 
             using (Assert.Multiple())
             {
@@ -1080,19 +841,10 @@ namespace Tests
         [Test]
         public async Task ASuspenderCompanionIsTheSurplusRodOnTheRootSpan()
         {
-            var feModel = SyntheticCloth.Parse($$"""
-                {
-                    m_CtrlName = [ "root", "j1", "j2" ]
-                    m_SkelParents = [ -1, 0, 1 ]
-                    m_nNodeCount = 3
-                    m_nStaticNodes = 1
-                    m_NodeInvMasses = [ 0.0, 1.0, 1.0 ]
-                    m_InitPose =
-                    [
-                        {{SyntheticCloth.Pose(0f, 0f, 0f)}}
-                        {{SyntheticCloth.Pose(0f, 0f, -10f)}}
-                        {{SyntheticCloth.Pose(0f, 0f, -20f)}}
-                    ]
+            var feModel = SyntheticCloth.Model(
+                ["root", "j1", "j2"], staticNodes: 1, parents: [-1, 0, 1],
+                poses: [new(0f, 0f, 0f), new(0f, 0f, -10f), new(0f, 0f, -20f)],
+                body: $$"""
                     m_Rods =
                     [
                         {{SyntheticCloth.RigidRod(0, 1, 10f, 1f)}}
@@ -1102,8 +854,7 @@ namespace Tests
                         {{SyntheticCloth.RigidRod(0, 2, 20f, 1f)}}
                         {{SyntheticCloth.RigidRod(0, 2, 20f, 0.35f)}}
                     ]
-                }
-                """);
+                    """);
 
             var joint = feModel.BuildBoneChains()[0].Joints.Find(static j => j.Name == "j2");
 
@@ -1144,21 +895,10 @@ namespace Tests
             await Assert.That(feModel.GetUngeneratedRods(feModel.BuildBoneChains())).IsEmpty();
         }
 
-        private static FeModel LongChainWithSuspender() => SyntheticCloth.Parse($$"""
-            {
-                m_CtrlName = [ "root", "j1", "j2", "j3", "j4" ]
-                m_SkelParents = [ -1, 0, 1, 2, 3 ]
-                m_nNodeCount = 5
-                m_nStaticNodes = 1
-                m_NodeInvMasses = [ 0.0, 1.0, 1.0, 1.0, 1.0 ]
-                m_InitPose =
-                [
-                    {{SyntheticCloth.Pose(0f, 0f, 0f)}}
-                    {{SyntheticCloth.Pose(0f, 0f, -10f)}}
-                    {{SyntheticCloth.Pose(0f, 0f, -20f)}}
-                    {{SyntheticCloth.Pose(0f, 0f, -30f)}}
-                    {{SyntheticCloth.Pose(0f, 0f, -40f)}}
-                ]
+        private static FeModel LongChainWithSuspender() => SyntheticCloth.Model(
+            ["root", "j1", "j2", "j3", "j4"], staticNodes: 1, parents: [-1, 0, 1, 2, 3],
+            poses: [new(0f, 0f, 0f), new(0f, 0f, -10f), new(0f, 0f, -20f), new(0f, 0f, -30f), new(0f, 0f, -40f)],
+            body: $$"""
                 m_Rods =
                 [
                     {{SyntheticCloth.RigidRod(0, 1, 10f, 1f)}}
@@ -1169,8 +909,7 @@ namespace Tests
                     {{SyntheticCloth.RigidRod(0, 4, 40f, 0.42f)}}
                     {{SyntheticCloth.RigidRod(0, 4, 40f, 0.42f)}}
                 ]
-            }
-            """);
+                """);
 
         /// <summary>
         /// A two-corner source element between two chain JOINTS is an authored spring like one between two
@@ -1215,19 +954,10 @@ namespace Tests
             }
         }
 
-        private static FeModel SpringedChain(string ropes) => SyntheticCloth.Parse($$"""
-            {
-                m_CtrlName = [ "root", "j1", "j2" ]
-                m_SkelParents = [ -1, 0, 1 ]
-                m_nNodeCount = 3
-                m_nStaticNodes = 1
-                m_NodeInvMasses = [ 0.0, 1.0, 1.0 ]
-                m_InitPose =
-                [
-                    {{SyntheticCloth.Pose(0f, 0f, 0f)}}
-                    {{SyntheticCloth.Pose(0f, 0f, -10f)}}
-                    {{SyntheticCloth.Pose(0f, 0f, -20f)}}
-                ]
+        private static FeModel SpringedChain(string ropes) => SyntheticCloth.Model(
+            ["root", "j1", "j2"], staticNodes: 1, parents: [-1, 0, 1],
+            poses: [new(0f, 0f, 0f), new(0f, 0f, -10f), new(0f, 0f, -20f)],
+            body: $$"""
                 m_SourceElems = [ 0, 1, 0, 0, 1, 2 ]
                 m_Rods =
                 [
@@ -1235,8 +965,7 @@ namespace Tests
                     {{SyntheticCloth.RigidRod(1, 2, 10f, 0.5f)}}
                 ]
                 {{ropes}}
-            }
-            """);
+                """);
 
         /// <summary>
         /// A planarized shape whose two end caps coincide compiles as a sphere, which loses every node a
@@ -1247,22 +976,10 @@ namespace Tests
         [Test]
         public async Task APlanarizedEndCapIsGivenAShortAxisAwayFromItsNodes()
         {
-            var feModel = SyntheticCloth.Parse($$"""
-                {
-                    m_CtrlName = [ "bone", "n0", "n1", "n2", "n3", "n4" ]
-                    m_SkelParents = [ -1, 0, 0, 0, 0, 0 ]
-                    m_nNodeCount = 6
-                    m_nStaticNodes = 0
-                    m_NodeInvMasses = [ 1.0, 1.0, 1.0, 1.0, 1.0, 1.0 ]
-                    m_InitPose =
-                    [
-                        {{SyntheticCloth.Pose(0f, 0f, 0f)}}
-                        {{SyntheticCloth.Pose(7f, 2f, 3f)}}
-                        {{SyntheticCloth.Pose(-5f, 2f, 3f)}}
-                        {{SyntheticCloth.Pose(1f, 8f, 3f)}}
-                        {{SyntheticCloth.Pose(1f, -4f, 3f)}}
-                        {{SyntheticCloth.Pose(1f, 2f, 9f)}}
-                    ]
+            var feModel = SyntheticCloth.Model(
+                ["bone", "n0", "n1", "n2", "n3", "n4"], staticNodes: 0, parents: [-1, 0, 0, 0, 0, 0],
+                poses: [new(0f, 0f, 0f), new(7f, 2f, 3f), new(-5f, 2f, 3f), new(1f, 8f, 3f), new(1f, -4f, 3f), new(1f, 2f, 9f)],
+                body: $$"""
                     m_CollisionPlanes =
                     [
                         {{Plane(1, "1.0, 0.0, 0.0", 5f)}}
@@ -1285,8 +1002,7 @@ namespace Tests
                             vCenterOfMass = [ 0.0, 0.0, 0.0 ]
                         },
                     ]
-                }
-                """);
+                    """);
 
             var shapes = feModel.BuildPlanarizeCapsules();
 
@@ -1475,22 +1191,10 @@ namespace Tests
 
         // Two probes whose target slices are laid out in the reverse of the compiled probe order: the
         // tip probe ships first and owns the LAST target slot.
-        private static FeModel SwappedAntiTunnelProbes() => SyntheticCloth.Parse($$"""
-            {
-                m_CtrlName = [ "root", "a", "b", "c", "body", "tip" ]
-                m_SkelParents = [ -1, 0, 0, 0, 0, 0 ]
-                m_nNodeCount = 6
-                m_nStaticNodes = 1
-                m_NodeInvMasses = [ 0.0, 1.0, 1.0, 1.0, 1.0, 1.0 ]
-                m_InitPose =
-                [
-                    {{SyntheticCloth.Pose(0f, 0f, 0f)}}
-                    {{SyntheticCloth.Pose(0f, 0f, -10f)}}
-                    {{SyntheticCloth.Pose(0f, 0f, -20f)}}
-                    {{SyntheticCloth.Pose(0f, 0f, -30f)}}
-                    {{SyntheticCloth.Pose(0f, 4f, -30f)}}
-                    {{SyntheticCloth.Pose(0f, 8f, -30f)}}
-                ]
+        private static FeModel SwappedAntiTunnelProbes() => SyntheticCloth.Model(
+            ["root", "a", "b", "c", "body", "tip"], staticNodes: 1, parents: [-1, 0, 0, 0, 0, 0],
+            poses: [new(0f, 0f, 0f), new(0f, 0f, -10f), new(0f, 0f, -20f), new(0f, 0f, -30f), new(0f, 4f, -30f), new(0f, 8f, -30f)],
+            body: """
                 m_AntiTunnelTargetNodes = [ 1, 2, 3, 4 ]
                 m_AntiTunnelProbes =
                 [
@@ -1499,33 +1203,20 @@ namespace Tests
                     { flWeight = 1.0 nFlags = 0 nProbeNode = 4 nCount = 3 nBegin = 0
                       flActivationDistance = 1.0 flCurvatureRadius = 0.0 flBias = 0.0 },
                 ]
-            }
-            """);
+                """);
 
         // One probe whose slice is not in ascending node order.
-        private static FeModel ShuffledAntiTunnelTargets() => SyntheticCloth.Parse($$"""
-            {
-                m_CtrlName = [ "root", "a", "b", "c", "body" ]
-                m_SkelParents = [ -1, 0, 0, 0, 0 ]
-                m_nNodeCount = 5
-                m_nStaticNodes = 1
-                m_NodeInvMasses = [ 0.0, 1.0, 1.0, 1.0, 1.0 ]
-                m_InitPose =
-                [
-                    {{SyntheticCloth.Pose(0f, 0f, 0f)}}
-                    {{SyntheticCloth.Pose(0f, 0f, -10f)}}
-                    {{SyntheticCloth.Pose(0f, 0f, -20f)}}
-                    {{SyntheticCloth.Pose(0f, 0f, -30f)}}
-                    {{SyntheticCloth.Pose(0f, 4f, -30f)}}
-                ]
+        private static FeModel ShuffledAntiTunnelTargets() => SyntheticCloth.Model(
+            ["root", "a", "b", "c", "body"], staticNodes: 1, parents: [-1, 0, 0, 0, 0],
+            poses: [new(0f, 0f, 0f), new(0f, 0f, -10f), new(0f, 0f, -20f), new(0f, 0f, -30f), new(0f, 4f, -30f)],
+            body: """
                 m_AntiTunnelTargetNodes = [ 3, 1, 2 ]
                 m_AntiTunnelProbes =
                 [
                     { flWeight = 1.0 nFlags = 0 nProbeNode = 4 nCount = 3 nBegin = 0
                       flActivationDistance = 1.0 flCurvatureRadius = 0.0 flBias = 0.0 },
                 ]
-            }
-            """);
+                """);
 
         /// <summary>
         /// A ClothChain of version 2 grades a preset basis for every joint with a child over the joint's own
@@ -1561,27 +1252,14 @@ namespace Tests
 
         private static FeModel OneWideRope(string nodeBase) => SyntheticCloth.Parse(OneWideRopeDocument(nodeBase));
 
-        private static string OneWideRopeDocument(string nodeBase) => $$"""
-            {
-                m_CtrlName = [ "root", "j1", "$ccj1_0", "j2", "$ccj2_0", "j3", "$ccj3_0" ]
-                m_SkelParents = [ -1, 0, 1, 1, 3, 3, 5 ]
-                m_nNodeCount = 7
-                m_nStaticNodes = 1
-                m_NodeInvMasses = [ 0.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0 ]
-                m_InitPose =
-                [
-                    {{SyntheticCloth.Pose(0f, 0f, 10f)}}
-                    {{SyntheticCloth.Pose(0f, 0f, 0f)}}
-                    {{SyntheticCloth.Pose(3f, 0f, 0f)}}
-                    {{SyntheticCloth.Pose(0f, 0f, -10f)}}
-                    {{SyntheticCloth.Pose(3f, 0f, -10f)}}
-                    {{SyntheticCloth.Pose(0f, 0f, -20f)}}
-                    {{SyntheticCloth.Pose(3f, 0f, -20f)}}
-                ]
+        private static string OneWideRopeDocument(string nodeBase) => SyntheticCloth.Document(
+            ["root", "j1", "$ccj1_0", "j2", "$ccj2_0", "j3", "$ccj3_0"], staticNodes: 1, parents: [-1, 0, 1, 1, 3, 3, 5],
+            poses: [new(0f, 0f, 10f), new(0f, 0f, 0f), new(3f, 0f, 0f), new(0f, 0f, -10f), new(3f, 0f, -10f), new(0f, 0f, -20f),
+                new(3f, 0f, -20f)],
+            body: $$"""
                 m_SourceElems = [ 0, 0, 0, 2, 1, 2, 4, 3, 3, 4, 6, 5 ]
                 m_NodeBases = [ { {{nodeBase}} } ]
-            }
-            """;
+                """);
 
         /// <summary>
         /// A chain ROOT has no parent span, so its <c>stretch_spring</c> is only recorded by the rods
@@ -1612,26 +1290,16 @@ namespace Tests
 
         // A chain root extruding one two-vertex ring, whose ring pair carries the chain's own rigid rod
         // at 0.6 beside a banded rod at the caller's relaxation.
-        private static FeModel RingWithASurfaceRod(float surfaceRelaxation) => SyntheticCloth.Parse($$"""
-            {
-                m_CtrlName = [ "root", "$ccroot_0", "$ccroot_1" ]
-                m_SkelParents = [ -1, 0, 0 ]
-                m_nNodeCount = 3
-                m_nStaticNodes = 1
-                m_NodeInvMasses = [ 0.0, 1.0, 1.0 ]
-                m_InitPose =
-                [
-                    {{SyntheticCloth.Pose(0f, 0f, 0f)}}
-                    {{SyntheticCloth.Pose(0f, 2f, 0f)}}
-                    {{SyntheticCloth.Pose(0f, -2f, 0f)}}
-                ]
+        private static FeModel RingWithASurfaceRod(float surfaceRelaxation) => SyntheticCloth.Model(
+            ["root", "$ccroot_0", "$ccroot_1"], staticNodes: 1, parents: [-1, 0, 0],
+            poses: [new(0f, 0f, 0f), new(0f, 2f, 0f), new(0f, -2f, 0f)],
+            body: $$"""
                 m_Rods =
                 [
                     {{SyntheticCloth.RigidRod(1, 2, 4f, 0.6f)}}
                     {{SyntheticCloth.BandedRod(1, 2, 1f, 8f, surfaceRelaxation)}}
                 ]
-            }
-            """);
+                """);
 
         /// <summary>
         /// A PINNED proxy-sheet vertex whose soft-offset expansion leaves its <c>m_CtrlOffsets</c> anchor
@@ -1734,26 +1402,15 @@ namespace Tests
             }
         }
 
-        private static FeModel BiasedRope(string weight) => SyntheticCloth.Parse($$"""
-            {
-                m_CtrlName = [ "root", "j1", "j2", "j3" ]
-                m_SkelParents = [ -1, 0, 1, 2 ]
-                m_nNodeCount = 4
-                m_nStaticNodes = 1
-                m_NodeInvMasses = [ 0.0, 1.0, 1.0, 1.0 ]
-                m_InitPose =
-                [
-                    {{SyntheticCloth.Pose(0f, 0f, 0f)}}
-                    {{SyntheticCloth.Pose(0f, 0f, -10f)}}
-                    {{SyntheticCloth.Pose(0f, 0f, -20f)}}
-                    {{SyntheticCloth.Pose(0f, 0f, -30f)}}
-                ]
+        private static FeModel BiasedRope(string weight) => SyntheticCloth.Model(
+            ["root", "j1", "j2", "j3"], staticNodes: 1, parents: [-1, 0, 1, 2],
+            poses: [new(0f, 0f, 0f), new(0f, 0f, -10f), new(0f, 0f, -20f), new(0f, 0f, -30f)],
+            body: $$"""
                 m_Rods =
                 [
                     { nNode = [ 1, 2 ] flMaxDist = 10.0 flMinDist = 10.0 flWeight0 = {{weight}} flRelaxationFactor = 1.0 },
                 ]
-            }
-            """);
+                """);
 
         private static FeModel.BoneChain TwistedRopeChain()
         {
@@ -1764,20 +1421,10 @@ namespace Tests
             return chain;
         }
 
-        private static FeModel TwistedRope(string hint2, string hint3) => SyntheticCloth.Parse($$"""
-            {
-                m_CtrlName = [ "root", "j1", "j2", "j3" ]
-                m_SkelParents = [ -1, 0, 1, 2 ]
-                m_nNodeCount = 4
-                m_nStaticNodes = 2
-                m_NodeInvMasses = [ 0.0, 0.0, 1.0, 1.0 ]
-                m_InitPose =
-                [
-                    {{SyntheticCloth.Pose(0f, 0f, 0f)}}
-                    {{SyntheticCloth.Pose(0f, 0f, -10f)}}
-                    {{SyntheticCloth.Pose(0f, 0f, -20f)}}
-                    {{SyntheticCloth.Pose(0f, 0f, -30f)}}
-                ]
+        private static FeModel TwistedRope(string hint2, string hint3) => SyntheticCloth.Model(
+            ["root", "j1", "j2", "j3"], staticNodes: 2, parents: [-1, 0, 1, 2],
+            poses: [new(0f, 0f, 0f), new(0f, 0f, -10f), new(0f, 0f, -20f), new(0f, 0f, -30f)],
+            body: $$"""
                 m_Twists =
                 [
                     { nNodeOrient = 2 nNodeEnd = 1 flTwistRelax = 0.618 },
@@ -1789,8 +1436,7 @@ namespace Tests
                     { {{hint2}} },
                     { {{hint3}} },
                 ]
-            }
-            """);
+                """);
 
         /// <summary>
         /// With <c>rigid_edge_hinges</c> on, every rod the compiler generates comes back with its minimum
@@ -1859,28 +1505,15 @@ namespace Tests
                 }
             }
 
-            return SyntheticCloth.Parse($$"""
-                {
-                    m_CtrlName = [ "root", "$ccroot_0", "$ccroot_1", "j1", "$ccj1_0", "$ccj1_1" ]
-                    m_SkelParents = [ -1, 0, 0, 0, 3, 3 ]
-                    m_nNodeCount = 6
-                    m_nStaticNodes = 1
-                    m_NodeInvMasses = [ 0.0, 1.0, 1.0, 1.0, 1.0, 1.0 ]
-                    m_InitPose =
-                    [
-                        {{SyntheticCloth.Pose(0f, 0f, 0f)}}
-                        {{SyntheticCloth.Pose(0f, 2f, 0f)}}
-                        {{SyntheticCloth.Pose(0f, -2f, 0f)}}
-                        {{SyntheticCloth.Pose(0f, 0f, -4f)}}
-                        {{SyntheticCloth.Pose(0f, 2f, -4f)}}
-                        {{SyntheticCloth.Pose(0f, -2f, -4f)}}
-                    ]
+            return SyntheticCloth.Model(
+                ["root", "$ccroot_0", "$ccroot_1", "j1", "$ccj1_0", "$ccj1_1"], staticNodes: 1, parents: [-1, 0, 0, 0, 3, 3],
+                poses: [new(0f, 0f, 0f), new(0f, 2f, 0f), new(0f, -2f, 0f), new(0f, 0f, -4f), new(0f, 2f, -4f), new(0f, -2f, -4f)],
+                body: $$"""
                     m_Rods =
                     [
                         {{rods}}
                     ]
-                }
-                """);
+                    """);
         }
 
         /// <summary>
@@ -1954,23 +1587,13 @@ namespace Tests
         /// members (nodes 2 and 3) ten units away on opposite sides, so the hub's own rest distance from
         /// their centroid is zero and every fold it can record still tracks the angle.
         /// </summary>
-        private static FeModel RigidSheet(string bends) => SyntheticCloth.Parse($$"""
-            {
-                m_CtrlName = [ "root", "$cloth_m0p0", "$cloth_m0p1", "$cloth_m0p2" ]
-                m_nNodeCount = 4
-                m_nStaticNodes = 1
-                m_NodeInvMasses = [ 0.0, 1.0, 1.0, 1.0 ]
-                m_InitPose =
-                [
-                    {{SyntheticCloth.Pose(0f, 0f, 0f)}}
-                    {{SyntheticCloth.Pose(0f, 0f, 0f)}}
-                    {{SyntheticCloth.Pose(10f, 0f, 0f)}}
-                    {{SyntheticCloth.Pose(-10f, 0f, 0f)}}
-                ]
+        private static FeModel RigidSheet(string bends) => SyntheticCloth.Model(
+            ["root", "$cloth_m0p0", "$cloth_m0p1", "$cloth_m0p2"], staticNodes: 1,
+            poses: [new(0f, 0f, 0f), new(0f, 0f, 0f), new(10f, 0f, 0f), new(-10f, 0f, 0f)],
+            body: $$"""
                 m_AxialEdges = [ { nNode = [ 1, 2, 3, 3, 2, 1 ] }, ]
                 m_KelagerBends = [ {{bends}} ]
-            }
-            """);
+                """);
 
         /// <summary>
         /// A chain authored with <c>stretch_spring = 0</c> compiles no rod between consecutive joints. Its
@@ -1994,27 +1617,16 @@ namespace Tests
             }
         }
 
-        private static FeModel StretchlessChain(string rods) => SyntheticCloth.Parse($$"""
-            {
-                m_CtrlName = [ "j0", "j1", "j2", "j3" ]
-                m_SkelParents = [ -1, 0, 1, 2 ]
-                m_nNodeCount = 4
-                m_nStaticNodes = 0
+        private static FeModel StretchlessChain(string rods) => SyntheticCloth.Model(
+            ["j0", "j1", "j2", "j3"], staticNodes: 0, parents: [-1, 0, 1, 2],
+            poses: [new(0f, 0f, 0f), new(0f, 0f, -10f), new(0f, 0f, -20f), new(0f, 0f, -30f)],
+            body: $$"""
                 m_nFirstPositionDrivenNode = 4
-                m_NodeInvMasses = [ 1.0, 1.0, 1.0, 1.0 ]
-                m_InitPose =
-                [
-                    {{SyntheticCloth.Pose(0f, 0f, 0f)}}
-                    {{SyntheticCloth.Pose(0f, 0f, -10f)}}
-                    {{SyntheticCloth.Pose(0f, 0f, -20f)}}
-                    {{SyntheticCloth.Pose(0f, 0f, -30f)}}
-                ]
                 m_Rods =
                 [
                     {{rods}}
                 ]
-            }
-            """);
+                """);
 
         /// <summary>
         /// A <c>ClothSelfCollisionCluster</c> puts one rod on every member pair, all of them sharing one
@@ -2074,28 +1686,16 @@ namespace Tests
             rods.Append(SyntheticCloth.RigidRod(0, 2, 20f, 1f));
             rods.Append(SyntheticCloth.RigidRod(1, 3, 20f, 1f));
             rods.Append(SyntheticCloth.RigidRod(2, 4, 20f, 1f));
-            return SyntheticCloth.Parse($$"""
-                {
-                    m_CtrlName = [ "j0", "j1", "j2", "j3", "j4" ]
-                    m_SkelParents = [ -1, 0, 1, 2, 3 ]
-                    m_nNodeCount = 5
-                    m_nStaticNodes = 0
+            return SyntheticCloth.Model(
+                ["j0", "j1", "j2", "j3", "j4"], staticNodes: 0, parents: [-1, 0, 1, 2, 3],
+                poses: [new(0f, 0f, 0f), new(0f, 0f, -10f), new(0f, 0f, -20f), new(0f, 0f, -30f), new(0f, 0f, -40f)],
+                body: $$"""
                     m_nFirstPositionDrivenNode = 5
-                    m_NodeInvMasses = [ 1.0, 1.0, 1.0, 1.0, 1.0 ]
-                    m_InitPose =
-                    [
-                        {{SyntheticCloth.Pose(0f, 0f, 0f)}}
-                        {{SyntheticCloth.Pose(0f, 0f, -10f)}}
-                        {{SyntheticCloth.Pose(0f, 0f, -20f)}}
-                        {{SyntheticCloth.Pose(0f, 0f, -30f)}}
-                        {{SyntheticCloth.Pose(0f, 0f, -40f)}}
-                    ]
                     m_Rods =
                     [
                         {{rods}}
                     ]
-                }
-                """);
+                    """);
         }
 
         private static FeModel ClusterCloth(int members)
@@ -2153,29 +1753,7 @@ namespace Tests
             }
         }
 
-        private static FeModel.ProxyMesh Island(int[] nodes)
-        {
-            var ones = new float[nodes.Length];
-            Array.Fill(ones, 1f);
-            var zeroes = new float[nodes.Length];
-            return new FeModel.ProxyMesh
-            {
-                NodeIndices = nodes,
-                Positions = new Vector3[nodes.Length],
-                ClothEnable = ones,
-                GoalStrength = zeroes,
-                GoalDamping = zeroes,
-                CollisionRadius = zeroes,
-                Friction = zeroes,
-                Drag = zeroes,
-                GroundCollision = zeroes,
-                GroundFriction = zeroes,
-                Gravity = zeroes,
-                VertexAttraction = zeroes,
-                SkinInfluences = new (string, float)[nodes.Length][],
-                Faces = [],
-            };
-        }
+        private static FeModel.ProxyMesh Island(int[] nodes) => SyntheticCloth.Proxy(nodes, [.. nodes.Select(static _ => 1f)], []);
 
         private static FeModel SplitSheet() => SyntheticCloth.Parse("""
             {
@@ -2212,20 +1790,10 @@ namespace Tests
             }
         }
 
-        private static FeModel SuspendedRope() => SyntheticCloth.Parse($$"""
-            {
-                m_CtrlName = [ "root", "j1", "j2", "j3" ]
-                m_SkelParents = [ -1, 0, 1, 2 ]
-                m_nNodeCount = 4
-                m_nStaticNodes = 1
-                m_NodeInvMasses = [ 0.0, 1.0, 1.0, 1.0 ]
-                m_InitPose =
-                [
-                    {{SyntheticCloth.Pose(0f, 0f, 0f)}}
-                    {{SyntheticCloth.Pose(0f, 0f, -10f)}}
-                    {{SyntheticCloth.Pose(0f, 0f, -20f)}}
-                    {{SyntheticCloth.Pose(0f, 0f, -30f)}}
-                ]
+        private static FeModel SuspendedRope() => SyntheticCloth.Model(
+            ["root", "j1", "j2", "j3"], staticNodes: 1, parents: [-1, 0, 1, 2],
+            poses: [new(0f, 0f, 0f), new(0f, 0f, -10f), new(0f, 0f, -20f), new(0f, 0f, -30f)],
+            body: $$"""
                 m_Rods =
                 [
                     {{SyntheticCloth.RigidRod(0, 1, 10f, 1f)}}
@@ -2235,8 +1803,7 @@ namespace Tests
                     {{SyntheticCloth.RigidRod(0, 2, 20f, 0.5f)}}
                     {{SyntheticCloth.RigidRod(0, 3, 30f, 0.5f)}}
                 ]
-            }
-            """);
+                """);
 
         /// <summary>
         /// A ring three nodes wide closes into a triangle, so the bend rods predicted across the tube's
@@ -2260,74 +1827,7 @@ namespace Tests
             }
         }
 
-        private static FeModel RingThreeWideChain() => SyntheticCloth.Parse("""
-            {
-                m_CtrlName = [ "$cccoattail_0_L_0", "$cccoattail_0_L_1", "$cccoattail_0_L_2", "coattail_0_L", "$cccoattail_1_L_0", "$cccoattail_1_L_1", "$cccoattail_1_L_2", "$cccoattail_2_L_0", "$cccoattail_2_L_1", "$cccoattail_2_L_2", "$cccoattail_end_L_0", "$cccoattail_end_L_1", "$cccoattail_end_L_2", "coattail_1_L", "coattail_2_L", "coattail_end_L" ]
-                m_SkelParents = [ 3, 3, 3, -1, 13, 13, 13, 14, 14, 14, 15, 15, 15, 3, 13, 14 ]
-                m_nNodeCount = 16
-                m_nStaticNodes = 4
-                m_NodeInvMasses = [ 0.0, 0.0, 0.0, 0.0, 0.00207, 0.002057, 0.002057, 0.002061, 0.002061, 0.002061, 0.0037, 0.0037, 0.0037, 1.0, 1.0, 1.0 ]
-                m_SourceElems = [ 0, 0, 0, 9, 9, 7, 10, 12, 8, 9, 12, 11, 7, 8, 11, 10, 6, 4, 7, 9, 5, 6, 9, 8, 4, 5, 8, 7, 2, 0, 4, 6, 1, 2, 6, 5, 0, 1, 5, 4 ]
-                m_InitPose =
-                [
-                    [ -10.723646, 4.561181, 66.092773, 1.0, 0.337553, -0.646323, -0.495776, -0.471731 ],
-                    [ -7.534945, 5.381207, 65.015862, 1.0, 0.337553, -0.646323, -0.495776, -0.471731 ],
-                    [ -8.487852, 2.057984, 65.235313, 1.0, 0.337553, -0.646323, -0.495776, -0.471731 ],
-                    [ -8.915481, 4.000124, 65.447983, 1.0, 0.337553, -0.646323, -0.495776, -0.471731 ],
-                    [ -13.473376, 4.824905, 58.146507, 1.0, -0.323373, 0.653533, 0.505948, 0.460804 ],
-                    [ -10.330053, 5.649839, 56.946922, 1.0, -0.323373, 0.653533, 0.505948, 0.460804 ],
-                    [ -11.282963, 2.326618, 57.166382, 1.0, -0.323373, 0.653533, 0.505948, 0.460804 ],
-                    [ -16.587204, 5.195801, 50.242416, 1.0, -0.323943, 0.653251, 0.505547, 0.461245 ],
-                    [ -13.441967, 6.02051, 49.047699, 1.0, -0.323943, 0.653251, 0.505547, 0.461245 ],
-                    [ -14.394877, 2.697287, 49.267155, 1.0, -0.323943, 0.653251, 0.505547, 0.461245 ],
-                    [ -19.686529, 5.562407, 42.336063, 1.0, -0.323943, 0.653251, 0.505547, 0.461245 ],
-                    [ -16.541292, 6.387115, 41.141346, 1.0, -0.323943, 0.653251, 0.505547, 0.461245 ],
-                    [ -17.494204, 3.063893, 41.360802, 1.0, -0.323943, 0.653251, 0.505547, 0.461245 ],
-                    [ -11.695464, 4.267121, 57.419937, 1.0, -0.323373, 0.653533, 0.505948, 0.460804 ],
-                    [ -14.808016, 4.637866, 49.519089, 1.0, -0.323943, 0.653251, 0.505547, 0.461245 ],
-                    [ -17.907341, 5.004471, 41.612736, 1.0, -0.323943, 0.653251, 0.505547, 0.461245 ],
-                ]
-                m_Rods =
-                [
-                    { nNode = [ 0, 4 ] flMinDist = 8.412711 flMaxDist = 8.412711 flWeight0 = 0.0 flRelaxationFactor = 1.0 },
-                    { nNode = [ 0, 5 ] flMinDist = 9.218822 flMaxDist = 9.218822 flWeight0 = 0.0 flRelaxationFactor = 1.0 },
-                    { nNode = [ 0, 6 ] flMinDist = 9.218816 flMaxDist = 9.218816 flWeight0 = 0.0 flRelaxationFactor = 1.0 },
-                    { nNode = [ 1, 4 ] flMinDist = 9.097388 flMaxDist = 9.097388 flWeight0 = 0.0 flRelaxationFactor = 1.0 },
-                    { nNode = [ 1, 5 ] flMinDist = 8.54357 flMaxDist = 8.54357 flWeight0 = 0.0 flRelaxationFactor = 1.0 },
-                    { nNode = [ 1, 6 ] flMinDist = 9.219137 flMaxDist = 9.219137 flWeight0 = 0.0 flRelaxationFactor = 1.0 },
-                    { nNode = [ 2, 4 ] flMinDist = 9.097388 flMaxDist = 9.097388 flWeight0 = 0.0 flRelaxationFactor = 1.0 },
-                    { nNode = [ 2, 5 ] flMinDist = 9.219141 flMaxDist = 9.219141 flWeight0 = 0.0 flRelaxationFactor = 1.0 },
-                    { nNode = [ 2, 6 ] flMinDist = 8.543563 flMaxDist = 8.543563 flWeight0 = 0.0 flRelaxationFactor = 1.0 },
-                    { nNode = [ 4, 5 ] flMinDist = 3.464102 flMaxDist = 3.464102 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
-                    { nNode = [ 6, 4 ] flMinDist = 3.464101 flMaxDist = 3.464101 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
-                    { nNode = [ 4, 7 ] flMinDist = 8.503419 flMaxDist = 8.503419 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
-                    { nNode = [ 4, 8 ] flMinDist = 9.177078 flMaxDist = 9.177078 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
-                    { nNode = [ 4, 9 ] flMinDist = 9.177081 flMaxDist = 9.177081 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
-                    { nNode = [ 5, 6 ] flMinDist = 3.464102 flMaxDist = 3.464102 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
-                    { nNode = [ 5, 7 ] flMinDist = 9.181965 flMaxDist = 9.181965 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
-                    { nNode = [ 5, 8 ] flMinDist = 8.498184 flMaxDist = 8.498184 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
-                    { nNode = [ 5, 9 ] flMinDist = 9.177101 flMaxDist = 9.177101 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
-                    { nNode = [ 6, 7 ] flMinDist = 9.181965 flMaxDist = 9.181965 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
-                    { nNode = [ 6, 8 ] flMinDist = 9.177099 flMaxDist = 9.177099 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
-                    { nNode = [ 6, 9 ] flMinDist = 8.498188 flMaxDist = 8.498188 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
-                    { nNode = [ 7, 8 ] flMinDist = 3.464103 flMaxDist = 3.464103 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
-                    { nNode = [ 9, 7 ] flMinDist = 3.464102 flMaxDist = 3.464102 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
-                    { nNode = [ 7, 10 ] flMinDist = 8.500037 flMaxDist = 8.500037 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
-                    { nNode = [ 7, 11 ] flMinDist = 9.178824 flMaxDist = 9.178824 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
-                    { nNode = [ 7, 12 ] flMinDist = 9.178822 flMaxDist = 9.178822 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
-                    { nNode = [ 8, 9 ] flMinDist = 3.464103 flMaxDist = 3.464103 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
-                    { nNode = [ 8, 10 ] flMinDist = 9.178805 flMaxDist = 9.178805 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
-                    { nNode = [ 8, 11 ] flMinDist = 8.500037 flMaxDist = 8.500037 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
-                    { nNode = [ 8, 12 ] flMinDist = 9.178812 flMaxDist = 9.178812 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
-                    { nNode = [ 9, 10 ] flMinDist = 9.178808 flMaxDist = 9.178808 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
-                    { nNode = [ 9, 11 ] flMinDist = 9.178818 flMaxDist = 9.178818 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
-                    { nNode = [ 9, 12 ] flMinDist = 8.500038 flMaxDist = 8.500038 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
-                    { nNode = [ 10, 11 ] flMinDist = 3.464103 flMaxDist = 3.464103 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
-                    { nNode = [ 12, 10 ] flMinDist = 3.464102 flMaxDist = 3.464102 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
-                    { nNode = [ 11, 12 ] flMinDist = 3.464102 flMaxDist = 3.464102 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
-                ]
-            }
-            """);
+        private static FeModel RingThreeWideChain() => SyntheticCloth.Load("cloth_chain_three_wide_ring.kv3");
 
         /// <summary>
         /// A <c>ClothVertexMap</c> container's own weight compiles into every value of the selection it
@@ -2422,45 +1922,7 @@ namespace Tests
             }
         }
 
-        private const string ExplicitMassChainText = """
-            {
-                m_CtrlName = [ "coattail_0_L", "$cccoattail_0_L_0", "coattail_1_L", "$cccoattail_1_L_0", "coattail_2_L", "$cccoattail_2_L_0", "coattail_end_L", "$cccoattail_end_L_0" ]
-                m_SkelParents = [ -1, 0, 0, 2, 2, 4, 4, 6 ]
-                m_nNodeCount = 8
-                m_nStaticNodes = 2
-                m_NodeInvMasses = [ 0.0, 0.0, 1.0, 1.0, 2.0, 2.0, 1.0, 1.0 ]
-                m_SourceElems = [ 0, 0, 0, 6, 5, 4, 6, 7, 4, 5, 7, 6, 3, 2, 4, 5, 2, 3, 5, 4, 1, 0, 2, 3, 0, 1, 3, 2 ]
-                m_InitPose =
-                [
-                    [ -8.915481, 4.000124, 65.447983, 1.0, 0.337553, -0.646323, -0.495776, -0.471731 ],
-                    [ -10.723646, 4.561181, 66.092773, 1.0, 0.337553, -0.646323, -0.495776, -0.471731 ],
-                    [ -11.695464, 4.267121, 57.419937, 1.0, -0.323373, 0.653533, 0.505948, 0.460804 ],
-                    [ -13.473376, 4.824905, 58.146507, 1.0, -0.323373, 0.653533, 0.505948, 0.460804 ],
-                    [ -14.808016, 4.637866, 49.519089, 1.0, -0.323943, 0.653251, 0.505547, 0.461245 ],
-                    [ -16.587204, 5.195801, 50.242416, 1.0, -0.323943, 0.653251, 0.505547, 0.461245 ],
-                    [ -17.907341, 5.004471, 41.612736, 1.0, -0.323943, 0.653251, 0.505547, 0.461245 ],
-                    [ -19.686529, 5.562407, 42.336063, 1.0, -0.323943, 0.653251, 0.505547, 0.461245 ],
-                ]
-                m_Rods =
-                [
-                    { nNode = [ 0, 2 ] flMinDist = 8.499948 flMaxDist = 8.499948 flWeight0 = 0.0 flRelaxationFactor = 1.0 },
-                    { nNode = [ 0, 3 ] flMinDist = 8.646747 flMaxDist = 8.646747 flWeight0 = 0.0 flRelaxationFactor = 1.0 },
-                    { nNode = [ 1, 2 ] flMinDist = 8.732066 flMaxDist = 8.732066 flWeight0 = 0.0 flRelaxationFactor = 1.0 },
-                    { nNode = [ 1, 3 ] flMinDist = 8.412711 flMaxDist = 8.412711 flWeight0 = 0.0 flRelaxationFactor = 1.0 },
-                    { nNode = [ 2, 4 ] flMinDist = 8.499931 flMaxDist = 8.499931 flWeight0 = 0.333333 flRelaxationFactor = 1.0 },
-                    { nNode = [ 2, 5 ] flMinDist = 8.735466 flMaxDist = 8.735466 flWeight0 = 0.333333 flRelaxationFactor = 1.0 },
-                    { nNode = [ 3, 4 ] flMinDist = 8.732044 flMaxDist = 8.732044 flWeight0 = 0.333333 flRelaxationFactor = 1.0 },
-                    { nNode = [ 3, 5 ] flMinDist = 8.503419 flMaxDist = 8.503419 flWeight0 = 0.333333 flRelaxationFactor = 1.0 },
-                    { nNode = [ 2, 3 ] flMinDist = 2.0 flMaxDist = 2.0 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
-                    { nNode = [ 4, 6 ] flMinDist = 8.500037 flMaxDist = 8.500037 flWeight0 = 0.666667 flRelaxationFactor = 1.0 },
-                    { nNode = [ 4, 7 ] flMinDist = 8.732154 flMaxDist = 8.732154 flWeight0 = 0.666667 flRelaxationFactor = 1.0 },
-                    { nNode = [ 5, 6 ] flMinDist = 8.732168 flMaxDist = 8.732168 flWeight0 = 0.666667 flRelaxationFactor = 1.0 },
-                    { nNode = [ 5, 7 ] flMinDist = 8.500037 flMaxDist = 8.500037 flWeight0 = 0.666667 flRelaxationFactor = 1.0 },
-                    { nNode = [ 4, 5 ] flMinDist = 2.000001 flMaxDist = 2.000001 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
-                    { nNode = [ 6, 7 ] flMinDist = 2.000001 flMaxDist = 2.000001 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
-                ]
-            }
-            """;
+        private static string ExplicitMassChainText => SyntheticCloth.Fixture("cloth_chain_explicit_mass.kv3");
 
         /// <summary>
         /// A three-member <c>ClothSelfCollisionCluster</c> compiles to one rod triangle whose shared band is
@@ -2516,48 +1978,7 @@ namespace Tests
             }
         }
 
-        private const string ThreeMemberClusterText = """
-            {
-                m_CtrlName = [ "coattail_0_L", "$cccoattail_0_L_0", "coattail_1_L", "$cccoattail_1_L_0", "coattail_2_L", "$cccoattail_2_L_0", "coattail_end_L", "$cccoattail_end_L_0" ]
-                m_SkelParents = [ -1, 0, 0, 2, 2, 4, 4, 6 ]
-                m_nNodeCount = 8
-                m_nStaticNodes = 2
-                m_NodeInvMasses = [ 0.0, 0.0, 0.002017, 0.003444, 0.002338, 0.003427, 0.002794, 0.0065 ]
-                m_SourceElems = [ 0, 0, 0, 6, 5, 4, 6, 7, 4, 5, 7, 6, 3, 2, 4, 5, 2, 3, 5, 4, 1, 0, 2, 3, 0, 1, 3, 2 ]
-                m_InitPose =
-                [
-                    [ -8.915481, 4.000124, 65.447983, 1.0, 0.337553, -0.646323, -0.495776, -0.471731 ],
-                    [ -10.723646, 4.561181, 66.092773, 1.0, 0.337553, -0.646323, -0.495776, -0.471731 ],
-                    [ -11.695464, 4.267121, 57.419937, 1.0, -0.323373, 0.653533, 0.505948, 0.460804 ],
-                    [ -13.473376, 4.824905, 58.146507, 1.0, -0.323373, 0.653533, 0.505948, 0.460804 ],
-                    [ -14.808016, 4.637866, 49.519089, 1.0, -0.323943, 0.653251, 0.505547, 0.461245 ],
-                    [ -16.587204, 5.195801, 50.242416, 1.0, -0.323943, 0.653251, 0.505547, 0.461245 ],
-                    [ -17.907341, 5.004471, 41.612736, 1.0, -0.323943, 0.653251, 0.505547, 0.461245 ],
-                    [ -19.686529, 5.562407, 42.336063, 1.0, -0.323943, 0.653251, 0.505547, 0.461245 ],
-                ]
-                m_Rods =
-                [
-                    { nNode = [ 0, 2 ] flMinDist = 8.499948 flMaxDist = 8.499948 flWeight0 = 0.0 flRelaxationFactor = 1.0 },
-                    { nNode = [ 0, 3 ] flMinDist = 8.646747 flMaxDist = 8.646747 flWeight0 = 0.0 flRelaxationFactor = 1.0 },
-                    { nNode = [ 1, 2 ] flMinDist = 8.732066 flMaxDist = 8.732066 flWeight0 = 0.0 flRelaxationFactor = 1.0 },
-                    { nNode = [ 1, 3 ] flMinDist = 8.412711 flMaxDist = 8.412711 flWeight0 = 0.0 flRelaxationFactor = 1.0 },
-                    { nNode = [ 2, 3 ] flMinDist = 2.0 flMaxDist = 2.0 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
-                    { nNode = [ 2, 4 ] flMinDist = 12.0 flMaxDist = 48.0 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
-                    { nNode = [ 2, 5 ] flMinDist = 8.735466 flMaxDist = 8.735466 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
-                    { nNode = [ 2, 6 ] flMinDist = 12.0 flMaxDist = 48.0 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
-                    { nNode = [ 3, 4 ] flMinDist = 8.732044 flMaxDist = 8.732044 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
-                    { nNode = [ 3, 5 ] flMinDist = 8.503419 flMaxDist = 8.503419 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
-                    { nNode = [ 4, 5 ] flMinDist = 2.000001 flMaxDist = 2.000001 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
-                    { nNode = [ 6, 4 ] flMinDist = 8.500037 flMaxDist = 8.500037 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
-                    { nNode = [ 4, 7 ] flMinDist = 8.732154 flMaxDist = 8.732154 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
-                    { nNode = [ 6, 5 ] flMinDist = 8.732168 flMaxDist = 8.732168 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
-                    { nNode = [ 5, 7 ] flMinDist = 8.500037 flMaxDist = 8.500037 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
-                    { nNode = [ 6, 7 ] flMinDist = 2.000001 flMaxDist = 2.000001 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
-                    { nNode = [ 2, 4 ] flMinDist = 8.499931 flMaxDist = 8.499931 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
-                    { nNode = [ 6, 4 ] flMinDist = 12.0 flMaxDist = 48.0 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
-                ]
-            }
-            """;
+        private static string ThreeMemberClusterText => SyntheticCloth.Fixture("cloth_chain_three_member_cluster.kv3");
 
         /// <summary>
         /// A geometric chain's rod pass weights every node the same, so a joint's <c>motion_bias</c> is read
@@ -2580,45 +2001,7 @@ namespace Tests
             }
         }
 
-        private const string BiasedChainText = """
-            {
-                m_CtrlName = [ "coattail_0_L", "$cccoattail_0_L_0", "coattail_1_L", "$cccoattail_1_L_0", "coattail_2_L", "$cccoattail_2_L_0", "coattail_end_L", "$cccoattail_end_L_0" ]
-                m_SkelParents = [ -1, 0, 0, 2, 2, 4, 4, 6 ]
-                m_nNodeCount = 8
-                m_nStaticNodes = 2
-                m_NodeInvMasses = [ 0.0, 0.0, 0.003428, 0.003444, 0.003428, 0.003427, 0.0065, 0.0065 ]
-                m_SourceElems = [ 0, 0, 0, 6, 5, 4, 6, 7, 4, 5, 7, 6, 3, 2, 4, 5, 2, 3, 5, 4, 1, 0, 2, 3, 0, 1, 3, 2 ]
-                m_InitPose =
-                [
-                    [ -8.915481, 4.000124, 65.447983, 1.0, 0.337553, -0.646323, -0.495776, -0.471731 ],
-                    [ -10.723646, 4.561181, 66.092773, 1.0, 0.337553, -0.646323, -0.495776, -0.471731 ],
-                    [ -11.695464, 4.267121, 57.419937, 1.0, -0.323373, 0.653533, 0.505948, 0.460804 ],
-                    [ -13.473376, 4.824905, 58.146507, 1.0, -0.323373, 0.653533, 0.505948, 0.460804 ],
-                    [ -14.808016, 4.637866, 49.519089, 1.0, -0.323943, 0.653251, 0.505547, 0.461245 ],
-                    [ -16.587204, 5.195801, 50.242416, 1.0, -0.323943, 0.653251, 0.505547, 0.461245 ],
-                    [ -17.907341, 5.004471, 41.612736, 1.0, -0.323943, 0.653251, 0.505547, 0.461245 ],
-                    [ -19.686529, 5.562407, 42.336063, 1.0, -0.323943, 0.653251, 0.505547, 0.461245 ],
-                ]
-                m_Rods =
-                [
-                    { nNode = [ 0, 2 ] flMinDist = 8.499948 flMaxDist = 8.499948 flWeight0 = 0.0 flRelaxationFactor = 1.0 },
-                    { nNode = [ 0, 3 ] flMinDist = 8.646747 flMaxDist = 8.646747 flWeight0 = 0.0 flRelaxationFactor = 1.0 },
-                    { nNode = [ 1, 2 ] flMinDist = 8.732066 flMaxDist = 8.732066 flWeight0 = 0.0 flRelaxationFactor = 1.0 },
-                    { nNode = [ 1, 3 ] flMinDist = 8.412711 flMaxDist = 8.412711 flWeight0 = 0.0 flRelaxationFactor = 1.0 },
-                    { nNode = [ 2, 4 ] flMinDist = 8.499931 flMaxDist = 8.499931 flWeight0 = 0.333333 flRelaxationFactor = 1.0 },
-                    { nNode = [ 2, 5 ] flMinDist = 8.735466 flMaxDist = 8.735466 flWeight0 = 0.333333 flRelaxationFactor = 1.0 },
-                    { nNode = [ 3, 4 ] flMinDist = 8.732044 flMaxDist = 8.732044 flWeight0 = 0.333333 flRelaxationFactor = 1.0 },
-                    { nNode = [ 3, 5 ] flMinDist = 8.503419 flMaxDist = 8.503419 flWeight0 = 0.333333 flRelaxationFactor = 1.0 },
-                    { nNode = [ 2, 3 ] flMinDist = 2.0 flMaxDist = 2.0 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
-                    { nNode = [ 4, 6 ] flMinDist = 8.500037 flMaxDist = 8.500037 flWeight0 = 0.333333 flRelaxationFactor = 1.0 },
-                    { nNode = [ 4, 7 ] flMinDist = 8.732154 flMaxDist = 8.732154 flWeight0 = 0.333333 flRelaxationFactor = 1.0 },
-                    { nNode = [ 5, 6 ] flMinDist = 8.732168 flMaxDist = 8.732168 flWeight0 = 0.333333 flRelaxationFactor = 1.0 },
-                    { nNode = [ 5, 7 ] flMinDist = 8.500037 flMaxDist = 8.500037 flWeight0 = 0.333333 flRelaxationFactor = 1.0 },
-                    { nNode = [ 4, 5 ] flMinDist = 2.000001 flMaxDist = 2.000001 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
-                    { nNode = [ 6, 7 ] flMinDist = 2.000001 flMaxDist = 2.000001 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
-                ]
-            }
-            """;
+        private static string BiasedChainText => SyntheticCloth.Fixture("cloth_chain_motion_bias.kv3");
 
         /// <summary>
         /// A joint authored at <c>stretch_spring</c> 0 compiles no rod on its span to its parent and none to
@@ -2644,35 +2027,7 @@ namespace Tests
             }
         }
 
-        private const string AlternatingStretchText = """
-            {
-                m_CtrlName = [ "coattail_0_L", "$cccoattail_0_L_0", "$cccoattail_end_L_0", "coattail_1_L", "$cccoattail_1_L_0", "coattail_2_L", "$cccoattail_2_L_0", "coattail_end_L" ]
-                m_SkelParents = [ -1, 0, 7, 0, 3, 3, 5, 5 ]
-                m_nNodeCount = 8
-                m_nStaticNodes = 3
-                m_NodeInvMasses = [ 0.0, 0.0, 0.0, 0.007253, 0.007252, 0.0065, 0.006497, 1.0 ]
-                m_SourceElems = [ 0, 0, 0, 2, 4, 3, 5, 6, 3, 4, 6, 5 ]
-                m_InitPose =
-                [
-                    [ -8.915481, 4.000124, 65.447983, 1.0, 0.337553, -0.646323, -0.495776, -0.471731 ],
-                    [ -10.723646, 4.561181, 66.092773, 1.0, 0.337553, -0.646323, -0.495776, -0.471731 ],
-                    [ -19.686529, 5.562407, 42.336063, 1.0, -0.323943, 0.653251, 0.505547, 0.461245 ],
-                    [ -11.695464, 4.267121, 57.419937, 1.0, -0.323373, 0.653533, 0.505948, 0.460804 ],
-                    [ -13.473376, 4.824905, 58.146507, 1.0, -0.323373, 0.653533, 0.505948, 0.460804 ],
-                    [ -14.808016, 4.637866, 49.519089, 1.0, -0.323943, 0.653251, 0.505547, 0.461245 ],
-                    [ -16.587204, 5.195801, 50.242416, 1.0, -0.323943, 0.653251, 0.505547, 0.461245 ],
-                    [ -17.907341, 5.004471, 41.612736, 1.0, -0.323943, 0.653251, 0.505547, 0.461245 ],
-                ]
-                m_Rods =
-                [
-                    { nNode = [ 5, 3 ] flMinDist = 8.499931 flMaxDist = 8.499931 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
-                    { nNode = [ 6, 3 ] flMinDist = 8.735466 flMaxDist = 8.735466 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
-                    { nNode = [ 5, 4 ] flMinDist = 8.732044 flMaxDist = 8.732044 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
-                    { nNode = [ 6, 4 ] flMinDist = 8.503419 flMaxDist = 8.503419 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
-                    { nNode = [ 5, 6 ] flMinDist = 2.000001 flMaxDist = 2.000001 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
-                ]
-            }
-            """;
+        private static string AlternatingStretchText => SyntheticCloth.Fixture("cloth_chain_alternating_stretch.kv3");
 
         /// <summary>
         /// A joint authored with <c>animated_length</c> moves the rods on its span to its parent, on its own
@@ -2705,77 +2060,9 @@ namespace Tests
             }
         }
 
-        private const string AnimatedJointTwoText = """
-            {
-                m_CtrlName = [ "coattail_0_L", "$cccoattail_0_L_0", "$cccoattail_2_L_0", "coattail_1_L", "$cccoattail_1_L_0", "coattail_end_L", "$cccoattail_end_L_0", "coattail_2_L" ]
-                m_SkelParents = [ -1, 0, 7, 0, 3, 7, 5, 3 ]
-                m_nNodeCount = 8
-                m_nStaticNodes = 3
-                m_NodeInvMasses = [ 0.0, 0.0, 0.0, 0.0065, 0.006558, 0.0625, 0.0625, 1.0 ]
-                m_SourceElems = [ 0, 0, 0, 6, 2, 7, 5, 6, 7, 2, 6, 5, 4, 3, 7, 2, 3, 4, 2, 7, 1, 0, 3, 4, 0, 1, 4, 3 ]
-                m_InitPose =
-                [
-                    [ -8.915481, 4.000124, 65.447983, 1.0, 0.337553, -0.646323, -0.495776, -0.471731 ],
-                    [ -10.723646, 4.561181, 66.092773, 1.0, 0.337553, -0.646323, -0.495776, -0.471731 ],
-                    [ -16.587204, 5.195801, 50.242416, 1.0, -0.323943, 0.653251, 0.505547, 0.461245 ],
-                    [ -11.695464, 4.267121, 57.419937, 1.0, -0.323373, 0.653533, 0.505948, 0.460804 ],
-                    [ -13.473376, 4.824905, 58.146507, 1.0, -0.323373, 0.653533, 0.505948, 0.460804 ],
-                    [ -17.907341, 5.004471, 41.612736, 1.0, -0.323943, 0.653251, 0.505547, 0.461245 ],
-                    [ -19.686529, 5.562407, 42.336063, 1.0, -0.323943, 0.653251, 0.505547, 0.461245 ],
-                    [ -14.808016, 4.637866, 49.519089, 1.0, -0.323943, 0.653251, 0.505547, 0.461245 ],
-                ]
-                m_SimdRodsAnim =
-                [
-                    { nNode = [ [ 2, 2, 2, 2 ], [ 7, 7, 7, 7 ] ] f4Weight0 = [ 0.0, 0.0, 0.0, 0.0 ] f4RelaxationFactor = [ 1.0, 1.0, 1.0, 1.0 ] },
-                    { nNode = [ [ 3, 2, 2, 2 ], [ 7, 4, 4, 4 ] ] f4Weight0 = [ 0.5, 0.0, 0.0, 0.0 ] f4RelaxationFactor = [ 1.0, 1.0, 1.0, 1.0 ] },
-                    { nNode = [ [ 4, 2, 2, 2 ], [ 7, 3, 3, 3 ] ] f4Weight0 = [ 0.5, 0.0, 0.0, 0.0 ] f4RelaxationFactor = [ 1.0, 1.0, 1.0, 1.0 ] },
-                    { nNode = [ [ 5, 2, 2, 2 ], [ 7, 6, 6, 6 ] ] f4Weight0 = [ 0.5, 0.0, 0.0, 0.0 ] f4RelaxationFactor = [ 1.0, 1.0, 1.0, 1.0 ] },
-                    { nNode = [ [ 6, 2, 2, 2 ], [ 7, 5, 5, 5 ] ] f4Weight0 = [ 0.5, 0.0, 0.0, 0.0 ] f4RelaxationFactor = [ 1.0, 1.0, 1.0, 1.0 ] },
-                ]
-                m_Rods =
-                [
-                    { nNode = [ 0, 3 ] flMinDist = 8.499948 flMaxDist = 8.499948 flWeight0 = 0.0 flRelaxationFactor = 1.0 },
-                    { nNode = [ 0, 4 ] flMinDist = 8.646747 flMaxDist = 8.646747 flWeight0 = 0.0 flRelaxationFactor = 1.0 },
-                    { nNode = [ 1, 3 ] flMinDist = 8.732066 flMaxDist = 8.732066 flWeight0 = 0.0 flRelaxationFactor = 1.0 },
-                    { nNode = [ 1, 4 ] flMinDist = 8.412711 flMaxDist = 8.412711 flWeight0 = 0.0 flRelaxationFactor = 1.0 },
-                    { nNode = [ 3, 4 ] flMinDist = 2.0 flMaxDist = 2.0 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
-                    { nNode = [ 5, 6 ] flMinDist = 2.000001 flMaxDist = 2.000001 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
-                ]
-            }
-            """;
+        private static string AnimatedJointTwoText => SyntheticCloth.Fixture("cloth_chain_animated_joint.kv3");
 
-        private const string AnimatedEveryJointText = """
-            {
-                m_CtrlName = [ "coattail_0_L", "$cccoattail_0_L_0", "$cccoattail_1_L_0", "$cccoattail_2_L_0", "$cccoattail_end_L_0", "coattail_1_L", "coattail_2_L", "coattail_end_L" ]
-                m_SkelParents = [ -1, 0, 5, 6, 7, 0, 5, 6 ]
-                m_nNodeCount = 8
-                m_nStaticNodes = 5
-                m_NodeInvMasses = [ 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 1.0 ]
-                m_SourceElems = [ 0, 0, 0, 6, 3, 6, 7, 4, 6, 3, 4, 7, 2, 5, 6, 3, 5, 2, 3, 6, 1, 0, 5, 2, 0, 1, 2, 5 ]
-                m_InitPose =
-                [
-                    [ -8.915481, 4.000124, 65.447983, 1.0, 0.337553, -0.646323, -0.495776, -0.471731 ],
-                    [ -10.723646, 4.561181, 66.092773, 1.0, 0.337553, -0.646323, -0.495776, -0.471731 ],
-                    [ -13.473376, 4.824905, 58.146507, 1.0, -0.323373, 0.653533, 0.505948, 0.460804 ],
-                    [ -16.587204, 5.195801, 50.242416, 1.0, -0.323943, 0.653251, 0.505547, 0.461245 ],
-                    [ -19.686529, 5.562407, 42.336063, 1.0, -0.323943, 0.653251, 0.505547, 0.461245 ],
-                    [ -11.695464, 4.267121, 57.419937, 1.0, -0.323373, 0.653533, 0.505948, 0.460804 ],
-                    [ -14.808016, 4.637866, 49.519089, 1.0, -0.323943, 0.653251, 0.505547, 0.461245 ],
-                    [ -17.907341, 5.004471, 41.612736, 1.0, -0.323943, 0.653251, 0.505547, 0.461245 ],
-                ]
-                m_SimdRodsAnim =
-                [
-                    { nNode = [ [ 2, 0, 4, 4 ], [ 6, 5, 7, 7 ] ] f4Weight0 = [ 0.0, 0.0, 0.0, 0.0 ] f4RelaxationFactor = [ 1.0, 1.0, 1.0, 1.0 ] },
-                    { nNode = [ [ 3, 1, 4, 4 ], [ 6, 5, 7, 7 ] ] f4Weight0 = [ 0.0, 0.0, 0.0, 0.0 ] f4RelaxationFactor = [ 1.0, 1.0, 1.0, 1.0 ] },
-                    { nNode = [ [ 4, 3, 2, 2 ], [ 6, 7, 5, 5 ] ] f4Weight0 = [ 0.0, 0.0, 0.0, 0.0 ] f4RelaxationFactor = [ 1.0, 1.0, 1.0, 1.0 ] },
-                    { nNode = [ [ 6, 4, 4, 4 ], [ 5, 7, 7, 7 ] ] f4Weight0 = [ 0.5, 0.0, 0.0, 0.0 ] f4RelaxationFactor = [ 1.0, 1.0, 1.0, 1.0 ] },
-                    { nNode = [ [ 7, 3, 3, 3 ], [ 6, 5, 5, 5 ] ] f4Weight0 = [ 0.5, 0.0, 0.0, 0.0 ] f4RelaxationFactor = [ 1.0, 1.0, 1.0, 1.0 ] },
-                ]
-                m_Rods =
-                [
-                ]
-            }
-            """;
+        private static string AnimatedEveryJointText => SyntheticCloth.Fixture("cloth_chain_animated_every_joint.kv3");
 
         /// <summary>
         /// A cloth model compiled with <c>explicit_masses</c> keeps its masses where a joint's <c>motion_bias</c>
@@ -2797,45 +2084,7 @@ namespace Tests
             }
         }
 
-        private const string ExplicitBiasedChainText = """
-            {
-                m_CtrlName = [ "coattail_0_L", "$cccoattail_0_L_0", "coattail_1_L", "$cccoattail_1_L_0", "coattail_2_L", "$cccoattail_2_L_0", "coattail_end_L", "$cccoattail_end_L_0" ]
-                m_SkelParents = [ -1, 0, 0, 2, 2, 4, 4, 6 ]
-                m_nNodeCount = 8
-                m_nStaticNodes = 2
-                m_NodeInvMasses = [ 0.0, 0.0, 1.0, 1.0, 0.5, 0.5, 1.0, 1.0 ]
-                m_SourceElems = [ 0, 0, 0, 6, 5, 4, 6, 7, 4, 5, 7, 6, 3, 2, 4, 5, 2, 3, 5, 4, 1, 0, 2, 3, 0, 1, 3, 2 ]
-                m_InitPose =
-                [
-                    [ -8.915481, 4.000124, 65.447983, 1.0, 0.337553, -0.646323, -0.495776, -0.471731 ],
-                    [ -10.723646, 4.561181, 66.092773, 1.0, 0.337553, -0.646323, -0.495776, -0.471731 ],
-                    [ -11.695464, 4.267121, 57.419937, 1.0, -0.323373, 0.653533, 0.505948, 0.460804 ],
-                    [ -13.473376, 4.824905, 58.146507, 1.0, -0.323373, 0.653533, 0.505948, 0.460804 ],
-                    [ -14.808016, 4.637866, 49.519089, 1.0, -0.323943, 0.653251, 0.505547, 0.461245 ],
-                    [ -16.587204, 5.195801, 50.242416, 1.0, -0.323943, 0.653251, 0.505547, 0.461245 ],
-                    [ -17.907341, 5.004471, 41.612736, 1.0, -0.323943, 0.653251, 0.505547, 0.461245 ],
-                    [ -19.686529, 5.562407, 42.336063, 1.0, -0.323943, 0.653251, 0.505547, 0.461245 ],
-                ]
-                m_Rods =
-                [
-                    { nNode = [ 0, 2 ] flMinDist = 8.499948 flMaxDist = 8.499948 flWeight0 = 0.0 flRelaxationFactor = 1.0 },
-                    { nNode = [ 0, 3 ] flMinDist = 8.646747 flMaxDist = 8.646747 flWeight0 = 0.0 flRelaxationFactor = 1.0 },
-                    { nNode = [ 1, 2 ] flMinDist = 8.732066 flMaxDist = 8.732066 flWeight0 = 0.0 flRelaxationFactor = 1.0 },
-                    { nNode = [ 1, 3 ] flMinDist = 8.412711 flMaxDist = 8.412711 flWeight0 = 0.0 flRelaxationFactor = 1.0 },
-                    { nNode = [ 2, 3 ] flMinDist = 2.0 flMaxDist = 2.0 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
-                    { nNode = [ 2, 4 ] flMinDist = 8.499931 flMaxDist = 8.499931 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
-                    { nNode = [ 2, 5 ] flMinDist = 8.735466 flMaxDist = 8.735466 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
-                    { nNode = [ 3, 4 ] flMinDist = 8.732044 flMaxDist = 8.732044 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
-                    { nNode = [ 3, 5 ] flMinDist = 8.503419 flMaxDist = 8.503419 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
-                    { nNode = [ 4, 6 ] flMinDist = 8.500037 flMaxDist = 8.500037 flWeight0 = 0.333333 flRelaxationFactor = 1.0 },
-                    { nNode = [ 4, 7 ] flMinDist = 8.732154 flMaxDist = 8.732154 flWeight0 = 0.333333 flRelaxationFactor = 1.0 },
-                    { nNode = [ 5, 6 ] flMinDist = 8.732168 flMaxDist = 8.732168 flWeight0 = 0.333333 flRelaxationFactor = 1.0 },
-                    { nNode = [ 5, 7 ] flMinDist = 8.500037 flMaxDist = 8.500037 flWeight0 = 0.333333 flRelaxationFactor = 1.0 },
-                    { nNode = [ 4, 5 ] flMinDist = 2.000001 flMaxDist = 2.000001 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
-                    { nNode = [ 6, 7 ] flMinDist = 2.000001 flMaxDist = 2.000001 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
-                ]
-            }
-            """;
+        private static string ExplicitBiasedChainText => SyntheticCloth.Fixture("cloth_chain_explicit_mass_bias.kv3");
 
         /// <summary>
         /// A suspender on a joint whose parent is the chain root is read off the root span's copies even where
@@ -2857,111 +2106,7 @@ namespace Tests
             }
         }
 
-        private const string RepeatedSuspenderChainText = """
-            {
-                m_CtrlName = [ "coattail_0_L", "$cccoattail_0_L_0", "coattail_1_L", "$cccoattail_1_L_0", "coattail_2_L", "$cccoattail_2_L_0", "coattail_end_L", "$cccoattail_end_L_0" ]
-                m_SkelParents = [ -1, 0, 0, 2, 2, 4, 4, 6 ]
-                m_nNodeCount = 8
-                m_nStaticNodes = 2
-                m_NodeInvMasses = [ 0.0, 0.0, 0.000776, 0.000781, 0.000591, 0.000591, 0.000593, 0.000594 ]
-                m_SourceElems = [ 0, 0, 0, 6, 5, 4, 6, 7, 4, 5, 7, 6, 3, 2, 4, 5, 2, 3, 5, 4, 1, 0, 2, 3, 0, 1, 3, 2 ]
-                m_InitPose =
-                [
-                    [ -8.915481, 4.000124, 65.447983, 1.0, 0.337553, -0.646323, -0.495776, -0.471731 ],
-                    [ -10.723646, 4.561181, 66.092773, 1.0, 0.337553, -0.646323, -0.495776, -0.471731 ],
-                    [ -11.695464, 4.267121, 57.419937, 1.0, -0.323373, 0.653533, 0.505948, 0.460804 ],
-                    [ -13.473376, 4.824905, 58.146507, 1.0, -0.323373, 0.653533, 0.505948, 0.460804 ],
-                    [ -14.808016, 4.637866, 49.519089, 1.0, -0.323943, 0.653251, 0.505547, 0.461245 ],
-                    [ -16.587204, 5.195801, 50.242416, 1.0, -0.323943, 0.653251, 0.505547, 0.461245 ],
-                    [ -17.907341, 5.004471, 41.612736, 1.0, -0.323943, 0.653251, 0.505547, 0.461245 ],
-                    [ -19.686529, 5.562407, 42.336063, 1.0, -0.323943, 0.653251, 0.505547, 0.461245 ],
-                ]
-                m_Rods =
-                [
-                    { nNode = [ 0, 2 ] flMinDist = 8.499948 flMaxDist = 8.499948 flWeight0 = 0.0 flRelaxationFactor = 0.5 },
-                    { nNode = [ 0, 3 ] flMinDist = 8.646747 flMaxDist = 8.646747 flWeight0 = 0.0 flRelaxationFactor = 0.5 },
-                    { nNode = [ 0, 4 ] flMinDist = 16.995832 flMaxDist = 16.995832 flWeight0 = 0.0 flRelaxationFactor = 0.5 },
-                    { nNode = [ 0, 5 ] flMinDist = 17.073202 flMaxDist = 17.073202 flWeight0 = 0.0 flRelaxationFactor = 0.5 },
-                    { nNode = [ 0, 6 ] flMinDist = 25.49473 flMaxDist = 25.49473 flWeight0 = 0.0 flRelaxationFactor = 0.5 },
-                    { nNode = [ 0, 7 ] flMinDist = 25.546371 flMaxDist = 25.546371 flWeight0 = 0.0 flRelaxationFactor = 0.5 },
-                    { nNode = [ 1, 2 ] flMinDist = 8.732066 flMaxDist = 8.732066 flWeight0 = 0.0 flRelaxationFactor = 1.0 },
-                    { nNode = [ 1, 3 ] flMinDist = 8.412711 flMaxDist = 8.412711 flWeight0 = 0.0 flRelaxationFactor = 1.0 },
-                    { nNode = [ 1, 4 ] flMinDist = 17.06971 flMaxDist = 17.06971 flWeight0 = 0.0 flRelaxationFactor = 0.5 },
-                    { nNode = [ 1, 5 ] flMinDist = 16.912064 flMaxDist = 16.912064 flWeight0 = 0.0 flRelaxationFactor = 0.5 },
-                    { nNode = [ 1, 6 ] flMinDist = 25.516155 flMaxDist = 25.516155 flWeight0 = 0.0 flRelaxationFactor = 0.5 },
-                    { nNode = [ 1, 7 ] flMinDist = 25.410963 flMaxDist = 25.410963 flWeight0 = 0.0 flRelaxationFactor = 0.5 },
-                    { nNode = [ 2, 3 ] flMinDist = 2.0 flMaxDist = 2.0 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
-                    { nNode = [ 4, 2 ] flMinDist = 8.499931 flMaxDist = 8.499931 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
-                    { nNode = [ 5, 2 ] flMinDist = 8.735466 flMaxDist = 8.735466 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
-                    { nNode = [ 4, 3 ] flMinDist = 8.732044 flMaxDist = 8.732044 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
-                    { nNode = [ 5, 3 ] flMinDist = 8.503419 flMaxDist = 8.503419 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
-                    { nNode = [ 4, 5 ] flMinDist = 2.000001 flMaxDist = 2.000001 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
-                    { nNode = [ 6, 4 ] flMinDist = 8.500037 flMaxDist = 8.500037 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
-                    { nNode = [ 7, 4 ] flMinDist = 8.732154 flMaxDist = 8.732154 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
-                    { nNode = [ 6, 5 ] flMinDist = 8.732168 flMaxDist = 8.732168 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
-                    { nNode = [ 7, 5 ] flMinDist = 8.500037 flMaxDist = 8.500037 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
-                    { nNode = [ 6, 7 ] flMinDist = 2.000001 flMaxDist = 2.000001 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
-                    { nNode = [ 0, 2 ] flMinDist = 8.499948 flMaxDist = 8.499948 flWeight0 = 0.0 flRelaxationFactor = 1.0 },
-                    { nNode = [ 0, 3 ] flMinDist = 8.646747 flMaxDist = 8.646747 flWeight0 = 0.0 flRelaxationFactor = 1.0 },
-                    { nNode = [ 0, 4 ] flMinDist = 16.995832 flMaxDist = 16.995832 flWeight0 = 0.0 flRelaxationFactor = 0.5 },
-                    { nNode = [ 0, 5 ] flMinDist = 17.073202 flMaxDist = 17.073202 flWeight0 = 0.0 flRelaxationFactor = 0.5 },
-                    { nNode = [ 0, 6 ] flMinDist = 25.49473 flMaxDist = 25.49473 flWeight0 = 0.0 flRelaxationFactor = 0.5 },
-                    { nNode = [ 0, 7 ] flMinDist = 25.546371 flMaxDist = 25.546371 flWeight0 = 0.0 flRelaxationFactor = 0.5 },
-                    { nNode = [ 1, 2 ] flMinDist = 8.732066 flMaxDist = 8.732066 flWeight0 = 0.0 flRelaxationFactor = 1.0 },
-                    { nNode = [ 1, 3 ] flMinDist = 8.412711 flMaxDist = 8.412711 flWeight0 = 0.0 flRelaxationFactor = 1.0 },
-                    { nNode = [ 1, 4 ] flMinDist = 17.06971 flMaxDist = 17.06971 flWeight0 = 0.0 flRelaxationFactor = 0.5 },
-                    { nNode = [ 1, 5 ] flMinDist = 16.912064 flMaxDist = 16.912064 flWeight0 = 0.0 flRelaxationFactor = 0.5 },
-                    { nNode = [ 1, 6 ] flMinDist = 25.516155 flMaxDist = 25.516155 flWeight0 = 0.0 flRelaxationFactor = 0.5 },
-                    { nNode = [ 1, 7 ] flMinDist = 25.410963 flMaxDist = 25.410963 flWeight0 = 0.0 flRelaxationFactor = 0.5 },
-                    { nNode = [ 2, 3 ] flMinDist = 2.0 flMaxDist = 2.0 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
-                    { nNode = [ 4, 2 ] flMinDist = 8.499931 flMaxDist = 8.499931 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
-                    { nNode = [ 5, 2 ] flMinDist = 8.735466 flMaxDist = 8.735466 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
-                    { nNode = [ 4, 3 ] flMinDist = 8.732044 flMaxDist = 8.732044 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
-                    { nNode = [ 5, 3 ] flMinDist = 8.503419 flMaxDist = 8.503419 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
-                    { nNode = [ 4, 5 ] flMinDist = 2.000001 flMaxDist = 2.000001 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
-                    { nNode = [ 6, 4 ] flMinDist = 8.500037 flMaxDist = 8.500037 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
-                    { nNode = [ 7, 4 ] flMinDist = 8.732154 flMaxDist = 8.732154 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
-                    { nNode = [ 6, 5 ] flMinDist = 8.732168 flMaxDist = 8.732168 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
-                    { nNode = [ 7, 5 ] flMinDist = 8.500037 flMaxDist = 8.500037 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
-                    { nNode = [ 6, 7 ] flMinDist = 2.000001 flMaxDist = 2.000001 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
-                    { nNode = [ 0, 2 ] flMinDist = 8.499948 flMaxDist = 8.499948 flWeight0 = 0.0 flRelaxationFactor = 1.0 },
-                    { nNode = [ 0, 3 ] flMinDist = 8.646747 flMaxDist = 8.646747 flWeight0 = 0.0 flRelaxationFactor = 0.5 },
-                    { nNode = [ 0, 4 ] flMinDist = 16.995832 flMaxDist = 16.995832 flWeight0 = 0.0 flRelaxationFactor = 0.5 },
-                    { nNode = [ 0, 5 ] flMinDist = 17.073202 flMaxDist = 17.073202 flWeight0 = 0.0 flRelaxationFactor = 0.5 },
-                    { nNode = [ 0, 6 ] flMinDist = 25.49473 flMaxDist = 25.49473 flWeight0 = 0.0 flRelaxationFactor = 0.5 },
-                    { nNode = [ 0, 7 ] flMinDist = 25.546371 flMaxDist = 25.546371 flWeight0 = 0.0 flRelaxationFactor = 0.5 },
-                    { nNode = [ 1, 2 ] flMinDist = 8.732066 flMaxDist = 8.732066 flWeight0 = 0.0 flRelaxationFactor = 1.0 },
-                    { nNode = [ 1, 3 ] flMinDist = 8.412711 flMaxDist = 8.412711 flWeight0 = 0.0 flRelaxationFactor = 1.0 },
-                    { nNode = [ 1, 4 ] flMinDist = 17.06971 flMaxDist = 17.06971 flWeight0 = 0.0 flRelaxationFactor = 0.5 },
-                    { nNode = [ 1, 5 ] flMinDist = 16.912064 flMaxDist = 16.912064 flWeight0 = 0.0 flRelaxationFactor = 0.5 },
-                    { nNode = [ 1, 6 ] flMinDist = 25.516155 flMaxDist = 25.516155 flWeight0 = 0.0 flRelaxationFactor = 0.5 },
-                    { nNode = [ 1, 7 ] flMinDist = 25.410963 flMaxDist = 25.410963 flWeight0 = 0.0 flRelaxationFactor = 0.5 },
-                    { nNode = [ 2, 3 ] flMinDist = 2.0 flMaxDist = 2.0 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
-                    { nNode = [ 4, 2 ] flMinDist = 8.499931 flMaxDist = 8.499931 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
-                    { nNode = [ 5, 2 ] flMinDist = 8.735466 flMaxDist = 8.735466 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
-                    { nNode = [ 4, 3 ] flMinDist = 8.732044 flMaxDist = 8.732044 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
-                    { nNode = [ 5, 3 ] flMinDist = 8.503419 flMaxDist = 8.503419 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
-                    { nNode = [ 4, 5 ] flMinDist = 2.000001 flMaxDist = 2.000001 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
-                    { nNode = [ 6, 4 ] flMinDist = 8.500037 flMaxDist = 8.500037 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
-                    { nNode = [ 7, 4 ] flMinDist = 8.732154 flMaxDist = 8.732154 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
-                    { nNode = [ 6, 5 ] flMinDist = 8.732168 flMaxDist = 8.732168 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
-                    { nNode = [ 7, 5 ] flMinDist = 8.500037 flMaxDist = 8.500037 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
-                    { nNode = [ 6, 7 ] flMinDist = 2.000001 flMaxDist = 2.000001 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
-                    { nNode = [ 0, 2 ] flMinDist = 8.499948 flMaxDist = 8.499948 flWeight0 = 0.0 flRelaxationFactor = 1.0 },
-                    { nNode = [ 0, 3 ] flMinDist = 8.646747 flMaxDist = 8.646747 flWeight0 = 0.0 flRelaxationFactor = 1.0 },
-                    { nNode = [ 1, 2 ] flMinDist = 8.732066 flMaxDist = 8.732066 flWeight0 = 0.0 flRelaxationFactor = 0.5 },
-                    { nNode = [ 1, 3 ] flMinDist = 8.412711 flMaxDist = 8.412711 flWeight0 = 0.0 flRelaxationFactor = 0.5 },
-                    { nNode = [ 0, 2 ] flMinDist = 8.499948 flMaxDist = 8.499948 flWeight0 = 0.0 flRelaxationFactor = 0.5 },
-                    { nNode = [ 0, 3 ] flMinDist = 8.646747 flMaxDist = 8.646747 flWeight0 = 0.0 flRelaxationFactor = 1.0 },
-                    { nNode = [ 1, 2 ] flMinDist = 8.732066 flMaxDist = 8.732066 flWeight0 = 0.0 flRelaxationFactor = 0.5 },
-                    { nNode = [ 1, 3 ] flMinDist = 8.412711 flMaxDist = 8.412711 flWeight0 = 0.0 flRelaxationFactor = 0.5 },
-                    { nNode = [ 0, 2 ] flMinDist = 8.499948 flMaxDist = 8.499948 flWeight0 = 0.0 flRelaxationFactor = 0.5 },
-                    { nNode = [ 0, 3 ] flMinDist = 8.646747 flMaxDist = 8.646747 flWeight0 = 0.0 flRelaxationFactor = 0.5 },
-                    { nNode = [ 1, 2 ] flMinDist = 8.732066 flMaxDist = 8.732066 flWeight0 = 0.0 flRelaxationFactor = 0.5 },
-                    { nNode = [ 1, 3 ] flMinDist = 8.412711 flMaxDist = 8.412711 flWeight0 = 0.0 flRelaxationFactor = 0.5 },
-                ]
-            }
-            """;
+        private static string RepeatedSuspenderChainText => SyntheticCloth.Fixture("cloth_chain_repeated_suspender.kv3");
 
         /// <summary>
         /// Under chain version 1 a zero <c>stretch_spring</c> drops a joint's node base and <c>animated_length</c>
@@ -3094,26 +2239,16 @@ namespace Tests
         [Test]
         public async Task ABoneMergeFollowerNamesTheBoneWhoseTokenIsItsParentHash()
         {
-            var feModel = SyntheticCloth.Parse($$"""
-                {
-                    m_CtrlName = [ "coattail_0_L", "coattail_1_L", "coattail_2_L" ]
-                    m_SkelParents = [ -1, 0, 1 ]
-                    m_nNodeCount = 3
-                    m_nStaticNodes = 1
-                    m_NodeInvMasses = [ 0.0, 1.0, 1.0 ]
-                    m_InitPose =
-                    [
-                        {{SyntheticCloth.Pose(0f, 0f, 0f)}}
-                        {{SyntheticCloth.Pose(0f, 0f, -10f)}}
-                        {{SyntheticCloth.Pose(0f, 0f, -20f)}}
-                    ]
+            var feModel = SyntheticCloth.Model(
+                ["coattail_0_L", "coattail_1_L", "coattail_2_L"], staticNodes: 1, parents: [-1, 0, 1],
+                poses: [new(0f, 0f, 0f), new(0f, 0f, -10f), new(0f, 0f, -20f)],
+                body: $$"""
                     m_BoneMergeLinks =
                     [
                         { m_nParentHash = {{ValveResourceFormat.Utils.StringToken.Get("spine_2")}} m_nChildNode = 2 },
                         { m_nParentHash = 12345 m_nChildNode = 1 },
                     ]
-                }
-                """);
+                    """);
             feModel.SkeletonBoneNames = new HashSet<string>(["pelvis", "spine_2", "coattail_0_L", "coattail_1_L", "coattail_2_L"],
                 StringComparer.OrdinalIgnoreCase);
             var children = KVObject.Array();
@@ -3149,57 +2284,7 @@ namespace Tests
             }
         }
 
-        private const string SuspenderAtNaturalRelaxationText = """
-            {
-                m_CtrlName = [ "coattail_0_L", "$cccoattail_0_L_0", "coattail_1_L", "$cccoattail_1_L_0", "coattail_2_L", "$cccoattail_2_L_0", "coattail_end_L", "$cccoattail_end_L_0" ]
-                m_SkelParents = [ -1, 0, 0, 2, 2, 4, 4, 6 ]
-                m_nNodeCount = 8
-                m_nStaticNodes = 2
-                m_NodeInvMasses = [ 0.0, 0.0, 0.002328, 0.002343, 0.001772, 0.001774, 0.00178, 0.001781 ]
-                m_SourceElems = [ 0, 0, 0, 6, 5, 4, 6, 7, 4, 5, 7, 6, 3, 2, 4, 5, 2, 3, 5, 4, 1, 0, 2, 3, 0, 1, 3, 2 ]
-                m_InitPose =
-                [
-                    [ -8.915481, 4.000124, 65.447983, 1.0, 0.337553, -0.646323, -0.495776, -0.471731 ],
-                    [ -10.723646, 4.561181, 66.092773, 1.0, 0.337553, -0.646323, -0.495776, -0.471731 ],
-                    [ -11.695464, 4.267121, 57.419937, 1.0, -0.323373, 0.653533, 0.505948, 0.460804 ],
-                    [ -13.473376, 4.824905, 58.146507, 1.0, -0.323373, 0.653533, 0.505948, 0.460804 ],
-                    [ -14.808016, 4.637866, 49.519089, 1.0, -0.323943, 0.653251, 0.505547, 0.461245 ],
-                    [ -16.587204, 5.195801, 50.242416, 1.0, -0.323943, 0.653251, 0.505547, 0.461245 ],
-                    [ -17.907341, 5.004471, 41.612736, 1.0, -0.323943, 0.653251, 0.505547, 0.461245 ],
-                    [ -19.686529, 5.562407, 42.336063, 1.0, -0.323943, 0.653251, 0.505547, 0.461245 ],
-                ]
-                m_Rods =
-                [
-                    { nNode = [ 0, 2 ] flMinDist = 8.499948 flMaxDist = 8.499948 flWeight0 = 0.0 flRelaxationFactor = 1.0 },
-                    { nNode = [ 0, 3 ] flMinDist = 8.646747 flMaxDist = 8.646747 flWeight0 = 0.0 flRelaxationFactor = 1.0 },
-                    { nNode = [ 0, 4 ] flMinDist = 16.995832 flMaxDist = 16.995832 flWeight0 = 0.0 flRelaxationFactor = 1.0 },
-                    { nNode = [ 0, 5 ] flMinDist = 17.073202 flMaxDist = 17.073202 flWeight0 = 0.0 flRelaxationFactor = 1.0 },
-                    { nNode = [ 0, 6 ] flMinDist = 25.49473 flMaxDist = 25.49473 flWeight0 = 0.0 flRelaxationFactor = 1.0 },
-                    { nNode = [ 0, 7 ] flMinDist = 25.546371 flMaxDist = 25.546371 flWeight0 = 0.0 flRelaxationFactor = 1.0 },
-                    { nNode = [ 1, 2 ] flMinDist = 8.732066 flMaxDist = 8.732066 flWeight0 = 0.0 flRelaxationFactor = 1.0 },
-                    { nNode = [ 1, 3 ] flMinDist = 8.412711 flMaxDist = 8.412711 flWeight0 = 0.0 flRelaxationFactor = 1.0 },
-                    { nNode = [ 1, 4 ] flMinDist = 17.06971 flMaxDist = 17.06971 flWeight0 = 0.0 flRelaxationFactor = 1.0 },
-                    { nNode = [ 1, 5 ] flMinDist = 16.912064 flMaxDist = 16.912064 flWeight0 = 0.0 flRelaxationFactor = 1.0 },
-                    { nNode = [ 1, 6 ] flMinDist = 25.516155 flMaxDist = 25.516155 flWeight0 = 0.0 flRelaxationFactor = 1.0 },
-                    { nNode = [ 1, 7 ] flMinDist = 25.410963 flMaxDist = 25.410963 flWeight0 = 0.0 flRelaxationFactor = 1.0 },
-                    { nNode = [ 2, 3 ] flMinDist = 2.0 flMaxDist = 2.0 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
-                    { nNode = [ 4, 2 ] flMinDist = 8.499931 flMaxDist = 8.499931 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
-                    { nNode = [ 5, 2 ] flMinDist = 8.735466 flMaxDist = 8.735466 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
-                    { nNode = [ 4, 3 ] flMinDist = 8.732044 flMaxDist = 8.732044 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
-                    { nNode = [ 5, 3 ] flMinDist = 8.503419 flMaxDist = 8.503419 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
-                    { nNode = [ 4, 5 ] flMinDist = 2.000001 flMaxDist = 2.000001 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
-                    { nNode = [ 6, 4 ] flMinDist = 8.500037 flMaxDist = 8.500037 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
-                    { nNode = [ 7, 4 ] flMinDist = 8.732154 flMaxDist = 8.732154 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
-                    { nNode = [ 6, 5 ] flMinDist = 8.732168 flMaxDist = 8.732168 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
-                    { nNode = [ 7, 5 ] flMinDist = 8.500037 flMaxDist = 8.500037 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
-                    { nNode = [ 6, 7 ] flMinDist = 2.000001 flMaxDist = 2.000001 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
-                    { nNode = [ 0, 2 ] flMinDist = 8.499948 flMaxDist = 8.499948 flWeight0 = 0.0 flRelaxationFactor = 1.0 },
-                    { nNode = [ 0, 3 ] flMinDist = 8.646747 flMaxDist = 8.646747 flWeight0 = 0.0 flRelaxationFactor = 1.0 },
-                    { nNode = [ 1, 2 ] flMinDist = 8.732066 flMaxDist = 8.732066 flWeight0 = 0.0 flRelaxationFactor = 1.0 },
-                    { nNode = [ 1, 3 ] flMinDist = 8.412711 flMaxDist = 8.412711 flWeight0 = 0.0 flRelaxationFactor = 1.0 },
-                ]
-            }
-            """;
+        private static string SuspenderAtNaturalRelaxationText => SyntheticCloth.Fixture("cloth_chain_natural_suspender.kv3");
 
         /// <summary>
         /// Selections covering the same nodes at the same weights are aliases of one <c>ClothVertexMap</c>, whose
@@ -3348,26 +2433,14 @@ namespace Tests
         [Test]
         public async Task ALockedBackSolvedJointIsDeclaredAsAJointLock()
         {
-            var feModel = SyntheticCloth.Parse($$"""
-                {
-                    m_CtrlName = [ "root", "$cloth_m0p0", "locked_goal", "locked_parent", "goal_with_parent", "declared" ]
-                    m_SkelParents = [ -1, -1, -1, 2, 0, 4 ]
-                    m_nNodeCount = 6
-                    m_nStaticNodes = 3
-                    m_NodeInvMasses = [ 0.0, 0.0, 0.0, 1.0, 1.0, 1.0 ]
-                    m_InitPose =
-                    [
-                        {{SyntheticCloth.Pose(0f, 0f, 0f)}}
-                        {{SyntheticCloth.Pose(0f, 0f, -1f)}}
-                        {{SyntheticCloth.Pose(0f, 0f, -2f)}}
-                        {{SyntheticCloth.Pose(0f, 0f, -3f)}}
-                        {{SyntheticCloth.Pose(0f, 0f, -4f)}}
-                        {{SyntheticCloth.Pose(0f, 0f, -5f)}}
-                    ]
+            var feModel = SyntheticCloth.Model(
+                ["root", "$cloth_m0p0", "locked_goal", "locked_parent", "goal_with_parent", "declared"], staticNodes: 3,
+                    parents: [-1, -1, -1, 2, 0, 4],
+                poses: [new(0f, 0f, 0f), new(0f, 0f, -1f), new(0f, 0f, -2f), new(0f, 0f, -3f), new(0f, 0f, -4f), new(0f, 0f, -5f)],
+                body: """
                     m_LockToGoal = [ 1, 2 ]
                     m_LockToParent = [ { vOffset = [ 0.0, 0.0, -1.0 ] nCtrlParent = 2 nCtrlChild = 3 }, { vOffset = [ 0.0, 0.0, -1.0 ] nCtrlParent = 4 nCtrlChild = 5 } ]
-                }
-                """);
+                    """);
             var children = KVObject.Array();
             ClothExtract.AddClothJointLocks(children, feModel, static (_, name) => name != "declared");
 
@@ -3403,27 +2476,17 @@ namespace Tests
         private static readonly string[] DeclaredCapsules = ["spine_2_clothCapsule", "pelvis_clothCapsule"];
         private static readonly string[] ArrayOrderCapsules = ["pelvis_clothCapsule", "spine_2_clothCapsule"];
 
-        private static FeModel PriorityCapsules(string groups) => SyntheticCloth.Parse($$"""
-            {
-                m_CtrlName = [ "spine_2", "pelvis", "coattail_0_L" ]
-                m_SkelParents = [ -1, -1, -1 ]
-                m_nNodeCount = 3
-                m_nStaticNodes = 3
-                m_NodeInvMasses = [ 0.0, 0.0, 0.0 ]
-                m_InitPose =
-                [
-                    {{SyntheticCloth.Pose(0f, 0f, 40f)}}
-                    {{SyntheticCloth.Pose(0f, 0f, 30f)}}
-                    {{SyntheticCloth.Pose(-8f, 4f, 65f)}}
-                ]
+        private static FeModel PriorityCapsules(string groups) => SyntheticCloth.Model(
+            ["spine_2", "pelvis", "coattail_0_L"], staticNodes: 3, parents: [-1, -1, -1],
+            poses: [new(0f, 0f, 40f), new(0f, 0f, 30f), new(-8f, 4f, 65f)],
+            body: $$"""
                 m_TaperedCapsuleRigids =
                 [
                     { vSphere = [ [ 0.0, 0.0, -4.0, 4.0 ], [ 0.0, 0.0, 4.0, 4.0 ] ] nNode = 1 nCollisionMask = 15 nVertexMapIndex = 65535 nFlags = 0 },
                     { vSphere = [ [ 0.0, 0.0, -4.0, 4.0 ], [ 0.0, 0.0, 4.0, 4.0 ] ] nNode = 0 nCollisionMask = 15 nVertexMapIndex = 65535 nFlags = 0 },
                 ]
                 {{groups}}
-            }
-            """);
+                """);
 
         private static string VertexMapEntry(string name, uint hash, int offset, int vertexBase, int count, float volumetric = 0f)
             => $"{{ sName = \"{name}\" nNameHash = {hash} nVertexBase = {vertexBase} nVertexCount = {count} nMapOffset = {offset} "
@@ -3471,20 +2534,14 @@ namespace Tests
         private static FeModel.BoneChainJoint StaticRootJoint()
             => new() { Name = "coattail_0_L", Node = 0, ParentNode = -1, InvMass = 0f };
 
-        private static FeModel TwistPair(string toChild, string toRoot) => SyntheticCloth.Parse($$"""
-            {
-                m_CtrlName = [ "coattail_0_L", "coattail_1_L" ]
-                m_SkelParents = [ -1, 0 ]
-                m_nNodeCount = 2
-                m_nStaticNodes = 1
-                m_NodeInvMasses = [ 0.0, 1.0 ]
+        private static FeModel TwistPair(string toChild, string toRoot) => SyntheticCloth.Model(
+            ["coattail_0_L", "coattail_1_L"], staticNodes: 1, parents: [-1, 0], body: $$"""
                 m_Twists =
                 [
                     { nNodeOrient = 0 nNodeEnd = 1 flTwistRelax = {{toChild}} flSwingRelax = 1.0 },
                     { nNodeOrient = 1 nNodeEnd = 0 flTwistRelax = {{toRoot}} flSwingRelax = 0.0 },
                 ]
-            }
-            """);
+                """);
 
         /// <summary>
         /// A joint's <c>animated_length</c> routes its rods to <c>m_SimdRodsAnim</c> and does nothing else,
@@ -3539,27 +2596,17 @@ namespace Tests
             }
         }
 
-        private static FeModel SpringCopies(int copies) => SyntheticCloth.Parse($$"""
-            {
-                m_CtrlName = [ "root", "j1", "j2" ]
-                m_SkelParents = [ -1, 0, 1 ]
-                m_nNodeCount = 3
-                m_nStaticNodes = 1
-                m_NodeInvMasses = [ 0.0, 1.0, 1.0 ]
-                m_InitPose =
-                [
-                    {{SyntheticCloth.Pose(0f, 0f, 0f)}}
-                    {{SyntheticCloth.Pose(0f, 0f, -10f)}}
-                    {{SyntheticCloth.Pose(0f, 0f, -20f)}}
-                ]
+        private static FeModel SpringCopies(int copies) => SyntheticCloth.Model(
+            ["root", "j1", "j2"], staticNodes: 1, parents: [-1, 0, 1],
+            poses: [new(0f, 0f, 0f), new(0f, 0f, -10f), new(0f, 0f, -20f)],
+            body: $$"""
                 m_SourceElems = [ 0, 1, 0, 0, 2, 1 ]
                 m_Rods =
                 [
                     {{SyntheticCloth.RigidRod(0, 1, 10f, 1f)}}
                     {{string.Concat(Enumerable.Repeat(SyntheticCloth.RigidRod(1, 2, 10f, 0.5f), copies))}}
                 ]
-            }
-            """);
+                """);
 
         /// <summary>
         /// A compiled skeleton is a lossy re-expression of the pose the model was authored in, while the
@@ -3708,27 +2755,17 @@ namespace Tests
         private static readonly string[] ClusterTieMembers = ["j1", "j2"];
         private static readonly string[] ClusterTieControlClasses = ["ClothSpring", "ClothSpring"];
 
-        private static FeModel ClusterTieChain(int ties) => SyntheticCloth.Parse($$"""
-            {
-                m_CtrlName = [ "root", "j1", "j2" ]
-                m_SkelParents = [ -1, 0, 1 ]
-                m_nNodeCount = 3
-                m_nStaticNodes = 1
-                m_NodeInvMasses = [ 0.0, 1.0, 1.0 ]
-                m_InitPose =
-                [
-                    {{SyntheticCloth.Pose(0f, 0f, 0f)}}
-                    {{SyntheticCloth.Pose(0f, 0f, -10f)}}
-                    {{SyntheticCloth.Pose(0f, 0f, -20f)}}
-                ]
+        private static FeModel ClusterTieChain(int ties) => SyntheticCloth.Model(
+            ["root", "j1", "j2"], staticNodes: 1, parents: [-1, 0, 1],
+            poses: [new(0f, 0f, 0f), new(0f, 0f, -10f), new(0f, 0f, -20f)],
+            body: $$"""
                 m_Rods =
                 [
                     {{SyntheticCloth.RigidRod(0, 1, 10f, 1f)}}
                     {{SyntheticCloth.RigidRod(1, 2, 10f, 1f)}}
                     {{string.Concat(Enumerable.Repeat(SyntheticCloth.BandedRod(1, 2, 12f, 48f, 1f), ties))}}
                 ]
-            }
-            """);
+                """);
 
         /// <summary>
         /// From <c>chain.version</c> 1 on, the chain importer tops up a joint whose fit-influence table holds
@@ -3889,27 +2926,16 @@ namespace Tests
         [Test]
         public async Task AStaticClothNodeDeclaresThePresetItsNodeBaseCompiledFrom()
         {
-            var feModel = SyntheticCloth.Parse($$"""
-                {
-                    m_CtrlName = [ "spine", "hip", "pin", "a", "b", "c", "d" ]
-                    m_nNodeCount = 7
-                    m_nStaticNodes = 3
+            var feModel = SyntheticCloth.Model(
+                ["spine", "hip", "pin", "a", "b", "c", "d"], staticNodes: 3,
+                poses: [new(0f, 0f, 60f), new(0f, 0f, 40f), new(0f, 5f, 40f), new(-4f, 4f, 55f), new(-4f, -4f, 55f),
+                    new(-6f, 4f, 45f), new(-6f, -4f, 45f)],
+                body: $$"""
                     m_nRotLockStaticNodes = 2
-                    m_NodeInvMasses = [ 0.0, 0.0, 0.0, 1.0, 1.0, 1.0, 1.0 ]
                     m_Rods =
                     [
                         {{SyntheticCloth.RigidRod(2, 3, 15.56f, 1f)}}
                         {{SyntheticCloth.RigidRod(2, 4, 17.94f, 1f)}}
-                    ]
-                    m_InitPose =
-                    [
-                        {{SyntheticCloth.Pose(0f, 0f, 60f)}}
-                        {{SyntheticCloth.Pose(0f, 0f, 40f)}}
-                        {{SyntheticCloth.Pose(0f, 5f, 40f)}}
-                        {{SyntheticCloth.Pose(-4f, 4f, 55f)}}
-                        {{SyntheticCloth.Pose(-4f, -4f, 55f)}}
-                        {{SyntheticCloth.Pose(-6f, 4f, 45f)}}
-                        {{SyntheticCloth.Pose(-6f, -4f, 45f)}}
                     ]
                     m_NodeBases =
                     [
@@ -3918,8 +2944,7 @@ namespace Tests
                         { nNode = 2 nNodeX0 = 2 nNodeX1 = 3 nNodeY0 = 2 nNodeY1 = 4 },
                         { nNode = 3 nNodeX0 = 4 nNodeX1 = 3 nNodeY0 = 3 nNodeY1 = 5 },
                     ]
-                }
-                """);
+                    """);
 
             var spine = ClothExtract.MakeClothNode(feModel, "spine", 0, isStaticNode: true);
             var hip = ClothExtract.MakeClothNode(feModel, "hip", 1, isStaticNode: true);
@@ -3954,21 +2979,16 @@ namespace Tests
         [Test]
         public async Task AnEffectRecordingANodeIsDeclaredUnderThatStaticClothNode()
         {
-            var feModel = SyntheticCloth.Parse($$"""
-                {
-                    m_CtrlName = [ "spine_2", "coattail_0_L" ]
-                    m_SkelParents = [ -1, 0 ]
-                    m_nNodeCount = 2
-                    m_nStaticNodes = 2
-                    m_NodeInvMasses = [ 0.0, 0.0 ]
-                    m_InitPose = [ {{SyntheticCloth.Pose(0f, 0f, 0f)}} {{SyntheticCloth.Pose(0f, 0f, -10f)}} ]
+            var feModel = SyntheticCloth.Model(
+                ["spine_2", "coattail_0_L"], staticNodes: 2, parents: [-1, 0],
+                poses: [new(0f, 0f, 0f), new(0f, 0f, -10f)],
+                body: """
                     m_Effects =
                     [
                         { sName = "gravity0" nNameHash = 1 nType = 4 m_Params = { Node = 0 Strength = [ 0.353553, 0.353553, -0.0 ] } },
                         { sName = "gravity1" nNameHash = 2 nType = 4 m_Params = { Strength = [ 0.0, 0.0, -2.0 ] } },
                     ]
-                }
-                """);
+                    """);
             var (folder, folderChildren) = KVHelpers.MakeListNode("Folder");
             folderChildren.Add(EffectParentNode("spine_2", isStatic: true));
             var softbodyChildren = KVObject.Array();
@@ -4077,18 +3097,10 @@ namespace Tests
         [Test]
         public async Task AnEffectWhoseNodeHasNoStaticClothNodeGetsABareStaticOne()
         {
-            var feModel = SyntheticCloth.Parse($$"""
-                {
-                    m_CtrlName = [ "spine_2", "coattail_0_L", "coattail_1_L", "$cccoattail_1_L_0" ]
-                    m_SkelParents = [ -1, 0, 1, 2 ]
-                    m_nNodeCount = 4
-                    m_nStaticNodes = 2
-                    m_NodeInvMasses = [ 0.0, 0.0, 1.0, 1.0 ]
-                    m_InitPose =
-                    [
-                        {{SyntheticCloth.Pose(0f, 0f, 0f)}} {{SyntheticCloth.Pose(0f, 0f, -10f)}}
-                        {{SyntheticCloth.Pose(0f, 0f, -20f)}} {{SyntheticCloth.Pose(0f, 2f, -20f)}}
-                    ]
+            var feModel = SyntheticCloth.Model(
+                ["spine_2", "coattail_0_L", "coattail_1_L", "$cccoattail_1_L_0"], staticNodes: 2, parents: [-1, 0, 1, 2],
+                poses: [new(0f, 0f, 0f), new(0f, 0f, -10f), new(0f, 0f, -20f), new(0f, 2f, -20f)],
+                body: """
                     m_Effects =
                     [
                         { sName = "gravity_root" nNameHash = 1 nType = 4 m_Params = { Node = 1 Strength = [ 1.0, 0.0, 0.0 ] } },
@@ -4098,8 +3110,7 @@ namespace Tests
                         { sName = "gravity_top" nNameHash = 5 nType = 4 m_Params = { Strength = [ 1.0, 0.0, 0.0 ] } },
                         { sName = "gravity_generated" nNameHash = 6 nType = 4 m_Params = { Node = 3 Strength = [ 1.0, 0.0, 0.0 ] } },
                     ]
-                }
-                """);
+                    """);
             var softbodyChildren = KVObject.Array();
             softbodyChildren.Add(EffectParentNode("spine_2", isStatic: true));
             softbodyChildren.Add(EffectParentNode("coattail_1_L", isStatic: false));
@@ -4146,13 +3157,9 @@ namespace Tests
             var turned = bone * EntityTransformHelper.EulerAnglesToQuaternion(new Vector3(0f, 90f, 0f));
             static string RotatedPose(Quaternion q) => $"[ 0.0, 0.0, 0.0, 1.0, {SyntheticCloth.Num(q.X)}, "
                 + $"{SyntheticCloth.Num(q.Y)}, {SyntheticCloth.Num(q.Z)}, {SyntheticCloth.Num(q.W)} ],";
-            var feModel = SyntheticCloth.Parse($$"""
-                {
-                    m_CtrlName = [ "spine_2", "$cloth_node_node_spine", "$cloth_node_node_flat", "pelvis" ]
-                    m_SkelParents = [ -1, 0, 0, -1 ]
-                    m_nNodeCount = 4
-                    m_nStaticNodes = 4
-                    m_NodeInvMasses = [ 0.0, 0.0, 0.0, 0.0 ]
+            var feModel = SyntheticCloth.Model(
+                ["spine_2", "$cloth_node_node_spine", "$cloth_node_node_flat", "pelvis"], staticNodes: 4, parents: [-1, 0, 0, -1],
+                body: $$"""
                     m_InitPose = [ {{RotatedPose(bone)}} {{RotatedPose(turned)}} {{RotatedPose(bone)}} {{SyntheticCloth.Pose(0f, 0f, -5f)}} ]
                     m_CtrlOffsets =
                     [
@@ -4164,8 +3171,7 @@ namespace Tests
                         { sName = "gravity0" nNameHash = 1 nType = 4 m_Params = { Node = 0 Strength = [ -0.353553, 0.353553, 0.0 ] } },
                         { sName = "gravity1" nNameHash = 2 nType = 4 m_Params = { Node = 3 Strength = [ -0.353553, 0.353553, 0.0 ] } },
                     ]
-                }
-                """);
+                    """);
             var anchors = feModel.CtrlOffsets.ToDictionary(static offset => offset.CtrlChild);
             var rotatedFound = ClothExtract.TryResolveClothNodeAnchor(feModel, anchors, 1, out var rotatedRoot, out var rotatedOrigin,
                 out var rotatedAngles);
@@ -4274,25 +3280,14 @@ namespace Tests
         {
             const string ModelFileName = "chain_extrude_sides_1";
             var modelHash = ValveResourceFormat.Utils.StringToken.Get(ModelFileName);
-            string Body(string maps) => $$"""
-                {
-                    m_CtrlName = [ "root", "a", "b", "jiggle" ]
-                    m_SkelParents = [ -1, 0, 1, 0 ]
-                    m_nNodeCount = 4
-                    m_nStaticNodes = 1
-                    m_NodeInvMasses = [ 0.0, 1.0, 1.0, 1.0 ]
-                    m_InitPose =
-                    [
-                        {{SyntheticCloth.Pose(0f, 0f, 0f)}}
-                        {{SyntheticCloth.Pose(0f, 0f, -5f)}}
-                        {{SyntheticCloth.Pose(0f, 0f, -10f)}}
-                        {{SyntheticCloth.Pose(5f, 0f, 0f)}}
-                    ]
+            string Body(string maps) => SyntheticCloth.Document(
+                ["root", "a", "b", "jiggle"], staticNodes: 1, parents: [-1, 0, 1, 0],
+                poses: [new(0f, 0f, 0f), new(0f, 0f, -5f), new(0f, 0f, -10f), new(5f, 0f, 0f)],
+                body: $$"""
                     m_VertexSetNames = [ 0, {{modelHash}} ]
                     m_DynNodeVertexSet = [ 1, 1, 0 ]
                     {{maps}}
-                }
-                """;
+                    """);
             static string[] Names(FeModel feModel) => [.. feModel.VertexMaps.Select(static map => map.Name)];
 
             var defaultSet = SyntheticCloth.Parse(Body(string.Empty));
@@ -4321,22 +3316,12 @@ namespace Tests
         [Test]
         public async Task AChainModelWithAntiTunnelBytecodeDeclaresItsColliderGroup()
         {
-            static FeModel Model(string bytecode) => SyntheticCloth.Parse($$"""
-                {
-                    m_CtrlName = [ "spine_2", "coattail_0_L", "coattail_1_L" ]
-                    m_SkelParents = [ -1, -1, 1 ]
-                    m_nNodeCount = 3
-                    m_nStaticNodes = 2
-                    m_NodeInvMasses = [ 0.0, 0.0, 1.0 ]
-                    m_InitPose =
-                    [
-                        {{SyntheticCloth.Pose(0f, 0f, 0f)}}
-                        {{SyntheticCloth.Pose(0f, 5f, 0f)}}
-                        {{SyntheticCloth.Pose(0f, 5f, -8f)}}
-                    ]
+            static FeModel Model(string bytecode) => SyntheticCloth.Model(
+                ["spine_2", "coattail_0_L", "coattail_1_L"], staticNodes: 2, parents: [-1, -1, 1],
+                poses: [new(0f, 0f, 0f), new(0f, 5f, 0f), new(0f, 5f, -8f)],
+                body: $$"""
                     m_AntiTunnelBytecode = [ {{bytecode}} ]
-                }
-                """);
+                    """);
 
             var withBytecode = KVObject.Array();
             ClothExtract.AddClothAntiTunnelGroup(withBytecode, Model("131072, 805306368, 2, 131073, 196609"), ["spine_2_clothCapsule"],
@@ -4365,31 +3350,19 @@ namespace Tests
         [Test]
         public async Task ABendOverFreeClothNodesComesBackAsAStiffHinge()
         {
-            var feModel = SyntheticCloth.Parse($$"""
-                {
-                    m_CtrlName = [ "spine_2", "$cloth_node_hinge_n0", "$cloth_node_hinge_n1", "$cloth_node_hinge_n2", "coattail_0_L", "coattail_1_L", "coattail_2_L" ]
-                    m_SkelParents = [ -1, 0, 0, 0, -1, 4, 5 ]
-                    m_nNodeCount = 7
-                    m_nStaticNodes = 3
-                    m_NodeInvMasses = [ 0.0, 0.0, 0.0, 1.0, 0.0, 1.0, 1.0 ]
-                    m_InitPose =
-                    [
-                        {{SyntheticCloth.Pose(0f, 0f, 0f)}}
-                        {{SyntheticCloth.Pose(0f, 0f, -4f)}}
-                        {{SyntheticCloth.Pose(0f, 0f, -8f)}}
-                        {{SyntheticCloth.Pose(0f, 0f, -12f)}}
-                        {{SyntheticCloth.Pose(0f, 5f, 0f)}}
-                        {{SyntheticCloth.Pose(0f, 5f, -8f)}}
-                        {{SyntheticCloth.Pose(0f, 5f, -16f)}}
-                    ]
+            var feModel = SyntheticCloth.Model(
+                ["spine_2", "$cloth_node_hinge_n0", "$cloth_node_hinge_n1", "$cloth_node_hinge_n2", "coattail_0_L", "coattail_1_L", "coattail_2_L"],
+                    staticNodes: 3, parents: [-1, 0, 0, 0, -1, 4, 5], invMasses: "0.0, 0.0, 0.0, 1.0, 0.0, 1.0, 1.0",
+                poses: [new(0f, 0f, 0f), new(0f, 0f, -4f), new(0f, 0f, -8f), new(0f, 0f, -12f), new(0f, 5f, 0f), new(0f, 5f, -8f),
+                    new(0f, 5f, -16f)],
+                body: """
                     m_KelagerBends =
                     [
                         { flWeight = [ -0.0, 1.0, 2.0 ] flHeight0 = 1.652419 nNode = [ 1, 2, 3 ] nReserved = 0 },
                         { flWeight = [ -0.0, 1.0, 2.0 ] flHeight0 = 2.981424 nNode = [ 1, 2, 3 ] nReserved = 0 },
                         { flWeight = [ -2.0, 1.0, 1.0 ] flHeight0 = 0.5 nNode = [ 5, 4, 6 ] nReserved = 0 },
                     ]
-                }
-                """);
+                    """);
 
             var softbodyChildren = KVObject.Array();
             ClothExtract.AddClothStiffHinges(softbodyChildren, feModel);
@@ -4419,19 +3392,12 @@ namespace Tests
         [Test]
         public async Task AJiggleBoneModelKeepsTheClothParamsItsIterationCountsRecord()
         {
-            static FeModel Model(int extraIterations, string jiggleBones) => SyntheticCloth.Parse($$"""
-                {
-                    m_CtrlName = [ "tophat" ]
-                    m_SkelParents = [ -1 ]
-                    m_nNodeCount = 1
-                    m_nStaticNodes = 0
-                    m_NodeInvMasses = [ 1.0 ]
-                    m_InitPose = [ {{SyntheticCloth.Pose(0f, 0f, 60f)}} ]
+            static FeModel Model(int extraIterations, string jiggleBones) => SyntheticCloth.Model(
+                ["tophat"], staticNodes: 0, parents: [-1], poses: [new(0f, 0f, 60f)], body: $$"""
                     m_nExtraIterations = {{extraIterations}}
                     m_nExtraGoalIterations = {{extraIterations}}
                     m_JiggleBones = [ {{jiggleBones}} ]
-                }
-                """);
+                    """);
             const string Jiggle = "{ m_nNode = 0 m_nJiggleParent = 0 m_jiggleBone = { m_nFlags = 38 m_flLength = 5.0 } },";
 
             using (Assert.Multiple())
@@ -4451,25 +3417,14 @@ namespace Tests
         [Test]
         public async Task TheUnnamedJiggleBoneVertexSetIsNotRedeclared()
         {
-            string Body(string maps) => $$"""
-                {
-                    m_CtrlName = [ "root", "a", "b", "jiggle" ]
-                    m_SkelParents = [ -1, 0, 1, 0 ]
-                    m_nNodeCount = 4
-                    m_nStaticNodes = 1
-                    m_NodeInvMasses = [ 0.0, 1.0, 1.0, 1.0 ]
-                    m_InitPose =
-                    [
-                        {{SyntheticCloth.Pose(0f, 0f, 0f)}}
-                        {{SyntheticCloth.Pose(0f, 0f, -5f)}}
-                        {{SyntheticCloth.Pose(0f, 0f, -10f)}}
-                        {{SyntheticCloth.Pose(5f, 0f, 0f)}}
-                    ]
+            string Body(string maps) => SyntheticCloth.Document(
+                ["root", "a", "b", "jiggle"], staticNodes: 1, parents: [-1, 0, 1, 0],
+                poses: [new(0f, 0f, 0f), new(0f, 0f, -5f), new(0f, 0f, -10f), new(5f, 0f, 0f)],
+                body: $$"""
                     m_VertexSetNames = [ 0, 91207372 ]
                     m_DynNodeVertexSet = [ 1, 1, 0 ]
                     {{maps}}
-                }
-                """;
+                    """);
             static string[] Names(FeModel feModel) => [.. feModel.VertexMaps.Select(static map => map.Name)];
 
             var rebuilt = SyntheticCloth.Parse(Body(string.Empty));
@@ -4494,22 +3449,12 @@ namespace Tests
         [Test]
         public async Task ALockBesidePresetBasesIsDeclaredAsARigidCloudCluster()
         {
-            static FeModel Model(string locks) => SyntheticCloth.Parse($$"""
-                {
-                    m_CtrlName = [ "coattail_0_L", "coattail_1_L", "coattail_1_R" ]
-                    m_SkelParents = [ -1, 0, 0 ]
-                    m_nNodeCount = 3
-                    m_nStaticNodes = 1
-                    m_NodeInvMasses = [ 0.0, 1.0, 1.0 ]
-                    m_InitPose =
-                    [
-                        {{SyntheticCloth.Pose(0f, 0f, 60f)}}
-                        {{SyntheticCloth.Pose(0f, 4f, 52f)}}
-                        {{SyntheticCloth.Pose(0f, -4f, 52f)}}
-                    ]
+            static FeModel Model(string locks) => SyntheticCloth.Model(
+                ["coattail_0_L", "coattail_1_L", "coattail_1_R"], staticNodes: 1, parents: [-1, 0, 0],
+                poses: [new(0f, 0f, 60f), new(0f, 4f, 52f), new(0f, -4f, 52f)],
+                body: $$"""
                     m_LockToGoal = [ {{locks}} ]
-                }
-                """);
+                    """);
             var chain = new FeModel.BoneChain { RootBone = "coattail_0_L" };
             chain.Joints.Add(new FeModel.BoneChainJoint { Node = 0, Name = "coattail_0_L", ParentNode = -1 });
             chain.Joints.Add(new FeModel.BoneChainJoint { Node = 1, Name = "coattail_1_L", ParentNode = 0, ParentName = "coattail_0_L", InvMass = 1f });
@@ -4801,43 +3746,17 @@ namespace Tests
         [Test]
         public async Task FlexClothBordersNeedsItsFreedPinsToCarryNodeBases()
         {
-            static FeModel Model(string bases) => SyntheticCloth.Parse($$"""
-                {
-                    m_CtrlName = [ "$cloth_m0p0", "$cloth_m0p1", "$cloth_m0p2", "$cloth_m0p3" ]
-                    m_SkelParents = [ -1, -1, 0, 1 ]
-                    m_nNodeCount = 4
-                    m_nStaticNodes = 2
+            static FeModel Model(string bases) => SyntheticCloth.Model(
+                ["$cloth_m0p0", "$cloth_m0p1", "$cloth_m0p2", "$cloth_m0p3"], staticNodes: 2, parents: [-1, -1, 0, 1],
+                poses: [new(0f, 0f, 0f), new(0f, 2f, 0f), new(0f, 0f, -8f), new(0f, 2f, -8f)],
+                body: $$"""
                     m_nRotLockStaticNodes = 0
-                    m_NodeInvMasses = [ 0.0, 0.0, 1.0, 1.0 ]
-                    m_InitPose =
-                    [
-                        {{SyntheticCloth.Pose(0f, 0f, 0f)}}
-                        {{SyntheticCloth.Pose(0f, 2f, 0f)}}
-                        {{SyntheticCloth.Pose(0f, 0f, -8f)}}
-                        {{SyntheticCloth.Pose(0f, 2f, -8f)}}
-                    ]
                     m_NodeBases = [ {{bases}} ]
-                }
-                """);
+                    """);
             static string Base(int node)
                 => $"{{ nNode = {node} nDummy = [ 0, 0, 0 ] nNodeX0 = 2 nNodeX1 = 3 nNodeY0 = 0 nNodeY1 = 1 qAdjust = [ 0.0, 0.0, 0.0, 1.0 ] }},";
-            static FeModel.ProxyMesh Sheet(List<int[]> faces) => new()
-            {
-                NodeIndices = [0, 1, 2, 3],
-                Positions = [new(0f, 0f, 0f), new(0f, 2f, 0f), new(0f, 0f, -8f), new(0f, 2f, -8f)],
-                ClothEnable = [0f, 0f, 1f, 1f],
-                GoalStrength = new float[4],
-                GoalDamping = new float[4],
-                CollisionRadius = new float[4],
-                Friction = new float[4],
-                Drag = new float[4],
-                GroundCollision = new float[4],
-                GroundFriction = new float[4],
-                Gravity = new float[4],
-                VertexAttraction = new float[4],
-                SkinInfluences = [[], [], [], []],
-                Faces = faces,
-            };
+            static FeModel.ProxyMesh Sheet(List<int[]> faces) => SyntheticCloth.Proxy([0, 1, 2, 3], [0f, 0f, 1f, 1f], faces,
+                [new(0f, 0f, 0f), new(0f, 2f, 0f), new(0f, 0f, -8f), new(0f, 2f, -8f)]);
 
             var quad = Sheet([[0, 1, 3, 2]]);
             var painted = Model(string.Empty);
@@ -4860,25 +3779,13 @@ namespace Tests
         [Test]
         public async Task TheQuadBendToleranceIsReadOffTheSplit()
         {
-            static FeModel Model(float bend, string rods) => SyntheticCloth.Parse($$"""
-                {
-                    m_CtrlName = [ "root", "$cloth_m0p0", "$cloth_m0p1", "$cloth_m0p2", "$cloth_m0p3" ]
-                    m_SkelParents = [ -1, 0, 0, 0, 0 ]
-                    m_nNodeCount = 5
-                    m_nStaticNodes = 1
-                    m_NodeInvMasses = [ 0.0, 1.0, 1.0, 1.0, 1.0 ]
-                    m_InitPose =
-                    [
-                        {{SyntheticCloth.Pose(0f, 0f, 10f)}}
-                        {{SyntheticCloth.Pose(0f, 0f, 0f)}}
-                        {{SyntheticCloth.Pose(2f, 0f, bend)}}
-                        {{SyntheticCloth.Pose(2f, 3f, 0f)}}
-                        {{SyntheticCloth.Pose(0f, 3f, 0f)}}
-                    ]
+            static FeModel Model(float bend, string rods) => SyntheticCloth.Model(
+                ["root", "$cloth_m0p0", "$cloth_m0p1", "$cloth_m0p2", "$cloth_m0p3"], staticNodes: 1, parents: [-1, 0, 0, 0, 0],
+                poses: [new(0f, 0f, 10f), new(0f, 0f, 0f), new(2f, 0f, bend), new(2f, 3f, 0f), new(0f, 3f, 0f)],
+                body: $$"""
                     m_Tris = [ { nNode = [ 1, 2, 3 ] }, { nNode = [ 1, 3, 4 ] } ]
                     m_Rods = [ {{rods}} ]
-                }
-                """);
+                    """);
 
             var rod = SyntheticCloth.RigidRod(2, 4, 3.6056f, 1f);
             var nearlyPlanar = Model(0.01f, rod);
@@ -4983,29 +3890,15 @@ namespace Tests
                     + " nTargetNode = " + ((joint * 3) + 1 + side) + " }, "))
                 : string.Empty;
 
-            return SyntheticCloth.Parse($$"""
-                {
-                    m_CtrlName = [ "j0", "$ccj0_0", "$ccj0_1", "j1", "$ccj1_0", "$ccj1_1", "j2", "$ccj2_0", "$ccj2_1" ]
-                    m_SkelParents = [ -1, 0, 0, 0, 3, 3, 3, 6, 6 ]
-                    m_nNodeCount = 9
-                    m_nStaticNodes = 0
-                    m_NodeInvMasses = [ 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0 ]
-                    m_InitPose =
-                    [
-                        {{SyntheticCloth.Pose(0f, 0f, 0f)}}
-                        {{SyntheticCloth.Pose(0f, 2f, 0f)}}
-                        {{SyntheticCloth.Pose(0f, -2f, 0f)}}
-                        {{SyntheticCloth.Pose(-8.5f, 0f, 0f)}}
-                        {{SyntheticCloth.Pose(-8.5f, 2f, 0f)}}
-                        {{SyntheticCloth.Pose(-8.5f, -2f, 0f)}}
-                        {{SyntheticCloth.Pose(-17f, 0f, 0f)}}
-                        {{SyntheticCloth.Pose(-17f, 2f, 0f)}}
-                        {{SyntheticCloth.Pose(-17f, -2f, 0f)}}
-                    ]
+            return SyntheticCloth.Model(
+                ["j0", "$ccj0_0", "$ccj0_1", "j1", "$ccj1_0", "$ccj1_1", "j2", "$ccj2_0", "$ccj2_1"], staticNodes: 0,
+                    parents: [-1, 0, 0, 0, 3, 3, 3, 6, 6],
+                poses: [new(0f, 0f, 0f), new(0f, 2f, 0f), new(0f, -2f, 0f), new(-8.5f, 0f, 0f), new(-8.5f, 2f, 0f),
+                    new(-8.5f, -2f, 0f), new(-17f, 0f, 0f), new(-17f, 2f, 0f), new(-17f, -2f, 0f)],
+                body: $$"""
                     m_SourceElems = [ 1, 2, 5, 4, 4, 5, 8, 7 ]
                     m_ReverseOffsets = [ {{offsets}} ]
-                }
-                """);
+                    """);
         }
 
         /// <summary>
@@ -5034,25 +3927,12 @@ namespace Tests
             }
         }
 
-        private static FeModel ThreeHubRigidSheet(float firstHeight, float secondHeight) => SyntheticCloth.Parse($$"""
-            {
-                m_CtrlName = [ "root", "$cloth_m0p0", "$cloth_m0p1", "$cloth_m0p2", "$cloth_m0p3", "$cloth_m0p4", "$cloth_m0p5", "$cloth_m0p6", "$cloth_m0p7", "$cloth_m0p8" ]
-                m_nNodeCount = 10
-                m_nStaticNodes = 1
-                m_NodeInvMasses = [ 0.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0 ]
-                m_InitPose =
-                [
-                    {{SyntheticCloth.Pose(0f, 0f, 0f)}}
-                    {{SyntheticCloth.Pose(0f, 0f, 0f)}}
-                    {{SyntheticCloth.Pose(10f, 0f, 0f)}}
-                    {{SyntheticCloth.Pose(-10f, 0f, 0f)}}
-                    {{SyntheticCloth.Pose(0f, 0f, -20f)}}
-                    {{SyntheticCloth.Pose(10f, 0f, -20f)}}
-                    {{SyntheticCloth.Pose(-10f, 0f, -20f)}}
-                    {{SyntheticCloth.Pose(0f, 0f, -40f)}}
-                    {{SyntheticCloth.Pose(10f, 0f, -40f)}}
-                    {{SyntheticCloth.Pose(-10f, 0f, -40f)}}
-                ]
+        private static FeModel ThreeHubRigidSheet(float firstHeight, float secondHeight) => SyntheticCloth.Model(
+            ["root", "$cloth_m0p0", "$cloth_m0p1", "$cloth_m0p2", "$cloth_m0p3", "$cloth_m0p4", "$cloth_m0p5", "$cloth_m0p6", "$cloth_m0p7", "$cloth_m0p8"],
+                staticNodes: 1,
+            poses: [new(0f, 0f, 0f), new(0f, 0f, 0f), new(10f, 0f, 0f), new(-10f, 0f, 0f), new(0f, 0f, -20f), new(10f, 0f, -20f),
+                new(-10f, 0f, -20f), new(0f, 0f, -40f), new(10f, 0f, -40f), new(-10f, 0f, -40f)],
+            body: $$"""
                 m_AxialEdges = [ { nNode = [ 1, 2, 3, 3, 2, 1 ] }, ]
                 m_KelagerBends =
                 [
@@ -5060,8 +3940,7 @@ namespace Tests
                     { nNode = [ 4, 5, 6 ] flWeight = [ -1.0, 0.5, 0.5 ] flHeight0 = {{SyntheticCloth.Num(secondHeight)}} },
                     { nNode = [ 7, 8, 9 ] flWeight = [ -1.0, 0.5, 0.5 ] flHeight0 = 0.0 },
                 ]
-            }
-            """);
+                """);
 
         /// <summary>
         /// A proxy sheet painted with one <c>cloth_stretch</c> of 0.5 compiles every face rod, edges and diagonals
@@ -5087,21 +3966,12 @@ namespace Tests
             }
         }
 
-        private static FeModel StretchQuad(float edge, float diagonal) => SyntheticCloth.Parse($$"""
-            {
-                m_CtrlName = [ "$cloth_m0p0", "$cloth_m0p1", "$cloth_m0p2", "$cloth_m0p3" ]
-                m_nNodeCount = 4
-                m_nStaticNodes = 0
-                m_NodeInvMasses = [ 1.0, 1.0, 1.0, 1.0 ]
+        private static FeModel StretchQuad(float edge, float diagonal) => SyntheticCloth.Model(
+            ["$cloth_m0p0", "$cloth_m0p1", "$cloth_m0p2", "$cloth_m0p3"], staticNodes: 0,
+            poses: [new(0f, 0f, 0f), new(10f, 0f, 0f), new(10f, 0f, -10f), new(0f, 0f, -10f)],
+            body: $$"""
                 m_flDefaultSurfaceStretch = 0.0
                 m_SourceElems = [ 0, 0, 0, 1, 0, 1, 2, 3 ]
-                m_InitPose =
-                [
-                    {{SyntheticCloth.Pose(0f, 0f, 0f)}}
-                    {{SyntheticCloth.Pose(10f, 0f, 0f)}}
-                    {{SyntheticCloth.Pose(10f, 0f, -10f)}}
-                    {{SyntheticCloth.Pose(0f, 0f, -10f)}}
-                ]
                 m_Rods =
                 [
                     { nNode = [ 0, 1 ] flMaxDist = 10.0 flMinDist = 7.5 flWeight0 = 0.5 flRelaxationFactor = {{SyntheticCloth.Num(edge)}} },
@@ -5111,8 +3981,7 @@ namespace Tests
                     { nNode = [ 0, 2 ] flMaxDist = 14.142136 flMinDist = 10.606602 flWeight0 = 0.5 flRelaxationFactor = {{SyntheticCloth.Num(diagonal)}} },
                     { nNode = [ 1, 3 ] flMaxDist = 14.142136 flMinDist = 10.606602 flWeight0 = 0.5 flRelaxationFactor = {{SyntheticCloth.Num(diagonal)}} },
                 ]
-            }
-            """);
+                """);
 
         /// <summary>
         /// A bend network whose hinges fold apart carries every fold in its <c>cloth_bend_stiffness</c> paint. The strip's
@@ -5147,23 +4016,12 @@ namespace Tests
             }
         }
 
-        private static FeModel FoldStrip(float firstHingeMinDist, float secondHingeMinDist) => SyntheticCloth.Parse($$"""
-            {
-                m_CtrlName = [ "$cloth_m0p0", "$cloth_m0p1", "$cloth_m0p2", "$cloth_m0p3", "$cloth_m0p4", "$cloth_m0p5", "$cloth_m0p6", "$cloth_m0p7" ]
-                m_nNodeCount = 8
-                m_nStaticNodes = 0
-                m_NodeInvMasses = [ 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0 ]
-                m_InitPose =
-                [
-                    {{SyntheticCloth.Pose(0f, 0f, 0f)}}
-                    {{SyntheticCloth.Pose(10f, 0f, 0f)}}
-                    {{SyntheticCloth.Pose(20f, 0f, 0f)}}
-                    {{SyntheticCloth.Pose(30f, 0f, 0f)}}
-                    {{SyntheticCloth.Pose(0f, 0f, -10f)}}
-                    {{SyntheticCloth.Pose(10f, 0f, -10f)}}
-                    {{SyntheticCloth.Pose(20f, 0f, -10f)}}
-                    {{SyntheticCloth.Pose(30f, 0f, -10f)}}
-                ]
+        private static FeModel FoldStrip(float firstHingeMinDist, float secondHingeMinDist) => SyntheticCloth.Model(
+            ["$cloth_m0p0", "$cloth_m0p1", "$cloth_m0p2", "$cloth_m0p3", "$cloth_m0p4", "$cloth_m0p5", "$cloth_m0p6", "$cloth_m0p7"],
+                staticNodes: 0,
+            poses: [new(0f, 0f, 0f), new(10f, 0f, 0f), new(20f, 0f, 0f), new(30f, 0f, 0f), new(0f, 0f, -10f), new(10f, 0f, -10f),
+                new(20f, 0f, -10f), new(30f, 0f, -10f)],
+            body: $$"""
                 m_Rods =
                 [
                     { nNode = [ 0, 2 ] flMaxDist = 20.0 flMinDist = {{SyntheticCloth.Num(firstHingeMinDist)}} flWeight0 = 0.5 flRelaxationFactor = 1.0 },
@@ -5171,8 +4029,7 @@ namespace Tests
                     { nNode = [ 1, 3 ] flMaxDist = 20.0 flMinDist = {{SyntheticCloth.Num(secondHingeMinDist)}} flWeight0 = 0.5 flRelaxationFactor = 1.0 },
                     { nNode = [ 5, 7 ] flMaxDist = 20.0 flMinDist = {{SyntheticCloth.Num(secondHingeMinDist)}} flWeight0 = 0.5 flRelaxationFactor = 1.0 },
                 ]
-            }
-            """);
+                """);
 
         /// <summary>
         /// A bend rod that several hinges generate keeps the shortest minimum any of them builds, so it states the fold of
@@ -5199,27 +4056,13 @@ namespace Tests
             }
         }
 
-        private static FeModel LeastFoldedHingeGrid => SyntheticCloth.Parse($$"""
-            {
-                m_CtrlName = [ "$cloth_m0p0", "$cloth_m0p1", "$cloth_m0p2", "$cloth_m0p3", "$cloth_m0p4", "$cloth_m0p5", "$cloth_m0p6", "$cloth_m0p7", "$cloth_m0p8", "$cloth_m0p9", "$cloth_m0p10", "$cloth_m0p11" ]
-                m_nNodeCount = 12
-                m_nStaticNodes = 0
-                m_NodeInvMasses = [ 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0 ]
-                m_InitPose =
-                [
-                    {{SyntheticCloth.Pose(0f, 0f, 0f)}}
-                    {{SyntheticCloth.Pose(10f, 0f, 0f)}}
-                    {{SyntheticCloth.Pose(20f, 0f, 0f)}}
-                    {{SyntheticCloth.Pose(30f, 0f, 0f)}}
-                    {{SyntheticCloth.Pose(0f, 0f, -10f)}}
-                    {{SyntheticCloth.Pose(10f, 0f, -10f)}}
-                    {{SyntheticCloth.Pose(20f, 0f, -10f)}}
-                    {{SyntheticCloth.Pose(30f, 0f, -10f)}}
-                    {{SyntheticCloth.Pose(0f, 0f, -20f)}}
-                    {{SyntheticCloth.Pose(10f, 0f, -20f)}}
-                    {{SyntheticCloth.Pose(20f, 0f, -20f)}}
-                    {{SyntheticCloth.Pose(30f, 0f, -20f)}}
-                ]
+        private static FeModel LeastFoldedHingeGrid => SyntheticCloth.Model(
+            ["$cloth_m0p0", "$cloth_m0p1", "$cloth_m0p2", "$cloth_m0p3", "$cloth_m0p4", "$cloth_m0p5", "$cloth_m0p6", "$cloth_m0p7", "$cloth_m0p8", "$cloth_m0p9", "$cloth_m0p10", "$cloth_m0p11"],
+                staticNodes: 0,
+            poses: [new(0f, 0f, 0f), new(10f, 0f, 0f), new(20f, 0f, 0f), new(30f, 0f, 0f), new(0f, 0f, -10f), new(10f, 0f, -10f),
+                new(20f, 0f, -10f), new(30f, 0f, -10f), new(0f, 0f, -20f), new(10f, 0f, -20f), new(20f, 0f, -20f),
+                new(30f, 0f, -20f)],
+            body: """
                 m_Rods =
                 [
                     { nNode = [ 0, 2 ] flMaxDist = 20.0 flMinDist = 3.901806 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
@@ -5233,8 +4076,7 @@ namespace Tests
                     { nNode = [ 2, 10 ] flMaxDist = 20.0 flMinDist = 7.653669 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
                     { nNode = [ 3, 11 ] flMaxDist = 20.0 flMinDist = 7.653669 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
                 ]
-            }
-            """);
+                """);
 
         /// <summary>
         /// A painted <c>cloth_mass</c> gradient reads back from the shipped inverse masses only to their float32 step, while
@@ -5606,20 +4448,10 @@ namespace Tests
             }
         }
 
-        private static FeModel RopeHinted(string hint2, string hint3) => SyntheticCloth.Parse($$"""
-            {
-                m_CtrlName = [ "root", "j1", "j2", "j3" ]
-                m_SkelParents = [ -1, 0, 1, 2 ]
-                m_nNodeCount = 4
-                m_nStaticNodes = 2
-                m_NodeInvMasses = [ 0.0, 0.0, 1.0, 1.0 ]
-                m_InitPose =
-                [
-                    {{SyntheticCloth.Pose(0f, 0f, 0f)}}
-                    {{SyntheticCloth.Pose(0f, 0f, -10f)}}
-                    {{SyntheticCloth.Pose(0f, 0f, -20f)}}
-                    {{SyntheticCloth.Pose(0f, 0f, -30f)}}
-                ]
+        private static FeModel RopeHinted(string hint2, string hint3) => SyntheticCloth.Model(
+            ["root", "j1", "j2", "j3"], staticNodes: 2, parents: [-1, 0, 1, 2],
+            poses: [new(0f, 0f, 0f), new(0f, 0f, -10f), new(0f, 0f, -20f), new(0f, 0f, -30f)],
+            body: $$"""
                 m_nRopeCount = 1
                 m_Ropes = [ 4, 1, 2, 3 ]
                 m_DynNodeWindBases =
@@ -5627,8 +4459,7 @@ namespace Tests
                     { {{hint2}} },
                     { {{hint3}} },
                 ]
-            }
-            """);
+                """);
 
         /// <summary>
         /// A two-sided chain's leaf joint sits in none of its rings' elements, so the bulk grade never bases it, and
@@ -5672,30 +4503,16 @@ namespace Tests
             return chain;
         }
 
-        private static FeModel TwoSidedStrip(string nodeBases, string reverseOffsets) => SyntheticCloth.Parse($$"""
-            {
-                m_CtrlName = [ "root", "$ccroot_0", "$ccroot_1", "j1", "$ccj1_0", "$ccj1_1", "j2", "$ccj2_0", "$ccj2_1" ]
-                m_SkelParents = [ -1, 0, 0, 0, 3, 3, 3, 6, 6 ]
-                m_nNodeCount = 9
-                m_nStaticNodes = 3
-                m_NodeInvMasses = [ 0.0, 0.0, 0.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0 ]
-                m_InitPose =
-                [
-                    {{SyntheticCloth.Pose(0f, 0f, 0f)}}
-                    {{SyntheticCloth.Pose(3f, 0f, 0f)}}
-                    {{SyntheticCloth.Pose(-3f, 0f, 0f)}}
-                    {{SyntheticCloth.Pose(0f, 0f, -10f)}}
-                    {{SyntheticCloth.Pose(3f, 0f, -10f)}}
-                    {{SyntheticCloth.Pose(-3f, 0f, -10f)}}
-                    {{SyntheticCloth.Pose(0f, 0f, -20f)}}
-                    {{SyntheticCloth.Pose(3f, 0f, -20f)}}
-                    {{SyntheticCloth.Pose(-3f, 0f, -20f)}}
-                ]
+        private static FeModel TwoSidedStrip(string nodeBases, string reverseOffsets) => SyntheticCloth.Model(
+            ["root", "$ccroot_0", "$ccroot_1", "j1", "$ccj1_0", "$ccj1_1", "j2", "$ccj2_0", "$ccj2_1"], staticNodes: 3,
+                parents: [-1, 0, 0, 0, 3, 3, 3, 6, 6],
+            poses: [new(0f, 0f, 0f), new(3f, 0f, 0f), new(-3f, 0f, 0f), new(0f, 0f, -10f), new(3f, 0f, -10f), new(-3f, 0f, -10f),
+                new(0f, 0f, -20f), new(3f, 0f, -20f), new(-3f, 0f, -20f)],
+            body: $$"""
                 m_SourceElems = [ 0, 0, 0, 2, 1, 2, 5, 4, 4, 5, 8, 7 ]
                 m_NodeBases = [ {{nodeBases}} ]
                 m_ReverseOffsets = [ {{reverseOffsets}} ]
-            }
-            """);
+                """);
 
         /// <summary>
         /// A version-2 preset over a one-wide joint scans only the joint, its ring, its child and the child's ring, so an
@@ -5888,13 +4705,10 @@ namespace Tests
                 ? "{ nNode = 0 nNodeX0 = 4 nNodeX1 = 2 nNodeY0 = 1 nNodeY1 = 5 }, { nNode = 3 nNodeX0 = 7 nNodeX1 = 5 nNodeY0 = 4 nNodeY1 = 8 }"
                 : string.Empty;
 
-            return SyntheticCloth.Parse($$"""
-                {
-                    m_CtrlName = [ "j0", "$ccj0_0", "$ccj0_1", "j1", "$ccj1_0", "$ccj1_1", "j2", "$ccj2_0", "$ccj2_1" ]
-                    m_SkelParents = [ -1, 0, 0, 0, 3, 3, 3, 6, 6 ]
-                    m_nNodeCount = 9
-                    m_nStaticNodes = 0
-                    m_NodeInvMasses = [ 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0 ]
+            return SyntheticCloth.Model(
+                ["j0", "$ccj0_0", "$ccj0_1", "j1", "$ccj1_0", "$ccj1_1", "j2", "$ccj2_0", "$ccj2_1"], staticNodes: 0,
+                    parents: [-1, 0, 0, 0, 3, 3, 3, 6, 6],
+                body: $$"""
                     m_InitPose =
                     [
                         {{Pose(0f, 0f)}}
@@ -5915,8 +4729,7 @@ namespace Tests
                         { vOffset = [ 0.0, 2.0, 0.0 ] nBoneCtrl = 3 nTargetNode = 8 },
                         { vOffset = [ 0.0, 2.0, 0.0 ] nBoneCtrl = 6 nTargetNode = 7 },
                     ]
-                }
-                """);
+                    """);
         }
 
         /// <summary>
@@ -5935,9 +4748,9 @@ namespace Tests
                 [9, 13, 14, 10], [10, 14, 15, 11], [12, 16, 17, 13], [13, 17, 18, 14], [14, 18, 19, 15]];
             HashSet<(int, int)> network = [(0, 2), (1, 3), (1, 9), (2, 10), (3, 11), (4, 6), (5, 7), (5, 13), (6, 14), (7, 15), (8, 10),
                 (9, 11), (9, 17), (10, 18), (11, 19), (12, 14), (13, 15), (16, 18), (17, 19)];
-            var (paint, curvature) = ClothExtract.ClothBendStiffnessOverFold(BentSheet(BentSheetPaintedRods), faces, network, 0.25f,
+            var (paint, curvature) = ClothExtract.ClothBendStiffnessOverFold(SyntheticCloth.Load("cloth_sheet_bent_painted.kv3"), faces, network, 0.25f,
                 keepsCurvature: false);
-            var (plain, plainCurvature) = ClothExtract.ClothBendStiffnessOverFold(BentSheet(BentSheetPlainRods), faces, network, 0.25f,
+            var (plain, plainCurvature) = ClothExtract.ClothBendStiffnessOverFold(SyntheticCloth.Load("cloth_sheet_bent_plain.kv3"), faces, network, 0.25f,
                 keepsCurvature: false);
 
             using (Assert.Multiple())
@@ -5951,86 +4764,6 @@ namespace Tests
                 await Assert.That(plainCurvature).IsEqualTo(0.25f);
             }
         }
-
-        private const string BentSheetPaintedRods = """
-            { nNode = [ 0, 2 ] flMaxDist = 16.999594 flMinDist = 15.707473 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
-            { nNode = [ 4, 6 ] flMaxDist = 16.990614 flMinDist = 15.697754 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
-            { nNode = [ 8, 10 ] flMaxDist = 17.040838 flMinDist = 15.774404 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
-            { nNode = [ 12, 14 ] flMaxDist = 16.990597 flMinDist = 15.697739 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
-            { nNode = [ 16, 18 ] flMaxDist = 16.999565 flMinDist = 15.707446 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
-            { nNode = [ 1, 3 ] flMaxDist = 16.99991 flMinDist = 6.5411534 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
-            { nNode = [ 17, 19 ] flMaxDist = 16.999882 flMinDist = 6.5411453 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
-            { nNode = [ 9, 11 ] flMaxDist = 16.670456 flMinDist = 6.3860846 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
-            { nNode = [ 5, 7 ] flMaxDist = 16.987907 flMinDist = 6.509907 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
-            { nNode = [ 13, 15 ] flMaxDist = 16.987896 flMinDist = 6.5099025 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
-            { nNode = [ 17, 9 ] flMaxDist = 4.4786596 flMinDist = 3.1739345 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
-            { nNode = [ 9, 1 ] flMaxDist = 4.4786654 flMinDist = 3.1739397 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
-            { nNode = [ 13, 5 ] flMaxDist = 4.684062 flMinDist = 3.3121321 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
-            { nNode = [ 18, 10 ] flMaxDist = 4.637758 flMinDist = 1.7772001 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
-            { nNode = [ 10, 2 ] flMaxDist = 4.637758 flMinDist = 1.7772 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
-            { nNode = [ 14, 6 ] flMaxDist = 4.6377573 flMinDist = 1.7747929 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
-            { nNode = [ 19, 11 ] flMaxDist = 5.004366 flMinDist = 1.917685 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
-            { nNode = [ 11, 3 ] flMaxDist = 5.004366 flMinDist = 1.9176855 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
-            { nNode = [ 15, 7 ] flMaxDist = 5.0043654 flMinDist = 1.9150877 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
-            """;
-
-        private const string BentSheetPlainRods = """
-            { nNode = [ 0, 2 ] flMaxDist = 16.999594 flMinDist = 6.5320888 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
-            { nNode = [ 4, 6 ] flMaxDist = 16.990614 flMinDist = 6.5086966 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
-            { nNode = [ 8, 10 ] flMaxDist = 17.040838 flMinDist = 6.9404755 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
-            { nNode = [ 12, 14 ] flMaxDist = 16.990597 flMinDist = 6.508693 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
-            { nNode = [ 16, 18 ] flMaxDist = 16.999565 flMinDist = 6.532084 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
-            { nNode = [ 1, 3 ] flMaxDist = 16.99991 flMinDist = 6.5411534 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
-            { nNode = [ 17, 19 ] flMaxDist = 16.999882 flMinDist = 6.5411453 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
-            { nNode = [ 9, 11 ] flMaxDist = 16.670456 flMinDist = 6.3860846 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
-            { nNode = [ 5, 7 ] flMaxDist = 16.987907 flMinDist = 6.509907 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
-            { nNode = [ 13, 15 ] flMaxDist = 16.987896 flMinDist = 6.5099025 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
-            { nNode = [ 17, 9 ] flMaxDist = 4.4786596 flMinDist = 1.740971 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
-            { nNode = [ 9, 1 ] flMaxDist = 4.4786654 flMinDist = 1.7409755 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
-            { nNode = [ 13, 5 ] flMaxDist = 4.684062 flMinDist = 1.7736652 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
-            { nNode = [ 18, 10 ] flMaxDist = 4.637758 flMinDist = 1.7772001 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
-            { nNode = [ 10, 2 ] flMaxDist = 4.637758 flMinDist = 1.7772 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
-            { nNode = [ 14, 6 ] flMaxDist = 4.6377573 flMinDist = 1.7747929 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
-            { nNode = [ 19, 11 ] flMaxDist = 5.004366 flMinDist = 1.917685 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
-            { nNode = [ 11, 3 ] flMaxDist = 5.004366 flMinDist = 1.9176855 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
-            { nNode = [ 15, 7 ] flMaxDist = 5.0043654 flMinDist = 1.9150877 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
-            """;
-
-        private static FeModel BentSheet(string rods) => SyntheticCloth.Parse($$"""
-            {
-                m_CtrlName = [ "$cloth_m0p0", "$cloth_m0p1", "$cloth_m0p2", "$cloth_m0p3", "$cloth_m0p4", "$cloth_m0p5", "$cloth_m0p6", "$cloth_m0p7", "$cloth_m0p8", "$cloth_m0p9", "$cloth_m0p10", "$cloth_m0p11", "$cloth_m0p12", "$cloth_m0p13", "$cloth_m0p14", "$cloth_m0p15", "$cloth_m0p16", "$cloth_m0p17", "$cloth_m0p18", "$cloth_m0p19" ]
-                m_nNodeCount = 20
-                m_nStaticNodes = 0
-                m_NodeInvMasses = [ 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0 ]
-                m_InitPose =
-                [
-                    {{SyntheticCloth.Pose(-8.915558f, -3.9999907f, 65.448204f)}}
-                    {{SyntheticCloth.Pose(-11.695556f, -4.2669907f, 57.420155f)}}
-                    {{SyntheticCloth.Pose(-14.808141f, -4.6377454f, 49.519295f)}}
-                    {{SyntheticCloth.Pose(-17.90746f, -5.004356f, 41.613026f)}}
-                    {{SyntheticCloth.Pose(-8.91556f, -1.9999869f, 65.4482f)}}
-                    {{SyntheticCloth.Pose(-11.695561f, -2.1334882f, 57.42015f)}}
-                    {{SyntheticCloth.Pose(-14.808148f, -2.3188667f, 49.519295f)}}
-                    {{SyntheticCloth.Pose(-17.907467f, -2.502173f, 41.61303f)}}
-                    {{SyntheticCloth.Pose(-8.915562f, 0.00001680851f, 65.44819f)}}
-                    {{SyntheticCloth.Pose(-12.695568f, 0.000014543533f, 57.42015f)}}
-                    {{SyntheticCloth.Pose(-14.808155f, 0.000011920929f, 49.5193f)}}
-                    {{SyntheticCloth.Pose(-17.907475f, 0.000009775162f, 41.613037f)}}
-                    {{SyntheticCloth.Pose(-8.915564f, 2.0000205f, 65.44818f)}}
-                    {{SyntheticCloth.Pose(-11.695574f, 2.1335173f, 57.420147f)}}
-                    {{SyntheticCloth.Pose(-14.808163f, 2.3188906f, 49.519302f)}}
-                    {{SyntheticCloth.Pose(-17.907482f, 2.5021925f, 41.61304f)}}
-                    {{SyntheticCloth.Pose(-8.9155655f, 4.0000243f, 65.44817f)}}
-                    {{SyntheticCloth.Pose(-11.69558f, 4.2670197f, 57.420143f)}}
-                    {{SyntheticCloth.Pose(-14.80817f, 4.637769f, 49.519302f)}}
-                    {{SyntheticCloth.Pose(-17.907492f, 5.0043755f, 41.61305f)}}
-                ]
-                m_Rods =
-                [
-                    {{rods}}
-                ]
-            }
-            """);
 
         /// <summary>
         /// An old-era compile ships no <c>m_SkelParents</c>, so a joint's chain parent is read off the skeleton and the rods. Where the
@@ -6067,24 +4800,12 @@ namespace Tests
         {
             var parents = compiledParents ? "m_SkelParents = [ -1, 0, 0, 2, 2, 4, 2, 6 ]" : string.Empty;
             var faces = kFace ? "0, 0, 0, 3, 0, 1, 3, 2, 2, 3, 5, 4, 4, 5, 7, 6" : "0, 0, 0, 2, 0, 1, 3, 2, 2, 3, 5, 4";
-            var model = SyntheticCloth.Parse($$"""
-                {
-                    m_CtrlName = [ "j1", "$ccj1_0", "j2", "$ccj2_0", "j3", "$ccj3_0", "k", "$cck_0" ]
+            var model = SyntheticCloth.Model(
+                ["j1", "$ccj1_0", "j2", "$ccj2_0", "j3", "$ccj3_0", "k", "$cck_0"], staticNodes: 0,
+                poses: [new(0f, 0f, 0f), new(3f, 0f, 0f), new(0f, 0f, -10f), new(3f, 0f, -10f), new(0f, 0f, -20f),
+                    new(3f, 0f, -20f), new(0f, 0f, -30f), new(3f, 0f, -30f)],
+                body: $$"""
                     {{parents}}
-                    m_nNodeCount = 8
-                    m_nStaticNodes = 0
-                    m_NodeInvMasses = [ 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0 ]
-                    m_InitPose =
-                    [
-                        {{SyntheticCloth.Pose(0f, 0f, 0f)}}
-                        {{SyntheticCloth.Pose(3f, 0f, 0f)}}
-                        {{SyntheticCloth.Pose(0f, 0f, -10f)}}
-                        {{SyntheticCloth.Pose(3f, 0f, -10f)}}
-                        {{SyntheticCloth.Pose(0f, 0f, -20f)}}
-                        {{SyntheticCloth.Pose(3f, 0f, -20f)}}
-                        {{SyntheticCloth.Pose(0f, 0f, -30f)}}
-                        {{SyntheticCloth.Pose(3f, 0f, -30f)}}
-                    ]
                     m_CtrlOffsets =
                     [
                         { vOffset = [ 3.0, 0.0, 0.0 ] nCtrlParent = 0 nCtrlChild = 1 },
@@ -6094,8 +4815,7 @@ namespace Tests
                     ]
                     m_Rods = [ {{SyntheticCloth.RigidRod(1, 3, 10f, 1f)}} {{SyntheticCloth.RigidRod(3, 5, 10f, 1f)}} {{SyntheticCloth.RigidRod(3, 7, 20f, 1f)}} ]
                     m_SourceElems = [ {{faces}} ]
-                }
-                """);
+                    """);
             model.SkeletonBoneParents = new Dictionary<string, string?> { ["j1"] = null, ["j2"] = "j1", ["j3"] = "j2", ["k"] = "j2" };
             return model;
         }
@@ -6122,22 +4842,12 @@ namespace Tests
             }
         }
 
-        private static string RodlessTail(string ropes) => $$"""
-            {
-                m_CtrlName = [ "tail_0", "tail_1", "tail_2" ]
-                m_SkelParents = [ -1, 0, 1 ]
-                m_nNodeCount = 3
-                m_nStaticNodes = 1
-                m_NodeInvMasses = [ 0.0, 1.0, 1.0 ]
-                m_InitPose =
-                [
-                    {{SyntheticCloth.Pose(0f, 0f, 0f)}}
-                    {{SyntheticCloth.Pose(10f, 0f, 0f)}}
-                    {{SyntheticCloth.Pose(20f, 0f, 0f)}}
-                ]
+        private static string RodlessTail(string ropes) => SyntheticCloth.Document(
+            ["tail_0", "tail_1", "tail_2"], staticNodes: 1, parents: [-1, 0, 1],
+            poses: [new(0f, 0f, 0f), new(10f, 0f, 0f), new(20f, 0f, 0f)],
+            body: $$"""
                 {{ropes}}
-            }
-            """;
+                """);
 
         /// <summary>
         /// A wind effect's <c>local_space</c> compiles to its <c>LocalSpace</c> parameter, which reads as zero where the
@@ -6418,19 +5128,10 @@ namespace Tests
             {
                 var bend = SyntheticCloth.RigidRod(0, 2, 20f, 1f);
                 var companion = SyntheticCloth.RigidRod(0, 2, 20f, 0.21f);
-                var feModel = SyntheticCloth.Parse($$"""
-                    {
-                        m_CtrlName = [ "root", "j1", "j2" ]
-                        m_SkelParents = [ -1, 0, 1 ]
-                        m_nNodeCount = 3
-                        m_nStaticNodes = 1
-                        m_NodeInvMasses = [ 0.0, 1.0, 1.0 ]
-                        m_InitPose =
-                        [
-                            {{SyntheticCloth.Pose(0f, 0f, 0f)}}
-                            {{SyntheticCloth.Pose(0f, 0f, -10f)}}
-                            {{SyntheticCloth.Pose(0f, 0f, -20f)}}
-                        ]
+                var feModel = SyntheticCloth.Model(
+                    ["root", "j1", "j2"], staticNodes: 1, parents: [-1, 0, 1],
+                    poses: [new(0f, 0f, 0f), new(0f, 0f, -10f), new(0f, 0f, -20f)],
+                    body: $$"""
                         m_Rods =
                         [
                             {{SyntheticCloth.RigidRod(0, 1, 10f, 1f)}}
@@ -6438,8 +5139,7 @@ namespace Tests
                             {{(companionFirst ? companion : bend)}}
                             {{(companionFirst ? bend : companion)}}
                         ]
-                    }
-                    """);
+                        """);
                 return feModel.BuildBoneChains()[0].Joints.Find(static joint => joint.Name == "j2")!;
             }
 
@@ -6477,22 +5177,12 @@ namespace Tests
             }
         }
 
-        private static FeModel HingeFan(string quad, float upperChildOffset) => SyntheticCloth.Parse($$"""
-            {
-                m_CtrlName = [ "$cchat_0", "$cchat_1", "hat", "$cchat_end_0", "$cchat_end_1", "hat_end" ]
-                m_SkelParents = [ 2, 2, -1, 5, 5, 2 ]
-                m_nNodeCount = 6
-                m_nStaticNodes = 3
-                m_NodeInvMasses = [ 0.0, 0.0, 0.0, 1.0, 1.0, 1.0 ]
-                m_InitPose =
-                [
-                    {{SyntheticCloth.Pose(0f, -10f, 0f)}}
-                    {{SyntheticCloth.Pose(0f, 10f, 0f)}}
-                    {{SyntheticCloth.Pose(0f, 0f, 0f)}}
-                    {{SyntheticCloth.Pose(8f, 0f, -20f)}}
-                    {{SyntheticCloth.Pose(8f, 0f, upperChildOffset)}}
-                    {{SyntheticCloth.Pose(8f, 0f, 0f)}}
-                ]
+        private static FeModel HingeFan(string quad, float upperChildOffset) => SyntheticCloth.Model(
+            ["$cchat_0", "$cchat_1", "hat", "$cchat_end_0", "$cchat_end_1", "hat_end"], staticNodes: 3,
+                parents: [2, 2, -1, 5, 5, 2],
+            poses: [new(0f, -10f, 0f), new(0f, 10f, 0f), new(0f, 0f, 0f), new(8f, 0f, -20f), new(8f, 0f, upperChildOffset),
+                new(8f, 0f, 0f)],
+            body: $$"""
                 m_CtrlOffsets =
                 [
                     { vOffset = [ 0.0, -10.0, 0.000001 ] nCtrlParent = 2 nCtrlChild = 0 },
@@ -6502,8 +5192,7 @@ namespace Tests
                 ]
                 m_Quads = [ { nNode = {{quad}} } ]
                 m_Rods = [ {{SyntheticCloth.RigidRod(3, 4, 40f, 1f)}} ]
-            }
-            """);
+                """);
 
         /// <summary>
         /// A simulated bone beside a proxy sheet that only a <c>JiggleBone</c> declares is left to the jiggle bone: it compiles
@@ -6513,23 +5202,12 @@ namespace Tests
         [Test]
         public async Task ABoneOnlyItsJiggleBoneDeclaresIsNotALoneClothNode()
         {
-            var feModel = SyntheticCloth.Parse($$"""
-                {
-                    m_CtrlName = [ "tophat", "tail" ]
-                    m_SkelParents = [ -1, -1 ]
-                    m_nNodeCount = 2
-                    m_nStaticNodes = 0
-                    m_NodeInvMasses = [ 1.0, 1.0 ]
-                    m_InitPose =
-                    [
-                        {{SyntheticCloth.Pose(0f, 0f, 60f)}}
-                        {{SyntheticCloth.Pose(10f, 0f, 40f)}}
-                    ]
+            var feModel = SyntheticCloth.Model(
+                ["tophat", "tail"], staticNodes: 0, parents: [-1, -1], poses: [new(0f, 0f, 60f), new(10f, 0f, 40f)], body: """
                     m_VertexSetNames = [ 0, 2103756403 ]
                     m_DynNodeVertexSet = [ 0, 1 ]
                     m_JiggleBones = [ { m_nNode = 0 m_nJiggleParent = 0 m_jiggleBone = { m_nFlags = 38 m_flLength = 5.0 } }, ]
-                }
-                """);
+                    """);
 
             using (Assert.Multiple())
             {
@@ -6549,27 +5227,18 @@ namespace Tests
         [Test]
         public async Task ASpringFromAFreeNodeToAChainJointIsDeclared()
         {
-            static FeModel Model(string sourceElems) => SyntheticCloth.Parse($$"""
-                {
+            static FeModel Model(string sourceElems) => SyntheticCloth.Model(
+                ["coattail_0_L", "coattail_0_R", "coattail_1_R"], staticNodes: 2, parents: [-1, -1, 1],
+                    invMasses: "0.0, 0.0, 0.006141",
+                poses: [new(4f, 0f, 60f), new(-4f, 0f, 60f), new(-4f, 0f, 51.5f)],
+                body: $$"""
                     m_SourceElems = [ {{sourceElems}} ]
-                    m_CtrlName = [ "coattail_0_L", "coattail_0_R", "coattail_1_R" ]
-                    m_SkelParents = [ -1, -1, 1 ]
-                    m_nNodeCount = 3
-                    m_nStaticNodes = 2
-                    m_NodeInvMasses = [ 0.0, 0.0, 0.006141 ]
-                    m_InitPose =
-                    [
-                        {{SyntheticCloth.Pose(4f, 0f, 60f)}}
-                        {{SyntheticCloth.Pose(-4f, 0f, 60f)}}
-                        {{SyntheticCloth.Pose(-4f, 0f, 51.5f)}}
-                    ]
                     m_Rods =
                     [
                         {{SyntheticCloth.RigidRod(0, 2, 11.854138f, 1f)}}
                         {{SyntheticCloth.RigidRod(1, 2, 8.5f, 1f)}}
                     ]
-                }
-                """);
+                    """);
 
             static string[] Ties(FeModel feModel, HashSet<int>? chainJoints)
             {
@@ -6609,19 +5278,10 @@ namespace Tests
             {
                 var bend = SyntheticCloth.RigidRod(0, 2, 20f, 1f);
                 var companion = SyntheticCloth.RigidRod(0, 2, 20f, 0.2f);
-                var feModel = SyntheticCloth.Parse($$"""
-                    {
-                        m_CtrlName = [ "root", "j1", "j2" ]
-                        m_SkelParents = [ -1, 0, 1 ]
-                        m_nNodeCount = 3
-                        m_nStaticNodes = 1
-                        m_NodeInvMasses = [ 0.0, 1.0, 1.0 ]
-                        m_InitPose =
-                        [
-                            {{SyntheticCloth.Pose(0f, 0f, 0f)}}
-                            {{SyntheticCloth.Pose(0f, 0f, -10f)}}
-                            {{SyntheticCloth.Pose(0f, 0f, -20f)}}
-                        ]
+                var feModel = SyntheticCloth.Model(
+                    ["root", "j1", "j2"], staticNodes: 1, parents: [-1, 0, 1],
+                    poses: [new(0f, 0f, 0f), new(0f, 0f, -10f), new(0f, 0f, -20f)],
+                    body: $$"""
                         m_Rods =
                         [
                             {{SyntheticCloth.RigidRod(0, 1, 10f, 0.9f)}}
@@ -6629,8 +5289,7 @@ namespace Tests
                             {{(companionFirst ? companion : bend)}}
                             {{(companionFirst ? bend : companion)}}
                         ]
-                    }
-                    """);
+                        """);
                 return feModel.BuildBoneChains()[0].Joints.Find(static joint => joint.Name == "j2")!;
             }
 
@@ -6789,25 +5448,15 @@ namespace Tests
         [Test]
         public async Task ARingBendOverAJointIsNotAStiffHingeOnItsParent()
         {
-            static FeModel Model(string bendNodes) => SyntheticCloth.Parse($$"""
-                {
-                    m_CtrlName = [ "root", "j1", "j2" ]
-                    m_SkelParents = [ -1, 0, 1 ]
-                    m_nNodeCount = 3
-                    m_nStaticNodes = 1
-                    m_NodeInvMasses = [ 0.0, 1.0, 1.0 ]
-                    m_InitPose =
-                    [
-                        {{SyntheticCloth.Pose(0f, 0f, 0f)}}
-                        {{SyntheticCloth.Pose(0f, 0f, -8.5f)}}
-                        {{SyntheticCloth.Pose(0f, 0f, -17f)}}
-                    ]
+            static FeModel Model(string bendNodes) => SyntheticCloth.Model(
+                ["root", "j1", "j2"], staticNodes: 1, parents: [-1, 0, 1],
+                poses: [new(0f, 0f, 0f), new(0f, 0f, -8.5f), new(0f, 0f, -17f)],
+                body: $$"""
                     m_KelagerBends =
                     [
                         { nNode = [ {{bendNodes}} ] flWeight = [ -1.0, 0.0, 0.9 ] flHeight0 = 4.0 nReserved = 0 },
                     ]
-                }
-                """);
+                    """);
 
             FeModel ring = Model("1, 0, 2");
             FeModel hinge = Model("1, 2, 0");
@@ -6841,26 +5490,16 @@ namespace Tests
                 return [.. clothChildren.Select(static child => child.Value.GetStringProperty("_class"))];
             }
 
-            var feModel = SyntheticCloth.Parse($$"""
-                {
-                    m_CtrlName = [ "spine_2", "tail", "ear" ]
-                    m_SkelParents = [ -1, -1, -1 ]
-                    m_nNodeCount = 3
-                    m_nStaticNodes = 0
-                    m_NodeInvMasses = [ 1.0, 1.0, 1.0 ]
-                    m_InitPose =
-                    [
-                        {{SyntheticCloth.Pose(0f, 0f, 60f)}}
-                        {{SyntheticCloth.Pose(10f, 0f, 40f)}}
-                        {{SyntheticCloth.Pose(-10f, 0f, 40f)}}
-                    ]
+            var feModel = SyntheticCloth.Model(
+                ["spine_2", "tail", "ear"], staticNodes: 0, parents: [-1, -1, -1],
+                poses: [new(0f, 0f, 60f), new(10f, 0f, 40f), new(-10f, 0f, 40f)],
+                body: """
                     m_AnimStrayRadii =
                     [
                         { nNode = [ 0, 0 ] flMaxDist = 7.0 flRelaxationFactor = 0.0 },
                         { nNode = [ 1, 1 ] flMaxDist = 7.0 flRelaxationFactor = 0.25 },
                     ]
-                }
-                """);
+                    """);
 
             using (Assert.Multiple())
             {
@@ -6879,35 +5518,9 @@ namespace Tests
         [Test]
         public async Task AParentRodBesideAOneSidedRingIsNotARestatement()
         {
-            var oneSided = SyntheticCloth.Parse("""
-                {
-                    m_CtrlName = [ "coattail_0_L", "$cccoattail_0_L_0", "coattail_1_L", "$cccoattail_1_L_0", "coattail_2_L", "$cccoattail_2_L_0", "coattail_end_L", "$cccoattail_end_L_0", ]
-                    m_SkelParents = [ -1, 0, 0, 2, 2, 4, 4, 6, ]
-                    m_nNodeCount = 8
-                    m_nStaticNodes = 2
-                    m_nFirstPositionDrivenNode = 2
-                    m_NodeInvMasses = [ 0.0, 0.0, 0.003428, 0.003444, 0.003428, 0.003427, 0.0065, 0.0065, ]
-                    m_InitPose = [ [ -8.915481, 4.000124, 65.447983, 1.0, 0.337553, -0.646323, -0.495776, -0.471731, ], [ -10.723646, 4.561181, 66.092773, 1.0, 0.337553, -0.646323, -0.495776, -0.471731, ], [ -11.695464, 4.267121, 57.419937, 1.0, -0.323373, 0.653533, 0.505948, 0.460804, ], [ -13.473376, 4.824905, 58.146507, 1.0, -0.323373, 0.653533, 0.505948, 0.460804, ], [ -14.808016, 4.637866, 49.519089, 1.0, -0.323943, 0.653251, 0.505547, 0.461245, ], [ -16.587204, 5.195801, 50.242416, 1.0, -0.323943, 0.653251, 0.505547, 0.461245, ], [ -17.907341, 5.004471, 41.612736, 1.0, -0.323943, 0.653251, 0.505547, 0.461245, ], [ -19.686529, 5.562407, 42.336063, 1.0, -0.323943, 0.653251, 0.505547, 0.461245, ], ]
-                    m_Rods = [ { nNode = [ 0, 2 ] flMaxDist = 8.499948 flMinDist = 8.499948 flWeight0 = 0.0 flRelaxationFactor = 1.0 }, { nNode = [ 0, 3 ] flMaxDist = 8.646747 flMinDist = 8.646747 flWeight0 = 0.0 flRelaxationFactor = 1.0 }, { nNode = [ 1, 2 ] flMaxDist = 8.732066 flMinDist = 8.732066 flWeight0 = 0.0 flRelaxationFactor = 1.0 }, { nNode = [ 1, 3 ] flMaxDist = 8.412711 flMinDist = 8.412711 flWeight0 = 0.0 flRelaxationFactor = 1.0 }, { nNode = [ 2, 3 ] flMaxDist = 2.0 flMinDist = 2.0 flWeight0 = 0.5 flRelaxationFactor = 1.0 }, { nNode = [ 2, 4 ] flMaxDist = 8.499931 flMinDist = 8.499931 flWeight0 = 0.5 flRelaxationFactor = 1.0 }, { nNode = [ 2, 5 ] flMaxDist = 8.735466 flMinDist = 8.735466 flWeight0 = 0.5 flRelaxationFactor = 1.0 }, { nNode = [ 3, 4 ] flMaxDist = 8.732044 flMinDist = 8.732044 flWeight0 = 0.5 flRelaxationFactor = 1.0 }, { nNode = [ 3, 5 ] flMaxDist = 8.503419 flMinDist = 8.503419 flWeight0 = 0.5 flRelaxationFactor = 1.0 }, { nNode = [ 4, 5 ] flMaxDist = 2.000001 flMinDist = 2.000001 flWeight0 = 0.5 flRelaxationFactor = 1.0 }, { nNode = [ 4, 6 ] flMaxDist = 8.500037 flMinDist = 8.500037 flWeight0 = 0.5 flRelaxationFactor = 1.0 }, { nNode = [ 4, 7 ] flMaxDist = 8.732154 flMinDist = 8.732154 flWeight0 = 0.5 flRelaxationFactor = 1.0 }, { nNode = [ 5, 6 ] flMaxDist = 8.732168 flMinDist = 8.732168 flWeight0 = 0.5 flRelaxationFactor = 1.0 }, { nNode = [ 5, 7 ] flMaxDist = 8.500037 flMinDist = 8.500037 flWeight0 = 0.5 flRelaxationFactor = 1.0 }, { nNode = [ 6, 7 ] flMaxDist = 2.000001 flMinDist = 2.000001 flWeight0 = 0.5 flRelaxationFactor = 1.0 }, ]
-                    m_ReverseOffsets = [ { vOffset = [ -0.000001, 2.000001, -0.000001 ] nBoneCtrl = 6 nTargetNode = 7 }, ]
-                    m_SourceElems = [ 0, 0, 0, 6, 5, 4, 6, 7, 4, 5, 7, 6, 3, 2, 4, 5, 2, 3, 5, 4, 1, 0, 2, 3, 0, 1, 3, 2, ]
-                }
-                """);
+            var oneSided = SyntheticCloth.Load("cloth_chain_extrude_one_side.kv3");
 
-            var twoSided = SyntheticCloth.Parse("""
-                {
-                    m_CtrlName = [ "coattail_0_L", "$cccoattail_0_L_0", "$cccoattail_1_L_0", "$cccoattail_1_L_1", "$cccoattail_2_L_0", "$cccoattail_2_L_1", "$cccoattail_end_L_0", "$cccoattail_end_L_1", "coattail_1_L", "coattail_2_L", "coattail_end_L", ]
-                    m_SkelParents = [ -1, 0, 8, 8, 9, 9, 10, 10, 0, 8, 9, ]
-                    m_nNodeCount = 11
-                    m_nStaticNodes = 2
-                    m_nFirstPositionDrivenNode = 8
-                    m_NodeInvMasses = [ 0.0, 0.0, 0.003209, 0.003111, 0.003141, 0.003142, 0.005709, 0.005709, 1.0, 1.0, 1.0, ]
-                    m_InitPose = [ [ -8.915481, 4.000124, 65.447983, 1.0, 0.337553, -0.646323, -0.495776, -0.471731, ], [ -10.723646, 4.561181, 66.092773, 1.0, 0.337553, -0.646323, -0.495776, -0.471731, ], [ -13.473376, 4.824905, 58.146507, 1.0, -0.323373, 0.653533, 0.505948, 0.460804, ], [ -9.917552, 3.709337, 56.693367, 1.0, -0.323373, 0.653533, 0.505948, 0.460804, ], [ -16.587204, 5.195801, 50.242416, 1.0, -0.323943, 0.653251, 0.505547, 0.461245, ], [ -13.028829, 4.079931, 48.795761, 1.0, -0.323943, 0.653251, 0.505547, 0.461245, ], [ -19.686529, 5.562407, 42.336063, 1.0, -0.323943, 0.653251, 0.505547, 0.461245, ], [ -16.128153, 4.446536, 40.889408, 1.0, -0.323943, 0.653251, 0.505547, 0.461245, ], [ -11.695464, 4.267121, 57.419937, 1.0, -0.323373, 0.653533, 0.505948, 0.460804, ], [ -14.808016, 4.637866, 49.519089, 1.0, -0.323943, 0.653251, 0.505547, 0.461245, ], [ -17.907341, 5.004471, 41.612736, 1.0, -0.323943, 0.653251, 0.505547, 0.461245, ], ]
-                    m_Rods = [ { nNode = [ 0, 2 ] flMaxDist = 8.646747 flMinDist = 8.646747 flWeight0 = 0.0 flRelaxationFactor = 1.0 }, { nNode = [ 0, 3 ] flMaxDist = 8.816575 flMinDist = 8.816575 flWeight0 = 0.0 flRelaxationFactor = 1.0 }, { nNode = [ 1, 2 ] flMaxDist = 8.412711 flMinDist = 8.412711 flWeight0 = 0.0 flRelaxationFactor = 1.0 }, { nNode = [ 1, 3 ] flMaxDist = 9.472289 flMinDist = 9.472289 flWeight0 = 0.0 flRelaxationFactor = 1.0 }, { nNode = [ 2, 3 ] flMaxDist = 4.0 flMinDist = 4.0 flWeight0 = 0.5 flRelaxationFactor = 1.0 }, { nNode = [ 2, 4 ] flMaxDist = 8.503419 flMinDist = 8.503419 flWeight0 = 0.5 flRelaxationFactor = 1.0 }, { nNode = [ 2, 5 ] flMaxDist = 9.390903 flMinDist = 9.390903 flWeight0 = 0.5 flRelaxationFactor = 1.0 }, { nNode = [ 3, 4 ] flMaxDist = 9.397265 flMinDist = 9.397265 flWeight0 = 0.5 flRelaxationFactor = 1.0 }, { nNode = [ 3, 5 ] flMaxDist = 8.496444 flMinDist = 8.496444 flWeight0 = 0.5 flRelaxationFactor = 1.0 }, { nNode = [ 4, 5 ] flMaxDist = 4.000001 flMinDist = 4.000001 flWeight0 = 0.5 flRelaxationFactor = 1.0 }, { nNode = [ 4, 6 ] flMaxDist = 8.500037 flMinDist = 8.500037 flWeight0 = 0.5 flRelaxationFactor = 1.0 }, { nNode = [ 4, 7 ] flMaxDist = 9.394195 flMinDist = 9.394195 flWeight0 = 0.5 flRelaxationFactor = 1.0 }, { nNode = [ 5, 6 ] flMaxDist = 9.394169 flMinDist = 9.394169 flWeight0 = 0.5 flRelaxationFactor = 1.0 }, { nNode = [ 5, 7 ] flMaxDist = 8.500037 flMinDist = 8.500037 flWeight0 = 0.5 flRelaxationFactor = 1.0 }, { nNode = [ 6, 7 ] flMaxDist = 4.000002 flMinDist = 4.000002 flWeight0 = 0.5 flRelaxationFactor = 1.0 }, { nNode = [ 0, 8 ] flMaxDist = 8.499948 flMinDist = 8.499948 flWeight0 = 0.0 flRelaxationFactor = 1.0 }, { nNode = [ 8, 9 ] flMaxDist = 8.499931 flMinDist = 8.499931 flWeight0 = 0.5 flRelaxationFactor = 1.0 }, { nNode = [ 9, 10 ] flMaxDist = 8.500037 flMinDist = 8.500037 flWeight0 = 0.5 flRelaxationFactor = 1.0 }, ]
-                    m_ReverseOffsets = [ { vOffset = [ 8.496444, -1.999937, 0.000001 ] nBoneCtrl = 8 nTargetNode = 5 }, { vOffset = [ 0.000001, -2.0, 0.0 ] nBoneCtrl = 9 nTargetNode = 5 }, { vOffset = [ -0.000001, 2.000001, -0.000001 ] nBoneCtrl = 10 nTargetNode = 6 }, ]
-                    m_SourceElems = [ 0, 0, 0, 6, 5, 4, 6, 7, 4, 5, 7, 6, 3, 2, 4, 5, 2, 3, 5, 4, 1, 0, 2, 3, 0, 1, 3, 2, ]
-                }
-                """);
+            var twoSided = SyntheticCloth.Load("cloth_chain_extrude_two_sides.kv3");
 
             static string[] Restated(FeModel feModel)
                 => [.. feModel.BuildBoneChains().SelectMany(static chain => chain.Joints).Where(static joint => joint.Restated).Select(static joint => joint.Name)];
@@ -7012,25 +5625,13 @@ namespace Tests
         [Test]
         public async Task AChainJointWithNoRingOnItselfOrItsChildrenIsNoGoalLock()
         {
-            FeModel model = SyntheticCloth.Parse($$"""
-                {
-                    m_CtrlName = [ "root", "mid", "leaf", "$ccmid_0", "$ccmid_1", "$ccleaf_0", "$ccleaf_1" ]
-                    m_nNodeCount = 7
-                    m_nStaticNodes = 1
+            FeModel model = SyntheticCloth.Model(
+                ["root", "mid", "leaf", "$ccmid_0", "$ccmid_1", "$ccleaf_0", "$ccleaf_1"], staticNodes: 1,
+                poses: [new(0f, 0f, 0f), new(0f, 0f, -8f), new(0f, 0f, -16f), new(0f, 1f, -8f), new(0f, -1f, -8f),
+                    new(0f, 1f, -16f), new(0f, -1f, -16f)],
+                body: """
                     m_nRotLockStaticNodes = 0
-                    m_NodeInvMasses = [ 0.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0 ]
-                    m_InitPose =
-                    [
-                        {{SyntheticCloth.Pose(0f, 0f, 0f)}}
-                        {{SyntheticCloth.Pose(0f, 0f, -8f)}}
-                        {{SyntheticCloth.Pose(0f, 0f, -16f)}}
-                        {{SyntheticCloth.Pose(0f, 1f, -8f)}}
-                        {{SyntheticCloth.Pose(0f, -1f, -8f)}}
-                        {{SyntheticCloth.Pose(0f, 1f, -16f)}}
-                        {{SyntheticCloth.Pose(0f, -1f, -16f)}}
-                    ]
-                }
-                """);
+                    """);
 
             static FeModel.BoneChain Chain(IReadOnlyList<int> midRing)
             {
@@ -7057,22 +5658,13 @@ namespace Tests
         [Test]
         public async Task AStaticRootTheOriginalLocksToItsGoalIsASingleJointChain()
         {
-            static FeModel Model(string locks) => SyntheticCloth.Parse($$"""
-                {
-                    m_CtrlName = [ "tophat", "$cloth_node_sb_tw_end" ]
-                    m_SkelParents = [ -1, 0 ]
-                    m_nNodeCount = 2
-                    m_nStaticNodes = 1
+            static FeModel Model(string locks) => SyntheticCloth.Model(
+                ["tophat", "$cloth_node_sb_tw_end"], staticNodes: 1, parents: [-1, 0], invMasses: "0.0, 312.5",
+                poses: [new(0f, 0f, 0f), new(0f, 0f, -4f)],
+                body: $$"""
                     m_nRotLockStaticNodes = 0
-                    m_NodeInvMasses = [ 0.0, 312.5 ]
                     m_LockToGoal = [ {{locks}} ]
-                    m_InitPose =
-                    [
-                        {{SyntheticCloth.Pose(0f, 0f, 0f)}}
-                        {{SyntheticCloth.Pose(0f, 0f, -4f)}}
-                    ]
-                }
-                """);
+                    """);
 
             FeModel locked = Model("0");
             FeModel free = Model("");
@@ -7160,24 +5752,12 @@ namespace Tests
         [Test]
         public async Task AStaticRingedChildNoRodTiesToItsRootIsAChainOfItsOwn()
         {
-            static FeModel Model(string tie) => SyntheticCloth.Parse($$"""
-                {
-                    m_CtrlName = [ "root", "$ccroot_0", "end", "$ccend_0", "a", "$cca_0", "b", "$ccb_0" ]
-                    m_SkelParents = [ -1, 0, 0, 2, 0, 4, 0, 6 ]
-                    m_nNodeCount = 8
-                    m_nStaticNodes = 4
-                    m_NodeInvMasses = [ 0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 1.0, 1.0 ]
-                    m_InitPose =
-                    [
-                        {{SyntheticCloth.Pose(0f, 0f, 0f)}}
-                        {{SyntheticCloth.Pose(0f, 2f, 0f)}}
-                        {{SyntheticCloth.Pose(-10f, 0f, 0f)}}
-                        {{SyntheticCloth.Pose(-10f, 2f, 0f)}}
-                        {{SyntheticCloth.Pose(0f, 0f, -10f)}}
-                        {{SyntheticCloth.Pose(0f, 2f, -10f)}}
-                        {{SyntheticCloth.Pose(5f, 0f, -10f)}}
-                        {{SyntheticCloth.Pose(5f, 2f, -10f)}}
-                    ]
+            static FeModel Model(string tie) => SyntheticCloth.Model(
+                ["root", "$ccroot_0", "end", "$ccend_0", "a", "$cca_0", "b", "$ccb_0"], staticNodes: 4,
+                    parents: [-1, 0, 0, 2, 0, 4, 0, 6],
+                poses: [new(0f, 0f, 0f), new(0f, 2f, 0f), new(-10f, 0f, 0f), new(-10f, 2f, 0f), new(0f, 0f, -10f),
+                    new(0f, 2f, -10f), new(5f, 0f, -10f), new(5f, 2f, -10f)],
+                body: $$"""
                     m_Rods =
                     [
                         {{SyntheticCloth.RigidRod(0, 4, 10f, 1f)}}
@@ -7190,26 +5770,18 @@ namespace Tests
                         {{SyntheticCloth.RigidRod(6, 7, 2f, 1f)}}
                         {{tie}}
                     ]
-                }
-                """);
+                    """);
 
             var loose = Model("").BuildBoneChains();
             var tied = Model(SyntheticCloth.RigidRod(0, 2, 10f, 1f)).BuildBoneChains();
 
-            FeModel rotated = SyntheticCloth.Parse("""
-                {
-                    m_CtrlName = [ "parent", "child" ]
-                    m_SkelParents = [ -1, 0 ]
-                    m_nNodeCount = 2
-                    m_nStaticNodes = 2
-                    m_NodeInvMasses = [ 0.0, 0.0 ]
+            FeModel rotated = SyntheticCloth.Model(["parent", "child"], staticNodes: 2, parents: [-1, 0], body: """
                     m_InitPose =
                     [
                         [ 1.0, 2.0, 3.0, 1.0, 0.0, 0.0, 0.7071068, 0.7071068 ],
                         [ 1.0, 12.0, 3.0, 1.0, 0.0, 0.0, 0.7071068, 0.7071068 ],
                     ]
-                }
-                """);
+                    """);
             var (origin, rotation) = ClothExtract.ClothBoneLocalPose(rotated, 1, 0);
 
             using (Assert.Multiple())
@@ -7256,56 +5828,7 @@ namespace Tests
             }
         }
 
-        private static FeModel FreeNodeSprungToJoint => SyntheticCloth.Parse("""
-            {
-                m_CtrlName = [ "coattail_0_L", "$cccoattail_0_L_0", "coattail_1_L", "$cccoattail_1_L_0", "$cloth_node_node_b", "coattail_2_L", "$cccoattail_2_L_0", "coattail_end_L", "$cccoattail_end_L_0", "spine_2" ]
-                m_SkelParents = [ -1, 0, 0, 2, 9, 2, 5, 5, 7, -1 ]
-                m_nNodeCount = 10
-                m_nStaticNodes = 2
-                m_NodeInvMasses = [ 0.0, 0.0, 0.00227, 0.003444, 0.006724, 0.003428, 0.003427, 0.0065, 0.0065, 1.0 ]
-                m_InitPose =
-                [
-                    [ -8.915481, 4.000124, 65.447983, 1.0, 0.337553, -0.646323, -0.495776, -0.471731 ],
-                    [ -10.723646, 4.561181, 66.092773, 1.0, 0.337553, -0.646323, -0.495776, -0.471731 ],
-                    [ -11.695464, 4.267121, 57.419937, 1.0, -0.323373, 0.653533, 0.505948, 0.460804 ],
-                    [ -13.473376, 4.824905, 58.146507, 1.0, -0.323373, 0.653533, 0.505948, 0.460804 ],
-                    [ -2.814225, -7.999896, 68.199326, 1.0, -0.435361, -0.55719, -0.55719, 0.435361 ],
-                    [ -14.808016, 4.637866, 49.519089, 1.0, -0.323943, 0.653251, 0.505547, 0.461245 ],
-                    [ -16.587204, 5.195801, 50.242416, 1.0, -0.323943, 0.653251, 0.505547, 0.461245 ],
-                    [ -17.907341, 5.004471, 41.612736, 1.0, -0.323943, 0.653251, 0.505547, 0.461245 ],
-                    [ -19.686529, 5.562407, 42.336063, 1.0, -0.323943, 0.653251, 0.505547, 0.461245 ],
-                    [ -2.814222, 0.000104, 68.199318, 1.0, -0.435361, -0.55719, -0.55719, 0.435361 ],
-                ]
-                m_CtrlOffsets =
-                [
-                    { vOffset = [ 0.0, 2.000001, -0.0 ] nCtrlParent = 0 nCtrlChild = 1 },
-                    { vOffset = [ -0.0, 2.0, 0.0 ] nCtrlParent = 2 nCtrlChild = 3 },
-                    { vOffset = [ 0.000003, 0.000001, -8.000001 ] nCtrlParent = 9 nCtrlChild = 4 },
-                    { vOffset = [ -0.000001, 2.000001, -0.000001 ] nCtrlParent = 5 nCtrlChild = 6 },
-                    { vOffset = [ -0.000001, 2.000001, -0.000001 ] nCtrlParent = 7 nCtrlChild = 8 },
-                ]
-                m_Rods =
-                [
-                    { nNode = [ 0, 2 ] flMaxDist = 8.499948 flMinDist = 8.499948 flWeight0 = 0.0 flRelaxationFactor = 1.0 },
-                    { nNode = [ 0, 3 ] flMaxDist = 8.646747 flMinDist = 8.646747 flWeight0 = 0.0 flRelaxationFactor = 1.0 },
-                    { nNode = [ 1, 2 ] flMaxDist = 8.732066 flMinDist = 8.732066 flWeight0 = 0.0 flRelaxationFactor = 1.0 },
-                    { nNode = [ 1, 3 ] flMaxDist = 8.412711 flMinDist = 8.412711 flWeight0 = 0.0 flRelaxationFactor = 1.0 },
-                    { nNode = [ 2, 3 ] flMaxDist = 2.0 flMinDist = 2.0 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
-                    { nNode = [ 2, 4 ] flMaxDist = 18.58901 flMinDist = 18.58901 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
-                    { nNode = [ 2, 5 ] flMaxDist = 8.499931 flMinDist = 8.499931 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
-                    { nNode = [ 2, 6 ] flMaxDist = 8.735466 flMinDist = 8.735466 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
-                    { nNode = [ 3, 5 ] flMaxDist = 8.732044 flMinDist = 8.732044 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
-                    { nNode = [ 3, 6 ] flMaxDist = 8.503419 flMinDist = 8.503419 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
-                    { nNode = [ 5, 6 ] flMaxDist = 2.000001 flMinDist = 2.000001 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
-                    { nNode = [ 5, 7 ] flMaxDist = 8.500037 flMinDist = 8.500037 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
-                    { nNode = [ 5, 8 ] flMaxDist = 8.732154 flMinDist = 8.732154 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
-                    { nNode = [ 6, 7 ] flMaxDist = 8.732168 flMinDist = 8.732168 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
-                    { nNode = [ 6, 8 ] flMaxDist = 8.500037 flMinDist = 8.500037 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
-                    { nNode = [ 7, 8 ] flMaxDist = 2.000001 flMinDist = 2.000001 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
-                ]
-                m_SourceElems = [ 0, 1, 0, 6, 4, 2, 6, 5, 7, 8, 5, 6, 8, 7, 3, 2, 5, 6, 2, 3, 6, 5, 1, 0, 2, 3, 0, 1, 3, 2 ]
-            }
-            """);
+        private static FeModel FreeNodeSprungToJoint => SyntheticCloth.Load("cloth_chain_free_node_spring.kv3");
 
         /// <summary>
         /// A proxy sheet whose own vertices no <c>m_FitWeights</c> range names, on a model whose other sheet's vertices ARE named and
@@ -7427,20 +5950,10 @@ namespace Tests
 
         // One sheet carrying three m_VertexMaps records: 'ghost' named with no vertices, 'real' with two, and an unnamed record
         // with no vertices. m_VertexMapValues holds only 'real''s run, which is what a zero-vertex record looks like compiled.
-        private static FeModel SelectionsOverNoVertex => SyntheticCloth.Parse("""
-            {
-                m_CtrlName = [ "bone_0", "$cloth_m0p0", "$cloth_m0p1", "$cloth_m0p2" ]
-                m_SkelParents = [ -1, 0, 0, 0 ]
-                m_nNodeCount = 4
-                m_nStaticNodes = 2
-                m_NodeInvMasses = [ 0.0, 0.0, 1.0, 1.0 ]
-                m_InitPose =
-                [
-                    [ 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0 ],
-                    [ 1.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0 ],
-                    [ 1.0, 0.0, -8.0, 1.0, 0.0, 0.0, 0.0, 1.0 ],
-                    [ 1.0, 0.0, -16.0, 1.0, 0.0, 0.0, 0.0, 1.0 ],
-                ]
+        private static FeModel SelectionsOverNoVertex => SyntheticCloth.Model(
+            ["bone_0", "$cloth_m0p0", "$cloth_m0p1", "$cloth_m0p2"], staticNodes: 2, parents: [-1, 0, 0, 0],
+            poses: [new(0f, 0f, 0f), new(1f, 0f, 0f), new(1f, 0f, -8f), new(1f, 0f, -16f)],
+            body: """
                 m_VertexMapValues = [ 255, 255 ]
                 m_VertexMaps =
                 [
@@ -7448,31 +5961,18 @@ namespace Tests
                     { sName = "real" nNameHash = 2081852616 nVertexBase = 2 nVertexCount = 2 nMapOffset = 0 nNodeListOffset = 0 nNodeListCount = 2 flVolumetricSolveStrength = 0.0 nScaleSourceNode = -1 },
                     { sName = "" nNameHash = 0 nVertexBase = 0 nVertexCount = 0 nMapOffset = 0 nNodeListOffset = 0 nNodeListCount = 0 flVolumetricSolveStrength = 0.0 nScaleSourceNode = -1 },
                 ]
-            }
-            """);
+                """);
 
         // Two proxy sheets over one two-bone chain. Mesh 0's vertices 2 and 3 are the fit targets; mesh 1's vertex 4 carries a two-bone
         // authored paint (bone_1 0.75, bone_2 0.25) in the offset network and no fit entry, and its vertex 5 is single-bound. The hole
         // carries the fit arrays, which is what decides whether mesh 1 is named by a fit range at all.
-        private static FeModel TwoProxySheets(string fits) => SyntheticCloth.Parse($$"""
-            {
-                m_CtrlName = [ "bone_0", "$cloth_m0p0", "$cloth_m0p1", "$cloth_m0p2", "$cloth_m1p1", "$cloth_m1p2", "bone_1", "bone_2" ]
-                m_SkelParents = [ -1, 0, 6, 7, 6, 6, 0, 6 ]
-                m_nNodeCount = 8
-                m_nStaticNodes = 2
+        private static FeModel TwoProxySheets(string fits) => SyntheticCloth.Model(
+            ["bone_0", "$cloth_m0p0", "$cloth_m0p1", "$cloth_m0p2", "$cloth_m1p1", "$cloth_m1p2", "bone_1", "bone_2"],
+                staticNodes: 2, parents: [-1, 0, 6, 7, 6, 6, 0, 6],
+            poses: [new(0f, 0f, 0f), new(1f, 0f, 0f), new(1f, 0f, -8f), new(1f, 0f, -16f), new(-1f, 0f, -8f), new(-1f, 0f, -16f),
+                new(0f, 0f, -8f), new(0f, 0f, -16f)],
+            body: $$"""
                 m_nFirstPositionDrivenNode = 6
-                m_NodeInvMasses = [ 0.0, 0.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0 ]
-                m_InitPose =
-                [
-                    [ 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0 ],
-                    [ 1.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0 ],
-                    [ 1.0, 0.0, -8.0, 1.0, 0.0, 0.0, 0.0, 1.0 ],
-                    [ 1.0, 0.0, -16.0, 1.0, 0.0, 0.0, 0.0, 1.0 ],
-                    [ -1.0, 0.0, -8.0, 1.0, 0.0, 0.0, 0.0, 1.0 ],
-                    [ -1.0, 0.0, -16.0, 1.0, 0.0, 0.0, 0.0, 1.0 ],
-                    [ 0.0, 0.0, -8.0, 1.0, 0.0, 0.0, 0.0, 1.0 ],
-                    [ 0.0, 0.0, -16.0, 1.0, 0.0, 0.0, 0.0, 1.0 ],
-                ]
                 m_CtrlOffsets =
                 [
                     { vOffset = [ 1.0, 0.0, 0.0 ] nCtrlParent = 6 nCtrlChild = 2 },
@@ -7485,8 +5985,7 @@ namespace Tests
                     { nCtrlParent = 7 nCtrlChild = 4 vOffset = [ -1.0, 0.0, 8.0 ] flAlpha = 0.75 },
                 ]
                 {{fits}}
-            }
-            """);
+                """);
 
         /// <summary>
         /// A proxy sheet node the original records in a vertex set while that selection's own compiled weight for it is 0 is
@@ -7526,23 +6025,12 @@ namespace Tests
         // A two-row sheet pinned along its top row ($cloth_m0p0 / p1, nodes 1 and 2) over dynamic nodes 3-6. 'qb' covers nodes
         // 4-6 at 255 / 0 / 128 and 'qz' nodes 5-6 at 0 / 255. The hole carries m_DynNodeVertexSet, which puts nodes 3, 4 and 5
         // in 'qb' and node 6 in 'qz': node 3 lies before 'qb''s range and node 5 inside it at 0.
-        private static FeModel SubQuantumMembers(string sets) => SyntheticCloth.Parse($$"""
-            {
-                m_CtrlName = [ "root", "$cloth_m0p0", "$cloth_m0p1", "$cloth_m0p2", "$cloth_m0p3", "$cloth_m0p4", "$cloth_m0p5" ]
-                m_SkelParents = [ -1, 0, 0, 0, 0, 0, 0 ]
-                m_nNodeCount = 7
-                m_nStaticNodes = 3
-                m_NodeInvMasses = [ 0.0, 0.0, 0.0, 1.0, 1.0, 1.0, 1.0 ]
-                m_InitPose =
-                [
-                    {{SyntheticCloth.Pose(0f, 0f, 0f)}}
-                    {{SyntheticCloth.Pose(0f, 0f, -10f)}}
-                    {{SyntheticCloth.Pose(4f, 0f, -10f)}}
-                    {{SyntheticCloth.Pose(0f, 0f, -20f)}}
-                    {{SyntheticCloth.Pose(4f, 0f, -20f)}}
-                    {{SyntheticCloth.Pose(0f, 0f, -30f)}}
-                    {{SyntheticCloth.Pose(4f, 0f, -30f)}}
-                ]
+        private static FeModel SubQuantumMembers(string sets) => SyntheticCloth.Model(
+            ["root", "$cloth_m0p0", "$cloth_m0p1", "$cloth_m0p2", "$cloth_m0p3", "$cloth_m0p4", "$cloth_m0p5"], staticNodes: 3,
+                parents: [-1, 0, 0, 0, 0, 0, 0],
+            poses: [new(0f, 0f, 0f), new(0f, 0f, -10f), new(4f, 0f, -10f), new(0f, 0f, -20f), new(4f, 0f, -20f),
+                new(0f, 0f, -30f), new(4f, 0f, -30f)],
+            body: $$"""
                 m_Tris =
                 [
                     { nNode = [ 1, 2, 4 ] }, { nNode = [ 1, 4, 3 ] },
@@ -7556,8 +6044,7 @@ namespace Tests
                     { sName = "qb" nNameHash = 3919779763 nVertexBase = 4 nVertexCount = 3 nMapOffset = 0 nNodeListOffset = 0 nNodeListCount = 2 flVolumetricSolveStrength = 0.0 nScaleSourceNode = -1 },
                     { sName = "qz" nNameHash = 51193340 nVertexBase = 5 nVertexCount = 2 nMapOffset = 3 nNodeListOffset = 2 nNodeListCount = 1 flVolumetricSolveStrength = 0.0 nScaleSourceNode = -1 },
                 ]
-            }
-            """);
+                """);
 
         /// <summary>
         /// A collision-shape parent bone whose compiled goal pair and gravity are the <c>ClothNode</c> defaults (goal strength
@@ -7607,22 +6094,10 @@ namespace Tests
         // Six static bones. pelvis, spine_2, clavicle_L, head and neck_0 each parent a capsule; hand_R parents none. pelvis,
         // head, neck_0 and hand_R compile the ClothNode defaults (0, 0.216 = 0.6^3, 0.797273, 360); spine_2 compiles a shape
         // parent's plain (0, 0, 0, 360) and clavicle_L goal strength 0.5 at damping 0.3.
-        private static FeModel ShapeParentIntegrators => SyntheticCloth.Parse($$"""
-            {
-                m_CtrlName = [ "pelvis", "spine_2", "clavicle_L", "head", "neck_0", "hand_R" ]
-                m_SkelParents = [ -1, 0, 1, 1, 1, 2 ]
-                m_nNodeCount = 6
-                m_nStaticNodes = 6
-                m_NodeInvMasses = [ 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 ]
-                m_InitPose =
-                [
-                    {{SyntheticCloth.Pose(0f, 0f, 30f)}}
-                    {{SyntheticCloth.Pose(0f, 0f, 40f)}}
-                    {{SyntheticCloth.Pose(4f, 0f, 50f)}}
-                    {{SyntheticCloth.Pose(0f, 0f, 60f)}}
-                    {{SyntheticCloth.Pose(0f, 0f, 55f)}}
-                    {{SyntheticCloth.Pose(8f, 0f, 45f)}}
-                ]
+        private static FeModel ShapeParentIntegrators => SyntheticCloth.Model(
+            ["pelvis", "spine_2", "clavicle_L", "head", "neck_0", "hand_R"], staticNodes: 6, parents: [-1, 0, 1, 1, 1, 2],
+            poses: [new(0f, 0f, 30f), new(0f, 0f, 40f), new(4f, 0f, 50f), new(0f, 0f, 60f), new(0f, 0f, 55f), new(8f, 0f, 45f)],
+            body: """
                 m_NodeIntegrator =
                 [
                     { flPointDamping = 0.0 flAnimationForceAttraction = 0.216 flAnimationVertexAttraction = 0.797273 flGravity = 360.0 },
@@ -7641,8 +6116,7 @@ namespace Tests
                     { vSphere = [ [ 0.0, 0.0, -4.0, 4.0 ], [ 0.0, 0.0, 4.0, 4.0 ] ] nNode = 4 nCollisionMask = 15 nVertexMapIndex = 65535 nFlags = 0 },
                 ]
                 m_RigidColliderPriorities = [ ]
-            }
-            """);
+                """);
 
         /// <summary>
         /// A face diagonal the compile never built weighs nothing in the geometric node mass the <c>cloth_mass</c> paint is read against:
@@ -7752,59 +6226,7 @@ namespace Tests
             }
         }
 
-        private static FeModel CorrugatedSheet => SyntheticCloth.Parse($$"""
-            {
-                m_CtrlName = [ "$cloth_m0p0", "$cloth_m0p1", "$cloth_m0p2", "$cloth_m0p3", "$cloth_m0p4", "$cloth_m0p5", "$cloth_m0p6", "$cloth_m0p7", "$cloth_m0p8", "$cloth_m0p9", "$cloth_m0p10", "$cloth_m0p11", "$cloth_m0p12", "$cloth_m0p13", "$cloth_m0p14", "$cloth_m0p15", "$cloth_m0p16", "$cloth_m0p17", "$cloth_m0p18", "$cloth_m0p19" ]
-                m_nNodeCount = 20
-                m_nStaticNodes = 0
-                m_NodeInvMasses = [ 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0 ]
-                m_InitPose =
-                [
-                    {{SyntheticCloth.Pose(-8.915558f, 8.00001f, 65.448204f)}}
-                    {{SyntheticCloth.Pose(-6.91556f, 10.000013f, 65.4482f)}}
-                    {{SyntheticCloth.Pose(-8.915562f, 12.000017f, 65.44819f)}}
-                    {{SyntheticCloth.Pose(-6.9155636f, 14.000021f, 65.44818f)}}
-                    {{SyntheticCloth.Pose(-8.9155655f, 16.000025f, 65.44817f)}}
-                    {{SyntheticCloth.Pose(-5.6955614f, 9.866512f, 57.42015f)}}
-                    {{SyntheticCloth.Pose(-7.6955557f, 7.7330093f, 57.420155f)}}
-                    {{SyntheticCloth.Pose(-7.695568f, 12.000014f, 57.42015f)}}
-                    {{SyntheticCloth.Pose(-5.695574f, 14.133517f, 57.420147f)}}
-                    {{SyntheticCloth.Pose(-7.6955795f, 16.26702f, 57.420143f)}}
-                    {{SyntheticCloth.Pose(-12.808148f, 9.681133f, 49.519295f)}}
-                    {{SyntheticCloth.Pose(-14.808141f, 7.3622546f, 49.519295f)}}
-                    {{SyntheticCloth.Pose(-14.808155f, 12.000011f, 49.5193f)}}
-                    {{SyntheticCloth.Pose(-12.808163f, 14.318891f, 49.519302f)}}
-                    {{SyntheticCloth.Pose(-14.80817f, 16.63777f, 49.519302f)}}
-                    {{SyntheticCloth.Pose(-11.907467f, 9.497828f, 41.61303f)}}
-                    {{SyntheticCloth.Pose(-13.907459f, 6.995644f, 41.613026f)}}
-                    {{SyntheticCloth.Pose(-13.9074745f, 12.00001f, 41.613037f)}}
-                    {{SyntheticCloth.Pose(-11.907482f, 14.5021925f, 41.61304f)}}
-                    {{SyntheticCloth.Pose(-13.907492f, 17.004375f, 41.61305f)}}
-                ]
-                m_Rods =
-                [
-                    { nNode = [ 0, 11 ] flMaxDist = 17.985956 flMinDist = 16.995865 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
-                    { nNode = [ 1, 10 ] flMaxDist = 17.995607 flMinDist = 16.986883 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
-                    { nNode = [ 2, 12 ] flMaxDist = 17.987026 flMinDist = 16.983881 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
-                    { nNode = [ 3, 13 ] flMaxDist = 17.995596 flMinDist = 16.986866 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
-                    { nNode = [ 4, 14 ] flMaxDist = 17.985922 flMinDist = 16.995836 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
-                    { nNode = [ 5, 15 ] flMaxDist = 17.972176 flMinDist = 16.987902 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
-                    { nNode = [ 8, 18 ] flMaxDist = 17.972157 flMinDist = 16.987888 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
-                    { nNode = [ 6, 16 ] flMaxDist = 17.989737 flMinDist = 16.999905 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
-                    { nNode = [ 9, 19 ] flMaxDist = 17.989702 flMinDist = 16.999876 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
-                    { nNode = [ 7, 17 ] flMaxDist = 17.96188 flMinDist = 16.983892 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
-                    { nNode = [ 9, 7 ] flMaxDist = 5.8177505 flMinDist = 4.267005 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
-                    { nNode = [ 7, 6 ] flMaxDist = 5.8177505 flMinDist = 4.267005 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
-                    { nNode = [ 8, 5 ] flMaxDist = 5.8177466 flMinDist = 4.267005 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
-                    { nNode = [ 14, 12 ] flMaxDist = 6.1076894 flMinDist = 4.6377583 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
-                    { nNode = [ 12, 11 ] flMaxDist = 6.107687 flMinDist = 4.637757 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
-                    { nNode = [ 13, 10 ] flMaxDist = 6.1076837 flMinDist = 4.6377573 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
-                    { nNode = [ 19, 17 ] flMaxDist = 6.39052 flMinDist = 5.004366 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
-                    { nNode = [ 17, 16 ] flMaxDist = 6.3905187 flMinDist = 5.0043654 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
-                    { nNode = [ 18, 15 ] flMaxDist = 6.3905153 flMinDist = 5.004365 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
-                ]
-            }
-            """);
+        private static FeModel CorrugatedSheet => SyntheticCloth.Load("cloth_sheet_corrugated.kv3");
 
         /// <summary>
         /// A banded rod between two of one chain's own extruded ring nodes, beside the chain's rigid span on
@@ -7875,48 +6297,7 @@ namespace Tests
         private static readonly float[] RingClusterTieRadii = [6f, 6f];
         private static readonly float[] RingClusterTieStrays = [24f, 24f];
 
-        private const string RingClusterTieText = """
-            {
-            m_CtrlName = [ "coattail_0_L", "$cccoattail_0_L_0", "$cccoattail_1_L_0", "$cccoattail_1_L_1", "$cccoattail_2_L_0", "$cccoattail_2_L_1", "$cccoattail_end_L_0", "$cccoattail_end_L_1", "coattail_1_L", "coattail_2_L", "coattail_end_L" ]
-            m_SkelParents = [ -1, 0, 8, 8, 9, 9, 10, 10, 0, 8, 9 ]
-            m_nNodeCount = 11
-            m_nStaticNodes = 2
-            m_NodeInvMasses = [ 0.0, 0.0, 0.002634, 0.003111, 0.002588, 0.003142, 0.005709, 0.005709, 1.0, 1.0, 1.0 ]
-            m_InitPose =
-            [
-                [ -8.915481, 4.000124, 65.447983, 1.0, 0.337553, -0.646323, -0.495776, -0.471731 ],
-                [ -10.723646, 4.561181, 66.092773, 1.0, 0.337553, -0.646323, -0.495776, -0.471731 ],
-                [ -13.473376, 4.824905, 58.146507, 1.0, -0.323373, 0.653533, 0.505948, 0.460804 ],
-                [ -9.917552, 3.709337, 56.693367, 1.0, -0.323373, 0.653533, 0.505948, 0.460804 ],
-                [ -16.587204, 5.195801, 50.242416, 1.0, -0.323943, 0.653251, 0.505547, 0.461245 ],
-                [ -13.028829, 4.079931, 48.795761, 1.0, -0.323943, 0.653251, 0.505547, 0.461245 ],
-                [ -19.686529, 5.562407, 42.336063, 1.0, -0.323943, 0.653251, 0.505547, 0.461245 ],
-                [ -16.128153, 4.446536, 40.889408, 1.0, -0.323943, 0.653251, 0.505547, 0.461245 ],
-                [ -11.695464, 4.267121, 57.419937, 1.0, -0.323373, 0.653533, 0.505948, 0.460804 ],
-                [ -14.808016, 4.637866, 49.519089, 1.0, -0.323943, 0.653251, 0.505547, 0.461245 ],
-                [ -17.907341, 5.004471, 41.612736, 1.0, -0.323943, 0.653251, 0.505547, 0.461245 ],
-            ]
-            m_Rods =
-            [
-                { nNode = [ 0, 2 ] flMaxDist = 8.646747 flMinDist = 8.646747 flWeight0 = 0.0 flRelaxationFactor = 1.0 },
-                { nNode = [ 0, 3 ] flMaxDist = 8.816575 flMinDist = 8.816575 flWeight0 = 0.0 flRelaxationFactor = 1.0 },
-                { nNode = [ 1, 2 ] flMaxDist = 8.412711 flMinDist = 8.412711 flWeight0 = 0.0 flRelaxationFactor = 1.0 },
-                { nNode = [ 1, 3 ] flMaxDist = 9.472289 flMinDist = 9.472289 flWeight0 = 0.0 flRelaxationFactor = 1.0 },
-                { nNode = [ 2, 3 ] flMaxDist = 4.0 flMinDist = 4.0 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
-                { nNode = [ 2, 4 ] flMaxDist = 8.503419 flMinDist = 8.503419 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
-                { nNode = [ 2, 5 ] flMaxDist = 9.390903 flMinDist = 9.390903 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
-                { nNode = [ 3, 4 ] flMaxDist = 9.397265 flMinDist = 9.397265 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
-                { nNode = [ 3, 5 ] flMaxDist = 8.496444 flMinDist = 8.496444 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
-                { nNode = [ 4, 5 ] flMaxDist = 4.000001 flMinDist = 4.000001 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
-                { nNode = [ 4, 6 ] flMaxDist = 8.500037 flMinDist = 8.500037 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
-                { nNode = [ 4, 7 ] flMaxDist = 9.394195 flMinDist = 9.394195 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
-                { nNode = [ 5, 6 ] flMaxDist = 9.394169 flMinDist = 9.394169 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
-                { nNode = [ 5, 7 ] flMaxDist = 8.500037 flMinDist = 8.500037 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
-                { nNode = [ 6, 7 ] flMaxDist = 4.000002 flMinDist = 4.000002 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
-                { nNode = [ 2, 4 ] flMaxDist = 48.0 flMinDist = 12.0 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
-            ]
-            }
-            """;
+        private static string RingClusterTieText => SyntheticCloth.Fixture("cloth_chain_ring_cluster_tie.kv3");
 
         /// <summary>
         /// A bend rod is read only through the hinges the compiler's own element pairing builds it from, and not
@@ -7957,27 +6338,17 @@ namespace Tests
             }
         }
 
-        private static FeModel PairedHingeSheet(float minDist) => SyntheticCloth.Parse($$"""
-            {
-                m_CtrlName = [ "$cloth_m0p0", "$cloth_m0p1", "$cloth_m0p2", "$cloth_m0p3", "$cloth_m0p4", "$cloth_m0p5" ]
-                m_nNodeCount = 6
-                m_nStaticNodes = 0
-                m_NodeInvMasses = [ 1.0, 1.0, 1.0, 1.0, 1.0, 1.0 ]
-                m_InitPose =
-                [
-                    {{SyntheticCloth.Pose(-1.7257074f, 20.404041f, 46.822933f)}}
-                    {{SyntheticCloth.Pose(-1.7570662f, 20.385893f, 46.739212f)}}
-                    {{SyntheticCloth.Pose(-2.2579334f, 20.29848f, 47.05001f)}}
-                    {{SyntheticCloth.Pose(-2.1855373f, 20.323782f, 47.10828f)}}
-                    {{SyntheticCloth.Pose(-2.3192735f, 20.206625f, 47.622124f)}}
-                    {{SyntheticCloth.Pose(-2.404188f, 20.17036f, 47.61194f)}}
-                ]
+        private static FeModel PairedHingeSheet(float minDist) => SyntheticCloth.Model(
+            ["$cloth_m0p0", "$cloth_m0p1", "$cloth_m0p2", "$cloth_m0p3", "$cloth_m0p4", "$cloth_m0p5"], staticNodes: 0,
+            poses: [new(-1.7257074f, 20.404041f, 46.822933f), new(-1.7570662f, 20.385893f, 46.739212f),
+                new(-2.2579334f, 20.29848f, 47.05001f), new(-2.1855373f, 20.323782f, 47.10828f),
+                new(-2.3192735f, 20.206625f, 47.622124f), new(-2.404188f, 20.17036f, 47.61194f)],
+            body: $$"""
                 m_Rods =
                 [
                     { nNode = [ 0, 5 ] flMaxDist = 1.0688722 flMinDist = {{SyntheticCloth.Num(minDist)}} flWeight0 = 0.5 flRelaxationFactor = 1.0 },
                 ]
-            }
-            """);
+                """);
 
         /// <summary>
         /// A sheet vertex whose compiled tree collision mask has layer k cleared was painted 0 on that layer,
@@ -8010,22 +6381,12 @@ namespace Tests
         private static readonly float[] ClearedLayerPaint = [0f, 1f, 1f];
         private static readonly int[] LowFourLayers = [0, 1, 2, 3];
 
-        private static string LayerMaskText(string firstMask) => $$"""
-            {
-                m_CtrlName = [ "root", "$cloth_m0p0", "$cloth_m0p1", "$cloth_m0p2" ]
-                m_nNodeCount = 4
-                m_nStaticNodes = 1
-                m_NodeInvMasses = [ 0.0, 1.0, 1.0, 1.0 ]
-                m_InitPose =
-                [
-                    {{SyntheticCloth.Pose(0f, 0f, 0f)}}
-                    {{SyntheticCloth.Pose(10f, 0f, 0f)}}
-                    {{SyntheticCloth.Pose(20f, 0f, 0f)}}
-                    {{SyntheticCloth.Pose(30f, 0f, 0f)}}
-                ]
+        private static string LayerMaskText(string firstMask) => SyntheticCloth.Document(
+            ["root", "$cloth_m0p0", "$cloth_m0p1", "$cloth_m0p2"], staticNodes: 1,
+            poses: [new(0f, 0f, 0f), new(10f, 0f, 0f), new(20f, 0f, 0f), new(30f, 0f, 0f)],
+            body: $$"""
                 m_TreeCollisionMasks = [ {{firstMask}}, 65535, 65535, 65535, 65535 ]
-            }
-            """;
+                """);
 
         /// <summary>
         /// A static chain root states its relaxless twist link from its OWN entry alone: the far end does not
@@ -8053,19 +6414,13 @@ namespace Tests
             }
         }
 
-        private static FeModel TwistOneWay(string toChild) => SyntheticCloth.Parse($$"""
-            {
-                m_CtrlName = [ "coattail_0_L", "coattail_1_L" ]
-                m_SkelParents = [ -1, 0 ]
-                m_nNodeCount = 2
-                m_nStaticNodes = 1
-                m_NodeInvMasses = [ 0.0, 1.0 ]
+        private static FeModel TwistOneWay(string toChild) => SyntheticCloth.Model(
+            ["coattail_0_L", "coattail_1_L"], staticNodes: 1, parents: [-1, 0], body: $$"""
                 m_Twists =
                 [
                     { nNodeOrient = 0 nNodeEnd = 1 flTwistRelax = {{toChild}} flSwingRelax = 1.0 },
                 ]
-            }
-            """);
+                """);
 
         /// <summary>
         /// A selection the model carries as an <c>m_VertexMaps</c> entry without REGISTERING it in
@@ -8089,19 +6444,14 @@ namespace Tests
             }
         }
 
-        private const string UnregisteredSelectionText = """
-            {
-                m_CtrlName = [ "root", "$cloth_m0p0", "$cloth_m0p1", "$cloth_m0p2" ]
-                m_nNodeCount = 4
-                m_nStaticNodes = 1
-                m_NodeInvMasses = [ 0.0, 1.0, 1.0, 1.0 ]
+        private static string UnregisteredSelectionText => SyntheticCloth.Document(
+            ["root", "$cloth_m0p0", "$cloth_m0p1", "$cloth_m0p2"], staticNodes: 1, body: """
                 m_VertexSetNames = [ 3027761651 ]
                 m_VertexMaps =
                 [
                     { m_Name = "coat_clothVertMap" m_nNameHash = 4042757229 m_nVertexBase = 1 m_nVertexCount = 3 m_Weights = [ 255, 255, 0 ] },
                 ]
-            }
-            """;
+                """);
 
         /// <summary>
         /// Two planarized shapes over one selection can both reach a node, and only one plane per node
@@ -8387,19 +6737,13 @@ namespace Tests
             => new() { Name = "mid", Node = 1, ParentNode = 0, ParentName = "root", InvMass = invMass };
 
         /// <summary>A three-bone chain whose MIDDLE joint orients a twist the far end states nothing back for.</summary>
-        private static FeModel InteriorTwist(string relax) => SyntheticCloth.Parse($$"""
-            {
-                m_CtrlName = [ "root", "mid", "tip" ]
-                m_SkelParents = [ -1, 0, 1 ]
-                m_nNodeCount = 3
-                m_nStaticNodes = 2
-                m_NodeInvMasses = [ 0.0, 0.0, 1.0 ]
+        private static FeModel InteriorTwist(string relax) => SyntheticCloth.Model(
+            ["root", "mid", "tip"], staticNodes: 2, parents: [-1, 0, 1], body: $$"""
                 m_Twists =
                 [
                     { nNodeOrient = 1 nNodeEnd = 2 flTwistRelax = {{relax}} flSwingRelax = 1.0 },
                 ]
-            }
-            """);
+                """);
         /// <summary>
         /// A one-joint chain carries its own version like any other: the compiler takes it at 1 and at 2
         /// alike, so nothing forces such a chain to 0.
@@ -8478,27 +6822,17 @@ namespace Tests
         [Test]
         public async Task ARinglessChainsAbsentRootBaseStatesNoFormat()
         {
-            var ringless = SyntheticCloth.Parse($$"""
-                {
-                    m_CtrlName = [ "root", "j1", "j2" ]
-                    m_SkelParents = [ -1, 0, 1 ]
-                    m_nNodeCount = 3
-                    m_nStaticNodes = 1
+            var ringless = SyntheticCloth.Model(
+                ["root", "j1", "j2"], staticNodes: 1, parents: [-1, 0, 1],
+                poses: [new(0f, 0f, 0f), new(0f, 0f, -10f), new(0f, 0f, -20f)],
+                body: $$"""
                     m_nRotLockStaticNodes = 1
-                    m_NodeInvMasses = [ 0.0, 1.0, 1.0 ]
-                    m_InitPose =
-                    [
-                        {{SyntheticCloth.Pose(0f, 0f, 0f)}}
-                        {{SyntheticCloth.Pose(0f, 0f, -10f)}}
-                        {{SyntheticCloth.Pose(0f, 0f, -20f)}}
-                    ]
                     m_Rods =
                     [
                         {{SyntheticCloth.RigidRod(0, 1, 10f, 1f)}}
                         {{SyntheticCloth.RigidRod(1, 2, 10f, 1f)}}
                     ]
-                }
-                """);
+                    """);
 
             var chain = ringless.BuildBoneChains()[0];
 
@@ -8562,26 +6896,14 @@ namespace Tests
         // Two proxy sheets and one tip bone, with the tip fit over mesh 1's three vertices and nothing fit
         // over mesh 0's three. The hole carries m_nFirstPositionDrivenNode, which is what decides whether
         // the fit came with the promotion back_solve_joints performs.
-        private static FeModel SheetFitOverTipBone(string firstPositionDriven) => SyntheticCloth.Parse($$"""
-            {
-                m_CtrlName = [ "bone_0", "$cloth_m0p0", "$cloth_m0p1", "$cloth_m0p2", "$cloth_m1p0", "$cloth_m1p1", "$cloth_m1p2", "tip" ]
-                m_SkelParents = [ -1, 0, 0, 0, 7, 7, 7, 0 ]
-                m_nNodeCount = 8
-                m_nStaticNodes = 1
+        private static FeModel SheetFitOverTipBone(string firstPositionDriven) => SyntheticCloth.Model(
+            ["bone_0", "$cloth_m0p0", "$cloth_m0p1", "$cloth_m0p2", "$cloth_m1p0", "$cloth_m1p1", "$cloth_m1p2", "tip"],
+                staticNodes: 1, parents: [-1, 0, 0, 0, 7, 7, 7, 0],
+            poses: [new(0f, 0f, 0f), new(4f, 0f, -10f), new(8f, 0f, -10f), new(4f, 0f, -20f), new(-4f, 0f, -10f),
+                new(-8f, 0f, -10f), new(-4f, 0f, -20f), new(0f, 0f, -8f)],
+            body: $$"""
                 m_nRotLockStaticNodes = 1
                 {{firstPositionDriven}}
-                m_NodeInvMasses = [ 0.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0 ]
-                m_InitPose =
-                [
-                    {{SyntheticCloth.Pose(0f, 0f, 0f)}}
-                    {{SyntheticCloth.Pose(4f, 0f, -10f)}}
-                    {{SyntheticCloth.Pose(8f, 0f, -10f)}}
-                    {{SyntheticCloth.Pose(4f, 0f, -20f)}}
-                    {{SyntheticCloth.Pose(-4f, 0f, -10f)}}
-                    {{SyntheticCloth.Pose(-8f, 0f, -10f)}}
-                    {{SyntheticCloth.Pose(-4f, 0f, -20f)}}
-                    {{SyntheticCloth.Pose(0f, 0f, -8f)}}
-                ]
                 m_Tris = [ { nNode = [ 1, 2, 3 ] }, { nNode = [ 4, 5, 6 ] } ]
                 m_CtrlOffsets =
                 [
@@ -8599,8 +6921,7 @@ namespace Tests
                     { flWeight = 1.0 nNode = 5 nDummy = 0 },
                     { flWeight = 1.0 nNode = 6 nDummy = 0 },
                 ]
-            }
-            """);
+                """);
         /// <summary>
         /// A joint that SIMULATES and whose child-ward twist entry carries no relaxation at all was stated
         /// twice: the first declaration said <c>simulate = false</c>, so that pass zeroed the entry, and a
@@ -8621,19 +6942,10 @@ namespace Tests
         [Test]
         public async Task ASimulatingJointsRelaxlessChildTwistStatesASecondDeclaration()
         {
-            static FeModel Chain(string toChild, string extraToParent) => SyntheticCloth.Parse($$"""
-                {
-                    m_CtrlName = [ "root", "j1", "j2" ]
-                    m_SkelParents = [ -1, 0, 1 ]
-                    m_nNodeCount = 3
-                    m_nStaticNodes = 1
-                    m_NodeInvMasses = [ 0.0, 1.0, 1.0 ]
-                    m_InitPose =
-                    [
-                        {{SyntheticCloth.Pose(0f, 0f, 0f)}}
-                        {{SyntheticCloth.Pose(0f, 0f, -10f)}}
-                        {{SyntheticCloth.Pose(0f, 0f, -20f)}}
-                    ]
+            static FeModel Chain(string toChild, string extraToParent) => SyntheticCloth.Model(
+                ["root", "j1", "j2"], staticNodes: 1, parents: [-1, 0, 1],
+                poses: [new(0f, 0f, 0f), new(0f, 0f, -10f), new(0f, 0f, -20f)],
+                body: $$"""
                     m_Rods =
                     [
                         {{SyntheticCloth.RigidRod(0, 1, 10f, 1f)}}
@@ -8645,8 +6957,7 @@ namespace Tests
                         { nNodeOrient = 1 nNodeEnd = 2 flTwistRelax = {{toChild}} flSwingRelax = 1.0 },
                         {{extraToParent}}
                     ]
-                }
-                """);
+                    """);
 
             static KVObject FirstDeclaration(FeModel feModel)
             {
@@ -8758,23 +7069,7 @@ namespace Tests
         // The fixture sheet re-bound to a chosen node set and cloth_enable pattern, which is what the paint
         // reads; every other stream is along for the ride.
         private static FeModel.ProxyMesh RotationSheet(FeModel.ProxyMesh sheet, int[] nodes, float[] enable)
-            => new()
-            {
-                NodeIndices = nodes,
-                ClothEnable = enable,
-                Positions = [.. nodes.Select(_ => Vector3.Zero)],
-                GoalStrength = new float[nodes.Length],
-                GoalDamping = new float[nodes.Length],
-                CollisionRadius = new float[nodes.Length],
-                Friction = new float[nodes.Length],
-                Drag = new float[nodes.Length],
-                GroundCollision = new float[nodes.Length],
-                GroundFriction = new float[nodes.Length],
-                Gravity = new float[nodes.Length],
-                VertexAttraction = new float[nodes.Length],
-                SkinInfluences = [.. nodes.Select(_ => Array.Empty<(string, float)>())],
-                Faces = sheet.Faces,
-            };
+            => SyntheticCloth.Proxy(nodes, enable, sheet.Faces);
         /// <summary>
         /// A self-collision cluster's member table states its own schema defaults, the way its sibling
         /// rigid-cloud cluster's does, because the compiler falls back to them for a member row that
@@ -8842,20 +7137,10 @@ namespace Tests
         [Test]
         public async Task ARootReadsItsIterationsFromItsChildrensSiblingRods()
         {
-            static FeModel Fan(int copies, int extraOnOnePair) => SyntheticCloth.Parse($$"""
-                {
-                    m_CtrlName = [ "root", "c1", "c2", "c3" ]
-                    m_SkelParents = [ -1, 0, 0, 0 ]
-                    m_nNodeCount = 4
-                    m_nStaticNodes = 1
-                    m_NodeInvMasses = [ 0.0, 1.0, 1.0, 1.0 ]
-                    m_InitPose =
-                    [
-                        {{SyntheticCloth.Pose(0f, 0f, 0f)}}
-                        {{SyntheticCloth.Pose(-10f, 0f, -10f)}}
-                        {{SyntheticCloth.Pose(0f, 0f, -10f)}}
-                        {{SyntheticCloth.Pose(10f, 0f, -10f)}}
-                    ]
+            static FeModel Fan(int copies, int extraOnOnePair) => SyntheticCloth.Model(
+                ["root", "c1", "c2", "c3"], staticNodes: 1, parents: [-1, 0, 0, 0],
+                poses: [new(0f, 0f, 0f), new(-10f, 0f, -10f), new(0f, 0f, -10f), new(10f, 0f, -10f)],
+                body: $$"""
                     m_Rods =
                     [
                         {{SyntheticCloth.RigidRod(0, 1, 14.142136f, 1f)}}
@@ -8865,8 +7150,7 @@ namespace Tests
                         {{string.Concat(Enumerable.Repeat(SyntheticCloth.RigidRod(1, 3, 20f, 0.5f), copies + extraOnOnePair))}}
                         {{string.Concat(Enumerable.Repeat(SyntheticCloth.RigidRod(2, 3, 10f, 0.5f), copies))}}
                     ]
-                }
-                """);
+                    """);
 
             static int Iterations(FeModel feModel)
                 => feModel.BuildBoneChains()[0].Joints.Find(static joint => joint.Name == "root")!.ExtraIterations;
@@ -8955,22 +7239,11 @@ namespace Tests
             // root - p1 - j, all three static, which is dl `bookworm`'s `RibbonRoot`: the compiler builds
             // no rod between two static nodes, so j's own upward span carries none while j still has a
             // chain parent. Its two simulated children are joined by `siblings` sibling rods.
-            static FeModel Rodless(int siblings, bool twoChildren = true) => SyntheticCloth.Parse($$"""
-                {
-                    m_CtrlName = [ "root", "p", "j", "c1", "c2", "sibling_of_j" ]
-                    m_SkelParents = [ -1, 0, 1, 2, 2, 1 ]
-                    m_nNodeCount = 6
-                    m_nStaticNodes = 3
-                    m_NodeInvMasses = [ 0.0, 0.0, 0.0, 1.0, 1.0, 1.0 ]
-                    m_InitPose =
-                    [
-                        {{SyntheticCloth.Pose(0f, 0f, 0f)}}
-                        {{SyntheticCloth.Pose(0f, 0f, -10f)}}
-                        {{SyntheticCloth.Pose(0f, 0f, -20f)}}
-                        {{SyntheticCloth.Pose(-10f, 0f, -30f)}}
-                        {{SyntheticCloth.Pose(10f, 0f, -30f)}}
-                        {{SyntheticCloth.Pose(30f, 0f, -20f)}}
-                    ]
+            static FeModel Rodless(int siblings, bool twoChildren = true) => SyntheticCloth.Model(
+                ["root", "p", "j", "c1", "c2", "sibling_of_j"], staticNodes: 3, parents: [-1, 0, 1, 2, 2, 1],
+                poses: [new(0f, 0f, 0f), new(0f, 0f, -10f), new(0f, 0f, -20f), new(-10f, 0f, -30f), new(10f, 0f, -30f),
+                    new(30f, 0f, -20f)],
+                body: $$"""
                     m_Rods =
                     [
                         {{SyntheticCloth.RigidRod(1, 5, 30f, 1f)}}
@@ -8981,28 +7254,16 @@ namespace Tests
                             ? string.Concat(Enumerable.Repeat(SyntheticCloth.RigidRod(3, 4, 20f, 0.5f), siblings))
                             : string.Empty)}}
                     ]
-                }
-                """);
+                    """);
 
             // The same two children under a SIMULATED j whose span to p2 carries `spanRods` and whose bend
             // span to the grandparent p1 carries `bendRods`. The grandparent is p1 rather than the chain
             // root, so the root-suspender reading cannot halve the count.
-            static FeModel Spanned(int spanRods, int bendRods, int siblings) => SyntheticCloth.Parse($$"""
-                {
-                    m_CtrlName = [ "root", "p1", "p2", "j", "c1", "c2" ]
-                    m_SkelParents = [ -1, 0, 1, 2, 3, 3 ]
-                    m_nNodeCount = 6
-                    m_nStaticNodes = 1
-                    m_NodeInvMasses = [ 0.0, 1.0, 1.0, 1.0, 1.0, 1.0 ]
-                    m_InitPose =
-                    [
-                        {{SyntheticCloth.Pose(0f, 0f, 0f)}}
-                        {{SyntheticCloth.Pose(0f, 0f, -10f)}}
-                        {{SyntheticCloth.Pose(0f, 0f, -20f)}}
-                        {{SyntheticCloth.Pose(0f, 0f, -30f)}}
-                        {{SyntheticCloth.Pose(-10f, 0f, -40f)}}
-                        {{SyntheticCloth.Pose(10f, 0f, -40f)}}
-                    ]
+            static FeModel Spanned(int spanRods, int bendRods, int siblings) => SyntheticCloth.Model(
+                ["root", "p1", "p2", "j", "c1", "c2"], staticNodes: 1, parents: [-1, 0, 1, 2, 3, 3],
+                poses: [new(0f, 0f, 0f), new(0f, 0f, -10f), new(0f, 0f, -20f), new(0f, 0f, -30f), new(-10f, 0f, -40f),
+                    new(10f, 0f, -40f)],
+                body: $$"""
                     m_Rods =
                     [
                         {{SyntheticCloth.RigidRod(0, 1, 10f, 1f)}}
@@ -9013,8 +7274,7 @@ namespace Tests
                         {{SyntheticCloth.RigidRod(3, 5, 14.142136f, 1f)}}
                         {{string.Concat(Enumerable.Repeat(SyntheticCloth.RigidRod(4, 5, 20f, 0.5f), siblings))}}
                     ]
-                }
-                """);
+                    """);
 
             static int Iterations(FeModel feModel)
             {
@@ -9191,23 +7451,7 @@ namespace Tests
 
         // A bare sheet carrying only what the corner padding reads: a cloth_enable pattern and a face list.
         private static FeModel.ProxyMesh CornerSheet(float[] enable, List<int[]> faces)
-            => new()
-            {
-                NodeIndices = [.. Enumerable.Range(0, enable.Length)],
-                ClothEnable = enable,
-                Positions = [.. enable.Select(static _ => Vector3.Zero)],
-                GoalStrength = new float[enable.Length],
-                GoalDamping = new float[enable.Length],
-                CollisionRadius = new float[enable.Length],
-                Friction = new float[enable.Length],
-                Drag = new float[enable.Length],
-                GroundCollision = new float[enable.Length],
-                GroundFriction = new float[enable.Length],
-                Gravity = new float[enable.Length],
-                VertexAttraction = new float[enable.Length],
-                SkinInfluences = [.. enable.Select(static _ => Array.Empty<(string, float)>())],
-                Faces = faces,
-            };
+            => SyntheticCloth.Proxy([.. Enumerable.Range(0, enable.Length)], enable, faces);
 
         /// <summary>
         /// A hinge's fan element is kept out of the sheet recovery whether or not the hinge carries limits
@@ -9283,21 +7527,10 @@ namespace Tests
         {
             // root and `b` are static, so `b` is an intermediate INSIDE the run - the shape that
             // fragmented unicorn. The static nodes lead, as a compiled file orders them.
-            static FeModel Run(float firstChildWard) => SyntheticCloth.Parse($$"""
-                {
-                    m_CtrlName = [ "root", "b", "a", "c", "d" ]
-                    m_SkelParents = [ -1, 2, 0, 1, 3 ]
-                    m_nNodeCount = 5
-                    m_nStaticNodes = 2
-                    m_NodeInvMasses = [ 0.0, 0.0, 1.0, 1.0, 1.0 ]
-                    m_InitPose =
-                    [
-                        {{SyntheticCloth.Pose(0f, 0f, 0f)}}
-                        {{SyntheticCloth.Pose(0f, 0f, -20f)}}
-                        {{SyntheticCloth.Pose(0f, 0f, -10f)}}
-                        {{SyntheticCloth.Pose(0f, 0f, -30f)}}
-                        {{SyntheticCloth.Pose(0f, 0f, -40f)}}
-                    ]
+            static FeModel Run(float firstChildWard) => SyntheticCloth.Model(
+                ["root", "b", "a", "c", "d"], staticNodes: 2, parents: [-1, 2, 0, 1, 3],
+                poses: [new(0f, 0f, 0f), new(0f, 0f, -20f), new(0f, 0f, -10f), new(0f, 0f, -30f), new(0f, 0f, -40f)],
+                body: $$"""
                     m_Rods =
                     [
                         {{SyntheticCloth.RigidRod(0, 2, 10f, 1f)}}
@@ -9316,8 +7549,7 @@ namespace Tests
                         { nNodeOrient = 3 nNodeEnd = 1 flTwistRelax = 0.2163 flSwingRelax = 0.0 },
                         { nNodeOrient = 3 nNodeEnd = 4 flTwistRelax = 0.1337 flSwingRelax = 0.25 },
                     ]
-                }
-                """);
+                    """);
 
             static IEnumerable<string> Roots(FeModel feModel)
                 => feModel.BuildBoneChains()[0].Joints.Select(static joint =>
@@ -9474,47 +7706,21 @@ namespace Tests
         {
             static FeModel Model(string bases)
             {
-                var model = SyntheticCloth.Parse($$"""
-                    {
-                        m_CtrlName = [ "anchor", "$cloth_m0p0", "$cloth_m0p1", "$cloth_m0p2", "$cloth_m0p3" ]
-                        m_SkelParents = [ -1, 0, 0, 0, 0 ]
-                        m_nNodeCount = 5
-                        m_nStaticNodes = 3
+                var model = SyntheticCloth.Model(
+                    ["anchor", "$cloth_m0p0", "$cloth_m0p1", "$cloth_m0p2", "$cloth_m0p3"], staticNodes: 3,
+                        parents: [-1, 0, 0, 0, 0],
+                    poses: [new(0f, 0f, 0f), new(0f, 0f, 0f), new(0f, 2f, 0f), new(0f, 0f, -8f), new(0f, 2f, -8f)],
+                    body: $$"""
                         m_nRotLockStaticNodes = 1
-                        m_NodeInvMasses = [ 0.0, 0.0, 0.0, 1.0, 1.0 ]
-                        m_InitPose =
-                        [
-                            {{SyntheticCloth.Pose(0f, 0f, 0f)}}
-                            {{SyntheticCloth.Pose(0f, 0f, 0f)}}
-                            {{SyntheticCloth.Pose(0f, 2f, 0f)}}
-                            {{SyntheticCloth.Pose(0f, 0f, -8f)}}
-                            {{SyntheticCloth.Pose(0f, 2f, -8f)}}
-                        ]
                         m_NodeBases = [ {{bases}} ]
-                    }
-                    """);
+                        """);
                 model.SkeletonBoneParents = new Dictionary<string, string?> { ["anchor"] = "spine" };
                 return model;
             }
             static string Base(int node)
                 => $"{{ nNode = {node} nDummy = [ 0, 0, 0 ] nNodeX0 = 3 nNodeX1 = 4 nNodeY0 = 1 nNodeY1 = 2 qAdjust = [ 0.0, 0.0, 0.0, 1.0 ] }},";
-            static FeModel.ProxyMesh Sheet(List<int[]> faces) => new()
-            {
-                NodeIndices = [1, 2, 3, 4],
-                Positions = [new(0f, 0f, 0f), new(0f, 2f, 0f), new(0f, 0f, -8f), new(0f, 2f, -8f)],
-                ClothEnable = [0f, 0f, 1f, 1f],
-                GoalStrength = new float[4],
-                GoalDamping = new float[4],
-                CollisionRadius = new float[4],
-                Friction = new float[4],
-                Drag = new float[4],
-                GroundCollision = new float[4],
-                GroundFriction = new float[4],
-                Gravity = new float[4],
-                VertexAttraction = new float[4],
-                SkinInfluences = [[], [], [], []],
-                Faces = faces,
-            };
+            static FeModel.ProxyMesh Sheet(List<int[]> faces) => SyntheticCloth.Proxy([1, 2, 3, 4], [0f, 0f, 1f, 1f], faces,
+                [new(0f, 0f, 0f), new(0f, 2f, 0f), new(0f, 0f, -8f), new(0f, 2f, -8f)]);
 
             var quad = Sheet([[0, 1, 3, 2]]);
             var flexed = Model(Base(1) + Base(2));
@@ -9587,22 +7793,10 @@ namespace Tests
         // A limited hinge on the chain root "hat" whose child "hat_end" extrudes nothing, so the fan the
         // compiler builds over it is a triangle. The rod on the lower link is what keeps the chain's own
         // rods visible, as a hard hinge replaces only the link it spans.
-        private static FeModel HingeTriGate(string tris, string quads) => SyntheticCloth.Parse($$"""
-            {
-                m_CtrlName = [ "$ha_hat", "$cchat_0", "$cchat_1", "hat", "hat_end", "hat_tip" ]
-                m_SkelParents = [ 3, 3, 3, -1, 3, 4 ]
-                m_nNodeCount = 6
-                m_nStaticNodes = 4
-                m_NodeInvMasses = [ 0.0, 0.0, 0.0, 0.0, 1.0, 1.0 ]
-                m_InitPose =
-                [
-                    {{SyntheticCloth.Pose(0f, 0f, 0f)}}
-                    {{SyntheticCloth.Pose(0f, -10f, 0f)}}
-                    {{SyntheticCloth.Pose(0f, 10f, 0f)}}
-                    {{SyntheticCloth.Pose(0f, 0f, 0f)}}
-                    {{SyntheticCloth.Pose(8f, 0f, 0f)}}
-                    {{SyntheticCloth.Pose(16f, 0f, 0f)}}
-                ]
+        private static FeModel HingeTriGate(string tris, string quads) => SyntheticCloth.Model(
+            ["$ha_hat", "$cchat_0", "$cchat_1", "hat", "hat_end", "hat_tip"], staticNodes: 4, parents: [3, 3, 3, -1, 3, 4],
+            poses: [new(0f, 0f, 0f), new(0f, -10f, 0f), new(0f, 10f, 0f), new(0f, 0f, 0f), new(8f, 0f, 0f), new(16f, 0f, 0f)],
+            body: $$"""
                 m_CtrlOffsets =
                 [
                     { vOffset = [ 0.0, -10.0, 0.000001 ] nCtrlParent = 3 nCtrlChild = 1 },
@@ -9612,8 +7806,7 @@ namespace Tests
                 {{(quads.Length > 0 ? "m_Quads = " + quads : string.Empty)}}
                 {{(tris.Length > 0 ? "m_Tris = " + tris : string.Empty)}}
                 m_HingeLimits = [ { nNode = [ 1, 2, 3, 4, 3, 4 ] flAngleCenter = 0.0 flAngleExtents = 0.785398 } ]
-            }
-            """);
+                """);
 
         /// <summary>
         /// An authored <c>ClothSpring</c> over a pair the chain ALSO spans does not replace that span: the
@@ -9665,24 +7858,12 @@ namespace Tests
         // source element on the bone pair (j1, j2). The rings are what make this fixture able to express
         // the law at all - a bare three-node chain lets the joint's OWN extra_iterations recovery absorb
         // the second rod, and then no surplus is left for the spring to declare.
-        private static FeModel SpringOverASpan(bool secondRodOnThePair) => SyntheticCloth.Parse($$"""
-            {
-                m_CtrlName = [ "j0", "$ccj0_0", "j1", "$ccj1_0", "j2", "$ccj2_0", "j3", "$ccj3_0" ]
-                m_SkelParents = [ -1, 0, 0, 2, 2, 4, 4, 6 ]
-                m_nNodeCount = 8
-                m_nStaticNodes = 2
-                m_NodeInvMasses = [ 0.0, 0.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0 ]
-                m_InitPose =
-                [
-                    {{SyntheticCloth.Pose(0f, 0f, 0f)}}
-                    {{SyntheticCloth.Pose(0f, 2f, 0f)}}
-                    {{SyntheticCloth.Pose(0f, 0f, -8f)}}
-                    {{SyntheticCloth.Pose(0f, 2f, -8f)}}
-                    {{SyntheticCloth.Pose(0f, 0f, -16f)}}
-                    {{SyntheticCloth.Pose(0f, 2f, -16f)}}
-                    {{SyntheticCloth.Pose(0f, 0f, -24f)}}
-                    {{SyntheticCloth.Pose(0f, 2f, -24f)}}
-                ]
+        private static FeModel SpringOverASpan(bool secondRodOnThePair) => SyntheticCloth.Model(
+            ["j0", "$ccj0_0", "j1", "$ccj1_0", "j2", "$ccj2_0", "j3", "$ccj3_0"], staticNodes: 2,
+                parents: [-1, 0, 0, 2, 2, 4, 4, 6],
+            poses: [new(0f, 0f, 0f), new(0f, 2f, 0f), new(0f, 0f, -8f), new(0f, 2f, -8f), new(0f, 0f, -16f), new(0f, 2f, -16f),
+                new(0f, 0f, -24f), new(0f, 2f, -24f)],
+            body: $$"""
                 m_CtrlOffsets =
                 [
                     { vOffset = [ 0.0, 2.0, 0.0 ] nCtrlParent = 0 nCtrlChild = 1 },
@@ -9710,8 +7891,7 @@ namespace Tests
                     {{SyntheticCloth.RigidRod(6, 7, 2f, 1f)}}
                     {{(secondRodOnThePair ? SyntheticCloth.RigidRod(2, 4, 8f, 1f) : string.Empty)}}
                 ]
-            }
-            """);
+                """);
 
         /// <summary>
         /// A stiff hinge's stiffness is the bend weights' own linear combination,
@@ -9754,25 +7934,15 @@ namespace Tests
 
         // One bend over three nodes of UNEQUAL inverse mass, so a reading that divides by a node's own
         // share cannot agree with one that does not.
-        private static FeModel BiasedKelagerModel(string weights) => SyntheticCloth.Parse($$"""
-            {
-                m_CtrlName = [ "mid", "end0", "end1" ]
-                m_SkelParents = [ -1, 0, 0 ]
-                m_nNodeCount = 3
-                m_nStaticNodes = 0
-                m_NodeInvMasses = [ 2.0, 1.0, 4.0 ]
-                m_InitPose =
-                [
-                    {{SyntheticCloth.Pose(0f, 1f, 0f)}}
-                    {{SyntheticCloth.Pose(-1f, 0f, 0f)}}
-                    {{SyntheticCloth.Pose(1f, 0f, 0f)}}
-                ]
+        private static FeModel BiasedKelagerModel(string weights) => SyntheticCloth.Model(
+            ["mid", "end0", "end1"], staticNodes: 0, parents: [-1, 0, 0], invMasses: "2.0, 1.0, 4.0",
+            poses: [new(0f, 1f, 0f), new(-1f, 0f, 0f), new(1f, 0f, 0f)],
+            body: $$"""
                 m_KelagerBends =
                 [
                     { nNode = [ 0, 1, 2 ] flWeight = [ {{weights}} ] flHeight0 = 0.8164966 },
                 ]
-            }
-            """);
+                """);
 
         /// <summary>
         /// Every compiled bend height is raised to a 0.001 floor, so a height sitting on that floor states
@@ -9809,25 +7979,15 @@ namespace Tests
 
         // Three collinear nodes, so the triple's rest height is zero and the only floor the compiled height
         // can be sitting on is the 0.001 one.
-        private static FeModel FlatKelagerModel(float height) => SyntheticCloth.Parse($$"""
-            {
-                m_CtrlName = [ "mid", "end0", "end1" ]
-                m_SkelParents = [ -1, 0, 0 ]
-                m_nNodeCount = 3
-                m_nStaticNodes = 0
-                m_NodeInvMasses = [ 1.0, 1.0, 1.0 ]
-                m_InitPose =
-                [
-                    {{SyntheticCloth.Pose(0f, 0f, 0f)}}
-                    {{SyntheticCloth.Pose(-1f, 0f, 0f)}}
-                    {{SyntheticCloth.Pose(1f, 0f, 0f)}}
-                ]
+        private static FeModel FlatKelagerModel(float height) => SyntheticCloth.Model(
+            ["mid", "end0", "end1"], staticNodes: 0, parents: [-1, 0, 0],
+            poses: [new(0f, 0f, 0f), new(-1f, 0f, 0f), new(1f, 0f, 0f)],
+            body: $$"""
                 m_KelagerBends =
                 [
                     { nNode = [ 0, 1, 2 ] flWeight = [ -1.0, 0.5, 0.5 ] flHeight0 = {{SyntheticCloth.Num(height)}} },
                 ]
-            }
-            """);
+                """);
 
         /// <summary>
         /// A sheet whose bend network states no paint at all still has to state a fold its own capped rods allow. This
@@ -9871,27 +8031,13 @@ namespace Tests
         /// whose rod (8, 10) sits at <paramref name="lowerHingeMinDist"/>. At its rest span of 20 that rod is capped and
         /// bounds its hinge from below; short of it the hinge states a fold of its own instead.
         /// </summary>
-        private static FeModel CappedAgainstFlatHingeGrid(float lowerHingeMinDist) => SyntheticCloth.Parse($$"""
-            {
-                m_CtrlName = [ "$cloth_m0p0", "$cloth_m0p1", "$cloth_m0p2", "$cloth_m0p3", "$cloth_m0p4", "$cloth_m0p5", "$cloth_m0p6", "$cloth_m0p7", "$cloth_m0p8", "$cloth_m0p9", "$cloth_m0p10", "$cloth_m0p11" ]
-                m_nNodeCount = 12
-                m_nStaticNodes = 0
-                m_NodeInvMasses = [ 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0 ]
-                m_InitPose =
-                [
-                    {{SyntheticCloth.Pose(0f, 0f, 0f)}}
-                    {{SyntheticCloth.Pose(10f, 0f, 0f)}}
-                    {{SyntheticCloth.Pose(20f, 0f, 0f)}}
-                    {{SyntheticCloth.Pose(30f, 0f, 0f)}}
-                    {{SyntheticCloth.Pose(0f, 0f, -10f)}}
-                    {{SyntheticCloth.Pose(10f, 0f, -10f)}}
-                    {{SyntheticCloth.Pose(20f, 0f, -10f)}}
-                    {{SyntheticCloth.Pose(30f, 0f, -10f)}}
-                    {{SyntheticCloth.Pose(0f, 0f, -20f)}}
-                    {{SyntheticCloth.Pose(10f, 0f, -20f)}}
-                    {{SyntheticCloth.Pose(20f, 0f, -20f)}}
-                    {{SyntheticCloth.Pose(30f, 0f, -20f)}}
-                ]
+        private static FeModel CappedAgainstFlatHingeGrid(float lowerHingeMinDist) => SyntheticCloth.Model(
+            ["$cloth_m0p0", "$cloth_m0p1", "$cloth_m0p2", "$cloth_m0p3", "$cloth_m0p4", "$cloth_m0p5", "$cloth_m0p6", "$cloth_m0p7", "$cloth_m0p8", "$cloth_m0p9", "$cloth_m0p10", "$cloth_m0p11"],
+                staticNodes: 0,
+            poses: [new(0f, 0f, 0f), new(10f, 0f, 0f), new(20f, 0f, 0f), new(30f, 0f, 0f), new(0f, 0f, -10f), new(10f, 0f, -10f),
+                new(20f, 0f, -10f), new(30f, 0f, -10f), new(0f, 0f, -20f), new(10f, 0f, -20f), new(20f, 0f, -20f),
+                new(30f, 0f, -20f)],
+            body: $$"""
                 m_Rods =
                 [
                     { nNode = [ 0, 2 ] flMaxDist = 20.0 flMinDist = 0.0 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
@@ -9905,8 +8051,7 @@ namespace Tests
                     { nNode = [ 2, 10 ] flMaxDist = 20.0 flMinDist = 0.0 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
                     { nNode = [ 3, 11 ] flMaxDist = 20.0 flMinDist = 0.0 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
                 ]
-            }
-            """);
+                """);
 
         /// <summary>
         /// A stiff hinge's bend is written once per DECLARATION, in declaration order, so a doubly
@@ -9942,26 +8087,16 @@ namespace Tests
 
         // One joint bent once or twice over the same triple, the second bend at the wider angle: the
         // compiled shape of a bone two chains both declare.
-        private static FeModel TwiceBentKelagerModel(float first, float? second) => SyntheticCloth.Parse($$"""
-            {
-                m_CtrlName = [ "mid", "joint", "end1" ]
-                m_SkelParents = [ -1, 0, 0 ]
-                m_nNodeCount = 3
-                m_nStaticNodes = 0
-                m_NodeInvMasses = [ 1.0, 1.0, 1.0 ]
-                m_InitPose =
-                [
-                    {{SyntheticCloth.Pose(0f, 0.2f, 0f)}}
-                    {{SyntheticCloth.Pose(-1f, 0f, 0f)}}
-                    {{SyntheticCloth.Pose(1f, 0f, 0f)}}
-                ]
+        private static FeModel TwiceBentKelagerModel(float first, float? second) => SyntheticCloth.Model(
+            ["mid", "joint", "end1"], staticNodes: 0, parents: [-1, 0, 0],
+            poses: [new(0f, 0.2f, 0f), new(-1f, 0f, 0f), new(1f, 0f, 0f)],
+            body: $$"""
                 m_KelagerBends =
                 [
                     { nNode = [ 0, 1, 2 ] flWeight = [ -1.0, 0.5, 0.5 ] flHeight0 = {{SyntheticCloth.Num(first)}} },
                     {{(second is { } h ? $"{{ nNode = [ 0, 1, 2 ] flWeight = [ -1.0, 0.5, 0.5 ] flHeight0 = {SyntheticCloth.Num(h)} }}," : string.Empty)}}
                 ]
-            }
-            """);
+                """);
 
         /// <summary>
         /// A rod the compiler folds across an edge two faces share carries its endpoints' final inverse-mass ratio as
@@ -10000,20 +8135,10 @@ namespace Tests
         // A static root with a chain of two joints under it and a third under the second, two triangles over
         // (root, a, b) and (root, b, c) folding across root-b, and one banded rod between a and c at the given weight.
         // Without the fan pair the second triangle is (root, c, a) instead, which folds nothing onto a-c.
-        private static FeModel FoldedChainModel(float weight, bool fanPair) => SyntheticCloth.Parse($$"""
-            {
-                m_CtrlName = [ "root", "a", "b", "c" ]
-                m_SkelParents = [ -1, 0, 0, 2 ]
-                m_nNodeCount = 4
-                m_nStaticNodes = 1
-                m_NodeInvMasses = [ 0.0, 1.0, 1.0, 0.5 ]
-                m_InitPose =
-                [
-                    {{SyntheticCloth.Pose(0f, 0f, 0f)}}
-                    {{SyntheticCloth.Pose(-1f, 0f, -2f)}}
-                    {{SyntheticCloth.Pose(0f, 0f, -2f)}}
-                    {{SyntheticCloth.Pose(1f, 0f, -4f)}}
-                ]
+        private static FeModel FoldedChainModel(float weight, bool fanPair) => SyntheticCloth.Model(
+            ["root", "a", "b", "c"], staticNodes: 1, parents: [-1, 0, 0, 2], invMasses: "0.0, 1.0, 1.0, 0.5",
+            poses: [new(0f, 0f, 0f), new(-1f, 0f, -2f), new(0f, 0f, -2f), new(1f, 0f, -4f)],
+            body: $$"""
                 m_SourceElems = {{(fanPair ? "[ 0, 0, 2, 0, 0, 1, 2, 0, 2, 3 ]" : "[ 0, 0, 2, 0, 0, 1, 2, 0, 3, 1 ]")}}
                 m_Rods =
                 [
@@ -10022,8 +8147,7 @@ namespace Tests
                     {{SyntheticCloth.RigidRod(2, 3, 2.236068f, 1f)}}
                     { nNode = [ 1, 3 ] flMinDist = 1.5 flMaxDist = 2.828427 flWeight0 = {{SyntheticCloth.Num(weight)}} flRelaxationFactor = 1.0 },
                 ]
-            }
-            """);
+                """);
 
         /// <summary>
         /// The chain preset scans the joint's own vector and then its child's in the order the importer pushed them, unsorted,
@@ -10056,29 +8180,15 @@ namespace Tests
         }
 
         // TwoWideRope with j0's ring compiled after j1's; each joint's reverse offset names its own ring node _0.
-        private static FeModel PermutedTwoWideRope(bool offsets) => SyntheticCloth.Parse($$"""
-            {
-                m_CtrlName = [ "j0", "$ccj1_0", "$ccj1_1", "j1", "$ccj0_0", "$ccj0_1", "j2", "$ccj2_0", "$ccj2_1" ]
-                m_SkelParents = [ -1, 3, 3, 0, 0, 0, 3, 6, 6 ]
-                m_nNodeCount = 9
-                m_nStaticNodes = 0
-                m_NodeInvMasses = [ 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0 ]
-                m_InitPose =
-                [
-                    {{SyntheticCloth.Pose(0f, 0f, 0f)}}
-                    {{SyntheticCloth.Pose(-8.5f, 2f, 0f)}}
-                    {{SyntheticCloth.Pose(-8.5f, -2f, 0f)}}
-                    {{SyntheticCloth.Pose(-8.5f, 0f, 0f)}}
-                    {{SyntheticCloth.Pose(0f, 2f, 0f)}}
-                    {{SyntheticCloth.Pose(0f, -2f, 0f)}}
-                    {{SyntheticCloth.Pose(-17f, 0f, 0f)}}
-                    {{SyntheticCloth.Pose(-17f, 2f, 0f)}}
-                    {{SyntheticCloth.Pose(-17f, -2f, 0f)}}
-                ]
+        private static FeModel PermutedTwoWideRope(bool offsets) => SyntheticCloth.Model(
+            ["j0", "$ccj1_0", "$ccj1_1", "j1", "$ccj0_0", "$ccj0_1", "j2", "$ccj2_0", "$ccj2_1"], staticNodes: 0,
+                parents: [-1, 3, 3, 0, 0, 0, 3, 6, 6],
+            poses: [new(0f, 0f, 0f), new(-8.5f, 2f, 0f), new(-8.5f, -2f, 0f), new(-8.5f, 0f, 0f), new(0f, 2f, 0f),
+                new(0f, -2f, 0f), new(-17f, 0f, 0f), new(-17f, 2f, 0f), new(-17f, -2f, 0f)],
+            body: $$"""
                 m_SourceElems = [ 4, 5, 2, 1, 1, 2, 8, 7 ]
                 m_ReverseOffsets = [ {{(offsets ? "{ vOffset = [ 0.0, 2.0, 0.0 ] nBoneCtrl = 0 nTargetNode = 4 }, { vOffset = [ 0.0, 2.0, 0.0 ] nBoneCtrl = 3 nTargetNode = 1 }, " : string.Empty)}} ]
-            }
-            """);
+                """);
 
         /// <summary>
         /// A surplus rod between two chains' joints that is the only rod on its pair, at relaxation 1.0 and weight 0.5,
@@ -10136,20 +8246,10 @@ namespace Tests
 
         // Two one-joint chains 20 apart with a rod between their joints; the source-element array is the four
         // arity counts followed by the two-corner record, when one is given.
-        private static FeModel CrossChainTieModel(float min, float max, string sourceElems) => SyntheticCloth.Parse($$"""
-            {
-                m_CtrlName = [ "rootA", "rootB", "a1", "b1" ]
-                m_SkelParents = [ -1, -1, 0, 1 ]
-                m_nNodeCount = 4
-                m_nStaticNodes = 2
-                m_NodeInvMasses = [ 0.0, 0.0, 1.0, 1.0 ]
-                m_InitPose =
-                [
-                    {{SyntheticCloth.Pose(0f, 0f, 0f)}}
-                    {{SyntheticCloth.Pose(20f, 0f, 0f)}}
-                    {{SyntheticCloth.Pose(0f, 0f, -10f)}}
-                    {{SyntheticCloth.Pose(20f, 0f, -10f)}}
-                ]
+        private static FeModel CrossChainTieModel(float min, float max, string sourceElems) => SyntheticCloth.Model(
+            ["rootA", "rootB", "a1", "b1"], staticNodes: 2, parents: [-1, -1, 0, 1],
+            poses: [new(0f, 0f, 0f), new(20f, 0f, 0f), new(0f, 0f, -10f), new(20f, 0f, -10f)],
+            body: $$"""
                 m_Rods =
                 [
                     {{SyntheticCloth.RigidRod(0, 2, 10f, 1f)}}
@@ -10157,8 +8257,7 @@ namespace Tests
                     {{SyntheticCloth.BandedRod(2, 3, min, max, 1f)}}
                 ]
                 m_SourceElems = [ {{sourceElems}} ]
-            }
-            """);
+                """);
 
         /// <summary>
         /// A rod on a pair the surface folds weighed in the mass pass unless the compiler folded it: a fold between unequal
@@ -10227,21 +8326,10 @@ namespace Tests
         [Test]
         public async Task ACentreOnlyEndEffectorsSpansRunFromTheJointsOwnNode()
         {
-            var feModel = SyntheticCloth.Parse($$"""
-                {
-                    m_CtrlName = [ "root", "j1", "j2", "tip", "$cctip_Ctr" ]
-                    m_SkelParents = [ -1, 0, 1, 2, 3 ]
-                    m_nNodeCount = 5
-                    m_nStaticNodes = 1
-                    m_NodeInvMasses = [ 0.0, 1.0, 1.0, 1.0, 1.0 ]
-                    m_InitPose =
-                    [
-                        {{SyntheticCloth.Pose(0f, 0f, 0f)}}
-                        {{SyntheticCloth.Pose(10f, 0f, 0f)}}
-                        {{SyntheticCloth.Pose(20f, 0f, 0f)}}
-                        {{SyntheticCloth.Pose(30f, 0f, 0f)}}
-                        {{SyntheticCloth.Pose(40f, 0f, 0f)}}
-                    ]
+            var feModel = SyntheticCloth.Model(
+                ["root", "j1", "j2", "tip", "$cctip_Ctr"], staticNodes: 1, parents: [-1, 0, 1, 2, 3],
+                poses: [new(0f, 0f, 0f), new(10f, 0f, 0f), new(20f, 0f, 0f), new(30f, 0f, 0f), new(40f, 0f, 0f)],
+                body: $$"""
                     m_Rods =
                     [
                         {{SyntheticCloth.RigidRod(0, 1, 10f, 0.6f)}}
@@ -10253,8 +8341,7 @@ namespace Tests
                         {{SyntheticCloth.RigidRod(2, 4, 20f, 0.6f)}}
                         {{SyntheticCloth.RigidRod(1, 4, 30f, 0.8f)}}
                     ]
-                }
-                """);
+                    """);
 
             var tip = feModel.BuildBoneChains().SelectMany(chain => chain.Joints).FirstOrDefault(joint => joint.Name == "tip");
 
@@ -10296,32 +8383,18 @@ namespace Tests
         }
 
         // TwoWideRope with no reverse offsets and, where named, a fit matrix on that node over the rope's eight ring nodes.
-        private static FeModel TwoWideRopeFitting(int? fitNode) => SyntheticCloth.Parse($$"""
-            {
-                m_CtrlName = [ "j0", "$ccj0_0", "$ccj0_1", "j1", "$ccj1_0", "$ccj1_1", "j2", "$ccj2_0", "$ccj2_1" ]
-                m_SkelParents = [ -1, 0, 0, 0, 3, 3, 3, 6, 6 ]
-                m_nNodeCount = 9
-                m_nStaticNodes = 0
-                m_NodeInvMasses = [ 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0 ]
-                m_InitPose =
-                [
-                    {{SyntheticCloth.Pose(0f, 0f, 0f)}}
-                    {{SyntheticCloth.Pose(0f, 2f, 0f)}}
-                    {{SyntheticCloth.Pose(0f, -2f, 0f)}}
-                    {{SyntheticCloth.Pose(-8.5f, 0f, 0f)}}
-                    {{SyntheticCloth.Pose(-8.5f, 2f, 0f)}}
-                    {{SyntheticCloth.Pose(-8.5f, -2f, 0f)}}
-                    {{SyntheticCloth.Pose(-17f, 0f, 0f)}}
-                    {{SyntheticCloth.Pose(-17f, 2f, 0f)}}
-                    {{SyntheticCloth.Pose(-17f, -2f, 0f)}}
-                ]
+        private static FeModel TwoWideRopeFitting(int? fitNode) => SyntheticCloth.Model(
+            ["j0", "$ccj0_0", "$ccj0_1", "j1", "$ccj1_0", "$ccj1_1", "j2", "$ccj2_0", "$ccj2_1"], staticNodes: 0,
+                parents: [-1, 0, 0, 0, 3, 3, 3, 6, 6],
+            poses: [new(0f, 0f, 0f), new(0f, 2f, 0f), new(0f, -2f, 0f), new(-8.5f, 0f, 0f), new(-8.5f, 2f, 0f),
+                new(-8.5f, -2f, 0f), new(-17f, 0f, 0f), new(-17f, 2f, 0f), new(-17f, -2f, 0f)],
+            body: $$"""
                 m_SourceElems = [ 1, 2, 5, 4, 4, 5, 8, 7 ]
                 m_ReverseOffsets = [ ]
                 {{(fitNode is { } node
                     ? "m_FitMatrices = [ { bone = [ 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0 ] vCenter = [ 0.0, 0.0, 0.0 ] nEnd = 4 nNode = " + node + " nBeginDynamic = 0 } ] m_FitWeights = [ { flWeight = 0.25 nNode = 4 }, { flWeight = 0.25 nNode = 5 }, { flWeight = 0.25 nNode = 7 }, { flWeight = 0.25 nNode = 8 } ]"
                     : string.Empty)}}
-            }
-            """);
+                """);
 
         /// <summary>
         /// A face-kept sheet whose own faces the compiler folded across carries the folds' final inverse-mass ratios as
@@ -10362,23 +8435,12 @@ namespace Tests
 
         // Three quads down a two-wide sheet under a static top row, kept as solve elements, and a banded rod across the
         // middle quad's two far rows at the given weight on each side.
-        private static FeModel FoldedSheetModel(float weight) => SyntheticCloth.Parse($$"""
-            {
-                m_CtrlName = [ "$cloth_m0p0", "$cloth_m0p1", "$cloth_m0p2", "$cloth_m0p3", "$cloth_m0p4", "$cloth_m0p5", "$cloth_m0p6", "$cloth_m0p7" ]
-                m_nNodeCount = 8
-                m_nStaticNodes = 2
-                m_NodeInvMasses = [ 0.0, 0.0, 0.1, 0.1, 0.08, 0.08, 0.05, 0.05 ]
-                m_InitPose =
-                [
-                    {{SyntheticCloth.Pose(0f, 0f, 0f)}}
-                    {{SyntheticCloth.Pose(1f, 0f, 0f)}}
-                    {{SyntheticCloth.Pose(0f, 0f, -2f)}}
-                    {{SyntheticCloth.Pose(1f, 0f, -2f)}}
-                    {{SyntheticCloth.Pose(0f, 0f, -4f)}}
-                    {{SyntheticCloth.Pose(1f, 0f, -4f)}}
-                    {{SyntheticCloth.Pose(0f, 0f, -6f)}}
-                    {{SyntheticCloth.Pose(1f, 0f, -6f)}}
-                ]
+        private static FeModel FoldedSheetModel(float weight) => SyntheticCloth.Model(
+            ["$cloth_m0p0", "$cloth_m0p1", "$cloth_m0p2", "$cloth_m0p3", "$cloth_m0p4", "$cloth_m0p5", "$cloth_m0p6", "$cloth_m0p7"],
+                staticNodes: 2, invMasses: "0.0, 0.0, 0.1, 0.1, 0.08, 0.08, 0.05, 0.05",
+            poses: [new(0f, 0f, 0f), new(1f, 0f, 0f), new(0f, 0f, -2f), new(1f, 0f, -2f), new(0f, 0f, -4f), new(1f, 0f, -4f),
+                new(0f, 0f, -6f), new(1f, 0f, -6f)],
+            body: $$"""
                 m_Quads =
                 [
                     { nNode = [ 0, 1, 3, 2 ] flSlack = 0.0 vShape = [ [ 0.0, 0.0, 0.0, 0.0 ], [ 0.0, 0.0, 0.0, 0.0 ], [ 0.0, 0.0, 0.0, 0.5 ], [ 0.0, 0.0, 0.0, 0.5 ] ] },
@@ -10390,8 +8452,7 @@ namespace Tests
                     { nNode = [ 2, 6 ] flMinDist = 3.5 flMaxDist = 4.0 flWeight0 = {{SyntheticCloth.Num(weight)}} flRelaxationFactor = 1.0 },
                     { nNode = [ 3, 7 ] flMinDist = 3.5 flMaxDist = 4.0 flWeight0 = {{SyntheticCloth.Num(weight)}} flRelaxationFactor = 1.0 },
                 ]
-            }
-            """);
+                """);
 
         /// <summary>
         /// A bend rod reaches its minimum through ONE of the hinges that generate it and sits at or above it through the rest, so
@@ -10480,77 +8541,7 @@ namespace Tests
             return misses;
         }
 
-        // models/items/mirana/blue_wintermoon_mount/blue_wintermoon_mount.vmdl_c: 29 nodes, 27 network rods, 16 faces, surface add_curvature 0.9939643; the sheet's face nodes renumbered from 0.
-        private static FeModel WintermoonSheet => SyntheticCloth.Parse($$"""
-            {
-                m_CtrlName = [ "$cloth_m0p0", "$cloth_m0p1", "$cloth_m0p2", "$cloth_m0p3", "$cloth_m0p4", "$cloth_m0p5", "$cloth_m0p6", "$cloth_m0p7", "$cloth_m0p8", "$cloth_m0p9", "$cloth_m0p10", "$cloth_m0p11", "$cloth_m0p12", "$cloth_m0p13", "$cloth_m0p14", "$cloth_m0p15", "$cloth_m0p16", "$cloth_m0p17", "$cloth_m0p18", "$cloth_m0p19", "$cloth_m0p20", "$cloth_m0p21", "$cloth_m0p22", "$cloth_m0p23", "$cloth_m0p24", "$cloth_m0p25", "$cloth_m0p26", "$cloth_m0p27", "$cloth_m0p28" ]
-                m_nNodeCount = 29
-                m_nStaticNodes = 0
-                m_NodeInvMasses = [ 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0 ]
-                m_InitPose =
-                [
-                    {{SyntheticCloth.Pose(96.23977f, -21.352524f, 193.65706f)}}
-                    {{SyntheticCloth.Pose(101.10704f, -12.243159f, 155.27309f)}}
-                    {{SyntheticCloth.Pose(96.23977f, 21.352524f, 193.65706f)}}
-                    {{SyntheticCloth.Pose(101.10704f, 12.243159f, 155.27309f)}}
-                    {{SyntheticCloth.Pose(-86.62791f, 7.855209f, 90.85877f)}}
-                    {{SyntheticCloth.Pose(-86.62791f, -7.855209f, 90.85877f)}}
-                    {{SyntheticCloth.Pose(101.527275f, -8.785593f, 187.25053f)}}
-                    {{SyntheticCloth.Pose(98.7905f, -17.215473f, 177.5718f)}}
-                    {{SyntheticCloth.Pose(104.68011f, -4.0255046f, 154.1219f)}}
-                    {{SyntheticCloth.Pose(101.48694f, -12.619385f, 162.70032f)}}
-                    {{SyntheticCloth.Pose(101.527275f, 8.785593f, 187.25053f)}}
-                    {{SyntheticCloth.Pose(98.7905f, 17.215473f, 177.5718f)}}
-                    {{SyntheticCloth.Pose(104.68011f, 4.0255046f, 154.1219f)}}
-                    {{SyntheticCloth.Pose(101.48694f, 12.619385f, 162.70032f)}}
-                    {{SyntheticCloth.Pose(-98.67452f, 10.1297655f, 73.70374f)}}
-                    {{SyntheticCloth.Pose(-98.67452f, -10.1297655f, 73.70374f)}}
-                    {{SyntheticCloth.Pose(102.20527f, 8.774978E-30f, 177.97769f)}}
-                    {{SyntheticCloth.Pose(102.544426f, -10.05127f, 165.99724f)}}
-                    {{SyntheticCloth.Pose(104.51593f, 7.777337E-30f, 157.74313f)}}
-                    {{SyntheticCloth.Pose(102.544426f, 10.05127f, 165.99724f)}}
-                    {{SyntheticCloth.Pose(-113.71193f, 13.470117f, 59.25505f)}}
-                    {{SyntheticCloth.Pose(-113.71193f, -13.470117f, 59.25505f)}}
-                    {{SyntheticCloth.Pose(-132.6082f, 15.324176f, 50.38886f)}}
-                    {{SyntheticCloth.Pose(-132.6082f, -15.324176f, 50.38886f)}}
-                    {{SyntheticCloth.Pose(-153.33545f, 11.337616f, 49.07927f)}}
-                    {{SyntheticCloth.Pose(-153.33545f, -11.337616f, 49.07927f)}}
-                    {{SyntheticCloth.Pose(-173.14297f, 5.5178976f, 55.008205f)}}
-                    {{SyntheticCloth.Pose(-173.14297f, -5.5178976f, 55.008205f)}}
-                    {{SyntheticCloth.Pose(-190.56068f, -2.4031326E-15f, 66.387886f)}}
-                ]
-                m_Rods =
-                [
-                    {{SyntheticCloth.BandedRod(0, 16, 27.154373f, 27.351889f, 1f)}}
-                    {{SyntheticCloth.BandedRod(0, 17, 30.5374f, 30.538563f, 1f)}}
-                    {{SyntheticCloth.BandedRod(1, 17, 11.039832f, 11.044836f, 1f)}}
-                    {{SyntheticCloth.BandedRod(1, 18, 12.946683f, 13.106691f, 1f)}}
-                    {{SyntheticCloth.BandedRod(2, 16, 27.154373f, 27.351889f, 1f)}}
-                    {{SyntheticCloth.BandedRod(2, 19, 30.5374f, 30.538563f, 1f)}}
-                    {{SyntheticCloth.BandedRod(3, 18, 12.946683f, 13.106691f, 1f)}}
-                    {{SyntheticCloth.BandedRod(3, 19, 11.039832f, 11.044836f, 1f)}}
-                    {{SyntheticCloth.BandedRod(4, 20, 41.998413f, 42.191517f, 1f)}}
-                    {{SyntheticCloth.BandedRod(5, 21, 41.998413f, 42.191517f, 1f)}}
-                    {{SyntheticCloth.BandedRod(9, 16, 19.828339f, 19.952848f, 1f)}}
-                    {{SyntheticCloth.BandedRod(13, 16, 19.828339f, 19.95285f, 1f)}}
-                    {{SyntheticCloth.BandedRod(8, 16, 24.319298f, 24.320848f, 1f)}}
-                    {{SyntheticCloth.BandedRod(12, 16, 24.319298f, 24.320848f, 1f)}}
-                    {{SyntheticCloth.BandedRod(7, 18, 26.876177f, 26.927683f, 1f)}}
-                    {{SyntheticCloth.BandedRod(11, 18, 26.876177f, 26.927685f, 1f)}}
-                    {{SyntheticCloth.BandedRod(6, 18, 30.932272f, 30.959124f, 1f)}}
-                    {{SyntheticCloth.BandedRod(10, 18, 30.932272f, 30.959124f, 1f)}}
-                    {{SyntheticCloth.BandedRod(14, 22, 41.497715f, 42.048958f, 1f)}}
-                    {{SyntheticCloth.BandedRod(15, 23, 41.497715f, 42.048958f, 1f)}}
-                    {{SyntheticCloth.BandedRod(20, 24, 40.964832f, 41.69606f, 1f)}}
-                    {{SyntheticCloth.BandedRod(21, 25, 40.964832f, 41.69606f, 1f)}}
-                    {{SyntheticCloth.BandedRod(19, 17, 20.10254f, 20.206247f, 1f)}}
-                    {{SyntheticCloth.BandedRod(22, 26, 41.95914f, 42.588764f, 1f)}}
-                    {{SyntheticCloth.BandedRod(23, 27, 41.95914f, 42.588764f, 1f)}}
-                    {{SyntheticCloth.BandedRod(24, 28, 35.4227f, 43.00294f, 1f)}}
-                    {{SyntheticCloth.BandedRod(25, 28, 35.422703f, 43.002945f, 1f)}}
-                ]
-            }
-            """);
+        private static FeModel WintermoonSheet => SyntheticCloth.Load("cloth_sheet_paint_solve.kv3");
 
         /// <summary>
         /// A <c>ClothNode</c> on an <c>m_Ropes</c> run cannot have compiled at the default alignment, whose class byte the rope
@@ -10588,22 +8579,13 @@ namespace Tests
         ];
 
         // cloth_min_mesh's shape: a static bone and two element nodes under it, the second roped to the bone.
-        private static FeModel RopeClothNodeModel(string ropes, int ropeCount) => SyntheticCloth.Parse($$"""
-            {
-                m_CtrlName = [ "joint1", "$cloth_node_clothNode_joint2", "$cloth_node_clothNode_joint3" ]
-                m_nNodeCount = 3
-                m_nStaticNodes = 1
-                m_NodeInvMasses = [ 0.0, 1.0, 1.0 ]
-                m_InitPose =
-                [
-                    {{SyntheticCloth.Pose(0f, 0f, 0f)}}
-                    {{SyntheticCloth.Pose(0f, 0f, -10f)}}
-                    {{SyntheticCloth.Pose(10f, 0f, -10f)}}
-                ]
+        private static FeModel RopeClothNodeModel(string ropes, int ropeCount) => SyntheticCloth.Model(
+            ["joint1", "$cloth_node_clothNode_joint2", "$cloth_node_clothNode_joint3"], staticNodes: 1,
+            poses: [new(0f, 0f, 0f), new(0f, 0f, -10f), new(10f, 0f, -10f)],
+            body: $$"""
                 m_nRopeCount = {{ropeCount}}
                 m_Ropes = {{ropes}}
-            }
-            """);
+                """);
 
         /// <summary>
         /// The downgrade's lock guard holds a chain at version 2 when format 1 would lock a joint the original leaves free.
@@ -10630,32 +8612,18 @@ namespace Tests
         }
 
         // TwoWideRopeFitting(3) with j0 and its ring a non-simulated, rotation-free static prefix; where named, j0 is locked to j1.
-        private static FeModel StaticRootRopeFitting(bool parentLocked) => SyntheticCloth.Parse($$"""
-            {
-                m_CtrlName = [ "j0", "$ccj0_0", "$ccj0_1", "j1", "$ccj1_0", "$ccj1_1", "j2", "$ccj2_0", "$ccj2_1" ]
-                m_SkelParents = [ -1, 0, 0, 0, 3, 3, 3, 6, 6 ]
-                m_nNodeCount = 9
-                m_nStaticNodes = 3
-                m_NodeInvMasses = [ 0.0, 0.0, 0.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0 ]
-                m_InitPose =
-                [
-                    {{SyntheticCloth.Pose(0f, 0f, 0f)}}
-                    {{SyntheticCloth.Pose(0f, 2f, 0f)}}
-                    {{SyntheticCloth.Pose(0f, -2f, 0f)}}
-                    {{SyntheticCloth.Pose(-8.5f, 0f, 0f)}}
-                    {{SyntheticCloth.Pose(-8.5f, 2f, 0f)}}
-                    {{SyntheticCloth.Pose(-8.5f, -2f, 0f)}}
-                    {{SyntheticCloth.Pose(-17f, 0f, 0f)}}
-                    {{SyntheticCloth.Pose(-17f, 2f, 0f)}}
-                    {{SyntheticCloth.Pose(-17f, -2f, 0f)}}
-                ]
+        private static FeModel StaticRootRopeFitting(bool parentLocked) => SyntheticCloth.Model(
+            ["j0", "$ccj0_0", "$ccj0_1", "j1", "$ccj1_0", "$ccj1_1", "j2", "$ccj2_0", "$ccj2_1"], staticNodes: 3,
+                parents: [-1, 0, 0, 0, 3, 3, 3, 6, 6],
+            poses: [new(0f, 0f, 0f), new(0f, 2f, 0f), new(0f, -2f, 0f), new(-8.5f, 0f, 0f), new(-8.5f, 2f, 0f),
+                new(-8.5f, -2f, 0f), new(-17f, 0f, 0f), new(-17f, 2f, 0f), new(-17f, -2f, 0f)],
+            body: $$"""
                 m_SourceElems = [ 1, 2, 5, 4, 4, 5, 8, 7 ]
                 m_ReverseOffsets = [ ]
                 m_FitMatrices = [ { bone = [ 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0 ] vCenter = [ 0.0, 0.0, 0.0 ] nEnd = 4 nNode = 3 nBeginDynamic = 0 } ]
                 m_FitWeights = [ { flWeight = 0.25 nNode = 4 }, { flWeight = 0.25 nNode = 5 }, { flWeight = 0.25 nNode = 7 }, { flWeight = 0.25 nNode = 8 } ]
                 m_LockToParent = [ {{(parentLocked ? "{ vOffset = [ 8.5, 0.0, 0.0 ] nCtrlParent = 3 nCtrlChild = 0 }" : string.Empty)}} ]
-            }
-            """);
+                """);
 
         /// <summary>
         /// A fitless proxy vertex whose offset network names a bone the original back-solved off the sheet keeps its
@@ -10689,25 +8657,13 @@ namespace Tests
 
         // A sheet over three bones fit on bone_3: vertex 2 is anchored on bone_1, vertex 3 on bone_3 with 0.1 on bone_2, and
         // vertex 4 has no fit row and paints bone_2 0.6 and bone_1 0.4. The hole carries the m_ReverseOffsets records.
-        private static FeModel FitlessOnPaintedBone(string reverseOffsets) => SyntheticCloth.Parse($$"""
-            {
-                m_CtrlName = [ "bone_0", "$cloth_m0p0", "$cloth_m0p1", "$cloth_m0p2", "$cloth_m0p3", "bone_1", "bone_2", "bone_3" ]
-                m_SkelParents = [ -1, 0, 5, 7, 6, 0, 5, 6 ]
-                m_nNodeCount = 8
-                m_nStaticNodes = 2
+        private static FeModel FitlessOnPaintedBone(string reverseOffsets) => SyntheticCloth.Model(
+            ["bone_0", "$cloth_m0p0", "$cloth_m0p1", "$cloth_m0p2", "$cloth_m0p3", "bone_1", "bone_2", "bone_3"], staticNodes: 2,
+                parents: [-1, 0, 5, 7, 6, 0, 5, 6],
+            poses: [new(0f, 0f, 0f), new(1f, 0f, 0f), new(1f, 0f, -8f), new(1f, 0f, -24f), new(1f, 0f, -16f), new(0f, 0f, -8f),
+                new(0f, 0f, -16f), new(0f, 0f, -24f)],
+            body: $$"""
                 m_nFirstPositionDrivenNode = 5
-                m_NodeInvMasses = [ 0.0, 0.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0 ]
-                m_InitPose =
-                [
-                    {{SyntheticCloth.Pose(0f, 0f, 0f)}}
-                    {{SyntheticCloth.Pose(1f, 0f, 0f)}}
-                    {{SyntheticCloth.Pose(1f, 0f, -8f)}}
-                    {{SyntheticCloth.Pose(1f, 0f, -24f)}}
-                    {{SyntheticCloth.Pose(1f, 0f, -16f)}}
-                    {{SyntheticCloth.Pose(0f, 0f, -8f)}}
-                    {{SyntheticCloth.Pose(0f, 0f, -16f)}}
-                    {{SyntheticCloth.Pose(0f, 0f, -24f)}}
-                ]
                 m_CtrlOffsets =
                 [
                     { vOffset = [ 1.0, 0.0, 0.0 ] nCtrlParent = 0 nCtrlChild = 1 },
@@ -10728,8 +8684,7 @@ namespace Tests
                     { flWeight = 0.9 nNode = 3 nDummy = 0 },
                 ]
                 m_ReverseOffsets = [ {{reverseOffsets}} ]
-            }
-            """);
+                """);
 
         /// <summary>
         /// The cloth proxy's joint list carries each control bone at the rest ROTATION the compiled model records for it,
@@ -10851,22 +8806,11 @@ namespace Tests
         }
 
         // A static root w0 over w1 and w2, rodless; where twisted, the twist builder's four entries at twist_relax 1.0.
-        private static FeModel TwistedRun(bool skelParents, bool twisted) => SyntheticCloth.Parse($$"""
-            {
-                m_CtrlName = [ "w0", "w1", "w2" ]
+        private static FeModel TwistedRun(bool skelParents, bool twisted) => SyntheticCloth.Model(
+            ["w0", "w1", "w2"], staticNodes: 1, poses: [new(0f, 0f, 0f), new(-8.5f, 0f, 0f), new(-17f, 0f, 0f)], body: $$"""
                 {{(skelParents ? "m_SkelParents = [ -1, 0, 1 ]" : string.Empty)}}
-                m_nNodeCount = 3
-                m_nStaticNodes = 1
-                m_NodeInvMasses = [ 0.0, 1.0, 1.0 ]
-                m_InitPose =
-                [
-                    {{SyntheticCloth.Pose(0f, 0f, 0f)}}
-                    {{SyntheticCloth.Pose(-8.5f, 0f, 0f)}}
-                    {{SyntheticCloth.Pose(-17f, 0f, 0f)}}
-                ]
                 m_Twists = [ {{(twisted ? "{ nNodeOrient = 0 nNodeEnd = 1 flTwistRelax = 0.0 flSwingRelax = 1.0 }, { nNodeOrient = 1 nNodeEnd = 0 flTwistRelax = 0.618 flSwingRelax = 0.0 }, { nNodeOrient = 1 nNodeEnd = 2 flTwistRelax = 0.382 flSwingRelax = 0.5 }, { nNodeOrient = 2 nNodeEnd = 1 flTwistRelax = 0.618 flSwingRelax = 1.0 }" : string.Empty)}} ]
-            }
-            """);
+                """);
 
         /// <summary>
         /// Every <c>m_Twists</c> and <c>m_NodeBases</c> record is kept in array order, including a repeated directed twist
@@ -10881,19 +8825,10 @@ namespace Tests
         [Test]
         public async Task EveryTwistAndNodeBaseRecordIsKept()
         {
-            var feModel = SyntheticCloth.Parse($$"""
-                {
-                    m_CtrlName = [ "root", "j1", "j2" ]
-                    m_SkelParents = [ -1, 0, 1 ]
-                    m_nNodeCount = 3
-                    m_nStaticNodes = 1
-                    m_NodeInvMasses = [ 0.0, 1.0, 1.0 ]
-                    m_InitPose =
-                    [
-                        {{SyntheticCloth.Pose(0f, 0f, 0f)}}
-                        {{SyntheticCloth.Pose(0f, 0f, -10f)}}
-                        {{SyntheticCloth.Pose(0f, 0f, -20f)}}
-                    ]
+            var feModel = SyntheticCloth.Model(
+                ["root", "j1", "j2"], staticNodes: 1, parents: [-1, 0, 1],
+                poses: [new(0f, 0f, 0f), new(0f, 0f, -10f), new(0f, 0f, -20f)],
+                body: """
                     m_Twists =
                     [
                         { nNodeOrient = 1 nNodeEnd = 0 flTwistRelax = 0.618 flSwingRelax = 0.0 },
@@ -10906,8 +8841,7 @@ namespace Tests
                         { nNode = 1 nNodeX0 = 1 nNodeX1 = 0 nNodeY0 = 2 nNodeY1 = 0 },
                         { nNode = 2 nNodeX0 = 2 nNodeX1 = 1 nNodeY0 = 0 nNodeY1 = 1 },
                     ]
-                }
-                """);
+                    """);
 
             using (Assert.Multiple())
             {
@@ -11097,21 +9031,12 @@ namespace Tests
         {
             static (DmeModel Model, DmeJoint Pelvis, DmeJoint Upper, DmeJoint Lower) Nest(string skelParents)
             {
-                var feModel = SyntheticCloth.Parse($$"""
-                    {
-                        m_CtrlName = [ "pelvis", "leg_upper", "leg_lower" ]
+                var feModel = SyntheticCloth.Model(
+                    ["pelvis", "leg_upper", "leg_lower"], staticNodes: 3,
+                    poses: [new(0f, 0f, 40f), new(0f, 5f, 38f), new(0f, 5f, 18f)],
+                    body: $$"""
                         {{skelParents}}
-                        m_nNodeCount = 3
-                        m_nStaticNodes = 3
-                        m_NodeInvMasses = [ 0.0, 0.0, 0.0 ]
-                        m_InitPose =
-                        [
-                            {{SyntheticCloth.Pose(0f, 0f, 40f)}}
-                            {{SyntheticCloth.Pose(0f, 5f, 38f)}}
-                            {{SyntheticCloth.Pose(0f, 5f, 18f)}}
-                        ]
-                    }
-                    """);
+                        """);
 
                 var dmeModel = new DmeModel();
                 var pelvis = new DmeJoint { Name = "pelvis" };
@@ -11221,29 +9146,13 @@ namespace Tests
         // Static root > spine > neck > hair, six more static bones s1..s6 and a simulated fit bone dyn. Vertex 11 is anchored
         // on hair with eight soft slots (dyn 0.5, neck 0.9, s1..s6 0.9), expanding to hair and dyn 0.2391, neck 0.0531 and
         // s1..s6; its fit row on dyn is 0.98 of that, leaving 0.02 unrecorded.
-        private static FeModel FullSlotRemainder() => SyntheticCloth.Parse($$"""
-            {
-                m_CtrlName = [ "root", "spine", "neck", "hair", "s1", "s2", "s3", "s4", "s5", "s6", "dyn", "$cloth_m0p0" ]
-                m_SkelParents = [ -1, 0, 1, 2, 0, 0, 0, 0, 0, 0, 3, -1 ]
-                m_nNodeCount = 12
-                m_nStaticNodes = 10
+        private static FeModel FullSlotRemainder() => SyntheticCloth.Model(
+            ["root", "spine", "neck", "hair", "s1", "s2", "s3", "s4", "s5", "s6", "dyn", "$cloth_m0p0"], staticNodes: 10,
+                parents: [-1, 0, 1, 2, 0, 0, 0, 0, 0, 0, 3, -1],
+            poses: [new(0f, 0f, 0f), new(0f, 0f, 10f), new(0f, 0f, 20f), new(0f, 0f, 30f), new(2f, 0f, 0f), new(4f, 0f, 0f),
+                new(6f, 0f, 0f), new(8f, 0f, 0f), new(10f, 0f, 0f), new(12f, 0f, 0f), new(0f, 0f, 35f), new(1f, 0f, 32f)],
+            body: """
                 m_nFirstPositionDrivenNode = 10
-                m_NodeInvMasses = [ 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 1.0 ]
-                m_InitPose =
-                [
-                    {{SyntheticCloth.Pose(0f, 0f, 0f)}}
-                    {{SyntheticCloth.Pose(0f, 0f, 10f)}}
-                    {{SyntheticCloth.Pose(0f, 0f, 20f)}}
-                    {{SyntheticCloth.Pose(0f, 0f, 30f)}}
-                    {{SyntheticCloth.Pose(2f, 0f, 0f)}}
-                    {{SyntheticCloth.Pose(4f, 0f, 0f)}}
-                    {{SyntheticCloth.Pose(6f, 0f, 0f)}}
-                    {{SyntheticCloth.Pose(8f, 0f, 0f)}}
-                    {{SyntheticCloth.Pose(10f, 0f, 0f)}}
-                    {{SyntheticCloth.Pose(12f, 0f, 0f)}}
-                    {{SyntheticCloth.Pose(0f, 0f, 35f)}}
-                    {{SyntheticCloth.Pose(1f, 0f, 32f)}}
-                ]
                 m_CtrlOffsets = [ { vOffset = [ 1.0, 0.0, 2.0 ] nCtrlParent = 3 nCtrlChild = 11 } ]
                 m_CtrlSoftOffsets =
                 [
@@ -11258,8 +9167,7 @@ namespace Tests
                 ]
                 m_FitMatrices = [ { nEnd = 1 nNode = 10 nBeginDynamic = 0 } ]
                 m_FitWeights = [ { flWeight = 0.2343655 nNode = 11 nDummy = 0 } ]
-            }
-            """);
+                """);
 
         /// <summary>
         /// The compiler folds rods across shared edges walking its solve elements first and the rod-making faces after
@@ -11351,44 +9259,7 @@ namespace Tests
             }
         }
 
-        // Static p42 = 0, p45 = 1, p49 = 2 over p46 = 3, p47 = 4, p48 = 5, p50 = 6, p51 = 7, p52 = 8: four quads around p51 and
-        // the six folds the original ships across their shared edges.
-        private static FeModel FaceKeptSheetCorner => SyntheticCloth.Parse($$"""
-            {
-                m_CtrlName = [ "$cloth_m2p42", "$cloth_m2p45", "$cloth_m2p49", "$cloth_m2p46", "$cloth_m2p47", "$cloth_m2p48", "$cloth_m2p50", "$cloth_m2p51", "$cloth_m2p52" ]
-                m_nNodeCount = 9
-                m_nStaticNodes = 3
-                m_NodeInvMasses = [ 0.0, 0.0, 0.0, 0.004359, 0.004359, 0.002214, 0.003712, 0.001881, 0.003712 ]
-                m_InitPose =
-                [
-                    {{SyntheticCloth.Pose(-27.650145f, 10.560019f, 205.058945f)}}
-                    {{SyntheticCloth.Pose(-27.650145f, -10.560019f, 205.058945f)}}
-                    {{SyntheticCloth.Pose(-27.338011f, 0f, 195.582672f)}}
-                    {{SyntheticCloth.Pose(-43.832478f, 6.48951f, 203.609695f)}}
-                    {{SyntheticCloth.Pose(-43.832478f, -6.48951f, 203.609695f)}}
-                    {{SyntheticCloth.Pose(-43.35944f, 0f, 198.290756f)}}
-                    {{SyntheticCloth.Pose(-35.769325f, 8.53872f, 204.589249f)}}
-                    {{SyntheticCloth.Pose(-35.299297f, 0f, 197.248413f)}}
-                    {{SyntheticCloth.Pose(-35.769325f, -8.53872f, 204.589249f)}}
-                ]
-                m_Quads =
-                [
-                    { nNode = [ 2, 0, 6, 7 ] },
-                    { nNode = [ 1, 2, 7, 8 ] },
-                    { nNode = [ 4, 8, 7, 5 ] },
-                    { nNode = [ 3, 5, 7, 6 ] },
-                ]
-                m_Rods =
-                [
-                    { nNode = [ 0, 3 ] flMinDist = 3.35389 flMaxDist = 16.753178 flWeight0 = 0.0 flRelaxationFactor = 1.0 },
-                    { nNode = [ 2, 5 ] flMinDist = 2.432684 flMaxDist = 16.255886 flWeight0 = 0.0 flRelaxationFactor = 1.0 },
-                    { nNode = [ 2, 4 ] flMinDist = 10.834126 flMaxDist = 19.47035 flWeight0 = 0.0 flRelaxationFactor = 1.0 },
-                    { nNode = [ 1, 5 ] flMinDist = 11.755301 flMaxDist = 20.102926 flWeight0 = 0.0 flRelaxationFactor = 1.0 },
-                    { nNode = [ 6, 8 ] flMinDist = 0.0 flMaxDist = 22.364 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
-                    { nNode = [ 3, 4 ] flMinDist = 0.0 flMaxDist = 16.776804 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
-                ]
-            }
-            """);
+        private static FeModel FaceKeptSheetCorner => SyntheticCloth.Load("cloth_sheet_face_kept_corner.kv3");
 
         /// <summary>
         /// Every fold the compiler builds across a sheet opens by the mean <c>cloth_bend_stiffness</c> over its hinge on top of
@@ -11430,24 +9301,12 @@ namespace Tests
         [Test]
         public async Task ABendSpanThatIsOnlyASurfaceFoldIsNoBendSpring()
         {
-            static bool Bends(float weight) => SyntheticCloth.Parse($$"""
-                {
-                    m_CtrlName = [ "L0", "R0", "L1", "R1", "L2", "R2", "L3", "R3" ]
-                    m_SkelParents = [ -1, -1, 0, 1, 2, 3, 4, 5 ]
-                    m_nNodeCount = 8
-                    m_nStaticNodes = 2
-                    m_NodeInvMasses = [ 0.0, 0.0, 0.02, 0.02, 0.015, 0.015, 0.01, 0.01 ]
-                    m_InitPose =
-                    [
-                        {{SyntheticCloth.Pose(0f, 0f, 0f)}}
-                        {{SyntheticCloth.Pose(10f, 0f, 0f)}}
-                        {{SyntheticCloth.Pose(0f, 0f, -10f)}}
-                        {{SyntheticCloth.Pose(10f, 0f, -10f)}}
-                        {{SyntheticCloth.Pose(0f, 0f, -20f)}}
-                        {{SyntheticCloth.Pose(10f, 0f, -20f)}}
-                        {{SyntheticCloth.Pose(0f, 0f, -30f)}}
-                        {{SyntheticCloth.Pose(10f, 0f, -30f)}}
-                    ]
+            static bool Bends(float weight) => SyntheticCloth.Model(
+                ["L0", "R0", "L1", "R1", "L2", "R2", "L3", "R3"], staticNodes: 2, parents: [-1, -1, 0, 1, 2, 3, 4, 5],
+                    invMasses: "0.0, 0.0, 0.02, 0.02, 0.015, 0.015, 0.01, 0.01",
+                poses: [new(0f, 0f, 0f), new(10f, 0f, 0f), new(0f, 0f, -10f), new(10f, 0f, -10f), new(0f, 0f, -20f),
+                    new(10f, 0f, -20f), new(0f, 0f, -30f), new(10f, 0f, -30f)],
+                body: $$"""
                     m_Quads = [ { nNode = [ 4, 2, 3, 5 ] }, { nNode = [ 4, 6, 7, 5 ] } ]
                     m_Rods =
                     [
@@ -11460,8 +9319,7 @@ namespace Tests
                         { nNode = [ 2, 6 ] flMinDist = 12.0 flMaxDist = 20.0 flWeight0 = {{SyntheticCloth.Num(weight)}} flRelaxationFactor = 1.0 },
                         { nNode = [ 3, 7 ] flMinDist = 12.0 flMaxDist = 20.0 flWeight0 = {{SyntheticCloth.Num(weight)}} flRelaxationFactor = 1.0 },
                     ]
-                }
-                """).BuildBoneChains().SelectMany(static chain => chain.Joints).Where(static joint => joint.Name == "L3")
+                    """).BuildBoneChains().SelectMany(static chain => chain.Joints).Where(static joint => joint.Name == "L3")
                 .Select(static joint => joint.BendSpring).DefaultIfEmpty(false).First();
 
             using (Assert.Multiple())
@@ -11504,23 +9362,11 @@ namespace Tests
 
         // Static bone_0 and bone_1, simulated bone_2 and bone_3. Vertex 2 is anchored on bone_3 with 0.3 on bone_2 and fit on
         // bone_3 (and on bone_2 where it owns a fit matrix); vertex 3 has no fit row and paints bone_1 0.96 and bone_2 0.04.
-        private static FeModel FitlessOnFitBone(bool boneOwnsFit) => SyntheticCloth.Parse($$"""
-            {
-                m_CtrlName = [ "bone_0", "bone_1", "$cloth_m0p0", "$cloth_m0p1", "bone_2", "bone_3" ]
-                m_SkelParents = [ -1, 0, 5, 1, 1, 4 ]
-                m_nNodeCount = 6
-                m_nStaticNodes = 2
+        private static FeModel FitlessOnFitBone(bool boneOwnsFit) => SyntheticCloth.Model(
+            ["bone_0", "bone_1", "$cloth_m0p0", "$cloth_m0p1", "bone_2", "bone_3"], staticNodes: 2, parents: [-1, 0, 5, 1, 1, 4],
+            poses: [new(0f, 0f, 0f), new(0f, 0f, -8f), new(1f, 0f, -24f), new(1f, 0f, -10f), new(0f, 0f, -16f), new(0f, 0f, -24f)],
+            body: $$"""
                 m_nFirstPositionDrivenNode = 4
-                m_NodeInvMasses = [ 0.0, 0.0, 1.0, 1.0, 1.0, 1.0 ]
-                m_InitPose =
-                [
-                    {{SyntheticCloth.Pose(0f, 0f, 0f)}}
-                    {{SyntheticCloth.Pose(0f, 0f, -8f)}}
-                    {{SyntheticCloth.Pose(1f, 0f, -24f)}}
-                    {{SyntheticCloth.Pose(1f, 0f, -10f)}}
-                    {{SyntheticCloth.Pose(0f, 0f, -16f)}}
-                    {{SyntheticCloth.Pose(0f, 0f, -24f)}}
-                ]
                 m_CtrlOffsets =
                 [
                     { vOffset = [ 1.0, 0.0, 0.0 ] nCtrlParent = 5 nCtrlChild = 2 },
@@ -11533,8 +9379,7 @@ namespace Tests
                 ]
                 m_FitMatrices = [ { nEnd = 1 nNode = 5 nBeginDynamic = 0 }{{(boneOwnsFit ? ", { nEnd = 2 nNode = 4 nBeginDynamic = 0 }" : string.Empty)}} ]
                 m_FitWeights = [ { flWeight = 0.7 nNode = 2 nDummy = 0 }{{(boneOwnsFit ? ", { flWeight = 0.3 nNode = 2 nDummy = 0 }" : string.Empty)}} ]
-            }
-            """);
+                """);
 
         /// <summary>
         /// A version-2 chain grades a joint's preset basis at import and stages no fit group for a static joint it presets, so there
@@ -11643,53 +9488,7 @@ namespace Tests
             }
         }
 
-        // models/items/drow/ti9_cache_drow_goddess_of_woods_head/ti9_cache_drow_goddess_of_woods_head.vmdl_c: 16 nodes, 16 network rods, 10 faces, surface add_curvature 0.7383068; the sheet's face nodes renumbered from 0.
-        private static FeModel DrowGoddessHeadSheet => SyntheticCloth.Parse($$"""
-            {
-                m_CtrlName = [ "$cloth_m0p0", "$cloth_m0p1", "$cloth_m0p2", "$cloth_m0p3", "$cloth_m0p4", "$cloth_m0p5", "$cloth_m0p6", "$cloth_m0p7", "$cloth_m0p8", "$cloth_m0p9", "$cloth_m0p10", "$cloth_m0p11", "$cloth_m0p12", "$cloth_m0p13", "$cloth_m0p14", "$cloth_m0p15" ]
-                m_nNodeCount = 16
-                m_nStaticNodes = 0
-                m_NodeInvMasses = [ 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0 ]
-                m_InitPose =
-                [
-                    {{SyntheticCloth.Pose(-10.815558f, 5.645328f, 132.523f)}}
-                    {{SyntheticCloth.Pose(-11.083033f, 2.5336894E-06f, 132.60832f)}}
-                    {{SyntheticCloth.Pose(-10.815558f, -5.645328f, 132.523f)}}
-                    {{SyntheticCloth.Pose(-16.881643f, -7.930124f, 122.44642f)}}
-                    {{SyntheticCloth.Pose(-20.313026f, 5.300744E-07f, 123.969406f)}}
-                    {{SyntheticCloth.Pose(-16.881643f, 7.930124f, 122.44642f)}}
-                    {{SyntheticCloth.Pose(-27.958843f, 4.2594985E-07f, 117.86752f)}}
-                    {{SyntheticCloth.Pose(-23.512804f, -12.685439f, 113.22655f)}}
-                    {{SyntheticCloth.Pose(-23.512804f, 12.685439f, 113.22655f)}}
-                    {{SyntheticCloth.Pose(-36.28462f, -3.9803567E-07f, 112.21493f)}}
-                    {{SyntheticCloth.Pose(-32.75763f, -13.32593f, 106.65457f)}}
-                    {{SyntheticCloth.Pose(-32.75763f, 13.32593f, 106.65457f)}}
-                    {{SyntheticCloth.Pose(-42.748714f, -7.3693547f, 103.30281f)}}
-                    {{SyntheticCloth.Pose(-44.183052f, -1.4517694E-06f, 106.34426f)}}
-                    {{SyntheticCloth.Pose(-42.748714f, 7.3693547f, 103.30281f)}}
-                    {{SyntheticCloth.Pose(-51.528694f, 3.4769377E-07f, 99.68677f)}}
-                ]
-                m_Rods =
-                [
-                    {{SyntheticCloth.BandedRod(0, 8, 23.581099f, 24.224367f, 1f)}}
-                    {{SyntheticCloth.BandedRod(1, 6, 21.832897f, 22.42169f, 1f)}}
-                    {{SyntheticCloth.BandedRod(2, 7, 23.581099f, 24.224367f, 1f)}}
-                    {{SyntheticCloth.BandedRod(3, 10, 20.917269f, 23.07899f, 1f)}}
-                    {{SyntheticCloth.BandedRod(5, 11, 20.91727f, 23.07899f, 1f)}}
-                    {{SyntheticCloth.BandedRod(4, 9, 17.894537f, 19.84255f, 1f)}}
-                    {{SyntheticCloth.BandedRod(5, 3, 15.860248f, 17.301552f, 1f)}}
-                    {{SyntheticCloth.BandedRod(7, 12, 13.51877f, 22.288712f, 1f)}}
-                    {{SyntheticCloth.BandedRod(8, 14, 13.51877f, 22.288712f, 1f)}}
-                    {{SyntheticCloth.BandedRod(6, 13, 11.3243475f, 19.903667f, 1f)}}
-                    {{SyntheticCloth.BandedRod(8, 7, 21.56542f, 28.417582f, 1f)}}
-                    {{SyntheticCloth.BandedRod(9, 15, 7.7820816f, 19.751091f, 1f)}}
-                    {{SyntheticCloth.BandedRod(10, 15, 15.032627f, 24.094904f, 1f)}}
-                    {{SyntheticCloth.BandedRod(11, 15, 15.032627f, 24.094902f, 1f)}}
-                    {{SyntheticCloth.BandedRod(11, 10, 13.903145f, 29.725107f, 1f)}}
-                    {{SyntheticCloth.BandedRod(14, 12, 6.154204f, 16.146252f, 1f)}}
-                ]
-            }
-            """);
+        private static FeModel DrowGoddessHeadSheet => SyntheticCloth.Load("cloth_sheet_covering_paint.kv3");
 
         /// <summary>
         /// A self-collision cluster compiles one rod on every member pair, its band the two members' collision radii summed
@@ -11727,22 +9526,11 @@ namespace Tests
         private static readonly string[] ClusterCliqueMembers = ["$cca_0:4:8|$cca_1:4:8|$ccb_0:4:8|$ccb_1:4:8"];
 
         // Joints a and b with two ring nodes each, and the six 8 / 16 bands a four-member cluster at 4 / 8 compiles.
-        private static FeModel ClusterCliqueRings => SyntheticCloth.Parse($$"""
-            {
-                m_CtrlName = [ "a", "b", "$cca_0", "$cca_1", "$ccb_0", "$ccb_1" ]
-                m_SkelParents = [ -1, -1, 0, 0, 1, 1 ]
-                m_nNodeCount = 6
-                m_nStaticNodes = 2
-                m_NodeInvMasses = [ 0.0, 0.0, 0.01, 0.01, 0.01, 0.01 ]
-                m_InitPose =
-                [
-                    {{SyntheticCloth.Pose(0f, 0f, 0f)}}
-                    {{SyntheticCloth.Pose(10f, 0f, 0f)}}
-                    {{SyntheticCloth.Pose(0f, 3f, -5f)}}
-                    {{SyntheticCloth.Pose(0f, -3f, -5f)}}
-                    {{SyntheticCloth.Pose(10f, 3f, -5f)}}
-                    {{SyntheticCloth.Pose(10f, -3f, -5f)}}
-                ]
+        private static FeModel ClusterCliqueRings => SyntheticCloth.Model(
+            ["a", "b", "$cca_0", "$cca_1", "$ccb_0", "$ccb_1"], staticNodes: 2, parents: [-1, -1, 0, 0, 1, 1],
+                invMasses: "0.0, 0.0, 0.01, 0.01, 0.01, 0.01",
+            poses: [new(0f, 0f, 0f), new(10f, 0f, 0f), new(0f, 3f, -5f), new(0f, -3f, -5f), new(10f, 3f, -5f), new(10f, -3f, -5f)],
+            body: $$"""
                 m_Rods =
                 [
                     {{SyntheticCloth.BandedRod(2, 3, 8f, 16f, 1f)}}
@@ -11752,8 +9540,7 @@ namespace Tests
                     {{SyntheticCloth.BandedRod(3, 5, 8f, 16f, 1f)}}
                     {{SyntheticCloth.BandedRod(4, 5, 8f, 16f, 1f)}}
                 ]
-            }
-            """);
+                """);
 
         /// <summary>
         /// A chain whose joint bases are the bulk grade was authored below version 2, and the lock format 1 adds on its static,
@@ -11821,29 +9608,17 @@ namespace Tests
 
         // Static head and the free cloth node $cloth_node_side, then the chain a0 - a1 - a2. The a0 and a1 bases read X from the
         // joint to node xNode, Y from the child to the joint.
-        private static FeModel ChainOverFreeClothNode(int xNode) => SyntheticCloth.Parse($$"""
-            {
-                m_CtrlName = [ "head", "$cloth_node_side", "a0", "a1", "a2" ]
-                m_SkelParents = [ -1, 0, 0, 2, 3 ]
-                m_nNodeCount = 5
-                m_nStaticNodes = 2
+        private static FeModel ChainOverFreeClothNode(int xNode) => SyntheticCloth.Model(
+            ["head", "$cloth_node_side", "a0", "a1", "a2"], staticNodes: 2, parents: [-1, 0, 0, 2, 3],
+            poses: [new(0f, 0f, 0f), new(0f, -50f, 0f), new(0f, 0f, -5f), new(0f, 0f, -10f), new(0f, 0f, -15f)],
+            body: $$"""
                 m_nRotLockStaticNodes = 2
-                m_NodeInvMasses = [ 0.0, 0.0, 1.0, 1.0, 1.0 ]
-                m_InitPose =
-                [
-                    {{SyntheticCloth.Pose(0f, 0f, 0f)}}
-                    {{SyntheticCloth.Pose(0f, -50f, 0f)}}
-                    {{SyntheticCloth.Pose(0f, 0f, -5f)}}
-                    {{SyntheticCloth.Pose(0f, 0f, -10f)}}
-                    {{SyntheticCloth.Pose(0f, 0f, -15f)}}
-                ]
                 m_NodeBases =
                 [
                     { nNode = 2 nNodeX0 = 2 nNodeX1 = {{xNode}} nNodeY0 = 3 nNodeY1 = 2 },
                     { nNode = 3 nNodeX0 = 3 nNodeX1 = {{xNode}} nNodeY0 = 4 nNodeY1 = 3 },
                 ]
-            }
-            """);
+                """);
 
         /// <summary>
         /// A settled bend paint is replaced only where it misses rods by more than the replay's own float agreement of 1e-4 of the
@@ -11879,233 +9654,7 @@ namespace Tests
             }
         }
 
-        // models/heroes/mirana_persona/mirana_persona_base.vmdl_c: 86 nodes, 126 network rods, 54 faces, surface add_curvature 0.800064; the sheet's face nodes renumbered from 0.
-        private static FeModel MiranaPersonaSheet => SyntheticCloth.Parse($$"""
-            {
-                m_CtrlName = [ "$cloth_m0p0", "$cloth_m0p1", "$cloth_m0p2", "$cloth_m0p3", "$cloth_m0p4", "$cloth_m0p5", "$cloth_m0p6", "$cloth_m0p7", "$cloth_m0p8", "$cloth_m0p9", "$cloth_m0p10", "$cloth_m0p11", "$cloth_m0p12", "$cloth_m0p13", "$cloth_m0p14", "$cloth_m0p15", "$cloth_m0p16", "$cloth_m0p17", "$cloth_m0p18", "$cloth_m0p19", "$cloth_m0p20", "$cloth_m0p21", "$cloth_m0p22", "$cloth_m0p23", "$cloth_m0p24", "$cloth_m0p25", "$cloth_m0p26", "$cloth_m0p27", "$cloth_m0p28", "$cloth_m0p29", "$cloth_m0p30", "$cloth_m0p31", "$cloth_m0p32", "$cloth_m0p33", "$cloth_m0p34", "$cloth_m0p35", "$cloth_m0p36", "$cloth_m0p37", "$cloth_m0p38", "$cloth_m0p39", "$cloth_m0p40", "$cloth_m0p41", "$cloth_m0p42", "$cloth_m0p43", "$cloth_m0p44", "$cloth_m0p45", "$cloth_m0p46", "$cloth_m0p47", "$cloth_m0p48", "$cloth_m0p49", "$cloth_m0p50", "$cloth_m0p51", "$cloth_m0p52", "$cloth_m0p53", "$cloth_m0p54", "$cloth_m0p55", "$cloth_m0p56", "$cloth_m0p57", "$cloth_m0p58", "$cloth_m0p59", "$cloth_m0p60", "$cloth_m0p61", "$cloth_m0p62", "$cloth_m0p63", "$cloth_m0p64", "$cloth_m0p65", "$cloth_m0p66", "$cloth_m0p67", "$cloth_m0p68", "$cloth_m0p69", "$cloth_m0p70", "$cloth_m0p71", "$cloth_m0p72", "$cloth_m0p73", "$cloth_m0p74", "$cloth_m0p75", "$cloth_m0p76", "$cloth_m0p77", "$cloth_m0p78", "$cloth_m0p79", "$cloth_m0p80", "$cloth_m0p81", "$cloth_m0p82", "$cloth_m0p83", "$cloth_m0p84", "$cloth_m0p85" ]
-                m_nNodeCount = 86
-                m_nStaticNodes = 0
-                m_NodeInvMasses = [ 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0 ]
-                m_InitPose =
-                [
-                    {{SyntheticCloth.Pose(-15.095473f, -19.140547f, 130.98946f)}}
-                    {{SyntheticCloth.Pose(-17.029062f, -12.326554f, 131.71419f)}}
-                    {{SyntheticCloth.Pose(-17.029062f, 12.326554f, 131.71419f)}}
-                    {{SyntheticCloth.Pose(-15.095473f, 19.140547f, 130.98946f)}}
-                    {{SyntheticCloth.Pose(-16.927298f, -5.0f, 134.21313f)}}
-                    {{SyntheticCloth.Pose(-16.927298f, 5.0f, 134.21313f)}}
-                    {{SyntheticCloth.Pose(-15.453802f, -18.726608f, 126.14155f)}}
-                    {{SyntheticCloth.Pose(-17.38739f, -11.912616f, 126.86628f)}}
-                    {{SyntheticCloth.Pose(-15.453802f, 18.726608f, 126.14155f)}}
-                    {{SyntheticCloth.Pose(-17.38739f, 11.912616f, 126.86628f)}}
-                    {{SyntheticCloth.Pose(-17.417427f, 4.288621f, 127.515175f)}}
-                    {{SyntheticCloth.Pose(-17.4238f, -4.352967f, 127.44563f)}}
-                    {{SyntheticCloth.Pose(-15.442624f, -18.550873f, 117.500336f)}}
-                    {{SyntheticCloth.Pose(-17.620644f, -11.585511f, 118.80725f)}}
-                    {{SyntheticCloth.Pose(-15.442624f, 18.550873f, 117.500336f)}}
-                    {{SyntheticCloth.Pose(-17.620644f, 11.585511f, 118.80725f)}}
-                    {{SyntheticCloth.Pose(-18.058758f, 4.3145194f, 120.048f)}}
-                    {{SyntheticCloth.Pose(-18.06181f, -4.330307f, 120.03876f)}}
-                    {{SyntheticCloth.Pose(-16.281216f, -18.380278f, 108.942444f)}}
-                    {{SyntheticCloth.Pose(-19.581396f, -11.001704f, 110.337555f)}}
-                    {{SyntheticCloth.Pose(-16.281216f, 18.380278f, 108.942444f)}}
-                    {{SyntheticCloth.Pose(-19.581396f, 11.001704f, 110.337555f)}}
-                    {{SyntheticCloth.Pose(-19.63091f, 4.0465436f, 111.76572f)}}
-                    {{SyntheticCloth.Pose(-19.641083f, -4.1034117f, 111.743225f)}}
-                    {{SyntheticCloth.Pose(-21.097715f, -11.253855f, 102.12577f)}}
-                    {{SyntheticCloth.Pose(-17.58324f, -18.773373f, 100.43261f)}}
-                    {{SyntheticCloth.Pose(-17.58324f, 18.773373f, 100.43261f)}}
-                    {{SyntheticCloth.Pose(-21.097715f, 11.253855f, 102.12577f)}}
-                    {{SyntheticCloth.Pose(-21.508125f, 4.0544286f, 103.74217f)}}
-                    {{SyntheticCloth.Pose(-21.514303f, -4.125722f, 103.70929f)}}
-                    {{SyntheticCloth.Pose(-18.874908f, -19.943903f, 91.99936f)}}
-                    {{SyntheticCloth.Pose(-22.518084f, -12.08624f, 93.964714f)}}
-                    {{SyntheticCloth.Pose(-18.874908f, 19.943903f, 91.99936f)}}
-                    {{SyntheticCloth.Pose(-22.518509f, 12.07997f, 93.96892f)}}
-                    {{SyntheticCloth.Pose(-23.65737f, 4.197114f, 95.702576f)}}
-                    {{SyntheticCloth.Pose(-23.654007f, -4.2468295f, 95.6693f)}}
-                    {{SyntheticCloth.Pose(-24.871672f, -13.537416f, 86.23957f)}}
-                    {{SyntheticCloth.Pose(-20.354761f, -21.892418f, 83.729774f)}}
-                    {{SyntheticCloth.Pose(-20.354761f, 21.892418f, 83.729774f)}}
-                    {{SyntheticCloth.Pose(-24.875015f, 13.527921f, 86.250404f)}}
-                    {{SyntheticCloth.Pose(-26.215334f, 4.523812f, 88.192955f)}}
-                    {{SyntheticCloth.Pose(-26.202063f, -4.5583467f, 88.1507f)}}
-                    {{SyntheticCloth.Pose(-27.697893f, -14.868223f, 78.120155f)}}
-                    {{SyntheticCloth.Pose(-21.908436f, -24.482763f, 75.63206f)}}
-                    {{SyntheticCloth.Pose(-21.908436f, 24.482763f, 75.63206f)}}
-                    {{SyntheticCloth.Pose(-27.698162f, 14.867822f, 78.12089f)}}
-                    {{SyntheticCloth.Pose(-28.945234f, 4.8091106f, 80.239655f)}}
-                    {{SyntheticCloth.Pose(-28.93305f, -4.827322f, 80.20618f)}}
-                    {{SyntheticCloth.Pose(-23.630163f, -27.454828f, 67.684265f)}}
-                    {{SyntheticCloth.Pose(-30.370392f, -16.224058f, 70.444695f)}}
-                    {{SyntheticCloth.Pose(-23.630163f, 27.454828f, 67.684265f)}}
-                    {{SyntheticCloth.Pose(-30.371344f, 16.222658f, 70.44734f)}}
-                    {{SyntheticCloth.Pose(-32.783222f, 5.254915f, 72.88018f)}}
-                    {{SyntheticCloth.Pose(-32.779633f, -5.2601976f, 72.870125f)}}
-                    {{SyntheticCloth.Pose(-33.26719f, -18.109873f, 63.249275f)}}
-                    {{SyntheticCloth.Pose(-25.921503f, -30.499273f, 59.90693f)}}
-                    {{SyntheticCloth.Pose(-25.921503f, 30.499273f, 59.90693f)}}
-                    {{SyntheticCloth.Pose(-33.270027f, 18.116179f, 63.259033f)}}
-                    {{SyntheticCloth.Pose(-36.39569f, 5.5990515f, 65.964874f)}}
-                    {{SyntheticCloth.Pose(-36.38238f, -5.5659337f, 65.91849f)}}
-                    {{SyntheticCloth.Pose(-36.907703f, -19.78023f, 56.44651f)}}
-                    {{SyntheticCloth.Pose(-29.05777f, -33.431023f, 52.421375f)}}
-                    {{SyntheticCloth.Pose(-29.05777f, 33.431023f, 52.421375f)}}
-                    {{SyntheticCloth.Pose(-36.908386f, 19.781742f, 56.44885f)}}
-                    {{SyntheticCloth.Pose(-40.283592f, 6.2215867f, 59.182056f)}}
-                    {{SyntheticCloth.Pose(-39.54406f, -5.9728603f, 58.647816f)}}
-                    {{SyntheticCloth.Pose(-33.607037f, -36.344795f, 45.724716f)}}
-                    {{SyntheticCloth.Pose(-44.630447f, -22.514893f, 50.455086f)}}
-                    {{SyntheticCloth.Pose(-33.607037f, 36.344795f, 45.724716f)}}
-                    {{SyntheticCloth.Pose(-44.630447f, 22.514893f, 50.455086f)}}
-                    {{SyntheticCloth.Pose(-44.325043f, 6.7631593f, 51.686f)}}
-                    {{SyntheticCloth.Pose(-44.29262f, -6.6636477f, 51.62983f)}}
-                    {{SyntheticCloth.Pose(-50.80507f, -24.826012f, 45.327374f)}}
-                    {{SyntheticCloth.Pose(-39.55794f, -39.334583f, 40.263012f)}}
-                    {{SyntheticCloth.Pose(-39.55794f, 39.334583f, 40.263012f)}}
-                    {{SyntheticCloth.Pose(-50.80507f, 24.826012f, 45.327374f)}}
-                    {{SyntheticCloth.Pose(-48.623943f, 4.972157f, 45.63817f)}}
-                    {{SyntheticCloth.Pose(-48.623943f, -4.9717803f, 45.638012f)}}
-                    {{SyntheticCloth.Pose(-50.9665f, 11.740841f, 44.881863f)}}
-                    {{SyntheticCloth.Pose(-53.694984f, 13.968832f, 41.172085f)}}
-                    {{SyntheticCloth.Pose(-50.9665f, -11.740841f, 44.881863f)}}
-                    {{SyntheticCloth.Pose(-53.694984f, -13.968832f, 41.172085f)}}
-                    {{SyntheticCloth.Pose(-51.661655f, 4.015462f, 39.88339f)}}
-                    {{SyntheticCloth.Pose(-54.638794f, 2.6906853f, 32.051174f)}}
-                    {{SyntheticCloth.Pose(-54.638794f, -2.6906853f, 32.051174f)}}
-                    {{SyntheticCloth.Pose(-51.632256f, -4.109575f, 39.997013f)}}
-                ]
-                m_Rods =
-                [
-                    {{SyntheticCloth.BandedRod(0, 12, 13.506465f, 13.511056f, 1f)}}
-                    {{SyntheticCloth.BandedRod(1, 13, 12.941721f, 12.943155f, 1f)}}
-                    {{SyntheticCloth.BandedRod(2, 15, 12.941721f, 12.943155f, 1f)}}
-                    {{SyntheticCloth.BandedRod(3, 14, 13.506465f, 13.511056f, 1f)}}
-                    {{SyntheticCloth.BandedRod(4, 17, 14.23547f, 14.235754f, 1f)}}
-                    {{SyntheticCloth.BandedRod(5, 16, 14.226778f, 14.22706f, 1f)}}
-                    {{SyntheticCloth.BandedRod(10, 8, 14.6355095f, 14.771625f, 1f)}}
-                    {{SyntheticCloth.BandedRod(11, 6, 14.566506f, 14.701759f, 1f)}}
-                    {{SyntheticCloth.BandedRod(6, 18, 17.222477f, 17.241678f, 1f)}}
-                    {{SyntheticCloth.BandedRod(8, 20, 17.222477f, 17.241678f, 1f)}}
-                    {{SyntheticCloth.BandedRod(7, 19, 16.698568f, 16.766262f, 1f)}}
-                    {{SyntheticCloth.BandedRod(9, 21, 16.698568f, 16.766262f, 1f)}}
-                    {{SyntheticCloth.BandedRod(7, 10, 16.214254f, 16.214476f, 1f)}}
-                    {{SyntheticCloth.BandedRod(9, 11, 16.275938f, 16.27614f, 1f)}}
-                    {{SyntheticCloth.BandedRod(10, 22, 15.906085f, 15.92668f, 1f)}}
-                    {{SyntheticCloth.BandedRod(11, 23, 15.8601465f, 15.880789f, 1f)}}
-                    {{SyntheticCloth.BandedRod(16, 14, 14.6972275f, 14.799914f, 1f)}}
-                    {{SyntheticCloth.BandedRod(17, 12, 14.68088f, 14.783166f, 1f)}}
-                    {{SyntheticCloth.BandedRod(13, 16, 15.954383f, 15.970775f, 1f)}}
-                    {{SyntheticCloth.BandedRod(15, 17, 15.969486f, 15.985617f, 1f)}}
-                    {{SyntheticCloth.BandedRod(15, 27, 17.043186f, 17.043236f, 1f)}}
-                    {{SyntheticCloth.BandedRod(13, 24, 17.043186f, 17.043236f, 1f)}}
-                    {{SyntheticCloth.BandedRod(14, 26, 17.202879f, 17.215567f, 1f)}}
-                    {{SyntheticCloth.BandedRod(12, 25, 17.202879f, 17.215565f, 1f)}}
-                    {{SyntheticCloth.BandedRod(17, 29, 16.691708f, 16.695202f, 1f)}}
-                    {{SyntheticCloth.BandedRod(16, 28, 16.668705f, 16.672426f, 1f)}}
-                    {{SyntheticCloth.BandedRod(22, 20, 14.988238f, 15.2781515f, 1f)}}
-                    {{SyntheticCloth.BandedRod(23, 18, 14.931911f, 15.218898f, 1f)}}
-                    {{SyntheticCloth.BandedRod(21, 33, 16.664474f, 16.66601f, 1f)}}
-                    {{SyntheticCloth.BandedRod(19, 31, 16.668955f, 16.670488f, 1f)}}
-                    {{SyntheticCloth.BandedRod(21, 23, 15.170497f, 15.174184f, 1f)}}
-                    {{SyntheticCloth.BandedRod(20, 32, 17.211632f, 17.215261f, 1f)}}
-                    {{SyntheticCloth.BandedRod(18, 30, 17.211632f, 17.215261f, 1f)}}
-                    {{SyntheticCloth.BandedRod(19, 22, 15.115948f, 15.120086f, 1f)}}
-                    {{SyntheticCloth.BandedRod(22, 34, 16.560783f, 16.562822f, 1f)}}
-                    {{SyntheticCloth.BandedRod(23, 35, 16.5679f, 16.569895f, 1f)}}
-                    {{SyntheticCloth.BandedRod(28, 26, 15.588626f, 15.844732f, 1f)}}
-                    {{SyntheticCloth.BandedRod(29, 25, 15.515913f, 15.769419f, 1f)}}
-                    {{SyntheticCloth.BandedRod(24, 36, 16.48723f, 16.530216f, 1f)}}
-                    {{SyntheticCloth.BandedRod(27, 39, 16.476244f, 16.519558f, 1f)}}
-                    {{SyntheticCloth.BandedRod(26, 38, 17.206646f, 17.225016f, 1f)}}
-                    {{SyntheticCloth.BandedRod(25, 37, 17.206646f, 17.22502f, 1f)}}
-                    {{SyntheticCloth.BandedRod(29, 41, 16.247787f, 16.26424f, 1f)}}
-                    {{SyntheticCloth.BandedRod(28, 40, 16.245552f, 16.262007f, 1f)}}
-                    {{SyntheticCloth.BandedRod(24, 28, 15.398854f, 15.423134f, 1f)}}
-                    {{SyntheticCloth.BandedRod(27, 29, 15.466495f, 15.490952f, 1f)}}
-                    {{SyntheticCloth.BandedRod(34, 32, 16.868525f, 17.034456f, 1f)}}
-                    {{SyntheticCloth.BandedRod(35, 30, 16.813873f, 16.979628f, 1f)}}
-                    {{SyntheticCloth.BandedRod(31, 42, 16.795053f, 16.901127f, 1f)}}
-                    {{SyntheticCloth.BandedRod(33, 45, 16.799227f, 16.90526f, 1f)}}
-                    {{SyntheticCloth.BandedRod(32, 44, 17.161642f, 17.259474f, 1f)}}
-                    {{SyntheticCloth.BandedRod(30, 43, 17.161573f, 17.259474f, 1f)}}
-                    {{SyntheticCloth.BandedRod(35, 47, 16.244411f, 16.349758f, 1f)}}
-                    {{SyntheticCloth.BandedRod(34, 46, 16.248133f, 16.353544f, 1f)}}
-                    {{SyntheticCloth.BandedRod(33, 35, 16.454332f, 16.532751f, 1f)}}
-                    {{SyntheticCloth.BandedRod(31, 34, 16.415413f, 16.491009f, 1f)}}
-                    {{SyntheticCloth.BandedRod(40, 38, 18.866234f, 19.12972f, 1f)}}
-                    {{SyntheticCloth.BandedRod(41, 37, 18.82035f, 19.085712f, 1f)}}
-                    {{SyntheticCloth.BandedRod(36, 49, 16.616133f, 16.939163f, 1f)}}
-                    {{SyntheticCloth.BandedRod(37, 48, 17.00754f, 17.299665f, 1f)}}
-                    {{SyntheticCloth.BandedRod(38, 50, 17.007551f, 17.299664f, 1f)}}
-                    {{SyntheticCloth.BandedRod(39, 51, 16.624199f, 16.947311f, 1f)}}
-                    {{SyntheticCloth.BandedRod(41, 53, 16.365307f, 16.698957f, 1f)}}
-                    {{SyntheticCloth.BandedRod(40, 52, 16.390566f, 16.724844f, 1f)}}
-                    {{SyntheticCloth.BandedRod(36, 40, 18.087948f, 18.31071f, 1f)}}
-                    {{SyntheticCloth.BandedRod(39, 41, 18.11267f, 18.335766f, 1f)}}
-                    {{SyntheticCloth.BandedRod(46, 44, 21.39624f, 21.79924f, 1f)}}
-                    {{SyntheticCloth.BandedRod(47, 43, 21.368298f, 21.774797f, 1f)}}
-                    {{SyntheticCloth.BandedRod(43, 55, 16.790268f, 17.316538f, 1f)}}
-                    {{SyntheticCloth.BandedRod(44, 56, 16.79033f, 17.316536f, 1f)}}
-                    {{SyntheticCloth.BandedRod(42, 54, 15.670904f, 16.219826f, 1f)}}
-                    {{SyntheticCloth.BandedRod(45, 57, 15.665446f, 16.214092f, 1f)}}
-                    {{SyntheticCloth.BandedRod(45, 47, 19.68747f, 19.92954f, 1f)}}
-                    {{SyntheticCloth.BandedRod(42, 46, 19.668507f, 19.910376f, 1f)}}
-                    {{SyntheticCloth.BandedRod(47, 59, 15.551066f, 16.130024f, 1f)}}
-                    {{SyntheticCloth.BandedRod(46, 58, 15.543045f, 16.121496f, 1f)}}
-                    {{SyntheticCloth.BandedRod(53, 48, 23.889105f, 24.80634f, 1f)}}
-                    {{SyntheticCloth.BandedRod(52, 50, 23.896862f, 24.813835f, 1f)}}
-                    {{SyntheticCloth.BandedRod(49, 60, 15.178283f, 15.864326f, 1f)}}
-                    {{SyntheticCloth.BandedRod(51, 63, 15.178635f, 15.864528f, 1f)}}
-                    {{SyntheticCloth.BandedRod(50, 62, 16.593784f, 17.279312f, 1f)}}
-                    {{SyntheticCloth.BandedRod(48, 61, 16.593584f, 17.27933f, 1f)}}
-                    {{SyntheticCloth.BandedRod(52, 64, 14.940874f, 15.6499605f, 1f)}}
-                    {{SyntheticCloth.BandedRod(53, 65, 15.058713f, 15.774211f, 1f)}}
-                    {{SyntheticCloth.BandedRod(49, 52, 21.093855f, 21.977966f, 1f)}}
-                    {{SyntheticCloth.BandedRod(51, 53, 21.099783f, 21.983469f, 1f)}}
-                    {{SyntheticCloth.BandedRod(54, 67, 17.137953f, 17.984236f, 1f)}}
-                    {{SyntheticCloth.BandedRod(57, 69, 17.14258f, 17.989162f, 1f)}}
-                    {{SyntheticCloth.BandedRod(59, 55, 26.91018f, 27.94628f, 1f)}}
-                    {{SyntheticCloth.BandedRod(58, 56, 26.893541f, 27.927618f, 1f)}}
-                    {{SyntheticCloth.BandedRod(54, 58, 23.373707f, 24.349617f, 1f)}}
-                    {{SyntheticCloth.BandedRod(57, 59, 23.356167f, 24.331064f, 1f)}}
-                    {{SyntheticCloth.BandedRod(55, 66, 16.443f, 17.2088f, 1f)}}
-                    {{SyntheticCloth.BandedRod(56, 68, 16.443022f, 17.208788f, 1f)}}
-                    {{SyntheticCloth.BandedRod(58, 70, 15.586753f, 16.375494f, 1f)}}
-                    {{SyntheticCloth.BandedRod(59, 71, 15.648998f, 16.439903f, 1f)}}
-                    {{SyntheticCloth.BandedRod(65, 77, 15.127306f, 15.898323f, 1f)}}
-                    {{SyntheticCloth.BandedRod(64, 76, 15.212775f, 15.985682f, 1f)}}
-                    {{SyntheticCloth.BandedRod(62, 74, 16.346193f, 17.181273f, 1f)}}
-                    {{SyntheticCloth.BandedRod(61, 73, 16.346193f, 17.181273f, 1f)}}
-                    {{SyntheticCloth.BandedRod(60, 72, 17.612371f, 18.500582f, 1f)}}
-                    {{SyntheticCloth.BandedRod(63, 75, 17.61281f, 18.501034f, 1f)}}
-                    {{SyntheticCloth.BandedRod(64, 62, 28.905521f, 30.360897f, 1f)}}
-                    {{SyntheticCloth.BandedRod(65, 61, 28.867134f, 30.316704f, 1f)}}
-                    {{SyntheticCloth.BandedRod(60, 64, 25.186462f, 26.455357f, 1f)}}
-                    {{SyntheticCloth.BandedRod(63, 65, 25.183352f, 26.453959f, 1f)}}
-                    {{SyntheticCloth.BandedRod(67, 85, 21.672626f, 22.71888f, 1f)}}
-                    {{SyntheticCloth.BandedRod(69, 82, 21.809128f, 22.864706f, 1f)}}
-                    {{SyntheticCloth.BandedRod(67, 70, 27.91113f, 29.306902f, 1f)}}
-                    {{SyntheticCloth.BandedRod(69, 71, 27.808922f, 29.20625f, 1f)}}
-                    {{SyntheticCloth.BandedRod(71, 85, 13.36168f, 14.021007f, 1f)}}
-                    {{SyntheticCloth.BandedRod(70, 82, 13.530628f, 14.195804f, 1f)}}
-                    {{SyntheticCloth.BandedRod(66, 80, 30.123344f, 31.626125f, 1f)}}
-                    {{SyntheticCloth.BandedRod(68, 78, 30.123344f, 31.626125f, 1f)}}
-                    {{SyntheticCloth.BandedRod(71, 66, 31.804646f, 33.396805f, 1f)}}
-                    {{SyntheticCloth.BandedRod(70, 68, 31.714428f, 33.30114f, 1f)}}
-                    {{SyntheticCloth.BandedRod(72, 84, 25.148506f, 26.42306f, 1f)}}
-                    {{SyntheticCloth.BandedRod(75, 83, 25.148504f, 26.42306f, 1f)}}
-                    {{SyntheticCloth.BandedRod(79, 74, 29.053463f, 30.99962f, 1f)}}
-                    {{SyntheticCloth.BandedRod(81, 73, 29.053463f, 30.99962f, 1f)}}
-                    {{SyntheticCloth.BandedRod(77, 84, 14.360423f, 15.0623455f, 1f)}}
-                    {{SyntheticCloth.BandedRod(76, 83, 14.349007f, 15.060103f, 1f)}}
-                    {{SyntheticCloth.BandedRod(80, 82, 15.946761f, 16.587448f, 1f)}}
-                    {{SyntheticCloth.BandedRod(78, 85, 15.9900255f, 16.644718f, 1f)}}
-                    {{SyntheticCloth.BandedRod(79, 84, 18.553465f, 19.094738f, 1f)}}
-                    {{SyntheticCloth.BandedRod(81, 83, 18.559027f, 19.094467f, 1f)}}
-                ]
-            }
-            """);
+        private static FeModel MiranaPersonaSheet => SyntheticCloth.Load("cloth_sheet_settled_paint.kv3");
 
         /// <summary>
         /// A second rigid copy of a span at the pair's rest distance, at relaxation 1.0 and weight 0.5, on a pair the original
@@ -12117,18 +9666,12 @@ namespace Tests
         [Test]
         public async Task ASecondRigidSpanCopyWithNoSourceElementIsAClusterRod()
         {
-            static FeModel Pair(string rods, string sourceElems, string skelParents = "m_SkelParents = [ -1, 0 ]") => SyntheticCloth.Parse($$"""
-                {
-                    m_CtrlName = [ "a", "b" ]
-                    m_nNodeCount = 2
-                    m_nStaticNodes = 1
-                    m_NodeInvMasses = [ 0.0, 1.0 ]
-                    m_InitPose = [ {{SyntheticCloth.Pose(0f, 0f, 0f)}} {{SyntheticCloth.Pose(10f, 0f, 0f)}} ]
+            static FeModel Pair(string rods, string sourceElems, string skelParents = "m_SkelParents = [ -1, 0 ]") => SyntheticCloth.Model(
+                ["a", "b"], staticNodes: 1, poses: [new(0f, 0f, 0f), new(10f, 0f, 0f)], body: $$"""
                     m_Rods = [ {{rods}} ]
                     {{sourceElems}}
                     {{skelParents}}
-                }
-                """);
+                    """);
 
             var rigid = SyntheticCloth.RigidRod(0, 1, 10f, 1f);
             var doubled = Pair(rigid + rigid, string.Empty);
@@ -12185,22 +9728,11 @@ namespace Tests
 
         // ClusterCliqueRings with unequal ring masses, two quads over the joints folding each ring's own pair, and a fold record
         // on each of those pairs at the ratio of its endpoints' inverse masses.
-        private static FeModel FoldedClusterClique(bool faces) => SyntheticCloth.Parse($$"""
-            {
-                m_CtrlName = [ "a", "b", "$cca_0", "$cca_1", "$ccb_0", "$ccb_1" ]
-                m_SkelParents = [ -1, -1, 0, 0, 1, 1 ]
-                m_nNodeCount = 6
-                m_nStaticNodes = 2
-                m_NodeInvMasses = [ 0.0, 0.0, 0.01, 0.02, 0.01, 0.02 ]
-                m_InitPose =
-                [
-                    {{SyntheticCloth.Pose(0f, 0f, 0f)}}
-                    {{SyntheticCloth.Pose(10f, 0f, 0f)}}
-                    {{SyntheticCloth.Pose(0f, 3f, -5f)}}
-                    {{SyntheticCloth.Pose(0f, -3f, -5f)}}
-                    {{SyntheticCloth.Pose(10f, 3f, -5f)}}
-                    {{SyntheticCloth.Pose(10f, -3f, -5f)}}
-                ]
+        private static FeModel FoldedClusterClique(bool faces) => SyntheticCloth.Model(
+            ["a", "b", "$cca_0", "$cca_1", "$ccb_0", "$ccb_1"], staticNodes: 2, parents: [-1, -1, 0, 0, 1, 1],
+                invMasses: "0.0, 0.0, 0.01, 0.02, 0.01, 0.02",
+            poses: [new(0f, 0f, 0f), new(10f, 0f, 0f), new(0f, 3f, -5f), new(0f, -3f, -5f), new(10f, 3f, -5f), new(10f, -3f, -5f)],
+            body: $$"""
                 m_Quads = [ {{(faces ? "{ nNode = [ 0, 1, 4, 2 ] }, { nNode = [ 1, 0, 3, 5 ] }" : string.Empty)}} ]
                 m_Rods =
                 [
@@ -12213,8 +9745,7 @@ namespace Tests
                     { nNode = [ 2, 3 ] flMinDist = 1.0 flMaxDist = 12.0 flWeight0 = 0.333333 flRelaxationFactor = 1.0 },
                     { nNode = [ 4, 5 ] flMinDist = 1.0 flMaxDist = 12.0 flWeight0 = 0.333333 flRelaxationFactor = 1.0 },
                 ]
-            }
-            """);
+                """);
 
         /// <summary>
         /// An authored <c>ClothSpring</c> between two chain joints is re-declared on the PROXY SHEET route as well as on the chain
@@ -12265,12 +9796,11 @@ namespace Tests
         [Test]
         public async Task ADynamicClothNodeNoRodTiesToTwoNodesDeclaresItsBasisPreset()
         {
-            var feModel = SyntheticCloth.Parse($$"""
-                {
-                    m_CtrlName = [ "root", "a", "b", "c", "d", "flap", "strap" ]
-                    m_nNodeCount = 7
-                    m_nStaticNodes = 1
-                    m_NodeInvMasses = [ 0.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0 ]
+            var feModel = SyntheticCloth.Model(
+                ["root", "a", "b", "c", "d", "flap", "strap"], staticNodes: 1,
+                poses: [new(0f, 0f, 60f), new(-4f, 4f, 55f), new(-4f, -4f, 55f), new(-6f, 4f, 45f), new(-6f, -4f, 45f),
+                    new(-5f, 0f, 50f), new(-3f, 0f, 58f)],
+                body: $$"""
                     m_Rods =
                     [
                         {{SyntheticCloth.RigidRod(1, 2, 8f, 1f)}}
@@ -12279,23 +9809,12 @@ namespace Tests
                         {{SyntheticCloth.RigidRod(6, 1, 5f, 1f)}}
                         {{SyntheticCloth.RigidRod(6, 2, 5f, 1f)}}
                     ]
-                    m_InitPose =
-                    [
-                        {{SyntheticCloth.Pose(0f, 0f, 60f)}}
-                        {{SyntheticCloth.Pose(-4f, 4f, 55f)}}
-                        {{SyntheticCloth.Pose(-4f, -4f, 55f)}}
-                        {{SyntheticCloth.Pose(-6f, 4f, 45f)}}
-                        {{SyntheticCloth.Pose(-6f, -4f, 45f)}}
-                        {{SyntheticCloth.Pose(-5f, 0f, 50f)}}
-                        {{SyntheticCloth.Pose(-3f, 0f, 58f)}}
-                    ]
                     m_NodeBases =
                     [
                         { nNode = 5 nNodeX0 = 4 nNodeX1 = 1 nNodeY0 = 2 nNodeY1 = 3 },
                         { nNode = 6 nNodeX0 = 4 nNodeX1 = 1 nNodeY0 = 2 nNodeY1 = 3 },
                     ]
-                }
-                """);
+                    """);
 
             var flap = ClothExtract.MakeClothNode(feModel, "flap", 5);
             var strap = ClothExtract.MakeClothNode(feModel, "strap", 6);

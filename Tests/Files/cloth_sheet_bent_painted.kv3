@@ -1,0 +1,52 @@
+<!-- kv3 encoding:text:version{e21c7f3c-8a33-41c5-9977-a76d3a32aa0d} format:generic:version{7412167c-06e9-4698-aff2-e63eb59037e7} -->
+{
+    m_CtrlName = [ "$cloth_m0p0", "$cloth_m0p1", "$cloth_m0p2", "$cloth_m0p3", "$cloth_m0p4", "$cloth_m0p5", "$cloth_m0p6", "$cloth_m0p7", "$cloth_m0p8", "$cloth_m0p9", "$cloth_m0p10", "$cloth_m0p11", "$cloth_m0p12", "$cloth_m0p13", "$cloth_m0p14", "$cloth_m0p15", "$cloth_m0p16", "$cloth_m0p17", "$cloth_m0p18", "$cloth_m0p19" ]
+    m_nNodeCount = 20
+    m_nStaticNodes = 0
+    m_NodeInvMasses = [ 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0 ]
+    m_InitPose =
+    [
+        [ -8.915558, -3.9999907, 65.448204, 1.0, 0.0, 0.0, 0.0, 1.0 ],
+        [ -11.695556, -4.2669907, 57.420155, 1.0, 0.0, 0.0, 0.0, 1.0 ],
+        [ -14.808141, -4.6377454, 49.519295, 1.0, 0.0, 0.0, 0.0, 1.0 ],
+        [ -17.90746, -5.004356, 41.613026, 1.0, 0.0, 0.0, 0.0, 1.0 ],
+        [ -8.91556, -1.9999869, 65.4482, 1.0, 0.0, 0.0, 0.0, 1.0 ],
+        [ -11.695561, -2.1334882, 57.42015, 1.0, 0.0, 0.0, 0.0, 1.0 ],
+        [ -14.808148, -2.3188667, 49.519295, 1.0, 0.0, 0.0, 0.0, 1.0 ],
+        [ -17.907467, -2.502173, 41.61303, 1.0, 0.0, 0.0, 0.0, 1.0 ],
+        [ -8.915562, 1.680851E-05, 65.44819, 1.0, 0.0, 0.0, 0.0, 1.0 ],
+        [ -12.695568, 1.4543533E-05, 57.42015, 1.0, 0.0, 0.0, 0.0, 1.0 ],
+        [ -14.808155, 1.1920929E-05, 49.5193, 1.0, 0.0, 0.0, 0.0, 1.0 ],
+        [ -17.907475, 9.775162E-06, 41.613037, 1.0, 0.0, 0.0, 0.0, 1.0 ],
+        [ -8.915564, 2.0000205, 65.44818, 1.0, 0.0, 0.0, 0.0, 1.0 ],
+        [ -11.695574, 2.1335173, 57.420147, 1.0, 0.0, 0.0, 0.0, 1.0 ],
+        [ -14.808163, 2.3188906, 49.519302, 1.0, 0.0, 0.0, 0.0, 1.0 ],
+        [ -17.907482, 2.5021925, 41.61304, 1.0, 0.0, 0.0, 0.0, 1.0 ],
+        [ -8.9155655, 4.0000243, 65.44817, 1.0, 0.0, 0.0, 0.0, 1.0 ],
+        [ -11.69558, 4.2670197, 57.420143, 1.0, 0.0, 0.0, 0.0, 1.0 ],
+        [ -14.80817, 4.637769, 49.519302, 1.0, 0.0, 0.0, 0.0, 1.0 ],
+        [ -17.907492, 5.0043755, 41.61305, 1.0, 0.0, 0.0, 0.0, 1.0 ],
+    ]
+    m_Rods =
+    [
+        { nNode = [ 0, 2 ] flMaxDist = 16.999594 flMinDist = 15.707473 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
+{ nNode = [ 4, 6 ] flMaxDist = 16.990614 flMinDist = 15.697754 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
+{ nNode = [ 8, 10 ] flMaxDist = 17.040838 flMinDist = 15.774404 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
+{ nNode = [ 12, 14 ] flMaxDist = 16.990597 flMinDist = 15.697739 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
+{ nNode = [ 16, 18 ] flMaxDist = 16.999565 flMinDist = 15.707446 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
+{ nNode = [ 1, 3 ] flMaxDist = 16.99991 flMinDist = 6.5411534 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
+{ nNode = [ 17, 19 ] flMaxDist = 16.999882 flMinDist = 6.5411453 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
+{ nNode = [ 9, 11 ] flMaxDist = 16.670456 flMinDist = 6.3860846 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
+{ nNode = [ 5, 7 ] flMaxDist = 16.987907 flMinDist = 6.509907 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
+{ nNode = [ 13, 15 ] flMaxDist = 16.987896 flMinDist = 6.5099025 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
+{ nNode = [ 17, 9 ] flMaxDist = 4.4786596 flMinDist = 3.1739345 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
+{ nNode = [ 9, 1 ] flMaxDist = 4.4786654 flMinDist = 3.1739397 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
+{ nNode = [ 13, 5 ] flMaxDist = 4.684062 flMinDist = 3.3121321 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
+{ nNode = [ 18, 10 ] flMaxDist = 4.637758 flMinDist = 1.7772001 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
+{ nNode = [ 10, 2 ] flMaxDist = 4.637758 flMinDist = 1.7772 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
+{ nNode = [ 14, 6 ] flMaxDist = 4.6377573 flMinDist = 1.7747929 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
+{ nNode = [ 19, 11 ] flMaxDist = 5.004366 flMinDist = 1.917685 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
+{ nNode = [ 11, 3 ] flMaxDist = 5.004366 flMinDist = 1.9176855 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
+{ nNode = [ 15, 7 ] flMaxDist = 5.0043654 flMinDist = 1.9150877 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
+    ]
+}
