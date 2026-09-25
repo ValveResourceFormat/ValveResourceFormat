@@ -325,6 +325,10 @@ internal sealed partial class ClothExtract
         return neighbours.Count;
     }
 
+    /// <summary>
+    /// A <c>ClothNode</c> on <paramref name="boneName"/> declaring control node <paramref name="node"/> with the values it
+    /// compiled with, under <paramref name="elementName"/> where it is a free cloth node.
+    /// </summary>
     internal static KVObject MakeClothNode(FeModel feModel, string boneName, int node, bool isStaticNode = false,
         string? elementName = null, Vector3 origin = default, Vector3 angles = default,
         IReadOnlyDictionary<int, string>? proxyNodeNames = null)

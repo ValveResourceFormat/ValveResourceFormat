@@ -40,6 +40,36 @@ internal sealed partial class ClothExtract
     internal Dictionary<string, Vector3> RestBonePositions { get; } = new(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>
+    /// Gets the Bone <c>origin</c> of each ClothChain joint, re-solved so the compiler's chain rest pose lands it on its
+    /// <c>m_InitPose</c> position exactly. Only the document skeleton reads these.
+    /// </summary>
+    internal Dictionary<string, Vector3> ChainBoneOrigins { get; } = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// Gets the Bone <c>angles</c> of each ClothChain joint, re-solved so the compiler's chain rest pose gives it its
+    /// <c>m_InitPose</c> rotation exactly. Only the document skeleton reads these.
+    /// </summary>
+    internal Dictionary<string, Vector3> ChainBoneAngles { get; } = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// Gets the ClothChain joints whose origin or angles were re-solved, which are written without
+    /// <see cref="FeModel.BoneChainJoint.ExtrudeTwistTieNudge"/>.
+    /// </summary>
+    private HashSet<string> RelandedJoints { get; } = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// Gets the parent-space bone positions written into the proxy and grid DMX joint lists, which the compiler takes
+    /// <c>m_InitPose</c> from. Unlike <see cref="RestBonePositions"/> these are not capped by distance.
+    /// </summary>
+    internal Dictionary<string, Vector3> ProxyRestBonePositions { get; } = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>Gets the parent-space bone rotations written beside <see cref="ProxyRestBonePositions"/>.</summary>
+    internal Dictionary<string, Quaternion> ProxyRestBoneRotations { get; } = new(StringComparer.OrdinalIgnoreCase);
+
+    // The sheets declared with flex_cloth_borders, filled while the vmdl is emitted and read when their DMX is built.
+    private readonly HashSet<FeModel.ProxyMesh> flexedProxies = [];
+
+    /// <summary>
     /// Adds the proxy-sheet and chain-grid DMX files to <paramref name="vmdl"/>, built when they are written.
     /// </summary>
     internal void AddSubFiles(ContentFile vmdl)
@@ -62,8 +92,6 @@ internal sealed partial class ClothExtract
             );
         }
     }
-
-    private readonly HashSet<FeModel.ProxyMesh> flexedProxies = [];
 
     /// <summary>
     /// Registers the model's skeleton with its <see cref="FeModel"/>, recovers the rest poses and queues the proxy
@@ -306,31 +334,4 @@ internal sealed partial class ClothExtract
         var inverse = Quaternion.Conjugate(parentRotation);
         return (Vector3.Transform(position - parentPosition, inverse), Quaternion.Normalize(inverse * rotation));
     }
-
-    /// <summary>
-    /// Gets the Bone <c>origin</c> of each ClothChain joint, re-solved so the compiler's chain rest pose lands it on its
-    /// <c>m_InitPose</c> position exactly. Only the document skeleton reads these.
-    /// </summary>
-    internal Dictionary<string, Vector3> ChainBoneOrigins { get; } = new(StringComparer.OrdinalIgnoreCase);
-
-    /// <summary>
-    /// Gets the Bone <c>angles</c> of each ClothChain joint, re-solved so the compiler's chain rest pose gives it its
-    /// <c>m_InitPose</c> rotation exactly. Only the document skeleton reads these.
-    /// </summary>
-    internal Dictionary<string, Vector3> ChainBoneAngles { get; } = new(StringComparer.OrdinalIgnoreCase);
-
-    /// <summary>
-    /// Gets the ClothChain joints whose origin or angles were re-solved, which are written without
-    /// <see cref="FeModel.BoneChainJoint.ExtrudeTwistTieNudge"/>.
-    /// </summary>
-    private HashSet<string> RelandedJoints { get; } = new(StringComparer.OrdinalIgnoreCase);
-
-    /// <summary>
-    /// Gets the parent-space bone positions written into the proxy and grid DMX joint lists, which the compiler takes
-    /// <c>m_InitPose</c> from. Unlike <see cref="RestBonePositions"/> these are not capped by distance.
-    /// </summary>
-    internal Dictionary<string, Vector3> ProxyRestBonePositions { get; } = new(StringComparer.OrdinalIgnoreCase);
-
-    /// <summary>Gets the parent-space bone rotations written beside <see cref="ProxyRestBonePositions"/>.</summary>
-    internal Dictionary<string, Quaternion> ProxyRestBoneRotations { get; } = new(StringComparer.OrdinalIgnoreCase);
 }
