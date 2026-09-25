@@ -10307,5 +10307,75 @@ namespace Tests
                     : string.Empty)}}
             }
             """);
+
+        /// <summary>
+        /// A face-kept sheet whose own faces the compiler folded across carries the folds' final inverse-mass ratios as
+        /// their weights, so the sheet was built with <c>add_stiffness_rods</c> on: the switch is stated and the folded
+        /// pairs are left to the compiler rather than declared as springs, which would weigh in the mass pass.
+        /// CONTROL: the same banded pairs at the even split a declaration gets leave the switch off and stay declared.
+        /// </summary>
+        /// <remarks>
+        /// MEASURED 2026-09-25 on dotaout `spectre`: 150 face-kept quads, `add_stiffness_rods = false`, 256 declared
+        /// springs whose every original record is a fold, and 208 of 208 differing node masses exactly the original's
+        /// plus eight times the springs' length at them.
+        /// </remarks>
+        [Test]
+        public async Task AFaceKeptSheetsFoldsAreTheSwitchsAndNoSprings()
+        {
+            var folded = FoldedSheetModel(0.666667f);
+            var declared = FoldedSheetModel(0.5f);
+
+            static (bool Switch, HashSet<(int, int)> Derived) Read(FeModel feModel)
+            {
+                var proxies = feModel.BuildProxyMeshes().Select(static (proxy, i) => ($"p{i}.dmx", $"p{i}", proxy)).ToList();
+                var derived = ModelExtract.ClothRodsFromSurface(feModel, proxies, out var bend, out _, out _, out _, out _, out _);
+                return (bend, derived);
+            }
+
+            var (declaredSwitch, declaredDerived) = Read(declared);
+            var (foldedSwitch, foldedDerived) = Read(folded);
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(declaredSwitch).IsFalse();
+                await Assert.That(declaredDerived.Contains((2, 6))).IsFalse();
+
+                await Assert.That(foldedSwitch).IsTrue();
+                await Assert.That(foldedDerived.Contains((2, 6)) && foldedDerived.Contains((3, 7))).IsTrue();
+            }
+        }
+
+        // Three quads down a two-wide sheet under a static top row, kept as solve elements, and a banded rod across the
+        // middle quad's two far rows at the given weight on each side.
+        private static FeModel FoldedSheetModel(float weight) => SyntheticCloth.Parse($$"""
+            {
+                m_CtrlName = [ "$cloth_m0p0", "$cloth_m0p1", "$cloth_m0p2", "$cloth_m0p3", "$cloth_m0p4", "$cloth_m0p5", "$cloth_m0p6", "$cloth_m0p7" ]
+                m_nNodeCount = 8
+                m_nStaticNodes = 2
+                m_NodeInvMasses = [ 0.0, 0.0, 0.1, 0.1, 0.08, 0.08, 0.05, 0.05 ]
+                m_InitPose =
+                [
+                    {{SyntheticCloth.Pose(0f, 0f, 0f)}}
+                    {{SyntheticCloth.Pose(1f, 0f, 0f)}}
+                    {{SyntheticCloth.Pose(0f, 0f, -2f)}}
+                    {{SyntheticCloth.Pose(1f, 0f, -2f)}}
+                    {{SyntheticCloth.Pose(0f, 0f, -4f)}}
+                    {{SyntheticCloth.Pose(1f, 0f, -4f)}}
+                    {{SyntheticCloth.Pose(0f, 0f, -6f)}}
+                    {{SyntheticCloth.Pose(1f, 0f, -6f)}}
+                ]
+                m_Quads =
+                [
+                    { nNode = [ 0, 1, 3, 2 ] flSlack = 0.0 vShape = [ [ 0.0, 0.0, 0.0, 0.0 ], [ 0.0, 0.0, 0.0, 0.0 ], [ 0.0, 0.0, 0.0, 0.5 ], [ 0.0, 0.0, 0.0, 0.5 ] ] },
+                    { nNode = [ 2, 3, 5, 4 ] flSlack = 0.0 vShape = [ [ 0.0, 0.0, 0.0, 0.25 ], [ 0.0, 0.0, 0.0, 0.25 ], [ 0.0, 0.0, 0.0, 0.25 ], [ 0.0, 0.0, 0.0, 0.25 ] ] },
+                    { nNode = [ 4, 5, 7, 6 ] flSlack = 0.0 vShape = [ [ 0.0, 0.0, 0.0, 0.25 ], [ 0.0, 0.0, 0.0, 0.25 ], [ 0.0, 0.0, 0.0, 0.25 ], [ 0.0, 0.0, 0.0, 0.25 ] ] },
+                ]
+                m_Rods =
+                [
+                    { nNode = [ 2, 6 ] flMinDist = 3.5 flMaxDist = 4.0 flWeight0 = {{SyntheticCloth.Num(weight)}} flRelaxationFactor = 1.0 },
+                    { nNode = [ 3, 7 ] flMinDist = 3.5 flMaxDist = 4.0 flWeight0 = {{SyntheticCloth.Num(weight)}} flRelaxationFactor = 1.0 },
+                ]
+            }
+            """);
     }
 }

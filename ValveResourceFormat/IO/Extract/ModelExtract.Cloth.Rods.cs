@@ -108,7 +108,7 @@ partial class ModelExtract
     /// reach further than that, the extra bend network was authored on (see <c>add_stiffness_rods</c> in
     /// <see cref="MakeClothParams"/>) and regenerates the remaining pairs of that sheet too.
     /// </summary>
-    static HashSet<(int, int)> ClothRodsFromSurface(FeModel feModel,
+    internal static HashSet<(int, int)> ClothRodsFromSurface(FeModel feModel,
         List<(string FileName, string Name, FeModel.ProxyMesh Proxy)> proxies, out bool generatesBendRods,
         out bool generatesBendOnlyRods, out float addCurvature, out HashSet<int> suspenderNodes,
         out float bendStiffness, out Dictionary<int, float>? bendStiffnessByNode)
@@ -217,6 +217,34 @@ partial class ModelExtract
                 addCurvature = ClothCurvatureFromBendNetwork(feModel, surfaceFaces, bend);
                 derived.UnionWith(bend);
                 bendNetwork.UnionWith(bend);
+            }
+        }
+
+        if (!generatesBendRods && !generatesBendOnlyRods && feModel.HasSurfaceFolds)
+        {
+            var keptFaces = new List<int[]>();
+            foreach (var (_, _, proxyMesh) in proxies)
+            {
+                if (!proxyMesh.UsesAuthoredFaces)
+                {
+                    var nodeOf = proxyMesh.NodeIndices;
+                    keptFaces.AddRange(proxyMesh.Faces.Select(face => face.Select(local => nodeOf[local]).ToArray()));
+                }
+            }
+
+            var shipped = feModel.Rods.Select(static rod => rod.NodeA < rod.NodeB ? (rod.NodeA, rod.NodeB) : (rod.NodeB, rod.NodeA))
+                .ToHashSet();
+            var folds = FeModel.BendRodsFromSurface(keptFaces, feModel.IsStatic);
+            folds.ExceptWith(derived);
+            if (folds.Count > 0 && folds.All(fold => shipped.Contains(fold)
+                || feModel.IsStatic(fold.Item1) || feModel.IsStatic(fold.Item2)))
+            {
+                var boundedFolds = feModel.Rods.Any(rod => rod.MaxDist < ClothBendOnlyRodMaxDistance
+                    && folds.Contains(rod.NodeA < rod.NodeB ? (rod.NodeA, rod.NodeB) : (rod.NodeB, rod.NodeA)));
+                generatesBendRods = boundedFolds;
+                generatesBendOnlyRods = !boundedFolds;
+                addCurvature = ClothCurvatureFromBendNetwork(feModel, keptFaces, folds);
+                derived.UnionWith(folds);
             }
         }
 
