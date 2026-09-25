@@ -11773,5 +11773,61 @@ namespace Tests
                 .Replace("m_nStaticNodes = 1", "m_nStaticNodes = 2" + (rootRotationLocked ? " m_nRotLockStaticNodes = 1" : string.Empty),
                     StringComparison.Ordinal)
                 .Replace("m_NodeInvMasses = [ 0.0, 1.0,", "m_NodeInvMasses = [ 0.0, 0.0,", StringComparison.Ordinal));
+
+        /// <summary>
+        /// A chain joint based through a free cloth node was declared a <c>ClothNode</c> at <c>transform_alignment</c> 3, and
+        /// every chain joint of that model a plain static <c>ClothNode</c> in node order, since those create the joint nodes
+        /// before the chains run. A model whose joints name no free cloth node declares none.
+        /// </summary>
+        [Test]
+        public async Task AChainJointBasedThroughAFreeClothNodeIsDeclaredAClothNode()
+        {
+            var chain = new FeModel.BoneChain { RootBone = "a0" };
+            chain.Joints.Add(new FeModel.BoneChainJoint { Node = 2, Name = "a0", ParentNode = -1, InvMass = 1f });
+            chain.Joints.Add(new FeModel.BoneChainJoint { Node = 3, Name = "a1", ParentNode = 2, InvMass = 1f });
+            chain.Joints.Add(new FeModel.BoneChainJoint { Node = 4, Name = "a2", ParentNode = 3, InvMass = 1f });
+
+            var viaClothNode = ModelExtract.ChainJointClothNodes(ChainOverFreeClothNode(1), [chain]).ToList();
+            var viaBone = ModelExtract.ChainJointClothNodes(ChainOverFreeClothNode(0), [chain]).ToList();
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(viaClothNode.Select(static node => node.GetStringProperty("name")))
+                    .IsEquivalentTo(["a0", "a1", "a2"], CollectionOrdering.Matching);
+                await Assert.That(viaClothNode.Select(static node => node.GetStringProperty("cloth_node_root_bone")))
+                    .IsEquivalentTo(["a0", "a1", "a2"], CollectionOrdering.Matching);
+                await Assert.That(viaClothNode.Count(static node => node.ContainsKey("transform_alignment"))).IsEqualTo(2);
+                await Assert.That(viaClothNode.Count > 0 && viaClothNode[0].GetInt32Property("transform_alignment") == 3).IsTrue();
+                await Assert.That(viaClothNode.Count > 0 ? viaClothNode[0].GetStringProperty("node_base_x1") : null).IsEqualTo("side");
+                await Assert.That(viaClothNode.Count > 0 ? viaClothNode[0].GetStringProperty("node_base_y1") : null).IsEqualTo("a1");
+                await Assert.That(viaBone).IsEmpty();
+            }
+        }
+
+        // Static head and the free cloth node $cloth_node_side, then the chain a0 - a1 - a2. The a0 and a1 bases read X from the
+        // joint to node xNode, Y from the child to the joint.
+        private static FeModel ChainOverFreeClothNode(int xNode) => SyntheticCloth.Parse($$"""
+            {
+                m_CtrlName = [ "head", "$cloth_node_side", "a0", "a1", "a2" ]
+                m_SkelParents = [ -1, 0, 0, 2, 3 ]
+                m_nNodeCount = 5
+                m_nStaticNodes = 2
+                m_nRotLockStaticNodes = 2
+                m_NodeInvMasses = [ 0.0, 0.0, 1.0, 1.0, 1.0 ]
+                m_InitPose =
+                [
+                    {{SyntheticCloth.Pose(0f, 0f, 0f)}}
+                    {{SyntheticCloth.Pose(0f, -50f, 0f)}}
+                    {{SyntheticCloth.Pose(0f, 0f, -5f)}}
+                    {{SyntheticCloth.Pose(0f, 0f, -10f)}}
+                    {{SyntheticCloth.Pose(0f, 0f, -15f)}}
+                ]
+                m_NodeBases =
+                [
+                    { nNode = 2 nNodeX0 = 2 nNodeX1 = {{xNode}} nNodeY0 = 3 nNodeY1 = 2 },
+                    { nNode = 3 nNodeX0 = 3 nNodeX1 = {{xNode}} nNodeY0 = 4 nNodeY1 = 3 },
+                ]
+            }
+            """);
     }
 }

@@ -301,6 +301,54 @@ partial class ModelExtract
             && chain.Joints.Exists(joint => !joint.Simulated && feModel.AllowsRotation(joint.Node)
                 && (joint.RingNodes.Count > 0 || chain.Joints.Exists(child => child.ParentNode == joint.Node && child.RingNodes.Count > 0)));
 
+    /// <summary>
+    /// The static <c>ClothNode</c>s an original declared on its chain joints to base them through a free cloth node. A
+    /// <c>ClothNode</c> at <c>transform_alignment</c> 3 writes a preset basis on its own node from <c>node_base_x1</c> and
+    /// <c>node_base_y1</c>, and one whose root bone is not yet a node creates that node before any chain runs. So where a chain
+    /// joint's basis names a <c>$cloth_node_</c> reference, every chain joint of the model is declared here in the original's
+    /// node order, the based ones carrying their preset, which keeps both the bases and the order the nodes were created in.
+    /// </summary>
+    /// <param name="feModel">The compiled cloth.</param>
+    /// <param name="chains">The reconstructed chains.</param>
+    internal static IEnumerable<KVObject> ChainJointClothNodes(FeModel feModel, IReadOnlyList<FeModel.BoneChain> chains)
+    {
+        var joints = chains.SelectMany(static chain => chain.Joints).Select(static joint => joint.Node).ToHashSet();
+        var names = feModel.CtrlNames;
+        bool NamesClothNode(int node) => node >= 0 && node < names.Length && names[node].StartsWith("$cloth_node_", StringComparison.Ordinal);
+
+        var presets = new Dictionary<int, FeModel.NodeBasis>();
+        foreach (var node in joints)
+        {
+            if (feModel.ClothNodeBasisPreset(node) is (3, var references)
+                && (NamesClothNode(references.NodeX1) || NamesClothNode(references.NodeY1)))
+            {
+                presets[node] = references;
+            }
+        }
+
+        if (presets.Count == 0)
+        {
+            yield break;
+        }
+
+        foreach (var node in joints.Where(node => !feModel.IsStatic(node)).Order())
+        {
+            if (!presets.TryGetValue(node, out var references))
+            {
+                yield return MakeNode("ClothNode", ("name", names[node]), ("cloth_node_root_bone", names[node]), ("is_static_node", true));
+                continue;
+            }
+
+            yield return MakeNode("ClothNode",
+                ("name", names[node]),
+                ("cloth_node_root_bone", names[node]),
+                ("transform_alignment", 3),
+                ("node_base_x1", ResolveAntiTunnelNodeName(feModel, references.NodeX1, null) ?? string.Empty),
+                ("node_base_y1", ResolveAntiTunnelNodeName(feModel, references.NodeY1, null) ?? string.Empty),
+                ("is_static_node", true));
+        }
+    }
+
     static KVObject MakeClothChainNode(FeModel feModel, FeModel.BoneChain chain, bool hasOtherChains,
         IReadOnlyList<FeModel.BoneChainJoint>? walk = null, HashSet<string>? relandedJoints = null)
     {
@@ -871,6 +919,11 @@ partial class ModelExtract
         // order the control nodes were created in. A chain creates each joint immediately followed by its
         // own ring nodes, so a joint the band order separates from its rings was created before the chain
         // ran - by an earlier declaration of the same bone name, which the chain then reuses.
+        foreach (var jointNode in ChainJointClothNodes(feModel, boneChains))
+        {
+            clothFolderChildren.Add(jointNode);
+        }
+
         var declarationPlan = TryPlanClothChainDeclarations(feModel, boneChains,
             ClothControlParentTest(feModel));
         var declaredChains = declarationPlan?.Chains ?? boneChains;
