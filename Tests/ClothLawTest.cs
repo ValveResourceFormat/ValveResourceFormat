@@ -10009,5 +10009,60 @@ namespace Tests
                 ]
             }
             """);
+
+        /// <summary>
+        /// The chain preset scans the joint's own vector and then its child's in the order the importer pushed them, unsorted,
+        /// and the scan keeps the later of two tied pairs. On the two-wide rope below j0's ring is compiled AFTER j1's, so a
+        /// sorted list meets the tied ring diagonals the other way round. In the importer's order j0's preset basis is
+        /// X = ($ccj1_0, $ccj0_1), Y = ($ccj1_1, $ccj0_0); sorted it would be X = ($ccj0_0, $ccj1_1), Y = ($ccj1_0, $ccj0_1). A
+        /// reverse offset on $ccj0_0 is therefore the version-2 record. CONTROL: the rope with its rings in creation order, and
+        /// the rope with no reverse offsets.
+        /// </summary>
+        [Test]
+        public async Task ThePresetScansItsListInTheImportersOrder()
+        {
+            var permuted = PermutedTwoWideRope(true);
+            var bare = PermutedTwoWideRope(false);
+            var ordered = TwoWideRope(0);
+            var permutedChain = permuted.BuildBoneChains()[0];
+            var bareChain = bare.BuildBoneChains()[0];
+            var orderedChain = ordered.BuildBoneChains()[0];
+
+            using (Assert.Multiple())
+            {
+                // CONTROL: a list the sort leaves in place, and a chain with nothing to read.
+                await Assert.That(ordered.ChainReverseOffsetsArePreset(orderedChain)).IsTrue();
+                await Assert.That(bare.ChainReverseOffsetsArePreset(bareChain)).IsNull();
+
+                // THE LAW.
+                await Assert.That(permuted.ChainReverseOffsetsArePreset(permutedChain)).IsTrue();
+                await Assert.That(ModelExtract.ClothChainVersion(permuted, permutedChain, hasOtherChains: false)).IsEqualTo(2);
+            }
+        }
+
+        // TwoWideRope with j0's ring compiled after j1's; each joint's reverse offset names its own ring node _0.
+        private static FeModel PermutedTwoWideRope(bool offsets) => SyntheticCloth.Parse($$"""
+            {
+                m_CtrlName = [ "j0", "$ccj1_0", "$ccj1_1", "j1", "$ccj0_0", "$ccj0_1", "j2", "$ccj2_0", "$ccj2_1" ]
+                m_SkelParents = [ -1, 3, 3, 0, 0, 0, 3, 6, 6 ]
+                m_nNodeCount = 9
+                m_nStaticNodes = 0
+                m_NodeInvMasses = [ 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0 ]
+                m_InitPose =
+                [
+                    {{SyntheticCloth.Pose(0f, 0f, 0f)}}
+                    {{SyntheticCloth.Pose(-8.5f, 2f, 0f)}}
+                    {{SyntheticCloth.Pose(-8.5f, -2f, 0f)}}
+                    {{SyntheticCloth.Pose(-8.5f, 0f, 0f)}}
+                    {{SyntheticCloth.Pose(0f, 2f, 0f)}}
+                    {{SyntheticCloth.Pose(0f, -2f, 0f)}}
+                    {{SyntheticCloth.Pose(-17f, 0f, 0f)}}
+                    {{SyntheticCloth.Pose(-17f, 2f, 0f)}}
+                    {{SyntheticCloth.Pose(-17f, -2f, 0f)}}
+                ]
+                m_SourceElems = [ 4, 5, 2, 1, 1, 2, 8, 7 ]
+                m_ReverseOffsets = [ {{(offsets ? "{ vOffset = [ 0.0, 2.0, 0.0 ] nBoneCtrl = 0 nTargetNode = 4 }, { vOffset = [ 0.0, 2.0, 0.0 ] nBoneCtrl = 3 nTargetNode = 1 }, " : string.Empty)}} ]
+            }
+            """);
     }
 }

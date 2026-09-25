@@ -782,9 +782,9 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         }
 
         /// <summary>
-        /// The node list <see cref="ScanNodeBasePair"/> scans for a joint, ascending by node index. The
-        /// compiler scans a set sorted that way, which is what puts the higher node index of the winning
-        /// pair in X0 and settles which pair an exact tie keeps.
+        /// The node list <see cref="ScanNodeBasePair"/> scans for a joint's graded or fit-arm basis, ascending by node
+        /// index, which puts the higher node index of the winning pair in X0 and settles which pair an exact tie keeps.
+        /// The chain preset scans its own list unsorted (<see cref="ChainNodeBaseCandidates"/>).
         /// </summary>
         List<int>? NodeBaseCandidates(params BoneChainJoint[] joints)
         {
@@ -816,8 +816,9 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             => ProxyRingOf(joint.Node) is { Count: > 0 } ring ? ring : [.. joint.RingNodes];
 
         /// <summary>
-        /// The preset scan's node list for <paramref name="joint"/> and its child, as <see cref="NodeBaseCandidates"/> builds
-        /// it, over <see cref="ChainJointRing"/>.
+        /// The preset scan's node list for <paramref name="joint"/> and its child over <see cref="ChainJointRing"/>, in the order
+        /// the chain importer hands it to the scan: the joint's own vector, then the child's, each as the extrusion pushes it and
+        /// neither sorted. Where two pairs tie, the scan keeps the later one in this order and writes its later node as X0.
         /// </summary>
         List<int>? ChainNodeBaseCandidates(BoneChainJoint joint, BoneChainJoint child)
         {
@@ -845,7 +846,6 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                 return null;
             }
 
-            candidates.Sort();
             return candidates.TrueForAll(node => node < InitPosePositions.Length) ? candidates : null;
         }
 
@@ -987,7 +987,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             || want == new NodeBasis(basis.NodeX1, basis.NodeX0, basis.NodeY0, basis.NodeY1)
             || want == new NodeBasis(basis.NodeX0, basis.NodeX1, basis.NodeY1, basis.NodeY0);
 
-        // The scan takes i outer and j = i+1 inner, both ascending, and keeps the LAST maximum, so a pair
+        // The scan takes i outer and j = i+1 inner, both in list order, and keeps the LAST maximum, so a pair
         // that only ties the running best still replaces it. A pair scanned BEFORE the original's own pair
         // and scoring exactly equal to it therefore loses to it and is left out of the margin. On a chain
         // that case is the rule rather than the exception: two candidate pairs that differ only by which
@@ -1019,7 +1019,8 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                         inner = candidates[j];
                     }
 
-                    if (candidates[i] == lowWanted && candidates[j] == highWanted)
+                    if ((candidates[i] == lowWanted && candidates[j] == highWanted)
+                        || (candidates[i] == highWanted && candidates[j] == lowWanted))
                     {
                         passedWanted = true;
                     }
