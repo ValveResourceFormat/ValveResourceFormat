@@ -132,12 +132,12 @@ internal sealed partial class ClothExtract
         }
     }
 
-    private static KVObject MakeClothChainNode(FeModel feModel, FeModel.BoneChain chain, bool hasOtherChains,
+    private static KVObject MakeClothChainNode(FeModel feModel, FeModel.BoneChain chain,
         IReadOnlyList<FeModel.BoneChainJoint>? walk = null, HashSet<string>? relandedJoints = null)
     {
         var softHinge = feModel.HasChainRods(chain) && !feModel.HasRigidHingeLink(chain);
 
-        var version = ClothChainVersion(feModel, chain, hasOtherChains);
+        var version = ClothChainVersion(feModel, chain);
 
         var chainMass = feModel.RecoverChainMassDefault(chain);
 

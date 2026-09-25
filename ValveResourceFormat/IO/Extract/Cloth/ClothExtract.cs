@@ -177,7 +177,7 @@ internal sealed partial class ClothExtract
     /// </summary>
     internal bool EmitCloth(FeModel feModel, KVObject rootChildren)
     {
-        var boneChains = feModel.BuildBoneChains((chain, hasOtherChains) => ClothChainVersion(feModel, chain, hasOtherChains));
+        var boneChains = feModel.BuildBoneChains(chain => ClothChainVersion(feModel, chain));
 
         if (feModel.IsImportedCloth)
         {

@@ -759,14 +759,14 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// its sub-chains were staged at two versions and <paramref name="chainVersion"/> reads the merged declaration as
         /// version 1.
         /// </summary>
-        /// <param name="chainVersion">The <c>ClothChain</c> version a chain reads as, given whether the model declares another chain.</param>
-        internal List<BoneChain> BuildBoneChains(Func<BoneChain, bool, int> chainVersion) => BuildBoneChains(chainVersion, null);
+        /// <param name="chainVersion">The <c>ClothChain</c> version a chain reads as.</param>
+        internal List<BoneChain> BuildBoneChains(Func<BoneChain, int> chainVersion) => BuildBoneChains(chainVersion, null);
 
         /// <summary>
         /// Builds the chains with each root bone <paramref name="ringlessKids"/> names declared twice: once
         /// extruding it over its other children, and once restating it ringless over the children listed.
         /// </summary>
-        private List<BoneChain> BuildBoneChains(Func<BoneChain, bool, int>? chainVersion, Dictionary<int, HashSet<int>>? ringlessKids)
+        private List<BoneChain> BuildBoneChains(Func<BoneChain, int>? chainVersion, Dictionary<int, HashSet<int>>? ringlessKids)
         {
             var chains = new List<BoneChain>();
             var mergedChains = new List<BoneChain>();
@@ -805,7 +805,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             }
 
             if (ringlessKids is null && chainVersion is not null
-                && VersionSplitRoots(mergedChains, chainVersion, chains.Count > 1) is { Count: > 0 } splits)
+                && VersionSplitRoots(mergedChains, chainVersion) is { Count: > 0 } splits)
             {
                 return BuildBoneChains(chainVersion, splits);
             }

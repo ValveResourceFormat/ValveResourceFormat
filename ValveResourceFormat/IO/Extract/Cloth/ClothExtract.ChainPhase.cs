@@ -17,8 +17,6 @@ internal sealed partial class ClothExtract
         var clothFolderChildren = AddClothFolder(softbodyChildren);
         var strip = AddImportedStrip(clothFolderChildren, feModel);
 
-        var hasOtherChains = boneChains.Count > 1;
-
         foreach (var jointNode in ChainJointClothNodes(feModel, boneChains))
         {
             clothFolderChildren.Add(jointNode);
@@ -38,14 +36,14 @@ internal sealed partial class ClothExtract
                 && declarationPlan.Walk.TryGetValue(boneChain, out var found)
                 ? found
                 : null;
-            clothFolderChildren.Add(MakeClothChainNode(feModel, boneChain, hasOtherChains, walk, RelandedJoints));
+            clothFolderChildren.Add(MakeClothChainNode(feModel, boneChain, walk, RelandedJoints));
             if (MakeClothChainRestatement(feModel, boneChain) is { } restated)
             {
                 clothFolderChildren.Add(restated);
             }
 
             foreach (var second in MakeClothChainSecondDeclarations(feModel, boneChain,
-                ClothChainVersion(feModel, boneChain, hasOtherChains)))
+                ClothChainVersion(feModel, boneChain)))
             {
                 clothFolderChildren.Add(second);
             }
@@ -73,7 +71,7 @@ internal sealed partial class ClothExtract
         var chainSurface = feModel.HasSurfaceElements;
         AddFreeClothNodesAndSprings(clothFolderChildren, softbodyChildren, feModel, chainCoveredNodes,
             name => chainSurface || (clothControlBones?.Contains(name) ?? false),
-            clothBones, ClothVertexMapFolders(feModel, clothFolderChildren), hasOtherChains: true,
+            clothBones, ClothVertexMapFolders(feModel, clothFolderChildren),
             ClothControlAncestorTest(feModel), sourceSprings,
             chainJoints: ChainJointNodes(boneChains));
         AddClothStiffHinges(softbodyChildren, feModel);

@@ -276,8 +276,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         /// The root bones of <paramref name="merged"/> whose one reconstructed declaration was compiled as two,
         /// each mapped to the children the second, ringless declaration keeps.
         /// </summary>
-        private Dictionary<int, HashSet<int>> VersionSplitRoots(List<BoneChain> merged, Func<BoneChain, bool, int> chainVersion,
-            bool hasOtherChains)
+        private Dictionary<int, HashSet<int>> VersionSplitRoots(List<BoneChain> merged, Func<BoneChain, int> chainVersion)
         {
             var splits = new Dictionary<int, HashSet<int>>();
             foreach (var chain in merged)
@@ -345,7 +344,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                     : (stagedFirst.Any, unstagedFirst.Any);
 
                 if (!readable || staged.Count == 0 || unstaged.Count == 0 || stagedAt == unstagedAt
-                    || chainVersion(chain, hasOtherChains) != 1)
+                    || chainVersion(chain) != 1)
                 {
                     continue;
                 }

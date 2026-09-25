@@ -40,7 +40,7 @@ internal sealed partial class ClothExtract
     /// </summary>
     internal static int AddFreeClothNodesAndSprings(KVObject clothChildren, KVObject softbodyChildren,
         FeModel feModel, HashSet<int> coveredNodes, Func<string, bool> emitBareStatic,
-        HashSet<string> clothBones, Func<int, bool, KVObject>? folderFor = null, bool hasOtherChains = false,
+        HashSet<string> clothBones, Func<int, bool, KVObject>? folderFor = null,
         Func<string, bool>? bareStaticReparented = null, HashSet<(int, int)>? alreadyEmitted = null,
         HashSet<int>? chainJoints = null)
     {
@@ -108,7 +108,7 @@ internal sealed partial class ClothExtract
                     var loneNode = LoneNodeIsJointChain(feModel, node, bareStatic, bareStaticReparented?.Invoke(name) ?? false)
                         && !(StrayRecordOnlyAClothNodeStates(feModel, node) && bareStaticReparented?.Invoke(name) == false);
                     (loneNode ? clothChildren : FolderOf(node)).Add(loneNode
-                        ? MakeLoneJointChain(feModel, name, node, hasOtherChains)
+                        ? MakeLoneJointChain(feModel, name, node)
                         : MakeClothNode(feModel, name, node, isStaticNode: isStatic));
                     springName[node] = name;
                     declared.Add(node);
@@ -274,7 +274,7 @@ internal sealed partial class ClothExtract
         => LoneClothNodeIsOriginalRoot(feModel, node)
             && (!feModel.IsStatic(node) || (bareStatic && bareStaticReparented) || feModel.IsLockedToGoal(node));
 
-    private static KVObject MakeLoneJointChain(FeModel feModel, string name, int node, bool hasOtherChains)
+    private static KVObject MakeLoneJointChain(FeModel feModel, string name, int node)
     {
         var chain = new FeModel.BoneChain { RootBone = name };
         chain.Joints.Add(new FeModel.BoneChainJoint
@@ -284,7 +284,7 @@ internal sealed partial class ClothExtract
             ParentNode = -1,
             InvMass = node < feModel.NodeInvMasses.Length ? feModel.NodeInvMasses[node] : 0f,
         });
-        return MakeClothChainNode(feModel, chain, hasOtherChains);
+        return MakeClothChainNode(feModel, chain);
     }
 
     /// <summary>

@@ -432,20 +432,16 @@ internal sealed partial class ClothExtract
     {
         var clothFolderChildren = AddClothFolder(softbodyChildren);
 
-        var loneJointChainCount = nodes.LoneClothNodes.Count(n => LoneClothNodeIsOriginalRoot(feModel, n.Node));
-        var hasOtherChains = independentChains.Count + loneJointChainCount > 1;
-
         foreach (var boneChain in independentChains)
         {
-            clothFolderChildren.Add(MakeClothChainNode(feModel, boneChain, hasOtherChains,
-                relandedJoints: RelandedJoints));
+            clothFolderChildren.Add(MakeClothChainNode(feModel, boneChain, relandedJoints: RelandedJoints));
             if (MakeClothChainRestatement(feModel, boneChain) is { } restated)
             {
                 clothFolderChildren.Add(restated);
             }
 
             foreach (var second in MakeClothChainSecondDeclarations(feModel, boneChain,
-                ClothChainVersion(feModel, boneChain, hasOtherChains)))
+                ClothChainVersion(feModel, boneChain)))
             {
                 clothFolderChildren.Add(second);
             }
@@ -459,7 +455,7 @@ internal sealed partial class ClothExtract
         {
             if (LoneClothNodeIsOriginalRoot(feModel, node))
             {
-                clothFolderChildren.Add(MakeLoneJointChain(feModel, name, node, hasOtherChains));
+                clothFolderChildren.Add(MakeLoneJointChain(feModel, name, node));
             }
             else
             {

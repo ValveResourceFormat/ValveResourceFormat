@@ -119,15 +119,15 @@ namespace Tests
                 await Assert.That(ClothExtract.IsRigidCloudClusterLock(locked, chain)).IsFalse();
                 await Assert.That(ClothExtract.LockedJointsWithChildren(Model(string.Empty), chain).Any()).IsFalse();
 
-                await Assert.That(ClothExtract.ClothChainVersion(jointCount: 4, hasOtherChains: false, rootAllowsRotation: true,
-                    rootHasBase: true, lockedJoint: true, rigidCloudClusterLock: false, locksJoints: false, basesBulkGraded: true,
-                    hintsTwistWritten: false, hasUnstagedThinJoint: false)).IsEqualTo(1);
-                await Assert.That(ClothExtract.ClothChainVersion(jointCount: 5, hasOtherChains: false, rootAllowsRotation: true,
-                    rootHasBase: true, lockedJoint: true, rigidCloudClusterLock: true, locksJoints: false, basesBulkGraded: false,
-                    hintsTwistWritten: false, hasUnstagedThinJoint: false)).IsEqualTo(2);
-                await Assert.That(ClothExtract.ClothChainVersion(jointCount: 5, hasOtherChains: false, rootAllowsRotation: true,
-                    rootHasBase: true, lockedJoint: true, rigidCloudClusterLock: false, locksJoints: false, basesBulkGraded: false,
-                    hintsTwistWritten: false, hasUnstagedThinJoint: false)).IsEqualTo(1);
+                await Assert.That(ClothExtract.ClothChainVersion(new ClothExtract.ChainVersionEvidence(RootAllowsRotation: true,
+                    RootHasBase: true, LockedJoint: true, RigidCloudClusterLock: false, LocksJoints: false, BasesBulkGraded: true,
+                    HintsTwistWritten: false, HasUnstagedThinJoint: false))).IsEqualTo(1);
+                await Assert.That(ClothExtract.ClothChainVersion(new ClothExtract.ChainVersionEvidence(RootAllowsRotation: true,
+                    RootHasBase: true, LockedJoint: true, RigidCloudClusterLock: true, LocksJoints: false, BasesBulkGraded: false,
+                    HintsTwistWritten: false, HasUnstagedThinJoint: false))).IsEqualTo(2);
+                await Assert.That(ClothExtract.ClothChainVersion(new ClothExtract.ChainVersionEvidence(RootAllowsRotation: true,
+                    RootHasBase: true, LockedJoint: true, RigidCloudClusterLock: false, LocksJoints: false, BasesBulkGraded: false,
+                    HintsTwistWritten: false, HasUnstagedThinJoint: false))).IsEqualTo(1);
             }
         }
 
@@ -150,8 +150,8 @@ namespace Tests
             var flippedChains = flipped.BuildBoneChains(VersionOf(flipped));
             var mergedChains = merged.BuildBoneChains(VersionOf(merged));
 
-            static Func<FeModel.BoneChain, bool, int> VersionOf(FeModel feModel)
-                => (chain, hasOtherChains) => ClothExtract.ClothChainVersion(feModel, chain, hasOtherChains);
+            static Func<FeModel.BoneChain, int> VersionOf(FeModel feModel)
+                => chain => ClothExtract.ClothChainVersion(feModel, chain);
 
             static FeModel.BoneChain Owning(List<FeModel.BoneChain> chains, string joint)
                 => chains.First(chain => chain.Joints.Exists(j => j.Name == joint));
@@ -165,8 +165,8 @@ namespace Tests
                     .IsEquivalentTo(WideSubChain, CollectionOrdering.Matching);
                 await Assert.That(Owning(splitChains, "a1").Joints[0].RingNodes.Count).IsEqualTo(1);
                 await Assert.That(Owning(splitChains, "b1").Joints[0].RingNodes.Count).IsEqualTo(0);
-                await Assert.That(ClothExtract.ClothChainVersion(split, Owning(splitChains, "a1"), hasOtherChains: true)).IsEqualTo(0);
-                await Assert.That(ClothExtract.ClothChainVersion(split, Owning(splitChains, "b1"), hasOtherChains: true)).IsEqualTo(1);
+                await Assert.That(ClothExtract.ClothChainVersion(split, Owning(splitChains, "a1"))).IsEqualTo(0);
+                await Assert.That(ClothExtract.ClothChainVersion(split, Owning(splitChains, "b1"))).IsEqualTo(1);
                 await Assert.That(movedChains.Count).IsEqualTo(2);
                 await Assert.That(Owning(movedChains, "a1").Joints[0].RingNodes.Count).IsEqualTo(0);
                 await Assert.That(Owning(movedChains, "b1").Joints[0].RingNodes.Count).IsEqualTo(1);
@@ -174,12 +174,12 @@ namespace Tests
                 await Assert.That(Owning(lockedChains, "a1").Joints[0].RingNodes.Count).IsEqualTo(1);
                 await Assert.That(Owning(lockedChains, "b1").Joints[0].RingNodes.Count).IsEqualTo(0);
                 await Assert.That(flippedChains.Count).IsEqualTo(2);
-                await Assert.That(ClothExtract.ClothChainVersion(flipped, Owning(flippedChains, "a1"), hasOtherChains: true)).IsEqualTo(1);
-                await Assert.That(ClothExtract.ClothChainVersion(flipped, Owning(flippedChains, "b1"), hasOtherChains: true)).IsEqualTo(0);
+                await Assert.That(ClothExtract.ClothChainVersion(flipped, Owning(flippedChains, "a1"))).IsEqualTo(1);
+                await Assert.That(ClothExtract.ClothChainVersion(flipped, Owning(flippedChains, "b1"))).IsEqualTo(0);
                 await Assert.That(Owning(flippedChains, "b1").Joints[0].RingNodes.Count).IsEqualTo(0);
                 await Assert.That(mergedChains.Count).IsEqualTo(1);
                 await Assert.That(mergedChains[0].Joints.Count).IsEqualTo(5);
-                await Assert.That(ClothExtract.ClothChainVersion(merged, mergedChains[0], hasOtherChains: false)).IsEqualTo(0);
+                await Assert.That(ClothExtract.ClothChainVersion(merged, mergedChains[0])).IsEqualTo(0);
             }
         }
 
@@ -206,9 +206,9 @@ namespace Tests
                 await Assert.That(preset.ChainReverseOffsetsArePreset(presetChain)).IsTrue();
                 await Assert.That(fitted.ChainReverseOffsetsArePreset(fittedChain)).IsFalse();
                 await Assert.That(bare.ChainReverseOffsetsArePreset(bareChain)).IsNull();
-                await Assert.That(ClothExtract.ClothChainVersion(preset, presetChain, hasOtherChains: false)).IsEqualTo(2);
-                await Assert.That(ClothExtract.ClothChainVersion(fitted, fittedChain, hasOtherChains: false)).IsEqualTo(1);
-                await Assert.That(ClothExtract.ClothChainVersion(bare, bareChain, hasOtherChains: false)).IsEqualTo(2);
+                await Assert.That(ClothExtract.ClothChainVersion(preset, presetChain)).IsEqualTo(2);
+                await Assert.That(ClothExtract.ClothChainVersion(fitted, fittedChain)).IsEqualTo(1);
+                await Assert.That(ClothExtract.ClothChainVersion(bare, bareChain)).IsEqualTo(2);
             }
         }
 
@@ -478,12 +478,12 @@ namespace Tests
                 await Assert.That(graded.ChainHintsAreTwistWritten(TwistedRopeChain())).IsFalse();
                 await Assert.That(foreign.ChainHintsAreTwistWritten(TwistedRopeChain())).IsFalse();
 
-                await Assert.That(ClothExtract.ClothChainVersion(jointCount: 5, hasOtherChains: true, rootAllowsRotation: true,
-                    rootHasBase: true, lockedJoint: false, rigidCloudClusterLock: false, locksJoints: false, basesBulkGraded: null,
-                    hintsTwistWritten: true, hasUnstagedThinJoint: false)).IsEqualTo(0);
-                await Assert.That(ClothExtract.ClothChainVersion(jointCount: 5, hasOtherChains: true, rootAllowsRotation: true,
-                    rootHasBase: true, lockedJoint: false, rigidCloudClusterLock: false, locksJoints: true, basesBulkGraded: null,
-                    hintsTwistWritten: true, hasUnstagedThinJoint: false)).IsEqualTo(2);
+                await Assert.That(ClothExtract.ClothChainVersion(new ClothExtract.ChainVersionEvidence(RootAllowsRotation: true,
+                    RootHasBase: true, LockedJoint: false, RigidCloudClusterLock: false, LocksJoints: false, BasesBulkGraded: null,
+                    HintsTwistWritten: true, HasUnstagedThinJoint: false))).IsEqualTo(0);
+                await Assert.That(ClothExtract.ClothChainVersion(new ClothExtract.ChainVersionEvidence(RootAllowsRotation: true,
+                    RootHasBase: true, LockedJoint: false, RigidCloudClusterLock: false, LocksJoints: true, BasesBulkGraded: null,
+                    HintsTwistWritten: true, HasUnstagedThinJoint: false))).IsEqualTo(2);
             }
         }
 
@@ -521,12 +521,12 @@ namespace Tests
                 await Assert.That(staged.ChainHasUnbasedLeaf(TwoSidedStripChain())).IsFalse();
                 await Assert.That(unbased.ChainHasUnbasedLeaf(slack)).IsFalse();
 
-                await Assert.That(ClothExtract.ClothChainVersion(jointCount: 3, hasOtherChains: false, rootAllowsRotation: true,
-                    rootHasBase: false, lockedJoint: false, rigidCloudClusterLock: false, locksJoints: false, basesBulkGraded: null,
-                    hintsTwistWritten: false, hasUnstagedThinJoint: false, hasUnbasedLeaf: true)).IsEqualTo(0);
-                await Assert.That(ClothExtract.ClothChainVersion(jointCount: 3, hasOtherChains: false, rootAllowsRotation: true,
-                    rootHasBase: false, lockedJoint: false, rigidCloudClusterLock: false, locksJoints: true, basesBulkGraded: null,
-                    hintsTwistWritten: false, hasUnstagedThinJoint: false, hasUnbasedLeaf: true)).IsEqualTo(2);
+                await Assert.That(ClothExtract.ClothChainVersion(new ClothExtract.ChainVersionEvidence(RootAllowsRotation: true,
+                    RootHasBase: false, LockedJoint: false, RigidCloudClusterLock: false, LocksJoints: false, BasesBulkGraded: null,
+                    HintsTwistWritten: false, HasUnstagedThinJoint: false, HasUnbasedLeaf: true))).IsEqualTo(0);
+                await Assert.That(ClothExtract.ClothChainVersion(new ClothExtract.ChainVersionEvidence(RootAllowsRotation: true,
+                    RootHasBase: false, LockedJoint: false, RigidCloudClusterLock: false, LocksJoints: true, BasesBulkGraded: null,
+                    HintsTwistWritten: false, HasUnstagedThinJoint: false, HasUnbasedLeaf: true))).IsEqualTo(2);
             }
         }
 
@@ -569,9 +569,9 @@ namespace Tests
                 await Assert.That(tied.ChainReverseOffsetsArePreset(tiedChain)).IsTrue();
                 await Assert.That(unbased.ChainReverseOffsetsArePreset(unbasedChain)).IsFalse();
                 await Assert.That(decided.ChainReverseOffsetsArePreset(decidedChain)).IsFalse();
-                await Assert.That(ClothExtract.ClothChainVersion(tied, tiedChain, hasOtherChains: false)).IsEqualTo(2);
-                await Assert.That(ClothExtract.ClothChainVersion(unbased, unbasedChain, hasOtherChains: false)).IsEqualTo(1);
-                await Assert.That(ClothExtract.ClothChainVersion(decided, decidedChain, hasOtherChains: false)).IsEqualTo(1);
+                await Assert.That(ClothExtract.ClothChainVersion(tied, tiedChain)).IsEqualTo(2);
+                await Assert.That(ClothExtract.ClothChainVersion(unbased, unbasedChain)).IsEqualTo(1);
+                await Assert.That(ClothExtract.ClothChainVersion(decided, decidedChain)).IsEqualTo(1);
             }
         }
 
@@ -794,25 +794,6 @@ namespace Tests
                 """);
 
         /// <summary>
-        /// A one-joint chain reads the same version as a longer chain, with or without other chains.
-        /// </summary>
-        [Test]
-        public async Task AOneJointChainIsNotForcedToVersionZero()
-        {
-            static int Version(int joints, bool otherChains) => ClothExtract.ClothChainVersion(
-                joints, otherChains, rootAllowsRotation: true, rootHasBase: false, lockedJoint: false,
-                rigidCloudClusterLock: false, locksJoints: false, basesBulkGraded: null,
-                hintsTwistWritten: false, hasUnstagedThinJoint: false);
-
-            using (Assert.Multiple())
-            {
-                await Assert.That(Version(1, true)).IsEqualTo(Version(4, true));
-                await Assert.That(Version(1, true)).IsEqualTo(2);
-                await Assert.That(Version(1, false)).IsEqualTo(2);
-            }
-        }
-
-        /// <summary>
         /// A ringless chain's rotation-locked root without a node base keeps version 2.
         /// </summary>
         [Test]
@@ -837,7 +818,7 @@ namespace Tests
                 await Assert.That(chain.ExtrudeSides).IsLessThan(1);
                 await Assert.That(ringless.AllowsRotation(chain.Joints[0].Node)).IsFalse();
                 await Assert.That(ringless.NodeBases.ContainsKey(chain.Joints[0].Node)).IsFalse();
-                await Assert.That(ClothExtract.ClothChainVersion(ringless, chain, hasOtherChains: true))
+                await Assert.That(ClothExtract.ClothChainVersion(ringless, chain))
                     .IsEqualTo(2);
             }
         }
@@ -997,7 +978,7 @@ namespace Tests
                 await Assert.That(bare.ChainReverseOffsetsArePreset(bareChain)).IsNull();
 
                 await Assert.That(permuted.ChainReverseOffsetsArePreset(permutedChain)).IsTrue();
-                await Assert.That(ClothExtract.ClothChainVersion(permuted, permutedChain, hasOtherChains: false)).IsEqualTo(2);
+                await Assert.That(ClothExtract.ClothChainVersion(permuted, permutedChain)).IsEqualTo(2);
             }
         }
 
@@ -1028,10 +1009,10 @@ namespace Tests
 
             using (Assert.Multiple())
             {
-                await Assert.That(ClothExtract.ClothChainVersion(bare, bareChain, hasOtherChains: false)).IsEqualTo(2);
-                await Assert.That(ClothExtract.ClothChainVersion(leaf, leafChain, hasOtherChains: false)).IsEqualTo(2);
+                await Assert.That(ClothExtract.ClothChainVersion(bare, bareChain)).IsEqualTo(2);
+                await Assert.That(ClothExtract.ClothChainVersion(leaf, leafChain)).IsEqualTo(2);
 
-                await Assert.That(ClothExtract.ClothChainVersion(fitted, fittedChain, hasOtherChains: false)).IsLessThan(2);
+                await Assert.That(ClothExtract.ClothChainVersion(fitted, fittedChain)).IsLessThan(2);
             }
         }
 
@@ -1066,9 +1047,9 @@ namespace Tests
 
             using (Assert.Multiple())
             {
-                await Assert.That(ClothExtract.ClothChainVersion(free, freeChain, hasOtherChains: false)).IsEqualTo(2);
+                await Assert.That(ClothExtract.ClothChainVersion(free, freeChain)).IsEqualTo(2);
 
-                await Assert.That(ClothExtract.ClothChainVersion(locked, lockedChain, hasOtherChains: false)).IsLessThan(2);
+                await Assert.That(ClothExtract.ClothChainVersion(locked, lockedChain)).IsLessThan(2);
             }
         }
 
@@ -1106,9 +1087,9 @@ namespace Tests
                 await Assert.That(goalLocked.ChainBasesAreBulkGraded(goalChain)).IsTrue();
                 await Assert.That(ClothExtract.ChainLocksJoints(goalLocked, goalChain)).IsTrue();
 
-                await Assert.That(ClothExtract.ClothChainVersion(parentLocked, parentChain, hasOtherChains: false)).IsEqualTo(2);
+                await Assert.That(ClothExtract.ClothChainVersion(parentLocked, parentChain)).IsEqualTo(2);
 
-                await Assert.That(ClothExtract.ClothChainVersion(goalLocked, goalChain, hasOtherChains: false)).IsLessThan(2);
+                await Assert.That(ClothExtract.ClothChainVersion(goalLocked, goalChain)).IsLessThan(2);
             }
         }
 
