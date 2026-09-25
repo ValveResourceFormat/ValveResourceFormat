@@ -1928,6 +1928,13 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         internal static HashSet<(int, int)> BendRodsFromSurface(IEnumerable<int[]> faces, Func<int, bool> isStatic)
             => PredictBendRods([.. faces.Select(static face => face.Length > 4 ? face[..4] : face)], isStatic);
 
+        /// <summary>
+        /// The bend rods the compiler derives from faces a document declares, each taken in the corner order it reaches the
+        /// compiler's element array in (see <see cref="CompilerCornerCycle"/>), which decides the corners a hinge pairs.
+        /// </summary>
+        internal static HashSet<(int, int)> BendRodsFromDeclaredFaces(IEnumerable<int[]> faces, Func<int, bool> isStatic)
+            => PredictBendRods([.. faces.Select(face => CompilerCornerCycle(face.Length > 4 ? face[..4] : face, isStatic))], isStatic);
+
         // The bend rods the compiler derives from the given elements, one pair of far corners per edge two of
         // them share. A rod between two static corners is never built.
         static HashSet<(int, int)> PredictBendRods(List<int[]> elements, Func<int, bool> isStatic)

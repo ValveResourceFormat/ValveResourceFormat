@@ -234,7 +234,7 @@ partial class ModelExtract
 
             var shipped = feModel.Rods.Select(static rod => rod.NodeA < rod.NodeB ? (rod.NodeA, rod.NodeB) : (rod.NodeB, rod.NodeA))
                 .ToHashSet();
-            var folds = FeModel.BendRodsFromSurface(keptFaces, feModel.IsStatic);
+            var folds = FeModel.BendRodsFromDeclaredFaces(keptFaces, feModel.IsStatic);
             folds.ExceptWith(derived);
             if (folds.Count > 0 && folds.All(fold => shipped.Contains(fold)
                 || feModel.IsStatic(fold.Item1) || feModel.IsStatic(fold.Item2)))

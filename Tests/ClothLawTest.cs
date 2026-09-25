@@ -11305,5 +11305,74 @@ namespace Tests
                 ]
             }
             """);
+
+        /// <summary>
+        /// The compiler pairs a hinge's far corners in the corner order a face reaches its element array in, before the
+        /// quad pass swaps a two-static quad back to a convex order, so a face whose statics sit mid-cycle folds across its
+        /// hinge crosswise to its own outline. Predicting a face-kept sheet's folds off the outline misses those pairs, and
+        /// the sheet then declares them as springs on top of the folds the compiler builds anyway.
+        /// CONTROL: the folds both orders agree on.
+        /// </summary>
+        /// <remarks>
+        /// MEASURED 2026-09-25 on dotaout <c>spectre</c>: four static-to-dynamic folds (<c>$cloth_m2p45</c> to <c>p48</c> is one)
+        /// came back as declared springs beside the compiler's own fold, the sheet's only remaining rod difference.
+        /// The fixture is that sheet's corner around <c>p51</c>, copied from the compiled original.
+        /// </remarks>
+        [Test]
+        public async Task AFaceKeptSheetFoldsInTheCornerOrderTheCompilerMeetsItsFacesIn()
+        {
+            var sheet = FaceKeptSheetCorner;
+            var proxies = sheet.BuildProxyMeshes().Select(static (proxy, i) => ($"p{i}.dmx", $"p{i}", proxy)).ToList();
+            var derived = ModelExtract.ClothRodsFromSurface(sheet, proxies, out var bend, out _, out _, out _, out _, out _);
+
+            using (Assert.Multiple())
+            {
+                // CONTROL.
+                await Assert.That(bend).IsTrue();
+                await Assert.That(derived.Contains((2, 5)) && derived.Contains((0, 3))).IsTrue();
+
+                // THE LAW.
+                await Assert.That(derived.Contains((1, 5)) && derived.Contains((2, 4))).IsTrue();
+            }
+        }
+
+        // Static p42 = 0, p45 = 1, p49 = 2 over p46 = 3, p47 = 4, p48 = 5, p50 = 6, p51 = 7, p52 = 8: four quads around p51 and
+        // the six folds the original ships across their shared edges.
+        private static FeModel FaceKeptSheetCorner => SyntheticCloth.Parse($$"""
+            {
+                m_CtrlName = [ "$cloth_m2p42", "$cloth_m2p45", "$cloth_m2p49", "$cloth_m2p46", "$cloth_m2p47", "$cloth_m2p48", "$cloth_m2p50", "$cloth_m2p51", "$cloth_m2p52" ]
+                m_nNodeCount = 9
+                m_nStaticNodes = 3
+                m_NodeInvMasses = [ 0.0, 0.0, 0.0, 0.004359, 0.004359, 0.002214, 0.003712, 0.001881, 0.003712 ]
+                m_InitPose =
+                [
+                    {{SyntheticCloth.Pose(-27.650145f, 10.560019f, 205.058945f)}}
+                    {{SyntheticCloth.Pose(-27.650145f, -10.560019f, 205.058945f)}}
+                    {{SyntheticCloth.Pose(-27.338011f, 0f, 195.582672f)}}
+                    {{SyntheticCloth.Pose(-43.832478f, 6.48951f, 203.609695f)}}
+                    {{SyntheticCloth.Pose(-43.832478f, -6.48951f, 203.609695f)}}
+                    {{SyntheticCloth.Pose(-43.35944f, 0f, 198.290756f)}}
+                    {{SyntheticCloth.Pose(-35.769325f, 8.53872f, 204.589249f)}}
+                    {{SyntheticCloth.Pose(-35.299297f, 0f, 197.248413f)}}
+                    {{SyntheticCloth.Pose(-35.769325f, -8.53872f, 204.589249f)}}
+                ]
+                m_Quads =
+                [
+                    { nNode = [ 2, 0, 6, 7 ] },
+                    { nNode = [ 1, 2, 7, 8 ] },
+                    { nNode = [ 4, 8, 7, 5 ] },
+                    { nNode = [ 3, 5, 7, 6 ] },
+                ]
+                m_Rods =
+                [
+                    { nNode = [ 0, 3 ] flMinDist = 3.35389 flMaxDist = 16.753178 flWeight0 = 0.0 flRelaxationFactor = 1.0 },
+                    { nNode = [ 2, 5 ] flMinDist = 2.432684 flMaxDist = 16.255886 flWeight0 = 0.0 flRelaxationFactor = 1.0 },
+                    { nNode = [ 2, 4 ] flMinDist = 10.834126 flMaxDist = 19.47035 flWeight0 = 0.0 flRelaxationFactor = 1.0 },
+                    { nNode = [ 1, 5 ] flMinDist = 11.755301 flMaxDist = 20.102926 flWeight0 = 0.0 flRelaxationFactor = 1.0 },
+                    { nNode = [ 6, 8 ] flMinDist = 0.0 flMaxDist = 22.364 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
+                    { nNode = [ 3, 4 ] flMinDist = 0.0 flMaxDist = 16.776804 flWeight0 = 0.5 flRelaxationFactor = 1.0 },
+                ]
+            }
+            """);
     }
 }
