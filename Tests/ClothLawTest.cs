@@ -10589,5 +10589,57 @@ namespace Tests
                 m_Ropes = {{ropes}}
             }
             """);
+
+        /// <summary>
+        /// The downgrade's lock guard holds a chain at version 2 when format 1 would lock a joint the original leaves free.
+        /// A non-simulated joint whose parent is free is locked to that PARENT by the fit pass, so an original carrying that
+        /// joint's parent lock does not leave it free, and the fit evidence then moves the chain below version 2. The CONTROL
+        /// is the same rope with the parent lock absent, which the guard still holds at version 2.
+        /// </summary>
+        [Test]
+        public async Task AParentLockedJointDoesNotHoldAFittedChainAtVersion2()
+        {
+            var free = StaticRootRopeFitting(parentLocked: false);
+            var locked = StaticRootRopeFitting(parentLocked: true);
+            var freeChain = free.BuildBoneChains()[0];
+            var lockedChain = locked.BuildBoneChains()[0];
+
+            using (Assert.Multiple())
+            {
+                // CONTROL: nothing in the original locks the static root, so format 1 would add a lock and the guard holds.
+                await Assert.That(ModelExtract.ClothChainVersion(free, freeChain, hasOtherChains: false)).IsEqualTo(2);
+
+                // THE LAW.
+                await Assert.That(ModelExtract.ClothChainVersion(locked, lockedChain, hasOtherChains: false)).IsLessThan(2);
+            }
+        }
+
+        // TwoWideRopeFitting(3) with j0 and its ring a non-simulated, rotation-free static prefix; where named, j0 is locked to j1.
+        private static FeModel StaticRootRopeFitting(bool parentLocked) => SyntheticCloth.Parse($$"""
+            {
+                m_CtrlName = [ "j0", "$ccj0_0", "$ccj0_1", "j1", "$ccj1_0", "$ccj1_1", "j2", "$ccj2_0", "$ccj2_1" ]
+                m_SkelParents = [ -1, 0, 0, 0, 3, 3, 3, 6, 6 ]
+                m_nNodeCount = 9
+                m_nStaticNodes = 3
+                m_NodeInvMasses = [ 0.0, 0.0, 0.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0 ]
+                m_InitPose =
+                [
+                    {{SyntheticCloth.Pose(0f, 0f, 0f)}}
+                    {{SyntheticCloth.Pose(0f, 2f, 0f)}}
+                    {{SyntheticCloth.Pose(0f, -2f, 0f)}}
+                    {{SyntheticCloth.Pose(-8.5f, 0f, 0f)}}
+                    {{SyntheticCloth.Pose(-8.5f, 2f, 0f)}}
+                    {{SyntheticCloth.Pose(-8.5f, -2f, 0f)}}
+                    {{SyntheticCloth.Pose(-17f, 0f, 0f)}}
+                    {{SyntheticCloth.Pose(-17f, 2f, 0f)}}
+                    {{SyntheticCloth.Pose(-17f, -2f, 0f)}}
+                ]
+                m_SourceElems = [ 1, 2, 5, 4, 4, 5, 8, 7 ]
+                m_ReverseOffsets = [ ]
+                m_FitMatrices = [ { bone = [ 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0 ] vCenter = [ 0.0, 0.0, 0.0 ] nEnd = 4 nNode = 3 nBeginDynamic = 0 } ]
+                m_FitWeights = [ { flWeight = 0.25 nNode = 4 }, { flWeight = 0.25 nNode = 5 }, { flWeight = 0.25 nNode = 7 }, { flWeight = 0.25 nNode = 8 } ]
+                m_LockToParent = [ {{(parentLocked ? "{ vOffset = [ 8.5, 0.0, 0.0 ] nCtrlParent = 3 nCtrlChild = 0 }" : string.Empty)}} ]
+            }
+            """);
     }
 }

@@ -145,10 +145,11 @@ partial class ModelExtract
     /// <param name="siblingHubLock">Whether the chain's locks are its sibling hub's, which states nothing about the format.</param>
     /// <param name="extrudesNothing">Whether the chain extrudes no ring at all, so the version-2 preset grade raises no candidates and cannot be read.</param>
     /// <param name="fitsPresetJoint">Whether the original fits a joint the version-2 preset would base and offset (<see cref="FeModel.ChainFitsAPresetJoint"/>).</param>
+    /// <param name="locksOnlyParentLocked">Whether every joint format 1 would lock is already locked to its parent in the original.</param>
     internal static int ClothChainVersion(int jointCount, bool hasOtherChains, bool? rootAllowsRotation, bool rootHasBase,
         bool lockedJoint, bool rigidCloudClusterLock, bool locksJoints, bool? basesBulkGraded, bool hintsTwistWritten,
         bool hasUnstagedThinJoint, bool? reverseOffsetsPreset = null, bool hasUnbasedLeaf = false,
-        bool siblingHubLock = false, bool extrudesNothing = false, bool fitsPresetJoint = false)
+        bool siblingHubLock = false, bool extrudesNothing = false, bool fitsPresetJoint = false, bool locksOnlyParentLocked = false)
     {
         // The two chain formats are not interchangeable: format 1 registers a non-simulated joint that has
         // no parent to be offset from into m_LockToGoal, format 2 leaves it out. Both are in live use, so
@@ -161,6 +162,7 @@ partial class ModelExtract
         // ever gave it a base. Format 1 also locks every non-simulated, rotation-free joint of an extruding
         // chain to its goal, so an original that locks none of them rules format 1 out directly.
         var lockedInOriginal = lockedJoint && !rigidCloudClusterLock && !siblingHubLock;
+        var guardOpen = lockedInOriginal || !locksJoints || locksOnlyParentLocked;
         var rootRotationLocked = rootAllowsRotation == false;
 
         // A one-joint chain carries no version of its own: MEASURED 2026-09-20 on dl `haze` (30 chains,
@@ -182,7 +184,7 @@ partial class ModelExtract
         // the same 6 reverse offsets and the same 1092 rods. An EXTRUDING chain does differ, and its
         // absent bases are then real evidence of format 1 - PROBED on `hornet_new_default`, where forcing
         // version 2 bases `hat_base` and three `hat_flap_*` joints the original bases not at all.
-        var version = rootRotationLocked && (lockedInOriginal || !locksJoints)
+        var version = rootRotationLocked && guardOpen
             ? (rootHasBase || extrudesNothing ? 2 : 1)
             : (lockedInOriginal ? 1 : 2);
 
@@ -194,7 +196,7 @@ partial class ModelExtract
         // the reverse offsets do: format 2 records a simulated joint's offset against its preset basis' Y1 node. A joint
         // format 2 would both base and offset loses its fit group, so a fit matrix on one rules format 2 out.
         var rootKeepsPreset = rootRotationLocked && rootHasBase;
-        if (version == 2 && !rootKeepsPreset && (lockedInOriginal || !locksJoints)
+        if (version == 2 && !rootKeepsPreset && guardOpen
             && (basesBulkGraded == true || (basesBulkGraded is null && reverseOffsetsPreset == false) || fitsPresetJoint))
         {
             version = 1;
@@ -204,13 +206,13 @@ partial class ModelExtract
         // every joint's basis hint over them. A hint the twist or rope source wrote and nothing graded is one
         // the original compiled without any influence at all, which is version 0. Version 0 locks the same
         // joints format 1 does, so an original that locks none of them rules it out too.
-        if (version != 0 && !rootKeepsPreset && (lockedInOriginal || !locksJoints) && hintsTwistWritten && basesBulkGraded != false)
+        if (version != 0 && !rootKeepsPreset && guardOpen && hintsTwistWritten && basesBulkGraded != false)
         {
             version = 0;
         }
 
         // A two-sided leaf with no node base is one only the chain itself could have based, which it does from version 1 on.
-        if (version != 0 && !rootKeepsPreset && (lockedInOriginal || !locksJoints) && hasUnbasedLeaf && basesBulkGraded != false)
+        if (version != 0 && !rootKeepsPreset && guardOpen && hasUnbasedLeaf && basesBulkGraded != false)
         {
             version = 0;
         }
@@ -249,8 +251,20 @@ partial class ModelExtract
                     || joint.SpringsWithSiblings),
             extrudesNothing: chain.ExtrudeSides < 1
                 && !chain.Joints.Exists(static joint => joint.RingNodes.Count > 0),
-            fitsPresetJoint: feModel.ChainFitsAPresetJoint(chain));
+            fitsPresetJoint: feModel.ChainFitsAPresetJoint(chain),
+            locksOnlyParentLocked: ChainLocksOnlyParentLockedJoints(feModel, chain));
     }
+
+    /// <summary>
+    /// Whether every joint <see cref="ChainLocksJoints"/> counts on <paramref name="chain"/> carries an <c>m_LockToParent</c> entry in the original.
+    /// </summary>
+    /// <param name="feModel">The compiled cloth.</param>
+    /// <param name="chain">The reconstructed chain.</param>
+    internal static bool ChainLocksOnlyParentLockedJoints(FeModel feModel, FeModel.BoneChain chain)
+        => chain.ExtrudeSides >= 1
+            && chain.Joints.TrueForAll(joint => joint.Simulated || !feModel.AllowsRotation(joint.Node)
+                || !(joint.RingNodes.Count > 0 || chain.Joints.Exists(child => child.ParentNode == joint.Node && child.RingNodes.Count > 0))
+                || feModel.IsLockedToParent(joint.Node));
 
     /// <summary>
     /// Whether format 1 would lock a joint of <paramref name="chain"/> to its goal: a non-simulated, rotation-free joint whose
