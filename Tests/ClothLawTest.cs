@@ -10641,5 +10641,79 @@ namespace Tests
                 m_LockToParent = [ {{(parentLocked ? "{ vOffset = [ 8.5, 0.0, 0.0 ] nCtrlParent = 3 nCtrlChild = 0 }" : string.Empty)}} ]
             }
             """);
+
+        /// <summary>
+        /// A fitless proxy vertex whose offset network names a bone the original back-solved off the sheet keeps its
+        /// authored paint even where another kept vertex also paints that bone. CONTROL: with no <c>m_ReverseOffsets</c>
+        /// record the same bone anchors no kept vertex and the paint stays deferred.
+        /// </summary>
+        /// <remarks>
+        /// MEASURED 2026-09-25 on dotaout `troll_warlord`: `$cloth_m3p0` / `p4` expand to armCloth_07 0.487, armCloth_06
+        /// 0.487, armCloth_05 0.026, and armCloth_07 is also on `p18` / `p19` at 0.084; the deferred fallback rebinds them
+        /// to armCloth_07 alone plus armCloth_06 at 0.188, losing the armCloth_05 soft offset.
+        /// </remarks>
+        [Test]
+        public async Task AFitlessVertexOnABackSolvedBoneKeepsItsPaintWhereAnotherVertexPaintsIt()
+        {
+            var backSolved = FitlessOnPaintedBone("{ vOffset = [ 0.0, 0.0, 0.0 ] nBoneCtrl = 6 nTargetNode = 4 }");
+            var unmarked = FitlessOnPaintedBone(string.Empty);
+
+            const int Fitless = 4;
+            var recovered = backSolved.RecoveredSkinWeights.GetValueOrDefault(Fitless, []);
+
+            using (Assert.Multiple())
+            {
+                await Assert.That(unmarked.RecoveredSkinWeights.ContainsKey(Fitless)).IsFalse();
+                await Assert.That(unmarked.DeferredOffsetSkinWeights.ContainsKey(Fitless)).IsTrue();
+
+                await Assert.That(recovered.Length).IsEqualTo(2);
+                await Assert.That(recovered.Length == 2 && recovered[0].Bone == "bone_2" && recovered[1].Bone == "bone_1").IsTrue();
+                await Assert.That(recovered.Length == 2 ? recovered[0].Weight : -1f).IsEqualTo(0.6f).Within(1e-4f);
+            }
+        }
+
+        // A sheet over three bones fit on bone_3: vertex 2 is anchored on bone_1, vertex 3 on bone_3 with 0.1 on bone_2, and
+        // vertex 4 has no fit row and paints bone_2 0.6 and bone_1 0.4. The hole carries the m_ReverseOffsets records.
+        private static FeModel FitlessOnPaintedBone(string reverseOffsets) => SyntheticCloth.Parse($$"""
+            {
+                m_CtrlName = [ "bone_0", "$cloth_m0p0", "$cloth_m0p1", "$cloth_m0p2", "$cloth_m0p3", "bone_1", "bone_2", "bone_3" ]
+                m_SkelParents = [ -1, 0, 5, 7, 6, 0, 5, 6 ]
+                m_nNodeCount = 8
+                m_nStaticNodes = 2
+                m_nFirstPositionDrivenNode = 5
+                m_NodeInvMasses = [ 0.0, 0.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0 ]
+                m_InitPose =
+                [
+                    {{SyntheticCloth.Pose(0f, 0f, 0f)}}
+                    {{SyntheticCloth.Pose(1f, 0f, 0f)}}
+                    {{SyntheticCloth.Pose(1f, 0f, -8f)}}
+                    {{SyntheticCloth.Pose(1f, 0f, -24f)}}
+                    {{SyntheticCloth.Pose(1f, 0f, -16f)}}
+                    {{SyntheticCloth.Pose(0f, 0f, -8f)}}
+                    {{SyntheticCloth.Pose(0f, 0f, -16f)}}
+                    {{SyntheticCloth.Pose(0f, 0f, -24f)}}
+                ]
+                m_CtrlOffsets =
+                [
+                    { vOffset = [ 1.0, 0.0, 0.0 ] nCtrlParent = 0 nCtrlChild = 1 },
+                    { vOffset = [ 1.0, 0.0, 0.0 ] nCtrlParent = 5 nCtrlChild = 2 },
+                    { vOffset = [ 1.0, 0.0, 0.0 ] nCtrlParent = 7 nCtrlChild = 3 },
+                    { vOffset = [ 1.0, 0.0, 0.0 ] nCtrlParent = 6 nCtrlChild = 4 },
+                ]
+                m_CtrlSoftOffsets =
+                [
+                    { nCtrlParent = 7 nCtrlChild = 2 vOffset = [ 1.0, 0.0, 16.0 ] flAlpha = 0.5 },
+                    { nCtrlParent = 6 nCtrlChild = 3 vOffset = [ 1.0, 0.0, -8.0 ] flAlpha = 0.9 },
+                    { nCtrlParent = 5 nCtrlChild = 4 vOffset = [ 1.0, 0.0, -8.0 ] flAlpha = 0.6 },
+                ]
+                m_FitMatrices = [ { nEnd = 2 nNode = 7 nBeginDynamic = 0 } ]
+                m_FitWeights =
+                [
+                    { flWeight = 0.5 nNode = 2 nDummy = 0 },
+                    { flWeight = 0.9 nNode = 3 nDummy = 0 },
+                ]
+                m_ReverseOffsets = [ {{reverseOffsets}} ]
+            }
+            """);
     }
 }

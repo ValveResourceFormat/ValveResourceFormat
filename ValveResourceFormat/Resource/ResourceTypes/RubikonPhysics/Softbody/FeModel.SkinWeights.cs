@@ -363,10 +363,9 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             // original's own arrays do not pin it lower); anything else keeps the fallback.
             // Restricted to dynamic influence bones that some vertex outside this fitless set is still
             // rigid-anchored to, so un-smearing the fallback cannot leave a back-solved bone fitted over
-            // essentially one vertex, which is a degenerate most-bound-joint solve. The one bone that
-            // escapes that restriction is one the original's own compile back-solved off this sheet and
-            // that no other vertex the recovery keeps is bound to: the compiler records it as an
-            // m_ReverseOffsets entry, and dropping this vertex is what would lose it altogether.
+            // essentially one vertex, which is a degenerate most-bound-joint solve. A bone the original's
+            // own compile back-solved off this sheet escapes that restriction: the compiler records it as
+            // an m_ReverseOffsets entry, so the solve it takes part in is one the original had.
             var fitlessNodes = new HashSet<int>(fitlessSoft.Count);
             foreach (var (node, _) in fitlessSoft)
             {
@@ -374,7 +373,6 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             }
 
             var drivenDynamicBones = new HashSet<int>();
-            var paintedElsewhere = new HashSet<int>();
             foreach (var (node, parent) in rigidParents)
             {
                 if (fitlessNodes.Contains(node) || IsStatic(node) || parent < 0 || parent >= CtrlNames.Length)
@@ -383,13 +381,6 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                 }
 
                 drivenDynamicBones.Add(parent);
-                foreach (var (bone, weight) in ExpandSoftOffsets(node, parent))
-                {
-                    if (weight > 0f && bone < CtrlNames.Length)
-                    {
-                        paintedElsewhere.Add(bone);
-                    }
-                }
             }
 
             var backSolvedBones = new HashSet<int>();
@@ -421,7 +412,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                     }
 
                     if (prunable && !IsStatic(bone) && !drivenDynamicBones.Contains(bone)
-                        && !(backSolvedBones.Contains(bone) && !paintedElsewhere.Contains(bone)))
+                        && !backSolvedBones.Contains(bone))
                     {
                         prunable = false;
                     }
