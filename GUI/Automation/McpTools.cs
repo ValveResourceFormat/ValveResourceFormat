@@ -8,6 +8,7 @@ using System.Threading.Tasks;
 using System.Windows.Forms;
 using GUI.Types.Exporter;
 using GUI.Types.GLViewers;
+using GUI.Types.Viewers;
 using GUI.Utils;
 using ValveResourceFormat.Renderer;
 
@@ -244,7 +245,7 @@ internal sealed partial class McpTools
             Schema(),
             ClearLog);
 
-        Add("list_tabs", "List open tabs with their id, title, file and viewer kind, marking the active one.",
+        Add("list_tabs", "List open tabs with their id, title, file and viewer kind, marking the active one. A tab whose viewer failed and showed an error instead has 'viewer_error', and one whose file could not be decompiled has 'decompile_error'.",
             Schema(),
             (_, ct) => ListTabs(ct));
 
@@ -262,7 +263,7 @@ internal sealed partial class McpTools
             }, "tab"),
             CloseTab);
 
-        Add("open_file", "Open a file and wait until its tab has finished loading. Accepts the same paths as the command line. A file inside a package is vpk:outer_dir.vpk:inner/file, so a map is vpk:game/pak01_dir.vpk:maps/name.vmap_c; a bare .vpk only opens the package browser.",
+        Add("open_file", "Open a file and wait until its tab has finished loading. Accepts the same paths as the command line. A file inside a package is vpk:outer_dir.vpk:inner/file, so a map is vpk:game/pak01_dir.vpk:maps/name.vmap_c; a bare .vpk only opens the package browser. Fails with the exception when the file opens but its viewer does not, such as a map with an entity that cannot be loaded.",
             Schema(new JsonObject
             {
                 ["path"] = Prop("string", "File path, or vpk:package.vpk:inner/file for a file inside a package."),
@@ -615,6 +616,11 @@ internal sealed partial class McpTools
 
         return await OnUi(() =>
         {
+            if (ViewerFailure(tab!) is { } viewerFailure)
+            {
+                return McpToolResult.Error($"Opened '{path}' as tab {IdFor(tab!)}, but its viewer failed: {UnhandledExceptions.Summarize(viewerFailure.ToString())}");
+            }
+
             var result = DescribeTab(tab!);
 
             if (!path.StartsWith("vpk:", StringComparison.OrdinalIgnoreCase)
@@ -700,7 +706,37 @@ internal sealed partial class McpTools
             tab["loading"] = true;
         }
 
+        if (page.Tag is ExportData { DisposableContents: Resource resourceViewer })
+        {
+            if (resourceViewer.ViewerException is { } viewerException)
+            {
+                tab["viewer_error"] = DescribeException(viewerException);
+            }
+
+            if (resourceViewer.DecompileException is { } decompileException)
+            {
+                tab["decompile_error"] = DescribeException(decompileException);
+            }
+        }
+
         return tab;
+    }
+
+    /// <summary>The exception a tab's viewer caught and showed in a Viewer Error tab instead of rendering, or null.</summary>
+    private static Exception? ViewerFailure(TabPage page)
+        => page.Tag is ExportData { DisposableContents: Resource viewer } ? viewer.ViewerException : null;
+
+    /// <summary>The messages of an exception and each inner exception, outermost first.</summary>
+    private static string DescribeException(Exception exception)
+    {
+        var messages = new List<string>();
+
+        for (var current = exception; current != null; current = current.InnerException)
+        {
+            messages.Add($"{current.GetType().Name}: {current.Message}");
+        }
+
+        return string.Join(" ---> ", messages);
     }
 
     private static string? DescribeViewer(TabPage page)

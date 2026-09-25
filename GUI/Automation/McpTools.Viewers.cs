@@ -575,7 +575,9 @@ internal sealed partial class McpTools
                 ? $" Tools that work on it: {string.Join(", ", tools.Select(tool => (string?)tool))}."
                 : string.Empty;
 
-            return (null, McpToolResult.Error($"{tab}{kind} {needs}.{how}{instead}"), null, tab);
+            var failed = ViewerFailure(page) is { } failure ? $" Its viewer failed: {DescribeException(failure).TrimEnd('.')}." : string.Empty;
+
+            return (null, McpToolResult.Error($"{tab}{kind} {needs}.{failed}{how}{instead}"), null, tab);
         }
 
         if (form.Tabs.SelectedTab != page)

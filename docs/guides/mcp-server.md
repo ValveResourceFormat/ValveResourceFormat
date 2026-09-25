@@ -51,9 +51,9 @@ curl http://127.0.0.1:13338/mcp \
 | **Application and tabs**               |                                                                                                             |
 | `get_status`                           | Process id, version, uptime, the active tab, whether the simulation is paused, and any unhandled exception. |
 | `quit`                                 | Close the viewer. Needed before rebuilding, because a running instance holds the build output open.         |
-| `list_tabs`                            | Open tabs with their id, title, file and viewer kind.                                                       |
+| `list_tabs`                            | Open tabs with their id, title, file, viewer kind, and any error the viewer showed instead.                 |
 | `select_tab`, `close_tab`              | Make a tab active, or close it. Only the active tab renders.                                                |
-| `open_file`                            | Open a file and wait until its tab has finished loading.                                                    |
+| `open_file`                            | Open a file and wait until its tab has finished loading. Fails with the exception when the viewer does.     |
 | `get_info`                             | Describe any tab, including which tools work on it.                                                         |
 | **Camera and view**                    |                                                                                                             |
 | `get_camera`, `set_camera`             | Read or move the camera of a 3D tab.                                                                        |

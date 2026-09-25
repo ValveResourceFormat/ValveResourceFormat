@@ -27,6 +27,9 @@ namespace GUI.Controls
 
         private const int MaxLengthForCodeBox = 50 * 1024 * 1024;
 
+        /// <summary>The exception this box reports, when made by <see cref="CreateFromException"/>.</summary>
+        public Exception? Exception { get; private init; }
+
         public CodeTextBox(string text, HighlightLanguage highlightSyntax = HighlightLanguage.KeyValues, IReadOnlyList<KvSourceSpan>? sourceMap = null) : base()
         {
             BackColor = SystemColors.Window;
@@ -163,6 +166,7 @@ namespace GUI.Controls
             var control = new CodeTextBox(text, HighlightLanguage.None)
             {
                 WordWrap = true,
+                Exception = exception,
             };
             return control;
         }

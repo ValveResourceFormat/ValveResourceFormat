@@ -31,7 +31,7 @@ namespace GUI.Types.Viewers
         ResourceBlocksOnly,
     };
 
-    class Resource(VrfGuiContext vrfGuiContext, ResourceViewMode viewMode, bool verifyFileSize) : IViewer, IDisposable
+    partial class Resource(VrfGuiContext vrfGuiContext, ResourceViewMode viewMode, bool verifyFileSize) : IViewer, IDisposable
     {
         /// <summary>
         /// Keyvalues blocks larger than this on disk are not turned into text for display, their text
@@ -44,6 +44,7 @@ namespace GUI.Types.Viewers
         private readonly List<(GLGraphViewer Viewer, string TabName)> preparedGraphViewers = [];
         public GLBaseControl? GLViewer { get; private set; }
         private CodeTextBox? GLViewerError;
+        private CodeTextBox? DecompileError;
         private string? GLViewerTabName;
 
         public static bool IsAccepted(uint magic)
@@ -474,10 +475,10 @@ namespace GUI.Types.Viewers
             }
             catch (Exception ex)
             {
-                var control = CodeTextBox.CreateFromException(ex, vrfGuiContext.FullPath);
+                DecompileError = CodeTextBox.CreateFromException(ex, vrfGuiContext.FullPath);
 
                 var tabEx = new ThemedTabPage("Decompile Error");
-                tabEx.Controls.Add(control);
+                tabEx.Controls.Add(DecompileError);
                 resTabs.TabPages.Add(tabEx);
             }
         }
@@ -1230,6 +1231,7 @@ namespace GUI.Types.Viewers
 
             DisposeExtraGraphViewers();
             GLViewerError?.Dispose();
+            DecompileError?.Dispose();
         }
     }
 }

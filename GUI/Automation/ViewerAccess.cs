@@ -361,6 +361,18 @@ namespace GUI.Types.GLViewers
     }
 }
 
+namespace GUI.Types.Viewers
+{
+    partial class Resource
+    {
+        /// <summary>Why the 3D, texture or other special viewer failed, shown in its Viewer Error tab.</summary>
+        internal Exception? ViewerException => GLViewerError?.Exception;
+
+        /// <summary>Why reconstructing the source file failed, shown in its Decompile Error tab.</summary>
+        internal Exception? DecompileException => DecompileError?.Exception;
+    }
+}
+
 namespace GUI.Utils
 {
     partial class ConsoleTab
