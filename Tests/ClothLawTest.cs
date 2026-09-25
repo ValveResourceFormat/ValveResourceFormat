@@ -12134,5 +12134,71 @@ namespace Tests
                 await Assert.That(ModelExtract.IsUnrecordedSpanCopy(doubled, doubled.Rods[1])).IsTrue();
             }
         }
+
+        /// <summary>
+        /// A fold the compiler builds across a cluster pair on its own sits beside the cluster's band as a second banded record,
+        /// told apart by its weight: its endpoints' final inverse-mass ratio, which a cluster's rod never carries. The clique is
+        /// still one cluster.
+        /// CONTROL: the same two extra records on pairs no face folds, which are no compiler folds, break the clique.
+        /// </summary>
+        /// <remarks>
+        /// MEASURED 2026-09-25 on deadlock <c>doorman</c>: four key-ring cliques at 1.6 / 8.0, three pairs of each also carrying a
+        /// compiler fold (w0 0.494924, 0.514656, 0.486904), were left undeclared.
+        /// </remarks>
+        [Test]
+        public async Task AFoldBesideAClusterBandLeavesTheCliqueOneCluster()
+        {
+            var ringOwner = new Dictionary<int, int> { [2] = 0, [3] = 0, [4] = 1, [5] = 1 };
+            var folded = KVObject.Array();
+            ModelExtract.AddRingClusterCliques(folded, FoldedClusterClique(faces: true), ringOwner);
+            var unfolded = KVObject.Array();
+            ModelExtract.AddRingClusterCliques(unfolded, FoldedClusterClique(faces: false), ringOwner);
+
+            using (Assert.Multiple())
+            {
+                // CONTROL.
+                await Assert.That(unfolded.Count).IsEqualTo(0);
+
+                // THE LAW.
+                await Assert.That(folded.Select(static child => string.Join("|", child.Value.GetSubCollection("chain").GetArray("joints")
+                    .Select(static joint => joint.GetStringProperty("joint_name")))).ToArray())
+                    .IsEquivalentTo(FoldedCliqueMembers, CollectionOrdering.Matching);
+            }
+        }
+
+        private static readonly string[] FoldedCliqueMembers = ["$cca_0|$cca_1|$ccb_0|$ccb_1"];
+
+        // ClusterCliqueRings with unequal ring masses, two quads over the joints folding each ring's own pair, and a fold record
+        // on each of those pairs at the ratio of its endpoints' inverse masses.
+        private static FeModel FoldedClusterClique(bool faces) => SyntheticCloth.Parse($$"""
+            {
+                m_CtrlName = [ "a", "b", "$cca_0", "$cca_1", "$ccb_0", "$ccb_1" ]
+                m_SkelParents = [ -1, -1, 0, 0, 1, 1 ]
+                m_nNodeCount = 6
+                m_nStaticNodes = 2
+                m_NodeInvMasses = [ 0.0, 0.0, 0.01, 0.02, 0.01, 0.02 ]
+                m_InitPose =
+                [
+                    {{SyntheticCloth.Pose(0f, 0f, 0f)}}
+                    {{SyntheticCloth.Pose(10f, 0f, 0f)}}
+                    {{SyntheticCloth.Pose(0f, 3f, -5f)}}
+                    {{SyntheticCloth.Pose(0f, -3f, -5f)}}
+                    {{SyntheticCloth.Pose(10f, 3f, -5f)}}
+                    {{SyntheticCloth.Pose(10f, -3f, -5f)}}
+                ]
+                m_Quads = [ {{(faces ? "{ nNode = [ 0, 1, 4, 2 ] }, { nNode = [ 1, 0, 3, 5 ] }" : string.Empty)}} ]
+                m_Rods =
+                [
+                    {{SyntheticCloth.BandedRod(2, 3, 8f, 16f, 1f)}}
+                    {{SyntheticCloth.BandedRod(2, 4, 8f, 16f, 1f)}}
+                    {{SyntheticCloth.BandedRod(2, 5, 8f, 16f, 1f)}}
+                    {{SyntheticCloth.BandedRod(3, 4, 8f, 16f, 1f)}}
+                    {{SyntheticCloth.BandedRod(3, 5, 8f, 16f, 1f)}}
+                    {{SyntheticCloth.BandedRod(4, 5, 8f, 16f, 1f)}}
+                    { nNode = [ 2, 3 ] flMinDist = 1.0 flMaxDist = 12.0 flWeight0 = 0.333333 flRelaxationFactor = 1.0 },
+                    { nNode = [ 4, 5 ] flMinDist = 1.0 flMaxDist = 12.0 flWeight0 = 0.333333 flRelaxationFactor = 1.0 },
+                ]
+            }
+            """);
     }
 }

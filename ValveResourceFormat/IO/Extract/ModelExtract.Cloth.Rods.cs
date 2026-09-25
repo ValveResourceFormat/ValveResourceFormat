@@ -2018,7 +2018,8 @@ partial class ModelExtract
     /// different chain joints, whose every pair carries exactly one banded rod at relaxation 1 and weight 0.5 off its rest
     /// length, where those bands solve as per-member radii: a cluster compiles a rod on every member pair, its minimum the
     /// two members' collision radii summed and its maximum their stray radii summed. No chain span is banded off its rest
-    /// length, so the clique is read off every shipped rod. Returns the pairs the clusters cover.
+    /// length, so the clique is read off every shipped rod; a fold the compiler built across the pair beside the cluster's
+    /// band is not counted against it. Returns the pairs the clusters cover.
     /// </summary>
     internal static HashSet<(int, int)> AddRingClusterCliques(KVObject softbodyChildren, FeModel feModel, Dictionary<int, int> ringOwner)
     {
@@ -2027,7 +2028,7 @@ partial class ModelExtract
         var bandedOnPair = new Dictionary<(int, int), int>();
         foreach (var rod in feModel.Rods)
         {
-            if (IsBandedRod(rod))
+            if (IsBandedRod(rod) && !feModel.IsSurfaceFold(rod))
             {
                 var key = rod.NodeA < rod.NodeB ? (rod.NodeA, rod.NodeB) : (rod.NodeB, rod.NodeA);
                 bandedOnPair[key] = bandedOnPair.GetValueOrDefault(key) + 1;

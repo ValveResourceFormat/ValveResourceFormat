@@ -3972,6 +3972,12 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
         bool? hasSurfaceFolds;
 
         /// <summary>
+        /// Returns whether <paramref name="rod"/> is a banded rod the compiler folded across a face edge on its own: it carries its
+        /// endpoints' final inverse-mass ratio as its weight, which no declaration does.
+        /// </summary>
+        public bool IsSurfaceFold(Rod rod) => IsSurfaceFanRod(rod, banded: true);
+
+        /// <summary>
         /// The pairs <c>add_stiffness_rods</c> makes the compiler fold across the edges this model's own faces
         /// share: the compiled quads and triangles, then the faces that were built into rods instead.
         /// </summary>
