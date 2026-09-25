@@ -422,7 +422,8 @@ partial class ModelExtract
         using var dmx = new Datamodel.Datamodel("model", 22);
 
         // Joint list = the full skeleton, so BLENDINDICES resolve (mirrors ConvertMeshToDatamodelMesh).
-        var dmeModel = BuildDmeDagSkeleton(skeleton, out _, bonePositions: ClothProxyRestBonePositions);
+        var dmeModel = BuildDmeDagSkeleton(skeleton, out _, bonePositions: ClothProxyRestBonePositions,
+            boneRotations: ClothProxyRestBoneRotations);
         dmeModel.Name = name;
         RespellJointsAsClothControlNodes(dmeModel, physAggregateData?.FeModel);
 
@@ -842,7 +843,8 @@ partial class ModelExtract
 
         using var dmx = new Datamodel.Datamodel("model", 22);
 
-        var dmeModel = BuildDmeDagSkeleton(skeleton, out _, bonePositions: ClothProxyRestBonePositions);
+        var dmeModel = BuildDmeDagSkeleton(skeleton, out _, bonePositions: ClothProxyRestBonePositions,
+            boneRotations: ClothProxyRestBoneRotations);
         dmeModel.Name = name;
 
         var (dag, vertexData) = DmxScaffolding.CreateDagVertexData(dmeModel, name);

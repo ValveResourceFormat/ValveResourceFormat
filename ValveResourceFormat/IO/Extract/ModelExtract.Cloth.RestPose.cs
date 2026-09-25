@@ -115,12 +115,28 @@ partial class ModelExtract
             feModel.ChainExtrudeOrigins = origins;
         }
 
+        var rotationTargets = new Dictionary<string, Quaternion>(StringComparer.OrdinalIgnoreCase);
+        for (var node = 0; node < feModel.CtrlNames.Length && node < feModel.InitPoseRotations.Length; node++)
+        {
+            var name = feModel.CtrlNames[node];
+            if (!string.IsNullOrEmpty(name) && !feModel.IsGeneratedNodeName(name))
+            {
+                rotationTargets.TryAdd(name, feModel.InitPoseRotations[node]);
+            }
+        }
+
+        var turned = ProxyRestRotations(model.Skeleton.Roots, rotationTargets, ClothProxyRestBoneRotations);
+
         void Walk(Bone bone, Vector3 parentPosition, Quaternion parentRotation, Vector3 compiledParent,
-            Dictionary<string, Vector3> into, float tolerance, float floor)
+            Quaternion compiledParentRotation, Dictionary<string, Vector3> into, float tolerance, float floor,
+            bool proxy)
         {
             var world = parentPosition + Vector3.Transform(bone.Position, parentRotation);
-            var compiled = compiledParent + Vector3.Transform(bone.Position, parentRotation);
-            var rotation = parentRotation * bone.Angle;
+            var compiled = compiledParent + Vector3.Transform(bone.Position, compiledParentRotation);
+            var compiledRotation = compiledParentRotation * bone.Angle;
+            var rotation = proxy && turned.TryGetValue(bone.Name, out var turnedRotation)
+                ? turnedRotation
+                : parentRotation * (proxy && ClothProxyRestBoneRotations.TryGetValue(bone.Name, out var local0) ? local0 : bone.Angle);
 
             if (targets.TryGetValue(bone.Name, out var target))
             {
@@ -139,7 +155,7 @@ partial class ModelExtract
 
             foreach (var child in bone.Children)
             {
-                Walk(child, world, rotation, compiled, into, tolerance, floor);
+                Walk(child, world, rotation, compiled, compiledRotation, into, tolerance, floor, proxy);
             }
         }
 
@@ -147,23 +163,72 @@ partial class ModelExtract
         {
             foreach (var root in model.Skeleton.Roots)
             {
-                Walk(root, Vector3.Zero, Quaternion.Identity, Vector3.Zero,
-                    ClothRestBonePositions, ClothRestBoneTolerance, ClothRestBoneFloor);
+                Walk(root, Vector3.Zero, Quaternion.Identity, Vector3.Zero, Quaternion.Identity,
+                    ClothRestBonePositions, ClothRestBoneTolerance, ClothRestBoneFloor, proxy: false);
             }
         }
 
         var farOffsetsMoveTogether = farOffsetsAreRigid || farOffsetsAreScaled;
         var proxyTolerance = farOffsetsMoveTogether ? float.MaxValue : ClothRestBoneTolerance;
-        if (maxApart > ClothProxyRestBoneModelGate
-            || (farOffsetsMoveTogether && maxApartUncapped > ClothProxyRestBoneModelGate))
+        var proxyPositions = maxApart > ClothProxyRestBoneModelGate
+            || (farOffsetsMoveTogether && maxApartUncapped > ClothProxyRestBoneModelGate);
+        if (proxyPositions || turned.Count > 0)
         {
             foreach (var root in model.Skeleton.Roots)
             {
-                Walk(root, Vector3.Zero, Quaternion.Identity, Vector3.Zero,
-                    ClothProxyRestBonePositions, proxyTolerance, ClothProxyRestBoneFloor);
+                Walk(root, Vector3.Zero, Quaternion.Identity, Vector3.Zero, Quaternion.Identity,
+                    ClothProxyRestBonePositions, proxyPositions ? proxyTolerance : -1f, ClothProxyRestBoneFloor, proxy: true);
             }
         }
     }
+
+    /// <summary>
+    /// The parent-local rotations that turn every bone with a recorded cloth rest rotation onto it, root first, while
+    /// every other bone keeps its compiled world rotation. Only a turned bone and the children of one are written to
+    /// <paramref name="into"/>; the returned map holds their world rotations.
+    /// </summary>
+    /// <remarks>
+    /// The proxy's joint rotations reach the cloth import the same way its positions do.
+    /// </remarks>
+    internal static Dictionary<string, Quaternion> ProxyRestRotations(IEnumerable<Bone> roots,
+        IReadOnlyDictionary<string, Quaternion> targets, Dictionary<string, Quaternion> into)
+    {
+        var turned = new Dictionary<string, Quaternion>(StringComparer.OrdinalIgnoreCase);
+
+        void Turn(Bone bone, Quaternion compiledParent, Quaternion parentRotation, bool parentTurned)
+        {
+            var compiled = compiledParent * bone.Angle;
+            var world = compiled;
+            var isTurned = targets.TryGetValue(bone.Name, out var target)
+                && MathF.Abs(Quaternion.Dot(Quaternion.Normalize(compiled), Quaternion.Normalize(target))) < ClothProxyRestRotationTurn;
+            if (isTurned)
+            {
+                world = target;
+            }
+
+            if (isTurned || parentTurned)
+            {
+                into[bone.Name] = Quaternion.Normalize(Quaternion.Conjugate(parentRotation) * world);
+                turned[bone.Name] = world;
+            }
+
+            foreach (var child in bone.Children)
+            {
+                Turn(child, compiled, world, isTurned);
+            }
+        }
+
+        foreach (var root in roots)
+        {
+            Turn(root, Quaternion.Identity, Quaternion.Identity, parentTurned: false);
+        }
+
+        return turned;
+    }
+
+    // cos of half of one degree. A proxy-sheet original's recorded rest rotation sits within 0.3 degrees of its bind
+    // rotation on nearly every control bone, the compiler's own drift, and a turned bone sits a degree or more away.
+    const float ClothProxyRestRotationTurn = 0.99996192f;
 
     /// <summary>
     /// Gets the Bone <c>origin</c> of each ClothChain joint re-solved so that the compiler's own chain rest pose puts
@@ -539,6 +604,12 @@ partial class ModelExtract
     /// skinned to moves with it.
     /// </summary>
     public Dictionary<string, Vector3> ClothProxyRestBonePositions { get; } = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// Gets the rest-pose bone rotations, parent-local, written into the cloth PROXY mesh only, beside
+    /// <see cref="ClothProxyRestBonePositions"/>.
+    /// </summary>
+    public Dictionary<string, Quaternion> ClothProxyRestBoneRotations { get; } = new(StringComparer.OrdinalIgnoreCase);
 
     static Dictionary<int, FeModel.CtrlOffset> BuildCtrlAnchorMap(FeModel feModel)
     {

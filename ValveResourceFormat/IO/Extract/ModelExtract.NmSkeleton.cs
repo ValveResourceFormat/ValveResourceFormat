@@ -167,11 +167,12 @@ partial class ModelExtract
 
     private static DmeModel BuildDmeDagSkeleton(Skeleton skeleton, out DmeTransform[] transforms,
         bool nmSkelAxisFixup = false, int nmLowLodBoneCount = -1,
-        IReadOnlyDictionary<string, Vector3>? bonePositions = null)
+        IReadOnlyDictionary<string, Vector3>? bonePositions = null,
+        IReadOnlyDictionary<string, Quaternion>? boneRotations = null)
     {
         var dmeSkeleton = new DmeModel();
 
-        transforms = AppendDmeSkeletonJoints(dmeSkeleton, skeleton, nmLowLodBoneCount, bonePositions);
+        transforms = AppendDmeSkeletonJoints(dmeSkeleton, skeleton, nmLowLodBoneCount, bonePositions, boneRotations);
 
         var rootMotionBone = skeleton["root_motion"];
 
@@ -199,7 +200,8 @@ partial class ModelExtract
     /// DAG siblings reproduce the compiled NM bone order, otherwise bone index order.
     /// </summary>
     private static DmeTransform[] AppendDmeSkeletonJoints(DmeModel dmeSkeleton, Skeleton skeleton,
-        int nmLowLodBoneCount = -1, IReadOnlyDictionary<string, Vector3>? bonePositions = null)
+        int nmLowLodBoneCount = -1, IReadOnlyDictionary<string, Vector3>? bonePositions = null,
+        IReadOnlyDictionary<string, Quaternion>? boneRotations = null)
     {
         int[]? minLow = null;
         int[]? minHigh = null;
@@ -222,7 +224,9 @@ partial class ModelExtract
 
             dag.Transform.Name = boneName;
             dag.Transform.Position = BonePosition(bone, bonePositions);
-            dag.Transform.Orientation = bone.Angle;
+            dag.Transform.Orientation = boneRotations is not null && boneRotations.TryGetValue(bone.Name, out var rotation)
+                ? rotation
+                : bone.Angle;
 
             transforms[bone.Index] = dag.Transform;
 

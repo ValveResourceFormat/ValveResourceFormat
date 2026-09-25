@@ -10715,5 +10715,45 @@ namespace Tests
                 m_ReverseOffsets = [ {{reverseOffsets}} ]
             }
             """);
+
+        /// <summary>
+        /// The cloth proxy's joint list carries each control bone at the rest ROTATION the compiled model records for it,
+        /// not only at its rest position: a bone turned away from its bind rotation is written at its recorded one, and a
+        /// bone below it with no record of its own keeps its compiled world rotation. CONTROL: a bone whose record
+        /// already agrees with its bind rotation writes nothing.
+        /// </summary>
+        /// <remarks>
+        /// PROBED on dotaout `drow_arcana_back`: five sheet-driven cape bones sit at their bind positions and
+        /// rotations in the skeleton while `m_InitPose` records them turned up to 6.2 degrees (and so moved, down the
+        /// chain); the compile of the document with the proxy joints turned onto the record matches `m_InitPose` on
+        /// every node, against 5 differing nodes before.
+        /// </remarks>
+        [Test]
+        public async Task AProxyControlBoneIsWrittenAtItsRecordedRestRotation()
+        {
+            var turn = Quaternion.CreateFromAxisAngle(Vector3.UnitZ, 0.3f);
+            var root = new Bone(0, "root", Vector3.Zero, Quaternion.Identity, ModelSkeletonBoneFlags.NoBoneFlags);
+            var cape = new Bone(1, "cape", new Vector3(0f, 0f, -10f), Quaternion.Identity, ModelSkeletonBoneFlags.NoBoneFlags);
+            var tip = new Bone(2, "tip", new Vector3(0f, 0f, -10f), Quaternion.Identity, ModelSkeletonBoneFlags.NoBoneFlags);
+            cape.SetParent(root);
+            tip.SetParent(cape);
+
+            var into = new Dictionary<string, Quaternion>(StringComparer.OrdinalIgnoreCase);
+            var turned = ModelExtract.ProxyRestRotations([root],
+                new Dictionary<string, Quaternion> { ["root"] = Quaternion.Identity, ["cape"] = turn }, into);
+
+            using (Assert.Multiple())
+            {
+                // THE LAW: the turned bone is written at its recorded rotation, and its child is turned back so it keeps
+                // its compiled world rotation.
+                await Assert.That(into.Keys.Order()).IsEquivalentTo(["cape", "tip"]);
+                await Assert.That(MathF.Abs(Quaternion.Dot(turned.GetValueOrDefault("cape"), turn))).IsEqualTo(1f).Within(1e-6f);
+                await Assert.That(MathF.Abs(Quaternion.Dot(turn * into.GetValueOrDefault("tip"), Quaternion.Identity)))
+                    .IsEqualTo(1f).Within(1e-6f);
+
+                // CONTROL: the root's record already agrees with its bind rotation.
+                await Assert.That(into.ContainsKey("root")).IsFalse();
+            }
+        }
     }
 }
