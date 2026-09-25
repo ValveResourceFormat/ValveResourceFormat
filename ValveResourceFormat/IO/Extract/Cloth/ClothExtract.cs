@@ -168,6 +168,72 @@ internal sealed partial class ClothExtract
         return feModel.HasData && EmitFreeNodeClothPhase(feModel, boneChains, rootChildren);
     }
 
+    /// <summary>A <c>Softbody</c> node carrying its own attributes, and its children list.</summary>
+    private (KVObject Softbody, KVObject Children) MakeSoftbody(FeModel feModel)
+    {
+        var (softbody, softbodyChildren) = MakeListNode("Softbody");
+        AddSoftbodyAttributes(softbody, feModel);
+        return (softbody, softbodyChildren);
+    }
+
+    /// <summary>Adds the <c>cloth</c> folder to a Softbody's children and returns the folder's children.</summary>
+    private static KVObject AddClothFolder(KVObject softbodyChildren)
+    {
+        var (clothFolder, clothFolderChildren) = MakeListNode("Folder");
+        clothFolder.Add("name", "cloth");
+        softbodyChildren.Add(clothFolder);
+        return clothFolderChildren;
+    }
+
+    /// <summary>Declares the model's imported PhysAuthFx strip, if it has one, and returns its nodes.</summary>
+    private static IReadOnlySet<int> AddImportedStrip(KVObject clothFolderChildren, FeModel feModel)
+    {
+        var strip = feModel.ImportedStripNodes;
+        if (strip.Count > 0)
+        {
+            clothFolderChildren.Add(MakeImportedCloth(feModel, strip));
+        }
+
+        return strip;
+    }
+
+    /// <summary>Declares every chain grid as a disabled <c>ClothProxyMeshFile</c>.</summary>
+    private void AddDisabledChainGrids(KVObject children)
+    {
+        foreach (var clothGrid in ChainGrids)
+        {
+            var gridNode = MakeClothProxyMeshFile(clothGrid.Name, clothGrid.FileName, backSolveJoints: false, driveMeshes: true);
+            gridNode.Add("disabled", true);
+            children.Add(gridNode);
+        }
+    }
+
+    /// <summary>
+    /// Ends every phase: follow bones, joint locks where given, collision shapes, the anti-tunnel group where cloth is
+    /// given, effects and shape-parent nodes, then the Softbody itself and the anti-tunnel probes beside it.
+    /// </summary>
+    private void AddClothPhaseTail(FeModel feModel, KVObject rootChildren, KVObject softbody, KVObject softbodyChildren,
+        HashSet<string> clothBones, List<FeModel.BoneChain> effectChains, IEnumerable<string>? antiTunnelCloth = null,
+        Func<int, string, bool>? jointLocks = null, IReadOnlyDictionary<int, string>? proxyNodeNames = null)
+    {
+        AddClothFollowBones(softbodyChildren, feModel, clothBones);
+        if (jointLocks is not null)
+        {
+            AddClothJointLocks(softbodyChildren, feModel, jointLocks);
+        }
+
+        var shapeNames = AddClothCollisionShapes(softbodyChildren, feModel);
+        if (antiTunnelCloth is not null)
+        {
+            AddClothAntiTunnelGroup(softbodyChildren, feModel, shapeNames, [.. antiTunnelCloth]);
+        }
+
+        AddClothEffects(softbodyChildren, feModel, AvailableVertexMaps(feModel, effectChains));
+        AddShapeParentDefaultClothNodes(softbodyChildren, feModel);
+        rootChildren.Add(softbody);
+        AddClothAntiTunnelProbes(rootChildren, feModel, proxyNodeNames);
+    }
+
     /// <summary>
     /// Re-declares the <see cref="CulledBones"/> without <c>do_not_discard</c>, so the compiler culls them again.
     /// </summary>

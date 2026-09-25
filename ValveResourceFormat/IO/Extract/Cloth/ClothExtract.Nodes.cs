@@ -121,10 +121,22 @@ internal sealed partial class ClothExtract
             }
         }
 
-        if (springName.Count == 0)
+        if (springName.Count > 0)
         {
-            return emitted;
+            AddFreeClothSprings(softbodyChildren, feModel, springName, declared, alreadyEmitted, chainJoints);
         }
+
+        return emitted;
+    }
+
+    /// <summary>
+    /// Declares the rods between the nodes <paramref name="springName"/> names, and from a declared node to one of
+    /// <paramref name="chainJoints"/>, skipping the pairs in <paramref name="alreadyEmitted"/>.
+    /// </summary>
+    private static void AddFreeClothSprings(KVObject softbodyChildren, FeModel feModel, Dictionary<int, string> springName,
+        HashSet<int> declared, HashSet<(int, int)>? alreadyEmitted, HashSet<int>? chainJoints)
+    {
+        var names = feModel.CtrlNames;
 
         bool IsEndpoint(int node, int other) => springName.ContainsKey(node)
             || (chainJoints is not null && chainJoints.Contains(node) && declared.Contains(other));
@@ -187,8 +199,6 @@ internal sealed partial class ClothExtract
                     rod.RelaxationFactor));
             }
         }
-
-        return emitted;
     }
 
     /// <summary>

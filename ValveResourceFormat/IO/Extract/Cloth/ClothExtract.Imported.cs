@@ -203,14 +203,9 @@ internal sealed partial class ClothExtract
 
     private bool EmitImportedClothPhase(FeModel feModel, List<FeModel.BoneChain> boneChains, KVObject rootChildren)
     {
-        var (softbody, softbodyChildren) = MakeListNode("Softbody");
-        AddSoftbodyAttributes(softbody, feModel);
+        var (softbody, softbodyChildren) = MakeSoftbody(feModel);
         softbodyChildren.Add(MakeClothParams(feModel, explicitMasses: true));
-
-        var (clothFolder, clothFolderChildren) = MakeListNode("Folder");
-        clothFolder.Add("name", "cloth");
-        softbodyChildren.Add(clothFolder);
-        clothFolderChildren.Add(MakeImportedCloth(feModel));
+        AddClothFolder(softbodyChildren).Add(MakeImportedCloth(feModel));
 
         var clothBones = ClothBoneNames(feModel);
         foreach (var name in feModel.CtrlNames)
@@ -221,12 +216,7 @@ internal sealed partial class ClothExtract
             }
         }
 
-        AddClothFollowBones(softbodyChildren, feModel, clothBones);
-        AddClothCollisionShapes(softbodyChildren, feModel);
-        AddClothEffects(softbodyChildren, feModel, AvailableVertexMaps(feModel, boneChains));
-        AddShapeParentDefaultClothNodes(softbodyChildren, feModel);
-        rootChildren.Add(softbody);
-        AddClothAntiTunnelProbes(rootChildren, feModel, proxyNodeNames: null);
+        AddClothPhaseTail(feModel, rootChildren, softbody, softbodyChildren, clothBones, boneChains);
         return true;
     }
 }

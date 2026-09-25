@@ -16,18 +16,10 @@ internal sealed partial class ClothExtract
 
     private bool EmitFreeNodeClothPhase(FeModel feModel, List<FeModel.BoneChain> boneChains, KVObject rootChildren)
     {
-        var (softbody, softbodyChildren) = MakeListNode("Softbody");
-        AddSoftbodyAttributes(softbody, feModel);
+        var (softbody, softbodyChildren) = MakeSoftbody(feModel);
         softbodyChildren.Add(MakeClothParams(feModel, explicitMasses: feModel.HasExplicitMasses));
-        var (clothFolder, clothFolderChildren) = MakeListNode("Folder");
-        clothFolder.Add("name", "cloth");
-        softbodyChildren.Add(clothFolder);
-
-        var strip = feModel.ImportedStripNodes;
-        if (strip.Count > 0)
-        {
-            clothFolderChildren.Add(MakeImportedCloth(feModel, strip));
-        }
+        var clothFolderChildren = AddClothFolder(softbodyChildren);
+        var strip = AddImportedStrip(clothFolderChildren, feModel);
 
         var clothBones = ClothBoneNames(feModel);
         clothBones.UnionWith(ImportedStripBoneNames(feModel, strip));
@@ -41,17 +33,12 @@ internal sealed partial class ClothExtract
         AddClothStiffHinges(softbodyChildren, feModel);
 
         // A model of collision shapes alone declares no node, but its shapes still need the Softbody.
-        if (freeNodes > 0 || strip.Count > 0 || CollisionShapeParentBones(feModel).Count > 0 || HasJiggleBoneClothParams(feModel))
+        if (freeNodes == 0 && strip.Count == 0 && CollisionShapeParentBones(feModel).Count == 0 && !HasJiggleBoneClothParams(feModel))
         {
-            AddClothFollowBones(softbodyChildren, feModel, clothBones);
-            AddClothCollisionShapes(softbodyChildren, feModel);
-            AddClothEffects(softbodyChildren, feModel, AvailableVertexMaps(feModel, boneChains));
-            AddShapeParentDefaultClothNodes(softbodyChildren, feModel);
-            rootChildren.Add(softbody);
-            AddClothAntiTunnelProbes(rootChildren, feModel, proxyNodeNames: null);
-            return true;
+            return false;
         }
 
-        return false;
+        AddClothPhaseTail(feModel, rootChildren, softbody, softbodyChildren, clothBones, boneChains);
+        return true;
     }
 }

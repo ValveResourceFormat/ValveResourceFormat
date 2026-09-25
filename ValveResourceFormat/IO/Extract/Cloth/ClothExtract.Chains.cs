@@ -390,7 +390,24 @@ internal sealed partial class ClothExtract
         }
 
         var hinge = feModel.GetChainHinge(joint.Name, joint.Node);
+        AddJointExtrude(kv, feModel, joint, chainExtrudes, rollTies, hinge);
+        AddJointSpans(kv, feModel, joint, secondDeclaration);
 
+        if (hinge is { } chainHinge)
+        {
+            kv.Add("hinge_constraint_vector_worldspace", ToKVArray(chainHinge.Vector));
+            kv.Add("hinge_constraint_soft", softHinge);
+            kv.Add("hinge_constraint_limit_cw", chainHinge.LimitCw);
+            kv.Add("hinge_constraint_limit_ccw", chainHinge.LimitCcw);
+        }
+
+        return kv;
+    }
+
+    /// <summary>Adds a joint row's ring keys and its end effector.</summary>
+    private static void AddJointExtrude(KVObject kv, FeModel feModel, FeModel.BoneChainJoint joint, bool chainExtrudes,
+        bool rollTies, FeModel.ChainHinge? hinge)
+    {
         // An extruding chain states every joint's own ring, including an explicit 0 width.
         if (chainExtrudes)
         {
@@ -413,7 +430,11 @@ internal sealed partial class ClothExtract
         {
             kv.Add("end_effector", joint.EndEffector);
         }
+    }
 
+    /// <summary>Adds a joint row's span stiffnesses, antishrink, stiff hinge and motion bias.</summary>
+    private static void AddJointSpans(KVObject kv, FeModel feModel, FeModel.BoneChainJoint joint, bool secondDeclaration)
+    {
         if (joint.StretchStiffness != 1.0f)
         {
             kv.Add("stretch_spring", joint.StretchStiffness);
@@ -453,16 +474,6 @@ internal sealed partial class ClothExtract
         {
             kv.Add("motion_bias", motionBias);
         }
-
-        if (hinge is { } chainHinge)
-        {
-            kv.Add("hinge_constraint_vector_worldspace", ToKVArray(chainHinge.Vector));
-            kv.Add("hinge_constraint_soft", softHinge);
-            kv.Add("hinge_constraint_limit_cw", chainHinge.LimitCw);
-            kv.Add("hinge_constraint_limit_ccw", chainHinge.LimitCcw);
-        }
-
-        return kv;
     }
 
     /// <summary>The <c>attrs</c> table of a <c>ClothChain</c>: the column schema and the default of every joint key.</summary>

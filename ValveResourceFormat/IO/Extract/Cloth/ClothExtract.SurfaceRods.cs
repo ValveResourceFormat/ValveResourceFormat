@@ -34,9 +34,8 @@ internal sealed partial class ClothExtract
                 continue;
             }
 
-            var nodeOf = proxyMesh.NodeIndices;
-            surfaceNodes.UnionWith(nodeOf);
-            var globalFaces = proxyMesh.Faces.Select(face => face.Select(local => nodeOf[local]).ToArray()).ToList();
+            surfaceNodes.UnionWith(proxyMesh.NodeIndices);
+            var globalFaces = GlobalFaces(proxyMesh, proxyMesh.Faces).ToList();
             surfaceFaces.AddRange(globalFaces);
             derived.UnionWith(FeModel.DeriveRodsFromFaces(globalFaces));
         }
@@ -120,8 +119,7 @@ internal sealed partial class ClothExtract
             {
                 if (!proxyMesh.UsesAuthoredFaces)
                 {
-                    var nodeOf = proxyMesh.NodeIndices;
-                    keptFaces.AddRange(proxyMesh.Faces.Select(face => face.Select(local => nodeOf[local]).ToArray()));
+                    keptFaces.AddRange(GlobalFaces(proxyMesh, proxyMesh.Faces));
                 }
             }
 
@@ -154,30 +152,39 @@ internal sealed partial class ClothExtract
                 addCurvature, keepsCurvature: suspenderNodes.Count > 0);
         }
 
-        // A model with no surface of its own lets the compiler rebuild rods from its synthesised sheets.
+        AddRodsTheSheetsRebuild(derived, feModel, proxies);
+        return new ClothSurfaceRods(derived, generatesBendRods, generatesBendOnlyRods, addCurvature, suspenderNodes,
+            bendStiffness, bendStiffnessByNode);
+    }
+
+    /// <summary>
+    /// Adds the rods the compiler builds from the exported sheets' faces whatever the bend switches: every face rod of a
+    /// model with no surface of its own, and the discarded diagonal of every bent quad kept out of the rod path.
+    /// </summary>
+    private static void AddRodsTheSheetsRebuild(HashSet<(int, int)> derived, FeModel feModel,
+        List<(string FileName, string Name, FeModel.ProxyMesh Proxy)> proxies)
+    {
         if (!feModel.HasSurfaceElements)
         {
             foreach (var (_, _, proxyMesh) in proxies)
             {
-                var nodeOf = proxyMesh.NodeIndices;
-                derived.UnionWith(FeModel.DeriveRodsFromFaces(
-                    proxyMesh.Faces.Select(face => face.Select(local => nodeOf[local]).ToArray())));
+                derived.UnionWith(FeModel.DeriveRodsFromFaces(GlobalFaces(proxyMesh, proxyMesh.Faces)));
             }
         }
 
-        // A face kept out of the rod path still gets a rod across the diagonal a bent quad discards.
         foreach (var (_, _, proxyMesh) in proxies)
         {
-            var nodeOf = proxyMesh.NodeIndices;
             derived.UnionWith(FeModel.BentQuadRodsFromFaces(
-                proxyMesh.Faces
-                    .Where(face => !ClothFaceMakesRods(feModel, proxyMesh, face))
-                    .Select(face => face.Select(local => nodeOf[local]).ToArray()),
+                GlobalFaces(proxyMesh, proxyMesh.Faces.Where(face => !ClothFaceMakesRods(feModel, proxyMesh, face))),
                 feModel.InitPosePositions, feModel.IsStatic, feModel.QuadBendTolerance));
         }
+    }
 
-        return new ClothSurfaceRods(derived, generatesBendRods, generatesBendOnlyRods, addCurvature, suspenderNodes,
-            bendStiffness, bendStiffnessByNode);
+    /// <summary><paramref name="faces"/> of <paramref name="proxy"/> with their corners as control nodes.</summary>
+    private static IEnumerable<int[]> GlobalFaces(FeModel.ProxyMesh proxy, IEnumerable<int[]> faces)
+    {
+        var nodeOf = proxy.NodeIndices;
+        return faces.Select(face => face.Select(local => nodeOf[local]).ToArray());
     }
 
     // The cloth_make_rods paint of a sheet kept out of the rod path, under the importer's 0.5 threshold.

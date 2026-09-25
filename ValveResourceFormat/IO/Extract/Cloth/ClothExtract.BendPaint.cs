@@ -414,6 +414,31 @@ internal sealed partial class ClothExtract
             return null;
         }
 
+        var solved = SolveHingeSums(exact, bounds);
+        if (solved is null)
+        {
+            return null;
+        }
+
+        if (generatorBound)
+        {
+            solvedSlack = RodSlack(hinge => solved.GetValueOrDefault(hinge.Item1) + solved.GetValueOrDefault(hinge.Item2));
+            if (solvedSlack > ClothBendStiffnessAgreement)
+            {
+                return null;
+            }
+        }
+
+        return solved.Values.Any(static value => value > ClothBendStiffnessAgreement) ? solved : null;
+    }
+
+    /// <summary>
+    /// Per-vertex paints whose pair sums meet every <paramref name="exact"/> hinge sum and reach every
+    /// <paramref name="bounds"/> lower bound, or null where none do.
+    /// </summary>
+    private static Dictionary<int, float>? SolveHingeSums(Dictionary<(int, int), float> exact,
+        Dictionary<(int, int), float> bounds)
+    {
         var pinned = new Dictionary<int, float>();
         var equations = new List<(int U, int V, float Sum)>();
         var checks = new List<(int U, int V, float Least)>();
@@ -548,16 +573,7 @@ internal sealed partial class ClothExtract
             }
         }
 
-        if (generatorBound)
-        {
-            solvedSlack = RodSlack(hinge => solved.GetValueOrDefault(hinge.Item1) + solved.GetValueOrDefault(hinge.Item2));
-            if (solvedSlack > ClothBendStiffnessAgreement)
-            {
-                return null;
-            }
-        }
-
-        return solved.Values.Any(static value => value > ClothBendStiffnessAgreement) ? solved : null;
+        return solved;
     }
 
     // Solves the exact hinge sums: each connected chain alternates as sign * p + offset, fixed by a pin or a closed cycle.

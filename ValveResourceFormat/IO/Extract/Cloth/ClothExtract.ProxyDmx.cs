@@ -206,6 +206,54 @@ internal sealed partial class ClothExtract
 
         vertexData.AddIndexedStream("texcoord$0", texcoords, vertexIndices);
 
+        AddProxyPaintStreams(vertexData, feModel, proxy, vertexCount, vertexIndices);
+
+        var boneIndexByName = ClothBoneIndexByName(skeleton, dmeModel);
+
+        // A sheet no real bone drives ships unskinned.
+        if (!proxy.IsFreeFloating)
+        {
+            // Widened past the default slot count to hold every recovered influence.
+            var jointCount = FeModel.ClothProxyInfluenceSlots;
+            if (feModel is not null)
+            {
+                for (var v = 0; v < vertexCount; v++)
+                {
+                    if (v < proxy.NodeIndices.Length && feModel.RecoveredSkinWeights.ContainsKey(proxy.NodeIndices[v]))
+                    {
+                        jointCount = Math.Max(jointCount, proxy.SkinInfluences[v].Count(i => boneIndexByName.ContainsKey(i.Bone)));
+                    }
+                }
+            }
+
+            AddClothBlendStreams(vertexData, vertexCount, jointCount, boneIndexByName,
+                v => SeparateTiedInfluenceWeights(proxy.SkinInfluences[v]));
+        }
+
+        var faceSet = AddClothFaceSet(dag);
+        var cornerOrdinal = 0;
+        foreach (var face in emittedFaces)
+        {
+            foreach (var _ in face)
+            {
+                faceSet.Faces.Add(cornerOrdinal++);
+            }
+
+            faceSet.Faces.Add(-1);
+        }
+
+        if (dag.Shape is DmeMesh morphTarget)
+        {
+            AddClothProxyMorphLayers(morphTarget, proxy, feModel);
+        }
+
+        return SaveClothDmx(dmx, dmeModel);
+    }
+
+    /// <summary>Adds every cloth paint stream of a proxy sheet, in the order an authored sheet carries them.</summary>
+    private void AddProxyPaintStreams(DmeVertexData vertexData, FeModel? feModel, FeModel.ProxyMesh proxy, int vertexCount,
+        int[] vertexIndices)
+    {
         vertexData.AddIndexedStream("cloth_enable$0", proxy.ClothEnable, vertexIndices);
         vertexData.AddIndexedStream("cloth_goal_strength_v2$0", proxy.GoalStrength, vertexIndices);
         vertexData.AddIndexedStream("cloth_goal_damping$0", proxy.GoalDamping, vertexIndices);
@@ -355,47 +403,6 @@ internal sealed partial class ClothExtract
                 vertexData.AddIndexedStream("cloth_bend_stiffness$0", Enumerable.Repeat(faceKeptBend, vertexCount).ToArray(), vertexIndices);
             }
         }
-
-        var boneIndexByName = ClothBoneIndexByName(skeleton, dmeModel);
-
-        // A sheet no real bone drives ships unskinned.
-        if (!proxy.IsFreeFloating)
-        {
-            // Widened past the default slot count to hold every recovered influence.
-            var jointCount = FeModel.ClothProxyInfluenceSlots;
-            if (feModel is not null)
-            {
-                for (var v = 0; v < vertexCount; v++)
-                {
-                    if (v < proxy.NodeIndices.Length && feModel.RecoveredSkinWeights.ContainsKey(proxy.NodeIndices[v]))
-                    {
-                        jointCount = Math.Max(jointCount, proxy.SkinInfluences[v].Count(i => boneIndexByName.ContainsKey(i.Bone)));
-                    }
-                }
-            }
-
-            AddClothBlendStreams(vertexData, vertexCount, jointCount, boneIndexByName,
-                v => SeparateTiedInfluenceWeights(proxy.SkinInfluences[v]));
-        }
-
-        var faceSet = AddClothFaceSet(dag);
-        var cornerOrdinal = 0;
-        foreach (var face in emittedFaces)
-        {
-            foreach (var _ in face)
-            {
-                faceSet.Faces.Add(cornerOrdinal++);
-            }
-
-            faceSet.Faces.Add(-1);
-        }
-
-        if (dag.Shape is DmeMesh morphTarget)
-        {
-            AddClothProxyMorphLayers(morphTarget, proxy, feModel);
-        }
-
-        return SaveClothDmx(dmx, dmeModel);
     }
 
     /// <summary>Re-emits the sheet's <c>m_MorphLayers</c> as sparse DMX delta states.</summary>

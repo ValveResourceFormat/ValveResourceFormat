@@ -9,22 +9,14 @@ internal sealed partial class ClothExtract
 {
     private bool EmitChainClothPhase(FeModel feModel, List<FeModel.BoneChain> boneChains, KVObject rootChildren)
     {
-        var (softbody, softbodyChildren) = MakeListNode("Softbody");
-        AddSoftbodyAttributes(softbody, feModel);
+        var (softbody, softbodyChildren) = MakeSoftbody(feModel);
         softbodyChildren.Add(MakeClothParams(feModel,
             generatesBendRods: feModel.HasChainStiffnessRods(boneChains),
             generatesBendOnlyRods: feModel.HasChainBendOnlyRods(boneChains),
             addCurvature: feModel.ChainRingCurvature,
             explicitMasses: feModel.HasExplicitMasses));
-        var (clothFolder, clothFolderChildren) = MakeListNode("Folder");
-        clothFolder.Add("name", "cloth");
-        softbodyChildren.Add(clothFolder);
-
-        var strip = feModel.ImportedStripNodes;
-        if (strip.Count > 0)
-        {
-            clothFolderChildren.Add(MakeImportedCloth(feModel, strip));
-        }
+        var clothFolderChildren = AddClothFolder(softbodyChildren);
+        var strip = AddImportedStrip(clothFolderChildren, feModel);
 
         var hasOtherChains = boneChains.Count > 1;
 
@@ -61,13 +53,7 @@ internal sealed partial class ClothExtract
             }
         }
 
-        foreach (var clothGrid in ChainGrids)
-        {
-            var gridNode = MakeClothProxyMeshFile(clothGrid.Name, clothGrid.FileName, backSolveJoints: false, driveMeshes: true);
-            gridNode.Add("disabled", true);
-            clothFolderChildren.Add(gridNode);
-        }
-
+        AddDisabledChainGrids(clothFolderChildren);
         AddClothFaces(clothFolderChildren, feModel);
         var sourceSprings = AddClothSourceSprings(softbodyChildren, feModel, boneChains);
         sourceSprings.UnionWith(AddClothChainSurplusRods(softbodyChildren, feModel, boneChains));
@@ -97,15 +83,8 @@ internal sealed partial class ClothExtract
         AddClothStiffHinges(softbodyChildren, feModel);
         AddClothRigidCloudClusterLocks(softbodyChildren, feModel, declaredChains);
         AddClothChainVolumetricMaps(softbodyChildren, feModel, boneChains);
-
-        AddClothFollowBones(softbodyChildren, feModel, clothBones);
-        var shapeNames = AddClothCollisionShapes(softbodyChildren, feModel);
-        AddClothAntiTunnelGroup(softbodyChildren, feModel, shapeNames,
-            [.. declaredChains.Select(static chain => chain.RootBone + chain.DeclarationSuffix)]);
-        AddClothEffects(softbodyChildren, feModel, AvailableVertexMaps(feModel, boneChains));
-        AddShapeParentDefaultClothNodes(softbodyChildren, feModel);
-        rootChildren.Add(softbody);
-        AddClothAntiTunnelProbes(rootChildren, feModel, proxyNodeNames: null);
+        AddClothPhaseTail(feModel, rootChildren, softbody, softbodyChildren, clothBones, boneChains,
+            antiTunnelCloth: declaredChains.Select(static chain => chain.RootBone + chain.DeclarationSuffix));
         return true;
     }
 }

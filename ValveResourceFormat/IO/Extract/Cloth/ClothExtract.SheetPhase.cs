@@ -124,7 +124,55 @@ internal sealed partial class ClothExtract
             .Where(chain => !chain.Joints.Any(joint => feModel.ProxyFitMatrixNodes.Contains(joint.Node))
                 && !feModel.IsSheetDrivenChain(chain))
             .ToList();
+        var proxyNodeNames = BuildProxyNodeNameMap(ProxyMeshes);
 
+        rootChildren.Add(MakeClothProxyMeshList(feModel, independentChains, backSolveJoints, proxyNodeNames));
+
+        var (softbody, softbodyChildren) = MakeSoftbody(feModel);
+        var surfaceRods = SurfaceRods(feModel);
+        softbodyChildren.Add(MakeClothParams(feModel, surfaceRods.GeneratesBendRods, surfaceRods.GeneratesBendOnlyRods,
+            surfaceRods.AddCurvature > 0f ? surfaceRods.AddCurvature : feModel.ChainRingCurvature, feModel.HasExplicitMasses));
+
+        var nodes = ClassifySheetControlNodes(feModel, boneChains, independentChains);
+        var authoredFaces = feModel.GetAuthoredElementFaces();
+        if (independentChains.Count > 0 || nodes.LoneClothNodes.Count > 0 || nodes.LeftoverStaticNodes.Count > 0
+            || nodes.UnregisteredNodes.Count > 0 || nodes.UnregisteredFreeNodes.Count > 0 || authoredFaces.Count > 0)
+        {
+            DeclareSheetClothFolder(feModel, softbodyChildren, independentChains, nodes, proxyNodeNames);
+        }
+
+        var authoredClothNodes = nodes.LoneClothNodes.Concat(nodes.LeftoverStaticNodes).Concat(nodes.UnregisteredNodes)
+            .Select(static entry => entry.Node)
+            .ToHashSet();
+        AddClothProxySprings(softbodyChildren, feModel, ProxyMeshes, nodes.IndependentChainNodes,
+            authoredClothNodes, nodes.FreeClothNodeNames, surfaceRods.Derived, proxyNodeNames);
+        AddClothSourceSprings(softbodyChildren, feModel, independentChains);
+        AddClothChainSurplusClusters(softbodyChildren, feModel, independentChains);
+        AddClothChainVolumetricMaps(softbodyChildren, feModel, independentChains);
+
+        var clothBones = ClothBoneNames(feModel);
+        clothBones.UnionWith(nodes.ProxySkinnedBones);
+        clothBones.UnionWith(independentChains.SelectMany(static chain => chain.Joints)
+            .Select(static joint => joint.Name));
+        clothBones.UnionWith(nodes.LoneClothNodes.Concat(nodes.LeftoverStaticNodes).Concat(nodes.UnregisteredNodes)
+            .Select(static entry => entry.Name));
+        clothBones.UnionWith(nodes.UnregisteredFreeNodes.Select(static entry => entry.RootBone));
+        AddClothSelfCollisionClusters(softbodyChildren, feModel, clothBones);
+        AddClothPhaseTail(feModel, rootChildren, softbody, softbodyChildren, clothBones, independentChains,
+            antiTunnelCloth: ProxyMeshes.Select(static proxy => proxy.Name),
+            jointLocks: (node, name) => !nodes.IndependentChainNodes.Contains(node) && !authoredClothNodes.Contains(node)
+                && (feModel.FitMatrixNodes.Contains(node) || nodes.ProxySkinnedBones.Contains(name)),
+            proxyNodeNames: proxyNodeNames);
+        return true;
+    }
+
+    /// <summary>
+    /// The <c>ClothProxyMeshList</c> declaring every exported sheet with its back-solve, border and render-bone keys,
+    /// grouped under the <c>ClothVertexMap</c> each one stands for, then the unregistered selections and the grids.
+    /// </summary>
+    private KVObject MakeClothProxyMeshList(FeModel feModel, List<FeModel.BoneChain> independentChains, bool backSolveJoints,
+        Dictionary<int, string> proxyNodeNames)
+    {
         // A proxy back-solves only where it drives a bone no independent chain covers.
         var chainDrivenBones = new HashSet<string>(
             independentChains.SelectMany(static chain => chain.Joints).Select(joint => feModel.CtrlNames[joint.Node]),
@@ -223,8 +271,7 @@ internal sealed partial class ClothExtract
                         mapNode.Add("aliases", string.Join(',', aliases));
                     }
 
-                    AddClothVertexMapAttributes(mapNode, feModel, proxyVertexMap,
-                        BuildProxyNodeNameMap(ProxyMeshes));
+                    AddClothVertexMapAttributes(mapNode, feModel, proxyVertexMap, proxyNodeNames);
                     if (feModel.UniformVertexMapWeight(proxyVertexMap) is { } mapWeight)
                     {
                         mapNode.Add("weight", mapWeight);
@@ -243,7 +290,6 @@ internal sealed partial class ClothExtract
 
         // A selection the original does not register as a vertex set is declared as a container listing its sheet
         // vertices, since painting it would register it.
-        var sheetNodeNames = BuildProxyNodeNameMap(ProxyMeshes);
         foreach (var map in feModel.VertexMaps)
         {
             if (feModel.RegistersVertexSet(map.NameHash) || vertexMapContainers.ContainsKey(map.Name))
@@ -256,7 +302,7 @@ internal sealed partial class ClothExtract
             for (var node = map.VertexBase; node < map.VertexBase + map.VertexCount; node++)
             {
                 var weight = map.WeightOf(node);
-                if (weight <= 0f || !sheetNodeNames.TryGetValue(node, out var memberName))
+                if (weight <= 0f || !proxyNodeNames.TryGetValue(node, out var memberName))
                 {
                     continue;
                 }
@@ -272,26 +318,32 @@ internal sealed partial class ClothExtract
 
             var (unregisteredNode, _) = MakeListNode("ClothVertexMap");
             unregisteredNode.Add("name", map.Name);
-            AddClothVertexMapAttributes(unregisteredNode, feModel, map.Name, sheetNodeNames);
+            AddClothVertexMapAttributes(unregisteredNode, feModel, map.Name, proxyNodeNames);
             unregisteredNode.Add("data", MakeNodeTable(members));
             clothProxyChildren.Add(unregisteredNode);
         }
 
-        foreach (var clothGrid in ChainGrids)
-        {
-            var gridNode = MakeClothProxyMeshFile(clothGrid.Name, clothGrid.FileName, backSolveJoints: false, driveMeshes: true);
-            gridNode.Add("disabled", true);
-            clothProxyChildren.Add(gridNode);
-        }
+        AddDisabledChainGrids(clothProxyChildren);
+        return clothProxyList;
+    }
 
-        rootChildren.Add(clothProxyList);
+    /// <summary>The control nodes of a sheet phase that no exported sheet or independent chain recreates.</summary>
+    private sealed record SheetControlNodes(
+        HashSet<int> IndependentChainNodes,
+        HashSet<string> ProxySkinnedBones,
+        List<(string Name, int Node)> LoneClothNodes,
+        List<(string Name, int Node)> LeftoverStaticNodes,
+        List<(string Name, int Node)> UnregisteredNodes,
+        List<(string RootBone, int Node, string ElementName, Vector3 Origin, Vector3 Angles)> UnregisteredFreeNodes,
+        Dictionary<int, string> FreeClothNodeNames);
 
-        var (softbody, softbodyChildren) = MakeListNode("Softbody");
-        AddSoftbodyAttributes(softbody, feModel);
-        var surfaceRods = SurfaceRods(feModel);
-        softbodyChildren.Add(MakeClothParams(feModel, surfaceRods.GeneratesBendRods, surfaceRods.GeneratesBendOnlyRods,
-            surfaceRods.AddCurvature > 0f ? surfaceRods.AddCurvature : feModel.ChainRingCurvature, feModel.HasExplicitMasses));
-
+    /// <summary>
+    /// Sorts the control nodes of a sheet phase into the simulated lone nodes, the static control bones, and the
+    /// generated or fitted nodes no exported sheet or independent chain recreates.
+    /// </summary>
+    private SheetControlNodes ClassifySheetControlNodes(FeModel feModel, List<FeModel.BoneChain> boneChains,
+        List<FeModel.BoneChain> independentChains)
+    {
         var chainNodes = ChainJointNodes(boneChains);
         var independentChainNodes = ChainJointNodes(independentChains);
         var loneClothNodes = new List<(string Name, int Node)>();
@@ -384,103 +436,74 @@ internal sealed partial class ClothExtract
             }
         }
 
-        var proxyNodeNameMap = BuildProxyNodeNameMap(ProxyMeshes);
+        return new SheetControlNodes(independentChainNodes, proxySkinnedBones, loneClothNodes, leftoverStaticNodes,
+            unregisteredNodes, unregisteredFreeNodes, freeClothNodeNames);
+    }
 
-        var authoredFaces = feModel.GetAuthoredElementFaces();
-        if (independentChains.Count > 0 || loneClothNodes.Count > 0 || leftoverStaticNodes.Count > 0
-            || unregisteredNodes.Count > 0 || unregisteredFreeNodes.Count > 0 || authoredFaces.Count > 0)
+    /// <summary>
+    /// Declares the independent chains, the classified control nodes and the authored faces in the sheet phase's cloth
+    /// folder.
+    /// </summary>
+    private void DeclareSheetClothFolder(FeModel feModel, KVObject softbodyChildren, List<FeModel.BoneChain> independentChains,
+        SheetControlNodes nodes, Dictionary<int, string> proxyNodeNames)
+    {
+        var clothFolderChildren = AddClothFolder(softbodyChildren);
+
+        var loneJointChainCount = nodes.LoneClothNodes.Count(n => LoneClothNodeIsOriginalRoot(feModel, n.Node));
+        var hasOtherChains = independentChains.Count + loneJointChainCount > 1;
+
+        foreach (var boneChain in independentChains)
         {
-            var (clothFolder, clothFolderChildren) = MakeListNode("Folder");
-            clothFolder.Add("name", "cloth");
-            softbodyChildren.Add(clothFolder);
-
-            var loneJointChainCount = loneClothNodes.Count(n => LoneClothNodeIsOriginalRoot(feModel, n.Node));
-            var hasOtherChains = independentChains.Count + loneJointChainCount > 1;
-
-            foreach (var boneChain in independentChains)
+            clothFolderChildren.Add(MakeClothChainNode(feModel, boneChain, hasOtherChains,
+                relandedJoints: RelandedJoints));
+            if (MakeClothChainRestatement(feModel, boneChain) is { } restated)
             {
-                clothFolderChildren.Add(MakeClothChainNode(feModel, boneChain, hasOtherChains,
-                    relandedJoints: RelandedJoints));
-                if (MakeClothChainRestatement(feModel, boneChain) is { } restated)
-                {
-                    clothFolderChildren.Add(restated);
-                }
-
-                foreach (var second in MakeClothChainSecondDeclarations(feModel, boneChain,
-                    ClothChainVersion(feModel, boneChain, hasOtherChains)))
-                {
-                    clothFolderChildren.Add(second);
-                }
+                clothFolderChildren.Add(restated);
             }
 
-            AddClothRigidCloudClusterLocks(softbodyChildren, feModel, independentChains);
-
-            var folderFor = ClothVertexMapFolders(feModel, clothFolderChildren);
-
-            foreach (var (name, node) in loneClothNodes)
+            foreach (var second in MakeClothChainSecondDeclarations(feModel, boneChain,
+                ClothChainVersion(feModel, boneChain, hasOtherChains)))
             {
-                if (LoneClothNodeIsOriginalRoot(feModel, node))
-                {
-                    clothFolderChildren.Add(MakeLoneJointChain(feModel, name, node, hasOtherChains));
-                }
-                else
-                {
-                    folderFor(node, true).Add(MakeClothNode(feModel, name, node, proxyNodeNames: proxyNodeNameMap));
-                }
+                clothFolderChildren.Add(second);
             }
-
-            foreach (var (name, node) in leftoverStaticNodes)
-            {
-                folderFor(node, true).Add(MakeClothNode(feModel, name, node, isStaticNode: true,
-                    proxyNodeNames: proxyNodeNameMap));
-            }
-
-            foreach (var (name, node) in unregisteredNodes)
-            {
-                clothFolderChildren.Add(MakeClothNode(feModel, name, node,
-                    isStaticNode: feModel.IsStatic(node), proxyNodeNames: proxyNodeNameMap));
-            }
-
-            foreach (var (rootBone, node, elementName, origin, angles) in unregisteredFreeNodes)
-            {
-                clothFolderChildren.Add(MakeClothNode(feModel, rootBone, node,
-                    isStaticNode: feModel.IsStatic(node), elementName: elementName, origin: origin, angles: angles,
-                    proxyNodeNames: proxyNodeNameMap));
-            }
-
-            AddClothFaces(clothFolderChildren, feModel);
-            AddClothStiffHinges(softbodyChildren, feModel);
         }
 
-        var authoredClothNodes = loneClothNodes.Concat(leftoverStaticNodes).Concat(unregisteredNodes)
-            .Select(static entry => entry.Node)
-            .ToHashSet();
-        AddClothProxySprings(softbodyChildren, feModel, ProxyMeshes, independentChainNodes,
-            authoredClothNodes, freeClothNodeNames, surfaceRods.Derived, proxyNodeNameMap);
-        AddClothSourceSprings(softbodyChildren, feModel, independentChains);
-        AddClothChainSurplusClusters(softbodyChildren, feModel, independentChains);
-        AddClothChainVolumetricMaps(softbodyChildren, feModel, independentChains);
+        AddClothRigidCloudClusterLocks(softbodyChildren, feModel, independentChains);
 
-        var clothBones = ClothBoneNames(feModel);
-        clothBones.UnionWith(proxySkinnedBones);
-        clothBones.UnionWith(independentChains.SelectMany(static chain => chain.Joints)
-            .Select(static joint => joint.Name));
-        clothBones.UnionWith(loneClothNodes.Concat(leftoverStaticNodes).Concat(unregisteredNodes)
-            .Select(static entry => entry.Name));
-        clothBones.UnionWith(unregisteredFreeNodes.Select(static entry => entry.RootBone));
-        AddClothSelfCollisionClusters(softbodyChildren, feModel, clothBones);
-        AddClothFollowBones(softbodyChildren, feModel, clothBones);
-        AddClothJointLocks(softbodyChildren, feModel, (node, name) => !independentChainNodes.Contains(node)
-            && !authoredClothNodes.Contains(node) && (feModel.FitMatrixNodes.Contains(node) || proxySkinnedBones.Contains(name)));
-        var shapeNames = AddClothCollisionShapes(softbodyChildren, feModel);
-        AddClothAntiTunnelGroup(softbodyChildren, feModel, shapeNames,
-            [.. ProxyMeshes.Select(static proxy => proxy.Name)]);
-        AddClothEffects(softbodyChildren, feModel, AvailableVertexMaps(feModel, independentChains));
-        AddShapeParentDefaultClothNodes(softbodyChildren, feModel);
+        var folderFor = ClothVertexMapFolders(feModel, clothFolderChildren);
 
-        rootChildren.Add(softbody);
-        AddClothAntiTunnelProbes(rootChildren, feModel, proxyNodeNameMap);
+        foreach (var (name, node) in nodes.LoneClothNodes)
+        {
+            if (LoneClothNodeIsOriginalRoot(feModel, node))
+            {
+                clothFolderChildren.Add(MakeLoneJointChain(feModel, name, node, hasOtherChains));
+            }
+            else
+            {
+                folderFor(node, true).Add(MakeClothNode(feModel, name, node, proxyNodeNames: proxyNodeNames));
+            }
+        }
 
-        return true;
+        foreach (var (name, node) in nodes.LeftoverStaticNodes)
+        {
+            folderFor(node, true).Add(MakeClothNode(feModel, name, node, isStaticNode: true,
+                proxyNodeNames: proxyNodeNames));
+        }
+
+        foreach (var (name, node) in nodes.UnregisteredNodes)
+        {
+            clothFolderChildren.Add(MakeClothNode(feModel, name, node,
+                isStaticNode: feModel.IsStatic(node), proxyNodeNames: proxyNodeNames));
+        }
+
+        foreach (var (rootBone, node, elementName, origin, angles) in nodes.UnregisteredFreeNodes)
+        {
+            clothFolderChildren.Add(MakeClothNode(feModel, rootBone, node,
+                isStaticNode: feModel.IsStatic(node), elementName: elementName, origin: origin, angles: angles,
+                proxyNodeNames: proxyNodeNames));
+        }
+
+        AddClothFaces(clothFolderChildren, feModel);
+        AddClothStiffHinges(softbodyChildren, feModel);
     }
 }
