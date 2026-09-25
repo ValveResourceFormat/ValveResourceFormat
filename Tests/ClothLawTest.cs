@@ -11021,5 +11021,55 @@ namespace Tests
                 await Assert.That(Vector3.Distance(nested.Culled.Transform.Position, new Vector3(4f, 0f, 0f))).IsLessThan(1e-4f);
             }
         }
+
+        /// <summary>
+        /// A rope run that carries on past a joint owning an end-effector centre is no chain link: the rope pass walks
+        /// <c>m_SkelParents</c> to the root without stopping at a chain, and only a declaration's last joint owns a centre.
+        /// CONTROL: the same run with no centre on the joint still links through the rope.
+        /// </summary>
+        /// <remarks>
+        /// MEASURED 2026-09-25: dota <c>demon_head</c>'s runs start at <c>hair_R2C0</c> (a leaf with
+        /// <c>$cchair_R2C0_Ctr</c>) and walk into three chains it is only the skeleton parent of. Over the 2825 pak and dl
+        /// originals and 544 synth rows it is the one document the rule changes.
+        /// </remarks>
+        [Test]
+        public async Task ARopeRunPastAnEndEffectorCentreIsNoChainLink()
+        {
+            static bool Joined(bool centre) => SyntheticCloth.Parse($$"""
+                {
+                    m_CtrlName = [ "w0", "w1", "w2", "k1", {{(centre ? "\"$ccw2_Ctr\"" : "\"k2\"")}} ]
+                    m_SkelParents = [ -1, 0, 1, 2, {{(centre ? "2" : "-1")}} ]
+                    m_nNodeCount = 5
+                    m_nStaticNodes = 1
+                    m_nFirstPositionDrivenNode = 5
+                    m_NodeInvMasses = [ 0.0, 1.0, 1.0, 1.0, 1.0 ]
+                    m_InitPose =
+                    [
+                        {{SyntheticCloth.Pose(0f, 0f, 0f)}}
+                        {{SyntheticCloth.Pose(0f, 0f, -10f)}}
+                        {{SyntheticCloth.Pose(0f, 0f, -20f)}}
+                        {{SyntheticCloth.Pose(0f, 0f, -30f)}}
+                        {{SyntheticCloth.Pose(0f, 5f, -20f)}}
+                    ]
+                    m_Rods =
+                    [
+                        {{SyntheticCloth.RigidRod(0, 1, 10f, 1f)}}
+                        {{SyntheticCloth.RigidRod(1, 2, 10f, 1f)}}
+                    ]
+                    m_nRopeCount = 1
+                    m_Ropes = [ 3, 2, 3 ]
+                }
+                """).BuildBoneChains().Exists(chain => chain.Joints.Exists(static j => j.Name == "w2")
+                    && chain.Joints.Exists(static j => j.Name == "k1"));
+
+            using (Assert.Multiple())
+            {
+                // CONTROL: no centre, so the run's link is the chain's.
+                await Assert.That(Joined(centre: false)).IsTrue();
+
+                // THE LAW.
+                await Assert.That(Joined(centre: true)).IsFalse();
+            }
+        }
     }
 }

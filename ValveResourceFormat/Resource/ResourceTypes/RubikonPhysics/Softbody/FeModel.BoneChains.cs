@@ -1301,8 +1301,11 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
             }
 
             // A compile that records m_SkelParents ropes chain joints only, so each link of its m_Ropes runs is a
-            // chain link, rod or not: a chain declared with no stretch spring leaves no rod between its joints.
+            // chain link, rod or not: a chain declared with no stretch spring leaves no rod between its joints. The
+            // rope pass walks m_SkelParents to the root without stopping at a chain, though, so a run carries on past a
+            // joint that owns an end-effector centre, which only a declaration's last joint can.
             var ropeParents = HasCompiledSkelParents ? RopeRunParents : new Dictionary<int, int>();
+            bool EndsItsChain(int node) => Array.IndexOf(CtrlNames, "$cc" + CtrlNames[node] + "_Ctr") >= 0;
 
             var realParent = new int[n];
             var children = new List<int>?[n];
@@ -1381,7 +1384,7 @@ namespace ValveResourceFormat.ResourceTypes.RubikonPhysics.Softbody
                     }
                 }
 
-                var ropeLinked = ropeParents.TryGetValue(i, out var ropeParent) && ropeParent == p;
+                var ropeLinked = ropeParents.TryGetValue(i, out var ropeParent) && ropeParent == p && !EndsItsChain(p);
 
                 // Only a chain's twist builder writes a twist between two bones, and only across a joint's
                 // link to its parent.
